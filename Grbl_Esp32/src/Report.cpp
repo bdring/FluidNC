@@ -897,3 +897,6 @@ float* get_wco() {
     }
     return wco;
 }
+
+const char* dataBeginMarker = "[MSG: BeginData]\n";
+const char* dataEndMarker   = "[MSG: EndData]\n";

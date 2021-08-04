@@ -498,11 +498,13 @@ Error motor_disable(const char* value, WebUI::AuthenticationLevel auth_level, We
 }
 
 Error dump_config(const char* value, WebUI::AuthenticationLevel auth_level, WebUI::ESPResponseStream* out) {
+    grbl_send(CLIENT_ALL, dataBeginMarker);
     try {
         ClientStream             ss(CLIENT_ALL);
         Configuration::Generator generator(ss);
         config->group(generator);
     } catch (std::exception& ex) { log_info("Config dump error: " << ex.what()); }
+    grbl_send(CLIENT_ALL, dataEndMarker);
     return Error::Ok;
 }
 
