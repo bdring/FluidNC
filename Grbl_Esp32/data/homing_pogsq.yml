@@ -45,6 +45,9 @@ axes:
     max_rate: 2000
     acceleration: 25
     max_travel: 10
+    endstops:
+      limit_neg: gpio.4:low:pu
+      hard_limits: false
     homing:
       cycle: 2
       mpos: 10
@@ -55,16 +58,10 @@ axes:
       pulloff: 1.00
 
     gang0:
-      endstops:
-        limit_neg: gpio.4:low:pu
-        hard_limits: false
       stepstick:
         direction: gpio.15
         step: gpio.26
     gang1:
-      endstops:
-        limit_neg: gpio.16:low:pu
-        hard_limits: false
       stepstick:
         direction: gpio.33
         step: gpio.27

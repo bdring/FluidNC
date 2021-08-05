@@ -26,6 +26,7 @@ namespace Machine {
         static uint32_t  plan_move(MotorMask motors, bool approach, bool seek);
         static void      run(MotorMask remainingMotors, bool approach, bool seek);
         static bool      squaredOneSwitch(MotorMask motors);
+        static bool      squaredStressfree(MotorMask motors);
         static void      set_mpos(AxisMask axisMask);
         static void      run_one_cycle(AxisMask axisMask);
         static const int REPORT_LINE_NUMBER = 0;
