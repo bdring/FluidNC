@@ -139,3 +139,6 @@ float* get_wco();
 void   mpos_to_wpos(float* position);
 
 void addPinReport(char* status, char pinLetter);
+
+extern const char* dataBeginMarker;
+extern const char* dataEndMarker;
