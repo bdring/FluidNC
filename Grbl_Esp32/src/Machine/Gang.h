@@ -38,6 +38,7 @@ namespace Machine {
 
         Motors::Motor* _motor    = nullptr;
         Endstops*      _endstops = nullptr;
+        float          _pulloff  = 1.0f;  // mm
 
         // Configuration system helpers:
         void group(Configuration::HandlerBase& handler) override;

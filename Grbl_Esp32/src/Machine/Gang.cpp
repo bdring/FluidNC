@@ -27,6 +27,7 @@
 namespace Machine {
     void Gang::group(Configuration::HandlerBase& handler) {
         handler.section("endstops", _endstops, _axis, _gang);
+        handler.item("pulloff", _pulloff);
         Motors::MotorFactory::factory(handler, _motor);
     }
 

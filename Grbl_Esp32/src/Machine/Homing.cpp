@@ -73,7 +73,7 @@ namespace Machine {
             // in computing the aggregate feed rate.
             rate += (axis_rate * axis_rate);
 
-            float travel = seek ? axisConfig->_maxTravel : axisConfig->_homing->_pulloff;
+            float travel = seek ? axisConfig->_maxTravel : axisConfig->_gangs[0]->_pulloff;
 
             // First we compute the maximum-time-to-completion vector; later we will
             // convert it back to positions after we determine the limiting axis.
@@ -268,7 +268,7 @@ namespace Machine {
 
             if (bitnum_is_true(axisMask, axis)) {
                 auto mpos    = homing->_mpos;
-                auto pulloff = homing->_pulloff;
+                auto pulloff = axisConf->_gangs[0]->_pulloff;
                 auto steps   = axisConf->_stepsPerMm;
 
                 mpos += homing->_positiveDirection ? -pulloff : pulloff;

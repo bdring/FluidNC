@@ -14,14 +14,13 @@ namespace Machine {
         handler.section("endstops", _endstops, _axis, -1);
         handler.section("homing", _homing);
 
-        char tmp[6];
+        char tmp[7];
         tmp[0] = 0;
-        strcat(tmp, "gang");
+        strcat(tmp, "motor");
 
         for (size_t g = 0; g < MAX_NUMBER_GANGED; ++g) {
-            tmp[4] = char(g + '0');
-            tmp[5] = '\0';
-
+            tmp[5] = char(g + '0');
+            tmp[6] = '\0';
             handler.section(tmp, _gangs[g], _axis, g);
         }
     }

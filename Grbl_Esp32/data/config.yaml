@@ -27,17 +27,18 @@ axes:
       feed_rate: 100.000
       seek_rate: 200.000
       debounce_ms: 500
-      pulloff: 1.000
       square: false
     
-    gang0:
+    motor0:
       endstops:
         limit_pos: gpio.17:low:pu
         hard_limits: false
+      pulloff: 1.000
       stepstick:
         direction: gpio.14
         step: gpio.12
-    gang1:
+
+    motor1:
       null_motor:
 
   y:
@@ -48,23 +49,24 @@ axes:
     homing:
       cycle: 2
       mpos: 10
-      positive_direction: true
+      positive_direction: false
       feed_rate: 50.000
       seek_rate: 200.000
       debounce_ms: 500
-      pulloff: 1.00
 
-    gang0:
+    motor0:
       endstops:
         limit_neg: gpio.4:low:pu
-        hard_limits: false
+        hard_limits: false  
+      pulloff: 1.00
       stepstick:
         direction: gpio.15
         step: gpio.26
-    gang1:
+    motor1:
       endstops:
         limit_neg: gpio.16:low:pu
         hard_limits: false
+      pulloff: 1.00
       stepstick:
         direction: gpio.33
         step: gpio.27
