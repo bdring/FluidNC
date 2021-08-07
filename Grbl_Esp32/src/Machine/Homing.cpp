@@ -276,17 +276,11 @@ namespace Machine {
                 auto pulloff = homing->_pulloff;
                 auto steps   = axisConf->_stepsPerMm;
 
-                // if (endstop) {
-                //     auto pulloff = endstop->_pulloff;
-                // } else {
-                //     auto pulloff = axisConf->_gangs[0]->_endstops->_pulloff;
-                // }
-
-                //auto steps = axisConf->_stepsPerMm;
+            
                 if (homing->_positiveDirection) {
-                    sys_position[axis] = int32_t((mpos + pulloff) * steps);
-                } else {
                     sys_position[axis] = int32_t((mpos - pulloff) * steps);
+                } else {
+                    sys_position[axis] = int32_t((mpos + pulloff) * steps);
                 }
             }
         }

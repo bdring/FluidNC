@@ -19,11 +19,11 @@ axes:
     steps_per_mm: 800
     max_rate: 5000
     acceleration: 100
-    max_travel: 10
+    max_travel: 300
     homing:
       cycle: 1
-      mpos: 10
-      positive_direction: true
+      mpos: 150
+      positive_direction: false
       feed_rate: 100.000
       seek_rate: 200.000
       debounce_ms: 500
@@ -44,11 +44,11 @@ axes:
     steps_per_mm: 800
     max_rate: 2000
     acceleration: 25
-    max_travel: 10
+    max_travel: 300
     homing:
       cycle: 2
       mpos: 10
-      positive_direction: false
+      positive_direction: true
       feed_rate: 50.000
       seek_rate: 200.000
       debounce_ms: 500
