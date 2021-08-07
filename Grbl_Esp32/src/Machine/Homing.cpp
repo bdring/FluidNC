@@ -73,12 +73,7 @@ namespace Machine {
             // in computing the aggregate feed rate.
             rate += (axis_rate * axis_rate);
 
-            float travel;
-            if (seek) {
-                travel = axisConfig->_maxTravel;
-            } else {
-                travel = axisConfig->_homing->_pulloff;
-            }
+            float travel = seek ? axisConfig->_maxTravel : axisConfig->_homing->_pulloff;
 
             // First we compute the maximum-time-to-completion vector; later we will
             // convert it back to positions after we determine the limiting axis.
@@ -195,9 +190,10 @@ namespace Machine {
             if (bitnum_is_false(squaredAxes, axis)) {
                 continue;
             }
-            auto               axisConfig = axes->_axis[axis];
-            Machine::Endstops* endstop    = axisConfig->_endstops;
-            if (endstop) {
+
+            // Hey Bart!  This code will have to change if axis level endstops disappear
+
+            if (axes->_axis[axis]->_endstops) {
                 // Shared endstop on squared axis
                 return true;
             }
@@ -222,21 +218,21 @@ namespace Machine {
             if (bitnum_is_false(squaredAxes, axis)) {
                 continue;
             }
-            auto               axisConfig = axes->_axis[axis];
-            Machine::Endstops* endstop    = axisConfig->_endstops;
-            if (endstop) {
+
+            // Hey Bart!  This code will have to change if axis level endstops disappear
+
+            auto axisConfig = axes->_axis[axis];
+            if (axisConfig->_endstops) {
                 // Shared endstop on squared axis
                 return false;
             }
 
             // check to see if at least one side is missing a switch
-            endstop = axisConfig->_gangs[0]->_endstops;
-            if (!endstop) {
+            if (!axisConfig->_gangs[0]->_endstops) {
                 // Missing endstop on gang 0
                 return false;
             }
-            endstop = axisConfig->_gangs[1]->_endstops;
-            if (!endstop) {
+            if (!axisConfig->_gangs[1]->_endstops) {
                 // Missing endstop on gang 1
                 return false;
             }
@@ -269,19 +265,14 @@ namespace Machine {
         for (int axis = 0; axis < n_axis; axis++) {
             Machine::Axis* axisConf = config->_axes->_axis[axis];
             auto           homing   = axisConf->_homing;
-            auto           endstop  = axisConf->_endstops;
 
             if (bitnum_is_true(axisMask, axis)) {
                 auto mpos    = homing->_mpos;
                 auto pulloff = homing->_pulloff;
                 auto steps   = axisConf->_stepsPerMm;
 
-            
-                if (homing->_positiveDirection) {
-                    sys_position[axis] = int32_t((mpos - pulloff) * steps);
-                } else {
-                    sys_position[axis] = int32_t((mpos + pulloff) * steps);
-                }
+                mpos += homing->_positiveDirection ? -pulloff : pulloff;
+                sys_position[axis] = int32_t(mpos * steps);
             }
         }
         sys.step_control = {};                            // Return step control to normal operation.
