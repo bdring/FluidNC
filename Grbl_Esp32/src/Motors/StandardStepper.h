@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Motor.h"
+#include "MotorDriver.h"
 
 #include <driver/rmt.h>
 

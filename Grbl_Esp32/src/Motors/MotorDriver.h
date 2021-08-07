@@ -7,7 +7,7 @@
 #include "../Configuration/Configurable.h"
 
 /*
-    Motor.h
+    MotorDriver.h
     Header file for Motor Classes
     Here is the hierarchy
         Motor

@@ -1,6 +1,6 @@
 #include "Axes.h"
 
-#include "../Motors/Motor.h"
+#include "../Motors/MotorDriver.h"
 #include "../Motors/NullMotor.h"
 #include "../NutsBolts.h"
 #include "../MotionControl.h"

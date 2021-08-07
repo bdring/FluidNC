@@ -79,8 +79,7 @@
     <ClInclude Include="Grbl_Esp32\src\Machine\Axes.h" />
     <ClInclude Include="Grbl_Esp32\src\Machine\Axis.h" />
     <ClInclude Include="Grbl_Esp32\src\Machine\Communications.h" />
-    <ClInclude Include="Grbl_Esp32\src\Machine\Endstops.h" />
-    <ClInclude Include="Grbl_Esp32\src\Machine\Gang.h" />
+    <ClInclude Include="Grbl_Esp32\src\Machine\Motor.h" />
     <ClInclude Include="Grbl_Esp32\src\Machine\Homing.h" />
     <ClInclude Include="Grbl_Esp32\src\Machine\I2SOBus.h" />
     <ClInclude Include="Grbl_Esp32\src\Machine\LimitPin.h" />

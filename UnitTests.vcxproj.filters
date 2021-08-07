@@ -153,9 +153,6 @@
     <ClInclude Include="Grbl_Esp32\src\Probe.h">
       <Filter>src</Filter>
     </ClInclude>
-    <ClInclude Include="Grbl_Esp32\src\Machine\Endstops.h">
-      <Filter>src\Machine</Filter>
-    </ClInclude>
     <ClInclude Include="Grbl_Esp32\src\Motors\Dynamixel2.h">
       <Filter>src\Motors</Filter>
     </ClInclude>
@@ -438,7 +435,7 @@
     <ClInclude Include="Grbl_Esp32\src\Spindles\VFDSpindle.h">
       <Filter>src\Spindles</Filter>
     </ClInclude>
-    <ClInclude Include="Grbl_Esp32\src\Machine\Gang.h">
+    <ClInclude Include="Grbl_Esp32\src\Machine\Motor.h">
       <Filter>src\Machine</Filter>
     </ClInclude>
     <ClInclude Include="X86TestSupport\esp_err.h">

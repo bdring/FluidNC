@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Motor.h"
+#include "MotorDriver.h"
 
 namespace Motors {
     class Nullmotor : public Motor {

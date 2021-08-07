@@ -16,13 +16,12 @@
     along with Grbl_ESP32.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "Gang.h"
+#include "Motor.h"
 
 #include "../Config.h"
-#include "../Motors/Motor.h"
+#include "../Motors/MotorDriver.h"
 #include "../Motors/NullMotor.h"
 #include "Axes.h"
-#include "Endstops.h"
 
 namespace Machine {
     void Gang::group(Configuration::HandlerBase& handler) {

@@ -7,7 +7,6 @@
 #include "../Report.h"         // CLIENT_
 #include "../Protocol.h"       // protocol_execute_realtime
 #include "../Machine/Axes.h"
-#include "../Machine/Endstops.h"
 #include "../Machine/MachineConfig.h"  // config
 
 namespace Machine {

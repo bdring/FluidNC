@@ -1,5 +1,5 @@
 /*
-    Motor.cpp
+    MotorDriver.cpp
     Part of Grbl_ESP32
     2020 -	Bart Dring
     Grbl is free software: you can redistribute it and/or modify
@@ -30,7 +30,7 @@
         TMC2130 Datasheet https://www.trinamic.com/fileadmin/assets/Products/ICs_Documents/TMC2130_datasheet.pdf
 */
 
-#include "Motor.h"
+#include "MotorDriver.h"
 
 #include "../Machine/MachineConfig.h"
 #include "../Limits.h"  // limitsMinPosition

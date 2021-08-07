@@ -20,9 +20,8 @@
 
 #include "../Configuration/Configurable.h"
 // #include "Axes.h"
-#include "Gang.h"
+#include "Motor.h"
 #include "Homing.h"
-#include "Endstops.h"
 
 namespace Motors {
     class Motor;
