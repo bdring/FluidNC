@@ -46,6 +46,5 @@ namespace Machine {
         handler.item("limit_pos", _posPin);
         handler.item("limit_all", _allPin);
         handler.item("hard_limits", _hardLimits);
-        handler.item("pulloff", _pulloff);
     }
 }

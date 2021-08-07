@@ -56,9 +56,10 @@ void limits_init() {
     }
 }
 
-// Returns limit state as a bit-wise uint8 variable. Each bit indicates an axis limit, where
+// Returns limit state as a bit-wise uint32 variable. Each bit indicates an axis limit, where
 // triggered is 1 and not triggered is 0. Invert mask is applied. Axes are defined by their
 // number in bit position, i.e. Z_AXIS is bitnum_to_mask(2), and Y_AXIS is bitnum_to_mask(1).
+// The lower 16 bits are used for gang0 and the upper 16 bits are used for gang1 switches
 MotorMask limits_get_state() {
     return Machine::Axes::posLimitMask | Machine::Axes::negLimitMask;
 }
@@ -115,7 +116,8 @@ float limitsMaxPosition(uint8_t axis) {
     float mpos       = (homing != nullptr) ? homing->_mpos : 0;
     auto  maxtravel  = axisConfig->_maxTravel;
 
-    return (homing == nullptr || homing->_positiveDirection) ? mpos + maxtravel : mpos;
+    //return (homing == nullptr || homing->_positiveDirection) ? mpos + maxtravel : mpos;
+    return (homing == nullptr || homing->_positiveDirection) ? mpos : mpos + maxtravel;
 }
 
 float limitsMinPosition(uint8_t axis) {
@@ -124,7 +126,8 @@ float limitsMinPosition(uint8_t axis) {
     float mpos       = (homing != nullptr) ? homing->_mpos : 0;
     auto  maxtravel  = axisConfig->_maxTravel;
 
-    return (homing == nullptr || homing->_positiveDirection) ? mpos : mpos - maxtravel;
+    //return (homing == nullptr || homing->_positiveDirection) ? mpos : mpos - maxtravel;
+    return (homing == nullptr || homing->_positiveDirection) ? mpos - maxtravel : mpos;
 }
 
 // Checks and reports if target array exceeds machine travel limits.

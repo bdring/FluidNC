@@ -19,11 +19,11 @@ axes:
     steps_per_mm: 800
     max_rate: 5000
     acceleration: 100
-    max_travel: 300
+    max_travel: 10
     homing:
       cycle: 1
-      mpos: 150
-      positive_direction: false
+      mpos: 10
+      positive_direction: true
       feed_rate: 100.000
       seek_rate: 200.000
       debounce_ms: 500
@@ -44,27 +44,24 @@ axes:
     steps_per_mm: 800
     max_rate: 2000
     acceleration: 25
-    max_travel: 300
+    max_travel: 10
+    endstops:
+      limit_neg: gpio.4:low:pu
+      hard_limits: false
     homing:
       cycle: 2
       mpos: 10
-      positive_direction: true
+      positive_direction: false
       feed_rate: 50.000
       seek_rate: 200.000
       debounce_ms: 500
       pulloff: 1.00
 
     gang0:
-      endstops:
-        limit_neg: gpio.4:low:pu
-        hard_limits: false
       stepstick:
         direction: gpio.15
         step: gpio.26
     gang1:
-      endstops:
-        limit_neg: gpio.16:low:pu
-        hard_limits: false
       stepstick:
         direction: gpio.33
         step: gpio.27

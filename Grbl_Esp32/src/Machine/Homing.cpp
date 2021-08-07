@@ -77,18 +77,7 @@ namespace Machine {
             if (seek) {
                 travel = axisConfig->_maxTravel;
             } else {
-                Machine::Endstops* endstop = axisConfig->_endstops;
-                if (endstop) {
-                    travel = endstop->_pulloff;
-                } else {
-                    travel = 0.0f;
-                    if (bitnum_is_true(motors, axis)) {
-                        travel = axisConfig->_gangs[0]->_endstops->_pulloff;
-                    }
-                    if (bitnum_is_true(motors, axis + 16)) {
-                        travel = std::max(travel, axisConfig->_gangs[1]->_endstops->_pulloff);
-                    }
-                }
+                travel = axisConfig->_homing->_pulloff;
             }
 
             // First we compute the maximum-time-to-completion vector; later we will
@@ -191,8 +180,8 @@ namespace Machine {
         delay_ms(settling_ms);  // Delay to allow transient dynamics to dissipate.
     }
 
-    // If there is a squared axis with only one limit switch, we must perform
-    // an approximate squaring cycle that could leave the axis slightly racked.
+    // This homing mode is the POG style squaring
+    // For this you can only have switches defined at the axis level
     bool Homing::squaredOneSwitch(MotorMask motors) {
         AxisMask squaredAxes = motors & (motors >> 16);
         if (squaredAxes == 0) {
@@ -212,21 +201,47 @@ namespace Machine {
                 // Shared endstop on squared axis
                 return true;
             }
-            // check to see if at least one side is missing a switch
-            endstop = axisConfig->_gangs[0]->_endstops;
-            if (!endstop) {
-                // Missing endstop on gang 0
-                return true;
-            }
-            endstop = axisConfig->_gangs[1]->_endstops;
-            if (!endstop) {
-                // Missing endstop on gang 1
-                return true;
-            }
         }
         // If we get here, all of the squared axes in this cycle have separate
         // limit switches.
         return false;
+    }
+
+    // This homing mode never forces the machine out of square
+    // This requires independent switches on each gang.
+    bool Homing::squaredStressfree(MotorMask motors) {
+        AxisMask squaredAxes = motors & (motors >> 16);
+        if (squaredAxes == 0) {
+            // No axis has multiple motors
+            return false;
+        }
+
+        auto axes   = config->_axes;
+        auto n_axis = axes->_numberAxis;
+        for (int axis = 0; axis < n_axis; axis++) {
+            if (bitnum_is_false(squaredAxes, axis)) {
+                continue;
+            }
+            auto               axisConfig = axes->_axis[axis];
+            Machine::Endstops* endstop    = axisConfig->_endstops;
+            if (endstop) {
+                // Shared endstop on squared axis
+                return false;
+            }
+
+            // check to see if at least one side is missing a switch
+            endstop = axisConfig->_gangs[0]->_endstops;
+            if (!endstop) {
+                // Missing endstop on gang 0
+                return false;
+            }
+            endstop = axisConfig->_gangs[1]->_endstops;
+            if (!endstop) {
+                // Missing endstop on gang 1
+                return false;
+            }
+        }
+        return true;
     }
 
     // Homes the specified cycle axes, sets the machine position, and performs a pull-off motion after
@@ -254,14 +269,18 @@ namespace Machine {
         for (int axis = 0; axis < n_axis; axis++) {
             Machine::Axis* axisConf = config->_axes->_axis[axis];
             auto           homing   = axisConf->_homing;
+            auto           endstop  = axisConf->_endstops;
+
             if (bitnum_is_true(axisMask, axis)) {
                 auto mpos    = homing->_mpos;
                 auto pulloff = homing->_pulloff;
                 auto steps   = axisConf->_stepsPerMm;
+
+            
                 if (homing->_positiveDirection) {
-                    sys_position[axis] = int32_t((mpos + pulloff) * steps);
-                } else {
                     sys_position[axis] = int32_t((mpos - pulloff) * steps);
+                } else {
+                    sys_position[axis] = int32_t((mpos + pulloff) * steps);
                 }
             }
         }
@@ -277,10 +296,15 @@ namespace Machine {
             run(motors, true, true);    // Approach fast
             run(motors, false, false);  // Pulloff
             if (squaredOneSwitch(motors)) {
+                //log_info("POG Squaring");
                 run(motors & GANG0, true, false);   // Approach slowly
                 run(motors & GANG0, false, false);  // Pulloff
                 run(motors & GANG1, true, false);   // Approach slowly
                 run(motors & GANG1, false, false);  // Pulloff
+            } else if (squaredStressfree(motors)) {
+                //log_info("Stress Free Squaring");
+                run(motors, true, false);   // Approach fast
+                run(motors, false, false);  // Pulloff
             } else {
                 for (int i = 0; i < NHomingLocateCycle; i++) {
                     run(motors, true, false);   // Approach slowly

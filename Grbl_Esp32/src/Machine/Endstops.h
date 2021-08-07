@@ -32,11 +32,10 @@ namespace Machine {
     public:
         Endstops(int axis, int gang);
 
-        Pin   _negPin;
-        Pin   _posPin;
-        Pin   _allPin;
-        bool  _hardLimits = true;
-        float _pulloff    = 1.0f;  // mm
+        Pin  _negPin;
+        Pin  _posPin;
+        Pin  _allPin;
+        bool _hardLimits = true;
 
         void init();
 

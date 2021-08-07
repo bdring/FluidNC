@@ -625,7 +625,7 @@ void report_realtime_status(uint8_t client) {
     }
     sprintf(temp, "|FS:%.0f,%d", rate, sys.spindle_speed);
     strcat(status, temp);
-    AxisMask    lim_pin_state   = limits_get_state();
+    MotorMask   lim_pin_state   = limits_get_state();
     bool        prb_pin_state   = config->_probe->get_state();
     const char* pinReportPrefix = "|Pn:";
 
@@ -640,7 +640,7 @@ void report_realtime_status(uint8_t client) {
     if (lim_pin_state) {
         auto n_axis = config->_axes->_numberAxis;
         for (int i = 0; i < n_axis; i++) {
-            if (bits_are_true(lim_pin_state, bitnum_to_mask(i))) {
+            if (bitnum_is_true(lim_pin_state, i) || bitnum_is_true(lim_pin_state, i + 16)) {
                 addPinReport(status, config->_axes->axisName(i));
             }
         }
