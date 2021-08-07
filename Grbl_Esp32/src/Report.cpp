@@ -281,15 +281,9 @@ std::map<Message, const char*> MessageText = {
 // NOTE: For interfaces, messages are always placed within brackets. And if silent mode
 // is installed, the message number codes are less than zero.
 void report_feedback_message(Message message) {  // ok to send to all clients
-    if (message == Message::SdFileQuit) {
-        grbl_notifyf("SD print canceled", "Reset during SD file at line: %d", config->_sdCard->lineNumber());
-        log_info("Reset during SD file at line: " << config->_sdCard->lineNumber());
-
-    } else {
-        auto it = MessageText.find(message);
-        if (it != MessageText.end()) {
-            log_info(it->second);
-        }
+    auto it = MessageText.find(message);
+    if (it != MessageText.end()) {
+        log_info(it->second);
     }
 }
 

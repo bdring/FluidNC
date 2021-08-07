@@ -504,7 +504,7 @@ Error dump_config(const char* value, WebUI::AuthenticationLevel auth_level, WebU
         Configuration::Generator generator(ss);
         config->group(generator);
     } catch (std::exception& ex) { log_info("Config dump error: " << ex.what()); }
-    grbl_send(CLIENT_ALL, dataEndMarker);
+    grbl_send(out->client(), dataEndMarker);
     return Error::Ok;
 }
 

@@ -441,7 +441,11 @@ void mc_reset() {
         // do we need to stop a running SD job?
         if (config->_sdCard->get_state(false) == SDCard::State::BusyPrinting) {
             //Report print stopped
-            report_feedback_message(Message::SdFileQuit);
+            grbl_notifyf("SD print canceled", "Reset during SD file at line: %d", config->_sdCard->lineNumber());
+            // log_info() does not work well in this case because the message gets broken in half
+            // by report_init_message().  The flow of control that causes it is obscure.
+            info_client(CLIENT_ALL, "Reset during SD file at line: %d", config->_sdCard->lineNumber());
+
             config->_sdCard->closeFile();
         }
 

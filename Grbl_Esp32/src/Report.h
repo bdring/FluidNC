@@ -71,6 +71,7 @@ enum class Message : uint8_t {
 // functions to send data to the user.
 void grbl_send(uint8_t client, const char* text);
 void grbl_sendf(uint8_t client, const char* format, ...);
+void info_client(uint8_t client, const char* format, ...);
 
 //function to notify
 void grbl_notify(const char* title, const char* msg);
