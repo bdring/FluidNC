@@ -1,6 +1,5 @@
 name: "ESP32 Dev Controller V4"
 board: "ESP32 Dev Controller V4"
-yaml_wiki: "https://github.com/bdring/Grbl_Esp32/wiki/YAML-Config-File"
 
 stepping:
   engine: RMT
@@ -27,12 +26,10 @@ axes:
       feed_rate: 100.000
       seek_rate: 200.000
       debounce_ms: 500
-      square: false
     
     motor0:
-      endstops:
-        limit_pos: gpio.17:low:pu
-        hard_limits: false
+      limit_pos: gpio.17:low:pu
+      hard_limits: false
       pulloff: 1.000
       stepstick:
         direction: gpio.14
@@ -55,17 +52,15 @@ axes:
       debounce_ms: 500
 
     motor0:
-      endstops:
-        limit_neg: gpio.4:low:pu
-        hard_limits: false  
+      limit_neg: gpio.4:low:pu
+      hard_limits: false  
       pulloff: 1.00
       stepstick:
         direction: gpio.15
         step: gpio.26
     motor1:
-      endstops:
-        limit_neg: gpio.16:low:pu
-        hard_limits: false
+      limit_neg: gpio.16:low:pu
+      hard_limits: false
       pulloff: 1.00
       stepstick:
         direction: gpio.33

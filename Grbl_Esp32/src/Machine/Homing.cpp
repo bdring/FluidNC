@@ -191,10 +191,8 @@ namespace Machine {
                 continue;
             }
 
-            // Hey Bart!  This code will have to change if axis level endstops disappear
-
-            if (axes->_axis[axis]->_endstops) {
-                // Shared endstop on squared axis
+            // must only be one switch defined
+            if (axes->_axis[axis]->_gangs[0]->hasSwitches() != axes->_axis[axis]->_gangs[1]->hasSwitches()) {
                 return true;
             }
         }
@@ -219,24 +217,14 @@ namespace Machine {
                 continue;
             }
 
-            // Hey Bart!  This code will have to change if axis level endstops disappear
-
             auto axisConfig = axes->_axis[axis];
-            if (axisConfig->_endstops) {
-                // Shared endstop on squared axis
-                return false;
-            }
 
-            // check to see if at least one side is missing a switch
-            if (!axisConfig->_gangs[0]->_endstops) {
-                // Missing endstop on gang 0
-                return false;
-            }
-            if (!axisConfig->_gangs[1]->_endstops) {
-                // Missing endstop on gang 1
+            // check to see if one side is missing a switch
+            if (!axisConfig->_gangs[0]->hasSwitches() || !axisConfig->_gangs[01]->hasSwitches()) {
                 return false;
             }
         }
+
         return true;
     }
 

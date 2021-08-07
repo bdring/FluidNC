@@ -41,9 +41,8 @@ namespace Machine {
 
         static const int MAX_NUMBER_GANGED = 2;
 
-        Gang*     _gangs[MAX_NUMBER_GANGED];
-        Homing*   _homing   = nullptr;
-        Endstops* _endstops = nullptr;
+        Gang*   _gangs[MAX_NUMBER_GANGED];
+        Homing* _homing = nullptr;
 
         float _stepsPerMm   = 320.0f;
         float _maxRate      = 1000.0f;

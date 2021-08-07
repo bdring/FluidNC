@@ -10,8 +10,6 @@ namespace Machine {
         handler.item("acceleration", _acceleration);
         handler.item("max_travel", _maxTravel);
         handler.item("soft_limits", _softLimits);
-
-        handler.section("endstops", _endstops, _axis, -1);
         handler.section("homing", _homing);
 
         char tmp[7];
@@ -40,9 +38,6 @@ namespace Machine {
         if (_homing) {
             _homing->init();
             set_bitnum(Axes::homingMask, _axis);
-        }
-        if (_endstops) {
-            _endstops->init();
         }
     }
 

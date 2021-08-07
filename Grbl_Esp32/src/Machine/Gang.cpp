@@ -26,7 +26,13 @@
 
 namespace Machine {
     void Gang::group(Configuration::HandlerBase& handler) {
-        handler.section("endstops", _endstops, _axis, _gang);
+        _negLimitPin = new LimitPin(_negPin, _axis, _gang, -1, _hardLimits);
+        _posLimitPin = new LimitPin(_posPin, _axis, _gang, 1, _hardLimits);
+        _allLimitPin = new LimitPin(_allPin, _axis, _gang, 0, _hardLimits);
+        handler.item("limit_neg", _negPin);
+        handler.item("limit_pos", _posPin);
+        handler.item("limit_all", _allPin);
+        handler.item("hard_limits", _hardLimits);
         handler.item("pulloff", _pulloff);
         Motors::MotorFactory::factory(handler, _motor);
     }
@@ -42,13 +48,13 @@ namespace Machine {
             set_bitnum(Machine::Axes::motorMask, _axis + 16 * _gang);
         }
         _motor->init();
-        if (_endstops) {
-            _endstops->init();
-        }
+
+        _negLimitPin->init();
+        _posLimitPin->init();
+        _allLimitPin->init();
     }
 
-    Gang::~Gang() {
-        delete _motor;
-        delete _endstops;
-    }
+    bool Gang::hasSwitches() { return (_negPin.defined() || _negPin.defined() || _negPin.defined()); }
+
+    Gang::~Gang() { delete _motor; }
 }

@@ -68,14 +68,11 @@ namespace Machine {
 
         inline bool hasHardLimits() const {
             for (int axis = 0; axis < _numberAxis; ++axis) {
-                auto a  = _axis[axis];
-                auto ae = a->_endstops;
-                if (ae && ae->_hardLimits) {
-                    return true;
-                }
+                auto a = _axis[axis];
+
                 for (int gang = 0; gang < Axis::MAX_NUMBER_GANGED; ++gang) {
-                    auto ge = a->_gangs[gang]->_endstops;
-                    if (ge && ge->_hardLimits) {
+                    auto mot = a->_gangs[gang];
+                    if (mot && mot->_hardLimits) {
                         return true;
                     }
                 }
@@ -90,7 +87,7 @@ namespace Machine {
         // These are used during homing cycles.
         // The return value is a bitmask of axes that can home
         MotorMask set_homing_mode(AxisMask homing_mask, bool isHoming);
-        void      unlock_all_motors();     
+        void      unlock_all_motors();
         void      lock_motors(MotorMask motor_mask);
         void      unlock_motors(MotorMask motor_mask);
 
