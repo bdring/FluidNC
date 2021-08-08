@@ -40,9 +40,8 @@ namespace Machine {
     }
 
     void IRAM_ATTR Axes::set_disable(int axis, bool disable) {
-        for (int motor_index = 0; motor_index < Axis::MAX_NUMBER_GANGED; motor_index++) {
-            auto a = _axis[axis]->_motors[motor_index]->_motor;
-            a->set_disable(disable);
+        for (int motor_index = 0; motor_index < Axis::MAX_MOTORS_PER_AXIS; motor_index++) {
+            _axis[axis]->_motors[motor_index]->_driver->set_disable(disable);
         }
 
         // invert only inverts the global stepper disable pin.
@@ -57,29 +56,6 @@ namespace Machine {
         _sharedStepperDisable.write(disable);
     }
 
-    void Axes::read_settings() {
-        //log_info("Read Settings");
-        for (uint8_t axis = X_AXIS; axis < _numberAxis; axis++) {
-            for (uint8_t motor_index = 0; motor_index < Axis::MAX_NUMBER_GANGED; motor_index++) {
-                auto a = _axis[axis];
-                if (!a) {
-                    log_info("No specification for axis " << axis);
-                    break;
-                }
-                auto g = a->_motors[motor_index];
-                if (!g) {
-                    log_info("No specification for axis " << axis << " motor " << motor_index);
-                    break;
-                }
-                auto m = g->_motor;
-                if (!m) {
-                    log_info("No motor for axis " << axis << " motor " << motor_index);
-                }
-                m->read_settings();
-            }
-        }
-    }
-
     // Put the motors in the given axes into homing mode, returning a
     // mask of which motors can do homing.
     MotorMask Axes::set_homing_mode(AxisMask axisMask, bool isHoming) {
@@ -90,8 +66,8 @@ namespace Machine {
             if (bitnum_is_true(axisMask, axis)) {
                 auto a = _axis[axis];
                 if (a != nullptr) {
-                    for (uint8_t motor = 0; motor < Axis::MAX_NUMBER_GANGED; motor++) {
-                        if (a->_motors[motor]->_motor->set_homing_mode(isHoming)) {
+                    for (uint8_t motor = 0; motor < Axis::MAX_MOTORS_PER_AXIS; motor++) {
+                        if (a->_motors[motor]->_driver->set_homing_mode(isHoming)) {
                             set_bitnum(motorsCanHome, motor * 16 + axis);
                         }
                     }
@@ -119,12 +95,8 @@ namespace Machine {
             for (int axis = X_AXIS; axis < n_axis; axis++) {
                 bool thisDir = bitnum_is_true(dir_mask, axis);
 
-                for (uint8_t motor_index = 0; motor_index < Axis::MAX_NUMBER_GANGED; motor_index++) {
-                    auto a = _axis[axis]->_motors[motor_index]->_motor;
-
-                    if (a != nullptr) {
-                        a->set_direction(thisDir);
-                    }
+                for (uint8_t motor_index = 0; motor_index < Axis::MAX_MOTORS_PER_AXIS; motor_index++) {
+                    _axis[axis]->_motors[motor_index]->_driver->set_direction(thisDir);
                 }
             }
             config->_stepping->waitDirection();
@@ -138,10 +110,10 @@ namespace Machine {
                 auto a = _axis[axis];
 
                 if (bitnum_is_false(_motorLockoutMask, axis)) {
-                    a->_motors[0]->_motor->step();
+                    a->_motors[0]->_driver->step();
                 }
                 if (bitnum_is_false(_motorLockoutMask, axis + 16)) {
-                    a->_motors[1]->_motor->step();
+                    a->_motors[1]->_driver->step();
                 }
             }
         }
@@ -152,8 +124,8 @@ namespace Machine {
         config->_stepping->waitPulse();
         auto n_axis = _numberAxis;
         for (uint8_t axis = X_AXIS; axis < n_axis; axis++) {
-            for (uint8_t motor_index = 0; motor_index < Axis::MAX_NUMBER_GANGED; motor_index++) {
-                auto a = _axis[axis]->_motors[motor_index]->_motor;
+            for (uint8_t motor_index = 0; motor_index < Axis::MAX_MOTORS_PER_AXIS; motor_index++) {
+                auto a = _axis[axis]->_motors[motor_index]->_driver;
                 a->unstep();
                 a->unstep();
             }
@@ -164,24 +136,24 @@ namespace Machine {
 
     // Some small helpers to find the axis index and axis motor index for a given motor. This
     // is helpful for some motors that need this info, as well as debug information.
-    size_t Axes::findAxisIndex(const MotorDrivers::MotorDriver* const motor) const {
+    size_t Axes::findAxisIndex(const MotorDrivers::MotorDriver* const driver) const {
         for (int i = 0; i < _numberAxis; ++i) {
-            for (int j = 0; j < Axis::MAX_NUMBER_GANGED; ++j) {
-                if (_axis[i] != nullptr && _axis[i]->hasMotor(motor)) {
+            for (int j = 0; j < Axis::MAX_MOTORS_PER_AXIS; ++j) {
+                if (_axis[i] != nullptr && _axis[i]->hasMotor(driver)) {
                     return i;
                 }
             }
         }
 
-        Assert(false, "Cannot find axis for motor. Something wonky is going on here...");
+        Assert(false, "Cannot find axis for motor driver.");
         return SIZE_MAX;
     }
 
-    size_t Axes::findAxisGanged(const MotorDrivers::MotorDriver* const motor) const {
+    size_t Axes::findAxisMotor(const MotorDrivers::MotorDriver* const driver) const {
         for (int i = 0; i < _numberAxis; ++i) {
-            if (_axis[i] != nullptr && _axis[i]->hasMotor(motor)) {
-                for (int j = 0; j < Axis::MAX_NUMBER_GANGED; ++j) {
-                    if (_axis[i]->_motors[j]->_motor == motor) {
+            if (_axis[i] != nullptr && _axis[i]->hasMotor(driver)) {
+                for (int j = 0; j < Axis::MAX_MOTORS_PER_AXIS; ++j) {
+                    if (_axis[i]->_motors[j]->_driver == driver) {
                         return j;
                     }
                 }

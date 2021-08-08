@@ -46,11 +46,6 @@ namespace MotorDrivers {
 
         static constexpr int      max_n_axis = MAX_N_AXIS;
         static constexpr uint32_t axis_mask  = (1 << max_n_axis) - 1;
-        static inline int         axisGangToMotor(int motor, int axis) { return (motor << max_n_axis) + axis; }
-        static inline void        motorToAxisGang(int& gang, int& axis, int motor) {
-            gang = motor >> max_n_axis;
-            axis = motor & ~axis_mask;
-        }
 
         // init() establishes configured motor parameters.  It is called after
         // all motor objects have been constructed.
@@ -64,9 +59,8 @@ namespace MotorDrivers {
         // the stallguard debugging problem.
         virtual void debug_message();
 
-        // read_settings(), called from init() and motors_read_settings(),
-        // re-establishes the motor configuration parameters that come
-        // from $ settings.
+        // read_settings(), called from init(), re-establishes the motor
+        // setup from configurable arameters.
         // TODO Architecture: Maybe this should be subsumed by init()
         virtual void read_settings() {}
 
@@ -123,8 +117,8 @@ namespace MotorDrivers {
         virtual void config_message() {}
 
         // _axis_index is the axis from XYZABC, while
-        // _dual_axis_index is 0 for the primary motor on that
-        // axis and 1 for the ganged motor.
+        // _dual_axis_index is 0 for the first motor on that
+        // axis and 1 for the second motor.
         // These variables are used for several purposes:
         // * Displaying the axis name in messages
         // * When reading settings, determining which setting
@@ -135,7 +129,7 @@ namespace MotorDrivers {
         // TODO Architecture: It might be useful to cache a
         // reference to the axis settings entry.
         uint8_t axis_index() const;       // X_AXIS, etc
-        uint8_t dual_axis_index() const;  // 0 = primary 1=ganged, etc
+        uint8_t dual_axis_index() const;  // motor number 0 or 1
     };
 
     using MotorFactory = Configuration::GenericFactory<MotorDriver>;

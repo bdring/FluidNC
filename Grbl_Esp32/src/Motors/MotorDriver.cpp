@@ -21,11 +21,11 @@
     Testing
         Done (success)
             3 Axis (3 Standard Steppers)
-            MPCNC (ganged with shared direction pin)
+            MPCNC (dual-motor axis with shared direction pin)
             TMC2130 Pen Laser (trinamics, stallguard tuning)
             Unipolar
         TODO
-            4 Axis SPI (Daisy Chain, Ganged with unique direction pins)
+            4 Axis SPI (Daisy Chain, dual-motor axis with unique direction pins)
     Reference
         TMC2130 Datasheet https://www.trinamic.com/fileadmin/assets/Products/ICs_Documents/TMC2130_datasheet.pdf
 */
@@ -36,7 +36,9 @@
 #include "../Limits.h"  // limitsMinPosition
 
 namespace MotorDrivers {
-    String MotorDriver::axisName() const { return String(config->_axes->axisName(axis_index())) + (dual_axis_index() ? "2" : "") + " Axis"; }
+    String MotorDriver::axisName() const {
+        return String(config->_axes->axisName(axis_index())) + (dual_axis_index() ? "2" : "") + " Axis";
+    }
     String MotorDriver::axisLimits() const {
         return String("Limits(") + limitsMinPosition(axis_index()) + "," + limitsMaxPosition(axis_index()) + ")";
     }
@@ -51,6 +53,6 @@ namespace MotorDrivers {
     }
     uint8_t MotorDriver::dual_axis_index() const {
         Assert(config != nullptr && config->_axes != nullptr, "Expected machine to be configured before this is called.");
-        return uint8_t(config->_axes->findAxisGanged(this));
+        return uint8_t(config->_axes->findAxisMotor(this));
     }
 }

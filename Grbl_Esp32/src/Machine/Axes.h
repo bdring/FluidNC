@@ -52,10 +52,10 @@ namespace Machine {
         int   _numberAxis = 3;
         Axis* _axis[MAX_N_AXIS];
 
-        // Some small helpers to find the axis index and axis ganged index for a given motor. This
+        // Some small helpers to find the axis index and axis motor number for a given motor. This
         // is helpful for some motors that need this info, as well as debug information.
         size_t findAxisIndex(const MotorDrivers::MotorDriver* const motor) const;
-        size_t findAxisGanged(const MotorDrivers::MotorDriver* const motor) const;
+        size_t findAxisMotor(const MotorDrivers::MotorDriver* const motor) const;
 
         inline bool hasSoftLimits() const {
             for (int i = 0; i < _numberAxis; ++i) {
@@ -70,9 +70,9 @@ namespace Machine {
             for (int axis = 0; axis < _numberAxis; ++axis) {
                 auto a = _axis[axis];
 
-                for (int motor = 0; motor < Axis::MAX_NUMBER_GANGED; ++motor) {
-                    auto mot = a->_motors[motor];
-                    if (mot && mot->_hardLimits) {
+                for (int motor = 0; motor < Axis::MAX_MOTORS_PER_AXIS; ++motor) {
+                    auto m = a->_motors[motor];
+                    if (m && m->_hardLimits) {
                         return true;
                     }
                 }
@@ -80,9 +80,7 @@ namespace Machine {
             return false;
         }
 
-        // These are used for setup and to talk to the motors as a group.
         void init();
-        void read_settings();  // more like 'after read settings, before init'. Oh well...
 
         // These are used during homing cycles.
         // The return value is a bitmask of axes that can home

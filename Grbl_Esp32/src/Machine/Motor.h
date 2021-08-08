@@ -36,13 +36,13 @@ namespace Machine {
         LimitPin* _allLimitPin;
 
         int _axis;
-        int _gang;
+        int _motorNum;
 
     public:
-        Motor(int axis, int gang) : _axis(axis), _gang(gang) {}
+        Motor(int axis, int motorNum) : _axis(axis), _motorNum(motorNum) {}
 
-        MotorDrivers::MotorDriver* _motor   = nullptr;
-        float          _pulloff = 1.0f;  // mm
+        MotorDrivers::MotorDriver* _driver  = nullptr;
+        float                      _pulloff = 1.0f;  // mm
 
         Pin  _negPin;
         Pin  _posPin;

@@ -34,17 +34,15 @@ axes:
       seek_scaler: 1.100
       feed_scaler: 1.000
 
-    gang0:
-      endstops:
-        dual: gpio.33:high
+    motor0:
+      limit_all: gpio.33:high
       stepstick:
         direction: i2sO.1
         step: i2sO.2
         ms3: i2sO.3
         disable: i2sO.0
 
-
-    gang1:
+    motor1:
       null_motor:
 
   y:
@@ -65,16 +63,15 @@ axes:
       seek_scaler: 1.100
       feed_scaler: 1.000
 
-    gang0:
-      endstops:
-        dual: gpio.32:high
+    motor0:
+      limit_all: gpio.32:high
       stepstick:
         direction: i2sO.4
         step: i2sO.5
         ms3: i2sO.6
         disable: i2sO.7
 
-    gang1:
+    motor1:
       null_motor:
 
   z:
@@ -95,16 +92,15 @@ axes:
       seek_scaler: 1.100
       feed_scaler: 1.000
 
-    gang0:
-      endstops:
-        dual: gpio.35:high
+    motor0:
+      limit_all: gpio.35:high
       stepstick:
         direction: i2sO.9
         step: i2sO.10
         ms3: i2sO.11
         disable: i2sO.8
 
-    gang1:
+    motor1:
       null_motor:
 
 spi:  

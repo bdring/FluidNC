@@ -11,7 +11,7 @@ axes:
 
   x:
     steps_per_mm: 800
-    gang0:
+    motor0:
       stepstick: # Motor Socket 1
         disable: i2so.0
         direction: i2s0.1
@@ -19,7 +19,7 @@ axes:
 
   y:
     steps_per_mm: 800
-    gang0:
+    motor0:
       stepstick: # Motor Socket 2
         disable: i2so.7
         direction: i2s0.4
@@ -27,7 +27,7 @@ axes:
 
   z:
     steps_per_mm: 800
-    gang0:
+    motor0:
       stepstick: # Motor Socket 3
         disable: i2so.8
         direction: i2s0.9

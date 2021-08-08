@@ -91,7 +91,6 @@ void grbl_init() {
 
             Stepper::init();  // Configure stepper pins and interrupt timers
 
-            config->_axes->read_settings();
             config->_axes->init();
 
             config->_control->init();

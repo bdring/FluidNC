@@ -29,13 +29,13 @@
 #define Y_STEP_PIN          "gpio.12"     // use Y labeled connector
 #define Y_DIRECTION_PIN     "gpio.26"     // use Y labeled connector
 
-#define Y2_STEP_PIN         "gpio.22"     // ganged motor
+#define Y2_STEP_PIN         "gpio.22"     // second motor
 #define Y2_DIRECTION_PIN    Y_DIRECTION_PIN
 
 #define Z_STEP_PIN          "gpio.14"     // use X labeled connector
 #define Z_DIRECTION_PIN     "gpio.25"     // use X labeled connector
 
-#define Z2_STEP_PIN         "gpio.21"     // ganged motor
+#define Z2_STEP_PIN         "gpio.21"     // second motor
 #define Z2_DIRECTION_PIN    Z_DIRECTION_PIN
 
 #define X_STEP_PIN          "gpio.27"     // use Z labeled connector

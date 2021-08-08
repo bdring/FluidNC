@@ -33,14 +33,14 @@ namespace Machine {
 
     public:
         Axis(int currentAxis) : _axis(currentAxis) {
-            for (int i = 0; i < MAX_NUMBER_GANGED; ++i) {
+            for (int i = 0; i < MAX_MOTORS_PER_AXIS; ++i) {
                 _motors[i] = nullptr;
             }
         }
 
-        static const int MAX_NUMBER_GANGED = 2;
+        static const int MAX_MOTORS_PER_AXIS = 2;
 
-        Motor*   _motors[MAX_NUMBER_GANGED];
+        Motor*  _motors[MAX_MOTORS_PER_AXIS];
         Homing* _homing = nullptr;
 
         float _stepsPerMm   = 320.0f;
@@ -54,7 +54,7 @@ namespace Machine {
         void afterParse() override;
 
         // Checks if a motor matches this axis:
-        bool hasMotor(const MotorDrivers::MotorDriver* const motor) const;
+        bool hasMotor(const MotorDrivers::MotorDriver* const driver) const;
 
         void init();
 

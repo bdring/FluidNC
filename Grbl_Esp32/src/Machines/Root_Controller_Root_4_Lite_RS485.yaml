@@ -22,9 +22,8 @@ axes:
     acceleration: 50
     max_travel: 220
     soft_limits: true
-    gang0:
-      endstops:
-        dual: gpio.2:low
+    motor0:
+      limit_all: gpio.2:low
       stepstick: # Motor Socket 1
         disable: i2so.7
         direction: i2s0.5
@@ -43,16 +42,14 @@ axes:
     acceleration: 50
     max_travel: 278
     soft_limits: true
-    gang0:
-      endstops:
-        dual: gpio.26:low
+    motor0:
+      limit_all: gpio.26:low
       stepstick: # Motor Socket 2
         disable: i2so.4
         direction: i2s0.3
         step: i2s0.2
-    gang1:
-      endstops:
-        dual: gpio.27:low
+    motor1:
+      limit_all: gpio.27:low
       stepstick: # Motor Socket 3
         disable: i2so.1
         direction: i2s0.0
@@ -71,9 +68,8 @@ axes:
     acceleration: 50
     max_travel: 60
     soft_limits: true
-    gang0:
-      endstops:
-        dual: gpio.14:low
+    motor0:
+      limit_all: gpio.14:low
       stepstick: # Motor Socket 4
         disable: i2so.14
         direction: i2s0.13

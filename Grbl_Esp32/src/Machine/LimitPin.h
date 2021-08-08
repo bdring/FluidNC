@@ -8,7 +8,7 @@ namespace Machine {
     class LimitPin {
     private:
         int _axis;
-        int _gang;
+        int _motorNum;
 
         bool     _value   = 0;
         uint32_t _bitmask = 0;
@@ -23,7 +23,7 @@ namespace Machine {
         void IRAM_ATTR handleISR();
 
     public:
-        LimitPin(Pin& pin, int axis, int gang, int direction, bool& phardLimits);
+        LimitPin(Pin& pin, int axis, int motorNum, int direction, bool& phardLimits);
 
         Pin& _pin;
 

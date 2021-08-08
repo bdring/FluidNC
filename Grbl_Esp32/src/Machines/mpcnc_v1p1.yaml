@@ -19,13 +19,12 @@ axes:
     max_rate: 8000
     acceleration: 200
     max_travel: 500
-    gang0:
-      endstops:
-        dual: gpio.2:low
+    motor0:
+      limit_all: gpio.2:low
       stepstick:
         step: gpio.12
         direction: gpio.26
-    gang1:
+    motor1:
       stepstick:
         step: gpio.22
         direction: gpio.26
@@ -42,13 +41,12 @@ axes:
     max_rate: 8000
     acceleration: 200
     max_travel: 500
-    gang0:
-      endstops:
-        dual: gpio.4:low
+    motor0:
+      limit_all: gpio.4:low
       stepstick:
         step: gpio.14
         direction: gpio.25
-    gang1:
+    motor1:
       stepstick:
         step: gpio.21
         direction: gpio.25
@@ -65,9 +63,8 @@ axes:
     max_rate: 3000
     acceleration: 100
     max_travel: 80
-    gang0:
-      endstops:
-        dual: gpio.15:low
+    motor0:
+      limit_all: gpio.15:low
       stepstick:
         step: gpio.27
         direction: gpio.33

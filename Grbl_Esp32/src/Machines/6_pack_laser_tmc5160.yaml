@@ -10,23 +10,23 @@ axes:
   number_axis: 3
 
   x:
-    gang0:
+    motor0:
       tmc_5160: # Motor Socket 2
         disable: i2so.7
         direction: i2s0.4
         step: i2s0.5
         cs: i2s0.6
-    gang0:
+    motor0:
       null_motor:
 
   y:
-    gang0:
+    motor0:
       tmc_5160: # Motor Socket 1
         disable: i2so.0
         direction: i2s0.1
         step: i2s0.2
         cs: i2s0.3
-    gang1:
+    motor1:
       tmc_5160: # Motor Socket 3
         disable: i2so.8
         direction: i2s0.9

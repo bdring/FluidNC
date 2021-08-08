@@ -32,10 +32,10 @@
 #define DEFAULT_HOMING_SQUARED_AXES (bitnum_to_mask(X_AXIS) | bitnum_to_mask(Y_AXIS))
 
 #define X_STEP_PIN      "gpio.12"
-#define X2_STEP_PIN     "gpio.22"  // ganged motor
+#define X2_STEP_PIN     "gpio.22"     // second motor
 
 #define Y_STEP_PIN      "gpio.14"
-#define Y2_STEP_PIN     "gpio.21"  // ganged motor
+#define Y2_STEP_PIN     "gpio.21"     // second motor
 
 #define Z_STEP_PIN      "gpio.27"
 

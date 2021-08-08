@@ -25,28 +25,28 @@
 
 namespace Machine {
     void Motor::group(Configuration::HandlerBase& handler) {
-        _negLimitPin = new LimitPin(_negPin, _axis, _gang, -1, _hardLimits);
-        _posLimitPin = new LimitPin(_posPin, _axis, _gang, 1, _hardLimits);
-        _allLimitPin = new LimitPin(_allPin, _axis, _gang, 0, _hardLimits);
+        _negLimitPin = new LimitPin(_negPin, _axis, _motorNum, -1, _hardLimits);
+        _posLimitPin = new LimitPin(_posPin, _axis, _motorNum, 1, _hardLimits);
+        _allLimitPin = new LimitPin(_allPin, _axis, _motorNum, 0, _hardLimits);
         handler.item("limit_neg", _negPin);
         handler.item("limit_pos", _posPin);
         handler.item("limit_all", _allPin);
         handler.item("hard_limits", _hardLimits);
         handler.item("pulloff", _pulloff);
-        MotorDrivers::MotorFactory::factory(handler, _motor);
+        MotorDrivers::MotorFactory::factory(handler, _driver);
     }
 
     void Motor::afterParse() {
-        if (_motor == nullptr) {
-            _motor = new MotorDrivers::Nullmotor();
+        if (_driver == nullptr) {
+            _driver = new MotorDrivers::Nullmotor();
         }
     }
 
     void Motor::init() {
-        if (strcmp(_motor->name(), "null_motor") != 0) {
-            set_bitnum(Machine::Axes::motorMask, _axis + 16 * _gang);
+        if (strcmp(_driver->name(), "null_motor") != 0) {
+            set_bitnum(Machine::Axes::motorMask, _axis + 16 * _motorNum);
         }
-        _motor->init();
+        _driver->init();
 
         _negLimitPin->init();
         _posLimitPin->init();
@@ -55,5 +55,5 @@ namespace Machine {
 
     bool Motor::hasSwitches() { return (_negPin.defined() || _negPin.defined() || _negPin.defined()); }
 
-    Motor::~Motor() { delete _motor; }
+    Motor::~Motor() { delete _driver; }
 }

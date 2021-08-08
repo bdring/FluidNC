@@ -25,9 +25,9 @@ axes:
       mpos: 10
       positive_direction: false
     
-    gang0:
+    motor0:
       null_motor:
-    gang1:
+    motor1:
       null_motor:
 
   y:
@@ -40,9 +40,9 @@ axes:
       mpos: 10
       positive_direction: false
 
-    gang0:
+    motor0:
       null_motor:
-    gang1:
+    motor1:
       null_motor:
 
   z:
@@ -55,9 +55,9 @@ axes:
       mpos: 10
       positive_direction: true
 
-    gang0:
+    motor0:
       null_motor:
-    gang1:
+    motor1:
       null_motor:
 
 coolant:

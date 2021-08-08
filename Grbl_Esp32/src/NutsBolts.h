@@ -44,11 +44,7 @@ const int A_AXIS = 3;
 const int B_AXIS = 4;
 const int C_AXIS = 5;
 
-const int MAX_AXES   = 6;
-const int MAX_GANGED = 2;
-
-const int PRIMARY_MOTOR = 0;
-const int GANGED_MOTOR  = 1;
+const int MAX_AXES = 6;
 
 const int X2_AXIS = (X_AXIS + MAX_AXES);
 const int Y2_AXIS = (Y_AXIS + MAX_AXES);

@@ -33,9 +33,8 @@ namespace Machine {
     // Then we scale the travel distances for the other axes so they would complete
     // at the same time.
 
-    const uint32_t GANG0      = 0xffff;
-    const uint32_t GANG1      = 0xffff0000;
-    const uint32_t BOTH_GANGS = (GANG0 | GANG1);
+    const uint32_t MOTOR0 = 0xffff;
+    const uint32_t MOTOR1 = 0xffff0000;
 
     // The return value is the setting time
     uint32_t Homing::plan_move(MotorMask motors, bool approach, bool seek) {
@@ -219,7 +218,7 @@ namespace Machine {
             auto axisConfig = axes->_axis[axis];
 
             // check to see if one side is missing a switch
-            if (!axisConfig->_motors[0]->hasSwitches() || !axisConfig->_motors[01]->hasSwitches()) {
+            if (!axisConfig->_motors[0]->hasSwitches() || !axisConfig->_motors[1]->hasSwitches()) {
                 return false;
             }
         }
@@ -275,10 +274,10 @@ namespace Machine {
             run(motors, false, false);  // Pulloff
             if (squaredOneSwitch(motors)) {
                 //log_info("POG Squaring");
-                run(motors & GANG0, true, false);   // Approach slowly
-                run(motors & GANG0, false, false);  // Pulloff
-                run(motors & GANG1, true, false);   // Approach slowly
-                run(motors & GANG1, false, false);  // Pulloff
+                run(motors & MOTOR0, true, false);   // Approach slowly
+                run(motors & MOTOR0, false, false);  // Pulloff
+                run(motors & MOTOR1, true, false);   // Approach slowly
+                run(motors & MOTOR1, false, false);  // Pulloff
             } else if (squaredStressfree(motors)) {
                 //log_info("Stress Free Squaring");
                 run(motors, true, false);   // Approach fast
