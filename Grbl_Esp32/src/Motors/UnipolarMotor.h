@@ -21,8 +21,8 @@
 
 #include "MotorDriver.h"
 
-namespace Motors {
-    class UnipolarMotor : public Motor {
+namespace MotorDrivers {
+    class UnipolarMotor : public MotorDriver {
     public:
         UnipolarMotor() = default;
 

@@ -27,7 +27,7 @@
 
 class TMC2209Stepper;  // Forward declaration
 
-namespace Motors {
+namespace MotorDrivers {
 
     class TrinamicUartDriver : public TrinamicBase {
     private:

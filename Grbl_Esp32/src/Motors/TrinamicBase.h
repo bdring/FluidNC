@@ -23,7 +23,7 @@
 
 #include <cstdint>
 
-namespace Motors {
+namespace MotorDrivers {
 
     enum TrinamicMode {
         StealthChop = 1,  // very quiet

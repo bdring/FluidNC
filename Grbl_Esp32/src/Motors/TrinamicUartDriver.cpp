@@ -30,7 +30,7 @@
 #include <TMCStepper.h>  // https://github.com/teemuatlut/TMCStepper
 #include <atomic>
 
-namespace Motors {
+namespace MotorDrivers {
 
     bool TrinamicUartDriver::_uart_started = false;
 

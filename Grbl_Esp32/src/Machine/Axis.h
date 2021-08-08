@@ -23,8 +23,8 @@
 #include "Motor.h"
 #include "Homing.h"
 
-namespace Motors {
-    class Motor;
+namespace MotorDrivers {
+    class MotorDriver;
 }
 
 namespace Machine {
@@ -34,13 +34,13 @@ namespace Machine {
     public:
         Axis(int currentAxis) : _axis(currentAxis) {
             for (int i = 0; i < MAX_NUMBER_GANGED; ++i) {
-                _gangs[i] = nullptr;
+                _motors[i] = nullptr;
             }
         }
 
         static const int MAX_NUMBER_GANGED = 2;
 
-        Gang*   _gangs[MAX_NUMBER_GANGED];
+        Motor*   _motors[MAX_NUMBER_GANGED];
         Homing* _homing = nullptr;
 
         float _stepsPerMm   = 320.0f;
@@ -54,7 +54,7 @@ namespace Machine {
         void afterParse() override;
 
         // Checks if a motor matches this axis:
-        bool hasMotor(const Motors::Motor* const motor) const;
+        bool hasMotor(const MotorDrivers::MotorDriver* const motor) const;
 
         void init();
 

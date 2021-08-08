@@ -309,13 +309,13 @@ Error home_c(const char* value, WebUI::AuthenticationLevel auth_level, WebUI::ES
     return home(bitnum_to_mask(C_AXIS));
 }
 void write_limit_set(uint32_t mask) {
-    const char* gang0AxisName = "xyzabc";
+    const char* motor0AxisName = "xyzabc";
     for (int i = 0; i < MAX_N_AXIS; i++) {
-        Uart0.write(bitnum_is_true(mask, i) ? uint8_t(gang0AxisName[i]) : ' ');
+        Uart0.write(bitnum_is_true(mask, i) ? uint8_t(motor0AxisName[i]) : ' ');
     }
-    const char* gang1AxisName = "XYZABC";
+    const char* motor1AxisName = "XYZABC";
     for (int i = 0; i < MAX_N_AXIS; i++) {
-        Uart0.write(bitnum_is_true(mask, i + 16) ? uint8_t(gang1AxisName[i]) : ' ');
+        Uart0.write(bitnum_is_true(mask, i + 16) ? uint8_t(motor1AxisName[i]) : ' ');
     }
 }
 Error show_limits(const char* value, WebUI::AuthenticationLevel auth_level, WebUI::ESPResponseStream* out) {

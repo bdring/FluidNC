@@ -21,8 +21,8 @@
 #include "../Configuration/Configurable.h"
 #include "Axis.h"
 
-namespace Motors {
-    class Motor;
+namespace MotorDrivers {
+    class MotorDriver;
 }
 
 namespace Machine {
@@ -54,8 +54,8 @@ namespace Machine {
 
         // Some small helpers to find the axis index and axis ganged index for a given motor. This
         // is helpful for some motors that need this info, as well as debug information.
-        size_t findAxisIndex(const Motors::Motor* const motor) const;
-        size_t findAxisGanged(const Motors::Motor* const motor) const;
+        size_t findAxisIndex(const MotorDrivers::MotorDriver* const motor) const;
+        size_t findAxisGanged(const MotorDrivers::MotorDriver* const motor) const;
 
         inline bool hasSoftLimits() const {
             for (int i = 0; i < _numberAxis; ++i) {
@@ -70,8 +70,8 @@ namespace Machine {
             for (int axis = 0; axis < _numberAxis; ++axis) {
                 auto a = _axis[axis];
 
-                for (int gang = 0; gang < Axis::MAX_NUMBER_GANGED; ++gang) {
-                    auto mot = a->_gangs[gang];
+                for (int motor = 0; motor < Axis::MAX_NUMBER_GANGED; ++motor) {
+                    auto mot = a->_motors[motor];
                     if (mot && mot->_hardLimits) {
                         return true;
                     }

@@ -35,21 +35,21 @@
 #include "../Machine/MachineConfig.h"
 #include "../Limits.h"  // limitsMinPosition
 
-namespace Motors {
-    String Motor::axisName() const { return String(config->_axes->axisName(axis_index())) + (dual_axis_index() ? "2" : "") + " Axis"; }
-    String Motor::axisLimits() const {
+namespace MotorDrivers {
+    String MotorDriver::axisName() const { return String(config->_axes->axisName(axis_index())) + (dual_axis_index() ? "2" : "") + " Axis"; }
+    String MotorDriver::axisLimits() const {
         return String("Limits(") + limitsMinPosition(axis_index()) + "," + limitsMaxPosition(axis_index()) + ")";
     }
 
-    void Motor::debug_message() {}
+    void MotorDriver::debug_message() {}
 
-    bool Motor::test() { return true; };  // true = OK
+    bool MotorDriver::test() { return true; };  // true = OK
 
-    uint8_t Motor::axis_index() const {
+    uint8_t MotorDriver::axis_index() const {
         Assert(config != nullptr && config->_axes != nullptr, "Expected machine to be configured before this is called.");
         return uint8_t(config->_axes->findAxisIndex(this));
     }
-    uint8_t Motor::dual_axis_index() const {
+    uint8_t MotorDriver::dual_axis_index() const {
         Assert(config != nullptr && config->_axes != nullptr, "Expected machine to be configured before this is called.");
         return uint8_t(config->_axes->findAxisGanged(this));
     }

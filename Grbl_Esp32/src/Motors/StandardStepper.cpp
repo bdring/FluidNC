@@ -31,7 +31,7 @@
 
 using namespace Machine;
 
-namespace Motors {
+namespace MotorDrivers {
     rmt_item32_t StandardStepper::rmtItem[2];
     rmt_config_t StandardStepper::rmtConfig;
 

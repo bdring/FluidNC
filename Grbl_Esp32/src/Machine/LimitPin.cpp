@@ -10,8 +10,8 @@
 #include <esp32-hal-gpio.h>  // CHANGE
 
 namespace Machine {
-    LimitPin::LimitPin(Pin& pin, int axis, int gang, int direction, bool& pHardLimits) :
-        _axis(axis), _gang(gang), _value(false), _pHardLimits(pHardLimits), _pin(pin) {
+    LimitPin::LimitPin(Pin& pin, int axis, int motor, int direction, bool& pHardLimits) :
+        _axis(axis), _gang(motor), _value(false), _pHardLimits(pHardLimits), _pin(pin) {
         String sDir;
         // Select one or two bitmask variables to receive the switch data
         switch (direction) {
@@ -38,16 +38,16 @@ namespace Machine {
         }
         // Set a bitmap with bits to represent the axis and which motors are affected,
         // and construct a legend string like "Y Axis Limit" or "Y Axis Gang0 Limit".
-        // The bitmap looks like CBAZYXcbazyx where gang0 motors are in the lower
-        // bits and gang1 in the upper bits.  If both gangs are affected, there is
+        // The bitmap looks like CBAZYXcbazyx where motor0 motors are in the lower
+        // bits and motor1 in the upper bits.  If both gangs are affected, there is
         // a bit set in both the upper and lower groups.
-        switch (gang) {
+        switch (motor) {
             case 0:
-                _bitmask = 1;  // Set bit as for x axis gang 0
+                _bitmask = 1;  // Set bit as for x axis motor 0
                 _legend  = " Gang0";
                 break;
             case 1:
-                _bitmask = 1 << 16;  // Set bit as for X axis gang 1
+                _bitmask = 1 << 16;  // Set bit as for X axis motor 1
                 _legend  = " Gang1";
                 break;
             case -1:  // Axis level switch - set both bits

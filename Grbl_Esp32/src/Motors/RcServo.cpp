@@ -39,7 +39,7 @@
 #include <esp32-hal-ledc.h>  // ledcWrite
 #include <freertos/task.h>   // vTaskDelay
 
-namespace Motors {
+namespace MotorDrivers {
     // RcServo::RcServo(Pin pwm_pin) : Servo(), _pwm_pin(pwm_pin) {}
 
     void RcServo::init() {

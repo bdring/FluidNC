@@ -35,10 +35,10 @@
 #include <atomic>
 #include <freertos/task.h>  // portTICK_PERIOD_MS, vTaskDelay
 
-namespace Motors {
+namespace MotorDrivers {
     Servo* Servo::List = NULL;
 
-    Servo::Servo() : Motor() {
+    Servo::Servo() : MotorDriver() {
         link = List;
         List = this;
     }

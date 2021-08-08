@@ -28,7 +28,7 @@
 
 #include <cstdint>
 
-namespace Motors {
+namespace MotorDrivers {
     class Dynamixel2 : public Servo {
     protected:
         void config_message() override;

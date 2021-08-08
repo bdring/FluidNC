@@ -2,8 +2,8 @@
 
 #include "MotorDriver.h"
 
-namespace Motors {
-    class Nullmotor : public Motor {
+namespace MotorDrivers {
+    class Nullmotor : public MotorDriver {
     public:
         Nullmotor() = default;
 

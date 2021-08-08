@@ -25,8 +25,8 @@
 
 #include "MotorDriver.h"
 
-namespace Motors {
-    class Servo : public Motor {
+namespace MotorDrivers {
+    class Servo : public MotorDriver {
     public:
         int _timer_ms = 75;
 

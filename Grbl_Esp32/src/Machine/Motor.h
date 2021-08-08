@@ -21,8 +21,8 @@
 #include "../Configuration/Configurable.h"
 #include "LimitPin.h"
 
-namespace Motors {
-    class Motor;
+namespace MotorDrivers {
+    class MotorDriver;
 }
 
 namespace Machine {
@@ -30,7 +30,7 @@ namespace Machine {
 }
 
 namespace Machine {
-    class Gang : public Configuration::Configurable {
+    class Motor : public Configuration::Configurable {
         LimitPin* _negLimitPin;
         LimitPin* _posLimitPin;
         LimitPin* _allLimitPin;
@@ -39,11 +39,10 @@ namespace Machine {
         int _gang;
 
     public:
-        Gang(int axis, int gang) : _axis(axis), _gang(gang) {}
+        Motor(int axis, int gang) : _axis(axis), _gang(gang) {}
 
-        Motors::Motor* _motor = nullptr;
-        //Endstops*      _endstops = nullptr;
-        float _pulloff = 1.0f;  // mm
+        MotorDrivers::MotorDriver* _motor   = nullptr;
+        float          _pulloff = 1.0f;  // mm
 
         Pin  _negPin;
         Pin  _posPin;
@@ -56,6 +55,6 @@ namespace Machine {
         bool hasSwitches();
 
         void init();
-        ~Gang();
+        ~Motor();
     };
 }

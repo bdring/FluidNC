@@ -24,7 +24,7 @@
 #include <TMCStepper.h>  // https://github.com/teemuatlut/TMCStepper
 #include <atomic>
 
-namespace Motors {
+namespace MotorDrivers {
     TrinamicDriver::TrinamicDriver(uint16_t driver_part_number, int8_t spi_index) :
         TrinamicBase(driver_part_number), _spi_index(spi_index) {}
 

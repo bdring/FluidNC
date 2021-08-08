@@ -17,7 +17,7 @@
 
 #include "StepStick.h"
 
-namespace Motors {
+namespace MotorDrivers {
     void StepStick::init() {
         // If they are not 'undefined', set them as 'on'.
         _MS1.setAttr(Pin::Attr::Output | Pin::Attr::InitialOn);

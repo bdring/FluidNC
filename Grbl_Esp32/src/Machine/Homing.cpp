@@ -72,7 +72,7 @@ namespace Machine {
             // in computing the aggregate feed rate.
             rate += (axis_rate * axis_rate);
 
-            float travel = seek ? axisConfig->_maxTravel : axisConfig->_gangs[0]->_pulloff;
+            float travel = seek ? axisConfig->_maxTravel : axisConfig->_motors[0]->_pulloff;
 
             // First we compute the maximum-time-to-completion vector; later we will
             // convert it back to positions after we determine the limiting axis.
@@ -191,7 +191,7 @@ namespace Machine {
             }
 
             // must only be one switch defined
-            if (axes->_axis[axis]->_gangs[0]->hasSwitches() != axes->_axis[axis]->_gangs[1]->hasSwitches()) {
+            if (axes->_axis[axis]->_motors[0]->hasSwitches() != axes->_axis[axis]->_motors[1]->hasSwitches()) {
                 return true;
             }
         }
@@ -201,7 +201,7 @@ namespace Machine {
     }
 
     // This homing mode never forces the machine out of square
-    // This requires independent switches on each gang.
+    // This requires independent switches on each motor.
     bool Homing::squaredStressfree(MotorMask motors) {
         AxisMask squaredAxes = motors & (motors >> 16);
         if (squaredAxes == 0) {
@@ -219,7 +219,7 @@ namespace Machine {
             auto axisConfig = axes->_axis[axis];
 
             // check to see if one side is missing a switch
-            if (!axisConfig->_gangs[0]->hasSwitches() || !axisConfig->_gangs[01]->hasSwitches()) {
+            if (!axisConfig->_motors[0]->hasSwitches() || !axisConfig->_motors[01]->hasSwitches()) {
                 return false;
             }
         }
@@ -255,7 +255,7 @@ namespace Machine {
 
             if (bitnum_is_true(axisMask, axis)) {
                 auto mpos    = homing->_mpos;
-                auto pulloff = axisConf->_gangs[0]->_pulloff;
+                auto pulloff = axisConf->_motors[0]->_pulloff;
                 auto steps   = axisConf->_stepsPerMm;
 
                 mpos += homing->_positiveDirection ? -pulloff : pulloff;

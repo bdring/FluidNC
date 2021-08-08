@@ -21,7 +21,7 @@
 
 #include "Servo.h"
 
-namespace Motors {
+namespace MotorDrivers {
     class RcServo : public Servo {
     protected:
         void config_message() override;

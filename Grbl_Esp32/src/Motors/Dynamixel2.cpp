@@ -33,9 +33,9 @@
 
 #include <cstdarg>
 
-namespace Motors {
-    bool    Motors::Dynamixel2::_uart_started      = false;
-    uint8_t Motors::Dynamixel2::ids[MAX_N_AXIS][2] = { { 0, 0 }, { 0, 0 }, { 0, 0 }, { 0, 0 }, { 0, 0 }, { 0, 0 } };
+namespace MotorDrivers {
+    bool    MotorDrivers::Dynamixel2::_uart_started      = false;
+    uint8_t MotorDrivers::Dynamixel2::ids[MAX_N_AXIS][2] = { { 0, 0 }, { 0, 0 }, { 0, 0 }, { 0, 0 }, { 0, 0 }, { 0, 0 } };
 
     void Dynamixel2::init() {
         _has_errors = false;  // Initially assume okay
@@ -315,8 +315,8 @@ namespace Motors {
         auto   n_axis = config->_axes->_numberAxis;
         float* mpos   = system_get_mpos();
         for (uint8_t axis = X_AXIS; axis < n_axis; axis++) {
-            for (uint8_t gang_index = 0; gang_index < 2; gang_index++) {
-                current_id = ids[axis][gang_index];
+            for (uint8_t motor_index = 0; motor_index < 2; motor_index++) {
+                current_id = ids[axis][motor_index];
                 if (current_id != 0) {
                     count++;  // keep track of the count for the message length
 

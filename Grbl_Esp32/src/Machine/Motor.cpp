@@ -24,7 +24,7 @@
 #include "Axes.h"
 
 namespace Machine {
-    void Gang::group(Configuration::HandlerBase& handler) {
+    void Motor::group(Configuration::HandlerBase& handler) {
         _negLimitPin = new LimitPin(_negPin, _axis, _gang, -1, _hardLimits);
         _posLimitPin = new LimitPin(_posPin, _axis, _gang, 1, _hardLimits);
         _allLimitPin = new LimitPin(_allPin, _axis, _gang, 0, _hardLimits);
@@ -33,16 +33,16 @@ namespace Machine {
         handler.item("limit_all", _allPin);
         handler.item("hard_limits", _hardLimits);
         handler.item("pulloff", _pulloff);
-        Motors::MotorFactory::factory(handler, _motor);
+        MotorDrivers::MotorFactory::factory(handler, _motor);
     }
 
-    void Gang::afterParse() {
+    void Motor::afterParse() {
         if (_motor == nullptr) {
-            _motor = new Motors::Nullmotor();
+            _motor = new MotorDrivers::Nullmotor();
         }
     }
 
-    void Gang::init() {
+    void Motor::init() {
         if (strcmp(_motor->name(), "null_motor") != 0) {
             set_bitnum(Machine::Axes::motorMask, _axis + 16 * _gang);
         }
@@ -53,7 +53,7 @@ namespace Machine {
         _allLimitPin->init();
     }
 
-    bool Gang::hasSwitches() { return (_negPin.defined() || _negPin.defined() || _negPin.defined()); }
+    bool Motor::hasSwitches() { return (_negPin.defined() || _negPin.defined() || _negPin.defined()); }
 
-    Gang::~Gang() { delete _motor; }
+    Motor::~Motor() { delete _motor; }
 }

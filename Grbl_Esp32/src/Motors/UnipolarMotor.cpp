@@ -21,7 +21,7 @@
 
 #include <esp_attr.h>  // IRAM_ATTR
 
-namespace Motors {
+namespace MotorDrivers {
     void UnipolarMotor::init() {
         _pin_phase0.setAttr(Pin::Attr::Output);
         _pin_phase1.setAttr(Pin::Attr::Output);

@@ -21,7 +21,7 @@
 
 #include "NullMotor.h"
 
-namespace Motors {
+namespace MotorDrivers {
     // Configuration registration
     namespace {
         MotorFactory::InstanceBuilder<Nullmotor> registration("null_motor");

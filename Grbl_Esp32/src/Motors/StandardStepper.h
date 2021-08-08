@@ -4,8 +4,8 @@
 
 #include <driver/rmt.h>
 
-namespace Motors {
-    class StandardStepper : public Motor {
+namespace MotorDrivers {
+    class StandardStepper : public MotorDriver {
     public:
         //StandardStepper(uint8_t axis_index, Pin step_pin, Pin dir_pin, Pin disable_pin);
 

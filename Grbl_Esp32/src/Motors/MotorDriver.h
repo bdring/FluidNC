@@ -39,14 +39,14 @@
 
 #include <cstdint>
 
-namespace Motors {
-    class Motor : public Configuration::Configurable {
+namespace MotorDrivers {
+    class MotorDriver : public Configuration::Configurable {
     public:
-        Motor() = default;
+        MotorDriver() = default;
 
         static constexpr int      max_n_axis = MAX_N_AXIS;
         static constexpr uint32_t axis_mask  = (1 << max_n_axis) - 1;
-        static inline int         axisGangToMotor(int gang, int axis) { return (gang << max_n_axis) + axis; }
+        static inline int         axisGangToMotor(int motor, int axis) { return (motor << max_n_axis) + axis; }
         static inline void        motorToAxisGang(int& gang, int& axis, int motor) {
             gang = motor >> max_n_axis;
             axis = motor & ~axis_mask;
@@ -112,7 +112,7 @@ namespace Motors {
         virtual const char* name() const = 0;
 
         // Virtual base classes require a virtual destructor.
-        virtual ~Motor() {}
+        virtual ~MotorDriver() {}
 
     protected:
         String axisName() const;
@@ -138,5 +138,5 @@ namespace Motors {
         uint8_t dual_axis_index() const;  // 0 = primary 1=ganged, etc
     };
 
-    using MotorFactory = Configuration::GenericFactory<Motor>;
+    using MotorFactory = Configuration::GenericFactory<MotorDriver>;
 }

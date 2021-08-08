@@ -59,7 +59,7 @@ void limits_init() {
 // Returns limit state as a bit-wise uint32 variable. Each bit indicates an axis limit, where
 // triggered is 1 and not triggered is 0. Invert mask is applied. Axes are defined by their
 // number in bit position, i.e. Z_AXIS is bitnum_to_mask(2), and Y_AXIS is bitnum_to_mask(1).
-// The lower 16 bits are used for gang0 and the upper 16 bits are used for gang1 switches
+// The lower 16 bits are used for motor0 and the upper 16 bits are used for motor1 switches
 MotorMask limits_get_state() {
     return Machine::Axes::posLimitMask | Machine::Axes::negLimitMask;
 }

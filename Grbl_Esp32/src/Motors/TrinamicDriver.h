@@ -33,7 +33,7 @@ const int NORMAL_THIGH     = 0;
 
 class TMC2130Stepper;  // Forward declaration
 
-namespace Motors {
+namespace MotorDrivers {
 
     class TrinamicDriver : public TrinamicBase {
     private:

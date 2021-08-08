@@ -19,21 +19,21 @@ namespace Machine {
         for (size_t g = 0; g < MAX_NUMBER_GANGED; ++g) {
             tmp[5] = char(g + '0');
             tmp[6] = '\0';
-            handler.section(tmp, _gangs[g], _axis, g);
+            handler.section(tmp, _motors[g], _axis, g);
         }
     }
 
     void Axis::afterParse() {
         for (size_t i = 0; i < MAX_NUMBER_GANGED; ++i) {
-            if (_gangs[i] == nullptr) {
-                _gangs[i] = new Gang(_axis, i);
+            if (_motors[i] == nullptr) {
+                _motors[i] = new Motor(_axis, i);
             }
         }
     }
 
     void Axis::init() {
-        for (uint8_t gang_index = 0; gang_index < Axis::MAX_NUMBER_GANGED; gang_index++) {
-            _gangs[gang_index]->init();
+        for (uint8_t motor_index = 0; motor_index < Axis::MAX_NUMBER_GANGED; motor_index++) {
+            _motors[motor_index]->init();
         }
         if (_homing) {
             _homing->init();
@@ -42,9 +42,9 @@ namespace Machine {
     }
 
     // Checks if a motor matches this axis:
-    bool Axis::hasMotor(const Motors::Motor* const motor) const {
-        for (uint8_t gang_index = 0; gang_index < MAX_NUMBER_GANGED; gang_index++) {
-            if (_gangs[gang_index]->_motor == motor) {
+    bool Axis::hasMotor(const MotorDrivers::MotorDriver* const motor) const {
+        for (uint8_t motor_index = 0; motor_index < MAX_NUMBER_GANGED; motor_index++) {
+            if (_motors[motor_index]->_motor == motor) {
                 return true;
             }
         }
@@ -52,8 +52,8 @@ namespace Machine {
     }
 
     Axis::~Axis() {
-        for (uint8_t gang_index = 0; gang_index < MAX_NUMBER_GANGED; gang_index++) {
-            delete _gangs[gang_index];
+        for (uint8_t motor_index = 0; motor_index < MAX_NUMBER_GANGED; motor_index++) {
+            delete _motors[motor_index];
         }
     }
 }

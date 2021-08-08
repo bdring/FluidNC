@@ -2,7 +2,7 @@
 
 #include "RcServo.h"
 
-namespace Motors {
+namespace MotorDrivers {
     class Solenoid : public RcServo {
     public:
         Solenoid();

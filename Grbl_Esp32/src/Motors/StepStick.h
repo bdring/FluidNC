@@ -19,7 +19,7 @@
 
 #include "StandardStepper.h"
 
-namespace Motors {
+namespace MotorDrivers {
     class StepStick : public StandardStepper {
         Pin _MS1;
         Pin _MS2;
