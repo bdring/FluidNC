@@ -19,7 +19,7 @@
 */
 
 #ifndef UNIT_TEST
-#    include "src/Grbl.h"
+#    include "src/Main.h"
 
 void setup() {
     // #    ifdef DEBUG_PIN_DUMP

@@ -48,7 +48,7 @@
 
 #include "Report.h"
 
-#include "Grbl.h"  // GRBL_VERSION
+#include "Main.h"  // GRBL_VERSION
 #include "Machine/MachineConfig.h"
 #include "SettingsDefinitions.h"
 #include "Limits.h"                      // limits_get_state

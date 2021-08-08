@@ -26,7 +26,7 @@
 #include "../Machine/MachineConfig.h"
 #include "../Machine/WifiSTAConfig.h"
 #include "../Configuration/JsonGenerator.h"
-#include "../Grbl.h"   //GRBL_VERSION
+#include "../Main.h"   //GRBL_VERSION
 #include "Commands.h"  // COMMANDS::wait(1);
 #include "WifiConfig.h"
 #include "ESPResponse.h"

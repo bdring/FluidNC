@@ -18,7 +18,7 @@
   along with Grbl.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "Grbl.h"
+#include "Main.h"
 #include "Machine/MachineConfig.h"
 
 #include "Config.h"
