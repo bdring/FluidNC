@@ -43,7 +43,7 @@ namespace Machine {
         bool _httpEnable = true;
         int  _httpPort   = 80;
 
-        String _hostname = "grblesp";
+        String _hostname = "fluidnc";
 
         WebUI::BTConfig* _bluetoothConfig = nullptr;
         WifiAPConfig*    _apConfig        = nullptr;

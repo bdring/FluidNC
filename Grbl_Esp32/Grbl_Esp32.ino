@@ -26,7 +26,7 @@ void setup() {
     //delay(2000);  // BJD removed mystery delay
     // #    endif
 
-    grbl_init();
+    main_init();
 }
 
 void loop() {

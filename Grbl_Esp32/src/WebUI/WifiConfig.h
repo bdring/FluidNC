@@ -58,13 +58,13 @@ namespace WebUI {
     static const int ESP_APPLY_NOW = 1;
 
     //defaults values
-    static const char* DEFAULT_HOSTNAME          = "grblesp";
-    static const char* DEFAULT_STA_SSID          = "GRBL_ESP";
+    static const char* DEFAULT_HOSTNAME          = "fluidnc";
+    static const char* DEFAULT_STA_SSID          = "FluidNC";
     static const char* DEFAULT_STA_PWD           = "12345678";
     static const char* DEFAULT_STA_IP            = "0.0.0.0";
     static const char* DEFAULT_STA_GW            = "0.0.0.0";
     static const char* DEFAULT_STA_MK            = "0.0.0.0";
-    static const char* DEFAULT_AP_SSID           = "GRBL_ESP";
+    static const char* DEFAULT_AP_SSID           = "FluidNC";
     static const char* DEFAULT_AP_PWD            = "12345678";
     static const char* DEFAULT_AP_IP             = "192.168.0.1";
     static const char* DEFAULT_AP_MK             = "255.255.255.0";

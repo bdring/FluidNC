@@ -19,6 +19,7 @@
 */
 
 #include "Main.h"
+#include "Version.h"
 #include "Machine/MachineConfig.h"
 
 #include "Config.h"
@@ -42,7 +43,7 @@
 
 extern void make_grbl_commands();
 
-void grbl_init() {
+void main_init() {
     try {
         uartInit();  // Setup serial port
 
@@ -59,8 +60,8 @@ void grbl_init() {
         // Load Grbl settings from non-volatile storage
         settings_init();  // requires config
 
-        log_info("Grbl_ESP32 Ver " << GRBL_VERSION << " Date " << GRBL_VERSION_BUILD);  // print grbl_esp32 verion info
-        log_info("Compiled with ESP32 SDK:" << ESP.getSdkVersion());                    // print the SDK version
+        log_info("Grbl_ESP32 Ver " << VERSION << " Date " << VERSION_BUILD);  // print grbl_esp32 verion info
+        log_info("Compiled with ESP32 SDK:" << ESP.getSdkVersion());          // print the SDK version
 
         if (!SPIFFS.begin(true)) {
             log_error("Cannot mount the local filesystem");
@@ -139,7 +140,7 @@ void grbl_init() {
         WebUI::inputBuffer.begin();
     } catch (const AssertionFailed& ex) {
         // This means something is terribly broken:
-        log_info("Critical error in grbl_init: " << ex.what());
+        log_info("Critical error in main_init: " << ex.what());
         sys.state = State::ConfigAlarm;
     }
 }
@@ -187,7 +188,7 @@ void run_once() {
         // that precedes the input loop has few configuration
         // dependencies.  The safest approach would be to set
         // a "reconfiguration" flag and redo the configuration
-        // step, but that would require combining grbl_init()
+        // step, but that would require combining main_init()
         // and run_once into a single control flow, and it would
         // require careful teardown of the existing configuration
         // to avoid memory leaks. It is probably worth doing eventually.

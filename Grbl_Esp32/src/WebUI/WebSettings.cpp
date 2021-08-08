@@ -26,8 +26,8 @@
 #include "../Machine/MachineConfig.h"
 #include "../Machine/WifiSTAConfig.h"
 #include "../Configuration/JsonGenerator.h"
-#include "../Main.h"   //GRBL_VERSION
-#include "Commands.h"  // COMMANDS::wait(1);
+#include "../Version.h"  //VERSION
+#include "Commands.h"    // COMMANDS::wait(1);
 #include "WifiConfig.h"
 #include "ESPResponse.h"
 #include "WebServer.h"
@@ -179,10 +179,11 @@ namespace WebUI {
 
     static Error showFwInfo(char* parameter, AuthenticationLevel auth_level) {  // ESP800
         webPrint("FW version:");
-        webPrint(GRBL_VERSION);
+        webPrint(VERSION);
         webPrint(" (");
-        webPrint(GRBL_VERSION_BUILD);
+        webPrint(VERSION_BUILD);
         webPrint(")"
+                 // TODO: change grbl-embedded to FluidNC after fixing WebUI
                  " # FW target:grbl-embedded  # FW HW:");
         if (config->_sdCard->get_state(false) != SDCard::State::NotPresent) {
             webPrint("Direct SD");
@@ -545,9 +546,9 @@ namespace WebUI {
             webPrintln(config->_comms->_bluetoothConfig->info().c_str());
         }
         webPrint("FW version: ");
-        webPrint(GRBL_VERSION);
+        webPrint(VERSION);
         webPrint(" (");
-        webPrint(GRBL_VERSION_BUILD);
+        webPrint(VERSION_BUILD);
         webPrint(") (ESP32)");
         webPrintln("");
         return Error::Ok;

@@ -48,7 +48,7 @@
 
 #include "Report.h"
 
-#include "Main.h"  // GRBL_VERSION
+#include "Version.h"  // VERSION
 #include "Machine/MachineConfig.h"
 #include "SettingsDefinitions.h"
 #include "Limits.h"                      // limits_get_state
@@ -289,7 +289,7 @@ void report_feedback_message(Message message) {  // ok to send to all clients
 
 // Welcome message
 void report_init_message(uint8_t client) {
-    grbl_sendf(client, "\r\nGrbl %s ['$' for help]\r\n", GRBL_VERSION);
+    grbl_sendf(client, "\r\nGrbl %s ['$' for help]\r\n", VERSION);
 }
 
 // Grbl help message
@@ -510,7 +510,7 @@ void report_execute_startup_message(const char* line, Error status_code, uint8_t
 
 // Prints build info line
 void report_build_info(const char* line, uint8_t client) {
-    grbl_sendf(client, "[VER:%s.%s:%s]\r\n[OPT:", GRBL_VERSION, GRBL_VERSION_BUILD, line);
+    grbl_sendf(client, "[VER:%s.%s:%s]\r\n[OPT:", VERSION, VERSION_BUILD, line);
     if (config->_coolant->hasMist()) {
         grbl_send(client, "M");  // TODO Need to deal with M8...it could be disabled
     }

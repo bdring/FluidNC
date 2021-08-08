@@ -24,11 +24,11 @@
   along with Grbl.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-// This file contains compile-time configurations for Grbl's internal system. For the most part,
-// users will not need to directly modify these, but they are here for specific needs, i.e.
+// This file contains compile-time configuration choices.  Most users will not need
+// to directly modify these, but they are here for unusual needs, i.e.
 // performance tuning or adjusting to non-typical machines.
 
-// IMPORTANT: Any changes here requires a full re-compiling of the source code to propagate them.
+// IMPORTANT: Any changes here require recompilation.
 
 /*
 ESP 32 Notes
@@ -83,15 +83,15 @@ static const uint8_t NHomingLocateCycle = 1;  // Integer (1-128)
 
 // Upon a successful probe cycle, this option provides immediately feedback of the probe coordinates
 // through an automatically generated message. If disabled, users can still access the last probe
-// coordinates through Grbl '$#' print parameters.
+// coordinates through the '$#' print parameters command.
 const bool MESSAGE_PROBE_COORDINATES = true;  // Enabled by default. Comment to disable.
 
-// When Grbl powers-cycles or is hard reset with the Arduino reset button, Grbl boots up with no ALARM
-// by default. This is to make it as simple as possible for new users to start using Grbl. When homing
-// is enabled and a user has installed limit switches, Grbl will boot up in an ALARM state to indicate
-// Grbl doesn't know its position and to force the user to home before proceeding. This option forces
-// Grbl to always initialize into an ALARM state regardless of homing or not. This option is more for
-// OEMs and LinuxCNC users that would like this power-cycle behavior.
+// When the microprocess is power cycled or hard reset with the reset button, the default boot state
+// is no ALARM.  This makes it simpler for new users.  When homing is enabled and limit switches are
+// present, the initial state on boot is ALARM, indicatint that the position is unknown, so the user
+// must home the system before proceeding. The FORCE_INITIALIZATION option overrides the no-ALARM
+// behavior, so the system boots into ALARM state regardless of homing presence. This option is
+// provided for OEMs and LinuxCNC users that prefer this behavior.
 const bool FORCE_INITIALIZATION_ALARM = false;  // Default disabled. Uncomment to enable.
 
 // ---------------------------------------------------------------------------------------
@@ -130,12 +130,12 @@ const bool RESTORE_OVERRIDES_AFTER_PROGRAM_END = true;  // Default enabled. Comm
 // Some status report data isn't necessary for realtime, only intermittently, because the values don't
 // change often. The following macros configures how many times a status report needs to be called before
 // the associated data is refreshed and included in the status report. However, if one of these value
-// changes, Grbl will automatically include this data in the next status report, regardless of what the
-// count is at the time. This helps reduce the communication overhead involved with high frequency reporting
-// and agressive streaming. There is also a busy and an idle refresh count, which sets up Grbl to send
-// refreshes more often when its not doing anything important. With a good GUI, this data doesn't need
-// to be refreshed very often, on the order of a several seconds.
+// changes, this data will be included in the next status report, regardless of the current count.
+// This reduces the communication overhead of high frequency reporting and agressive streaming.
+// The busy and idle refresh counts send refreshes more frequently when not doing anything important.
+// With a good GUI, this data doesn't need to be refreshed very often, on the order of a several seconds.
 // NOTE: WCO refresh must be 2 or greater. OVR refresh must be 1 or greater.
+
 const int REPORT_OVR_REFRESH_BUSY_COUNT = 20;  // (1-255)
 const int REPORT_OVR_REFRESH_IDLE_COUNT = 10;  // (1-255) Must be less than or equal to the busy count
 const int REPORT_WCO_REFRESH_BUSY_COUNT = 30;  // (2-255)
@@ -193,7 +193,7 @@ const double ARC_ANGULAR_TRAVEL_EPSILON = 5E-7;  // Float (radians)
 const int DWELL_TIME_STEP = 50;  // Integer (1-255) (milliseconds)
 
 // Serial send and receive buffer size. The receive buffer is often used as another streaming
-// buffer to store incoming blocks to be processed by Grbl when its ready. Most streaming
+// buffer to store incoming blocks to be processed when ready. Most streaming
 // interfaces will character count and track each block send to each block response. So,
 // increase the receive buffer if a deeper receive buffer is needed for streaming and avaiable
 // memory allows. The send buffer primarily handles messages in Grbl. Only increase if large

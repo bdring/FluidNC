@@ -1,7 +1,7 @@
 #pragma once
 
 /*
-  Grbl.h - Header for system level commands and real-time processes
+  Main.h
   Part of Grbl
   Copyright (c) 2014-2016 Sungeun K. Jeon for Gnea Research LLC
 
@@ -20,12 +20,7 @@
   along with Grbl.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-// Grbl versioning system
-
-const char* const GRBL_VERSION       = "2.1a";
-const char* const GRBL_VERSION_BUILD = "20210326";
-
-void grbl_init();
+void main_init();
 void run_once();
 
 // Callouts to custom code

@@ -84,7 +84,7 @@ extern "C" void __digitalWrite(uint8_t pin, uint8_t val);
 //
 const int I2S_SAMPLE_SIZE   = 4;                                    /* 4 bytes, 32 bits per sample */
 const int DMA_SAMPLE_COUNT  = I2S_OUT_DMABUF_LEN / I2S_SAMPLE_SIZE; /* number of samples per buffer */
-const int SAMPLE_SAFE_COUNT = (20 / I2S_OUT_USEC_PER_PULSE);        /* prevent buffer overrun (GRBL's $0 should be less than or equal 20) */
+const int SAMPLE_SAFE_COUNT = (20 / I2S_OUT_USEC_PER_PULSE);        /* prevent buffer overrun ($0 should be less than or equal 20) */
 
 #ifdef USE_I2S_OUT_STREAM_IMPL
 typedef struct {

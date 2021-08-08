@@ -67,7 +67,7 @@ namespace WebUI {
         static BTConfig* instance;  // BT Callback does not support passing parameters. Sigh.
 
         String _btclient = "";
-        String _btname   = "btgrblesp";
+        String _btname   = "btfluidnc";
         char   _deviceAddrBuffer[18];
 
         static const int MAX_BTNAME_LENGTH = 32;
