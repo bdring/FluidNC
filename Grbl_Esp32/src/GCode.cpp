@@ -296,7 +296,7 @@ Error gc_execute_line(char* line, uint8_t client) {
                         break;
                     case 38:  // G38 - probe
                         //only allow G38 "Probe" commands if a probe pin is defined.
-                        if (config->_probe->exists()) {
+                        if (!config->_probe->exists()) {
                             log_info("No probe pin defined");
                             FAIL(Error::GcodeUnsupportedCommand);  // [Unsupported G command]
                         }
