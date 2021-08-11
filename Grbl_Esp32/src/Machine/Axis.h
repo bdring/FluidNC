@@ -54,7 +54,10 @@ namespace Machine {
         void afterParse() override;
 
         // Checks if a motor matches this axis:
-        bool hasMotor(const MotorDrivers::MotorDriver* const driver) const;
+        bool  hasMotor(const MotorDrivers::MotorDriver* const driver) const;
+        bool  hasDualMotor();
+        int   motorsWithSwitches();
+        float pulloffOffset();
 
         void init();
 
