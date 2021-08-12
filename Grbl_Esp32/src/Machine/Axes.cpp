@@ -40,12 +40,12 @@ namespace Machine {
     }
 
     void IRAM_ATTR Axes::set_disable(int axis, bool disable) {
-        for (int motor_index = 0; motor_index < Axis::MAX_MOTORS_PER_AXIS; motor_index++) {
-            _axis[axis]->_motors[motor_index]->_driver->set_disable(disable);
+        for (int motor = 0; motor < Axis::MAX_MOTORS_PER_AXIS; motor++) {
+            auto m = _axis[axis]->_motors[motor];
+            if (m) {
+                m->_driver->set_disable(disable);
+            }
         }
-
-        // invert only inverts the global stepper disable pin.
-        _sharedStepperDisable.write(disable);
     }
 
     void IRAM_ATTR Axes::set_disable(bool disable) {
@@ -67,7 +67,8 @@ namespace Machine {
                 auto a = _axis[axis];
                 if (a != nullptr) {
                     for (uint8_t motor = 0; motor < Axis::MAX_MOTORS_PER_AXIS; motor++) {
-                        if (a->_motors[motor]->_driver->set_homing_mode(isHoming)) {
+                        auto m = _axis[axis]->_motors[motor];
+                        if (m && m->_driver->set_homing_mode(isHoming)) {
                             set_bitnum(motorsCanHome, motor * 16 + axis);
                         }
                     }
@@ -95,8 +96,11 @@ namespace Machine {
             for (int axis = X_AXIS; axis < n_axis; axis++) {
                 bool thisDir = bitnum_is_true(dir_mask, axis);
 
-                for (uint8_t motor_index = 0; motor_index < Axis::MAX_MOTORS_PER_AXIS; motor_index++) {
-                    _axis[axis]->_motors[motor_index]->_driver->set_direction(thisDir);
+                for (uint8_t motor = 0; motor < Axis::MAX_MOTORS_PER_AXIS; motor++) {
+                    auto m = _axis[axis]->_motors[motor];
+                    if (m) {
+                        m->_driver->set_direction(thisDir);
+                    }
                 }
             }
             config->_stepping->waitDirection();
@@ -110,10 +114,16 @@ namespace Machine {
                 auto a = _axis[axis];
 
                 if (bitnum_is_false(_motorLockoutMask, axis)) {
-                    a->_motors[0]->_driver->step();
+                    auto m = a->_motors[0];
+                    if (m) {
+                        m->_driver->step();
+                    }
                 }
                 if (bitnum_is_false(_motorLockoutMask, axis + 16)) {
-                    a->_motors[1]->_driver->step();
+                    auto m = a->_motors[1];
+                    if (m) {
+                        m->_driver->step();
+                    }
                 }
             }
         }
@@ -124,8 +134,11 @@ namespace Machine {
         config->_stepping->waitPulse();
         auto n_axis = _numberAxis;
         for (uint8_t axis = X_AXIS; axis < n_axis; axis++) {
-            for (uint8_t motor_index = 0; motor_index < Axis::MAX_MOTORS_PER_AXIS; motor_index++) {
-                _axis[axis]->_motors[motor_index]->_driver->unstep();
+            for (uint8_t motor = 0; motor < Axis::MAX_MOTORS_PER_AXIS; motor++) {
+                auto m = _axis[axis]->_motors[motor];
+                if (m) {
+                    m->_driver->unstep();
+                }
             }
         }
 
@@ -151,7 +164,8 @@ namespace Machine {
         for (int i = 0; i < _numberAxis; ++i) {
             if (_axis[i] != nullptr && _axis[i]->hasMotor(driver)) {
                 for (int j = 0; j < Axis::MAX_MOTORS_PER_AXIS; ++j) {
-                    if (_axis[i]->_motors[j]->_driver == driver) {
+                    auto m = _axis[i]->_motors[j];
+                    if (m && m->_driver == driver) {
                         return j;
                     }
                 }

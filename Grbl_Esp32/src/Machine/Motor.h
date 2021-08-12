@@ -53,7 +53,6 @@ namespace Machine {
         void group(Configuration::HandlerBase& handler) override;
         void afterParse() override;
         bool hasSwitches();
-        bool isRealMotor();  // not a nullmotor
         void makeDualSwitches();
         void init();
         ~Motor();

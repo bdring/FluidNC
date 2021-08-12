@@ -229,7 +229,7 @@ namespace Machine {
             }
 
             // check to see if either side is missing a switch
-            if (!axes->_axis[axis]->_motors[0]->hasSwitches() || !axes->_axis[axis]->_motors[1]->hasSwitches()) {
+            if (axes->_axis[axis]->motorsWithSwitches() != 2) {
                 return false;
             }
         }

@@ -23,17 +23,14 @@ namespace Machine {
         }
     }
 
-    void Axis::afterParse() {
-        for (size_t i = 0; i < MAX_MOTORS_PER_AXIS; ++i) {
-            if (_motors[i] == nullptr) {
-                _motors[i] = new Motor(_axis, i);
-            }
-        }
-    }
+    void Axis::afterParse() {}
 
     void Axis::init() {
         for (uint8_t i = 0; i < Axis::MAX_MOTORS_PER_AXIS; i++) {
-            _motors[i]->init();
+            auto m = _motors[i];
+            if (m) {
+                m->init();
+            }
         }
         if (_homing) {
             _homing->init();
@@ -51,7 +48,8 @@ namespace Machine {
     // Checks if a motor matches this axis:
     bool Axis::hasMotor(const MotorDrivers::MotorDriver* const driver) const {
         for (uint8_t i = 0; i < MAX_MOTORS_PER_AXIS; i++) {
-            if (_motors[i]->_driver == driver) {
+            auto m = _motors[i];
+            if (m && m->_driver == driver) {
                 return true;
             }
         }
@@ -59,13 +57,14 @@ namespace Machine {
     }
 
     // Does this axis have 2 motors?
-    bool Axis::hasDualMotor() { return (_motors[0]->isRealMotor() && _motors[1]->isRealMotor()); }
+    bool Axis::hasDualMotor() { return _motors[0] && _motors[1]; }
 
     // How many motors have switches defined?
     int Axis::motorsWithSwitches() {
         int count = 0;
         for (uint8_t i = 0; i < MAX_MOTORS_PER_AXIS; i++) {
-            if (_motors[i]->hasSwitches()) {
+            auto m = _motors[i];
+            if (m && m->hasSwitches()) {
                 count++;
             }
         }
@@ -78,7 +77,9 @@ namespace Machine {
 
     Axis::~Axis() {
         for (uint8_t i = 0; i < MAX_MOTORS_PER_AXIS; i++) {
-            delete _motors[i];
+            if (_motors[i]) {
+                delete _motors[i];
+            }
         }
     }
 }
