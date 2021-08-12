@@ -165,7 +165,6 @@ namespace Machine {
     // Configuration helpers:
 
     void Axes::group(Configuration::HandlerBase& handler) {
-        handler.item("number_axis", _numberAxis);
         handler.item("shared_stepper_disable", _sharedStepperDisable);
 
         // Handle axis names xyzabc.  handler.section is inferred
@@ -173,7 +172,11 @@ namespace Machine {
         char tmp[3];
         tmp[2] = '\0';
 
-        for (size_t i = 0; i < MAX_N_AXIS; ++i) {
+        // During the initial configuration parsing phase, _numberAxis is 0 so
+        // we try for all the axes.  Subsequently we use the number of axes
+        // that are actually present.
+        size_t n_axis = _numberAxis ? _numberAxis : MAX_N_AXIS;
+        for (size_t i = 0; i < n_axis; ++i) {
             tmp[0] = tolower(_names[i]);
             tmp[1] = '\0';
 
@@ -182,7 +185,19 @@ namespace Machine {
     }
 
     void Axes::afterParse() {
-        for (size_t i = 0; i < MAX_N_AXIS; ++i) {
+        // Find the last axis that was declared and set _numberAxis accordingly
+        for (size_t i = MAX_N_AXIS; i > 0; --i) {
+            if (_axis[i - 1] != nullptr) {
+                _numberAxis = i;
+                break;
+            }
+        }
+        // Grbl senders might assume 3 axes in reports
+        if (_numberAxis < 3) {
+            _numberAxis = 3;
+        }
+
+        for (size_t i = 0; i < _numberAxis; ++i) {
             if (_axis[i] == nullptr) {
                 _axis[i] = new Axis(i);
             }
@@ -191,7 +206,9 @@ namespace Machine {
 
     Axes::~Axes() {
         for (int i = 0; i < MAX_N_AXIS; ++i) {
-            delete _axis[i];
+            if (_axis[i] != nullptr) {
+                delete _axis[i];
+            }
         }
     }
 }

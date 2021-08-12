@@ -49,7 +49,7 @@ namespace Machine {
 
         Pin _sharedStepperDisable;
 
-        int   _numberAxis = 3;
+        int   _numberAxis = 0;
         Axis* _axis[MAX_N_AXIS];
 
         // Some small helpers to find the axis index and axis motor number for a given motor. This
