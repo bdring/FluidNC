@@ -125,9 +125,7 @@ namespace Machine {
         auto n_axis = _numberAxis;
         for (uint8_t axis = X_AXIS; axis < n_axis; axis++) {
             for (uint8_t motor_index = 0; motor_index < Axis::MAX_MOTORS_PER_AXIS; motor_index++) {
-                auto a = _axis[axis]->_motors[motor_index]->_driver;
-                a->unstep();
-                a->unstep();
+                _axis[axis]->_motors[motor_index]->_driver->unstep();
             }
         }
 
