@@ -123,6 +123,8 @@ void protocol_reset() {
     sys_rt_s_override                    = SpindleSpeedOverride::Default;
 }
 
+static int64_t idleEndTime = 0;
+
 /*
   GRBL PRIMARY LOOP:
 */
@@ -226,8 +228,20 @@ void protocol_main_loop() {
         if (sys.abort) {
             return;  // Bail to main() program loop to reset system.
         }
-        // check to see if we should disable the stepper drivers ... esp32 work around for disable in main loop.
-        if (Stepper::shouldDisable()) {
+
+        // check to see if we should disable the stepper drivers
+        // If idleEndTime is 0, no disable is pending.
+
+        // "(ticks() - EndTime) > 0" is a twos-complement arithmetic trick
+        // for avoiding problems when the number space wraps around from
+        // negative to positive or vice-versa.  It always works if EndTime
+        // is set to "timer() + N" where N is less than half the number
+        // space.  Using "timer() > EndTime" fails across the positive to
+        // negative transition using signed comparison, and across the
+        // negative to positive transition using unsigned.
+
+        if (idleEndTime && (getCpuTicks() - idleEndTime) > 0) {
+            idleEndTime = 0;  //
             config->_axes->set_disable(true);
         }
     }
@@ -546,8 +560,38 @@ static void protocol_do_cycle_start() {
     }
 }
 
-static void protocol_do_cycle_stop() {
+void protocol_disable_steppers() {
+    if (sys.state == State::Homing) {
+        // Leave steppers enabled while homing
+        config->_axes->set_disable(false);
+        return;
+    }
+    if (sys.state == State::Sleep || sys_rt_exec_alarm != ExecAlarm::None) {
+        // Disable steppers immediately in sleep or alarm state
+        config->_axes->set_disable(true);
+        return;
+    }
+    if (config->_stepping->_idleMsecs == 255) {
+        // Leave steppers enabled if configured for "stay enabled"
+        config->_axes->set_disable(false);
+        return;
+    }
+    // Otherwise, schedule stepper disable in a few milliseconds
+    // unless a disable time has already been scheduled
+    if (idleEndTime == 0) {
+        idleEndTime = usToEndTicks(config->_stepping->_idleMsecs * 1000);
+        // idleEndTime 0 means that a stepper disable is not scheduled. so if we happen to
+        // land on 0 as an end time, just push it back by one microsecond to get off 0.
+        if (idleEndTime == 0) {
+            idleEndTime = 1;
+        }
+    }
+}
+
+void protocol_do_cycle_stop() {
     rtCycleStop = false;
+
+    protocol_disable_steppers();
 
     switch (sys.state) {
         case State::Hold:
@@ -852,7 +896,7 @@ static void protocol_exec_rt_suspend() {
                         // Spindle and coolant should already be stopped, but do it again just to be sure.
                         spindle->spinDown();
                         config->_coolant->off();
-                        Stepper::go_idle();  // Disable steppers
+                        Stepper::go_idle();  // Stop stepping and maybe disable steppers
                         while (!(sys.abort)) {
                             protocol_exec_rt_system();  // Do nothing until reset.
                         }

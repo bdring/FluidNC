@@ -26,7 +26,7 @@
 
 // Line buffer size from the serial input stream to be executed.Also, governs the size of
 // each of the startup blocks, as they are each stored as a string of this size.
-// 
+//
 // NOTE: Not a problem except for extreme cases, but the line buffer size can be too small
 // and g-code blocks can get truncated. Officially, the g-code standards support up to 256
 // characters. In future versions, this will be increased, when we know how much extra
@@ -53,3 +53,6 @@ void protocol_buffer_synchronize();
 
 // Executes the auto cycle feature, if enabled.
 void protocol_auto_cycle_start();
+
+// Disables the stepper motors or schedules it to happen
+void protocol_disable_steppers();

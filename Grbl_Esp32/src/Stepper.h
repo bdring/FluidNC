@@ -29,9 +29,6 @@
 #include <cstdint>
 
 namespace Stepper {
-    // Is it time to disable the steppers?
-    bool shouldDisable();
-
     void init();
 
     void pulse_func();
@@ -39,7 +36,7 @@ namespace Stepper {
     // Enable steppers, but cycle does not start unless called by motion control or realtime command.
     void wake_up();
 
-    // Immediately disables steppers
+    // Stops stepping
     void go_idle();
 
     // Reset the stepper subsystem variables

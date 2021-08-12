@@ -462,7 +462,7 @@ void mc_reset() {
             } else {
                 sys_rt_exec_alarm = ExecAlarm::AbortCycle;
             }
-            Stepper::go_idle();  // Force kill steppers. Position has likely been lost.
+            Stepper::go_idle();  // Stop stepping immediately, possibly losing position
         }
         config->_stepping->reset();
     }

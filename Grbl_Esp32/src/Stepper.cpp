@@ -29,6 +29,7 @@
 #include "Stepping.h"
 #include "StepperPrivate.h"
 #include "Planner.h"
+#include "Protocol.h"
 #include <esp_attr.h>  // IRAM_ATTR
 
 using namespace Stepper;
@@ -89,21 +90,6 @@ static uint8_t          segment_next_head;
 // main program. Pointers may be planning segments or planner blocks ahead of what being executed.
 static plan_block_t* pl_block;       // Pointer to the planner block being prepped
 static st_block_t*   st_prep_block;  // Pointer to the stepper block data being prepped
-
-// The time, in ticks of esp_timer_get_time(), when the steppers should be disabled
-static int64_t idleEndTime;
-static bool    isIdle;
-
-bool Stepper::shouldDisable() {
-    // "(timer() - EndTime) > 0" is a twos-complement arithmetic trick
-    // for avoiding problems when the number space wraps around from
-    // negative to positive or vice-versa.  It always works if EndTime
-    // is set to "timer() + N" where N is less than half the number
-    // space.  Using "timer() > EndTime" fails across the positive to
-    // negative transition using signed comparison, and across the
-    // negative to positive transition using unsigned.
-    return isIdle && config->_stepping->_idleMsecs != 255 && (esp_timer_get_time() - idleEndTime) > 0;
-}
 
 // Segment preparation data struct. Contains all the necessary information to compute new segments
 // based on the current executing planner block.
@@ -192,6 +178,14 @@ static st_prep_t prep;
 
 */
 
+// Stepper shutdown
+static void IRAM_ATTR stop_stepping() {
+    // Disable Stepping Driver Interrupt.
+    config->_stepping->stopTimer();
+    config->_axes->unstep();
+    st.step_outbits = 0;
+}
+
 /**
  * This phase of the ISR should ONLY create the pulses for the steppers.
  * This prevents jitter caused by the interval between the start of the
@@ -232,7 +226,7 @@ void IRAM_ATTR Stepper::pulse_func() {
             spindle->setSpeedfromISR(st.exec_segment->spindle_dev_speed);
         } else {
             // Segment buffer empty. Shutdown.
-            go_idle();
+            stop_stepping();
             if (sys.state != State::Jog) {  // added to prevent ... jog after probing crash
                 // Ensure pwm is set properly upon completion of rate-controlled motion.
                 if (st.exec_block != NULL && st.exec_block->is_pwm_rate_adjusted) {
@@ -286,10 +280,14 @@ void Stepper::wake_up() {
     //log_info("st_wake_up");
     // Enable stepper drivers.
     config->_axes->set_disable(false);
-    isIdle = false;
 
     // Enable Stepping Driver Interrupt
     config->_stepping->startTimer();
+}
+
+void Stepper::go_idle() {
+    stop_stepping();
+    protocol_disable_steppers();
 }
 
 // Reset and clear stepper subsystem variables
@@ -298,6 +296,7 @@ void Stepper::reset() {
     config->_stepping->reset();
 
     go_idle();
+
     // Initialize stepper algorithm variables.
     memset(&prep, 0, sizeof(st_prep_t));
     memset(&st, 0, sizeof(stepper_t));
@@ -309,32 +308,6 @@ void Stepper::reset() {
     st.step_outbits     = 0;
     st.dir_outbits      = 0;  // Initialize direction bits to default.
     // TODO do we need to turn step pins off?
-}
-
-// Stepper shutdown
-void IRAM_ATTR Stepper::go_idle() {
-    // Disable Stepping Driver Interrupt.
-    config->_stepping->stopTimer();
-
-    // Set stepper driver idle state, disabled or enabled, depending on settings and circumstances.
-    if (((config->_stepping->_idleMsecs != 255) || sys_rt_exec_alarm != ExecAlarm::None || sys.state == State::Sleep) &&
-        sys.state != State::Homing) {
-        // Force stepper dwell to lock axes for a defined amount of time to ensure the axes come to a complete
-        // stop and not drift from residual inertial forces at the end of the last movement.
-
-        if (sys.state == State::Sleep || sys_rt_exec_alarm != ExecAlarm::None) {
-            config->_axes->set_disable(true);
-        } else {
-            // Setup for shouldDisable()
-            isIdle      = true;
-            idleEndTime = esp_timer_get_time() + (config->_stepping->_idleMsecs * 1000);  // * 1000 because the time is in uSecs
-        }
-    } else {
-        config->_axes->set_disable(false);
-    }
-
-    config->_axes->unstep();
-    st.step_outbits = 0;
 }
 
 // Called by planner_recalculate() when the executing block is updated by the new plan.
