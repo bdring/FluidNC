@@ -112,5 +112,13 @@ namespace Machine {
         _pin.attachInterrupt<LimitPin, &LimitPin::handleISR>(this, CHANGE);
     }
 
+    // Make this switch act like an axis level switch. Both motors will report the same
+    // This should be called from a higher level object, that has the logic to figure out
+    // if this belongs to a dual motor, single switch axis
+    void LimitPin::makeDualMask() {
+        uint32_t both = ((_bitmask >> 16) | (_bitmask & 0xffff));
+        _bitmask      = (both << 16) | both;
+    }
+
     LimitPin::~LimitPin() { _pin.detachInterrupt(); }
 }

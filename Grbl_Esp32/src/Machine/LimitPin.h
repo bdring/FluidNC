@@ -31,6 +31,7 @@ namespace Machine {
 
         void init();
         bool get() { return _value; }
+        void makeDualMask(); // makes this a mask for motor0 and motor1
 
         ~LimitPin();
     };

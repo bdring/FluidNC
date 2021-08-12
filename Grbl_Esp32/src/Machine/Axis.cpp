@@ -39,6 +39,13 @@ namespace Machine {
             _homing->init();
             set_bitnum(Axes::homingMask, _axis);
         }
+
+        // If dual motors and only one motor has switches, this is the configuration
+        // for a POG style squaring. The switch should report as being on both axes
+        if (hasDualMotor() && (motorsWithSwitches() == 1)) {
+            _motors[0]->makeDualSwitches();
+            _motors[1]->makeDualSwitches();
+        }
     }
 
     // Checks if a motor matches this axis:
@@ -50,6 +57,24 @@ namespace Machine {
         }
         return false;
     }
+
+    // Does this axis have 2 motors?
+    bool Axis::hasDualMotor() { return (_motors[0]->isRealMotor() && _motors[1]->isRealMotor()); }
+
+    // How many motors have switches defined?
+    int Axis::motorsWithSwitches() {
+        int count = 0;
+        for (uint8_t i = 0; i < MAX_MOTORS_PER_AXIS; i++) {
+            if (_motors[i]->hasSwitches()) {
+                count++;
+            }
+        }
+        return count;
+    }
+
+    // returns the offset between the pulloffs
+    // value is positive when motor1 has a larger pulloff
+    float Axis::pulloffOffset() { return _motors[1]->_pulloff - _motors[0]->_pulloff; }
 
     Axis::~Axis() {
         for (uint8_t i = 0; i < MAX_MOTORS_PER_AXIS; i++) {

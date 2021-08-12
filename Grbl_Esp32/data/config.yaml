@@ -40,33 +40,37 @@ axes:
 
   y:
     steps_per_mm: 800
-    max_rate: 2000
-    acceleration: 25
+    max_rate: 5000
+    acceleration: 100
     max_travel: 300
+
     homing:
-      cycle: 2
-      mpos: 10
+      cycle: 1
+      mpos: 150
       positive_direction: false
-      feed_rate: 50.000
+      feed_rate: 100.000
       seek_rate: 200.000
       debounce_ms: 500
-
+    
     motor0:
-      limit_neg: gpio.4:low:pu
-      hard_limits: false  
-      pulloff: 1.00
-      stepstick:
-        direction: gpio.15
-        step: gpio.26
-    motor1:
-      limit_neg: gpio.16:low:pu
+      limit_neg: NO_PIN
+      limit_pos: gpio.4:low:pu
+      limit_all: NO_PIN
       hard_limits: false
       pulloff: 1.00
       stepstick:
-        direction: gpio.33
-        step: gpio.27
+        step: gpio.26
+        direction: gpio.15
 
-  
+    motor1:
+      limit_neg: NO_PIN
+      limit_pos: gpio.16:low:pu
+      limit_all: NO_PIN
+      hard_limits: false
+      pulloff: 1.25
+      stepstick:
+        step: gpio.27
+        direction: gpio.33
 
 comms:
     wifi_ap:

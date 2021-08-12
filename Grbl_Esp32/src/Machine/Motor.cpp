@@ -53,7 +53,18 @@ namespace Machine {
         _allLimitPin->init();
     }
 
-    bool Motor::hasSwitches() { return (_negPin.defined() || _negPin.defined() || _negPin.defined()); }
+    // tru if there is at least one switch for this motor
+    bool Motor::hasSwitches() { return (_negPin.defined() || _posPin.defined() || _allPin.defined()); }
+
+    // not a nullmotor
+    bool Motor::isRealMotor() { return strcmp(_driver->name(), "null_motor") != 0; }
+
+    // Used when a single switch input is wired to 2 axes.
+    void Motor::makeDualSwitches() {
+        _negLimitPin->makeDualMask();
+        _posLimitPin->makeDualMask();
+        _allLimitPin->makeDualMask();
+    }
 
     Motor::~Motor() { delete _driver; }
 }
