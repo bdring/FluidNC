@@ -166,7 +166,7 @@ static void report_util_axis_values(float* axis_value, char* rpt) {
     for (idx = 0; idx < n_axis; idx++) {
         snprintf(axisVal, coordStringLen - 1, format, axis_value[idx] * unit_conv);
         strcat(rpt, axisVal);
-        if (idx < (config->_axes->_numberAxis - 1)) {
+        if (idx < (n_axis - 1)) {
             strcat(rpt, ",");
         }
     }
@@ -185,7 +185,7 @@ static String report_util_axis_values(const float* axis_value) {
     auto n_axis = config->_axes->_numberAxis;
     for (idx = 0; idx < n_axis; idx++) {
         rpt += String(axis_value[idx] * unit_conv, decimals);
-        if (idx < (config->_axes->_numberAxis - 1)) {
+        if (idx < (n_axis - 1)) {
             rpt += ",";
         }
     }
