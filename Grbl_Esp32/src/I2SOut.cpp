@@ -564,6 +564,7 @@ void IRAM_ATTR i2s_out_write(uint8_t pin, uint8_t val) {
     } else {
         atomic_fetch_and(&i2s_out_port_data, ~bit);
     }
+    i2s_out_push();
 }
 
 uint8_t IRAM_ATTR i2s_out_read(uint8_t pin) {
