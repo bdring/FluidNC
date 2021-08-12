@@ -123,7 +123,7 @@ void protocol_reset() {
     sys_rt_s_override                    = SpindleSpeedOverride::Default;
 }
 
-static int64_t idleEndTime = 0;
+static int32_t idleEndTime = 0;
 
 /*
   GRBL PRIMARY LOOP:
