@@ -22,6 +22,9 @@
 
 #include "../Config.h"  // ENABLE_*
 
+#include <cstdint>
+#include <cstring>
+
 #ifndef ENABLE_WIFI
 namespace WebUI {
     class Serial_2_Socket {
@@ -36,8 +39,6 @@ namespace WebUI {
 #else
 
 #    include <Print.h>
-#    include <cstring>
-#    include <cstdint>
 
 class WebSocketsServer;
 

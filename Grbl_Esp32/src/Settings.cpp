@@ -6,6 +6,7 @@
 #include "Protocol.h"           // protocol_buffer_synchronize
 
 #include <map>
+#include <limits>
 #include <cstring>
 #include <vector>
 #include <nvs.h>
