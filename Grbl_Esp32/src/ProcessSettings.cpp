@@ -498,13 +498,28 @@ Error motor_disable(const char* value, WebUI::AuthenticationLevel auth_level, We
 }
 
 Error dump_config(const char* value, WebUI::AuthenticationLevel auth_level, WebUI::ESPResponseStream* out) {
-    grbl_send(CLIENT_ALL, dataBeginMarker);
+    ClientStream* ss;
     try {
-        ClientStream             ss(CLIENT_ALL);
-        Configuration::Generator generator(ss);
+        if (value) {
+            // Use a file on the local file system unless there is an explicit prefix like /sd/
+            ss = new ClientStream(value, "localfs");
+        } else {
+            ss = new ClientStream(CLIENT_ALL);
+        }
+    } catch (Error err) { return err; }
+    try {
+        Configuration::Generator generator(*ss);
+        if (!value) {
+            grbl_send(CLIENT_ALL, dataBeginMarker);
+        }
         config->group(generator);
+        if (!value) {
+            grbl_send(out->client(), dataEndMarker);
+        }
     } catch (std::exception& ex) { log_info("Config dump error: " << ex.what()); }
-    grbl_send(out->client(), dataEndMarker);
+    if (ss) {
+        delete ss;
+    }
     return Error::Ok;
 }
 

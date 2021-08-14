@@ -185,11 +185,7 @@ namespace WebUI {
         webPrint(")"
                  // TODO: change grbl-embedded to FluidNC after fixing WebUI
                  " # FW target:grbl-embedded  # FW HW:");
-        if (config->_sdCard->get_state(false) != SDCard::State::NotPresent) {
-            webPrint("Direct SD");
-        } else {
-            webPrint("No SD");
-        }
+        webPrint(config->_sdCard->get_state() == SDCard::State::NotPresent ? "No SD" : "Direct SD");
         webPrint("  # primary sd:/sd # secondary sd:none # authentication:");
 #ifdef ENABLE_AUTHENTICATION
         webPrint("yes");
@@ -639,16 +635,17 @@ namespace WebUI {
         if (path[0] != '/') {
             path = "/" + path;
         }
-        SDCard::State state = config->_sdCard->get_state(true);
-        if (state != SDCard::State::Idle) {
-            if (state == SDCard::State::NotPresent) {
+        switch (config->_sdCard->begin(SDCard::State::BusyReading)) {
+            case SDCard::State::Idle:
+                break;
+            case SDCard::State::NotPresent:
                 webPrintln("No SD Card");
                 return Error::FsFailedMount;
-            } else {
+            default:
                 webPrintln("SD Card Busy");
                 return Error::FsFailedBusy;
-            }
         }
+
         if (!config->_sdCard->openFile(SD, path.c_str())) {
             report_status_message(Error::FsFailedRead, (espresponse) ? espresponse->client() : CLIENT_ALL);
             webPrintln("");
@@ -656,6 +653,7 @@ namespace WebUI {
         }
         return Error::Ok;
     }
+
     static Error showSDFile(char* parameter, AuthenticationLevel auth_level) {  // ESP221
         if (sys.state != State::Idle && sys.state != State::Alarm) {
             return Error::IdleError;
@@ -722,7 +720,7 @@ namespace WebUI {
         }
         File file2del = fs.open(path);
         if (!file2del) {
-            webPrintln("Cannot stat file!");
+            webPrintln("Cannot find file!");
             return Error::FsFileNotFound;
         }
         if (file2del.isDirectory()) {
@@ -743,25 +741,28 @@ namespace WebUI {
     }
 
     static Error deleteSDObject(char* parameter, AuthenticationLevel auth_level) {  // ESP215
-        SDCard::State state = config->_sdCard->get_state(true);
+        auto state = config->_sdCard->begin(SDCard::State::BusyWriting);
         if (state != SDCard::State::Idle) {
             webPrintln((state == SDCard::State::NotPresent) ? "No SD card" : "Busy");
             return Error::Ok;
         }
-        return deleteObject(SD, parameter);
+        Error res = deleteObject(SD, parameter);
+        config->_sdCard->end();
+        return res;
     }
 
     static Error listSDFiles(char* parameter, AuthenticationLevel auth_level) {  // ESP210
-        SDCard::State state = config->_sdCard->get_state(true);
-        if (state != SDCard::State::Idle) {
-            if (state == SDCard::State::NotPresent) {
+        switch (config->_sdCard->begin(SDCard::State::BusyReading)) {
+            case SDCard::State::Idle:
+                break;
+            case SDCard::State::NotPresent:
                 webPrintln("No SD Card");
                 return Error::FsFailedMount;
-            } else {
+            default:
                 webPrintln("SD Card Busy");
                 return Error::FsFailedBusy;
-            }
         }
+
         webPrintln("");
         config->_sdCard->listDir(SD, "/", 10, espresponse->client());
         String ssd = "[SD Free:" + ESPResponseStream::formatBytes(SD.totalBytes() - SD.usedBytes());
@@ -769,7 +770,7 @@ namespace WebUI {
         ssd += " Total:" + ESPResponseStream::formatBytes(SD.totalBytes());
         ssd += "]";
         webPrintln(ssd);
-        SD.end();
+        config->_sdCard->end();
         return Error::Ok;
     }
 
@@ -850,9 +851,10 @@ namespace WebUI {
 
     static Error showSDStatus(char* parameter, AuthenticationLevel auth_level) {  // ESP200
         const char* resp = "No SD card";
-        switch (config->_sdCard->get_state(true)) {
+        switch (config->_sdCard->begin(SDCard::State::BusyReading)) {
             case SDCard::State::Idle:
                 resp = "SD card detected";
+                config->_sdCard->end();
                 break;
             case SDCard::State::NotPresent:
                 resp = "No SD card";

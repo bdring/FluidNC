@@ -66,6 +66,7 @@
 #include "MotionControl.h"
 #include "Report.h"
 #include "System.h"
+#include "SDCard.h"
 
 #include <atomic>
 #include <cstring>
@@ -157,7 +158,7 @@ void clientCheckTask(void* pvParameters) {
             if (is_realtime_command(clientByte)) {
                 execute_realtime_command(static_cast<Cmd>(clientByte), client);
             } else {
-                if (config->_sdCard->get_state(false) < SDCard::State::Busy) {
+                if (config->_sdCard->get_state() < SDCard::State::Busy) {
                     vTaskEnterCritical(&myMutex);
                     client_buffer[client].write(clientByte);
                     vTaskExitCritical(&myMutex);
@@ -319,6 +320,12 @@ void execute_realtime_command(Cmd command, uint8_t client) {
     }
 }
 
+extern "C" {
+#include <stdio.h>
+}
+
+static FILE* clientFile;
+
 void client_write(uint8_t client, const char* text) {
     if (client == CLIENT_INPUT) {
         return;
@@ -337,6 +344,12 @@ void client_write(uint8_t client, const char* text) {
         // The Arduino HardwareSerial class is buggy in some versions.
         Uart0.write(text);
     }
+
+    if (client == CLIENT_FILE) {
+        size_t len    = strlen(text);
+        size_t actual = fwrite(text, 1, len, clientFile);
+        Assert(actual == len, "File write failed");
+    }
 }
 
 void ClientStream::add(char c) {
@@ -344,4 +357,42 @@ void ClientStream::add(char c) {
     text[1] = '\0';
     text[0] = c;
     client_write(_client, text);
+}
+
+ClientStream::ClientStream(const char* filename, const char* defaultFs) : _client(CLIENT_FILE) {
+    String path;
+
+    // Insert the default file system prefix if a file system name is not present
+    if (*filename != '/') {
+        path = "/";
+        path += defaultFs;
+        path += "/";
+    }
+
+    path += filename;
+
+    // Map /localfs/ to the actual name of the local file system
+    if (path.startsWith("/localfs/")) {
+        path.replace("/localfs/", "/spiffs/");
+    }
+    if (path.startsWith("/sd/")) {
+        if (config->_sdCard->begin(SDCard::State::BusyWriting) != SDCard::State::Idle) {
+            throw Error::FsFailedMount;
+        }
+        _isSD = true;
+    }
+
+    clientFile = fopen(path.c_str(), "w");
+    if (!clientFile) {
+        throw Error::FsFailedCreateFile;
+    }
+}
+
+ClientStream::~ClientStream() {
+    if (_client == CLIENT_FILE) {
+        fclose(clientFile);
+    }
+    if (_isSD) {
+        config->_sdCard->end();
+    }
 }

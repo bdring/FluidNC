@@ -31,6 +31,7 @@ enum ClientType : uint8_t {
     CLIENT_INPUT  = 4,
     CLIENT_ALL    = 0xFF,
     CLIENT_COUNT  = 5,  // total number of client types regardless if they are used
+    CLIENT_FILE   = 6,  // Not included in CLIENT_COUNT
 };
 
 // a task to read for incoming data from serial port
@@ -96,9 +97,12 @@ bool is_realtime_command(uint8_t data);
 
 class ClientStream : public SimpleOutputStream {
     uint8_t _client;
+    bool    _isSD;
 
 public:
     ClientStream(uint8_t client) : _client(client) {}
+    ClientStream(const char* filename, const char* defaultFs);
+
     void add(char c) override;
-    ~ClientStream() {}
+    ~ClientStream();
 };

@@ -80,6 +80,7 @@ enum class Error : uint8_t {
     WifiFailBegin               = 71,  // WiFi failed to start
     NumberRange                 = 80,  // Setting number range problem
     InvalidValue                = 81,  // Setting string problem
+    FsFailedCreateFile          = 82,
     MessageFailed               = 90,
     NvsSetFailed                = 100,
     NvsGetStatsFailed           = 101,

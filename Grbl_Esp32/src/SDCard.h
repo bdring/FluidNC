@@ -39,6 +39,8 @@ public:
         BusyPrinting  = 2,
         BusyUploading = 3,
         BusyParsing   = 4,
+        BusyWriting   = 5,
+        BusyReading   = 6,
     };
 
     class FileWrap;  // holds a single 'File'; we don't want to include <FS.h> here
@@ -50,8 +52,9 @@ private:
     uint32_t  _current_line_number;   // the most recent line number read
     char      comment[COMMENT_SIZE];  // Line to be executed. Zero-terminated.
 
-    State _state;
-    Pin   _cardDetect;
+    State         _state;
+    Pin           _cardDetect;
+    SDCard::State test_or_open(bool refresh);
 
 public:
     bool _readyNext;  // Grbl has processed a line and is waiting for another
@@ -63,9 +66,9 @@ public:
     SDCard(const SDCard&) = delete;
     SDCard& operator=(const SDCard&) = delete;
 
-    //bool mount();
-    SDCard::State get_state(bool refresh);
-    SDCard::State set_state(SDCard::State state);
+    SDCard::State get_state();
+    SDCard::State begin(SDCard::State newState);
+    void          end();
 
     void     listDir(fs::FS& fs, const char* dirname, uint8_t levels, uint8_t client);
     bool     openFile(fs::FS& fs, const char* path);
