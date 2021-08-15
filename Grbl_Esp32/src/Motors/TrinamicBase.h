@@ -26,9 +26,10 @@
 namespace MotorDrivers {
 
     enum TrinamicMode {
-        StealthChop = 1,  // very quiet
-        CoolStep    = 2,  // cooler so higher current possible
-        StallGuard  = 3,  // coolstep plus stall indication
+        Unknown = 0,
+        StealthChop    = 1,  // very quiet
+        CoolStep       = 2,  // cooler so higher current possible
+        StallGuard     = 3,  // coolstep plus stall indication
     };
 
     extern EnumItem trinamicModes[];
@@ -40,7 +41,7 @@ namespace MotorDrivers {
         bool         _has_errors;
         uint16_t     _driver_part_number;  // example: use 2130 for TMC2130
         bool         _disabled = false;
-        TrinamicMode _mode     = StealthChop;
+        TrinamicMode _mode     = TrinamicMode::Unknown;  // no mode set yet
 
         // Configurable
         int   _homing_mode = StealthChop;
@@ -48,9 +49,9 @@ namespace MotorDrivers {
         float _r_sense     = 0.11;
         bool  _use_enable  = false;
 
-        float _run_current         = 0.25;
-        float _hold_current        = 0.25;
-        int   _microsteps          = 256;
+        float _run_current         = 0.50;
+        float _hold_current        = 0.50;
+        int   _microsteps          = 16;
         int   _stallguard          = 0;
         bool  _stallguardDebugMode = false;
 
