@@ -44,11 +44,11 @@ namespace Machine {
         switch (motor) {
             case 0:
                 _bitmask = 1;  // Set bit as for x axis motor 0
-                _legend  = " MOTOR0";
+                _legend  = " Motor0";
                 break;
             case 1:
                 _bitmask = 1 << 16;  // Set bit as for X axis motor 1
-                _legend  = " MOTOR1";
+                _legend  = " Motor1";
                 break;
             case -1:  // Axis level switch - set both bits
                 _bitmask = (1 << 16) | 1;
