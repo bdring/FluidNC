@@ -36,27 +36,10 @@ namespace Machine {
                 _pHardLimits = false;
                 break;
         }
-        // Set a bitmap with bits to represent the axis and which motors are affected,
-        // and construct a legend string like "Y Axis Limit" or "Y Axis MOTOR0 Limit".
-        // The bitmap looks like CBAZYXcbazyx where motor0 motors are in the lower
-        // bits and motor1 in the upper bits.  If both motors are affected, there is
-        // a bit set in both the upper and lower groups.
-        switch (motor) {
-            case 0:
-                _bitmask = 1;  // Set bit as for x axis motor 0
-                _legend  = " Motor0";
-                break;
-            case 1:
-                _bitmask = 1 << 16;  // Set bit as for X axis motor 1
-                _legend  = " Motor1";
-                break;
-            case -1:  // Axis level switch - set both bits
-                _bitmask = (1 << 16) | 1;
-                _legend  = "";
-                break;
-            default:
-                break;
-        }
+
+        // Set a bitmap with bits to represent the axis and which motors are affected
+        // The bitmap looks like CBAZYXcbazyx where motor0 motors are in the lower bits
+        motor == 0 ? _bitmask = 1 : _bitmask = 1 << 16;
         _bitmask <<= axis;  // Shift the bits into position
         _legend = String("    " + sDir + " Limit");
     }

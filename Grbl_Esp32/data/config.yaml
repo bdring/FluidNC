@@ -63,7 +63,7 @@ axes:
 
     motor1:
       limit_neg: NO_PIN
-      limit_pos: gpio.16:low:pu
+      limit_pos: NO_PIN
       limit_all: NO_PIN
       hard_limits: false
       pulloff: 1.25
