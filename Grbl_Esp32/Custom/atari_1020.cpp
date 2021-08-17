@@ -27,6 +27,7 @@
 // This file is enabled by defining CUSTOM_CODE_FILENAME "atari_1020.cpp"
 // in Machines/atari_1020.h, thus causing this file to be included
 // from ../custom_code.cpp
+#include "Pins/LedcPin.h"
 
 #define HOMING_PHASE_FULL_APPROACH 0   // move to right end
 #define HOMING_PHASE_CHECK 1           // check reed switch
@@ -46,11 +47,8 @@ void machine_init() {
     log_info("Atari 1020 Solenoid");
 
     // setup PWM channel
-    solenoid_pwm_chan_num = sys_get_next_PWM_chan_num();
-    ledcSetup(solenoid_pwm_chan_num, SOLENOID_PWM_FREQ, SOLENOID_PWM_RES_BITS);
-    ledcAttachPin(SOLENOID_PEN_PIN, solenoid_pwm_chan_num);
-    pinMode(SOLENOID_DIRECTION_PIN, OUTPUT);  // this sets the direction of the solenoid current
     pinMode(REED_SW_PIN, INPUT_PULLUP);       // external pullup required
+    solenoid_pwm_chan_num = ledcInit(SOLENOID_PEN_PEN, -1, SOLENOID_PWM_FREQ, SOLENOID_PWM_RES_BITS);
     // setup a task that will calculate solenoid position
     xTaskCreatePinnedToCore(solenoidSyncTask,    // task
                             "solenoidSyncTask",  // name for task

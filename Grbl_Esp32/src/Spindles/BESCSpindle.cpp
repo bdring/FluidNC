@@ -44,14 +44,13 @@ namespace Spindles {
         }
 
         is_reversable = _direction_pin.defined();
-        _pwm_chan_num = 0;  // Channel 0 is reserved for spindle use
 
         // override some settings in the PWM base class to what is required for a BESC
         _pwm_freq      = besc_pwm_freq;
         _pwm_precision = 16;
         _pwm_period    = (1 << _pwm_precision);
 
-        ledcInit(_output_pin, _pwm_chan_num, double(_pwm_freq), _pwm_precision);  // setup the channel
+        _pwm_chan_num = ledcInit(_output_pin, -1, double(_pwm_freq), _pwm_precision);  // allocate and setup a PWM channel
 
         _enable_pin.setAttr(Pin::Attr::Output);
 

@@ -29,7 +29,7 @@ namespace MotorDrivers {
         void set_location();
 
         Pin      _pwm_pin;
-        uint8_t  _channel_num;
+        uint8_t  _pwm_chan_num;
         uint32_t _current_pwm_duty;
         float    _homing_position;
         bool     _invert_direction = false;

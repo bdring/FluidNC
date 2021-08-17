@@ -41,7 +41,7 @@ namespace Spindles {
             return;  // We cannot continue without the output pin
         }
 
-        ledcInit(_output_pin, _pwm_chan_num, (double)_pwm_freq, _pwm_precision);  // setup the channel
+        _pwm_chan_num = ledcInit(_output_pin, -1, (double)_pwm_freq, _pwm_precision);  // allocate and setup a PWM channel
 
         _enable_pin.setAttr(Pin::Attr::Output);
         _direction_pin.setAttr(Pin::Attr::Output);

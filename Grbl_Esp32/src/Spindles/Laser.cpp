@@ -51,7 +51,6 @@ namespace Spindles {
         }
 
         setupSpeeds(_pwm_period);
-        _pwm_chan_num = 0;  // Channel 0 is reserved for spindle use
     }
 
     // Configuration registration

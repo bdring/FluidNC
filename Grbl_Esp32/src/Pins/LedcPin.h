@@ -27,5 +27,5 @@
 
 #include "../Pin.h"
 
-extern void ledcInit(Pin& pin, uint8_t chan, double freq, uint8_t bit_num);
+extern int  ledcInit(Pin& pin, int chan, double freq, uint8_t bit_num);
 extern void ledcSetDuty(uint8_t chan, uint32_t duty);

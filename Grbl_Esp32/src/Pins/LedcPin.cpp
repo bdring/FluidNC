@@ -33,7 +33,25 @@
 
 extern "C" void __pinMode(uint8_t pin, uint8_t mode);
 
-void ledcInit(Pin& pin, uint8_t chan, double freq, uint8_t bit_num) {
+static int ledcAllocateChannel() {
+    static int nextLedcChannel = 0;
+
+    // Increment by 2 because there are only 4 timers so only
+    // four completely independent channels.  We could be
+    // smarter about this and look for an unallocated channel
+    // that is already on the same frequency.  There is some
+    // code for that in PinUsers/PwmPin.cpp TryGrabChannel()
+
+    Assert(nextLedcChannel < 8, "Out of LEDC PWM channels");
+    nextLedcChannel += 2;
+    return nextLedcChannel - 2;
+}
+
+int ledcInit(Pin& pin, int chan, double freq, uint8_t bit_num) {
+    if (chan < 0) {
+        // Allocate a channel
+        chan = ledcAllocateChannel();
+    }
     ledcSetup(chan, freq, bit_num);  // setup the channel
 
     auto nativePin = pin.getNative(Pin::Capabilities::PWM);
@@ -45,6 +63,7 @@ void ledcInit(Pin& pin, uint8_t chan, double freq, uint8_t bit_num) {
     uint8_t function    = ((chan / 8) ? LEDC_LS_SIG_OUT0_IDX : LEDC_HS_SIG_OUT0_IDX) + (chan % 8);
     bool    isActiveLow = pin.getAttr().has(Pin::Attr::ActiveLow);
     pinMatrixOutAttach(nativePin, function, isActiveLow, false);
+    return chan;
 }
 
 void IRAM_ATTR ledcSetDuty(uint8_t chan, uint32_t duty) {

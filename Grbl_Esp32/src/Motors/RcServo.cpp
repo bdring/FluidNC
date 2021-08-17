@@ -46,8 +46,7 @@ namespace MotorDrivers {
         _axis_index = axis_index();
 
         read_settings();
-        _channel_num = sys_get_next_PWM_chan_num();
-        ledcInit(_pwm_pin, _channel_num, SERVO_PULSE_FREQ, SERVO_PULSE_RES_BITS);
+        _pwm_chan_num     = ledcInit(_pwm_pin, -1, SERVO_PULSE_FREQ, SERVO_PULSE_RES_BITS);  // Allocate a channel
         _current_pwm_duty = 0;
 
         _disabled = true;
@@ -66,7 +65,7 @@ namespace MotorDrivers {
         }
 
         _current_pwm_duty = duty;
-        ledcSetDuty(_channel_num, duty);
+        ledcSetDuty(_pwm_chan_num, duty);
     }
 
     // sets the PWM to zero. This allows most servos to be manually moved

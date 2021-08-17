@@ -60,7 +60,7 @@ namespace Spindles {
 
         auto outputNative = _output_pin.getNative(Pin::Capabilities::PWM);
 
-        ledcInit(_output_pin, _pwm_chan_num, (double)_pwm_freq, _pwm_precision);
+        _pwm_chan_num = ledcInit(_output_pin, -1, (double)_pwm_freq, _pwm_precision);
 
         _enable_pin.setAttr(Pin::Attr::Output);
         _direction_pin.setAttr(Pin::Attr::Output);
@@ -81,8 +81,6 @@ namespace Spindles {
 
         _pwm_precision = calc_pwm_precision(_pwm_freq);  // determine the best precision
         _pwm_period    = (1 << _pwm_precision);
-
-        _pwm_chan_num = 0;  // Channel 0 is reserved for spindle use
     }
 
     void IRAM_ATTR PWM::setSpeedfromISR(uint32_t dev_speed) {

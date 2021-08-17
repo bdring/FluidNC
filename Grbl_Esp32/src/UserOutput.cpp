@@ -19,7 +19,7 @@
 
 #include "UserOutput.h"
 #include "Logging.h"         // log_*
-#include "System.h"          // sys_get_next_PWM_chan_num()
+#include "Pins/LedcPin.h"    // ledcInit()
 #include <esp32-hal-ledc.h>  // ledc*
 #include <esp32-hal-cpu.h>   // getApbFrequency()
 
@@ -72,20 +72,14 @@ namespace UserOutput {
     }
 
     void AnalogOutput::init() {
-        _pwm_channel = sys_get_next_PWM_chan_num();
-        if (_pwm_channel == -1) {
-            log_error("Out of PWM channels");
-        } else {
-            _pin.setAttr(Pin::Attr::Output);
-            auto nativePin = _pin.getNative(Pin::Capabilities::PWM);
-
-            ledcSetup(_pwm_channel, _pwm_frequency, _resolution_bits);
-            ledcAttachPin(nativePin, _pwm_channel);
-            ledcWrite(_pwm_channel, 0);
-
-            config_message();
+        if (_pin.undefined()) {
+            return;
         }
+        _pwm_channel = ledcInit(_pin, -1, _pwm_frequency, _resolution_bits);
+        ledcWrite(_pwm_channel, 0);
+        config_message();
     }
+
     void AnalogOutput::config_message() {
         log_info("User Analog Output " << _number << " on Pin:" << _pin.name() << " Freq:" << _pwm_frequency << "Hz");
     }

@@ -102,25 +102,6 @@ float* system_get_mpos() {
     return position;
 };
 
-/*
-    This returns an unused pwm channel.
-    The 8 channels share 4 timers, so pairs 0,1 & 2,3 , etc
-    have to be the same frequency. The spindle always uses channel 0
-    so we start counting from 2.
-
-    There are still possible issues if requested channels use different frequencies
-    TODO: Make this more robust.
-*/
-int8_t sys_get_next_PWM_chan_num() {
-    static uint8_t next_PWM_chan_num = 2;  // start at 2 to avoid spindle
-    if (next_PWM_chan_num < 8) {           // 7 is the max PWM channel number
-        return next_PWM_chan_num++;
-    } else {
-        log_error("Out of PWM channels");
-        return -1;
-    }
-}
-
 std::map<State, const char*> StateName = {
     { State::Idle, "Idle" },
     { State::Alarm, "Alarm" },
