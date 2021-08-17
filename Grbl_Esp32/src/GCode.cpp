@@ -28,9 +28,10 @@
 #include "Report.h"
 #include "Jog.h"
 #include "NutsBolts.h"
-#include "Protocol.h"       // protocol_buffer_synchronize
-#include "MotionControl.h"  // mc_override_ctrl_update
-#include "Platform.h"       // WEAK_LINK
+#include "Protocol.h"             // protocol_buffer_synchronize
+#include "MotionControl.h"        // mc_override_ctrl_update
+#include "Machine/UserOutputs.h"  // setAnalogPercent
+#include "Platform.h"             // WEAK_LINK
 
 #include "Machine/MachineConfig.h"
 
@@ -1430,7 +1431,7 @@ Error gc_execute_line(char* line, uint8_t client) {
                 protocol_buffer_synchronize();
             }
             bool turnOn = gc_block.modal.io_control == IoControl::DigitalOnSync || gc_block.modal.io_control == IoControl::DigitalOnImmediate;
-            if (!sys_set_digital((int)gc_block.values.p, turnOn)) {
+            if (!config->_userOutputs->setDigital((int)gc_block.values.p, turnOn)) {
                 FAIL(Error::PParamMaxExceeded);
             }
         } else {
@@ -1447,7 +1448,7 @@ Error gc_execute_line(char* line, uint8_t client) {
             if (gc_block.modal.io_control == IoControl::SetAnalogSync) {
                 protocol_buffer_synchronize();
             }
-            if (!sys_set_analog((int)gc_block.values.e, gc_block.values.q)) {
+            if (!config->_userOutputs->setAnalogPercent((int)gc_block.values.e, gc_block.values.q)) {
                 FAIL(Error::PParamMaxExceeded);
             }
         } else {

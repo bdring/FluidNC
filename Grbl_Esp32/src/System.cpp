@@ -59,9 +59,6 @@ volatile Percent sys_rt_f_override;  // Global realtime executor feedrate overri
 volatile Percent sys_rt_r_override;  // Global realtime executor rapid override percentage
 volatile Percent sys_rt_s_override;  // Global realtime executor spindle override percentage
 
-UserOutput::AnalogOutput*  myAnalogOutputs[MaxUserDigitalPin];
-UserOutput::DigitalOutput* myDigitalOutputs[MaxUserDigitalPin];
-
 xQueueHandle control_sw_queue;    // used by control switch debouncing
 bool         debouncing = false;  // debouncing in process
 
@@ -74,21 +71,6 @@ void system_reset() {
     sys.r_override        = RapidOverride::Default;             // Set to 100%
     sys.spindle_speed_ovr = SpindleSpeedOverride::Default;      // Set to 100%
     memset(sys_probe_position, 0, sizeof(sys_probe_position));  // Clear probe position.
-}
-
-void init_output_pins() {
-    auto userOutputs = config->_userOutputs;
-
-    // Setup M62,M63,M64,M65 pins
-    for (int i = 0; i < 4; ++i) {
-        myDigitalOutputs[i] = new UserOutput::DigitalOutput(i, userOutputs->_digitalOutput[i]);
-    }
-
-    // Setup M67 Pins
-    myAnalogOutputs[0] = new UserOutput::AnalogOutput(0, userOutputs->_analogOutput[0], userOutputs->_analogFrequency[0]);
-    myAnalogOutputs[1] = new UserOutput::AnalogOutput(1, userOutputs->_analogOutput[1], userOutputs->_analogFrequency[1]);
-    myAnalogOutputs[2] = new UserOutput::AnalogOutput(2, userOutputs->_analogOutput[2], userOutputs->_analogFrequency[2]);
-    myAnalogOutputs[3] = new UserOutput::AnalogOutput(3, userOutputs->_analogOutput[3], userOutputs->_analogFrequency[3]);
 }
 
 void system_flag_wco_change() {
@@ -120,31 +102,6 @@ float* system_get_mpos() {
     return position;
 };
 
-void sys_digital_all_off() {
-    for (uint8_t io_num = 0; io_num < MaxUserDigitalPin; io_num++) {
-        myDigitalOutputs[io_num]->set_level(LOW);
-    }
-}
-
-// io_num is the virtual digital pin#
-bool sys_set_digital(uint8_t io_num, bool turnOn) {
-    return myDigitalOutputs[io_num]->set_level(turnOn);
-}
-
-// Turn off all analog outputs
-void sys_analog_all_off() {
-    for (uint8_t io_num = 0; io_num < MaxUserDigitalPin; io_num++) {
-        myAnalogOutputs[io_num]->set_level(0);
-    }
-}
-
-// io_num is the virtual analog pin#
-bool sys_set_analog(uint8_t io_num, float percent) {
-    auto     analog    = myAnalogOutputs[io_num];
-    uint32_t numerator = uint32_t(percent / 100.0f * analog->denominator());
-    return analog->set_level(numerator);
-}
-
 /*
     This returns an unused pwm channel.
     The 8 channels share 4 timers, so pairs 0,1 & 2,3 , etc
@@ -162,23 +119,6 @@ int8_t sys_get_next_PWM_chan_num() {
         log_error("Out of PWM channels");
         return -1;
     }
-}
-
-/*
-		Calculate the highest precision of a PWM based on the frequency in bits
-
-		80,000,000 / freq = period
-		determine the highest precision where (1 << precision) < period
-	*/
-uint8_t sys_calc_pwm_precision(uint32_t freq) {
-    uint8_t precision = 0;
-
-    // increase the precision (bits) until it exceeds allow by frequency the max or is 16
-    while ((1u << precision) < uint32_t(80000000 / freq) && precision <= 16) {  // TODO is there a named value for the 80MHz?
-        precision++;
-    }
-
-    return precision - 1;
 }
 
 std::map<State, const char*> StateName = {

@@ -95,7 +95,7 @@ void main_init() {
             config->_axes->init();
 
             config->_control->init();
-            init_output_pins();  // Configure pinout pins and pin-change interrupt (Renamed due to conflict with esp32 files)
+            config->_userOutputs->init();
 
             memset(sys_position, 0, sizeof(sys_position));  // Clear machine position.
 

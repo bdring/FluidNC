@@ -19,17 +19,27 @@
 */
 
 #include "../Configuration/Configurable.h"
+#include "../GCode.h"  // MaxUserDigitalPin
+#include "../UserOutput.h"
 
 namespace Machine {
     class UserOutputs : public Configuration::Configurable {
+        UserOutput::AnalogOutput*  myAnalogOutputs[MaxUserDigitalPin];
+        UserOutput::DigitalOutput* myDigitalOutputs[MaxUserDigitalPin];
+
     public:
         UserOutputs();
 
-        Pin _analogOutput[4];
-        int _analogFrequency[4];
-        Pin _digitalOutput[4];
+        Pin _analogOutput[MaxUserDigitalPin];
+        int _analogFrequency[MaxUserDigitalPin];
+        Pin _digitalOutput[MaxUserDigitalPin];
+
+        void init();
+        void all_off();
 
         void group(Configuration::HandlerBase& handler) override;
+        bool setDigital(size_t io_num, bool isOn);
+        bool setAnalogPercent(size_t io_num, float percent);
 
         ~UserOutputs() = default;
     };

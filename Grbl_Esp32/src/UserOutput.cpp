@@ -24,7 +24,7 @@
 #include <esp32-hal-cpu.h>   // getApbFrequency()
 
 namespace UserOutput {
-    DigitalOutput::DigitalOutput(uint8_t number, Pin& pin) : _number(number), _pin(pin) {
+    DigitalOutput::DigitalOutput(size_t number, Pin& pin) : _number(number), _pin(pin) {
         if (_pin.undefined()) {
             return;
         }
@@ -86,7 +86,6 @@ namespace UserOutput {
             config_message();
         }
     }
-
     void AnalogOutput::config_message() {
         log_info("User Analog Output " << _number << " on Pin:" << _pin.name() << " Freq:" << _pwm_frequency << "Hz");
     }

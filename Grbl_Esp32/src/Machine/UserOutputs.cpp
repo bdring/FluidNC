@@ -25,6 +25,28 @@ namespace Machine {
         }
     }
 
+    void UserOutputs::init() {
+        // Setup M62,M63,M64,M65 pins
+        for (int i = 0; i < 4; ++i) {
+            myDigitalOutputs[i] = new UserOutput::DigitalOutput(i, _digitalOutput[i]);
+            myAnalogOutputs[i]  = new UserOutput::AnalogOutput(i, _analogOutput[i], _analogFrequency[i]);
+        }
+    }
+
+    void UserOutputs::all_off() {
+        for (size_t io_num = 0; io_num < MaxUserDigitalPin; io_num++) {
+            myDigitalOutputs[io_num]->set_level(false);
+            myAnalogOutputs[io_num]->set_level(0);
+        }
+    }
+
+    bool UserOutputs::setDigital(size_t io_num, bool isOn) { return myDigitalOutputs[io_num]->set_level(isOn); }
+    bool UserOutputs::setAnalogPercent(size_t io_num, float percent) {
+        auto     analog    = myAnalogOutputs[io_num];
+        uint32_t numerator = uint32_t(percent / 100.0f * analog->denominator());
+        return analog->set_level(numerator);
+    }
+
     void UserOutputs::group(Configuration::HandlerBase& handler) {
         handler.item("analog0", _analogOutput[0]);
         handler.item("analog1", _analogOutput[1]);

@@ -435,8 +435,7 @@ void mc_reset() {
         config->_coolant->stop();
 
         // turn off all User I/O immediately
-        sys_digital_all_off();
-        sys_analog_all_off();
+        config->_userOutputs->all_off();
 
         // do we need to stop a running SD job?
         if (config->_sdCard->get_state() == SDCard::State::BusyPrinting) {

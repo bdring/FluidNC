@@ -27,9 +27,12 @@ namespace UserOutput {
 
     class DigitalOutput {
     public:
-        DigitalOutput(uint8_t number, Pin& pin);
+        DigitalOutput(size_t number, Pin& pin);
 
-        bool set_level(bool isOn);
+        bool        set_level(bool isOn);
+        static void init_all();
+        static void all_off();
+        static bool set_level(size_t number, bool isOn);
 
     protected:
         void init();

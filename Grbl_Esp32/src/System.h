@@ -157,9 +157,5 @@ float system_convert_axis_steps_to_mpos(int32_t* steps, uint8_t idx);
 void   system_convert_array_steps_to_mpos(float* position, int32_t* steps);
 float* system_get_mpos();
 
-bool sys_set_digital(uint8_t io_num, bool turnOn);
-void sys_digital_all_off();
-bool sys_set_analog(uint8_t io_num, float percent);
-void sys_analog_all_off();
 
 int8_t sys_get_next_PWM_chan_num();
