@@ -58,7 +58,7 @@ namespace Machine {
                 break;
         }
         _bitmask <<= axis;  // Shift the bits into position
-        _legend = String(config->_axes->axisName(axis)) + " Axis" + _legend + " " + sDir + " Limit";
+        _legend = String("    " + sDir + " Limit");
     }
 
     void IRAM_ATTR LimitPin::handleISR() {

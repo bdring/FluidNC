@@ -55,7 +55,7 @@ namespace MotorDrivers {
         // Display the stepper library version message once, before the first
         // TMC config message.  Link is NULL for the first TMC instance.
         if (!link) {
-            log_info("TMCStepper Library Ver. 0x" << String(TMCSTEPPER_VERSION, HEX));
+            log_debug("TMCStepper Library Ver. 0x" << String(TMCSTEPPER_VERSION, HEX));
         }
 
         config_message();
@@ -94,8 +94,8 @@ namespace MotorDrivers {
         This is the startup message showing the basic definition. 
     */
     void TrinamicUartDriver::config_message() {  //TODO: The RX/TX pin could be added to the msg.
-        log_info(axisName() << " motor Trinamic TMC" << _driver_part_number << " Step:" << _step_pin.name() << " Dir:" << _dir_pin.name()
-                            << " Disable:" << _disable_pin.name() << " Addr:" << _addr << " R:" << _r_sense << " " << axisLimits());
+        log_info("    Trinamic TMC" << _driver_part_number << " Step:" << _step_pin.name() << " Dir:" << _dir_pin.name()
+                                    << " Disable:" << _disable_pin.name() << " Addr:" << _addr << " R:" << _r_sense << " " << axisLimits());
     }
 
     bool TrinamicUartDriver::test() {
@@ -105,10 +105,10 @@ namespace MotorDrivers {
 
         switch (tmcstepper->test_connection()) {
             case 1:
-                log_info(axisName() << " Trinamic driver test failed. Check connection");
+                log_info(axisName() << "    Trinamic driver test failed. Check connection");
                 return false;
             case 2:
-                log_info(axisName() << " Trinamic driver test failed. Check motor power");
+                log_info(axisName() << "    Trinamic driver test failed. Check motor power");
                 return false;
             default:
                 // driver responded, so check for other errors from the DRV_STATUS register
@@ -137,7 +137,7 @@ namespace MotorDrivers {
                     return false;
                 }
 
-                log_info(axisName() << " Trinamic driver test passed");
+                log_info(axisName() << "    Trinamic driver test passed");
                 return true;
         }
     }

@@ -56,8 +56,7 @@ namespace MotorDrivers {
     }
 
     void RcServo::config_message() {
-        log_info(axisName() << " RC Servo Pin:" << _pwm_pin.name() << " Pulse Len(" << _pwm_pulse_min << "," << _pwm_pulse_max << ") "
-                            << axisLimits());
+        log_info("    RC Servo Pin:" << _pwm_pin.name() << " Pulse Len(" << _pwm_pulse_min << "," << _pwm_pulse_max << ") " << axisLimits());
     }
 
     void RcServo::_write_pwm(uint32_t duty) {

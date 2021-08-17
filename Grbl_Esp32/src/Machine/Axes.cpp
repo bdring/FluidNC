@@ -34,7 +34,8 @@ namespace Machine {
         for (uint8_t axis = X_AXIS; axis < _numberAxis; axis++) {
             auto a = _axis[axis];
             if (a) {
-                a->init();
+                log_info("Axis " << axisName(axis));
+                a->init();                
             }
         }
     }

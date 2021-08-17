@@ -45,7 +45,7 @@ namespace Machine {
         static MotorMask limitMask;
         static MotorMask motorMask;
 
-        inline char axisName(int index) { return index < MAX_N_AXIS ? _names[index] : '?'; }
+        inline char axisName(int index) { return index < MAX_N_AXIS ? _names[index] : '?'; } // returns axis letter
 
         Pin _sharedStepperDisable;
 

@@ -62,7 +62,7 @@ namespace MotorDrivers {
         // Display the stepper library version message once, before the first
         // TMC config message.  Link is NULL for the first TMC instance.
         if (!link) {
-            log_info("TMCStepper Library Ver. 0x" << String(TMCSTEPPER_VERSION, HEX));
+            log_debug("TMCStepper Library Ver. 0x" << String(TMCSTEPPER_VERSION, HEX));
         }
 
         config_message();
@@ -105,7 +105,7 @@ namespace MotorDrivers {
     This is the startup message showing the basic definition
     */
     void TrinamicDriver::config_message() {
-        log_info(axisName() << " Trinamic TMC" << _driver_part_number << " Step:" << _step_pin.name() << " Dir:" << _dir_pin.name()
+        log_info("    Trinamic TMC" << _driver_part_number << " Step:" << _step_pin.name() << " Dir:" << _dir_pin.name()
                             << " CS:" << _cs_pin.name() << " Disable:" << _disable_pin.name() << " Index:" << _spi_index
                             << " R:" << _r_sense << " " << axisLimits());
     }
@@ -117,10 +117,10 @@ namespace MotorDrivers {
 
         switch (tmcstepper->test_connection()) {
             case 1:
-                log_info(axisName() << " Trinamic driver test failed. Check connection");
+                log_info("    Trinamic driver test failed. Check connection");
                 return false;
             case 2:
-                log_info(axisName() << " Trinamic driver test failed. Check motor power");
+                log_info("    Trinamic driver test failed. Check motor power");
                 return false;
             default:
                 // driver responded, so check for other errors from the DRV_STATUS register
@@ -149,7 +149,7 @@ namespace MotorDrivers {
                 //     return false;
                 // }
 
-                log_info(axisName() << " Trinamic driver test passed");
+                log_info(axisName() << "    Trinamic driver test passed");
                 return true;
         }
     }
