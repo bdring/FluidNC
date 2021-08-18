@@ -309,6 +309,8 @@ void mc_homing_cycle(AxisMask axis_mask) {
     kinematics_post_homing();
 }
 
+bool probe_succeeded = false;
+
 // Perform tool length probe cycle. Requires probe switch.
 // NOTE: Upon probe failure, the program will be stopped and placed into ALARM state.
 GCUpdatePos mc_probe_cycle(float* target, plan_line_data_t* pl_data, uint8_t parser_flags) {
@@ -329,9 +331,9 @@ GCUpdatePos mc_probe_cycle(float* target, plan_line_data_t* pl_data, uint8_t par
     config->_stepping->beginLowLatency();
 
     // Initialize probing control variables
-    bool is_probe_away  = bits_are_true(parser_flags, GCParserProbeIsAway);
-    bool is_no_error    = bits_are_true(parser_flags, GCParserProbeIsNoError);
-    sys.probe_succeeded = false;  // Re-initialize probe history before beginning cycle.
+    bool is_probe_away = bits_are_true(parser_flags, GCParserProbeIsAway);
+    bool is_no_error   = bits_are_true(parser_flags, GCParserProbeIsNoError);
+    probe_succeeded    = false;  // Re-initialize probe history before beginning cycle.
     config->_probe->set_direction(is_probe_away);
     // After syncing, check if probe is already triggered. If so, halt and issue alarm.
     // NOTE: This probe initialization error applies to all probing cycles.
@@ -367,7 +369,7 @@ GCUpdatePos mc_probe_cycle(float* target, plan_line_data_t* pl_data, uint8_t par
             sys_rt_exec_alarm = ExecAlarm::ProbeFailContact;
         }
     } else {
-        sys.probe_succeeded = true;  // Indicate to system the probing cycle completed successfully.
+        probe_succeeded = true;  // Indicate to system the probing cycle completed successfully.
     }
     sys_probe_state = ProbeState::Off;  // Ensure probe state monitor is disabled.
     protocol_execute_realtime();        // Check and execute run-time commands
@@ -379,7 +381,7 @@ GCUpdatePos mc_probe_cycle(float* target, plan_line_data_t* pl_data, uint8_t par
         // All done! Output the probe position as message.
         report_probe_parameters(CLIENT_ALL);
     }
-    if (sys.probe_succeeded) {
+    if (probe_succeeded) {
         return GCUpdatePos::System;  // Successful probe cycle.
     } else {
         return GCUpdatePos::Target;  // Failed to trigger probe within travel. With or without error.

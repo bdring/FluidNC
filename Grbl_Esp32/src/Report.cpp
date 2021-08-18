@@ -51,6 +51,7 @@
 #include "Version.h"  // VERSION
 #include "Machine/MachineConfig.h"
 #include "SettingsDefinitions.h"
+#include "MotionControl.h"               // probe_succeeded
 #include "Limits.h"                      // limits_get_state
 #include "Planner.h"                     // plan_get_block_buffer_available
 #include "Stepper.h"                     // step_count
@@ -311,7 +312,7 @@ void report_probe_parameters(uint8_t client) {
     report_util_axis_values(print_position, temp);
     strcat(probe_rpt, temp);
     // add the success indicator and add closing characters
-    sprintf(temp, ":%d]\r\n", sys.probe_succeeded);
+    sprintf(temp, ":%d]\r\n", probe_succeeded);
     strcat(probe_rpt, temp);
     grbl_send(client, probe_rpt);  // send the report
 }

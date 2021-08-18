@@ -29,6 +29,8 @@
 
 #include <cstdint>
 
+extern bool probe_succeeded;  // Tracks if last probing cycle was successful.
+
 // System motion commands must have a line number of zero.
 const int PARKING_MOTION_LINE_NUMBER = 0;
 
