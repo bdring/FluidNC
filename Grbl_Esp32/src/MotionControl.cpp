@@ -289,7 +289,7 @@ void mc_homing_cycle(AxisMask axis_mask) {
     // TODO: Move the pin-specific LIMIT_PIN call to Limits.cpp as a function.
     if (config->_limitsTwoSwitchesOnAxis && limits_get_state()) {
         mc_reset();  // Issue system reset and ensure spindle and coolant are shutdown.
-        sys_rt_exec_alarm = ExecAlarm::HardLimit;
+        rtAlarm = ExecAlarm::HardLimit;
         return;
     }
 
@@ -308,6 +308,8 @@ void mc_homing_cycle(AxisMask axis_mask) {
     // This give kinematics a chance to do something after normal homing
     kinematics_post_homing();
 }
+
+volatile ProbeState probeState;
 
 bool probe_succeeded = false;
 
@@ -338,7 +340,7 @@ GCUpdatePos mc_probe_cycle(float* target, plan_line_data_t* pl_data, uint8_t par
     // After syncing, check if probe is already triggered. If so, halt and issue alarm.
     // NOTE: This probe initialization error applies to all probing cycles.
     if (config->_probe->tripped()) {
-        sys_rt_exec_alarm = ExecAlarm::ProbeFailInitial;
+        rtAlarm = ExecAlarm::ProbeFailInitial;
         protocol_execute_realtime();
         config->_stepping->endLowLatency();
         return GCUpdatePos::None;  // Nothing else to do but bail.
@@ -347,7 +349,7 @@ GCUpdatePos mc_probe_cycle(float* target, plan_line_data_t* pl_data, uint8_t par
     log_info("Found");
     cartesian_to_motors(target, pl_data, gc_state.position);
     // Activate the probing state monitor in the stepper module.
-    sys_probe_state = ProbeState::Active;
+    probeState = ProbeState::Active;
     // Perform probing cycle. Wait here until probe is triggered or motion completes.
     rtCycleStart = true;
     do {
@@ -362,17 +364,17 @@ GCUpdatePos mc_probe_cycle(float* target, plan_line_data_t* pl_data, uint8_t par
 
     // Probing cycle complete!
     // Set state variables and error out, if the probe failed and cycle with error is enabled.
-    if (sys_probe_state == ProbeState::Active) {
+    if (probeState == ProbeState::Active) {
         if (is_no_error) {
             memcpy(sys_probe_position, sys_position, sizeof(sys_position));
         } else {
-            sys_rt_exec_alarm = ExecAlarm::ProbeFailContact;
+            rtAlarm = ExecAlarm::ProbeFailContact;
         }
     } else {
         probe_succeeded = true;  // Indicate to system the probing cycle completed successfully.
     }
-    sys_probe_state = ProbeState::Off;  // Ensure probe state monitor is disabled.
-    protocol_execute_realtime();        // Check and execute run-time commands
+    probeState = ProbeState::Off;  // Ensure probe state monitor is disabled.
+    protocol_execute_realtime();   // Check and execute run-time commands
     // Reset the stepper and planner buffers to remove the remainder of the probe motion.
     Stepper::reset();      // Reset step segment buffer.
     plan_reset();          // Reset planner buffer. Zero planner positions. Ensure probing motion is cleared.
@@ -458,11 +460,11 @@ void mc_reset() {
         if ((sys.state == State::Cycle || sys.state == State::Homing || sys.state == State::Jog) ||
             (sys.step_control.executeHold || sys.step_control.executeSysMotion)) {
             if (sys.state == State::Homing) {
-                if (sys_rt_exec_alarm == ExecAlarm::None) {
-                    sys_rt_exec_alarm = ExecAlarm::HomingFailReset;
+                if (rtAlarm == ExecAlarm::None) {
+                    rtAlarm = ExecAlarm::HomingFailReset;
                 }
             } else {
-                sys_rt_exec_alarm = ExecAlarm::AbortCycle;
+                rtAlarm = ExecAlarm::AbortCycle;
             }
             Stepper::go_idle();  // Stop stepping immediately, possibly losing position
         }

@@ -51,6 +51,7 @@
 #include "Version.h"  // VERSION
 #include "Machine/MachineConfig.h"
 #include "SettingsDefinitions.h"
+#include "Protocol.h"                    // ExecAlarm
 #include "MotionControl.h"               // probe_succeeded
 #include "Limits.h"                      // limits_get_state
 #include "Planner.h"                     // plan_get_block_buffer_available

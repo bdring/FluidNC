@@ -20,8 +20,9 @@
   along with Grbl.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include "Types.h"
+
 // Execution states and alarm
-#include "Exec.h"
 #include "Probe.h"
 #include "Error.h"
 #include "Config.h"  // MAX_AXIS
@@ -70,10 +71,6 @@ union Suspend {
     SuspendBits bit;
 };
 
-typedef uint32_t MotorMask;  // Bits indexed by motor_num*16 + axis
-typedef uint16_t AxisMask;   // Bits indexed by axis number
-typedef uint8_t  Percent;    // Integer percent
-
 enum class Override : uint8_t {
     ParkingMotion = 0,  // M56 (Default: Must be zero)
     Disabled      = 1,  // Parking disabled.
@@ -98,29 +95,6 @@ extern system_t sys;
 extern int32_t sys_position[MAX_N_AXIS];        // Real-time machine (aka home) position vector in steps.
 extern int32_t sys_probe_position[MAX_N_AXIS];  // Last probe position in machine coordinates and steps.
 
-extern volatile ProbeState    sys_probe_state;    // Probing state value.  Used to coordinate the probing cycle with stepper ISR.
-extern volatile ExecAlarm     sys_rt_exec_alarm;  // Global realtime executor bitflag variable for setting various alarms.
-extern volatile ExecAccessory sys_rt_exec_accessory_override;  // Global realtime executor bitflag variable for spindle/coolant overrides.
-extern volatile Percent       sys_rt_f_override;               // Feed override value in percent
-extern volatile Percent       sys_rt_r_override;               // Rapid feed override value in percent
-extern volatile Percent       sys_rt_s_override;               // Spindle override value in percent
-extern volatile bool          rtStatusReport;
-extern volatile bool          rtCycleStart;
-extern volatile bool          rtFeedHold;
-extern volatile bool          rtReset;
-extern volatile bool          rtSafetyDoor;
-extern volatile bool          rtMotionCancel;
-extern volatile bool          rtSleep;
-extern volatile bool          rtCycleStop;
-extern volatile bool          rtButtonMacro0;
-extern volatile bool          rtButtonMacro1;
-extern volatile bool          rtButtonMacro2;
-extern volatile bool          rtButtonMacro3;
-#ifdef DEBUG_REPORT_REALTIME
-extern volatile bool sys_rt_exec_debug;
-#endif
-
-void init_output_pins();  // Renamed from system_init() due to conflict with esp32 files
 
 void system_reset();
 

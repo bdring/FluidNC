@@ -37,30 +37,6 @@
 system_t               sys;
 int32_t                sys_position[MAX_N_AXIS];        // Real-time machine (aka home) position vector in steps.
 int32_t                sys_probe_position[MAX_N_AXIS];  // Last probe position in machine coordinates and steps.
-volatile ProbeState    sys_probe_state;                 // Probing state value.  Used to coordinate the probing cycle with stepper ISR.
-volatile ExecAlarm     sys_rt_exec_alarm;               // Global realtime executor bitflag variable for setting various alarms.
-volatile ExecAccessory sys_rt_exec_accessory_override;  // Global realtime executor bitflag variable for spindle/coolant overrides.
-volatile bool          rtStatusReport;
-volatile bool          rtCycleStart;
-volatile bool          rtFeedHold;
-volatile bool          rtReset;
-volatile bool          rtSafetyDoor;
-volatile bool          rtMotionCancel;
-volatile bool          rtSleep;
-volatile bool          rtCycleStop;  // For state transitions, instead of bitflag
-volatile bool          rtButtonMacro0;
-volatile bool          rtButtonMacro1;
-volatile bool          rtButtonMacro2;
-volatile bool          rtButtonMacro3;
-#ifdef DEBUG_REPORT_REALTIME
-volatile bool sys_rt_exec_debug;
-#endif
-volatile Percent sys_rt_f_override;  // Global realtime executor feedrate override percentage
-volatile Percent sys_rt_r_override;  // Global realtime executor rapid override percentage
-volatile Percent sys_rt_s_override;  // Global realtime executor spindle override percentage
-
-xQueueHandle control_sw_queue;    // used by control switch debouncing
-bool         debouncing = false;  // debouncing in process
 
 void system_reset() {
     // Reset system variables.

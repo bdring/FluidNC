@@ -35,6 +35,7 @@
 
 #include "../Machine/MachineConfig.h"
 #include "../MotionControl.h"  // mc_reset
+#include "../Protocol.h"       // rtAlarm
 
 #include <freertos/task.h>
 #include <freertos/queue.h>
@@ -256,7 +257,7 @@ namespace Spindles {
                 if (next_cmd.critical) {
                     log_error("Critical Spindle RS485 Unresponsive");
                     mc_reset();
-                    sys_rt_exec_alarm = ExecAlarm::SpindleControl;
+                    rtAlarm = ExecAlarm::SpindleControl;
                 }
             }
         }
@@ -380,7 +381,7 @@ namespace Spindles {
             if (unchanged == limit) {
                 log_error("Critical Spindle RS485 did not reach speed " << dev_speed << ". Reported speed is " << _sync_dev_speed);
                 mc_reset();
-                sys_rt_exec_alarm = ExecAlarm::SpindleControl;
+                rtAlarm = ExecAlarm::SpindleControl;
             }
 
             _syncing = false;

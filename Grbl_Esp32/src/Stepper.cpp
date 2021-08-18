@@ -26,6 +26,7 @@
 #include "Stepper.h"
 
 #include "Machine/MachineConfig.h"
+#include "MotionControl.h"
 #include "Stepping.h"
 #include "StepperPrivate.h"
 #include "Planner.h"
@@ -239,8 +240,8 @@ void IRAM_ATTR Stepper::pulse_func() {
     }
 
     // Check probing state.
-    if (sys_probe_state == ProbeState::Active && config->_probe->tripped()) {
-        sys_probe_state = ProbeState::Off;
+    if (probeState == ProbeState::Active && config->_probe->tripped()) {
+        probeState = ProbeState::Off;
         // Memcpy is not IRAM_ATTR, but: most compilers optimize memcpy away.
         memcpy(sys_probe_position, sys_position, sizeof(sys_position));
         rtMotionCancel = true;

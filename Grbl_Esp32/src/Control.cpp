@@ -23,7 +23,7 @@
 
 #include "Control.h"
 
-#include "System.h"  // rtSafetyDoor, etc
+#include "Protocol.h"  // rtSafetyDoor, etc
 
 Control::Control() :
     _safetyDoor(rtSafetyDoor, "Door", 'D'), _reset(rtReset, "Reset", 'R'), _feedHold(rtFeedHold, "FeedHold", 'H'),

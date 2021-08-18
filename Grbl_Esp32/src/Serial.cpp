@@ -66,6 +66,7 @@
 #include "MotionControl.h"
 #include "Report.h"
 #include "System.h"
+#include "Protocol.h"  // rtSafetyDoor etc
 #include "SDCard.h"
 
 #include <atomic>
@@ -239,83 +240,83 @@ void execute_realtime_command(Cmd command, uint8_t client) {
             break;
         case Cmd::DebugReport:
 #ifdef DEBUG_REPORT_REALTIME
-            sys_rt_exec_debug = true;
+            rtExecDebug = true;
 #endif
             break;
         case Cmd::SpindleOvrStop:
-            sys_rt_exec_accessory_override.bit.spindleOvrStop = 1;
+            rtAccessoryOverride.bit.spindleOvrStop = 1;
             break;
         case Cmd::FeedOvrReset:
-            sys_rt_f_override = FeedOverride::Default;
+            rtFOverride = FeedOverride::Default;
             break;
         case Cmd::FeedOvrCoarsePlus:
-            sys_rt_f_override += FeedOverride::CoarseIncrement;
-            if (sys_rt_f_override > FeedOverride::Max) {
-                sys_rt_f_override = FeedOverride::Max;
+            rtFOverride += FeedOverride::CoarseIncrement;
+            if (rtFOverride > FeedOverride::Max) {
+                rtFOverride = FeedOverride::Max;
             }
             break;
         case Cmd::FeedOvrCoarseMinus:
-            sys_rt_f_override -= FeedOverride::CoarseIncrement;
-            if (sys_rt_f_override < FeedOverride::Min) {
-                sys_rt_f_override = FeedOverride::Min;
+            rtFOverride -= FeedOverride::CoarseIncrement;
+            if (rtFOverride < FeedOverride::Min) {
+                rtFOverride = FeedOverride::Min;
             }
             break;
         case Cmd::FeedOvrFinePlus:
-            sys_rt_f_override += FeedOverride::FineIncrement;
-            if (sys_rt_f_override > FeedOverride::Max) {
-                sys_rt_f_override = FeedOverride::Max;
+            rtFOverride += FeedOverride::FineIncrement;
+            if (rtFOverride > FeedOverride::Max) {
+                rtFOverride = FeedOverride::Max;
             }
             break;
         case Cmd::FeedOvrFineMinus:
-            sys_rt_f_override -= FeedOverride::FineIncrement;
-            if (sys_rt_f_override < FeedOverride::Min) {
-                sys_rt_f_override = FeedOverride::Min;
+            rtFOverride -= FeedOverride::FineIncrement;
+            if (rtFOverride < FeedOverride::Min) {
+                rtFOverride = FeedOverride::Min;
             }
             break;
         case Cmd::RapidOvrReset:
-            sys_rt_r_override = RapidOverride::Default;
+            rtROverride = RapidOverride::Default;
             break;
         case Cmd::RapidOvrMedium:
-            sys_rt_r_override = RapidOverride::Medium;
+            rtROverride = RapidOverride::Medium;
             break;
         case Cmd::RapidOvrLow:
-            sys_rt_r_override = RapidOverride::Low;
+            rtROverride = RapidOverride::Low;
             break;
         case Cmd::RapidOvrExtraLow:
-            sys_rt_r_override = RapidOverride::ExtraLow;
+            rtROverride = RapidOverride::ExtraLow;
             break;
         case Cmd::SpindleOvrReset:
-            sys_rt_s_override = SpindleSpeedOverride::Default;
+            rtSOverride = SpindleSpeedOverride::Default;
             break;
         case Cmd::SpindleOvrCoarsePlus:
-            sys_rt_s_override += SpindleSpeedOverride::CoarseIncrement;
-            if (sys_rt_s_override > SpindleSpeedOverride::Max) {
-                sys_rt_s_override = SpindleSpeedOverride::Max;
+            rtSOverride += SpindleSpeedOverride::CoarseIncrement;
+            if (rtSOverride > SpindleSpeedOverride::Max) {
+                rtSOverride = SpindleSpeedOverride::Max;
             }
             break;
         case Cmd::SpindleOvrCoarseMinus:
-            sys_rt_s_override -= SpindleSpeedOverride::CoarseIncrement;
-            if (sys_rt_s_override < SpindleSpeedOverride::Min) {
-                sys_rt_s_override = SpindleSpeedOverride::Min;
+            rtSOverride -= SpindleSpeedOverride::CoarseIncrement;
+            if (rtSOverride < SpindleSpeedOverride::Min) {
+                rtSOverride = SpindleSpeedOverride::Min;
             }
             break;
         case Cmd::SpindleOvrFinePlus:
-            sys_rt_s_override += SpindleSpeedOverride::FineIncrement;
-            if (sys_rt_s_override > SpindleSpeedOverride::Max) {
-                sys_rt_s_override = SpindleSpeedOverride::Max;
+            rtSOverride += SpindleSpeedOverride::FineIncrement;
+            if (rtSOverride > SpindleSpeedOverride::Max) {
+                rtSOverride = SpindleSpeedOverride::Max;
             }
             break;
         case Cmd::SpindleOvrFineMinus:
-            sys_rt_s_override -= SpindleSpeedOverride::FineIncrement;
-            if (sys_rt_s_override < SpindleSpeedOverride::Min) {
-                sys_rt_s_override = SpindleSpeedOverride::Min;
+            rtSOverride -= SpindleSpeedOverride::FineIncrement;
+            if (rtSOverride < SpindleSpeedOverride::Min) {
+                rtSOverride = SpindleSpeedOverride::Min;
             }
             break;
         case Cmd::CoolantFloodOvrToggle:
-            sys_rt_exec_accessory_override.bit.coolantFloodOvrToggle = 1;
+            rtAccessoryOverride.bit.coolantFloodOvrToggle = 1;
             break;
         case Cmd::CoolantMistOvrToggle:
-            sys_rt_exec_accessory_override.bit.coolantMistOvrToggle = 1;
+            rtAccessoryOverride.bit.coolantMistOvrToggle = 1;
             break;
     }
 }

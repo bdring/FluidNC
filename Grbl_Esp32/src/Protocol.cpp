@@ -30,6 +30,44 @@
 #include "Planner.h"        // plan_get_current_block
 #include "MotionControl.h"  // PARKING_MOTION_LINE_NUMBER
 
+#ifdef DEBUG_REPORT_REALTIME
+volatile bool rtExecDebug;
+#endif
+
+volatile ExecAlarm rtAlarm;  // Global realtime executor bitflag variable for setting various alarms.
+
+std::map<ExecAlarm, const char*> AlarmNames = {
+    { ExecAlarm::None, "None" },
+    { ExecAlarm::HardLimit, "Hard Limit" },
+    { ExecAlarm::SoftLimit, "Soft Limit" },
+    { ExecAlarm::AbortCycle, "Abort Cycle" },
+    { ExecAlarm::ProbeFailInitial, "Probe Fail Initial" },
+    { ExecAlarm::ProbeFailContact, "Probe Fail Contact" },
+    { ExecAlarm::HomingFailReset, "Homing Fail Reset" },
+    { ExecAlarm::HomingFailDoor, "Homing Fail Door" },
+    { ExecAlarm::HomingFailPulloff, "Homing Fail Pulloff" },
+    { ExecAlarm::HomingFailApproach, "Homing Fail Approach" },
+    { ExecAlarm::SpindleControl, "Spindle Control" },
+};
+
+volatile Accessory rtAccessoryOverride;  // Global realtime executor bitflag variable for spindle/coolant overrides.
+volatile Percent   rtFOverride;          // Global realtime executor feedrate override percentage
+volatile Percent   rtROverride;          // Global realtime executor rapid override percentage
+volatile Percent   rtSOverride;          // Global realtime executor spindle override percentage
+
+volatile bool rtStatusReport;
+volatile bool rtCycleStart;
+volatile bool rtFeedHold;
+volatile bool rtReset;
+volatile bool rtSafetyDoor;
+volatile bool rtMotionCancel;
+volatile bool rtSleep;
+volatile bool rtCycleStop;  // For state transitions, instead of bitflag
+volatile bool rtButtonMacro0;
+volatile bool rtButtonMacro1;
+volatile bool rtButtonMacro2;
+volatile bool rtButtonMacro3;
+
 static void protocol_exec_rt_suspend();
 
 static char    line[LINE_BUFFER_SIZE];     // Line to be executed. Zero-terminated.
@@ -121,21 +159,21 @@ bool can_park() {
 }
 
 void protocol_reset() {
-    sys_probe_state                      = ProbeState::Off;
-    rtStatusReport                       = false;
-    rtCycleStart                         = false;
-    rtFeedHold                           = false;
-    rtReset                              = false;
-    rtSafetyDoor                         = false;
-    rtMotionCancel                       = false;
-    rtSleep                              = false;
-    rtCycleStop                          = false;
-    sys_rt_exec_accessory_override.value = 0;
-    sys_rt_exec_alarm                    = ExecAlarm::None;
-    sys_rt_f_override                    = FeedOverride::Default;
-    sys_rt_r_override                    = RapidOverride::Default;
-    sys_rt_s_override                    = SpindleSpeedOverride::Default;
-    spindle_stop_ovr.value               = 0;
+    probeState                = ProbeState::Off;
+    rtStatusReport            = false;
+    rtCycleStart              = false;
+    rtFeedHold                = false;
+    rtReset                   = false;
+    rtSafetyDoor              = false;
+    rtMotionCancel            = false;
+    rtSleep                   = false;
+    rtCycleStop               = false;
+    rtAccessoryOverride.value = 0;
+    rtAlarm                   = ExecAlarm::None;
+    rtFOverride               = FeedOverride::Default;
+    rtROverride               = RapidOverride::Default;
+    rtSOverride               = SpindleSpeedOverride::Default;
+    spindle_stop_ovr.value    = 0;
 }
 
 static int32_t idleEndTime = 0;
@@ -310,14 +348,14 @@ void protocol_execute_realtime() {
 // machine and controls the various real-time features Grbl has to offer.
 // NOTE: Do not alter this unless you know exactly what you are doing!
 static void protocol_do_alarm() {
-    switch (sys_rt_exec_alarm) {
+    switch (rtAlarm) {
         case ExecAlarm::None:
             return;
         // System alarm. Everything has shutdown by something that has gone severely wrong. Report
         case ExecAlarm::HardLimit:
         case ExecAlarm::SoftLimit:
             sys.state = State::Alarm;  // Set system alarm state
-            report_alarm_message(sys_rt_exec_alarm);
+            report_alarm_message(rtAlarm);
             report_feedback_message(Message::CriticalEvent);
             rtReset = false;  // Disable any existing reset
             do {
@@ -331,10 +369,10 @@ static void protocol_do_alarm() {
             break;
         default:
             sys.state = State::Alarm;  // Set system alarm state
-            report_alarm_message(sys_rt_exec_alarm);
+            report_alarm_message(rtAlarm);
             break;
     }
-    sys_rt_exec_alarm = ExecAlarm::None;
+    rtAlarm = ExecAlarm::None;
 }
 
 static void protocol_start_holding() {
@@ -445,7 +483,7 @@ static void protocol_do_safety_door() {
         case State::Hold:
             break;
         case State::Homing:
-            sys_rt_exec_alarm = ExecAlarm::HomingFailDoor;
+            rtAlarm = ExecAlarm::HomingFailDoor;
             break;
         case State::SafetyDoor:
             if (!sys.suspend.bit.jogCancel && sys.suspend.bit.initiateRestore) {  // Actively restoring
@@ -581,7 +619,7 @@ void protocol_disable_steppers() {
         config->_axes->set_disable(false);
         return;
     }
-    if (sys.state == State::Sleep || sys_rt_exec_alarm != ExecAlarm::None) {
+    if (sys.state == State::Sleep || rtAlarm != ExecAlarm::None) {
         // Disable steppers immediately in sleep or alarm state
         config->_axes->set_disable(true);
         return;
@@ -659,18 +697,18 @@ void protocol_do_cycle_stop() {
 
 static void protocol_execute_overrides() {
     // Execute overrides.
-    if ((sys_rt_f_override != sys.f_override) || (sys_rt_r_override != sys.r_override)) {
-        sys.f_override     = sys_rt_f_override;
-        sys.r_override     = sys_rt_r_override;
+    if ((rtFOverride != sys.f_override) || (rtROverride != sys.r_override)) {
+        sys.f_override     = rtFOverride;
+        sys.r_override     = rtROverride;
         report_ovr_counter = 0;  // Set to report change immediately
         plan_update_velocity_profile_parameters();
         plan_cycle_reinitialize();
     }
 
     // NOTE: Unlike motion overrides, spindle overrides do not require a planner reinitialization.
-    if (sys_rt_s_override != sys.spindle_speed_ovr) {
+    if (rtSOverride != sys.spindle_speed_ovr) {
         sys.step_control.updateSpindleSpeed = true;
-        sys.spindle_speed_ovr               = sys_rt_s_override;
+        sys.spindle_speed_ovr               = rtSOverride;
         report_ovr_counter                  = 0;  // Set to report change immediately
 
         // XXX this might not be necessary if the override is processed at the right level
@@ -681,8 +719,8 @@ static void protocol_execute_overrides() {
         }
     }
 
-    if (sys_rt_exec_accessory_override.bit.spindleOvrStop) {
-        sys_rt_exec_accessory_override.bit.spindleOvrStop = false;
+    if (rtAccessoryOverride.bit.spindleOvrStop) {
+        rtAccessoryOverride.bit.spindleOvrStop = false;
         // Spindle stop override allowed only while in HOLD state.
         if (sys.state == State::Hold) {
             if (spindle_stop_ovr.value == 0) {
@@ -695,16 +733,16 @@ static void protocol_execute_overrides() {
 
     // NOTE: Since coolant state always performs a planner sync whenever it changes, the current
     // run state can be determined by checking the parser state.
-    if (sys_rt_exec_accessory_override.bit.coolantFloodOvrToggle) {
-        sys_rt_exec_accessory_override.bit.coolantFloodOvrToggle = false;
+    if (rtAccessoryOverride.bit.coolantFloodOvrToggle) {
+        rtAccessoryOverride.bit.coolantFloodOvrToggle = false;
         if (config->_coolant->hasFlood() && (sys.state == State::Idle || sys.state == State::Cycle || sys.state == State::Hold)) {
             gc_state.modal.coolant.Flood = !gc_state.modal.coolant.Flood;
             config->_coolant->set_state(gc_state.modal.coolant);
             report_ovr_counter = 0;  // Set to report change immediately
         }
     }
-    if (sys_rt_exec_accessory_override.bit.coolantMistOvrToggle) {
-        sys_rt_exec_accessory_override.bit.coolantMistOvrToggle = false;
+    if (rtAccessoryOverride.bit.coolantMistOvrToggle) {
+        rtAccessoryOverride.bit.coolantMistOvrToggle = false;
 
         if (config->_coolant->hasMist() && (sys.state == State::Idle || sys.state == State::Cycle || sys.state == State::Hold)) {
             gc_state.modal.coolant.Mist = !gc_state.modal.coolant.Mist;
@@ -729,7 +767,7 @@ void protocol_exec_rt_system() {
 
     if (rtReset) {
         if (sys.state == State::Homing) {
-            sys_rt_exec_alarm = ExecAlarm::HomingFailReset;
+            rtAlarm = ExecAlarm::HomingFailReset;
         }
         // Execute system abort.
         sys.abort = true;  // Only place this is set true.
@@ -785,8 +823,8 @@ void protocol_exec_rt_system() {
     protocol_execute_overrides();
 
 #ifdef DEBUG_PROTOCOL
-    if (sys_rt_exec_debug) {
-        sys_rt_exec_debug = false;
+    if (rtExecDebug) {
+        rtExecDebug = false;
         report_realtime_debug();
     }
 #endif
@@ -839,7 +877,7 @@ static void protocol_exec_rt_suspend() {
         restore_spindle_speed = block->spindle_speed;
     }
     if (config->_disableLaserDuringHold && config->_laserMode) {
-        sys_rt_exec_accessory_override.bit.spindleOvrStop = true;
+        rtAccessoryOverride.bit.spindleOvrStop = true;
     }
 
     while (sys.suspend.value) {

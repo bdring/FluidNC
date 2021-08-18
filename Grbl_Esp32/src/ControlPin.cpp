@@ -1,6 +1,7 @@
 #include "ControlPin.h"
 
 #include "Report.h"          // addPinReport
+#include "Protocol.h"        // ExecAlarm
 #include <esp_attr.h>        // IRAM_ATTR
 #include <esp32-hal-gpio.h>  // CHANGE
 

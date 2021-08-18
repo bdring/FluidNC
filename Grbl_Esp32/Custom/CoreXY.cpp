@@ -170,22 +170,22 @@ bool user_defined_homing(AxisMask cycle_mask) {
                             rt_exec_state.value = sys_rt_exec_state.value;
                             // Homing failure condition: Reset issued during cycle.
                             if (rtReset) {
-                                sys_rt_exec_alarm = ExecAlarm::HomingFailReset;
+                                rtAlarm = ExecAlarm::HomingFailReset;
                             }
                             // Homing failure condition: Safety door was opened.
                             if (rtSafetyDoor) {
-                                sys_rt_exec_alarm = ExecAlarm::HomingFailDoor;
+                                rtAlarm = ExecAlarm::HomingFailDoor;
                             }
                             // Homing failure condition: Limit switch still engaged after pull-off motion
                             if (!approach && limits_check(cycle_mask)) {
-                                sys_rt_exec_alarm = ExecAlarm::HomingFailPulloff;
+                                rtAlarm = ExecAlarm::HomingFailPulloff;
                             }
                             // Homing failure condition: Limit switch not found during approach.
                             if (approach && cycle_stop) {
-                                sys_rt_exec_alarm = ExecAlarm::HomingFailApproach;
+                                rtAlarm = ExecAlarm::HomingFailApproach;
                             }
 
-                            if (sys_rt_exec_alarm != ExecAlarm::None) {
+                            if (rtAlarm != ExecAlarm::None) {
                                 motors_set_homing_mode(cycle_mask, false);  // tell motors homing is done...failed
                                 mc_reset();                                 // Stop motors, if they are running.
                                 protocol_execute_realtime();

@@ -24,6 +24,8 @@
   along with Grbl.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include "Types.h"
+
 // Line buffer size from the serial input stream to be executed.Also, governs the size of
 // each of the startup blocks, as they are each stored as a string of this size.
 //
@@ -56,3 +58,60 @@ void protocol_auto_cycle_start();
 
 // Disables the stepper motors or schedules it to happen
 void protocol_disable_steppers();
+
+extern volatile bool rtStatusReport;
+extern volatile bool rtCycleStart;
+extern volatile bool rtFeedHold;
+extern volatile bool rtReset;
+extern volatile bool rtSafetyDoor;
+extern volatile bool rtMotionCancel;
+extern volatile bool rtSleep;
+extern volatile bool rtCycleStop;
+extern volatile bool rtButtonMacro0;
+extern volatile bool rtButtonMacro1;
+extern volatile bool rtButtonMacro2;
+extern volatile bool rtButtonMacro3;
+
+#ifdef DEBUG_REPORT_REALTIME
+extern volatile bool rtExecDebug;
+#endif
+
+// Override bit maps. Realtime bitflags to control feed, rapid, spindle, and coolant overrides.
+// Spindle/coolant and feed/rapids are separated into two controlling flag variables.
+
+struct AccessoryBits {
+    uint8_t spindleOvrStop : 1;
+    uint8_t coolantFloodOvrToggle : 1;
+    uint8_t coolantMistOvrToggle : 1;
+};
+
+union Accessory {
+    uint8_t       value;
+    AccessoryBits bit;
+};
+
+extern volatile Accessory rtAccessoryOverride;  // Global realtime executor bitflag variable for spindle/coolant overrides.
+
+extern volatile Percent rtFOverride;  // Feed override value in percent
+extern volatile Percent rtROverride;  // Rapid feed override value in percent
+extern volatile Percent rtSOverride;  // Spindle override value in percent
+
+// Alarm codes.
+enum class ExecAlarm : uint8_t {
+    None               = 0,
+    HardLimit          = 1,
+    SoftLimit          = 2,
+    AbortCycle         = 3,
+    ProbeFailInitial   = 4,
+    ProbeFailContact   = 5,
+    HomingFailReset    = 6,
+    HomingFailDoor     = 7,
+    HomingFailPulloff  = 8,
+    HomingFailApproach = 9,
+    SpindleControl     = 10,
+};
+
+extern volatile ExecAlarm rtAlarm;  // Global realtime executor bitflag variable for setting various alarms.
+
+#include <map>
+extern std::map<ExecAlarm, const char*> AlarmNames;

@@ -85,9 +85,9 @@ void limits_soft_check(float* target) {
             } while (sys.state != State::Idle);
         }
         log_debug("Soft limits");
-        mc_reset();                                // Issue system reset and ensure spindle and coolant are shutdown.
-        sys_rt_exec_alarm = ExecAlarm::SoftLimit;  // Indicate soft limit critical event
-        protocol_execute_realtime();               // Execute to enter critical event loop and system abort
+        mc_reset();                      // Issue system reset and ensure spindle and coolant are shutdown.
+        rtAlarm = ExecAlarm::SoftLimit;  // Indicate soft limit critical event
+        protocol_execute_realtime();     // Execute to enter critical event loop and system abort
         return;
     }
 }
@@ -102,8 +102,8 @@ void limitCheckTask(void* pvParameters) {
         auto switch_state = limits_get_state();
         if (switch_state) {
             log_debug("Limit Switch State " << String(switch_state, HEX));
-            mc_reset();                                // Initiate system kill.
-            sys_rt_exec_alarm = ExecAlarm::HardLimit;  // Indicate hard limit critical event
+            mc_reset();                      // Initiate system kill.
+            rtAlarm = ExecAlarm::HardLimit;  // Indicate hard limit critical event
         }
         static UBaseType_t uxHighWaterMark = 0;
 #ifdef DEBUG_TASK_STACK
