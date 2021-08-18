@@ -68,6 +68,11 @@ enum class Message : uint8_t {
     SdFileQuit      = 60,  // mc_reset was called during an SD job
 };
 
+typedef uint8_t Counter;  // Report interval
+
+extern Counter report_ovr_counter;
+extern Counter report_wco_counter;
+
 // functions to send data to the user.
 void grbl_send(uint8_t client, const char* text);
 void grbl_sendf(uint8_t client, const char* format, ...);

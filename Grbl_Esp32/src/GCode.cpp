@@ -133,6 +133,13 @@ void collapseGCode(char* line) {
     *outPtr = '\0';
 }
 
+static void gc_wco_changed() {
+    if (FORCE_BUFFER_SYNC_DURING_WCO_CHANGE) {
+        protocol_buffer_synchronize();
+    }
+    report_wco_counter = 0;
+}
+
 // Executes one line of NUL-terminated G-Code.
 // The line may contain whitespace and comments, which are first removed,
 // and lower case characters, which are converted to upper case.
@@ -1373,6 +1380,7 @@ Error gc_execute_line(char* line, uint8_t client) {
                     } else {
                         spindle->setState(gc_state.modal.spindle, (uint32_t)gc_block.values.s);
                     }
+                    report_ovr_counter = 0;  // Set to report change immediately
                 }
             }
         }
@@ -1396,6 +1404,7 @@ Error gc_execute_line(char* line, uint8_t client) {
         if (sys.state != State::CheckMode) {
             protocol_buffer_synchronize();
             spindle->setState(gc_block.modal.spindle, (uint32_t)pl_data->spindle_speed);
+            report_ovr_counter = 0;  // Set to report change immediately
         }
         gc_state.modal.spindle = gc_block.modal.spindle;
     }
@@ -1486,14 +1495,14 @@ Error gc_execute_line(char* line, uint8_t client) {
         // else G43.1
         if (gc_state.tool_length_offset != gc_block.values.xyz[TOOL_LENGTH_OFFSET_AXIS]) {
             gc_state.tool_length_offset = gc_block.values.xyz[TOOL_LENGTH_OFFSET_AXIS];
-            system_flag_wco_change();
+            gc_wco_changed();
         }
     }
     // [15. Coordinate system selection ]:
     if (gc_state.modal.coord_select != gc_block.modal.coord_select) {
         gc_state.modal.coord_select = gc_block.modal.coord_select;
         memcpy(gc_state.coord_system, block_coord_system, sizeof(gc_state.coord_system));
-        system_flag_wco_change();
+        gc_wco_changed();
     }
     // [16. Set path control mode ]: G61.1/G64 NOT SUPPORTED
     // gc_state.modal.control = gc_block.modal.control; // NOTE: Always default.
@@ -1507,7 +1516,7 @@ Error gc_execute_line(char* line, uint8_t client) {
             // Update system coordinate system if currently active.
             if (gc_state.modal.coord_select == coord_select) {
                 memcpy(gc_state.coord_system, coord_data, sizeof(gc_state.coord_system));
-                system_flag_wco_change();
+                gc_wco_changed();
             }
             break;
         case NonModal::GoHome0:
@@ -1529,11 +1538,11 @@ Error gc_execute_line(char* line, uint8_t client) {
             break;
         case NonModal::SetCoordinateOffset:
             memcpy(gc_state.coord_offset, gc_block.values.xyz, sizeof(gc_block.values.xyz));
-            system_flag_wco_change();
+            gc_wco_changed();
             break;
         case NonModal::ResetCoordinateOffset:
             clear_vector(gc_state.coord_offset);  // Disable G92 offsets by zeroing offset vector.
-            system_flag_wco_change();
+            gc_wco_changed();
             break;
         default:
             break;
@@ -1630,10 +1639,10 @@ Error gc_execute_line(char* line, uint8_t client) {
             // Execute coordinate change and spindle/coolant stop.
             if (sys.state != State::CheckMode) {
                 coords[gc_state.modal.coord_select]->get(gc_state.coord_system);
-                system_flag_wco_change();  // Set to refresh immediately just in case something altered.
+                gc_wco_changed();  // Set to refresh immediately just in case something altered.
                 spindle->spinDown();
-
                 config->_coolant->off();
+                report_ovr_counter = 0;  // Set to report changes immediately
             }
             report_feedback_message(Message::ProgramEnd);
             user_m30();
@@ -1674,4 +1683,5 @@ void WEAK_LINK user_m30() {}
 
 void WEAK_LINK user_tool_change(uint8_t new_tool) {
     Spindles::Spindle::switchSpindle(new_tool, config->_spindles, spindle);
+    report_ovr_counter = 0;  // Set to report change immediately
 }

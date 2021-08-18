@@ -94,7 +94,6 @@ void CoolantControl::set_state(CoolantState state) {
         return;  // Block during abort.
     }
     write(state);
-    sys.report_ovr_counter = 0;  // Set to report change immediately
     delay_msec(_delay_ms, DwellMode::SysSuspend);
 }
 

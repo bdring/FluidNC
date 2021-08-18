@@ -73,7 +73,6 @@ union Suspend {
 typedef uint32_t MotorMask;  // Bits indexed by motor_num*16 + axis
 typedef uint16_t AxisMask;   // Bits indexed by axis number
 typedef uint8_t  Percent;    // Integer percent
-typedef uint8_t  Counter;    // Report interval
 
 enum class Override : uint8_t {
     ParkingMotion = 0,  // M56 (Default: Must be zero)
@@ -102,8 +101,6 @@ struct system_t {
     Percent        r_override;          // Rapids override value in percent
     Percent        spindle_speed_ovr;   // Spindle speed value in percent
     SpindleStop    spindle_stop_ovr;    // Tracks spindle stop override states
-    Counter        report_ovr_counter;  // Tracks when to add override data to status reports.
-    Counter        report_wco_counter;  // Tracks when to add work coordinate offset data to status reports.
     Override       override_ctrl;       // Tracks override control states.
     SpindleSpeed   spindle_speed;
 };
@@ -146,7 +143,6 @@ Error execute_line(char* line, uint8_t client, WebUI::AuthenticationLevel auth_l
 Error system_execute_line(char* line, WebUI::ESPResponseStream*, WebUI::AuthenticationLevel);
 Error system_execute_line(char* line, uint8_t client, WebUI::AuthenticationLevel);
 Error do_command_or_setting(const char* key, char* value, WebUI::AuthenticationLevel auth_level, WebUI::ESPResponseStream*);
-void  system_flag_wco_change();
 
 // Returns machine position of axis 'idx'. Must be sent a 'step' array.
 float system_convert_axis_steps_to_mpos(int32_t* steps, uint8_t idx);
@@ -154,6 +150,5 @@ float system_convert_axis_steps_to_mpos(int32_t* steps, uint8_t idx);
 // Updates a machine 'position' array based on the 'step' array sent.
 void   system_convert_array_steps_to_mpos(float* position, int32_t* steps);
 float* system_get_mpos();
-
 
 int8_t sys_get_next_PWM_chan_num();

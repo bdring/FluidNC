@@ -1,6 +1,7 @@
 #include "OnOffSpindle.h"
 
 #include "../System.h"  // sys.abort
+#include "../Report.h"  // report_ovr_counter
 
 namespace Spindles {
 
@@ -51,8 +52,6 @@ namespace Spindles {
         set_output(dev_speed);
         set_enable(state != SpindleState::Disable);
         spindleDelay(state, speed);
-
-        sys.report_ovr_counter = 0;  // Set to report change immediately
     }
 
     void IRAM_ATTR OnOff::set_output(uint32_t dev_speed) { _output_pin.write(dev_speed != 0); }

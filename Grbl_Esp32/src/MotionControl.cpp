@@ -434,6 +434,7 @@ void mc_reset() {
         rtReset = true;
         // Kill spindle and coolant.
         spindle->stop();
+        report_ovr_counter = 0;  // Set to report change immediately
         config->_coolant->stop();
 
         // turn off all User I/O immediately

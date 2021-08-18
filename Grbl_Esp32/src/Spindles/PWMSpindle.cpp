@@ -21,8 +21,7 @@
 */
 #include "PWMSpindle.h"
 
-#include "../System.h"  // sys.report_ovr_counter
-#include "../GCode.h"   // gc_state.modal
+#include "../GCode.h"  // gc_state.modal
 #include "../Logging.h"
 #include "../Pins/LedcPin.h"
 #include <esp32-hal-ledc.h>  // ledcDetachPin
@@ -111,8 +110,6 @@ namespace Spindles {
         set_output(dev_speed);
         set_enable(state != SpindleState::Disable);
         spindleDelay(state, speed);
-
-        sys.report_ovr_counter = 0;  // Set to report change immediately
     }
 
     // prints the startup message of the spindle config

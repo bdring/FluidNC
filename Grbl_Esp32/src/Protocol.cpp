@@ -656,12 +656,13 @@ static void protocol_execute_overrides() {
     if (sys_rt_s_override != sys.spindle_speed_ovr) {
         sys.step_control.updateSpindleSpeed = true;
         sys.spindle_speed_ovr               = sys_rt_s_override;
-        sys.report_ovr_counter              = 0;  // Set to report change immediately
+        report_ovr_counter                  = 0;  // Set to report change immediately
 
         // XXX this might not be necessary if the override is processed at the right level
         // If spindle is on, tell it the RPM has been overridden
         if (gc_state.modal.spindle != SpindleState::Disable) {
             spindle->setState(gc_state.modal.spindle, gc_state.spindle_speed);
+            report_ovr_counter = 0;  // Set to report change immediately
         }
     }
 
@@ -684,7 +685,8 @@ static void protocol_execute_overrides() {
         sys_rt_exec_accessory_override.bit.coolantFloodOvrToggle = false;
         if (config->_coolant->hasFlood() && (sys.state == State::Idle || sys.state == State::Cycle || sys.state == State::Hold)) {
             gc_state.modal.coolant.Flood = !gc_state.modal.coolant.Flood;
-            config->_coolant->set_state(gc_state.modal.coolant);  // Report counter set in coolant_set_state().
+            config->_coolant->set_state(gc_state.modal.coolant);
+            report_ovr_counter = 0;  // Set to report change immediately
         }
     }
     if (sys_rt_exec_accessory_override.bit.coolantMistOvrToggle) {
@@ -692,7 +694,8 @@ static void protocol_execute_overrides() {
 
         if (config->_coolant->hasMist() && (sys.state == State::Idle || sys.state == State::Cycle || sys.state == State::Hold)) {
             gc_state.modal.coolant.Mist = !gc_state.modal.coolant.Mist;
-            config->_coolant->set_state(gc_state.modal.coolant);  // Report counter set in coolant_set_state().
+            config->_coolant->set_state(gc_state.modal.coolant);
+            report_ovr_counter = 0;  // Set to report change immediately
         }
     }
 }
@@ -844,7 +847,7 @@ static void protocol_exec_rt_suspend() {
                 float* parking_target = system_get_mpos();
                 if (!sys.suspend.bit.retractComplete) {
                     // Ensure any prior spindle stop override is disabled at start of safety door routine.
-                    sys.spindle_stop_ovr.value = 0;  // Disable override
+                    spindle_stop_ovr.value = 0;  // Disable override
 
                     // Get current position and store restore location and spindle retract waypoint.
                     if (!sys.suspend.bit.restartRetract) {
@@ -874,7 +877,7 @@ static void protocol_exec_rt_suspend() {
                         pl_data->motion.noFeedOverride = 1;
                         pl_data->spindle_speed         = 0.0;
                         spindle->spinDown();
-                        config->_coolant->set_state(pl_data->coolant);
+                        report_ovr_counter = 0;  // Set to report change immediately
                         // Execute fast parking retract motion to parking target location.
                         if (parking_target[PARKING_AXIS] < PARKING_TARGET) {
                             parking_target[PARKING_AXIS] = PARKING_TARGET;
@@ -886,6 +889,7 @@ static void protocol_exec_rt_suspend() {
                         // NOTE: Laser mode does not start a parking motion to ensure the laser stops immediately.
                         spindle->spinDown();
                         config->_coolant->off();
+                        report_ovr_counter = 0;  // Set to report changes immediately
                     }
 
                     sys.suspend.bit.restartRetract  = false;
@@ -896,7 +900,8 @@ static void protocol_exec_rt_suspend() {
                         // Spindle and coolant should already be stopped, but do it again just to be sure.
                         spindle->spinDown();
                         config->_coolant->off();
-                        Stepper::go_idle();  // Stop stepping and maybe disable steppers
+                        report_ovr_counter = 0;  // Set to report change immediately
+                        Stepper::go_idle();      // Stop stepping and maybe disable steppers
                         while (!(sys.abort)) {
                             protocol_exec_rt_system();  // Do nothing until reset.
                         }
@@ -929,6 +934,7 @@ static void protocol_exec_rt_suspend() {
                                     sys.step_control.updateSpindleSpeed = true;
                                 } else {
                                     spindle->setState(restore_spindle, restore_spindle_speed);
+                                    report_ovr_counter = 0;  // Set to report change immediately
                                 }
                             }
                         }
@@ -936,6 +942,7 @@ static void protocol_exec_rt_suspend() {
                             // Block if safety door re-opened during prior restore actions.
                             if (!sys.suspend.bit.restartRetract) {
                                 config->_coolant->set_state(restore_coolant);
+                                report_ovr_counter = 0;  // Set to report change immediately
                             }
                         }
 
@@ -981,6 +988,7 @@ static void protocol_exec_rt_suspend() {
                                 sys.step_control.updateSpindleSpeed = true;
                             } else {
                                 spindle->setState(restore_spindle, restore_spindle_speed);
+                                report_ovr_counter = 0;  // Set to report change immediately
                             }
                         }
                         if (sys.spindle_stop_ovr.bit.restoreCycle) {

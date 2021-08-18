@@ -71,13 +71,8 @@ void system_reset() {
     sys.r_override        = RapidOverride::Default;             // Set to 100%
     sys.spindle_speed_ovr = SpindleSpeedOverride::Default;      // Set to 100%
     memset(sys_probe_position, 0, sizeof(sys_probe_position));  // Clear probe position.
-}
-
-void system_flag_wco_change() {
-    if (FORCE_BUFFER_SYNC_DURING_WCO_CHANGE) {
-        protocol_buffer_synchronize();
-    }
-    sys.report_wco_counter = 0;
+    report_ovr_counter = 0;
+    report_wco_counter = 0;
 }
 
 float system_convert_axis_steps_to_mpos(int32_t* steps, uint8_t idx) {

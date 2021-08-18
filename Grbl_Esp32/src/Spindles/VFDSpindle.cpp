@@ -34,7 +34,7 @@
 #include "VFDSpindle.h"
 
 #include "../Machine/MachineConfig.h"
-#include "../MotionControl.h"  // for mc_reset
+#include "../MotionControl.h"  // mc_reset
 
 #include <freertos/task.h>
 #include <freertos/queue.h>
@@ -389,8 +389,6 @@ namespace Spindles {
             _current_speed = speed;
         }
         //        }
-
-        sys.report_ovr_counter = 0;  // Set to report change immediately
     }
 
     bool VFD::prepareSetModeCommand(SpindleState mode, ModbusCommand& data) {

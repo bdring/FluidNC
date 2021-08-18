@@ -160,6 +160,7 @@ static void reset_variables() {
     if (sys.state != State::ConfigAlarm) {
         if (spindle) {
             spindle->stop();
+            report_ovr_counter = 0;  // Set to report change immediately
         }
         Stepper::reset();  // Clear stepper subsystem variables
     }

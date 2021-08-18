@@ -148,6 +148,9 @@ void grbl_notifyf(const char* title, const char* format, ...) {
     }
 }
 
+Counter report_ovr_counter = 0;
+Counter report_wco_counter = 0;
+
 static const int coordStringLen = 20;
 static const int axesStringLen  = coordStringLen * MAX_N_AXIS;
 
@@ -654,8 +657,8 @@ void report_realtime_status(uint8_t client) {
         status[saved_length] = '\0';
     }
 
-    if (sys.report_wco_counter > 0) {
-        sys.report_wco_counter--;
+    if (report_wco_counter > 0) {
+        report_wco_counter--;
     } else {
         switch (sys.state) {
             case State::Homing:
@@ -663,21 +666,21 @@ void report_realtime_status(uint8_t client) {
             case State::Hold:
             case State::Jog:
             case State::SafetyDoor:
-                sys.report_wco_counter = (REPORT_WCO_REFRESH_BUSY_COUNT - 1);  // Reset counter for slow refresh
+                report_wco_counter = (REPORT_WCO_REFRESH_BUSY_COUNT - 1);  // Reset counter for slow refresh
             default:
-                sys.report_wco_counter = (REPORT_WCO_REFRESH_IDLE_COUNT - 1);
+                report_wco_counter = (REPORT_WCO_REFRESH_IDLE_COUNT - 1);
                 break;
         }
-        if (sys.report_ovr_counter == 0) {
-            sys.report_ovr_counter = 1;  // Set override on next report.
+        if (report_ovr_counter == 0) {
+            report_ovr_counter = 1;  // Set override on next report.
         }
         strcat(status, "|WCO:");
         report_util_axis_values(get_wco(), temp);
         strcat(status, temp);
     }
 
-    if (sys.report_ovr_counter > 0) {
-        sys.report_ovr_counter--;
+    if (report_ovr_counter > 0) {
+        report_ovr_counter--;
     } else {
         switch (sys.state) {
             case State::Homing:
@@ -685,9 +688,9 @@ void report_realtime_status(uint8_t client) {
             case State::Hold:
             case State::Jog:
             case State::SafetyDoor:
-                sys.report_ovr_counter = (REPORT_OVR_REFRESH_BUSY_COUNT - 1);  // Reset counter for slow refresh
+                report_ovr_counter = (REPORT_OVR_REFRESH_BUSY_COUNT - 1);  // Reset counter for slow refresh
             default:
-                sys.report_ovr_counter = (REPORT_OVR_REFRESH_IDLE_COUNT - 1);
+                report_ovr_counter = (REPORT_OVR_REFRESH_IDLE_COUNT - 1);
                 break;
         }
 
