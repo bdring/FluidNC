@@ -25,6 +25,7 @@
 */
 
 #include "Config.h"
+#include "Error.h"
 #include "System.h"
 #include "SpindleDatatypes.h"
 

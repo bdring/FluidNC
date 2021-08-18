@@ -29,6 +29,7 @@
 #include "Limits.h"         // limits_get_state, soft_limit
 #include "Planner.h"        // plan_get_current_block
 #include "MotionControl.h"  // PARKING_MOTION_LINE_NUMBER
+#include "Settings.h"       // settings_execute_startup
 
 #ifdef DEBUG_REPORT_REALTIME
 volatile bool rtExecDebug;
@@ -133,23 +134,6 @@ Error add_char_to_line(char c, uint8_t client) {
     return Error::Ok;
 }
 
-Error execute_line(char* line, uint8_t client, WebUI::AuthenticationLevel auth_level) {
-    Error result = Error::Ok;
-    // Empty or comment line. For syncing purposes.
-    if (line[0] == 0) {
-        return Error::Ok;
-    }
-    // Grbl '$' or WebUI '[ESPxxx]' system command
-    if (line[0] == '$' || line[0] == '[') {
-        return system_execute_line(line, client, auth_level);
-    }
-    // Everything else is gcode. Block if in alarm or jog mode.
-    if (sys.state == State::Alarm || sys.state == State::ConfigAlarm || sys.state == State::Jog) {
-        return Error::SystemGcLock;
-    }
-    return gc_execute_line(line, client);
-}
-
 bool can_park() {
     if (config->_enableParkingOverrideControl) {
         return sys.override_ctrl == Override::ParkingMotion && Machine::Axes::homingMask && !config->_laserMode;
@@ -211,7 +195,7 @@ void protocol_main_loop() {
                 protocol_execute_realtime();  // Enter safety door mode. Should return as IDLE state.
             }
             // All systems go!
-            system_execute_startup();  // Execute startup script.
+            settings_execute_startup();  // Execute startup script.
         }
     }
 

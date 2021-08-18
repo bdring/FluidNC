@@ -212,7 +212,7 @@ void report_status_message(Error status_code, uint8_t client) {
         // messages with [MSG: ...] encapsulation
         switch (status_code) {
             case Error::Ok:
-                sdcard->_readyNext = true;  // flag so system_execute_line() will send the next line
+                sdcard->_readyNext = true;  // flag so protocol_main_loop() will send the next line
                 break;
             case Error::Eof:
                 // XXX we really should wait for the machine to return to idle before

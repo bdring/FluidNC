@@ -24,10 +24,8 @@
 
 // Execution states and alarm
 #include "Probe.h"
-#include "Error.h"
-#include "Config.h"  // MAX_AXIS
-#include "WebUI/Authentication.h"
-#include "WebUI/ESPResponse.h"
+#include "Config.h"  // MAX_N_AXIS
+#include <map>
 
 // System states. The state variable primarily tracks the individual functions
 // of Grbl to manage each without overlapping. It is also used as a messaging flag for
@@ -95,13 +93,6 @@ extern int32_t motor_steps[MAX_N_AXIS];  // Real-time machine (aka home) positio
 extern int32_t probe_steps[MAX_N_AXIS];  // Last probe position in machine coordinates and steps.
 
 void system_reset();
-
-// Execute the startup script lines stored in non-volatile storage upon initialization
-void  system_execute_startup();
-Error execute_line(char* line, uint8_t client, WebUI::AuthenticationLevel auth_level);
-Error system_execute_line(char* line, WebUI::ESPResponseStream*, WebUI::AuthenticationLevel);
-Error system_execute_line(char* line, uint8_t client, WebUI::AuthenticationLevel);
-Error do_command_or_setting(const char* key, char* value, WebUI::AuthenticationLevel auth_level, WebUI::ESPResponseStream*);
 
 float   steps_to_mpos(int32_t steps, uint8_t axis);
 int32_t mpos_to_steps(float mpos, size_t axis);

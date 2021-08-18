@@ -19,19 +19,12 @@
 */
 
 #include "System.h"
+#include "Report.h"                 // report_ovr_counter
+#include "MotionControl.h"          // motors_to_cartesian
+#include "Config.h"                 // MAX_N_AXIS
+#include "Machine/MachineConfig.h"  // config
 
-#include "MotionControl.h"  // motors_to_cartesian
-#include "Protocol.h"       // protocol_buffer_synchronize
-#include "Config.h"
-#include "UserOutput.h"
-#include "SettingsDefinitions.h"
-#include "Machine/MachineConfig.h"
-
-#include <atomic>
 #include <cstring>  // memset
-#include <freertos/queue.h>
-#include <freertos/task.h>
-#include <esp32-hal-gpio.h>  // LOW
 
 // Declare system global variable structure
 system_t sys;

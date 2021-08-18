@@ -355,3 +355,10 @@ public:
         GrblCommand(grblName, name, action, cmdChecker, WG) {}
     Error action(char* value, WebUI::AuthenticationLevel auth_level, WebUI::ESPResponseStream* response);
 };
+
+// Execute the startup script lines stored in non-volatile storage upon initialization
+void  settings_execute_startup();
+Error settings_execute_line(char* line, WebUI::ESPResponseStream*, WebUI::AuthenticationLevel);
+Error settings_execute_line(char* line, uint8_t client, WebUI::AuthenticationLevel);
+Error do_command_or_setting(const char* key, char* value, WebUI::AuthenticationLevel auth_level, WebUI::ESPResponseStream*);
+Error execute_line(char* line, uint8_t client, WebUI::AuthenticationLevel auth_level);

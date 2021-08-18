@@ -20,7 +20,8 @@
 
 #include "../Machine/MachineConfig.h"
 #include "../Config.h"
-#include "../Serial.h"  // is_realtime_command()
+#include "../Serial.h"    // is_realtime_command()
+#include "../Settings.h"  // settings_execute_line()
 
 #ifdef ENABLE_WIFI
 
@@ -451,7 +452,7 @@ namespace WebUI {
             char line[256];
             strncpy(line, cmd.c_str(), 255);
             ESPResponseStream* espresponse = silent ? NULL : new ESPResponseStream(_webserver);
-            Error              err         = system_execute_line(line, espresponse, auth_level);
+            Error              err         = settings_execute_line(line, espresponse, auth_level);
             String             answer;
             if (err == Error::Ok) {
                 answer = "ok";
