@@ -97,7 +97,6 @@ struct system_t {
     volatile State state;               // Tracks the current system state of Grbl.
     bool           abort;               // System abort flag. Forces exit back to main loop for reset.
     Suspend        suspend;             // System suspend bitflag variable that manages holds, cancels, and safety door.
-    bool           soft_limit;          // Tracks soft limit errors for the state machine. (boolean)
     StepControl    step_control;        // Governs the step segment generator depending on system state.
     bool           probe_succeeded;     // Tracks if last probing cycle was successful.
     Percent        f_override;          // Feed rate override value in percent

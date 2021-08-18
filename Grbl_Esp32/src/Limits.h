@@ -31,6 +31,8 @@
 
 #include <cstdint>
 
+extern bool soft_limit;
+
 // Initialize the limits module
 void limits_init();
 

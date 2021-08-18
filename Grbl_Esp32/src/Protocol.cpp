@@ -26,7 +26,7 @@
 
 #include "Machine/MachineConfig.h"
 #include "Report.h"         // report_feedback_message
-#include "Limits.h"         // limits_get_state
+#include "Limits.h"         // limits_get_state, soft_limit
 #include "Planner.h"        // plan_get_current_block
 #include "MotionControl.h"  // PARKING_MOTION_LINE_NUMBER
 
@@ -602,7 +602,7 @@ void protocol_do_cycle_stop() {
             // NOTE: Bresenham algorithm variables are still maintained through both the planner and stepper
             // cycle reinitializations. The stepper path should continue exactly as if nothing has happened.
             // NOTE: rtCycleStop is set by the stepper subsystem when a cycle or feed hold completes.
-            if (!sys.soft_limit && !sys.suspend.bit.jogCancel) {
+            if (!soft_limit && !sys.suspend.bit.jogCancel) {
                 // Hold complete. Set to indicate ready to resume.  Remain in HOLD or DOOR states until user
                 // has issued a resume command or reset.
                 plan_cycle_reinitialize();
