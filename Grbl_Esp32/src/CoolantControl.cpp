@@ -25,8 +25,6 @@
 
 #include "CoolantControl.h"
 
-#include "Protocol.h"  // protocol_buffer_synchronize
-
 void CoolantControl::init() {
     static bool init_message = true;  // used to show messages only once.
 
@@ -100,16 +98,6 @@ void CoolantControl::set_state(CoolantState state) {
 void CoolantControl::off() {
     CoolantState disable = {};
     set_state(disable);
-}
-
-// G-code parser entry-point for setting coolant state. Forces a planner buffer sync and bails
-// if an abort or check-mode is active.
-void CoolantControl::sync(CoolantState state) {
-    if (sys.state == State::CheckMode) {
-        return;
-    }
-    protocol_buffer_synchronize();  // Ensure coolant turns on when specified in program.
-    set_state(state);
 }
 
 void CoolantControl::group(Configuration::HandlerBase& handler) {

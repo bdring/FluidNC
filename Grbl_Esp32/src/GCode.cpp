@@ -1415,22 +1415,27 @@ Error gc_execute_line(char* line, uint8_t client) {
     // in separate blocks.  There is no GCode way to turn them off separately, but
     // you can turn them off simultaneously with M9.  You can turn them off separately
     // with real-time overrides, but that is out of the scope of GCode.
-    switch (gc_block.coolant) {
-        case GCodeCoolant::None:
-            break;
-        case GCodeCoolant::M7:
-            gc_state.modal.coolant.Mist = 1;
-            config->_coolant->sync(gc_state.modal.coolant);
-            break;
-        case GCodeCoolant::M8:
-            gc_state.modal.coolant.Flood = 1;
-            config->_coolant->sync(gc_state.modal.coolant);
-            break;
-        case GCodeCoolant::M9:
-            gc_state.modal.coolant = {};
-            config->_coolant->sync(gc_state.modal.coolant);
-            break;
+    if (gc_block.coolant != GCodeCoolant::None) {
+        switch (gc_block.coolant) {
+            case GCodeCoolant::None:
+                break;
+            case GCodeCoolant::M7:
+                gc_state.modal.coolant.Mist = 1;
+                break;
+            case GCodeCoolant::M8:
+                gc_state.modal.coolant.Flood = 1;
+                break;
+            case GCodeCoolant::M9:
+                gc_state.modal.coolant = {};
+                break;
+        }
+        if (sys.state != State::CheckMode) {
+            protocol_buffer_synchronize();
+            config->_coolant->set_state(gc_state.modal.coolant);
+            report_ovr_counter = 0;  // Set to report change immediately
+        }
     }
+
     pl_data->coolant = gc_state.modal.coolant;  // Set state for planner use.
     // turn on/off an i/o pin
     if ((gc_block.modal.io_control == IoControl::DigitalOnSync) || (gc_block.modal.io_control == IoControl::DigitalOffSync) ||

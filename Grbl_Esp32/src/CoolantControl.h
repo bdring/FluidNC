@@ -54,9 +54,6 @@ public:
     void off();
     void set_state(CoolantState state);
 
-    // G-code parser entry-point for setting coolant states. Checks for and executes additional conditions.
-    void sync(CoolantState state);
-
     // Configuration handlers.
     void group(Configuration::HandlerBase& handler) override;
 
