@@ -88,13 +88,11 @@ struct system_t {
     Override       override_ctrl;      // Tracks override control states.
     SpindleSpeed   spindle_speed;
 };
-
 extern system_t sys;
 
 // NOTE: These position variables may need to be declared as volatiles, if problems arise.
-extern int32_t sys_position[MAX_N_AXIS];        // Real-time machine (aka home) position vector in steps.
-extern int32_t sys_probe_position[MAX_N_AXIS];  // Last probe position in machine coordinates and steps.
-
+extern int32_t motor_steps[MAX_N_AXIS];  // Real-time machine (aka home) position vector in steps.
+extern int32_t probe_steps[MAX_N_AXIS];  // Last probe position in machine coordinates and steps.
 
 void system_reset();
 
@@ -105,11 +103,9 @@ Error system_execute_line(char* line, WebUI::ESPResponseStream*, WebUI::Authenti
 Error system_execute_line(char* line, uint8_t client, WebUI::AuthenticationLevel);
 Error do_command_or_setting(const char* key, char* value, WebUI::AuthenticationLevel auth_level, WebUI::ESPResponseStream*);
 
-// Returns machine position of axis 'idx'. Must be sent a 'step' array.
-float system_convert_axis_steps_to_mpos(int32_t* steps, uint8_t idx);
+float   steps_to_mpos(int32_t steps, uint8_t axis);
+int32_t mpos_to_steps(float mpos, size_t axis);
 
-// Updates a machine 'position' array based on the 'step' array sent.
-void   system_convert_array_steps_to_mpos(float* position, int32_t* steps);
-float* system_get_mpos();
-
-int8_t sys_get_next_PWM_chan_num();
+// Updates a machine position array from a steps array
+void   motor_steps_to_mpos(float* position, int32_t* steps);
+float* get_mpos();

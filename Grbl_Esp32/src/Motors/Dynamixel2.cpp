@@ -27,6 +27,7 @@
 #include "Dynamixel2.h"
 
 #include "../Machine/MachineConfig.h"
+#include "../System.h"     // mpos_to_steps() etc
 #include "../Limits.h"     // limitsMinPosition
 #include "../NutsBolts.h"  // map(), mapConstrain()
 #include "../Planner.h"    // plan_sync_position()
@@ -157,8 +158,8 @@ namespace MotorDrivers {
             return false;
         }
 
-        auto axis                 = config->_axes->_axis[_axis_index];
-        sys_position[_axis_index] = int32_t(axis->_homing->_mpos * axis->_stepsPerMm);  // convert to steps
+        auto axis                = config->_axes->_axis[_axis_index];
+        motor_steps[_axis_index] = mpos_to_steps(axis->_homing->_mpos, _axis_index);
 
         set_disable(false);
         set_location();  // force the PWM to update now
@@ -191,12 +192,12 @@ namespace MotorDrivers {
 
             auto axis = config->_axes->_axis[_axis_index];
 
-            uint32_t pos_min_steps = lround(limitsMinPosition(_axis_index) * axis->_stepsPerMm);
-            uint32_t pos_max_steps = lround(limitsMaxPosition(_axis_index) * axis->_stepsPerMm);
+            uint32_t pos_min_steps = lround(mpos_to_steps(limitsMinPosition(_axis_index), _axis_index));
+            uint32_t pos_max_steps = lround(mpos_to_steps(limitsMaxPosition(_axis_index), _axis_index));
 
             uint32_t temp = myMap(dxl_position, _countMin, _countMax, pos_min_steps, pos_max_steps);
 
-            sys_position[_axis_index] = temp;
+            motor_steps[_axis_index] = temp;
 
             plan_sync_position();
 
@@ -312,7 +313,7 @@ namespace MotorDrivers {
         tx_message[++msg_index] = 0;                                  // high order data length
 
         auto   n_axis = config->_axes->_numberAxis;
-        float* mpos   = system_get_mpos();
+        float* mpos   = get_mpos();
         for (uint8_t axis = X_AXIS; axis < n_axis; axis++) {
             for (uint8_t motor_index = 0; motor_index < 2; motor_index++) {
                 current_id = ids[axis][motor_index];

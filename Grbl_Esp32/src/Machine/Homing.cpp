@@ -45,7 +45,7 @@ namespace Machine {
 
         auto   axes   = config->_axes;
         auto   n_axis = axes->_numberAxis;
-        float* target = system_get_mpos();
+        float* target = get_mpos();
 
         AxisMask axesMask = 0;
         // Find the axis that will take the longest
@@ -58,7 +58,7 @@ namespace Machine {
             set_bitnum(axesMask, axis);
 
             // Set target location for active axes and setup computation for homing rate.
-            sys_position[axis] = 0;
+            motor_steps[axis] = 0;
 
             auto axisConfig = axes->_axis[axis];
             auto homing     = axisConfig->_homing;
@@ -266,10 +266,9 @@ namespace Machine {
             if (bitnum_is_true(axisMask, axis)) {
                 auto mpos    = homing->_mpos;
                 auto pulloff = axisConf->_motors[0]->_pulloff;
-                auto steps   = axisConf->_stepsPerMm;
 
                 mpos += homing->_positiveDirection ? -pulloff : pulloff;
-                sys_position[axis] = int32_t(mpos * steps);
+                motor_steps[axis] = mpos_to_steps(mpos, axis);
             }
         }
         sys.step_control = {};                            // Return step control to normal operation.

@@ -243,7 +243,7 @@ void IRAM_ATTR Stepper::pulse_func() {
     if (probeState == ProbeState::Active && config->_probe->tripped()) {
         probeState = ProbeState::Off;
         // Memcpy is not IRAM_ATTR, but: most compilers optimize memcpy away.
-        memcpy(sys_probe_position, sys_position, sizeof(sys_position));
+        memcpy(probe_steps, motor_steps, sizeof(motor_steps));
         rtMotionCancel = true;
     }
 
@@ -257,9 +257,9 @@ void IRAM_ATTR Stepper::pulse_func() {
             set_bitnum(st.step_outbits, axis);
             st.counter[axis] -= st.exec_block->step_event_count;
             if (bitnum_is_true(st.exec_block->direction_bits, axis)) {
-                sys_position[axis]--;
+                motor_steps[axis]--;
             } else {
-                sys_position[axis]++;
+                motor_steps[axis]++;
             }
         }
     }

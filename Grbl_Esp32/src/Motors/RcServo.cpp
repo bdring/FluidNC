@@ -31,6 +31,7 @@
 #include "RcServo.h"
 
 #include "../Machine/MachineConfig.h"
+#include "../System.h"  // mpos_to_steps() etc
 #include "../Pins/LedcPin.h"
 #include "../Pin.h"
 #include "../Limits.h"  // limitsMaxPosition
@@ -78,8 +79,8 @@ namespace MotorDrivers {
 
     // Homing justs sets the new system position and the servo will move there
     bool RcServo::set_homing_mode(bool isHoming) {
-        auto axis                 = config->_axes->_axis[_axis_index];
-        sys_position[_axis_index] = int32_t(axis->_homing->_mpos * axis->_stepsPerMm);  // convert to steps
+        auto axis                = config->_axes->_axis[_axis_index];
+        motor_steps[_axis_index] = mpos_to_steps(axis->_homing->_mpos, _axis_index);
 
         set_location();   // force the PWM to update now
         vTaskDelay(750);  // give time to move
@@ -98,7 +99,7 @@ namespace MotorDrivers {
 
         read_settings();
 
-        mpos = system_convert_axis_steps_to_mpos(sys_position, _axis_index);  // get the axis machine position in mm
+        mpos = steps_to_mpos(motor_steps[_axis_index], _axis_index);  // get the axis machine position in mm
         // TBD working in MPos
         offset    = 0;  // gc_state.coord_system[axis_index] + gc_state.coord_offset[axis_index];  // get the current axis work offset
         servo_pos = mpos - offset;  // determine the current work position

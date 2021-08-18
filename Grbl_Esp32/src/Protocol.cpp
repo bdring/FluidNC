@@ -896,7 +896,7 @@ static void protocol_exec_rt_suspend() {
             // the safety door and sleep states.
             if (sys.state == State::SafetyDoor || sys.state == State::Sleep) {
                 // Handles retraction motions and de-energizing.
-                float* parking_target = system_get_mpos();
+                float* parking_target = get_mpos();
                 if (!sys.suspend.bit.retractComplete) {
                     // Ensure any prior spindle stop override is disabled at start of safety door routine.
                     spindle_stop_ovr.value = 0;  // Disable override

@@ -73,7 +73,7 @@ void gc_init() {
 // Sets g-code parser position in mm. Input in steps. Called by the system abort and hard
 // limit pull-off routines.
 void gc_sync_position() {
-    system_convert_array_steps_to_mpos(gc_state.position, sys_position);
+    motor_steps_to_mpos(gc_state.position, motor_steps);
 }
 
 // Edit GCode line in-place, removing whitespace and comments and
@@ -1588,8 +1588,8 @@ Error gc_execute_line(char* line, uint8_t client) {
             if (gc_update_pos == GCUpdatePos::Target) {
                 memcpy(gc_state.position, gc_block.values.xyz, sizeof(gc_block.values.xyz));  // gc_state.position[] = gc_block.values.xyz[]
             } else if (gc_update_pos == GCUpdatePos::System) {
-                gc_sync_position();  // gc_state.position[] = sys_position
-            }                        // == GCUpdatePos::None
+                gc_sync_position();
+            }  // == GCUpdatePos::None
         }
     }
     // [21. Program flow ]:

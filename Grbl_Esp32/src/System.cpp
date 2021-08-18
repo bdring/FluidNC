@@ -34,42 +34,42 @@
 #include <esp32-hal-gpio.h>  // LOW
 
 // Declare system global variable structure
-system_t               sys;
-int32_t                sys_position[MAX_N_AXIS];        // Real-time machine (aka home) position vector in steps.
-int32_t                sys_probe_position[MAX_N_AXIS];  // Last probe position in machine coordinates and steps.
+system_t sys;
+int32_t  motor_steps[MAX_N_AXIS];  // Real-time position in steps.
+int32_t  probe_steps[MAX_N_AXIS];  // Last probe position in steps.
 
 void system_reset() {
     // Reset system variables.
     State prior_state = sys.state;
     memset(&sys, 0, sizeof(system_t));  // Clear system struct variable.
     sys.state             = prior_state;
-    sys.f_override        = FeedOverride::Default;              // Set to 100%
-    sys.r_override        = RapidOverride::Default;             // Set to 100%
-    sys.spindle_speed_ovr = SpindleSpeedOverride::Default;      // Set to 100%
-    memset(sys_probe_position, 0, sizeof(sys_probe_position));  // Clear probe position.
+    sys.f_override        = FeedOverride::Default;          // Set to 100%
+    sys.r_override        = RapidOverride::Default;         // Set to 100%
+    sys.spindle_speed_ovr = SpindleSpeedOverride::Default;  // Set to 100%
+    memset(probe_steps, 0, sizeof(probe_steps));            // Clear probe position.
     report_ovr_counter = 0;
     report_wco_counter = 0;
 }
 
-float system_convert_axis_steps_to_mpos(int32_t* steps, uint8_t idx) {
-    float pos;
-    float steps_per_mm = config->_axes->_axis[idx]->_stepsPerMm;
-    pos                = steps[idx] / steps_per_mm;
-    return pos;
+float steps_to_mpos(int32_t steps, uint8_t axis) {
+    return float(steps / config->_axes->_axis[axis]->_stepsPerMm);
+}
+int32_t mpos_to_steps(float mpos, size_t axis) {
+    return int32_t(mpos * config->_axes->_axis[axis]->_stepsPerMm);
 }
 
-void system_convert_array_steps_to_mpos(float* position, int32_t* steps) {
+void motor_steps_to_mpos(float* position, int32_t* steps) {
     auto  n_axis = config->_axes->_numberAxis;
-    float motors[MAX_N_AXIS];
+    float motor_mpos[MAX_N_AXIS];
     for (int idx = 0; idx < n_axis; idx++) {
-        motors[idx] = (float)steps[idx] / config->_axes->_axis[idx]->_stepsPerMm;
+        motor_mpos[idx] = steps_to_mpos(steps[idx], idx);
     }
-    motors_to_cartesian(position, motors, n_axis);
+    motors_to_cartesian(position, motor_mpos, n_axis);
 }
 
-float* system_get_mpos() {
+float* get_mpos() {
     static float position[MAX_N_AXIS];
-    system_convert_array_steps_to_mpos(position, sys_position);
+    motor_steps_to_mpos(position, motor_steps);
     return position;
 };
 

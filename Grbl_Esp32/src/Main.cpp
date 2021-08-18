@@ -97,7 +97,7 @@ void main_init() {
             config->_control->init();
             config->_userOutputs->init();
 
-            memset(sys_position, 0, sizeof(sys_position));  // Clear machine position.
+            memset(motor_steps, 0, sizeof(motor_steps));  // Clear machine position.
 
             machine_init();  // user supplied function for special initialization
         }

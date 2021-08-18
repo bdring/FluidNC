@@ -314,20 +314,19 @@ bool plan_buffer_line(float* target, plan_line_data_t* pl_data) {
     uint8_t idx;
     // Copy position data based on type of motion being planned.
     if (block->motion.systemMotion) {
-        memcpy(position_steps, sys_position, sizeof(sys_position));
+        memcpy(position_steps, motor_steps, sizeof(motor_steps));
     } else {
         memcpy(position_steps, pl.position, sizeof(pl.position));
     }
-    auto n_axis       = config->_axes->_numberAxis;
-    auto axisSettings = config->_axes->_axis;
+    auto n_axis = config->_axes->_numberAxis;
     for (idx = 0; idx < n_axis; idx++) {
         // Calculate target position in absolute steps, number of steps for each axis, and determine max step events.
         // Also, compute individual axes distance for move and prep unit vector calculations.
         // NOTE: Computes true distance from converted step values.
-        target_steps[idx]       = lround(target[idx] * axisSettings[idx]->_stepsPerMm);
+        target_steps[idx]       = lround(mpos_to_steps(target[idx], idx));
         block->steps[idx]       = labs(target_steps[idx] - position_steps[idx]);
         block->step_event_count = MAX(block->step_event_count, block->steps[idx]);
-        delta_mm                = (target_steps[idx] - position_steps[idx]) / axisSettings[idx]->_stepsPerMm;
+        delta_mm                = steps_to_mpos((target_steps[idx] - position_steps[idx]), idx);
         unit_vec[idx]           = delta_mm;  // Store unit vector numerator
         // Set direction bits. Bit enabled always means direction is negative.
         if (delta_mm < 0.0) {
@@ -431,7 +430,7 @@ void plan_sync_position() {
     uint8_t idx;
     auto    n_axis = config->_axes->_numberAxis;
     for (idx = 0; idx < n_axis; idx++) {
-        pl.position[idx] = sys_position[idx];
+        pl.position[idx] = motor_steps[idx];
     }
 }
 

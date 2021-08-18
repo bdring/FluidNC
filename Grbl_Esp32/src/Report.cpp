@@ -312,7 +312,7 @@ void report_probe_parameters(uint8_t client) {
     strcpy(probe_rpt, "[PRB:");  // initialize the string with the first characters
     // get the machine position and put them into a string and append to the probe report
     float print_position[MAX_N_AXIS];
-    system_convert_array_steps_to_mpos(print_position, sys_probe_position);
+    motor_steps_to_mpos(print_position, probe_steps);
     report_util_axis_values(print_position, temp);
     strcat(probe_rpt, temp);
     // add the success indicator and add closing characters
@@ -583,7 +583,7 @@ void report_realtime_status(uint8_t client) {
     strcat(status, report_state_text());
 
     // Report position
-    float* print_position = system_get_mpos();
+    float* print_position = get_mpos();
     if (bits_are_true(status_mask->get(), RtStatus::Position)) {
         strcat(status, "|MPos:");
     } else {
@@ -748,7 +748,7 @@ void report_realtime_steps() {
     uint8_t idx;
     auto    n_axis = config->_axes->_numberAxis;
     for (idx = 0; idx < n_axis; idx++) {
-        grbl_sendf(CLIENT_ALL, "%ld\n", sys_position[idx]);  // OK to send to all ... debug stuff
+        grbl_sendf(CLIENT_ALL, "%ld\n", motor_steps[idx]);  // OK to send to all ... debug stuff
     }
 }
 

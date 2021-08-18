@@ -47,8 +47,8 @@ void machine_init() {
     log_info("Atari 1020 Solenoid");
 
     // setup PWM channel
-    pinMode(REED_SW_PIN, INPUT_PULLUP);       // external pullup required
     solenoid_pwm_chan_num = ledcInit(SOLENOID_PEN_PEN, -1, SOLENOID_PWM_FREQ, SOLENOID_PWM_RES_BITS);
+    pinMode(REED_SW_PIN, INPUT_PULLUP);  // external pullup required
     // setup a task that will calculate solenoid position
     xTaskCreatePinnedToCore(solenoidSyncTask,    // task
                             "solenoidSyncTask",  // name for task
@@ -79,7 +79,7 @@ void solenoidSyncTask(void* pvParameters) {
     xLastWakeTime                       = xTaskGetTickCount();  // Initialise the xLastWakeTime variable with the current time.
     while (true) {
         // don't ever return from this or the task dies
-        calc_solenoid(system_get_mpos()[Z_AXIS]);  // calculate kinematics and move the servos
+        calc_solenoid(get_mpos()[Z_AXIS]);  // calculate kinematics and move the servos
         vTaskDelayUntil(&xLastWakeTime, xSolenoidFrequency);
     }
 }
@@ -132,9 +132,9 @@ void atari_home_task(void* pvParameters) {
                         if (digitalRead(REED_SW_PIN) == 0) {
                             // see if reed switch is grounded
                             WebUI::inputBuffer.push("G4P0.1\n");  // dramatic pause
-                            sys_position[X_AXIS] = ATARI_HOME_POS * config->_axes->_axis[X_AXIS]->_stepsPerMm;
-                            sys_position[Y_AXIS] = 0.0;
-                            sys_position[Z_AXIS] = 1.0 * config->_axes->_axis[Z_AXIS]->_stepsPerMm;
+                            motor_steps[X_AXIS] = mpos_to_steps(ATARI_HOME_POS, X_AXIS);
+                            motor_steps[Y_AXIS] = 0;
+                            motor_steps[Z_AXIS] = mpos_to_steps(1.0, Z_AXIS);
                             gc_sync_position();
                             plan_sync_position();
                             sprintf(gcode_line, "G90G0X%3.2f\r", ATARI_PAPER_WIDTH);  // alway return to right side to reduce home travel stalls
@@ -259,7 +259,7 @@ void user_defined_macro(uint8_t index) {
             log_info("Paper switch");
             WebUI::inputBuffer.push("G0Y-25\r");
             WebUI::inputBuffer.push("G4P0.1\r");  // sync...forces wait for planner to clear
-            sys_position[Y_AXIS] = 0.0;           // reset the Y position
+            motor_steps[Y_AXIS] = 0;              // reset the Y position
             gc_sync_position();
             plan_sync_position();
             break;

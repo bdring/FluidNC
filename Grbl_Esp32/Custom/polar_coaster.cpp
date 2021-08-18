@@ -71,7 +71,7 @@ bool kinematics_pre_homing(uint8_t cycle_mask) {
 
 void kinematics_post_homing() {
     // sync the X axis (do not need sync but make it for the fail safe)
-    last_radius = sys_position[X_AXIS];
+    last_radius = motor_steps[X_AXIS];
     // reset the internal angle value
     last_angle = 0;
 }

@@ -135,8 +135,8 @@ bool user_defined_homing(AxisMask cycle_mask) {
 
                     // zero all X&Y posiitons before each cycle
                     for (int idx = X_AXIS; idx <= Y_AXIS; idx++) {
-                        sys_position[idx] = 0.0;
-                        target[idx]       = 0.0;
+                        motor_steps[idx] = 0.0;
+                        target[idx]      = 0.0;
                     }
 
                     if (bits_are_true(homing_dir_mask->get(), bitnum_to_mask(axis))) {
@@ -146,7 +146,7 @@ bool user_defined_homing(AxisMask cycle_mask) {
                     }
 
                     for (int axis = Z_AXIS; axis < n_axis; axis++) {
-                        target[axis] = sys_position[axis] / config->_axes->_axis[axis]->_stepsPerMm;
+                        target[axis] = steps_to_mpos(motor_steps[axis], axis);
                     }
 
                     // convert back to motor steps
@@ -234,14 +234,14 @@ bool user_defined_homing(AxisMask cycle_mask) {
     last_cartesian[Y_AXIS] = target[Y_AXIS];
 
     for (int axis = Z_AXIS; axis < n_axis; axis++) {
-        last_cartesian[axis] = sys_position[axis] / config->_axes->_axis[axis]->_stepsPerMm;
+        last_cartesian[axis] = motor_steps[axis] / config->_axes->_axis[axis]->_stepsPerMm;
     }
 
     // convert to motors
     cartesian_to_motors(target);
     // convert to steps
     for (axis = X_AXIS; axis <= Y_AXIS; axis++) {
-        sys_position[axis] = target[axis] * config->_axes->_axis[axis]->_stepsPerMm;
+        motor_steps[axis] = target[axis] * config->_axes->_axis[axis]->_stepsPerMm;
     }
 
     sys.step_control = {};  // Return step control to normal operation.
