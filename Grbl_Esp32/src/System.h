@@ -79,29 +79,16 @@ enum class Override : uint8_t {
     Disabled      = 1,  // Parking disabled.
 };
 
-// Spindle stop override control states.
-struct SpindleStopBits {
-    uint8_t enabled : 1;
-    uint8_t initiate : 1;
-    uint8_t restore : 1;
-    uint8_t restoreCycle : 1;
-};
-union SpindleStop {
-    uint8_t         value;
-    SpindleStopBits bit;
-};
-
 // Global system variables
 struct system_t {
-    volatile State state;               // Tracks the current system state of Grbl.
-    bool           abort;               // System abort flag. Forces exit back to main loop for reset.
-    Suspend        suspend;             // System suspend bitflag variable that manages holds, cancels, and safety door.
-    StepControl    step_control;        // Governs the step segment generator depending on system state.
-    Percent        f_override;          // Feed rate override value in percent
-    Percent        r_override;          // Rapids override value in percent
-    Percent        spindle_speed_ovr;   // Spindle speed value in percent
-    SpindleStop    spindle_stop_ovr;    // Tracks spindle stop override states
-    Override       override_ctrl;       // Tracks override control states.
+    volatile State state;              // Tracks the current system state of Grbl.
+    bool           abort;              // System abort flag. Forces exit back to main loop for reset.
+    Suspend        suspend;            // System suspend bitflag variable that manages holds, cancels, and safety door.
+    StepControl    step_control;       // Governs the step segment generator depending on system state.
+    Percent        f_override;         // Feed rate override value in percent
+    Percent        r_override;         // Rapids override value in percent
+    Percent        spindle_speed_ovr;  // Spindle speed value in percent
+    Override       override_ctrl;      // Tracks override control states.
     SpindleSpeed   spindle_speed;
 };
 

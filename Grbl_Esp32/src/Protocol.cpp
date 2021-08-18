@@ -38,6 +38,20 @@ static uint8_t line_flags           = 0;
 static uint8_t char_counter         = 0;
 static uint8_t comment_char_counter = 0;
 
+// Spindle stop override control states.
+struct SpindleStopBits {
+    uint8_t enabled : 1;
+    uint8_t initiate : 1;
+    uint8_t restore : 1;
+    uint8_t restoreCycle : 1;
+};
+union SpindleStop {
+    uint8_t         value;
+    SpindleStopBits bit;
+};
+
+static SpindleStop spindle_stop_ovr;
+
 struct client_line_t {
     char buffer[LINE_BUFFER_SIZE];
     int  len;
@@ -121,6 +135,7 @@ void protocol_reset() {
     sys_rt_f_override                    = FeedOverride::Default;
     sys_rt_r_override                    = RapidOverride::Default;
     sys_rt_s_override                    = SpindleSpeedOverride::Default;
+    spindle_stop_ovr.value               = 0;
 }
 
 static int32_t idleEndTime = 0;
@@ -542,8 +557,8 @@ static void protocol_do_cycle_start() {
         case State::Hold:
             // Cycle start only when IDLE or when a hold is complete and ready to resume.
             if (sys.suspend.bit.holdComplete) {
-                if (sys.spindle_stop_ovr.value) {
-                    sys.spindle_stop_ovr.bit.restoreCycle = true;  // Set to restore in suspend routine and cycle start after.
+                if (spindle_stop_ovr.value) {
+                    spindle_stop_ovr.bit.restoreCycle = true;  // Set to restore in suspend routine and cycle start after.
                 } else {
                     protocol_do_initiate_cycle();
                 }
@@ -645,9 +660,9 @@ void protocol_do_cycle_stop() {
 static void protocol_execute_overrides() {
     // Execute overrides.
     if ((sys_rt_f_override != sys.f_override) || (sys_rt_r_override != sys.r_override)) {
-        sys.f_override         = sys_rt_f_override;
-        sys.r_override         = sys_rt_r_override;
-        sys.report_ovr_counter = 0;  // Set to report change immediately
+        sys.f_override     = sys_rt_f_override;
+        sys.r_override     = sys_rt_r_override;
+        report_ovr_counter = 0;  // Set to report change immediately
         plan_update_velocity_profile_parameters();
         plan_cycle_reinitialize();
     }
@@ -669,12 +684,11 @@ static void protocol_execute_overrides() {
     if (sys_rt_exec_accessory_override.bit.spindleOvrStop) {
         sys_rt_exec_accessory_override.bit.spindleOvrStop = false;
         // Spindle stop override allowed only while in HOLD state.
-        // NOTE: Report counters are set in spindle->spinDown()
         if (sys.state == State::Hold) {
-            if (sys.spindle_stop_ovr.value == 0) {
-                sys.spindle_stop_ovr.bit.initiate = true;
-            } else if (sys.spindle_stop_ovr.bit.enabled) {
-                sys.spindle_stop_ovr.bit.restore = true;
+            if (spindle_stop_ovr.value == 0) {
+                spindle_stop_ovr.bit.initiate = true;
+            } else if (spindle_stop_ovr.bit.enabled) {
+                spindle_stop_ovr.bit.restore = true;
             }
         }
     }
@@ -969,18 +983,19 @@ static void protocol_exec_rt_suspend() {
             } else {
                 // Feed hold manager. Controls spindle stop override states.
                 // NOTE: Hold ensured as completed by condition check at the beginning of suspend routine.
-                if (sys.spindle_stop_ovr.value) {
+                if (spindle_stop_ovr.value) {
                     // Handles beginning of spindle stop
-                    if (sys.spindle_stop_ovr.bit.initiate) {
+                    if (spindle_stop_ovr.bit.initiate) {
                         if (gc_state.modal.spindle != SpindleState::Disable) {
                             spindle->spinDown();
-                            sys.spindle_stop_ovr.value       = 0;
-                            sys.spindle_stop_ovr.bit.enabled = true;  // Set stop override state to enabled, if de-energized.
+                            report_ovr_counter           = 0;  // Set to report change immediately
+                            spindle_stop_ovr.value       = 0;
+                            spindle_stop_ovr.bit.enabled = true;  // Set stop override state to enabled, if de-energized.
                         } else {
-                            sys.spindle_stop_ovr.value = 0;  // Clear stop override state
+                            spindle_stop_ovr.value = 0;  // Clear stop override state
                         }
                         // Handles restoring of spindle state
-                    } else if (sys.spindle_stop_ovr.bit.restore || sys.spindle_stop_ovr.bit.restoreCycle) {
+                    } else if (spindle_stop_ovr.bit.restore || spindle_stop_ovr.bit.restoreCycle) {
                         if (gc_state.modal.spindle != SpindleState::Disable) {
                             report_feedback_message(Message::SpindleRestore);
                             if (config->_laserMode) {
@@ -991,10 +1006,10 @@ static void protocol_exec_rt_suspend() {
                                 report_ovr_counter = 0;  // Set to report change immediately
                             }
                         }
-                        if (sys.spindle_stop_ovr.bit.restoreCycle) {
+                        if (spindle_stop_ovr.bit.restoreCycle) {
                             rtCycleStart = true;  // Set to resume program.
                         }
-                        sys.spindle_stop_ovr.value = 0;  // Clear stop override state
+                        spindle_stop_ovr.value = 0;  // Clear stop override state
                     }
                 } else {
                     // Handles spindle state during hold. NOTE: Spindle speed overrides may be altered during hold state.
