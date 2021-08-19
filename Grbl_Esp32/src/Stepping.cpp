@@ -70,11 +70,8 @@ namespace Machine {
     void IRAM_ATTR Stepping::waitPulse() {
         switch (_engine) {
             case I2S_STREAM:
-                // Generate the number of pulses needed to span pulse_microseconds
-                i2s_out_push_sample(_pulseUsecs);
                 break;
             case I2S_STATIC:
-                i2s_out_push();
             case TIMED:
                 spinUntil(_stepPulseEndTime);
                 break;
@@ -89,9 +86,12 @@ namespace Machine {
             // Stepper drivers need some time between changing direction and doing a pulse.
             switch (_engine) {
                 case stepper_id_t::I2S_STREAM:
+                    // Commit the pin changes to the DMA queue
                     i2s_out_push_sample(_directionDelayUsecs);
                     break;
                 case stepper_id_t::I2S_STATIC:
+                    // Commit the pin changes to the hardware immediately
+                    i2s_out_push();
                 case stepper_id_t::TIMED:
                     // wait for step pulse time to complete...some time expired during code above
                     //
@@ -109,8 +109,11 @@ namespace Machine {
     void IRAM_ATTR Stepping::startPulseTimer() {
         switch (_engine) {
             case stepper_id_t::I2S_STREAM:
+                // Generate the number of pulses needed to span pulse_microseconds
+                i2s_out_push_sample(_pulseUsecs);
                 break;
             case stepper_id_t::I2S_STATIC:
+                i2s_out_push();
             case stepper_id_t::TIMED:
                 _stepPulseEndTime = usToEndTicks(_pulseUsecs);
                 break;
@@ -199,6 +202,12 @@ namespace Machine {
     }
 
     void Stepping::afterParse() {
-        Assert((_engine != I2S_STREAM && _engine != I2S_STATIC) || config->_i2so, "I2SO bus must be configured for this stepping type");
+        if (_engine == I2S_STREAM || _engine == I2S_STATIC) {
+            Assert(config->_i2so, "I2SO bus must be configured for this stepping type");
+            if (_pulseUsecs < I2S_OUT_USEC_PER_PULSE) {
+                log_info("Increasing stepping/pulse_us to the IS2 minimum value " << I2S_OUT_USEC_PER_PULSE);
+                _pulseUsecs = I2S_OUT_USEC_PER_PULSE;
+            }
+        }
     }
 }

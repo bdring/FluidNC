@@ -267,7 +267,7 @@ namespace MotorDrivers {
 
         _disabled = disable;
 
-        _disable_pin.write(_disabled);
+        _disable_pin.synchronousWrite(_disabled);
 
         if (_use_enable) {
             if (_disabled) {

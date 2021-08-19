@@ -66,12 +66,12 @@ CoolantState CoolantControl::get_state() {
 void CoolantControl::write(CoolantState state) {
     if (_flood.defined()) {
         bool pinState = state.Flood;
-        _flood.write(pinState);
+        _flood.synchronousWrite(pinState);
     }
 
     if (_mist.defined()) {
         bool pinState = state.Mist;
-        _mist.write(pinState);
+        _mist.synchronousWrite(pinState);
     }
 }
 

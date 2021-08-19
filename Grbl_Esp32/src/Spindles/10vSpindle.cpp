@@ -74,20 +74,20 @@ namespace Spindles {
             enable = false;
         }
 
-        _enable_pin.write(enable);
+        _enable_pin.synchronousWrite(enable);
 
         // turn off anything that acts like an enable
         if (!enable) {
-            _direction_pin.write(enable);
-            _forward_pin.write(enable);
-            _reverse_pin.write(enable);
+            _direction_pin.synchronousWrite(enable);
+            _forward_pin.synchronousWrite(enable);
+            _reverse_pin.synchronousWrite(enable);
         }
     }
 
     void _10v::set_direction(bool Clockwise) {
-        _direction_pin.write(Clockwise);
-        _forward_pin.write(Clockwise);
-        _reverse_pin.write(!Clockwise);
+        _direction_pin.synchronousWrite(Clockwise);
+        _forward_pin.synchronousWrite(Clockwise);
+        _reverse_pin.synchronousWrite(!Clockwise);
     }
 
     void _10v::deinit() {

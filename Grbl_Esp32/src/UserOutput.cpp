@@ -45,7 +45,7 @@ namespace UserOutput {
             return false;
         }
 
-        _pin.write(isOn);
+        _pin.synchronousWrite(isOn);
         return true;
     }
 

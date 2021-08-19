@@ -18,6 +18,7 @@
 */
 
 #include "UnipolarMotor.h"
+#include "../Machine/MachineConfig.h"
 
 #include <esp_attr.h>  // IRAM_ATTR
 
@@ -133,6 +134,7 @@ namespace MotorDrivers {
         _pin_phase1.write(_phase[1]);
         _pin_phase2.write(_phase[2]);
         _pin_phase3.write(_phase[3]);
+        config->_stepping->startPulseTimer();
     }
 
     // Configuration registration

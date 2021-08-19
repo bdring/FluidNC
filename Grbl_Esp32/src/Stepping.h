@@ -54,7 +54,7 @@ namespace Machine {
         Stepping() = default;
 
         uint8_t  _idleMsecs           = 255;
-        uint32_t _pulseUsecs          = 3;
+        uint32_t _pulseUsecs          = 4;
         uint32_t _directionDelayUsecs = 0;
         uint32_t _disableDelayUsecs   = 0;
 

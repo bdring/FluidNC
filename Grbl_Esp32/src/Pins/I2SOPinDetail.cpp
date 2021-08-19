@@ -60,6 +60,7 @@ namespace Pins {
     // Write and wait for completion.  Not suitable for use from an ISR
     void I2SOPinDetail::synchronousWrite(int high) {
         write(high);
+        i2s_out_push();
         i2s_out_delay();
     }
 

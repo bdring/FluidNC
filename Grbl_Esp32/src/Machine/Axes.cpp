@@ -35,7 +35,7 @@ namespace Machine {
             auto a = _axis[axis];
             if (a) {
                 log_info("Axis " << axisName(axis));
-                a->init();                
+                a->init();
             }
         }
     }
@@ -54,7 +54,7 @@ namespace Machine {
             set_disable(axis, disable);
         }
 
-        _sharedStepperDisable.write(disable);
+        _sharedStepperDisable.synchronousWrite(disable);
     }
 
     // Put the motors in the given axes into homing mode, returning a
@@ -107,8 +107,6 @@ namespace Machine {
             config->_stepping->waitDirection();
         }
 
-        config->_stepping->startPulseTimer();
-
         // Turn on step pulses for motors that are supposed to step now
         for (uint8_t axis = X_AXIS; axis < n_axis; axis++) {
             if (bitnum_is_true(step_mask, axis)) {
@@ -128,6 +126,7 @@ namespace Machine {
                 }
             }
         }
+        config->_stepping->startPulseTimer();
     }
 
     // Turn all stepper pins off

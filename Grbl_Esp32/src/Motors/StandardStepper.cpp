@@ -122,7 +122,7 @@ namespace MotorDrivers {
 
     void IRAM_ATTR StandardStepper::set_direction(bool dir) { _dir_pin.write(dir); }
 
-    void IRAM_ATTR StandardStepper::set_disable(bool disable) { _disable_pin.write(disable); }
+    void IRAM_ATTR StandardStepper::set_disable(bool disable) { _disable_pin.synchronousWrite(disable); }
 
     // Configuration registration
     namespace {
