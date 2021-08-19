@@ -80,6 +80,7 @@ namespace Machine {
 
         // Configuration system helpers:
         void group(Configuration::HandlerBase& handler) override;
+        void afterParse() override;
     };
 }
 extern EnumItem stepTypes[];

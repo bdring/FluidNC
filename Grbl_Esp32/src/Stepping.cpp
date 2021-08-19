@@ -2,6 +2,7 @@
 #include "EnumItem.h"
 #include "Stepping.h"
 #include "Stepper.h"
+#include "Machine/MachineConfig.h"  // config
 
 #include <atomic>
 
@@ -67,7 +68,6 @@ namespace Machine {
         }
     }
     void IRAM_ATTR Stepping::waitPulse() {
-        uint64_t pulseEndTime;
         switch (_engine) {
             case I2S_STREAM:
                 // Generate the number of pulses needed to span pulse_microseconds
@@ -196,5 +196,9 @@ namespace Machine {
         handler.item("pulse_us", _pulseUsecs);
         handler.item("dir_delay_us", _directionDelayUsecs);
         handler.item("disable_delay_us", _disableDelayUsecs);
+    }
+
+    void Stepping::afterParse() {
+        Assert((_engine != I2S_STREAM && _engine != I2S_STATIC) || config->_i2so, "I2SO bus must be configured for this stepping type");
     }
 }
