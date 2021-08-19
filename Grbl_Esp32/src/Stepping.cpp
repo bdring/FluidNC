@@ -15,8 +15,8 @@ namespace Machine {
                              EnumItem(Stepping::RMT) };
 
     void Stepping::init() {
-        log_info("Step type:" << stepTypes[_engine].name << " Pulse:" << _pulseUsecs << "us Dsbl Delay:" << _disableDelayUsecs
-                              << "us Dir Delay:" << _directionDelayUsecs << "us Idle Delay:" << _idleMsecs << "ms");
+        log_info("Stepping:" << stepTypes[_engine].name << " Pulse:" << _pulseUsecs << "us Dsbl Delay:" << _disableDelayUsecs
+                             << "us Dir Delay:" << _directionDelayUsecs << "us Idle Delay:" << _idleMsecs << "ms");
 
         // Prepare stepping interrupt callbacks.  The one that is actually
         // used is determined by timerStart() and timerStop()
@@ -33,18 +33,6 @@ namespace Machine {
         //        i2s_out_set_pulse_callback(Stepper::pulse_func);
     }
 
-    // Wait for motion to complete; the axes can still be moving
-    // after the data has been sent to the stepping engine, due
-    // to queuing delays.
-    void Stepping::synchronize() {
-        if (_engine == I2S_STREAM) {
-            i2s_out_delay();
-            // XXX instead of a delay, we could sense when the DMA and
-            // FIFO have drained. It might be as simple as waiting for
-            // I2SO.conf1.tx_start == 0, while yielding.
-            // delay_ms(I2S_OUT_DELAY_MS);
-        }
-    }
     void Stepping::reset() {
         if (_engine == I2S_STREAM) {
             i2s_out_reset();

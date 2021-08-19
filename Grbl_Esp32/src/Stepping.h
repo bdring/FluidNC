@@ -63,8 +63,7 @@ namespace Machine {
         // Interfaces to stepping engine
         void init();
 
-        void synchronize();  // Wait for motion to complete
-        void reset();        // Clean up old state and start fresh
+        void reset();  // Clean up old state and start fresh
         void beginLowLatency();
         void endLowLatency();
         void startPulseTimer();

@@ -74,7 +74,7 @@ namespace MotorDrivers {
             rmtConfig.tx_config.carrier_level        = RMT_CARRIER_LEVEL_LOW;
             rmtConfig.tx_config.idle_output_en       = true;
 
-            rmtItem[0].duration0 = stepping->_directionDelayUsecs < 1 ? 1 : stepping->_directionDelayUsecs * 4;
+            rmtItem[0].duration0 = stepping->_directionDelayUsecs ? stepping->_directionDelayUsecs * 4 : 1;
             rmtItem[0].duration1 = 4 * stepping->_pulseUsecs;
             rmtItem[1].duration0 = 0;
             rmtItem[1].duration1 = 0;

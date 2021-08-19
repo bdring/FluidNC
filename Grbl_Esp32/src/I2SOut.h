@@ -129,7 +129,7 @@ void i2s_out_write(uint8_t pin, uint8_t val);
     return: number of pushed samples
             0 .. no space for push
  */
-uint32_t i2s_out_push_sample(uint32_t usec);
+void i2s_out_push_sample(uint32_t usec);
 
 /*
    Set pulser mode to passtrough

@@ -188,14 +188,8 @@ static inline void i2s_out_reset_fifo_without_lock() {
     I2S0.conf.tx_fifo_reset = 0;
 }
 
-static void IRAM_ATTR i2s_out_reset_fifo() {
-    I2S_OUT_ENTER_CRITICAL();
-    i2s_out_reset_fifo_without_lock();
-    I2S_OUT_EXIT_CRITICAL();
-}
-
 #ifdef USE_I2S_OUT_STREAM_IMPL
-static int IRAM_ATTR i2s_clear_dma_buffer(lldesc_t* dma_desc, uint32_t port_data) {
+static int i2s_clear_dma_buffer(lldesc_t* dma_desc, uint32_t port_data) {
     uint32_t* buf = (uint32_t*)dma_desc->buf;
     for (int i = 0; i < DMA_SAMPLE_COUNT; i++) {
         buf[i] = port_data;
@@ -206,7 +200,7 @@ static int IRAM_ATTR i2s_clear_dma_buffer(lldesc_t* dma_desc, uint32_t port_data
     return 0;
 }
 
-static int IRAM_ATTR i2s_clear_o_dma_buffers(uint32_t port_data) {
+static int i2s_clear_o_dma_buffers(uint32_t port_data) {
     for (int buf_idx = 0; buf_idx < I2S_OUT_DMABUF_COUNT; buf_idx++) {
         // Initialize DMA descriptor
         o_dma.desc[buf_idx]->owner        = 1;
@@ -223,7 +217,7 @@ static int IRAM_ATTR i2s_clear_o_dma_buffers(uint32_t port_data) {
 }
 #endif
 
-static int IRAM_ATTR i2s_out_gpio_attach(uint8_t ws, uint8_t bck, uint8_t data) {
+static int i2s_out_gpio_attach(uint8_t ws, uint8_t bck, uint8_t data) {
     // Route the i2s pins to the appropriate GPIO
     gpio_matrix_out_check(data, I2S0O_DATA_OUT23_IDX, 0, 0);
     gpio_matrix_out_check(bck, I2S0O_BCK_OUT_IDX, 0, 0);
@@ -233,7 +227,7 @@ static int IRAM_ATTR i2s_out_gpio_attach(uint8_t ws, uint8_t bck, uint8_t data) 
 
 const int I2S_OUT_DETACH_PORT_IDX = 0x100;
 
-static int IRAM_ATTR i2s_out_gpio_detach(uint8_t ws, uint8_t bck, uint8_t data) {
+static int i2s_out_gpio_detach(uint8_t ws, uint8_t bck, uint8_t data) {
     // Route the i2s pins to the appropriate GPIO
     gpio_matrix_out_check(ws, I2S_OUT_DETACH_PORT_IDX, 0, 0);
     gpio_matrix_out_check(bck, I2S_OUT_DETACH_PORT_IDX, 0, 0);
@@ -241,7 +235,7 @@ static int IRAM_ATTR i2s_out_gpio_detach(uint8_t ws, uint8_t bck, uint8_t data) 
     return 0;
 }
 
-static int IRAM_ATTR i2s_out_gpio_shiftout(uint32_t port_data) {
+static int i2s_out_gpio_shiftout(uint32_t port_data) {
     __digitalWrite(i2s_out_ws_pin, LOW);
     for (int i = 0; i < I2S_OUT_NUM_BITS; i++) {
         __digitalWrite(i2s_out_data_pin, !!(port_data & bitnum_to_mask(I2S_OUT_NUM_BITS - 1 - i)));
@@ -252,7 +246,7 @@ static int IRAM_ATTR i2s_out_gpio_shiftout(uint32_t port_data) {
     return 0;
 }
 
-static int IRAM_ATTR i2s_out_stop() {
+static int i2s_out_stop() {
     I2S_OUT_ENTER_CRITICAL();
 #ifdef USE_I2S_OUT_STREAM_IMPL
     // Stop FIFO DMA
@@ -288,7 +282,7 @@ static int IRAM_ATTR i2s_out_stop() {
     return 0;
 }
 
-static int IRAM_ATTR i2s_out_start() {
+static int i2s_out_start() {
     if (!i2s_out_initialized) {
         return -1;
     }
@@ -354,7 +348,7 @@ static int IRAM_ATTR i2s_out_start() {
 // Fill out one DMA buffer
 // Call with the I2S_OUT_PULSER lock acquired.
 // Note that the lock is temporarily released while calling the callback function.
-static int IRAM_ATTR i2s_fillout_dma_buffer(lldesc_t* dma_desc) {
+static int i2s_fillout_dma_buffer(lldesc_t* dma_desc) {
     uint32_t* buf = (uint32_t*)dma_desc->buf;
     o_dma.rw_pos  = 0;
     // It reuses the oldest (just transferred) buffer with the name "current"
@@ -479,7 +473,7 @@ static void IRAM_ATTR i2s_out_intr_handler(void* arg) {
 //
 // I2S bitstream generator task
 //
-static void IRAM_ATTR i2sOutTask(void* parameter) {
+static void i2sOutTask(void* parameter) {
     lldesc_t* dma_desc;
     while (1) {
         // Wait a DMA complete event from I2S isr
@@ -538,7 +532,7 @@ static void IRAM_ATTR i2sOutTask(void* parameter) {
 //
 // External funtions
 //
-void IRAM_ATTR i2s_out_delay() {
+void i2s_out_delay() {
 #ifdef USE_I2S_OUT_STREAM_IMPL
     I2S_OUT_PULSER_ENTER_CRITICAL();
     if (i2s_out_pulser_status == PASSTHROUGH) {
@@ -566,39 +560,37 @@ void IRAM_ATTR i2s_out_write(uint8_t pin, uint8_t val) {
     }
 }
 
-uint8_t IRAM_ATTR i2s_out_read(uint8_t pin) {
+uint8_t i2s_out_read(uint8_t pin) {
     uint32_t port_data = atomic_load(&i2s_out_port_data);
     return (!!(port_data & bitnum_to_mask(pin)));
 }
 
-uint32_t IRAM_ATTR i2s_out_push_sample(uint32_t usec) {
-    uint32_t num = usec / I2S_OUT_USEC_PER_PULSE;
+void IRAM_ATTR i2s_out_push_sample(uint32_t usec) {
+    int32_t num = usec / I2S_OUT_USEC_PER_PULSE;
 
 #ifdef USE_I2S_OUT_STREAM_IMPL
     if (num > SAMPLE_SAFE_COUNT) {
-        return 0;
+        return;
     }
     // push at least one sample, even if num is zero)
+    if (num == 0) {
+        num = 1;
+    }
     uint32_t port_data = atomic_load(&i2s_out_port_data);
-    uint32_t n         = 0;
     do {
         o_dma.current[o_dma.rw_pos++] = port_data;
-        n++;
-    } while (n < num);
-    return n;
-#else
-    return 0;
+    } while (--num);
 #endif
 }
 
-i2s_out_pulser_status_t IRAM_ATTR i2s_out_get_pulser_status() {
+i2s_out_pulser_status_t i2s_out_get_pulser_status() {
     I2S_OUT_PULSER_ENTER_CRITICAL();
     i2s_out_pulser_status_t s = i2s_out_pulser_status;
     I2S_OUT_PULSER_EXIT_CRITICAL();
     return s;
 }
 
-int IRAM_ATTR i2s_out_set_passthrough() {
+int i2s_out_set_passthrough() {
     I2S_OUT_PULSER_ENTER_CRITICAL();
 #ifdef USE_I2S_OUT_STREAM_IMPL
     // Triggers a change of mode if it is compiled to use I2S stream.
@@ -619,7 +611,7 @@ int IRAM_ATTR i2s_out_set_passthrough() {
     return 0;
 }
 
-int IRAM_ATTR i2s_out_set_stepping() {
+int i2s_out_set_stepping() {
     I2S_OUT_PULSER_ENTER_CRITICAL();
 #ifdef USE_I2S_OUT_STREAM_IMPL
     if (i2s_out_pulser_status == STEPPING) {
@@ -671,7 +663,7 @@ int IRAM_ATTR i2s_out_set_pulse_period(uint32_t period) {
     return 0;
 }
 
-int IRAM_ATTR i2s_out_reset() {
+int i2s_out_reset() {
     I2S_OUT_PULSER_ENTER_CRITICAL();
     i2s_out_stop();
 #ifdef USE_I2S_OUT_STREAM_IMPL
@@ -693,8 +685,7 @@ int IRAM_ATTR i2s_out_reset() {
 //
 // Initialize function (external function)
 //
-// XXX does this really need IRAM_ATTR ? It is not called from an ISR
-int IRAM_ATTR i2s_out_init(i2s_out_init_t& init_param) {
+int i2s_out_init(i2s_out_init_t& init_param) {
     if (i2s_out_initialized) {
         // already initialized
         return -1;
@@ -883,6 +874,8 @@ int IRAM_ATTR i2s_out_init(i2s_out_init_t& init_param) {
     I2S0.clkm_conf.clkm_div_num = 10;  // minimum value of 2, reset value of 4, max 256 (I²S clock divider’s integral value)
 #else
     // N = 5
+    // 5 could be changed to 2 to make I2SO pulse at 312.5 kHZ instead of 125 kHz, but doing so would
+    // require some changes to deal with pulse lengths that are not an integral number of microseconds.
     I2S0.clkm_conf.clkm_div_num = 5;  // minimum value of 2, reset value of 4, max 256 (I²S clock divider’s integral value)
 #endif
     // b/a = 0
@@ -939,7 +932,7 @@ int IRAM_ATTR i2s_out_init(i2s_out_init_t& init_param) {
 
   return -1 ... already initialized
 */
-int IRAM_ATTR i2s_out_init() {
+int i2s_out_init() {
     auto i2so = config->_i2so;
     if (!i2so) {
         return -1;
