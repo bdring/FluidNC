@@ -120,6 +120,11 @@ namespace Machine {
             log_info("Spindle: using defaults (no spindle)");
             _spindles.push_back(new Spindles::Null());
         }
+
+        // Precaution in case the full spindle initialization does not happen
+        // due to a configuration error
+        spindle = _spindles[0];
+
         uint32_t next_tool = 100;
         for (auto s : _spindles) {
             if (s->_tool == -1) {
