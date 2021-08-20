@@ -302,7 +302,7 @@ namespace Machine {
                         auto axisConfig = config->_axes->_axis[axis];
                         pulloffOffset   = axisConfig->pulloffOffset();
                         if (pulloffOffset != 0) {
-                            log_info("Pulloff offset needed on axis " << axis << " of " << pulloffOffset);
+                            //log_info("Pulloff offset needed on axis " << axis << " of " << pulloffOffset);
                             // TODO Do it
                             run(motors & MOTOR1, false, false, pulloffOffset);
                         }
