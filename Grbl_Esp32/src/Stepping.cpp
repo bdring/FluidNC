@@ -198,4 +198,16 @@ namespace Machine {
             }
         }
     }
+
+    uint32_t Stepping::maxPulsesPerSec() {
+        switch (_engine) {
+            case stepper_id_t::I2S_STREAM:
+            case stepper_id_t::I2S_STATIC:
+                return i2s_out_max_steps_per_sec;
+            case stepper_id_t::TIMED:
+                return BartCanFigureOutThisNumber;
+            case stepper_id_t::RMT:
+                return BartCanFigureOutThisNumberToo;
+        }
+    }
 }

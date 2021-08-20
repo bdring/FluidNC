@@ -72,6 +72,8 @@ namespace Machine {
         void waitMotion();     // Wait for motion to complete
         void finishPulse();    // Cleanup after unstep
 
+        uint32_t maxPulsesPerSec();
+
         // Timers
         void setTimerPeriod(uint16_t timerTicks);
         void startTimer();

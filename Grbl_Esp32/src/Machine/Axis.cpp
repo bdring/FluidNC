@@ -1,5 +1,6 @@
 #include "Axes.h"
 #include "Axis.h"
+#include "MachineConfig.h"  // config
 
 #include <cstring>
 
@@ -23,7 +24,11 @@ namespace Machine {
         }
     }
 
-    void Axis::afterParse() {}
+    void Axis::afterParse() {
+        uint32_t stepRate = uint32_t(_stepsPerMm * _maxRate / 60.0);
+        auto     maxRate  = config->_stepping->maxPulsesPerSec();
+        Assert(stepRate <= maxRate, "Stepping rate %d steps/sec exceeds the maximum rate %d", stepRate, maxRate);
+    }
 
     void Axis::init() {
         for (uint8_t i = 0; i < Axis::MAX_MOTORS_PER_AXIS; i++) {
