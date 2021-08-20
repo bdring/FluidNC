@@ -204,10 +204,11 @@ namespace Machine {
             case stepper_id_t::I2S_STREAM:
             case stepper_id_t::I2S_STATIC:
                 return i2s_out_max_steps_per_sec;
-            case stepper_id_t::TIMED:
-                return 125000; // just better than POG
             case stepper_id_t::RMT:
                 return 1000000 / (2 * _pulseUsecs + _directionDelayUsecs);
+            case stepper_id_t::TIMED:
+            default:
+                return 80000;  // based on testing
         }
     }
 }
