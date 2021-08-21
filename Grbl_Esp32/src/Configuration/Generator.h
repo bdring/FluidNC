@@ -21,7 +21,6 @@
 #include <vector>
 
 #include "../Pin.h"
-#include "../StringRange.h"
 #include "../StringStream.h"
 #include "HandlerBase.h"
 
@@ -108,7 +107,7 @@ namespace Configuration {
             dst_ << '\n';
         }
 
-        void item(const char* name, StringRange& value, int minLength, int maxLength) override {
+        void item(const char* name, String& value, int minLength, int maxLength) override {
             indent();
             dst_ << name << ": " << value << '\n';
         }

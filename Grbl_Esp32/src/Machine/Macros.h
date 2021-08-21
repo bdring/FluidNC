@@ -32,7 +32,7 @@ namespace Machine {
         String _macro[n_macros];
 
     public:
-        Macros() = default;
+        Macros();
 
         void run_macro(size_t index) {
             if (index >= n_macros) {

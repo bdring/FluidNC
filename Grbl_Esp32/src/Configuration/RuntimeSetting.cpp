@@ -100,13 +100,13 @@ namespace Configuration {
         }
     }
 
-    void RuntimeSetting::item(const char* name, StringRange& value, int minLength, int maxLength) {
+    void RuntimeSetting::item(const char* name, String& value, int minLength, int maxLength) {
         if (is(name)) {
             isHandled_ = true;
             if (newValue_ == nullptr) {
-                grbl_sendf(out_->client(), "$%s=%s\r\n", setting_, value.str().c_str());
+                grbl_sendf(out_->client(), "$%s=%s\r\n", setting_, value.c_str());
             } else {
-                value = StringRange(newValue_);
+                value = String(newValue_);
             }
         }
     }
@@ -162,7 +162,7 @@ namespace Configuration {
             if (newValue_ == nullptr) {
                 grbl_sendf(out_->client(), "$%s=%s\r\n", setting_, value.name().c_str());
             } else {
-                auto parsed = Pin::create(StringRange(this->value()));
+                auto parsed = Pin::create(newValue);
                 value.swap(parsed);
             }
         }

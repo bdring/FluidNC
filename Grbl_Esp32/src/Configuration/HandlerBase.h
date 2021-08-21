@@ -20,7 +20,6 @@
 
 #include "HandlerType.h"
 #include "../Pin.h"
-#include "../StringRange.h"
 #include "../EnumItem.h"
 #include "../SpindleDatatypes.h"
 #include "../UartTypes.h"
@@ -69,23 +68,12 @@ namespace Configuration {
         virtual void item(const char* name, std::vector<speedEntry>& value)                               = 0;
         virtual void item(const char* name, UartData& wordLength, UartParity& parity, UartStop& stopBits) = 0;
 
-        virtual void item(const char* name, StringRange& value, int minLength = 0, int maxLength = 255) = 0;
-        virtual void item(const char* name, Pin& value)                                                 = 0;
-        virtual void item(const char* name, IPAddress& value)                                           = 0;
+        virtual void item(const char* name, Pin& value)       = 0;
+        virtual void item(const char* name, IPAddress& value) = 0;
 
         virtual void item(const char* name, int& value, EnumItem* e) = 0;
 
-        virtual void item(const char* name, String& value) {
-            StringRange range(value);
-            StringRange copy(value);
-
-            item(name, range);
-
-            // Check for changes, and update if the string is changed.
-            if (range.begin() != copy.begin() || range.end() != copy.end()) {
-                value = range.str();
-            }
-        }
+        virtual void item(const char* name, String& value, int minLength = 0, int maxLength = 255) = 0;
 
         virtual HandlerType handlerType() = 0;
 

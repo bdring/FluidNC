@@ -131,7 +131,10 @@ namespace Configuration {
 #ifdef DEBUG_VERBOSE_YAML_TOKENIZER
                     log_debug("Section " << StringRange(token_.keyStart_, token_.keyEnd_).str());
 #endif
-
+                    // A key with nothing else is not necessarily a section - it could
+                    // be an item whose value is the empty string
+                    token_.sValueStart_ = current_;
+                    token_.sValueEnd_   = current_;
                     Inc();
                 } else {
                     if (Current() == '"' || Current() == '\'') {

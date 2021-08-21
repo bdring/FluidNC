@@ -100,10 +100,10 @@ namespace Configuration {
     void JsonGenerator::item(const char* name, UartData& wordLength, UartParity& parity, UartStop& stopBits) {
         // Not sure if I should comment this out or not. The implementation is similar to the one in Generator.h.
     }
-    void JsonGenerator::item(const char* name, StringRange& value, int minLength, int maxLength) {
+
+    void JsonGenerator::item(const char* name, String& value, int minLength, int maxLength) {
         enter(name);
-        auto sv = value.str();
-        _encoder.begin_webui(name, _currentPath, "S", sv.c_str(), minLength, maxLength);
+        _encoder.begin_webui(name, _currentPath, "S", value.c_str(), minLength, maxLength);
         _encoder.end_object();
         leave();
     }
