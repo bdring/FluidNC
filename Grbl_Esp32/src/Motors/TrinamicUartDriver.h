@@ -64,7 +64,10 @@ namespace MotorDrivers {
         // Configuration handlers:
         void validate() const override { StandardStepper::validate(); }
 
-        void group(Configuration::HandlerBase& handler) override { TrinamicBase::group(handler); }
+        void group(Configuration::HandlerBase& handler) override {
+            handler.section("uart", _uart);
+            TrinamicBase::group(handler);
+        }
 
         // Name of the configurable. Must match the name registered in the cpp file.
         const char* name() const override { return "trinamic_uart"; }
