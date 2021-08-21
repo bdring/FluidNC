@@ -22,6 +22,14 @@
 #    include "src/Main.h"
 
 void setup() {
+#    ifndef GIT_REV
+    static_assert(false,
+                  "FluidNC is only maintained and supported on PlatformIO, because of its ease to handle libraries. Setting this up is a "
+                  "matter of minutes, see instructions at https://github.com/bdring/Grbl_Esp32/wiki/Compiling-with-PlatformIO . You can "
+                  "uncomment this message to proceed at your own risk.");
+#        define GIT_REV "Unsupported build"
+#    endif
+
     // #    ifdef DEBUG_PIN_DUMP
     //delay(2000);  // BJD removed mystery delay
     // #    endif

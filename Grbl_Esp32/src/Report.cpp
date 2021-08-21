@@ -294,7 +294,7 @@ void report_feedback_message(Message message) {  // ok to send to all clients
 
 // Welcome message
 void report_init_message(uint8_t client) {
-    grbl_sendf(client, "\r\nGrbl %s ['$' for help]\r\n", VERSION);
+    grbl_sendf(client, "\r\nGrbl %s [FluidNC, version %s, '$' for help]\r\n", VERSION, GIT_REV);
 }
 
 // Grbl help message
