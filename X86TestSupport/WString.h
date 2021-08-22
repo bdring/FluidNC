@@ -231,7 +231,12 @@ public:
         }
         backbuf = s2;
     }
-    // void replace(const String& find, const String& replace);
+    void replace(const String& find, const String& replace) {
+        std::string s2  = backbuf;
+        auto        idx = s2.find(find.backbuf, 0);
+        s2              = s2.substr(0, idx) + replace.backbuf + s2.substr(idx + find.backbuf.size());
+        backbuf         = s2;
+    }
     // void remove(unsigned int index);
     // void remove(unsigned int index, unsigned int count);
     // void trim(void);

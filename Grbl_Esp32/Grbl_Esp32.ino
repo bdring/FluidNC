@@ -20,16 +20,9 @@
 
 #ifndef UNIT_TEST
 #    include "src/Main.h"
+#include "src/Version.h"
 
 void setup() {
-#    ifndef GIT_REV
-    static_assert(
-        false,
-        "FluidNC compilation is only supported on PlatformIO.\nSee https://github.com/bdring/Grbl_Esp32/wiki/Compiling-with-PlatformIO .");
-#        define GIT_REV "Unsupported"
-#        define GIT_TAG "0.0"
-#    endif
-
     // #    ifdef DEBUG_PIN_DUMP
     //delay(2000);  // BJD removed mystery delay
     // #    endif

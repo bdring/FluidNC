@@ -8,8 +8,7 @@ int i2s_out_init() {
 
 void i2s_out_push() {}
 
-unsigned int i2s_out_push_sample(unsigned int x) {
-    return x;
+void i2s_out_push_sample(unsigned int x) {
 }
 
 int i2s_out_set_passthrough() {

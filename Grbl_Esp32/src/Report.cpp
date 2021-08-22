@@ -59,6 +59,7 @@
 #include "WebUI/WifiConfig.h"            // wifi_config
 #include "WebUI/TelnetServer.h"          // WebUI::telnet_server
 #include "WebUI/BTConfig.h"              // bt_config
+#include "Version.h"
 
 #include <map>
 #include <freertos/task.h>

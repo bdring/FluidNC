@@ -60,9 +60,6 @@
     <ClInclude Include="Grbl_Esp32\src\StepperPrivate.h">
       <Filter>src</Filter>
     </ClInclude>
-    <ClInclude Include="Grbl_Esp32\src\Motors\Motor.h">
-      <Filter>src\Motors</Filter>
-    </ClInclude>
     <ClInclude Include="Grbl_Esp32\src\Configuration\GenericFactory.h">
       <Filter>src\Configuration</Filter>
     </ClInclude>
@@ -80,9 +77,6 @@
     </ClInclude>
     <ClInclude Include="Grbl_Esp32\src\Configuration\Validator.h">
       <Filter>src\Configuration</Filter>
-    </ClInclude>
-    <ClInclude Include="Grbl_Esp32\src\Grbl.h">
-      <Filter>src</Filter>
     </ClInclude>
     <ClInclude Include="X86TestSupport\nvs.h">
       <Filter>X86TestSupport</Filter>
@@ -312,9 +306,6 @@
     <ClInclude Include="X86TestSupport\FSImpl.h">
       <Filter>X86TestSupport</Filter>
     </ClInclude>
-    <ClInclude Include="Grbl_Esp32\src\Exec.h">
-      <Filter>src</Filter>
-    </ClInclude>
     <ClInclude Include="Grbl_Esp32\src\WebUI\Serial2Socket.h">
       <Filter>src\WebUI</Filter>
     </ClInclude>
@@ -543,6 +534,9 @@
     <ClInclude Include="Grbl_Esp32\src\Pins\LedcPin.h">
       <Filter>src\Pins</Filter>
     </ClInclude>
+    <ClInclude Include="Grbl_Esp32\src\Motors\MotorDriver.h">
+      <Filter>src\Motors</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Grbl_Esp32\src\WebUI\JSONEncoder.cpp">
@@ -635,23 +629,14 @@
     <ClCompile Include="Grbl_Esp32\src\ControlPin.cpp">
       <Filter>src</Filter>
     </ClCompile>
-    <ClCompile Include="Grbl_Esp32\src\Grbl.cpp">
-      <Filter>src</Filter>
-    </ClCompile>
     <ClCompile Include="Grbl_Esp32\src\Pins\GPIOPinDetail.cpp">
       <Filter>src\Pins</Filter>
     </ClCompile>
     <ClCompile Include="Grbl_Esp32\src\Pins\DebugPinDetail.cpp">
       <Filter>src\Pins</Filter>
     </ClCompile>
-    <ClCompile Include="Grbl_Esp32\src\Exec.cpp">
-      <Filter>src</Filter>
-    </ClCompile>
     <ClCompile Include="X86TestSupport\ExceptionHelper.cpp">
       <Filter>X86TestSupport</Filter>
-    </ClCompile>
-    <ClCompile Include="Grbl_Esp32\src\Machine\Endstops.cpp">
-      <Filter>src\Machine</Filter>
     </ClCompile>
     <ClCompile Include="Grbl_Esp32\src\Pins\PinAttributes.cpp">
       <Filter>src\Pins</Filter>
@@ -752,9 +737,6 @@
     <ClCompile Include="Grbl_Esp32\src\Spindles\PWMSpindle.cpp">
       <Filter>src\Spindles</Filter>
     </ClCompile>
-    <ClCompile Include="Grbl_Esp32\src\Motors\Motor.cpp">
-      <Filter>src\Motors</Filter>
-    </ClCompile>
     <ClCompile Include="Grbl_Esp32\src\Report.cpp">
       <Filter>src</Filter>
     </ClCompile>
@@ -796,9 +778,6 @@
     </ClCompile>
     <ClCompile Include="Grbl_Esp32\src\Spindles\YL620Spindle.cpp">
       <Filter>src\Spindles</Filter>
-    </ClCompile>
-    <ClCompile Include="Grbl_Esp32\src\Machine\Gang.cpp">
-      <Filter>src\Machine</Filter>
     </ClCompile>
     <ClCompile Include="Grbl_Esp32\src\WebUI\NotificationsService.cpp">
       <Filter>src\WebUI</Filter>
@@ -917,6 +896,12 @@
     <ClCompile Include="X86TestSupport\driver\rmt.cpp" />
     <ClCompile Include="X86TestSupport\esp32-hal-timer.cpp">
       <Filter>X86TestSupport</Filter>
+    </ClCompile>
+    <ClCompile Include="Grbl_Esp32\src\Machine\Motor.cpp">
+      <Filter>src\Machine</Filter>
+    </ClCompile>
+    <ClCompile Include="Grbl_Esp32\src\Motors\MotorDriver.cpp">
+      <Filter>src\Motors</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

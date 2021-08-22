@@ -69,9 +69,7 @@
     <ClInclude Include="Grbl_Esp32\src\CPUMap.h" />
     <ClInclude Include="Grbl_Esp32\src\EnumItem.h" />
     <ClInclude Include="Grbl_Esp32\src\Error.h" />
-    <ClInclude Include="Grbl_Esp32\src\Exec.h" />
     <ClInclude Include="Grbl_Esp32\src\GCode.h" />
-    <ClInclude Include="Grbl_Esp32\src\Grbl.h" />
     <ClInclude Include="Grbl_Esp32\src\Jog.h" />
     <ClInclude Include="Grbl_Esp32\src\Limits.h" />
     <ClInclude Include="Grbl_Esp32\src\Logging.h" />
@@ -92,7 +90,7 @@
     <ClInclude Include="Grbl_Esp32\src\Machine\WifiSTAConfig.h" />
     <ClInclude Include="Grbl_Esp32\src\MotionControl.h" />
     <ClInclude Include="Grbl_Esp32\src\Motors\Dynamixel2.h" />
-    <ClInclude Include="Grbl_Esp32\src\Motors\Motor.h" />
+    <ClInclude Include="Grbl_Esp32\src\Motors\MotorDriver.h" />
     <ClInclude Include="Grbl_Esp32\src\Motors\NullMotor.h" />
     <ClInclude Include="Grbl_Esp32\src\Motors\RcServo.h" />
     <ClInclude Include="Grbl_Esp32\src\Motors\RcServoSettings.h" />
@@ -223,25 +221,22 @@
     <ClCompile Include="Grbl_Esp32\src\CoolantControl.cpp" />
     <ClCompile Include="Grbl_Esp32\src\CustomCode.cpp" />
     <ClCompile Include="Grbl_Esp32\src\Error.cpp" />
-    <ClCompile Include="Grbl_Esp32\src\Exec.cpp" />
     <ClCompile Include="Grbl_Esp32\src\GCode.cpp" />
-    <ClCompile Include="Grbl_Esp32\src\Grbl.cpp" />
     <ClCompile Include="Grbl_Esp32\src\Jog.cpp" />
     <ClCompile Include="Grbl_Esp32\src\Limits.cpp" />
     <ClCompile Include="Grbl_Esp32\src\Logging.cpp" />
     <ClCompile Include="Grbl_Esp32\src\Machine\Axes.cpp" />
     <ClCompile Include="Grbl_Esp32\src\Machine\Axis.cpp" />
-    <ClCompile Include="Grbl_Esp32\src\Machine\Endstops.cpp" />
-    <ClCompile Include="Grbl_Esp32\src\Machine\Gang.cpp" />
     <ClCompile Include="Grbl_Esp32\src\Machine\Homing.cpp" />
     <ClCompile Include="Grbl_Esp32\src\Machine\I2SOBus.cpp" />
     <ClCompile Include="Grbl_Esp32\src\Machine\LimitPin.cpp" />
     <ClCompile Include="Grbl_Esp32\src\Machine\MachineConfig.cpp" />
+    <ClCompile Include="Grbl_Esp32\src\Machine\Motor.cpp" />
     <ClCompile Include="Grbl_Esp32\src\Machine\SPIBus.cpp" />
     <ClCompile Include="Grbl_Esp32\src\Machine\UserOutputs.cpp" />
     <ClCompile Include="Grbl_Esp32\src\MotionControl.cpp" />
     <ClCompile Include="Grbl_Esp32\src\Motors\Dynamixel2.cpp" />
-    <ClCompile Include="Grbl_Esp32\src\Motors\Motor.cpp" />
+    <ClCompile Include="Grbl_Esp32\src\Motors\MotorDriver.cpp" />
     <ClCompile Include="Grbl_Esp32\src\Motors\NullMotor.cpp" />
     <ClCompile Include="Grbl_Esp32\src\Motors\RcServo.cpp" />
     <ClCompile Include="Grbl_Esp32\src\Motors\Servo.cpp" />
@@ -346,13 +341,13 @@
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
       <Optimization>Disabled</Optimization>
-      <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions) -DGIT_REV=UnitTests -DGIT_TAG=0.0</PreprocessorDefinitions>
       <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
       <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
       <WarningLevel>Level3</WarningLevel>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <AdditionalIncludeDirectories>$(MSBuildThisFileDirectory)X86TestSupport;$(MSBuildThisFileDirectory)GRBL_Esp32;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <AdditionalOptions>-D_CRT_SECURE_NO_WARNINGS %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions>-D_CRT_SECURE_NO_WARNINGS -DGIT_TAG=\"UnitTests\" -DGIT_REV=\"0.0\" %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
@@ -364,13 +359,13 @@
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
       <Optimization>Disabled</Optimization>
-      <PreprocessorDefinitions>X64;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>X64;_DEBUG;_CONSOLE;%(PreprocessorDefinitions) -DGIT_REV=UnitTests -DGIT_TAG=0.0</PreprocessorDefinitions>
       <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
       <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
       <WarningLevel>Level3</WarningLevel>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <AdditionalIncludeDirectories>$(MSBuildThisFileDirectory)X86TestSupport;$(MSBuildThisFileDirectory)GRBL_Esp32;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <AdditionalOptions>-D_CRT_SECURE_NO_WARNINGS %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions>-D_CRT_SECURE_NO_WARNINGS -DGIT_TAG=\"UnitTests\" -DGIT_REV=\"0.0\" %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
@@ -381,13 +376,13 @@
     <ClCompile>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions) -DGIT_REV=UnitTests -DGIT_TAG=0.0</PreprocessorDefinitions>
       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
       <WarningLevel>Level3</WarningLevel>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <AdditionalIncludeDirectories>$(MSBuildThisFileDirectory)X86TestSupport;$(MSBuildThisFileDirectory)GRBL_Esp32;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
-      <AdditionalOptions>-D_CRT_SECURE_NO_WARNINGS %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions>-D_CRT_SECURE_NO_WARNINGS -DGIT_TAG=\"UnitTests\" -DGIT_REV=\"0.0\" %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
@@ -400,13 +395,13 @@
     <ClCompile>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <PreprocessorDefinitions>X64;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>X64;NDEBUG;_CONSOLE;%(PreprocessorDefinitions) -DGIT_REV=UnitTests -DGIT_TAG=0.0</PreprocessorDefinitions>
       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
       <WarningLevel>Level3</WarningLevel>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <AdditionalIncludeDirectories>$(MSBuildThisFileDirectory)X86TestSupport;$(MSBuildThisFileDirectory)GRBL_Esp32;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
-      <AdditionalOptions>-D_CRT_SECURE_NO_WARNINGS %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions>-D_CRT_SECURE_NO_WARNINGS -DGIT_TAG=\"UnitTests\" -DGIT_REV=\"0.0\" %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
