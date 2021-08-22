@@ -8,8 +8,6 @@
 
 **FluidNC** is the next generation of Grbl_ESP32. It has a lot of improvements over Grbl_ESP32 as listed below.
 
-## Status
-
 We are currently in an alpha testing state. Basic machines are fully functional. We are actively testing the advanced functions and improving the usability.
 
 ## Firmware Architecture
