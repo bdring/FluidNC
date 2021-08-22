@@ -1,5 +1,5 @@
-name: "ESP32 Dev Controller V4"
-board: "ESP32 Dev Controller V4"
+name: "TMC2209 XYZA"
+board: "TMC2209 4x"
 
 stepping:
   engine: RMT
