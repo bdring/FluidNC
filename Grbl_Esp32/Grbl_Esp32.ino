@@ -23,11 +23,11 @@
 
 void setup() {
 #    ifndef GIT_REV
-    static_assert(false,
-                  "FluidNC is only maintained and supported on PlatformIO, because of its ease to handle libraries. Setting this up is a "
-                  "matter of minutes, see instructions at https://github.com/bdring/Grbl_Esp32/wiki/Compiling-with-PlatformIO . You can "
-                  "uncomment this message to proceed at your own risk.");
-#        define GIT_REV "Unsupported build"
+    static_assert(
+        false,
+        "FluidNC compilation is only supported on PlatformIO.\nSee https://github.com/bdring/Grbl_Esp32/wiki/Compiling-with-PlatformIO .");
+#        define GIT_REV "Unsupported"
+#        define GIT_TAG "0.0"
 #    endif
 
     // #    ifdef DEBUG_PIN_DUMP

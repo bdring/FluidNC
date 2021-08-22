@@ -60,8 +60,8 @@ void main_init() {
         // Load Grbl settings from non-volatile storage
         settings_init();  // requires config
 
-        log_info("Grbl_ESP32 Ver " << VERSION << " Date " << VERSION_BUILD);  // print grbl_esp32 verion info
-        log_info("Compiled with ESP32 SDK:" << ESP.getSdkVersion());          // print the SDK version
+        log_info("Grbl_ESP32 Ver " << GIT_TAG << " build " << GIT_TAG);  // print grbl_esp32 verion info
+        log_info("Compiled with ESP32 SDK:" << ESP.getSdkVersion());     // print the SDK version
 
         if (!SPIFFS.begin(true)) {
             log_error("Cannot mount the local filesystem");

@@ -26,8 +26,7 @@
 #include "../Machine/MachineConfig.h"
 #include "../Machine/WifiSTAConfig.h"
 #include "../Configuration/JsonGenerator.h"
-#include "../Version.h"  //VERSION
-#include "Commands.h"    // COMMANDS::wait(1);
+#include "Commands.h"  // COMMANDS::wait(1);
 #include "WifiConfig.h"
 #include "ESPResponse.h"
 #include "WebServer.h"
@@ -178,10 +177,10 @@ namespace WebUI {
     }
 
     static Error showFwInfo(char* parameter, AuthenticationLevel auth_level) {  // ESP800
-        webPrint("FW version:");
-        webPrint(VERSION);
+        webPrint("FW version: ");
+        webPrint(GIT_TAG);
         webPrint(" (");
-        webPrint(VERSION_BUILD);
+        webPrint(GIT_REV);
         webPrint(")"
                  // TODO: change grbl-embedded to FluidNC after fixing WebUI
                  " # FW target:grbl-embedded  # FW HW:");
@@ -542,9 +541,9 @@ namespace WebUI {
             webPrintln(config->_comms->_bluetoothConfig->info().c_str());
         }
         webPrint("FW version: ");
-        webPrint(VERSION);
+        webPrint(GIT_TAG);
         webPrint(" (");
-        webPrint(VERSION_BUILD);
+        webPrint(GIT_REV);
         webPrint(") (ESP32)");
         webPrintln("");
         return Error::Ok;
