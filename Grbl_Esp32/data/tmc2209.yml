@@ -33,6 +33,7 @@ axes:
       tmc_2209:
         direction: gpio.27
         step: gpio.26
+        addr: 0
         uart:
           txd_pin: gpio.21
           rxd_pin: gpio.22
@@ -65,6 +66,7 @@ axes:
       tmc_2209:
         step: gpio.33
         direction: gpio.32
+        addr: 1
 
     motor1:
       null_motor:
@@ -92,6 +94,7 @@ axes:
       tmc_2209:
         step: gpio.2
         direction: gpio.14
+        addr: 2
 
     motor1:
       null_motor:
@@ -120,6 +123,7 @@ axes:
       tmc_2209:
         step: gpio.16
         direction: gpio.15
+        addr: 3
 
     motor1:
       null_motor:
@@ -134,7 +138,7 @@ probe:
 
 PWM:
   pwm_freq: 5000
-  output_pin: gpio.4:low
+  output_pin: gpio.4:high
   zero_speed_with_disable: true
   enable_pin: gpio.13
   spinup_ms: 1000

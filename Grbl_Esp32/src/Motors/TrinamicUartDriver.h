@@ -66,6 +66,7 @@ namespace MotorDrivers {
 
         void group(Configuration::HandlerBase& handler) override {
             handler.section("uart", _uart);
+            handler.item("addr", _addr);
             TrinamicBase::group(handler);
         }
 
