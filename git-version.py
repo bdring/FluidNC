@@ -35,8 +35,8 @@ except:
         .decode("utf-8")
     )
     if modified:
-        dirty = ""
-    else:
         dirty = "-dirty"
+    else:
+        dirty = ""
 
     print("-DGIT_REV='\"%s-%s%s\"'" % (branchname, revision, dirty))
