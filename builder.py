@@ -10,13 +10,11 @@ import subprocess, os
 env = dict(os.environ)
 
 def buildMachine(baseName, verbose=True, extraArgs=None):
-    cmd = ['platformio','run']
+    cmd = ['platformio','run', "-e", baseName]
     if extraArgs:
         cmd.append(extraArgs)
     displayName = baseName
-    flags = '-DMACHINE_FILENAME=' + baseName
     print('Building machine ' + displayName)
-    env['PLATFORMIO_BUILD_FLAGS'] = flags
     if verbose:
         app = subprocess.Popen(cmd, env=env)
     else:
