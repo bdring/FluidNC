@@ -1,4 +1,4 @@
-name: "TMC2209 XYZA"
+name: "TMC2209 XYZA PWM Spindle"
 board: "TMC2209 4x"
 
 stepping:
