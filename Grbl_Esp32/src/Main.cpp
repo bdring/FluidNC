@@ -43,7 +43,7 @@
 
 extern void make_grbl_commands();
 
-void main_init() {
+void setup() {
     try {
         uartInit();  // Setup serial port
 
@@ -172,7 +172,7 @@ static void reset_variables() {
     mc_init();
 }
 
-void run_once() {
+void loop() {
     static int tries = 0;
     try {
         reset_variables();
@@ -209,13 +209,12 @@ void WEAK_LINK machine_init() {}
 
 void WEAK_LINK display_init() {}
 
-/*
-  setup() and loop() in the Arduino .ino implements this control flow:
-
-  void main() {
-     init();          // setup()
-     while (1) {      // loop()
-         run_once();
-     }
-  }
-*/
+#if 0
+int main() {
+    setup();  // setup()
+    while (1) {   // loop()
+        loop();
+    }
+    return 0;
+}
+#endif
