@@ -35,8 +35,8 @@ axes:
         step: gpio.26
         addr: 0
         uart:
-          txd_pin: gpio.21
-          rxd_pin: gpio.22
+          txd_pin: gpio.22
+          rxd_pin: gpio.21
           baud: 115200
           mode: 8N1
 
