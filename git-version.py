@@ -9,7 +9,7 @@ try:
         .decode("utf-8")
     )
 except:
-    tag = "2.0"
+    tag = "3.0"
 
 print("-DGIT_TAG='\"%s\"'" % (tag))
 

@@ -19,7 +19,6 @@
 */
 
 #include "Main.h"
-#include "Version.h"
 #include "Machine/MachineConfig.h"
 
 #include "Config.h"
