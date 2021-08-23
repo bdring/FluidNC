@@ -1,49 +1,29 @@
+// Copyright (c) 2012-2016 Sungeun K. Jeon for Gnea Research LLC
+// Copyright (c) 2018 -	Bart Dring
+// Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
+
 /*
   Report.cpp - reporting and messaging methods
-  Part of Grbl
-
-  Copyright (c) 2012-2016 Sungeun K. Jeon for Gnea Research LLC
-
-	2018 -	Bart Dring This file was modified for use on the ESP32
-					CPU. Do not use this with Grbl for atMega328P
-
-  Grbl is free software: you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 3 of the License, or
-  (at your option) any later version.
-
-  Grbl is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with Grbl.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 /*
-  This file functions as the primary feedback interface for Grbl. Any outgoing data, such
+  This file functions as the primary feedback interface. Any outgoing data, such
   as the protocol status messages, feedback messages, and status reports, are stored here.
   For the most part, these functions primarily are called from Protocol.cpp methods. If a
   different style feedback is desired (i.e. JSON), then a user can change these following
   methods to accommodate their needs.
 
 
-	ESP32 Notes:
+  ESP32 Notes:
 
-	Major rewrite to fix issues with BlueTooth. As described here there is a
-	when you try to send data a single byte at a time using SerialBT.write(...).
-	https://github.com/espressif/arduino-esp32/issues/1537
+  Major rewrite to fix issues with BlueTooth. As described here there is a problem
+  when you try to send data a single byte at a time using SerialBT.write(...).
+  https://github.com/espressif/arduino-esp32/issues/1537
 
-	A solution is to send messages as a string using SerialBT.print(...). Use
-	a short delay after each send. Therefore this file needed to be rewritten
-	to work that way. AVR Grbl was written to be super efficient to give it
-	good performance. This is far less efficient, but the ESP32 can handle it.
-	Do not use this version of the file with AVR Grbl.
+  A solution is to send messages as a string using SerialBT.print(...), using
+  a short delay after each send.
 
-	ESP32 discussion here ...  https://github.com/bdring/Grbl_Esp32/issues/3
-
-
+  ESP32 discussion here ...  https://github.com/bdring/Grbl_Esp32/issues/3
 */
 
 #include "Report.h"
@@ -73,11 +53,11 @@ const int DEFAULTBUFFERSIZE = 64;
 
 portMUX_TYPE mmux = portMUX_INITIALIZER_UNLOCKED;
 
-void grbl_send(uint8_t client, const char* text) {
+void _send(uint8_t client, const char* text) {
     client_write(client, text);
 }
 
-void _sendf(uint8_t client, const char* format, va_list arg) {
+void va_sendf(uint8_t client, const char* format, va_list arg) {
     if (client == CLIENT_INPUT) {
         return;
     }
@@ -94,24 +74,24 @@ void _sendf(uint8_t client, const char* format, va_list arg) {
         }
     }
     len = vsnprintf(temp, len + 1, format, arg);
-    grbl_send(client, temp);
+    _send(client, temp);
     if (temp != loc_buf) {
         delete[] temp;
     }
 }
 
-// This is a formatting version of the grbl_send(CLIENT_ALL,...) function that work like printf
-void grbl_sendf(uint8_t client, const char* format, ...) {
+// This is a formatting version of the _send(CLIENT_ALL,...) function that work like printf
+void _sendf(uint8_t client, const char* format, ...) {
     va_list arg;
     va_start(arg, format);
-    _sendf(client, format, arg);
+    va_sendf(client, format, arg);
     va_end(arg);
 }
 
 void msg_vsendf(uint8_t client, const char* format, va_list arg) {
-    grbl_send(client, "[MSG:");
-    _sendf(client, format, arg);
-    grbl_send(client, "]\r\n");
+    _send(client, "[MSG:");
+    va_sendf(client, format, arg);
+    _send(client, "]\r\n");
 }
 
 void info_client(uint8_t client, const char* format, ...) {
@@ -121,11 +101,11 @@ void info_client(uint8_t client, const char* format, ...) {
     va_end(arg);
 }
 
-void grbl_notify(const char* title, const char* msg) {
+void _notify(const char* title, const char* msg) {
     WebUI::notificationsservice.sendMSG(title, msg);
 }
 
-void grbl_notifyf(const char* title, const char* format, ...) {
+void _notifyf(const char* title, const char* format, ...) {
     char    loc_buf[64];
     char*   temp = loc_buf;
     va_list arg;
@@ -141,7 +121,7 @@ void grbl_notifyf(const char* title, const char* format, ...) {
         }
     }
     len = vsnprintf(temp, len + 1, format, arg);
-    grbl_notify(title, temp);
+    _notify(title, temp);
     va_end(arg);
     if (temp != loc_buf) {
         delete[] temp;
@@ -215,9 +195,9 @@ void report_status_message(Error status_code, uint8_t client) {
                 break;
             case Error::Eof:
                 // XXX we really should wait for the machine to return to idle before
-                // we issue this message.  What Eof really means is that all the lines
-                // in the file were sent to Grbl.  Some could still be running.
-                grbl_notifyf("SD print done", "%s print succeeded", sdcard->filename());
+                // we issue this message.  What Eof really means is that all the lines in the
+                // file were sent, but not necessarily executed.  Some could still be running.
+                _notifyf("SD print done", "%s print succeeded", sdcard->filename());
                 info_client(sdcard->_client, "%s print succeeded", sdcard->filename());
                 sdcard->closeFile();
                 break;
@@ -232,7 +212,7 @@ void report_status_message(Error status_code, uint8_t client) {
                     // Do not stop on unsupported commands because most senders do not
                     sdcard->_readyNext = true;
                 } else {
-                    grbl_notifyf("SD print error", "Error:%d in %s at line: %d", status_code, sdcard->filename(), sdcard->lineNumber());
+                    _notifyf("SD print error", "Error:%d in %s at line: %d", status_code, sdcard->filename(), sdcard->lineNumber());
                     sdcard->closeFile();
                 }
         }
@@ -240,16 +220,16 @@ void report_status_message(Error status_code, uint8_t client) {
         // Input is coming from a sender so use the classic Grbl line protocol
         switch (status_code) {
             case Error::Ok:  // Error::Ok
-                grbl_send(client, "ok\r\n");
+                _send(client, "ok\r\n");
                 break;
             default:
                 // With verbose errors, the message text is displayed instead of the number.
                 // Grbl 0.9 used to display the text, while Grbl 1.1 switched to the number.
                 // Many senders support both formats.
                 if (config->_verboseErrors) {
-                    grbl_sendf(client, "error: %s\r\n", errorString(status_code));
+                    _sendf(client, "error: %s\r\n", errorString(status_code));
                 } else {
-                    grbl_sendf(client, "error:%d\r\n", static_cast<int>(status_code));
+                    _sendf(client, "error:%d\r\n", static_cast<int>(status_code));
                 }
                 break;
         }
@@ -258,8 +238,8 @@ void report_status_message(Error status_code, uint8_t client) {
 
 // Prints alarm messages.
 void report_alarm_message(ExecAlarm alarm_code) {
-    grbl_sendf(CLIENT_ALL, "ALARM:%d\r\n", static_cast<int>(alarm_code));  // OK to send to all clients
-    delay_ms(500);                                                         // Force delay to ensure message clears serial write buffer.
+    _sendf(CLIENT_ALL, "ALARM:%d\r\n", static_cast<int>(alarm_code));  // OK to send to all clients
+    delay_ms(500);                                                     // Force delay to ensure message clears serial write buffer.
 }
 
 std::map<Message, const char*> MessageText = {
@@ -293,17 +273,17 @@ void report_feedback_message(Message message) {  // ok to send to all clients
 
 // Welcome message
 void report_init_message(uint8_t client) {
-    grbl_sendf(client, "\r\nGrbl %s [FluidNC, build: %s, '$' for help]\r\n", GIT_TAG, GIT_REV);
+    _sendf(client, "\r\nGrbl %s [FluidNC, build: %s, '$' for help]\r\n", GIT_TAG, GIT_REV);
 }
 
-// Grbl help message
-void report_grbl_help(uint8_t client) {
-    grbl_send(client, "[HLP:$$ $+ $# $S $L $G $I $N $x=val $Nx=line $J=line $SLP $C $X $H $F $E=err ~ ! ? ctrl-x]\r\n");
+// Help message
+void report_help(uint8_t client) {
+    _send(client, "[HLP:$$ $+ $# $S $L $G $I $N $x=val $Nx=line $J=line $SLP $C $X $H $F $E=err ~ ! ? ctrl-x]\r\n");
 }
 
 // Prints current probe parameters. Upon a probe command, these parameters are updated upon a
 // successful probe or upon a failed probe with the G38.3 without errors command (if supported).
-// These values are retained until Grbl is power-cycled, whereby they will be re-zeroed.
+// These values are retained until the system is power-cycled, whereby they will be re-zeroed.
 void report_probe_parameters(uint8_t client) {
     // Report in terms of machine position.
     char probe_rpt[(axesStringLen + 13 + 6 + 1)];  // the probe report we are building here
@@ -317,10 +297,10 @@ void report_probe_parameters(uint8_t client) {
     // add the success indicator and add closing characters
     sprintf(temp, ":%d]\r\n", probe_succeeded);
     strcat(probe_rpt, temp);
-    grbl_send(client, probe_rpt);  // send the report
+    _send(client, probe_rpt);  // send the report
 }
 
-// Prints Grbl NGC parameters (coordinate offsets, probing)
+// Prints NGC parameters (coordinate offsets, probing)
 void report_ngc_parameters(uint8_t client) {
     String ngc_rpt = "";
 
@@ -343,7 +323,7 @@ void report_ngc_parameters(uint8_t client) {
     ngc_rpt += String(tlo, 3);
     ;
     ngc_rpt += "]\r\n";
-    grbl_send(client, ngc_rpt.c_str());
+    _send(client, ngc_rpt.c_str());
     report_probe_parameters(client);
 }
 
@@ -499,44 +479,44 @@ void report_gcode_modes(uint8_t client) {
     sprintf(temp, " S%d", uint32_t(gc_state.spindle_speed));
     strcat(modes_rpt, temp);
     strcat(modes_rpt, "]\r\n");
-    grbl_send(client, modes_rpt);
+    _send(client, modes_rpt);
 }
 
 // Prints specified startup line
 void report_startup_line(uint8_t n, const char* line, uint8_t client) {
-    grbl_sendf(client, "$N%d=%s\r\n", n, line);  // OK to send to all
+    _sendf(client, "$N%d=%s\r\n", n, line);  // OK to send to all
 }
 
 void report_execute_startup_message(const char* line, Error status_code, uint8_t client) {
-    grbl_sendf(client, ">%s:", line);  // OK to send to all
+    _sendf(client, ">%s:", line);  // OK to send to all
     report_status_message(status_code, client);
 }
 
 // Prints build info line
 void report_build_info(const char* line, uint8_t client) {
-    grbl_sendf(client, "[VER:FluidNC %s-%s:%s]\r\n[OPT:", GIT_TAG, GIT_REV, line);
+    _sendf(client, "[VER:FluidNC %s-%s:%s]\r\n[OPT:", GIT_TAG, GIT_REV, line);
     if (config->_coolant->hasMist()) {
-        grbl_send(client, "M");  // TODO Need to deal with M8...it could be disabled
+        _send(client, "M");  // TODO Need to deal with M8...it could be disabled
     }
-    grbl_send(client, "P");
-    grbl_send(client, "H");
+    _send(client, "P");
+    _send(client, "H");
     if (config->_limitsTwoSwitchesOnAxis) {
-        grbl_send(client, "L");
+        _send(client, "L");
     }
     if (ALLOW_FEED_OVERRIDE_DURING_PROBE_CYCLES) {
-        grbl_send(client, "A");
+        _send(client, "A");
     }
-    grbl_send(client, config->_comms->_bluetoothConfig ? "B" : "");
-    grbl_send(client, "S");
+    _send(client, config->_comms->_bluetoothConfig ? "B" : "");
+    _send(client, "S");
     if (config->_enableParkingOverrideControl) {
-        grbl_send(client, "R");
+        _send(client, "R");
     }
-    grbl_send(client, FORCE_BUFFER_SYNC_DURING_NVS_WRITE ? "" : "E");   // Shown when disabled
-    grbl_send(client, FORCE_BUFFER_SYNC_DURING_WCO_CHANGE ? "" : "W");  // Shown when disabled.
+    _send(client, FORCE_BUFFER_SYNC_DURING_NVS_WRITE ? "" : "E");   // Shown when disabled
+    _send(client, FORCE_BUFFER_SYNC_DURING_WCO_CHANGE ? "" : "W");  // Shown when disabled.
 
     // NOTE: Compiled values, like override increments/max/min values, may be added at some point later.
     // These will likely have a comma delimiter to separate them.
-    grbl_send(client, "]\r\n");
+    _send(client, "]\r\n");
 
     report_machine_type(client);
     String info;
@@ -552,10 +532,10 @@ void report_build_info(const char* line, uint8_t client) {
     }
 }
 
-// Prints the character string line Grbl has received from the user, which has been pre-parsed,
-// and has been sent into protocol_execute_line() routine to be executed by Grbl.
+// Prints the character string line that was received, which has been pre-parsed,
+// and has been sent into protocol_execute_line() routine to be executed.
 void report_echo_line_received(char* line, uint8_t client) {
-    grbl_sendf(client, "[echo: %s]\r\n", line);
+    _sendf(client, "[echo: %s]\r\n", line);
 }
 
 // Calculate the position for status reports.
@@ -572,7 +552,7 @@ void addPinReport(char* status, char pinLetter) {
 // Prints real-time data. This function grabs a real-time snapshot of the stepper subprogram
 // and the actual location of the CNC machine. Users may change the following function to their
 // specific needs, but the desired real-time data report must be as short as possible. This is
-// requires as it minimizes the computational overhead and allows grbl to keep running smoothly,
+// requires as it minimizes the computational overhead to keep running smoothly,
 // especially during g-code programs with fast, short line segments and high frequency reports (5-20Hz).
 void report_realtime_status(uint8_t client) {
     char status[200];
@@ -740,14 +720,14 @@ void report_realtime_status(uint8_t client) {
     strcat(status, temp);
 #endif
     strcat(status, ">\r\n");
-    grbl_send(client, status);
+    _send(client, status);
 }
 
 void report_realtime_steps() {
     uint8_t idx;
     auto    n_axis = config->_axes->_numberAxis;
     for (idx = 0; idx < n_axis; idx++) {
-        grbl_sendf(CLIENT_ALL, "%ld\n", motor_steps[idx]);  // OK to send to all ... debug stuff
+        _sendf(CLIENT_ALL, "%ld\n", motor_steps[idx]);  // OK to send to all ... debug stuff
     }
 }
 

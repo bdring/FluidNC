@@ -335,12 +335,12 @@ public:
     Error action(char* value, WebUI::AuthenticationLevel auth_level, WebUI::ESPResponseStream* response);
 };
 
-class GrblCommand : public Command {
+class UserCommand : public Command {
 private:
     Error (*_action)(const char*, WebUI::AuthenticationLevel, WebUI::ESPResponseStream*);
 
 public:
-    GrblCommand(const char* grblName,
+    UserCommand(const char* grblName,
                 const char* name,
                 Error (*action)(const char*, WebUI::AuthenticationLevel, WebUI::ESPResponseStream*),
                 bool (*cmdChecker)(),
@@ -348,11 +348,11 @@ public:
         Command(NULL, GRBLCMD, auth, grblName, name, cmdChecker),
         _action(action) {}
 
-    GrblCommand(const char* grblName,
+    UserCommand(const char* grblName,
                 const char* name,
                 Error (*action)(const char*, WebUI::AuthenticationLevel, WebUI::ESPResponseStream*),
                 bool (*cmdChecker)()) :
-        GrblCommand(grblName, name, action, cmdChecker, WG) {}
+        UserCommand(grblName, name, action, cmdChecker, WG) {}
     Error action(char* value, WebUI::AuthenticationLevel auth_level, WebUI::ESPResponseStream* response);
 };
 

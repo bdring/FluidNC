@@ -1,6 +1,6 @@
 name: "ESP32 Dev Controller V4"
 board: "ESP32 Dev Controller V4"
-yaml_wiki: "https://github.com/bdring/Grbl_Esp32/wiki/YAML-Config-File"
+yaml_wiki: "https://github.com/bdring/FluidNC/wiki/YAML-Config-File"
 
 stepping:
   engine: RMT
@@ -69,7 +69,7 @@ axes:
 comms:
     wifi_ap:
         ip_address: "192.168.0.1"
-        ssid: GRBL_ESP32
+        ssid: FluidNC
         
 probe:
     pin: gpio.32:low:pu

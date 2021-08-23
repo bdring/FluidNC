@@ -1,24 +1,8 @@
+// Copyright (c) 2014-2016 Sungeun K. Jeon for Gnea Research LLC
+// Copyright (c) 2018 -	Bart Dring This file was modified for use on the ESP32
+// Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
+
 #pragma once
-
-/*
-  System.h - Header for system level commands and real-time processes
-  Part of Grbl
-  Copyright (c) 2014-2016 Sungeun K. Jeon for Gnea Research LLC
-
-    2018 -	Bart Dring This file was modifed for use on the ESP32
-        CPU. Do not use this with Grbl for atMega328P
-
-  Grbl is free software: you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 3 of the License, or
-  (at your option) any later version.
-  Grbl is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-  You should have received a copy of the GNU General Public License
-  along with Grbl.  If not, see <http://www.gnu.org/licenses/>.
-*/
 
 #include "Types.h"
 
@@ -28,7 +12,7 @@
 #include <map>
 
 // System states. The state variable primarily tracks the individual functions
-// of Grbl to manage each without overlapping. It is also used as a messaging flag for
+// to manage each without overlapping. It is also used as a messaging flag for
 // critical events.
 enum class State : uint8_t {
     Idle = 0,     // Must be zero.
@@ -76,7 +60,7 @@ enum class Override : uint8_t {
 
 // Global system variables
 struct system_t {
-    volatile State state;              // Tracks the current system state of Grbl.
+    volatile State state;              // Tracks the current system state
     bool           abort;              // System abort flag. Forces exit back to main loop for reset.
     Suspend        suspend;            // System suspend bitflag variable that manages holds, cancels, and safety door.
     StepControl    step_control;       // Governs the step segment generator depending on system state.

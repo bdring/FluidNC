@@ -1,7 +1,7 @@
 # Parser
 
 The 'parser' here is a Yaml-ish parser for the configuration settings
-of Grbl_ESP32. Note the 'ish' part here; while most syntax highlighters
+of FluidNC. Note the 'ish' part here; while most syntax highlighters
 for Yaml will work just fine, we don't support all yaml quirks like 
 references. 
 

@@ -1,10 +1,13 @@
+// Copyright (c) 2021 Mitch Bradley
+// Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
+
 #pragma once
 
 // Governs the size of the intermediary step segment buffer between the step execution algorithm
 // and the planner blocks. Each segment is set of steps executed at a constant velocity over a
 // fixed time defined by ACCELERATION_TICKS_PER_SECOND. They are computed such that the planner
 // block velocity profile is traced exactly. The size of this buffer governs how much step
-// execution lead time there is for other Grbl processes have to compute and do their thing
+// execution lead time there is for other processes to run
 // before having to come back and refill this buffer, currently at ~50msec of step moves.
 const int SEGMENT_BUFFER_SIZE = 6;
 

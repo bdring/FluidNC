@@ -1,3 +1,6 @@
+// Copyright (c) 2020 Mitch Bradley
+// Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
+
 #include "Settings.h"
 
 #include "Machine/MachineConfig.h"
@@ -43,11 +46,11 @@ static bool auth_failed(Word* w, const char* value, WebUI::AuthenticationLevel a
 }
 
 static void show_setting(const char* name, const char* value, const char* description, WebUI::ESPResponseStream* out) {
-    grbl_sendf(out->client(), "$%s=%s", name, value);
+    _sendf(out->client(), "$%s=%s", name, value);
     if (description) {
-        grbl_sendf(out->client(), "    %s", description);
+        _sendf(out->client(), "    %s", description);
     }
-    grbl_sendf(out->client(), "\r\n");
+    _sendf(out->client(), "\r\n");
 }
 
 void settings_restore(uint8_t restore_flag) {
@@ -85,7 +88,7 @@ static void load_settings() {
 }
 
 extern void make_settings();
-extern void make_grbl_commands();
+extern void make_user_commands();
 
 namespace WebUI {
     extern void make_web_settings();
@@ -97,8 +100,8 @@ void settings_init() {
     load_settings();
 }
 
-static Error show_grbl_help(const char* value, WebUI::AuthenticationLevel auth_level, WebUI::ESPResponseStream* out) {
-    report_grbl_help(out->client());
+static Error show_help(const char* value, WebUI::AuthenticationLevel auth_level, WebUI::ESPResponseStream* out) {
+    report_help(out->client());
     return Error::Ok;
 }
 
@@ -107,7 +110,7 @@ static Error report_gcode(const char* value, WebUI::AuthenticationLevel auth_lev
     return Error::Ok;
 }
 
-static void show_grbl_settings(WebUI::ESPResponseStream* out, type_t type, bool wantAxis) {
+static void show_settings(WebUI::ESPResponseStream* out, type_t type, bool wantAxis) {
     for (Setting* s = Setting::List; s; s = s->next()) {
         if (s->getType() == type && s->getGrblName()) {
             bool isAxis = s->getAxis() != NO_AXIS;
@@ -120,22 +123,22 @@ static void show_grbl_settings(WebUI::ESPResponseStream* out, type_t type, bool 
     }
 }
 static Error report_normal_settings(const char* value, WebUI::AuthenticationLevel auth_level, WebUI::ESPResponseStream* out) {
-    show_grbl_settings(out, GRBL, false);  // GRBL non-axis settings
-    show_grbl_settings(out, GRBL, true);   // GRBL axis settings
+    show_settings(out, GRBL, false);  // GRBL non-axis settings
+    show_settings(out, GRBL, true);   // GRBL axis settings
     return Error::Ok;
 }
 static Error report_extended_settings(const char* value, WebUI::AuthenticationLevel auth_level, WebUI::ESPResponseStream* out) {
-    show_grbl_settings(out, GRBL, false);      // GRBL non-axis settings
-    show_grbl_settings(out, EXTENDED, false);  // Extended non-axis settings
-    show_grbl_settings(out, GRBL, true);       // GRBL axis settings
-    show_grbl_settings(out, EXTENDED, true);   // Extended axis settings
+    show_settings(out, GRBL, false);      // GRBL non-axis settings
+    show_settings(out, EXTENDED, false);  // Extended non-axis settings
+    show_settings(out, GRBL, true);       // GRBL axis settings
+    show_settings(out, EXTENDED, true);   // Extended axis settings
     return Error::Ok;
 }
 static Error list_grbl_names(const char* value, WebUI::AuthenticationLevel auth_level, WebUI::ESPResponseStream* out) {
     for (Setting* s = Setting::List; s; s = s->next()) {
         const char* gn = s->getGrblName();
         if (gn) {
-            grbl_sendf(out->client(), "$%s => $%s\r\n", gn, s->getName());
+            _sendf(out->client(), "$%s => $%s\r\n", gn, s->getName());
         }
     }
     return Error::Ok;
@@ -158,7 +161,7 @@ static Error list_changed_settings(const char* value, WebUI::AuthenticationLevel
             }
         }
     }
-    grbl_sendf(out->client(), "(Passwords not shown)\r\n");
+    _sendf(out->client(), "(Passwords not shown)\r\n");
     return Error::Ok;
 }
 static Error list_pins(const char* value, WebUI::AuthenticationLevel auth_level, WebUI::ESPResponseStream* out) {
@@ -184,15 +187,15 @@ static Error list_commands(const char* value, WebUI::AuthenticationLevel auth_le
         const char* name    = cp->getName();
         const char* oldName = cp->getGrblName();
         if (oldName) {
-            grbl_sendf(out->client(), "$%s or $%s", name, oldName);
+            _sendf(out->client(), "$%s or $%s", name, oldName);
         } else {
-            grbl_sendf(out->client(), "$%s", name);
+            _sendf(out->client(), "$%s", name);
         }
         const char* description = cp->getDescription();
         if (description) {
-            grbl_sendf(out->client(), " =%s", description);
+            _sendf(out->client(), " =%s", description);
         }
-        grbl_sendf(out->client(), "\r\n");
+        _sendf(out->client(), "\r\n");
     }
     return Error::Ok;
 }
@@ -201,8 +204,8 @@ static Error toggle_check_mode(const char* value, WebUI::AuthenticationLevel aut
         return Error::ConfigurationInvalid;
     }
 
-    // Perform reset when toggling off. Check g-code mode should only work if Grbl
-    // is idle and ready, regardless of alarm locks. This is mainly to keep things
+    // Perform reset when toggling off. Check g-code mode should only work when
+    // idle and ready, regardless of alarm locks. This is mainly to keep things
     // simple and consistent.
     if (sys.state == State::CheckMode) {
         log_debug("Check mode");
@@ -314,7 +317,7 @@ static Error show_limits(const char* value, WebUI::AuthenticationLevel auth_leve
     Uart0.write('\n');
     return Error::Ok;
 }
-static Error sleep_grbl(const char* value, WebUI::AuthenticationLevel auth_level, WebUI::ESPResponseStream* out) {
+static Error go_to_sleep(const char* value, WebUI::AuthenticationLevel auth_level, WebUI::ESPResponseStream* out) {
     rtSleep = true;
     return Error::Ok;
 }
@@ -356,7 +359,7 @@ static Error showState(const char* value, WebUI::AuthenticationLevel auth_level,
     auto        it    = StateName.find(state);
     name              = it == StateName.end() ? "<invalid>" : it->second;
 
-    grbl_sendf(out->client(), "State %d (%s)\r\n", state, name);
+    _sendf(out->client(), "State %d (%s)\r\n", state, name);
     return Error::Ok;
 }
 
@@ -385,29 +388,29 @@ static const char* alarmString(ExecAlarm alarmNumber) {
 
 static Error listAlarms(const char* value, WebUI::AuthenticationLevel auth_level, WebUI::ESPResponseStream* out) {
     if (sys.state == State::ConfigAlarm) {
-        grbl_sendf(out->client(), "Configuration alarm is active. Check the boot messages for 'ERR'.\r\n");
+        _sendf(out->client(), "Configuration alarm is active. Check the boot messages for 'ERR'.\r\n");
     } else if (rtAlarm != ExecAlarm::None) {
-        grbl_sendf(out->client(), "Active alarm: %d (%s)\r\n", int(rtAlarm), alarmString(rtAlarm));
+        _sendf(out->client(), "Active alarm: %d (%s)\r\n", int(rtAlarm), alarmString(rtAlarm));
     }
     if (value) {
         char*   endptr      = NULL;
         uint8_t alarmNumber = uint8_t(strtol(value, &endptr, 10));
         if (*endptr) {
-            grbl_sendf(out->client(), "Malformed alarm number: %s\r\n", value);
+            _sendf(out->client(), "Malformed alarm number: %s\r\n", value);
             return Error::InvalidValue;
         }
         const char* alarmName = alarmString(static_cast<ExecAlarm>(alarmNumber));
         if (alarmName) {
-            grbl_sendf(out->client(), "%d: %s\r\n", alarmNumber, alarmName);
+            _sendf(out->client(), "%d: %s\r\n", alarmNumber, alarmName);
             return Error::Ok;
         } else {
-            grbl_sendf(out->client(), "Unknown alarm number: %d\r\n", alarmNumber);
+            _sendf(out->client(), "Unknown alarm number: %d\r\n", alarmNumber);
             return Error::InvalidValue;
         }
     }
 
     for (auto it = AlarmNames.begin(); it != AlarmNames.end(); it++) {
-        grbl_sendf(out->client(), "%d: %s\r\n", it->first, it->second);
+        _sendf(out->client(), "%d: %s\r\n", it->first, it->second);
     }
     return Error::Ok;
 }
@@ -422,21 +425,21 @@ static Error listErrors(const char* value, WebUI::AuthenticationLevel auth_level
         char*   endptr      = NULL;
         uint8_t errorNumber = uint8_t(strtol(value, &endptr, 10));
         if (*endptr) {
-            grbl_sendf(out->client(), "Malformed error number: %s\r\n", value);
+            _sendf(out->client(), "Malformed error number: %s\r\n", value);
             return Error::InvalidValue;
         }
         const char* errorName = errorString(static_cast<Error>(errorNumber));
         if (errorName) {
-            grbl_sendf(out->client(), "%d: %s\r\n", errorNumber, errorName);
+            _sendf(out->client(), "%d: %s\r\n", errorNumber, errorName);
             return Error::Ok;
         } else {
-            grbl_sendf(out->client(), "Unknown error number: %d\r\n", errorNumber);
+            _sendf(out->client(), "Unknown error number: %d\r\n", errorNumber);
             return Error::InvalidValue;
         }
     }
 
     for (auto it = ErrorNames.begin(); it != ErrorNames.end(); it++) {
-        grbl_sendf(out->client(), "%d: %s\r\n", it->first, it->second);
+        _sendf(out->client(), "%d: %s\r\n", it->first, it->second);
     }
     return Error::Ok;
 }
@@ -486,11 +489,11 @@ static Error dump_config(const char* value, WebUI::AuthenticationLevel auth_leve
     try {
         Configuration::Generator generator(*ss);
         if (!value) {
-            grbl_send(CLIENT_ALL, dataBeginMarker);
+            _send(CLIENT_ALL, dataBeginMarker);
         }
         config->group(generator);
         if (!value) {
-            grbl_send(out->client(), dataEndMarker);
+            _send(out->client(), dataEndMarker);
         }
     } catch (std::exception& ex) { log_info("Config dump error: " << ex.what()); }
     if (ss) {
@@ -504,43 +507,43 @@ static Error dump_config(const char* value, WebUI::AuthenticationLevel auth_leve
 // That action could be anything, from displaying a run-time parameter
 // to performing some system state change.  Each command is responsible
 // for decoding its own value string, if it needs one.
-void make_grbl_commands() {
-    new GrblCommand("CD", "Config/Dump", dump_config, anyState);
-    new GrblCommand("", "Help", show_grbl_help, anyState);
-    new GrblCommand("T", "State", showState, anyState);
-    new GrblCommand("J", "Jog", doJog, idleOrJog);
+void make_user_commands() {
+    new UserCommand("CD", "Config/Dump", dump_config, anyState);
+    new UserCommand("", "Help", show_help, anyState);
+    new UserCommand("T", "State", showState, anyState);
+    new UserCommand("J", "Jog", doJog, idleOrJog);
 
-    new GrblCommand("$", "GrblSettings/List", report_normal_settings, notCycleOrHold);
-    new GrblCommand("+", "ExtendedSettings/List", report_extended_settings, notCycleOrHold);
-    new GrblCommand("L", "GrblNames/List", list_grbl_names, notCycleOrHold);
-    new GrblCommand("Limits", "Limits/Show", show_limits, notCycleOrHold);
-    new GrblCommand("S", "Settings/List", list_settings, notCycleOrHold);
-    new GrblCommand("SC", "Settings/ListChanged", list_changed_settings, notCycleOrHold);
-    new GrblCommand("P", "Pins/List", list_pins, notCycleOrHold);
-    new GrblCommand("PC", "Pins/ListChanged", list_changed_pins, notCycleOrHold);
-    new GrblCommand("CMD", "Commands/List", list_commands, notCycleOrHold);
-    new GrblCommand("A", "Alarms/List", listAlarms, anyState);
-    new GrblCommand("E", "Errors/List", listErrors, anyState);
-    new GrblCommand("G", "GCode/Modes", report_gcode, anyState);
-    new GrblCommand("C", "GCode/Check", toggle_check_mode, anyState);
-    new GrblCommand("X", "Alarm/Disable", disable_alarm_lock, anyState);
-    new GrblCommand("NVX", "Settings/Erase", Setting::eraseNVS, idleOrAlarm, WA);
-    new GrblCommand("V", "Settings/Stats", Setting::report_nvs_stats, idleOrAlarm);
-    new GrblCommand("#", "GCode/Offsets", report_ngc, idleOrAlarm);
-    new GrblCommand("H", "Home", home_all, idleOrAlarm);
-    new GrblCommand("MD", "Motor/Disable", motor_disable, idleOrAlarm);
+    new UserCommand("$", "GrblSettings/List", report_normal_settings, notCycleOrHold);
+    new UserCommand("+", "ExtendedSettings/List", report_extended_settings, notCycleOrHold);
+    new UserCommand("L", "GrblNames/List", list_grbl_names, notCycleOrHold);
+    new UserCommand("Limits", "Limits/Show", show_limits, notCycleOrHold);
+    new UserCommand("S", "Settings/List", list_settings, notCycleOrHold);
+    new UserCommand("SC", "Settings/ListChanged", list_changed_settings, notCycleOrHold);
+    new UserCommand("P", "Pins/List", list_pins, notCycleOrHold);
+    new UserCommand("PC", "Pins/ListChanged", list_changed_pins, notCycleOrHold);
+    new UserCommand("CMD", "Commands/List", list_commands, notCycleOrHold);
+    new UserCommand("A", "Alarms/List", listAlarms, anyState);
+    new UserCommand("E", "Errors/List", listErrors, anyState);
+    new UserCommand("G", "GCode/Modes", report_gcode, anyState);
+    new UserCommand("C", "GCode/Check", toggle_check_mode, anyState);
+    new UserCommand("X", "Alarm/Disable", disable_alarm_lock, anyState);
+    new UserCommand("NVX", "Settings/Erase", Setting::eraseNVS, idleOrAlarm, WA);
+    new UserCommand("V", "Settings/Stats", Setting::report_nvs_stats, idleOrAlarm);
+    new UserCommand("#", "GCode/Offsets", report_ngc, idleOrAlarm);
+    new UserCommand("H", "Home", home_all, idleOrAlarm);
+    new UserCommand("MD", "Motor/Disable", motor_disable, idleOrAlarm);
 
-    new GrblCommand("HX", "Home/X", home_x, idleOrAlarm);
-    new GrblCommand("HY", "Home/Y", home_y, idleOrAlarm);
-    new GrblCommand("HZ", "Home/Z", home_z, idleOrAlarm);
-    new GrblCommand("HA", "Home/A", home_a, idleOrAlarm);
-    new GrblCommand("HB", "Home/B", home_b, idleOrAlarm);
-    new GrblCommand("HC", "Home/C", home_c, idleOrAlarm);
+    new UserCommand("HX", "Home/X", home_x, idleOrAlarm);
+    new UserCommand("HY", "Home/Y", home_y, idleOrAlarm);
+    new UserCommand("HZ", "Home/Z", home_z, idleOrAlarm);
+    new UserCommand("HA", "Home/A", home_a, idleOrAlarm);
+    new UserCommand("HB", "Home/B", home_b, idleOrAlarm);
+    new UserCommand("HC", "Home/C", home_c, idleOrAlarm);
 
-    new GrblCommand("SLP", "System/Sleep", sleep_grbl, idleOrAlarm);
-    new GrblCommand("I", "Build/Info", get_report_build_info, idleOrAlarm);
-    new GrblCommand("N", "GCode/StartupLines", report_startup_lines, idleOrAlarm);
-    new GrblCommand("RST", "Settings/Restore", restore_settings, idleOrAlarm, WA);
+    new UserCommand("SLP", "System/Sleep", go_to_sleep, idleOrAlarm);
+    new UserCommand("I", "Build/Info", get_report_build_info, idleOrAlarm);
+    new UserCommand("N", "GCode/StartupLines", report_startup_lines, idleOrAlarm);
+    new UserCommand("RST", "Settings/Restore", restore_settings, idleOrAlarm, WA);
 };
 
 // normalize_key puts a key string into canonical form -
@@ -745,7 +748,7 @@ Error execute_line(char* line, uint8_t client, WebUI::AuthenticationLevel auth_l
     if (line[0] == 0) {
         return Error::Ok;
     }
-    // Grbl '$' or WebUI '[ESPxxx]' system command
+    // User '$' or WebUI '[ESPxxx]' command
     if (line[0] == '$' || line[0] == '[') {
         return settings_execute_line(line, client, auth_level);
     }

@@ -1,26 +1,10 @@
+// Copyright (c) 2011-2016 Sungeun K. Jeon for Gnea Research LLC
+// Copyright (c) 2009-2011 Simen Svale Skogsrud
+// Copyright (c) 2018 -	Bart Dring
+// Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
+
 /*
   Stepper.cpp - stepper motor driver: executes motion plans using stepper motors
-  Part of Grbl
-
-  Copyright (c) 2011-2016 Sungeun K. Jeon for Gnea Research LLC
-  Copyright (c) 2009-2011 Simen Svale Skogsrud
-
-	2018 -	Bart Dring This file was modifed for use on the ESP32
-					CPU. Do not use this with Grbl for atMega328P
-
-  Grbl is free software: you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 3 of the License, or
-  (at your option) any later version.
-
-  Grbl is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-
-  You should have received a copy of the GNU General Public License
-  along with Grbl.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 #include "Stepper.h"
@@ -123,7 +107,7 @@ typedef struct {
 } st_prep_t;
 static st_prep_t prep;
 
-/* "The Stepper Driver Interrupt" - This timer interrupt is the workhorse of Grbl. Grbl employs
+/* "The Stepper Driver Interrupt" - This timer interrupt is the workhorse, employing
    the venerable Bresenham line algorithm to manage and exactly synchronize multi-axis moves.
    Unlike the popular DDA algorithm, the Bresenham algorithm is not susceptible to numerical
    round-off errors and only requires fast integer counters, meaning low computational overhead
@@ -132,7 +116,7 @@ static st_prep_t prep;
    pulse trains, or aliasing, which can lead to strange audible noises or shaking. This is
    particularly noticeable or may cause motion issues at low step frequencies (0-5kHz), but
    is usually not a physical problem at higher frequencies, although audible.
-     To improve Bresenham multi-axis performance, Grbl uses what we call an Adaptive Multi-Axis
+     To improve Bresenham multi-axis performance, we use what we call an Adaptive Multi-Axis
    Step Smoothing (AMASS) algorithm, which does what the name implies. At lower step frequencies,
    AMASS artificially increases the Bresenham resolution without effecting the algorithm's
    innate exactness. AMASS adapts its resolution levels automatically depending on the step
@@ -146,7 +130,7 @@ static st_prep_t prep;
    Level 2, we simply bit-shift again, so the non-dominant Bresenham axes can step within any
    of the four ISR ticks, the dominant axis steps every four ISR ticks, and quadruple the
    stepper ISR frequency. And so on. This, in effect, virtually eliminates multi-axis aliasing
-   issues with the Bresenham algorithm and does not significantly alter Grbl's performance, but
+   issues with the Bresenham algorithm and does not significantly alter the performance, but
    in fact, more efficiently utilizes unused CPU cycles overall throughout all configurations.
      AMASS retains the Bresenham algorithm exactness by requiring that it always executes a full
    Bresenham step, regardless of AMASS Level. Meaning that for an AMASS Level 2, all four
@@ -163,9 +147,7 @@ static st_prep_t prep;
    after each pulse. The bresenham line tracer algorithm controls all stepper outputs
    simultaneously with these two interrupts.
 
-	 NOTE: This interrupt must be as efficient as possible and complete before the next ISR tick,
-   which for ESP32 Grbl must be less than xx.xusec (TBD). Oscilloscope measured time in
-   ISR is 5usec typical and 25usec maximum, well below requirement.
+   NOTE: This interrupt must be as efficient as possible and complete before the next ISR tick.
    NOTE: This ISR expects at least one step to be executed per segment.
 
 	 The complete step timing should look this...
@@ -677,8 +659,8 @@ void Stepper::prep_buffer() {
            segment. This helps in removing floating point round-off issues of several additions.
            However, since floats have only 7.2 significant digits, long moves with extremely
            high step counts can exceed the precision of floats, which can lead to lost steps.
-           Fortunately, this scenario is highly unlikely and unrealistic in CNC machines
-           supported by Grbl (i.e. exceeding 10 meters axis travel at 200 step/mm).
+           Fortunately, this scenario is highly unlikely and unrealistic in typical DIY CNC
+           machines (i.e. exceeding 10 meters axis travel at 200 step/mm).
         */
         float step_dist_remaining    = prep.step_per_mm * mm_remaining;                       // Convert mm_remaining to steps
         float n_steps_remaining      = float(ceil(step_dist_remaining));                      // Round-up current steps remaining
@@ -704,8 +686,8 @@ void Stepper::prep_buffer() {
         // compensate, we track the time to execute the previous segment's partial step and simply
         // apply it with the partial step distance to the current segment, so that it minutely
         // adjusts the whole segment rate to keep step output exact. These rate adjustments are
-        // typically very small and do not adversely effect performance, but ensures that Grbl
-        // outputs the exact acceleration and velocity profiles as computed by the planner.
+        // typically very small and do not adversely effect performance, but ensures that the
+        // system outputs the exact acceleration and velocity profiles computed by the planner.
 
         dt += prep.dt_remainder;  // Apply previous segment partial step execute time
         // dt is in minutes so inv_rate is in minutes

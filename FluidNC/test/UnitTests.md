@@ -28,13 +28,13 @@ Things like GPIO just put stuff in a buffer, things like pins can be logged
 for analysis and so forth. 
 
 The "Support" folder is the main thing that gives this mimicking ability,
-so that the code in the Grbl_Esp32 folder is able to compile. For example,
+so that the code in the FluidNC folder is able to compile. For example,
 when including `<Arduino.h>`, in fact `Support/Arduino.h` is included.
 
 The include folders that have to be passed to the x86/x64 compiler are:
 
 - X86TestSupport
-- ..\Grbl_Esp32
+- ..\FluidNC
 
 ## Test code
 

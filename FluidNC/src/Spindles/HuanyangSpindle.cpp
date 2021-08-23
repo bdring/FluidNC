@@ -1,24 +1,13 @@
+// Copyright (c) 2020 -	Bart Dring
+// Copyright (c) 2020 -	Stefan de Bruijn
+// Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
+
 /*
     HuanyangSpindle.cpp
 
     This is for a Huanyang VFD based spindle via RS485 Modbus.
     Sorry for the lengthy comments, but finding the details on this
     VFD was a PITA. I am just trying to help the next person.
-
-    Part of Grbl_ESP32
-    2020 -  Bart Dring
-    2020 -  Stefan de Bruijn
-
-    Grbl is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
-    Grbl is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-    You should have received a copy of the GNU General Public License
-    along with Grbl.  If not, see <http://www.gnu.org/licenses/>.
 
                          WARNING!!!!
     VFDs are very dangerous. They have high voltages and are very powerful
@@ -28,7 +17,7 @@
 
     If a user changes state or RPM level, the command to do that is sent. If
     the command is not responded to a message is sent to serial that there was
-    a timeout. If the Grbl is in a critical state, an alarm will be generated and
+    a timeout. If the system is in a critical state, an alarm will be generated and
     the machine stopped.
 
     If there are no commands to execute, various status items will be polled. If there

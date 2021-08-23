@@ -1,13 +1,10 @@
-/*
-    Servo.cpp
+// Copyright (c) 2020 -	Bart Dring
+// Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
 
+/*
     This is a base class for servo-type motors - ones that autonomously
     move to a specified position, instead of being moved incrementally
     by stepping.  Specific kinds of servo motors inherit from it.
-
-    Part of Grbl_ESP32
-
-    2020 -	Bart Dring
 
     The servo's travel will be mapped against the axis with $X/MaxTravel
 
@@ -16,17 +13,6 @@
     Homing simply sets the axis Mpos to the endpoint as determined by $Homing/DirInvert
 
     Calibration is part of the setting (TBD) fixed at 1.00 now
-
-    Grbl_ESP32 is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
-    Grbl is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-    You should have received a copy of the GNU General Public License
-    along with Grbl.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 #include "Servo.h"

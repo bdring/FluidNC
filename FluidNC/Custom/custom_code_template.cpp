@@ -1,29 +1,10 @@
+// Copyright (c) 2020 -	Bart Dring
+// Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
+
 /*
 	custom_code_template.cpp (copy and use your machine name)
-	Part of Grbl_ESP32
 
-	copyright (c) 2020 -	Bart Dring. This file was intended for use on the ESP32
-
-  ...add your date and name here.
-
-	CPU. Do not use this with Grbl for atMega328P
-
-	Grbl_ESP32 is free software: you can redistribute it and/or modify
-	it under the terms of the GNU General Public License as published by
-	the Free Software Foundation, either version 3 of the License, or
-	(at your option) any later version.
-
-	Grbl_ESP32 is distributed in the hope that it will be useful,
-	but WITHOUT ANY WARRANTY; without even the implied warranty of
-	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-	GNU General Public License for more details.
-
-	You should have received a copy of the GNU General Public License
-	along with Grbl.  If not, see <http://www.gnu.org/licenses/>.
-
-	=======================================================================
-
-This is a template for user-defined C++ code functions.  Grbl can be
+This is a template for user-defined C++ code functions.  FluidNC can be
 configured to call some optional functions. These functions have weak definitions
 in the main code. If you create your own version they will be used instead
 
@@ -61,14 +42,14 @@ bool limitsCheckTravel() {
 }
 
 /*
-  user_defined_homing is called at the begining of the normal Grbl_ESP32 homing
-  sequence.  If user_defined_homing returns false, the rest of normal Grbl_ESP32
+  user_defined_homing is called at the begining of the normal FluidNC homing
+  sequence.  If user_defined_homing returns false, the rest of normal FluidNC
   homing is skipped if it returns false, other normal homing continues.  For
   example, if you need to manually prep the machine for homing, you could implement
   user_defined_homing to wait for some button to be pressed, then return true.
 */
 bool user_defined_homing(AxisMask cycle_mask) {
-    // True = done with homing, false = continue with normal Grbl_ESP32 homing
+    // True = done with homing, false = continue with normal FluidNC homing
     return true;
 }
 
@@ -80,9 +61,9 @@ bool user_defined_homing(AxisMask cycle_mask) {
 /*
   cartesian_to_motors() converts from cartesian coordinates to motor space.
 
-  Grbl_ESP32 processes arcs by converting them into tiny little line segments.
-  Kinematics in Grbl_ESP32 works the same way. Search for this function across
-  Grbl_ESP32 for examples. You are basically converting cartesian X,Y,Z... targets to
+  FluidNC processes arcs by converting them into tiny little line segments.
+  Kinematics in FluidNC works the same way. Search for this function across
+  FluidNC for examples. You are basically converting cartesian X,Y,Z... targets to
 
     target = an N_AXIS array of target positions (where the move is supposed to go)
     pl_data = planner data (see the definition of this type to see what it is)
@@ -135,7 +116,3 @@ void user_defined_macro(uint8_t index) {}
   user_m30() is called when an M30 gcode signals the end of a gcode file.
 */
 void user_m30() {}
-
-// If you add any additional functions specific to your machine that
-// require calls from common code, guard their calls in the common code with
-// #ifdef USE_WHATEVER and add function prototypes (also guarded) to grbl.h

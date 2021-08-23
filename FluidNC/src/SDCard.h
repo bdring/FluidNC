@@ -1,3 +1,6 @@
+// Copyright (c) 2018 -	Bart Dring
+// Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
+
 #pragma once
 
 /*
@@ -57,7 +60,7 @@ private:
     SDCard::State test_or_open(bool refresh);
 
 public:
-    bool _readyNext;  // Grbl has processed a line and is waiting for another
+    bool _readyNext;  // A line has been processed and the system is waiting for another
 
     uint8_t                    _client;
     WebUI::AuthenticationLevel _auth_level;

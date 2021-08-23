@@ -1,22 +1,6 @@
-/*
-  Grbl.cpp - Initialization and main loop for Grbl
-  Part of Grbl
-  Copyright (c) 2014-2016 Sungeun K. Jeon for Gnea Research LLC
-
-	2018 -	Bart Dring This file was modifed for use on the ESP32
-					CPU. Do not use this with Grbl for atMega328P
-
-  Grbl is free software: you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 3 of the License, or
-  (at your option) any later version.
-  Grbl is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-  You should have received a copy of the GNU General Public License
-  along with Grbl.  If not, see <http://www.gnu.org/licenses/>.
-*/
+// Copyright (c) 2014-2016 Sungeun K. Jeon for Gnea Research LLC
+// Copyright (c) 2018 -	Bart Dring
+// Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
 
 #include "Main.h"
 #include "Machine/MachineConfig.h"
@@ -40,7 +24,7 @@
 #endif
 #include <SPIFFS.h>
 
-extern void make_grbl_commands();
+extern void make_user_commands();
 
 void setup() {
     try {
@@ -56,18 +40,18 @@ void setup() {
 
         display_init();
 
-        // Load Grbl settings from non-volatile storage
+        // Load settings from non-volatile storage
         settings_init();  // requires config
 
-        log_info("Grbl_ESP32 Ver " << GIT_TAG << " build " << GIT_TAG);  // print grbl_esp32 verion info
-        log_info("Compiled with ESP32 SDK:" << ESP.getSdkVersion());     // print the SDK version
+        log_info("FluidNC Ver " << GIT_TAG << " build " << GIT_TAG);  // print verion info
+        log_info("Compiled with ESP32 SDK:" << ESP.getSdkVersion());  // print the SDK version
 
         if (!SPIFFS.begin(true)) {
             log_error("Cannot mount the local filesystem");
         }
 
         bool configOkay = config->load(config_filename->get());
-        make_grbl_commands();
+        make_user_commands();
 
         // Setup input polling loop after loading the configuration,
         // because the polling may depend on the config
@@ -104,7 +88,7 @@ void setup() {
         // Initialize system state.
         if (sys.state != State::ConfigAlarm) {
             if (FORCE_INITIALIZATION_ALARM) {
-                // Force Grbl into an ALARM state upon a power-cycle or hard reset.
+                // Force ALARM state upon a power-cycle or hard reset.
                 sys.state = State::Alarm;
             } else {
                 sys.state = State::Idle;
@@ -113,7 +97,7 @@ void setup() {
             limits_init();
 
             // Check for power-up and set system alarm if homing is enabled to force homing cycle
-            // by setting Grbl's alarm state. Alarm locks out all g-code commands, including the
+            // by setting alarm state. Alarm locks out all g-code commands, including the
             // startup scripts, but allows access to settings and internal commands. Only a homing
             // cycle '$H' or kill alarm locks '$X' will disable the alarm.
             // NOTE: The startup script will run after successful completion of the homing cycle, but
@@ -145,7 +129,7 @@ void setup() {
 }
 
 static void reset_variables() {
-    // Reset Grbl primary systems.
+    // Reset primary systems.
     system_reset();
     protocol_reset();
     gc_init();  // Set g-code parser to default state
@@ -175,7 +159,7 @@ void loop() {
     static int tries = 0;
     try {
         reset_variables();
-        // Start Grbl main loop. Processes program inputs and executes them.
+        // Start the main loop. Processes program inputs and executes them.
         // This can exit on a system abort condition, in which case run_once()
         // is re-executed by an enclosing loop.  It can also exit via a
         // throw that is caught and handled below.
@@ -201,7 +185,6 @@ void loop() {
         log_info("Stalling due to too many failures");
         while (1) {}
     }
-    // This is inside a loop in Grbl_Esp32.ino
 }
 
 void WEAK_LINK machine_init() {}

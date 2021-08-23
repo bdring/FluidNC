@@ -1,23 +1,11 @@
+// Copyright (c) 2014-2016 Sungeun K. Jeon for Gnea Research LLC
+// Copyright (c) 2018 -	Bart Dring
+// Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
+
 #pragma once
 
 /*
   Report.h - Header for system level commands and real-time processes
-  Part of Grbl
-  Copyright (c) 2014-2016 Sungeun K. Jeon for Gnea Research LLC
-
-	2018 -	Bart Dring This file was modifed for use on the ESP32
-					CPU. Do not use this with Grbl for atMega328P
-
-  Grbl is free software: you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 3 of the License, or
-  (at your option) any later version.
-  Grbl is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-  You should have received a copy of the GNU General Public License
-  along with Grbl.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 #include "Error.h"
@@ -28,10 +16,10 @@
 #include <cstdint>
 #include <freertos/FreeRTOS.h>  // UBaseType_t
 
-// With this enabled, Grbl sends back an echo of the line it has received, which has been pre-parsed (spaces
-// removed, capitalized letters, no comments) and is to be immediately executed by Grbl. Echoes will not be
-// sent upon a line buffer overflow, but should for all normal lines sent to Grbl. For example, if a user
-// sendss the line 'g1 x1.032 y2.45 (test comment)', Grbl will echo back in the form '[echo: G1X1.032Y2.45]'.
+// Enabling this sends back an echo of each received line, which has been pre-parsed (spaces
+// removed, capitalized letters, no comments) prior to its execution. Echoes will not be
+// sent upon a line buffer overflow. For example, if a user
+// sendss the line 'g1 x1.032 y2.45 (test comment)', it will be echoed in the form '[echo: G1X1.032Y2.45]'.
 // Only GCode lines are echoed, not command lines starting with $ or [ESP.
 // NOTE: Only use this for debugging purposes!! When echoing, this takes up valuable resources and can effect
 // performance. If absolutely needed for normal operation, the serial write buffer should be greatly increased
@@ -51,7 +39,7 @@ enum RtStatus {
 
 const char* errorString(Error errorNumber);
 
-// Define Grbl feedback message codes. Valid values (0-255).
+// Define feedback message codes. Valid values (0-255).
 enum class Message : uint8_t {
     CriticalEvent   = 1,
     AlarmLock       = 2,
@@ -74,13 +62,13 @@ extern Counter report_ovr_counter;
 extern Counter report_wco_counter;
 
 // functions to send data to the user.
-void grbl_send(uint8_t client, const char* text);
-void grbl_sendf(uint8_t client, const char* format, ...);
+void _send(uint8_t client, const char* text);
+void _sendf(uint8_t client, const char* format, ...);
 void info_client(uint8_t client, const char* format, ...);
 
 //function to notify
-void grbl_notify(const char* title, const char* msg);
-void grbl_notifyf(const char* title, const char* format, ...);
+void _notify(const char* title, const char* msg);
+void _notifyf(const char* title, const char* format, ...);
 
 // Prints system status messages.
 void report_status_message(Error status_code, uint8_t client);
@@ -95,11 +83,11 @@ void report_feedback_message(Message message);
 // Prints welcome message
 void report_init_message(uint8_t client);
 
-// Prints Grbl help and current global settings
-void report_grbl_help(uint8_t client);
+// Prints help and current global settings
+void report_help(uint8_t client);
 
-// Prints Grbl global settings
-void report_grbl_settings(uint8_t client, uint8_t show_extended);
+// Prints global settings
+void report_settings(uint8_t client, uint8_t show_extended);
 
 // Prints an echo of the pre-parsed line received right before execution.
 void report_echo_line_received(char* line, uint8_t client);
@@ -110,7 +98,7 @@ void report_realtime_status(uint8_t client);
 // Prints recorded probe position
 void report_probe_parameters(uint8_t client);
 
-// Prints Grbl NGC parameters (coordinate offsets, probe)
+// Prints NGC parameters (coordinate offsets, probe)
 void report_ngc_parameters(uint8_t client);
 
 // Prints current g-code parser mode state

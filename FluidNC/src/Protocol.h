@@ -1,28 +1,9 @@
+// Copyright (c) 2011-2016 Sungeun K. Jeon for Gnea Research LLC
+// Copyright (c) 2009-2011 Simen Svale Skogsrud
+// Copyright (c) 2018 -	Bart Dring
+// Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
+
 #pragma once
-
-/*
-  Protocol.h - controls Grbl execution protocol and procedures
-  Part of Grbl
-
-  Copyright (c) 2011-2016 Sungeun K. Jeon for Gnea Research LLC
-  Copyright (c) 2009-2011 Simen Svale Skogsrud
-
-	2018 -	Bart Dring This file was modifed for use on the ESP32
-					CPU. Do not use this with Grbl for atMega328P
-
-  Grbl is free software: you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 3 of the License, or
-  (at your option) any later version.
-
-  Grbl is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with Grbl.  If not, see <http://www.gnu.org/licenses/>.
-*/
 
 #include "Types.h"
 
@@ -39,7 +20,7 @@ const int LINE_BUFFER_SIZE = 256;
 
 void protocol_reset();
 
-// Starts Grbl main loop. It handles all incoming characters from the serial port and executes
+// Starts the main loop. It handles all incoming characters from the serial port and executes
 // them as they complete. It is also responsible for finishing the initialization procedures.
 void protocol_main_loop();
 

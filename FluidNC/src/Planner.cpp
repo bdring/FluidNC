@@ -1,26 +1,11 @@
+// Copyright (c) 2011-2016 Sungeun K. Jeon for Gnea Research LLC
+// Copyright (c) 2009-2011 Simen Svale Skogsrud
+// Copyright (c) 2011 Jens Geisler
+// Copyright (c) 2018 -	Bart Dring
+// Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
+
 /*
   Planner.cpp - buffers movement commands and manages the acceleration profile plan
-  Part of Grbl
-
-  Copyright (c) 2011-2016 Sungeun K. Jeon for Gnea Research LLC
-  Copyright (c) 2009-2011 Simen Svale Skogsrud
-  Copyright (c) 2011 Jens Geisler
-
-	2018 -	Bart Dring This file was modifed for use on the ESP32
-					CPU. Do not use this with Grbl for atMega328P
-
-  Grbl is free software: you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 3 of the License, or
-  (at your option) any later version.
-
-  Grbl is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with Grbl.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 #include "Planner.h"
@@ -371,8 +356,8 @@ bool plan_buffer_line(float* target, plan_line_data_t* pl_data) {
         // from path, but used as a robust way to compute cornering speeds, as it takes into account the
         // nonlinearities of both the junction angle and junction velocity.
         //
-        // NOTE: If the junction deviation value is finite, Grbl executes the motions in an exact path
-        // mode (G61). If the junction deviation value is zero, Grbl will execute the motion in an exact
+        // NOTE: If the junction deviation value is finite, the motions are executed in exact path
+        // mode (G61). If the junction deviation value is zero, the motions are executed in exact
         // stop mode (G61.1) manner. In the future, if continuous mode (G64) is desired, the math here
         // is exactly the same. Instead of motioning all the way to junction point, the machine will
         // just follow the arc circle defined here. The Arduino doesn't have the CPU cycles to perform

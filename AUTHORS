@@ -1,0 +1,13 @@
+The following people have contributed to the development of FluidNC
+
+Simen Svale Skogsrud  [Grbl]
+Sungeun K. Jeon for Gnea Research LLC  [Grbl]
+Jens Geisler  [Grbl motion control enhancements]
+Bart Dring  [Grbl_ESP32, hardware designs, project management, ongoing design and support]
+Luc Lebosse [WebUI]
+Simon Jouet  [IS2 output expansion]
+Michiyasu Odaki [port of I2S output expansion to Grbl_Esp32]
+Mitch Bradley (wmb@firmorks.com) [setting architecture, YAML configuration]
+Stefan de Bruijn [YAML configuration, VFD spindles]
+The Ant Team  [Trinamic UART driver]
+Marco Wagner [YL620 spindle driver]

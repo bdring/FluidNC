@@ -1,25 +1,10 @@
+// Copyright (c) 2011-2016 Sungeun K. Jeon for Gnea Research LLC
+// Copyright (c) 2009-2011 Simen Svale Skogsrud
+// Copyright (c) 2018 -	Bart Dring
+// Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
+
 /*
-  Protocol.cpp - controls Grbl execution protocol and procedures
-  Part of Grbl
-
-  Copyright (c) 2011-2016 Sungeun K. Jeon for Gnea Research LLC
-  Copyright (c) 2009-2011 Simen Svale Skogsrud
-
-    2018 -	Bart Dring This file was modifed for use on the ESP32
-                    CPU. Do not use this with Grbl for atMega328P
-
-  Grbl is free software: you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 3 of the License, or
-  (at your option) any later version.
-
-  Grbl is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with Grbl.  If not, see <http://www.gnu.org/licenses/>.
+  Protocol.cpp - execution state machine
 */
 
 #include "Protocol.h"
@@ -163,7 +148,7 @@ void protocol_reset() {
 static int32_t idleEndTime = 0;
 
 /*
-  GRBL PRIMARY LOOP:
+  PRIMARY LOOP:
 */
 void protocol_main_loop() {
     client_reset_read_buffer(CLIENT_ALL);
@@ -201,7 +186,7 @@ void protocol_main_loop() {
 
     // ---------------------------------------------------------------------------------
     // Primary loop! Upon a system abort, this exits back to main() to reset the system.
-    // This is also where Grbl idles while waiting for something to do.
+    // This is also where the system idles while waiting for something to do.
     // ---------------------------------------------------------------------------------
     int c;
     for (;;) {
@@ -310,11 +295,11 @@ void protocol_auto_cycle_start() {
     }
 }
 
-// This function is the general interface to Grbl's real-time command execution system. It is called
+// This function is the general interface to the real-time command execution system. It is called
 // from various check points in the main program, primarily where there may be a while loop waiting
 // for a buffer to clear space or any point where the execution time from the last check point may
 // be more than a fraction of a second. This is a way to execute realtime commands asynchronously
-// (aka multitasking) with grbl's g-code parsing and planning functions. This function also serves
+// (aka multitasking) with g-code parsing and planning functions. This function also serves
 // as an interface for the interrupts to set the system realtime flags, where only the main program
 // handles them, removing the need to define more computationally-expensive volatile variables. This
 // also provides a controlled way to execute certain tasks without having two or more instances of
@@ -328,8 +313,8 @@ void protocol_execute_realtime() {
     }
 }
 
-// Executes run-time commands, when required. This function primarily operates as Grbl's state
-// machine and controls the various real-time features Grbl has to offer.
+// Executes run-time commands, when required. This function is the primary state
+// machine that controls the various real-time features.
 // NOTE: Do not alter this unless you know exactly what you are doing!
 static void protocol_do_alarm() {
     switch (rtAlarm) {
@@ -830,9 +815,9 @@ void protocol_exec_rt_system() {
     }
 }
 
-// Handles Grbl system suspend procedures, such as feed hold, safety door, and parking motion.
+// Handles system suspend procedures, such as feed hold, safety door, and parking motion.
 // The system will enter this loop, create local variables for suspend tasks, and return to
-// whatever function that invoked the suspend, such that Grbl resumes normal operation.
+// whatever function that invoked the suspend, resuming normal operation.
 // This function is written in a way to promote custom parking motions. Simply use this as a
 // template
 static void protocol_exec_rt_suspend() {

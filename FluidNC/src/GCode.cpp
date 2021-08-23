@@ -1,26 +1,9 @@
-/*
-  GCode.cpp - rs274/ngc parser.
-  Part of Grbl
+// Copyright (c) 2014-2016 Sungeun K. Jeon for Gnea Research LLC
+// Copyright (c) 2009-2011 Simen Svale Skogsrud
+// Copyright (c) 2018 -	Bart Dring
+// Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
 
-  Copyright (c) 2011-2016 Sungeun K. Jeon for Gnea Research LLC
-  Copyright (c) 2009-2011 Simen Svale Skogsrud
-
-	2018 -	Bart Dring This file was modifed for use on the ESP32
-					CPU. Do not use this with Grbl for atMega328P
-
-  Grbl is free software: you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 3 of the License, or
-  (at your option) any later version.
-
-  Grbl is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with Grbl.  If not, see <http://www.gnu.org/licenses/>.
-*/
+// RS274/NGC parser.
 
 #include "GCode.h"
 #include "Settings.h"
@@ -111,7 +94,7 @@ void collapseGCode(char* line) {
             case '%':
                 // TODO: Install '%' feature
                 // Program start-end percent sign NOT SUPPORTED.
-                // NOTE: This maybe installed to tell Grbl when a program is running vs manual input,
+                // NOTE: This may be installed to distinguish between program running vs manual input,
                 // where, during a program, the system auto-cycle start will continue to execute
                 // everything until the next '%' sign. This will help fix resuming issues with certain
                 // functions that empty the planner buffer to execute its task on-time.
@@ -144,7 +127,7 @@ static void gc_wco_changed() {
 // The line may contain whitespace and comments, which are first removed,
 // and lower case characters, which are converted to upper case.
 // In this function, all units and positions are converted and
-// exported to grbl's internal functions in terms of (mm, mm/min) and absolute machine
+// exported to internal functions in terms of (mm, mm/min) and absolute machine
 // coordinates, respectively.
 Error gc_execute_line(char* line, uint8_t client) {
     // Step 0 - remove whitespace and comments and convert to upper case
@@ -747,7 +730,7 @@ Error gc_execute_line(char* line, uint8_t client) {
        To do this, this would simply need to retain all of the data in STEP 1, such as the new block
        data struct, the modal group and value bitflag tracking variables, and axis array indices
        compatible variables. This data contains all of the information necessary to error-check the
-       new g-code block when the EOL character is received. However, this would break Grbl's startup
+       new g-code block when the EOL character is received. However, this would break startup
        lines in how it currently works and would require some refactoring to make it compatible.
     */
     // [0. Non-specific/common error-checks and miscellaneous setup]:
@@ -892,8 +875,8 @@ Error gc_execute_line(char* line, uint8_t client) {
 
     // [13. Cutter radius compensation ]: G41/42 NOT SUPPORTED. Error, if enabled while G53 is active.
     // [G40 Errors]: G2/3 arc is programmed after a G40. The linear move after disabling is less than tool diameter.
-    //   NOTE: Since cutter radius compensation is never enabled, these G40 errors don't apply. Grbl supports G40
-    //   only for the purpose to not error when G40 is sent with a g-code program header to setup the default modes.
+    //   NOTE: Since cutter radius compensation is never enabled, these G40 errors don't apply. G40 is supported
+    //   only for the purpose of not erroring when G40 is sent with a g-code program header to setup the default modes.
     // [14. Cutter length compensation ]: G43 NOT SUPPORTED, but G43.1 and G49 are.
     // [G43.1 Errors]: Motion command in same line.
     //   NOTE: Although not explicitly stated so, G43.1 should be applied to only one valid
@@ -1470,7 +1453,7 @@ Error gc_execute_line(char* line, uint8_t client) {
         }
     }
 
-    // [9. Override control ]: NOT SUPPORTED. Always enabled. Except for a Grbl-only parking control.
+    // [9. Override control ]: NOT SUPPORTED. Always enabled, except for parking control.
     if (config->_enableParkingOverrideControl) {
         if (gc_state.modal.override != gc_block.modal.override) {
             gc_state.modal.override = gc_block.modal.override;

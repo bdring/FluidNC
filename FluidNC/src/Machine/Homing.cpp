@@ -249,7 +249,8 @@ namespace Machine {
 
     void Homing::set_mpos(AxisMask axisMask) {
         // The active cycle axes should now be homed and machine limits have been located. By
-        // default, Grbl defines machine space as all negative, as do most CNCs. Since limit switches
+        // default, as with most CNCs, machine space is all negative, but that can be changed.
+        // Since limit switches
         // can be on either side of an axes, check and set axes machine zero appropriately. Also,
         // set up pull-off maneuver from axes limit switches that have been homed. This provides
         // some initial clearance off the switches and should also help prevent them from falsely

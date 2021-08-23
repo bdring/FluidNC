@@ -7,7 +7,7 @@ namespace Configuration {
     Test(YamlComplete, Test) {
         const char* config = "name: \"ESP32 Dev Controller V4\"\n"
                              "board: \"ESP32 Dev Controller V4\"\n"
-                             "yaml_wiki: \"https://github.com/bdring/Grbl_Esp32/wiki/YAML-Config-File\"\n"
+                             "yaml_wiki: \"https://github.com/bdring/FluidNC/wiki/YAML-Config-File\"\n"
                              "\n"
                              "idle_time: 250\n"
                              "engine: rmt\n"

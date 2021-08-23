@@ -13,7 +13,7 @@ need to be taken for this are the following:
    you should install the PlatformIO Core (CLI). Make sure you update
    the command line search path.
 3. Use python to generate a vcxproj file: `python generate_vcxproj.py`.
-4. Start Grbl_Esp32.sln
+4. Start FluidNC.sln
 
 ## Building
 

@@ -1,22 +1,5 @@
-/*
-  SDCard.cpp - Adds SD Card Features to Grbl_ESP32
-  Part of Grbl_ESP32
-
-  Copyright (c) 2018 Barton Dring Buildlog.net
-
-  Grbl is free software: you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 3 of the License, or
-  (at your option) any later version.
-
-  Grbl is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with Grbl.  If not, see <http://www.gnu.org/licenses/>.
-*/
+// Copyright (c) 2018 -	Bart Dring
+// Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
 
 #include "Config.h"
 
@@ -56,7 +39,7 @@ void SDCard::listDir(fs::FS& fs, const char* dirname, uint8_t levels, uint8_t cl
                 listDir(fs, file.name(), levels - 1, client);
             }
         } else {
-            grbl_sendf(CLIENT_ALL, "[FILE:%s|SIZE:%d]\r\n", file.name(), file.size());
+            _sendf(CLIENT_ALL, "[FILE:%s|SIZE:%d]\r\n", file.name(), file.size());
         }
         file = root.openNextFile();
     }
@@ -69,7 +52,7 @@ bool SDCard::openFile(fs::FS& fs, const char* path) {
         return false;
     }
     _state               = State::BusyPrinting;
-    _readyNext           = false;  // this will get set to true when Grbl issues "ok" message
+    _readyNext           = false;  // this will get set to true when an "ok" message is issued
     _current_line_number = 0;
     return true;
 }

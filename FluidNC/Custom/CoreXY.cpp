@@ -1,8 +1,9 @@
+// Copyright (c) 2018 -	Bart Dring
+// Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
+
 /*
   CoreXY.cpp - 
   
-  Copyright (c) 2020    Barton Dring @buildlog
-
   https://corexy.com/theory.html
 
   Limitations 
@@ -10,21 +11,10 @@
   - Must home one axis per cycle
   - limited to 3 axis systems...easy fix in increase (just donate)
 
-  ============================================================================
-
-  Grbl is free software: you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 3 of the License, or
-  (at your option) any later version.
-  Grbl is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-  You should have received a copy of the GNU General Public License
-  along with Grbl.  If not, see <http://www.gnu.org/licenses/>.
     FYI: http://forums.trossenrobotics.com/tutorials/introduction-129/delta-robot-kinematics-3276/
     Better: http://hypertriangle.com/~alex/delta-robot-tutorial/
 */
+
 #include "../src/Settings.h"
 #include "../src/MotionControl.h"  // kinematics*
 #include "../src/Limits.h"         // limitsCheckTravel
@@ -74,7 +64,7 @@ static void cartesian_to_motors(float* position) {
 }
 
 // Cycle mask is 0 unless the user sends a single axis command like $HZ
-// This will always return true to prevent the normal Grbl homing cycle
+// This will always return true to prevent the normal homing cycle
 bool user_defined_homing(AxisMask cycle_mask) {
     if (!config->_homing) {
         log_error("Homing is not configured");
