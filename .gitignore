@@ -16,10 +16,9 @@ Release/
 *.vsarduino.h
 __vm/
 *.user
-Grbl_Esp32.vcxproj
-Grbl_Esp32.vcxproj.filters
+FluidNC.vcxproj
+FluidNC.vcxproj.filters
 *.suo
-Grbl_Esp32.ino.cpp
 packages/
 pio_machine.h
 project.checksum

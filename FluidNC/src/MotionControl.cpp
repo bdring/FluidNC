@@ -1,26 +1,7 @@
-/*
-  MotionControl.cpp - high level interface for issuing motion commands
-  Part of Grbl
-
-  Copyright (c) 2011-2016 Sungeun K. Jeon for Gnea Research LLC
-  Copyright (c) 2009-2011 Simen Svale Skogsrud
-
-    2018 -	Bart Dring This file was modifed for use on the ESP32
-            CPU. Do not use this with Grbl for atMega328P
-
-  Grbl is free software: you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 3 of the License, or
-  (at your option) any later version.
-
-  Grbl is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with Grbl.  If not, see <http://www.gnu.org/licenses/>.
-*/
+// Copyright (c) 2014-2016 Sungeun K. Jeon for Gnea Research LLC
+// Copyright (c) 2009-2011 Simen Svale Skogsrud
+// Copyright (c) 2018 -	Bart Dring
+// Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
 
 #include "MotionControl.h"
 
@@ -51,7 +32,7 @@ void mc_init() {
 // Execute linear motion in absolute millimeter coordinates. Feed rate given in millimeters/second
 // unless invert_feed_rate is true. Then the feed_rate means that the motion should be completed in
 // (1 minute)/feed_rate time.
-// NOTE: This is the primary gateway to the grbl planner. All line motions, including arc line
+// NOTE: This is the primary gateway to the planner. All line motions, including arc line
 // segments, must pass through this routine before being passed to the planner. The seperation of
 // mc_line and plan_buffer_line is done primarily to place non-planner-type functions from being
 // in the planner and to let backlash compensation or canned cycle integration simple and direct.
@@ -61,8 +42,7 @@ bool mc_line(float* target, plan_line_data_t* pl_data) {
     // store the plan data so it can be cancelled by the protocol system if needed
     mc_pl_data_inflight = pl_data;
 
-    // If enabled, check for soft limit violations. Placed here all line motions are picked up
-    // from everywhere in Grbl.
+    // If enabled, check for soft limit violations.
     bool hasSoftLimits = config->_axes->hasSoftLimits();
     if (hasSoftLimits) {
         // NOTE: Block jog state. Jogging is a special case and soft limits are handled independently.
@@ -80,13 +60,13 @@ bool mc_line(float* target, plan_line_data_t* pl_data) {
     // plan_check_full_buffer() and check for system abort loop. Also for position reporting
     // backlash steps will need to be also tracked, which will need to be kept at a system level.
     // There are likely some other things that will need to be tracked as well. However, we feel
-    // that backlash compensation should NOT be handled by Grbl itself, because there are a myriad
+    // that backlash compensation should NOT be handled by the firmware itself, because there are a myriad
     // of ways to implement it and can be effective or ineffective for different CNC machines. This
     // would be better handled by the interface as a post-processor task, where the original g-code
     // is translated and inserts backlash motions that best suits the machine.
     // NOTE: Perhaps as a middle-ground, all that needs to be sent is a flag or special command that
-    // indicates to Grbl what is a backlash compensation motion, so that Grbl executes the move but
-    // doesn't update the machine position values. Since the position values used by the g-code
+    // indicates to the firmware what is a backlash compensation motion, so that the move is executed
+    // without updating the machine position values. Since the position values used by the g-code
     // parser and planner are separate from the system machine positions, this is doable.
     // If the buffer is full: good! That means we are well ahead of the robot.
     // Remain in this loop until there is room in the buffer.
@@ -179,7 +159,7 @@ void mc_arc(float*            target,
     // NOTE: Segment end points are on the arc, which can lead to the arc diameter being smaller by up to
     // (2x) arc_tolerance. For 99% of users, this is just fine. If a different arc segment fit
     // is desired, i.e. least-squares, midpoint on arc, just change the mm_per_arc_segment calculation.
-    // For the intended uses of Grbl, this value shouldn't exceed 2000 for the strictest of cases.
+    // For most uses, this value should not exceed 2000.
     uint16_t segments =
         uint16_t(floor(fabs(0.5 * angular_travel * radius) / sqrt(mconfig->_arcTolerance * (2 * radius - mconfig->_arcTolerance))));
     if (segments) {
@@ -272,7 +252,7 @@ bool mc_dwell(int32_t milliseconds) {
 }
 
 // Perform homing cycle to locate and set machine zero. Only '$H' executes this command.
-// NOTE: There should be no motions in the buffer and Grbl must be in an idle state before
+// NOTE: There should be no motions in the buffer and the system must be in idle state before
 // executing the homing cycle. This prevents incorrect buffered plans after homing.
 void mc_homing_cycle(AxisMask axis_mask) {
     if (user_defined_homing(axis_mask)) {
@@ -425,8 +405,8 @@ void mc_override_ctrl_update(Override override_state) {
 }
 
 // Method to ready the system to reset by setting the realtime reset command and killing any
-// active processes in the system. This also checks if a system reset is issued while Grbl
-// is in a motion state. If so, kills the steppers and sets the system alarm to flag position
+// active processes in the system. This also checks if a system reset is issued while in
+// motion state. If so, kills the steppers and sets the system alarm to flag position
 // lost, since there was an abrupt uncontrolled deceleration. Called at an interrupt level by
 // realtime abort command and hard limits. So, keep to a minimum.
 void mc_reset() {
@@ -445,7 +425,7 @@ void mc_reset() {
         // do we need to stop a running SD job?
         if (config->_sdCard->get_state() == SDCard::State::BusyPrinting) {
             //Report print stopped
-            grbl_notifyf("SD print canceled", "Reset during SD file at line: %d", config->_sdCard->lineNumber());
+            _notifyf("SD print canceled", "Reset during SD file at line: %d", config->_sdCard->lineNumber());
             // log_info() does not work well in this case because the message gets broken in half
             // by report_init_message().  The flow of control that causes it is obscure.
             info_client(CLIENT_ALL, "Reset during SD file at line: %d", config->_sdCard->lineNumber());

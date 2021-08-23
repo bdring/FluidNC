@@ -1,6 +1,6 @@
 name: "ESP32 Dev Controller V4"
 board: "ESP32 Dev Controller V4"
-yaml_wiki: "https://github.com/bdring/Grbl_Esp32/wiki/YAML-Config-File"
+yaml_wiki: "https://github.com/bdring/FluidNC/wiki/YAML-Config-File"
 
 idle_time: 250
 step_type: rmt

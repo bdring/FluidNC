@@ -81,7 +81,7 @@ nvs_handle Setting::_handle = 0;
 
 void Setting::init() {
     if (!_handle) {
-        if (esp_err_t err = nvs_open("Grbl_ESP32", NVS_READWRITE, &_handle)) {
+        if (esp_err_t err = nvs_open("FluidNC", NVS_READWRITE, &_handle)) {
             log_debug("nvs_open failed with error " << err);
         }
     }
@@ -389,7 +389,7 @@ void EnumSetting::addWebui(WebUI::JSONencoder* j) {
     j->end_object();
 }
 
-Error GrblCommand::action(char* value, WebUI::AuthenticationLevel auth_level, WebUI::ESPResponseStream* out) {
+Error UserCommand::action(char* value, WebUI::AuthenticationLevel auth_level, WebUI::ESPResponseStream* out) {
     if (_cmdChecker && _cmdChecker()) {
         return Error::IdleError;
     }

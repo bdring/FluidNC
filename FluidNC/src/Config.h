@@ -1,28 +1,9 @@
+// Copyright (c) 2012-2016 Sungeun K. Jeon for Gnea Research LLC
+// Copyright (c) 2009-2011 Simen Svale Skogsrud
+// Copyright (c) 2021 -	Bart Dring
+// Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
+
 #pragma once
-
-/*
-  Config.h - compile time configuration
-  Part of Grbl
-
-  Copyright (c) 2012-2016 Sungeun K. Jeon for Gnea Research LLC
-  Copyright (c) 2009-2011 Simen Svale Skogsrud
-
-	2018 -	Bart Dring This file was modifed for use on the ESP32
-		CPU. Do not use this with Grbl for atMega328P
-
-  Grbl is free software: you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 3 of the License, or
-  (at your option) any later version.
-
-  Grbl is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with Grbl.  If not, see <http://www.gnu.org/licenses/>.
-*/
 
 // This file contains compile-time configuration choices.  Most users will not need
 // to directly modify these, but they are here for unusual needs, i.e.
@@ -196,12 +177,8 @@ const int DWELL_TIME_STEP = 50;  // Integer (1-255) (milliseconds)
 // buffer to store incoming blocks to be processed when ready. Most streaming
 // interfaces will character count and track each block send to each block response. So,
 // increase the receive buffer if a deeper receive buffer is needed for streaming and avaiable
-// memory allows. The send buffer primarily handles messages in Grbl. Only increase if large
-// messages are sent and Grbl begins to stall, waiting to send the rest of the message.
-// NOTE: Grbl generates an average status report in about 0.5msec, but the serial TX stream at
-// 115200 baud will take 5 msec to transmit a typical 55 character report. Worst case reports are
-// around 90-100 characters. As long as the serial TX buffer doesn't get continually maxed, Grbl
-// will continue operating efficiently. Size the TX buffer around the size of a worst-case report.
+// memory allows. The send buffer primarily handles messages. Only increase if large
+// messages are sent and the system begins to stall, waiting to send the rest of the message.
 // #define RX_BUFFER_SIZE 128 // (1-254) Uncomment to override defaults in serial.h
 // #define TX_BUFFER_SIZE 100 // (1-254)
 
@@ -217,7 +194,7 @@ const int DWELL_TIME_STEP = 50;  // Integer (1-255) (milliseconds)
 // This option forces a planner buffer sync only with such GCode commands.
 const bool FORCE_BUFFER_SYNC_DURING_NVS_WRITE = true;  // Default enabled. Comment to disable.
 
-// In Grbl v0.9 and prior, there is an old outstanding bug where the `WPos:` work position reported
+// In old versions of Grbl, v0.9 and prior, there is a bug where the `WPos:` work position reported
 // may not correlate to what is executing, because `WPos:` is based on the GCode parser state, which
 // can be several motions behind. This option forces the planner buffer to empty, sync, and stop
 // motion whenever there is a command that alters the work coordinate offsets `G10,G43.1,G92,G54-59`.
@@ -225,7 +202,7 @@ const bool FORCE_BUFFER_SYNC_DURING_NVS_WRITE = true;  // Default enabled. Comme
 // that any of these commands are used need continuous motions through them.
 const bool FORCE_BUFFER_SYNC_DURING_WCO_CHANGE = true;  // Default enabled. Comment to disable.
 
-// By default, Grbl disables feed rate overrides for all G38.x probe cycle commands. Although this
+// By default, feed rate overrides are disabled for all G38.x probe cycle commands. Although this
 // may be different than some pro-class machine control, it's arguable that it should be this way.
 // Most probe sensors produce different levels of error that is dependent on rate of speed. By
 // keeping probing cycles to their programmed feed rates, the probe sensor should be a lot more

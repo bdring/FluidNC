@@ -1,22 +1,8 @@
+// Copyright (c) 2021 -  Stefan de Bruijn
+// Copyright (c) 2021 -  Mitch Bradley
+// Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
+
 #pragma once
-
-/*
-    Part of Grbl_ESP32
-    2021 -  Stefan de Bruijn, Mitch Bradley
-
-    Grbl_ESP32 is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
-
-    Grbl_ESP32 is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with Grbl_ESP32.  If not, see <http://www.gnu.org/licenses/>.
-*/
 
 #include "../Assert.h"
 #include "../Configuration/GenericFactory.h"
@@ -73,16 +59,15 @@ namespace Machine {
         bool _enableParkingOverrideControl = false;
         bool _deactivateParkingUponInit    = false;
 
-        // At power-up or a reset, Grbl will check the limit switch states to ensure they are not active
-        // before initialization. If it detects a problem and the hard limits setting is enabled, Grbl will
-        // simply message the user to check the limits and enter an alarm state, rather than idle. Grbl will
-        // not throw an alarm message.
+        // At power-up or a reset, the limit switches will be checked to ensure they are not active
+        // before initialization. If a problem is detected and hard limits are enabled, Alarm state
+        // will be entered instead of Idle, messaging the user to check the limits, rather than idle.
         bool _checkLimitsAtInit = true;
 
         // If your machine has two limits switches wired in parallel to one axis, you will need to enable
-        // this feature. Since the two switches are sharing a single pin, there is no way for Grbl to tell
-        // which one is enabled. This option only effects homing, where if a limit is engaged, Grbl will
-        // alarm out and force the user to manually disengage the limit switch. Otherwise, if you have one
+        // this feature. Since the two switches are sharing a single pin, there is no way to tell
+        // which one is enabled. This option only effects homing, where if a limit is engaged, the system
+        // will alarm and force the user to manually disengage the limit switch. Otherwise, if you have one
         // limit switch for each axis, don't enable this option. By keeping it disabled, you can perform a
         // homing cycle while on the limit switch and not have to move the machine off of it.
         bool _limitsTwoSwitchesOnAxis = false;
@@ -93,7 +78,7 @@ namespace Machine {
         // to ensure the laser doesn't inadvertently remain powered while at a stop and cause a fire.
         bool _disableLaserDuringHold = true;
 
-        // Allows GRBL to track and report gcode line numbers. Disabled by default.
+        // Tracks and reports gcode line numbers. Disabled by default.
         bool _useLineNumbers = false;
 
         String _board = "None";

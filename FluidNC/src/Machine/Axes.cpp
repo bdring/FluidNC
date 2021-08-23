@@ -206,7 +206,7 @@ namespace Machine {
                 break;
             }
         }
-        // Grbl senders might assume 3 axes in reports
+        // Senders might assume 3 axes in reports
         if (_numberAxis < 3) {
             _numberAxis = 3;
         }

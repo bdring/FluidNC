@@ -1,28 +1,14 @@
+// Copyright (c) 2019 -	Bart Dring
+// Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
+
 /*
-  polar_coaster.cpp - Implements simple inverse kinematics for Grbl_ESP32
-  Part of Grbl_ESP32
-
-  Copyright (c) 2019 Barton Dring @buildlog
-
-
-  Grbl is free software: you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 3 of the License, or
-  (at your option) any later version.
-
-  Grbl is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-
-  You should have received a copy of the GNU General Public License
-  along with Grbl.  If not, see <http://www.gnu.org/licenses/>.
+  Implements inverse kinematics for the polar coaster machine
 
 	Inverse kinematics determine the joint parameters required to get to a position
-	in 3D space. Grbl will still work as 3 axes of steps, but these steps could
+	in 3D space. The GCode will still command motion in 3 axes, but the coordinates could
 	represent angles, etc instead of linear units.
 
-	Unless forward kinematics are applied to the reporting, Grbl will report raw joint
+	Unless forward kinematics are applied to the reporting, reports will be in raw joint
 	values instead of the normal Cartesian positions
 
 	How it works...
@@ -35,7 +21,7 @@
 	To fix this, the line is broken into very small segments and each segment is converted
 	to the new space. While each segment is also distorted, the amount is so small it cannot be seen.
 
-	This segmentation is how normal Grbl draws arcs.
+	This segmentation is how normal arcs are drawn.
 
 	Feed Rate
 

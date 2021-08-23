@@ -4,9 +4,9 @@ This allows Dynamixel Servo motors to be used as an axis motor. This document wa
 
 They can be used in place of any lettered axis, but only one per axis. These servos are limited to a single 360° of rotation. This is mapped to the MaxTravel of the axis. If you want map 300mm of travel to an X axis servo, you set $X/MaxTravel=300.
 
-This sets a range in machine space. You are allowed to zero the axis anywhere in that travel. If you do a move that exceeds the travel, the servo will move to the end of of travel and stay there. The axis position will still be running in Grbl, but the servo will stop. You can use $Limits/Soft=On to alarm if the range is exceeded.
+This sets a range in machine space. You are allowed to zero the axis anywhere in that travel. If you do a move that exceeds the travel, the servo will move to the end of of travel and stay there. The axis position will still be running, but the servo will stop. You can use $Limits/Soft=On to alarm if the range is exceeded.
 
-You should set the the axis speed and acceleration to what the servo can handle. If those settings are too high, the motor will still move, but will lag behind where Grbl thinks it is.
+You should set the the axis speed and acceleration to what the servo can handle. If those settings are too high, the motor will still move, but will lag behind where the firmware thinks it is.
 
 ## Machine Definition
 
@@ -37,13 +37,13 @@ You can revers direction using the standard $Stepper/DirInvert command
 
 ## Homing
 
-Dynamixel servos, don't typically need to be homed. This is because they can determine their location from their encoders and report it to Grbl_ESP32. If you do home them they will travel as fast as they can to the end of travel in the direction controlled by $Homing/DirInvert= setting.
+Dynamixel servos, don't typically need to be homed. This is because they can determine their location from their encoders and report it to the firmware. If you do home them they will travel as fast as they can to the end of travel in the direction controlled by $Homing/DirInvert= setting.
 
 ## Manual Moves
 
-Whenever Grbl has the motors disabled, you can manually home the servos. Since they are closed loop and report current position, they will report back where they have been moved to and update Grbl. This is controlled by the $Stepper/IdleDelay setting. 
+Whenever the motors are disabled, you can manually home the servos. Since they are closed loop and report current position, they will report back where they have been moved to and update the position. This is controlled by the $Stepper/IdleDelay setting. 
 
-The resolution is 4096 units per 360°. This is likely to be a lot coarser than Grbl's internal representation. Therefore if you send a servo to 15. It may change a little after being update from the servo when disabled. The servo may report back 14.8 after being sent to 15.
+The resolution is 4096 units per 360°. This is likely to be a lot coarser than the internal representation. Therefore if you send a servo to 15. It may change a little after being update from the servo when disabled. The servo may report back 14.8 after being sent to 15.
 
 
 

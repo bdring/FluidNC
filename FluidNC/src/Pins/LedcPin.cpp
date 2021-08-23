@@ -1,4 +1,5 @@
-#include "LedcPin.h"
+// Copyright (c) 2021 -  Stefan de Bruijn
+// Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
 
 /*
     Ledc.cpp
@@ -8,22 +9,8 @@
     driver by being able to handle output pin inversion in hardware,
     and by having the ledcSetDuty function in IRAM so it is safe
     to call it from ISRs.
-
-    Part of Grbl_ESP32
-
-    2021 -	Mitch Bradley
-
-    Grbl is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
-    Grbl is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-    You should have received a copy of the GNU General Public License
-    along with Grbl.  If not, see <http://www.gnu.org/licenses/>.
 */
+#include "LedcPin.h"
 
 #include <soc/ledc_struct.h>
 #include <driver/ledc.h>

@@ -1,20 +1,15 @@
+// Copyright (c) 2018 -	Bart Dring
+// Copyright (c) 2019 -	Jason Huggins, Tapster Robotics
+// Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
 
 /*
-  parallel_delta.cpp - 
-  
-  Copyright (c) 2019    Barton Dring @buildlog, 
-                        Jason Huggins, Tapster Robotics
-
   Kinematics for a parallel delta robot.
 
-  Note: You must do a clean before compiling whenever this file is altered!
-
-      
   ==================== How it Works ====================================
 
-  On a delta machine, Grbl axis units are in radians
+  On a delta machine, axis units are in radians
   The kinematics converts the cartesian moves in gcode into
-  the radians to move the arms. The Grbl motion planner never sees
+  the radians to move the arms. The motion planner never sees
   the actual cartesian values.
 
   To make the moves straight and smooth on a delta, the cartesian moves
@@ -38,20 +33,8 @@
   Update so extra axes get delt with ... passed through properly
   Have MPos use kinematics too
   
-  ============================================================================
-
-  Grbl is free software: you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation, either version 3 of the License, or
-  (at your option) any later version.
-  Grbl is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
-  You should have received a copy of the GNU General Public License
-  along with Grbl.  If not, see <http://www.gnu.org/licenses/>.
-    FYI: http://forums.trossenrobotics.com/tutorials/introduction-129/delta-robot-kinematics-3276/
-    Better: http://hypertriangle.com/~alex/delta-robot-tutorial/
+  FYI: http://forums.trossenrobotics.com/tutorials/introduction-129/delta-robot-kinematics-3276/
+  Better: http://hypertriangle.com/~alex/delta-robot-tutorial/
 */
 
 #include "../src/Settings.h"
@@ -208,7 +191,7 @@ bool cartesian_to_motors(float* target, plan_line_data_t* pl_data, float* positi
     return true;
 }
 
-// this is used used by Grbl soft limits to see if the range of the machine is exceeded.
+// this is used used by soft limits to see if the range of the machine is exceeded.
 bool limitsCheckTravel(float* target) {
     float motor_angles[3];
 
@@ -345,7 +328,7 @@ float three_axis_dist(float* point1, float* point2) {
                 ((point1[2] - point2[2]) * (point1[2] - point2[2])));
 }
 
-// bool kinematics_pre_homing(uint8_t cycle_mask) {  // true = do not continue with normal Grbl homing
+// bool kinematics_pre_homing(uint8_t cycle_mask) {  // true = do not continue with normal homing
 // #ifdef USE_CUSTOM_HOMING
 //     return true;
 // #else

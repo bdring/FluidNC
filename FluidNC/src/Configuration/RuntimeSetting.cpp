@@ -1,20 +1,5 @@
-/*
-    Part of Grbl_ESP32
-    2021 -  Stefan de Bruijn
-
-    Grbl_ESP32 is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
-
-    Grbl_ESP32 is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with Grbl_ESP32.  If not, see <http://www.gnu.org/licenses/>.
-*/
+// Copyright (c) 2021 -	Stefan de Bruijn
+// Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
 
 #include "RuntimeSetting.h"
 
@@ -70,7 +55,7 @@ namespace Configuration {
         if (is(name)) {
             isHandled_ = true;
             if (newValue_ == nullptr) {
-                grbl_sendf(out_->client(), "$%s=%s\r\n", setting_, value ? "true" : "false");
+                _sendf(out_->client(), "$%s=%s\r\n", setting_, value ? "true" : "false");
             } else {
                 value = (!strcasecmp(newValue_, "true"));
             }
@@ -81,7 +66,7 @@ namespace Configuration {
         if (is(name)) {
             isHandled_ = true;
             if (newValue_ == nullptr) {
-                grbl_sendf(out_->client(), "$%s=%d\r\n", setting_, value);
+                _sendf(out_->client(), "$%s=%d\r\n", setting_, value);
             } else {
                 value = atoi(newValue_);
             }
@@ -92,7 +77,7 @@ namespace Configuration {
         if (is(name)) {
             isHandled_ = true;
             if (newValue_ == nullptr) {
-                grbl_sendf(out_->client(), "$%s=%.3f\r\n", setting_, value);
+                _sendf(out_->client(), "$%s=%.3f\r\n", setting_, value);
             } else {
                 char* floatEnd;
                 value = strtof(newValue_, &floatEnd);
@@ -104,7 +89,7 @@ namespace Configuration {
         if (is(name)) {
             isHandled_ = true;
             if (newValue_ == nullptr) {
-                grbl_sendf(out_->client(), "$%s=%s\r\n", setting_, value.c_str());
+                _sendf(out_->client(), "$%s=%s\r\n", setting_, value.c_str());
             } else {
                 value = String(newValue_);
             }
@@ -117,7 +102,7 @@ namespace Configuration {
             if (newValue_ == nullptr) {
                 for (; e->name; ++e) {
                     if (e->value == value) {
-                        grbl_sendf(out_->client(), "$%s=%s\r\n", setting_, e->name);
+                        _sendf(out_->client(), "$%s=%s\r\n", setting_, e->name);
                         return;
                     }
                 }
@@ -143,7 +128,7 @@ namespace Configuration {
         if (is(name)) {
             isHandled_ = true;
             if (newValue_ == nullptr) {
-                grbl_sendf(out_->client(), "$%s=%s\r\n", setting_, value.toString().c_str());
+                _sendf(out_->client(), "$%s=%s\r\n", setting_, value.toString().c_str());
             } else {
                 IPAddress ip;
                 if (!ip.fromString(newValue_)) {
@@ -160,7 +145,7 @@ namespace Configuration {
 
         if (is(name)) {
             if (newValue_ == nullptr) {
-                grbl_sendf(out_->client(), "$%s=%s\r\n", setting_, value.name().c_str());
+                _sendf(out_->client(), "$%s=%s\r\n", setting_, value.name().c_str());
             } else {
                 auto parsed = Pin::create(newValue);
                 value.swap(parsed);

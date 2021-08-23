@@ -12,7 +12,7 @@ ho 0 tail 12 room 4
 load:0x40080400,len:6352
 entry 0x400806b8
 
-[MSG:Grbl_ESP32 Ver 1.3a Date 20200831]
+[MSG:FluidNC Ver 3.0 Date 20210822]
 [MSG:Compiled with ESP32 SDK:v3.2.3-14-gd3e562907]
 [MSG:Using machine:Test Drive - Demo Only No I/O!]
 [MSG:Axis count 3]

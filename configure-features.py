@@ -1,28 +1,15 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #
-# Grbl_Esp32 configurator
-#   Copyright (C) 2020 Michiyasu Odaki
-#
+# Copyright (C) 2020 Michiyasu Odaki
+# Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
+
 # This is useful for automated testing, to make sure you haven't broken something
-#
-#  Grbl_Esp32 is free software: you can redistribute it and/or modify
-#  it under the terms of the GNU General Public License as published by
-#  the Free Software Foundation, either version 3 of the License, or
-#  (at your option) any later version.
-#
-#  Grbl_Esp32 is distributed in the hope that it will be useful,
-#  but WITHOUT ANY WARRANTY; without even the implied warranty of
-#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#  GNU General Public License for more details.
-#
-#  You should have received a copy of the GNU General Public License
-#  along with Grbl_Esp32.  If not, see <http://www.gnu.org/licenses/>.
 
 from __future__ import print_function
 import os, sys, argparse, re
 
-configDirName = r'Grbl_Esp32/src'
+configDirName = r'FluidNC/src'
 configFileName = r'Config.h'
 
 validFeatureList = [
@@ -57,7 +44,7 @@ def usage(parser):
 
 def parseArgs(defaultConfigPath):
     # Argument parser (-h is also available)
-    parser = argparse.ArgumentParser(description='Configure Grbl_ESP32 features')
+    parser = argparse.ArgumentParser(description='Configure FluidNC features')
     parser.add_argument('-v', '--verbose', action='store_true')
     parser.add_argument('-c', '--configfile', default=defaultConfigPath)
     parser.add_argument('-e', '--enable', nargs='*'

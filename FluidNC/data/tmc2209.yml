@@ -131,7 +131,7 @@ axes:
 comms:
     wifi_ap:
         ip_address: "192.168.0.1"
-        ssid: GRBL_ESP32
+        ssid: FluidNC
         
 probe:
     pin: NO_PIN
