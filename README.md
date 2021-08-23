@@ -138,7 +138,7 @@ FluidNC includes a built-in brower-based Web UI (Esp32_WebUI) so you control the
 
 ### Credits
 
-The original [Grbl](https://github.com/gnea/grbl) is an awesome project by Sungeon (Sonny) Jeon. I have known him for many years and he is always very helpful. I have used Grbl on many projects. I only ported because of the limitation of the processors it was designed for. The core engine design is virtually unchanged.
+The original [Grbl](https://github.com/gnea/grbl) is an awesome project by Sungeon (Sonny) Jeon. I have known him for many years and he is always very helpful. I have used Grbl on many projects.
 
 The Wifi and WebUI is based on [this project.](https://github.com/luc-github/ESP3D-WEBUI)  
 
