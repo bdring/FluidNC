@@ -31,14 +31,27 @@ axes:
       hard_limits: false
       pulloff: 1.000
       tmc_2209:
-        direction: gpio.27
-        step: gpio.26
-        addr: 0
         uart:
           txd_pin: gpio.22
           rxd_pin: gpio.21
           baud: 115200
           mode: 8N1
+        addr: 0
+        r_sense: 0.110
+        run_current: 0.500
+        hold_current: 0.500
+        microsteps: 32
+        stallguard: 0
+        stallguardDebugMode: false
+        toff_disable: 0
+        toff_stealthchop: 5
+        toff_coolstep: 3
+        run_mode: StealthChop
+        homing_mode: StealthChop
+        use_enable: false
+        step: gpio.26
+        direction: gpio.27
+        disable: NO_PIN
 
     motor1:
       null_motor:

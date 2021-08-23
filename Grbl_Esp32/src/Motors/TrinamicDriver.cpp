@@ -80,6 +80,7 @@ namespace MotorDrivers {
 
             _has_errors = !test();  // Try communicating with motor. Prints an error if there is a problem.
 
+            init_step_dir_pins();
             read_settings();  // pull info from settings
             set_mode(false);
 
@@ -179,8 +180,6 @@ namespace MotorDrivers {
 
         tmcstepper->microsteps(_microsteps);
         tmcstepper->rms_current(run_i_ma, hold_i_percent);
-
-        init_step_dir_pins();
     }
 
     bool TrinamicDriver::set_homing_mode(bool isHoming) {
