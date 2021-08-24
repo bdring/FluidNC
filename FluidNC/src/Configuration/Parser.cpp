@@ -9,6 +9,7 @@
 #include "../Logging.h"
 
 #include <climits>
+#include <math.h>  // round
 
 namespace Configuration {
     Parser::Parser(const char* start, const char* end) : Tokenizer(start, end) {}
@@ -47,10 +48,15 @@ namespace Configuration {
     int Parser::intValue() const {
         auto    str = StringRange(token_.sValueStart_, token_.sValueEnd_);
         int32_t value;
-        if (!str.isInteger(value)) {
-            parseError("Expected an integer value like 123");
+        if (str.isInteger(value)) {
+            return value;
         }
-        return value;
+        float fvalue;
+        if (str.isFloat(fvalue)) {
+            return int(round(fvalue));
+        }
+        parseError("Expected an integer value");
+        return 0;
     }
 
     float Parser::floatValue() const {

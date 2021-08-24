@@ -413,8 +413,9 @@ void plan_sync_position() {
     // TODO: For motor configurations not in the same coordinate frame as the machine position,
     // this function needs to be updated to accomodate the difference.
     uint8_t idx;
-    auto    n_axis = config->_axes->_numberAxis;
-    for (idx = 0; idx < n_axis; idx++) {
+    auto    a      = config->_axes;
+    auto    n_axis = a ? a->_numberAxis : 0;
+    for (size_t idx = 0; idx < n_axis; idx++) {
         pl.position[idx] = motor_steps[idx];
     }
 }

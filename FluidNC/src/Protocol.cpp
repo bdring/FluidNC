@@ -193,7 +193,7 @@ void protocol_main_loop() {
         auto sdcard = config->_sdCard;
         // _readyNext indicates that input is coming from a file and
         // the GCode system is ready for another line.
-        if (sdcard->_readyNext) {
+        if (sdcard && sdcard->_readyNext) {
             char  fileLine[255];
             Error res;
             switch (res = sdcard->readFileLine(fileLine, 255)) {

@@ -271,8 +271,13 @@ namespace Machine {
             auto startNear = ex.Near();
             auto endNear   = (startNear + 10) > (buffer + filesize) ? (buffer + filesize) : (startNear + 10);
 
+            auto startKey = ex.KeyStart();
+            auto endKey   = ex.KeyEnd();
+
             StringRange near(startNear, endNear);
-            log_error("Configuration parse error: " << ex.What() << " @ " << ex.LineNumber() << ":" << ex.ColumnNumber() << " near " << near);
+            StringRange key(startKey, endKey);
+            log_error("Configuration parse error: " << ex.What() << " @ " << ex.LineNumber() << ":" << ex.ColumnNumber() << " key " << key
+                                                    << " near " << near);
         } catch (const AssertionFailed& ex) {
             sys.state = State::ConfigAlarm;
             // Get rid of buffer and return

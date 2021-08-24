@@ -40,9 +40,10 @@ int32_t mpos_to_steps(float mpos, size_t axis) {
 }
 
 void motor_steps_to_mpos(float* position, int32_t* steps) {
-    auto  n_axis = config->_axes->_numberAxis;
     float motor_mpos[MAX_N_AXIS];
-    for (int idx = 0; idx < n_axis; idx++) {
+    auto  a      = config->_axes;
+    auto  n_axis = a ? a->_numberAxis : 0;
+    for (size_t idx = 0; idx < n_axis; idx++) {
         motor_mpos[idx] = steps_to_mpos(steps[idx], idx);
     }
     motors_to_cartesian(position, motor_mpos, n_axis);
