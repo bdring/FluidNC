@@ -1,5 +1,5 @@
 # This script is imported by build-machine.py and build-all.py
-# It performs a platformio build with a given machine file.
+# It performs a platformio build with a given environment
 # The verbose argument controls whether the full output is
 # displayed, or filtered to show only summary information.
 # extraArgs can be used to perform uploading after compilation.
