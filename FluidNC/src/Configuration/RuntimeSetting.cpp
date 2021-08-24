@@ -124,6 +124,49 @@ namespace Configuration {
         }
     }
 
+    void RuntimeSetting::item(const char* name, std::vector<speedEntry>& value) {
+        if (is(name)) {
+            isHandled_ = true;
+            if (newValue_ == nullptr) {
+                _sendf(out_->client(), "$%s=", setting_);
+                if (value.size() == 0) {
+                    _sendf(out_->client(), "None");
+                } else {
+                    for (speedEntry n : value) {
+                        _sendf(out_->client(), " %d=%.3f%%", n.speed, n.percent);
+                    }
+                }
+                _sendf(out_->client(), "\n");
+            } else {
+                // It is distasteful to have this code that essentially duplicates
+                // Parser.cpp speedEntryValue(), albeit using String instead of
+                // StringRange.  It would be better to have a single String version,
+                // then pass it StringRange.str()
+                auto                    newStr = String(newValue_);
+                std::vector<speedEntry> smValue;
+                while (newStr.trim(), newStr.length()) {
+                    speedEntry entry;
+                    String     entryStr;
+                    auto       i = newStr.indexOf(' ');
+                    if (i >= 0) {
+                        entryStr = newStr.substring(0, i);
+                        newStr   = newStr.substring(i + 1);
+                    } else {
+                        entryStr = newStr;
+                        newStr   = "";
+                    }
+                    String speed;
+                    i = entryStr.indexOf('=');
+                    Assert(i > 0, "Bad speed map entry");
+                    entry.speed   = entryStr.substring(0, i).toInt();
+                    entry.percent = entryStr.substring(i + 1).toFloat();
+                    smValue.push_back(entry);
+                }
+                value = smValue;
+            }
+        }
+    }
+
     void RuntimeSetting::item(const char* name, IPAddress& value) {
         if (is(name)) {
             isHandled_ = true;
@@ -140,18 +183,16 @@ namespace Configuration {
     }
 
     void RuntimeSetting::item(const char* name, Pin& value) {
-        /*
-        Runtime settings of PIN objects is NOT supported!
-
         if (is(name)) {
+            isHandled_ = true;
             if (newValue_ == nullptr) {
                 _sendf(out_->client(), "$%s=%s\r\n", setting_, value.name().c_str());
             } else {
-                auto parsed = Pin::create(newValue);
-                value.swap(parsed);
+                _sendf(out_->client(), "Runtime setting of Pin objects is not supported");
+                // auto parsed = Pin::create(newValue);
+                // value.swap(parsed);
             }
         }
-        */
     }
 
     RuntimeSetting::~RuntimeSetting() {
