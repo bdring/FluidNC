@@ -110,28 +110,17 @@ static Error report_gcode(const char* value, WebUI::AuthenticationLevel auth_lev
     return Error::Ok;
 }
 
-static void show_settings(WebUI::ESPResponseStream* out, type_t type, bool wantAxis) {
+static void show_settings(WebUI::ESPResponseStream* out, type_t type) {
     for (Setting* s = Setting::List; s; s = s->next()) {
         if (s->getType() == type && s->getGrblName()) {
-            bool isAxis = s->getAxis() != NO_AXIS;
             // The following test could be expressed more succinctly with XOR,
             // but is arguably clearer when written out
-            if ((wantAxis && isAxis) || (!wantAxis && !isAxis)) {
-                show_setting(s->getGrblName(), s->getCompatibleValue(), NULL, out);
-            }
+            show_setting(s->getGrblName(), s->getCompatibleValue(), NULL, out);
         }
     }
 }
 static Error report_normal_settings(const char* value, WebUI::AuthenticationLevel auth_level, WebUI::ESPResponseStream* out) {
-    show_settings(out, GRBL, false);  // GRBL non-axis settings
-    show_settings(out, GRBL, true);   // GRBL axis settings
-    return Error::Ok;
-}
-static Error report_extended_settings(const char* value, WebUI::AuthenticationLevel auth_level, WebUI::ESPResponseStream* out) {
-    show_settings(out, GRBL, false);      // GRBL non-axis settings
-    show_settings(out, EXTENDED, false);  // Extended non-axis settings
-    show_settings(out, GRBL, true);       // GRBL axis settings
-    show_settings(out, EXTENDED, true);   // Extended axis settings
+    show_settings(out, GRBL);  // GRBL non-axis settings
     return Error::Ok;
 }
 static Error list_grbl_names(const char* value, WebUI::AuthenticationLevel auth_level, WebUI::ESPResponseStream* out) {
@@ -162,24 +151,6 @@ static Error list_changed_settings(const char* value, WebUI::AuthenticationLevel
         }
     }
     _sendf(out->client(), "(Passwords not shown)\r\n");
-    return Error::Ok;
-}
-static Error list_pins(const char* value, WebUI::AuthenticationLevel auth_level, WebUI::ESPResponseStream* out) {
-    for (Setting* s = Setting::List; s; s = s->next()) {
-        const char* displayValue = auth_failed(s, value, auth_level) ? "<Authentication required>" : s->getStringValue();
-        if (s->getType() == PIN) {
-            show_setting(s->getName(), displayValue, NULL, out);
-        }
-    }
-    return Error::Ok;
-}
-static Error list_changed_pins(const char* value, WebUI::AuthenticationLevel auth_level, WebUI::ESPResponseStream* out) {
-    for (Setting* s = Setting::List; s; s = s->next()) {
-        const char* value = s->getStringValue();
-        if (s->getType() == PIN && strcmp(value, "")) {  // Not undefined pin
-            show_setting(s->getName(), value, NULL, out);
-        }
-    }
     return Error::Ok;
 }
 static Error list_commands(const char* value, WebUI::AuthenticationLevel auth_level, WebUI::ESPResponseStream* out) {
@@ -514,13 +485,10 @@ void make_user_commands() {
     new UserCommand("J", "Jog", doJog, idleOrJog);
 
     new UserCommand("$", "GrblSettings/List", report_normal_settings, notCycleOrHold);
-    new UserCommand("+", "ExtendedSettings/List", report_extended_settings, notCycleOrHold);
     new UserCommand("L", "GrblNames/List", list_grbl_names, notCycleOrHold);
     new UserCommand("Limits", "Limits/Show", show_limits, notCycleOrHold);
     new UserCommand("S", "Settings/List", list_settings, notCycleOrHold);
     new UserCommand("SC", "Settings/ListChanged", list_changed_settings, notCycleOrHold);
-    new UserCommand("P", "Pins/List", list_pins, notCycleOrHold);
-    new UserCommand("PC", "Pins/ListChanged", list_changed_pins, notCycleOrHold);
     new UserCommand("CMD", "Commands/List", list_commands, notCycleOrHold);
     new UserCommand("A", "Alarms/List", listAlarms, anyState);
     new UserCommand("E", "Errors/List", listErrors, anyState);
