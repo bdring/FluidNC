@@ -1,0 +1,86 @@
+name: "ESP32 Dev Controller V4"
+board: "ESP32 Dev Controller V4"
+yaml_wiki: "https://github.com/bdring/FluidNC/wiki/YAML-Config-File"
+
+stepping:
+  engine: RMT
+  idle_ms: 250
+  dir_delay_us: 1
+  pulse_us: 2
+  disable_delay_us: 0
+
+homing_init_lock: true
+
+axes:
+  number_axis: 3
+  shared_stepper_disable: gpio.13:high
+  
+  x:
+    steps_per_mm: 800
+    max_rate: 5000
+    acceleration: 100
+    max_travel: 10
+    homing:
+      cycle: 1
+      mpos: 10
+      positive_direction: true
+      feed_rate: 100.000
+      seek_rate: 200.000
+      debounce_ms: 500
+      pulloff: 1.000
+      square: false
+    
+    motor0:
+      limit_pos: gpio.17:low:pu
+      hard_limits: false
+      stepstick:
+        direction: gpio.14
+        step: gpio.12
+    motor1:
+      null_motor:
+
+  y:
+    steps_per_mm: 800
+    max_rate: 2000
+    acceleration: 25
+    max_travel: 10
+    homing:
+      cycle: 2
+      mpos: 10
+      positive_direction: false
+      feed_rate: 50.000
+      seek_rate: 200.000
+      debounce_ms: 500
+      pulloff: 1.00
+
+    motor0:
+      limit_neg: gpio.4:low:pu
+      hard_limits: false
+      stepstick:
+        direction: gpio.15
+        step: gpio.26
+    motor1:
+      stepstick:
+        direction: gpio.33
+        step: gpio.27
+
+  
+
+comms:
+    wifi_ap:
+        ip_address: "192.168.0.1"
+        ssid: FluidNC
+        
+probe:
+    pin: gpio.32:low:pu
+
+PWM:
+  pwm_freq: 5000
+  output_pin: gpio.2:low
+  zero_speed_with_disable: true
+  enable_pin: gpio.21
+  spinup_ms: 1000
+  spindown_ms: 1000
+  speeds: 0=0% 1000=100%
+  tool: 0
+

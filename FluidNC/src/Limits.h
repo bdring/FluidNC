@@ -1,0 +1,36 @@
+// Copyright (c) 2016 Sungeun K. Jeon for Gnea Research LLC
+// Copyright (c) 2009-2011 Simen Svale Skogsrud
+// Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
+
+#pragma once
+
+#include "System.h"  // AxisMask
+
+#include <cstdint>
+
+extern bool soft_limit;
+
+// Initialize the limits module
+void limits_init();
+
+// Returns limit state
+MotorMask limits_get_state();
+
+void homing_run_cycles(AxisMask axis_mask);
+
+// Check for soft limit violations
+void limits_soft_check(float* target);
+
+float limitsMaxPosition(uint8_t axis);
+float limitsMinPosition(uint8_t axis);
+
+// Private
+
+// Returns limit state under mask
+AxisMask limits_check(AxisMask check_mask);
+
+// A task that runs after a limit switch interrupt.
+void limitCheckTask(void* pvParameters);
+
+bool limitsCheckTravel(float* target);
+bool user_defined_homing(AxisMask cycle_mask);

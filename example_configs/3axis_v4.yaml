@@ -1,0 +1,90 @@
+name: "ESP32 Dev Controller V4"
+board: "ESP32 Dev Controller V4"
+yaml_wiki: "https://github.com/bdring/FluidNC/wiki/YAML-Config-File"
+
+idle_time: 250
+step_type: rmt
+dir_delay_microseconds: 1
+pulse_microseconds: 2
+disable_delay_us: 0
+homing_init_lock: false
+
+axes:
+  number_axis: 3
+  shared_stepper_disable: gpio.13:low
+  
+  x:
+    steps_per_mm: 800
+    max_rate: 2000
+    acceleration: 25
+    max_travel: 1000
+    homing:
+      mpos: 10
+      positive_direction: false
+    
+    motor0:
+      limit_all: gpio.17:low:pu
+      stepstick:
+        direction: gpio.14
+        step: gpio.12
+    motor1:
+      null_motor:
+
+  y:
+    steps_per_mm: 800
+    max_rate: 2000
+    acceleration: 25
+    max_travel: 1000
+    homing:
+      mpos: 10
+      positive_direction: false
+
+    motor0:
+      limit_all: gpio.4:low:pu
+      stepstick:
+        direction: gpio.15
+        step: gpio.26
+    motor1:
+      null_motor:
+
+  z:
+    steps_per_mm: 800
+    max_rate: 2000
+    acceleration: 25
+    max_travel: 1000
+    homing:
+      mpos: 10
+      positive_direction: true
+
+    motor0:
+      limit_all: gpio.16:low:pu
+      stepstick:
+        direction: gpio.33
+        step: gpio.27
+    motor1:
+      null_motor:
+
+
+coolant:
+  flood: gpio.25
+  mist:  gpio.21
+
+comms:
+    wifi_sta:
+        ssid: Barts-WLAN
+
+    wifi_ap:
+        ip_address: "192.168.0.1"
+        ssid: FluidNC
+        
+probe:
+    pin: gpio.32:low:pu
+
+pwm:
+  output_pin: gpio.2
+  enable_pin: gpio.22
+  pwm_off: 0.0
+  pwm_min: 0.0
+  pwm_max: 100.0
+  min_rpm: 0
+  max_rpm: 1000

@@ -7,7 +7,7 @@ assignees: ''
 
 ---
 
-Please only submit bugs for **latest** main or devt branches. You can check the version number in the startup messgaes and compare it to the version in [grbl.h](https://github.com/bdring/Grbl_Esp32/blob/main/Grbl_Esp32/src/Version.h)
+Please only submit bugs for the **latest** version of the code. You can check the version number in the startup messages.
 
 Please answer the following questions.
 
