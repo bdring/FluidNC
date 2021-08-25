@@ -19,6 +19,8 @@
 
 namespace MotorDrivers {
 
+    Uart* TrinamicUartDriver::_uart = nullptr;
+
     bool TrinamicUartDriver::_uart_started = false;
 
     /* HW Serial Constructor. */
@@ -125,7 +127,7 @@ namespace MotorDrivers {
                     return false;
                 }
 
-                log_info("    " << axisName() << " Trinamic driver test passed");
+                log_info("    driver test passed");
                 return true;
         }
     }

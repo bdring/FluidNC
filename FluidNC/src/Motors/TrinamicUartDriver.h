@@ -16,7 +16,7 @@ namespace MotorDrivers {
 
     class TrinamicUartDriver : public TrinamicBase {
     private:
-        Uart* _uart = nullptr;
+        static Uart* _uart;
 
         static bool _uart_started;
 
