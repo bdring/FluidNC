@@ -9,8 +9,8 @@ assignees: ''
 
 **Please describe the feature you would like implemented**
 
-**Why do you think this would improve Grbl_ESP32?**
+**Why do you think this would improve FluidNC?**
 
 **What do you need the feature for?**
 
-**Will this feature appear to a lot of users?**
+**Do you know of other users who need this feature?**

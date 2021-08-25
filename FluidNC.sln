@@ -3,7 +3,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 16
 VisualStudioVersion = 16.0.29306.81
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Grbl_Esp32", "Grbl_Esp32.vcxproj", "{11C8A44F-A303-4885-B5AD-5B65F7FE41C0}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "FluidNC", "FluidNC.vcxproj", "{11C8A44F-A303-4885-B5AD-5B65F7FE41C0}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "UnitTests", "UnitTests.vcxproj", "{33ECE513-60D1-4949-A4A9-C95D353C2CF0}"
 EndProject

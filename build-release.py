@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# Compile Grbl_ESP32 for each of the machines defined in Machines/ .
+# Compile FluidNC for each of the radio modes
 # Add-on files are built on top of a single base.
 # This is useful for automated testing, to make sure you haven't broken something
 

@@ -8,6 +8,8 @@
 
 **FluidNC** is the next generation of Grbl_ESP32. It has a lot of improvements over Grbl_ESP32 as listed below.
 
+## Status
+
 We are currently in an alpha testing state. Basic machines are fully functional. We are actively testing the advanced functions and improving the usability.
 
 ## Firmware Architecture
@@ -18,7 +20,7 @@ We are currently in an alpha testing state. Basic machines are fully functional.
 
 ## Machine Definition Method
 
-Grbl_ESP32 used C preprocessor machine definition files (myMachineDef.h) and config.h to define a machine. Any change required a recompile. The goal with FluidNC is that virtually everyone uses the same compiled firmware and configures it with a structured [YAML](https://github.com/bdring/Grbl_Esp32/wiki/YAML-Config-File) text file.  That file is dynamically loaded from the local FLASH on ESP32. It can be uploaded via the serial port or Wifi.
+Grbl_ESP32 used C preprocessor machine definition files (myMachineDef.h) and config.h to define a machine. Any change required a recompile. The goal with FluidNC is that virtually everyone uses the same compiled firmware and configures it with a structured [YAML](https://github.com/bdring/FluidNC/wiki/YAML-Config-File) text file.  That file is dynamically loaded from the local FLASH on ESP32. It can be uploaded via the serial port or Wifi.
 
 You can have multiple YAML files stored on the ESP32. The default is config.yaml, but you can change that with $Config/Filename=<myOtherConfig.yaml>
 
@@ -141,6 +143,8 @@ FluidNC includes a built-in brower-based Web UI (Esp32_WebUI) so you control the
 The original [Grbl](https://github.com/gnea/grbl) is an awesome project by Sungeon (Sonny) Jeon. I have known him for many years and he is always very helpful. I have used Grbl on many projects.
 
 The Wifi and WebUI is based on [this project.](https://github.com/luc-github/ESP3D-WEBUI)  
+
+Mitch Bradley designed and implemented the $name=value settings mechanism.  The YAML-format runtime configuration mechanism was spearheaded Mitch Bradley, and designed and implemented by Mitch and Stefan de Bruin.  Stefan's mastery of C++ is especially evident in the Class architecture of the configuration mechanism.
 
 ### Contribute
 
