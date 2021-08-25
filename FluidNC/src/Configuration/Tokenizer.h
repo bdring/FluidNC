@@ -36,6 +36,8 @@ namespace Configuration {
             return c == ' ' || c == '\t' || c == '\f' || c == '\r';
         }
 
+        inline bool IsIdentifierChar() { return IsAlpha() || IsDigit() || Current() == '_'; }
+
         inline bool IsEndLine() { return Eof() || Current() == '\n'; }
 
         inline bool IsDigit() {

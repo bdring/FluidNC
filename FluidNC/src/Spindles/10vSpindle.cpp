@@ -21,7 +21,7 @@
 
 namespace Spindles {
     void _10v::init() {
-        get_pins_and_settings();  // these gets the standard PWM settings, but many need to be changed for BESC
+        get_pins_and_settings();
 
         // a couple more pins not inherited from PWM Spindle
         if (_output_pin.undefined()) {
@@ -35,6 +35,15 @@ namespace Spindles {
         _direction_pin.setAttr(Pin::Attr::Output);
         _forward_pin.setAttr(Pin::Attr::Output);
         _reverse_pin.setAttr(Pin::Attr::Output);
+
+        if (_speeds.size() == 0) {
+            shelfSpeeds(6000, 20000);
+        }
+
+        // We set the dev_speed scale in the speed map to the full PWM period (64K)
+        // Then, in set_output, we map the dev_speed range of 0..64K to the pulse
+        // length range of ~1ms .. 2ms
+        setupSpeeds(_pwm_period);
 
         stop();
 

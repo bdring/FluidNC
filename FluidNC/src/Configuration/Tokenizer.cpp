@@ -85,13 +85,13 @@ namespace Configuration {
                 goto parseAgain;
 
             default:
-                if (!IsAlpha()) {
+                if (!IsIdentifierChar()) {
                     ParseError("Expected identifier.");
                 }
 
                 token_.keyStart_ = current_;
                 Inc();
-                while (!Eof() && (IsAlpha() || IsDigit() || Current() == '_')) {
+                while (!Eof() && IsIdentifierChar()) {
                     Inc();
                 }
                 token_.keyEnd_ = current_;
