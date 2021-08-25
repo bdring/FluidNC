@@ -1,5 +1,5 @@
 # Powershell script to download a FluidNC release and upload it to an ESP32
-# Usage: ./InstallFluidNC.ps1 -version 3.1 -type wifi
+# Usage: ./InstallFluidNC.ps1 -version v3.1.0 -type wifi
 # Type defaults to 'wifi'.  Other choices are 'bt', 'wifibt', and 'noradio'
 
 param (
@@ -9,7 +9,7 @@ param (
 
 $ErrorActionPreference = "Stop"
 
-$FluidDir = 'fluidnc-' + $type
+$FluidDir = 'fluidnc-' + $version + '-' + $type
 # $FluidDir = '.pio/build/' + $type + '/'
 $FluidZipFile =  $FluidDir + '.zip'
 $FluidURI = 'https://github.com/bdring/FluidNC/releases/download/' + $version + '/' + $FluidZipFile

@@ -165,13 +165,11 @@ namespace WebUI {
     }
 
     static Error showFwInfo(char* parameter, AuthenticationLevel auth_level) {  // ESP800
-        webPrint("FW version: ");
+        webPrint("FW version: FluidNC ");
         webPrint(GIT_TAG);
-        webPrint(" (");
         webPrint(GIT_REV);
-        webPrint(")"
-                 // TODO: change grbl-embedded to FluidNC after fixing WebUI
-                 " # FW target:grbl-embedded  # FW HW:");
+        // TODO: change grbl-embedded to FluidNC after fixing WebUI
+        webPrint(" # FW target:grbl-embedded  # FW HW:");
         webPrint(config->_sdCard->get_state() == SDCard::State::NotPresent ? "No SD" : "Direct SD");
         webPrint("  # primary sd:/sd # secondary sd:none # authentication:");
 #ifdef ENABLE_AUTHENTICATION
@@ -528,11 +526,9 @@ namespace WebUI {
         if (config->_comms->_bluetoothConfig) {
             webPrintln(config->_comms->_bluetoothConfig->info().c_str());
         }
-        webPrint("FW version: ");
+        webPrint("FW version: FluidNC ");
         webPrint(GIT_TAG);
-        webPrint(" (");
         webPrint(GIT_REV);
-        webPrint(") (ESP32)");
         webPrintln("");
         return Error::Ok;
     }

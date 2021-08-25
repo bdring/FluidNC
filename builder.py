@@ -9,12 +9,29 @@ import subprocess, os
 
 env = dict(os.environ)
 
-def buildMachine(baseName, verbose=True, extraArgs=None):
-    cmd = ['platformio','run', "-e", baseName]
+def buildEnv(envName, verbose=True, extraArgs=None):
+    cmd = ['platformio','run', "-e", envName]
     if extraArgs:
         cmd.append(extraArgs)
-    displayName = baseName
+    displayName = envName
     print('Building machine ' + displayName)
+    if verbose:
+        app = subprocess.Popen(cmd, env=env)
+    else:
+        app = subprocess.Popen(cmd, env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, bufsize=1)
+        for line in app.stdout:
+            line = line.decode('utf8')
+            if "Took" in line or 'Uploading' in line or ("error" in line.lower() and "Compiling" not in line):
+                print(line, end='')
+    app.wait()
+    print()
+    return app.returncode
+
+def buildFs(envName, verbose=True, extraArgs=None):
+    cmd = ['platformio','run', '-e', envName, '-t', 'buildfs']
+    if extraArgs:
+        cmd.append(extraArgs)
+    print('Building file system for ' + envName)
     if verbose:
         app = subprocess.Popen(cmd, env=env)
     else:

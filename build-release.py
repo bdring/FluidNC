@@ -10,28 +10,49 @@
 # see the details of an errored build, include -v on the command line.
 
 from shutil import copy
-from builder import buildMachine
-import os, sys
+from builder import buildEnv, buildFs
+from zipfile import ZipFile
+import subprocess, os, sys
 
-cmd = ['platformio','run']
 builds = ['wifi','bt','wifibt','noradio']
+objects = ['firmware.elf','firmware.bin','spiffs.bin','partitions.bin']
 
 verbose = '-v' in sys.argv
 
-if not os.path.exists('release'):
-    os.makedirs('release')
+tag = (
+    subprocess.check_output(["git", "describe", "--tags", "--abbrev=0"])
+    .strip()
+    .decode("utf-8")
+)
+filePrefix = 'fluidnc-' + tag + '-'
+
+relPath = os.path.join('release', tag)
+if not os.path.exists(relPath):
+    os.makedirs(relPath)
+
+copy('InstallFluidNC.ps1', relPath)
+copy('InstallFluidNC.sh', relPath)
 
 numErrors = 0
-for name in builds:
-    exitCode = buildMachine(name, verbose=verbose)
+
+pioPath = os.path.join('.pio', 'build')
+
+for envName in builds:
+    exitCode = buildEnv(envName, verbose=verbose)
     if exitCode != 0:
         numErrors += 1
     else:
-        firmwareelf = os.path.join('.pio', 'build', name, 'firmware.elf');
-        firmwarebin = os.path.join('.pio', 'build', name, 'firmware.bin');
-        targetelf = os.path.join('release', name + '.elf');
-        targetbin = os.path.join('release', name + '.bin');
-        copy(firmwareelf, targetelf)
-        copy(firmwarebin, targetbin)
+        exitCode = buildFs(envName, verbose=verbose)
+        if exitCode != 0:
+            numErrors += 1
+        else:
+            objPath = os.path.join(pioPath, envName)
+            envFileName = os.path.join(relPath, filePrefix + envName)
+            zipFileName = envFileName + '.zip'
+            with ZipFile(zipFileName, 'w') as zipObj:
+                for obj in objects:
+                    objFile = os.path.join(objPath, obj)
+                    relFile = os.path.join(envFileName, obj)
+                    zipObj.write(objFile, relFile)
 
 sys.exit(numErrors)

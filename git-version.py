@@ -9,15 +9,17 @@ try:
         .decode("utf-8")
     )
 except:
-    tag = "3.0"
+    tag = "v3.0.0"
 
+grbl_version = tag.replace('v','').rpartition('.')[0]
 print("-DGIT_TAG='\"%s\"'" % (tag))
+print("-DGRBL_VERSION='\"%s\"'" % (grbl_version))
 
 # Check to see if the head commit exactly matches a tag.
 # If so, the revision is "release", otherwise it is BRANCH-COMMIT
 try:
     subprocess.check_call(["git", "describe", "--tags", "--exact"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    print("-DGIT_REV='\"%s\"'" % "release")
+    print("-DGIT_REV='\"\"'")
 except:
     branchname = (
         subprocess.check_output(["git", "rev-parse", "--abbrev-ref", "HEAD"])
@@ -39,4 +41,4 @@ except:
     else:
         dirty = ""
 
-    print("-DGIT_REV='\"%s-%s%s\"'" % (branchname, revision, dirty))
+    print("-DGIT_REV='\" (%s-%s%s)\"'" % (branchname, revision, dirty))
