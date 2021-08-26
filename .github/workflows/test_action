@@ -1,0 +1,8 @@
+name: learn-github-actions
+on: [workflow_dispatch]
+jobs:
+  check-bats-version:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - run: cp build-release.py testfoo
