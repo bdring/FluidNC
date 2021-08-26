@@ -22,7 +22,7 @@ namespace MotorDrivers {
         void init() override;
         void read_settings() override;
         bool set_homing_mode(bool isHoming) override;
-        void set_disable(bool disable) override;
+        void IRAM_ATTR set_disable(bool disable) override;
 #endif
         virtual void update() = 0;  // This must be implemented by derived classes
         void         group(Configuration::HandlerBase& handler) override { handler.item("timer_ms", _timer_ms); }
