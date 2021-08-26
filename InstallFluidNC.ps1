@@ -9,16 +9,15 @@ param (
 
 $ErrorActionPreference = "Stop"
 
-$FluidDir = 'fluidnc-' + $version + '-' + $type
-# $FluidDir = '.pio/build/' + $type + '/'
-$FluidZipFile =  $FluidDir + '.zip'
+$FluidVer = 'fluidnc-' + $version + '-' + $type
+$FluidZipFile =  $FluidVer + '.zip'
 $FluidURI = 'https://github.com/bdring/FluidNC/releases/download/' + $version + '/' + $FluidZipFile
-if (-Not (Test-Path $FluidDir)) {
+if (-Not (Test-Path $FluidVer)) {
    if (-Not (Test-Path $FluidZipFile)) {
-     Write-Output "Downloading FluidNC $FluidDir ($version) from $FluidURI"
+     Write-Output "Downloading FluidNC $FluidVer from $FluidURI"
      Invoke-WebRequest -OutFile $FluidZipFile -Uri $FluidURI
    }
-   Write-Output "Unpacking Fluid release $FluidDir"
+   Write-Output "Unpacking Fluid release $FluidVer"
    Expand-Archive $FluidZipFile
 }
 
@@ -37,13 +36,18 @@ if (-Not (Test-Path $EsptoolPath)) {
    Expand-Archive $ZipFile
 }
 
-Write-Output "Running Esptool to put $FluidDir on your ESP32"
+Write-Output "Running Esptool to put $FluidVer on your ESP32"
 
 $SetupArgs = '--chip', 'esp32', '--baud', '921600', '--before', 'default_reset', '--after', 'hard_reset', 'write_flash', '-z', '--flash_mode', 'dio', '--flash_freq', '80m', '--flash_size', 'detect'
 
-$Bootloader = '0x1000', $FluidDir + 'bootloader_qio_80m.bin'
-$Firmware = '0x10000', $FluidDir + 'firmware.bin'
-$Partitions = '0x8000', $FluidDir + 'partitions.bin'
-$LocalFS = '0x3d0000', $FluidDir + 'spiffs.bin'
+$BootloaderFile = $FluidVer + '/bootloader_qio_80m.bin'
+$Bootloader = '0x1000', $BootloaderFile
+$FirmwareFile = $FluidVer + '/firmware.bin'
+$Firmware = '0x10000', $FirmwareFile
+$PartitionsFile = $FluidVer + '/partitions.bin'
+$Partitions = '0x8000', $PartitionsFile
+$LocalFSFile=$FluidVer + '/spiffs.bin'
+$LocalFS = '0x3d0000', $LocalFSFile
 
+Write-Output "$EsptoolPath $SetupArgs $Firmware $Partitions $LocalFs"
 & $EsptoolPath $SetupArgs $Firmware $Partitions $LocalFs

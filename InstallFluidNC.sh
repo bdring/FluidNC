@@ -39,19 +39,19 @@ else
     OS=linux-amd64
 fi
 
-FluidDir=fluidnc-${VERSION}-${TYPE}
-FluidZipFile=${FluidDir}.zip
+FluidVer=fluidnc-${VERSION}-${TYPE}
+FluidZipFile=${FluidVer}.zip
 FluidURI=https://github.com/bdring/FluidNC/releases/download/${VERSION}/${FluidZipFile}
-if test ! -d "$FluidDir"; then
+if test ! -d "$FluidVer"; then
    if test ! -e "$FluidZipFile"; then
-     echo Downloading FluidNC $FluidDir $VERSION from $FluidURI
+     echo Downloading FluidNC $FluidVer from $FluidURI
      curl -sS $FluidURI >$FluidZipFile
    fi
    if test ! -d "$FluidZipFile"; then
        echo Cannot download $FluidURI
        exit 1
    fi
-   echo Unpacking Fluid release $FluidDir
+   echo Unpacking Fluid release $FluidVer
    unzip -q $FluidZipFile
 fi
 

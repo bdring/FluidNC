@@ -30,6 +30,8 @@ relPath = os.path.join('release', tag)
 if not os.path.exists(relPath):
     os.makedirs(relPath)
 
+copy('HOWTO-INSTALL-Linux-Mac.txt', relPath)
+copy('HOWTO-INSTALL-Windows.txt', relPath)
 copy('InstallFluidNC.ps1', relPath)
 copy('InstallFluidNC.sh', relPath)
 
@@ -47,12 +49,10 @@ for envName in builds:
             numErrors += 1
         else:
             objPath = os.path.join(pioPath, envName)
-            envFileName = os.path.join(relPath, filePrefix + envName)
-            zipFileName = envFileName + '.zip'
+            zipFileName = os.path.join(relPath, filePrefix + envName + '.zip')
             with ZipFile(zipFileName, 'w') as zipObj:
                 for obj in objects:
                     objFile = os.path.join(objPath, obj)
-                    relFile = os.path.join(envFileName, obj)
-                    zipObj.write(objFile, relFile)
+                    zipObj.write(objFile, obj)
 
 sys.exit(numErrors)
