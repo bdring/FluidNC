@@ -31,6 +31,6 @@ jobs:
       run: python build-release.py
     - name: Upload release
       uses: actions/upload-artifact@v2
-        with:
-          name: release zip file
-          path: release
+      with:
+        name: releaseZipFile
+        path: release
