@@ -1,6 +1,6 @@
 Choose the version that you want - wifi , bt , wifibt , or noradio - and go into that folder
 
-For Windows: Run install.bat       (double-click or type 'install' in a cmd window)
+For Windows: Run install-win.bat   (Double-click or type 'install-win' in a cmd window)
 For Linux:   Run install-linux.sh  (Type 'sh install-linux.sh' in a shell terminal window)
 For MacOS:   Run install-macos.sh  (Type 'sh install-macos.sh' in a Terminal window)
 
