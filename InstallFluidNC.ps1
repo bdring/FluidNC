@@ -33,7 +33,7 @@ if (-Not (Test-Path $EsptoolPath)) {
      Invoke-WebRequest -OutFile $EspZipFile -Uri $EspURI
    }
    Write-Output "Unpacking Esptool"
-   Expand-Archive $ZipFile
+   Expand-Archive $EspZipFile
 }
 
 Write-Output "Running Esptool to put $FluidVer on your ESP32"

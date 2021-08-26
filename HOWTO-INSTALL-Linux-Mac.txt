@@ -1,21 +1,28 @@
-** FluidNC installation instructions for Windows
+** FluidNC installation instructions for Linux and MacOS
 
-1. Download the file InstallFluidNC.ps1 from the release assets.
+1. Download the file InstallFluidNC.sh from the release assets.
 
-2. Start a PowerShell window on your Windows computer
+2. Start a shell (terminal) window on your computer
 
-3. Run the following PowerShell command to enable the InstallFluidNC.ps1 to run
+3. Determine the version and build type that you wish to run.
+   - The version is something like  v3.0.5
+   - The build type is one of  wifi , bt , wifibt , or noradio
 
-    Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+4. Run the following shell command substituting your chosen version and type:
 
-4. Determine the version and build type that you wish to run.
-   The version is something like  v3.0.5
-   The build type is either  wifi , bt , wifibt , or noradio
-
-5. Run the following PowerShell command substituting your chosen version and type:
-
-    ./InstallFluidNC.ps1 -version v3.0.5 -type wifi
+    ./InstallFluidNC.sh -version v3.0.5 -type wifi
 
   It will fetch the release archive for that version and type, unzip it, fetch
   and unzip the "esptool" program, and run that program to install FluidNC on
   your ESP32 - which must be plugged in to a USB port.
+
+5. On Linux, if the program complains that it cannot access the serial port, you might be
+   able to fix it by running this command:
+
+     sudo adduser $USER dialout
+
+   where $USER is the user name that you use to login.
+
+6. On MacOS, you might be able to fix serial port problems by following these instructions:
+
+     https://www.mac-usb-serial.com/docs/support/troubleshooting.html
