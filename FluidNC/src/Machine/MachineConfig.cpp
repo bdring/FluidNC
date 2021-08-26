@@ -158,7 +158,7 @@ namespace Machine {
             if (file) {
                 file.close();
             }
-            log_info("Missing config file " << path);
+            log_error("Missing config file " << path);
             return 0;
         }
 

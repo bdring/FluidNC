@@ -31,7 +31,7 @@ namespace Configuration {
         if (len != (token_.keyEnd_ - token_.keyStart_)) {
             return false;
         }
-        bool result = !strncmp(expected, token_.keyStart_, len);
+        bool result = !strncasecmp(expected, token_.keyStart_, len);
         if (result) {
             token_.state = TokenState::Matched;
         }
