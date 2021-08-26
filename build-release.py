@@ -13,9 +13,7 @@ from shutil import copy
 from builder import buildEnv, buildFs
 from zipfile import ZipFile
 import subprocess, os, sys
-
-builds = ['wifi','bt','wifibt','noradio']
-objects = ['firmware.elf','firmware.bin','spiffs.bin','partitions.bin']
+import urllib.request
 
 verbose = '-v' in sys.argv
 
@@ -24,35 +22,60 @@ tag = (
     .strip()
     .decode("utf-8")
 )
-filePrefix = 'fluidnc-' + tag + '-'
 
-relPath = os.path.join('release', tag)
+sharedPath = 'install_scripts'
+relPath = os.path.join('release')
 if not os.path.exists(relPath):
     os.makedirs(relPath)
 
-copy('HOWTO-INSTALL-Linux-Mac.txt', relPath)
-copy('HOWTO-INSTALL-Windows.txt', relPath)
-copy('InstallFluidNC.ps1', relPath)
-copy('InstallFluidNC.sh', relPath)
+zipFileName = os.path.join(relPath, 'fluidnc-' + tag + '.zip')
 
-numErrors = 0
+with ZipFile(zipFileName, 'w') as zipObj:
+    name = 'HOWTO-INSTALL.txt'
+    zipObj.write(os.path.join(sharedPath, name), name)
 
-pioPath = os.path.join('.pio', 'build')
+    numErrors = 0
 
-for envName in builds:
-    exitCode = buildEnv(envName, verbose=verbose)
+    pioPath = os.path.join('.pio', 'build')
+
+    exitCode = buildFs('noradio', verbose=verbose)
     if exitCode != 0:
         numErrors += 1
     else:
-        exitCode = buildFs(envName, verbose=verbose)
-        if exitCode != 0:
-            numErrors += 1
-        else:
-            objPath = os.path.join(pioPath, envName)
-            zipFileName = os.path.join(relPath, filePrefix + envName + '.zip')
-            with ZipFile(zipFileName, 'w') as zipObj:
-                for obj in objects:
-                    objFile = os.path.join(objPath, obj)
-                    zipObj.write(objFile, obj)
+        # Put common/spiffs.bin in the archive
+        obj = 'spiffs.bin'
+        zipObj.write(os.path.join(pioPath, 'noradio', obj), os.path.join('common', obj))
+
+        for envName in ['wifi','bt','wifibt','noradio']:
+            exitCode = buildEnv(envName, verbose=verbose)
+            if exitCode != 0:
+                numErrors += 1
+            else:
+                objPath = os.path.join(pioPath, envName)
+                for obj in ['firmware.bin','partitions.bin']:
+                    zipObj.write(os.path.join(objPath, obj), os.path.join(envName, obj))
+                for obj in ['install.bat','install-linux.sh','install-macos.sh']:
+                    zipObj.write(os.path.join(sharedPath, obj), os.path.join(envName, obj))
+        EsptoolVersion = 'v3.1'
+        EspRepo = 'https://github.com/espressif/esptool/releases/download/' + EsptoolVersion + '/'
+
+        for platform in ['win64', 'macos', 'linux-amd64']:
+            EspDir = 'esptool-' + EsptoolVersion + '-' + platform
+            # Download and unzip from es
+            ZipFileName = EspDir + '.zip'
+
+            if not os.path.isfile(ZipFileName):
+                print('Downloading ' + EspRepo + ZipFileName)
+                with urllib.request.urlopen(EspRepo + ZipFileName) as u:
+                    open(ZipFileName, 'wb').write(u.read())
+
+            if platform == 'win64':
+                Binary = 'esptool.exe'
+            else:
+                Binary = 'esptool'
+            Path = EspDir + '/' + Binary
+            with ZipFile(ZipFileName, 'r') as zipReader:
+                zipObj.writestr(os.path.join(platform, Binary), zipReader.read(Path))
 
 sys.exit(numErrors)
+

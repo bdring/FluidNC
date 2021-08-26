@@ -1,4 +1,4 @@
-# This script is imported by build-machine.py and build-all.py
+# This script is imported by build-release.py
 # It performs a platformio build with a given environment
 # The verbose argument controls whether the full output is
 # displayed, or filtered to show only summary information.
@@ -14,7 +14,7 @@ def buildEnv(envName, verbose=True, extraArgs=None):
     if extraArgs:
         cmd.append(extraArgs)
     displayName = envName
-    print('Building machine ' + displayName)
+    print('Building firmware for ' + displayName)
     if verbose:
         app = subprocess.Popen(cmd, env=env)
     else:
