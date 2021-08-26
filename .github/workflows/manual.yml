@@ -33,7 +33,7 @@ jobs:
         python -m pip install --upgrade pip
         pip install --upgrade platformio
     - name: Set release version
-      run: git tag ${{ github.events.input.tag }} -a -m "Release test"
+      run: git tag "${{ github.events.input.tag }}" -a -m "Release test"
     - name: Build release
       run: python build-release.py
     - name: Upload release
