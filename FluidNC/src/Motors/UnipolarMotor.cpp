@@ -4,8 +4,6 @@
 #include "UnipolarMotor.h"
 #include "../Machine/MachineConfig.h"
 
-#include <esp_attr.h>  // IRAM_ATTR
-
 namespace MotorDrivers {
     void UnipolarMotor::init() {
         _pin_phase0.setAttr(Pin::Attr::Output);

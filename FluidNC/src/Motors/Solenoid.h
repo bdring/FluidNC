@@ -7,10 +7,10 @@ namespace MotorDrivers {
     public:
         Solenoid();
         Solenoid(uint8_t axis_index, gpio_num_t pwm_pin, float transition_poiont);
-        void set_location();
-        void update() override;
-        void init() override;
-        void set_disable(bool disable) override;
+        void           set_location();
+        void           update() override;
+        void           init() override;
+        void IRAM_ATTR set_disable(bool disable) override;
 
         float _transition_point;
 

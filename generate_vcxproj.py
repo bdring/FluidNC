@@ -19,10 +19,10 @@ def FilterFromPath(path):
 	head = head.replace('/', '\\').replace('..\\', '').replace('.\\', '')
 	if head == '.':
 		return ''
-		
-	h = head[0:10];
+
+	h = head[0:7];
 	if h == 'FluidNC':
-		h = head[11:]
+		h = head[8:]
 	return h
 
 class Vcxproj:

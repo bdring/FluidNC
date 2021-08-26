@@ -273,7 +273,7 @@ void report_feedback_message(Message message) {  // ok to send to all clients
 
 // Welcome message
 void report_init_message(uint8_t client) {
-    _sendf(client, "\r\nGrbl %s [FluidNC, build: %s, '$' for help]\r\n", GIT_TAG, GIT_REV);
+    _sendf(client, "\r\nGrbl %s [FluidNC %s%s, '$' for help]\r\n", GRBL_VERSION, GIT_TAG, GIT_REV);
 }
 
 // Help message
@@ -494,7 +494,7 @@ void report_execute_startup_message(const char* line, Error status_code, uint8_t
 
 // Prints build info line
 void report_build_info(const char* line, uint8_t client) {
-    _sendf(client, "[VER:FluidNC %s-%s:%s]\r\n[OPT:", GIT_TAG, GIT_REV, line);
+    _sendf(client, "[VER:FluidNC %s%s:%s]\r\n[OPT:", GIT_TAG, GIT_REV, line);
     if (config->_coolant->hasMist()) {
         _send(client, "M");  // TODO Need to deal with M8...it could be disabled
     }
