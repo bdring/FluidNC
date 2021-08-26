@@ -51,7 +51,7 @@ namespace Configuration {
                                       << _parser.token_.indent_);
 #endif
                     if (_parser.token_.indent_ > thisIndent) {
-                        log_info("Skipping key " << _parser.key().str() << " indent " << _parser.token_.indent_ << " thisIndent "
+                        log_error("Skipping key " << _parser.key().str() << " indent " << _parser.token_.indent_ << " thisIndent "
                                                  << thisIndent);
                     } else {
 #ifdef DEBUG_VERBOSE_YAML_PARSER

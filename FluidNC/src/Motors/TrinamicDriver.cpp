@@ -23,11 +23,11 @@ namespace MotorDrivers {
         _cs_mapping = PinMapper(_cs_pin);
 
         if (_driver_part_number == 2130) {
-            tmcstepper = new TMC2130Stepper(_cs_mapping.pinId(), _r_sense, _spi_index);
+            tmcstepper = new TMC2130Stepper(_cs_mapping.pinId(), _r_sense, -1);  // hardwired to non daisy chain index
         } else if (_driver_part_number == 5160) {
             tmcstepper = new TMC5160Stepper(_cs_mapping.pinId(), _r_sense, _spi_index);
         } else {
-            log_info(axisName() << " Unsupported Trinamic part number TMC" << _driver_part_number);
+            log_info("    Unsupported Trinamic part number TMC" << _driver_part_number);
             _has_errors = true;  // This motor cannot be used
             return;
         }
@@ -138,7 +138,7 @@ namespace MotorDrivers {
                 //     return false;
                 // }
 
-                log_info(axisName() << "    Trinamic driver test passed");
+                log_info("    Trinamic driver test passed");
                 return true;
         }
     }
