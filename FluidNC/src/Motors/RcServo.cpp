@@ -7,11 +7,12 @@
 
     The servo's travel will be mapped against the axis with $X/MaxTravel
 
-    The rotation can be inverted with by $Stepper/DirInvert
+    The rotation can be inverted by swapping the values
+    min_pulse_us: 2100
+    max_pulse_us: 1000
 
-    Homing simply sets the axis Mpos to the endpoint as determined by $Homing/DirInvert
+    Homing simply sets the axis Mpos to the endpoint as determined by homing/mpos
 
-    Calibration is part of the setting (TBD) fixed at 1.00 now
 */
 
 #include "RcServo.h"
@@ -30,15 +31,22 @@ namespace MotorDrivers {
     // RcServo::RcServo(Pin pwm_pin) : Servo(), _pwm_pin(pwm_pin) {}
 
     void RcServo::init() {
-        //_axis_index = axis_index();
+        // if (_output_pin.undefined()) {
+        //     log_warn("    RC Servo output pin not defined");
+        //     return;  // We cannot continue without the output pin
+        // }
+
+        _axis_index = axis_index();
 
         read_settings();
-        _pwm_chan_num     = ledcInit(_output_pin, -1, _pwm_freq, SERVO_PULSE_RES_BITS);  // Allocate a channel
+        config_message();
+
+        _pwm_chan_num     = ledcInit(_output_pin, -1, double(_pwm_freq), SERVO_PULSE_RES_BITS);  // Allocate a channel
         _current_pwm_duty = 0;
 
         _disabled = true;
-        config_message();
-        //startUpdateTask(_timer_ms);
+
+        startUpdateTask(_timer_ms);
     }
 
     void RcServo::config_message() {
@@ -57,6 +65,7 @@ namespace MotorDrivers {
 
     // sets the PWM to zero. This allows most servos to be manually moved
     void IRAM_ATTR RcServo::set_disable(bool disable) {
+        //log_info("Set dsbl " << disable);
         _disabled = disable;
         if (_disabled) {
             _write_pwm(0);
@@ -65,57 +74,55 @@ namespace MotorDrivers {
 
     // Homing justs sets the new system position and the servo will move there
     bool RcServo::set_homing_mode(bool isHoming) {
-        //auto axis                = config->_axes->_axis[_axis_index];
-        //motor_steps[_axis_index] = mpos_to_steps(axis->_homing->_mpos, _axis_index);
+        //log_info("Servo homing:" << isHoming);
 
-        set_location();   // force the PWM to update now
-        vTaskDelay(750);  // give time to move
-        return false;     // Cannot be homed in the conventional way
+        if (isHoming) {
+            auto axis                = config->_axes->_axis[_axis_index];
+            motor_steps[_axis_index] = mpos_to_steps(axis->_homing->_mpos, _axis_index);
+
+            float home_time_sec = (axis->_maxTravel / axis->_maxRate * 60 * 1.1);  // 1.1 fudge factor for accell time.
+
+            _disabled = false;
+            set_location();                    // force the PWM to update now
+            vTaskDelay(home_time_sec * 1000);  // give time to move
+        }
+        return false;  // Cannot be homed in the conventional way
     }
 
     void RcServo::update() { set_location(); }
 
     void RcServo::set_location() {
-        uint32_t servo_pulse_len;
-        float    servo_pos, mpos, offset;
-
         if (_disabled) {
             return;
         }
 
+        uint32_t servo_pulse_len;
+        float    servo_pos;
+
         read_settings();
 
-        //mpos = steps_to_mpos(motor_steps[_axis_index], _axis_index);  // get the axis machine position in mm
-        // TBD working in MPos
-        offset    = 0;  // gc_state.coord_system[axis_index] + gc_state.coord_offset[axis_index];  // get the current axis work offset
-        servo_pos = mpos - offset;  // determine the current work position
+        float mpos = steps_to_mpos(motor_steps[_axis_index], _axis_index);  // get the axis machine position in mm
+        servo_pos  = mpos;                                                  // determine the current work position
 
         // determine the pulse length
-        // servo_pulse_len = static_cast<uint32_t>(
-        //     mapConstrain(servo_pos, limitsMinPosition(_axis_index), limitsMaxPosition(_axis_index), _pwm_pulse_min, _pwm_pulse_max));
+        servo_pulse_len = static_cast<uint32_t>(mapConstrain(
+            servo_pos, limitsMinPosition(_axis_index), limitsMaxPosition(_axis_index), (float)_min_pulse_cnt, (float)_max_pulse_cnt));
 
-        //_write_pwm(servo_pulse_len);
+        //log_info("su " << servo_pulse_len);
+
+        _write_pwm(servo_pulse_len);
     }
 
     void RcServo::read_settings() {
+        _min_pulse_cnt = (_min_pulse_us * ((_pwm_freq * 65535) / 1000)) / 1000;  // play some math games to prevent overflowing 32 bit
+        _max_pulse_cnt = (_max_pulse_us * ((_pwm_freq * 65535) / 1000)) / 1000;
+    }
 
-       // double servo_time_per_bit = ((1.0 / (double)_pwm_freq) / ((double)SERVO_PULSE_RES_COUNT));  // seconds
-
-       uint16_t count_per_us = (uint16_t)(65535.0 * 50.0 / 1000.0);
-
-       //_pwm_pulse_min = (uint16_t)(_min_pulse_us / 1000 / SERVO_TIME_PER_BIT);  // in timer counts
-       //_pwm_pulse_max = (uint16_t)(_max_pulse_us / 1000 / SERVO_TIME_PER_BIT);  // in timer counts
-
-    //    _pwm_pulse_min = count_per_us * _min_pulse_us;   // in timer counts
-    //    _pwm_pulse_max = count_per_us * _max_pulse_us;   // in timer counts
-
-    //    log_info("_pwm_pulse_min " << _pwm_pulse_min);
-    //    log_info("_pwm_pulse_max " << _pwm_pulse_max);
-
-    //    if (_invert_direction) {
-    //        swap(_pwm_pulse_min, _pwm_pulse_max);
-    //     }
-
+    void RcServo::validate() const {
+        Assert(!_output_pin.undefined(), "PWM pin should be configured.");
+        Assert((_pwm_freq > 40 && _pwm_freq < 200), "pwm_freq out of range (40,200)");
+        Assert((_min_pulse_us > 750 && _min_pulse_us < 2500), "min_pulse_us out of range (750, 2500)");
+        Assert((_max_pulse_us > 750 && _max_pulse_us < 2500), "max_pulse_us out of range (750, 2500)");
     }
 
     // Configuration registration

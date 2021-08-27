@@ -14,6 +14,7 @@ const int SERVO_PULSE_RES_BITS  = 16;     // bits of resolution of PWM (16 is ma
 const int SERVO_PULSE_RES_COUNT = 65535;  // see above  TODO...do the math here 2^SERVO_PULSE_RES_BITS
 
 const double SERVO_TIME_PER_BIT = ((1.0 / (double)SERVO_PULSE_FREQ) / ((double)SERVO_PULSE_RES_COUNT));  // seconds
+const uint32_t COUNTS_PER_SECOND = (uint32_t)(1.0 / SERVO_TIME_PER_BIT);  // seconds
 
 const uint16_t SERVO_MIN_PULSE = (uint16_t)(SERVO_MIN_PULSE_SEC / SERVO_TIME_PER_BIT);  // in timer counts
 const uint16_t SERVO_MAX_PULSE = (uint16_t)(SERVO_MAX_PULSE_SEC / SERVO_TIME_PER_BIT);  // in timer counts

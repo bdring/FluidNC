@@ -3,7 +3,7 @@ board: "TMC2130 Pen/Laser"
 
 stepping:
   engine: RMT
-  idle_ms: 255
+  idle_ms: 250
   dir_delay_us: 1
   pulse_us: 2
   disable_delay_us: 0
@@ -16,6 +16,10 @@ axes:
     max_rate: 2000
     acceleration: 25
     max_travel: 1000
+    steps_per_mm: 800.000
+    max_rate: 5000.000
+    acceleration: 100.000
+    max_travel: 300.000
     soft_limits: false
     homing:
       cycle: 2
@@ -28,7 +32,7 @@ axes:
       feed_scaler: 1.100
     
     motor0:
-      limit_all: gpio.32:low:pu
+      limit_all: NO_PIN
       tmc_2130:
         direction: gpio.26
         step: gpio.12
@@ -53,6 +57,10 @@ axes:
     max_rate: 2000
     acceleration: 25
     max_travel: 1000
+    steps_per_mm: 800.000
+    max_rate: 5000.000
+    acceleration: 100.000
+    max_travel: 300.000
     soft_limits: false
     homing:
       cycle: 2
@@ -86,15 +94,19 @@ axes:
       null_motor:
 
   z:
-    steps_per_mm: 400
-    max_rate: 1000
-    acceleration: 50
-    max_travel: 5.00
+    steps_per_mm: 800
+    max_rate: 2000
+    acceleration: 25
+    max_travel: 1000
+    steps_per_mm: 800.000
+    max_rate: 5000.000
+    acceleration: 100.000
+    max_travel: 300.000
     soft_limits: false
     homing:
-      cycle: 1
-      positive_direction: true
-      mpos: 5
+      cycle: 2
+      positive_direction: false
+      mpos: 150.000
       feed_rate: 100.000
       seek_rate: 200.000
       debounce_ms: 500
@@ -104,9 +116,9 @@ axes:
     motor0:
       rc_servo:
         pwm_freq: 50
-        output_pin: gpio.27
-        min_pulse_us: 2100
-        max_pulse_us: 1000
+        output_pin: NO_PIN
+        min_pulse_us: 1000
+        max_pulse_us: 2000
 
 coolant:
   flood: NO_PIN
