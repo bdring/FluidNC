@@ -55,6 +55,7 @@ namespace MotorDrivers {
         vTaskDelay(2000);                     // initial delay
         while (true) {                        // don't ever return from this or the task dies
             std::atomic_thread_fence(std::memory_order::memory_order_seq_cst);  // read fence for settings
+            log_info("Servo update");
             for (Servo* p = List; p; p = p->link) {
                 p->update();
             }

@@ -12,21 +12,22 @@ namespace MotorDrivers {
 
         void set_location();
 
-        Pin      _pwm_pin;
+        Pin      _output_pin;
+        uint32_t _pwm_freq = 50;  // 50 Hz
         uint8_t  _pwm_chan_num;
         uint32_t _current_pwm_duty;
         float    _homing_position;
-        bool     _invert_direction = false;
-
-        float _pwm_pulse_min;
-        float _pwm_pulse_max;
+        //bool     _invert_direction = false;        
 
         bool _disabled;
 
-        float _cal_min;
-        float _cal_max;
+        uint32_t _min_pulse_us = 900;   // microseconds
+        uint32_t _max_pulse_us = 2200;  // microseconds
 
-        int _axis_index = -1;
+        //float _cal_min = 1.00;
+        //float _cal_max = 1.00;
+
+        //int _axis_index = -1;
 
     public:
         RcServo() = default;
@@ -41,12 +42,15 @@ namespace MotorDrivers {
         void _write_pwm(uint32_t duty);
 
         // Configuration handlers:
-        void validate() const override { Assert(!_pwm_pin.undefined(), "PWM pin should be configured."); }
+        void validate() const override { Assert(!_output_pin.undefined(), "PWM pin should be configured."); }
 
         void group(Configuration::HandlerBase& handler) override {
-            handler.item("pwm", _pwm_pin);
-            handler.item("cal_min", _cal_min);
-            handler.item("cal_max", _cal_max);
+            handler.item("output_pin", _output_pin);
+            handler.item("pwm_freq", _pwm_freq);
+            handler.item("min_pulse_us", _min_pulse_us);
+            handler.item("max_pulse_us", _max_pulse_us);
+            //handler.item("cal_min", _cal_min);
+           // handler.item("cal_max", _cal_max);
         }
 
         // Name of the configurable. Must match the name registered in the cpp file.

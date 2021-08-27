@@ -16,6 +16,8 @@ namespace MotorDrivers {
     TrinamicDriver::TrinamicDriver(uint16_t driver_part_number, int8_t spi_index) :
         TrinamicBase(driver_part_number), _spi_index(spi_index) {}
 
+    uint8_t daisy_chain_cs = -1;
+
     void TrinamicDriver::init() {
         _has_errors = false;
 
@@ -23,7 +25,7 @@ namespace MotorDrivers {
         _cs_mapping = PinMapper(_cs_pin);
 
         if (_driver_part_number == 2130) {
-            tmcstepper = new TMC2130Stepper(_cs_mapping.pinId(), _r_sense, -1);  // hardwired to non daisy chain index
+            tmcstepper = new TMC2130Stepper(_cs_mapping.pinId(), _r_sense, -1);  // TODO hardwired to non daisy chain index
         } else if (_driver_part_number == 5160) {
             tmcstepper = new TMC5160Stepper(_cs_mapping.pinId(), _r_sense, _spi_index);
         } else {
