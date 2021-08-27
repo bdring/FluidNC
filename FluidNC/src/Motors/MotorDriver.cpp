@@ -29,10 +29,7 @@ namespace MotorDrivers {
     String MotorDriver::axisName() const {
         return String(config->_axes->axisName(axis_index())) + (dual_axis_index() ? "2" : "") + " Axis";
     }
-    String MotorDriver::axisLimits() const {
-        return String("Limits(") + limitsMinPosition(axis_index()) + "," + limitsMaxPosition(axis_index()) + ")";
-    }
-
+    
     void MotorDriver::debug_message() {}
 
     bool MotorDriver::test() { return true; };  // true = OK

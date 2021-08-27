@@ -98,7 +98,7 @@ namespace MotorDrivers {
     void TrinamicDriver::config_message() {
         log_info("    Trinamic TMC" << _driver_part_number << " Step:" << _step_pin.name() << " Dir:" << _dir_pin.name()
                                     << " CS:" << _cs_pin.name() << " Disable:" << _disable_pin.name() << " Index:" << _spi_index
-                                    << " R:" << _r_sense << " " << axisLimits());
+                                    << " R:" << _r_sense);
     }
 
     bool TrinamicDriver::test() {

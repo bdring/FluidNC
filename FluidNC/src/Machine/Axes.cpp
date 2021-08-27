@@ -6,6 +6,7 @@
 #include "../MotionControl.h"
 #include "../Stepper.h"     // stepper_id_t
 #include "MachineConfig.h"  // config->
+#include "../Limits.h"
 
 namespace Machine {
     MotorMask Axes::posLimitMask = 0;
@@ -34,7 +35,7 @@ namespace Machine {
         for (uint8_t axis = X_AXIS; axis < _numberAxis; axis++) {
             auto a = _axis[axis];
             if (a) {
-                log_info("Axis " << axisName(axis));
+                log_info("Axis " << axisName(axis) << " (" << limitsMinPosition(axis) << "," << limitsMaxPosition(axis) << ")");
                 a->init();
             }
         }
