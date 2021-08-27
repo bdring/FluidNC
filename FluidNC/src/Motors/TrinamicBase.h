@@ -44,8 +44,6 @@ namespace MotorDrivers {
         uint8_t _toff_stealthchop = 5;
         uint8_t _toff_coolstep    = 3;
 
-        uint8_t get_next_index();
-
         // Linked list of Trinamic driver instances, used by the
         // StallGuard reporting task.
         static TrinamicBase* List;

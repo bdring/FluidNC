@@ -16,11 +16,6 @@ namespace MotorDrivers {
 
     TrinamicBase* TrinamicBase::List = NULL;  // a static list of all drivers for stallguard reporting
 
-    uint8_t TrinamicBase::get_next_index() {
-        static uint8_t index = 1;  // they start at 1
-        return index++;
-    }
-
     // Prints StallGuard data that is useful for tuning.
     void TrinamicBase::readSgTask(void* pvParameters) {
         auto trinamicDriver = static_cast<TrinamicBase*>(pvParameters);
