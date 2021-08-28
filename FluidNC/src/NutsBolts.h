@@ -162,7 +162,7 @@ T mapConstrain(T x, T in_min, T in_max, T out_min, T out_max) {
 template <typename T>
 bool constrain_with_message(T &value, T min, T max) {
     if (value < min || value > max) {
-        log_error("Value " << value << " constrained to range (" << min << "," << max << ")");
+        log_warn("Value " << value << " constrained to range (" << min << "," << max << ")");
         value = myConstrain(value, min, max);   
         return false;
     }

@@ -32,6 +32,9 @@ namespace Spindles {
 
         is_reversable = _direction_pin.defined();
 
+        if (_speeds.size() == 0) {
+            linearSpeeds(10000, 100.0f);
+        }
         setupSpeeds(255);
 
         config_message();
