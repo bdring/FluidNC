@@ -16,8 +16,6 @@ namespace MotorDrivers {
         uint32_t _pwm_freq = 50;  // 50 Hz
         uint8_t  _pwm_chan_num;
         uint32_t _current_pwm_duty;
-        //float    _homing_position;
-        //bool     _invert_direction = false;
 
         bool _disabled;
 
@@ -27,10 +25,9 @@ namespace MotorDrivers {
         uint32_t _min_pulse_cnt = 0;  // microseconds
         uint32_t _max_pulse_cnt = 0;  // microseconds
 
-        //float _cal_min = 1.00;
-        //float _cal_max = 1.00;
-
         int _axis_index = -1;
+
+        bool _has_errors = false;
 
     public:
         RcServo() = default;
@@ -45,8 +42,6 @@ namespace MotorDrivers {
         void _write_pwm(uint32_t duty);
 
         // Configuration handlers:
-        void validate() const override;
-
         void group(Configuration::HandlerBase& handler) override {
             handler.item("output_pin", _output_pin);
             handler.item("pwm_freq", _pwm_freq);

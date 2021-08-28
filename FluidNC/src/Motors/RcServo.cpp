@@ -23,6 +23,7 @@
 #include "../Pin.h"
 #include "../Limits.h"  // limitsMaxPosition
 #include "RcServoSettings.h"
+#include "../NutsBolts.h"
 
 #include <esp32-hal-ledc.h>  // ledcWrite
 #include <freertos/task.h>   // vTaskDelay
@@ -31,11 +32,19 @@ namespace MotorDrivers {
     // RcServo::RcServo(Pin pwm_pin) : Servo(), _pwm_pin(pwm_pin) {}
 
     void RcServo::init() {
-        // if (_output_pin.undefined()) {
-        //     log_warn("    RC Servo output pin not defined");
-        //     return;  // We cannot continue without the output pin
-        // }
 
+
+        constrain_with_message(_pwm_freq, uint32_t(50), uint32_t(200));
+        constrain_with_message(_min_pulse_us, uint32_t(750), uint32_t(2200));
+        constrain_with_message(_max_pulse_us, uint32_t(750), uint32_t(2200));
+        if (_output_pin.undefined()) {
+             log_warn("    RC Servo disabled: No output pin");
+             _has_errors = true;
+             return;  // We cannot continue without the output pin
+        }
+
+        
+        
         _axis_index = axis_index();
 
         read_settings();
@@ -66,6 +75,9 @@ namespace MotorDrivers {
     // sets the PWM to zero. This allows most servos to be manually moved
     void IRAM_ATTR RcServo::set_disable(bool disable) {
         //log_info("Set dsbl " << disable);
+        if (_has_errors)
+            return;
+
         _disabled = disable;
         if (_disabled) {
             _write_pwm(0);
@@ -75,6 +87,8 @@ namespace MotorDrivers {
     // Homing justs sets the new system position and the servo will move there
     bool RcServo::set_homing_mode(bool isHoming) {
         //log_info("Servo homing:" << isHoming);
+        if (_has_errors)
+            return false;
 
         if (isHoming) {
             auto axis                = config->_axes->_axis[_axis_index];
@@ -92,7 +106,7 @@ namespace MotorDrivers {
     void RcServo::update() { set_location(); }
 
     void RcServo::set_location() {
-        if (_disabled) {
+        if (_disabled || _has_errors) {
             return;
         }
 
@@ -116,14 +130,7 @@ namespace MotorDrivers {
     void RcServo::read_settings() {
         _min_pulse_cnt = (_min_pulse_us * ((_pwm_freq * 65535) / 1000)) / 1000;  // play some math games to prevent overflowing 32 bit
         _max_pulse_cnt = (_max_pulse_us * ((_pwm_freq * 65535) / 1000)) / 1000;
-    }
-
-    void RcServo::validate() const {
-        Assert(!_output_pin.undefined(), "PWM pin should be configured.");
-        Assert((_pwm_freq > 40 && _pwm_freq < 200), "pwm_freq out of range (40,200)");
-        Assert((_min_pulse_us > 750 && _min_pulse_us < 2500), "min_pulse_us out of range (750, 2500)");
-        Assert((_max_pulse_us > 750 && _max_pulse_us < 2500), "max_pulse_us out of range (750, 2500)");
-    }
+    }    
 
     // Configuration registration
     namespace {
