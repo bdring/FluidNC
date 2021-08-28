@@ -34,9 +34,9 @@ namespace MotorDrivers {
     void RcServo::init() {
 
 
-        constrain_with_message(_pwm_freq, uint32_t(50), uint32_t(200));
-        constrain_with_message(_min_pulse_us, uint32_t(750), uint32_t(2200));
-        constrain_with_message(_max_pulse_us, uint32_t(750), uint32_t(2200));
+        constrain_with_message(_pwm_freq, SERVO_PWM_FREQ_MIN, SERVO_PWM_FREQ_MAX);
+        constrain_with_message(_min_pulse_us, SERVO_PULSE_US_MIN, SERVO_PULSE_US_MAX);
+        constrain_with_message(_max_pulse_us, SERVO_PULSE_US_MIN, SERVO_PULSE_US_MAX);
         if (_output_pin.undefined()) {
              log_warn("    RC Servo disabled: No output pin");
              _has_errors = true;
@@ -50,7 +50,7 @@ namespace MotorDrivers {
         read_settings();
         config_message();
 
-        _pwm_chan_num     = ledcInit(_output_pin, -1, double(_pwm_freq), SERVO_PULSE_RES_BITS);  // Allocate a channel
+        _pwm_chan_num     = ledcInit(_output_pin, -1, double(_pwm_freq), SERVO_PWM_RESOLUTION_BITS);  // Allocate a channel
         _current_pwm_duty = 0;
 
         _disabled = true;
@@ -128,8 +128,8 @@ namespace MotorDrivers {
     }
 
     void RcServo::read_settings() {
-        _min_pulse_cnt = (_min_pulse_us * ((_pwm_freq * 65535) / 1000)) / 1000;  // play some math games to prevent overflowing 32 bit
-        _max_pulse_cnt = (_max_pulse_us * ((_pwm_freq * 65535) / 1000)) / 1000;
+        _min_pulse_cnt = (_min_pulse_us * ((_pwm_freq * SERVO_PWM_MAX_DUTY) / 1000)) / 1000;  // play some math games to prevent overflowing 32 bit
+        _max_pulse_cnt = (_max_pulse_us * ((_pwm_freq * SERVO_PWM_MAX_DUTY) / 1000)) / 1000;
     }    
 
     // Configuration registration
