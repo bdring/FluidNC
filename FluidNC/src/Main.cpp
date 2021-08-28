@@ -75,10 +75,11 @@ void setup() {
 
             Stepper::init();  // Configure stepper pins and interrupt timers
 
+            config->_userOutputs->init();
+
             config->_axes->init();
 
             config->_control->init();
-            config->_userOutputs->init();
 
             memset(motor_steps, 0, sizeof(motor_steps));  // Clear machine position.
 

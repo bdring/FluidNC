@@ -16,6 +16,8 @@ namespace MotorDrivers {
     TrinamicDriver::TrinamicDriver(uint16_t driver_part_number, int8_t spi_index) :
         TrinamicBase(driver_part_number), _spi_index(spi_index) {}
 
+    uint8_t daisy_chain_cs = -1;
+
     void TrinamicDriver::init() {
         _has_errors = false;
 
@@ -23,11 +25,11 @@ namespace MotorDrivers {
         _cs_mapping = PinMapper(_cs_pin);
 
         if (_driver_part_number == 2130) {
-            tmcstepper = new TMC2130Stepper(_cs_mapping.pinId(), _r_sense, _spi_index);
+            tmcstepper = new TMC2130Stepper(_cs_mapping.pinId(), _r_sense, -1);  // TODO hardwired to non daisy chain index
         } else if (_driver_part_number == 5160) {
             tmcstepper = new TMC5160Stepper(_cs_mapping.pinId(), _r_sense, _spi_index);
         } else {
-            log_info(axisName() << " Unsupported Trinamic part number TMC" << _driver_part_number);
+            log_info("    Unsupported Trinamic part number TMC" << _driver_part_number);
             _has_errors = true;  // This motor cannot be used
             return;
         }
@@ -96,7 +98,7 @@ namespace MotorDrivers {
     void TrinamicDriver::config_message() {
         log_info("    Trinamic TMC" << _driver_part_number << " Step:" << _step_pin.name() << " Dir:" << _dir_pin.name()
                                     << " CS:" << _cs_pin.name() << " Disable:" << _disable_pin.name() << " Index:" << _spi_index
-                                    << " R:" << _r_sense << " " << axisLimits());
+                                    << " R:" << _r_sense);
     }
 
     bool TrinamicDriver::test() {
@@ -138,7 +140,7 @@ namespace MotorDrivers {
                 //     return false;
                 // }
 
-                log_info(axisName() << "    Trinamic driver test passed");
+                log_info("    Trinamic driver test passed");
                 return true;
         }
     }

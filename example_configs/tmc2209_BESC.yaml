@@ -1,0 +1,166 @@
+name: "ESP32 Dev Controller V4"
+board: "ESP32 Dev Controller V4"
+
+stepping:
+  engine: RMT
+  idle_ms: 250
+  dir_delay_us: 1
+  pulse_us: 2
+  disable_delay_us: 0
+
+homing_init_lock: true
+
+axes:
+  shared_stepper_disable: gpio.25:high
+  
+  x:
+    steps_per_mm: 800
+    max_rate: 5000
+    acceleration: 100
+    max_travel: 300
+    homing:
+      cycle: 1
+      mpos: 150
+      positive_direction: false
+      feed_rate: 100.000
+      seek_rate: 200.000
+      debounce_ms: 500
+    
+    motor0:
+      limit_pos: gpio.35
+      hard_limits: false
+      pulloff: 1.000
+      tmc_2209:
+        uart:
+          txd_pin: gpio.22
+          rxd_pin: gpio.21
+          baud: 115200
+          mode: 8N1
+        addr: 0
+        r_sense: 0.110
+        run_current: 0.500
+        hold_current: 0.500
+        microsteps: 32
+        stallguard: 0
+        stallguardDebugMode: false
+        toff_disable: 0
+        toff_stealthchop: 5
+        toff_coolstep: 3
+        run_mode: StealthChop
+        homing_mode: StealthChop
+        use_enable: false
+        step: gpio.26
+        direction: gpio.27
+        disable: NO_PIN
+
+    motor1:
+      null_motor:
+
+  y:
+    steps_per_mm: 800
+    max_rate: 5000
+    acceleration: 100
+    max_travel: 300
+
+    homing:
+      cycle: 2
+      mpos: 150
+      positive_direction: false
+      feed_rate: 100.000
+      seek_rate: 200.000
+      debounce_ms: 500
+    
+    motor0:
+      limit_neg: NO_PIN
+      limit_pos: gpio.34
+      limit_all: NO_PIN
+      hard_limits: false
+      pulloff: 1.00
+      tmc_2209:
+        step: gpio.33
+        direction: gpio.32
+        microsteps: 16
+        addr: 1
+
+    motor1:
+      null_motor:
+
+  z:
+    steps_per_mm: 800
+    max_rate: 5000
+    acceleration: 100
+    max_travel: 300
+
+    homing:
+      cycle: 2
+      mpos: 150
+      positive_direction: false
+      feed_rate: 100.000
+      seek_rate: 200.000
+      debounce_ms: 500
+    
+    motor0:
+      limit_neg: NO_PIN
+      limit_pos: gpio.39
+      limit_all: NO_PIN
+      hard_limits: false
+      pulloff: 1.00
+      tmc_2209:
+        step: gpio.2
+        direction: gpio.14
+        addr: 2
+
+    motor1:
+      null_motor:
+
+
+  a:
+    steps_per_mm: 800
+    max_rate: 5000
+    acceleration: 100
+    max_travel: 300
+
+    homing:
+      cycle: 2
+      mpos: 150
+      positive_direction: false
+      feed_rate: 100.000
+      seek_rate: 200.000
+      debounce_ms: 500
+    
+    motor0:
+      limit_neg: NO_PIN
+      limit_pos: gpio.36
+      limit_all: NO_PIN
+      hard_limits: false
+      pulloff: 1.00
+      tmc_2209:
+        step: gpio.16
+        direction: gpio.15
+        addr: 3
+
+    motor1:
+      null_motor:
+
+comms:
+    wifi_ap:
+        ip_address: "192.168.0.1"
+        ssid: FluidNC
+        
+probe:
+  pin: NO_PIN
+
+besc:
+  pwm_freq: 50
+  output_pin: gpio.4
+  enable_pin: NO_PIN
+  direction_pin: NO_PIN
+  disable_with_zero_speed: false
+  zero_speed_with_disable: true
+  spinup_ms: 0
+  spindown_ms: 0
+  tool: 100
+  speeds: 0=0.000% 0=20.000% 4000=20.000% 20000=100.000%
+  min_pulse_us: 900
+  max_pulse_us: 2200
+  

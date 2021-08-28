@@ -97,7 +97,6 @@ namespace MotorDrivers {
 
     protected:
         String axisName() const;
-        String axisLimits() const;
 
         // config_message(), called from init(), displays a message describing
         // the motor configuration - pins and other motor-specific items

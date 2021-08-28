@@ -71,7 +71,7 @@ namespace MotorDrivers {
     }
 
     void Dynamixel2::config_message() {
-        log_info(axisName() << idString() << " Count(" << _dxl_count_min << "," << _dxl_count_max << ") " << axisLimits());
+        log_info(axisName() << idString() << " Count(" << _dxl_count_min << "," << _dxl_count_max << ")");
     }
 
     bool Dynamixel2::test() {

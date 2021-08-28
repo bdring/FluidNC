@@ -23,10 +23,12 @@ namespace MotorDrivers {
     private:
         const int _spi_freq = 100000;
 
+        static uint8_t daisy_chain_cs;
+
         TMC2130Stepper* tmcstepper;  // all other driver types are subclasses of this one
         Pin             _cs_pin;     // The chip select pin (can be the same for daisy chain)
         PinMapper       _cs_mapping;
-        int8_t          _spi_index;
+        int32_t          _spi_index;
 
         bool test();
         void set_mode(bool isHoming);
@@ -37,7 +39,7 @@ namespace MotorDrivers {
         void config_message() override;
 
     public:
-        TrinamicDriver(uint16_t driver_part_number) : TrinamicDriver(driver_part_number, get_next_index()) {}
+        TrinamicDriver(uint16_t driver_part_number) : TrinamicDriver(driver_part_number, -1) {}
 
         TrinamicDriver(uint16_t driver_part_number, int8_t spi_index);
 
@@ -57,6 +59,7 @@ namespace MotorDrivers {
 
         void group(Configuration::HandlerBase& handler) override {
             handler.item("cs", _cs_pin);
+            handler.item("spi_index", _spi_index);
             TrinamicBase::group(handler);
         }
 

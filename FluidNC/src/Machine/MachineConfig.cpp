@@ -158,7 +158,7 @@ namespace Machine {
             if (file) {
                 file.close();
             }
-            log_info("Missing config file " << path);
+            log_error("Missing config file " << path);
             return 0;
         }
 
@@ -240,7 +240,7 @@ namespace Machine {
 
             handler.enterSection("machine", config);
 
-            log_info("Running after-parse tasks");
+            log_debug("Running after-parse tasks");
 
             // log_info("Heap size before after-parse is " << uint32_t(xPortGetFreeHeapSize()));
 
@@ -250,7 +250,7 @@ namespace Machine {
                 config->group(afterParse);
             } catch (std::exception& ex) { log_info("Validation error: " << ex.what()); }
 
-            log_info("Checking configuration");
+            log_debug("Checking configuration");
 
             // log_info("Heap size before validation is " << uint32_t(xPortGetFreeHeapSize()));
 

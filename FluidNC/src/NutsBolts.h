@@ -9,6 +9,7 @@
 #include <cstdint>
 #include <esp_attr.h>
 #include <xtensa/core-macros.h>
+#include "Logging.h"
 
 enum class DwellMode : uint8_t {
     Dwell      = 0,  // (Default: Must be zero)
@@ -155,4 +156,15 @@ template <typename T>
 T mapConstrain(T x, T in_min, T in_max, T out_min, T out_max) {
     x = myConstrain(x, in_min, in_max);
     return myMap(x, in_min, in_max, out_min, out_max);
+}
+
+// constrain a value and issue a message. Returns true is the value was OK
+template <typename T>
+bool constrain_with_message(T &value, T min, T max) {
+    if (value < min || value > max) {
+        log_error("Value " << value << " constrained to range (" << min << "," << max << ")");
+        value = myConstrain(value, min, max);   
+        return false;
+    }
+    return true;
 }
