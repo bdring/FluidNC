@@ -79,7 +79,7 @@ void _sendf(uint8_t client, const char* format, ...) {
     va_end(arg);
 }
 
-void msg_vsendf(uint8_t client, const char* format, va_list arg) {
+static void msg_vsendf(uint8_t client, const char* format, va_list arg) {
     _send(client, "[MSG:");
     va_sendf(client, format, arg);
     _send(client, "]\r\n");
