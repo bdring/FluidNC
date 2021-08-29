@@ -189,11 +189,11 @@ void report_status_message(Error status_code, uint8_t client) {
                 // we issue this message.  What Eof really means is that all the lines in the
                 // file were sent, but not necessarily executed.  Some could still be running.
                 _notifyf("SD print done", "%s print succeeded", sdcard->filename());
-                info_client(sdcard->_client, "%s print succeeded", sdcard->filename());
+                info_client(sdcard->getClient(), "%s print succeeded", sdcard->filename());
                 sdcard->closeFile();
                 break;
             default:
-                info_client(sdcard->_client,
+                info_client(sdcard->getClient(),
                             "Error:%d (%s) in %s at line %d",
                             status_code,
                             errorString(status_code),

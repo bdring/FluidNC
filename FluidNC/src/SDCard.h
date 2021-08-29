@@ -55,15 +55,14 @@ private:
     uint32_t  _current_line_number;   // the most recent line number read
     char      comment[COMMENT_SIZE];  // Line to be executed. Zero-terminated.
 
-    State         _state;
-    Pin           _cardDetect;
-    SDCard::State test_or_open(bool refresh);
+    State                      _state;
+    Pin                        _cardDetect;
+    SDCard::State              test_or_open(bool refresh);
+    uint8_t                    _client;
+    WebUI::AuthenticationLevel _auth_level;
 
 public:
     bool _readyNext;  // A line has been processed and the system is waiting for another
-
-    uint8_t                    _client;
-    WebUI::AuthenticationLevel _auth_level;
 
     SDCard();
     SDCard(const SDCard&) = delete;
@@ -74,11 +73,14 @@ public:
     void          end();
 
     void     listDir(fs::FS& fs, const char* dirname, uint8_t levels, uint8_t client);
-    bool     openFile(fs::FS& fs, const char* path);
+    bool     openFile(fs::FS& fs, const char* path, uint8_t client, WebUI::AuthenticationLevel auth_level);
     bool     closeFile();
     Error    readFileLine(char* line, int len);
     float    report_perc_complete();
     uint32_t lineNumber();
+
+    uint8_t                    getClient() { return _client; }
+    WebUI::AuthenticationLevel getAuthLevel() { return _auth_level; }
 
     const char* filename();
 

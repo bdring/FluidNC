@@ -195,16 +195,17 @@ void protocol_main_loop() {
         if (sdcard && sdcard->_readyNext) {
             char  fileLine[255];
             Error res;
+            auto  client = sdcard->getClient();
             switch (res = sdcard->readFileLine(fileLine, 255)) {
                 case Error::Ok:
                     sdcard->_readyNext = false;
 #ifdef DEBUG_REPORT_ECHO_RAW_LINE_RECEIVED
-                    report_echo_line_received(fileLine, CLIENT_SERIAL);
+                    report_echo_line_received(fileLine, client);
 #endif
-                    report_status_message(execute_line(fileLine, sdcard->_client, sdcard->_auth_level), sdcard->_client);
+                    report_status_message(execute_line(fileLine, client, sdcard->getAuthLevel()), client);
                     break;
                 default:
-                    report_status_message(res, sdcard->_client);
+                    report_status_message(res, client);
                     break;
             }
         }

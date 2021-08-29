@@ -609,7 +609,7 @@ namespace WebUI {
         return Error::Ok;
     }
 
-    static Error openSDFile(char* parameter) {
+    static Error openSDFile(char* parameter, uint8_t client, AuthenticationLevel auth_level) {
         if (*parameter == '\0') {
             webPrintln("Missing file name!");
             return Error::InvalidValue;
@@ -629,8 +629,8 @@ namespace WebUI {
                 return Error::FsFailedBusy;
         }
 
-        if (!config->_sdCard->openFile(SD, path.c_str())) {
-            report_status_message(Error::FsFailedRead, (espresponse) ? espresponse->client() : CLIENT_ALL);
+        if (!config->_sdCard->openFile(SD, path.c_str(), client, auth_level)) {
+            report_status_message(Error::FsFailedRead, client);
             webPrintln("");
             return Error::FsFailedOpenFile;
         }
@@ -641,12 +641,12 @@ namespace WebUI {
         if (sys.state != State::Idle && sys.state != State::Alarm) {
             return Error::IdleError;
         }
-        Error err;
-        if ((err = openSDFile(parameter)) != Error::Ok) {
+        Error   err;
+        uint8_t client = (espresponse) ? espresponse->client() : CLIENT_ALL;
+        if ((err = openSDFile(parameter, client, auth_level)) != Error::Ok) {
             return err;
         }
         webPrint(dataBeginMarker);
-        config->_sdCard->_client = (espresponse) ? espresponse->client() : CLIENT_ALL;
         char  fileLine[255];
         Error res;
         while ((res = config->_sdCard->readFileLine(fileLine, 255)) == Error::Ok) {
@@ -670,7 +670,8 @@ namespace WebUI {
             webPrintln("Busy");
             return Error::IdleError;
         }
-        if ((err = openSDFile(parameter)) != Error::Ok) {
+        uint8_t client = (espresponse) ? espresponse->client() : CLIENT_ALL;
+        if ((err = openSDFile(parameter, client, auth_level)) != Error::Ok) {
             return err;
         }
         auto sdCard = config->_sdCard;
@@ -678,16 +679,14 @@ namespace WebUI {
         char  fileLine[255];
         Error res = sdCard->readFileLine(fileLine, 255);
         if (res != Error::Ok) {
-            report_status_message(res, sdCard->_client);
+            report_status_message(res, client);
             // report_status_message will close the file
             webPrintln("");
             return Error::Ok;
         }
-        sdCard->_client     = (espresponse) ? espresponse->client() : CLIENT_ALL;
-        sdCard->_auth_level = auth_level;
         // execute the first line now; Protocol.cpp handles later ones when sdCard._readyNext
-        report_status_message(execute_line(fileLine, sdCard->_client, sdCard->_auth_level), sdCard->_client);
-        report_realtime_status(sdCard->_client);
+        report_status_message(execute_line(fileLine, client, sdCard->getAuthLevel()), client);
+        report_realtime_status(client);
         return Error::Ok;
     }
 
