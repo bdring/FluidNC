@@ -10,8 +10,7 @@
 
 #include "Error.h"
 #include "NutsBolts.h"
-#include "Protocol.h"  // ExecAlarm
-#include "Serial.h"    // CLIENT_xxx
+#include "Serial.h"  // CLIENT_xxx
 
 #include <cstdint>
 #include <freertos/FreeRTOS.h>  // UBaseType_t
@@ -72,22 +71,12 @@ void _notifyf(const char* title, const char* format, ...);
 
 // Prints system status messages.
 void report_status_message(Error status_code, uint8_t client);
-void report_realtime_steps();
-
-// Prints system alarm messages.
-void report_alarm_message(ExecAlarm alarm_code);
 
 // Prints miscellaneous feedback messages.
 void report_feedback_message(Message message);
 
 // Prints welcome message
 void report_init_message(uint8_t client);
-
-// Prints help and current global settings
-void report_help(uint8_t client);
-
-// Prints global settings
-void report_settings(uint8_t client, uint8_t show_extended);
 
 // Prints an echo of the pre-parsed line received right before execution.
 void report_echo_line_received(char* line, uint8_t client);
@@ -104,30 +93,14 @@ void report_ngc_parameters(uint8_t client);
 // Prints current g-code parser mode state
 void report_gcode_modes(uint8_t client);
 
-// Prints startup line when requested and executed.
-void report_startup_line(uint8_t n, const char* line, uint8_t client);
-void report_execute_startup_message(const char* line, Error status_code, uint8_t client);
-
 // Prints build info and user info
 void report_build_info(const char* line, uint8_t client);
-
-void report_gcode_comment(char* comment);
 
 #ifdef DEBUG_REPORT_REALTIME
 void report_realtime_debug();
 #endif
 
-void report_machine_type(uint8_t client);
-
-char* reportAxisLimitsMsg(uint8_t axis);
-char* reportAxisNameMsg(uint8_t axis);
-char* reportAxisNameMsg(uint8_t axis, uint8_t dual_axis);
-
 void reportTaskStackSize(UBaseType_t& saved);
-
-char*  report_state_text();
-float* get_wco();
-void   mpos_to_wpos(float* position);
 
 void addPinReport(char* status, char pinLetter);
 

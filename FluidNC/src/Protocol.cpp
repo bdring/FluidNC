@@ -313,6 +313,11 @@ void protocol_execute_realtime() {
     }
 }
 
+static void alarm_msg(ExecAlarm alarm_code) {
+    _sendf(CLIENT_ALL, "ALARM:%d\r\n", static_cast<int>(alarm_code));  // OK to send to all clients
+    delay_ms(500);                                                     // Force delay to ensure message clears serial write buffer.
+}
+
 // Executes run-time commands, when required. This function is the primary state
 // machine that controls the various real-time features.
 // NOTE: Do not alter this unless you know exactly what you are doing!
@@ -324,7 +329,7 @@ static void protocol_do_alarm() {
         case ExecAlarm::HardLimit:
         case ExecAlarm::SoftLimit:
             sys.state = State::Alarm;  // Set system alarm state
-            report_alarm_message(rtAlarm);
+            alarm_msg(rtAlarm);
             report_feedback_message(Message::CriticalEvent);
             rtReset = false;  // Disable any existing reset
             do {
@@ -338,7 +343,7 @@ static void protocol_do_alarm() {
             break;
         default:
             sys.state = State::Alarm;  // Set system alarm state
-            report_alarm_message(rtAlarm);
+            alarm_msg(rtAlarm);
             break;
     }
     rtAlarm = ExecAlarm::None;

@@ -101,7 +101,7 @@ void settings_init() {
 }
 
 static Error show_help(const char* value, WebUI::AuthenticationLevel auth_level, WebUI::ESPResponseStream* out) {
-    report_help(out->client());
+    _send(out->client(), "[HLP:$$ $+ $# $S $L $G $I $N $x=val $Nx=line $J=line $SLP $C $X $H $F $E=err ~ ! ? ctrl-x]\r\n");
     return Error::Ok;
 }
 
@@ -301,7 +301,7 @@ static Error get_report_build_info(const char* value, WebUI::AuthenticationLevel
 }
 static Error report_startup_lines(const char* value, WebUI::AuthenticationLevel auth_level, WebUI::ESPResponseStream* out) {
     for (int i = 0; i < config->_macros->n_startup_lines; i++) {
-        report_startup_line(i, config->_macros->startup_line(i).c_str(), out->client());
+        _sendf(out->client(), "$N%d=%s\r\n", i, config->_macros->startup_line(i).c_str());
     }
     return Error::Ok;
 }
@@ -705,7 +705,8 @@ void settings_execute_startup() {
             char gcline[256];
             strncpy(gcline, s, 255);
             status_code = gc_execute_line(gcline, CLIENT_SERIAL);
-            report_execute_startup_message(gcline, status_code, CLIENT_SERIAL);
+            _sendf(CLIENT_SERIAL, ">%s:", gcline);  // OK to send to all
+            report_status_message(status_code, CLIENT_SERIAL);
         }
     }
 }

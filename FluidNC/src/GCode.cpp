@@ -59,6 +59,20 @@ void gc_sync_position() {
     motor_steps_to_mpos(gc_state.position, motor_steps);
 }
 
+static void gcode_comment_msg(char* comment) {
+    char          msg[80];
+    const uint8_t offset = 4;  // ignore "MSG_" part of comment
+    uint8_t       index  = offset;
+    if (strstr(comment, "MSG")) {
+        while (index < strlen(comment)) {
+            msg[index - offset] = comment[index];
+            index++;
+        }
+        msg[index - offset] = 0;  // null terminate
+        log_info("GCode Comment..." << msg);
+    }
+}
+
 // Edit GCode line in-place, removing whitespace and comments and
 // converting to uppercase
 void collapseGCode(char* line) {
@@ -77,7 +91,7 @@ void collapseGCode(char* line) {
                 if (parenPtr) {
                     // Terminate comment by replacing ) with NUL
                     *inPtr = '\0';
-                    report_gcode_comment(parenPtr);
+                    gcode_comment_msg(parenPtr);
                     parenPtr = NULL;
                 }
                 // Strip out ) that does not follow a (
@@ -88,7 +102,7 @@ void collapseGCode(char* line) {
                 break;
             case ';':
                 // NOTE: ';' comment to EOL is a LinuxCNC definition. Not NIST.
-                // report_gcode_comment(inPtr + 1);
+                // gcode_comment_msg(inPtr + 1);
                 *outPtr = '\0';
                 return;
             case '%':
@@ -111,7 +125,7 @@ void collapseGCode(char* line) {
     // On loop exit, *inPtr is '\0'
     if (parenPtr) {
         // Handle unterminated ( comments
-        report_gcode_comment(parenPtr);
+        gcode_comment_msg(parenPtr);
     }
     *outPtr = '\0';
 }

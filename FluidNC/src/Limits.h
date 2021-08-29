@@ -16,8 +16,6 @@ void limits_init();
 // Returns limit state
 MotorMask limits_get_state();
 
-void homing_run_cycles(AxisMask axis_mask);
-
 // Check for soft limit violations
 void limits_soft_check(float* target);
 

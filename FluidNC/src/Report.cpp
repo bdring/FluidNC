@@ -22,7 +22,6 @@
 
 #include "Machine/MachineConfig.h"
 #include "SettingsDefinitions.h"
-#include "Protocol.h"                    // ExecAlarm
 #include "MotionControl.h"               // probe_succeeded
 #include "Limits.h"                      // limits_get_state
 #include "Planner.h"                     // plan_get_block_buffer_available
@@ -227,12 +226,6 @@ void report_status_message(Error status_code, uint8_t client) {
     }
 }
 
-// Prints alarm messages.
-void report_alarm_message(ExecAlarm alarm_code) {
-    _sendf(CLIENT_ALL, "ALARM:%d\r\n", static_cast<int>(alarm_code));  // OK to send to all clients
-    delay_ms(500);                                                     // Force delay to ensure message clears serial write buffer.
-}
-
 std::map<Message, const char*> MessageText = {
     { Message::CriticalEvent, "Reset to continue" },
     { Message::AlarmLock, "'$H'|'$X' to unlock" },
@@ -265,11 +258,6 @@ void report_feedback_message(Message message) {  // ok to send to all clients
 // Welcome message
 void report_init_message(uint8_t client) {
     _sendf(client, "\r\nGrbl %s [FluidNC %s%s, '$' for help]\r\n", GRBL_VERSION, GIT_TAG, GIT_REV);
-}
-
-// Help message
-void report_help(uint8_t client) {
-    _send(client, "[HLP:$$ $+ $# $S $L $G $I $N $x=val $Nx=line $J=line $SLP $C $X $H $F $E=err ~ ! ? ctrl-x]\r\n");
 }
 
 // Prints current probe parameters. Upon a probe command, these parameters are updated upon a
@@ -473,16 +461,6 @@ void report_gcode_modes(uint8_t client) {
     _send(client, modes_rpt);
 }
 
-// Prints specified startup line
-void report_startup_line(uint8_t n, const char* line, uint8_t client) {
-    _sendf(client, "$N%d=%s\r\n", n, line);  // OK to send to all
-}
-
-void report_execute_startup_message(const char* line, Error status_code, uint8_t client) {
-    _sendf(client, ">%s:", line);  // OK to send to all
-    report_status_message(status_code, client);
-}
-
 // Prints build info line
 void report_build_info(const char* line, uint8_t client) {
     _sendf(client, "[VER:FluidNC %s%s:%s]\r\n[OPT:", GIT_TAG, GIT_REV, line);
@@ -509,7 +487,8 @@ void report_build_info(const char* line, uint8_t client) {
     // These will likely have a comma delimiter to separate them.
     _send(client, "]\r\n");
 
-    report_machine_type(client);
+    info_client(client, "Machine: %s", config->_name.c_str());
+
     String info;
     info = WebUI::wifi_config.info();
     if (info.length()) {
@@ -538,6 +517,76 @@ void addPinReport(char* status, char pinLetter) {
     size_t pos      = strlen(status);
     status[pos]     = pinLetter;
     status[pos + 1] = '\0';
+}
+
+static float* get_wco() {
+    static float wco[MAX_N_AXIS];
+    auto         n_axis = config->_axes->_numberAxis;
+    for (int idx = 0; idx < n_axis; idx++) {
+        // Apply work coordinate offsets and tool length offset to current position.
+        wco[idx] = gc_state.coord_system[idx] + gc_state.coord_offset[idx];
+        if (idx == TOOL_LENGTH_OFFSET_AXIS) {
+            wco[idx] += gc_state.tool_length_offset;
+        }
+    }
+    return wco;
+}
+
+static void mpos_to_wpos(float* position) {
+    float* wco    = get_wco();
+    auto   n_axis = config->_axes->_numberAxis;
+    for (int idx = 0; idx < n_axis; idx++) {
+        position[idx] -= wco[idx];
+    }
+}
+
+static char* report_state_text() {
+    static char state[10];
+
+    switch (sys.state) {
+        case State::Idle:
+            strcpy(state, "Idle");
+            break;
+        case State::Cycle:
+            strcpy(state, "Run");
+            break;
+        case State::Hold:
+            if (!(sys.suspend.bit.jogCancel)) {
+                sys.suspend.bit.holdComplete ? strcpy(state, "Hold:0") : strcpy(state, "Hold:1");
+                break;
+            }  // Continues to print jog state during jog cancel.
+        case State::Jog:
+            strcpy(state, "Jog");
+            break;
+        case State::Homing:
+            strcpy(state, "Home");
+            break;
+        case State::ConfigAlarm:
+        case State::Alarm:
+            strcpy(state, "Alarm");
+            break;
+        case State::CheckMode:
+            strcpy(state, "Check");
+            break;
+        case State::SafetyDoor:
+            strcpy(state, "Door:");
+            if (sys.suspend.bit.initiateRestore) {
+                strcat(state, "3");  // Restoring
+            } else {
+                if (sys.suspend.bit.retractComplete) {
+                    sys.suspend.bit.safetyDoorAjar ? strcat(state, "1") : strcat(state, "0");
+                    ;  // Door ajar
+                    // Door closed and ready to resume
+                } else {
+                    strcat(state, "2");  // Retracting
+                }
+            }
+            break;
+        case State::Sleep:
+            strcpy(state, "Sleep");
+            break;
+    }
+    return state;
 }
 
 // Prints real-time data. This function grabs a real-time snapshot of the stepper subprogram
@@ -702,99 +751,6 @@ void report_realtime_status(uint8_t client) {
     _send(client, status);
 }
 
-void report_realtime_steps() {
-    uint8_t idx;
-    auto    n_axis = config->_axes->_numberAxis;
-    for (idx = 0; idx < n_axis; idx++) {
-        _sendf(CLIENT_ALL, "%ld\n", motor_steps[idx]);  // OK to send to all ... debug stuff
-    }
-}
-
-void report_gcode_comment(char* comment) {
-    char          msg[80];
-    const uint8_t offset = 4;  // ignore "MSG_" part of comment
-    uint8_t       index  = offset;
-    if (strstr(comment, "MSG")) {
-        while (index < strlen(comment)) {
-            msg[index - offset] = comment[index];
-            index++;
-        }
-        msg[index - offset] = 0;  // null terminate
-        log_info("GCode Comment..." << msg);
-    }
-}
-
-void report_machine_type(uint8_t client) {
-    info_client(client, "Machine: %s", config->_name.c_str());
-}
-
-char* report_state_text() {
-    static char state[10];
-
-    switch (sys.state) {
-        case State::Idle:
-            strcpy(state, "Idle");
-            break;
-        case State::Cycle:
-            strcpy(state, "Run");
-            break;
-        case State::Hold:
-            if (!(sys.suspend.bit.jogCancel)) {
-                sys.suspend.bit.holdComplete ? strcpy(state, "Hold:0") : strcpy(state, "Hold:1");
-                break;
-            }  // Continues to print jog state during jog cancel.
-        case State::Jog:
-            strcpy(state, "Jog");
-            break;
-        case State::Homing:
-            strcpy(state, "Home");
-            break;
-        case State::ConfigAlarm:
-        case State::Alarm:
-            strcpy(state, "Alarm");
-            break;
-        case State::CheckMode:
-            strcpy(state, "Check");
-            break;
-        case State::SafetyDoor:
-            strcpy(state, "Door:");
-            if (sys.suspend.bit.initiateRestore) {
-                strcat(state, "3");  // Restoring
-            } else {
-                if (sys.suspend.bit.retractComplete) {
-                    sys.suspend.bit.safetyDoorAjar ? strcat(state, "1") : strcat(state, "0");
-                    ;  // Door ajar
-                    // Door closed and ready to resume
-                } else {
-                    strcat(state, "2");  // Retracting
-                }
-            }
-            break;
-        case State::Sleep:
-            strcpy(state, "Sleep");
-            break;
-    }
-    return state;
-}
-
-char* reportAxisLimitsMsg(uint8_t axis) {
-    static char msg[40];
-    sprintf(msg, "Limits(%0.3f,%0.3f)", limitsMinPosition(axis), limitsMaxPosition(axis));
-    return msg;
-}
-
-char* reportAxisNameMsg(uint8_t axis, uint8_t dual_axis) {
-    static char name[10];
-    sprintf(name, "%c%c Axis", config->_axes->axisName(axis), dual_axis ? '2' : ' ');
-    return name;
-}
-
-char* reportAxisNameMsg(uint8_t axis) {
-    static char name[10];
-    sprintf(name, "%c  Axis", config->_axes->axisName(axis));
-    return name;
-}
-
 void reportTaskStackSize(UBaseType_t& saved) {
 #ifdef DEBUG_REPORT_STACK_FREE
     UBaseType_t newHighWater = uxTaskGetStackHighWaterMark(NULL);
@@ -804,27 +760,5 @@ void reportTaskStackSize(UBaseType_t& saved) {
     }
 #endif
 }
-
-void mpos_to_wpos(float* position) {
-    float* wco    = get_wco();
-    auto   n_axis = config->_axes->_numberAxis;
-    for (int idx = 0; idx < n_axis; idx++) {
-        position[idx] -= wco[idx];
-    }
-}
-
-float* get_wco() {
-    static float wco[MAX_N_AXIS];
-    auto         n_axis = config->_axes->_numberAxis;
-    for (int idx = 0; idx < n_axis; idx++) {
-        // Apply work coordinate offsets and tool length offset to current position.
-        wco[idx] = gc_state.coord_system[idx] + gc_state.coord_offset[idx];
-        if (idx == TOOL_LENGTH_OFFSET_AXIS) {
-            wco[idx] += gc_state.tool_length_offset;
-        }
-    }
-    return wco;
-}
-
 const char* dataBeginMarker = "[MSG: BeginData]\n";
 const char* dataEndMarker   = "[MSG: EndData]\n";
