@@ -6,6 +6,7 @@
 // #define false 0
 // #define true 1
 
+#include <WString.h>
 #include <cstdint>
 #include <esp_attr.h>
 #include <xtensa/core-macros.h>
@@ -160,11 +161,13 @@ T mapConstrain(T x, T in_min, T in_max, T out_min, T out_max) {
 
 // constrain a value and issue a message. Returns true is the value was OK
 template <typename T>
-bool constrain_with_message(T &value, T min, T max) {
+bool constrain_with_message(T& value, T min, T max) {
     if (value < min || value > max) {
         log_warn("Value " << value << " constrained to range (" << min << "," << max << ")");
-        value = myConstrain(value, min, max);   
+        value = myConstrain(value, min, max);
         return false;
     }
     return true;
 }
+
+String formatBytes(uint64_t bytes);

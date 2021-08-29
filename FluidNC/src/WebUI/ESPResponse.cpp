@@ -45,19 +45,6 @@ namespace WebUI {
         }
     }
 
-    //helper to format size to readable string
-    String ESPResponseStream::formatBytes(uint64_t bytes) {
-        if (bytes < 1024) {
-            return String((uint16_t)bytes) + " B";
-        } else if (bytes < (1024 * 1024)) {
-            return String((float)(bytes / 1024.0), 2) + " KB";
-        } else if (bytes < (1024 * 1024 * 1024)) {
-            return String((float)(bytes / 1024.0 / 1024.0), 2) + " MB";
-        } else {
-            return String((float)(bytes / 1024.0 / 1024.0 / 1024.0), 2) + " GB";
-        }
-    }
-
     void ESPResponseStream::print(const char* data) {
         if (_client == CLIENT_INPUT) {
             return;

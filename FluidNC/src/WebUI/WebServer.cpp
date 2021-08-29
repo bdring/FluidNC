@@ -821,7 +821,7 @@ namespace WebUI {
             } else {
                 //do not add "." file
                 if (!((filename == ".") || (filename == ""))) {
-                    size = ESPResponseStream::formatBytes(fileparsed.size());
+                    size = formatBytes(fileparsed.size());
                 } else {
                     addtolist = false;
                 }
@@ -849,8 +849,8 @@ namespace WebUI {
         size_t usedBytes;
         totalBytes = SPIFFS.totalBytes();
         usedBytes  = SPIFFS.usedBytes();
-        jsonfile += "\"total\":\"" + ESPResponseStream::formatBytes(totalBytes) + "\",";
-        jsonfile += "\"used\":\"" + ESPResponseStream::formatBytes(usedBytes) + "\",";
+        jsonfile += "\"total\":\"" + formatBytes(totalBytes) + "\",";
+        jsonfile += "\"used\":\"" + formatBytes(usedBytes) + "\",";
         jsonfile.concat(F("\"occupation\":\""));
         jsonfile += String(100 * usedBytes / totalBytes);
         jsonfile += "\"";
@@ -1322,7 +1322,7 @@ namespace WebUI {
                     jsonfile += "-1";
                 } else {
                     // files have sizes, directories do not
-                    jsonfile += ESPResponseStream::formatBytes(entry.size());
+                    jsonfile += formatBytes(entry.size());
                 }
                 jsonfile += "\",\"datetime\":\"";
                 //TODO - can be done later
@@ -1340,8 +1340,8 @@ namespace WebUI {
         //SDCard are in GB or MB but no less
         totalspace  = SD.totalBytes();
         usedspace   = SD.usedBytes();
-        stotalspace = ESPResponseStream::formatBytes(totalspace);
-        susedspace  = ESPResponseStream::formatBytes(usedspace + 1);
+        stotalspace = formatBytes(totalspace);
+        susedspace  = formatBytes(usedspace + 1);
 
         uint32_t occupedspace = 1;
         uint32_t usedspace2   = usedspace / (1024 * 1024);

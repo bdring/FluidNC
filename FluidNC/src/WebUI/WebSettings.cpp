@@ -206,8 +206,8 @@ namespace WebUI {
 
     static Error SPIFFSSize(char* parameter, AuthenticationLevel auth_level) {  // ESP720
         webPrint(parameter);
-        webPrint("SPIFFS  Total:", ESPResponseStream::formatBytes(SPIFFS.totalBytes()));
-        webPrintln(" Used:", ESPResponseStream::formatBytes(SPIFFS.usedBytes()));
+        webPrint("SPIFFS  Total:", formatBytes(SPIFFS.totalBytes()));
+        webPrintln(" Used:", formatBytes(SPIFFS.usedBytes()));
         return Error::Ok;
     }
 
@@ -383,8 +383,8 @@ namespace WebUI {
                     flashsize = partition->size;
                 }
             }
-            webPrintln("Available Size for update: ", ESPResponseStream::formatBytes(flashsize));
-            webPrintln("Available Size for SPIFFS: ", ESPResponseStream::formatBytes(SPIFFS.totalBytes()));
+            webPrintln("Available Size for update: ", formatBytes(flashsize));
+            webPrintln("Available Size for SPIFFS: ", formatBytes(SPIFFS.totalBytes()));
 
             webPrintln("Web port: ", String(web_server.port()));
             webPrintln("Data port: ", String(telnet_server.port()));
@@ -512,9 +512,9 @@ namespace WebUI {
         webPrintln("Chip ID: ", String((uint16_t)(ESP.getEfuseMac() >> 32)));
         webPrintln("CPU Frequency: ", String(ESP.getCpuFreqMHz()) + "Mhz");
         webPrintln("CPU Temperature: ", String(temperatureRead(), 1) + "C");
-        webPrintln("Free memory: ", ESPResponseStream::formatBytes(ESP.getFreeHeap()));
+        webPrintln("Free memory: ", formatBytes(ESP.getFreeHeap()));
         webPrintln("SDK: ", ESP.getSdkVersion());
-        webPrintln("Flash Size: ", ESPResponseStream::formatBytes(ESP.getFlashChipSize()));
+        webPrintln("Flash Size: ", formatBytes(ESP.getFlashChipSize()));
 
 #ifdef ENABLE_WIFI
         // Round baudRate to nearest 100 because ESP32 can say e.g. 115201
@@ -748,9 +748,9 @@ namespace WebUI {
 
         webPrintln("");
         config->_sdCard->listDir(SD, "/", 10, espresponse->client());
-        String ssd = "[SD Free:" + ESPResponseStream::formatBytes(SD.totalBytes() - SD.usedBytes());
-        ssd += " Used:" + ESPResponseStream::formatBytes(SD.usedBytes());
-        ssd += " Total:" + ESPResponseStream::formatBytes(SD.totalBytes());
+        String ssd = "[SD Free:" + formatBytes(SD.totalBytes() - SD.usedBytes());
+        ssd += " Used:" + formatBytes(SD.usedBytes());
+        ssd += " Total:" + formatBytes(SD.totalBytes());
         ssd += "]";
         webPrintln(ssd);
         config->_sdCard->end();
@@ -788,9 +788,9 @@ namespace WebUI {
     static Error listLocalFiles(char* parameter, AuthenticationLevel auth_level) {  // No ESP command
         webPrintln("");
         listDirLocalFS(SPIFFS, "/", 10, espresponse->client());
-        String ssd = "[Local FS Free:" + ESPResponseStream::formatBytes(SPIFFS.totalBytes() - SPIFFS.usedBytes());
-        ssd += " Used:" + ESPResponseStream::formatBytes(SPIFFS.usedBytes());
-        ssd += " Total:" + ESPResponseStream::formatBytes(SPIFFS.totalBytes());
+        String ssd = "[Local FS Free:" + formatBytes(SPIFFS.totalBytes() - SPIFFS.usedBytes());
+        ssd += " Used:" + formatBytes(SPIFFS.usedBytes());
+        ssd += " Total:" + formatBytes(SPIFFS.totalBytes());
         ssd += "]";
         webPrintln(ssd);
         return Error::Ok;
