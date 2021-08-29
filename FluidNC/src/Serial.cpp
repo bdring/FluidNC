@@ -315,7 +315,13 @@ void client_write(uint8_t client, const char* text) {
         return;
     }
 
-    WebUI::SerialBT.print(text);
+    if (client == CLIENT_BT || client == CLIENT_ALL) {
+        // There used to be a problem when you try to send data using SerialBT.write(...)
+        // per https://github.com/espressif/arduino-esp32/issues/1537
+        // but apparently it has since been fixed...
+        // ESP32 discussion here ...  https://github.com/bdring/Grbl_Esp32/issues/3
+        WebUI::SerialBT.write((const uint8_t*)text, strlen(text));
+    }
     if (client == CLIENT_WEBUI || client == CLIENT_ALL) {
         WebUI::Serial2Socket.write((const uint8_t*)text, strlen(text));
     }

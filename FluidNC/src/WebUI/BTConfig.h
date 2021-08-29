@@ -19,7 +19,7 @@ namespace WebUI {
         // the Rx queue size to 512 and code in Report.cpp subtracts available()
         // from that to determine how many characters can be sent.
         int  available() { return 512; };
-        void print(const char* text) {};
+        void write(const uint8_t* buffer, size_t size) {};
     };
     extern BluetoothSerial SerialBT;
 

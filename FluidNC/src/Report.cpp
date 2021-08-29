@@ -16,14 +16,6 @@
 
   ESP32 Notes:
 
-  Major rewrite to fix issues with BlueTooth. As described here there is a problem
-  when you try to send data a single byte at a time using SerialBT.write(...).
-  https://github.com/espressif/arduino-esp32/issues/1537
-
-  A solution is to send messages as a string using SerialBT.print(...), using
-  a short delay after each send.
-
-  ESP32 discussion here ...  https://github.com/bdring/Grbl_Esp32/issues/3
 */
 
 #include "Report.h"
