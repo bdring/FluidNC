@@ -41,7 +41,6 @@
 #ifdef DEBUG_REPORT_HEAP
 EspClass esp;
 #endif
-const int DEFAULTBUFFERSIZE = 64;
 
 portMUX_TYPE mmux = portMUX_INITIALIZER_UNLOCKED;
 
@@ -566,19 +565,7 @@ void report_realtime_status(uint8_t client) {
 
     // Returns planner and serial read buffer states.
     if (bits_are_true(status_mask->get(), RtStatus::Buffer)) {
-        int bufsize = DEFAULTBUFFERSIZE;
-        if (client == CLIENT_TELNET) {
-            bufsize = WebUI::telnet_server.get_rx_buffer_available();
-        }
-        if (client == CLIENT_BT) {
-            //TODO FIXME
-            bufsize = 512 - WebUI::SerialBT.available();
-        }
-
-        if (client == CLIENT_SERIAL) {
-            bufsize = client_get_rx_buffer_available(CLIENT_SERIAL);
-        }
-        sprintf(temp, "|Bf:%d,%d", plan_get_block_buffer_available(), bufsize);
+        sprintf(temp, "|Bf:%d,%d", plan_get_block_buffer_available(), client_get_rx_buffer_available(client));
         strcat(status, temp);
     }
 

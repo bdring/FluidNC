@@ -153,7 +153,6 @@ static int32_t idleEndTime = 0;
 void protocol_main_loop() {
     client_reset_read_buffer(CLIENT_ALL);
     empty_lines();
-    //uint8_t client = CLIENT_SERIAL; // default client
 
     // Check for and report alarm state after a reset, error, or an initial power up.
     // NOTE: Sleep mode disables the stepper drivers and position can't be guaranteed.

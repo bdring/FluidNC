@@ -64,7 +64,17 @@ WebUI::InputBuffer client_buffer[CLIENT_COUNT];  // create a buffer for each cli
 
 // Returns the number of bytes available in a client buffer.
 uint8_t client_get_rx_buffer_available(uint8_t client) {
-    return 128 - Uart0.available();
+    switch (client) {
+        case CLIENT_SERIAL:
+            return 128 - Uart0.available();
+        case CLIENT_BT:
+            // XXX possibly wrong
+            return 512 - WebUI::SerialBT.available();
+        case CLIENT_TELNET:
+            return WebUI::telnet_server.get_rx_buffer_available();
+        default:
+            return 64;
+    }
 }
 
 void heapCheckTask(void* pvParameters) {
