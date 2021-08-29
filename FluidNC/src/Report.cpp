@@ -733,18 +733,6 @@ void report_machine_type(uint8_t client) {
     Ex: report_hex_msg(msg, "Rx:", 6);
     Would would print something like ... [MSG Rx: 0x01 0x03 0x01 0x08 0x31 0xbf]
 */
-void report_hex_msg(char* buf, const char* prefix, int len) {
-    char report[200];
-    char temp[20];
-    sprintf(report, "%s", prefix);
-    for (int i = 0; i < len; i++) {
-        sprintf(temp, " 0x%02X", buf[i]);
-        strcat(report, temp);
-    }
-
-    log_info(report);
-}
-
 void report_hex_msg(uint8_t* buf, const char* prefix, int len) {
     char report[200];
     char temp[20];
