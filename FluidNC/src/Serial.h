@@ -19,7 +19,7 @@ enum ClientType : client_t {
     CLIENT_WEBUI  = 2,
     CLIENT_TELNET = 3,
     CLIENT_INPUT  = 4,
-    CLIENT_ALL    = 0xFF,
+    CLIENT_ALL    = 5,
     CLIENT_COUNT  = 5,  // total number of client types regardless if they are used
     CLIENT_FILE   = 6,  // Not included in CLIENT_COUNT
 };
@@ -96,3 +96,6 @@ public:
     void add(char c) override;
     ~ClientStream();
 };
+
+#include <Stream.h>
+extern Stream* clientStreams[];

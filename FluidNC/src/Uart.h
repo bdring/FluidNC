@@ -47,14 +47,14 @@ public:
     size_t readBytes(uint8_t* buffer, size_t length, TickType_t timeout) {
         return readBytes(reinterpret_cast<char*>(buffer), length, timeout);
     }
-    size_t        readBytes(char* buffer, size_t length) override;
-    int           peek(void) override;
-    size_t        write(uint8_t data);
-    size_t        write(const uint8_t* buffer, size_t length);
-    inline size_t write(const char* buffer, size_t size) { return write(reinterpret_cast<const uint8_t*>(buffer), size); }
-    size_t        write(const char* text);
-    void          flush() { uart_flush(_uart_num); }
-    bool          flushTxTimed(TickType_t ticks);
+    size_t readBytes(char* buffer, size_t length) override;
+    int    peek(void) override;
+    size_t write(uint8_t data) override;
+    size_t write(const uint8_t* buffer, size_t length) override;
+    // inline size_t write(const char* buffer, size_t size) { return write(reinterpret_cast<const uint8_t*>(buffer), size); }
+    // size_t        write(const char* text) override;
+    void flush() { uart_flush(_uart_num); }
+    bool flushTxTimed(TickType_t ticks);
 
     // Configuration handlers:
     void validate() const override {

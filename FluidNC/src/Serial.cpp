@@ -117,23 +117,73 @@ void client_init() {
     );
 }
 
-static ClientType getClientChar(int& data) {
-    if (client_buffer[CLIENT_SERIAL].availableforwrite() && (data = Uart0.read()) != -1) {
-        return CLIENT_SERIAL;
-    }
-    if (WebUI::inputBuffer.available()) {
-        data = WebUI::inputBuffer.read();
-        return CLIENT_INPUT;
+class ClientMux : public Stream {
+    // Stream* _lastReadClient;
+    ClientType _lastReadClient;
+
+public:
+    ClientMux() = default;
+    int read() {
+        for (size_t i = 0; i < CLIENT_ALL; i++) {
+            int c = clientStreams[i]->read();
+            if (c >= 0) {
+                // _lastReadClient = clientStreams[i];
+                _lastReadClient = static_cast<ClientType>(i);
+                return c;
+            }
+        }
+        return -1;
+    };
+    int available() {
+        for (size_t i = 0; i < CLIENT_ALL; i++) {
+            int n = clientStreams[i]->available();
+            if (n > 0) {
+                // _lastReadClient = clientStreams[i];
+                _lastReadClient = static_cast<ClientType>(i);
+                return n;
+            }
+        }
+        return 0;
+    };
+    int peek() override { return -1; }
+
+    size_t write(uint8_t data) override {
+        for (size_t i = 0; i < CLIENT_ALL; i++) {
+            clientStreams[i]->write(data);
+        }
+        return 1;
+    };
+    size_t write(const uint8_t* buffer, size_t length) override {
+        for (size_t i = 0; i < CLIENT_ALL; i++) {
+            clientStreams[i]->write(buffer, length);
+        }
+        return length;
+    };
+    void flush() override {
+        for (size_t i = 0; i < CLIENT_ALL; i++) {
+            clientStreams[i]->flush();
+        }
     }
 
-    if ((data = WebUI::SerialBT.read()) != -1) {
-        return CLIENT_BT;
-    }
-    if ((data = WebUI::Serial2Socket.read()) != -1) {
-        return CLIENT_WEBUI;
-    }
-    if ((data = WebUI::telnet_server.read()) != -1) {
-        return CLIENT_TELNET;
+    // Stream* getLastClient() { return _lastReadClient; }
+    ClientType getLastClient() { return _lastReadClient; }
+};
+
+ClientMux clientMux;
+
+Stream* clientStreams[] = {
+    static_cast<Stream*>(&Uart0),
+    static_cast<Stream*>(&WebUI::SerialBT),
+    static_cast<Stream*>(&WebUI::Serial2Socket),
+    static_cast<Stream*>(&WebUI::telnet_server),
+    static_cast<Stream*>(&WebUI::inputBuffer),
+    static_cast<Stream*>(&clientMux),
+};
+
+static ClientType getClientChar(int& data) {
+    data = clientMux.read();
+    if (data >= 0) {
+        return clientMux.getLastClient();
     }
     return CLIENT_ALL;
 }
@@ -154,7 +204,7 @@ void clientCheckTask(void* pvParameters) {
             } else {
                 if (config->_sdCard->get_state() < SDCard::State::Busy) {
                     vTaskEnterCritical(&myMutex);
-                    client_buffer[client].write(clientByte);
+                    client_buffer[client].push(clientByte);
                     vTaskExitCritical(&myMutex);
                 } else {
                     if (clientByte == '\r' || clientByte == '\n') {
@@ -321,35 +371,14 @@ extern "C" {
 static FILE* clientFile;
 
 void client_write(client_t client, const char* text) {
-    if (client == CLIENT_INPUT) {
-        return;
-    }
-
-    if (client == CLIENT_BT || client == CLIENT_ALL) {
-        // There used to be a problem when you try to send data using SerialBT.write(...)
-        // per https://github.com/espressif/arduino-esp32/issues/1537
-        // but apparently it has since been fixed...
-        // ESP32 discussion here ...  https://github.com/bdring/Grbl_Esp32/issues/3
-        WebUI::SerialBT.write((const uint8_t*)text, strlen(text));
-    }
-    if (client == CLIENT_WEBUI || client == CLIENT_ALL) {
-        WebUI::Serial2Socket.write((const uint8_t*)text, strlen(text));
-    }
-    if (client == CLIENT_TELNET || client == CLIENT_ALL) {
-        WebUI::telnet_server.write((const uint8_t*)text, strlen(text));
-    }
-
-    if (client == CLIENT_SERIAL || client == CLIENT_ALL) {
-        // This used to be Serial.write(text) before we made the Uart class
-        // The Arduino HardwareSerial class is buggy in some versions.
-        Uart0.write(text);
-    }
-
     if (client == CLIENT_FILE) {
         size_t len    = strlen(text);
         size_t actual = fwrite(text, 1, len, clientFile);
         Assert(actual == len, "File write failed");
+        return;
     }
+
+    clientStreams[client]->write((const uint8_t*)text, strlen(text));
 }
 
 void ClientStream::add(char c) {

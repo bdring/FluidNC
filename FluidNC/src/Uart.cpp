@@ -111,9 +111,9 @@ size_t Uart::write(const uint8_t* buffer, size_t length) {
     return uart_write_bytes(_uart_num, (const char*)buffer, length);
 }
 
-size_t Uart::write(const char* text) {
-    return uart_write_bytes(_uart_num, text, strlen(text));
-}
+// size_t Uart::write(const char* text) {
+//    return uart_write_bytes(_uart_num, text, strlen(text));
+// }
 
 bool Uart::setHalfDuplex() {
     return uart_set_mode(_uart_num, UART_MODE_RS485_HALF_DUPLEX) != ESP_OK;
@@ -130,7 +130,7 @@ Uart Uart0(0);
 void uartInit() {
     Uart0.setPins(GPIO_NUM_1, GPIO_NUM_3);  // Tx 1, Rx 3 - standard hardware pins
     Uart0.begin(BAUD_RATE, UartData::Bits8, UartStop::Bits1, UartParity::None);
-    Uart0.write("\r\n");  // create some white space after ESP32 boot info
+    Uart0.println();  // create some white space after ESP32 boot info
 }
 
 void Uart::config_message(const char* prefix, const char* usage) {

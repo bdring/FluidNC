@@ -84,6 +84,8 @@ namespace WebUI {
         }
     }
 
+    size_t Telnet_Server::write(uint8_t data) { return write(&data, 1); }
+
     size_t Telnet_Server::write(const uint8_t* buffer, size_t size) {
         size_t wsize = 0;
         if (!_setupdone || _telnetserver == NULL) {

@@ -4,14 +4,18 @@
 #pragma once
 
 #include "../Config.h"  // ENABLE_*
+#include <Stream.h>
 
 #ifndef ENABLE_WIFI
+
 namespace WebUI {
-    class Telnet_Server {
+    class Telnet_Server : public Stream {
     public:
         Telnet_Server() = default;
         int    read() { return -1; }
-        size_t write(const uint8_t* buffer, size_t size) { return 0; }
+        size_t write(uint8_t* data) override { return 0; }
+        int    peek() override { return -1; }
+        void   flush() override {}
         size_t get_rx_buffer_available() { return 0; }
     };
     extern Telnet_Server telnet_server;
@@ -22,7 +26,7 @@ class WiFiServer;
 class WiFiClient;
 
 namespace WebUI {
-    class Telnet_Server {
+    class Telnet_Server : public Stream {
         //how many clients should be able to telnet to this ESP32
         static const int MAX_TLNT_CLIENTS = 1;
 
@@ -35,6 +39,7 @@ namespace WebUI {
         bool   begin();
         void   end();
         void   handle();
+        size_t write(uint8_t data) override;
         size_t write(const uint8_t* buffer, size_t size);
         int    read(void);
         int    peek(void);
@@ -42,6 +47,7 @@ namespace WebUI {
         int    get_rx_buffer_available();
         bool   push(uint8_t data);
         bool   push(const uint8_t* data, int datasize);
+        void   flush() override {}
 
         static uint16_t port() { return _port; }
 

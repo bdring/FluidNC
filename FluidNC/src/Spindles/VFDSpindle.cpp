@@ -189,7 +189,7 @@ namespace Spindles {
             for (; retry_count < MAX_RETRIES; ++retry_count) {
                 // Flush the UART and write the data:
                 uart.flush();
-                uart.write(reinterpret_cast<const char*>(next_cmd.msg), next_cmd.tx_length);
+                uart.write(next_cmd.msg, next_cmd.tx_length);
                 uart.flushTxTimed(response_ticks);
 
                 // Read the response

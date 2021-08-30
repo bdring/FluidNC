@@ -3,29 +3,24 @@
 
 #pragma once
 
-#include <Print.h>
+#include <Stream.h>
 #include <cstring>
 
 namespace WebUI {
-    class InputBuffer : public Print {
+    class InputBuffer : public Stream {
     public:
         InputBuffer();
 
-        size_t        write(uint8_t c);
-        size_t        write(const uint8_t* buffer, size_t size);
-        inline size_t write(const char* s) { return write((uint8_t*)s, ::strlen(s)); }
-        inline size_t write(unsigned long n) { return write((uint8_t)n); }
-        inline size_t write(long n) { return write((uint8_t)n); }
-        inline size_t write(unsigned int n) { return write((uint8_t)n); }
-        inline size_t write(int n) { return write((uint8_t)n); }
-        void          begin();
-        void          end();
-        int           available();
-        int           availableforwrite();
-        int           peek(void);
-        int           read(void);
-        bool          push(const char* data);
-        void          flush(void);
+        size_t write(uint8_t c) override { return 0; }
+        void   begin();
+        void   end();
+        int    available();
+        int    availableforwrite();
+        int    peek(void);
+        int    read(void);
+        bool   push(const char* data);
+        bool   push(char data);
+        void   flush(void);
 
         operator bool() const;
 

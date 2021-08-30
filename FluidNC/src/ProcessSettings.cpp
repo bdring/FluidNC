@@ -269,14 +269,14 @@ static void write_limit_set(uint32_t mask) {
     }
 }
 static Error show_limits(const char* value, WebUI::AuthenticationLevel auth_level, WebUI::ESPResponseStream* out) {
-    Uart0.write("Send ! to exit\n");
-    Uart0.write("Homing Axes: ");
+    Uart0.print("Send ! to exit\n");
+    Uart0.print("Homing Axes: ");
     write_limit_set(Machine::Axes::homingMask);
     Uart0.write('\n');
-    Uart0.write("Limit  Axes: ");
+    Uart0.print("Limit  Axes: ");
     write_limit_set(Machine::Axes::limitMask);
     Uart0.write('\n');
-    Uart0.write("PosLimitPins NegLimitPins\n");
+    Uart0.print("PosLimitPins NegLimitPins\n");
     do {
         write_limit_set(Machine::Axes::posLimitMask);
         Uart0.write(' ');
