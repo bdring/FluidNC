@@ -7,6 +7,7 @@
 
 #include <cstdint>
 #include <WString.h>
+#include "../Serial.h"  // client_t
 
 #ifdef ENABLE_WIFI
 class WebServer;
@@ -19,19 +20,19 @@ namespace WebUI {
         ESPResponseStream(WebServer* webserver);
 #endif
 
-        ESPResponseStream(uint8_t client, bool byid = true);
+        ESPResponseStream(client_t client, bool byid = true);
         ESPResponseStream();
 
-        void    print(const char data);
-        void    print(const char* data);
-        void    println(const char* data);
-        void    flush();
-        bool    anyOutput() { return _header_sent; }
-        uint8_t client() { return _client; }
+        void     print(const char data);
+        void     print(const char* data);
+        void     println(const char* data);
+        void     flush();
+        bool     anyOutput() { return _header_sent; }
+        client_t client() { return _client; }
 
     private:
-        uint8_t _client;
-        bool    _header_sent;
+        client_t _client;
+        bool     _header_sent;
 
 #ifdef ENABLE_WIFI
         WebServer* _webserver;

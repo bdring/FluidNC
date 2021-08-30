@@ -20,7 +20,7 @@ const int MAX_INT_DIGITS = 8;  // Maximum number of digits in int32 (and float)
 // Scientific notation is officially not supported by g-code, and the 'E' character may
 // be a g-code word on some CNC systems. So, 'E' notation will not be recognized.
 // NOTE: Thanks to Radu-Eosif Mihailescu for identifying the issues with using strtod().
-uint8_t read_float(const char* line, uint8_t* char_counter, float* float_ptr) {
+bool read_float(const char* line, size_t* char_counter, float* float_ptr) {
     const char*   ptr = line + *char_counter;
     unsigned char c;
     // Grab first character and increment pointer. No spaces assumed in line.
@@ -37,7 +37,7 @@ uint8_t read_float(const char* line, uint8_t* char_counter, float* float_ptr) {
     // Extract number into fast integer. Track decimal in terms of exponent value.
     uint32_t intval    = 0;
     int8_t   exp       = 0;
-    uint8_t  ndigit    = 0;
+    size_t   ndigit    = 0;
     bool     isdecimal = false;
     while (1) {
         c -= '0';
@@ -128,28 +128,27 @@ float hypot_f(float x, float y) {
 }
 
 float convert_delta_vector_to_unit_vector(float* vector) {
-    uint8_t idx;
-    float   magnitude = 0.0;
-    auto    n_axis    = config->_axes->_numberAxis;
-    for (idx = 0; idx < n_axis; idx++) {
+    float magnitude = 0.0;
+    auto  n_axis    = config->_axes->_numberAxis;
+    for (size_t idx = 0; idx < n_axis; idx++) {
         if (vector[idx] != 0.0) {
             magnitude += vector[idx] * vector[idx];
         }
     }
     magnitude           = float(sqrt(magnitude));
     float inv_magnitude = 1.0f / magnitude;
-    for (idx = 0; idx < n_axis; idx++) {
+    for (size_t idx = 0; idx < n_axis; idx++) {
         vector[idx] *= inv_magnitude;
     }
     return magnitude;
 }
 
 const float secPerMinSq = 60.0 * 60.0;  // Seconds Per Minute Squared, for acceleration conversion
-float       limit_acceleration_by_axis_maximum(float* unit_vec) {
-    uint8_t idx;
-    float   limit_value = SOME_LARGE_VALUE;
-    auto    n_axis      = config->_axes->_numberAxis;
-    for (idx = 0; idx < n_axis; idx++) {
+
+float limit_acceleration_by_axis_maximum(float* unit_vec) {
+    float limit_value = SOME_LARGE_VALUE;
+    auto  n_axis      = config->_axes->_numberAxis;
+    for (size_t idx = 0; idx < n_axis; idx++) {
         auto axisSetting = config->_axes->_axis[idx];
         if (unit_vec[idx] != 0) {  // Avoid divide by zero.
             limit_value = MIN(limit_value, float(fabs(axisSetting->_acceleration / unit_vec[idx])));
@@ -163,10 +162,9 @@ float       limit_acceleration_by_axis_maximum(float* unit_vec) {
 }
 
 float limit_rate_by_axis_maximum(float* unit_vec) {
-    uint8_t idx;
-    float   limit_value = SOME_LARGE_VALUE;
-    auto    n_axis      = config->_axes->_numberAxis;
-    for (idx = 0; idx < n_axis; idx++) {
+    float limit_value = SOME_LARGE_VALUE;
+    auto  n_axis      = config->_axes->_numberAxis;
+    for (size_t idx = 0; idx < n_axis; idx++) {
         auto axisSetting = config->_axes->_axis[idx];
         if (unit_vec[idx] != 0) {  // Avoid divide by zero.
             limit_value = MIN(limit_value, float(fabs(axisSetting->_maxRate / unit_vec[idx])));

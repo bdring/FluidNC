@@ -11,13 +11,13 @@ namespace Pins {
         PinAttributes   _attributes;
         int             _readWriteMask;
 
-        static PinCapabilities GetDefaultCapabilities(uint8_t index);
+        static PinCapabilities GetDefaultCapabilities(pinnum_t index);
 
         static const int         nGPIOPins = 40;
         static std::vector<bool> _claimed;
 
     public:
-        GPIOPinDetail(uint8_t index, PinOptionsParser options);
+        GPIOPinDetail(pinnum_t index, PinOptionsParser options);
 
         PinCapabilities capabilities() const override;
 

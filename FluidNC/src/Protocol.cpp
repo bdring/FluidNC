@@ -56,11 +56,11 @@ volatile bool rtButtonMacro3;
 
 static void protocol_exec_rt_suspend();
 
-static char    line[LINE_BUFFER_SIZE];     // Line to be executed. Zero-terminated.
-static char    comment[LINE_BUFFER_SIZE];  // Line to be executed. Zero-terminated.
-static uint8_t line_flags           = 0;
-static uint8_t char_counter         = 0;
-static uint8_t comment_char_counter = 0;
+static char line[LINE_BUFFER_SIZE];     // Line to be executed. Zero-terminated.
+static char comment[LINE_BUFFER_SIZE];  // Line to be executed. Zero-terminated.
+// static uint8_t line_flags           = 0;
+// static uint8_t char_counter         = 0;
+// static uint8_t comment_char_counter = 0;
 
 // Spindle stop override control states.
 struct SpindleStopBits {
@@ -84,18 +84,18 @@ struct client_line_t {
 
 client_line_t client_lines[CLIENT_COUNT];
 
-static void empty_line(uint8_t client) {
+static void empty_line(client_t client) {
     client_line_t* cl = &client_lines[client];
     cl->len           = 0;
     cl->buffer[0]     = '\0';
 }
 static void empty_lines() {
-    for (uint8_t client = 0; client < CLIENT_COUNT; client++) {
-        empty_line(client);
+    for (size_t i = 0; i < CLIENT_COUNT; i++) {
+        empty_line(i);
     }
 }
 
-Error add_char_to_line(char c, uint8_t client) {
+Error add_char_to_line(char c, client_t client) {
     client_line_t* cl = &client_lines[client];
     // Simple editing for interactive input
     if (c == '\b') {
@@ -212,11 +212,11 @@ void protocol_main_loop() {
         // Receive one line of incoming serial data, as the data becomes available.
         // Filtering, if necessary, is done later in gc_execute_line(), so the
         // filtering is the same with serial and file input.
-        uint8_t client = CLIENT_SERIAL;
-        char*   line;
-        for (client = 0; client < CLIENT_COUNT; client++) {
-            while ((c = client_read(client)) != -1) {
-                Error res = add_char_to_line(c, client);
+        client_t client = CLIENT_SERIAL;
+        char*    line;
+        for (client_t client_num = 0; client_num < CLIENT_COUNT; client_num++) {
+            while ((c = client_read(client_num)) != -1) {
+                Error res = add_char_to_line(c, client_num);
                 switch (res) {
                     case Error::Ok:
                         break;
@@ -225,17 +225,17 @@ void protocol_main_loop() {
                         if (sys.abort) {
                             return;  // Bail to calling function upon system abort
                         }
-                        line = client_lines[client].buffer;
+                        line = client_lines[client_num].buffer;
 #ifdef DEBUG_REPORT_ECHO_RAW_LINE_RECEIVED
-                        report_echo_line_received(line, client);
+                        report_echo_line_received(line, client_num);
 #endif
                         // auth_level can be upgraded by supplying a password on the command line
-                        report_status_message(execute_line(line, client, WebUI::AuthenticationLevel::LEVEL_GUEST), client);
-                        empty_line(client);
+                        report_status_message(execute_line(line, client_num, WebUI::AuthenticationLevel::LEVEL_GUEST), client_num);
+                        empty_line(client_num);
                         break;
                     case Error::Overflow:
-                        report_status_message(Error::Overflow, client);
-                        empty_line(client);
+                        report_status_message(Error::Overflow, client_num);
+                        empty_line(client_num);
                         break;
                     default:
                         break;

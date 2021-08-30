@@ -461,13 +461,12 @@ namespace WebUI {
                 return;
             }
             //Instead of send several commands one by one by web  / send full set and split here
-            String  scmd;
-            bool    hasError = false;
-            uint8_t sindex   = 0;
+            String scmd;
+            bool   hasError = false;
             // TODO Settings - this is very inefficient.  get_Splited_Value() is O(n^2)
             // when it could easily be O(n).  Also, it would be just as easy to push
             // the entire string into Serial2Socket and pull off lines from there.
-            for (uint8_t sindex = 0; (scmd = get_Splited_Value(cmd, '\n', sindex)) != ""; sindex++) {
+            for (size_t sindex = 0; (scmd = get_Splited_Value(cmd, '\n', sindex)) != ""; sindex++) {
                 // 0xC2 is an HTML encoding prefix that, in UTF-8 mode,
                 // precede 0x90 and 0xa0-0bf, which are GRBL realtime commands.
                 // There are other encodings for 0x91-0x9f, so I am not sure

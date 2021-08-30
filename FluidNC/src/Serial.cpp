@@ -63,7 +63,7 @@ static TaskHandle_t clientCheckTaskHandle = 0;
 WebUI::InputBuffer client_buffer[CLIENT_COUNT];  // create a buffer for each client
 
 // Returns the number of bytes available in a client buffer.
-uint8_t client_get_rx_buffer_available(uint8_t client) {
+int client_get_rx_buffer_available(client_t client) {
     switch (client) {
         case CLIENT_SERIAL:
             return 128 - Uart0.available();
@@ -182,8 +182,8 @@ void clientCheckTask(void* pvParameters) {
     }
 }
 
-void client_reset_read_buffer(uint8_t client) {
-    for (uint8_t client_num = 0; client_num < CLIENT_COUNT; client_num++) {
+void client_reset_read_buffer(client_t client) {
+    for (client_t client_num = 0; client_num < CLIENT_COUNT; client_num++) {
         if (client == client_num || client == CLIENT_ALL) {
             client_buffer[client_num].begin();
         }
@@ -191,7 +191,7 @@ void client_reset_read_buffer(uint8_t client) {
 }
 
 // Fetches the first byte in the client read buffer. Called by protocol loop.
-int client_read(uint8_t client) {
+int client_read(client_t client) {
     vTaskEnterCritical(&myMutex);
     int data = client_buffer[client].read();
     vTaskExitCritical(&myMutex);
@@ -208,7 +208,7 @@ bool is_realtime_command(uint8_t data) {
 }
 
 // Act upon a realtime character
-void execute_realtime_command(Cmd command, uint8_t client) {
+void execute_realtime_command(Cmd command, client_t client) {
     switch (command) {
         case Cmd::Reset:
             log_debug("Cmd::Reset");
@@ -320,7 +320,7 @@ extern "C" {
 
 static FILE* clientFile;
 
-void client_write(uint8_t client, const char* text) {
+void client_write(client_t client, const char* text) {
     if (client == CLIENT_INPUT) {
         return;
     }

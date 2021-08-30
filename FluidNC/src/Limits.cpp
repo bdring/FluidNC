@@ -89,7 +89,7 @@ void limitCheckTask(void* pvParameters) {
     }
 }
 
-float limitsMaxPosition(uint8_t axis) {
+float limitsMaxPosition(size_t axis) {
     auto  axisConfig = config->_axes->_axis[axis];
     auto  homing     = axisConfig->_homing;
     float mpos       = (homing != nullptr) ? homing->_mpos : 0;
@@ -99,7 +99,7 @@ float limitsMaxPosition(uint8_t axis) {
     return (homing == nullptr || homing->_positiveDirection) ? mpos : mpos + maxtravel;
 }
 
-float limitsMinPosition(uint8_t axis) {
+float limitsMinPosition(size_t axis) {
     auto  axisConfig = config->_axes->_axis[axis];
     auto  homing     = axisConfig->_homing;
     float mpos       = (homing != nullptr) ? homing->_mpos : 0;

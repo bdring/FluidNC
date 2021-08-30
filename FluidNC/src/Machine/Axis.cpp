@@ -31,7 +31,7 @@ namespace Machine {
     }
 
     void Axis::init() {
-        for (uint8_t i = 0; i < Axis::MAX_MOTORS_PER_AXIS; i++) {
+        for (size_t i = 0; i < Axis::MAX_MOTORS_PER_AXIS; i++) {
             auto m = _motors[i];
             if (m) {
                 log_info("  Motor" << i);
@@ -53,7 +53,7 @@ namespace Machine {
 
     // Checks if a motor matches this axis:
     bool Axis::hasMotor(const MotorDrivers::MotorDriver* const driver) const {
-        for (uint8_t i = 0; i < MAX_MOTORS_PER_AXIS; i++) {
+        for (size_t i = 0; i < MAX_MOTORS_PER_AXIS; i++) {
             auto m = _motors[i];
             if (m && m->_driver == driver) {
                 return true;
@@ -68,7 +68,7 @@ namespace Machine {
     // How many motors have switches defined?
     int Axis::motorsWithSwitches() {
         int count = 0;
-        for (uint8_t i = 0; i < MAX_MOTORS_PER_AXIS; i++) {
+        for (size_t i = 0; i < MAX_MOTORS_PER_AXIS; i++) {
             auto m = _motors[i];
             if (m && m->hasSwitches()) {
                 count++;
@@ -82,7 +82,7 @@ namespace Machine {
     float Axis::pulloffOffset() { return _motors[1]->_pulloff - _motors[0]->_pulloff; }
 
     Axis::~Axis() {
-        for (uint8_t i = 0; i < MAX_MOTORS_PER_AXIS; i++) {
+        for (size_t i = 0; i < MAX_MOTORS_PER_AXIS; i++) {
             if (_motors[i]) {
                 delete _motors[i];
             }

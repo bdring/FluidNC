@@ -240,9 +240,9 @@ namespace WebUI {
             return Error::FsFailedOpenFile;
         }
         //until no line in file
-        Error   err;
-        Error   accumErr = Error::Ok;
-        uint8_t client   = (espresponse) ? espresponse->client() : CLIENT_ALL;
+        Error    err;
+        Error    accumErr = Error::Ok;
+        client_t client   = (espresponse) ? espresponse->client() : CLIENT_ALL;
         while (currentfile.available()) {
             String currentline = currentfile.readStringUntil('\n');
             if (currentline.length() > 0) {
@@ -609,7 +609,7 @@ namespace WebUI {
         return Error::Ok;
     }
 
-    static Error openSDFile(char* parameter, uint8_t client, AuthenticationLevel auth_level) {
+    static Error openSDFile(char* parameter, client_t client, AuthenticationLevel auth_level) {
         if (*parameter == '\0') {
             webPrintln("Missing file name!");
             return Error::InvalidValue;
@@ -641,8 +641,8 @@ namespace WebUI {
         if (sys.state != State::Idle && sys.state != State::Alarm) {
             return Error::IdleError;
         }
-        Error   err;
-        uint8_t client = (espresponse) ? espresponse->client() : CLIENT_ALL;
+        Error    err;
+        client_t client = (espresponse) ? espresponse->client() : CLIENT_ALL;
         if ((err = openSDFile(parameter, client, auth_level)) != Error::Ok) {
             return err;
         }
@@ -670,7 +670,7 @@ namespace WebUI {
             webPrintln("Busy");
             return Error::IdleError;
         }
-        uint8_t client = (espresponse) ? espresponse->client() : CLIENT_ALL;
+        client_t client = (espresponse) ? espresponse->client() : CLIENT_ALL;
         if ((err = openSDFile(parameter, client, auth_level)) != Error::Ok) {
             return err;
         }
@@ -756,7 +756,7 @@ namespace WebUI {
         return Error::Ok;
     }
 
-    void listDirLocalFS(fs::FS fs, const char* dirname, uint8_t levels, uint8_t client) {
+    void listDirLocalFS(fs::FS fs, const char* dirname, size_t levels, client_t client) {
         //char temp_filename[128]; // to help filter by extension	TODO: 128 needs a definition based on something
         File root = fs.open(dirname);
         if (!root) {
@@ -795,7 +795,7 @@ namespace WebUI {
         return Error::Ok;
     }
 
-    static void listDirJSON(fs::FS fs, const char* dirname, uint8_t levels, JSONencoder* j) {
+    static void listDirJSON(fs::FS fs, const char* dirname, size_t levels, JSONencoder* j) {
         File root = fs.open(dirname);
         File file = root.openNextFile();
         while (file) {

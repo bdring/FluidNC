@@ -261,11 +261,11 @@ static Error home_c(const char* value, WebUI::AuthenticationLevel auth_level, We
 static void write_limit_set(uint32_t mask) {
     const char* motor0AxisName = "xyzabc";
     for (int i = 0; i < MAX_N_AXIS; i++) {
-        Uart0.write(bitnum_is_true(mask, i) ? uint8_t(motor0AxisName[i]) : ' ');
+        Uart0.write(bitnum_is_true(mask, i) ? char(motor0AxisName[i]) : ' ');
     }
     const char* motor1AxisName = "XYZABC";
     for (int i = 0; i < MAX_N_AXIS; i++) {
-        Uart0.write(bitnum_is_true(mask, i + 16) ? uint8_t(motor1AxisName[i]) : ' ');
+        Uart0.write(bitnum_is_true(mask, i + 16) ? char(motor1AxisName[i]) : ' ');
     }
 }
 static Error show_limits(const char* value, WebUI::AuthenticationLevel auth_level, WebUI::ESPResponseStream* out) {
@@ -689,7 +689,7 @@ Error settings_execute_line(char* line, WebUI::ESPResponseStream* out, WebUI::Au
     return do_command_or_setting(key, value, auth_level, out);
 }
 
-Error settings_execute_line(char* line, uint8_t client, WebUI::AuthenticationLevel auth_level) {
+Error settings_execute_line(char* line, client_t client, WebUI::AuthenticationLevel auth_level) {
     WebUI::ESPResponseStream stream(client, true);
     return settings_execute_line(line, &stream, auth_level);
 }
@@ -711,7 +711,7 @@ void settings_execute_startup() {
     }
 }
 
-Error execute_line(char* line, uint8_t client, WebUI::AuthenticationLevel auth_level) {
+Error execute_line(char* line, client_t client, WebUI::AuthenticationLevel auth_level) {
     Error result = Error::Ok;
     // Empty or comment line. For syncing purposes.
     if (line[0] == 0) {

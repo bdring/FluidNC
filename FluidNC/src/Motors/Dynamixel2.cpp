@@ -70,9 +70,7 @@ namespace MotorDrivers {
         startUpdateTask(_timer_ms);
     }
 
-    void Dynamixel2::config_message() {
-        log_info(axisName() << idString() << " Count(" << _dxl_count_min << "," << _dxl_count_max << ")");
-    }
+    void Dynamixel2::config_message() { log_info(axisName() << idString() << " Count(" << _dxl_count_min << "," << _dxl_count_max << ")"); }
 
     bool Dynamixel2::test() {
         uint16_t len = 3;
@@ -303,8 +301,8 @@ namespace MotorDrivers {
 
         auto   n_axis = config->_axes->_numberAxis;
         float* mpos   = get_mpos();
-        for (uint8_t axis = X_AXIS; axis < n_axis; axis++) {
-            for (uint8_t motor_index = 0; motor_index < 2; motor_index++) {
+        for (size_t axis = X_AXIS; axis < n_axis; axis++) {
+            for (size_t motor_index = 0; motor_index < 2; motor_index++) {
                 current_id = ids[axis][motor_index];
                 if (current_id != 0) {
                     count++;  // keep track of the count for the message length

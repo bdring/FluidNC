@@ -359,6 +359,6 @@ public:
 // Execute the startup script lines stored in non-volatile storage upon initialization
 void  settings_execute_startup();
 Error settings_execute_line(char* line, WebUI::ESPResponseStream*, WebUI::AuthenticationLevel);
-Error settings_execute_line(char* line, uint8_t client, WebUI::AuthenticationLevel);
+Error settings_execute_line(char* line, client_t client, WebUI::AuthenticationLevel);
 Error do_command_or_setting(const char* key, char* value, WebUI::AuthenticationLevel auth_level, WebUI::ESPResponseStream*);
-Error execute_line(char* line, uint8_t client, WebUI::AuthenticationLevel auth_level);
+Error execute_line(char* line, client_t client, WebUI::AuthenticationLevel auth_level);

@@ -61,40 +61,40 @@ extern Counter report_ovr_counter;
 extern Counter report_wco_counter;
 
 // functions to send data to the user.
-void _send(uint8_t client, const char* text);
-void _sendf(uint8_t client, const char* format, ...);
-void info_client(uint8_t client, const char* format, ...);
+void _send(client_t client, const char* text);
+void _sendf(client_t client, const char* format, ...);
+void info_client(client_t client, const char* format, ...);
 
 //function to notify
 void _notify(const char* title, const char* msg);
 void _notifyf(const char* title, const char* format, ...);
 
 // Prints system status messages.
-void report_status_message(Error status_code, uint8_t client);
+void report_status_message(Error status_code, client_t client);
 
 // Prints miscellaneous feedback messages.
 void report_feedback_message(Message message);
 
 // Prints welcome message
-void report_init_message(uint8_t client);
+void report_init_message(client_t client);
 
 // Prints an echo of the pre-parsed line received right before execution.
-void report_echo_line_received(char* line, uint8_t client);
+void report_echo_line_received(char* line, client_t client);
 
 // Prints realtime status report
-void report_realtime_status(uint8_t client);
+void report_realtime_status(client_t client);
 
 // Prints recorded probe position
-void report_probe_parameters(uint8_t client);
+void report_probe_parameters(client_t client);
 
 // Prints NGC parameters (coordinate offsets, probe)
-void report_ngc_parameters(uint8_t client);
+void report_ngc_parameters(client_t client);
 
 // Prints current g-code parser mode state
-void report_gcode_modes(uint8_t client);
+void report_gcode_modes(client_t client);
 
 // Prints build info and user info
-void report_build_info(const char* line, uint8_t client);
+void report_build_info(const char* line, client_t client);
 
 #ifdef DEBUG_REPORT_REALTIME
 void report_realtime_debug();

@@ -296,7 +296,6 @@ bool plan_buffer_line(float* target, plan_line_data_t* pl_data) {
     // Compute and store initial move distance data.
     int32_t target_steps[MAX_N_AXIS], position_steps[MAX_N_AXIS];
     float   unit_vec[MAX_N_AXIS], delta_mm;
-    uint8_t idx;
     // Copy position data based on type of motion being planned.
     if (block->motion.systemMotion) {
         memcpy(position_steps, motor_steps, sizeof(motor_steps));
@@ -304,7 +303,7 @@ bool plan_buffer_line(float* target, plan_line_data_t* pl_data) {
         memcpy(position_steps, pl.position, sizeof(pl.position));
     }
     auto n_axis = config->_axes->_numberAxis;
-    for (idx = 0; idx < n_axis; idx++) {
+    for (size_t idx = 0; idx < n_axis; idx++) {
         // Calculate target position in absolute steps, number of steps for each axis, and determine max step events.
         // Also, compute individual axes distance for move and prep unit vector calculations.
         // NOTE: Computes true distance from converted step values.
@@ -369,7 +368,7 @@ bool plan_buffer_line(float* target, plan_line_data_t* pl_data) {
         // change the overall maximum entry speed conditions of all blocks.
         float junction_unit_vec[MAX_N_AXIS];
         float junction_cos_theta = 0.0;
-        for (idx = 0; idx < n_axis; idx++) {
+        for (size_t idx = 0; idx < n_axis; idx++) {
             junction_cos_theta -= pl.previous_unit_vec[idx] * unit_vec[idx];
             junction_unit_vec[idx] = unit_vec[idx] - pl.previous_unit_vec[idx];
         }
@@ -412,9 +411,8 @@ bool plan_buffer_line(float* target, plan_line_data_t* pl_data) {
 void plan_sync_position() {
     // TODO: For motor configurations not in the same coordinate frame as the machine position,
     // this function needs to be updated to accomodate the difference.
-    uint8_t idx;
-    auto    a      = config->_axes;
-    auto    n_axis = a ? a->_numberAxis : 0;
+    auto a      = config->_axes;
+    auto n_axis = a ? a->_numberAxis : 0;
     for (size_t idx = 0; idx < n_axis; idx++) {
         pl.position[idx] = motor_steps[idx];
     }

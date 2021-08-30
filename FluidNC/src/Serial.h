@@ -10,8 +10,10 @@
 
 #include "stdint.h"
 
+typedef uint8_t client_t;
+
 // TODO: Change to enum class, and instead of 'uint8_t client' everywhere, change to ClientType client.
-enum ClientType : uint8_t {
+enum ClientType : client_t {
     CLIENT_SERIAL = 0,
     CLIENT_BT     = 1,
     CLIENT_WEBUI  = 2,
@@ -25,19 +27,19 @@ enum ClientType : uint8_t {
 // a task to read for incoming data from serial port
 void clientCheckTask(void* pvParameters);
 
-void client_write(uint8_t client, const char* text);
+void client_write(client_t client, const char* text);
 
 // Fetches the first byte in the serial read buffer. Called by main program.
-int client_read(uint8_t client);
+int client_read(client_t client);
 
 // See if the character is an action command like feedhold or jogging. If so, do the action and return true
 uint8_t check_action_command(uint8_t data);
 
 void client_init();
-void client_reset_read_buffer(uint8_t client);
+void client_reset_read_buffer(client_t client);
 
 // Returns the number of bytes available in the RX serial buffer.
-uint8_t client_get_rx_buffer_available(uint8_t client);
+int client_get_rx_buffer_available(client_t client);
 
 // Define realtime command special characters. These characters are 'picked-off' directly from the
 // serial read data stream and are not passed to the grbl line execution parser. Select characters
@@ -78,17 +80,17 @@ enum class Cmd : uint8_t {
     CoolantMistOvrToggle  = 0xA1,
 };
 
-void execute_realtime_command(Cmd command, uint8_t client);
+void execute_realtime_command(Cmd command, client_t client);
 bool is_realtime_command(uint8_t data);
 
 #include "SimpleOutputStream.h"
 
 class ClientStream : public SimpleOutputStream {
-    uint8_t _client;
-    bool    _isSD;
+    client_t _client;
+    bool     _isSD;
 
 public:
-    ClientStream(uint8_t client) : _client(client) {}
+    ClientStream(client_t client) : _client(client) {}
     ClientStream(const char* filename, const char* defaultFs);
 
     void add(char c) override;

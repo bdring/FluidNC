@@ -80,11 +80,11 @@ const char* Pin::parse(StringRange tmp, Pins::PinDetail*& pinImplementation) {
 
     // Build this pin:
     if (prefix == "gpio") {
-        pinImplementation = new Pins::GPIOPinDetail(uint8_t(pinNumber), parser);
+        pinImplementation = new Pins::GPIOPinDetail(pinnum_t(pinNumber), parser);
     }
 #ifdef ESP32
     if (prefix == "i2so") {
-        pinImplementation = new Pins::I2SOPinDetail(uint8_t(pinNumber), parser);
+        pinImplementation = new Pins::I2SOPinDetail(pinnum_t(pinNumber), parser);
     }
 #endif
     if (prefix == "no_pin") {

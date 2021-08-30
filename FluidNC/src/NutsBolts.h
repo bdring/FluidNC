@@ -72,7 +72,7 @@ const float INCH_PER_MM = (0.0393701f);
 // Read a floating point value from a string. Line points to the input buffer, char_counter
 // is the indexer pointing to the current character of the line, while float_ptr is
 // a pointer to the result variable. Returns true when it succeeds
-uint8_t read_float(const char* line, uint8_t* char_counter, float* float_ptr);
+bool read_float(const char* line, size_t* char_counter, float* float_ptr);
 
 // Blocking delay for very short time intervals
 void delay_us(int32_t microseconds);

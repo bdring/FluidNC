@@ -123,10 +123,10 @@ void mc_arc(float*            target,
             float*            position,
             float*            offset,
             float             radius,
-            uint8_t           axis_0,
-            uint8_t           axis_1,
-            uint8_t           axis_linear,
-            uint8_t           is_clockwise_arc) {
+            size_t            axis_0,
+            size_t            axis_1,
+            size_t            axis_linear,
+            bool              is_clockwise_arc) {
     float center_axis0 = position[axis_0] + offset[axis_0];
     float center_axis1 = position[axis_1] + offset[axis_1];
     float r_axis0      = -offset[axis_0];  // Radius vector from center to current location
@@ -205,7 +205,7 @@ void mc_arc(float*            target,
         float    cos_Ti;
         float    r_axisi;
         uint16_t i;
-        uint8_t  count             = 0;
+        size_t   count             = 0;
         float    original_feedrate = pl_data->feed_rate;  // Kinematics may alter the feedrate, so save an original copy
         for (i = 1; i < segments; i++) {                  // Increment (segments-1).
             if (count < N_ARC_CORRECTION) {

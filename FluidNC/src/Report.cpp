@@ -43,11 +43,11 @@ EspClass esp;
 
 portMUX_TYPE mmux = portMUX_INITIALIZER_UNLOCKED;
 
-void _send(uint8_t client, const char* text) {
+void _send(client_t client, const char* text) {
     client_write(client, text);
 }
 
-void va_sendf(uint8_t client, const char* format, va_list arg) {
+void va_sendf(client_t client, const char* format, va_list arg) {
     if (client == CLIENT_INPUT) {
         return;
     }
@@ -71,20 +71,20 @@ void va_sendf(uint8_t client, const char* format, va_list arg) {
 }
 
 // This is a formatting version of the _send(CLIENT_ALL,...) function that work like printf
-void _sendf(uint8_t client, const char* format, ...) {
+void _sendf(client_t client, const char* format, ...) {
     va_list arg;
     va_start(arg, format);
     va_sendf(client, format, arg);
     va_end(arg);
 }
 
-static void msg_vsendf(uint8_t client, const char* format, va_list arg) {
+static void msg_vsendf(client_t client, const char* format, va_list arg) {
     _send(client, "[MSG:");
     va_sendf(client, format, arg);
     _send(client, "]\r\n");
 }
 
-void info_client(uint8_t client, const char* format, ...) {
+void info_client(client_t client, const char* format, ...) {
     va_list arg;
     va_start(arg, format);
     msg_vsendf(client, format, arg);
@@ -127,7 +127,6 @@ static const int axesStringLen  = coordStringLen * MAX_N_AXIS;
 // formats axis values into a string and returns that string in rpt
 // NOTE: rpt should have at least size: axesStringLen
 static void report_util_axis_values(float* axis_value, char* rpt) {
-    uint8_t     idx;
     char        axisVal[coordStringLen];
     float       unit_conv = 1.0;      // unit conversion multiplier..default is mm
     const char* format    = "%4.3f";  // Default - report mm to 3 decimal places
@@ -137,7 +136,7 @@ static void report_util_axis_values(float* axis_value, char* rpt) {
         format    = "%4.4f";  // Report inches to 4 decimal places
     }
     auto n_axis = config->_axes->_numberAxis;
-    for (idx = 0; idx < n_axis; idx++) {
+    for (size_t idx = 0; idx < n_axis; idx++) {
         snprintf(axisVal, coordStringLen - 1, format, axis_value[idx] * unit_conv);
         strcat(rpt, axisVal);
         if (idx < (n_axis - 1)) {
@@ -148,16 +147,15 @@ static void report_util_axis_values(float* axis_value, char* rpt) {
 
 // This version returns the axis values as a String
 static String report_util_axis_values(const float* axis_value) {
-    String  rpt = "";
-    uint8_t idx;
-    float   unit_conv = 1.0;  // unit conversion multiplier..default is mm
-    int     decimals  = 3;    // Default - report mm to 3 decimal places
+    String rpt       = "";
+    float  unit_conv = 1.0;  // unit conversion multiplier..default is mm
+    int    decimals  = 3;    // Default - report mm to 3 decimal places
     if (config->_reportInches) {
         unit_conv = 1.0f / MM_PER_INCH;
         decimals  = 4;  // Report inches to 4 decimal places
     }
     auto n_axis = config->_axes->_numberAxis;
-    for (idx = 0; idx < n_axis; idx++) {
+    for (size_t idx = 0; idx < n_axis; idx++) {
         rpt += String(axis_value[idx] * unit_conv, decimals);
         if (idx < (n_axis - 1)) {
             rpt += ",";
@@ -172,7 +170,7 @@ static String report_util_axis_values(const float* axis_value) {
 // operation. Errors events can originate from the g-code parser, settings module, or asynchronously
 // from a critical error, such as a triggered hard limit. Interface should always monitor for these
 // responses.
-void report_status_message(Error status_code, uint8_t client) {
+void report_status_message(Error status_code, client_t client) {
     auto sdcard = config->_sdCard;
     if (sdcard->get_state() == SDCard::State::BusyPrinting) {
         // When running from SD, the GCode is not coming from a sender, so we are not
@@ -256,14 +254,14 @@ void report_feedback_message(Message message) {  // ok to send to all clients
 }
 
 // Welcome message
-void report_init_message(uint8_t client) {
+void report_init_message(client_t client) {
     _sendf(client, "\r\nGrbl %s [FluidNC %s%s, '$' for help]\r\n", GRBL_VERSION, GIT_TAG, GIT_REV);
 }
 
 // Prints current probe parameters. Upon a probe command, these parameters are updated upon a
 // successful probe or upon a failed probe with the G38.3 without errors command (if supported).
 // These values are retained until the system is power-cycled, whereby they will be re-zeroed.
-void report_probe_parameters(uint8_t client) {
+void report_probe_parameters(client_t client) {
     // Report in terms of machine position.
     char probe_rpt[(axesStringLen + 13 + 6 + 1)];  // the probe report we are building here
     char temp[axesStringLen];
@@ -280,7 +278,7 @@ void report_probe_parameters(uint8_t client) {
 }
 
 // Prints NGC parameters (coordinate offsets, probing)
-void report_ngc_parameters(uint8_t client) {
+void report_ngc_parameters(client_t client) {
     String ngc_rpt = "";
 
     // Print persistent offsets G54 - G59, G28, and G30
@@ -307,7 +305,7 @@ void report_ngc_parameters(uint8_t client) {
 }
 
 // Print current gcode parser mode state
-void report_gcode_modes(uint8_t client) {
+void report_gcode_modes(client_t client) {
     char        temp[20];
     char        modes_rpt[75];
     const char* mode = "";
@@ -462,7 +460,7 @@ void report_gcode_modes(uint8_t client) {
 }
 
 // Prints build info line
-void report_build_info(const char* line, uint8_t client) {
+void report_build_info(const char* line, client_t client) {
     _sendf(client, "[VER:FluidNC %s%s:%s]\r\n[OPT:", GIT_TAG, GIT_REV, line);
     if (config->_coolant->hasMist()) {
         _send(client, "M");  // TODO Need to deal with M8...it could be disabled
@@ -504,7 +502,7 @@ void report_build_info(const char* line, uint8_t client) {
 
 // Prints the character string line that was received, which has been pre-parsed,
 // and has been sent into protocol_execute_line() routine to be executed.
-void report_echo_line_received(char* line, uint8_t client) {
+void report_echo_line_received(char* line, client_t client) {
     _sendf(client, "[echo: %s]\r\n", line);
 }
 
@@ -594,7 +592,7 @@ static char* report_state_text() {
 // specific needs, but the desired real-time data report must be as short as possible. This is
 // requires as it minimizes the computational overhead to keep running smoothly,
 // especially during g-code programs with fast, short line segments and high frequency reports (5-20Hz).
-void report_realtime_status(uint8_t client) {
+void report_realtime_status(client_t client) {
     char status[200];
     char temp[MAX_N_AXIS * 20];
 

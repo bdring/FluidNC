@@ -7,12 +7,12 @@
 #    include "../I2SOut.h"
 #    include "../Assert.h"
 
-extern "C" void __digitalWrite(uint8_t pin, uint8_t val);
+extern "C" void __digitalWrite(pinnum_t pin, uint8_t val);
 
 namespace Pins {
     std::vector<bool> I2SOPinDetail::_claimed(nI2SOPins, false);
 
-    I2SOPinDetail::I2SOPinDetail(uint8_t index, const PinOptionsParser& options) :
+    I2SOPinDetail::I2SOPinDetail(pinnum_t index, const PinOptionsParser& options) :
         PinDetail(index), _capabilities(PinCapabilities::Output | PinCapabilities::I2S), _attributes(Pins::PinAttributes::Undefined),
         _readWriteMask(0) {
         Assert(index < nI2SOPins, "Pin number is greater than max %d", nI2SOPins - 1);

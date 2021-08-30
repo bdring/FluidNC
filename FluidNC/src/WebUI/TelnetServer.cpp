@@ -65,7 +65,7 @@ namespace WebUI {
     void Telnet_Server::clearClients() {
         //check if there are any new clients
         if (_telnetserver->hasClient()) {
-            uint8_t i;
+            size_t i;
             for (i = 0; i < MAX_TLNT_CLIENTS; i++) {
                 //find free/disconnected spot
                 if (!_telnetClients[i] || !_telnetClients[i].connected()) {
@@ -93,7 +93,7 @@ namespace WebUI {
         clearClients();
 
         //push UART data to all connected telnet clients
-        for (uint8_t i = 0; i < MAX_TLNT_CLIENTS; i++) {
+        for (size_t i = 0; i < MAX_TLNT_CLIENTS; i++) {
             if (_telnetClients[i] && _telnetClients[i].connected()) {
                 wsize = _telnetClients[i].write(buffer, size);
                 COMMANDS::wait(0);
@@ -110,8 +110,7 @@ namespace WebUI {
         }
         clearClients();
         //check clients for data
-        //uint8_t c;
-        for (uint8_t i = 0; i < MAX_TLNT_CLIENTS; i++) {
+        for (size_t i = 0; i < MAX_TLNT_CLIENTS; i++) {
             if (_telnetClients[i] && _telnetClients[i].connected()) {
                 if (_telnetClientsIP[i] != _telnetClients[i].remoteIP()) {
                     report_init_message(CLIENT_TELNET);

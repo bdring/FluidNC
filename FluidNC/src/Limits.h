@@ -19,8 +19,8 @@ MotorMask limits_get_state();
 // Check for soft limit violations
 void limits_soft_check(float* target);
 
-float limitsMaxPosition(uint8_t axis);
-float limitsMinPosition(uint8_t axis);
+float limitsMaxPosition(size_t axis);
+float limitsMinPosition(size_t axis);
 
 // Private
 
