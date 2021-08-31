@@ -3,11 +3,11 @@
 
 #pragma once
 
-#include <Stream.h>
+#include "../IOClient.h"
 #include <cstring>
 
 namespace WebUI {
-    class InputBuffer : public Stream {
+    class InputBuffer : public IOClient {
     public:
         InputBuffer();
 

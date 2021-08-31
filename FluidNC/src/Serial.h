@@ -97,5 +97,5 @@ public:
     ~ClientStream();
 };
 
-#include <Stream.h>
-extern Stream* clientStreams[];
+#include "IOClient.h"
+extern IOClient* clients[];

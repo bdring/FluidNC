@@ -117,17 +117,17 @@ void client_init() {
     );
 }
 
-class ClientMux : public Stream {
+class AllClients : public IOClient {
     // Stream* _lastReadClient;
     ClientType _lastReadClient;
 
 public:
-    ClientMux() = default;
+    AllClients() = default;
     int read() {
         for (size_t i = 0; i < CLIENT_ALL; i++) {
-            int c = clientStreams[i]->read();
+            int c = clients[i]->read();
             if (c >= 0) {
-                // _lastReadClient = clientStreams[i];
+                // _lastReadClient = clients[i];
                 _lastReadClient = static_cast<ClientType>(i);
                 return c;
             }
@@ -136,9 +136,9 @@ public:
     };
     int available() {
         for (size_t i = 0; i < CLIENT_ALL; i++) {
-            int n = clientStreams[i]->available();
+            int n = clients[i]->available();
             if (n > 0) {
-                // _lastReadClient = clientStreams[i];
+                // _lastReadClient = clients[i];
                 _lastReadClient = static_cast<ClientType>(i);
                 return n;
             }
@@ -149,19 +149,19 @@ public:
 
     size_t write(uint8_t data) override {
         for (size_t i = 0; i < CLIENT_ALL; i++) {
-            clientStreams[i]->write(data);
+            clients[i]->write(data);
         }
         return 1;
     };
     size_t write(const uint8_t* buffer, size_t length) override {
         for (size_t i = 0; i < CLIENT_ALL; i++) {
-            clientStreams[i]->write(buffer, length);
+            clients[i]->write(buffer, length);
         }
         return length;
     };
     void flush() override {
         for (size_t i = 0; i < CLIENT_ALL; i++) {
-            clientStreams[i]->flush();
+            clients[i]->flush();
         }
     }
 
@@ -169,21 +169,21 @@ public:
     ClientType getLastClient() { return _lastReadClient; }
 };
 
-ClientMux clientMux;
+AllClients allClients;
 
-Stream* clientStreams[] = {
-    static_cast<Stream*>(&Uart0),
-    static_cast<Stream*>(&WebUI::SerialBT),
-    static_cast<Stream*>(&WebUI::Serial2Socket),
-    static_cast<Stream*>(&WebUI::telnet_server),
-    static_cast<Stream*>(&WebUI::inputBuffer),
-    static_cast<Stream*>(&clientMux),
+IOClient* clients[] = {
+    static_cast<IOClient*>(&Uart0),
+    static_cast<IOClient*>(&WebUI::SerialBT),
+    static_cast<IOClient*>(&WebUI::Serial2Socket),
+    static_cast<IOClient*>(&WebUI::telnet_server),
+    static_cast<IOClient*>(&WebUI::inputBuffer),
+    static_cast<IOClient*>(&allClients),
 };
 
 static ClientType getClientChar(int& data) {
-    data = clientMux.read();
+    data = allClients.read();
     if (data >= 0) {
-        return clientMux.getLastClient();
+        return allClients.getLastClient();
     }
     return CLIENT_ALL;
 }
@@ -378,7 +378,7 @@ void client_write(client_t client, const char* text) {
         return;
     }
 
-    clientStreams[client]->write((const uint8_t*)text, strlen(text));
+    clients[client]->write((const uint8_t*)text, strlen(text));
 }
 
 void ClientStream::add(char c) {
