@@ -1,0 +1,111 @@
+name: "ESP32 Dev Controller V4"
+board: "ESP32 Dev Controller V4"
+
+stepping:
+  engine: RMT
+  idle_ms: 250
+  dir_delay_us: 1
+  pulse_us: 2
+  disable_delay_us: 0
+
+axes:
+  shared_stepper_disable: gpio.13:low
+  
+  x:
+    steps_per_mm: 800
+    max_rate: 2000
+    acceleration: 25
+    max_travel: 1000
+        steps_per_mm: 800.000
+    max_rate: 5000.000
+    acceleration: 100.000
+    max_travel: 300.000
+    soft_limits: false
+    homing:
+      cycle: 2
+      positive_direction: false
+      mpos: 150.000
+      feed_rate: 100.000
+      seek_rate: 200.000
+      debounce_ms: 500
+      seek_scaler: 1.100
+      feed_scaler: 1.100
+    
+    motor0:
+      limit_all: gpio.17:low:pu
+      stepstick:
+        direction: gpio.14
+        step: gpio.12
+    motor1:
+      null_motor:
+
+  y:
+    steps_per_mm: 800
+    max_rate: 2000
+    acceleration: 25
+    max_travel: 1000
+        steps_per_mm: 800.000
+    max_rate: 5000.000
+    acceleration: 100.000
+    max_travel: 300.000
+    soft_limits: false
+    homing:
+      cycle: 2
+      positive_direction: false
+      mpos: 150.000
+      feed_rate: 100.000
+      seek_rate: 200.000
+      debounce_ms: 500
+      seek_scaler: 1.100
+      feed_scaler: 1.100
+
+    motor0:
+      limit_all: gpio.4:low:pu
+      stepstick:
+        direction: gpio.15
+        step: gpio.26
+    motor1:
+      null_motor:
+
+  z:
+    steps_per_mm: 800
+    max_rate: 2000
+    acceleration: 25
+    max_travel: 1000
+        steps_per_mm: 800.000
+    max_rate: 5000.000
+    acceleration: 100.000
+    max_travel: 300.000
+    soft_limits: false
+    homing:
+      cycle: 1
+      positive_direction: false
+      mpos: 150.000
+      feed_rate: 100.000
+      seek_rate: 200.000
+      debounce_ms: 500
+      seek_scaler: 1.100
+      feed_scaler: 1.100
+
+    motor0:
+      limit_all: gpio.16:low:pu
+      stepstick:
+        direction: gpio.33
+        step: gpio.27
+    motor1:
+      null_motor:
+
+coolant:
+  flood: NO_PIN
+  mist:  NO_PIN
+
+comms:
+  wifi_ap:
+    ip_address: "192.168.0.1"
+    ssid: FluidNC
+
+probe:
+  pin: gpio.32:low:pu
+
+DAC:
+  output_pin: gpio.25

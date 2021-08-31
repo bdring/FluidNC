@@ -1,5 +1,5 @@
-name: "TMC2209 XYZA PWM Spindle"
-board: "TMC2209 4x"
+name: "TMC2209 XYYZ Laser"
+board: "TMC2209 4x DK"
 
 stepping:
   engine: RMT
@@ -79,6 +79,7 @@ axes:
       tmc_2209:
         step: gpio.33
         direction: gpio.32
+        microsteps: 16
         addr: 1
 
     motor1:
@@ -147,14 +148,17 @@ comms:
         ssid: FluidNC
         
 probe:
-    pin: NO_PIN
+  pin: NO_PIN
 
-PWM:
+Laser:
   pwm_freq: 5000
-  output_pin: gpio.4:high
+  output_pin: gpio.4
+  enable_pin: NO_PIN
+  direction_pin: NO_PIN
+  disable_with_zero_speed: false
   zero_speed_with_disable: true
-  enable_pin: gpio.13
-  spinup_ms: 1000
-  spindown_ms: 1000
-  speeds: 0=0% 1000=100%
-  tool: 0
+  spinup_ms: 0
+  spindown_ms: 0
+  tool: 100
+  speeds: 0=0.000% 255=100.000%
+  

@@ -4,7 +4,7 @@
 #pragma once
 
 #include "../Config.h"
-#include "Assert.h"
+#include "../Assert.h"
 #include "../Configuration/GenericFactory.h"
 #include "../Configuration/HandlerBase.h"
 #include "../Configuration/Configurable.h"
@@ -60,7 +60,7 @@ namespace MotorDrivers {
 
         // set_disable() disables or enables a motor.  It is used to
         // make a motor transition between idle and non-idle states.
-        virtual IRAM_ATTR void set_disable(bool disable) {}
+        virtual void set_disable(bool disable);
 
         // set_direction() sets the motor movement direction.  It is
         // invoked for every motion segment.
@@ -97,7 +97,6 @@ namespace MotorDrivers {
 
     protected:
         String axisName() const;
-        String axisLimits() const;
 
         // config_message(), called from init(), displays a message describing
         // the motor configuration - pins and other motor-specific items

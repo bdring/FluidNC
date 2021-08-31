@@ -43,8 +43,8 @@ void setup() {
         // Load settings from non-volatile storage
         settings_init();  // requires config
 
-        log_info("FluidNC Ver " << GIT_TAG << " build " << GIT_TAG);  // print verion info
-        log_info("Compiled with ESP32 SDK:" << ESP.getSdkVersion());  // print the SDK version
+        log_info("FluidNC " << GIT_TAG << GIT_REV);
+        log_info("Compiled with ESP32 SDK:" << ESP.getSdkVersion());
 
         if (!SPIFFS.begin(true)) {
             log_error("Cannot mount the local filesystem");
@@ -75,10 +75,11 @@ void setup() {
 
             Stepper::init();  // Configure stepper pins and interrupt timers
 
+            config->_userOutputs->init();
+
             config->_axes->init();
 
             config->_control->init();
-            config->_userOutputs->init();
 
             memset(motor_steps, 0, sizeof(motor_steps));  // Clear machine position.
 

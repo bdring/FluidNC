@@ -4,8 +4,6 @@
 #include "UnipolarMotor.h"
 #include "../Machine/MachineConfig.h"
 
-#include <esp_attr.h>  // IRAM_ATTR
-
 namespace MotorDrivers {
     void UnipolarMotor::init() {
         _pin_phase0.setAttr(Pin::Attr::Output);
@@ -18,7 +16,7 @@ namespace MotorDrivers {
 
     void UnipolarMotor::config_message() {
         log_info("    Unipolar Stepper Ph0:" << _pin_phase0.name() << " Ph1:" << _pin_phase1.name() << " Ph2:" << _pin_phase2.name()
-                                             << " Ph3:" << _pin_phase3.name() << " " << axisLimits());
+                                             << " Ph3:" << _pin_phase3.name());
     }
 
     void IRAM_ATTR UnipolarMotor::set_disable(bool disable) {

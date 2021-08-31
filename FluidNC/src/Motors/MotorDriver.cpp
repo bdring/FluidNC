@@ -29,10 +29,7 @@ namespace MotorDrivers {
     String MotorDriver::axisName() const {
         return String(config->_axes->axisName(axis_index())) + (dual_axis_index() ? "2" : "") + " Axis";
     }
-    String MotorDriver::axisLimits() const {
-        return String("Limits(") + limitsMinPosition(axis_index()) + "," + limitsMaxPosition(axis_index()) + ")";
-    }
-
+    
     void MotorDriver::debug_message() {}
 
     bool MotorDriver::test() { return true; };  // true = OK
@@ -45,4 +42,5 @@ namespace MotorDrivers {
         Assert(config != nullptr && config->_axes != nullptr, "Expected machine to be configured before this is called.");
         return uint8_t(config->_axes->findAxisMotor(this));
     }
+    void IRAM_ATTR MotorDriver::set_disable(bool disable) {}
 }

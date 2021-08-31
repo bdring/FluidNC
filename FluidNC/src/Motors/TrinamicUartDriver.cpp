@@ -19,6 +19,8 @@
 
 namespace MotorDrivers {
 
+    Uart* TrinamicUartDriver::_uart = nullptr;
+
     bool TrinamicUartDriver::_uart_started = false;
 
     /* HW Serial Constructor. */
@@ -83,7 +85,7 @@ namespace MotorDrivers {
     */
     void TrinamicUartDriver::config_message() {  //TODO: The RX/TX pin could be added to the msg.
         log_info("    Trinamic TMC" << _driver_part_number << " Step:" << _step_pin.name() << " Dir:" << _dir_pin.name()
-                                    << " Disable:" << _disable_pin.name() << " Addr:" << _addr << " R:" << _r_sense << " " << axisLimits());
+                                    << " Disable:" << _disable_pin.name() << " Addr:" << _addr << " R:" << _r_sense);
     }
 
     bool TrinamicUartDriver::test() {
@@ -125,7 +127,7 @@ namespace MotorDrivers {
                     return false;
                 }
 
-                log_info("    " << axisName() << " Trinamic driver test passed");
+                log_info("    driver test passed");
                 return true;
         }
     }

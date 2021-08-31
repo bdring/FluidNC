@@ -16,7 +16,7 @@ namespace MotorDrivers {
 
     class TrinamicUartDriver : public TrinamicBase {
     private:
-        Uart* _uart = nullptr;
+        static Uart* _uart;
 
         static bool _uart_started;
 
@@ -31,7 +31,7 @@ namespace MotorDrivers {
         void config_message() override;
 
     public:
-        TrinamicUartDriver(uint16_t driver_part_number) : TrinamicUartDriver(driver_part_number, get_next_index()) {}
+        TrinamicUartDriver(uint16_t driver_part_number) : TrinamicUartDriver(driver_part_number, -1) {}
 
         TrinamicUartDriver(uint16_t driver_part_number, uint8_t address);
 
