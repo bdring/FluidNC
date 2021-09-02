@@ -117,67 +117,57 @@ void client_init() {
     );
 }
 
-class AllClients : public IOClient {
-    // Stream* _lastReadClient;
-    ClientType _lastReadClient;
-
-public:
-    AllClients() = default;
-    int read() {
-        for (size_t i = 0; i < CLIENT_ALL; i++) {
-            int c = clients[i]->read();
-            if (c >= 0) {
-                // _lastReadClient = clients[i];
-                _lastReadClient = static_cast<ClientType>(i);
-                return c;
-            }
-        }
-        return -1;
-    };
-    int available() {
-        for (size_t i = 0; i < CLIENT_ALL; i++) {
-            int n = clients[i]->available();
-            if (n > 0) {
-                // _lastReadClient = clients[i];
-                _lastReadClient = static_cast<ClientType>(i);
-                return n;
-            }
-        }
-        return 0;
-    };
-    int peek() override { return -1; }
-
-    size_t write(uint8_t data) override {
-        for (size_t i = 0; i < CLIENT_ALL; i++) {
-            clients[i]->write(data);
-        }
-        return 1;
-    };
-    size_t write(const uint8_t* buffer, size_t length) override {
-        for (size_t i = 0; i < CLIENT_ALL; i++) {
-            clients[i]->write(buffer, length);
-        }
-        return length;
-    };
-    void flush() override {
-        for (size_t i = 0; i < CLIENT_ALL; i++) {
-            clients[i]->flush();
+int AllClients::read() {
+    for (size_t i = 0; i < CLIENT_ALL; i++) {
+        int c = clients[i]->read();
+        if (c >= 0) {
+            // _lastReadClient = clients[i];
+            _lastReadClient = static_cast<ClientType>(i);
+            return c;
         }
     }
-
-    // Stream* getLastClient() { return _lastReadClient; }
-    ClientType getLastClient() { return _lastReadClient; }
+    return -1;
+};
+int AllClients::available() {
+    for (size_t i = 0; i < CLIENT_ALL; i++) {
+        int n = clients[i]->available();
+        if (n > 0) {
+            // _lastReadClient = clients[i];
+            _lastReadClient = static_cast<ClientType>(i);
+            return n;
+        }
+    }
+    return 0;
 };
 
-AllClients allClients;
+size_t AllClients::write(uint8_t data) {
+    for (size_t i = 0; i < CLIENT_ALL; i++) {
+        clients[i]->write(data);
+    }
+    return 1;
+};
+size_t AllClients::write(const uint8_t* buffer, size_t length) {
+    for (size_t i = 0; i < CLIENT_ALL; i++) {
+        clients[i]->write(buffer, length);
+    }
+    return length;
+};
+void AllClients::flush() {
+    for (size_t i = 0; i < CLIENT_ALL; i++) {
+        clients[i]->flush();
+    }
+}
 
-IOClient* clients[] = {
-    static_cast<IOClient*>(&Uart0),
-    static_cast<IOClient*>(&WebUI::SerialBT),
-    static_cast<IOClient*>(&WebUI::Serial2Socket),
-    static_cast<IOClient*>(&WebUI::telnet_server),
-    static_cast<IOClient*>(&WebUI::inputBuffer),
-    static_cast<IOClient*>(&allClients),
+AllClients allClients;
+Print*     allOut = static_cast<Print*>(&allClients);
+
+Stream* clients[] = {
+    static_cast<Stream*>(&Uart0),
+    static_cast<Stream*>(&WebUI::SerialBT),
+    static_cast<Stream*>(&WebUI::Serial2Socket),
+    static_cast<Stream*>(&WebUI::telnet_server),
+    static_cast<Stream*>(&WebUI::inputBuffer),
+    static_cast<Stream*>(&allClients),
 };
 
 static ClientType getClientChar(int& data) {

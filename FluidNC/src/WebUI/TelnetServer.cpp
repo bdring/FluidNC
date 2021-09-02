@@ -115,7 +115,7 @@ namespace WebUI {
         for (size_t i = 0; i < MAX_TLNT_CLIENTS; i++) {
             if (_telnetClients[i] && _telnetClients[i].connected()) {
                 if (_telnetClientsIP[i] != _telnetClients[i].remoteIP()) {
-                    report_init_message(CLIENT_TELNET);
+                    report_init_message(telnet_server);
                     _telnetClientsIP[i] = _telnetClients[i].remoteIP();
                 }
                 if (_telnetClients[i].available()) {

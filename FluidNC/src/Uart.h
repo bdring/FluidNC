@@ -8,10 +8,10 @@
 #include "Configuration/Configurable.h"
 #include "UartTypes.h"
 
-#include "IOClient.h"
+#include <Stream.h>
 #include <freertos/FreeRTOS.h>  // TickType_T
 
-class Uart : public IOClient, public Configuration::Configurable {
+class Uart : public Stream, public Configuration::Configurable {
 private:
     uart_port_t _uart_num;
     int         _pushback;

@@ -97,5 +97,24 @@ public:
     ~ClientStream();
 };
 
-#include "IOClient.h"
-extern IOClient* clients[];
+#include <Stream.h>
+class AllClients : public Stream {
+    // Stream* _lastReadClient;
+    ClientType _lastReadClient;
+
+public:
+    AllClients() = default;
+    int read() override;
+    int available() override;
+    int peek() override { return -1; }
+
+    size_t write(uint8_t data) override;
+    size_t write(const uint8_t* buffer, size_t length) override;
+    void   flush() override;
+
+    // Stream* getLastClient() { return _lastReadClient; }
+    ClientType getLastClient() { return _lastReadClient; }
+};
+
+extern Stream*    clients[];
+extern AllClients allClients;

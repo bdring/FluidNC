@@ -39,7 +39,7 @@ void SDCard::listDir(fs::FS& fs, const char* dirname, size_t levels, client_t cl
                 listDir(fs, file.name(), levels - 1, client);
             }
         } else {
-            _sendf(CLIENT_ALL, "[FILE:%s|SIZE:%d]\r\n", file.name(), file.size());
+            allClients << "[FILE:" << file.name() << "|SIZE:" << file.size() << '\n';
         }
         file = root.openNextFile();
     }

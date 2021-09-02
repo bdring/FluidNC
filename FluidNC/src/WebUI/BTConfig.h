@@ -10,10 +10,10 @@
 #include <WString.h>
 
 #ifndef ENABLE_BLUETOOTH
-#    include "../IOClient.h"
+#    include <Stream.h>
 
 namespace WebUI {
-    class BluetoothSerial : public IOClient {
+    class BluetoothSerial : public Stream {
     public:
         BluetoothSerial() = default;
         int read() { return -1; };

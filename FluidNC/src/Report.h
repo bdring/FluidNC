@@ -71,11 +71,13 @@ void _notifyf(const char* title, const char* format, ...);
 
 // Prints system status messages.
 void report_status_message(Error status_code, client_t client);
+void report_status_message(Error status_code, Print& client);
 
 // Prints miscellaneous feedback messages.
 void report_feedback_message(Message message);
 
 // Prints welcome message
+void report_init_message(Print& client);
 void report_init_message(client_t client);
 
 // Prints an echo of the pre-parsed line received right before execution.
@@ -83,9 +85,11 @@ void report_echo_line_received(char* line, client_t client);
 
 // Prints realtime status report
 void report_realtime_status(client_t client);
+void report_realtime_status(Print& client);
 
 // Prints recorded probe position
 void report_probe_parameters(client_t client);
+void report_probe_parameters(Print& client);
 
 // Prints NGC parameters (coordinate offsets, probe)
 void report_ngc_parameters(client_t client);
@@ -106,3 +110,43 @@ void addPinReport(char* status, char pinLetter);
 
 extern const char* dataBeginMarker;
 extern const char* dataEndMarker;
+
+inline Print& operator<<(Print& lhs, char c) {
+    lhs.print(c);
+    return lhs;
+}
+
+inline Print& operator<<(Print& lhs, const char* v) {
+    lhs.print(v);
+    return lhs;
+}
+
+inline Print& operator<<(Print& lhs, String v) {
+    lhs.print(v.c_str());
+    return lhs;
+}
+
+inline Print& operator<<(Print& lhs, int v) {
+    lhs.print(v);
+    return lhs;
+}
+
+inline Print& operator<<(Print& lhs, unsigned int v) {
+    lhs.print(v);
+    return lhs;
+}
+
+inline Print& operator<<(Print& lhs, float v) {
+    lhs.print(v, 3);
+    return lhs;
+}
+
+inline Print& operator<<(Print& lhs, double v) {
+    lhs.print(v, 3);
+    return lhs;
+}
+
+inline Print& operator<<(Print& lhs, const Pin& v) {
+    lhs.print(v.name());
+    return lhs;
+}

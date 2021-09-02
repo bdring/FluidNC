@@ -8,46 +8,25 @@
 
 #    include <iostream>
 
+#    define DEBUG_OUT std::cout
 bool atMsgLevel(MsgLevel level) {
     return message_level == nullptr || message_level->get() >= level;
 }
-
-DebugStream::DebugStream(const char* name) {
-    std::cout << "[MSG:" << name << ": ";
-}
-void DebugStream::add(char c) {
-    std::cout << c;
-}
-
-DebugStream::~DebugStream() {
-    std::cout << ']' << std::endl;
-}
-
 #else
-
+#    define DEBUG_OUT allClients
 bool atMsgLevel(MsgLevel level) {
     return message_level == nullptr || message_level->get() >= level;
 }
-
-#    include "Serial.h"
-#    define LOG_CLIENT CLIENT_ALL
+#endif
 
 DebugStream::DebugStream(const char* name) {
-    client_write(LOG_CLIENT, "[MSG:");
-    client_write(LOG_CLIENT, name);
-    client_write(LOG_CLIENT, ": ");
+    DEBUG_OUT << "[MSG:" << name << ": ";
 }
 
 void DebugStream::add(char c) {
-    char txt[2];
-    txt[0] = c;
-    txt[1] = '\0';
-    client_write(LOG_CLIENT, txt);
+    DEBUG_OUT << c;
 }
 
 DebugStream::~DebugStream() {
-    client_write(LOG_CLIENT, "]");
-    client_write(LOG_CLIENT, "\r\n");
+    DEBUG_OUT << "]\n";
 }
-
-#endif

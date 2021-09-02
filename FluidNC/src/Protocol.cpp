@@ -212,8 +212,7 @@ void protocol_main_loop() {
         // Receive one line of incoming serial data, as the data becomes available.
         // Filtering, if necessary, is done later in gc_execute_line(), so the
         // filtering is the same with serial and file input.
-        client_t client = CLIENT_SERIAL;
-        char*    line;
+        char* line;
         for (client_t client_num = 0; client_num < CLIENT_COUNT; client_num++) {
             while ((c = client_read(client_num)) != -1) {
                 Error res = add_char_to_line(c, client_num);
@@ -314,8 +313,8 @@ void protocol_execute_realtime() {
 }
 
 static void alarm_msg(ExecAlarm alarm_code) {
-    _sendf(CLIENT_ALL, "ALARM:%d\r\n", static_cast<int>(alarm_code));  // OK to send to all clients
-    delay_ms(500);                                                     // Force delay to ensure message clears serial write buffer.
+    allClients << "ALARM:" << static_cast<int>(alarm_code) << '\n';
+    delay_ms(500);  // Force delay to ensure message clears serial write buffer.
 }
 
 // Executes run-time commands, when required. This function is the primary state
@@ -750,7 +749,7 @@ void protocol_exec_rt_system() {
 
     if (rtStatusReport) {
         rtStatusReport = false;
-        report_realtime_status(CLIENT_ALL);
+        report_realtime_status(allClients);
     }
 
     if (rtMotionCancel) {

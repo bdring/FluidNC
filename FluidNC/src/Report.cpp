@@ -70,7 +70,7 @@ void va_sendf(client_t client, const char* format, va_list arg) {
     }
 }
 
-// This is a formatting version of the _send(CLIENT_ALL,...) function that work like printf
+// This is a formatting version of the _send(...) function that work like printf
 void _sendf(client_t client, const char* format, ...) {
     va_list arg;
     va_start(arg, format);
@@ -170,6 +170,62 @@ static String report_util_axis_values(const float* axis_value) {
 // operation. Errors events can originate from the g-code parser, settings module, or asynchronously
 // from a critical error, such as a triggered hard limit. Interface should always monitor for these
 // responses.
+void report_status_message(Error status_code, Print& client) {
+    auto sdcard = config->_sdCard;
+    if (sdcard->get_state() == SDCard::State::BusyPrinting) {
+        // When running from SD, the GCode is not coming from a sender, so we are not
+        // using the Grbl send/response/error protocol.  We use _readyNext instead of
+        // "ok" to indicate readiness for another line, and we report verbose error
+        // messages with [MSG: ...] encapsulation
+        switch (status_code) {
+            case Error::Ok:
+                sdcard->_readyNext = true;  // flag so protocol_main_loop() will send the next line
+                break;
+            case Error::Eof:
+                // XXX we really should wait for the machine to return to idle before
+                // we issue this message.  What Eof really means is that all the lines in the
+                // file were sent, but not necessarily executed.  Some could still be running.
+                _notifyf("SD print done", "%s print succeeded", sdcard->filename());
+                info_client(sdcard->getClient(), "%s print succeeded", sdcard->filename());
+                sdcard->closeFile();
+                break;
+            default:
+                info_client(sdcard->getClient(),
+                            "Error:%d (%s) in %s at line %d",
+                            status_code,
+                            errorString(status_code),
+                            sdcard->filename(),
+                            sdcard->lineNumber());
+                if (status_code == Error::GcodeUnsupportedCommand) {
+                    // Do not stop on unsupported commands because most senders do not
+                    sdcard->_readyNext = true;
+                } else {
+                    _notifyf("SD print error", "Error:%d in %s at line: %d", status_code, sdcard->filename(), sdcard->lineNumber());
+                    sdcard->closeFile();
+                }
+        }
+    } else {
+        // Input is coming from a sender so use the classic Grbl line protocol
+        switch (status_code) {
+            case Error::Ok:  // Error::Ok
+                client << "ok\n";
+                break;
+            default:
+                // With verbose errors, the message text is displayed instead of the number.
+                // Grbl 0.9 used to display the text, while Grbl 1.1 switched to the number.
+                // Many senders support both formats.
+                client << "error:";
+                if (config->_verboseErrors) {
+                    client << errorString(status_code);
+                } else {
+                    client << static_cast<int>(status_code);
+                }
+                client << '\n';
+                break;
+        }
+    }
+}
+
 void report_status_message(Error status_code, client_t client) {
     auto sdcard = config->_sdCard;
     if (sdcard->get_state() == SDCard::State::BusyPrinting) {
@@ -253,16 +309,30 @@ void report_feedback_message(Message message) {  // ok to send to all clients
     }
 }
 
+#include "Uart.h"
 // Welcome message
+void report_init_message(Print& client) {
+    client << "\r\nGrbl " << GRBL_VERSION << " [FluidNC " << GIT_TAG << GIT_REV << " '$' for help]\n";
+    client << "Int " << 123 << " float " << 4.56 << '\n';
+}
+
 void report_init_message(client_t client) {
-    clients[client]->printf("\r\nGrbl %s [FluidNC %s%s, '$' for help]\r\n", GRBL_VERSION, GIT_TAG, GIT_REV);
-    // _sendf(client, "\r\nGrbl %s [FluidNC %s%s, '$' for help]\r\n", GRBL_VERSION, GIT_TAG, GIT_REV);
-    (*clients[client]) << "Hello from iostream " << 123 << '\n';
+    //    clients[client]->printf("\r\nGrbl %s [FluidNC %s%s, '$' for help]\r\n", GRBL_VERSION, GIT_TAG, GIT_REV);
+    _sendf(client, "\r\nGrbl %s [FluidNC %s%s, '$' for help]\r\n", GRBL_VERSION, GIT_TAG, GIT_REV);
+    // (*clients[client]) << "Hello from iostream " << 123 << '\n';
+    Uart0 << "Hello from iostream " << 123 << '\n';
 }
 
 // Prints current probe parameters. Upon a probe command, these parameters are updated upon a
 // successful probe or upon a failed probe with the G38.3 without errors command (if supported).
 // These values are retained until the system is power-cycled, whereby they will be re-zeroed.
+void report_probe_parameters(Print& client) {
+    // Report in terms of machine position.
+    // get the machine position and put them into a string and append to the probe report
+    float print_position[MAX_N_AXIS];
+    motor_steps_to_mpos(print_position, probe_steps);
+    client << "[PRB:" << report_util_axis_values(print_position) << ":" << probe_succeeded << '\n';
+}
 void report_probe_parameters(client_t client) {
     // Report in terms of machine position.
     char probe_rpt[(axesStringLen + 13 + 6 + 1)];  // the probe report we are building here
@@ -540,53 +610,64 @@ static void mpos_to_wpos(float* position) {
     }
 }
 
-static char* report_state_text() {
-    static char state[10];
-
+static const char* state_name() {
     switch (sys.state) {
         case State::Idle:
-            strcpy(state, "Idle");
-            break;
+            return "Idle";
         case State::Cycle:
-            strcpy(state, "Run");
-            break;
+            return "Run";
         case State::Hold:
             if (!(sys.suspend.bit.jogCancel)) {
-                sys.suspend.bit.holdComplete ? strcpy(state, "Hold:0") : strcpy(state, "Hold:1");
-                break;
+                return sys.suspend.bit.holdComplete ? "Hold:0" : "Hold:1";
             }  // Continues to print jog state during jog cancel.
         case State::Jog:
-            strcpy(state, "Jog");
-            break;
+            return "Jog";
         case State::Homing:
-            strcpy(state, "Home");
-            break;
+            return "Home";
         case State::ConfigAlarm:
         case State::Alarm:
-            strcpy(state, "Alarm");
-            break;
+            return "Alarm";
         case State::CheckMode:
-            strcpy(state, "Check");
-            break;
+            return "Check";
         case State::SafetyDoor:
-            strcpy(state, "Door:");
             if (sys.suspend.bit.initiateRestore) {
-                strcat(state, "3");  // Restoring
-            } else {
-                if (sys.suspend.bit.retractComplete) {
-                    sys.suspend.bit.safetyDoorAjar ? strcat(state, "1") : strcat(state, "0");
-                    ;  // Door ajar
-                    // Door closed and ready to resume
-                } else {
-                    strcat(state, "2");  // Retracting
-                }
+                return "Door:3";  // Restoring
             }
-            break;
+            if (sys.suspend.bit.retractComplete) {
+                return sys.suspend.bit.safetyDoorAjar ? "Door:1" : "Door:0";
+                // Door:0 means door closed and ready to resume
+            }
+            return "Door:2";  // Retracting
         case State::Sleep:
-            strcpy(state, "Sleep");
-            break;
+            return "Sleep";
     }
-    return state;
+    return "";
+}
+
+String pinString() {
+    String pins = "";
+
+    if (config->_probe->get_state()) {
+        pins += 'P';
+    }
+
+    MotorMask lim_pin_state = limits_get_state();
+    if (lim_pin_state) {
+        auto n_axis = config->_axes->_numberAxis;
+        for (int i = 0; i < n_axis; i++) {
+            if (bitnum_is_true(lim_pin_state, i) || bitnum_is_true(lim_pin_state, i + 16)) {
+                pins += config->_axes->axisName(i);
+            }
+        }
+    }
+
+    // XXX WMB change _control->report() to return a String
+    char status[20];
+    status[0] = '\0';
+    config->_control->report(status);
+
+    pins += status;
+    return pins;
 }
 
 // Prints real-time data. This function grabs a real-time snapshot of the stepper subprogram
@@ -594,12 +675,132 @@ static char* report_state_text() {
 // specific needs, but the desired real-time data report must be as short as possible. This is
 // requires as it minimizes the computational overhead to keep running smoothly,
 // especially during g-code programs with fast, short line segments and high frequency reports (5-20Hz).
+void report_realtime_status(Print& client) {
+    client << "<" << state_name();
+
+    // Report position
+    float* print_position = get_mpos();
+    if (bits_are_true(status_mask->get(), RtStatus::Position)) {
+        client << "|MPos:";
+    } else {
+        client << "|WPos:";
+        mpos_to_wpos(print_position);
+    }
+    client << report_util_axis_values(print_position);
+
+    // Returns planner and serial read buffer states.
+#if 0
+    // XXX WMB problem with client_get_rx_buffer_available(client)
+    if (bits_are_true(status_mask->get(), RtStatus::Buffer)) {
+        client << "|Bf:" << plan_get_block_buffer_available() << "," << client_get_rx_buffer_available(client /* CLIENT_SERIAL ??? */);
+    }
+#endif
+
+    if (config->_useLineNumbers) {
+        // Report current line number
+        plan_block_t* cur_block = plan_get_current_block();
+        if (cur_block != NULL) {
+            uint32_t ln = cur_block->line_number;
+            if (ln > 0) {
+                client << "|Ln:" << ln;
+            }
+        }
+    }
+
+    // Report realtime feed speed
+    float rate = Stepper::get_realtime_rate();
+    if (config->_reportInches) {
+        rate /= MM_PER_INCH;
+    }
+    // XXX WMB rate %.0f
+    client << "|FS:" << rate << "," << sys.spindle_speed;
+
+    String pins = pinString();
+    if (pins.length()) {
+        client << "|Pn:" << pins;
+    }
+
+    if (report_wco_counter > 0) {
+        report_wco_counter--;
+    } else {
+        switch (sys.state) {
+            case State::Homing:
+            case State::Cycle:
+            case State::Hold:
+            case State::Jog:
+            case State::SafetyDoor:
+                report_wco_counter = (REPORT_WCO_REFRESH_BUSY_COUNT - 1);  // Reset counter for slow refresh
+            default:
+                report_wco_counter = (REPORT_WCO_REFRESH_IDLE_COUNT - 1);
+                break;
+        }
+        if (report_ovr_counter == 0) {
+            report_ovr_counter = 1;  // Set override on next report.
+        }
+        client << "|WCO:" << report_util_axis_values(get_wco());
+    }
+
+    if (report_ovr_counter > 0) {
+        report_ovr_counter--;
+    } else {
+        switch (sys.state) {
+            case State::Homing:
+            case State::Cycle:
+            case State::Hold:
+            case State::Jog:
+            case State::SafetyDoor:
+                report_ovr_counter = (REPORT_OVR_REFRESH_BUSY_COUNT - 1);  // Reset counter for slow refresh
+            default:
+                report_ovr_counter = (REPORT_OVR_REFRESH_IDLE_COUNT - 1);
+                break;
+        }
+
+        client << "|Ov:" << sys.f_override << "," << sys.r_override << "," << sys.spindle_speed_ovr;
+        SpindleState sp_state      = spindle->get_state();
+        CoolantState coolant_state = config->_coolant->get_state();
+        if (sp_state != SpindleState::Disable || coolant_state.Mist || coolant_state.Flood) {
+            client << "|A:";
+            switch (sp_state) {
+                case SpindleState::Disable:
+                    break;
+                case SpindleState::Cw:
+                    client << "S";
+                    break;
+                case SpindleState::Ccw:
+                    client << "C";
+                    break;
+                case SpindleState::Unknown:
+                    break;
+            }
+
+            auto coolant = coolant_state;
+            // XXX WMB why .Flood in one case and ->hasMist() in the other? also see above
+            if (coolant.Flood) {
+                client << "F";
+            }
+            if (config->_coolant->hasMist()) {
+                client << "M";
+            }
+        }
+    }
+    if (config->_sdCard->get_state() == SDCard::State::BusyPrinting) {
+        // XXX WMB FORMAT 4.2f
+        client << "|SD:" << config->_sdCard->report_perc_complete() << "," << config->_sdCard->filename();
+    }
+#ifdef DEBUG_STEPPER_ISR
+    client << "|ISRs:" << Stepper::isr_count;
+#endif
+#ifdef DEBUG_REPORT_HEAP
+    client << "|Heap:" << esp.getHeapSize();
+#endif
+    client << ">\n";
+}
 void report_realtime_status(client_t client) {
     char status[200];
     char temp[MAX_N_AXIS * 20];
 
     strcpy(status, "<");
-    strcat(status, report_state_text());
+    strcat(status, state_name());
 
     // Report position
     float* print_position = get_mpos();

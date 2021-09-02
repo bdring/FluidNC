@@ -4,7 +4,6 @@
 #include "../NutsBolts.h"      // set_bitnum, etc
 #include "../System.h"         // sys.*
 #include "../Stepper.h"        // st_wake
-#include "../Report.h"         // CLIENT_
 #include "../Protocol.h"       // protocol_execute_realtime
 #include "../Machine/Axes.h"
 #include "../Machine/MachineConfig.h"  // config

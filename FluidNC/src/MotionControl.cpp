@@ -8,8 +8,8 @@
 #include "Machine/MachineConfig.h"
 #include "Machine/Homing.h"  // run_cycles
 #include "Limits.h"          // limits_soft_check
+#include "Report.h"          // report_over_counter
 #include "Protocol.h"        // protocol_execute_realtime
-#include "Report.h"          // CLIENT_*
 #include "Planner.h"         // plan_reset, etc
 #include "I2SOut.h"          // i2s_out_reset
 #include "Platform.h"        // WEAK_LINK
@@ -361,7 +361,7 @@ GCUpdatePos mc_probe_cycle(float* target, plan_line_data_t* pl_data, uint8_t par
     plan_sync_position();  // Sync planner position to current machine position.
     if (MESSAGE_PROBE_COORDINATES) {
         // All done! Output the probe position as message.
-        report_probe_parameters(CLIENT_ALL);
+        report_probe_parameters(allClients);
     }
     if (probe_succeeded) {
         return GCUpdatePos::System;  // Successful probe cycle.

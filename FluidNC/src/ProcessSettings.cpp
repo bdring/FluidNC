@@ -460,7 +460,7 @@ static Error dump_config(const char* value, WebUI::AuthenticationLevel auth_leve
     try {
         Configuration::Generator generator(*ss);
         if (!value) {
-            _send(CLIENT_ALL, dataBeginMarker);
+            _send(out->client(), dataBeginMarker);
         }
         config->group(generator);
         if (!value) {
@@ -705,8 +705,8 @@ void settings_execute_startup() {
             char gcline[256];
             strncpy(gcline, s, 255);
             status_code = gc_execute_line(gcline, CLIENT_SERIAL);
-            _sendf(CLIENT_SERIAL, ">%s:", gcline);  // OK to send to all
-            report_status_message(status_code, CLIENT_SERIAL);
+            Uart0 << ">" << gcline << ":";
+            report_status_message(status_code, Uart0);
         }
     }
 }

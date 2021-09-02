@@ -21,12 +21,12 @@ namespace WebUI {
 }
 #else
 
-#    include "../IOClient.h"
+#    include <Stream.h>
 
 class WebSocketsServer;
 
 namespace WebUI {
-    class Serial_2_Socket : public IOClient {
+    class Serial_2_Socket : public Stream {
         static const int TXBUFFERSIZE = 1200;
         static const int RXBUFFERSIZE = 256;
         static const int FLUSHTIMEOUT = 500;
