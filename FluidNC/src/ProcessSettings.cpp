@@ -19,6 +19,7 @@
 #include "SettingsDefinitions.h"  // build_info
 #include "Protocol.h"             // LINE_BUFFER_SIZE
 #include "Uart.h"                 // Uart0.write()
+#include "FileStream.h"           // FileStream()
 
 #include <cstring>
 #include <map>
@@ -45,12 +46,12 @@ static bool auth_failed(Word* w, const char* value, WebUI::AuthenticationLevel a
     }
 }
 
-static void show_setting(const char* name, const char* value, const char* description, WebUI::ESPResponseStream* out) {
-    _sendf(out->client(), "$%s=%s", name, value);
+static void show_setting(const char* name, const char* value, const char* description, Print& out) {
+    out << "$" << name << "=" << value;
     if (description) {
-        _sendf(out->client(), "    %s", description);
+        out << "    " << description;
     }
-    _sendf(out->client(), "\r\n");
+    out << '\n';
 }
 
 void settings_restore(uint8_t restore_flag) {
@@ -100,17 +101,17 @@ void settings_init() {
     load_settings();
 }
 
-static Error show_help(const char* value, WebUI::AuthenticationLevel auth_level, WebUI::ESPResponseStream* out) {
-    _send(out->client(), "[HLP:$$ $+ $# $S $L $G $I $N $x=val $Nx=line $J=line $SLP $C $X $H $F $E=err ~ ! ? ctrl-x]\r\n");
+static Error show_help(const char* value, WebUI::AuthenticationLevel auth_level, Print& out) {
+    out << "[HLP:$$ $+ $# $S $L $G $I $N $x=val $Nx=line $J=line $SLP $C $X $H $F $E=err ~ ! ? ctrl-x]\n";
     return Error::Ok;
 }
 
-static Error report_gcode(const char* value, WebUI::AuthenticationLevel auth_level, WebUI::ESPResponseStream* out) {
-    report_gcode_modes(out->client());
+static Error report_gcode(const char* value, WebUI::AuthenticationLevel auth_level, Print& out) {
+    report_gcode_modes(out);
     return Error::Ok;
 }
 
-static void show_settings(WebUI::ESPResponseStream* out, type_t type) {
+static void show_settings(Print& out, type_t type) {
     for (Setting* s = Setting::List; s; s = s->next()) {
         if (s->getType() == type && s->getGrblName()) {
             // The following test could be expressed more succinctly with XOR,
@@ -119,20 +120,20 @@ static void show_settings(WebUI::ESPResponseStream* out, type_t type) {
         }
     }
 }
-static Error report_normal_settings(const char* value, WebUI::AuthenticationLevel auth_level, WebUI::ESPResponseStream* out) {
+static Error report_normal_settings(const char* value, WebUI::AuthenticationLevel auth_level, Print& out) {
     show_settings(out, GRBL);  // GRBL non-axis settings
     return Error::Ok;
 }
-static Error list_grbl_names(const char* value, WebUI::AuthenticationLevel auth_level, WebUI::ESPResponseStream* out) {
+static Error list_grbl_names(const char* value, WebUI::AuthenticationLevel auth_level, Print& out) {
     for (Setting* s = Setting::List; s; s = s->next()) {
         const char* gn = s->getGrblName();
         if (gn) {
-            _sendf(out->client(), "$%s => $%s\r\n", gn, s->getName());
+            out << '$' << gn << " => $" << s->getName() << '\n';
         }
     }
     return Error::Ok;
 }
-static Error list_settings(const char* value, WebUI::AuthenticationLevel auth_level, WebUI::ESPResponseStream* out) {
+static Error list_settings(const char* value, WebUI::AuthenticationLevel auth_level, Print& out) {
     for (Setting* s = Setting::List; s; s = s->next()) {
         const char* displayValue = auth_failed(s, value, auth_level) ? "<Authentication required>" : s->getStringValue();
         if (s->getType() != PIN) {
@@ -141,7 +142,7 @@ static Error list_settings(const char* value, WebUI::AuthenticationLevel auth_le
     }
     return Error::Ok;
 }
-static Error list_changed_settings(const char* value, WebUI::AuthenticationLevel auth_level, WebUI::ESPResponseStream* out) {
+static Error list_changed_settings(const char* value, WebUI::AuthenticationLevel auth_level, Print& out) {
     for (Setting* s = Setting::List; s; s = s->next()) {
         const char* value = s->getStringValue();
         if (!auth_failed(s, value, auth_level) && strcmp(value, s->getDefaultString())) {
@@ -150,27 +151,27 @@ static Error list_changed_settings(const char* value, WebUI::AuthenticationLevel
             }
         }
     }
-    _sendf(out->client(), "(Passwords not shown)\r\n");
+    out << "(Passwords not shown)\n";
     return Error::Ok;
 }
-static Error list_commands(const char* value, WebUI::AuthenticationLevel auth_level, WebUI::ESPResponseStream* out) {
+static Error list_commands(const char* value, WebUI::AuthenticationLevel auth_level, Print& out) {
     for (Command* cp = Command::List; cp; cp = cp->next()) {
         const char* name    = cp->getName();
         const char* oldName = cp->getGrblName();
         if (oldName) {
-            _sendf(out->client(), "$%s or $%s", name, oldName);
+            out << '$' << name << " or $" << oldName;
         } else {
-            _sendf(out->client(), "$%s", name);
+            out << '$' << name;
         }
         const char* description = cp->getDescription();
         if (description) {
-            _sendf(out->client(), " =%s", description);
+            out << " =" << description;
         }
-        _sendf(out->client(), "\r\n");
+        out << '\n';
     }
     return Error::Ok;
 }
-static Error toggle_check_mode(const char* value, WebUI::AuthenticationLevel auth_level, WebUI::ESPResponseStream* out) {
+static Error toggle_check_mode(const char* value, WebUI::AuthenticationLevel auth_level, Print& out) {
     if (sys.state == State::ConfigAlarm) {
         return Error::ConfigurationInvalid;
     }
@@ -191,7 +192,7 @@ static Error toggle_check_mode(const char* value, WebUI::AuthenticationLevel aut
     }
     return Error::Ok;
 }
-static Error disable_alarm_lock(const char* value, WebUI::AuthenticationLevel auth_level, WebUI::ESPResponseStream* out) {
+static Error disable_alarm_lock(const char* value, WebUI::AuthenticationLevel auth_level, Print& out) {
     if (sys.state == State::ConfigAlarm) {
         return Error::ConfigurationInvalid;
     } else if (sys.state == State::Alarm) {
@@ -205,8 +206,8 @@ static Error disable_alarm_lock(const char* value, WebUI::AuthenticationLevel au
     }  // Otherwise, no effect.
     return Error::Ok;
 }
-static Error report_ngc(const char* value, WebUI::AuthenticationLevel auth_level, WebUI::ESPResponseStream* out) {
-    report_ngc_parameters(out->client());
+static Error report_ngc(const char* value, WebUI::AuthenticationLevel auth_level, Print& out) {
+    report_ngc_parameters(out);
     return Error::Ok;
 }
 static Error home(int cycle) {
@@ -237,25 +238,25 @@ static Error home(int cycle) {
     }
     return Error::Ok;
 }
-static Error home_all(const char* value, WebUI::AuthenticationLevel auth_level, WebUI::ESPResponseStream* out) {
+static Error home_all(const char* value, WebUI::AuthenticationLevel auth_level, Print& out) {
     return home(Machine::Homing::AllCycles);
 }
-static Error home_x(const char* value, WebUI::AuthenticationLevel auth_level, WebUI::ESPResponseStream* out) {
+static Error home_x(const char* value, WebUI::AuthenticationLevel auth_level, Print& out) {
     return home(bitnum_to_mask(X_AXIS));
 }
-static Error home_y(const char* value, WebUI::AuthenticationLevel auth_level, WebUI::ESPResponseStream* out) {
+static Error home_y(const char* value, WebUI::AuthenticationLevel auth_level, Print& out) {
     return home(bitnum_to_mask(Y_AXIS));
 }
-static Error home_z(const char* value, WebUI::AuthenticationLevel auth_level, WebUI::ESPResponseStream* out) {
+static Error home_z(const char* value, WebUI::AuthenticationLevel auth_level, Print& out) {
     return home(bitnum_to_mask(Z_AXIS));
 }
-static Error home_a(const char* value, WebUI::AuthenticationLevel auth_level, WebUI::ESPResponseStream* out) {
+static Error home_a(const char* value, WebUI::AuthenticationLevel auth_level, Print& out) {
     return home(bitnum_to_mask(A_AXIS));
 }
-static Error home_b(const char* value, WebUI::AuthenticationLevel auth_level, WebUI::ESPResponseStream* out) {
+static Error home_b(const char* value, WebUI::AuthenticationLevel auth_level, Print& out) {
     return home(bitnum_to_mask(B_AXIS));
 }
-static Error home_c(const char* value, WebUI::AuthenticationLevel auth_level, WebUI::ESPResponseStream* out) {
+static Error home_c(const char* value, WebUI::AuthenticationLevel auth_level, Print& out) {
     return home(bitnum_to_mask(C_AXIS));
 }
 static void write_limit_set(uint32_t mask) {
@@ -268,7 +269,7 @@ static void write_limit_set(uint32_t mask) {
         Uart0.write(bitnum_is_true(mask, i + 16) ? char(motor1AxisName[i]) : ' ');
     }
 }
-static Error show_limits(const char* value, WebUI::AuthenticationLevel auth_level, WebUI::ESPResponseStream* out) {
+static Error show_limits(const char* value, WebUI::AuthenticationLevel auth_level, Print& out) {
     Uart0.print("Send ! to exit\n");
     Uart0.print("Homing Axes: ");
     write_limit_set(Machine::Axes::homingMask);
@@ -288,20 +289,20 @@ static Error show_limits(const char* value, WebUI::AuthenticationLevel auth_leve
     Uart0.write('\n');
     return Error::Ok;
 }
-static Error go_to_sleep(const char* value, WebUI::AuthenticationLevel auth_level, WebUI::ESPResponseStream* out) {
+static Error go_to_sleep(const char* value, WebUI::AuthenticationLevel auth_level, Print& out) {
     rtSleep = true;
     return Error::Ok;
 }
-static Error get_report_build_info(const char* value, WebUI::AuthenticationLevel auth_level, WebUI::ESPResponseStream* out) {
+static Error get_report_build_info(const char* value, WebUI::AuthenticationLevel auth_level, Print& out) {
     if (!value) {
-        report_build_info(build_info->get(), out->client());
+        report_build_info(build_info->get(), out);
         return Error::Ok;
     }
     return Error::InvalidStatement;
 }
-static Error report_startup_lines(const char* value, WebUI::AuthenticationLevel auth_level, WebUI::ESPResponseStream* out) {
+static Error report_startup_lines(const char* value, WebUI::AuthenticationLevel auth_level, Print& out) {
     for (int i = 0; i < config->_macros->n_startup_lines; i++) {
-        _sendf(out->client(), "$N%d=%s\r\n", i, config->_macros->startup_line(i).c_str());
+        out << "$N" << i << "=" << config->_macros->startup_line(i) << '\n';
     }
     return Error::Ok;
 }
@@ -312,7 +313,7 @@ std::map<const char*, uint8_t, cmp_str> restoreCommands = {
     { "*", SettingsRestore::All },        { "all", SettingsRestore::All },
     { "@", SettingsRestore::Wifi },       { "wifi", SettingsRestore::Wifi },
 };
-static Error restore_settings(const char* value, WebUI::AuthenticationLevel auth_level, WebUI::ESPResponseStream* out) {
+static Error restore_settings(const char* value, WebUI::AuthenticationLevel auth_level, Print& out) {
     if (!value) {
         return Error::InvalidStatement;
     }
@@ -324,17 +325,17 @@ static Error restore_settings(const char* value, WebUI::AuthenticationLevel auth
     return Error::Ok;
 }
 
-static Error showState(const char* value, WebUI::AuthenticationLevel auth_level, WebUI::ESPResponseStream* out) {
+static Error showState(const char* value, WebUI::AuthenticationLevel auth_level, Print& out) {
     const char* name;
     const State state = sys.state;
     auto        it    = StateName.find(state);
     name              = it == StateName.end() ? "<invalid>" : it->second;
 
-    _sendf(out->client(), "State %d (%s)\r\n", state, name);
+    out << "State " << static_cast<int>(state) << " (" << name << ")\n";
     return Error::Ok;
 }
 
-static Error doJog(const char* value, WebUI::AuthenticationLevel auth_level, WebUI::ESPResponseStream* out) {
+static Error doJog(const char* value, WebUI::AuthenticationLevel auth_level, Print& out) {
     if (sys.state == State::ConfigAlarm) {
         return Error::ConfigurationInvalid;
     }
@@ -349,7 +350,7 @@ static Error doJog(const char* value, WebUI::AuthenticationLevel auth_level, Web
     char jogLine[LINE_BUFFER_SIZE];
     strcpy(jogLine, "$J=");
     strcat(jogLine, value);
-    return gc_execute_line(jogLine, out->client());
+    return gc_execute_line(jogLine, out);
 }
 
 static const char* alarmString(ExecAlarm alarmNumber) {
@@ -357,31 +358,31 @@ static const char* alarmString(ExecAlarm alarmNumber) {
     return it == AlarmNames.end() ? NULL : it->second;
 }
 
-static Error listAlarms(const char* value, WebUI::AuthenticationLevel auth_level, WebUI::ESPResponseStream* out) {
+static Error listAlarms(const char* value, WebUI::AuthenticationLevel auth_level, Print& out) {
     if (sys.state == State::ConfigAlarm) {
-        _sendf(out->client(), "Configuration alarm is active. Check the boot messages for 'ERR'.\r\n");
+        out << "Configuration alarm is active. Check the boot messages for 'ERR'.\n";
     } else if (rtAlarm != ExecAlarm::None) {
-        _sendf(out->client(), "Active alarm: %d (%s)\r\n", int(rtAlarm), alarmString(rtAlarm));
+        out << "Active alarm: " << int(rtAlarm) << " (" << alarmString(rtAlarm) << ")\n";
     }
     if (value) {
         char*   endptr      = NULL;
         uint8_t alarmNumber = uint8_t(strtol(value, &endptr, 10));
         if (*endptr) {
-            _sendf(out->client(), "Malformed alarm number: %s\r\n", value);
+            out << "Malformed alarm number: " << value << '\n';
             return Error::InvalidValue;
         }
         const char* alarmName = alarmString(static_cast<ExecAlarm>(alarmNumber));
         if (alarmName) {
-            _sendf(out->client(), "%d: %s\r\n", alarmNumber, alarmName);
+            out << alarmNumber << ": " << alarmName << '\n';
             return Error::Ok;
         } else {
-            _sendf(out->client(), "Unknown alarm number: %d\r\n", alarmNumber);
+            out << "Unknown alarm number: " << alarmNumber << '\n';
             return Error::InvalidValue;
         }
     }
 
     for (auto it = AlarmNames.begin(); it != AlarmNames.end(); it++) {
-        _sendf(out->client(), "%d: %s\r\n", it->first, it->second);
+        out << static_cast<int>(it->first) << ": " << it->second << '\n';
     }
     return Error::Ok;
 }
@@ -391,31 +392,31 @@ const char* errorString(Error errorNumber) {
     return it == ErrorNames.end() ? NULL : it->second;
 }
 
-static Error listErrors(const char* value, WebUI::AuthenticationLevel auth_level, WebUI::ESPResponseStream* out) {
+static Error listErrors(const char* value, WebUI::AuthenticationLevel auth_level, Print& out) {
     if (value) {
         char*   endptr      = NULL;
         uint8_t errorNumber = uint8_t(strtol(value, &endptr, 10));
         if (*endptr) {
-            _sendf(out->client(), "Malformed error number: %s\r\n", value);
+            out << "Malformed error number: " << value << '\n';
             return Error::InvalidValue;
         }
         const char* errorName = errorString(static_cast<Error>(errorNumber));
         if (errorName) {
-            _sendf(out->client(), "%d: %s\r\n", errorNumber, errorName);
+            out << errorNumber << ": " << errorName << '\n';
             return Error::Ok;
         } else {
-            _sendf(out->client(), "Unknown error number: %d\r\n", errorNumber);
+            out << "Unknown error number: " << errorNumber << '\n';
             return Error::InvalidValue;
         }
     }
 
     for (auto it = ErrorNames.begin(); it != ErrorNames.end(); it++) {
-        _sendf(out->client(), "%d: %s\r\n", it->first, it->second);
+        out << static_cast<int>(it->first) << ": " << it->second << '\n';
     }
     return Error::Ok;
 }
 
-static Error motor_disable(const char* value, WebUI::AuthenticationLevel auth_level, WebUI::ESPResponseStream* out) {
+static Error motor_disable(const char* value, WebUI::AuthenticationLevel auth_level, Print& out) {
     if (sys.state == State::ConfigAlarm) {
         return Error::ConfigurationInvalid;
     }
@@ -447,27 +448,27 @@ static Error motor_disable(const char* value, WebUI::AuthenticationLevel auth_le
     return Error::Ok;
 }
 
-static Error dump_config(const char* value, WebUI::AuthenticationLevel auth_level, WebUI::ESPResponseStream* out) {
-    ClientStream* ss;
+static Error dump_config(const char* value, WebUI::AuthenticationLevel auth_level, Print& out) {
+    Print* ss;
     try {
         if (value) {
             // Use a file on the local file system unless there is an explicit prefix like /sd/
-            ss = new ClientStream(value, "localfs");
+            ss = new FileStream(value, "localfs");
         } else {
-            ss = new ClientStream(CLIENT_ALL);
+            ss = &out;
         }
     } catch (Error err) { return err; }
     try {
         Configuration::Generator generator(*ss);
         if (!value) {
-            _send(out->client(), dataBeginMarker);
+            *ss << dataBeginMarker;
         }
         config->group(generator);
         if (!value) {
-            _send(out->client(), dataEndMarker);
+            *ss << dataEndMarker;
         }
     } catch (std::exception& ex) { log_info("Config dump error: " << ex.what()); }
-    if (ss) {
+    if (value) {
         delete ss;
     }
     return Error::Ok;
@@ -548,7 +549,7 @@ char* normalize_key(char* start) {
 
 // This is the handler for all forms of settings commands,
 // $..= and [..], with and without a value.
-Error do_command_or_setting(const char* key, char* value, WebUI::AuthenticationLevel auth_level, WebUI::ESPResponseStream* out) {
+Error do_command_or_setting(const char* key, char* value, WebUI::AuthenticationLevel auth_level, Print& out) {
     // If value is NULL, it means that there was no value string, i.e.
     // $key without =, or [key] with nothing following.
     // If value is not NULL, but the string is empty, that is the form
@@ -654,7 +655,7 @@ Error do_command_or_setting(const char* key, char* value, WebUI::AuthenticationL
     return Error::InvalidStatement;
 }
 
-Error settings_execute_line(char* line, WebUI::ESPResponseStream* out, WebUI::AuthenticationLevel auth_level) {
+Error settings_execute_line(char* line, Print& out, WebUI::AuthenticationLevel auth_level) {
     remove_password(line, auth_level);
 
     char* value;
@@ -689,11 +690,6 @@ Error settings_execute_line(char* line, WebUI::ESPResponseStream* out, WebUI::Au
     return do_command_or_setting(key, value, auth_level, out);
 }
 
-Error settings_execute_line(char* line, client_t client, WebUI::AuthenticationLevel auth_level) {
-    WebUI::ESPResponseStream stream(client, true);
-    return settings_execute_line(line, &stream, auth_level);
-}
-
 void settings_execute_startup() {
     Error status_code;
     for (int i = 0; i < config->_macros->n_startup_lines; i++) {
@@ -704,14 +700,14 @@ void settings_execute_startup() {
             // gc_execute_line modifies the line while parsing.
             char gcline[256];
             strncpy(gcline, s, 255);
-            status_code = gc_execute_line(gcline, CLIENT_SERIAL);
+            status_code = gc_execute_line(gcline, Uart0);
             Uart0 << ">" << gcline << ":";
             report_status_message(status_code, Uart0);
         }
     }
 }
 
-Error execute_line(char* line, client_t client, WebUI::AuthenticationLevel auth_level) {
+Error execute_line(char* line, Print& client, WebUI::AuthenticationLevel auth_level) {
     Error result = Error::Ok;
     // Empty or comment line. For syncing purposes.
     if (line[0] == 0) {

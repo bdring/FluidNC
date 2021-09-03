@@ -6,6 +6,7 @@
 #include "SDCard.h"
 #include "Machine/MachineConfig.h"
 #include "Report.h"
+#include "Uart.h"
 
 #include <FS.h>
 #include <SD.h>
@@ -18,10 +19,10 @@ public:
 };
 
 SDCard::SDCard() :
-    _pImpl(new FileWrap()), _current_line_number(0), _state(State::Idle), _client(CLIENT_SERIAL),
+    _pImpl(new FileWrap()), _current_line_number(0), _state(State::Idle), _client(Uart0),
     _auth_level(WebUI::AuthenticationLevel::LEVEL_GUEST), _readyNext(false) {}
 
-void SDCard::listDir(fs::FS& fs, const char* dirname, size_t levels, client_t client) {
+void SDCard::listDir(fs::FS& fs, const char* dirname, size_t levels, Print& client) {
     //char temp_filename[128]; // to help filter by extension	TODO: 128 needs a definition based on something
     File root = fs.open(dirname);
     if (!root) {
@@ -45,7 +46,7 @@ void SDCard::listDir(fs::FS& fs, const char* dirname, size_t levels, client_t cl
     }
 }
 
-bool SDCard::openFile(fs::FS& fs, const char* path, client_t client, WebUI::AuthenticationLevel auth_level) {
+bool SDCard::openFile(fs::FS& fs, const char* path, Print& client, WebUI::AuthenticationLevel auth_level) {
     _pImpl->_file = fs.open(path);
     if (!_pImpl->_file) {
         return false;
@@ -62,7 +63,7 @@ bool SDCard::closeFile() {
     _state               = State::Idle;
     _readyNext           = false;
     _current_line_number = 0;
-    _client              = CLIENT_SERIAL;
+    _client              = Uart0;
     _auth_level          = WebUI::AuthenticationLevel::LEVEL_GUEST;
     if (!_pImpl->_file) {
         return false;

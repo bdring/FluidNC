@@ -77,12 +77,12 @@ namespace Configuration {
             speedEntry  entry;
             StringRange speed = entryStr.nextWord('=');
             if (!speed.length() || !speed.isUInteger(entry.speed)) {
-                log_error("Bad speed number " << speed);
+                log_error("Bad speed number " << speed.str());
                 break;
             }
             StringRange percent = entryStr.nextWord('%');
             if (!percent.length() || !percent.isFloat(entry.percent)) {
-                log_error("Bad speed percent " << percent);
+                log_error("Bad speed percent " << percent.str());
                 break;
             }
             value.push_back(entry);

@@ -1,11 +1,12 @@
 // Class for creating JSON-encoded strings.
 
 #include "JSONEncoder.h"
+#include "../Report.h"
 
 namespace WebUI {
     // Constructor.  If _pretty is true, newlines are
     // inserted into the JSON string for easy reading.
-    JSONencoder::JSONencoder(bool pretty, ESPResponseStream* s) : pretty(pretty), level(0), str(""), stream(s) { count[level] = 0; }
+    JSONencoder::JSONencoder(bool pretty, Print* s) : pretty(pretty), level(0), str(""), stream(s) { count[level] = 0; }
 
     // Constructor.  If _pretty is true, newlines are
     // inserted into the JSON string for easy reading.
@@ -16,7 +17,7 @@ namespace WebUI {
 
     void JSONencoder::add(char c) {
         if (stream) {
-            stream->print(c);
+            (*stream) << c;
         } else {
             str += c;
         }
@@ -49,7 +50,7 @@ namespace WebUI {
     void JSONencoder::quoted(const char* s) {
         add('"');
         if (stream) {
-            stream->print(s);
+            (*stream) << s;
         } else {
             str.concat(s);
         }
@@ -87,6 +88,9 @@ namespace WebUI {
     // and returning the encoded string
     String JSONencoder::end() {
         end_object();
+        if (pretty) {
+            add('\n');
+        }
         return str;
     }
 

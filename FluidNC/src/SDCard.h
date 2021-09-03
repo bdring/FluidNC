@@ -22,7 +22,6 @@
 #include "WebUI/Authentication.h"
 #include "Pin.h"
 #include "Error.h"
-#include "Serial.h"  // client_t
 
 #include <cstdint>
 
@@ -59,7 +58,7 @@ private:
     State                      _state;
     Pin                        _cardDetect;
     SDCard::State              test_or_open(bool refresh);
-    client_t                   _client;
+    Print&                     _client;
     WebUI::AuthenticationLevel _auth_level;
 
 public:
@@ -73,14 +72,14 @@ public:
     SDCard::State begin(SDCard::State newState);
     void          end();
 
-    void     listDir(fs::FS& fs, const char* dirname, size_t levels, client_t client);
-    bool     openFile(fs::FS& fs, const char* path, client_t client, WebUI::AuthenticationLevel auth_level);
+    void     listDir(fs::FS& fs, const char* dirname, size_t levels, Print& client);
+    bool     openFile(fs::FS& fs, const char* path, Print& client, WebUI::AuthenticationLevel auth_level);
     bool     closeFile();
     Error    readFileLine(char* line, int len);
     float    report_perc_complete();
     uint32_t lineNumber();
 
-    client_t                   getClient() { return _client; }
+    Print&                     getClient() { return _client; }
     WebUI::AuthenticationLevel getAuthLevel() { return _auth_level; }
 
     const char* filename();

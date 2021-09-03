@@ -101,7 +101,7 @@ void client_init() {
     xTaskCreatePinnedToCore(heapCheckTask, "heapTask", 2000, NULL, 1, NULL, 1);
 #endif
 
-    client_reset_read_buffer(CLIENT_ALL);
+    client_reset_read_buffer(CLIENT_COUNT);
     clientCheckTaskHandle = 0;
 
     // create a task to check for incoming data
@@ -118,7 +118,7 @@ void client_init() {
 }
 
 int AllClients::read() {
-    for (size_t i = 0; i < CLIENT_ALL; i++) {
+    for (size_t i = 0; i < CLIENT_COUNT; i++) {
         int c = clients[i]->read();
         if (c >= 0) {
             // _lastReadClient = clients[i];
@@ -129,7 +129,7 @@ int AllClients::read() {
     return -1;
 };
 int AllClients::available() {
-    for (size_t i = 0; i < CLIENT_ALL; i++) {
+    for (size_t i = 0; i < CLIENT_COUNT; i++) {
         int n = clients[i]->available();
         if (n > 0) {
             // _lastReadClient = clients[i];
@@ -141,19 +141,19 @@ int AllClients::available() {
 };
 
 size_t AllClients::write(uint8_t data) {
-    for (size_t i = 0; i < CLIENT_ALL; i++) {
+    for (size_t i = 0; i < CLIENT_COUNT; i++) {
         clients[i]->write(data);
     }
     return 1;
 };
 size_t AllClients::write(const uint8_t* buffer, size_t length) {
-    for (size_t i = 0; i < CLIENT_ALL; i++) {
+    for (size_t i = 0; i < CLIENT_COUNT; i++) {
         clients[i]->write(buffer, length);
     }
     return length;
 };
 void AllClients::flush() {
-    for (size_t i = 0; i < CLIENT_ALL; i++) {
+    for (size_t i = 0; i < CLIENT_COUNT; i++) {
         clients[i]->flush();
     }
 }
@@ -175,80 +175,11 @@ static ClientType getClientChar(int& data) {
     if (data >= 0) {
         return allClients.getLastClient();
     }
-    return CLIENT_ALL;
-}
-
-// this task runs and checks for data on all interfaces
-// Realtime stuff is acted upon, then characters are added to the appropriate buffer
-void clientCheckTask(void* pvParameters) {
-    int        data = 0;                                                    // Must be int so -1 value is possible
-    ClientType client;                                                      // who sent the data
-    while (true) {                                                          // run continuously
-        std::atomic_thread_fence(std::memory_order::memory_order_seq_cst);  // read fence for settings
-        while ((client = getClientChar(data)) != CLIENT_ALL) {
-            uint8_t clientByte = uint8_t(data);
-            // Pick off realtime command characters directly from the serial stream. These characters are
-            // not passed into the main buffer, but these set system state flag bits for realtime execution.
-            if (is_realtime_command(clientByte)) {
-                execute_realtime_command(static_cast<Cmd>(clientByte), client);
-            } else {
-                if (config->_sdCard->get_state() < SDCard::State::Busy) {
-                    vTaskEnterCritical(&myMutex);
-                    client_buffer[client].push(clientByte);
-                    vTaskExitCritical(&myMutex);
-                } else {
-                    if (clientByte == '\r' || clientByte == '\n') {
-                        _sendf(client, "error %d\r\n", Error::AnotherInterfaceBusy);
-                        log_error("SD card job running");
-                    }
-                }
-            }
-        }  // if something available
-        WebUI::COMMANDS::handle();
-
-        if (config->_comms->_bluetoothConfig) {
-            config->_comms->_bluetoothConfig->handle();
-        }
-
-        WebUI::wifi_config.handle();
-        WebUI::Serial2Socket.handle_flush();
-
-        vTaskDelay(1 / portTICK_RATE_MS);  // Yield to other tasks
-
-#ifdef DEBUG_TASK_STACK
-        static UBaseType_t uxHighWaterMark = 0;
-        reportTaskStackSize(uxHighWaterMark);
-#endif
-    }
-}
-
-void client_reset_read_buffer(client_t client) {
-    for (client_t client_num = 0; client_num < CLIENT_COUNT; client_num++) {
-        if (client == client_num || client == CLIENT_ALL) {
-            client_buffer[client_num].begin();
-        }
-    }
-}
-
-// Fetches the first byte in the client read buffer. Called by protocol loop.
-int client_read(client_t client) {
-    vTaskEnterCritical(&myMutex);
-    int data = client_buffer[client].read();
-    vTaskExitCritical(&myMutex);
-    return data;
-}
-
-// checks to see if a character is a realtime character
-bool is_realtime_command(uint8_t data) {
-    if (data >= 0x80) {
-        return true;
-    }
-    auto cmd = static_cast<Cmd>(data);
-    return cmd == Cmd::Reset || cmd == Cmd::StatusReport || cmd == Cmd::CycleStart || cmd == Cmd::FeedHold;
+    return CLIENT_COUNT;
 }
 
 // Act upon a realtime character
-void execute_realtime_command(Cmd command, client_t client) {
+static void execute_realtime_command(Cmd command, Print& client) {
     switch (command) {
         case Cmd::Reset:
             log_debug("Cmd::Reset");
@@ -354,64 +285,72 @@ void execute_realtime_command(Cmd command, client_t client) {
     }
 }
 
-extern "C" {
-#include <stdio.h>
-}
+// this task runs and checks for data on all interfaces
+// Realtime stuff is acted upon, then characters are added to the appropriate buffer
+void clientCheckTask(void* pvParameters) {
+    int        data = 0;                                                    // Must be int so -1 value is possible
+    ClientType client_num;                                                  // who sent the data
+    while (true) {                                                          // run continuously
+        std::atomic_thread_fence(std::memory_order::memory_order_seq_cst);  // read fence for settings
+        while ((client_num = getClientChar(data)) != CLIENT_COUNT) {
+            Print&  client     = *clients[client_num];
+            uint8_t clientByte = uint8_t(data);
+            // Pick off realtime command characters directly from the serial stream. These characters are
+            // not passed into the main buffer, but these set system state flag bits for realtime execution.
+            if (is_realtime_command(clientByte)) {
+                execute_realtime_command(static_cast<Cmd>(clientByte), client);
+            } else {
+                if (config->_sdCard->get_state() < SDCard::State::Busy) {
+                    vTaskEnterCritical(&myMutex);
+                    client_buffer[client_num].push(clientByte);
+                    vTaskExitCritical(&myMutex);
+                } else {
+                    if (clientByte == '\r' || clientByte == '\n') {
+                        *clients[client_num] << "[MSG:ERR: " << static_cast<int>(Error::AnotherInterfaceBusy) << "]\n";
+                        log_error("SD card job running");
+                    }
+                }
+            }
+        }  // if something available
+        WebUI::COMMANDS::handle();
 
-static FILE* clientFile;
-
-void client_write(client_t client, const char* text) {
-    if (client == CLIENT_FILE) {
-        size_t len    = strlen(text);
-        size_t actual = fwrite(text, 1, len, clientFile);
-        Assert(actual == len, "File write failed");
-        return;
-    }
-
-    clients[client]->write((const uint8_t*)text, strlen(text));
-}
-
-void ClientStream::add(char c) {
-    char text[2];
-    text[1] = '\0';
-    text[0] = c;
-    client_write(_client, text);
-}
-
-ClientStream::ClientStream(const char* filename, const char* defaultFs) : _client(CLIENT_FILE) {
-    String path;
-
-    // Insert the default file system prefix if a file system name is not present
-    if (*filename != '/') {
-        path = "/";
-        path += defaultFs;
-        path += "/";
-    }
-
-    path += filename;
-
-    // Map /localfs/ to the actual name of the local file system
-    if (path.startsWith("/localfs/")) {
-        path.replace("/localfs/", "/spiffs/");
-    }
-    if (path.startsWith("/sd/")) {
-        if (config->_sdCard->begin(SDCard::State::BusyWriting) != SDCard::State::Idle) {
-            throw Error::FsFailedMount;
+        if (config->_comms->_bluetoothConfig) {
+            config->_comms->_bluetoothConfig->handle();
         }
-        _isSD = true;
-    }
 
-    clientFile = fopen(path.c_str(), "w");
-    if (!clientFile) {
-        throw Error::FsFailedCreateFile;
+        WebUI::wifi_config.handle();
+        WebUI::Serial2Socket.handle_flush();
+
+        vTaskDelay(1 / portTICK_RATE_MS);  // Yield to other tasks
+
+#ifdef DEBUG_TASK_STACK
+        static UBaseType_t uxHighWaterMark = 0;
+        reportTaskStackSize(uxHighWaterMark);
+#endif
     }
 }
 
-ClientStream::~ClientStream() {
-    if (_client == CLIENT_FILE) {
-        fclose(clientFile);
+void client_reset_read_buffer(client_t client) {
+    for (client_t client_num = 0; client_num < CLIENT_COUNT; client_num++) {
+        if (client == client_num || client == CLIENT_COUNT) {
+            client_buffer[client_num].begin();
+        }
     }
-    if (_isSD) {
-        config->_sdCard->end();
+}
+
+// Fetches the first byte in the client read buffer. Called by protocol loop.
+int client_read(client_t client) {
+    vTaskEnterCritical(&myMutex);
+    int data = client_buffer[client].read();
+    vTaskExitCritical(&myMutex);
+    return data;
+}
+
+// checks to see if a character is a realtime character
+bool is_realtime_command(uint8_t data) {
+    if (data >= 0x80) {
+        return true;
     }
+    auto cmd = static_cast<Cmd>(data);
+    return cmd == Cmd::Reset || cmd == Cmd::StatusReport || cmd == Cmd::CycleStart || cmd == Cmd::FeedHold;
 }

@@ -23,8 +23,9 @@ DebugStream::DebugStream(const char* name) {
     DEBUG_OUT << "[MSG:" << name << ": ";
 }
 
-void DebugStream::add(char c) {
-    DEBUG_OUT << c;
+size_t DebugStream::write(uint8_t c) {
+    DEBUG_OUT << static_cast<char>(c);
+    return 1;
 }
 
 DebugStream::~DebugStream() {

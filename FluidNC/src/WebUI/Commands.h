@@ -5,8 +5,6 @@
 #include "../Config.h"
 
 namespace WebUI {
-    class ESPResponseStream;
-
     class COMMANDS {
     public:
         static void wait(uint32_t milliseconds);

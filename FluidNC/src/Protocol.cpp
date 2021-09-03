@@ -151,7 +151,7 @@ static int32_t idleEndTime = 0;
   PRIMARY LOOP:
 */
 void protocol_main_loop() {
-    client_reset_read_buffer(CLIENT_ALL);
+    client_reset_read_buffer(CLIENT_COUNT);
     empty_lines();
 
     // Check for and report alarm state after a reset, error, or an initial power up.
@@ -195,17 +195,16 @@ void protocol_main_loop() {
         if (sdcard && sdcard->_readyNext) {
             char  fileLine[255];
             Error res;
-            auto  client = sdcard->getClient();
             switch (res = sdcard->readFileLine(fileLine, 255)) {
                 case Error::Ok:
                     sdcard->_readyNext = false;
 #ifdef DEBUG_REPORT_ECHO_RAW_LINE_RECEIVED
-                    report_echo_line_received(fileLine, client);
+                    report_echo_line_received(fileLine, sdcard->getClient());
 #endif
-                    report_status_message(execute_line(fileLine, client, sdcard->getAuthLevel()), client);
+                    report_status_message(execute_line(fileLine, sdcard->getClient(), sdcard->getAuthLevel()), sdcard->getClient());
                     break;
                 default:
-                    report_status_message(res, client);
+                    report_status_message(res, sdcard->getClient());
                     break;
             }
         }
@@ -215,6 +214,8 @@ void protocol_main_loop() {
         char* line;
         for (client_t client_num = 0; client_num < CLIENT_COUNT; client_num++) {
             while ((c = client_read(client_num)) != -1) {
+                Print& client = *clients[client_num];
+
                 Error res = add_char_to_line(c, client_num);
                 switch (res) {
                     case Error::Ok:
@@ -229,11 +230,11 @@ void protocol_main_loop() {
                         report_echo_line_received(line, client_num);
 #endif
                         // auth_level can be upgraded by supplying a password on the command line
-                        report_status_message(execute_line(line, client_num, WebUI::AuthenticationLevel::LEVEL_GUEST), client_num);
+                        report_status_message(execute_line(line, client, WebUI::AuthenticationLevel::LEVEL_GUEST), client);
                         empty_line(client_num);
                         break;
                     case Error::Overflow:
-                        report_status_message(Error::Overflow, client_num);
+                        report_status_message(Error::Overflow, client);
                         empty_line(client_num);
                         break;
                     default:

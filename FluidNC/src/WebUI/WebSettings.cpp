@@ -16,7 +16,7 @@
 #include "../Configuration/JsonGenerator.h"
 #include "Commands.h"  // COMMANDS::wait(1);
 #include "WifiConfig.h"
-#include "ESPResponse.h"
+#include "WebClient.h"
 #include "WebServer.h"
 #include "NotificationsService.h"  // notificationsservice
 #include "TelnetServer.h"          // telnet_server
@@ -37,7 +37,8 @@ namespace WebUI {
 
     enum_opt_t onoffOptions = { { "OFF", 0 }, { "ON", 1 } };
 
-    static ESPResponseStream* espresponse;
+    Print* webresponse = nullptr;
+    bool   isWeb       = false;
 
     typedef struct {
         char* key;
@@ -96,7 +97,7 @@ namespace WebUI {
     }
 }
 
-Error WebCommand::action(char* value, WebUI::AuthenticationLevel auth_level, WebUI::ESPResponseStream* out) {
+Error WebCommand::action(char* value, WebUI::AuthenticationLevel auth_level, Print& out) {
     if (_cmdChecker && _cmdChecker()) {
         return Error::AnotherInterfaceBusy;
     }
@@ -104,7 +105,7 @@ Error WebCommand::action(char* value, WebUI::AuthenticationLevel auth_level, Web
     if (!value) {
         value = &empty;
     }
-    WebUI::espresponse = out;
+    WebUI::webresponse = &out;
     return _action(value, auth_level);
 };
 
@@ -113,10 +114,8 @@ namespace WebUI {
     // We create a variety of print functions to make the rest
     // of the code more compact and readable.
     static void webPrint(const char* s) {
-        if (espresponse) {
-            espresponse->print(s);
-            webColumn += strlen(s);
-        }
+        *webresponse << s;
+        webColumn += strlen(s);
     }
     static void webPrintSetColumn(int column) {
         while (webColumn < column) {
@@ -143,7 +142,7 @@ namespace WebUI {
     }
     static void webPrintln(const char* s) {
         webPrint(s);
-        webPrint("\r\n");
+        webPrint("\n");
         webColumn = 0;
     }
     static void webPrintln(String s) { webPrintln(s.c_str()); }
@@ -240,15 +239,15 @@ namespace WebUI {
             return Error::FsFailedOpenFile;
         }
         //until no line in file
-        Error    err;
-        Error    accumErr = Error::Ok;
-        client_t client   = (espresponse) ? espresponse->client() : CLIENT_ALL;
+        Error  err;
+        Error  accumErr = Error::Ok;
+        Print& out      = webresponse ? *webresponse : allClients;
         while (currentfile.available()) {
             String currentline = currentfile.readStringUntil('\n');
             if (currentline.length() > 0) {
                 uint8_t line[256];
                 currentline.getBytes(line, 255);
-                err = execute_line((char*)line, client, auth_level);
+                err = execute_line((char*)line, out, auth_level);
                 if (err != Error::Ok) {
                     accumErr = err;
                 }
@@ -538,7 +537,7 @@ namespace WebUI {
     StringSetting* wifi_ap_password;
 
     static Error listAPs(char* parameter, AuthenticationLevel auth_level) {  // ESP410
-        JSONencoder j(espresponse->client() != CLIENT_WEBUI, espresponse);
+        JSONencoder j(false, webresponse);
         j.begin();
         j.begin_array("AP_LIST");
         // An initial async scanNetworks was issued at startup, so there
@@ -570,9 +569,6 @@ namespace WebUI {
         }
         j.end_array();
         j.end();
-        if (espresponse->client() != CLIENT_WEBUI) {
-            espresponse->println("");
-        }
         return Error::Ok;
     }
 #endif
@@ -589,12 +585,12 @@ namespace WebUI {
             webPrintln("Missing parameter");
             return Error::InvalidValue;
         }
-        Error ret = do_command_or_setting(spos, sval, auth_level, espresponse);
+        Error ret = do_command_or_setting(spos, sval, auth_level, *webresponse);
         return ret;
     }
 
     static Error listSettings(char* parameter, AuthenticationLevel auth_level) {  // ESP400
-        JSONencoder j(espresponse->client() != CLIENT_WEBUI, espresponse);
+        JSONencoder j(false, webresponse);
         j.begin();
         j.begin_array("EEPROM");
 
@@ -602,14 +598,11 @@ namespace WebUI {
         config->group(gen);
         j.end_array();
         j.end();
-        if (espresponse->client() != CLIENT_WEBUI) {
-            espresponse->println("");
-        }
 
         return Error::Ok;
     }
 
-    static Error openSDFile(char* parameter, client_t client, AuthenticationLevel auth_level) {
+    static Error openSDFile(char* parameter, Print& client, AuthenticationLevel auth_level) {
         if (*parameter == '\0') {
             webPrintln("Missing file name!");
             return Error::InvalidValue;
@@ -641,8 +634,8 @@ namespace WebUI {
         if (sys.state != State::Idle && sys.state != State::Alarm) {
             return Error::IdleError;
         }
-        Error    err;
-        client_t client = (espresponse) ? espresponse->client() : CLIENT_ALL;
+        Error  err;
+        Print& client = (webresponse) ? *webresponse : allClients;
         if ((err = openSDFile(parameter, client, auth_level)) != Error::Ok) {
             return err;
         }
@@ -670,7 +663,7 @@ namespace WebUI {
             webPrintln("Busy");
             return Error::IdleError;
         }
-        client_t client = (espresponse) ? espresponse->client() : CLIENT_ALL;
+        Print& client = (webresponse) ? *webresponse : allClients;
         if ((err = openSDFile(parameter, client, auth_level)) != Error::Ok) {
             return err;
         }
@@ -746,7 +739,7 @@ namespace WebUI {
         }
 
         webPrintln("");
-        config->_sdCard->listDir(SD, "/", 10, espresponse->client());
+        config->_sdCard->listDir(SD, "/", 10, *webresponse);
         String ssd = "[SD Free:" + formatBytes(SD.totalBytes() - SD.usedBytes());
         ssd += " Used:" + formatBytes(SD.usedBytes());
         ssd += " Total:" + formatBytes(SD.totalBytes());
@@ -756,7 +749,7 @@ namespace WebUI {
         return Error::Ok;
     }
 
-    void listDirLocalFS(fs::FS fs, const char* dirname, size_t levels, client_t client) {
+    void listDirLocalFS(fs::FS fs, const char* dirname, size_t levels, Print& client) {
         //char temp_filename[128]; // to help filter by extension	TODO: 128 needs a definition based on something
         File root = fs.open(dirname);
         if (!root) {
@@ -786,7 +779,7 @@ namespace WebUI {
 
     static Error listLocalFiles(char* parameter, AuthenticationLevel auth_level) {  // No ESP command
         webPrintln("");
-        listDirLocalFS(SPIFFS, "/", 10, espresponse->client());
+        listDirLocalFS(SPIFFS, "/", 10, *webresponse);
         String ssd = "[Local FS Free:" + formatBytes(SPIFFS.totalBytes() - SPIFFS.usedBytes());
         ssd += " Used:" + formatBytes(SPIFFS.usedBytes());
         ssd += " Total:" + formatBytes(SPIFFS.totalBytes());
@@ -816,7 +809,7 @@ namespace WebUI {
     }
 
     static Error listLocalFilesJSON(char* parameter, AuthenticationLevel auth_level) {  // No ESP command
-        JSONencoder j(espresponse->client() != CLIENT_WEBUI, espresponse);
+        JSONencoder j(false, webresponse);
         j.begin();
         j.begin_array("files");
         listDirJSON(SPIFFS, "/", 4, &j);
@@ -825,9 +818,6 @@ namespace WebUI {
         j.member("used", SPIFFS.usedBytes());
         j.member("occupation", String(100 * SPIFFS.usedBytes() / SPIFFS.totalBytes()));
         j.end();
-        if (espresponse->client() != CLIENT_WEBUI) {
-            webPrintln("");
-        }
         return Error::Ok;
     }
 

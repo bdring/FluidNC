@@ -13,7 +13,7 @@ namespace WebUI {
 #    include "WifiServices.h"
 
 #    include "WifiConfig.h"
-#    include "../Report.h"  // report_init_message() and CLIENT_TELNET
+#    include "../Report.h"  // report_init_message()
 #    include "Commands.h"   // COMMANDS
 
 #    include <WiFi.h>

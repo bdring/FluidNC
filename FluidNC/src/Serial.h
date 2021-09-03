@@ -19,9 +19,7 @@ enum ClientType : client_t {
     CLIENT_WEBUI  = 2,
     CLIENT_TELNET = 3,
     CLIENT_INPUT  = 4,
-    CLIENT_ALL    = 5,
     CLIENT_COUNT  = 5,  // total number of client types regardless if they are used
-    CLIENT_FILE   = 6,  // Not included in CLIENT_COUNT
 };
 
 // a task to read for incoming data from serial port
@@ -80,26 +78,12 @@ enum class Cmd : uint8_t {
     CoolantMistOvrToggle  = 0xA1,
 };
 
-void execute_realtime_command(Cmd command, client_t client);
 bool is_realtime_command(uint8_t data);
 
-#include "SimpleOutputStream.h"
-
-class ClientStream : public SimpleOutputStream {
-    client_t _client;
-    bool     _isSD;
-
-public:
-    ClientStream(client_t client) : _client(client) {}
-    ClientStream(const char* filename, const char* defaultFs);
-
-    void add(char c) override;
-    ~ClientStream();
-};
-
 #include <Stream.h>
+
 class AllClients : public Stream {
-    // Stream* _lastReadClient;
+    // Stream* _lastReadFile;
     ClientType _lastReadClient;
 
 public:

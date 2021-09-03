@@ -60,17 +60,11 @@ typedef uint8_t Counter;  // Report interval
 extern Counter report_ovr_counter;
 extern Counter report_wco_counter;
 
-// functions to send data to the user.
-void _send(client_t client, const char* text);
-void _sendf(client_t client, const char* format, ...);
-void info_client(client_t client, const char* format, ...);
-
 //function to notify
 void _notify(const char* title, const char* msg);
 void _notifyf(const char* title, const char* format, ...);
 
 // Prints system status messages.
-void report_status_message(Error status_code, client_t client);
 void report_status_message(Error status_code, Print& client);
 
 // Prints miscellaneous feedback messages.
@@ -78,27 +72,24 @@ void report_feedback_message(Message message);
 
 // Prints welcome message
 void report_init_message(Print& client);
-void report_init_message(client_t client);
 
 // Prints an echo of the pre-parsed line received right before execution.
-void report_echo_line_received(char* line, client_t client);
+void report_echo_line_received(char* line, Print& client);
 
 // Prints realtime status report
-void report_realtime_status(client_t client);
 void report_realtime_status(Print& client);
 
 // Prints recorded probe position
-void report_probe_parameters(client_t client);
 void report_probe_parameters(Print& client);
 
 // Prints NGC parameters (coordinate offsets, probe)
-void report_ngc_parameters(client_t client);
+void report_ngc_parameters(Print& client);
 
 // Prints current g-code parser mode state
-void report_gcode_modes(client_t client);
+void report_gcode_modes(Print& client);
 
 // Prints build info and user info
-void report_build_info(const char* line, client_t client);
+void report_build_info(const char* line, Print& client);
 
 #ifdef DEBUG_REPORT_REALTIME
 void report_realtime_debug();
@@ -111,42 +102,4 @@ void addPinReport(char* status, char pinLetter);
 extern const char* dataBeginMarker;
 extern const char* dataEndMarker;
 
-inline Print& operator<<(Print& lhs, char c) {
-    lhs.print(c);
-    return lhs;
-}
-
-inline Print& operator<<(Print& lhs, const char* v) {
-    lhs.print(v);
-    return lhs;
-}
-
-inline Print& operator<<(Print& lhs, String v) {
-    lhs.print(v.c_str());
-    return lhs;
-}
-
-inline Print& operator<<(Print& lhs, int v) {
-    lhs.print(v);
-    return lhs;
-}
-
-inline Print& operator<<(Print& lhs, unsigned int v) {
-    lhs.print(v);
-    return lhs;
-}
-
-inline Print& operator<<(Print& lhs, float v) {
-    lhs.print(v, 3);
-    return lhs;
-}
-
-inline Print& operator<<(Print& lhs, double v) {
-    lhs.print(v, 3);
-    return lhs;
-}
-
-inline Print& operator<<(Print& lhs, const Pin& v) {
-    lhs.print(v.name());
-    return lhs;
-}
+#include "MyIOStream.h"

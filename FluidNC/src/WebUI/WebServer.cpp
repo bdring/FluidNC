@@ -11,7 +11,6 @@
 #    include "WifiServices.h"
 #    include "WifiConfig.h"  // wifi_config
 
-#    include "ESPResponse.h"
 #    include "Serial2Socket.h"
 #    include "WebServer.h"
 #    include "../SDCard.h"
@@ -29,6 +28,8 @@
 #    include <ESPmDNS.h>
 #    include <ESP32SSDP.h>
 #    include <DNSServer.h>
+
+#    include "WebClient.h"
 
 namespace WebUI {
     const byte DNS_PORT = 53;
@@ -434,9 +435,9 @@ namespace WebUI {
         if (ESPpos > -1) {
             char line[256];
             strncpy(line, cmd.c_str(), 255);
-            ESPResponseStream* espresponse = silent ? NULL : new ESPResponseStream(_webserver);
-            Error              err         = settings_execute_line(line, espresponse, auth_level);
-            String             answer;
+            WebClient* webresponse = new WebClient(_webserver, silent);
+            Error      err         = settings_execute_line(line, *webresponse, auth_level);
+            String     answer;
             if (err == Error::Ok) {
                 answer = "ok";
             } else {
@@ -448,13 +449,10 @@ namespace WebUI {
                     answer += static_cast<int>(err);
                 }
             }
-            if (silent || !espresponse->anyOutput()) {
+            if (!webresponse->anyOutput()) {
                 _webserver->send(err != Error::Ok ? 500 : 200, "text/plain", answer);
-            } else {
-                espresponse->flush();
             }
-            if (espresponse)
-                delete (espresponse);
+            delete webresponse;
         } else {  //execute GCODE
             if (auth_level == AuthenticationLevel::LEVEL_GUEST) {
                 _webserver->send(401, "text/plain", "Authentication failed!\n");

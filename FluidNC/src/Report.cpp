@@ -43,54 +43,6 @@ EspClass esp;
 
 portMUX_TYPE mmux = portMUX_INITIALIZER_UNLOCKED;
 
-void _send(client_t client, const char* text) {
-    client_write(client, text);
-}
-
-void va_sendf(client_t client, const char* format, va_list arg) {
-    if (client == CLIENT_INPUT) {
-        return;
-    }
-    char    loc_buf[100];
-    char*   temp = loc_buf;
-    va_list copy;
-    va_copy(copy, arg);
-    size_t len = vsnprintf(NULL, 0, format, arg);
-    va_end(copy);
-    if (len >= sizeof(loc_buf)) {
-        temp = new char[len + 1];
-        if (temp == NULL) {
-            return;
-        }
-    }
-    len = vsnprintf(temp, len + 1, format, arg);
-    _send(client, temp);
-    if (temp != loc_buf) {
-        delete[] temp;
-    }
-}
-
-// This is a formatting version of the _send(...) function that work like printf
-void _sendf(client_t client, const char* format, ...) {
-    va_list arg;
-    va_start(arg, format);
-    va_sendf(client, format, arg);
-    va_end(arg);
-}
-
-static void msg_vsendf(client_t client, const char* format, va_list arg) {
-    _send(client, "[MSG:");
-    va_sendf(client, format, arg);
-    _send(client, "]\r\n");
-}
-
-void info_client(client_t client, const char* format, ...) {
-    va_list arg;
-    va_start(arg, format);
-    msg_vsendf(client, format, arg);
-    va_end(arg);
-}
-
 void _notify(const char* title, const char* msg) {
     WebUI::notificationsservice.sendMSG(title, msg);
 }
@@ -186,16 +138,12 @@ void report_status_message(Error status_code, Print& client) {
                 // we issue this message.  What Eof really means is that all the lines in the
                 // file were sent, but not necessarily executed.  Some could still be running.
                 _notifyf("SD print done", "%s print succeeded", sdcard->filename());
-                info_client(sdcard->getClient(), "%s print succeeded", sdcard->filename());
+                sdcard->getClient() << "[MSG:" << sdcard->filename() << " print succeeded]\n";
                 sdcard->closeFile();
                 break;
             default:
-                info_client(sdcard->getClient(),
-                            "Error:%d (%s) in %s at line %d",
-                            status_code,
-                            errorString(status_code),
-                            sdcard->filename(),
-                            sdcard->lineNumber());
+                sdcard->getClient() << "[MSG: ERR:" << static_cast<int>(status_code) << " (" << errorString(status_code) << ") in "
+                                    << sdcard->filename() << " at line " << sdcard->lineNumber() << "]\n";
                 if (status_code == Error::GcodeUnsupportedCommand) {
                     // Do not stop on unsupported commands because most senders do not
                     sdcard->_readyNext = true;
@@ -221,60 +169,6 @@ void report_status_message(Error status_code, Print& client) {
                     client << static_cast<int>(status_code);
                 }
                 client << '\n';
-                break;
-        }
-    }
-}
-
-void report_status_message(Error status_code, client_t client) {
-    auto sdcard = config->_sdCard;
-    if (sdcard->get_state() == SDCard::State::BusyPrinting) {
-        // When running from SD, the GCode is not coming from a sender, so we are not
-        // using the Grbl send/response/error protocol.  We use _readyNext instead of
-        // "ok" to indicate readiness for another line, and we report verbose error
-        // messages with [MSG: ...] encapsulation
-        switch (status_code) {
-            case Error::Ok:
-                sdcard->_readyNext = true;  // flag so protocol_main_loop() will send the next line
-                break;
-            case Error::Eof:
-                // XXX we really should wait for the machine to return to idle before
-                // we issue this message.  What Eof really means is that all the lines in the
-                // file were sent, but not necessarily executed.  Some could still be running.
-                _notifyf("SD print done", "%s print succeeded", sdcard->filename());
-                info_client(sdcard->getClient(), "%s print succeeded", sdcard->filename());
-                sdcard->closeFile();
-                break;
-            default:
-                info_client(sdcard->getClient(),
-                            "Error:%d (%s) in %s at line %d",
-                            status_code,
-                            errorString(status_code),
-                            sdcard->filename(),
-                            sdcard->lineNumber());
-                if (status_code == Error::GcodeUnsupportedCommand) {
-                    // Do not stop on unsupported commands because most senders do not
-                    sdcard->_readyNext = true;
-                } else {
-                    _notifyf("SD print error", "Error:%d in %s at line: %d", status_code, sdcard->filename(), sdcard->lineNumber());
-                    sdcard->closeFile();
-                }
-        }
-    } else {
-        // Input is coming from a sender so use the classic Grbl line protocol
-        switch (status_code) {
-            case Error::Ok:  // Error::Ok
-                _send(client, "ok\r\n");
-                break;
-            default:
-                // With verbose errors, the message text is displayed instead of the number.
-                // Grbl 0.9 used to display the text, while Grbl 1.1 switched to the number.
-                // Many senders support both formats.
-                if (config->_verboseErrors) {
-                    _sendf(client, "error: %s\r\n", errorString(status_code));
-                } else {
-                    _sendf(client, "error:%d\r\n", static_cast<int>(status_code));
-                }
                 break;
         }
     }
@@ -313,14 +207,6 @@ void report_feedback_message(Message message) {  // ok to send to all clients
 // Welcome message
 void report_init_message(Print& client) {
     client << "\r\nGrbl " << GRBL_VERSION << " [FluidNC " << GIT_TAG << GIT_REV << " '$' for help]\n";
-    client << "Int " << 123 << " float " << 4.56 << '\n';
-}
-
-void report_init_message(client_t client) {
-    //    clients[client]->printf("\r\nGrbl %s [FluidNC %s%s, '$' for help]\r\n", GRBL_VERSION, GIT_TAG, GIT_REV);
-    _sendf(client, "\r\nGrbl %s [FluidNC %s%s, '$' for help]\r\n", GRBL_VERSION, GIT_TAG, GIT_REV);
-    // (*clients[client]) << "Hello from iostream " << 123 << '\n';
-    Uart0 << "Hello from iostream " << 123 << '\n';
 }
 
 // Prints current probe parameters. Upon a probe command, these parameters are updated upon a
@@ -333,55 +219,31 @@ void report_probe_parameters(Print& client) {
     motor_steps_to_mpos(print_position, probe_steps);
     client << "[PRB:" << report_util_axis_values(print_position) << ":" << probe_succeeded << '\n';
 }
-void report_probe_parameters(client_t client) {
-    // Report in terms of machine position.
-    char probe_rpt[(axesStringLen + 13 + 6 + 1)];  // the probe report we are building here
-    char temp[axesStringLen];
-    strcpy(probe_rpt, "[PRB:");  // initialize the string with the first characters
-    // get the machine position and put them into a string and append to the probe report
-    float print_position[MAX_N_AXIS];
-    motor_steps_to_mpos(print_position, probe_steps);
-    report_util_axis_values(print_position, temp);
-    strcat(probe_rpt, temp);
-    // add the success indicator and add closing characters
-    sprintf(temp, ":%d]\r\n", probe_succeeded);
-    strcat(probe_rpt, temp);
-    _send(client, probe_rpt);  // send the report
-}
 
 // Prints NGC parameters (coordinate offsets, probing)
-void report_ngc_parameters(client_t client) {
-    String ngc_rpt = "";
-
+void report_ngc_parameters(Print& client) {
     // Print persistent offsets G54 - G59, G28, and G30
     for (auto coord_select = CoordIndex::Begin; coord_select < CoordIndex::End; ++coord_select) {
-        ngc_rpt += "[";
-        ngc_rpt += coords[coord_select]->getName();
-        ngc_rpt += ":";
-        ngc_rpt += report_util_axis_values(coords[coord_select]->get());
-        ngc_rpt += "]\r\n";
+        client << '[' << coords[coord_select]->getName() << ":";
+        client << report_util_axis_values(coords[coord_select]->get());
+        client << '\n';
     }
-    ngc_rpt += "[G92:";  // Print non-persistent G92,G92.1
-    ngc_rpt += report_util_axis_values(gc_state.coord_offset);
-    ngc_rpt += "]\r\n";
-    ngc_rpt += "[TLO:";  // Print tool length offset
+    // Print non-persistent G92,G92.1
+    client << "[G92:" << report_util_axis_values(gc_state.coord_offset) << "]\n";
+    // Print tool length offset
+    client << "[TLO:";
     float tlo = gc_state.tool_length_offset;
     if (config->_reportInches) {
         tlo *= INCH_PER_MM;
     }
-    ngc_rpt += String(tlo, 3);
-    ;
-    ngc_rpt += "]\r\n";
-    _send(client, ngc_rpt.c_str());
+    client << String(tlo, 3) << "]\n";
     report_probe_parameters(client);
 }
 
 // Print current gcode parser mode state
-void report_gcode_modes(client_t client) {
-    char        temp[20];
-    char        modes_rpt[75];
+void report_gcode_modes(Print& client) {
+    client << "[GC:";
     const char* mode = "";
-    strcpy(modes_rpt, "[GC:");
 
     switch (gc_state.modal.motion) {
         case Motion::None:
@@ -412,10 +274,9 @@ void report_gcode_modes(client_t client) {
             mode = "G38.4";
             break;
     }
-    strcat(modes_rpt, mode);
+    client << mode;
 
-    sprintf(temp, " G%d", gc_state.modal.coord_select + 54);
-    strcat(modes_rpt, temp);
+    client << 'G' << (gc_state.modal.coord_select + 54);
 
     switch (gc_state.modal.plane_select) {
         case Plane::XY:
@@ -428,7 +289,7 @@ void report_gcode_modes(client_t client) {
             mode = " G19";
             break;
     }
-    strcat(modes_rpt, mode);
+    client << mode;
 
     switch (gc_state.modal.units) {
         case Units::Inches:
@@ -438,7 +299,7 @@ void report_gcode_modes(client_t client) {
             mode = " G21";
             break;
     }
-    strcat(modes_rpt, mode);
+    client << mode;
 
     switch (gc_state.modal.distance) {
         case Distance::Absolute:
@@ -448,14 +309,14 @@ void report_gcode_modes(client_t client) {
             mode = " G91";
             break;
     }
-    strcat(modes_rpt, mode);
+    client << mode;
 
 #if 0
     switch (gc_state.modal.arc_distance) {
         case ArcDistance::Absolute: mode = " G90.1"; break;
         case ArcDistance::Incremental: mode = " G91.1"; break;
     }
-    strcat(modes_rpt, mode);
+    client << mode;
 #endif
 
     switch (gc_state.modal.feed_rate) {
@@ -466,7 +327,7 @@ void report_gcode_modes(client_t client) {
             mode = " G93";
             break;
     }
-    strcat(modes_rpt, mode);
+    client << mode;
 
     //report_util_gcode_modes_M();
     switch (gc_state.modal.program_flow) {
@@ -486,7 +347,7 @@ void report_gcode_modes(client_t client) {
             mode = " M30";
             break;
     }
-    strcat(modes_rpt, mode);
+    client << mode;
 
     switch (gc_state.modal.spindle) {
         case SpindleState::Cw:
@@ -501,81 +362,85 @@ void report_gcode_modes(client_t client) {
         default:
             mode = "";
     }
-    strcat(modes_rpt, mode);
+    client << mode;
 
     //report_util_gcode_modes_M();  // optional M7 and M8 should have been dealt with by here
     auto coolant = gc_state.modal.coolant;
     if (!coolant.Mist && !coolant.Flood) {
-        strcat(modes_rpt, " M9");
+        client << " M9";
     } else {
         // Note: Multiple coolant states may be active at the same time.
         if (coolant.Mist) {
-            strcat(modes_rpt, " M7");
+            client << " M7";
         }
         if (coolant.Flood) {
-            strcat(modes_rpt, " M8");
+            client << " M8";
         }
     }
 
     if (config->_enableParkingOverrideControl && sys.override_ctrl == Override::ParkingMotion) {
-        strcat(modes_rpt, " M56");
+        client << " M56";
     }
 
-    sprintf(temp, " T%d", gc_state.tool);
-    strcat(modes_rpt, temp);
-    sprintf(temp, config->_reportInches ? " F%.1f" : " F%.0f", gc_state.feed_rate);
-    strcat(modes_rpt, temp);
-    sprintf(temp, " S%d", uint32_t(gc_state.spindle_speed));
-    strcat(modes_rpt, temp);
-    strcat(modes_rpt, "]\r\n");
-    _send(client, modes_rpt);
+    client << " T " << gc_state.tool;
+    // XXX WMB format according to config->_reportInches ? %.1f : %.0f
+    client << " F" << gc_state.feed_rate;
+    client << " # " << uint32_t(gc_state.spindle_speed);
+    client << '\n';
 }
 
 // Prints build info line
-void report_build_info(const char* line, client_t client) {
-    _sendf(client, "[VER:FluidNC %s%s:%s]\r\n[OPT:", GIT_TAG, GIT_REV, line);
+void report_build_info(const char* line, Print& client) {
+    client << "[VER:FluidNC " << GIT_TAG << GIT_REV << ":" << line << "]\n";
+    client << "[OPT:";
     if (config->_coolant->hasMist()) {
-        _send(client, "M");  // TODO Need to deal with M8...it could be disabled
+        client << "M";  // TODO Need to deal with M8...it could be disabled
     }
-    _send(client, "P");
-    _send(client, "H");
+    client << "PH";
     if (config->_limitsTwoSwitchesOnAxis) {
-        _send(client, "L");
+        client << "L";
     }
     if (ALLOW_FEED_OVERRIDE_DURING_PROBE_CYCLES) {
-        _send(client, "A");
+        client << "A";
     }
-    _send(client, config->_comms->_bluetoothConfig ? "B" : "");
-    _send(client, "S");
+    if (config->_comms->_bluetoothConfig) {
+        client << "B";
+    }
+    client << "S";
     if (config->_enableParkingOverrideControl) {
-        _send(client, "R");
+        client << "R";
     }
-    _send(client, FORCE_BUFFER_SYNC_DURING_NVS_WRITE ? "" : "E");   // Shown when disabled
-    _send(client, FORCE_BUFFER_SYNC_DURING_WCO_CHANGE ? "" : "W");  // Shown when disabled.
-
+    if (!FORCE_BUFFER_SYNC_DURING_NVS_WRITE) {
+        client << "E";  // Shown when disabled
+    }
+    if (!FORCE_BUFFER_SYNC_DURING_WCO_CHANGE) {
+        client << "W";  // Shown when disabled.
+    }
     // NOTE: Compiled values, like override increments/max/min values, may be added at some point later.
     // These will likely have a comma delimiter to separate them.
-    _send(client, "]\r\n");
+    client << "]\n";
 
-    info_client(client, "Machine: %s", config->_name.c_str());
+    client << "[MSG: Machine: " << config->_name << "]\n";
 
     String info;
     info = WebUI::wifi_config.info();
     if (info.length()) {
-        info_client(client, info.c_str());
+        client << "[MSG: Machine: " << info << "]\n";
+        ;
     }
     if (config->_comms->_bluetoothConfig) {
         info = config->_comms->_bluetoothConfig->info();
         if (info.length()) {
-            info_client(client, info.c_str());
+            client << "[MSG: Machine: " << info << "]\n";
+            ;
         }
     }
 }
 
 // Prints the character string line that was received, which has been pre-parsed,
 // and has been sent into protocol_execute_line() routine to be executed.
-void report_echo_line_received(char* line, client_t client) {
-    _sendf(client, "[echo: %s]\r\n", line);
+void report_echo_line_received(char* line, Print& client) {
+    client << "[echo: " << line << "]\n";
 }
 
 // Calculate the position for status reports.
@@ -794,162 +659,6 @@ void report_realtime_status(Print& client) {
     client << "|Heap:" << esp.getHeapSize();
 #endif
     client << ">\n";
-}
-void report_realtime_status(client_t client) {
-    char status[200];
-    char temp[MAX_N_AXIS * 20];
-
-    strcpy(status, "<");
-    strcat(status, state_name());
-
-    // Report position
-    float* print_position = get_mpos();
-    if (bits_are_true(status_mask->get(), RtStatus::Position)) {
-        strcat(status, "|MPos:");
-    } else {
-        strcat(status, "|WPos:");
-        mpos_to_wpos(print_position);
-    }
-    report_util_axis_values(print_position, temp);
-    strcat(status, temp);
-
-    // Returns planner and serial read buffer states.
-    if (bits_are_true(status_mask->get(), RtStatus::Buffer)) {
-        sprintf(temp, "|Bf:%d,%d", plan_get_block_buffer_available(), client_get_rx_buffer_available(client));
-        strcat(status, temp);
-    }
-
-    if (config->_useLineNumbers) {
-        // Report current line number
-        plan_block_t* cur_block = plan_get_current_block();
-        if (cur_block != NULL) {
-            uint32_t ln = cur_block->line_number;
-            if (ln > 0) {
-                sprintf(temp, "|Ln:%d", ln);
-                strcat(status, temp);
-            }
-        }
-    }
-
-    // Report realtime feed speed
-    float rate = Stepper::get_realtime_rate();
-    if (config->_reportInches) {
-        rate /= MM_PER_INCH;
-    }
-    sprintf(temp, "|FS:%.0f,%d", rate, sys.spindle_speed);
-    strcat(status, temp);
-    MotorMask   lim_pin_state   = limits_get_state();
-    bool        prb_pin_state   = config->_probe->get_state();
-    const char* pinReportPrefix = "|Pn:";
-
-    // Remember the current length so we know whether something was added
-    size_t saved_length = strlen(status);
-
-    strcat(status, pinReportPrefix);
-
-    if (prb_pin_state) {
-        addPinReport(status, 'P');
-    }
-    if (lim_pin_state) {
-        auto n_axis = config->_axes->_numberAxis;
-        for (int i = 0; i < n_axis; i++) {
-            if (bitnum_is_true(lim_pin_state, i) || bitnum_is_true(lim_pin_state, i + 16)) {
-                addPinReport(status, config->_axes->axisName(i));
-            }
-        }
-    }
-
-    config->_control->report(status);
-
-    if (strlen(status) == (saved_length + strlen(pinReportPrefix))) {
-        // Erase the "|Pn:" prefix because there is nothing after it
-        status[saved_length] = '\0';
-    }
-
-    if (report_wco_counter > 0) {
-        report_wco_counter--;
-    } else {
-        switch (sys.state) {
-            case State::Homing:
-            case State::Cycle:
-            case State::Hold:
-            case State::Jog:
-            case State::SafetyDoor:
-                report_wco_counter = (REPORT_WCO_REFRESH_BUSY_COUNT - 1);  // Reset counter for slow refresh
-            default:
-                report_wco_counter = (REPORT_WCO_REFRESH_IDLE_COUNT - 1);
-                break;
-        }
-        if (report_ovr_counter == 0) {
-            report_ovr_counter = 1;  // Set override on next report.
-        }
-        strcat(status, "|WCO:");
-        report_util_axis_values(get_wco(), temp);
-        strcat(status, temp);
-    }
-
-    if (report_ovr_counter > 0) {
-        report_ovr_counter--;
-    } else {
-        switch (sys.state) {
-            case State::Homing:
-            case State::Cycle:
-            case State::Hold:
-            case State::Jog:
-            case State::SafetyDoor:
-                report_ovr_counter = (REPORT_OVR_REFRESH_BUSY_COUNT - 1);  // Reset counter for slow refresh
-            default:
-                report_ovr_counter = (REPORT_OVR_REFRESH_IDLE_COUNT - 1);
-                break;
-        }
-
-        sprintf(temp, "|Ov:%d,%d,%d", sys.f_override, sys.r_override, sys.spindle_speed_ovr);
-        strcat(status, temp);
-        SpindleState sp_state      = spindle->get_state();
-        CoolantState coolant_state = config->_coolant->get_state();
-        if (sp_state != SpindleState::Disable || coolant_state.Mist || coolant_state.Flood) {
-            strcat(status, "|A:");
-            switch (sp_state) {
-                case SpindleState::Disable:
-                    break;
-                case SpindleState::Cw:
-                    strcat(status, "S");
-                    break;
-                case SpindleState::Ccw:
-                    strcat(status, "C");
-                    break;
-                case SpindleState::Unknown:
-                    break;
-            }
-
-            // TODO FIXME SdB: This code is weird...:
-            auto coolant = coolant_state;
-            if (coolant.Flood) {
-                strcat(status, "F");
-            }
-            if (config->_coolant->hasMist()) {
-                // TODO Deal with M8 - Flood
-                if (coolant.Mist) {
-                    strcat(status, "M");
-                }
-            }
-        }
-    }
-    if (config->_sdCard->get_state() == SDCard::State::BusyPrinting) {
-        sprintf(temp, "|SD:%4.2f,", config->_sdCard->report_perc_complete());
-        strcat(status, temp);
-        strcat(status, config->_sdCard->filename());
-    }
-#ifdef DEBUG_STEPPER_ISR
-    sprintf(temp, "|ISRs:%d", Stepper::isr_count);
-    strcat(status, temp);
-#endif
-#ifdef DEBUG_REPORT_HEAP
-    sprintf(temp, "|Heap:%d", esp.getHeapSize());
-    strcat(status, temp);
-#endif
-    strcat(status, ">\r\n");
-    _send(client, status);
 }
 
 void reportTaskStackSize(UBaseType_t& saved) {
