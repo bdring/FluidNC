@@ -10,7 +10,7 @@
 
 namespace WebUI {
 #ifdef ENABLE_WIFI
-    WebClient::WebClient(WebServer* webserver, bool silent) : _header_sent(false), _silent(silent), _webserver(webserver) {}
+    WebClient::WebClient(WebServer* webserver, bool silent) : _header_sent(false), _silent(silent), _webserver(webserver), _buflen(0) {}
 #endif
 
     size_t WebClient::write(const uint8_t* buffer, size_t length) {
@@ -28,11 +28,11 @@ namespace WebUI {
 
         size_t remaining = length;
         while (remaining) {
-            size_t copylen = std::min(length, BUFLEN - _buflen);
+            size_t copylen = std::min(remaining, BUFLEN - _buflen);
             memcpy(&_buffer[_buflen], buffer, copylen);
             _buflen += copylen;
             remaining -= copylen;
-            if (_buflen >= BUFLEN) {  // > should not happen
+            if (_buflen >= BUFLEN) {  // The > case should not happen
                 flush();
             }
         }
@@ -46,10 +46,8 @@ namespace WebUI {
 
     void WebClient::flush() {
 #ifdef ENABLE_WIFI
-        //send data
         if (_buflen) {
             _webserver->sendContent(_buffer, _buflen);
-            //reset buffer
             _buflen = 0;
         }
 #endif
@@ -58,8 +56,7 @@ namespace WebUI {
     WebClient::~WebClient() {
         flush();
 #ifdef ENABLE_WIFI
-        //close connection
-        _webserver->sendContent("");
+        _webserver->sendContent("");  //close connection
 #endif
     }
 }

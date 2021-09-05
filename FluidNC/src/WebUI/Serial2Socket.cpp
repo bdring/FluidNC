@@ -121,6 +121,7 @@ namespace WebUI {
     }
 
     int Serial_2_Socket::read(void) {
+        handle_flush();
         if (_RXbufferSize > 0) {
             int v = _RXbuffer[_RXbufferpos];
             _RXbufferpos++;

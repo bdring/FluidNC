@@ -26,13 +26,11 @@ namespace WebUI {
      */
     void COMMANDS::wait(uint32_t milliseconds) {
         uint32_t start_time = millis();
-        esp_task_wdt_reset();  //for a wait 0;
         //wait feeding WDT
-        while ((millis() - start_time) < milliseconds) {
+        do {
             esp_task_wdt_reset();
-        }
+        } while ((millis() - start_time) < milliseconds);
     }
-
     bool COMMANDS::isLocalPasswordValid(char* password) {
         if (!password) {
             return true;

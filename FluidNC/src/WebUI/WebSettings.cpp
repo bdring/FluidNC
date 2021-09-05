@@ -14,6 +14,7 @@
 #include "../Machine/MachineConfig.h"
 #include "../Machine/WifiSTAConfig.h"
 #include "../Configuration/JsonGenerator.h"
+#include "../Uart.h"   // Uart0.baud
 #include "Commands.h"  // COMMANDS::wait(1);
 #include "WifiConfig.h"
 #include "WebClient.h"
@@ -517,7 +518,7 @@ namespace WebUI {
 
 #ifdef ENABLE_WIFI
         // Round baudRate to nearest 100 because ESP32 can say e.g. 115201
-        // webPrintln("Baud rate: ", String((Serial.baudRate() / 100) * 100)); // TODO FIXME: Commented out, because we're using Uart
+        webPrintln("Baud rate: ", String((Uart0.baud / 100) * 100));
         webPrintln("Sleep mode: ", WiFi.getSleep() ? "Modem" : "None");
         showWifiStats();
 #endif

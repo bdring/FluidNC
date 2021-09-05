@@ -24,7 +24,7 @@
   A line-oriented command is a string of printable characters followed by a '\r' or '\n'
   A realtime commands is a single character with no '\r' or '\n'
 
-  After sending a line-oriented command, you must wait for an OK to send another.
+  After sending a line-oriented command, a sender must wait for an OK to send another.
   This is because only a certain number of commands can be buffered at a time.
   The system will tell you when it is ready for another one with the OK.
 
@@ -32,10 +32,9 @@
   Realtime commands can be anywhere in the stream.
 
   To allow the realtime commands to be randomly mixed in the stream of data, we
-  read all clients as fast as possible. The realtime commands are acted upon and the other characters are
-  placed into a client_buffer[client].
-
-  The main protocol loop reads from client_buffer[]
+  read all clients as fast as possible. The realtime commands are acted upon and
+  the other characters are placed into a per-client buffer.  When a complete line
+  is received, pollClient returns the associated client spec.
 */
 
 #include "Serial.h"
@@ -45,37 +44,22 @@
 #include "WebUI/TelnetServer.h"
 #include "WebUI/Serial2Socket.h"
 #include "WebUI/Commands.h"
-#include "WebUI/WifiConfig.h"
+#include "WebUI/WifiServices.h"
 #include "MotionControl.h"
 #include "Report.h"
 #include "System.h"
 #include "Protocol.h"  // rtSafetyDoor etc
 #include "SDCard.h"
+#include "WebUI/InputBuffer.h"  // XXX could this be a StringStream ?
 
 #include <atomic>
 #include <cstring>
+#include <vector>
 #include <freertos/task.h>  // portMUX_TYPE, TaskHandle_T
 
 portMUX_TYPE myMutex = portMUX_INITIALIZER_UNLOCKED;
 
 static TaskHandle_t clientCheckTaskHandle = 0;
-
-WebUI::InputBuffer client_buffer[CLIENT_COUNT];  // create a buffer for each client
-
-// Returns the number of bytes available in a client buffer.
-int client_get_rx_buffer_available(client_t client) {
-    switch (client) {
-        case CLIENT_SERIAL:
-            return 128 - Uart0.available();
-        case CLIENT_BT:
-            // XXX possibly wrong
-            return 512 - WebUI::SerialBT.available();
-        case CLIENT_TELNET:
-            return WebUI::telnet_server.get_rx_buffer_available();
-        default:
-            return 64;
-    }
-}
 
 void heapCheckTask(void* pvParameters) {
     static uint32_t heapSize = 0;
@@ -93,89 +77,6 @@ void heapCheckTask(void* pvParameters) {
         reportTaskStackSize(uxHighWaterMark);
 #endif
     }
-}
-
-void client_init() {
-#ifdef DEBUG_REPORT_HEAP_SIZE
-    // For a 2000-word stack, uxTaskGetStackHighWaterMark reports 288 words available
-    xTaskCreatePinnedToCore(heapCheckTask, "heapTask", 2000, NULL, 1, NULL, 1);
-#endif
-
-    client_reset_read_buffer(CLIENT_COUNT);
-    clientCheckTaskHandle = 0;
-
-    // create a task to check for incoming data
-    // For a 4096-word stack, uxTaskGetStackHighWaterMark reports 244 words available
-    // after WebUI attaches.
-    xTaskCreatePinnedToCore(clientCheckTask,    // task
-                            "clientCheckTask",  // name for task
-                            8192,               // size of task stack
-                            NULL,               // parameters
-                            1,                  // priority
-                            &clientCheckTaskHandle,
-                            CONFIG_ARDUINO_RUNNING_CORE  // must run the task on same core
-    );
-}
-
-int AllClients::read() {
-    for (size_t i = 0; i < CLIENT_COUNT; i++) {
-        int c = clients[i]->read();
-        if (c >= 0) {
-            // _lastReadClient = clients[i];
-            _lastReadClient = static_cast<ClientType>(i);
-            return c;
-        }
-    }
-    return -1;
-};
-int AllClients::available() {
-    for (size_t i = 0; i < CLIENT_COUNT; i++) {
-        int n = clients[i]->available();
-        if (n > 0) {
-            // _lastReadClient = clients[i];
-            _lastReadClient = static_cast<ClientType>(i);
-            return n;
-        }
-    }
-    return 0;
-};
-
-size_t AllClients::write(uint8_t data) {
-    for (size_t i = 0; i < CLIENT_COUNT; i++) {
-        clients[i]->write(data);
-    }
-    return 1;
-};
-size_t AllClients::write(const uint8_t* buffer, size_t length) {
-    for (size_t i = 0; i < CLIENT_COUNT; i++) {
-        clients[i]->write(buffer, length);
-    }
-    return length;
-};
-void AllClients::flush() {
-    for (size_t i = 0; i < CLIENT_COUNT; i++) {
-        clients[i]->flush();
-    }
-}
-
-AllClients allClients;
-Print*     allOut = static_cast<Print*>(&allClients);
-
-Stream* clients[] = {
-    static_cast<Stream*>(&Uart0),
-    static_cast<Stream*>(&WebUI::SerialBT),
-    static_cast<Stream*>(&WebUI::Serial2Socket),
-    static_cast<Stream*>(&WebUI::telnet_server),
-    static_cast<Stream*>(&WebUI::inputBuffer),
-    static_cast<Stream*>(&allClients),
-};
-
-static ClientType getClientChar(int& data) {
-    data = allClients.read();
-    if (data >= 0) {
-        return allClients.getLastClient();
-    }
-    return CLIENT_COUNT;
 }
 
 // Act upon a realtime character
@@ -285,67 +186,6 @@ static void execute_realtime_command(Cmd command, Print& client) {
     }
 }
 
-// this task runs and checks for data on all interfaces
-// Realtime stuff is acted upon, then characters are added to the appropriate buffer
-void clientCheckTask(void* pvParameters) {
-    int        data = 0;                                                    // Must be int so -1 value is possible
-    ClientType client_num;                                                  // who sent the data
-    while (true) {                                                          // run continuously
-        std::atomic_thread_fence(std::memory_order::memory_order_seq_cst);  // read fence for settings
-        while ((client_num = getClientChar(data)) != CLIENT_COUNT) {
-            Print&  client     = *clients[client_num];
-            uint8_t clientByte = uint8_t(data);
-            // Pick off realtime command characters directly from the serial stream. These characters are
-            // not passed into the main buffer, but these set system state flag bits for realtime execution.
-            if (is_realtime_command(clientByte)) {
-                execute_realtime_command(static_cast<Cmd>(clientByte), client);
-            } else {
-                if (config->_sdCard->get_state() < SDCard::State::Busy) {
-                    vTaskEnterCritical(&myMutex);
-                    client_buffer[client_num].push(clientByte);
-                    vTaskExitCritical(&myMutex);
-                } else {
-                    if (clientByte == '\r' || clientByte == '\n') {
-                        *clients[client_num] << "[MSG:ERR: " << static_cast<int>(Error::AnotherInterfaceBusy) << "]\n";
-                        log_error("SD card job running");
-                    }
-                }
-            }
-        }  // if something available
-        WebUI::COMMANDS::handle();
-
-        if (config->_comms->_bluetoothConfig) {
-            config->_comms->_bluetoothConfig->handle();
-        }
-
-        WebUI::wifi_config.handle();
-        WebUI::Serial2Socket.handle_flush();
-
-        vTaskDelay(1 / portTICK_RATE_MS);  // Yield to other tasks
-
-#ifdef DEBUG_TASK_STACK
-        static UBaseType_t uxHighWaterMark = 0;
-        reportTaskStackSize(uxHighWaterMark);
-#endif
-    }
-}
-
-void client_reset_read_buffer(client_t client) {
-    for (client_t client_num = 0; client_num < CLIENT_COUNT; client_num++) {
-        if (client == client_num || client == CLIENT_COUNT) {
-            client_buffer[client_num].begin();
-        }
-    }
-}
-
-// Fetches the first byte in the client read buffer. Called by protocol loop.
-int client_read(client_t client) {
-    vTaskEnterCritical(&myMutex);
-    int data = client_buffer[client].read();
-    vTaskExitCritical(&myMutex);
-    return data;
-}
-
 // checks to see if a character is a realtime character
 bool is_realtime_command(uint8_t data) {
     if (data >= 0x80) {
@@ -354,3 +194,108 @@ bool is_realtime_command(uint8_t data) {
     auto cmd = static_cast<Cmd>(data);
     return cmd == Cmd::Reset || cmd == Cmd::StatusReport || cmd == Cmd::CycleStart || cmd == Cmd::FeedHold;
 }
+
+InputClient* sdClient = new InputClient(nullptr);
+
+std::vector<InputClient*> clientq;
+
+void register_client(Stream* client_stream) {
+    clientq.push_back(new InputClient(client_stream));
+}
+void client_init() {
+    register_client(&Uart0);               // USB Serial
+    register_client(&WebUI::inputBuffer);  // Macros
+#ifdef ENABLE_WIFI
+    register_client(&WebUI::Serial2Socket);
+    register_client(&WebUI::telnet_server);
+#endif
+#ifdef ENABLE_BT
+    register_client(&WebUI::SerialBT);
+#endif
+}
+
+InputClient* pollClients() {
+    auto sdcard = config->_sdCard;
+    // _readyNext indicates that input is coming from a file and
+    // the GCode system is ready for another line.
+    if (sdcard && sdcard->_readyNext) {
+        Error res = sdcard->readFileLine(sdClient->_line, InputClient::maxLine);
+        if (res == Error::Ok) {
+            sdClient->_out     = &sdcard->getClient();
+            sdcard->_readyNext = false;
+            return sdClient;
+        }
+        report_status_message(res, sdcard->getClient());
+    }
+
+    for (auto client : clientq) {
+        auto source = client->_in;
+        int  c      = source->read();
+
+        if (c >= 0) {
+            char ch = c;
+            if (client->_line_returned) {
+                client->_line_returned = false;
+                client->_linelen       = 0;
+            }
+            if (is_realtime_command(c)) {
+                execute_realtime_command(static_cast<Cmd>(c), *source);
+                continue;
+            }
+
+            if (ch == '\b') {
+                // Simple editing for interactive input - backspace erases
+                if (client->_linelen) {
+                    --client->_linelen;
+                }
+                continue;
+            }
+            if ((client->_linelen + 1) == InputClient::maxLine) {
+                report_status_message(Error::Overflow, *source);
+                // XXX could show a message with the overflow line
+                // XXX There is a problem here - the final fragment of the
+                // too-long line will be returned as a valid line.  We really
+                // need to enter a state where we ignore characters until
+                // the newline.
+                client->_linelen = 0;
+                continue;
+            }
+            if (ch == '\r' || ch == '\n') {
+                client->_line_num++;
+                if (config->_sdCard->get_state() < SDCard::State::Busy) {
+                    client->_line[client->_linelen] = '\0';
+                    client->_line_returned          = true;
+                    return client;
+                } else {
+                    // Log an error and discard the line if it happens during an SD run
+                    log_error("SD card job running");
+                    client->_linelen = 0;
+                    continue;
+                }
+            }
+
+            client->_line[client->_linelen] = ch;
+            ++client->_linelen;
+        }
+    }
+
+    WebUI::COMMANDS::handle();      // Handles feeding watchdog and ESP restart
+    WebUI::wifi_services.handle();  // OTA, web_server, telnet_server polling
+
+    return nullptr;
+}
+
+size_t AllClients::write(uint8_t data) {
+    for (auto client : clientq) {
+        client->_out->write(data);
+    }
+    return 1;
+}
+size_t AllClients::write(const uint8_t* buffer, size_t length) {
+    for (auto client : clientq) {
+        client->_out->write(buffer, length);
+    }
+    return length;
+}
+
+AllClients allClients;
