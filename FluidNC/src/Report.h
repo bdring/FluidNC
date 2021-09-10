@@ -103,3 +103,6 @@ extern const char* dataBeginMarker;
 extern const char* dataEndMarker;
 
 #include "MyIOStream.h"
+
+void mpos_to_wpos(float* position);
+const char* state_name();

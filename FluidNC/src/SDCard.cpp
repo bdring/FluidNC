@@ -103,7 +103,7 @@ Error SDCard::readFileLine(char* line, int maxlen) {
 }
 
 // return a percentage complete 50.5 = 50.5%
-float SDCard::report_perc_complete() {
+float SDCard::percent_complete() {
     if (!_pImpl->_file) {
         return 0.0;
     }

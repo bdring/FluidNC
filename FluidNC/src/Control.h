@@ -7,9 +7,9 @@
 #include "ControlPin.h"
 
 class Control : public Configuration::Configurable {
-private:
+// private:
     // TODO: Should we not just put this in an array so we can enumerate it easily?
-
+public:
     ControlPin _safetyDoor;
     ControlPin _reset;
     ControlPin _feedHold;
