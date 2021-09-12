@@ -1,4 +1,5 @@
-#if 1
+#define INCLUDE_OLED_DISPLAY
+#ifdef INCLUDE_OLED_DISPLAY
 // Copyright (c) 2020 -	Bart Dring
 // Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
 
@@ -27,53 +28,46 @@
 
 // Include the correct display library
 
-#include "SSD1306Wire.h"
-#include "../Machine/MachineConfig.h"
+#    include <SSD1306Wire.h>
+#    include "../Machine/MachineConfig.h"
 
-#include "WiFi.h"
-#include "../WebUI/WebSettings.h"
-#include "../SettingsDefinitions.h"
-#include "../Report.h"
-#include "../Machine/Axes.h"
-#include "../Uart.h"
-#ifndef OLED_ADDRESS
-#    define OLED_ADDRESS 0x3c
-#endif
+#    include "WiFi.h"
+#    include "../WebUI/WebSettings.h"
+#    include "../SettingsDefinitions.h"
+#    include "../Report.h"
+#    include "../Machine/Axes.h"
+#    include "../Uart.h"
+#    ifndef OLED_ADDRESS
+#        define OLED_ADDRESS 0x3c
+#    endif
 
-#ifndef OLED_SDA
-#    define OLED_SDA GPIO_NUM_5
-#endif
+#    ifndef OLED_SDA
+#        define OLED_SDA GPIO_NUM_21
+#    endif
 
-#ifndef OLED_SCL
-#    define OLED_SCL GPIO_NUM_4
-#endif
+#    ifndef OLED_SCL
+#        define OLED_SCL GPIO_NUM_22
+#    endif
 
-#ifndef OLED_GEOMETRY
-#    define OLED_GEOMETRY GEOMETRY_128_64
-#endif
+#    ifndef OLED_GEOMETRY
+#        define OLED_GEOMETRY GEOMETRY_64_48
+#    endif
+SSD1306Wire oled(OLED_ADDRESS, OLED_SDA, OLED_SCL, OLED_GEOMETRY, I2C_ONE, 400000);
 
-SSD1306Wire display(OLED_ADDRESS, OLED_SDA, OLED_SCL, OLED_GEOMETRY);
-
-static TaskHandle_t displayUpdateTaskHandle = 0;
-
-//Radio Mode
-const int ESP_RADIO_OFF = 0;
-const int ESP_WIFI_STA  = 1;
-const int ESP_WIFI_AP   = 2;
-const int ESP_BT        = 3;
+static TaskHandle_t oledUpdateTaskHandle = 0;
 
 // This displays the status of the ESP32 Radios...BT, WiFi, etc
-void displayRadioInfo() {
+void oledRadioInfo() {
     String radio_addr   = "";
     String radio_name   = "";
     String radio_status = "";
 
-#ifdef ENABLE_BLUETOOTH
+#    ifdef ENABLE_BLUETOOTH
     if (config->_comms->_bluetoothConfig) {
-        radio_name = String("BT: ") + config->_comms->_bluetoothConfig->_name;
+        radio_name = String("BT: ") + config->_comms->_bluetoothConfig->BTname();
     }
-#endif
-#ifdef ENABLE_WIFI
+#    endif
+#    ifdef ENABLE_WIFI
     if ((WiFi.getMode() == WIFI_MODE_STA) || (WiFi.getMode() == WIFI_MODE_APSTA)) {
         radio_name = "STA: " + WiFi.SSID();
         radio_addr = WiFi.localIP().toString();
@@ -81,58 +75,60 @@ void displayRadioInfo() {
         radio_name = String("AP:") + config->_comms->_apConfig->_ssid;
         radio_addr = WiFi.softAPIP().toString();
     }
-#endif
+#    endif
 
-#ifdef WIFI_OR_BLUETOOTH
+#    ifdef WIFI_OR_BLUETOOTH
     if (WiFi.getMode() == WIFI_MODE_NULL) {
         radio_name = "Radio Mode: None";
     }
-#else
+#    else
     radio_name = "Radio Mode:Disabled";
-#endif
+#    endif
 
-    display.setTextAlignment(TEXT_ALIGN_LEFT);
-    display.setFont(ArialMT_Plain_10);
+    oled.setTextAlignment(TEXT_ALIGN_LEFT);
+    oled.setFont(ArialMT_Plain_10);
 
     if (sys.state == State::Alarm) {  // print below Alarm:
-        display.drawString(0, 18, radio_name);
-        display.drawString(0, 30, radio_addr);
+        oled.drawString(0, 18, radio_name);
+        oled.drawString(0, 30, radio_addr);
 
     } else {  // print next to status
-        display.drawString(55, 2, config->_comms->_bluetoothConfig ? radio_name : radio_addr);
+#    ifdef ENABLE_BLUETOOTH
+        oled.drawString(55, 2, config->_comms->_bluetoothConfig ? radio_name : radio_addr);
+#    endif
     }
 }
 // Here changes begin  Here changes begin Here changes begin Here changes begin Here changes begin
 
 void draw_checkbox(int16_t x, int16_t y, int16_t width, int16_t height, bool checked) {
     if (checked)
-        display.fillRect(x, y, width, height);  // If log.0
+        oled.fillRect(x, y, width, height);  // If log.0
     else
-        display.drawRect(x, y, width, height);  // If log.1
+        oled.drawRect(x, y, width, height);  // If log.1
 }
 
-void displayDRO() {
+void oledDRO() {
     uint8_t oled_y_pos;
     //float   wco[MAX_N_AXIS];
 
-    display.setTextAlignment(TEXT_ALIGN_LEFT);
-    display.setFont(ArialMT_Plain_10);
+    oled.setTextAlignment(TEXT_ALIGN_LEFT);
+    oled.setFont(ArialMT_Plain_10);
 
     char axisVal[20];
 
-    display.drawString(80, 14, "L");  // Limit switch
+    oled.drawString(80, 14, "L");  // Limit switch
 
-    auto        n_axis        = config->_axes->_numberAxis;
-    auto        ctrl_pins     = config->_control;
-    bool        prb_pin_state = config->_probe->get_state();
+    auto n_axis        = config->_axes->_numberAxis;
+    auto ctrl_pins     = config->_control;
+    bool prb_pin_state = config->_probe->get_state();
 
-    display.setTextAlignment(TEXT_ALIGN_RIGHT);
+    oled.setTextAlignment(TEXT_ALIGN_RIGHT);
 
     float* print_position = get_mpos();
     if (bits_are_true(status_mask->get(), RtStatus::Position)) {
-        display.drawString(60, 14, "M Pos");
+        oled.drawString(60, 14, "M Pos");
     } else {
-        display.drawString(60, 14, "W Pos");
+        oled.drawString(60, 14, "W Pos");
         mpos_to_wpos(print_position);
     }
 
@@ -141,12 +137,12 @@ void displayDRO() {
 
         String axis_letter = String(Machine::Axes::_names[axis]);
         axis_letter += ":";
-        display.setTextAlignment(TEXT_ALIGN_LEFT);
-        display.drawString(0, oled_y_pos, axis_letter);  // String('X') + ":");
+        oled.setTextAlignment(TEXT_ALIGN_LEFT);
+        oled.drawString(0, oled_y_pos, axis_letter);  // String('X') + ":");
 
-        display.setTextAlignment(TEXT_ALIGN_RIGHT);
+        oled.setTextAlignment(TEXT_ALIGN_RIGHT);
         snprintf(axisVal, 20 - 1, "%.3f", print_position[axis]);
-        display.drawString(60, oled_y_pos, axisVal);
+        oled.drawString(60, oled_y_pos, axisVal);
 
         //if (bitnum_is_true(limitAxes, axis)) {  // only draw the box if a switch has been defined
         //    draw_checkbox(80, 27 + (axis * 10), 7, 7, limits_check(bitnum_to_mask(axis)));
@@ -156,125 +152,120 @@ void displayDRO() {
     oled_y_pos = 14;
 
     if (config->_probe->exists()) {
-        display.drawString(110, oled_y_pos, "P");
+        oled.drawString(110, oled_y_pos, "P");
         draw_checkbox(120, oled_y_pos + 3, 7, 7, prb_pin_state);
         oled_y_pos += 10;
     }
     if (ctrl_pins->_feedHold._pin.defined()) {
-        display.drawString(110, oled_y_pos, "H");
+        oled.drawString(110, oled_y_pos, "H");
         draw_checkbox(120, oled_y_pos + 3, 7, 7, ctrl_pins->_feedHold.get());
         oled_y_pos += 10;
     }
-    if(ctrl_pins->_cycleStart._pin.defined()) {
-        display.drawString(110, oled_y_pos, "S");
+    if (ctrl_pins->_cycleStart._pin.defined()) {
+        oled.drawString(110, oled_y_pos, "S");
         draw_checkbox(120, oled_y_pos + 3, 7, 7, ctrl_pins->_cycleStart.get());
         oled_y_pos += 10;
     }
 
-    if(ctrl_pins->_reset._pin.defined()) {
-        display.drawString(110, oled_y_pos, "R");
+    if (ctrl_pins->_reset._pin.defined()) {
+        oled.drawString(110, oled_y_pos, "R");
         draw_checkbox(120, oled_y_pos + 3, 7, 7, ctrl_pins->_reset.get());
         oled_y_pos += 10;
     }
 
-    if(ctrl_pins->_safetyDoor._pin.defined()) {
-        display.drawString(110, oled_y_pos, "D");
+    if (ctrl_pins->_safetyDoor._pin.defined()) {
+        oled.drawString(110, oled_y_pos, "D");
         draw_checkbox(120, oled_y_pos + 3, 7, 7, ctrl_pins->_safetyDoor.get());
         oled_y_pos += 10;
     }
 }
 
-void displayUpdate(void* pvParameters) {
+void oledUpdate(void* pvParameters) {
     TickType_t       xLastWakeTime;
-    const TickType_t xDisplayFrequency = 100;                  // in ticks (typically ms)
-    xLastWakeTime                      = xTaskGetTickCount();  // Initialise the xLastWakeTime variable with the current time.
+    const TickType_t xOledFrequency = 100;                  // in ticks (typically ms)
+    xLastWakeTime                   = xTaskGetTickCount();  // Initialise the xLastWakeTime variable with the current time.
 
     vTaskDelay(2500);
     uint16_t sd_file_ticker = 0;
 
-    display.init();
-    display.flipScreenVertically();
+    oled.init();
+    oled.flipScreenVertically();
 
     while (true) {
-        display.clear();
+        oled.clear();
 
         String state_string = "";
 
-        display.setTextAlignment(TEXT_ALIGN_LEFT);
-        display.setFont(ArialMT_Plain_16);
-        display.drawString(0, 0, state_name());
+        oled.setTextAlignment(TEXT_ALIGN_LEFT);
+        oled.setFont(ArialMT_Plain_16);
+        oled.drawString(0, 0, state_name());
 
         if (config->_sdCard->get_state() == SDCard::State::BusyPrinting) {
-            display.clear();
-            display.setTextAlignment(TEXT_ALIGN_CENTER);
-            display.setFont(ArialMT_Plain_10);
+            oled.clear();
+            oled.setTextAlignment(TEXT_ALIGN_CENTER);
+            oled.setFont(ArialMT_Plain_10);
             state_string = "SD File";
             for (int i = 0; i < sd_file_ticker % 10; i++) {
                 state_string += ".";
             }
             sd_file_ticker++;
-            display.drawString(63, 0, state_string);
+            oled.drawString(63, 0, state_string);
 
-            display.drawString(63, 12, config->_sdCard->filename());
+            oled.drawString(63, 12, config->_sdCard->filename());
 
             int progress = config->_sdCard->percent_complete();
             // draw the progress bar
-            display.drawProgressBar(0, 45, 120, 10, progress);
+            oled.drawProgressBar(0, 45, 120, 10, progress);
 
             // draw the percentage as String
-            display.setFont(ArialMT_Plain_10);
-            display.setTextAlignment(TEXT_ALIGN_CENTER);
-            display.drawString(64, 25, String(progress) + "%");
+            oled.setFont(ArialMT_Plain_10);
+            oled.setTextAlignment(TEXT_ALIGN_CENTER);
+            oled.drawString(64, 25, String(progress) + "%");
 
         } else if (sys.state == State::Alarm) {
-            displayRadioInfo();
+            oledRadioInfo();
         } else {
-            displayDRO();
-            displayRadioInfo();
+            oledDRO();
+            oledRadioInfo();
         }
 
-        display.display();
+        oled.display();
 
-        vTaskDelayUntil(&xLastWakeTime, xDisplayFrequency);
+        vTaskDelayUntil(&xLastWakeTime, xOledFrequency);
     }
 }
 
 void display_init() {
-    Uart0 << "Init Basic OLED SDA:gpio." << OLED_SDA << " SCL:gpio." << OLED_SCL;
-#if 1
-    display.init();
+    Uart0 << "Init OLED SDA:gpio." << OLED_SDA << " SCL:gpio." << OLED_SCL << '\n';
+    oled.init();
 
+    oled.flipScreenVertically();
 
-    display.flipScreenVertically();
+    oled.clear();
+    oled.setLogBuffer(3, 10);
 
-    display.clear();
+    oled.setTextAlignment(TEXT_ALIGN_LEFT);
 
-    display.setTextAlignment(TEXT_ALIGN_CENTER);
-    display.setFont(ArialMT_Plain_10);
-
-    #if 0
-    String mach_name = config->_name;
+    // String mach_name = config->_name;
+    //String mach_name = "Blaster";
     // remove characters from the end until the string fits
-    while (display.getStringWidth(mach_name) > 128) {
-        mach_name = mach_name.substring(0, mach_name.length() - 1);
-    }
-    display.drawString(63, 0, mach_name);
-#else
-display.drawString(10, 0, "Hello");
-#endif
+    //while (oled.getStringWidth(mach_name) > 64) {
+    //    mach_name = mach_name.substring(0, mach_name.length() - 1);
+    //}
+    //oled.drawString(0, 0, ".154");
+    oled.fillCircle(32, 24, 10);
 
-    display.display();
-#if 0
-    xTaskCreatePinnedToCore(displayUpdate,        // task
-                            "displayUpdateTask",  // name for task
+    oled.display();
+#    if 0
+    xTaskCreatePinnedToCore(oledUpdate,        // task
+                            "oledUpdateTask",  // name for task
                             4096,                 // size of task stack
                             NULL,                 // parameters
                             1,                    // priority
-                            &displayUpdateTaskHandle,
+                            &oledUpdateTaskHandle,
                             CONFIG_ARDUINO_RUNNING_CORE  // must run the task on same core
                                                          // core
     );
-#endif
-#endif
+#    endif
 }
 #endif
