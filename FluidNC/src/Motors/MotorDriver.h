@@ -114,8 +114,8 @@ namespace MotorDrivers {
         //   tables can be indexed by these variables.
         // TODO Architecture: It might be useful to cache a
         // reference to the axis settings entry.
-        uint8_t axis_index() const;       // X_AXIS, etc
-        uint8_t dual_axis_index() const;  // motor number 0 or 1
+        size_t axis_index() const;       // X_AXIS, etc
+        size_t dual_axis_index() const;  // motor number 0 or 1
     };
 
     using MotorFactory = Configuration::GenericFactory<MotorDriver>;

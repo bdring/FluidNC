@@ -6,7 +6,7 @@ namespace MotorDrivers {
     class Solenoid : public RcServo {
     public:
         Solenoid();
-        Solenoid(uint8_t axis_index, gpio_num_t pwm_pin, float transition_poiont);
+        Solenoid(size_t axis_index, gpio_num_t pwm_pin, float transition_poiont);
         void           set_location();
         void           update() override;
         void           init() override;

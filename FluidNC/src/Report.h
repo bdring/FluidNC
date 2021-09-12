@@ -10,8 +10,7 @@
 
 #include "Error.h"
 #include "NutsBolts.h"
-#include "Protocol.h"  // ExecAlarm
-#include "Serial.h"    // CLIENT_xxx
+#include "Serial.h"  // CLIENT_xxx
 
 #include <cstdint>
 #include <freertos/FreeRTOS.h>  // UBaseType_t
@@ -61,78 +60,46 @@ typedef uint8_t Counter;  // Report interval
 extern Counter report_ovr_counter;
 extern Counter report_wco_counter;
 
-// functions to send data to the user.
-void _send(uint8_t client, const char* text);
-void _sendf(uint8_t client, const char* format, ...);
-void info_client(uint8_t client, const char* format, ...);
-
 //function to notify
 void _notify(const char* title, const char* msg);
 void _notifyf(const char* title, const char* format, ...);
 
 // Prints system status messages.
-void report_status_message(Error status_code, uint8_t client);
-void report_realtime_steps();
-
-// Prints system alarm messages.
-void report_alarm_message(ExecAlarm alarm_code);
+void report_status_message(Error status_code, Print& client);
 
 // Prints miscellaneous feedback messages.
 void report_feedback_message(Message message);
 
 // Prints welcome message
-void report_init_message(uint8_t client);
-
-// Prints help and current global settings
-void report_help(uint8_t client);
-
-// Prints global settings
-void report_settings(uint8_t client, uint8_t show_extended);
+void report_init_message(Print& client);
 
 // Prints an echo of the pre-parsed line received right before execution.
-void report_echo_line_received(char* line, uint8_t client);
+void report_echo_line_received(char* line, Print& client);
 
 // Prints realtime status report
-void report_realtime_status(uint8_t client);
+void report_realtime_status(Print& client);
 
 // Prints recorded probe position
-void report_probe_parameters(uint8_t client);
+void report_probe_parameters(Print& client);
 
 // Prints NGC parameters (coordinate offsets, probe)
-void report_ngc_parameters(uint8_t client);
+void report_ngc_parameters(Print& client);
 
 // Prints current g-code parser mode state
-void report_gcode_modes(uint8_t client);
-
-// Prints startup line when requested and executed.
-void report_startup_line(uint8_t n, const char* line, uint8_t client);
-void report_execute_startup_message(const char* line, Error status_code, uint8_t client);
+void report_gcode_modes(Print& client);
 
 // Prints build info and user info
-void report_build_info(const char* line, uint8_t client);
-
-void report_gcode_comment(char* comment);
+void report_build_info(const char* line, Print& client);
 
 #ifdef DEBUG_REPORT_REALTIME
 void report_realtime_debug();
 #endif
 
-void report_machine_type(uint8_t client);
-
-void report_hex_msg(char* buf, const char* prefix, int len);
-void report_hex_msg(uint8_t* buf, const char* prefix, int len);
-
-char* reportAxisLimitsMsg(uint8_t axis);
-char* reportAxisNameMsg(uint8_t axis);
-char* reportAxisNameMsg(uint8_t axis, uint8_t dual_axis);
-
 void reportTaskStackSize(UBaseType_t& saved);
-
-char*  report_state_text();
-float* get_wco();
-void   mpos_to_wpos(float* position);
 
 void addPinReport(char* status, char pinLetter);
 
 extern const char* dataBeginMarker;
 extern const char* dataEndMarker;
+
+#include "MyIOStream.h"

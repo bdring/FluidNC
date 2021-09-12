@@ -23,7 +23,7 @@
 #include <stdatomic.h>
 
 // Make Arduino functions available
-extern "C" void __digitalWrite(uint8_t pin, uint8_t val);
+extern "C" void __digitalWrite(pinnum_t pin, uint8_t val);
 
 //
 // Configrations for DMA connected I2S
@@ -85,9 +85,9 @@ static int i2s_out_initialized = 0;
 static volatile uint32_t i2s_out_pulse_period;
 static uint32_t          i2s_out_remain_time_until_next_pulse;  // Time remaining until the next pulse (μsec)
 
-static uint8_t i2s_out_ws_pin   = 255;
-static uint8_t i2s_out_bck_pin  = 255;
-static uint8_t i2s_out_data_pin = 255;
+static pinnum_t i2s_out_ws_pin   = 255;
+static pinnum_t i2s_out_bck_pin  = 255;
+static pinnum_t i2s_out_data_pin = 255;
 
 static volatile i2s_out_pulser_status_t i2s_out_pulser_status = PASSTHROUGH;
 
@@ -121,7 +121,7 @@ static portMUX_TYPE i2s_out_pulser_spinlock = portMUX_INITIALIZER_UNLOCKED;
 //
 // Internal functions
 //
-static inline void gpio_matrix_out_check(uint8_t gpio, uint32_t signal_idx, bool out_inv, bool oen_inv) {
+static inline void gpio_matrix_out_check(pinnum_t gpio, uint32_t signal_idx, bool out_inv, bool oen_inv) {
     //if pin == 255, do not need to configure
     if (gpio != 255) {
         PIN_FUNC_SELECT(GPIO_PIN_MUX_REG[gpio], PIN_FUNC_GPIO);
@@ -175,7 +175,7 @@ static int i2s_clear_o_dma_buffers(uint32_t port_data) {
     return 0;
 }
 
-static int i2s_out_gpio_attach(uint8_t ws, uint8_t bck, uint8_t data) {
+static int i2s_out_gpio_attach(pinnum_t ws, pinnum_t bck, pinnum_t data) {
     // Route the i2s pins to the appropriate GPIO
     gpio_matrix_out_check(data, I2S0O_DATA_OUT23_IDX, 0, 0);
     gpio_matrix_out_check(bck, I2S0O_BCK_OUT_IDX, 0, 0);
@@ -185,7 +185,7 @@ static int i2s_out_gpio_attach(uint8_t ws, uint8_t bck, uint8_t data) {
 
 const int I2S_OUT_DETACH_PORT_IDX = 0x100;
 
-static int i2s_out_gpio_detach(uint8_t ws, uint8_t bck, uint8_t data) {
+static int i2s_out_gpio_detach(pinnum_t ws, pinnum_t bck, pinnum_t data) {
     // Route the i2s pins to the appropriate GPIO
     gpio_matrix_out_check(ws, I2S_OUT_DETACH_PORT_IDX, 0, 0);
     gpio_matrix_out_check(bck, I2S_OUT_DETACH_PORT_IDX, 0, 0);
@@ -496,7 +496,7 @@ void i2s_out_delay() {
     I2S_OUT_PULSER_EXIT_CRITICAL();
 }
 
-void IRAM_ATTR i2s_out_write(uint8_t pin, uint8_t val) {
+void IRAM_ATTR i2s_out_write(pinnum_t pin, uint8_t val) {
     uint32_t bit = bitnum_to_mask(pin);
     if (val) {
         atomic_fetch_or(&i2s_out_port_data, bit);
@@ -505,7 +505,7 @@ void IRAM_ATTR i2s_out_write(uint8_t pin, uint8_t val) {
     }
 }
 
-uint8_t i2s_out_read(uint8_t pin) {
+uint8_t i2s_out_read(pinnum_t pin) {
     uint32_t port_data = atomic_load(&i2s_out_port_data);
     return (!!(port_data & bitnum_to_mask(pin)));
 }

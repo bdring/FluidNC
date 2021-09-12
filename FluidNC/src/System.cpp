@@ -32,7 +32,7 @@ void system_reset() {
     report_wco_counter = 0;
 }
 
-float steps_to_mpos(int32_t steps, uint8_t axis) {
+float steps_to_mpos(int32_t steps, size_t axis) {
     return float(steps / config->_axes->_axis[axis]->_stepsPerMm);
 }
 int32_t mpos_to_steps(float mpos, size_t axis) {

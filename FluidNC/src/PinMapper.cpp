@@ -18,9 +18,9 @@ namespace {
             }
         }
 
-        uint8_t Claim(Pin* pin) {
+        pinnum_t Claim(Pin* pin) {
             // Let's not use 0. 1 is the first pin we'll allocate.
-            for (int i = 1; i < 256; ++i) {
+            for (pinnum_t i = 1; i < 256; ++i) {
                 if (_mapping[i] == nullptr) {
                     _mapping[i] = pin;
                     return i;
@@ -29,7 +29,7 @@ namespace {
             return 0;
         }
 
-        void Release(uint8_t idx) { _mapping[idx] = nullptr; }
+        void Release(pinnum_t idx) { _mapping[idx] = nullptr; }
 
         static Mapping& instance() {
             static Mapping instance;
@@ -74,14 +74,14 @@ PinMapper::~PinMapper() {
 }
 
 // Arduino compatibility functions, which basically forward the call to the mapper:
-void IRAM_ATTR digitalWrite(uint8_t pin, uint8_t val) {
+void IRAM_ATTR digitalWrite(pinnum_t pin, uint8_t val) {
     auto thePin = Mapping::instance()._mapping[pin];
     if (thePin) {
         thePin->synchronousWrite(val);
     }
 }
 
-void IRAM_ATTR pinMode(uint8_t pin, uint8_t mode) {
+void IRAM_ATTR pinMode(pinnum_t pin, uint8_t mode) {
     Pins::PinAttributes attr = Pins::PinAttributes::None;
     if ((mode & OUTPUT) == OUTPUT) {
         attr = attr | Pins::PinAttributes::Output;
@@ -102,7 +102,7 @@ void IRAM_ATTR pinMode(uint8_t pin, uint8_t mode) {
     }
 }
 
-int IRAM_ATTR digitalRead(uint8_t pin) {
+int IRAM_ATTR digitalRead(pinnum_t pin) {
     auto thePin = Mapping::instance()._mapping[pin];
     return (thePin) ? thePin->read() : 0;
 }

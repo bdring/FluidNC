@@ -6,6 +6,7 @@
 // #define false 0
 // #define true 1
 
+#include <WString.h>
 #include <cstdint>
 #include <esp_attr.h>
 #include <xtensa/core-macros.h>
@@ -71,7 +72,7 @@ const float INCH_PER_MM = (0.0393701f);
 // Read a floating point value from a string. Line points to the input buffer, char_counter
 // is the indexer pointing to the current character of the line, while float_ptr is
 // a pointer to the result variable. Returns true when it succeeds
-uint8_t read_float(const char* line, uint8_t* char_counter, float* float_ptr);
+bool read_float(const char* line, size_t* char_counter, float* float_ptr);
 
 // Blocking delay for very short time intervals
 void delay_us(int32_t microseconds);
@@ -160,11 +161,13 @@ T mapConstrain(T x, T in_min, T in_max, T out_min, T out_max) {
 
 // constrain a value and issue a message. Returns true is the value was OK
 template <typename T>
-bool constrain_with_message(T &value, T min, T max) {
+bool constrain_with_message(T& value, T min, T max) {
     if (value < min || value > max) {
         log_warn("Value " << value << " constrained to range (" << min << "," << max << ")");
-        value = myConstrain(value, min, max);   
+        value = myConstrain(value, min, max);
         return false;
     }
     return true;
 }
+
+String formatBytes(uint64_t bytes);

@@ -16,7 +16,7 @@ namespace Pins {
         static std::vector<bool> _claimed;
 
     public:
-        I2SOPinDetail(uint8_t index, const PinOptionsParser& options);
+        I2SOPinDetail(pinnum_t index, const PinOptionsParser& options);
 
         PinCapabilities capabilities() const override;
 

@@ -6,7 +6,7 @@
 #include <vector>
 
 #include "../Pin.h"
-#include "../StringStream.h"
+#include "../Report.h"
 #include "HandlerBase.h"
 
 namespace Configuration {
@@ -16,9 +16,9 @@ namespace Configuration {
         Generator(const Generator&) = delete;
         Generator& operator=(const Generator&) = delete;
 
-        int                 indent_;
-        SimpleOutputStream& dst_;
-        bool                lastIsNewline_ = false;
+        int    indent_;
+        Print& dst_;
+        bool   lastIsNewline_ = false;
 
         inline void indent() {
             lastIsNewline_ = false;
@@ -37,7 +37,7 @@ namespace Configuration {
         HandlerType handlerType() override { return HandlerType::Generator; }
 
     public:
-        Generator(SimpleOutputStream& dst, int indent = 0);
+        Generator(Print& dst, int indent = 0);
 
         void item(const char* name, int& value, int32_t minValue, int32_t maxValue) override {
             indent();

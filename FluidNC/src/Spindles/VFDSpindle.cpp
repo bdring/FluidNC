@@ -38,16 +38,33 @@ namespace Spindles {
     QueueHandle_t VFD::vfd_cmd_queue     = nullptr;
     TaskHandle_t  VFD::vfd_cmdTaskHandle = nullptr;
 
+#if defined(DEBUG_VFD) || defined(DEBUG_VFD_ALL)
+    // Print a message in hex format
+    //    Example: report_hex_msg(msg, "Rx:", 6);
+    //    would would print something like ... [MSG Rx: 0x01 0x03 0x01 0x08 0x31 0xbf]
+    void VFD::hex_msg(uint8_t* buf, const char* prefix, int len) {
+        char report[200];
+        char temp[20];
+        sprintf(report, "%s", prefix);
+        for (int i = 0; i < len; i++) {
+            sprintf(temp, " 0x%02X", buf[i]);
+            strcat(report, temp);
+        }
+
+        log_info(report);
+    }
+#endif
+
     void VFD::reportParsingErrors(ModbusCommand cmd, uint8_t* rx_message, size_t read_length) {
 #ifdef DEBUG_VFD
-        report_hex_msg(cmd.msg, "RS485 Tx: ", cmd.tx_length);
-        report_hex_msg(rx_message, "RS485 Rx: ", read_length);
+        hex_msg(cmd.msg, "RS485 Tx: ", cmd.tx_length);
+        hex_msg(rx_message, "RS485 Rx: ", read_length);
 #endif
     }
     void VFD::reportCmdErrors(ModbusCommand cmd, uint8_t* rx_message, size_t read_length, uint8_t id) {
 #ifdef DEBUG_VFD
-        report_hex_msg(cmd.msg, "RS485 Tx: ", cmd.tx_length);
-        report_hex_msg(rx_message, "RS485 Rx: ", read_length);
+        hex_msg(cmd.msg, "RS485 Tx: ", cmd.tx_length);
+        hex_msg(rx_message, "RS485 Rx: ", read_length);
 
         if (read_length != 0) {
             if (rx_message[0] != id) {
@@ -162,7 +179,7 @@ namespace Spindles {
 
 #ifdef DEBUG_VFD_ALL
                 if (parser == nullptr) {
-                    report_hex_msg(next_cmd.msg, "RS485 Tx: ", next_cmd.tx_length);
+                    hex_msg(next_cmd.msg, "RS485 Tx: ", next_cmd.tx_length);
                 }
 #endif
             }
@@ -172,7 +189,7 @@ namespace Spindles {
             for (; retry_count < MAX_RETRIES; ++retry_count) {
                 // Flush the UART and write the data:
                 uart.flush();
-                uart.write(reinterpret_cast<const char*>(next_cmd.msg), next_cmd.tx_length);
+                uart.write(next_cmd.msg, next_cmd.tx_length);
                 uart.flushTxTimed(response_ticks);
 
                 // Read the response

@@ -5,7 +5,6 @@
 
 #include "HandlerBase.h"
 #include "Configurable.h"
-#include "../WebUI/ESPResponse.h"
 
 namespace Configuration {
     class RuntimeSetting : public Configuration::HandlerBase {
@@ -15,7 +14,7 @@ namespace Configuration {
 
         const char* newValue_;  // null (read) or 123 (value)
 
-        WebUI::ESPResponseStream* out_;
+        Print& out_;
 
         bool is(const char* name) const {
             if (start_ != nullptr) {
@@ -32,7 +31,7 @@ namespace Configuration {
         bool matchesUninitialized(const char* name) override { return false; }
 
     public:
-        RuntimeSetting(const char* key, const char* value, WebUI::ESPResponseStream* out);
+        RuntimeSetting(const char* key, const char* value, Print& out);
 
         void item(const char* name, bool& value) override;
         void item(const char* name, int32_t& value, int32_t minValue, int32_t maxValue) override;

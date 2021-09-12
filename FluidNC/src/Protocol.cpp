@@ -56,11 +56,11 @@ volatile bool rtButtonMacro3;
 
 static void protocol_exec_rt_suspend();
 
-static char    line[LINE_BUFFER_SIZE];     // Line to be executed. Zero-terminated.
-static char    comment[LINE_BUFFER_SIZE];  // Line to be executed. Zero-terminated.
-static uint8_t line_flags           = 0;
-static uint8_t char_counter         = 0;
-static uint8_t comment_char_counter = 0;
+static char line[LINE_BUFFER_SIZE];     // Line to be executed. Zero-terminated.
+static char comment[LINE_BUFFER_SIZE];  // Line to be executed. Zero-terminated.
+// static uint8_t line_flags           = 0;
+// static uint8_t char_counter         = 0;
+// static uint8_t comment_char_counter = 0;
 
 // Spindle stop override control states.
 struct SpindleStopBits {
@@ -75,49 +75,6 @@ union SpindleStop {
 };
 
 static SpindleStop spindle_stop_ovr;
-
-struct client_line_t {
-    char buffer[LINE_BUFFER_SIZE];
-    int  len;
-    int  line_number;
-};
-
-client_line_t client_lines[CLIENT_COUNT];
-
-static void empty_line(uint8_t client) {
-    client_line_t* cl = &client_lines[client];
-    cl->len           = 0;
-    cl->buffer[0]     = '\0';
-}
-static void empty_lines() {
-    for (uint8_t client = 0; client < CLIENT_COUNT; client++) {
-        empty_line(client);
-    }
-}
-
-Error add_char_to_line(char c, uint8_t client) {
-    client_line_t* cl = &client_lines[client];
-    // Simple editing for interactive input
-    if (c == '\b') {
-        // Backspace erases
-        if (cl->len) {
-            --cl->len;
-            cl->buffer[cl->len] = '\0';
-        }
-        return Error::Ok;
-    }
-    if (cl->len == (LINE_BUFFER_SIZE - 1)) {
-        return Error::Overflow;
-    }
-    if (c == '\r' || c == '\n') {
-        cl->len = 0;
-        cl->line_number++;
-        return Error::Eol;
-    }
-    cl->buffer[cl->len++] = c;
-    cl->buffer[cl->len]   = '\0';
-    return Error::Ok;
-}
 
 bool can_park() {
     if (config->_enableParkingOverrideControl) {
@@ -151,10 +108,6 @@ static int32_t idleEndTime = 0;
   PRIMARY LOOP:
 */
 void protocol_main_loop() {
-    client_reset_read_buffer(CLIENT_ALL);
-    empty_lines();
-    //uint8_t client = CLIENT_SERIAL; // default client
-
     // Check for and report alarm state after a reset, error, or an initial power up.
     // NOTE: Sleep mode disables the stepper drivers and position can't be guaranteed.
     // Re-initialize the sleep state as an ALARM mode to ensure user homes or acknowledges.
@@ -188,63 +141,23 @@ void protocol_main_loop() {
     // Primary loop! Upon a system abort, this exits back to main() to reset the system.
     // This is also where the system idles while waiting for something to do.
     // ---------------------------------------------------------------------------------
-    int c;
     for (;;) {
-        auto sdcard = config->_sdCard;
-        // _readyNext indicates that input is coming from a file and
-        // the GCode system is ready for another line.
-        if (sdcard && sdcard->_readyNext) {
-            char  fileLine[255];
-            Error res;
-            switch (res = sdcard->readFileLine(fileLine, 255)) {
-                case Error::Ok:
-                    sdcard->_readyNext = false;
-#ifdef DEBUG_REPORT_ECHO_RAW_LINE_RECEIVED
-                    report_echo_line_received(fileLine, CLIENT_SERIAL);
-#endif
-                    report_status_message(execute_line(fileLine, sdcard->_client, sdcard->_auth_level), sdcard->_client);
-                    break;
-                default:
-                    report_status_message(res, sdcard->_client);
-                    break;
+        // Poll the input sources waiting for a complete line to arrive
+        InputClient* ic;
+        while ((ic = pollClients()) != nullptr) {
+            Print* out = ic->_out;
+            protocol_execute_realtime();  // Runtime command check point.
+            if (sys.abort) {
+                return;  // Bail to calling function upon system abort
             }
-        }
-        // Receive one line of incoming serial data, as the data becomes available.
-        // Filtering, if necessary, is done later in gc_execute_line(), so the
-        // filtering is the same with serial and file input.
-        uint8_t client = CLIENT_SERIAL;
-        char*   line;
-        for (client = 0; client < CLIENT_COUNT; client++) {
-            while ((c = client_read(client)) != -1) {
-                Error res = add_char_to_line(c, client);
-                switch (res) {
-                    case Error::Ok:
-                        break;
-                    case Error::Eol:
-                        protocol_execute_realtime();  // Runtime command check point.
-                        if (sys.abort) {
-                            return;  // Bail to calling function upon system abort
-                        }
-                        line = client_lines[client].buffer;
 #ifdef DEBUG_REPORT_ECHO_RAW_LINE_RECEIVED
-                        report_echo_line_received(line, client);
+            report_echo_line_received(ic->_line, *out);
 #endif
-                        // auth_level can be upgraded by supplying a password on the command line
-                        report_status_message(execute_line(line, client, WebUI::AuthenticationLevel::LEVEL_GUEST), client);
-                        empty_line(client);
-                        break;
-                    case Error::Overflow:
-                        report_status_message(Error::Overflow, client);
-                        empty_line(client);
-                        break;
-                    default:
-                        break;
-                }
-            }  // while serial read
-        }      // for clients
-        // If there are no more characters in the serial read buffer to be processed and executed,
-        // this indicates that g-code streaming has either filled the planner buffer or has
-        // completed. In either case, auto-cycle start, if enabled, any queued moves.
+            // auth_level can be upgraded by supplying a password on the command line
+            report_status_message(execute_line(ic->_line, *out, WebUI::AuthenticationLevel::LEVEL_GUEST), *out);
+        }
+        // If there are no more lines to be processed and executed,
+        // auto-cycle start, if enabled, any queued moves.
         protocol_auto_cycle_start();
         protocol_execute_realtime();  // Runtime command check point.
         if (sys.abort) {
@@ -313,6 +226,11 @@ void protocol_execute_realtime() {
     }
 }
 
+static void alarm_msg(ExecAlarm alarm_code) {
+    allClients << "ALARM:" << static_cast<int>(alarm_code) << '\n';
+    delay_ms(500);  // Force delay to ensure message clears serial write buffer.
+}
+
 // Executes run-time commands, when required. This function is the primary state
 // machine that controls the various real-time features.
 // NOTE: Do not alter this unless you know exactly what you are doing!
@@ -324,7 +242,7 @@ static void protocol_do_alarm() {
         case ExecAlarm::HardLimit:
         case ExecAlarm::SoftLimit:
             sys.state = State::Alarm;  // Set system alarm state
-            report_alarm_message(rtAlarm);
+            alarm_msg(rtAlarm);
             report_feedback_message(Message::CriticalEvent);
             rtReset = false;  // Disable any existing reset
             do {
@@ -338,7 +256,7 @@ static void protocol_do_alarm() {
             break;
         default:
             sys.state = State::Alarm;  // Set system alarm state
-            report_alarm_message(rtAlarm);
+            alarm_msg(rtAlarm);
             break;
     }
     rtAlarm = ExecAlarm::None;
@@ -745,7 +663,7 @@ void protocol_exec_rt_system() {
 
     if (rtStatusReport) {
         rtStatusReport = false;
-        report_realtime_status(CLIENT_ALL);
+        report_realtime_status(allClients);
     }
 
     if (rtMotionCancel) {

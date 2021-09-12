@@ -8,8 +8,8 @@
 #include "Machine/MachineConfig.h"
 #include "Machine/Homing.h"  // run_cycles
 #include "Limits.h"          // limits_soft_check
+#include "Report.h"          // report_over_counter
 #include "Protocol.h"        // protocol_execute_realtime
-#include "Report.h"          // CLIENT_*
 #include "Planner.h"         // plan_reset, etc
 #include "I2SOut.h"          // i2s_out_reset
 #include "Platform.h"        // WEAK_LINK
@@ -123,10 +123,10 @@ void mc_arc(float*            target,
             float*            position,
             float*            offset,
             float             radius,
-            uint8_t           axis_0,
-            uint8_t           axis_1,
-            uint8_t           axis_linear,
-            uint8_t           is_clockwise_arc) {
+            size_t            axis_0,
+            size_t            axis_1,
+            size_t            axis_linear,
+            bool              is_clockwise_arc) {
     float center_axis0 = position[axis_0] + offset[axis_0];
     float center_axis1 = position[axis_1] + offset[axis_1];
     float r_axis0      = -offset[axis_0];  // Radius vector from center to current location
@@ -205,7 +205,7 @@ void mc_arc(float*            target,
         float    cos_Ti;
         float    r_axisi;
         uint16_t i;
-        uint8_t  count             = 0;
+        size_t   count             = 0;
         float    original_feedrate = pl_data->feed_rate;  // Kinematics may alter the feedrate, so save an original copy
         for (i = 1; i < segments; i++) {                  // Increment (segments-1).
             if (count < N_ARC_CORRECTION) {
@@ -361,7 +361,7 @@ GCUpdatePos mc_probe_cycle(float* target, plan_line_data_t* pl_data, uint8_t par
     plan_sync_position();  // Sync planner position to current machine position.
     if (MESSAGE_PROBE_COORDINATES) {
         // All done! Output the probe position as message.
-        report_probe_parameters(CLIENT_ALL);
+        report_probe_parameters(allClients);
     }
     if (probe_succeeded) {
         return GCUpdatePos::System;  // Successful probe cycle.
@@ -428,7 +428,8 @@ void mc_reset() {
             _notifyf("SD print canceled", "Reset during SD file at line: %d", config->_sdCard->lineNumber());
             // log_info() does not work well in this case because the message gets broken in half
             // by report_init_message().  The flow of control that causes it is obscure.
-            info_client(CLIENT_ALL, "Reset during SD file at line: %d", config->_sdCard->lineNumber());
+            config->_sdCard->getClient() << "[MSG:"
+                                         << "Reset during SD file at line: " << config->_sdCard->lineNumber();
 
             config->_sdCard->closeFile();
         }

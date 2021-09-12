@@ -9,7 +9,7 @@
 #include <atomic>
 
 namespace Configuration {
-    RuntimeSetting::RuntimeSetting(const char* key, const char* value, WebUI::ESPResponseStream* out) : newValue_(value), out_(out) {
+    RuntimeSetting::RuntimeSetting(const char* key, const char* value, Print& out) : newValue_(value), out_(out) {
         // Remove leading '/' if it is present
         setting_ = (*key == '/') ? key + 1 : key;
         start_   = setting_;
@@ -34,12 +34,11 @@ namespace Configuration {
                 value->group(*this);
             } else {
                 if (newValue_ == nullptr) {
-                    ClientStream ss(CLIENT_ALL);
-                    ss << dataBeginMarker;
-                    ss << setting_ << ":\n";
-                    Configuration::Generator generator(ss, 1);
+                    allClients << dataBeginMarker;
+                    allClients << setting_ << ":\n";
+                    Configuration::Generator generator(allClients, 1);
                     value->group(generator);
-                    ss << dataEndMarker;
+                    allClients << dataEndMarker;
                     isHandled_ = true;
                 } else {
                     log_error("Can't set a value on a section");
@@ -55,7 +54,7 @@ namespace Configuration {
         if (is(name)) {
             isHandled_ = true;
             if (newValue_ == nullptr) {
-                _sendf(out_->client(), "$%s=%s\r\n", setting_, value ? "true" : "false");
+                out_ << "$" << setting_ << "=" << (value ? "true" : "false") << '\n';
             } else {
                 value = (!strcasecmp(newValue_, "true"));
             }
@@ -66,7 +65,7 @@ namespace Configuration {
         if (is(name)) {
             isHandled_ = true;
             if (newValue_ == nullptr) {
-                _sendf(out_->client(), "$%s=%d\r\n", setting_, value);
+                out_ << "$" << setting_ << "=" << value << '\n';
             } else {
                 value = atoi(newValue_);
             }
@@ -77,7 +76,7 @@ namespace Configuration {
         if (is(name)) {
             isHandled_ = true;
             if (newValue_ == nullptr) {
-                _sendf(out_->client(), "$%s=%.3f\r\n", setting_, value);
+                out_ << "$" << setting_ << "=" << value << '\n';
             } else {
                 char* floatEnd;
                 value = strtof(newValue_, &floatEnd);
@@ -89,7 +88,7 @@ namespace Configuration {
         if (is(name)) {
             isHandled_ = true;
             if (newValue_ == nullptr) {
-                _sendf(out_->client(), "$%s=%s\r\n", setting_, value.c_str());
+                out_ << "$" << setting_ << "=" << value << '\n';
             } else {
                 value = String(newValue_);
             }
@@ -102,7 +101,7 @@ namespace Configuration {
             if (newValue_ == nullptr) {
                 for (; e->name; ++e) {
                     if (e->value == value) {
-                        _sendf(out_->client(), "$%s=%s\r\n", setting_, e->name);
+                        out_ << "$" << setting_ << "=" << e->name << '\n';
                         return;
                     }
                 }
@@ -128,15 +127,14 @@ namespace Configuration {
         if (is(name)) {
             isHandled_ = true;
             if (newValue_ == nullptr) {
-                _sendf(out_->client(), "$%s=", setting_);
                 if (value.size() == 0) {
-                    _sendf(out_->client(), "None");
+                    out_ << "None";
                 } else {
                     for (speedEntry n : value) {
-                        _sendf(out_->client(), " %d=%.3f%%", n.speed, n.percent);
+                        out_ << n.speed << '=' << n.percent << '%';
                     }
                 }
-                _sendf(out_->client(), "\n");
+                out_ << '\n';
             } else {
                 // It is distasteful to have this code that essentially duplicates
                 // Parser.cpp speedEntryValue(), albeit using String instead of
@@ -171,7 +169,7 @@ namespace Configuration {
         if (is(name)) {
             isHandled_ = true;
             if (newValue_ == nullptr) {
-                _sendf(out_->client(), "$%s=%s\r\n", setting_, value.toString().c_str());
+                out_ << "$" << setting_ << "=" << value.toString() << '\n';
             } else {
                 IPAddress ip;
                 if (!ip.fromString(newValue_)) {
@@ -186,9 +184,9 @@ namespace Configuration {
         if (is(name)) {
             isHandled_ = true;
             if (newValue_ == nullptr) {
-                _sendf(out_->client(), "$%s=%s\r\n", setting_, value.name().c_str());
+                out_ << "$" << setting_ << "=" << value.name() << '\n';
             } else {
-                _sendf(out_->client(), "Runtime setting of Pin objects is not supported");
+                out_ << "Runtime setting of Pin objects is not supported\n";
                 // auto parsed = Pin::create(newValue);
                 // value.swap(parsed);
             }

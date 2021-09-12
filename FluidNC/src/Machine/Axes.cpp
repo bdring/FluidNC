@@ -32,7 +32,7 @@ namespace Machine {
         unlock_all_motors();
 
         // certain motors need features to be turned on. Check them here
-        for (uint8_t axis = X_AXIS; axis < _numberAxis; axis++) {
+        for (size_t axis = X_AXIS; axis < _numberAxis; axis++) {
             auto a = _axis[axis];
             if (a) {
                 log_info("Axis " << axisName(axis) << " (" << limitsMinPosition(axis) << "," << limitsMaxPosition(axis) << ")");
@@ -64,11 +64,11 @@ namespace Machine {
         unlock_all_motors();  // On homing transitions, cancel all motor lockouts
         MotorMask motorsCanHome = 0;
 
-        for (uint8_t axis = X_AXIS; axis < _numberAxis; axis++) {
+        for (size_t axis = X_AXIS; axis < _numberAxis; axis++) {
             if (bitnum_is_true(axisMask, axis)) {
                 auto a = _axis[axis];
                 if (a != nullptr) {
-                    for (uint8_t motor = 0; motor < Axis::MAX_MOTORS_PER_AXIS; motor++) {
+                    for (size_t motor = 0; motor < Axis::MAX_MOTORS_PER_AXIS; motor++) {
                         auto m = _axis[axis]->_motors[motor];
                         if (m && m->_driver->set_homing_mode(isHoming)) {
                             set_bitnum(motorsCanHome, motor * 16 + axis);
@@ -98,7 +98,7 @@ namespace Machine {
             for (int axis = X_AXIS; axis < n_axis; axis++) {
                 bool thisDir = bitnum_is_true(dir_mask, axis);
 
-                for (uint8_t motor = 0; motor < Axis::MAX_MOTORS_PER_AXIS; motor++) {
+                for (size_t motor = 0; motor < Axis::MAX_MOTORS_PER_AXIS; motor++) {
                     auto m = _axis[axis]->_motors[motor];
                     if (m) {
                         m->_driver->set_direction(thisDir);
@@ -109,7 +109,7 @@ namespace Machine {
         }
 
         // Turn on step pulses for motors that are supposed to step now
-        for (uint8_t axis = X_AXIS; axis < n_axis; axis++) {
+        for (size_t axis = X_AXIS; axis < n_axis; axis++) {
             if (bitnum_is_true(step_mask, axis)) {
                 auto a = _axis[axis];
 
@@ -134,8 +134,8 @@ namespace Machine {
     void IRAM_ATTR Axes::unstep() {
         config->_stepping->waitPulse();
         auto n_axis = _numberAxis;
-        for (uint8_t axis = X_AXIS; axis < n_axis; axis++) {
-            for (uint8_t motor = 0; motor < Axis::MAX_MOTORS_PER_AXIS; motor++) {
+        for (size_t axis = X_AXIS; axis < n_axis; axis++) {
+            for (size_t motor = 0; motor < Axis::MAX_MOTORS_PER_AXIS; motor++) {
                 auto m = _axis[axis]->_motors[motor];
                 if (m) {
                     m->_driver->unstep();

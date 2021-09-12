@@ -23,17 +23,21 @@ namespace Machine {
     public:
         Communications() = default;
 
+#ifdef ENABLE_WIFI
         bool _telnetEnable = true;
         int  _telnetPort   = 23;
 
         bool _httpEnable = true;
         int  _httpPort   = 80;
 
-        String _hostname = "fluidnc";
+        String         _hostname  = "fluidnc";
+        WifiAPConfig*  _apConfig  = nullptr;
+        WifiSTAConfig* _staConfig = nullptr;
+#endif
 
+#ifdef ENABLE_BLUETOOTH
         WebUI::BTConfig* _bluetoothConfig = nullptr;
-        WifiAPConfig*    _apConfig        = nullptr;
-        WifiSTAConfig*   _staConfig       = nullptr;
+#endif
 
         void group(Configuration::HandlerBase& handler) override {
 #ifdef ENABLE_BLUETOOTH
@@ -60,9 +64,13 @@ namespace Machine {
         }
 
         ~Communications() {
+#ifdef ENABLE_BLUETOOTH
             delete _bluetoothConfig;
+#endif
+#ifdef ENABLE_WIFI
             delete _apConfig;
             delete _staConfig;
+#endif
         }
     };
 }

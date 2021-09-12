@@ -10,7 +10,7 @@
 #include <atomic>
 
 namespace Configuration {
-    Generator::Generator(SimpleOutputStream& dst, int indent) : indent_(indent), dst_(dst) {
+    Generator::Generator(Print& dst, int indent) : indent_(indent), dst_(dst) {
         std::atomic_thread_fence(std::memory_order::memory_order_seq_cst);
     }
 

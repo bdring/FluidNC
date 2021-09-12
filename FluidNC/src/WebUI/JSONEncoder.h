@@ -1,8 +1,7 @@
 #pragma once
 
-#include "ESPResponse.h"
-
 #include <WString.h>
+#include <Print.h>
 
 // Class for creating JSON-encoded strings.
 
@@ -11,18 +10,18 @@ namespace WebUI {
     private:
         static const int MAX_JSON_LEVEL = 16;
 
-        bool               pretty;
-        int                level;
-        String             str;
-        int                count[MAX_JSON_LEVEL];
-        void               add(char c);
-        void               comma_line();
-        void               comma();
-        void               quoted(const char* s);
-        void               inc_level();
-        void               dec_level();
-        void               line();
-        ESPResponseStream* stream;
+        bool   pretty;
+        int    level;
+        String str;
+        int    count[MAX_JSON_LEVEL];
+        void   add(char c);
+        void   comma_line();
+        void   comma();
+        void   quoted(const char* s);
+        void   inc_level();
+        void   dec_level();
+        void   line();
+        Print* stream;
 
     public:
         // If you don't set _pretty it defaults to false
@@ -32,7 +31,7 @@ namespace WebUI {
         JSONencoder(bool pretty);
 
         // Constructor; set _pretty true for pretty printing
-        JSONencoder(bool pretty, ESPResponseStream* s);
+        JSONencoder(bool pretty, Print* s);
 
         // begin() starts the encoding process.
         void begin();

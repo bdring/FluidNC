@@ -4,16 +4,16 @@
 #include "../Machine/MachineConfig.h"
 #include "TelnetServer.h"
 
+#ifdef ENABLE_WIFI
+
 namespace WebUI {
     Telnet_Server telnet_server;
 }
 
-#ifdef ENABLE_WIFI
-
 #    include "WifiServices.h"
 
 #    include "WifiConfig.h"
-#    include "../Report.h"  // report_init_message() and CLIENT_TELNET
+#    include "../Report.h"  // report_init_message()
 #    include "Commands.h"   // COMMANDS
 
 #    include <WiFi.h>
@@ -65,7 +65,7 @@ namespace WebUI {
     void Telnet_Server::clearClients() {
         //check if there are any new clients
         if (_telnetserver->hasClient()) {
-            uint8_t i;
+            size_t i;
             for (i = 0; i < MAX_TLNT_CLIENTS; i++) {
                 //find free/disconnected spot
                 if (!_telnetClients[i] || !_telnetClients[i].connected()) {
@@ -84,6 +84,8 @@ namespace WebUI {
         }
     }
 
+    size_t Telnet_Server::write(uint8_t data) { return write(&data, 1); }
+
     size_t Telnet_Server::write(const uint8_t* buffer, size_t size) {
         size_t wsize = 0;
         if (!_setupdone || _telnetserver == NULL) {
@@ -93,7 +95,7 @@ namespace WebUI {
         clearClients();
 
         //push UART data to all connected telnet clients
-        for (uint8_t i = 0; i < MAX_TLNT_CLIENTS; i++) {
+        for (size_t i = 0; i < MAX_TLNT_CLIENTS; i++) {
             if (_telnetClients[i] && _telnetClients[i].connected()) {
                 wsize = _telnetClients[i].write(buffer, size);
                 COMMANDS::wait(0);
@@ -110,11 +112,10 @@ namespace WebUI {
         }
         clearClients();
         //check clients for data
-        //uint8_t c;
-        for (uint8_t i = 0; i < MAX_TLNT_CLIENTS; i++) {
+        for (size_t i = 0; i < MAX_TLNT_CLIENTS; i++) {
             if (_telnetClients[i] && _telnetClients[i].connected()) {
                 if (_telnetClientsIP[i] != _telnetClients[i].remoteIP()) {
-                    report_init_message(CLIENT_TELNET);
+                    report_init_message(telnet_server);
                     _telnetClientsIP[i] = _telnetClients[i].remoteIP();
                 }
                 if (_telnetClients[i].available()) {

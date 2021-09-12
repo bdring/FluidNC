@@ -24,7 +24,7 @@
   A line-oriented command is a string of printable characters followed by a '\r' or '\n'
   A realtime commands is a single character with no '\r' or '\n'
 
-  After sending a line-oriented command, you must wait for an OK to send another.
+  After sending a line-oriented command, a sender must wait for an OK to send another.
   This is because only a certain number of commands can be buffered at a time.
   The system will tell you when it is ready for another one with the OK.
 
@@ -32,10 +32,9 @@
   Realtime commands can be anywhere in the stream.
 
   To allow the realtime commands to be randomly mixed in the stream of data, we
-  read all clients as fast as possible. The realtime commands are acted upon and the other characters are
-  placed into a client_buffer[client].
-
-  The main protocol loop reads from client_buffer[]
+  read all clients as fast as possible. The realtime commands are acted upon and
+  the other characters are placed into a per-client buffer.  When a complete line
+  is received, pollClient returns the associated client spec.
 */
 
 #include "Serial.h"
@@ -45,27 +44,22 @@
 #include "WebUI/TelnetServer.h"
 #include "WebUI/Serial2Socket.h"
 #include "WebUI/Commands.h"
-#include "WebUI/WifiConfig.h"
+#include "WebUI/WifiServices.h"
 #include "MotionControl.h"
 #include "Report.h"
 #include "System.h"
 #include "Protocol.h"  // rtSafetyDoor etc
 #include "SDCard.h"
+#include "WebUI/InputBuffer.h"  // XXX could this be a StringStream ?
 
 #include <atomic>
 #include <cstring>
+#include <vector>
 #include <freertos/task.h>  // portMUX_TYPE, TaskHandle_T
 
 portMUX_TYPE myMutex = portMUX_INITIALIZER_UNLOCKED;
 
 static TaskHandle_t clientCheckTaskHandle = 0;
-
-WebUI::InputBuffer client_buffer[CLIENT_COUNT];  // create a buffer for each client
-
-// Returns the number of bytes available in a client buffer.
-uint8_t client_get_rx_buffer_available(uint8_t client) {
-    return 128 - Uart0.available();
-}
 
 void heapCheckTask(void* pvParameters) {
     static uint32_t heapSize = 0;
@@ -85,120 +79,8 @@ void heapCheckTask(void* pvParameters) {
     }
 }
 
-void client_init() {
-#ifdef DEBUG_REPORT_HEAP_SIZE
-    // For a 2000-word stack, uxTaskGetStackHighWaterMark reports 288 words available
-    xTaskCreatePinnedToCore(heapCheckTask, "heapTask", 2000, NULL, 1, NULL, 1);
-#endif
-
-    client_reset_read_buffer(CLIENT_ALL);
-    clientCheckTaskHandle = 0;
-
-    // create a task to check for incoming data
-    // For a 4096-word stack, uxTaskGetStackHighWaterMark reports 244 words available
-    // after WebUI attaches.
-    xTaskCreatePinnedToCore(clientCheckTask,    // task
-                            "clientCheckTask",  // name for task
-                            8192,               // size of task stack
-                            NULL,               // parameters
-                            1,                  // priority
-                            &clientCheckTaskHandle,
-                            CONFIG_ARDUINO_RUNNING_CORE  // must run the task on same core
-    );
-}
-
-static ClientType getClientChar(int& data) {
-    if (client_buffer[CLIENT_SERIAL].availableforwrite() && (data = Uart0.read()) != -1) {
-        return CLIENT_SERIAL;
-    }
-    if (WebUI::inputBuffer.available()) {
-        data = WebUI::inputBuffer.read();
-        return CLIENT_INPUT;
-    }
-
-    if ((data = WebUI::SerialBT.read()) != -1) {
-        return CLIENT_BT;
-    }
-    if ((data = WebUI::Serial2Socket.read()) != -1) {
-        return CLIENT_WEBUI;
-    }
-    if ((data = WebUI::telnet_server.read()) != -1) {
-        return CLIENT_TELNET;
-    }
-    return CLIENT_ALL;
-}
-
-// this task runs and checks for data on all interfaces
-// Realtime stuff is acted upon, then characters are added to the appropriate buffer
-void clientCheckTask(void* pvParameters) {
-    int        data = 0;                                                    // Must be int so -1 value is possible
-    ClientType client;                                                      // who sent the data
-    while (true) {                                                          // run continuously
-        std::atomic_thread_fence(std::memory_order::memory_order_seq_cst);  // read fence for settings
-        while ((client = getClientChar(data)) != CLIENT_ALL) {
-            uint8_t clientByte = uint8_t(data);
-            // Pick off realtime command characters directly from the serial stream. These characters are
-            // not passed into the main buffer, but these set system state flag bits for realtime execution.
-            if (is_realtime_command(clientByte)) {
-                execute_realtime_command(static_cast<Cmd>(clientByte), client);
-            } else {
-                if (config->_sdCard->get_state() < SDCard::State::Busy) {
-                    vTaskEnterCritical(&myMutex);
-                    client_buffer[client].write(clientByte);
-                    vTaskExitCritical(&myMutex);
-                } else {
-                    if (clientByte == '\r' || clientByte == '\n') {
-                        _sendf(client, "error %d\r\n", Error::AnotherInterfaceBusy);
-                        log_error("SD card job running");
-                    }
-                }
-            }
-        }  // if something available
-        WebUI::COMMANDS::handle();
-
-        if (config->_comms->_bluetoothConfig) {
-            config->_comms->_bluetoothConfig->handle();
-        }
-
-        WebUI::wifi_config.handle();
-        WebUI::Serial2Socket.handle_flush();
-
-        vTaskDelay(1 / portTICK_RATE_MS);  // Yield to other tasks
-
-#ifdef DEBUG_TASK_STACK
-        static UBaseType_t uxHighWaterMark = 0;
-        reportTaskStackSize(uxHighWaterMark);
-#endif
-    }
-}
-
-void client_reset_read_buffer(uint8_t client) {
-    for (uint8_t client_num = 0; client_num < CLIENT_COUNT; client_num++) {
-        if (client == client_num || client == CLIENT_ALL) {
-            client_buffer[client_num].begin();
-        }
-    }
-}
-
-// Fetches the first byte in the client read buffer. Called by protocol loop.
-int client_read(uint8_t client) {
-    vTaskEnterCritical(&myMutex);
-    int data = client_buffer[client].read();
-    vTaskExitCritical(&myMutex);
-    return data;
-}
-
-// checks to see if a character is a realtime character
-bool is_realtime_command(uint8_t data) {
-    if (data >= 0x80) {
-        return true;
-    }
-    auto cmd = static_cast<Cmd>(data);
-    return cmd == Cmd::Reset || cmd == Cmd::StatusReport || cmd == Cmd::CycleStart || cmd == Cmd::FeedHold;
-}
-
 // Act upon a realtime character
-void execute_realtime_command(Cmd command, uint8_t client) {
+static void execute_realtime_command(Cmd command, Print& client) {
     switch (command) {
         case Cmd::Reset:
             log_debug("Cmd::Reset");
@@ -304,79 +186,118 @@ void execute_realtime_command(Cmd command, uint8_t client) {
     }
 }
 
-extern "C" {
-#include <stdio.h>
+// checks to see if a character is a realtime character
+bool is_realtime_command(uint8_t data) {
+    if (data >= 0x80) {
+        return true;
+    }
+    auto cmd = static_cast<Cmd>(data);
+    return cmd == Cmd::Reset || cmd == Cmd::StatusReport || cmd == Cmd::CycleStart || cmd == Cmd::FeedHold;
 }
 
-static FILE* clientFile;
+InputClient* sdClient = new InputClient(nullptr);
 
-void client_write(uint8_t client, const char* text) {
-    if (client == CLIENT_INPUT) {
-        return;
-    }
+std::vector<InputClient*> clientq;
 
-    WebUI::SerialBT.print(text);
-    if (client == CLIENT_WEBUI || client == CLIENT_ALL) {
-        WebUI::Serial2Socket.write((const uint8_t*)text, strlen(text));
-    }
-    if (client == CLIENT_TELNET || client == CLIENT_ALL) {
-        WebUI::telnet_server.write((const uint8_t*)text, strlen(text));
-    }
-
-    if (client == CLIENT_SERIAL || client == CLIENT_ALL) {
-        // This used to be Serial.write(text) before we made the Uart class
-        // The Arduino HardwareSerial class is buggy in some versions.
-        Uart0.write(text);
-    }
-
-    if (client == CLIENT_FILE) {
-        size_t len    = strlen(text);
-        size_t actual = fwrite(text, 1, len, clientFile);
-        Assert(actual == len, "File write failed");
-    }
+void register_client(Stream* client_stream) {
+    clientq.push_back(new InputClient(client_stream));
+}
+void client_init() {
+    register_client(&Uart0);               // USB Serial
+    register_client(&WebUI::inputBuffer);  // Macros
+#ifdef ENABLE_WIFI
+    register_client(&WebUI::Serial2Socket);
+    register_client(&WebUI::telnet_server);
+#endif
+#ifdef ENABLE_BT
+    register_client(&WebUI::SerialBT);
+#endif
 }
 
-void ClientStream::add(char c) {
-    char text[2];
-    text[1] = '\0';
-    text[0] = c;
-    client_write(_client, text);
-}
-
-ClientStream::ClientStream(const char* filename, const char* defaultFs) : _client(CLIENT_FILE) {
-    String path;
-
-    // Insert the default file system prefix if a file system name is not present
-    if (*filename != '/') {
-        path = "/";
-        path += defaultFs;
-        path += "/";
-    }
-
-    path += filename;
-
-    // Map /localfs/ to the actual name of the local file system
-    if (path.startsWith("/localfs/")) {
-        path.replace("/localfs/", "/spiffs/");
-    }
-    if (path.startsWith("/sd/")) {
-        if (config->_sdCard->begin(SDCard::State::BusyWriting) != SDCard::State::Idle) {
-            throw Error::FsFailedMount;
+InputClient* pollClients() {
+    auto sdcard = config->_sdCard;
+    // _readyNext indicates that input is coming from a file and
+    // the GCode system is ready for another line.
+    if (sdcard && sdcard->_readyNext) {
+        Error res = sdcard->readFileLine(sdClient->_line, InputClient::maxLine);
+        if (res == Error::Ok) {
+            sdClient->_out     = &sdcard->getClient();
+            sdcard->_readyNext = false;
+            return sdClient;
         }
-        _isSD = true;
+        report_status_message(res, sdcard->getClient());
     }
 
-    clientFile = fopen(path.c_str(), "w");
-    if (!clientFile) {
-        throw Error::FsFailedCreateFile;
+    for (auto client : clientq) {
+        auto source = client->_in;
+        int  c      = source->read();
+
+        if (c >= 0) {
+            char ch = c;
+            if (client->_line_returned) {
+                client->_line_returned = false;
+                client->_linelen       = 0;
+            }
+            if (is_realtime_command(c)) {
+                execute_realtime_command(static_cast<Cmd>(c), *source);
+                continue;
+            }
+
+            if (ch == '\b') {
+                // Simple editing for interactive input - backspace erases
+                if (client->_linelen) {
+                    --client->_linelen;
+                }
+                continue;
+            }
+            if ((client->_linelen + 1) == InputClient::maxLine) {
+                report_status_message(Error::Overflow, *source);
+                // XXX could show a message with the overflow line
+                // XXX There is a problem here - the final fragment of the
+                // too-long line will be returned as a valid line.  We really
+                // need to enter a state where we ignore characters until
+                // the newline.
+                client->_linelen = 0;
+                continue;
+            }
+            if (ch == '\r' || ch == '\n') {
+                client->_line_num++;
+                if (config->_sdCard->get_state() < SDCard::State::Busy) {
+                    client->_line[client->_linelen] = '\0';
+                    client->_line_returned          = true;
+                    return client;
+                } else {
+                    // Log an error and discard the line if it happens during an SD run
+                    log_error("SD card job running");
+                    client->_linelen = 0;
+                    continue;
+                }
+            }
+
+            client->_line[client->_linelen] = ch;
+            ++client->_linelen;
+        }
     }
+
+    WebUI::COMMANDS::handle();  // Handles feeding watchdog and ESP restart
+#ifdef ENABLE_WIFI
+    WebUI::wifi_services.handle();  // OTA, web_server, telnet_server polling
+#endif
+
+    return nullptr;
 }
 
-ClientStream::~ClientStream() {
-    if (_client == CLIENT_FILE) {
-        fclose(clientFile);
+size_t AllClients::write(uint8_t data) {
+    for (auto client : clientq) {
+        client->_out->write(data);
     }
-    if (_isSD) {
-        config->_sdCard->end();
-    }
+    return 1;
 }
+size_t AllClients::write(const uint8_t* buffer, size_t length) {
+    for (auto client : clientq) {
+        client->_out->write(buffer, length);
+    }
+    return length;
+}
+
+AllClients allClients;

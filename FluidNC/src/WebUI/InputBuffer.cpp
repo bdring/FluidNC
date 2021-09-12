@@ -26,30 +26,7 @@ namespace WebUI {
 
     int InputBuffer::available() { return _RXbufferSize; }
 
-    int InputBuffer::availableforwrite() { return RXBUFFERSIZE - _RXbufferSize; }
-
-    size_t InputBuffer::write(uint8_t c) {
-        if ((1 + _RXbufferSize) <= RXBUFFERSIZE) {
-            int current = _RXbufferpos + _RXbufferSize;
-            if (current > RXBUFFERSIZE) {
-                current = current - RXBUFFERSIZE;
-            }
-            if (current > (RXBUFFERSIZE - 1)) {
-                current = 0;
-            }
-            _RXbuffer[current] = c;
-            current++;
-            _RXbufferSize += 1;
-            return 1;
-        }
-        return 0;
-    }
-
-    size_t InputBuffer::write(const uint8_t* buffer, size_t size) {
-        //No need currently
-        //keep for compatibility
-        return size;
-    }
+    int InputBuffer::availableforwrite() { return 0; }
 
     int InputBuffer::peek(void) {
         if (_RXbufferSize > 0) {
@@ -58,7 +35,6 @@ namespace WebUI {
             return -1;
         }
     }
-
     bool InputBuffer::push(const char* data) {
         int data_size = strlen(data);
         if ((data_size + _RXbufferSize) <= RXBUFFERSIZE) {
@@ -77,6 +53,10 @@ namespace WebUI {
             return true;
         }
         return false;
+    }
+    bool InputBuffer::push(char data) {
+        char buf[2] = { data, '\0' };
+        return push(buf);
     }
 
     int InputBuffer::read(void) {

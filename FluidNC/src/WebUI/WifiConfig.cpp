@@ -223,9 +223,8 @@ namespace WebUI {
 
     bool WiFiConfig::ConnectSTA2AP() {
         String  msg, msg_out;
-        uint8_t count;
         uint8_t dot = 0;
-        for (count = 0; count < 10; ++count) {
+        for (size_t i = 0; i < 10; ++i) {
             switch (WiFi.status()) {
                 case WL_NO_SSID_AVAIL:
                     log_info("No SSID");

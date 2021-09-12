@@ -19,7 +19,7 @@
 #define FS_H
 
 #include <memory>
-#include "Stream.h"
+#include <Stream.h>
 
 namespace fs {
 

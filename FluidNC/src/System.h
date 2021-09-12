@@ -78,7 +78,7 @@ extern int32_t probe_steps[MAX_N_AXIS];  // Last probe position in machine coord
 
 void system_reset();
 
-float   steps_to_mpos(int32_t steps, uint8_t axis);
+float   steps_to_mpos(int32_t steps, size_t axis);
 int32_t mpos_to_steps(float mpos, size_t axis);
 
 // Updates a machine position array from a steps array
