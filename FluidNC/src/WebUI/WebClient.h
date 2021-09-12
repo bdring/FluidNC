@@ -10,17 +10,12 @@
 
 #ifdef ENABLE_WIFI
 class WebServer;
-#endif
 
 namespace WebUI {
     class WebClient : public Print {
     public:
-#ifdef ENABLE_WIFI
         WebClient(WebServer* webserver, bool silent);
         ~WebClient();
-#else
-        WebClient() = default;
-#endif
 
         size_t write(uint8_t data) override;
         size_t write(const uint8_t* buffer, size_t length) override;
@@ -29,13 +24,12 @@ namespace WebUI {
         bool anyOutput() { return _header_sent; }
 
     private:
-        bool _header_sent;
-        bool _silent;
-#ifdef ENABLE_WIFI
+        bool                _header_sent;
+        bool                _silent;
         WebServer*          _webserver;
         static const size_t BUFLEN = 1200;
         char                _buffer[BUFLEN];
         size_t              _buflen;
-#endif
     };
 }
+#endif

@@ -6,21 +6,7 @@
 #include "../Config.h"  // ENABLE_*
 #include <Stream.h>
 
-#ifndef ENABLE_WIFI
-
-namespace WebUI {
-    class Telnet_Server : public Stream {
-    public:
-        Telnet_Server() = default;
-        int    read() { return -1; }
-        size_t write(uint8_t* data) override { return 0; }
-        int    peek() override { return -1; }
-        void   flush() override {}
-        size_t get_rx_buffer_available() { return 0; }
-    };
-    extern Telnet_Server telnet_server;
-}
-#else
+#ifdef ENABLE_WIFI
 
 class WiFiServer;
 class WiFiClient;

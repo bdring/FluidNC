@@ -523,9 +523,11 @@ namespace WebUI {
         showWifiStats();
 #endif
 
+#ifdef ENABLE_BLUETOOTH
         if (config->_comms->_bluetoothConfig) {
             webPrintln(config->_comms->_bluetoothConfig->info().c_str());
         }
+#endif
         webPrint("FW version: FluidNC ");
         webPrint(GIT_TAG);
         webPrint(GIT_REV);
@@ -850,9 +852,11 @@ namespace WebUI {
             }
 #endif
 
+#ifdef ENABLE_BLUETOOTH
             if (config->_comms->_bluetoothConfig && config->_comms->_bluetoothConfig->Is_BT_on()) {
                 on = true;
             }
+#endif
 
             webPrintln(on ? "ON" : "OFF");
             return Error::Ok;
@@ -874,9 +878,11 @@ namespace WebUI {
             wifi_config.StopWiFi();
         }
 #endif
+#ifdef ENABLE_BLUETOOTH
         if (config->_comms->_bluetoothConfig && config->_comms->_bluetoothConfig->Is_BT_on()) {
             config->_comms->_bluetoothConfig->end();
         }
+#endif
 
         //if On start proper service
         if (!on) {
@@ -884,14 +890,18 @@ namespace WebUI {
             return Error::Ok;
         }
 
+#ifdef ENABLE_WIFI
         //On
         if (wifi_config.begin()) {
             return Error::Ok;
         }
+#endif
 
+#ifdef ENABLE_BLUETOOTH
         if (config->_comms->_bluetoothConfig) {
             config->_comms->_bluetoothConfig->begin();
         }
+#endif
 
         webPrintln("[MSG: Radio is Off]");
         return Error::Ok;

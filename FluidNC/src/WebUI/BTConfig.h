@@ -4,46 +4,11 @@
 
 #pragma once
 
-#include "../Configuration/Configurable.h"
-#include "../Config.h"  // ENABLE_*
+#ifdef ENABLE_BLUETOOTH
+#    include "../Configuration/Configurable.h"
+#    include "../Config.h"  // ENABLE_*
 
-#include <WString.h>
-
-#ifndef ENABLE_BLUETOOTH
-#    include <Stream.h>
-
-namespace WebUI {
-    class BluetoothSerial : public Stream {
-    public:
-        BluetoothSerial() = default;
-        int read() { return -1; };
-        // This is hardwired at 512 because the real BluetoothSerial hardwires
-        // the Rx queue size to 512 and code in Report.cpp subtracts available()
-        // from that to determine how many characters can be sent.
-        int    available() { return 512; };
-        size_t write(uint8_t data) override { return 0; };
-        size_t write(const uint8_t* buffer, size_t length) override { return 0; };
-        int    peek() override { return -1; }
-        void   flush() override {}
-    };
-    extern BluetoothSerial SerialBT;
-
-    class BTConfig : public Configuration::Configurable {
-    private:
-        String _btname = "";
-
-    public:
-        BTConfig() = default;
-        void          handle() {}
-        bool          begin() { return false; }
-        void          end() {}
-        bool          Is_BT_on() { return false; }
-        String        info() { return String(); }
-        const String& BTname() const { return _btname; }
-        void          group(Configuration::HandlerBase& handler) override {}
-    };
-}
-#else
+#    include <WString.h>
 #    include <BluetoothSerial.h>
 
 namespace WebUI {

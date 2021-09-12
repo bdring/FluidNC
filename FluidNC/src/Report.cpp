@@ -403,9 +403,11 @@ void report_build_info(const char* line, Print& client) {
     if (ALLOW_FEED_OVERRIDE_DURING_PROBE_CYCLES) {
         client << "A";
     }
+#ifdef ENABLE_BLUETOOTH
     if (config->_comms->_bluetoothConfig) {
         client << "B";
     }
+#endif
     client << "S";
     if (config->_enableParkingOverrideControl) {
         client << "R";
@@ -422,19 +424,22 @@ void report_build_info(const char* line, Print& client) {
 
     client << "[MSG: Machine: " << config->_name << "]\n";
 
-    String info;
-    info = WebUI::wifi_config.info();
+#ifdef ENABLE_WIFI
+    String info = WebUI::wifi_config.info();
     if (info.length()) {
         client << "[MSG: Machine: " << info << "]\n";
         ;
     }
+#endif
+#ifdef ENABLE_BLUETOOTH
     if (config->_comms->_bluetoothConfig) {
-        info = config->_comms->_bluetoothConfig->info();
-        if (info.length()) {
-            client << "[MSG: Machine: " << info << "]\n";
+        String btinfo = config->_comms->_bluetoothConfig->info();
+        if (btinfo.length()) {
+            client << "[MSG: Machine: " << btinfo << "]\n";
             ;
         }
     }
+#endif
 }
 
 // Prints the character string line that was received, which has been pre-parsed,

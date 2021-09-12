@@ -4,11 +4,11 @@
 #include "../Machine/MachineConfig.h"
 #include "TelnetServer.h"
 
+#ifdef ENABLE_WIFI
+
 namespace WebUI {
     Telnet_Server telnet_server;
 }
-
-#ifdef ENABLE_WIFI
 
 #    include "WifiServices.h"
 

@@ -1,21 +1,21 @@
 // Copyright (c) 2014 Luc Lebosse. All rights reserved.
 // Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
 
-#include "BTConfig.h"
+#ifdef ENABLE_BLUETOOTH
 
-#include "../Machine/MachineConfig.h"
-#include "../Report.h"  // CLIENT_*
-#include "Commands.h"   // COMMANDS
+#    include "BTConfig.h"
 
-#include <cstdint>
+#    include "../Machine/MachineConfig.h"
+#    include "../Report.h"  // CLIENT_*
+#    include "Commands.h"   // COMMANDS
+
+#    include <cstdint>
 
 // SerialBT sends the data over Bluetooth
 namespace WebUI {
     BluetoothSerial SerialBT;
 }
 // The instance variable for the BTConfig class is in config->_comms
-
-#ifdef ENABLE_BLUETOOTH
 
 extern "C" {
 const uint8_t* esp_bt_dev_get_address(void);

@@ -288,8 +288,10 @@ InputClient* pollClients() {
         }
     }
 
-    WebUI::COMMANDS::handle();      // Handles feeding watchdog and ESP restart
+    WebUI::COMMANDS::handle();  // Handles feeding watchdog and ESP restart
+#ifdef ENABLE_WIFI
     WebUI::wifi_services.handle();  // OTA, web_server, telnet_server polling
+#endif
 
     return nullptr;
 }
