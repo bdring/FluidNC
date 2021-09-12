@@ -16,10 +16,10 @@
 #include "MotionControl.h"
 #include "Platform.h"
 
-#include "WebUI/WifiConfig.h"
 #include "WebUI/InputBuffer.h"
 
 #ifdef ENABLE_WIFI
+#    include "WebUI/WifiConfig.h"
 #    include <WiFi.h>
 #endif
 #include <SPIFFS.h>
@@ -117,10 +117,14 @@ void setup() {
             config->_probe->init();
         }
 
+#ifdef ENABLE_WIFI
         WebUI::wifi_config.begin();
+#endif
+#ifdef ENABLE_BLUETOOTH
         if (config->_comms->_bluetoothConfig) {
             config->_comms->_bluetoothConfig->begin();
         }
+#endif
         WebUI::inputBuffer.begin();
     } catch (const AssertionFailed& ex) {
         // This means something is terribly broken:
