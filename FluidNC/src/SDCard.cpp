@@ -6,6 +6,7 @@
 #include "SDCard.h"
 #include "Machine/MachineConfig.h"
 #include "Report.h"
+#include "Uart.h"
 
 #include <FS.h>
 #include <SD.h>
@@ -18,10 +19,10 @@ public:
 };
 
 SDCard::SDCard() :
-    _pImpl(new FileWrap()), _current_line_number(0), _state(State::Idle), _readyNext(false), _client(CLIENT_SERIAL),
-    _auth_level(WebUI::AuthenticationLevel::LEVEL_GUEST) {}
+    _pImpl(new FileWrap()), _current_line_number(0), _state(State::Idle), _client(Uart0),
+    _auth_level(WebUI::AuthenticationLevel::LEVEL_GUEST), _readyNext(false) {}
 
-void SDCard::listDir(fs::FS& fs, const char* dirname, uint8_t levels, uint8_t client) {
+void SDCard::listDir(fs::FS& fs, const char* dirname, size_t levels, Print& client) {
     //char temp_filename[128]; // to help filter by extension	TODO: 128 needs a definition based on something
     File root = fs.open(dirname);
     if (!root) {
@@ -39,18 +40,19 @@ void SDCard::listDir(fs::FS& fs, const char* dirname, uint8_t levels, uint8_t cl
                 listDir(fs, file.name(), levels - 1, client);
             }
         } else {
-            _sendf(CLIENT_ALL, "[FILE:%s|SIZE:%d]\r\n", file.name(), file.size());
+            allClients << "[FILE:" << file.name() << "|SIZE:" << file.size() << '\n';
         }
         file = root.openNextFile();
     }
 }
 
-bool SDCard::openFile(fs::FS& fs, const char* path) {
+bool SDCard::openFile(fs::FS& fs, const char* path, Print& client, WebUI::AuthenticationLevel auth_level) {
     _pImpl->_file = fs.open(path);
     if (!_pImpl->_file) {
-        //report_status_message(Error::FsFailedRead, CLIENT_SERIAL);
         return false;
     }
+    _client              = client;
+    _auth_level          = auth_level;
     _state               = State::BusyPrinting;
     _readyNext           = false;  // this will get set to true when an "ok" message is issued
     _current_line_number = 0;
@@ -61,6 +63,8 @@ bool SDCard::closeFile() {
     _state               = State::Idle;
     _readyNext           = false;
     _current_line_number = 0;
+    _client              = Uart0;
+    _auth_level          = WebUI::AuthenticationLevel::LEVEL_GUEST;
     if (!_pImpl->_file) {
         return false;
     }

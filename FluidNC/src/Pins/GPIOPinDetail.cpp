@@ -9,14 +9,14 @@
 #include "../Assert.h"
 #include "../Logging.h"
 
-extern "C" void __pinMode(uint8_t pin, uint8_t mode);
-extern "C" int  __digitalRead(uint8_t pin);
-extern "C" void __digitalWrite(uint8_t pin, uint8_t val);
+extern "C" void __pinMode(pinnum_t pin, uint8_t mode);
+extern "C" int  __digitalRead(pinnum_t pin);
+extern "C" void __digitalWrite(pinnum_t pin, uint8_t val);
 
 namespace Pins {
     std::vector<bool> GPIOPinDetail::_claimed(nGPIOPins, false);
 
-    PinCapabilities GPIOPinDetail::GetDefaultCapabilities(uint8_t index) {
+    PinCapabilities GPIOPinDetail::GetDefaultCapabilities(pinnum_t index) {
         // See https://randomnerdtutorials.com/esp32-pinout-reference-gpios/ for an overview:
         switch (index) {
             case 0:  // Outputs PWM signal at boot
@@ -83,7 +83,7 @@ namespace Pins {
         }
     }
 
-    GPIOPinDetail::GPIOPinDetail(uint8_t index, PinOptionsParser options) :
+    GPIOPinDetail::GPIOPinDetail(pinnum_t index, PinOptionsParser options) :
         PinDetail(index), _capabilities(GetDefaultCapabilities(index)), _attributes(Pins::PinAttributes::Undefined), _readWriteMask(0) {
         // NOTE:
         //

@@ -23,12 +23,12 @@ namespace MotorDrivers {
     private:
         const int _spi_freq = 100000;
 
-        static uint8_t daisy_chain_cs;
+        static pinnum_t daisy_chain_cs;
 
         TMC2130Stepper* tmcstepper;  // all other driver types are subclasses of this one
         Pin             _cs_pin;     // The chip select pin (can be the same for daisy chain)
         PinMapper       _cs_mapping;
-        int32_t          _spi_index;
+        int32_t         _spi_index;
 
         bool test();
         void set_mode(bool isHoming);

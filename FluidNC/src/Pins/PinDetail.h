@@ -12,6 +12,8 @@
 #include <cstring>
 #include <vector>
 
+typedef uint8_t pinnum_t;
+
 namespace Pins {
 
     // Implementation details of pins.

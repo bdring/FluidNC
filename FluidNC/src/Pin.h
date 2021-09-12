@@ -103,8 +103,8 @@ public:
     inline bool defined() const { return !undefined(); }
 
     // External libraries normally use digitalWrite, digitalRead and setMode. Since we cannot handle that behavior, we
-    // just give back the uint8_t for getNative.
-    inline uint8_t getNative(Capabilities expectedBehavior) const {
+    // just give back the pinnum_t for getNative.
+    inline pinnum_t getNative(Capabilities expectedBehavior) const {
         Assert(_detail->capabilities().has(expectedBehavior), "Requested pin does not have the expected behavior.");
         return _detail->_index;
     }

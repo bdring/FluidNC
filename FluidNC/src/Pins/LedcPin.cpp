@@ -18,7 +18,7 @@
 #include <esp32-hal-matrix.h>  // pinMatrixOutAttach
 #include <esp32-hal-gpio.h>    // OUTPUT
 
-extern "C" void __pinMode(uint8_t pin, uint8_t mode);
+extern "C" void __pinMode(pinnum_t pin, uint8_t mode);
 
 static int ledcAllocateChannel() {
     static int nextLedcChannel = 0;

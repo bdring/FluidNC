@@ -11,7 +11,6 @@
 #    include "WifiServices.h"
 #    include "WifiConfig.h"  // wifi_config
 
-#    include "ESPResponse.h"
 #    include "Serial2Socket.h"
 #    include "WebServer.h"
 #    include "../SDCard.h"
@@ -29,6 +28,8 @@
 #    include <ESPmDNS.h>
 #    include <ESP32SSDP.h>
 #    include <DNSServer.h>
+
+#    include "WebClient.h"
 
 namespace WebUI {
     const byte DNS_PORT = 53;
@@ -434,9 +435,9 @@ namespace WebUI {
         if (ESPpos > -1) {
             char line[256];
             strncpy(line, cmd.c_str(), 255);
-            ESPResponseStream* espresponse = silent ? NULL : new ESPResponseStream(_webserver);
-            Error              err         = settings_execute_line(line, espresponse, auth_level);
-            String             answer;
+            WebClient* webresponse = new WebClient(_webserver, silent);
+            Error      err         = settings_execute_line(line, *webresponse, auth_level);
+            String     answer;
             if (err == Error::Ok) {
                 answer = "ok";
             } else {
@@ -448,26 +449,22 @@ namespace WebUI {
                     answer += static_cast<int>(err);
                 }
             }
-            if (silent || !espresponse->anyOutput()) {
+            if (!webresponse->anyOutput()) {
                 _webserver->send(err != Error::Ok ? 500 : 200, "text/plain", answer);
-            } else {
-                espresponse->flush();
             }
-            if (espresponse)
-                delete (espresponse);
+            delete webresponse;
         } else {  //execute GCODE
             if (auth_level == AuthenticationLevel::LEVEL_GUEST) {
                 _webserver->send(401, "text/plain", "Authentication failed!\n");
                 return;
             }
             //Instead of send several commands one by one by web  / send full set and split here
-            String  scmd;
-            bool    hasError = false;
-            uint8_t sindex   = 0;
+            String scmd;
+            bool   hasError = false;
             // TODO Settings - this is very inefficient.  get_Splited_Value() is O(n^2)
             // when it could easily be O(n).  Also, it would be just as easy to push
             // the entire string into Serial2Socket and pull off lines from there.
-            for (uint8_t sindex = 0; (scmd = get_Splited_Value(cmd, '\n', sindex)) != ""; sindex++) {
+            for (size_t sindex = 0; (scmd = get_Splited_Value(cmd, '\n', sindex)) != ""; sindex++) {
                 // 0xC2 is an HTML encoding prefix that, in UTF-8 mode,
                 // precede 0x90 and 0xa0-0bf, which are GRBL realtime commands.
                 // There are other encodings for 0x91-0x9f, so I am not sure
@@ -821,7 +818,7 @@ namespace WebUI {
             } else {
                 //do not add "." file
                 if (!((filename == ".") || (filename == ""))) {
-                    size = ESPResponseStream::formatBytes(fileparsed.size());
+                    size = formatBytes(fileparsed.size());
                 } else {
                     addtolist = false;
                 }
@@ -849,8 +846,8 @@ namespace WebUI {
         size_t usedBytes;
         totalBytes = SPIFFS.totalBytes();
         usedBytes  = SPIFFS.usedBytes();
-        jsonfile += "\"total\":\"" + ESPResponseStream::formatBytes(totalBytes) + "\",";
-        jsonfile += "\"used\":\"" + ESPResponseStream::formatBytes(usedBytes) + "\",";
+        jsonfile += "\"total\":\"" + formatBytes(totalBytes) + "\",";
+        jsonfile += "\"used\":\"" + formatBytes(usedBytes) + "\",";
         jsonfile.concat(F("\"occupation\":\""));
         jsonfile += String(100 * usedBytes / totalBytes);
         jsonfile += "\"";
@@ -1322,7 +1319,7 @@ namespace WebUI {
                     jsonfile += "-1";
                 } else {
                     // files have sizes, directories do not
-                    jsonfile += ESPResponseStream::formatBytes(entry.size());
+                    jsonfile += formatBytes(entry.size());
                 }
                 jsonfile += "\",\"datetime\":\"";
                 //TODO - can be done later
@@ -1340,8 +1337,8 @@ namespace WebUI {
         //SDCard are in GB or MB but no less
         totalspace  = SD.totalBytes();
         usedspace   = SD.usedBytes();
-        stotalspace = ESPResponseStream::formatBytes(totalspace);
-        susedspace  = ESPResponseStream::formatBytes(usedspace + 1);
+        stotalspace = formatBytes(totalspace);
+        susedspace  = formatBytes(usedspace + 1);
 
         uint32_t occupedspace = 1;
         uint32_t usedspace2   = usedspace / (1024 * 1024);

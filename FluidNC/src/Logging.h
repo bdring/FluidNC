@@ -14,8 +14,6 @@ enum MsgLevel {
     MsgLevelVerbose = 5,
 };
 
-#include "SimpleOutputStream.h"
-
 // How to use logging? Well, the basics are pretty simple:
 //
 // - The syntax is like standard iostream's.
@@ -29,14 +27,14 @@ enum MsgLevel {
 //
 // log_info("Twelve is written as " << 12 << ", isn't it");
 
-class DebugStream : public SimpleOutputStream {
+#include "MyIOStream.h"
+
+class DebugStream : public Print {
 public:
     DebugStream(const char* name);
-    void add(char c) override;
+    size_t write(uint8_t c) override;
     ~DebugStream();
 };
-
-#include "StringStream.h"
 
 extern bool atMsgLevel(MsgLevel level);
 

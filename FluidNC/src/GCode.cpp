@@ -23,7 +23,7 @@
 
 // Allow iteration over CoordIndex values
 CoordIndex& operator++(CoordIndex& i) {
-    i = static_cast<CoordIndex>(static_cast<uint8_t>(i) + 1);
+    i = static_cast<CoordIndex>(static_cast<size_t>(i) + 1);
     return i;
 }
 
@@ -59,6 +59,20 @@ void gc_sync_position() {
     motor_steps_to_mpos(gc_state.position, motor_steps);
 }
 
+static void gcode_comment_msg(char* comment) {
+    char         msg[80];
+    const size_t offset = 4;  // ignore "MSG_" part of comment
+    size_t       index  = offset;
+    if (strstr(comment, "MSG")) {
+        while (index < strlen(comment)) {
+            msg[index - offset] = comment[index];
+            index++;
+        }
+        msg[index - offset] = 0;  // null terminate
+        log_info("GCode Comment..." << msg);
+    }
+}
+
 // Edit GCode line in-place, removing whitespace and comments and
 // converting to uppercase
 void collapseGCode(char* line) {
@@ -77,7 +91,7 @@ void collapseGCode(char* line) {
                 if (parenPtr) {
                     // Terminate comment by replacing ) with NUL
                     *inPtr = '\0';
-                    report_gcode_comment(parenPtr);
+                    gcode_comment_msg(parenPtr);
                     parenPtr = NULL;
                 }
                 // Strip out ) that does not follow a (
@@ -88,7 +102,7 @@ void collapseGCode(char* line) {
                 break;
             case ';':
                 // NOTE: ';' comment to EOL is a LinuxCNC definition. Not NIST.
-                // report_gcode_comment(inPtr + 1);
+                // gcode_comment_msg(inPtr + 1);
                 *outPtr = '\0';
                 return;
             case '%':
@@ -111,7 +125,7 @@ void collapseGCode(char* line) {
     // On loop exit, *inPtr is '\0'
     if (parenPtr) {
         // Handle unterminated ( comments
-        report_gcode_comment(parenPtr);
+        gcode_comment_msg(parenPtr);
     }
     *outPtr = '\0';
 }
@@ -129,7 +143,7 @@ static void gc_wco_changed() {
 // In this function, all units and positions are converted and
 // exported to internal functions in terms of (mm, mm/min) and absolute machine
 // coordinates, respectively.
-Error gc_execute_line(char* line, uint8_t client) {
+Error gc_execute_line(char* line, Print& client) {
     // Step 0 - remove whitespace and comments and convert to upper case
     collapseGCode(line);
 #ifdef DEBUG_REPORT_ECHO_LINE_RECEIVED
@@ -145,11 +159,11 @@ Error gc_execute_line(char* line, uint8_t client) {
     memset(&gc_block, 0, sizeof(parser_block_t));                  // Initialize the parser block struct.
     memcpy(&gc_block.modal, &gc_state.modal, sizeof(gc_modal_t));  // Copy current modes
     AxisCommand axis_command = AxisCommand::None;
-    uint8_t     axis_0, axis_1, axis_linear;
+    size_t      axis_0, axis_1, axis_linear;
     CoordIndex  coord_select = CoordIndex::G54;  // Tracks G10 P coordinate selection for execution
     // Initialize bitflag tracking variables for axis indices compatible operations.
-    uint8_t axis_words = 0;  // XYZ tracking
-    uint8_t ijk_words  = 0;  // IJK tracking
+    size_t axis_words = 0;  // XYZ tracking
+    size_t ijk_words  = 0;  // IJK tracking
     // Initialize command and value words and parser flags variables.
     uint32_t command_words   = 0;  // Tracks G and M command words. Also used for modal group violations.
     uint32_t value_words     = 0;  // Tracks value words.
@@ -176,7 +190,7 @@ Error gc_execute_line(char* line, uint8_t client) {
        words, and for negative values set for the value words F, N, P, T, and S. */
     ModalGroup mg_word_bit;  // Bit-value for assigning tracking variables
     uint32_t   bitmask = 0;
-    uint8_t    char_counter;
+    size_t     char_counter;
     char       letter;
     float      value;
     uint8_t    int_value = 0;
@@ -864,9 +878,8 @@ Error gc_execute_line(char* line, uint8_t client) {
 
     // [12. Set length units ]: N/A
     // Pre-convert XYZ coordinate values to millimeters, if applicable.
-    uint8_t idx;
     if (gc_block.modal.units == Units::Inches) {
-        for (idx = 0; idx < n_axis; idx++) {  // Axes indices are consistent, so loop may be used.
+        for (size_t idx = 0; idx < n_axis; idx++) {  // Axes indices are consistent, so loop may be used.
             if (bitnum_is_true(axis_words, idx)) {
                 gc_block.values.xyz[idx] *= MM_PER_INCH;
             }
@@ -950,7 +963,7 @@ Error gc_execute_line(char* line, uint8_t client) {
             coords[coord_select]->get(coord_data);
 
             // Pre-calculate the coordinate data changes.
-            for (idx = 0; idx < n_axis; idx++) {  // Axes indices are consistent, so loop may be used.
+            for (size_t idx = 0; idx < n_axis; idx++) {  // Axes indices are consistent, so loop may be used.
                 // Update axes defined only in block. Always in machine coordinates. Can change non-active system.
                 if (bitnum_is_true(axis_words, idx)) {
                     if (gc_block.values.l == 20) {
@@ -974,7 +987,7 @@ Error gc_execute_line(char* line, uint8_t client) {
             }
             // Update axes defined only in block. Offsets current system to defined value. Does not update when
             // active coordinate system is selected, but is still active unless G92.1 disables it.
-            for (idx = 0; idx < n_axis; idx++) {  // Axes indices are consistent, so loop may be used.
+            for (size_t idx = 0; idx < n_axis; idx++) {  // Axes indices are consistent, so loop may be used.
                 if (bitnum_is_true(axis_words, idx)) {
                     // WPos = MPos - WCS - G92 - TLO  ->  G92 = MPos - WCS - TLO - WPos
                     gc_block.values.xyz[idx] = gc_state.position[idx] - block_coord_system[idx] - gc_block.values.xyz[idx];
@@ -993,7 +1006,7 @@ Error gc_execute_line(char* line, uint8_t client) {
             // NOTE: Tool offsets may be appended to these conversions when/if this feature is added.
             if (axis_command != AxisCommand::ToolLengthOffset) {  // TLO block any axis command.
                 if (axis_words) {
-                    for (idx = 0; idx < n_axis; idx++) {  // Axes indices are consistent, so loop may be used to save flash space.
+                    for (size_t idx = 0; idx < n_axis; idx++) {  // Axes indices are consistent, so loop may be used to save flash space.
                         if (bitnum_is_false(axis_words, idx)) {
                             gc_block.values.xyz[idx] = gc_state.position[idx];  // No axis word in block. Keep same axis position.
                         } else {
@@ -1027,7 +1040,7 @@ Error gc_execute_line(char* line, uint8_t client) {
                     }
                     if (axis_words) {
                         // Move only the axes specified in secondary move.
-                        for (idx = 0; idx < n_axis; idx++) {
+                        for (size_t idx = 0; idx < n_axis; idx++) {
                             if (!(axis_words & bitnum_to_mask(idx))) {
                                 coord_data[idx] = gc_state.position[idx];
                             }
@@ -1210,7 +1223,7 @@ Error gc_execute_line(char* line, uint8_t client) {
                         clear_bits(value_words, (bitnum_to_mask(GCodeWord::I) | bitnum_to_mask(GCodeWord::J) | bitnum_to_mask(GCodeWord::K)));
                         // Convert IJK values to proper units.
                         if (gc_block.modal.units == Units::Inches) {
-                            for (idx = 0; idx < n_axis; idx++) {  // Axes indices are consistent, so loop may be used to save flash space.
+                            for (size_t idx = 0; idx < n_axis; idx++) {  // Axes indices are consistent, so loop may be used to save flash space.
                                 if (ijk_words & bitnum_to_mask(idx)) {
                                     gc_block.values.ijk[idx] *= MM_PER_INCH;
                                 }

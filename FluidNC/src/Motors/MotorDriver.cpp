@@ -29,18 +29,18 @@ namespace MotorDrivers {
     String MotorDriver::axisName() const {
         return String(config->_axes->axisName(axis_index())) + (dual_axis_index() ? "2" : "") + " Axis";
     }
-    
+
     void MotorDriver::debug_message() {}
 
     bool MotorDriver::test() { return true; };  // true = OK
 
-    uint8_t MotorDriver::axis_index() const {
+    size_t MotorDriver::axis_index() const {
         Assert(config != nullptr && config->_axes != nullptr, "Expected machine to be configured before this is called.");
-        return uint8_t(config->_axes->findAxisIndex(this));
+        return size_t(config->_axes->findAxisIndex(this));
     }
-    uint8_t MotorDriver::dual_axis_index() const {
+    size_t MotorDriver::dual_axis_index() const {
         Assert(config != nullptr && config->_axes != nullptr, "Expected machine to be configured before this is called.");
-        return uint8_t(config->_axes->findAxisMotor(this));
+        return size_t(config->_axes->findAxisMotor(this));
     }
     void IRAM_ATTR MotorDriver::set_disable(bool disable) {}
 }

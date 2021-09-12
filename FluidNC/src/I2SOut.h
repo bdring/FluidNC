@@ -8,6 +8,8 @@
 
 #include <stdint.h>
 
+#include "Pin.h"
+
 /* Assert */
 #if defined(I2S_OUT_NUM_BITS)
 #    if (I2S_OUT_NUM_BITS != 16) && (I2S_OUT_NUM_BITS != 32)
@@ -45,9 +47,9 @@ typedef struct {
         If I2S_OUT_PIN_BASE is set to 128,
         bit0:Expanded GPIO 128, 1: Expanded GPIO 129, ..., v: Expanded GPIO 159
     */
-    uint8_t  ws_pin;
-    uint8_t  bck_pin;
-    uint8_t  data_pin;
+    pinnum_t ws_pin;
+    pinnum_t bck_pin;
+    pinnum_t data_pin;
     uint32_t pulse_period;  // aka step rate.
     uint32_t init_val;
 } i2s_out_init_t;
@@ -75,7 +77,7 @@ int i2s_out_init();
   Read a bit state from the internal pin state var.
   pin: expanded pin No. (0..31)
 */
-uint8_t i2s_out_read(uint8_t pin);
+uint8_t i2s_out_read(pinnum_t pin);
 
 void i2s_out_push();
 
@@ -84,7 +86,7 @@ void i2s_out_push();
    pin: expanded pin No. (0..31)
    val: bit value(0 or not 0)
 */
-void i2s_out_write(uint8_t pin, uint8_t val);
+void i2s_out_write(pinnum_t pin, uint8_t val);
 
 /*
     Set current pin state to the I2S bitstream buffer

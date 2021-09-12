@@ -29,7 +29,7 @@ struct st_block_t {
     uint32_t steps[MAX_N_AXIS];
     uint32_t step_event_count;
     uint8_t  direction_bits;
-    uint8_t  is_pwm_rate_adjusted;  // Tracks motions that require constant laser power/rate
+    bool     is_pwm_rate_adjusted;  // Tracks motions that require constant laser power/rate
 };
 static st_block_t st_block_buffer[SEGMENT_BUFFER_SIZE - 1];
 

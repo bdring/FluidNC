@@ -33,10 +33,10 @@ void mc_arc(float*            target,
             float*            position,
             float*            offset,
             float             radius,
-            uint8_t           axis_0,
-            uint8_t           axis_1,
-            uint8_t           axis_linear,
-            uint8_t           is_clockwise_arc);
+            size_t            axis_0,
+            size_t            axis_1,
+            size_t            axis_linear,
+            bool              is_clockwise_arc);
 
 // Dwell for a specific number of seconds
 bool mc_dwell(int32_t milliseconds);

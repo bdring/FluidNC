@@ -110,7 +110,7 @@ namespace WebUI {
             log_debug("length");
             if (!SerialBT.begin(_btname)) {
                 log_debug("name");
-                report_status_message(Error::BtFailBegin, CLIENT_ALL);
+                report_status_message(Error::BtFailBegin, allClients);
                 return false;
             }
             log_debug("register");

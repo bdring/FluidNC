@@ -8,36 +8,14 @@
   Serial.h - Header for system level commands and real-time processes
 */
 
-#include "stdint.h"
-
-// TODO: Change to enum class, and instead of 'uint8_t client' everywhere, change to ClientType client.
-enum ClientType : uint8_t {
-    CLIENT_SERIAL = 0,
-    CLIENT_BT     = 1,
-    CLIENT_WEBUI  = 2,
-    CLIENT_TELNET = 3,
-    CLIENT_INPUT  = 4,
-    CLIENT_ALL    = 0xFF,
-    CLIENT_COUNT  = 5,  // total number of client types regardless if they are used
-    CLIENT_FILE   = 6,  // Not included in CLIENT_COUNT
-};
-
-// a task to read for incoming data from serial port
-void clientCheckTask(void* pvParameters);
-
-void client_write(uint8_t client, const char* text);
-
-// Fetches the first byte in the serial read buffer. Called by main program.
-int client_read(uint8_t client);
+#include <vector>
+#include <stdint.h>
+#include <Stream.h>
 
 // See if the character is an action command like feedhold or jogging. If so, do the action and return true
 uint8_t check_action_command(uint8_t data);
 
 void client_init();
-void client_reset_read_buffer(uint8_t client);
-
-// Returns the number of bytes available in the RX serial buffer.
-uint8_t client_get_rx_buffer_available(uint8_t client);
 
 // Define realtime command special characters. These characters are 'picked-off' directly from the
 // serial read data stream and are not passed to the grbl line execution parser. Select characters
@@ -78,19 +56,26 @@ enum class Cmd : uint8_t {
     CoolantMistOvrToggle  = 0xA1,
 };
 
-void execute_realtime_command(Cmd command, uint8_t client);
 bool is_realtime_command(uint8_t data);
 
-#include "SimpleOutputStream.h"
-
-class ClientStream : public SimpleOutputStream {
-    uint8_t _client;
-    bool    _isSD;
-
+class InputClient {
 public:
-    ClientStream(uint8_t client) : _client(client) {}
-    ClientStream(const char* filename, const char* defaultFs);
-
-    void add(char c) override;
-    ~ClientStream();
+    static const int maxLine = 255;
+    InputClient(Stream* source) : _in(source), _out(source), _linelen(0), _line_num(0), _line_returned(false) {}
+    Stream* _in;
+    Print*  _out;
+    char    _line[maxLine];
+    size_t  _linelen;
+    int     _line_num;
+    bool    _line_returned;
 };
+InputClient* pollClients();
+
+class AllClients : public Print {
+public:
+    AllClients() = default;
+    size_t write(uint8_t data) override;
+    size_t write(const uint8_t* buffer, size_t length) override;
+};
+
+extern AllClients allClients;

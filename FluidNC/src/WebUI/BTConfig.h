@@ -10,16 +10,21 @@
 #include <WString.h>
 
 #ifndef ENABLE_BLUETOOTH
+#    include <Stream.h>
+
 namespace WebUI {
-    class BluetoothSerial {
+    class BluetoothSerial : public Stream {
     public:
         BluetoothSerial() = default;
         int read() { return -1; };
         // This is hardwired at 512 because the real BluetoothSerial hardwires
         // the Rx queue size to 512 and code in Report.cpp subtracts available()
         // from that to determine how many characters can be sent.
-        int  available() { return 512; };
-        void print(const char* text) {};
+        int    available() { return 512; };
+        size_t write(uint8_t data) override { return 0; };
+        size_t write(const uint8_t* buffer, size_t length) override { return 0; };
+        int    peek() override { return -1; }
+        void   flush() override {}
     };
     extern BluetoothSerial SerialBT;
 

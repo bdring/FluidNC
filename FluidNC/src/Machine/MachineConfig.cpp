@@ -193,7 +193,7 @@ namespace Machine {
         return filesize;
     }
 
-    char defaultConfig[] = "name: Default\nboard: None\n";
+    char defaultConfig[] = "name: Default (Test Drive)\nboard: None\n";
 
     bool MachineConfig::load(const char* filename) {
         // log_info("Heap size before load config is " << uint32_t(xPortGetFreeHeapSize()));
@@ -276,8 +276,8 @@ namespace Machine {
 
             StringRange near(startNear, endNear);
             StringRange key(startKey, endKey);
-            log_error("Configuration parse error: " << ex.What() << " @ " << ex.LineNumber() << ":" << ex.ColumnNumber() << " key " << key
-                                                    << " near " << near);
+            log_error("Configuration parse error: " << ex.What() << " @ " << ex.LineNumber() << ":" << ex.ColumnNumber() << " key "
+                                                    << key.str() << " near " << near.str());
         } catch (const AssertionFailed& ex) {
             sys.state = State::ConfigAlarm;
             // Get rid of buffer and return

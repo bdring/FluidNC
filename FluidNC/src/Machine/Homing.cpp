@@ -4,7 +4,6 @@
 #include "../NutsBolts.h"      // set_bitnum, etc
 #include "../System.h"         // sys.*
 #include "../Stepper.h"        // st_wake
-#include "../Report.h"         // CLIENT_
 #include "../Protocol.h"       // protocol_execute_realtime
 #include "../Machine/Axes.h"
 #include "../Machine/MachineConfig.h"  // config
@@ -321,7 +320,7 @@ namespace Machine {
         } catch (ExecAlarm alarm) {
             rtAlarm = alarm;
             config->_axes->set_homing_mode(axisMask, false);  // tell motors homing is done...failed
-            log_debug("Homing fail");
+            log_error("Homing fail");
             mc_reset();  // Stop motors, if they are running.
             // protocol_execute_realtime() will handle any pending rtXXX conditions
             protocol_execute_realtime();
@@ -331,6 +330,7 @@ namespace Machine {
         set_mpos(axisMask);
     }
 
+    // XXX this should return Error or at least set ExecAlarm::HomingNoCycles (not yet defined)
     void Homing::run_cycles(AxisMask axisMask) {
         // -------------------------------------------------------------------------------------
         // Perform homing routine. NOTE: Special motion case. Only system reset works.
@@ -358,7 +358,7 @@ namespace Machine {
                 }
             }
             if (!someAxisHomed) {
-                report_status_message(Error::HomingNoCycles, CLIENT_ALL);
+                log_error("No homing cycles defined");
                 sys.state = State::Alarm;
             }
         }

@@ -21,7 +21,7 @@
  */
 
 #include "Arduino.h"
-#include "Stream.h"
+#include <Stream.h>
 #include "esp32-hal.h"
 
 #define PARSE_TIMEOUT 1000  // default number of milli-seconds to wait

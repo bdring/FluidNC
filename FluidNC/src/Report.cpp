@@ -16,21 +16,12 @@
 
   ESP32 Notes:
 
-  Major rewrite to fix issues with BlueTooth. As described here there is a problem
-  when you try to send data a single byte at a time using SerialBT.write(...).
-  https://github.com/espressif/arduino-esp32/issues/1537
-
-  A solution is to send messages as a string using SerialBT.print(...), using
-  a short delay after each send.
-
-  ESP32 discussion here ...  https://github.com/bdring/Grbl_Esp32/issues/3
 */
 
 #include "Report.h"
 
 #include "Machine/MachineConfig.h"
 #include "SettingsDefinitions.h"
-#include "Protocol.h"                    // ExecAlarm
 #include "MotionControl.h"               // probe_succeeded
 #include "Limits.h"                      // limits_get_state
 #include "Planner.h"                     // plan_get_block_buffer_available
@@ -49,57 +40,8 @@
 #ifdef DEBUG_REPORT_HEAP
 EspClass esp;
 #endif
-const int DEFAULTBUFFERSIZE = 64;
 
 portMUX_TYPE mmux = portMUX_INITIALIZER_UNLOCKED;
-
-void _send(uint8_t client, const char* text) {
-    client_write(client, text);
-}
-
-void va_sendf(uint8_t client, const char* format, va_list arg) {
-    if (client == CLIENT_INPUT) {
-        return;
-    }
-    char    loc_buf[100];
-    char*   temp = loc_buf;
-    va_list copy;
-    va_copy(copy, arg);
-    size_t len = vsnprintf(NULL, 0, format, arg);
-    va_end(copy);
-    if (len >= sizeof(loc_buf)) {
-        temp = new char[len + 1];
-        if (temp == NULL) {
-            return;
-        }
-    }
-    len = vsnprintf(temp, len + 1, format, arg);
-    _send(client, temp);
-    if (temp != loc_buf) {
-        delete[] temp;
-    }
-}
-
-// This is a formatting version of the _send(CLIENT_ALL,...) function that work like printf
-void _sendf(uint8_t client, const char* format, ...) {
-    va_list arg;
-    va_start(arg, format);
-    va_sendf(client, format, arg);
-    va_end(arg);
-}
-
-void msg_vsendf(uint8_t client, const char* format, va_list arg) {
-    _send(client, "[MSG:");
-    va_sendf(client, format, arg);
-    _send(client, "]\r\n");
-}
-
-void info_client(uint8_t client, const char* format, ...) {
-    va_list arg;
-    va_start(arg, format);
-    msg_vsendf(client, format, arg);
-    va_end(arg);
-}
 
 void _notify(const char* title, const char* msg) {
     WebUI::notificationsservice.sendMSG(title, msg);
@@ -137,7 +79,6 @@ static const int axesStringLen  = coordStringLen * MAX_N_AXIS;
 // formats axis values into a string and returns that string in rpt
 // NOTE: rpt should have at least size: axesStringLen
 static void report_util_axis_values(float* axis_value, char* rpt) {
-    uint8_t     idx;
     char        axisVal[coordStringLen];
     float       unit_conv = 1.0;      // unit conversion multiplier..default is mm
     const char* format    = "%4.3f";  // Default - report mm to 3 decimal places
@@ -147,7 +88,7 @@ static void report_util_axis_values(float* axis_value, char* rpt) {
         format    = "%4.4f";  // Report inches to 4 decimal places
     }
     auto n_axis = config->_axes->_numberAxis;
-    for (idx = 0; idx < n_axis; idx++) {
+    for (size_t idx = 0; idx < n_axis; idx++) {
         snprintf(axisVal, coordStringLen - 1, format, axis_value[idx] * unit_conv);
         strcat(rpt, axisVal);
         if (idx < (n_axis - 1)) {
@@ -158,16 +99,15 @@ static void report_util_axis_values(float* axis_value, char* rpt) {
 
 // This version returns the axis values as a String
 static String report_util_axis_values(const float* axis_value) {
-    String  rpt = "";
-    uint8_t idx;
-    float   unit_conv = 1.0;  // unit conversion multiplier..default is mm
-    int     decimals  = 3;    // Default - report mm to 3 decimal places
+    String rpt       = "";
+    float  unit_conv = 1.0;  // unit conversion multiplier..default is mm
+    int    decimals  = 3;    // Default - report mm to 3 decimal places
     if (config->_reportInches) {
         unit_conv = 1.0f / MM_PER_INCH;
         decimals  = 4;  // Report inches to 4 decimal places
     }
     auto n_axis = config->_axes->_numberAxis;
-    for (idx = 0; idx < n_axis; idx++) {
+    for (size_t idx = 0; idx < n_axis; idx++) {
         rpt += String(axis_value[idx] * unit_conv, decimals);
         if (idx < (n_axis - 1)) {
             rpt += ",";
@@ -182,7 +122,7 @@ static String report_util_axis_values(const float* axis_value) {
 // operation. Errors events can originate from the g-code parser, settings module, or asynchronously
 // from a critical error, such as a triggered hard limit. Interface should always monitor for these
 // responses.
-void report_status_message(Error status_code, uint8_t client) {
+void report_status_message(Error status_code, Print& client) {
     auto sdcard = config->_sdCard;
     if (sdcard->get_state() == SDCard::State::BusyPrinting) {
         // When running from SD, the GCode is not coming from a sender, so we are not
@@ -198,16 +138,12 @@ void report_status_message(Error status_code, uint8_t client) {
                 // we issue this message.  What Eof really means is that all the lines in the
                 // file were sent, but not necessarily executed.  Some could still be running.
                 _notifyf("SD print done", "%s print succeeded", sdcard->filename());
-                info_client(sdcard->_client, "%s print succeeded", sdcard->filename());
+                sdcard->getClient() << "[MSG:" << sdcard->filename() << " print succeeded]\n";
                 sdcard->closeFile();
                 break;
             default:
-                info_client(sdcard->_client,
-                            "Error:%d (%s) in %s at line %d",
-                            status_code,
-                            errorString(status_code),
-                            sdcard->filename(),
-                            sdcard->lineNumber());
+                sdcard->getClient() << "[MSG: ERR:" << static_cast<int>(status_code) << " (" << errorString(status_code) << ") in "
+                                    << sdcard->filename() << " at line " << sdcard->lineNumber() << "]\n";
                 if (status_code == Error::GcodeUnsupportedCommand) {
                     // Do not stop on unsupported commands because most senders do not
                     sdcard->_readyNext = true;
@@ -220,26 +156,22 @@ void report_status_message(Error status_code, uint8_t client) {
         // Input is coming from a sender so use the classic Grbl line protocol
         switch (status_code) {
             case Error::Ok:  // Error::Ok
-                _send(client, "ok\r\n");
+                client << "ok\n";
                 break;
             default:
                 // With verbose errors, the message text is displayed instead of the number.
                 // Grbl 0.9 used to display the text, while Grbl 1.1 switched to the number.
                 // Many senders support both formats.
+                client << "error:";
                 if (config->_verboseErrors) {
-                    _sendf(client, "error: %s\r\n", errorString(status_code));
+                    client << errorString(status_code);
                 } else {
-                    _sendf(client, "error:%d\r\n", static_cast<int>(status_code));
+                    client << static_cast<int>(status_code);
                 }
+                client << '\n';
                 break;
         }
     }
-}
-
-// Prints alarm messages.
-void report_alarm_message(ExecAlarm alarm_code) {
-    _sendf(CLIENT_ALL, "ALARM:%d\r\n", static_cast<int>(alarm_code));  // OK to send to all clients
-    delay_ms(500);                                                     // Force delay to ensure message clears serial write buffer.
 }
 
 std::map<Message, const char*> MessageText = {
@@ -271,68 +203,47 @@ void report_feedback_message(Message message) {  // ok to send to all clients
     }
 }
 
+#include "Uart.h"
 // Welcome message
-void report_init_message(uint8_t client) {
-    _sendf(client, "\r\nGrbl %s [FluidNC %s%s, '$' for help]\r\n", GRBL_VERSION, GIT_TAG, GIT_REV);
-}
-
-// Help message
-void report_help(uint8_t client) {
-    _send(client, "[HLP:$$ $+ $# $S $L $G $I $N $x=val $Nx=line $J=line $SLP $C $X $H $F $E=err ~ ! ? ctrl-x]\r\n");
+void report_init_message(Print& client) {
+    client << "\r\nGrbl " << GRBL_VERSION << " [FluidNC " << GIT_TAG << GIT_REV << " '$' for help]\n";
 }
 
 // Prints current probe parameters. Upon a probe command, these parameters are updated upon a
 // successful probe or upon a failed probe with the G38.3 without errors command (if supported).
 // These values are retained until the system is power-cycled, whereby they will be re-zeroed.
-void report_probe_parameters(uint8_t client) {
+void report_probe_parameters(Print& client) {
     // Report in terms of machine position.
-    char probe_rpt[(axesStringLen + 13 + 6 + 1)];  // the probe report we are building here
-    char temp[axesStringLen];
-    strcpy(probe_rpt, "[PRB:");  // initialize the string with the first characters
     // get the machine position and put them into a string and append to the probe report
     float print_position[MAX_N_AXIS];
     motor_steps_to_mpos(print_position, probe_steps);
-    report_util_axis_values(print_position, temp);
-    strcat(probe_rpt, temp);
-    // add the success indicator and add closing characters
-    sprintf(temp, ":%d]\r\n", probe_succeeded);
-    strcat(probe_rpt, temp);
-    _send(client, probe_rpt);  // send the report
+    client << "[PRB:" << report_util_axis_values(print_position) << ":" << probe_succeeded << '\n';
 }
 
 // Prints NGC parameters (coordinate offsets, probing)
-void report_ngc_parameters(uint8_t client) {
-    String ngc_rpt = "";
-
+void report_ngc_parameters(Print& client) {
     // Print persistent offsets G54 - G59, G28, and G30
     for (auto coord_select = CoordIndex::Begin; coord_select < CoordIndex::End; ++coord_select) {
-        ngc_rpt += "[";
-        ngc_rpt += coords[coord_select]->getName();
-        ngc_rpt += ":";
-        ngc_rpt += report_util_axis_values(coords[coord_select]->get());
-        ngc_rpt += "]\r\n";
+        client << '[' << coords[coord_select]->getName() << ":";
+        client << report_util_axis_values(coords[coord_select]->get());
+        client << '\n';
     }
-    ngc_rpt += "[G92:";  // Print non-persistent G92,G92.1
-    ngc_rpt += report_util_axis_values(gc_state.coord_offset);
-    ngc_rpt += "]\r\n";
-    ngc_rpt += "[TLO:";  // Print tool length offset
+    // Print non-persistent G92,G92.1
+    client << "[G92:" << report_util_axis_values(gc_state.coord_offset) << "]\n";
+    // Print tool length offset
+    client << "[TLO:";
     float tlo = gc_state.tool_length_offset;
     if (config->_reportInches) {
         tlo *= INCH_PER_MM;
     }
-    ngc_rpt += String(tlo, 3);
-    ;
-    ngc_rpt += "]\r\n";
-    _send(client, ngc_rpt.c_str());
+    client << String(tlo, 3) << "]\n";
     report_probe_parameters(client);
 }
 
 // Print current gcode parser mode state
-void report_gcode_modes(uint8_t client) {
-    char        temp[20];
-    char        modes_rpt[75];
+void report_gcode_modes(Print& client) {
+    client << "[GC:";
     const char* mode = "";
-    strcpy(modes_rpt, "[GC:");
 
     switch (gc_state.modal.motion) {
         case Motion::None:
@@ -363,10 +274,9 @@ void report_gcode_modes(uint8_t client) {
             mode = "G38.4";
             break;
     }
-    strcat(modes_rpt, mode);
+    client << mode;
 
-    sprintf(temp, " G%d", gc_state.modal.coord_select + 54);
-    strcat(modes_rpt, temp);
+    client << 'G' << (gc_state.modal.coord_select + 54);
 
     switch (gc_state.modal.plane_select) {
         case Plane::XY:
@@ -379,7 +289,7 @@ void report_gcode_modes(uint8_t client) {
             mode = " G19";
             break;
     }
-    strcat(modes_rpt, mode);
+    client << mode;
 
     switch (gc_state.modal.units) {
         case Units::Inches:
@@ -389,7 +299,7 @@ void report_gcode_modes(uint8_t client) {
             mode = " G21";
             break;
     }
-    strcat(modes_rpt, mode);
+    client << mode;
 
     switch (gc_state.modal.distance) {
         case Distance::Absolute:
@@ -399,14 +309,14 @@ void report_gcode_modes(uint8_t client) {
             mode = " G91";
             break;
     }
-    strcat(modes_rpt, mode);
+    client << mode;
 
 #if 0
     switch (gc_state.modal.arc_distance) {
         case ArcDistance::Absolute: mode = " G90.1"; break;
         case ArcDistance::Incremental: mode = " G91.1"; break;
     }
-    strcat(modes_rpt, mode);
+    client << mode;
 #endif
 
     switch (gc_state.modal.feed_rate) {
@@ -417,7 +327,7 @@ void report_gcode_modes(uint8_t client) {
             mode = " G93";
             break;
     }
-    strcat(modes_rpt, mode);
+    client << mode;
 
     //report_util_gcode_modes_M();
     switch (gc_state.modal.program_flow) {
@@ -437,7 +347,7 @@ void report_gcode_modes(uint8_t client) {
             mode = " M30";
             break;
     }
-    strcat(modes_rpt, mode);
+    client << mode;
 
     switch (gc_state.modal.spindle) {
         case SpindleState::Cw:
@@ -452,90 +362,85 @@ void report_gcode_modes(uint8_t client) {
         default:
             mode = "";
     }
-    strcat(modes_rpt, mode);
+    client << mode;
 
     //report_util_gcode_modes_M();  // optional M7 and M8 should have been dealt with by here
     auto coolant = gc_state.modal.coolant;
     if (!coolant.Mist && !coolant.Flood) {
-        strcat(modes_rpt, " M9");
+        client << " M9";
     } else {
         // Note: Multiple coolant states may be active at the same time.
         if (coolant.Mist) {
-            strcat(modes_rpt, " M7");
+            client << " M7";
         }
         if (coolant.Flood) {
-            strcat(modes_rpt, " M8");
+            client << " M8";
         }
     }
 
     if (config->_enableParkingOverrideControl && sys.override_ctrl == Override::ParkingMotion) {
-        strcat(modes_rpt, " M56");
+        client << " M56";
     }
 
-    sprintf(temp, " T%d", gc_state.tool);
-    strcat(modes_rpt, temp);
-    sprintf(temp, config->_reportInches ? " F%.1f" : " F%.0f", gc_state.feed_rate);
-    strcat(modes_rpt, temp);
-    sprintf(temp, " S%d", uint32_t(gc_state.spindle_speed));
-    strcat(modes_rpt, temp);
-    strcat(modes_rpt, "]\r\n");
-    _send(client, modes_rpt);
-}
-
-// Prints specified startup line
-void report_startup_line(uint8_t n, const char* line, uint8_t client) {
-    _sendf(client, "$N%d=%s\r\n", n, line);  // OK to send to all
-}
-
-void report_execute_startup_message(const char* line, Error status_code, uint8_t client) {
-    _sendf(client, ">%s:", line);  // OK to send to all
-    report_status_message(status_code, client);
+    client << " T " << gc_state.tool;
+    // XXX WMB format according to config->_reportInches ? %.1f : %.0f
+    client << " F" << gc_state.feed_rate;
+    client << " # " << uint32_t(gc_state.spindle_speed);
+    client << '\n';
 }
 
 // Prints build info line
-void report_build_info(const char* line, uint8_t client) {
-    _sendf(client, "[VER:FluidNC %s%s:%s]\r\n[OPT:", GIT_TAG, GIT_REV, line);
+void report_build_info(const char* line, Print& client) {
+    client << "[VER:FluidNC " << GIT_TAG << GIT_REV << ":" << line << "]\n";
+    client << "[OPT:";
     if (config->_coolant->hasMist()) {
-        _send(client, "M");  // TODO Need to deal with M8...it could be disabled
+        client << "M";  // TODO Need to deal with M8...it could be disabled
     }
-    _send(client, "P");
-    _send(client, "H");
+    client << "PH";
     if (config->_limitsTwoSwitchesOnAxis) {
-        _send(client, "L");
+        client << "L";
     }
     if (ALLOW_FEED_OVERRIDE_DURING_PROBE_CYCLES) {
-        _send(client, "A");
+        client << "A";
     }
-    _send(client, config->_comms->_bluetoothConfig ? "B" : "");
-    _send(client, "S");
+    if (config->_comms->_bluetoothConfig) {
+        client << "B";
+    }
+    client << "S";
     if (config->_enableParkingOverrideControl) {
-        _send(client, "R");
+        client << "R";
     }
-    _send(client, FORCE_BUFFER_SYNC_DURING_NVS_WRITE ? "" : "E");   // Shown when disabled
-    _send(client, FORCE_BUFFER_SYNC_DURING_WCO_CHANGE ? "" : "W");  // Shown when disabled.
-
+    if (!FORCE_BUFFER_SYNC_DURING_NVS_WRITE) {
+        client << "E";  // Shown when disabled
+    }
+    if (!FORCE_BUFFER_SYNC_DURING_WCO_CHANGE) {
+        client << "W";  // Shown when disabled.
+    }
     // NOTE: Compiled values, like override increments/max/min values, may be added at some point later.
     // These will likely have a comma delimiter to separate them.
-    _send(client, "]\r\n");
+    client << "]\n";
 
-    report_machine_type(client);
+    client << "[MSG: Machine: " << config->_name << "]\n";
+
     String info;
     info = WebUI::wifi_config.info();
     if (info.length()) {
-        info_client(client, info.c_str());
+        client << "[MSG: Machine: " << info << "]\n";
+        ;
     }
     if (config->_comms->_bluetoothConfig) {
         info = config->_comms->_bluetoothConfig->info();
         if (info.length()) {
-            info_client(client, info.c_str());
+            client << "[MSG: Machine: " << info << "]\n";
+            ;
         }
     }
 }
 
 // Prints the character string line that was received, which has been pre-parsed,
 // and has been sent into protocol_execute_line() routine to be executed.
-void report_echo_line_received(char* line, uint8_t client) {
-    _sendf(client, "[echo: %s]\r\n", line);
+void report_echo_line_received(char* line, Print& client) {
+    client << "[echo: " << line << "]\n";
 }
 
 // Calculate the position for status reports.
@@ -549,46 +454,112 @@ void addPinReport(char* status, char pinLetter) {
     status[pos + 1] = '\0';
 }
 
+static float* get_wco() {
+    static float wco[MAX_N_AXIS];
+    auto         n_axis = config->_axes->_numberAxis;
+    for (int idx = 0; idx < n_axis; idx++) {
+        // Apply work coordinate offsets and tool length offset to current position.
+        wco[idx] = gc_state.coord_system[idx] + gc_state.coord_offset[idx];
+        if (idx == TOOL_LENGTH_OFFSET_AXIS) {
+            wco[idx] += gc_state.tool_length_offset;
+        }
+    }
+    return wco;
+}
+
+static void mpos_to_wpos(float* position) {
+    float* wco    = get_wco();
+    auto   n_axis = config->_axes->_numberAxis;
+    for (int idx = 0; idx < n_axis; idx++) {
+        position[idx] -= wco[idx];
+    }
+}
+
+static const char* state_name() {
+    switch (sys.state) {
+        case State::Idle:
+            return "Idle";
+        case State::Cycle:
+            return "Run";
+        case State::Hold:
+            if (!(sys.suspend.bit.jogCancel)) {
+                return sys.suspend.bit.holdComplete ? "Hold:0" : "Hold:1";
+            }  // Continues to print jog state during jog cancel.
+        case State::Jog:
+            return "Jog";
+        case State::Homing:
+            return "Home";
+        case State::ConfigAlarm:
+        case State::Alarm:
+            return "Alarm";
+        case State::CheckMode:
+            return "Check";
+        case State::SafetyDoor:
+            if (sys.suspend.bit.initiateRestore) {
+                return "Door:3";  // Restoring
+            }
+            if (sys.suspend.bit.retractComplete) {
+                return sys.suspend.bit.safetyDoorAjar ? "Door:1" : "Door:0";
+                // Door:0 means door closed and ready to resume
+            }
+            return "Door:2";  // Retracting
+        case State::Sleep:
+            return "Sleep";
+    }
+    return "";
+}
+
+String pinString() {
+    String pins = "";
+
+    if (config->_probe->get_state()) {
+        pins += 'P';
+    }
+
+    MotorMask lim_pin_state = limits_get_state();
+    if (lim_pin_state) {
+        auto n_axis = config->_axes->_numberAxis;
+        for (int i = 0; i < n_axis; i++) {
+            if (bitnum_is_true(lim_pin_state, i) || bitnum_is_true(lim_pin_state, i + 16)) {
+                pins += config->_axes->axisName(i);
+            }
+        }
+    }
+
+    // XXX WMB change _control->report() to return a String
+    char status[20];
+    status[0] = '\0';
+    config->_control->report(status);
+
+    pins += status;
+    return pins;
+}
+
 // Prints real-time data. This function grabs a real-time snapshot of the stepper subprogram
 // and the actual location of the CNC machine. Users may change the following function to their
 // specific needs, but the desired real-time data report must be as short as possible. This is
 // requires as it minimizes the computational overhead to keep running smoothly,
 // especially during g-code programs with fast, short line segments and high frequency reports (5-20Hz).
-void report_realtime_status(uint8_t client) {
-    char status[200];
-    char temp[MAX_N_AXIS * 20];
-
-    strcpy(status, "<");
-    strcat(status, report_state_text());
+void report_realtime_status(Print& client) {
+    client << "<" << state_name();
 
     // Report position
     float* print_position = get_mpos();
     if (bits_are_true(status_mask->get(), RtStatus::Position)) {
-        strcat(status, "|MPos:");
+        client << "|MPos:";
     } else {
-        strcat(status, "|WPos:");
+        client << "|WPos:";
         mpos_to_wpos(print_position);
     }
-    report_util_axis_values(print_position, temp);
-    strcat(status, temp);
+    client << report_util_axis_values(print_position);
 
     // Returns planner and serial read buffer states.
+#if 0
+    // XXX WMB problem with client_get_rx_buffer_available(client)
     if (bits_are_true(status_mask->get(), RtStatus::Buffer)) {
-        int bufsize = DEFAULTBUFFERSIZE;
-        if (client == CLIENT_TELNET) {
-            bufsize = WebUI::telnet_server.get_rx_buffer_available();
-        }
-        if (client == CLIENT_BT) {
-            //TODO FIXME
-            bufsize = 512 - WebUI::SerialBT.available();
-        }
-
-        if (client == CLIENT_SERIAL) {
-            bufsize = client_get_rx_buffer_available(CLIENT_SERIAL);
-        }
-        sprintf(temp, "|Bf:%d,%d", plan_get_block_buffer_available(), bufsize);
-        strcat(status, temp);
+        client << "|Bf:" << plan_get_block_buffer_available() << "," << client_get_rx_buffer_available(client /* CLIENT_SERIAL ??? */);
     }
+#endif
 
     if (config->_useLineNumbers) {
         // Report current line number
@@ -596,8 +567,7 @@ void report_realtime_status(uint8_t client) {
         if (cur_block != NULL) {
             uint32_t ln = cur_block->line_number;
             if (ln > 0) {
-                sprintf(temp, "|Ln:%d", ln);
-                strcat(status, temp);
+                client << "|Ln:" << ln;
             }
         }
     }
@@ -607,34 +577,12 @@ void report_realtime_status(uint8_t client) {
     if (config->_reportInches) {
         rate /= MM_PER_INCH;
     }
-    sprintf(temp, "|FS:%.0f,%d", rate, sys.spindle_speed);
-    strcat(status, temp);
-    MotorMask   lim_pin_state   = limits_get_state();
-    bool        prb_pin_state   = config->_probe->get_state();
-    const char* pinReportPrefix = "|Pn:";
+    // XXX WMB rate %.0f
+    client << "|FS:" << rate << "," << sys.spindle_speed;
 
-    // Remember the current length so we know whether something was added
-    size_t saved_length = strlen(status);
-
-    strcat(status, pinReportPrefix);
-
-    if (prb_pin_state) {
-        addPinReport(status, 'P');
-    }
-    if (lim_pin_state) {
-        auto n_axis = config->_axes->_numberAxis;
-        for (int i = 0; i < n_axis; i++) {
-            if (bitnum_is_true(lim_pin_state, i) || bitnum_is_true(lim_pin_state, i + 16)) {
-                addPinReport(status, config->_axes->axisName(i));
-            }
-        }
-    }
-
-    config->_control->report(status);
-
-    if (strlen(status) == (saved_length + strlen(pinReportPrefix))) {
-        // Erase the "|Pn:" prefix because there is nothing after it
-        status[saved_length] = '\0';
+    String pins = pinString();
+    if (pins.length()) {
+        client << "|Pn:" << pins;
     }
 
     if (report_wco_counter > 0) {
@@ -654,9 +602,7 @@ void report_realtime_status(uint8_t client) {
         if (report_ovr_counter == 0) {
             report_ovr_counter = 1;  // Set override on next report.
         }
-        strcat(status, "|WCO:");
-        report_util_axis_values(get_wco(), temp);
-        strcat(status, temp);
+        client << "|WCO:" << report_util_axis_values(get_wco());
     }
 
     if (report_ovr_counter > 0) {
@@ -674,175 +620,45 @@ void report_realtime_status(uint8_t client) {
                 break;
         }
 
-        sprintf(temp, "|Ov:%d,%d,%d", sys.f_override, sys.r_override, sys.spindle_speed_ovr);
-        strcat(status, temp);
+        client << "|Ov:" << sys.f_override << "," << sys.r_override << "," << sys.spindle_speed_ovr;
         SpindleState sp_state      = spindle->get_state();
         CoolantState coolant_state = config->_coolant->get_state();
         if (sp_state != SpindleState::Disable || coolant_state.Mist || coolant_state.Flood) {
-            strcat(status, "|A:");
+            client << "|A:";
             switch (sp_state) {
                 case SpindleState::Disable:
                     break;
                 case SpindleState::Cw:
-                    strcat(status, "S");
+                    client << "S";
                     break;
                 case SpindleState::Ccw:
-                    strcat(status, "C");
+                    client << "C";
                     break;
                 case SpindleState::Unknown:
                     break;
             }
 
-            // TODO FIXME SdB: This code is weird...:
             auto coolant = coolant_state;
+            // XXX WMB why .Flood in one case and ->hasMist() in the other? also see above
             if (coolant.Flood) {
-                strcat(status, "F");
+                client << "F";
             }
             if (config->_coolant->hasMist()) {
-                // TODO Deal with M8 - Flood
-                if (coolant.Mist) {
-                    strcat(status, "M");
-                }
+                client << "M";
             }
         }
     }
     if (config->_sdCard->get_state() == SDCard::State::BusyPrinting) {
-        sprintf(temp, "|SD:%4.2f,", config->_sdCard->report_perc_complete());
-        strcat(status, temp);
-        strcat(status, config->_sdCard->filename());
+        // XXX WMB FORMAT 4.2f
+        client << "|SD:" << config->_sdCard->report_perc_complete() << "," << config->_sdCard->filename();
     }
 #ifdef DEBUG_STEPPER_ISR
-    sprintf(temp, "|ISRs:%d", Stepper::isr_count);
-    strcat(status, temp);
+    client << "|ISRs:" << Stepper::isr_count;
 #endif
 #ifdef DEBUG_REPORT_HEAP
-    sprintf(temp, "|Heap:%d", esp.getHeapSize());
-    strcat(status, temp);
+    client << "|Heap:" << esp.getHeapSize();
 #endif
-    strcat(status, ">\r\n");
-    _send(client, status);
-}
-
-void report_realtime_steps() {
-    uint8_t idx;
-    auto    n_axis = config->_axes->_numberAxis;
-    for (idx = 0; idx < n_axis; idx++) {
-        _sendf(CLIENT_ALL, "%ld\n", motor_steps[idx]);  // OK to send to all ... debug stuff
-    }
-}
-
-void report_gcode_comment(char* comment) {
-    char          msg[80];
-    const uint8_t offset = 4;  // ignore "MSG_" part of comment
-    uint8_t       index  = offset;
-    if (strstr(comment, "MSG")) {
-        while (index < strlen(comment)) {
-            msg[index - offset] = comment[index];
-            index++;
-        }
-        msg[index - offset] = 0;  // null terminate
-        log_info("GCode Comment..." << msg);
-    }
-}
-
-void report_machine_type(uint8_t client) {
-    info_client(client, "Machine: %s", config->_name.c_str());
-}
-
-/*
-    Print a message in hex format
-    Ex: report_hex_msg(msg, "Rx:", 6);
-    Would would print something like ... [MSG Rx: 0x01 0x03 0x01 0x08 0x31 0xbf]
-*/
-void report_hex_msg(char* buf, const char* prefix, int len) {
-    char report[200];
-    char temp[20];
-    sprintf(report, "%s", prefix);
-    for (int i = 0; i < len; i++) {
-        sprintf(temp, " 0x%02X", buf[i]);
-        strcat(report, temp);
-    }
-
-    log_info(report);
-}
-
-void report_hex_msg(uint8_t* buf, const char* prefix, int len) {
-    char report[200];
-    char temp[20];
-    sprintf(report, "%s", prefix);
-    for (int i = 0; i < len; i++) {
-        sprintf(temp, " 0x%02X", buf[i]);
-        strcat(report, temp);
-    }
-
-    log_info(report);
-}
-
-char* report_state_text() {
-    static char state[10];
-
-    switch (sys.state) {
-        case State::Idle:
-            strcpy(state, "Idle");
-            break;
-        case State::Cycle:
-            strcpy(state, "Run");
-            break;
-        case State::Hold:
-            if (!(sys.suspend.bit.jogCancel)) {
-                sys.suspend.bit.holdComplete ? strcpy(state, "Hold:0") : strcpy(state, "Hold:1");
-                break;
-            }  // Continues to print jog state during jog cancel.
-        case State::Jog:
-            strcpy(state, "Jog");
-            break;
-        case State::Homing:
-            strcpy(state, "Home");
-            break;
-        case State::ConfigAlarm:
-        case State::Alarm:
-            strcpy(state, "Alarm");
-            break;
-        case State::CheckMode:
-            strcpy(state, "Check");
-            break;
-        case State::SafetyDoor:
-            strcpy(state, "Door:");
-            if (sys.suspend.bit.initiateRestore) {
-                strcat(state, "3");  // Restoring
-            } else {
-                if (sys.suspend.bit.retractComplete) {
-                    sys.suspend.bit.safetyDoorAjar ? strcat(state, "1") : strcat(state, "0");
-                    ;  // Door ajar
-                    // Door closed and ready to resume
-                } else {
-                    strcat(state, "2");  // Retracting
-                }
-            }
-            break;
-        case State::Sleep:
-            strcpy(state, "Sleep");
-            break;
-    }
-    return state;
-}
-
-char* reportAxisLimitsMsg(uint8_t axis) {
-    static char msg[40];
-    sprintf(msg, "Limits(%0.3f,%0.3f)", limitsMinPosition(axis), limitsMaxPosition(axis));
-    return msg;
-}
-
-char* reportAxisNameMsg(uint8_t axis, uint8_t dual_axis) {
-    static char name[10];
-    sprintf(name, "%c%c Axis", config->_axes->axisName(axis), dual_axis ? '2' : ' ');
-    return name;
-}
-
-char* reportAxisNameMsg(uint8_t axis) {
-    static char name[10];
-    sprintf(name, "%c  Axis", config->_axes->axisName(axis));
-    return name;
+    client << ">\n";
 }
 
 void reportTaskStackSize(UBaseType_t& saved) {
@@ -854,27 +670,5 @@ void reportTaskStackSize(UBaseType_t& saved) {
     }
 #endif
 }
-
-void mpos_to_wpos(float* position) {
-    float* wco    = get_wco();
-    auto   n_axis = config->_axes->_numberAxis;
-    for (int idx = 0; idx < n_axis; idx++) {
-        position[idx] -= wco[idx];
-    }
-}
-
-float* get_wco() {
-    static float wco[MAX_N_AXIS];
-    auto         n_axis = config->_axes->_numberAxis;
-    for (int idx = 0; idx < n_axis; idx++) {
-        // Apply work coordinate offsets and tool length offset to current position.
-        wco[idx] = gc_state.coord_system[idx] + gc_state.coord_offset[idx];
-        if (idx == TOOL_LENGTH_OFFSET_AXIS) {
-            wco[idx] += gc_state.tool_length_offset;
-        }
-    }
-    return wco;
-}
-
 const char* dataBeginMarker = "[MSG: BeginData]\n";
 const char* dataEndMarker   = "[MSG: EndData]\n";
