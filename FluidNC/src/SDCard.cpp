@@ -121,16 +121,19 @@ uint32_t SDCard::lineNumber() {
 // 4. The SD card is not plugged in and we have to discover that by trying to read it.
 // 5. The SD card is plugged in but its filesystem cannot be read
 SDCard::State SDCard::test_or_open(bool refresh) {
+    //log_info("SDCard::test_or_open");
     auto spiConfig = config->_spi;
 
     if (spiConfig == nullptr) {
         return SDCard::State::NotPresent;
     }
 
-    auto csPin = spiConfig->_cs.getNative(Pin::Capabilities::Output | Pin::Capabilities::Native);
+    //auto csPin = spiConfig->_cs.getNative(Pin::Capabilities::Output | Pin::Capabilities::Native);
+    auto csPin   = config->_sdCard->_cs.getNative(Pin::Capabilities::Output | Pin::Capabilities::Native);
 
     //no need to go further if SD detect is not correct
     if (config->_sdCard->_cardDetect.defined() && !config->_sdCard->_cardDetect.read()) {
+        log_debug("SD Card not detected");
         _state = SDCard::State::NotPresent;
         return _state;
     }
@@ -182,12 +185,20 @@ const char* SDCard::filename() {
 void SDCard::init() {
     static bool init_message = true;  // used to show messages only once.
 
+    log_info("SD Card CS:" << _cs.name() << " Card Detect:" << _cardDetect.name());
+
     if (init_message) {
         _cardDetect.report("SD Card Detect");
         init_message = false;
     }
 
     _cardDetect.setAttr(Pin::Attr::Output);
+}
+
+void SDCard::afterParse() {
+        if (_cs.undefined()) {
+            _cs = Pin::create("gpio.5");
+        }
 }
 
 SDCard::~SDCard() {
