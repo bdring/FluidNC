@@ -217,19 +217,6 @@ void client_init() {
 }
 
 InputClient* pollClients() {
-    auto sdcard = config->_sdCard;
-    // _readyNext indicates that input is coming from a file and
-    // the GCode system is ready for another line.
-    if (sdcard && sdcard->_readyNext) {
-        Error res = sdcard->readFileLine(sdClient->_line, InputClient::maxLine);
-        if (res == Error::Ok) {
-            sdClient->_out     = &sdcard->getClient();
-            sdcard->_readyNext = false;
-            return sdClient;
-        }
-        report_status_message(res, sdcard->getClient());
-    }
-
     for (auto client : clientq) {
         auto source = client->_in;
         int  c      = source->read();
@@ -292,6 +279,19 @@ InputClient* pollClients() {
 #ifdef ENABLE_WIFI
     WebUI::wifi_services.handle();  // OTA, web_server, telnet_server polling
 #endif
+
+    auto sdcard = config->_sdCard;
+    // _readyNext indicates that input is coming from a file and
+    // the GCode system is ready for another line.
+    if (sdcard && sdcard->_readyNext) {
+        Error res = sdcard->readFileLine(sdClient->_line, InputClient::maxLine);
+        if (res == Error::Ok) {
+            sdClient->_out     = &sdcard->getClient();
+            sdcard->_readyNext = false;
+            return sdClient;
+        }
+        report_status_message(res, sdcard->getClient());
+    }
 
     return nullptr;
 }
