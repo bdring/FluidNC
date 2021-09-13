@@ -78,4 +78,6 @@ public:
     size_t write(const uint8_t* buffer, size_t length) override;
 };
 
+void register_client(Stream* client_stream);
+
 extern AllClients allClients;
