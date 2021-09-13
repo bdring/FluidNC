@@ -16,6 +16,8 @@
 #include "MotionControl.h"
 #include "Platform.h"
 
+#include "WebUI/TelnetServer.h"
+#include "WebUI/Serial2Socket.h"
 #include "WebUI/InputBuffer.h"
 
 #ifdef ENABLE_WIFI
@@ -38,6 +40,10 @@ void setup() {
         WiFi.mode(WIFI_OFF);
 #endif
 
+        // Setup input polling loop after loading the configuration,
+        // because the polling may depend on the config
+        client_init();
+
         display_init();
 
         // Load settings from non-volatile storage
@@ -52,10 +58,6 @@ void setup() {
 
         bool configOkay = config->load(config_filename->get());
         make_user_commands();
-
-        // Setup input polling loop after loading the configuration,
-        // because the polling may depend on the config
-        client_init();
 
         if (configOkay) {
             log_info("Machine " << config->_name);
@@ -119,10 +121,13 @@ void setup() {
 
 #ifdef ENABLE_WIFI
         WebUI::wifi_config.begin();
+        register_client(&WebUI::Serial2Socket);
+        register_client(&WebUI::telnet_server);
 #endif
 #ifdef ENABLE_BLUETOOTH
         if (config->_comms->_bluetoothConfig) {
             config->_comms->_bluetoothConfig->begin();
+            register_client(&WebUI::SerialBT);
         }
 #endif
         WebUI::inputBuffer.begin();

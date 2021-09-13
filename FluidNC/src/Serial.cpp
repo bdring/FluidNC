@@ -41,8 +41,6 @@
 #include "Uart.h"
 #include "Machine/MachineConfig.h"
 #include "WebUI/InputBuffer.h"
-#include "WebUI/TelnetServer.h"
-#include "WebUI/Serial2Socket.h"
 #include "WebUI/Commands.h"
 #include "WebUI/WifiServices.h"
 #include "MotionControl.h"
@@ -207,13 +205,6 @@ void register_client(Stream* client_stream) {
 void client_init() {
     register_client(&Uart0);               // USB Serial
     register_client(&WebUI::inputBuffer);  // Macros
-#ifdef ENABLE_WIFI
-    register_client(&WebUI::Serial2Socket);
-    register_client(&WebUI::telnet_server);
-#endif
-#ifdef ENABLE_BT
-    register_client(&WebUI::SerialBT);
-#endif
 }
 
 InputClient* pollClients() {
