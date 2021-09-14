@@ -79,6 +79,7 @@ public:
     Error    readFileLine(char* line, int len);
     float    report_perc_complete();
     uint32_t lineNumber();
+    void afterParse() override;
 
     Print&                     getClient() { return _client; }
     WebUI::AuthenticationLevel getAuthLevel() { return _auth_level; }
@@ -87,8 +88,6 @@ public:
 
     // Initializes pins.
     void init();
-
-    void afterParse() override;
 
     // Configuration handlers.
     void group(Configuration::HandlerBase& handler) override {

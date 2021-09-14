@@ -121,27 +121,22 @@ uint32_t SDCard::lineNumber() {
 // 4. The SD card is not plugged in and we have to discover that by trying to read it.
 // 5. The SD card is plugged in but its filesystem cannot be read
 SDCard::State SDCard::test_or_open(bool refresh) {
-    //log_info("SDCard::test_or_open");
     auto spiConfig = config->_spi;
 
-    if (spiConfig == nullptr) {
-        log_info("spiConfig == nullptr");
+    if (spiConfig == nullptr || _cs.undefined()) {
         return SDCard::State::NotPresent;
     }
 
     //auto csPin = spiConfig->_cs.getNative(Pin::Capabilities::Output | Pin::Capabilities::Native);
-    auto csPin   = _cs.getNative(Pin::Capabilities::Output | Pin::Capabilities::Native);
 
     //no need to go further if SD detect is not correct
-    if (config->_sdCard->_cardDetect.defined() && !config->_sdCard->_cardDetect.read()) {
-        log_info("SD Card not detected");
+    if (_cardDetect.defined() && !_cardDetect.read()) {
         _state = SDCard::State::NotPresent;
         return _state;
     }
 
     //if busy doing something return state
     if (_state >= SDCard::State::Busy) {
-        log_info("SDCard::State::Busy");
         return _state;
     }
 
@@ -155,15 +150,10 @@ SDCard::State SDCard::test_or_open(bool refresh) {
     _state = SDCard::State::NotPresent;
 
     //refresh content if card was removed
-    if (SD.begin(csPin, SPI, SPIfreq, "/sd", 2)) {
-        log_info("SD.begin");
-        if (SD.cardSize() > 0) {            
+    if (SD.begin(GPIO_NUM_5, SPI, SPIfreq, "/sd", 2)) {
+        if (SD.cardSize() > 0) {
             _state = SDCard::State::Idle;
-        } else {
-            log_info("SD not > 0");
         }
-    } else {
-        log_info("SD Failed begin");
     }
     return _state;
 }
@@ -192,7 +182,10 @@ const char* SDCard::filename() {
 void SDCard::init() {
     static bool init_message = true;  // used to show messages only once.
 
-    log_info("SD Card CS:" << _cs.name() << " Card Detect:" << _cardDetect.name());
+    if (_cs.defined()) {
+        log_info("SD CS:" << _cs.name() << " Detect:" << _cardDetect.name());
+        return;
+    }
 
     if (init_message) {
         _cardDetect.report("SD Card Detect");
@@ -203,9 +196,9 @@ void SDCard::init() {
 }
 
 void SDCard::afterParse() {
-        if (_cs.undefined()) {
-            _cs = Pin::create("gpio.5");
-        }
+    if (_cs.undefined()) {
+        _cs = Pin::create("gpio.14");
+    }
 }
 
 SDCard::~SDCard() {
