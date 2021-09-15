@@ -17,7 +17,7 @@ namespace Machine {
     }
 
     void SPIBus::init() {
-        if (_sck.defined()) {  // validation ensures the rest is also defined.
+        if (_miso.defined() || _mosi.defined() || _sck.defined()) {  // validation ensures the rest is also defined.
             log_info("SPI SCK:" << _sck.name() << " MOSI:" << _mosi.name() << " MISO:" << _miso.name());
 
             auto mosiPin = _mosi.getNative(Pin::Capabilities::Output | Pin::Capabilities::Native);
@@ -29,6 +29,9 @@ namespace Machine {
             // for the miso, mosi, and sck pins are ignored
             SPI.begin(sckPin, misoPin, mosiPin);  // CS is defined by each device
             _defined = true;
+        } else {
+            _defined = false;
+            log_info("SPI not defined");
         }
     }
 

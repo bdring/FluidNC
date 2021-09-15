@@ -133,7 +133,7 @@ void setup() {
         WebUI::inputBuffer.begin();
     } catch (const AssertionFailed& ex) {
         // This means something is terribly broken:
-        log_info("Critical error in main_init: " << ex.what());
+        log_error("Critical error in main_init: " << ex.what());
         sys.state = State::ConfigAlarm;
     }
 }
