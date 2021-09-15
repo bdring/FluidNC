@@ -188,14 +188,16 @@ const char* SDCard::filename() {
 void SDCard::init() {
     static bool init_message = true;  // used to show messages only once.
 
-    if (!config->_spi->defined()) {
-        log_error("SD needs SPI defined");
-    } else {
-        if (init_message) {
-        _cardDetect.report("SD Card Detect");
-        init_message = false;
+    if (_cs.defined()) {
+        if (!config->_spi->defined()) {
+            log_error("SD needs SPI defined");
+        } else {
+            if (init_message) {
+            _cardDetect.report("SD Card Detect");
+            init_message = false;
+            }
+            log_info("SD Card cs:" << _cs.name() << " dectect:" << _cardDetect.name());
         }
-        log_info("SD Card cs:" << _cs.name() << " dectect:" << _cardDetect.name());
     }
 
     _cs.setAttr(Pin::Attr::Output);
