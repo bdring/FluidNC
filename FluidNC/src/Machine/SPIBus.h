@@ -21,6 +21,10 @@ namespace Machine {
 
         void init();
 
+        bool defined();
+
         ~SPIBus() = default;
+    private:
+        bool _defined = false;
     };
 }
