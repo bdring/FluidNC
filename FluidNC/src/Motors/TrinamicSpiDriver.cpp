@@ -5,7 +5,7 @@
     This is used for Trinamic SPI controlled stepper motor drivers.
 */
 
-#include "TrinamicDriver.h"
+#include "TrinamicSpiDriver.h"
 
 #include "../Machine/MachineConfig.h"
 
@@ -13,13 +13,16 @@
 #include <atomic>
 
 namespace MotorDrivers {
-    TrinamicDriver::TrinamicDriver(uint16_t driver_part_number, int8_t spi_index) :
+    TrinamicSpiDriver::TrinamicSpiDriver(uint16_t driver_part_number, int8_t spi_index) :
         TrinamicBase(driver_part_number), _spi_index(spi_index) {}
 
     uint8_t daisy_chain_cs = -1;
 
-    void TrinamicDriver::init() {
-        _has_errors = false;
+    void TrinamicSpiDriver::init() {
+        _has_errors    = false;
+        auto spiConfig = config->_spi;
+
+        Assert(spiConfig->defined(), "SPI bus is not configured. Cannot initialize TMC driver.");
 
         _cs_pin.setAttr(Pin::Attr::Output | Pin::Attr::InitialOn);
         _cs_mapping = PinMapper(_cs_pin);
@@ -57,8 +60,7 @@ namespace MotorDrivers {
 
         config_message();
 
-        auto spiConfig = config->_spi;
-        if (spiConfig != nullptr) {
+        if (spiConfig != nullptr || !spiConfig->defined()) {
             auto csPin   = _cs_pin.getNative(Pin::Capabilities::Output);
             auto mosiPin = spiConfig->_mosi.getNative(Pin::Capabilities::Output | Pin::Capabilities::Native);
             auto sckPin  = spiConfig->_sck.getNative(Pin::Capabilities::Output | Pin::Capabilities::Native);
@@ -95,13 +97,12 @@ namespace MotorDrivers {
     /*
     This is the startup message showing the basic definition
     */
-    void TrinamicDriver::config_message() {
-        log_info("    Trinamic TMC" << _driver_part_number << " Step:" << _step_pin.name() << " Dir:" << _dir_pin.name()
-                                    << " CS:" << _cs_pin.name() << " Disable:" << _disable_pin.name() << " Index:" << _spi_index
-                                    << " R:" << _r_sense);
+    void TrinamicSpiDriver::config_message() {
+        log_info("    Trinamic TMC" << _driver_part_number << " Step:" << _step_pin.name() << " Dir:" << _dir_pin.name() << " CS:"
+                                    << _cs_pin.name() << " Disable:" << _disable_pin.name() << " Index:" << _spi_index << " R:" << _r_sense);
     }
 
-    bool TrinamicDriver::test() {
+    bool TrinamicSpiDriver::test() {
         if (_has_errors) {
             return false;
         }
@@ -151,7 +152,7 @@ namespace MotorDrivers {
     uint16_t run (mA)
     float hold (as a percentage of run)
     */
-    void TrinamicDriver::read_settings() {
+    void TrinamicSpiDriver::read_settings() {
         if (_has_errors) {
             return;
         }
@@ -172,7 +173,7 @@ namespace MotorDrivers {
         tmcstepper->rms_current(run_i_ma, hold_i_percent);
     }
 
-    bool TrinamicDriver::set_homing_mode(bool isHoming) {
+    bool TrinamicSpiDriver::set_homing_mode(bool isHoming) {
         set_mode(isHoming);
         return true;
     }
@@ -182,7 +183,7 @@ namespace MotorDrivers {
     Many people will want quiet and stallguard homing. Stallguard only run in
     Coolstep mode, so it will need to switch to Coolstep when homing
     */
-    void TrinamicDriver::set_mode(bool isHoming) {
+    void TrinamicSpiDriver::set_mode(bool isHoming) {
         if (_has_errors) {
             return;
         }
@@ -231,7 +232,7 @@ namespace MotorDrivers {
     /*
     This is the stallguard tuning info. It is call debug, so it could be generic across all classes.
 */
-    void TrinamicDriver::debug_message() {
+    void TrinamicSpiDriver::debug_message() {
         if (_has_errors) {
             return;
         }
@@ -262,7 +263,7 @@ namespace MotorDrivers {
 
     // this can use the enable feature over SPI. The dedicated pin must be in the enable mode,
     // but that can be hardwired that way.
-    void IRAM_ATTR TrinamicDriver::set_disable(bool disable) {
+    void IRAM_ATTR TrinamicSpiDriver::set_disable(bool disable) {
         if (_has_errors) {
             return;
         }

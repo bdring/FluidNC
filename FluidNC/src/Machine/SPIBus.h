@@ -11,7 +11,6 @@ namespace Machine {
     public:
         SPIBus() = default;
 
-        Pin _cs;
         Pin _miso;
         Pin _mosi;
         Pin _sck;
@@ -22,6 +21,10 @@ namespace Machine {
 
         void init();
 
+        bool defined();
+
         ~SPIBus() = default;
+    private:
+        bool _defined = false;
     };
 }

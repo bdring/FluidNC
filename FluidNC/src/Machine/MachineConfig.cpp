@@ -36,6 +36,7 @@ namespace Machine {
         handler.section("axes", _axes);
         handler.section("i2so", _i2so);
         handler.section("spi", _spi);
+        handler.section("sdcard", _sdCard);
         handler.section("control", _control);
         handler.section("coolant", _coolant);
         handler.section("probe", _probe);
@@ -43,7 +44,6 @@ namespace Machine {
         handler.section("macros", _macros);
 
         handler.section("user_outputs", _userOutputs);
-        handler.section("sdcard", _sdCard);
         handler.item("software_debounce_ms", _softwareDebounceMs);
         // TODO: Consider putting these under a gcode: hierarchy level? Or motion control?
         handler.item("laser_mode", _laserMode);

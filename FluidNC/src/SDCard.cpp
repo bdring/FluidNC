@@ -123,14 +123,18 @@ uint32_t SDCard::lineNumber() {
 SDCard::State SDCard::test_or_open(bool refresh) {
     auto spiConfig = config->_spi;
 
-    if (spiConfig == nullptr) {
+    if (spiConfig == nullptr || !spiConfig->defined()) {
+        //log_debug("SPI not defined");
         return SDCard::State::NotPresent;
     }
 
-    auto csPin = spiConfig->_cs.getNative(Pin::Capabilities::Output | Pin::Capabilities::Native);
+    if (spiConfig == nullptr || _cs.undefined()) {
+        //log_debug("SD cs not defined");
+        return SDCard::State::NotPresent;
+    }
 
     //no need to go further if SD detect is not correct
-    if (config->_sdCard->_cardDetect.defined() && !config->_sdCard->_cardDetect.read()) {
+    if (_cardDetect.defined() && !_cardDetect.read()) {
         _state = SDCard::State::NotPresent;
         return _state;
     }
@@ -148,6 +152,8 @@ SDCard::State SDCard::test_or_open(bool refresh) {
     SD.end();
 
     _state = SDCard::State::NotPresent;
+
+    auto csPin   = _cs.getNative(Pin::Capabilities::Output | Pin::Capabilities::Native);
 
     //refresh content if card was removed
     if (SD.begin(csPin, SPI, SPIfreq, "/sd", 2)) {
@@ -182,12 +188,26 @@ const char* SDCard::filename() {
 void SDCard::init() {
     static bool init_message = true;  // used to show messages only once.
 
-    if (init_message) {
-        _cardDetect.report("SD Card Detect");
-        init_message = false;
+    if (_cs.defined()) {
+        if (!config->_spi->defined()) {
+            log_error("SD needs SPI defined");
+        } else {
+            if (init_message) {
+            _cardDetect.report("SD Card Detect");
+            init_message = false;
+            }
+            log_info("SD Card cs:" << _cs.name() << " dectect:" << _cardDetect.name());
+        }
     }
 
+    _cs.setAttr(Pin::Attr::Output);
     _cardDetect.setAttr(Pin::Attr::Output);
+}
+
+void SDCard::afterParse() {
+    // if (_cs.undefined()) {
+    //     _cs = Pin::create("gpio.5");
+    // }
 }
 
 SDCard::~SDCard() {
