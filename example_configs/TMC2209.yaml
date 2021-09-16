@@ -114,10 +114,13 @@ a:
         direction: gpio.15
 
 spi:
-  cs: gpio.5
   miso: gpio.19
   mosi: gpio.23
   sck: gpio.18
+
+sdcard:
+  cs: gpio.5
+  card_detect: NO_PIN
 
 control:
   safety_door: NO_PIN
@@ -174,9 +177,6 @@ user_outputs:
   digital1: NO_PIN
   digital2: NO_PIN
   digital3: NO_PIN
-
-sdcard:
-  card_detect: NO_PIN
 
 software_debounce_ms: 0
 laser_mode: false

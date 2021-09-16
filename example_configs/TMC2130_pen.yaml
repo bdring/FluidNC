@@ -107,6 +107,15 @@ axes:
         output_pin: gpio.27
         min_pulse_us: 2100
         max_pulse_us: 1000
+        
+spi:
+  miso: gpio.19
+  mosi: gpio.23
+  sck: gpio.18
+
+sdcard:
+  cs: gpio.5
+  card_detect: NO_PIN
 
 coolant:
   flood: NO_PIN

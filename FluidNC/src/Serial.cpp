@@ -41,8 +41,6 @@
 #include "Uart.h"
 #include "Machine/MachineConfig.h"
 #include "WebUI/InputBuffer.h"
-#include "WebUI/TelnetServer.h"
-#include "WebUI/Serial2Socket.h"
 #include "WebUI/Commands.h"
 #include "WebUI/WifiServices.h"
 #include "MotionControl.h"
@@ -205,29 +203,9 @@ void register_client(Stream* client_stream) {
 void client_init() {
     register_client(&Uart0);               // USB Serial
     register_client(&WebUI::inputBuffer);  // Macros
-#ifdef ENABLE_WIFI
-    register_client(&WebUI::Serial2Socket);
-    register_client(&WebUI::telnet_server);
-#endif
-#ifdef ENABLE_BT
-    register_client(&WebUI::SerialBT);
-#endif
 }
 
 InputClient* pollClients() {
-    auto sdcard = config->_sdCard;
-    // _readyNext indicates that input is coming from a file and
-    // the GCode system is ready for another line.
-    if (sdcard && sdcard->_readyNext) {
-        Error res = sdcard->readFileLine(sdClient->_line, InputClient::maxLine);
-        if (res == Error::Ok) {
-            sdClient->_out     = &sdcard->getClient();
-            sdcard->_readyNext = false;
-            return sdClient;
-        }
-        report_status_message(res, sdcard->getClient());
-    }
-
     for (auto client : clientq) {
         auto source = client->_in;
         int  c      = source->read();
@@ -283,6 +261,19 @@ InputClient* pollClients() {
 #ifdef ENABLE_WIFI
     WebUI::wifi_services.handle();  // OTA, web_server, telnet_server polling
 #endif
+
+    auto sdcard = config->_sdCard;
+    // _readyNext indicates that input is coming from a file and
+    // the GCode system is ready for another line.
+    if (sdcard && sdcard->_readyNext) {
+        Error res = sdcard->readFileLine(sdClient->_line, InputClient::maxLine);
+        if (res == Error::Ok) {
+            sdClient->_out     = &sdcard->getClient();
+            sdcard->_readyNext = false;
+            return sdClient;
+        }
+        report_status_message(res, sdcard->getClient());
+    }
 
     return nullptr;
 }

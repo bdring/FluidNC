@@ -141,6 +141,15 @@ axes:
 
     motor1:
       null_motor:
+      
+spi:
+  miso: gpio.19
+  mosi: gpio.23
+  sck: gpio.18
+
+sdcard:
+  card_detect: NO_PIN
+  cs: gpio.5
 
 comms:
     wifi_ap:
