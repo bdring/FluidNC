@@ -14,7 +14,9 @@
 #include "../Machine/MachineConfig.h"
 #include "../Machine/WifiSTAConfig.h"
 #include "../Configuration/JsonGenerator.h"
-#include "../Uart.h"   // Uart0.baud
+#include "../Uart.h"    // Uart0.baud
+#include "../Report.h"  // git_info
+
 #include "Commands.h"  // COMMANDS::wait(1);
 #include "WifiConfig.h"
 #include "WebClient.h"
@@ -166,8 +168,7 @@ namespace WebUI {
 
     static Error showFwInfo(char* parameter, AuthenticationLevel auth_level) {  // ESP800
         webPrint("FW version: FluidNC ");
-        webPrint(GIT_TAG);
-        webPrint(GIT_REV);
+        webPrint(git_info);
         // TODO: change grbl-embedded to FluidNC after fixing WebUI
         webPrint(" # FW target:grbl-embedded  # FW HW:");
         webPrint(config->_sdCard->get_state() == SDCard::State::NotPresent ? "No SD" : "Direct SD");
@@ -529,8 +530,7 @@ namespace WebUI {
         }
 #endif
         webPrint("FW version: FluidNC ");
-        webPrint(GIT_TAG);
-        webPrint(GIT_REV);
+        webPrint(git_info);
         webPrintln("");
         return Error::Ok;
     }

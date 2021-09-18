@@ -206,7 +206,7 @@ void report_feedback_message(Message message) {  // ok to send to all clients
 #include "Uart.h"
 // Welcome message
 void report_init_message(Print& client) {
-    client << "\r\nGrbl " << GRBL_VERSION << " [FluidNC " << GIT_TAG << GIT_REV << " '$' for help]\n";
+    client << "\r\nGrbl " << grbl_version << " [FluidNC " << git_info << " '$' for help]\n";
 }
 
 // Prints current probe parameters. Upon a probe command, these parameters are updated upon a
@@ -391,7 +391,7 @@ void report_gcode_modes(Print& client) {
 
 // Prints build info line
 void report_build_info(const char* line, Print& client) {
-    client << "[VER:FluidNC " << GIT_TAG << GIT_REV << ":" << line << "]\n";
+    client << "[VER:FluidNC " << git_info << ":" << line << "]\n";
     client << "[OPT:";
     if (config->_coolant->hasMist()) {
         client << "M";  // TODO Need to deal with M8...it could be disabled

@@ -104,5 +104,8 @@ extern const char* dataEndMarker;
 
 #include "MyIOStream.h"
 
-void mpos_to_wpos(float* position);
+void        mpos_to_wpos(float* position);
 const char* state_name();
+
+extern const char* grbl_version;
+extern const char* git_info;
