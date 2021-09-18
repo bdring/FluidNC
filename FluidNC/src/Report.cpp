@@ -206,7 +206,7 @@ void report_feedback_message(Message message) {  // ok to send to all clients
 #include "Uart.h"
 // Welcome message
 void report_init_message(Print& client) {
-    client << "\r\nGrbl " << GRBL_VERSION << " [FluidNC " << GIT_TAG << GIT_REV << " (";
+    client << "\r\nGrbl " << grbl_version << " [FluidNC " << git_info << " (";
 
 #if defined(ENABLE_WIFI) || defined(ENABLE_BLUETOOTH)
 #    ifdef ENABLE_WIFI
@@ -405,7 +405,7 @@ void report_gcode_modes(Print& client) {
 
 // Prints build info line
 void report_build_info(const char* line, Print& client) {
-    client << "[VER:FluidNC " << GIT_TAG << GIT_REV << ":" << line << "]\n";
+    client << "[VER:FluidNC " << git_info << ":" << line << "]\n";
     client << "[OPT:";
     if (config->_coolant->hasMist()) {
         client << "M";  // TODO Need to deal with M8...it could be disabled

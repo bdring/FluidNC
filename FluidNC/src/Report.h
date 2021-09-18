@@ -103,3 +103,6 @@ extern const char* dataBeginMarker;
 extern const char* dataEndMarker;
 
 #include "MyIOStream.h"
+
+extern const char* grbl_version;
+extern const char* git_info;
