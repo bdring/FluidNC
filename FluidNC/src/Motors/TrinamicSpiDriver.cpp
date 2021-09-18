@@ -22,7 +22,11 @@ namespace MotorDrivers {
         _has_errors    = false;
         auto spiConfig = config->_spi;
 
-        Assert(spiConfig->defined(), "SPI bus is not configured. Cannot initialize TMC driver.");
+        if(!spiConfig->defined()){
+            log_error("     TMC SPI Drivers need valid SPI")
+            _has_errors = true;
+            return;
+        }
 
         _cs_pin.setAttr(Pin::Attr::Output | Pin::Attr::InitialOn);
         _cs_mapping = PinMapper(_cs_pin);

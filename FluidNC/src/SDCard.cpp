@@ -153,14 +153,17 @@ SDCard::State SDCard::test_or_open(bool refresh) {
 
     _state = SDCard::State::NotPresent;
 
-    auto csPin   = _cs.getNative(Pin::Capabilities::Output | Pin::Capabilities::Native);
+    try {
+        auto csPin = _cs.getNative(Pin::Capabilities::Output | Pin::Capabilities::Native);
 
-    //refresh content if card was removed
-    if (SD.begin(csPin, SPI, SPIfreq, "/sd", 2)) {
-        if (SD.cardSize() > 0) {
-            _state = SDCard::State::Idle;
+        //refresh content if card was removed
+        if (SD.begin(csPin, SPI, SPIfreq, "/sd", 2)) {
+            if (SD.cardSize() > 0) {
+                _state = SDCard::State::Idle;
+            }
         }
-    }
+    } catch (const AssertionFailed& ex) { _state = SDCard::State::NotPresent; }
+
     return _state;
 }
 
@@ -192,16 +195,22 @@ void SDCard::init() {
         if (!config->_spi->defined()) {
             log_error("SD needs SPI defined");
         } else {
-            if (init_message) {
-            _cardDetect.report("SD Card Detect");
-            init_message = false;
+            try {
+                auto csPin = _cs.getNative(Pin::Capabilities::Output | Pin::Capabilities::Native);
+                if (init_message) {
+                    _cardDetect.report("SD Card Detect");
+                    init_message = false;
+                }
+                log_info("SD Card cs:" << _cs.name() << " dectect:" << _cardDetect.name());
+                _cs.setAttr(Pin::Attr::Output);
+                _cardDetect.setAttr(Pin::Attr::Output);
+            } catch (const AssertionFailed& ex) {
+                //log_error(ex.msg);
+                log_error("SD cs:" << _cs.name() << " does not have the required capabilities");
             }
-            log_info("SD Card cs:" << _cs.name() << " dectect:" << _cardDetect.name());
         }
     }
 
-    _cs.setAttr(Pin::Attr::Output);
-    _cardDetect.setAttr(Pin::Attr::Output);
 }
 
 void SDCard::afterParse() {

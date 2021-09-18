@@ -54,6 +54,7 @@ private:
     FileWrap* _pImpl;                 // this is actually a 'File'; we don't want to include <FS.h>
     uint32_t  _current_line_number;   // the most recent line number read
     char      comment[COMMENT_SIZE];  // Line to be executed. Zero-terminated.
+    bool      _has_errors = true;
 
     State                      _state;
     Pin                        _cardDetect;
@@ -79,7 +80,7 @@ public:
     Error    readFileLine(char* line, int len);
     float    report_perc_complete();
     uint32_t lineNumber();
-    void afterParse() override;
+    void     afterParse() override;
 
     Print&                     getClient() { return _client; }
     WebUI::AuthenticationLevel getAuthLevel() { return _auth_level; }
@@ -92,7 +93,7 @@ public:
     // Configuration handlers.
     void group(Configuration::HandlerBase& handler) override {
         handler.item("cs", _cs);
-        handler.item("card_detect", _cardDetect);        
+        handler.item("card_detect", _cardDetect);
     }
 
     ~SDCard();
