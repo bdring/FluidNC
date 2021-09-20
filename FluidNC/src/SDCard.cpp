@@ -124,12 +124,10 @@ SDCard::State SDCard::test_or_open(bool refresh) {
     auto spiConfig = config->_spi;
 
     if (spiConfig == nullptr || !spiConfig->defined()) {
-        //log_debug("SPI not defined");
         return SDCard::State::NotPresent;
     }
 
     if (spiConfig == nullptr || _cs.undefined()) {
-        //log_debug("SD cs not defined");
         return SDCard::State::NotPresent;
     }
 
@@ -161,8 +159,13 @@ SDCard::State SDCard::test_or_open(bool refresh) {
             if (SD.cardSize() > 0) {
                 _state = SDCard::State::Idle;
             }
+        } else {
+            log_debug("SD.begin fail");
         }
-    } catch (const AssertionFailed& ex) { _state = SDCard::State::NotPresent; }
+    } catch (...) {
+        log_debug("SD error caught");
+        _state = SDCard::State::NotPresent;
+    }
 
     return _state;
 }
@@ -198,7 +201,7 @@ void SDCard::init() {
             try {
                 auto csPin = _cs.getNative(Pin::Capabilities::Output | Pin::Capabilities::Native);
                 if (init_message) {
-                    _cardDetect.report("SD Card Detect");
+                    //_cardDetect.report("SD Card Detect");
                     init_message = false;
                 }
                 log_info("SD Card cs:" << _cs.name() << " dectect:" << _cardDetect.name());
@@ -210,7 +213,6 @@ void SDCard::init() {
             }
         }
     }
-
 }
 
 void SDCard::afterParse() {
