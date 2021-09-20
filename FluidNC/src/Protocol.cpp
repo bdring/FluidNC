@@ -34,6 +34,7 @@ std::map<ExecAlarm, const char*> AlarmNames = {
     { ExecAlarm::HomingFailPulloff, "Homing Fail Pulloff" },
     { ExecAlarm::HomingFailApproach, "Homing Fail Approach" },
     { ExecAlarm::SpindleControl, "Spindle Control" },
+    { ExecAlarm::ControlPin, "Control Pin Initially On" },
 };
 
 volatile Accessory rtAccessoryOverride;  // Global realtime executor bitflag variable for spindle/coolant overrides.
@@ -699,7 +700,7 @@ void protocol_exec_rt_system() {
         protocol_do_macro(1);
     }
     if (rtButtonMacro2) {
-        rtButtonMacro0 = false;
+        rtButtonMacro2 = false;
         protocol_do_macro(2);
     }
     if (rtButtonMacro3) {
