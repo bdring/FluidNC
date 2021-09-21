@@ -545,12 +545,7 @@ String pinString() {
         }
     }
 
-    // XXX WMB change _control->report() to return a String
-    char status[20];
-    status[0] = '\0';
-    config->_control->report(status);
-
-    pins += status;
+    pins += config->_control->report();
     return pins;
 }
 

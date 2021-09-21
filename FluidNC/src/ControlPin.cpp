@@ -33,10 +33,8 @@ void ControlPin::init() {
     }
 }
 
-void ControlPin::report(char* status) {
-    if (get()) {
-        addPinReport(status, _letter);
-    }
+String ControlPin::report() {
+    return get() ? String(_letter) : String("");
 }
 
 ControlPin::~ControlPin() {
