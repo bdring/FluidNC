@@ -22,7 +22,7 @@ public:
     void init();
     bool get() { return _value; }
 
-    void report(char* status);
+    String report();
 
     ~ControlPin();
 };

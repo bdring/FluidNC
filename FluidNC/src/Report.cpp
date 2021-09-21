@@ -290,7 +290,7 @@ void report_gcode_modes(Print& client) {
     }
     client << mode;
 
-    client << 'G' << (gc_state.modal.coord_select + 54);
+    client << " G" << (gc_state.modal.coord_select + 54);
 
     switch (gc_state.modal.plane_select) {
         case Plane::XY:
@@ -396,11 +396,11 @@ void report_gcode_modes(Print& client) {
         client << " M56";
     }
 
-    client << " T " << gc_state.tool;
+    client << " T" << gc_state.tool;
     // XXX WMB format according to config->_reportInches ? %.1f : %.0f
     client << " F" << gc_state.feed_rate;
-    client << " # " << uint32_t(gc_state.spindle_speed);
-    client << '\n';
+    client << " S" << uint32_t(gc_state.spindle_speed);
+    client << "]\n";
 }
 
 // Prints build info line
@@ -545,12 +545,7 @@ String pinString() {
         }
     }
 
-    // XXX WMB change _control->report() to return a String
-    char status[20];
-    status[0] = '\0';
-    config->_control->report(status);
-
-    pins += status;
+    pins += config->_control->report();
     return pins;
 }
 

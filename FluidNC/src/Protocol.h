@@ -90,9 +90,10 @@ enum class ExecAlarm : uint8_t {
     HomingFailPulloff  = 8,
     HomingFailApproach = 9,
     SpindleControl     = 10,
+    ControlPin         = 11,
 };
 
-extern volatile ExecAlarm rtAlarm;  // Global realtime executor bitflag variable for setting various alarms.
+extern volatile ExecAlarm rtAlarm;  // Global realtime executor variable for setting various alarms.
 
 #include <map>
 extern std::map<ExecAlarm, const char*> AlarmNames;
