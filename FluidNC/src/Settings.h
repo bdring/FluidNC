@@ -307,6 +307,38 @@ extern bool idleOrAlarm();
 extern bool anyState();
 extern bool notCycleOrHold();
 
+class IPaddrSetting : public Setting {
+private:
+    uint32_t _defaultValue;
+    uint32_t _currentValue;
+    uint32_t _storedValue;
+
+public:
+    IPaddrSetting(const char*   description,
+                  type_t        type,
+                  permissions_t permissions,
+                  const char*   grblName,
+                  const char*   name,
+                  uint32_t      defVal,
+                  bool (*checker)(char*));
+    IPaddrSetting(const char*   description,
+                  type_t        type,
+                  permissions_t permissions,
+                  const char*   grblName,
+                  const char*   name,
+                  const char*   defVal,
+                  bool (*checker)(char*));
+
+    void        load();
+    void        setDefault();
+    void        addWebui(WebUI::JSONencoder*);
+    Error       setStringValue(char* value);
+    const char* getStringValue();
+    const char* getDefaultString();
+
+    uint32_t get() { return _currentValue; }
+};
+
 class WebCommand : public Command {
 private:
     Error (*_action)(char*, WebUI::AuthenticationLevel);

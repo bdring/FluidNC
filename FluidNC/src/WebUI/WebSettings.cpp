@@ -38,6 +38,43 @@ namespace WebUI {
 
     enum_opt_t onoffOptions = { { "OFF", 0 }, { "ON", 1 } };
 
+#if defined(ENABLE_WIFI) || defined(ENABLE_BLUETOOTH)
+    EnumSetting* wifi_radio_mode;
+
+    enum_opt_t radioEnabledOptions = {
+        { "None", ESP_RADIO_OFF }, { "STA", ESP_WIFI_STA }, { "AP", ESP_WIFI_AP }, { "STA_AP", ESP_WIFI_STA_AP }, { "BT", ESP_BT },
+    };
+
+#endif
+
+#ifdef ENABLE_WIFI
+    StringSetting* wifi_sta_ssid;
+    StringSetting* wifi_sta_password;
+
+    EnumSetting*   wifi_sta_mode;
+    IPaddrSetting* wifi_sta_ip;
+    IPaddrSetting* wifi_sta_gateway;
+    IPaddrSetting* wifi_sta_netmask;
+
+    StringSetting* wifi_ap_ssid;
+    StringSetting* wifi_ap_password;
+
+    IPaddrSetting* wifi_ap_ip;
+
+    IntSetting* wifi_ap_channel;
+
+    StringSetting* wifi_hostname;
+    EnumSetting*   http_enable;
+    IntSetting*    http_port;
+    EnumSetting*   telnet_enable;
+    IntSetting*    telnet_port;
+
+    enum_opt_t staModeOptions = {
+        { "DHCP", DHCP_MODE },
+        { "Static", STATIC_MODE },
+    };
+#endif 
+
     Print* webresponse = nullptr;
     bool   isWeb       = false;
 
@@ -536,8 +573,8 @@ namespace WebUI {
     }
 
 #ifdef ENABLE_WIFI
-    StringSetting* wifi_sta_password;
-    StringSetting* wifi_ap_password;
+    //StringSetting* wifi_sta_password;
+    //StringSetting* wifi_ap_password;
 
     static Error listAPs(char* parameter, AuthenticationLevel auth_level) {  // ESP410
         JSONencoder j(false, webresponse);
@@ -1000,6 +1037,61 @@ namespace WebUI {
 
     void make_wifi_settings() {
 #ifdef ENABLE_WIFI
+
+        telnet_port = new IntSetting(
+            "Telnet Port", WEBSET, WA, "ESP131", "Telnet/Port", DEFAULT_TELNETSERVER_PORT, MIN_TELNET_PORT, MAX_TELNET_PORT, NULL);
+        telnet_enable = new EnumSetting("Telnet Enable", WEBSET, WA, "ESP130", "Telnet/Enable", DEFAULT_TELNET_STATE, &onoffOptions, NULL);
+        http_port =
+            new IntSetting("HTTP Port", WEBSET, WA, "ESP121", "Http/Port", DEFAULT_WEBSERVER_PORT, MIN_HTTP_PORT, MAX_HTTP_PORT, NULL);
+        http_enable   = new EnumSetting("HTTP Enable", WEBSET, WA, "ESP120", "Http/Enable", DEFAULT_HTTP_STATE, &onoffOptions, NULL);
+        wifi_hostname = new StringSetting("Hostname",
+                                          WEBSET,
+                                          WA,
+                                          "ESP112",
+                                          "System/Hostname",
+                                          DEFAULT_HOSTNAME,
+                                          MIN_HOSTNAME_LENGTH,
+                                          MAX_HOSTNAME_LENGTH,
+                                          (bool (*)(char*))WiFiConfig::isHostnameValid);
+        wifi_ap_channel =
+            new IntSetting("AP Channel", WEBSET, WA, "ESP108", "AP/Channel", DEFAULT_AP_CHANNEL, MIN_CHANNEL, MAX_CHANNEL, NULL);
+        wifi_ap_ip = new IPaddrSetting("AP Static IP", WEBSET, WA, "ESP107", "AP/IP", DEFAULT_AP_IP, NULL);
+        // no get, admin to set
+        wifi_ap_password = new StringSetting("AP Password",
+                                             WEBSET,
+                                             WA,
+                                             "ESP106",
+                                             "AP/Password",
+                                             DEFAULT_AP_PWD,
+                                             MIN_PASSWORD_LENGTH,
+                                             MAX_PASSWORD_LENGTH,
+                                             (bool (*)(char*))WiFiConfig::isPasswordValid);
+        wifi_ap_ssid     = new StringSetting(
+            "AP SSID", WEBSET, WA, "ESP105", "AP/SSID", DEFAULT_AP_SSID, MIN_SSID_LENGTH, MAX_SSID_LENGTH, (bool (*)(char*))WiFiConfig::isSSIDValid);
+        wifi_sta_netmask = new IPaddrSetting("Station Static Mask", WEBSET, WA, NULL, "Sta/Netmask", DEFAULT_STA_MK, NULL);
+        wifi_sta_gateway = new IPaddrSetting("Station Static Gateway", WEBSET, WA, NULL, "Sta/Gateway", DEFAULT_STA_GW, NULL);
+        wifi_sta_ip      = new IPaddrSetting("Station Static IP", WEBSET, WA, NULL, "Sta/IP", DEFAULT_STA_IP, NULL);
+        wifi_sta_mode = new EnumSetting("Station IP Mode", WEBSET, WA, "ESP102", "Sta/IPMode", DEFAULT_STA_IP_MODE, &staModeOptions, NULL);
+        // no get, admin to set
+        wifi_sta_password = new StringSetting("Station Password",
+                                              WEBSET,
+                                              WA,
+                                              "ESP101",
+                                              "Sta/Password",
+                                              DEFAULT_STA_PWD,
+                                              MIN_PASSWORD_LENGTH,
+                                              MAX_PASSWORD_LENGTH,
+                                              (bool (*)(char*))WiFiConfig::isPasswordValid);
+        wifi_sta_ssid     = new StringSetting("Station SSID",
+                                          WEBSET,
+                                          WA,
+                                          "ESP100",
+                                          "Sta/SSID",
+                                          DEFAULT_STA_SSID,
+                                          MIN_SSID_LENGTH,
+                                          MAX_SSID_LENGTH,
+                                          (bool (*)(char*))WiFiConfig::isSSIDValid);
+
         new WebCommand(
             "TYPE=NONE|PUSHOVER|EMAIL|LINE T1=token1 T2=token2 TS=settings", WEBCMD, WA, "ESP610", "Notification/Setup", showSetNotification);
         notification_ts = new StringSetting(
@@ -1077,6 +1169,9 @@ namespace WebUI {
     }
 
     void make_web_settings() {
+#if defined(ENABLE_WIFI) || defined(ENABLE_BLUETOOTH)
+        wifi_radio_mode = new EnumSetting("Radio mode", WEBSET, WA, "ESP110", "Radio/Mode", ESP_WIFI_AP, &radioEnabledOptions, NULL);
+#endif
         make_wifi_settings();
         make_authentication_settings();
         // If authentication enabled, display_settings skips or displays <Authentication Required>
