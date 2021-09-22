@@ -192,13 +192,27 @@ static Error toggle_check_mode(const char* value, WebUI::AuthenticationLevel aut
     }
     return Error::Ok;
 }
+static Error isStuck() {
+    // Block if a control pin is stuck on
+    if (config->_control->system_check_safety_door_ajar()) {
+        rtAlarm = ExecAlarm::ControlPin;
+        return Error::CheckDoor;
+    }
+    if (config->_control->stuck()) {
+        log_info("Control pins:" << config->_control->report());
+        rtAlarm = ExecAlarm::ControlPin;
+        return Error::CheckControlPins;
+    }
+    return Error::Ok;
+}
 static Error disable_alarm_lock(const char* value, WebUI::AuthenticationLevel auth_level, Print& out) {
     if (sys.state == State::ConfigAlarm) {
         return Error::ConfigurationInvalid;
-    } else if (sys.state == State::Alarm) {
-        // Block if safety door is ajar.
-        if (config->_control->system_check_safety_door_ajar()) {
-            return Error::CheckDoor;
+    }
+    if (sys.state == State::Alarm) {
+        Error err = isStuck();
+        if (err != Error::Ok) {
+            return err;
         }
         report_feedback_message(Message::AlarmUnlock);
         sys.state = State::Idle;
@@ -214,12 +228,12 @@ static Error home(int cycle) {
     if (sys.state == State::ConfigAlarm) {
         return Error::ConfigurationInvalid;
     }
-
     if (!Machine::Axes::homingMask) {
         return Error::SettingDisabled;
     }
-    if (config->_control->system_check_safety_door_ajar()) {
-        return Error::CheckDoor;  // Block if safety door is ajar.
+    Error err = isStuck();
+    if (err != Error::Ok) {
+        return err;
     }
     sys.state = State::Homing;  // Set system state variable
 

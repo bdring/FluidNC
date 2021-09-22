@@ -32,15 +32,14 @@ void Control::group(Configuration::HandlerBase& handler) {
     handler.item("macro3", _macro3._pin);
 }
 
-void Control::report(char* status) {
-    _safetyDoor.report(status);
-    _reset.report(status);
-    _feedHold.report(status);
-    _cycleStart.report(status);
-    _macro0.report(status);
-    _macro1.report(status);
-    _macro2.report(status);
-    _macro3.report(status);
+String Control::report() {
+    return _safetyDoor.report() + _safetyDoor.report() + _reset.report() + _feedHold.report() + _cycleStart.report() + _macro0.report() +
+           _macro1.report() + _macro2.report() + _macro3.report();
+}
+
+bool Control::stuck() {
+    return _safetyDoor.get() || _reset.get() || _feedHold.get() || _cycleStart.get() || _macro0.get() || _macro1.get() || _macro2.get() ||
+           _macro3.get();
 }
 
 // Returns if safety door is ajar(T) or closed(F), based on pin state.
