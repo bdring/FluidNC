@@ -57,6 +57,7 @@ private:
 
     State                      _state;
     Pin                        _cardDetect;
+    Pin                        _cs;
     SDCard::State              test_or_open(bool refresh);
     Print&                     _client;
     WebUI::AuthenticationLevel _auth_level;
@@ -87,8 +88,13 @@ public:
     // Initializes pins.
     void init();
 
+    void afterParse() override;
+
     // Configuration handlers.
-    void group(Configuration::HandlerBase& handler) override { handler.item("card_detect", _cardDetect); }
+    void group(Configuration::HandlerBase& handler) override {
+        handler.item("card_detect", _cardDetect);
+        handler.item("cs", _cs);
+    }
 
     ~SDCard();
 };
