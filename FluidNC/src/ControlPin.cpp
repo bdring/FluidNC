@@ -8,7 +8,9 @@
 void IRAM_ATTR ControlPin::handleISR() {
     bool pinState = _pin.read();
     _value        = pinState;
-    _rtVariable   = pinState;
+    if (pinState) {
+        _rtVariable = pinState;
+    }
 }
 
 void ControlPin::init() {
@@ -22,6 +24,12 @@ void ControlPin::init() {
     }
     _pin.setAttr(attr);
     _pin.attachInterrupt<ControlPin, &ControlPin::handleISR>(this, CHANGE);
+    _rtVariable = false;
+    _value      = _pin.read();
+    // Control pins must start in inactive state
+    if (_value) {
+        rtAlarm = ExecAlarm::ControlPin;
+    }
 }
 
 void ControlPin::report(char* status) {
