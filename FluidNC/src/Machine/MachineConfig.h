@@ -36,7 +36,6 @@ namespace Machine {
         Stepping*       _stepping    = nullptr;
         CoolantControl* _coolant     = nullptr;
         Probe*          _probe       = nullptr;
-        Communications* _comms       = nullptr;
         Control*        _control     = nullptr;
         UserOutputs*    _userOutputs = nullptr;
         SDCard*         _sdCard      = nullptr;

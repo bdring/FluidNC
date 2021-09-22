@@ -38,22 +38,21 @@ namespace WebUI {
 
     enum_opt_t onoffOptions = { { "OFF", 0 }, { "ON", 1 } };
 
-#if defined(ENABLE_WIFI) || defined(ENABLE_BLUETOOTH)
+#ifdef ENABLE_WIFI
     EnumSetting* wifi_radio_mode;
 
-    enum_opt_t radioEnabledOptions = {
-        { "None", ESP_RADIO_OFF },
-#    ifdef ENABLE_WIFI
-        { "STA", ESP_WIFI_STA },   { "AP", ESP_WIFI_AP }, { "STA_AP", ESP_WIFI_STA_AP },
-#    endif
-#    ifdef ENABLE_BLUETOOTH
-        { "BT", ESP_BT },
-#    endif
+    enum_opt_t wifiModeOptions = {
+        { "None", ESP_WIFI_OFF },
+        { "STA", ESP_WIFI_STA },
+        { "AP", ESP_WIFI_AP },
+        { "STA_AP", ESP_WIFI_STA_AP },
     };
-
 #endif
 
 #ifdef ENABLE_WIFI
+    EnumSetting* wifi_enable;
+    EnumSetting* wifi_mode;
+
     StringSetting* wifi_sta_ssid;
     StringSetting* wifi_sta_password;
 
@@ -82,6 +81,7 @@ namespace WebUI {
 #endif
 
 #ifdef ENABLE_BLUETOOTH
+    EnumSetting* bt_enable;
     StringSetting* bt_name;
 #endif
 
@@ -898,7 +898,7 @@ namespace WebUI {
 #endif
 
 #ifdef ENABLE_BLUETOOTH
-            if (WebUI::wifi_radio_mode->get() == ESP_BT && bt_config.Is_BT_on()) {
+            if (WebUI::bt_enable->get() == 1 && bt_config.Is_BT_on()) {
                 on = true;
             }
 #endif
@@ -924,7 +924,7 @@ namespace WebUI {
         }
 #endif
 #ifdef ENABLE_BLUETOOTH
-        if (WebUI::wifi_radio_mode->get() == ESP_BT && bt_config.Is_BT_on()) {
+        if (WebUI::bt_enable->get() == 1 && bt_config.Is_BT_on()) {
             bt_config.end();
         }
 #endif
@@ -943,7 +943,7 @@ namespace WebUI {
 #endif
 
 #ifdef ENABLE_BLUETOOTH
-        if (WebUI::wifi_radio_mode->get() == ESP_BT) {
+        if (WebUI::bt_enable->get()) {
             bt_config.begin();
         }
 #endif
@@ -960,17 +960,9 @@ namespace WebUI {
 
     static Error showSetStaParams(char* parameter, AuthenticationLevel auth_level) {  // ESP103
         if (*parameter == '\0') {
-            auto sta = config->_comms->_staConfig;
-            if (sta) {
-                webPrint("IP:", IPAddress(sta->_ipAddress));
-                webPrint(" GW:", IPAddress(sta->_gateway));
-                webPrintln(" MSK:", IPAddress(sta->_netmask));
-            } else {
-                const char* none = "<none>";
-                webPrint("IP:", none);
-                webPrint(" GW:", none);
-                webPrintln(" MSK:", none);
-            }
+            webPrint("IP:", wifi_sta_ip->getStringValue());
+            webPrint(" GW:", wifi_sta_gateway->getStringValue());
+            webPrintln(" MSK:", wifi_sta_netmask->getStringValue());
             return Error::Ok;
         }
         if (!split_params(parameter)) {
@@ -980,29 +972,14 @@ namespace WebUI {
         char* netmask = get_param("MSK", false);
         char* ip      = get_param("IP", false);
 
-        auto sta = config->_comms->_staConfig;
-        if (!sta) {
-            sta = config->_comms->_staConfig = new Machine::WifiSTAConfig();
+        Error err = wifi_sta_ip->setStringValue(ip);
+        if (err == Error::Ok) {
+            err = wifi_sta_netmask->setStringValue(netmask);
         }
-
-        IPAddress ipv;
-
-        if (!ipv.fromString(ip)) {
-            return Error::InvalidValue;
+        if (err == Error::Ok) {
+            err = wifi_sta_gateway->setStringValue(gateway);
         }
-        sta->_ipAddress = ipv;
-
-        if (!ipv.fromString(netmask)) {
-            return Error::InvalidValue;
-        }
-        sta->_netmask = ipv;
-
-        if (!ipv.fromString(gateway)) {
-            return Error::InvalidValue;
-        }
-        sta->_gateway = ipv;
-
-        return Error::Ok;
+        return err;
     }
 #endif
 
@@ -1045,6 +1022,9 @@ namespace WebUI {
 
     void make_wifi_settings() {
 #ifdef ENABLE_WIFI
+
+        wifi_mode = new EnumSetting("WiFi mode", WEBSET, WA, "ESP116", "WiFi/Mode", WIFI_AP, &wifiModeOptions, NULL);
+        wifi_enable = new EnumSetting("Wifi Enable", WEBSET, WA, "ESP117", "WiFi/Enable", 1, &onoffOptions, NULL);
 
         telnet_port = new IntSetting(
             "Telnet Port", WEBSET, WA, "ESP131", "Telnet/Port", DEFAULT_TELNETSERVER_PORT, MIN_TELNET_PORT, MAX_TELNET_PORT, NULL);
@@ -1154,6 +1134,9 @@ namespace WebUI {
 
     void make_bt_settings() {
 #ifdef ENABLE_BLUETOOTH
+
+        bt_enable = new EnumSetting("Bluetooth Enable", WEBSET, WA, "ESP141", "Bluetooth/Enable", 1, &onoffOptions, NULL);
+
         bt_name = new StringSetting("Bluetooth name",
                                     WEBSET,
                                     WA,
@@ -1191,9 +1174,6 @@ namespace WebUI {
     }
 
     void make_web_settings() {
-#if defined(ENABLE_WIFI) || defined(ENABLE_BLUETOOTH)
-        wifi_radio_mode = new EnumSetting("Radio mode", WEBSET, WA, "ESP110", "Radio/Mode", ESP_WIFI_AP, &radioEnabledOptions, NULL);
-#endif
         make_wifi_settings();
         make_bt_settings();
         make_authentication_settings();

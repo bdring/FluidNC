@@ -8,11 +8,11 @@
 #include "../Settings.h"
 
 //Radio Mode
-const int ESP_RADIO_OFF   = 0;
+const int ESP_WIFI_OFF    = 0;
 const int ESP_WIFI_STA    = 1;
 const int ESP_WIFI_AP     = 2;
 const int ESP_WIFI_STA_AP = 3;  // Tries STA falls back to AP
-const int ESP_BT          = 4;
+
 
 namespace WebUI {
 #ifdef ENABLE_AUTHENTICATION
@@ -20,16 +20,17 @@ namespace WebUI {
     extern StringSetting* admin_password;
 #endif
 
-    extern EnumSetting* wifi_radio_mode;
-
 #ifdef ENABLE_WIFI
+
+    extern EnumSetting*   wifi_enable;
+    extern EnumSetting*   wifi_mode;
     extern EnumSetting*   wifi_sta_mode;
     extern IPaddrSetting* wifi_sta_ip;
     extern IPaddrSetting* wifi_sta_gateway;
     extern IPaddrSetting* wifi_sta_netmask;
 
+    extern StringSetting* wifi_sta_ssid;
     extern StringSetting* wifi_ap_ssid;
-    extern StringSetting* wifi_ap_password;
 
     extern IPaddrSetting* wifi_ap_ip;
 
@@ -51,6 +52,7 @@ namespace WebUI {
 #endif
 
 #ifdef ENABLE_BLUETOOTH
+    extern EnumSetting*   bt_enable;
     extern StringSetting* bt_name;
 #endif
 }

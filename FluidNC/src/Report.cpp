@@ -419,7 +419,7 @@ void report_build_info(const char* line, Print& client) {
         client << "A";
     }
 #ifdef ENABLE_BLUETOOTH
-    if (WebUI::wifi_radio_mode->get() == ESP_BT) {
+    if (WebUI::bt_enable->get()) {
         client << "B";
     }
 #endif
@@ -447,7 +447,7 @@ void report_build_info(const char* line, Print& client) {
     }
 #endif
 #ifdef ENABLE_BLUETOOTH
-    if (WebUI::wifi_radio_mode->get() == ESP_BT) {
+    if (WebUI::bt_enable->get()) {
         client << "[MSG: Machine: " << WebUI::bt_config.info() << "]\n";
     }
 #endif

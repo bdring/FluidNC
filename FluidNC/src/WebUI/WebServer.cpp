@@ -28,6 +28,7 @@
 #    include <ESPmDNS.h>
 #    include <ESP32SSDP.h>
 #    include <DNSServer.h>
+#    include "WebSettings.h"
 
 #    include "WebClient.h"
 
@@ -86,10 +87,10 @@ namespace WebUI {
         bool no_error = true;
         _setupdone    = false;
 
-        if (!config->_comms->_httpEnable) {
+        if (!WebUI::http_enable->get()) {
             return false;
         }
-        _port = config->_comms->_httpPort;
+        _port = WebUI::http_port->get();
 
         //create instance
         _webserver = new WebServer(_port);
@@ -174,7 +175,7 @@ namespace WebUI {
             SSDP.begin();
         }
 
-        log_info("HTTP Started");
+        log_info("HTTP Started on port " << WebUI::http_port->get());
         //start webserver
         _webserver->begin();
 

@@ -40,7 +40,6 @@ namespace Machine {
         handler.section("control", _control);
         handler.section("coolant", _coolant);
         handler.section("probe", _probe);
-        handler.section("comms", _comms);
         handler.section("macros", _macros);
 
         handler.section("user_outputs", _userOutputs);
@@ -117,23 +116,6 @@ namespace Machine {
                 s->_tool = next_tool++;
             }
         }
-
-        if (_comms == nullptr) {
-            log_info("Comms: using defaults");
-            _comms = new Communications();
-#ifdef ENABLE_WIFI
-            _comms->_apConfig = new WifiAPConfig();
-#endif
-        }
-
-#ifdef ENABLE_WIFI
-        // This is very helpful for testing YAML config files.  If things
-        // screw up, you can still connect and upload a new config.yaml
-        // TODO - Consider whether we want this for the long term
-        if (!_comms->_apConfig) {
-            _comms->_apConfig = new WifiAPConfig();
-        }
-#endif
 
         if (_macros == nullptr) {
             _macros = new Macros();
@@ -310,7 +292,6 @@ namespace Machine {
         delete _sdCard;
         delete _spi;
         delete _control;
-        delete _comms;
         delete _macros;
     }
 }
