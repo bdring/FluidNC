@@ -68,7 +68,7 @@ namespace Configuration {
                         }
 
                         if (_parser.token_.state == TokenState::Matching) {
-                            log_error("Ignored key " << _parser.key().str());
+                            log_warn("Ignored key " << _parser.key().str());
                         }
 #ifdef DEBUG_CHATTY_YAML_PARSER
                         if (_parser.token_.state == Configuration::TokenState::Matched) {

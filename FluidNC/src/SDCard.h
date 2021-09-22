@@ -91,8 +91,8 @@ public:
 
     // Configuration handlers.
     void group(Configuration::HandlerBase& handler) override {
-        handler.item("card_detect", _cardDetect);
         handler.item("cs", _cs);
+        handler.item("card_detect", _cardDetect);        
     }
 
     ~SDCard();

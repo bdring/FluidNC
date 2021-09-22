@@ -19,7 +19,10 @@ namespace MotorDrivers {
     uint8_t daisy_chain_cs = -1;
 
     void TrinamicDriver::init() {
-        _has_errors = false;
+        _has_errors    = false;
+        auto spiConfig = config->_spi;
+
+        Assert(spiConfig->defined(), "SPI bus is not configured. Cannot initialize TMC driver.");
 
         _cs_pin.setAttr(Pin::Attr::Output | Pin::Attr::InitialOn);
         _cs_mapping = PinMapper(_cs_pin);
@@ -57,8 +60,7 @@ namespace MotorDrivers {
 
         config_message();
 
-        auto spiConfig = config->_spi;
-        if (spiConfig != nullptr) {
+        if (spiConfig != nullptr || !spiConfig->defined()) {
             auto csPin   = _cs_pin.getNative(Pin::Capabilities::Output);
             auto mosiPin = spiConfig->_mosi.getNative(Pin::Capabilities::Output | Pin::Capabilities::Native);
             auto sckPin  = spiConfig->_sck.getNative(Pin::Capabilities::Output | Pin::Capabilities::Native);
@@ -96,9 +98,8 @@ namespace MotorDrivers {
     This is the startup message showing the basic definition
     */
     void TrinamicDriver::config_message() {
-        log_info("    Trinamic TMC" << _driver_part_number << " Step:" << _step_pin.name() << " Dir:" << _dir_pin.name()
-                                    << " CS:" << _cs_pin.name() << " Disable:" << _disable_pin.name() << " Index:" << _spi_index
-                                    << " R:" << _r_sense);
+        log_info("    Trinamic TMC" << _driver_part_number << " Step:" << _step_pin.name() << " Dir:" << _dir_pin.name() << " CS:"
+                                    << _cs_pin.name() << " Disable:" << _disable_pin.name() << " Index:" << _spi_index << " R:" << _r_sense);
     }
 
     bool TrinamicDriver::test() {

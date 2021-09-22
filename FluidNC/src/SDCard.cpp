@@ -124,12 +124,12 @@ SDCard::State SDCard::test_or_open(bool refresh) {
     auto spiConfig = config->_spi;
 
     if (spiConfig == nullptr || !spiConfig->defined()) {
-        log_debug("SPI not defined");
+        //log_debug("SPI not defined");
         return SDCard::State::NotPresent;
     }
 
     if (spiConfig == nullptr || _cs.undefined()) {
-        log_debug("SD cs not defined");
+        //log_debug("SD cs not defined");
         return SDCard::State::NotPresent;
     }
 
@@ -188,13 +188,13 @@ const char* SDCard::filename() {
 void SDCard::init() {
     static bool init_message = true;  // used to show messages only once.
 
-    if (_cs.defined()) {
-        log_info("SD CS:" << _cs.name() << " Detect:" << _cardDetect.name());
-    }
-
-    if (init_message) {
+    if (!config->_spi->defined()) {
+        log_error("SD needs SPI defined");
+    } else {
+        if (init_message) {
         _cardDetect.report("SD Card Detect");
         init_message = false;
+        }
     }
 
     _cs.setAttr(Pin::Attr::Output);
