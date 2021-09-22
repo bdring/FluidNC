@@ -193,7 +193,7 @@ namespace Machine {
         return filesize;
     }
 
-    char defaultConfig[] = "name: Default\nboard: None\n";
+    char defaultConfig[] = "name: Default (Test Drive)\nboard: None\n";
 
     bool MachineConfig::load(const char* filename) {
         // log_info("Heap size before load config is " << uint32_t(xPortGetFreeHeapSize()));
