@@ -27,7 +27,8 @@ namespace Machine {
             // Start the SPI bus with the pins defined here.  Once it has been started,
             // those pins "stick" and subsequent attempts to restart it with defaults
             // for the miso, mosi, and sck pins are ignored
-            SPI.begin(sckPin, misoPin, mosiPin); // CS is defined by each device
+            SPI.begin(sckPin, misoPin, mosiPin);  // CS is defined by each device
+            _defined = true;
         }
     }
 
@@ -39,14 +40,16 @@ namespace Machine {
 
     // XXX it would be nice to have some way to turn off SPI entirely
     void SPIBus::afterParse() {
-        if (_miso.undefined()) {
-            _miso = Pin::create("gpio.19");
-        }
-        if (_mosi.undefined()) {
-            _mosi = Pin::create("gpio.23");
-        }
-        if (_sck.undefined()) {
-            _sck = Pin::create("gpio.18");
-        }
+        // if (_miso.undefined()) {
+        //     _miso = Pin::create("gpio.19");
+        // }
+        // if (_mosi.undefined()) {
+        //     _mosi = Pin::create("gpio.23");
+        // }
+        // if (_sck.undefined()) {
+        //     _sck = Pin::create("gpio.18");
+        // }
     }
+
+    bool SPIBus::defined() { return _defined; }
 }

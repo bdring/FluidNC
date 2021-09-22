@@ -1,0 +1,31 @@
+name: "TMC2130 Pen/Laser"
+board: "TMC2130 Pen/Laser"
+
+stepping:
+  engine: RMT
+  idle_ms: 255
+  dir_delay_us: 1
+  pulse_us: 2
+  disable_delay_us: 0
+
+axes:
+  shared_stepper_disable: gpio.13:high
+  
+spi:
+  miso: NO_PIN
+  mosi: NO_PIN
+  sck: NO_PIN
+
+coolant:
+  flood: NO_PIN
+  mist:  NO_PIN
+
+comms:
+  wifi_ap:
+    ip_address: "192.168.0.1"
+    ssid: FluidNC
+
+probe:
+  pin: NO_PIN
+
+

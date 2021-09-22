@@ -123,11 +123,15 @@ uint32_t SDCard::lineNumber() {
 SDCard::State SDCard::test_or_open(bool refresh) {
     auto spiConfig = config->_spi;
 
-    if (spiConfig == nullptr || _cs.undefined()) {
+    if (spiConfig == nullptr || !spiConfig->defined()) {
+        log_debug("SPI not defined");
         return SDCard::State::NotPresent;
     }
 
-    //auto csPin = spiConfig->_cs.getNative(Pin::Capabilities::Output | Pin::Capabilities::Native);
+    if (spiConfig == nullptr || _cs.undefined()) {
+        log_debug("SD cs not defined");
+        return SDCard::State::NotPresent;
+    }
 
     //no need to go further if SD detect is not correct
     if (_cardDetect.defined() && !_cardDetect.read()) {
@@ -198,9 +202,9 @@ void SDCard::init() {
 }
 
 void SDCard::afterParse() {
-    if (_cs.undefined()) {
-        _cs = Pin::create("gpio.5");
-    }
+    // if (_cs.undefined()) {
+    //     _cs = Pin::create("gpio.5");
+    // }
 }
 
 SDCard::~SDCard() {
