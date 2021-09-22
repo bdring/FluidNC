@@ -206,7 +206,21 @@ void report_feedback_message(Message message) {  // ok to send to all clients
 #include "Uart.h"
 // Welcome message
 void report_init_message(Print& client) {
-    client << "\r\nGrbl " << grbl_version << " [FluidNC " << git_info << " '$' for help]\n";
+    client << "\r\nGrbl " << grbl_version << " [FluidNC " << git_info;
+
+#if defined(ENABLE_WIFI) || defined(ENABLE_BLUETOOTH)
+#    ifdef ENABLE_WIFI
+    client << "wifi";
+#    endif
+
+#    ifdef ENABLE_BLUETOOTH
+    client << "bt";
+#    endif
+#else
+    client << "noradio";
+#endif
+
+    client << ") '$' for help]\n";
 }
 
 // Prints current probe parameters. Upon a probe command, these parameters are updated upon a
