@@ -19,7 +19,7 @@ class TMC2130Stepper;  // Forward declaration
 
 namespace MotorDrivers {
 
-    class TrinamicDriver : public TrinamicBase {
+    class TrinamicSpiDriver : public TrinamicBase {
     private:
         const int _spi_freq = 100000;
 
@@ -39,9 +39,9 @@ namespace MotorDrivers {
         void config_message() override;
 
     public:
-        TrinamicDriver(uint16_t driver_part_number) : TrinamicDriver(driver_part_number, -1) {}
+        TrinamicSpiDriver(uint16_t driver_part_number) : TrinamicSpiDriver(driver_part_number, -1) {}
 
-        TrinamicDriver(uint16_t driver_part_number, int8_t spi_index);
+        TrinamicSpiDriver(uint16_t driver_part_number, int8_t spi_index);
 
         // Overrides for inherited methods
         void init() override;
@@ -67,17 +67,17 @@ namespace MotorDrivers {
         const char* name() const override { return "trinamic_spi"; }
     };
 
-    class TMC2130 : public TrinamicDriver {
+    class TMC2130 : public TrinamicSpiDriver {
     public:
-        TMC2130() : TrinamicDriver(2130) {}
+        TMC2130() : TrinamicSpiDriver(2130) {}
 
         // Name of the configurable. Must match the name registered in the cpp file.
         const char* name() const override { return "tmc_2130"; }
     };
 
-    class TMC5160 : public TrinamicDriver {
+    class TMC5160 : public TrinamicSpiDriver {
     public:
-        TMC5160() : TrinamicDriver(5160) {}
+        TMC5160() : TrinamicSpiDriver(5160) {}
 
         // Name of the configurable. Must match the name registered in the cpp file.
         const char* name() const override { return "tmc_5160"; }
