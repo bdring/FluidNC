@@ -11,7 +11,7 @@ namespace Machine {
     public:
         SPIBus() = default;
 
-        //Pin _cs;
+        Pin _cs;
         Pin _miso;
         Pin _mosi;
         Pin _sck;

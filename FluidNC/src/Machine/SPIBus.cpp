@@ -18,10 +18,9 @@ namespace Machine {
 
     void SPIBus::init() {
         if (_sck.defined()) {  // validation ensures the rest is also defined.
-            //log_info("SPI SCK:" << _sck.name() << " MOSI:" << _mosi.name() << " MISO:" << _miso.name() << " CS:" << _cs.name());
             log_info("SPI SCK:" << _sck.name() << " MOSI:" << _mosi.name() << " MISO:" << _miso.name());
 
-            //_cs.setAttr(Pin::Attr::Output);
+            _cs.setAttr(Pin::Attr::Output);
 
             //auto csPin   = _cs.getNative(Pin::Capabilities::Output | Pin::Capabilities::Native);
             auto mosiPin = _mosi.getNative(Pin::Capabilities::Output | Pin::Capabilities::Native);
@@ -44,9 +43,9 @@ namespace Machine {
 
     // XXX it would be nice to have some way to turn off SPI entirely
     void SPIBus::afterParse() {
-        // if (_cs.undefined()) {
-        //     _cs = Pin::create("gpio.5");
-        // }
+        if (_cs.undefined()) {
+            _cs = Pin::create("gpio.5");
+        }
         if (_miso.undefined()) {
             _miso = Pin::create("gpio.19");
         }
