@@ -149,8 +149,10 @@ SDCard::State SDCard::test_or_open(bool refresh) {
 
     _state = SDCard::State::NotPresent;
 
+    auto csPin   = _cs.getNative(Pin::Capabilities::Output | Pin::Capabilities::Native);
+
     //refresh content if card was removed
-    if (SD.begin(GPIO_NUM_5, SPI, SPIfreq, "/sd", 2)) {
+    if (SD.begin(csPin, SPI, SPIfreq, "/sd", 2)) {
         if (SD.cardSize() > 0) {
             _state = SDCard::State::Idle;
         }
@@ -184,7 +186,6 @@ void SDCard::init() {
 
     if (_cs.defined()) {
         log_info("SD CS:" << _cs.name() << " Detect:" << _cardDetect.name());
-        return;
     }
 
     if (init_message) {
@@ -192,12 +193,13 @@ void SDCard::init() {
         init_message = false;
     }
 
+    _cs.setAttr(Pin::Attr::Output);
     _cardDetect.setAttr(Pin::Attr::Output);
 }
 
 void SDCard::afterParse() {
     if (_cs.undefined()) {
-        _cs = Pin::create("gpio.14");
+        _cs = Pin::create("gpio.5");
     }
 }
 
