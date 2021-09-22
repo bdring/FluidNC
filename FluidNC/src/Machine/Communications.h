@@ -35,20 +35,7 @@ namespace Machine {
         WifiSTAConfig* _staConfig = nullptr;
 #endif
 
-#ifdef ENABLE_BLUETOOTH
-        WebUI::BTConfig* _bluetoothConfig = nullptr;
-#endif
-
         void group(Configuration::HandlerBase& handler) override {
-#ifdef ENABLE_BLUETOOTH
-            // If BT is not compiled in, attempts to configure it will be ignored,
-            // but the BTConfig class methods that might be called from elsewhere
-            // exist in an stub class implementation, so the compiler will not
-            // complain.  This lets us minimize the number of ifdefs to this one
-            // plus a couple in BTConfig.h and BTConfig.cpp which select either
-            // the real BTConfig class or the stub version.
-            handler.section("bluetooth", _bluetoothConfig);
-#endif
 #ifdef ENABLE_WIFI
             handler.item("telnet_enable", _telnetEnable);
             handler.item("telnet_port", _telnetPort);
@@ -64,9 +51,6 @@ namespace Machine {
         }
 
         ~Communications() {
-#ifdef ENABLE_BLUETOOTH
-            delete _bluetoothConfig;
-#endif
 #ifdef ENABLE_WIFI
             delete _apConfig;
             delete _staConfig;

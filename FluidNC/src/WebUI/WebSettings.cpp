@@ -42,7 +42,13 @@ namespace WebUI {
     EnumSetting* wifi_radio_mode;
 
     enum_opt_t radioEnabledOptions = {
-        { "None", ESP_RADIO_OFF }, { "STA", ESP_WIFI_STA }, { "AP", ESP_WIFI_AP }, { "STA_AP", ESP_WIFI_STA_AP }, { "BT", ESP_BT },
+        { "None", ESP_RADIO_OFF },
+#    ifdef ENABLE_WIFI
+        { "STA", ESP_WIFI_STA },   { "AP", ESP_WIFI_AP }, { "STA_AP", ESP_WIFI_STA_AP },
+#    endif
+#    ifdef ENABLE_BLUETOOTH
+        { "BT", ESP_BT },
+#    endif
     };
 
 #endif
@@ -73,7 +79,11 @@ namespace WebUI {
         { "DHCP", DHCP_MODE },
         { "Static", STATIC_MODE },
     };
-#endif 
+#endif
+
+#ifdef ENABLE_BLUETOOTH
+    StringSetting* bt_name;
+#endif
 
     Print* webresponse = nullptr;
     bool   isWeb       = false;
@@ -561,9 +571,7 @@ namespace WebUI {
 #endif
 
 #ifdef ENABLE_BLUETOOTH
-        if (config->_comms->_bluetoothConfig) {
-            webPrintln(config->_comms->_bluetoothConfig->info().c_str());
-        }
+        webPrintln(bt_config.info());
 #endif
         webPrint("FW version: FluidNC ");
         webPrint(GIT_TAG);
@@ -890,7 +898,7 @@ namespace WebUI {
 #endif
 
 #ifdef ENABLE_BLUETOOTH
-            if (config->_comms->_bluetoothConfig && config->_comms->_bluetoothConfig->Is_BT_on()) {
+            if (WebUI::wifi_radio_mode->get() == ESP_BT && bt_config.Is_BT_on()) {
                 on = true;
             }
 #endif
@@ -916,8 +924,8 @@ namespace WebUI {
         }
 #endif
 #ifdef ENABLE_BLUETOOTH
-        if (config->_comms->_bluetoothConfig && config->_comms->_bluetoothConfig->Is_BT_on()) {
-            config->_comms->_bluetoothConfig->end();
+        if (WebUI::wifi_radio_mode->get() == ESP_BT && bt_config.Is_BT_on()) {
+            bt_config.end();
         }
 #endif
 
@@ -935,8 +943,8 @@ namespace WebUI {
 #endif
 
 #ifdef ENABLE_BLUETOOTH
-        if (config->_comms->_bluetoothConfig) {
-            config->_comms->_bluetoothConfig->begin();
+        if (WebUI::wifi_radio_mode->get() == ESP_BT) {
+            bt_config.begin();
         }
 #endif
 
@@ -1144,6 +1152,20 @@ namespace WebUI {
 #endif
     }
 
+    void make_bt_settings() {
+#ifdef ENABLE_BLUETOOTH
+        bt_name = new StringSetting("Bluetooth name",
+                                    WEBSET,
+                                    WA,
+                                    "ESP140",
+                                    "Bluetooth/Name",
+                                    DEFAULT_BT_NAME,
+                                    WebUI::BTConfig::MIN_BTNAME_LENGTH,
+                                    WebUI::BTConfig::MAX_BTNAME_LENGTH,
+                                    (bool (*)(char*))BTConfig::isBTnameValid);
+#endif
+    }
+
     void make_authentication_settings() {
 #ifdef ENABLE_AUTHENTICATION
         new WebCommand("password", WEBCMD, WA, "ESP555", "WebUI/SetUserPassword", setUserPassword);
@@ -1173,6 +1195,7 @@ namespace WebUI {
         wifi_radio_mode = new EnumSetting("Radio mode", WEBSET, WA, "ESP110", "Radio/Mode", ESP_WIFI_AP, &radioEnabledOptions, NULL);
 #endif
         make_wifi_settings();
+        make_bt_settings();
         make_authentication_settings();
         // If authentication enabled, display_settings skips or displays <Authentication Required>
         // RU - need user or admin password to read

@@ -11,7 +11,7 @@
 const int ESP_RADIO_OFF   = 0;
 const int ESP_WIFI_STA    = 1;
 const int ESP_WIFI_AP     = 2;
-const int ESP_WIFI_STA_AP = 3; // Tries STA falls back to AP
+const int ESP_WIFI_STA_AP = 3;  // Tries STA falls back to AP
 const int ESP_BT          = 4;
 
 namespace WebUI {
@@ -19,6 +19,8 @@ namespace WebUI {
     extern StringSetting* user_password;
     extern StringSetting* admin_password;
 #endif
+
+    extern EnumSetting* wifi_radio_mode;
 
 #ifdef ENABLE_WIFI
     extern EnumSetting*   wifi_sta_mode;
@@ -37,10 +39,8 @@ namespace WebUI {
     extern EnumSetting*   http_enable;
     extern IntSetting*    http_port;
     extern EnumSetting*   telnet_enable;
-    extern IntSetting*    telnet_port;    
-#endif
+    extern IntSetting*    telnet_port;
 
-#ifdef ENABLE_WIFI
     extern StringSetting* wifi_sta_password;
     extern StringSetting* wifi_ap_password;
 
@@ -48,5 +48,9 @@ namespace WebUI {
     extern StringSetting* notification_t1;
     extern StringSetting* notification_t2;
     extern StringSetting* notification_ts;
+#endif
+
+#ifdef ENABLE_BLUETOOTH
+    extern StringSetting* bt_name;
 #endif
 }

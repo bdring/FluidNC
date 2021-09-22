@@ -30,6 +30,7 @@
 #include "WebUI/WifiConfig.h"            // wifi_config
 #include "WebUI/TelnetServer.h"          // WebUI::telnet_server
 #include "WebUI/BTConfig.h"              // bt_config
+#include "WebUI/WebSettings.h"
 
 #include <map>
 #include <freertos/task.h>
@@ -418,7 +419,7 @@ void report_build_info(const char* line, Print& client) {
         client << "A";
     }
 #ifdef ENABLE_BLUETOOTH
-    if (config->_comms->_bluetoothConfig) {
+    if (WebUI::wifi_radio_mode->get() == ESP_BT) {
         client << "B";
     }
 #endif
@@ -446,12 +447,8 @@ void report_build_info(const char* line, Print& client) {
     }
 #endif
 #ifdef ENABLE_BLUETOOTH
-    if (config->_comms->_bluetoothConfig) {
-        String btinfo = config->_comms->_bluetoothConfig->info();
-        if (btinfo.length()) {
-            client << "[MSG: Machine: " << btinfo << "]\n";
-            ;
-        }
+    if (WebUI::wifi_radio_mode->get() == ESP_BT) {
+        client << "[MSG: Machine: " << WebUI::bt_config.info() << "]\n";
     }
 #endif
 }
