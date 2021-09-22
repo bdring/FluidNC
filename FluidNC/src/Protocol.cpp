@@ -96,11 +96,13 @@ void protocol_reset() {
     rtSleep                   = false;
     rtCycleStop               = false;
     rtAccessoryOverride.value = 0;
-    rtAlarm                   = ExecAlarm::None;
     rtFOverride               = FeedOverride::Default;
     rtROverride               = RapidOverride::Default;
     rtSOverride               = SpindleSpeedOverride::Default;
     spindle_stop_ovr.value    = 0;
+
+    // Do not clear rtAlarm because it might have been set during configuration
+    // rtAlarm = ExecAlarm::None;
 }
 
 static int32_t idleEndTime = 0;

@@ -28,6 +28,7 @@ void ControlPin::init() {
     _value      = _pin.read();
     // Control pins must start in inactive state
     if (_value) {
+        log_error(_legend << " pin is active at startup");
         rtAlarm = ExecAlarm::ControlPin;
     }
 }
