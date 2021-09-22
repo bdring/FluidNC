@@ -236,6 +236,7 @@ void StringSetting::setDefault() {
 
 Error StringSetting::setStringValue(char* s) {
     if (_minLength && _maxLength && (strlen(s) < size_t(_minLength) || strlen(s) > size_t(_maxLength))) {
+        log_error("Setting length error");
         return Error::BadNumberFormat;
     }
     Error err = check(s);

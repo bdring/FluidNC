@@ -200,6 +200,7 @@ namespace WebUI {
                 log_info("WiFi Disconnected");
                 break;
             default:
+                //log_info("WiFi event:" << event);
                 break;
         }
     }
@@ -287,14 +288,10 @@ namespace WebUI {
             WiFi.config(ip, gateway, mask);
         }
         if (WiFi.begin(SSID.c_str(), (password.length() > 0) ? password.c_str() : NULL)) {
-            //grbl_send(CLIENT_ALL, "\n[MSG:Client Started]\r\n");
-            log_info("Client Started");
-            //grbl_sendf(CLIENT_ALL, "[MSG:Connecting %s]\r\n", SSID.c_str());
-            log_info("Connecting " << SSID.c_str());
+            log_info("Connecting to STA SSID:" << SSID.c_str());
             return ConnectSTA2AP();
         } else {
             log_info("Starting client failed");
-            //grbl_send(CLIENT_ALL, "[MSG:Starting client failed]\r\n");
             return false;
         }
     }
@@ -386,7 +383,11 @@ namespace WebUI {
             // WIFI mode is STA; fall back on AP if necessary
             goto wifi_on;
         }
-        if (wifi_mode->get() == ESP_WIFI_AP && StartAP()) {
+        if (wifi_mode->get() == ESP_WIFI_STA_AP) {
+            log_info("STA connection failed. Setting up AP");
+        }
+
+        if ((wifi_mode->get() == ESP_WIFI_AP || wifi_mode->get() == ESP_WIFI_STA_AP) && StartAP()) {
             goto wifi_on;
         }
 

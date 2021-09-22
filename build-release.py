@@ -82,14 +82,14 @@ with ZipFile(zipFileName, 'w') as zipObj:
     else:
         # Put common/spiffs.bin in the archive
         obj = 'spiffs.bin'
-        zipObj.write(os.path.join(pioPath, 'noradio', obj), os.path.join('common', obj))
+        #  zipObj.write(os.path.join(pioPath, 'noradio', obj), os.path.join('common', obj))
         tools = os.path.join(os.path.expanduser('~'),'.platformio','packages','framework-arduinoespressif32','tools')
         bootloader = 'bootloader_dio_80m.bin'
         zipObj.write(os.path.join(tools, 'sdk', 'bin', bootloader), os.path.join('common', bootloader))
         bootapp = 'boot_app0.bin';
         zipObj.write(os.path.join(tools, "partitions", bootapp), os.path.join('common', bootapp))
 
-        for envName in ['wifi','bt','wifibt','noradio']:
+        for envName in ['wifi','bt']:
             exitCode = buildEnv(envName, verbose=verbose)
             if exitCode != 0:
                 numErrors += 1

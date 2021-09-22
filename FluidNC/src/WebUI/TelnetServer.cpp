@@ -46,7 +46,7 @@ namespace WebUI {
         //create instance
         _telnetserver = new WiFiServer(_port, MAX_TLNT_CLIENTS);
         _telnetserver->setNoDelay(true);
-        log_info("Telnet Started on port " << _port);
+        log_info("Telnet started on port " << _port);
         //start telnet server
         _telnetserver->begin();
         _setupdone = true;

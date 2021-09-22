@@ -175,7 +175,7 @@ namespace WebUI {
             SSDP.begin();
         }
 
-        log_info("HTTP Started on port " << WebUI::http_port->get());
+        log_info("HTTP started on port " << WebUI::http_port->get());
         //start webserver
         _webserver->begin();
 

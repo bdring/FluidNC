@@ -81,7 +81,7 @@ namespace WebUI {
 #endif
 
 #ifdef ENABLE_BLUETOOTH
-    EnumSetting* bt_enable;
+    EnumSetting*   bt_enable;
     StringSetting* bt_name;
 #endif
 
@@ -1023,7 +1023,7 @@ namespace WebUI {
     void make_wifi_settings() {
 #ifdef ENABLE_WIFI
 
-        wifi_mode = new EnumSetting("WiFi mode", WEBSET, WA, "ESP116", "WiFi/Mode", WIFI_AP, &wifiModeOptions, NULL);
+        wifi_mode   = new EnumSetting("WiFi mode", WEBSET, WA, "ESP116", "WiFi/Mode", WIFI_AP, &wifiModeOptions, NULL);
         wifi_enable = new EnumSetting("Wifi Enable", WEBSET, WA, "ESP117", "WiFi/Enable", 1, &onoffOptions, NULL);
 
         telnet_port = new IntSetting(
@@ -1119,16 +1119,6 @@ namespace WebUI {
                                              MIN_PASSWORD_LENGTH,
                                              MAX_PASSWORD_LENGTH,
                                              (bool (*)(char*))WiFiConfig::isPasswordValid);
-        // no get, admin to set
-        wifi_sta_password = new StringSetting("Station Password",
-                                              WEBSET,
-                                              WA,
-                                              "ESP101",
-                                              "Sta/Password",
-                                              DEFAULT_STA_PWD,
-                                              MIN_PASSWORD_LENGTH,
-                                              MAX_PASSWORD_LENGTH,
-                                              (bool (*)(char*))WiFiConfig::isPasswordValid);
 #endif
     }
 
