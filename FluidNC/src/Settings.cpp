@@ -328,12 +328,14 @@ Error EnumSetting::setStringValue(char* s) {
 
         // Disallow empty string
         if (!s || !*s) {
+            showList();
             return Error::BadNumberFormat;
         }
         char*   endptr;
         uint8_t num = uint8_t(strtol(s, &endptr, 10));
         // Disallow non-numeric characters in string
         if (*endptr) {
+            showList();
             return Error::BadNumberFormat;
         }
         for (it = _options->begin(); it != _options->end(); it++) {
@@ -366,6 +368,7 @@ const char* EnumSetting::enumToString(int8_t value) {
             return it->first;
         }
     }
+    showList();
     return "???";
 }
 const char* EnumSetting::getDefaultString() {
@@ -373,6 +376,14 @@ const char* EnumSetting::getDefaultString() {
 }
 const char* EnumSetting::getStringValue() {
     return enumToString(get());
+}
+
+void EnumSetting::showList() {
+    String optList = "";
+    for (enum_opt_t::iterator it = _options->begin(); it != _options->end(); it++) {
+        optList = optList + " " + it->first;
+    }
+    log_info("Valid options:" << optList);
 }
 
 void EnumSetting::addWebui(WebUI::JSONencoder* j) {

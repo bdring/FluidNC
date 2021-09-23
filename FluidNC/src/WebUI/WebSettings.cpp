@@ -42,7 +42,6 @@ namespace WebUI {
     EnumSetting* wifi_radio_mode;
 
     enum_opt_t wifiModeOptions = {
-        { "None", ESP_WIFI_OFF },
         { "STA", ESP_WIFI_STA },
         { "AP", ESP_WIFI_AP },
         { "STA_AP", ESP_WIFI_STA_AP },
@@ -1110,15 +1109,7 @@ namespace WebUI {
         new WebCommand(NULL, WEBCMD, WG, "ESP111", "System/IP", showIP);
         new WebCommand("IP=ipaddress MSK=netmask GW=gateway", WEBCMD, WA, "ESP103", "Sta/Setup", showSetStaParams);
         // no get, admin to set
-        wifi_ap_password = new StringSetting("AP Password",
-                                             WEBSET,
-                                             WA,
-                                             "ESP106",
-                                             "AP/Password",
-                                             DEFAULT_AP_PWD,
-                                             MIN_PASSWORD_LENGTH,
-                                             MAX_PASSWORD_LENGTH,
-                                             (bool (*)(char*))WiFiConfig::isPasswordValid);
+        
 #endif
     }
 

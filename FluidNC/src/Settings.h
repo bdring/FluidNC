@@ -298,6 +298,7 @@ public:
     Error       setStringValue(char* value);
     const char* getStringValue();
     const char* getDefaultString();
+    void        showList();
 
     int8_t get() { return _currentValue; }
 };

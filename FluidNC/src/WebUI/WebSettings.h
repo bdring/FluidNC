@@ -8,7 +8,6 @@
 #include "../Settings.h"
 
 //Radio Mode
-const int ESP_WIFI_OFF    = 0;
 const int ESP_WIFI_STA    = 1;
 const int ESP_WIFI_AP     = 2;
 const int ESP_WIFI_STA_AP = 3;  // Tries STA falls back to AP
