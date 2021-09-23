@@ -21,7 +21,6 @@
 #include "Axes.h"
 #include "SPIBus.h"
 #include "I2SOBus.h"
-#include "Communications.h"
 #include "UserOutputs.h"
 #include "Macros.h"
 
