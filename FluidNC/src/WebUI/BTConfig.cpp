@@ -103,9 +103,14 @@ namespace WebUI {
     bool BTConfig::begin() {
         instance = this;
 
-        log_debug("Begin");
+        log_debug("Begin Bluetooth setup");
         //stop active services
         end();
+
+        if (!bt_enable->get()) {
+            log_info("Bluetooth not enabled");
+            return false;
+        }
 
         _btname = bt_name->getStringValue();
 
