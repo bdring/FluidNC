@@ -85,12 +85,8 @@ bool backlash_Compensate_befor_target(float* target, plan_line_data_t *pl_data){
 
     if(backlash_comp_needed){
         log_debug( "BS_COMP (" << backlash_comp_target[0] << " ," << backlash_comp_target[1] << " ," << backlash_comp_target[2]<< " )!!");
-        //mc_line(backlash_comp_target, pl_data_backlash);
         plan_buffer_line(backlash_comp_target, pl_data_backlash);
     }
-    // else {
-    //     log_debug("No Backlash compensation..!!");
-    // }
     return true;
 }
 
@@ -110,7 +106,7 @@ void backlash_Reset_for_homing(bool approach, uint8_t homing_mask) {
     for (int axis = 0; axis < config->_axes->_numberAxis; axis++) {
         if(config->_axes->_axis[axis]->_homing != nullptr ){
             if (bitnum_is_true(homing_mask, axis)) {
-                float t_pos = steps_to_mpos( motor_steps[axis], axis ); /// axis_settings[axis]->steps_per_mm->get();
+                float t_pos = steps_to_mpos( motor_steps[axis], axis );
                 if(t_pos != backlash_data[axis].prev_target){
                     if(approach){
                         backlash_data[axis].prev_direction   = !config->_axes->_axis[axis]->_homing->_positiveDirection ? MotionDirection::Negative : MotionDirection::Positive;
@@ -124,7 +120,6 @@ void backlash_Reset_for_homing(bool approach, uint8_t homing_mask) {
             }
         }
     }
-    //grbl_msg_sendf ( CLIENT_ALL, MsgLevel::Info, "BKSL Initi to (%3.3f, %3.3f, %3.3f) after homing!! ", backlash_data[0].prev_target, backlash_data[1].prev_target, backlash_data[2].prev_target );
 }
 
 //When ever the mechine origin is reset (homing) bcklash also need to reset
