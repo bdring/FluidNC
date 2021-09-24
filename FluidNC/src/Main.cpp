@@ -49,7 +49,7 @@ void setup() {
         // Load settings from non-volatile storage
         settings_init();  // requires config
 
-        log_info("FluidNC " << GIT_TAG << GIT_REV);
+        log_info("FluidNC " << git_info);
         log_info("Compiled with ESP32 SDK:" << ESP.getSdkVersion());
 
         if (!SPIFFS.begin(true)) {
@@ -125,10 +125,8 @@ void setup() {
         register_client(&WebUI::telnet_server);
 #endif
 #ifdef ENABLE_BLUETOOTH
-        if (config->_comms->_bluetoothConfig) {
-            config->_comms->_bluetoothConfig->begin();
-            register_client(&WebUI::SerialBT);
-        }
+        WebUI::bt_config.begin();
+        register_client(&WebUI::SerialBT);
 #endif
         WebUI::inputBuffer.begin();
     } catch (const AssertionFailed& ex) {

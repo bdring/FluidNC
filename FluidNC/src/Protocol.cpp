@@ -34,6 +34,7 @@ std::map<ExecAlarm, const char*> AlarmNames = {
     { ExecAlarm::HomingFailPulloff, "Homing Fail Pulloff" },
     { ExecAlarm::HomingFailApproach, "Homing Fail Approach" },
     { ExecAlarm::SpindleControl, "Spindle Control" },
+    { ExecAlarm::ControlPin, "Control Pin Initially On" },
 };
 
 volatile Accessory rtAccessoryOverride;  // Global realtime executor bitflag variable for spindle/coolant overrides.
@@ -95,11 +96,13 @@ void protocol_reset() {
     rtSleep                   = false;
     rtCycleStop               = false;
     rtAccessoryOverride.value = 0;
-    rtAlarm                   = ExecAlarm::None;
     rtFOverride               = FeedOverride::Default;
     rtROverride               = RapidOverride::Default;
     rtSOverride               = SpindleSpeedOverride::Default;
     spindle_stop_ovr.value    = 0;
+
+    // Do not clear rtAlarm because it might have been set during configuration
+    // rtAlarm = ExecAlarm::None;
 }
 
 static int32_t idleEndTime = 0;
@@ -699,7 +702,7 @@ void protocol_exec_rt_system() {
         protocol_do_macro(1);
     }
     if (rtButtonMacro2) {
-        rtButtonMacro0 = false;
+        rtButtonMacro2 = false;
         protocol_do_macro(2);
     }
     if (rtButtonMacro3) {

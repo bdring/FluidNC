@@ -28,8 +28,9 @@ public:
     // Configuration handlers.
     void group(Configuration::HandlerBase& handler) override;
 
-    bool system_check_safety_door_ajar();
-    void report(char* status);
+    bool   stuck();
+    bool   system_check_safety_door_ajar();
+    String report();
 
     ~Control() = default;
 };

@@ -3,6 +3,7 @@
 
 #include "../Machine/MachineConfig.h"
 #include "TelnetServer.h"
+#include "WebSettings.h"
 
 #ifdef ENABLE_WIFI
 
@@ -37,15 +38,15 @@ namespace WebUI {
         _RXbufferSize = 0;
         _RXbufferpos  = 0;
 
-        if (!config->_comms->_telnetEnable) {
+        if (!WebUI::telnet_enable->get()) {
             return false;
         }
-        _port = config->_comms->_telnetPort;
+        _port = WebUI::telnet_port->get();
 
         //create instance
         _telnetserver = new WiFiServer(_port, MAX_TLNT_CLIENTS);
         _telnetserver->setNoDelay(true);
-        log_info("Telnet Started on port " << _port);
+        log_info("Telnet started on port " << _port);
         //start telnet server
         _telnetserver->begin();
         _setupdone = true;

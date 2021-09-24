@@ -151,11 +151,6 @@ sdcard:
   card_detect: NO_PIN
   cs: gpio.5
 
-comms:
-    wifi_ap:
-        ip_address: "192.168.0.1"
-        ssid: FluidNC
-        
 probe:
   pin: NO_PIN
 
