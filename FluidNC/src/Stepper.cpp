@@ -239,7 +239,7 @@ void IRAM_ATTR Stepper::pulse_func() {
         if (st.counter[axis] > st.exec_block->step_event_count) {
             set_bitnum(st.step_outbits, axis);
             st.counter[axis] -= st.exec_block->step_event_count;
-            //Do not chnage the motor_steps for backlash steps so that backlash motion is hidden for the rest of the motions
+            //Skip syncing motor_steps for backlash motion steps so that the backlash motion is hidden for the rest of the cnc motions
             //TODO: verify if this will  messup the Bresenham line algorithm.
             if(!st.exec_block->is_backlash_motion){ 
                 if (bitnum_is_true(st.exec_block->direction_bits, axis)) {
