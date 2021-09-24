@@ -284,6 +284,11 @@ void plan_update_velocity_profile_parameters() {
 }
 
 bool plan_buffer_line(float* target, plan_line_data_t* pl_data) {
+    // Check for backlash correction if  this call is not a plan line call for backlash_Compensate
+    // FIXME: Homing and reset motions does not really require backlash correction
+    if(!pl_data->motion.systemMotion && !pl_data->motion.backlashMotion ){
+        backlash_Compensate_befor_target(target, pl_data);
+    }
     // Prepare and initialize new block. Copy relevant pl_data for block execution.
     plan_block_t* block = &block_buffer[block_buffer_head];
     memset(block, 0, sizeof(plan_block_t));  // Zero all block values.
@@ -397,7 +402,9 @@ bool plan_buffer_line(float* target, plan_line_data_t* pl_data) {
         pl.previous_nominal_speed = nominal_speed;
         // Update previous path unit_vector and planner position.
         memcpy(pl.previous_unit_vec, unit_vec, sizeof(unit_vec));  // pl.previous_unit_vec[] = unit_vec[]
-        memcpy(pl.position, target_steps, sizeof(target_steps));   // pl.position[] = target_steps[]
+        if(!(block->motion.backlashMotion )){ //Do not count backlash steps
+            memcpy(pl.position, target_steps, sizeof(target_steps));   // pl.position[] = target_steps[]
+        }
         // New block is all set. Update buffer head and next buffer head indices.
         block_buffer_head = next_buffer_head;
         next_buffer_head  = plan_next_block_index(block_buffer_head);
