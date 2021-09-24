@@ -379,6 +379,11 @@ namespace WebUI {
         //stop active services
         wifi_services.end();
 
+        if (!wifi_enable->get()) {
+            log_info("WiFi not enabled");
+            return false;
+        }
+
         if ((wifi_mode->get() == ESP_WIFI_STA || wifi_mode->get() == ESP_WIFI_STA_AP) && StartSTA()) {
             // WIFI mode is STA; fall back on AP if necessary
             goto wifi_on;
