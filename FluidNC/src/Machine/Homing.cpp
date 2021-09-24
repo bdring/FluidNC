@@ -300,11 +300,13 @@ namespace Machine {
                 for (int axis = 0; axis < n_axis; axis++) {
                     if (bitnum_is_true(motors, axis)) {
                         auto axisConfig = config->_axes->_axis[axis];
-                        pulloffOffset   = axisConfig->pulloffOffset();
-                        if (pulloffOffset != 0) {
-                            //log_info("Pulloff offset needed on axis " << axis << " of " << pulloffOffset);
-                            // TODO Do it
-                            run(motors & MOTOR1, false, false, pulloffOffset);
+                        if(axisConfig->hasDualMotor()){
+                            pulloffOffset   = axisConfig->pulloffOffset();
+                            if (pulloffOffset != 0) {
+                                //log_info("Pulloff offset needed on axis " << axis << " of " << pulloffOffset);
+                                // TODO Do it
+                                run(motors & MOTOR1, false, false, pulloffOffset);
+                            }
                         }
                     }
                 }
