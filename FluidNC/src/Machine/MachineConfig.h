@@ -21,7 +21,6 @@
 #include "Axes.h"
 #include "SPIBus.h"
 #include "I2SOBus.h"
-#include "Communications.h"
 #include "UserOutputs.h"
 #include "Macros.h"
 
@@ -36,7 +35,6 @@ namespace Machine {
         Stepping*       _stepping    = nullptr;
         CoolantControl* _coolant     = nullptr;
         Probe*          _probe       = nullptr;
-        Communications* _comms       = nullptr;
         Control*        _control     = nullptr;
         UserOutputs*    _userOutputs = nullptr;
         SDCard*         _sdCard      = nullptr;

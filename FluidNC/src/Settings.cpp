@@ -236,6 +236,7 @@ void StringSetting::setDefault() {
 
 Error StringSetting::setStringValue(char* s) {
     if (_minLength && _maxLength && (strlen(s) < size_t(_minLength) || strlen(s) > size_t(_maxLength))) {
+        log_error("Setting length error");
         return Error::BadNumberFormat;
     }
     Error err = check(s);
@@ -327,12 +328,14 @@ Error EnumSetting::setStringValue(char* s) {
 
         // Disallow empty string
         if (!s || !*s) {
+            showList();
             return Error::BadNumberFormat;
         }
         char*   endptr;
         uint8_t num = uint8_t(strtol(s, &endptr, 10));
         // Disallow non-numeric characters in string
         if (*endptr) {
+            showList();
             return Error::BadNumberFormat;
         }
         for (it = _options->begin(); it != _options->end(); it++) {
@@ -365,6 +368,7 @@ const char* EnumSetting::enumToString(int8_t value) {
             return it->first;
         }
     }
+    showList();
     return "???";
 }
 const char* EnumSetting::getDefaultString() {
@@ -372,6 +376,14 @@ const char* EnumSetting::getDefaultString() {
 }
 const char* EnumSetting::getStringValue() {
     return enumToString(get());
+}
+
+void EnumSetting::showList() {
+    String optList = "";
+    for (enum_opt_t::iterator it = _options->begin(); it != _options->end(); it++) {
+        optList = optList + " " + it->first;
+    }
+    log_info("Valid options:" << optList);
 }
 
 void EnumSetting::addWebui(WebUI::JSONencoder* j) {
@@ -423,4 +435,92 @@ void Coordinates::set(float value[MAX_N_AXIS]) {
         protocol_buffer_synchronize();
     }
     nvs_set_blob(Setting::_handle, _name, _currentValue, sizeof(_currentValue));
+}
+
+IPaddrSetting::IPaddrSetting(const char*   description,
+                             type_t        type,
+                             permissions_t permissions,
+                             const char*   grblName,
+                             const char*   name,
+                             uint32_t      defVal,
+                             bool (*checker)(char*) = NULL) :
+    Setting(description, type, permissions, grblName, name, checker)  // There are no GRBL IP settings.
+    ,
+    _defaultValue(defVal), _currentValue(defVal) {}
+
+IPaddrSetting::IPaddrSetting(const char*   description,
+                             type_t        type,
+                             permissions_t permissions,
+                             const char*   grblName,
+                             const char*   name,
+                             const char*   defVal,
+                             bool (*checker)(char*) = NULL) :
+    Setting(description, type, permissions, grblName, name, checker) {
+    IPAddress ipaddr;
+    if (ipaddr.fromString(defVal)) {
+        _defaultValue = ipaddr;
+        _currentValue = _defaultValue;
+    } else {
+        throw std::runtime_error("Bad IPaddr default");
+    }
+}
+
+void IPaddrSetting::load() {
+    esp_err_t err = nvs_get_i32(_handle, _keyName, (int32_t*)&_storedValue);
+    if (err) {
+        _storedValue  = 0x000000ff;  // Unreasonable value for any IP thing
+        _currentValue = _defaultValue;
+    } else {
+        _currentValue = _storedValue;
+    }
+}
+
+void IPaddrSetting::setDefault() {
+    _currentValue = _defaultValue;
+    if (_storedValue != _currentValue) {
+        nvs_erase_key(_handle, _keyName);
+    }
+}
+
+Error IPaddrSetting::setStringValue(char* s) {
+    s         = trim(s);
+    Error err = check(s);
+    if (err != Error::Ok) {
+        return err;
+    }
+    IPAddress ipaddr;
+    if (!ipaddr.fromString(s)) {
+        return Error::InvalidValue;
+    }
+    _currentValue = ipaddr;
+    if (_storedValue != _currentValue) {
+        if (_currentValue == _defaultValue) {
+            nvs_erase_key(_handle, _keyName);
+        } else {
+            if (nvs_set_i32(_handle, _keyName, (int32_t)_currentValue)) {
+                return Error::NvsSetFailed;
+            }
+            _storedValue = _currentValue;
+        }
+    }
+    check(NULL);
+    return Error::Ok;
+}
+
+const char* IPaddrSetting::getDefaultString() {
+    static String s;
+    s = IPAddress(_defaultValue).toString();
+    return s.c_str();
+}
+const char* IPaddrSetting::getStringValue() {
+    static String s;
+    s = IPAddress(get()).toString();
+    return s.c_str();
+}
+
+void IPaddrSetting::addWebui(WebUI::JSONencoder* j) {
+    if (getDescription()) {
+        j->begin_webui(getName(), getDescription(), "A", getStringValue());
+        j->end_object();
+    }
 }

@@ -30,6 +30,7 @@
 #include "WebUI/WifiConfig.h"            // wifi_config
 #include "WebUI/TelnetServer.h"          // WebUI::telnet_server
 #include "WebUI/BTConfig.h"              // bt_config
+#include "WebUI/WebSettings.h"
 
 #include <map>
 #include <freertos/task.h>
@@ -206,7 +207,7 @@ void report_feedback_message(Message message) {  // ok to send to all clients
 #include "Uart.h"
 // Welcome message
 void report_init_message(Print& client) {
-    client << "\r\nGrbl " << grbl_version << " [FluidNC " << git_info;
+    client << "\r\nGrbl " << grbl_version << " [FluidNC " << git_info << " (";
 
 #if defined(ENABLE_WIFI) || defined(ENABLE_BLUETOOTH)
 #    ifdef ENABLE_WIFI
@@ -418,7 +419,7 @@ void report_build_info(const char* line, Print& client) {
         client << "A";
     }
 #ifdef ENABLE_BLUETOOTH
-    if (config->_comms->_bluetoothConfig) {
+    if (WebUI::bt_enable->get()) {
         client << "B";
     }
 #endif
@@ -446,12 +447,8 @@ void report_build_info(const char* line, Print& client) {
     }
 #endif
 #ifdef ENABLE_BLUETOOTH
-    if (config->_comms->_bluetoothConfig) {
-        String btinfo = config->_comms->_bluetoothConfig->info();
-        if (btinfo.length()) {
-            client << "[MSG: Machine: " << btinfo << "]\n";
-            ;
-        }
+    if (WebUI::bt_enable->get()) {
+        client << "[MSG: Machine: " << WebUI::bt_config.info() << "]\n";
     }
 #endif
 }

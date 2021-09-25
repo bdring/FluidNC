@@ -162,21 +162,6 @@ probe:
   pin: NO_PIN
   check_mode_start: true
 
-comms:
-  telnet_enable: true
-  telnet_port: 23
-  http_enable: true
-  http_port: 80
-  hostname: fluidnc
-  wifi_ap:
-    ssid: FluidNC
-    ip_address: 10.0.0.1
-    gateway: 10.0.0.1
-    netmask: 255.255.0.0
-    dhcp: true
-    channel: 1
-
-
 macros:
   n0:
   n1:

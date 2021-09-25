@@ -54,8 +54,6 @@ probe:
   pin: NO_PIN
   check_mode_start: true
 
-comms:
-
 macros:
   n0:
   n1:
