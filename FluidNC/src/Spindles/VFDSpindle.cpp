@@ -57,20 +57,20 @@ namespace Spindles {
 
     void VFD::reportParsingErrors(ModbusCommand cmd, uint8_t* rx_message, size_t read_length) {
 #ifdef DEBUG_VFD
-        hex_msg(cmd.msg, "RS485 Tx: ", cmd.tx_length);
-        hex_msg(rx_message, "RS485 Rx: ", read_length);
+        //hex_msg(cmd.msg, "RS485 Tx: ", cmd.tx_length);
+        //hex_msg(rx_message, "RS485 Rx: ", read_length);
 #endif
     }
     void VFD::reportCmdErrors(ModbusCommand cmd, uint8_t* rx_message, size_t read_length, uint8_t id) {
 #ifdef DEBUG_VFD
-        hex_msg(cmd.msg, "RS485 Tx: ", cmd.tx_length);
-        hex_msg(rx_message, "RS485 Rx: ", read_length);
+        //hex_msg(cmd.msg, "RS485 Tx: ", cmd.tx_length);
+        //hex_msg(rx_message, "RS485 Rx: ", read_length);
 
         if (read_length != 0) {
             if (rx_message[0] != id) {
                 log_info("RS485 received message from other modbus device");
             } else if (read_length != cmd.rx_length) {
-                log_info("RS485 received message of unexpected length; expected %d, got %d", int(cmd.rx_length), int(read_length));
+                log_info("RS485 received message of unexpected length; expected:" << int(cmd.rx_length) << " got:" << int(read_length));
             } else {
                 log_info("RS485 CRC check failed");
             }
@@ -333,7 +333,7 @@ namespace Spindles {
         bool critical = (sys.state == State::Cycle || state != SpindleState::Disable);
 
         uint32_t dev_speed = mapSpeed(speed);
-        log_debug("speed " << speed << " dev_speed " << dev_speed);
+        log_debug("Speed:" << speed << " linearized:" << dev_speed);
 
         if (_current_state != state) {
             // Changing state
@@ -365,7 +365,7 @@ namespace Spindles {
 
             while ((_sync_dev_speed < minSpeedAllowed || _sync_dev_speed > maxSpeedAllowed) && unchanged < limit) {
 #ifdef DEBUG_VFD
-                log_debug("Syncing speed. Requested %d, current %d", int(dev_speed), int(_sync_dev_speed));
+                log_debug("Syncing speed. Requested: " << int(dev_speed) << " current:" << int(_sync_dev_speed));
 #endif
                 if (!mc_dwell(500)) {
                     // Something happened while we were dwelling, like a safety door.
@@ -379,7 +379,7 @@ namespace Spindles {
                 last      = _sync_dev_speed;
             }
 #ifdef DEBUG_VFD
-            log_debug("Synced speed. Requested %d, current %d", int(dev_speed), int(_sync_dev_speed));
+            log_debug("Synced speed. Requested:" << int(dev_speed) << " current:" << int(_sync_dev_speed));
 #endif
 
             if (unchanged == limit) {

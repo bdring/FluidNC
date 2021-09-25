@@ -1,0 +1,176 @@
+board: 6 Pack
+name: 6 Pack External XYZ Haunyang
+stepping:
+  engine: I2S_STREAM
+  idle_ms: 250
+  pulse_us: 2
+  dir_delay_us: 1
+  disable_delay_us: 0
+
+axes:
+  shared_stepper_disable: NO_PIN
+  x:
+    steps_per_mm: 800.000
+    max_rate: 5000.000
+    acceleration: 100.000
+    max_travel: 300.000
+    soft_limits: false
+    homing:
+      cycle: 2
+      positive_direction: false
+      mpos: 150.000
+      feed_rate: 100.000
+      seek_rate: 200.000
+      debounce_ms: 500
+      seek_scaler: 1.100
+      feed_scaler: 1.100
+
+    motor0:
+      limit_neg: NO_PIN
+      limit_pos: NO_PIN
+      limit_all: NO_PIN
+      hard_limits: true
+      pulloff: 1.000
+      standard_stepper:
+        step: I2SO.2
+        direction: I2SO.1
+        disable: I2SO.0
+
+  y:
+    steps_per_mm: 800.000
+    max_rate: 5000.000
+    acceleration: 100.000
+    max_travel: 300.000
+    soft_limits: false
+    homing:
+      cycle: 2
+      positive_direction: true
+      mpos: 150.000
+      feed_rate: 100.000
+      seek_rate: 200.000
+      debounce_ms: 500
+      seek_scaler: 1.100
+      feed_scaler: 1.100
+
+    motor0:
+      limit_neg: NO_PIN
+      limit_pos: NO_PIN
+      limit_all: gpio.32:pu
+      hard_limits: true
+      pulloff: 1.000
+      standard_stepper:
+        step: I2SO.5
+        direction: I2SO.4
+        disable: I2SO.7
+
+  z:
+    steps_per_mm: 800.000
+    max_rate: 5000.000
+    acceleration: 100.000
+    max_travel: 300.000
+    soft_limits: false
+    homing:
+      cycle: 1
+      positive_direction: true
+      mpos: 150.000
+      feed_rate: 100.000
+      seek_rate: 800.000
+      debounce_ms: 500
+      seek_scaler: 1.100
+      feed_scaler: 1.100
+
+    motor0:
+      limit_neg: NO_PIN
+      limit_pos: NO_PIN
+      limit_all: gpio.35
+      hard_limits: true
+      pulloff: 1.000
+      standard_stepper:
+        step: I2SO.10
+        direction: I2SO.9
+        disable: I2SO.8
+
+i2so:
+  bck: gpio.22
+  data: gpio.21
+  ws: gpio.17
+
+spi:
+  miso: gpio.19
+  mosi: gpio.23
+  sck: gpio.18
+
+sdcard:
+  card_detect: NO_PIN
+  cs: gpio.5
+
+control:
+  safety_door: NO_PIN
+  reset: NO_PIN
+  feed_hold: NO_PIN
+  cycle_start: NO_PIN
+  macro0: NO_PIN
+  macro1: NO_PIN
+  macro2: NO_PIN
+  macro3: NO_PIN
+
+coolant:
+  flood: NO_PIN
+  mist: NO_PIN
+  delay_ms: 0
+
+probe:
+  pin: NO_PIN
+  check_mode_start: true
+
+macros:
+  n0:
+  n1:
+  macro0:
+  macro1:
+  macro2:
+  macro3:
+
+user_outputs:
+  analog0: NO_PIN
+  analog1: NO_PIN
+  analog2: NO_PIN
+  analog3: NO_PIN
+  analog_frequency0: 5000
+  analog_frequency1: 5000
+  analog_frequency2: 5000
+  analog_frequency3: 5000
+  digital0: NO_PIN
+  digital1: NO_PIN
+  digital2: NO_PIN
+  digital3: NO_PIN
+
+software_debounce_ms: 0
+laser_mode: false
+arc_tolerance: 0.002
+junction_deviation: 0.010
+verbose_errors: false
+report_inches: false
+homing_init_lock: false
+enable_parking_override_control: false
+deactivate_parking_upon_init: false
+check_limits_at_init: false
+limits_two_switches_on_axis: false
+disable_laser_during_hold: true
+use_line_numbers: false
+
+Huanyang:
+  uart:
+    txd_pin: gpio.26
+    rxd_pin: gpio.16
+    rts_pin: gpio.4
+    baud: 9600
+    mode: 8N1
+  spinup_ms: 10
+  spindown_ms: 10
+  modbus_id: 1
+  spinup_ms: 0
+  spindown_ms: 0
+  tool: 0
+  speeds: speeds: 0=0% 0=25% 6000=25% 24000=100%
+

@@ -222,8 +222,9 @@ namespace Spindles {
             return [](const uint8_t* response, Spindles::VFD* vfd) -> bool {
                 uint16_t value = (response[4] << 8) | response[5];
 #ifdef DEBUG_VFD
-                log_debug("VFD: Max frequency = " << value);
+                log_debug("VFD: Max frequency = " << value / 100 << "Hz " << value / 100 * 60 << "RPM");
 #endif
+                log_info("VFD: Max speed:" << (value / 100 * 60) << "rpm");
 
                 // Set current RPM value? Somewhere?
                 auto huanyang           = static_cast<Huanyang*>(vfd);
@@ -239,8 +240,9 @@ namespace Spindles {
                 uint16_t value = (response[4] << 8) | response[5];
 
 #ifdef DEBUG_VFD
-                debug_all("VFD: Min frequency set to " << value);
+                log_debug("VFD: Min frequency = " << value / 100 << "Hz " << value / 100 * 60 << "RPM");
 #endif
+                log_info("VFD: Min speed:" << (value / 100 * 60) << "rpm");
 
                 // Set current RPM value? Somewhere?
                 auto huanyang           = static_cast<Huanyang*>(vfd);
