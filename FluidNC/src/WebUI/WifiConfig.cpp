@@ -267,15 +267,16 @@ namespace WebUI {
             WiFi.softAPdisconnect();
         }
         WiFi.enableAP(false);
+        //SSID
+        String SSID = wifi_sta_ssid->get();
+        if (SSID.length() == 0) {
+            log_info("STA SSID is not set");
+            return false;
+        }
         WiFi.mode(WIFI_STA);
         //Get parameters for STA
         String h = wifi_hostname->get();
         WiFi.setHostname(h.c_str());
-        //SSID
-        String SSID = wifi_sta_ssid->get();
-        if (SSID.length() == 0) {
-            SSID = DEFAULT_STA_SSID;
-        }
         //password
         String  password = wifi_sta_password->get();
         int8_t  IP_mode  = wifi_sta_mode->get();
@@ -380,20 +381,20 @@ namespace WebUI {
         wifi_services.end();
 
         switch (wifi_mode->get()) {
-            case ESP_WIFI_OFF:
+            case WiFiOff:
                 log_info("WiFi is disabled");
                 return false;
-            case ESP_WIFI_STA:
+            case WiFiSTA:
                 if (StartSTA()) {
                     goto wifi_on;
                 }
                 goto wifi_off;
-            case ESP_WIFI_STA_AP:
+            case WiFiFallback:
                 if (StartSTA()) {
                     goto wifi_on;
                 }
                 // fall through to fallback to AP mode
-            case ESP_WIFI_AP:
+            case WiFiAP:
                 if (StartAP()) {
                     goto wifi_on;
                 }
