@@ -379,23 +379,28 @@ namespace WebUI {
         //stop active services
         wifi_services.end();
 
-        if (!wifi_enable->get()) {
-            log_info("WiFi not enabled");
-            return false;
+        switch (wifi_mode->get()) {
+            case ESP_WIFI_OFF:
+                log_info("WiFi is disabled");
+                return false;
+            case ESP_WIFI_STA:
+                if (StartSTA()) {
+                    goto wifi_on;
+                }
+                goto wifi_off;
+            case ESP_WIFI_STA_AP:
+                if (StartSTA()) {
+                    goto wifi_on;
+                }
+                // fall through to fallback to AP mode
+            case ESP_WIFI_AP:
+                if (StartAP()) {
+                    goto wifi_on;
+                }
+                goto wifi_off;
         }
 
-        if ((wifi_mode->get() == ESP_WIFI_STA || wifi_mode->get() == ESP_WIFI_STA_AP) && StartSTA()) {
-            // WIFI mode is STA; fall back on AP if necessary
-            goto wifi_on;
-        }
-        if (wifi_mode->get() == ESP_WIFI_STA_AP) {
-            log_info("STA connection failed. Setting up AP");
-        }
-
-        if ((wifi_mode->get() == ESP_WIFI_AP || wifi_mode->get() == ESP_WIFI_STA_AP) && StartAP()) {
-            goto wifi_on;
-        }
-
+    wifi_off:
         log_info("WiFi off");
         WiFi.mode(WIFI_OFF);
         return false;

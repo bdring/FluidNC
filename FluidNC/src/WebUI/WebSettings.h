@@ -8,10 +8,10 @@
 #include "../Settings.h"
 
 //Radio Mode
+const int ESP_WIFI_OFF    = 0;
 const int ESP_WIFI_STA    = 1;
 const int ESP_WIFI_AP     = 2;
 const int ESP_WIFI_STA_AP = 3;  // Tries STA falls back to AP
-
 
 namespace WebUI {
 #ifdef ENABLE_AUTHENTICATION
@@ -21,7 +21,6 @@ namespace WebUI {
 
 #ifdef ENABLE_WIFI
 
-    extern EnumSetting*   wifi_enable;
     extern EnumSetting*   wifi_mode;
     extern EnumSetting*   wifi_sta_mode;
     extern IPaddrSetting* wifi_sta_ip;

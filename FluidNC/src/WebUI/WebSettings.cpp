@@ -44,14 +44,14 @@ namespace WebUI {
     EnumSetting* wifi_radio_mode;
 
     enum_opt_t wifiModeOptions = {
+        { "Off", ESP_WIFI_OFF },
         { "STA", ESP_WIFI_STA },
         { "AP", ESP_WIFI_AP },
-        { "STA_AP", ESP_WIFI_STA_AP },
+        { "STA>AP", ESP_WIFI_STA_AP },
     };
 #endif
 
 #ifdef ENABLE_WIFI
-    EnumSetting* wifi_enable;
     EnumSetting* wifi_mode;
 
     StringSetting* wifi_sta_ssid;
@@ -1022,8 +1022,7 @@ namespace WebUI {
     void make_wifi_settings() {
 #ifdef ENABLE_WIFI
 
-        wifi_mode   = new EnumSetting("WiFi mode", WEBSET, WA, "ESP116", "WiFi/Mode", WIFI_AP, &wifiModeOptions, NULL);
-        wifi_enable = new EnumSetting("Wifi Enable", WEBSET, WA, "ESP117", "WiFi/Enable", 1, &onoffOptions, NULL);
+        wifi_mode = new EnumSetting("WiFi mode", WEBSET, WA, "ESP116", "WiFi/Mode", WIFI_AP, &wifiModeOptions, NULL);
 
         telnet_port = new IntSetting(
             "Telnet Port", WEBSET, WA, "ESP131", "Telnet/Port", DEFAULT_TELNETSERVER_PORT, MIN_TELNET_PORT, MAX_TELNET_PORT, NULL);
@@ -1109,7 +1108,7 @@ namespace WebUI {
         new WebCommand(NULL, WEBCMD, WG, "ESP111", "System/IP", showIP);
         new WebCommand("IP=ipaddress MSK=netmask GW=gateway", WEBCMD, WA, "ESP103", "Sta/Setup", showSetStaParams);
         // no get, admin to set
-        
+
 #endif
     }
 
