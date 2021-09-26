@@ -148,13 +148,16 @@ namespace WebUI {
 
     // Creates an Esp32_WebUI configuration item specification from
     // a value passed in as a C-style string.
-    void JSONencoder::begin_webui(const char* brief, const char* full, const char* type, const char* val) {
+    void JSONencoder::begin_webui(const char* name, const char* help, const char* type, const char* val) {
         begin_object();
         member("F", "network");
-        // We must pass the full path as the P parameter because that is
-        // what WebUI sends back to us when setting a new value.
-        member("P", full);
-        member("H", full);
+        // P is the name that WebUI uses to set a new value.
+        // H is the legend that WebUI displays in the UI.
+        // The distinction used to be important because, prior to the introuction
+        // of named settings, P was a numerical offset into a fixed EEPROM layout.
+        // Now P is a hierarchical name that is as easy to understand as the old H values.
+        member("P", name);
+        member("H", help);
         member("T", type);
         member("V", val);
     }
