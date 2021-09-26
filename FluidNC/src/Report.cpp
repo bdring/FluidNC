@@ -412,9 +412,6 @@ void report_build_info(const char* line, Print& client) {
         client << "M";  // TODO Need to deal with M8...it could be disabled
     }
     client << "PH";
-    if (config->_limitsTwoSwitchesOnAxis) {
-        client << "L";
-    }
     if (ALLOW_FEED_OVERRIDE_DURING_PROBE_CYCLES) {
         client << "A";
     }
