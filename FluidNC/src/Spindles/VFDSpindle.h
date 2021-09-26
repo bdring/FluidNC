@@ -35,9 +35,6 @@ namespace Spindles {
             bool          critical;
             uint32_t      arg;
         };
-#if defined(DEBUG_VFD) || defined(DEBUG_VFD_ALL)
-        void hex_msg(uint8_t* buf, const char* prefix, int len);
-#endif
 
     protected:
         struct ModbusCommand {

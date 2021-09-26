@@ -172,5 +172,4 @@ Huanyang:
   spinup_ms: 0
   spindown_ms: 0
   tool: 0
-  speeds: speeds: 0=0% 0=25% 6000=25% 24000=100%
-
+  speeds: 0=0% 0=25% 6000=25% 24000=100%

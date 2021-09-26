@@ -23,6 +23,7 @@
 #include "../Machine/MachineConfig.h"
 #include "../MotionControl.h"  // mc_reset
 #include "../Protocol.h"       // rtAlarm
+#include "../Report.h"         // hex message
 
 #include <freertos/task.h>
 #include <freertos/queue.h>
@@ -38,33 +39,16 @@ namespace Spindles {
     QueueHandle_t VFD::vfd_cmd_queue     = nullptr;
     TaskHandle_t  VFD::vfd_cmdTaskHandle = nullptr;
 
-#if defined(DEBUG_VFD) || defined(DEBUG_VFD_ALL)
-    // Print a message in hex format
-    //    Example: report_hex_msg(msg, "Rx:", 6);
-    //    would would print something like ... [MSG Rx: 0x01 0x03 0x01 0x08 0x31 0xbf]
-    void VFD::hex_msg(uint8_t* buf, const char* prefix, int len) {
-        char report[200];
-        char temp[20];
-        sprintf(report, "%s", prefix);
-        for (int i = 0; i < len; i++) {
-            sprintf(temp, " 0x%02X", buf[i]);
-            strcat(report, temp);
-        }
-
-        log_info(report);
-    }
-#endif
-
     void VFD::reportParsingErrors(ModbusCommand cmd, uint8_t* rx_message, size_t read_length) {
 #ifdef DEBUG_VFD
-        //hex_msg(cmd.msg, "RS485 Tx: ", cmd.tx_length);
-        //hex_msg(rx_message, "RS485 Rx: ", read_length);
+        hex_msg(cmd.msg, "RS485 Tx: ", cmd.tx_length);
+        hex_msg(rx_message, "RS485 Rx: ", read_length);
 #endif
     }
     void VFD::reportCmdErrors(ModbusCommand cmd, uint8_t* rx_message, size_t read_length, uint8_t id) {
 #ifdef DEBUG_VFD
-        //hex_msg(cmd.msg, "RS485 Tx: ", cmd.tx_length);
-        //hex_msg(rx_message, "RS485 Rx: ", read_length);
+        hex_msg(cmd.msg, "RS485 Tx: ", cmd.tx_length);
+        hex_msg(rx_message, "RS485 Rx: ", read_length);
 
         if (read_length != 0) {
             if (rx_message[0] != id) {
@@ -117,6 +101,7 @@ namespace Spindles {
                             next_cmd.critical = action.critical;
                             break;
                         case actionSetMode:
+                            log_debug("vfd_cmd_task mode:" << action.action);
                             if (!instance->prepareSetModeCommand(SpindleState(action.arg), next_cmd)) {
                                 continue;  // main loop
                             }
@@ -254,7 +239,7 @@ namespace Spindles {
 
             if (retry_count == MAX_RETRIES) {
                 if (!unresponsive) {
-                    log_info("Spindle RS485 Unresponsive " << next_cmd.rx_length);
+                    log_info("Spindle RS485 Unresponsive");
                     unresponsive = true;
                     pollidx      = -1;
                 }
@@ -307,6 +292,8 @@ namespace Spindles {
         }
 
         config_message();
+
+        set_mode(SpindleState::Disable, true);
     }
 
     // Checks for all the required pin definitions
@@ -409,6 +396,7 @@ namespace Spindles {
         _current_state = mode;
         return true;
     }
+
     void VFD::set_mode(SpindleState mode, bool critical) {
         if (vfd_cmd_queue) {
             VFDaction action;
@@ -449,7 +437,7 @@ namespace Spindles {
         _current_dev_speed = speed;
 
 #ifdef DEBUG_VFD_ALL
-        log_debug("Setting spindle speed to %d", int(speed));
+        log_debug("Setting spindle speed to:" << int(speed));
 #endif
         // Do variant-specific command preparation
         set_speed_command(speed, data);
