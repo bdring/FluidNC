@@ -45,7 +45,6 @@ namespace Machine {
         handler.section("user_outputs", _userOutputs);
         handler.item("software_debounce_ms", _softwareDebounceMs);
         // TODO: Consider putting these under a gcode: hierarchy level? Or motion control?
-        handler.item("laser_mode", _laserMode);
         handler.item("arc_tolerance", _arcTolerance);
         handler.item("junction_deviation", _junctionDeviation);
         handler.item("verbose_errors", _verboseErrors);
