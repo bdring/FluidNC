@@ -769,7 +769,7 @@ static void protocol_exec_rt_suspend() {
         restore_spindle       = block->spindle;
         restore_spindle_speed = block->spindle_speed;
     }
-    if (config->_disableLaserDuringHold && spindle->isRateAdjusted()) {
+    if (spindle->isRateAdjusted()) {
         rtAccessoryOverride.bit.spindleOvrStop = true;
     }
 
