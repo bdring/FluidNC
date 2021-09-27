@@ -13,24 +13,30 @@
 #include <atomic>
 
 namespace MotorDrivers {
-    TrinamicSpiDriver::TrinamicSpiDriver(uint16_t driver_part_number, int8_t spi_index) :
-        TrinamicBase(driver_part_number), _spi_index(spi_index) {}
+    TrinamicSpiDriver::TrinamicSpiDriver(uint16_t driver_part_number) : TrinamicBase(driver_part_number) {}
 
-    uint8_t daisy_chain_cs = -1;
+    pinnum_t TrinamicSpiDriver::daisy_chain_cs_id = 255;
+    uint8_t  TrinamicSpiDriver::spi_index_mask    = 0;
 
     void TrinamicSpiDriver::init() {
-        _has_errors    = false;
+        _has_errors = false;
+
         auto spiConfig = config->_spi;
+        Assert(spiConfig && spiConfig->defined(), "SPI bus is not configured. Cannot initialize TMC driver.");
 
-        Assert(spiConfig->defined(), "SPI bus is not configured. Cannot initialize TMC driver.");
-
-        _cs_pin.setAttr(Pin::Attr::Output | Pin::Attr::InitialOn);
-        _cs_mapping = PinMapper(_cs_pin);
+        uint8_t cs_id;
+        if (daisy_chain_cs_id != 255) {
+            cs_id = daisy_chain_cs_id;
+        } else {
+            _cs_pin.setAttr(Pin::Attr::Output | Pin::Attr::InitialOn);
+            _cs_mapping = PinMapper(_cs_pin);
+            cs_id       = _cs_mapping.pinId();
+        }
 
         if (_driver_part_number == 2130) {
-            tmcstepper = new TMC2130Stepper(_cs_mapping.pinId(), _r_sense, -1);  // TODO hardwired to non daisy chain index
+            tmcstepper = new TMC2130Stepper(cs_id, _r_sense, -1);  // TODO hardwired to non daisy chain index
         } else if (_driver_part_number == 5160) {
-            tmcstepper = new TMC5160Stepper(_cs_mapping.pinId(), _r_sense, _spi_index);
+            tmcstepper = new TMC5160Stepper(cs_id, _r_sense, _spi_index);
         } else {
             log_info("    Unsupported Trinamic part number TMC" << _driver_part_number);
             _has_errors = true;  // This motor cannot be used
@@ -47,11 +53,6 @@ namespace MotorDrivers {
         link = List;
         List = this;
 
-        // init() must be called later, after all TMC drivers have CS pins setup.
-        if (_has_errors) {
-            return;
-        }
-
         // Display the stepper library version message once, before the first
         // TMC config message.  Link is NULL for the first TMC instance.
         if (!link) {
@@ -60,37 +61,25 @@ namespace MotorDrivers {
 
         config_message();
 
-        if (spiConfig != nullptr || !spiConfig->defined()) {
-            auto csPin   = _cs_pin.getNative(Pin::Capabilities::Output);
-            auto mosiPin = spiConfig->_mosi.getNative(Pin::Capabilities::Output | Pin::Capabilities::Native);
-            auto sckPin  = spiConfig->_sck.getNative(Pin::Capabilities::Output | Pin::Capabilities::Native);
-            auto misoPin = spiConfig->_miso.getNative(Pin::Capabilities::Input | Pin::Capabilities::Native);
+        tmcstepper->begin();
 
-            SPI.begin(sckPin, misoPin, mosiPin, csPin);  // this will get called for each motor, but does not seem to hurt anything
+        _has_errors = !test();  // Try communicating with motor. Prints an error if there is a problem.
 
-            tmcstepper->begin();
+        init_step_dir_pins();
+        read_settings();  // pull info from settings
+        set_mode(false);
 
-            _has_errors = !test();  // Try communicating with motor. Prints an error if there is a problem.
-
-            init_step_dir_pins();
-            read_settings();  // pull info from settings
-            set_mode(false);
-
-            // After initializing all of the TMC drivers, create a task to
-            // display StallGuard data.  List == this for the final instance.
-            if (List == this) {
-                xTaskCreatePinnedToCore(readSgTask,    // task
-                                        "readSgTask",  // name for task
-                                        4096,          // size of task stack
-                                        this,          // parameters
-                                        1,             // priority
-                                        NULL,
-                                        SUPPORT_TASK_CORE  // must run the task on same core
-                );
-            }
-        } else {
-            log_info("SPI bus is not available; cannot initialize TMC driver.");
-            _has_errors = true;
+        // After initializing all of the TMC drivers, create a task to
+        // display StallGuard data.  List == this for the final instance.
+        if (List == this) {
+            xTaskCreatePinnedToCore(readSgTask,    // task
+                                    "readSgTask",  // name for task
+                                    4096,          // size of task stack
+                                    this,          // parameters
+                                    1,             // priority
+                                    NULL,
+                                    SUPPORT_TASK_CORE  // must run the task on same core
+            );
         }
     }
 
