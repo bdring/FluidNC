@@ -334,7 +334,7 @@ namespace Spindles {
                 setSpeed(dev_speed);
             }
         }
-        if (!supports_actual_speed()) {
+        if (!use_delay_settings()) {
             spindleDelay(state, speed);
         } else {
             // _sync_dev_speed is set by a callback that handles

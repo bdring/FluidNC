@@ -64,7 +64,7 @@ namespace Spindles {
         virtual response_parser get_current_speed(ModbusCommand& data) { return nullptr; }
         virtual response_parser get_current_direction(ModbusCommand& data) { return nullptr; }
         virtual response_parser get_status_ok(ModbusCommand& data) = 0;
-        virtual bool            supports_actual_speed() const { return false; }
+        
         virtual bool            safety_polling() const { return true; }
 
         // The constructor sets these
