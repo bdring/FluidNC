@@ -672,6 +672,18 @@ void report_realtime_status(Print& client) {
     client << ">\n";
 }
 
+void hex_msg(uint8_t* buf, const char* prefix, int len) {
+    char report[200];
+    char temp[20];
+    sprintf(report, "%s", prefix);
+    for (int i = 0; i < len; i++) {
+        sprintf(temp, " 0x%02X", buf[i]);
+        strcat(report, temp);
+    }
+
+    log_info(report);
+}
+
 void reportTaskStackSize(UBaseType_t& saved) {
 #ifdef DEBUG_REPORT_STACK_FREE
     UBaseType_t newHighWater = uxTaskGetStackHighWaterMark(NULL);

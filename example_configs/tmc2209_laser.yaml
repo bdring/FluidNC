@@ -161,8 +161,6 @@ Laser:
   direction_pin: NO_PIN
   disable_with_zero_speed: false
   zero_speed_with_disable: true
-  spinup_ms: 0
-  spindown_ms: 0
   tool: 100
   speeds: 0=0.000% 255=100.000%
   
