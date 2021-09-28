@@ -51,7 +51,6 @@ namespace Spindles {
         void group(Configuration::HandlerBase& handler) override {
             handler.item("direction_pin", _direction_pin);
             groupCommon(handler);
-            Spindle::group(handler);
         }
 
         virtual ~OnOff() {}
