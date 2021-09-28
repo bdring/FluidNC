@@ -30,7 +30,11 @@ namespace Spindles {
         // Name of the configurable. Must match the name registered in the cpp file.
         const char* name() const override { return "Laser"; }
 
-        void group(Configuration::HandlerBase& handler) override { PWM::group(handler); }
+        void group(Configuration::HandlerBase& handler) override {
+            handler.item("pwm_freq", _pwm_freq);
+
+            OnOff::groupCommon(handler);
+        }
 
         ~Laser() {}
     };
