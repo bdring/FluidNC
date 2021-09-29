@@ -42,8 +42,8 @@ namespace WebUI {
 
     //defaults values
     static const char* DEFAULT_HOSTNAME          = "fluidnc";
-    static const char* DEFAULT_STA_SSID          = "FluidNC";
-    static const char* DEFAULT_STA_PWD           = "12345678";
+    static const char* DEFAULT_STA_SSID          = "";
+    static const char* DEFAULT_STA_PWD           = "";
     static const char* DEFAULT_STA_IP            = "0.0.0.0";
     static const char* DEFAULT_STA_GW            = "0.0.0.0";
     static const char* DEFAULT_STA_MK            = "0.0.0.0";
@@ -63,7 +63,7 @@ namespace WebUI {
 
     //boundaries
     static const int MAX_SSID_LENGTH     = 32;
-    static const int MIN_SSID_LENGTH     = 1;
+    static const int MIN_SSID_LENGTH     = 0;  // Allow null SSIDs as a way to disable
     static const int MAX_PASSWORD_LENGTH = 64;
     //min size of password is 0 or upper than 8 char
     //so let set min is 8
