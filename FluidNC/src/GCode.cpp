@@ -1326,7 +1326,8 @@ Error gc_execute_line(char* line, Print& client) {
     if (spindle->isRateAdjusted()) {
         if (!((gc_block.modal.motion == Motion::Linear) || (gc_block.modal.motion == Motion::CwArc) ||
               (gc_block.modal.motion == Motion::CcwArc))) {
-            gc_parser_flags |= GCParserLaserDisable;
+            if (gc_state.modal.spindle == SpindleState::Ccw)
+                gc_parser_flags |= GCParserLaserDisable;
         }
         // Any motion mode with axis words is allowed to be passed from a spindle speed update.
         // NOTE: G1 and G0 without axis words sets axis_command to none. G28/30 are intentionally omitted.

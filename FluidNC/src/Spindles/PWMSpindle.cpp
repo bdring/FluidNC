@@ -94,7 +94,7 @@ namespace Spindles {
         // converters on some boards.
 
         // rate adjusted spindles (laser) in M4 set power via the stepper engine, not here
-        if (!isRateAdjusted() || state == SpindleState::Cw) {
+        if (!isRateAdjusted() || state != SpindleState::Ccw) {
             set_output(dev_speed);
         }
 
