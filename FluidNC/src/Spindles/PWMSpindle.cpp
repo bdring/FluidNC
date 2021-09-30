@@ -89,9 +89,15 @@ namespace Spindles {
             // spinning down.
             set_direction(state == SpindleState::Cw);
         }
+
         // set_output must go first because of the way enable is used for level
         // converters on some boards.
-        set_output(dev_speed);
+
+        // rate adjusted spindles (laser) in M4 set power via the stepper engine, not here
+        if (!isRateAdjusted() || state == SpindleState::Cw) {
+            set_output(dev_speed);
+        }
+
         set_enable(state != SpindleState::Disable);
         spindleDelay(state, speed);
     }
