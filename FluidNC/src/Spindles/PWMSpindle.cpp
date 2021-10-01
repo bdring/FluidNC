@@ -98,7 +98,7 @@ namespace Spindles {
         if (isRateAdjusted() && (state == SpindleState::Ccw)) {
             dev_speed = offSpeed();
             set_output(dev_speed);
-        } else if (!isRateAdjusted() || state != SpindleState::Ccw) {
+        } else {
             set_output(dev_speed);
         }
 
