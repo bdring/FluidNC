@@ -74,6 +74,7 @@ PinMapper::~PinMapper() {
 }
 
 // Arduino compatibility functions, which basically forward the call to the mapper:
+#if 0
 void IRAM_ATTR digitalWrite(pinnum_t pin, uint8_t val) {
     auto thePin = Mapping::instance()._mapping[pin];
     if (thePin) {
@@ -106,3 +107,4 @@ int IRAM_ATTR digitalRead(pinnum_t pin) {
     auto thePin = Mapping::instance()._mapping[pin];
     return (thePin) ? thePin->read() : 0;
 }
+#endif

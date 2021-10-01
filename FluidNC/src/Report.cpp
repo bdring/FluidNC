@@ -483,7 +483,7 @@ static float* get_wco() {
     return wco;
 }
 
-static void mpos_to_wpos(float* position) {
+void mpos_to_wpos(float* position) {
     float* wco    = get_wco();
     auto   n_axis = config->_axes->_numberAxis;
     for (int idx = 0; idx < n_axis; idx++) {
@@ -491,7 +491,7 @@ static void mpos_to_wpos(float* position) {
     }
 }
 
-static const char* state_name() {
+const char* state_name() {
     switch (sys.state) {
         case State::Idle:
             return "Idle";
@@ -661,7 +661,7 @@ void report_realtime_status(Print& client) {
     }
     if (config->_sdCard->get_state() == SDCard::State::BusyPrinting) {
         // XXX WMB FORMAT 4.2f
-        client << "|SD:" << config->_sdCard->report_perc_complete() << "," << config->_sdCard->filename();
+        client << "|SD:" << config->_sdCard->percent_complete() << "," << config->_sdCard->filename();
     }
 #ifdef DEBUG_STEPPER_ISR
     client << "|ISRs:" << Stepper::isr_count;
