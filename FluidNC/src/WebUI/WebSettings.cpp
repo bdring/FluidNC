@@ -41,17 +41,12 @@ namespace WebUI {
     enum_opt_t onoffOptions = { { "OFF", 0 }, { "ON", 1 } };
 
 #ifdef ENABLE_WIFI
-    EnumSetting* wifi_radio_mode;
-
     enum_opt_t wifiModeOptions = {
-        { "STA", ESP_WIFI_STA },
-        { "AP", ESP_WIFI_AP },
-        { "STA_AP", ESP_WIFI_STA_AP },
+        { "Off", WiFiOff },
+        { "STA", WiFiSTA },
+        { "AP", WiFiAP },
+        { "STA>AP", WiFiFallback },
     };
-#endif
-
-#ifdef ENABLE_WIFI
-    EnumSetting* wifi_enable;
     EnumSetting* wifi_mode;
 
     StringSetting* wifi_sta_ssid;
@@ -1117,7 +1112,6 @@ namespace WebUI {
                                           (bool (*)(char*))WiFiConfig::isSSIDValid);
 
         wifi_mode   = new EnumSetting("WiFi mode", WEBSET, WA, "ESP116", "WiFi/Mode", WIFI_AP, &wifiModeOptions, NULL);
-        wifi_enable = new EnumSetting("WiFi Enable", WEBSET, WA, "ESP117", "WiFi/Enable", 1, &onoffOptions, NULL);
 #endif
     }
 

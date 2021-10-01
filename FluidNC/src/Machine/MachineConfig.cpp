@@ -45,7 +45,6 @@ namespace Machine {
         handler.section("user_outputs", _userOutputs);
         handler.item("software_debounce_ms", _softwareDebounceMs);
         // TODO: Consider putting these under a gcode: hierarchy level? Or motion control?
-        handler.item("laser_mode", _laserMode);
         handler.item("arc_tolerance", _arcTolerance);
         handler.item("junction_deviation", _junctionDeviation);
         handler.item("verbose_errors", _verboseErrors);
@@ -55,7 +54,6 @@ namespace Machine {
         handler.item("deactivate_parking_upon_init", _deactivateParkingUponInit);
         handler.item("check_limits_at_init", _checkLimitsAtInit);
         handler.item("limits_two_switches_on_axis", _limitsTwoSwitchesOnAxis);
-        handler.item("disable_laser_during_hold", _disableLaserDuringHold);
         handler.item("use_line_numbers", _useLineNumbers);
 
         Spindles::SpindleFactory::factory(handler, _spindles);
