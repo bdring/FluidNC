@@ -299,16 +299,7 @@ namespace Spindles {
     // Checks for all the required pin definitions
     // It returns a message for each missing pin
     // Returns true if all pins are defined.
-    bool VFD::get_pins_and_settings() {
-        bool pins_settings_ok = true;
-
-        if (config->_laserMode) {
-            log_info("VFD spindle disabled in laser mode. Set $GCode/LaserMode=Off and restart");
-            pins_settings_ok = false;
-        }
-
-        return pins_settings_ok;
-    }
+    bool VFD::get_pins_and_settings() { return true; }
 
     void VFD::config_message() { _uart->config_message(name(), " Spindle "); }
 
