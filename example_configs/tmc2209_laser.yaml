@@ -233,7 +233,7 @@ Laser:
   output_pin: gpio.4
   enable_pin: gpio.12
   disable_with_zero_speed: false
-  zero_speed_with_disable: false
+  zero_speed_with_disable: true
   tool: 100
   speeds: 0=0.000% 255=100.000%
   

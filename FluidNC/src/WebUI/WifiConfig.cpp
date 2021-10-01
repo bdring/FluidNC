@@ -267,15 +267,16 @@ namespace WebUI {
             WiFi.softAPdisconnect();
         }
         WiFi.enableAP(false);
+        //SSID
+        String SSID = wifi_sta_ssid->get();
+        if (SSID.length() == 0) {
+            log_info("STA SSID is not set");
+            return false;
+        }
         WiFi.mode(WIFI_STA);
         //Get parameters for STA
         String h = wifi_hostname->get();
         WiFi.setHostname(h.c_str());
-        //SSID
-        String SSID = wifi_sta_ssid->get();
-        if (SSID.length() == 0) {
-            SSID = DEFAULT_STA_SSID;
-        }
         //password
         String  password = wifi_sta_password->get();
         int8_t  IP_mode  = wifi_sta_mode->get();
@@ -379,23 +380,28 @@ namespace WebUI {
         //stop active services
         wifi_services.end();
 
-        if (!wifi_enable->get()) {
-            log_info("WiFi not enabled");
-            return false;
+        switch (wifi_mode->get()) {
+            case WiFiOff:
+                log_info("WiFi is disabled");
+                return false;
+            case WiFiSTA:
+                if (StartSTA()) {
+                    goto wifi_on;
+                }
+                goto wifi_off;
+            case WiFiFallback:
+                if (StartSTA()) {
+                    goto wifi_on;
+                }
+                // fall through to fallback to AP mode
+            case WiFiAP:
+                if (StartAP()) {
+                    goto wifi_on;
+                }
+                goto wifi_off;
         }
 
-        if ((wifi_mode->get() == ESP_WIFI_STA || wifi_mode->get() == ESP_WIFI_STA_AP) && StartSTA()) {
-            // WIFI mode is STA; fall back on AP if necessary
-            goto wifi_on;
-        }
-        if (wifi_mode->get() == ESP_WIFI_STA_AP) {
-            log_info("STA connection failed. Setting up AP");
-        }
-
-        if ((wifi_mode->get() == ESP_WIFI_AP || wifi_mode->get() == ESP_WIFI_STA_AP) && StartAP()) {
-            goto wifi_on;
-        }
-
+    wifi_off:
         log_info("WiFi off");
         WiFi.mode(WIFI_OFF);
         return false;
