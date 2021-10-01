@@ -54,7 +54,7 @@ namespace MotorDrivers {
         void afterParse() override {
             if (daisy_chain_cs_id == 255) {
                 // Either it is not a daisy chain or this is the first daisy-chained TMC in the config file
-                Assert(_cs_pin.defined(), "TMC spi_cs pin must be configured");
+                Assert(_cs_pin.defined(), "TMC cs: pin must be configured");
                 if (_spi_index != -1) {
                     // This is the first daisy-chained TMC in the config file
                     // Do the cs pin mapping now and record the ID in daisy_chain_cs_id
@@ -67,9 +67,9 @@ namespace MotorDrivers {
                 }
             } else {
                 // This is another - not the first - daisy-chained TMC
-                Assert(_cs_pin.undefined(), "For daisy-chained TMC, spi_cs pin must be configured only once");
-                Assert(_spi_index != -1, "spi_index must be configured on all daisy-chained TMCs");
-                Assert(bitnum_is_false(spi_index_mask, _spi_index), "spi_index must be unique among all daisy-chained TMCs");
+                Assert(_cs_pin.undefined(), "For daisy-chained TMC, cs: pin must be configured only once");
+                Assert(_spi_index != -1, "spi_index: must be configured on all daisy-chained TMCs");
+                Assert(bitnum_is_false(spi_index_mask, _spi_index), "spi_index: must be unique among all daisy-chained TMCs");
                 set_bitnum(spi_index_mask, _spi_index);
             }
         }
