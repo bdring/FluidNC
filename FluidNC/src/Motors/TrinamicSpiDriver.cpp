@@ -34,7 +34,8 @@ namespace MotorDrivers {
         }
 
         if (_driver_part_number == 2130) {
-            tmcstepper = new TMC2130Stepper(cs_id, _r_sense, -1);  // TODO hardwired to non daisy chain index
+            //log_info("ID: " << cs_id << " index:" << _spi_index);
+            tmcstepper = new TMC2130Stepper(cs_id, _r_sense, _spi_index);  // TODO hardwired to non daisy chain index
         } else if (_driver_part_number == 5160) {
             tmcstepper = new TMC5160Stepper(cs_id, _r_sense, _spi_index);
         } else {
