@@ -173,7 +173,6 @@ homing_init_lock: false
 enable_parking_override_control: false
 deactivate_parking_upon_init: false
 check_limits_at_init: false
-limits_two_switches_on_axis: false
 disable_laser_during_hold: true
 use_line_numbers: false
 PWM:
