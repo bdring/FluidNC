@@ -79,6 +79,7 @@ namespace Machine {
         void set_disable(bool disable);
         void step(uint8_t step_mask, uint8_t dir_mask);
         void unstep();
+        void config_motors();
 
         // Configuration helpers:
         void group(Configuration::HandlerBase& handler) override;

@@ -51,6 +51,14 @@ namespace Machine {
         }
     }
 
+    void Axis::config_motors() {
+        for (int motor = 0; motor < Axis::MAX_MOTORS_PER_AXIS; ++motor) {
+            auto mot = _motors[motor];
+            if (mot)
+                mot->config_motor();
+        }
+    }
+
     // Checks if a motor matches this axis:
     bool Axis::hasMotor(const MotorDrivers::MotorDriver* const driver) const {
         for (size_t i = 0; i < MAX_MOTORS_PER_AXIS; i++) {
@@ -79,7 +87,7 @@ namespace Machine {
 
     // returns the offset between the pulloffs
     // value is positive when motor1 has a larger pulloff
-    float Axis::pulloffOffset() { return hasDualMotor()? _motors[1]->_pulloff - _motors[0]->_pulloff : 0.0f; }
+    float Axis::pulloffOffset() { return hasDualMotor() ? _motors[1]->_pulloff - _motors[0]->_pulloff : 0.0f; }
 
     Axis::~Axis() {
         for (size_t i = 0; i < MAX_MOTORS_PER_AXIS; i++) {

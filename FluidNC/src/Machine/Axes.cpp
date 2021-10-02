@@ -146,6 +146,12 @@ namespace Machine {
         config->_stepping->finishPulse();
     }
 
+    void Axes::config_motors() {
+        for (int axis = 0; axis < _numberAxis; ++axis) {
+            _axis[axis]->config_motors();
+        }
+    }
+
     // Some small helpers to find the axis index and axis motor index for a given motor. This
     // is helpful for some motors that need this info, as well as debug information.
     size_t Axes::findAxisIndex(const MotorDrivers::MotorDriver* const driver) const {

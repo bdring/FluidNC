@@ -48,6 +48,8 @@ namespace MotorDrivers {
         bool set_homing_mode(bool ishoming) override;
         void set_disable(bool disable) override;
 
+        void config_motor() override;
+
         void debug_message();
 
         // Configuration handlers:

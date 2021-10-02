@@ -62,14 +62,6 @@ namespace MotorDrivers {
 
         config_message();
 
-        tmcstepper->begin();
-
-        _has_errors = !test();  // Try communicating with motor. Prints an error if there is a problem.
-
-        init_step_dir_pins();
-        read_settings();  // pull info from settings
-        set_mode(false);
-
         // After initializing all of the TMC drivers, create a task to
         // display StallGuard data.  List == this for the final instance.
         if (List == this) {
@@ -82,6 +74,16 @@ namespace MotorDrivers {
                                     SUPPORT_TASK_CORE  // must run the task on same core
             );
         }
+    }
+
+    void TrinamicSpiDriver::config_motor() {
+        tmcstepper->begin();
+
+        _has_errors = !test();  // Try communicating with motor. Prints an error if there is a problem.
+
+        init_step_dir_pins();
+        read_settings();  // pull info from settings
+        set_mode(false);
     }
 
     /*
@@ -99,10 +101,10 @@ namespace MotorDrivers {
 
         switch (tmcstepper->test_connection()) {
             case 1:
-                log_info("    Trinamic driver test failed. Check connection");
+                log_info(axisName() << " Trinamic driver test failed. Check connection");
                 return false;
             case 2:
-                log_info("    Trinamic driver test failed. Check motor power");
+                log_info(axisName() << " Trinamic driver test failed. Check motor power");
                 return false;
             default:
                 // driver responded, so check for other errors from the DRV_STATUS register
@@ -131,7 +133,7 @@ namespace MotorDrivers {
                 //     return false;
                 // }
 
-                log_info("    Trinamic driver test passed");
+                log_info(axisName() << " Trinamic driver test passed");
                 return true;
         }
     }
