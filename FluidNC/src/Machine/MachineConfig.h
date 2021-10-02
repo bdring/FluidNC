@@ -42,7 +42,6 @@ namespace Machine {
 
         Spindles::SpindleList _spindles;
 
-        bool  _laserMode          = false;
         float _arcTolerance       = 0.002f;
         float _junctionDeviation  = 0.01f;
         bool  _verboseErrors      = false;

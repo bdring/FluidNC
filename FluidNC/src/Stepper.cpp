@@ -418,7 +418,7 @@ void Stepper::prep_buffer() {
                 // prep.inv_rate is only used if is_pwm_rate_adjusted is true
                 st_prep_block->is_pwm_rate_adjusted = false;  // set default value
 
-                if (config->_laserMode) {
+                if (spindle->isRateAdjusted()) {
                     if (pl_block->spindle == SpindleState::Ccw) {
                         // Pre-compute inverse programmed rate to speed up PWM updating per step segment.
                         prep.inv_rate                       = 1.0f / pl_block->programmed_rate;

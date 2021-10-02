@@ -502,7 +502,7 @@ Error gc_execute_line(char* line, Print& client) {
                                 gc_block.modal.spindle = SpindleState::Cw;
                                 break;
                             case 4:  // Supported if the spindle can be reversed or laser mode is on.
-                                if (spindle->is_reversable || config->_laserMode) {
+                                if (spindle->is_reversable || spindle->isRateAdjusted()) {
                                     gc_block.modal.spindle = SpindleState::Ccw;
                                 } else {
                                     FAIL(Error::GcodeUnsupportedCommand);
@@ -1323,10 +1323,11 @@ Error gc_execute_line(char* line, Print& client) {
         return status == Error::JogCancelled ? Error::Ok : status;
     }
     // If in laser mode, setup laser power based on current and past parser conditions.
-    if (config->_laserMode) {
+    if (spindle->isRateAdjusted()) {
         if (!((gc_block.modal.motion == Motion::Linear) || (gc_block.modal.motion == Motion::CwArc) ||
               (gc_block.modal.motion == Motion::CcwArc))) {
-            gc_parser_flags |= GCParserLaserDisable;
+            if (gc_state.modal.spindle == SpindleState::Ccw)
+                gc_parser_flags |= GCParserLaserDisable;
         }
         // Any motion mode with axis words is allowed to be passed from a spindle speed update.
         // NOTE: G1 and G0 without axis words sets axis_command to none. G28/30 are intentionally omitted.

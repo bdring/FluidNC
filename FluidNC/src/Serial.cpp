@@ -55,6 +55,8 @@
 #include <vector>
 #include <freertos/task.h>  // portMUX_TYPE, TaskHandle_T
 
+#include "Custom/oled.h"
+
 portMUX_TYPE myMutex = portMUX_INITIALIZER_UNLOCKED;
 
 static TaskHandle_t clientCheckTaskHandle = 0;
@@ -238,11 +240,18 @@ InputClient* pollClients() {
                 client->_linelen = 0;
                 continue;
             }
-            if (ch == '\r' || ch == '\n') {
+            if (ch == '\r') {
+                continue;
+            }
+            if (ch == '\n') {
                 client->_line_num++;
                 if (config->_sdCard->get_state() < SDCard::State::Busy) {
                     client->_line[client->_linelen] = '\0';
                     client->_line_returned          = true;
+                    oled.clear();
+                    oled.println(client->_line);
+                    oled.drawLogBuffer(0, 0);
+                    oled.display();
                     return client;
                 } else {
                     // Log an error and discard the line if it happens during an SD run

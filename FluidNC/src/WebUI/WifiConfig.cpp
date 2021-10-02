@@ -19,6 +19,8 @@ WebUI::WiFiConfig wifi_config;
 #    include <SPIFFS.h>
 #    include <cstring>
 
+#    include "../Custom/oled.h"
+
 namespace WebUI {
     String WiFiConfig::_hostname          = "";
     bool   WiFiConfig::_events_registered = false;
@@ -218,6 +220,20 @@ namespace WebUI {
         return 2 * (RSSI + 100);
     }
 
+    void display_ip_tail(const IPAddress& ip) {
+        String ipa    = ip.toString();
+        auto   dotpos = ipa.lastIndexOf('.');                       // Last .
+        dotpos        = ipa.substring(0, dotpos).lastIndexOf('.');  // Second to last .
+        auto tail     = ipa.substring(dotpos + 1);
+
+        oled.clear();
+        oled.setFont(ArialMT_Plain_16);
+        oled.drawString(0, 0, tail);
+        oled.display();
+        oled.setFont(ArialMT_Plain_10);
+        log_info("IP tail" << tail);
+    }
+
     /*
      * Connect client to AP
      */
@@ -235,6 +251,7 @@ namespace WebUI {
                     return false;
                 case WL_CONNECTED:
                     log_info("Connected - IP is " << WiFi.localIP().toString());
+                    display_ip_tail(WiFi.localIP());
                     return true;
                 default:
                     if ((dot > 3) || (dot == 0)) {
@@ -267,15 +284,16 @@ namespace WebUI {
             WiFi.softAPdisconnect();
         }
         WiFi.enableAP(false);
+        //SSID
+        String SSID = wifi_sta_ssid->get();
+        if (SSID.length() == 0) {
+            log_info("STA SSID is not set");
+            return false;
+        }
         WiFi.mode(WIFI_STA);
         //Get parameters for STA
         String h = wifi_hostname->get();
         WiFi.setHostname(h.c_str());
-        //SSID
-        String SSID = wifi_sta_ssid->get();
-        if (SSID.length() == 0) {
-            SSID = DEFAULT_STA_SSID;
-        }
         //password
         String  password = wifi_sta_password->get();
         int8_t  IP_mode  = wifi_sta_mode->get();
@@ -346,6 +364,8 @@ namespace WebUI {
         //Start AP
         if (WiFi.softAP(SSID.c_str(), (password.length() > 0) ? password.c_str() : NULL, channel)) {
             log_info("AP started");
+            display_ip_tail(ip);
+
             return true;
         }
 
@@ -379,23 +399,28 @@ namespace WebUI {
         //stop active services
         wifi_services.end();
 
-        if (!wifi_enable->get()) {
-            log_info("WiFi not enabled");
-            return false;
+        switch (wifi_mode->get()) {
+            case WiFiOff:
+                log_info("WiFi is disabled");
+                return false;
+            case WiFiSTA:
+                if (StartSTA()) {
+                    goto wifi_on;
+                }
+                goto wifi_off;
+            case WiFiFallback:
+                if (StartSTA()) {
+                    goto wifi_on;
+                }
+                // fall through to fallback to AP mode
+            case WiFiAP:
+                if (StartAP()) {
+                    goto wifi_on;
+                }
+                goto wifi_off;
         }
 
-        if ((wifi_mode->get() == ESP_WIFI_STA || wifi_mode->get() == ESP_WIFI_STA_AP) && StartSTA()) {
-            // WIFI mode is STA; fall back on AP if necessary
-            goto wifi_on;
-        }
-        if (wifi_mode->get() == ESP_WIFI_STA_AP) {
-            log_info("STA connection failed. Setting up AP");
-        }
-
-        if ((wifi_mode->get() == ESP_WIFI_AP || wifi_mode->get() == ESP_WIFI_STA_AP) && StartAP()) {
-            goto wifi_on;
-        }
-
+    wifi_off:
         log_info("WiFi off");
         WiFi.mode(WIFI_OFF);
         return false;

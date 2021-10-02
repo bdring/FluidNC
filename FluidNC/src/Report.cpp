@@ -480,7 +480,7 @@ static float* get_wco() {
     return wco;
 }
 
-static void mpos_to_wpos(float* position) {
+void mpos_to_wpos(float* position) {
     float* wco    = get_wco();
     auto   n_axis = config->_axes->_numberAxis;
     for (int idx = 0; idx < n_axis; idx++) {
@@ -488,7 +488,7 @@ static void mpos_to_wpos(float* position) {
     }
 }
 
-static const char* state_name() {
+const char* state_name() {
     switch (sys.state) {
         case State::Idle:
             return "Idle";
@@ -658,7 +658,7 @@ void report_realtime_status(Print& client) {
     }
     if (config->_sdCard->get_state() == SDCard::State::BusyPrinting) {
         // XXX WMB FORMAT 4.2f
-        client << "|SD:" << config->_sdCard->report_perc_complete() << "," << config->_sdCard->filename();
+        client << "|SD:" << config->_sdCard->percent_complete() << "," << config->_sdCard->filename();
     }
 #ifdef DEBUG_STEPPER_ISR
     client << "|ISRs:" << Stepper::isr_count;
@@ -667,6 +667,18 @@ void report_realtime_status(Print& client) {
     client << "|Heap:" << esp.getHeapSize();
 #endif
     client << ">\n";
+}
+
+void hex_msg(uint8_t* buf, const char* prefix, int len) {
+    char report[200];
+    char temp[20];
+    sprintf(report, "%s", prefix);
+    for (int i = 0; i < len; i++) {
+        sprintf(temp, " 0x%02X", buf[i]);
+        strcat(report, temp);
+    }
+
+    log_info(report);
 }
 
 void reportTaskStackSize(UBaseType_t& saved) {
