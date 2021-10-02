@@ -563,7 +563,7 @@ char* normalize_key(char* start) {
     char* end;
     for (end = start; (c = *end) != '\0' && !isspace(c); end++) {}
 
-    // end now points to either a whitespace character of end of string
+    // end now points to either a whitespace character or end of string
     // In either case it is okay to place a null there
     *end = '\0';
 

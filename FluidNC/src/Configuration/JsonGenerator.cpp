@@ -51,7 +51,7 @@ namespace Configuration {
     void JsonGenerator::item(const char* name, bool& value) {
         enter(name);
         const char* val = value ? "Yes" : "No";
-        _encoder.begin_webui(name, _currentPath, "B", val);
+        _encoder.begin_webui(_currentPath, _currentPath, "B", val);
         _encoder.begin_array("O");
         {
             _encoder.begin_object();
@@ -68,7 +68,7 @@ namespace Configuration {
         enter(name);
         char buf[32];
         itoa(value, buf, 10);
-        _encoder.begin_webui(name, _currentPath, "I", buf, minValue, maxValue);
+        _encoder.begin_webui(_currentPath, _currentPath, "I", buf, minValue, maxValue);
         _encoder.end_object();
         leave();
     }
@@ -76,7 +76,7 @@ namespace Configuration {
     void JsonGenerator::item(const char* name, float& value, float minValue, float maxValue) {
         enter(name);
         // WebUI does not explicitly recognize the R type, but nevertheless handles it correctly.
-        _encoder.begin_webui(name, _currentPath, "R", String(value, 3).c_str());
+        _encoder.begin_webui(_currentPath, _currentPath, "R", String(value, 3).c_str());
         _encoder.end_object();
         leave();
     }
@@ -88,7 +88,7 @@ namespace Configuration {
 
     void JsonGenerator::item(const char* name, String& value, int minLength, int maxLength) {
         enter(name);
-        _encoder.begin_webui(name, _currentPath, "S", value.c_str(), minLength, maxLength);
+        _encoder.begin_webui(_currentPath, _currentPath, "S", value.c_str(), minLength, maxLength);
         _encoder.end_object();
         leave();
     }
@@ -99,7 +99,7 @@ namespace Configuration {
         /*
         enter(name);
         auto sv = value.name();
-        _encoder.begin_webui(name, _currentPath, "S", sv.c_str(), 0, 255);
+        _encoder.begin_webui(_currentPath, _currentPath, "S", sv.c_str(), 0, 255);
         _encoder.end_object();
         leave();
         */
@@ -107,7 +107,7 @@ namespace Configuration {
 
     void JsonGenerator::item(const char* name, IPAddress& value) {
         enter(name);
-        _encoder.begin_webui(name, _currentPath, "A", value.toString().c_str());
+        _encoder.begin_webui(_currentPath, _currentPath, "A", value.toString().c_str());
         _encoder.end_object();
         leave();
     }
@@ -122,7 +122,7 @@ namespace Configuration {
             }
         }
 
-        _encoder.begin_webui(name, _currentPath, "B", str);
+        _encoder.begin_webui(_currentPath, _currentPath, "B", str);
         _encoder.begin_array("O");
         for (; e->name; ++e) {
             _encoder.begin_object();
