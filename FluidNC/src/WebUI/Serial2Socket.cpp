@@ -2,6 +2,7 @@
 // Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
 
 #include "Serial2Socket.h"
+#include "../Custom/oled.h"
 
 namespace WebUI {
     Serial_2_Socket Serial2Socket;
@@ -24,6 +25,9 @@ namespace WebUI {
         _TXbufferSize = 0;
         _RXbufferSize = 0;
         _RXbufferpos  = 0;
+        oled.clear();
+        oled.fillRect(22, 14, 20, 20);
+        oled.display();
     }
 
     void Serial_2_Socket::end() {

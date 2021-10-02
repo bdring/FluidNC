@@ -7,6 +7,8 @@
 
 #ifdef ENABLE_WIFI
 
+#ifdef ENABLE_WIFI
+
 namespace WebUI {
     Telnet_Server telnet_server;
 }

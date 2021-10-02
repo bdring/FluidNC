@@ -1063,7 +1063,7 @@ namespace WebUI {
                                           WEBSET,
                                           WA,
                                           "ESP112",
-                                          "System/Hostname",
+                                          "Hostname",
                                           DEFAULT_HOSTNAME,
                                           MIN_HOSTNAME_LENGTH,
                                           MAX_HOSTNAME_LENGTH,
@@ -1111,8 +1111,6 @@ namespace WebUI {
         new WebCommand(NULL, WEBCMD, WU, "ESP410", "WiFi/ListAPs", listAPs);
         new WebCommand(NULL, WEBCMD, WG, "ESP111", "System/IP", showIP);
         new WebCommand("IP=ipaddress MSK=netmask GW=gateway", WEBCMD, WA, "ESP103", "Sta/Setup", showSetStaParams);
-        // no get, admin to set
-
 #endif
     }
 

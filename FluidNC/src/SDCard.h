@@ -77,7 +77,7 @@ public:
     bool     openFile(fs::FS& fs, const char* path, Print& client, WebUI::AuthenticationLevel auth_level);
     bool     closeFile();
     Error    readFileLine(char* line, int len);
-    float    report_perc_complete();
+    float    percent_complete();
     uint32_t lineNumber();
     void afterParse() override;
 
