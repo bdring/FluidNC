@@ -41,6 +41,10 @@ MotorMask limits_get_state() {
     return Machine::Axes::posLimitMask | Machine::Axes::negLimitMask;
 }
 
+bool ambiguousLimit() {
+    return Machine::Axes::posLimitMask & Machine::Axes::negLimitMask;
+}
+
 bool soft_limit = false;
 
 // Performs a soft limit check. Called from mcline() only. Assumes the machine has been homed,

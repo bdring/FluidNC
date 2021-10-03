@@ -35,9 +35,6 @@ namespace Spindles {
             bool          critical;
             uint32_t      arg;
         };
-#if defined(DEBUG_VFD) || defined(DEBUG_VFD_ALL)
-        void hex_msg(uint8_t* buf, const char* prefix, int len);
-#endif
 
     protected:
         struct ModbusCommand {
@@ -67,7 +64,7 @@ namespace Spindles {
         virtual response_parser get_current_speed(ModbusCommand& data) { return nullptr; }
         virtual response_parser get_current_direction(ModbusCommand& data) { return nullptr; }
         virtual response_parser get_status_ok(ModbusCommand& data) = 0;
-        virtual bool            supports_actual_speed() const { return false; }
+        
         virtual bool            safety_polling() const { return true; }
 
         // The constructor sets these

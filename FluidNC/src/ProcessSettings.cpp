@@ -488,6 +488,13 @@ static Error dump_config(const char* value, WebUI::AuthenticationLevel auth_leve
     return Error::Ok;
 }
 
+static Error fakeLaserMode(const char* value, WebUI::AuthenticationLevel auth_level, Print& out) {
+    if (!value) {
+        out << "$32=" << (spindle->isRateAdjusted() ? "1" : "0") << '\n';
+    }
+    return Error::Ok;
+}
+
 // Commands use the same syntax as Settings, but instead of setting or
 // displaying a persistent value, a command causes some action to occur.
 // That action could be anything, from displaying a run-time parameter
@@ -527,6 +534,8 @@ void make_user_commands() {
     new UserCommand("I", "Build/Info", get_report_build_info, idleOrAlarm);
     new UserCommand("N", "GCode/StartupLines", report_startup_lines, idleOrAlarm);
     new UserCommand("RST", "Settings/Restore", restore_settings, idleOrAlarm, WA);
+
+    new UserCommand("32", "FakeLaserMode", fakeLaserMode, idleOrAlarm);
 };
 
 // normalize_key puts a key string into canonical form -
@@ -554,7 +563,7 @@ char* normalize_key(char* start) {
     char* end;
     for (end = start; (c = *end) != '\0' && !isspace(c); end++) {}
 
-    // end now points to either a whitespace character of end of string
+    // end now points to either a whitespace character or end of string
     // In either case it is okay to place a null there
     *end = '\0';
 

@@ -49,6 +49,7 @@
 #include "Protocol.h"  // rtSafetyDoor etc
 #include "SDCard.h"
 #include "WebUI/InputBuffer.h"  // XXX could this be a StringStream ?
+#include "Main.h"               // display()
 
 #include <atomic>
 #include <cstring>
@@ -238,11 +239,15 @@ InputClient* pollClients() {
                 client->_linelen = 0;
                 continue;
             }
-            if (ch == '\r' || ch == '\n') {
+            if (ch == '\r') {
+                continue;
+            }
+            if (ch == '\n') {
                 client->_line_num++;
                 if (config->_sdCard->get_state() < SDCard::State::Busy) {
                     client->_line[client->_linelen] = '\0';
                     client->_line_returned          = true;
+                    display("GCODE", client->_line);
                     return client;
                 } else {
                     // Log an error and discard the line if it happens during an SD run

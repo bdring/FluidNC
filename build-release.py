@@ -76,13 +76,13 @@ with ZipFile(zipFileName, 'w') as zipObj:
 
     pioPath = os.path.join('.pio', 'build')
 
-    exitCode = buildFs('noradio', verbose=verbose)
+    exitCode = buildFs('wifi', verbose=verbose)
     if exitCode != 0:
         numErrors += 1
     else:
         # Put common/spiffs.bin in the archive
         obj = 'spiffs.bin'
-        #  zipObj.write(os.path.join(pioPath, 'noradio', obj), os.path.join('common', obj))
+        zipObj.write(os.path.join(pioPath, 'wifi', obj), os.path.join('common', obj))
         tools = os.path.join(os.path.expanduser('~'),'.platformio','packages','framework-arduinoespressif32','tools')
         bootloader = 'bootloader_dio_80m.bin'
         zipObj.write(os.path.join(tools, 'sdk', 'bin', bootloader), os.path.join('common', bootloader))
