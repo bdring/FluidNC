@@ -3,33 +3,39 @@
 #include "Assert.h"
 
 #include <esp32-hal-gpio.h>  // PULLUP, INPUT, OUTPUT
+extern "C" void __pinMode(pinnum_t pin, uint8_t mode);
+extern "C" int  __digitalRead(pinnum_t pin);
+extern "C" void __digitalWrite(pinnum_t pin, uint8_t val);
 
 // Pin mapping. Pretty straight forward, it's just a thing that stores pins in an array.
 //
 // The default behavior of a mapped pin is _undefined pin_, so it does nothing.
 namespace {
     class Mapping {
+        static const int N_PIN_MAPPINGS = 192;
+
     public:
-        Pin* _mapping[256];
+        static const int GPIO_LIMIT = 64;
+
+        Pin* _mapping[N_PIN_MAPPINGS];
 
         Mapping() {
-            for (int i = 0; i < 256; ++i) {
+            for (int i = 0; i < N_PIN_MAPPINGS; ++i) {
                 _mapping[i] = nullptr;
             }
         }
 
         pinnum_t Claim(Pin* pin) {
-            // Let's not use 0. 1 is the first pin we'll allocate.
-            for (pinnum_t i = 1; i < 256; ++i) {
+            for (pinnum_t i = 0; i < N_PIN_MAPPINGS; ++i) {
                 if (_mapping[i] == nullptr) {
                     _mapping[i] = pin;
-                    return i;
+                    return i + GPIO_LIMIT;
                 }
             }
             return 0;
         }
 
-        void Release(pinnum_t idx) { _mapping[idx] = nullptr; }
+        void Release(pinnum_t idx) { _mapping[idx - GPIO_LIMIT] = nullptr; }
 
         static Mapping& instance() {
             static Mapping instance;
@@ -74,15 +80,27 @@ PinMapper::~PinMapper() {
 }
 
 // Arduino compatibility functions, which basically forward the call to the mapper:
-#if 0
 void IRAM_ATTR digitalWrite(pinnum_t pin, uint8_t val) {
-    auto thePin = Mapping::instance()._mapping[pin];
+    if (pin < Mapping::GPIO_LIMIT) {
+        return __digitalWrite(pin, val);
+    }
+    auto thePin = Mapping::instance()._mapping[pin - Mapping::GPIO_LIMIT];
     if (thePin) {
         thePin->synchronousWrite(val);
     }
 }
 
 void IRAM_ATTR pinMode(pinnum_t pin, uint8_t mode) {
+    if (pin < Mapping::Mapping::GPIO_LIMIT) {
+        __pinMode(pin, mode);
+        return;
+    }
+
+    auto thePin = Mapping::instance()._mapping[pin - Mapping::GPIO_LIMIT];
+    if (!thePin) {
+        return;
+    }
+
     Pins::PinAttributes attr = Pins::PinAttributes::None;
     if ((mode & OUTPUT) == OUTPUT) {
         attr = attr | Pins::PinAttributes::Output;
@@ -97,14 +115,13 @@ void IRAM_ATTR pinMode(pinnum_t pin, uint8_t mode) {
         attr = attr | Pins::PinAttributes::PullDown;
     }
 
-    auto thePin = Mapping::instance()._mapping[pin];
-    if (thePin) {
-        thePin->setAttr(attr);
-    }
+    thePin->setAttr(attr);
 }
 
 int IRAM_ATTR digitalRead(pinnum_t pin) {
-    auto thePin = Mapping::instance()._mapping[pin];
+    if (pin < Mapping::GPIO_LIMIT) {
+        return __digitalRead(pin);
+    }
+    auto thePin = Mapping::instance()._mapping[pin - Mapping::GPIO_LIMIT];
     return (thePin) ? thePin->read() : 0;
 }
-#endif

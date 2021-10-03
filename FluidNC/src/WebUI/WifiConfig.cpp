@@ -8,6 +8,7 @@
 WebUI::WiFiConfig wifi_config;
 
 #ifdef ENABLE_WIFI
+#    include "../Main.h"   // display()
 #    include "Commands.h"  // COMMANDS
 #    include "WifiServices.h"
 #    include "WebSettings.h"
@@ -18,8 +19,6 @@ WebUI::WiFiConfig wifi_config;
 #    include <FS.h>
 #    include <SPIFFS.h>
 #    include <cstring>
-
-#    include "../Custom/oled.h"
 
 namespace WebUI {
     String WiFiConfig::_hostname          = "";
@@ -220,20 +219,6 @@ namespace WebUI {
         return 2 * (RSSI + 100);
     }
 
-    void display_ip_tail(const IPAddress& ip) {
-        String ipa    = ip.toString();
-        auto   dotpos = ipa.lastIndexOf('.');                       // Last .
-        dotpos        = ipa.substring(0, dotpos).lastIndexOf('.');  // Second to last .
-        auto tail     = ipa.substring(dotpos + 1);
-
-        oled.clear();
-        oled.setFont(ArialMT_Plain_16);
-        oled.drawString(0, 0, tail);
-        oled.display();
-        oled.setFont(ArialMT_Plain_10);
-        log_info("IP tail" << tail);
-    }
-
     /*
      * Connect client to AP
      */
@@ -251,7 +236,7 @@ namespace WebUI {
                     return false;
                 case WL_CONNECTED:
                     log_info("Connected - IP is " << WiFi.localIP().toString());
-                    display_ip_tail(WiFi.localIP());
+                    display("IP", WiFi.localIP().toString());
                     return true;
                 default:
                     if ((dot > 3) || (dot == 0)) {
@@ -364,8 +349,7 @@ namespace WebUI {
         //Start AP
         if (WiFi.softAP(SSID.c_str(), (password.length() > 0) ? password.c_str() : NULL, channel)) {
             log_info("AP started");
-            display_ip_tail(ip);
-
+            display("IP", ip.toString());
             return true;
         }
 

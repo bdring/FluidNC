@@ -49,13 +49,12 @@
 #include "Protocol.h"  // rtSafetyDoor etc
 #include "SDCard.h"
 #include "WebUI/InputBuffer.h"  // XXX could this be a StringStream ?
+#include "Main.h"               // display()
 
 #include <atomic>
 #include <cstring>
 #include <vector>
 #include <freertos/task.h>  // portMUX_TYPE, TaskHandle_T
-
-#include "Custom/oled.h"
 
 portMUX_TYPE myMutex = portMUX_INITIALIZER_UNLOCKED;
 
@@ -248,10 +247,7 @@ InputClient* pollClients() {
                 if (config->_sdCard->get_state() < SDCard::State::Busy) {
                     client->_line[client->_linelen] = '\0';
                     client->_line_returned          = true;
-                    oled.clear();
-                    oled.println(client->_line);
-                    oled.drawLogBuffer(0, 0);
-                    oled.display();
+                    display("GCODE", client->_line);
                     return client;
                 } else {
                     // Log an error and discard the line if it happens during an SD run

@@ -199,6 +199,8 @@ void WEAK_LINK machine_init() {}
 
 void WEAK_LINK display_init() {}
 
+void WEAK_LINK display(const char* tag, String s) {}
+
 #if 0
 int main() {
     setup();  // setup()
