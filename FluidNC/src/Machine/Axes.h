@@ -13,7 +13,6 @@ namespace MotorDrivers {
 
 namespace Machine {
     class Axes : public Configuration::Configurable {
-        static constexpr const char* _names = "XYZABC";
 
         bool _switchedStepper = false;
 
@@ -22,6 +21,8 @@ namespace Machine {
         MotorMask _motorLockoutMask = 0;
 
     public:
+        static constexpr const char* _names = "XYZABC";
+
         Axes();
 
         // Bitmasks to collect information about axes that have limits and homing

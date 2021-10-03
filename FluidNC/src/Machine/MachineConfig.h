@@ -42,7 +42,6 @@ namespace Machine {
 
         Spindles::SpindleList _spindles;
 
-        bool  _laserMode          = false;
         float _arcTolerance       = 0.002f;
         float _junctionDeviation  = 0.01f;
         bool  _verboseErrors      = false;
@@ -61,14 +60,6 @@ namespace Machine {
         // before initialization. If a problem is detected and hard limits are enabled, Alarm state
         // will be entered instead of Idle, messaging the user to check the limits, rather than idle.
         bool _checkLimitsAtInit = true;
-
-        // If your machine has two limits switches wired in parallel to one axis, you will need to enable
-        // this feature. Since the two switches are sharing a single pin, there is no way to tell
-        // which one is enabled. This option only effects homing, where if a limit is engaged, the system
-        // will alarm and force the user to manually disengage the limit switch. Otherwise, if you have one
-        // limit switch for each axis, don't enable this option. By keeping it disabled, you can perform a
-        // homing cycle while on the limit switch and not have to move the machine off of it.
-        bool _limitsTwoSwitchesOnAxis = false;
 
         // This option will automatically disable the laser during a feed hold by invoking a spindle stop
         // override immediately after coming to a stop. However, this also means that the laser still may

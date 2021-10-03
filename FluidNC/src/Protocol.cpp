@@ -78,10 +78,13 @@ union SpindleStop {
 static SpindleStop spindle_stop_ovr;
 
 bool can_park() {
+    if (spindle->isRateAdjusted()) {
+        return false;
+    }
     if (config->_enableParkingOverrideControl) {
-        return sys.override_ctrl == Override::ParkingMotion && Machine::Axes::homingMask && !config->_laserMode;
+        return sys.override_ctrl == Override::ParkingMotion && Machine::Axes::homingMask;
     } else {
-        return Machine::Axes::homingMask && !config->_laserMode;
+        return Machine::Axes::homingMask;
     }
 }
 
@@ -766,7 +769,7 @@ static void protocol_exec_rt_suspend() {
         restore_spindle       = block->spindle;
         restore_spindle_speed = block->spindle_speed;
     }
-    if (config->_disableLaserDuringHold && config->_laserMode) {
+    if (spindle->isRateAdjusted()) {
         rtAccessoryOverride.bit.spindleOvrStop = true;
     }
 
@@ -871,7 +874,7 @@ static void protocol_exec_rt_suspend() {
                         if (gc_state.modal.spindle != SpindleState::Disable) {
                             // Block if safety door re-opened during prior restore actions.
                             if (!sys.suspend.bit.restartRetract) {
-                                if (config->_laserMode) {
+                                if (spindle->isRateAdjusted()) {
                                     // When in laser mode, defer turn on until cycle starts
                                     sys.step_control.updateSpindleSpeed = true;
                                 } else {
@@ -926,7 +929,7 @@ static void protocol_exec_rt_suspend() {
                     } else if (spindle_stop_ovr.bit.restore || spindle_stop_ovr.bit.restoreCycle) {
                         if (gc_state.modal.spindle != SpindleState::Disable) {
                             report_feedback_message(Message::SpindleRestore);
-                            if (config->_laserMode) {
+                            if (spindle->isRateAdjusted()) {
                                 // When in laser mode, defer turn on until cycle starts
                                 sys.step_control.updateSpindleSpeed = true;
                             } else {
