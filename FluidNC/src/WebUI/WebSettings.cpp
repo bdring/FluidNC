@@ -1025,7 +1025,6 @@ namespace WebUI {
 
     void make_wifi_settings() {
 #ifdef ENABLE_WIFI
-
         new WebCommand(
             "TYPE=NONE|PUSHOVER|EMAIL|LINE T1=token1 T2=token2 TS=settings", WEBCMD, WA, "ESP610", "Notification/Setup", showSetNotification);
         notification_ts = new StringSetting(
@@ -1052,17 +1051,14 @@ namespace WebUI {
             "Notification type", WEBSET, WA, NULL, "Notification/Type", DEFAULT_NOTIFICATION_TYPE, &notificationOptions, NULL);
         new WebCommand("message", WEBCMD, WU, "ESP600", "Notification/Send", sendMessage);
 
-        new WebCommand(NULL, WEBCMD, WU, "ESP410", "WiFi/ListAPs", listAPs);
-        new WebCommand(NULL, WEBCMD, WG, "ESP111", "System/IP", showIP);
-        new WebCommand("IP=ipaddress MSK=netmask GW=gateway", WEBCMD, WA, "ESP103", "Sta/Setup", showSetStaParams);
-        // no get, admin to set
-
         telnet_port = new IntSetting(
             "Telnet Port", WEBSET, WA, "ESP131", "Telnet/Port", DEFAULT_TELNETSERVER_PORT, MIN_TELNET_PORT, MAX_TELNET_PORT, NULL);
         telnet_enable = new EnumSetting("Telnet Enable", WEBSET, WA, "ESP130", "Telnet/Enable", DEFAULT_TELNET_STATE, &onoffOptions, NULL);
+
         http_port =
             new IntSetting("HTTP Port", WEBSET, WA, "ESP121", "HTTP/Port", DEFAULT_WEBSERVER_PORT, MIN_HTTP_PORT, MAX_HTTP_PORT, NULL);
-        http_enable   = new EnumSetting("HTTP Enable", WEBSET, WA, "ESP120", "HTTP/Enable", DEFAULT_HTTP_STATE, &onoffOptions, NULL);
+        http_enable = new EnumSetting("HTTP Enable", WEBSET, WA, "ESP120", "HTTP/Enable", DEFAULT_HTTP_STATE, &onoffOptions, NULL);
+
         wifi_hostname = new StringSetting("Hostname",
                                           WEBSET,
                                           WA,
@@ -1072,10 +1068,10 @@ namespace WebUI {
                                           MIN_HOSTNAME_LENGTH,
                                           MAX_HOSTNAME_LENGTH,
                                           (bool (*)(char*))WiFiConfig::isHostnameValid);
+
         wifi_ap_channel =
             new IntSetting("AP Channel", WEBSET, WA, "ESP108", "AP/Channel", DEFAULT_AP_CHANNEL, MIN_CHANNEL, MAX_CHANNEL, NULL);
-        wifi_ap_ip = new IPaddrSetting("AP Static IP", WEBSET, WA, "ESP107", "AP/IP", DEFAULT_AP_IP, NULL);
-        // no get, admin to set
+        wifi_ap_ip       = new IPaddrSetting("AP Static IP", WEBSET, WA, "ESP107", "AP/IP", DEFAULT_AP_IP, NULL);
         wifi_ap_password = new StringSetting("AP Password",
                                              WEBSET,
                                              WA,
@@ -1091,7 +1087,6 @@ namespace WebUI {
         wifi_sta_gateway = new IPaddrSetting("Station Static Gateway", WEBSET, WA, NULL, "Sta/Gateway", DEFAULT_STA_GW, NULL);
         wifi_sta_ip      = new IPaddrSetting("Station Static IP", WEBSET, WA, NULL, "Sta/IP", DEFAULT_STA_IP, NULL);
         wifi_sta_mode = new EnumSetting("Station IP Mode", WEBSET, WA, "ESP102", "Sta/IPMode", DEFAULT_STA_IP_MODE, &staModeOptions, NULL);
-        // no get, admin to set
         wifi_sta_password = new StringSetting("Station Password",
                                               WEBSET,
                                               WA,
@@ -1111,7 +1106,11 @@ namespace WebUI {
                                           MAX_SSID_LENGTH,
                                           (bool (*)(char*))WiFiConfig::isSSIDValid);
 
-        wifi_mode   = new EnumSetting("WiFi mode", WEBSET, WA, "ESP116", "WiFi/Mode", WIFI_AP, &wifiModeOptions, NULL);
+        wifi_mode = new EnumSetting("WiFi mode", WEBSET, WA, "ESP116", "WiFi/Mode", WiFiFallback, &wifiModeOptions, NULL);
+
+        new WebCommand(NULL, WEBCMD, WU, "ESP410", "WiFi/ListAPs", listAPs);
+        new WebCommand(NULL, WEBCMD, WG, "ESP111", "System/IP", showIP);
+        new WebCommand("IP=ipaddress MSK=netmask GW=gateway", WEBCMD, WA, "ESP103", "Sta/Setup", showSetStaParams);
 #endif
     }
 
