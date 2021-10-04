@@ -30,7 +30,7 @@ axes:
       limit_pos_pin: NO_PIN
       limit_all_pin: NO_PIN
       hard_limits: true
-      pulloff: 1.000
+      pulloff_mm 1.000
       standard_stepper:
         step_pin: I2SO.2
         direction_pin: I2SO.1
@@ -57,7 +57,7 @@ axes:
       limit_pos_pin: NO_PIN
       limit_all_pin: gpio.32:pu
       hard_limits: true
-      pulloff: 1.000
+      pulloff_mm 1.000
       standard_stepper:
         step_pin: I2SO.5
         direction_pin: I2SO.4
@@ -84,7 +84,7 @@ axes:
       limit_pos_pin: NO_PIN
       limit_all_pin: gpio.35
       hard_limits: true
-      pulloff: 1.000
+      pulloff_mm 1.000
       standard_stepper:
         step_pin: I2SO.10
         direction_pin: I2SO.9

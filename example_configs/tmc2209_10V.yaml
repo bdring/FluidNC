@@ -29,7 +29,7 @@ axes:
     motor0:
       limit_pos_pin: gpio.35
       hard_limits: false
-      pulloff: 1.000
+      pulloff_mm 1.000
       tmc_2209:
         uart:
           txd_pin: gpio.22
@@ -37,7 +37,7 @@ axes:
           baud: 115200
           mode: 8N1
         addr: 0
-        r_sense: 0.110
+        r_sense_ohms: 0.110
         run_current: 0.500
         hold_current: 0.500
         microsteps: 32
@@ -75,7 +75,7 @@ axes:
       limit_pos_pin: gpio.34
       limit_all_pin: NO_PIN
       hard_limits: false
-      pulloff: 1.00
+      pulloff_mm 1.00
       tmc_2209:
         step_pin: gpio.33
         direction_pin: gpio.32
@@ -104,7 +104,7 @@ axes:
       limit_pos_pin: gpio.39
       limit_all_pin: NO_PIN
       hard_limits: false
-      pulloff: 1.00
+      pulloff_mm 1.00
       tmc_2209:
         step_pin: gpio.2
         direction_pin: gpio.14
@@ -133,7 +133,7 @@ axes:
       limit_pos_pin: gpio.36
       limit_all_pin: NO_PIN
       hard_limits: false
-      pulloff: 1.00
+      pulloff_mm 1.00
       tmc_2209:
         step_pin: gpio.16
         direction_pin: gpio.15

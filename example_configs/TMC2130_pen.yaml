@@ -33,7 +33,7 @@ axes:
         direction_pin: gpio.26
         step_pin: gpio.12
         cs_pin: gpio.17
-        r_sense: 0.110
+        r_sense_ohms: 0.110
         run_current: 0.250
         hold_current: 0.250
         microsteps: 32
@@ -70,7 +70,7 @@ axes:
         direction_pin: gpio.25
         step_pin: gpio.14
         cs_pin: gpio.16
-        r_sense: 0.110
+        r_sense_ohms: 0.110
         run_current: 0.250
         hold_current: 0.250
         microsteps: 32

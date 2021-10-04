@@ -34,7 +34,7 @@ axes:
       limit_pos_pin: gpio.35
       limit_all_pin: NO_PIN
       hard_limits: false
-      pulloff: 1.000
+      pulloff_mm 1.000
       tmc_2209:
         uart:
           txd_pin: gpio.22
@@ -45,7 +45,7 @@ axes:
           mode: 8N1
 
         addr: 0
-        r_sense: 0.110
+        r_sense_ohms: 0.110
         run_current: 1.200
         hold_current: 0.500
         microsteps: 8
@@ -66,7 +66,7 @@ axes:
       limit_pos_pin: NO_PIN
       limit_all_pin: NO_PIN
       hard_limits: true
-      pulloff: 1.000
+      pulloff_mm 1.000
       null_motor:
 
   y:
@@ -90,10 +90,10 @@ axes:
       limit_pos_pin: gpio.34
       limit_all_pin: NO_PIN
       hard_limits: false
-      pulloff: 1.000
+      pulloff_mm 1.000
       tmc_2209:
         addr: 1
-        r_sense: 0.110
+        r_sense_ohms: 0.110
         run_current: 1.200
         hold_current: 0.500
         microsteps: 8
@@ -114,7 +114,7 @@ axes:
       limit_pos_pin: NO_PIN
       limit_all_pin: NO_PIN
       hard_limits: true
-      pulloff: 1.000
+      pulloff_mm 1.000
       null_motor:
 
   z:
@@ -138,10 +138,10 @@ axes:
       limit_pos_pin: gpio.39
       limit_all_pin: NO_PIN
       hard_limits: false
-      pulloff: 1.000
+      pulloff_mm 1.000
       tmc_2209:
         addr: 2
-        r_sense: 0.110
+        r_sense_ohms: 0.110
         run_current: 1.200
         hold_current: 0.500
         microsteps: 8
@@ -162,7 +162,7 @@ axes:
       limit_pos_pin: NO_PIN
       limit_all_pin: NO_PIN
       hard_limits: true
-      pulloff: 1.000
+      pulloff_mm 1.000
       null_motor:
 
   a:
@@ -186,10 +186,10 @@ axes:
       limit_pos_pin: gpio.36
       limit_all_pin: NO_PIN
       hard_limits: false
-      pulloff: 1.000
+      pulloff_mm 1.000
       tmc_2209:
         addr: 3
-        r_sense: 0.110
+        r_sense_ohms: 0.110
         run_current: 1.200
         hold_current: 0.500
         microsteps: 8
@@ -210,7 +210,7 @@ axes:
       limit_pos_pin: NO_PIN
       limit_all_pin: NO_PIN
       hard_limits: true
-      pulloff: 1.000
+      pulloff_mm 1.000
       null_motor:
 
       
