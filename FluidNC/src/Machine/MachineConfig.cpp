@@ -45,8 +45,8 @@ namespace Machine {
         handler.section("user_outputs", _userOutputs);
         handler.item("software_debounce_ms", _softwareDebounceMs);
         // TODO: Consider putting these under a gcode: hierarchy level? Or motion control?
-        handler.item("arc_tolerance", _arcTolerance);
-        handler.item("junction_deviation", _junctionDeviation);
+        handler.item("arc_tolerance_mm", _arcTolerance);
+        handler.item("junction_deviation_mm", _junctionDeviation);
         handler.item("verbose_errors", _verboseErrors);
         handler.item("report_inches", _reportInches);
         handler.item("homing_init_lock", _homingInitLock);

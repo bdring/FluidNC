@@ -13,16 +13,16 @@ axes:
   
   x:
     steps_per_mm: 800
-    max_rate: 2000
-    acceleration: 25
-    max_travel: 1000
+    max_rate_mm_per_min: 2000
+    acceleration_mm_per_sec2: 25
+    max_travel_mm: 1000
     soft_limits: false
     homing:
       cycle: 2
       positive_direction: false
-      mpos: 150.000
-      feed_rate: 100.000
-      seek_rate: 200.000
+      mpos_mm: 150.000
+      feed_mm_per_min: 100.000
+      seek_mm_per_min: 200.000
       debounce_ms: 500
       seek_scaler: 1.100
       feed_scaler: 1.100
@@ -38,7 +38,7 @@ axes:
         hold_current: 0.250
         microsteps: 32
         stallguard: 0
-        stallguardDebugMode: false
+        stallguard_debug: false
         toff_disable: 0
         toff_stealthchop: 5
         toff_coolstep: 3
@@ -50,16 +50,16 @@ axes:
 
   y:
     steps_per_mm: 800
-    max_rate: 2000
-    acceleration: 25
-    max_travel: 1000
+    max_rate_mm_per_min: 2000
+    acceleration_mm_per_sec2: 25
+    max_travel_mm: 1000
     soft_limits: false
     homing:
       cycle: 2
       positive_direction: false
-      mpos: 150.000
-      feed_rate: 100.000
-      seek_rate: 200.000
+      mpos_mm: 150.000
+      feed_mm_per_min: 100.000
+      seek_mm_per_min: 200.000
       debounce_ms: 500
       seek_scaler: 1.100
       feed_scaler: 1.100
@@ -75,7 +75,7 @@ axes:
         hold_current: 0.250
         microsteps: 32
         stallguard: 0
-        stallguardDebugMode: false
+        stallguard_debug: false
         toff_disable: 0
         toff_stealthchop: 5
         toff_coolstep: 3
@@ -87,23 +87,23 @@ axes:
 
   z:
     steps_per_mm: 400
-    max_rate: 1000
-    acceleration: 50
-    max_travel: 5.00
+    max_rate_mm_per_min: 1000
+    acceleration_mm_per_sec2: 50
+    max_travel_mm: 5.00
     soft_limits: false
     homing:
       cycle: 1
       positive_direction: true
-      mpos: 5
-      feed_rate: 100.000
-      seek_rate: 200.000
+      mpos_mm: 5
+      feed_mm_per_min: 100.000
+      seek_mm_per_min: 200.000
       debounce_ms: 500
       seek_scaler: 1.100
       feed_scaler: 1.100
     
     motor0:
       rc_servo:
-        pwm_freq_hz: 50
+        pwm_hz: 50
         output_pin: gpio.27
         min_pulse_us: 2100
         max_pulse_us: 1000

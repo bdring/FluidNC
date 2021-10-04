@@ -45,7 +45,7 @@ namespace MotorDrivers {
         // Configuration handlers:
         void group(Configuration::HandlerBase& handler) override {
             handler.item("output_pin", _output_pin);
-            handler.item("pwm_freq_hz", _pwm_freq);
+            handler.item("pwm_hz", _pwm_freq);
             handler.item("min_pulse_us", _min_pulse_us);
             handler.item("max_pulse_us", _max_pulse_us);
         }

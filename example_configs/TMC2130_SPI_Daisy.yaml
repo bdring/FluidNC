@@ -11,16 +11,16 @@ axes:
   shared_stepper_disable_pin: NO_PIN
   x:
     steps_per_mm: 800.000
-    max_rate: 5000.000
-    acceleration: 100.000
-    max_travel: 300.000
+    max_rate_mm_per_min: 5000.000
+    acceleration_mm_per_sec2: 100.000
+    max_travel_mm: 300.000
     soft_limits: false
     homing:
       cycle: 2
       positive_direction: false
-      mpos: 150.000
-      feed_rate: 100.000
-      seek_rate: 200.000
+      mpos_mm: 150.000
+      feed_mm_per_min: 100.000
+      seek_mm_per_min: 200.000
       debounce_ms: 500
       seek_scaler: 1.100
       feed_scaler: 1.100
@@ -39,7 +39,7 @@ axes:
         hold_current: 0.750
         microsteps: 16
         stallguard: 0
-        stallguardDebugMode: false
+        stallguard_debug: false
         toff_disable: 0
         toff_stealthchop: 5
         toff_coolstep: 3
@@ -52,16 +52,16 @@ axes:
 
   y:
     steps_per_mm: 800.000
-    max_rate: 5000.000
-    acceleration: 100.000
-    max_travel: 300.000
+    max_rate_mm_per_min: 5000.000
+    acceleration_mm_per_sec2: 100.000
+    max_travel_mm: 300.000
     soft_limits: false
     homing:
       cycle: 2
       positive_direction: false
-      mpos: 150.000
-      feed_rate: 100.000
-      seek_rate: 200.000
+      mpos_mm: 150.000
+      feed_mm_per_min: 100.000
+      seek_mm_per_min: 200.000
       debounce_ms: 500
       seek_scaler: 1.100
       feed_scaler: 1.100
@@ -79,7 +79,7 @@ axes:
         hold_current: 0.750
         microsteps: 16
         stallguard: 0
-        stallguardDebugMode: false
+        stallguard_debug: false
         toff_disable: 0
         toff_stealthchop: 5
         toff_coolstep: 3
@@ -92,16 +92,16 @@ axes:
 
   z:
     steps_per_mm: 800.000
-    max_rate: 5000.000
-    acceleration: 100.000
-    max_travel: 300.000
+    max_rate_mm_per_min: 5000.000
+    acceleration_mm_per_sec2: 100.000
+    max_travel_mm: 300.000
     soft_limits: false
     homing:
       cycle: 2
       positive_direction: false
-      mpos: 150.000
-      feed_rate: 100.000
-      seek_rate: 200.000
+      mpos_mm: 150.000
+      feed_mm_per_min: 100.000
+      seek_mm_per_min: 200.000
       debounce_ms: 500
       seek_scaler: 1.100
       feed_scaler: 1.100
@@ -119,7 +119,7 @@ axes:
         hold_current: 0.750
         microsteps: 16
         stallguard: 0
-        stallguardDebugMode: false
+        stallguard_debug: false
         toff_disable: 0
         toff_stealthchop: 5
         toff_coolstep: 3
@@ -132,16 +132,16 @@ axes:
 
   a:
     steps_per_mm: 800.000
-    max_rate: 5000.000
-    acceleration: 100.000
-    max_travel: 300.000
+    max_rate_mm_per_min: 5000.000
+    acceleration_mm_per_sec2: 100.000
+    max_travel_mm: 300.000
     soft_limits: false
     homing:
       cycle: 2
       positive_direction: false
-      mpos: 150.000
-      feed_rate: 100.000
-      seek_rate: 200.000
+      mpos_mm: 150.000
+      feed_mm_per_min: 100.000
+      seek_mm_per_min: 200.000
       debounce_ms: 500
       seek_scaler: 1.100
       feed_scaler: 1.100
@@ -159,7 +159,7 @@ axes:
         hold_current: 0.750
         microsteps: 16
         stallguard: 0
-        stallguardDebugMode: false
+        stallguard_debug: false
         toff_disable: 0
         toff_stealthchop: 5
         toff_coolstep: 3
@@ -199,8 +199,8 @@ probe:
   check_mode_start: true
 
 macros:
-  n0:
-  n1:
+  startup_line0:
+  startup_line1:
   macro0:
   macro1:
   macro2:
@@ -211,10 +211,10 @@ user_outputs:
   analog1: NO_PIN
   analog2: NO_PIN
   analog3: NO_PIN
-  analog0_freq_hz: 5000
-  analog1_freq_hz: 5000
-  analog2_freq_hz: 5000
-  analog3_freq_hz: 5000
+  analog0_hz: 5000
+  analog1_hz: 5000
+  analog2_hz: 5000
+  analog3_hz: 5000
   digital0: NO_PIN
   digital1: NO_PIN
   digital2: NO_PIN
@@ -222,8 +222,8 @@ user_outputs:
 
 software_debounce_ms: 0
 laser_mode: false
-arc_tolerance: 0.002
-junction_deviation: 0.010
+arc_tolerance_mm: 0.002
+junction_deviation_mm: 0.010
 verbose_errors: false
 report_inches: false
 homing_init_lock: false

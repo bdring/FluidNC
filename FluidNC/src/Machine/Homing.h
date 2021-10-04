@@ -43,8 +43,8 @@ namespace Machine {
             handler.item("cycle", _cycle);
             handler.item("positive_direction", _positiveDirection);
             handler.item("mpos", _mpos);
-            handler.item("feed_rate", _feedRate);
-            handler.item("seek_rate", _seekRate);
+            handler.item("feed_mm_per_min", _feedRate);
+            handler.item("seek_mm_per_min", _seekRate);
             handler.item("debounce_ms", _debounce_ms);
             handler.item("seek_scaler", _seek_scaler);
             handler.item("feed_scaler", _feed_scaler);

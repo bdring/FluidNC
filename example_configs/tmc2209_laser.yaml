@@ -15,16 +15,16 @@ axes:
   
   x:
     steps_per_mm: 800.000
-    max_rate: 5000.000
-    acceleration: 100.000
-    max_travel: 300.000
+    max_rate_mm_per_min: 5000.000
+    acceleration_mm_per_sec2: 100.000
+    max_travel_mm: 300.000
     soft_limits: false
     homing:
       cycle: 1
       positive_direction: false
-      mpos: 150.000
-      feed_rate: 100.000
-      seek_rate: 200.000
+      mpos_mm: 150.000
+      feed_mm_per_min: 100.000
+      seek_mm_per_min: 200.000
       debounce_ms: 500
       seek_scaler: 1.100
       feed_scaler: 1.100
@@ -50,7 +50,7 @@ axes:
         hold_current: 0.500
         microsteps: 8
         stallguard: 0
-        stallguardDebugMode: false
+        stallguard_debug: false
         toff_disable: 0
         toff_stealthchop: 5
         toff_coolstep: 3
@@ -71,16 +71,16 @@ axes:
 
   y:
     steps_per_mm: 800.000
-    max_rate: 5000.000
-    acceleration: 100.000
-    max_travel: 300.000
+    max_rate_mm_per_min: 5000.000
+    acceleration_mm_per_sec2: 100.000
+    max_travel_mm: 300.000
     soft_limits: false
     homing:
       cycle: 2
       positive_direction: false
-      mpos: 150.000
-      feed_rate: 100.000
-      seek_rate: 200.000
+      mpos_mm: 150.000
+      feed_mm_per_min: 100.000
+      seek_mm_per_min: 200.000
       debounce_ms: 500
       seek_scaler: 1.100
       feed_scaler: 1.100
@@ -98,7 +98,7 @@ axes:
         hold_current: 0.500
         microsteps: 8
         stallguard: 0
-        stallguardDebugMode: false
+        stallguard_debug: false
         toff_disable: 0
         toff_stealthchop: 5
         toff_coolstep: 3
@@ -119,16 +119,16 @@ axes:
 
   z:
     steps_per_mm: 800.000
-    max_rate: 5000.000
-    acceleration: 100.000
-    max_travel: 300.000
+    max_rate_mm_per_min: 5000.000
+    acceleration_mm_per_sec2: 100.000
+    max_travel_mm: 300.000
     soft_limits: false
     homing:
       cycle: 2
       positive_direction: false
-      mpos: 150.000
-      feed_rate: 100.000
-      seek_rate: 200.000
+      mpos_mm: 150.000
+      feed_mm_per_min: 100.000
+      seek_mm_per_min: 200.000
       debounce_ms: 500
       seek_scaler: 1.100
       feed_scaler: 1.100
@@ -146,7 +146,7 @@ axes:
         hold_current: 0.500
         microsteps: 8
         stallguard: 0
-        stallguardDebugMode: false
+        stallguard_debug: false
         toff_disable: 0
         toff_stealthchop: 5
         toff_coolstep: 3
@@ -167,16 +167,16 @@ axes:
 
   a:
     steps_per_mm: 800.000
-    max_rate: 5000.000
-    acceleration: 100.000
-    max_travel: 300.000
+    max_rate_mm_per_min: 5000.000
+    acceleration_mm_per_sec2: 100.000
+    max_travel_mm: 300.000
     soft_limits: false
     homing:
       cycle: 2
       positive_direction: false
-      mpos: 150.000
-      feed_rate: 100.000
-      seek_rate: 200.000
+      mpos_mm: 150.000
+      feed_mm_per_min: 100.000
+      seek_mm_per_min: 200.000
       debounce_ms: 500
       seek_scaler: 1.100
       feed_scaler: 1.100
@@ -194,7 +194,7 @@ axes:
         hold_current: 0.500
         microsteps: 8
         stallguard: 0
-        stallguardDebugMode: false
+        stallguard_debug: false
         toff_disable: 0
         toff_stealthchop: 5
         toff_coolstep: 3
@@ -229,11 +229,11 @@ probe:
 homing_init_lock: false
 
 Laser:
-  pwm_freq_hz: 5000
+  pwm_hz: 5000
   output_pin: gpio.4
   enable_pin: gpio.12
-  disable_with_zero_speed: false
-  zero_speed_with_disable: true
-  tool: 100
-  speeds: 0=0.000% 255=100.000%
+  disable_with_s0: false
+  s0_with_disable: true
+  tool_num: 100
+  speed_map: 0=0.000% 255=100.000%
   
