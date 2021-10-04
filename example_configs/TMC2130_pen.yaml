@@ -103,7 +103,7 @@ axes:
     
     motor0:
       rc_servo:
-        pwm_freq: 50
+        pwm_freq_hz: 50
         output_pin: gpio.27
         min_pulse_us: 2100
         max_pulse_us: 1000

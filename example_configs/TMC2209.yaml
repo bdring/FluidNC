@@ -154,10 +154,10 @@ user_outputs:
   analog1: NO_PIN
   analog2: NO_PIN
   analog3: NO_PIN
-  analog_frequency0: 5000
-  analog_frequency1: 5000
-  analog_frequency2: 5000
-  analog_frequency3: 5000
+  analog0_freq_hz: 5000
+  analog1_freq_hz: 5000
+  analog2_freq_hz: 5000
+  analog3_freq_hz: 5000
   digital0: NO_PIN
   digital1: NO_PIN
   digital2: NO_PIN
@@ -175,7 +175,7 @@ deactivate_parking_upon_init: false
 check_limits_at_init: false
 use_line_numbers: false
 PWM:
-  pwm_freq: 5000
+  pwm_freq_hz: 5000
   output_pin: gpio.4
   enable_pin: gpio.13
   direction_pin: gpio.17

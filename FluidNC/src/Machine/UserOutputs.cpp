@@ -38,10 +38,10 @@ namespace Machine {
         handler.item("analog1_pin", _analogOutput[1]);
         handler.item("analog2_pin", _analogOutput[2]);
         handler.item("analog3_pin", _analogOutput[3]);
-        handler.item("analog_frequency0", _analogFrequency[0]);
-        handler.item("analog_frequency1", _analogFrequency[1]);
-        handler.item("analog_frequency2", _analogFrequency[2]);
-        handler.item("analog_frequency3", _analogFrequency[3]);
+        handler.item("analog0_freq_hz", _analogFrequency[0]);
+        handler.item("analog1_freq_hz", _analogFrequency[1]);
+        handler.item("analog2_freq_hz", _analogFrequency[2]);
+        handler.item("analog3_freq_hz", _analogFrequency[3]);
         handler.item("digital0_pin", _digitalOutput[0]);
         handler.item("digital1_pin", _digitalOutput[1]);
         handler.item("digital2_pin", _digitalOutput[2]);

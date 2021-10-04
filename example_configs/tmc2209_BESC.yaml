@@ -155,7 +155,7 @@ probe:
   pin: NO_PIN
 
 besc:
-  pwm_freq: 50
+  pwm_freq_hz: 50
   output_pin: gpio.4
   enable_pin: NO_PIN
   direction_pin: NO_PIN

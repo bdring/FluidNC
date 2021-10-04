@@ -229,7 +229,7 @@ probe:
 homing_init_lock: false
 
 Laser:
-  pwm_freq: 5000
+  pwm_freq_hz: 5000
   output_pin: gpio.4
   enable_pin: gpio.12
   disable_with_zero_speed: false
