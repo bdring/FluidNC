@@ -101,10 +101,10 @@ namespace MotorDrivers {
 
         switch (tmcstepper->test_connection()) {
             case 1:
-                log_info(axisName() << " Trinamic driver test failed. Check connection");
+                log_info(axisName() << " driver test failed. Check connection");
                 return false;
             case 2:
-                log_info(axisName() << " Trinamic driver test failed. Check motor power");
+                log_info(axisName() << " driver test failed. Check motor power");
                 return false;
             default:
                 // driver responded, so check for other errors from the DRV_STATUS register
@@ -133,7 +133,7 @@ namespace MotorDrivers {
                 //     return false;
                 // }
 
-                log_info(axisName() << " Trinamic driver test passed");
+                log_info(axisName() << " driver test passed");
                 return true;
         }
     }

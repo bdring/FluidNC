@@ -86,8 +86,6 @@ void setup() {
             memset(motor_steps, 0, sizeof(motor_steps));  // Clear machine position.
 
             machine_init();  // user supplied function for special initialization
-
-            config->_axes->config_motors();  // for smart drivers like trinamics
         }
 
         // Initialize system state.

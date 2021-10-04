@@ -39,6 +39,8 @@ namespace Machine {
                 a->init();
             }
         }
+
+        config_motors();
     }
 
     void IRAM_ATTR Axes::set_disable(int axis, bool disable) {
