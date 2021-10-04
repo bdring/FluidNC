@@ -90,6 +90,5 @@ homing_init_lock: true
 enable_parking_override_control: false
 deactivate_parking_upon_init: false
 check_limits_at_init: true
-disable_laser_during_hold: true
 use_line_numbers: false
 NoSpindle:

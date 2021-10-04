@@ -61,12 +61,6 @@ namespace Machine {
         // will be entered instead of Idle, messaging the user to check the limits, rather than idle.
         bool _checkLimitsAtInit = true;
 
-        // This option will automatically disable the laser during a feed hold by invoking a spindle stop
-        // override immediately after coming to a stop. However, this also means that the laser still may
-        // be reenabled by disabling the spindle stop override, if needed. This is purely a safety feature
-        // to ensure the laser doesn't inadvertently remain powered while at a stop and cause a fire.
-        bool _disableLaserDuringHold = true;
-
         // Tracks and reports gcode line numbers. Disabled by default.
         bool _useLineNumbers = false;
 

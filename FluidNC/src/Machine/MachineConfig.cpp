@@ -53,7 +53,6 @@ namespace Machine {
         handler.item("enable_parking_override_control", _enableParkingOverrideControl);
         handler.item("deactivate_parking_upon_init", _deactivateParkingUponInit);
         handler.item("check_limits_at_init", _checkLimitsAtInit);
-        handler.item("disable_laser_during_hold", _disableLaserDuringHold);
         handler.item("use_line_numbers", _useLineNumbers);
 
         Spindles::SpindleFactory::factory(handler, _spindles);
