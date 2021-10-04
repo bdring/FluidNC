@@ -39,6 +39,8 @@ namespace Machine {
                 a->init();
             }
         }
+
+        config_motors();
     }
 
     void IRAM_ATTR Axes::set_disable(int axis, bool disable) {
@@ -144,6 +146,12 @@ namespace Machine {
         }
 
         config->_stepping->finishPulse();
+    }
+
+    void Axes::config_motors() {
+        for (int axis = 0; axis < _numberAxis; ++axis) {
+            _axis[axis]->config_motors();
+        }
     }
 
     // Some small helpers to find the axis index and axis motor index for a given motor. This

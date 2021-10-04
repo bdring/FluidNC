@@ -46,6 +46,7 @@ namespace Machine {
         float pulloffOffset();
 
         void init();
+        void config_motors();
 
         ~Axis();
     };

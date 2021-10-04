@@ -39,6 +39,12 @@ namespace Machine {
         _allLimitPin->init();
     }
 
+    void Motor::config_motor() {
+        if (_driver != nullptr) {
+            _driver->config_motor();
+        }
+    }
+
     // tru if there is at least one switch for this motor
     bool Motor::hasSwitches() { return (_negPin.defined() || _posPin.defined() || _allPin.defined()); }
 
