@@ -63,9 +63,9 @@ namespace MotorDrivers {
         TrinamicBase(uint16_t partNumber) : StandardStepper(), _driver_part_number(partNumber) {}
 
         void group(Configuration::HandlerBase& handler) override {
-            handler.item("r_sense", _r_sense);
-            handler.item("run_current", _run_current);
-            handler.item("hold_current", _hold_current);
+            handler.item("r_sense_ohm", _r_sense);
+            handler.item("run_amps", _run_current);
+            handler.item("hold_amps", _hold_current);
             handler.item("microsteps", _microsteps);
             handler.item("stallguard", _stallguard);
             handler.item("stallguardDebugMode", _stallguardDebugMode);

@@ -79,7 +79,7 @@ namespace MotorDrivers {
         void validate() const override { StandardStepper::validate(); }
 
         void group(Configuration::HandlerBase& handler) override {
-            handler.item("cs", _cs_pin);
+            handler.item("cs_pin", _cs_pin);
             handler.item("spi_index", _spi_index);
             TrinamicBase::group(handler);
         }

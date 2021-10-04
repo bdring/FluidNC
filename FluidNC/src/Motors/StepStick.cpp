@@ -23,10 +23,10 @@ namespace MotorDrivers {
     void StepStick::group(Configuration::HandlerBase& handler) {
         StandardStepper::group(handler);
 
-        handler.item("ms1", _MS1);
-        handler.item("ms2", _MS2);
-        handler.item("ms3", _MS3);
-        handler.item("reset", _Reset);
+        handler.item("ms1_pin", _MS1);
+        handler.item("ms2_pin", _MS2);
+        handler.item("ms3_pin", _MS3);
+        handler.item("reset_pin", _Reset);
     }
 
     void StepStick::afterParse() {

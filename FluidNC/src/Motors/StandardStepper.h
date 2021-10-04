@@ -35,9 +35,9 @@ namespace MotorDrivers {
         void validate() const override;
 
         void group(Configuration::HandlerBase& handler) override {
-            handler.item("step", _step_pin);
-            handler.item("direction", _dir_pin);
-            handler.item("disable", _disable_pin);
+            handler.item("step_pin", _step_pin);
+            handler.item("direction_pin", _dir_pin);
+            handler.item("disable_pin", _disable_pin);
         }
 
         // Name of the configurable. Must match the name registered in the cpp file.
