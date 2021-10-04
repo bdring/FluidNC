@@ -8,7 +8,7 @@ stepping:
   disable_delay_us: 0
 
 axes:
-  shared_stepper_disable: NO_PIN
+  shared_stepper_disable_pin: NO_PIN
   x:
     steps_per_mm: 800.000
     max_rate: 5000.000
@@ -26,15 +26,15 @@ axes:
       feed_scaler: 1.100
 
     motor0:
-      limit_neg: NO_PIN
-      limit_pos: NO_PIN
-      limit_all: NO_PIN
+      limit_neg_pin: NO_PIN
+      limit_pos_pin: NO_PIN
+      limit_all_pin: NO_PIN
       hard_limits: true
       pulloff: 1.000
       standard_stepper:
-        step: I2SO.2
-        direction: I2SO.1
-        disable: I2SO.0
+        step_pin: I2SO.2
+        direction_pin: I2SO.1
+        disable_pin: I2SO.0
 
   y:
     steps_per_mm: 800.000
@@ -53,15 +53,15 @@ axes:
       feed_scaler: 1.100
 
     motor0:
-      limit_neg: NO_PIN
-      limit_pos: NO_PIN
-      limit_all: gpio.32:pu
+      limit_neg_pin: NO_PIN
+      limit_pos_pin: NO_PIN
+      limit_all_pin: gpio.32:pu
       hard_limits: true
       pulloff: 1.000
       standard_stepper:
-        step: I2SO.5
-        direction: I2SO.4
-        disable: I2SO.7
+        step_pin: I2SO.5
+        direction_pin: I2SO.4
+        disable_pin: I2SO.7
 
   z:
     steps_per_mm: 800.000
@@ -80,43 +80,43 @@ axes:
       feed_scaler: 1.100
 
     motor0:
-      limit_neg: NO_PIN
-      limit_pos: NO_PIN
-      limit_all: gpio.35
+      limit_neg_pin: NO_PIN
+      limit_pos_pin: NO_PIN
+      limit_all_pin: gpio.35
       hard_limits: true
       pulloff: 1.000
       standard_stepper:
-        step: I2SO.10
-        direction: I2SO.9
-        disable: I2SO.8
+        step_pin: I2SO.10
+        direction_pin: I2SO.9
+        disable_pin: I2SO.8
 
 i2so:
-  bck: gpio.22
-  data: gpio.21
-  ws: gpio.17
+  bck_pin: gpio.22
+  data_pin: gpio.21
+  ws_pin: gpio.17
 
 spi:
-  miso: gpio.19
-  mosi: gpio.23
-  sck: gpio.18
+  miso_pin: gpio.19
+  mosi_pin: gpio.23
+  sck_pin: gpio.18
 
 sdcard:
-  card_detect: NO_PIN
-  cs: gpio.5
+  card_detect_pin: NO_PIN
+  cs_pin: gpio.5
 
 control:
-  safety_door: NO_PIN
-  reset: NO_PIN
-  feed_hold: NO_PIN
-  cycle_start: NO_PIN
-  macro0: NO_PIN
-  macro1: NO_PIN
-  macro2: NO_PIN
-  macro3: NO_PIN
+  safety_door_pin: NO_PIN
+  reset_pin: NO_PIN
+  feed_hold_pin: NO_PIN
+  cycle_start_pin: NO_PIN
+  macro0_pin: NO_PIN
+  macro1_pin: NO_PIN
+  macro2_pin: NO_PIN
+  macro3_pin: NO_PIN
 
 coolant:
-  flood: NO_PIN
-  mist: NO_PIN
+  flood_pin: NO_PIN
+  mist_pin: NO_PIN
   delay_ms: 0
 
 probe:
@@ -132,18 +132,18 @@ macros:
   macro3:
 
 user_outputs:
-  analog0: NO_PIN
-  analog1: NO_PIN
-  analog2: NO_PIN
-  analog3: NO_PIN
+  analog0_pin: NO_PIN
+  analog1_pin: NO_PIN
+  analog2_pin: NO_PIN
+  analog3_pin: NO_PIN
   analog0_freq_hz: 5000
   analog1_freq_hz: 5000
   analog2_freq_hz: 5000
   analog3_freq_hz: 5000
-  digital0: NO_PIN
-  digital1: NO_PIN
-  digital2: NO_PIN
-  digital3: NO_PIN
+  digital0_pin: NO_PIN
+  digital1_pin: NO_PIN
+  digital2_pin: NO_PIN
+  digital3_pin: NO_PIN
 
 software_debounce_ms: 0
 laser_mode: false

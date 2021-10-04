@@ -11,7 +11,7 @@ stepping:
 homing_init_lock: true
 
 axes:
-  shared_stepper_disable: gpio.25:high
+  shared_stepper_disable_pin: gpio.25:high
   
   x:
     steps_per_mm: 800.000
@@ -30,9 +30,9 @@ axes:
       feed_scaler: 1.100
 
     motor0:
-      limit_neg: NO_PIN
-      limit_pos: gpio.35
-      limit_all: NO_PIN
+      limit_neg_pin: NO_PIN
+      limit_pos_pin: gpio.35
+      limit_all_pin: NO_PIN
       hard_limits: false
       pulloff: 1.000
       tmc_2209:
@@ -57,14 +57,14 @@ axes:
         run_mode: StealthChop
         homing_mode: StealthChop
         use_enable: false
-        step: gpio.26
-        direction: gpio.27
-        disable: NO_PIN
+        step_pin: gpio.26
+        direction_pin: gpio.27
+        disable_pin: NO_PIN
 
     motor1:
-      limit_neg: NO_PIN
-      limit_pos: NO_PIN
-      limit_all: NO_PIN
+      limit_neg_pin: NO_PIN
+      limit_pos_pin: NO_PIN
+      limit_all_pin: NO_PIN
       hard_limits: true
       pulloff: 1.000
       null_motor:
@@ -86,9 +86,9 @@ axes:
       feed_scaler: 1.100
 
     motor0:
-      limit_neg: NO_PIN
-      limit_pos: gpio.34
-      limit_all: NO_PIN
+      limit_neg_pin: NO_PIN
+      limit_pos_pin: gpio.34
+      limit_all_pin: NO_PIN
       hard_limits: false
       pulloff: 1.000
       tmc_2209:
@@ -105,14 +105,14 @@ axes:
         run_mode: StealthChop
         homing_mode: StealthChop
         use_enable: false
-        step: gpio.33
-        direction: gpio.32
-        disable: NO_PIN
+        step_pin: gpio.33
+        direction_pin: gpio.32
+        disable_pin: NO_PIN
 
     motor1:
-      limit_neg: NO_PIN
-      limit_pos: NO_PIN
-      limit_all: NO_PIN
+      limit_neg_pin: NO_PIN
+      limit_pos_pin: NO_PIN
+      limit_all_pin: NO_PIN
       hard_limits: true
       pulloff: 1.000
       null_motor:
@@ -134,9 +134,9 @@ axes:
       feed_scaler: 1.100
 
     motor0:
-      limit_neg: NO_PIN
-      limit_pos: gpio.39
-      limit_all: NO_PIN
+      limit_neg_pin: NO_PIN
+      limit_pos_pin: gpio.39
+      limit_all_pin: NO_PIN
       hard_limits: false
       pulloff: 1.000
       tmc_2209:
@@ -153,14 +153,14 @@ axes:
         run_mode: StealthChop
         homing_mode: StealthChop
         use_enable: false
-        step: gpio.2
-        direction: gpio.14
-        disable: NO_PIN
+        step_pin: gpio.2
+        direction_pin: gpio.14
+        disable_pin: NO_PIN
 
     motor1:
-      limit_neg: NO_PIN
-      limit_pos: NO_PIN
-      limit_all: NO_PIN
+      limit_neg_pin: NO_PIN
+      limit_pos_pin: NO_PIN
+      limit_all_pin: NO_PIN
       hard_limits: true
       pulloff: 1.000
       null_motor:
@@ -182,9 +182,9 @@ axes:
       feed_scaler: 1.100
 
     motor0:
-      limit_neg: NO_PIN
-      limit_pos: gpio.36
-      limit_all: NO_PIN
+      limit_neg_pin: NO_PIN
+      limit_pos_pin: gpio.36
+      limit_all_pin: NO_PIN
       hard_limits: false
       pulloff: 1.000
       tmc_2209:
@@ -201,27 +201,27 @@ axes:
         run_mode: StealthChop
         homing_mode: StealthChop
         use_enable: false
-        step: gpio.16
-        direction: gpio.15
-        disable: NO_PIN
+        step_pin: gpio.16
+        direction_pin: gpio.15
+        disable_pin: NO_PIN
 
     motor1:
-      limit_neg: NO_PIN
-      limit_pos: NO_PIN
-      limit_all: NO_PIN
+      limit_neg_pin: NO_PIN
+      limit_pos_pin: NO_PIN
+      limit_all_pin: NO_PIN
       hard_limits: true
       pulloff: 1.000
       null_motor:
 
       
 spi:
-  miso: gpio.19
-  mosi: gpio.23
-  sck: gpio.18
+  miso_pin: gpio.19
+  mosi_pin: gpio.23
+  sck_pin: gpio.18
 
 sdcard:
-  card_detect: NO_PIN
-  cs: gpio.5
+  card_detect_pin: NO_PIN
+  cs_pin: gpio.5
 
 probe:
   pin: NO_PIN

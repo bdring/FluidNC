@@ -9,7 +9,7 @@ stepping:
   disable_delay_us: 0
 
 axes:
-  shared_stepper_disable: gpio.13:high
+  shared_stepper_disable_pin: gpio.13:high
   
   x:
     steps_per_mm: 800
@@ -28,11 +28,11 @@ axes:
       feed_scaler: 1.100
     
     motor0:
-      limit_all: gpio.32:low:pu
+      limit_all_pin: gpio.32:low:pu
       tmc_2130:
-        direction: gpio.26
-        step: gpio.12
-        cs: gpio.17
+        direction_pin: gpio.26
+        step_pin: gpio.12
+        cs_pin: gpio.17
         r_sense: 0.110
         run_current: 0.250
         hold_current: 0.250
@@ -65,11 +65,11 @@ axes:
       feed_scaler: 1.100
 
     motor0:
-      limit_all: NO_PIN
+      limit_all_pin: NO_PIN
       tmc_2130:
-        direction: gpio.25
-        step: gpio.14
-        cs: gpio.16
+        direction_pin: gpio.25
+        step_pin: gpio.14
+        cs_pin: gpio.16
         r_sense: 0.110
         run_current: 0.250
         hold_current: 0.250
@@ -109,13 +109,13 @@ axes:
         max_pulse_us: 1000
         
 spi:
-  miso: gpio.19
-  mosi: gpio.23
-  sck: gpio.18
+  miso_pin: gpio.19
+  mosi_pin: gpio.23
+  sck_pin: gpio.18
 
 sdcard:
-  cs: gpio.5
-  card_detect: NO_PIN
+  cs_pin: gpio.5
+  card_detect_pin: NO_PIN
 
 coolant:
   flood: NO_PIN

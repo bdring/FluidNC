@@ -153,7 +153,7 @@ SDCard::State SDCard::test_or_open(bool refresh) {
 
     _state = SDCard::State::NotPresent;
 
-    auto csPin   = _cs.getNative(Pin::Capabilities::Output | Pin::Capabilities::Native);
+    auto csPin = _cs.getNative(Pin::Capabilities::Output | Pin::Capabilities::Native);
 
     //refresh content if card was removed
     if (SD.begin(csPin, SPI, SPIfreq, "/sd", 2)) {
@@ -193,10 +193,10 @@ void SDCard::init() {
             log_error("SD needs SPI defined");
         } else {
             if (init_message) {
-            _cardDetect.report("SD Card Detect");
-            init_message = false;
+                _cardDetect.report("SD Card Detect");
+                init_message = false;
             }
-            log_info("SD Card cs:" << _cs.name() << " dectect:" << _cardDetect.name());
+            log_info("SD Card cs_pin:" << _cs.name() << " dectect:" << _cardDetect.name());
         }
     }
 

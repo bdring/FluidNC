@@ -8,7 +8,7 @@ stepping:
   disable_delay_us: 0
 
 axes:
-  shared_stepper_disable: gpio.25
+  shared_stepper_disable_pin: gpio.25
   x:
     steps_per_mm: 800.000
     max_rate: 5000.000
@@ -26,14 +26,14 @@ axes:
       feed_scaler: 1.100
 
     motor0:
-      limit_neg: NO_PIN
-      limit_pos: NO_PIN
-      limit_all: gpio.35
+      limit_neg_pin: NO_PIN
+      limit_pos_pin: NO_PIN
+      limit_all_pin: gpio.35
       hard_limits: true
       pulloff: 1.000
       tmc_2209:       
-        step: gpio.26
-        direction: gpio.27
+        step_pin: gpio.26
+        direction_pin: gpio.27
 
   y:
     steps_per_mm: 800.000
@@ -52,14 +52,14 @@ axes:
       feed_scaler: 1.100
 
     motor0:
-      limit_neg: NO_PIN
-      limit_pos: NO_PIN
-      limit_all: gpio.34
+      limit_neg_pin: NO_PIN
+      limit_pos_pin: NO_PIN
+      limit_all_pin: gpio.34
       hard_limits: true
       pulloff: 1.000
       tmc_2209:       
-        step: gpio.33
-        direction: gpio.32
+        step_pin: gpio.33
+        direction_pin: gpio.32
 
   z:
     steps_per_mm: 800.000
@@ -78,14 +78,14 @@ axes:
       feed_scaler: 1.100
 
     motor0:
-      limit_neg: NO_PIN
-      limit_pos: NO_PIN
-      limit_all: gpio.39
+      limit_neg_pin: NO_PIN
+      limit_pos_pin: NO_PIN
+      limit_all_pin: gpio.39
       hard_limits: true
       pulloff: 1.000
       tmc_2209:       
-        step: gpio.2
-        direction: gpio.14
+        step_pin: gpio.2
+        direction_pin: gpio.14
 
 a:
     steps_per_mm: 800.000
@@ -104,23 +104,23 @@ a:
       feed_scaler: 1.100
 
     motor0:
-      limit_neg: NO_PIN
-      limit_pos: NO_PIN
-      limit_all: NO_PIN
+      limit_neg_pin: NO_PIN
+      limit_pos_pin: NO_PIN
+      limit_all_pin: NO_PIN
       hard_limits: true
       pulloff: 1.000
       tmc_2209:       
-        step: gpio.16
-        direction: gpio.15
+        step_pin: gpio.16
+        direction_pin: gpio.15
 
 spi:
-  miso: gpio.19
-  mosi: gpio.23
-  sck: gpio.18
+  miso_pin: gpio.19
+  mosi_pin: gpio.23
+  sck_pin: gpio.18
 
 sdcard:
-  cs: gpio.5
-  card_detect: NO_PIN
+  cs_pin: gpio.5
+  card_detect_pin: NO_PIN
 
 control:
   safety_door: NO_PIN

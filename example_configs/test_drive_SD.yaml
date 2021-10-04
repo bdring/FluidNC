@@ -8,7 +8,7 @@ stepping:
   disable_delay_us: 0
 
 axes:
-  shared_stepper_disable: NO_PIN
+  shared_stepper_disable_pin: NO_PIN
   x:
     steps_per_mm: 320.000
     max_rate: 1000.000
@@ -31,9 +31,9 @@ axes:
     soft_limits: false
 
 spi:
-  miso: NO_PIN
-  mosi: NO_PIN
-  sck: NO_PIN
+  miso_pin: NO_PIN
+  mosi_pin: NO_PIN
+  sck_pin: NO_PIN
 
 control:
   safety_door: NO_PIN
@@ -77,8 +77,8 @@ user_outputs:
   digital3: NO_PIN
 
 sdcard:
-  card_detect: NO_PIN
-  cs: gpio.5
+  card_detect_pin: NO_PIN
+  cs_pin: gpio.5
 
 software_debounce_ms: 0
 laser_mode: false

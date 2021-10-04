@@ -8,7 +8,7 @@ stepping:
   disable_delay_us: 0
 
 axes:
-  shared_stepper_disable: NO_PIN
+  shared_stepper_disable_pin: NO_PIN
   x:
     steps_per_mm: 800.000
     max_rate: 5000.000
@@ -26,13 +26,13 @@ axes:
       feed_scaler: 1.100
 
     motor0:
-      limit_neg: NO_PIN
-      limit_pos: NO_PIN
-      limit_all: NO_PIN
+      limit_neg_pin: NO_PIN
+      limit_pos_pin: NO_PIN
+      limit_all_pin: NO_PIN
       hard_limits: true
       pulloff: 1.000
       tmc_2130:
-        cs: gpio.17
+        cs_pin: gpio.17
         spi_index: 1
         r_sense: 0.110
         run_current: 0.750
@@ -46,9 +46,9 @@ axes:
         run_mode: CoolStep
         homing_mode: CoolStep
         use_enable: true
-        step: gpio.12
-        direction: gpio.14
-        disable: NO_PIN
+        step_pin: gpio.12
+        direction_pin: gpio.14
+        disable_pin: NO_PIN
 
   y:
     steps_per_mm: 800.000
@@ -67,9 +67,9 @@ axes:
       feed_scaler: 1.100
 
     motor0:
-      limit_neg: NO_PIN
-      limit_pos: NO_PIN
-      limit_all: NO_PIN
+      limit_neg_pin: NO_PIN
+      limit_pos_pin: NO_PIN
+      limit_all_pin: NO_PIN
       hard_limits: true
       pulloff: 1.000
       tmc_2130:
@@ -86,9 +86,9 @@ axes:
         run_mode: CoolStep
         homing_mode: CoolStep
         use_enable: true
-        step: gpio.27
-        direction: gpio.26
-        disable: NO_PIN
+        step_pin: gpio.27
+        direction_pin: gpio.26
+        disable_pin: NO_PIN
 
   z:
     steps_per_mm: 800.000
@@ -107,9 +107,9 @@ axes:
       feed_scaler: 1.100
 
     motor0:
-      limit_neg: NO_PIN
-      limit_pos: NO_PIN
-      limit_all: NO_PIN
+      limit_neg_pin: NO_PIN
+      limit_pos_pin: NO_PIN
+      limit_all_pin: NO_PIN
       hard_limits: true
       pulloff: 1.000
       tmc_2130:
@@ -126,9 +126,9 @@ axes:
         run_mode: CoolStep
         homing_mode: CoolStep
         use_enable: true
-        step: gpio.15
-        direction: gpio.2
-        disable: NO_PIN
+        step_pin: gpio.15
+        direction_pin: gpio.2
+        disable_pin: NO_PIN
 
   a:
     steps_per_mm: 800.000
@@ -147,9 +147,9 @@ axes:
       feed_scaler: 1.100
 
     motor0:
-      limit_neg: NO_PIN
-      limit_pos: NO_PIN
-      limit_all: NO_PIN
+      limit_neg_pin: NO_PIN
+      limit_pos_pin: NO_PIN
+      limit_all_pin: NO_PIN
       hard_limits: true
       pulloff: 1.000
       tmc_2130:
@@ -166,18 +166,18 @@ axes:
         run_mode: CoolStep
         homing_mode: CoolStep
         use_enable: true
-        step: gpio.33
-        direction: gpio.32
-        disable: NO_PIN
+        step_pin: gpio.33
+        direction_pin: gpio.32
+        disable_pin: NO_PIN
 
 spi:
-  miso: gpio.19
-  mosi: gpio.23
-  sck: gpio.18
+  miso_pin: gpio.19
+  mosi_pin: gpio.23
+  sck_pin: gpio.18
 
 sdcard:
-  card_detect: NO_PIN
-  cs: gpio.5
+  card_detect_pin: NO_PIN
+  cs_pin: gpio.5
 
 control:
   safety_door: NO_PIN

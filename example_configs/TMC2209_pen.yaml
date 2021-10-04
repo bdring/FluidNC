@@ -1,15 +1,71 @@
-board: 6 Pack
-name: 6 Pack TMC5160 XYZ
+board: TMC2209 Pen
+name: TMC2209 Pen
 stepping:
-  engine: I2S_STREAM
-  idle_ms: 255
+  engine: RMT
+  idle_ms: 250
   pulse_us: 2
   dir_delay_us: 1
   disable_delay_us: 0
 
 axes:
-  shared_stepper_disable_pin: NO_PIN
+  shared_stepper_disable_pin: gpio.13
   x:
+    steps_per_mm: 80.000
+    max_rate: 30000.000
+    acceleration: 100.000
+    max_travel: 300.000
+    soft_limits: false
+    homing:
+      cycle: 1
+      positive_direction: false
+      mpos: 150.000
+      feed_rate: 100.000
+      seek_rate: 200.000
+      debounce_ms: 500
+      seek_scaler: 1.100
+      feed_scaler: 1.100
+
+    motor0:
+      limit_neg_pin: NO_PIN
+      limit_pos_pin: gpio.33
+      limit_all_pin: NO_PIN
+      hard_limits: false
+      pulloff: 1.000
+      tmc_2209:
+        uart:
+          txd_pin: gpio.22
+          rxd_pin: gpio.21
+          rts_pin: NO_PIN
+          cts_pin: NO_PIN
+          baud: 115200
+          mode: 8N1
+
+        addr: 0
+        r_sense_ohm: 0.110
+        run_amps: 0.500
+        hold_amps: 0.500
+        microsteps: 4
+        stallguard: 0
+        stallguardDebugMode: false
+        toff_disable: 0
+        toff_stealthchop: 5
+        toff_coolstep: 3
+        run_mode: CoolStep
+        homing_mode: CoolStep
+        use_enable: false
+        step_pin: gpio.12
+        direction_pin: gpio.26
+        disable_pin: NO_PIN
+
+    motor1:
+      limit_neg_pin: NO_PIN
+      limit_pos_pin: NO_PIN
+      limit_all_pin: NO_PIN
+      hard_limits: true
+      pulloff: 1.000
+      null_motor:
+
+  y:
     steps_per_mm: 800.000
     max_rate: 5000.000
     acceleration: 100.000
@@ -27,55 +83,23 @@ axes:
 
     motor0:
       limit_neg_pin: NO_PIN
-      limit_pos_pin: NO_PIN
-      limit_all_pin: gpio.33:pu
-      hard_limits: true
+      limit_pos_pin: gpio.32
+      limit_all_pin: NO_PIN
+      hard_limits: false
       pulloff: 1.000
-      tmc_5160:
-        cs_pin: i2so.3
-        r_sense: 0.075
-        run_current: 1.75
-        hold_current: 0.50
-        microsteps: 16
-        stallguard: 0
-        stallguardDebugMode: false
-        toff_disable: 0
-        toff_stealthchop: 5
-        toff_coolstep: 3
-        run_mode: CoolStep
-        homing_mode: CoolStep
-        use_enable: false
-        step_pin: I2SO.2
-        direction_pin: I2SO.1
-        disable_pin: I2SO.0
+      tmc_2209:
+        uart:
+          txd_pin: gpio.22
+          rxd_pin: gpio.21
+          rts_pin: NO_PIN
+          cts_pin: NO_PIN
+          baud: 115200
+          mode: 8N1
 
-  y:
-    steps_per_mm: 800.000
-    max_rate: 5000.000
-    acceleration: 100.000
-    max_travel: 300.000
-    soft_limits: false
-    homing:
-      cycle: 2
-      positive_direction: true
-      mpos: 150.000
-      feed_rate: 100.000
-      seek_rate: 200.000
-      debounce_ms: 500
-      seek_scaler: 1.100
-      feed_scaler: 1.100
-
-    motor0:
-      limit_neg_pin: NO_PIN
-      limit_pos_pin: NO_PIN
-      limit_all_pin: gpio.32:pu
-      hard_limits: true
-      pulloff: 1.000
-      tmc_5160:
-        cs_pin: i2so.6
-        r_sense: 0.075
-        run_current: 1.75
-        hold_current: 0.50
+        addr: 1
+        r_sense_ohm: 0.110
+        run_amps: 0.500
+        hold_amps: 0.500
         microsteps: 16
         stallguard: 0
         stallguardDebugMode: false
@@ -85,54 +109,24 @@ axes:
         run_mode: StealthChop
         homing_mode: StealthChop
         use_enable: false
-        step_pin: I2SO.5
-        direction_pin: I2SO.4
-        disable_pin: I2SO.7
+        step_pin: gpio.14
+        direction_pin: gpio.25
+        disable_pin: NO_PIN
+
+    motor1:
+      limit_neg_pin: NO_PIN
+      limit_pos_pin: NO_PIN
+      limit_all_pin: NO_PIN
+      hard_limits: true
+      pulloff: 1.000
+      null_motor:
 
   z:
-    steps_per_mm: 800.000
-    max_rate: 5000.000
-    acceleration: 100.000
-    max_travel: 300.000
+    steps_per_mm: 320.000
+    max_rate: 1000.000
+    acceleration: 25.000
+    max_travel: 200.000
     soft_limits: false
-    homing:
-      cycle: 1
-      positive_direction: true
-      mpos: 150.000
-      feed_rate: 100.000
-      seek_rate: 800.000
-      debounce_ms: 500
-      seek_scaler: 1.100
-      feed_scaler: 1.100
-
-    motor0:
-      limit_neg_pin: NO_PIN
-      limit_pos_pin: NO_PIN
-      limit_all_pin: gpio.35
-      hard_limits: true
-      pulloff: 1.000
-      tmc_5160:
-        cs_pin: i2so.11
-        r_sense: 0.075
-        run_current: 1.750
-        hold_current: 0.50
-        microsteps: 16
-        stallguard: 0
-        stallguardDebugMode: false
-        toff_disable: 0
-        toff_stealthchop: 5
-        toff_coolstep: 3
-        run_mode: StealthChop
-        homing_mode: StealthChop
-        use_enable: false
-        step_pin: I2SO.10
-        direction_pin: I2SO.9
-        disable_pin: I2SO.8
-
-i2so:
-  bck_pin: gpio.22
-  data_pin: gpio.21
-  ws_pin: gpio.17
 
 spi:
   miso_pin: gpio.19
@@ -140,8 +134,8 @@ spi:
   sck_pin: gpio.18
 
 sdcard:
-  card_detect_pin: NO_PIN
   cs_pin: gpio.5
+  card_detect_pin: NO_PIN
 
 control:
   safety_door_pin: NO_PIN
@@ -185,24 +179,20 @@ user_outputs:
   digital3_pin: NO_PIN
 
 software_debounce_ms: 0
-laser_mode: false
 arc_tolerance: 0.002
 junction_deviation: 0.010
 verbose_errors: false
 report_inches: false
-homing_init_lock: false
+homing_init_lock: true
 enable_parking_override_control: false
 deactivate_parking_upon_init: false
-check_limits_at_init: false
+check_limits_at_init: true
 use_line_numbers: false
-PWM:
+Laser:
   pwm_freq_hz: 5000
-  output_pin: gpio.26
-  enable_pin: gpio.4
-  direction_pin: NO_PIN
+  output_pin: gpio.27
+  enable_pin: gpio.17
   disable_with_zero_speed: false
   zero_speed_with_disable: true
-  spinup_ms: 1000
-  spindown_ms: 1000
-  tool: 0
-  speeds: 0=0.000% 1000=100.000%
+  tool: 100
+  speeds: 0=0.000% 255=100.000%
