@@ -122,9 +122,11 @@ with ZipFile(zipFileName, 'w') as zipObj:
                 Binary = 'esptool.exe'
             else:
                 Binary = 'esptool'
-            Path = EspDir + '/' + Binary
+            destFileName = EspDir + '/' + Binary
             with ZipFile(ZipFileName, 'r') as zipReader:
-                zipObj.writestr(os.path.join(platform, Binary), zipReader.read(Path))
+                sourceFileName = Path
+                info = ZipInfo.from_file(sourceFileName, destFileName)
+                zipObj.writestr(sourceFileName, zipReader.read(Path))
 
 sys.exit(numErrors)
 
