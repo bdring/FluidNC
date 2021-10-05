@@ -43,7 +43,7 @@ namespace Machine {
         handler.section("macros", _macros);
 
         handler.section("user_outputs", _userOutputs);
-        handler.item("software_debounce_ms", _softwareDebounceMs);
+        handler.item("switch_debounce_ms", _softwareDebounceMs);
         // TODO: Consider putting these under a gcode: hierarchy level? Or motion control?
         handler.item("arc_tolerance_mm", _arcTolerance);
         handler.item("junction_deviation_mm", _junctionDeviation);
