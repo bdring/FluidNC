@@ -23,3 +23,4 @@ packages/
 pio_machine.h
 project.checksum
 version.cpp
+esptool*.zip
