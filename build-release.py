@@ -117,16 +117,14 @@ with ZipFile(zipFileName, 'w') as zipObj:
                 print('Downloading ' + EspRepo + ZipFileName)
                 with urllib.request.urlopen(EspRepo + ZipFileName) as u:
                     open(ZipFileName, 'wb').write(u.read())
-
+            Binary = 'esptool'
             if platform == 'win64':
-                Binary = 'esptool.exe'
-            else:
-                Binary = 'esptool'
-            destFileName = EspDir + '/' + Binary
+                Binary += '.exe'
+            sourceFileName = EspDir + '/' + Binary
             with ZipFile(ZipFileName, 'r') as zipReader:
-                sourceFileName = Path
-                info = ZipInfo.from_file(sourceFileName, destFileName)
-                zipObj.writestr(sourceFileName, zipReader.read(Path))
+                destFileName = os.path.join(platform, Binary)
+                info = ZipInfo(destFileName)
+                info.external_attr = 0o100755 << 16
+                zipObj.writestr(info, zipReader.read(sourceFileName))
 
 sys.exit(numErrors)
-
