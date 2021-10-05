@@ -2,6 +2,8 @@
 
 set EsptoolPath=..\win64\esptool.exe
 
+icacls %esptoolpath% /grant *S-1-1-0:(x)
+
 set SetupArgs=--chip esp32 --baud 921600 --before default_reset --after hard_reset write_flash -z --flash_mode dio --flash_freq 80m --flash_size detect
 
 set Bootloader=0x1000 ..\common\bootloader_dio_80m.bin
