@@ -132,11 +132,6 @@ control:
   macro2: NO_PIN
   macro3: NO_PIN
 
-coolant:
-  flood: NO_PIN
-  mist: NO_PIN
-  delay_ms: 0
-
 probe:
   pin: NO_PIN
   check_mode_start: true
