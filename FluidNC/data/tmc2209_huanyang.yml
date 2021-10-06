@@ -1,5 +1,5 @@
-name: "TMC2209 XYYZ Laser"
-board: "TMC2209 4x DK"
+name: "TMC2209 XYZA PWM Spindle"
+board: "TMC2209 4x"
 
 stepping:
   engine: RMT
@@ -7,6 +7,8 @@ stepping:
   dir_delay_us: 1
   pulse_us: 2
   disable_delay_us: 0
+
+homing_init_lock: true
 
 axes:
   shared_stepper_disable_pin: gpio.25:high
@@ -77,7 +79,6 @@ axes:
       tmc_2209:
         step_pin: gpio.33
         direction_pin: gpio.32
-        microsteps: 16
         addr: 1
 
     motor1:
@@ -150,7 +151,18 @@ sdcard:
   card_detect_pin: NO_PIN
 
 probe:
-  pin: NO_PIN
+    pin: NO_PIN
 
-Relay:
-  output_pin: gpio.4
+  
+Huanyang:
+  uart:
+    txd_pin: gpio.4
+    rxd_pin: gpio.13
+    rts_pin: gpio.17
+    baud: 9600
+    mode: 8N1
+  modbus_id: 1
+  spinup_ms: 0
+  spindown_ms: 0
+  tool_num: 0
+  speed_map: 0=0% 1000=0% 24000=100%

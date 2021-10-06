@@ -30,13 +30,13 @@ axes:
       limit_pos_pin: NO_PIN
       limit_all_pin: NO_PIN
       hard_limits: true
-      pulloff_mm 1.000
+      pulloff_mm:1.000
       tmc_2130:
         cs_pin: gpio.17
         spi_index: 1
         r_sense_ohms: 0.110
-        run_current: 0.750
-        hold_current: 0.750
+        run_amps: 0.750
+        hold_amps: 0.750
         microsteps: 16
         stallguard: 0
         stallguard_debug: false
@@ -71,12 +71,12 @@ axes:
       limit_pos_pin: NO_PIN
       limit_all_pin: NO_PIN
       hard_limits: true
-      pulloff_mm 1.000
+      pulloff_mm:1.000
       tmc_2130:
         spi_index: 2
         r_sense_ohms: 0.110
-        run_current: 0.750
-        hold_current: 0.750
+        run_amps: 0.750
+        hold_amps: 0.750
         microsteps: 16
         stallguard: 0
         stallguard_debug: false
@@ -111,12 +111,12 @@ axes:
       limit_pos_pin: NO_PIN
       limit_all_pin: NO_PIN
       hard_limits: true
-      pulloff_mm 1.000
+      pulloff_mm:1.000
       tmc_2130:
         spi_index: 3
         r_sense_ohms: 0.110
-        run_current: 0.750
-        hold_current: 0.750
+        run_amps: 0.750
+        hold_amps: 0.750
         microsteps: 16
         stallguard: 0
         stallguard_debug: false
@@ -151,12 +151,12 @@ axes:
       limit_pos_pin: NO_PIN
       limit_all_pin: NO_PIN
       hard_limits: true
-      pulloff_mm 1.000
+      pulloff_mm:1.000
       tmc_2130:
         spi_index: 4
         r_sense_ohms: 0.110
-        run_current: 0.750
-        hold_current: 0.750
+        run_amps: 0.750
+        hold_amps: 0.750
         microsteps: 16
         stallguard: 0
         stallguard_debug: false
