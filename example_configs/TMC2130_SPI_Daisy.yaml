@@ -220,15 +220,5 @@ user_outputs:
   digital2: NO_PIN
   digital3: NO_PIN
 
-switch_debounce_ms: 0
-laser_mode: false
-arc_tolerance_mm: 0.002
-junction_deviation_mm: 0.010
-verbose_errors: false
-report_inches: false
-homing_init_lock: false
-enable_parking_override_control: false
-deactivate_parking_upon_init: false
-check_limits_at_init: false
-limits_two_switches_on_axis: false
-use_line_numbers: false
+start:
+  must_home: false

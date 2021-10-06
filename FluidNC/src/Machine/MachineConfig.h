@@ -25,6 +25,29 @@
 #include "Macros.h"
 
 namespace Machine {
+    class Start : public Configuration::Configurable {
+    public:
+        bool _mustHome          = true;
+        bool _deactivateParking = false;
+
+        // At power-up or a reset, the limit switches will be checked
+        // to ensure they are not already active. If so, and hard
+        // limits are enabled, Alarm state will be entered instead of
+        // Idle and the user will be told to check the limits.
+        bool _checkLimits = false;
+
+    public:
+        Start() {}
+
+        void group(Configuration::HandlerBase& handler) {
+            handler.item("must_home", _mustHome);
+            handler.item("deactivate_parking", _deactivateParking);
+            handler.item("check_limits", _checkLimits);
+        }
+
+        ~Start() = default;
+    };
+
     class MachineConfig : public Configuration::Configurable {
     public:
         MachineConfig() = default;
@@ -39,27 +62,20 @@ namespace Machine {
         UserOutputs*    _userOutputs = nullptr;
         SDCard*         _sdCard      = nullptr;
         Macros*         _macros      = nullptr;
+        Start*          _start       = nullptr;
 
         Spindles::SpindleList _spindles;
 
-        float _arcTolerance       = 0.002f;
-        float _junctionDeviation  = 0.01f;
-        bool  _verboseErrors      = false;
-        bool  _reportInches       = false;
-        bool  _homingInitLock     = true;
-        int   _softwareDebounceMs = 0;
+        float _arcTolerance      = 0.002f;
+        float _junctionDeviation = 0.01f;
+        bool  _verboseErrors     = false;
+        bool  _reportInches      = false;
 
         // Enables a special set of M-code commands that enables and disables the parking motion.
         // These are controlled by `M56`, `M56 P1`, or `M56 Px` to enable and `M56 P0` to disable.
         // The command is modal and will be set after a planner sync. Since it is GCode, it is
         // executed in sync with GCode commands. It is not a real-time command.
         bool _enableParkingOverrideControl = false;
-        bool _deactivateParkingUponInit    = false;
-
-        // At power-up or a reset, the limit switches will be checked to ensure they are not active
-        // before initialization. If a problem is detected and hard limits are enabled, Alarm state
-        // will be entered instead of Idle, messaging the user to check the limits, rather than idle.
-        bool _checkLimitsAtInit = true;
 
         // Tracks and reports gcode line numbers. Disabled by default.
         bool _useLineNumbers = false;

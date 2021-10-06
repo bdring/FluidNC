@@ -8,8 +8,6 @@ stepping:
   pulse_us: 2
   disable_delay_us: 0
 
-homing_init_lock: true
-
 axes:
   shared_stepper_disable_pin: gpio.25:high
   

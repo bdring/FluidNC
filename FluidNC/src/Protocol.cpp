@@ -121,7 +121,7 @@ void protocol_main_loop() {
         report_feedback_message(Message::ConfigAlarmLock);
     } else {
         // Perform some machine checks to make sure everything is good to go.
-        if (config->_checkLimitsAtInit && config->_axes->hasHardLimits()) {
+        if (config->_start->_checkLimits && config->_axes->hasHardLimits()) {
             if (limits_get_state()) {
                 sys.state = State::Alarm;  // Ensure alarm state is active.
                 report_feedback_message(Message::CheckLimits);

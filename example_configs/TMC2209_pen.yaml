@@ -178,16 +178,9 @@ user_outputs:
   digital2_pin: NO_PIN
   digital3_pin: NO_PIN
 
-switch_debounce_ms: 0
-arc_tolerance_mm: 0.002
-junction_deviation_mm: 0.010
-verbose_errors: false
-report_inches: false
-homing_init_lock: true
-enable_parking_override_control: false
-deactivate_parking_upon_init: false
-check_limits_at_init: true
-use_line_numbers: false
+start:
+  check_limits: true
+
 Laser:
   pwm_hz: 5000
   output_pin: gpio.27

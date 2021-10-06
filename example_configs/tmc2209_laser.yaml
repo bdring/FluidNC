@@ -8,8 +8,6 @@ stepping:
   pulse_us: 2
   disable_delay_us: 0
 
-homing_init_lock: true
-
 axes:
   shared_stepper_disable_pin: gpio.25:high
   
@@ -226,7 +224,8 @@ sdcard:
 probe:
   pin: NO_PIN
 
-homing_init_lock: false
+start:
+  must_home: false
 
 Laser:
   pwm_hz: 5000
@@ -236,4 +235,3 @@ Laser:
   s0_with_disable: true
   tool_num: 100
   speed_map: 0=0.000% 255=100.000%
-  
