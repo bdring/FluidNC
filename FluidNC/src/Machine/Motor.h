@@ -41,6 +41,7 @@ namespace Machine {
         bool hasSwitches();
         void makeDualSwitches();
         void init();
+        void config_motor();
         ~Motor();
     };
 }

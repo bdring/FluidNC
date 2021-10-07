@@ -35,7 +35,7 @@ namespace Spindles {
             // pwm_freq is the only item that the PWM class adds to OnOff
             // We cannot call PWM::group() because that would pick up
             // direction_pin, which we do not want in Laser
-            handler.item("pwm_freq", _pwm_freq);
+            handler.item("pwm_hz", _pwm_freq);
 
             OnOff::groupCommon(handler);
         }

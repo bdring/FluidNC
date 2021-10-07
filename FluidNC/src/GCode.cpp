@@ -45,11 +45,7 @@ void gc_init() {
 
     // Load default G54 coordinate system.
     gc_state.modal.coord_select = CoordIndex::G54;
-    if (config->_deactivateParkingUponInit) {
-        gc_state.modal.override = Override::Disabled;
-    } else {
-        gc_state.modal.override = Override::ParkingMotion;
-    }
+    gc_state.modal.override     = config->_start->_deactivateParking ? Override::Disabled : Override::ParkingMotion;
     coords[gc_state.modal.coord_select]->get(gc_state.coord_system);
 }
 
@@ -1624,7 +1620,7 @@ Error gc_execute_line(char* line, Print& client) {
             gc_state.modal.spindle      = SpindleState::Disable;
             gc_state.modal.coolant      = {};
             if (config->_enableParkingOverrideControl) {
-                if (config->_deactivateParkingUponInit) {
+                if (config->_start->_deactivateParking) {
                     gc_state.modal.override = Override::Disabled;
                 } else {
                     gc_state.modal.override = Override::ParkingMotion;

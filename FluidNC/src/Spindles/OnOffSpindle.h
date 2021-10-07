@@ -21,8 +21,8 @@ namespace Spindles {
         void groupCommon(Configuration::HandlerBase& handler) {
             handler.item("output_pin", _output_pin);
             handler.item("enable_pin", _enable_pin);
-            handler.item("disable_with_zero_speed", _disable_with_zero_speed);
-            handler.item("zero_speed_with_disable", _zero_speed_with_disable);
+            handler.item("disable_with_s0", _disable_with_zero_speed);
+            handler.item("s0_with_disable", _zero_speed_with_disable);
 
             Spindle::group(handler);
         }
