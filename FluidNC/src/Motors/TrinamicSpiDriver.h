@@ -16,6 +16,7 @@ const int NORMAL_TCOOLTHRS = 0xFFFFF;  // 20 bit is max
 const int NORMAL_THIGH     = 0;
 
 class TMC2130Stepper;  // Forward declaration
+class TMC5160Stepper;  // Forward declaration
 
 namespace MotorDrivers {
 
@@ -26,10 +27,18 @@ namespace MotorDrivers {
         static pinnum_t daisy_chain_cs_id;
         static uint8_t  spi_index_mask;
 
-        TMC2130Stepper* tmcstepper;  // all other driver types are subclasses of this one
-        Pin             _cs_pin;     // The chip select pin (can be the same for daisy chain)
-        PinMapper       _cs_mapping;
-        int32_t         _spi_index = -1;
+        // It is really tempting to have a single pointer here because
+        // TMC2130 and TMC5160 share many methods with the same names
+        // and API.  That does not work because the common methods are
+        // not virtual and their respective implementations are
+        // incompatible due to hardware differences.  Therefore it is
+        // necessary to preserve the full type knowledge in the pointers.
+        TMC2130Stepper* tmc2130 = nullptr;
+        TMC5160Stepper* tmc5160 = nullptr;
+
+        Pin       _cs_pin;  // The chip select pin (can be the same for daisy chain)
+        PinMapper _cs_mapping;
+        int32_t   _spi_index = -1;
 
         bool test();
         void set_mode(bool isHoming);
