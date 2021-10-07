@@ -188,7 +188,7 @@ namespace Machine {
     // Configuration helpers:
 
     void Axes::group(Configuration::HandlerBase& handler) {
-        handler.item("shared_stepper_disable", _sharedStepperDisable);
+        handler.item("shared_stepper_disable_pin", _sharedStepperDisable);
 
         // Handle axis names xyzabc.  handler.section is inferred
         // from a template.

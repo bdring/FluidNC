@@ -80,8 +80,8 @@ namespace Spindles {
                 handler.item("spinup_ms", _spinup_ms);            
                 handler.item("spindown_ms", _spindown_ms);
             }            
-            handler.item("tool", _tool);
-            handler.item("speeds", _speeds);
+            handler.item("tool_num", _tool);
+            handler.item("speed_map", _speeds);
                 
         }
 

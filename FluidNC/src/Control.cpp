@@ -22,14 +22,14 @@ void Control::init() {
 }
 
 void Control::group(Configuration::HandlerBase& handler) {
-    handler.item("safety_door", _safetyDoor._pin);
-    handler.item("reset", _reset._pin);
-    handler.item("feed_hold", _feedHold._pin);
-    handler.item("cycle_start", _cycleStart._pin);
-    handler.item("macro0", _macro0._pin);
-    handler.item("macro1", _macro1._pin);
-    handler.item("macro2", _macro2._pin);
-    handler.item("macro3", _macro3._pin);
+    handler.item("safety_door_pin", _safetyDoor._pin);
+    handler.item("reset_pin", _reset._pin);
+    handler.item("feed_hold_pin", _feedHold._pin);
+    handler.item("cycle_start_pin", _cycleStart._pin);
+    handler.item("macro0_pin", _macro0._pin);
+    handler.item("macro1_pin", _macro1._pin);
+    handler.item("macro2_pin", _macro2._pin);
+    handler.item("macro3_pin", _macro3._pin);
 }
 
 String Control::report() {

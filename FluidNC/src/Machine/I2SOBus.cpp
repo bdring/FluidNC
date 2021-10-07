@@ -15,9 +15,9 @@ namespace Machine {
     }
 
     void I2SOBus::group(Configuration::HandlerBase& handler) {
-        handler.item("bck", _bck);
-        handler.item("data", _data);
-        handler.item("ws", _ws);
+        handler.item("bck_pin", _bck);
+        handler.item("data_pin", _data);
+        handler.item("ws_pin", _ws);
     }
 
     void I2SOBus::init() {

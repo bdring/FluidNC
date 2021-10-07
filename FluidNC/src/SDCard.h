@@ -79,7 +79,7 @@ public:
     Error    readFileLine(char* line, int len);
     float    percent_complete();
     uint32_t lineNumber();
-    void afterParse() override;
+    void     afterParse() override;
 
     Print&                     getClient() { return _client; }
     WebUI::AuthenticationLevel getAuthLevel() { return _auth_level; }
@@ -91,8 +91,8 @@ public:
 
     // Configuration handlers.
     void group(Configuration::HandlerBase& handler) override {
-        handler.item("cs", _cs);
-        handler.item("card_detect", _cardDetect);        
+        handler.item("cs_pin", _cs);
+        handler.item("card_detect_pin", _cardDetect);
     }
 
     ~SDCard();
