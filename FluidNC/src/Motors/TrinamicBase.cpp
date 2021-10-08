@@ -8,8 +8,7 @@
 #include <atomic>
 
 namespace MotorDrivers {
-    EnumItem trinamicModes[] = { { TrinamicMode::Unknown, "Unknown" },
-                                 { TrinamicMode::StealthChop, "StealthChop" },
+    EnumItem trinamicModes[] = { { TrinamicMode::StealthChop, "StealthChop" },
                                  { TrinamicMode::CoolStep, "CoolStep" },
                                  { TrinamicMode::StallGuard, "StallGuard" },
                                  EnumItem(TrinamicMode::StealthChop) };

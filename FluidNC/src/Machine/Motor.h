@@ -33,7 +33,7 @@ namespace Machine {
         Pin  _negPin;
         Pin  _posPin;
         Pin  _allPin;
-        bool _hardLimits = true;
+        bool _hardLimits = false;
 
         // Configuration system helpers:
         void group(Configuration::HandlerBase& handler) override;

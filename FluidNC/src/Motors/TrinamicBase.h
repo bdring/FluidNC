@@ -11,7 +11,6 @@
 namespace MotorDrivers {
 
     enum TrinamicMode {
-        Unknown     = 0,
         StealthChop = 1,  // very quiet
         CoolStep    = 2,  // cooler so higher current possible
         StallGuard  = 3,  // coolstep plus stall indication
@@ -26,7 +25,7 @@ namespace MotorDrivers {
         bool         _has_errors;
         uint16_t     _driver_part_number;  // example: use 2130 for TMC2130
         bool         _disabled = false;
-        TrinamicMode _mode     = TrinamicMode::Unknown;  // no mode set yet
+        TrinamicMode _mode     = TrinamicMode::StealthChop;
 
         // Configurable
         int   _homing_mode = StealthChop;
