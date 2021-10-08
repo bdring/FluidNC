@@ -303,10 +303,10 @@ public:
     int8_t get() { return _currentValue; }
 };
 
-extern bool idleOrJog();
-extern bool idleOrAlarm();
+extern bool notIdleOrJog();
+extern bool notIdleOrAlarm();
 extern bool anyState();
-extern bool notCycleOrHold();
+extern bool cycleOrHold();
 
 class IPaddrSetting : public Setting {
 private:
@@ -362,7 +362,7 @@ public:
                const char*   grblName,
                const char*   name,
                Error (*action)(char*, WebUI::AuthenticationLevel)) :
-        WebCommand(description, type, permissions, grblName, name, action, idleOrAlarm) {}
+        WebCommand(description, type, permissions, grblName, name, action, notIdleOrAlarm) {}
 
     Error action(char* value, WebUI::AuthenticationLevel auth_level, Print& response);
 };
