@@ -18,13 +18,13 @@
 bool anyState() {
     return false;
 }
-bool idleOrJog() {
+bool notIdleOrJog() {
     return sys.state != State::Idle && sys.state != State::Jog;
 }
-bool idleOrAlarm() {
+bool notIdleOrAlarm() {
     return sys.state != State::Idle && sys.state != State::Alarm && sys.state != State::ConfigAlarm;
 }
-bool notCycleOrHold() {
+bool cycleOrHold() {
     return sys.state == State::Cycle && sys.state == State::Hold;
 }
 
@@ -68,7 +68,7 @@ Setting::Setting(
 }
 
 Error Setting::check(char* s) {
-    if (sys.state != State::Idle && sys.state != State::Alarm) {
+    if (notIdleOrAlarm()) {
         return Error::IdleError;
     }
     if (!_checker) {

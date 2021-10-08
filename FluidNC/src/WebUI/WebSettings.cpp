@@ -302,7 +302,7 @@ namespace WebUI {
     }
 
     static Error showLocalFile(char* parameter, AuthenticationLevel auth_level) {  // ESP701
-        if (sys.state != State::Idle && sys.state != State::Alarm) {
+        if (notIdleOrAlarm()) {
             return Error::IdleError;
         }
         String path = trim(parameter);
@@ -682,7 +682,7 @@ namespace WebUI {
     }
 
     static Error showSDFile(char* parameter, AuthenticationLevel auth_level) {  // ESP221
-        if (sys.state != State::Idle && sys.state != State::Alarm) {
+        if (notIdleOrAlarm()) {
             return Error::IdleError;
         }
         Error  err;
