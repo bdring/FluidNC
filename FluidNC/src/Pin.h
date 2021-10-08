@@ -14,8 +14,6 @@
 #include <utility>
 #include "Assert.h"
 
-// TODO: ENABLE_CONTROL_SW_DEBOUNCE should end up here with a shared task.
-
 // #define DEBUG_PIN_DUMP  // Pin debugging. WILL spam you with a lot of data!
 
 // Forward declarations:

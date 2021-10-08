@@ -10,6 +10,7 @@
 
 #include <cstdint>
 
+class TMC2208Stepper;  // Forward declaration
 class TMC2209Stepper;  // Forward declaration
 
 namespace MotorDrivers {
@@ -20,7 +21,8 @@ namespace MotorDrivers {
 
         static bool _uart_started;
 
-        TMC2209Stepper* tmcstepper;  // all other driver types are subclasses of this one
+        TMC2208Stepper* tmc2208;
+        TMC2209Stepper* tmc2209;
 
         bool test();
         void set_mode(bool isHoming);

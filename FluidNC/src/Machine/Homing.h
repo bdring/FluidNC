@@ -32,7 +32,7 @@ namespace Machine {
         float    _mpos              = 0.0f;    // After homing this will be the mpos of the switch location
         float    _feedRate          = 50.0f;   // pulloff and second touch speed
         float    _seekRate          = 200.0f;  // this first approach speed
-        uint32_t _debounce_ms       = 250;     // ms settling time for homing switches after motion
+        uint32_t _settle_ms         = 250;     // ms settling time for homing switches after motion
         float    _seek_scaler       = 1.1f;    // multiplied by max travel for max homing distance on first touch
         float    _feed_scaler       = 1.1f;    // multiplier to pulloff for moving to switch after pulloff
 
@@ -45,7 +45,7 @@ namespace Machine {
             handler.item("mpos_mm", _mpos);
             handler.item("feed_mm_per_min", _feedRate);
             handler.item("seek_mm_per_min", _seekRate);
-            handler.item("debounce_ms", _debounce_ms);
+            handler.item("settle_ms", _settle_ms);
             handler.item("seek_scaler", _seek_scaler);
             handler.item("feed_scaler", _feed_scaler);
         }
