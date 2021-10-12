@@ -638,9 +638,7 @@ namespace WebUI {
 
         // NVS settings
         for (Setting* js = Setting::List; js; js = js->next()) {
-            if (js->getType() == WEBSET) {
-                js->addWebui(&j);
-            }
+            js->addWebui(&j);
         }
 
         // Configuration tree
