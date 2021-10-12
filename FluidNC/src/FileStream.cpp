@@ -13,6 +13,10 @@ size_t FileStream::write(const uint8_t* buffer, size_t length) {
 FileStream::FileStream(const char* filename, const char* defaultFs) {
     String path;
 
+    if (!filename || !*filename) {
+        throw Error::FsFailedCreateFile;
+    }
+
     // Insert the default file system prefix if a file system name is not present
     if (*filename != '/') {
         path = "/";
