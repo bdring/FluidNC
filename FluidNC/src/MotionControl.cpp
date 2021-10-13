@@ -265,10 +265,10 @@ void mc_homing_cycle(AxisMask axis_mask) {
     if (kinematics_pre_homing(axis_mask)) {
         return;
     }
-    // Check and abort homing cycle, if hard limits are already enabled. Helps prevent problems
-    // with machines with limits wired on both ends of travel to one limit pin.
-    // TODO: Move the pin-specific LIMIT_PIN call to Limits.cpp as a function.
-    if (config->_limitsTwoSwitchesOnAxis && limits_get_state()) {
+    // Abort homing cycle if an axis has limit switches engaged on both ends,
+    // or if it is impossible to tell which end is engaged.  In that situation
+    // we do not know the pulloff direction.
+    if (ambiguousLimit()) {
         mc_reset();  // Issue system reset and ensure spindle and coolant are shutdown.
         rtAlarm = ExecAlarm::HardLimit;
         return;

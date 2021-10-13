@@ -10,7 +10,7 @@
 # see the details of an errored build, include -v on the command line.
 
 from shutil import copy
-from zipfile import ZipFile
+from zipfile import ZipFile, ZipInfo
 import subprocess, os, sys
 import urllib.request
 
@@ -76,13 +76,13 @@ with ZipFile(zipFileName, 'w') as zipObj:
 
     pioPath = os.path.join('.pio', 'build')
 
-    exitCode = buildFs('noradio', verbose=verbose)
+    exitCode = buildFs('wifi', verbose=verbose)
     if exitCode != 0:
         numErrors += 1
     else:
         # Put common/spiffs.bin in the archive
         obj = 'spiffs.bin'
-        #  zipObj.write(os.path.join(pioPath, 'noradio', obj), os.path.join('common', obj))
+        zipObj.write(os.path.join(pioPath, 'wifi', obj), os.path.join('common', obj))
         tools = os.path.join(os.path.expanduser('~'),'.platformio','packages','framework-arduinoespressif32','tools')
         bootloader = 'bootloader_dio_80m.bin'
         zipObj.write(os.path.join(tools, 'sdk', 'bin', bootloader), os.path.join('common', bootloader))
@@ -98,7 +98,13 @@ with ZipFile(zipFileName, 'w') as zipObj:
                 for obj in ['firmware.bin','partitions.bin']:
                     zipObj.write(os.path.join(objPath, obj), os.path.join(envName, obj))
                 for obj in ['install-win.bat','install-linux.sh','install-macos.sh']:
-                    zipObj.write(os.path.join(sharedPath, obj), os.path.join(envName, obj))
+                    sourceFileName = os.path.join(sharedPath, obj)
+                    destFileName = os.path.join(envName, obj)
+                    with open(sourceFileName, 'r') as f:
+                        bytes = f.read()
+                    info = ZipInfo.from_file(sourceFileName, destFileName)
+                    info.external_attr = 0o100755 << 16
+                    zipObj.writestr(info, bytes)
         EsptoolVersion = 'v3.1'
         EspRepo = 'https://github.com/espressif/esptool/releases/download/' + EsptoolVersion + '/'
 
@@ -111,14 +117,14 @@ with ZipFile(zipFileName, 'w') as zipObj:
                 print('Downloading ' + EspRepo + ZipFileName)
                 with urllib.request.urlopen(EspRepo + ZipFileName) as u:
                     open(ZipFileName, 'wb').write(u.read())
-
+            Binary = 'esptool'
             if platform == 'win64':
-                Binary = 'esptool.exe'
-            else:
-                Binary = 'esptool'
-            Path = EspDir + '/' + Binary
+                Binary += '.exe'
+            sourceFileName = EspDir + '/' + Binary
             with ZipFile(ZipFileName, 'r') as zipReader:
-                zipObj.writestr(os.path.join(platform, Binary), zipReader.read(Path))
+                destFileName = os.path.join(platform, Binary)
+                info = ZipInfo(destFileName)
+                info.external_attr = 0o100755 << 16
+                zipObj.writestr(info, zipReader.read(sourceFileName))
 
 sys.exit(numErrors)
-

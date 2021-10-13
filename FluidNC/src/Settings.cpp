@@ -18,13 +18,13 @@
 bool anyState() {
     return false;
 }
-bool idleOrJog() {
+bool notIdleOrJog() {
     return sys.state != State::Idle && sys.state != State::Jog;
 }
-bool idleOrAlarm() {
+bool notIdleOrAlarm() {
     return sys.state != State::Idle && sys.state != State::Alarm && sys.state != State::ConfigAlarm;
 }
-bool notCycleOrHold() {
+bool cycleOrHold() {
     return sys.state == State::Cycle && sys.state == State::Hold;
 }
 
@@ -68,7 +68,7 @@ Setting::Setting(
 }
 
 Error Setting::check(char* s) {
-    if (sys.state != State::Idle && sys.state != State::Alarm) {
+    if (notIdleOrAlarm()) {
         return Error::IdleError;
     }
     if (!_checker) {
@@ -183,7 +183,7 @@ const char* IntSetting::getStringValue() {
 
 void IntSetting::addWebui(WebUI::JSONencoder* j) {
     if (getDescription()) {
-        j->begin_webui(getName(), getDescription(), "I", getStringValue(), _minValue, _maxValue);
+        j->begin_webui(getName(), getName(), "I", getStringValue(), _minValue, _maxValue);
         j->end_object();
     }
 }
@@ -278,7 +278,7 @@ void StringSetting::addWebui(WebUI::JSONencoder* j) {
     if (!getDescription()) {
         return;
     }
-    j->begin_webui(getName(), getDescription(), "S", getStringValue(), _minLength, _maxLength);
+    j->begin_webui(getName(), getName(), "S", getStringValue(), _minLength, _maxLength);
     j->end_object();
 }
 
@@ -390,7 +390,7 @@ void EnumSetting::addWebui(WebUI::JSONencoder* j) {
     if (!getDescription()) {
         return;
     }
-    j->begin_webui(getName(), getDescription(), "B", String(get()).c_str());
+    j->begin_webui(getName(), getName(), "B", String(get()).c_str());
     j->begin_array("O");
     for (enum_opt_t::iterator it = _options->begin(); it != _options->end(); it++) {
         j->begin_object();
@@ -520,7 +520,7 @@ const char* IPaddrSetting::getStringValue() {
 
 void IPaddrSetting::addWebui(WebUI::JSONencoder* j) {
     if (getDescription()) {
-        j->begin_webui(getName(), getDescription(), "A", getStringValue());
+        j->begin_webui(getName(), getName(), "A", getStringValue());
         j->end_object();
     }
 }

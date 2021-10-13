@@ -27,10 +27,18 @@ namespace Spindles {
         void config_message() override;
         void get_pins_and_settings() override;
         void set_direction(bool Clockwise) override {};
+        bool use_delay_settings() const override { return false; }
         // Name of the configurable. Must match the name registered in the cpp file.
         const char* name() const override { return "Laser"; }
 
-        void group(Configuration::HandlerBase& handler) override { PWM::group(handler); }
+        void group(Configuration::HandlerBase& handler) override {
+            // pwm_freq is the only item that the PWM class adds to OnOff
+            // We cannot call PWM::group() because that would pick up
+            // direction_pin, which we do not want in Laser
+            handler.item("pwm_hz", _pwm_freq);
+
+            OnOff::groupCommon(handler);
+        }
 
         ~Laser() {}
     };

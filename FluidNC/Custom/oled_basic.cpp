@@ -1,3 +1,4 @@
+#if 0
 // Copyright (c) 2020 -	Bart Dring
 // Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
 
@@ -16,8 +17,9 @@
     Library Infor:
         https://github.com/ThingPulse/esp8266-oled-ssd1306
 
+
     Install to PlatformIO with this typed at the terminal
-        platformio lib install 562
+        platformio lib install 2978
 
     Add this to your machine definition file
         #define DISPLAY_CODE_FILENAME "Custom/oled_basic.cpp"
@@ -26,7 +28,7 @@
 // Include the correct display library
 
 #include "SSD1306Wire.h"
-#include "../src/WebUI/WebSettings.h"
+#include "../WebUI/WebSettings.h"
 
 #ifndef OLED_ADDRESS
 #    define OLED_ADDRESS 0x3c
@@ -216,7 +218,7 @@ void displayUpdate(void* pvParameters) {
             sd_get_current_filename(path);
             display.drawString(63, 12, path);
 
-            int progress = sd_report_perc_complete();
+            int progress = sd_percent_complete();
             // draw the progress bar
             display.drawProgressBar(0, 45, 120, 10, progress);
 
@@ -240,7 +242,7 @@ void displayUpdate(void* pvParameters) {
 
 void display_init() {
     // Initialising the UI will init the display too.
-    log_info("Init Basic OLED SDA:" << pinName(OLED_SDA) << " SCL:" pinName(OLED_SCL));
+    log_info("Init Basic OLED SDA:gpio." << OLED_SDA << " SCL:gpio." OLED_SCL);
     display.init();
 
     display.flipScreenVertically();
@@ -269,3 +271,4 @@ void display_init() {
                                                          // core
     );
 }
+#endif

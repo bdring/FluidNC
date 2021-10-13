@@ -106,7 +106,7 @@ void setup() {
             // NOTE: The startup script will run after successful completion of the homing cycle, but
             // not after disabling the alarm locks. Prevents motion startup blocks from crashing into
             // things uncontrollably. Very bad.
-            if (config->_homingInitLock && Machine::Axes::homingMask) {
+            if (config->_start->_mustHome && Machine::Axes::homingMask) {
                 // If there is an axis with homing configured, enter Alarm state on startup
                 sys.state = State::Alarm;
             }
@@ -198,6 +198,8 @@ void loop() {
 void WEAK_LINK machine_init() {}
 
 void WEAK_LINK display_init() {}
+
+void WEAK_LINK display(const char* tag, String s) {}
 
 #if 0
 int main() {

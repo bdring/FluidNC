@@ -16,7 +16,7 @@ namespace Spindles {
         response_parser get_current_direction(ModbusCommand& data) override;
         response_parser get_status_ok(ModbusCommand& data) override { return nullptr; }
 
-        bool supports_actual_speed() const override { return true; }
+        bool use_delay_settings() const override { return false; }
         bool safety_polling() const override { return false; }
 
         // Name of the configurable. Must match the name registered in the cpp file.

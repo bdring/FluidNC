@@ -1,5 +1,5 @@
 board: 6 Pack
-name: 6 Pack StepStick XYZ
+name: 6 Pack External XYZ Haunyang
 stepping:
   engine: I2S_STREAM
   idle_ms: 250
@@ -28,23 +28,10 @@ axes:
     motor0:
       limit_neg_pin: NO_PIN
       limit_pos_pin: NO_PIN
-      limit_all_pin: gpio.33:pu
+      limit_all_pin: NO_PIN
       hard_limits: true
-      pulloff_mm:1.000
-      tmc_2130:
-        cs_pin: i2so.3
-        r_sense_ohms: 0.110
-        run_amps: 0.750
-        hold_amps: 0.750
-        microsteps: 16
-        stallguard: 0
-        stallguard_debug: false
-        toff_disable: 0
-        toff_stealthchop: 5
-        toff_coolstep: 3
-        run_mode: CoolStep
-        homing_mode: CoolStep
-        use_enable: false
+      pulloff_mm: 1.000
+      standard_stepper:
         step_pin: I2SO.2
         direction_pin: I2SO.1
         disable_pin: I2SO.0
@@ -70,21 +57,8 @@ axes:
       limit_pos_pin: NO_PIN
       limit_all_pin: gpio.32:pu
       hard_limits: true
-      pulloff_mm:1.000
-      tmc_2130:
-        cs_pin: i2so.6
-        r_sense_ohms: 0.110
-        run_amps: 0.750
-        hold_amps: 0.750
-        microsteps: 16
-        stallguard: 0
-        stallguard_debug: false
-        toff_disable: 0
-        toff_stealthchop: 5
-        toff_coolstep: 3
-        run_mode: StealthChop
-        homing_mode: StealthChop
-        use_enable: false
+      pulloff_mm: 1.000
+      standard_stepper:
         step_pin: I2SO.5
         direction_pin: I2SO.4
         disable_pin: I2SO.7
@@ -111,20 +85,7 @@ axes:
       limit_all_pin: gpio.35
       hard_limits: true
       pulloff_mm:1.000
-      tmc_2130:
-        cs_pin: i2so.11
-        r_sense_ohms: 0.110
-        run_amps: 0.750
-        hold_amps: 0.750
-        microsteps: 16
-        stallguard: 0
-        stallguard_debug: false
-        toff_disable: 0
-        toff_stealthchop: 5
-        toff_coolstep: 3
-        run_mode: StealthChop
-        homing_mode: StealthChop
-        use_enable: false
+      standard_stepper:
         step_pin: I2SO.10
         direction_pin: I2SO.9
         disable_pin: I2SO.8
@@ -187,14 +148,13 @@ user_outputs:
 start:
   must_home: false
 
-PWM:
-  pwm_hz: 5000
-  output_pin: gpio.26
-  enable_pin: gpio.4
-  direction_pin: NO_PIN
-  disable_with_s0: false
-  s0_with_disable: true
-  spinup_ms: 1000
-  spindown_ms: 1000
+Huanyang:
+  uart:
+    txd_pin: gpio.26
+    rxd_pin: gpio.16
+    rts_pin: gpio.4
+    baud: 9600
+    mode: 8N1
+  modbus_id: 1
   tool_num: 0
-  speed_map: 0=0.000% 1000=100.000%
+  speed_map: 0=0% 0=25% 6000=25% 24000=100%

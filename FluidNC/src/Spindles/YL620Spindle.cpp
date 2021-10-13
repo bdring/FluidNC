@@ -132,7 +132,7 @@ namespace Spindles {
                 yl620->_minFrequency = (uint16_t(response[3]) << 8) | uint16_t(response[4]);
 
 #ifdef DEBUG_VFD
-                log_debug("YL620 allows minimum frequency of " << _minFrequency << " Hz");
+                log_debug("YL620 allows minimum frequency of:" << yl620->_minFrequency << " Hz");
 #endif
 
                 return true;

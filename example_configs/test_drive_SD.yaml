@@ -8,32 +8,32 @@ stepping:
   disable_delay_us: 0
 
 axes:
-  shared_stepper_disable: NO_PIN
+  shared_stepper_disable_pin: NO_PIN
   x:
     steps_per_mm: 320.000
-    max_rate: 1000.000
-    acceleration: 25.000
-    max_travel: 200.000
+    max_rate_mm_per_min: 1000.000
+    acceleration_mm_per_sec2: 25.000
+    max_travel_mm: 200.000
     soft_limits: false
 
   y:
     steps_per_mm: 320.000
-    max_rate: 1000.000
-    acceleration: 25.000
-    max_travel: 200.000
+    max_rate_mm_per_min: 1000.000
+    acceleration_mm_per_sec2: 25.000
+    max_travel_mm: 200.000
     soft_limits: false
 
   z:
     steps_per_mm: 320.000
-    max_rate: 1000.000
-    acceleration: 25.000
-    max_travel: 200.000
+    max_rate_mm_per_min: 1000.000
+    acceleration_mm_per_sec2: 25.000
+    max_travel_mm: 200.000
     soft_limits: false
 
 spi:
-  miso: NO_PIN
-  mosi: NO_PIN
-  sck: NO_PIN
+  miso_pin: NO_PIN
+  mosi_pin: NO_PIN
+  sck_pin: NO_PIN
 
 control:
   safety_door: NO_PIN
@@ -45,18 +45,13 @@ control:
   macro2: NO_PIN
   macro3: NO_PIN
 
-coolant:
-  flood: NO_PIN
-  mist: NO_PIN
-  delay_ms: 0
-
 probe:
   pin: NO_PIN
   check_mode_start: true
 
 macros:
-  n0:
-  n1:
+  startup_line0:
+  startup_line1:
   macro0:
   macro1:
   macro2:
@@ -67,30 +62,17 @@ user_outputs:
   analog1: NO_PIN
   analog2: NO_PIN
   analog3: NO_PIN
-  analog_frequency0: 5000
-  analog_frequency1: 5000
-  analog_frequency2: 5000
-  analog_frequency3: 5000
+  analog0_hz: 5000
+  analog1_hz: 5000
+  analog2_hz: 5000
+  analog3_hz: 5000
   digital0: NO_PIN
   digital1: NO_PIN
   digital2: NO_PIN
   digital3: NO_PIN
 
 sdcard:
-  card_detect: NO_PIN
-  cs: gpio.5
+  card_detect_pin: NO_PIN
+  cs_pin: gpio.5
 
-software_debounce_ms: 0
-laser_mode: false
-arc_tolerance: 0.002
-junction_deviation: 0.010
-verbose_errors: false
-report_inches: false
-homing_init_lock: true
-enable_parking_override_control: false
-deactivate_parking_upon_init: false
-check_limits_at_init: true
-limits_two_switches_on_axis: false
-disable_laser_during_hold: true
-use_line_numbers: false
 NoSpindle:

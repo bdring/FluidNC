@@ -36,9 +36,9 @@ namespace Machine {
     }
 
     void SPIBus::group(Configuration::HandlerBase& handler) {
-        handler.item("miso", _miso);
-        handler.item("mosi", _mosi);
-        handler.item("sck", _sck);
+        handler.item("miso_pin", _miso);
+        handler.item("mosi_pin", _mosi);
+        handler.item("sck_pin", _sck);
     }
 
     // XXX it would be nice to have some way to turn off SPI entirely

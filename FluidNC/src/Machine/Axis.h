@@ -29,10 +29,10 @@ namespace Machine {
         Motor*  _motors[MAX_MOTORS_PER_AXIS];
         Homing* _homing = nullptr;
 
-        float _stepsPerMm   = 320.0f;
+        float _stepsPerMm   = 80.0f;
         float _maxRate      = 1000.0f;
         float _acceleration = 25.0f;
-        float _maxTravel    = 200.0f;
+        float _maxTravel    = 1000.0f;
         bool  _softLimits   = false;
         float _backlash     = 0.0f;
 
@@ -47,6 +47,7 @@ namespace Machine {
         float pulloffOffset();
 
         void init();
+        void config_motors();
 
         ~Axis();
     };

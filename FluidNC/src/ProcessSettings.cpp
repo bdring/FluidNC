@@ -488,6 +488,13 @@ static Error dump_config(const char* value, WebUI::AuthenticationLevel auth_leve
     return Error::Ok;
 }
 
+static Error fakeLaserMode(const char* value, WebUI::AuthenticationLevel auth_level, Print& out) {
+    if (!value) {
+        out << "$32=" << (spindle->isRateAdjusted() ? "1" : "0") << '\n';
+    }
+    return Error::Ok;
+}
+
 // Commands use the same syntax as Settings, but instead of setting or
 // displaying a persistent value, a command causes some action to occur.
 // That action could be anything, from displaying a run-time parameter
@@ -497,36 +504,38 @@ void make_user_commands() {
     new UserCommand("CD", "Config/Dump", dump_config, anyState);
     new UserCommand("", "Help", show_help, anyState);
     new UserCommand("T", "State", showState, anyState);
-    new UserCommand("J", "Jog", doJog, idleOrJog);
+    new UserCommand("J", "Jog", doJog, notIdleOrJog);
 
-    new UserCommand("$", "GrblSettings/List", report_normal_settings, notCycleOrHold);
-    new UserCommand("L", "GrblNames/List", list_grbl_names, notCycleOrHold);
-    new UserCommand("Limits", "Limits/Show", show_limits, notCycleOrHold);
-    new UserCommand("S", "Settings/List", list_settings, notCycleOrHold);
-    new UserCommand("SC", "Settings/ListChanged", list_changed_settings, notCycleOrHold);
-    new UserCommand("CMD", "Commands/List", list_commands, notCycleOrHold);
+    new UserCommand("$", "GrblSettings/List", report_normal_settings, cycleOrHold);
+    new UserCommand("L", "GrblNames/List", list_grbl_names, cycleOrHold);
+    new UserCommand("Limits", "Limits/Show", show_limits, cycleOrHold);
+    new UserCommand("S", "Settings/List", list_settings, cycleOrHold);
+    new UserCommand("SC", "Settings/ListChanged", list_changed_settings, cycleOrHold);
+    new UserCommand("CMD", "Commands/List", list_commands, cycleOrHold);
     new UserCommand("A", "Alarms/List", listAlarms, anyState);
     new UserCommand("E", "Errors/List", listErrors, anyState);
     new UserCommand("G", "GCode/Modes", report_gcode, anyState);
     new UserCommand("C", "GCode/Check", toggle_check_mode, anyState);
     new UserCommand("X", "Alarm/Disable", disable_alarm_lock, anyState);
-    new UserCommand("NVX", "Settings/Erase", Setting::eraseNVS, idleOrAlarm, WA);
-    new UserCommand("V", "Settings/Stats", Setting::report_nvs_stats, idleOrAlarm);
-    new UserCommand("#", "GCode/Offsets", report_ngc, idleOrAlarm);
-    new UserCommand("H", "Home", home_all, idleOrAlarm);
-    new UserCommand("MD", "Motor/Disable", motor_disable, idleOrAlarm);
+    new UserCommand("NVX", "Settings/Erase", Setting::eraseNVS, notIdleOrAlarm, WA);
+    new UserCommand("V", "Settings/Stats", Setting::report_nvs_stats, notIdleOrAlarm);
+    new UserCommand("#", "GCode/Offsets", report_ngc, notIdleOrAlarm);
+    new UserCommand("H", "Home", home_all, notIdleOrAlarm);
+    new UserCommand("MD", "Motor/Disable", motor_disable, notIdleOrAlarm);
 
-    new UserCommand("HX", "Home/X", home_x, idleOrAlarm);
-    new UserCommand("HY", "Home/Y", home_y, idleOrAlarm);
-    new UserCommand("HZ", "Home/Z", home_z, idleOrAlarm);
-    new UserCommand("HA", "Home/A", home_a, idleOrAlarm);
-    new UserCommand("HB", "Home/B", home_b, idleOrAlarm);
-    new UserCommand("HC", "Home/C", home_c, idleOrAlarm);
+    new UserCommand("HX", "Home/X", home_x, notIdleOrAlarm);
+    new UserCommand("HY", "Home/Y", home_y, notIdleOrAlarm);
+    new UserCommand("HZ", "Home/Z", home_z, notIdleOrAlarm);
+    new UserCommand("HA", "Home/A", home_a, notIdleOrAlarm);
+    new UserCommand("HB", "Home/B", home_b, notIdleOrAlarm);
+    new UserCommand("HC", "Home/C", home_c, notIdleOrAlarm);
 
-    new UserCommand("SLP", "System/Sleep", go_to_sleep, idleOrAlarm);
-    new UserCommand("I", "Build/Info", get_report_build_info, idleOrAlarm);
-    new UserCommand("N", "GCode/StartupLines", report_startup_lines, idleOrAlarm);
-    new UserCommand("RST", "Settings/Restore", restore_settings, idleOrAlarm, WA);
+    new UserCommand("SLP", "System/Sleep", go_to_sleep, notIdleOrAlarm);
+    new UserCommand("I", "Build/Info", get_report_build_info, notIdleOrAlarm);
+    new UserCommand("N", "GCode/StartupLines", report_startup_lines, notIdleOrAlarm);
+    new UserCommand("RST", "Settings/Restore", restore_settings, notIdleOrAlarm, WA);
+
+    new UserCommand("32", "FakeLaserMode", fakeLaserMode, notIdleOrAlarm);
 };
 
 // normalize_key puts a key string into canonical form -
@@ -554,7 +563,7 @@ char* normalize_key(char* start) {
     char* end;
     for (end = start; (c = *end) != '\0' && !isspace(c); end++) {}
 
-    // end now points to either a whitespace character of end of string
+    // end now points to either a whitespace character or end of string
     // In either case it is okay to place a null there
     *end = '\0';
 
