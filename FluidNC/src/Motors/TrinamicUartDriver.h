@@ -21,8 +21,8 @@ namespace MotorDrivers {
 
         static bool _uart_started;
 
-        TMC2208Stepper* tmc2208;
-        TMC2209Stepper* tmc2209;
+        TMC2208Stepper* tmc2208 = nullptr;
+        TMC2209Stepper* tmc2209 = nullptr;
 
         bool test();
         void set_mode(bool isHoming);
