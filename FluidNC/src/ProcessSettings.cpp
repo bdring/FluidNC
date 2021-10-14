@@ -546,7 +546,7 @@ static Error fakeLaserMode(const char* value, WebUI::AuthenticationLevel auth_le
 // to performing some system state change.  Each command is responsible
 // for decoding its own value string, if it needs one.
 void make_user_commands() {
-    new UserCommand("XR", "Xmodem/Receive", xmodem_receive, notIdleOrJog);
+    new UserCommand("XR", "Xmodem/Receive", xmodem_receive, notIdleOrAlarm);
     new UserCommand("XS", "Xmodem/Send", xmodem_send, notIdleOrJog);
     new UserCommand("CD", "Config/Dump", dump_config, anyState);
     new UserCommand("", "Help", show_help, anyState);
