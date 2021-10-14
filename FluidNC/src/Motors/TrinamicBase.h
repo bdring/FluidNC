@@ -11,9 +11,9 @@
 namespace MotorDrivers {
 
     enum TrinamicMode {
-        StealthChop = 1,  // very quiet
-        CoolStep    = 2,  // cooler so higher current possible
-        StallGuard  = 3,  // coolstep plus stall indication
+        StealthChop = 0,  // very quiet
+        CoolStep    = 1,  // cooler so higher current possible
+        StallGuard  = 2,  // coolstep plus stall indication
     };
 
     extern EnumItem trinamicModes[];

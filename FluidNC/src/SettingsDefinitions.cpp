@@ -43,12 +43,10 @@ void make_settings() {
     make_coordinate(CoordIndex::G28, "G28");
     make_coordinate(CoordIndex::G30, "G30");
 
+    message_level = new EnumSetting("Which Messages", EXTENDED, WG, NULL, "Message/Level", MsgLevelInfo, &messageLevels, NULL);
+
+    config_filename = new StringSetting("Name of Configuration File", EXTENDED, WG, NULL, "Config/Filename", "config.yaml", 1, 50, NULL);
+
     // GRBL Numbered Settings
-    build_info = new StringSetting(EXTENDED, WG, NULL, "Firmware/Build", "");
-
-    status_mask = new IntSetting(GRBL, WG, "10", "Report/Status", 1, 0, 3);
-
-    message_level = new EnumSetting(NULL, EXTENDED, WG, NULL, "Message/Level", MsgLevelInfo, &messageLevels, NULL);
-
-    config_filename = new StringSetting(EXTENDED, WG, NULL, "Config/Filename", "config.yaml");
+    status_mask = new IntSetting(NULL, GRBL, WG, "10", "Report/Status", 1, 0, 3, NULL);
 }

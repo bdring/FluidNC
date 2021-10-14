@@ -192,20 +192,20 @@ namespace MotorDrivers {
         if (tmc2130) {
             switch (_mode) {
                 case TrinamicMode ::StealthChop:
-                    //log_info("StealthChop");
+                    log_debug("StealthChop");
                     tmc2130->en_pwm_mode(true);
                     tmc2130->pwm_autoscale(true);
                     tmc2130->diag1_stall(false);
                     break;
                 case TrinamicMode ::CoolStep:
-                    //log_info("Coolstep");
+                    log_debug("Coolstep");
                     tmc2130->en_pwm_mode(false);
                     tmc2130->pwm_autoscale(false);
                     tmc2130->TCOOLTHRS(NORMAL_TCOOLTHRS);  // when to turn on coolstep
                     tmc2130->THIGH(NORMAL_THIGH);
                     break;
                 case TrinamicMode ::StallGuard:
-                    //log_info("Stallguard");
+                    log_debug("Stallguard");
                     {
                         auto feedrate = config->_axes->_axis[axis_index()]->_homing->_feedRate;
 
@@ -222,20 +222,20 @@ namespace MotorDrivers {
         } else {
             switch (_mode) {
                 case TrinamicMode ::StealthChop:
-                    //log_info("StealthChop");
+                    log_debug("StealthChop");
                     tmc5160->en_pwm_mode(true);
                     tmc5160->pwm_autoscale(true);
                     tmc5160->diag1_stall(false);
                     break;
                 case TrinamicMode ::CoolStep:
-                    //log_info("Coolstep");
+                    log_debug("Coolstep");
                     tmc5160->en_pwm_mode(false);
                     tmc5160->pwm_autoscale(false);
                     tmc5160->TCOOLTHRS(NORMAL_TCOOLTHRS);  // when to turn on coolstep
                     tmc5160->THIGH(NORMAL_THIGH);
                     break;
                 case TrinamicMode ::StallGuard:
-                    //log_info("Stallguard");
+                    log_debug("Stallguard");
                     {
                         auto feedrate = config->_axes->_axis[axis_index()]->_homing->_feedRate;
 
