@@ -20,6 +20,7 @@
 #include "Protocol.h"             // LINE_BUFFER_SIZE
 #include "Uart.h"                 // Uart0.write()
 #include "FileStream.h"           // FileStream()
+#include "xmodem.h"               // xmodemReceive(), xmodemTransmit()
 
 #include <cstring>
 #include <map>
@@ -462,12 +463,56 @@ static Error motor_disable(const char* value, WebUI::AuthenticationLevel auth_le
     return Error::Ok;
 }
 
+static Error xmodem_receive(const char* value, WebUI::AuthenticationLevel auth_level, Print& out) {
+    if (!value || !*value) {
+        value = "uploaded";
+    }
+    Print* outfile;
+    try {
+        outfile = new FileStream(value, "w");
+    } catch (...) {
+        log_info("Cannot open " << value);
+        return Error::UploadFailed;
+    }
+    log_info("Receiving " << value << " via XModem");
+    int size = xmodemReceive(&Uart0, outfile);
+    delete outfile;
+    if (size >= 0) {
+        log_info("Received " << size << " bytes");
+    } else {
+        log_info("Reception failed or was canceled");
+    }
+    return size < 0 ? Error::UploadFailed : Error::Ok;
+}
+
+static Error xmodem_send(const char* value, WebUI::AuthenticationLevel auth_level, Print& out) {
+    if (!value || !*value) {
+        value = "config.yaml";
+    }
+    Stream* infile;
+    try {
+        infile = new FileStream(value, "r");
+    } catch (...) {
+        log_info("Cannot open " << value);
+        return Error::DownloadFailed;
+    }
+    log_info("Sending " << value << " via XModem");
+    int size = xmodemTransmit(&Uart0, infile);
+    delete infile;
+    if (size >= 0) {
+        log_info("Sent " << size << " bytes");
+    } else {
+        log_info("Sending failed or was canceled");
+    }
+    return size < 0 ? Error::DownloadFailed : Error::Ok;
+}
+
 static Error dump_config(const char* value, WebUI::AuthenticationLevel auth_level, Print& out) {
     Print* ss;
     try {
         if (value) {
             // Use a file on the local file system unless there is an explicit prefix like /sd/
-            ss = new FileStream(value, "localfs");
+            ss = new FileStream(value, "w");
         } else {
             ss = &out;
         }
@@ -501,6 +546,8 @@ static Error fakeLaserMode(const char* value, WebUI::AuthenticationLevel auth_le
 // to performing some system state change.  Each command is responsible
 // for decoding its own value string, if it needs one.
 void make_user_commands() {
+    new UserCommand("XR", "Xmodem/Receive", xmodem_receive, notIdleOrJog);
+    new UserCommand("XS", "Xmodem/Send", xmodem_send, notIdleOrJog);
     new UserCommand("CD", "Config/Dump", dump_config, anyState);
     new UserCommand("", "Help", show_help, anyState);
     new UserCommand("T", "State", showState, anyState);
