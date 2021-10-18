@@ -421,6 +421,9 @@ bool lineedit_step(int c) {
             if (c == '\r' || c == '\n') {
                 return true;
             }
+            for (char* p = startaddr; p < endaddr; ++p) {
+                emit(*p);
+            }
             editing = true;
             // continue to editing code below
         } else {
