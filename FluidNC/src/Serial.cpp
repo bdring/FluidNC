@@ -225,7 +225,7 @@ InputClient* pollClients() {
                     lineedit_start(client->_line, InputClient::maxLine);
                 }
             }
-            if (is_realtime_command(c)) {
+            if (lineedit_idle(c) && is_realtime_command(c)) {
                 execute_realtime_command(static_cast<Cmd>(c), *source);
                 continue;
             }

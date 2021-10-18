@@ -234,6 +234,23 @@ void forward_word() {
     }
 }
 
+char killbuf[100] = { 0 };
+
+void kill_forward() {
+    char* p = killbuf;
+    while (thisaddr < endaddr) {
+        *p++ = *thisaddr;
+        forward_char();
+        erase_char();
+    }
+    *p = '\0';
+}
+void yank() {
+    for (char* p = killbuf; *p; ++p) {
+        addchar(*p);
+    }
+}
+
 void backward_word() {
     if (startaddr >= endaddr) {
         return;
@@ -386,6 +403,17 @@ int lineedit_finish() {
     return (length);
 }
 
+// This is needed for the SPECIAL_DELETE sequence that ends with ~
+// Grbl normally treats ~ as a "realtime character" that is used
+// for CycleStart, and does not pass it through to the line editor.
+// If lineedit_idle() is false, which only happens infrequently when
+// in the middle of a SPECIAL_ sequence, then Serial.cpp will pass
+// ~ through to the line editor to complete the sequence, instead
+// of doing cycle start.
+bool lineedit_idle(int c) {
+    return c != '~' || escaping >= 0;
+}
+
 // Returns true when the line is complete
 bool lineedit_step(int c) {
     if (!editing) {
@@ -534,13 +562,13 @@ bool lineedit_step(int c) {
             forward_char();
             break;
         case CTRL('k'):
-            while (thisaddr < endaddr) {
-                forward_char();
-                erase_char();
-            }
+            kill_forward();
             break;
         case CTRL('u'):
             erase_line();
+            break;
+        case CTRL('y'):
+            yank();
             break;
         case CTRL('p'):
         case SPECIAL_UP:
