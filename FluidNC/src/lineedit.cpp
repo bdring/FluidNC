@@ -1,6 +1,4 @@
-// #include "string.h"
-
-#define NO_COMPLETION
+// #define NO_COMPLETION
 
 #include "Uart.h"
 // extern void emit(char c);
@@ -277,47 +275,39 @@ bool isdelim(char* addr) {
     return (addr < startaddr) || (addr == endaddr) || is_word_delim(*addr);
 }
 
-static char word[32];
+static char word[100];
 void        find_word_under_cursor() {
-    int i       = 0;
-    word[i]     = '\0';
-    char* taddr = thisaddr;
-
-    if (startaddr == endaddr) {
-        return;
+    int   i    = 0;
+    char* addr = startaddr;
+    if (*addr == '$') {
+        ++addr;
     }
-    if ((taddr < endaddr) && is_word_delim(*taddr) && (taddr > startaddr) && is_word_delim(taddr[-1])) {
-        return;
-    }
-    while ((taddr > startaddr) && !is_word_delim(taddr[-1])) {
-        --taddr;
-    }
-    while ((taddr < endaddr) && !is_word_delim(*taddr)) {
-        if (i != 32) {
-            word[i++] = *taddr;
-        }
-        ++taddr;
+    while (addr < thisaddr && i < (100 - 1)) {
+        word[i++] = *addr++;
     }
     word[i] = '\0';
-    while (thisaddr < taddr) {
-        emit(*thisaddr++);
-    }
 }
 
-int num_initial_matches(char* adr, cell len, int matchnum, char** namep, int* actual_len);
+extern int num_initial_matches(char* key, int keylen, int matchnum, char** matchname, int* matchlen);
 
 static void highlight() {
     emit(0x1b);
     emit('[');
+    emit('1');
+    emit(';');
     emit('3');
+    emit('6');
+    emit(';');
     emit('4');
+    emit('0');
     emit('m');
 }
 
 static void lowlight() {
     emit(0x1b);
     emit('[');
-    emit('0');
+    emit('3');
+    emit('7');
     emit('m');
 }
 
@@ -325,6 +315,15 @@ static int nmatches = 0;
 static int matchlen;
 static int thismatch = 0;
 
+void printhex(uint8_t n) {
+    //    if (n < ' ' || n >= 0x7f) {
+    const char* hexch = "0123456789abcdef";
+    emit('0');
+    emit('x');
+    emit(hexch[n >> 4]);
+    emit(hexch[n & 0xf]);
+    //    }
+}
 void complete_word() {
     find_word_under_cursor();
     if (*word == '\0') {
@@ -341,7 +340,6 @@ void complete_word() {
         while (len < matchlen) {
             addchar(name[len++]);
         }
-        addchar(' ');
         nmatches = 0;
         return;
     }
@@ -354,6 +352,7 @@ void complete_word() {
         if (nmatches2 != nmatches) {
             break;
         }
+        //        printhex(word[len]);
         addchar(word[len++]);
     }
     word[len] = '\0';
@@ -361,6 +360,7 @@ void complete_word() {
     thismatch = 0;
     highlight();
     while (len < matchlen) {
+        //        printhex(name[len]);
         addchar(name[len++]);
     }
     lowlight();
@@ -374,12 +374,14 @@ void propose_word() {
     char* name;
     int   len      = strlen(word);
     int   nmatches = num_initial_matches(word, len, thismatch, &name, &newmatchlen);
+
     while (matchlen > len) {
         erase_char();
         --matchlen;
     }
     highlight();
     while (matchlen < newmatchlen) {
+        //        printhex(name[matchlen]);
         addchar(name[matchlen++]);
     }
     lowlight();

@@ -4,5 +4,5 @@
 #pragma once
 
 namespace Configuration {
-    enum struct HandlerType { Parser, AfterParse, Runtime, Generator, Validator };
+    enum struct HandlerType { Parser, AfterParse, Runtime, Generator, Validator, Completer };
 }
