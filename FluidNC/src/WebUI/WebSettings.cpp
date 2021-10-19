@@ -317,7 +317,6 @@ namespace WebUI {
         if (!currentfile) {
             return Error::FsFailedOpenFile;
         }
-        webPrint(dataBeginMarker);
         while (currentfile.available()) {
             // String currentline = currentfile.readStringUntil('\n');
             //            if (currentline.length() > 0) {
@@ -326,7 +325,6 @@ namespace WebUI {
             webPrintln(currentfile.readStringUntil('\n'));
         }
         currentfile.close();
-        webPrint(dataEndMarker);
         return Error::Ok;
     }
 
@@ -688,7 +686,6 @@ namespace WebUI {
         if ((err = openSDFile(parameter, client, auth_level)) != Error::Ok) {
             return err;
         }
-        webPrint(dataBeginMarker);
         char  fileLine[255];
         Error res;
         while ((res = config->_sdCard->readFileLine(fileLine, 255)) == Error::Ok) {
@@ -698,7 +695,6 @@ namespace WebUI {
             webPrintln(errorString(res));
         }
         config->_sdCard->closeFile();
-        webPrint(dataEndMarker);
         return Error::Ok;
     }
 

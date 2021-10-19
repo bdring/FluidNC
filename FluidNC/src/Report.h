@@ -101,9 +101,6 @@ void hex_msg(uint8_t* buf, const char* prefix, int len);
 
 void addPinReport(char* status, char pinLetter);
 
-extern const char* dataBeginMarker;
-extern const char* dataEndMarker;
-
 #include "MyIOStream.h"
 
 void        mpos_to_wpos(float* position);

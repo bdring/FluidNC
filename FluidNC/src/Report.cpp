@@ -690,5 +690,3 @@ void reportTaskStackSize(UBaseType_t& saved) {
     }
 #endif
 }
-const char* dataBeginMarker = "[MSG: BeginData]\n";
-const char* dataEndMarker   = "[MSG: EndData]\n";

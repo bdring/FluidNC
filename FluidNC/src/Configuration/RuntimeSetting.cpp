@@ -34,11 +34,9 @@ namespace Configuration {
                 value->group(*this);
             } else {
                 if (newValue_ == nullptr) {
-                    allClients << dataBeginMarker;
-                    allClients << setting_ << ":\n";
+                    allClients << "/" << setting_ << ":\n";
                     Configuration::Generator generator(allClients, 1);
                     value->group(generator);
-                    allClients << dataEndMarker;
                     isHandled_ = true;
                 } else {
                     log_error("Can't set a value on a section");
