@@ -24,16 +24,16 @@ namespace Configuration {
         auto previous = _currentPath;
         _currentPath += name;
         _currentPath += "/";
-        if (_currentPath.startsWith(_key)) {
-            // If _key is an initial substring of _currentPath, this section
-            // is a candidate.  Example:  _key = /axes/x/h _currentPath=/axes/x/homing
-            addCandidate(_currentPath);
-        } else if (_key.startsWith(_currentPath)) {
+        if (_key.startsWith(_currentPath)) {
             // If _currentPath is an initial substring of _key, this section
             // is part of a path leading to the key, so we have to check
             // this section's children
             // Example: _key = /axes/x/motor0/cy _currentPath=/axes/x/motor0
             value->group(*this);
+        } else if (_currentPath.startsWith(_key)) {
+            // If _key is an initial substring of _currentPath, this section
+            // is a candidate.  Example:  _key = /axes/x/h _currentPath=/axes/x/homing
+            addCandidate(_currentPath);
         }
         _currentPath = previous;
     }

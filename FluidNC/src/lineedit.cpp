@@ -30,7 +30,7 @@ static char* startaddr;
 static char* endaddr;
 static char* maxaddr;
 
-void addchar(char c, bool echo = true) {
+static void addchar(char c, bool echo = true) {
     char* p;
     if (thisaddr < maxaddr) {
         if (endaddr < maxaddr)
@@ -51,7 +51,7 @@ void addchar(char c, bool echo = true) {
     }
 }
 
-void erase_char() {
+static void erase_char() {
     char* p;
     if (thisaddr > startaddr) {
         --thisaddr;
@@ -68,7 +68,7 @@ void erase_char() {
     }
 }
 
-void erase_line() {
+static void erase_line() {
     for (; thisaddr < endaddr; ++thisaddr)
         emit(*thisaddr);
     while (thisaddr > startaddr)
@@ -80,7 +80,7 @@ void erase_line() {
 static int  saved_length;
 static char lastline[MAXHISTORY];
 
-void validate_history() {
+static void validate_history() {
     int i;
 
     // Clear history if it is invalid
@@ -100,7 +100,7 @@ clear_history:
     saved_length = 0;
 }
 
-bool already_in_history(char* adr, int len) {
+static bool already_in_history(char* adr, int len) {
     char* p;
     char* first;
     char* thischar;
@@ -145,7 +145,7 @@ bool already_in_history(char* adr, int len) {
     return false;
 }
 
-void add_to_history(char* adr, int len) {
+static void add_to_history(char* adr, int len) {
     int i;
     int new_length;
 
@@ -172,7 +172,7 @@ void add_to_history(char* adr, int len) {
 
 // history_num is the number of the history line to fetch
 // returns true if that line exists.
-bool get_history(int history_num) {
+static bool get_history(int history_num) {
     int   i;
     int   hn;
     char* p;
@@ -203,25 +203,25 @@ bool get_history(int history_num) {
     return true;
 }
 
-void backward_char() {
+static void backward_char() {
     if (thisaddr > startaddr) {
         emit(BS);
         --thisaddr;
     }
 }
 
-void forward_char() {
+static void forward_char() {
     if (thisaddr < endaddr) {
         emit(*thisaddr);
         ++thisaddr;
     }
 }
 
-bool is_word_delim(char c) {
+static bool is_word_delim(char c) {
     return c == ' ' || c == '/' || c == '=' || c == ',';
 }
 
-void forward_word() {
+static void forward_word() {
     while ((thisaddr < endaddr) && is_word_delim(*thisaddr)) {
         emit(*thisaddr);
         ++thisaddr;
@@ -234,7 +234,7 @@ void forward_word() {
 
 char killbuf[100] = { 0 };
 
-void kill_forward() {
+static void kill_forward() {
     char* p = killbuf;
     while (thisaddr < endaddr) {
         *p++ = *thisaddr;
@@ -243,13 +243,13 @@ void kill_forward() {
     }
     *p = '\0';
 }
-void yank() {
+static void yank() {
     for (char* p = killbuf; *p; ++p) {
         addchar(*p);
     }
 }
 
-void backward_word() {
+static void backward_word() {
     if (startaddr >= endaddr) {
         return;
     }
@@ -271,12 +271,12 @@ void backward_word() {
 }
 
 #ifndef NO_COMPLETION
-bool isdelim(char* addr) {
+static bool isdelim(char* addr) {
     return (addr < startaddr) || (addr == endaddr) || is_word_delim(*addr);
 }
 
 static char word[100];
-void        find_word_under_cursor() {
+static void find_word_under_cursor() {
     int   i    = 0;
     char* addr = startaddr;
     if (*addr == '$') {
@@ -285,37 +285,44 @@ void        find_word_under_cursor() {
     while (addr < thisaddr && i < (100 - 1)) {
         word[i++] = *addr++;
     }
+    // Move to the end of the item name
+    while (thisaddr < endaddr && i < (100 - 1) && *thisaddr != '=') {
+        emit(*thisaddr);
+        word[i++] = *thisaddr++;
+    }
     word[i] = '\0';
 }
 
 extern int num_initial_matches(char* key, int keylen, int matchnum, char** matchname, int* matchlen);
 
-static void highlight() {
+static void color(const char* s) {
     emit(0x1b);
     emit('[');
-    emit('1');
-    emit(';');
-    emit('3');
-    emit('6');
-    emit(';');
-    emit('4');
-    emit('0');
+    while (*s) {
+        emit(*s++);
+    }
     emit('m');
+}
+static void cyan() {
+    color("1;36;40");
+}
+static void highlight() {
+    cyan();
+}
+
+static void gray() {
+    color("0;37;40");
 }
 
 static void lowlight() {
-    emit(0x1b);
-    emit('[');
-    emit('3');
-    emit('7');
-    emit('m');
+    gray();
 }
 
 static int nmatches = 0;
 static int matchlen;
 static int thismatch = 0;
 
-void printhex(uint8_t n) {
+static void printhex(uint8_t n) {
     //    if (n < ' ' || n >= 0x7f) {
     const char* hexch = "0123456789abcdef";
     emit('0');
@@ -324,7 +331,7 @@ void printhex(uint8_t n) {
     emit(hexch[n & 0xf]);
     //    }
 }
-void complete_word() {
+static void complete_word() {
     find_word_under_cursor();
     if (*word == '\0') {
         return;
@@ -366,7 +373,7 @@ void complete_word() {
     lowlight();
 }
 
-void propose_word() {
+static void propose_word() {
     if (++thismatch == nmatches) {
         thismatch = 0;
     }
@@ -381,10 +388,22 @@ void propose_word() {
     }
     highlight();
     while (matchlen < newmatchlen) {
-        //        printhex(name[matchlen]);
         addchar(name[matchlen++]);
     }
     lowlight();
+}
+static void accept_word() {
+    int len = strlen(word);
+    int i;
+    for (i = matchlen; i > len; --i) {
+        emit(BS);
+        --thisaddr;
+    }
+    lowlight();
+    while (i < matchlen) {
+        emit(*thisaddr++);
+        ++i;
+    }
 }
 #endif
 
@@ -523,7 +542,10 @@ bool lineedit_step(int c) {
         }
         return false;
     }
-    nmatches = 0;
+    if (nmatches) {
+        accept_word();
+        nmatches = 0;
+    }
 #endif
 
     switch (c) {

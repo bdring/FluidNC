@@ -12,7 +12,9 @@ namespace Configuration {
     RuntimeSetting::RuntimeSetting(const char* key, const char* value, Print& out) : newValue_(value), out_(out) {
         // Remove leading '/' if it is present
         setting_ = (*key == '/') ? key + 1 : key;
-        start_   = setting_;
+        // Also remove trailing '/' if it is present
+
+        start_ = setting_;
         // Read fence for config. Shouldn't be necessary, but better safe than sorry.
         std::atomic_thread_fence(std::memory_order::memory_order_seq_cst);
     }
@@ -26,7 +28,7 @@ namespace Configuration {
             for (; *next && *next != '/'; ++next) {}
 
             // Do we have a child?
-            if (*next == '/') {
+            if (*next == '/' && next[1] != '\0') {
                 ++next;
                 start_ = next;
 
@@ -52,7 +54,7 @@ namespace Configuration {
         if (is(name)) {
             isHandled_ = true;
             if (newValue_ == nullptr) {
-                out_ << "$" << setting_ << "=" << (value ? "true" : "false") << '\n';
+                out_ << "$/" << setting_ << "=" << (value ? "true" : "false") << '\n';
             } else {
                 value = (!strcasecmp(newValue_, "true"));
             }
@@ -63,7 +65,7 @@ namespace Configuration {
         if (is(name)) {
             isHandled_ = true;
             if (newValue_ == nullptr) {
-                out_ << "$" << setting_ << "=" << value << '\n';
+                out_ << "$/" << setting_ << "=" << value << '\n';
             } else {
                 value = atoi(newValue_);
             }
@@ -74,7 +76,7 @@ namespace Configuration {
         if (is(name)) {
             isHandled_ = true;
             if (newValue_ == nullptr) {
-                out_ << "$" << setting_ << "=" << value << '\n';
+                out_ << "$/" << setting_ << "=" << value << '\n';
             } else {
                 char* floatEnd;
                 value = strtof(newValue_, &floatEnd);
@@ -86,7 +88,7 @@ namespace Configuration {
         if (is(name)) {
             isHandled_ = true;
             if (newValue_ == nullptr) {
-                out_ << "$" << setting_ << "=" << value << '\n';
+                out_ << "$/" << setting_ << "=" << value << '\n';
             } else {
                 value = String(newValue_);
             }
@@ -99,7 +101,7 @@ namespace Configuration {
             if (newValue_ == nullptr) {
                 for (; e->name; ++e) {
                     if (e->value == value) {
-                        out_ << "$" << setting_ << "=" << e->name << '\n';
+                        out_ << "$/" << setting_ << "=" << e->name << '\n';
                         return;
                     }
                 }
@@ -167,7 +169,7 @@ namespace Configuration {
         if (is(name)) {
             isHandled_ = true;
             if (newValue_ == nullptr) {
-                out_ << "$" << setting_ << "=" << value.toString() << '\n';
+                out_ << "$/" << setting_ << "=" << value.toString() << '\n';
             } else {
                 IPAddress ip;
                 if (!ip.fromString(newValue_)) {
@@ -182,7 +184,7 @@ namespace Configuration {
         if (is(name)) {
             isHandled_ = true;
             if (newValue_ == nullptr) {
-                out_ << "$" << setting_ << "=" << value.name() << '\n';
+                out_ << "$/" << setting_ << "=" << value.name() << '\n';
             } else {
                 out_ << "Runtime setting of Pin objects is not supported\n";
                 // auto parsed = Pin::create(newValue);
