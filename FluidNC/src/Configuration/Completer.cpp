@@ -48,6 +48,8 @@ namespace Configuration {
     Completer::~Completer() {}
 }
 
+#include "../Settings.h"
+
 // This provides the interface to the completion routines in lineedit.cpp
 // The argument signature is idiosyncratic, based on the needs of the
 // Forth implementation for which the completion code was first developed.
@@ -62,14 +64,34 @@ int num_initial_matches(char* key, int keylen, int matchnum, char** matchname, i
     matchedstr[0] = '\0';
     *matchname    = matchedstr;
 
-    char keycstr[100];
-    memcpy(keycstr, key, keylen);
-    keycstr[keylen] = '\0';
+    int nfound = 0;
 
-    Configuration::Completer completer(keycstr, matchnum, &matchedstr[0]);
-    config->group(completer);
+    if (key[0] == '/') {
+        char keycstr[100];
+        memcpy(keycstr, key, keylen);
+        keycstr[keylen] = '\0';
 
+        // Match in configuration tree
+        Configuration::Completer completer(keycstr, matchnum, &matchedstr[0]);
+        config->group(completer);
+        nfound = completer._numMatches;
+    } else {
+        // Match NVS settings
+        auto lcKey = String(key);
+        lcKey.toLowerCase();
+        for (Setting* s = Setting::List; s; s = s->next()) {
+            auto lcTest = String(s->getName());
+            lcTest.toLowerCase();
+
+            if (*key == '\0' || lcTest.startsWith(lcKey)) {
+                if (matchname && nfound == matchnum) {
+                    strcpy(matchedstr, s->getName());
+                }
+                ++nfound;
+            }
+        }
+    }
     *matchlen = strlen(matchedstr);
 
-    return completer._numMatches;
+    return nfound;
 }

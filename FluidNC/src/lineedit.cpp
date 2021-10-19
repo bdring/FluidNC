@@ -322,20 +322,8 @@ static int nmatches = 0;
 static int matchlen;
 static int thismatch = 0;
 
-static void printhex(uint8_t n) {
-    //    if (n < ' ' || n >= 0x7f) {
-    const char* hexch = "0123456789abcdef";
-    emit('0');
-    emit('x');
-    emit(hexch[n >> 4]);
-    emit(hexch[n & 0xf]);
-    //    }
-}
 static void complete_word() {
     find_word_under_cursor();
-    if (*word == '\0') {
-        return;
-    }
     char* name;
     int   len = strlen(word);
     nmatches  = num_initial_matches(word, len, 0, &name, &matchlen);
@@ -359,7 +347,6 @@ static void complete_word() {
         if (nmatches2 != nmatches) {
             break;
         }
-        //        printhex(word[len]);
         addchar(word[len++]);
     }
     word[len] = '\0';
@@ -367,7 +354,6 @@ static void complete_word() {
     thismatch = 0;
     highlight();
     while (len < matchlen) {
-        //        printhex(name[len]);
         addchar(name[len++]);
     }
     lowlight();
