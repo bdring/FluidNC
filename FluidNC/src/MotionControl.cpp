@@ -120,7 +120,7 @@ void WEAK_LINK motors_to_cartesian(float* cartesian, float* motors, int n_axis) 
 // unless invert_feed_rate is true. Then the feed_rate means that the motion should be completed in
 // (1 minute)/feed_rate time.
 bool mc_linear(float* target, plan_line_data_t* pl_data, float* position) {
-  return cartesian_to_motors(target, pl_plan, position);
+  return cartesian_to_motors(target, pl_data, position);
 }
 
 // Execute an arc in offset mode format. position == current xyz, target == target xyz,
