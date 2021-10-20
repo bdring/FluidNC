@@ -127,9 +127,9 @@ bool cartesian_to_motors(float* target, plan_line_data_t* pl_data, float* positi
         polar[RADIUS_AXIS] += x_offset;
         polar[Z_AXIS] += z_offset;
 
-        // mc_line() returns false if a jog is cancelled.
+        // mc_move_motors() returns false if a jog is cancelled.
         // In that case we stop sending segments to the planner.
-        if (!mc_line(polar, pl_data)) {
+        if (!mc_move_motors(polar, pl_data)) {
             return false;
         }
 

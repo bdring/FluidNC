@@ -140,10 +140,10 @@ bool user_defined_homing(AxisMask cycle_mask) {
                     }
 
                     // convert back to motor steps
-                    cartesian_to_motors(target);
+                    mc_linear(target);
 
                     pl_data->feed_rate = homing_rate;   // feed or seek rates
-                    plan_buffer_line(target, pl_data);  // Bypass mc_line(). Directly plan homing motion.
+                    plan_buffer_line(target, pl_data);  // Bypass mc_move_motors(). Directly plan homing motion.
                     sys.step_control                  = {};
                     sys.step_control.executeSysMotion = true;  // Set to execute homing motion and clear existing flags.
                     st_prep_buffer();                          // Prep and fill segment buffer from newly planned block.
@@ -228,7 +228,7 @@ bool user_defined_homing(AxisMask cycle_mask) {
     }
 
     // convert to motors
-    cartesian_to_motors(target);
+    mc_linear(target);
     // convert to steps
     for (axis = X_AXIS; axis <= Y_AXIS; axis++) {
         motor_steps[axis] = target[axis] * config->_axes->_axis[axis]->_stepsPerMm;
@@ -277,7 +277,7 @@ bool cartesian_to_motors(float* target, plan_line_data_t* pl_data, float* positi
         pl_data->feed_rate *= (three_axis_dist(motors, last_motors) / dist);
     }
 
-    return mc_line(motors, pl_data);
+    return mc_move_motors(motors, pl_data);
 }
 
 // motors -> cartesian
