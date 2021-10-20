@@ -24,7 +24,7 @@ bool cartesian_to_motors(float* target, plan_line_data_t* pl_data, float* positi
 void motors_to_cartesian(float* cartesian, float* motors, int n_axis);
 
 // Execute a linear motion in cartesian space.
-void mc_linear(float* target, plan_line_data_t* pl_data);
+bool mc_linear(float* target, plan_line_data_t* pl_data);
 
 // Execute a linear motion in motor space.
 bool mc_move_motors(float* target, plan_line_data_t* pl_data);  // returns true if line was submitted to planner
