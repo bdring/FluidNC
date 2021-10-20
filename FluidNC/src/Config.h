@@ -11,6 +11,8 @@
 
 // IMPORTANT: Any changes here require recompilation.
 
+#define CUSTOM_CODE_FILENAME "../Custom/wall_plotter.cpp"
+
 /*
 ESP 32 Notes
 
