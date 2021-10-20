@@ -204,7 +204,7 @@ void protocol_buffer_synchronize() {
 
 // Auto-cycle start triggers when there is a motion ready to execute and if the main program is not
 // actively parsing commands.
-// NOTE: This function is called from the main loop, buffer sync, and mc_line() only and executes
+// NOTE: This function is called from the main loop, buffer sync, and mc_move_motors() only and executes
 // when one of these conditions exist respectively: There are no more blocks sent (i.e. streaming
 // is finished, single commands), a command that needs to wait for the motions in the buffer to
 // execute calls a buffer sync, or the planner buffer is full and ready to go.
@@ -777,7 +777,7 @@ static void protocol_exec_rt_suspend() {
         if (sys.abort) {
             return;
         }
-        // if a jogCancel comes in and we have a jog "in-flight" (parsed and handed over to mc_line()),
+        // if a jogCancel comes in and we have a jog "in-flight" (parsed and handed over to mc_move_motors()),
         //  then we need to cancel it before it reaches the planner.  otherwise we may try to move way out of
         //  normal bounds, especially with senders that issue a series of jog commands before sending a cancel.
         if (sys.suspend.bit.jogCancel) {

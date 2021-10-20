@@ -22,7 +22,12 @@ const int PARKING_MOTION_LINE_NUMBER = 0;
 // (1 minute)/feed_rate time.
 bool cartesian_to_motors(float* target, plan_line_data_t* pl_data, float* position);
 void motors_to_cartesian(float* cartesian, float* motors, int n_axis);
-bool mc_line(float* target, plan_line_data_t* pl_data);  // returns true if line was submitted to planner
+
+// Execute a linear motion in cartesian space.
+void mc_linear(float* target, plan_line_data_t* pl_data);
+
+// Execute a linear motion in motor space.
+bool mc_move_motors(float* target, plan_line_data_t* pl_data);  // returns true if line was submitted to planner
 
 // Execute an arc in offset mode format. position == current xyz, target == target xyz,
 // offset == offset from current xyz, axis_XXX defines circle plane in tool space, axis_linear is

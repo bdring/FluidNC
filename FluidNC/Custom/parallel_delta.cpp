@@ -94,7 +94,7 @@ void machine_init() {
 
     // Calculate the Z offset at the arm zero angles ...
     // Z offset is the z distance from the motor axes to the end effector axes at zero angle
-    motors_to_cartesian(cartesian, angles, 3);  // Sets the cartesian values
+    mc_linear(cartesian, angles, 3);  // Sets the cartesian values
     // print a startup message to show the kinematics are enabled. Print the offset for reference
     info_serial("Delta Kinematics Init: %s Z Offset:%4.3f", MACHINE_NAME, cartesian[Z_AXIS]);
 
@@ -177,14 +177,14 @@ bool cartesian_to_motors(float* target, plan_line_data_t* pl_data, float* positi
             pl_data->feed_rate   = (feed_rate * delta_distance / segment_dist);
         }
 
-        // mc_line() returns false if a jog is cancelled.
+        // mc_move_motors() returns false if a jog is cancelled.
         // In that case we stop sending segments to the planner.
-        if (!mc_line(motor_angles, pl_data)) {
+        if (!mc_move_motors(motor_angles, pl_data)) {
             return false;
         }
 
         // save angles for next distance calc
-        // This is after mc_line() so that we do not update
+        // This is after mc_move_motors() so that we do not update
         // last_angle if the segment was discarded.
         memcpy(last_angle, motor_angles, sizeof(motor_angles));
     }
