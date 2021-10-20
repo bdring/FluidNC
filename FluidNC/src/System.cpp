@@ -8,7 +8,7 @@
 
 #include "System.h"
 #include "Report.h"                 // report_ovr_counter
-#include "MotionControl.h"          // mc_linear
+#include "MotionControl.h"          // motors_to_cartesian
 #include "Config.h"                 // MAX_N_AXIS
 #include "Machine/MachineConfig.h"  // config
 
