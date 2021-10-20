@@ -6,7 +6,7 @@
 
 #include "Machine/MachineConfig.h"
 #include "Limits.h"         // limitsCheckTravel
-#include "MotionControl.h"  // cartesian_to_motors
+#include "MotionControl.h"  // mc_linear
 #include "Stepper.h"        // st_prep_buffer, st_wake_up
 
 // Sets up valid jog motion received from g-code parser, checks for soft-limits, and executes the jog.
@@ -25,7 +25,7 @@ Error jog_execute(plan_line_data_t* pl_data, parser_block_t* gc_block, bool* can
         }
     }
     // Valid jog command. Plan, set state, and execute.
-    if (!cartesian_to_motors(gc_block->values.xyz, pl_data, gc_state.position)) {
+    if (!mc_linear(gc_block->values.xyz, pl_data, gc_state.position)) {
         return Error::JogCancelled;
     }
 
