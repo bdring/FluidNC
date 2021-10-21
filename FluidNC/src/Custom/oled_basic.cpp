@@ -9,7 +9,7 @@
 
     When in alarm mode it will show the current Wifi/BT paramaters and status
     Most machines will start in alarm mode (needs homing)
-    If the machine is running a job from SD it will show the progress
+    If the machine is running a file job it will show the progress
     In other modes it will show state and 3 axis DROs
     Thats All! 
 */
@@ -26,6 +26,7 @@
 #    include "../Report.h"
 #    include "../Machine/Axes.h"
 #    include "../Uart.h"
+#    include "../InputFile.h"
 
 static TaskHandle_t oledUpdateTaskHandle = 0;
 
@@ -159,7 +160,7 @@ static void oledUpdate(void* pvParameters) {
     xLastWakeTime                   = xTaskGetTickCount();  // Initialise the xLastWakeTime variable with the current time.
 
     vTaskDelay(2500);
-    uint16_t sd_file_ticker = 0;
+    uint16_t file_ticker = 0;
 
     oled->init();
     oled->flipScreenVertically();
@@ -173,20 +174,20 @@ static void oledUpdate(void* pvParameters) {
         oled->setFont(ArialMT_Plain_16);
         oled->drawString(0, 0, state_name());
 
-        if (config->_sdCard->get_state() == SDCard::State::BusyPrinting) {
+        if (infile) {
             oled->clear();
             oled->setTextAlignment(TEXT_ALIGN_CENTER);
             oled->setFont(ArialMT_Plain_10);
-            state_string = "SD File";
-            for (int i = 0; i < sd_file_ticker % 10; i++) {
+            state_string = "File";
+            for (int i = 0; i < file_ticker % 10; i++) {
                 state_string += ".";
             }
-            sd_file_ticker++;
+            file_ticker++;
             oled->drawString(63, 0, state_string);
 
-            oled->drawString(63, 12, config->_sdCard->filename());
+            oled->drawString(63, 12, infile->filename());
 
-            int progress = config->_sdCard->percent_complete();
+            int progress = infile->percent_complete();
             // draw the progress bar
             oled->drawProgressBar(0, 45, 120, 10, progress);
 

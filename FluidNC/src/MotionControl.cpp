@@ -12,6 +12,7 @@
 #include "Protocol.h"        // protocol_execute_realtime
 #include "Planner.h"         // plan_reset, etc
 #include "I2SOut.h"          // i2s_out_reset
+#include "InputFile.h"       // infile
 #include "Platform.h"        // WEAK_LINK
 
 // M_PI is not defined in standard C/C++ but some compilers
@@ -422,16 +423,17 @@ void mc_reset() {
         // turn off all User I/O immediately
         config->_userOutputs->all_off();
 
-        // do we need to stop a running SD job?
-        if (config->_sdCard->get_state() == SDCard::State::BusyPrinting) {
+        // do we need to stop a running file job?
+        if (infile) {
             //Report print stopped
-            _notifyf("SD print canceled", "Reset during SD file at line: %d", config->_sdCard->lineNumber());
+            _notifyf("File job canceled", "Reset during file job at line: %d", infile->lineNumber());
             // log_info() does not work well in this case because the message gets broken in half
             // by report_init_message().  The flow of control that causes it is obscure.
-            config->_sdCard->getClient() << "[MSG:"
-                                         << "Reset during SD file at line: " << config->_sdCard->lineNumber();
+            infile->getClient() << "[MSG:"
+                                << "Reset during file job at line: " << infile->lineNumber();
 
-            config->_sdCard->closeFile();
+            delete infile;
+            infile = nullptr;
         }
 
         // Kill steppers only if in any motion state, i.e. cycle, actively holding, or homing.

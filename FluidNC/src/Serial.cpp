@@ -47,7 +47,7 @@
 #include "Report.h"
 #include "System.h"
 #include "Protocol.h"  // rtSafetyDoor etc
-#include "SDCard.h"
+#include "InputFile.h"
 #include "WebUI/InputBuffer.h"  // XXX could this be a StringStream ?
 #include "Main.h"               // display()
 #include "lineedit.h"           // lineedit_start(), lineedit_step(), lineedit_finish()
@@ -285,17 +285,16 @@ InputClient* pollClients() {
     WebUI::wifi_services.handle();  // OTA, web_server, telnet_server polling
 #endif
 
-    auto sdcard = config->_sdCard;
     // _readyNext indicates that input is coming from a file and
     // the GCode system is ready for another line.
-    if (sdcard && sdcard->_readyNext) {
-        Error res = sdcard->readFileLine(sdClient->_line, InputClient::maxLine);
+    if (infile && infile->_readyNext) {
+        Error res = infile->readLine(sdClient->_line, InputClient::maxLine);
         if (res == Error::Ok) {
-            sdClient->_out     = &sdcard->getClient();
-            sdcard->_readyNext = false;
+            sdClient->_out     = &infile->getClient();
+            infile->_readyNext = false;
             return sdClient;
         }
-        report_status_message(res, sdcard->getClient());
+        report_status_message(res, infile->getClient());
     }
 
     return nullptr;

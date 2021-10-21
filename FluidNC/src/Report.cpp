@@ -31,6 +31,7 @@
 #include "WebUI/TelnetServer.h"          // WebUI::telnet_server
 #include "WebUI/BTConfig.h"              // bt_config
 #include "WebUI/WebSettings.h"
+#include "InputFile.h"
 
 #include <map>
 #include <freertos/task.h>
@@ -124,33 +125,34 @@ static String report_util_axis_values(const float* axis_value) {
 // from a critical error, such as a triggered hard limit. Interface should always monitor for these
 // responses.
 void report_status_message(Error status_code, Print& client) {
-    auto sdcard = config->_sdCard;
-    if (sdcard->get_state() == SDCard::State::BusyPrinting) {
-        // When running from SD, the GCode is not coming from a sender, so we are not
+    if (infile) {
+        // When running from a file, the GCode is not coming from a sender, so we are not
         // using the Grbl send/response/error protocol.  We use _readyNext instead of
         // "ok" to indicate readiness for another line, and we report verbose error
         // messages with [MSG: ...] encapsulation
         switch (status_code) {
             case Error::Ok:
-                sdcard->_readyNext = true;  // flag so protocol_main_loop() will send the next line
+                infile->_readyNext = true;  // flag so protocol_main_loop() will send the next line
                 break;
             case Error::Eof:
                 // XXX we really should wait for the machine to return to idle before
                 // we issue this message.  What Eof really means is that all the lines in the
                 // file were sent, but not necessarily executed.  Some could still be running.
-                _notifyf("SD print done", "%s print succeeded", sdcard->filename());
-                sdcard->getClient() << "[MSG:" << sdcard->filename() << " print succeeded]\n";
-                sdcard->closeFile();
+                _notifyf("File job done", "%s print succeeded", infile->filename());
+                infile->getClient() << "[MSG:" << infile->filename() << " print succeeded]\n";
+                delete infile;
+                infile = nullptr;
                 break;
             default:
-                sdcard->getClient() << "[MSG: ERR:" << static_cast<int>(status_code) << " (" << errorString(status_code) << ") in "
-                                    << sdcard->filename() << " at line " << sdcard->lineNumber() << "]\n";
+                infile->getClient() << "[MSG: ERR:" << static_cast<int>(status_code) << " (" << errorString(status_code) << ") in "
+                                    << infile->filename() << " at line " << infile->lineNumber() << "]\n";
                 if (status_code == Error::GcodeUnsupportedCommand) {
                     // Do not stop on unsupported commands because most senders do not
-                    sdcard->_readyNext = true;
+                    infile->_readyNext = true;
                 } else {
-                    _notifyf("SD print error", "Error:%d in %s at line: %d", status_code, sdcard->filename(), sdcard->lineNumber());
-                    sdcard->closeFile();
+                    _notifyf("File print error", "Error:%d in %s at line: %d", status_code, infile->filename(), infile->lineNumber());
+                    delete infile;
+                    infile = nullptr;
                 }
         }
     } else {
@@ -189,7 +191,7 @@ std::map<Message, const char*> MessageText = {
     { Message::SleepMode, "Sleeping" },
     { Message::ConfigAlarmLock, "Configuration is invalid. Check boot messages for ERR's." },
     // Handled separately due to numeric argument
-    // { Message::SdFileQuit, "Reset during SD file at line: %d" },
+    // { Message::FileQuit, "Reset during file job at line: %d" },
 };
 
 // Prints feedback messages. This serves as a centralized method to provide additional
@@ -656,9 +658,9 @@ void report_realtime_status(Print& client) {
             }
         }
     }
-    if (config->_sdCard->get_state() == SDCard::State::BusyPrinting) {
+    if (infile) {
         // XXX WMB FORMAT 4.2f
-        client << "|SD:" << config->_sdCard->percent_complete() << "," << config->_sdCard->filename();
+        client << "|SD:" << infile->percent_complete() << "," << infile->filename();
     }
 #ifdef DEBUG_STEPPER_ISR
     client << "|ISRs:" << Stepper::isr_count;

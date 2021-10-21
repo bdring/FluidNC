@@ -5,22 +5,13 @@
 
 #include "SDCard.h"
 #include "Machine/MachineConfig.h"
+#include "Print.h"
 #include "Report.h"
-#include "Uart.h"
 
-#include <FS.h>
 #include <SD.h>
 #include <SPI.h>
 
-class SDCard::FileWrap {
-public:
-    FileWrap() : _file(nullptr) {}
-    File _file;
-};
-
-SDCard::SDCard() :
-    _pImpl(new FileWrap()), _current_line_number(0), _state(State::Idle), _client(Uart0),
-    _auth_level(WebUI::AuthenticationLevel::LEVEL_GUEST), _readyNext(false) {}
+SDCard::SDCard() : _state(State::Idle) {}
 
 void SDCard::listDir(fs::FS& fs, const char* dirname, size_t levels, Print& client) {
     //char temp_filename[128]; // to help filter by extension	TODO: 128 needs a definition based on something
@@ -44,74 +35,6 @@ void SDCard::listDir(fs::FS& fs, const char* dirname, size_t levels, Print& clie
         }
         file = root.openNextFile();
     }
-}
-
-bool SDCard::openFile(fs::FS& fs, const char* path, Print& client, WebUI::AuthenticationLevel auth_level) {
-    _pImpl->_file = fs.open(path);
-    if (!_pImpl->_file) {
-        return false;
-    }
-    _client              = client;
-    _auth_level          = auth_level;
-    _state               = State::BusyPrinting;
-    _readyNext           = false;  // this will get set to true when an "ok" message is issued
-    _current_line_number = 0;
-    return true;
-}
-
-bool SDCard::closeFile() {
-    _state               = State::Idle;
-    _readyNext           = false;
-    _current_line_number = 0;
-    _client              = Uart0;
-    _auth_level          = WebUI::AuthenticationLevel::LEVEL_GUEST;
-    if (!_pImpl->_file) {
-        return false;
-    }
-    _pImpl->_file.close();
-    end();
-    return true;
-}
-
-/*
-  Read a line from the SD card
-  Returns true if a line was read, even if it was empty.
-  Returns false on EOF or error.  Errors display a message.
-*/
-Error SDCard::readFileLine(char* line, int maxlen) {
-    if (!_pImpl->_file) {
-        return Error::FsFailedRead;
-    }
-
-    _current_line_number += 1;
-    int len = 0;
-    while (_pImpl->_file.available()) {
-        if (len >= maxlen) {
-            return Error::LineLengthExceeded;
-        }
-        int c = _pImpl->_file.read();
-        if (c < 0) {
-            return Error::FsFailedRead;
-        }
-        if (c == '\n') {
-            break;
-        }
-        line[len++] = c;
-    }
-    line[len] = '\0';
-    return len || _pImpl->_file.available() ? Error::Ok : Error::Eof;
-}
-
-// return a percentage complete 50.5 = 50.5%
-float SDCard::percent_complete() {
-    if (!_pImpl->_file) {
-        return 0.0;
-    }
-    return (float)_pImpl->_file.position() / (float)_pImpl->_file.size() * 100.0f;
-}
-
-uint32_t SDCard::lineNumber() {
-    return _current_line_number;
 }
 
 // NotPresent can mean several different things:
@@ -181,10 +104,6 @@ void SDCard::end() {
     _state = State::Idle;
 }
 
-const char* SDCard::filename() {
-    return _pImpl->_file ? _pImpl->_file.name() : "";
-}
-
 void SDCard::init() {
     static bool init_message = true;  // used to show messages only once.
 
@@ -210,6 +129,4 @@ void SDCard::afterParse() {
     // }
 }
 
-SDCard::~SDCard() {
-    delete _pImpl;
-}
+SDCard::~SDCard() {}

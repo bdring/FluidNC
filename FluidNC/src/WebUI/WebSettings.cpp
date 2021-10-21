@@ -14,8 +14,9 @@
 #include "../Machine/MachineConfig.h"
 #include "../Machine/WifiSTAConfig.h"
 #include "../Configuration/JsonGenerator.h"
-#include "../Uart.h"    // Uart0.baud
-#include "../Report.h"  // git_info
+#include "../Uart.h"       // Uart0.baud
+#include "../Report.h"     // git_info
+#include "../InputFile.h"  // infile
 
 #include "Commands.h"  // COMMANDS::wait(1);
 #include "WifiConfig.h"
@@ -261,70 +262,6 @@ namespace WebUI {
         webPrint("Formatting");
         SPIFFS.format();
         webPrintln("...Done");
-        return Error::Ok;
-    }
-
-    static Error runLocalFile(char* parameter, AuthenticationLevel auth_level) {  // ESP700
-        if (sys.state != State::Idle) {
-            webPrintln("Busy");
-            return Error::IdleError;
-        }
-        String path = trim(parameter);
-        if ((path.length() > 0) && (path[0] != '/')) {
-            path = "/" + path;
-        }
-        if (!SPIFFS.exists(path)) {
-            webPrintln("Error: No such file!");
-            return Error::FsFileNotFound;
-        }
-        File currentfile = SPIFFS.open(path, FILE_READ);
-        if (!currentfile) {  //if file open success
-            return Error::FsFailedOpenFile;
-        }
-        //until no line in file
-        Error  err;
-        Error  accumErr = Error::Ok;
-        Print& out      = webresponse ? *webresponse : allClients;
-        while (currentfile.available()) {
-            String currentline = currentfile.readStringUntil('\n');
-            if (currentline.length() > 0) {
-                uint8_t line[256];
-                currentline.getBytes(line, 255);
-                err = execute_line((char*)line, out, auth_level);
-                if (err != Error::Ok) {
-                    accumErr = err;
-                }
-                COMMANDS::wait(1);
-            }
-        }
-        currentfile.close();
-        return accumErr;
-    }
-
-    static Error showLocalFile(char* parameter, AuthenticationLevel auth_level) {  // ESP701
-        if (notIdleOrAlarm()) {
-            return Error::IdleError;
-        }
-        String path = trim(parameter);
-        if ((path.length() > 0) && (path[0] != '/')) {
-            path = "/" + path;
-        }
-        if (!SPIFFS.exists(path)) {
-            webPrintln("Error: No such file!");
-            return Error::FsFileNotFound;
-        }
-        File currentfile = SPIFFS.open(path, FILE_READ);
-        if (!currentfile) {
-            return Error::FsFailedOpenFile;
-        }
-        while (currentfile.available()) {
-            // String currentline = currentfile.readStringUntil('\n');
-            //            if (currentline.length() > 0) {
-            //                webPrintln(currentline);
-            //            }
-            webPrintln(currentfile.readStringUntil('\n'));
-        }
-        currentfile.close();
         return Error::Ok;
     }
 
@@ -649,7 +586,7 @@ namespace WebUI {
         return Error::Ok;
     }
 
-    static Error openSDFile(char* parameter, Print& client, AuthenticationLevel auth_level) {
+    static Error openFile(fs::FS& fs, char* parameter, Print& client, AuthenticationLevel auth_level) {
         if (*parameter == '\0') {
             webPrintln("Missing file name!");
             return Error::InvalidValue;
@@ -658,6 +595,7 @@ namespace WebUI {
         if (path[0] != '/') {
             path = "/" + path;
         }
+#if 0
         switch (config->_sdCard->begin(SDCard::State::BusyReading)) {
             case SDCard::State::Idle:
                 break;
@@ -668,37 +606,47 @@ namespace WebUI {
                 webPrintln("SD Card Busy");
                 return Error::FsFailedBusy;
         }
+#endif
 
-        if (!config->_sdCard->openFile(SD, path.c_str(), client, auth_level)) {
-            report_status_message(Error::FsFailedRead, client);
+        try {
+            infile = new InputFile(fs, path.c_str(), client, auth_level);
+        } catch (Error err) {
+            report_status_message(err, client);
             webPrintln("");
-            return Error::FsFailedOpenFile;
+            return err;
         }
         return Error::Ok;
     }
 
-    static Error showSDFile(char* parameter, AuthenticationLevel auth_level) {  // ESP221
+    static Error showFile(fs::FS& fs, char* parameter, AuthenticationLevel auth_level) {
         if (notIdleOrAlarm()) {
             return Error::IdleError;
         }
         Error  err;
         Print& client = (webresponse) ? *webresponse : allClients;
-        if ((err = openSDFile(parameter, client, auth_level)) != Error::Ok) {
+        if ((err = openFile(fs, parameter, client, auth_level)) != Error::Ok) {
             return err;
         }
         char  fileLine[255];
         Error res;
-        while ((res = config->_sdCard->readFileLine(fileLine, 255)) == Error::Ok) {
+        while ((res = infile->readLine(fileLine, 255)) == Error::Ok) {
             webPrintln(fileLine);
         }
         if (res != Error::Eof) {
             webPrintln(errorString(res));
         }
-        config->_sdCard->closeFile();
+        delete infile;
+        infile = nullptr;
         return Error::Ok;
     }
+    static Error showSDFile(char* parameter, AuthenticationLevel auth_level) {  // ESP221
+        return showFile(SD, parameter, auth_level);
+    }
+    static Error showLocalFile(char* parameter, AuthenticationLevel auth_level) {  // ESP701
+        return showFile(SPIFFS, parameter, auth_level);
+    }
 
-    static Error runSDFile(char* parameter, AuthenticationLevel auth_level) {  // ESP220
+    static Error runFile(fs::FS& fs, char* parameter, AuthenticationLevel auth_level) {
         Error err;
         if (sys.state == State::Alarm || sys.state == State::ConfigAlarm) {
             webPrintln("Alarm");
@@ -709,26 +657,33 @@ namespace WebUI {
             return Error::IdleError;
         }
         Print& client = (webresponse) ? *webresponse : allClients;
-        if ((err = openSDFile(parameter, client, auth_level)) != Error::Ok) {
+        if ((err = openFile(fs, parameter, client, auth_level)) != Error::Ok) {
             return err;
         }
-        auto sdCard = config->_sdCard;
 
         char  fileLine[255];
-        Error res = sdCard->readFileLine(fileLine, 255);
+        Error res = infile->readLine(fileLine, 255);
         if (res != Error::Ok) {
             report_status_message(res, client);
             // report_status_message will close the file
             webPrintln("");
             return Error::Ok;
         }
-        // execute the first line now; Protocol.cpp handles later ones when sdCard._readyNext
-        report_status_message(execute_line(fileLine, client, sdCard->getAuthLevel()), client);
+        // execute the first line now; Protocol.cpp handles later ones when infile->_readyNext
+        report_status_message(execute_line(fileLine, client, infile->getAuthLevel()), client);
         report_realtime_status(client);
         return Error::Ok;
     }
 
-    static Error deleteObject(fs::FS fs, char* name) {
+    static Error runSDFile(char* parameter, AuthenticationLevel auth_level) {  // ESP220
+        return runFile(SD, parameter, auth_level);
+    }
+
+    static Error runLocalFile(char* parameter, AuthenticationLevel auth_level) {  // ESP700
+        return runFile(SPIFFS, parameter, auth_level);
+    }
+
+    static Error deleteObject(fs::FS& fs, char* name) {
         name = trim(name);
         if (*name == '\0') {
             webPrintln("Missing file name!");
@@ -794,7 +749,7 @@ namespace WebUI {
         return Error::Ok;
     }
 
-    void listDirLocalFS(fs::FS fs, const char* dirname, size_t levels, Print& client) {
+    void listDirLocalFS(fs::FS& fs, const char* dirname, size_t levels, Print& client) {
         //char temp_filename[128]; // to help filter by extension	TODO: 128 needs a definition based on something
         File root = fs.open(dirname);
         if (!root) {
