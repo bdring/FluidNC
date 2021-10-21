@@ -241,7 +241,7 @@ namespace Spindles {
                 huanyang->_minFrequency = value;
 
                 log_info("VFD: Freq range PD005,PD011 (" << (huanyang->_minFrequency / 100) << "," << (huanyang->_maxFrequency / 100)
-                                              << ") Hz");
+                                                         << ") Hz");
                 log_info("VFD: Speed range (" << (huanyang->_minFrequency / 100 * 60) << "," << (huanyang->_maxFrequency / 100 * 60)
                                               << ") RPM");
 
@@ -255,7 +255,7 @@ namespace Spindles {
             return [](const uint8_t* response, Spindles::VFD* vfd) -> bool {
                 uint16_t value = (response[4] << 8) | response[5];
 
-                log_info("VFD (PD144) rated revs @ 50Hz:" << value);
+                log_info("VFD (PD144) Rated RPM @ 50Hz:" << value);
 
                 // Set current RPM value? Somewhere?
                 auto huanyang           = static_cast<Huanyang*>(vfd);
