@@ -222,10 +222,6 @@ namespace Spindles {
 
             return [](const uint8_t* response, Spindles::VFD* vfd) -> bool {
                 uint16_t value = (response[4] << 8) | response[5];
-#ifdef DEBUG_VFD
-                log_debug("VFD: Max frequency = " << value / 100 << "Hz " << value / 100 * 60 << "RPM");
-#endif
-                log_info("VFD: Max speed:" << (value / 100 * 60) << "rpm");
 
                 // Set current RPM value? Somewhere?
                 auto huanyang           = static_cast<Huanyang*>(vfd);
@@ -240,14 +236,15 @@ namespace Spindles {
             return [](const uint8_t* response, Spindles::VFD* vfd) -> bool {
                 uint16_t value = (response[4] << 8) | response[5];
 
-#ifdef DEBUG_VFD
-                log_debug("VFD: Min frequency = " << value / 100 << "Hz " << value / 100 * 60 << "RPM");
-#endif
-                log_info("VFD: Min speed:" << (value / 100 * 60) << "rpm");
-
                 // Set current RPM value? Somewhere?
                 auto huanyang           = static_cast<Huanyang*>(vfd);
                 huanyang->_minFrequency = value;
+
+                log_info("VFD: Freq range PD005,PD011 (" << (huanyang->_minFrequency / 100) << "," << (huanyang->_maxFrequency / 100)
+                                              << ") Hz");
+                log_info("VFD: Speed range (" << (huanyang->_minFrequency / 100 * 60) << "," << (huanyang->_maxFrequency / 100 * 60)
+                                              << ") RPM");
+
                 return true;
             };
         } else if (index == -3) {
@@ -257,9 +254,9 @@ namespace Spindles {
 
             return [](const uint8_t* response, Spindles::VFD* vfd) -> bool {
                 uint16_t value = (response[4] << 8) | response[5];
-#ifdef DEBUG_VFD
-                log_debug("VFD: Max rated revolutions @ 50Hz = " << value);
-#endif
+
+                log_info("VFD (PD144) rated revs @ 50Hz:" << value);
+
                 // Set current RPM value? Somewhere?
                 auto huanyang           = static_cast<Huanyang*>(vfd);
                 huanyang->_maxRpmAt50Hz = value;
