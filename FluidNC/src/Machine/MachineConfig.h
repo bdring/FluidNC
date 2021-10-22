@@ -4,7 +4,6 @@
 
 #pragma once
 
-#include "../Assert.h"
 #include "../Configuration/GenericFactory.h"
 #include "../Configuration/HandlerBase.h"
 #include "../Configuration/Configurable.h"
@@ -97,6 +96,9 @@ namespace Machine {
         static bool   load(const char* file);
 
         ~MachineConfig();
+
+    private:
+        static char defaultConfig[];  // The config to fall back to if none can be read.
     };
 }
 
