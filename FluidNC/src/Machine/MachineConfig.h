@@ -56,6 +56,7 @@ namespace Machine {
         MachineConfig() = default;
 
         Axes*            _axes        = nullptr;
+        Kinematics*      _kinematics  = nullptr;
         SPIBus*          _spi         = nullptr;
         I2SOBus*         _i2so        = nullptr;
         Stepping*        _stepping    = nullptr;
@@ -66,7 +67,6 @@ namespace Machine {
         SDCard*          _sdCard      = nullptr;
         Macros*          _macros      = nullptr;
         Start*           _start       = nullptr;
-        Kinematics*      _kinematics  = nullptr;
         Spindles::SpindleList _spindles;
 
         float _arcTolerance      = 0.002f;
@@ -100,9 +100,6 @@ namespace Machine {
         static bool   load(const char* file);
 
         ~MachineConfig();
-
-    private:
-        static char defaultConfig[];  // The config to fall back to if none can be read.
     };
 }
 

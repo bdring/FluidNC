@@ -175,72 +175,7 @@ namespace Machine {
         return filesize;
     }
 
-/*
-    char defaultConfig[] = R"config(
-
-board: none
-name: "Wall Plotter"
-
-Http:
-  Enable: true
-  Port: 80
-
-Telnet:
-  Enable: true
-  Port: 23
-
-Wifi:
-  Mode: STA
-
-Sta:
-  SSID: Tap
-  Password: Eleventeenths
-  IPMode: DHCP
-
-stepping:
-  engine: RMT
-  idle_ms: 250
-  pulse_us: 4
-  dir_delay_us: 0
-  disable_delay_us: 0
-
-axes:
-  shared_stepper_disable_pin: gpio.12:high
-  
-  x:
-    steps_per_mm: 32.6114649681
-    max_rate_mm_per_min: 200
-    acceleration_mm_per_sec2: 10
-    max_travel_mm: 1000
-    motor0:
-      stepstick:
-        step_pin: gpio.14
-        direction_pin: gpio.27
-
-  y:
-    steps_per_mm: 32.6114649681
-    max_rate_mm_per_min: 200
-    acceleration_mm_per_sec2: 10
-    max_travel_mm: 1000
-    motor0:
-      stepstick:
-        step_pin: gpio.16
-        direction_pin: gpio.17
-
-  z:
-    steps_per_mm: 1
-    max_rate_mm_per_min: 1000
-    acceleration_mm_per_sec2: 100
-    max_travel_mm: 100
-    motor0:
-      rc_servo:
-        pwm_hz: 50
-        output_pin: gpio.26
-        min_pulse_us: 1000
-        max_pulse_us: 2000
-
-)config";
-*/
+    char defaultConfig[] = "name: Default (Test Drive)\nboard: None\n";
 
     bool MachineConfig::load(const char* filename) {
         // If the system crashes we skip the config file and use the default

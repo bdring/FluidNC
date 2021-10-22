@@ -33,9 +33,7 @@ namespace Kinematics {
 
         // Configuration handlers:
         void validate() const override {}
-
         void group(Configuration::HandlerBase& handler) override {}
-
         void afterParse() override {}
 
         // Name of the configurable. Must match the name registered in the cpp file.
