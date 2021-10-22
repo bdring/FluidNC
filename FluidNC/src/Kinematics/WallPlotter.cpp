@@ -10,11 +10,11 @@ Default configuration
 kinematics:
   WallPlotter:
     left_axis: 0
-    left_anchor_x: -267.000
-    left_anchor_y: 250.000
+    left_anchor_x: -100.000
+    left_anchor_y: 100.000
     right_axis: 1
-    right_anchor_x: 267.000
-    right_anchor_y: 250.000
+    right_anchor_x: 100.000
+    right_anchor_y: 100.000
     segment_length: 10.000
 */
 

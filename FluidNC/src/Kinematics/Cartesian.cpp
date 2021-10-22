@@ -3,6 +3,13 @@
 #include "../Limits.h"
 #include "../Machine/MachineConfig.h"
 
+/*
+Default configuration
+
+kinematics:
+  Cartesian:
+*/
+
 namespace Kinematics {
     void Cartesian::init() {
         config_message();
