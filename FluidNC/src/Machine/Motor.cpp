@@ -45,7 +45,7 @@ namespace Machine {
         }
     }
 
-    // tru if there is at least one switch for this motor
+    // true if there is at least one switch for this motor
     bool Motor::hasSwitches() { return (_negPin.defined() || _posPin.defined() || _allPin.defined()); }
 
     // Used when a single switch input is wired to 2 axes.

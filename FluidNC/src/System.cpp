@@ -8,7 +8,7 @@
 
 #include "System.h"
 #include "Report.h"                 // report_ovr_counter
-#include "MotionControl.h"          // motors_to_cartesian
+// #include "MotionControl.h"          // motors_to_cartesian
 #include "Config.h"                 // MAX_N_AXIS
 #include "Machine/MachineConfig.h"  // config
 
@@ -46,7 +46,7 @@ void motor_steps_to_mpos(float* position, int32_t* steps) {
     for (size_t idx = 0; idx < n_axis; idx++) {
         motor_mpos[idx] = steps_to_mpos(steps[idx], idx);
     }
-    motors_to_cartesian(position, motor_mpos, n_axis);
+    config->_kinematics->motors_to_cartesian(position, motor_mpos, n_axis);
 }
 
 float* get_mpos() {
