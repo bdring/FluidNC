@@ -80,9 +80,7 @@ namespace Kinematics {
         if (pl_data->motion.rapidMotion) {
             segment_count = 1;  // rapid G0 motion is not used to draw, so skip the segmentation
         } else {
-            // TODO: Replace this with an error tolerance.
-            // determine the number of segments we need ... round up so there is at least 1
-            segment_count = ceil(dist / _segment_length);
+            segment_count = ceil(dist / _segment_length);  // determine the number of segments we need ... round up so there is at least 1
         }
 
         if (segment_count == 0 && target[Z_AXIS] != position[Z_AXIS]) {
@@ -115,8 +113,9 @@ namespace Kinematics {
             // These are absolute.
             lengths_to_xy(seg_left, seg_right, cx, cy);
     
-            // Make sure the numbers mostly agree.
-            Assert(abs(seg_x - cx) < 0.1 && abs(seg_y - cy) < 0.1, "Kinematics diverged");
+            if (abs(seg_x - cx) > 0.1 || abs(seg_y - cy) > 0.1) {
+                // FIX: Produce an alarm state?
+            }
 #endif  // end USE_CHECKED_KINEMATICS
 
             // mc_move_motors() returns false if a jog is cancelled.
@@ -147,10 +146,7 @@ namespace Kinematics {
         // The motors start at zero, but effectively at zero_left, so we need to correct for the computation.
         // Note that the left motor runs backward.
         float absolute_x, absolute_y;
-        lengths_to_xy((0 - motors[_left_axis]) + zero_left,
-                      (0 + motors[_right_axis]) + zero_right,
-                      absolute_x,
-                      absolute_y);
+        lengths_to_xy((0 - motors[_left_axis]) + zero_left, (0 + motors[_right_axis]) + zero_right, absolute_x, absolute_y);
     
         // Producing these relative coordinates.
         cartesian[X_AXIS] = absolute_x;
@@ -212,17 +208,17 @@ namespace Kinematics {
 
         // Translate to absolute coordinates.
         x = _left_anchor_x + a;
-        y = _left_anchor_x + h;
+        y = _left_anchor_y + h;
     }
 
     void WallPlotter::xy_to_lengths(float x, float y, float& left_length, float& right_length) {
         // We just need to compute the respective hypotenuse of each triangle.
 
-        float left_dy = _left_anchor_x - y;
+        float left_dy = _left_anchor_y - y;
         float left_dx = _left_anchor_x - x;
         left_length   = sqrt(left_dx * left_dx + left_dy * left_dy);
 
-        float right_dy = _right_anchor_x - y;
+        float right_dy = _right_anchor_y - y;
         float right_dx = _right_anchor_x - x;
         right_length   = sqrt(right_dx * right_dx + right_dy * right_dy);
     }
