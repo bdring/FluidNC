@@ -252,6 +252,8 @@ static void protocol_do_alarm() {
                 // incoming stream. The same could be said about soft limits. While the position is not
                 // lost, continued streaming could cause a serious crash if by chance it gets executed.
                 vTaskDelay(1);  // give serial task some time
+                // call pollClients() to allow processing of ^X realtime RESET command
+                pollClients(true);
             } while (!rtReset);
             break;
         default:
@@ -650,6 +652,8 @@ void protocol_do_macro(int macro_num) {
 }
 
 void protocol_exec_rt_system() {
+    // call pollClients() to allow processing of realtime commands
+    pollClients(true);
     protocol_do_alarm();  // If there is a hard or soft limit, this will block until rtReset is set
 
     if (rtReset) {

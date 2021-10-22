@@ -69,7 +69,7 @@ public:
     int     _line_num;
     bool    _line_returned;
 };
-InputClient* pollClients();
+InputClient* pollClients(bool realtime_only=false);
 
 class AllClients : public Print {
 public:

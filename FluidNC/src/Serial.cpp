@@ -205,7 +205,32 @@ void client_init() {
     register_client(&WebUI::inputBuffer);  // Macros
 }
 
-InputClient* pollClients() {
+InputClient* pollClients(bool realtime_only /*=false*/) {
+
+    auto sdcard = config->_sdCard;
+
+    // realtime_only allows for calls that just handle realtime commands.
+    // the parameter added as there were problems with realtime
+    // responsiveness when SDCard jobs are running, and no way to
+    // clear critical (HardLimit or SoftLimit) states from the
+    // serial terminal, as pollClients() was only called from
+    // protocol_main_loop();
+    //
+    // if called with realtime_only (from protocol_exec_rt_system())
+    // and there is no sdcard job running, just return
+    // so as to force "regular" serial input through
+    // protocol_main_loop().  However, if we are in the
+    // tight loop in protocol_do_alarm()  waiting for a reest
+    // (when in a "critical alarm state" due to
+    // HardLimit or SoftLimit) we fall through to process
+    // any real-time commands.
+
+    if (realtime_only &&
+        rtAlarm != ExecAlarm::HardLimit &&
+        rtAlarm != ExecAlarm::SoftLimit &&
+        sdcard->get_state() < SDState::Busy)
+        return NULL;
+
     for (auto client : clientq) {
         auto source = client->_in;
         int  c      = source->read();
@@ -218,6 +243,18 @@ InputClient* pollClients() {
             }
             if (is_realtime_command(c)) {
                 execute_realtime_command(static_cast<Cmd>(c), *source);
+                continue;
+            }
+
+            // behavior change: when in an SDCard job the system used
+            // to build the line and report an error on the carriage return.
+            // We now report the error on every keystroke that is not a
+            // realtime command.
+
+            if (realtime_only)
+            {
+                log_error("Only realtime commands are allowed");
+                client->_linelen = 0;
                 continue;
             }
 
@@ -245,6 +282,7 @@ InputClient* pollClients() {
                     client->_line_returned          = true;
                     return client;
                 } else {
+                    // should never get here
                     // Log an error and discard the line if it happens during an SD run
                     log_error("SD card job running");
                     client->_linelen = 0;
@@ -257,12 +295,19 @@ InputClient* pollClients() {
         }
     }
 
+            // behavior change: when in an SDCard job the system used
+            // to build the line and report an error on the carriage return.
+            // We now report the error on every keystroke that is not a
+            // realtime command.
+
+    if (realtime_only)
+        return NULL;
+
     WebUI::COMMANDS::handle();  // Handles feeding watchdog and ESP restart
 #ifdef ENABLE_WIFI
     WebUI::wifi_services.handle();  // OTA, web_server, telnet_server polling
 #endif
 
-    auto sdcard = config->_sdCard;
     // _readyNext indicates that input is coming from a file and
     // the GCode system is ready for another line.
     if (sdcard && sdcard->_readyNext) {
