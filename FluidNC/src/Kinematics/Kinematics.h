@@ -46,7 +46,6 @@ namespace Kinematics {
         virtual bool cartesian_to_motors(float* target, plan_line_data_t* pl_data, float* position) = 0;
         virtual void motors_to_cartesian(float* cartesian, float* motors, int n_axis) = 0;
         virtual bool limitsCheckTravel(float* target) = 0;
-
         virtual void init() = 0;
         virtual void config_message() = 0;
         virtual void config_kinematics() {};

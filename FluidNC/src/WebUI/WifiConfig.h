@@ -42,8 +42,8 @@ namespace WebUI {
 
     //defaults values
     static const char* DEFAULT_HOSTNAME          = "fluidnc";
-    static const char* DEFAULT_STA_SSID          = "Tap";
-    static const char* DEFAULT_STA_PWD           = "Eleventeenths";
+    static const char* DEFAULT_STA_SSID          = "";
+    static const char* DEFAULT_STA_PWD           = "";
     static const char* DEFAULT_STA_IP            = "0.0.0.0";
     static const char* DEFAULT_STA_GW            = "0.0.0.0";
     static const char* DEFAULT_STA_MK            = "0.0.0.0";

@@ -80,7 +80,9 @@ namespace Kinematics {
         if (pl_data->motion.rapidMotion) {
             segment_count = 1;  // rapid G0 motion is not used to draw, so skip the segmentation
         } else {
-            segment_count = ceil(dist / _segment_length);  // determine the number of segments we need ... round up so there is at least 1
+            // TODO: Replace this with an error tolerance.
+            // determine the number of segments we need ... round up so there is at least 1
+            segment_count = ceil(dist / _segment_length);
         }
 
         if (segment_count == 0 && target[Z_AXIS] != position[Z_AXIS]) {
@@ -113,9 +115,8 @@ namespace Kinematics {
             // These are absolute.
             lengths_to_xy(seg_left, seg_right, cx, cy);
     
-            if (abs(seg_x - cx) > 0.1 || abs(seg_y - cy) > 0.1) {
-                // FIX: Produce an alarm state?
-            }
+            // Make sure the numbers mostly agree.
+            Assert(abs(seg_x - cx) < 0.1 && abs(seg_y - cy) < 0.1, "Kinematics diverged");
 #endif  // end USE_CHECKED_KINEMATICS
 
             // mc_move_motors() returns false if a jog is cancelled.
@@ -146,7 +147,10 @@ namespace Kinematics {
         // The motors start at zero, but effectively at zero_left, so we need to correct for the computation.
         // Note that the left motor runs backward.
         float absolute_x, absolute_y;
-        lengths_to_xy((0 - motors[_left_axis]) + zero_left, (0 + motors[_right_axis]) + zero_right, absolute_x, absolute_y);
+        lengths_to_xy((0 - motors[_left_axis]) + zero_left,
+                      (0 + motors[_right_axis]) + zero_right,
+                      absolute_x,
+                      absolute_y);
     
         // Producing these relative coordinates.
         cartesian[X_AXIS] = absolute_x;

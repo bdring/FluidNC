@@ -35,7 +35,8 @@ namespace Kinematics {
         auto n_axis = axes->_numberAxis;
         for (int axis = 0; axis < n_axis; axis++) {
             auto axisSetting = axes->_axis[axis];
-            if ((target[axis] < limitsMinPosition(axis) || target[axis] > limitsMaxPosition(axis)) && axisSetting->_maxTravel > 0) {
+            if ((target[axis] < limitsMinPosition(axis) || target[axis] > limitsMaxPosition(axis))
+                && axisSetting->_maxTravel > 0) {
                 return true;
             }
         }
