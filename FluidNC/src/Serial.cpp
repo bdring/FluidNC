@@ -300,11 +300,6 @@ InputClient* pollClients(bool realtime_only /*=false*/) {
         }
     }
 
-            // behavior change: when in an SDCard job the system used
-            // to build the line and report an error on the carriage return.
-            // We now report the error on every keystroke that is not a
-            // realtime command.
-
     if (realtime_only)
         return NULL;
 
