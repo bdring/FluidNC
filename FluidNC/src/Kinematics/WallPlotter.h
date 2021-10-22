@@ -39,7 +39,7 @@ namespace Kinematics {
         // Name of the configurable. Must match the name registered in the cpp file.
         const char* name() const override { return "WallPlotter"; }
 
-        ~WallPlotter() {}
+        virtual ~WallPlotter() {}
 
     private:
         void lengths_to_xy(float left_length, float right_length, float& x, float& y);
