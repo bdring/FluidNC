@@ -240,10 +240,9 @@ namespace Spindles {
                 auto huanyang           = static_cast<Huanyang*>(vfd);
                 huanyang->_minFrequency = value;
 
-                log_info("VFD: Freq range PD005,PD011 (" << (huanyang->_minFrequency / 100) << "," << (huanyang->_maxFrequency / 100)
-                                                         << ") Hz");
-                log_info("VFD: Speed range (" << (huanyang->_minFrequency / 100 * 60) << "," << (huanyang->_maxFrequency / 100 * 60)
-                                              << ") RPM");
+                log_info("VFD PD005,PD011 Freq range (" << (huanyang->_minFrequency / 100) << "," << (huanyang->_maxFrequency / 100)
+                                                        << ") Hz");
+                log_info("VFD RPM range (" << (huanyang->_minFrequency / 100 * 60) << "," << (huanyang->_maxFrequency / 100 * 60) << ") RPM");
 
                 return true;
             };
@@ -255,11 +254,11 @@ namespace Spindles {
             return [](const uint8_t* response, Spindles::VFD* vfd) -> bool {
                 uint16_t value = (response[4] << 8) | response[5];
 
-                log_info("VFD (PD144) Rated RPM @ 50Hz:" << value);
-
                 // Set current RPM value? Somewhere?
                 auto huanyang           = static_cast<Huanyang*>(vfd);
                 huanyang->_maxRpmAt50Hz = value;
+
+                log_info("VFD PD144 Rated RPM @ 50Hz:" << huanyang->_maxRpmAt50Hz);
 
                 // Regarding PD144, the 2 versions of the manuals both say "This is set according to the
                 // actual revolution of the motor. The displayed value is the same as this set value. It
@@ -272,39 +271,37 @@ namespace Spindles {
                 return true;
             };
         }
-        /*
-        The number of poles seems to be over constrained information with PD144. If we're wrong, here's how 
-        to get this information. Note that you probably have to call 'updateRPM' here then:
-        --
+
+        // The number of poles seems to be over constrained information with PD144. If we're wrong, here's how
+        // to get this information. Note that you probably have to call 'updateRPM' here then:
+        // --
 
         else if (index == -4) {
             // Number Poles
-
-            data.msg[3] = 143;  // PD143: 4 or 2 poles in motor. Default is 4. A spindle being 24000RPM@400Hz implies 2 poles
+            data.rx_length = 5;
+            data.msg[3]    = 143;  // PD143: 4 or 2 poles in motor. Default is 4. A spindle being 24000RPM@400Hz implies 2 poles
 
             return [](const uint8_t* response, Spindles::VFD* vfd) -> bool {
-                uint8_t value = response[4]; // Single byte response.
+                uint8_t value = response[4];  // Single byte response.
 
                 // Sanity check. We expect something like 2 or 4 poles.
                 if (value <= 4 && value >= 2) {
-#ifdef DEBUG_VFD
                     // Set current RPM value? Somewhere?
-                    log_debug("VFD: Number of poles set to " << value);
-#endif
 
-                    auto huanyang = static_cast<Huanyang*>(vfd);
+                    auto huanyang          = static_cast<Huanyang*>(vfd);
                     huanyang->_numberPoles = value;
+
+                    log_info("VFD PD143 Poles:" << huanyang->_numberPoles);
+
+                    huanyang->updateRPM();
+
                     return true;
-                }
-                else {
-                    error_all("Initialization of Huanyang spindle failed. Number of poles (PD143, expected 2-4, got %d) is not sane.",
-                        value);
+                } else {
+                    log_error("VFD: Number of poles (PD143, expected 2-4, got:" << value);
                     return false;
                 }
             };
-
         }
-        */
 
         // Done.
         return nullptr;
