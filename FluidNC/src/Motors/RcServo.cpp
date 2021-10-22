@@ -125,8 +125,6 @@ namespace MotorDrivers {
         //log_info("su " << servo_pulse_len);
 
         _write_pwm(servo_pulse_len);
-
-        log_info("Servo: mpos=" << mpos << " servo_pulse_len=" << servo_pulse_len);
     }
 
     void RcServo::read_settings() {
