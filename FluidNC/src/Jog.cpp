@@ -5,7 +5,7 @@
 #include "Jog.h"
 
 #include "Machine/MachineConfig.h"
-#include "Limits.h"         // limitsCheckTravel
+// #include "Limits.h"         // limitsCheckTravel
 #include "MotionControl.h"  // mc_linear
 #include "Stepper.h"        // st_prep_buffer, st_wake_up
 
@@ -20,7 +20,7 @@ Error jog_execute(plan_line_data_t* pl_data, parser_block_t* gc_block, bool* can
     pl_data->line_number           = gc_block->values.n;
 
     if (config->_axes->hasSoftLimits()) {
-        if (limitsCheckTravel(gc_block->values.xyz)) {
+        if (config->_kinematics->limitsCheckTravel(gc_block->values.xyz)) {
             return Error::TravelExceeded;
         }
     }

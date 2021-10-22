@@ -102,25 +102,11 @@ void mc_cancel_jog() {
     }
 }
 
-bool WEAK_LINK cartesian_to_motors(float* target, plan_line_data_t* pl_data, float* position) {
-    return mc_move_motors(target, pl_data);
-}
-
-bool WEAK_LINK kinematics_pre_homing(AxisMask cycle_mask) {
-    return false;  // finish normal homing cycle
-}
-
-void WEAK_LINK kinematics_post_homing() {}
-
-void WEAK_LINK motors_to_cartesian(float* cartesian, float* motors, int n_axis) {
-    memcpy(cartesian, motors, n_axis * sizeof(motors[0]));
-}
-
 // Execute linear motion in absolute millimeter coordinates. Feed rate given in millimeters/second
 // unless invert_feed_rate is true. Then the feed_rate means that the motion should be completed in
 // (1 minute)/feed_rate time.
 bool mc_linear(float* target, plan_line_data_t* pl_data, float* position) {
-  return cartesian_to_motors(target, pl_data, position);
+  return config->_kinematics->cartesian_to_motors(target, pl_data, position);
 }
 
 // Execute an arc in offset mode format. position == current xyz, target == target xyz,
@@ -271,11 +257,12 @@ void mc_homing_cycle(AxisMask axis_mask) {
         return;
     }
 
-    // This give kinematics a chance to do something before normal homing
-    // if it returns true, the homing is canceled.
-    if (kinematics_pre_homing(axis_mask)) {
+    if (config->_kinematics->kinematics_homing(axis_mask)) {
+        // Allow kinematics to replace homing.
+        // TODO: Better integrate this logic.
         return;
     }
+
     // Abort homing cycle if an axis has limit switches engaged on both ends,
     // or if it is impossible to tell which end is engaged.  In that situation
     // we do not know the pulloff direction.
@@ -298,7 +285,7 @@ void mc_homing_cycle(AxisMask axis_mask) {
     gc_sync_position();
     plan_sync_position();
     // This give kinematics a chance to do something after normal homing
-    kinematics_post_homing();
+    config->_kinematics->kinematics_post_homing();
 }
 
 volatile ProbeState probeState;

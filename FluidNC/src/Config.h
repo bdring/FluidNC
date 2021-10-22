@@ -11,7 +11,7 @@
 
 // IMPORTANT: Any changes here require recompilation.
 
-#define CUSTOM_CODE_FILENAME "../Custom/wall_plotter.cpp"
+// #define CUSTOM_CODE_FILENAME
 
 /*
 ESP 32 Notes
@@ -37,8 +37,8 @@ const int MAX_N_AXIS = 6;
 const int BAUD_RATE = 115200;
 
 //Connect to your local AP with these credentials
-//#define CONNECT_TO_SSID  "your SSID"
-//#define SSID_PASSWORD  "your SSID password"
+// #define CONNECT_TO_SSID  "Tap"
+// #define SSID_PASSWORD  "Eleventeenths"
 //CONFIGURE_EYECATCH_BEGIN (DO NOT MODIFY THIS LINE)
 
 // #define ENABLE_BLUETOOTH  // enable bluetooth -- platformio: pio run -e bt
@@ -229,3 +229,10 @@ const double PARKING_PULLOUT_INCREMENT = 5.0;    // Spindle pull-out and plunge 
 
 // INCLUDE_OLED_BASIC includes a driver for a modest sized OLED display
 // #define INCLUDE_OLED_BASIC
+
+// Include exactly one kinematic system.
+// #define INCLUDE_KINEMATICS_CARTESIAN   // This is the standard kinematics which applies no transform.
+#define INCLUDE_KINEMATICS_WALL_PLOTTER
+// #define INCLUDE_KINEMATICS_COREXY
+// #define INCLUDE_KINEMATICS_POLAR_COASTER
+// #define INCLUDE_KINEMATICS_PARALLEL_DELTA

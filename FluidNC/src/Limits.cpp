@@ -5,10 +5,10 @@
 #include "Limits.h"
 
 #include "Machine/MachineConfig.h"
-#include "MotionControl.h"  // mc_reset
-#include "System.h"         // sys.*
-#include "Protocol.h"       // protocol_execute_realtime
-#include "Platform.h"       // WEAK_LINK
+#include "MotionControl.h"         // mc_reset
+#include "System.h"                // sys.*
+#include "Protocol.h"              // protocol_execute_realtime
+#include "Platform.h"              // WEAK_LINK
 
 #include <freertos/task.h>
 #include <freertos/queue.h>
@@ -53,7 +53,7 @@ bool soft_limit = false;
 // the workspace volume is in all negative space, and the system is in normal operation.
 // NOTE: Used by jogging to limit travel within soft-limit volume.
 void limits_soft_check(float* target) {
-    if (limitsCheckTravel(target)) {
+    if (config->_kinematics->limitsCheckTravel(target)) {
         soft_limit = true;
         // Force feed hold if cycle is active. All buffered blocks are guaranteed to be within
         // workspace volume so just come to a controlled stop so position is not lost. When complete
@@ -115,21 +115,6 @@ float limitsMinPosition(size_t axis) {
 
     //return (homing == nullptr || homing->_positiveDirection) ? mpos : mpos - maxtravel;
     return (homing == nullptr || homing->_positiveDirection) ? mpos - maxtravel : mpos;
-}
-
-// Checks and reports if target array exceeds machine travel limits.
-// Return true if exceeding limits
-// Set $<axis>/MaxTravel=0 to selectively remove an axis from soft limit checks
-bool WEAK_LINK limitsCheckTravel(float* target) {
-    auto axes   = config->_axes;
-    auto n_axis = axes->_numberAxis;
-    for (int axis = 0; axis < n_axis; axis++) {
-        auto axisSetting = axes->_axis[axis];
-        if ((target[axis] < limitsMinPosition(axis) || target[axis] > limitsMaxPosition(axis)) && axisSetting->_maxTravel > 0) {
-            return true;
-        }
-    }
-    return false;
 }
 
 bool WEAK_LINK user_defined_homing(AxisMask axisMask) {
