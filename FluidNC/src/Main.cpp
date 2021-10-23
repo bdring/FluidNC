@@ -6,7 +6,6 @@
 #include "Machine/MachineConfig.h"
 
 #include "Config.h"
-#include "Kinematics/Kinematics.h"
 #include "Report.h"
 #include "Settings.h"
 #include "SettingsDefinitions.h"
