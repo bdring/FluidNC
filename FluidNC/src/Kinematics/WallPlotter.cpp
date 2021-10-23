@@ -10,11 +10,11 @@ Default configuration
 kinematics:
   WallPlotter:
     left_axis: 0
-    left_anchor_x: -100.000
-    left_anchor_y: 100.000
+    left_anchor_x: -267.000
+    left_anchor_y: 250.000
     right_axis: 1
-    right_anchor_x: 100.000
-    right_anchor_y: 100.000
+    right_anchor_x: 267.000
+    right_anchor_y: 250.000
     segment_length: 10.000
 */
 
@@ -32,6 +32,8 @@ namespace Kinematics {
     }
 
     void WallPlotter::init() {
+        log_info("Kinematic system: " << name());
+
         // We assume the machine starts at cartesian (0, 0, 0).
         // The motors assume they start from (0, 0, 0).
         // So we need to derive the zero lengths to satisfy the kinematic equations.
@@ -41,8 +43,6 @@ namespace Kinematics {
         last_left  = zero_left;
         last_right = zero_right;
         last_z     = 0;
-
-        config_message();
     }
 
     bool WallPlotter::kinematics_homing(AxisMask cycle_mask) {
@@ -162,10 +162,6 @@ namespace Kinematics {
     */
     bool WallPlotter::limitsCheckTravel(float* target) {
         return false;
-    }
-
-    void WallPlotter::config_message() {
-        log_info("Kinematic system: " << name());
     }
 
     /*

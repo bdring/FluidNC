@@ -23,22 +23,21 @@ namespace Kinematics {
 
         // Kinematic Interface
 
-        void config_message() override;
+        bool cartesian_to_motors(float* target, plan_line_data_t* pl_data, float* position) override;
         void init() override;
         bool kinematics_homing(AxisMask cycle_mask) override;
         void kinematics_post_homing() override;
-        bool cartesian_to_motors(float* target, plan_line_data_t* pl_data, float* position) override;
-        void motors_to_cartesian(float* cartesian, float* motors, int n_axis) override;
         bool limitsCheckTravel(float* target) override;
+        void motors_to_cartesian(float* cartesian, float* motors, int n_axis) override;
 
         // Configuration handlers:
-        void validate() const override {}
-        void group(Configuration::HandlerBase& handler) override {}
         void afterParse() override {}
+        void group(Configuration::HandlerBase& handler) override {}
+        void validate() const override {}
 
         // Name of the configurable. Must match the name registered in the cpp file.
         const char* name() const override { return "Cartesian"; }
 
-        virtual ~Cartesian() {}
+        ~Cartesian() {}
     };
 } //  namespace Kinematics
