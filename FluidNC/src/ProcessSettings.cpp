@@ -467,21 +467,20 @@ static Error xmodem_receive(const char* value, WebUI::AuthenticationLevel auth_l
     if (!value || !*value) {
         value = "uploaded";
     }
-    Print* outfile;
+    FileStream* outfile;
     try {
         outfile = new FileStream(value, "w");
     } catch (...) {
         log_info("Cannot open " << value);
         return Error::UploadFailed;
     }
-    log_info("Receiving " << value << " via XModem");
     int size = xmodemReceive(&Uart0, outfile);
-    delete outfile;
     if (size >= 0) {
-        log_info("Received " << size << " bytes");
+        log_info("Received " << size << " bytes to file " << outfile->path());
     } else {
         log_info("Reception failed or was canceled");
     }
+    delete outfile;
     return size < 0 ? Error::UploadFailed : Error::Ok;
 }
 

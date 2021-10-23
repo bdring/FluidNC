@@ -28,33 +28,31 @@ size_t FileStream::write(const uint8_t* buffer, size_t length) {
 }
 
 FileStream::FileStream(const char* filename, const char* mode, const char* defaultFs) {
-    String path;
-
     if (!filename || !*filename) {
         throw Error::FsFailedCreateFile;
     }
 
     // Insert the default file system prefix if a file system name is not present
     if (*filename != '/') {
-        path = "/";
-        path += defaultFs;
-        path += "/";
+        _path = "/";
+        _path += defaultFs;
+        _path += "/";
     }
 
-    path += filename;
+    _path += filename;
 
     // Map /localfs/ to the actual name of the local file system
-    if (path.startsWith("/localfs/")) {
-        path.replace("/localfs/", "/spiffs/");
+    if (_path.startsWith("/localfs/")) {
+        _path.replace("/localfs/", "/spiffs/");
     }
-    if (path.startsWith("/sd/")) {
+    if (_path.startsWith("/sd/")) {
         if (config->_sdCard->begin(SDCard::State::BusyWriting) != SDCard::State::Idle) {
             throw Error::FsFailedMount;
         }
         _isSD = true;
     }
 
-    _fd = fopen(path.c_str(), mode);
+    _fd = fopen(_path.c_str(), mode);
     if (!_fd) {
         throw strcmp(mode, "w") ? Error::FsFailedOpenFile : Error::FsFailedCreateFile;
     }

@@ -39,7 +39,7 @@ namespace MotorDrivers {
         } else if (_driver_part_number == 5160) {
             tmc5160 = new TMC5160Stepper(cs_id, _r_sense, _spi_index);
         } else {
-            log_info("    Unsupported Trinamic part number TMC" << _driver_part_number);
+            log_error("    Unsupported Trinamic part number TMC" << _driver_part_number);
             _has_errors = true;  // This motor cannot be used
             return;
         }
@@ -109,10 +109,10 @@ namespace MotorDrivers {
         uint8_t result = tmc2130 ? tmc2130->test_connection() : tmc5160->test_connection();
         switch (result) {
             case 1:
-                log_info(axisName() << " driver test failed. Check connection");
+                log_error(axisName() << " driver test failed. Check connection");
                 return false;
             case 2:
-                log_info(axisName() << " driver test failed. Check motor power");
+                log_error(axisName() << " driver test failed. Check motor power");
                 return false;
             default:
                 // driver responded, so check for other errors from the DRV_STATUS register

@@ -175,8 +175,8 @@ int xmodemReceive(Uart* serial, Print* out) {
                         goto start_recv;
                     case EOT:
                         flush_packet(bufsz, len);
-                        flushinput();
                         _outbyte(ACK);
+                        flushinput();
                         return len; /* normal end */
                     case CAN:
                         if ((c = _inbyte(DLY_1S)) == CAN) {

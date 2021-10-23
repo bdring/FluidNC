@@ -21,16 +21,17 @@ namespace WebUI {
             _header_sent = true;
         }
 
-        size_t remaining = length;
-        while (remaining) {
-            size_t copylen = std::min(remaining, BUFLEN - _buflen);
-            memcpy(&_buffer[_buflen], buffer, copylen);
+        size_t index = 0;
+        while (index < length) {
+            size_t copylen = std::min(length - index, BUFLEN - _buflen);
+            memcpy(_buffer + _buflen, buffer + index, copylen);
             _buflen += copylen;
-            remaining -= copylen;
+            index += copylen;
             if (_buflen >= BUFLEN) {  // The > case should not happen
                 flush();
             }
         }
+
         return length;
     }
 

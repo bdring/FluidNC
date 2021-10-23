@@ -83,7 +83,7 @@ namespace MotorDrivers {
             tmc2209 = new TMC2209Stepper(_uart, _r_sense, _addr);
             return false;
         }
-        log_info("Unsupported Trinamic motor p/n:" << _driver_part_number);
+        log_error("Unsupported Trinamic motor p/n:" << _driver_part_number);
         return true;
     }
 
@@ -103,10 +103,10 @@ namespace MotorDrivers {
         uint8_t result = tmc2208 ? tmc2208->test_connection() : tmc2209->test_connection();
         switch (result) {
             case 1:
-                log_info("    " << axisName() << " Trinamic driver test failed. Check connection");
+                log_error("    " << axisName() << " Trinamic driver test failed. Check connection");
                 return false;
             case 2:
-                log_info("    " << axisName() << " Trinamic driver test failed. Check motor power");
+                log_error("    " << axisName() << " Trinamic driver test failed. Check motor power");
                 return false;
             default:
                 // driver responded, so check for other errors from the DRV_STATUS register
@@ -191,7 +191,7 @@ namespace MotorDrivers {
                     tmc2208->pwm_autoscale(true);
                     break;
                 default:
-                    log_info("Unsupported TMC2208 mode:" << _mode);
+                    log_error("Unsupported TMC2208 mode:" << _mode);
             }
         } else {
             switch (_mode) {
