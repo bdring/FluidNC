@@ -239,12 +239,12 @@ namespace Spindles {
 
             if (retry_count == MAX_RETRIES) {
                 if (!unresponsive) {
-                    log_info("Spindle RS485 Unresponsive");
+                    log_info("VFD RS485 Unresponsive");
                     unresponsive = true;
                     pollidx      = -1;
                 }
                 if (next_cmd.critical) {
-                    log_error("Critical Spindle RS485 Unresponsive");
+                    log_error("Critical VFD RS485 Unresponsive");
                     mc_reset();
                     rtAlarm = ExecAlarm::SpindleControl;
                 }
@@ -311,7 +311,7 @@ namespace Spindles {
         bool critical = (sys.state == State::Cycle || state != SpindleState::Disable);
 
         uint32_t dev_speed = mapSpeed(speed);
-        log_debug("Speed:" << speed << " linearized:" << dev_speed);
+        log_debug("RPM:" << speed << " mapped to device units:" << dev_speed);
 
         if (_current_state != state) {
             // Changing state
@@ -361,7 +361,7 @@ namespace Spindles {
 #endif
 
             if (unchanged == limit) {
-                log_error("Critical Spindle RS485 did not reach speed " << dev_speed << ". Reported speed is " << _sync_dev_speed);
+                log_error(name() << " spindle did not reach device units " << dev_speed << ". Reported value is " << _sync_dev_speed);
                 mc_reset();
                 rtAlarm = ExecAlarm::SpindleControl;
             }
@@ -380,7 +380,7 @@ namespace Spindles {
 
         if (mode == SpindleState::Disable) {
             if (!xQueueReset(vfd_cmd_queue)) {
-                log_info("VFD spindle off, queue could not be reset");
+                log_info(name() << " spindle off, queue could not be reset");
             }
         }
 
