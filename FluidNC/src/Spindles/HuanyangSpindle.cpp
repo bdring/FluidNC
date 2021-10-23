@@ -173,6 +173,10 @@ namespace Spindles {
         // RPM is Hz * 60 sec/min.  The maximum possible speed is 400 Hz so
         // 400 * 60 = 24000 RPM.
 
+        if (dev_speed != 0 && (dev_speed < _minFrequency || dev_speed > _maxFrequency)) {
+            log_warn(name() << " requested freq " << (dev_speed) << " is outside of range (" << _minFrequency << "," << _maxFrequency << ")");
+        }
+
         // There is a configuration register PD144 that scales the display to show the
         // RPMs.  It is nominally set to 3000 (= 50Hz * 60) for a 2-pole motor or
         // 1500 for a 4-pole motor, but it can be set slightly lower to account for
