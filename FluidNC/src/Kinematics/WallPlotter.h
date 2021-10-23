@@ -23,7 +23,6 @@ namespace Kinematics {
 
         // Kinematic Interface
 
-        void config_message() override;
         void init() override;
         bool kinematics_homing(AxisMask cycle_mask) override;
         void kinematics_post_homing() override;
@@ -39,7 +38,7 @@ namespace Kinematics {
         // Name of the configurable. Must match the name registered in the cpp file.
         const char* name() const override { return "WallPlotter"; }
 
-        virtual ~WallPlotter() {}
+        ~WallPlotter() {}
 
     private:
         void lengths_to_xy(float left_length, float right_length, float& x, float& y);

@@ -3,16 +3,9 @@
 #include "../Limits.h"
 #include "../Machine/MachineConfig.h"
 
-/*
-Default configuration
-
-kinematics:
-  Cartesian:
-*/
-
 namespace Kinematics {
     void Cartesian::init() {
-        config_message();
+        log_info("Kinematic system: " << name());
     }
 
     bool Cartesian::kinematics_homing(AxisMask cycle_mask) {
@@ -42,16 +35,11 @@ namespace Kinematics {
         auto n_axis = axes->_numberAxis;
         for (int axis = 0; axis < n_axis; axis++) {
             auto axisSetting = axes->_axis[axis];
-            if ((target[axis] < limitsMinPosition(axis) || target[axis] > limitsMaxPosition(axis))
-                && axisSetting->_maxTravel > 0) {
+            if ((target[axis] < limitsMinPosition(axis) || target[axis] > limitsMaxPosition(axis)) && axisSetting->_maxTravel > 0) {
                 return true;
             }
         }
         return false;
-    }
-
-    void Cartesian::config_message() {
-        log_info("Kinematic system: " << name());
     }
 
     // Configuration registration

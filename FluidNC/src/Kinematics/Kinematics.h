@@ -41,19 +41,17 @@ namespace Kinematics {
         KinematicSystem& operator=(KinematicSystem&&) = delete;
 
         // Kinematic system interface.
+        virtual bool cartesian_to_motors(float* target, plan_line_data_t* pl_data, float* position) = 0;
+        virtual void init() = 0;
         virtual bool kinematics_homing(AxisMask cycle_mask) = 0;
         virtual void kinematics_post_homing() = 0;
-        virtual bool cartesian_to_motors(float* target, plan_line_data_t* pl_data, float* position) = 0;
-        virtual void motors_to_cartesian(float* cartesian, float* motors, int n_axis) = 0;
         virtual bool limitsCheckTravel(float* target) = 0;
-        virtual void init() = 0;
-        virtual void config_message() = 0;
-        virtual void config_kinematics() {};
+        virtual void motors_to_cartesian(float* cartesian, float* motors, int n_axis) = 0;
 
         // Configuration interface.
-        void validate() const override {}
-        void group(Configuration::HandlerBase& handler) override {}
         void afterParse() override {}
+        void group(Configuration::HandlerBase& handler) override {}
+        void validate() const override {}
 
         // Name of the configurable. Must match the name registered in the cpp file.
         virtual const char* name() const = 0;

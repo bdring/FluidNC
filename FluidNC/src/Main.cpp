@@ -84,6 +84,8 @@ void setup() {
 
             config->_control->init();
 
+            config->_kinematics->init();
+
             memset(motor_steps, 0, sizeof(motor_steps));  // Clear machine position.
 
             machine_init();  // user supplied function for special initialization
