@@ -38,6 +38,7 @@ namespace MotorDrivers {
         List = this;
 
         if (_has_errors) {
+            log_warn("TMCStepper UART init has errors");
             return;
         }
 
@@ -168,6 +169,7 @@ namespace MotorDrivers {
         } else {
             tmc2209->microsteps(_microsteps);
             tmc2209->rms_current(run_i_ma, hold_i_percent);
+            log_info("ms:" << _microsteps);
         }
     }
 
