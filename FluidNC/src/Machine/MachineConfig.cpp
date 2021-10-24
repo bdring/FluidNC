@@ -31,6 +31,7 @@ namespace Machine {
     void MachineConfig::group(Configuration::HandlerBase& handler) {
         handler.item("board", _board);
         handler.item("name", _name);
+        handler.item("meta", _meta);
 
         handler.section("stepping", _stepping);
         handler.section("axes", _axes);
