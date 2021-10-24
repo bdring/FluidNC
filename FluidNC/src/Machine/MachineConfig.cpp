@@ -62,12 +62,12 @@ namespace Machine {
         }
 
         if (_coolant == nullptr) {
-            log_info("Coolant: using defaults");
+            //log_info("Coolant: using defaults");
             _coolant = new CoolantControl();
         }
 
         if (_probe == nullptr) {
-            log_info("Probe: using defaults");
+            //log_info("Probe: using defaults");
             _probe = new Probe();
         }
 
@@ -91,7 +91,7 @@ namespace Machine {
         // Only if an i2so section is present will config->_i2so be non-null
 
         if (_control == nullptr) {
-            log_info("Control: using defaults");
+            //log_info("Control: using defaults");
             _control = new Control();
         }
 
@@ -100,7 +100,7 @@ namespace Machine {
         }
 
         if (_spindles.size() == 0) {
-            log_info("Spindle: using defaults (no spindle)");
+            //log_info("Spindle: using defaults (no spindle)");
             _spindles.push_back(new Spindles::Null());
         }
 
@@ -193,7 +193,7 @@ namespace Machine {
 
         if (filesize > 0) {
             input = new StringRange(buffer, buffer + filesize);
-            log_info("Configuration file: " << filename);
+            log_info("Configuration file:" << filename);
 
         } else {
             log_info("Using default configuration");
@@ -244,7 +244,9 @@ namespace Machine {
 
             successful = (sys.state != State::ConfigAlarm);
 
-            log_info("Configuration is " << (successful ? "valid" : "invalid"));
+            if (!successful) {
+                log_info("Configuration is invalid");
+            }
 
         } catch (const Configuration::ParseException& ex) {
             sys.state      = State::ConfigAlarm;
