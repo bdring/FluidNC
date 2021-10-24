@@ -6,7 +6,7 @@
 namespace WebUI {
     // Constructor.  If _pretty is true, newlines are
     // inserted into the JSON string for easy reading.
-    JSONencoder::JSONencoder(bool pretty, Print* s) : pretty(pretty), level(0), str(""), stream(s) { count[level] = 0; }
+    JSONencoder::JSONencoder(bool pretty, Print* s) : pretty(pretty), level(0), str(""), stream(s), category("nvs") { count[level] = 0; }
 
     // Constructor.  If _pretty is true, newlines are
     // inserted into the JSON string for easy reading.
@@ -150,7 +150,7 @@ namespace WebUI {
     // a value passed in as a C-style string.
     void JSONencoder::begin_webui(const char* name, const char* help, const char* type, const char* val) {
         begin_object();
-        member("F", "network");
+        member("F", category);
         // P is the name that WebUI uses to set a new value.
         // H is the legend that WebUI displays in the UI.
         // The distinction used to be important because, prior to the introuction
