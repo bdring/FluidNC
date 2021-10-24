@@ -12,7 +12,9 @@ kinematics:
     x_scaler: 1
     y_scaler: 1
 
-Scaling factors are made for midTbot type machines. 
+Scaling factors are made for midTbot type machines.
+
+TODO: Implement scalers
 
 On a midTbot the motors themselves move in X or Y so they need to be compensated. It 
 would use x_scaler: 1 on bots where the motors move in X
@@ -31,6 +33,7 @@ namespace Kinematics {
 
     void CoreXY::init() {
         log_info("Kinematic system: " << name());
+        // only print scalers if not default values
         if (_x_scaler != 1.0 || _y_scaler != 1.0) {
             log_info(name() << " x scaler:" << _x_scaler << " y_scaler:" << _y_scaler);
         }
@@ -91,8 +94,8 @@ namespace Kinematics {
         // apply the forward kinemetics to the machine coordinates
         // https://corexy.com/theory.html
         //calc_fwd[X_AXIS] = 0.5 / geometry_factor * (position[X_AXIS] + position[Y_AXIS]);
-        cartesian[X_AXIS] = 0.5 * (motors[X_AXIS] + motors[Y_AXIS]) / _x_scaler;
-        cartesian[Y_AXIS] = 0.5 * (motors[X_AXIS] - motors[Y_AXIS]) / _y_scaler;
+        cartesian[X_AXIS] = 0.5 * (motors[X_AXIS] + motors[Y_AXIS]);
+        cartesian[Y_AXIS] = 0.5 * (motors[X_AXIS] - motors[Y_AXIS]);
 
         for (int axis = Z_AXIS; axis < n_axis; axis++) {
             cartesian[axis] = motors[axis];
@@ -110,8 +113,8 @@ namespace Kinematics {
     */
 
     void CoreXY::transform_cartesian_to_motors(float* motors, float* cartesian) {
-        motors[X_AXIS] = _x_scaler * cartesian[X_AXIS] + cartesian[Y_AXIS];
-        motors[Y_AXIS] = _x_scaler * cartesian[X_AXIS] - cartesian[Y_AXIS];
+        motors[X_AXIS] = cartesian[X_AXIS] + cartesian[Y_AXIS];
+        motors[Y_AXIS] = cartesian[X_AXIS] - cartesian[Y_AXIS];
 
         auto n_axis = config->_axes->_numberAxis;
         for (uint8_t axis = Z_AXIS; axis <= n_axis; axis++) {
