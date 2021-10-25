@@ -47,11 +47,13 @@ namespace Kinematics {
         void lengths_to_xy(float left_length, float right_length, float& x, float& y);
         void xy_to_lengths(float x, float y, float& left_length, float& right_length);
 
-        void transform_cartesian_to_motors(float* motors, float* cartesian);
+        void plan_homing_move(AxisMask axisMask, bool approach, bool seek);
+
+        void  transform_cartesian_to_motors(float* motors, float* cartesian);
         float three_axis_dist(float* point1, float* point2);
 
         float _x_scaler       = 1;
-        float _y_scaler = 1;
+        float _y_scaler       = 1;
         float _segment_length = 10;
     };
 }  //  namespace Kinematics
