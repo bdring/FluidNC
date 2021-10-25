@@ -36,9 +36,9 @@ namespace Machine
     {
         if (_clk.defined() || _latch.defined() || _data.defined())
         {
-            Assert(_clk.defined(), "SerIn CLK pin must be configured");
-            Assert(_latch.defined(),"SerIn Latch pin must be configured");
-            Assert(_data.defined(), "SerIn Data pin must be configured");
+            Assert(_clk.defined(), "SERI CLK pin must be configured");
+            Assert(_latch.defined(),"SERI Latch pin must be configured");
+            Assert(_data.defined(), "SERI Data pin must be configured");
         }
     }
 
@@ -62,12 +62,12 @@ namespace Machine
             m_latch_pin  = _latch.getNative(Pin::Capabilities::Output | Pin::Capabilities::Native);
             m_data_pin = _data.getNative(Pin::Capabilities::Input | Pin::Capabilities::Native);
 
-            Assert(m_clk_pin, "could not get Native SerIn CLK_pin");
-            Assert(m_latch_pin,"could not get Native SerIn Latch_pin");
-            Assert(m_data_pin, "could not get Native SerIn Data_pin");
+            Assert(m_clk_pin, "could not get Native SERI CLK_pin");
+            Assert(m_latch_pin,"could not get Native SERI Latch_pin");
+            Assert(m_data_pin, "could not get Native SERI Data_pin");
 
             // set the number of byte to poll based on the
-            // highest SERIN pin number used ..
+            // highest SERI pin number used ..
 
             for (int i=s_max_pins-1; i>=0; i--)
             {
@@ -78,18 +78,18 @@ namespace Machine
                 }
             }
 
-            log_info("SerIn CLK:" << _clk.name() << " LATCH:" << _latch.name() << " DATA:" << _data.name() << " bytes:" << m_num_poll_bytes);
+            log_info("SERI CLK:" << _clk.name() << " LATCH:" << _latch.name() << " DATA:" << _data.name() << " bytes:" << m_num_poll_bytes);
 
             if (!m_num_poll_bytes)
             {
-                log_info("NOTE: SERIN bus defined but no SERIN pins defined");
+                log_info("NOTE: SERI bus defined but no SERI pins defined");
             }
 
             _clk.setAttr(Pin::Attr::Output);
             _latch.setAttr(Pin::Attr::Output);
             _data.setAttr(Pin::Attr::Input);
 
-            // if the SERIN bus is created in the yaml, but
+            // if the SERI bus is created in the yaml, but
             // there are no pins, we go ahead and set the pin
             // attributes above, but do not start the task.
 
@@ -106,9 +106,9 @@ namespace Machine
         }
         else
         {
-            Assert(_clk.defined(), "SerIn CLK_pin not configured");
-            Assert(_latch.defined(),"SerIn Latch_pin not configured");
-            Assert(_data.defined(), "SerIn Data_pin not configured");
+            Assert(_clk.defined(), "SERI CLK_pin not configured");
+            Assert(_latch.defined(),"SERI Latch_pin not configured");
+            Assert(_data.defined(), "SERI Data_pin not configured");
         }
     }
 
@@ -132,7 +132,7 @@ namespace Machine
 
         // dispatch fake interrupts
         // loop could be slightly optimized by keeping track
-        // of the highest SERIN pin with an interrupt, but for
+        // of the highest SERI pin with an interrupt, but for
         // now we check as many bytes as we poll.
 
         static uint32_t last_value = 0;
@@ -141,7 +141,7 @@ namespace Machine
             // log_debug("m_value_changed to " << String(m_value,HEX));
             if (m_fake_interrupt_mask)
             {
-                for (int i=0; i<m_num_poll_bytes*8-1; i++)
+                for (int i=0; i<m_num_poll_bytes*8; i++)
                 {
                     uint32_t mask = 1 << i;
                     if ((m_fake_interrupt_mask & mask) &&
@@ -163,7 +163,7 @@ namespace Machine
     // static
     void SerInBus::SerInBusTask(void *params)
     {
-        SerInBus *self = config->_serin;
+        SerInBus *self = config->_seri;
         Assert(self);
 
         while (1)

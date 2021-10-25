@@ -36,7 +36,7 @@ namespace Pins
             }
             else
             {
-                Assert(false, "Unsupported SERIN option '%s'", opt());
+                Assert(false, "Unsupported SERI option '%s'", opt());
             }
         }
 
@@ -58,27 +58,27 @@ namespace Pins
 
     void IRAM_ATTR SerInPinDetail::write(int high)
     {
-        Assert(0,"write() to Serin Pins not allowed");
+        Assert(0,"write() to SERI Pins not allowed");
     }
 
 
     void SerInPinDetail::synchronousWrite(int high)
     {
-        Assert(0,"synchronousWrite() to Serin Pins not allowed");
+        Assert(0,"synchronousWrite() to SERI Pins not allowed");
     }
 
     int SerInPinDetail::read()
     {
-        uint32_t value = config->_serin->value();
+        uint32_t value = config->_seri->value();
         return ((value >> _index) & 1) ^ _readWriteMask;
     }
 
 
     void SerInPinDetail::setAttr(PinAttributes value)
     {
-        Assert(!value.has(PinAttributes::Output), "SerIn pins cannot be used as output");
-        Assert(value.validateWith(this->_capabilities), "Requested attributes do not match the SerIn pin capabilities");
-        Assert(!_attributes.conflictsWith(value), "Attributes on this pin have been set before, and there's a conflict.");
+        Assert(!value.has(PinAttributes::Output), "SERI pins cannot be used as output");
+        Assert(value.validateWith(this->_capabilities), "Requested attributes do not match the SERI pin capabilities");
+        Assert(!_attributes.conflictsWith(value), "Attributes on this SERI pin have been set before, and there's a conflict.");
         _attributes = value;
     }
 
@@ -88,13 +88,13 @@ namespace Pins
         Assert(mode == CHANGE);
         m_callback = callback;
         m_cb_arg = arg;
-        config->_serin->attachFakeInterrupt(_index,this);
+        config->_seri->attachFakeInterrupt(_index,this);
     }
 
 
     void SerInPinDetail::detachInterrupt()
     {
-        config->_serin->detachFakeInterrupt(_index);
+        config->_seri->detachFakeInterrupt(_index);
         m_callback = nullptr;
         m_cb_arg = nullptr;
     }
@@ -102,7 +102,7 @@ namespace Pins
 
     String SerInPinDetail::toString()
     {
-        auto s = String("SERIN.") + int(_index);
+        auto s = String("SERI.") + int(_index);
         if (_attributes.has(PinAttributes::ActiveLow))
         {
             s += ":low";

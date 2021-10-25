@@ -58,7 +58,7 @@ namespace Machine {
         Axes*           _axes        = nullptr;
         SPIBus*         _spi         = nullptr;
         I2SOBus*        _i2so        = nullptr;
-        SerInBus*       _serin       = nullptr;
+        SerInBus*       _seri        = nullptr;
         Stepping*       _stepping    = nullptr;
         CoolantControl* _coolant     = nullptr;
         Probe*          _probe       = nullptr;

@@ -87,7 +87,7 @@ const char* Pin::parse(StringRange tmp, Pins::PinDetail*& pinImplementation) {
     if (prefix == "i2so") {
         pinImplementation = new Pins::I2SOPinDetail(pinnum_t(pinNumber), parser);
     }
-    if (prefix == "serin") {
+    if (prefix == "seri") {
         pinImplementation = new Pins::SerInPinDetail(pinnum_t(pinNumber), parser);
     }
 #endif
