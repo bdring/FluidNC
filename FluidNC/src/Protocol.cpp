@@ -15,6 +15,7 @@
 #include "Planner.h"        // plan_get_current_block
 #include "MotionControl.h"  // PARKING_MOTION_LINE_NUMBER
 #include "Settings.h"       // settings_execute_startup
+#include "SDCard.h"         // SDCard::State
 
 #ifdef DEBUG_REPORT_REALTIME
 volatile bool rtExecDebug;
@@ -257,9 +258,8 @@ static void protocol_do_alarm() {
                 // the user and a GUI time to do what is needed before resetting, like killing the
                 // incoming stream. The same could be said about soft limits. While the position is not
                 // lost, continued streaming could cause a serious crash if by chance it gets executed.
-                vTaskDelay(1);  // give serial task some time
-                // call pollClients() to allow processing of ^X realtime RESET command
-                pollClients(true);
+                vTaskDelay(1);   // give serial task some time
+                pollRealtime();  // Handle ^X realtime RESET command
             } while (!rtReset);
             break;
         default:
@@ -658,8 +658,9 @@ void protocol_do_macro(int macro_num) {
 }
 
 void protocol_exec_rt_system() {
-    // call pollClients() to allow processing of realtime commands
-    pollClients(true);
+    if (config->_sdCard->get_state() >= SDCard::State::Busy) {
+        pollRealtime();  // Handle realtime commands
+    }
     protocol_do_alarm();  // If there is a hard or soft limit, this will block until rtReset is set
 
     if (rtReset) {

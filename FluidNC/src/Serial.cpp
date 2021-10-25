@@ -205,11 +205,7 @@ void client_init() {
     register_client(&Uart0);               // USB Serial
     register_client(&WebUI::inputBuffer);  // Macros
 }
-
-InputClient* pollClients(bool realtime_only /*=false*/) {
-
-    auto sdcard = config->_sdCard;
-
+void pollRealtime() {
     // realtime_only allows for calls that just handle realtime commands.
     // the parameter added as there were problems with realtime
     // responsiveness when SDCard jobs are running, and no way to
@@ -226,11 +222,21 @@ InputClient* pollClients(bool realtime_only /*=false*/) {
     // HardLimit or SoftLimit) we fall through to process
     // any real-time commands.
 
-    if (realtime_only &&
-        rtAlarm != ExecAlarm::HardLimit &&
-        rtAlarm != ExecAlarm::SoftLimit &&
-        sdcard->get_state() < SDState::Busy)
-        return NULL;
+    for (auto client : clientq) {
+        auto source = client->_in;
+        int  c      = source->read();
+
+        if (c >= 0) {
+            if (is_realtime_command(c)) {
+                execute_realtime_command(static_cast<Cmd>(c), *source);
+            } else {
+                log_error("Only realtime commands are allowed");
+            }
+        }
+    }
+}
+InputClient* pollClients() {
+    auto sdcard = config->_sdCard;
 
     for (auto client : clientq) {
         auto source = client->_in;
@@ -244,18 +250,6 @@ InputClient* pollClients(bool realtime_only /*=false*/) {
             }
             if (is_realtime_command(c)) {
                 execute_realtime_command(static_cast<Cmd>(c), *source);
-                continue;
-            }
-
-            // behavior change: when in an SDCard job the system used
-            // to build the line and report an error on the carriage return.
-            // We now report the error on every keystroke that is not a
-            // realtime command.
-
-            if (realtime_only)
-            {
-                log_error("Only realtime commands are allowed");
-                client->_linelen = 0;
                 continue;
             }
 
@@ -299,9 +293,6 @@ InputClient* pollClients(bool realtime_only /*=false*/) {
             ++client->_linelen;
         }
     }
-
-    if (realtime_only)
-        return NULL;
 
     WebUI::COMMANDS::handle();  // Handles feeding watchdog and ESP restart
 #ifdef ENABLE_WIFI
