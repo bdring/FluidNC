@@ -258,7 +258,12 @@ static void protocol_do_alarm() {
                 // the user and a GUI time to do what is needed before resetting, like killing the
                 // incoming stream. The same could be said about soft limits. While the position is not
                 // lost, continued streaming could cause a serious crash if by chance it gets executed.
-                vTaskDelay(1);   // give serial task some time
+
+                // XXX it might be okay to call pollClients() here, since the timing is
+                // probably not critial.  On the other hand, since we are going to reset
+                // anyway, collecting the input lines is pointless.  On the other other
+                // hand, pollRealtime() does not poll the network handlers, so it is possible
+                // that we might miss realtime characters that come in via bluetooth or WebUI.
                 pollRealtime();  // Handle ^X realtime RESET command
             } while (!rtReset);
             break;

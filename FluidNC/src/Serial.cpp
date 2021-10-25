@@ -205,23 +205,10 @@ void client_init() {
     register_client(&Uart0);               // USB Serial
     register_client(&WebUI::inputBuffer);  // Macros
 }
+// Checks input sources for realtime characters, discarding others.
+// This is used for a few situations where the collection of line
+// input is inappropriate.
 void pollRealtime() {
-    // realtime_only allows for calls that just handle realtime commands.
-    // the parameter added as there were problems with realtime
-    // responsiveness when SDCard jobs are running, and no way to
-    // clear critical (HardLimit or SoftLimit) states from the
-    // serial terminal, as pollClients() was only called from
-    // protocol_main_loop();
-    //
-    // if called with realtime_only (from protocol_exec_rt_system())
-    // and there is no sdcard job running, just return
-    // so as to force "regular" serial input through
-    // protocol_main_loop().  However, if we are in the
-    // tight loop in protocol_do_alarm()  waiting for a reest
-    // (when in a "critical alarm state" due to
-    // HardLimit or SoftLimit) we fall through to process
-    // any real-time commands.
-
     for (auto client : clientq) {
         auto source = client->_in;
         int  c      = source->read();
@@ -275,13 +262,12 @@ InputClient* pollClients() {
             }
             if (ch == '\n') {
                 client->_line_num++;
-                if (config->_sdCard->get_state() < SDCard::State::Busy) {
+                if (sdcard->get_state() < SDCard::State::Busy) {
                     client->_line[client->_linelen] = '\0';
                     client->_line_returned          = true;
                     display("GCODE", client->_line);
                     return client;
                 } else {
-                    // should never get here
                     // Log an error and discard the line if it happens during an SD run
                     log_error("SD card job running");
                     client->_linelen = 0;
