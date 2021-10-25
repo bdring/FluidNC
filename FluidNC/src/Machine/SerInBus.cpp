@@ -147,7 +147,7 @@ namespace Machine
                     if ((m_fake_interrupt_mask & mask) &&
                         (last_value & mask) != (m_value & mask))
                     {
-                        // log_debug("issuing SERIN fake Interrupt");
+                        // log_debug("issuing SERI fake Interrupt");
                         m_int_pins[i]->doFakeInterrupt();
                     }
                 }

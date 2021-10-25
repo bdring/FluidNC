@@ -14,7 +14,7 @@ namespace Pins
 {
     SerInPinDetail::SerInPinDetail(pinnum_t index, const PinOptionsParser& options) :
         PinDetail(index),
-        _capabilities(PinCapabilities::Input | PinCapabilities::SerIn | PinCapabilities::ISR),
+        _capabilities(PinCapabilities::Input | PinCapabilities::SERI | PinCapabilities::ISR),
         _attributes(Pins::PinAttributes::Undefined),
         _readWriteMask(0)
     {
@@ -52,7 +52,7 @@ namespace Pins
         return
             PinCapabilities::Input |
             PinCapabilities::ISR |
-            PinCapabilities::SerIn;
+            PinCapabilities::SERI;
     }
 
 

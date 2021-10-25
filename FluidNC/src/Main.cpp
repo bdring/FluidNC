@@ -74,8 +74,8 @@ void setup() {
                     config->_sdCard->init();
                 }
             }
-            if (config->_serin) {
-                config->_serin->init();
+            if (config->_seri) {
+                config->_seri->init();
             }
 
             Stepper::init();  // Configure stepper pins and interrupt timers
