@@ -117,6 +117,3 @@ float limitsMinPosition(size_t axis) {
     return (homing == nullptr || homing->_positiveDirection) ? mpos - maxtravel : mpos;
 }
 
-bool WEAK_LINK user_defined_homing(AxisMask axisMask) {
-    return false;
-}

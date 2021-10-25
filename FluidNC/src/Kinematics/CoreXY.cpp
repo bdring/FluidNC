@@ -1,6 +1,9 @@
 #include "CoreXY.h"
 
 #include "../Machine/MachineConfig.h"
+#include "../Limits.h"  // limits_soft_check
+
+#include "../Protocol.h"  // protocol_execute_realtime
 
 #include <cmath>
 
@@ -40,6 +43,21 @@ namespace Kinematics {
     }
 
     bool CoreXY::kinematics_homing(AxisMask cycle_mask) {
+       
+        if (ambiguousLimit()) {
+            // TODO: Maybe ambiguousLimit() should do this stuff because this could be a several places
+            mc_reset();  // Issue system reset and ensure spindle and coolant are shutdown.
+            rtAlarm = ExecAlarm::HardLimit;
+
+            return false;
+        }
+
+        // multi-axis cycles not allowed
+
+
+        // run cycles
+        
+
         // Do nothing.
         return false;
     }

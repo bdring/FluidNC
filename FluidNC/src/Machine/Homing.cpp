@@ -345,15 +345,18 @@ namespace Machine {
 
             for (int cycle = 1; cycle <= MAX_N_AXIS; cycle++) {
                 // Set axisMask to the axes that home on this cycle
-                axisMask    = 0;
-                auto n_axis = config->_axes->_numberAxis;
-                for (int axis = 0; axis < n_axis; axis++) {
-                    auto axisConfig = config->_axes->_axis[axis];
-                    auto homing     = axisConfig->_homing;
-                    if (homing && homing->_cycle == cycle) {
-                        set_bitnum(axisMask, axis);
-                    }
-                }
+
+                axisMask = axis_mask_from_cycle(cycle);
+
+                // axisMask    = 0;
+                // auto n_axis = config->_axes->_numberAxis;
+                // for (int axis = 0; axis < n_axis; axis++) {
+                //     auto axisConfig = config->_axes->_axis[axis];
+                //     auto homing     = axisConfig->_homing;
+                //     if (homing && homing->_cycle == cycle) {
+                //         set_bitnum(axisMask, axis);
+                //     }
+                // }
 
                 if (axisMask) {  // if there are some axes in this cycle
                     someAxisHomed = true;
@@ -365,5 +368,18 @@ namespace Machine {
                 sys.state = State::Alarm;
             }
         }
+    }
+
+    AxisMask Homing::axis_mask_from_cycle(int cycle) {
+        AxisMask axisMask = 0;
+        auto n_axis = config->_axes->_numberAxis;
+        for (int axis = 0; axis < n_axis; axis++) {
+            auto axisConfig = config->_axes->_axis[axis];
+            auto homing     = axisConfig->_homing;
+            if (homing && homing->_cycle == cycle) {
+                set_bitnum(axisMask, axis);
+            }
+        }
+        return axisMask;
     }
 }
