@@ -109,7 +109,7 @@ axes:
       feed_scaler: 1.100
 
     motor0:
-      limit_all_pin: gpio.15
+      limit_all_pin: gpio.15:low
       hard_limits: false
       pulloff_mm: 1.000
       tmc_2209:
@@ -129,9 +129,6 @@ axes:
         step_pin: gpio.14
         direction_pin: gpio.12
         disable_pin: NO_PIN
-
-kinematics:
-  corexy:  
 
 spi:
   miso_pin: gpio.19
