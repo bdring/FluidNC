@@ -25,6 +25,8 @@ namespace Machine {
 
         static void run_cycles(AxisMask axisMask);
 
+        static AxisMask axis_mask_from_cycle(int cycle);
+
         // The homing cycles are 1,2,3 etc.  0 means not homed as part of home-all,
         // but you can still home it manually with e.g. $HA
         int      _cycle             = -1;  // what auto-homing cycle does this axis home on?
@@ -52,4 +54,5 @@ namespace Machine {
 
         void init() {}
     };
+    
 }

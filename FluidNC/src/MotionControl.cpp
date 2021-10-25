@@ -253,9 +253,6 @@ bool mc_dwell(int32_t milliseconds) {
 // NOTE: There should be no motions in the buffer and the system must be in idle state before
 // executing the homing cycle. This prevents incorrect buffered plans after homing.
 void mc_homing_cycle(AxisMask axis_mask) {
-    if (user_defined_homing(axis_mask)) {
-        return;
-    }
 
     if (config->_kinematics->kinematics_homing(axis_mask)) {
         // Allow kinematics to replace homing.
