@@ -445,6 +445,11 @@ static void protocol_do_sleep() {
     sys.state = State::Sleep;
 }
 
+void protocol_cancel_disable_steppers() {
+    // Cancel any pending stepper disable.
+    idleEndTime = 0;
+}
+
 static void protocol_do_initiate_cycle() {
     // Start cycle only if queued motions exist in planner buffer and the motion is not canceled.
     sys.step_control = {};  // Restore step control to normal operation
@@ -457,6 +462,9 @@ static void protocol_do_initiate_cycle() {
         sys.suspend.value = 0;  // Break suspend state.
         sys.state         = State::Idle;
     }
+
+    // Make sure the steppers can't be scheduled for a shutdown while this cycle is running.
+    protocol_cancel_disable_steppers();
 }
 
 // The handlers for rtFeedHold, rtMotionCancel, and rtsDafetyDoor clear rtCycleStart to
