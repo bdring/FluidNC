@@ -9,6 +9,7 @@
 #include "Pins/GPIOPinDetail.h"
 #include "Pins/VoidPinDetail.h"
 #include "Pins/I2SOPinDetail.h"
+#include "Pins/SerInPinDetail.h"
 #include "Pins/ErrorPinDetail.h"
 #include <stdio.h>  // snprintf()
 
@@ -86,6 +87,9 @@ const char* Pin::parse(StringRange tmp, Pins::PinDetail*& pinImplementation) {
     if (prefix == "i2so") {
         pinImplementation = new Pins::I2SOPinDetail(pinnum_t(pinNumber), parser);
     }
+    if (prefix == "serin") {
+        pinImplementation = new Pins::SerInPinDetail(pinnum_t(pinNumber), parser);
+    }
 #endif
     if (prefix == "no_pin") {
         pinImplementation = undefinedPin;
@@ -145,6 +149,9 @@ Pin Pin::create(const StringRange& str) {
 
 bool Pin::validate(const String& str) {
     Pins::PinDetail* pinImplementation;
+
+    // prh - never called!?!
+    log_debug("pin Validate" << str);
 
     auto valid = parse(str, pinImplementation);
     if (pinImplementation) {
