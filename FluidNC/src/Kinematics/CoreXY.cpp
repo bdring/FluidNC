@@ -200,7 +200,7 @@ namespace Kinematics {
                         plan_homing_move(axisMask, true, false);   // feed aproach
                         plan_homing_move(axisMask, false, false);  // pulloff
                         plan_homing_move(axisMask, true, false);   // feed aproach
-                        plan_homing_move(axisMask, false, false);  // pulloff
+                        plan_homing_move(axisMask, false, false);  //  pulloff
                     } catch (ExecAlarm alarm) {
                         rtAlarm = alarm;
                         config->_axes->set_homing_mode(axisMask, false);  // tell motors homing is done...failed
