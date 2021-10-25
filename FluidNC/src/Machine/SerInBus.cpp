@@ -71,12 +71,14 @@ namespace Machine
 
             for (int i=s_max_pins-1; i>=0; i--)
             {
-                if (s_pins_used & (1 >> i))
+                if (s_pins_used & (1 << i))
                 {
                     m_num_poll_bytes = (i + 1) / 8;
                     break;
                 }
             }
+
+            log_info("SerIn CLK:" << _clk.name() << " LATCH:" << _latch.name() << " DATA:" << _data.name() << " bytes:" << m_num_poll_bytes);
 
             if (!m_num_poll_bytes)
             {
@@ -113,16 +115,18 @@ namespace Machine
 
     uint32_t SerInBus::read()
     {
+        // note, I have not actually tested this yet with more than
+        // one 74HC165, but it *should* work.
+
         _latch.write(1);    // digitalWrite(G_PIN_74HC165_LATCH, HIGH);
 
-        // note, I have not actually tested this yet with more than
-        // one 74HC165
-
+        uint32_t value = 0;
         for (int i=0; i<m_num_poll_bytes; i++)
         {
             uint32_t val = shiftIn(m_data_pin,m_clk_pin, MSBFIRST);
-            m_value |= val << (8 * i);
+            value |= val << (8 * i);
         }
+        m_value = value;
 
 		_latch.write(0);    // digitalWrite(G_PIN_74HC165_LATCH, LOW);
 
