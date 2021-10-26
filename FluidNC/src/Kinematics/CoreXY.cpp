@@ -23,7 +23,7 @@ TODO: Implement scalers
 On a midTbot the motors themselves move in X or Y so they need to be compensated. It 
 would use x_scaler: 1 on bots where the motors move in X
 
-TODO: Don't use Y yet! Leave at 1...need to test
+TODO: If touching back off
 
 */
 
@@ -157,17 +157,15 @@ namespace Kinematics {
     bool CoreXY::kinematics_homing(AxisMask cycle_mask) {
         if (ambiguousLimit()) {
             // TODO: Maybe ambiguousLimit() should do this stuff because this could be a several places
-            mc_reset();  // Issue system reset and ensure spindle and coolant are shutdown.
+            mc_reset();  // Issue system reset and ensure spindle and coolant are shutdown
             rtAlarm = ExecAlarm::HardLimit;
-
+            log_error("Ambiguous limit switch touching. Manually clear all switches");
             return true;
         }
 
-        //log_info("CoreXY homing cycle mask:" << cycle_mask);
-
         if (cycle_mask != 0) {
             if (bitnum_is_true(cycle_mask, X_AXIS) || bitnum_is_true(cycle_mask, X_AXIS)) {
-                log_info("CoreXY cannot single axis home X or Y axes");
+                log_error("CoreXY cannot single axis home X or Y axes");
                 // TODO: Set some Kinematics error or alarm
                 return true;
             }
@@ -223,6 +221,44 @@ namespace Kinematics {
             }
         }
 
+        auto n_axis = config->_axes->_numberAxis;
+
+        float mpos[n_axis] = { 0 };
+
+        // Set machine positions for homed limit switches. Don't update non-homed axes.
+        for (int axis = 0; axis < n_axis; axis++) {
+            Machine::Axis* axisConf = config->_axes->_axis[axis];
+
+            auto mpos_mm = axisConf->_homing->_mpos;
+            auto pulloff = axisConf->_motors[0]->_pulloff;
+
+            pulloff    = axisConf->_homing->_positiveDirection ? -pulloff : pulloff;
+            mpos[axis] = mpos_mm + pulloff;
+        }
+
+        float motors_mm[n_axis];
+        transform_cartesian_to_motors(motors_mm, mpos);
+
+        // the only single axis homing allowed is Z and above
+        if (cycle_mask >= 1 << Z_AXIS) {
+            for (int axis = Z_AXIS; axis < n_axis; axis++) {
+                if (bitnum_is_true(cycle_mask, axis)) {
+                    // set the Z motor position
+                    motor_steps[axis] = mpos_to_steps(motors_mm[axis], axis);
+                }
+            }
+        } else {
+            // set all of them
+            for (int axis = X_AXIS; axis < n_axis; axis++) {
+                motor_steps[axis] = mpos_to_steps(motors_mm[axis], axis);
+            }
+        }
+
+        sys.step_control = {};  // Return step control to normal operation.
+
+        gc_sync_position();
+        plan_sync_position();
+
         return true;
     }
 
@@ -242,6 +278,8 @@ namespace Kinematics {
     */
     bool CoreXY::cartesian_to_motors(float* target, plan_line_data_t* pl_data, float* position) {
         float dx, dy, dz;  // distances in each cartesian axis
+
+        //log_info("cartesian_to_motors position (" << position[X_AXIS] << "," << position[Y_AXIS] << ")");
 
         // calculate cartesian move distance for each axis
         dx         = target[X_AXIS] - position[X_AXIS];
@@ -276,6 +314,9 @@ namespace Kinematics {
         // apply the forward kinemetics to the machine coordinates
         // https://corexy.com/theory.html
         //calc_fwd[X_AXIS] = 0.5 / geometry_factor * (position[X_AXIS] + position[Y_AXIS]);
+
+        //log_info("motors_to_cartesian position (" << motors[X_AXIS] << "," << motors[Y_AXIS] << ")");
+
         cartesian[X_AXIS] = 0.5 * (motors[X_AXIS] + motors[Y_AXIS]);
         cartesian[Y_AXIS] = 0.5 * (motors[X_AXIS] - motors[Y_AXIS]);
 
@@ -288,12 +329,26 @@ namespace Kinematics {
       limitsCheckTravel() is called to check soft limits
       It returns true if the motion is outside the limit values
     */
-    bool CoreXY::limitsCheckTravel(float* target) { return false; }
+    bool CoreXY::limitsCheckTravel(float* target) {
+        auto  axes   = config->_axes;
+        auto  n_axis = config->_axes->_numberAxis;
+        float cartesian[n_axis];
+
+        // Convert to cartesian then check
+        motors_to_cartesian(cartesian, target, 0);
+
+        for (int axis = 0; axis < n_axis; axis++) {
+            auto axisSetting = axes->_axis[axis];
+            if ((cartesian[axis] < limitsMinPosition(axis) || cartesian[axis] > limitsMaxPosition(axis)) && axisSetting->_maxTravel > 0) {
+                return true;
+            }
+        }
+        return false;
+    }
 
     /*
     Kinematic equations
     */
-
     void CoreXY::transform_cartesian_to_motors(float* motors, float* cartesian) {
         motors[X_AXIS] = cartesian[X_AXIS] + cartesian[Y_AXIS];
         motors[Y_AXIS] = cartesian[X_AXIS] - cartesian[Y_AXIS];

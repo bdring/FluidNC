@@ -35,6 +35,7 @@ std::map<ExecAlarm, const char*> AlarmNames = {
     { ExecAlarm::HomingFailApproach, "Homing Fail Approach" },
     { ExecAlarm::SpindleControl, "Spindle Control" },
     { ExecAlarm::ControlPin, "Control Pin Initially On" },
+    { ExecAlarm::HomingAmbiguousSwitch, "Ambiguous Switch" },
 };
 
 volatile Accessory rtAccessoryOverride;  // Global realtime executor bitflag variable for spindle/coolant overrides.
