@@ -50,7 +50,7 @@ namespace Kinematics {
         float   dist   = 0;
         uint8_t axis   = X_AXIS;
 
-        log_info(name() << " plan_homing_move approach: " << approach << " seek:" << seek);
+        //log_info(name() << " plan_homing_move approach: " << approach << " seek:" << seek);
 
         if (bitnum_is_true(axisMask, Y_AXIS)) {
             axis = Y_AXIS;
@@ -93,7 +93,10 @@ namespace Kinematics {
 
         transform_cartesian_to_motors(target, move_to);
 
-        log_info(name() << " plan move axis: " << axis << " dist:" << dist << " rate:" << rate);
+        //log_info("From:" << motor_steps[X_AXIS] << ", " << motor_steps[Y_AXIS]);
+        //log_info("To:" << move_to[X_AXIS] << ", " << move_to[Y_AXIS]);
+
+        //log_info(name() << " plan move axis: " << axis << " dist:" << dist << " rate:" << rate);
 
         plan_line_data_t plan_data;
         plan_data.spindle_speed         = 0;
@@ -138,14 +141,16 @@ namespace Kinematics {
                 throw ExecAlarm::HomingFailDoor;
             }
             if (rtCycleStop) {
+                //log_info("CoreXY Cyclestop");
                 rtCycleStop = false;
                 if (approach) {
                     throw ExecAlarm::HomingFailApproach;
                 }
-                throw ExecAlarm::HomingFailPulloff;
+                switch_touch = true;  // used to break out of the do loop
             }
         } while (!switch_touch);
 
+        Stepper::reset();  // Immediately force kill steppers and reset step segment buffer.
         delay_ms(axisConf->_homing->_settle_ms);
     }
 
@@ -158,22 +163,28 @@ namespace Kinematics {
             return true;
         }
 
-        log_info("CoreXY homing cycle mask:" << cycle_mask);
+        //log_info("CoreXY homing cycle mask:" << cycle_mask);
 
-        if (cycle_mask == 0) {  // 0 means this is $H or $H<axis>
-            // Multi-axis cycles not allowed with CoreXY because 2 motors are used for linear XY moves
-            // Check each cycle for multiple acxes
-            for (int cycle = 1; cycle <= MAX_N_AXIS; cycle++) {
-                AxisMask axisMask = Machine::Homing::axis_mask_from_cycle(cycle);
-                uint8_t  count    = 0;
+        if (cycle_mask != 0) {
+            if (bitnum_is_true(cycle_mask, X_AXIS) || bitnum_is_true(cycle_mask, X_AXIS)) {
+                log_info("CoreXY cannot single axis home X or Y axes");
+                // TODO: Set some Kinematics error or alarm
+                return true;
+            }
+        }
 
-                for (int i = 0; i < 16; i++) {
-                    if (bitnum_is_true(axisMask, i)) {
-                        if (++count > 1) {  // Error with any axis with more than one axis per cycle
-                            log_error("CoreXY cannot multi-axis home. Check homing cycle:" << cycle);
-                            // TODO: Set some Kinematics error or alarm
-                            return true;
-                        }
+        // Multi-axis cycles not allowed with CoreXY because 2 motors are used for linear XY moves
+        // Check each cycle for multiple acxes
+        for (int cycle = 1; cycle <= MAX_N_AXIS; cycle++) {
+            AxisMask axisMask = Machine::Homing::axis_mask_from_cycle(cycle);
+            uint8_t  count    = 0;
+
+            for (int i = 0; i < 16; i++) {
+                if (bitnum_is_true(axisMask, i)) {
+                    if (++count > 1) {  // Error with any axis with more than one axis per cycle
+                        log_error("CoreXY cannot multi-axis home. Check homing cycle:" << cycle);
+                        // TODO: Set some Kinematics error or alarm
+                        return true;
                     }
                 }
             }
@@ -192,15 +203,13 @@ namespace Kinematics {
 
                 continue;
             } else {
-                log_info("CoreXY homing cycle:" << cycle << " axis:" << axisMask);
-                if (bitnum_is_true(axisMask, X_AXIS)) {
+                //log_info("CoreXY homing cycle:" << cycle << " axis:" << axisMask);
+                if (bitnum_is_true(axisMask, X_AXIS) || bitnum_is_true(axisMask, Y_AXIS)) {
                     try {
                         plan_homing_move(axisMask, true, true);    // seek aproach
                         plan_homing_move(axisMask, false, false);  // pulloff
                         plan_homing_move(axisMask, true, false);   // feed aproach
                         plan_homing_move(axisMask, false, false);  // pulloff
-                        plan_homing_move(axisMask, true, false);   // feed aproach
-                        plan_homing_move(axisMask, false, false);  //  pulloff
                     } catch (ExecAlarm alarm) {
                         rtAlarm = alarm;
                         config->_axes->set_homing_mode(axisMask, false);  // tell motors homing is done...failed
