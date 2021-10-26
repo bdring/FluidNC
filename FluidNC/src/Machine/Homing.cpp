@@ -371,7 +371,7 @@ namespace Machine {
 
     AxisMask Homing::axis_mask_from_cycle(int cycle) {
         AxisMask axisMask = 0;
-        auto n_axis = config->_axes->_numberAxis;
+        auto     n_axis   = config->_axes->_numberAxis;
         for (int axis = 0; axis < n_axis; axis++) {
             auto axisConfig = config->_axes->_axis[axis];
             auto homing     = axisConfig->_homing;
