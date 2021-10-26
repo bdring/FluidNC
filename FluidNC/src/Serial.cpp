@@ -205,23 +205,6 @@ void client_init() {
     register_client(&Uart0);               // USB Serial
     register_client(&WebUI::inputBuffer);  // Macros
 }
-// Checks input sources for realtime characters, discarding others.
-// This is used for a few situations where the collection of line
-// input is inappropriate.
-void pollRealtime() {
-    for (auto client : clientq) {
-        auto source = client->_in;
-        int  c      = source->read();
-
-        if (c >= 0) {
-            if (is_realtime_command(c)) {
-                execute_realtime_command(static_cast<Cmd>(c), *source);
-            } else {
-                log_error("Only realtime commands are allowed");
-            }
-        }
-    }
-}
 InputClient* pollClients() {
     auto sdcard = config->_sdCard;
 

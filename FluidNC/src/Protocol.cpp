@@ -253,18 +253,12 @@ static void protocol_do_alarm() {
             report_feedback_message(Message::CriticalEvent);
             rtReset = false;  // Disable any existing reset
             do {
-                // Block everything, except reset and status reports, until user issues reset or power
+                // Block everything except reset and status reports until user issues reset or power
                 // cycles. Hard limits typically occur while unattended or not paying attention. Gives
                 // the user and a GUI time to do what is needed before resetting, like killing the
                 // incoming stream. The same could be said about soft limits. While the position is not
                 // lost, continued streaming could cause a serious crash if by chance it gets executed.
-
-                // XXX it might be okay to call pollClients() here, since the timing is
-                // probably not critial.  On the other hand, since we are going to reset
-                // anyway, collecting the input lines is pointless.  On the other other
-                // hand, pollRealtime() does not poll the network handlers, so it is possible
-                // that we might miss realtime characters that come in via bluetooth or WebUI.
-                pollRealtime();  // Handle ^X realtime RESET command
+                pollClients();  // Handle ^X realtime RESET command
             } while (!rtReset);
             break;
         default:
@@ -663,9 +657,6 @@ void protocol_do_macro(int macro_num) {
 }
 
 void protocol_exec_rt_system() {
-    if (config->_sdCard->get_state() >= SDCard::State::Busy) {
-        pollRealtime();  // Handle realtime commands
-    }
     protocol_do_alarm();  // If there is a hard or soft limit, this will block until rtReset is set
 
     if (rtReset) {
@@ -962,6 +953,7 @@ static void protocol_exec_rt_suspend() {
                 }
             }
         }
+        pollClients();  // Handle realtime commands like status report, cycle start and reset
         protocol_exec_rt_system();
     }
 }

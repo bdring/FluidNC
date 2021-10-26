@@ -70,7 +70,6 @@ public:
     bool    _line_returned;
 };
 InputClient* pollClients();
-void         pollRealtime();
 
 class AllClients : public Print {
 public:
