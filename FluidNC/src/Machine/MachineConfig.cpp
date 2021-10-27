@@ -63,12 +63,10 @@ namespace Machine {
         }
 
         if (_coolant == nullptr) {
-            //log_info("Coolant: using defaults");
             _coolant = new CoolantControl();
         }
 
         if (_probe == nullptr) {
-            //log_info("Probe: using defaults");
             _probe = new Probe();
         }
 
@@ -92,7 +90,6 @@ namespace Machine {
         // Only if an i2so section is present will config->_i2so be non-null
 
         if (_control == nullptr) {
-            //log_info("Control: using defaults");
             _control = new Control();
         }
 
@@ -101,7 +98,6 @@ namespace Machine {
         }
 
         if (_spindles.size() == 0) {
-            //log_info("Spindle: using defaults (no spindle)");
             _spindles.push_back(new Spindles::Null());
         }
 
@@ -148,7 +144,6 @@ namespace Machine {
             log_info("config file " << path << " is empty");
             return 0;
         }
-        // log_debug("Configuration file has " << int(filesize) << " bytes");
         buffer = new char[filesize + 1];
 
         size_t pos = 0;
@@ -163,8 +158,6 @@ namespace Machine {
         file.close();
         buffer[filesize] = 0;
 
-        // log_debug("Read config file:\n" << buffer);
-
         if (pos != filesize) {
             delete[] buffer;
 
@@ -177,8 +170,6 @@ namespace Machine {
     char defaultConfig[] = "name: Default (Test Drive)\nboard: None\n";
 
     bool MachineConfig::load(const char* filename) {
-        // log_info("Heap size before load config is " << uint32_t(xPortGetFreeHeapSize()));
-
         // If the system crashes we skip the config file and use the default
         // builtin config.  This helps prevent reset loops on bad config files.
         size_t             filesize = 0;
@@ -203,8 +194,6 @@ namespace Machine {
         // Process file:
         bool successful = false;
         try {
-            // log_info("Heap size before parsing is " << uint32_t(xPortGetFreeHeapSize()));
-
             Configuration::Parser        parser(input->begin(), input->end());
             Configuration::ParserHandler handler(parser);
 
@@ -223,8 +212,6 @@ namespace Machine {
 
             log_debug("Running after-parse tasks");
 
-            // log_info("Heap size before after-parse is " << uint32_t(xPortGetFreeHeapSize()));
-
             try {
                 Configuration::AfterParse afterParse;
                 config->afterParse();
@@ -232,8 +219,6 @@ namespace Machine {
             } catch (std::exception& ex) { log_info("Validation error: " << ex.what()); }
 
             log_debug("Checking configuration");
-
-            // log_info("Heap size before validation is " << uint32_t(xPortGetFreeHeapSize()));
 
             try {
                 Configuration::Validator validator;

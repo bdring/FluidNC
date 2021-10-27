@@ -84,8 +84,7 @@ namespace Machine {
         String _name  = "None";
         String _meta  = "";
 #if 1
-            static MachineConfig*&
-            instance() {
+        static MachineConfig*& instance() {
             static MachineConfig* instance = nullptr;
             return instance;
         }
