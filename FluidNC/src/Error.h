@@ -76,6 +76,8 @@ enum class Error : uint8_t {
     BadPinSpecification         = 150,
     BadRuntimeConfigSetting     = 151,
     ConfigurationInvalid        = 152,
+    UploadFailed                = 160,
+    DownloadFailed              = 161,
 };
 
 const char* errorString(Error errorNumber);

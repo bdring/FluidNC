@@ -56,8 +56,8 @@ namespace Machine {
         // TODO: We could validate the startup lines
 
         void group(Configuration::HandlerBase& handler) override {
-            handler.item("n0", _startup_line[0]);
-            handler.item("n1", _startup_line[1]);
+            handler.item("startup_line0", _startup_line[0]);
+            handler.item("startup_line1", _startup_line[1]);
             handler.item("macro0", _macro[0]);
             handler.item("macro1", _macro[1]);
             handler.item("macro2", _macro[2]);

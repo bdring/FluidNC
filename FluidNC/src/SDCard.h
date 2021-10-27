@@ -77,9 +77,9 @@ public:
     bool     openFile(fs::FS& fs, const char* path, Print& client, WebUI::AuthenticationLevel auth_level);
     bool     closeFile();
     Error    readFileLine(char* line, int len);
-    float    report_perc_complete();
+    float    percent_complete();
     uint32_t lineNumber();
-    void afterParse() override;
+    void     afterParse() override;
 
     Print&                     getClient() { return _client; }
     WebUI::AuthenticationLevel getAuthLevel() { return _auth_level; }
@@ -91,8 +91,8 @@ public:
 
     // Configuration handlers.
     void group(Configuration::HandlerBase& handler) override {
-        handler.item("cs", _cs);
-        handler.item("card_detect", _cardDetect);        
+        handler.item("cs_pin", _cs);
+        handler.item("card_detect_pin", _cardDetect);
     }
 
     ~SDCard();

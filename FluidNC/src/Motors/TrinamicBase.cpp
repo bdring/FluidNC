@@ -8,8 +8,7 @@
 #include <atomic>
 
 namespace MotorDrivers {
-    EnumItem trinamicModes[] = { { TrinamicMode::Unknown, "Unknown" },
-                                 { TrinamicMode::StealthChop, "StealthChop" },
+    EnumItem trinamicModes[] = { { TrinamicMode::StealthChop, "StealthChop" },
                                  { TrinamicMode::CoolStep, "CoolStep" },
                                  { TrinamicMode::StallGuard, "StallGuard" },
                                  EnumItem(TrinamicMode::StealthChop) };
@@ -60,7 +59,7 @@ namespace MotorDrivers {
 
     bool TrinamicBase::report_open_load(bool ola, bool olb) {
         if (ola || olb) {
-            log_info("    Driver Open Load a:" << yn(ola) << " b:" << yn(olb));
+            log_warn("    Driver Open Load a:" << yn(ola) << " b:" << yn(olb));
             return true;
         }
         return false;  // no error
@@ -68,14 +67,14 @@ namespace MotorDrivers {
 
     bool TrinamicBase::report_short_to_ground(bool s2ga, bool s2gb) {
         if (s2ga || s2gb) {
-            log_info("    Driver Short Coil a:" << yn(s2ga) << " b:" << yn(s2gb));
+            log_warn("    Driver Short Coil a:" << yn(s2ga) << " b:" << yn(s2gb));
         }
         return false;  // no error
     }
 
     bool TrinamicBase::report_over_temp(bool ot, bool otpw) {
         if (ot || otpw) {
-            log_info("    Driver Temp Warning:" << yn(otpw) << " Fault:" << yn(ot));
+            log_warn("    Driver Temp Warning:" << yn(otpw) << " Fault:" << yn(ot));
             return true;
         }
         return false;  // no error
@@ -84,7 +83,7 @@ namespace MotorDrivers {
     bool TrinamicBase::report_short_to_ps(bool vsa, bool vsb) {
         // check for short to power supply
         if (vsa || vsb) {
-            log_info("    Driver Short vsa:" << yn(vsa) << " vsb:" << yn(vsb));
+            log_warn("    Driver Short vsa:" << yn(vsa) << " vsb:" << yn(vsb));
             return true;
         }
         return false;  // no error

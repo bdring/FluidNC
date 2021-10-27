@@ -39,6 +39,8 @@ namespace Machine {
                 a->init();
             }
         }
+
+        config_motors();
     }
 
     void IRAM_ATTR Axes::set_disable(int axis, bool disable) {
@@ -146,6 +148,12 @@ namespace Machine {
         config->_stepping->finishPulse();
     }
 
+    void Axes::config_motors() {
+        for (int axis = 0; axis < _numberAxis; ++axis) {
+            _axis[axis]->config_motors();
+        }
+    }
+
     // Some small helpers to find the axis index and axis motor index for a given motor. This
     // is helpful for some motors that need this info, as well as debug information.
     size_t Axes::findAxisIndex(const MotorDrivers::MotorDriver* const driver) const {
@@ -180,7 +188,7 @@ namespace Machine {
     // Configuration helpers:
 
     void Axes::group(Configuration::HandlerBase& handler) {
-        handler.item("shared_stepper_disable", _sharedStepperDisable);
+        handler.item("shared_stepper_disable_pin", _sharedStepperDisable);
 
         // Handle axis names xyzabc.  handler.section is inferred
         // from a template.

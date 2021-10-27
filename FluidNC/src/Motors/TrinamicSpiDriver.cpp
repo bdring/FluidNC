@@ -13,26 +13,33 @@
 #include <atomic>
 
 namespace MotorDrivers {
-    TrinamicSpiDriver::TrinamicSpiDriver(uint16_t driver_part_number, int8_t spi_index) :
-        TrinamicBase(driver_part_number), _spi_index(spi_index) {}
+    TrinamicSpiDriver::TrinamicSpiDriver(uint16_t driver_part_number) : TrinamicBase(driver_part_number) {}
 
-    uint8_t daisy_chain_cs = -1;
+    pinnum_t TrinamicSpiDriver::daisy_chain_cs_id = 255;
+    uint8_t  TrinamicSpiDriver::spi_index_mask    = 0;
 
     void TrinamicSpiDriver::init() {
-        _has_errors    = false;
+        _has_errors = false;
+
         auto spiConfig = config->_spi;
+        Assert(spiConfig && spiConfig->defined(), "SPI bus is not configured. Cannot initialize TMC driver.");
 
-        Assert(spiConfig->defined(), "SPI bus is not configured. Cannot initialize TMC driver.");
-
-        _cs_pin.setAttr(Pin::Attr::Output | Pin::Attr::InitialOn);
-        _cs_mapping = PinMapper(_cs_pin);
+        uint8_t cs_id;
+        if (daisy_chain_cs_id != 255) {
+            cs_id = daisy_chain_cs_id;
+        } else {
+            _cs_pin.setAttr(Pin::Attr::Output | Pin::Attr::InitialOn);
+            _cs_mapping = PinMapper(_cs_pin);
+            cs_id       = _cs_mapping.pinId();
+        }
 
         if (_driver_part_number == 2130) {
-            tmcstepper = new TMC2130Stepper(_cs_mapping.pinId(), _r_sense, -1);  // TODO hardwired to non daisy chain index
+            //log_info("ID: " << cs_id << " index:" << _spi_index);
+            tmc2130 = new TMC2130Stepper(cs_id, _r_sense, _spi_index);  // TODO hardwired to non daisy chain index
         } else if (_driver_part_number == 5160) {
-            tmcstepper = new TMC5160Stepper(_cs_mapping.pinId(), _r_sense, _spi_index);
+            tmc5160 = new TMC5160Stepper(cs_id, _r_sense, _spi_index);
         } else {
-            log_info("    Unsupported Trinamic part number TMC" << _driver_part_number);
+            log_error("    Unsupported Trinamic part number TMC" << _driver_part_number);
             _has_errors = true;  // This motor cannot be used
             return;
         }
@@ -41,16 +48,15 @@ namespace MotorDrivers {
 
         // use slower speed if I2S
         if (_cs_pin.capabilities().has(Pin::Capabilities::I2S)) {
-            tmcstepper->setSPISpeed(_spi_freq);
+            if (tmc2130) {
+                tmc2130->setSPISpeed(_spi_freq);
+            } else {
+                tmc5160->setSPISpeed(_spi_freq);
+            }
         }
 
         link = List;
         List = this;
-
-        // init() must be called later, after all TMC drivers have CS pins setup.
-        if (_has_errors) {
-            return;
-        }
 
         // Display the stepper library version message once, before the first
         // TMC config message.  Link is NULL for the first TMC instance.
@@ -60,38 +66,31 @@ namespace MotorDrivers {
 
         config_message();
 
-        if (spiConfig != nullptr || !spiConfig->defined()) {
-            auto csPin   = _cs_pin.getNative(Pin::Capabilities::Output);
-            auto mosiPin = spiConfig->_mosi.getNative(Pin::Capabilities::Output | Pin::Capabilities::Native);
-            auto sckPin  = spiConfig->_sck.getNative(Pin::Capabilities::Output | Pin::Capabilities::Native);
-            auto misoPin = spiConfig->_miso.getNative(Pin::Capabilities::Input | Pin::Capabilities::Native);
-
-            SPI.begin(sckPin, misoPin, mosiPin, csPin);  // this will get called for each motor, but does not seem to hurt anything
-
-            tmcstepper->begin();
-
-            _has_errors = !test();  // Try communicating with motor. Prints an error if there is a problem.
-
-            init_step_dir_pins();
-            read_settings();  // pull info from settings
-            set_mode(false);
-
-            // After initializing all of the TMC drivers, create a task to
-            // display StallGuard data.  List == this for the final instance.
-            if (List == this) {
-                xTaskCreatePinnedToCore(readSgTask,    // task
-                                        "readSgTask",  // name for task
-                                        4096,          // size of task stack
-                                        this,          // parameters
-                                        1,             // priority
-                                        NULL,
-                                        SUPPORT_TASK_CORE  // must run the task on same core
-                );
-            }
-        } else {
-            log_info("SPI bus is not available; cannot initialize TMC driver.");
-            _has_errors = true;
+        // After initializing all of the TMC drivers, create a task to
+        // display StallGuard data.  List == this for the final instance.
+        if (List == this) {
+            xTaskCreatePinnedToCore(readSgTask,    // task
+                                    "readSgTask",  // name for task
+                                    4096,          // size of task stack
+                                    this,          // parameters
+                                    1,             // priority
+                                    NULL,
+                                    SUPPORT_TASK_CORE  // must run the task on same core
+            );
         }
+    }
+
+    void TrinamicSpiDriver::config_motor() {
+        if (tmc2130) {
+            tmc2130->begin();
+        } else {
+            tmc5160->begin();
+        }
+        _has_errors = !test();  // Try communicating with motor. Prints an error if there is a problem.
+
+        init_step_dir_pins();
+        read_settings();  // pull info from settings
+        set_mode(false);
     }
 
     /*
@@ -107,18 +106,19 @@ namespace MotorDrivers {
             return false;
         }
 
-        switch (tmcstepper->test_connection()) {
+        uint8_t result = tmc2130 ? tmc2130->test_connection() : tmc5160->test_connection();
+        switch (result) {
             case 1:
-                log_info("    Trinamic driver test failed. Check connection");
+                log_error(axisName() << " driver test failed. Check connection");
                 return false;
             case 2:
-                log_info("    Trinamic driver test failed. Check motor power");
+                log_error(axisName() << " driver test failed. Check motor power");
                 return false;
             default:
                 // driver responded, so check for other errors from the DRV_STATUS register
 
                 // TMC2130_n ::DRV_STATUS_t status { 0 };  // a useful struct to access the bits.
-                // status.sr = tmcstepper->DRV_STATUS();
+                // status.sr = tmc2130 ? tmc2130stepper->DRV_STATUS() : tmc5160stepper->DRV_STATUS();;
 
                 // bool err = false;
 
@@ -141,16 +141,15 @@ namespace MotorDrivers {
                 //     return false;
                 // }
 
-                log_info("    Trinamic driver test passed");
+                log_info(axisName() << " driver test passed");
                 return true;
         }
     }
 
     /*
-    Read setting and send them to the driver. Called at init() and whenever related settings change
-    both are stored as float Amps, but TMCStepper library expects...
-    uint16_t run (mA)
-    float hold (as a percentage of run)
+      Run and hold current configuration items are in (float) Amps,
+      but the TMCStepper library expresses run current as (uint16_t) mA
+      and hold current as (float) fraction of run current.
     */
     void TrinamicSpiDriver::read_settings() {
         if (_has_errors) {
@@ -169,8 +168,13 @@ namespace MotorDrivers {
             }
         }
 
-        tmcstepper->microsteps(_microsteps);
-        tmcstepper->rms_current(run_i_ma, hold_i_percent);
+        if (tmc2130) {
+            tmc2130->microsteps(_microsteps);
+            tmc2130->rms_current(run_i_ma, hold_i_percent);
+        } else {
+            tmc5160->microsteps(_microsteps);
+            tmc5160->rms_current(run_i_ma, hold_i_percent);
+        }
     }
 
     bool TrinamicSpiDriver::set_homing_mode(bool isHoming) {
@@ -178,79 +182,97 @@ namespace MotorDrivers {
         return true;
     }
 
-    /*
-    There are ton of settings. I'll start by grouping then into modes for now.
-    Many people will want quiet and stallguard homing. Stallguard only run in
-    Coolstep mode, so it will need to switch to Coolstep when homing
-    */
     void TrinamicSpiDriver::set_mode(bool isHoming) {
         if (_has_errors) {
             return;
         }
 
-        TrinamicMode newMode = static_cast<TrinamicMode>(trinamicModes[isHoming ? _homing_mode : _run_mode].value);
+        _mode = static_cast<TrinamicMode>(trinamicModes[isHoming ? _homing_mode : _run_mode].value);
 
-        if (newMode == _mode) {
-            return;
-        }
-        _mode = newMode;
-
-        switch (_mode) {
-            case TrinamicMode ::StealthChop:
-                //log_info("StealthChop");
-                tmcstepper->en_pwm_mode(true);
-                tmcstepper->pwm_autoscale(true);
-                tmcstepper->diag1_stall(false);
-                break;
-            case TrinamicMode ::CoolStep:
-                //log_info("Coolstep");
-                tmcstepper->en_pwm_mode(false);
-                tmcstepper->pwm_autoscale(false);
-                tmcstepper->TCOOLTHRS(NORMAL_TCOOLTHRS);  // when to turn on coolstep
-                tmcstepper->THIGH(NORMAL_THIGH);
-                break;
-            case TrinamicMode ::StallGuard:
-                //log_info("Stallguard");
-                {
-                    auto feedrate = config->_axes->_axis[axis_index()]->_homing->_feedRate;
-
-                    tmcstepper->en_pwm_mode(false);
-                    tmcstepper->pwm_autoscale(false);
-                    tmcstepper->TCOOLTHRS(calc_tstep(feedrate, 150.0));
-                    tmcstepper->THIGH(calc_tstep(feedrate, 60.0));
-                    tmcstepper->sfilt(1);
-                    tmcstepper->diag1_stall(true);  // stallguard i/o is on diag1
-                    tmcstepper->sgt(constrain(_stallguard, -64, 63));
+        if (tmc2130) {
+            switch (_mode) {
+                case TrinamicMode ::StealthChop:
+                    log_debug("StealthChop");
+                    tmc2130->en_pwm_mode(true);
+                    tmc2130->pwm_autoscale(true);
+                    tmc2130->diag1_stall(false);
                     break;
-                }
-            case TrinamicMode ::Unknown:
-                log_info("TrinamicMode ::Unknown");
-                break;
+                case TrinamicMode ::CoolStep:
+                    log_debug("Coolstep");
+                    tmc2130->en_pwm_mode(false);
+                    tmc2130->pwm_autoscale(false);
+                    tmc2130->TCOOLTHRS(NORMAL_TCOOLTHRS);  // when to turn on coolstep
+                    tmc2130->THIGH(NORMAL_THIGH);
+                    break;
+                case TrinamicMode ::StallGuard:
+                    log_debug("Stallguard");
+                    {
+                        auto feedrate = config->_axes->_axis[axis_index()]->_homing->_feedRate;
+
+                        tmc2130->en_pwm_mode(false);
+                        tmc2130->pwm_autoscale(false);
+                        tmc2130->TCOOLTHRS(calc_tstep(feedrate, 150.0));
+                        tmc2130->THIGH(calc_tstep(feedrate, 60.0));
+                        tmc2130->sfilt(1);
+                        tmc2130->diag1_stall(true);  // stallguard i/o is on diag1
+                        tmc2130->sgt(constrain(_stallguard, -64, 63));
+                        break;
+                    }
+            }
+        } else {
+            switch (_mode) {
+                case TrinamicMode ::StealthChop:
+                    log_debug("StealthChop");
+                    tmc5160->en_pwm_mode(true);
+                    tmc5160->pwm_autoscale(true);
+                    tmc5160->diag1_stall(false);
+                    break;
+                case TrinamicMode ::CoolStep:
+                    log_debug("Coolstep");
+                    tmc5160->en_pwm_mode(false);
+                    tmc5160->pwm_autoscale(false);
+                    tmc5160->TCOOLTHRS(NORMAL_TCOOLTHRS);  // when to turn on coolstep
+                    tmc5160->THIGH(NORMAL_THIGH);
+                    break;
+                case TrinamicMode ::StallGuard:
+                    log_debug("Stallguard");
+                    {
+                        auto feedrate = config->_axes->_axis[axis_index()]->_homing->_feedRate;
+
+                        tmc5160->en_pwm_mode(false);
+                        tmc5160->pwm_autoscale(false);
+                        tmc5160->TCOOLTHRS(calc_tstep(feedrate, 150.0));
+                        tmc5160->THIGH(calc_tstep(feedrate, 60.0));
+                        tmc5160->sfilt(1);
+                        tmc5160->diag1_stall(true);  // stallguard i/o is on diag1
+                        tmc5160->sgt(constrain(_stallguard, -64, 63));
+                        break;
+                    }
+            }
         }
     }
 
-    /*
-    This is the stallguard tuning info. It is call debug, so it could be generic across all classes.
-*/
+    // Report diagnostic and tuning info
     void TrinamicSpiDriver::debug_message() {
         if (_has_errors) {
             return;
         }
 
-        uint32_t tstep = tmcstepper->TSTEP();
+        uint32_t tstep = tmc2130 ? tmc2130->TSTEP() : tmc5160->TSTEP();
 
         if (tstep == 0xFFFFF || tstep < 1) {  // if axis is not moving return
             return;
         }
         float feedrate = Stepper::get_realtime_rate();  //* settings.microsteps[axis_index] / 60.0 ; // convert mm/min to Hz
 
-        log_info(axisName() << " Stallguard " << tmcstepper->stallguard() << "   SG_Val:" << tmcstepper->sg_result() << " Rate:" << feedrate
+        log_info(axisName() << " Stallguard " << (tmc2130 ? tmc2130->stallguard() : tmc5160->stallguard())
+                            << "   SG_Val:" << (tmc2130 ? tmc2130->sg_result() : tmc5160->sg_result()) << " Rate:" << feedrate
                             << " mm/min SG_Setting:" << constrain(_stallguard, -64, 63));
 
         // The bit locations differ somewhat between different chips.
-        // The layout is very different between 2130 and 2208
+        // The layout is the same for TMC2130 and TMC5160
         TMC2130_n ::DRV_STATUS_t status { 0 };  // a useful struct to access the bits.
-        status.sr = tmcstepper->DRV_STATUS();
+        status.sr = tmc2130 ? tmc2130->DRV_STATUS() : tmc5160->DRV_STATUS();
 
         // these only report if there is a fault condition
         report_open_load(status.ola, status.olb);
@@ -258,11 +280,9 @@ namespace MotorDrivers {
         report_over_temp(status.ot, status.otpw);
         report_short_to_ps(bits_are_true(status.sr, 12), bits_are_true(status.sr, 13));
 
-        // log_info(axisName() << " Status Register " << String(status.sr, HEX) << " GSTAT " << String(tmcstepper->GSTAT(), HEX));
+        // log_info(axisName() << " Status Register " << String(status.sr, HEX) << " GSTAT " << String(tmc2130 ? tmc2130->GSTAT() : tmc5160->GSTAT(), HEX));
     }
 
-    // this can use the enable feature over SPI. The dedicated pin must be in the enable mode,
-    // but that can be hardwired that way.
     void IRAM_ATTR TrinamicSpiDriver::set_disable(bool disable) {
         if (_has_errors) {
             return;
@@ -277,18 +297,22 @@ namespace MotorDrivers {
         _disable_pin.synchronousWrite(_disabled);
 
         if (_use_enable) {
+            uint8_t toff_value;
             if (_disabled) {
-                tmcstepper->toff(_toff_disable);
+                toff_value = _toff_disable;
             } else {
                 if (_mode == TrinamicMode::StealthChop) {
-                    tmcstepper->toff(_toff_stealthchop);
+                    toff_value = _toff_stealthchop;
                 } else {
-                    tmcstepper->toff(_toff_coolstep);
+                    toff_value = _toff_coolstep;
                 }
             }
+            if (tmc2130) {
+                tmc2130->toff(toff_value);
+            } else {
+                tmc5160->toff(toff_value);
+            }
         }
-        // the pin based enable could be added here.
-        // This would be for individual motors, not the single pin for all motors.
     }
 
     // Configuration registration

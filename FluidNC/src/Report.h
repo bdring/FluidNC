@@ -97,9 +97,17 @@ void report_realtime_debug();
 
 void reportTaskStackSize(UBaseType_t& saved);
 
+void hex_msg(uint8_t* buf, const char* prefix, int len);
+
 void addPinReport(char* status, char pinLetter);
 
 extern const char* dataBeginMarker;
 extern const char* dataEndMarker;
 
 #include "MyIOStream.h"
+
+void        mpos_to_wpos(float* position);
+const char* state_name();
+
+extern const char* grbl_version;
+extern const char* git_info;

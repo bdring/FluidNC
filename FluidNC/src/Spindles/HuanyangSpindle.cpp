@@ -173,6 +173,10 @@ namespace Spindles {
         // RPM is Hz * 60 sec/min.  The maximum possible speed is 400 Hz so
         // 400 * 60 = 24000 RPM.
 
+        if (dev_speed != 0 && (dev_speed < _minFrequency || dev_speed > _maxFrequency)) {
+            log_warn(name() << " requested freq " << (dev_speed) << " is outside of range (" << _minFrequency << "," << _maxFrequency << ")");
+        }
+
         // There is a configuration register PD144 that scales the display to show the
         // RPMs.  It is nominally set to 3000 (= 50Hz * 60) for a 2-pole motor or
         // 1500 for a 4-pole motor, but it can be set slightly lower to account for
@@ -203,6 +207,7 @@ namespace Spindles {
         data.msg[4] = dev_speed & 0xFF;
     }
 
+    // This gets data from the VFS. It does not set any values
     VFD::response_parser Huanyang::initialization_sequence(int index, ModbusCommand& data) {
         // NOTE: data length is excluding the CRC16 checksum.
         data.tx_length = 6;
@@ -221,9 +226,6 @@ namespace Spindles {
 
             return [](const uint8_t* response, Spindles::VFD* vfd) -> bool {
                 uint16_t value = (response[4] << 8) | response[5];
-#ifdef DEBUG_VFD
-                log_debug("VFD: Max frequency = " << value);
-#endif
 
                 // Set current RPM value? Somewhere?
                 auto huanyang           = static_cast<Huanyang*>(vfd);
@@ -238,13 +240,15 @@ namespace Spindles {
             return [](const uint8_t* response, Spindles::VFD* vfd) -> bool {
                 uint16_t value = (response[4] << 8) | response[5];
 
-#ifdef DEBUG_VFD
-                debug_all("VFD: Min frequency set to " << value);
-#endif
-
                 // Set current RPM value? Somewhere?
                 auto huanyang           = static_cast<Huanyang*>(vfd);
                 huanyang->_minFrequency = value;
+
+                log_info(huanyang->name() << " PD005,PD011 Freq range (" << (huanyang->_minFrequency / 100) << ","
+                                          << (huanyang->_maxFrequency / 100) << ") Hz");
+                log_info(huanyang->name() << " RPM range (" << (huanyang->_minFrequency / 100 * 60) << ","
+                                          << (huanyang->_maxFrequency / 100 * 60) << ") RPM");
+
                 return true;
             };
         } else if (index == -3) {
@@ -254,12 +258,12 @@ namespace Spindles {
 
             return [](const uint8_t* response, Spindles::VFD* vfd) -> bool {
                 uint16_t value = (response[4] << 8) | response[5];
-#ifdef DEBUG_VFD
-                log_debug("VFD: Max rated revolutions @ 50Hz = " << value);
-#endif
+
                 // Set current RPM value? Somewhere?
                 auto huanyang           = static_cast<Huanyang*>(vfd);
                 huanyang->_maxRpmAt50Hz = value;
+
+                log_info(huanyang->name() << " PD144 Rated RPM @ 50Hz:" << huanyang->_maxRpmAt50Hz);
 
                 // Regarding PD144, the 2 versions of the manuals both say "This is set according to the
                 // actual revolution of the motor. The displayed value is the same as this set value. It
@@ -272,39 +276,36 @@ namespace Spindles {
                 return true;
             };
         }
-        /*
-        The number of poles seems to be over constrained information with PD144. If we're wrong, here's how 
-        to get this information. Note that you probably have to call 'updateRPM' here then:
-        --
+
+        // The number of poles seems to be over constrained information with PD144. If we're wrong, here's how
+        // to get this information. Note that you probably have to call 'updateRPM' here then:
+        // --
 
         else if (index == -4) {
             // Number Poles
-
-            data.msg[3] = 143;  // PD143: 4 or 2 poles in motor. Default is 4. A spindle being 24000RPM@400Hz implies 2 poles
+            data.rx_length = 5;
+            data.msg[3]    = 143;  // PD143: 4 or 2 poles in motor. Default is 4. A spindle being 24000RPM@400Hz implies 2 poles
 
             return [](const uint8_t* response, Spindles::VFD* vfd) -> bool {
-                uint8_t value = response[4]; // Single byte response.
-
+                uint8_t value    = response[4];  // Single byte response.
+                auto    huanyang = static_cast<Huanyang*>(vfd);
                 // Sanity check. We expect something like 2 or 4 poles.
                 if (value <= 4 && value >= 2) {
-#ifdef DEBUG_VFD
                     // Set current RPM value? Somewhere?
-                    log_debug("VFD: Number of poles set to " << value);
-#endif
 
-                    auto huanyang = static_cast<Huanyang*>(vfd);
                     huanyang->_numberPoles = value;
+
+                    log_info(huanyang->name() << " PD143 Poles:" << huanyang->_numberPoles);
+
+                    huanyang->updateRPM();
+
                     return true;
-                }
-                else {
-                    error_all("Initialization of Huanyang spindle failed. Number of poles (PD143, expected 2-4, got %d) is not sane.",
-                        value);
+                } else {
+                    log_error(huanyang->name() << "  PD143 Poles: expected 2-4, got:" << value);
                     return false;
                 }
             };
-
         }
-        */
 
         // Done.
         return nullptr;
@@ -329,8 +330,6 @@ namespace Spindles {
         }
         setupSpeeds(_maxFrequency);
         _slop = std::max(_maxFrequency / 40, 1);
-
-        // log_info("VFD: VFD settings read: RPM Range(" << _min_rpm << " , " << _max_rpm << ")]");
     }
 
     VFD::response_parser Huanyang::get_status_ok(ModbusCommand& data) {

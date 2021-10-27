@@ -8,6 +8,7 @@
 WebUI::WiFiConfig wifi_config;
 
 #ifdef ENABLE_WIFI
+#    include "../Main.h"   // display()
 #    include "Commands.h"  // COMMANDS
 #    include "WifiServices.h"
 #    include "WebSettings.h"
@@ -200,6 +201,7 @@ namespace WebUI {
                 log_info("WiFi Disconnected");
                 break;
             default:
+                //log_info("WiFi event:" << event);
                 break;
         }
     }
@@ -234,6 +236,7 @@ namespace WebUI {
                     return false;
                 case WL_CONNECTED:
                     log_info("Connected - IP is " << WiFi.localIP().toString());
+                    display("IP", WiFi.localIP().toString());
                     return true;
                 default:
                     if ((dot > 3) || (dot == 0)) {
@@ -256,8 +259,8 @@ namespace WebUI {
      */
 
     bool WiFiConfig::StartSTA() {
-        auto commsConfig = config->_comms;
-
+        //stop active service
+        wifi_services.end();
         //Sanity check
         if ((WiFi.getMode() == WIFI_STA) || (WiFi.getMode() == WIFI_AP_STA)) {
             WiFi.disconnect();
@@ -266,38 +269,34 @@ namespace WebUI {
             WiFi.softAPdisconnect();
         }
         WiFi.enableAP(false);
-        WiFi.mode(WIFI_STA);
-
-        auto comms = config->_comms;     // Should be there; startSTA is called with a null check
-        auto sta   = comms->_staConfig;  // Should be there; startSTA is called with a null check
-        if (!sta) {
+        //SSID
+        String SSID = wifi_sta_ssid->get();
+        if (SSID.length() == 0) {
+            log_info("STA SSID is not set");
             return false;
         }
-
+        WiFi.mode(WIFI_STA);
         //Get parameters for STA
-        WiFi.setHostname(comms->_hostname.c_str());
-
-        String& SSID = sta->_ssid;
-        if (SSID.length() == 0) {
-            SSID = DEFAULT_STA_SSID;
+        String h = wifi_hostname->get();
+        WiFi.setHostname(h.c_str());
+        //password
+        String  password = wifi_sta_password->get();
+        int8_t  IP_mode  = wifi_sta_mode->get();
+        int32_t IP       = wifi_sta_ip->get();
+        int32_t GW       = wifi_sta_gateway->get();
+        int32_t MK       = wifi_sta_netmask->get();
+        //if not DHCP
+        if (IP_mode != DHCP_MODE) {
+            IPAddress ip(IP), mask(MK), gateway(GW);
+            WiFi.config(ip, gateway, mask);
         }
-        String password = wifi_sta_password->get();
-        int8_t IP_mode  = sta->_dhcp ? DHCP_MODE : STATIC_MODE;
-
-        if (IP_mode == DHCP_MODE) {
-            log_info("STA SSID " << SSID << " DHCP");
-        } else {
-            // Static IP configuration
-            WiFi.config(sta->_ipAddress, sta->_netmask, sta->_gateway);
-            log_info("STA SSID " << SSID << " static IP " << sta->_ipAddress.toString() << " netmask " << sta->_netmask.toString()
-                                 << " gateway " << sta->_gateway.toString());
-        }
-
         if (WiFi.begin(SSID.c_str(), (password.length() > 0) ? password.c_str() : NULL)) {
+            log_info("Connecting to STA SSID:" << SSID.c_str());
             return ConnectSTA2AP();
+        } else {
+            log_info("Starting client failed");
+            return false;
         }
-        log_info("Cannot connect to " << config->_comms->_staConfig->_ssid);
-        return false;
     }
 
     /**
@@ -316,29 +315,29 @@ namespace WebUI {
         WiFi.enableSTA(false);
         WiFi.mode(WIFI_AP);
 
-        auto comms = config->_comms;  // _comms is automatically created in afterParse
-        auto ap    = comms->_apConfig;
+        //auto comms = config->_comms;  // _comms is automatically created in afterParse
+        //auto ap    = comms->_apConfig;
         // ap might be nullpt if there is an explicit comms: with no wifi_ap:
         // If a _comms node is created automatically, a default AP config is created too
-        if (!ap) {
-            return false;
-        }
+        // if (!ap) {
+        //     return false;
+        // }
 
         //Get parameters for AP
         //SSID
-        String& SSID = ap->_ssid;
+        String SSID = wifi_ap_ssid->get();
         if (SSID.length() == 0) {
             SSID = DEFAULT_AP_SSID;
         }
 
         String password = wifi_ap_password->get();
 
-        int8_t channel = int8_t(ap->_channel);
+        int8_t channel = int8_t(wifi_ap_channel->get());
         if (channel == 0) {
             channel = DEFAULT_AP_CHANNEL;
         }
 
-        IPAddress ip(ap->_ipAddress);
+        IPAddress ip(wifi_ap_ip->get());
         IPAddress mask;
         mask.fromString(DEFAULT_AP_MK);
 
@@ -350,6 +349,7 @@ namespace WebUI {
         //Start AP
         if (WiFi.softAP(SSID.c_str(), (password.length() > 0) ? password.c_str() : NULL, channel)) {
             log_info("AP started");
+            display("IP", ip.toString());
             return true;
         }
 
@@ -383,21 +383,35 @@ namespace WebUI {
         //stop active services
         wifi_services.end();
 
-        if (config->_comms->_staConfig && StartSTA()) {
-            // WIFI mode is STA; fall back on AP if necessary
-            goto wifi_on;
-        }
-        if (config->_comms->_apConfig && StartAP()) {
-            goto wifi_on;
+        switch (wifi_mode->get()) {
+            case WiFiOff:
+                log_info("WiFi is disabled");
+                return false;
+            case WiFiSTA:
+                if (StartSTA()) {
+                    goto wifi_on;
+                }
+                goto wifi_off;
+            case WiFiFallback:
+                if (StartSTA()) {
+                    goto wifi_on;
+                }
+                // fall through to fallback to AP mode
+            case WiFiAP:
+                if (StartAP()) {
+                    goto wifi_on;
+                }
+                goto wifi_off;
         }
 
+    wifi_off:
         log_info("WiFi off");
         WiFi.mode(WIFI_OFF);
         return false;
 
     wifi_on:
         //Get hostname
-        _hostname = config->_comms->_hostname;
+        _hostname = wifi_hostname->get();
 
         //setup events
         if (!_events_registered) {

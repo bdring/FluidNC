@@ -298,14 +298,47 @@ public:
     Error       setStringValue(char* value);
     const char* getStringValue();
     const char* getDefaultString();
+    void        showList();
 
     int8_t get() { return _currentValue; }
 };
 
-extern bool idleOrJog();
-extern bool idleOrAlarm();
+extern bool notIdleOrJog();
+extern bool notIdleOrAlarm();
 extern bool anyState();
-extern bool notCycleOrHold();
+extern bool cycleOrHold();
+
+class IPaddrSetting : public Setting {
+private:
+    uint32_t _defaultValue;
+    uint32_t _currentValue;
+    uint32_t _storedValue;
+
+public:
+    IPaddrSetting(const char*   description,
+                  type_t        type,
+                  permissions_t permissions,
+                  const char*   grblName,
+                  const char*   name,
+                  uint32_t      defVal,
+                  bool (*checker)(char*));
+    IPaddrSetting(const char*   description,
+                  type_t        type,
+                  permissions_t permissions,
+                  const char*   grblName,
+                  const char*   name,
+                  const char*   defVal,
+                  bool (*checker)(char*));
+
+    void        load();
+    void        setDefault();
+    void        addWebui(WebUI::JSONencoder*);
+    Error       setStringValue(char* value);
+    const char* getStringValue();
+    const char* getDefaultString();
+
+    uint32_t get() { return _currentValue; }
+};
 
 class WebCommand : public Command {
 private:
@@ -329,7 +362,7 @@ public:
                const char*   grblName,
                const char*   name,
                Error (*action)(char*, WebUI::AuthenticationLevel)) :
-        WebCommand(description, type, permissions, grblName, name, action, idleOrAlarm) {}
+        WebCommand(description, type, permissions, grblName, name, action, notIdleOrAlarm) {}
 
     Error action(char* value, WebUI::AuthenticationLevel auth_level, Print& response);
 };
