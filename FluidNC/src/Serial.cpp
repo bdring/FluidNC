@@ -50,6 +50,7 @@
 #include "SDCard.h"
 #include "WebUI/InputBuffer.h"  // XXX could this be a StringStream ?
 #include "Main.h"               // display()
+#include "lineedit.h"           // lineedit_start(), lineedit_step(), lineedit_finish()
 
 #include <atomic>
 #include <cstring>
@@ -199,7 +200,11 @@ InputClient* sdClient = new InputClient(nullptr);
 std::vector<InputClient*> clientq;
 
 void register_client(Stream* client_stream) {
-    clientq.push_back(new InputClient(client_stream));
+    auto ic = new InputClient(client_stream);
+    if (ic->_in == &Uart0) {
+        lineedit_start(ic->_line, InputClient::maxLine);
+    }
+    clientq.push_back(ic);
 }
 void client_init() {
     register_client(&Uart0);               // USB Serial
@@ -217,12 +222,16 @@ InputClient* pollClients() {
             if (client->_line_returned) {
                 client->_line_returned = false;
                 client->_linelen       = 0;
+                if (client->_in == &Uart0) {
+                    lineedit_start(client->_line, InputClient::maxLine);
+                }
             }
             if (is_realtime_command(c)) {
                 execute_realtime_command(static_cast<Cmd>(c), *source);
                 continue;
             }
 
+#if 0
             if (ch == '\b') {
                 // Simple editing for interactive input - backspace erases
                 if (client->_linelen) {
@@ -260,6 +269,15 @@ InputClient* pollClients() {
 
             client->_line[client->_linelen] = ch;
             ++client->_linelen;
+#else
+            if (lineedit_step(ch)) {
+                client->_linelen                = lineedit_finish();
+                client->_line[client->_linelen] = 0;
+                client->_line_returned          = true;
+                display("GCODE", client->_line);
+                return client;
+            }
+#endif
         }
     }
 
