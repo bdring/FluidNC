@@ -147,7 +147,13 @@ namespace Kinematics {
         delay_ms(axisConf->_homing->_settle_ms);
     }
 
-    bool CoreXY::kinematics_homing(AxisMask cycle_mask) {
+    bool CoreXY::kinematics_homing(AxisMask cycle_mask) {  // TODO cycle_mask s/b axisMask...this is not about cycles
+        // make sure there are no axes that are not in homingMask
+        if (cycle_mask && !(cycle_mask & Machine::Axes::homingMask)) {
+            log_error("Not a homed axis:");
+            return true;
+        }
+
         if (ambiguousLimit()) {
             // TODO: Maybe ambiguousLimit() should do this stuff because this could be a several places
             mc_reset();  // Issue system reset and ensure spindle and coolant are shutdown
@@ -162,10 +168,12 @@ namespace Kinematics {
                 // TODO: Set some Kinematics error or alarm
                 return true;
             }
+            Machine::Homing::run_one_cycle(cycle_mask);
+            return true;
         }
 
         // Multi-axis cycles not allowed with CoreXY because 2 motors are used for linear XY moves
-        // Check each cycle for multiple acxes
+        // Check each cycle for multiple axes
         for (int cycle = 1; cycle <= MAX_N_AXIS; cycle++) {
             AxisMask axisMask = Machine::Homing::axis_mask_from_cycle(cycle);
             uint8_t  count    = 0;
@@ -184,14 +192,13 @@ namespace Kinematics {
         // run cycles
         for (int cycle = 1; cycle <= MAX_N_AXIS; cycle++) {
             AxisMask axisMask = Machine::Homing::axis_mask_from_cycle(cycle);
+            
+            if (!axisMask)
+                continue;
 
             // Only X and Y need a special homing sequence
             if (!bitnum_is_true(axisMask, X_AXIS) && !bitnum_is_true(axisMask, Y_AXIS)) {
-                // run a normal cycle
-
-                //Machine::Homing::run(axisMask, true, true, 0);
                 Machine::Homing::run_one_cycle(axisMask);
-
                 continue;
             } else {
                 //log_info("CoreXY homing cycle:" << cycle << " axis:" << axisMask);
@@ -205,9 +212,8 @@ namespace Kinematics {
                         rtAlarm = alarm;
                         config->_axes->set_homing_mode(axisMask, false);  // tell motors homing is done...failed
                         log_error("Homing fail");
-                        mc_reset();  // Stop motors, if they are running.
-                        // protocol_execute_realtime() will handle any pending rtXXX conditions
-                        protocol_execute_realtime();
+                        mc_reset();  // Stop motors, if they are running.                        
+                        protocol_execute_realtime();  // handle any pending rtXXX conditions
                         return true;
                     }
                 }
@@ -222,11 +228,13 @@ namespace Kinematics {
         for (int axis = 0; axis < n_axis; axis++) {
             Machine::Axis* axisConf = config->_axes->_axis[axis];
 
-            auto mpos_mm = axisConf->_homing->_mpos;
-            auto pulloff = axisConf->_motors[0]->_pulloff;
+            if (axisConf->_homing) {
+                auto mpos_mm = axisConf->_homing->_mpos;
+                auto pulloff = axisConf->_motors[0]->_pulloff;
 
-            pulloff    = axisConf->_homing->_positiveDirection ? -pulloff : pulloff;
-            mpos[axis] = mpos_mm + pulloff;
+                pulloff    = axisConf->_homing->_positiveDirection ? -pulloff : pulloff;
+                mpos[axis] = mpos_mm + pulloff;
+            }
         }
 
         float motors_mm[n_axis];
@@ -313,26 +321,6 @@ namespace Kinematics {
             cartesian[axis] = motors[axis];
         }
     }
-
-    /*
-      limitsCheckTravel() is called to check soft limits
-      It returns true if the motion is outside the limit values
-    */
-    // bool CoreXY::limitsCheckTravel(float* target) {
-    //     auto axes   = config->_axes;
-    //     auto n_axis = config->_axes->_numberAxis;
-
-    //     float cartesian[n_axis];
-    //     motors_to_cartesian(cartesian, target, 0);  // Convert to cartesian then check
-
-    //     for (int axis = 0; axis < n_axis; axis++) {
-    //         auto axisSetting = axes->_axis[axis];
-    //         if ((cartesian[axis] < limitsMinPosition(axis) || cartesian[axis] > limitsMaxPosition(axis)) && axisSetting->_maxTravel > 0) {
-    //             return true;
-    //         }
-    //     }
-    //     return false;
-    // }
 
     /*
     Kinematic equations
