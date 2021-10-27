@@ -105,6 +105,26 @@ void protocol_reset() {
     // rtAlarm = ExecAlarm::None;
 }
 
+
+bool protocol_abort() {
+    if (rtReset && config->_sdCard->get_state() == SDState::BusyPrinting) {
+        //Report print stopped
+        _notifyf("SD print canceled", "Reset during SD file at line: %d", config->_sdCard->lineNumber());
+        // log_info() does not work well in this case because the message gets broken in half
+        // by report_init_message().  The flow of control that causes it is obscure.
+        config->_sdCard->getClient() << "[MSG:"
+                                     << "Reset during SD file at line: " << config->_sdCard->lineNumber();
+
+        config->_sdCard->closeFile();
+    }
+    if (sys.abort) {
+        log_debug("protocol_abort()");
+        return true;
+    }
+    return false;
+}
+
+
 static int32_t idleEndTime = 0;
 
 /*
@@ -150,7 +170,7 @@ void protocol_main_loop() {
         while ((ic = pollClients()) != nullptr) {
             Print* out = ic->_out;
             protocol_execute_realtime();  // Runtime command check point.
-            if (sys.abort) {
+            if (protocol_abort()) {
                 return;  // Bail to calling function upon system abort
             }
 #ifdef DEBUG_REPORT_ECHO_RAW_LINE_RECEIVED
@@ -163,7 +183,7 @@ void protocol_main_loop() {
         // auto-cycle start, if enabled, any queued moves.
         protocol_auto_cycle_start();
         protocol_execute_realtime();  // Runtime command check point.
-        if (sys.abort) {
+        if (protocol_abort()) {
             return;  // Bail to main() program loop to reset system.
         }
 
@@ -193,7 +213,7 @@ void protocol_buffer_synchronize() {
     protocol_auto_cycle_start();
     do {
         protocol_execute_realtime();  // Check and execute run-time commands
-        if (sys.abort) {
+        if (protocol_abort()) {
             return;  // Check for system abort
         }
     } while (plan_get_current_block() || (sys.state == State::Cycle));
@@ -244,6 +264,7 @@ static void protocol_do_alarm() {
         // System alarm. Everything has shutdown by something that has gone severely wrong. Report
         case ExecAlarm::HardLimit:
         case ExecAlarm::SoftLimit:
+            protocol_abort();
             sys.state = State::Alarm;  // Set system alarm state
             alarm_msg(rtAlarm);
             report_feedback_message(Message::CriticalEvent);
@@ -771,7 +792,7 @@ static void protocol_exec_rt_suspend() {
     }
 
     while (sys.suspend.value) {
-        if (sys.abort) {
+        if (protocol_abort()) {
             return;
         }
         // if a jogCancel comes in and we have a jog "in-flight" (parsed and handed over to mc_line()),
@@ -844,7 +865,7 @@ static void protocol_exec_rt_suspend() {
                         config->_coolant->off();
                         report_ovr_counter = 0;  // Set to report change immediately
                         Stepper::go_idle();      // Stop stepping and maybe disable steppers
-                        while (!(sys.abort)) {
+                        while (!(protocol_abort())) {
                             protocol_exec_rt_system();  // Do nothing until reset.
                         }
                         return;  // Abort received. Return to re-initialize.

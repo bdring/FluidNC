@@ -422,18 +422,6 @@ void mc_reset() {
         // turn off all User I/O immediately
         config->_userOutputs->all_off();
 
-        // do we need to stop a running SD job?
-        if (config->_sdCard->get_state() == SDCard::State::BusyPrinting) {
-            //Report print stopped
-            _notifyf("SD print canceled", "Reset during SD file at line: %d", config->_sdCard->lineNumber());
-            // log_info() does not work well in this case because the message gets broken in half
-            // by report_init_message().  The flow of control that causes it is obscure.
-            config->_sdCard->getClient() << "[MSG:"
-                                         << "Reset during SD file at line: " << config->_sdCard->lineNumber();
-
-            config->_sdCard->closeFile();
-        }
-
         // Kill steppers only if in any motion state, i.e. cycle, actively holding, or homing.
         // NOTE: If steppers are kept enabled via the step idle delay setting, this also keeps
         // the steppers enabled by avoiding the go_idle call altogether, unless the motion state is
