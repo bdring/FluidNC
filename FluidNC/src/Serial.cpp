@@ -205,8 +205,9 @@ void client_init() {
     register_client(&Uart0);               // USB Serial
     register_client(&WebUI::inputBuffer);  // Macros
 }
-
 InputClient* pollClients() {
+    auto sdcard = config->_sdCard;
+
     for (auto client : clientq) {
         auto source = client->_in;
         int  c      = source->read();
@@ -244,7 +245,7 @@ InputClient* pollClients() {
             }
             if (ch == '\n') {
                 client->_line_num++;
-                if (config->_sdCard->get_state() < SDCard::State::Busy) {
+                if (sdcard->get_state() < SDCard::State::Busy) {
                     client->_line[client->_linelen] = '\0';
                     client->_line_returned          = true;
                     display("GCODE", client->_line);
@@ -267,7 +268,6 @@ InputClient* pollClients() {
     WebUI::wifi_services.handle();  // OTA, web_server, telnet_server polling
 #endif
 
-    auto sdcard = config->_sdCard;
     // _readyNext indicates that input is coming from a file and
     // the GCode system is ready for another line.
     if (sdcard && sdcard->_readyNext) {
