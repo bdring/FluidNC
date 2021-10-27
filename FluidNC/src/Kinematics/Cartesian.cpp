@@ -32,10 +32,14 @@ namespace Kinematics {
     // Set $<axis>/MaxTravel=0 to selectively remove an axis from soft limit checks
     bool Cartesian::limitsCheckTravel(float* target) {
         auto axes   = config->_axes;
-        auto n_axis = axes->_numberAxis;
+        auto n_axis = config->_axes->_numberAxis;
+
+        float cartesian[n_axis];
+        motors_to_cartesian(cartesian, target, 0);  // Convert to cartesian then check
+
         for (int axis = 0; axis < n_axis; axis++) {
             auto axisSetting = axes->_axis[axis];
-            if ((target[axis] < limitsMinPosition(axis) || target[axis] > limitsMaxPosition(axis)) && axisSetting->_maxTravel > 0) {
+            if ((cartesian[axis] < limitsMinPosition(axis) || cartesian[axis] > limitsMaxPosition(axis)) && axisSetting->_maxTravel > 0) {
                 return true;
             }
         }

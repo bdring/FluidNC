@@ -13,9 +13,10 @@
 */
 
 #include "Kinematics.h"
+#include "Cartesian.h"
 
 namespace Kinematics {
-    class CoreXY : public KinematicSystem {
+    class CoreXY : public Cartesian {
     public:
         CoreXY() = default;
 
@@ -31,7 +32,7 @@ namespace Kinematics {
         void kinematics_post_homing() override;
         bool cartesian_to_motors(float* target, plan_line_data_t* pl_data, float* position) override;
         void motors_to_cartesian(float* cartesian, float* motors, int n_axis) override;
-        bool limitsCheckTravel(float* target) override;
+        //bool limitsCheckTravel(float* target) override;
 
         // Configuration handlers:
         void validate() const override {}
@@ -52,8 +53,6 @@ namespace Kinematics {
         void  transform_cartesian_to_motors(float* motors, float* cartesian);
         float three_axis_dist(float* point1, float* point2);
 
-        float _x_scaler       = 1;
-        float _y_scaler       = 1;
-        float _segment_length = 10;
+        float _x_scaler = 1;
     };
 }  //  namespace Kinematics
