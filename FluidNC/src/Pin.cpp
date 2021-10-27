@@ -9,6 +9,7 @@
 #include "Pins/GPIOPinDetail.h"
 #include "Pins/VoidPinDetail.h"
 #include "Pins/I2SOPinDetail.h"
+#include "Pins/I2SIPinDetail.h"
 #include "Pins/ErrorPinDetail.h"
 #include <stdio.h>  // snprintf()
 
@@ -85,6 +86,9 @@ const char* Pin::parse(StringRange tmp, Pins::PinDetail*& pinImplementation) {
 #ifdef ESP32
     if (prefix == "i2so") {
         pinImplementation = new Pins::I2SOPinDetail(pinnum_t(pinNumber), parser);
+    }
+    if (prefix == "i2si") {
+        pinImplementation = new Pins::I2SIPinDetail(pinnum_t(pinNumber), parser);
     }
 #endif
     if (prefix == "no_pin") {

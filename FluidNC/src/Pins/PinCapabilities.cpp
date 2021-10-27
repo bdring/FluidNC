@@ -28,6 +28,7 @@ namespace Pins {
 
     PinCapabilities PinCapabilities::Native(1 << (__LINE__ - START_LINE));
     PinCapabilities PinCapabilities::I2S(1 << (__LINE__ - START_LINE));
+    PinCapabilities PinCapabilities::I2SI(1 << (__LINE__ - START_LINE));
     PinCapabilities PinCapabilities::Error(1 << (__LINE__ - START_LINE));
     PinCapabilities PinCapabilities::Void(1 << (__LINE__ - START_LINE));
 }

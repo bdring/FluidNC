@@ -74,6 +74,8 @@ void setup() {
                     config->_sdCard->init();
                 }
             }
+            if (config->_i2si) {
+                config->_i2si->init();
 
             Stepper::init();  // Configure stepper pins and interrupt timers
 
