@@ -17,6 +17,7 @@
 xQueueHandle limit_sw_queue;  // used by limit switch debouncing
 
 void limits_init() {
+#ifdef LATER  // We need to rethink debouncing
     if (Machine::Axes::limitMask) {
         if (limit_sw_queue == NULL && config->_softwareDebounceMs != 0) {
             // setup task used for debouncing
@@ -31,6 +32,7 @@ void limits_init() {
             }
         }
     }
+#endif
 }
 
 // Returns limit state as a bit-wise uint32 variable. Each bit indicates an axis limit, where
@@ -39,6 +41,10 @@ void limits_init() {
 // The lower 16 bits are used for motor0 and the upper 16 bits are used for motor1 switches
 MotorMask limits_get_state() {
     return Machine::Axes::posLimitMask | Machine::Axes::negLimitMask;
+}
+
+bool ambiguousLimit() {
+    return Machine::Axes::posLimitMask & Machine::Axes::negLimitMask;
 }
 
 bool soft_limit = false;
@@ -69,6 +75,7 @@ void limits_soft_check(float* target) {
     }
 }
 
+#ifdef LATER  // We need to rethink debouncing
 void limitCheckTask(void* pvParameters) {
     while (true) {
         std::atomic_thread_fence(std::memory_order::memory_order_seq_cst);  // read fence for settings
@@ -83,11 +90,12 @@ void limitCheckTask(void* pvParameters) {
             rtAlarm = ExecAlarm::HardLimit;  // Indicate hard limit critical event
         }
         static UBaseType_t uxHighWaterMark = 0;
-#ifdef DEBUG_TASK_STACK
+#    ifdef DEBUG_TASK_STACK
         reportTaskStackSize(uxHighWaterMark);
-#endif
+#    endif
     }
 }
+#endif
 
 float limitsMaxPosition(size_t axis) {
     auto  axisConfig = config->_axes->_axis[axis];

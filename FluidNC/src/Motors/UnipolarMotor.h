@@ -26,10 +26,10 @@ namespace MotorDrivers {
         }
 
         void group(Configuration::HandlerBase& handler) override {
-            handler.item("phase0", _pin_phase0);
-            handler.item("phase1", _pin_phase1);
-            handler.item("phase2", _pin_phase2);
-            handler.item("phase3", _pin_phase3);
+            handler.item("phase0_pin", _pin_phase0);
+            handler.item("phase1_pin", _pin_phase1);
+            handler.item("phase2_pin", _pin_phase2);
+            handler.item("phase3_pin", _pin_phase3);
             handler.item("half_step", _half_step);
         }
 

@@ -31,6 +31,7 @@ namespace Machine {
     void MachineConfig::group(Configuration::HandlerBase& handler) {
         handler.item("board", _board);
         handler.item("name", _name);
+        handler.item("meta", _meta);
 
         handler.section("stepping", _stepping);
         handler.section("axes", _axes);
@@ -41,23 +42,16 @@ namespace Machine {
         handler.section("control", _control);
         handler.section("coolant", _coolant);
         handler.section("probe", _probe);
-        handler.section("comms", _comms);
         handler.section("macros", _macros);
+        handler.section("start", _start);
 
         handler.section("user_outputs", _userOutputs);
-        handler.item("software_debounce_ms", _softwareDebounceMs);
         // TODO: Consider putting these under a gcode: hierarchy level? Or motion control?
-        handler.item("laser_mode", _laserMode);
-        handler.item("arc_tolerance", _arcTolerance);
-        handler.item("junction_deviation", _junctionDeviation);
+        handler.item("arc_tolerance_mm", _arcTolerance);
+        handler.item("junction_deviation_mm", _junctionDeviation);
         handler.item("verbose_errors", _verboseErrors);
         handler.item("report_inches", _reportInches);
-        handler.item("homing_init_lock", _homingInitLock);
         handler.item("enable_parking_override_control", _enableParkingOverrideControl);
-        handler.item("deactivate_parking_upon_init", _deactivateParkingUponInit);
-        handler.item("check_limits_at_init", _checkLimitsAtInit);
-        handler.item("limits_two_switches_on_axis", _limitsTwoSwitchesOnAxis);
-        handler.item("disable_laser_during_hold", _disableLaserDuringHold);
         handler.item("use_line_numbers", _useLineNumbers);
 
         Spindles::SpindleFactory::factory(handler, _spindles);
@@ -73,12 +67,10 @@ namespace Machine {
         }
 
         if (_coolant == nullptr) {
-            log_info("Coolant: using defaults");
             _coolant = new CoolantControl();
         }
 
         if (_probe == nullptr) {
-            log_info("Probe: using defaults");
             _probe = new Probe();
         }
 
@@ -102,12 +94,14 @@ namespace Machine {
         // Only if an i2so section is present will config->_i2so be non-null
 
         if (_control == nullptr) {
-            log_info("Control: using defaults");
             _control = new Control();
         }
 
+        if (_start == nullptr) {
+            _start = new Start();
+        }
+
         if (_spindles.size() == 0) {
-            log_info("Spindle: using defaults (no spindle)");
             _spindles.push_back(new Spindles::Null());
         }
 
@@ -121,23 +115,6 @@ namespace Machine {
                 s->_tool = next_tool++;
             }
         }
-
-        if (_comms == nullptr) {
-            log_info("Comms: using defaults");
-            _comms = new Communications();
-#ifdef ENABLE_WIFI
-            _comms->_apConfig = new WifiAPConfig();
-#endif
-        }
-
-#ifdef ENABLE_WIFI
-        // This is very helpful for testing YAML config files.  If things
-        // screw up, you can still connect and upload a new config.yaml
-        // TODO - Consider whether we want this for the long term
-        if (!_comms->_apConfig) {
-            _comms->_apConfig = new WifiAPConfig();
-        }
-#endif
 
         if (_macros == nullptr) {
             _macros = new Macros();
@@ -171,7 +148,6 @@ namespace Machine {
             log_info("config file " << path << " is empty");
             return 0;
         }
-        // log_debug("Configuration file has " << int(filesize) << " bytes");
         buffer = new char[filesize + 1];
 
         size_t pos = 0;
@@ -186,8 +162,6 @@ namespace Machine {
         file.close();
         buffer[filesize] = 0;
 
-        // log_debug("Read config file:\n" << buffer);
-
         if (pos != filesize) {
             delete[] buffer;
 
@@ -200,8 +174,6 @@ namespace Machine {
     char defaultConfig[] = "name: Default (Test Drive)\nboard: None\n";
 
     bool MachineConfig::load(const char* filename) {
-        // log_info("Heap size before load config is " << uint32_t(xPortGetFreeHeapSize()));
-
         // If the system crashes we skip the config file and use the default
         // builtin config.  This helps prevent reset loops on bad config files.
         size_t             filesize = 0;
@@ -217,7 +189,7 @@ namespace Machine {
 
         if (filesize > 0) {
             input = new StringRange(buffer, buffer + filesize);
-            log_info("Configuration file: " << filename);
+            log_info("Configuration file:" << filename);
 
         } else {
             log_info("Using default configuration");
@@ -226,8 +198,6 @@ namespace Machine {
         // Process file:
         bool successful = false;
         try {
-            // log_info("Heap size before parsing is " << uint32_t(xPortGetFreeHeapSize()));
-
             Configuration::Parser        parser(input->begin(), input->end());
             Configuration::ParserHandler handler(parser);
 
@@ -246,8 +216,6 @@ namespace Machine {
 
             log_debug("Running after-parse tasks");
 
-            // log_info("Heap size before after-parse is " << uint32_t(xPortGetFreeHeapSize()));
-
             try {
                 Configuration::AfterParse afterParse;
                 config->afterParse();
@@ -255,8 +223,6 @@ namespace Machine {
             } catch (std::exception& ex) { log_info("Validation error: " << ex.what()); }
 
             log_debug("Checking configuration");
-
-            // log_info("Heap size before validation is " << uint32_t(xPortGetFreeHeapSize()));
 
             try {
                 Configuration::Validator validator;
@@ -268,7 +234,9 @@ namespace Machine {
 
             successful = (sys.state != State::ConfigAlarm);
 
-            log_info("Configuration is " << (successful ? "valid" : "invalid"));
+            if (!successful) {
+                log_info("Configuration is invalid");
+            }
 
         } catch (const Configuration::ParseException& ex) {
             sys.state      = State::ConfigAlarm;
@@ -315,7 +283,6 @@ namespace Machine {
         delete _sdCard;
         delete _spi;
         delete _control;
-        delete _comms;
         delete _macros;
     }
 }

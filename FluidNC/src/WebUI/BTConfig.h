@@ -11,37 +11,30 @@
 #    include <WString.h>
 #    include <BluetoothSerial.h>
 
+const char* const DEFAULT_BT_NAME = "FluidNC";
+
 namespace WebUI {
     extern BluetoothSerial SerialBT;
 
-    class BTConfig : public Configuration::Configurable {
+    class BTConfig {
     private:
         static BTConfig* instance;  // BT Callback does not support passing parameters. Sigh.
 
         String _btclient = "";
-        String _btname   = "btfluidnc";
+        String _btname;
         char   _deviceAddrBuffer[18];
-
-        static const int MAX_BTNAME_LENGTH = 32;
-        static const int MIN_BTNAME_LENGTH = 1;
 
         static void my_spp_cb(esp_spp_cb_event_t event, esp_spp_cb_param_t* param);
 
         //boundaries
     public:
+        static const int MAX_BTNAME_LENGTH = 32;
+        static const int MIN_BTNAME_LENGTH = 1;
+
         BTConfig();
 
-        void validate() const override {
-            Assert(_btname.length() > 0, "Bluetooth must have a name if it's configured");
-            Assert(_btname.length() >= MIN_BTNAME_LENGTH && _btname.length() <= MAX_BTNAME_LENGTH,
-                   "Bluetooth name must be between %d and %d characters long",
-                   MIN_BTNAME_LENGTH,
-                   MAX_BTNAME_LENGTH);
-        }
-        void group(Configuration::HandlerBase& handler) override { handler.item("_name", _btname); }
-
         String        info();
-        bool          isBTnameValid(const char* hostname);
+        static bool   isBTnameValid(const char* hostname);
         const String& BTname() const { return _btname; }
         const String& client_name() const { return _btclient; }
         const char*   device_address();
@@ -53,6 +46,8 @@ namespace WebUI {
 
         ~BTConfig();
     };
+
+    extern BTConfig bt_config;
 }
 
 #endif

@@ -78,10 +78,13 @@ union SpindleStop {
 static SpindleStop spindle_stop_ovr;
 
 bool can_park() {
+    if (spindle->isRateAdjusted()) {
+        return false;
+    }
     if (config->_enableParkingOverrideControl) {
-        return sys.override_ctrl == Override::ParkingMotion && Machine::Axes::homingMask && !config->_laserMode;
+        return sys.override_ctrl == Override::ParkingMotion && Machine::Axes::homingMask;
     } else {
-        return Machine::Axes::homingMask && !config->_laserMode;
+        return Machine::Axes::homingMask;
     }
 }
 
@@ -118,7 +121,7 @@ void protocol_main_loop() {
         report_feedback_message(Message::ConfigAlarmLock);
     } else {
         // Perform some machine checks to make sure everything is good to go.
-        if (config->_checkLimitsAtInit && config->_axes->hasHardLimits()) {
+        if (config->_start->_checkLimits && config->_axes->hasHardLimits()) {
             if (limits_get_state()) {
                 sys.state = State::Alarm;  // Ensure alarm state is active.
                 report_feedback_message(Message::CheckLimits);
@@ -442,6 +445,11 @@ static void protocol_do_sleep() {
     sys.state = State::Sleep;
 }
 
+void protocol_cancel_disable_steppers() {
+    // Cancel any pending stepper disable.
+    idleEndTime = 0;
+}
+
 static void protocol_do_initiate_cycle() {
     // Start cycle only if queued motions exist in planner buffer and the motion is not canceled.
     sys.step_control = {};  // Restore step control to normal operation
@@ -454,6 +462,9 @@ static void protocol_do_initiate_cycle() {
         sys.suspend.value = 0;  // Break suspend state.
         sys.state         = State::Idle;
     }
+
+    // Make sure the steppers can't be scheduled for a shutdown while this cycle is running.
+    protocol_cancel_disable_steppers();
 }
 
 // The handlers for rtFeedHold, rtMotionCancel, and rtsDafetyDoor clear rtCycleStart to
@@ -766,7 +777,7 @@ static void protocol_exec_rt_suspend() {
         restore_spindle       = block->spindle;
         restore_spindle_speed = block->spindle_speed;
     }
-    if (config->_disableLaserDuringHold && config->_laserMode) {
+    if (spindle->isRateAdjusted()) {
         rtAccessoryOverride.bit.spindleOvrStop = true;
     }
 
@@ -871,7 +882,7 @@ static void protocol_exec_rt_suspend() {
                         if (gc_state.modal.spindle != SpindleState::Disable) {
                             // Block if safety door re-opened during prior restore actions.
                             if (!sys.suspend.bit.restartRetract) {
-                                if (config->_laserMode) {
+                                if (spindle->isRateAdjusted()) {
                                     // When in laser mode, defer turn on until cycle starts
                                     sys.step_control.updateSpindleSpeed = true;
                                 } else {
@@ -926,7 +937,7 @@ static void protocol_exec_rt_suspend() {
                     } else if (spindle_stop_ovr.bit.restore || spindle_stop_ovr.bit.restoreCycle) {
                         if (gc_state.modal.spindle != SpindleState::Disable) {
                             report_feedback_message(Message::SpindleRestore);
-                            if (config->_laserMode) {
+                            if (spindle->isRateAdjusted()) {
                                 // When in laser mode, defer turn on until cycle starts
                                 sys.step_control.updateSpindleSpeed = true;
                             } else {

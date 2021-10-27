@@ -7,9 +7,9 @@
 namespace Machine {
     void Axis::group(Configuration::HandlerBase& handler) {
         handler.item("steps_per_mm", _stepsPerMm);
-        handler.item("max_rate", _maxRate);
-        handler.item("acceleration", _acceleration);
-        handler.item("max_travel", _maxTravel);
+        handler.item("max_rate_mm_per_min", _maxRate);
+        handler.item("acceleration_mm_per_sec2", _acceleration);
+        handler.item("max_travel_mm", _maxTravel);
         handler.item("soft_limits", _softLimits);
         handler.section("homing", _homing);
 
@@ -51,6 +51,14 @@ namespace Machine {
         }
     }
 
+    void Axis::config_motors() {
+        for (int motor = 0; motor < Axis::MAX_MOTORS_PER_AXIS; ++motor) {
+            auto mot = _motors[motor];
+            if (mot)
+                mot->config_motor();
+        }
+    }
+
     // Checks if a motor matches this axis:
     bool Axis::hasMotor(const MotorDrivers::MotorDriver* const driver) const {
         for (size_t i = 0; i < MAX_MOTORS_PER_AXIS; i++) {
@@ -79,7 +87,7 @@ namespace Machine {
 
     // returns the offset between the pulloffs
     // value is positive when motor1 has a larger pulloff
-    float Axis::pulloffOffset() { return _motors[1]->_pulloff - _motors[0]->_pulloff; }
+    float Axis::pulloffOffset() { return hasDualMotor() ? _motors[1]->_pulloff - _motors[0]->_pulloff : 0.0f; }
 
     Axis::~Axis() {
         for (size_t i = 0; i < MAX_MOTORS_PER_AXIS; i++) {

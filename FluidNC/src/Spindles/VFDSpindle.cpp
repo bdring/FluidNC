@@ -23,6 +23,7 @@
 #include "../Machine/MachineConfig.h"
 #include "../MotionControl.h"  // mc_reset
 #include "../Protocol.h"       // rtAlarm
+#include "../Report.h"         // hex message
 
 #include <freertos/task.h>
 #include <freertos/queue.h>
@@ -37,23 +38,6 @@ const TickType_t response_ticks       = RESPONSE_WAIT_MS / portTICK_PERIOD_MS;  
 namespace Spindles {
     QueueHandle_t VFD::vfd_cmd_queue     = nullptr;
     TaskHandle_t  VFD::vfd_cmdTaskHandle = nullptr;
-
-#if defined(DEBUG_VFD) || defined(DEBUG_VFD_ALL)
-    // Print a message in hex format
-    //    Example: report_hex_msg(msg, "Rx:", 6);
-    //    would would print something like ... [MSG Rx: 0x01 0x03 0x01 0x08 0x31 0xbf]
-    void VFD::hex_msg(uint8_t* buf, const char* prefix, int len) {
-        char report[200];
-        char temp[20];
-        sprintf(report, "%s", prefix);
-        for (int i = 0; i < len; i++) {
-            sprintf(temp, " 0x%02X", buf[i]);
-            strcat(report, temp);
-        }
-
-        log_info(report);
-    }
-#endif
 
     void VFD::reportParsingErrors(ModbusCommand cmd, uint8_t* rx_message, size_t read_length) {
 #ifdef DEBUG_VFD
@@ -70,7 +54,7 @@ namespace Spindles {
             if (rx_message[0] != id) {
                 log_info("RS485 received message from other modbus device");
             } else if (read_length != cmd.rx_length) {
-                log_info("RS485 received message of unexpected length; expected %d, got %d", int(cmd.rx_length), int(read_length));
+                log_info("RS485 received message of unexpected length; expected:" << int(cmd.rx_length) << " got:" << int(read_length));
             } else {
                 log_info("RS485 CRC check failed");
             }
@@ -117,6 +101,7 @@ namespace Spindles {
                             next_cmd.critical = action.critical;
                             break;
                         case actionSetMode:
+                            log_debug("vfd_cmd_task mode:" << action.action);
                             if (!instance->prepareSetModeCommand(SpindleState(action.arg), next_cmd)) {
                                 continue;  // main loop
                             }
@@ -254,12 +239,12 @@ namespace Spindles {
 
             if (retry_count == MAX_RETRIES) {
                 if (!unresponsive) {
-                    log_info("Spindle RS485 Unresponsive " << next_cmd.rx_length);
+                    log_info("VFD RS485 Unresponsive");
                     unresponsive = true;
                     pollidx      = -1;
                 }
                 if (next_cmd.critical) {
-                    log_error("Critical Spindle RS485 Unresponsive");
+                    log_error("Critical VFD RS485 Unresponsive");
                     mc_reset();
                     rtAlarm = ExecAlarm::SpindleControl;
                 }
@@ -307,21 +292,14 @@ namespace Spindles {
         }
 
         config_message();
+
+        set_mode(SpindleState::Disable, true);
     }
 
     // Checks for all the required pin definitions
     // It returns a message for each missing pin
     // Returns true if all pins are defined.
-    bool VFD::get_pins_and_settings() {
-        bool pins_settings_ok = true;
-
-        if (config->_laserMode) {
-            log_info("VFD spindle disabled in laser mode. Set $GCode/LaserMode=Off and restart");
-            pins_settings_ok = false;
-        }
-
-        return pins_settings_ok;
-    }
+    bool VFD::get_pins_and_settings() { return true; }
 
     void VFD::config_message() { _uart->config_message(name(), " Spindle "); }
 
@@ -333,7 +311,7 @@ namespace Spindles {
         bool critical = (sys.state == State::Cycle || state != SpindleState::Disable);
 
         uint32_t dev_speed = mapSpeed(speed);
-        log_debug("speed " << speed << " dev_speed " << dev_speed);
+        log_debug("RPM:" << speed << " mapped to device units:" << dev_speed);
 
         if (_current_state != state) {
             // Changing state
@@ -347,7 +325,7 @@ namespace Spindles {
                 setSpeed(dev_speed);
             }
         }
-        if (!supports_actual_speed()) {
+        if (use_delay_settings()) {
             spindleDelay(state, speed);
         } else {
             // _sync_dev_speed is set by a callback that handles
@@ -365,7 +343,7 @@ namespace Spindles {
 
             while ((_sync_dev_speed < minSpeedAllowed || _sync_dev_speed > maxSpeedAllowed) && unchanged < limit) {
 #ifdef DEBUG_VFD
-                log_debug("Syncing speed. Requested %d, current %d", int(dev_speed), int(_sync_dev_speed));
+                log_debug("Syncing speed. Requested: " << int(dev_speed) << " current:" << int(_sync_dev_speed));
 #endif
                 if (!mc_dwell(500)) {
                     // Something happened while we were dwelling, like a safety door.
@@ -379,11 +357,11 @@ namespace Spindles {
                 last      = _sync_dev_speed;
             }
 #ifdef DEBUG_VFD
-            log_debug("Synced speed. Requested %d, current %d", int(dev_speed), int(_sync_dev_speed));
+            log_debug("Synced speed. Requested:" << int(dev_speed) << " current:" << int(_sync_dev_speed));
 #endif
 
             if (unchanged == limit) {
-                log_error("Critical Spindle RS485 did not reach speed " << dev_speed << ". Reported speed is " << _sync_dev_speed);
+                log_error(name() << " spindle did not reach device units " << dev_speed << ". Reported value is " << _sync_dev_speed);
                 mc_reset();
                 rtAlarm = ExecAlarm::SpindleControl;
             }
@@ -402,13 +380,14 @@ namespace Spindles {
 
         if (mode == SpindleState::Disable) {
             if (!xQueueReset(vfd_cmd_queue)) {
-                log_info("VFD spindle off, queue could not be reset");
+                log_info(name() << " spindle off, queue could not be reset");
             }
         }
 
         _current_state = mode;
         return true;
     }
+
     void VFD::set_mode(SpindleState mode, bool critical) {
         if (vfd_cmd_queue) {
             VFDaction action;
@@ -449,7 +428,7 @@ namespace Spindles {
         _current_dev_speed = speed;
 
 #ifdef DEBUG_VFD_ALL
-        log_debug("Setting spindle speed to %d", int(speed));
+        log_debug("Setting spindle speed to:" << int(speed));
 #endif
         // Do variant-specific command preparation
         set_speed_command(speed, data);

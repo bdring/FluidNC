@@ -8,11 +8,13 @@
 #    include "../Machine/MachineConfig.h"
 #    include "../Report.h"  // CLIENT_*
 #    include "Commands.h"   // COMMANDS
+#    include "WebSettings.h"
 
 #    include <cstdint>
 
 // SerialBT sends the data over Bluetooth
 namespace WebUI {
+    BTConfig        bt_config;
     BluetoothSerial SerialBT;
 }
 // The instance variable for the BTConfig class is in config->_comms
@@ -101,9 +103,16 @@ namespace WebUI {
     bool BTConfig::begin() {
         instance = this;
 
-        log_debug("Begin");
+        log_debug("Begin Bluetooth setup");
         //stop active services
         end();
+
+        if (!bt_enable->get()) {
+            log_info("Bluetooth not enabled");
+            return false;
+        }
+
+        _btname = bt_name->getStringValue();
 
         log_debug("end");
         if (_btname.length()) {
@@ -127,19 +136,6 @@ namespace WebUI {
      * End WiFi
      */
     void BTConfig::end() { SerialBT.end(); }
-
-    /**
-     * Reset Bluetooth settings
-     * XXX this is not called from anywhere
-     */
-    void BTConfig::reset_settings() {
-        auto bt = config->_comms->_bluetoothConfig;
-        if (bt) {
-            delete bt;
-            config->_comms->_bluetoothConfig = nullptr;
-        }
-        log_info("BT reset done");
-    }
 
     /**
      * Check if BT is on and working

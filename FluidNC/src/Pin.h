@@ -14,8 +14,6 @@
 #include <utility>
 #include "Assert.h"
 
-// TODO: ENABLE_CONTROL_SW_DEBOUNCE should end up here with a shared task.
-
 // #define DEBUG_PIN_DUMP  // Pin debugging. WILL spam you with a lot of data!
 
 // Forward declarations:
@@ -105,7 +103,7 @@ public:
     // External libraries normally use digitalWrite, digitalRead and setMode. Since we cannot handle that behavior, we
     // just give back the pinnum_t for getNative.
     inline pinnum_t getNative(Capabilities expectedBehavior) const {
-        Assert(_detail->capabilities().has(expectedBehavior), "Requested pin does not have the expected behavior.");
+        Assert(_detail->capabilities().has(expectedBehavior), "Requested pin %s does not have the expected behavior.",name().c_str());
         return _detail->_index;
     }
 

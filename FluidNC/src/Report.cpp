@@ -30,6 +30,7 @@
 #include "WebUI/WifiConfig.h"            // wifi_config
 #include "WebUI/TelnetServer.h"          // WebUI::telnet_server
 #include "WebUI/BTConfig.h"              // bt_config
+#include "WebUI/WebSettings.h"
 
 #include <map>
 #include <freertos/task.h>
@@ -206,7 +207,7 @@ void report_feedback_message(Message message) {  // ok to send to all clients
 #include "Uart.h"
 // Welcome message
 void report_init_message(Print& client) {
-    client << "\r\nGrbl " << GRBL_VERSION << " [FluidNC " << GIT_TAG << GIT_REV << " (";
+    client << "\r\nGrbl " << grbl_version << " [FluidNC " << git_info << " (";
 
 #if defined(ENABLE_WIFI) || defined(ENABLE_BLUETOOTH)
 #    ifdef ENABLE_WIFI
@@ -405,20 +406,17 @@ void report_gcode_modes(Print& client) {
 
 // Prints build info line
 void report_build_info(const char* line, Print& client) {
-    client << "[VER:FluidNC " << GIT_TAG << GIT_REV << ":" << line << "]\n";
+    client << "[VER:FluidNC " << git_info << ":" << line << "]\n";
     client << "[OPT:";
     if (config->_coolant->hasMist()) {
         client << "M";  // TODO Need to deal with M8...it could be disabled
     }
     client << "PH";
-    if (config->_limitsTwoSwitchesOnAxis) {
-        client << "L";
-    }
     if (ALLOW_FEED_OVERRIDE_DURING_PROBE_CYCLES) {
         client << "A";
     }
 #ifdef ENABLE_BLUETOOTH
-    if (config->_comms->_bluetoothConfig) {
+    if (WebUI::bt_enable->get()) {
         client << "B";
     }
 #endif
@@ -446,12 +444,8 @@ void report_build_info(const char* line, Print& client) {
     }
 #endif
 #ifdef ENABLE_BLUETOOTH
-    if (config->_comms->_bluetoothConfig) {
-        String btinfo = config->_comms->_bluetoothConfig->info();
-        if (btinfo.length()) {
-            client << "[MSG: Machine: " << btinfo << "]\n";
-            ;
-        }
+    if (WebUI::bt_enable->get()) {
+        client << "[MSG: Machine: " << WebUI::bt_config.info() << "]\n";
     }
 #endif
 }
@@ -486,7 +480,7 @@ static float* get_wco() {
     return wco;
 }
 
-static void mpos_to_wpos(float* position) {
+void mpos_to_wpos(float* position) {
     float* wco    = get_wco();
     auto   n_axis = config->_axes->_numberAxis;
     for (int idx = 0; idx < n_axis; idx++) {
@@ -494,7 +488,7 @@ static void mpos_to_wpos(float* position) {
     }
 }
 
-static const char* state_name() {
+const char* state_name() {
     switch (sys.state) {
         case State::Idle:
             return "Idle";
@@ -664,15 +658,27 @@ void report_realtime_status(Print& client) {
     }
     if (config->_sdCard->get_state() == SDCard::State::BusyPrinting) {
         // XXX WMB FORMAT 4.2f
-        client << "|SD:" << config->_sdCard->report_perc_complete() << "," << config->_sdCard->filename();
+        client << "|SD:" << config->_sdCard->percent_complete() << "," << config->_sdCard->filename();
     }
 #ifdef DEBUG_STEPPER_ISR
-    client << "|ISRs:" << Stepper::isr_count;
+    client << "|ISRs:" << config->_stepping->isr_count;
 #endif
 #ifdef DEBUG_REPORT_HEAP
     client << "|Heap:" << esp.getHeapSize();
 #endif
     client << ">\n";
+}
+
+void hex_msg(uint8_t* buf, const char* prefix, int len) {
+    char report[200];
+    char temp[20];
+    sprintf(report, "%s", prefix);
+    for (int i = 0; i < len; i++) {
+        sprintf(temp, " 0x%02X", buf[i]);
+        strcat(report, temp);
+    }
+
+    log_info(report);
 }
 
 void reportTaskStackSize(UBaseType_t& saved) {

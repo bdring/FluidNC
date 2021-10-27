@@ -14,11 +14,11 @@ namespace Machine {
         _negLimitPin = new LimitPin(_negPin, _axis, _motorNum, -1, _hardLimits);
         _posLimitPin = new LimitPin(_posPin, _axis, _motorNum, 1, _hardLimits);
         _allLimitPin = new LimitPin(_allPin, _axis, _motorNum, 0, _hardLimits);
-        handler.item("limit_neg", _negPin);
-        handler.item("limit_pos", _posPin);
-        handler.item("limit_all", _allPin);
+        handler.item("limit_neg_pin", _negPin);
+        handler.item("limit_pos_pin", _posPin);
+        handler.item("limit_all_pin", _allPin);
         handler.item("hard_limits", _hardLimits);
-        handler.item("pulloff", _pulloff);
+        handler.item("pulloff_mm", _pulloff);
         MotorDrivers::MotorFactory::factory(handler, _driver);
     }
 
@@ -37,6 +37,12 @@ namespace Machine {
         _negLimitPin->init();
         _posLimitPin->init();
         _allLimitPin->init();
+    }
+
+    void Motor::config_motor() {
+        if (_driver != nullptr) {
+            _driver->config_motor();
+        }
     }
 
     // tru if there is at least one switch for this motor

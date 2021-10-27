@@ -13,6 +13,20 @@
 namespace Spindles {
     // This is for an on/off spindle all RPMs above 0 are on
     class OnOff : public Spindle {
+    protected:
+        // This includes all items except direction_pin.  direction_pin applies
+        // to most but not all of OnOff's derived classes.  Derived classes that
+        // do not support direction_pin can invoke OnOff::groupCommon() instead
+        // of OnOff::group()
+        void groupCommon(Configuration::HandlerBase& handler) {
+            handler.item("output_pin", _output_pin);
+            handler.item("enable_pin", _enable_pin);
+            handler.item("disable_with_s0", _disable_with_zero_speed);
+            handler.item("s0_with_disable", _zero_speed_with_disable);
+
+            Spindle::group(handler);
+        }
+
     public:
         OnOff() = default;
 
@@ -35,13 +49,8 @@ namespace Spindles {
         void validate() const override { Spindle::validate(); }
 
         void group(Configuration::HandlerBase& handler) override {
-            handler.item("output_pin", _output_pin);
-            handler.item("enable_pin", _enable_pin);
             handler.item("direction_pin", _direction_pin);
-            handler.item("disable_with_zero_speed", _disable_with_zero_speed);
-            handler.item("zero_speed_with_disable", _zero_speed_with_disable);
-
-            Spindle::group(handler);
+            groupCommon(handler);
         }
 
         virtual ~OnOff() {}

@@ -210,8 +210,8 @@ enum GCParserFlags {
     GCParserProbeIsAway    = bitnum_to_mask(3),
     GCParserProbeIsNoError = bitnum_to_mask(4),
     GCParserLaserForceSync = bitnum_to_mask(5),
-    GCParserLaserDisable   = bitnum_to_mask(6),
-    GCParserLaserIsMotion  = bitnum_to_mask(7),
+    GCParserLaserDisable   = bitnum_to_mask(6), // disable laser when motion stops
+    GCParserLaserIsMotion  = bitnum_to_mask(7), // 
 };
 
 // Various places in the code access saved coordinate system data

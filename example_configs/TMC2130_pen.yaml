@@ -9,36 +9,36 @@ stepping:
   disable_delay_us: 0
 
 axes:
-  shared_stepper_disable: gpio.13:high
+  shared_stepper_disable_pin: gpio.13:high
   
   x:
     steps_per_mm: 800
-    max_rate: 2000
-    acceleration: 25
-    max_travel: 1000
+    max_rate_mm_per_min: 2000
+    acceleration_mm_per_sec2: 25
+    max_travel_mm: 1000
     soft_limits: false
     homing:
       cycle: 2
       positive_direction: false
-      mpos: 150.000
-      feed_rate: 100.000
-      seek_rate: 200.000
+      mpos_mm: 150.000
+      feed_mm_per_min: 100.000
+      seek_mm_per_min: 200.000
       debounce_ms: 500
       seek_scaler: 1.100
       feed_scaler: 1.100
     
     motor0:
-      limit_all: gpio.32:low:pu
+      limit_all_pin: gpio.32:low:pu
       tmc_2130:
-        direction: gpio.26
-        step: gpio.12
-        cs: gpio.17
-        r_sense: 0.110
-        run_current: 0.250
-        hold_current: 0.250
+        direction_pin: gpio.26
+        step_pin: gpio.12
+        cs_pin: gpio.17
+        r_sense_ohms: 0.110
+        run_amps: 0.250
+        hold_amps: 0.250
         microsteps: 32
         stallguard: 0
-        stallguardDebugMode: false
+        stallguard_debug: false
         toff_disable: 0
         toff_stealthchop: 5
         toff_coolstep: 3
@@ -50,32 +50,32 @@ axes:
 
   y:
     steps_per_mm: 800
-    max_rate: 2000
-    acceleration: 25
-    max_travel: 1000
+    max_rate_mm_per_min: 2000
+    acceleration_mm_per_sec2: 25
+    max_travel_mm: 1000
     soft_limits: false
     homing:
       cycle: 2
       positive_direction: false
-      mpos: 150.000
-      feed_rate: 100.000
-      seek_rate: 200.000
+      mpos_mm: 150.000
+      feed_mm_per_min: 100.000
+      seek_mm_per_min: 200.000
       debounce_ms: 500
       seek_scaler: 1.100
       feed_scaler: 1.100
 
     motor0:
-      limit_all: NO_PIN
+      limit_all_pin: NO_PIN
       tmc_2130:
-        direction: gpio.25
-        step: gpio.14
-        cs: gpio.16
-        r_sense: 0.110
-        run_current: 0.250
-        hold_current: 0.250
+        direction_pin: gpio.25
+        step_pin: gpio.14
+        cs_pin: gpio.16
+        r_sense_ohms: 0.110
+        run_amps: 0.250
+        hold_amps: 0.250
         microsteps: 32
         stallguard: 0
-        stallguardDebugMode: false
+        stallguard_debug: false
         toff_disable: 0
         toff_stealthchop: 5
         toff_coolstep: 3
@@ -87,44 +87,39 @@ axes:
 
   z:
     steps_per_mm: 400
-    max_rate: 1000
-    acceleration: 50
-    max_travel: 5.00
+    max_rate_mm_per_min: 1000
+    acceleration_mm_per_sec2: 50
+    max_travel_mm: 5.00
     soft_limits: false
     homing:
       cycle: 1
       positive_direction: true
-      mpos: 5
-      feed_rate: 100.000
-      seek_rate: 200.000
+      mpos_mm: 5
+      feed_mm_per_min: 100.000
+      seek_mm_per_min: 200.000
       debounce_ms: 500
       seek_scaler: 1.100
       feed_scaler: 1.100
     
     motor0:
       rc_servo:
-        pwm_freq: 50
+        pwm_hz: 50
         output_pin: gpio.27
         min_pulse_us: 2100
         max_pulse_us: 1000
         
 spi:
-  miso: gpio.19
-  mosi: gpio.23
-  sck: gpio.18
+  miso_pin: gpio.19
+  mosi_pin: gpio.23
+  sck_pin: gpio.18
 
 sdcard:
-  cs: gpio.5
-  card_detect: NO_PIN
+  cs_pin: gpio.5
+  card_detect_pin: NO_PIN
 
 coolant:
   flood: NO_PIN
   mist:  NO_PIN
-
-comms:
-  wifi_ap:
-    ip_address: "192.168.0.1"
-    ssid: FluidNC
 
 probe:
   pin: NO_PIN

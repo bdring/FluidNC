@@ -9,100 +9,87 @@ stepping:
   disable_delay_us: 0
 
 axes:
-  shared_stepper_disable: gpio.13:low
+  shared_stepper_disable_pin: gpio.13:low
   
   x:
     steps_per_mm: 800
-    max_rate: 2000
-    acceleration: 25
-    max_travel: 1000
+    max_rate_mm_per_min: 2000
+    acceleration_mm_per_sec2: 25
+    max_travel_mm: 1000
     homing:
       cycle: 2
-      mpos: 10
+      mpos_mm: 10
       positive_direction: false
     
     motor0:
-      limit_all: gpio.17:low:pu
+      limit_all_pin: gpio.17:low:pu
       stepstick:
-        direction: gpio.14
-        step: gpio.12
+        direction_pin: gpio.14
+        step_pin: gpio.12
     motor1:
       null_motor:
 
   y:
     steps_per_mm: 800
-    max_rate: 2000
-    acceleration: 25
-    max_travel: 1000
+    max_rate_mm_per_min: 2000
+    acceleration_mm_per_sec2: 25
+    max_travel_mm: 1000
     homing:
       cycle: 2
-      mpos: 10
+      mpos_mm: 10
       positive_direction: false
 
     motor0:
-      limit_all: gpio.4:low:pu
+      limit_all_pin: gpio.4:low:pu
       stepstick:
-        direction: gpio.15
-        step: gpio.26
+        direction_pin: gpio.15
+        step_pin: gpio.26
     motor1:
       null_motor:
 
   z:
     steps_per_mm: 800
-    max_rate: 2000
-    acceleration: 25
-    max_travel: 1000
+    max_rate_mm_per_min: 2000
+    acceleration_mm_per_sec2: 25
+    max_travel_mm: 1000
     homing:
       cycle: 1
-      mpos: 10
+      mpos_mm: 10
       positive_direction: true
 
     motor0:
-      limit_all: gpio.16:low:pu
+      limit_all_pin: gpio.16:low:pu
       stepstick:
-        direction: gpio.33
-        step: gpio.27
+        direction_pin: gpio.33
+        step_pin: gpio.27
     motor1:
       null_motor:
 
 spi:
-  miso: gpio.19
-  mosi: gpio.23
-  sck: gpio.18
+  miso_pin: gpio.19
+  mosi_pin: gpio.23
+  sck_pin: gpio.18
 
 sdcard:
-  cs: gpio.5
-  card_detect: NO_PIN
+  cs_pin: gpio.5
+  card_detect_pin: NO_PIN
 
 coolant:
-  flood: gpio.25
-  mist:  gpio.21
+  flood_pin: gpio.25
+  mist_pin:  gpio.21
 
-comms:
-  telnet_enable: true
-  telnet_port: 23
-  http_enable: true
-  http_port: 80
-  hostname: fluidnc
-  wifi_ap:
-    ssid: FluidNC
-    ip_address: 10.0.0.1
-    gateway: 10.0.0.1
-    netmask: 255.255.0.0
-    dhcp: true
-    channel: 1
         
 probe:
   pin: gpio.32:low:pu
 
 PWM:
-  pwm_freq: 5000
+  pwm_hz: 5000
   output_pin: gpio.2
   enable_pin: gpio.22
   direction_pin: NO_PIN
-  disable_with_zero_speed: false
-  zero_speed_with_disable: true
+  disable_with_s0: false
+  s0_with_disable: true
   spinup_ms: 0
   spindown_ms: 0
-  tool: 0
-  speeds: 0=0% 10000=100%
+  tool_num: 0
+  speed_map: 0=0% 10000=100%
