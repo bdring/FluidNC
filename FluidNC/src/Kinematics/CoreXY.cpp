@@ -146,6 +146,11 @@ namespace Kinematics {
                 if (approach) {
                     throw ExecAlarm::HomingFailApproach;
                 }
+                if (bitnum_is_true((Machine::Axes::posLimitMask | Machine::Axes::negLimitMask), axis)) {
+                    // Homing failure: Limit switch still engaged after pull-off motion
+                    throw ExecAlarm::HomingFailPulloff;
+                }
+
                 switch_touch = true;  // used to break out of the do loop
             }
         } while (!switch_touch);
