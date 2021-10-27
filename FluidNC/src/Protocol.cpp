@@ -15,7 +15,6 @@
 #include "Planner.h"        // plan_get_current_block
 #include "MotionControl.h"  // PARKING_MOTION_LINE_NUMBER
 #include "Settings.h"       // settings_execute_startup
-#include "SDCard.h"         // SDCard::State
 
 #ifdef DEBUG_REPORT_REALTIME
 volatile bool rtExecDebug;
