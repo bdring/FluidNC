@@ -274,34 +274,36 @@ static Error home_b(const char* value, WebUI::AuthenticationLevel auth_level, Pr
 static Error home_c(const char* value, WebUI::AuthenticationLevel auth_level, Print& out) {
     return home(bitnum_to_mask(C_AXIS));
 }
-static void write_limit_set(uint32_t mask) {
+static void write_limit_set(uint32_t mask, Print& out) {
     const char* motor0AxisName = "xyzabc";
     for (int i = 0; i < MAX_N_AXIS; i++) {
-        Uart0.write(bitnum_is_true(mask, i) ? char(motor0AxisName[i]) : ' ');
+        out.write(bitnum_is_true(mask, i) ? char(motor0AxisName[i]) : ' ');
     }
     const char* motor1AxisName = "XYZABC";
     for (int i = 0; i < MAX_N_AXIS; i++) {
-        Uart0.write(bitnum_is_true(mask, i + 16) ? char(motor1AxisName[i]) : ' ');
+        out.write(bitnum_is_true(mask, i + 16) ? char(motor1AxisName[i]) : ' ');
     }
 }
 static Error show_limits(const char* value, WebUI::AuthenticationLevel auth_level, Print& out) {
-    Uart0.print("Send ! to exit\n");
-    Uart0.print("Homing Axes: ");
-    write_limit_set(Machine::Axes::homingMask);
-    Uart0.write('\n');
-    Uart0.print("Limit  Axes: ");
-    write_limit_set(Machine::Axes::limitMask);
-    Uart0.write('\n');
-    Uart0.print("PosLimitPins NegLimitPins\n");
+    out.print("Send ! to exit\n");
+    out.print("Homing Axes: ");
+    write_limit_set(Machine::Axes::homingMask, out);
+    out.write('\n');
+    out.print("Limit  Axes: ");
+    write_limit_set(Machine::Axes::limitMask, out);
+    out.write('\n');
+    out.print("  PosLimitPins NegLimitPins\n");
     do {
-        write_limit_set(Machine::Axes::posLimitMask);
-        Uart0.write(' ');
-        write_limit_set(Machine::Axes::negLimitMask);
-        Uart0.write('\n');
-        vTaskDelay(500);
+        out.write(": ");  // Prevents WebUI from suppressing an empty line
+        write_limit_set(Machine::Axes::posLimitMask, out);
+        out.write(' ');
+        write_limit_set(Machine::Axes::negLimitMask, out);
+        out.print("\r\n");
+        vTaskDelay(500);  // Delay for a reasonable repeat rate
+        pollClients();
     } while (!rtFeedHold);
     rtFeedHold = false;
-    Uart0.write('\n');
+    out.write('\n');
     return Error::Ok;
 }
 static Error go_to_sleep(const char* value, WebUI::AuthenticationLevel auth_level, Print& out) {
