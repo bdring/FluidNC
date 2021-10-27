@@ -55,5 +55,7 @@ namespace Machine {
         _allLimitPin->makeDualMask();
     }
 
+    bool Motor::isReal() { return _driver->isReal(); }
+
     Motor::~Motor() { delete _driver; }
 }

@@ -39,6 +39,7 @@ namespace Machine {
         void group(Configuration::HandlerBase& handler) override;
         void afterParse() override;
         bool hasSwitches();
+        bool isReal();
         void makeDualSwitches();
         void init();
         void config_motor();
