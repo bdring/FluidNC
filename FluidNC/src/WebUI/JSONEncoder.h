@@ -23,6 +23,8 @@ namespace WebUI {
         void   line();
         Print* stream;
 
+        String category;
+
     public:
         // If you don't set _pretty it defaults to false
         JSONencoder();
@@ -35,6 +37,8 @@ namespace WebUI {
 
         // begin() starts the encoding process.
         void begin();
+
+        void setCategory(const char* cat) { category = cat; }
 
         // end() returns the encoded string
         String end();
