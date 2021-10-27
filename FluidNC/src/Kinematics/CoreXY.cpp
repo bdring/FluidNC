@@ -14,7 +14,6 @@ Default configuration
 kinematics:
   CoreXY:
     x_scaler: 1
-    y_scaler: 1
 
 Scaling factors are made for midTbot type machines.
 
@@ -28,18 +27,13 @@ TODO: If touching back off
 */
 
 namespace Kinematics {
-    void CoreXY::group(Configuration::HandlerBase& handler) {
-        handler.item("x_scaler", _x_scaler);
-        handler.item("y_scaler", _y_scaler);
-
-        handler.item("segment_length", _segment_length);
-    }
+    void CoreXY::group(Configuration::HandlerBase& handler) { handler.item("x_scaler", _x_scaler); }
 
     void CoreXY::init() {
-        log_info("Kinematic system: " << name());
-        // only print scalers if not default values
-        if (_x_scaler != 1.0 || _y_scaler != 1.0) {
-            log_info(name() << " x scaler:" << _x_scaler << " y_scaler:" << _y_scaler);
+        if (_x_scaler == 1.0) {
+            log_info("Kinematic system: " << name());
+        } else {
+            log_info("Kinematic system: " << name() << " x scaler:");
         }
     }
 
@@ -49,8 +43,6 @@ namespace Kinematics {
         float*  target = get_mpos();
         float   dist   = 0;
         uint8_t axis   = X_AXIS;
-
-        //log_info(name() << " plan_homing_move approach: " << approach << " seek:" << seek);
 
         if (bitnum_is_true(axisMask, Y_AXIS)) {
             axis = Y_AXIS;
@@ -92,11 +84,6 @@ namespace Kinematics {
         (axis == X_AXIS) ? move_to[X_AXIS] = dist : move_to[Y_AXIS] = dist;
 
         transform_cartesian_to_motors(target, move_to);
-
-        //log_info("From:" << motor_steps[X_AXIS] << ", " << motor_steps[Y_AXIS]);
-        //log_info("To:" << move_to[X_AXIS] << ", " << move_to[Y_AXIS]);
-
-        //log_info(name() << " plan move axis: " << axis << " dist:" << dist << " rate:" << rate);
 
         plan_line_data_t plan_data;
         plan_data.spindle_speed         = 0;
@@ -153,6 +140,7 @@ namespace Kinematics {
 
                 switch_touch = true;  // used to break out of the do loop
             }
+            pollClients();
         } while (!switch_touch);
 
         Stepper::reset();  // Immediately force kill steppers and reset step segment buffer.
@@ -318,10 +306,6 @@ namespace Kinematics {
     void CoreXY::motors_to_cartesian(float* cartesian, float* motors, int n_axis) {
         // apply the forward kinemetics to the machine coordinates
         // https://corexy.com/theory.html
-        //calc_fwd[X_AXIS] = 0.5 / geometry_factor * (position[X_AXIS] + position[Y_AXIS]);
-
-        //log_info("motors_to_cartesian position (" << motors[X_AXIS] << "," << motors[Y_AXIS] << ")");
-
         cartesian[X_AXIS] = 0.5 * (motors[X_AXIS] + motors[Y_AXIS]);
         cartesian[Y_AXIS] = 0.5 * (motors[X_AXIS] - motors[Y_AXIS]);
 
@@ -334,22 +318,21 @@ namespace Kinematics {
       limitsCheckTravel() is called to check soft limits
       It returns true if the motion is outside the limit values
     */
-    bool CoreXY::limitsCheckTravel(float* target) {
-        auto  axes   = config->_axes;
-        auto  n_axis = config->_axes->_numberAxis;
-        float cartesian[n_axis];
+    // bool CoreXY::limitsCheckTravel(float* target) {
+    //     auto axes   = config->_axes;
+    //     auto n_axis = config->_axes->_numberAxis;
 
-        // Convert to cartesian then check
-        motors_to_cartesian(cartesian, target, 0);
+    //     float cartesian[n_axis];
+    //     motors_to_cartesian(cartesian, target, 0);  // Convert to cartesian then check
 
-        for (int axis = 0; axis < n_axis; axis++) {
-            auto axisSetting = axes->_axis[axis];
-            if ((cartesian[axis] < limitsMinPosition(axis) || cartesian[axis] > limitsMaxPosition(axis)) && axisSetting->_maxTravel > 0) {
-                return true;
-            }
-        }
-        return false;
-    }
+    //     for (int axis = 0; axis < n_axis; axis++) {
+    //         auto axisSetting = axes->_axis[axis];
+    //         if ((cartesian[axis] < limitsMinPosition(axis) || cartesian[axis] > limitsMaxPosition(axis)) && axisSetting->_maxTravel > 0) {
+    //             return true;
+    //         }
+    //     }
+    //     return false;
+    // }
 
     /*
     Kinematic equations
