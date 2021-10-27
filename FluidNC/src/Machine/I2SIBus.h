@@ -13,12 +13,11 @@ namespace Machine {
     class I2SIBus : public Configuration::Configurable {
         // A Serial Input Bus for I2SI pins using 74HC165 or similar.
         // Supports upto 32 inputs using 3 ESP32 Native pins.
-        // Optionally uses I2SInput and real interrupts (2000 times per second)
-        // or a task and shiftIn() to poll the 74HC165 100 times per second.
+        // Uses I2SInput and real interrupts (2000 times per second)
+        // or an optional task and shiftIn() to poll the 74HC165 100 times per second.
         // Clients call "value()" to get the most recent state.
         // In conjunction with I2SIPinDetail, can emulate/implement ISR's with
-        // attachFakeInterrupt() and detachFakeInterrupt() calls,
-        // which are real if .
+        // attachInterrupt() and detachInterrupt() calls,
 
     public:
 
