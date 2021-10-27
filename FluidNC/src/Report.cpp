@@ -661,7 +661,7 @@ void report_realtime_status(Print& client) {
         client << "|SD:" << config->_sdCard->percent_complete() << "," << config->_sdCard->filename();
     }
 #ifdef DEBUG_STEPPER_ISR
-    client << "|ISRs:" << Stepper::isr_count;
+    client << "|ISRs:" << config->_stepping->isr_count;
 #endif
 #ifdef DEBUG_REPORT_HEAP
     client << "|Heap:" << esp.getHeapSize();
