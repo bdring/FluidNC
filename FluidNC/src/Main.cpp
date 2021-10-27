@@ -69,13 +69,13 @@ void setup() {
             }
             if (config->_spi) {
                 config->_spi->init();
-
-                if (config->_sdCard != nullptr) {
-                    config->_sdCard->init();
-                }
+            }
+            if (config->_sdCard != nullptr) {
+                config->_sdCard->init();
             }
             if (config->_i2si) {
                 config->_i2si->init();
+            }
 
             Stepper::init();  // Configure stepper pins and interrupt timers
 
