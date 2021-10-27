@@ -82,7 +82,7 @@ namespace Machine {
 
         String _board = "None";
         String _name  = "None";
-
+        String _meta  = "";
 #if 1
         static MachineConfig*& instance() {
             static MachineConfig* instance = nullptr;
