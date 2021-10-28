@@ -338,6 +338,7 @@ GCUpdatePos mc_probe_cycle(float* target, plan_line_data_t* pl_data, uint8_t par
             config->_stepping->endLowLatency();
             return GCUpdatePos::None;  // Check for system abort
         }
+        pollClients();
     } while (sys.state != State::Idle);
 
     config->_stepping->endLowLatency();
