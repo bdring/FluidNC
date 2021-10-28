@@ -71,7 +71,7 @@ namespace Machine {
     }
 
     // Does this axis have 2 motors?
-    bool Axis::hasDualMotor() { return _motors[0] && _motors[1]; }
+    bool Axis::hasDualMotor() { return _motors[0] && _motors[0]->isReal() && _motors[1] && _motors[1]->isReal(); }
 
     // How many motors have switches defined?
     int Axis::motorsWithSwitches() {

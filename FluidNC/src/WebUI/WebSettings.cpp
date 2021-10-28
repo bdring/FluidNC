@@ -637,11 +637,13 @@ namespace WebUI {
         j.begin_array("EEPROM");
 
         // NVS settings
+        j.setCategory("nvs");
         for (Setting* js = Setting::List; js; js = js->next()) {
             js->addWebui(&j);
         }
 
         // Configuration tree
+        j.setCategory("tree");
         Configuration::JsonGenerator gen(j);
         config->group(gen);
 

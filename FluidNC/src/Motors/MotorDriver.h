@@ -95,6 +95,9 @@ namespace MotorDrivers {
         // Name is required for the configuration factory to work.
         virtual const char* name() const = 0;
 
+        // Test for a real motor as opposed to a NullMotor placeholder
+        virtual bool isReal() { return true; }
+
         // Virtual base classes require a virtual destructor.
         virtual ~MotorDriver() {}
 
