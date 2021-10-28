@@ -66,6 +66,7 @@ void limits_soft_check(float* target) {
                     return;
                 }
             } while (sys.state != State::Idle);
+            pollClients();
         }
         log_debug("Soft limits");
         mc_reset();                      // Issue system reset and ensure spindle and coolant are shutdown.
