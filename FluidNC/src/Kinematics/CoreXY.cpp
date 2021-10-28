@@ -27,15 +27,9 @@ TODO: If touching back off
 */
 
 namespace Kinematics {
-    void CoreXY::group(Configuration::HandlerBase& handler) { handler.item("x_scaler", _x_scaler); }
+    void CoreXY::group(Configuration::HandlerBase& handler) {}
 
-    void CoreXY::init() {
-        if (_x_scaler == 1.0) {
-            log_info("Kinematic system: " << name());
-        } else {
-            log_info("Kinematic system: " << name() << " x scaler:");
-        }
-    }
+    void CoreXY::init() { log_info("Kinematic system: " << name()); }
 
     // plan a homing mve in motor space for the homing sequence
     void CoreXY::plan_homing_move(AxisMask axisMask, bool approach, bool seek) {
@@ -192,7 +186,7 @@ namespace Kinematics {
         // run cycles
         for (int cycle = 1; cycle <= MAX_N_AXIS; cycle++) {
             AxisMask axisMask = Machine::Homing::axis_mask_from_cycle(cycle);
-            
+
             if (!axisMask)
                 continue;
 
@@ -212,7 +206,7 @@ namespace Kinematics {
                         rtAlarm = alarm;
                         config->_axes->set_homing_mode(axisMask, false);  // tell motors homing is done...failed
                         log_error("Homing fail");
-                        mc_reset();  // Stop motors, if they are running.                        
+                        mc_reset();                   // Stop motors, if they are running.
                         protocol_execute_realtime();  // handle any pending rtXXX conditions
                         return true;
                     }
@@ -314,7 +308,7 @@ namespace Kinematics {
     void CoreXY::motors_to_cartesian(float* cartesian, float* motors, int n_axis) {
         // apply the forward kinemetics to the machine coordinates
         // https://corexy.com/theory.html
-        cartesian[X_AXIS] = 0.5 * (motors[X_AXIS] + motors[Y_AXIS]);
+        cartesian[X_AXIS] = 0.5 * (motors[X_AXIS] + motors[Y_AXIS]) / _x_scaler;
         cartesian[Y_AXIS] = 0.5 * (motors[X_AXIS] - motors[Y_AXIS]);
 
         for (int axis = Z_AXIS; axis < n_axis; axis++) {
@@ -326,8 +320,8 @@ namespace Kinematics {
     Kinematic equations
     */
     void CoreXY::transform_cartesian_to_motors(float* motors, float* cartesian) {
-        motors[X_AXIS] = cartesian[X_AXIS] + cartesian[Y_AXIS];
-        motors[Y_AXIS] = cartesian[X_AXIS] - cartesian[Y_AXIS];
+        motors[X_AXIS] = (_x_scaler * cartesian[X_AXIS]) + cartesian[Y_AXIS];
+        motors[Y_AXIS] = (_x_scaler * cartesian[X_AXIS]) - cartesian[Y_AXIS];
 
         auto n_axis = config->_axes->_numberAxis;
         for (uint8_t axis = Z_AXIS; axis <= n_axis; axis++) {
