@@ -59,7 +59,7 @@ private:
     Pin                        _cardDetect;
     Pin                        _cs;
     SDCard::State              test_or_open(bool refresh);
-    Stream&                    _client;
+    Stream&                    _channel;
     WebUI::AuthenticationLevel _auth_level;
 
 public:
@@ -73,15 +73,15 @@ public:
     SDCard::State begin(SDCard::State newState);
     void          end();
 
-    void     listDir(fs::FS& fs, const char* dirname, size_t levels, Stream& client);
-    bool     openFile(fs::FS& fs, const char* path, Stream& client, WebUI::AuthenticationLevel auth_level);
+    void     listDir(fs::FS& fs, const char* dirname, size_t levels, Stream& channel);
+    bool     openFile(fs::FS& fs, const char* path, Stream& channel, WebUI::AuthenticationLevel auth_level);
     bool     closeFile();
     Error    readFileLine(char* line, int len);
     float    percent_complete();
     uint32_t lineNumber();
     void     afterParse() override;
 
-    Stream&                    getClient() { return _client; }
+    Stream&                    getChannel() { return _channel; }
     WebUI::AuthenticationLevel getAuthLevel() { return _auth_level; }
 
     const char* filename();

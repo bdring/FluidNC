@@ -300,7 +300,7 @@ static Error show_limits(const char* value, WebUI::AuthenticationLevel auth_leve
         write_limit_set(Machine::Axes::negLimitMask, out);
         out.print("\r\n");
         vTaskDelay(500);  // Delay for a reasonable repeat rate
-        pollClients();
+        pollChannels();
     } while (!rtFeedHold);
     rtFeedHold = false;
     out.write('\n');
@@ -778,7 +778,7 @@ void settings_execute_startup() {
     }
 }
 
-Error execute_line(char* line, Stream& client, WebUI::AuthenticationLevel auth_level) {
+Error execute_line(char* line, Stream& channel, WebUI::AuthenticationLevel auth_level) {
     Error result = Error::Ok;
     // Empty or comment line. For syncing purposes.
     if (line[0] == 0) {
@@ -786,11 +786,11 @@ Error execute_line(char* line, Stream& client, WebUI::AuthenticationLevel auth_l
     }
     // User '$' or WebUI '[ESPxxx]' command
     if (line[0] == '$' || line[0] == '[') {
-        return settings_execute_line(line, client, auth_level);
+        return settings_execute_line(line, channel, auth_level);
     }
     // Everything else is gcode. Block if in alarm or jog mode.
     if (sys.state == State::Alarm || sys.state == State::ConfigAlarm || sys.state == State::Jog) {
         return Error::SystemGcLock;
     }
-    return gc_execute_line(line, client);
+    return gc_execute_line(line, channel);
 }

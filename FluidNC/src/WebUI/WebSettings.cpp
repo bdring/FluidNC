@@ -284,7 +284,7 @@ namespace WebUI {
         //until no line in file
         Error   err;
         Error   accumErr = Error::Ok;
-        Stream& out      = webresponse ? *webresponse : allClients;
+        Stream& out      = webresponse ? *webresponse : allChannels;
         while (currentfile.available()) {
             String currentline = currentfile.readStringUntil('\n');
             if (currentline.length() > 0) {
@@ -519,7 +519,7 @@ namespace WebUI {
                 tcpip_adapter_sta_list_t tcpip_sta_list;
                 esp_wifi_ap_get_sta_list(&station);
                 tcpip_adapter_get_sta_list(&station, &tcpip_sta_list);
-                webPrintln("Connected clients: ", String(station.num));
+                webPrintln("Connected channels: ", String(station.num));
 
                 for (int i = 0; i < station.num; i++) {
                     webPrint(wifi_config.mac2str(tcpip_sta_list.sta[i].mac));
@@ -653,7 +653,7 @@ namespace WebUI {
         return Error::Ok;
     }
 
-    static Error openSDFile(char* parameter, Stream& client, AuthenticationLevel auth_level) {
+    static Error openSDFile(char* parameter, Stream& channel, AuthenticationLevel auth_level) {
         if (*parameter == '\0') {
             webPrintln("Missing file name!");
             return Error::InvalidValue;
@@ -673,8 +673,8 @@ namespace WebUI {
                 return Error::FsFailedBusy;
         }
 
-        if (!config->_sdCard->openFile(SD, path.c_str(), client, auth_level)) {
-            report_status_message(Error::FsFailedRead, client);
+        if (!config->_sdCard->openFile(SD, path.c_str(), channel, auth_level)) {
+            report_status_message(Error::FsFailedRead, channel);
             webPrintln("");
             return Error::FsFailedOpenFile;
         }
@@ -686,8 +686,8 @@ namespace WebUI {
             return Error::IdleError;
         }
         Error   err;
-        Stream& client = (webresponse) ? *webresponse : allClients;
-        if ((err = openSDFile(parameter, client, auth_level)) != Error::Ok) {
+        Stream& channel = (webresponse) ? *webresponse : allChannels;
+        if ((err = openSDFile(parameter, channel, auth_level)) != Error::Ok) {
             return err;
         }
         webPrint(dataBeginMarker);
@@ -714,8 +714,8 @@ namespace WebUI {
             webPrintln("Busy");
             return Error::IdleError;
         }
-        Stream& client = (webresponse) ? *webresponse : allClients;
-        if ((err = openSDFile(parameter, client, auth_level)) != Error::Ok) {
+        Stream& channel = (webresponse) ? *webresponse : allChannels;
+        if ((err = openSDFile(parameter, channel, auth_level)) != Error::Ok) {
             return err;
         }
         auto sdCard = config->_sdCard;
@@ -723,14 +723,14 @@ namespace WebUI {
         char  fileLine[255];
         Error res = sdCard->readFileLine(fileLine, 255);
         if (res != Error::Ok) {
-            report_status_message(res, client);
+            report_status_message(res, channel);
             // report_status_message will close the file
             webPrintln("");
             return Error::Ok;
         }
         // execute the first line now; Protocol.cpp handles later ones when sdCard._readyNext
-        report_status_message(execute_line(fileLine, client, sdCard->getAuthLevel()), client);
-        report_realtime_status(client);
+        report_status_message(execute_line(fileLine, channel, sdCard->getAuthLevel()), channel);
+        report_realtime_status(channel);
         return Error::Ok;
     }
 
@@ -800,27 +800,27 @@ namespace WebUI {
         return Error::Ok;
     }
 
-    void listDirLocalFS(fs::FS fs, const char* dirname, size_t levels, Stream& client) {
+    void listDirLocalFS(fs::FS fs, const char* dirname, size_t levels, Stream& channel) {
         //char temp_filename[128]; // to help filter by extension	TODO: 128 needs a definition based on something
         File root = fs.open(dirname);
         if (!root) {
             //FIXME: need proper error for FS and not usd sd one
-            report_status_message(Error::FsFailedOpenDir, client);
+            report_status_message(Error::FsFailedOpenDir, channel);
             return;
         }
         if (!root.isDirectory()) {
             //FIXME: need proper error for FS and not usd sd one
-            report_status_message(Error::FsDirNotFound, client);
+            report_status_message(Error::FsDirNotFound, channel);
             return;
         }
         File file = root.openNextFile();
         while (file) {
             if (file.isDirectory()) {
                 if (levels) {
-                    listDirLocalFS(fs, file.name(), levels - 1, client);
+                    listDirLocalFS(fs, file.name(), levels - 1, channel);
                 }
             } else {
-                allClients << "[FILE:" << file.name() << "|SIZE:" << file.size() << "]\n";
+                allChannels << "[FILE:" << file.name() << "|SIZE:" << file.size() << "]\n";
             }
             file = root.openNextFile();
         }

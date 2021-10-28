@@ -42,7 +42,7 @@ void setup() {
 
         // Setup input polling loop after loading the configuration,
         // because the polling may depend on the config
-        client_init();
+        channel_init();
 
         display_init();
 
@@ -121,12 +121,12 @@ void setup() {
 
 #ifdef ENABLE_WIFI
         WebUI::wifi_config.begin();
-        register_client(&WebUI::Serial2Socket);
-        register_client(&WebUI::telnet_server);
+        register_channel(&WebUI::Serial2Socket);
+        register_channel(&WebUI::telnet_server);
 #endif
 #ifdef ENABLE_BLUETOOTH
         WebUI::bt_config.begin();
-        register_client(&WebUI::SerialBT);
+        register_channel(&WebUI::SerialBT);
 #endif
         WebUI::inputBuffer.begin();
     } catch (const AssertionFailed& ex) {
@@ -159,7 +159,7 @@ static void reset_variables() {
     // Sync cleared gcode and planner positions to current system position.
     plan_sync_position();
     gc_sync_position();
-    report_init_message(allClients);
+    report_init_message(allChannels);
     mc_init();
 }
 

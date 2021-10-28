@@ -19,39 +19,39 @@ public:
 };
 
 SDCard::SDCard() :
-    _pImpl(new FileWrap()), _current_line_number(0), _state(State::Idle), _client(Uart0),
+    _pImpl(new FileWrap()), _current_line_number(0), _state(State::Idle), _channel(Uart0),
     _auth_level(WebUI::AuthenticationLevel::LEVEL_GUEST), _readyNext(false) {}
 
-void SDCard::listDir(fs::FS& fs, const char* dirname, size_t levels, Stream& client) {
+void SDCard::listDir(fs::FS& fs, const char* dirname, size_t levels, Stream& channel) {
     //char temp_filename[128]; // to help filter by extension	TODO: 128 needs a definition based on something
     File root = fs.open(dirname);
     if (!root) {
-        report_status_message(Error::FsFailedOpenDir, client);
+        report_status_message(Error::FsFailedOpenDir, channel);
         return;
     }
     if (!root.isDirectory()) {
-        report_status_message(Error::FsDirNotFound, client);
+        report_status_message(Error::FsDirNotFound, channel);
         return;
     }
     File file = root.openNextFile();
     while (file) {
         if (file.isDirectory()) {
             if (levels) {
-                listDir(fs, file.name(), levels - 1, client);
+                listDir(fs, file.name(), levels - 1, channel);
             }
         } else {
-            allClients << "[FILE:" << file.name() << "|SIZE:" << file.size() << '\n';
+            allChannels << "[FILE:" << file.name() << "|SIZE:" << file.size() << '\n';
         }
         file = root.openNextFile();
     }
 }
 
-bool SDCard::openFile(fs::FS& fs, const char* path, Stream& client, WebUI::AuthenticationLevel auth_level) {
+bool SDCard::openFile(fs::FS& fs, const char* path, Stream& channel, WebUI::AuthenticationLevel auth_level) {
     _pImpl->_file = fs.open(path);
     if (!_pImpl->_file) {
         return false;
     }
-    _client              = client;
+    _channel             = channel;
     _auth_level          = auth_level;
     _state               = State::BusyPrinting;
     _readyNext           = false;  // this will get set to true when an "ok" message is issued
@@ -63,7 +63,7 @@ bool SDCard::closeFile() {
     _state               = State::Idle;
     _readyNext           = false;
     _current_line_number = 0;
-    _client              = Uart0;
+    _channel             = Uart0;
     _auth_level          = WebUI::AuthenticationLevel::LEVEL_GUEST;
     if (!_pImpl->_file) {
         return false;

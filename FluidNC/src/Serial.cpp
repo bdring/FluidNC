@@ -6,10 +6,10 @@
   Serial.cpp - Header for system level commands and real-time processes
 
   Original Grbl only supports communication via serial port. That is why this
-  file is call serial.cpp. FluidNC supports many "clients".
+  file is call serial.cpp. FluidNC supports many "channels".
 
-  Clients are sources of commands like the serial port or a bluetooth connection.
-  Multiple clients can be active at a time. If a client asks for status, only the client will
+  Channels are sources of commands like the serial port or a bluetooth connection.
+  Multiple channels can be active at a time. If a channel asks for status, only the channel will
   receive the reply to the command.
 
   The serial port acts as the debugging port because it is always on and does not
@@ -17,10 +17,10 @@
   are sent to the serial port automatically, without a request command. These are in the
   [MSG: xxxxxx] format which is part of the Grbl protocol.
 
-  Important: It is up to the user that the clients play well together. Ideally, if one client
+  Important: It is up to the user that the channels play well together. Ideally, if one channel
   is sending the gcode, the others should just be doing status, feedhold, etc.
 
-  Clients send line-oriented command (GCode, $$, [ESP...], etc) and realtime commands (?,!.~, etc)
+  Channels send line-oriented command (GCode, $$, [ESP...], etc) and realtime commands (?,!.~, etc)
   A line-oriented command is a string of printable characters followed by a '\r' or '\n'
   A realtime commands is a single character with no '\r' or '\n'
 
@@ -32,9 +32,9 @@
   Realtime commands can be anywhere in the stream.
 
   To allow the realtime commands to be randomly mixed in the stream of data, we
-  read all clients as fast as possible. The realtime commands are acted upon and
-  the other characters are placed into a per-client buffer.  When a complete line
-  is received, pollClient returns the associated client spec.
+  read all channels as fast as possible. The realtime commands are acted upon and
+  the other characters are placed into a per-channel buffer.  When a complete line
+  is received, pollChannel returns the associated channel spec.
 */
 
 #include "Serial.h"
@@ -58,7 +58,7 @@
 
 portMUX_TYPE myMutex = portMUX_INITIALIZER_UNLOCKED;
 
-static TaskHandle_t clientCheckTaskHandle = 0;
+static TaskHandle_t channelCheckTaskHandle = 0;
 
 void heapCheckTask(void* pvParameters) {
     static uint32_t heapSize = 0;
@@ -79,14 +79,14 @@ void heapCheckTask(void* pvParameters) {
 }
 
 // Act upon a realtime character
-static void execute_realtime_command(Cmd command, Print& client) {
+static void execute_realtime_command(Cmd command, Print& channel) {
     switch (command) {
         case Cmd::Reset:
             log_debug("Cmd::Reset");
             mc_reset();  // Call motion control reset routine.
             break;
         case Cmd::StatusReport:
-            report_realtime_status(client);  // direct call instead of setting flag
+            report_realtime_status(channel);  // direct call instead of setting flag
             break;
         case Cmd::CycleStart:
             rtCycleStart = true;
@@ -194,29 +194,29 @@ bool is_realtime_command(uint8_t data) {
     return cmd == Cmd::Reset || cmd == Cmd::StatusReport || cmd == Cmd::CycleStart || cmd == Cmd::FeedHold;
 }
 
-InputClient* sdClient = new InputClient(nullptr);
+Channel* sdChannel = new Channel(nullptr);
 
-std::vector<InputClient*> clientq;
+std::vector<Channel*> channelq;
 
-void register_client(Stream* client_stream) {
-    clientq.push_back(new InputClient(client_stream));
+void register_channel(Stream* channel_stream) {
+    channelq.push_back(new Channel(channel_stream));
 }
-void client_init() {
-    register_client(&Uart0);               // USB Serial
-    register_client(&WebUI::inputBuffer);  // Macros
+void channel_init() {
+    register_channel(&Uart0);               // USB Serial
+    register_channel(&WebUI::inputBuffer);  // Macros
 }
-InputClient* pollClients() {
+Channel* pollChannels() {
     auto sdcard = config->_sdCard;
 
-    for (auto client : clientq) {
-        auto source = client->_io;
+    for (auto channel : channelq) {
+        auto source = channel->_io;
         int  c      = source->read();
 
         if (c >= 0) {
             char ch = c;
-            if (client->_line_returned) {
-                client->_line_returned = false;
-                client->_linelen       = 0;
+            if (channel->_line_returned) {
+                channel->_line_returned = false;
+                channel->_linelen       = 0;
             }
             if (is_realtime_command(c)) {
                 execute_realtime_command(static_cast<Cmd>(c), *source);
@@ -225,41 +225,41 @@ InputClient* pollClients() {
 
             if (ch == '\b') {
                 // Simple editing for interactive input - backspace erases
-                if (client->_linelen) {
-                    --client->_linelen;
+                if (channel->_linelen) {
+                    --channel->_linelen;
                 }
                 continue;
             }
-            if ((client->_linelen + 1) == InputClient::maxLine) {
+            if ((channel->_linelen + 1) == Channel::maxLine) {
                 report_status_message(Error::Overflow, *source);
                 // XXX could show a message with the overflow line
                 // XXX There is a problem here - the final fragment of the
                 // too-long line will be returned as a valid line.  We really
                 // need to enter a state where we ignore characters until
                 // the newline.
-                client->_linelen = 0;
+                channel->_linelen = 0;
                 continue;
             }
             if (ch == '\r') {
                 continue;
             }
             if (ch == '\n') {
-                client->_line_num++;
+                channel->_line_num++;
                 if (sdcard->get_state() < SDCard::State::Busy) {
-                    client->_line[client->_linelen] = '\0';
-                    client->_line_returned          = true;
-                    display("GCODE", client->_line);
-                    return client;
+                    channel->_line[channel->_linelen] = '\0';
+                    channel->_line_returned           = true;
+                    display("GCODE", channel->_line);
+                    return channel;
                 } else {
                     // Log an error and discard the line if it happens during an SD run
                     log_error("SD card job running");
-                    client->_linelen = 0;
+                    channel->_linelen = 0;
                     continue;
                 }
             }
 
-            client->_line[client->_linelen] = ch;
-            ++client->_linelen;
+            channel->_line[channel->_linelen] = ch;
+            ++channel->_linelen;
         }
     }
 
@@ -271,29 +271,29 @@ InputClient* pollClients() {
     // _readyNext indicates that input is coming from a file and
     // the GCode system is ready for another line.
     if (sdcard && sdcard->_readyNext) {
-        Error res = sdcard->readFileLine(sdClient->_line, InputClient::maxLine);
+        Error res = sdcard->readFileLine(sdChannel->_line, Channel::maxLine);
         if (res == Error::Ok) {
-            sdClient->_io      = &sdcard->getClient();
+            sdChannel->_io     = &sdcard->getChannel();
             sdcard->_readyNext = false;
-            return sdClient;
+            return sdChannel;
         }
-        report_status_message(res, sdcard->getClient());
+        report_status_message(res, sdcard->getChannel());
     }
 
     return nullptr;
 }
 
-size_t AllClients::write(uint8_t data) {
-    for (auto client : clientq) {
-        client->_io->write(data);
+size_t AllChannels::write(uint8_t data) {
+    for (auto channel : channelq) {
+        channel->_io->write(data);
     }
     return 1;
 }
-size_t AllClients::write(const uint8_t* buffer, size_t length) {
-    for (auto client : clientq) {
-        client->_io->write(buffer, length);
+size_t AllChannels::write(const uint8_t* buffer, size_t length) {
+    for (auto channel : channelq) {
+        channel->_io->write(buffer, length);
     }
     return length;
 }
 
-AllClients allClients;
+AllChannels allChannels;

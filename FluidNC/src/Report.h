@@ -65,31 +65,31 @@ void _notify(const char* title, const char* msg);
 void _notifyf(const char* title, const char* format, ...);
 
 // Prints system status messages.
-void report_status_message(Error status_code, Print& client);
+void report_status_message(Error status_code, Print& channel);
 
 // Prints miscellaneous feedback messages.
 void report_feedback_message(Message message);
 
 // Prints welcome message
-void report_init_message(Print& client);
+void report_init_message(Print& channel);
 
 // Prints an echo of the pre-parsed line received right before execution.
-void report_echo_line_received(char* line, Print& client);
+void report_echo_line_received(char* line, Print& channel);
 
 // Prints realtime status report
-void report_realtime_status(Print& client);
+void report_realtime_status(Print& channel);
 
 // Prints recorded probe position
-void report_probe_parameters(Print& client);
+void report_probe_parameters(Print& channel);
 
 // Prints NGC parameters (coordinate offsets, probe)
-void report_ngc_parameters(Print& client);
+void report_ngc_parameters(Print& channel);
 
 // Prints current g-code parser mode state
-void report_gcode_modes(Print& client);
+void report_gcode_modes(Print& channel);
 
 // Prints build info and user info
-void report_build_info(const char* line, Print& client);
+void report_build_info(const char* line, Print& channel);
 
 #ifdef DEBUG_REPORT_REALTIME
 void report_realtime_debug();

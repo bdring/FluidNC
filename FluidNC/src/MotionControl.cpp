@@ -361,7 +361,7 @@ GCUpdatePos mc_probe_cycle(float* target, plan_line_data_t* pl_data, uint8_t par
     plan_sync_position();  // Sync planner position to current machine position.
     if (MESSAGE_PROBE_COORDINATES) {
         // All done! Output the probe position as message.
-        report_probe_parameters(allClients);
+        report_probe_parameters(allChannels);
     }
     if (probe_succeeded) {
         return GCUpdatePos::System;  // Successful probe cycle.
@@ -428,8 +428,8 @@ void mc_reset() {
             _notifyf("SD print canceled", "Reset during SD file at line: %d", config->_sdCard->lineNumber());
             // log_info() does not work well in this case because the message gets broken in half
             // by report_init_message().  The flow of control that causes it is obscure.
-            config->_sdCard->getClient() << "[MSG:"
-                                         << "Reset during SD file at line: " << config->_sdCard->lineNumber();
+            config->_sdCard->getChannel() << "[MSG:"
+                                          << "Reset during SD file at line: " << config->_sdCard->lineNumber();
 
             config->_sdCard->closeFile();
         }

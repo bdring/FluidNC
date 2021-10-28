@@ -15,7 +15,7 @@
 // See if the character is an action command like feedhold or jogging. If so, do the action and return true
 uint8_t check_action_command(uint8_t data);
 
-void client_init();
+void channel_init();
 
 // Define realtime command special characters. These characters are 'picked-off' directly from the
 // serial read data stream and are not passed to the grbl line execution parser. Select characters
@@ -58,21 +58,21 @@ enum class Cmd : uint8_t {
 
 bool is_realtime_command(uint8_t data);
 
-class InputClient {
+class Channel {
 public:
     static const int maxLine = 255;
-    InputClient(Stream* source) : _io(source), _linelen(0), _line_num(0), _line_returned(false) {}
+    Channel(Stream* source) : _io(source), _linelen(0), _line_num(0), _line_returned(false) {}
     Stream* _io;
     char    _line[maxLine];
     size_t  _linelen;
     int     _line_num;
     bool    _line_returned;
 };
-InputClient* pollClients();
+Channel* pollChannels();
 
-class AllClients : public Stream {
+class AllChannels : public Stream {
 public:
-    AllClients() = default;
+    AllChannels() = default;
     size_t write(uint8_t data) override;
     size_t write(const uint8_t* buffer, size_t length) override;
 
@@ -83,6 +83,6 @@ public:
     void flush() {}
 };
 
-void register_client(Stream* client_stream);
+void register_channel(Stream* channel_stream);
 
-extern AllClients allClients;
+extern AllChannels allChannels;

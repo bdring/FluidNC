@@ -2,7 +2,7 @@
 
 #include "WebUI/JSONEncoder.h"
 #include "WebUI/Authentication.h"
-#include "Report.h"  // info_client
+#include "Report.h"  // info_channel
 #include "GCode.h"   // CoordIndex
 
 #include <map>
@@ -392,4 +392,4 @@ public:
 void  settings_execute_startup();
 Error settings_execute_line(char* line, Stream& out, WebUI::AuthenticationLevel);
 Error do_command_or_setting(const char* key, char* value, WebUI::AuthenticationLevel auth_level, Stream&);
-Error execute_line(char* line, Stream& client, WebUI::AuthenticationLevel auth_level);
+Error execute_line(char* line, Stream& channel, WebUI::AuthenticationLevel auth_level);

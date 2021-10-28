@@ -149,8 +149,8 @@ void protocol_main_loop() {
     // ---------------------------------------------------------------------------------
     for (;;) {
         // Poll the input sources waiting for a complete line to arrive
-        InputClient* ic;
-        while ((ic = pollClients()) != nullptr) {
+        Channel* ic;
+        while ((ic = pollChannels()) != nullptr) {
             Stream* out = ic->_io;
             protocol_execute_realtime();  // Runtime command check point.
             if (sys.abort) {
@@ -233,7 +233,7 @@ void protocol_execute_realtime() {
 }
 
 static void alarm_msg(ExecAlarm alarm_code) {
-    allClients << "ALARM:" << static_cast<int>(alarm_code) << '\n';
+    allChannels << "ALARM:" << static_cast<int>(alarm_code) << '\n';
     delay_ms(500);  // Force delay to ensure message clears serial write buffer.
 }
 
@@ -257,7 +257,7 @@ static void protocol_do_alarm() {
                 // the user and a GUI time to do what is needed before resetting, like killing the
                 // incoming stream. The same could be said about soft limits. While the position is not
                 // lost, continued streaming could cause a serious crash if by chance it gets executed.
-                pollClients();  // Handle ^X realtime RESET command
+                pollChannels();  // Handle ^X realtime RESET command
             } while (!rtReset);
             break;
         default:
@@ -677,7 +677,7 @@ void protocol_exec_rt_system() {
 
     if (rtStatusReport) {
         rtStatusReport = false;
-        report_realtime_status(allClients);
+        report_realtime_status(allChannels);
     }
 
     if (rtMotionCancel) {
@@ -960,7 +960,7 @@ static void protocol_exec_rt_suspend() {
                 }
             }
         }
-        pollClients();  // Handle realtime commands like status report, cycle start and reset
+        pollChannels();  // Handle realtime commands like status report, cycle start and reset
         protocol_exec_rt_system();
     }
 }
