@@ -199,6 +199,7 @@ void protocol_buffer_synchronize() {
         if (sys.abort) {
             return;  // Check for system abort
         }
+        pollClients();
     } while (plan_get_current_block() || (sys.state == State::Cycle));
 }
 
