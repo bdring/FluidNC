@@ -1,6 +1,4 @@
-// #include "string.h"
-
-#define NO_COMPLETION
+// #define NO_COMPLETION
 
 #include "Uart.h"
 // extern void emit(char c);
@@ -32,7 +30,7 @@ static char* startaddr;
 static char* endaddr;
 static char* maxaddr;
 
-void addchar(char c, bool echo = true) {
+static void addchar(char c, bool echo = true) {
     char* p;
     if (thisaddr < maxaddr) {
         if (endaddr < maxaddr)
@@ -53,7 +51,7 @@ void addchar(char c, bool echo = true) {
     }
 }
 
-void erase_char() {
+static void erase_char() {
     char* p;
     if (thisaddr > startaddr) {
         --thisaddr;
@@ -70,7 +68,7 @@ void erase_char() {
     }
 }
 
-void erase_line() {
+static void erase_line() {
     for (; thisaddr < endaddr; ++thisaddr)
         emit(*thisaddr);
     while (thisaddr > startaddr)
@@ -82,7 +80,7 @@ void erase_line() {
 static int  saved_length;
 static char lastline[MAXHISTORY];
 
-void validate_history() {
+static void validate_history() {
     int i;
 
     // Clear history if it is invalid
@@ -102,7 +100,7 @@ clear_history:
     saved_length = 0;
 }
 
-bool already_in_history(char* adr, int len) {
+static bool already_in_history(char* adr, int len) {
     char* p;
     char* first;
     char* thischar;
@@ -147,7 +145,7 @@ bool already_in_history(char* adr, int len) {
     return false;
 }
 
-void add_to_history(char* adr, int len) {
+static void add_to_history(char* adr, int len) {
     int i;
     int new_length;
 
@@ -174,7 +172,7 @@ void add_to_history(char* adr, int len) {
 
 // history_num is the number of the history line to fetch
 // returns true if that line exists.
-bool get_history(int history_num) {
+static bool get_history(int history_num) {
     int   i;
     int   hn;
     char* p;
@@ -205,25 +203,25 @@ bool get_history(int history_num) {
     return true;
 }
 
-void backward_char() {
+static void backward_char() {
     if (thisaddr > startaddr) {
         emit(BS);
         --thisaddr;
     }
 }
 
-void forward_char() {
+static void forward_char() {
     if (thisaddr < endaddr) {
         emit(*thisaddr);
         ++thisaddr;
     }
 }
 
-bool is_word_delim(char c) {
+static bool is_word_delim(char c) {
     return c == ' ' || c == '/' || c == '=' || c == ',';
 }
 
-void forward_word() {
+static void forward_word() {
     while ((thisaddr < endaddr) && is_word_delim(*thisaddr)) {
         emit(*thisaddr);
         ++thisaddr;
@@ -234,7 +232,24 @@ void forward_word() {
     }
 }
 
-void backward_word() {
+char killbuf[100] = { 0 };
+
+static void kill_forward() {
+    char* p = killbuf;
+    while (thisaddr < endaddr) {
+        *p++ = *thisaddr;
+        forward_char();
+        erase_char();
+    }
+    *p = '\0';
+}
+static void yank() {
+    for (char* p = killbuf; *p; ++p) {
+        addchar(*p);
+    }
+}
+
+static void backward_word() {
     if (startaddr >= endaddr) {
         return;
     }
@@ -256,61 +271,60 @@ void backward_word() {
 }
 
 #ifndef NO_COMPLETION
-bool isdelim(char* addr) {
+static bool isdelim(char* addr) {
     return (addr < startaddr) || (addr == endaddr) || is_word_delim(*addr);
 }
 
-static char word[32];
-void        find_word_under_cursor() {
-    int i       = 0;
-    word[i]     = '\0';
-    char* taddr = thisaddr;
-
-    if (startaddr == endaddr) {
-        return;
+static char word[100];
+static bool find_word_under_cursor() {
+    if (startaddr == endaddr || *startaddr != '$') {
+        return false;
     }
-    if ((taddr < endaddr) && is_word_delim(*taddr) && (taddr > startaddr) && is_word_delim(taddr[-1])) {
-        return;
+    int   i    = 0;
+    char* addr = startaddr + 1;
+    while (addr < thisaddr && i < (100 - 1)) {
+        word[i++] = *addr++;
     }
-    while ((taddr > startaddr) && !is_word_delim(taddr[-1])) {
-        --taddr;
-    }
-    while ((taddr < endaddr) && !is_word_delim(*taddr)) {
-        if (i != 32) {
-            word[i++] = *taddr;
-        }
-        ++taddr;
+    // Move to the end of the item name
+    while (thisaddr < endaddr && i < (100 - 1) && *thisaddr != '=') {
+        emit(*thisaddr);
+        word[i++] = *thisaddr++;
     }
     word[i] = '\0';
-    while (thisaddr < taddr) {
-        emit(*thisaddr++);
-    }
+    return true;
 }
 
-int num_initial_matches(char* adr, cell len, int matchnum, char** namep, int* actual_len);
+extern int num_initial_matches(char* key, int keylen, int matchnum, char** matchname, int* matchlen);
 
-static void highlight() {
+static void color(const char* s) {
     emit(0x1b);
     emit('[');
-    emit('3');
-    emit('4');
+    while (*s) {
+        emit(*s++);
+    }
     emit('m');
+}
+static void cyan() {
+    color("1;36;40");
+}
+static void highlight() {
+    cyan();
+}
+
+static void gray() {
+    color("0;37;40");
 }
 
 static void lowlight() {
-    emit(0x1b);
-    emit('[');
-    emit('0');
-    emit('m');
+    gray();
 }
 
 static int nmatches = 0;
 static int matchlen;
 static int thismatch = 0;
 
-void complete_word() {
-    find_word_under_cursor();
-    if (*word == '\0') {
+static void complete_word() {
+    if (!find_word_under_cursor()) {
         return;
     }
     char* name;
@@ -324,7 +338,6 @@ void complete_word() {
         while (len < matchlen) {
             addchar(name[len++]);
         }
-        addchar(' ');
         nmatches = 0;
         return;
     }
@@ -349,7 +362,7 @@ void complete_word() {
     lowlight();
 }
 
-void propose_word() {
+static void propose_word() {
     if (++thismatch == nmatches) {
         thismatch = 0;
     }
@@ -357,6 +370,7 @@ void propose_word() {
     char* name;
     int   len      = strlen(word);
     int   nmatches = num_initial_matches(word, len, thismatch, &name, &newmatchlen);
+
     while (matchlen > len) {
         erase_char();
         --matchlen;
@@ -366,6 +380,19 @@ void propose_word() {
         addchar(name[matchlen++]);
     }
     lowlight();
+}
+static void accept_word() {
+    int len = strlen(word);
+    int i;
+    for (i = matchlen; i > len; --i) {
+        emit(BS);
+        --thisaddr;
+    }
+    lowlight();
+    while (i < matchlen) {
+        emit(*thisaddr++);
+        ++i;
+    }
 }
 #endif
 
@@ -386,12 +413,26 @@ int lineedit_finish() {
     return (length);
 }
 
+// This is needed for the SPECIAL_DELETE sequence that ends with ~
+// Grbl normally treats ~ as a "realtime character" that is used
+// for CycleStart, and does not pass it through to the line editor.
+// If lineedit_idle() is false, which only happens infrequently when
+// in the middle of a SPECIAL_ sequence, then Serial.cpp will pass
+// ~ through to the line editor to complete the sequence, instead
+// of doing cycle start.
+bool lineedit_idle(int c) {
+    return c != '~' || escaping >= 0;
+}
+
 // Returns true when the line is complete
 bool lineedit_step(int c) {
     if (!editing) {
         if (c < ' ') {
             if (c == '\r' || c == '\n') {
                 return true;
+            }
+            for (char* p = startaddr; p < endaddr; ++p) {
+                emit(*p);
             }
             editing = true;
             // continue to editing code below
@@ -490,7 +531,10 @@ bool lineedit_step(int c) {
         }
         return false;
     }
-    nmatches = 0;
+    if (nmatches) {
+        accept_word();
+        nmatches = 0;
+    }
 #endif
 
     switch (c) {
@@ -534,13 +578,13 @@ bool lineedit_step(int c) {
             forward_char();
             break;
         case CTRL('k'):
-            while (thisaddr < endaddr) {
-                forward_char();
-                erase_char();
-            }
+            kill_forward();
             break;
         case CTRL('u'):
             erase_line();
+            break;
+        case CTRL('y'):
+            yank();
             break;
         case CTRL('p'):
         case SPECIAL_UP:

@@ -226,58 +226,40 @@ InputClient* pollClients() {
                     lineedit_start(client->_line, InputClient::maxLine);
                 }
             }
-            if (is_realtime_command(c)) {
+            if ((client->_in != &Uart0 || lineedit_idle(c)) && is_realtime_command(c)) {
                 execute_realtime_command(static_cast<Cmd>(c), *source);
-                continue;
-            }
-
-#if 0
-            if (ch == '\b') {
-                // Simple editing for interactive input - backspace erases
-                if (client->_linelen) {
-                    --client->_linelen;
-                }
-                continue;
-            }
-            if ((client->_linelen + 1) == InputClient::maxLine) {
-                report_status_message(Error::Overflow, *source);
-                // XXX could show a message with the overflow line
-                // XXX There is a problem here - the final fragment of the
-                // too-long line will be returned as a valid line.  We really
-                // need to enter a state where we ignore characters until
-                // the newline.
-                client->_linelen = 0;
                 continue;
             }
             if (ch == '\r') {
                 continue;
             }
-            if (ch == '\n') {
-                client->_line_num++;
-                if (sdcard->get_state() < SDCard::State::Busy) {
-                    client->_line[client->_linelen] = '\0';
-                    client->_line_returned          = true;
-                    display("GCODE", client->_line);
-                    return client;
-                } else {
-                    // Log an error and discard the line if it happens during an SD run
-                    log_error("SD card job running");
-                    client->_linelen = 0;
-                    continue;
+            bool eol;
+            if (client->_in == &Uart0) {
+                eol = lineedit_step(ch);
+                if (eol) {
+                    client->_linelen = lineedit_finish();
                 }
+            } else {
+                if ((client->_linelen + 1) == InputClient::maxLine) {
+                    report_status_message(Error::Overflow, *source);
+                    // XXX could show a message with the overflow line
+                    // XXX There is a problem here - the final fragment of the
+                    // too-long line will be returned as a valid line.  We really
+                    // need to enter a state where we ignore characters until
+                    // the newline.
+                    client->_linelen = 0;
+                } else {
+                    client->_line[client->_linelen] = ch;
+                    ++client->_linelen;
+                }
+                eol = ch == '\n';
             }
-
-            client->_line[client->_linelen] = ch;
-            ++client->_linelen;
-#else
-            if (lineedit_step(ch)) {
-                client->_linelen                = lineedit_finish();
+            if (eol) {
                 client->_line[client->_linelen] = 0;
                 client->_line_returned          = true;
                 display("GCODE", client->_line);
                 return client;
             }
-#endif
         }
     }
 
