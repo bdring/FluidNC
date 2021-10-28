@@ -151,7 +151,7 @@ void protocol_main_loop() {
         // Poll the input sources waiting for a complete line to arrive
         InputClient* ic;
         while ((ic = pollClients()) != nullptr) {
-            Print* out = ic->_out;
+            Stream* out = ic->_io;
             protocol_execute_realtime();  // Runtime command check point.
             if (sys.abort) {
                 return;  // Bail to calling function upon system abort

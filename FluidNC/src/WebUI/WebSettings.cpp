@@ -81,8 +81,8 @@ namespace WebUI {
     StringSetting* bt_name;
 #endif
 
-    Print* webresponse = nullptr;
-    bool   isWeb       = false;
+    Stream* webresponse = nullptr;
+    bool    isWeb       = false;
 
     typedef struct {
         char* key;
@@ -141,7 +141,7 @@ namespace WebUI {
     }
 }
 
-Error WebCommand::action(char* value, WebUI::AuthenticationLevel auth_level, Print& out) {
+Error WebCommand::action(char* value, WebUI::AuthenticationLevel auth_level, Stream& out) {
     if (_cmdChecker && _cmdChecker()) {
         return Error::AnotherInterfaceBusy;
     }
@@ -282,9 +282,9 @@ namespace WebUI {
             return Error::FsFailedOpenFile;
         }
         //until no line in file
-        Error  err;
-        Error  accumErr = Error::Ok;
-        Print& out      = webresponse ? *webresponse : allClients;
+        Error   err;
+        Error   accumErr = Error::Ok;
+        Stream& out      = webresponse ? *webresponse : allClients;
         while (currentfile.available()) {
             String currentline = currentfile.readStringUntil('\n');
             if (currentline.length() > 0) {
@@ -653,7 +653,7 @@ namespace WebUI {
         return Error::Ok;
     }
 
-    static Error openSDFile(char* parameter, Print& client, AuthenticationLevel auth_level) {
+    static Error openSDFile(char* parameter, Stream& client, AuthenticationLevel auth_level) {
         if (*parameter == '\0') {
             webPrintln("Missing file name!");
             return Error::InvalidValue;
@@ -685,8 +685,8 @@ namespace WebUI {
         if (notIdleOrAlarm()) {
             return Error::IdleError;
         }
-        Error  err;
-        Print& client = (webresponse) ? *webresponse : allClients;
+        Error   err;
+        Stream& client = (webresponse) ? *webresponse : allClients;
         if ((err = openSDFile(parameter, client, auth_level)) != Error::Ok) {
             return err;
         }
@@ -714,7 +714,7 @@ namespace WebUI {
             webPrintln("Busy");
             return Error::IdleError;
         }
-        Print& client = (webresponse) ? *webresponse : allClients;
+        Stream& client = (webresponse) ? *webresponse : allClients;
         if ((err = openSDFile(parameter, client, auth_level)) != Error::Ok) {
             return err;
         }
@@ -800,7 +800,7 @@ namespace WebUI {
         return Error::Ok;
     }
 
-    void listDirLocalFS(fs::FS fs, const char* dirname, size_t levels, Print& client) {
+    void listDirLocalFS(fs::FS fs, const char* dirname, size_t levels, Stream& client) {
         //char temp_filename[128]; // to help filter by extension	TODO: 128 needs a definition based on something
         File root = fs.open(dirname);
         if (!root) {

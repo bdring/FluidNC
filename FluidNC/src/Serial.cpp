@@ -209,7 +209,7 @@ InputClient* pollClients() {
     auto sdcard = config->_sdCard;
 
     for (auto client : clientq) {
-        auto source = client->_in;
+        auto source = client->_io;
         int  c      = source->read();
 
         if (c >= 0) {
@@ -273,7 +273,7 @@ InputClient* pollClients() {
     if (sdcard && sdcard->_readyNext) {
         Error res = sdcard->readFileLine(sdClient->_line, InputClient::maxLine);
         if (res == Error::Ok) {
-            sdClient->_out     = &sdcard->getClient();
+            sdClient->_io      = &sdcard->getClient();
             sdcard->_readyNext = false;
             return sdClient;
         }
@@ -285,13 +285,13 @@ InputClient* pollClients() {
 
 size_t AllClients::write(uint8_t data) {
     for (auto client : clientq) {
-        client->_out->write(data);
+        client->_io->write(data);
     }
     return 1;
 }
 size_t AllClients::write(const uint8_t* buffer, size_t length) {
     for (auto client : clientq) {
-        client->_out->write(buffer, length);
+        client->_io->write(buffer, length);
     }
     return length;
 }

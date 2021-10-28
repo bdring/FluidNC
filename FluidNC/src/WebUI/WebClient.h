@@ -12,7 +12,7 @@
 class WebServer;
 
 namespace WebUI {
-    class WebClient : public Print {
+    class WebClient : public Stream {
     public:
         WebClient(WebServer* webserver, bool silent);
         ~WebClient();
@@ -22,6 +22,11 @@ namespace WebUI {
         void   flush();
 
         bool anyOutput() { return _header_sent; }
+
+        // Stub implementations to satisfy Stream requirements
+        int available() override { return 0; }
+        int read() { return -1; }
+        int peek() { return -1; }
 
     private:
         bool                _header_sent;

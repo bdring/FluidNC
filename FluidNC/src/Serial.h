@@ -61,9 +61,8 @@ bool is_realtime_command(uint8_t data);
 class InputClient {
 public:
     static const int maxLine = 255;
-    InputClient(Stream* source) : _in(source), _out(source), _linelen(0), _line_num(0), _line_returned(false) {}
-    Stream* _in;
-    Print*  _out;
+    InputClient(Stream* source) : _io(source), _linelen(0), _line_num(0), _line_returned(false) {}
+    Stream* _io;
     char    _line[maxLine];
     size_t  _linelen;
     int     _line_num;
@@ -71,11 +70,17 @@ public:
 };
 InputClient* pollClients();
 
-class AllClients : public Print {
+class AllClients : public Stream {
 public:
     AllClients() = default;
     size_t write(uint8_t data) override;
     size_t write(const uint8_t* buffer, size_t length) override;
+
+    // Stub implementations to satisfy Stream requirements
+    int  available() override { return 0; }
+    int  read() { return -1; }
+    int  peek() { return -1; }
+    void flush() {}
 };
 
 void register_client(Stream* client_stream);
