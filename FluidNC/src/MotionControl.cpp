@@ -81,6 +81,7 @@ bool mc_line(float* target, plan_line_data_t* pl_data) {
         } else {
             break;
         }
+        pollClients();
     } while (1);
     // Plan and queue motion into planner buffer
     if (mc_pl_data_inflight == pl_data) {
