@@ -83,6 +83,10 @@ void setup() {
 
             config->_control->init();
 
+            if (config->_network) {
+                config->_network->init();
+            }
+
             memset(motor_steps, 0, sizeof(motor_steps));  // Clear machine position.
 
             machine_init();  // user supplied function for special initialization

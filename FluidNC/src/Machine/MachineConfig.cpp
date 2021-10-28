@@ -43,6 +43,7 @@ namespace Machine {
         handler.section("probe", _probe);
         handler.section("macros", _macros);
         handler.section("start", _start);
+        handler.section("network", _network);
 
         handler.section("user_outputs", _userOutputs);
         // TODO: Consider putting these under a gcode: hierarchy level? Or motion control?

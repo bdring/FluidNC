@@ -17,6 +17,7 @@
 #include "../Stepping.h"
 #include "../Stepper.h"
 #include "../Logging.h"
+#include "../Network/Network.h"
 #include "../Config.h"
 #include "Axes.h"
 #include "SPIBus.h"
@@ -63,6 +64,7 @@ namespace Machine {
         SDCard*         _sdCard      = nullptr;
         Macros*         _macros      = nullptr;
         Start*          _start       = nullptr;
+        Network*        _network     = nullptr;
 
         Spindles::SpindleList _spindles;
 

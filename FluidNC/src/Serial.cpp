@@ -198,8 +198,20 @@ InputClient* sdClient = new InputClient(nullptr);
 
 std::vector<InputClient*> clientq;
 
-void register_client(Stream* client_stream) {
+InputClient* register_client(Stream* client_stream) {
     clientq.push_back(new InputClient(client_stream));
+    return clientq.back();
+}
+bool unregister_client(InputClient* input_client) {
+    for (int index = 0; index < clientq.size(); index++) {
+        if (clientq[index] == input_client) {
+            // Swap the client out of the vector.
+            clientq[index] = clientq.back();
+            clientq.pop_back();
+            return true;
+        }
+    }
+    return false;
 }
 void client_init() {
     register_client(&Uart0);               // USB Serial

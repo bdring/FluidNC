@@ -78,6 +78,10 @@ public:
     size_t write(const uint8_t* buffer, size_t length) override;
 };
 
-void register_client(Stream* client_stream);
+// Returns InputClient suitable for use with unregister_client.
+InputClient* register_client(Stream* client_stream);
+
+// Returns true if input_client were removed.
+bool unregister_client(InputClient* input_client);
 
 extern AllClients allClients;
