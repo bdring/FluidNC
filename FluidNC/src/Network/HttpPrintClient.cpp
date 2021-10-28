@@ -19,49 +19,78 @@ bool HttpPrintClient::isFinished() {
     return _state == DISCONNECTED;
 }
 
+void HttpPrintClient::setState(State state) {
+    if (_state != state) {
+        switch (state) {
+        case READING_HEADER:
+            log_info("HttpPrintClient: READING_HEADER");
+            break;
+        case READING_HEADER_1:
+            log_info("HttpPrintClient: READING_HEADER_1");
+            break;
+        case READING_HEADER_2:
+            log_info("HttpPrintClient: READING_HEADER_2");
+            break;
+        case READING_HEADER_3:
+            log_info("HttpPrintClient: READING_HEADER_3");
+            break;
+        case READING_DATA:
+            log_info("HttpPrintClient: READING_DATA");
+            break;
+        case DISCONNECTED:
+            log_info("HttpPrintClient: DISCONNECTED");
+            break;
+        default:
+            log_info("HttpPrintClient: <Unknown State>");
+            break;
+        }
+    }
+    _state = state;
+}
+
 // This is sufficient to drive the client due to how pollClients() just calls
 // read().
 int HttpPrintClient::read() {
-    log_info("HttpPrintClient state=" << _state);
     if (_wifi_client.available() == 0) {
         if (!_wifi_client.connected()) {
             // There is nothing to read and we are not connected.
             _wifi_client.stop();
-            _state = DISCONNECTED;
+            setState(DISCONNECTED);
         }
         return -1;
     }
     switch (_state) {
     case READING_HEADER:
         if (_wifi_client.read() == '\r') {
-            _state = READING_HEADER_1;
+            setState(READING_HEADER_1);
         } else {
-            _state = READING_HEADER;
+            setState(READING_HEADER);
         }
         return -1;
     case READING_HEADER_1:  // we have read \r
         if (_wifi_client.read() == '\n') {
-            _state = READING_HEADER_2;
+            setState(READING_HEADER_2);
         } else {
-            _state = READING_HEADER;
+            setState(READING_HEADER);
         }
         return -1;
     case READING_HEADER_2: // we have read \r\n
         if (_wifi_client.read() == '\r') {
-            _state = READING_HEADER_3;
+            setState(READING_HEADER_3);
         } else {
-            _state = READING_HEADER;
+            setState(READING_HEADER);
         }
         return -1;
     case READING_HEADER_3: // we have read \r\n\r
         if (_wifi_client.read() == '\n') {
-            _state = READING_DATA;
+            setState(READING_DATA);
         } else {
-            _state = READING_HEADER;
+            setState(READING_HEADER);
         }
         return -1;
-    case READING_DATA:
+    case READING_DATA: {
         return _wifi_client.read();
+    }
     case DISCONNECTED:
         return -1;
     }

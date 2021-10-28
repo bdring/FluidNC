@@ -40,6 +40,8 @@ class HttpPrintServer : public Configuration::Configurable {
     void group(Configuration::HandlerBase& handler) override;
 
     private:
+    void setState(State state);
+
     enum State _state;
     int _port;
     WiFiServer _server;

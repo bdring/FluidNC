@@ -83,10 +83,6 @@ void setup() {
 
             config->_control->init();
 
-            if (config->_network) {
-                config->_network->init();
-            }
-
             memset(motor_steps, 0, sizeof(motor_steps));  // Clear machine position.
 
             machine_init();  // user supplied function for special initialization
@@ -133,6 +129,11 @@ void setup() {
         register_client(&WebUI::SerialBT);
 #endif
         WebUI::inputBuffer.begin();
+
+        // Do this after wifi gets a chance to start.
+        if (config->_network) {
+            config->_network->init();
+        }
     } catch (const AssertionFailed& ex) {
         // This means something is terribly broken:
         log_error("Critical error in main_init: " << ex.what());

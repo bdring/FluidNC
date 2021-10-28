@@ -10,6 +10,12 @@ void Network::init() {
   }
 }
 
+void Network::handle() {
+    if (_http_print_server) {
+        _http_print_server->handle();
+    }
+}
+
 const char* Network::name() const {
     return "network";
 }

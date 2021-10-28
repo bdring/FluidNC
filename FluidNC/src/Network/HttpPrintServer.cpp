@@ -4,17 +4,17 @@
 #include "HttpPrintServer.h"
 
 HttpPrintServer::HttpPrintServer()
-    : _state(STOPPED),
+    : _state(UNSTARTED),
       _port(-1) {
 }
 
 bool HttpPrintServer::begin() {
-    if (_state != UNSTARTED) {
+    if (_state != UNSTARTED || _port == -1) {
         return false;
     }
     _server = WiFiServer(_port);
     _server.begin();
-    _state = IDLE;
+    setState(IDLE);
     return true;
 }
 
@@ -23,7 +23,7 @@ void HttpPrintServer::stop() {
         return;
     }
     _server.stop();
-    _state = STOPPED;
+    setState(STOPPED);
 }
 
 void HttpPrintServer::handle() {
@@ -33,7 +33,7 @@ void HttpPrintServer::handle() {
     case IDLE:
         if (_server.hasClient()) {
             _client = HttpPrintClient(_server.available());
-            _state = PRINTING;
+            setState(PRINTING);
             _input_client = register_client(&_client);
         }
         return;
@@ -42,12 +42,35 @@ void HttpPrintServer::handle() {
             unregister_client(_input_client);
             delete _input_client;
             _input_client = nullptr;
-            _state = IDLE;
+            setState(IDLE);
         }
         return;
     case STOPPED:
         return;
     }
+}
+
+void HttpPrintServer::setState(State state) {
+    if (_state != state) {
+        switch (state) {
+        case UNSTARTED:
+            log_info("HttpPrintServer: UNSTARTED");
+            break;
+        case IDLE:
+            log_info("HttpPrintServer: IDLE");
+            break;
+        case PRINTING:
+            log_info("HttpPrintServer: PRINTING");
+            break;
+        case STOPPED:
+            log_info("HttpPrintServer: STOPPED");
+            break;
+        default:
+            log_info("HttpPrintServer: <Unknown State>");
+            break;
+        }
+    }
+    _state = state;
 }
 
 void HttpPrintServer::init() {

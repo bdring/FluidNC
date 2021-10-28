@@ -33,6 +33,8 @@ class HttpPrintClient : public Stream {
     size_t write(uint8_t) override;
 
     private:
+    void setState(State state);
+
     enum State _state;
     WiFiClient _wifi_client;
 };

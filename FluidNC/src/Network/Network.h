@@ -14,6 +14,7 @@ class Network : public Configuration::Configurable {
     Network& operator=(Network&&) = delete;
 
     void init();
+    void handle();
 
     // Configuration
     const char* name() const;
