@@ -222,11 +222,18 @@ static bool is_word_delim(char c) {
 }
 
 static void forward_word() {
+    // Skip delimiters that we are already on
     while ((thisaddr < endaddr) && is_word_delim(*thisaddr)) {
         emit(*thisaddr);
         ++thisaddr;
     }
+    // Find the next delimiter
     while ((thisaddr < endaddr) && !is_word_delim(*thisaddr)) {
+        emit(*thisaddr);
+        ++thisaddr;
+    }
+    // Skip to the next non-delimiter
+    while ((thisaddr < endaddr) && is_word_delim(*thisaddr)) {
         emit(*thisaddr);
         ++thisaddr;
     }
@@ -253,21 +260,24 @@ static void backward_word() {
     if (startaddr >= endaddr) {
         return;
     }
-    // If already at the beginning of a word, dislodge the cursor
-    if ((thisaddr < endaddr) && !is_word_delim(*thisaddr) && (thisaddr > startaddr) && is_word_delim(thisaddr[-1])) {
+
+    // Skip over delimiters
+    while ((thisaddr > startaddr) && is_word_delim(thisaddr[-1])) {
         emit(BS);
         --thisaddr;
     }
-    // Scan backward over spaces
-    while ((thisaddr < endaddr) && !is_word_delim(*thisaddr) && (thisaddr > startaddr)) {
+    // Scan backward over non-delimiters
+    while ((thisaddr > startaddr) && !is_word_delim(thisaddr[-1])) {
         emit(BS);
         --thisaddr;
     }
+#if 0
     // Scan backward to a non-space just after a space
     while ((thisaddr > startaddr) && !is_word_delim(thisaddr[-1])) {
         emit(BS);
         --thisaddr;
     }
+#endif
 }
 
 #ifndef NO_COMPLETION
