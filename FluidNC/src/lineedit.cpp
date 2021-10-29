@@ -5,6 +5,9 @@
 void emit(char c) {
     Uart0.write(c);
 }
+void emit(const char* s) {
+    Uart0.print(s);
+}
 
 /* Use -ve numbers here to co-exist with normal unicode chars */
 enum {
@@ -23,12 +26,19 @@ enum {
 #define BS 8
 #define DEL 127
 
-static bool editing = false;
+static bool editing      = false;
+static bool needs_reecho = false;
 
 static char* thisaddr;
 static char* startaddr;
 static char* endaddr;
 static char* maxaddr;
+
+static void echo_line() {
+    for (char* p = startaddr; p < endaddr; ++p) {
+        emit(*p);
+    }
+}
 
 static void addchar(char c, bool echo = true) {
     char* p;
@@ -410,6 +420,7 @@ static int escaping;
 static int history_num = -1;
 
 void lineedit_start(char* addr, int count) {
+    needs_reecho = false;
     startaddr = endaddr = thisaddr = addr;
     escaping                       = 0;
     maxaddr                        = addr + count;
@@ -423,15 +434,53 @@ int lineedit_finish() {
     return (length);
 }
 
-// This is needed for the SPECIAL_DELETE sequence that ends with ~
-// Grbl normally treats ~ as a "realtime character" that is used
-// for CycleStart, and does not pass it through to the line editor.
-// If lineedit_idle() is false, which only happens infrequently when
-// in the middle of a SPECIAL_ sequence, then Serial.cpp will pass
-// ~ through to the line editor to complete the sequence, instead
-// of doing cycle start.
-bool lineedit_idle(int c) {
-    return c != '~' || escaping >= 0;
+static void show_realtime_command(const char* s) {
+    if (startaddr < endaddr) {
+        emit('\n');
+    }
+    if (*s) {
+        emit(s);
+        emit('\n');
+        echo_line();
+    } else {
+        needs_reecho = true;
+    }
+}
+
+// Special handling for realtime characters.
+// In the middle of a SPECIAL_DELETE sequence, we treat ~ as part
+// of that sequence, instead of as a realtime character.
+// Otherwise, we report the character without messing up the display
+// of the line that is being collected.
+// Returns true if the character should be treated as realtime.
+
+bool lineedit_realtime(int c) {
+    if (!editing) {
+        return true;
+    }
+    if (escaping < 0 && c == '~') {
+        // In the middle of a SPECIAL_DELETE sequence, treat ~ as
+        // part of the escape sequence instead of as a realtime character
+        return false;
+    }
+    switch (c) {
+        case '!':
+            show_realtime_command("[Feedhold]");
+            break;
+        case '~':
+            show_realtime_command("[CycleStart]");
+            break;
+        case '?':
+            // For status reports we do not show the command because
+            // a status report will be issued immediately.  This looks
+            // the same as what people are usually accustomed to.
+            show_realtime_command("");
+            break;
+        case CTRL('x'):
+            show_realtime_command("[Reset]");
+            break;
+    }
+    return true;
 }
 
 // Returns true when the line is complete
@@ -441,15 +490,18 @@ bool lineedit_step(int c) {
             if (c == '\r' || c == '\n') {
                 return true;
             }
-            for (char* p = startaddr; p < endaddr; ++p) {
-                emit(*p);
-            }
-            editing = true;
+            needs_reecho = true;
+            editing      = true;
             // continue to editing code below
         } else {
             addchar(c, false);
             return false;
         }
+    }
+
+    if (needs_reecho) {
+        needs_reecho = false;
+        echo_line();
     }
 
     // If we are running on Windows, key() returns the SPECIAL_* values
