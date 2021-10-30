@@ -7,6 +7,27 @@
 #include "../Planner.h"
 #include "../Types.h"
 
+/*
+Special types
+
+You can add your own type of kinematics by adding 2 new files to the Kinematics folder.
+my_delta.h
+my_delta.cpp
+
+Use some of the others as an example. Be sure to have the code for the config file.
+
+Surround all the code in both files with
+#ifdef my_delta_kinematics
+
+#endif
+
+Add a #define to this file for your kinematic
+#define my_delta_kinematics
+
+You will be ablr to add your kinematic using the config file.
+
+*/
+
 namespace Kinematics {
     class KinematicSystem;
 
@@ -28,7 +49,7 @@ namespace Kinematics {
         bool limitsCheckTravel(float* target);
 
     private:
-        ::Kinematics::KinematicSystem* _system  = nullptr;
+        ::Kinematics::KinematicSystem* _system = nullptr;
     };
 
     class KinematicSystem : public Configuration::Configurable {
@@ -42,11 +63,11 @@ namespace Kinematics {
 
         // Kinematic system interface.
         virtual bool cartesian_to_motors(float* target, plan_line_data_t* pl_data, float* position) = 0;
-        virtual void init() = 0;
-        virtual bool kinematics_homing(AxisMask cycle_mask) = 0;
-        virtual void kinematics_post_homing() = 0;
-        virtual bool limitsCheckTravel(float* target) = 0;
-        virtual void motors_to_cartesian(float* cartesian, float* motors, int n_axis) = 0;
+        virtual void init()                                                                         = 0;
+        virtual bool kinematics_homing(AxisMask cycle_mask)                                         = 0;
+        virtual void kinematics_post_homing()                                                       = 0;
+        virtual bool limitsCheckTravel(float* target)                                               = 0;
+        virtual void motors_to_cartesian(float* cartesian, float* motors, int n_axis)               = 0;
 
         // Configuration interface.
         void afterParse() override {}
