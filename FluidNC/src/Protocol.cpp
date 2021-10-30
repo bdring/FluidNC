@@ -149,18 +149,23 @@ void protocol_main_loop() {
     // ---------------------------------------------------------------------------------
     for (;;) {
         // Poll the input sources waiting for a complete line to arrive
-        Channel* ic;
-        while ((ic = pollChannels()) != nullptr) {
-            Stream* out = ic->_io;
+        Channel* chan;
+        char     line[Channel::maxLine];
+        while ((chan = pollChannels(line)) != nullptr) {
             protocol_execute_realtime();  // Runtime command check point.
             if (sys.abort) {
                 return;  // Bail to calling function upon system abort
             }
+            if (channel != fileChannel && fileChannel.running()) {
+                log_error("Job running on another channel");
+                continue;
+            }
 #ifdef DEBUG_REPORT_ECHO_RAW_LINE_RECEIVED
-            report_echo_line_received(ic->_line, *out);
+            report_echo_line_received(line, chan);
 #endif
+            display("GCODE", line);
             // auth_level can be upgraded by supplying a password on the command line
-            report_status_message(execute_line(ic->_line, *out, WebUI::AuthenticationLevel::LEVEL_GUEST), *out);
+            report_status_message(execute_line(line, *chan, WebUI::AuthenticationLevel::LEVEL_GUEST), *chan);
         }
         // If there are no more lines to be processed and executed,
         // auto-cycle start, if enabled, any queued moves.

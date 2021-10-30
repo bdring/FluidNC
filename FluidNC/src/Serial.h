@@ -10,7 +10,7 @@
 
 #include <vector>
 #include <stdint.h>
-#include <Stream.h>
+#include "Channel.h"
 
 // See if the character is an action command like feedhold or jogging. If so, do the action and return true
 uint8_t check_action_command(uint8_t data);
@@ -57,22 +57,19 @@ enum class Cmd : uint8_t {
 };
 
 bool is_realtime_command(uint8_t data);
+void execute_realtime_command(Cmd command, Channel& channel);
 
-class Channel {
-public:
-    static const int maxLine = 255;
-    Channel(Stream* source) : _io(source), _linelen(0), _line_num(0), _line_returned(false) {}
-    Stream* _io;
-    char    _line[maxLine];
-    size_t  _linelen;
-    int     _line_num;
-    bool    _line_returned;
-};
-Channel* pollChannels();
+Channel* pollChannels(char* line = nullptr);
 
-class AllChannels : public Stream {
+class AllChannels : public Channel {
+    std::vector<Channel*> _channelq;
+
 public:
     AllChannels() = default;
+
+    void registration(Channel* channel) { _channelq.push_back(channel); }
+    void init();
+
     size_t write(uint8_t data) override;
     size_t write(const uint8_t* buffer, size_t length) override;
 
@@ -81,8 +78,8 @@ public:
     int  read() { return -1; }
     int  peek() { return -1; }
     void flush() {}
-};
 
-void register_channel(Stream* channel_stream);
+    Channel* pollLine(char* line) override;
+};
 
 extern AllChannels allChannels;

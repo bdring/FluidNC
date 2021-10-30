@@ -42,7 +42,7 @@ void setup() {
 
         // Setup input polling loop after loading the configuration,
         // because the polling may depend on the config
-        channel_init();
+        allChannels.init();
 
         display_init();
 
@@ -121,12 +121,12 @@ void setup() {
 
 #ifdef ENABLE_WIFI
         WebUI::wifi_config.begin();
-        register_channel(&WebUI::Serial2Socket);
-        register_channel(&WebUI::telnet_server);
+        allChannels.registration(&WebUI::Serial2Socket);
+        allChannels.registration(&WebUI::telnet_server);
 #endif
 #ifdef ENABLE_BLUETOOTH
         WebUI::bt_config.begin();
-        register_channel(&WebUI::SerialBT);
+        allChannels.registration(&WebUI::SerialBT);
 #endif
         WebUI::inputBuffer.begin();
     } catch (const AssertionFailed& ex) {

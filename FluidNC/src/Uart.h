@@ -8,10 +8,10 @@
 #include "Configuration/Configurable.h"
 #include "UartTypes.h"
 
-#include <Stream.h>
+#include "Channel.h"
 #include <freertos/FreeRTOS.h>  // TickType_T
 
-class Uart : public Stream, public Configuration::Configurable {
+class Uart : public Channel, public Configuration::Configurable {
 private:
     uart_port_t _uart_num;
     int         _pushback;
@@ -34,7 +34,6 @@ public:
 
     Uart();
     Uart(int uart_num);
-
     bool   setHalfDuplex();
     bool   setPins(int tx_pin, int rx_pin, int rts_pin = -1, int cts_pin = -1);
     void   begin();
@@ -55,6 +54,8 @@ public:
     // size_t        write(const char* text) override;
     void flush() { uart_flush(_uart_num); }
     bool flushTxTimed(TickType_t ticks);
+
+    //    Channel* pollLine(char* line) override;
 
     // Configuration handlers:
     void validate() const override {

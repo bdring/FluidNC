@@ -22,7 +22,7 @@ SDCard::SDCard() :
     _pImpl(new FileWrap()), _current_line_number(0), _state(State::Idle), _channel(Uart0),
     _auth_level(WebUI::AuthenticationLevel::LEVEL_GUEST), _readyNext(false) {}
 
-void SDCard::listDir(fs::FS& fs, const char* dirname, size_t levels, Stream& channel) {
+void SDCard::listDir(fs::FS& fs, const char* dirname, size_t levels, Channel& channel) {
     //char temp_filename[128]; // to help filter by extension	TODO: 128 needs a definition based on something
     File root = fs.open(dirname);
     if (!root) {
@@ -46,7 +46,7 @@ void SDCard::listDir(fs::FS& fs, const char* dirname, size_t levels, Stream& cha
     }
 }
 
-bool SDCard::openFile(fs::FS& fs, const char* path, Stream& channel, WebUI::AuthenticationLevel auth_level) {
+bool SDCard::openFile(fs::FS& fs, const char* path, Channel& channel, WebUI::AuthenticationLevel auth_level) {
     _pImpl->_file = fs.open(path);
     if (!_pImpl->_file) {
         return false;

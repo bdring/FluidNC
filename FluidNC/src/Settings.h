@@ -92,7 +92,7 @@ public:
     // Derived classes may override it to do something.
     virtual void addWebui(WebUI::JSONencoder*) {};
 
-    virtual Error action(char* value, WebUI::AuthenticationLevel auth_level, Stream& out) = 0;
+    virtual Error action(char* value, WebUI::AuthenticationLevel auth_level, Channel& out) = 0;
 };
 
 class Setting : public Word {
@@ -113,7 +113,7 @@ public:
 
     Error check(char* s);
 
-    static Error report_nvs_stats(const char* value, WebUI::AuthenticationLevel auth_level, Stream& out) {
+    static Error report_nvs_stats(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
         nvs_stats_t stats;
         if (esp_err_t err = nvs_get_stats(NULL, &stats)) {
             return Error::NvsGetStatsFailed;
@@ -132,7 +132,7 @@ public:
         return Error::Ok;
     }
 
-    static Error eraseNVS(const char* value, WebUI::AuthenticationLevel auth_level, Stream& out) {
+    static Error eraseNVS(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
         nvs_erase_all(_handle);
         return Error::Ok;
     }
@@ -364,17 +364,17 @@ public:
                Error (*action)(char*, WebUI::AuthenticationLevel)) :
         WebCommand(description, type, permissions, grblName, name, action, notIdleOrAlarm) {}
 
-    Error action(char* value, WebUI::AuthenticationLevel auth_level, Stream& response);
+    Error action(char* value, WebUI::AuthenticationLevel auth_level, Channel& response);
 };
 
 class UserCommand : public Command {
 private:
-    Error (*_action)(const char*, WebUI::AuthenticationLevel, Stream&);
+    Error (*_action)(const char*, WebUI::AuthenticationLevel, Channel&);
 
 public:
     UserCommand(const char* grblName,
                 const char* name,
-                Error (*action)(const char*, WebUI::AuthenticationLevel, Stream&),
+                Error (*action)(const char*, WebUI::AuthenticationLevel, Channel&),
                 bool (*cmdChecker)(),
                 permissions_t auth) :
         Command(NULL, GRBLCMD, auth, grblName, name, cmdChecker),
@@ -382,14 +382,14 @@ public:
 
     UserCommand(const char* grblName,
                 const char* name,
-                Error (*action)(const char*, WebUI::AuthenticationLevel, Stream&),
+                Error (*action)(const char*, WebUI::AuthenticationLevel, Channel&),
                 bool (*cmdChecker)()) :
         UserCommand(grblName, name, action, cmdChecker, WG) {}
-    Error action(char* value, WebUI::AuthenticationLevel auth_level, Stream& response);
+    Error action(char* value, WebUI::AuthenticationLevel auth_level, Channel& response);
 };
 
 // Execute the startup script lines stored in non-volatile storage upon initialization
 void  settings_execute_startup();
-Error settings_execute_line(char* line, Stream& out, WebUI::AuthenticationLevel);
-Error do_command_or_setting(const char* key, char* value, WebUI::AuthenticationLevel auth_level, Stream&);
-Error execute_line(char* line, Stream& channel, WebUI::AuthenticationLevel auth_level);
+Error settings_execute_line(char* line, Channel& out, WebUI::AuthenticationLevel);
+Error do_command_or_setting(const char* key, char* value, WebUI::AuthenticationLevel auth_level, Channel&);
+Error execute_line(char* line, Channel& channel, WebUI::AuthenticationLevel auth_level);

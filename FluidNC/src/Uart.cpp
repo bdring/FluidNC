@@ -17,14 +17,14 @@
 #include <driver/uart.h>
 #include <esp32-hal-gpio.h>  // GPIO_NUM_1 etc
 
-Uart::Uart() : _pushback(-1) {
+Uart::Uart() : Channel(), _pushback(-1) {
     static int currentNumber = 1;
     Assert(currentNumber <= 3, "Max number of UART's reached.");
 
     _uart_num = uart_port_t(currentNumber++);
 }
 
-Uart::Uart(int uart_num) : _uart_num(uart_port_t(uart_num)), _pushback(-1) {}
+Uart::Uart(int uart_num) : Channel(), _uart_num(uart_port_t(uart_num)), _pushback(-1) {}
 
 // Use the specified baud rate
 void Uart::begin(unsigned long baudrate) {

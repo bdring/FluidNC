@@ -1,12 +1,12 @@
 #pragma once
 
-#include <Stream.h>
+#include "Channel.h"
 
 extern "C" {
 #include <stdio.h>
 }
 
-class FileStream : public Stream {
+class FileStream : public Channel {
     bool   _isSD;
     FILE*  _fd;
     String _path;
@@ -27,6 +27,8 @@ public:
 
     size_t write(uint8_t c) override;
     size_t write(const uint8_t* buffer, size_t length) override;
+
+    Channel* pollLine(char* line) override { return nullptr; }
 
     ~FileStream();
 };

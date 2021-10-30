@@ -79,7 +79,7 @@ void heapCheckTask(void* pvParameters) {
 }
 
 // Act upon a realtime character
-static void execute_realtime_command(Cmd command, Print& channel) {
+void execute_realtime_command(Cmd command, Channel& channel) {
     switch (command) {
         case Cmd::Reset:
             log_debug("Cmd::Reset");
@@ -194,61 +194,35 @@ bool is_realtime_command(uint8_t data) {
     return cmd == Cmd::Reset || cmd == Cmd::StatusReport || cmd == Cmd::CycleStart || cmd == Cmd::FeedHold;
 }
 
-Channel* sdChannel = new Channel(nullptr);
-
-std::vector<Channel*> channelq;
-
-void register_channel(Stream* channel_stream) {
-    channelq.push_back(new Channel(channel_stream));
+void AllChannels::init() {
+    registration(&Uart0);               // USB Serial
+    registration(&WebUI::inputBuffer);  // Macros
+    // Channel* sdChannel = new Channel(nullptr);
 }
-void channel_init() {
-    register_channel(&Uart0);               // USB Serial
-    register_channel(&WebUI::inputBuffer);  // Macros
+
+size_t AllChannels::write(uint8_t data) {
+    for (auto channel : _channelq) {
+        channel->write(data);
+    }
+    return 1;
 }
-Channel* pollChannels() {
-    auto sdcard = config->_sdCard;
-
-    for (auto channel : channelq) {
-        auto source = channel->_io;
-        int  c      = source->read();
-
-        if (c >= 0) {
-            char ch = c;
-            if (channel->_line_returned) {
-                channel->_line_returned = false;
-                channel->_linelen       = 0;
-            }
-            if (is_realtime_command(c)) {
-                execute_realtime_command(static_cast<Cmd>(c), *source);
-                continue;
-            }
-
-            if (ch == '\b') {
-                // Simple editing for interactive input - backspace erases
-                if (channel->_linelen) {
-                    --channel->_linelen;
-                }
-                continue;
-            }
-            if ((channel->_linelen + 1) == Channel::maxLine) {
-                report_status_message(Error::Overflow, *source);
-                // XXX could show a message with the overflow line
-                // XXX There is a problem here - the final fragment of the
-                // too-long line will be returned as a valid line.  We really
-                // need to enter a state where we ignore characters until
-                // the newline.
-                channel->_linelen = 0;
-                continue;
-            }
-            if (ch == '\r') {
-                continue;
-            }
+size_t AllChannels::write(const uint8_t* buffer, size_t length) {
+    for (auto channel : _channelq) {
+        channel->write(buffer, length);
+    }
+    return length;
+}
+Channel* AllChannels::pollLine(char* line) {
+    for (auto channel : _channelq) {
+        if (channel->pollLine(line)) {
+            return channel;
+        }
+#if 0
             if (ch == '\n') {
                 channel->_line_num++;
                 if (sdcard->get_state() < SDCard::State::Busy) {
                     channel->_line[channel->_linelen] = '\0';
                     channel->_line_returned           = true;
-                    display("GCODE", channel->_line);
                     return channel;
                 } else {
                     // Log an error and discard the line if it happens during an SD run
@@ -257,16 +231,23 @@ Channel* pollChannels() {
                     continue;
                 }
             }
-
-            channel->_line[channel->_linelen] = ch;
-            ++channel->_linelen;
-        }
+#endif
     }
+    return nullptr;
+}
+
+AllChannels allChannels;
+
+Channel* pollChannels(char* line) {
+    Channel* retval = allChannels.pollLine(line);
 
     WebUI::COMMANDS::handle();  // Handles feeding watchdog and ESP restart
 #ifdef ENABLE_WIFI
     WebUI::wifi_services.handle();  // OTA, web_server, telnet_server polling
 #endif
+
+#if 0
+    auto sdcard = config->_sdCard;
 
     // _readyNext indicates that input is coming from a file and
     // the GCode system is ready for another line.
@@ -279,21 +260,7 @@ Channel* pollChannels() {
         }
         report_status_message(res, sdcard->getChannel());
     }
+#endif
 
-    return nullptr;
+    return retval;
 }
-
-size_t AllChannels::write(uint8_t data) {
-    for (auto channel : channelq) {
-        channel->_io->write(data);
-    }
-    return 1;
-}
-size_t AllChannels::write(const uint8_t* buffer, size_t length) {
-    for (auto channel : channelq) {
-        channel->_io->write(buffer, length);
-    }
-    return length;
-}
-
-AllChannels allChannels;
