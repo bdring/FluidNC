@@ -59,6 +59,7 @@ int HttpPrintClient::read() {
         }
         return -1;
     }
+    // We need to read the Content-length since we can't detect a half-closed socket.
     switch (_state) {
     case READING_HEADER:
         if (_wifi_client.read() == '\r') {

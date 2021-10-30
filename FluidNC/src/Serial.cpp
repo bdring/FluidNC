@@ -280,6 +280,10 @@ InputClient* pollClients() {
     WebUI::wifi_services.handle();  // OTA, web_server, telnet_server polling
 #endif
 
+    if (config->_network) {
+        config->_network->handle();
+    }
+
     // _readyNext indicates that input is coming from a file and
     // the GCode system is ready for another line.
     if (sdcard && sdcard->_readyNext) {

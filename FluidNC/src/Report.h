@@ -23,7 +23,7 @@
 // NOTE: Only use this for debugging purposes!! When echoing, this takes up valuable resources and can effect
 // performance. If absolutely needed for normal operation, the serial write buffer should be greatly increased
 // to help minimize transmission waiting within the serial write protocol.
-//#define DEBUG_REPORT_ECHO_LINE_RECEIVED // Default disabled. Uncomment to enable.
+#define DEBUG_REPORT_ECHO_LINE_RECEIVED // Default disabled. Uncomment to enable.
 
 // This is similar to DEBUG_REPORT_ECHO_LINE_RECEIVED and subject to all its caveats,
 // but instead of echoing the pre-parsed line, it echos the raw line exactly as
