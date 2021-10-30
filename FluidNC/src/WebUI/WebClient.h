@@ -4,15 +4,13 @@
 #pragma once
 
 #include "../Config.h"  // ENABLE_*
-
-#include <cstdint>
-#include <Print.h>
+#include "../Channel.h"
 
 #ifdef ENABLE_WIFI
 class WebServer;
 
 namespace WebUI {
-    class WebClient : public Stream {
+    class WebClient : public Channel {
     public:
         WebClient(WebServer* webserver, bool silent);
         ~WebClient();

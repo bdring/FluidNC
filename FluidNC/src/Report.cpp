@@ -26,6 +26,7 @@
 #include "Limits.h"                      // limits_get_state
 #include "Planner.h"                     // plan_get_block_buffer_available
 #include "Stepper.h"                     // step_count
+#include "Platform.h"                    // WEAK_LINK
 #include "WebUI/NotificationsService.h"  // WebUI::notificationsservice
 #include "WebUI/WifiConfig.h"            // wifi_config
 #include "WebUI/TelnetServer.h"          // WebUI::telnet_server
@@ -692,3 +693,6 @@ void reportTaskStackSize(UBaseType_t& saved) {
 }
 const char* dataBeginMarker = "[MSG: BeginData]\n";
 const char* dataEndMarker   = "[MSG: EndData]\n";
+
+void WEAK_LINK display_init() {}
+void WEAK_LINK display(const char* tag, String s) {}

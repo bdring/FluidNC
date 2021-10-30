@@ -113,6 +113,8 @@ static int32_t idleEndTime = 0;
 /*
   PRIMARY LOOP:
 */
+Channel* exclusiveChannel = nullptr;
+
 void protocol_main_loop() {
     // Check for and report alarm state after a reset, error, or an initial power up.
     // NOTE: Sleep mode disables the stepper drivers and position can't be guaranteed.
@@ -151,14 +153,20 @@ void protocol_main_loop() {
         // Poll the input sources waiting for a complete line to arrive
         Channel* chan;
         char     line[Channel::maxLine];
-        while ((chan = pollChannels(line)) != nullptr) {
+        while (true) {
             protocol_execute_realtime();  // Runtime command check point.
             if (sys.abort) {
                 return;  // Bail to calling function upon system abort
             }
-            if (channel != fileChannel && fileChannel.running()) {
-                log_error("Job running on another channel");
-                continue;
+
+            if (exclusiveChannel) {
+                pollChannels(nullptr);
+                chan = exclusiveChannel->pollLine(line);
+            } else {
+                chan = pollChannels(line);
+            }
+            if (chan == nullptr) {
+                break;
             }
 #ifdef DEBUG_REPORT_ECHO_RAW_LINE_RECEIVED
             report_echo_line_received(line, chan);
