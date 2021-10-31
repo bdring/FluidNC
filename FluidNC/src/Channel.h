@@ -1,6 +1,7 @@
 #pragma once
 
 #include <Stream.h>
+#include "Error.h"  // Error
 
 class Channel : public Stream {
 public:
@@ -9,11 +10,11 @@ public:
 private:
     char   _line[maxLine];
     size_t _linelen;
-    int    _line_num;
 
 public:
-    Channel() : _linelen(0), _line_num(0) {}
+    Channel() : _linelen(0) {}
     virtual ~Channel() = default;
 
     virtual Channel* pollLine(char* line);
+    virtual void     ack(Error status);
 };

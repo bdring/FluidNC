@@ -32,6 +32,7 @@
 #include "WebUI/TelnetServer.h"          // WebUI::telnet_server
 #include "WebUI/BTConfig.h"              // bt_config
 #include "WebUI/WebSettings.h"
+#include "InputFile.h"
 
 #include <map>
 #include <freertos/task.h>
@@ -124,55 +125,33 @@ static String report_util_axis_values(const float* axis_value) {
 // operation. Errors events can originate from the g-code parser, settings module, or asynchronously
 // from a critical error, such as a triggered hard limit. Interface should always monitor for these
 // responses.
-void report_status_message(Error status_code, Print& channel) {
-    auto sdcard = config->_sdCard;
-    if (sdcard->get_state() == SDCard::State::BusyPrinting) {
-        // When running from SD, the GCode is not coming from a sender, so we are not
-        // using the Grbl send/response/error protocol.  We use _readyNext instead of
-        // "ok" to indicate readiness for another line, and we report verbose error
+bool readyNext = false;
+void report_status_message(Error status_code, Channel& channel) {
+    if (infile) {
+        // When running from a file, the GCode is not coming from a sender, so we are not
+        // using the Grbl send/response/error protocol.  We set the readyNext flag instead
+        // sending "ok" to indicate readiness for another line.  We report verbose error
         // messages with [MSG: ...] encapsulation
         switch (status_code) {
             case Error::Ok:
-                sdcard->_readyNext = true;  // flag so protocol_main_loop() will send the next line
-                break;
-            case Error::Eof:
-                // XXX we really should wait for the machine to return to idle before
-                // we issue this message.  What Eof really means is that all the lines in the
-                // file were sent, but not necessarily executed.  Some could still be running.
-                _notifyf("SD print done", "%s print succeeded", sdcard->filename());
-                sdcard->getChannel() << "[MSG:" << sdcard->filename() << " print succeeded]\n";
-                sdcard->closeFile();
+                readyNext = true;  // flag so protocol_main_loop() will send the next line
                 break;
             default:
-                sdcard->getChannel() << "[MSG: ERR:" << static_cast<int>(status_code) << " (" << errorString(status_code) << ") in "
-                                     << sdcard->filename() << " at line " << sdcard->lineNumber() << "]\n";
+                infile->getChannel() << "[MSG: ERR:" << static_cast<int>(status_code) << " (" << errorString(status_code) << ") in "
+                                     << infile->filename() << " at line " << infile->_line_num << "]\n";
                 if (status_code == Error::GcodeUnsupportedCommand) {
                     // Do not stop on unsupported commands because most senders do not
-                    sdcard->_readyNext = true;
+                    readyNext = true;
                 } else {
-                    _notifyf("SD print error", "Error:%d in %s at line: %d", status_code, sdcard->filename(), sdcard->lineNumber());
-                    sdcard->closeFile();
+                    // Stop the file job on other errors
+                    _notifyf("File job error", "Error:%d in %s at line: %d", status_code, infile->filename(), infile->_line_num);
+                    delete infile;
+                    infile = nullptr;
                 }
         }
     } else {
         // Input is coming from a sender so use the classic Grbl line protocol
-        switch (status_code) {
-            case Error::Ok:  // Error::Ok
-                channel << "ok\n";
-                break;
-            default:
-                // With verbose errors, the message text is displayed instead of the number.
-                // Grbl 0.9 used to display the text, while Grbl 1.1 switched to the number.
-                // Many senders support both formats.
-                channel << "error:";
-                if (config->_verboseErrors) {
-                    channel << errorString(status_code);
-                } else {
-                    channel << static_cast<int>(status_code);
-                }
-                channel << '\n';
-                break;
-        }
+        channel.ack(status_code);
     }
 }
 
@@ -190,7 +169,7 @@ std::map<Message, const char*> MessageText = {
     { Message::SleepMode, "Sleeping" },
     { Message::ConfigAlarmLock, "Configuration is invalid. Check boot messages for ERR's." },
     // Handled separately due to numeric argument
-    // { Message::SdFileQuit, "Reset during SD file at line: %d" },
+    // { Message::FileQuit, "Reset during file job at line: %d" },
 };
 
 // Prints feedback messages. This serves as a centralized method to provide additional
@@ -657,9 +636,9 @@ void report_realtime_status(Print& channel) {
             }
         }
     }
-    if (config->_sdCard->get_state() == SDCard::State::BusyPrinting) {
+    if (infile) {
         // XXX WMB FORMAT 4.2f
-        channel << "|SD:" << config->_sdCard->percent_complete() << "," << config->_sdCard->filename();
+        channel << "|SD:" << infile->percent_complete() << "," << infile->filename();
     }
 #ifdef DEBUG_STEPPER_ISR
     channel << "|ISRs:" << config->_stepping->isr_count;

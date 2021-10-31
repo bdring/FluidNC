@@ -1,5 +1,6 @@
 #include "Channel.h"
-#include "Serial.h"  // execute_realtime_command
+#include "Machine/MachineConfig.h"  // config
+#include "Serial.h"                 // execute_realtime_command
 
 Channel* Channel::pollLine(char* line) {
     int ch = read();
@@ -23,14 +24,12 @@ Channel* Channel::pollLine(char* line) {
     if (ch == '\n') {
         // if (_discarding) {
         //     _linelen = 0;
-        //     ++_line_num;
         //     _discarding = false;
         //     return nullptr;
         // }
         _line[_linelen] = '\0';
         strcpy(line, _line);
         _linelen = 0;
-        ++_line_num;
         return this;
     }
     if (_linelen < (Channel::maxLine - 1)) {
@@ -42,4 +41,23 @@ Channel* Channel::pollLine(char* line) {
         // _discarding = true;
     }
     return nullptr;
+}
+void Channel::ack(Error status) {
+    switch (status) {
+        case Error::Ok:  // Error::Ok
+            write("ok\n");
+            break;
+        default:
+            // With verbose errors, the message text is displayed instead of the number.
+            // Grbl 0.9 used to display the text, while Grbl 1.1 switched to the number.
+            // Many senders support both formats.
+            write("error:");
+            if (config->_verboseErrors) {
+                print(errorString(status));
+            } else {
+                print(static_cast<int>(status));
+            }
+            write('\n');
+            break;
+    }
 }

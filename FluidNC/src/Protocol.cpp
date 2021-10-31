@@ -15,6 +15,7 @@
 #include "Planner.h"        // plan_get_current_block
 #include "MotionControl.h"  // PARKING_MOTION_LINE_NUMBER
 #include "Settings.h"       // settings_execute_startup
+#include "InputFile.h"      // infile
 
 #ifdef DEBUG_REPORT_REALTIME
 volatile bool rtExecDebug;
@@ -151,7 +152,7 @@ void protocol_main_loop() {
     // ---------------------------------------------------------------------------------
     for (;;) {
         // Poll the input sources waiting for a complete line to arrive
-        Channel* chan;
+        Channel* chan = nullptr;
         char     line[Channel::maxLine];
         while (true) {
             protocol_execute_realtime();  // Runtime command check point.
@@ -159,9 +160,28 @@ void protocol_main_loop() {
                 return;  // Bail to calling function upon system abort
             }
 
-            if (exclusiveChannel) {
+            if (infile) {
                 pollChannels(nullptr);
-                chan = exclusiveChannel->pollLine(line);
+                if (readyNext) {
+                    readyNext    = false;
+                    Channel& out = infile->getChannel();
+                    switch (auto err = infile->readLine(line, Channel::maxLine)) {
+                        case Error::Ok:
+                            break;
+                        case Error::Eof:
+                            _notifyf("File job done", "%s file job succeeded", infile->filename());
+                            out << "[MSG:" << infile->filename() << " file job succeeded]\n";
+                            delete infile;
+                            infile = nullptr;
+                            break;
+                        default:
+                            out << "[MSG: ERR:" << static_cast<int>(err) << " (" << errorString(err) << ") in " << infile->filename()
+                                << " at line " << infile->_line_num << "]\n";
+                            delete infile;
+                            infile = nullptr;
+                            break;
+                    }
+                }
             } else {
                 chan = pollChannels(line);
             }

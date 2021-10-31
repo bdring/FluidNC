@@ -47,7 +47,7 @@
 #include "Report.h"
 #include "System.h"
 #include "Protocol.h"  // rtSafetyDoor etc
-#include "SDCard.h"
+#include "InputFile.h"
 #include "WebUI/InputBuffer.h"  // XXX could this be a StringStream ?
 #include "Main.h"               // display()
 
@@ -197,7 +197,6 @@ bool is_realtime_command(uint8_t data) {
 void AllChannels::init() {
     registration(&Uart0);               // USB Serial
     registration(&WebUI::inputBuffer);  // Macros
-    // Channel* sdChannel = new Channel(nullptr);
 }
 
 size_t AllChannels::write(uint8_t data) {
@@ -217,21 +216,6 @@ Channel* AllChannels::pollLine(char* line) {
         if (channel->pollLine(line)) {
             return channel;
         }
-#if 0
-            if (ch == '\n') {
-                channel->_line_num++;
-                if (sdcard->get_state() < SDCard::State::Busy) {
-                    channel->_line[channel->_linelen] = '\0';
-                    channel->_line_returned           = true;
-                    return channel;
-                } else {
-                    // Log an error and discard the line if it happens during an SD run
-                    log_error("SD card job running");
-                    channel->_linelen = 0;
-                    continue;
-                }
-            }
-#endif
     }
     return nullptr;
 }
@@ -244,22 +228,6 @@ Channel* pollChannels(char* line) {
     WebUI::COMMANDS::handle();  // Handles feeding watchdog and ESP restart
 #ifdef ENABLE_WIFI
     WebUI::wifi_services.handle();  // OTA, web_server, telnet_server polling
-#endif
-
-#if 0
-    auto sdcard = config->_sdCard;
-
-    // _readyNext indicates that input is coming from a file and
-    // the GCode system is ready for another line.
-    if (sdcard && sdcard->_readyNext) {
-        Error res = sdcard->readFileLine(sdChannel->_line, Channel::maxLine);
-        if (res == Error::Ok) {
-            sdChannel->_io     = &sdcard->getChannel();
-            sdcard->_readyNext = false;
-            return sdChannel;
-        }
-        report_status_message(res, sdcard->getChannel());
-    }
 #endif
 
     return retval;
