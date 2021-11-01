@@ -530,7 +530,9 @@ Error gc_execute_line(char* line, Channel& channel) {
                                 }
                                 break;
                             case 9:
-                                gc_block.coolant = GCodeCoolant::M9;
+                                if (config->_coolant->hasFlood() || config->_coolant->hasMist()) {
+                                    gc_block.coolant = GCodeCoolant::M9;
+                                }
                                 break;
                         }
                         mg_word_bit = ModalGroup::MM8;
