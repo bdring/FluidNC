@@ -520,13 +520,7 @@ static Error dump_config(const char* value, WebUI::AuthenticationLevel auth_leve
     } catch (Error err) { return err; }
     try {
         Configuration::Generator generator(*ss);
-        if (!value) {
-            *ss << dataBeginMarker;
-        }
         config->group(generator);
-        if (!value) {
-            *ss << dataEndMarker;
-        }
     } catch (std::exception& ex) { log_info("Config dump error: " << ex.what()); }
     if (value) {
         delete ss;

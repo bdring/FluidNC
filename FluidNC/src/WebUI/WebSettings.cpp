@@ -629,7 +629,6 @@ namespace WebUI {
         if ((err = openFile(fs, parameter, channel, auth_level)) != Error::Ok) {
             return err;
         }
-        webPrint(dataBeginMarker);
         char  fileLine[255];
         Error res;
         while ((res = infile->readLine(fileLine, 255)) == Error::Ok) {

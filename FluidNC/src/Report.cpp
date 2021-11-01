@@ -670,8 +670,6 @@ void reportTaskStackSize(UBaseType_t& saved) {
     }
 #endif
 }
-const char* dataBeginMarker = "[MSG: BeginData]\n";
-const char* dataEndMarker   = "[MSG: EndData]\n";
 
 void WEAK_LINK display_init() {}
 void WEAK_LINK display(const char* tag, String s) {}
