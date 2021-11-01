@@ -1,6 +1,6 @@
 #pragma once
 
-#include <WiFi.h>
+#include <WebServer.h>
 
 #include "../Configuration/Configurable.h"
 #include "../Serial.h"
@@ -15,12 +15,17 @@ class HttpPrintServer : public Configuration::Configurable {
     enum State {
       UNSTARTED,
       IDLE,
-      PRINTING,
+      UPLOADING,
       STOPPED,
+      ABORTED,
     };
 
     public:
     HttpPrintServer();
+    virtual ~HttpPrintServer();
+
+    void close_print_client();
+    void close_web_server();
 
     // The server will now start accepting connections.
     bool begin();
@@ -31,6 +36,11 @@ class HttpPrintServer : public Configuration::Configurable {
     // Call this periodically to allow new connections to be established.
     void handle();
 
+    // Called for file upload.
+    void print_form();
+    void print_upload();
+    void print_response();
+
     void init();
 
     // Configuration
@@ -40,12 +50,14 @@ class HttpPrintServer : public Configuration::Configurable {
     void group(Configuration::HandlerBase& handler) override;
 
     private:
-    void setState(State state);
+    void set_state(State state);
 
     enum State _state;
     int _port;
-    WiFiServer _server;
-    HttpPrintClient _client;
+    WebServer* _web_server;
+    HttpPrintClient* _print_client;
     InputClient* _input_client; // Owned
     IntSetting* _port_setting;  // NVS override setting
+
+    static const char* _state_name[5];
 };

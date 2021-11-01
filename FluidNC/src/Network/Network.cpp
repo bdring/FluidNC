@@ -3,8 +3,6 @@
 #include "../Settings.h"
 
 void Network::init() {
-  // Do nothing.
-  log_info("Network init");
   if (_http_print_server) {
     _http_print_server->init();
   }

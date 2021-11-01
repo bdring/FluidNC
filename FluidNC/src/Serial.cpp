@@ -220,11 +220,23 @@ void client_init() {
 InputClient* pollClients() {
     auto sdcard = config->_sdCard;
 
+    InputClient* clientWithLine = nullptr;
+
     for (auto client : clientq) {
         auto source = client->_in;
-        int  c      = source->read();
 
-        if (c >= 0) {
+        do {
+            // Try to accumulate a line of text from a client without blocking.
+            // If a line is accumulated by one client, subsequent clients will
+            // be skipped for that polling cycle, but i/o services will still be
+            // handled before returning.
+            int c = source->read();
+
+            if (c == -1) {
+                // Would block, so break out to the next client.
+                break;
+            }
+
             char ch = c;
             if (client->_line_returned) {
                 client->_line_returned = false;
@@ -232,7 +244,7 @@ InputClient* pollClients() {
             }
             if (is_realtime_command(c)) {
                 execute_realtime_command(static_cast<Cmd>(c), *source);
-                continue;
+                break;
             }
 
             if (ch == '\b') {
@@ -240,7 +252,7 @@ InputClient* pollClients() {
                 if (client->_linelen) {
                     --client->_linelen;
                 }
-                continue;
+                break;
             }
             if ((client->_linelen + 1) == InputClient::maxLine) {
                 report_status_message(Error::Overflow, *source);
@@ -250,30 +262,36 @@ InputClient* pollClients() {
                 // need to enter a state where we ignore characters until
                 // the newline.
                 client->_linelen = 0;
-                continue;
+                break;
             }
             if (ch == '\r') {
-                continue;
+                break;
             }
             if (ch == '\n') {
                 client->_line_num++;
+                // This blocking logic should be generalized for upload clients,
+                // and then SDCard could become a normal InputClient.
                 if (sdcard->get_state() < SDCard::State::Busy) {
                     client->_line[client->_linelen] = '\0';
                     client->_line_returned          = true;
                     display("GCODE", client->_line);
-                    return client;
+                    // This will break out of the polling loop.
+                    clientWithLine = client;
+                    break;
                 } else {
                     // Log an error and discard the line if it happens during an SD run
                     log_error("SD card job running");
                     client->_linelen = 0;
-                    continue;
+                    break;
                 }
             }
 
             client->_line[client->_linelen] = ch;
             ++client->_linelen;
-        }
+        } while (clientWithLine == nullptr);
     }
+
+    // Handle services.
 
     WebUI::COMMANDS::handle();  // Handles feeding watchdog and ESP restart
 #ifdef ENABLE_WIFI
@@ -296,7 +314,7 @@ InputClient* pollClients() {
         report_status_message(res, sdcard->getClient());
     }
 
-    return nullptr;
+    return clientWithLine;
 }
 
 size_t AllClients::write(uint8_t data) {
