@@ -212,12 +212,23 @@ size_t AllChannels::write(const uint8_t* buffer, size_t length) {
     return length;
 }
 Channel* AllChannels::pollLine(char* line) {
+    static Channel* lastChannel = nullptr;
+    // To avoid starving other channels when one has a lot
+    // of traffic, we poll the other channels before the last
+    // one that returned a line.
     for (auto channel : _channelq) {
-        if (channel->pollLine(line)) {
-            return channel;
+        // Skip the last channel in the loop
+        if (channel != lastChannel && channel->pollLine(line)) {
+            lastChannel = channel;
+            return lastChannel;
         }
     }
-    return nullptr;
+    // If no other channel returned a line, try the last one
+    if (lastChannel && lastChannel->pollLine(line)) {
+        return lastChannel;
+    }
+    lastChannel = nullptr;
+    return lastChannel;
 }
 
 AllChannels allChannels;
