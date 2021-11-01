@@ -419,18 +419,25 @@ static void accept_word() {
 static int escaping;
 static int history_num = -1;
 
+static void lineedit_restart() {
+    needs_reecho = false;
+    endaddr = thisaddr = startaddr;
+    endaddr            = startaddr;
+    escaping           = 0;
+    history_num        = -1;
+}
+
 void lineedit_start(char* addr, int count) {
     needs_reecho = false;
-    startaddr = endaddr = thisaddr = addr;
-    escaping                       = 0;
-    maxaddr                        = addr + count;
-    history_num                    = -1;
+    startaddr    = addr;
+    maxaddr      = addr + count;
+    lineedit_restart();
 }
 
 int lineedit_finish() {
     int length = (int)(endaddr - startaddr);
     add_to_history(startaddr, length);
-
+    lineedit_restart();
     return (length);
 }
 

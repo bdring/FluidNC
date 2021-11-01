@@ -7,7 +7,7 @@ class Channel : public Stream {
 public:
     static const int maxLine = 255;
 
-private:
+protected:
     char   _line[maxLine];
     size_t _linelen;
 

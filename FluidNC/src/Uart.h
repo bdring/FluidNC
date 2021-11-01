@@ -55,7 +55,7 @@ public:
     void flush() { uart_flush(_uart_num); }
     bool flushTxTimed(TickType_t ticks);
 
-    //    Channel* pollLine(char* line) override;
+    Channel* pollLine(char* line) override;
 
     // Configuration handlers:
     void validate() const override {

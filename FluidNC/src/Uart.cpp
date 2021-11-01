@@ -7,6 +7,7 @@
 
 #include "Logging.h"
 #include "Uart.h"
+#include "lineedit.h"
 
 #include <esp_system.h>
 #include <soc/uart_reg.h>
@@ -24,7 +25,9 @@ Uart::Uart() : Channel(), _pushback(-1) {
     _uart_num = uart_port_t(currentNumber++);
 }
 
-Uart::Uart(int uart_num) : Channel(), _uart_num(uart_port_t(uart_num)), _pushback(-1) {}
+Uart::Uart(int uart_num) : Channel(), _uart_num(uart_port_t(uart_num)), _pushback(-1) {
+    lineedit_start(_line, Channel::maxLine - 1);
+}
 
 // Use the specified baud rate
 void Uart::begin(unsigned long baudrate) {
@@ -86,6 +89,30 @@ int Uart::read(TickType_t timeout) {
 }
 int Uart::read() {
     return read(0);
+}
+
+Channel* Uart::pollLine(char* line) {
+    while (1) {
+        int ch = read();
+        if (ch < 0 || ch == '\r') {
+            break;
+        }
+        if (lineedit_realtime(ch) && is_realtime_command(ch)) {
+            execute_realtime_command(static_cast<Cmd>(ch), *this);
+            continue;
+        }
+        if (!line) {
+            continue;
+        }
+        if (lineedit_step(ch)) {
+            _linelen        = lineedit_finish();
+            _line[_linelen] = '\0';
+            strcpy(line, _line);
+            _linelen = 0;
+            return this;
+        }
+    }
+    return nullptr;
 }
 
 size_t Uart::readBytes(char* buffer, size_t length, TickType_t timeout) {
