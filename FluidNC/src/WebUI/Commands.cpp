@@ -25,11 +25,14 @@ namespace WebUI {
      * delay is to avoid with asyncwebserver and may need to wait sometimes
      */
     void COMMANDS::wait(uint32_t milliseconds) {
-        uint32_t start_time = millis();
-        //wait feeding WDT
-        do {
-            esp_task_wdt_reset();
-        } while ((millis() - start_time) < milliseconds);
+        esp_task_wdt_reset();
+        if (milliseconds) {
+            uint32_t start_time = millis();
+            //wait feeding WDT
+            while ((millis() - start_time) < milliseconds) {
+                esp_task_wdt_reset();
+            };
+        }
     }
     bool COMMANDS::isLocalPasswordValid(char* password) {
         if (!password) {
