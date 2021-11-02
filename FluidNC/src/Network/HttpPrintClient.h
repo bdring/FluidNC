@@ -1,6 +1,6 @@
 #pragma once
 
-#include <WebServer.h>
+#include <WiFi.h>
 
 #include "../Serial.h"
 
@@ -10,21 +10,19 @@
 
 class HttpPrintClient : public Stream {
     enum State {
-        IDLE,
-        PRINTING,
-        FINISHING,
+        READING_HEADER,
+        READING_DATA,
         FINISHED,
         ABORTED,
     };
 
     public:
-    HttpPrintClient(WebServer* server);
+    HttpPrintClient();
+    HttpPrintClient(WiFiClient wifi_client);
 
-    // Advise of an upload state change.
-    void handle_upload();
-
-    bool isAborted();
-    bool isDone();
+    // All possible data has been read.
+    bool is_done();
+    bool is_aborted();
 
     // Stream interface.
     int read() override;
@@ -37,10 +35,11 @@ class HttpPrintClient : public Stream {
     void set_state(State state);
 
     enum State _state;
-    WebServer* _web_server;  // Not owned.
-    size_t _uploaded_data_read;
-    size_t _uploaded_data_size;
-    uint8_t _uploaded_data[HTTP_UPLOAD_BUFLEN];
+    WiFiClient _wifi_client;
 
-    static const char* _state_name[5];
+    long _content_read;
+    long _content_size;
+    char _data[128];
+    size_t _data_read;
+    size_t _data_size;
 };

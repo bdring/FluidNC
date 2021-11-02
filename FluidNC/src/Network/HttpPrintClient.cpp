@@ -1,170 +1,143 @@
-#include <WebServer.h>
+#include "../Config.h"
 
 #include "HttpPrintServer.h"
 
-#include "../Config.h"
+namespace {
+    const char* _state_name[4] = {
+        "READING_HEADER",
+        "READING_DATA",
+        "FINISHED",
+        "ABORTED",
+    };
 
-// Opens a connection and then ignores a header terminated by \r\n\r\n.
-// The remainder of the data is output via single character read().
-// isFinished() indicates that the client is closed and exhausted.
+    const char content_length[] = "Content_length:";
+    const char header_delimiter[] = "\r\n";
+}
 
-HttpPrintClient::HttpPrintClient(WebServer* web_server)
-    : _state(IDLE),
-      _web_server(web_server),
-      _uploaded_data_read(0),
-      _uploaded_data_size(0) {
+HttpPrintClient::HttpPrintClient(WiFiClient wifi_client)
+    : _state(READING_HEADER),
+      _wifi_client(wifi_client),
+      _content_read(0),
+      _content_size(0),
+      _data_read(0),
+      _data_size(0) {
+}
+
+HttpPrintClient::HttpPrintClient()
+    : _state(READING_HEADER) {
+}
+
+bool HttpPrintClient::is_done() {
+    return _state == FINISHED || _state == ABORTED;
+}
+
+bool HttpPrintClient::is_aborted() {
+    return _state == ABORTED;
 }
 
 void HttpPrintClient::set_state(State state) {
     if (_state != state) {
-        switch (state) {
-            case IDLE:
-                log_info("HttpPrintClient: IDLE");
-                break;
-            case PRINTING:
-                log_info("HttpPrintClient: PRINTING");
-                break;
-            case FINISHED:
-                log_info("HttpPrintClient: FINISHED");
-                break;
-            case ABORTED:
-                log_info("HttpPrintClient: ABORTED");
-                break;
-            default:
-                log_info("HttpPrintClient: <Unknown State>");
-                break;
-        }
+        log_info("HttpPrintClient: " << _state_name[state]);
+        _state = state;
     }
-    _state = state;
 }
 
-bool HttpPrintClient::isDone() {
-    return _state == FINISHED || _state == ABORTED;
-}
-
-bool HttpPrintClient::isAborted() {
-    return _state == ABORTED;
-}
-
-void HttpPrintClient::handle_upload() {
-    HTTPUpload& upload = _web_server->upload();
-    log_info("HttpPrintClient: read=" << _uploaded_data_read << " size=" << _uploaded_data_size);
-    switch (upload.status) {
-        case UPLOAD_FILE_START:
-            log_info("HttpPrintClient: UPLOAD_FILE_START");
-            switch (_state) {
-                case PRINTING:
-                case FINISHING:
-                case FINISHED:
-                case ABORTED:
-                    log_info("HttpPrintClient: UPLOAD_FILE_START while " << _state_name[_state]);
-                    set_state(ABORTED);
-                    break;
-                case IDLE:
-                    set_state(PRINTING);
-                    break;
-            }
-            break;
-        case UPLOAD_FILE_WRITE:
-            log_info("HttpPrintClient: UPLOAD_FILE_WRITE data=" << String((char *)upload.buf).substring(0, 20));
-            switch (_state) {
-                case IDLE:
-                case FINISHING:
-                case FINISHED:
-                case ABORTED:
-                    log_info("HttpPrintClient: UPLOAD_FILE_WRITE while " << _state_name[_state]);
-                    set_state(ABORTED);
-                    break;
-                case PRINTING:
-                    if (_uploaded_data_read != _uploaded_data_size) {
-                        log_info("HttpPrintClient: Received data while buffer not empty.");
-                        set_state(ABORTED);
-                        break;
-                    }
-                    // Unfortunately as soon as we return the upload buffer
-                    // will be invalidated, so we need to stash the data.
-                    //
-                    // If we used WiFiClient directly this could be avoided
-                    // but then we'd need to re-implement all of the upload
-                    // protocol.
-                    memcpy(_uploaded_data, upload.buf, upload.currentSize);
-                    _uploaded_data_read = 0;
-                    _uploaded_data_size = upload.currentSize;
-                    break;
-            }
-            break;
-        case UPLOAD_FILE_END:
-            log_info("HttpPrintClient: UPLOAD_FILE_END");
-            switch (_state) {
-                case IDLE:
-                case FINISHING:
-                case FINISHED:
-                case ABORTED:
-                    log_info("HttpPrintClient: UPLOAD_FILE_END while " << _state_name[_state]);
-                    set_state(ABORTED);
-                    break;
-                case PRINTING:
-                    if (_uploaded_data_read < _uploaded_data_size) {
-                        set_state(FINISHING);
-                    } else {
-                        set_state(FINISHED);
-                    }
-                    break;
-            }
-            break;
-        case UPLOAD_FILE_ABORTED:
-            log_info("HttpPrintClient: UPLOAD_FILE_ABORTED while " << _state_name[_state]);
+// This is sufficient to drive the client due to how pollClients() just calls
+// read().
+int HttpPrintClient::read() {
+    if (_wifi_client.available() == 0) {
+        if (!_wifi_client.connected()) {
+            // There is nothing to read and we are not connected.
+            _wifi_client.stop();
             set_state(ABORTED);
-            break;
+        }
+        return -1;
     }
-}
+    // We need to read the Content-length since we can't detect a half-closed socket.
+    switch (_state) {
+        case READING_HEADER: {
+            // POST /test HTTP/1.1
+            // Host: foo.example
+            // Content-Type: application/x-www-form-urlencoded
+            // Content-Length: 27
 
-int HttpPrintClient::peek() {
-    HTTPUpload& upload = _web_server->upload();
-    if (_state == PRINTING &&_uploaded_data_read < _uploaded_data_size) {
-        return _uploaded_data[_uploaded_data_read];
+            if (_data_size == sizeof _data) {
+                // The header line was too long, throw away the start.
+                _data_size = 0;
+            }
+
+            int code = _wifi_client.read();
+            if (code == -1) {
+                return -1;
+            }
+            _data[_data_size++] = code;
+
+            if (code == '\n') {
+                // We have a complete line.
+                if (strncmp(_data, content_length, sizeof content_length - 1) == 0) {
+                    // Content-Length: 1234
+                    _content_size = atol(_data + sizeof content_length);
+                } else if (strncmp(_data, header_delimiter, sizeof header_delimiter - 1) == 0) {
+                    // An empty line to terminate the header.
+                    set_state(READING_DATA);
+                }
+                _data_size = 0;
+            }
+            return -1;
+        }
+        case READING_DATA: {
+            int code = peek();
+            if (code != -1) {
+                _data_read++;
+                _content_read++;
+                if (_content_read == _content_size) {
+                    set_state(FINISHED);
+                }
+            }
+            return code;
+        }
+        case FINISHED:
+            return -1;
+        case ABORTED:
+            return -1;
     }
-    // Permit the web server to advance.
-    log_info("HttpPrintClient::peek advance");
-    _web_server->handleClient();
-    // Delegate to the next cycle.
+    // Unreachable
     return -1;
 }
 
-int HttpPrintClient::read() {
-    int code = peek();
-    if (code != -1) {
-        _uploaded_data_read++;
-        log_info("HttpPrintClient::read read=" << _uploaded_data_read << " size=" << _uploaded_data_size);
-        if (_state == FINISHING && _uploaded_data_read == _uploaded_data_size) {
-            set_state(FINISHED);
-        }
+int HttpPrintClient::peek() {
+    if (_state != READING_DATA) {
+        return -1;
     }
-    return code;
+    if (_data_read == _data_size) {
+        if (!_wifi_client.available()) {
+            if (!_wifi_client.connected()) {
+                // There is nothing to read and we are not connected.
+                _wifi_client.stop();
+                set_state(ABORTED);
+            }
+            return -1;
+        }
+        _data_read = 0;
+        _data_size = _wifi_client.readBytes(_data, sizeof _data);
+    }
+    return _data[_data_read];
 }
 
 void HttpPrintClient::flush() {
-    // Do nothing.
+  if (_state != READING_DATA) {
+      return;
+  }
+  _wifi_client.flush();
 }
 
 int HttpPrintClient::available() {
-    if (_state != PRINTING) {
-        // Permit the web server to advance.
-        log_info("HttpPrintClient::available advance");
-        _web_server->handleClient();
-        return 0;
-    }
-    return _uploaded_data_size - _uploaded_data_read;
+  if (_state != READING_DATA) {
+      return 0;
+  }
+  return _wifi_client.available();
 }
 
 size_t HttpPrintClient::write(uint8_t) {
-    return 0;
+  return 0;
 }
-
-const char* HttpPrintClient::_state_name[5] = {
-    "IDLE",
-    "PRINTING",
-    "FINISHING",
-    "FINISHED",
-    "ABORTED",
-};
