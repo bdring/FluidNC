@@ -78,15 +78,19 @@ namespace Configuration {
             StringRange speed = entryStr.nextWord('=');
             if (!speed.length() || !speed.isUInteger(entry.speed)) {
                 log_error("Bad speed number " << speed.str());
+                value.clear();
                 break;
             }
             StringRange percent = entryStr.nextWord('%');
             if (!percent.length() || !percent.isFloat(entry.percent)) {
                 log_error("Bad speed percent " << percent.str());
+                value.clear();
                 break;
             }
             value.push_back(entry);
         }
+        if (!value.size())
+            log_info("Using default speed map");
         return value;
     }
 
