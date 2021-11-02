@@ -137,6 +137,7 @@ namespace Machine {
             return;
         }
 
+        MotorMask movingMoters = remainingMotors;
         uint32_t settling_ms = plan_move(remainingMotors, approach, seek, customPulloff);
 
         config->_axes->lock_motors(0xffffffff);
@@ -185,6 +186,7 @@ namespace Machine {
 
         Stepper::reset();       // Immediately force kill steppers and reset step segment buffer.
         delay_ms(settling_ms);  // Delay to allow transient dynamics to dissipate.
+        backlash_Reset_for_homing(approach, movingMoters);
     }
 
     // This homing mode is the POG style squaring

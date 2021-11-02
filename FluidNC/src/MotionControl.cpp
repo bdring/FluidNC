@@ -13,6 +13,7 @@
 #include "Planner.h"         // plan_reset, etc
 #include "I2SOut.h"          // i2s_out_reset
 #include "Platform.h"        // WEAK_LINK
+#include "Backlash.h"
 
 // M_PI is not defined in standard C/C++ but some compilers
 // support it anyway.  The following suppresses Intellisense
@@ -285,6 +286,7 @@ void mc_homing_cycle(AxisMask axis_mask) {
     // Sync gcode parser and planner positions to homed position.
     gc_sync_position();
     plan_sync_position();
+    //backlash_Reset_after_homecycle();
     // This give kinematics a chance to do something after normal homing
     kinematics_post_homing();
 }
@@ -354,6 +356,7 @@ GCUpdatePos mc_probe_cycle(float* target, plan_line_data_t* pl_data, uint8_t par
         probe_succeeded = true;  // Indicate to system the probing cycle completed successfully.
     }
     probeState = ProbeState::Off;  // Ensure probe state monitor is disabled.
+    backlash_Reset_after_probe();
     protocol_execute_realtime();   // Check and execute run-time commands
     // Reset the stepper and planner buffers to remove the remainder of the probe motion.
     Stepper::reset();      // Reset step segment buffer.

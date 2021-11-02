@@ -11,6 +11,7 @@ namespace Machine {
         handler.item("acceleration_mm_per_sec2", _acceleration);
         handler.item("max_travel_mm", _maxTravel);
         handler.item("soft_limits", _softLimits);
+        handler.item("backlash", _backlash);
         handler.section("homing", _homing);
 
         char tmp[7];
