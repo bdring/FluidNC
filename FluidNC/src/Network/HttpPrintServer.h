@@ -8,8 +8,18 @@
 
 #    include "../Configuration/Configurable.h"
 #    include "../Serial.h"
-#    include "../Settings.h"
 #    include "HttpPrintClient.h"
+
+// This provides a service for streaming gcode for printing via http post.
+//
+// See 'print.html' for an example of how to call the print service from a
+// browser.
+//
+// Example yaml configuration:
+//
+// network:
+//   HttpPrintServer:
+//     port: 88
 
 class HttpPrintServer : public Configuration::Configurable {
 private:
@@ -47,7 +57,6 @@ private:
     WiFiServer      _server;
     HttpPrintClient _client;
     InputClient*    _input_client;  // Owned
-    IntSetting*     _port_setting;  // NVS override setting
 };
 
 #endif  // INCLUDE_HTTP_PRINT_SERVICE

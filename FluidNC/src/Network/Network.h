@@ -28,5 +28,7 @@ public:
     virtual ~Network() {}
 
 private:
+#ifdef INCLUDE_HTTP_PRINT_SERVICE
     HttpPrintServer* _http_print_server;
+#endif
 };

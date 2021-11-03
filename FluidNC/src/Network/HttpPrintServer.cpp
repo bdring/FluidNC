@@ -16,10 +16,10 @@ namespace {
     };
 }
 
-HttpPrintServer::HttpPrintServer() : _state(UNSTARTED), _port(-1) {}
+HttpPrintServer::HttpPrintServer() : _state(UNSTARTED), _port(0) {}
 
 bool HttpPrintServer::begin() {
-    if (_state != UNSTARTED || _port == -1) {
+    if (_state != UNSTARTED || _port == 0) {
         return false;
     }
     _server = WiFiServer(_port);
@@ -73,21 +73,6 @@ void HttpPrintServer::setState(State state) {
 
 void HttpPrintServer::init() {
     log_info("HttpPrintServer init");
-    // Without a yaml configuration this will default to -1 which will disable the server.
-    // A NVS setting will override the yaml configuration.
-    _port_setting = new IntSetting("HttpPrintServer Port",          // Description
-                                   WEBSET,                          // Share NVS storage with WebUI
-                                   WA,                              // Admin Write, User Read
-                                   "NHPSP1",                        // Not quite sure how this gets used.
-                                   "network/HttpPrintServer/port",  // Which path takes precedence?
-                                   _port,                           // Default to what we read from yaml.
-                                   1,                               // Minimum value
-                                   65001,                           // Maximum value
-                                   NULL);                           // No checker.
-    // And extract the value.
-    // I guess the server will need a restart for update.
-    _port = _port_setting->get();
-    // And start the server.
     begin();
     log_info("HttpPrintServer port=" << _port);
 }
