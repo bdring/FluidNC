@@ -3,7 +3,7 @@ name: 6 Pack External XYZ Haunyang
 stepping:
   engine: I2S_STREAM
   idle_ms: 250
-  pulse_us: 2
+  pulse_us: 4
   dir_delay_us: 1
   disable_delay_us: 0
 
@@ -21,7 +21,7 @@ axes:
       mpos_mm: 150.000
       feed_mm_per_min: 100.000
       seek_mm_per_min: 200.000
-      debounce_ms: 500
+      settle_ms: 500
       seek_scaler: 1.100
       feed_scaler: 1.100
 
@@ -29,7 +29,7 @@ axes:
       limit_neg_pin: NO_PIN
       limit_pos_pin: NO_PIN
       limit_all_pin: NO_PIN
-      hard_limits: true
+      hard_limits: false
       pulloff_mm: 1.000
       standard_stepper:
         step_pin: I2SO.2
@@ -48,7 +48,7 @@ axes:
       mpos_mm: 150.000
       feed_mm_per_min: 100.000
       seek_mm_per_min: 200.000
-      debounce_ms: 500
+      settle_ms: 500
       seek_scaler: 1.100
       feed_scaler: 1.100
 
@@ -56,7 +56,7 @@ axes:
       limit_neg_pin: NO_PIN
       limit_pos_pin: NO_PIN
       limit_all_pin: gpio.32:pu
-      hard_limits: true
+      hard_limits: false
       pulloff_mm: 1.000
       standard_stepper:
         step_pin: I2SO.5
@@ -75,7 +75,7 @@ axes:
       mpos_mm: 150.000
       feed_mm_per_min: 100.000
       seek_mm_per_min: 800.000
-      debounce_ms: 500
+      settle_ms: 500
       seek_scaler: 1.100
       feed_scaler: 1.100
 
@@ -83,7 +83,7 @@ axes:
       limit_neg_pin: NO_PIN
       limit_pos_pin: NO_PIN
       limit_all_pin: gpio.35
-      hard_limits: true
+      hard_limits: false
       pulloff_mm:1.000
       standard_stepper:
         step_pin: I2SO.10

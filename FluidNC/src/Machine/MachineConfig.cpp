@@ -46,8 +46,8 @@ namespace Machine {
 
         handler.section("user_outputs", _userOutputs);
         // TODO: Consider putting these under a gcode: hierarchy level? Or motion control?
-        handler.item("arc_tolerance_mm", _arcTolerance);
-        handler.item("junction_deviation_mm", _junctionDeviation);
+        handler.item("arc_tolerance_mm", _arcTolerance, 0.001, 1.0);
+        handler.item("junction_deviation_mm", _junctionDeviation, 0.01, 1.0);
         handler.item("verbose_errors", _verboseErrors);
         handler.item("report_inches", _reportInches);
         handler.item("enable_parking_override_control", _enableParkingOverrideControl);

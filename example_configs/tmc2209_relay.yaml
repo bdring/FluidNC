@@ -22,7 +22,7 @@ axes:
       positive_direction: false
       feed_mm_per_min: 100.000
       seek_mm_per_min: 200.000
-      debounce_ms: 500
+      settle_ms: 500
     
     motor0:
       limit_pos_pin: gpio.35
@@ -66,7 +66,7 @@ axes:
       positive_direction: false
       feed_mm_per_min: 100.000
       seek_mm_per_min: 200.000
-      debounce_ms: 500
+      settle_ms: 500
     
     motor0:
       limit_neg_pin: NO_PIN
@@ -95,7 +95,7 @@ axes:
       positive_direction: false
       feed_mm_per_min: 100.000
       seek_mm_per_min: 200.000
-      debounce_ms: 500
+      settle_ms: 500
     
     motor0:
       limit_neg_pin: NO_PIN
@@ -124,7 +124,7 @@ axes:
       positive_direction: false
       feed_mm_per_min: 100.000
       seek_mm_per_min: 200.000
-      debounce_ms: 500
+      settle_ms: 500
     
     motor0:
       limit_neg_pin: NO_PIN
