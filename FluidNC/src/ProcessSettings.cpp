@@ -8,6 +8,7 @@
 #include "Configuration/AfterParse.h"
 #include "Configuration/Validator.h"
 #include "Configuration/ParseException.h"
+#include "Motors/MotorDriver.h"
 #include "Machine/Axes.h"
 #include "Regex.h"
 #include "WebUI/Authentication.h"
@@ -352,6 +353,25 @@ static Error showState(const char* value, WebUI::AuthenticationLevel auth_level,
     return Error::Ok;
 }
 
+static Error motorStatus(const char* value, WebUI::AuthenticationLevel auth_level, Print& out) {
+    for (size_t i = 0; i < MAX_N_AXIS; ++i) {
+        auto axes = config->_axes->_axis[i];
+        if (axes != nullptr) {
+            auto axesName = Machine::Axes::_names[i];
+            for (int g = 0; g < Machine::Axis::MAX_MOTORS_PER_AXIS; ++g) {
+                if (axes->_motors[g] != nullptr) {
+                    auto driver = axes->_motors[g]->_driver;
+                    out << "Motor " << axesName << int(g + 1) << " of type " << driver->name() << ":\n";
+                    driver->debug_message(out);
+                    out << "\n";
+                }
+            }
+        }
+    }
+    
+    return Error::Ok;
+}
+
 static Error doJog(const char* value, WebUI::AuthenticationLevel auth_level, Print& out) {
     if (sys.state == State::ConfigAlarm) {
         return Error::ConfigurationInvalid;
@@ -553,6 +573,7 @@ void make_user_commands() {
     new UserCommand("", "Help", show_help, anyState);
     new UserCommand("T", "State", showState, anyState);
     new UserCommand("J", "Jog", doJog, notIdleOrJog);
+    new UserCommand("MS", "Motor/Status", motorStatus, anyState);
 
     new UserCommand("$", "GrblSettings/List", report_normal_settings, cycleOrHold);
     new UserCommand("L", "GrblNames/List", list_grbl_names, cycleOrHold);

@@ -42,7 +42,7 @@ namespace MotorDrivers {
         bool set_homing_mode(bool is_homing) override;
         void set_disable(bool disable) override;
 
-        void debug_message();
+        void debug_message(Print& out) override;
 
         bool hw_serial_init();
 

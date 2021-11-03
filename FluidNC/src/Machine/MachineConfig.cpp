@@ -72,6 +72,7 @@ namespace Machine {
 
         if (_userOutputs == nullptr) {
             _userOutputs = new UserOutputs();
+            _userOutputs->init();
         }
 
         if (_sdCard == nullptr) {

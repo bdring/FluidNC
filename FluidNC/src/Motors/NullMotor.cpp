@@ -8,8 +8,13 @@
 #include "NullMotor.h"
 
 namespace MotorDrivers {
+    void Nullmotor::debug_message(Print& out) {
+        out << (disabled ? "Disabled" : "Enabled") << ", dir: " << direction << ", steps: " << steps << "\n";
+    }
+
     // Configuration registration
     namespace {
         MotorFactory::InstanceBuilder<Nullmotor> registration("null_motor");
+
     }
 }
