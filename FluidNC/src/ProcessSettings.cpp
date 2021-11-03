@@ -294,7 +294,7 @@ static Error show_limits(const char* value, WebUI::AuthenticationLevel auth_leve
     out.write('\n');
     out.print("  PosLimitPins NegLimitPins\n");
     do {
-        out.write(": ");  // Prevents WebUI from suppressing an empty line
+        out.print(": ");  // Prevents WebUI from suppressing an empty line
         write_limit_set(Machine::Axes::posLimitMask, out);
         out.write(' ');
         write_limit_set(Machine::Axes::negLimitMask, out);

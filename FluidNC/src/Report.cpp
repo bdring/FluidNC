@@ -138,13 +138,13 @@ void report_status_message(Error status_code, Channel& channel) {
                 break;
             default:
                 infile->getChannel() << "[MSG: ERR:" << static_cast<int>(status_code) << " (" << errorString(status_code) << ") in "
-                                     << infile->filename() << " at line " << infile->_line_num << "]\n";
+                                     << infile->path() << " at line " << infile->getLineNumber() << "]\n";
                 if (status_code == Error::GcodeUnsupportedCommand) {
                     // Do not stop on unsupported commands because most senders do not
                     readyNext = true;
                 } else {
                     // Stop the file job on other errors
-                    _notifyf("File job error", "Error:%d in %s at line: %d", status_code, infile->filename(), infile->_line_num);
+                    _notifyf("File job error", "Error:%d in %s at line: %d", status_code, infile->path(), infile->getLineNumber());
                     delete infile;
                     infile = nullptr;
                 }
@@ -638,7 +638,7 @@ void report_realtime_status(Print& channel) {
     }
     if (infile) {
         // XXX WMB FORMAT 4.2f
-        channel << "|SD:" << infile->percent_complete() << "," << infile->filename();
+        channel << "|SD:" << infile->percent_complete() << "," << infile->path();
     }
 #ifdef DEBUG_STEPPER_ISR
     channel << "|ISRs:" << config->_stepping->isr_count;

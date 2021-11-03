@@ -426,11 +426,11 @@ void mc_reset() {
         // do we need to stop a running file job?
         if (infile) {
             //Report print stopped
-            _notifyf("File print canceled", "Reset during file job at line: %d", infile->_line_num);
+            _notifyf("File print canceled", "Reset during file job at line: %d", infile->getLineNumber());
             // log_info() does not work well in this case because the message gets broken in half
             // by report_init_message().  The flow of control that causes it is obscure.
             infile->getChannel() << "[MSG:"
-                                 << "Reset during file jobe at line: " << infile->_line_num;
+                                 << "Reset during file jobe at line: " << infile->getLineNumber();
 
             delete infile;
             infile = nullptr;

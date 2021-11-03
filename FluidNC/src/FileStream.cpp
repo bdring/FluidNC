@@ -1,3 +1,6 @@
+// Copyright (c) 2021 -	Mitch Bradley
+// Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
+
 #include "FileStream.h"
 #include "Machine/MachineConfig.h"  // config->
 #include "SDCard.h"
@@ -31,12 +34,9 @@ FileStream::FileStream(const char* filename, const char* mode, const char* defau
     if (!filename || !*filename) {
         throw Error::FsFailedCreateFile;
     }
-
-    // Insert the default file system prefix if a file system name is not present
+    _path = defaultFs;
     if (*filename != '/') {
-        _path = "/";
-        _path += defaultFs;
-        _path += "/";
+        _path += '/';
     }
 
     _path += filename;
@@ -51,7 +51,6 @@ FileStream::FileStream(const char* filename, const char* mode, const char* defau
         }
         _isSD = true;
     }
-
     _fd = fopen(_path.c_str(), mode);
     if (!_fd) {
         throw strcmp(mode, "w") ? Error::FsFailedOpenFile : Error::FsFailedCreateFile;

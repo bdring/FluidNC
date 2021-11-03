@@ -588,7 +588,7 @@ namespace WebUI {
         return Error::Ok;
     }
 
-    static Error openFile(fs::FS& fs, char* parameter, Channel& channel, AuthenticationLevel auth_level) {
+    static Error openFile(const char* fs, char* parameter, Channel& channel, AuthenticationLevel auth_level) {
         if (*parameter == '\0') {
             webPrintln("Missing file name!");
             return Error::InvalidValue;
@@ -620,7 +620,7 @@ namespace WebUI {
         return Error::Ok;
     }
 
-    static Error showFile(fs::FS& fs, char* parameter, AuthenticationLevel auth_level) {  // ESP221
+    static Error showFile(const char* fs, char* parameter, AuthenticationLevel auth_level) {  // ESP221
         if (notIdleOrAlarm()) {
             return Error::IdleError;
         }
@@ -643,13 +643,13 @@ namespace WebUI {
     }
 
     static Error showSDFile(char* parameter, AuthenticationLevel auth_level) {  // ESP221
-        return showFile(SD, parameter, auth_level);
+        return showFile("/sd", parameter, auth_level);
     }
     static Error showLocalFile(char* parameter, AuthenticationLevel auth_level) {  // ESP701
-        return showFile(SPIFFS, parameter, auth_level);
+        return showFile("/localfs", parameter, auth_level);
     }
 
-    static Error runFile(fs::FS& fs, char* parameter, AuthenticationLevel auth_level) {  // ESP220
+    static Error runFile(const char* fs, char* parameter, AuthenticationLevel auth_level) {  // ESP220
         Error err;
         if (sys.state == State::Alarm || sys.state == State::ConfigAlarm) {
             webPrintln("Alarm");
@@ -679,11 +679,11 @@ namespace WebUI {
     }
 
     static Error runSDFile(char* parameter, AuthenticationLevel auth_level) {  // ESP220
-        return runFile(SD, parameter, auth_level);
+        return runFile("/sd", parameter, auth_level);
     }
 
     static Error runLocalFile(char* parameter, AuthenticationLevel auth_level) {  // ESP700
-        return runFile(SPIFFS, parameter, auth_level);
+        return runFile("/localfs", parameter, auth_level);
     }
 
     static Error deleteObject(fs::FS fs, char* name) {

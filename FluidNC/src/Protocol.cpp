@@ -169,14 +169,14 @@ void protocol_main_loop() {
                         case Error::Ok:
                             break;
                         case Error::Eof:
-                            _notifyf("File job done", "%s file job succeeded", infile->filename());
-                            out << "[MSG:" << infile->filename() << " file job succeeded]\n";
+                            _notifyf("File job done", "%s file job succeeded", infile->path());
+                            out << "[MSG:" << infile->path() << " file job succeeded]\n";
                             delete infile;
                             infile = nullptr;
                             break;
                         default:
-                            out << "[MSG: ERR:" << static_cast<int>(err) << " (" << errorString(err) << ") in " << infile->filename()
-                                << " at line " << infile->_line_num << "]\n";
+                            out << "[MSG: ERR:" << static_cast<int>(err) << " (" << errorString(err) << ") in " << infile->path()
+                                << " at line " << infile->getLineNumber() << "]\n";
                             delete infile;
                             infile = nullptr;
                             break;

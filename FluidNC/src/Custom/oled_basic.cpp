@@ -185,7 +185,7 @@ static void oledUpdate(void* pvParameters) {
             file_ticker++;
             oled->drawString(63, 0, state_string);
 
-            oled->drawString(63, 12, infile->filename());
+            oled->drawString(63, 12, infile->path());
 
             int progress = infile->percent_complete();
             // draw the progress bar

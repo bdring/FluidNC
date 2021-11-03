@@ -1,3 +1,6 @@
+// Copyright (c) 2021 -	Mitch Bradley
+// Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
+
 #include "Channel.h"
 #include "Machine/MachineConfig.h"  // config
 #include "Serial.h"                 // execute_realtime_command
@@ -5,7 +8,7 @@
 Channel* Channel::pollLine(char* line) {
     while (1) {
         int ch = read();
-        if (ch < 0 || ch == '\r') {
+        if (ch < 0) {
             break;
         }
         if (is_realtime_command(ch)) {
@@ -13,6 +16,10 @@ Channel* Channel::pollLine(char* line) {
             continue;
         }
         if (!line) {
+            continue;
+        }
+        if (ch == '\r') {
+            // Ignore CR
             continue;
         }
         if (ch == '\b') {
@@ -47,13 +54,13 @@ Channel* Channel::pollLine(char* line) {
 void Channel::ack(Error status) {
     switch (status) {
         case Error::Ok:  // Error::Ok
-            write("ok\n");
+            print("ok\n");
             break;
         default:
             // With verbose errors, the message text is displayed instead of the number.
             // Grbl 0.9 used to display the text, while Grbl 1.1 switched to the number.
             // Many senders support both formats.
-            write("error:");
+            print("error:");
             if (config->_verboseErrors) {
                 print(errorString(status));
             } else {

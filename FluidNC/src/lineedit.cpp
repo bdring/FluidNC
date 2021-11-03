@@ -295,7 +295,7 @@ static bool isdelim(char* addr) {
     return (addr < startaddr) || (addr == endaddr) || is_word_delim(*addr);
 }
 
-static char word[100];
+static char theWord[100];
 static bool find_word_under_cursor() {
     if (startaddr == endaddr || *startaddr != '$') {
         return false;
@@ -303,14 +303,14 @@ static bool find_word_under_cursor() {
     int   i    = 0;
     char* addr = startaddr + 1;
     while (addr < thisaddr && i < (100 - 1)) {
-        word[i++] = *addr++;
+        theWord[i++] = *addr++;
     }
     // Move to the end of the item name
     while (thisaddr < endaddr && i < (100 - 1) && *thisaddr != '=') {
         emit(*thisaddr);
-        word[i++] = *thisaddr++;
+        theWord[i++] = *thisaddr++;
     }
-    word[i] = '\0';
+    theWord[i] = '\0';
     return true;
 }
 
@@ -348,8 +348,8 @@ static void complete_word() {
         return;
     }
     char* name;
-    int   len = strlen(word);
-    nmatches  = num_initial_matches(word, len, 0, &name, &matchlen);
+    int   len = strlen(theWord);
+    nmatches  = num_initial_matches(theWord, len, 0, &name, &matchlen);
 
     if (nmatches == 0) {
         return;
@@ -365,14 +365,14 @@ static void complete_word() {
     while (len < matchlen) {
         int   nmatches2, matchlen2;
         char* name2;
-        word[len] = name[len];
-        nmatches2 = num_initial_matches(word, len + 1, 0, &name2, &matchlen2);
+        theWord[len] = name[len];
+        nmatches2    = num_initial_matches(theWord, len + 1, 0, &name2, &matchlen2);
         if (nmatches2 != nmatches) {
             break;
         }
-        addchar(word[len++]);
+        addchar(theWord[len++]);
     }
-    word[len] = '\0';
+    theWord[len] = '\0';
 
     thismatch = 0;
     highlight();
@@ -388,8 +388,8 @@ static void propose_word() {
     }
     int   newmatchlen;
     char* name;
-    int   len      = strlen(word);
-    int   nmatches = num_initial_matches(word, len, thismatch, &name, &newmatchlen);
+    int   len      = strlen(theWord);
+    int   nmatches = num_initial_matches(theWord, len, thismatch, &name, &newmatchlen);
 
     while (matchlen > len) {
         erase_char();
@@ -402,7 +402,7 @@ static void propose_word() {
     lowlight();
 }
 static void accept_word() {
-    int len = strlen(word);
+    int len = strlen(theWord);
     int i;
     for (i = matchlen; i > len; --i) {
         emit(BS);

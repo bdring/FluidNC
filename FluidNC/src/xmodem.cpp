@@ -146,7 +146,7 @@ static void write_packet(uint8_t* buf, size_t packet_len, size_t& total_len) {
     memcpy(held_packet, buf, packet_len);
     held = true;
 }
-int xmodemReceive(Uart* serial, Print* out) {
+int xmodemReceive(Uart* serial, Channel* out) {
     vTaskDelay(1000);
     serialPort = serial;
     file       = out;
@@ -234,7 +234,7 @@ int xmodemReceive(Uart* serial, Print* out) {
     }
 }
 
-int xmodemTransmit(Uart* serial, Stream* in) {
+int xmodemTransmit(Uart* serial, Channel* in) {
     serialPort = serial;
 
     uint8_t xbuff[1030]; /* 1024 for XModem 1k + 3 head chars + 2 crc + nul */
@@ -284,7 +284,7 @@ int xmodemTransmit(Uart* serial, Stream* in) {
             xbuff[1] = packetno;
             xbuff[2] = ~packetno;
 
-            auto nbytes = in->readBytes(&xbuff[3], bufsz);
+            auto nbytes = in->read(&xbuff[3], bufsz);
             if (nbytes > 0) {
                 while (nbytes < bufsz) {
                     xbuff[3 + nbytes] = CTRLZ;
