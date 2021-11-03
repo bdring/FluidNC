@@ -227,3 +227,6 @@ const double PARKING_PULLOUT_INCREMENT = 5.0;    // Spindle pull-out and plunge 
 
 // INCLUDE_OLED_BASIC includes a driver for a modest sized OLED display
 // #define INCLUDE_OLED_BASIC
+
+// INCLUDE_HTTP_PRINT_SERVICE to enable a service to which gcode can be posted.
+#define INCLUDE_HTTP_PRINT_SERVICE

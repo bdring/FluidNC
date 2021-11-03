@@ -1,25 +1,26 @@
 #pragma once
 
-#include <WiFi.h>
+#include "../Config.h"
 
-#include "../Configuration/Configurable.h"
-#include "../Serial.h"
-#include "../Settings.h"
-#include "HttpPrintClient.h"
+#ifdef INCLUDE_HTTP_PRINT_SERVICE
 
-// The HttpPrintServer expects a text/plain encoded POST.
-// It ignores the header and streams the content until EOF.
+#    include <WiFi.h>
+
+#    include "../Configuration/Configurable.h"
+#    include "../Serial.h"
+#    include "../Settings.h"
+#    include "HttpPrintClient.h"
 
 class HttpPrintServer : public Configuration::Configurable {
-    private:
+private:
     enum State {
-      UNSTARTED,
-      IDLE,
-      PRINTING,
-      STOPPED,
+        UNSTARTED,
+        IDLE,
+        PRINTING,
+        STOPPED,
     };
 
-    public:
+public:
     HttpPrintServer();
 
     // The server will now start accepting connections.
@@ -31,21 +32,22 @@ class HttpPrintServer : public Configuration::Configurable {
     // Call this periodically to allow new connections to be established.
     void handle();
 
-    void init();
-
     // Configuration
     const char* name() const;
-    void validate() const override;
-    void afterParse() override;
-    void group(Configuration::HandlerBase& handler) override;
+    void        validate() const override;
+    void        afterParse() override;
+    void        group(Configuration::HandlerBase& handler) override;
+    void        init();
 
-    private:
+private:
     void setState(State state);
 
-    enum State _state;
-    int _port;
-    WiFiServer _server;
+    enum State      _state;
+    int             _port;
+    WiFiServer      _server;
     HttpPrintClient _client;
-    InputClient* _input_client; // Owned
-    IntSetting* _port_setting;  // NVS override setting
+    InputClient*    _input_client;  // Owned
+    IntSetting*     _port_setting;  // NVS override setting
 };
+
+#endif  // INCLUDE_HTTP_PRINT_SERVICE

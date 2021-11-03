@@ -1,13 +1,15 @@
+#include "../Config.h"
+
 #include "Network.h"
 #include "../Logging.h"
 #include "../Settings.h"
 
 void Network::init() {
-  // Do nothing.
-  log_info("Network init");
-  if (_http_print_server) {
-    _http_print_server->init();
-  }
+    // Do nothing.
+    log_info("Network init");
+    if (_http_print_server) {
+        _http_print_server->init();
+    }
 }
 
 void Network::handle() {
@@ -21,7 +23,7 @@ const char* Network::name() const {
 }
 
 void Network::validate() const {
-  // Do nothing.
+    // Do nothing.
 }
 
 void Network::group(Configuration::HandlerBase& handler) {
@@ -29,5 +31,5 @@ void Network::group(Configuration::HandlerBase& handler) {
 }
 
 void Network::afterParse() {
-  // Do nothing.
+    // Do nothing.
 }

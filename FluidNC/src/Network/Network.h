@@ -1,11 +1,13 @@
 #pragma once
 
+#include "../Config.h"
+
 #include "../Configuration/Configurable.h"
 
 #include "HttpPrintServer.h"
 
 class Network : public Configuration::Configurable {
-    public:
+public:
     Network() = default;
 
     Network(const Network&) = delete;
@@ -18,13 +20,13 @@ class Network : public Configuration::Configurable {
 
     // Configuration
     const char* name() const;
-    void validate() const override;
-    void afterParse() override;
-    void group(Configuration::HandlerBase& handler) override;
+    void        validate() const override;
+    void        afterParse() override;
+    void        group(Configuration::HandlerBase& handler) override;
 
     // Virtual base classes require a virtual destructor.
     virtual ~Network() {}
 
-    private:
+private:
     HttpPrintServer* _http_print_server;
 };

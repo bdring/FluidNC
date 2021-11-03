@@ -1,13 +1,22 @@
 #include "../Config.h"
-#include "../Protocol.h"
-#include "../Settings.h"
 
-#include "HttpPrintServer.h"
+#ifdef INCLUDE_HTTP_PRINT_SERVICE
 
-HttpPrintServer::HttpPrintServer()
-    : _state(UNSTARTED),
-      _port(-1) {
+#    include "../Protocol.h"
+#    include "../Settings.h"
+
+#    include "HttpPrintServer.h"
+
+namespace {
+    const char* _state_name[4] = {
+        "UNSTARTED",
+        "IDLE",
+        "PRINTING",
+        "STOPPED",
+    };
 }
+
+HttpPrintServer::HttpPrintServer() : _state(UNSTARTED), _port(-1) {}
 
 bool HttpPrintServer::begin() {
     if (_state != UNSTARTED || _port == -1) {
@@ -29,69 +38,52 @@ void HttpPrintServer::stop() {
 
 void HttpPrintServer::handle() {
     switch (_state) {
-    case UNSTARTED:
-        return;
-    case IDLE:
-        if (_server.hasClient()) {
-            _client = HttpPrintClient(_server.available());
-            setState(PRINTING);
-            _input_client = register_client(&_client);
-        }
-        return;
-    case PRINTING:
-        if (_client.is_done()) {
-            unregister_client(_input_client);
-            delete _input_client;
-            _input_client = nullptr;
-            if (_client.is_aborted()) {
-                log_info("HttpPrintServer: Hold due to aborted upload");
-                rtFeedHold = true;
+        case UNSTARTED:
+        case STOPPED:
+            return;
+        case IDLE:
+            if (_server.hasClient()) {
+                _client = HttpPrintClient(_server.available());
+                setState(PRINTING);
+                _input_client = register_client(&_client);
             }
-            setState(IDLE);
-        }
-        return;
-    case STOPPED:
-        return;
+            return;
+        case PRINTING:
+            if (_client.is_done()) {
+                // Remove the client from the polling cycle.
+                unregister_client(_input_client);
+                delete _input_client;
+                _input_client = nullptr;
+                if (_client.is_aborted()) {
+                    log_info("HttpPrintServer: Setting HOLD due to aborted upload");
+                    rtFeedHold = true;
+                }
+                setState(IDLE);
+            }
+            return;
     }
 }
 
 void HttpPrintServer::setState(State state) {
     if (_state != state) {
-        switch (state) {
-        case UNSTARTED:
-            log_info("HttpPrintServer: UNSTARTED");
-            break;
-        case IDLE:
-            log_info("HttpPrintServer: IDLE");
-            break;
-        case PRINTING:
-            log_info("HttpPrintServer: PRINTING");
-            break;
-        case STOPPED:
-            log_info("HttpPrintServer: STOPPED");
-            break;
-        default:
-            log_info("HttpPrintServer: <Unknown State>");
-            break;
-        }
+        log_info("HttpPrintServer: " << _state_name[state]);
+        _state = state;
     }
-    _state = state;
 }
 
 void HttpPrintServer::init() {
     log_info("HttpPrintServer init");
     // Without a yaml configuration this will default to -1 which will disable the server.
     // A NVS setting will override the yaml configuration.
-    _port_setting = new IntSetting(
-        "HttpPrintServer Port",         // Description
-        WEBSET,                         // Share NVS storage with WebUI
-        WA,                             // Admin Write, User Read
-        "NHPSP1",                       // Not quite sure how this gets used.
-        "network/HttpPrintServer/port", // Which path takes precedence?
-        _port,                          // Default to what we read from yaml.
-        1,                              // Minimum value
-        65001,                          // Maximum value
-        NULL);                          // No checker.
+    _port_setting = new IntSetting("HttpPrintServer Port",          // Description
+                                   WEBSET,                          // Share NVS storage with WebUI
+                                   WA,                              // Admin Write, User Read
+                                   "NHPSP1",                        // Not quite sure how this gets used.
+                                   "network/HttpPrintServer/port",  // Which path takes precedence?
+                                   _port,                           // Default to what we read from yaml.
+                                   1,                               // Minimum value
+                                   65001,                           // Maximum value
+                                   NULL);                           // No checker.
     // And extract the value.
     // I guess the server will need a restart for update.
     _port = _port_setting->get();
@@ -115,3 +107,5 @@ void HttpPrintServer::group(Configuration::HandlerBase& handler) {
 void HttpPrintServer::afterParse() {
     // Do nothing.
 }
+
+#endif  // INCLUDE_HTTP_PRINT_SERVICE

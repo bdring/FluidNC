@@ -1,0 +1,25 @@
+<html>
+ <body>
+  A trivial example to send gcode to be printed via post.
+  <script>
+    // Change this url.
+    const url = 'http://192.168.31.235:88/';
+    const print = async (url, body) => {
+      alert('Will print');
+      try {
+        const response = await fetch(url, { mode: 'cors', method: "post", body });
+        if (response.ok) {
+          alert('Print succeeded');
+        } else {
+          alert(`Print failed: ${response.status}`);
+        }
+      } catch (error) {
+        alert(error);
+      }
+    }
+    print(url,
+          'G0 Z0\r\n' +
+          'G0 Z1\r\n');
+  </script>
+ </body>
+</html>
