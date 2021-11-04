@@ -232,7 +232,7 @@ void report_probe_parameters(Print& client) {
     // get the machine position and put them into a string and append to the probe report
     float print_position[MAX_N_AXIS];
     motor_steps_to_mpos(print_position, probe_steps);
-    client << "[PRB:" << report_util_axis_values(print_position) << ":" << probe_succeeded << '\n';
+    client << "[PRB:" << report_util_axis_values(print_position) << ":" << probe_succeeded << "]\n";
 }
 
 // Prints NGC parameters (coordinate offsets, probing)
@@ -241,7 +241,7 @@ void report_ngc_parameters(Print& client) {
     for (auto coord_select = CoordIndex::Begin; coord_select < CoordIndex::End; ++coord_select) {
         client << '[' << coords[coord_select]->getName() << ":";
         client << report_util_axis_values(coords[coord_select]->get());
-        client << '\n';
+        client << "]\n";
     }
     // Print non-persistent G92,G92.1
     client << "[G92:" << report_util_axis_values(gc_state.coord_offset) << "]\n";
@@ -399,7 +399,7 @@ void report_gcode_modes(Print& client) {
 
     client << " T" << gc_state.tool;
     // XXX WMB format according to config->_reportInches ? %.1f : %.0f
-    client << " F" << gc_state.feed_rate;
+    client << " F" << int32_t(gc_state.feed_rate);
     client << " S" << uint32_t(gc_state.spindle_speed);
     client << "]\n";
 }
@@ -586,7 +586,7 @@ void report_realtime_status(Print& client) {
         rate /= MM_PER_INCH;
     }
     // XXX WMB rate %.0f
-    client << "|FS:" << rate << "," << sys.spindle_speed;
+    client << "|FS:" << int32_t(rate) << "," << sys.spindle_speed;
 
     String pins = pinString();
     if (pins.length()) {
