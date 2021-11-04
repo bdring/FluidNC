@@ -4,6 +4,8 @@
 
 #include "MachineConfig.h"
 
+#include "../Kinematics/Kinematics.h"
+
 #include "../Motors/MotorDriver.h"
 #include "../Motors/NullMotor.h"
 
@@ -35,6 +37,7 @@ namespace Machine {
 
         handler.section("stepping", _stepping);
         handler.section("axes", _axes);
+        handler.section("kinematics", _kinematics);
         handler.section("i2so", _i2so);
         handler.section("spi", _spi);
         handler.section("sdcard", _sdCard);
@@ -64,6 +67,11 @@ namespace Machine {
 
         if (_coolant == nullptr) {
             _coolant = new CoolantControl();
+        }
+
+        if (_kinematics == nullptr) {
+            log_info("Kinematics: using defaults");
+            _kinematics = new Kinematics();
         }
 
         if (_probe == nullptr) {

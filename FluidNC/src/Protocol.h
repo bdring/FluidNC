@@ -79,18 +79,19 @@ extern volatile Percent rtSOverride;  // Spindle override value in percent
 
 // Alarm codes.
 enum class ExecAlarm : uint8_t {
-    None               = 0,
-    HardLimit          = 1,
-    SoftLimit          = 2,
-    AbortCycle         = 3,
-    ProbeFailInitial   = 4,
-    ProbeFailContact   = 5,
-    HomingFailReset    = 6,
-    HomingFailDoor     = 7,
-    HomingFailPulloff  = 8,
-    HomingFailApproach = 9,
-    SpindleControl     = 10,
-    ControlPin         = 11,
+    None                  = 0,
+    HardLimit             = 1,
+    SoftLimit             = 2,
+    AbortCycle            = 3,
+    ProbeFailInitial      = 4,
+    ProbeFailContact      = 5,
+    HomingFailReset       = 6,
+    HomingFailDoor        = 7,
+    HomingFailPulloff     = 8,
+    HomingFailApproach    = 9,
+    SpindleControl        = 10,
+    ControlPin            = 11,
+    HomingAmbiguousSwitch = 12,
 };
 
 extern volatile ExecAlarm rtAlarm;  // Global realtime executor variable for setting various alarms.
