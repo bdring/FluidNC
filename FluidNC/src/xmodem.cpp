@@ -284,7 +284,7 @@ int xmodemTransmit(Uart* serial, Channel* in) {
             xbuff[1] = packetno;
             xbuff[2] = ~packetno;
 
-            auto nbytes = in->read(&xbuff[3], bufsz);
+            auto nbytes = in->readBytes(&xbuff[3], bufsz);
             if (nbytes > 0) {
                 while (nbytes < bufsz) {
                     xbuff[3 + nbytes] = CTRLZ;

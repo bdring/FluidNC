@@ -4,6 +4,7 @@
 #pragma once
 
 #include "../Config.h"  // ENABLE_*
+#include "../FileStream.h"
 
 #ifdef ENABLE_WIFI
 
@@ -42,14 +43,17 @@ namespace WebUI {
         ~Web_Server();
 
     private:
-        static bool                _setupdone;
-        static WebServer*          _webserver;
-        static long                _id_connection;
-        static WebSocketsServer*   _socket_server;
-        static uint16_t            _port;
-        static UploadStatusType    _upload_status;
-        static String              getContentType(String filename);
-        static String              get_Splited_Value(String data, char separator, int index);
+        static bool              _setupdone;
+        static WebServer*        _webserver;
+        static long              _id_connection;
+        static WebSocketsServer* _socket_server;
+        static uint16_t          _port;
+        static UploadStatusType  _upload_status;
+        static String            _uploadFilename;
+        static FileStream*       _uploadFile;
+        static String            getContentType(String filename);
+        static String            get_Splited_Value(String data, char separator, int index);
+
         static AuthenticationLevel is_authenticated();
 #    ifdef ENABLE_AUTHENTICATION
         static AuthenticationIP*   _head;
@@ -77,6 +81,9 @@ namespace WebUI {
         static void handle_direct_SDFileList();
         static void SDFile_direct_upload();
         static bool deleteRecursive(String path);
+        static void uploadStart(String filename, size_t filesize, const char* fs);
+        static void uploadWrite(uint8_t* buffer, size_t length);
+        static void uploadEnd(size_t filesize);
     };
 
     extern Web_Server web_server;

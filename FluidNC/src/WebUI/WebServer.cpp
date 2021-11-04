@@ -78,6 +78,9 @@ namespace WebUI {
     uint8_t           Web_Server::_nb_ip = 0;
     const int         MAX_AUTH_IP        = 10;
 #    endif
+    String      Web_Server::_uploadFilename;
+    FileStream* Web_Server::_uploadFile = nullptr;
+
     Web_Server::Web_Server() {}
     Web_Server::~Web_Server() { end(); }
 
@@ -267,10 +270,13 @@ namespace WebUI {
                 if (SD.exists(pathWithGz)) {
                     path = pathWithGz;
                 }
-                File datafile = SD.open(path);
+                FileStream* datafile = nullptr;
+                try {
+                    datafile = new FileStream(path.c_str(), "r", "/sd");
+                } catch (const Error err) {}
                 if (datafile) {
                     vTaskDelay(1 / portTICK_RATE_MS);
-                    size_t totalFileSize = datafile.size();
+                    size_t totalFileSize = datafile->size();
                     size_t i             = 0;
                     bool   done          = false;
                     _webserver->setContentLength(totalFileSize);
@@ -278,7 +284,7 @@ namespace WebUI {
                     uint8_t buf[1024];
                     while (!done) {
                         vTaskDelay(1 / portTICK_RATE_MS);
-                        int v = datafile.read(buf, 1024);
+                        int v = datafile->read(buf, 1024);
                         if ((v == -1) || (v == 0)) {
                             done = true;
                         } else {
@@ -290,11 +296,10 @@ namespace WebUI {
                             done = true;
                         }
                     }
-                    datafile.close();
+                    delete datafile;
                     if (i != totalFileSize) {
                         //error: TBD
                     }
-                    sdCard->end();
                     return;
                 }
                 sdCard->end();
@@ -931,7 +936,7 @@ namespace WebUI {
                         uint32_t freespace = SPIFFS.totalBytes() - SPIFFS.usedBytes();
                         if (filesize > freespace) {
                             _upload_status = UploadStatusType::FAILED;
-                            log_info("Upload error");
+                            log_info("Upload error 1");
                             pushError(ESP_ERROR_NOT_ENOUGH_SPACE, "Upload rejected, not enough space");
                         }
                     }
@@ -946,7 +951,7 @@ namespace WebUI {
                         } else {
                             //if no set cancel flag
                             _upload_status = UploadStatusType::FAILED;
-                            log_info("Upload error");
+                            log_info("Upload error 2");
                             pushError(ESP_ERROR_FILE_CREATION, "File creation failed");
                         }
                     }
@@ -959,13 +964,13 @@ namespace WebUI {
                         //no error so write post date
                         if (upload.currentSize != fsUploadFile.write(upload.buf, upload.currentSize)) {
                             _upload_status = UploadStatusType::FAILED;
-                            log_info("Upload error");
+                            log_info("Upload error 3");
                             pushError(ESP_ERROR_FILE_WRITE, "File write failed");
                         }
                     } else {
                         //we have a problem set flag UploadStatusType::FAILED
                         _upload_status = UploadStatusType::FAILED;
-                        log_info("Upload error");
+                        log_info("Upload error 4");
                         pushError(ESP_ERROR_FILE_WRITE, "File write failed");
                     }
                     //Upload end
@@ -988,14 +993,14 @@ namespace WebUI {
                         if (_upload_status == UploadStatusType::ONGOING) {
                             _upload_status = UploadStatusType::SUCCESSFUL;
                         } else {
-                            log_info("Upload error");
+                            log_info("Upload error 5");
                             pushError(ESP_ERROR_UPLOAD, "File upload failed");
                         }
                     } else {
                         //we have a problem set flag UploadStatusType::FAILED
                         _upload_status = UploadStatusType::FAILED;
                         pushError(ESP_ERROR_FILE_CLOSE, "File close failed");
-                        log_info("Upload error");
+                        log_info("Upload error 6");
                     }
                     //Upload cancelled
                     //**************
@@ -1372,10 +1377,105 @@ namespace WebUI {
         config->_sdCard->end();
     }
 
-    //SD File upload with direct access to SD///////////////////////////////
+    //SD File upload
+    void Web_Server::uploadStart(String filename, size_t filesize, const char* fs) {
+        _upload_status  = UploadStatusType::ONGOING;
+        _uploadFilename = filename;
+
+        //on SD need to add / if not present
+        if (_uploadFilename[0] != '/') {
+            _uploadFilename = "/" + filename;
+        }
+        //check if SD Card is available
+        if (config->_sdCard->begin(SDCard::State::BusyUploading) != SDCard::State::Idle) {
+            _upload_status = UploadStatusType::FAILED;
+            log_info("Upload cancelled");
+            pushError(ESP_ERROR_UPLOAD_CANCELLED, "Upload cancelled");
+            return;
+        }
+        //delete file on SD Card if already present
+        if (SD.exists(_uploadFilename)) {
+            SD.remove(_uploadFilename);
+        }
+        config->_sdCard->end();
+
+        if (filesize) {
+            config->_sdCard->begin(SDCard::State::BusyUploading);
+            uint64_t freespace = SD.totalBytes() - SD.usedBytes();
+            config->_sdCard->end();
+
+            if (filesize > freespace) {
+                _upload_status = UploadStatusType::FAILED;
+                log_info("Upload no space - have " << (uint32_t)freespace << " need " << filesize);
+                pushError(ESP_ERROR_NOT_ENOUGH_SPACE, "Upload rejected, not enough space");
+            }
+        }
+
+        if (_upload_status != UploadStatusType::FAILED) {
+            //Create file for writing
+            try {
+                _uploadFile    = new FileStream(_uploadFilename, "w", fs);
+                _upload_status = UploadStatusType::ONGOING;
+            } catch (const Error err) {
+                _uploadFile    = nullptr;
+                _upload_status = UploadStatusType::FAILED;
+                log_info("Upload failed - cannot create file");
+                pushError(ESP_ERROR_FILE_CREATION, "File creation failed");
+            }
+        }
+    }
+
+    void Web_Server::uploadWrite(uint8_t* buffer, size_t length) {
+        vTaskDelay(1 / portTICK_RATE_MS);
+        if (_uploadFile && _upload_status == UploadStatusType::ONGOING) {
+            //no error write post data
+            if (length != _uploadFile->write(buffer, length)) {
+                _upload_status = UploadStatusType::FAILED;
+                log_info("Upload failed - file write failed - SD busy");
+                pushError(ESP_ERROR_FILE_WRITE, "File write failed");
+            }
+        } else {  //if error set flag UploadStatusType::FAILED
+            _upload_status = UploadStatusType::FAILED;
+            log_info("Upload failed - file not open");
+            pushError(ESP_ERROR_FILE_WRITE, "File write failed");
+        }
+    }
+
+    void Web_Server::uploadEnd(size_t filesize) {
+        //if file is open close it
+        if (_uploadFile) {
+            delete _uploadFile;
+            _uploadFile = nullptr;
+
+            // Check size
+            if (filesize) {
+                uint32_t actual_size;
+                try {
+                    FileStream* theFile = new FileStream(_uploadFilename, "r", "/sd");
+                    actual_size         = theFile->size();
+                    delete theFile;
+                } catch (const Error err) { actual_size = 0; }
+
+                if (filesize != actual_size) {
+                    _upload_status = UploadStatusType::FAILED;
+                    pushError(ESP_ERROR_UPLOAD, "File upload mismatch");
+                    log_info("Upload failed - size mismatch - exp " << filesize << " got " << actual_size);
+                }
+            }
+        } else {
+            _upload_status = UploadStatusType::FAILED;
+            log_info("Upload failed - file not open");
+            pushError(ESP_ERROR_FILE_CLOSE, "File close failed");
+        }
+        if (_upload_status == UploadStatusType::ONGOING) {
+            _upload_status = UploadStatusType::SUCCESSFUL;
+        } else {
+            _upload_status = UploadStatusType::FAILED;
+            pushError(ESP_ERROR_UPLOAD, "Upload error 8");
+        }
+    }
+
     void Web_Server::SDFile_direct_upload() {
-        static String filename;
-        static File   sdUploadFile;
         //this is only for admin and user
         if (is_authenticated() == AuthenticationLevel::LEVEL_GUEST) {
             _upload_status = UploadStatusType::FAILED;
@@ -1388,117 +1488,36 @@ namespace WebUI {
                 //Upload start
                 //**************
                 if (upload.status == UPLOAD_FILE_START) {
-                    _upload_status = UploadStatusType::ONGOING;
-                    filename       = upload.filename;
-                    //on SD need to add / if not present
-                    if (filename[0] != '/') {
-                        filename = "/" + upload.filename;
-                    }
-                    //check if SD Card is available
-                    if (config->_sdCard->begin(SDCard::State::BusyUploading) != SDCard::State::Idle) {
-                        _upload_status = UploadStatusType::FAILED;
-                        log_info("Upload cancelled");
-                        pushError(ESP_ERROR_UPLOAD_CANCELLED, "Upload cancelled");
-
-                    } else {
-                        //delete file on SD Card if already present
-                        if (SD.exists(filename)) {
-                            SD.remove(filename);
-                        }
-                        String sizeargname = upload.filename + "S";
-                        if (_webserver->hasArg(sizeargname)) {
-                            uint32_t filesize  = _webserver->arg(sizeargname).toInt();
-                            uint64_t freespace = SD.totalBytes() - SD.usedBytes();
-                            if (filesize > freespace) {
-                                _upload_status = UploadStatusType::FAILED;
-                                log_info("Upload error");
-                                pushError(ESP_ERROR_NOT_ENOUGH_SPACE, "Upload rejected, not enough space");
-                            }
-                        }
-                        if (_upload_status != UploadStatusType::FAILED) {
-                            //Create file for writing
-                            sdUploadFile = SD.open(filename, FILE_WRITE);
-                            //check if creation succeed
-                            if (!sdUploadFile) {
-                                //if creation failed
-                                _upload_status = UploadStatusType::FAILED;
-                                log_info("Upload failed");
-                                pushError(ESP_ERROR_FILE_CREATION, "File creation failed");
-                            }
-                            //if creation succeed set flag UploadStatusType::ONGOING
-                            else {
-                                _upload_status = UploadStatusType::ONGOING;
-                            }
-                        }
-                    }
-                    //Upload write
-                    //**************
+                    String sizeargname = upload.filename + "S";
+                    size_t filesize    = _webserver->hasArg(sizeargname) ? _webserver->arg(sizeargname).toInt() : 0;
+                    uploadStart(upload.filename, filesize, "/sd");
                 } else if (upload.status == UPLOAD_FILE_WRITE) {
-                    auto sdCard = config->_sdCard;
-                    vTaskDelay(1 / portTICK_RATE_MS);
-                    if (sdUploadFile && (_upload_status == UploadStatusType::ONGOING) &&
-                        (sdCard->get_state() == SDCard::State::BusyUploading)) {
-                        //no error write post data
-                        if (upload.currentSize != sdUploadFile.write(upload.buf, upload.currentSize)) {
-                            _upload_status = UploadStatusType::FAILED;
-                            log_info("Upload failed");
-                            pushError(ESP_ERROR_FILE_WRITE, "File write failed");
-                        }
-                    } else {  //if error set flag UploadStatusType::FAILED
-                        _upload_status = UploadStatusType::FAILED;
-                        log_info("Upload failed");
-                        pushError(ESP_ERROR_FILE_WRITE, "File write failed");
-                    }
-                    //Upload end
-                    //**************
+                    uploadWrite(upload.buf, upload.currentSize);
                 } else if (upload.status == UPLOAD_FILE_END) {
-                    //if file is open close it
-                    if (sdUploadFile) {
-                        sdUploadFile.close();
-                        //TODO Check size
-                        String sizeargname = upload.filename + "S";
-                        if (_webserver->hasArg(sizeargname)) {
-                            uint32_t filesize = 0;
-                            sdUploadFile      = SD.open(filename, FILE_READ);
-                            filesize          = sdUploadFile.size();
-                            sdUploadFile.close();
-                            if (_webserver->arg(sizeargname) != String(filesize)) {
-                                _upload_status = UploadStatusType::FAILED;
-                                pushError(ESP_ERROR_UPLOAD, "File upload mismatch");
-                                log_info("Upload failed");
-                            }
-                        }
-                    } else {
-                        _upload_status = UploadStatusType::FAILED;
-                        log_info("Upload failed");
-                        pushError(ESP_ERROR_FILE_CLOSE, "File close failed");
-                    }
-                    if (_upload_status == UploadStatusType::ONGOING) {
-                        _upload_status = UploadStatusType::SUCCESSFUL;
-                        config->_sdCard->end();
-                    } else {
-                        _upload_status = UploadStatusType::FAILED;
-                        pushError(ESP_ERROR_UPLOAD, "Upload error");
-                    }
-
+                    String sizeargname = upload.filename + "S";
+                    size_t filesize    = _webserver->hasArg(sizeargname) ? _webserver->arg(sizeargname).toInt() : 0;
+                    uploadEnd(filesize);
                 } else {  //Upload cancelled
                     _upload_status = UploadStatusType::FAILED;
-                    log_info("Upload failed");
-                    if (sdUploadFile) {
-                        sdUploadFile.close();
+                    log_info("Upload failed - upload cancelled");
+                    if (_uploadFile) {
+                        delete _uploadFile;
+                        _uploadFile = nullptr;
                     }
-                    config->_sdCard->end();
                     return;
                 }
             }
         }
         if (_upload_status == UploadStatusType::FAILED) {
             cancelUpload();
-            if (sdUploadFile) {
-                sdUploadFile.close();
+            if (_uploadFile) {
+                delete _uploadFile;
+                _uploadFile = nullptr;
             }
-            if (SD.exists(filename)) {
-                SD.remove(filename);
+
+            config->_sdCard->begin(SDCard::State::BusyUploading);
+            if (SD.exists(_uploadFilename)) {
+                SD.remove(_uploadFilename);
             }
             config->_sdCard->end();
         }

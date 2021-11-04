@@ -75,7 +75,7 @@ void setup() {
                 }
             }
 
-            Stepper::init();  // Configure stepper pins and interrupt timers
+            config->_stepping->init();  // Configure stepper interrupt timers
 
             config->_userOutputs->init();
 

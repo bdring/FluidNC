@@ -762,7 +762,3 @@ float Stepper::get_realtime_rate() {
             return 0.0f;
     }
 }
-
-void Stepper::init() {
-    config->_stepping->init();
-}
