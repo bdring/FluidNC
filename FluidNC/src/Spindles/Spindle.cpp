@@ -79,7 +79,12 @@ namespace Spindles {
         _speeds[i].scale  = scaler;
     }
 
-    void Spindle::afterParse() {}
+    void Spindle::afterParse() {
+        if (_speeds.size() &&  !maxSpeed()) {
+            log_error("Speed map max speed is 0. Using default");
+            _speeds.clear();
+        }
+    }
 
     void Spindle::linearSpeeds(SpindleSpeed maxSpeed, float maxPercent) {
         _speeds.clear();
@@ -190,10 +195,10 @@ namespace Spindles {
                 }
         }
         if (down) {
-            delay(_spindown_ms * down / maxSpeed());
+            delay(down < maxSpeed() ? _spindown_ms * down / maxSpeed() : _spindown_ms);
         }
         if (up) {
-            delay(_spinup_ms * up / maxSpeed());
+            delay(up < maxSpeed() ? _spinup_ms * up / maxSpeed() : _spinup_ms);
         }
         _current_state = state;
         _current_speed = speed;
