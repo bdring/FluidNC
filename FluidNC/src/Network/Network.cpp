@@ -12,8 +12,7 @@ void Network::init() {
     if (_http_print_server) {
         _http_print_server->init();
     }
-#endif // INCLUDE_HTTP_PRINT_SERVICE
-
+#endif  // INCLUDE_HTTP_PRINT_SERVICE
 }
 
 void Network::handle() {
@@ -21,7 +20,7 @@ void Network::handle() {
     if (_http_print_server) {
         _http_print_server->handle();
     }
-#endif // INCLUDE_HTTP_PRINT_SERVICE
+#endif  // INCLUDE_HTTP_PRINT_SERVICE
 }
 
 const char* Network::name() const {
