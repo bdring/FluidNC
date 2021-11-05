@@ -16,8 +16,8 @@ class HttpPrintClient : public Stream {
     enum State {
         READING_HEADER,
         READING_DATA,
+        FINISHING,
         FINISHED,
-        ABORTED,
     };
 
 public:
@@ -53,6 +53,7 @@ private:
     char   _data[128];
     size_t _data_read;
     size_t _data_size;
+    bool   _aborted;
 };
 
 #endif  // INCLUDE_HTTP_PRINT_SERVICE

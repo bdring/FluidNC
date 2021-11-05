@@ -8,6 +8,7 @@
 // See https://github.com/espressif/arduino-esp32/issues/4073
 #    undef IPADDR_NONE
 
+#    include "../System.h"
 #    include "HttpPrintServer.h"
 
 // We expect input like so:
@@ -27,8 +28,8 @@ namespace {
     const char* _state_name[4] = {
         "READING_HEADER",
         "READING_DATA",
+        "FINISHING",
         "FINISHED",
-        "ABORTED",
     };
 
     const char content_length[] = "Content-Length:";
@@ -54,11 +55,11 @@ HttpPrintClient::HttpPrintClient(WiFiClient wifi_client) :
 HttpPrintClient::HttpPrintClient() : _state(READING_HEADER) {}
 
 bool HttpPrintClient::is_done() {
-    return _state == FINISHED || _state == ABORTED;
+    return _state == FINISHED;
 }
 
 bool HttpPrintClient::is_aborted() {
-    return _state == ABORTED;
+    return _aborted;
 }
 
 void HttpPrintClient::set_state(State state) {
@@ -67,34 +68,28 @@ void HttpPrintClient::set_state(State state) {
         // clients.
         log_info("HttpPrintClient: " << _state_name[state]);
         _state = state;
-
-        switch (_state) {
-            case READING_HEADER:
-            case READING_DATA:
-                break;
-            case FINISHED: {
-                size_t nw = _wifi_client.write(ok_200, sizeof ok_200 - 1);
-                log_info("nw= " << String(nw));
-                shutdown(_wifi_client.fd(), SHUT_RDWR);
-                break;
-            }
-            case ABORTED: {
-                size_t nw = _wifi_client.write(conflict_207, sizeof conflict_207 - 1);
-                log_info("nw= " << String(nw));
-                shutdown(_wifi_client.fd(), SHUT_RDWR);
-                break;
-            }
-        }
     }
 }
 
 // This is sufficient to drive the client due to how pollClients() just calls
 // read().
 int HttpPrintClient::read() {
-    // We need to read the Content-length since we can't detect a half-closed socket.
     switch (_state) {
         case FINISHED:
-        case ABORTED:
+            return RETRY;
+        case FINISHING:
+            if (sys.state == ::State::Idle) {
+                // The system is idle. We can finish the upload and reply
+                // without worrying about injecting a chunk of latency with
+                // these writes.
+                if (is_aborted()) {
+                    _wifi_client.write(conflict_207, sizeof conflict_207 - 1);
+                } else {
+                    _wifi_client.write(ok_200, sizeof ok_200 - 1);
+                }
+                shutdown(_wifi_client.fd(), SHUT_RDWR);
+                set_state(FINISHED);
+            }
             return RETRY;
         case READING_HEADER: {
             if (is_data_exhausted()) {
@@ -128,7 +123,7 @@ int HttpPrintClient::read() {
                 _data_read++;
                 _content_read++;
                 if (is_content_exhausted()) {
-                    set_state(FINISHED);
+                    set_state(FINISHING);
                 }
             }
             return code;
@@ -147,7 +142,8 @@ int HttpPrintClient::peek() {
             if (!_wifi_client.connected()) {
                 // There is nothing to read and we are not connected.
                 _wifi_client.stop();
-                set_state(ABORTED);
+                _aborted = true;
+                set_state(FINISHING);
             }
             return RETRY;
         }
