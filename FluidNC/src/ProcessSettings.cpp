@@ -78,6 +78,8 @@ void settings_restore(uint8_t restore_flag) {
         for (auto idx = CoordIndex::Begin; idx < CoordIndex::End; ++idx) {
             coords[idx]->setDefault();
         }
+        coords[gc_state.modal.coord_select]->get(gc_state.coord_system);
+        report_wco_counter = 0;  // force next report to include WCO
     }
     log_info("Position offsets reset done");
 }
