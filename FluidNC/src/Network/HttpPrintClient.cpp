@@ -50,7 +50,7 @@ namespace {
 }
 
 HttpPrintClient::HttpPrintClient(WiFiClient wifi_client) :
-    _state(READING_HEADER), _wifi_client(wifi_client), _content_read(0), _content_size(0), _data_read(0), _data_size(0) {}
+    _state(READING_HEADER), _wifi_client(wifi_client), _content_read(0), _content_size(0), _data_read(0), _data_size(0), _aborted(false) {}
 
 HttpPrintClient::HttpPrintClient() : _state(READING_HEADER) {}
 
