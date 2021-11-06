@@ -386,7 +386,7 @@ void report_gcode_modes(Print& channel) {
 
 // Prints build info line
 void report_build_info(const char* line, Print& channel) {
-    channel << "[VER:FluidNC " << git_info << ":" << line << "]\n";
+    channel << "[VER:" << grbl_version << " FluidNC " << git_info << ":" << line << "]\n";
     channel << "[OPT:";
     if (config->_coolant->hasMist()) {
         channel << "M";  // TODO Need to deal with M8...it could be disabled
@@ -545,7 +545,7 @@ void report_realtime_status(Print& channel) {
 #if 0
     // XXX WMB problem with channel_get_rx_buffer_available(channel)
     if (bits_are_true(status_mask->get(), RtStatus::Buffer)) {
-        channel << "|Bf:" << plan_get_block_buffer_available() << "," << channel_get_rx_buffer_available(channel /* CHANNEL_SERIAL ??? */);
+        channel << "|Bf:" << plan_get_block_buffer_available() << "," << channel_get_rx_buffer_available(channel);
     }
 #endif
 
