@@ -38,6 +38,9 @@ static void echo_line() {
     for (char* p = startaddr; p < endaddr; ++p) {
         emit(*p);
     }
+    for (char* p = endaddr; p > thisaddr; --p) {
+        emit(BS);
+    }
 }
 
 static void addchar(char c, bool echo = true) {
