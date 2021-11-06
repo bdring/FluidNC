@@ -161,7 +161,7 @@ void protocol_main_loop() {
             }
 
             if (infile) {
-                pollChannels(nullptr);
+                pollChannels();
                 if (readyNext) {
                     readyNext    = false;
                     Channel& out = infile->getChannel();
@@ -228,6 +228,7 @@ void protocol_buffer_synchronize() {
     // If system is queued, ensure cycle resumes if the auto start flag is present.
     protocol_auto_cycle_start();
     do {
+        pollChannels();
         protocol_execute_realtime();  // Check and execute run-time commands
         if (sys.abort) {
             return;  // Check for system abort

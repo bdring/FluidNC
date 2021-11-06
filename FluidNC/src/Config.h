@@ -166,13 +166,6 @@ const int N_ARC_CORRECTION = 12;  // Integer (1-255)
 // much greater than this. The default setting should capture most, if not all, full arc error situations.
 const double ARC_ANGULAR_TRAVEL_EPSILON = 5E-7;  // Float (radians)
 
-// Time delay increments performed during a dwell. The default value is set at 50ms, which provides
-// a maximum time delay of roughly 55 minutes, more than enough for most any application. Increasing
-// this delay will increase the maximum dwell time linearly, but also reduces the responsiveness of
-// run-time command executions, like status reports, since these are performed between each dwell
-// time step. Also, keep in mind that the Arduino delay timer is not very accurate for long delays.
-const int DWELL_TIME_STEP = 50;  // Integer (1-255) (milliseconds)
-
 // Serial send and receive buffer size. The receive buffer is often used as another streaming
 // buffer to store incoming blocks to be processed when ready. Most streaming
 // interfaces will character count and track each block send to each block response. So,

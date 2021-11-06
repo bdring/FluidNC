@@ -71,18 +71,20 @@ bool mc_line(float* target, plan_line_data_t* pl_data) {
     // parser and planner are separate from the system machine positions, this is doable.
     // If the buffer is full: good! That means we are well ahead of the robot.
     // Remain in this loop until there is room in the buffer.
-    do {
-        protocol_execute_realtime();  // Check for any run-time commands
+
+    while (plan_check_full_buffer()) {
+        protocol_auto_cycle_start();  // Auto-cycle start when buffer is full.
+
+        // While we are waiting for room in the buffer, look for realtime
+        // commands and other situations that could cause state changes.
+        pollChannels();
+        protocol_execute_realtime();
         if (sys.abort) {
             mc_pl_data_inflight = NULL;
             return submitted_result;  // Bail, if system abort.
         }
-        if (plan_check_full_buffer()) {
-            protocol_auto_cycle_start();  // Auto-cycle start when buffer is full.
-        } else {
-            break;
-        }
-    } while (1);
+    }
+
     // Plan and queue motion into planner buffer
     if (mc_pl_data_inflight == pl_data) {
         plan_buffer_line(target, pl_data);
@@ -334,6 +336,7 @@ GCUpdatePos mc_probe_cycle(float* target, plan_line_data_t* pl_data, uint8_t par
     // Perform probing cycle. Wait here until probe is triggered or motion completes.
     rtCycleStart = true;
     do {
+        pollChannels();
         protocol_execute_realtime();
         if (sys.abort) {
             config->_stepping->endLowLatency();
