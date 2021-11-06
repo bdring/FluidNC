@@ -243,6 +243,20 @@ Channel* AllChannels::pollLine(char* line) {
 AllChannels allChannels;
 
 Channel* pollChannels(char* line) {
+    // Throttle polling when we are not ready for a line, thus preventing
+    // planner buffer starvation due to not calling Stepper::prep_buffer()
+    // frequently enough, which is normally called periodically at the end
+    // of protocol_exec_rt_system() via protocol_execute_realtime().
+    static int counter = 0;
+    if (line) {
+        counter = 0;
+    }
+    if (counter > 0) {
+        --counter;
+        return nullptr;
+    }
+    counter = 50;
+
     Channel* retval = allChannels.pollLine(line);
 
     WebUI::COMMANDS::handle();  // Handles feeding watchdog and ESP restart
