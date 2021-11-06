@@ -84,22 +84,39 @@ namespace WebUI {
 
     size_t Telnet_Server::write(uint8_t data) { return write(&data, 1); }
 
-    size_t Telnet_Server::write(const uint8_t* buffer, size_t size) {
-        size_t wsize = 0;
+    size_t Telnet_Server::write(const uint8_t* buffer, size_t length) {
         if (!_setupdone || _telnetserver == NULL) {
             return 0;
         }
-
         clearClients();
 
-        //push UART data to all connected telnet clients
-        for (size_t i = 0; i < MAX_TLNT_CLIENTS; i++) {
-            if (_telnetClients[i] && _telnetClients[i].connected()) {
-                wsize = _telnetClients[i].write(buffer, size);
-                COMMANDS::wait(0);
+        // Replace \n with \r\n
+        size_t  rem      = length;
+        uint8_t lastchar = '\0';
+        while (rem) {
+            const int bufsize = 80;
+            uint8_t   modbuf[bufsize];
+            // bufsize-1 in case the last character is \n
+            size_t k = 0;
+            for (size_t j = 0; rem && k < (bufsize - 1); j++) {
+                uint8_t c = buffer[j];
+                if (lastchar != '\r' && c == '\n') {
+                    modbuf[k++] = '\r';
+                }
+                modbuf[k++] = c;
+                lastchar    = c;
+                --rem;
+            }
+
+            //push data to all connected telnet clients
+            for (size_t i = 0; i < MAX_TLNT_CLIENTS; i++) {
+                if (_telnetClients[i] && _telnetClients[i].connected()) {
+                    _telnetClients[i].write(modbuf, k);
+                    COMMANDS::wait(0);
+                }
             }
         }
-        return wsize;
+        return length;
     }
 
     void Telnet_Server::handle() {
