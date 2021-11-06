@@ -95,23 +95,35 @@ int Uart::read() {
 
 Channel* Uart::pollLine(char* line) {
     while (1) {
-        int ch = read();
-        if (ch < 0 || ch == '\r') {
+        int ch;
+        if (line && _queue.size()) {
+            ch = _queue.front();
+            _queue.pop();
+        } else {
+            ch = read();
+        }
+
+        // ch will only be negative if read() was called and returned -1
+        // The _queue path will return only nonnegative character values
+        if (ch < 0) {
             break;
         }
         if (lineedit_realtime(ch) && is_realtime_command(ch)) {
             execute_realtime_command(static_cast<Cmd>(ch), *this);
             continue;
         }
-        if (!line) {
-            continue;
-        }
-        if (lineedit_step(ch)) {
-            _linelen        = lineedit_finish();
-            _line[_linelen] = '\0';
-            strcpy(line, _line);
-            _linelen = 0;
-            return this;
+        if (line) {
+            if (lineedit_step(ch)) {
+                _linelen        = lineedit_finish();
+                _line[_linelen] = '\0';
+                strcpy(line, _line);
+                _linelen = 0;
+                return this;
+            }
+        } else {
+            // If we are not able to handle a line we save the character
+            // until later
+            _queue.push(uint8_t(ch));
         }
     }
     return nullptr;
