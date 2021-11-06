@@ -18,7 +18,9 @@
 #include <driver/uart.h>
 #include <esp32-hal-gpio.h>  // GPIO_NUM_1 etc
 
-Uart::Uart() : Channel(), _pushback(-1) {
+Uart::Uart(int uart_num, bool addCR) : Channel("uart", addCR), _pushback(-1) {
+    // Auto-assign Uart harware engine numbers; the pins will be
+    // assigned to the engines separately
     static int currentNumber = 1;
     Assert(currentNumber <= 3, "Max number of UART's reached.");
 
@@ -135,7 +137,29 @@ size_t Uart::write(uint8_t c) {
 }
 
 size_t Uart::write(const uint8_t* buffer, size_t length) {
-    return uart_write_bytes(_uart_num, (const char*)buffer, length);
+    // Replace \n with \r\n
+    if (_addCR) {
+        size_t rem = length;
+        while (rem) {
+            const int bufsize = 80;
+            char      modbuf[bufsize];
+            // bufsize-1 in case the last character is \n
+            size_t k = 0;
+            for (size_t j = 0; rem && k < (bufsize - 1); j++) {
+                char c = buffer[j];
+                if (c == '\n') {
+                    modbuf[k++] = '\r';
+                }
+                modbuf[k++] = c;
+                --rem;
+            }
+
+            uart_write_bytes(_uart_num, (const char*)modbuf, k);
+        }
+    } else {
+        uart_write_bytes(_uart_num, (const char*)buffer, length);
+    }
+    return length;
 }
 
 // size_t Uart::write(const char* text) {
@@ -152,7 +176,7 @@ bool Uart::flushTxTimed(TickType_t ticks) {
     return uart_wait_tx_done(_uart_num, ticks) != ESP_OK;
 }
 
-Uart Uart0(0);
+Uart Uart0(0, true);  // Primary serial channel with LF to CRLF conversion
 
 void uartInit() {
     Uart0.setPins(GPIO_NUM_1, GPIO_NUM_3);  // Tx 1, Rx 3 - standard hardware pins

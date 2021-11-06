@@ -27,10 +27,7 @@ namespace WebUI {
 
     IPAddress Telnet_Server::_telnetClientsIP[MAX_TLNT_CLIENTS];
 
-    Telnet_Server::Telnet_Server() {
-        _RXbufferSize = 0;
-        _RXbufferpos  = 0;
-    }
+    Telnet_Server::Telnet_Server() : Channel("telnet"), _RXbufferSize(0), _RXbufferpos(0) {}
 
     bool Telnet_Server::begin() {
         bool no_error = true;

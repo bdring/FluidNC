@@ -199,6 +199,15 @@ void AllChannels::init() {
     registration(&WebUI::inputBuffer);  // Macros
 }
 
+String AllChannels::info() {
+    String retval;
+    for (auto channel : _channelq) {
+        retval += channel->name();
+        retval += "\n";
+    }
+    return retval;
+}
+
 size_t AllChannels::write(uint8_t data) {
     for (auto channel : _channelq) {
         channel->write(data);

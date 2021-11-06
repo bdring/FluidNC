@@ -65,7 +65,7 @@ class AllChannels : public Channel {
     std::vector<Channel*> _channelq;
 
 public:
-    AllChannels() = default;
+    AllChannels() : Channel("all") {}
 
     void registration(Channel* channel) { _channelq.push_back(channel); }
     void init();
@@ -78,6 +78,8 @@ public:
     int  read() { return -1; }
     int  peek() { return -1; }
     void flush() {}
+
+    String info();
 
     Channel* pollLine(char* line) override;
 };

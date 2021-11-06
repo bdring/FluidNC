@@ -535,12 +535,18 @@ static Error fakeLaserMode(const char* value, WebUI::AuthenticationLevel auth_le
     return Error::Ok;
 }
 
+static Error showChannelInfo(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+    out << allChannels.info();
+    return Error::Ok;
+}
+
 // Commands use the same syntax as Settings, but instead of setting or
 // displaying a persistent value, a command causes some action to occur.
 // That action could be anything, from displaying a run-time parameter
 // to performing some system state change.  Each command is responsible
 // for decoding its own value string, if it needs one.
 void make_user_commands() {
+    new UserCommand("CI", "Channel/Info", showChannelInfo, anyState);
     new UserCommand("XR", "Xmodem/Receive", xmodem_receive, notIdleOrAlarm);
     new UserCommand("XS", "Xmodem/Send", xmodem_send, notIdleOrJog);
     new UserCommand("CD", "Config/Dump", dump_config, anyState);

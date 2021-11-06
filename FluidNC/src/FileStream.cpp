@@ -44,7 +44,7 @@ size_t FileStream::position() {
 
 FileStream::FileStream(String filename, const char* mode, const char* defaultFs) : FileStream(filename.c_str(), mode, defaultFs) {}
 
-FileStream::FileStream(const char* filename, const char* mode, const char* defaultFs) {
+FileStream::FileStream(const char* filename, const char* mode, const char* defaultFs) : Channel("file") {
     if (!filename || !*filename) {
         throw Error::FsFailedCreateFile;
     }

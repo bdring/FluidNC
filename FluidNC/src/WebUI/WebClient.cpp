@@ -7,7 +7,8 @@
 #    include <WebServer.h>
 
 namespace WebUI {
-    WebClient::WebClient(WebServer* webserver, bool silent) : _header_sent(false), _silent(silent), _webserver(webserver), _buflen(0) {}
+    WebClient::WebClient(WebServer* webserver, bool silent) :
+        Channel("webclient"), _header_sent(false), _silent(silent), _webserver(webserver), _buflen(0) {}
 
     size_t WebClient::write(const uint8_t* buffer, size_t length) {
         if (_silent) {
