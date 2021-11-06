@@ -31,7 +31,7 @@ typedef struct {
 static planner_t pl;
 
 // Returns the index of the next block in the ring buffer. Also called by stepper segment buffer.
-uint8_t plan_next_block_index(uint8_t block_index) {
+static uint8_t plan_next_block_index(uint8_t block_index) {
     block_index++;
     if (block_index == BLOCK_BUFFER_SIZE) {
         block_index = 0;
@@ -195,6 +195,7 @@ void plan_reset_buffer() {
     block_buffer_planned = 0;  // = block_buffer_tail;
 }
 
+// Called from stepper pulse function when the block is complete
 void plan_discard_current_block() {
     if (block_buffer_head != block_buffer_tail) {  // Discard non-empty buffer.
         uint8_t block_index = plan_next_block_index(block_buffer_tail);
@@ -419,21 +420,12 @@ void plan_sync_position() {
 }
 
 // Returns the number of available blocks are in the planner buffer.
+// Called from report_realtime_status
 uint8_t plan_get_block_buffer_available() {
     if (block_buffer_head >= block_buffer_tail) {
         return (BLOCK_BUFFER_SIZE - 1) - (block_buffer_head - block_buffer_tail);
     } else {
         return block_buffer_tail - block_buffer_head - 1;
-    }
-}
-
-// Returns the number of active blocks are in the planner buffer.
-// NOTE: Deprecated. Not used unless classic status reports are enabled in config.h
-uint8_t plan_get_block_buffer_count() {
-    if (block_buffer_head >= block_buffer_tail) {
-        return block_buffer_head - block_buffer_tail;
-    } else {
-        return BLOCK_BUFFER_SIZE - (block_buffer_tail - block_buffer_head);
     }
 }
 

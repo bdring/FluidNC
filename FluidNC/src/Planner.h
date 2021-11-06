@@ -90,8 +90,8 @@ plan_block_t* plan_get_system_motion_block();
 // Gets the current block. Returns NULL if buffer empty
 plan_block_t* plan_get_current_block();
 
-// Called periodically by step segment buffer. Mostly used internally by planner.
-uint8_t plan_next_block_index(uint8_t block_index);
+// Increment block index with wrap-around
+static uint8_t plan_next_block_index(uint8_t block_index);
 
 // Called by step segment buffer when computing executing block velocity profile.
 float plan_get_exec_block_exit_speed_sqr();
@@ -110,10 +110,6 @@ void plan_cycle_reinitialize();
 
 // Returns the number of available blocks are in the planner buffer.
 uint8_t plan_get_block_buffer_available();
-
-// Returns the number of active blocks are in the planner buffer.
-// NOTE: Deprecated. Not used unless classic status reports are enabled in config.h
-uint8_t plan_get_block_buffer_count();
 
 // Returns the status of the block ring buffer. True, if buffer is full.
 uint8_t plan_check_full_buffer();
