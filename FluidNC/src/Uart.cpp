@@ -22,12 +22,12 @@ Uart::Uart(int uart_num, bool addCR) : Channel("uart", addCR), _pushback(-1) {
     // Auto-assign Uart harware engine numbers; the pins will be
     // assigned to the engines separately
     static int currentNumber = 1;
-    Assert(currentNumber <= 3, "Max number of UART's reached.");
+    if (uart_num == -1) {
+        Assert(currentNumber <= 3, "Max number of UART's reached.");
+        uart_num = currentNumber++;
+    }
+    _uart_num = uart_port_t(uart_num);
 
-    _uart_num = uart_port_t(currentNumber++);
-}
-
-Uart::Uart(int uart_num) : Channel(), _uart_num(uart_port_t(uart_num)), _pushback(-1) {
     lineedit_start(_line, Channel::maxLine - 1);
 }
 
