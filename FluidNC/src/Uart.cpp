@@ -151,17 +151,20 @@ size_t Uart::write(uint8_t c) {
 size_t Uart::write(const uint8_t* buffer, size_t length) {
     // Replace \n with \r\n
     if (_addCR) {
-        size_t rem = length;
+        size_t rem      = length;
+        char   lastchar = '\0';
+        size_t j        = 0;
         while (rem) {
             const int bufsize = 80;
             char      modbuf[bufsize];
             // bufsize-1 in case the last character is \n
             size_t k = 0;
-            for (size_t j = 0; rem && k < (bufsize - 1); j++) {
-                char c = buffer[j];
-                if (c == '\n') {
+            while (rem && k < (bufsize - 1)) {
+                char c = buffer[j++];
+                if (c == '\n' && lastchar != '\r') {
                     modbuf[k++] = '\r';
                 }
+                lastchar    = c;
                 modbuf[k++] = c;
                 --rem;
             }
