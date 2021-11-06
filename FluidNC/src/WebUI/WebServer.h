@@ -27,7 +27,7 @@ namespace WebUI {
 #    endif
 
     //Upload status
-    enum class UploadStatusType : uint8_t { NONE = 0, FAILED = 1, CANCELLED = 2, SUCCESSFUL = 3, ONGOING = 4 };
+    enum class UploadStatus : uint8_t { NONE = 0, FAILED = 1, CANCELLED = 2, SUCCESSFUL = 3, ONGOING = 4 };
 
     class Web_Server {
     public:
@@ -48,7 +48,7 @@ namespace WebUI {
         static long              _id_connection;
         static WebSocketsServer* _socket_server;
         static uint16_t          _port;
-        static UploadStatusType  _upload_status;
+        static UploadStatus      _upload_status;
         static String            _uploadFilename;
         static FileStream*       _uploadFile;
         static String            getContentType(String filename);
@@ -83,7 +83,12 @@ namespace WebUI {
         static bool deleteRecursive(String path);
         static void uploadStart(String filename, size_t filesize, const char* fs);
         static void uploadWrite(uint8_t* buffer, size_t length);
-        static void uploadEnd(size_t filesize);
+        static void uploadEnd(size_t filesize, const char* fs);
+        static void uploadStop();
+        static void uploadCheck(String filename, const char* fs);
+        static void deleteFile(const char* filename, const char* fs);
+
+        static uint64_t fsAvail(const char* fs);
     };
 
     extern Web_Server web_server;

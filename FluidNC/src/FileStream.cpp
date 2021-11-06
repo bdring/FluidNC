@@ -45,21 +45,33 @@ size_t FileStream::position() {
 FileStream::FileStream(String filename, const char* mode, const char* defaultFs) : FileStream(filename.c_str(), mode, defaultFs) {}
 
 FileStream::FileStream(const char* filename, const char* mode, const char* defaultFs) : Channel("file") {
+    const char* actualLocalFs = "/spiffs";
+    const char* sdPrefix      = "/sd/";
+    const char* localFsPrefix = "/localfs/";
+
     if (!filename || !*filename) {
         throw Error::FsFailedCreateFile;
     }
-    _path = defaultFs;
-    if (*filename != '/') {
-        _path += '/';
-    }
+    _path = filename;
 
-    _path += filename;
-
-    // Map /localfs/ to the actual name of the local file system
-    if (_path.startsWith("/localfs/")) {
-        _path.replace("/localfs/", "/spiffs/");
+    // Map file system names to canonical form
+    if (_path.startsWith("/SD/")) {
+        _path.replace("/SD/", sdPrefix);
+    } else if (_path.startsWith(localFsPrefix)) {
+        _path.replace(localFsPrefix, actualLocalFs);
+    } else if (_path.startsWith("/LOCALFS/")) {
+        _path.replace("/LOCALFS/", actualLocalFs);
+    } else {
+        if (*filename != '/') {
+            _path = '/' + _path;
+        }
+        if (!strcmp(defaultFs, "/localfs")) {
+            _path = actualLocalFs + _path;
+        } else {
+            _path = defaultFs + _path;
+        }
     }
-    if (_path.startsWith("/sd/")) {
+    if (_path.startsWith(sdPrefix)) {
         if (config->_sdCard->begin(SDCard::State::BusyWriting) != SDCard::State::Idle) {
             log_info("FS busy ");
             throw Error::FsFailedMount;
