@@ -7,7 +7,6 @@
 
 #include "Logging.h"
 #include "Uart.h"
-#include "lineedit.h"
 
 #include <esp_system.h>
 #include <soc/uart_reg.h>
@@ -18,6 +17,8 @@
 #include <driver/uart.h>
 #include <esp32-hal-gpio.h>  // GPIO_NUM_1 etc
 
+#include "lineedit.h"
+
 Uart::Uart(int uart_num, bool addCR) : Channel("uart", addCR), _pushback(-1) {
     // Auto-assign Uart harware engine numbers; the pins will be
     // assigned to the engines separately
@@ -25,12 +26,10 @@ Uart::Uart(int uart_num, bool addCR) : Channel("uart", addCR), _pushback(-1) {
     if (uart_num == -1) {
         Assert(currentNumber <= 3, "Max number of UART's reached.");
         uart_num = currentNumber++;
+    } else {
+        _lineedit = new Lineedit(this, _line, Channel::maxLine - 1);
     }
     _uart_num = uart_port_t(uart_num);
-
-    if (_uart_num == 0) {
-        lineedit_start(_line, Channel::maxLine - 1);
-    }
 }
 
 // Use the specified baud rate
@@ -98,7 +97,7 @@ int Uart::read() {
 Channel* Uart::pollLine(char* line) {
     // For now we only allow UART0 to be a channel input device
     // Other UART users like RS485 use it as a dumb character device
-    if (_uart_num) {
+    if (_lineedit == nullptr) {
         return nullptr;
     }
     while (1) {
@@ -115,13 +114,13 @@ Channel* Uart::pollLine(char* line) {
         if (ch < 0) {
             break;
         }
-        if (lineedit_realtime(ch) && is_realtime_command(ch)) {
+        if (_lineedit->realtime(ch) && is_realtime_command(ch)) {
             execute_realtime_command(static_cast<Cmd>(ch), *this);
             continue;
         }
         if (line) {
-            if (lineedit_step(ch)) {
-                _linelen        = lineedit_finish();
+            if (_lineedit->step(ch)) {
+                _linelen        = _lineedit->finish();
                 _line[_linelen] = '\0';
                 strcpy(line, _line);
                 _linelen = 0;

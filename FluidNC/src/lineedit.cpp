@@ -1,49 +1,28 @@
-// #define NO_COMPLETION
+// Copyright (c) 2021 - Mitch Bradley
+// Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
 
-#include "Uart.h"
-// extern void emit(char c);
-void emit(char c) {
-    Uart0.write(c);
-}
-void emit(const char* s) {
-    Uart0.print(s);
-}
+#include "lineedit.h"
 
-/* Use -ve numbers here to co-exist with normal unicode chars */
-enum {
-    SPECIAL_NONE,
-    SPECIAL_UP     = -20,
-    SPECIAL_DOWN   = -21,
-    SPECIAL_LEFT   = -22,
-    SPECIAL_RIGHT  = -23,
-    SPECIAL_DELETE = -24,
-    SPECIAL_HOME   = -25,
-    SPECIAL_END    = -26,
-};
+Lineedit::Lineedit(Print* _out, char* line, int linelen) : out(_out), needs_reecho(false), startaddr(line), maxaddr(line + linelen) {
+    restart();
+}
 
 #define CTRL(c) (c & 0x1f)
 
-#define BS 8
-#define DEL 127
+void Lineedit::emit(char c) {
+    out->write(c);
+}
 
-static bool editing      = false;
-static bool needs_reecho = false;
-
-static char* thisaddr;
-static char* startaddr;
-static char* endaddr;
-static char* maxaddr;
-
-static void echo_line() {
+void Lineedit::echo_line() {
     for (char* p = startaddr; p < endaddr; ++p) {
         emit(*p);
     }
     for (char* p = endaddr; p > thisaddr; --p) {
-        emit(BS);
+        emit('\b');
     }
 }
 
-static void addchar(char c, bool echo = true) {
+void Lineedit::addchar(char c, bool echo) {
     char* p;
     if (thisaddr < maxaddr) {
         if (endaddr < maxaddr)
@@ -59,29 +38,29 @@ static void addchar(char c, bool echo = true) {
             emit(*p);
         }
         for (; p > thisaddr; --p) {
-            emit(BS);
+            emit('\b');
         }
     }
 }
 
-static void erase_char() {
+void Lineedit::erase_char() {
     char* p;
     if (thisaddr > startaddr) {
         --thisaddr;
         --endaddr;
-        emit(BS);
+        emit('\b');
         for (p = thisaddr; p < endaddr; p++) {
             *p = *(p + 1);
             emit(*p);
         }
         emit(' ');
         for (++p; p > thisaddr; --p) {
-            emit(BS);
+            emit('\b');
         }
     }
 }
 
-static void erase_line() {
+void Lineedit::erase_line() {
     for (; thisaddr < endaddr; ++thisaddr)
         emit(*thisaddr);
     while (thisaddr > startaddr)
@@ -89,11 +68,7 @@ static void erase_line() {
     endaddr = startaddr;
 }
 
-#define MAXHISTORY 400
-static int  saved_length;
-static char lastline[MAXHISTORY];
-
-static void validate_history() {
+void Lineedit::validate_history() {
     int i;
 
     // Clear history if it is invalid
@@ -113,7 +88,7 @@ clear_history:
     saved_length = 0;
 }
 
-static bool already_in_history(char* adr, int len) {
+bool Lineedit::already_in_history(char* adr, int len) {
     char* p;
     char* first;
     char* thischar;
@@ -158,7 +133,7 @@ static bool already_in_history(char* adr, int len) {
     return false;
 }
 
-static void add_to_history(char* adr, int len) {
+void Lineedit::add_to_history(char* adr, int len) {
     int i;
     int new_length;
 
@@ -185,7 +160,7 @@ static void add_to_history(char* adr, int len) {
 
 // history_num is the number of the history line to fetch
 // returns true if that line exists.
-static bool get_history(int history_num) {
+bool Lineedit::get_history(int history_num) {
     int   i;
     int   hn;
     char* p;
@@ -216,25 +191,25 @@ static bool get_history(int history_num) {
     return true;
 }
 
-static void backward_char() {
+void Lineedit::backward_char() {
     if (thisaddr > startaddr) {
-        emit(BS);
+        emit('\b');
         --thisaddr;
     }
 }
 
-static void forward_char() {
+void Lineedit::forward_char() {
     if (thisaddr < endaddr) {
         emit(*thisaddr);
         ++thisaddr;
     }
 }
 
-static bool is_word_delim(char c) {
+bool Lineedit::is_word_delim(char c) {
     return c == ' ' || c == '/' || c == '=' || c == ',';
 }
 
-static void forward_word() {
+void Lineedit::forward_word() {
     // Skip delimiters that we are already on
     while ((thisaddr < endaddr) && is_word_delim(*thisaddr)) {
         emit(*thisaddr);
@@ -252,9 +227,7 @@ static void forward_word() {
     }
 }
 
-char killbuf[100] = { 0 };
-
-static void kill_forward() {
+void Lineedit::kill_forward() {
     char* p = killbuf;
     while (thisaddr < endaddr) {
         *p++ = *thisaddr;
@@ -263,43 +236,43 @@ static void kill_forward() {
     }
     *p = '\0';
 }
-static void yank() {
+void Lineedit::yank() {
     for (char* p = killbuf; *p; ++p) {
         addchar(*p);
     }
 }
 
-static void backward_word() {
+void Lineedit::backward_word() {
     if (startaddr >= endaddr) {
         return;
     }
 
     // Skip over delimiters
     while ((thisaddr > startaddr) && is_word_delim(thisaddr[-1])) {
-        emit(BS);
+        emit('\b');
         --thisaddr;
     }
     // Scan backward over non-delimiters
     while ((thisaddr > startaddr) && !is_word_delim(thisaddr[-1])) {
-        emit(BS);
+        emit('\b');
         --thisaddr;
     }
 #if 0
     // Scan backward to a non-space just after a space
     while ((thisaddr > startaddr) && !is_word_delim(thisaddr[-1])) {
-        emit(BS);
+        emit('\b');
         --thisaddr;
     }
 #endif
 }
 
 #ifndef NO_COMPLETION
-static bool isdelim(char* addr) {
+bool Lineedit::isdelim(char* addr) {
     return (addr < startaddr) || (addr == endaddr) || is_word_delim(*addr);
 }
 
-static char theWord[100];
-static bool find_word_under_cursor() {
+char theWord[100];
+bool Lineedit::find_word_under_cursor() {
     if (startaddr == endaddr || *startaddr != '$') {
         return false;
     }
@@ -319,7 +292,7 @@ static bool find_word_under_cursor() {
 
 extern int num_initial_matches(char* key, int keylen, int matchnum, char** matchname, int* matchlen);
 
-static void color(const char* s) {
+void Lineedit::color(const char* s) {
     emit(0x1b);
     emit('[');
     while (*s) {
@@ -327,26 +300,22 @@ static void color(const char* s) {
     }
     emit('m');
 }
-static void cyan() {
+void Lineedit::cyan() {
     color("1;36;40");
 }
-static void highlight() {
+void Lineedit::highlight() {
     cyan();
 }
 
-static void gray() {
+void Lineedit::gray() {
     color("0;37;40");
 }
 
-static void lowlight() {
+void Lineedit::lowlight() {
     gray();
 }
 
-static int nmatches = 0;
-static int matchlen;
-static int thismatch = 0;
-
-static void complete_word() {
+void Lineedit::complete_word() {
     if (!find_word_under_cursor()) {
         return;
     }
@@ -385,7 +354,7 @@ static void complete_word() {
     lowlight();
 }
 
-static void propose_word() {
+void Lineedit::propose_word() {
     if (++thismatch == nmatches) {
         thismatch = 0;
     }
@@ -404,11 +373,11 @@ static void propose_word() {
     }
     lowlight();
 }
-static void accept_word() {
+void Lineedit::accept_word() {
     int len = strlen(theWord);
     int i;
     for (i = matchlen; i > len; --i) {
-        emit(BS);
+        emit('\b');
         --thisaddr;
     }
     lowlight();
@@ -419,10 +388,7 @@ static void accept_word() {
 }
 #endif
 
-static int escaping;
-static int history_num = -1;
-
-static void lineedit_restart() {
+void Lineedit::restart() {
     needs_reecho = false;
     endaddr = thisaddr = startaddr;
     endaddr            = startaddr;
@@ -430,31 +396,28 @@ static void lineedit_restart() {
     history_num        = -1;
 }
 
-void lineedit_start(char* addr, int count) {
-    needs_reecho = false;
-    startaddr    = addr;
-    maxaddr      = addr + count;
-    lineedit_restart();
-}
-
-int lineedit_finish() {
-    int length = (int)(endaddr - startaddr);
-    add_to_history(startaddr, length);
-    lineedit_restart();
-    return (length);
-}
-
-static void show_realtime_command(const char* s) {
+void Lineedit::show_realtime_command(const char* s) {
     if (startaddr < endaddr) {
         emit('\n');
     }
     if (*s) {
-        emit(s);
+        while (*s) {
+            emit(*s++);
+        }
         emit('\n');
         echo_line();
     } else {
         needs_reecho = true;
     }
+}
+
+// public
+
+int Lineedit::finish() {
+    int length = (int)(endaddr - startaddr);
+    add_to_history(startaddr, length);
+    restart();
+    return (length);
 }
 
 // Special handling for realtime characters.
@@ -464,7 +427,7 @@ static void show_realtime_command(const char* s) {
 // of the line that is being collected.
 // Returns true if the character should be treated as realtime.
 
-bool lineedit_realtime(int c) {
+bool Lineedit::realtime(int c) {
     if (!editing) {
         return true;
     }
@@ -494,7 +457,7 @@ bool lineedit_realtime(int c) {
 }
 
 // Returns true when the line is complete
-bool lineedit_step(int c) {
+bool Lineedit::step(int c) {
     if (!editing) {
         if (c < ' ') {
             if (c == '\r' || c == '\n') {
@@ -619,8 +582,8 @@ bool lineedit_step(int c) {
             return true;
         case -1:
             return true;
-        case DEL:
-        case BS:
+        case 127:  // Delete
+        case '\b':
             if (thisaddr > startaddr)
                 erase_char();
             break;
@@ -681,14 +644,3 @@ bool lineedit_step(int c) {
     }
     return false;
 }
-
-#ifdef LINEEDIT_LOOP
-extern int key();
-
-// Line editor with history and intra-line editing
-int lineedit(char* addr, int count) {
-    lineedit_start(addr, count);
-    while (lineedit_step(key()) == 0) {}
-    return lineedit_finish();
-}
-#endif

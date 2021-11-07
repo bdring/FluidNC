@@ -8,6 +8,7 @@
 #include "Configuration/Configurable.h"
 #include "UartTypes.h"
 
+#include "lineedit.h"
 #include "Channel.h"
 #include <freertos/FreeRTOS.h>  // TickType_T
 #include <queue>
@@ -17,6 +18,7 @@ private:
     uart_port_t         _uart_num;
     int                 _pushback;
     std::queue<uint8_t> _queue;
+    Lineedit*           _lineedit;
 
 public:
     // These are public so that validators from classes
