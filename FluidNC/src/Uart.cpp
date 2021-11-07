@@ -28,7 +28,9 @@ Uart::Uart(int uart_num, bool addCR) : Channel("uart", addCR), _pushback(-1) {
     }
     _uart_num = uart_port_t(uart_num);
 
-    lineedit_start(_line, Channel::maxLine - 1);
+    if (_uart_num == 0) {
+        lineedit_start(_line, Channel::maxLine - 1);
+    }
 }
 
 // Use the specified baud rate
@@ -94,6 +96,11 @@ int Uart::read() {
 }
 
 Channel* Uart::pollLine(char* line) {
+    // For now we only allow UART0 to be a channel input device
+    // Other UART users like RS485 use it as a dumb character device
+    if (_uart_num) {
+        return nullptr;
+    }
     while (1) {
         int ch;
         if (line && _queue.size()) {
