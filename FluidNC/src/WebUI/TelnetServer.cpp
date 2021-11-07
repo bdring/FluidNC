@@ -93,18 +93,19 @@ namespace WebUI {
         // Replace \n with \r\n
         size_t  rem      = length;
         uint8_t lastchar = '\0';
+        size_t  j        = 0;
         while (rem) {
             const int bufsize = 80;
             uint8_t   modbuf[bufsize];
             // bufsize-1 in case the last character is \n
             size_t k = 0;
-            for (size_t j = 0; rem && k < (bufsize - 1); j++) {
-                uint8_t c = buffer[j];
-                if (lastchar != '\r' && c == '\n') {
+            while (rem && k < (bufsize - 1)) {
+                uint8_t c = buffer[j++];
+                if (c == '\n' && lastchar != '\r') {
                     modbuf[k++] = '\r';
                 }
-                modbuf[k++] = c;
                 lastchar    = c;
+                modbuf[k++] = c;
                 --rem;
             }
 
