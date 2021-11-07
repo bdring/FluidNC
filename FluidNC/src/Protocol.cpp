@@ -17,6 +17,11 @@
 #include "Settings.h"       // settings_execute_startup
 #include "InputFile.h"      // infile
 
+#ifdef DEBUG_STEPPING
+volatile bool rtCrash;
+uint32_t      expected_steps[MAX_N_AXIS];
+#endif
+
 #ifdef DEBUG_REPORT_REALTIME
 volatile bool rtExecDebug;
 #endif
@@ -699,6 +704,14 @@ void protocol_do_macro(int macro_num) {
 void protocol_exec_rt_system() {
     protocol_do_alarm();  // If there is a hard or soft limit, this will block until rtReset is set
 
+#ifdef DEBUG_STEPPING
+    if (rtCrash) {
+        rtCrash = false;
+        log_error("Stepper exp,actual " << expected_steps[0] << "," << motor_steps[0] << " " << expected_steps[1] << "," << motor_steps[1]
+                                        << " " << expected_steps[2] << "," << motor_steps[2]);
+        rtReset = true;
+    }
+#endif
     if (rtReset) {
         if (sys.state == State::Homing) {
             rtAlarm = ExecAlarm::HomingFailReset;

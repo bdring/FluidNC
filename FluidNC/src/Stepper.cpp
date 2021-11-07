@@ -30,6 +30,10 @@ struct st_block_t {
     uint32_t step_event_count;
     uint8_t  direction_bits;
     bool     is_pwm_rate_adjusted;  // Tracks motions that require constant laser power/rate
+#ifdef DEBUG_STEPPING
+    uint32_t entry[MAX_N_AXIS];
+    uint32_t exit[MAX_N_AXIS];
+#endif
 };
 static st_block_t st_block_buffer[SEGMENT_BUFFER_SIZE - 1];
 
@@ -195,11 +199,28 @@ void IRAM_ATTR Stepper::pulse_func() {
             if (st.exec_block_index != st.exec_segment->st_block_index) {
                 st.exec_block_index = st.exec_segment->st_block_index;
                 st.exec_block       = &st_block_buffer[st.exec_block_index];
+#ifdef DEBUG_STEPPING
+                bool offstep = false;
+#endif
                 // Initialize Bresenham line and distance counters
                 for (int axis = 0; axis < n_axis; axis++) {
+#ifdef DEBUG_STEPPING
+                    if (st.exec_block->entry[axis] != motor_steps[axis]) {
+                        offstep = true;
+                    }
+#endif
                     st.counter[axis] = st.exec_block->step_event_count >> 1;
                 }
+#ifdef DEBUG_STEPPING
+                if (offstep) {
+                    for (int axis = 0; axis < n_axis; axis++) {
+                        expected_steps[axis] = st.exec_block->entry[axis];
+                    }
+                    rtCrash = true;
+                }
+#endif
             }
+
             st.dir_outbits = st.exec_block->direction_bits;
             // Adjust Bresenham axis increment counters according to AMASS level.
             for (int axis = 0; axis < n_axis; axis++) {
@@ -398,6 +419,10 @@ void Stepper::prep_buffer() {
                 // If the original data is divided, we can lose a step from integer roundoff.
                 for (idx = 0; idx < n_axis; idx++) {
                     st_prep_block->steps[idx] = pl_block->steps[idx] << maxAmassLevel;
+#ifdef DEBUG_STEPPING
+                    st_prep_block->entry[idx] = pl_block->entry_pos[idx];
+                    st_prep_block->exit[idx]  = pl_block->exit_pos[idx];
+#endif
                 }
                 st_prep_block->step_event_count = pl_block->step_event_count << maxAmassLevel;
 

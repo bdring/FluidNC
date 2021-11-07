@@ -9,6 +9,7 @@
 */
 
 #include "Planner.h"
+#include "Logging.h"
 
 #include "Machine/MachineConfig.h"
 
@@ -308,7 +309,11 @@ bool plan_buffer_line(float* target, plan_line_data_t* pl_data) {
         // Calculate target position in absolute steps, number of steps for each axis, and determine max step events.
         // Also, compute individual axes distance for move and prep unit vector calculations.
         // NOTE: Computes true distance from converted step values.
-        target_steps[idx]       = lround(mpos_to_steps(target[idx], idx));
+        target_steps[idx] = lround(mpos_to_steps(target[idx], idx));
+#ifdef DEBUG_STEPPING
+        block->entry_pos[idx] = position_steps[idx];
+        block->exit_pos[idx]  = target_steps[idx];
+#endif
         block->steps[idx]       = labs(target_steps[idx] - position_steps[idx]);
         block->step_event_count = MAX(block->step_event_count, block->steps[idx]);
         delta_mm                = steps_to_mpos((target_steps[idx] - position_steps[idx]), idx);

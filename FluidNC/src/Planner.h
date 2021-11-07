@@ -31,6 +31,12 @@ struct PlMotion {
 struct plan_block_t {
     // Fields used by the bresenham algorithm for tracing the line
     // NOTE: Used by stepper algorithm to execute the block correctly. Do not alter these values.
+
+#ifdef DEBUG_STEPPING
+    uint32_t entry_pos[MAX_N_AXIS];  // Expected mpos when this block starts execution
+    uint32_t exit_pos[MAX_N_AXIS];   // Expected mpos when this block finishes execution
+#endif
+
     uint32_t steps[MAX_N_AXIS];  // Step count along each axis
     uint32_t step_event_count;   // The maximum step axis count and number of steps required to complete this block.
     uint8_t  direction_bits;     // The direction bit set for this block (refers to *_DIRECTION_BIT in config.h)
