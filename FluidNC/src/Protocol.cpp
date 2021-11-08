@@ -19,6 +19,9 @@
 
 #ifdef DEBUG_STEPPING
 volatile bool rtCrash;
+volatile bool rtSeq;
+volatile bool rtTestPl;
+volatile bool rtTestSt;
 uint32_t      expected_steps[MAX_N_AXIS];
 #endif
 
@@ -705,11 +708,26 @@ void protocol_exec_rt_system() {
     protocol_do_alarm();  // If there is a hard or soft limit, this will block until rtReset is set
 
 #ifdef DEBUG_STEPPING
+    if (rtSeq) {
+        rtSeq = false;
+        log_error("planner " << pl_seq0 << " stepper " << st_seq0);
+        rtReset = true;
+    }
     if (rtCrash) {
         rtCrash = false;
         log_error("Stepper exp,actual " << expected_steps[0] << "," << motor_steps[0] << " " << expected_steps[1] << "," << motor_steps[1]
                                         << " " << expected_steps[2] << "," << motor_steps[2]);
         rtReset = true;
+    }
+    if (rtTestPl) {
+        rtTestPl = false;
+        log_info("Poisoned planner_seq");
+        planner_seq += 20;
+    }
+    if (rtTestSt) {
+        rtTestSt = false;
+        log_info("Poisoned stepper");
+        --motor_steps[0];
     }
 #endif
     if (rtReset) {

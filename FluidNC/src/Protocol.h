@@ -52,6 +52,9 @@ extern volatile bool rtButtonMacro3;
 
 #ifdef DEBUG_STEPPING
 extern volatile bool rtCrash;
+extern volatile bool rtSeq;
+extern volatile bool rtTestPl;
+extern volatile bool rtTestSt;
 extern uint32_t      expected_steps[MAX_N_AXIS];
 #endif
 

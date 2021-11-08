@@ -285,6 +285,9 @@ void plan_update_velocity_profile_parameters() {
     pl.previous_nominal_speed = prev_nominal_speed;  // Update prev nominal speed for next incoming block.
 }
 
+#ifdef DEBUG_STEPPING
+uint32_t planner_seq = 0;
+#endif
 bool plan_buffer_line(float* target, plan_line_data_t* pl_data) {
     // Prepare and initialize new block. Copy relevant pl_data for block execution.
     plan_block_t* block = &block_buffer[block_buffer_head];
@@ -323,6 +326,9 @@ bool plan_buffer_line(float* target, plan_line_data_t* pl_data) {
             block->direction_bits |= bitnum_to_mask(idx);
         }
     }
+#ifdef DEBUG_STEPPING
+    block->seq = planner_seq++;
+#endif
     // Bail if this is a zero-length block. Highly unlikely to occur.
     if (block->step_event_count == 0) {
         return false;

@@ -19,6 +19,12 @@
 
 using namespace Stepper;
 
+#ifdef DEBUG_STEPPING
+uint32_t st_seq = 0;
+uint32_t st_seq0;
+uint32_t pl_seq0;
+#endif
+
 // Stores the planner block Bresenham algorithm execution data for the segments in the segment
 // buffer. Normally, this buffer is partially in-use, but, for the worst case scenario, it will
 // never exceed the number of accessible stepper buffer segments (SEGMENT_BUFFER_SIZE-1).
@@ -424,6 +430,14 @@ void Stepper::prep_buffer() {
                     st_prep_block->exit[idx]  = pl_block->exit_pos[idx];
 #endif
                 }
+#ifdef DEBUG_STEPPING
+                if (pl_block->seq != st_seq && !rtSeq) {
+                    rtSeq   = true;
+                    st_seq0 = st_seq;
+                    pl_seq0 = pl_block->seq;
+                }
+                ++st_seq;
+#endif
                 st_prep_block->step_event_count = pl_block->step_event_count << maxAmassLevel;
 
                 // Initialize segment buffer data for generating the segments.

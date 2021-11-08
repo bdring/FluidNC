@@ -182,6 +182,14 @@ void execute_realtime_command(Cmd command, Channel& channel) {
         case Cmd::CoolantMistOvrToggle:
             rtAccessoryOverride.bit.coolantMistOvrToggle = 1;
             break;
+#ifdef DEBUG_STEPPING
+        case Cmd::TestPl:
+            rtTestPl = true;
+            break;
+        case Cmd::TestSt:
+            rtTestSt = true;
+            break;
+#endif
     }
 }
 
@@ -191,7 +199,11 @@ bool is_realtime_command(uint8_t data) {
         return true;
     }
     auto cmd = static_cast<Cmd>(data);
-    return cmd == Cmd::Reset || cmd == Cmd::StatusReport || cmd == Cmd::CycleStart || cmd == Cmd::FeedHold;
+    return cmd == Cmd::Reset || cmd == Cmd::StatusReport || cmd == Cmd::CycleStart || cmd == Cmd::FeedHold
+#ifdef DEBUG_STEPPING
+           || cmd == Cmd::TestPl || cmd == Cmd::TestSt
+#endif
+        ;
 }
 
 void AllChannels::init() {
