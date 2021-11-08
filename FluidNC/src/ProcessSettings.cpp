@@ -471,8 +471,10 @@ static Error xmodem_receive(const char* value, WebUI::AuthenticationLevel auth_l
     }
     FileStream* outfile;
     try {
-        outfile = new FileStream(value, "w");
+        outfile = new FileStream(value, "w", "/localfs");
     } catch (...) {
+        vTaskDelay(1000);   // Delay for FluidTerm to handle command echoing
+        Uart0.write(0x04);  // Cancel xmodem transfer with EOT
         log_info("Cannot open " << value);
         return Error::UploadFailed;
     }

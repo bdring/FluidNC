@@ -58,6 +58,12 @@ public:
     void flush() { uart_flush(_uart_num); }
     bool flushTxTimed(TickType_t ticks);
 
+    bool setCr(bool on) {
+        bool retval = _addCR;
+        _addCR      = on;
+        return retval;
+    }
+
     Channel* pollLine(char* line) override;
 
     // Configuration handlers:
