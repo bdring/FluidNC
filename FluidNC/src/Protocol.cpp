@@ -20,6 +20,7 @@
 #ifdef DEBUG_STEPPING
 volatile bool rtCrash;
 volatile bool rtSeq;
+volatile bool rtSegSeq;
 volatile bool rtTestPl;
 volatile bool rtTestSt;
 uint32_t      expected_steps[MAX_N_AXIS];
@@ -708,6 +709,11 @@ void protocol_exec_rt_system() {
     protocol_do_alarm();  // If there is a hard or soft limit, this will block until rtReset is set
 
 #ifdef DEBUG_STEPPING
+    if (rtSegSeq) {
+        rtSegSeq = false;
+        log_error("segment exp " << seg_seq_exp << " actual " << seg_seq_act);
+        rtReset = true;
+    }
     if (rtSeq) {
         rtSeq = false;
         log_error("planner " << pl_seq0 << " stepper " << st_seq0);

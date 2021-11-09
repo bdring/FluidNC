@@ -143,6 +143,8 @@ static void reset_variables() {
     st_seq      = 0;
     st_seq0     = 0;
     pl_seq0     = 0;
+    seg_seq0    = 0;
+    seg_seq1    = 0;
     planner_seq = 0;
 #endif
     // Reset primary systems.

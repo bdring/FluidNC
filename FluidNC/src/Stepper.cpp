@@ -22,8 +22,10 @@ using namespace Stepper;
 #ifdef DEBUG_STEPPING
 uint32_t st_seq = 0;
 uint32_t st_seq0;
-// uint32_t seg_seq0 = 0;
-// uint32_t seg_seq1 = 0;
+uint32_t seg_seq0 = 0;
+uint32_t seg_seq1 = 0;
+uint32_t seg_seq_act;
+uint32_t seg_seq_exp;
 uint32_t pl_seq0;
 #endif
 
@@ -40,16 +42,19 @@ struct st_block_t {
     bool     is_pwm_rate_adjusted;  // Tracks motions that require constant laser power/rate
 #ifdef DEBUG_STEPPING
     uint32_t entry[MAX_N_AXIS];
-    uint32_t exit[MAX_N_AXIS];
+    //    uint32_t exit[MAX_N_AXIS];
 #endif
 };
-static st_block_t st_block_buffer[SEGMENT_BUFFER_SIZE - 1];
+static volatile st_block_t st_block_buffer[SEGMENT_BUFFER_SIZE - 1];
 
 // Primary stepper segment ring buffer. Contains small, short line segments for the stepper
 // algorithm to execute, which are "checked-out" incrementally from the first block in the
 // planner buffer. Once "checked-out", the steps in the segments buffer cannot be modified by
 // the planner, where the remaining planner block steps still can.
 struct segment_t {
+#ifdef DEBUG_STEPPING
+    uint32_t seq;
+#endif
     uint16_t     n_step;             // Number of step events to be executed for this segment
     uint16_t     isrPeriod;          // Time to next ISR tick, in units of timer ticks
     uint8_t      st_block_index;     // Stepper block data index. Uses this information to execute this segment.
@@ -57,7 +62,7 @@ struct segment_t {
     uint16_t     spindle_dev_speed;  // Spindle speed scaled to the device
     SpindleSpeed spindle_speed;      // Spindle speed in GCode units
 };
-static segment_t segment_buffer[SEGMENT_BUFFER_SIZE];
+static volatile segment_t segment_buffer[SEGMENT_BUFFER_SIZE];
 
 // Stepper ISR data struct. Contains the running data for the main stepper ISR.
 typedef struct {
@@ -71,10 +76,10 @@ typedef struct {
     uint8_t  dir_outbits;
     uint32_t steps[MAX_N_AXIS];
 
-    uint16_t    step_count;        // Steps remaining in line segment motion
-    uint8_t     exec_block_index;  // Tracks the current st_block index. Change indicates new block.
-    st_block_t* exec_block;        // Pointer to the block data for the segment being executed
-    segment_t*  exec_segment;      // Pointer to the segment being executed
+    uint16_t             step_count;        // Steps remaining in line segment motion
+    uint8_t              exec_block_index;  // Tracks the current st_block index. Change indicates new block.
+    volatile st_block_t* exec_block;        // Pointer to the block data for the segment being executed
+    volatile segment_t*  exec_segment;      // Pointer to the segment being executed
 } stepper_t;
 static stepper_t st;
 
@@ -85,8 +90,8 @@ static volatile uint8_t segment_next_head;
 
 // Pointers for the step segment being prepped from the planner buffer. Accessed only by the
 // main program. Pointers may be planning segments or planner blocks ahead of what being executed.
-static plan_block_t* pl_block;       // Pointer to the planner block being prepped
-static st_block_t*   st_prep_block;  // Pointer to the stepper block data being prepped
+static plan_block_t*        pl_block;       // Pointer to the planner block being prepped
+static volatile st_block_t* st_prep_block;  // Pointer to the stepper block data being prepped
 
 // Segment preparation data struct. Contains all the necessary information to compute new segments
 // based on the current executing planner block.
@@ -199,6 +204,14 @@ void IRAM_ATTR Stepper::pulse_func() {
         if (segment_buffer_head != segment_buffer_tail) {
             // Initialize new step segment and load number of steps to execute
             st.exec_segment = &segment_buffer[segment_buffer_tail];
+#ifdef DEBUG_STEPPING
+            if (st.exec_segment->seq != seg_seq1) {
+                seg_seq_act = st.exec_segment->seq;
+                seg_seq_exp = seg_seq1;
+                rtSegSeq    = true;
+            }
+            seg_seq1++;
+#endif
             // Initialize step segment timing per step and load number of steps to execute.
             config->_stepping->setTimerPeriod(st.exec_segment->isrPeriod);
             st.step_count = st.exec_segment->n_step;  // NOTE: Can sometimes be zero when moving slow.
@@ -431,7 +444,7 @@ void Stepper::prep_buffer() {
                     st_prep_block->steps[idx] = pl_block->steps[idx] << maxAmassLevel;
 #ifdef DEBUG_STEPPING
                     st_prep_block->entry[idx] = pl_block->entry_pos[idx];
-                    st_prep_block->exit[idx]  = pl_block->exit_pos[idx];
+                    // st_prep_block->exit[idx]  = pl_block->exit_pos[idx];
 #endif
                 }
 #ifdef DEBUG_STEPPING
@@ -558,7 +571,9 @@ void Stepper::prep_buffer() {
         }
 
         // Initialize new segment
-        segment_t* prep_segment = &segment_buffer[segment_buffer_head];
+        volatile segment_t* prep_segment = &segment_buffer[segment_buffer_head];
+
+        prep_segment->seq = seg_seq0++;
 
         // Set new segment to point to the current segment data block.
         prep_segment->st_block_index = prep.st_block_index;

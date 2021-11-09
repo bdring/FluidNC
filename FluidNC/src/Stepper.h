@@ -46,4 +46,9 @@ namespace Stepper {
 extern uint32_t st_seq;
 extern uint32_t st_seq0;
 extern uint32_t pl_seq0;
+extern uint32_t seg_seq0;
+extern uint32_t seg_seq1;
+extern uint32_t seg_seq_act;
+extern uint32_t seg_seq_exp;
+
 #endif
