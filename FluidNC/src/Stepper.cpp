@@ -573,7 +573,9 @@ void Stepper::prep_buffer() {
         // Initialize new segment
         volatile segment_t* prep_segment = &segment_buffer[segment_buffer_head];
 
+#ifdef DEBUG_STEPPING
         prep_segment->seq = seg_seq0++;
+#endif
 
         // Set new segment to point to the current segment data block.
         prep_segment->st_block_index = prep.st_block_index;

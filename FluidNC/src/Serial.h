@@ -8,6 +8,7 @@
   Serial.h - Header for system level commands and real-time processes
 */
 
+#include "Config.h"
 #include <vector>
 #include <stdint.h>
 #include "Channel.h"
@@ -54,10 +55,10 @@ enum class Cmd : uint8_t {
     SpindleOvrStop        = 0x9E,
     CoolantFloodOvrToggle = 0xA0,
     CoolantMistOvrToggle  = 0xA1,
-    //#ifdef DEBUG_STEPPING
+#ifdef DEBUG_STEPPING
     TestPl = '^',
     TestSt = '%',
-    //#endif
+#endif
 };
 
 bool is_realtime_command(uint8_t data);
