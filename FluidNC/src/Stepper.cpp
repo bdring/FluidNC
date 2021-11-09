@@ -22,6 +22,8 @@ using namespace Stepper;
 #ifdef DEBUG_STEPPING
 uint32_t st_seq = 0;
 uint32_t st_seq0;
+// uint32_t seg_seq0 = 0;
+// uint32_t seg_seq1 = 0;
 uint32_t pl_seq0;
 #endif
 
@@ -78,8 +80,8 @@ static stepper_t st;
 
 // Step segment ring buffer indices
 static volatile uint8_t segment_buffer_tail;
-static uint8_t          segment_buffer_head;
-static uint8_t          segment_next_head;
+static volatile uint8_t segment_buffer_head;
+static volatile uint8_t segment_next_head;
 
 // Pointers for the step segment being prepped from the planner buffer. Accessed only by the
 // main program. Pointers may be planning segments or planner blocks ahead of what being executed.
@@ -277,7 +279,9 @@ void IRAM_ATTR Stepper::pulse_func() {
     if (st.step_count == 0) {
         // Segment is complete. Discard current segment and advance segment indexing.
         st.exec_segment = NULL;
-        if (++segment_buffer_tail == SEGMENT_BUFFER_SIZE) {
+        if (segment_buffer_tail < (SEGMENT_BUFFER_SIZE - 1)) {
+            ++segment_buffer_tail;
+        } else {
             segment_buffer_tail = 0;
         }
     }
@@ -752,10 +756,14 @@ void Stepper::prep_buffer() {
         prep_segment->isrPeriod = timerTicks > 0xffff ? 0xffff : timerTicks;
 
         // Segment complete! Increment segment buffer indices, so stepper ISR can immediately execute it.
-        segment_buffer_head = segment_next_head;
-        if (++segment_next_head == SEGMENT_BUFFER_SIZE) {
+        auto lastseg = segment_next_head;
+        if (segment_next_head < (SEGMENT_BUFFER_SIZE - 1)) {
+            ++segment_next_head;
+        } else {
             segment_next_head = 0;
         }
+        segment_buffer_head = lastseg;
+
         // Update the appropriate planner and segment data.
         pl_block->millimeters = mm_remaining;
         prep.steps_remaining  = n_steps_remaining;
