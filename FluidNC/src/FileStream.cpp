@@ -45,7 +45,7 @@ size_t FileStream::position() {
 FileStream::FileStream(String filename, const char* mode, const char* defaultFs) : FileStream(filename.c_str(), mode, defaultFs) {}
 
 FileStream::FileStream(const char* filename, const char* mode, const char* defaultFs) : Channel("file") {
-    const char* actualLocalFs = "/spiffs";
+    const char* actualLocalFs = "/spiffs/";
     const char* sdPrefix      = "/sd/";
     const char* localFsPrefix = "/localfs/";
 
@@ -57,6 +57,8 @@ FileStream::FileStream(const char* filename, const char* mode, const char* defau
     // Map file system names to canonical form
     if (_path.startsWith("/SD/")) {
         _path.replace("/SD/", sdPrefix);
+    } else if (_path.startsWith(sdPrefix)) {
+        // Leave path as-is
     } else if (_path.startsWith(localFsPrefix)) {
         _path.replace(localFsPrefix, actualLocalFs);
     } else if (_path.startsWith("/LOCALFS/")) {
@@ -65,9 +67,15 @@ FileStream::FileStream(const char* filename, const char* mode, const char* defau
         if (*filename != '/') {
             _path = '/' + _path;
         }
+        // _path now begins with /
         if (!strcmp(defaultFs, "/localfs")) {
-            _path = actualLocalFs + _path;
+            // If the default filesystem is /localfs, replace the initial /
+            // with, for example, "/spiffs/", instead of the surrogate
+            _path.replace("/", actualLocalFs);
         } else {
+            // If the default filesystem is not /localfs, insert
+            // the defaultFs name - which does not end with / -
+            // at the beginning of _path, which does begin with /
             _path = defaultFs + _path;
         }
     }
