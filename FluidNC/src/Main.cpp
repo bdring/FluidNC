@@ -137,6 +137,14 @@ void setup() {
 }
 
 static void reset_variables() {
+#ifdef DEBUG_STEPPING
+    rtTestPl    = false;
+    rtTestSt    = false;
+    st_seq      = 0;
+    st_seq0     = 0;
+    pl_seq0     = 0;
+    planner_seq = 0;
+#endif
     // Reset primary systems.
     system_reset();
     protocol_reset();
