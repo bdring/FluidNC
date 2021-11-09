@@ -1,3 +1,4 @@
+#define REVERT
 // Copyright (c) 2011-2016 Sungeun K. Jeon for Gnea Research LLC
 // Copyright (c) 2009-2011 Simen Svale Skogsrud
 // Copyright (c) 2018 -	Bart Dring
@@ -45,7 +46,11 @@ struct st_block_t {
     //    uint32_t exit[MAX_N_AXIS];
 #endif
 };
+#ifdef REVERT
+static st_block_t st_block_buffer[SEGMENT_BUFFER_SIZE - 1];
+#else
 static volatile st_block_t st_block_buffer[SEGMENT_BUFFER_SIZE - 1];
+#endif
 
 // Primary stepper segment ring buffer. Contains small, short line segments for the stepper
 // algorithm to execute, which are "checked-out" incrementally from the first block in the
@@ -62,7 +67,11 @@ struct segment_t {
     uint16_t     spindle_dev_speed;  // Spindle speed scaled to the device
     SpindleSpeed spindle_speed;      // Spindle speed in GCode units
 };
-static volatile segment_t segment_buffer[SEGMENT_BUFFER_SIZE];
+#ifdef REVERT
+static segment_t segment_buffer[SEGMENT_BUFFER_SIZE];
+#else
+static volatile segment_t  segment_buffer[SEGMENT_BUFFER_SIZE];
+#endif
 
 // Stepper ISR data struct. Contains the running data for the main stepper ISR.
 typedef struct {
@@ -76,22 +85,35 @@ typedef struct {
     uint8_t  dir_outbits;
     uint32_t steps[MAX_N_AXIS];
 
-    uint16_t             step_count;        // Steps remaining in line segment motion
-    uint8_t              exec_block_index;  // Tracks the current st_block index. Change indicates new block.
-    volatile st_block_t* exec_block;        // Pointer to the block data for the segment being executed
-    volatile segment_t*  exec_segment;      // Pointer to the segment being executed
+    uint16_t step_count;        // Steps remaining in line segment motion
+    uint8_t  exec_block_index;  // Tracks the current st_block index. Change indicates new block.
+#ifdef REVERT
+    st_block_t* exec_block;    // Pointer to the block data for the segment being executed
+    segment_t*  exec_segment;  // Pointer to the segment being executed
+#else
+    volatile st_block_t* exec_block;    // Pointer to the block data for the segment being executed
+    volatile segment_t*  exec_segment;  // Pointer to the segment being executed
+#endif
 } stepper_t;
 static stepper_t st;
 
 // Step segment ring buffer indices
 static volatile uint8_t segment_buffer_tail;
-static volatile uint8_t segment_buffer_head;
-static volatile uint8_t segment_next_head;
+#ifdef REVERT
+static uint8_t segment_buffer_head;
+#else
+static volatile uint8_t     segment_buffer_head;
+#endif
+static uint8_t segment_next_head;
 
 // Pointers for the step segment being prepped from the planner buffer. Accessed only by the
 // main program. Pointers may be planning segments or planner blocks ahead of what being executed.
-static plan_block_t*        pl_block;       // Pointer to the planner block being prepped
+static plan_block_t* pl_block;  // Pointer to the planner block being prepped
+#ifdef REVERT
+static st_block_t* st_prep_block;  // Pointer to the stepper block data being prepped
+#else
 static volatile st_block_t* st_prep_block;  // Pointer to the stepper block data being prepped
+#endif
 
 // Segment preparation data struct. Contains all the necessary information to compute new segments
 // based on the current executing planner block.
@@ -292,11 +314,13 @@ void IRAM_ATTR Stepper::pulse_func() {
     if (st.step_count == 0) {
         // Segment is complete. Discard current segment and advance segment indexing.
         st.exec_segment = NULL;
-        if (segment_buffer_tail < (SEGMENT_BUFFER_SIZE - 1)) {
-            ++segment_buffer_tail;
-        } else {
+#ifdef REVERT
+        if (++segment_buffer_tail == SEGMENT_BUFFER_SIZE) {
             segment_buffer_tail = 0;
         }
+#else
+        segment_buffer_tail              = segment_buffer_tail >= (SEGMENT_BUFFER_SIZE - 1) ? 0 : segment_buffer_tail + 1;
+#endif
     }
 
     config->_axes->unstep();
@@ -571,7 +595,11 @@ void Stepper::prep_buffer() {
         }
 
         // Initialize new segment
+#ifdef REVERT
+        segment_t* prep_segment = &segment_buffer[segment_buffer_head];
+#else
         volatile segment_t* prep_segment = &segment_buffer[segment_buffer_head];
+#endif
 
 #ifdef DEBUG_STEPPING
         prep_segment->seq = seg_seq0++;
@@ -773,13 +801,16 @@ void Stepper::prep_buffer() {
         prep_segment->isrPeriod = timerTicks > 0xffff ? 0xffff : timerTicks;
 
         // Segment complete! Increment segment buffer indices, so stepper ISR can immediately execute it.
-        auto lastseg = segment_next_head;
-        if (segment_next_head < (SEGMENT_BUFFER_SIZE - 1)) {
-            ++segment_next_head;
-        } else {
+#ifdef REVERT
+        segment_buffer_head = segment_next_head;
+        if (++segment_next_head == SEGMENT_BUFFER_SIZE) {
             segment_next_head = 0;
         }
-        segment_buffer_head = lastseg;
+#else
+        auto                lastseg      = segment_next_head;
+        segment_next_head                = segment_next_head >= (SEGMENT_BUFFER_SIZE - 1) ? 0 : segment_next_head + 1;
+        segment_buffer_head              = lastseg;
+#endif
 
         // Update the appropriate planner and segment data.
         pl_block->millimeters = mm_remaining;
