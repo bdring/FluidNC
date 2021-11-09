@@ -10,7 +10,6 @@
 
 #pragma once
 
-#include "FS.h"
 #include "Channel.h"
 
 extern "C" {
