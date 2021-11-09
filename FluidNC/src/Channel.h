@@ -17,7 +17,7 @@
 #pragma once
 
 #include "Error.h"  // Error
-#include <FS.h>
+#include <Stream.h>
 
 class Channel : public Stream {
 public:
