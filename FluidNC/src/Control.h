@@ -18,6 +18,12 @@ public:
     ControlPin _macro1;
     ControlPin _macro2;
     ControlPin _macro3;
+    ControlPin _macro4;
+    ControlPin _macro5;
+    ControlPin _macro6;
+    ControlPin _macro7;
+    ControlPin _macro8;
+    ControlPin _macro9;
 
 public:
     Control();

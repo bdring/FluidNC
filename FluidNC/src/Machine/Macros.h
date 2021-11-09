@@ -62,6 +62,12 @@ namespace Machine {
             handler.item("macro1", _macro[1]);
             handler.item("macro2", _macro[2]);
             handler.item("macro3", _macro[3]);
+            handler.item("macro4", _macro[4]);
+            handler.item("macro5", _macro[5]);
+            handler.item("macro6", _macro[6]);
+            handler.item("macro7", _macro[7]);
+            handler.item("macro8", _macro[8]);
+            handler.item("macro9", _macro[9]);
         }
 
         ~Macros() {}

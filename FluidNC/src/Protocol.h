@@ -52,6 +52,12 @@ extern volatile bool rtButtonMacro0;
 extern volatile bool rtButtonMacro1;
 extern volatile bool rtButtonMacro2;
 extern volatile bool rtButtonMacro3;
+extern volatile bool rtButtonMacro4;
+extern volatile bool rtButtonMacro5;
+extern volatile bool rtButtonMacro6;
+extern volatile bool rtButtonMacro7;
+extern volatile bool rtButtonMacro8;
+extern volatile bool rtButtonMacro9;
 
 #ifdef DEBUG_REPORT_REALTIME
 extern volatile bool rtExecDebug;

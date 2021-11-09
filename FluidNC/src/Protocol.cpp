@@ -55,6 +55,12 @@ volatile bool rtButtonMacro0;
 volatile bool rtButtonMacro1;
 volatile bool rtButtonMacro2;
 volatile bool rtButtonMacro3;
+volatile bool rtButtonMacro4;
+volatile bool rtButtonMacro5;
+volatile bool rtButtonMacro6;
+volatile bool rtButtonMacro7;
+volatile bool rtButtonMacro8;
+volatile bool rtButtonMacro9;
 
 static void protocol_exec_rt_suspend();
 
@@ -720,7 +726,31 @@ void protocol_exec_rt_system() {
         rtButtonMacro3 = false;
         protocol_do_macro(3);
     }
-
+    if (rtButtonMacro4) {
+        rtButtonMacro4 = false;
+        protocol_do_macro(4);
+    }
+    if (rtButtonMacro5) {
+        rtButtonMacro5 = false;
+        protocol_do_macro(5);
+    }
+    if (rtButtonMacro6) {
+        rtButtonMacro6 = false;
+        protocol_do_macro(6);
+    }
+    if (rtButtonMacro7) {
+        rtButtonMacro7 = false;
+        protocol_do_macro(7);
+    }
+    if (rtButtonMacro8) {
+        rtButtonMacro8 = false;
+        protocol_do_macro(8);
+    }
+    if (rtButtonMacro9) {
+        rtButtonMacro9 = false;
+        protocol_do_macro(9);
+    }    
+    
     protocol_execute_overrides();
 
 #ifdef DEBUG_PROTOCOL
