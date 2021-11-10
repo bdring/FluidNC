@@ -190,6 +190,12 @@ macros:
   macro1:
   macro2:
   macro3:
+  macro4:
+  macro5:
+  macro6:
+  macro7:
+  macro8:
+  macro9:
 
 start:
   must_home: false

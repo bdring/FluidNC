@@ -146,6 +146,12 @@ control:
   macro1_pin: NO_PIN
   macro2_pin: NO_PIN
   macro3_pin: NO_PIN
+  macro4_pin: NO_PIN
+  macro5_pin: NO_PIN
+  macro6_pin: NO_PIN
+  macro7_pin: NO_PIN
+  macro8_pin: NO_PIN
+  macro9_pin: NO_PIN
 
 probe:
   pin: NO_PIN
@@ -158,6 +164,12 @@ macros:
   macro1:
   macro2:
   macro3:
+  macro4:
+  macro5:
+  macro6:
+  macro7:
+  macro8:
+  macro9:
 
 user_outputs:
   analog0_pin: NO_PIN
