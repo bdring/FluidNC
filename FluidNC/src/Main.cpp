@@ -42,7 +42,7 @@ void setup() {
 
         // Setup input polling loop after loading the configuration,
         // because the polling may depend on the config
-        client_init();
+        allChannels.init();
 
         display_init();
 
@@ -75,13 +75,15 @@ void setup() {
                 }
             }
 
-            Stepper::init();  // Configure stepper pins and interrupt timers
+            config->_stepping->init();  // Configure stepper interrupt timers
 
             config->_userOutputs->init();
 
             config->_axes->init();
 
             config->_control->init();
+
+            config->_kinematics->init();
 
             memset(motor_steps, 0, sizeof(motor_steps));  // Clear machine position.
 
@@ -121,12 +123,12 @@ void setup() {
 
 #ifdef ENABLE_WIFI
         WebUI::wifi_config.begin();
-        register_client(&WebUI::Serial2Socket);
-        register_client(&WebUI::telnet_server);
+        allChannels.registration(&WebUI::Serial2Socket);
+        allChannels.registration(&WebUI::telnet_server);
 #endif
 #ifdef ENABLE_BLUETOOTH
         WebUI::bt_config.begin();
-        register_client(&WebUI::SerialBT);
+        allChannels.registration(&WebUI::SerialBT);
 #endif
         WebUI::inputBuffer.begin();
     } catch (const AssertionFailed& ex) {
@@ -137,6 +139,16 @@ void setup() {
 }
 
 static void reset_variables() {
+#ifdef DEBUG_STEPPING
+    rtTestPl    = false;
+    rtTestSt    = false;
+    st_seq      = 0;
+    st_seq0     = 0;
+    pl_seq0     = 0;
+    seg_seq0    = 0;
+    seg_seq1    = 0;
+    planner_seq = 0;
+#endif
     // Reset primary systems.
     system_reset();
     protocol_reset();
@@ -159,7 +171,7 @@ static void reset_variables() {
     // Sync cleared gcode and planner positions to current system position.
     plan_sync_position();
     gc_sync_position();
-    report_init_message(allClients);
+    report_init_message(allChannels);
     mc_init();
 }
 
@@ -196,10 +208,6 @@ void loop() {
 }
 
 void WEAK_LINK machine_init() {}
-
-void WEAK_LINK display_init() {}
-
-void WEAK_LINK display(const char* tag, String s) {}
 
 #if 0
 int main() {

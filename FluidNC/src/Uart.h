@@ -8,13 +8,17 @@
 #include "Configuration/Configurable.h"
 #include "UartTypes.h"
 
-#include <Stream.h>
+#include "lineedit.h"
+#include "Channel.h"
 #include <freertos/FreeRTOS.h>  // TickType_T
+#include <queue>
 
-class Uart : public Stream, public Configuration::Configurable {
+class Uart : public Channel, public Configuration::Configurable {
 private:
-    uart_port_t _uart_num;
-    int         _pushback;
+    uart_port_t         _uart_num;
+    int                 _pushback;
+    std::queue<uint8_t> _queue;
+    Lineedit*           _lineedit;
 
 public:
     // These are public so that validators from classes
@@ -32,9 +36,7 @@ public:
     Pin _rts_pin;
     Pin _cts_pin;
 
-    Uart();
-    Uart(int uart_num);
-
+    Uart(int uart_num = -1, bool addCR = false);
     bool   setHalfDuplex();
     bool   setPins(int tx_pin, int rx_pin, int rts_pin = -1, int cts_pin = -1);
     void   begin();
@@ -55,6 +57,14 @@ public:
     // size_t        write(const char* text) override;
     void flush() { uart_flush(_uart_num); }
     bool flushTxTimed(TickType_t ticks);
+
+    bool setCr(bool on) {
+        bool retval = _addCR;
+        _addCR      = on;
+        return retval;
+    }
+
+    Channel* pollLine(char* line) override;
 
     // Configuration handlers:
     void validate() const override {

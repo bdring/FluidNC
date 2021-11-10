@@ -77,10 +77,10 @@ bool read_float(const char* line, size_t* char_counter, float* float_ptr);
 // Blocking delay for very short time intervals
 void delay_us(int32_t microseconds);
 
-// Non-blocking delay function used for general operation and suspend features.
-bool delay_msec(int32_t milliseconds, DwellMode mode);
+// Delay while checking for realtime characters and other events
+bool delay_msec(uint32_t milliseconds, DwellMode mode);
 
-// Delays variable-defined milliseconds. Compiler compatibility fix for _delay_ms().
+// Delay without checking for realtime events.  Use only for short delays
 void delay_ms(uint16_t ms);
 
 // Computes hypotenuse, avoiding avr-gcc's bloated version and the extra error checking.

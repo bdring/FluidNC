@@ -38,6 +38,7 @@ namespace MotorDrivers {
         List = this;
 
         if (_has_errors) {
+            log_warn("TMCStepper UART init has errors");
             return;
         }
 

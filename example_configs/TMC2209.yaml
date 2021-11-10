@@ -21,7 +21,7 @@ axes:
       mpos_mm: 150.000
       feed_mm_per_min: 100.000
       seek_mm_per_min: 200.000
-      debounce_ms: 500
+      settle_ms: 500
       seek_scaler: 1.100
       feed_scaler: 1.100
 
@@ -29,7 +29,7 @@ axes:
       limit_neg_pin: NO_PIN
       limit_pos_pin: NO_PIN
       limit_all_pin: gpio.35
-      hard_limits: true
+      hard_limits: false
       pulloff_mm:1.000
       tmc_2209:       
         step_pin: gpio.26
@@ -47,7 +47,7 @@ axes:
       mpos_mm: 150.000
       feed_mm_per_min: 100.000
       seek_mm_per_min: 200.000
-      debounce_ms: 500
+      settle_ms: 500
       seek_scaler: 1.100
       feed_scaler: 1.100
 
@@ -55,7 +55,7 @@ axes:
       limit_neg_pin: NO_PIN
       limit_pos_pin: NO_PIN
       limit_all_pin: gpio.34
-      hard_limits: true
+      hard_limits: false
       pulloff_mm:1.000
       tmc_2209:       
         step_pin: gpio.33
@@ -73,7 +73,7 @@ axes:
       mpos_mm: 150.000
       feed_mm_per_min: 100.000
       seek_mm_per_min: 800.000
-      debounce_ms: 500
+      settle_ms: 500
       seek_scaler: 1.100
       feed_scaler: 1.100
 
@@ -81,7 +81,7 @@ axes:
       limit_neg_pin: NO_PIN
       limit_pos_pin: NO_PIN
       limit_all_pin: gpio.39
-      hard_limits: true
+      hard_limits: false
       pulloff_mm:1.000
       tmc_2209:       
         step_pin: gpio.2
@@ -99,7 +99,7 @@ a:
       mpos_mm: 150.000
       feed_mm_per_min: 100.000
       seek_mm_per_min: 800.000
-      debounce_ms: 500
+      settle_ms: 500
       seek_scaler: 1.100
       feed_scaler: 1.100
 
@@ -107,7 +107,7 @@ a:
       limit_neg_pin: NO_PIN
       limit_pos_pin: NO_PIN
       limit_all_pin: NO_PIN
-      hard_limits: true
+      hard_limits: false
       pulloff_mm: 1.000
       tmc_2209:       
         step_pin: gpio.16

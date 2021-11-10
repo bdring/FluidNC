@@ -17,14 +17,20 @@
 #include <driver/uart.h>
 #include <esp32-hal-gpio.h>  // GPIO_NUM_1 etc
 
-Uart::Uart() : _pushback(-1) {
+#include "lineedit.h"
+
+Uart::Uart(int uart_num, bool addCR) : Channel("uart", addCR), _pushback(-1) {
+    // Auto-assign Uart harware engine numbers; the pins will be
+    // assigned to the engines separately
     static int currentNumber = 1;
-    Assert(currentNumber <= 3, "Max number of UART's reached.");
-
-    _uart_num = uart_port_t(currentNumber++);
+    if (uart_num == -1) {
+        Assert(currentNumber <= 3, "Max number of UART's reached.");
+        uart_num = currentNumber++;
+    } else {
+        _lineedit = new Lineedit(this, _line, Channel::maxLine - 1);
+    }
+    _uart_num = uart_port_t(uart_num);
 }
-
-Uart::Uart(int uart_num) : _uart_num(uart_port_t(uart_num)), _pushback(-1) {}
 
 // Use the specified baud rate
 void Uart::begin(unsigned long baudrate) {
@@ -88,6 +94,47 @@ int Uart::read() {
     return read(0);
 }
 
+Channel* Uart::pollLine(char* line) {
+    // For now we only allow UART0 to be a channel input device
+    // Other UART users like RS485 use it as a dumb character device
+    if (_lineedit == nullptr) {
+        return nullptr;
+    }
+    while (1) {
+        int ch;
+        if (line && _queue.size()) {
+            ch = _queue.front();
+            _queue.pop();
+        } else {
+            ch = read();
+        }
+
+        // ch will only be negative if read() was called and returned -1
+        // The _queue path will return only nonnegative character values
+        if (ch < 0) {
+            break;
+        }
+        if (_lineedit->realtime(ch) && is_realtime_command(ch)) {
+            execute_realtime_command(static_cast<Cmd>(ch), *this);
+            continue;
+        }
+        if (line) {
+            if (_lineedit->step(ch)) {
+                _linelen        = _lineedit->finish();
+                _line[_linelen] = '\0';
+                strcpy(line, _line);
+                _linelen = 0;
+                return this;
+            }
+        } else {
+            // If we are not able to handle a line we save the character
+            // until later
+            _queue.push(uint8_t(ch));
+        }
+    }
+    return nullptr;
+}
+
 size_t Uart::readBytes(char* buffer, size_t length, TickType_t timeout) {
     bool pushback = _pushback >= 0;
     if (pushback && length) {
@@ -108,7 +155,32 @@ size_t Uart::write(uint8_t c) {
 }
 
 size_t Uart::write(const uint8_t* buffer, size_t length) {
-    return uart_write_bytes(_uart_num, (const char*)buffer, length);
+    // Replace \n with \r\n
+    if (_addCR) {
+        size_t rem      = length;
+        char   lastchar = '\0';
+        size_t j        = 0;
+        while (rem) {
+            const int bufsize = 80;
+            char      modbuf[bufsize];
+            // bufsize-1 in case the last character is \n
+            size_t k = 0;
+            while (rem && k < (bufsize - 1)) {
+                char c = buffer[j++];
+                if (c == '\n' && lastchar != '\r') {
+                    modbuf[k++] = '\r';
+                }
+                lastchar    = c;
+                modbuf[k++] = c;
+                --rem;
+            }
+
+            uart_write_bytes(_uart_num, (const char*)modbuf, k);
+        }
+    } else {
+        uart_write_bytes(_uart_num, (const char*)buffer, length);
+    }
+    return length;
 }
 
 // size_t Uart::write(const char* text) {
@@ -125,7 +197,7 @@ bool Uart::flushTxTimed(TickType_t ticks) {
     return uart_wait_tx_done(_uart_num, ticks) != ESP_OK;
 }
 
-Uart Uart0(0);
+Uart Uart0(0, true);  // Primary serial channel with LF to CRLF conversion
 
 void uartInit() {
     Uart0.setPins(GPIO_NUM_1, GPIO_NUM_3);  // Tx 1, Rx 3 - standard hardware pins
