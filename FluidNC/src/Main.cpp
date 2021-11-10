@@ -128,7 +128,7 @@ void setup() {
 #endif
 #ifdef ENABLE_BLUETOOTH
         WebUI::bt_config.begin();
-        allChannels.registration(&WebUI::SerialBT);
+        allChannels.registration(&WebUI::btChannel);
 #endif
         WebUI::inputBuffer.begin();
     } catch (const AssertionFailed& ex) {

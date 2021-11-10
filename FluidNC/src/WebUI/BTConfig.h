@@ -16,6 +16,21 @@ const char* const DEFAULT_BT_NAME = "FluidNC";
 namespace WebUI {
     extern BluetoothSerial SerialBT;
 
+    class BTChannel : public Channel {
+    private:
+    public:
+        // BTChannel(bool addCR = false) : _linelen(0), _addCR(addCR) {}
+        BTChannel() : Channel("bluetooth", true) {}
+        virtual ~BTChannel() = default;
+
+        int    available() override { return SerialBT.available(); }
+        int    read() override { return SerialBT.read(); }
+        int    peek() override { return SerialBT.peek(); }
+        void   flush() override { return SerialBT.flush(); }
+        size_t write(uint8_t data) override;
+    };
+    extern BTChannel btChannel;
+
     class BTConfig {
     private:
         static BTConfig* instance;  // BT Callback does not support passing parameters. Sigh.
