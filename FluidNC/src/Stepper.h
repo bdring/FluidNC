@@ -14,8 +14,6 @@
 #include <cstdint>
 
 namespace Stepper {
-    void init();
-
     void pulse_func();
 
     // Enable steppers, but cycle does not start unless called by motion control or realtime command.
@@ -44,4 +42,13 @@ namespace Stepper {
 
     extern uint32_t isr_count;  // for debugging only
 }
-// private
+#ifdef DEBUG_STEPPING
+extern uint32_t st_seq;
+extern uint32_t st_seq0;
+extern uint32_t pl_seq0;
+extern uint32_t seg_seq0;
+extern uint32_t seg_seq1;
+extern uint32_t seg_seq_act;
+extern uint32_t seg_seq_exp;
+
+#endif

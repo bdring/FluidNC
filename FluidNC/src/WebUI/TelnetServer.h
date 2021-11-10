@@ -4,7 +4,7 @@
 #pragma once
 
 #include "../Config.h"  // ENABLE_*
-#include <Stream.h>
+#include "../Channel.h"
 
 #ifdef ENABLE_WIFI
 
@@ -12,7 +12,7 @@ class WiFiServer;
 class WiFiClient;
 
 namespace WebUI {
-    class Telnet_Server : public Stream {
+    class Telnet_Server : public Channel {
         //how many clients should be able to telnet to this ESP32
         static const int MAX_TLNT_CLIENTS = 1;
 

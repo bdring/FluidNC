@@ -21,12 +21,12 @@ namespace WebUI {
 }
 #else
 
-#    include <Stream.h>
+#    include "../Channel.h"
 
 class WebSocketsServer;
 
 namespace WebUI {
-    class Serial_2_Socket : public Stream {
+    class Serial_2_Socket : public Channel {
         static const int TXBUFFERSIZE = 1200;
         static const int RXBUFFERSIZE = 256;
         static const int FLUSHTIMEOUT = 500;

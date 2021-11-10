@@ -180,7 +180,7 @@ namespace Machine {
                 // Normal termination for pulloff cycle
                 remainingMotors = 0;
             }
-            pollClients();
+            pollChannels();
         } while (remainingMotors);
 
         Stepper::reset();       // Immediately force kill steppers and reset step segment buffer.

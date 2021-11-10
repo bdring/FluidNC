@@ -12,6 +12,7 @@
 #include "Protocol.h"        // protocol_execute_realtime
 #include "Planner.h"         // plan_reset, etc
 #include "I2SOut.h"          // i2s_out_reset
+#include "InputFile.h"       // infile
 #include "Platform.h"        // WEAK_LINK
 
 // M_PI is not defined in standard C/C++ but some compilers
@@ -75,18 +76,20 @@ bool mc_move_motors(float* target, plan_line_data_t* pl_data) {
     // parser and planner are separate from the system machine positions, this is doable.
     // If the buffer is full: good! That means we are well ahead of the robot.
     // Remain in this loop until there is room in the buffer.
-    do {
-        protocol_execute_realtime();  // Check for any run-time commands
+
+    while (plan_check_full_buffer()) {
+        protocol_auto_cycle_start();  // Auto-cycle start when buffer is full.
+
+        // While we are waiting for room in the buffer, look for realtime
+        // commands and other situations that could cause state changes.
+        pollChannels();
+        protocol_execute_realtime();
         if (sys.abort) {
             mc_pl_data_inflight = NULL;
             return submitted_result;  // Bail, if system abort.
         }
-        if (plan_check_full_buffer()) {
-            protocol_auto_cycle_start();  // Auto-cycle start when buffer is full.
-        } else {
-            break;
-        }
-    } while (1);
+    }
+
     // Plan and queue motion into planner buffer
     if (mc_pl_data_inflight == pl_data) {
         plan_buffer_line(target, pl_data);
@@ -329,6 +332,7 @@ GCUpdatePos mc_probe_cycle(float* target, plan_line_data_t* pl_data, uint8_t par
     // Perform probing cycle. Wait here until probe is triggered or motion completes.
     rtCycleStart = true;
     do {
+        pollChannels();
         protocol_execute_realtime();
         if (sys.abort) {
             config->_stepping->endLowLatency();
@@ -357,7 +361,7 @@ GCUpdatePos mc_probe_cycle(float* target, plan_line_data_t* pl_data, uint8_t par
     plan_sync_position();  // Sync planner position to current machine position.
     if (MESSAGE_PROBE_COORDINATES) {
         // All done! Output the probe position as message.
-        report_probe_parameters(allClients);
+        report_probe_parameters(allChannels);
     }
     if (probe_succeeded) {
         return GCUpdatePos::System;  // Successful probe cycle.
@@ -418,16 +422,17 @@ void mc_reset() {
         // turn off all User I/O immediately
         config->_userOutputs->all_off();
 
-        // do we need to stop a running SD job?
-        if (config->_sdCard->get_state() == SDCard::State::BusyPrinting) {
+        // do we need to stop a running file job?
+        if (infile) {
             //Report print stopped
-            _notifyf("SD print canceled", "Reset during SD file at line: %d", config->_sdCard->lineNumber());
+            _notifyf("File print canceled", "Reset during file job at line: %d", infile->getLineNumber());
             // log_info() does not work well in this case because the message gets broken in half
             // by report_init_message().  The flow of control that causes it is obscure.
-            config->_sdCard->getClient() << "[MSG:"
-                                         << "Reset during SD file at line: " << config->_sdCard->lineNumber();
+            infile->getChannel() << "[MSG:"
+                                 << "Reset during file jobe at line: " << infile->getLineNumber();
 
-            config->_sdCard->closeFile();
+            delete infile;
+            infile = nullptr;
         }
 
         // Kill steppers only if in any motion state, i.e. cycle, actively holding, or homing.

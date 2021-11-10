@@ -61,6 +61,7 @@ void limits_soft_check(float* target) {
         if (sys.state == State::Cycle) {
             rtFeedHold = true;
             do {
+                pollChannels();
                 protocol_execute_realtime();
                 if (sys.abort) {
                     return;

@@ -14,8 +14,9 @@
 #include "../Machine/MachineConfig.h"
 #include "../Machine/WifiSTAConfig.h"
 #include "../Configuration/JsonGenerator.h"
-#include "../Uart.h"    // Uart0.baud
-#include "../Report.h"  // git_info
+#include "../Uart.h"       // Uart0.baud
+#include "../Report.h"     // git_info
+#include "../InputFile.h"  // infile
 
 #include "Commands.h"  // COMMANDS::wait(1);
 #include "WifiConfig.h"
@@ -81,8 +82,8 @@ namespace WebUI {
     StringSetting* bt_name;
 #endif
 
-    Print* webresponse = nullptr;
-    bool   isWeb       = false;
+    Channel* webresponse = nullptr;
+    bool     isWeb       = false;
 
     typedef struct {
         char* key;
@@ -141,7 +142,7 @@ namespace WebUI {
     }
 }
 
-Error WebCommand::action(char* value, WebUI::AuthenticationLevel auth_level, Print& out) {
+Error WebCommand::action(char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
     if (_cmdChecker && _cmdChecker()) {
         return Error::AnotherInterfaceBusy;
     }
@@ -261,72 +262,6 @@ namespace WebUI {
         webPrint("Formatting");
         SPIFFS.format();
         webPrintln("...Done");
-        return Error::Ok;
-    }
-
-    static Error runLocalFile(char* parameter, AuthenticationLevel auth_level) {  // ESP700
-        if (sys.state != State::Idle) {
-            webPrintln("Busy");
-            return Error::IdleError;
-        }
-        String path = trim(parameter);
-        if ((path.length() > 0) && (path[0] != '/')) {
-            path = "/" + path;
-        }
-        if (!SPIFFS.exists(path)) {
-            webPrintln("Error: No such file!");
-            return Error::FsFileNotFound;
-        }
-        File currentfile = SPIFFS.open(path, FILE_READ);
-        if (!currentfile) {  //if file open success
-            return Error::FsFailedOpenFile;
-        }
-        //until no line in file
-        Error  err;
-        Error  accumErr = Error::Ok;
-        Print& out      = webresponse ? *webresponse : allClients;
-        while (currentfile.available()) {
-            String currentline = currentfile.readStringUntil('\n');
-            if (currentline.length() > 0) {
-                uint8_t line[256];
-                currentline.getBytes(line, 255);
-                err = execute_line((char*)line, out, auth_level);
-                if (err != Error::Ok) {
-                    accumErr = err;
-                }
-                COMMANDS::wait(1);
-            }
-        }
-        currentfile.close();
-        return accumErr;
-    }
-
-    static Error showLocalFile(char* parameter, AuthenticationLevel auth_level) {  // ESP701
-        if (notIdleOrAlarm()) {
-            return Error::IdleError;
-        }
-        String path = trim(parameter);
-        if ((path.length() > 0) && (path[0] != '/')) {
-            path = "/" + path;
-        }
-        if (!SPIFFS.exists(path)) {
-            webPrintln("Error: No such file!");
-            return Error::FsFileNotFound;
-        }
-        File currentfile = SPIFFS.open(path, FILE_READ);
-        if (!currentfile) {
-            return Error::FsFailedOpenFile;
-        }
-        webPrint(dataBeginMarker);
-        while (currentfile.available()) {
-            // String currentline = currentfile.readStringUntil('\n');
-            //            if (currentline.length() > 0) {
-            //                webPrintln(currentline);
-            //            }
-            webPrintln(currentfile.readStringUntil('\n'));
-        }
-        currentfile.close();
-        webPrint(dataEndMarker);
         return Error::Ok;
     }
 
@@ -519,7 +454,7 @@ namespace WebUI {
                 tcpip_adapter_sta_list_t tcpip_sta_list;
                 esp_wifi_ap_get_sta_list(&station);
                 tcpip_adapter_get_sta_list(&station, &tcpip_sta_list);
-                webPrintln("Connected clients: ", String(station.num));
+                webPrintln("Connected channels: ", String(station.num));
 
                 for (int i = 0; i < station.num; i++) {
                     webPrint(wifi_config.mac2str(tcpip_sta_list.sta[i].mac));
@@ -653,7 +588,7 @@ namespace WebUI {
         return Error::Ok;
     }
 
-    static Error openSDFile(char* parameter, Print& client, AuthenticationLevel auth_level) {
+    static Error openFile(const char* fs, char* parameter, Channel& channel, AuthenticationLevel auth_level) {
         if (*parameter == '\0') {
             webPrintln("Missing file name!");
             return Error::InvalidValue;
@@ -662,6 +597,7 @@ namespace WebUI {
         if (path[0] != '/') {
             path = "/" + path;
         }
+#if 0
         switch (config->_sdCard->begin(SDCard::State::BusyReading)) {
             case SDCard::State::Idle:
                 break;
@@ -672,39 +608,48 @@ namespace WebUI {
                 webPrintln("SD Card Busy");
                 return Error::FsFailedBusy;
         }
+#endif
 
-        if (!config->_sdCard->openFile(SD, path.c_str(), client, auth_level)) {
-            report_status_message(Error::FsFailedRead, client);
+        try {
+            infile = new InputFile(fs, path.c_str(), channel, auth_level);
+        } catch (Error err) {
+            report_status_message(err, channel);
             webPrintln("");
-            return Error::FsFailedOpenFile;
+            return err;
         }
         return Error::Ok;
     }
 
-    static Error showSDFile(char* parameter, AuthenticationLevel auth_level) {  // ESP221
+    static Error showFile(const char* fs, char* parameter, AuthenticationLevel auth_level) {  // ESP221
         if (notIdleOrAlarm()) {
             return Error::IdleError;
         }
-        Error  err;
-        Print& client = (webresponse) ? *webresponse : allClients;
-        if ((err = openSDFile(parameter, client, auth_level)) != Error::Ok) {
+        Error    err;
+        Channel& channel = (webresponse) ? *webresponse : allChannels;
+        if ((err = openFile(fs, parameter, channel, auth_level)) != Error::Ok) {
             return err;
         }
-        webPrint(dataBeginMarker);
         char  fileLine[255];
         Error res;
-        while ((res = config->_sdCard->readFileLine(fileLine, 255)) == Error::Ok) {
+        while ((res = infile->readLine(fileLine, 255)) == Error::Ok) {
             webPrintln(fileLine);
         }
         if (res != Error::Eof) {
             webPrintln(errorString(res));
         }
-        config->_sdCard->closeFile();
-        webPrint(dataEndMarker);
+        delete infile;
+        infile = nullptr;
         return Error::Ok;
     }
 
-    static Error runSDFile(char* parameter, AuthenticationLevel auth_level) {  // ESP220
+    static Error showSDFile(char* parameter, AuthenticationLevel auth_level) {  // ESP221
+        return showFile("/sd", parameter, auth_level);
+    }
+    static Error showLocalFile(char* parameter, AuthenticationLevel auth_level) {  // ESP701
+        return showFile("/localfs", parameter, auth_level);
+    }
+
+    static Error runFile(const char* fs, char* parameter, AuthenticationLevel auth_level) {  // ESP220
         Error err;
         if (sys.state == State::Alarm || sys.state == State::ConfigAlarm) {
             webPrintln("Alarm");
@@ -714,24 +659,31 @@ namespace WebUI {
             webPrintln("Busy");
             return Error::IdleError;
         }
-        Print& client = (webresponse) ? *webresponse : allClients;
-        if ((err = openSDFile(parameter, client, auth_level)) != Error::Ok) {
+        Channel& channel = (webresponse) ? *webresponse : allChannels;
+        if ((err = openFile(fs, parameter, channel, auth_level)) != Error::Ok) {
             return err;
         }
-        auto sdCard = config->_sdCard;
 
         char  fileLine[255];
-        Error res = sdCard->readFileLine(fileLine, 255);
+        Error res = infile->readLine(fileLine, 255);
         if (res != Error::Ok) {
-            report_status_message(res, client);
+            report_status_message(res, channel);
             // report_status_message will close the file
             webPrintln("");
             return Error::Ok;
         }
-        // execute the first line now; Protocol.cpp handles later ones when sdCard._readyNext
-        report_status_message(execute_line(fileLine, client, sdCard->getAuthLevel()), client);
-        report_realtime_status(client);
+        // execute the first line now; Protocol.cpp handles later ones when infile->_readyNext
+        report_status_message(execute_line(fileLine, channel, infile->getAuthLevel()), channel);
+        report_realtime_status(channel);
         return Error::Ok;
+    }
+
+    static Error runSDFile(char* parameter, AuthenticationLevel auth_level) {  // ESP220
+        return runFile("/sd", parameter, auth_level);
+    }
+
+    static Error runLocalFile(char* parameter, AuthenticationLevel auth_level) {  // ESP700
+        return runFile("/localfs", parameter, auth_level);
     }
 
     static Error deleteObject(fs::FS fs, char* name) {
@@ -800,27 +752,27 @@ namespace WebUI {
         return Error::Ok;
     }
 
-    void listDirLocalFS(fs::FS fs, const char* dirname, size_t levels, Print& client) {
+    void listDirLocalFS(fs::FS& fs, const char* dirname, size_t levels, Channel& channel) {
         //char temp_filename[128]; // to help filter by extension	TODO: 128 needs a definition based on something
         File root = fs.open(dirname);
         if (!root) {
             //FIXME: need proper error for FS and not usd sd one
-            report_status_message(Error::FsFailedOpenDir, client);
+            report_status_message(Error::FsFailedOpenDir, channel);
             return;
         }
         if (!root.isDirectory()) {
             //FIXME: need proper error for FS and not usd sd one
-            report_status_message(Error::FsDirNotFound, client);
+            report_status_message(Error::FsDirNotFound, channel);
             return;
         }
         File file = root.openNextFile();
         while (file) {
             if (file.isDirectory()) {
                 if (levels) {
-                    listDirLocalFS(fs, file.name(), levels - 1, client);
+                    listDirLocalFS(fs, file.name(), levels - 1, channel);
                 }
             } else {
-                allClients << "[FILE:" << file.name() << "|SIZE:" << file.size() << "]\n";
+                allChannels << "[FILE:" << file.name() << "|SIZE:" << file.size() << "]\n";
             }
             file = root.openNextFile();
         }
