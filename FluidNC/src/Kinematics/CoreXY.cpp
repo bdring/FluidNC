@@ -134,7 +134,7 @@ namespace Kinematics {
 
                 switch_touch = true;  // used to break out of the do loop
             }
-            pollClients();
+            pollChannels();
         } while (!switch_touch);
 
         Stepper::reset();  // Immediately force kill steppers and reset step segment buffer.
