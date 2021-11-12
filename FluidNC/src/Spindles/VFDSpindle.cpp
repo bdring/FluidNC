@@ -392,6 +392,7 @@ namespace Spindles {
     }
 
     void VFD::set_mode(SpindleState mode, bool critical) {
+        _last_override_value = sys.spindle_speed_ovr;  // sync these on mode changes
         if (vfd_cmd_queue) {
             VFDaction action;
             action.action   = actionSetMode;
