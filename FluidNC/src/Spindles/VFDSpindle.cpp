@@ -332,7 +332,7 @@ namespace Spindles {
             // responses from periodic get_current_speed() requests.
             // It changes as the actual speed ramps toward the target.
 
-            _syncing = true;
+            _syncing = true;  // poll for speed
 
             auto minSpeedAllowed = dev_speed > _slop ? (dev_speed - _slop) : 0;
             auto maxSpeedAllowed = dev_speed + _slop;
@@ -341,7 +341,8 @@ namespace Spindles {
             const int limit     = 20;  // 20 * 0.5s = 10 sec
             auto      last      = _sync_dev_speed;
 
-            while ((_sync_dev_speed < minSpeedAllowed || _sync_dev_speed > maxSpeedAllowed) && unchanged < limit) {
+            while ((_last_override_value == sys.spindle_speed_ovr) &&  // skip if the override changes
+                   ((_sync_dev_speed < minSpeedAllowed || _sync_dev_speed > maxSpeedAllowed) && unchanged < limit)) {
 #ifdef DEBUG_VFD
                 log_debug("Syncing speed. Requested: " << int(dev_speed) << " current:" << int(_sync_dev_speed));
 #endif
@@ -356,6 +357,8 @@ namespace Spindles {
                 unchanged = (_sync_dev_speed == last) ? unchanged + 1 : 0;
                 last      = _sync_dev_speed;
             }
+            _last_override_value = sys.spindle_speed_ovr;
+
 #ifdef DEBUG_VFD
             log_debug("Synced speed. Requested:" << int(dev_speed) << " current:" << int(_sync_dev_speed));
 #endif
@@ -401,11 +404,11 @@ namespace Spindles {
     }
 
     void IRAM_ATTR VFD::setSpeedfromISR(uint32_t dev_speed) {
-        static uint32_t last_speed = 0;
-
-        if (_current_dev_speed == dev_speed || last_speed == dev_speed) {
+        if (_current_dev_speed == dev_speed || _last_speed == dev_speed) {
             return;
         }
+
+        _last_speed = dev_speed;
 
         if (vfd_cmd_queue) {
             VFDaction action;
