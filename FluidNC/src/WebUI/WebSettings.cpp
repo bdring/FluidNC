@@ -663,17 +663,7 @@ namespace WebUI {
         if ((err = openFile(fs, parameter, channel, auth_level)) != Error::Ok) {
             return err;
         }
-
-        char  fileLine[255];
-        Error res = infile->readLine(fileLine, 255);
-        if (res != Error::Ok) {
-            report_status_message(res, channel);
-            // report_status_message will close the file
-            webPrintln("");
-            return Error::Ok;
-        }
-        // execute the first line now; Protocol.cpp handles later ones when infile->_readyNext
-        report_status_message(execute_line(fileLine, channel, infile->getAuthLevel()), channel);
+        readyNext = true;
         report_realtime_status(channel);
         return Error::Ok;
     }
