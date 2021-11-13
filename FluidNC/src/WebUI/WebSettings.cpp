@@ -597,18 +597,6 @@ namespace WebUI {
         if (path[0] != '/') {
             path = "/" + path;
         }
-#if 0
-        switch (config->_sdCard->begin(SDCard::State::BusyReading)) {
-            case SDCard::State::Idle:
-                break;
-            case SDCard::State::NotPresent:
-                webPrintln("No SD Card");
-                return Error::FsFailedMount;
-            default:
-                webPrintln("SD Card Busy");
-                return Error::FsFailedBusy;
-        }
-#endif
 
         try {
             infile = new InputFile(fs, path.c_str(), channel, auth_level);
