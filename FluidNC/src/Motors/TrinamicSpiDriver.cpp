@@ -275,10 +275,10 @@ namespace MotorDrivers {
         status.sr = tmc2130 ? tmc2130->DRV_STATUS() : tmc5160->DRV_STATUS();
 
         // these only report if there is a fault condition
-        report_open_load(status.ola, status.olb);
-        report_short_to_ground(status.s2ga, status.s2gb);
-        report_over_temp(status.ot, status.otpw);
-        report_short_to_ps(bits_are_true(status.sr, 12), bits_are_true(status.sr, 13));
+        // report_open_load(status.ola, status.olb);
+        // report_short_to_ground(status.s2ga, status.s2gb);
+        // report_over_temp(status.ot, status.otpw);
+        // report_short_to_ps(bits_are_true(status.sr, 12), bits_are_true(status.sr, 13));
 
         // log_info(axisName() << " Status Register " << String(status.sr, HEX) << " GSTAT " << String(tmc2130 ? tmc2130->GSTAT() : tmc5160->GSTAT(), HEX));
     }

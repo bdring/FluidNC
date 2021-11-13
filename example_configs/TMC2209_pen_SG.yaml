@@ -26,8 +26,8 @@ axes:
       feed_scaler: 1.100
 
     motor0:
-      limit_neg_pin: NO_PIN
-      limit_pos_pin: gpio.33
+      limit_neg_pin: gpio.4
+      limit_pos_pin: NO_PIN
       limit_all_pin: NO_PIN
       hard_limits: false
       pulloff_mm:1.000
@@ -42,16 +42,16 @@ axes:
 
         addr: 0
         r_sense_ohms: 0.110
-        run_amps: 0.500
+        run_amps: 1.00
         hold_amps: 0.500
         microsteps: 4
-        stallguard: 0
-        stallguard_debug: false
+        stallguard: 30
+        stallguard_debug: true
         toff_disable: 0
         toff_stealthchop: 5
         toff_coolstep: 3
-        run_mode: CoolStep
-        homing_mode: CoolStep
+        run_mode: StealthChop
+        homing_mode: StallGuard
         use_enable: false
         step_pin: gpio.12
         direction_pin: gpio.26
@@ -82,8 +82,8 @@ axes:
       feed_scaler: 1.100
 
     motor0:
-      limit_neg_pin: NO_PIN
-      limit_pos_pin: gpio.32
+      limit_neg_pin: gpio.15
+      limit_pos_pin: NO_PIN
       limit_all_pin: NO_PIN
       hard_limits: false
       pulloff_mm:1.000
@@ -93,13 +93,13 @@ axes:
         run_amps: 0.500
         hold_amps: 0.500
         microsteps: 16
-        stallguard: 0
+        stallguard: 10
         stallguard_debug: false
         toff_disable: 0
         toff_stealthchop: 5
         toff_coolstep: 3
         run_mode: StealthChop
-        homing_mode: StealthChop
+        homing_mode: StallGuard
         use_enable: false
         step_pin: gpio.14
         direction_pin: gpio.25
