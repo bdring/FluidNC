@@ -40,6 +40,8 @@
 #include <cstdio>
 #include <cstdarg>
 
+IOPrecision ioPrecision;
+
 #ifdef DEBUG_REPORT_HEAP
 EspClass esp;
 #endif
@@ -79,44 +81,21 @@ Counter report_wco_counter = 0;
 static const int coordStringLen = 20;
 static const int axesStringLen  = coordStringLen * MAX_N_AXIS;
 
-// formats axis values into a string and returns that string in rpt
-// NOTE: rpt should have at least size: axesStringLen
-static void report_util_axis_values(float* axis_value, char* rpt) {
-    char        axisVal[coordStringLen];
-    float       unit_conv = 1.0;      // unit conversion multiplier..default is mm
-    const char* format    = "%4.3f";  // Default - report mm to 3 decimal places
-    rpt[0]                = '\0';
-    if (config->_reportInches) {
-        unit_conv = 1.0f / MM_PER_INCH;
-        format    = "%4.4f";  // Report inches to 4 decimal places
-    }
-    auto n_axis = config->_axes->_numberAxis;
-    for (size_t idx = 0; idx < n_axis; idx++) {
-        snprintf(axisVal, coordStringLen - 1, format, axis_value[idx] * unit_conv);
-        strcat(rpt, axisVal);
-        if (idx < (n_axis - 1)) {
-            strcat(rpt, ",");
-        }
-    }
-}
-
-// This version returns the axis values as a String
-static String report_util_axis_values(const float* axis_value) {
-    String rpt       = "";
-    float  unit_conv = 1.0;  // unit conversion multiplier..default is mm
-    int    decimals  = 3;    // Default - report mm to 3 decimal places
+// Sends the axis values to the output channel
+static void report_util_axis_values(const float* axis_value, Print& channel) {
+    float unit_conv = 1.0;  // unit conversion multiplier..default is mm
+    int   decimals  = 3;    // Default - report mm to 3 decimal places
     if (config->_reportInches) {
         unit_conv = 1.0f / MM_PER_INCH;
         decimals  = 4;  // Report inches to 4 decimal places
     }
     auto n_axis = config->_axes->_numberAxis;
     for (size_t idx = 0; idx < n_axis; idx++) {
-        rpt += String(axis_value[idx] * unit_conv, decimals);
+        channel << setprecision(decimals) << (axis_value[idx] * unit_conv);
         if (idx < (n_axis - 1)) {
-            rpt += ",";
+            channel << ",";
         }
     }
-    return rpt;
 }
 
 // Handles the primary confirmation protocol response for streaming interfaces and human-feedback.
@@ -212,7 +191,9 @@ void report_probe_parameters(Print& channel) {
     // get the machine position and put them into a string and append to the probe report
     float print_position[MAX_N_AXIS];
     motor_steps_to_mpos(print_position, probe_steps);
-    channel << "[PRB:" << report_util_axis_values(print_position) << ":" << probe_succeeded << '\n';
+    channel << "[PRB:";
+    report_util_axis_values(print_position, channel);
+    channel << ":" << probe_succeeded << '\n';
 }
 
 // Prints NGC parameters (coordinate offsets, probing)
@@ -220,18 +201,20 @@ void report_ngc_parameters(Print& channel) {
     // Print persistent offsets G54 - G59, G28, and G30
     for (auto coord_select = CoordIndex::Begin; coord_select < CoordIndex::End; ++coord_select) {
         channel << '[' << coords[coord_select]->getName() << ":";
-        channel << report_util_axis_values(coords[coord_select]->get());
+        report_util_axis_values(coords[coord_select]->get(), channel);
         channel << '\n';
     }
     // Print non-persistent G92,G92.1
-    channel << "[G92:" << report_util_axis_values(gc_state.coord_offset) << "]\n";
+    channel << "[G92:";
+    report_util_axis_values(gc_state.coord_offset, channel);
+    channel << "]\n";
     // Print tool length offset
     channel << "[TLO:";
     float tlo = gc_state.tool_length_offset;
     if (config->_reportInches) {
         tlo *= INCH_PER_MM;
     }
-    channel << String(tlo, 3) << "]\n";
+    channel << setprecision(3) << tlo << "]\n";
     report_probe_parameters(channel);
 }
 
@@ -378,8 +361,8 @@ void report_gcode_modes(Print& channel) {
     }
 
     channel << " T" << gc_state.tool;
-    // XXX WMB format according to config->_reportInches ? %.1f : %.0f
-    channel << " F" << gc_state.feed_rate;
+    int digits = config->_reportInches ? 1 : 0;
+    int channel << " F" << setprecision(digits) << gc_state.feed_rate;
     channel << " S" << uint32_t(gc_state.spindle_speed);
     channel << "]\n";
 }
@@ -498,11 +481,14 @@ const char* state_name() {
     return "";
 }
 
-String pinString() {
-    String pins = "";
-
+static void pinString(Print& channel) {
+    bool prefixNeeded = true;
     if (config->_probe->get_state()) {
-        pins += 'P';
+        if (prefixNeeded) {
+            prefixNeeded = false;
+            channel << "|Pn:";
+        }
+        channel << 'P';
     }
 
     MotorMask lim_pin_state = limits_get_state();
@@ -510,13 +496,16 @@ String pinString() {
         auto n_axis = config->_axes->_numberAxis;
         for (int i = 0; i < n_axis; i++) {
             if (bitnum_is_true(lim_pin_state, i) || bitnum_is_true(lim_pin_state, i + 16)) {
-                pins += config->_axes->axisName(i);
+                if (prefixNeeded) {
+                    prefixNeeded = false;
+                    channel << "|Pn:";
+                }
+                channel << config->_axes->axisName(i);
             }
         }
     }
 
-    pins += config->_control->report();
-    return pins;
+    channel << config->_control->report();
 }
 
 // Prints real-time data. This function grabs a real-time snapshot of the stepper subprogram
@@ -535,7 +524,7 @@ void report_realtime_status(Print& channel) {
         channel << "|WPos:";
         mpos_to_wpos(print_position);
     }
-    channel << report_util_axis_values(print_position);
+    report_util_axis_values(print_position, channel);
 
     // Returns planner and serial read buffer states.
 #if 0
@@ -561,13 +550,9 @@ void report_realtime_status(Print& channel) {
     if (config->_reportInches) {
         rate /= MM_PER_INCH;
     }
-    // XXX WMB rate %.0f
-    channel << "|FS:" << rate << "," << sys.spindle_speed;
+    channel << "|FS:" << setprecision(0) << rate << "," << sys.spindle_speed;
 
-    String pins = pinString();
-    if (pins.length()) {
-        channel << "|Pn:" << pins;
-    }
+    pinString(channel);
 
     if (report_wco_counter > 0) {
         report_wco_counter--;
@@ -586,7 +571,8 @@ void report_realtime_status(Print& channel) {
         if (report_ovr_counter == 0) {
             report_ovr_counter = 1;  // Set override on next report.
         }
-        channel << "|WCO:" << report_util_axis_values(get_wco());
+        channel << "|WCO:";
+        report_util_axis_values(get_wco(), channel);
     }
 
     if (report_ovr_counter > 0) {
@@ -633,8 +619,7 @@ void report_realtime_status(Print& channel) {
         }
     }
     if (infile) {
-        // XXX WMB FORMAT 4.2f
-        channel << "|SD:" << infile->percent_complete() << "," << infile->path();
+        channel << "|SD:" << setprecision(2) << infile->percent_complete() << "," << infile->path();
     }
 #ifdef DEBUG_STEPPER_ISR
     channel << "|ISRs:" << config->_stepping->isr_count;
