@@ -5,6 +5,17 @@
 #include <Print.h>
 #include "Pin.h"
 
+class IOPrecision {
+public:
+    int _digits = 3;
+};
+extern IOPrecision ioPrecision;
+
+inline IOPrecision* setprecision(int digits) {
+    ioPrecision._digits = digits;
+    return &ioPrecision;
+}
+
 inline Print& operator<<(Print& lhs, char c) {
     lhs.print(c);
     return lhs;
@@ -36,16 +47,22 @@ inline Print& operator<<(Print& lhs, uint64_t v) {
 }
 
 inline Print& operator<<(Print& lhs, float v) {
-    lhs.print(v, 3);
+    lhs.print(v, ioPrecision._digits);
+    ioPrecision._digits = 3;
     return lhs;
 }
 
 inline Print& operator<<(Print& lhs, double v) {
-    lhs.print(v, 3);
+    lhs.print(v, ioPrecision._digits);
+    ioPrecision._digits = 3;
     return lhs;
 }
 
 inline Print& operator<<(Print& lhs, const Pin& v) {
     lhs.print(v.name());
+    return lhs;
+}
+
+inline Print& operator<<(Print& lhs, IOPrecision* digits) {
     return lhs;
 }
