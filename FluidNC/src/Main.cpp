@@ -20,10 +20,7 @@
 #include "WebUI/Serial2Socket.h"
 #include "WebUI/InputBuffer.h"
 
-#ifdef ENABLE_WIFI
-#    include "WebUI/WifiConfig.h"
-#    include <WiFi.h>
-#endif
+#include "WebUI/WifiConfig.h"
 #include <SPIFFS.h>
 
 extern void make_user_commands();
@@ -32,17 +29,11 @@ void setup() {
     try {
         uartInit();  // Setup serial port
 
-#ifdef ENABLE_WIFI
-        WiFi.persistent(false);
-        WiFi.disconnect(true);
-        WiFi.enableSTA(false);
-        WiFi.enableAP(false);
-        WiFi.mode(WIFI_OFF);
-#endif
-
         // Setup input polling loop after loading the configuration,
         // because the polling may depend on the config
         allChannels.init();
+
+        WebUI::WiFiConfig::reset();
 
         display_init();
 
@@ -121,15 +112,8 @@ void setup() {
             config->_probe->init();
         }
 
-#ifdef ENABLE_WIFI
         WebUI::wifi_config.begin();
-        allChannels.registration(&WebUI::Serial2Socket);
-        allChannels.registration(&WebUI::telnet_server);
-#endif
-#ifdef ENABLE_BLUETOOTH
         WebUI::bt_config.begin();
-        allChannels.registration(&WebUI::btChannel);
-#endif
         WebUI::inputBuffer.begin();
     } catch (const AssertionFailed& ex) {
         // This means something is terribly broken:

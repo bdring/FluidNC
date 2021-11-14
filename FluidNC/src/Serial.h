@@ -72,7 +72,8 @@ class AllChannels : public Channel {
 public:
     AllChannels() : Channel("all") {}
 
-    void registration(Channel* channel) { _channelq.push_back(channel); }
+    void registration(Channel* channel);
+    void deregistration(Channel* channel);
     void init();
 
     size_t write(uint8_t data) override;

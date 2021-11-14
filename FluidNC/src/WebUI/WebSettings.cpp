@@ -12,26 +12,15 @@
 
 #include "../Settings.h"
 #include "../Machine/MachineConfig.h"
-#include "../Machine/WifiSTAConfig.h"
 #include "../Configuration/JsonGenerator.h"
 #include "../Uart.h"       // Uart0.baud
 #include "../Report.h"     // git_info
 #include "../InputFile.h"  // infile
 
-#include "Commands.h"  // COMMANDS::wait(1);
+#include "Commands.h"  // COMMANDS::restart_MCU();
 #include "WifiConfig.h"
-#include "WebClient.h"
-#include "WebServer.h"
-#include "NotificationsService.h"  // notificationsservice
-#include "TelnetServer.h"          // telnet_server
 
 #include <cstring>
-
-#ifdef ENABLE_WIFI
-#    include <WiFi.h>
-#    include <esp_wifi.h>
-#    include <esp_ota_ops.h>
-#endif
 
 #include <FS.h>
 #include <SPIFFS.h>
@@ -39,51 +28,14 @@
 
 namespace WebUI {
 
-    enum_opt_t onoffOptions = { { "OFF", 0 }, { "ON", 1 } };
+    static String LeftJustify(const char* s, size_t width) {
+        String ret = s;
 
-#ifdef ENABLE_WIFI
-    enum_opt_t wifiModeOptions = {
-        { "Off", WiFiOff },
-        { "STA", WiFiSTA },
-        { "AP", WiFiAP },
-        { "STA>AP", WiFiFallback },
-    };
-    EnumSetting* wifi_mode;
-
-    StringSetting* wifi_sta_ssid;
-    StringSetting* wifi_sta_password;
-
-    EnumSetting*   wifi_sta_mode;
-    IPaddrSetting* wifi_sta_ip;
-    IPaddrSetting* wifi_sta_gateway;
-    IPaddrSetting* wifi_sta_netmask;
-
-    StringSetting* wifi_ap_ssid;
-    StringSetting* wifi_ap_password;
-
-    IPaddrSetting* wifi_ap_ip;
-
-    IntSetting* wifi_ap_channel;
-
-    StringSetting* wifi_hostname;
-    EnumSetting*   http_enable;
-    IntSetting*    http_port;
-    EnumSetting*   telnet_enable;
-    IntSetting*    telnet_port;
-
-    enum_opt_t staModeOptions = {
-        { "DHCP", DHCP_MODE },
-        { "Static", STATIC_MODE },
-    };
-#endif
-
-#ifdef ENABLE_BLUETOOTH
-    EnumSetting*   bt_enable;
-    StringSetting* bt_name;
-#endif
-
-    Channel* webresponse = nullptr;
-    bool     isWeb       = false;
+        for (size_t l = ret.length(); width > l; width--) {
+            ret += ' ';
+        }
+        return ret;
+    }
 
     typedef struct {
         char* key;
@@ -150,407 +102,99 @@ Error WebCommand::action(char* value, WebUI::AuthenticationLevel auth_level, Cha
     if (!value) {
         value = &empty;
     }
-    WebUI::webresponse = &out;
-    return _action(value, auth_level);
+    return _action(value, auth_level, out);
 };
 
 namespace WebUI {
-    static int webColumn = 0;
-    // We create a variety of print functions to make the rest
-    // of the code more compact and readable.
-    static void webPrint(const char* s) {
-        *webresponse << s;
-        webColumn += strlen(s);
-    }
-    static void webPrintSetColumn(int column) {
-        while (webColumn < column) {
-            webPrint(" ");
-        }
-    }
-    static void webPrint(String s) { webPrint(s.c_str()); }
-    static void webPrint(const char* s1, const char* s2) {
-        webPrint(s1);
-        webPrint(s2);
-    }
-    static void webPrint(const char* s1, String s2) {
-        webPrint(s1);
-        webPrint(s2.c_str());
-    }
-    static void webPrint(const char* s1, const char* s2, const char* s3) {
-        webPrint(s1);
-        webPrint(s2);
-        webPrint(s3);
-    }
-    static void webPrint(const char* s, IPAddress ip) {
-        webPrint(s);
-        webPrint(ip.toString().c_str());
-    }
-    static void webPrintln(const char* s) {
-        webPrint(s);
-        webPrint("\n");
-        webColumn = 0;
-    }
-    static void webPrintln(String s) { webPrintln(s.c_str()); }
-    static void webPrintln(const char* s1, const char* s2) {
-        webPrint(s1);
-        webPrintln(s2);
-    }
-    static void webPrintln(const char* s, IPAddress ip) {
-        webPrint(s);
-        webPrintln(ip.toString().c_str());
-    }
-    static void webPrintln(const char* s, String s2) { webPrintln(s, s2.c_str()); }
-
-    static void print_mac(const char* s, String mac) {
-        webPrint(s);
-        webPrint(" (");
-        webPrint(mac);
-        webPrintln(")");
-    }
-
-    static Error showFwInfo(char* parameter, AuthenticationLevel auth_level) {  // ESP800
-        webPrint("FW version: FluidNC ");
-        webPrint(git_info);
+    static Error showFwInfo(char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP800
+        out << "FW version: FluidNC " << git_info;
         // TODO: change grbl-embedded to FluidNC after fixing WebUI
-        webPrint(" # FW target:grbl-embedded  # FW HW:");
-        webPrint(config->_sdCard->get_state() == SDCard::State::NotPresent ? "No SD" : "Direct SD");
-        webPrint("  # primary sd:/sd # secondary sd:none # authentication:");
+        out << " # FW target:grbl-embedded  # FW HW:";
+        out << (config->_sdCard->get_state() == SDCard::State::NotPresent ? "No SD" : "Direct SD");
+        out << "  # primary sd:/sd # secondary sd:none # authentication:";
 #ifdef ENABLE_AUTHENTICATION
-        webPrint("yes");
+        out << "yes";
 #else
-        webPrint("no");
+        out << "no";
 #endif
-#ifdef ENABLE_WIFI
-        webPrint(" # webcommunication: Sync: ", String(web_server.port() + 1));
-        webPrint(":");
-        switch (WiFi.getMode()) {
-            case WIFI_MODE_AP:
-                webPrint(WiFi.softAPIP().toString());
-                break;
-            case WIFI_MODE_STA:
-                webPrint(WiFi.localIP().toString());
-                break;
-            case WIFI_MODE_APSTA:
-                webPrint(WiFi.softAPIP().toString());
-                break;
-            default:
-                webPrint("0.0.0.0");
-                break;
-        }
-        webPrint(" # hostname:", wifi_config.Hostname());
-        if (WiFi.getMode() == WIFI_AP) {
-            webPrint("(AP mode)");
-        }
-#endif
+        out << wifi_config.webInfo();
+
         //to save time in decoding `?`
-        webPrintln(" # axis:", String(config->_axes->_numberAxis));
+        out << " # axis:" << String(config->_axes->_numberAxis) << '\n';
         return Error::Ok;
     }
 
-    static Error SPIFFSSize(char* parameter, AuthenticationLevel auth_level) {  // ESP720
-        webPrint(parameter);
-        webPrint("SPIFFS  Total:", formatBytes(SPIFFS.totalBytes()));
-        webPrintln(" Used:", formatBytes(SPIFFS.usedBytes()));
+    static Error SPIFFSSize(char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP720
+        out << parameter << "SPIFFS  Total:" << formatBytes(SPIFFS.totalBytes());
+        out << " Used:" << formatBytes(SPIFFS.usedBytes()) << '\n';
         return Error::Ok;
     }
 
-    static Error formatSpiffs(char* parameter, AuthenticationLevel auth_level) {  // ESP710
+    static Error formatSpiffs(char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP710
         if (strcmp(parameter, "FORMAT") != 0) {
-            webPrintln("Parameter must be FORMAT");
+            out << "Parameter must be FORMAT" << '\n';
             return Error::InvalidValue;
         }
-        webPrint("Formatting");
+        out << "Formatting";
         SPIFFS.format();
-        webPrintln("...Done");
+        out << "...Done\n";
         return Error::Ok;
     }
-
-#ifdef ENABLE_WIFI
-    enum_opt_t notificationOptions = {
-        { "NONE", 0 },
-        { "LINE", 3 },
-        { "PUSHOVER", 1 },
-        { "EMAIL", 2 },
-    };
-    EnumSetting*   notification_type;
-    StringSetting* notification_t1;
-    StringSetting* notification_t2;
-    StringSetting* notification_ts;
-
-    static Error showSetNotification(char* parameter, AuthenticationLevel auth_level) {  // ESP610
-        if (*parameter == '\0') {
-            webPrint("", notification_type->getStringValue());
-            webPrintln(" ", notification_ts->getStringValue());
-            return Error::Ok;
-        }
-        if (!split_params(parameter)) {
-            return Error::InvalidValue;
-        }
-        char* ts  = get_param("TS", false);
-        char* t2  = get_param("T2", false);
-        char* t1  = get_param("T1", false);
-        char* ty  = get_param("type", false);
-        Error err = notification_type->setStringValue(ty);
-        if (err == Error::Ok) {
-            err = notification_t1->setStringValue(t1);
-        }
-        if (err == Error::Ok) {
-            err = notification_t2->setStringValue(t2);
-        }
-        if (err == Error::Ok) {
-            err = notification_ts->setStringValue(ts);
-        }
-        return err;
-    }
-
-    static Error sendMessage(char* parameter, AuthenticationLevel auth_level) {  // ESP600
-        if (*parameter == '\0') {
-            webPrintln("Invalid message!");
-            return Error::InvalidValue;
-        }
-        if (!notificationsservice.sendMSG("GRBL Notification", parameter)) {
-            webPrintln("Cannot send message!");
-            return Error::MessageFailed;
-        }
-        return Error::Ok;
-    }
-#endif
 
 #ifdef ENABLE_AUTHENTICATION
-    static Error setUserPassword(char* parameter, AuthenticationLevel auth_level) {  // ESP555
+    static Error setUserPassword(char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP555
         if (*parameter == '\0') {
             user_password->setDefault();
             return Error::Ok;
         }
         if (user_password->setStringValue(parameter) != Error::Ok) {
-            webPrintln("Invalid Password");
+            out << "Invalid Password" << '\n';
             return Error::InvalidValue;
         }
         return Error::Ok;
     }
 #endif
 
-    static Error setSystemMode(char* parameter, AuthenticationLevel auth_level) {  // ESP444
+    static Error setSystemMode(char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP444
         parameter = trim(parameter);
         if (strcasecmp(parameter, "RESTART") != 0) {
-            webPrintln("Incorrect command");
+            out << "Parameter must be RESTART" << '\n';
             return Error::InvalidValue;
         }
         log_info("Restarting");
-        COMMANDS::restart_ESP();
+        COMMANDS::restart_MCU();
         return Error::Ok;
     }
 
-    static Error restart(char* parameter, AuthenticationLevel auth_level) {
+    static Error restart(char* parameter, AuthenticationLevel auth_level, Channel& out) {
         parameter = trim(parameter);
         log_info("Restarting");
-        COMMANDS::restart_ESP();
+        COMMANDS::restart_MCU();
         return Error::Ok;
     }
 
-    static void showWifiStats() {
-#ifdef ENABLE_WIFI
-        int mode = WiFi.getMode();
-        if (mode != WIFI_MODE_NULL) {
-            //Is OTA available ?
-            size_t flashsize = 0;
-            if (esp_ota_get_running_partition()) {
-                const esp_partition_t* partition = esp_ota_get_next_update_partition(NULL);
-                if (partition) {
-                    flashsize = partition->size;
-                }
-            }
-            webPrintln("Available Size for update: ", formatBytes(flashsize));
-            webPrintln("Available Size for SPIFFS: ", formatBytes(SPIFFS.totalBytes()));
+    static Error showSysStats(char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP420
+        out << "Chip ID: " << (uint16_t)(ESP.getEfuseMac() >> 32) << '\n';
+        out << "CPU Frequency: " << ESP.getCpuFreqMHz() + "Mhz" << '\n';
+        out << "CPU Temperature: " << String(temperatureRead(), 1) << "C\n";
+        out << "Free memory: " << formatBytes(ESP.getFreeHeap()) << '\n';
+        out << "SDK: " << ESP.getSdkVersion() << '\n';
+        out << "Flash Size: " << formatBytes(ESP.getFlashChipSize()) << '\n';
 
-            webPrintln("Web port: ", String(web_server.port()));
-            webPrintln("Data port: ", String(telnet_server.port()));
-            webPrintln("Hostname: ", wifi_config.Hostname());
-        }
-
-        webPrint("Current WiFi Mode: ");
-        switch (mode) {
-            case WIFI_STA:
-                print_mac("STA", WiFi.macAddress());
-
-                webPrint("Connected to: ");
-                if (WiFi.isConnected()) {  //in theory no need but ...
-                    webPrintln(WiFi.SSID());
-                    webPrintln("Signal: ", String(wifi_config.getSignal(WiFi.RSSI())) + "%");
-
-                    uint8_t PhyMode;
-                    esp_wifi_get_protocol(WIFI_IF_STA, &PhyMode);
-                    const char* modeName;
-                    switch (PhyMode) {
-                        case WIFI_PROTOCOL_11B | WIFI_PROTOCOL_11G | WIFI_PROTOCOL_11N:
-                            modeName = "11n";
-                            break;
-                        case WIFI_PROTOCOL_11B | WIFI_PROTOCOL_11G:
-                            modeName = "11g";
-                            break;
-                        case WIFI_PROTOCOL_11B:
-                            modeName = "11b";
-                            break;
-                        default:
-                            modeName = "???";
-                    }
-                    webPrintln("Phy Mode: ", modeName);
-
-                    webPrintln("Channel: ", String(WiFi.channel()));
-
-                    tcpip_adapter_dhcp_status_t dhcp_status;
-                    tcpip_adapter_dhcpc_get_status(TCPIP_ADAPTER_IF_STA, &dhcp_status);
-                    webPrintln("IP Mode: ", dhcp_status == TCPIP_ADAPTER_DHCP_STARTED ? "DHCP" : "Static");
-                    webPrintln("IP: ", WiFi.localIP());
-                    webPrintln("Gateway: ", WiFi.gatewayIP());
-                    webPrintln("Mask: ", WiFi.subnetMask());
-                    webPrintln("DNS: ", WiFi.dnsIP());
-
-                }  //this is web command so connection => no command
-                webPrint("Disabled Mode: ");
-                print_mac("AP", WiFi.softAPmacAddress());
-                break;
-            case WIFI_AP:
-                print_mac("AP", WiFi.softAPmacAddress());
-
-                wifi_config_t conf;
-                esp_wifi_get_config(WIFI_IF_AP, &conf);
-                webPrintln("SSID: ", (const char*)conf.ap.ssid);
-                webPrintln("Visible: ", (conf.ap.ssid_hidden == 0) ? "Yes" : "No");
-
-                const char* mode;
-                switch (conf.ap.authmode) {
-                    case WIFI_AUTH_OPEN:
-                        mode = "None";
-                        break;
-                    case WIFI_AUTH_WEP:
-                        mode = "WEP";
-                        break;
-                    case WIFI_AUTH_WPA_PSK:
-                        mode = "WPA";
-                        break;
-                    case WIFI_AUTH_WPA2_PSK:
-                        mode = "WPA2";
-                        break;
-                    default:
-                        mode = "WPA/WPA2";
-                }
-
-                webPrintln("Authentication: ", mode);
-                webPrintln("Max Connections: ", String(conf.ap.max_connection));
-
-                tcpip_adapter_dhcp_status_t dhcp_status;
-                tcpip_adapter_dhcps_get_status(TCPIP_ADAPTER_IF_AP, &dhcp_status);
-                webPrintln("DHCP Server: ", dhcp_status == TCPIP_ADAPTER_DHCP_STARTED ? "Started" : "Stopped");
-
-                webPrintln("IP: ", WiFi.softAPIP());
-
-                tcpip_adapter_ip_info_t ip_AP;
-                tcpip_adapter_get_ip_info(TCPIP_ADAPTER_IF_AP, &ip_AP);
-                webPrintln("Gateway: ", IPAddress(ip_AP.gw.addr));
-                webPrintln("Mask: ", IPAddress(ip_AP.netmask.addr));
-
-                wifi_sta_list_t          station;
-                tcpip_adapter_sta_list_t tcpip_sta_list;
-                esp_wifi_ap_get_sta_list(&station);
-                tcpip_adapter_get_sta_list(&station, &tcpip_sta_list);
-                webPrintln("Connected channels: ", String(station.num));
-
-                for (int i = 0; i < station.num; i++) {
-                    webPrint(wifi_config.mac2str(tcpip_sta_list.sta[i].mac));
-                    webPrintln(" ", IPAddress(tcpip_sta_list.sta[i].ip.addr));
-                }
-                webPrint("Disabled Mode: ");
-                print_mac("STA", WiFi.macAddress());
-                break;
-            case WIFI_AP_STA:  //we should not be in this state but just in case ....
-                webPrintln("Mixed");
-
-                print_mac("STA", WiFi.macAddress());
-                print_mac("AP", WiFi.softAPmacAddress());
-                break;
-            default:  //we should not be there if no wifi ....
-                webPrintln("Off");
-                break;
-        }
-
-        webPrint("Notifications: ");
-        webPrint(notificationsservice.started() ? "Enabled" : "Disabled");
-        if (notificationsservice.started()) {
-            webPrint("(");
-            webPrint(notificationsservice.getTypeString());
-            webPrint(")");
-        }
-        webPrintln("");
-#endif
-    }
-
-    static Error showSysStats(char* parameter, AuthenticationLevel auth_level) {  // ESP420
-        webPrintln("Chip ID: ", String((uint16_t)(ESP.getEfuseMac() >> 32)));
-        webPrintln("CPU Frequency: ", String(ESP.getCpuFreqMHz()) + "Mhz");
-        webPrintln("CPU Temperature: ", String(temperatureRead(), 1) + "C");
-        webPrintln("Free memory: ", formatBytes(ESP.getFreeHeap()));
-        webPrintln("SDK: ", ESP.getSdkVersion());
-        webPrintln("Flash Size: ", formatBytes(ESP.getFlashChipSize()));
-
-#ifdef ENABLE_WIFI
         // Round baudRate to nearest 100 because ESP32 can say e.g. 115201
-        webPrintln("Baud rate: ", String((Uart0.baud / 100) * 100));
-        webPrintln("Sleep mode: ", WiFi.getSleep() ? "Modem" : "None");
-        showWifiStats();
-#endif
+        out << "Baud rate: " << String((Uart0.baud / 100) * 100) << '\n';
 
-#ifdef ENABLE_BLUETOOTH
-        webPrintln(bt_config.info());
-#endif
-        webPrint("FW version: FluidNC ");
-        webPrint(git_info);
-        webPrintln("");
-        return Error::Ok;
-    }
+        WiFiConfig::showWifiStats(out);
 
-#ifdef ENABLE_WIFI
-    //StringSetting* wifi_sta_password;
-    //StringSetting* wifi_ap_password;
-
-    static Error listAPs(char* parameter, AuthenticationLevel auth_level) {  // ESP410
-        JSONencoder j(false, webresponse);
-        j.begin();
-        j.begin_array("AP_LIST");
-        // An initial async scanNetworks was issued at startup, so there
-        // is a good chance that scan information is already available.
-        int n = WiFi.scanComplete();
-        switch (n) {
-            case -2:                      // Scan not triggered
-                WiFi.scanNetworks(true);  // Begin async scan
-                break;
-            case -1:  // Scan in progress
-                break;
-            default:
-                for (int i = 0; i < n; ++i) {
-                    j.begin_object();
-                    j.member("SSID", WiFi.SSID(i));
-                    j.member("SIGNAL", wifi_config.getSignal(WiFi.RSSI(i)));
-                    j.member("IS_PROTECTED", WiFi.encryptionType(i) != WIFI_AUTH_OPEN);
-                    //            j->member("IS_PROTECTED", WiFi.encryptionType(i) == WIFI_AUTH_OPEN ? "0" : "1");
-                    j.end_object();
-                }
-                WiFi.scanDelete();
-                // Restart the scan in async mode so new data will be available
-                // when we ask again.
-                n = WiFi.scanComplete();
-                if (n == -2) {
-                    WiFi.scanNetworks(true);
-                }
-                break;
+        String info = bt_config.info();
+        if (info.length()) {
+            out << info << '\n';
         }
-        j.end_array();
-        j.end();
+        out << "FW version: FluidNC " << git_info << '\n';
         return Error::Ok;
     }
-#endif
 
-    static Error setWebSetting(char* parameter, AuthenticationLevel auth_level) {  // ESP401
+    static Error setWebSetting(char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP401
         // We do not need the "T=" (type) parameter because the
         // Setting objects know their own type
         if (!split_params(parameter)) {
@@ -559,15 +203,15 @@ namespace WebUI {
         char*       sval = get_param("V", true);
         const char* spos = get_param("P", false);
         if (*spos == '\0') {
-            webPrintln("Missing parameter");
+            out << "Missing parameter" << '\n';
             return Error::InvalidValue;
         }
-        Error ret = do_command_or_setting(spos, sval, auth_level, *webresponse);
+        Error ret = do_command_or_setting(spos, sval, auth_level, out);
         return ret;
     }
 
-    static Error listSettings(char* parameter, AuthenticationLevel auth_level) {  // ESP400
-        JSONencoder j(false, webresponse);
+    static Error listSettings(char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP400
+        JSONencoder j(false, out);
         j.begin();
         j.begin_array("EEPROM");
 
@@ -584,13 +228,14 @@ namespace WebUI {
 
         j.end_array();
         j.end();
+        out << '\n';
 
         return Error::Ok;
     }
 
-    static Error openFile(const char* fs, char* parameter, Channel& channel, AuthenticationLevel auth_level) {
+    static Error openFile(const char* fs, char* parameter, AuthenticationLevel auth_level, Channel& out) {
         if (*parameter == '\0') {
-            webPrintln("Missing file name!");
+            out << "Missing file name!" << '\n';
             return Error::InvalidValue;
         }
         String path = trim(parameter);
@@ -599,75 +244,73 @@ namespace WebUI {
         }
 
         try {
-            infile = new InputFile(fs, path.c_str(), channel, auth_level);
+            infile = new InputFile(fs, path.c_str(), auth_level, out);
         } catch (Error err) {
-            report_status_message(err, channel);
-            webPrintln("");
+            report_status_message(err, out);
+            out << "" << '\n';
             return err;
         }
         return Error::Ok;
     }
 
-    static Error showFile(const char* fs, char* parameter, AuthenticationLevel auth_level) {  // ESP221
+    static Error showFile(const char* fs, char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP221
         if (notIdleOrAlarm()) {
             return Error::IdleError;
         }
-        Error    err;
-        Channel& channel = (webresponse) ? *webresponse : allChannels;
-        if ((err = openFile(fs, parameter, channel, auth_level)) != Error::Ok) {
+        Error err;
+        if ((err = openFile(fs, parameter, auth_level, out)) != Error::Ok) {
             return err;
         }
         char  fileLine[255];
         Error res;
         while ((res = infile->readLine(fileLine, 255)) == Error::Ok) {
-            webPrintln(fileLine);
+            out << fileLine << '\n';
         }
         if (res != Error::Eof) {
-            webPrintln(errorString(res));
+            out << errorString(res) << '\n';
         }
         delete infile;
         infile = nullptr;
         return Error::Ok;
     }
 
-    static Error showSDFile(char* parameter, AuthenticationLevel auth_level) {  // ESP221
-        return showFile("/sd", parameter, auth_level);
+    static Error showSDFile(char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP221
+        return showFile("/sd", parameter, auth_level, out);
     }
-    static Error showLocalFile(char* parameter, AuthenticationLevel auth_level) {  // ESP701
-        return showFile("/localfs", parameter, auth_level);
+    static Error showLocalFile(char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP701
+        return showFile("/localfs", parameter, auth_level, out);
     }
 
-    static Error runFile(const char* fs, char* parameter, AuthenticationLevel auth_level) {  // ESP220
+    static Error runFile(const char* fs, char* parameter, AuthenticationLevel auth_level, Channel& out) {
         Error err;
         if (sys.state == State::Alarm || sys.state == State::ConfigAlarm) {
-            webPrintln("Alarm");
+            out << "Alarm" << '\n';
             return Error::IdleError;
         }
         if (sys.state != State::Idle) {
-            webPrintln("Busy");
+            out << "Busy" << '\n';
             return Error::IdleError;
         }
-        Channel& channel = (webresponse) ? *webresponse : allChannels;
-        if ((err = openFile(fs, parameter, channel, auth_level)) != Error::Ok) {
+        if ((err = openFile(fs, parameter, auth_level, out)) != Error::Ok) {
             return err;
         }
         readyNext = true;
-        report_realtime_status(channel);
+        report_realtime_status(out);
         return Error::Ok;
     }
 
-    static Error runSDFile(char* parameter, AuthenticationLevel auth_level) {  // ESP220
-        return runFile("/sd", parameter, auth_level);
+    static Error runSDFile(char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP220
+        return runFile("/sd", parameter, auth_level, out);
     }
 
-    static Error runLocalFile(char* parameter, AuthenticationLevel auth_level) {  // ESP700
-        return runFile("/localfs", parameter, auth_level);
+    static Error runLocalFile(char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP700
+        return runFile("/localfs", parameter, auth_level, out);
     }
 
-    static Error deleteObject(fs::FS fs, char* name) {
+    static Error deleteObject(fs::FS fs, char* name, Channel& out) {
         name = trim(name);
         if (*name == '\0') {
-            webPrintln("Missing file name!");
+            out << "Missing file name!" << '\n';
             return Error::InvalidValue;
         }
         String path = name;
@@ -676,78 +319,78 @@ namespace WebUI {
         }
         File file2del = fs.open(path);
         if (!file2del) {
-            webPrintln("Cannot find file!");
+            out << "Cannot find file!" << '\n';
             return Error::FsFileNotFound;
         }
         if (file2del.isDirectory()) {
             if (!fs.rmdir(path)) {
-                webPrintln("Cannot delete directory! Is directory empty?");
+                out << "Cannot delete directory! Is directory empty?" << '\n';
                 return Error::FsFailedDelDir;
             }
-            webPrintln("Directory deleted.");
+            out << "Directory deleted." << '\n';
         } else {
             if (!fs.remove(path)) {
-                webPrintln("Cannot delete file!");
+                out << "Cannot delete file!" << '\n';
                 return Error::FsFailedDelFile;
             }
-            webPrintln("File deleted.");
+            out << "File deleted." << '\n';
         }
         file2del.close();
         return Error::Ok;
     }
 
-    static Error deleteSDObject(char* parameter, AuthenticationLevel auth_level) {  // ESP215
+    static Error deleteSDObject(char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP215
         auto state = config->_sdCard->begin(SDCard::State::BusyWriting);
         if (state != SDCard::State::Idle) {
-            webPrintln((state == SDCard::State::NotPresent) ? "No SD card" : "Busy");
+            out << (state == SDCard::State::NotPresent ? "No SD card" : "Busy") << '\n';
             return Error::Ok;
         }
-        Error res = deleteObject(SD, parameter);
+        Error res = deleteObject(SD, parameter, out);
         config->_sdCard->end();
         return res;
     }
 
-    static Error listSDFiles(char* parameter, AuthenticationLevel auth_level) {  // ESP210
+    static Error listSDFiles(char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP210
         switch (config->_sdCard->begin(SDCard::State::BusyReading)) {
             case SDCard::State::Idle:
                 break;
             case SDCard::State::NotPresent:
-                webPrintln("No SD Card");
+                out << "No SD Card" << '\n';
                 return Error::FsFailedMount;
             default:
-                webPrintln("SD Card Busy");
+                out << "SD Card Busy" << '\n';
                 return Error::FsFailedBusy;
         }
 
-        webPrintln("");
-        config->_sdCard->listDir(SD, "/", 10, *webresponse);
+        out << '\n';
+        config->_sdCard->listDir(SD, "/", 10, out);
         String ssd = "[SD Free:" + formatBytes(SD.totalBytes() - SD.usedBytes());
         ssd += " Used:" + formatBytes(SD.usedBytes());
         ssd += " Total:" + formatBytes(SD.totalBytes());
         ssd += "]";
-        webPrintln(ssd);
+        out << ssd << '\n';
         config->_sdCard->end();
         return Error::Ok;
     }
 
-    void listDirLocalFS(fs::FS& fs, const char* dirname, size_t levels, Channel& channel) {
+    void listDirLocalFS(fs::FS& fs, const char* dirname, size_t levels, Channel& out) {
         //char temp_filename[128]; // to help filter by extension	TODO: 128 needs a definition based on something
         File root = fs.open(dirname);
         if (!root) {
             //FIXME: need proper error for FS and not usd sd one
-            report_status_message(Error::FsFailedOpenDir, channel);
+            report_status_message(Error::FsFailedOpenDir, out);
             return;
         }
         if (!root.isDirectory()) {
             //FIXME: need proper error for FS and not usd sd one
-            report_status_message(Error::FsDirNotFound, channel);
+            report_status_message(Error::FsDirNotFound, out);
             return;
         }
         File file = root.openNextFile();
         while (file) {
             if (file.isDirectory()) {
                 if (levels) {
-                    listDirLocalFS(fs, file.name(), levels - 1, channel);
+                    listDirLocalFS(fs, file.name(), levels - 1, out);
                 }
             } else {
                 allChannels << "[FILE:" << file.name() << "|SIZE:" << file.size() << "]\n";
@@ -756,16 +399,18 @@ namespace WebUI {
         }
     }
 
-    static Error deleteLocalFile(char* parameter, AuthenticationLevel auth_level) { return deleteObject(SPIFFS, parameter); }
+    static Error deleteLocalFile(char* parameter, AuthenticationLevel auth_level, Channel& out) {
+        return deleteObject(SPIFFS, parameter, out);
+    }
 
-    static Error listLocalFiles(char* parameter, AuthenticationLevel auth_level) {  // No ESP command
-        webPrintln("");
-        listDirLocalFS(SPIFFS, "/", 10, *webresponse);
+    static Error listLocalFiles(char* parameter, AuthenticationLevel auth_level, Channel& out) {  // No ESP command
+        out << '\n';
+        listDirLocalFS(SPIFFS, "/", 10, out);
         String ssd = "[Local FS Free:" + formatBytes(SPIFFS.totalBytes() - SPIFFS.usedBytes());
         ssd += " Used:" + formatBytes(SPIFFS.usedBytes());
         ssd += " Total:" + formatBytes(SPIFFS.totalBytes());
         ssd += "]";
-        webPrintln(ssd);
+        out << ssd << '\n';
         return Error::Ok;
     }
 
@@ -789,8 +434,8 @@ namespace WebUI {
         }
     }
 
-    static Error listLocalFilesJSON(char* parameter, AuthenticationLevel auth_level) {  // No ESP command
-        JSONencoder j(false, webresponse);
+    static Error listLocalFilesJSON(char* parameter, AuthenticationLevel auth_level, Channel& out) {  // No ESP command
+        JSONencoder j(false, out);
         j.begin();
         j.begin_array("files");
         listDirJSON(SPIFFS, "/", 4, &j);
@@ -802,7 +447,7 @@ namespace WebUI {
         return Error::Ok;
     }
 
-    static Error showSDStatus(char* parameter, AuthenticationLevel auth_level) {  // ESP200
+    static Error showSDStatus(char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP200
         const char* resp = "No SD card";
         switch (config->_sdCard->begin(SDCard::State::BusyReading)) {
             case SDCard::State::Idle:
@@ -815,28 +460,16 @@ namespace WebUI {
             default:
                 resp = "Busy";
         }
-        webPrintln(resp);
+        out << resp << '\n';
         return Error::Ok;
     }
 
-    static Error setRadioState(char* parameter, AuthenticationLevel auth_level) {  // ESP115
+    static Error setRadioState(char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP115
         parameter = trim(parameter);
         if (*parameter == '\0') {
             // Display the radio state
-            bool on = false;
-#ifdef ENABLE_WIFI
-            if (WiFi.getMode() != WIFI_MODE_NULL) {
-                on = true;
-            }
-#endif
-
-#ifdef ENABLE_BLUETOOTH
-            if (WebUI::bt_enable->get() == 1 && bt_config.Is_BT_on()) {
-                on = true;
-            }
-#endif
-
-            webPrintln(on ? "ON" : "OFF");
+            bool on = wifi_config.isOn() || bt_config.isOn();
+            out << (on ? "ON" : "OFF") << '\n';
             return Error::Ok;
         }
         int8_t on = -1;
@@ -846,219 +479,48 @@ namespace WebUI {
             on = 0;
         }
         if (on == -1) {
-            webPrintln("only ON or OFF mode supported!");
+            out << "only ON or OFF mode supported!" << '\n';
             return Error::InvalidValue;
         }
 
         //Stop everything
-#ifdef ENABLE_WIFI
-        if (WiFi.getMode() != WIFI_MODE_NULL) {
-            wifi_config.StopWiFi();
-        }
-#endif
-#ifdef ENABLE_BLUETOOTH
-        if (WebUI::bt_enable->get() == 1 && bt_config.Is_BT_on()) {
-            bt_config.end();
-        }
-#endif
+        wifi_config.end();
+        bt_config.end();
 
         //if On start proper service
-        if (!on) {
-            webPrintln("[MSG: Radio is Off]");
+        if (on && (wifi_config.begin() || bt_config.begin())) {
             return Error::Ok;
         }
-
-#ifdef ENABLE_WIFI
-        //On
-        if (wifi_config.begin()) {
-            return Error::Ok;
-        }
-#endif
-
-#ifdef ENABLE_BLUETOOTH
-        if (WebUI::bt_enable->get()) {
-            bt_config.begin();
-        }
-#endif
-
-        webPrintln("[MSG: Radio is Off]");
+        out << "[MSG: Radio is Off]" << '\n';
         return Error::Ok;
     }
 
-#ifdef ENABLE_WIFI
-    static Error showIP(char* parameter, AuthenticationLevel auth_level) {  // ESP111
-        webPrintln(parameter, WiFi.getMode() == WIFI_STA ? WiFi.localIP() : WiFi.softAPIP());
-        return Error::Ok;
-    }
-
-    static Error showSetStaParams(char* parameter, AuthenticationLevel auth_level) {  // ESP103
-        if (*parameter == '\0') {
-            webPrint("IP:", wifi_sta_ip->getStringValue());
-            webPrint(" GW:", wifi_sta_gateway->getStringValue());
-            webPrintln(" MSK:", wifi_sta_netmask->getStringValue());
-            return Error::Ok;
-        }
-        if (!split_params(parameter)) {
-            return Error::InvalidValue;
-        }
-        char* gateway = get_param("GW", false);
-        char* netmask = get_param("MSK", false);
-        char* ip      = get_param("IP", false);
-
-        Error err = wifi_sta_ip->setStringValue(ip);
-        if (err == Error::Ok) {
-            err = wifi_sta_netmask->setStringValue(netmask);
-        }
-        if (err == Error::Ok) {
-            err = wifi_sta_gateway->setStringValue(gateway);
-        }
-        return err;
-    }
-#endif
-
-    static Error showWebHelp(char* parameter, AuthenticationLevel auth_level) {  // ESP0
-        webPrintln("Persistent web settings - $name to show, $name=value to set");
-        webPrintln("ESPname FullName         Description");
-        webPrintln("------- --------         -----------");
+    static Error showWebHelp(char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP0
+        out << "Persistent web settings - $name to show, $name=value to set" << '\n';
+        out << "ESPname FullName         Description" << '\n';
+        out << "------- --------         -----------" << '\n';
         for (Setting* s = Setting::List; s; s = s->next()) {
             if (s->getType() == WEBSET) {
-                if (s->getGrblName()) {
-                    webPrint(" ", s->getGrblName());
-                }
-                webPrintSetColumn(8);
-                webPrint(s->getName());
-                webPrintSetColumn(25);
-                webPrintln(s->getDescription());
+                out << LeftJustify(s->getGrblName() ? s->getGrblName() : "", 8);
+                out << LeftJustify(s->getName(), 25 - 8);
+                out << s->getDescription() << '\n';
             }
         }
-        webPrintln("");
-        webPrintln("Other web commands: $name to show, $name=value to set");
-        webPrintln("ESPname FullName         Values");
-        webPrintln("------- --------         ------");
+        out << '\n';
+        out << "Other web commands: $name to show, $name=value to set" << '\n';
+        out << "ESPname FullName         Values" << '\n';
+        out << "------- --------         ------" << '\n';
         for (Command* cp = Command::List; cp; cp = cp->next()) {
             if (cp->getType() == WEBCMD) {
-                if (cp->getGrblName()) {
-                    webPrint(" ", cp->getGrblName());
-                }
-                webPrintSetColumn(8);
-                webPrint(cp->getName());
+                out << LeftJustify(cp->getGrblName() ? cp->getGrblName() : "", 8);
+                out << LeftJustify(cp->getName(), 25 - 8);
                 if (cp->getDescription()) {
-                    webPrintSetColumn(25);
-                    webPrintln(cp->getDescription());
-                } else {
-                    webPrintln("");
+                    out << cp->getDescription();
                 }
+                out << '\n';
             }
         }
         return Error::Ok;
-    }
-
-    void make_wifi_settings() {
-#ifdef ENABLE_WIFI
-        new WebCommand(
-            "TYPE=NONE|PUSHOVER|EMAIL|LINE T1=token1 T2=token2 TS=settings", WEBCMD, WA, "ESP610", "Notification/Setup", showSetNotification);
-        notification_ts = new StringSetting(
-            "Notification Settings", WEBSET, WA, NULL, "Notification/TS", DEFAULT_TOKEN, 0, MAX_NOTIFICATION_SETTING_LENGTH, NULL);
-        notification_t2   = new StringSetting("Notification Token 2",
-                                            WEBSET,
-                                            WA,
-                                            NULL,
-                                            "Notification/T2",
-                                            DEFAULT_TOKEN,
-                                            MIN_NOTIFICATION_TOKEN_LENGTH,
-                                            MAX_NOTIFICATION_TOKEN_LENGTH,
-                                            NULL);
-        notification_t1   = new StringSetting("Notification Token 1",
-                                            WEBSET,
-                                            WA,
-                                            NULL,
-                                            "Notification/T1",
-                                            DEFAULT_TOKEN,
-                                            MIN_NOTIFICATION_TOKEN_LENGTH,
-                                            MAX_NOTIFICATION_TOKEN_LENGTH,
-                                            NULL);
-        notification_type = new EnumSetting(
-            "Notification type", WEBSET, WA, NULL, "Notification/Type", DEFAULT_NOTIFICATION_TYPE, &notificationOptions, NULL);
-        new WebCommand("message", WEBCMD, WU, "ESP600", "Notification/Send", sendMessage);
-
-        telnet_port = new IntSetting(
-            "Telnet Port", WEBSET, WA, "ESP131", "Telnet/Port", DEFAULT_TELNETSERVER_PORT, MIN_TELNET_PORT, MAX_TELNET_PORT, NULL);
-        telnet_enable = new EnumSetting("Telnet Enable", WEBSET, WA, "ESP130", "Telnet/Enable", DEFAULT_TELNET_STATE, &onoffOptions, NULL);
-
-        http_port =
-            new IntSetting("HTTP Port", WEBSET, WA, "ESP121", "HTTP/Port", DEFAULT_WEBSERVER_PORT, MIN_HTTP_PORT, MAX_HTTP_PORT, NULL);
-        http_enable = new EnumSetting("HTTP Enable", WEBSET, WA, "ESP120", "HTTP/Enable", DEFAULT_HTTP_STATE, &onoffOptions, NULL);
-
-        wifi_hostname = new StringSetting("Hostname",
-                                          WEBSET,
-                                          WA,
-                                          "ESP112",
-                                          "Hostname",
-                                          DEFAULT_HOSTNAME,
-                                          MIN_HOSTNAME_LENGTH,
-                                          MAX_HOSTNAME_LENGTH,
-                                          (bool (*)(char*))WiFiConfig::isHostnameValid);
-
-        wifi_ap_channel =
-            new IntSetting("AP Channel", WEBSET, WA, "ESP108", "AP/Channel", DEFAULT_AP_CHANNEL, MIN_CHANNEL, MAX_CHANNEL, NULL);
-        wifi_ap_ip       = new IPaddrSetting("AP Static IP", WEBSET, WA, "ESP107", "AP/IP", DEFAULT_AP_IP, NULL);
-        wifi_ap_password = new StringSetting("AP Password",
-                                             WEBSET,
-                                             WA,
-                                             "ESP106",
-                                             "AP/Password",
-                                             DEFAULT_AP_PWD,
-                                             MIN_PASSWORD_LENGTH,
-                                             MAX_PASSWORD_LENGTH,
-                                             (bool (*)(char*))WiFiConfig::isPasswordValid);
-        wifi_ap_ssid     = new StringSetting(
-            "AP SSID", WEBSET, WA, "ESP105", "AP/SSID", DEFAULT_AP_SSID, MIN_SSID_LENGTH, MAX_SSID_LENGTH, (bool (*)(char*))WiFiConfig::isSSIDValid);
-        wifi_sta_netmask = new IPaddrSetting("Station Static Mask", WEBSET, WA, NULL, "Sta/Netmask", DEFAULT_STA_MK, NULL);
-        wifi_sta_gateway = new IPaddrSetting("Station Static Gateway", WEBSET, WA, NULL, "Sta/Gateway", DEFAULT_STA_GW, NULL);
-        wifi_sta_ip      = new IPaddrSetting("Station Static IP", WEBSET, WA, NULL, "Sta/IP", DEFAULT_STA_IP, NULL);
-        wifi_sta_mode = new EnumSetting("Station IP Mode", WEBSET, WA, "ESP102", "Sta/IPMode", DEFAULT_STA_IP_MODE, &staModeOptions, NULL);
-        wifi_sta_password = new StringSetting("Station Password",
-                                              WEBSET,
-                                              WA,
-                                              "ESP101",
-                                              "Sta/Password",
-                                              DEFAULT_STA_PWD,
-                                              MIN_PASSWORD_LENGTH,
-                                              MAX_PASSWORD_LENGTH,
-                                              (bool (*)(char*))WiFiConfig::isPasswordValid);
-        wifi_sta_ssid     = new StringSetting("Station SSID",
-                                          WEBSET,
-                                          WA,
-                                          "ESP100",
-                                          "Sta/SSID",
-                                          DEFAULT_STA_SSID,
-                                          MIN_SSID_LENGTH,
-                                          MAX_SSID_LENGTH,
-                                          (bool (*)(char*))WiFiConfig::isSSIDValid);
-
-        wifi_mode = new EnumSetting("WiFi mode", WEBSET, WA, "ESP116", "WiFi/Mode", WiFiFallback, &wifiModeOptions, NULL);
-
-        new WebCommand(NULL, WEBCMD, WU, "ESP410", "WiFi/ListAPs", listAPs);
-        new WebCommand(NULL, WEBCMD, WG, "ESP111", "System/IP", showIP);
-        new WebCommand("IP=ipaddress MSK=netmask GW=gateway", WEBCMD, WA, "ESP103", "Sta/Setup", showSetStaParams);
-#endif
-    }
-
-    void make_bt_settings() {
-#ifdef ENABLE_BLUETOOTH
-
-        bt_enable = new EnumSetting("Bluetooth Enable", WEBSET, WA, "ESP141", "Bluetooth/Enable", 1, &onoffOptions, NULL);
-
-        bt_name = new StringSetting("Bluetooth name",
-                                    WEBSET,
-                                    WA,
-                                    "ESP140",
-                                    "Bluetooth/Name",
-                                    DEFAULT_BT_NAME,
-                                    WebUI::BTConfig::MIN_BTNAME_LENGTH,
-                                    WebUI::BTConfig::MAX_BTNAME_LENGTH,
-                                    (bool (*)(char*))BTConfig::isBTnameValid);
-#endif
     }
 
     void make_authentication_settings() {
@@ -1086,8 +548,6 @@ namespace WebUI {
     }
 
     void make_web_settings() {
-        make_wifi_settings();
-        make_bt_settings();
         make_authentication_settings();
         // If authentication enabled, display_settings skips or displays <Authentication Required>
         // RU - need user or admin password to read

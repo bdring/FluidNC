@@ -11,10 +11,6 @@
 #include <vector>
 #include <nvs.h>
 
-#ifdef ENABLE_WIFI
-#    include <WiFi.h>
-#endif
-
 bool anyState() {
     return false;
 }

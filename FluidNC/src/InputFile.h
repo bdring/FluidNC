@@ -21,18 +21,18 @@
 
 class InputFile : public FileStream {
 private:
+    WebUI::AuthenticationLevel _auth_level;
+
     // The channel that triggered the use of this file, through which
     // status about the use of this file will be reported.
-    Channel& _channel;
-
-    WebUI::AuthenticationLevel _auth_level;
+    Channel& _out;
 
     uint32_t _line_num;  // the most recent line number read
 public:
     // fsname is the default file system on which the file is located, in case the path does not specify
     // path is the full path to the file
     // channel is the I/O channel on which status about the use of this file will be reported
-    InputFile(const char* fsname, const char* path, Channel& channel, WebUI::AuthenticationLevel auth_level);
+    InputFile(const char* fsname, const char* path, WebUI::AuthenticationLevel auth_level, Channel& channel);
 
     InputFile(const InputFile&) = delete;
     InputFile& operator=(const InputFile&) = delete;
@@ -55,7 +55,7 @@ public:
     float    percent_complete();
 
     // This tells where to send the feedback
-    Channel& getChannel() { return _channel; }
+    Channel& getChannel() { return _out; }
 
     WebUI::AuthenticationLevel getAuthLevel() { return _auth_level; }
 

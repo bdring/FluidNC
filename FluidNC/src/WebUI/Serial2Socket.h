@@ -54,6 +54,7 @@ namespace WebUI {
         void handle_flush();
         bool attachWS(WebSocketsServer* web_socket);
         bool detachWS();
+        void handle() override;
 
         operator bool() const;
 

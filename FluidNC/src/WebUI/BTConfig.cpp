@@ -25,6 +25,9 @@ const uint8_t* esp_bt_dev_get_address(void);
 }
 
 namespace WebUI {
+    EnumSetting*   bt_enable;
+    StringSetting* bt_name;
+
     size_t BTChannel::write(uint8_t data) {
         static uint8_t lastchar = '\0';
         if (_addCR && data == '\n' && lastchar != '\r') {
@@ -36,7 +39,19 @@ namespace WebUI {
 
     BTConfig* BTConfig::instance = nullptr;
 
-    BTConfig::BTConfig() {}
+    BTConfig::BTConfig() {
+        bt_enable = new EnumSetting("Bluetooth Enable", WEBSET, WA, "ESP141", "Bluetooth/Enable", 1, &onoffOptions, NULL);
+
+        bt_name = new StringSetting("Bluetooth name",
+                                    WEBSET,
+                                    WA,
+                                    "ESP140",
+                                    "Bluetooth/Name",
+                                    DEFAULT_BT_NAME,
+                                    WebUI::BTConfig::MIN_BTNAME_LENGTH,
+                                    WebUI::BTConfig::MAX_BTNAME_LENGTH,
+                                    (bool (*)(char*))BTConfig::isBTnameValid);
+    }
 
     void BTConfig::my_spp_cb(esp_spp_cb_event_t event, esp_spp_cb_param_t* param) {
         auto inst = instance;
@@ -61,7 +76,7 @@ namespace WebUI {
     String BTConfig::info() {
         String result;
         String tmp;
-        if (Is_BT_on()) {
+        if (isOn()) {
             result += "Mode=BT:Name=";
             result += _btname;
             result += "(";
@@ -124,17 +139,15 @@ namespace WebUI {
 
         _btname = bt_name->getStringValue();
 
-        log_debug("end");
         if (_btname.length()) {
-            log_debug("length");
             if (!SerialBT.begin(_btname)) {
                 log_debug("name");
                 report_status_message(Error::BtFailBegin, allChannels);
                 return false;
             }
-            log_debug("register");
             SerialBT.register_callback(&my_spp_cb);
             log_info("BT Started with " << _btname);
+            allChannels.registration(&btChannel);
             return true;
         }
         log_info("BT is not enabled");
@@ -145,12 +158,17 @@ namespace WebUI {
     /**
      * End WiFi
      */
-    void BTConfig::end() { SerialBT.end(); }
+    void BTConfig::end() {
+        if (isOn()) {
+            SerialBT.end();
+            allChannels.deregistration(&btChannel);
+        }
+    }
 
     /**
      * Check if BT is on and working
      */
-    bool BTConfig::Is_BT_on() const { return btStarted(); }
+    bool BTConfig::isOn() const { return btStarted(); }
 
     /**
      * Handle not critical actions that must be done in sync environement

@@ -54,6 +54,7 @@
 #include <atomic>
 #include <cstring>
 #include <vector>
+#include <algorithm>
 #include <freertos/task.h>  // portMUX_TYPE, TaskHandle_T
 
 portMUX_TYPE myMutex = portMUX_INITIALIZER_UNLOCKED;
@@ -211,6 +212,13 @@ void AllChannels::init() {
     registration(&WebUI::inputBuffer);  // Macros
 }
 
+void AllChannels::registration(Channel* channel) {
+    _channelq.push_back(channel);
+}
+void AllChannels::deregistration(Channel* channel) {
+    _channelq.erase(std::remove(_channelq.begin(), _channelq.end(), channel), _channelq.end());
+}
+
 String AllChannels::info() {
     String retval;
     for (auto channel : _channelq) {
@@ -271,10 +279,8 @@ Channel* pollChannels(char* line) {
 
     Channel* retval = allChannels.pollLine(line);
 
-    WebUI::COMMANDS::handle();  // Handles feeding watchdog and ESP restart
-#ifdef ENABLE_WIFI
+    WebUI::COMMANDS::handle();      // Handles feeding watchdog and ESP restart
     WebUI::wifi_services.handle();  // OTA, web_server, telnet_server polling
-#endif
 
     return retval;
 }
