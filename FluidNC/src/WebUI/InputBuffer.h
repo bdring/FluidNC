@@ -1,13 +1,12 @@
-// Copyright (c) 2014 Luc Lebosse. All rights reserved.
+// Copyright (c) 2021 Luc Lebosse. All rights reserved.
 // Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
 
 #pragma once
 
-#include <Stream.h>
-#include <cstring>
+#include "../Channel.h"
 
 namespace WebUI {
-    class InputBuffer : public Stream {
+    class InputBuffer : public Channel {
     public:
         InputBuffer();
 

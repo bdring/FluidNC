@@ -736,7 +736,7 @@ int i2s_out_init(i2s_out_init_t& init_param) {
     I2S0.fifo_conf.dscr_en = 0;
 
     if (i2s_out_pulser_status == STEPPING) {
-        // Stream output mode
+        // Channel output mode
         I2S0.conf_chan.tx_chan_mod = 4;  // 3:right+constant 4:left+constant (when tx_msb_right = 1)
         I2S0.conf_single_data      = 0;
     } else {

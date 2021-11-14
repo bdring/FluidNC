@@ -9,6 +9,7 @@
 #include "../Configuration/HandlerBase.h"
 #include "../Configuration/Configurable.h"
 #include "../CoolantControl.h"
+#include "../Kinematics/Kinematics.h"
 #include "../WebUI/BTConfig.h"
 #include "../Control.h"
 #include "../Probe.h"
@@ -25,6 +26,8 @@
 #include "Macros.h"
 
 namespace Machine {
+    using ::Kinematics::Kinematics;
+
     class Start : public Configuration::Configurable {
     public:
         bool _mustHome          = true;
@@ -52,18 +55,18 @@ namespace Machine {
     public:
         MachineConfig() = default;
 
-        Axes*           _axes        = nullptr;
-        SPIBus*         _spi         = nullptr;
-        I2SOBus*        _i2so        = nullptr;
-        Stepping*       _stepping    = nullptr;
-        CoolantControl* _coolant     = nullptr;
-        Probe*          _probe       = nullptr;
-        Control*        _control     = nullptr;
-        UserOutputs*    _userOutputs = nullptr;
-        SDCard*         _sdCard      = nullptr;
-        Macros*         _macros      = nullptr;
-        Start*          _start       = nullptr;
-
+        Axes*            _axes        = nullptr;
+        Kinematics*      _kinematics  = nullptr;
+        SPIBus*          _spi         = nullptr;
+        I2SOBus*         _i2so        = nullptr;
+        Stepping*        _stepping    = nullptr;
+        CoolantControl*  _coolant     = nullptr;
+        Probe*           _probe       = nullptr;
+        Control*         _control     = nullptr;
+        UserOutputs*     _userOutputs = nullptr;
+        SDCard*          _sdCard      = nullptr;
+        Macros*          _macros      = nullptr;
+        Start*           _start       = nullptr;
         Spindles::SpindleList _spindles;
 
         float _arcTolerance      = 0.002f;

@@ -120,7 +120,7 @@ namespace Machine {
         plan_data.is_jog                = false;
 
         plan_data.feed_rate = float(sqrt(rate));  // Magnitude of homing rate vector
-        plan_buffer_line(target, &plan_data);     // Bypass mc_line(). Directly plan homing motion.
+        plan_buffer_line(target, &plan_data);     // Bypass mc_move_motors(). Directly plan homing motion.
 
         sys.step_control                  = {};
         sys.step_control.executeSysMotion = true;  // Set to execute homing motion and clear existing flags.
@@ -180,7 +180,7 @@ namespace Machine {
                 // Normal termination for pulloff cycle
                 remainingMotors = 0;
             }
-            pollClients();
+            pollChannels();
         } while (remainingMotors);
 
         Stepper::reset();       // Immediately force kill steppers and reset step segment buffer.
@@ -345,15 +345,18 @@ namespace Machine {
 
             for (int cycle = 1; cycle <= MAX_N_AXIS; cycle++) {
                 // Set axisMask to the axes that home on this cycle
-                axisMask    = 0;
-                auto n_axis = config->_axes->_numberAxis;
-                for (int axis = 0; axis < n_axis; axis++) {
-                    auto axisConfig = config->_axes->_axis[axis];
-                    auto homing     = axisConfig->_homing;
-                    if (homing && homing->_cycle == cycle) {
-                        set_bitnum(axisMask, axis);
-                    }
-                }
+
+                axisMask = axis_mask_from_cycle(cycle);
+
+                // axisMask    = 0;
+                // auto n_axis = config->_axes->_numberAxis;
+                // for (int axis = 0; axis < n_axis; axis++) {
+                //     auto axisConfig = config->_axes->_axis[axis];
+                //     auto homing     = axisConfig->_homing;
+                //     if (homing && homing->_cycle == cycle) {
+                //         set_bitnum(axisMask, axis);
+                //     }
+                // }
 
                 if (axisMask) {  // if there are some axes in this cycle
                     someAxisHomed = true;
@@ -365,5 +368,18 @@ namespace Machine {
                 sys.state = State::Alarm;
             }
         }
+    }
+
+    AxisMask Homing::axis_mask_from_cycle(int cycle) {
+        AxisMask axisMask = 0;
+        auto     n_axis   = config->_axes->_numberAxis;
+        for (int axis = 0; axis < n_axis; axis++) {
+            auto axisConfig = config->_axes->_axis[axis];
+            auto homing     = axisConfig->_homing;
+            if (homing && homing->_cycle == cycle) {
+                set_bitnum(axisMask, axis);
+            }
+        }
+        return axisMask;
     }
 }

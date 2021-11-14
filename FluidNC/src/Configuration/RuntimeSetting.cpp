@@ -36,8 +36,8 @@ namespace Configuration {
                 value->group(*this);
             } else {
                 if (newValue_ == nullptr) {
-                    allClients << "/" << setting_ << ":\n";
-                    Configuration::Generator generator(allClients, 1);
+                    allChannels << "/" << setting_ << ":\n";
+                    Configuration::Generator generator(allChannels, 1);
                     value->group(generator);
                     isHandled_ = true;
                 } else {

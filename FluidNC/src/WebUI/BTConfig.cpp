@@ -16,6 +16,7 @@
 namespace WebUI {
     BTConfig        bt_config;
     BluetoothSerial SerialBT;
+    BTChannel       btChannel;
 }
 // The instance variable for the BTConfig class is in config->_comms
 
@@ -24,6 +25,15 @@ const uint8_t* esp_bt_dev_get_address(void);
 }
 
 namespace WebUI {
+    size_t BTChannel::write(uint8_t data) {
+        static uint8_t lastchar = '\0';
+        if (_addCR && data == '\n' && lastchar != '\r') {
+            SerialBT.write('\r');
+        }
+        lastchar = data;
+        return SerialBT.write(data);
+    }
+
     BTConfig* BTConfig::instance = nullptr;
 
     BTConfig::BTConfig() {}
@@ -119,7 +129,7 @@ namespace WebUI {
             log_debug("length");
             if (!SerialBT.begin(_btname)) {
                 log_debug("name");
-                report_status_message(Error::BtFailBegin, allClients);
+                report_status_message(Error::BtFailBegin, allChannels);
                 return false;
             }
             log_debug("register");

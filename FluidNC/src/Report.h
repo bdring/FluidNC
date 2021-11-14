@@ -52,7 +52,7 @@ enum class Message : uint8_t {
     SpindleRestore  = 10,
     SleepMode       = 11,
     ConfigAlarmLock = 12,
-    SdFileQuit      = 60,  // mc_reset was called during an SD job
+    FileQuit        = 60,  // mc_reset was called during a file job
 };
 
 typedef uint8_t Counter;  // Report interval
@@ -65,31 +65,31 @@ void _notify(const char* title, const char* msg);
 void _notifyf(const char* title, const char* format, ...);
 
 // Prints system status messages.
-void report_status_message(Error status_code, Print& client);
+void report_status_message(Error status_code, Channel& channel);
 
 // Prints miscellaneous feedback messages.
 void report_feedback_message(Message message);
 
 // Prints welcome message
-void report_init_message(Print& client);
+void report_init_message(Print& channel);
 
 // Prints an echo of the pre-parsed line received right before execution.
-void report_echo_line_received(char* line, Print& client);
+void report_echo_line_received(char* line, Print& channel);
 
 // Prints realtime status report
-void report_realtime_status(Print& client);
+void report_realtime_status(Print& channel);
 
 // Prints recorded probe position
-void report_probe_parameters(Print& client);
+void report_probe_parameters(Print& channel);
 
 // Prints NGC parameters (coordinate offsets, probe)
-void report_ngc_parameters(Print& client);
+void report_ngc_parameters(Print& channel);
 
 // Prints current g-code parser mode state
-void report_gcode_modes(Print& client);
+void report_gcode_modes(Print& channel);
 
 // Prints build info and user info
-void report_build_info(const char* line, Print& client);
+void report_build_info(const char* line, Print& channel);
 
 #ifdef DEBUG_REPORT_REALTIME
 void report_realtime_debug();
@@ -101,9 +101,6 @@ void hex_msg(uint8_t* buf, const char* prefix, int len);
 
 void addPinReport(char* status, char pinLetter);
 
-extern const char* dataBeginMarker;
-extern const char* dataEndMarker;
-
 #include "MyIOStream.h"
 
 void        mpos_to_wpos(float* position);
@@ -111,3 +108,9 @@ const char* state_name();
 
 extern const char* grbl_version;
 extern const char* git_info;
+
+// Callout to custom code
+void display_init();
+void display(const char* tag, String s);
+
+extern bool readyNext;

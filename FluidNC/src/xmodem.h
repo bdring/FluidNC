@@ -2,5 +2,5 @@
 
 #include "Uart.h"
 
-int xmodemReceive(Uart* serial, Print* out);
-int xmodemTransmit(Uart* serial, Stream* out);
+int xmodemReceive(Uart* serial, Channel* out);
+int xmodemTransmit(Uart* serial, Channel* out);

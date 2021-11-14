@@ -30,6 +30,11 @@ inline Print& operator<<(Print& lhs, unsigned int v) {
     return lhs;
 }
 
+inline Print& operator<<(Print& lhs, uint64_t v) {
+    lhs.print(v);
+    return lhs;
+}
+
 inline Print& operator<<(Print& lhs, float v) {
     lhs.print(v, 3);
     return lhs;

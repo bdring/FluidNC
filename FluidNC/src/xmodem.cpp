@@ -146,7 +146,8 @@ static void write_packet(uint8_t* buf, size_t packet_len, size_t& total_len) {
     memcpy(held_packet, buf, packet_len);
     held = true;
 }
-int xmodemReceive(Uart* serial, Print* out) {
+int xmodemReceive(Uart* serial, Channel* out) {
+    bool oldCr = serial->setCr(false);
     vTaskDelay(1000);
     serialPort = serial;
     file       = out;
@@ -177,11 +178,13 @@ int xmodemReceive(Uart* serial, Print* out) {
                         flush_packet(bufsz, len);
                         _outbyte(ACK);
                         flushinput();
+                        serial->setCr(oldCr);
                         return len; /* normal end */
                     case CAN:
                         if ((c = _inbyte(DLY_1S)) == CAN) {
                             flushinput();
                             _outbyte(ACK);
+                            serial->setCr(oldCr);
                             return -1; /* canceled by remote */
                         }
                         break;
@@ -198,6 +201,7 @@ int xmodemReceive(Uart* serial, Print* out) {
         _outbyte(CAN);
         _outbyte(CAN);
         _outbyte(CAN);
+        serial->setCr(oldCr);
         return -2; /* sync error */
 
     start_recv:
@@ -223,6 +227,7 @@ int xmodemReceive(Uart* serial, Print* out) {
                 _outbyte(CAN);
                 _outbyte(CAN);
                 _outbyte(CAN);
+                serial->setCr(oldCr);
                 return -3; /* too many retry error */
             }
             _outbyte(ACK);
@@ -232,9 +237,10 @@ int xmodemReceive(Uart* serial, Print* out) {
         flushinput();
         _outbyte(NAK);
     }
+    serial->setCr(oldCr);
 }
 
-int xmodemTransmit(Uart* serial, Stream* in) {
+int xmodemTransmit(Uart* serial, Channel* in) {
     serialPort = serial;
 
     uint8_t xbuff[1030]; /* 1024 for XModem 1k + 3 head chars + 2 crc + nul */

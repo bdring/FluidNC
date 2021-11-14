@@ -10,5 +10,3 @@ void run_once();
 
 // Callouts to custom code
 void machine_init();
-void display_init();
-void display(const char* tag, String s);

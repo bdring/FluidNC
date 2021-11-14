@@ -13,7 +13,7 @@ bool atMsgLevel(MsgLevel level) {
     return message_level == nullptr || message_level->get() >= level;
 }
 #else
-#    define DEBUG_OUT allClients
+#    define DEBUG_OUT allChannels
 bool atMsgLevel(MsgLevel level) {
     return message_level == nullptr || message_level->get() >= level;
 }

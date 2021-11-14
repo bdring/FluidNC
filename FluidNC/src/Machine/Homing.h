@@ -10,12 +10,12 @@
 namespace Machine {
     class Homing : public Configuration::Configurable {
         // The return value is the setting time
-        static uint32_t  plan_move(MotorMask motors, bool approach, bool seek, float customPulloff);
-        static void      run(MotorMask remainingMotors, bool approach, bool seek, float customPulloff);
-        static bool      squaredOneSwitch(MotorMask motors);
-        static bool      squaredStressfree(MotorMask motors);
-        static void      set_mpos(AxisMask axisMask);
-        static void      run_one_cycle(AxisMask axisMask);
+        static uint32_t plan_move(MotorMask motors, bool approach, bool seek, float customPulloff);
+
+        static bool squaredOneSwitch(MotorMask motors);
+        static bool squaredStressfree(MotorMask motors);
+        static void set_mpos(AxisMask axisMask);
+
         static const int REPORT_LINE_NUMBER = 0;
 
     public:
@@ -24,6 +24,11 @@ namespace Machine {
         static const int AllCycles = 0;  // Must be zero.
 
         static void run_cycles(AxisMask axisMask);
+        static void run_one_cycle(AxisMask axisMask);
+        
+
+        static AxisMask axis_mask_from_cycle(int cycle);
+        static void     run(MotorMask remainingMotors, bool approach, bool seek, float customPulloff);
 
         // The homing cycles are 1,2,3 etc.  0 means not homed as part of home-all,
         // but you can still home it manually with e.g. $HA
@@ -52,4 +57,5 @@ namespace Machine {
 
         void init() {}
     };
+
 }

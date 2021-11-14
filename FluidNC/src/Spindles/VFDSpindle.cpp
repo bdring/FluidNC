@@ -401,12 +401,20 @@ namespace Spindles {
     }
 
     void IRAM_ATTR VFD::setSpeedfromISR(uint32_t dev_speed) {
+        static uint32_t last_speed = 0;
+
+        if (_current_dev_speed == dev_speed || last_speed == dev_speed) {
+            return;
+        }
+
         if (vfd_cmd_queue) {
             VFDaction action;
             action.action   = actionSetSpeed;
             action.arg      = dev_speed;
             action.critical = (dev_speed == 0);
-            xQueueSendFromISR(vfd_cmd_queue, &action, 0);
+            if (xQueueSendFromISR(vfd_cmd_queue, &action, 0) != pdTRUE) {
+                log_info("VFD Queue Full");
+            }
         }
     }
 
@@ -416,7 +424,9 @@ namespace Spindles {
             action.action   = actionSetSpeed;
             action.arg      = dev_speed;
             action.critical = dev_speed == 0;
-            xQueueSend(vfd_cmd_queue, &action, 0);
+            if (xQueueSend(vfd_cmd_queue, &action, 0) != pdTRUE) {
+                log_info("VFD Queue Full");
+            }
         }
     }
 

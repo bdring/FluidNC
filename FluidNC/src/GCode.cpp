@@ -139,11 +139,11 @@ static void gc_wco_changed() {
 // In this function, all units and positions are converted and
 // exported to internal functions in terms of (mm, mm/min) and absolute machine
 // coordinates, respectively.
-Error gc_execute_line(char* line, Print& client) {
+Error gc_execute_line(char* line, Channel& channel) {
     // Step 0 - remove whitespace and comments and convert to upper case
     collapseGCode(line);
 #ifdef DEBUG_REPORT_ECHO_LINE_RECEIVED
-    report_echo_line_received(line, client);
+    report_echo_line_received(line, channel);
 #endif
 
     /* -------------------------------------------------------------------------------------
@@ -1525,9 +1525,9 @@ Error gc_execute_line(char* line, Print& client) {
             // and absolute and incremental modes.
             pl_data->motion.rapidMotion = 1;  // Set rapid motion flag.
             if (axis_command != AxisCommand::None) {
-                cartesian_to_motors(gc_block.values.xyz, pl_data, gc_state.position);
+                mc_linear(gc_block.values.xyz, pl_data, gc_state.position);
             }
-            cartesian_to_motors(coord_data, pl_data, gc_state.position);
+            mc_linear(coord_data, pl_data, gc_state.position);
             memcpy(gc_state.position, coord_data, sizeof(gc_state.position));
             break;
         case NonModal::SetHome0:
@@ -1555,10 +1555,10 @@ Error gc_execute_line(char* line, Print& client) {
         if (axis_command == AxisCommand::MotionMode) {
             GCUpdatePos gc_update_pos = GCUpdatePos::Target;
             if (gc_state.modal.motion == Motion::Linear) {
-                cartesian_to_motors(gc_block.values.xyz, pl_data, gc_state.position);
+                mc_linear(gc_block.values.xyz, pl_data, gc_state.position);
             } else if (gc_state.modal.motion == Motion::Seek) {
                 pl_data->motion.rapidMotion = 1;  // Set rapid motion flag.
-                cartesian_to_motors(gc_block.values.xyz, pl_data, gc_state.position);
+                mc_linear(gc_block.values.xyz, pl_data, gc_state.position);
             } else if ((gc_state.modal.motion == Motion::CwArc) || (gc_state.modal.motion == Motion::CcwArc)) {
                 mc_arc(gc_block.values.xyz,
                        pl_data,

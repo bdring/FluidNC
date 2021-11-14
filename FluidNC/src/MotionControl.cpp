@@ -12,6 +12,7 @@
 #include "Protocol.h"        // protocol_execute_realtime
 #include "Planner.h"         // plan_reset, etc
 #include "I2SOut.h"          // i2s_out_reset
+#include "InputFile.h"       // infile
 #include "Platform.h"        // WEAK_LINK
 
 // M_PI is not defined in standard C/C++ but some compilers
@@ -21,23 +22,28 @@
 #    define M_PI 3.14159265358979323846
 #endif
 
-// mc_pl_data_inflight keeps track of a jog command sent to mc_line() so we can cancel it.
+// mc_pl_data_inflight keeps track of a jog command sent to mc_move_motors() so we can cancel it.
 // this is needed if a jogCancel comes along after we have already parsed a jog and it is in-flight.
-static volatile void* mc_pl_data_inflight;  // holds a plan_line_data_t while cartesian_to_motors has taken ownership of a line motion
+static volatile void* mc_pl_data_inflight;  // holds a plan_line_data_t while mc_move_motors has taken ownership of a line motion
 
 void mc_init() {
     mc_pl_data_inflight = NULL;
 }
 
-// Execute linear motion in absolute millimeter coordinates. Feed rate given in millimeters/second
-// unless invert_feed_rate is true. Then the feed_rate means that the motion should be completed in
-// (1 minute)/feed_rate time.
+// Execute linear motor motion in absolute millimeter coordinates. Feed rate given in
+// millimeters/second unless invert_feed_rate is true.
+// Then the feed_rate means that the motion should be completed in (1 minute)/feed_rate time.
+//
+// NOTE: This operates in the motor space rather than cartesian space. If a cartesian linear motion
+// is desired, please see mc_linear() which will translate from cartesian to motor operations via
+// kinematics.
+//
 // NOTE: This is the primary gateway to the planner. All line motions, including arc line
 // segments, must pass through this routine before being passed to the planner. The seperation of
-// mc_line and plan_buffer_line is done primarily to place non-planner-type functions from being
+// mc_linear and plan_buffer_line is done primarily to place non-planner-type functions from being
 // in the planner and to let backlash compensation or canned cycle integration simple and direct.
 // returns true if line was submitted to planner, or false if intentionally dropped.
-bool mc_line(float* target, plan_line_data_t* pl_data) {
+bool mc_move_motors(float* target, plan_line_data_t* pl_data) {
     bool submitted_result = false;
     // store the plan data so it can be cancelled by the protocol system if needed
     mc_pl_data_inflight = pl_data;
@@ -70,18 +76,20 @@ bool mc_line(float* target, plan_line_data_t* pl_data) {
     // parser and planner are separate from the system machine positions, this is doable.
     // If the buffer is full: good! That means we are well ahead of the robot.
     // Remain in this loop until there is room in the buffer.
-    do {
-        protocol_execute_realtime();  // Check for any run-time commands
+
+    while (plan_check_full_buffer()) {
+        protocol_auto_cycle_start();  // Auto-cycle start when buffer is full.
+
+        // While we are waiting for room in the buffer, look for realtime
+        // commands and other situations that could cause state changes.
+        pollChannels();
+        protocol_execute_realtime();
         if (sys.abort) {
             mc_pl_data_inflight = NULL;
             return submitted_result;  // Bail, if system abort.
         }
-        if (plan_check_full_buffer()) {
-            protocol_auto_cycle_start();  // Auto-cycle start when buffer is full.
-        } else {
-            break;
-        }
-    } while (1);
+    }
+
     // Plan and queue motion into planner buffer
     if (mc_pl_data_inflight == pl_data) {
         plan_buffer_line(target, pl_data);
@@ -97,18 +105,11 @@ void mc_cancel_jog() {
     }
 }
 
-bool WEAK_LINK cartesian_to_motors(float* target, plan_line_data_t* pl_data, float* position) {
-    return mc_line(target, pl_data);
-}
-
-bool WEAK_LINK kinematics_pre_homing(AxisMask cycle_mask) {
-    return false;  // finish normal homing cycle
-}
-
-void WEAK_LINK kinematics_post_homing() {}
-
-void WEAK_LINK motors_to_cartesian(float* cartesian, float* motors, int n_axis) {
-    memcpy(cartesian, motors, n_axis * sizeof(motors[0]));
+// Execute linear motion in absolute millimeter coordinates. Feed rate given in millimeters/second
+// unless invert_feed_rate is true. Then the feed_rate means that the motion should be completed in
+// (1 minute)/feed_rate time.
+bool mc_linear(float* target, plan_line_data_t* pl_data, float* position) {
+  return config->_kinematics->cartesian_to_motors(target, pl_data, position);
 }
 
 // Execute an arc in offset mode format. position == current xyz, target == target xyz,
@@ -228,18 +229,18 @@ void mc_arc(float*            target,
             position[axis_1] = center_axis1 + r_axis1;
             position[axis_linear] += linear_per_segment;
             pl_data->feed_rate = original_feedrate;  // This restores the feedrate kinematics may have altered
-            cartesian_to_motors(position, pl_data, previous_position);
+            mc_linear(position, pl_data, previous_position);
             previous_position[axis_0]      = position[axis_0];
             previous_position[axis_1]      = position[axis_1];
             previous_position[axis_linear] = position[axis_linear];
-            // Bail mid-circle on system abort. Runtime command check already performed by mc_line.
+            // Bail mid-circle on system abort. Runtime command check already performed by mc_linear.
             if (sys.abort) {
                 return;
             }
         }
     }
     // Ensure last segment arrives at target location.
-    cartesian_to_motors(target, pl_data, previous_position);
+    mc_linear(target, pl_data, previous_position);
 }
 
 // Execute dwell in seconds.
@@ -255,15 +256,13 @@ bool mc_dwell(int32_t milliseconds) {
 // NOTE: There should be no motions in the buffer and the system must be in idle state before
 // executing the homing cycle. This prevents incorrect buffered plans after homing.
 void mc_homing_cycle(AxisMask axis_mask) {
-    if (user_defined_homing(axis_mask)) {
+
+    if (config->_kinematics->kinematics_homing(axis_mask)) {
+        // Allow kinematics to replace homing.
+        // TODO: Better integrate this logic.
         return;
     }
 
-    // This give kinematics a chance to do something before normal homing
-    // if it returns true, the homing is canceled.
-    if (kinematics_pre_homing(axis_mask)) {
-        return;
-    }
     // Abort homing cycle if an axis has limit switches engaged on both ends,
     // or if it is impossible to tell which end is engaged.  In that situation
     // we do not know the pulloff direction.
@@ -286,7 +285,7 @@ void mc_homing_cycle(AxisMask axis_mask) {
     gc_sync_position();
     plan_sync_position();
     // This give kinematics a chance to do something after normal homing
-    kinematics_post_homing();
+    config->_kinematics->kinematics_post_homing();
 }
 
 volatile ProbeState probeState;
@@ -327,12 +326,13 @@ GCUpdatePos mc_probe_cycle(float* target, plan_line_data_t* pl_data, uint8_t par
     }
     // Setup and queue probing motion. Auto cycle-start should not start the cycle.
     log_info("Found");
-    cartesian_to_motors(target, pl_data, gc_state.position);
+    mc_linear(target, pl_data, gc_state.position);
     // Activate the probing state monitor in the stepper module.
     probeState = ProbeState::Active;
     // Perform probing cycle. Wait here until probe is triggered or motion completes.
     rtCycleStart = true;
     do {
+        pollChannels();
         protocol_execute_realtime();
         if (sys.abort) {
             config->_stepping->endLowLatency();
@@ -361,7 +361,7 @@ GCUpdatePos mc_probe_cycle(float* target, plan_line_data_t* pl_data, uint8_t par
     plan_sync_position();  // Sync planner position to current machine position.
     if (MESSAGE_PROBE_COORDINATES) {
         // All done! Output the probe position as message.
-        report_probe_parameters(allClients);
+        report_probe_parameters(allChannels);
     }
     if (probe_succeeded) {
         return GCUpdatePos::System;  // Successful probe cycle.
@@ -422,16 +422,17 @@ void mc_reset() {
         // turn off all User I/O immediately
         config->_userOutputs->all_off();
 
-        // do we need to stop a running SD job?
-        if (config->_sdCard->get_state() == SDCard::State::BusyPrinting) {
+        // do we need to stop a running file job?
+        if (infile) {
             //Report print stopped
-            _notifyf("SD print canceled", "Reset during SD file at line: %d", config->_sdCard->lineNumber());
+            _notifyf("File print canceled", "Reset during file job at line: %d", infile->getLineNumber());
             // log_info() does not work well in this case because the message gets broken in half
             // by report_init_message().  The flow of control that causes it is obscure.
-            config->_sdCard->getClient() << "[MSG:"
-                                         << "Reset during SD file at line: " << config->_sdCard->lineNumber();
+            infile->getChannel() << "[MSG:"
+                                 << "Reset during file jobe at line: " << infile->getLineNumber();
 
-            config->_sdCard->closeFile();
+            delete infile;
+            infile = nullptr;
         }
 
         // Kill steppers only if in any motion state, i.e. cycle, actively holding, or homing.
