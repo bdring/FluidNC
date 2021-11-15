@@ -195,11 +195,23 @@ char* trim(char* str) {
 String formatBytes(uint64_t bytes) {
     if (bytes < 1024) {
         return String((uint16_t)bytes) + " B";
-    } else if (bytes < (1024 * 1024)) {
-        return String((float)(bytes / 1024.0), 2) + " KB";
-    } else if (bytes < (1024 * 1024 * 1024)) {
-        return String((float)(bytes / 1024.0 / 1024.0), 2) + " MB";
-    } else {
-        return String((float)(bytes / 1024.0 / 1024.0 / 1024.0), 2) + " GB";
     }
+    float b = bytes;
+    b /= 1024;
+    if (b < 1024) {
+        return String(b, 2) + " KB";
+    }
+    b /= 1024;
+    if (b < 1024) {
+        return String(b, 2) + " MB";
+    }
+    b /= 1024;
+    if (b < 1024) {
+        return String(b, 2) + " GB";
+    }
+    b /= 1024;
+    if (b > 99999) {
+        b = 99999;
+    }
+    return String(b, 2) + " TB";
 }
