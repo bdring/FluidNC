@@ -62,7 +62,6 @@ public:
     SDCard::State begin(SDCard::State newState);
     void          end();
 
-    void listDir(fs::FS& fs, const char* dirname, size_t levels, Channel& channel);
     void afterParse() override;
 
     const char* filename();

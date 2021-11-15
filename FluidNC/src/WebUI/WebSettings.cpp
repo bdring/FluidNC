@@ -350,39 +350,17 @@ namespace WebUI {
         return res;
     }
 
-    static Error listSDFiles(char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP210
-        switch (config->_sdCard->begin(SDCard::State::BusyReading)) {
-            case SDCard::State::Idle:
-                break;
-            case SDCard::State::NotPresent:
-                out << "No SD Card" << '\n';
-                return Error::FsFailedMount;
-            default:
-                out << "SD Card Busy" << '\n';
-                return Error::FsFailedBusy;
-        }
-
-        out << '\n';
-        config->_sdCard->listDir(SD, "/", 10, out);
-        String ssd = "[SD Free:" + formatBytes(SD.totalBytes() - SD.usedBytes());
-        ssd += " Used:" + formatBytes(SD.usedBytes());
-        ssd += " Total:" + formatBytes(SD.totalBytes());
-        ssd += "]";
-        out << ssd << '\n';
-        config->_sdCard->end();
-        return Error::Ok;
+    static Error deleteLocalFile(char* parameter, AuthenticationLevel auth_level, Channel& out) {
+        return deleteObject(SPIFFS, parameter, out);
     }
 
-    void listDirLocalFS(fs::FS& fs, const char* dirname, size_t levels, Channel& out) {
-        //char temp_filename[128]; // to help filter by extension	TODO: 128 needs a definition based on something
+    static void listDir(fs::FS& fs, const char* dirname, size_t levels, Channel& out) {
         File root = fs.open(dirname);
         if (!root) {
-            //FIXME: need proper error for FS and not usd sd one
             report_status_message(Error::FsFailedOpenDir, out);
             return;
         }
         if (!root.isDirectory()) {
-            //FIXME: need proper error for FS and not usd sd one
             report_status_message(Error::FsDirNotFound, out);
             return;
         }
@@ -390,7 +368,7 @@ namespace WebUI {
         while (file) {
             if (file.isDirectory()) {
                 if (levels) {
-                    listDirLocalFS(fs, file.name(), levels - 1, out);
+                    listDir(fs, file.name(), levels - 1, out);
                 }
             } else {
                 allChannels << "[FILE:" << file.name() << "|SIZE:" << file.size() << "]\n";
@@ -399,22 +377,40 @@ namespace WebUI {
         }
     }
 
-    static Error deleteLocalFile(char* parameter, AuthenticationLevel auth_level, Channel& out) {
-        return deleteObject(SPIFFS, parameter, out);
+    static void listFs(fs::FS& fs, const char* fsname, size_t levels, uint64_t totalBytes, uint64_t usedBytes, Channel& out) {
+        out << '\n';
+        listDir(fs, "/", levels, out);
+        out << "[" << fsname;
+        out << " Free:" << formatBytes(totalBytes - usedBytes);
+        out << " Used:" << formatBytes(usedBytes);
+        out << " Total:" << formatBytes(totalBytes);
+        out << "]\n";
+    }
+
+    static Error listSDFiles(char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP210
+        switch (config->_sdCard->begin(SDCard::State::BusyReading)) {
+            case SDCard::State::Idle:
+                break;
+            case SDCard::State::NotPresent:
+                out << "No SD Card\n";
+                return Error::FsFailedMount;
+            default:
+                out << "SD Card Busy\n";
+                return Error::FsFailedBusy;
+        }
+
+        listFs(SD, "SD", 10, SD.totalBytes(), SD.usedBytes(), out);
+        config->_sdCard->end();
+        return Error::Ok;
     }
 
     static Error listLocalFiles(char* parameter, AuthenticationLevel auth_level, Channel& out) {  // No ESP command
-        out << '\n';
-        listDirLocalFS(SPIFFS, "/", 10, out);
-        String ssd = "[Local FS Free:" + formatBytes(SPIFFS.totalBytes() - SPIFFS.usedBytes());
-        ssd += " Used:" + formatBytes(SPIFFS.usedBytes());
-        ssd += " Total:" + formatBytes(SPIFFS.totalBytes());
-        ssd += "]";
-        out << ssd << '\n';
+        listFs(SPIFFS, "LocalFS", 10, SPIFFS.totalBytes(), SPIFFS.usedBytes(), out);
         return Error::Ok;
     }
 
     static void listDirJSON(fs::FS fs, const char* dirname, size_t levels, JSONencoder* j) {
+        j->begin_array("files");
         File root = fs.open(dirname);
         File file = root.openNextFile();
         while (file) {
@@ -432,14 +428,13 @@ namespace WebUI {
             }
             file = root.openNextFile();
         }
+        j->end_array();
     }
 
     static Error listLocalFilesJSON(char* parameter, AuthenticationLevel auth_level, Channel& out) {  // No ESP command
         JSONencoder j(false, out);
         j.begin();
-        j.begin_array("files");
         listDirJSON(SPIFFS, "/", 4, &j);
-        j.end_array();
         j.member("total", SPIFFS.totalBytes());
         j.member("used", SPIFFS.usedBytes());
         j.member("occupation", String(100 * SPIFFS.usedBytes() / SPIFFS.totalBytes()));
