@@ -5,6 +5,7 @@
 #pragma once
 
 #include "Spindle.h"
+#include "../Types.h"
 
 #include "../Uart.h"
 
@@ -22,7 +23,9 @@ namespace Spindles {
         void set_mode(SpindleState mode, bool critical);
         bool get_pins_and_settings();
 
-        int32_t _current_dev_speed = -1;
+        int32_t  _current_dev_speed   = -1;
+        uint32_t _last_speed          = 0;
+        Percent  _last_override_value = 100;  // no override is 100 percent
 
         static QueueHandle_t vfd_cmd_queue;
         static TaskHandle_t  vfd_cmdTaskHandle;
@@ -64,7 +67,6 @@ namespace Spindles {
         virtual response_parser get_current_speed(ModbusCommand& data) { return nullptr; }
         virtual response_parser get_current_direction(ModbusCommand& data) { return nullptr; }
         virtual response_parser get_status_ok(ModbusCommand& data) = 0;
-        
         virtual bool            safety_polling() const { return true; }
 
         // The constructor sets these
