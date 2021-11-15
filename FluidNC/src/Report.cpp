@@ -193,7 +193,7 @@ void report_probe_parameters(Print& channel) {
     motor_steps_to_mpos(print_position, probe_steps);
     channel << "[PRB:";
     report_util_axis_values(print_position, channel);
-    channel << ":" << probe_succeeded << '\n';
+    channel << ":" << probe_succeeded << "]\n";
 }
 
 // Prints NGC parameters (coordinate offsets, probing)
@@ -202,7 +202,7 @@ void report_ngc_parameters(Print& channel) {
     for (auto coord_select = CoordIndex::Begin; coord_select < CoordIndex::End; ++coord_select) {
         channel << '[' << coords[coord_select]->getName() << ":";
         report_util_axis_values(coords[coord_select]->get(), channel);
-        channel << '\n';
+        channel << "]\n";
     }
     // Print non-persistent G92,G92.1
     channel << "[G92:";
