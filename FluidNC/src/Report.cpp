@@ -399,18 +399,14 @@ void report_build_info(const char* line, Print& channel) {
 
     channel << "[MSG: Machine: " << config->_name << "]\n";
 
-#ifdef ENABLE_WIFI
     String info = WebUI::wifi_config.info();
     if (info.length()) {
-        channel << "[MSG: Machine: " << info << "]\n";
-        ;
+        channel << "[MSG: " << info << "]\n";
     }
-#endif
-#ifdef ENABLE_BLUETOOTH
-    if (WebUI::bt_enable->get()) {
-        channel << "[MSG: Machine: " << WebUI::bt_config.info() << "]\n";
+    info = WebUI::bt_config.info();
+    if (info.length()) {
+        channel << "[MSG: " << info << "]\n";
     }
-#endif
 }
 
 // Prints the character string line that was received, which has been pre-parsed,

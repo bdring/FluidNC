@@ -25,9 +25,17 @@ namespace WebUI {
     WiFiServer* Telnet_Server::_telnetserver = NULL;
     WiFiClient  Telnet_Server::_telnetClients[MAX_TLNT_CLIENTS];
 
+    EnumSetting* telnet_enable;
+    IntSetting*  telnet_port;
+
     IPAddress Telnet_Server::_telnetClientsIP[MAX_TLNT_CLIENTS];
 
-    Telnet_Server::Telnet_Server() : Channel("telnet"), _RXbufferSize(0), _RXbufferpos(0) {}
+    Telnet_Server::Telnet_Server() : Channel("telnet"), _RXbufferSize(0), _RXbufferpos(0) {
+        telnet_port = new IntSetting(
+            "Telnet Port", WEBSET, WA, "ESP131", "Telnet/Port", DEFAULT_TELNETSERVER_PORT, MIN_TELNET_PORT, MAX_TELNET_PORT, NULL);
+
+        telnet_enable = new EnumSetting("Telnet Enable", WEBSET, WA, "ESP130", "Telnet/Enable", DEFAULT_TELNET_STATE, &onoffOptions, NULL);
+    }
 
     bool Telnet_Server::begin() {
         bool no_error = true;
@@ -47,6 +55,7 @@ namespace WebUI {
         //start telnet server
         _telnetserver->begin();
         _setupdone = true;
+        allChannels.registration(&telnet_server);
         return no_error;
     }
 
@@ -55,6 +64,7 @@ namespace WebUI {
         _RXbufferSize = 0;
         _RXbufferpos  = 0;
         if (_telnetserver) {
+            allChannels.deregistration(&telnet_server);
             delete _telnetserver;
             _telnetserver = NULL;
         }

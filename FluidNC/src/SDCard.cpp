@@ -12,29 +12,6 @@
 #include <SPI.h>
 
 SDCard::SDCard() : _state(State::Idle) {}
-void SDCard::listDir(fs::FS& fs, const char* dirname, size_t levels, Channel& channel) {
-    //char temp_filename[128]; // to help filter by extension	TODO: 128 needs a definition based on something
-    File root = fs.open(dirname);
-    if (!root) {
-        report_status_message(Error::FsFailedOpenDir, channel);
-        return;
-    }
-    if (!root.isDirectory()) {
-        report_status_message(Error::FsDirNotFound, channel);
-        return;
-    }
-    File file = root.openNextFile();
-    while (file) {
-        if (file.isDirectory()) {
-            if (levels) {
-                listDir(fs, file.name(), levels - 1, channel);
-            }
-        } else {
-            allChannels << "[FILE:" << file.name() << "|SIZE:" << file.size() << '\n';
-        }
-        file = root.openNextFile();
-    }
-}
 
 // NotPresent can mean several different things:
 // 1. The hardware does not support an SD card

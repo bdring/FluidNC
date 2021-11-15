@@ -6,6 +6,7 @@
 #include "Serial.h"                 // execute_realtime_command
 
 Channel* Channel::pollLine(char* line) {
+    handle();
     while (1) {
         int ch = read();
         if (ch < 0) {
