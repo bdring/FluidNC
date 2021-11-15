@@ -1,8 +1,4 @@
-
-
-# FluidNC (CNC Controller) For ESP32
-
-<img src="https://user-images.githubusercontent.com/189677/93836185-74c27500-fc47-11ea-8bed-5d419974c196.jpg" width="600">
+<img src="https://github.com/bdring/FluidNC/wiki/images/logos/FluidNC.svg" width="600">
 
 ## Introduction
 
