@@ -362,7 +362,7 @@ void report_gcode_modes(Print& channel) {
 
     channel << " T" << gc_state.tool;
     int digits = config->_reportInches ? 1 : 0;
-    int channel << " F" << setprecision(digits) << gc_state.feed_rate;
+    channel << " F" << setprecision(digits) << gc_state.feed_rate;
     channel << " S" << uint32_t(gc_state.spindle_speed);
     channel << "]\n";
 }
