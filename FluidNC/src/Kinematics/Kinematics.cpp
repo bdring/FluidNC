@@ -40,7 +40,6 @@ namespace Kinematics {
 
     void Kinematics::afterParse() {
         if (_system == nullptr) {
-            log_info("Defaulting to Cartesian kinematics");
             _system = new ::Kinematics::Cartesian();
         }
     }

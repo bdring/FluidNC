@@ -70,7 +70,6 @@ namespace Machine {
         }
 
         if (_kinematics == nullptr) {
-            log_info("Kinematics: using defaults");
             _kinematics = new Kinematics();
         }
 
