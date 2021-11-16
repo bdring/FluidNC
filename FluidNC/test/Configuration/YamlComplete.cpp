@@ -18,7 +18,7 @@ namespace Configuration {
                              "\n"
                              "axes:\n"
                              "  number_axis: 3\n"
-                             "  shared_stepper_disable: gpio.13:low\n"
+                             "  shared_stepper_disable_pin: gpio.13:low\n"
                              "  \n"
                              "  x:\n"
                              "\n"

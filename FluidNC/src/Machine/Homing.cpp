@@ -15,8 +15,8 @@ namespace Machine {
     //  Input: seek - the phase - true for the initial high-speed seek, false for the slow second phase
     //  Output: axislock - the axes that actually participate, accounting
     //  Output: target - the endpoint vector of the motion
-    //  Output: rate    - the feed rate
-    //  Return: debounce - the maximum delay time of all the axes
+    //  Output: rate - the feed rate
+    //  Return: settle - the maximum delay time of all the axes
 
     // For multi-axis homing, we use the per-axis rates and travel limits to compute
     // a target vector and a feedrate as follows:
@@ -39,7 +39,7 @@ namespace Machine {
     uint32_t Homing::plan_move(MotorMask motors, bool approach, bool seek, float customPulloff) {
         float    maxSeekTime  = 0.0;
         float    limitingRate = 0.0;
-        uint32_t debounce     = 0;
+        uint32_t settle       = 0;
         float    rate         = 0.0;
 
         auto   axes   = config->_axes;
@@ -62,7 +62,7 @@ namespace Machine {
             auto axisConfig = axes->_axis[axis];
             auto homing     = axisConfig->_homing;
 
-            debounce = std::max(debounce, homing->_debounce_ms);
+            settle = std::max(settle, homing->_settle_ms);
 
             float axis_rate = seek ? homing->_seekRate : homing->_feedRate;
 
@@ -120,14 +120,14 @@ namespace Machine {
         plan_data.is_jog                = false;
 
         plan_data.feed_rate = float(sqrt(rate));  // Magnitude of homing rate vector
-        plan_buffer_line(target, &plan_data);     // Bypass mc_line(). Directly plan homing motion.
+        plan_buffer_line(target, &plan_data);     // Bypass mc_move_motors(). Directly plan homing motion.
 
         sys.step_control                  = {};
         sys.step_control.executeSysMotion = true;  // Set to execute homing motion and clear existing flags.
         Stepper::prep_buffer();                    // Prep and fill segment buffer from newly planned block.
         Stepper::wake_up();                        // Initiate motion
 
-        return debounce;
+        return settle;
     }
 
     void Homing::run(MotorMask remainingMotors, bool approach, bool seek, float customPulloff = 0) {
@@ -180,6 +180,7 @@ namespace Machine {
                 // Normal termination for pulloff cycle
                 remainingMotors = 0;
             }
+            pollChannels();
         } while (remainingMotors);
 
         Stepper::reset();       // Immediately force kill steppers and reset step segment buffer.
@@ -300,11 +301,13 @@ namespace Machine {
                 for (int axis = 0; axis < n_axis; axis++) {
                     if (bitnum_is_true(motors, axis)) {
                         auto axisConfig = config->_axes->_axis[axis];
-                        pulloffOffset   = axisConfig->pulloffOffset();
-                        if (pulloffOffset != 0) {
-                            //log_info("Pulloff offset needed on axis " << axis << " of " << pulloffOffset);
-                            // TODO Do it
-                            run(motors & MOTOR1, false, false, pulloffOffset);
+                        if (axisConfig->hasDualMotor()) {
+                            pulloffOffset = axisConfig->pulloffOffset();
+                            if (pulloffOffset != 0) {
+                                //log_info("Pulloff offset needed on axis " << axis << " of " << pulloffOffset);
+                                // TODO Do it
+                                run(motors & MOTOR1, false, false, pulloffOffset);
+                            }
                         }
                     }
                 }
@@ -342,15 +345,18 @@ namespace Machine {
 
             for (int cycle = 1; cycle <= MAX_N_AXIS; cycle++) {
                 // Set axisMask to the axes that home on this cycle
-                axisMask    = 0;
-                auto n_axis = config->_axes->_numberAxis;
-                for (int axis = 0; axis < n_axis; axis++) {
-                    auto axisConfig = config->_axes->_axis[axis];
-                    auto homing     = axisConfig->_homing;
-                    if (homing && homing->_cycle == cycle) {
-                        set_bitnum(axisMask, axis);
-                    }
-                }
+
+                axisMask = axis_mask_from_cycle(cycle);
+
+                // axisMask    = 0;
+                // auto n_axis = config->_axes->_numberAxis;
+                // for (int axis = 0; axis < n_axis; axis++) {
+                //     auto axisConfig = config->_axes->_axis[axis];
+                //     auto homing     = axisConfig->_homing;
+                //     if (homing && homing->_cycle == cycle) {
+                //         set_bitnum(axisMask, axis);
+                //     }
+                // }
 
                 if (axisMask) {  // if there are some axes in this cycle
                     someAxisHomed = true;
@@ -362,5 +368,18 @@ namespace Machine {
                 sys.state = State::Alarm;
             }
         }
+    }
+
+    AxisMask Homing::axis_mask_from_cycle(int cycle) {
+        AxisMask axisMask = 0;
+        auto     n_axis   = config->_axes->_numberAxis;
+        for (int axis = 0; axis < n_axis; axis++) {
+            auto axisConfig = config->_axes->_axis[axis];
+            auto homing     = axisConfig->_homing;
+            if (homing && homing->_cycle == cycle) {
+                set_bitnum(axisMask, axis);
+            }
+        }
+        return axisMask;
     }
 }

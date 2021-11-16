@@ -5,8 +5,19 @@
 
 #include "../Machine/MachineConfig.h"
 
-#ifdef ENABLE_WIFI
+#ifndef ENABLE_WIFI
+namespace WebUI {
+    WiFiServices wifi_services;
 
+    WiFiServices::WiFiServices() {}
+    WiFiServices::~WiFiServices() { end(); }
+
+    bool WiFiServices::begin() { return false; }
+    void WiFiServices::end() {}
+    void WiFiServices::handle() {}
+}
+#else
+#    include "WifiConfig.h"
 #    include "WebServer.h"
 #    include "TelnetServer.h"
 #    include "NotificationsService.h"
@@ -15,9 +26,9 @@
 #    include <WiFi.h>
 #    include <FS.h>
 #    include <SPIFFS.h>
-#    include "WifiServices.h"
 #    include <ESPmDNS.h>
 #    include <ArduinoOTA.h>
+#    include "WebSettings.h"
 
 namespace WebUI {
     WiFiServices wifi_services;
@@ -27,15 +38,12 @@ namespace WebUI {
 
     bool WiFiServices::begin() {
         bool no_error = true;
-        //Sanity check
-        if (!(config->_comms->_staConfig || config->_comms->_apConfig)) {
-            return false;
-        }
+
         if (WiFi.getMode() == WIFI_OFF) {
             return false;
         }
 
-        String& h = config->_comms->_hostname;
+        String h = wifi_hostname->get();
 
         ArduinoOTA
             .onStart([]() {
@@ -120,7 +128,6 @@ namespace WebUI {
         }
         ArduinoOTA.handle();
         web_server.handle();
-        telnet_server.handle();
     }
 }
 #endif

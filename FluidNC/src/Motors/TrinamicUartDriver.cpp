@@ -38,6 +38,7 @@ namespace MotorDrivers {
         List = this;
 
         if (_has_errors) {
+            log_warn("TMCStepper UART init has errors");
             return;
         }
 
@@ -49,8 +50,11 @@ namespace MotorDrivers {
 
         config_message();
 
-        tmcstepper->begin();
-
+        if (tmc2208) {
+            tmc2208->begin();
+        } else {
+            tmc2209->begin();
+        }
         _has_errors = !test();  // Try communicating with motor. Prints an error if there is a problem.
 
         init_step_dir_pins();
@@ -72,11 +76,15 @@ namespace MotorDrivers {
     }
 
     bool TrinamicUartDriver::hw_serial_init() {
-        if (_driver_part_number == 2209) {
-            tmcstepper = new TMC2209Stepper(_uart, _r_sense, _addr);
+        if (_driver_part_number == 2208) {
+            tmc2208 = new TMC2208Stepper(_uart, _r_sense);
             return false;
         }
-        log_info("Unsupported Trinamic motor p/n:" << _driver_part_number);
+        if (_driver_part_number == 2209) {
+            tmc2209 = new TMC2209Stepper(_uart, _r_sense, _addr);
+            return false;
+        }
+        log_error("Unsupported Trinamic motor p/n:" << _driver_part_number);
         return true;
     }
 
@@ -93,18 +101,19 @@ namespace MotorDrivers {
             return false;
         }
 
-        switch (tmcstepper->test_connection()) {
+        uint8_t result = tmc2208 ? tmc2208->test_connection() : tmc2209->test_connection();
+        switch (result) {
             case 1:
-                log_info("    " << axisName() << " Trinamic driver test failed. Check connection");
+                log_error("    " << axisName() << " Trinamic driver test failed. Check connection");
                 return false;
             case 2:
-                log_info("    " << axisName() << " Trinamic driver test failed. Check motor power");
+                log_error("    " << axisName() << " Trinamic driver test failed. Check motor power");
                 return false;
             default:
                 // driver responded, so check for other errors from the DRV_STATUS register
 
                 TMC2208_n ::DRV_STATUS_t status { 0 };  // a useful struct to access the bits.
-                status.sr = tmcstepper->DRV_STATUS();
+                status.sr = tmc2208 ? tmc2208->DRV_STATUS() : tmc2209->DRV_STATUS();
 
                 bool err = false;
 
@@ -133,12 +142,10 @@ namespace MotorDrivers {
     }
 
     /*
-    Read setting and send them to the driver. Called at init() and whenever related settings change
-    both are stored as float Amps, but TMCStepper library expects...
-    uint16_t run (mA)
-    float hold (as a percentage of run)
+      Run and hold current configuration items are in (float) Amps,
+      but the TMCStepper library expresses run current as (uint16_t) mA
+      and hold current as (float) fraction of run current.
     */
-    // XXX Identical to TrinamicDriver::read_settings()
     void TrinamicUartDriver::read_settings() {
         if (_has_errors) {
             return;
@@ -156,8 +163,13 @@ namespace MotorDrivers {
             }
         }
 
-        tmcstepper->microsteps(_microsteps);
-        tmcstepper->rms_current(run_i_ma, hold_i_percent);
+        if (tmc2208) {
+            tmc2208->microsteps(_microsteps);
+            tmc2208->rms_current(run_i_ma, hold_i_percent);
+        } else {
+            tmc2209->microsteps(_microsteps);
+            tmc2209->rms_current(run_i_ma, hold_i_percent);
+        }
     }
 
     // XXX Identical to TrinamicDriver::set_homing_mode()
@@ -166,71 +178,71 @@ namespace MotorDrivers {
         return true;
     }
 
-    /*
-    There are ton of settings. I'll start by grouping then into modes for now.
-    Many people will want quiet and stallguard homing. Stallguard only run in
-    Coolstep mode, so it will need to switch to Coolstep when homing
-    */
     void TrinamicUartDriver::set_mode(bool isHoming) {
         if (_has_errors) {
             return;
         }
 
-        TrinamicMode newMode = static_cast<TrinamicMode>(trinamicModes[isHoming ? _homing_mode : _run_mode].value);
-
-        if (newMode == _mode) {
-            return;
-        }
-        _mode = newMode;
-
-        switch (_mode) {
-            case TrinamicMode ::StealthChop:
-                //log_info("StealthChop");
-                tmcstepper->en_spreadCycle(false);
-                tmcstepper->pwm_autoscale(true);
-                break;
-            case TrinamicMode ::CoolStep:
-                //log_info("Coolstep");
-                // tmcstepper->en_pwm_mode(false); //TODO: check if this is present in TMC2208/09
-                tmcstepper->en_spreadCycle(true);
-                tmcstepper->pwm_autoscale(false);
-                break;
-            case TrinamicMode ::StallGuard:  //TODO: check all configurations for stallguard
-            {
-                auto axisConfig     = config->_axes->_axis[this->axis_index()];
-                auto homingFeedRate = (axisConfig->_homing != nullptr) ? axisConfig->_homing->_feedRate : 200;
-                //log_info("Stallguard");
-                tmcstepper->en_spreadCycle(false);
-                tmcstepper->pwm_autoscale(false);
-                tmcstepper->TCOOLTHRS(calc_tstep(homingFeedRate, 150.0));
-                tmcstepper->SGTHRS(constrain(_stallguard, 0, 255));
-                break;
+        TrinamicMode _mode = static_cast<TrinamicMode>(trinamicModes[isHoming ? _homing_mode : _run_mode].value);
+        if (tmc2208) {
+            switch (_mode) {
+                case TrinamicMode ::StealthChop:
+                    //log_info("StealthChop");
+                    tmc2208->en_spreadCycle(false);
+                    tmc2208->pwm_autoscale(true);
+                    break;
+                default:
+                    log_error("Unsupported TMC2208 mode:" << _mode);
             }
-            default:
-                log_info("Unknown Trinamic mode:" << _mode);
+        } else {
+            switch (_mode) {
+                case TrinamicMode ::StealthChop:
+                    //log_info("StealthChop");
+                    tmc2209->en_spreadCycle(false);
+                    tmc2209->pwm_autoscale(true);
+                    break;
+                case TrinamicMode ::CoolStep:
+                    //log_info("Coolstep");
+                    // tmc2209->en_pwm_mode(false); //TODO: check if this is present in TMC2208/09
+                    tmc2209->en_spreadCycle(true);
+                    tmc2209->pwm_autoscale(false);
+                    break;
+                case TrinamicMode ::StallGuard:  //TODO: check all configurations for stallguard
+                {
+                    auto axisConfig     = config->_axes->_axis[this->axis_index()];
+                    auto homingFeedRate = (axisConfig->_homing != nullptr) ? axisConfig->_homing->_feedRate : 200;
+                    //log_info("Stallguard");
+                    tmc2209->en_spreadCycle(false);
+                    tmc2209->pwm_autoscale(false);
+                    tmc2209->TCOOLTHRS(calc_tstep(homingFeedRate, 150.0));
+                    tmc2209->SGTHRS(constrain(_stallguard, 0, 255));
+                    break;
+                }
+            }
         }
     }
 
-    /*
-    This is the stallguard tuning info. It is call debug, so it could be generic across all classes.
-    */
+    //  Report diagnostic and tuning info.
     void TrinamicUartDriver::debug_message() {
         if (_has_errors) {
             return;
         }
 
-        uint32_t tstep = tmcstepper->TSTEP();
+        uint32_t tstep = tmc2208 ? tmc2208->TSTEP() : tmc2209->TSTEP();
 
         if (tstep == 0xFFFFF || tstep < 1) {  // if axis is not moving return
             return;
         }
         float feedrate = Stepper::get_realtime_rate();  //* settings.microsteps[axis_index] / 60.0 ; // convert mm/min to Hz
 
-        log_info(axisName() << " SG_Val: " << tmcstepper->SG_RESULT() << "   Rate: " << feedrate
-                            << " mm/min SG_Setting:" << constrain(_stallguard, -64, 63));
+        // TMC2208 does not have StallGuard
+        if (tmc2209) {
+            log_info(axisName() << " SG_Val: " << tmc2209->SG_RESULT() << "   Rate: " << feedrate
+                                << " mm/min SG_Setting:" << constrain(_stallguard, -64, 63));
+        }
 
         TMC2208_n ::DRV_STATUS_t status { 0 };  // a useful struct to access the bits.
-        status.sr = tmcstepper->DRV_STATUS();
+        status.sr = tmc2208 ? tmc2208->DRV_STATUS() : tmc2209->DRV_STATUS();
 
         // these only report if there is a fault condition
         report_open_load(status.ola, status.olb);
@@ -238,12 +250,9 @@ namespace MotorDrivers {
         report_over_temp(status.ot, status.otpw);
         report_short_to_ps(bits_are_true(status.sr, 12), bits_are_true(status.sr, 13));
 
-        // log_info(axisName()<<" Status Register "<<String(status.sr,HEX)<<" GSTAT " << String(tmcstepper->GSTAT(),HEX));
+        // log_info(axisName()<<" Status Register "<<String(status.sr,HEX)<<" GSTAT " << String(tmc2208 ? tmc2208->GSTAT() : tmc2209->GSTAT(),HEX));
     }
 
-    // XXX Identical to TrinamicDriver::set_disable()
-    // this can use the enable feature over SPI. The dedicated pin must be in the enable mode,
-    // but that can be hardwired that way.
     void IRAM_ATTR TrinamicUartDriver::set_disable(bool disable) {
         if (_has_errors) {
             return;
@@ -258,18 +267,22 @@ namespace MotorDrivers {
         _disable_pin.synchronousWrite(_disabled);
 
         if (_use_enable) {
+            uint8_t toff_value;
             if (_disabled) {
-                tmcstepper->toff(_toff_disable);
+                toff_value = _toff_disable;
             } else {
                 if (_mode == TrinamicMode::StealthChop) {
-                    tmcstepper->toff(_toff_stealthchop);
+                    toff_value = _toff_stealthchop;
                 } else {
-                    tmcstepper->toff(_toff_coolstep);
+                    toff_value = _toff_coolstep;
                 }
             }
+            if (tmc2208) {
+                tmc2208->toff(toff_value);
+            } else {
+                tmc2209->toff(toff_value);
+            }
         }
-        // the pin based enable could be added here.
-        // This would be for individual motors, not the single pin for all motors.
     }
 
     // Configuration registration

@@ -45,11 +45,7 @@ void gc_init() {
 
     // Load default G54 coordinate system.
     gc_state.modal.coord_select = CoordIndex::G54;
-    if (config->_deactivateParkingUponInit) {
-        gc_state.modal.override = Override::Disabled;
-    } else {
-        gc_state.modal.override = Override::ParkingMotion;
-    }
+    gc_state.modal.override     = config->_start->_deactivateParking ? Override::Disabled : Override::ParkingMotion;
     coords[gc_state.modal.coord_select]->get(gc_state.coord_system);
 }
 
@@ -143,11 +139,11 @@ static void gc_wco_changed() {
 // In this function, all units and positions are converted and
 // exported to internal functions in terms of (mm, mm/min) and absolute machine
 // coordinates, respectively.
-Error gc_execute_line(char* line, Print& client) {
+Error gc_execute_line(char* line, Channel& channel) {
     // Step 0 - remove whitespace and comments and convert to upper case
     collapseGCode(line);
 #ifdef DEBUG_REPORT_ECHO_LINE_RECEIVED
-    report_echo_line_received(line, client);
+    report_echo_line_received(line, channel);
 #endif
 
     /* -------------------------------------------------------------------------------------
@@ -502,7 +498,7 @@ Error gc_execute_line(char* line, Print& client) {
                                 gc_block.modal.spindle = SpindleState::Cw;
                                 break;
                             case 4:  // Supported if the spindle can be reversed or laser mode is on.
-                                if (spindle->is_reversable || config->_laserMode) {
+                                if (spindle->is_reversable || spindle->isRateAdjusted()) {
                                     gc_block.modal.spindle = SpindleState::Ccw;
                                 } else {
                                     FAIL(Error::GcodeUnsupportedCommand);
@@ -534,7 +530,9 @@ Error gc_execute_line(char* line, Print& client) {
                                 }
                                 break;
                             case 9:
-                                gc_block.coolant = GCodeCoolant::M9;
+                                if (config->_coolant->hasFlood() || config->_coolant->hasMist()) {
+                                    gc_block.coolant = GCodeCoolant::M9;
+                                }
                                 break;
                         }
                         mg_word_bit = ModalGroup::MM8;
@@ -1323,10 +1321,11 @@ Error gc_execute_line(char* line, Print& client) {
         return status == Error::JogCancelled ? Error::Ok : status;
     }
     // If in laser mode, setup laser power based on current and past parser conditions.
-    if (config->_laserMode) {
+    if (spindle->isRateAdjusted()) {
         if (!((gc_block.modal.motion == Motion::Linear) || (gc_block.modal.motion == Motion::CwArc) ||
               (gc_block.modal.motion == Motion::CcwArc))) {
-            gc_parser_flags |= GCParserLaserDisable;
+            if (gc_state.modal.spindle == SpindleState::Ccw)
+                gc_parser_flags |= GCParserLaserDisable;
         }
         // Any motion mode with axis words is allowed to be passed from a spindle speed update.
         // NOTE: G1 and G0 without axis words sets axis_command to none. G28/30 are intentionally omitted.
@@ -1526,9 +1525,9 @@ Error gc_execute_line(char* line, Print& client) {
             // and absolute and incremental modes.
             pl_data->motion.rapidMotion = 1;  // Set rapid motion flag.
             if (axis_command != AxisCommand::None) {
-                cartesian_to_motors(gc_block.values.xyz, pl_data, gc_state.position);
+                mc_linear(gc_block.values.xyz, pl_data, gc_state.position);
             }
-            cartesian_to_motors(coord_data, pl_data, gc_state.position);
+            mc_linear(coord_data, pl_data, gc_state.position);
             memcpy(gc_state.position, coord_data, sizeof(gc_state.position));
             break;
         case NonModal::SetHome0:
@@ -1556,10 +1555,10 @@ Error gc_execute_line(char* line, Print& client) {
         if (axis_command == AxisCommand::MotionMode) {
             GCUpdatePos gc_update_pos = GCUpdatePos::Target;
             if (gc_state.modal.motion == Motion::Linear) {
-                cartesian_to_motors(gc_block.values.xyz, pl_data, gc_state.position);
+                mc_linear(gc_block.values.xyz, pl_data, gc_state.position);
             } else if (gc_state.modal.motion == Motion::Seek) {
                 pl_data->motion.rapidMotion = 1;  // Set rapid motion flag.
-                cartesian_to_motors(gc_block.values.xyz, pl_data, gc_state.position);
+                mc_linear(gc_block.values.xyz, pl_data, gc_state.position);
             } else if ((gc_state.modal.motion == Motion::CwArc) || (gc_state.modal.motion == Motion::CcwArc)) {
                 mc_arc(gc_block.values.xyz,
                        pl_data,
@@ -1623,7 +1622,7 @@ Error gc_execute_line(char* line, Print& client) {
             gc_state.modal.spindle      = SpindleState::Disable;
             gc_state.modal.coolant      = {};
             if (config->_enableParkingOverrideControl) {
-                if (config->_deactivateParkingUponInit) {
+                if (config->_start->_deactivateParking) {
                     gc_state.modal.override = Override::Disabled;
                 } else {
                     gc_state.modal.override = Override::ParkingMotion;

@@ -5,10 +5,10 @@
 #include "Limits.h"
 
 #include "Machine/MachineConfig.h"
-#include "MotionControl.h"  // mc_reset
-#include "System.h"         // sys.*
-#include "Protocol.h"       // protocol_execute_realtime
-#include "Platform.h"       // WEAK_LINK
+#include "MotionControl.h"         // mc_reset
+#include "System.h"                // sys.*
+#include "Protocol.h"              // protocol_execute_realtime
+#include "Platform.h"              // WEAK_LINK
 
 #include <freertos/task.h>
 #include <freertos/queue.h>
@@ -17,6 +17,7 @@
 xQueueHandle limit_sw_queue;  // used by limit switch debouncing
 
 void limits_init() {
+#ifdef LATER  // We need to rethink debouncing
     if (Machine::Axes::limitMask) {
         if (limit_sw_queue == NULL && config->_softwareDebounceMs != 0) {
             // setup task used for debouncing
@@ -31,6 +32,7 @@ void limits_init() {
             }
         }
     }
+#endif
 }
 
 // Returns limit state as a bit-wise uint32 variable. Each bit indicates an axis limit, where
@@ -41,13 +43,17 @@ MotorMask limits_get_state() {
     return Machine::Axes::posLimitMask | Machine::Axes::negLimitMask;
 }
 
+bool ambiguousLimit() {
+    return Machine::Axes::posLimitMask & Machine::Axes::negLimitMask;
+}
+
 bool soft_limit = false;
 
 // Performs a soft limit check. Called from mcline() only. Assumes the machine has been homed,
 // the workspace volume is in all negative space, and the system is in normal operation.
 // NOTE: Used by jogging to limit travel within soft-limit volume.
 void limits_soft_check(float* target) {
-    if (limitsCheckTravel(target)) {
+    if (config->_kinematics->limitsCheckTravel(target)) {
         soft_limit = true;
         // Force feed hold if cycle is active. All buffered blocks are guaranteed to be within
         // workspace volume so just come to a controlled stop so position is not lost. When complete
@@ -55,6 +61,7 @@ void limits_soft_check(float* target) {
         if (sys.state == State::Cycle) {
             rtFeedHold = true;
             do {
+                pollChannels();
                 protocol_execute_realtime();
                 if (sys.abort) {
                     return;
@@ -69,6 +76,7 @@ void limits_soft_check(float* target) {
     }
 }
 
+#ifdef LATER  // We need to rethink debouncing
 void limitCheckTask(void* pvParameters) {
     while (true) {
         std::atomic_thread_fence(std::memory_order::memory_order_seq_cst);  // read fence for settings
@@ -83,11 +91,12 @@ void limitCheckTask(void* pvParameters) {
             rtAlarm = ExecAlarm::HardLimit;  // Indicate hard limit critical event
         }
         static UBaseType_t uxHighWaterMark = 0;
-#ifdef DEBUG_TASK_STACK
+#    ifdef DEBUG_TASK_STACK
         reportTaskStackSize(uxHighWaterMark);
-#endif
+#    endif
     }
 }
+#endif
 
 float limitsMaxPosition(size_t axis) {
     auto  axisConfig = config->_axes->_axis[axis];
@@ -109,21 +118,3 @@ float limitsMinPosition(size_t axis) {
     return (homing == nullptr || homing->_positiveDirection) ? mpos - maxtravel : mpos;
 }
 
-// Checks and reports if target array exceeds machine travel limits.
-// Return true if exceeding limits
-// Set $<axis>/MaxTravel=0 to selectively remove an axis from soft limit checks
-bool WEAK_LINK limitsCheckTravel(float* target) {
-    auto axes   = config->_axes;
-    auto n_axis = axes->_numberAxis;
-    for (int axis = 0; axis < n_axis; axis++) {
-        auto axisSetting = axes->_axis[axis];
-        if ((target[axis] < limitsMinPosition(axis) || target[axis] > limitsMaxPosition(axis)) && axisSetting->_maxTravel > 0) {
-            return true;
-        }
-    }
-    return false;
-}
-
-bool WEAK_LINK user_defined_homing(AxisMask axisMask) {
-    return false;
-}

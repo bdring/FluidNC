@@ -20,6 +20,8 @@ enum_opt_t messageLevels = {
     // clang-format on
 };
 
+enum_opt_t onoffOptions = { { "OFF", 0 }, { "ON", 1 } };
+
 void make_coordinate(CoordIndex index, const char* name) {
     float coord_data[MAX_N_AXIS] = { 0.0 };
     auto  coord                  = new Coordinates(name);
@@ -43,12 +45,12 @@ void make_settings() {
     make_coordinate(CoordIndex::G28, "G28");
     make_coordinate(CoordIndex::G30, "G30");
 
+    message_level = new EnumSetting("Which Messages", EXTENDED, WG, NULL, "Message/Level", MsgLevelInfo, &messageLevels, NULL);
+
+    config_filename = new StringSetting("Name of Configuration File", EXTENDED, WG, NULL, "Config/Filename", "config.yaml", 1, 50, NULL);
+
     // GRBL Numbered Settings
-    build_info = new StringSetting(EXTENDED, WG, NULL, "Firmware/Build", "");
+    status_mask = new IntSetting("What to include in status report", GRBL, WG, "10", "Report/Status", 1, 0, 3, NULL);
 
-    status_mask = new IntSetting(GRBL, WG, "10", "Report/Status", 1, 0, 3);
-
-    message_level = new EnumSetting(NULL, EXTENDED, WG, NULL, "Message/Level", MsgLevelInfo, &messageLevels, NULL);
-
-    config_filename = new StringSetting(EXTENDED, WG, NULL, "Config/Filename", "config.yaml");
+    build_info = new StringSetting("OEM build info for $I command", EXTENDED, WG, NULL, "Firmware/Build", "", 0, 20, NULL);
 }

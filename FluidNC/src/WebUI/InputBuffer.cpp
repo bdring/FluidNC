@@ -7,10 +7,7 @@
 namespace WebUI {
     InputBuffer inputBuffer;
 
-    InputBuffer::InputBuffer() {
-        _RXbufferSize = 0;
-        _RXbufferpos  = 0;
-    }
+    InputBuffer::InputBuffer() : Channel("macros"), _RXbufferSize(0), _RXbufferpos(0) {}
 
     void InputBuffer::begin() {
         _RXbufferSize = 0;

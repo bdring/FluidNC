@@ -19,7 +19,7 @@ namespace Spindles {
 
     void Laser::config_message() {
         log_info(name() << " Spindle Ena:" << _enable_pin.name() << " Out:" << _output_pin.name() << " Freq:" << _pwm_freq
-                        << "Hz Res:" << _pwm_precision << "bits Laser mode:" << (config->_laserMode ? "On" : "Off"));
+                        << "Hz Res:" << _pwm_precision << "bits Laser mode:On");
     }
 
     // Get the GPIO from the machine definition

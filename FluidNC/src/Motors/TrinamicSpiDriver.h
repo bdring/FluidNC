@@ -16,6 +16,7 @@ const int NORMAL_TCOOLTHRS = 0xFFFFF;  // 20 bit is max
 const int NORMAL_THIGH     = 0;
 
 class TMC2130Stepper;  // Forward declaration
+class TMC5160Stepper;  // Forward declaration
 
 namespace MotorDrivers {
 
@@ -23,12 +24,21 @@ namespace MotorDrivers {
     private:
         const int _spi_freq = 100000;
 
-        static pinnum_t daisy_chain_cs;
+        static pinnum_t daisy_chain_cs_id;
+        static uint8_t  spi_index_mask;
 
-        TMC2130Stepper* tmcstepper;  // all other driver types are subclasses of this one
-        Pin             _cs_pin;     // The chip select pin (can be the same for daisy chain)
-        PinMapper       _cs_mapping;
-        int32_t         _spi_index;
+        // It is really tempting to have a single pointer here because
+        // TMC2130 and TMC5160 share many methods with the same names
+        // and API.  That does not work because the common methods are
+        // not virtual and their respective implementations are
+        // incompatible due to hardware differences.  Therefore it is
+        // necessary to preserve the full type knowledge in the pointers.
+        TMC2130Stepper* tmc2130 = nullptr;
+        TMC5160Stepper* tmc5160 = nullptr;
+
+        Pin       _cs_pin;  // The chip select pin (can be the same for daisy chain)
+        PinMapper _cs_mapping;
+        int32_t   _spi_index = -1;
 
         bool test();
         void set_mode(bool isHoming);
@@ -39,9 +49,7 @@ namespace MotorDrivers {
         void config_message() override;
 
     public:
-        TrinamicSpiDriver(uint16_t driver_part_number) : TrinamicSpiDriver(driver_part_number, -1) {}
-
-        TrinamicSpiDriver(uint16_t driver_part_number, int8_t spi_index);
+        TrinamicSpiDriver(uint16_t driver_part_number);
 
         // Overrides for inherited methods
         void init() override;
@@ -49,16 +57,38 @@ namespace MotorDrivers {
         bool set_homing_mode(bool ishoming) override;
         void set_disable(bool disable) override;
 
+        void config_motor() override;
+
         void debug_message();
 
         // Configuration handlers:
-        void validate() const override {
-            Assert(!_cs_pin.undefined(), "TMC spi_cs pin should be configured.");
-            StandardStepper::validate();
+        void afterParse() override {
+            if (daisy_chain_cs_id == 255) {
+                // Either it is not a daisy chain or this is the first daisy-chained TMC in the config file
+                Assert(_cs_pin.defined(), "TMC cs_pin: pin must be configured");
+                if (_spi_index != -1) {
+                    // This is the first daisy-chained TMC in the config file
+                    // Do the cs pin mapping now and record the ID in daisy_chain_cs_id
+                    _cs_pin.setAttr(Pin::Attr::Output | Pin::Attr::InitialOn);
+                    _cs_mapping       = PinMapper(_cs_pin);
+                    daisy_chain_cs_id = _cs_mapping.pinId();
+                    set_bitnum(spi_index_mask, _spi_index);
+                } else {
+                    // The TMC SPI is not daisy-chained
+                }
+            } else {
+                // This is another - not the first - daisy-chained TMC
+                Assert(_cs_pin.undefined(), "For daisy-chained TMC, cs_pin: pin must be configured only once");
+                Assert(_spi_index != -1, "spi_index: must be configured on all daisy-chained TMCs");
+                Assert(bitnum_is_false(spi_index_mask, _spi_index), "spi_index: must be unique among all daisy-chained TMCs");
+                set_bitnum(spi_index_mask, _spi_index);
+            }
         }
 
+        void validate() const override { StandardStepper::validate(); }
+
         void group(Configuration::HandlerBase& handler) override {
-            handler.item("cs", _cs_pin);
+            handler.item("cs_pin", _cs_pin);
             handler.item("spi_index", _spi_index);
             TrinamicBase::group(handler);
         }

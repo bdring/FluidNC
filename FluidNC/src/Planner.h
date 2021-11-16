@@ -28,9 +28,19 @@ struct PlMotion {
 
 // This struct stores a linear movement of a g-code block motion with its critical "nominal" values
 // are as specified in the source g-code.
+#ifdef DEBUG_STEPPING
+extern uint32_t planner_seq;
+#endif
 struct plan_block_t {
     // Fields used by the bresenham algorithm for tracing the line
     // NOTE: Used by stepper algorithm to execute the block correctly. Do not alter these values.
+
+#ifdef DEBUG_STEPPING
+    uint32_t entry_pos[MAX_N_AXIS];  // Expected mpos when this block starts execution
+    uint32_t exit_pos[MAX_N_AXIS];   // Expected mpos when this block finishes execution
+    uint32_t seq;                    // Sequence number
+#endif
+
     uint32_t steps[MAX_N_AXIS];  // Step count along each axis
     uint32_t step_event_count;   // The maximum step axis count and number of steps required to complete this block.
     uint8_t  direction_bits;     // The direction bit set for this block (refers to *_DIRECTION_BIT in config.h)
@@ -90,8 +100,8 @@ plan_block_t* plan_get_system_motion_block();
 // Gets the current block. Returns NULL if buffer empty
 plan_block_t* plan_get_current_block();
 
-// Called periodically by step segment buffer. Mostly used internally by planner.
-uint8_t plan_next_block_index(uint8_t block_index);
+// Increment block index with wrap-around
+static uint8_t plan_next_block_index(uint8_t block_index);
 
 // Called by step segment buffer when computing executing block velocity profile.
 float plan_get_exec_block_exit_speed_sqr();
@@ -110,10 +120,6 @@ void plan_cycle_reinitialize();
 
 // Returns the number of available blocks are in the planner buffer.
 uint8_t plan_get_block_buffer_available();
-
-// Returns the number of active blocks are in the planner buffer.
-// NOTE: Deprecated. Not used unless classic status reports are enabled in config.h
-uint8_t plan_get_block_buffer_count();
 
 // Returns the status of the block ring buffer. True, if buffer is full.
 uint8_t plan_check_full_buffer();

@@ -98,15 +98,9 @@ void delay_ms(uint16_t ms) {
 }
 
 // Non-blocking delay function used for general operation and suspend features.
-bool delay_msec(int32_t milliseconds, DwellMode mode) {
-    // Note: i must be signed, because of the 'i-- > 0' check below.
-    int32_t i         = milliseconds / DWELL_TIME_STEP;
-    int32_t remainder = i < 0 ? 0 : (milliseconds - DWELL_TIME_STEP * i);
-
-    while (i-- > 0) {
-        if (sys.abort) {
-            return false;
-        }
+bool delay_msec(uint32_t milliseconds, DwellMode mode) {
+    while (milliseconds--) {
+        pollChannels();
         if (mode == DwellMode::Dwell) {
             protocol_execute_realtime();
         } else {  // DwellMode::SysSuspend
@@ -116,9 +110,11 @@ bool delay_msec(int32_t milliseconds, DwellMode mode) {
                 return false;  // Bail, if safety door reopens.
             }
         }
-        delay(DWELL_TIME_STEP);  // Delay DWELL_TIME_STEP increment
+        if (sys.abort) {
+            return false;
+        }
+        delay(1);
     }
-    delay(remainder);
     return true;
 }
 
@@ -199,11 +195,23 @@ char* trim(char* str) {
 String formatBytes(uint64_t bytes) {
     if (bytes < 1024) {
         return String((uint16_t)bytes) + " B";
-    } else if (bytes < (1024 * 1024)) {
-        return String((float)(bytes / 1024.0), 2) + " KB";
-    } else if (bytes < (1024 * 1024 * 1024)) {
-        return String((float)(bytes / 1024.0 / 1024.0), 2) + " MB";
-    } else {
-        return String((float)(bytes / 1024.0 / 1024.0 / 1024.0), 2) + " GB";
     }
+    float b = bytes;
+    b /= 1024;
+    if (b < 1024) {
+        return String(b, 2) + " KB";
+    }
+    b /= 1024;
+    if (b < 1024) {
+        return String(b, 2) + " MB";
+    }
+    b /= 1024;
+    if (b < 1024) {
+        return String(b, 2) + " GB";
+    }
+    b /= 1024;
+    if (b > 99999) {
+        b = 99999;
+    }
+    return String(b, 2) + " TB";
 }

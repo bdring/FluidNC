@@ -78,6 +78,9 @@ namespace MotorDrivers {
         // states of the step pins are unknown.
         virtual void unstep() {}
 
+        // this is used to configure and test motors. This would be used for Trinamic
+        virtual void config_motor() {}
+
         // test(), called from init(), checks to see if a motor is
         // responsive, returning true on failure.  Typical
         // implementations also display messages to show the result.
@@ -91,6 +94,9 @@ namespace MotorDrivers {
 
         // Name is required for the configuration factory to work.
         virtual const char* name() const = 0;
+
+        // Test for a real motor as opposed to a NullMotor placeholder
+        virtual bool isReal() { return true; }
 
         // Virtual base classes require a virtual destructor.
         virtual ~MotorDriver() {}

@@ -3,6 +3,7 @@
 
 #include "../Machine/MachineConfig.h"
 #include "TelnetServer.h"
+#include "WebSettings.h"
 
 #ifdef ENABLE_WIFI
 
@@ -24,11 +25,16 @@ namespace WebUI {
     WiFiServer* Telnet_Server::_telnetserver = NULL;
     WiFiClient  Telnet_Server::_telnetClients[MAX_TLNT_CLIENTS];
 
+    EnumSetting* telnet_enable;
+    IntSetting*  telnet_port;
+
     IPAddress Telnet_Server::_telnetClientsIP[MAX_TLNT_CLIENTS];
 
-    Telnet_Server::Telnet_Server() {
-        _RXbufferSize = 0;
-        _RXbufferpos  = 0;
+    Telnet_Server::Telnet_Server() : Channel("telnet"), _RXbufferSize(0), _RXbufferpos(0) {
+        telnet_port = new IntSetting(
+            "Telnet Port", WEBSET, WA, "ESP131", "Telnet/Port", DEFAULT_TELNETSERVER_PORT, MIN_TELNET_PORT, MAX_TELNET_PORT, NULL);
+
+        telnet_enable = new EnumSetting("Telnet Enable", WEBSET, WA, "ESP130", "Telnet/Enable", DEFAULT_TELNET_STATE, &onoffOptions, NULL);
     }
 
     bool Telnet_Server::begin() {
@@ -37,18 +43,19 @@ namespace WebUI {
         _RXbufferSize = 0;
         _RXbufferpos  = 0;
 
-        if (!config->_comms->_telnetEnable) {
+        if (!WebUI::telnet_enable->get()) {
             return false;
         }
-        _port = config->_comms->_telnetPort;
+        _port = WebUI::telnet_port->get();
 
         //create instance
         _telnetserver = new WiFiServer(_port, MAX_TLNT_CLIENTS);
         _telnetserver->setNoDelay(true);
-        log_info("Telnet Started on port " << _port);
+        log_info("Telnet started on port " << _port);
         //start telnet server
         _telnetserver->begin();
         _setupdone = true;
+        allChannels.registration(&telnet_server);
         return no_error;
     }
 
@@ -57,6 +64,7 @@ namespace WebUI {
         _RXbufferSize = 0;
         _RXbufferpos  = 0;
         if (_telnetserver) {
+            allChannels.deregistration(&telnet_server);
             delete _telnetserver;
             _telnetserver = NULL;
         }
@@ -86,22 +94,40 @@ namespace WebUI {
 
     size_t Telnet_Server::write(uint8_t data) { return write(&data, 1); }
 
-    size_t Telnet_Server::write(const uint8_t* buffer, size_t size) {
-        size_t wsize = 0;
+    size_t Telnet_Server::write(const uint8_t* buffer, size_t length) {
         if (!_setupdone || _telnetserver == NULL) {
             return 0;
         }
-
         clearClients();
 
-        //push UART data to all connected telnet clients
-        for (size_t i = 0; i < MAX_TLNT_CLIENTS; i++) {
-            if (_telnetClients[i] && _telnetClients[i].connected()) {
-                wsize = _telnetClients[i].write(buffer, size);
-                COMMANDS::wait(0);
+        // Replace \n with \r\n
+        size_t  rem      = length;
+        uint8_t lastchar = '\0';
+        size_t  j        = 0;
+        while (rem) {
+            const int bufsize = 80;
+            uint8_t   modbuf[bufsize];
+            // bufsize-1 in case the last character is \n
+            size_t k = 0;
+            while (rem && k < (bufsize - 1)) {
+                uint8_t c = buffer[j++];
+                if (c == '\n' && lastchar != '\r') {
+                    modbuf[k++] = '\r';
+                }
+                lastchar    = c;
+                modbuf[k++] = c;
+                --rem;
+            }
+
+            //push data to all connected telnet clients
+            for (size_t i = 0; i < MAX_TLNT_CLIENTS; i++) {
+                if (_telnetClients[i] && _telnetClients[i].connected()) {
+                    _telnetClients[i].write(modbuf, k);
+                    COMMANDS::wait(0);
+                }
             }
         }
-        return wsize;
+        return length;
     }
 
     void Telnet_Server::handle() {

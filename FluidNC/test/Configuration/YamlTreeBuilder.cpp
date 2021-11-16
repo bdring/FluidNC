@@ -137,7 +137,7 @@ namespace Configuration {
     }
 
     Test(YamlTreeBuilder, Hierarchical1) {
-        const char* config = "n1:\n"
+        const char* config = "startup_line1:\n"
                              "  a: aap\n"
                              "  b: banaan\n"
                              "  \n"
@@ -169,7 +169,7 @@ namespace Configuration {
         const char* config = "n2:\n"
                              "  banaan: 2\n"
                              "  aap: aap\n"
-                             "n1:\n"
+                             "startup_line1:\n"
                              "  a: aap\n"
                              "  b: banaan\n"
                              "  \n"
@@ -199,7 +199,7 @@ namespace Configuration {
                              "n2:\n"
                              "  banaan: 2\n"
                              "  aap: aap\n"
-                             "n1:\n"
+                             "startup_line1:\n"
                              "  a: aap\n"
                              "  b: banaan\n"
                              "  \n"

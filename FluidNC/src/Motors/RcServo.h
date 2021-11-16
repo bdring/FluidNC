@@ -20,7 +20,7 @@ namespace MotorDrivers {
 
         bool _disabled;
 
-        uint32_t _min_pulse_us = SERVO_PULSE_US_MIN_DEFAULT;   // microseconds
+        uint32_t _min_pulse_us = SERVO_PULSE_US_MIN_DEFAULT;  // microseconds
         uint32_t _max_pulse_us = SERVO_PULSE_US_MAX_DEFAULT;  // microseconds
 
         uint32_t _min_pulse_cnt = 0;  // microseconds
@@ -45,7 +45,7 @@ namespace MotorDrivers {
         // Configuration handlers:
         void group(Configuration::HandlerBase& handler) override {
             handler.item("output_pin", _output_pin);
-            handler.item("pwm_freq", _pwm_freq);
+            handler.item("pwm_hz", _pwm_freq);
             handler.item("min_pulse_us", _min_pulse_us);
             handler.item("max_pulse_us", _max_pulse_us);
         }

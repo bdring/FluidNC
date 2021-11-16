@@ -6,22 +6,16 @@
 namespace WebUI {
     // Constructor.  If _pretty is true, newlines are
     // inserted into the JSON string for easy reading.
-    JSONencoder::JSONencoder(bool pretty, Print* s) : pretty(pretty), level(0), str(""), stream(s) { count[level] = 0; }
+    JSONencoder::JSONencoder(bool pretty, Print& s) : pretty(pretty), level(0), stream(s), category("nvs") { count[level] = 0; }
 
     // Constructor.  If _pretty is true, newlines are
     // inserted into the JSON string for easy reading.
-    JSONencoder::JSONencoder(bool pretty) : JSONencoder(pretty, nullptr) {}
+    // JSONencoder::JSONencoder(bool pretty) : JSONencoder(pretty, nullptr) {}
 
     // Constructor that supplies a default falue for "pretty"
-    JSONencoder::JSONencoder() : JSONencoder(false) {}
+    // JSONencoder::JSONencoder() : JSONencoder(false) {}
 
-    void JSONencoder::add(char c) {
-        if (stream) {
-            (*stream) << c;
-        } else {
-            str += c;
-        }
-    }
+    void JSONencoder::add(char c) { stream << c; }
 
     // Private function to add commas between
     // elements as needed, omitting the comma
@@ -49,11 +43,7 @@ namespace WebUI {
     // Private function to add a name enclosed with quotes.
     void JSONencoder::quoted(const char* s) {
         add('"');
-        if (stream) {
-            (*stream) << s;
-        } else {
-            str.concat(s);
-        }
+        stream << s;
         add('"');
     }
 
@@ -86,12 +76,11 @@ namespace WebUI {
 
     // Finishes the JSON encoding process, closing the unnamed object
     // and returning the encoded string
-    String JSONencoder::end() {
+    void JSONencoder::end() {
         end_object();
         if (pretty) {
             add('\n');
         }
-        return str;
     }
 
     // Starts a member element.
@@ -148,13 +137,16 @@ namespace WebUI {
 
     // Creates an Esp32_WebUI configuration item specification from
     // a value passed in as a C-style string.
-    void JSONencoder::begin_webui(const char* brief, const char* full, const char* type, const char* val) {
+    void JSONencoder::begin_webui(const char* name, const char* help, const char* type, const char* val) {
         begin_object();
-        member("F", "network");
-        // We must pass the full path as the P parameter because that is
-        // what WebUI sends back to us when setting a new value.
-        member("P", full);
-        member("H", full);
+        member("F", category);
+        // P is the name that WebUI uses to set a new value.
+        // H is the legend that WebUI displays in the UI.
+        // The distinction used to be important because, prior to the introuction
+        // of named settings, P was a numerical offset into a fixed EEPROM layout.
+        // Now P is a hierarchical name that is as easy to understand as the old H values.
+        member("P", name);
+        member("H", help);
         member("T", type);
         member("V", val);
     }

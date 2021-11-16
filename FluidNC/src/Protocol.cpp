@@ -15,6 +15,16 @@
 #include "Planner.h"        // plan_get_current_block
 #include "MotionControl.h"  // PARKING_MOTION_LINE_NUMBER
 #include "Settings.h"       // settings_execute_startup
+#include "InputFile.h"      // infile
+
+#ifdef DEBUG_STEPPING
+volatile bool rtCrash;
+volatile bool rtSeq;
+volatile bool rtSegSeq;
+volatile bool rtTestPl;
+volatile bool rtTestSt;
+uint32_t      expected_steps[MAX_N_AXIS];
+#endif
 
 #ifdef DEBUG_REPORT_REALTIME
 volatile bool rtExecDebug;
@@ -35,6 +45,7 @@ std::map<ExecAlarm, const char*> AlarmNames = {
     { ExecAlarm::HomingFailApproach, "Homing Fail Approach" },
     { ExecAlarm::SpindleControl, "Spindle Control" },
     { ExecAlarm::ControlPin, "Control Pin Initially On" },
+    { ExecAlarm::HomingAmbiguousSwitch, "Ambiguous Switch" },
 };
 
 volatile Accessory rtAccessoryOverride;  // Global realtime executor bitflag variable for spindle/coolant overrides.
@@ -78,10 +89,13 @@ union SpindleStop {
 static SpindleStop spindle_stop_ovr;
 
 bool can_park() {
+    if (spindle->isRateAdjusted()) {
+        return false;
+    }
     if (config->_enableParkingOverrideControl) {
-        return sys.override_ctrl == Override::ParkingMotion && Machine::Axes::homingMask && !config->_laserMode;
+        return sys.override_ctrl == Override::ParkingMotion && Machine::Axes::homingMask;
     } else {
-        return Machine::Axes::homingMask && !config->_laserMode;
+        return Machine::Axes::homingMask;
     }
 }
 
@@ -130,6 +144,8 @@ static int32_t idleEndTime = 0;
 /*
   PRIMARY LOOP:
 */
+Channel* exclusiveChannel = nullptr;
+
 void protocol_main_loop() {
     // Check for and report alarm state after a reset, error, or an initial power up.
     // NOTE: Sleep mode disables the stepper drivers and position can't be guaranteed.
@@ -138,7 +154,7 @@ void protocol_main_loop() {
         report_feedback_message(Message::ConfigAlarmLock);
     } else {
         // Perform some machine checks to make sure everything is good to go.
-        if (config->_checkLimitsAtInit && config->_axes->hasHardLimits()) {
+        if (config->_start->_checkLimits && config->_axes->hasHardLimits()) {
             if (limits_get_state()) {
                 sys.state = State::Alarm;  // Ensure alarm state is active.
                 report_feedback_message(Message::CheckLimits);
@@ -166,18 +182,48 @@ void protocol_main_loop() {
     // ---------------------------------------------------------------------------------
     for (;;) {
         // Poll the input sources waiting for a complete line to arrive
-        InputClient* ic;
-        while ((ic = pollClients()) != nullptr) {
-            Print* out = ic->_out;
+        Channel* chan = nullptr;
+        char     line[Channel::maxLine];
+        while (true) {
             protocol_execute_realtime();  // Runtime command check point.
             if (protocol_abort()) {
                 return;  // Bail to calling function upon system abort
             }
+
+            if (infile) {
+                pollChannels();
+                if (readyNext) {
+                    readyNext    = false;
+                    Channel& out = infile->getChannel();
+                    switch (auto err = infile->readLine(line, Channel::maxLine)) {
+                        case Error::Ok:
+                            break;
+                        case Error::Eof:
+                            _notifyf("File job done", "%s file job succeeded", infile->path());
+                            out << "[MSG:" << infile->path() << " file job succeeded]\n";
+                            delete infile;
+                            infile = nullptr;
+                            break;
+                        default:
+                            out << "[MSG: ERR:" << static_cast<int>(err) << " (" << errorString(err) << ") in " << infile->path()
+                                << " at line " << infile->getLineNumber() << "]\n";
+                            delete infile;
+                            infile = nullptr;
+                            break;
+                    }
+                }
+            } else {
+                chan = pollChannels(line);
+            }
+            if (chan == nullptr) {
+                break;
+            }
 #ifdef DEBUG_REPORT_ECHO_RAW_LINE_RECEIVED
-            report_echo_line_received(ic->_line, *out);
+            report_echo_line_received(line, chan);
 #endif
+            display("GCODE", line);
             // auth_level can be upgraded by supplying a password on the command line
-            report_status_message(execute_line(ic->_line, *out, WebUI::AuthenticationLevel::LEVEL_GUEST), *out);
+            report_status_message(execute_line(line, *chan, WebUI::AuthenticationLevel::LEVEL_GUEST), *chan);
         }
         // If there are no more lines to be processed and executed,
         // auto-cycle start, if enabled, any queued moves.
@@ -212,6 +258,7 @@ void protocol_buffer_synchronize() {
     // If system is queued, ensure cycle resumes if the auto start flag is present.
     protocol_auto_cycle_start();
     do {
+        pollChannels();
         protocol_execute_realtime();  // Check and execute run-time commands
         if (protocol_abort()) {
             return;  // Check for system abort
@@ -221,7 +268,7 @@ void protocol_buffer_synchronize() {
 
 // Auto-cycle start triggers when there is a motion ready to execute and if the main program is not
 // actively parsing commands.
-// NOTE: This function is called from the main loop, buffer sync, and mc_line() only and executes
+// NOTE: This function is called from the main loop, buffer sync, and mc_move_motors() only and executes
 // when one of these conditions exist respectively: There are no more blocks sent (i.e. streaming
 // is finished, single commands), a command that needs to wait for the motions in the buffer to
 // execute calls a buffer sync, or the planner buffer is full and ready to go.
@@ -250,7 +297,7 @@ void protocol_execute_realtime() {
 }
 
 static void alarm_msg(ExecAlarm alarm_code) {
-    allClients << "ALARM:" << static_cast<int>(alarm_code) << '\n';
+    allChannels << "ALARM:" << static_cast<int>(alarm_code) << '\n';
     delay_ms(500);  // Force delay to ensure message clears serial write buffer.
 }
 
@@ -270,12 +317,12 @@ static void protocol_do_alarm() {
             report_feedback_message(Message::CriticalEvent);
             rtReset = false;  // Disable any existing reset
             do {
-                // Block everything, except reset and status reports, until user issues reset or power
+                // Block everything except reset and status reports until user issues reset or power
                 // cycles. Hard limits typically occur while unattended or not paying attention. Gives
                 // the user and a GUI time to do what is needed before resetting, like killing the
                 // incoming stream. The same could be said about soft limits. While the position is not
                 // lost, continued streaming could cause a serious crash if by chance it gets executed.
-                vTaskDelay(1);  // give serial task some time
+                pollChannels();  // Handle ^X realtime RESET command
             } while (!rtReset);
             break;
         default:
@@ -463,6 +510,11 @@ static void protocol_do_sleep() {
     sys.state = State::Sleep;
 }
 
+void protocol_cancel_disable_steppers() {
+    // Cancel any pending stepper disable.
+    idleEndTime = 0;
+}
+
 static void protocol_do_initiate_cycle() {
     // Start cycle only if queued motions exist in planner buffer and the motion is not canceled.
     sys.step_control = {};  // Restore step control to normal operation
@@ -471,6 +523,8 @@ static void protocol_do_initiate_cycle() {
         sys.state         = State::Cycle;
         Stepper::prep_buffer();  // Initialize step segment buffer before beginning cycle.
         Stepper::wake_up();
+        // Make sure the steppers can't be scheduled for a shutdown while this cycle is running.
+        protocol_cancel_disable_steppers();
     } else {                    // Otherwise, do nothing. Set and resume IDLE state.
         sys.suspend.value = 0;  // Break suspend state.
         sys.state         = State::Idle;
@@ -676,6 +730,34 @@ void protocol_do_macro(int macro_num) {
 void protocol_exec_rt_system() {
     protocol_do_alarm();  // If there is a hard or soft limit, this will block until rtReset is set
 
+#ifdef DEBUG_STEPPING
+    if (rtSegSeq) {
+        rtSegSeq = false;
+        log_error("segment exp " << seg_seq_exp << " actual " << seg_seq_act);
+        rtReset = true;
+    }
+    if (rtSeq) {
+        rtSeq = false;
+        log_error("planner " << pl_seq0 << " stepper " << st_seq0);
+        rtReset = true;
+    }
+    if (rtCrash) {
+        rtCrash = false;
+        log_error("Stepper exp,actual " << expected_steps[0] << "," << motor_steps[0] << " " << expected_steps[1] << "," << motor_steps[1]
+                                        << " " << expected_steps[2] << "," << motor_steps[2]);
+        rtReset = true;
+    }
+    if (rtTestPl) {
+        rtTestPl = false;
+        log_info("Poisoned planner_seq");
+        planner_seq += 20;
+    }
+    if (rtTestSt) {
+        rtTestSt = false;
+        log_info("Poisoned stepper");
+        --motor_steps[0];
+    }
+#endif
     if (rtReset) {
         if (sys.state == State::Homing) {
             rtAlarm = ExecAlarm::HomingFailReset;
@@ -687,7 +769,7 @@ void protocol_exec_rt_system() {
 
     if (rtStatusReport) {
         rtStatusReport = false;
-        report_realtime_status(allClients);
+        report_realtime_status(allChannels);
     }
 
     if (rtMotionCancel) {
@@ -787,7 +869,7 @@ static void protocol_exec_rt_suspend() {
         restore_spindle       = block->spindle;
         restore_spindle_speed = block->spindle_speed;
     }
-    if (config->_disableLaserDuringHold && config->_laserMode) {
+    if (spindle->isRateAdjusted()) {
         rtAccessoryOverride.bit.spindleOvrStop = true;
     }
 
@@ -795,7 +877,7 @@ static void protocol_exec_rt_suspend() {
         if (protocol_abort()) {
             return;
         }
-        // if a jogCancel comes in and we have a jog "in-flight" (parsed and handed over to mc_line()),
+        // if a jogCancel comes in and we have a jog "in-flight" (parsed and handed over to mc_move_motors()),
         //  then we need to cancel it before it reaches the planner.  otherwise we may try to move way out of
         //  normal bounds, especially with senders that issue a series of jog commands before sending a cancel.
         if (sys.suspend.bit.jogCancel) {
@@ -892,7 +974,7 @@ static void protocol_exec_rt_suspend() {
                         if (gc_state.modal.spindle != SpindleState::Disable) {
                             // Block if safety door re-opened during prior restore actions.
                             if (!sys.suspend.bit.restartRetract) {
-                                if (config->_laserMode) {
+                                if (spindle->isRateAdjusted()) {
                                     // When in laser mode, defer turn on until cycle starts
                                     sys.step_control.updateSpindleSpeed = true;
                                 } else {
@@ -947,7 +1029,7 @@ static void protocol_exec_rt_suspend() {
                     } else if (spindle_stop_ovr.bit.restore || spindle_stop_ovr.bit.restoreCycle) {
                         if (gc_state.modal.spindle != SpindleState::Disable) {
                             report_feedback_message(Message::SpindleRestore);
-                            if (config->_laserMode) {
+                            if (spindle->isRateAdjusted()) {
                                 // When in laser mode, defer turn on until cycle starts
                                 sys.step_control.updateSpindleSpeed = true;
                             } else {
@@ -970,6 +1052,7 @@ static void protocol_exec_rt_suspend() {
                 }
             }
         }
+        pollChannels();  // Handle realtime commands like status report, cycle start and reset
         protocol_exec_rt_system();
     }
 }

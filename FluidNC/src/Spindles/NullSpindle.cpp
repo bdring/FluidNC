@@ -13,21 +13,20 @@
 
 namespace Spindles {
     // ======================= Null ==============================
-    // Null is just bunch of do nothing (ignore) methods to be used when you don't want a spindle
+    // Null is just a bunch of do nothing (ignore) methods to be used when you don't want a spindle
 
     void Null::init() {
         is_reversable = false;
         config_message();
-        if (_speeds.size() == 0) {
-            _speeds.push_back({ 0, 0 });
-        }
+        _speeds.clear();
     }
     void IRAM_ATTR Null::setSpeedfromISR(uint32_t dev_speed) {};
     void           Null::setState(SpindleState state, SpindleSpeed speed) {
         _current_state    = state;
         sys.spindle_speed = speed;
     }
-    void Null::config_message() { log_info("No spindle"); }
+    void Null::config_message() { /*log_info("No spindle");*/
+    }
 
     // Configuration registration
     namespace {

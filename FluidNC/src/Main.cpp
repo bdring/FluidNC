@@ -20,10 +20,7 @@
 #include "WebUI/Serial2Socket.h"
 #include "WebUI/InputBuffer.h"
 
-#ifdef ENABLE_WIFI
-#    include "WebUI/WifiConfig.h"
-#    include <WiFi.h>
-#endif
+#include "WebUI/WifiConfig.h"
 #include <SPIFFS.h>
 
 extern void make_user_commands();
@@ -32,24 +29,18 @@ void setup() {
     try {
         uartInit();  // Setup serial port
 
-#ifdef ENABLE_WIFI
-        WiFi.persistent(false);
-        WiFi.disconnect(true);
-        WiFi.enableSTA(false);
-        WiFi.enableAP(false);
-        WiFi.mode(WIFI_OFF);
-#endif
-
         // Setup input polling loop after loading the configuration,
         // because the polling may depend on the config
-        client_init();
+        allChannels.init();
+
+        WebUI::WiFiConfig::reset();
 
         display_init();
 
         // Load settings from non-volatile storage
         settings_init();  // requires config
 
-        log_info("FluidNC " << GIT_TAG << GIT_REV);
+        log_info("FluidNC " << git_info);
         log_info("Compiled with ESP32 SDK:" << ESP.getSdkVersion());
 
         if (!SPIFFS.begin(true)) {
@@ -75,13 +66,15 @@ void setup() {
                 }
             }
 
-            Stepper::init();  // Configure stepper pins and interrupt timers
+            config->_stepping->init();  // Configure stepper interrupt timers
 
             config->_userOutputs->init();
 
             config->_axes->init();
 
             config->_control->init();
+
+            config->_kinematics->init();
 
             memset(motor_steps, 0, sizeof(motor_steps));  // Clear machine position.
 
@@ -106,7 +99,7 @@ void setup() {
             // NOTE: The startup script will run after successful completion of the homing cycle, but
             // not after disabling the alarm locks. Prevents motion startup blocks from crashing into
             // things uncontrollably. Very bad.
-            if (config->_homingInitLock && Machine::Axes::homingMask) {
+            if (config->_start->_mustHome && Machine::Axes::homingMask) {
                 // If there is an axis with homing configured, enter Alarm state on startup
                 sys.state = State::Alarm;
             }
@@ -119,17 +112,8 @@ void setup() {
             config->_probe->init();
         }
 
-#ifdef ENABLE_WIFI
         WebUI::wifi_config.begin();
-        register_client(&WebUI::Serial2Socket);
-        register_client(&WebUI::telnet_server);
-#endif
-#ifdef ENABLE_BLUETOOTH
-        if (config->_comms->_bluetoothConfig) {
-            config->_comms->_bluetoothConfig->begin();
-            register_client(&WebUI::SerialBT);
-        }
-#endif
+        WebUI::bt_config.begin();
         WebUI::inputBuffer.begin();
     } catch (const AssertionFailed& ex) {
         // This means something is terribly broken:
@@ -139,6 +123,16 @@ void setup() {
 }
 
 static void reset_variables() {
+#ifdef DEBUG_STEPPING
+    rtTestPl    = false;
+    rtTestSt    = false;
+    st_seq      = 0;
+    st_seq0     = 0;
+    pl_seq0     = 0;
+    seg_seq0    = 0;
+    seg_seq1    = 0;
+    planner_seq = 0;
+#endif
     // Reset primary systems.
     system_reset();
     protocol_reset();
@@ -161,7 +155,7 @@ static void reset_variables() {
     // Sync cleared gcode and planner positions to current system position.
     plan_sync_position();
     gc_sync_position();
-    report_init_message(allClients);
+    report_init_message(allChannels);
     mc_init();
 }
 
@@ -198,8 +192,6 @@ void loop() {
 }
 
 void WEAK_LINK machine_init() {}
-
-void WEAK_LINK display_init() {}
 
 #if 0
 int main() {

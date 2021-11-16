@@ -210,8 +210,8 @@ enum GCParserFlags {
     GCParserProbeIsAway    = bitnum_to_mask(3),
     GCParserProbeIsNoError = bitnum_to_mask(4),
     GCParserLaserForceSync = bitnum_to_mask(5),
-    GCParserLaserDisable   = bitnum_to_mask(6),
-    GCParserLaserIsMotion  = bitnum_to_mask(7),
+    GCParserLaserDisable   = bitnum_to_mask(6),  // disable laser when motion stops
+    GCParserLaserIsMotion  = bitnum_to_mask(7),  //
 };
 
 // Various places in the code access saved coordinate system data
@@ -311,7 +311,7 @@ enum class AxisCommand : uint8_t {
 void gc_init();
 
 // Execute one block of rs275/ngc/g-code
-Error gc_execute_line(char* line, Print& client);
+Error gc_execute_line(char* line, Channel& channel);
 
 // Set g-code parser position. Input in steps.
 void gc_sync_position();

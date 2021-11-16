@@ -20,15 +20,26 @@ namespace WebUI {
 
 #ifdef ENABLE_WIFI
 
-#    include "WifiConfig.h"   // ESP_PUSHOVER_NOTIFICATION
 #    include "WebSettings.h"  // notification_ts
 #    include "Commands.h"
+#    include "WifiConfig.h"  // wifi_config.Hostname()
 #    include "../Machine/MachineConfig.h"
 
 #    include <WiFiClientSecure.h>
 #    include <base64.h>
 
 namespace WebUI {
+    static const int PUSHOVER_NOTIFICATION = 1;
+    static const int EMAIL_NOTIFICATION    = 2;
+    static const int LINE_NOTIFICATION     = 3;
+
+    static const int DEFAULT_NOTIFICATION_TYPE       = 0;
+    static const int MIN_NOTIFICATION_TOKEN_LENGTH   = 0;
+    static const int MAX_NOTIFICATION_TOKEN_LENGTH   = 63;
+    static const int MAX_NOTIFICATION_SETTING_LENGTH = 127;
+
+    static const char* DEFAULT_TOKEN = "";
+
     static const int   PUSHOVERTIMEOUT = 5000;
     static const char* PUSHOVERSERVER  = "api.pushover.net";
     static const int   PUSHOVERPORT    = 443;
@@ -39,12 +50,86 @@ namespace WebUI {
 
     static const int EMAILTIMEOUT = 5000;
 
+    enum_opt_t notificationOptions = {
+        { "NONE", 0 },
+        { "LINE", 3 },
+        { "PUSHOVER", 1 },
+        { "EMAIL", 2 },
+    };
+    EnumSetting*   notification_type;
+    StringSetting* notification_t1;
+    StringSetting* notification_t2;
+    StringSetting* notification_ts;
+
+    static Error showSetNotification(char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP610
+        if (*parameter == '\0') {
+            out << notification_type->getStringValue() << " " << notification_ts->getStringValue() << '\n';
+            return Error::Ok;
+        }
+        if (!split_params(parameter)) {
+            return Error::InvalidValue;
+        }
+        char* ts  = get_param("TS", false);
+        char* t2  = get_param("T2", false);
+        char* t1  = get_param("T1", false);
+        char* ty  = get_param("type", false);
+        Error err = notification_type->setStringValue(ty);
+        if (err == Error::Ok) {
+            err = notification_t1->setStringValue(t1);
+        }
+        if (err == Error::Ok) {
+            err = notification_t2->setStringValue(t2);
+        }
+        if (err == Error::Ok) {
+            err = notification_ts->setStringValue(ts);
+        }
+        return err;
+    }
+
+    static Error sendMessage(char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP600
+        if (*parameter == '\0') {
+            out << "Invalid message!" << '\n';
+            return Error::InvalidValue;
+        }
+        if (!notificationsservice.sendMSG("GRBL Notification", parameter)) {
+            out << "Cannot send message!" << '\n';
+            return Error::MessageFailed;
+        }
+        return Error::Ok;
+    }
+
     NotificationsService::NotificationsService() {
         _started          = false;
         _notificationType = 0;
         _token1           = "";
         _token1           = "";
         _settings         = "";
+
+        new WebCommand(
+            "TYPE=NONE|PUSHOVER|EMAIL|LINE T1=token1 T2=token2 TS=settings", WEBCMD, WA, "ESP610", "Notification/Setup", showSetNotification);
+        notification_ts = new StringSetting(
+            "Notification Settings", WEBSET, WA, NULL, "Notification/TS", DEFAULT_TOKEN, 0, MAX_NOTIFICATION_SETTING_LENGTH, NULL);
+        notification_t2   = new StringSetting("Notification Token 2",
+                                            WEBSET,
+                                            WA,
+                                            NULL,
+                                            "Notification/T2",
+                                            DEFAULT_TOKEN,
+                                            MIN_NOTIFICATION_TOKEN_LENGTH,
+                                            MAX_NOTIFICATION_TOKEN_LENGTH,
+                                            NULL);
+        notification_t1   = new StringSetting("Notification Token 1",
+                                            WEBSET,
+                                            WA,
+                                            NULL,
+                                            "Notification/T1",
+                                            DEFAULT_TOKEN,
+                                            MIN_NOTIFICATION_TOKEN_LENGTH,
+                                            MAX_NOTIFICATION_TOKEN_LENGTH,
+                                            NULL);
+        notification_type = new EnumSetting(
+            "Notification type", WEBSET, WA, NULL, "Notification/Type", DEFAULT_NOTIFICATION_TYPE, &notificationOptions, NULL);
+        new WebCommand("message", WEBCMD, WU, "ESP600", "Notification/Send", sendMessage);
     }
 
     bool Wait4Answer(WiFiClientSecure& client, const char* linetrigger, const char* expected_answer, uint32_t timeout) {
@@ -79,11 +164,11 @@ namespace WebUI {
 
     const char* NotificationsService::getTypeString() {
         switch (_notificationType) {
-            case ESP_PUSHOVER_NOTIFICATION:
+            case PUSHOVER_NOTIFICATION:
                 return "Pushover";
-            case ESP_EMAIL_NOTIFICATION:
+            case EMAIL_NOTIFICATION:
                 return "Email";
-            case ESP_LINE_NOTIFICATION:
+            case LINE_NOTIFICATION:
                 return "Line";
             default:
                 return "None";
@@ -96,13 +181,13 @@ namespace WebUI {
         }
         if (!((strlen(title) == 0) && (strlen(message) == 0))) {
             switch (_notificationType) {
-                case ESP_PUSHOVER_NOTIFICATION:
+                case PUSHOVER_NOTIFICATION:
                     return sendPushoverMSG(title, message);
                     break;
-                case ESP_EMAIL_NOTIFICATION:
+                case EMAIL_NOTIFICATION:
                     return sendEmailMSG(title, message);
                     break;
-                case ESP_LINE_NOTIFICATION:
+                case LINE_NOTIFICATION:
                     return sendLineMSG(title, message);
                     break;
                 default:
@@ -307,18 +392,18 @@ namespace WebUI {
         switch (_notificationType) {
             case 0:  //no notification = no error but no start
                 return true;
-            case ESP_PUSHOVER_NOTIFICATION:
+            case PUSHOVER_NOTIFICATION:
                 _token1        = notification_t1->get();
                 _token2        = notification_t2->get();
                 _port          = PUSHOVERPORT;
                 _serveraddress = PUSHOVERSERVER;
                 break;
-            case ESP_LINE_NOTIFICATION:
+            case LINE_NOTIFICATION:
                 _token1        = notification_t1->get();
                 _port          = LINEPORT;
                 _serveraddress = LINESERVER;
                 break;
-            case ESP_EMAIL_NOTIFICATION:
+            case EMAIL_NOTIFICATION:
                 _token1 = base64::encode(notification_t1->get());
                 _token2 = base64::encode(notification_t2->get());
                 if (!getEmailFromSettings() || !getPortFromSettings() || !getServerAddressFromSettings()) {

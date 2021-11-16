@@ -46,6 +46,7 @@ namespace Spindles {
         void         stop() { setState(SpindleState::Disable, 0); }
         virtual void config_message() = 0;
         virtual bool isRateAdjusted();
+        virtual bool use_delay_settings() const { return true; }
 
         virtual void setSpeedfromISR(uint32_t dev_speed) = 0;
 
@@ -75,10 +76,13 @@ namespace Spindles {
         void afterParse() override;
 
         void group(Configuration::HandlerBase& handler) override {
-            handler.item("spinup_ms", _spinup_ms);
-            handler.item("spindown_ms", _spindown_ms);
-            handler.item("tool", _tool);
-            handler.item("speeds", _speeds);
+             if (use_delay_settings()) {
+                handler.item("spinup_ms", _spinup_ms);            
+                handler.item("spindown_ms", _spindown_ms);
+            }            
+            handler.item("tool_num", _tool);
+            handler.item("speed_map", _speeds);
+                
         }
 
         // Virtual base classes require a virtual destructor.

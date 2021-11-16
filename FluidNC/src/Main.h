@@ -3,9 +3,10 @@
 
 #pragma once
 
+#include <WString.h>
+
 void main_init();
 void run_once();
 
 // Callouts to custom code
 void machine_init();
-void display_init();

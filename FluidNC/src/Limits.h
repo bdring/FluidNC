@@ -31,4 +31,9 @@ AxisMask limits_check(AxisMask check_mask);
 void limitCheckTask(void* pvParameters);
 
 bool limitsCheckTravel(float* target);
-bool user_defined_homing(AxisMask cycle_mask);
+
+// True if an axis is reporting engaged limits on both ends.  This
+// typically happens when the same pin is used for a pair of switches,
+// so you cannot tell which one is triggered.  In that case, automatic
+// pull-off is impossible.
+bool ambiguousLimit();

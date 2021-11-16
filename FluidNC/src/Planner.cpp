@@ -9,6 +9,7 @@
 */
 
 #include "Planner.h"
+#include "Logging.h"
 
 #include "Machine/MachineConfig.h"
 
@@ -31,7 +32,7 @@ typedef struct {
 static planner_t pl;
 
 // Returns the index of the next block in the ring buffer. Also called by stepper segment buffer.
-uint8_t plan_next_block_index(uint8_t block_index) {
+static uint8_t plan_next_block_index(uint8_t block_index) {
     block_index++;
     if (block_index == BLOCK_BUFFER_SIZE) {
         block_index = 0;
@@ -195,6 +196,7 @@ void plan_reset_buffer() {
     block_buffer_planned = 0;  // = block_buffer_tail;
 }
 
+// Called from stepper pulse function when the block is complete
 void plan_discard_current_block() {
     if (block_buffer_head != block_buffer_tail) {  // Discard non-empty buffer.
         uint8_t block_index = plan_next_block_index(block_buffer_tail);
@@ -283,6 +285,9 @@ void plan_update_velocity_profile_parameters() {
     pl.previous_nominal_speed = prev_nominal_speed;  // Update prev nominal speed for next incoming block.
 }
 
+#ifdef DEBUG_STEPPING
+uint32_t planner_seq = 0;
+#endif
 bool plan_buffer_line(float* target, plan_line_data_t* pl_data) {
     // Prepare and initialize new block. Copy relevant pl_data for block execution.
     plan_block_t* block = &block_buffer[block_buffer_head];
@@ -307,7 +312,11 @@ bool plan_buffer_line(float* target, plan_line_data_t* pl_data) {
         // Calculate target position in absolute steps, number of steps for each axis, and determine max step events.
         // Also, compute individual axes distance for move and prep unit vector calculations.
         // NOTE: Computes true distance from converted step values.
-        target_steps[idx]       = lround(mpos_to_steps(target[idx], idx));
+        target_steps[idx] = lround(mpos_to_steps(target[idx], idx));
+#ifdef DEBUG_STEPPING
+        block->entry_pos[idx] = position_steps[idx];
+        block->exit_pos[idx]  = target_steps[idx];
+#endif
         block->steps[idx]       = labs(target_steps[idx] - position_steps[idx]);
         block->step_event_count = MAX(block->step_event_count, block->steps[idx]);
         delta_mm                = steps_to_mpos((target_steps[idx] - position_steps[idx]), idx);
@@ -317,6 +326,9 @@ bool plan_buffer_line(float* target, plan_line_data_t* pl_data) {
             block->direction_bits |= bitnum_to_mask(idx);
         }
     }
+#ifdef DEBUG_STEPPING
+    block->seq = planner_seq++;
+#endif
     // Bail if this is a zero-length block. Highly unlikely to occur.
     if (block->step_event_count == 0) {
         return false;
@@ -419,21 +431,12 @@ void plan_sync_position() {
 }
 
 // Returns the number of available blocks are in the planner buffer.
+// Called from report_realtime_status
 uint8_t plan_get_block_buffer_available() {
     if (block_buffer_head >= block_buffer_tail) {
         return (BLOCK_BUFFER_SIZE - 1) - (block_buffer_head - block_buffer_tail);
     } else {
         return block_buffer_tail - block_buffer_head - 1;
-    }
-}
-
-// Returns the number of active blocks are in the planner buffer.
-// NOTE: Deprecated. Not used unless classic status reports are enabled in config.h
-uint8_t plan_get_block_buffer_count() {
-    if (block_buffer_head >= block_buffer_tail) {
-        return block_buffer_head - block_buffer_tail;
-    } else {
-        return BLOCK_BUFFER_SIZE - (block_buffer_tail - block_buffer_head);
     }
 }
 

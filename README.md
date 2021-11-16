@@ -1,16 +1,12 @@
-
-
-# FluidNC (CNC Controller) For ESP32
-
-<img src="https://user-images.githubusercontent.com/189677/93836185-74c27500-fc47-11ea-8bed-5d419974c196.jpg" width="600">
+<img src="https://github.com/bdring/FluidNC/wiki/images/logos/FluidNC.svg" width="600">
 
 ## Introduction
 
-**FluidNC** is the next generation of Grbl_ESP32. It has a lot of improvements over Grbl_ESP32 as listed below.
+**FluidNC** is the next generation of the Grbl_ESP32 CNC control firmware. It has a lot of improvements over Grbl_ESP32 as listed below.
 
 ## Status
 
-We are currently in an alpha testing state. Basic machines are fully functional. We are actively testing the advanced functions and improving the usability.
+We are currently in an beta testing state. Basic machines are fully functional. We are actively testing the advanced functions and improving the usability.
 
 ## Firmware Architecture
 
@@ -20,9 +16,9 @@ We are currently in an alpha testing state. Basic machines are fully functional.
 
 ## Machine Definition Method
 
-Grbl_ESP32 used C preprocessor machine definition files (myMachineDef.h) and config.h to define a machine. Any change required a recompile. The goal with FluidNC is that virtually everyone uses the same compiled firmware and configures it with a structured [YAML](https://github.com/bdring/FluidNC/wiki/YAML-Config-File) text file.  That file is dynamically loaded from the local FLASH on ESP32. It can be uploaded via the serial port or Wifi.
+Grbl_ESP32 used C preprocessor machine definition files (myMachineDef.h) and config.h to define a machine. Any change required a recompile. The goal with FluidNC is that virtually everyone uses the same compiled firmware and configures it with a configuration file in a simplified YAML format. That file is dynamically loaded from the local FLASH on ESP32. It can be uploaded via the serial port or Wifi.
 
-You can have multiple YAML files stored on the ESP32. The default is config.yaml, but you can change that with $Config/Filename=<myOtherConfig.yaml>
+You can have multiple config files stored on the ESP32. The default is config.yaml, but you can change that with $Config/Filename=<myOtherConfig.yaml>
 
 ## Basic Grbl Compatibility
 
@@ -65,9 +61,9 @@ coolant:
 
 ## Tuning
 
-Many parameters like accelerations and speeds need to be tuned when setting up a new machine. These values are in the YAML file like everything else, but you can also temporarily change them by sending the YAML hierarchy for that setting as a $ command. Sending $axes/x/acceleration=50 would change the acceleration of the x axis to 50. 
+Many parameters like accelerations and speeds need to be tuned when setting up a new machine. These values are in the config file like everything else, but you can also temporarily change them by sending the config file hierarchy for that setting as a $ command. Sending $axes/x/acceleration=50 would change the acceleration of the x axis to 50. 
 
-The changes are temporary. To make them permanent you would edit the YAML file. You can also save the all of the current changes to the YAML with the $CD=<your YAML file name>
+The changes are temporary. To make them permanent you would edit the config file. You can also save the all of the current changes to the config file with the $CD=<your config file name>
 
 You can show the value of an individual parameter by sending its $ name with the =, as:
 ```
@@ -144,7 +140,7 @@ The original [Grbl](https://github.com/gnea/grbl) is an awesome project by Sunge
 
 The Wifi and WebUI is based on [this project.](https://github.com/luc-github/ESP3D-WEBUI)  
 
-Mitch Bradley designed and implemented the $name=value settings mechanism.  The YAML-format runtime configuration mechanism was spearheaded Mitch Bradley, and designed and implemented by Mitch and Stefan de Bruin.  Stefan's mastery of C++ is especially evident in the Class architecture of the configuration mechanism.
+Mitch Bradley designed and implemented the $name=value settings mechanism.  The config file format runtime configuration mechanism was spearheaded Mitch Bradley, and designed and implemented by Mitch and Stefan de Bruin.  Stefan's mastery of C++ is especially evident in the Class architecture of the configuration mechanism.
 
 ### Contribute
 

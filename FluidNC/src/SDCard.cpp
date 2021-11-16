@@ -5,114 +5,13 @@
 
 #include "SDCard.h"
 #include "Machine/MachineConfig.h"
+#include "Channel.h"
 #include "Report.h"
-#include "Uart.h"
 
-#include <FS.h>
 #include <SD.h>
 #include <SPI.h>
 
-class SDCard::FileWrap {
-public:
-    FileWrap() : _file(nullptr) {}
-    File _file;
-};
-
-SDCard::SDCard() :
-    _pImpl(new FileWrap()), _current_line_number(0), _state(State::Idle), _client(Uart0),
-    _auth_level(WebUI::AuthenticationLevel::LEVEL_GUEST), _readyNext(false) {}
-
-void SDCard::listDir(fs::FS& fs, const char* dirname, size_t levels, Print& client) {
-    //char temp_filename[128]; // to help filter by extension	TODO: 128 needs a definition based on something
-    File root = fs.open(dirname);
-    if (!root) {
-        report_status_message(Error::FsFailedOpenDir, client);
-        return;
-    }
-    if (!root.isDirectory()) {
-        report_status_message(Error::FsDirNotFound, client);
-        return;
-    }
-    File file = root.openNextFile();
-    while (file) {
-        if (file.isDirectory()) {
-            if (levels) {
-                listDir(fs, file.name(), levels - 1, client);
-            }
-        } else {
-            allClients << "[FILE:" << file.name() << "|SIZE:" << file.size() << '\n';
-        }
-        file = root.openNextFile();
-    }
-}
-
-bool SDCard::openFile(fs::FS& fs, const char* path, Print& client, WebUI::AuthenticationLevel auth_level) {
-    _pImpl->_file = fs.open(path);
-    if (!_pImpl->_file) {
-        return false;
-    }
-    _client              = client;
-    _auth_level          = auth_level;
-    _state               = State::BusyPrinting;
-    _readyNext           = false;  // this will get set to true when an "ok" message is issued
-    _current_line_number = 0;
-    return true;
-}
-
-bool SDCard::closeFile() {
-    _state               = State::Idle;
-    _readyNext           = false;
-    _current_line_number = 0;
-    _client              = Uart0;
-    _auth_level          = WebUI::AuthenticationLevel::LEVEL_GUEST;
-    if (!_pImpl->_file) {
-        return false;
-    }
-    _pImpl->_file.close();
-    end();
-    return true;
-}
-
-/*
-  Read a line from the SD card
-  Returns true if a line was read, even if it was empty.
-  Returns false on EOF or error.  Errors display a message.
-*/
-Error SDCard::readFileLine(char* line, int maxlen) {
-    if (!_pImpl->_file) {
-        return Error::FsFailedRead;
-    }
-
-    _current_line_number += 1;
-    int len = 0;
-    while (_pImpl->_file.available()) {
-        if (len >= maxlen) {
-            return Error::LineLengthExceeded;
-        }
-        int c = _pImpl->_file.read();
-        if (c < 0) {
-            return Error::FsFailedRead;
-        }
-        if (c == '\n') {
-            break;
-        }
-        line[len++] = c;
-    }
-    line[len] = '\0';
-    return len || _pImpl->_file.available() ? Error::Ok : Error::Eof;
-}
-
-// return a percentage complete 50.5 = 50.5%
-float SDCard::report_perc_complete() {
-    if (!_pImpl->_file) {
-        return 0.0;
-    }
-    return (float)_pImpl->_file.position() / (float)_pImpl->_file.size() * 100.0f;
-}
-
-uint32_t SDCard::lineNumber() {
-    return _current_line_number;
-}
+SDCard::SDCard() : _state(State::Idle) {}
 
 // NotPresent can mean several different things:
 // 1. The hardware does not support an SD card
@@ -153,7 +52,7 @@ SDCard::State SDCard::test_or_open(bool refresh) {
 
     _state = SDCard::State::NotPresent;
 
-    auto csPin   = _cs.getNative(Pin::Capabilities::Output | Pin::Capabilities::Native);
+    auto csPin = _cs.getNative(Pin::Capabilities::Output | Pin::Capabilities::Native);
 
     //refresh content if card was removed
     if (SD.begin(csPin, SPI, SPIfreq, "/sd", 2)) {
@@ -181,10 +80,6 @@ void SDCard::end() {
     _state = State::Idle;
 }
 
-const char* SDCard::filename() {
-    return _pImpl->_file ? _pImpl->_file.name() : "";
-}
-
 void SDCard::init() {
     static bool init_message = true;  // used to show messages only once.
 
@@ -193,10 +88,10 @@ void SDCard::init() {
             log_error("SD needs SPI defined");
         } else {
             if (init_message) {
-            _cardDetect.report("SD Card Detect");
-            init_message = false;
+                _cardDetect.report("SD Card Detect");
+                init_message = false;
             }
-            log_info("SD Card cs:" << _cs.name() << " dectect:" << _cardDetect.name());
+            log_info("SD Card cs_pin:" << _cs.name() << " dectect:" << _cardDetect.name());
         }
     }
 
@@ -210,6 +105,4 @@ void SDCard::afterParse() {
     // }
 }
 
-SDCard::~SDCard() {
-    delete _pImpl;
-}
+SDCard::~SDCard() {}
