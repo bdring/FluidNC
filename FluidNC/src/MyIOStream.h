@@ -2,19 +2,10 @@
 // Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
 
 #pragma once
+
 #include <Print.h>
+
 #include "Pin.h"
-
-class IOPrecision {
-public:
-    int _digits = 3;
-};
-extern IOPrecision ioPrecision;
-
-inline IOPrecision* setprecision(int digits) {
-    ioPrecision._digits = digits;
-    return &ioPrecision;
-}
 
 inline Print& operator<<(Print& lhs, char c) {
     lhs.print(c);
@@ -47,14 +38,12 @@ inline Print& operator<<(Print& lhs, uint64_t v) {
 }
 
 inline Print& operator<<(Print& lhs, float v) {
-    lhs.print(v, ioPrecision._digits);
-    ioPrecision._digits = 3;
+    lhs.print(v, 3);
     return lhs;
 }
 
 inline Print& operator<<(Print& lhs, double v) {
-    lhs.print(v, ioPrecision._digits);
-    ioPrecision._digits = 3;
+    lhs.print(v, 3);
     return lhs;
 }
 
@@ -63,6 +52,30 @@ inline Print& operator<<(Print& lhs, const Pin& v) {
     return lhs;
 }
 
-inline Print& operator<<(Print& lhs, IOPrecision* digits) {
-    return lhs;
+class setprecision {
+    int precision;
+
+public:
+    setprecision(int p) : precision(p) {}
+
+    inline void Write(Print& stream, float f) const { stream.print(f, precision); }
+    inline void Write(Print& stream, double d) const { stream.print(d, precision); }
+};
+
+template <class T>
+class FormatContainer {
+public:
+    Print& stream;
+    T      formatter;
+
+    FormatContainer(Print& l, const T& fmt) : stream(l), formatter(fmt) {}
+};
+
+inline FormatContainer<setprecision> operator<<(Print& lhs, setprecision rhs) {
+    return FormatContainer<setprecision>(lhs, rhs);
+}
+template <class T, typename U>
+inline Print& operator<<(FormatContainer<T> lhs, U f) {
+    lhs.formatter.Write(lhs.stream, f);
+    return lhs.stream;
 }

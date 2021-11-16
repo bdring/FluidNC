@@ -40,8 +40,6 @@
 #include <cstdio>
 #include <cstdarg>
 
-IOPrecision ioPrecision;
-
 #ifdef DEBUG_REPORT_HEAP
 EspClass esp;
 #endif
