@@ -9,15 +9,22 @@ namespace Machine {
         for (int i = 0; i < 4; ++i) {
             _analogFrequency[i] = 5000;
         }
-    }
-
-    void UserOutputs::init() {
         // Setup M62,M63,M64,M65 pins
         for (int i = 0; i < 4; ++i) {
             myDigitalOutputs[i] = new UserOutput::DigitalOutput(i, _digitalOutput[i]);
             myAnalogOutputs[i]  = new UserOutput::AnalogOutput(i, _analogOutput[i], _analogFrequency[i]);
         }
     }
+    UserOutputs::~UserOutputs() {
+        for (int i = 0; i < 4; ++i) {
+            delete myDigitalOutputs[i];
+            myDigitalOutputs[i] = nullptr;
+            delete myAnalogOutputs[i];
+            myAnalogOutputs[i] = nullptr;
+        }
+    }
+
+    void UserOutputs::init() {}
 
     void UserOutputs::all_off() {
         for (size_t io_num = 0; io_num < MaxUserDigitalPin; io_num++) {
