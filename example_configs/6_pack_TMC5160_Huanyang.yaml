@@ -3,7 +3,7 @@ name: 6 Pack TMC5160 XYZ
 stepping:
   engine: I2S_STREAM
   idle_ms: 255
-  pulse_us: 2
+  pulse_us: 4
   dir_delay_us: 1
   disable_delay_us: 0
 
@@ -28,7 +28,7 @@ axes:
       limit_neg_pin: NO_PIN
       limit_pos_pin: NO_PIN
       limit_all_pin: gpio.33:pu
-      hard_limits: true
+      hard_limits: false
       pulloff_mm:1.000
       tmc_5160:
         cs_pin: i2so.3
@@ -67,7 +67,7 @@ axes:
       limit_neg_pin: NO_PIN
       limit_pos_pin: NO_PIN
       limit_all_pin: gpio.32:pu
-      hard_limits: true
+      hard_limits: false
       pulloff_mm:1.000
       tmc_5160:
         cs_pin: i2so.6
@@ -106,7 +106,7 @@ axes:
       limit_neg_pin: NO_PIN
       limit_pos_pin: NO_PIN
       limit_all_pin: gpio.35
-      hard_limits: true
+      hard_limits: false
       pulloff_mm:1.000
       tmc_5160:
         cs_pin: i2so.11

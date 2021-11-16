@@ -4,9 +4,22 @@
 
 #pragma once
 
-#ifdef ENABLE_BLUETOOTH
+#ifndef ENABLE_BLUETOOTH
+namespace WebUI {
+    class BTConfig {
+    public:
+        static String info() { return String(); }
+        static bool   begin() { return false; };
+        static void   end() {};
+        static void   handle() {}
+        static bool   isOn() { return false; }
+    };
+    extern BTConfig bt_config;
+}
+#else
 #    include "../Configuration/Configurable.h"
-#    include "../Config.h"  // ENABLE_*
+#    include "../Config.h"    // ENABLE_*
+#    include "../Settings.h"  // ENABLE_*
 
 #    include <WString.h>
 #    include <BluetoothSerial.h>
@@ -14,7 +27,25 @@
 const char* const DEFAULT_BT_NAME = "FluidNC";
 
 namespace WebUI {
+    extern EnumSetting*   bt_enable;
+    extern StringSetting* bt_name;
+
     extern BluetoothSerial SerialBT;
+
+    class BTChannel : public Channel {
+    private:
+    public:
+        // BTChannel(bool addCR = false) : _linelen(0), _addCR(addCR) {}
+        BTChannel() : Channel("bluetooth", true) {}
+        virtual ~BTChannel() = default;
+
+        int    available() override { return SerialBT.available(); }
+        int    read() override { return SerialBT.read(); }
+        int    peek() override { return SerialBT.peek(); }
+        void   flush() override { return SerialBT.flush(); }
+        size_t write(uint8_t data) override;
+    };
+    extern BTChannel btChannel;
 
     class BTConfig {
     private:
@@ -42,7 +73,7 @@ namespace WebUI {
         void          end();
         void          handle();
         void          reset_settings();
-        bool          Is_BT_on() const;
+        bool          isOn() const;
 
         ~BTConfig();
     };

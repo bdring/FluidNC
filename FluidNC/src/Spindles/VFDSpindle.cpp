@@ -332,7 +332,7 @@ namespace Spindles {
             // responses from periodic get_current_speed() requests.
             // It changes as the actual speed ramps toward the target.
 
-            _syncing = true;
+            _syncing = true;  // poll for speed
 
             auto minSpeedAllowed = dev_speed > _slop ? (dev_speed - _slop) : 0;
             auto maxSpeedAllowed = dev_speed + _slop;
@@ -341,7 +341,8 @@ namespace Spindles {
             const int limit     = 20;  // 20 * 0.5s = 10 sec
             auto      last      = _sync_dev_speed;
 
-            while ((_sync_dev_speed < minSpeedAllowed || _sync_dev_speed > maxSpeedAllowed) && unchanged < limit) {
+            while ((_last_override_value == sys.spindle_speed_ovr) &&  // skip if the override changes
+                   ((_sync_dev_speed < minSpeedAllowed || _sync_dev_speed > maxSpeedAllowed) && unchanged < limit)) {
 #ifdef DEBUG_VFD
                 log_debug("Syncing speed. Requested: " << int(dev_speed) << " current:" << int(_sync_dev_speed));
 #endif
@@ -356,6 +357,8 @@ namespace Spindles {
                 unchanged = (_sync_dev_speed == last) ? unchanged + 1 : 0;
                 last      = _sync_dev_speed;
             }
+            _last_override_value = sys.spindle_speed_ovr;
+
 #ifdef DEBUG_VFD
             log_debug("Synced speed. Requested:" << int(dev_speed) << " current:" << int(_sync_dev_speed));
 #endif
@@ -389,6 +392,7 @@ namespace Spindles {
     }
 
     void VFD::set_mode(SpindleState mode, bool critical) {
+        _last_override_value = sys.spindle_speed_ovr;  // sync these on mode changes
         if (vfd_cmd_queue) {
             VFDaction action;
             action.action   = actionSetMode;
@@ -401,12 +405,20 @@ namespace Spindles {
     }
 
     void IRAM_ATTR VFD::setSpeedfromISR(uint32_t dev_speed) {
+        if (_current_dev_speed == dev_speed || _last_speed == dev_speed) {
+            return;
+        }
+
+        _last_speed = dev_speed;
+
         if (vfd_cmd_queue) {
             VFDaction action;
             action.action   = actionSetSpeed;
             action.arg      = dev_speed;
             action.critical = (dev_speed == 0);
-            xQueueSendFromISR(vfd_cmd_queue, &action, 0);
+            if (xQueueSendFromISR(vfd_cmd_queue, &action, 0) != pdTRUE) {
+                log_info("VFD Queue Full");
+            }
         }
     }
 
@@ -416,7 +428,9 @@ namespace Spindles {
             action.action   = actionSetSpeed;
             action.arg      = dev_speed;
             action.critical = dev_speed == 0;
-            xQueueSend(vfd_cmd_queue, &action, 0);
+            if (xQueueSend(vfd_cmd_queue, &action, 0) != pdTRUE) {
+                log_info("VFD Queue Full");
+            }
         }
     }
 

@@ -4,9 +4,11 @@
 #pragma once
 
 #include "../Config.h"  // ENABLE_*
+#include "../FileStream.h"
 
 #ifdef ENABLE_WIFI
 
+#    include "../Settings.h"
 #    include "Authentication.h"  // AuthenticationLevel
 #    include "Commands.h"
 
@@ -14,6 +16,15 @@ class WebSocketsServer;
 class WebServer;
 
 namespace WebUI {
+    static const int DEFAULT_HTTP_STATE = 1;
+    static const int DEFAULT_HTTP_PORT  = 80;
+
+    static const int MIN_HTTP_PORT = 1;
+    static const int MAX_HTTP_PORT = 65001;
+
+    extern EnumSetting* http_enable;
+    extern IntSetting*  http_port;
+
 #    ifdef ENABLE_AUTHENTICATION
     struct AuthenticationIP {
         IPAddress           ip;
@@ -26,7 +37,7 @@ namespace WebUI {
 #    endif
 
     //Upload status
-    enum class UploadStatusType : uint8_t { NONE = 0, FAILED = 1, CANCELLED = 2, SUCCESSFUL = 3, ONGOING = 4 };
+    enum class UploadStatus : uint8_t { NONE = 0, FAILED = 1, CANCELLED = 2, SUCCESSFUL = 3, ONGOING = 4 };
 
     class Web_Server {
     public:
@@ -42,14 +53,17 @@ namespace WebUI {
         ~Web_Server();
 
     private:
-        static bool                _setupdone;
-        static WebServer*          _webserver;
-        static long                _id_connection;
-        static WebSocketsServer*   _socket_server;
-        static uint16_t            _port;
-        static UploadStatusType    _upload_status;
-        static String              getContentType(String filename);
-        static String              get_Splited_Value(String data, char separator, int index);
+        static bool              _setupdone;
+        static WebServer*        _webserver;
+        static long              _id_connection;
+        static WebSocketsServer* _socket_server;
+        static uint16_t          _port;
+        static UploadStatus      _upload_status;
+        static String            _uploadFilename;
+        static FileStream*       _uploadFile;
+        static String            getContentType(String filename);
+        static String            get_Splited_Value(String data, char separator, int index);
+
         static AuthenticationLevel is_authenticated();
 #    ifdef ENABLE_AUTHENTICATION
         static AuthenticationIP*   _head;
@@ -77,6 +91,14 @@ namespace WebUI {
         static void handle_direct_SDFileList();
         static void SDFile_direct_upload();
         static bool deleteRecursive(String path);
+        static void uploadStart(String filename, size_t filesize, const char* fs);
+        static void uploadWrite(uint8_t* buffer, size_t length);
+        static void uploadEnd(size_t filesize, const char* fs);
+        static void uploadStop();
+        static void uploadCheck(String filename, const char* fs);
+        static void deleteFile(const char* filename, const char* fs);
+
+        static uint64_t fsAvail(const char* fs);
     };
 
     extern Web_Server web_server;

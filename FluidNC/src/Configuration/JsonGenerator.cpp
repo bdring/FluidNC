@@ -76,6 +76,11 @@ namespace Configuration {
     void JsonGenerator::item(const char* name, float& value, float minValue, float maxValue) {
         enter(name);
         // WebUI does not explicitly recognize the R type, but nevertheless handles it correctly.
+        if (value > 999999.999f) {
+            value = 999999.999f;
+        } else if (value < -999999.999f) {
+            value = -999999.999f;
+        }
         _encoder.begin_webui(_currentPath, _currentPath, "R", String(value, 3).c_str());
         _encoder.end_object();
         leave();
@@ -114,7 +119,7 @@ namespace Configuration {
 
     void JsonGenerator::item(const char* name, int& value, EnumItem* e) {
         enter(name);
-        int         selected_val = 0;
+        int selected_val = 0;
         //const char* str          = "unknown";
         for (auto e2 = e; e2->name; ++e2) {
             if (value == e2->value) {

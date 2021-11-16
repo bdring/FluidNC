@@ -11,10 +11,6 @@
 #include <vector>
 #include <nvs.h>
 
-#ifdef ENABLE_WIFI
-#    include <WiFi.h>
-#endif
-
 bool anyState() {
     return false;
 }
@@ -401,7 +397,7 @@ void EnumSetting::addWebui(WebUI::JSONencoder* j) {
     j->end_object();
 }
 
-Error UserCommand::action(char* value, WebUI::AuthenticationLevel auth_level, Print& out) {
+Error UserCommand::action(char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
     if (_cmdChecker && _cmdChecker()) {
         return Error::IdleError;
     }

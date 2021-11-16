@@ -4,6 +4,8 @@
 
 #include "MachineConfig.h"
 
+#include "../Kinematics/Kinematics.h"
+
 #include "../Motors/MotorDriver.h"
 #include "../Motors/NullMotor.h"
 
@@ -35,6 +37,7 @@ namespace Machine {
 
         handler.section("stepping", _stepping);
         handler.section("axes", _axes);
+        handler.section("kinematics", _kinematics);
         handler.section("i2so", _i2so);
         handler.section("spi", _spi);
         handler.section("sdcard", _sdCard);
@@ -46,8 +49,8 @@ namespace Machine {
 
         handler.section("user_outputs", _userOutputs);
         // TODO: Consider putting these under a gcode: hierarchy level? Or motion control?
-        handler.item("arc_tolerance_mm", _arcTolerance);
-        handler.item("junction_deviation_mm", _junctionDeviation);
+        handler.item("arc_tolerance_mm", _arcTolerance, 0.001, 1.0);
+        handler.item("junction_deviation_mm", _junctionDeviation, 0.01, 1.0);
         handler.item("verbose_errors", _verboseErrors);
         handler.item("report_inches", _reportInches);
         handler.item("enable_parking_override_control", _enableParkingOverrideControl);
@@ -64,6 +67,10 @@ namespace Machine {
 
         if (_coolant == nullptr) {
             _coolant = new CoolantControl();
+        }
+
+        if (_kinematics == nullptr) {
+            _kinematics = new Kinematics();
         }
 
         if (_probe == nullptr) {

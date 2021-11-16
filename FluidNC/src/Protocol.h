@@ -34,9 +34,6 @@ void protocol_auto_cycle_start();
 // Block until all buffered steps are executed
 void protocol_buffer_synchronize();
 
-// Executes the auto cycle feature, if enabled.
-void protocol_auto_cycle_start();
-
 // Disables the stepper motors or schedules it to happen
 void protocol_disable_steppers();
 
@@ -52,6 +49,15 @@ extern volatile bool rtButtonMacro0;
 extern volatile bool rtButtonMacro1;
 extern volatile bool rtButtonMacro2;
 extern volatile bool rtButtonMacro3;
+
+#ifdef DEBUG_STEPPING
+extern volatile bool rtCrash;
+extern volatile bool rtSeq;
+extern volatile bool rtSegSeq;
+extern volatile bool rtTestPl;
+extern volatile bool rtTestSt;
+extern uint32_t      expected_steps[MAX_N_AXIS];
+#endif
 
 #ifdef DEBUG_REPORT_REALTIME
 extern volatile bool rtExecDebug;
@@ -79,18 +85,19 @@ extern volatile Percent rtSOverride;  // Spindle override value in percent
 
 // Alarm codes.
 enum class ExecAlarm : uint8_t {
-    None               = 0,
-    HardLimit          = 1,
-    SoftLimit          = 2,
-    AbortCycle         = 3,
-    ProbeFailInitial   = 4,
-    ProbeFailContact   = 5,
-    HomingFailReset    = 6,
-    HomingFailDoor     = 7,
-    HomingFailPulloff  = 8,
-    HomingFailApproach = 9,
-    SpindleControl     = 10,
-    ControlPin         = 11,
+    None                  = 0,
+    HardLimit             = 1,
+    SoftLimit             = 2,
+    AbortCycle            = 3,
+    ProbeFailInitial      = 4,
+    ProbeFailContact      = 5,
+    HomingFailReset       = 6,
+    HomingFailDoor        = 7,
+    HomingFailPulloff     = 8,
+    HomingFailApproach    = 9,
+    SpindleControl        = 10,
+    ControlPin            = 11,
+    HomingAmbiguousSwitch = 12,
 };
 
 extern volatile ExecAlarm rtAlarm;  // Global realtime executor variable for setting various alarms.

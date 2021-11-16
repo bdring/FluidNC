@@ -21,7 +21,7 @@ axes:
       mpos_mm: 150.000
       feed_mm_per_min: 100.000
       seek_mm_per_min: 200.000
-      debounce_ms: 500
+      settle_ms: 500
       seek_scaler: 1.100
       feed_scaler: 1.100
 
@@ -61,7 +61,7 @@ axes:
       limit_neg_pin: NO_PIN
       limit_pos_pin: NO_PIN
       limit_all_pin: NO_PIN
-      hard_limits: true
+      hard_limits: false
       pulloff_mm:1.000
       null_motor:
 
@@ -77,7 +77,7 @@ axes:
       mpos_mm: 150.000
       feed_mm_per_min: 100.000
       seek_mm_per_min: 200.000
-      debounce_ms: 500
+      settle_ms: 500
       seek_scaler: 1.100
       feed_scaler: 1.100
 
@@ -117,7 +117,7 @@ axes:
       limit_neg_pin: NO_PIN
       limit_pos_pin: NO_PIN
       limit_all_pin: NO_PIN
-      hard_limits: true
+      hard_limits: false
       pulloff_mm:1.000
       null_motor:
 

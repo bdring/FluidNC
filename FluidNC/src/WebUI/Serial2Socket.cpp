@@ -13,12 +13,7 @@ namespace WebUI {
 #    include <WiFi.h>
 
 namespace WebUI {
-    Serial_2_Socket::Serial_2_Socket() {
-        _web_socket   = NULL;
-        _TXbufferSize = 0;
-        _RXbufferSize = 0;
-        _RXbufferpos  = 0;
-    }
+    Serial_2_Socket::Serial_2_Socket() : Channel("websocket"), _web_socket(nullptr), _TXbufferSize(0), _RXbufferSize(0), _RXbufferpos(0) {}
 
     void Serial_2_Socket::begin(long speed) {
         _TXbufferSize = 0;
