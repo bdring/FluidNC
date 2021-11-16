@@ -696,6 +696,31 @@ static void protocol_execute_overrides() {
     }
 }
 
+// This is the final phase of the shutdown activity that is initiated by mc_reset().
+// The stuff herein is not necessarily safe to do in an ISR.
+static void protocol_do_late_reset() {
+    // Kill spindle and coolant.
+    spindle->stop();
+    report_ovr_counter = 0;  // Set to report change immediately
+    config->_coolant->stop();
+
+    // turn off all User I/O immediately
+    config->_userOutputs->all_off();
+
+    // do we need to stop a running file job?
+    if (infile) {
+        //Report print stopped
+        _notifyf("File print canceled", "Reset during file job at line: %d", infile->getLineNumber());
+        // log_info() does not work well in this case because the message gets broken in half
+        // by report_init_message().  The flow of control that causes it is obscure.
+        infile->getChannel() << "[MSG:"
+                             << "Reset during file jobe at line: " << infile->getLineNumber();
+
+        delete infile;
+        infile = nullptr;
+    }
+}
+
 void protocol_do_macro(int macro_num) {
     // must be in Idle
     if (sys.state != State::Idle) {
@@ -741,7 +766,8 @@ void protocol_exec_rt_system() {
         if (sys.state == State::Homing) {
             rtAlarm = ExecAlarm::HomingFailReset;
         }
-        // Execute system abort.
+        protocol_do_late_reset();
+        // Trigger system abort.
         sys.abort = true;  // Only place this is set true.
         return;            // Nothing else to do but exit.
     }
