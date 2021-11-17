@@ -112,14 +112,15 @@ void setup() {
             config->_probe->init();
         }
 
-        WebUI::wifi_config.begin();
-        WebUI::bt_config.begin();
-        WebUI::inputBuffer.begin();
     } catch (const AssertionFailed& ex) {
         // This means something is terribly broken:
         log_error("Critical error in main_init: " << ex.what());
         sys.state = State::ConfigAlarm;
     }
+
+    WebUI::wifi_config.begin();
+    WebUI::bt_config.begin();
+    WebUI::inputBuffer.begin();
 }
 
 static void reset_variables() {
