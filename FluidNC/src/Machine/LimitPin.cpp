@@ -45,23 +45,6 @@ namespace Machine {
     }
 
     void IRAM_ATTR LimitPin::handleISR() {
-        //bool pinState = _pin.read();
-        //_value        = _pin.read();
-        // if (_value) {
-        //     if (_posLimits != nullptr) {
-        //         set_bits(*_posLimits, _bitmask);
-        //     }
-        //     if (_negLimits != nullptr) {
-        //         set_bits(*_negLimits, _bitmask);
-        //     }
-        // } else {
-        //     if (_posLimits != nullptr) {
-        //         clear_bits(*_posLimits, _bitmask);
-        //     }
-        //     if (_negLimits != nullptr) {
-        //         clear_bits(*_negLimits, _bitmask);
-        //     }
-        // }
         read();
         if (sys.state != State::Alarm && sys.state != State::ConfigAlarm && sys.state != State::Homing) {
             if (_pHardLimits && rtAlarm == ExecAlarm::None) {
