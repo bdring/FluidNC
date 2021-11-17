@@ -213,7 +213,9 @@ void report_ngc_parameters(Print& channel) {
         tlo *= INCH_PER_MM;
     }
     channel << setprecision(3) << tlo << "]\n";
-    report_probe_parameters(channel);
+    if (probe_succeeded) {
+        report_probe_parameters(channel);
+    }
 }
 
 // Print current gcode parser mode state
