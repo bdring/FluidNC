@@ -2,7 +2,9 @@
 // Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
 
 #pragma once
+
 #include <Print.h>
+
 #include "Pin.h"
 
 inline Print& operator<<(Print& lhs, char c) {
@@ -48,4 +50,32 @@ inline Print& operator<<(Print& lhs, double v) {
 inline Print& operator<<(Print& lhs, const Pin& v) {
     lhs.print(v.name());
     return lhs;
+}
+
+class setprecision {
+    int precision;
+
+public:
+    setprecision(int p) : precision(p) {}
+
+    inline void Write(Print& stream, float f) const { stream.print(f, precision); }
+    inline void Write(Print& stream, double d) const { stream.print(d, precision); }
+};
+
+template <class T>
+class FormatContainer {
+public:
+    Print& stream;
+    T      formatter;
+
+    FormatContainer(Print& l, const T& fmt) : stream(l), formatter(fmt) {}
+};
+
+inline FormatContainer<setprecision> operator<<(Print& lhs, setprecision rhs) {
+    return FormatContainer<setprecision>(lhs, rhs);
+}
+template <class T, typename U>
+inline Print& operator<<(FormatContainer<T> lhs, U f) {
+    lhs.formatter.Write(lhs.stream, f);
+    return lhs.stream;
 }

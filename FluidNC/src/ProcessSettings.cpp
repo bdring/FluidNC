@@ -638,19 +638,21 @@ Error do_command_or_setting(const char* key, char* value, WebUI::AuthenticationL
         config->group(rts);
 
         if (rts.isHandled_) {
-            try {
-                Configuration::Validator validator;
-                config->validate();
-                config->group(validator);
-            } catch (std::exception& ex) {
-                log_error("Validation error: " << ex.what());
-                return Error::ConfigurationInvalid;
+            if (value) {
+                // Validate only if something changed, not for display
+                try {
+                    Configuration::Validator validator;
+                    config->validate();
+                    config->group(validator);
+                } catch (std::exception& ex) {
+                    log_error("Validation error: " << ex.what());
+                    return Error::ConfigurationInvalid;
+                }
+
+                Configuration::AfterParse afterParseHandler;
+                config->afterParse();
+                config->group(afterParseHandler);
             }
-
-            Configuration::AfterParse afterParseHandler;
-            config->afterParse();
-            config->group(afterParseHandler);
-
             return Error::Ok;
         }
     } catch (const Configuration::ParseException& ex) {

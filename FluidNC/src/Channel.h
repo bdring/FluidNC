@@ -33,6 +33,7 @@ public:
     Channel(const char* name, bool addCR = false) : _name(name), _linelen(0), _addCR(addCR) {}
     virtual ~Channel() = default;
 
+    virtual void     handle() {};
     virtual Channel* pollLine(char* line);
     virtual void     ack(Error status);
     const char*      name() { return _name; }

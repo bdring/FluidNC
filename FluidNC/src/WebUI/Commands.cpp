@@ -19,7 +19,7 @@ esp_err_t esp_task_wdt_reset();
 #endif
 
 namespace WebUI {
-    bool COMMANDS::restart_ESP_module = false;
+    bool COMMANDS::_restart_MCU = false;
 
     /*
      * delay is to avoid with asyncwebserver and may need to wait sometimes
@@ -57,7 +57,7 @@ namespace WebUI {
     /**
      * Restart ESP
      */
-    void COMMANDS::restart_ESP() { restart_ESP_module = true; }
+    void COMMANDS::restart_MCU() { _restart_MCU = true; }
 
     /**
      * Handle not critical actions that must be done in sync environement
@@ -65,7 +65,7 @@ namespace WebUI {
     void COMMANDS::handle() {
         COMMANDS::wait(0);
         //in case of restart requested
-        if (restart_ESP_module) {
+        if (_restart_MCU) {
             ESP.restart();
             while (1) {}
         }

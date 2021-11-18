@@ -6,22 +6,16 @@
 namespace WebUI {
     // Constructor.  If _pretty is true, newlines are
     // inserted into the JSON string for easy reading.
-    JSONencoder::JSONencoder(bool pretty, Print* s) : pretty(pretty), level(0), str(""), stream(s), category("nvs") { count[level] = 0; }
+    JSONencoder::JSONencoder(bool pretty, Print& s) : pretty(pretty), level(0), stream(s), category("nvs") { count[level] = 0; }
 
     // Constructor.  If _pretty is true, newlines are
     // inserted into the JSON string for easy reading.
-    JSONencoder::JSONencoder(bool pretty) : JSONencoder(pretty, nullptr) {}
+    // JSONencoder::JSONencoder(bool pretty) : JSONencoder(pretty, nullptr) {}
 
     // Constructor that supplies a default falue for "pretty"
-    JSONencoder::JSONencoder() : JSONencoder(false) {}
+    // JSONencoder::JSONencoder() : JSONencoder(false) {}
 
-    void JSONencoder::add(char c) {
-        if (stream) {
-            (*stream) << c;
-        } else {
-            str += c;
-        }
-    }
+    void JSONencoder::add(char c) { stream << c; }
 
     // Private function to add commas between
     // elements as needed, omitting the comma
@@ -49,11 +43,7 @@ namespace WebUI {
     // Private function to add a name enclosed with quotes.
     void JSONencoder::quoted(const char* s) {
         add('"');
-        if (stream) {
-            (*stream) << s;
-        } else {
-            str.concat(s);
-        }
+        stream << s;
         add('"');
     }
 
@@ -86,12 +76,11 @@ namespace WebUI {
 
     // Finishes the JSON encoding process, closing the unnamed object
     // and returning the encoded string
-    String JSONencoder::end() {
+    void JSONencoder::end() {
         end_object();
         if (pretty) {
             add('\n');
         }
-        return str;
     }
 
     // Starts a member element.

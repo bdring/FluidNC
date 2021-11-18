@@ -22,6 +22,8 @@ namespace Machine {
 
         void IRAM_ATTR handleISR();
 
+        void read();
+
     public:
         LimitPin(Pin& pin, int axis, int motorNum, int direction, bool& phardLimits);
 

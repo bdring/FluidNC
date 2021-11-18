@@ -4,9 +4,7 @@
 #include "../Machine/MachineConfig.h"
 
 namespace Kinematics {
-    void Cartesian::init() {
-        log_info("Kinematic system: " << name());
-    }
+    void Cartesian::init() { log_info("Kinematic system: " << name()); }
 
     bool Cartesian::kinematics_homing(AxisMask cycle_mask) {
         // Do nothing.
@@ -29,21 +27,23 @@ namespace Kinematics {
 
     // Checks and reports if target array exceeds machine travel limits.
     // Return true if exceeding limits
-    // Set $<axis>/MaxTravel=0 to selectively remove an axis from soft limit checks
     bool Cartesian::limitsCheckTravel(float* target) {
         auto axes   = config->_axes;
         auto n_axis = config->_axes->_numberAxis;
 
         float cartesian[n_axis];
-        motors_to_cartesian(cartesian, target, 0);  // Convert to cartesian then check
+        motors_to_cartesian(cartesian, target, n_axis);  // Convert to cartesian then check
 
+        bool limit_error = false;
         for (int axis = 0; axis < n_axis; axis++) {
             auto axisSetting = axes->_axis[axis];
-            if ((cartesian[axis] < limitsMinPosition(axis) || cartesian[axis] > limitsMaxPosition(axis)) && axisSetting->_maxTravel > 0) {
-                return true;
+            if (cartesian[axis] < limitsMinPosition(axis) || cartesian[axis] > limitsMaxPosition(axis)) {
+                String axis_letter = String(Machine::Axes::_names[axis]);
+                log_info("Soft limit on " << axis_letter << " target:" << cartesian[axis]);
+                limit_error = true;
             }
         }
-        return false;
+        return limit_error;
     }
 
     // Configuration registration

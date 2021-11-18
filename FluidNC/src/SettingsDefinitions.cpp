@@ -20,6 +20,8 @@ enum_opt_t messageLevels = {
     // clang-format on
 };
 
+enum_opt_t onoffOptions = { { "OFF", 0 }, { "ON", 1 } };
+
 void make_coordinate(CoordIndex index, const char* name) {
     float coord_data[MAX_N_AXIS] = { 0.0 };
     auto  coord                  = new Coordinates(name);

@@ -81,7 +81,13 @@ namespace WebUI {
     String      Web_Server::_uploadFilename;
     FileStream* Web_Server::_uploadFile = nullptr;
 
-    Web_Server::Web_Server() {}
+    EnumSetting* http_enable;
+    IntSetting*  http_port;
+
+    Web_Server::Web_Server() {
+        http_port   = new IntSetting("HTTP Port", WEBSET, WA, "ESP121", "HTTP/Port", DEFAULT_HTTP_PORT, MIN_HTTP_PORT, MAX_HTTP_PORT, NULL);
+        http_enable = new EnumSetting("HTTP Enable", WEBSET, WA, "ESP120", "HTTP/Enable", DEFAULT_HTTP_STATE, &onoffOptions, NULL);
+    }
     Web_Server::~Web_Server() { end(); }
 
     long Web_Server::get_client_ID() { return _id_connection; }
@@ -110,6 +116,7 @@ namespace WebUI {
 
         //Websocket output
         Serial2Socket.attachWS(_socket_server);
+        allChannels.registration(&WebUI::Serial2Socket);
 
         //events functions
         //_web_events->onConnect(handle_onevent_connect);
@@ -200,6 +207,7 @@ namespace WebUI {
         mdns_service_remove("_http", "_tcp");
 
         if (_socket_server) {
+            allChannels.deregistration(&WebUI::Serial2Socket);
             delete _socket_server;
             _socket_server = NULL;
         }
@@ -918,7 +926,7 @@ namespace WebUI {
         //if success restart
         if (_upload_status == UploadStatus::SUCCESSFUL) {
             COMMANDS::wait(1000);
-            COMMANDS::restart_ESP();
+            COMMANDS::restart_MCU();
         } else {
             _upload_status = UploadStatus::NONE;
         }

@@ -4,9 +4,22 @@
 
 #pragma once
 
-#ifdef ENABLE_BLUETOOTH
+#ifndef ENABLE_BLUETOOTH
+namespace WebUI {
+    class BTConfig {
+    public:
+        static String info() { return String(); }
+        static bool   begin() { return false; };
+        static void   end() {};
+        static void   handle() {}
+        static bool   isOn() { return false; }
+    };
+    extern BTConfig bt_config;
+}
+#else
 #    include "../Configuration/Configurable.h"
-#    include "../Config.h"  // ENABLE_*
+#    include "../Config.h"    // ENABLE_*
+#    include "../Settings.h"  // ENABLE_*
 
 #    include <WString.h>
 #    include <BluetoothSerial.h>
@@ -14,6 +27,9 @@
 const char* const DEFAULT_BT_NAME = "FluidNC";
 
 namespace WebUI {
+    extern EnumSetting*   bt_enable;
+    extern StringSetting* bt_name;
+
     extern BluetoothSerial SerialBT;
 
     class BTChannel : public Channel {
@@ -57,7 +73,7 @@ namespace WebUI {
         void          end();
         void          handle();
         void          reset_settings();
-        bool          Is_BT_on() const;
+        bool          isOn() const;
 
         ~BTConfig();
     };

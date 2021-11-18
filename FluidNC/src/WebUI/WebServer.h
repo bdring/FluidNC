@@ -8,6 +8,7 @@
 
 #ifdef ENABLE_WIFI
 
+#    include "../Settings.h"
 #    include "Authentication.h"  // AuthenticationLevel
 #    include "Commands.h"
 
@@ -15,6 +16,15 @@ class WebSocketsServer;
 class WebServer;
 
 namespace WebUI {
+    static const int DEFAULT_HTTP_STATE = 1;
+    static const int DEFAULT_HTTP_PORT  = 80;
+
+    static const int MIN_HTTP_PORT = 1;
+    static const int MAX_HTTP_PORT = 65001;
+
+    extern EnumSetting* http_enable;
+    extern IntSetting*  http_port;
+
 #    ifdef ENABLE_AUTHENTICATION
     struct AuthenticationIP {
         IPAddress           ip;

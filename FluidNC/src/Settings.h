@@ -342,7 +342,7 @@ public:
 
 class WebCommand : public Command {
 private:
-    Error (*_action)(char*, WebUI::AuthenticationLevel);
+    Error (*_action)(char*, WebUI::AuthenticationLevel, Channel& out);
     const char* password;
 
 public:
@@ -351,20 +351,12 @@ public:
                permissions_t permissions,
                const char*   grblName,
                const char*   name,
-               Error (*action)(char*, WebUI::AuthenticationLevel),
-               bool (*cmdChecker)()) :
+               Error (*action)(char*, WebUI::AuthenticationLevel, Channel& out),
+               bool (*cmdChecker)() = notIdleOrAlarm) :
         Command(description, type, permissions, grblName, name, cmdChecker),
         _action(action) {}
 
-    WebCommand(const char*   description,
-               type_t        type,
-               permissions_t permissions,
-               const char*   grblName,
-               const char*   name,
-               Error (*action)(char*, WebUI::AuthenticationLevel)) :
-        WebCommand(description, type, permissions, grblName, name, action, notIdleOrAlarm) {}
-
-    Error action(char* value, WebUI::AuthenticationLevel auth_level, Channel& response);
+    Error action(char* value, WebUI::AuthenticationLevel auth_level, Channel& out);
 };
 
 class UserCommand : public Command {
@@ -376,15 +368,10 @@ public:
                 const char* name,
                 Error (*action)(const char*, WebUI::AuthenticationLevel, Channel&),
                 bool (*cmdChecker)(),
-                permissions_t auth) :
+                permissions_t auth = WG) :
         Command(NULL, GRBLCMD, auth, grblName, name, cmdChecker),
         _action(action) {}
 
-    UserCommand(const char* grblName,
-                const char* name,
-                Error (*action)(const char*, WebUI::AuthenticationLevel, Channel&),
-                bool (*cmdChecker)()) :
-        UserCommand(grblName, name, action, cmdChecker, WG) {}
     Error action(char* value, WebUI::AuthenticationLevel auth_level, Channel& response);
 };
 
@@ -393,3 +380,5 @@ void  settings_execute_startup();
 Error settings_execute_line(char* line, Channel& out, WebUI::AuthenticationLevel);
 Error do_command_or_setting(const char* key, char* value, WebUI::AuthenticationLevel auth_level, Channel&);
 Error execute_line(char* line, Channel& channel, WebUI::AuthenticationLevel auth_level);
+
+extern enum_opt_t onoffOptions;
