@@ -109,7 +109,7 @@ void mc_cancel_jog() {
 // unless invert_feed_rate is true. Then the feed_rate means that the motion should be completed in
 // (1 minute)/feed_rate time.
 bool mc_linear(float* target, plan_line_data_t* pl_data, float* position) {
-  return config->_kinematics->cartesian_to_motors(target, pl_data, position);
+    return config->_kinematics->cartesian_to_motors(target, pl_data, position);
 }
 
 // Execute an arc in offset mode format. position == current xyz, target == target xyz,
@@ -256,7 +256,6 @@ bool mc_dwell(int32_t milliseconds) {
 // NOTE: There should be no motions in the buffer and the system must be in idle state before
 // executing the homing cycle. This prevents incorrect buffered plans after homing.
 void mc_homing_cycle(AxisMask axis_mask) {
-
     if (config->_kinematics->kinematics_homing(axis_mask)) {
         // Allow kinematics to replace homing.
         // TODO: Better integrate this logic.
@@ -408,32 +407,12 @@ void mc_override_ctrl_update(Override override_state) {
 // active processes in the system. This also checks if a system reset is issued while in
 // motion state. If so, kills the steppers and sets the system alarm to flag position
 // lost, since there was an abrupt uncontrolled deceleration. Called at an interrupt level by
-// realtime abort command and hard limits. So, keep to a minimum.
+// realtime abort command and hard limits. So, keep to a minimum.  Stuff that cannot be
+// done quickly is handled later when Protocol.cpp responds to rtReset.
 void mc_reset() {
-    log_debug("mc_reset()");
     // Only this function can set the system reset. Helps prevent multiple kill calls.
     if (!rtReset) {
         rtReset = true;
-        // Kill spindle and coolant.
-        spindle->stop();
-        report_ovr_counter = 0;  // Set to report change immediately
-        config->_coolant->stop();
-
-        // turn off all User I/O immediately
-        config->_userOutputs->all_off();
-
-        // do we need to stop a running file job?
-        if (infile) {
-            //Report print stopped
-            _notifyf("File print canceled", "Reset during file job at line: %d", infile->getLineNumber());
-            // log_info() does not work well in this case because the message gets broken in half
-            // by report_init_message().  The flow of control that causes it is obscure.
-            infile->getChannel() << "[MSG:"
-                                 << "Reset during file jobe at line: " << infile->getLineNumber();
-
-            delete infile;
-            infile = nullptr;
-        }
 
         // Kill steppers only if in any motion state, i.e. cycle, actively holding, or homing.
         // NOTE: If steppers are kept enabled via the step idle delay setting, this also keeps
