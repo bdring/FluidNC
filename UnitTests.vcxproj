@@ -77,9 +77,9 @@
     <ClInclude Include="FluidNC\src\Spindles\PWMSpindle.h" />
     <ClInclude Include="FluidNC\test\TestFactory.h" />
     <ClInclude Include="FluidNC\test\TestFramework.h" />
-    <ClInclude Include="X86TestSupport\Arduino.h" />
-    <ClInclude Include="X86TestSupport\Capture.h" />
-    <ClInclude Include="X86TestSupport\driver\uart.h" />
+    <ClInclude Include="X86TestSupport\TestSupport\Arduino.h" />
+    <ClInclude Include="X86TestSupport\TestSupport\Capture.h" />
+    <ClInclude Include="X86TestSupport\TestSupport\driver\uart.h" />
     <ClInclude Include="FluidNC\src\Machine\WifiAPConfig.h" />
     <ClInclude Include="FluidNC\src\Configuration\HandlerBase.h" />
     <ClInclude Include="FluidNC\src\Motors\Solenoid.h" />
@@ -98,9 +98,9 @@
     <ClInclude Include="FluidNC\src\StringStream.h" />
     <ClInclude Include="FluidNC\src\Configuration\AfterParse.h" />
     <ClInclude Include="FluidNC\src\UserOutput.h" />
-    <ClInclude Include="X86TestSupport\driver\ledc.h" />
+    <ClInclude Include="X86TestSupport\TestSupport\driver\ledc.h" />
     <ClInclude Include="FluidNC\src\Motors\MotorDriver.h" />
-    <ClInclude Include="X86TestSupport\driver\rmt.h" />
+    <ClInclude Include="X86TestSupport\TestSupport\driver\rmt.h" />
     <ClInclude Include="FluidNC\src\Machine\WifiConfig.h" />
     <ClInclude Include="FluidNC\src\WebUI\NoFile.h" />
     <ClInclude Include="FluidNC\src\WebUI\NotificationsService.h" />
@@ -120,7 +120,7 @@
     <ClInclude Include="FluidNC\src\Machine\Motor.h" />
     <ClInclude Include="FluidNC\src\FileStream.h" />
     <ClInclude Include="FluidNC\src\Machine\Axes.h" />
-    <ClInclude Include="X86TestSupport\driver\dac.h" />
+    <ClInclude Include="X86TestSupport\TestSupport\driver\dac.h" />
     <ClInclude Include="FluidNC\src\Configuration\LegacySettingHandler.h" />
     <ClInclude Include="FluidNC\src\CoolantControl.h" />
     <ClInclude Include="FluidNC\src\Machine\I2SOBus.h" />
@@ -172,42 +172,42 @@
     <ClInclude Include="FluidNC\src\Pins\ErrorPinDetail.h" />
     <ClInclude Include="FluidNC\src\Spindles\H2ASpindle.h" />
     <ClInclude Include="FluidNC\src\Protocol.h" />
-    <ClInclude Include="X86TestSupport\Esp.h" />
-    <ClInclude Include="X86TestSupport\esp32-hal-cpu.h" />
-    <ClInclude Include="X86TestSupport\esp32-hal-dac.h" />
-    <ClInclude Include="X86TestSupport\esp32-hal-gpio.h" />
-    <ClInclude Include="X86TestSupport\esp32-hal-ledc.h" />
-    <ClInclude Include="X86TestSupport\esp32-hal-matrix.h" />
-    <ClInclude Include="X86TestSupport\esp32-hal-timer.h" />
-    <ClInclude Include="X86TestSupport\esp32-hal.h" />
-    <ClInclude Include="X86TestSupport\esp_attr.h" />
-    <ClInclude Include="X86TestSupport\esp_err.h" />
-    <ClInclude Include="X86TestSupport\esp_system.h" />
-    <ClInclude Include="X86TestSupport\freertos\FreeRTOS.h" />
-    <ClInclude Include="X86TestSupport\freertos\FreeRTOSTypes.h" />
-    <ClInclude Include="X86TestSupport\freertos\Queue.h" />
-    <ClInclude Include="X86TestSupport\freertos\task.h" />
-    <ClInclude Include="X86TestSupport\FS.h" />
-    <ClInclude Include="X86TestSupport\FSImpl.h" />
-    <ClInclude Include="X86TestSupport\IPAddress.h" />
-    <ClInclude Include="X86TestSupport\nvs.h" />
-    <ClInclude Include="X86TestSupport\Print.h" />
-    <ClInclude Include="X86TestSupport\Printable.h" />
-    <ClInclude Include="X86TestSupport\SD.h" />
-    <ClInclude Include="X86TestSupport\soc\dport_reg.h" />
-    <ClInclude Include="X86TestSupport\soc\gpio_sig_map.h" />
-    <ClInclude Include="X86TestSupport\soc\io_mux_reg.h" />
-    <ClInclude Include="X86TestSupport\soc\ledc_struct.h" />
-    <ClInclude Include="X86TestSupport\soc\rtc.h" />
-    <ClInclude Include="X86TestSupport\soc\uart_reg.h" />
-    <ClInclude Include="X86TestSupport\SoftwareGPIO.h" />
-    <ClInclude Include="X86TestSupport\SPI.h" />
-    <ClInclude Include="X86TestSupport\SPIFFS.h" />
-    <ClInclude Include="X86TestSupport\Stream.h" />
-    <ClInclude Include="X86TestSupport\TMC\TMCStepper.h" />
-    <ClInclude Include="X86TestSupport\TMC\TMCStepper_UTILITY.h" />
-    <ClInclude Include="X86TestSupport\WString.h" />
-    <ClInclude Include="X86TestSupport\xtensa\core-macros.h" />
+    <ClInclude Include="X86TestSupport\TestSupport\Esp.h" />
+    <ClInclude Include="X86TestSupport\TestSupport\esp32-hal-cpu.h" />
+    <ClInclude Include="X86TestSupport\TestSupport\esp32-hal-dac.h" />
+    <ClInclude Include="X86TestSupport\TestSupport\esp32-hal-gpio.h" />
+    <ClInclude Include="X86TestSupport\TestSupport\esp32-hal-ledc.h" />
+    <ClInclude Include="X86TestSupport\TestSupport\esp32-hal-matrix.h" />
+    <ClInclude Include="X86TestSupport\TestSupport\esp32-hal-timer.h" />
+    <ClInclude Include="X86TestSupport\TestSupport\esp32-hal.h" />
+    <ClInclude Include="X86TestSupport\TestSupport\esp_attr.h" />
+    <ClInclude Include="X86TestSupport\TestSupport\esp_err.h" />
+    <ClInclude Include="X86TestSupport\TestSupport\esp_system.h" />
+    <ClInclude Include="X86TestSupport\TestSupport\freertos\FreeRTOS.h" />
+    <ClInclude Include="X86TestSupport\TestSupport\freertos\FreeRTOSTypes.h" />
+    <ClInclude Include="X86TestSupport\TestSupport\freertos\Queue.h" />
+    <ClInclude Include="X86TestSupport\TestSupport\freertos\task.h" />
+    <ClInclude Include="X86TestSupport\TestSupport\FS.h" />
+    <ClInclude Include="X86TestSupport\TestSupport\FSImpl.h" />
+    <ClInclude Include="X86TestSupport\TestSupport\IPAddress.h" />
+    <ClInclude Include="X86TestSupport\TestSupport\nvs.h" />
+    <ClInclude Include="X86TestSupport\TestSupport\Print.h" />
+    <ClInclude Include="X86TestSupport\TestSupport\Printable.h" />
+    <ClInclude Include="X86TestSupport\TestSupport\SD.h" />
+    <ClInclude Include="X86TestSupport\TestSupport\soc\dport_reg.h" />
+    <ClInclude Include="X86TestSupport\TestSupport\soc\gpio_sig_map.h" />
+    <ClInclude Include="X86TestSupport\TestSupport\soc\io_mux_reg.h" />
+    <ClInclude Include="X86TestSupport\TestSupport\soc\ledc_struct.h" />
+    <ClInclude Include="X86TestSupport\TestSupport\soc\rtc.h" />
+    <ClInclude Include="X86TestSupport\TestSupport\soc\uart_reg.h" />
+    <ClInclude Include="X86TestSupport\TestSupport\SoftwareGPIO.h" />
+    <ClInclude Include="X86TestSupport\TestSupport\SPI.h" />
+    <ClInclude Include="X86TestSupport\TestSupport\SPIFFS.h" />
+    <ClInclude Include="X86TestSupport\TestSupport\Stream.h" />
+    <ClInclude Include="X86TestSupport\TestSupport\TMC\TMCStepper.h" />
+    <ClInclude Include="X86TestSupport\TestSupport\TMC\TMCStepper_UTILITY.h" />
+    <ClInclude Include="X86TestSupport\TestSupport\WString.h" />
+    <ClInclude Include="X86TestSupport\TestSupport\xtensa\core-macros.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="FluidNC\src\System.cpp" />
@@ -273,8 +273,8 @@
     <ClCompile Include="FluidNC\test\TestFactory.cpp" />
     <ClCompile Include="FluidNC\test\TestFrameworkTest.cpp" />
     <ClCompile Include="FluidNC\test\test_main.cpp" />
-    <ClCompile Include="X86TestSupport\Arduino.cpp" />
-    <ClCompile Include="X86TestSupport\driver\uartdriver.cpp" />
+    <ClCompile Include="X86TestSupport\TestSupport\Arduino.cpp" />
+    <ClCompile Include="X86TestSupport\TestSupport\driver\uartdriver.cpp" />
     <ClCompile Include="FluidNC\src\PinUsers\PwmPin.cpp" />
     <ClCompile Include="FluidNC\src\WebUI\Commands.cpp" />
     <ClCompile Include="FluidNC\src\Machine\Homing.cpp" />
@@ -297,18 +297,18 @@
     <ClCompile Include="FluidNC\src\Planner.cpp" />
     <ClCompile Include="FluidNC\src\Jog.cpp" />
     <ClCompile Include="FluidNC\src\Logging.cpp" />
-    <ClCompile Include="X86TestSupport\driver\ledc.cpp" />
+    <ClCompile Include="X86TestSupport\TestSupport\driver\ledc.cpp" />
     <ClCompile Include="FluidNC\src\Configuration\Generator.cpp" />
     <ClCompile Include="FluidNC\src\Spindles\Laser.cpp" />
     <ClCompile Include="FluidNC\src\WebUI\TelnetServer.cpp" />
     <ClCompile Include="FluidNC\src\Probe.cpp" />
     <ClCompile Include="FluidNC\src\Pins\GPIOPinDetail.cpp" />
     <ClCompile Include="FluidNC\src\Spindles\NullSpindle.cpp" />
-    <ClCompile Include="X86TestSupport\driver\dac.cpp" />
+    <ClCompile Include="X86TestSupport\TestSupport\driver\dac.cpp" />
     <ClCompile Include="FluidNC\src\version.cpp" />
     <ClCompile Include="FluidNC\src\Machine\LimitPin.cpp" />
     <ClCompile Include="FluidNC\src\Pins\ErrorPinDetail.cpp" />
-    <ClCompile Include="X86TestSupport\driver\rmt.cpp" />
+    <ClCompile Include="X86TestSupport\TestSupport\driver\rmt.cpp" />
     <ClCompile Include="FluidNC\src\Control.cpp" />
     <ClCompile Include="FluidNC\src\Configuration\LegacySettingRegistry.cpp" />
     <ClCompile Include="FluidNC\src\Serial.cpp" />
@@ -334,20 +334,20 @@
     <ClCompile Include="FluidNC\src\Motors\StepStick.cpp" />
     <ClCompile Include="FluidNC\src\Pins\LedcPin.cpp" />
     <ClCompile Include="FluidNC\src\Pins\PinOptionsParser.cpp" />
-    <ClCompile Include="X86TestSupport\esp32-hal-timer.cpp" />
-    <ClCompile Include="X86TestSupport\ExceptionHelper.cpp" />
-    <ClCompile Include="X86TestSupport\freertos\Queue.cpp" />
-    <ClCompile Include="X86TestSupport\freertos\Task.cpp" />
-    <ClCompile Include="X86TestSupport\FS.cpp" />
-    <ClCompile Include="X86TestSupport\I2SO.cpp" />
-    <ClCompile Include="X86TestSupport\nvs.cpp" />
-    <ClCompile Include="X86TestSupport\Print.cpp" />
-    <ClCompile Include="X86TestSupport\SDFS.cpp" />
-    <ClCompile Include="X86TestSupport\soc\ledc_struct.cpp" />
-    <ClCompile Include="X86TestSupport\SPI.cpp" />
-    <ClCompile Include="X86TestSupport\SPIFFS.cpp" />
-    <ClCompile Include="X86TestSupport\Stream.cpp" />
-    <ClCompile Include="X86TestSupport\WString.cpp" />
+    <ClCompile Include="X86TestSupport\TestSupport\esp32-hal-timer.cpp" />
+    <ClCompile Include="X86TestSupport\TestSupport\ExceptionHelper.cpp" />
+    <ClCompile Include="X86TestSupport\TestSupport\freertos\Queue.cpp" />
+    <ClCompile Include="X86TestSupport\TestSupport\freertos\Task.cpp" />
+    <ClCompile Include="X86TestSupport\TestSupport\FS.cpp" />
+    <ClCompile Include="X86TestSupport\TestSupport\I2SO.cpp" />
+    <ClCompile Include="X86TestSupport\TestSupport\nvs.cpp" />
+    <ClCompile Include="X86TestSupport\TestSupport\Print.cpp" />
+    <ClCompile Include="X86TestSupport\TestSupport\SDFS.cpp" />
+    <ClCompile Include="X86TestSupport\TestSupport\soc\ledc_struct.cpp" />
+    <ClCompile Include="X86TestSupport\TestSupport\SPI.cpp" />
+    <ClCompile Include="X86TestSupport\TestSupport\SPIFFS.cpp" />
+    <ClCompile Include="X86TestSupport\TestSupport\Stream.cpp" />
+    <ClCompile Include="X86TestSupport\TestSupport\WString.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="FluidNC\src\Motors\Dynamixel2.md" />
@@ -361,7 +361,7 @@
     <None Include="FluidNC\test\UnitTests.md" />
   </ItemGroup>
   <ItemGroup>
-    <Text Include="X86TestSupport\TODO.txt" />
+    <Text Include="X86TestSupport\TestSupport\TODO.txt" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
@@ -377,7 +377,7 @@
       <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
       <WarningLevel>Level3</WarningLevel>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
-      <AdditionalIncludeDirectories>$(MSBuildThisFileDirectory)X86TestSupport;$(MSBuildThisFileDirectory)FluidNC;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(MSBuildThisFileDirectory)X86TestSupport\TestSupport;$(MSBuildThisFileDirectory)FluidNC;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <AdditionalOptions>-D_CRT_SECURE_NO_WARNINGS %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>

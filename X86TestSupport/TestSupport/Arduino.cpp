@@ -17,7 +17,7 @@ void attachInterrupt(uint8_t pin, void (*callback)(void), int mode) {
             auto callback = reinterpret_cast<void (*)()>(arg);
             callback();
         },
-        callback,
+        reinterpret_cast<void*>(callback),
         mode);
 }
 

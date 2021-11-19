@@ -1,7 +1,7 @@
 #pragma once
 
 #include "Arduino.h"
-#include <src/Assert.h>
+#include "../../FluidNC/src/Assert.h"
 #include <random>
 #include "esp32-hal-gpio.h"
 

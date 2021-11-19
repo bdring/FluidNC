@@ -46,7 +46,7 @@ inline void PrintSerial(const char* format, ...) {
     va_start(arg, format);
     va_copy(copy, arg);
     size_t len = vsnprintf(NULL, 0, format, arg);
-    auto tmp = new char[len + 1];
+    auto   tmp = new char[len + 1];
     va_end(copy);
     len = vsnprintf(tmp, len + 1, format, arg);
     Serial.println(tmp);
@@ -64,7 +64,7 @@ inline void PrintSerial(const char* format, ...) {
 
 #elif defined _WIN32 || defined _WIN64
 
-#    include <src/Assert.h>
+#    include "../src/Assert.h"
 
 // Use 'Assert(...)' please.
 
@@ -92,7 +92,9 @@ inline void PrintSerial(const char* format, ...) {
 #    define NativeTest(testCase, testName) Test(testCase, testName)
 #    define PlatformTest(testCase, testName) TEST_INST_NAME(testCase, testName)
 
-#    define Debug(fmt, ...) printf(fmt, __VA_ARGS__); printf("\r\n");
+#    define Debug(fmt, ...)                                                                                                                \
+        printf(fmt, __VA_ARGS__);                                                                                                          \
+        printf("\r\n");
 
 #    define AssertThrow(statement) GTEST_TEST_ANY_THROW_(statement, GTEST_FATAL_FAILURE_)
 
