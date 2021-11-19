@@ -47,7 +47,8 @@ void setup() {
             log_error("Cannot mount the local filesystem");
         }
 
-        bool configOkay = config->load(config_filename->get());
+        bool configOkay = config->load();
+
         make_user_commands();
 
         if (configOkay) {

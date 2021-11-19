@@ -11,6 +11,8 @@
 
 #include "../Spindles/NullSpindle.h"
 
+#include "../SettingsDefinitions.h"  // config_filename
+#include "../FileStream.h"
 #include "../Logging.h"
 
 #include "../Configuration/Parser.h"
@@ -20,7 +22,6 @@
 #include "../Configuration/ParseException.h"
 #include "../Config.h"  // ENABLE_*
 
-#include <SPIFFS.h>
 #include <cstdio>
 #include <cstring>
 #include <atomic>
@@ -124,81 +125,56 @@ namespace Machine {
         }
     }
 
-    size_t MachineConfig::readFile(const char* filename, char*& buffer) {
-        String path = filename;
-        if ((path.length() > 0) && (path[0] != '/')) {
-            path = "/" + path;
-        }
-
-        File file = SPIFFS.open(path, FILE_READ);
-
-        // There is a subtle problem with the Arduino framework.  If
-        // the framework does not find the file, it tries to open the
-        // path as a directory.  SPIFFS_opendir(... path ...) always
-        // succeeds, regardless of what path is, hence the need to
-        // check that it is not a directory.
-
-        if (!file || file.isDirectory()) {
-            if (file) {
-                file.close();
-            }
-            log_error("Missing config file " << path);
-            return 0;
-        }
-
-        auto filesize = file.size();
-        if (filesize == 0) {
-            log_info("config file " << path << " is empty");
-            return 0;
-        }
-        buffer = new char[filesize + 1];
-
-        size_t pos = 0;
-        while (pos < filesize) {
-            auto read = file.read((uint8_t*)(buffer + pos), filesize - pos);
-            if (read == 0) {
-                break;
-            }
-            pos += read;
-        }
-
-        file.close();
-        buffer[filesize] = 0;
-
-        if (pos != filesize) {
-            delete[] buffer;
-
-            log_error("Cannot read the config file");
-            return 0;
-        }
-        return filesize;
-    }
-
     char defaultConfig[] = "name: Default (Test Drive)\nboard: None\n";
 
-    bool MachineConfig::load(const char* filename) {
+    bool MachineConfig::load() {
+        bool configOkay;
         // If the system crashes we skip the config file and use the default
         // builtin config.  This helps prevent reset loops on bad config files.
-        size_t             filesize = 0;
-        char*              buffer   = nullptr;
-        esp_reset_reason_t reason   = esp_reset_reason();
+        esp_reset_reason_t reason = esp_reset_reason();
         if (reason == ESP_RST_PANIC) {
             log_debug("Skipping configuration file due to panic");
+            configOkay = false;
         } else {
-            filesize = readFile(filename, buffer);
+            configOkay = load(config_filename->get());
         }
 
-        StringRange* input = nullptr;
-
-        if (filesize > 0) {
-            input = new StringRange(buffer, buffer + filesize);
-            log_info("Configuration file:" << filename);
-
-        } else {
+        if (!configOkay) {
             log_info("Using default configuration");
-            input = new StringRange(defaultConfig);
+            configOkay = load(new StringRange(defaultConfig));
         }
-        // Process file:
+
+        return configOkay;
+    }
+
+    bool MachineConfig::load(const char* filename) {
+        try {
+            FileStream file(filename, "r", "/localfs");
+
+            auto filesize = file.size();
+            if (filesize <= 0) {
+                log_info("Configuration file:" << filename << " is empty");
+                return false;
+            }
+
+            char* buffer     = new char[filesize + 1];
+            buffer[filesize] = '\0';
+            auto actual      = file.readBytes(buffer, filesize);
+            if (actual != filesize) {
+                log_info("Configuration file:" << filename << " read error");
+                return false;
+            }
+            log_info("Configuration file:" << filename);
+            bool retval = load(new StringRange(buffer, buffer + filesize));
+            delete[] buffer;
+            return retval;
+        } catch (...) {
+            log_info("Cannot open configuration file:" << filename);
+            return false;
+        }
+    }
+
+    bool MachineConfig::load(StringRange* input) {
         bool successful = false;
         try {
             Configuration::Parser        parser(input->begin(), input->end());
@@ -242,17 +218,8 @@ namespace Machine {
             }
 
         } catch (const Configuration::ParseException& ex) {
-            sys.state      = State::ConfigAlarm;
-            auto startNear = ex.Near();
-            auto endNear   = (startNear + 10) > (buffer + filesize) ? (buffer + filesize) : (startNear + 10);
-
-            auto startKey = ex.KeyStart();
-            auto endKey   = ex.KeyEnd();
-
-            StringRange near(startNear, endNear);
-            StringRange key(startKey, endKey);
-            log_error("Configuration parse error: " << ex.What() << " @ " << ex.LineNumber() << ":" << ex.ColumnNumber() << " key "
-                                                    << key.str() << " near " << near.str());
+            sys.state = State::ConfigAlarm;
+            log_error("Configuration parse error: " << ex.What() << " Line " << ex.LineNumber() << " column " << ex.ColumnNumber());
         } catch (const AssertionFailed& ex) {
             sys.state = State::ConfigAlarm;
             // Get rid of buffer and return
@@ -265,10 +232,6 @@ namespace Machine {
             sys.state = State::ConfigAlarm;
             // Get rid of buffer and return
             log_error("Unknown error while processing config file");
-        }
-
-        if (buffer) {
-            delete[] buffer;
         }
         delete[] input;
 
