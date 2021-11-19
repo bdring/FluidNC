@@ -5,6 +5,7 @@
 
 #include <WString.h>
 #include <string>
+#include <algorithm>
 
 class StringAppender;
 
@@ -218,8 +219,14 @@ public:
     // int    lastIndexOf(const String& str) const;
     // int    lastIndexOf(const String& str, unsigned int fromIndex) const;
 
-    String substring(int index, int length) { return String(backbuf.substr(index, length)); }
-    String substring(int index) { return String(backbuf.substr(index)); }
+    String substring(int index, int length) {
+        auto s = backbuf.substr(index, length);
+        return String(s);
+    }
+    String substring(int index) {
+        auto s = backbuf.substr(index);
+        return String(s);
+    }
 
     // modification
     void replace(char find, char replace) {
@@ -272,5 +279,9 @@ public:
     StringAppender(double num) : String(num) {}
 };
 
+#ifdef _MSC_VER
+
 int strcasecmp(const char* lhs, const char* rhs);
 int strncasecmp(const char* lhs, const char* rhs, size_t count);
+
+#endif

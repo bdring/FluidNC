@@ -38,7 +38,7 @@ namespace MotorDrivers {
             xTaskCreatePinnedToCore(updateTask,         // task
                                     "servoUpdateTask",  // name for task
                                     4096,               // size of task stack
-                                    (void*)_timer_ms,   // parameters
+                                    (void*)&_timer_ms,  // parameters
                                     1,                  // priority
                                     NULL,               // handle
                                     SUPPORT_TASK_CORE   // core
@@ -48,7 +48,7 @@ namespace MotorDrivers {
 
     void Servo::updateTask(void* pvParameters) {
         TickType_t       xLastWakeTime;
-        const TickType_t xUpdate = TickType_t(pvParameters) / portTICK_PERIOD_MS;  // in ticks (typically ms)
+        const TickType_t xUpdate = *static_cast<TickType_t*>(pvParameters) / portTICK_PERIOD_MS;  // in ticks (typically ms)
         auto             n_axis  = config->_axes->_numberAxis;
 
         xLastWakeTime = xTaskGetTickCount();  // Initialise the xLastWakeTime variable with the current time.

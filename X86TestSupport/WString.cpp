@@ -19,6 +19,20 @@ std::string String::DecToString(double value, int decimalPlaces) {
     return s;
 }
 
+void String::trim() {
+    auto   str      = this->backbuf;
+    size_t endpos   = str.find_last_not_of(" \t");
+    size_t startpos = str.find_first_not_of(" \t");
+    if (startpos == std::string::npos) {
+        startpos = 0;
+    }
+    if (endpos == std::string::npos) {
+        endpos = str.size();
+    }
+    str           = str.substr(startpos, endpos - startpos);
+    this->backbuf = str;
+}
+
 StringAppender& operator+(const StringAppender& lhs, const String& rhs) {
     StringAppender& a = const_cast<StringAppender&>(lhs);
     a.concat(rhs);
@@ -79,6 +93,8 @@ StringAppender& operator+(const StringAppender& lhs, double num) {
     return a;
 }
 
+#ifdef _MSC_VER
+
 int strcasecmp(const char* lhs, const char* rhs) {
     while (*lhs && *rhs && tolower(*lhs) == tolower(*rhs)) {
         ++lhs;
@@ -95,16 +111,4 @@ int strncasecmp(const char* lhs, const char* rhs, size_t count) {
     return count == 0 || ((*lhs) == '\0' && (*rhs) == '\0');
 }
 
-void String::trim() {
-    auto   str      = this->backbuf;
-    size_t endpos   = str.find_last_not_of(" \t");
-    size_t startpos = str.find_first_not_of(" \t");
-    if (startpos == std::string::npos) {
-        startpos = 0;
-    }
-    if (endpos == std::string::npos) {
-        endpos = str.size();
-    }
-    str           = str.substr(startpos, endpos - startpos);
-    this->backbuf = str;
-}
+#endif

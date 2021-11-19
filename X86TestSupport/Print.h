@@ -17,8 +17,9 @@
 #ifndef Print_h
 #define Print_h
 
-#include <stdint.h>
-#include <stddef.h>
+#include <cstdint>
+#include <cstddef>
+#include <cstring>
 
 #include "WString.h"
 #include "Printable.h"

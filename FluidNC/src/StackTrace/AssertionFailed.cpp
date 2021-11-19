@@ -61,7 +61,12 @@ std::exception AssertionFailed::create(const char* condition, const char* msg, .
     // Store in a static temp:
     static std::string info;
     info = oss.str();
+
+#    ifdef _MSC_VER
     throw std::exception(info.c_str());
+#    else
+    throw std::exception();
+#    endif
 }
 
 #endif

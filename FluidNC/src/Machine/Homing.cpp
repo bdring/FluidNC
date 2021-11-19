@@ -8,6 +8,8 @@
 #include "../Machine/Axes.h"
 #include "../Machine/MachineConfig.h"  // config
 
+#include <cmath>
+
 namespace Machine {
     // Calculate the motion for the next homing move.
     //  Input: axesMask - the axes that should participate in this homing cycle

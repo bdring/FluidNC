@@ -19,7 +19,7 @@
 #define LEDC_HS_SIG_OUT0_IDX 71
 #define LEDC_LS_SIG_OUT0_IDX 79
 
-typedef volatile struct {
+struct ledc_dev_t {
     struct {
         struct {
             union {
@@ -242,6 +242,6 @@ typedef volatile struct {
     uint32_t reserved_1f4;
     uint32_t reserved_1f8;
     uint32_t date; /*This register represents the version .*/
-} ledc_dev_t;
+};
 
 extern ledc_dev_t LEDC;

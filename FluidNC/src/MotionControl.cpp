@@ -15,6 +15,8 @@
 #include "InputFile.h"       // infile
 #include "Platform.h"        // WEAK_LINK
 
+#include <cmath>
+
 // M_PI is not defined in standard C/C++ but some compilers
 // support it anyway.  The following suppresses Intellisense
 // problem reports.
@@ -109,7 +111,7 @@ void mc_cancel_jog() {
 // unless invert_feed_rate is true. Then the feed_rate means that the motion should be completed in
 // (1 minute)/feed_rate time.
 bool mc_linear(float* target, plan_line_data_t* pl_data, float* position) {
-  return config->_kinematics->cartesian_to_motors(target, pl_data, position);
+    return config->_kinematics->cartesian_to_motors(target, pl_data, position);
 }
 
 // Execute an arc in offset mode format. position == current xyz, target == target xyz,
@@ -256,7 +258,6 @@ bool mc_dwell(int32_t milliseconds) {
 // NOTE: There should be no motions in the buffer and the system must be in idle state before
 // executing the homing cycle. This prevents incorrect buffered plans after homing.
 void mc_homing_cycle(AxisMask axis_mask) {
-
     if (config->_kinematics->kinematics_homing(axis_mask)) {
         // Allow kinematics to replace homing.
         // TODO: Better integrate this logic.
