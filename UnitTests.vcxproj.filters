@@ -52,6 +52,15 @@
     <Filter Include="X86TestSupport\xtensa">
       <UniqueIdentifier>{1d6fdcad-9423-4024-ba89-e2712b295369}</UniqueIdentifier>
     </Filter>
+    <Filter Include="test">
+      <UniqueIdentifier>{6cdf2082-ef6b-40f9-bea9-637f19d3d928}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="test\Configuration">
+      <UniqueIdentifier>{eba3f311-ad6a-40b8-b176-a22b20a53fd8}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="test\Pins">
+      <UniqueIdentifier>{dc4ba3bc-4342-4a67-aea2-f68877f1ee69}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="FluidNC\src\SettingsDefinitions.h">
@@ -573,6 +582,12 @@
     <ClInclude Include="X86TestSupport\xtensa\core-macros.h">
       <Filter>X86TestSupport\xtensa</Filter>
     </ClInclude>
+    <ClInclude Include="FluidNC\test\TestFramework.h">
+      <Filter>test</Filter>
+    </ClInclude>
+    <ClInclude Include="FluidNC\test\TestFactory.h">
+      <Filter>test</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="FluidNC\src\System.cpp">
@@ -956,6 +971,39 @@
     <ClCompile Include="X86TestSupport\soc\ledc_struct.cpp">
       <Filter>X86TestSupport\soc</Filter>
     </ClCompile>
+    <ClCompile Include="FluidNC\test\Configuration\YamlParser.cpp">
+      <Filter>test\Configuration</Filter>
+    </ClCompile>
+    <ClCompile Include="FluidNC\test\Configuration\YamlTreeBuilder.cpp">
+      <Filter>test\Configuration</Filter>
+    </ClCompile>
+    <ClCompile Include="FluidNC\test\Configuration\YamlComplete.cpp">
+      <Filter>test\Configuration</Filter>
+    </ClCompile>
+    <ClCompile Include="FluidNC\test\Pins\PinOptionParsing.cpp">
+      <Filter>test\Pins</Filter>
+    </ClCompile>
+    <ClCompile Include="FluidNC\test\Pins\Undefined.cpp">
+      <Filter>test\Pins</Filter>
+    </ClCompile>
+    <ClCompile Include="FluidNC\test\Pins\BasicGPIO.cpp">
+      <Filter>test\Pins</Filter>
+    </ClCompile>
+    <ClCompile Include="FluidNC\test\Pins\ErrorPinTest.cpp">
+      <Filter>test\Pins</Filter>
+    </ClCompile>
+    <ClCompile Include="FluidNC\test\Pins\GPIO.cpp">
+      <Filter>test\Pins</Filter>
+    </ClCompile>
+    <ClCompile Include="FluidNC\test\TestFrameworkTest.cpp">
+      <Filter>test</Filter>
+    </ClCompile>
+    <ClCompile Include="FluidNC\test\test_main.cpp">
+      <Filter>test</Filter>
+    </ClCompile>
+    <ClCompile Include="FluidNC\test\TestFactory.cpp">
+      <Filter>test</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="FluidNC\src\Motors\Dynamixel2.md">
@@ -981,6 +1029,9 @@
     </None>
     <None Include="FluidNC\src\Configuration\GenericFactory.md">
       <Filter>src\Configuration</Filter>
+    </None>
+    <None Include="FluidNC\test\UnitTests.md">
+      <Filter>test</Filter>
     </None>
   </ItemGroup>
   <ItemGroup>

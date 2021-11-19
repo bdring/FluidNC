@@ -75,6 +75,8 @@
     <ClInclude Include="FluidNC\src\Configuration\HandlerType.h" />
     <ClInclude Include="FluidNC\src\Kinematics\CoreXY.h" />
     <ClInclude Include="FluidNC\src\Spindles\PWMSpindle.h" />
+    <ClInclude Include="FluidNC\test\TestFactory.h" />
+    <ClInclude Include="FluidNC\test\TestFramework.h" />
     <ClInclude Include="X86TestSupport\Arduino.h" />
     <ClInclude Include="X86TestSupport\Capture.h" />
     <ClInclude Include="X86TestSupport\driver\uart.h" />
@@ -260,6 +262,17 @@
     <ClCompile Include="FluidNC\src\StackTrace\debug_helpers.cpp" />
     <ClCompile Include="FluidNC\src\Pin.cpp" />
     <ClCompile Include="FluidNC\src\WebUI\NotificationsService.cpp" />
+    <ClCompile Include="FluidNC\test\Configuration\YamlComplete.cpp" />
+    <ClCompile Include="FluidNC\test\Configuration\YamlParser.cpp" />
+    <ClCompile Include="FluidNC\test\Configuration\YamlTreeBuilder.cpp" />
+    <ClCompile Include="FluidNC\test\Pins\BasicGPIO.cpp" />
+    <ClCompile Include="FluidNC\test\Pins\ErrorPinTest.cpp" />
+    <ClCompile Include="FluidNC\test\Pins\GPIO.cpp" />
+    <ClCompile Include="FluidNC\test\Pins\PinOptionParsing.cpp" />
+    <ClCompile Include="FluidNC\test\Pins\Undefined.cpp" />
+    <ClCompile Include="FluidNC\test\TestFactory.cpp" />
+    <ClCompile Include="FluidNC\test\TestFrameworkTest.cpp" />
+    <ClCompile Include="FluidNC\test\test_main.cpp" />
     <ClCompile Include="X86TestSupport\Arduino.cpp" />
     <ClCompile Include="X86TestSupport\driver\uartdriver.cpp" />
     <ClCompile Include="FluidNC\src\PinUsers\PwmPin.cpp" />
@@ -345,6 +358,7 @@
     <None Include="FluidNC\src\user_io.md" />
     <None Include="FluidNC\src\Stepper.md" />
     <None Include="FluidNC\src\Configuration\GenericFactory.md" />
+    <None Include="FluidNC\test\UnitTests.md" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="X86TestSupport\TODO.txt" />
