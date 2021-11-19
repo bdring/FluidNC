@@ -40,6 +40,18 @@
     <Filter Include="X86TestSupport\driver">
       <UniqueIdentifier>{8efc0b62-8d25-4ec1-a08d-4a617231f1b4}</UniqueIdentifier>
     </Filter>
+    <Filter Include="X86TestSupport\freertos">
+      <UniqueIdentifier>{0bbf4c5d-ae95-4c65-8de8-09c3f59b642d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="X86TestSupport\soc">
+      <UniqueIdentifier>{a376c733-8273-4e99-950e-d373c8f73d2d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="X86TestSupport\TMC">
+      <UniqueIdentifier>{5cb94567-be2c-4607-99b2-c32118cc460a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="X86TestSupport\xtensa">
+      <UniqueIdentifier>{1d6fdcad-9423-4024-ba89-e2712b295369}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="FluidNC\src\SettingsDefinitions.h">
@@ -90,12 +102,6 @@
     <ClInclude Include="FluidNC\src\Spindles\OnOffSpindle.h">
       <Filter>src\Spindles</Filter>
     </ClInclude>
-    <ClInclude Include="X86TestSupport\SD.h">
-      <Filter>X86TestSupport</Filter>
-    </ClInclude>
-    <ClInclude Include="X86TestSupport\SPI.h">
-      <Filter>X86TestSupport</Filter>
-    </ClInclude>
     <ClInclude Include="FluidNC\src\Types.h">
       <Filter>src</Filter>
     </ClInclude>
@@ -104,9 +110,6 @@
     </ClInclude>
     <ClInclude Include="FluidNC\src\Machine\WifiSTAConfig.h">
       <Filter>src\Machine</Filter>
-    </ClInclude>
-    <ClInclude Include="X86TestSupport\Printable.h">
-      <Filter>X86TestSupport</Filter>
     </ClInclude>
     <ClInclude Include="FluidNC\src\Channel.h">
       <Filter>src</Filter>
@@ -123,9 +126,6 @@
     <ClInclude Include="FluidNC\src\Kinematics\WallPlotter.h">
       <Filter>src\Kinematics</Filter>
     </ClInclude>
-    <ClInclude Include="X86TestSupport\TMC\TMCStepper.h">
-      <Filter>X86TestSupport</Filter>
-    </ClInclude>
     <ClInclude Include="FluidNC\src\Kinematics\Midtbot.h">
       <Filter>src\Kinematics</Filter>
     </ClInclude>
@@ -137,9 +137,6 @@
     </ClInclude>
     <ClInclude Include="FluidNC\src\MotionControl.h">
       <Filter>src</Filter>
-    </ClInclude>
-    <ClInclude Include="X86TestSupport\freertos\task.h">
-      <Filter>X86TestSupport</Filter>
     </ClInclude>
     <ClInclude Include="FluidNC\src\Configuration\LegacySettingRegistry.h">
       <Filter>src\Configuration</Filter>
@@ -153,9 +150,6 @@
     <ClInclude Include="FluidNC\src\Spindles\Laser.h">
       <Filter>src\Spindles</Filter>
     </ClInclude>
-    <ClInclude Include="X86TestSupport\esp32-hal-gpio.h">
-      <Filter>X86TestSupport</Filter>
-    </ClInclude>
     <ClInclude Include="FluidNC\src\WebUI\JSONEncoder.h">
       <Filter>src\WebUI</Filter>
     </ClInclude>
@@ -168,23 +162,14 @@
     <ClInclude Include="FluidNC\src\Motors\StandardStepper.h">
       <Filter>src\Motors</Filter>
     </ClInclude>
-    <ClInclude Include="X86TestSupport\esp32-hal-timer.h">
-      <Filter>X86TestSupport</Filter>
-    </ClInclude>
     <ClInclude Include="FluidNC\src\Pins\PinCapabilities.h">
       <Filter>src\Pins</Filter>
-    </ClInclude>
-    <ClInclude Include="X86TestSupport\freertos\FreeRTOSTypes.h">
-      <Filter>X86TestSupport</Filter>
     </ClInclude>
     <ClInclude Include="FluidNC\src\Machine\SPIBus.h">
       <Filter>src\Machine</Filter>
     </ClInclude>
     <ClInclude Include="FluidNC\src\Limits.h">
       <Filter>src</Filter>
-    </ClInclude>
-    <ClInclude Include="X86TestSupport\nvs.h">
-      <Filter>X86TestSupport</Filter>
     </ClInclude>
     <ClInclude Include="FluidNC\src\Configuration\HandlerType.h">
       <Filter>src\Configuration</Filter>
@@ -204,12 +189,6 @@
     <ClInclude Include="FluidNC\src\Motors\Solenoid.h">
       <Filter>src\Motors</Filter>
     </ClInclude>
-    <ClInclude Include="X86TestSupport\Print.h">
-      <Filter>X86TestSupport</Filter>
-    </ClInclude>
-    <ClInclude Include="X86TestSupport\esp_system.h">
-      <Filter>X86TestSupport</Filter>
-    </ClInclude>
     <ClInclude Include="FluidNC\src\Spindles\HuanyangSpindle.h">
       <Filter>src\Spindles</Filter>
     </ClInclude>
@@ -218,9 +197,6 @@
     </ClInclude>
     <ClInclude Include="FluidNC\src\Motors\RcServo.h">
       <Filter>src\Motors</Filter>
-    </ClInclude>
-    <ClInclude Include="X86TestSupport\FSImpl.h">
-      <Filter>X86TestSupport</Filter>
     </ClInclude>
     <ClInclude Include="FluidNC\src\Configuration\Generator.h">
       <Filter>src\Configuration</Filter>
@@ -234,14 +210,8 @@
     <ClInclude Include="FluidNC\src\StackTrace\AssertionFailed.h">
       <Filter>src\StackTrace</Filter>
     </ClInclude>
-    <ClInclude Include="X86TestSupport\freertos\FreeRTOS.h">
-      <Filter>X86TestSupport</Filter>
-    </ClInclude>
     <ClInclude Include="FluidNC\src\Configuration\RuntimeSetting.h">
       <Filter>src\Configuration</Filter>
-    </ClInclude>
-    <ClInclude Include="X86TestSupport\Capture.h">
-      <Filter>X86TestSupport</Filter>
     </ClInclude>
     <ClInclude Include="FluidNC\src\Spindles\VFDSpindle.h">
       <Filter>src\Spindles</Filter>
@@ -251,9 +221,6 @@
     </ClInclude>
     <ClInclude Include="FluidNC\src\Motors\Servo.h">
       <Filter>src\Motors</Filter>
-    </ClInclude>
-    <ClInclude Include="X86TestSupport\esp_attr.h">
-      <Filter>X86TestSupport</Filter>
     </ClInclude>
     <ClInclude Include="FluidNC\src\Pins\I2SOPinDetail.h">
       <Filter>src\Pins</Filter>
@@ -279,17 +246,11 @@
     <ClInclude Include="FluidNC\src\WebUI\NotificationsService.h">
       <Filter>src\WebUI</Filter>
     </ClInclude>
-    <ClInclude Include="X86TestSupport\FS.h">
-      <Filter>X86TestSupport</Filter>
-    </ClInclude>
     <ClInclude Include="FluidNC\src\xmodem.h">
       <Filter>src</Filter>
     </ClInclude>
     <ClInclude Include="FluidNC\src\Pins\PinDetail.h">
       <Filter>src\Pins</Filter>
-    </ClInclude>
-    <ClInclude Include="X86TestSupport\WString.h">
-      <Filter>X86TestSupport</Filter>
     </ClInclude>
     <ClInclude Include="FluidNC\src\GCode.h">
       <Filter>src</Filter>
@@ -324,9 +285,6 @@
     <ClInclude Include="FluidNC\src\Settings.h">
       <Filter>src</Filter>
     </ClInclude>
-    <ClInclude Include="X86TestSupport\esp32-hal-ledc.h">
-      <Filter>X86TestSupport</Filter>
-    </ClInclude>
     <ClInclude Include="FluidNC\src\Machine\Motor.h">
       <Filter>src\Machine</Filter>
     </ClInclude>
@@ -351,23 +309,8 @@
     <ClInclude Include="FluidNC\src\Motors\Dynamixel2.h">
       <Filter>src\Motors</Filter>
     </ClInclude>
-    <ClInclude Include="X86TestSupport\IPAddress.h">
-      <Filter>X86TestSupport</Filter>
-    </ClInclude>
-    <ClInclude Include="X86TestSupport\TMC\TMCStepper_UTILITY.h">
-      <Filter>X86TestSupport</Filter>
-    </ClInclude>
     <ClInclude Include="FluidNC\src\Spindles\DacSpindle.h">
       <Filter>src\Spindles</Filter>
-    </ClInclude>
-    <ClInclude Include="X86TestSupport\esp32-hal-dac.h">
-      <Filter>X86TestSupport</Filter>
-    </ClInclude>
-    <ClInclude Include="X86TestSupport\esp_err.h">
-      <Filter>X86TestSupport</Filter>
-    </ClInclude>
-    <ClInclude Include="X86TestSupport\SPIFFS.h">
-      <Filter>X86TestSupport</Filter>
     </ClInclude>
     <ClInclude Include="FluidNC\src\CPUMap.h">
       <Filter>src</Filter>
@@ -375,17 +318,11 @@
     <ClInclude Include="FluidNC\src\PinMapper.h">
       <Filter>src</Filter>
     </ClInclude>
-    <ClInclude Include="X86TestSupport\Arduino.h">
-      <Filter>X86TestSupport</Filter>
-    </ClInclude>
     <ClInclude Include="FluidNC\src\Spindles\NullSpindle.h">
       <Filter>src\Spindles</Filter>
     </ClInclude>
     <ClInclude Include="FluidNC\src\Pins\VoidPinDetail.h">
       <Filter>src\Pins</Filter>
-    </ClInclude>
-    <ClInclude Include="X86TestSupport\freertos\Queue.h">
-      <Filter>X86TestSupport</Filter>
     </ClInclude>
     <ClInclude Include="FluidNC\src\I2SOut.h">
       <Filter>src</Filter>
@@ -393,17 +330,11 @@
     <ClInclude Include="FluidNC\src\Kinematics\Kinematics.h">
       <Filter>src\Kinematics</Filter>
     </ClInclude>
-    <ClInclude Include="X86TestSupport\soc\dport_reg.h">
-      <Filter>X86TestSupport</Filter>
-    </ClInclude>
     <ClInclude Include="FluidNC\src\Configuration\Tokenizer.h">
       <Filter>src\Configuration</Filter>
     </ClInclude>
     <ClInclude Include="FluidNC\src\Error.h">
       <Filter>src</Filter>
-    </ClInclude>
-    <ClInclude Include="X86TestSupport\esp32-hal-matrix.h">
-      <Filter>X86TestSupport</Filter>
     </ClInclude>
     <ClInclude Include="FluidNC\src\Pins\GPIOPinDetail.h">
       <Filter>src\Pins</Filter>
@@ -425,12 +356,6 @@
     </ClInclude>
     <ClInclude Include="FluidNC\src\WebUI\WebSettings.h">
       <Filter>src\WebUI</Filter>
-    </ClInclude>
-    <ClInclude Include="X86TestSupport\esp32-hal-cpu.h">
-      <Filter>X86TestSupport</Filter>
-    </ClInclude>
-    <ClInclude Include="X86TestSupport\Stream.h">
-      <Filter>X86TestSupport</Filter>
     </ClInclude>
     <ClInclude Include="FluidNC\src\Stepper.h">
       <Filter>src</Filter>
@@ -462,9 +387,6 @@
     <ClInclude Include="FluidNC\src\Configuration\Completer.h">
       <Filter>src\Configuration</Filter>
     </ClInclude>
-    <ClInclude Include="X86TestSupport\SoftwareGPIO.h">
-      <Filter>X86TestSupport</Filter>
-    </ClInclude>
     <ClInclude Include="FluidNC\src\Spindles\BESCSpindle.h">
       <Filter>src\Spindles</Filter>
     </ClInclude>
@@ -477,14 +399,8 @@
     <ClInclude Include="FluidNC\src\InputFile.h">
       <Filter>src</Filter>
     </ClInclude>
-    <ClInclude Include="X86TestSupport\soc\rtc.h">
-      <Filter>X86TestSupport</Filter>
-    </ClInclude>
     <ClInclude Include="FluidNC\src\WebUI\TelnetServer.h">
       <Filter>src\WebUI</Filter>
-    </ClInclude>
-    <ClInclude Include="X86TestSupport\soc\ledc_struct.h">
-      <Filter>X86TestSupport</Filter>
     </ClInclude>
     <ClInclude Include="FluidNC\src\Pin.h">
       <Filter>src</Filter>
@@ -495,14 +411,8 @@
     <ClInclude Include="FluidNC\src\SpindleDatatypes.h">
       <Filter>src</Filter>
     </ClInclude>
-    <ClInclude Include="X86TestSupport\soc\uart_reg.h">
-      <Filter>X86TestSupport</Filter>
-    </ClInclude>
     <ClInclude Include="FluidNC\src\Machine\UserOutputs.h">
       <Filter>src\Machine</Filter>
-    </ClInclude>
-    <ClInclude Include="X86TestSupport\xtensa\core-macros.h">
-      <Filter>X86TestSupport</Filter>
     </ClInclude>
     <ClInclude Include="FluidNC\src\Pins\LedcPin.h">
       <Filter>src\Pins</Filter>
@@ -528,20 +438,8 @@
     <ClInclude Include="FluidNC\src\WebUI\Serial2Socket.h">
       <Filter>src\WebUI</Filter>
     </ClInclude>
-    <ClInclude Include="X86TestSupport\Esp.h">
-      <Filter>X86TestSupport</Filter>
-    </ClInclude>
-    <ClInclude Include="X86TestSupport\soc\io_mux_reg.h">
-      <Filter>X86TestSupport</Filter>
-    </ClInclude>
     <ClInclude Include="FluidNC\src\Pins\ErrorPinDetail.h">
       <Filter>src\Pins</Filter>
-    </ClInclude>
-    <ClInclude Include="X86TestSupport\soc\gpio_sig_map.h">
-      <Filter>X86TestSupport</Filter>
-    </ClInclude>
-    <ClInclude Include="X86TestSupport\esp32-hal.h">
-      <Filter>X86TestSupport</Filter>
     </ClInclude>
     <ClInclude Include="FluidNC\src\Spindles\H2ASpindle.h">
       <Filter>src\Spindles</Filter>
@@ -560,6 +458,120 @@
     </ClInclude>
     <ClInclude Include="X86TestSupport\driver\uart.h">
       <Filter>X86TestSupport\driver</Filter>
+    </ClInclude>
+    <ClInclude Include="X86TestSupport\FS.h">
+      <Filter>X86TestSupport</Filter>
+    </ClInclude>
+    <ClInclude Include="X86TestSupport\FSImpl.h">
+      <Filter>X86TestSupport</Filter>
+    </ClInclude>
+    <ClInclude Include="X86TestSupport\IPAddress.h">
+      <Filter>X86TestSupport</Filter>
+    </ClInclude>
+    <ClInclude Include="X86TestSupport\nvs.h">
+      <Filter>X86TestSupport</Filter>
+    </ClInclude>
+    <ClInclude Include="X86TestSupport\Print.h">
+      <Filter>X86TestSupport</Filter>
+    </ClInclude>
+    <ClInclude Include="X86TestSupport\Printable.h">
+      <Filter>X86TestSupport</Filter>
+    </ClInclude>
+    <ClInclude Include="X86TestSupport\SD.h">
+      <Filter>X86TestSupport</Filter>
+    </ClInclude>
+    <ClInclude Include="X86TestSupport\SoftwareGPIO.h">
+      <Filter>X86TestSupport</Filter>
+    </ClInclude>
+    <ClInclude Include="X86TestSupport\SPI.h">
+      <Filter>X86TestSupport</Filter>
+    </ClInclude>
+    <ClInclude Include="X86TestSupport\SPIFFS.h">
+      <Filter>X86TestSupport</Filter>
+    </ClInclude>
+    <ClInclude Include="X86TestSupport\Stream.h">
+      <Filter>X86TestSupport</Filter>
+    </ClInclude>
+    <ClInclude Include="X86TestSupport\WString.h">
+      <Filter>X86TestSupport</Filter>
+    </ClInclude>
+    <ClInclude Include="X86TestSupport\Arduino.h">
+      <Filter>X86TestSupport</Filter>
+    </ClInclude>
+    <ClInclude Include="X86TestSupport\Capture.h">
+      <Filter>X86TestSupport</Filter>
+    </ClInclude>
+    <ClInclude Include="X86TestSupport\Esp.h">
+      <Filter>X86TestSupport</Filter>
+    </ClInclude>
+    <ClInclude Include="X86TestSupport\esp_attr.h">
+      <Filter>X86TestSupport</Filter>
+    </ClInclude>
+    <ClInclude Include="X86TestSupport\esp_err.h">
+      <Filter>X86TestSupport</Filter>
+    </ClInclude>
+    <ClInclude Include="X86TestSupport\esp_system.h">
+      <Filter>X86TestSupport</Filter>
+    </ClInclude>
+    <ClInclude Include="X86TestSupport\esp32-hal.h">
+      <Filter>X86TestSupport</Filter>
+    </ClInclude>
+    <ClInclude Include="X86TestSupport\esp32-hal-cpu.h">
+      <Filter>X86TestSupport</Filter>
+    </ClInclude>
+    <ClInclude Include="X86TestSupport\esp32-hal-dac.h">
+      <Filter>X86TestSupport</Filter>
+    </ClInclude>
+    <ClInclude Include="X86TestSupport\esp32-hal-gpio.h">
+      <Filter>X86TestSupport</Filter>
+    </ClInclude>
+    <ClInclude Include="X86TestSupport\esp32-hal-ledc.h">
+      <Filter>X86TestSupport</Filter>
+    </ClInclude>
+    <ClInclude Include="X86TestSupport\esp32-hal-matrix.h">
+      <Filter>X86TestSupport</Filter>
+    </ClInclude>
+    <ClInclude Include="X86TestSupport\esp32-hal-timer.h">
+      <Filter>X86TestSupport</Filter>
+    </ClInclude>
+    <ClInclude Include="X86TestSupport\freertos\Queue.h">
+      <Filter>X86TestSupport\freertos</Filter>
+    </ClInclude>
+    <ClInclude Include="X86TestSupport\freertos\task.h">
+      <Filter>X86TestSupport\freertos</Filter>
+    </ClInclude>
+    <ClInclude Include="X86TestSupport\freertos\FreeRTOS.h">
+      <Filter>X86TestSupport\freertos</Filter>
+    </ClInclude>
+    <ClInclude Include="X86TestSupport\freertos\FreeRTOSTypes.h">
+      <Filter>X86TestSupport\freertos</Filter>
+    </ClInclude>
+    <ClInclude Include="X86TestSupport\soc\io_mux_reg.h">
+      <Filter>X86TestSupport\soc</Filter>
+    </ClInclude>
+    <ClInclude Include="X86TestSupport\soc\ledc_struct.h">
+      <Filter>X86TestSupport\soc</Filter>
+    </ClInclude>
+    <ClInclude Include="X86TestSupport\soc\rtc.h">
+      <Filter>X86TestSupport\soc</Filter>
+    </ClInclude>
+    <ClInclude Include="X86TestSupport\soc\uart_reg.h">
+      <Filter>X86TestSupport\soc</Filter>
+    </ClInclude>
+    <ClInclude Include="X86TestSupport\soc\dport_reg.h">
+      <Filter>X86TestSupport\soc</Filter>
+    </ClInclude>
+    <ClInclude Include="X86TestSupport\soc\gpio_sig_map.h">
+      <Filter>X86TestSupport\soc</Filter>
+    </ClInclude>
+    <ClInclude Include="X86TestSupport\TMC\TMCStepper.h">
+      <Filter>X86TestSupport\TMC</Filter>
+    </ClInclude>
+    <ClInclude Include="X86TestSupport\TMC\TMCStepper_UTILITY.h">
+      <Filter>X86TestSupport\TMC</Filter>
+    </ClInclude>
+    <ClInclude Include="X86TestSupport\xtensa\core-macros.h">
+      <Filter>X86TestSupport\xtensa</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -602,9 +614,6 @@
     <ClCompile Include="FluidNC\src\Motors\Servo.cpp">
       <Filter>src\Motors</Filter>
     </ClCompile>
-    <ClCompile Include="X86TestSupport\I2SO.cpp">
-      <Filter>X86TestSupport</Filter>
-    </ClCompile>
     <ClCompile Include="FluidNC\src\WebUI\WifiServices.cpp">
       <Filter>src\WebUI</Filter>
     </ClCompile>
@@ -620,9 +629,6 @@
     <ClCompile Include="FluidNC\src\Kinematics\Kinematics.cpp">
       <Filter>src\Kinematics</Filter>
     </ClCompile>
-    <ClCompile Include="X86TestSupport\nvs.cpp">
-      <Filter>X86TestSupport</Filter>
-    </ClCompile>
     <ClCompile Include="FluidNC\src\Spindles\OnOffSpindle.cpp">
       <Filter>src\Spindles</Filter>
     </ClCompile>
@@ -635,9 +641,6 @@
     <ClCompile Include="FluidNC\src\Spindles\DacSpindle.cpp">
       <Filter>src\Spindles</Filter>
     </ClCompile>
-    <ClCompile Include="X86TestSupport\soc\ledc_struct.cpp">
-      <Filter>X86TestSupport</Filter>
-    </ClCompile>
     <ClCompile Include="FluidNC\src\Pins\PinDetail.cpp">
       <Filter>src\Pins</Filter>
     </ClCompile>
@@ -647,9 +650,6 @@
     <ClCompile Include="FluidNC\src\Report.cpp">
       <Filter>src</Filter>
     </ClCompile>
-    <ClCompile Include="X86TestSupport\Stream.cpp">
-      <Filter>X86TestSupport</Filter>
-    </ClCompile>
     <ClCompile Include="FluidNC\src\NutsBolts.cpp">
       <Filter>src</Filter>
     </ClCompile>
@@ -658,9 +658,6 @@
     </ClCompile>
     <ClCompile Include="FluidNC\src\Spindles\H2ASpindle.cpp">
       <Filter>src\Spindles</Filter>
-    </ClCompile>
-    <ClCompile Include="X86TestSupport\SDFS.cpp">
-      <Filter>X86TestSupport</Filter>
     </ClCompile>
     <ClCompile Include="FluidNC\src\Motors\Dynamixel2.cpp">
       <Filter>src\Motors</Filter>
@@ -676,9 +673,6 @@
     </ClCompile>
     <ClCompile Include="FluidNC\src\PinMapper.cpp">
       <Filter>src</Filter>
-    </ClCompile>
-    <ClCompile Include="X86TestSupport\SPIFFS.cpp">
-      <Filter>X86TestSupport</Filter>
     </ClCompile>
     <ClCompile Include="FluidNC\src\Uart.cpp">
       <Filter>src</Filter>
@@ -707,9 +701,6 @@
     <ClCompile Include="FluidNC\src\WebUI\WifiConfig.cpp">
       <Filter>src\WebUI</Filter>
     </ClCompile>
-    <ClCompile Include="X86TestSupport\Arduino.cpp">
-      <Filter>X86TestSupport</Filter>
-    </ClCompile>
     <ClCompile Include="FluidNC\src\Pins\PinAttributes.cpp">
       <Filter>src\Pins</Filter>
     </ClCompile>
@@ -718,9 +709,6 @@
     </ClCompile>
     <ClCompile Include="FluidNC\src\Motors\UnipolarMotor.cpp">
       <Filter>src\Motors</Filter>
-    </ClCompile>
-    <ClCompile Include="X86TestSupport\Print.cpp">
-      <Filter>X86TestSupport</Filter>
     </ClCompile>
     <ClCompile Include="FluidNC\src\Machine\I2SOBus.cpp">
       <Filter>src\Machine</Filter>
@@ -734,9 +722,6 @@
     <ClCompile Include="FluidNC\src\GCode.cpp">
       <Filter>src</Filter>
     </ClCompile>
-    <ClCompile Include="X86TestSupport\freertos\Queue.cpp">
-      <Filter>X86TestSupport</Filter>
-    </ClCompile>
     <ClCompile Include="FluidNC\src\StackTrace\debug_helpers.cpp">
       <Filter>src\StackTrace</Filter>
     </ClCompile>
@@ -748,9 +733,6 @@
     </ClCompile>
     <ClCompile Include="FluidNC\src\PinUsers\PwmPin.cpp">
       <Filter>src\PinUsers</Filter>
-    </ClCompile>
-    <ClCompile Include="X86TestSupport\ExceptionHelper.cpp">
-      <Filter>X86TestSupport</Filter>
     </ClCompile>
     <ClCompile Include="FluidNC\src\WebUI\Commands.cpp">
       <Filter>src\WebUI</Filter>
@@ -821,17 +803,8 @@
     <ClCompile Include="FluidNC\src\Spindles\Laser.cpp">
       <Filter>src\Spindles</Filter>
     </ClCompile>
-    <ClCompile Include="X86TestSupport\freertos\Task.cpp">
-      <Filter>X86TestSupport</Filter>
-    </ClCompile>
     <ClCompile Include="FluidNC\src\WebUI\TelnetServer.cpp">
       <Filter>src\WebUI</Filter>
-    </ClCompile>
-    <ClCompile Include="X86TestSupport\SPI.cpp">
-      <Filter>X86TestSupport</Filter>
-    </ClCompile>
-    <ClCompile Include="X86TestSupport\esp32-hal-timer.cpp">
-      <Filter>X86TestSupport</Filter>
     </ClCompile>
     <ClCompile Include="FluidNC\src\Probe.cpp">
       <Filter>src</Filter>
@@ -863,9 +836,6 @@
     <ClCompile Include="FluidNC\src\WebUI\WebServer.cpp">
       <Filter>src\WebUI</Filter>
     </ClCompile>
-    <ClCompile Include="X86TestSupport\FS.cpp">
-      <Filter>X86TestSupport</Filter>
-    </ClCompile>
     <ClCompile Include="FluidNC\src\Spindles\YL620Spindle.cpp">
       <Filter>src\Spindles</Filter>
     </ClCompile>
@@ -886,9 +856,6 @@
     </ClCompile>
     <ClCompile Include="FluidNC\src\WebUI\Serial2Socket.cpp">
       <Filter>src\WebUI</Filter>
-    </ClCompile>
-    <ClCompile Include="X86TestSupport\WString.cpp">
-      <Filter>X86TestSupport</Filter>
     </ClCompile>
     <ClCompile Include="FluidNC\src\Motors\StandardStepper.cpp">
       <Filter>src\Motors</Filter>
@@ -944,6 +911,51 @@
     <ClCompile Include="X86TestSupport\driver\uartdriver.cpp">
       <Filter>X86TestSupport\driver</Filter>
     </ClCompile>
+    <ClCompile Include="X86TestSupport\I2SO.cpp">
+      <Filter>X86TestSupport</Filter>
+    </ClCompile>
+    <ClCompile Include="X86TestSupport\nvs.cpp">
+      <Filter>X86TestSupport</Filter>
+    </ClCompile>
+    <ClCompile Include="X86TestSupport\Print.cpp">
+      <Filter>X86TestSupport</Filter>
+    </ClCompile>
+    <ClCompile Include="X86TestSupport\SDFS.cpp">
+      <Filter>X86TestSupport</Filter>
+    </ClCompile>
+    <ClCompile Include="X86TestSupport\SPI.cpp">
+      <Filter>X86TestSupport</Filter>
+    </ClCompile>
+    <ClCompile Include="X86TestSupport\SPIFFS.cpp">
+      <Filter>X86TestSupport</Filter>
+    </ClCompile>
+    <ClCompile Include="X86TestSupport\Stream.cpp">
+      <Filter>X86TestSupport</Filter>
+    </ClCompile>
+    <ClCompile Include="X86TestSupport\WString.cpp">
+      <Filter>X86TestSupport</Filter>
+    </ClCompile>
+    <ClCompile Include="X86TestSupport\Arduino.cpp">
+      <Filter>X86TestSupport</Filter>
+    </ClCompile>
+    <ClCompile Include="X86TestSupport\esp32-hal-timer.cpp">
+      <Filter>X86TestSupport</Filter>
+    </ClCompile>
+    <ClCompile Include="X86TestSupport\ExceptionHelper.cpp">
+      <Filter>X86TestSupport</Filter>
+    </ClCompile>
+    <ClCompile Include="X86TestSupport\FS.cpp">
+      <Filter>X86TestSupport</Filter>
+    </ClCompile>
+    <ClCompile Include="X86TestSupport\freertos\Task.cpp">
+      <Filter>X86TestSupport\freertos</Filter>
+    </ClCompile>
+    <ClCompile Include="X86TestSupport\freertos\Queue.cpp">
+      <Filter>X86TestSupport\freertos</Filter>
+    </ClCompile>
+    <ClCompile Include="X86TestSupport\soc\ledc_struct.cpp">
+      <Filter>X86TestSupport\soc</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="FluidNC\src\Motors\Dynamixel2.md">
@@ -970,5 +982,10 @@
     <None Include="FluidNC\src\Configuration\GenericFactory.md">
       <Filter>src\Configuration</Filter>
     </None>
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="X86TestSupport\TODO.txt">
+      <Filter>X86TestSupport</Filter>
+    </Text>
   </ItemGroup>
 </Project>
