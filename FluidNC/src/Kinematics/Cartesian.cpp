@@ -31,7 +31,7 @@ namespace Kinematics {
         auto axes   = config->_axes;
         auto n_axis = config->_axes->_numberAxis;
 
-        float cartesian[n_axis];
+        float cartesian[MAX_N_AXIS];
         motors_to_cartesian(cartesian, target, n_axis);  // Convert to cartesian then check
 
         bool limit_error = false;

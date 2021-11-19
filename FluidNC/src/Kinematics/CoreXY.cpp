@@ -216,7 +216,7 @@ namespace Kinematics {
 
         auto n_axis = config->_axes->_numberAxis;
 
-        float mpos[n_axis] = { 0 };
+        float mpos[MAX_N_AXIS] = { 0 };
 
         // Set machine positions for homed limit switches. Don't update non-homed axes.
         for (int axis = 0; axis < n_axis; axis++) {
@@ -231,7 +231,7 @@ namespace Kinematics {
             }
         }
 
-        float motors_mm[n_axis];
+        float motors_mm[MAX_N_AXIS];
         transform_cartesian_to_motors(motors_mm, mpos);
 
         // the only single axis homing allowed is Z and above
@@ -284,11 +284,11 @@ namespace Kinematics {
 
         auto n_axis = config->_axes->_numberAxis;
 
-        float motors[n_axis];
+        float motors[MAX_N_AXIS];
         transform_cartesian_to_motors(motors, target);
 
         if (!pl_data->motion.rapidMotion) {
-            float last_motors[n_axis];
+            float last_motors[MAX_N_AXIS];
             transform_cartesian_to_motors(last_motors, position);
             pl_data->feed_rate *= (three_axis_dist(motors, last_motors) / dist);
         }

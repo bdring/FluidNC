@@ -239,7 +239,7 @@ public:
     }
     // void remove(unsigned int index);
     // void remove(unsigned int index, unsigned int count);
-    // void trim(void);
+    void trim();
 
     // parsing/conversion
     long   toInt() const { return atoi(backbuf.c_str()); }
