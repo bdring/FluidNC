@@ -24,7 +24,12 @@ namespace Machine {
         }
     }
 
-    void UserOutputs::init() {}
+    void UserOutputs::init() {
+        for (size_t io_num = 0; io_num < MaxUserDigitalPin; io_num++) {
+            myDigitalOutputs[io_num]->init();
+            myAnalogOutputs[io_num]->init();
+        }
+    }
 
     void UserOutputs::all_off() {
         for (size_t io_num = 0; io_num < MaxUserDigitalPin; io_num++) {

@@ -8,14 +8,13 @@
 #include <esp32-hal-cpu.h>   // getApbFrequency()
 
 namespace UserOutput {
-    DigitalOutput::DigitalOutput(size_t number, Pin& pin) : _number(number), _pin(pin) {
+    DigitalOutput::DigitalOutput(size_t number, Pin& pin) : _number(number), _pin(pin) {}
+
+    void DigitalOutput::init() {
         if (_pin.undefined()) {
             return;
         }
-        init();
-    }
 
-    void DigitalOutput::init() {
         _pin.setAttr(Pin::Attr::Output);
         _pin.off();
 
@@ -36,7 +35,9 @@ namespace UserOutput {
     // ==================================================================
 
     AnalogOutput::AnalogOutput(uint8_t number, Pin& pin, uint32_t pwm_frequency) :
-        _number(number), _pin(pin), _pwm_frequency(pwm_frequency) {
+        _number(number), _pin(pin), _pwm_frequency(pwm_frequency) {}
+
+    void AnalogOutput::init() {
         if (_pin.undefined()) {
             return;
         }
@@ -52,13 +53,6 @@ namespace UserOutput {
         // _resolution_bits is now just barely too high, so drop it down one
         --_resolution_bits;
 
-        init();
-    }
-
-    void AnalogOutput::init() {
-        if (_pin.undefined()) {
-            return;
-        }
         _pwm_channel = ledcInit(_pin, -1, _pwm_frequency, _resolution_bits);
         ledcWrite(_pwm_channel, 0);
         config_message();

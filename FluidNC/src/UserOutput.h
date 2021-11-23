@@ -17,9 +17,9 @@ namespace UserOutput {
         static void init_all();
         static void all_off();
         static bool set_level(size_t number, bool isOn);
+        void        init();
 
     protected:
-        void init();
         void config_message();
 
         uint8_t _number = UNDEFINED_OUTPUT;
@@ -31,9 +31,9 @@ namespace UserOutput {
         AnalogOutput(uint8_t number, Pin& pin, uint32_t pwm_frequency);
         bool     set_level(uint32_t numerator);
         uint32_t denominator() { return 1UL << _resolution_bits; };
+        void     init();
 
     protected:
-        void init();
         void config_message();
 
         uint8_t  _number = UNDEFINED_OUTPUT;
