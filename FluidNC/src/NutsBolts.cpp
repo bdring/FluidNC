@@ -93,6 +93,10 @@ bool read_float(const char* line, size_t* char_counter, float* float_ptr) {
     return true;
 }
 
+void IRAM_ATTR delay_us(int32_t us) {
+    spinUntil(usToEndTicks(us));
+}
+
 void delay_ms(uint16_t ms) {
     delay(ms);
 }
