@@ -162,9 +162,9 @@ void protocol_main_loop() {
     // ---------------------------------------------------------------------------------
     for (;;) {
         // Poll the input sources waiting for a complete line to arrive
-        Channel* chan = nullptr;
-        char     line[Channel::maxLine];
         while (true) {
+            Channel* chan = nullptr;
+            char     line[Channel::maxLine];
             protocol_execute_realtime();  // Runtime command check point.
             if (sys.abort) {
                 return;  // Bail to calling function upon system abort
