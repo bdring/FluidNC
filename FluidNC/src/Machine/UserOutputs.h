@@ -5,19 +5,19 @@
 #pragma once
 
 #include "../Configuration/Configurable.h"
-#include "../GCode.h"  // MaxUserDigitalPin
-#include "../UserOutput.h"
+#include "../GCode.h"  // MaxUserDigitalPin MaxUserAnalogPin
 
 namespace Machine {
     class UserOutputs : public Configuration::Configurable {
-        UserOutput::AnalogOutput*  myAnalogOutputs[MaxUserDigitalPin];
-        UserOutput::DigitalOutput* myDigitalOutputs[MaxUserDigitalPin];
+        uint8_t  _pwm_channel[MaxUserAnalogPin];
+        uint32_t _current_value[MaxUserAnalogPin];
+        uint32_t _denominator[MaxUserAnalogPin];
 
     public:
         UserOutputs();
 
-        Pin _analogOutput[MaxUserDigitalPin];
-        int _analogFrequency[MaxUserDigitalPin];
+        Pin _analogOutput[MaxUserAnalogPin];
+        int _analogFrequency[MaxUserAnalogPin];
         Pin _digitalOutput[MaxUserDigitalPin];
 
         void init();
