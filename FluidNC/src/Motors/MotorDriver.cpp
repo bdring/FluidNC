@@ -43,4 +43,7 @@ namespace MotorDrivers {
         return size_t(config->_axes->findAxisMotor(this));
     }
     void IRAM_ATTR MotorDriver::set_disable(bool disable) {}
+    void IRAM_ATTR MotorDriver::set_direction(bool) {}
+    void IRAM_ATTR MotorDriver::step() {}
+    void IRAM_ATTR MotorDriver::unstep() {}
 }

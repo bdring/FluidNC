@@ -18,3 +18,8 @@
     *TrinamicSpiDriver.cpp.o(.rodata .rodata.* .xt.prop .xt.prop.*)
     *TrinamicUartDriver.cpp.o(.rodata .rodata.* .xt.prop .xt.prop.*)
     *UnipolarMotor.cpp.o(.rodata .rodata.* .xt.prop .xt.prop.*)
+
+    /* Pin Details */
+    **Detail.cpp.o(.rodata .rodata.* .xt.prop .xt.prop.*)
+    *LedcPin.cpp.o(.rodata .rodata.* .xt.prop .xt.prop.*)
+    *Pin.cpp.o(.rodata .rodata.* .xt.prop .xt.prop.*)
