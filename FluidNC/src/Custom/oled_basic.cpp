@@ -22,6 +22,7 @@
 #    include "../Machine/MachineConfig.h"
 #    include "WiFi.h"
 #    include "../WebUI/WebSettings.h"
+#    include "../WebUI/WifiConfig.h"
 #    include "../SettingsDefinitions.h"
 #    include "../Report.h"
 #    include "../Machine/Axes.h"
@@ -37,7 +38,7 @@ static void oledRadioInfo() {
     String radio_status = "";
 
 #    ifdef ENABLE_BLUETOOTH
-    if (bt_enable->get()) {
+    if (WebUI::bt_enable->get()) {
         radio_name = String("BT: ") + WebUI::bt_name->get();
         ;
     }
@@ -69,16 +70,19 @@ static void oledRadioInfo() {
 
     } else {  // print next to status
 #    ifdef ENABLE_BLUETOOTH
-        oled->drawString(55, 2, config->_comms->_bluetoothConfig ? radio_name : radio_addr);
+        oled->drawString(55, 2, radio_name);
+#    else
+        oled->drawString(55, 2, radio_addr);
 #    endif
     }
 }
 
 static void draw_checkbox(int16_t x, int16_t y, int16_t width, int16_t height, bool checked) {
-    if (checked)
+    if (checked) {
         oled->fillRect(x, y, width, height);  // If log.0
-    else
+    } else {
         oled->drawRect(x, y, width, height);  // If log.1
+    }
 }
 
 static void oledDRO() {

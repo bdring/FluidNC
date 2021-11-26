@@ -79,6 +79,9 @@ namespace WebUI {
     };
 
     extern BTConfig bt_config;
+
+    extern EnumSetting*   bt_enable;
+    extern StringSetting* bt_name;
 }
 
 #endif
