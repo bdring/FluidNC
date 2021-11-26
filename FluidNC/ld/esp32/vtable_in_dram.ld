@@ -7,6 +7,7 @@
     **Spindle.cpp.o(.rodata .rodata.* .xt.prop .xt.prop.*)
 
     /* Motors */
+    *Motor.cpp.o(.rodata .rodata.* .xt.prop .xt.prop.*)
     *Dynamixel2.cpp.o(.rodata .rodata.* .xt.prop .xt.prop.*)
     *MotorDriver.cpp.o(.rodata .rodata.* .xt.prop .xt.prop.*)
     *NullMotor.cpp.o(.rodata .rodata.* .xt.prop .xt.prop.*)
