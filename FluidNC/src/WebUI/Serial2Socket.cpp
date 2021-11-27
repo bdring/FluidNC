@@ -93,15 +93,14 @@ namespace WebUI {
         }
     }
 
-    bool Serial_2_Socket::push(const char* data) {
-        int data_size = strlen(data);
-        if ((data_size + _RXbufferSize) <= RXBUFFERSIZE) {
+    bool Serial_2_Socket::push(const uint8_t* data, size_t length) {
+        if ((length + _RXbufferSize) <= RXBUFFERSIZE) {
             int current = _RXbufferpos + _RXbufferSize;
             if (current > RXBUFFERSIZE) {
                 current = current - RXBUFFERSIZE;
             }
 
-            for (int i = 0; i < data_size; i++) {
+            for (int i = 0; i < length; i++) {
                 if (current > (RXBUFFERSIZE - 1)) {
                     current = 0;
                 }
@@ -109,11 +108,13 @@ namespace WebUI {
                 current++;
             }
 
-            _RXbufferSize += strlen(data);
+            _RXbufferSize += length;
             return true;
         }
         return false;
     }
+
+    bool Serial_2_Socket::push(const char* data) { return push((uint8_t*)data, strlen(data)); }
 
     int Serial_2_Socket::read(void) {
         handle_flush();

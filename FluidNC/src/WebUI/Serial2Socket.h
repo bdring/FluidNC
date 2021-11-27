@@ -49,6 +49,7 @@ namespace WebUI {
         int  available();
         int  peek(void);
         int  read(void);
+        bool push(const uint8_t* data, size_t length);
         bool push(const char* data);
         void flush(void);
         void handle_flush();
