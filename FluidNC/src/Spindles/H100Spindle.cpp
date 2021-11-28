@@ -159,7 +159,8 @@ namespace Spindles {
         data.msg[5] = 0x02;
 
         return [](const uint8_t* response, Spindles::VFD* vfd) -> bool {
-            uint16_t frequency = (uint16_t(response[2]) << 8) | uint16_t(response[3]);
+            // 01 04 04 [freq 16] [set freq 16] [crc16]
+            uint16_t frequency = (uint16_t(response[3]) << 8) | uint16_t(response[4]);
 
             // Store speed for synchronization
             vfd->_sync_dev_speed = frequency;
