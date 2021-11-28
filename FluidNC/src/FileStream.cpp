@@ -86,6 +86,9 @@ FileStream::FileStream(const char* filename, const char* mode, const char* defau
         }
         _isSD = true;
     }
+    if (_path.startsWith(actualLocalFs) && _path.length() > (30 + strlen(actualLocalFs))) {
+        log_info("Filename too long");
+    }
     _fd = fopen(_path.c_str(), mode);
     if (!_fd) {
         throw strcmp(mode, "w") ? Error::FsFailedOpenFile : Error::FsFailedCreateFile;

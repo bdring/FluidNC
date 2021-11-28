@@ -4,6 +4,7 @@
 #include "PinDetail.h"
 
 #include "../Assert.h"
+#include <esp_attr.h>  // IRAM_ATTR
 
 namespace Pins {
     void PinDetail::attachInterrupt(void (*callback)(void*), void* arg, int mode) {
@@ -13,4 +14,6 @@ namespace Pins {
         Assert(false, "Interrupts are not supported by pin %d", _index);
         ;
     }
+    void IRAM_ATTR PinDetail::synchronousWrite(int high) { write(high); }
+
 }

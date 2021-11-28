@@ -80,7 +80,7 @@ namespace Spindles {
     }
 
     void Spindle::afterParse() {
-        if (_speeds.size() &&  !maxSpeed()) {
+        if (_speeds.size() && !maxSpeed()) {
             log_error("Speed map max speed is 0. Using default");
             _speeds.clear();
         }
@@ -103,7 +103,10 @@ namespace Spindles {
         _speeds.push_back({ max, 100.0f });
     }
 
-    uint32_t Spindle::mapSpeed(SpindleSpeed speed) {
+    uint32_t IRAM_ATTR Spindle::mapSpeed(SpindleSpeed speed) {
+        if (_speeds.size() == 0) {
+            return 0;
+        }
         speed             = speed * sys.spindle_speed_ovr / 100;
         sys.spindle_speed = speed;
         if (speed < _speeds[0].speed) {
