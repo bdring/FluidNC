@@ -32,7 +32,7 @@ namespace Pins {
 
         // I/O:
         virtual void          write(int high) = 0;
-        virtual void          synchronousWrite(int high) { write(high); }
+        virtual void          synchronousWrite(int high);
         virtual int           read()                       = 0;
         virtual void          setAttr(PinAttributes value) = 0;
         virtual PinAttributes getAttr() const              = 0;

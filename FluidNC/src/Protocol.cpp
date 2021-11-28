@@ -715,7 +715,6 @@ static void protocol_do_late_reset() {
         // by report_init_message().  The flow of control that causes it is obscure.
         infile->getChannel() << "[MSG:"
                              << "Reset during file job at line: " << infile->getLineNumber();
-
         delete infile;
         infile = nullptr;
     }

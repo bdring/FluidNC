@@ -126,16 +126,14 @@ inline int32_t IRAM_ATTR usToEndTicks(int32_t us) {
 // short delays up to a few tens of microseconds.
 
 inline void IRAM_ATTR spinUntil(int32_t endTicks) {
-    while ((XTHAL_GET_CCOUNT() - endTicks) < 0) {
+    while ((getCpuTicks() - endTicks) < 0) {
 #ifdef ESP32
         asm volatile("nop");
 #endif
     }
 }
 
-inline void IRAM_ATTR delay_us(int32_t us) {
-    spinUntil(usToEndTicks(us));
-}
+void delay_us(int32_t us);
 
 template <typename T>
 T myMap(T x, T in_min, T in_max, T out_min, T out_max) {  // DrawBot_Badge

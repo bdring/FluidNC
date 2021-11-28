@@ -55,75 +55,54 @@ namespace Machine {
             _engine = I2S_STREAM;
         }
     }
+    // Called only from Axes::unstep()
     void IRAM_ATTR Stepping::waitPulse() {
-        switch (_engine) {
-            case I2S_STREAM:
-                break;
-            case I2S_STATIC:
-            case TIMED:
-                spinUntil(_stepPulseEndTime);
-                break;
-            case RMT:
-                // RMT generates the trailing edges in hardware
-                return;
+        if (_engine == I2S_STATIC || _engine == TIMED) {
+            spinUntil(_stepPulseEndTime);
         }
     }
 
+    // Called only from Axes::step()
     void IRAM_ATTR Stepping::waitDirection() {
         if (_directionDelayUsecs) {
             // Stepper drivers need some time between changing direction and doing a pulse.
-            switch (_engine) {
-                case stepper_id_t::I2S_STREAM:
-                    // Commit the pin changes to the DMA queue
-                    i2s_out_push_sample(_directionDelayUsecs);
-                    break;
-                case stepper_id_t::I2S_STATIC:
-                    // Commit the pin changes to the hardware immediately
-                    i2s_out_push();
-                case stepper_id_t::TIMED:
-                    // wait for step pulse time to complete...some time expired during code above
-                    //
-                    // If we are using GPIO stepping as opposed to RMT, record the
-                    // time that we turned on the direction pins so we can delay a bit.
-                    // If we are using RMT, we can't delay here.
-                    delay_us(_directionDelayUsecs);
-                    break;
-                case stepper_id_t::RMT:
-                    break;
+            // Do not use switch() in IRAM
+            if (_engine == stepper_id_t::I2S_STREAM) {
+                // Commit the pin changes to the DMA queue
+                i2s_out_push_sample(_directionDelayUsecs);
+            } else if (_engine == stepper_id_t::I2S_STATIC) {
+                // Commit the pin changes to the hardware immediately
+                i2s_out_push();
+                delay_us(_directionDelayUsecs);
+            } else if (_engine == stepper_id_t::TIMED) {
+                // If we are using RMT, we can't delay here.
+                delay_us(_directionDelayUsecs);
             }
         }
     }
 
+    // Called from Axes::step() and, probably incorrectly, from UnipolarMotor::step()
     void IRAM_ATTR Stepping::startPulseTimer() {
-        switch (_engine) {
-            case stepper_id_t::I2S_STREAM:
-                // Generate the number of pulses needed to span pulse_microseconds
-                i2s_out_push_sample(_pulseUsecs);
-                break;
-            case stepper_id_t::I2S_STATIC:
-                i2s_out_push();
-            case stepper_id_t::TIMED:
-                _stepPulseEndTime = usToEndTicks(_pulseUsecs);
-                break;
-            case stepper_id_t::RMT:
-                break;
+        // Do not use switch() in IRAM
+        if (_engine == stepper_id_t::I2S_STREAM) {
+            // Generate the number of pulses needed to span pulse_microseconds
+            i2s_out_push_sample(_pulseUsecs);
+        } else if (_engine == stepper_id_t::I2S_STATIC) {
+            i2s_out_push();
+            _stepPulseEndTime = usToEndTicks(_pulseUsecs);
+        } else if (_engine == stepper_id_t::TIMED) {
+            _stepPulseEndTime = usToEndTicks(_pulseUsecs);
         }
     }
 
+    // Called only from Axes::unstep()
     void IRAM_ATTR Stepping::finishPulse() {
-        switch (_engine) {
-            case stepper_id_t::I2S_STREAM:
-                break;
-            case stepper_id_t::I2S_STATIC:
-                i2s_out_push();
-                break;
-            case stepper_id_t::TIMED:
-                break;
-            case stepper_id_t::RMT:
-                break;
+        if (_engine == stepper_id_t::I2S_STATIC) {
+            i2s_out_push();
         }
     }
 
+    // Called only from Stepper::pulse_func when a new segment is loaded
     // The argument is in units of ticks of the timer that generates ISRs
     void IRAM_ATTR Stepping::setTimerPeriod(uint16_t timerTicks) {
         if (_engine == I2S_STREAM) {
@@ -135,6 +114,7 @@ namespace Machine {
             timerAlarmWrite(stepTimer, (uint64_t)timerTicks, false);  // false disables autoreload
         }
     }
+    // Called only from Stepper::wake_up which is not used in ISR context
     void Stepping::startTimer() {
         if (_engine == I2S_STREAM) {
             i2s_out_set_stepping();
@@ -143,6 +123,7 @@ namespace Machine {
             timerAlarmEnable(stepTimer);
         }
     }
+    // Called only from Stepper::stop_stepping, used in both ISR and foreground contexts
     void IRAM_ATTR Stepping::stopTimer() {
         if (_engine == I2S_STREAM) {
             i2s_out_set_passthrough();

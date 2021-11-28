@@ -64,19 +64,19 @@ namespace MotorDrivers {
 
         // set_direction() sets the motor movement direction.  It is
         // invoked for every motion segment.
-        virtual void set_direction(bool) {}
+        virtual void set_direction(bool);
 
         // step() initiates a step operation on a motor.  It is called
         // from motors_step() for ever motor than needs to step now.
         // For ordinary step/direction motors, it sets the step pin
         // to the active state.
-        virtual void step() {}
+        virtual void step();
 
         // unstep() turns off the step pin, if applicable, for a motor.
         // It is called from motors_unstep() for all motors, since
         // motors_unstep() is used in many contexts where the previous
         // states of the step pins are unknown.
-        virtual void unstep() {}
+        virtual void unstep();
 
         // this is used to configure and test motors. This would be used for Trinamic
         virtual void config_motor() {}
