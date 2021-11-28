@@ -1455,17 +1455,8 @@ namespace WebUI {
                 _socket_server->broadcastTXT(s);
             } break;
             case WStype_TEXT:
-                // send message to client
-                // webSocket.sendTXT(num, "message here");
-
-                // send data to all connected clients
-                // webSocket.broadcastTXT("message here");
-                break;
             case WStype_BIN:
-                //hexdump(payload, length);
-
-                // send message to client
-                // webSocket.sendBIN(num, payload, length);
+                Serial2Socket.push(payload, length);
                 break;
             default:
                 break;

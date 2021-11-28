@@ -162,9 +162,9 @@ void protocol_main_loop() {
     // ---------------------------------------------------------------------------------
     for (;;) {
         // Poll the input sources waiting for a complete line to arrive
-        Channel* chan = nullptr;
-        char     line[Channel::maxLine];
         while (true) {
+            Channel* chan = nullptr;
+            char     line[Channel::maxLine];
             protocol_execute_realtime();  // Runtime command check point.
             if (sys.abort) {
                 return;  // Bail to calling function upon system abort
@@ -173,20 +173,20 @@ void protocol_main_loop() {
             if (infile) {
                 pollChannels();
                 if (readyNext) {
-                    readyNext    = false;
-                    Channel& out = infile->getChannel();
+                    readyNext = false;
+                    chan      = &infile->getChannel();
                     switch (auto err = infile->readLine(line, Channel::maxLine)) {
                         case Error::Ok:
                             break;
                         case Error::Eof:
                             _notifyf("File job done", "%s file job succeeded", infile->path());
-                            out << "[MSG:" << infile->path() << " file job succeeded]\n";
+                            *chan << "[MSG:" << infile->path() << " file job succeeded]\n";
                             delete infile;
                             infile = nullptr;
                             break;
                         default:
-                            out << "[MSG: ERR:" << static_cast<int>(err) << " (" << errorString(err) << ") in " << infile->path()
-                                << " at line " << infile->getLineNumber() << "]\n";
+                            *chan << "[MSG: ERR:" << static_cast<int>(err) << " (" << errorString(err) << ") in " << infile->path()
+                                  << " at line " << infile->getLineNumber() << "]\n";
                             delete infile;
                             infile = nullptr;
                             break;
@@ -199,7 +199,7 @@ void protocol_main_loop() {
                 break;
             }
 #ifdef DEBUG_REPORT_ECHO_RAW_LINE_RECEIVED
-            report_echo_line_received(line, chan);
+            report_echo_line_received(line, *chan);
 #endif
             display("GCODE", line);
             // auth_level can be upgraded by supplying a password on the command line
@@ -714,8 +714,7 @@ static void protocol_do_late_reset() {
         // log_info() does not work well in this case because the message gets broken in half
         // by report_init_message().  The flow of control that causes it is obscure.
         infile->getChannel() << "[MSG:"
-                             << "Reset during file jobe at line: " << infile->getLineNumber();
-
+                             << "Reset during file job at line: " << infile->getLineNumber();
         delete infile;
         infile = nullptr;
     }

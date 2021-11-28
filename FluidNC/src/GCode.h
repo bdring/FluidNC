@@ -157,6 +157,7 @@ enum class IoControl : uint8_t {
 };
 
 static const int MaxUserDigitalPin = 4;
+static const int MaxUserAnalogPin  = 4;
 
 // Modal Group G8: Tool length offset
 enum class ToolLengthOffset : uint8_t {

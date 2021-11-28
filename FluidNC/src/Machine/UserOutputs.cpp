@@ -3,41 +3,92 @@
 // Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
 
 #include "UserOutputs.h"
+#include "../Logging.h"       // log_*
+#include "../Pins/LedcPin.h"  // ledcInit()
+#include <esp32-hal-ledc.h>   // ledc*
+#include <esp32-hal-cpu.h>    // getApbFrequency()
 
 namespace Machine {
     UserOutputs::UserOutputs() {
-        for (int i = 0; i < 4; ++i) {
+        for (int i = 0; i < MaxUserAnalogPin; ++i) {
             _analogFrequency[i] = 5000;
         }
-        // Setup M62,M63,M64,M65 pins
-        for (int i = 0; i < 4; ++i) {
-            myDigitalOutputs[i] = new UserOutput::DigitalOutput(i, _digitalOutput[i]);
-            myAnalogOutputs[i]  = new UserOutput::AnalogOutput(i, _analogOutput[i], _analogFrequency[i]);
-        }
     }
-    UserOutputs::~UserOutputs() {
-        for (int i = 0; i < 4; ++i) {
-            delete myDigitalOutputs[i];
-            myDigitalOutputs[i] = nullptr;
-            delete myAnalogOutputs[i];
-            myAnalogOutputs[i] = nullptr;
-        }
-    }
+    UserOutputs::~UserOutputs() {}
 
-    void UserOutputs::init() {}
+    void UserOutputs::init() {
+        for (int i = 0; i < MaxUserDigitalPin; ++i) {
+            Pin& pin = _digitalOutput[i];
+            if (pin.defined()) {
+                pin.setAttr(Pin::Attr::Output);
+                pin.off();
+                log_info("User Digital Output:" << i << " on Pin:" << pin.name());
+            }
+        }
+        // determine the highest resolution (number of precision bits) allowed by frequency
+        uint32_t apb_frequency = getApbFrequency();
+
+        for (int i = 0; i < MaxUserAnalogPin; ++i) {
+            uint8_t resolution_bits;
+            Pin&    pin = _analogOutput[i];
+            if (pin.defined()) {
+                // increase the precision (bits) until it exceeds allow by frequency the max or is 16
+                resolution_bits    = 0;
+                auto pwm_frequency = _analogFrequency[i];
+                while ((1u << resolution_bits) < (apb_frequency / pwm_frequency) && resolution_bits <= 16) {
+                    ++resolution_bits;
+                }
+                // resolution_bits is now just barely too high, so drop it down one
+                --resolution_bits;
+                _denominator[i] = 1UL << resolution_bits;
+                _pwm_channel[i] = ledcInit(pin, -1, pwm_frequency, resolution_bits);
+                ledcWrite(_pwm_channel[i], 0);
+                log_info("User Analog Output " << i << " on Pin:" << pin.name() << " Freq:" << pwm_frequency << "Hz");
+            }
+        }
+    }
 
     void UserOutputs::all_off() {
         for (size_t io_num = 0; io_num < MaxUserDigitalPin; io_num++) {
-            myDigitalOutputs[io_num]->set_level(false);
-            myAnalogOutputs[io_num]->set_level(0);
+            setDigital(io_num, false);
+            setAnalogPercent(io_num, 0);
         }
     }
 
-    bool UserOutputs::setDigital(size_t io_num, bool isOn) { return myDigitalOutputs[io_num]->set_level(isOn); }
+    bool UserOutputs::setDigital(size_t io_num, bool isOn) {
+        Pin& pin = _digitalOutput[io_num];
+        if (pin.undefined()) {
+            return !isOn;  // It is okay to turn off an undefined pin, for safety
+        }
+        pin.synchronousWrite(isOn);
+        return true;
+    }
+
     bool UserOutputs::setAnalogPercent(size_t io_num, float percent) {
-        auto     analog    = myAnalogOutputs[io_num];
-        uint32_t numerator = uint32_t(percent / 100.0f * analog->denominator());
-        return analog->set_level(numerator);
+        Pin& pin = _analogOutput[io_num];
+
+        // look for errors, but ignore if turning off to prevent mass turn off from generating errors
+        if (pin.undefined()) {
+            return percent == 0.0;
+        }
+
+        uint32_t numerator = uint32_t(percent / 100.0f * _denominator[io_num]);
+
+        auto pwm_channel = _pwm_channel[io_num];
+        if (pwm_channel == -1) {
+            log_error("M67 PWM channel error");
+            return false;
+        }
+
+        if (_current_value[io_num] == numerator) {
+            return true;
+        }
+
+        _current_value[io_num] = numerator;
+
+        ledcWrite(pwm_channel, numerator);
+
+        return true;
     }
 
     void UserOutputs::group(Configuration::HandlerBase& handler) {
