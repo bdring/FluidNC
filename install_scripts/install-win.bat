@@ -10,7 +10,7 @@ set Firmware=0x10000 firmware.bin
 set Partitions=0x8000 partitions.bin
 set LocalFS=0x3d0000 ..\common\spiffs.bin
 
-echo %EsptoolPath% %SetupArgs% %Bootloader% %Bootapp% %Firmware% %Partitions% %LocalFs%
-%EsptoolPath% %SetupArgs% %Bootloader% %Bootapp% %Firmware% %Partitions% %LocalFs%
+echo %EsptoolPath% %SetupArgs% %Bootloader% %Bootapp% %Firmware% %Partitions% %LocalFS%
+%EsptoolPath% %SetupArgs% %Bootloader% %Bootapp% %Firmware% %Partitions% %LocalFS%
 
 pause

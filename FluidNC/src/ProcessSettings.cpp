@@ -517,7 +517,7 @@ static Error dump_config(const char* value, WebUI::AuthenticationLevel auth_leve
     try {
         if (value) {
             // Use a file on the local file system unless there is an explicit prefix like /sd/
-            ss = new FileStream(value, "w");
+            ss = new FileStream(value, "w", "/localfs");
         } else {
             ss = &out;
         }

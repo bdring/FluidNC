@@ -13,9 +13,6 @@ namespace Configuration {
         while (!IsEndLine()) {
             Inc();
         }
-        if (Eof()) {
-            ParseError("Missing end-of-line");
-        }
     }
 
     Tokenizer::Tokenizer(const char* start, const char* end) : current_(start), end_(end), start_(start), token_() {
