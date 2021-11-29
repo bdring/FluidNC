@@ -19,9 +19,36 @@ Channel* Channel::pollLine(char* line) {
         if (!line) {
             continue;
         }
-        if (ch == '\r') {
-            // Ignore CR
-            continue;
+        // The objective here is to treat any of CR, LF, or CR-LF
+        // as a single line ending.  When we see CR, we immediately
+        // complete the line, setting a flag to say that the last
+        // character was CR.  When we see LF, if the last character
+        // was CR, we ignore the LF because the line has already
+        // been completed, otherwise we complete the line.
+        if (ch == '\n') {
+            if (_lastWasCR) {
+                _lastWasCR = false;
+                continue;
+            }
+            // if (_discarding) {
+            //     _linelen = 0;
+            //     _discarding = false;
+            //     return nullptr;
+            // }
+
+            // Return the complete line
+            _line[_linelen] = '\0';
+            strcpy(line, _line);
+            _linelen = 0;
+            return this;
+        }
+        _lastWasCR = ch == '\r';
+        if (_lastWasCR) {
+            // Return the complete line
+            _line[_linelen] = '\0';
+            strcpy(line, _line);
+            _linelen = 0;
+            return this;
         }
         if (ch == '\b') {
             // Simple editing for interactive input - backspace erases
@@ -29,17 +56,6 @@ Channel* Channel::pollLine(char* line) {
                 --_linelen;
             }
             continue;
-        }
-        if (ch == '\n') {
-            // if (_discarding) {
-            //     _linelen = 0;
-            //     _discarding = false;
-            //     return nullptr;
-            // }
-            _line[_linelen] = '\0';
-            strcpy(line, _line);
-            _linelen = 0;
-            return this;
         }
         if (_linelen < (Channel::maxLine - 1)) {
             _line[_linelen++] = ch;
