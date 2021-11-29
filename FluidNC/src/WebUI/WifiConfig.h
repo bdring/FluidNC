@@ -108,5 +108,24 @@ namespace WebUI {
     };
 
     extern WiFiConfig wifi_config;
+
+    extern EnumSetting* wifi_mode;
+
+    extern StringSetting* wifi_sta_ssid;
+    extern StringSetting* wifi_sta_password;
+
+    extern EnumSetting*   wifi_sta_mode;
+    extern IPaddrSetting* wifi_sta_ip;
+    extern IPaddrSetting* wifi_sta_gateway;
+    extern IPaddrSetting* wifi_sta_netmask;
+
+    extern StringSetting* wifi_ap_ssid;
+    extern StringSetting* wifi_ap_password;
+
+    extern IPaddrSetting* wifi_ap_ip;
+
+    extern IntSetting* wifi_ap_channel;
+
+    extern StringSetting* wifi_hostname;
 }
 #endif
