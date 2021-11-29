@@ -51,6 +51,10 @@ namespace Spindles {
         data.tx_length = 6;
         data.rx_length = 6;
 
+        if (dev_speed != 0 && (dev_speed < _minFrequency || dev_speed > _maxFrequency)) {
+            log_warn(name() << " requested freq " << (dev_speed) << " is outside of range (" << _minFrequency << "," << _maxFrequency << ")");
+        }
+
 #ifdef DEBUG_VFD
         log_debug("Setting VFD dev_speed to " << dev_speed);
 #endif
