@@ -62,7 +62,7 @@ namespace Spindles {
         data.msg[2] = 0x02;
         data.msg[3] = 0x01;
         //data.msg[4] = dev_speed >> 8; - BC 11/24/21
-        data.msg[4] = dev_speed >> 4;
+        data.msg[4] = dev_speed >> 8;
         data.msg[5] = dev_speed & 0xFF;
     }
 
