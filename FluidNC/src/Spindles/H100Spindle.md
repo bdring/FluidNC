@@ -18,16 +18,13 @@ First commands. These give the identity response if things go correctly. So:
 [01] [05] [00 4B] [ff 00] [0c 2c] -- stop
 
 Tracking:
+
 [01] [04] [0000] [0002] -- output frequency
 gives [01] [04] [04] [00] [00] [0F] [crc16].
 
 01 04 |xx xx| |xx xx| |crc1 crc2|. So that's addr, cmd=04,
 2x 2xdata. First data seems running freq, second data set 
 freq. Running freq is *data[2,3]*.
-
-Rx:  0x01 0x04 0x04 0x00 0x00 0x0F 0xA0] -- notice that this 
-does not match the message that you just posted; the last 
-byte of the CRC is missing. That means RX is 1 short.
 
 Set frequency:
 [01] [06] [0201] [07D0] Set frequency to [07D0] = 200.0 Hz. (2000 is written!)
