@@ -1,4 +1,4 @@
-#include <src/I2SOut.h>
+#include "../../FluidNC/src/I2SOut.h"
 
 // STUB implementation. Won't do you any good.
 
@@ -8,8 +8,7 @@ int i2s_out_init() {
 
 void i2s_out_push() {}
 
-void i2s_out_push_sample(unsigned int x) {
-}
+void i2s_out_push_sample(unsigned int x) {}
 
 int i2s_out_set_passthrough() {
     return 0;

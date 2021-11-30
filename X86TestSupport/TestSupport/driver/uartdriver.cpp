@@ -34,7 +34,7 @@ esp_err_t uart_get_buffered_data_len(uart_port_t uart_num, size_t* size) {
 int uart_read_bytes(uart_port_t uart_num, uint8_t* buf, uint32_t length, TickType_t ticks_to_wait) {
     auto        key = uart_key(uart_num);
     const auto& val = Inputs::instance().get(key);
-    auto        max = std::min(length, val.size());
+    auto        max = std::min(size_t(length), val.size());
     for (size_t i = 0; i < max; ++i) {
         buf[i] = uint8_t(val[i]);
     }

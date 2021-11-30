@@ -75,12 +75,12 @@ public:
         ret.base_address = mi.lpBaseOfDll;
         ret.load_size    = mi.SizeOfImage;
 
-        GetModuleFileNameEx(process, module, temp, sizeof(temp) / sizeof(WCHAR));
+        GetModuleFileNameExW(process, module, temp, sizeof(temp) / sizeof(WCHAR));
         for (int i = 0; i < buffer_length; ++i) {
             temp2[i] = char(temp[i]);
         }
         ret.image_name = temp2;
-        GetModuleBaseName(process, module, temp, sizeof(temp));
+        GetModuleBaseNameW(process, module, temp, sizeof(temp));
         for (int i = 0; i < buffer_length; ++i) {
             temp2[i] = char(temp[i]);
         }
@@ -198,7 +198,12 @@ std::exception CreateException(const char* condition, const char* msg) {
     DumpStackTrace(oss);
 
     container = oss.str();
-    return std::exception(container.c_str()); /* this is usually where you want a breakpoint. */
+
+#    ifdef _MSC_VER
+    throw std::exception(container.c_str()); /* this is usually where you want a breakpoint. */
+#    else
+    throw std::exception(); /* this is usually where you want a breakpoint. */
+#    endif
 }
 
 #else

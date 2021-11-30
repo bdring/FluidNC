@@ -43,8 +43,14 @@ public:
     uint8_t& operator[](int index) { return _address.bytes[index]; }
 
     // Overloaded copy operators to allow initialisation of IPAddress objects from other types
-    IPAddress& operator=(const uint8_t* address) { memcpy(_address.bytes, address, 4); }
-    IPAddress& operator=(uint32_t address) { _address.dword = address; }
+    IPAddress& operator=(const uint8_t* address) {
+        memcpy(_address.bytes, address, 4);
+        return *this;
+    }
+    IPAddress& operator=(uint32_t address) {
+        _address.dword = address;
+        return *this;
+    }
 
     String toString() const { throw "not implemented"; }
 };
