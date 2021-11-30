@@ -513,7 +513,7 @@ static void pinString(Print& channel) {
 // specific needs, but the desired real-time data report must be as short as possible. This is
 // requires as it minimizes the computational overhead to keep running smoothly,
 // especially during g-code programs with fast, short line segments and high frequency reports (5-20Hz).
-void report_realtime_status(Print& channel) {
+void report_realtime_status(Channel& channel) {
     channel << "<" << state_name();
 
     // Report position
@@ -527,12 +527,10 @@ void report_realtime_status(Print& channel) {
     report_util_axis_values(print_position, channel);
 
     // Returns planner and serial read buffer states.
-#if 0
-    // XXX WMB problem with channel_get_rx_buffer_available(channel)
+
     if (bits_are_true(status_mask->get(), RtStatus::Buffer)) {
-        channel << "|Bf:" << plan_get_block_buffer_available() << "," << channel_get_rx_buffer_available(channel);
+        channel << "|Bf:" << plan_get_block_buffer_available() << "," << channel.rx_buffer_available();
     }
-#endif
 
     if (config->_useLineNumbers) {
         // Report current line number

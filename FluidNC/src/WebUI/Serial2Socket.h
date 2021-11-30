@@ -56,6 +56,8 @@ namespace WebUI {
         bool attachWS(WebSocketsServer* web_socket);
         bool detachWS();
 
+        int rx_buffer_available() { return RXBUFFERSIZE - available(); }
+
         operator bool() const;
 
         ~Serial_2_Socket();

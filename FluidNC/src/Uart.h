@@ -66,6 +66,8 @@ public:
 
     Channel* pollLine(char* line) override;
 
+    int rx_buffer_available() override;
+
     // Configuration handlers:
     void validate() const override {
         Assert(!_txd_pin.undefined(), "UART: TXD is undefined");

@@ -26,6 +26,8 @@ namespace WebUI {
         int read() { return -1; }
         int peek() { return -1; }
 
+        int rx_buffer_available() { return BUFLEN - available(); }
+
     private:
         bool                _header_sent;
         bool                _silent;

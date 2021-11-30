@@ -94,6 +94,10 @@ int Uart::read() {
     return read(0);
 }
 
+int Uart::rx_buffer_available() {
+    return UART_FIFO_LEN - available();
+}
+
 Channel* Uart::pollLine(char* line) {
     // For now we only allow UART0 to be a channel input device
     // Other UART users like RS485 use it as a dumb character device

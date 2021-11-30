@@ -38,10 +38,11 @@ namespace WebUI {
         int    read(void);
         int    peek(void);
         int    available();
-        int    get_rx_buffer_available();
         bool   push(uint8_t data);
         bool   push(const uint8_t* data, int datasize);
         void   flush() override {}
+
+        int rx_buffer_available() override;
 
         static uint16_t port() { return _port; }
 

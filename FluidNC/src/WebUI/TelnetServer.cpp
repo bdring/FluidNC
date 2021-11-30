@@ -181,7 +181,7 @@ namespace WebUI {
 
     int Telnet_Server::available() { return _RXbufferSize; }
 
-    int Telnet_Server::get_rx_buffer_available() { return TELNETRXBUFFERSIZE - _RXbufferSize; }
+    int Telnet_Server::rx_buffer_available() { return TELNETRXBUFFERSIZE - _RXbufferSize; }
 
     bool Telnet_Server::push(uint8_t data) {
         if ((1 + _RXbufferSize) <= TELNETRXBUFFERSIZE) {
