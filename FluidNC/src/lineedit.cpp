@@ -290,7 +290,7 @@ bool Lineedit::find_word_under_cursor() {
     return true;
 }
 
-extern int num_initial_matches(char* key, int keylen, int matchnum, char** matchname, int* matchlen);
+extern int num_initial_matches(char* key, int keylen, int matchnum, char* matchname);
 
 void Lineedit::color(const char* s) {
     emit(0x1b);
@@ -319,13 +319,15 @@ void Lineedit::complete_word() {
     if (!find_word_under_cursor()) {
         return;
     }
-    char* name;
-    int   len = strlen(theWord);
-    nmatches  = num_initial_matches(theWord, len, 0, &name, &matchlen);
+    char name[100];
+    name[0]  = '\0';
+    int len  = strlen(theWord);
+    nmatches = num_initial_matches(theWord, len, 0, name);
 
     if (nmatches == 0) {
         return;
     }
+    matchlen = strlen(name);
     if (nmatches == 1) {
         while (len < matchlen) {
             addchar(name[len++]);
@@ -335,11 +337,8 @@ void Lineedit::complete_word() {
     }
 
     while (len < matchlen) {
-        int   nmatches2, matchlen2;
-        char* name2;
         theWord[len] = name[len];
-        nmatches2    = num_initial_matches(theWord, len + 1, 0, &name2, &matchlen2);
-        if (nmatches2 != nmatches) {
+        if (nmatches != num_initial_matches(theWord, len + 1, 0, nullptr)) {
             break;
         }
         addchar(theWord[len++]);
@@ -358,10 +357,11 @@ void Lineedit::propose_word() {
     if (++thismatch == nmatches) {
         thismatch = 0;
     }
-    int   newmatchlen;
-    char* name;
-    int   len      = strlen(theWord);
-    int   nmatches = num_initial_matches(theWord, len, thismatch, &name, &newmatchlen);
+    char name[100];
+    name[0]         = '\0';
+    int len         = strlen(theWord);
+    int nmatches    = num_initial_matches(theWord, len, thismatch, name);
+    int newmatchlen = strlen(name);
 
     while (matchlen > len) {
         erase_char();
