@@ -14,7 +14,7 @@ namespace Configuration {
         _key(key), _reqMatch(reqMatch), _matchedStr(matchedStr), _currentPath("/"), _numMatches(0) {}
 
     void Completer::addCandidate(String fullName) {
-        if (_numMatches == _reqMatch) {
+        if (_matchedStr && _numMatches == _reqMatch) {
             strcpy(_matchedStr, fullName.c_str());
         }
         ++_numMatches;
@@ -59,7 +59,7 @@ namespace Configuration {
 // matchnum is the index of the match that we will return
 // matchname is the matchnum'th match
 
-int num_initial_matches(char* key, int keylen, int matchnum, char* matchname, int* matchlen) {
+int num_initial_matches(char* key, int keylen, int matchnum, char* matchname) {
     int nfound = 0;
 
     if (key[0] == '/') {
@@ -87,7 +87,6 @@ int num_initial_matches(char* key, int keylen, int matchnum, char* matchname, in
             }
         }
     }
-    *matchlen = strlen(matchname);
 
     return nfound;
 }
