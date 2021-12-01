@@ -59,11 +59,7 @@ namespace Configuration {
 // matchnum is the index of the match that we will return
 // matchname is the matchnum'th match
 
-int num_initial_matches(char* key, int keylen, int matchnum, char** matchname, int* matchlen) {
-    static char matchedstr[100];
-    matchedstr[0] = '\0';
-    *matchname    = matchedstr;
-
+int num_initial_matches(char* key, int keylen, int matchnum, char* matchname, int* matchlen) {
     int nfound = 0;
 
     if (key[0] == '/') {
@@ -72,7 +68,7 @@ int num_initial_matches(char* key, int keylen, int matchnum, char** matchname, i
         keycstr[keylen] = '\0';
 
         // Match in configuration tree
-        Configuration::Completer completer(keycstr, matchnum, &matchedstr[0]);
+        Configuration::Completer completer(keycstr, matchnum, matchname);
         config->group(completer);
         nfound = completer._numMatches;
     } else {
@@ -85,13 +81,13 @@ int num_initial_matches(char* key, int keylen, int matchnum, char** matchname, i
 
             if (*key == '\0' || lcTest.startsWith(lcKey)) {
                 if (matchname && nfound == matchnum) {
-                    strcpy(matchedstr, s->getName());
+                    strcpy(matchname, s->getName());
                 }
                 ++nfound;
             }
         }
     }
-    *matchlen = strlen(matchedstr);
+    *matchlen = strlen(matchname);
 
     return nfound;
 }
