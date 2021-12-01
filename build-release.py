@@ -45,10 +45,10 @@ def buildFs(pioEnv, verbose=True, extraArgs=None):
     # https://github.com/platformio/platformio-core/issues/4125
     # cmdEnv = dict(os.environ, PLATFORMIO_DATA_DIR="data-"+pioEnv)
     cmdEnv = environ
-    if verbose:
-        app = subprocess.Popen(cmd, env=cmdEnv, shell=True)
+    if True:
+        app = subprocess.Popen(cmd, env=cmdEnv)
     else:
-        app = subprocess.Popen(cmd, env=cmdEnv, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, bufsize=1, shell=True)
+        app = subprocess.Popen(cmd, env=cmdEnv, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, bufsize=1)
         for line in app.stdout:
             line = line.decode('utf8')
             if "Took" in line or 'Uploading' in line or ("error" in line.lower() and "Compiling" not in line):
