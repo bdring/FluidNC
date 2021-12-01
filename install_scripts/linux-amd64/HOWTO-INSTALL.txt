@@ -1,0 +1,42 @@
+## Installing FluidNC on your ESP32
+
+Unpack this FluidNC release Zip file.
+
+Plug your ESP32 into a USB port.
+
+At a shell prompt, cd to this directory and run one of the following commands:
+
+To install the WiFi version:            sh install-wifi.sh
+To install the Bluetooth version:       sh install-bt.sh
+To replace the ESP32 local filesystem:  sh install-fs.sh
+
+### Local Filesystem Considerations
+
+Replacing the local filesystem is only useful for the wifi
+version, since its default contents are only needed for
+running the WebUI user interface over WiFi.
+
+The disadvantage of replacing the local filesystem is that
+it will overwrite any files that you might already have
+there, such as FluidNC config files, WebUI preferences
+and macros.  The advantage is that you will get the latest
+version of the index.html.gz file that contains the WebUI
+code.  Another way to get a new index.html.gz is to upload
+it via WebUI from wifi/index.html.gz herein.
+
+A good approach is to use install-fs only on your first
+FluidNC installation, to start from a clean slate.
+
+### What Can Go Wrong?
+
+If you see an error like this:
+
+  [9481] Error loading Python lib '/tmp/_MEIoyh8ER/libpython3.8.so.1.0': dlopen: /lib/x86_64-linux-gnu/libm.so.6: version `GLIBC_2.29' not found (required by /tmp/_MEIoyh8ER/libpython3.8.so.1.0)
+
+.. it could be version mismatches between system libraries and the
+precompiled esptool executable in the linux-amd64 directory.
+
+The workaround is to run the Python version of esptool - esptool.py - under Python,
+instead of using the esptool executable version.  The Internet has many tutorials
+for using esptool.py .  You can find the appropriate command line arguments in the
+.sh files.

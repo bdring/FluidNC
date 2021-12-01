@@ -39,8 +39,18 @@ jobs:
         git tag "${{ github.event.inputs.tag }}" -a -m "Release test"
     - name: Build release
       run: python build-release.py
-    - name: Upload release
+    - name: Upload mac bundle
       uses: actions/upload-artifact@v2
       with:
-        name: releaseZipFile
-        path: release
+        name: release-macos
+        path: release/*macos*
+    - name: Upload Windows bundle
+      uses: actions/upload-artifact@v2
+      with:
+        name: release-win32
+        path: release/*win*
+    - name: Upload Linux bundle
+      uses: actions/upload-artifact@v2
+      with:
+        name: release-linux
+        path: release/*linux*
