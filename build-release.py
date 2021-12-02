@@ -78,11 +78,10 @@ if not os.path.exists(relPath):
 for envName in ['wifi','bt']:
     if buildEnv(envName, verbose=True) != 0:
         sys.exit(1)
+    print(os.listdir('.pio/build'))
+    print(os.listdir('.pio/build/' + envName))
 
 print(os.listdir('.pio/build'))
-print(os.listdir('.pio/build/wifi'))
-print(os.listdir('.pio/build/bt'))
-
 
 for platform in ['win64', 'macos', 'linux-amd64']:
     print("Creating zip file for ", platform)
