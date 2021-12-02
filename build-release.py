@@ -69,12 +69,15 @@ if not os.path.exists(relPath):
     os.makedirs(relPath)
 
 numErrors = 0
+if buildFs('wifi', verbose=verbose) != 0:
+    numErrors += 1
+
+if numErrors:
+    sys.exit(numErrors)
+
 for envName in ['wifi','bt']:
     if buildEnv(envName, verbose=verbose) != 0:
         numErrors += 1
-
-if buildFs('wifi', verbose=verbose) != 0:
-    numErrors += 1
 
 if numErrors:
     sys.exit(numErrors)
