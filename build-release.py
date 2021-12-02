@@ -75,11 +75,6 @@ if not os.path.exists(relPath):
 # if numErrors:
 #     sys.exit(numErrors)
 
-print(os.listdir('.pio/build'))
-print(os.listdir('.pio/build/wifi'))
-print(os.listdir('.pio/build/bt'))
-
-
 for envName in ['wifi','bt']:
     if buildEnv(envName, verbose=True) != 0:
         sys.exit(1)
