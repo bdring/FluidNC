@@ -19,7 +19,7 @@ verbose = '-v' in sys.argv
 environ = dict(os.environ)
 
 def buildEnv(pioEnv, verbose=True, extraArgs=None):
-    cmd = ['platformio','run', "-e", pioEnv]
+    cmd = ['platformio','run', '-e', pioEnv, '-t', 'release', '-t', 'buildfs']
     if extraArgs:
         cmd.append(extraArgs)
     displayName = pioEnv
@@ -68,27 +68,16 @@ relPath = os.path.join('release')
 if not os.path.exists(relPath):
     os.makedirs(relPath)
 
-numErrors = 0
-if buildFs('wifi', verbose=verbose) != 0:
-    numErrors += 1
+# numErrors = 0
+# if buildFs('wifi', verbose=verbose) != 0:
+#     numErrors += 1
 
-print(os.listdir('.pio'))
-print(os.listdir('.pio/build'))
-print(os.listdir('.pio/build/wifi'))
-
-if numErrors:
-    sys.exit(numErrors)
+# if numErrors:
+#     sys.exit(numErrors)
 
 for envName in ['wifi','bt']:
     if buildEnv(envName, verbose=verbose) != 0:
-        numErrors += 1
-
-print(os.listdir('.pio'))
-print(os.listdir('.pio/build'))
-print(os.listdir('.pio/build/wifi'))
-
-if numErrors:
-    sys.exit(numErrors)
+        sys.exit(1)
 
 for platform in ['win64', 'macos', 'linux-amd64']:
     print("Creating zip file for ", platform)
