@@ -76,7 +76,7 @@ if not os.path.exists(relPath):
 #     sys.exit(numErrors)
 
 for envName in ['wifi','bt']:
-    if buildEnv(envName, verbose=verbose) != 0:
+    if buildEnv(envName, verbose=True) != 0:
         sys.exit(1)
 
 for platform in ['win64', 'macos', 'linux-amd64']:
