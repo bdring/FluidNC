@@ -19,7 +19,7 @@ verbose = '-v' in sys.argv
 environ = dict(os.environ)
 
 def buildEnv(pioEnv, verbose=True, extraArgs=None):
-    cmd = ['platformio','run', '-e', pioEnv, '-t', 'release', '-t', 'buildfs']
+    cmd = ['platformio','run', '--disable-auto-clean', '-e', pioEnv]
     if extraArgs:
         cmd.append(extraArgs)
     displayName = pioEnv
@@ -37,7 +37,7 @@ def buildEnv(pioEnv, verbose=True, extraArgs=None):
     return app.returncode
 
 def buildFs(pioEnv, verbose=True, extraArgs=None):
-    cmd = ['platformio','run', '-e', pioEnv, '-t', 'buildfs']
+    cmd = ['platformio','run', '--disable-auto-clean', '-e', pioEnv, '-t', 'buildfs']
     if extraArgs:
         cmd.append(extraArgs)
     print('Building file system for ' + pioEnv)
@@ -68,12 +68,12 @@ relPath = os.path.join('release')
 if not os.path.exists(relPath):
     os.makedirs(relPath)
 
-# numErrors = 0
-# if buildFs('wifi', verbose=verbose) != 0:
-#     numErrors += 1
+numErrors = 0
+if buildFs('wifi', verbose=verbose) != 0:
+    numErrors += 1
 
-# if numErrors:
-#     sys.exit(numErrors)
+if numErrors:
+    sys.exit(numErrors)
 
 for envName in ['wifi','bt']:
     if buildEnv(envName, verbose=True) != 0:
