@@ -37,11 +37,12 @@ jobs:
         git config user.email "wmb@firmworks.com"
         git config user.name "Mitch Bradley"
         git tag "${{ github.event.inputs.tag }}" -a -m "Release test"
+        echo ${{github.tag}}
     - name: Build
       run: python build-release.py
     - name: Create release
       uses: softprops/action-gh-release@v1
-      if: startsWith(github.ref, 'refs/tags/')
+      # if: startsWith(github.ref, 'refs/tags/v')
       with:
         files: release/*.zip
         draft: True
