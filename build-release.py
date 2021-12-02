@@ -72,9 +72,9 @@ numErrors = 0
 if buildFs('wifi', verbose=verbose) != 0:
     numErrors += 1
 
-print(os.listdir('.pio')
-print(os.listdir('.pio/build')
-print(os.listdir('.pio/build/wifi')
+print(os.listdir('.pio'))
+print(os.listdir('.pio/build'))
+print(os.listdir('.pio/build/wifi'))
 
 if numErrors:
     sys.exit(numErrors)
@@ -83,9 +83,9 @@ for envName in ['wifi','bt']:
     if buildEnv(envName, verbose=verbose) != 0:
         numErrors += 1
 
-print(os.listdir('.pio')
-print(os.listdir('.pio/build')
-print(os.listdir('.pio/build/wifi')
+print(os.listdir('.pio'))
+print(os.listdir('.pio/build'))
+print(os.listdir('.pio/build/wifi'))
 
 if numErrors:
     sys.exit(numErrors)
