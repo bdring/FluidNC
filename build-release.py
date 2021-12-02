@@ -41,14 +41,10 @@ def buildFs(pioEnv, verbose=verbose, extraArgs=None):
     if extraArgs:
         cmd.append(extraArgs)
     print('Building file system for ' + pioEnv)
-    # The following ought to work but it does not because of
-    # https://github.com/platformio/platformio-core/issues/4125
-    # cmdEnv = dict(os.environ, PLATFORMIO_DATA_DIR="data-"+pioEnv)
-    cmdEnv = environ
-    if True:
-        app = subprocess.Popen(cmd, env=cmdEnv)
+    if verbose:
+        app = subprocess.Popen(cmd, env=environ)
     else:
-        app = subprocess.Popen(cmd, env=cmdEnv, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, bufsize=1)
+        app = subprocess.Popen(cmd, env=environ, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, bufsize=1)
         for line in app.stdout:
             line = line.decode('utf8')
             if "Took" in line or 'Uploading' in line or ("error" in line.lower() and "Compiling" not in line):
@@ -167,4 +163,4 @@ for platform in ['win64', 'macos', 'linux-amd64']:
                 info.external_attr = 0o100755 << 16
                 zipObj.writestr(info, zipReader.read(sourceFileName))
 
-sys.exit(numErrors)
+sys.exit(0)
