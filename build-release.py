@@ -36,7 +36,7 @@ def buildEnv(pioEnv, verbose=True, extraArgs=None):
     print()
     return app.returncode
 
-def buildFs(pioEnv, verbose=True, extraArgs=None):
+def buildFs(pioEnv, verbose=verbose, extraArgs=None):
     cmd = ['platformio','run', '--disable-auto-clean', '-e', pioEnv, '-t', 'buildfs']
     if extraArgs:
         cmd.append(extraArgs)
@@ -68,15 +68,11 @@ relPath = os.path.join('release')
 if not os.path.exists(relPath):
     os.makedirs(relPath)
 
-numErrors = 0
 if buildFs('wifi', verbose=verbose) != 0:
-    numErrors += 1
-
-if numErrors:
-    sys.exit(numErrors)
+    sys.exit(1)
 
 for envName in ['wifi','bt']:
-    if buildEnv(envName, verbose=True) != 0:
+    if buildEnv(envName, verbose=verbose) != 0:
         sys.exit(1)
     print(os.listdir('.pio/build'))
     print(os.listdir('.pio/build/' + envName))
