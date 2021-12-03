@@ -18,6 +18,14 @@ verbose = '-v' in sys.argv
 
 environ = dict(os.environ)
 
+def zipdir(path, ziph):
+    # ziph is zipfile handle
+    for root, dirs, files in os.walk(path):
+        for file in files:
+            ziph.write(os.path.join(root, file),
+                       os.path.relpath(os.path.join(root, file),
+                                       os.path.join(path, '..')))
+
 def buildEnv(pioEnv, verbose=True, extraArgs=None):
     cmd = ['platformio','run', '--disable-auto-clean', '-e', pioEnv]
     if extraArgs:
@@ -70,10 +78,6 @@ if buildFs('wifi', verbose=verbose) != 0:
 for envName in ['wifi','bt']:
     if buildEnv(envName, verbose=verbose) != 0:
         sys.exit(1)
-    print(os.listdir('.pio/build'))
-    print(os.listdir('.pio/build/' + envName))
-
-print(os.listdir('.pio/build'))
 
 for platform in ['win64', 'macos', 'linux-amd64']:
     print("Creating zip file for ", platform)
@@ -143,6 +147,12 @@ for platform in ['win64', 'macos', 'linux-amd64']:
         info = ZipInfo.from_file(sourceFileName, scriptName)
         info.external_attr = 0o100755 << 16
         zipObj.writestr(info, bytes)
+
+        # Put the fluidterm code in the archive
+        zipdir('fluidterm', zipObj)
+        if platform == 'win64':
+            obj = 'fluidterm' + exeExtension[platform]
+            zipObj.write(os.path.join('fluidterm', obj), os.path.join(platform, obj))
 
         # Put esptool and related tools in the archive
         EsptoolVersion = 'v3.1'

@@ -8,3 +8,7 @@ LocalFS="0x3d0000 wifi/spiffs.bin"
 
 echo $EsptoolPath $SetupArgs $LocalFS
 $EsptoolPath $SetupArgs $LocalFS
+
+echo Starting fluidterm
+python3 -m pip install -q pyserial xmodem
+python3 fluidterm/fluidterm.py

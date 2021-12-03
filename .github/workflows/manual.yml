@@ -37,12 +37,12 @@ jobs:
         git config user.email "wmb@firmworks.com"
         git config user.name "Mitch Bradley"
         git tag "${{ github.event.inputs.tag }}" -a -m "Release test"
-        echo "${{ github.ref }}"
     - name: Build
       run: python build-release.py
     - name: Create release
       uses: softprops/action-gh-release@v1
       with:
+        tag_name: ${{ github.event.inputs.tag }}
         files: release/*.zip
         draft: True
     # - name: Upload mac bundle

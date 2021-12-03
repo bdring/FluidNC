@@ -9,4 +9,7 @@ set LocalFS=0x3d0000 wifi\spiffs.bin
 echo %EsptoolPath% %SetupArgs% %LocalFS%
 %EsptoolPath% %SetupArgs% %LocalFS%
 
+echo Starting fluidterm
+win64\fluidterm.exe
+
 pause

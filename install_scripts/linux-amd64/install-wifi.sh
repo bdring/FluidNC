@@ -12,3 +12,7 @@ Partitions="0x8000 ${BuildType}/partitions.bin"
 
 echo $EsptoolPath $SetupArgs $Bootloader $Bootapp $Firmware $Partitions
 $EsptoolPath $SetupArgs $Bootloader $Bootapp $Firmware $Partitions
+
+echo Starting fluidterm
+python3 -m pip install -q pyserial xmodem
+python3 fluidterm/fluidterm.py
