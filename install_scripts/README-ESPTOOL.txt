@@ -1,2 +1,2 @@
-The esptool and espefuse binaries directories were extracted from release
-files in the https://github.com/espressif/esptool repo.
+The esptool binaries were extracted from official Espressif release files at
+https://github.com/espressif/esptool .

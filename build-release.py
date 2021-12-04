@@ -121,7 +121,6 @@ for platform in ['win64', 'macos', 'linux-amd64']:
             # bt does not need a spiffs.bin because there is no use for index.html.gz
             if envName == 'wifi':
                 name = 'spiffs.bin'
-                print("From ", os.path.join(pioPath, envName, name), " to ", os.path.join(envName, name))
                 zipObj.write(os.path.join(pioPath, envName, name), os.path.join(envName, name))
                 name = 'index.html.gz'
                 zipObj.write(os.path.join('FluidNC', 'data', name), os.path.join(envName, name))
@@ -164,7 +163,7 @@ for platform in ['win64', 'macos', 'linux-amd64']:
         if not os.path.isfile(ZipFileName):
             with urllib.request.urlopen(EspRepo + ZipFileName) as u:
                 open(ZipFileName, 'wb').write(u.read())
-        for Binary in ['esptool', 'espefuse']:
+        for Binary in ['esptool']:
             Binary += exeExtension[platform]
             sourceFileName = EspDir + '/' + Binary
             with ZipFile(ZipFileName, 'r') as zipReader:
