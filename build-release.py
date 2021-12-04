@@ -1,13 +1,6 @@
 #!/usr/bin/env python
 
-# Compile FluidNC for each of the radio modes
-# Add-on files are built on top of a single base.
-# This is useful for automated testing, to make sure you haven't broken something
-
-# The output is filtered so that the only lines you see are a single
-# success or failure line for each build, plus any preceding lines that
-# contain the word "error".  If you need to see everything, for example to
-# see the details of an errored build, include -v on the command line.
+# Build FluidNC release bundles (.zip files) for each host platform
 
 from shutil import copy
 from zipfile import ZipFile, ZipInfo
@@ -17,14 +10,6 @@ import urllib.request
 verbose = '-v' in sys.argv
 
 environ = dict(os.environ)
-
-def zipdir(path, ziph):
-    # ziph is zipfile handle
-    for root, dirs, files in os.walk(path):
-        for file in files:
-            ziph.write(os.path.join(root, file),
-                       os.path.relpath(os.path.join(root, file),
-                                       os.path.join(path, '..')))
 
 def buildEnv(pioEnv, verbose=True, extraArgs=None):
     cmd = ['platformio','run', '--disable-auto-clean', '-e', pioEnv]
@@ -148,7 +133,10 @@ for platform in ['win64', 'macos', 'linux-amd64']:
         zipObj.writestr(info, bytes)
 
         # Put the fluidterm code in the archive
-        zipdir('fluidterm', zipObj)
+        for obj in ['fluidterm.py', 'README.md']:
+            fn = os.path.join('fluidterm', obj)
+            zipObj.write(fn, fn)
+            
         if platform == 'win64':
             obj = 'fluidterm' + exeExtension[platform]
             zipObj.write(os.path.join('fluidterm', obj), os.path.join(platform, obj))
