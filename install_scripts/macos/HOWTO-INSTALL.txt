@@ -1,14 +1,29 @@
+211205_151757: from [https://github.com/bdring/FluidNC/edit/ReleaseEngineering/install_scripts/macos/HOWTO-INSTALL.txt]
+
+## Requirements
+
+This install requires:
+
+- A Serial USB Port (such as the Silicon Labs Driver)
+- Python3
+
+For help with these, see https://github.com/Longus/FluidNC/wiki/Set-Up-FluidNC-Using-macOS
+
 ## Installing FluidNC on your ESP32
 
 Unpack this FluidNC release Zip file.
 
 Plug your ESP32 into a USB port.
 
-In a Terminal window, cd to this directory and run one of the following commands:
-
-To install the WiFi version:            sh install-wifi.sh
-To install the Bluetooth version:       sh install-bt.sh
-To replace the ESP32 local filesystem:  sh install-fs.sh
+In a Terminal window:
+- cd to the directory this 'HOWTO-INSTALL.txt' is located in (type `cd` with a space after, then drag the folder from the 'Finder.app' onto the 'Terminal.app' window)
+- run one of the following commands (if you have problems, use the full path to the file):
+  - To install the WiFi version:
+  `sh install-wifi.sh`
+  - To install the Bluetooth version:
+  `sh install-bt.sh`
+  - To replace the ESP32 local filesystem:
+  `sh install-fs.sh`
 
 ### Local Filesystem Considerations
 
