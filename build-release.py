@@ -53,6 +53,16 @@ tag = (
 )
 
 sharedPath = 'install_scripts'
+
+def copyToZip(zipObj, platform, destPath, mode=0o100755):
+    sourcePath = os.path.join(sharedPath, platform, destPath)
+    with open(sourcePath, 'r') as f:
+        bytes = f.read()
+    info = ZipInfo.from_file(sourcePath, destPath)
+    info.external_attr = mode << 16
+    zipObj.writestr(info, bytes)
+
+
 relPath = os.path.join('release')
 if not os.path.exists(relPath):
     os.makedirs(relPath)
@@ -98,6 +108,8 @@ for platform in ['win64', 'macos', 'linux-amd64']:
         zipObj.write(os.path.join(tools, 'sdk', 'bin', bootloader), os.path.join('common', bootloader))
         bootapp = 'boot_app0.bin';
         zipObj.write(os.path.join(tools, "partitions", bootapp), os.path.join('common', bootapp))
+        secFuses = 'SecurityFusesOK.bin';
+        zipObj.write(os.path.join(sharedPath, secFuses), os.path.join('common', secFuses))
 
         # Put FluidNC binaries, partition maps, and installers in the archive
         for envName in ['wifi','bt']:
@@ -114,23 +126,12 @@ for platform in ['win64', 'macos', 'linux-amd64']:
             for obj in ['firmware.bin','partitions.bin']:
                 zipObj.write(os.path.join(objPath, obj), os.path.join(envName, obj))
             
-            scriptName = 'install-' + envName + scriptExtension[platform]
+            # E.g. macos/install-wifi.sh -> install-wifi.sh
+            copyToZip(zipObj, platform, 'install-' + envName + scriptExtension[platform])
 
-            sourceFileName = os.path.join(sharedPath, platform, scriptName)
-            with open(sourceFileName, 'r') as f:
-                bytes = f.read()
-            info = ZipInfo.from_file(sourceFileName, scriptName)
-            info.external_attr = 0o100755 << 16
-            zipObj.writestr(info, bytes)
-
-        scriptName = 'install-fs' + scriptExtension[platform]
-
-        sourceFileName = os.path.join(sharedPath, platform, scriptName)
-        with open(sourceFileName, 'r') as f:
-            bytes = f.read()
-        info = ZipInfo.from_file(sourceFileName, scriptName)
-        info.external_attr = 0o100755 << 16
-        zipObj.writestr(info, bytes)
+        for script in ['install-fs', 'fluidterm', 'checksecurity', 'tools', ]:
+            # E.g. macos/fluidterm.sh -> fluidterm.sh
+            copyToZip(zipObj, platform, script + scriptExtension[platform])
 
         # Put the fluidterm code in the archive
         for obj in ['fluidterm.py', 'README.md']:
