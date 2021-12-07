@@ -69,8 +69,8 @@ static const uint16_t crc16tab[256] = {
 };
 
 uint16_t crc16_ccitt(const uint8_t* buf, size_t len) {
-    register int      counter;
-    register uint16_t crc = 0;
+    int      counter;
+    uint16_t crc = 0;
     for (counter = 0; counter < len; counter++)
         crc = (crc << 8) ^ crc16tab[((crc >> 8) ^ *buf++) & 0x00FF];
     return crc;

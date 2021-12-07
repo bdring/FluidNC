@@ -10,6 +10,7 @@
 
 #include <cstring>
 #include <cstdint>
+#include <cmath>
 
 const int MAX_INT_DIGITS = 8;  // Maximum number of digits in int32 (and float)
 

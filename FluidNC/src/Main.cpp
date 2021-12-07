@@ -2,26 +2,28 @@
 // Copyright (c) 2018 -	Bart Dring
 // Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
 
-#include "Main.h"
-#include "Machine/MachineConfig.h"
+#ifndef UNIT_TEST
 
-#include "Config.h"
-#include "Report.h"
-#include "Settings.h"
-#include "SettingsDefinitions.h"
-#include "Limits.h"
-#include "Protocol.h"
-#include "System.h"
-#include "Uart.h"
-#include "MotionControl.h"
-#include "Platform.h"
+#    include "Main.h"
+#    include "Machine/MachineConfig.h"
 
-#include "WebUI/TelnetServer.h"
-#include "WebUI/Serial2Socket.h"
-#include "WebUI/InputBuffer.h"
+#    include "Config.h"
+#    include "Report.h"
+#    include "Settings.h"
+#    include "SettingsDefinitions.h"
+#    include "Limits.h"
+#    include "Protocol.h"
+#    include "System.h"
+#    include "Uart.h"
+#    include "MotionControl.h"
+#    include "Platform.h"
 
-#include "WebUI/WifiConfig.h"
-#include <SPIFFS.h>
+#    include "WebUI/TelnetServer.h"
+#    include "WebUI/Serial2Socket.h"
+#    include "WebUI/InputBuffer.h"
+
+#    include "WebUI/WifiConfig.h"
+#    include <SPIFFS.h>
 
 extern void make_user_commands();
 
@@ -125,7 +127,7 @@ void setup() {
 }
 
 static void reset_variables() {
-#ifdef DEBUG_STEPPING
+#    ifdef DEBUG_STEPPING
     rtTestPl    = false;
     rtTestSt    = false;
     st_seq      = 0;
@@ -134,7 +136,7 @@ static void reset_variables() {
     seg_seq0    = 0;
     seg_seq1    = 0;
     planner_seq = 0;
-#endif
+#    endif
     // Reset primary systems.
     system_reset();
     protocol_reset();
@@ -195,7 +197,7 @@ void loop() {
 
 void WEAK_LINK machine_init() {}
 
-#if 0
+#    if 0
 int main() {
     setup();  // setup()
     while (1) {   // loop()
@@ -203,4 +205,6 @@ int main() {
     }
     return 0;
 }
+#    endif
+
 #endif

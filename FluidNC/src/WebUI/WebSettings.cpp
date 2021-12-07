@@ -437,7 +437,7 @@ namespace WebUI {
         listDirJSON(SPIFFS, "/", 4, &j);
         j.member("total", SPIFFS.totalBytes());
         j.member("used", SPIFFS.usedBytes());
-        j.member("occupation", String(100 * SPIFFS.usedBytes() / SPIFFS.totalBytes()));
+        j.member("occupation", String(long(100 * SPIFFS.usedBytes() / SPIFFS.totalBytes())));
         j.end();
         return Error::Ok;
     }

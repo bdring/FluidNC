@@ -85,6 +85,10 @@ public:
     int  peek() { return -1; }
     void flush() {}
 
+    // All channels cannot be a direct command source so
+    // its rx_buffer_available() method should not be called.
+    int rx_buffer_available() override { return 0; }
+
     String info();
 
     Channel* pollLine(char* line) override;

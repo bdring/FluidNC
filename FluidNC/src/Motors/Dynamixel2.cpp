@@ -22,6 +22,7 @@
 #include "../Planner.h"    // plan_sync_position()
 
 #include <cstdarg>
+#include <cmath>
 
 namespace MotorDrivers {
     bool    MotorDrivers::Dynamixel2::_uart_started      = false;

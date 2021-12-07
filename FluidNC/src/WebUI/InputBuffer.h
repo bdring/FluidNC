@@ -21,6 +21,8 @@ namespace WebUI {
         bool   push(char data);
         void   flush(void);
 
+        int rx_buffer_available() { return RXBUFFERSIZE - available(); }
+
         operator bool() const;
 
         ~InputBuffer();

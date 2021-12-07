@@ -15,6 +15,8 @@
 #include "InputFile.h"       // infile
 #include "Platform.h"        // WEAK_LINK
 
+#include <cmath>
+
 // M_PI is not defined in standard C/C++ but some compilers
 // support it anyway.  The following suppresses Intellisense
 // problem reports.

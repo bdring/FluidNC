@@ -44,6 +44,8 @@ namespace WebUI {
         int    peek() override { return SerialBT.peek(); }
         void   flush() override { return SerialBT.flush(); }
         size_t write(uint8_t data) override;
+        // 512 is RX_QUEUE_SIZE which is defined in BluetoothSerial.cpp but not in its .h
+        int rx_buffer_available() override { return 512 - available(); }
     };
     extern BTChannel btChannel;
 

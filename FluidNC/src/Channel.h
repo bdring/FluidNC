@@ -38,4 +38,5 @@ public:
     virtual Channel* pollLine(char* line);
     virtual void     ack(Error status);
     const char*      name() { return _name; }
+    virtual int      rx_buffer_available() = 0;
 };

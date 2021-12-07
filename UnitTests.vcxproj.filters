@@ -4,934 +4,1024 @@
     <Filter Include="src">
       <UniqueIdentifier>{FDE5A3A1-4E92-3B7B-BA93-74C1C89D4E58}</UniqueIdentifier>
     </Filter>
-    <Filter Include="src\Pins">
-      <UniqueIdentifier>{2896077E-16A8-3EAE-B5C4-159DC4FA2436}</UniqueIdentifier>
-    </Filter>
     <Filter Include="src\Configuration">
       <UniqueIdentifier>{EED825A4-B73C-33F5-96D4-769C2A167F8C}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="src\Motors">
-      <UniqueIdentifier>{58B2381C-99DF-3035-A3F0-4AADBB709BE7}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="src\PinUsers">
-      <UniqueIdentifier>{245249FF-C286-3813-BCCF-413895DB9135}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="src\WebUI">
-      <UniqueIdentifier>{76D241B7-03F7-3DD3-9834-4EFF878918F6}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="src\Spindles">
-      <UniqueIdentifier>{2D9E09B1-7C61-3463-9CF9-D57FA109EF03}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="src\Machine">
-      <UniqueIdentifier>{57EA2BFF-20B3-353C-8D6A-52862855F6A7}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="src\Machines">
-      <UniqueIdentifier>{E7013460-23D9-3E12-8F4C-4A4FE671769C}</UniqueIdentifier>
     </Filter>
     <Filter Include="src\StackTrace">
       <UniqueIdentifier>{4FE640FC-EB59-3010-9873-80157C13991B}</UniqueIdentifier>
     </Filter>
+    <Filter Include="src\PinUsers">
+      <UniqueIdentifier>{245249FF-C286-3813-BCCF-413895DB9135}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\Custom">
+      <UniqueIdentifier>{E8DBBC2D-4F51-3A18-BE5E-D816A7A34C9B}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\WebUI">
+      <UniqueIdentifier>{76D241B7-03F7-3DD3-9834-4EFF878918F6}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\Machine">
+      <UniqueIdentifier>{57EA2BFF-20B3-353C-8D6A-52862855F6A7}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\Pins">
+      <UniqueIdentifier>{2896077E-16A8-3EAE-B5C4-159DC4FA2436}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\Spindles">
+      <UniqueIdentifier>{2D9E09B1-7C61-3463-9CF9-D57FA109EF03}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\Motors">
+      <UniqueIdentifier>{58B2381C-99DF-3035-A3F0-4AADBB709BE7}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\Kinematics">
+      <UniqueIdentifier>{44A0A070-0011-3616-85DC-1D47862A1E85}</UniqueIdentifier>
+    </Filter>
     <Filter Include="X86TestSupport">
-      <UniqueIdentifier>{D77ADD93-FE73-3DE5-92BB-25ABE9077DD6}</UniqueIdentifier>
+      <UniqueIdentifier>{30B52F7F-8838-3316-82C9-F8BA29F0B32E}</UniqueIdentifier>
     </Filter>
-    <Filter Include="tests">
-      <UniqueIdentifier>{9396f607-9b99-4f0e-bfdb-f549462e0205}</UniqueIdentifier>
+    <Filter Include="test">
+      <UniqueIdentifier>{6cdf2082-ef6b-40f9-bea9-637f19d3d928}</UniqueIdentifier>
     </Filter>
-    <Filter Include="X86TestSupport\freertos">
-      <UniqueIdentifier>{170a3d62-e923-4fa4-919a-c5a265fc6327}</UniqueIdentifier>
+    <Filter Include="test\Configuration">
+      <UniqueIdentifier>{eba3f311-ad6a-40b8-b176-a22b20a53fd8}</UniqueIdentifier>
     </Filter>
-    <Filter Include="X86TestSupport\driver">
-      <UniqueIdentifier>{1c6b65a5-ab00-4633-aba8-cb541e15d722}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="X86TestSupport\soc">
-      <UniqueIdentifier>{2fe0b2ec-2f5f-44c9-8e5d-33a53d96d80c}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="X86TestSupport\xtensa">
-      <UniqueIdentifier>{65268649-7855-443e-bf8e-984388ea6c17}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="X86TestSupport\TMC">
-      <UniqueIdentifier>{52fb1ffd-68a9-4edc-aae1-ca2cdf3e7da9}</UniqueIdentifier>
+    <Filter Include="test\Pins">
+      <UniqueIdentifier>{dc4ba3bc-4342-4a67-aea2-f68877f1ee69}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="Grbl_Esp32\src\Machine\SPIBus.h">
+    <ClInclude Include="FluidNC\src\SettingsDefinitions.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="FluidNC\src\PinUsers\PwmPin.h">
+      <Filter>src\PinUsers</Filter>
+    </ClInclude>
+    <ClInclude Include="FluidNC\src\WebUI\BTConfig.h">
+      <Filter>src\WebUI</Filter>
+    </ClInclude>
+    <ClInclude Include="FluidNC\src\Config.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="FluidNC\src\Machine\Macros.h">
       <Filter>src\Machine</Filter>
     </ClInclude>
-    <ClInclude Include="Grbl_Esp32\src\StepperPrivate.h">
+    <ClInclude Include="FluidNC\src\StringRange.h">
       <Filter>src</Filter>
     </ClInclude>
-    <ClInclude Include="Grbl_Esp32\src\Configuration\GenericFactory.h">
+    <ClInclude Include="FluidNC\src\Configuration\GenericFactory.h">
       <Filter>src\Configuration</Filter>
     </ClInclude>
-    <ClInclude Include="Grbl_Esp32\src\Configuration\Tokenizer.h">
+    <ClInclude Include="FluidNC\src\Configuration\Configurable.h">
       <Filter>src\Configuration</Filter>
     </ClInclude>
-    <ClInclude Include="Grbl_Esp32\src\Pins\PinDetail.h">
+    <ClInclude Include="FluidNC\src\Motors\StepStick.h">
+      <Filter>src\Motors</Filter>
+    </ClInclude>
+    <ClInclude Include="FluidNC\src\Motors\UnipolarMotor.h">
+      <Filter>src\Motors</Filter>
+    </ClInclude>
+    <ClInclude Include="FluidNC\src\Pins\PinAttributes.h">
       <Filter>src\Pins</Filter>
     </ClInclude>
-    <ClInclude Include="Grbl_Esp32\src\SimpleOutputStream.h">
+    <ClInclude Include="FluidNC\src\Main.h">
       <Filter>src</Filter>
     </ClInclude>
-    <ClInclude Include="Grbl_Esp32\src\Spindles\Spindle.h">
+    <ClInclude Include="FluidNC\src\Serial.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="FluidNC\src\ControlPin.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="FluidNC\src\WebUI\InputBuffer.h">
+      <Filter>src\WebUI</Filter>
+    </ClInclude>
+    <ClInclude Include="FluidNC\src\Spindles\OnOffSpindle.h">
       <Filter>src\Spindles</Filter>
     </ClInclude>
-    <ClInclude Include="Grbl_Esp32\src\Configuration\Validator.h">
-      <Filter>src\Configuration</Filter>
-    </ClInclude>
-    <ClInclude Include="X86TestSupport\nvs.h">
-      <Filter>X86TestSupport</Filter>
-    </ClInclude>
-    <ClInclude Include="Grbl_Esp32\src\Pin.h">
+    <ClInclude Include="FluidNC\src\Types.h">
       <Filter>src</Filter>
     </ClInclude>
-    <ClInclude Include="Grbl_Esp32\src\Configuration\AfterParse.h">
-      <Filter>src\Configuration</Filter>
+    <ClInclude Include="FluidNC\src\Spindles\10vSpindle.h">
+      <Filter>src\Spindles</Filter>
     </ClInclude>
-    <ClInclude Include="Grbl_Esp32\src\ControlPin.h">
-      <Filter>src</Filter>
-    </ClInclude>
-    <ClInclude Include="Grbl_Esp32\src\Pins\I2SOPinDetail.h">
-      <Filter>src\Pins</Filter>
-    </ClInclude>
-    <ClInclude Include="X86TestSupport\soc\uart_reg.h">
-      <Filter>X86TestSupport</Filter>
-    </ClInclude>
-    <ClInclude Include="Grbl_Esp32\src\SpindleDatatypes.h">
-      <Filter>src</Filter>
-    </ClInclude>
-    <ClInclude Include="Grbl_Esp32\src\Logging.h">
-      <Filter>src</Filter>
-    </ClInclude>
-    <ClInclude Include="Grbl_Esp32\src\Platform.h">
-      <Filter>src</Filter>
-    </ClInclude>
-    <ClInclude Include="Grbl_Esp32\src\Motors\Servo.h">
-      <Filter>src\Motors</Filter>
-    </ClInclude>
-    <ClInclude Include="Grbl_Esp32\src\Machine\Axis.h">
+    <ClInclude Include="FluidNC\src\Machine\WifiSTAConfig.h">
       <Filter>src\Machine</Filter>
     </ClInclude>
-    <ClInclude Include="Grbl_Esp32\src\Report.h">
+    <ClInclude Include="FluidNC\src\Channel.h">
       <Filter>src</Filter>
     </ClInclude>
-    <ClInclude Include="Grbl_Esp32\src\Motors\NullMotor.h">
-      <Filter>src\Motors</Filter>
-    </ClInclude>
-    <ClInclude Include="Grbl_Esp32\src\WebUI\WebServer.h">
+    <ClInclude Include="FluidNC\src\WebUI\WebServer.h">
       <Filter>src\WebUI</Filter>
     </ClInclude>
-    <ClInclude Include="Grbl_Esp32\src\Pins\ErrorPinDetail.h">
-      <Filter>src\Pins</Filter>
-    </ClInclude>
-    <ClInclude Include="Grbl_Esp32\src\Pins\PinOptionsParser.h">
-      <Filter>src\Pins</Filter>
-    </ClInclude>
-    <ClInclude Include="Grbl_Esp32\src\EnumItem.h">
+    <ClInclude Include="FluidNC\src\Assert.h">
       <Filter>src</Filter>
     </ClInclude>
-    <ClInclude Include="X86TestSupport\Print.h">
-      <Filter>X86TestSupport</Filter>
+    <ClInclude Include="FluidNC\src\Spindles\RelaySpindle.h">
+      <Filter>src\Spindles</Filter>
     </ClInclude>
-    <ClInclude Include="Grbl_Esp32\src\Protocol.h">
+    <ClInclude Include="FluidNC\src\Kinematics\WallPlotter.h">
+      <Filter>src\Kinematics</Filter>
+    </ClInclude>
+    <ClInclude Include="FluidNC\src\Kinematics\Midtbot.h">
+      <Filter>src\Kinematics</Filter>
+    </ClInclude>
+    <ClInclude Include="FluidNC\src\Planner.h">
       <Filter>src</Filter>
     </ClInclude>
-    <ClInclude Include="Grbl_Esp32\src\CPUMap.h">
+    <ClInclude Include="FluidNC\src\Logging.h">
       <Filter>src</Filter>
     </ClInclude>
-    <ClInclude Include="Grbl_Esp32\src\Configuration\TokenState.h">
+    <ClInclude Include="FluidNC\src\MotionControl.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="FluidNC\src\Configuration\LegacySettingRegistry.h">
       <Filter>src\Configuration</Filter>
     </ClInclude>
-    <ClInclude Include="Grbl_Esp32\src\WebUI\WebSettings.h">
-      <Filter>src\WebUI</Filter>
-    </ClInclude>
-    <ClInclude Include="Grbl_Esp32\src\Probe.h">
-      <Filter>src</Filter>
-    </ClInclude>
-    <ClInclude Include="Grbl_Esp32\src\Motors\Dynamixel2.h">
-      <Filter>src\Motors</Filter>
-    </ClInclude>
-    <ClInclude Include="Grbl_Esp32\src\Limits.h">
-      <Filter>src</Filter>
-    </ClInclude>
-    <ClInclude Include="Grbl_Esp32\src\WebUI\NotificationsService.h">
-      <Filter>src\WebUI</Filter>
-    </ClInclude>
-    <ClInclude Include="Grbl_Esp32\src\Pins\PinCapabilities.h">
+    <ClInclude Include="FluidNC\src\Pins\DebugPinDetail.h">
       <Filter>src\Pins</Filter>
     </ClInclude>
-    <ClInclude Include="X86TestSupport\soc\dport_reg.h">
-      <Filter>X86TestSupport</Filter>
-    </ClInclude>
-    <ClInclude Include="Grbl_Esp32\src\Configuration\JsonGenerator.h">
-      <Filter>src\Configuration</Filter>
-    </ClInclude>
-    <ClInclude Include="Grbl_Esp32\src\UartTypes.h">
-      <Filter>src</Filter>
-    </ClInclude>
-    <ClInclude Include="Grbl_Esp32\src\WebUI\TelnetServer.h">
-      <Filter>src\WebUI</Filter>
-    </ClInclude>
-    <ClInclude Include="Grbl_Esp32\src\Config.h">
-      <Filter>src</Filter>
-    </ClInclude>
-    <ClInclude Include="Grbl_Esp32\src\GCode.h">
-      <Filter>src</Filter>
-    </ClInclude>
-    <ClInclude Include="Grbl_Esp32\src\StackTrace\AssertionFailed.h">
+    <ClInclude Include="FluidNC\src\StackTrace\debug_helpers.h">
       <Filter>src\StackTrace</Filter>
     </ClInclude>
-    <ClInclude Include="Grbl_Esp32\src\WebUI\Authentication.h">
+    <ClInclude Include="FluidNC\src\Spindles\Laser.h">
+      <Filter>src\Spindles</Filter>
+    </ClInclude>
+    <ClInclude Include="FluidNC\src\WebUI\JSONEncoder.h">
       <Filter>src\WebUI</Filter>
     </ClInclude>
-    <ClInclude Include="Grbl_Esp32\src\Regex.h">
+    <ClInclude Include="FluidNC\src\Control.h">
       <Filter>src</Filter>
     </ClInclude>
-    <ClInclude Include="Grbl_Esp32\src\WebUI\ESPResponse.h">
-      <Filter>src\WebUI</Filter>
-    </ClInclude>
-    <ClInclude Include="Grbl_Esp32\src\Spindles\DacSpindle.h">
-      <Filter>src\Spindles</Filter>
-    </ClInclude>
-    <ClInclude Include="Grbl_Esp32\src\Machine\Axes.h">
+    <ClInclude Include="FluidNC\src\Machine\LimitPin.h">
       <Filter>src\Machine</Filter>
     </ClInclude>
-    <ClInclude Include="X86TestSupport\Printable.h">
-      <Filter>X86TestSupport</Filter>
-    </ClInclude>
-    <ClInclude Include="Grbl_Esp32\src\Machine\Homing.h">
-      <Filter>src\Machine</Filter>
-    </ClInclude>
-    <ClInclude Include="X86TestSupport\soc\rtc.h">
-      <Filter>X86TestSupport</Filter>
-    </ClInclude>
-    <ClInclude Include="Grbl_Esp32\src\CoolantControl.h">
-      <Filter>src</Filter>
-    </ClInclude>
-    <ClInclude Include="Grbl_Esp32\src\Spindles\NullSpindle.h">
-      <Filter>src\Spindles</Filter>
-    </ClInclude>
-    <ClInclude Include="X86TestSupport\esp_system.h">
-      <Filter>X86TestSupport</Filter>
-    </ClInclude>
-    <ClInclude Include="X86TestSupport\SoftwareGPIO.h">
-      <Filter>X86TestSupport</Filter>
-    </ClInclude>
-    <ClInclude Include="Grbl_Esp32\src\WebUI\WifiServices.h">
-      <Filter>src\WebUI</Filter>
-    </ClInclude>
-    <ClInclude Include="Grbl_Esp32\src\Spindles\H2ASpindle.h">
-      <Filter>src\Spindles</Filter>
-    </ClInclude>
-    <ClInclude Include="Grbl_Esp32\src\Motors\RcServoSettings.h">
+    <ClInclude Include="FluidNC\src\Motors\StandardStepper.h">
       <Filter>src\Motors</Filter>
     </ClInclude>
-    <ClInclude Include="Grbl_Esp32\src\Settings.h">
+    <ClInclude Include="FluidNC\src\Pins\PinCapabilities.h">
+      <Filter>src\Pins</Filter>
+    </ClInclude>
+    <ClInclude Include="FluidNC\src\Machine\SPIBus.h">
+      <Filter>src\Machine</Filter>
+    </ClInclude>
+    <ClInclude Include="FluidNC\src\Limits.h">
       <Filter>src</Filter>
     </ClInclude>
-    <ClInclude Include="Grbl_Esp32\src\Planner.h">
-      <Filter>src</Filter>
+    <ClInclude Include="FluidNC\src\Configuration\HandlerType.h">
+      <Filter>src\Configuration</Filter>
     </ClInclude>
-    <ClInclude Include="Grbl_Esp32\src\Motors\Solenoid.h">
+    <ClInclude Include="FluidNC\src\Kinematics\CoreXY.h">
+      <Filter>src\Kinematics</Filter>
+    </ClInclude>
+    <ClInclude Include="FluidNC\src\Spindles\PWMSpindle.h">
+      <Filter>src\Spindles</Filter>
+    </ClInclude>
+    <ClInclude Include="FluidNC\src\Machine\WifiAPConfig.h">
+      <Filter>src\Machine</Filter>
+    </ClInclude>
+    <ClInclude Include="FluidNC\src\Configuration\HandlerBase.h">
+      <Filter>src\Configuration</Filter>
+    </ClInclude>
+    <ClInclude Include="FluidNC\src\Motors\Solenoid.h">
       <Filter>src\Motors</Filter>
     </ClInclude>
-    <ClInclude Include="Grbl_Esp32\src\Configuration\ParserHandler.h">
-      <Filter>src\Configuration</Filter>
-    </ClInclude>
-    <ClInclude Include="X86TestSupport\WString.h">
-      <Filter>X86TestSupport</Filter>
-    </ClInclude>
-    <ClInclude Include="Grbl_Esp32\src\WebUI\NoFile.h">
-      <Filter>src\WebUI</Filter>
-    </ClInclude>
-    <ClInclude Include="X86TestSupport\Arduino.h">
-      <Filter>X86TestSupport</Filter>
-    </ClInclude>
-    <ClInclude Include="Grbl_Esp32\src\Spindles\PWMSpindle.h">
+    <ClInclude Include="FluidNC\src\Spindles\HuanyangSpindle.h">
       <Filter>src\Spindles</Filter>
     </ClInclude>
-    <ClInclude Include="Grbl_Esp32\src\PinMapper.h">
+    <ClInclude Include="FluidNC\src\NutsBolts.h">
       <Filter>src</Filter>
     </ClInclude>
-    <ClInclude Include="Grbl_Esp32\src\UserOutput.h">
-      <Filter>src</Filter>
-    </ClInclude>
-    <ClInclude Include="Grbl_Esp32\src\Spindles\10vSpindle.h">
-      <Filter>src\Spindles</Filter>
-    </ClInclude>
-    <ClInclude Include="Grbl_Esp32\src\StringStream.h">
-      <Filter>src</Filter>
-    </ClInclude>
-    <ClInclude Include="Grbl_Esp32\src\Spindles\HuanyangSpindle.h">
-      <Filter>src\Spindles</Filter>
-    </ClInclude>
-    <ClInclude Include="Grbl_Esp32\src\Assert.h">
-      <Filter>src</Filter>
-    </ClInclude>
-    <ClInclude Include="Grbl_Esp32\src\Spindles\Laser.h">
-      <Filter>src\Spindles</Filter>
-    </ClInclude>
-    <ClInclude Include="Grbl_Esp32\src\Machine\Macros.h">
-      <Filter>src\Machine</Filter>
-    </ClInclude>
-    <ClInclude Include="Grbl_Esp32\src\Motors\UnipolarMotor.h">
+    <ClInclude Include="FluidNC\src\Motors\RcServo.h">
       <Filter>src\Motors</Filter>
     </ClInclude>
-    <ClInclude Include="Grbl_Esp32\src\Motors\RcServo.h">
+    <ClInclude Include="FluidNC\src\Configuration\Generator.h">
+      <Filter>src\Configuration</Filter>
+    </ClInclude>
+    <ClInclude Include="FluidNC\src\Motors\NullMotor.h">
       <Filter>src\Motors</Filter>
     </ClInclude>
-    <ClInclude Include="Grbl_Esp32\src\Machine\UserOutputs.h">
-      <Filter>src\Machine</Filter>
-    </ClInclude>
-    <ClInclude Include="Grbl_Esp32\src\Pins\GPIOPinDetail.h">
-      <Filter>src\Pins</Filter>
-    </ClInclude>
-    <ClInclude Include="X86TestSupport\SPIFFS.h">
-      <Filter>X86TestSupport</Filter>
-    </ClInclude>
-    <ClInclude Include="Grbl_Esp32\src\Machine\Communications.h">
-      <Filter>src\Machine</Filter>
-    </ClInclude>
-    <ClInclude Include="Grbl_Esp32\src\Machine\WifiSTAConfig.h">
-      <Filter>src\Machine</Filter>
-    </ClInclude>
-    <ClInclude Include="Grbl_Esp32\src\Error.h">
-      <Filter>src</Filter>
-    </ClInclude>
-    <ClInclude Include="Grbl_Esp32\src\SettingsDefinitions.h">
-      <Filter>src</Filter>
-    </ClInclude>
-    <ClInclude Include="Grbl_Esp32\src\WebUI\BTConfig.h">
-      <Filter>src\WebUI</Filter>
-    </ClInclude>
-    <ClInclude Include="X86TestSupport\FSImpl.h">
-      <Filter>X86TestSupport</Filter>
-    </ClInclude>
-    <ClInclude Include="Grbl_Esp32\src\WebUI\Serial2Socket.h">
-      <Filter>src\WebUI</Filter>
-    </ClInclude>
-    <ClInclude Include="Grbl_Esp32\src\Pins\PinAttributes.h">
-      <Filter>src\Pins</Filter>
-    </ClInclude>
-    <ClInclude Include="Grbl_Esp32\src\Pins\VoidPinDetail.h">
-      <Filter>src\Pins</Filter>
-    </ClInclude>
-    <ClInclude Include="Grbl_Esp32\src\Machine.h">
-      <Filter>src</Filter>
-    </ClInclude>
-    <ClInclude Include="Grbl_Esp32\src\StringRange.h">
-      <Filter>src</Filter>
-    </ClInclude>
-    <ClInclude Include="Grbl_Esp32\src\Pins\DebugPinDetail.h">
-      <Filter>src\Pins</Filter>
-    </ClInclude>
-    <ClInclude Include="Grbl_Esp32\src\WebUI\JSONEncoder.h">
-      <Filter>src\WebUI</Filter>
-    </ClInclude>
-    <ClInclude Include="Grbl_Esp32\src\MotionControl.h">
-      <Filter>src</Filter>
-    </ClInclude>
-    <ClInclude Include="Grbl_Esp32\src\Configuration\RuntimeSetting.h">
+    <ClInclude Include="FluidNC\src\Configuration\Validator.h">
       <Filter>src\Configuration</Filter>
     </ClInclude>
-    <ClInclude Include="Grbl_Esp32\src\Spindles\OnOffSpindle.h">
-      <Filter>src\Spindles</Filter>
-    </ClInclude>
-    <ClInclude Include="X86TestSupport\Stream.h">
-      <Filter>X86TestSupport</Filter>
-    </ClInclude>
-    <ClInclude Include="Grbl_Esp32\src\Configuration\LegacySettingHandler.h">
-      <Filter>src\Configuration</Filter>
-    </ClInclude>
-    <ClInclude Include="Grbl_Esp32\src\Jog.h">
-      <Filter>src</Filter>
-    </ClInclude>
-    <ClInclude Include="Grbl_Esp32\src\Spindles\RelaySpindle.h">
-      <Filter>src\Spindles</Filter>
-    </ClInclude>
-    <ClInclude Include="Grbl_Esp32\src\Machine\WifiConfig.h">
-      <Filter>src\Machine</Filter>
-    </ClInclude>
-    <ClInclude Include="Grbl_Esp32\src\Configuration\Parser.h">
-      <Filter>src\Configuration</Filter>
-    </ClInclude>
-    <ClInclude Include="X86TestSupport\IPAddress.h">
-      <Filter>X86TestSupport</Filter>
-    </ClInclude>
-    <ClInclude Include="Grbl_Esp32\src\WebUI\WifiConfig.h">
-      <Filter>src\WebUI</Filter>
-    </ClInclude>
-    <ClInclude Include="Grbl_Esp32\src\Serial.h">
-      <Filter>src</Filter>
-    </ClInclude>
-    <ClInclude Include="Grbl_Esp32\src\WebUI\InputBuffer.h">
-      <Filter>src\WebUI</Filter>
-    </ClInclude>
-    <ClInclude Include="Grbl_Esp32\src\WebUI\Commands.h">
-      <Filter>src\WebUI</Filter>
-    </ClInclude>
-    <ClInclude Include="Grbl_Esp32\src\Machine\WifiAPConfig.h">
-      <Filter>src\Machine</Filter>
-    </ClInclude>
-    <ClInclude Include="Grbl_Esp32\src\Machine\I2SOBus.h">
-      <Filter>src\Machine</Filter>
-    </ClInclude>
-    <ClInclude Include="X86TestSupport\SPI.h">
-      <Filter>X86TestSupport</Filter>
-    </ClInclude>
-    <ClInclude Include="Grbl_Esp32\src\Control.h">
-      <Filter>src</Filter>
-    </ClInclude>
-    <ClInclude Include="Grbl_Esp32\src\SDCard.h">
-      <Filter>src</Filter>
-    </ClInclude>
-    <ClInclude Include="Grbl_Esp32\src\StackTrace\debug_helpers.h">
+    <ClInclude Include="FluidNC\src\StackTrace\AssertionFailed.h">
       <Filter>src\StackTrace</Filter>
     </ClInclude>
-    <ClInclude Include="Grbl_Esp32\src\Configuration\Configurable.h">
+    <ClInclude Include="FluidNC\src\Configuration\RuntimeSetting.h">
       <Filter>src\Configuration</Filter>
     </ClInclude>
-    <ClInclude Include="Grbl_Esp32\src\Motors\StandardStepper.h">
+    <ClInclude Include="FluidNC\src\Spindles\VFDSpindle.h">
+      <Filter>src\Spindles</Filter>
+    </ClInclude>
+    <ClInclude Include="FluidNC\src\Machine\Axis.h">
+      <Filter>src\Machine</Filter>
+    </ClInclude>
+    <ClInclude Include="FluidNC\src\Motors\Servo.h">
       <Filter>src\Motors</Filter>
     </ClInclude>
-    <ClInclude Include="Grbl_Esp32\src\Configuration\ParseException.h">
-      <Filter>src\Configuration</Filter>
-    </ClInclude>
-    <ClInclude Include="Grbl_Esp32\src\Stepper.h">
-      <Filter>src</Filter>
-    </ClInclude>
-    <ClInclude Include="Grbl_Esp32\src\Spindles\YL620Spindle.h">
-      <Filter>src\Spindles</Filter>
-    </ClInclude>
-    <ClInclude Include="Grbl_Esp32\src\System.h">
-      <Filter>src</Filter>
-    </ClInclude>
-    <ClInclude Include="Grbl_Esp32\src\Spindles\BESCSpindle.h">
-      <Filter>src\Spindles</Filter>
-    </ClInclude>
-    <ClInclude Include="Grbl_Esp32\src\Motors\StepStick.h">
-      <Filter>src\Motors</Filter>
-    </ClInclude>
-    <ClInclude Include="Grbl_Esp32\src\Configuration\HandlerBase.h">
-      <Filter>src\Configuration</Filter>
-    </ClInclude>
-    <ClInclude Include="X86TestSupport\SD.h">
-      <Filter>X86TestSupport</Filter>
-    </ClInclude>
-    <ClInclude Include="Grbl_Esp32\src\Configuration\LegacySettingRegistry.h">
-      <Filter>src\Configuration</Filter>
-    </ClInclude>
-    <ClInclude Include="Grbl_Esp32\src\Uart.h">
-      <Filter>src</Filter>
-    </ClInclude>
-    <ClInclude Include="Grbl_Esp32\src\Spindles\VFDSpindle.h">
-      <Filter>src\Spindles</Filter>
-    </ClInclude>
-    <ClInclude Include="Grbl_Esp32\src\Machine\Motor.h">
-      <Filter>src\Machine</Filter>
-    </ClInclude>
-    <ClInclude Include="X86TestSupport\esp_err.h">
-      <Filter>X86TestSupport</Filter>
-    </ClInclude>
-    <ClInclude Include="Grbl_Esp32\src\Machine\MachineConfig.h">
-      <Filter>src\Machine</Filter>
-    </ClInclude>
-    <ClInclude Include="X86TestSupport\soc\gpio_sig_map.h">
-      <Filter>X86TestSupport</Filter>
-    </ClInclude>
-    <ClInclude Include="X86TestSupport\soc\io_mux_reg.h">
-      <Filter>X86TestSupport</Filter>
-    </ClInclude>
-    <ClInclude Include="X86TestSupport\FS.h">
-      <Filter>X86TestSupport</Filter>
-    </ClInclude>
-    <ClInclude Include="Grbl_Esp32\src\Configuration\Generator.h">
-      <Filter>src\Configuration</Filter>
-    </ClInclude>
-    <ClInclude Include="Grbl_Esp32\src\NutsBolts.h">
-      <Filter>src</Filter>
-    </ClInclude>
-    <ClInclude Include="Grbl_Esp32\src\Configuration\HandlerType.h">
-      <Filter>src\Configuration</Filter>
-    </ClInclude>
-    <ClInclude Include="Grbl_Esp32\test\TestFactory.h">
-      <Filter>tests</Filter>
-    </ClInclude>
-    <ClInclude Include="Grbl_Esp32\test\TestFramework.h">
-      <Filter>tests</Filter>
-    </ClInclude>
-    <ClInclude Include="X86TestSupport\Capture.h">
-      <Filter>X86TestSupport</Filter>
-    </ClInclude>
-    <ClInclude Include="X86TestSupport\freertos\Task.h">
-      <Filter>X86TestSupport\freertos</Filter>
-    </ClInclude>
-    <ClInclude Include="X86TestSupport\freertos\Queue.h">
-      <Filter>X86TestSupport\freertos</Filter>
-    </ClInclude>
-    <ClInclude Include="X86TestSupport\freertos\FreeRTOS.h">
-      <Filter>X86TestSupport\freertos</Filter>
-    </ClInclude>
-    <ClInclude Include="X86TestSupport\freertos\FreeRTOSTypes.h">
-      <Filter>X86TestSupport\freertos</Filter>
-    </ClInclude>
-    <ClInclude Include="X86TestSupport\driver\dac.h">
-      <Filter>X86TestSupport\driver</Filter>
-    </ClInclude>
-    <ClInclude Include="X86TestSupport\driver\ledc.h">
-      <Filter>X86TestSupport\driver</Filter>
-    </ClInclude>
-    <ClInclude Include="X86TestSupport\driver\rmt.h">
-      <Filter>X86TestSupport\driver</Filter>
-    </ClInclude>
-    <ClInclude Include="X86TestSupport\driver\uart.h">
-      <Filter>X86TestSupport\driver</Filter>
-    </ClInclude>
-    <ClInclude Include="X86TestSupport\soc\ledc_struct.h">
-      <Filter>X86TestSupport\soc</Filter>
-    </ClInclude>
-    <ClInclude Include="Grbl_Esp32\src\Stepping.h">
-      <Filter>src</Filter>
-    </ClInclude>
-    <ClInclude Include="X86TestSupport\esp_attr.h">
-      <Filter>X86TestSupport</Filter>
-    </ClInclude>
-    <ClInclude Include="X86TestSupport\xtensa\core-macros.h">
-      <Filter>X86TestSupport\xtensa</Filter>
-    </ClInclude>
-    <ClInclude Include="X86TestSupport\TMC\TMCStepper.h">
-      <Filter>X86TestSupport\TMC</Filter>
-    </ClInclude>
-    <ClInclude Include="X86TestSupport\TMC\TMCStepper_UTILITY.h">
-      <Filter>X86TestSupport\TMC</Filter>
-    </ClInclude>
-    <ClInclude Include="X86TestSupport\esp32-hal-gpio.h">
-      <Filter>X86TestSupport</Filter>
-    </ClInclude>
-    <ClInclude Include="X86TestSupport\esp32-hal.h">
-      <Filter>X86TestSupport</Filter>
-    </ClInclude>
-    <ClInclude Include="X86TestSupport\esp32-hal-timer.h">
-      <Filter>X86TestSupport</Filter>
-    </ClInclude>
-    <ClInclude Include="X86TestSupport\esp32-hal-ledc.h">
-      <Filter>X86TestSupport</Filter>
-    </ClInclude>
-    <ClInclude Include="X86TestSupport\esp32-hal-dac.h">
-      <Filter>X86TestSupport</Filter>
-    </ClInclude>
-    <ClInclude Include="X86TestSupport\Esp.h">
-      <Filter>X86TestSupport</Filter>
-    </ClInclude>
-    <ClInclude Include="X86TestSupport\esp32-hal-cpu.h">
-      <Filter>X86TestSupport</Filter>
-    </ClInclude>
-    <ClInclude Include="Grbl_Esp32\src\Machine\LimitPin.h">
-      <Filter>src\Machine</Filter>
-    </ClInclude>
-    <ClInclude Include="X86TestSupport\esp32-hal-matrix.h">
-      <Filter>X86TestSupport</Filter>
-    </ClInclude>
-    <ClInclude Include="Grbl_Esp32\src\Pins\LedcPin.h">
+    <ClInclude Include="FluidNC\src\Pins\I2SOPinDetail.h">
       <Filter>src\Pins</Filter>
     </ClInclude>
-    <ClInclude Include="Grbl_Esp32\src\Motors\MotorDriver.h">
+    <ClInclude Include="FluidNC\src\StringStream.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="FluidNC\src\Configuration\AfterParse.h">
+      <Filter>src\Configuration</Filter>
+    </ClInclude>
+    <ClInclude Include="FluidNC\src\UserOutput.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="FluidNC\src\Motors\MotorDriver.h">
       <Filter>src\Motors</Filter>
+    </ClInclude>
+    <ClInclude Include="FluidNC\src\Machine\WifiConfig.h">
+      <Filter>src\Machine</Filter>
+    </ClInclude>
+    <ClInclude Include="FluidNC\src\WebUI\NoFile.h">
+      <Filter>src\WebUI</Filter>
+    </ClInclude>
+    <ClInclude Include="FluidNC\src\WebUI\NotificationsService.h">
+      <Filter>src\WebUI</Filter>
+    </ClInclude>
+    <ClInclude Include="FluidNC\src\xmodem.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="FluidNC\src\Pins\PinDetail.h">
+      <Filter>src\Pins</Filter>
+    </ClInclude>
+    <ClInclude Include="FluidNC\src\GCode.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="FluidNC\src\Machine\Homing.h">
+      <Filter>src\Machine</Filter>
+    </ClInclude>
+    <ClInclude Include="FluidNC\src\SDCard.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="FluidNC\src\Custom\oled_io.h">
+      <Filter>src\Custom</Filter>
+    </ClInclude>
+    <ClInclude Include="FluidNC\src\Stepping.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="FluidNC\src\lineedit.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="FluidNC\src\Configuration\Parser.h">
+      <Filter>src\Configuration</Filter>
+    </ClInclude>
+    <ClInclude Include="FluidNC\src\Report.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="FluidNC\src\Spindles\Spindle.h">
+      <Filter>src\Spindles</Filter>
+    </ClInclude>
+    <ClInclude Include="FluidNC\src\Platform.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="FluidNC\src\Settings.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="FluidNC\src\Machine\Motor.h">
+      <Filter>src\Machine</Filter>
+    </ClInclude>
+    <ClInclude Include="FluidNC\src\FileStream.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="FluidNC\src\Machine\Axes.h">
+      <Filter>src\Machine</Filter>
+    </ClInclude>
+    <ClInclude Include="FluidNC\src\Configuration\LegacySettingHandler.h">
+      <Filter>src\Configuration</Filter>
+    </ClInclude>
+    <ClInclude Include="FluidNC\src\CoolantControl.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="FluidNC\src\Machine\I2SOBus.h">
+      <Filter>src\Machine</Filter>
+    </ClInclude>
+    <ClInclude Include="FluidNC\src\WebUI\WebClient.h">
+      <Filter>src\WebUI</Filter>
+    </ClInclude>
+    <ClInclude Include="FluidNC\src\Motors\Dynamixel2.h">
+      <Filter>src\Motors</Filter>
+    </ClInclude>
+    <ClInclude Include="FluidNC\src\Spindles\DacSpindle.h">
+      <Filter>src\Spindles</Filter>
+    </ClInclude>
+    <ClInclude Include="FluidNC\src\CPUMap.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="FluidNC\src\PinMapper.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="FluidNC\src\Spindles\NullSpindle.h">
+      <Filter>src\Spindles</Filter>
+    </ClInclude>
+    <ClInclude Include="FluidNC\src\Pins\VoidPinDetail.h">
+      <Filter>src\Pins</Filter>
+    </ClInclude>
+    <ClInclude Include="FluidNC\src\I2SOut.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="FluidNC\src\Kinematics\Kinematics.h">
+      <Filter>src\Kinematics</Filter>
+    </ClInclude>
+    <ClInclude Include="FluidNC\src\Configuration\Tokenizer.h">
+      <Filter>src\Configuration</Filter>
+    </ClInclude>
+    <ClInclude Include="FluidNC\src\Error.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="FluidNC\src\Pins\GPIOPinDetail.h">
+      <Filter>src\Pins</Filter>
+    </ClInclude>
+    <ClInclude Include="FluidNC\src\MyIOStream.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="FluidNC\src\Motors\RcServoSettings.h">
+      <Filter>src\Motors</Filter>
+    </ClInclude>
+    <ClInclude Include="FluidNC\src\Machine\MachineConfig.h">
+      <Filter>src\Machine</Filter>
+    </ClInclude>
+    <ClInclude Include="FluidNC\src\Configuration\ParseException.h">
+      <Filter>src\Configuration</Filter>
+    </ClInclude>
+    <ClInclude Include="FluidNC\src\Regex.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="FluidNC\src\WebUI\WebSettings.h">
+      <Filter>src\WebUI</Filter>
+    </ClInclude>
+    <ClInclude Include="FluidNC\src\Stepper.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="FluidNC\src\EnumItem.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="FluidNC\src\WebUI\Authentication.h">
+      <Filter>src\WebUI</Filter>
+    </ClInclude>
+    <ClInclude Include="FluidNC\src\WebUI\Commands.h">
+      <Filter>src\WebUI</Filter>
+    </ClInclude>
+    <ClInclude Include="FluidNC\src\UartTypes.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="FluidNC\src\System.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="FluidNC\src\Uart.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="FluidNC\src\Probe.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="FluidNC\src\WebUI\WifiServices.h">
+      <Filter>src\WebUI</Filter>
+    </ClInclude>
+    <ClInclude Include="FluidNC\src\Configuration\Completer.h">
+      <Filter>src\Configuration</Filter>
+    </ClInclude>
+    <ClInclude Include="FluidNC\src\Spindles\BESCSpindle.h">
+      <Filter>src\Spindles</Filter>
+    </ClInclude>
+    <ClInclude Include="FluidNC\src\Spindles\YL620Spindle.h">
+      <Filter>src\Spindles</Filter>
+    </ClInclude>
+    <ClInclude Include="FluidNC\src\WebUI\WifiConfig.h">
+      <Filter>src\WebUI</Filter>
+    </ClInclude>
+    <ClInclude Include="FluidNC\src\InputFile.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="FluidNC\src\WebUI\TelnetServer.h">
+      <Filter>src\WebUI</Filter>
+    </ClInclude>
+    <ClInclude Include="FluidNC\src\Pin.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="FluidNC\src\Configuration\JsonGenerator.h">
+      <Filter>src\Configuration</Filter>
+    </ClInclude>
+    <ClInclude Include="FluidNC\src\SpindleDatatypes.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="FluidNC\src\Machine\UserOutputs.h">
+      <Filter>src\Machine</Filter>
+    </ClInclude>
+    <ClInclude Include="FluidNC\src\Pins\LedcPin.h">
+      <Filter>src\Pins</Filter>
+    </ClInclude>
+    <ClInclude Include="FluidNC\src\Configuration\ParserHandler.h">
+      <Filter>src\Configuration</Filter>
+    </ClInclude>
+    <ClInclude Include="FluidNC\src\Jog.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="FluidNC\src\StepperPrivate.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="FluidNC\src\Kinematics\Cartesian.h">
+      <Filter>src\Kinematics</Filter>
+    </ClInclude>
+    <ClInclude Include="FluidNC\src\Pins\PinOptionsParser.h">
+      <Filter>src\Pins</Filter>
+    </ClInclude>
+    <ClInclude Include="FluidNC\src\Configuration\TokenState.h">
+      <Filter>src\Configuration</Filter>
+    </ClInclude>
+    <ClInclude Include="FluidNC\src\WebUI\Serial2Socket.h">
+      <Filter>src\WebUI</Filter>
+    </ClInclude>
+    <ClInclude Include="FluidNC\src\Pins\ErrorPinDetail.h">
+      <Filter>src\Pins</Filter>
+    </ClInclude>
+    <ClInclude Include="FluidNC\src\Spindles\H2ASpindle.h">
+      <Filter>src\Spindles</Filter>
+    </ClInclude>
+    <ClInclude Include="FluidNC\src\Protocol.h">
+      <Filter>src</Filter>
+    </ClInclude>
+    <ClInclude Include="X86TestSupport\TestSupport\FS.h">
+      <Filter>X86TestSupport</Filter>
+    </ClInclude>
+    <ClInclude Include="X86TestSupport\TestSupport\FSImpl.h">
+      <Filter>X86TestSupport</Filter>
+    </ClInclude>
+    <ClInclude Include="X86TestSupport\TestSupport\IPAddress.h">
+      <Filter>X86TestSupport</Filter>
+    </ClInclude>
+    <ClInclude Include="X86TestSupport\TestSupport\nvs.h">
+      <Filter>X86TestSupport</Filter>
+    </ClInclude>
+    <ClInclude Include="X86TestSupport\TestSupport\Print.h">
+      <Filter>X86TestSupport</Filter>
+    </ClInclude>
+    <ClInclude Include="X86TestSupport\TestSupport\Printable.h">
+      <Filter>X86TestSupport</Filter>
+    </ClInclude>
+    <ClInclude Include="X86TestSupport\TestSupport\SD.h">
+      <Filter>X86TestSupport</Filter>
+    </ClInclude>
+    <ClInclude Include="X86TestSupport\TestSupport\SoftwareGPIO.h">
+      <Filter>X86TestSupport</Filter>
+    </ClInclude>
+    <ClInclude Include="X86TestSupport\TestSupport\SPI.h">
+      <Filter>X86TestSupport</Filter>
+    </ClInclude>
+    <ClInclude Include="X86TestSupport\TestSupport\SPIFFS.h">
+      <Filter>X86TestSupport</Filter>
+    </ClInclude>
+    <ClInclude Include="X86TestSupport\TestSupport\Stream.h">
+      <Filter>X86TestSupport</Filter>
+    </ClInclude>
+    <ClInclude Include="X86TestSupport\TestSupport\WString.h">
+      <Filter>X86TestSupport</Filter>
+    </ClInclude>
+    <ClInclude Include="X86TestSupport\TestSupport\Arduino.h">
+      <Filter>X86TestSupport</Filter>
+    </ClInclude>
+    <ClInclude Include="X86TestSupport\TestSupport\Capture.h">
+      <Filter>X86TestSupport</Filter>
+    </ClInclude>
+    <ClInclude Include="X86TestSupport\TestSupport\Esp.h">
+      <Filter>X86TestSupport</Filter>
+    </ClInclude>
+    <ClInclude Include="X86TestSupport\TestSupport\esp_attr.h">
+      <Filter>X86TestSupport</Filter>
+    </ClInclude>
+    <ClInclude Include="X86TestSupport\TestSupport\esp_err.h">
+      <Filter>X86TestSupport</Filter>
+    </ClInclude>
+    <ClInclude Include="X86TestSupport\TestSupport\esp_system.h">
+      <Filter>X86TestSupport</Filter>
+    </ClInclude>
+    <ClInclude Include="X86TestSupport\TestSupport\esp32-hal.h">
+      <Filter>X86TestSupport</Filter>
+    </ClInclude>
+    <ClInclude Include="X86TestSupport\TestSupport\esp32-hal-cpu.h">
+      <Filter>X86TestSupport</Filter>
+    </ClInclude>
+    <ClInclude Include="X86TestSupport\TestSupport\esp32-hal-dac.h">
+      <Filter>X86TestSupport</Filter>
+    </ClInclude>
+    <ClInclude Include="X86TestSupport\TestSupport\esp32-hal-gpio.h">
+      <Filter>X86TestSupport</Filter>
+    </ClInclude>
+    <ClInclude Include="X86TestSupport\TestSupport\esp32-hal-ledc.h">
+      <Filter>X86TestSupport</Filter>
+    </ClInclude>
+    <ClInclude Include="X86TestSupport\TestSupport\esp32-hal-matrix.h">
+      <Filter>X86TestSupport</Filter>
+    </ClInclude>
+    <ClInclude Include="X86TestSupport\TestSupport\esp32-hal-timer.h">
+      <Filter>X86TestSupport</Filter>
+    </ClInclude>
+    <ClInclude Include="FluidNC\test\TestFramework.h">
+      <Filter>test</Filter>
+    </ClInclude>
+    <ClInclude Include="FluidNC\test\TestFactory.h">
+      <Filter>test</Filter>
+    </ClInclude>
+    <ClInclude Include="X86TestSupport\TestSupport\xtensa\core-macros.h">
+      <Filter>X86TestSupport</Filter>
+    </ClInclude>
+    <ClInclude Include="X86TestSupport\TestSupport\driver\dac.h">
+      <Filter>X86TestSupport</Filter>
+    </ClInclude>
+    <ClInclude Include="X86TestSupport\TestSupport\soc\dport_reg.h">
+      <Filter>X86TestSupport</Filter>
+    </ClInclude>
+    <ClInclude Include="X86TestSupport\TestSupport\freertos\FreeRTOS.h">
+      <Filter>X86TestSupport</Filter>
+    </ClInclude>
+    <ClInclude Include="X86TestSupport\TestSupport\freertos\FreeRTOSTypes.h">
+      <Filter>X86TestSupport</Filter>
+    </ClInclude>
+    <ClInclude Include="X86TestSupport\TestSupport\soc\gpio_sig_map.h">
+      <Filter>X86TestSupport</Filter>
+    </ClInclude>
+    <ClInclude Include="X86TestSupport\TestSupport\soc\io_mux_reg.h">
+      <Filter>X86TestSupport</Filter>
+    </ClInclude>
+    <ClInclude Include="X86TestSupport\TestSupport\driver\ledc.h">
+      <Filter>X86TestSupport</Filter>
+    </ClInclude>
+    <ClInclude Include="X86TestSupport\TestSupport\soc\ledc_struct.h">
+      <Filter>X86TestSupport</Filter>
+    </ClInclude>
+    <ClInclude Include="X86TestSupport\TestSupport\freertos\Queue.h">
+      <Filter>X86TestSupport</Filter>
+    </ClInclude>
+    <ClInclude Include="X86TestSupport\TestSupport\driver\rmt.h">
+      <Filter>X86TestSupport</Filter>
+    </ClInclude>
+    <ClInclude Include="X86TestSupport\TestSupport\soc\rtc.h">
+      <Filter>X86TestSupport</Filter>
+    </ClInclude>
+    <ClInclude Include="X86TestSupport\TestSupport\freertos\task.h">
+      <Filter>X86TestSupport</Filter>
+    </ClInclude>
+    <ClInclude Include="X86TestSupport\TestSupport\TMC\TMCStepper.h">
+      <Filter>X86TestSupport</Filter>
+    </ClInclude>
+    <ClInclude Include="X86TestSupport\TestSupport\TMC\TMCStepper_UTILITY.h">
+      <Filter>X86TestSupport</Filter>
+    </ClInclude>
+    <ClInclude Include="X86TestSupport\TestSupport\driver\uart.h">
+      <Filter>X86TestSupport</Filter>
+    </ClInclude>
+    <ClInclude Include="X86TestSupport\TestSupport\soc\uart_reg.h">
+      <Filter>X86TestSupport</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="Grbl_Esp32\src\WebUI\JSONEncoder.cpp">
-      <Filter>src\WebUI</Filter>
-    </ClCompile>
-    <ClCompile Include="Grbl_Esp32\src\Spindles\OnOffSpindle.cpp">
-      <Filter>src\Spindles</Filter>
-    </ClCompile>
-    <ClCompile Include="Grbl_Esp32\src\Configuration\JsonGenerator.cpp">
-      <Filter>src\Configuration</Filter>
-    </ClCompile>
-    <ClCompile Include="Grbl_Esp32\src\PinMapper.cpp">
+    <ClCompile Include="FluidNC\src\System.cpp">
       <Filter>src</Filter>
     </ClCompile>
-    <ClCompile Include="Grbl_Esp32\src\WebUI\ESPResponse.cpp">
-      <Filter>src\WebUI</Filter>
-    </ClCompile>
-    <ClCompile Include="Grbl_Esp32\src\Spindles\10vSpindle.cpp">
+    <ClCompile Include="FluidNC\src\Spindles\BESCSpindle.cpp">
       <Filter>src\Spindles</Filter>
     </ClCompile>
-    <ClCompile Include="Grbl_Esp32\src\Uart.cpp">
+    <ClCompile Include="FluidNC\src\SettingsDefinitions.cpp">
       <Filter>src</Filter>
     </ClCompile>
-    <ClCompile Include="Grbl_Esp32\src\Configuration\Generator.cpp">
-      <Filter>src\Configuration</Filter>
-    </ClCompile>
-    <ClCompile Include="Grbl_Esp32\src\MotionControl.cpp">
-      <Filter>src</Filter>
-    </ClCompile>
-    <ClCompile Include="Grbl_Esp32\src\Spindles\H2ASpindle.cpp">
-      <Filter>src\Spindles</Filter>
-    </ClCompile>
-    <ClCompile Include="Grbl_Esp32\src\Pins\PinDetail.cpp">
-      <Filter>src\Pins</Filter>
-    </ClCompile>
-    <ClCompile Include="Grbl_Esp32\src\Machine\Axis.cpp">
+    <ClCompile Include="FluidNC\src\Machine\Axes.cpp">
       <Filter>src\Machine</Filter>
     </ClCompile>
-    <ClCompile Include="Grbl_Esp32\src\WebUI\WifiConfig.cpp">
-      <Filter>src\WebUI</Filter>
-    </ClCompile>
-    <ClCompile Include="Grbl_Esp32\src\Regex.cpp">
+    <ClCompile Include="FluidNC\src\FileStream.cpp">
       <Filter>src</Filter>
     </ClCompile>
-    <ClCompile Include="Grbl_Esp32\src\Probe.cpp">
+    <ClCompile Include="FluidNC\src\ControlPin.cpp">
       <Filter>src</Filter>
     </ClCompile>
-    <ClCompile Include="Grbl_Esp32\src\Pins\VoidPinDetail.cpp">
-      <Filter>src\Pins</Filter>
-    </ClCompile>
-    <ClCompile Include="Grbl_Esp32\src\Settings.cpp">
-      <Filter>src</Filter>
-    </ClCompile>
-    <ClCompile Include="Grbl_Esp32\src\SDCard.cpp">
-      <Filter>src</Filter>
-    </ClCompile>
-    <ClCompile Include="Grbl_Esp32\src\SimpleOutputStream.cpp">
-      <Filter>src</Filter>
-    </ClCompile>
-    <ClCompile Include="Grbl_Esp32\src\Logging.cpp">
-      <Filter>src</Filter>
-    </ClCompile>
-    <ClCompile Include="Grbl_Esp32\src\Motors\NullMotor.cpp">
-      <Filter>src\Motors</Filter>
-    </ClCompile>
-    <ClCompile Include="Grbl_Esp32\src\Limits.cpp">
-      <Filter>src</Filter>
-    </ClCompile>
-    <ClCompile Include="Grbl_Esp32\src\Motors\RcServo.cpp">
-      <Filter>src\Motors</Filter>
-    </ClCompile>
-    <ClCompile Include="Grbl_Esp32\src\Configuration\AfterParse.cpp">
-      <Filter>src\Configuration</Filter>
-    </ClCompile>
-    <ClCompile Include="Grbl_Esp32\src\Spindles\BESCSpindle.cpp">
-      <Filter>src\Spindles</Filter>
-    </ClCompile>
-    <ClCompile Include="Grbl_Esp32\src\Pins\I2SOPinDetail.cpp">
-      <Filter>src\Pins</Filter>
-    </ClCompile>
-    <ClCompile Include="Grbl_Esp32\src\Machine\UserOutputs.cpp">
+    <ClCompile Include="FluidNC\src\Machine\Axis.cpp">
       <Filter>src\Machine</Filter>
     </ClCompile>
-    <ClCompile Include="Grbl_Esp32\src\Error.cpp">
+    <ClCompile Include="FluidNC\src\Settings.cpp">
       <Filter>src</Filter>
     </ClCompile>
-    <ClCompile Include="X86TestSupport\FS.cpp">
-      <Filter>X86TestSupport</Filter>
-    </ClCompile>
-    <ClCompile Include="Grbl_Esp32\src\ControlPin.cpp">
-      <Filter>src</Filter>
-    </ClCompile>
-    <ClCompile Include="Grbl_Esp32\src\Pins\GPIOPinDetail.cpp">
-      <Filter>src\Pins</Filter>
-    </ClCompile>
-    <ClCompile Include="Grbl_Esp32\src\Pins\DebugPinDetail.cpp">
-      <Filter>src\Pins</Filter>
-    </ClCompile>
-    <ClCompile Include="X86TestSupport\ExceptionHelper.cpp">
-      <Filter>X86TestSupport</Filter>
-    </ClCompile>
-    <ClCompile Include="Grbl_Esp32\src\Pins\PinAttributes.cpp">
-      <Filter>src\Pins</Filter>
-    </ClCompile>
-    <ClCompile Include="Grbl_Esp32\src\Configuration\Validator.cpp">
+    <ClCompile Include="FluidNC\src\Configuration\JsonGenerator.cpp">
       <Filter>src\Configuration</Filter>
     </ClCompile>
-    <ClCompile Include="Grbl_Esp32\src\Pin.cpp">
+    <ClCompile Include="FluidNC\src\Machine\Motor.cpp">
+      <Filter>src\Machine</Filter>
+    </ClCompile>
+    <ClCompile Include="FluidNC\src\MotionControl.cpp">
       <Filter>src</Filter>
     </ClCompile>
-    <ClCompile Include="Grbl_Esp32\src\Spindles\DacSpindle.cpp">
-      <Filter>src\Spindles</Filter>
-    </ClCompile>
-    <ClCompile Include="Grbl_Esp32\src\CoolantControl.cpp">
+    <ClCompile Include="FluidNC\src\ProcessSettings.cpp">
       <Filter>src</Filter>
     </ClCompile>
-    <ClCompile Include="Grbl_Esp32\src\WebUI\InputBuffer.cpp">
+    <ClCompile Include="FluidNC\src\Motors\Servo.cpp">
+      <Filter>src\Motors</Filter>
+    </ClCompile>
+    <ClCompile Include="FluidNC\src\WebUI\WifiServices.cpp">
       <Filter>src\WebUI</Filter>
     </ClCompile>
-    <ClCompile Include="Grbl_Esp32\src\UserOutput.cpp">
+    <ClCompile Include="FluidNC\src\Regex.cpp">
       <Filter>src</Filter>
     </ClCompile>
-    <ClCompile Include="Grbl_Esp32\src\StackTrace\debug_helpers.cpp">
+    <ClCompile Include="FluidNC\src\InputFile.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="FluidNC\src\Custom\oled_basic.cpp">
+      <Filter>src\Custom</Filter>
+    </ClCompile>
+    <ClCompile Include="FluidNC\src\Kinematics\Kinematics.cpp">
+      <Filter>src\Kinematics</Filter>
+    </ClCompile>
+    <ClCompile Include="FluidNC\src\Spindles\OnOffSpindle.cpp">
+      <Filter>src\Spindles</Filter>
+    </ClCompile>
+    <ClCompile Include="FluidNC\src\Stepping.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="FluidNC\src\Kinematics\CoreXY.cpp">
+      <Filter>src\Kinematics</Filter>
+    </ClCompile>
+    <ClCompile Include="FluidNC\src\Spindles\DacSpindle.cpp">
+      <Filter>src\Spindles</Filter>
+    </ClCompile>
+    <ClCompile Include="FluidNC\src\Pins\PinDetail.cpp">
+      <Filter>src\Pins</Filter>
+    </ClCompile>
+    <ClCompile Include="FluidNC\src\Spindles\HuanyangSpindle.cpp">
+      <Filter>src\Spindles</Filter>
+    </ClCompile>
+    <ClCompile Include="FluidNC\src\Report.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="FluidNC\src\NutsBolts.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="FluidNC\src\WebUI\WebClient.cpp">
+      <Filter>src\WebUI</Filter>
+    </ClCompile>
+    <ClCompile Include="FluidNC\src\Spindles\H2ASpindle.cpp">
+      <Filter>src\Spindles</Filter>
+    </ClCompile>
+    <ClCompile Include="FluidNC\src\Motors\Dynamixel2.cpp">
+      <Filter>src\Motors</Filter>
+    </ClCompile>
+    <ClCompile Include="FluidNC\src\Configuration\RuntimeSetting.cpp">
+      <Filter>src\Configuration</Filter>
+    </ClCompile>
+    <ClCompile Include="FluidNC\src\UserOutput.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="FluidNC\src\StackTrace\AssertionFailed.cpp">
       <Filter>src\StackTrace</Filter>
     </ClCompile>
-    <ClCompile Include="Grbl_Esp32\src\WebUI\WebServer.cpp">
-      <Filter>src\WebUI</Filter>
-    </ClCompile>
-    <ClCompile Include="Grbl_Esp32\src\GCode.cpp">
+    <ClCompile Include="FluidNC\src\PinMapper.cpp">
       <Filter>src</Filter>
     </ClCompile>
-    <ClCompile Include="Grbl_Esp32\src\Spindles\Spindle.cpp">
-      <Filter>src\Spindles</Filter>
+    <ClCompile Include="FluidNC\src\Uart.cpp">
+      <Filter>src</Filter>
     </ClCompile>
-    <ClCompile Include="Grbl_Esp32\src\Configuration\Parser.cpp">
+    <ClCompile Include="FluidNC\src\Motors\RcServo.cpp">
+      <Filter>src\Motors</Filter>
+    </ClCompile>
+    <ClCompile Include="FluidNC\src\Error.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="FluidNC\src\Pins\I2SOPinDetail.cpp">
+      <Filter>src\Pins</Filter>
+    </ClCompile>
+    <ClCompile Include="FluidNC\src\Configuration\Validator.cpp">
       <Filter>src\Configuration</Filter>
     </ClCompile>
-    <ClCompile Include="Grbl_Esp32\src\WebUI\BTConfig.cpp">
-      <Filter>src\WebUI</Filter>
-    </ClCompile>
-    <ClCompile Include="Grbl_Esp32\src\Jog.cpp">
+    <ClCompile Include="FluidNC\src\Stepper.cpp">
       <Filter>src</Filter>
     </ClCompile>
-    <ClCompile Include="Grbl_Esp32\src\Spindles\VFDSpindle.cpp">
-      <Filter>src\Spindles</Filter>
+    <ClCompile Include="FluidNC\src\Machine\UserOutputs.cpp">
+      <Filter>src\Machine</Filter>
     </ClCompile>
-    <ClCompile Include="Grbl_Esp32\src\StackTrace\AssertionFailed.cpp">
+    <ClCompile Include="FluidNC\src\Configuration\Tokenizer.cpp">
+      <Filter>src\Configuration</Filter>
+    </ClCompile>
+    <ClCompile Include="FluidNC\src\WebUI\WifiConfig.cpp">
+      <Filter>src\WebUI</Filter>
+    </ClCompile>
+    <ClCompile Include="FluidNC\src\Pins\PinAttributes.cpp">
+      <Filter>src\Pins</Filter>
+    </ClCompile>
+    <ClCompile Include="FluidNC\src\Channel.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="FluidNC\src\Motors\UnipolarMotor.cpp">
+      <Filter>src\Motors</Filter>
+    </ClCompile>
+    <ClCompile Include="FluidNC\src\Machine\I2SOBus.cpp">
+      <Filter>src\Machine</Filter>
+    </ClCompile>
+    <ClCompile Include="FluidNC\src\WebUI\Authentication.cpp">
+      <Filter>src\WebUI</Filter>
+    </ClCompile>
+    <ClCompile Include="FluidNC\src\CoolantControl.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="FluidNC\src\GCode.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="FluidNC\src\StackTrace\debug_helpers.cpp">
       <Filter>src\StackTrace</Filter>
     </ClCompile>
-    <ClCompile Include="Grbl_Esp32\src\Motors\Servo.cpp">
-      <Filter>src\Motors</Filter>
-    </ClCompile>
-    <ClCompile Include="Grbl_Esp32\src\Motors\StepStick.cpp">
-      <Filter>src\Motors</Filter>
-    </ClCompile>
-    <ClCompile Include="Grbl_Esp32\src\Protocol.cpp">
+    <ClCompile Include="FluidNC\src\Pin.cpp">
       <Filter>src</Filter>
     </ClCompile>
-    <ClCompile Include="Grbl_Esp32\src\Serial.cpp">
-      <Filter>src</Filter>
-    </ClCompile>
-    <ClCompile Include="Grbl_Esp32\src\WebUI\TelnetServer.cpp">
+    <ClCompile Include="FluidNC\src\WebUI\NotificationsService.cpp">
       <Filter>src\WebUI</Filter>
     </ClCompile>
-    <ClCompile Include="Grbl_Esp32\src\Motors\UnipolarMotor.cpp">
-      <Filter>src\Motors</Filter>
+    <ClCompile Include="FluidNC\src\PinUsers\PwmPin.cpp">
+      <Filter>src\PinUsers</Filter>
     </ClCompile>
-    <ClCompile Include="Grbl_Esp32\src\Spindles\HuanyangSpindle.cpp">
+    <ClCompile Include="FluidNC\src\WebUI\Commands.cpp">
+      <Filter>src\WebUI</Filter>
+    </ClCompile>
+    <ClCompile Include="FluidNC\src\Machine\Homing.cpp">
+      <Filter>src\Machine</Filter>
+    </ClCompile>
+    <ClCompile Include="FluidNC\src\Spindles\PWMSpindle.cpp">
       <Filter>src\Spindles</Filter>
     </ClCompile>
-    <ClCompile Include="Grbl_Esp32\src\Motors\StandardStepper.cpp">
-      <Filter>src\Motors</Filter>
+    <ClCompile Include="FluidNC\src\WebUI\InputBuffer.cpp">
+      <Filter>src\WebUI</Filter>
     </ClCompile>
-    <ClCompile Include="X86TestSupport\WString.cpp">
-      <Filter>X86TestSupport</Filter>
+    <ClCompile Include="FluidNC\src\Kinematics\Midtbot.cpp">
+      <Filter>src\Kinematics</Filter>
     </ClCompile>
-    <ClCompile Include="Grbl_Esp32\src\Spindles\NullSpindle.cpp">
-      <Filter>src\Spindles</Filter>
+    <ClCompile Include="FluidNC\src\Kinematics\WallPlotter.cpp">
+      <Filter>src\Kinematics</Filter>
     </ClCompile>
-    <ClCompile Include="Grbl_Esp32\src\Motors\Dynamixel2.cpp">
-      <Filter>src\Motors</Filter>
+    <ClCompile Include="FluidNC\src\Kinematics\Cartesian.cpp">
+      <Filter>src\Kinematics</Filter>
     </ClCompile>
-    <ClCompile Include="Grbl_Esp32\src\Planner.cpp">
-      <Filter>src</Filter>
-    </ClCompile>
-    <ClCompile Include="X86TestSupport\Arduino.cpp">
-      <Filter>X86TestSupport</Filter>
-    </ClCompile>
-    <ClCompile Include="Grbl_Esp32\src\Configuration\LegacySettingRegistry.cpp">
+    <ClCompile Include="FluidNC\src\Configuration\Parser.cpp">
       <Filter>src\Configuration</Filter>
     </ClCompile>
-    <ClCompile Include="Grbl_Esp32\src\Control.cpp">
+    <ClCompile Include="FluidNC\src\lineedit.cpp">
       <Filter>src</Filter>
     </ClCompile>
-    <ClCompile Include="Grbl_Esp32\src\ProcessSettings.cpp">
+    <ClCompile Include="FluidNC\src\Protocol.cpp">
       <Filter>src</Filter>
     </ClCompile>
-    <ClCompile Include="Grbl_Esp32\src\Spindles\PWMSpindle.cpp">
-      <Filter>src\Spindles</Filter>
-    </ClCompile>
-    <ClCompile Include="Grbl_Esp32\src\Report.cpp">
-      <Filter>src</Filter>
-    </ClCompile>
-    <ClCompile Include="Grbl_Esp32\src\WebUI\Authentication.cpp">
-      <Filter>src\WebUI</Filter>
-    </ClCompile>
-    <ClCompile Include="Grbl_Esp32\src\Machine\Axes.cpp">
-      <Filter>src\Machine</Filter>
-    </ClCompile>
-    <ClCompile Include="Grbl_Esp32\src\NutsBolts.cpp">
-      <Filter>src</Filter>
-    </ClCompile>
-    <ClCompile Include="Grbl_Esp32\src\CustomCode.cpp">
-      <Filter>src</Filter>
-    </ClCompile>
-    <ClCompile Include="Grbl_Esp32\src\Pins\ErrorPinDetail.cpp">
+    <ClCompile Include="FluidNC\src\Pins\PinCapabilities.cpp">
       <Filter>src\Pins</Filter>
     </ClCompile>
-    <ClCompile Include="Grbl_Esp32\src\Machine\I2SOBus.cpp">
+    <ClCompile Include="FluidNC\src\WebUI\BTConfig.cpp">
+      <Filter>src\WebUI</Filter>
+    </ClCompile>
+    <ClCompile Include="FluidNC\src\Limits.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="FluidNC\src\Pins\VoidPinDetail.cpp">
+      <Filter>src\Pins</Filter>
+    </ClCompile>
+    <ClCompile Include="FluidNC\src\Main.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="FluidNC\src\WebUI\JSONEncoder.cpp">
+      <Filter>src\WebUI</Filter>
+    </ClCompile>
+    <ClCompile Include="FluidNC\src\Machine\MachineConfig.cpp">
       <Filter>src\Machine</Filter>
     </ClCompile>
-    <ClCompile Include="Grbl_Esp32\src\Configuration\Tokenizer.cpp">
+    <ClCompile Include="FluidNC\src\WebUI\WebSettings.cpp">
+      <Filter>src\WebUI</Filter>
+    </ClCompile>
+    <ClCompile Include="FluidNC\src\Planner.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="FluidNC\src\Jog.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="FluidNC\src\Logging.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="FluidNC\src\Configuration\Generator.cpp">
       <Filter>src\Configuration</Filter>
     </ClCompile>
-    <ClCompile Include="Grbl_Esp32\src\WebUI\Commands.cpp">
-      <Filter>src\WebUI</Filter>
-    </ClCompile>
-    <ClCompile Include="Grbl_Esp32\src\Spindles\Laser.cpp">
+    <ClCompile Include="FluidNC\src\Spindles\Laser.cpp">
       <Filter>src\Spindles</Filter>
     </ClCompile>
-    <ClCompile Include="Grbl_Esp32\src\WebUI\WebSettings.cpp">
+    <ClCompile Include="FluidNC\src\WebUI\TelnetServer.cpp">
       <Filter>src\WebUI</Filter>
     </ClCompile>
-    <ClCompile Include="Grbl_Esp32\src\Pins\PinCapabilities.cpp">
+    <ClCompile Include="FluidNC\src\Probe.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="FluidNC\src\Pins\GPIOPinDetail.cpp">
       <Filter>src\Pins</Filter>
     </ClCompile>
-    <ClCompile Include="Grbl_Esp32\src\Machine\SPIBus.cpp">
+    <ClCompile Include="FluidNC\src\Spindles\NullSpindle.cpp">
+      <Filter>src\Spindles</Filter>
+    </ClCompile>
+    <ClCompile Include="FluidNC\src\version.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="FluidNC\src\Machine\LimitPin.cpp">
       <Filter>src\Machine</Filter>
     </ClCompile>
-    <ClCompile Include="Grbl_Esp32\src\Spindles\YL620Spindle.cpp">
-      <Filter>src\Spindles</Filter>
-    </ClCompile>
-    <ClCompile Include="Grbl_Esp32\src\WebUI\NotificationsService.cpp">
-      <Filter>src\WebUI</Filter>
-    </ClCompile>
-    <ClCompile Include="Grbl_Esp32\src\Pins\PinOptionsParser.cpp">
+    <ClCompile Include="FluidNC\src\Pins\ErrorPinDetail.cpp">
       <Filter>src\Pins</Filter>
     </ClCompile>
-    <ClCompile Include="Grbl_Esp32\src\WebUI\WifiServices.cpp">
-      <Filter>src\WebUI</Filter>
-    </ClCompile>
-    <ClCompile Include="Grbl_Esp32\src\SettingsDefinitions.cpp">
+    <ClCompile Include="FluidNC\src\Control.cpp">
       <Filter>src</Filter>
     </ClCompile>
-    <ClCompile Include="X86TestSupport\Print.cpp">
-      <Filter>X86TestSupport</Filter>
-    </ClCompile>
-    <ClCompile Include="Grbl_Esp32\src\Spindles\RelaySpindle.cpp">
-      <Filter>src\Spindles</Filter>
-    </ClCompile>
-    <ClCompile Include="Grbl_Esp32\src\Stepper.cpp">
-      <Filter>src</Filter>
-    </ClCompile>
-    <ClCompile Include="Grbl_Esp32\src\Configuration\RuntimeSetting.cpp">
+    <ClCompile Include="FluidNC\src\Configuration\LegacySettingRegistry.cpp">
       <Filter>src\Configuration</Filter>
     </ClCompile>
-    <ClCompile Include="X86TestSupport\Stream.cpp">
-      <Filter>X86TestSupport</Filter>
-    </ClCompile>
-    <ClCompile Include="Grbl_Esp32\src\Machine\MachineConfig.cpp">
-      <Filter>src\Machine</Filter>
-    </ClCompile>
-    <ClCompile Include="Grbl_Esp32\src\System.cpp">
+    <ClCompile Include="FluidNC\src\Serial.cpp">
       <Filter>src</Filter>
     </ClCompile>
-    <ClCompile Include="Grbl_Esp32\src\WebUI\Serial2Socket.cpp">
+    <ClCompile Include="FluidNC\src\WebUI\WebServer.cpp">
       <Filter>src\WebUI</Filter>
     </ClCompile>
-    <ClCompile Include="Grbl_Esp32\test\Pins\BasicGPIO.cpp">
-      <Filter>tests</Filter>
+    <ClCompile Include="FluidNC\src\Spindles\YL620Spindle.cpp">
+      <Filter>src\Spindles</Filter>
     </ClCompile>
-    <ClCompile Include="Grbl_Esp32\test\Pins\ErrorPinTest.cpp">
-      <Filter>tests</Filter>
-    </ClCompile>
-    <ClCompile Include="Grbl_Esp32\test\Pins\GPIO.cpp">
-      <Filter>tests</Filter>
-    </ClCompile>
-    <ClCompile Include="Grbl_Esp32\test\Pins\PinOptionParsing.cpp">
-      <Filter>tests</Filter>
-    </ClCompile>
-    <ClCompile Include="Grbl_Esp32\test\test_main.cpp">
-      <Filter>tests</Filter>
-    </ClCompile>
-    <ClCompile Include="Grbl_Esp32\test\TestFactory.cpp">
-      <Filter>tests</Filter>
-    </ClCompile>
-    <ClCompile Include="Grbl_Esp32\test\TestFrameworkTest.cpp">
-      <Filter>tests</Filter>
-    </ClCompile>
-    <ClCompile Include="Grbl_Esp32\test\Pins\Undefined.cpp">
-      <Filter>tests</Filter>
-    </ClCompile>
-    <ClCompile Include="Grbl_Esp32\test\Configuration\YamlComplete.cpp">
-      <Filter>tests</Filter>
-    </ClCompile>
-    <ClCompile Include="Grbl_Esp32\test\Configuration\YamlParser.cpp">
-      <Filter>tests</Filter>
-    </ClCompile>
-    <ClCompile Include="Grbl_Esp32\test\Configuration\YamlTreeBuilder.cpp">
-      <Filter>tests</Filter>
-    </ClCompile>
-    <ClCompile Include="X86TestSupport\nvs.cpp">
-      <Filter>X86TestSupport</Filter>
-    </ClCompile>
-    <ClCompile Include="X86TestSupport\freertos\Task.cpp">
-      <Filter>X86TestSupport\freertos</Filter>
-    </ClCompile>
-    <ClCompile Include="X86TestSupport\freertos\Queue.cpp">
-      <Filter>X86TestSupport\freertos</Filter>
-    </ClCompile>
-    <ClCompile Include="X86TestSupport\driver\dac.cpp">
-      <Filter>X86TestSupport\driver</Filter>
-    </ClCompile>
-    <ClCompile Include="X86TestSupport\driver\ledc.cpp">
-      <Filter>X86TestSupport\driver</Filter>
-    </ClCompile>
-    <ClCompile Include="X86TestSupport\driver\uartdriver.cpp">
-      <Filter>X86TestSupport\driver</Filter>
-    </ClCompile>
-    <ClCompile Include="Grbl_Esp32\src\Stepping.cpp">
+    <ClCompile Include="FluidNC\src\SDCard.cpp">
       <Filter>src</Filter>
     </ClCompile>
-    <ClCompile Include="Grbl_Esp32\src\Machine\LimitPin.cpp">
-      <Filter>src\Machine</Filter>
+    <ClCompile Include="FluidNC\src\Spindles\RelaySpindle.cpp">
+      <Filter>src\Spindles</Filter>
     </ClCompile>
-    <ClCompile Include="Grbl_Esp32\src\Machine\Homing.cpp">
-      <Filter>src\Machine</Filter>
+    <ClCompile Include="FluidNC\src\Spindles\10vSpindle.cpp">
+      <Filter>src\Spindles</Filter>
     </ClCompile>
-    <ClCompile Include="Grbl_Esp32\src\Pins\LedcPin.cpp">
-      <Filter>src\Pins</Filter>
-    </ClCompile>
-    <ClCompile Include="X86TestSupport\SDFS.cpp">
-      <Filter>X86TestSupport</Filter>
-    </ClCompile>
-    <ClCompile Include="X86TestSupport\SPI.cpp">
-      <Filter>X86TestSupport</Filter>
-    </ClCompile>
-    <ClCompile Include="X86TestSupport\SPIFFS.cpp">
-      <Filter>X86TestSupport</Filter>
-    </ClCompile>
-    <ClCompile Include="X86TestSupport\I2SO.cpp">
-      <Filter>X86TestSupport</Filter>
-    </ClCompile>
-    <ClCompile Include="X86TestSupport\soc\ledc_struct.cpp">
-      <Filter>X86TestSupport\soc</Filter>
-    </ClCompile>
-    <ClCompile Include="X86TestSupport\driver\rmt.cpp" />
-    <ClCompile Include="X86TestSupport\esp32-hal-timer.cpp">
-      <Filter>X86TestSupport</Filter>
-    </ClCompile>
-    <ClCompile Include="Grbl_Esp32\src\Machine\Motor.cpp">
-      <Filter>src\Machine</Filter>
-    </ClCompile>
-    <ClCompile Include="Grbl_Esp32\src\Motors\MotorDriver.cpp">
+    <ClCompile Include="FluidNC\src\Motors\NullMotor.cpp">
       <Filter>src\Motors</Filter>
+    </ClCompile>
+    <ClCompile Include="FluidNC\src\Spindles\VFDSpindle.cpp">
+      <Filter>src\Spindles</Filter>
+    </ClCompile>
+    <ClCompile Include="FluidNC\src\WebUI\Serial2Socket.cpp">
+      <Filter>src\WebUI</Filter>
+    </ClCompile>
+    <ClCompile Include="FluidNC\src\Motors\StandardStepper.cpp">
+      <Filter>src\Motors</Filter>
+    </ClCompile>
+    <ClCompile Include="FluidNC\src\CustomCode.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="FluidNC\src\Custom\oled_tiny.cpp">
+      <Filter>src\Custom</Filter>
+    </ClCompile>
+    <ClCompile Include="FluidNC\src\Custom\oled_io.cpp">
+      <Filter>src\Custom</Filter>
+    </ClCompile>
+    <ClCompile Include="FluidNC\src\Configuration\AfterParse.cpp">
+      <Filter>src\Configuration</Filter>
+    </ClCompile>
+    <ClCompile Include="FluidNC\src\Configuration\Completer.cpp">
+      <Filter>src\Configuration</Filter>
+    </ClCompile>
+    <ClCompile Include="FluidNC\src\Motors\MotorDriver.cpp">
+      <Filter>src\Motors</Filter>
+    </ClCompile>
+    <ClCompile Include="FluidNC\src\Pins\DebugPinDetail.cpp">
+      <Filter>src\Pins</Filter>
+    </ClCompile>
+    <ClCompile Include="FluidNC\src\Spindles\Spindle.cpp">
+      <Filter>src\Spindles</Filter>
+    </ClCompile>
+    <ClCompile Include="FluidNC\src\xmodem.cpp">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="FluidNC\src\Machine\SPIBus.cpp">
+      <Filter>src\Machine</Filter>
+    </ClCompile>
+    <ClCompile Include="FluidNC\src\Motors\StepStick.cpp">
+      <Filter>src\Motors</Filter>
+    </ClCompile>
+    <ClCompile Include="FluidNC\src\Pins\LedcPin.cpp">
+      <Filter>src\Pins</Filter>
+    </ClCompile>
+    <ClCompile Include="FluidNC\src\Pins\PinOptionsParser.cpp">
+      <Filter>src\Pins</Filter>
+    </ClCompile>
+    <ClCompile Include="X86TestSupport\TestSupport\I2SO.cpp">
+      <Filter>X86TestSupport</Filter>
+    </ClCompile>
+    <ClCompile Include="X86TestSupport\TestSupport\nvs.cpp">
+      <Filter>X86TestSupport</Filter>
+    </ClCompile>
+    <ClCompile Include="X86TestSupport\TestSupport\Print.cpp">
+      <Filter>X86TestSupport</Filter>
+    </ClCompile>
+    <ClCompile Include="X86TestSupport\TestSupport\SDFS.cpp">
+      <Filter>X86TestSupport</Filter>
+    </ClCompile>
+    <ClCompile Include="X86TestSupport\TestSupport\SPI.cpp">
+      <Filter>X86TestSupport</Filter>
+    </ClCompile>
+    <ClCompile Include="X86TestSupport\TestSupport\SPIFFS.cpp">
+      <Filter>X86TestSupport</Filter>
+    </ClCompile>
+    <ClCompile Include="X86TestSupport\TestSupport\Stream.cpp">
+      <Filter>X86TestSupport</Filter>
+    </ClCompile>
+    <ClCompile Include="X86TestSupport\TestSupport\WString.cpp">
+      <Filter>X86TestSupport</Filter>
+    </ClCompile>
+    <ClCompile Include="X86TestSupport\TestSupport\Arduino.cpp">
+      <Filter>X86TestSupport</Filter>
+    </ClCompile>
+    <ClCompile Include="X86TestSupport\TestSupport\esp32-hal-timer.cpp">
+      <Filter>X86TestSupport</Filter>
+    </ClCompile>
+    <ClCompile Include="X86TestSupport\TestSupport\ExceptionHelper.cpp">
+      <Filter>X86TestSupport</Filter>
+    </ClCompile>
+    <ClCompile Include="X86TestSupport\TestSupport\FS.cpp">
+      <Filter>X86TestSupport</Filter>
+    </ClCompile>
+    <ClCompile Include="FluidNC\test\Configuration\YamlParser.cpp">
+      <Filter>test\Configuration</Filter>
+    </ClCompile>
+    <ClCompile Include="FluidNC\test\Configuration\YamlTreeBuilder.cpp">
+      <Filter>test\Configuration</Filter>
+    </ClCompile>
+    <ClCompile Include="FluidNC\test\Configuration\YamlComplete.cpp">
+      <Filter>test\Configuration</Filter>
+    </ClCompile>
+    <ClCompile Include="FluidNC\test\Pins\PinOptionParsing.cpp">
+      <Filter>test\Pins</Filter>
+    </ClCompile>
+    <ClCompile Include="FluidNC\test\Pins\Undefined.cpp">
+      <Filter>test\Pins</Filter>
+    </ClCompile>
+    <ClCompile Include="FluidNC\test\Pins\BasicGPIO.cpp">
+      <Filter>test\Pins</Filter>
+    </ClCompile>
+    <ClCompile Include="FluidNC\test\Pins\ErrorPinTest.cpp">
+      <Filter>test\Pins</Filter>
+    </ClCompile>
+    <ClCompile Include="FluidNC\test\Pins\GPIO.cpp">
+      <Filter>test\Pins</Filter>
+    </ClCompile>
+    <ClCompile Include="FluidNC\test\TestFrameworkTest.cpp">
+      <Filter>test</Filter>
+    </ClCompile>
+    <ClCompile Include="FluidNC\test\test_main.cpp">
+      <Filter>test</Filter>
+    </ClCompile>
+    <ClCompile Include="FluidNC\test\TestFactory.cpp">
+      <Filter>test</Filter>
+    </ClCompile>
+    <ClCompile Include="X86TestSupport\TestSupport\driver\dac.cpp">
+      <Filter>X86TestSupport</Filter>
+    </ClCompile>
+    <ClCompile Include="X86TestSupport\TestSupport\driver\ledc.cpp">
+      <Filter>X86TestSupport</Filter>
+    </ClCompile>
+    <ClCompile Include="X86TestSupport\TestSupport\soc\ledc_struct.cpp">
+      <Filter>X86TestSupport</Filter>
+    </ClCompile>
+    <ClCompile Include="X86TestSupport\TestSupport\freertos\Queue.cpp">
+      <Filter>X86TestSupport</Filter>
+    </ClCompile>
+    <ClCompile Include="X86TestSupport\TestSupport\driver\rmt.cpp">
+      <Filter>X86TestSupport</Filter>
+    </ClCompile>
+    <ClCompile Include="X86TestSupport\TestSupport\freertos\Task.cpp">
+      <Filter>X86TestSupport</Filter>
+    </ClCompile>
+    <ClCompile Include="X86TestSupport\TestSupport\driver\uartdriver.cpp">
+      <Filter>X86TestSupport</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <None Include="Grbl_Esp32\src\SimpleOutputStream.md">
-      <Filter>src</Filter>
-    </None>
-    <None Include="Grbl_Esp32\src\Spindles\H2ASpindle.md">
-      <Filter>src\Spindles</Filter>
-    </None>
-    <None Include="Grbl_Esp32\src\Configuration\_Overview.md">
-      <Filter>src\Configuration</Filter>
-    </None>
-    <None Include="Grbl_Esp32\src\user_io.md">
-      <Filter>src</Filter>
-    </None>
-    <None Include="Grbl_Esp32\src\Configuration\ConfigurationHandlers.md">
-      <Filter>src\Configuration</Filter>
-    </None>
-    <None Include="Grbl_Esp32\src\Configuration\GenericFactory.md">
-      <Filter>src\Configuration</Filter>
-    </None>
-    <None Include="Grbl_Esp32\src\Configuration\Parser.md">
-      <Filter>src\Configuration</Filter>
-    </None>
-    <None Include="Grbl_Esp32\src\Motors\Dynamixel2.md">
+    <None Include="FluidNC\src\Motors\Dynamixel2.md">
       <Filter>src\Motors</Filter>
     </None>
-    <None Include="packages.config" />
-    <None Include="Grbl_Esp32\test\UnitTests.md">
-      <Filter>tests</Filter>
+    <None Include="FluidNC\src\Configuration\Parser.md">
+      <Filter>src\Configuration</Filter>
     </None>
+    <None Include="FluidNC\src\Spindles\H2ASpindle.md">
+      <Filter>src\Spindles</Filter>
+    </None>
+    <None Include="FluidNC\src\Configuration\_Overview.md">
+      <Filter>src\Configuration</Filter>
+    </None>
+    <None Include="FluidNC\src\Configuration\ConfigurationHandlers.md">
+      <Filter>src\Configuration</Filter>
+    </None>
+    <None Include="FluidNC\src\user_io.md">
+      <Filter>src</Filter>
+    </None>
+    <None Include="FluidNC\src\Stepper.md">
+      <Filter>src</Filter>
+    </None>
+    <None Include="FluidNC\src\Configuration\GenericFactory.md">
+      <Filter>src\Configuration</Filter>
+    </None>
+    <None Include="FluidNC\test\UnitTests.md">
+      <Filter>test</Filter>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="X86TestSupport\TestSupport\TODO.txt">
+      <Filter>X86TestSupport</Filter>
+    </Text>
   </ItemGroup>
 </Project>
