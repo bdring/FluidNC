@@ -1,0 +1,93 @@
+## Installing FluidNC on your ESP32
+
+Unpack this FluidNC release Zip file.
+
+Plug your ESP32 into a USB port.
+
+At a shell prompt, cd to this directory and run one of the following commands:
+
+To install the WiFi version:            sh install-wifi.sh
+To install the Bluetooth version:       sh install-bt.sh
+To replace the ESP32 local filesystem:  sh install-fs.sh
+
+### Local Filesystem Considerations
+
+Replacing the local filesystem is only useful for the wifi version.
+The Bluetooth version can start with an empty local filesystem.
+
+The disadvantage of replacing the local filesystem is that it will
+overwrite any files that you might already have there, such as FluidNC
+config files, WebUI preferences and macros.  The advantage is that you
+will get the latest version of the index.html.gz file that contains
+the WebUI code.  Another way to get a new index.html.gz is to upload
+it via WebUI from wifi/index.html.gz herein.
+
+A good approach is to use install-fs only on your first FluidNC
+installation, to start from a clean slate.
+
+### Running Fluidterm
+
+The FluidNC install scripts run Fluidterm automatically at the end,
+but if you want to run it separately, you can type
+
+  sh fluidterm.sh
+
+or just
+
+  ./fluidterm.sh
+
+### If Fluidterm Won't Start ...
+
+Fluidterm is intended to be helpful but it is not absolutely necessary
+for using FluidNC.  Fluidterm lets you interact directly with FluidNC
+over a USB serial port.  There are other ways to do that, so if you
+have trouble running Fluidterm, you can just ignore it.
+
+If Fluidterm does not work immediately, you can probably get it to work
+by installing Python3 - the language in which Fluidterm is written.
+Most Linux distributions will already have Python3 preinstalled.
+If you have problems, search the web for "install python3 on linux".
+
+### Alternatives to Fluidterm
+
+Most GCode sender programs have some way to send commands directly to
+FluidNC, but it can sometimes be helpful to bypass the complexity of
+a sender and use a more direct path.  Fluidterm is one such direct
+path, but there are others, typically called "serial terminals".
+
+For Linux, there are many such programs, such as "screen", "minicom", "cu",
+"picocom", and "PuTTY".  The one that is most likely to be preinstalled
+is named "screen".  If screen is not preinstalled, you might be able to
+install it with (on Ubuntu or Debian).
+
+   sudo apt update
+   sudo apt install screen
+
+To use screen, go to a shell window and type:
+
+  ls /dev/tty*
+
+That will give you a list of serial ports.  You need to find the one
+that is connected to FluidNC.  It will probably have a name that starts
+with "/dev/ttyUSB".  Once you have found that name, type
+
+  screen /dev/ttyUSBWHATEVER 115200
+
+To exit from screen, type  Control-A k
+
+Search the web for more documentation about screen, or for instructions
+for installing it on other versions of Linux.
+
+### What Can Go Wrong?
+
+If you see an error like this:
+
+  [9481] Error loading Python lib '/tmp/_MEIoyh8ER/libpython3.8.so.1.0': dlopen: /lib/x86_64-linux-gnu/libm.so.6: version `GLIBC_2.29' not found (required by /tmp/_MEIoyh8ER/libpython3.8.so.1.0)
+
+.. it could be version mismatches between system libraries and the
+precompiled esptool executable in the linux-amd64 directory.
+
+The workaround is to run the Python version of esptool - esptool.py - under Python,
+instead of using the esptool executable version.  The Internet has many tutorials
+for using esptool.py .  You can find the appropriate command line arguments in the
+.sh files.
