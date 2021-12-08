@@ -37,10 +37,26 @@ jobs:
         git config user.email "wmb@firmworks.com"
         git config user.name "Mitch Bradley"
         git tag "${{ github.event.inputs.tag }}" -a -m "Release test"
-    - name: Build release
+    - name: Build
       run: python build-release.py
-    - name: Upload release
-      uses: actions/upload-artifact@v2
+    - name: Create release
+      uses: softprops/action-gh-release@v1
       with:
-        name: releaseZipFile
-        path: release
+        tag_name: ${{ github.event.inputs.tag }}
+        files: release/*.zip
+        draft: True
+    # - name: Upload mac bundle
+    #   uses: actions/upload-artifact@v2
+    #   with:
+    #     name: release-macos
+    #     path: release/*macos*
+    # - name: Upload Windows bundle
+    #   uses: actions/upload-artifact@v2
+    #   with:
+    #     name: release-win32
+    #     path: release/*win*
+    # - name: Upload Linux bundle
+    #   uses: actions/upload-artifact@v2
+    #   with:
+    #     name: release-linux
+    #     path: release/*linux*

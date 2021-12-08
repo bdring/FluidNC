@@ -1,0 +1,26 @@
+## Installing FluidNC on your ESP32
+
+Unpack this FluidNC release Zip file.
+
+Plug your ESP32 into a USB port, then double-click on one of
+the following (or, in a CMD window, CD to this directory and
+type the batch file name).
+
+To install the WiFi version:            install-wifi.bat
+To install the Bluetooth version:       install-bt.bat
+To replace the ESP32 local filesystem:  install-fs.bat
+
+Replacing the local filesystem is only useful for the wifi
+version, since its default contents are only needed for
+running the WebUI user interface over WiFi.
+
+The disadvantage of replacing the local filesystem is that
+it will overwrite any files that you might already have
+there, such as FluidNC config files, WebUI preferences
+and macros.  The advantage is that you will get the latest
+version of the index.html.gz file that contains the WebUI
+code.  Another way to get a new index.html.gz is to upload
+it via WebUI from wifi/index.html.gz herein.
+
+A good approach is to use install-fs only on your first
+FluidNC installation, or to start from a clean slate.

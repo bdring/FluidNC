@@ -1,6 +1,0 @@
-Choose the version that you want - wifi , bt - and go into that folder
-If you want wifi+bt or no_radio, you must compile yourself. See the wiki
-
-For Windows: Run install-win.bat   (Double-click or type 'install-win' in a cmd window)
-For Linux:   Run install-linux.sh  (Type 'sh install-linux.sh' in a shell terminal window)
-For MacOS:   Run install-macos.sh  (Type 'sh install-macos.sh' in a Terminal window)
