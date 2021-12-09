@@ -4,10 +4,6 @@
 
 **FluidNC** is the next generation of the Grbl_ESP32 CNC control firmware. It has a lot of improvements over Grbl_ESP32 as listed below.
 
-## Status
-
-We are currently in an beta testing state. Basic machines are fully functional. We are actively testing the advanced functions and improving the usability.
-
 ## Firmware Architecture
 
 - Object-Oriented hierarchical design
