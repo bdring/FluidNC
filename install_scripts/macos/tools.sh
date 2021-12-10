@@ -1,6 +1,6 @@
 # Subroutines to call esptool with common arguments
 
-EsptoolPath=linux-amd64/macos
+EsptoolPath=macos/esptool
 
 BaseArgs="--chip esp32 --baud 230400"
 
