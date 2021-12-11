@@ -9,6 +9,8 @@ assignees: ''
 
 Please only submit bugs for the **latest** version of the code. You can check the version number in the startup messages.
 
+Please provide the [FluidNC boot messages per this page](https://github.com/bdring/FluidNC/wiki/Requesting-Help#fluidnc-boot-messages).
+
 Please answer the following questions.
 
 What version of the firmware are you using?
