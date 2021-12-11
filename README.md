@@ -4,6 +4,10 @@
 
 **FluidNC** is the next generation of the Grbl_ESP32 CNC control firmware. It has a lot of improvements over Grbl_ESP32 as listed below.
 
+## Using / Compiling
+
+You **do not need to compile** FluidNC. Each [release of FluidNC](https://github.com/bdring/FluidNC/releases) has an installation script that will automatically install the firmware to an ESP32. All standard configuration can be done by uploading configuration files later. See [this wiki page](https://github.com/bdring/FluidNC/wiki/FluidNC-Compiling).
+
 ## Firmware Architecture
 
 - Object-Oriented hierarchical design
