@@ -131,12 +131,15 @@ namespace Configuration {
 
             switch (str.begin()[1]) {
                 case 'N':
+                case 'n':
                     parity = UartParity::None;
                     break;
                 case 'O':
+                case 'o':
                     parity = UartParity::Odd;
                     break;
                 case 'E':
+                case 'e':
                     parity = UartParity::Even;
                     break;
                 default:
