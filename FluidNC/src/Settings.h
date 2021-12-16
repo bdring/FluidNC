@@ -232,13 +232,9 @@ private:
     String _defaultValue;
     String _currentValue;
     String _storedValue;
-    String _escapedValue;
     int    _minLength;
     int    _maxLength;
     void   _setStoredValue(const char* s);
-
-    const char* escapeString(String& escaped, String& clear);
-    String      unEscapeString(const char* s);
 
 public:
     StringSetting(const char*   description,

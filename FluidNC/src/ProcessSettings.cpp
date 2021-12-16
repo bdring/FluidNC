@@ -47,8 +47,72 @@ static bool auth_failed(Word* w, const char* value, WebUI::AuthenticationLevel a
     }
 }
 
+// Replace GRBL realtime characters with the corresponding URI-style
+// escape sequence.
+static String uriEncodeGrblCharacters(const char* clear) {
+    String escaped = "";
+    char   c;
+    while ((c = *clear++) != '\0') {
+        switch (c) {
+            case '%':  // The escape character itself
+                escaped += "%25";
+                break;
+            case '!':  // Cmd::FeedHold
+                escaped += "%21";
+                break;
+            case '?':  // Cmd::StatusReport
+                escaped += "%3F";
+                break;
+            case '~':  // Cmd::CycleStart
+                escaped += "%7E";
+                break;
+            default:
+                escaped += c;
+                break;
+        }
+    }
+    return escaped;
+}
+
+// Replace URI-style escape sequences like %HH with the character
+// corresponding to the hex number HH.  This works with any escaped
+// characters, not only those that are special to Grbl
+static char* uriDecode(const char* s) {
+    const int   dlen = 100;
+    static char decoded[dlen + 1];
+    char*       out = decoded;
+    char        c;
+    while ((c = *s++) != '\0') {
+        if (c == '%') {
+            if (strlen(s) < 2) {
+                log_error("Bad % encoding - too short");
+                goto done;
+            }
+            char escstr[3];
+            escstr[0] = *s++;
+            escstr[1] = *s++;
+            escstr[2] = '\0';
+            char*   endptr;
+            uint8_t esc = strtol(escstr, &endptr, 16);
+            if (endptr != &escstr[2]) {
+                log_error("Bad % encoding - not hex");
+                goto done;
+            }
+            c = (char)esc;
+        }
+        if ((out - decoded) == dlen) {
+            log_error("String value too long");
+            goto done;
+        }
+        *out++ = c;
+    }
+done:
+    *out = '\0';
+    return decoded;
+}
+
 static void show_setting(const char* name, const char* value, const char* description, Channel& out) {
-    out << "$" << name << "=" << value;
+    out << "$" << name << "=" << uriEncodeGrblCharacters(value);
     if (description) {
         out << "    " << description;
     }
@@ -671,7 +735,7 @@ Error do_command_or_setting(const char* key, char* value, WebUI::AuthenticationL
                 return Error::AuthenticationFailed;
             }
             if (value) {
-                return s->setStringValue(value);
+                return s->setStringValue(uriDecode(value));
             } else {
                 show_setting(s->getName(), s->getStringValue(), NULL, out);
                 return Error::Ok;
@@ -687,7 +751,7 @@ Error do_command_or_setting(const char* key, char* value, WebUI::AuthenticationL
                 return Error::AuthenticationFailed;
             }
             if (value) {
-                return s->setStringValue(value);
+                return s->setStringValue(uriDecode(value));
             } else {
                 show_setting(s->getGrblName(), s->getCompatibleValue(), NULL, out);
                 return Error::Ok;

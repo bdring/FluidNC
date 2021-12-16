@@ -200,55 +200,6 @@ StringSetting::StringSetting(const char*   description,
     _maxLength    = max;
 };
 
-const char* StringSetting::escapeString(String& escaped, String& clear) {
-    escaped = "";
-    for (char c : clear) {
-        switch (c) {
-            case '%':  // The escape character itself
-                escaped += "%25";
-                break;
-            case '!':  // Cmd::FeedHold
-                escaped += "%21";
-                break;
-            case '?':  // Cmd::StatusReport
-                escaped += "%3F";
-                break;
-            case '~':  // Cmd::CycleStart
-                escaped += "%7E";
-                break;
-            default:
-                escaped += c;
-                break;
-        }
-    }
-    return escaped.c_str();
-}
-String StringSetting::unEscapeString(const char* s) {
-    String out = "";
-    char   c;
-    while ((c = *s++) != '\0') {
-        if (c == '%') {
-            if (strlen(s) < 2) {
-                log_error("Bad % encoding - too short");
-                return out;
-            }
-            char escstr[3];
-            escstr[0] = *s++;
-            escstr[1] = *s++;
-            escstr[2] = '\0';
-            char*   endptr;
-            uint8_t esc = strtol(escstr, &endptr, 16);
-            if (endptr != &escstr[2]) {
-                log_error("Bad % encoding - not hex");
-                return out;
-            }
-            c = (char)esc;
-        }
-        out += c;
-    }
-    return out;
-}
-
 void StringSetting::load() {
     size_t    len = 0;
     esp_err_t err = nvs_get_str(_handle, _keyName, NULL, &len);
@@ -288,7 +239,7 @@ Error StringSetting::setStringValue(char* s) {
     if (err != Error::Ok) {
         return err;
     }
-    _currentValue = unEscapeString(s);
+    _currentValue = s;
     if (_storedValue != _currentValue) {
         if (_currentValue == _defaultValue) {
             nvs_erase_key(_handle, _keyName);
@@ -316,7 +267,7 @@ const char* StringSetting::getDefaultString() {
     return (_checker && isPassword(_checker)) ? "******" : _defaultValue.c_str();
 }
 const char* StringSetting::getStringValue() {
-    return (_checker && isPassword(_checker)) ? "******" : escapeString(_escapedValue, _currentValue);
+    return (_checker && isPassword(_checker)) ? "******" : get();
 }
 
 void StringSetting::addWebui(WebUI::JSONencoder* j) {
