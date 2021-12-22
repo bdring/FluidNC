@@ -98,11 +98,18 @@ namespace Pins {
         // User defined pin capabilities
         for (auto opt : options) {
             if (opt.is("pu")) {
-                Assert(_capabilities.has(PinCapabilities::PullUp), "Pin %s does not support :pu", toString().c_str());
-                _attributes = _attributes | PinAttributes::PullUp;
+                if (_capabilities.has(PinCapabilities::PullUp)) {
+                    _attributes = _attributes | PinAttributes::PullUp;
+                } else {
+                    log_warn(toString() << " does not support :pu attribute");
+                }
+
             } else if (opt.is("pd")) {
-                Assert(_capabilities.has(PinCapabilities::PullDown), "Pin %s does not support :pd", toString().c_str());
-                _attributes = _attributes | PinAttributes::PullDown;
+                if (_capabilities.has(PinCapabilities::PullDown)) {
+                    _attributes = _attributes | PinAttributes::PullDown;
+                } else {
+                    log_warn(toString() << " does not support :pd attribute");
+                }
             } else if (opt.is("low")) {
                 _attributes = _attributes | PinAttributes::ActiveLow;
             } else if (opt.is("high")) {
