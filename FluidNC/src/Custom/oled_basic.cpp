@@ -40,7 +40,6 @@ static void oledRadioInfo() {
 #    ifdef ENABLE_BLUETOOTH
     if (WebUI::bt_enable->get()) {
         radio_name = String("BT: ") + WebUI::bt_name->get();
-        ;
     }
 #    endif
 #    ifdef ENABLE_WIFI
@@ -159,17 +158,12 @@ static void oledDRO() {
 }
 
 static void oledUpdate(void* pvParameters) {
-    TickType_t       xLastWakeTime;
-    const TickType_t xOledFrequency = 100;                  // in ticks (typically ms)
-    xLastWakeTime                   = xTaskGetTickCount();  // Initialise the xLastWakeTime variable with the current time.
+    TickType_t xOledInterval = 1000;  // in ticks (typically ms)
 
     vTaskDelay(2500);
-    uint16_t file_ticker = 0;
-
-    oled->init();
-    oled->flipScreenVertically();
 
     while (true) {
+        uint16_t file_ticker = 0;
         oled->clear();
 
         String state_string = "";
@@ -199,17 +193,18 @@ static void oledUpdate(void* pvParameters) {
             oled->setFont(ArialMT_Plain_10);
             oled->setTextAlignment(TEXT_ALIGN_CENTER);
             oled->drawString(64, 25, String(progress) + "%");
-
+            xOledInterval = 250;
         } else if (sys.state == State::Alarm) {
             oledRadioInfo();
+            xOledInterval = 1000;
         } else {
             oledDRO();
             oledRadioInfo();
+            xOledInterval = 1000;
         }
-
         oled->display();
 
-        vTaskDelayUntil(&xLastWakeTime, xOledFrequency);
+        vTaskDelay(xOledInterval);
     }
 }
 
@@ -220,6 +215,12 @@ void display_init() {
     oled->setTextAlignment(TEXT_ALIGN_LEFT);
 
     oled->clear();
+
+    oled->setFont(ArialMT_Plain_16);
+    oled->drawString(0, 0, "Starting");
+    oled->setFont(ArialMT_Plain_24);
+    oled->drawString(0, 20, "FluidNC");
+
     oled->display();
 
     xTaskCreatePinnedToCore(oledUpdate,        // task
@@ -232,6 +233,7 @@ void display_init() {
                                                          // core
     );
 }
+#    if 0
 static void oled_show_string(String s) {
     oled->clear();
     oled->drawString(0, 0, s);
@@ -251,4 +253,5 @@ void display(const char* tag, String s) {
         oled_show_string(s);
     }
 }
+#    endif
 #endif
