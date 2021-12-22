@@ -714,6 +714,7 @@ namespace WebUI {
             WiFi.onEvent(WiFiConfig::WiFiEvent);
             _events_registered = true;
         }
+        esp_wifi_set_ps(WIFI_PS_NONE);
         log_info("WiFi on");
         wifi_services.begin();
         return true;
