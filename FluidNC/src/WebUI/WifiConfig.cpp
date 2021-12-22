@@ -147,10 +147,10 @@ namespace WebUI {
                     tcpip_adapter_dhcp_status_t dhcp_status;
                     tcpip_adapter_dhcpc_get_status(TCPIP_ADAPTER_IF_STA, &dhcp_status);
                     out << "IP Mode: " << (dhcp_status == TCPIP_ADAPTER_DHCP_STARTED ? "DHCP" : "Static") << '\n';
-                    out << "IP: " << WiFi.localIP() << '\n';
-                    out << "Gateway: " << WiFi.gatewayIP() << '\n';
-                    out << "Mask: " << WiFi.subnetMask() << '\n';
-                    out << "DNS: " << WiFi.dnsIP() << '\n';
+                    out << "IP: " << WiFi.localIP().toString() << '\n';
+                    out << "Gateway: " << WiFi.gatewayIP().toString() << '\n';
+                    out << "Mask: " << WiFi.subnetMask().toString() << '\n';
+                    out << "DNS: " << WiFi.dnsIP().toString() << '\n';
 
                 }  //this is web command so connection => no command
                 out << "Disabled Mode: ";
@@ -189,12 +189,12 @@ namespace WebUI {
                 tcpip_adapter_dhcps_get_status(TCPIP_ADAPTER_IF_AP, &dhcp_status);
                 out << "DHCP Server: " << (dhcp_status == TCPIP_ADAPTER_DHCP_STARTED ? "Started" : "Stopped") << '\n';
 
-                out << "IP: " << WiFi.softAPIP() << '\n';
+                out << "IP: " << WiFi.softAPIP().toString() << '\n';
 
                 tcpip_adapter_ip_info_t ip_AP;
                 tcpip_adapter_get_ip_info(TCPIP_ADAPTER_IF_AP, &ip_AP);
-                out << "Gateway: " << IPAddress(ip_AP.gw.addr) << '\n';
-                out << "Mask: " << IPAddress(ip_AP.netmask.addr) << '\n';
+                out << "Gateway: " << IPAddress(ip_AP.gw.addr).toString() << '\n';
+                out << "Mask: " << IPAddress(ip_AP.netmask.addr).toString() << '\n';
 
                 wifi_sta_list_t          station;
                 tcpip_adapter_sta_list_t tcpip_sta_list;
@@ -204,7 +204,7 @@ namespace WebUI {
 
                 for (int i = 0; i < station.num; i++) {
                     out << wifi_config.mac2str(tcpip_sta_list.sta[i].mac);
-                    out << " " << IPAddress(tcpip_sta_list.sta[i].ip.addr) << '\n';
+                    out << " " << IPAddress(tcpip_sta_list.sta[i].ip.addr).toString() << '\n';
                 }
                 out << "Disabled Mode: ";
                 print_mac("STA", WiFi.macAddress(), out);
