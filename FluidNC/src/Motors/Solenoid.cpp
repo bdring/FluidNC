@@ -2,7 +2,34 @@
 // Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
 
 /*
-    This lets an Solenoid act like an axis
+    This lets an Solenoid act like an axis. It will active when the machine position of 
+    the axis is above 0.0. This can be inverted with the direction_invert value.
+
+    If inverted, it will active at below 0.0.
+
+    When active the PWM will come on at the pull_percent value. After pull_ms time, it will change 
+    to the hold_percent value. This can be used to keep the coil cooler.
+
+    The feature runs on a 50ms update timer. The solenoid should react within 50ms of the position. 
+    The pull_ms also used that 50ms update resolution.
+
+    The PWM can be inverted using the :low attribute on the output pin. This inverts the signal in case
+    you need it. It is not used to invert the direction logic. 
+
+    The axis position still respects your speed and acceleration and other axis coordination. If you go
+    from Z0 to Z5, it will activate as soon as it goes above 0. If you G0 from Z5 to Z0, it will not deactivate
+    until it gets to Z0.  
+
+    Example YAML
+
+      solenoid:
+        output_pin: gpio.26
+        pwm_hz: 5000
+        off_percent: 0.000
+        pull_percent: 100.000
+        hold_percent: 20.000
+        pull_ms: 1000
+        direction_invert: false
 
 */
 
@@ -37,8 +64,6 @@ namespace MotorDrivers {
         pwm_cnt[SolenoidMode::Pull] = uint32_t(_pull_percent / 100.0f * 65535.0f);
         pwm_cnt[SolenoidMode::Hold] = uint32_t(_hold_percent / 100.0f * 65535.0f);
 
-        log_info("    Solenoid Pin:" << _output_pin.name() << " Counts Off:" << _off_cnt << " Hold:" << _hold_cnt << " Pull:" << _pull_cnt);
-
         _axis_index = axis_index();
 
         config_message();
@@ -48,7 +73,7 @@ namespace MotorDrivers {
 
         _disabled = true;
 
-        startUpdateTask(_timer_ms);
+        startUpdateTask(_update_rate_ms);
     }
 
     void Solenoid::update() { set_location(); }
@@ -65,14 +90,17 @@ namespace MotorDrivers {
             return;
         }
 
-        float mpos     = steps_to_mpos(motor_steps[_axis_index], _axis_index);  // get the axis machine position in mm
-        is_solenoid_on = (mpos > 0.0);                                          // TODO: we can apply an invert feature here if needed
+        float mpos = steps_to_mpos(motor_steps[_axis_index], _axis_index);  // get the axis machine position in mm
+
+        _dir_invert ? is_solenoid_on = (mpos < 0.0) : is_solenoid_on = (mpos > 0.0);
+
+        // TODO: we can apply an invert feature here if needed
 
         switch (_current_mode) {
             case SolenoidMode::Off:
                 if (is_solenoid_on) {
                     _current_mode  = SolenoidMode::Pull;
-                    _pull_off_time = 10;
+                    _pull_off_time = _pull_ms / _update_rate_ms;
                 }
                 break;
             case SolenoidMode::Pull:
