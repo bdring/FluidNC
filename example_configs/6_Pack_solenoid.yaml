@@ -2,7 +2,7 @@ board: 6 Pack
 name: 6 Pack StepStick XYZABC
 stepping:
   engine: I2S_STREAM
-  idle_ms: 250
+  idle_ms: 255
   pulse_us: 4
   dir_delay_us: 1
   disable_delay_us: 0
@@ -90,6 +90,10 @@ axes:
       solenoid:
         output_pin: gpio.26
         pwm_hz: 5000
+        off_percent: 0.000
+        pull_percent: 100.000
+        hold_percent: 20.000
+        pull_ms: 1000
         
 
 i2so:

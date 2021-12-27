@@ -6,31 +6,30 @@ namespace MotorDrivers {
     class Solenoid : public RcServo {
     protected:
         void config_message() override;
+        void update() override;
 
         float    _off_percent  = 0.0;
         float    _pull_percent = 100.0;
         float    _hold_percent = 75.0;
         uint32_t _pull_ms      = 150;
 
-        uint32_t _off_cnt;
-        uint32_t _pull_cnt;
-        uint32_t _hold_cnt;
-
         uint32_t _pull_off_time = 0;  // When did the pull start
 
-        enum Mode {
-            Off,
-            Pull,
-            Hold,
+        enum SolenoidMode {
+            Off  = 0,
+            Pull = 1,
+            Hold = 2,
         };
 
-        Mode _current_mode = Off;
+        uint32_t pwm_cnt[3];
+
+        SolenoidMode _current_mode = SolenoidMode::Off;
 
     public:
         Solenoid() = default;
 
-        void           set_location();
-        void           init() override;
+        void set_location();
+        void init() override;
 
         float _transition_point;
 

@@ -70,6 +70,7 @@ namespace MotorDrivers {
 
         _current_pwm_duty = duty;
         ledcSetDuty(_pwm_chan_num, duty);
+        log_info("duty:" << duty );
     }
 
     // sets the PWM to zero. This allows most servos to be manually moved

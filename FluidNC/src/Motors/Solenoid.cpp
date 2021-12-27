@@ -33,15 +33,14 @@ namespace MotorDrivers {
             return;  // We cannot continue without the output pin
         }
 
-        _off_cnt  = uint32_t(_off_percent / 100.0f * 65535.0f);
-        _pull_cnt = uint32_t(_pull_percent / 100.0f * 65535.0f);
-        _hold_cnt = uint32_t(_hold_percent / 100.0f * 65535.0f);
+        pwm_cnt[SolenoidMode::Off]  = uint32_t(_off_percent / 100.0f * 65535.0f);
+        pwm_cnt[SolenoidMode::Pull] = uint32_t(_pull_percent / 100.0f * 65535.0f);
+        pwm_cnt[SolenoidMode::Hold] = uint32_t(_hold_percent / 100.0f * 65535.0f);
 
         log_info("    Solenoid Pin:" << _output_pin.name() << " Counts Off:" << _off_cnt << " Hold:" << _hold_cnt << " Pull:" << _pull_cnt);
 
         _axis_index = axis_index();
 
-        //read_settings();
         config_message();
 
         _pwm_chan_num     = ledcInit(_output_pin, -1, double(_pwm_freq), SERVO_PWM_RESOLUTION_BITS);  // Allocate a channel
@@ -52,41 +51,51 @@ namespace MotorDrivers {
         startUpdateTask(_timer_ms);
     }
 
+    void Solenoid::update() { set_location(); }
+
     void Solenoid::config_message() {
         log_info("    Solenoid Pin:" << _output_pin.name() << " Off:" << _off_percent << " Hold:" << _hold_percent
                                      << " Pull:" << _pull_percent << " Duration:" << _pull_ms);
     }
 
     void Solenoid::set_location() {
-        static bool _was_positive = false;
-        uint32_t    _pwm_val      = 0;
+        bool is_solenoid_on;
 
         if (_disabled || _has_errors) {
             return;
         }
 
-        float mpos = steps_to_mpos(motor_steps[_axis_index], _axis_index);  // get the axis machine position in mm
+        float mpos     = steps_to_mpos(motor_steps[_axis_index], _axis_index);  // get the axis machine position in mm
+        is_solenoid_on = (mpos > 0.0);                                          // TODO: we can apply an invert feature here if needed
 
-        if (mpos > 0.0) {
-            if (_was_positive) {
-                if (_current_mode == Pull && getCpuTicks() > _pull_off_time) {
-                    _pwm_val      = _hold_cnt;
-                    _current_mode = Hold;
+        switch (_current_mode) {
+            case SolenoidMode::Off:
+                if (is_solenoid_on) {
+                    _current_mode  = SolenoidMode::Pull;
+                    _pull_off_time = 10;
                 }
-                return;
-            } else {
-                _pull_off_time = getCpuTicks() + _pull_ms * 1000;  // when should the pull turn off?
-                _pwm_val       = _pull_cnt;
-            }
-        } else {
-            if (!_was_positive) {
-                return;
-            }
-            _pwm_val      = _off_cnt;
-            _current_mode = Off;
+                break;
+            case SolenoidMode::Pull:
+                if (is_solenoid_on) {  // count down
+                    if (_pull_off_time == 0) {
+                        _current_mode = SolenoidMode::Hold;
+                        break;
+                    }
+                    _pull_off_time--;
+                } else {  // turn off
+                    _current_mode = SolenoidMode::Off;
+                }
+                break;
+            case SolenoidMode::Hold:
+                if (!is_solenoid_on) {
+                    _current_mode = SolenoidMode::Off;
+                }
+                break;
+            default:
+                break;
         }
 
-        _write_pwm(_pwm_val);
+        _write_pwm(pwm_cnt[_current_mode]);
     }
 
     namespace {
