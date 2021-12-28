@@ -128,6 +128,7 @@ static uint8_t held_packet[1024];
 static void    flush_packet(size_t packet_len, size_t& total_len) {
     if (held) {
         // Remove trailing ctrl-z's on the final packet
+        held = false;
         size_t count;
         for (count = packet_len; count > 0; --count) {
             if (held_packet[count - 1] != CTRLZ) {
@@ -140,6 +141,7 @@ static void    flush_packet(size_t packet_len, size_t& total_len) {
 }
 static void write_packet(uint8_t* buf, size_t packet_len, size_t& total_len) {
     if (held) {
+        held = false;
         file->write(held_packet, packet_len);
         total_len += packet_len;
     }
@@ -151,6 +153,8 @@ int xmodemReceive(Uart* serial, Channel* out) {
     vTaskDelay(1000);
     serialPort = serial;
     file       = out;
+
+    held = false;
 
     uint8_t  xbuff[1030]; /* 1024 for XModem 1k + 3 head chars + 2 crc + nul */
     uint8_t* p;
