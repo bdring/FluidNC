@@ -9,7 +9,7 @@ private:
     volatile bool& _rtVariable;
     const char*    _legend;
 
-    void handleISR();
+    void handleISR(int32_t deltaTime);
 
 public:
     ControlPin(volatile bool& rtVariable, const char* legend, char letter) :

@@ -38,16 +38,9 @@ class String;
 // one-stop-go-to-shop for an pin.
 class Pin {
     // Helper for handling callbacks and mapping them to the proper class:
-    template <typename ThisType, void (ThisType::*Callback)()>
+    template <typename ThisType, void (ThisType::*Callback)(int32_t)>
     struct InterruptCallbackHelper {
-        static void IRAM_ATTR callback(void* ptr) { (static_cast<ThisType*>(ptr)->*Callback)(); }
-    };
-
-    // Helper for handling callbacks and mapping them to the proper class. This one is just meant
-    // for backward compatibility:
-    template <void (*Callback)()>
-    struct InterruptCallbackHelper2 {
-        static void IRAM_ATTR callback(void* /*ptr*/) { Callback(); }
+        static void IRAM_ATTR callback(void* ptr, int32_t delta) { (static_cast<ThisType*>(ptr)->*Callback)(delta); }
     };
 
     // The undefined pin and error pin are two special pins. Error pins always throw an error when they are used.
@@ -123,13 +116,10 @@ public:
 
     // ISR handlers. Map methods on 'this' types.
 
-    template <typename ThisType, void (ThisType::*Callback)()>
-    void attachInterrupt(ThisType* arg, int mode) {
-        _detail->attachInterrupt(InterruptCallbackHelper<ThisType, Callback>::callback, arg, mode);
+    template <typename ThisType, void (ThisType::*Callback)(int32_t)>
+    void attachInterrupt(ThisType* arg) {
+        _detail->attachInterrupt(InterruptCallbackHelper<ThisType, Callback>::callback, arg);
     }
-
-    // Backward compatibility ISR handler:
-    void attachInterrupt(void (*callback)(void*), int mode, void* arg = nullptr) const { _detail->attachInterrupt(callback, arg, mode); }
 
     void detachInterrupt() const { _detail->detachInterrupt(); }
 

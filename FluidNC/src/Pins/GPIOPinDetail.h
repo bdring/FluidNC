@@ -15,6 +15,20 @@ namespace Pins {
 
         static std::vector<bool> _claimed;
 
+        using ISRCallback        = void (*)(void*, int32_t);
+        ISRCallback _isrCallback = nullptr;
+        void*       _isrArgument = nullptr;
+
+        static void IRAM_ATTR ISRCallbackHandler(void* arg) {
+            auto gpio = static_cast<GPIOPinDetail*>(arg);
+            if (gpio) {
+                auto c = gpio->_isrCallback;  // store in local to avoid thread issues
+                if (c) {
+                    (*c)(gpio->_isrArgument, 0);
+                }
+            }
+        }
+
     public:
         static const int nGPIOPins = 40;
 
@@ -23,13 +37,13 @@ namespace Pins {
         PinCapabilities capabilities() const override;
 
         // I/O:
-        void          write(int high) override;
+        void write(int high) override;
         int IRAM_ATTR read() override;
         void          setAttr(PinAttributes value) override;
         PinAttributes getAttr() const override;
 
         // ISR's:
-        void attachInterrupt(void (*callback)(void*), void* arg, int mode) override;
+        void attachInterrupt(void (*callback)(void*, int32_t), void* arg) override;
         void detachInterrupt() override;
 
         String toString() override;
