@@ -9,8 +9,17 @@ namespace Probes {
         handler.item("check_mode_start", _checkModeStart);
     }
 
-    void SimpleProbe::init(TripProbe* callback) {
-        ProbeDriver::init(callback);
+    void SimpleProbe::init(TripProbe callback) {
+        if (_probePin.defined()) {
+            _probePin.setAttr(Pin::Attr::Input);
+        }
+
+        // if (show_init_msg) {
+        //     _probePin.report("Probe Pin:");
+        //     show_init_msg = false;
+        // }
+
+        ProbeDriver::init(callback, callbackUserData_);
         _probePin.attachInterrupt<ProbeDriver, &ProbeDriver::tripISR>(this);
     }
 

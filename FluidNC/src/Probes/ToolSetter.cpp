@@ -10,7 +10,7 @@ namespace Probes {
         handler.item("tool_setter_height", _height);
     }
 
-    void ToolSetter::init(TripProbe* callback) { SimpleProbe::init(callback); }
+    void ToolSetter::init(TripProbe callback) { SimpleProbe::init(callback); }
     void ToolSetter::start_cycle() {
         // TODO FIXME: reset soft limits to original
         SimpleProbe::start_cycle();

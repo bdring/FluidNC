@@ -14,13 +14,16 @@
 #include <WString.h>   // String
 #include <esp_attr.h>  // IRAM_ATTR
 
+class Probe;
+
 namespace Probes {
-    using TripProbe = void (*)(int32_t tickDelta);
+    using TripProbe = void (*)(Probe* userData, int32_t tickDelta);
 
     class ProbeDriver : public Configuration::Configurable {
     protected:
-        String     probeName_;
-        TripProbe* callback_ = nullptr;
+        String    probeName_;
+        TripProbe callback_         = nullptr;
+        Probe*    callbackUserData_ = nullptr;
 
     public:
         ProbeDriver()                     = default;
@@ -34,7 +37,7 @@ namespace Probes {
 
         virtual const char* name() const = 0;
 
-        virtual void init(TripProbe* callback);
+        virtual void init(TripProbe callback, Probe* userData);
         virtual void start_cycle() = 0;
         virtual void stop_cycle()  = 0;
         virtual bool is_tripped()  = 0;
