@@ -23,7 +23,11 @@ namespace Probes {
         _probePin.attachInterrupt<ProbeDriver, &ProbeDriver::tripISR>(this);
     }
 
-    void SimpleProbe::start_cycle() {}
+    bool SimpleProbe::start_cycle(bool away) { 
+        // away should be !is_tripped -- or we have an issue.
+        return is_tripped() != away;
+
+    }
     void SimpleProbe::stop_cycle() {}
     bool SimpleProbe::is_tripped() { return _probePin.read(); }
 

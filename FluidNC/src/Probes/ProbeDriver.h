@@ -38,7 +38,7 @@ namespace Probes {
         virtual const char* name() const = 0;
 
         virtual void init(TripProbe callback, Probe* userData);
-        virtual void start_cycle() = 0;
+        virtual bool start_cycle(bool away) = 0;
         virtual void stop_cycle()  = 0;
         virtual bool is_tripped()  = 0;
 

@@ -23,6 +23,21 @@ void IRAM_ATTR Probe::tripProbe(Probe* userData, int32_t tickDelta) {
 
 void Probe::set_direction(bool is_away) {
     _isProbeAway = is_away;
+
+    for (auto it : _probes) {
+        // We have to think this over properly!!! Check all? Check some? What if some
+        // thing tripped that was not in the vector?
+        if (it->start_cycle(is_away)) {
+            // put in vector?
+        }
+    }
+}
+
+void Probe::stop_probe() {
+    for (auto it : _probes) {
+        // We have to think this over properly!!!
+        it->stop_cycle();
+    }
 }
 
 // Returns the probe pin state. Triggered = true. Called by gcode parser.
@@ -34,6 +49,10 @@ bool Probe::get_state() {
 // This function must be extremely efficient as to not bog down the stepper ISR.
 // Should be called only in situations where the probe pin is known to be defined.
 bool IRAM_ATTR Probe::tripped() {
+    // TODO: Trip index instead of just 'tripped'? Makes sense, see 'set_direction' above.
+    // Or do we just want to trigger 'tripped' if anything changes? That's actually quite 
+    // simple...
+
     return _probeTripped ^ _isProbeAway;
 }
 

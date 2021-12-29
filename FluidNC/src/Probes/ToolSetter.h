@@ -15,7 +15,7 @@ namespace Probes {
         void group(Configuration::HandlerBase& handler) override;
 
         void init(TripProbe callback);
-        void start_cycle();
+        bool start_cycle(bool away);
         void stop_cycle();
         bool is_tripped();
 

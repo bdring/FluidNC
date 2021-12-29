@@ -11,9 +11,9 @@ namespace Probes {
     }
 
     void ToolSetter::init(TripProbe callback) { SimpleProbe::init(callback); }
-    void ToolSetter::start_cycle() {
+    bool ToolSetter::start_cycle(bool away) {
         // TODO FIXME: reset soft limits to original
-        SimpleProbe::start_cycle();
+        SimpleProbe::start_cycle(away);
     }
     void ToolSetter::stop_cycle() {
         SimpleProbe::stop_cycle();

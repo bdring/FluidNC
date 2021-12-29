@@ -43,6 +43,8 @@ public:
     // setup probing direction G38.2 vs. G38.4
     void set_direction(bool is_away);
 
+    void stop_probe();
+
     // Returns probe pin state. Triggered = true. Called by gcode parser and probe state monitor.
     bool get_state();
 
