@@ -505,7 +505,14 @@ static void pinString(Print& channel) {
         }
     }
 
-    channel << config->_control->report();
+    String ctrl_pin_report = config->_control->report();
+    if (ctrl_pin_report.length()) {
+        if (prefixNeeded) {
+            prefixNeeded = false;
+            channel << "|Pn:";
+        }
+        channel << ctrl_pin_report;
+    }
 }
 
 // Prints real-time data. This function grabs a real-time snapshot of the stepper subprogram
