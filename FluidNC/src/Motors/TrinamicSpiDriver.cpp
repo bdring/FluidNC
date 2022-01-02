@@ -284,15 +284,18 @@ namespace MotorDrivers {
     }
 
     void IRAM_ATTR TrinamicSpiDriver::set_disable(bool disable) {
+        static bool _initalized = false;  // we need to always set the state least once.
+
         if (_has_errors) {
             return;
         }
 
-        if (_disabled == disable) {
+        if (_initalized && (_disabled == disable)) {
             return;
         }
 
-        _disabled = disable;
+        _initalized = true;
+        _disabled   = disable;
 
         _disable_pin.synchronousWrite(_disabled);
 
