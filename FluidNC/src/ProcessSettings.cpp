@@ -298,10 +298,11 @@ static Error home(int cycle) {
     if (!Machine::Axes::homingMask) {
         return Error::SettingDisabled;
     }
-    Error err = isStuck();
-    if (err != Error::Ok) {
-        return err;
+
+    if (config->_control->system_check_safety_door_ajar()) {
+        return Error::CheckDoor;  // Block if safety door is ajar.
     }
+
     sys.state = State::Homing;  // Set system state variable
 
     config->_stepping->beginLowLatency();
