@@ -25,14 +25,14 @@ namespace Machine {
 
         static void run_cycles(AxisMask axisMask);
         static void run_one_cycle(AxisMask axisMask);
-        
 
         static AxisMask axis_mask_from_cycle(int cycle);
         static void     run(MotorMask remainingMotors, bool approach, bool seek, float customPulloff);
 
         // The homing cycles are 1,2,3 etc.  0 means not homed as part of home-all,
         // but you can still home it manually with e.g. $HA
-        int      _cycle             = -1;  // what auto-homing cycle does this axis home on?
+        int      _cycle             = -1;    // what auto-homing cycle does this axis home on?
+        bool     _allow_single_axis = true;  // Allow use of $H<axis> command on this axis
         bool     _positiveDirection = true;
         float    _mpos              = 0.0f;    // After homing this will be the mpos of the switch location
         float    _feedRate          = 50.0f;   // pulloff and second touch speed
@@ -46,6 +46,7 @@ namespace Machine {
 
         void group(Configuration::HandlerBase& handler) override {
             handler.item("cycle", _cycle);
+            handler.item("allow_single_axis", _allow_single_axis);
             handler.item("positive_direction", _positiveDirection);
             handler.item("mpos_mm", _mpos);
             handler.item("feed_mm_per_min", _feedRate);

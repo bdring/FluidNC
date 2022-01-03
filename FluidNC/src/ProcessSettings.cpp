@@ -292,6 +292,19 @@ static Error report_ngc(const char* value, WebUI::AuthenticationLevel auth_level
     return Error::Ok;
 }
 static Error home(int cycle) {
+    if (cycle != 0) {  // if not AllCycles we need to make sure the cycle is not prohibited
+        // if there is a cycle it is the axis from $H<axis>
+        auto n_axis = config->_axes->_numberAxis;
+        for (int axis = 0; axis < n_axis; axis++) {
+            if (bitnum_is_true(cycle, axis)) {
+                auto axisConfig     = config->_axes->_axis[axis];
+                auto homing_allowed = axisConfig->_homing->_allow_single_axis;
+                if (!homing_allowed)
+                    return Error::SingleAxisHoming;
+            }
+        }
+    }
+
     if (sys.state == State::ConfigAlarm) {
         return Error::ConfigurationInvalid;
     }
