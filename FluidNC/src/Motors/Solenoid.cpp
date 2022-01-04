@@ -79,8 +79,8 @@ namespace MotorDrivers {
     void Solenoid::update() { set_location(); }
 
     void Solenoid::config_message() {
-        log_info("    Solenoid Pin:" << _output_pin.name() << " Off:" << _off_percent << " Hold:" << _hold_percent
-                                     << " Pull:" << _pull_percent << " Duration:" << _pull_ms);
+        log_info("    " << name() << " Pin: " << _output_pin.name() << " Off: " << _off_percent << " Hold: " << _hold_percent
+                        << " Pull:" << _pull_percent << " Duration:" << _pull_ms);
     }
 
     void Solenoid::set_location() {
