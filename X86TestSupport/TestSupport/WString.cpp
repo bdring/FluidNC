@@ -96,38 +96,11 @@ StringAppender& operator+(const StringAppender& lhs, double num) {
 #ifdef _MSC_VER
 
 int strcasecmp(const char* lhs, const char* rhs) {
-	return ::_stricmp(lhs, rhs);
-	/*
-	int result = 0;
-    while (*lhs && *rhs ) {
-		result = tolower(*lhs) - tolower(*rhs);
-		if (result != 0)
-			break;
-        ++lhs;
-        ++rhs;
-    }
-    if ( (*lhs) == '\0' && (*rhs) != '\0' )
-        return 1;
-    else if ( (*lhs) != '\0' && (*rhs) == '\0' )
-        return -1;
-    return result;
-	*/
+    return ::_stricmp(lhs, rhs);
 }
 int strncasecmp(const char* lhs, const char* rhs, size_t count) 
 {
-	return ::_strnicmp(lhs,rhs , count);
-	/*
-	int result = 0;
-    while (*lhs && *rhs && count > 0) {
-		result = tolower(*lhs) - tolower(*rhs);
-        ++lhs;
-        ++rhs;
-        if (result != 0)
-			break;
-		--count;
-    }
-    return result;
-	*/
+    return ::_strnicmp(lhs,rhs , count);
 }
 
 #endif
