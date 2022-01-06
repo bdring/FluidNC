@@ -14,7 +14,7 @@ if not %ErrorLevel% equ 0 (
 )
 
 fc /b SecurityFuses.bin common\SecurityFusesOK.bin > nul 2>&1
-if %Errorlevel% equ 0 (
+if not %Errorlevel% equ 0 (
    echo *******************************************
    echo *  Secure boot is enabled on this ESP32   *
    echo * Loading FluidNC would probably brick it *
