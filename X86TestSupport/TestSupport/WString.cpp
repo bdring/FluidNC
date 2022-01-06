@@ -98,8 +98,7 @@ StringAppender& operator+(const StringAppender& lhs, double num) {
 int strcasecmp(const char* lhs, const char* rhs) {
     return ::_stricmp(lhs, rhs);
 }
-int strncasecmp(const char* lhs, const char* rhs, size_t count) 
-{
+int strncasecmp(const char* lhs, const char* rhs, size_t count){
     return ::_strnicmp(lhs,rhs , count);
 }
 
