@@ -10,6 +10,7 @@ if ! cmp -s SecurityFuses.bin common/SecurityFusesOK.bin ; then
    echo * Loading FluidNC would probably brick it *
    echo *    !ABORTED! Read Wiki for more Info    *
    echo *******************************************
+   cmp -l SecurityFuses.bin common/SecurityFusesOK.bin
    rm SecurityFuses.bin
    exit 1
 fi
