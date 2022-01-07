@@ -288,11 +288,12 @@ namespace MotorDrivers {
             return;
         }
 
-        if (_disabled == disable) {
+        if ((_disabled == disable) && _disable_state_known) {
             return;
         }
 
-        _disabled = disable;
+        _disable_state_known = true;
+        _disabled            = disable;
 
         _disable_pin.synchronousWrite(_disabled);
 
