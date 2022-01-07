@@ -742,7 +742,7 @@ void protocol_exec_rt_system() {
     if (rtSeq) {
         rtSeq = false;
         log_error("planner " << pl_seq0 << " stepper " << st_seq0);
-        rtReset = true;
+        //rtReset = true; comment this becouse this appear if G0 instruction does not chenge the position 
     }
     if (rtCrash) {
         rtCrash = false;

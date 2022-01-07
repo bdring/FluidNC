@@ -2,7 +2,7 @@
 
 namespace fs {
 
-    SPIFFSFS::SPIFFSFS() : fs::FS(nullptr), partitionLabel_("spiffs") {}
+    SPIFFSFS::SPIFFSFS() : fs::FS(nullptr)/*, partitionLabel_("spiffs")*/ {}
     SPIFFSFS::~SPIFFSFS() {}
     bool SPIFFSFS::begin(bool        formatOnFail /*   = false*/,
                          const char* basePath /*= "/spiffs"*/,
