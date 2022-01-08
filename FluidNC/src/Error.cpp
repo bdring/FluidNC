@@ -25,6 +25,7 @@ std::map<Error, const char*> ErrorNames = {
     { Error::InvalidJogCommand, "Invalid jog command" },
     { Error::SettingDisabledLaser, "Laser mode requires PWM output" },
     { Error::HomingNoCycles, "No Homing/Cycle defined in settings" },
+    { Error::SingleAxisHoming, "Single axis homing not allowed" },
     { Error::GcodeUnsupportedCommand, "Unsupported GCode command" },
     { Error::GcodeModalGroupViolation, "Gcode modal group violation" },
     { Error::GcodeUndefinedFeedRate, "Gcode undefined feed rate" },

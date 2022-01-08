@@ -33,8 +33,8 @@ void Control::group(Configuration::HandlerBase& handler) {
 }
 
 String Control::report() {
-    return _safetyDoor.report() + _safetyDoor.report() + _reset.report() + _feedHold.report() + _cycleStart.report() + _macro0.report() +
-           _macro1.report() + _macro2.report() + _macro3.report();
+    return _safetyDoor.report() + _reset.report() + _feedHold.report() + _cycleStart.report() + _macro0.report() + _macro1.report() +
+           _macro2.report() + _macro3.report();
 }
 
 bool Control::stuck() {
