@@ -5,6 +5,8 @@
 #include "freertos/FreeRTOS.h"
 #include "esp_err.h"
 
+#define UART_FIFO_LEN           (128)        /*!< Length of the hardware FIFO buffers */
+
 /**
  * @brief UART mode selection
  */

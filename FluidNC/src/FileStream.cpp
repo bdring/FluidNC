@@ -6,6 +6,9 @@
 #include "SDCard.h"
 #include "Logging.h"
 #include <sys/stat.h>
+#ifdef FLUIDNC_CONSOLE
+#include <filesystem>
+#endif
 
 int FileStream::available() {
     return 1;
@@ -45,7 +48,15 @@ size_t FileStream::position() {
 FileStream::FileStream(String filename, const char* mode, const char* defaultFs) : FileStream(filename.c_str(), mode, defaultFs) {}
 
 FileStream::FileStream(const char* filename, const char* mode, const char* defaultFs) : Channel("file") {
+#ifdef FLUIDNC_CONSOLE
+    std::string cur_path = std::filesystem::current_path().string();
+    if (cur_path.back() != '\\')
+        cur_path += '\\';
+
+    const char* actualLocalFs = cur_path.c_str();
+#else
     const char* actualLocalFs = "/spiffs/";
+#endif
     const char* sdPrefix      = "/sd/";
     const char* localFsPrefix = "/localfs/";
 
