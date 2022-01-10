@@ -197,55 +197,14 @@ void loop() {
 
 void WEAK_LINK machine_init() {}
 
-#ifdef FLUIDNC_CONSOLE
-#include "ComPortX86.h"
-#include "InputFile.h"
-
-
-int main(int argc, char *argv[]){
-    
-    setup();  
-    
-    allChannels.deregistration(&Uart0);               // USB Serial
-    allChannels.deregistration(&WebUI::inputBuffer);  // Macros
-
-    Channel *pin = nullptr;
-    Channel *pout = nullptr;
-
-    if (argc == 1) { //console input
-        pin = new ComPortX86(nullptr);
+#    if 0
+int main() {
+    setup();  // setup()
+    while (1) {   // loop()
+        loop();
     }
-    else if (strncasecmp(argv[1], "COM", 3) == 0) {  //com port 
-        pin = new ComPortX86(argv[1]);
-    }
-    else {
-        pout = new ComPortX86(nullptr); // run file from command line, ouput to console
-        infile = new InputFile("/localfs", argv[1], WebUI::AuthenticationLevel::LEVEL_GUEST, *pout);
-        readyNext = true;
-    }
-
-    if (pin)
-        allChannels.registration(pin);
-    if (pout)
-        allChannels.registration(pout);
-
-    if ( config )
-        config->_verboseErrors = true;
-       
-// unlock GRBL to easy debugging
-    do_command_or_setting("X", nullptr, WebUI::AuthenticationLevel::LEVEL_ADMIN, pout != nullptr ? *pout : *pin);
-
-    loop();
-
-    if (pin)
-        delete pin;
-    if ( pout )
-        delete pout;
-    if ( infile )
-        delete infile;
-
     return 0;
 }
-#endif
+#    endif
 
 #endif

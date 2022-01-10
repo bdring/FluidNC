@@ -199,7 +199,7 @@ void protocol_main_loop() {
                 break;
             }
 #ifdef DEBUG_REPORT_ECHO_RAW_LINE_RECEIVED
-            report_echo_line_received(line, *chan); 
+            report_echo_line_received(line, *chan);
 #endif
             display("GCODE", line);
             // auth_level can be upgraded by supplying a password on the command line
@@ -742,7 +742,7 @@ void protocol_exec_rt_system() {
     if (rtSeq) {
         rtSeq = false;
         log_error("planner " << pl_seq0 << " stepper " << st_seq0);
-        rtReset = true; //rtReset = true; comment this becouse this appear if G0 instruction does not chenge the position 
+        rtReset = true;
 
     }
     if (rtCrash) {

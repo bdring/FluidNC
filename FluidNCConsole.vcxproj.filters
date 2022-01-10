@@ -427,6 +427,9 @@
     <ClCompile Include="X86TestSupport\TestSupport\StdTimer.cpp">
       <Filter>X86TestSupport</Filter>
     </ClCompile>
+    <ClCompile Include="X86TestSupport\TestSupport\FluidConsoleMain.cpp">
+      <Filter>X86TestSupport</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="X86TestSupport\TestSupport\Arduino.h">

@@ -282,6 +282,7 @@
     <ClCompile Include="X86TestSupport\TestSupport\driver\uartdriver.cpp" />
     <ClCompile Include="X86TestSupport\TestSupport\esp32-hal-timer.cpp" />
     <ClCompile Include="X86TestSupport\TestSupport\ExceptionHelper.cpp" />
+    <ClCompile Include="X86TestSupport\TestSupport\FluidConsoleMain.cpp" />
     <ClCompile Include="X86TestSupport\TestSupport\freertos\Queue.cpp" />
     <ClCompile Include="X86TestSupport\TestSupport\freertos\Task.cpp" />
     <ClCompile Include="X86TestSupport\TestSupport\FS.cpp" />
