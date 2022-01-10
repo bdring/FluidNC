@@ -743,7 +743,6 @@ void protocol_exec_rt_system() {
         rtSeq = false;
         log_error("planner " << pl_seq0 << " stepper " << st_seq0);
         rtReset = true;
-
     }
     if (rtCrash) {
         rtCrash = false;

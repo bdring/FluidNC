@@ -1,4 +1,5 @@
 #include "StdTimer.h"
+#include <thread>
 #include <iostream>
 
 void tic_processor(StdTimer& pt, int microsec) {
@@ -60,7 +61,6 @@ void StdTimer::set_action(void (*fn)(void)) {
 
 // interruptAt pulses in a second
 // It's a big question now
-
 void StdTimer::set_pulse_tic(uint64_t interruptAt) {
     _interrupt = interruptAt / (_microsec * 240);
 }
