@@ -3,8 +3,9 @@
 
 uint32_t g_ticks_per_us_pro = 240 * 1000 * 1000;  // For CPU 0 - typically 240 MHz
 uint32_t g_ticks_per_us_app = 240 * 1000 * 1000;  // For CPU 1 - typically 240 MHz
+uint32_t g_internal_timer_ticks_in_us = 10;
 
-StdTimer g_timer(10);
+StdTimer g_timer(g_internal_timer_ticks_in_us);
 
 hw_timer_s* timerBegin(uint8_t timer, uint16_t divider, bool countUp) {
     return &g_timer;
