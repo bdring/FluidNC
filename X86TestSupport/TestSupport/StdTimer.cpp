@@ -17,14 +17,13 @@ void tic_processor(StdTimer& pt, int microsec) {
             }
         }
         cur_period++;
-        std::this_thread::sleep_for(std::chrono::microseconds(microsec));
+        std::this_thread::sleep_for(std::chrono::nanoseconds(microsec));
     }
 }
 
 StdTimer::StdTimer(uint32_t microsec, uint8_t timer, uint16_t divider, bool countUp) :
-    _microsec(microsec), _timer(timer), _divider(divider), _countUp(countUp), _action(0), _is_stop(true), _enable(false), _interrupt(0) {
-    /* Create the queue. */
-}
+    _microsec(microsec), _timer(timer), _divider(divider), _countUp(countUp), _action(0), _is_stop(true), _enable(false), _interrupt(0) {}
+
 StdTimer::~StdTimer() {
     stop();
 }
@@ -59,8 +58,6 @@ void StdTimer::set_action(void (*fn)(void)) {
     _action = fn;
 }
 
-// interruptAt pulses in a second
-// It's a big question now
 void StdTimer::set_pulse_tic(uint64_t interruptAt) {
-    _interrupt = interruptAt / (_microsec * 240);
+    _interrupt = interruptAt;  // interruptAt / (_microsec * 100);
 }
