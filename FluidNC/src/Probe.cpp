@@ -15,30 +15,38 @@ void Probe::init() {
 
         if (show_init_msg) {
             _probePin.report("Probe Pin:");
-            show_init_msg = false;
         }
     }
+
+    if (_toolsetter_Pin.defined()) {
+        _toolsetter_Pin.setAttr(Pin::Attr::Input);
+
+        if (show_init_msg) {
+            _toolsetter_Pin.report("Toolsetter Pin:");
+        }
+    }
+    show_init_msg = false;
 }
 
 void Probe::set_direction(bool is_away) {
     _isProbeAway = is_away;
 }
-
 // Returns the probe pin state. Triggered = true. Called by gcode parser.
 bool Probe::get_state() {
-    return _probePin.read();
+    return (_probePin.read() || _toolsetter_Pin.read());
 }
 
 // Returns true if the probe pin is tripped, accounting for the direction (away or not).
 // This function must be extremely efficient as to not bog down the stepper ISR.
 // Should be called only in situations where the probe pin is known to be defined.
 bool IRAM_ATTR Probe::tripped() {
-    return _probePin.read() ^ _isProbeAway;
+    return (_probePin.read() || _toolsetter_Pin.read()) ^ _isProbeAway;
 }
 
 void Probe::validate() const {}
 
 void Probe::group(Configuration::HandlerBase& handler) {
     handler.item("pin", _probePin);
+    handler.item("toolsetter_pin", _toolsetter_Pin);
     handler.item("check_mode_start", _check_mode_start);
 }

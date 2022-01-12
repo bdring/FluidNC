@@ -21,6 +21,7 @@ class Probe : public Configuration::Configurable {
 
     // Configurable
     Pin _probePin;
+    Pin _toolsetter_Pin;
 
 public:
     // Configurable
