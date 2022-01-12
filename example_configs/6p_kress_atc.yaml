@@ -1,0 +1,111 @@
+board: 6 Pack
+name: Kress ATC
+meta:
+stepping:
+  engine: RMT
+  idle_ms: 255
+  pulse_us: 4
+  dir_delay_us: 0
+  disable_delay_us: 0
+
+axes:
+  shared_stepper_disable_pin: NO_PIN
+  x:
+    steps_per_mm: 80.000
+    max_rate_mm_per_min: 1000.000
+    acceleration_mm_per_sec2: 25.000
+    max_travel_mm: 1000.000
+    soft_limits: false
+
+  y:
+    steps_per_mm: 80.000
+    max_rate_mm_per_min: 1000.000
+    acceleration_mm_per_sec2: 25.000
+    max_travel_mm: 1000.000
+    soft_limits: false
+
+  z:
+    steps_per_mm: 80.000
+    max_rate_mm_per_min: 1000.000
+    acceleration_mm_per_sec2: 25.000
+    max_travel_mm: 1000.000
+    soft_limits: false
+
+kinematics:
+  Cartesian:
+
+spi:
+  miso_pin: NO_PIN
+  mosi_pin: NO_PIN
+  sck_pin: NO_PIN
+
+sdcard:
+  cs_pin: NO_PIN
+  card_detect_pin: NO_PIN
+
+control:
+  safety_door_pin: NO_PIN
+  reset_pin: NO_PIN
+  feed_hold_pin: NO_PIN
+  cycle_start_pin: NO_PIN
+  macro0_pin: NO_PIN
+  macro1_pin: NO_PIN
+  macro2_pin: NO_PIN
+  macro3_pin: NO_PIN
+
+coolant:
+  flood_pin: NO_PIN
+  mist_pin: NO_PIN
+  delay_ms: 0
+
+probe:
+  pin: NO_PIN
+  toolsetter_pin: NO_PIN
+  check_mode_start: true
+
+macros:
+  startup_line0:
+  startup_line1: 
+  macro0:
+  macro1:
+  macro2:
+  macro3:
+
+start:
+  must_home: true
+  deactivate_parking: false
+  check_limits: false
+
+user_outputs:
+  analog0_pin: NO_PIN
+  analog1_pin: NO_PIN
+  analog2_pin: NO_PIN
+  analog3_pin: NO_PIN
+  analog0_hz: 5000
+  analog1_hz: 5000
+  analog2_hz: 5000
+  analog3_hz: 5000
+  digital0_pin: NO_PIN
+  digital1_pin: NO_PIN
+  digital2_pin: NO_PIN
+  digital3_pin: NO_PIN
+
+arc_tolerance_mm: 0.002
+junction_deviation_mm: 0.010
+verbose_errors: false
+report_inches: false
+enable_parking_override_control: false
+use_line_numbers: false
+
+kress_atc:
+  enable_pin: gpio.26
+  direction_pin: NO_PIN
+  disable_with_s0: false
+  s0_with_disable: true
+  spinup_ms: 0
+  spindown_ms: 0
+  tool_num: 0
+  speed_map: 0=0.000% 0=100.000% 1=100%
+
+
+  

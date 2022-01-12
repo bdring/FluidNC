@@ -137,7 +137,7 @@ coolant:
 
 probe:
   pin: gpio.34
-  toolsetter_pin: gpio.2:low
+  toolsetter_pin: gpio.2
   check_mode_start: true
 
 macros:
@@ -173,4 +173,13 @@ verbose_errors: false
 report_inches: false
 enable_parking_override_control: false
 use_line_numbers: false
-NoSpindle:
+
+kress_atc:
+  enable_pin: gpio.26
+  direction_pin: NO_PIN
+  disable_with_s0: false
+  s0_with_disable: true
+  spinup_ms: 0
+  spindown_ms: 0
+  tool_num: 0
+  speed_map: 0=0.000% 0=100.000% 1=100%

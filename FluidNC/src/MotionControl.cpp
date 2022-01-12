@@ -365,6 +365,7 @@ GCUpdatePos mc_probe_cycle(float* target, plan_line_data_t* pl_data, uint8_t par
         report_probe_parameters(allChannels);
     }
     if (probe_succeeded) {
+        spindle->probe_notification();
         return GCUpdatePos::System;  // Successful probe cycle.
     } else {
         return GCUpdatePos::Target;  // Failed to trigger probe within travel. With or without error.

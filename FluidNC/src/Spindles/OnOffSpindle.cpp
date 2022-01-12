@@ -7,7 +7,7 @@ namespace Spindles {
 
     void OnOff::init() {
         if (_output_pin.undefined() && _enable_pin.undefined()) {
-            log_error("Either output pin or enable pin must be defined for OnOff Spindle");
+            log_error("Either output pin or enable pin must be defined for OnOff Spindle");            
             return;
         }
 
@@ -25,6 +25,7 @@ namespace Spindles {
         }
         setupSpeeds(1);
         config_message();
+        atc_init();  // in case an ATC is defined
     }
 
     // prints the startup message of the spindle config

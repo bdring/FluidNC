@@ -65,6 +65,11 @@ namespace Spindles {
 
         std::vector<Configuration::speedEntry> _speeds;
 
+        // ATC Stuff
+        virtual void atc_init() {}
+        virtual bool tool_change(uint8_t new_tool, bool automatic) { return true; }
+        virtual void probe_notification() {};
+
         // Name is required for the configuration factory to work.
         virtual const char* name() const = 0;
 
