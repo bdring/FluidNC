@@ -67,7 +67,10 @@ namespace Spindles {
 
         // ATC Stuff
         virtual void atc_init() {}
-        virtual bool tool_change(uint8_t new_tool, bool automatic) { return true; }
+
+        // preselect is used to notify the ATC of a pending tool change in case the ATC can prepare
+        // for the futute M6.  This is done with M61, which is not parsed yet.
+        virtual bool tool_change(uint8_t new_tool, bool pre_select) { return true; }
         virtual void probe_notification() {};
 
         // Name is required for the configuration factory to work.
@@ -81,17 +84,18 @@ namespace Spindles {
         void afterParse() override;
 
         void group(Configuration::HandlerBase& handler) override {
-             if (use_delay_settings()) {
-                handler.item("spinup_ms", _spinup_ms);            
+            if (use_delay_settings()) {
+                handler.item("spinup_ms", _spinup_ms);
                 handler.item("spindown_ms", _spindown_ms);
-            }            
+            }
             handler.item("tool_num", _tool);
             handler.item("speed_map", _speeds);
-                
         }
 
         // Virtual base classes require a virtual destructor.
         virtual ~Spindle() {}
+    protected:
+        uint8_t current_tool = 0;
     };
     using SpindleFactory = Configuration::GenericFactory<Spindle>;
 }

@@ -41,7 +41,7 @@ namespace Spindles {
             }
         }
         log_info("Using spindle " << spindle->name());
-        spindle->tool_change(new_tool, true);
+        spindle->tool_change(new_tool, false);
     }
 
     bool Spindle::isRateAdjusted() {

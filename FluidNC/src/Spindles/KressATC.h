@@ -7,7 +7,7 @@
     
         return true for success
         automatic = false for manual tool change    
-    bool tool_change(uint8_t new_tool(), bool automatic)
+    bool tool_change(uint8_t new_tool(), bool pre_select)
 
     void probe_notification()
 
@@ -30,7 +30,7 @@ namespace Spindles {
         KressATC& operator=(KressATC&&) = delete;
 
         void atc_init() override;
-        bool tool_change(uint8_t new_tool, bool automatic) override;
+        bool tool_change(uint8_t new_tool, bool pre_select) override;
         void probe_notification() override;
 
         ~KressATC() {}
