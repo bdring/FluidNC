@@ -317,5 +317,7 @@ Error gc_execute_line(char* line, Channel& channel);
 // Set g-code parser position. Input in steps.
 void gc_sync_position();
 
+void gc_exec_linef(bool sync_after, Channel& out, const char* format, ...);
+
 void user_tool_change(uint8_t new_tool);
 void user_m30();

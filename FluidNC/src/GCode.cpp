@@ -1655,6 +1655,44 @@ Error gc_execute_line(char* line, Channel& channel) {
 }
 
 /*
+    Format and send gcode line with optional synchronization
+    sync_after: Forces all buffered lines to be completed for line send
+    format: a printf style string
+
+*/
+//void grbl_msg_sendf(uint8_t client, MsgLevel level, const char* format, ...);
+void gc_exec_linef(bool sync_after, Channel& out, const char* format, ...) {
+    char    loc_buf[100];
+    char*   temp = loc_buf;
+    va_list arg;
+    va_list copy;
+    va_start(arg, format);
+    va_copy(copy, arg);
+    size_t len = vsnprintf(NULL, 0, format, arg);
+    va_end(copy);
+
+    if (len >= sizeof(loc_buf)) {
+        temp = new char[len + 1];
+        if (temp == NULL) {
+            return;
+        }
+    }
+    len = vsnprintf(temp, len + 1, format, arg);
+
+    gc_execute_line(temp, out);
+
+    log_debug("gc_exec_linef:" << temp);
+
+    va_end(arg);
+    if (temp != loc_buf) {
+        delete[] temp;
+    }
+    if (sync_after) {
+        protocol_buffer_synchronize();
+    }
+}
+
+/*
   Not supported:
 
   - Canned cycles

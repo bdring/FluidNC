@@ -18,6 +18,8 @@
 */
 #include "OnOffSpindle.h"
 
+const int TOOL_COUNT = 4;
+
 namespace Spindles {
     // This is for an on/off spindle all RPMs above 0 are on
     class KressATC : public OnOff {
@@ -33,6 +35,14 @@ namespace Spindles {
         bool tool_change(uint8_t new_tool, bool pre_select) override;
         void probe_notification() override;
 
+        void group(Configuration::HandlerBase& handler) override {
+            handler.item("atc_valve_pin", _atc_valve_pin);
+            handler.item("atc_dustoff_pin", _atc_dustoff_pin);
+            handler.item("toolsetter_dustoff_pin", _toolsetter_dustoff);
+
+            OnOff::group(handler);
+        }
+
         ~KressATC() {}
 
         // Configuration handlers:
@@ -41,5 +51,32 @@ namespace Spindles {
         const char* name() const override { return "kress_atc"; }
 
     protected:
+        bool return_tool(uint8_t tool_num);
+        void go_above_tool(uint8_t tool_num);
+        bool set_ATC_open(bool open);
+        bool atc_toolsetter();
+
+        typedef struct {
+            float mpos[MAX_N_AXIS];    // the pickup location in machine coords
+            float offset[MAX_N_AXIS];  // TLO from the zero'd tool
+        } tool_t;
+
+        Pin _atc_valve_pin;
+        Pin _atc_dustoff_pin;
+        Pin _toolsetter_dustoff;
+
+        const int   ETS_INDEX        = 0;     // electronic tool setter index
+        const float TOOL_GRAB_TIME   = 0.25;  // seconds. How long it takes to grab a tool
+        const float RACK_SAFE_DIST_Y = 25.0;  // how far in front of rack is safe to move in X
+        const float ATC_EMPTY_SAFE_Z = -50;   // at what Z in mpos can an empty atc traverse the rack with no tool
+
+        int zeroed_tool_index = 1;  // Which tool was zero'd on the work piece
+
+        float top_of_z            = 0.0;    // position of top of Z in mpos, for safe XY travel
+        bool  tool_setter_probing = false;  // used to determine if current probe cycle is for the setter
+
+        //float tool_location[TOOL_COUNT][MAX_N_AXIS];
+
+        tool_t tool[TOOL_COUNT];
     };
 }

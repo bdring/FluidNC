@@ -2,20 +2,37 @@
 // Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
 
 /*
+    TO DO
+
+    Turn off soft limits during tool changes. This would
+    allow the rack to be placed outside of soft limit zone
+    This would prevent user from damaging the rack
+
+    We may consider handling delays here to speed up tool changes.
+    Spindle could be turned off and moved to rack location while spinning down
+    Delay would be added as required if the time has not expired before getting there.
+
+    Calc top_of_z from limits
 
 */
 
 #include "KressATC.h"
 #include "../Protocol.h"
 #include "../GCode.h"
+#include "../Uart.h"
 
 // ========================= KressATC ==================================
 
 namespace Spindles {
-    void KressATC::atc_init() { log_info("ATC Init"); }
+    void KressATC::atc_init() { 
+        log_info("ATC Init");
+        top_of_z = -1.00;
+        }
 
     bool KressATC::tool_change(uint8_t new_tool, bool pre_select) {
-        float saved_mpos[MAX_N_AXIS] = {};  // the position before the tool change
+        bool  spindle_was_on         = false;
+        bool  was_incremental_mode   = false;  // started in G91 mode
+        float saved_mpos[MAX_N_AXIS] = {};     // the position before the tool change
 
         log_info(name() << ": Tool change tool num:" << new_tool << " Auto:" << pre_select);
 
@@ -24,28 +41,170 @@ namespace Spindles {
             return true;
         }
 
-        // new tool should never be above tool count because of earlier spindle check
+        // new_tool should never be above tool count because of earlier spindle check
 
         protocol_buffer_synchronize();  // wait for all previous moves to complete
         motor_steps_to_mpos(saved_mpos, motor_steps);
 
         // see if we need to switch out of incremental (G91) mode
+        if (gc_state.modal.distance == Distance::Incremental) {
+            gc_exec_linef(false, Uart0, "G90");
+            was_incremental_mode = true;
+        }
 
         // is spindle on? Turn it off and determine when the spin down should be done.
+        if (gc_state.modal.spindle != SpindleState::Disable) {
+            spindle_was_on = true;
+            gc_exec_linef(true, Uart0, "M5");  // this should add a delay if there is one
+            if (spindle->_spindown_ms == 0) {
+                log_info("ATC added spindown delay");
+                vTaskDelay(10000);  // long delay for safety and to prevent ATC damage
+            }
+        }
 
         // ============= Start of tool change ====================
 
-        //go_above_tool(new_tool);
+        // return the current tool if there is one.
+        if (!return_tool(current_tool)) {  // does nothing if we have no tool
+            gc_exec_linef(true, Uart0, "G53 G0 X%0.3f Y%0.3f Z%0.3f", tool[new_tool].mpos[X_AXIS], tool[new_tool].mpos[Y_AXIS], top_of_z);
+        }
+        current_tool = 0; // now we have no tool
+
+        if (new_tool == 0) {  // if changing to tool 0...we are done.
+            log_info("ATC Changed to tool 0");
+            gc_exec_linef(true, Uart0, "G53 G0 Z%0.3f", top_of_z);
+            gc_exec_linef(true, Uart0, "G53 G0 Y%0.3f", tool[0].mpos[Y_AXIS] - RACK_SAFE_DIST_Y);
+            current_tool = new_tool;
+            return true;
+        }
+
+        go_above_tool(new_tool);
+
+        set_ATC_open(true);                                               // open ATC
+        gc_exec_linef(true, Uart0, "G53G0Z%0.3f", tool[new_tool].mpos[Z_AXIS]);  // drop down to tool
+        set_ATC_open(false);                                              // Close ATC
+        gc_exec_linef(true, Uart0, "G4P%0.2f", TOOL_GRAB_TIME);                  // wait for grab to complete and settle
+        gc_exec_linef(false, Uart0, "G53G0Z%0.3f", top_of_z);                    // Go to top of Z travel
+
+        current_tool = new_tool;
+
+        if (!atc_toolsetter()) {  // check the length of the tool
+            return false;
+        }
+
+        // ================== return old states ===================
 
         // If the spindle was on before we started, we need to turn it back on.
+        if (spindle_was_on) {
+            gc_exec_linef(false, Uart0, "M3");  // spindle should handle spinup delay
+        }
 
         // return to saved mpos in XY
 
         // return to saved mpos in Z if it is not outside of work area.
 
         // was was_incremental on? If so, return to that state
+        if (was_incremental_mode) {
+            gc_exec_linef(false, Uart0, "G91");
+        }
 
         // Wait for spinup
+
+        return true;
+    }
+
+    bool KressATC::return_tool(uint8_t tool_num) {
+        if (tool_num == 0) {
+            return false;
+        }
+
+        go_above_tool(tool_num);
+        gc_exec_linef(true, Uart0, "G53G0Z%0.3f", tool[tool_num - 1].mpos[Z_AXIS]);  // drop down to tool
+        set_ATC_open(true);
+        gc_exec_linef(true, Uart0, "G53G0Z%0.3f", ATC_EMPTY_SAFE_Z);  // Go just above tools
+        set_ATC_open(false);                                        // close ATC
+
+        return true;
+    }
+
+    void KressATC::go_above_tool(uint8_t tool_num) {
+        gc_exec_linef(false, Uart0, "G53G0Z%0.3f", top_of_z);  // Go to top of Z travel
+
+        if (current_tool != 0) {
+            // move in front of tool
+            gc_exec_linef(
+                false, Uart0, "G53G0X%0.3fY%0.3f", tool[tool_num -1].mpos[X_AXIS], tool[tool_num-1].mpos[Y_AXIS] - RACK_SAFE_DIST_Y);
+        }
+        // Move over tool
+        gc_exec_linef(true, Uart0, "G53G0X%0.3fY%0.3f", tool[tool_num - 1].mpos[X_AXIS], tool[tool_num - 1].mpos[Y_AXIS]);
+    }
+
+    bool KressATC::set_ATC_open(bool open) {
+        // todo lots of safety checks
+        if (gc_state.modal.spindle != SpindleState::Disable) {
+            log_info("ATC Fail spindle on during change");
+            return false;
+        }
+        //digitalWrite(ATC_RELEASE_PIN, open);
+        return true;
+    }
+
+    bool KressATC::atc_toolsetter() {
+        float probe_to;  // Calculated work position
+        float probe_position[MAX_N_AXIS];
+
+        if (current_tool == 1) {
+            // we can go straight to the ATC because tool 1 is next to the toolsetter
+            gc_exec_linef(true, Uart0, "G53G0X%0.3fY%0.3f", tool[ETS_INDEX].mpos[X_AXIS], tool[ETS_INDEX].mpos[Y_AXIS]);  // Move over tool
+        } else {
+            gc_exec_linef(false, Uart0, "G91");
+            // Arc out of current tool
+            gc_exec_linef(false, Uart0, "G2 X-%0.3f Y-%0.3f I-%0.3f F4000", RACK_SAFE_DIST_Y, RACK_SAFE_DIST_Y, RACK_SAFE_DIST_Y);
+
+            // Move it to arc start
+            gc_exec_linef(
+                false, Uart0,"G53G0X%0.3fY%0.3f", tool[ETS_INDEX].mpos[X_AXIS] + RACK_SAFE_DIST_Y, tool[ETS_INDEX].mpos[Y_AXIS] - RACK_SAFE_DIST_Y);
+
+            // arc in
+            gc_exec_linef(false, Uart0, "G2 X-%0.3f Y%0.3f J%0.3f F4000", RACK_SAFE_DIST_Y, RACK_SAFE_DIST_Y, RACK_SAFE_DIST_Y);
+            gc_exec_linef(false, Uart0, "G90");
+            // Move over tool
+            gc_exec_linef(true, Uart0, "G53G0X%0.3fY%0.3f", tool[ETS_INDEX].mpos[X_AXIS], tool[ETS_INDEX].mpos[Y_AXIS]);
+        }
+
+        //atc_ETS_dustoff();
+
+        float wco = gc_state.coord_system[Z_AXIS] + gc_state.coord_offset[Z_AXIS] + gc_state.tool_length_offset;
+        probe_to  = tool[ETS_INDEX].mpos[Z_AXIS] - wco;
+
+        // https://linuxcnc.org/docs/2.6/html/gcode/gcode.html#sec:G38-probe
+        tool_setter_probing = true;
+        gc_exec_linef(true, Uart0, "G38.2F%0.3fZ%0.3f", 300.0, probe_to);  // probe
+        tool_setter_probing = false;
+
+        // Was probe successful?
+        if (sys.state == State::Alarm) {
+            if (sys_rt_exec_alarm == ExecAlarm::ProbeFailInitial) {
+                log_info("ATC Probe Switch Error");
+            } else {
+                log_info("ATC Missing Tool?");
+            }
+            return false;  // fail
+        }
+
+        system_convert_array_steps_to_mpos(probe_position, sys_probe_position);
+        tool[current_tool].offset[Z_AXIS] = probe_position[Z_AXIS];  // Get the Z height ...
+
+        if (zeroed_tool_index != 0) {
+            float tlo = tool[current_tool].offset[Z_AXIS] - tool[zeroed_tool_index].offset[Z_AXIS];
+            log_info("ATC Tool No:" << current_tool << " TLO:" << tlo);
+            // https://linuxcnc.org/docs/2.6/html/gcode/gcode.html#sec:G43_1
+            gc_exec_linef(false, Uart0, "G43.1Z%0.3f", tlo);  // raise up
+        }
+
+        gc_exec_linef(false, Uart0, "G53G0Z%0.3f", top_of_z);  // raise up
+        // move forward
+        gc_exec_linef(false, Uart0, "G53G0X%0.3fY%0.3f", tool[ETS_INDEX].mpos[X_AXIS], tool[ETS_INDEX].mpos[Y_AXIS] - RACK_SAFE_DIST_Y);
 
         return true;
     }
