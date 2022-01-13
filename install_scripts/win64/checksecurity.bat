@@ -20,6 +20,7 @@ if not %Errorlevel% equ 0 (
    echo * Loading FluidNC would probably brick it *
    echo *    !ABORTED! Read Wiki for more Info    *
    echo *******************************************
+   fc /b SecurityFuses.bin common\SecurityFusesOK.bin
    del SecurityFuses.bin
    pause
    exit /b 1

@@ -22,6 +22,7 @@ namespace MotorDrivers {
     protected:
         uint32_t calc_tstep(float speed, float percent);
 
+        bool         _disable_state_known = false;  // we need to always set the state least once.
         bool         _has_errors;
         uint16_t     _driver_part_number;  // example: use 2130 for TMC2130
         bool         _disabled = false;

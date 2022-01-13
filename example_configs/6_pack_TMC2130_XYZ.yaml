@@ -2,7 +2,7 @@ board: 6 Pack
 name: 6 Pack StepStick XYZ
 stepping:
   engine: I2S_STREAM
-  idle_ms: 250
+  idle_ms: 255
   pulse_us: 4
   dir_delay_us: 1
   disable_delay_us: 0
@@ -36,7 +36,7 @@ axes:
         r_sense_ohms: 0.110
         run_amps: 0.750
         hold_amps: 0.750
-        microsteps: 16
+        microsteps: 8
         stallguard: 0
         stallguard_debug: false
         toff_disable: 0

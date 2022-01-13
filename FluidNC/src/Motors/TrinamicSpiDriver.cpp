@@ -97,8 +97,8 @@ namespace MotorDrivers {
     This is the startup message showing the basic definition
     */
     void TrinamicSpiDriver::config_message() {
-        log_info("    Trinamic TMC" << _driver_part_number << " Step:" << _step_pin.name() << " Dir:" << _dir_pin.name() << " CS:"
-                                    << _cs_pin.name() << " Disable:" << _disable_pin.name() << " Index:" << _spi_index << " R:" << _r_sense);
+        log_info("    " << name() << " Step:" << _step_pin.name() << " Dir:" << _dir_pin.name() << " CS:" << _cs_pin.name()
+                        << " Disable:" << _disable_pin.name() << " Index:" << _spi_index << " R:" << _r_sense);
     }
 
     bool TrinamicSpiDriver::test() {
@@ -288,11 +288,12 @@ namespace MotorDrivers {
             return;
         }
 
-        if (_disabled == disable) {
+        if ((_disabled == disable) && _disable_state_known) {
             return;
         }
 
-        _disabled = disable;
+        _disable_state_known = true;
+        _disabled            = disable;
 
         _disable_pin.synchronousWrite(_disabled);
 

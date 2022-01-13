@@ -92,8 +92,8 @@ namespace MotorDrivers {
         This is the startup message showing the basic definition. 
     */
     void TrinamicUartDriver::config_message() {  //TODO: The RX/TX pin could be added to the msg.
-        log_info("    Trinamic TMC" << _driver_part_number << " Step:" << _step_pin.name() << " Dir:" << _dir_pin.name()
-                                    << " Disable:" << _disable_pin.name() << " Addr:" << _addr << " R:" << _r_sense);
+        log_info("    " << name() << " Step:" << _step_pin.name() << " Dir:" << _dir_pin.name() << " Disable:" << _disable_pin.name()
+                        << " Addr:" << _addr << " R:" << _r_sense);
     }
 
     bool TrinamicUartDriver::test() {
@@ -258,11 +258,12 @@ namespace MotorDrivers {
             return;
         }
 
-        if (_disabled == disable) {
+        if ((_disabled == disable) && _disable_state_known) {
             return;
         }
 
-        _disabled = disable;
+        _disable_state_known = true;
+        _disabled            = disable;
 
         _disable_pin.synchronousWrite(_disabled);
 
