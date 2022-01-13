@@ -55,6 +55,7 @@ namespace Spindles {
         void go_above_tool(uint8_t tool_num);
         bool set_ATC_open(bool open);
         bool atc_toolsetter();
+        void goto_top_of_z();
 
         typedef struct {
             float mpos[MAX_N_AXIS];    // the pickup location in machine coords
@@ -69,6 +70,7 @@ namespace Spindles {
         const float TOOL_GRAB_TIME   = 0.25;  // seconds. How long it takes to grab a tool
         const float RACK_SAFE_DIST_Y = 25.0;  // how far in front of rack is safe to move in X
         const float ATC_EMPTY_SAFE_Z = -50;   // at what Z in mpos can an empty atc traverse the rack with no tool
+        const float PROBE_FEEDRATE   = 600.0;
 
         int zeroed_tool_index = 1;  // Which tool was zero'd on the work piece
 
@@ -77,6 +79,6 @@ namespace Spindles {
 
         //float tool_location[TOOL_COUNT][MAX_N_AXIS];
 
-        tool_t tool[TOOL_COUNT];
+        tool_t tool[TOOL_COUNT + 1];  // 0 is the toolsetter
     };
 }

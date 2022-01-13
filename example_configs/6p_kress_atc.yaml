@@ -1,38 +1,120 @@
 board: 6 Pack
 name: Kress ATC
 meta:
+
 stepping:
-  engine: RMT
-  idle_ms: 255
+  engine: I2S_stream
+  idle_ms: 250
   pulse_us: 4
-  dir_delay_us: 0
+  dir_delay_us: 1
   disable_delay_us: 0
 
 axes:
   shared_stepper_disable_pin: NO_PIN
   x:
-    steps_per_mm: 80.000
+    steps_per_mm: 800.000
     max_rate_mm_per_min: 1000.000
-    acceleration_mm_per_sec2: 25.000
-    max_travel_mm: 1000.000
+    acceleration_mm_per_sec2: 100.000
+    max_travel_mm: 300.000
     soft_limits: false
+    homing:
+      cycle: 2
+      allow_single_axis: true
+      positive_direction: false
+      mpos_mm: 150.000
+      feed_mm_per_min: 500.000
+      seek_mm_per_min: 1000.000
+      settle_ms: 50
+      seek_scaler: 1.100
+      feed_scaler: 1.100
+
+    motor0:
+      limit_neg_pin: gpio.33:pu
+      limit_pos_pin: NO_PIN
+      limit_all_pin: NO_PIN
+      hard_limits: false
+      pulloff_mm: 1.000
+      stepstick:
+        step_pin: I2SO.2
+        direction_pin: I2SO.1
+        disable_pin: I2SO.0
+        ms1_pin: NO_PIN
+        ms2_pin: NO_PIN
+        ms3_pin: I2SO.3
+        reset_pin: NO_PIN
 
   y:
-    steps_per_mm: 80.000
+    steps_per_mm: 800.000
     max_rate_mm_per_min: 1000.000
-    acceleration_mm_per_sec2: 25.000
-    max_travel_mm: 1000.000
+    acceleration_mm_per_sec2: 100.000
+    max_travel_mm: 300.000
     soft_limits: false
+    homing:
+      cycle: 2
+      allow_single_axis: true
+      positive_direction: true
+      mpos_mm: 150.000
+      feed_mm_per_min: 500.000
+      seek_mm_per_min: 1000.000
+      settle_ms: 50
+      seek_scaler: 1.100
+      feed_scaler: 1.100
+
+    motor0:
+      limit_neg_pin: gpio.32:pu
+      limit_pos_pin: NO_PIN
+      limit_all_pin: NO_PIN
+      hard_limits: false
+      pulloff_mm: 1.000
+      stepstick:
+        step_pin: I2SO.5
+        direction_pin: I2SO.4
+        disable_pin: I2SO.7
+        ms1_pin: NO_PIN
+        ms2_pin: NO_PIN
+        ms3_pin: I2SO.6
+        reset_pin: NO_PIN
 
   z:
-    steps_per_mm: 80.000
+    steps_per_mm: 800.000
     max_rate_mm_per_min: 1000.000
-    acceleration_mm_per_sec2: 25.000
-    max_travel_mm: 1000.000
+    acceleration_mm_per_sec2: 100.000
+    max_travel_mm: 300.000
     soft_limits: false
+    homing:
+      cycle: 1
+      allow_single_axis: true
+      positive_direction: true
+      mpos_mm: 150.000
+      feed_mm_per_min: 500.000
+      seek_mm_per_min: 1000.000
+      settle_ms: 50
+      seek_scaler: 1.100
+      feed_scaler: 1.100
+
+    motor0:
+      limit_neg_pin: gpio.35
+      limit_pos_pin: NO_PIN
+      limit_all_pin: NO_PIN
+      hard_limits: false
+      pulloff_mm: 1.000
+      stepstick:
+        step_pin: I2SO.10
+        direction_pin: I2SO.9
+        disable_pin: I2SO.8
+        ms1_pin: NO_PIN
+        ms2_pin: NO_PIN
+        ms3_pin: I2SO.11
+        reset_pin: NO_PIN
+
 
 kinematics:
   Cartesian:
+  
+i2so:
+  bck_pin: gpio.22
+  data_pin: gpio.21
+  ws_pin: gpio.17
 
 spi:
   miso_pin: NO_PIN
@@ -59,8 +141,8 @@ coolant:
   delay_ms: 0
 
 probe:
-  pin: NO_PIN
-  toolsetter_pin: NO_PIN
+  pin: gpio.34
+  toolsetter_pin: gpio.2
   check_mode_start: true
 
 macros:
@@ -98,14 +180,16 @@ enable_parking_override_control: false
 use_line_numbers: false
 
 kress_atc:
-  enable_pin: gpio.26
+  atc_valve_pin: gpio.4
+  atc_dustoff_pin: gpio.16
+  toolsetter_dustoff_pin: gpio.27
   direction_pin: NO_PIN
+  output_pin: NO_PIN
+  enable_pin: gpio.26
   disable_with_s0: false
   s0_with_disable: true
   spinup_ms: 0
   spindown_ms: 0
   tool_num: 0
-  speed_map: 0=0.000% 0=100.000% 1=100%
-
-
+  speed_map: 0=0.000% 0=100.000% 1=100.000%
   

@@ -24,12 +24,11 @@ namespace Spindles {
         }
         if (candidate) {
             if (candidate != spindle) {
-                if (spindle != nullptr) {                
+                if (spindle != nullptr) {
                     spindle->stop();
                 }
                 spindle = candidate;
-            } else {
-                log_info("No spindles change needed");
+                log_info("Using spindle " << spindle->name());
             }
         } else {
             if (spindle == nullptr) {
@@ -40,7 +39,7 @@ namespace Spindles {
                 spindle = spindles[0];
             }
         }
-        log_info("Using spindle " << spindle->name());
+        
         spindle->tool_change(new_tool, false);
     }
 

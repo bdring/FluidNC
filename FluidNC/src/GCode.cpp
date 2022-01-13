@@ -298,7 +298,7 @@ Error gc_execute_line(char* line, Channel& channel) {
                     case 38:  // G38 - probe
                         //only allow G38 "Probe" commands if a probe pin is defined.
                         if (!config->_probe->exists()) {
-                            log_info("No probe pin defined");
+                            log_warn("No probe pin defined");
                             FAIL(Error::GcodeUnsupportedCommand);  // [Unsupported G command]
                         }
                         // Check for G0/1/2/3/38 being called with G10/28/30/92 on same block.
@@ -1681,7 +1681,7 @@ void gc_exec_linef(bool sync_after, Channel& out, const char* format, ...) {
 
     gc_execute_line(temp, out);
 
-    log_debug("gc_exec_linef:" << temp);
+    log_debug(temp);
 
     va_end(arg);
     if (temp != loc_buf) {
