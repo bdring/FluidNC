@@ -69,7 +69,7 @@ namespace Spindles {
         const int   ETS_INDEX        = 0;     // electronic tool setter index
         const float TOOL_GRAB_TIME   = 0.25;  // seconds. How long it takes to grab a tool
         const float RACK_SAFE_DIST_Y = 25.0;  // how far in front of rack is safe to move in X
-        const float ATC_EMPTY_SAFE_Z = -50;   // at what Z in mpos can an empty atc traverse the rack with no tool
+        const float ATC_EMPTY_SAFE_Z = 135.0;   // at what Z in mpos can an empty atc traverse the rack with no tool
         const float PROBE_FEEDRATE   = 600.0;
 
         int zeroed_tool_index = 1;  // Which tool was zero'd on the work piece

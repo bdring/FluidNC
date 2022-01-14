@@ -121,6 +121,8 @@ namespace Spindles {
             return false;
         }
 
+        log_info("Return old states");
+
         // ================== return old states ===================
 
         // If the spindle was on before we started, we need to turn it back on.
@@ -129,8 +131,10 @@ namespace Spindles {
         }
 
         // return to saved mpos in XY
+        gc_exec_linef(false, Uart0, "G53 G0 X%0.3f Y%0.3f Z%0.3f", saved_mpos[X_AXIS], saved_mpos[Y_AXIS], top_of_z);
 
         // return to saved mpos in Z if it is not outside of work area.
+        gc_exec_linef(false, Uart0, "G53 G0 Z%0.3f", saved_mpos[Z_AXIS]);
 
         // was was_incremental on? If so, return to that state
         if (was_incremental_mode) {
@@ -152,8 +156,8 @@ namespace Spindles {
         go_above_tool(tool_num);
         gc_exec_linef(true, Uart0, "G53 G0 Z%0.3f", tool[tool_num].mpos[Z_AXIS]);  // drop down to tool
         set_ATC_open(true);
-        gc_exec_linef(true, Uart0, "G53 G0 Z%0.3f", ATC_EMPTY_SAFE_Z);  // Go just above tools
-        set_ATC_open(false);                                            // close ATC
+        goto_top_of_z();
+        set_ATC_open(false);  // close ATC
 
         log_debug("Return tool done");
         return true;
