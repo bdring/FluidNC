@@ -61,14 +61,9 @@ namespace Spindles {
         bool  was_incremental_mode   = false;  // started in G91 mode
         float saved_mpos[MAX_N_AXIS] = {};     // the position before the tool change
 
-        log_info(name() << ": Tool change tool num:" << new_tool << " Auto:" << pre_select);
-
         if (new_tool == current_tool) {
-            log_info("ATC existing tool requested:" << new_tool);
             return true;
         }
-
-        // new_tool should never be above tool count because of earlier spindle check
 
         protocol_buffer_synchronize();  // wait for all previous moves to complete
         motor_steps_to_mpos(saved_mpos, motor_steps);
@@ -84,7 +79,6 @@ namespace Spindles {
             spindle_was_on = true;
             gc_exec_linef(true, Uart0, "M5");  // this should add a delay if there is one
             if (spindle->_spindown_ms == 0) {
-                log_info("ATC added spindown delay");
                 vTaskDelay(10000);  // long delay for safety and to prevent ATC damage
             }
         }
@@ -101,7 +95,6 @@ namespace Spindles {
         current_tool = 0;  // now we have no tool
 
         if (new_tool == 0) {  // if changing to tool 0...we are done.
-            log_info("ATC Changed to tool 0");
             gc_exec_linef(true, Uart0, "G53 G0 Y%0.3f", tool[0].mpos[Y_AXIS] - RACK_SAFE_DIST_Y);
             current_tool = new_tool;
             return true;
@@ -121,8 +114,6 @@ namespace Spindles {
             return false;
         }
 
-        log_info("Return old states");
-
         // ================== return old states ===================
 
         // If the spindle was on before we started, we need to turn it back on.
@@ -141,8 +132,6 @@ namespace Spindles {
             gc_exec_linef(false, Uart0, "G91");
         }
 
-        // Wait for spinup
-
         return true;
     }
 
@@ -151,21 +140,16 @@ namespace Spindles {
             return false;
         }
 
-        log_debug("Return tool");
-
         go_above_tool(tool_num);
         gc_exec_linef(true, Uart0, "G53 G0 Z%0.3f", tool[tool_num].mpos[Z_AXIS]);  // drop down to tool
         set_ATC_open(true);
         goto_top_of_z();
         set_ATC_open(false);  // close ATC
 
-        log_debug("Return tool done");
         return true;
     }
 
     void KressATC::go_above_tool(uint8_t tool_num) {
-        log_debug("Go above tool:" << tool_num);
-
         goto_top_of_z();
 
         if (current_tool != 0) {
@@ -174,24 +158,17 @@ namespace Spindles {
         }
         // Move over tool
         gc_exec_linef(true, Uart0, "G53 G0 X%0.3f Y%0.3f", tool[tool_num].mpos[X_AXIS], tool[tool_num].mpos[Y_AXIS]);
-        log_debug("Go above tool done");
     }
 
     bool KressATC::set_ATC_open(bool open) {
-        log_debug("set_ATC_open:" << open);
-        // todo lots of safety checks
         if (gc_state.modal.spindle != SpindleState::Disable) {
-            log_info("ATC Fail spindle on during change");
             return false;
         }
-        //digitalWrite(ATC_RELEASE_PIN, open);
         _atc_valve_pin.synchronousWrite(open);
         return true;
     }
 
     bool KressATC::atc_toolsetter() {
-        log_debug("atc_toolsetter");
-
         float probe_to;  // Calculated work position
         float probe_position[MAX_N_AXIS];
 
@@ -232,7 +209,7 @@ namespace Spindles {
             if (rtAlarm == ExecAlarm::ProbeFailInitial) {
                 log_info("ATC Probe Switch Error");
             } else {
-                log_info("ATC Missing Tool?");
+                log_info("ATC Missing Tool");
             }
             return false;  // fail
         }
@@ -259,7 +236,6 @@ namespace Spindles {
     }
 
     void KressATC::probe_notification() {
-        log_info(name() << ": Probe notification");
         float probe_position[MAX_N_AXIS];
 
         if (sys.state == State::Alarm) {
@@ -273,8 +249,7 @@ namespace Spindles {
         zeroed_tool_index = current_tool;
     }
 
-    // Configuration registration
-    namespace {
-        SpindleFactory::InstanceBuilder<KressATC> registration("kress_atc");
-    }
+    // Configuration registration    namespace {
+    SpindleFactory::InstanceBuilder<KressATC> registration("kress_atc");
+}
 }

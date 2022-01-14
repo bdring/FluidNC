@@ -1681,8 +1681,6 @@ void gc_exec_linef(bool sync_after, Channel& out, const char* format, ...) {
 
     gc_execute_line(temp, out);
 
-    log_debug(temp);
-
     va_end(arg);
     if (temp != loc_buf) {
         delete[] temp;

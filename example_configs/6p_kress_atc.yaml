@@ -184,12 +184,11 @@ kress_atc:
   atc_dustoff_pin: gpio.16
   toolsetter_dustoff_pin: gpio.27
   direction_pin: NO_PIN
-  output_pin: NO_PIN
-  enable_pin: gpio.26
+  output_pin: gpio.26
+  enable_pin: NO_PIN
   disable_with_s0: false
   s0_with_disable: true
-  spinup_ms: 1.0
-  spindown_ms: 1.0
+  spinup_ms: 3.0
+  spindown_ms: 4.0
   tool_num: 0
   speed_map: 0=0.000% 0=100.000% 1=100.000%
-  
