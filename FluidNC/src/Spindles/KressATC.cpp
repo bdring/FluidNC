@@ -252,4 +252,3 @@ namespace Spindles {
     // Configuration registration    namespace {
     SpindleFactory::InstanceBuilder<KressATC> registration("kress_atc");
 }
-}
