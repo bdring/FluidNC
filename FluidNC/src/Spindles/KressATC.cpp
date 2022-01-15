@@ -8,13 +8,9 @@
     allow the rack to be placed outside of soft limit zone
     This would prevent user from damaging the rack
 
-    We may consider handling delays here to speed up tool changes.
-    Spindle could be turned off and moved to rack location while spinning down
-    Delay would be added as required if the time has not expired before getting there.
+    Need to fail and quit if no probe defined at the time of probing
 
-    Calc top_of_z from limits
-
-    Need to fail and quite if no probe defined at the time of probing
+    dustoffs
 
 */
 
@@ -22,6 +18,8 @@
 #include "../Protocol.h"
 #include "../GCode.h"
 #include "../Uart.h"
+#include "../Machine/MachineConfig.h"
+#include "../Limits.h"  // limitsMaxPosition
 
 // ========================= KressATC ==================================
 
@@ -32,28 +30,31 @@ namespace Spindles {
         _toolsetter_dustoff.setAttr(Pin::Attr::Output);
 
         log_info("ATC Init Valve:" << _atc_valve_pin.name() << " Dustoff:" << _atc_dustoff_pin.name());
-        top_of_z = 147.00;  // in machine position
+
+        // determine top of z for safest XY travel above things
+        auto axisConfig = config->_axes->_axis[Z_AXIS];
+        top_of_z        = limitsMaxPosition(Z_AXIS) - axisConfig->_motors[0]->_pulloff;
 
         // the tool setter
         tool[ETS_INDEX].mpos[X_AXIS] = 157;
         tool[ETS_INDEX].mpos[Y_AXIS] = 142;
-        tool[ETS_INDEX].mpos[Z_AXIS] = 119.0;  // Mpos before collet face triggers probe
+        tool[ETS_INDEX].mpos[Z_AXIS] = -31.0;  // Mpos before collet face triggers probe
 
         tool[1].mpos[X_AXIS] = 197.0;
         tool[1].mpos[Y_AXIS] = 142.0;
-        tool[1].mpos[Z_AXIS] = 130.00;
+        tool[1].mpos[Z_AXIS] = -26.00;
 
         tool[2].mpos[X_AXIS] = 237.0;
         tool[2].mpos[Y_AXIS] = 142.0;
-        tool[2].mpos[Z_AXIS] = 130.0;
+        tool[2].mpos[Z_AXIS] = -26.0;
 
         tool[3].mpos[X_AXIS] = 277.0;
         tool[3].mpos[Y_AXIS] = 142.0;
-        tool[3].mpos[Z_AXIS] = 130.0;
+        tool[3].mpos[Z_AXIS] = -26.0;
 
         tool[4].mpos[X_AXIS] = 317.0;
         tool[4].mpos[Y_AXIS] = 142.0;
-        tool[4].mpos[Z_AXIS] = 130.0;
+        tool[4].mpos[Z_AXIS] = -26.0;
     }
 
     bool KressATC::tool_change(uint8_t new_tool, bool pre_select) {
@@ -74,6 +75,8 @@ namespace Spindles {
             was_incremental_mode = true;
         }
 
+        goto_top_of_z();
+
         // is spindle on? Turn it off and determine when the spin down should be done.
         if (gc_state.modal.spindle != SpindleState::Disable) {
             spindle_was_on = true;
@@ -84,8 +87,6 @@ namespace Spindles {
         }
 
         // ============= Start of tool change ====================
-
-        goto_top_of_z();
 
         // return the current tool if there is one.
         if (!return_tool(current_tool)) {  // does nothing if we have no tool

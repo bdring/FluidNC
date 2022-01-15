@@ -79,13 +79,13 @@ axes:
     steps_per_mm: 800.000
     max_rate_mm_per_min: 4500.000
     acceleration_mm_per_sec2: 100.000
-    max_travel_mm: 300.000
+    max_travel_mm: 80.000
     soft_limits: false
     homing:
       cycle: 1
       allow_single_axis: true
       positive_direction: true
-      mpos_mm: 150.000
+      mpos_mm: 0.000
       feed_mm_per_min: 500.000
       seek_mm_per_min: 1000.000
       settle_ms: 50
@@ -188,7 +188,7 @@ kress_atc:
   enable_pin: NO_PIN
   disable_with_s0: false
   s0_with_disable: true
-  spinup_ms: 3.0
-  spindown_ms: 4.0
+  spinup_ms: 3000
+  spindown_ms: 4000
   tool_num: 0
   speed_map: 0=0.000% 0=100.000% 1=100.000%
