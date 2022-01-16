@@ -1,5 +1,15 @@
 ## Installing FluidNC on your ESP32
 
+_Please note: These instructions apply to the case where you have
+downloaded a release bundle from
+https://github.com/bdring/FluidNC/releases - a zip file named
+fluidnc-vN.N.N-linux-amd64.zip .  They do not apply to installing from
+a source tree.  This HOWTO file is present in the source tree so that
+it can be packed into a release bundle by automated release scripting,
+but it does not tell you how to install from source.  For that, visit
+https://github.com/bdring/FluidNC/wiki/FluidNC-Compiling#use-vs-code--platformio-to-compile
+_
+
 Unpack this FluidNC release Zip file.
 
 Plug your ESP32 into a USB port.
