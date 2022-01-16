@@ -4,7 +4,8 @@ Unpack this FluidNC release Zip file.
 
 Plug your ESP32 into a USB port.
 
-At a shell prompt, cd to this directory and run one of the following commands:
+At a shell prompt, cd to the directory that contains the file
+you are reading and run one of the following commands:
 
 To install the WiFi version:            sh install-wifi.sh
 To install the Bluetooth version:       sh install-bt.sh
