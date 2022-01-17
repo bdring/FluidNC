@@ -1,10 +1,21 @@
 ## Installing FluidNC on your ESP32
 
-Unpack this FluidNC release Zip file.
+_Please note: These instructions apply to the case where you have
+downloaded a release bundle from
+https://github.com/bdring/FluidNC/releases - a zip file named
+fluidnc-vN.N.N-macos.zip .  They do not apply to installing from a
+source tree.  This HOWTO file is present in the source tree so that it
+can be packed into a release bundle by automated release scripting,
+but it does not tell you how to install from source.  For that, visit
+https://github.com/bdring/FluidNC/wiki/FluidNC-Compiling#use-vs-code--platformio-to-compile
+_
 
-Plug your ESP32 into a USB port.
+* Unpack this FluidNC release Zip file.
 
-In a Terminal window, cd to this directory and run one of the following:
+* Plug your ESP32 into a USB port.
+
+* In a Terminal window, cd to the directory that contains the
+file you are reading and run one of the following:
 
 To install the WiFi version:            sh install-wifi.sh
 To install the Bluetooth version:       sh install-bt.sh

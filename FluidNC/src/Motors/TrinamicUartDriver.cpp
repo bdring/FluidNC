@@ -163,11 +163,13 @@ namespace MotorDrivers {
             }
         }
 
-        if (tmc2208) {
-            tmc2208->microsteps(_microsteps);
+	// The TMCStepper library uses the value 0 to mean 1x microstepping
+	int usteps = _microsteps == 1 ? 0 : _microsteps;
+	if (tmc2208) {
+            tmc2208->microsteps(usteps);
             tmc2208->rms_current(run_i_ma, hold_i_percent);
         } else {
-            tmc2209->microsteps(_microsteps);
+            tmc2209->microsteps(usteps);
             tmc2209->rms_current(run_i_ma, hold_i_percent);
         }
     }
