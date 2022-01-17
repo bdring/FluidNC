@@ -27,6 +27,7 @@ namespace Configuration {
         bool                    boolValue() const;
         int                     intValue() const;
         std::vector<speedEntry> speedEntryValue() const;
+        std::vector<float>      floatArray() const;
         float                   floatValue() const;
         Pin                     pinValue() const;
         int                     enumValue(EnumItem* e) const;

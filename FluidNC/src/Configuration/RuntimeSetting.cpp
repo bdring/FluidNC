@@ -178,6 +178,10 @@ namespace Configuration {
         }
     }
 
+    void RuntimeSetting::item(const char* name, std::vector<float>& value) {
+        
+    }
+
     void RuntimeSetting::item(const char* name, IPAddress& value) {
         if (is(name)) {
             isHandled_ = true;

@@ -64,6 +64,7 @@ namespace Spindles {
         int _tool = -1;
 
         std::vector<Configuration::speedEntry> _speeds;
+        std::vector<float>                     _cfg_float_test;
 
         // Name is required for the configuration factory to work.
         virtual const char* name() const = 0;
@@ -76,13 +77,13 @@ namespace Spindles {
         void afterParse() override;
 
         void group(Configuration::HandlerBase& handler) override {
-             if (use_delay_settings()) {
-                handler.item("spinup_ms", _spinup_ms);            
+            if (use_delay_settings()) {
+                handler.item("spinup_ms", _spinup_ms);
                 handler.item("spindown_ms", _spindown_ms);
-            }            
+            }
             handler.item("tool_num", _tool);
             handler.item("speed_map", _speeds);
-                
+            handler.item("vec_float", _cfg_float_test);
         }
 
         // Virtual base classes require a virtual destructor.

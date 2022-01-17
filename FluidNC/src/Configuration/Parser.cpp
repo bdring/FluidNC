@@ -94,6 +94,25 @@ namespace Configuration {
         return value;
     }
 
+    std::vector<float> Parser::floatArray() const {
+        auto str = StringRange(token_.sValueStart_, token_.sValueEnd_);
+
+        std::vector<float> value;
+        StringRange        entryStr;
+        for (entryStr = str.nextWord(); entryStr.length(); entryStr = str.nextWord()) {
+            float entry;
+            if (!entryStr.isFloat(entry)) {
+                log_error("Bad number " << entryStr.str());
+                value.clear();
+                break;
+            }
+            value.push_back(entry);
+        }
+        if (!value.size())
+            log_info("Using default value");
+        return value;
+    }
+
     Pin Parser::pinValue() const {
         auto str = StringRange(token_.sValueStart_, token_.sValueEnd_);
         return Pin::create(str);
