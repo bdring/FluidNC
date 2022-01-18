@@ -182,7 +182,8 @@ use_line_numbers: false
 kress_atc:
   atc_valve_pin: gpio.4
   atc_dustoff_pin: gpio.16
-  toolsetter_dustoff_pin: gpio.27
+  ets_dustoff_pin: gpio.27
+  ets_mpos_mm: 157.00 142.00 -31.00
   direction_pin: NO_PIN
   output_pin: gpio.26
   enable_pin: NO_PIN

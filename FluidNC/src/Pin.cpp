@@ -76,8 +76,6 @@ const char* Pin::parse(StringRange tmp, Pins::PinDetail*& pinImplementation) {
     // Build an options parser:
     Pins::PinOptionsParser parser(options.begin(), options.end());
 
-    //log_debug("Attempting to set up pin: " << prefix << " index " << int(pinNumber));
-
     // Build this pin:
     if (prefix == "gpio") {
         pinImplementation = new Pins::GPIOPinDetail(pinnum_t(pinNumber), parser);
@@ -115,8 +113,6 @@ Pin Pin::create(const String& str) {
 Pin Pin::create(const StringRange& str) {
     Pins::PinDetail* pinImplementation = nullptr;
     try {
-        //log_debug("Setting up pin " << str.str());
-
         const char* err = parse(str, pinImplementation);
         if (err) {
             if (pinImplementation) {

@@ -64,6 +64,21 @@ namespace Configuration {
             dst_ << '\n';
         }
 
+        void item(const char* name, std::vector<float>& value) {
+            indent();
+            dst_ << name << ": ";
+            if (value.size() == 0) {
+                dst_ << "None";
+            } else {
+                const char* separator = "";
+                for (float n : value) {
+                    dst_ << separator << n;
+                    separator = " ";
+                }                
+            }
+            dst_ << '\n';
+        }
+
         void item(const char* name, UartData& wordLength, UartParity& parity, UartStop& stopBits) override {
             indent();
             dst_ << name << ": " << (int(wordLength) - int(UartData::Bits5) + 5);

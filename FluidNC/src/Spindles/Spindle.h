@@ -89,7 +89,7 @@ namespace Spindles {
                 handler.item("spindown_ms", _spindown_ms);
             }
             handler.item("tool_num", _tool);
-            handler.item("speed_map", _speeds);
+            handler.item("speed_map", _speeds);            
         }
 
         // Virtual base classes require a virtual destructor.

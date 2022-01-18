@@ -36,9 +36,13 @@ namespace Spindles {
         top_of_z        = limitsMaxPosition(Z_AXIS) - axisConfig->_motors[0]->_pulloff;
 
         // the tool setter
-        tool[ETS_INDEX].mpos[X_AXIS] = 157;
-        tool[ETS_INDEX].mpos[Y_AXIS] = 142;
-        tool[ETS_INDEX].mpos[Z_AXIS] = -31.0;  // Mpos before collet face triggers probe
+        if (_ets_location.size() == 3) {  // will use a for loop...and include tool locations
+            tool[ETS_INDEX].mpos[X_AXIS] = _ets_location.at(0);
+            tool[ETS_INDEX].mpos[Y_AXIS] = _ets_location.at(1);
+            tool[ETS_INDEX].mpos[Z_AXIS] = _ets_location.at(2);
+        } else {
+            log_error("ATC: All locations must have 3 floats")
+        }
 
         tool[1].mpos[X_AXIS] = 197.0;
         tool[1].mpos[Y_AXIS] = 142.0;

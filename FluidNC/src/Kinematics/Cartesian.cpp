@@ -37,7 +37,7 @@ namespace Kinematics {
         bool limit_error = false;
         for (int axis = 0; axis < n_axis; axis++) {
             auto axisSetting = axes->_axis[axis];
-            if (cartesian[axis] < limitsMinPosition(axis) || cartesian[axis] > limitsMaxPosition(axis)) {
+            if (axisSetting->_softLimits && (cartesian[axis] < limitsMinPosition(axis) || cartesian[axis] > limitsMaxPosition(axis))) {
                 String axis_letter = String(Machine::Axes::_names[axis]);
                 log_info("Soft limit on " << axis_letter << " target:" << cartesian[axis]);
                 limit_error = true;

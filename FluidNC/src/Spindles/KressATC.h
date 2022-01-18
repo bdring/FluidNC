@@ -38,7 +38,8 @@ namespace Spindles {
         void group(Configuration::HandlerBase& handler) override {
             handler.item("atc_valve_pin", _atc_valve_pin);
             handler.item("atc_dustoff_pin", _atc_dustoff_pin);
-            handler.item("toolsetter_dustoff_pin", _toolsetter_dustoff);
+            handler.item("ets_dustoff_pin", _toolsetter_dustoff);
+            handler.item("ets_mpos_mm", _ets_location);
 
             OnOff::group(handler);
         }
@@ -65,6 +66,7 @@ namespace Spindles {
         Pin _atc_valve_pin;
         Pin _atc_dustoff_pin;
         Pin _toolsetter_dustoff;
+        std::vector<float> _ets_location;
 
         const int   ETS_INDEX        = 0;     // electronic tool setter index
         const float TOOL_GRAB_TIME   = 0.25;  // seconds. How long it takes to grab a tool
