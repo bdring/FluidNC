@@ -2,6 +2,30 @@
 // Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
 
 /*
+
+
+Example config section
+
+kress_atc:
+  atc_valve_pin: gpio.4
+  atc_dustoff_pin: gpio.16
+  ets_dustoff_pin: gpio.27
+  ets_mpos_mm: 157.00 142.00 -31.00
+  tool1_mpos_mm: 197.0 142.0 -26.0
+  tool2_mpos_mm: 237.0 142.0 -26.0
+  tool3_mpos_mm: 277.0 142.0 -26.0
+  tool4_mpos_mm: 317.0 142.0 -26.0
+  direction_pin: NO_PIN
+  output_pin: gpio.26
+  enable_pin: NO_PIN
+  disable_with_s0: false
+  s0_with_disable: true
+  spinup_ms: 3000
+  spindown_ms: 4000
+  tool_num: 0
+  speed_map: 0=0.000% 0=100.000% 1=100.000%
+
+
     TO DO
 
     Turn off soft limits during tool changes. This would
@@ -29,42 +53,52 @@ namespace Spindles {
         _atc_dustoff_pin.setAttr(Pin::Attr::Output);
         _toolsetter_dustoff.setAttr(Pin::Attr::Output);
 
+        // only the atc valve must be defined
+        if (!_atc_valve_pin.defined()) {
+            log_error("ATC: " << _atc_valve_pin.name() << " must be defined");
+            return;
+        }
+
         log_info("ATC Init Valve:" << _atc_valve_pin.name() << " Dustoff:" << _atc_dustoff_pin.name());
 
         // determine top of z for safest XY travel above things
         auto axisConfig = config->_axes->_axis[Z_AXIS];
         top_of_z        = limitsMaxPosition(Z_AXIS) - axisConfig->_motors[0]->_pulloff;
 
-        // the tool setter
-        if (_ets_location.size() == 3) {  // will use a for loop...and include tool locations
-            tool[ETS_INDEX].mpos[X_AXIS] = _ets_location.at(0);
-            tool[ETS_INDEX].mpos[Y_AXIS] = _ets_location.at(1);
-            tool[ETS_INDEX].mpos[Z_AXIS] = _ets_location.at(2);
-        } else {
-            log_error("ATC: All locations must have 3 floats")
+        if (_ets_mpos.size() != 3) {  // will use a for loop...and include tool locations...n_axis
+            log_error("ATC ETS mpos wrong");
+            return;  // failed
         }
 
-        tool[1].mpos[X_AXIS] = 197.0;
-        tool[1].mpos[Y_AXIS] = 142.0;
-        tool[1].mpos[Z_AXIS] = -26.00;
+        tool[ETS_INDEX].mpos[X_AXIS] = _ets_mpos.at(0);
+        tool[ETS_INDEX].mpos[Y_AXIS] = _ets_mpos.at(1);
+        tool[ETS_INDEX].mpos[Z_AXIS] = _ets_mpos.at(2);
 
-        tool[2].mpos[X_AXIS] = 237.0;
-        tool[2].mpos[Y_AXIS] = 142.0;
-        tool[2].mpos[Z_AXIS] = -26.0;
+        for (int i = 0; i < TOOL_COUNT; i++) {
+            if (_tool_mpos[i].size() != 3) {
+                log_error("ATC Tool mpos wrong:" << i);
+                return;  // failed
+            }
+            tool[i + 1].mpos[X_AXIS] = _tool_mpos[i].at(0);
+            tool[i + 1].mpos[Y_AXIS] = _tool_mpos[i].at(1);
+            tool[i + 1].mpos[Z_AXIS] = _tool_mpos[i].at(2);
+        }
 
-        tool[3].mpos[X_AXIS] = 277.0;
-        tool[3].mpos[Y_AXIS] = 142.0;
-        tool[3].mpos[Z_AXIS] = -26.0;
-
-        tool[4].mpos[X_AXIS] = 317.0;
-        tool[4].mpos[Y_AXIS] = 142.0;
-        tool[4].mpos[Z_AXIS] = -26.0;
+        _atc_ok = true;
     }
 
     bool KressATC::tool_change(uint8_t new_tool, bool pre_select) {
         bool  spindle_was_on         = false;
         bool  was_incremental_mode   = false;  // started in G91 mode
         float saved_mpos[MAX_N_AXIS] = {};     // the position before the tool change
+
+        if (!is_ATC_ok())
+            return false;
+
+        if (new_tool > TOOL_COUNT) {
+            log_error("Exceeds tool count");
+            return false;
+        }
 
         if (new_tool == current_tool) {
             return true;
@@ -233,6 +267,14 @@ namespace Spindles {
         // move forward
         gc_exec_linef(false, Uart0, "G53 G0 X%0.3f Y%0.3f", tool[ETS_INDEX].mpos[X_AXIS], tool[ETS_INDEX].mpos[Y_AXIS] - RACK_SAFE_DIST_Y);
 
+        return true;
+    }
+
+    bool KressATC::is_ATC_ok() {
+        if (!_atc_ok) {
+            log_warn("ATC failed initialized");
+            return false;
+        }
         return true;
     }
 

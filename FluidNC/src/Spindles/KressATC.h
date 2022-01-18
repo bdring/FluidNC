@@ -34,12 +34,17 @@ namespace Spindles {
         void atc_init() override;
         bool tool_change(uint8_t new_tool, bool pre_select) override;
         void probe_notification() override;
+        bool is_ATC_ok();
 
         void group(Configuration::HandlerBase& handler) override {
             handler.item("atc_valve_pin", _atc_valve_pin);
             handler.item("atc_dustoff_pin", _atc_dustoff_pin);
             handler.item("ets_dustoff_pin", _toolsetter_dustoff);
-            handler.item("ets_mpos_mm", _ets_location);
+            handler.item("ets_mpos_mm", _ets_mpos);
+            handler.item("tool1_mpos_mm", _tool_mpos[0]);
+            handler.item("tool2_mpos_mm", _tool_mpos[1]);
+            handler.item("tool3_mpos_mm", _tool_mpos[2]);
+            handler.item("tool4_mpos_mm", _tool_mpos[3]);
 
             OnOff::group(handler);
         }
@@ -63,19 +68,21 @@ namespace Spindles {
             float offset[MAX_N_AXIS];  // TLO from the zero'd tool
         } tool_t;
 
-        Pin _atc_valve_pin;
-        Pin _atc_dustoff_pin;
-        Pin _toolsetter_dustoff;
-        std::vector<float> _ets_location;
+        
+        const int     ETS_INDEX        = 0;      // electronic tool setter index
+        const float   TOOL_GRAB_TIME   = 0.25;   // seconds. How long it takes to grab a tool
+        const float   RACK_SAFE_DIST_Y = 25.0;   // how far in front of rack is safe to move in X
+        const float   ATC_EMPTY_SAFE_Z = 135.0;  // at what Z in mpos can an empty atc traverse the rack with no tool
+        const float   PROBE_FEEDRATE   = 600.0;
 
-        const int   ETS_INDEX        = 0;     // electronic tool setter index
-        const float TOOL_GRAB_TIME   = 0.25;  // seconds. How long it takes to grab a tool
-        const float RACK_SAFE_DIST_Y = 25.0;  // how far in front of rack is safe to move in X
-        const float ATC_EMPTY_SAFE_Z = 135.0;   // at what Z in mpos can an empty atc traverse the rack with no tool
-        const float PROBE_FEEDRATE   = 600.0;
+        Pin                _atc_valve_pin;
+        Pin                _atc_dustoff_pin;
+        Pin                _toolsetter_dustoff;
+        std::vector<float> _ets_mpos;
+        std::vector<float> _tool_mpos[TOOL_COUNT];
 
         int zeroed_tool_index = 1;  // Which tool was zero'd on the work piece
-
+        bool  _atc_ok              = false;
         float top_of_z            = 0.0;    // position of top of Z in mpos, for safe XY travel
         bool  tool_setter_probing = false;  // used to determine if current probe cycle is for the setter
 

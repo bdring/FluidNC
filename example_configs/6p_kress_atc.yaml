@@ -182,8 +182,12 @@ use_line_numbers: false
 kress_atc:
   atc_valve_pin: gpio.4
   atc_dustoff_pin: gpio.16
-  ets_dustoff_pin: gpio.27
+  ets_dustoff_pin: NO_PIN
   ets_mpos_mm: 157.00 142.00 -31.00
+  tool1_mpos_mm: 197.0 142.0 -26.0
+  tool2_mpos_mm: 237.0 142.0 -26.0
+  tool3_mpos_mm: 277.0 142.0 -26.0
+  tool4_mpos_mm: 317.0 142.0 -26.0
   direction_pin: NO_PIN
   output_pin: gpio.26
   enable_pin: NO_PIN
@@ -193,3 +197,14 @@ kress_atc:
   spindown_ms: 4000
   tool_num: 0
   speed_map: 0=0.000% 0=100.000% 1=100.000%
+  
+Laser:
+  pwm_hz: 5000
+  output_pin: gpio.27
+  enable_pin: NO_PIN
+  disable_with_s0: false
+  s0_with_disable: true
+  tool_num: 5
+  speed_map: 0=0.000% 255=100.000%
+  offset_mm: 5.0 -5.0 -8.0
+  
