@@ -2,9 +2,7 @@
 // Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
 
 #include "RuntimeSetting.h"
-
 #include "../Report.h"
-
 #include <cstdlib>
 #include <atomic>
 
@@ -179,7 +177,51 @@ namespace Configuration {
     }
 
     void RuntimeSetting::item(const char* name, std::vector<float>& value) {
-        
+        if (is(name)) {
+            isHandled_ = true;
+            if (newValue_ == nullptr) {
+                if (value.size() == 0) {
+                    out_ << "None";
+                } else {
+                    String separator = "";
+                    for (float n : value) {
+                        out_ << separator;
+                        out_ << n;
+                        separator = " ";
+                    }
+                }
+                out_ << '\n';
+            } else {
+                // It is distasteful to have this code that essentially duplicates
+                // Parser.cpp speedEntryValue(), albeit using String instead of
+                // StringRange.  It would be better to have a single String version,
+                // then pass it StringRange.str()
+                auto               newStr = String(newValue_);
+                std::vector<float> smValue;
+                while (newStr.trim(), newStr.length()) {
+                    float  entry;
+                    String entryStr;
+                    auto   i = newStr.indexOf(' ');
+                    if (i >= 0) {
+                        entryStr = newStr.substring(0, i);
+                        newStr   = newStr.substring(i + 1);
+                    } else {
+                        entryStr = newStr;
+                        newStr   = "";
+                    }
+                    char* floatEnd;
+                    entry = float(strtod(entryStr.c_str(), &floatEnd));
+                    Assert(entryStr.length() == (floatEnd - entryStr.c_str()), "Bad float value");
+
+                    smValue.push_back(entry);
+                }
+                value = smValue;
+
+                if (!value.size())
+                    log_info("Using default value");
+                return;
+            }
+        }
     }
 
     void RuntimeSetting::item(const char* name, IPAddress& value) {
