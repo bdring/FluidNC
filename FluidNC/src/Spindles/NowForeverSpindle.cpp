@@ -3,20 +3,6 @@
 namespace Spindles {
     NowForever::NowForever() : VFD() {}
 
-    /*
-https://github.com/buildbotics/bbctrl-firmware/blob/3fe4e86312bc52dae2fe7a97e7899330ca53ddc2/src/avr/src/vfd_spindle.c
-const vfd_reg_t nowforever_regs[] PROGMEM = {
-  {REG_MAX_FREQ_READ,     7,    0}, // Max frequency
-  {REG_FREQ_SET,       2305,    0}, // Frequency
-  {REG_STOP_WRITE,     2304,    0}, // Stop drive
-  {REG_FWD_WRITE,      2304,    1}, // Forward
-  {REG_REV_WRITE,      2304,    3}, // Reverse
-  {REG_FREQ_READ,      1282,    0}, // Output freq
-  {REG_STATUS_READ,     768,    0}, // Status
-  {REG_DISABLED},
-};
-    */
-
     void NowForever::direction_command(SpindleState mode, ModbusCommand& data) {
         data.tx_length = 9;
         data.rx_length = 6;
