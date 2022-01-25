@@ -88,11 +88,14 @@ namespace Spindles {
             */
 
             return [](const uint8_t* response, Spindles::VFD* vfd) -> bool {
-                if (response[1] != 0x03)
+                if (response[1] != 0x03) {
                     return false;
+                }
 
                 if (response[2] != 4)  // We expect a result length of 4 bytes
+                {
                     return false;
+                }
 
                 auto nowForever = static_cast<NowForever*>(vfd);
 
@@ -149,11 +152,14 @@ namespace Spindles {
         return [](const uint8_t* response, Spindles::VFD* vfd) -> bool {
             uint16_t currentHz = 0;
 
-            if (response[1] != 0x03)
+            if (response[1] != 0x03) {
                 return false;
+            }
 
             if (response[2] != 2)  // We expect a result length of 2 bytes
+            {
                 return false;
+            }
 
             // Conversion from hz to rpm not required ?
             vfd->_sync_dev_speed = (uint16_t(response[3]) << 8) | uint16_t(response[4]);
@@ -188,11 +194,14 @@ namespace Spindles {
             bool running   = false;
             bool direction = false;  // false = cw, true = ccw
 
-            if (response[1] != 0x03)
+            if (response[1] != 0x03) {
                 return false;
+            }
 
             if (response[2] != 2)  // We expect a result length of 2 bytes
+            {
                 return false;
+            }
 
             running   = response[4] & 0b00000001;
             direction = (response[4] & 0b00000001) >> 1;
@@ -230,11 +239,14 @@ namespace Spindles {
         return [](const uint8_t* response, Spindles::VFD* vfd) -> bool {
             uint16_t currentFaultNumber = 0;
 
-            if (response[1] != 0x03)
+            if (response[1] != 0x03) {
                 return false;
+            }
 
             if (response[2] != 2)  // We expect a result length of 2 bytes
+            {
                 return false;
+            }
 
             currentFaultNumber = (uint16_t(response[3]) << 8) | uint16_t(response[4]);
 
