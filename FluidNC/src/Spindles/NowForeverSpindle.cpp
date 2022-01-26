@@ -92,8 +92,8 @@ namespace Spindles {
                     return false;
                 }
 
-                if (response[2] != 4)  // We expect a result length of 4 bytes
-                {
+                // We expect a result length of 4 bytes
+                if (response[2] != 4) {
                     return false;
                 }
 
@@ -116,7 +116,6 @@ namespace Spindles {
         return nullptr;
     }
 
-    // TODO: Take number of poles into account while calculating RPM
     void NowForever::updateRPM() {
         if (_minFrequency > _maxFrequency) {
             uint16_t tmp  = _minFrequency;
@@ -156,8 +155,8 @@ namespace Spindles {
                 return false;
             }
 
-            if (response[2] != 2)  // We expect a result length of 2 bytes
-            {
+            // We expect a result length of 2 bytes
+            if (response[2] != 2) {
                 return false;
             }
 
@@ -198,8 +197,8 @@ namespace Spindles {
                 return false;
             }
 
-            if (response[2] != 2)  // We expect a result length of 2 bytes
-            {
+            // We expect a result length of 2 bytes
+            if (response[2] != 2) {
                 return false;
             }
 
@@ -243,8 +242,8 @@ namespace Spindles {
                 return false;
             }
 
-            if (response[2] != 2)  // We expect a result length of 2 bytes
-            {
+            // We expect a result length of 2 bytes
+            if (response[2] != 2) {
                 return false;
             }
 
