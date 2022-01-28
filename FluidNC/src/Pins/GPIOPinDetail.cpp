@@ -4,6 +4,7 @@
 #include <esp_attr.h>  // IRAM_ATTR
 #include <esp32-hal-gpio.h>
 #include <stdexcept>
+#include <atomic>
 
 #include "GPIOPinDetail.h"
 #include "../Assert.h"
@@ -180,14 +181,23 @@ namespace Pins {
         __pinMode(_index, pinModeValue);
     }
 
-    void GPIOPinDetail::attachInterrupt(void (*callback)(void*), void* arg, int mode) {
+    void GPIOPinDetail::attachInterrupt(void (*callback)(void*, int32_t), void* arg) {
+        Assert(_isrCallback == nullptr, "Pin %s already has an ISR attached.", toString().c_str());
         Assert(_attributes.has(PinAttributes::ISR), "Pin %s does not support interrupts", toString().c_str());
-        ::attachInterruptArg(_index, callback, arg, mode);
+
+        _isrCallback = callback;
+        _isrArgument = arg;
+        std::atomic_thread_fence(std::memory_order::memory_order_seq_cst);  // Write fence for config
+        ::attachInterruptArg(_index, ISRCallbackHandler, this, CHANGE);
     }
 
     void GPIOPinDetail::detachInterrupt() {
         Assert(_attributes.has(PinAttributes::ISR), "Pin %s does not support interrupts");
+
         ::detachInterrupt(_index);
+        _isrCallback = nullptr;
+        _isrArgument = nullptr;
+        std::atomic_thread_fence(std::memory_order::memory_order_seq_cst);  // Write fence for config
     }
 
     String GPIOPinDetail::toString() {

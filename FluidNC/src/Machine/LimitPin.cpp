@@ -44,7 +44,7 @@ namespace Machine {
         _legend = String("    " + sDir + " Limit");
     }
 
-    void IRAM_ATTR LimitPin::handleISR() {
+    void IRAM_ATTR LimitPin::handleISR(int32_t deltaTime) {
         read();
         if (sys.state != State::Alarm && sys.state != State::ConfigAlarm && sys.state != State::Homing) {
             if (_pHardLimits && rtAlarm == ExecAlarm::None) {
@@ -95,7 +95,7 @@ namespace Machine {
             attr = attr | Pin::Attr::PullUp;
         }
         _pin.setAttr(attr);
-        _pin.attachInterrupt<LimitPin, &LimitPin::handleISR>(this, CHANGE);
+        _pin.attachInterrupt<LimitPin, &LimitPin::handleISR>(this);
 
         read();
     }

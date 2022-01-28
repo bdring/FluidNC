@@ -5,7 +5,7 @@
 #include <esp_attr.h>        // IRAM_ATTR
 #include <esp32-hal-gpio.h>  // CHANGE
 
-void IRAM_ATTR ControlPin::handleISR() {
+void IRAM_ATTR ControlPin::handleISR(int32_t deltaTime) {
     bool pinState = _pin.read();
     _value        = pinState;
     if (pinState) {
@@ -23,7 +23,7 @@ void ControlPin::init() {
         attr = attr | Pin::Attr::PullUp;
     }
     _pin.setAttr(attr);
-    _pin.attachInterrupt<ControlPin, &ControlPin::handleISR>(this, CHANGE);
+    _pin.attachInterrupt<ControlPin, &ControlPin::handleISR>(this);
     _rtVariable = false;
     _value      = _pin.read();
     // Control pins must start in inactive state

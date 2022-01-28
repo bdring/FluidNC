@@ -75,24 +75,24 @@ namespace Pins {
 
     PinAttributes DebugPinDetail::getAttr() const { return _implementation->getAttr(); }
 
-    void DebugPinDetail::CallbackHandler::handle(void* arg) {
+    void DebugPinDetail::CallbackHandler::handle(void* arg, int32_t ticksDelta) {
         auto handler = static_cast<CallbackHandler*>(arg);
         if (handler->_myPin->shouldEvent()) {
             WriteSerial("Received ISR on %s", handler->_myPin->toString().c_str());
         }
-        handler->callback(handler->argument);
+        handler->callback(handler->argument, ticksDelta);
     }
 
     // ISR's:
-    void DebugPinDetail::attachInterrupt(void (*callback)(void*), void* arg, int mode) {
+    void DebugPinDetail::attachInterrupt(void (*callback)(void*, int32_t), void* arg) {
         _isrHandler._myPin   = this;
         _isrHandler.argument = arg;
         _isrHandler.callback = callback;
 
         if (shouldEvent()) {
-            WriteSerial("Attaching interrupt to pin %s, mode %d", toString().c_str(), mode);
+            WriteSerial("Attaching interrupt to pin %s", toString().c_str());
         }
-        _implementation->attachInterrupt(_isrHandler.handle, &_isrHandler, mode);
+        _implementation->attachInterrupt(_isrHandler.handle, &_isrHandler);
     }
     void DebugPinDetail::detachInterrupt() { _implementation->detachInterrupt(); }
 

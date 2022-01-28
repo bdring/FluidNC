@@ -6,6 +6,7 @@
 
 #include "Configuration/HandlerBase.h"
 #include "Configuration/Configurable.h"
+#include "Probes/ProbeDriver.h"
 
 #include <cstdint>
 
@@ -15,23 +16,26 @@ enum class ProbeState : uint8_t {
     Active = 1,  // Actively watching the input pin.
 };
 
+using ProbeList = std::vector<Probes::ProbeDriver*>;
+
 class Probe : public Configuration::Configurable {
     // Inverts the probe pin state depending on user settings and probing cycle mode.
-    bool _isProbeAway = false;
+    volatile bool _isProbeAway  = false;
+    volatile bool _probeTripped = false;
 
-    // Configurable
-    Pin _probePin;
+    ProbeList _probes;
 
 public:
     // Configurable
     bool _check_mode_start = true;
+
     // _check_mode_start configures the position after a probing cycle
     // during check mode. false sets the position to the probe target,
     // true sets the position to the start position.
 
     Probe() = default;
 
-    bool exists() const { return _probePin.defined(); }
+    bool exists() const { return !_probes.empty(); }
 
     // Probe pin initialization routine.
     void init();
@@ -39,11 +43,15 @@ public:
     // setup probing direction G38.2 vs. G38.4
     void set_direction(bool is_away);
 
+    void stop_probe();
+
     // Returns probe pin state. Triggered = true. Called by gcode parser and probe state monitor.
     bool get_state();
 
     // Returns true if the probe pin is tripped, depending on the direction (away or not)
     bool IRAM_ATTR tripped();
+
+    static void IRAM_ATTR tripProbe(Probe* userData, int32_t tickDelta);
 
     // Configuration handlers.
     void validate() const override;

@@ -20,7 +20,7 @@ namespace Machine {
         volatile uint32_t* _posLimits = nullptr;
         volatile uint32_t* _negLimits = nullptr;
 
-        void IRAM_ATTR handleISR();
+        void IRAM_ATTR handleISR(int32_t deltaTime);
 
         void read();
 
