@@ -295,7 +295,7 @@ xmlhttp.onreadystatechange = function() {
              }
              if (sublist[0].trim() == "hostname"){
                  document.title = sublist[1].trim();
-                 nbitem++
+                 nbitem++;
              }
             }
             if (nbitem == 4) {
@@ -469,8 +469,8 @@ else if (jsonresponse.status=='3')
             }
         },1000);
 }
-else uploadError()
- } else uploadError()
+else uploadError();
+ } else uploadError();
 };
 xmlhttpupload.send(formData);
 }
