@@ -46,7 +46,8 @@ namespace MotorDrivers {
         int  _axis_index;
         bool _invert_direction = false;
 
-        Uart* _uart = nullptr;
+        //Uart* _uart = nullptr;
+        static Uart* _uart;
 
         static bool _uart_started;
 
@@ -114,7 +115,11 @@ namespace MotorDrivers {
 
             handler.item("count_min", _countMin);
             handler.item("count_max", _countMax);
-            handler.section("uart", _uart);
+
+            if (_uart == nullptr) {
+                handler.section("uart", _uart);
+            }
+            //handler.section("uart", _uart);
 
             int id = _id;
             handler.item("id", id);

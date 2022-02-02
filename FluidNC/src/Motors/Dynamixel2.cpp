@@ -25,6 +25,9 @@
 #include <cmath>
 
 namespace MotorDrivers {
+
+    Uart* MotorDrivers::Dynamixel2::_uart = nullptr;
+
     bool    MotorDrivers::Dynamixel2::_uart_started      = false;
     uint8_t MotorDrivers::Dynamixel2::ids[MAX_N_AXIS][2] = { { 0, 0 }, { 0, 0 }, { 0, 0 }, { 0, 0 }, { 0, 0 }, { 0, 0 } };
 
@@ -35,21 +38,15 @@ namespace MotorDrivers {
         ids[_axis_index][dual_axis_index()] = _id;  // learn all the ids
 
         if (!_uart_started) {
-            if (_uart->baud != 1000000) {
-                log_info("Warning: The baud rate is " << _uart->baud << ".  Dynamixels typically use 1000000 baud.");
-            }
             _uart->begin();
-
             if (_uart->setHalfDuplex()) {
                 log_info("Dynamixel: UART set half duplex failed");
                 return;
             }
-
-            log_info("Dynamixel:");
-            _uart->config_message("Dynamixel", " Motor ");
-
+            _uart->config_message("    dynamixel2", " ");
             _uart_started = true;
         }
+
 
         read_settings();
 
@@ -71,10 +68,12 @@ namespace MotorDrivers {
         startUpdateTask(_timer_ms);
     }
 
-    void Dynamixel2::config_message() { log_info(axisName() << idString() << " Count(" << _dxl_count_min << "," << _dxl_count_max << ")"); }
+    void Dynamixel2::config_message() { log_info("    " << name() << " id::" << _id << " Count(" << _dxl_count_min << "," << _dxl_count_max << ")"); }
 
     bool Dynamixel2::test() {
         uint16_t len = 3;
+
+        log_info("    Test");
 
         _dxl_tx_message[DXL_MSG_INSTR] = DXL_INSTR_PING;
 
@@ -82,16 +81,18 @@ namespace MotorDrivers {
 
         len = dxl_get_response(PING_RSP_LEN);  // wait for and get response
 
-        if (len == PING_RSP_LEN) {
+        log_info("    Test Done")
+
+            if (len == PING_RSP_LEN) {
             uint16_t model_num = _dxl_rx_message[10] << 8 | _dxl_rx_message[9];
             if (model_num == 1060) {
                 log_info("    " << name() << " ID " << _id << " Model XL430-W250 F/W Rev " << String(_dxl_rx_message[11], HEX));
             } else {
                 log_info("    " << name() << " ID " << _id << " M/N " << model_num << " F/W Rev " << String(_dxl_rx_message[11], HEX));
             }
-
-        } else {
-            log_info(axisName() << idString() << " Ping failed");
+        }
+        else {
+            log_info("    " << name() << " ID " << _id << " Ping failed");
             return false;
         }
 
@@ -249,32 +250,32 @@ namespace MotorDrivers {
             uint8_t err = _dxl_rx_message[8];
             switch (err) {
                 case 1:
-                    log_info(idString() << " Write fail error");
+                    log_info(name() << " ID " << _id << " Write fail error");
                     break;
                 case 2:
-                    log_info(idString() << " Write instruction error");
+                    log_info(name() << " ID " << _id << " Write instruction error");
                     break;
                 case 3:
-                    log_info(idString() << " Write access error");
+                    log_info(name() << " ID " << _id << " Write access error");
                     break;
                 case 4:
-                    log_info(idString() << " Write data range error");
+                    log_info(name() << " ID " << _id << " Write data range error");
                     break;
                 case 5:
-                    log_info(idString() << " Write data length error");
+                    log_info(name() << " ID " << _id << " Write data length error");
                     break;
                 case 6:
-                    log_info(idString() << " Write data limit error");
+                    log_info(name() << " ID " << _id << " Write data limit error");
                     break;
                 case 7:
-                    log_info(idString() << " Write access error");
+                    log_info(name() << " ID " << _id << " Write access error");
                     break;
                 default:
                     break;
             }
         } else {
             // timeout
-            log_info(idString() << " Timeout");
+            log_info(name() << " ID " << _id << " Timeout");
         }
     }
 
