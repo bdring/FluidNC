@@ -29,6 +29,9 @@ namespace MotorDrivers {
     uint8_t MotorDrivers::Dynamixel2::_first_id = 0;
     uint8_t MotorDrivers::Dynamixel2::_last_id  = 0;
 
+    uint8_t MotorDrivers::Dynamixel2::bulk_message[100];
+    uint8_t MotorDrivers::Dynamixel2::bulk_message_index;
+
     uint8_t MotorDrivers::Dynamixel2::_dxl_rx_message[50] = {};  // received from dynamixel
 
     bool    MotorDrivers::Dynamixel2::_uart_started      = false;
@@ -130,9 +133,9 @@ namespace MotorDrivers {
         if (_disabled) {
             dxl_read_position();
         } else {
-            if (_id == _first_id) {
+            if (_id == _last_id) {  // from a LIFO List
                 // initialize message
-                bulk_message_index = 0;
+                bulk_message_index = DXL_MSG_INSTR;
 
                 bulk_message[bulk_message_index]   = DXL_SYNC_WRITE;
                 bulk_message[++bulk_message_index] = DXL_GOAL_POSITION & 0xFF;           // low order address
@@ -141,7 +144,7 @@ namespace MotorDrivers {
                 bulk_message[++bulk_message_index] = 0;                                  // high order data length
             }
             add_to_bulk_message();
-            if (_id == _last_id) {
+            if (_id == _first_id) {
                 send_bulk_message();
             }
         }
@@ -363,7 +366,7 @@ namespace MotorDrivers {
         bulk_message[++bulk_message_index] = (dxl_position & 0xFF000000) >> 24;  // data
     }
 
-    void Dynamixel2::send_bulk_message() { dxl_finish_message(DXL_BROADCAST_ID, bulk_message, bulk_message_index + 2); }
+    void Dynamixel2::send_bulk_message() { dxl_finish_message(DXL_BROADCAST_ID, bulk_message, bulk_message_index - DXL_MSG_INSTR + 1); }
 
     /*
     Static
@@ -395,6 +398,8 @@ namespace MotorDrivers {
 
         msg[msg_len + 5] = crc & 0xFF;  // CRC_L
         msg[msg_len + 6] = (crc & 0xFF00) >> 8;
+
+        //hex_msg(msg, "DXL Tx: ", msg_len);
 
         // uart_flush(UART_NUM_2);
         // uart_write_bytes(UART_NUM_2, msg, msg_len + 7);

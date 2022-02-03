@@ -38,9 +38,9 @@ namespace MotorDrivers {
         static uint16_t dxl_update_crc(uint16_t crc_accum, uint8_t* data_blk_ptr, uint8_t data_blk_size);
         void            dxl_bulk_goal_position();
 
-        static void init_bulk_message();
-        void add_to_bulk_message();
-        static void send_bulk_message();
+        static void    init_bulk_message();
+        void           add_to_bulk_message();
+        static void    send_bulk_message();
         static uint8_t bulk_message[100];
         static uint8_t bulk_message_index;
 
@@ -51,8 +51,8 @@ namespace MotorDrivers {
 
         int _axis_index;
 
-        static Uart* _uart;
-        bool         _my_uart = false;
+        static Uart*   _uart;
+        bool           _my_uart = false;
         static uint8_t _first_id;
         static uint8_t _last_id;
 
