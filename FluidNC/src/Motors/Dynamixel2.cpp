@@ -50,8 +50,6 @@ namespace MotorDrivers {
             _uart_started = true;
         }
 
-        read_settings();
-
         config_message();  // print the config
 
         if (!test()) {  // ping the motor
@@ -90,21 +88,14 @@ namespace MotorDrivers {
                 log_info("    M/N " << model_num << " F/W Rev " << String(_dxl_rx_message[11], HEX));
             }
         } else {
-            log_info("    Ping failed");
+            log_warn("    Ping failed");
             return false;
         }
 
         return true;
     }
 
-    void Dynamixel2::read_settings() {
-        _dxl_count_min = float(_countMin);
-        _dxl_count_max = float(_countMax);
-
-        if (_invert_direction) {  // normal direction
-            swap(_dxl_count_min, _dxl_count_min);
-        }
-    }
+    void Dynamixel2::read_settings() {}
 
     // sets the PWM to zero. This allows most servos to be manually moved
     void IRAM_ATTR Dynamixel2::set_disable(bool disable) {
@@ -175,7 +166,7 @@ namespace MotorDrivers {
             uint32_t dxl_position = _dxl_rx_message[9] | (_dxl_rx_message[10] << 8) | (_dxl_rx_message[11] << 16) |
                                     (_dxl_rx_message[12] << 24);
 
-            read_settings();
+            // read_settings();
 
             auto axis = config->_axes->_axis[_axis_index];
 
@@ -304,6 +295,8 @@ namespace MotorDrivers {
         float* mpos   = get_mpos();
         for (size_t axis = X_AXIS; axis < n_axis; axis++) {
             for (size_t motor_index = 0; motor_index < 2; motor_index++) {
+                // check to see if this is a dxl motor
+
                 current_id = ids[axis][motor_index];
                 if (current_id != 0) {
                     count++;  // keep track of the count for the message length
@@ -311,13 +304,11 @@ namespace MotorDrivers {
                     dxl_count_min = float(_countMin);
                     dxl_count_max = float(_countMax);
 
-                    if (_invert_direction) {  // normal direction
-                        swap(dxl_count_min, dxl_count_max);
-                    }
-
                     // map the mm range to the servo range
                     float fpos = dxl_position = static_cast<uint32_t>(
                         mapConstrain(mpos[axis], limitsMinPosition(axis), limitsMaxPosition(axis), dxl_count_min, dxl_count_max));
+
+                    log_debug("dxl:" << current_id << " pos:" << dxl_position);
 
                     tx_message[++msg_index] = current_id;                         // ID of the servo
                     tx_message[++msg_index] = dxl_position & 0xFF;                // data
