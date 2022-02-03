@@ -25,8 +25,9 @@
 #include <cmath>
 
 namespace MotorDrivers {
-
-    Uart* MotorDrivers::Dynamixel2::_uart = nullptr;
+    Uart*   MotorDrivers::Dynamixel2::_uart     = nullptr;
+    uint8_t MotorDrivers::Dynamixel2::_first_id = 0;
+    uint8_t MotorDrivers::Dynamixel2::_last_id  = 0;
 
     uint8_t MotorDrivers::Dynamixel2::_dxl_rx_message[50] = {};  // received from dynamixel
 
@@ -49,6 +50,12 @@ namespace MotorDrivers {
             _uart->config_message("    dynamixel2", " ");
             _uart_started = true;
         }
+
+        // for bulk updating
+        if (_first_id == 0) {
+            _first_id = _id;
+        }
+        _last_id = _id;
 
         config_message();  // print the config
 
@@ -123,7 +130,20 @@ namespace MotorDrivers {
         if (_disabled) {
             dxl_read_position();
         } else {
-            dxl_bulk_goal_position();  // call the static method that updates all at once
+            if (_id == _first_id) {
+                // initialize message
+                bulk_message_index = 0;
+
+                bulk_message[bulk_message_index]   = DXL_SYNC_WRITE;
+                bulk_message[++bulk_message_index] = DXL_GOAL_POSITION & 0xFF;           // low order address
+                bulk_message[++bulk_message_index] = (DXL_GOAL_POSITION & 0xFF00) >> 8;  // high order address
+                bulk_message[++bulk_message_index] = 4;                                  // low order data length
+                bulk_message[++bulk_message_index] = 0;                                  // high order data length
+            }
+            add_to_bulk_message();
+            if (_id == _last_id) {
+                send_bulk_message();
+            }
         }
     }
 
@@ -320,6 +340,30 @@ namespace MotorDrivers {
         }
         dxl_finish_message(DXL_BROADCAST_ID, tx_message, (count * 5) + 7);
     }
+
+    void Dynamixel2::add_to_bulk_message() {
+        float    dxl_count_min, dxl_count_max;
+        uint32_t dxl_position;
+
+        float* mpos = get_mpos();
+
+        dxl_count_min = float(_countMin);
+        dxl_count_max = float(_countMax);
+
+        // map the mm range to the servo range
+        dxl_position = static_cast<uint32_t>(
+            mapConstrain(mpos[_axis_index], limitsMinPosition(_axis_index), limitsMaxPosition(_axis_index), dxl_count_min, dxl_count_max));
+
+        log_debug("dxl:" << _id << " pos:" << dxl_position);
+
+        bulk_message[++bulk_message_index] = _id;                                // ID of the servo
+        bulk_message[++bulk_message_index] = dxl_position & 0xFF;                // data
+        bulk_message[++bulk_message_index] = (dxl_position & 0xFF00) >> 8;       // data
+        bulk_message[++bulk_message_index] = (dxl_position & 0xFF0000) >> 16;    // data
+        bulk_message[++bulk_message_index] = (dxl_position & 0xFF000000) >> 24;  // data
+    }
+
+    void Dynamixel2::send_bulk_message() { dxl_finish_message(DXL_BROADCAST_ID, bulk_message, bulk_message_index + 2); }
 
     /*
     Static
