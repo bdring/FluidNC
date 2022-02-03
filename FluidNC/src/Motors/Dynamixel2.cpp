@@ -28,7 +28,7 @@ namespace MotorDrivers {
 
     Uart* MotorDrivers::Dynamixel2::_uart = nullptr;
 
-    uint8_t MotorDrivers::Dynamixel2::_dxl_rx_message[50] = {};  // received from dynamixel  
+    uint8_t MotorDrivers::Dynamixel2::_dxl_rx_message[50] = {};  // received from dynamixel
 
     bool    MotorDrivers::Dynamixel2::_uart_started      = false;
     uint8_t MotorDrivers::Dynamixel2::ids[MAX_N_AXIS][2] = { { 0, 0 }, { 0, 0 }, { 0, 0 }, { 0, 0 }, { 0, 0 }, { 0, 0 } };
@@ -40,6 +40,7 @@ namespace MotorDrivers {
         ids[_axis_index][dual_axis_index()] = _id;  // learn all the ids
 
         if (!_uart_started) {
+            //log_info("Starting UART");
             _uart->begin();
             if (_uart->setHalfDuplex()) {
                 log_info("Dynamixel: UART set half duplex failed");
@@ -48,7 +49,6 @@ namespace MotorDrivers {
             _uart->config_message("    dynamixel2", " ");
             _uart_started = true;
         }
-
 
         read_settings();
 
@@ -70,31 +70,27 @@ namespace MotorDrivers {
         startUpdateTask(_timer_ms);
     }
 
-    void Dynamixel2::config_message() { log_info("    " << name() << " id::" << _id << " Count(" << _dxl_count_min << "," << _dxl_count_max << ")"); }
+    void Dynamixel2::config_message() {
+        log_info("    " << name() << " id::" << _id << " Count(" << _dxl_count_min << "," << _dxl_count_max << ")");
+    }
 
     bool Dynamixel2::test() {
         uint16_t len = 3;
 
-        log_info("    Test");
-
         _dxl_tx_message[DXL_MSG_INSTR] = DXL_INSTR_PING;
 
         dxl_finish_message(_id, _dxl_tx_message, len);
-
         len = dxl_get_response(PING_RSP_LEN);  // wait for and get response
 
-        log_info("    Test Done")
-
-            if (len == PING_RSP_LEN) {
+        if (len == PING_RSP_LEN) {
             uint16_t model_num = _dxl_rx_message[10] << 8 | _dxl_rx_message[9];
             if (model_num == 1060) {
-                log_info("    " << name() << " ID " << _id << " Model XL430-W250 F/W Rev " << String(_dxl_rx_message[11], HEX));
+                log_info("    Model XL430-W250 F/W Rev " << String(_dxl_rx_message[11], HEX));
             } else {
-                log_info("    " << name() << " ID " << _id << " M/N " << model_num << " F/W Rev " << String(_dxl_rx_message[11], HEX));
+                log_info("    M/N " << model_num << " F/W Rev " << String(_dxl_rx_message[11], HEX));
             }
-        }
-        else {
-            log_info("    " << name() << " ID " << _id << " Ping failed");
+        } else {
+            log_info("    Ping failed");
             return false;
         }
 
@@ -221,7 +217,8 @@ namespace MotorDrivers {
 
     // wait for and get the servo response
     uint16_t Dynamixel2::dxl_get_response(uint16_t length) {
-        length = uart_read_bytes(UART_NUM_2, _dxl_rx_message, length, DXL_RESPONSE_WAIT_TICKS);
+        length = _uart->readBytes(_dxl_rx_message, length, DXL_RESPONSE_WAIT_TICKS);
+        //length = uart_read_bytes(UART_NUM_2, _dxl_rx_message, length, DXL_RESPONSE_WAIT_TICKS);
         return length;
     }
 
@@ -289,8 +286,8 @@ namespace MotorDrivers {
 
     */
     void Dynamixel2::dxl_bulk_goal_position() {
-        char  tx_message[100];  // outgoing to dynamixel
-        float dxl_count_min, dxl_count_max;
+        uint8_t tx_message[100];  // outgoing to dynamixel
+        float   dxl_count_min, dxl_count_max;
 
         uint16_t msg_index = DXL_MSG_INSTR;  // index of the byte in the message we are currently filling
         uint32_t dxl_position;
@@ -342,7 +339,7 @@ namespace MotorDrivers {
     This function will add the header, length bytes and CRC
     It will then send the message
 */
-    void Dynamixel2::dxl_finish_message(uint8_t id, char* msg, uint16_t msg_len) {
+    void Dynamixel2::dxl_finish_message(uint8_t id, uint8_t* msg, uint16_t msg_len) {
         //uint16_t msg_len;
         uint16_t crc = 0;
         // header
@@ -364,12 +361,14 @@ namespace MotorDrivers {
         msg[msg_len + 5] = crc & 0xFF;  // CRC_L
         msg[msg_len + 6] = (crc & 0xFF00) >> 8;
 
-        uart_flush(UART_NUM_2);
-        uart_write_bytes(UART_NUM_2, msg, msg_len + 7);
+        // uart_flush(UART_NUM_2);
+        // uart_write_bytes(UART_NUM_2, msg, msg_len + 7);
+        _uart->flush();
+        _uart->write(msg, msg_len + 7);
     }
 
     // from http://emanual.robotis.com/docs/en/dxl/crc/
-    uint16_t Dynamixel2::dxl_update_crc(uint16_t crc_accum, char* data_blk_ptr, uint8_t data_blk_size) {
+    uint16_t Dynamixel2::dxl_update_crc(uint16_t crc_accum, uint8_t* data_blk_ptr, uint8_t data_blk_size) {
         uint16_t i, j;
         uint16_t crc_table[256] = {
             0x0000, 0x8005, 0x800F, 0x000A, 0x801B, 0x001E, 0x0014, 0x8011, 0x8033, 0x0036, 0x003C, 0x8039, 0x0028, 0x802D, 0x8027, 0x0022,
