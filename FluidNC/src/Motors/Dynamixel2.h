@@ -22,7 +22,7 @@ namespace MotorDrivers {
         void set_location();
 
         uint8_t _id;
-        char    _dxl_tx_message[50];  // outgoing to dynamixel
+        uint8_t    _dxl_tx_message[50];  // outgoing to dynamixel
         static uint8_t _dxl_rx_message[50];  // received from dynamixel
 
         bool     test();        
@@ -33,9 +33,9 @@ namespace MotorDrivers {
         void     set_operating_mode(uint8_t mode);
         void     LED_on(bool on);
 
-        static void     dxl_finish_message(uint8_t id, char* msg, uint16_t msg_len);
+        static void     dxl_finish_message(uint8_t id, uint8_t* msg, uint16_t msg_len);
         static uint16_t dxl_get_response(uint16_t length);
-        static uint16_t dxl_update_crc(uint16_t crc_accum, char* data_blk_ptr, uint8_t data_blk_size);
+        static uint16_t dxl_update_crc(uint16_t crc_accum, uint8_t* data_blk_ptr, uint8_t data_blk_size);
         void            dxl_bulk_goal_position();
 
         float _homing_position;
