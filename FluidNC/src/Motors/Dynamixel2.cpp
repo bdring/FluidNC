@@ -28,6 +28,8 @@ namespace MotorDrivers {
 
     Uart* MotorDrivers::Dynamixel2::_uart = nullptr;
 
+    uint8_t MotorDrivers::Dynamixel2::_dxl_rx_message[50] = {};  // received from dynamixel  
+
     bool    MotorDrivers::Dynamixel2::_uart_started      = false;
     uint8_t MotorDrivers::Dynamixel2::ids[MAX_N_AXIS][2] = { { 0, 0 }, { 0, 0 }, { 0, 0 }, { 0, 0 }, { 0, 0 }, { 0, 0 } };
 
