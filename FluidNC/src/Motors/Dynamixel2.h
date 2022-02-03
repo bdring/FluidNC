@@ -21,11 +21,11 @@ namespace MotorDrivers {
 
         void set_location();
 
-        uint8_t _id;
-        uint8_t    _dxl_tx_message[50];  // outgoing to dynamixel
+        uint8_t        _id;
+        uint8_t        _dxl_tx_message[50];  // outgoing to dynamixel
         static uint8_t _dxl_rx_message[50];  // received from dynamixel
 
-        bool     test();        
+        bool     test();
         uint32_t dxl_read_position();
         void     dxl_read(uint16_t address, uint16_t data_len);
         void     dxl_write(uint16_t address, uint8_t paramCount, ...);
@@ -43,8 +43,8 @@ namespace MotorDrivers {
         float _dxl_count_min;
         float _dxl_count_max;
 
-        int  _axis_index;
-        bool _invert_direction = false;
+        int _axis_index;
+        //bool _invert_direction = false;
 
         //Uart* _uart = nullptr;
         static Uart* _uart;
@@ -111,7 +111,11 @@ namespace MotorDrivers {
         }
 
         void group(Configuration::HandlerBase& handler) override {
-            handler.item("invert_direction", _invert_direction);
+            //handler.item("invert_direction", _invert_direction);
+
+            int id = _id;
+            handler.item("id", id);
+            _id = id;
 
             handler.item("count_min", _countMin);
             handler.item("count_max", _countMax);
@@ -119,11 +123,6 @@ namespace MotorDrivers {
             if (_uart == nullptr) {
                 handler.section("uart", _uart);
             }
-            //handler.section("uart", _uart);
-
-            int id = _id;
-            handler.item("id", id);
-            _id = id;
         }
 
         // Name of the configurable. Must match the name registered in the cpp file.
