@@ -38,16 +38,23 @@ namespace MotorDrivers {
         static uint16_t dxl_update_crc(uint16_t crc_accum, uint8_t* data_blk_ptr, uint8_t data_blk_size);
         void            dxl_bulk_goal_position();
 
+        static void init_bulk_message();
+        void add_to_bulk_message();
+        static void send_bulk_message();
+        static uint8_t bulk_message[100];
+        static uint8_t bulk_message_index;
+
         float _homing_position;
 
         float _dxl_count_min;
         float _dxl_count_max;
 
         int _axis_index;
-        //bool _invert_direction = false;
 
-        //Uart* _uart = nullptr;
         static Uart* _uart;
+        bool         _my_uart = false;
+        static uint8_t _first_id;
+        static uint8_t _last_id;
 
         static bool _uart_started;
 
@@ -111,16 +118,21 @@ namespace MotorDrivers {
         }
 
         void group(Configuration::HandlerBase& handler) override {
-            //handler.item("invert_direction", _invert_direction);
-
-            int id = _id;
-            handler.item("id", id);
-            _id = id;
+            handler.item("id", _id);
 
             handler.item("count_min", _countMin);
             handler.item("count_max", _countMax);
 
             if (_uart == nullptr) {
+                // If _uart is null this must be the parsing phase
+                handler.section("uart", _uart);
+                // If we just defined _uart, record that this is the enclosing instance
+                if (_uart != nullptr) {
+                    _my_uart = true;
+                }
+            } else if (_my_uart) {
+                // _uart is already defined and this is the enclosing instance, so we
+                // handle the uart section in a non-parsing phase
                 handler.section("uart", _uart);
             }
         }
