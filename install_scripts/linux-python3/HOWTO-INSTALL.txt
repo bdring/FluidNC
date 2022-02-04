@@ -72,6 +72,17 @@ for using FluidNC.  Fluidterm lets you interact directly with FluidNC
 over a USB serial port.  There are other ways to do that, so if you
 have trouble running Fluidterm, you can just ignore it.
 
+On headless (no GUI installed) machines fluidterm may fail with:
+
+    ModuleNotFoundError: No module named 'tkinter'
+
+In this case you will need to install the correct system package for tkinter;
+- note that trying to install via pip/pypi is usually not sufficient.
+
+    Debian/Raspbian: $ sudo apt install python3-tk
+    Fedora/RHEL: $ sudo dnf install python3-tkinter
+etc..
+
 ### Alternatives to Fluidterm
 
 Most GCode sender programs have some way to send commands directly to
@@ -113,7 +124,7 @@ but will fail after that when they cannot run fluidterm. See above
 for alternatives to fluidterm.
 
 If Python3.6+ is available on your system, but (for whatever reason) you
-use a lower Python version as the system default you should use a
+use a lower Python version as the system default you can use a
 python virtual environment (venv) to do the install without needing to
 modify your system-wide python environment:
 https://packaging.python.org/en/latest/guides/installing-using-pip-and-virtual-environments/
