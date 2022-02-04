@@ -35,16 +35,12 @@ namespace MotorDrivers {
     uint8_t MotorDrivers::Dynamixel2::_dxl_rx_message[50] = {};  // received from dynamixel
 
     bool    MotorDrivers::Dynamixel2::_uart_started      = false;
-    uint8_t MotorDrivers::Dynamixel2::ids[MAX_N_AXIS][2] = { { 0, 0 }, { 0, 0 }, { 0, 0 }, { 0, 0 }, { 0, 0 }, { 0, 0 } };
 
     void Dynamixel2::init() {
         _has_errors = false;  // Initially assume okay
         _axis_index = axis_index();
 
-        ids[_axis_index][dual_axis_index()] = _id;  // learn all the ids
-
         if (!_uart_started) {
-            //log_info("Starting UART");
             _uart->begin();
             if (_uart->setHalfDuplex()) {
                 log_info("Dynamixel: UART set half duplex failed");
@@ -79,7 +75,7 @@ namespace MotorDrivers {
     }
 
     void Dynamixel2::config_message() {
-        log_info("    " << name() << " id::" << _id << " Count(" << _dxl_count_min << "," << _dxl_count_max << ")");
+        log_info("    " << name() << " id::" << _id << " Count(" << _countMin << "," << _countMax << ")");
     }
 
     bool Dynamixel2::test() {
@@ -189,8 +185,6 @@ namespace MotorDrivers {
             uint32_t dxl_position = _dxl_rx_message[9] | (_dxl_rx_message[10] << 8) | (_dxl_rx_message[11] << 16) |
                                     (_dxl_rx_message[12] << 24);
 
-            // read_settings();
-
             auto axis = config->_axes->_axis[_axis_index];
 
             uint32_t pos_min_steps = lround(mpos_to_steps(limitsMinPosition(_axis_index), _axis_index));
@@ -232,7 +226,6 @@ namespace MotorDrivers {
     // wait for and get the servo response
     uint16_t Dynamixel2::dxl_get_response(uint16_t length) {
         length = _uart->readBytes(_dxl_rx_message, length, DXL_RESPONSE_WAIT_TICKS);
-        //length = uart_read_bytes(UART_NUM_2, _dxl_rx_message, length, DXL_RESPONSE_WAIT_TICKS);
         return length;
     }
 
@@ -292,58 +285,6 @@ namespace MotorDrivers {
         }
     }
 
-    /*
-        Static
-
-        This will sync all the motors in one command
-        It looks for IDs in the array of axes
-
-    */
-    void Dynamixel2::dxl_bulk_goal_position() {
-        uint8_t tx_message[100];  // outgoing to dynamixel
-        float   dxl_count_min, dxl_count_max;
-
-        uint16_t msg_index = DXL_MSG_INSTR;  // index of the byte in the message we are currently filling
-        uint32_t dxl_position;
-        uint8_t  count = 0;
-        uint8_t  current_id;
-
-        tx_message[msg_index]   = DXL_SYNC_WRITE;
-        tx_message[++msg_index] = DXL_GOAL_POSITION & 0xFF;           // low order address
-        tx_message[++msg_index] = (DXL_GOAL_POSITION & 0xFF00) >> 8;  // high order address
-        tx_message[++msg_index] = 4;                                  // low order data length
-        tx_message[++msg_index] = 0;                                  // high order data length
-
-        auto   n_axis = config->_axes->_numberAxis;
-        float* mpos   = get_mpos();
-        for (size_t axis = X_AXIS; axis < n_axis; axis++) {
-            for (size_t motor_index = 0; motor_index < 2; motor_index++) {
-                // check to see if this is a dxl motor
-
-                current_id = ids[axis][motor_index];
-                if (current_id != 0) {
-                    count++;  // keep track of the count for the message length
-
-                    dxl_count_min = float(_countMin);
-                    dxl_count_max = float(_countMax);
-
-                    // map the mm range to the servo range
-                    float fpos = dxl_position = static_cast<uint32_t>(
-                        mapConstrain(mpos[axis], limitsMinPosition(axis), limitsMaxPosition(axis), dxl_count_min, dxl_count_max));
-
-                    log_debug("dxl:" << current_id << " pos:" << dxl_position);
-
-                    tx_message[++msg_index] = current_id;                         // ID of the servo
-                    tx_message[++msg_index] = dxl_position & 0xFF;                // data
-                    tx_message[++msg_index] = (dxl_position & 0xFF00) >> 8;       // data
-                    tx_message[++msg_index] = (dxl_position & 0xFF0000) >> 16;    // data
-                    tx_message[++msg_index] = (dxl_position & 0xFF000000) >> 24;  // data
-                }
-            }
-        }
-        dxl_finish_message(DXL_BROADCAST_ID, tx_message, (count * 5) + 7);
-    }
-
     void Dynamixel2::add_to_bulk_message() {
         float    dxl_count_min, dxl_count_max;
         uint32_t dxl_position;
@@ -378,7 +319,6 @@ namespace MotorDrivers {
     It will then send the message
 */
     void Dynamixel2::dxl_finish_message(uint8_t id, uint8_t* msg, uint16_t msg_len) {
-        //uint16_t msg_len;
         uint16_t crc = 0;
         // header
         msg[DXL_MSG_HDR1] = char(0xFF);
@@ -399,10 +339,6 @@ namespace MotorDrivers {
         msg[msg_len + 5] = crc & 0xFF;  // CRC_L
         msg[msg_len + 6] = (crc & 0xFF00) >> 8;
 
-        //hex_msg(msg, "DXL Tx: ", msg_len);
-
-        // uart_flush(UART_NUM_2);
-        // uart_write_bytes(UART_NUM_2, msg, msg_len + 7);
         _uart->flush();
         _uart->write(msg, msg_len + 7);
     }
