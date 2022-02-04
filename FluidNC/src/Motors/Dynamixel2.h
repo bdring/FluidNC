@@ -36,18 +36,13 @@ namespace MotorDrivers {
         static void     dxl_finish_message(uint8_t id, uint8_t* msg, uint16_t msg_len);
         static uint16_t dxl_get_response(uint16_t length);
         static uint16_t dxl_update_crc(uint16_t crc_accum, uint8_t* data_blk_ptr, uint8_t data_blk_size);
-        void            dxl_bulk_goal_position();
 
+        // static things for the bulk position command (set all axes at one time)
         static void    init_bulk_message();
         void           add_to_bulk_message();
         static void    send_bulk_message();
         static uint8_t bulk_message[100];
         static uint8_t bulk_message_index;
-
-        float _homing_position;
-
-        float _dxl_count_min;
-        float _dxl_count_max;
 
         int _axis_index;
 
@@ -99,16 +94,12 @@ namespace MotorDrivers {
     public:
         Dynamixel2() : _id(255), _disabled(true), _has_errors(true) {}
 
-        String idString() { return "Dynamixel Servo ID " + _id; }
-
         // Overrides for inherited methods
         void init() override;
         void read_settings() override;
         bool set_homing_mode(bool isHoming) override;
         void set_disable(bool disable) override;
         void update() override;
-
-        static uint8_t ids[MAX_N_AXIS][2];
 
         // Configuration handlers:
         void validate() const override {
