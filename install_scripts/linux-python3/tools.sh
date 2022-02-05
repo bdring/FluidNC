@@ -10,7 +10,7 @@ fi
 which esptool.py 2>&1 >/dev/null
 if test "$?" != "0"; then
     echo esptool.py not found, attempting to install
-    python3 -m pip install esptool
+    python3 -m pip install --user esptool
     if test "$?" != "0"; then
         echo esptool.py install failed
         exit 1
