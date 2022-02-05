@@ -82,22 +82,31 @@ for envName in ['wifi','bt']:
     if buildEnv(envName, verbose=verbose) != 0:
         sys.exit(1)
 
-for platform in ['win64', 'macos', 'linux-amd64']:
+for platform in ['win64', 'macos', 'linux-amd64', 'linux-python3']:
     print("Creating zip file for ", platform)
     terseOSName = {
         'win64': 'win',
         'linux-amd64': 'linux',
+        'linux-python3': 'linux',
         'macos': 'macos'
     }
     scriptExtension = {
         'win64': '.bat',
         'linux-amd64': '.sh',
+        'linux-python3': '.sh',
         'macos': '.sh'
     }
     exeExtension = {
         'win64': '.exe',
         'linux-amd64': '',
+        'linux-python3': '',
         'macos': ''
+    }
+    withEsptool = {
+        'win64': True,
+        'linux-amd64': True,
+        'linux-python3': False,
+        'macos': True
     }
 
     zipFileName = os.path.join(relPath, 'fluidnc-' + tag + '-' + platform + '.zip')
@@ -105,8 +114,6 @@ for platform in ['win64', 'macos', 'linux-amd64']:
     with ZipFile(zipFileName, 'w') as zipObj:
         name = 'HOWTO-INSTALL.txt'
         zipObj.write(os.path.join(sharedPath, platform, name), name)
-        name = 'README-ESPTOOL.txt'
-        zipObj.write(os.path.join(sharedPath, name), os.path.join(platform, name))
     
         pioPath = os.path.join('.pio', 'build')
     
@@ -151,22 +158,25 @@ for platform in ['win64', 'macos', 'linux-amd64']:
             zipObj.write(os.path.join('fluidterm', obj), os.path.join(platform, obj))
 
         # Put esptool and related tools in the archive
-        EsptoolVersion = 'v3.1'
-        EspRepo = 'https://github.com/espressif/esptool/releases/download/' + EsptoolVersion + '/'
+        if withEsptool[platform]:
+            EsptoolVersion = 'v3.1'
+            EspRepo = 'https://github.com/espressif/esptool/releases/download/' + EsptoolVersion + '/'
+            name = 'README-ESPTOOL.txt'
+            zipObj.write(os.path.join(sharedPath, name), os.path.join(platform, name))
 
-        EspDir = 'esptool-' + EsptoolVersion + '-' + platform
-        # Download and unzip from ESP repo
-        ZipFileName = EspDir + '.zip'
-        if not os.path.isfile(ZipFileName):
-            with urllib.request.urlopen(EspRepo + ZipFileName) as u:
-                open(ZipFileName, 'wb').write(u.read())
-        for Binary in ['esptool']:
-            Binary += exeExtension[platform]
-            sourceFileName = EspDir + '/' + Binary
-            with ZipFile(ZipFileName, 'r') as zipReader:
-                destFileName = os.path.join(platform, Binary)
-                info = ZipInfo(destFileName)
-                info.external_attr = 0o100755 << 16
-                zipObj.writestr(info, zipReader.read(sourceFileName))
+            EspDir = 'esptool-' + EsptoolVersion + '-' + platform
+            # Download and unzip from ESP repo
+            ZipFileName = EspDir + '.zip'
+            if not os.path.isfile(ZipFileName):
+                with urllib.request.urlopen(EspRepo + ZipFileName) as u:
+                    open(ZipFileName, 'wb').write(u.read())
+            for Binary in ['esptool']:
+                Binary += exeExtension[platform]
+                sourceFileName = EspDir + '/' + Binary
+                with ZipFile(ZipFileName, 'r') as zipReader:
+                    destFileName = os.path.join(platform, Binary)
+                    info = ZipInfo(destFileName)
+                    info.external_attr = 0o100755 << 16
+                    zipObj.writestr(info, zipReader.read(sourceFileName))
 
 sys.exit(0)
