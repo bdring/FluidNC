@@ -14,6 +14,8 @@ private:
 
     // Interval during which we ignore repeated control pin activations
     const int debounceUs = 10000;  // 10000 us = 10 ms
+    void IRAM_ATTR handleISR();
+    CreateISRHandlerFor(ControlPin, handleISR);
 
 public:
     const char* _legend;  // The name that appears in init() messages and the name of the configuration item
