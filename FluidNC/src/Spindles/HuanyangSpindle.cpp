@@ -220,91 +220,108 @@ namespace Spindles {
         data.msg[4] = 0x00;
         data.msg[5] = 0x00;
 
-        if (index == -1) {
-            // Max frequency
-            data.msg[3] = 5;  // PD005: max frequency the VFD will allow. Normally 400.
+        switch (index) {
+            case -1:
+                data.msg[3] = 5;  // PD005: max frequency the VFD will allow. Normally 400.
 
-            return [](const uint8_t* response, Spindles::VFD* vfd) -> bool {
-                uint16_t value = (response[4] << 8) | response[5];
+                return [](const uint8_t* response, Spindles::VFD* vfd) -> bool {
+                    uint16_t value = (response[4] << 8) | response[5];
 
-                // Set current RPM value? Somewhere?
-                auto huanyang           = static_cast<Huanyang*>(vfd);
-                huanyang->_maxFrequency = value;
-                return true;
-            };
-
-        } else if (index == -2) {
-            // Min Frequency
-            data.msg[3] = 11;  // PD011: frequency lower limit. Normally 0.
-
-            return [](const uint8_t* response, Spindles::VFD* vfd) -> bool {
-                uint16_t value = (response[4] << 8) | response[5];
-
-                // Set current RPM value? Somewhere?
-                auto huanyang           = static_cast<Huanyang*>(vfd);
-                huanyang->_minFrequency = value;
-
-                log_info(huanyang->name() << " PD005,PD011 Freq range (" << (huanyang->_minFrequency / 100) << ","
-                                          << (huanyang->_maxFrequency / 100) << ") Hz");
-                log_info(huanyang->name() << " RPM range (" << (huanyang->_minFrequency / 100 * 60) << ","
-                                          << (huanyang->_maxFrequency / 100 * 60) << ") RPM");
-
-                return true;
-            };
-        } else if (index == -3) {
-            // Max rated revolutions @ 50Hz
-
-            data.msg[3] = 144;  // PD144: max rated motor revolution at 50Hz => 24000@400Hz = 3000@50HZ
-
-            return [](const uint8_t* response, Spindles::VFD* vfd) -> bool {
-                uint16_t value = (response[4] << 8) | response[5];
-
-                // Set current RPM value? Somewhere?
-                auto huanyang           = static_cast<Huanyang*>(vfd);
-                huanyang->_maxRpmAt50Hz = value;
-
-                log_info(huanyang->name() << " PD144 Rated RPM @ 50Hz:" << huanyang->_maxRpmAt50Hz);
-
-                // Regarding PD144, the 2 versions of the manuals both say "This is set according to the
-                // actual revolution of the motor. The displayed value is the same as this set value. It
-                // can be used as a monitoring parameter, which is convenient to the user. This set value
-                // corresponds to the revolution at 50Hz".
-
-                // Calculate the VFD settings:
-                huanyang->updateRPM();
-
-                return true;
-            };
-        }
-
-        // The number of poles seems to be over constrained information with PD144. If we're wrong, here's how
-        // to get this information. Note that you probably have to call 'updateRPM' here then:
-        // --
-
-        else if (index == -4) {
-            // Number Poles
-            data.rx_length = 5;
-            data.msg[3]    = 143;  // PD143: 4 or 2 poles in motor. Default is 4. A spindle being 24000RPM@400Hz implies 2 poles
-
-            return [](const uint8_t* response, Spindles::VFD* vfd) -> bool {
-                uint8_t value    = response[4];  // Single byte response.
-                auto    huanyang = static_cast<Huanyang*>(vfd);
-                // Sanity check. We expect something like 2 or 4 poles.
-                if (value <= 4 && value >= 2) {
                     // Set current RPM value? Somewhere?
+                    auto huanyang           = static_cast<Huanyang*>(vfd);
+                    huanyang->_maxFrequency = value;
+                    return true;
+                };
+                break;
+            case -2:
+                data.msg[3] = 11;  // PD011: frequency lower limit. Normally 0.
 
-                    huanyang->_numberPoles = value;
+                return [](const uint8_t* response, Spindles::VFD* vfd) -> bool {
+                    uint16_t value = (response[4] << 8) | response[5];
 
-                    log_info(huanyang->name() << " PD143 Poles:" << huanyang->_numberPoles);
+                    // Set current RPM value? Somewhere?
+                    auto huanyang           = static_cast<Huanyang*>(vfd);
+                    huanyang->_minFrequency = value;
 
+                    log_info(huanyang->name() << " PD005,PD011 Freq range (" << (huanyang->_minFrequency / 100) << ","
+                                              << (huanyang->_maxFrequency / 100) << ") Hz"
+                                              << " (" << (huanyang->_minFrequency / 100 * 60) << "," << (huanyang->_maxFrequency / 100 * 60)
+                                              << ") RPM");
+
+                    return true;
+                };
+                break;
+            case -3:
+                data.msg[3] = 144;  // PD144: max rated motor revolution at 50Hz => 24000@400Hz = 3000@50HZ
+
+                return [](const uint8_t* response, Spindles::VFD* vfd) -> bool {
+                    uint16_t value = (response[4] << 8) | response[5];
+
+                    // Set current RPM value? Somewhere?
+                    auto huanyang           = static_cast<Huanyang*>(vfd);
+                    huanyang->_maxRpmAt50Hz = value;
+
+                    log_info(huanyang->name() << " PD144 Rated RPM @ 50Hz:" << huanyang->_maxRpmAt50Hz);
+
+                    // Regarding PD144, the 2 versions of the manuals both say "This is set according to the
+                    // actual revolution of the motor. The displayed value is the same as this set value. It
+                    // can be used as a monitoring parameter, which is convenient to the user. This set value
+                    // corresponds to the revolution at 50Hz".
+
+                    // Calculate the VFD settings:
                     huanyang->updateRPM();
 
                     return true;
-                } else {
-                    log_error(huanyang->name() << "  PD143 Poles: expected 2-4, got:" << value);
-                    return false;
-                }
-            };
+                };
+                break;
+            case -4:
+                data.rx_length = 5;
+                data.msg[3]    = 143;  // PD143: 4 or 2 poles in motor. Default is 4. A spindle being 24000RPM@400Hz implies 2 poles
+
+                return [](const uint8_t* response, Spindles::VFD* vfd) -> bool {
+                    uint8_t value    = response[4];  // Single byte response.
+                    auto    huanyang = static_cast<Huanyang*>(vfd);
+                    // Sanity check. We expect something like 2 or 4 poles.
+                    if (value <= 4 && value >= 2) {
+                        // Set current RPM value? Somewhere?
+
+                        huanyang->_numberPoles = value;
+
+                        log_info(huanyang->name() << " PD143 Poles:" << huanyang->_numberPoles);
+
+                        huanyang->updateRPM();
+
+                        return true;
+                    } else {
+                        log_error(huanyang->name() << "  PD143 Poles: expected 2-4, got:" << value);
+                        return false;
+                    }
+                };
+                break;
+            case -5:
+                data.msg[3] = 14;  // Accel value displayed is X.X
+
+                return [](const uint8_t* response, Spindles::VFD* vfd) -> bool {
+                    uint16_t value = (response[4] << 8) | response[5];
+
+                    auto huanyang = static_cast<Huanyang*>(vfd);
+                    log_info(huanyang->name() << " PD014 Accel:" << float(value) / 10.0);
+                    return true;
+                };
+                break;
+            case -6:
+                data.msg[3] = 15;  // Decel alue displayed is X.X
+
+                return [](const uint8_t* response, Spindles::VFD* vfd) -> bool {
+                    uint16_t value = (response[4] << 8) | response[5];
+
+                    auto huanyang = static_cast<Huanyang*>(vfd);
+                    log_info(huanyang->name() << " PD015 Decel:" << float(value) / 10.0);
+                    return true;
+                };
+                break;
+            default:
+                break;
         }
 
         // Done.
