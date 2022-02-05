@@ -54,7 +54,7 @@ axes:
       feed_scaler: 1.100
 
     motor0:
-      limit_neg_pin: gpio.32
+      limit_neg_pin: NO_PIN
       limit_pos_pin: NO_PIN
       limit_all_pin: NO_PIN
       hard_limits: false
@@ -92,7 +92,12 @@ axes:
         step_pin: I2SO.10
         direction_pin: I2SO.9
         disable_pin: I2SO.8
-        
+      
+control:
+  safety_door_pin: gpio.2
+  reset_pin: gpio.25
+  feed_hold_pin: gpio.39
+  cycle_start_pin: gpio.36
 
 i2so:
   bck_pin: gpio.22
@@ -109,7 +114,7 @@ sdcard:
   cs_pin: gpio.5
 
 start:
-  must_home: false
+  must_home: true
   
 oled_ss1306:
   sda_pin: gpio.14
