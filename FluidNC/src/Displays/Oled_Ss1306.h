@@ -24,6 +24,8 @@ namespace Displays {
         void config_message() override;
 
         static void update(void* pvParameters);
+        static void update_64x48();
+        static void update_128x64();
         static void radioInfo();
         static void DRO();
         static void draw_checkbox(int16_t x, int16_t y, int16_t width, int16_t height, bool checked);

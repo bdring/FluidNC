@@ -15,6 +15,7 @@
 #include <SSD1306Wire.h>
 
 static TaskHandle_t oledUpdateTaskHandle = 0;
+static int          geo                  = 0;
 
 namespace Displays {
 
@@ -36,12 +37,26 @@ namespace Displays {
             return;
         }
 
-        // change geometry to emun and test
+        if (_geometry != GEOMETRY_128_64 && _geometry != GEOMETRY_64_48) {
+            log_info("Display geometry value invalid (0,2)");
+            return;
+        }
 
         pinnum_t sda = _sda_pin.getNative(Pin::Capabilities::Output | Pin::Capabilities::Native);
         pinnum_t scl = _scl_pin.getNative(Pin::Capabilities::Output | Pin::Capabilities::Native);
 
-        oled = new SSD1306Wire(0x3c, sda, scl, GEOMETRY_128_64, I2C_ONE, 400000);
+        geo = _geometry;  // copy to static
+
+        switch (_geometry) {
+            case GEOMETRY_128_64:
+                oled = new SSD1306Wire(0x3c, sda, scl, GEOMETRY_128_64, I2C_ONE, 400000);
+                break;
+            case GEOMETRY_64_48:
+                oled = new SSD1306Wire(0x3c, sda, scl, GEOMETRY_64_48, I2C_ONE, 400000);
+                break;
+            default:
+                break;
+        }
 
         oled->init();
 
@@ -60,7 +75,9 @@ namespace Displays {
                 break;
             case GEOMETRY_64_48:
                 // The initial circle is a good indication of a recent reboot
-                oled->fillCircle(32, 24, 10);
+                oled->setFont(ArialMT_Plain_16);
+                oled->drawString(0, 0, "STARTING");
+                oled->drawString(0, 20, "FluidNC");
                 break;
             default:
                 break;
@@ -92,48 +109,79 @@ namespace Displays {
         vTaskDelay(2500);
 
         while (true) {
-            uint16_t file_ticker = 0;
             oled->clear();
-
-            String state_string = "";
-
-            oled->setTextAlignment(TEXT_ALIGN_LEFT);
-            oled->setFont(ArialMT_Plain_16);
-            oled->drawString(0, 0, state_name());
-
-            if (infile) {
-                oled->clear();
-                oled->setTextAlignment(TEXT_ALIGN_CENTER);
-                oled->setFont(ArialMT_Plain_10);
-                state_string = "File";
-                for (int i = 0; i < file_ticker % 10; i++) {
-                    state_string += ".";
-                }
-                file_ticker++;
-                oled->drawString(63, 0, state_string);
-
-                oled->drawString(63, 12, infile->path());
-
-                int progress = infile->percent_complete();
-                // draw the progress bar
-                oled->drawProgressBar(0, 45, 120, 10, progress);
-
-                // draw the percentage as String
-                oled->setFont(ArialMT_Plain_10);
-                oled->setTextAlignment(TEXT_ALIGN_CENTER);
-                oled->drawString(64, 25, String(progress) + "%");
-                xOledInterval = 250;
-            } else if (sys.state == State::Alarm) {
-                radioInfo();
-                xOledInterval = 1000;
-            } else {
-                DRO();
-                radioInfo();
-                xOledInterval = 1000;
+            switch (geo) {
+                case GEOMETRY_128_64:
+                    update_128x64();
+                    break;
+                case GEOMETRY_64_48:
+                    update_64x48();
+                    break;
+                default:
+                    break;
             }
+
             oled->display();
 
             vTaskDelay(xOledInterval);
+        }
+    }
+
+    void Oled_Ss1306::update_64x48() {
+        String state_string = "File:";
+
+        if (!infile) {
+            state_string = state_name();
+        }
+        oled->setTextAlignment(TEXT_ALIGN_LEFT);
+        oled->setFont(ArialMT_Plain_16);
+        oled->drawString(0, 0, state_string);
+
+        if (infile) {
+            int progress = infile->percent_complete();
+            oled->drawProgressBar(0, 18, 32, 10, progress);
+            // draw the percentage as String
+            oled->setFont(ArialMT_Plain_10);
+            oled->setTextAlignment(TEXT_ALIGN_CENTER);
+            oled->drawString(40, 18, String(progress) + "%");
+        } else {
+            radioInfo();
+        }
+    }
+
+    void Oled_Ss1306::update_128x64() {
+        uint16_t file_ticker  = 0;
+        String   state_string = "";
+
+        oled->setTextAlignment(TEXT_ALIGN_LEFT);
+        oled->setFont(ArialMT_Plain_16);
+        oled->drawString(0, 0, state_name());
+
+        if (infile) {
+            oled->clear();
+            oled->setTextAlignment(TEXT_ALIGN_CENTER);
+            oled->setFont(ArialMT_Plain_10);
+            state_string = "File";
+            for (int i = 0; i < file_ticker % 10; i++) {
+                state_string += ".";
+            }
+            file_ticker++;
+            oled->drawString(63, 0, state_string);
+
+            oled->drawString(63, 12, infile->path());
+
+            int progress = infile->percent_complete();
+            oled->drawProgressBar(0, 45, 120, 10, progress);
+
+            // draw the percentage as String
+            oled->setFont(ArialMT_Plain_10);
+            oled->setTextAlignment(TEXT_ALIGN_CENTER);
+            oled->drawString(64, 25, String(progress) + "%");
+        } else if (sys.state == State::Alarm) {
+            radioInfo();
+        } else {
+            DRO();
+            radioInfo();
         }
     }
 
@@ -165,21 +213,35 @@ namespace Displays {
             radio_name = "Radio Mode:Disabled";
         }
 
-        oled->setTextAlignment(TEXT_ALIGN_LEFT);
-        oled->setFont(ArialMT_Plain_10);
+        if (geo == GEOMETRY_128_64) {
+            oled->setTextAlignment(TEXT_ALIGN_LEFT);
+            oled->setFont(ArialMT_Plain_10);
 
-        if (sys.state == State::Alarm) {  // print below Alarm:
-            oled->drawString(0, 18, radio_name);
-            oled->drawString(0, 30, radio_addr);
+            if (sys.state == State::Alarm) {  // print below Alarm:
+                oled->drawString(0, 18, radio_name);
+                oled->drawString(0, 30, radio_addr);
 
-        } else {  // print next to status
+            } else {  // print next to status
 #ifdef ENABLE_BLUETOOTH
-            oled->drawString(55, 2, radio_name);
+                oled->drawString(55, 2, radio_name);
+#else
+                if (WiFi.getMode() == WIFI_MODE_NULL) {  // $Wifi/Mode=Off
+                    oled->drawString(55, 2, radio_name);
+                } else {
+                    oled->drawString(55, 2, radio_addr);
+                }
+#endif
+            }
+        } else if (geo == GEOMETRY_64_48) {
+            oled->setTextAlignment(TEXT_ALIGN_LEFT);
+            oled->setFont(ArialMT_Plain_16);
+#ifdef ENABLE_BLUETOOTH
+            oled->drawString(30, 2, radio_name);
 #else
             if (WiFi.getMode() == WIFI_MODE_NULL) {  // $Wifi/Mode=Off
-                oled->drawString(55, 2, radio_name);
+                oled->drawString(2, 18, radio_name);
             } else {
-                oled->drawString(55, 2, radio_addr);
+                oled->drawString(2, 18, radio_addr);
             }
 #endif
         }
