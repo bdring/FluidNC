@@ -16,6 +16,7 @@ namespace Displays {
         Pin      _scl_pin;
         uint32_t _addr     = 0x3c;
         String   _geometry = "128x64";
+        bool     _flip     = false;
 
     public:
         void init() override;
@@ -27,6 +28,7 @@ namespace Displays {
             handler.item("scl_pin", _scl_pin);
             handler.item("address", _addr);
             handler.item("geometry", _geometry);
+            handler.item("flip", _flip);
         }
 
         virtual ~Oled_Ss1306() {}

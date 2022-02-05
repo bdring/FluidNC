@@ -110,21 +110,15 @@ sdcard:
 
 start:
   must_home: false
-
-PWM:
-  pwm_hz: 5000
-  output_pin: gpio.14
-  enable_pin: gpio.13
-  direction_pin: NO_PIN
-  disable_with_s0: false
-  s0_with_disable: true
-  spinup_ms: 1000
-  spindown_ms: 1000
-  tool_num: 0
-  speed_map: 0=0.000% 1000=100.000%
-  
   
 oled_ss1306:
-  sda_pin:NO_PIN
-  scl_pin:NO_PIN
+  sda_pin: gpio.14
+  scl_pin: gpio.13
+  address: 60
+  geometry: 128x64
+  flip: true
+
+
+  
+
   
