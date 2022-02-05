@@ -58,6 +58,7 @@ namespace Machine {
         handler.item("use_line_numbers", _useLineNumbers);
 
         Spindles::SpindleFactory::factory(handler, _spindles);
+        Displays::DisplayFactory::factory(handler, _displays);
     }
 
     void MachineConfig::afterParse() {

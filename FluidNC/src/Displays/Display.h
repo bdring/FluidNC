@@ -16,10 +16,14 @@ namespace Displays {
     class Display : public Configuration::Configurable {
     public:
         virtual void init();
+        virtual void config_message() = 0;
         virtual void status_changed(); // future pushed notification
         void         afterParse() override;
 
         uint32_t _refresh_ms = 100;
+
+        // Name is required for the configuration factory to work.
+        virtual const char* name() const = 0;
 
         void group(Configuration::HandlerBase& handler) override { handler.item("refresh_ms", _refresh_ms); }
 
