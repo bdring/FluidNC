@@ -36,6 +36,8 @@ namespace Displays {
             return;
         }
 
+        // change geometry to emun and test
+
         pinnum_t sda = _sda_pin.getNative(Pin::Capabilities::Output | Pin::Capabilities::Native);
         pinnum_t scl = _scl_pin.getNative(Pin::Capabilities::Output | Pin::Capabilities::Native);
 
@@ -46,14 +48,23 @@ namespace Displays {
         if (_flip)
             oled->flipScreenVertically();
 
+        oled->clear();
         oled->setTextAlignment(TEXT_ALIGN_LEFT);
 
-        oled->clear();
-
-        oled->setFont(ArialMT_Plain_16);
-        oled->drawString(0, 0, "STARTING");
-        oled->setFont(ArialMT_Plain_24);
-        oled->drawString(0, 20, "FluidNC");
+        switch (_geometry) {
+            case GEOMETRY_128_64:
+                oled->setFont(ArialMT_Plain_16);
+                oled->drawString(0, 0, "STARTING");
+                oled->setFont(ArialMT_Plain_24);
+                oled->drawString(0, 20, "FluidNC");
+                break;
+            case GEOMETRY_64_48:
+                // The initial circle is a good indication of a recent reboot
+                oled->fillCircle(32, 24, 10);
+                break;
+            default:
+                break;
+        }
 
         oled->display();
 

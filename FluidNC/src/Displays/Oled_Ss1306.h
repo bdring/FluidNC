@@ -15,7 +15,7 @@ namespace Displays {
         Pin      _sda_pin;
         Pin      _scl_pin;
         uint32_t _addr     = 0x3c;
-        String   _geometry = "128x64";
+        int      _geometry = 0;
         bool     _flip     = false;
 
     public:
@@ -34,13 +34,13 @@ namespace Displays {
             handler.item("address", _addr);
             handler.item("geometry", _geometry);
             handler.item("flip", _flip);
-            }
+        }
 
-            virtual ~Oled_Ss1306() {}
+        virtual ~Oled_Ss1306() {}
 
-            // Name of the configurable. Must match the name registered in the cpp file.
-            const char* name() const override { return "oled_ss1306"; }
+        // Name of the configurable. Must match the name registered in the cpp file.
+        const char* name() const override { return "oled_ss1306"; }
 
-        protected:
-        };
+    protected:
+    };
 }
