@@ -19,6 +19,21 @@
 // Forward declarations:
 class String;
 
+// Yuck, yuck, yuck... apparently we can't create a template with an IRAM_ATTR, because GCC refuses to obide
+// by the attributes. In other words, _all_ templates are out when using an ISR! This define makes an anonymous
+// method in the class, which can be used to wrap a single function. It can then be used by running the attachInterrupt
+// with ISRHandler.
+//
+// Usage:
+// - In header file (private / protected members) or in cpp file in anonymous namespace (public members) 
+//   CreateISRHandlerFor(LimitPin, handleISR);
+// - When attaching an ISR: _pin.attachInterrupt(ISRHandler, CHANGE, this);
+//
+// I'd rather not use any defines, but templates... but apparently there's no choice here. Let's just make it as safe
+// as possible...
+#define CreateISRHandlerFor(className, methodName)                                                                                         \
+    static void IRAM_ATTR ISRHandler(void* data) { static_cast<className*>(data)->methodName(); }
+
 // Pin class. A pin is basically a thing that can 'output', 'input' or do both. GPIO on an ESP32 comes to mind,
 // but there are way more possible pins. Think about I2S/I2C/SPI extenders, RS485 driven pin devices and even
 // WiFi wall sockets.
@@ -38,17 +53,21 @@ class String;
 // one-stop-go-to-shop for an pin.
 class Pin {
     // Helper for handling callbacks and mapping them to the proper class:
-    template <typename ThisType, void (ThisType::*Callback)()>
-    struct InterruptCallbackHelper {
-        static void IRAM_ATTR callback(void* ptr) { (static_cast<ThisType*>(ptr)->*Callback)(); }
-    };
+    //
+    // Take note: this is placing the code in FLASH instead of IRAM, like it should. Use the #define's above
+    // until this is fixed!
+
+    // template <typename ThisType, void (ThisType::*Callback)()>
+    // struct InterruptCallbackHelper {
+    //     static void IRAM_ATTR callback(void* ptr) { (static_cast<ThisType*>(ptr)->*Callback)(); }
+    // };
 
     // Helper for handling callbacks and mapping them to the proper class. This one is just meant
     // for backward compatibility:
-    template <void (*Callback)()>
-    struct InterruptCallbackHelper2 {
-        static void IRAM_ATTR callback(void* /*ptr*/) { Callback(); }
-    };
+    // template <void (*Callback)()>
+    // struct InterruptCallbackHelper2 {
+    //     static void IRAM_ATTR callback(void* /*ptr*/) { Callback(); }
+    // };
 
     // The undefined pin and error pin are two special pins. Error pins always throw an error when they are used.
     // These are useful for unit testing, and for initializing pins that _always_ have to be defined by a user
@@ -103,7 +122,7 @@ public:
     // External libraries normally use digitalWrite, digitalRead and setMode. Since we cannot handle that behavior, we
     // just give back the pinnum_t for getNative.
     inline pinnum_t getNative(Capabilities expectedBehavior) const {
-        Assert(_detail->capabilities().has(expectedBehavior), "Requested pin %s does not have the expected behavior.",name().c_str());
+        Assert(_detail->capabilities().has(expectedBehavior), "Requested pin %s does not have the expected behavior.", name().c_str());
         return _detail->_index;
     }
 
@@ -122,11 +141,6 @@ public:
     static Pin Error() { return Pin(errorPin); }
 
     // ISR handlers. Map methods on 'this' types.
-
-    template <typename ThisType, void (ThisType::*Callback)()>
-    void attachInterrupt(ThisType* arg, int mode) {
-        _detail->attachInterrupt(InterruptCallbackHelper<ThisType, Callback>::callback, arg, mode);
-    }
 
     // Backward compatibility ISR handler:
     void attachInterrupt(void (*callback)(void*), int mode, void* arg = nullptr) const { _detail->attachInterrupt(callback, arg, mode); }
