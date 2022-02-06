@@ -17,7 +17,7 @@ extern "C" {
 }
 
 class FileStream : public Channel {
-    bool   _isSD;
+    bool   _isSD = false;
     FILE*  _fd;
     String _path;
 
