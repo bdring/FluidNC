@@ -34,7 +34,7 @@ namespace MotorDrivers {
 
     uint8_t MotorDrivers::Dynamixel2::_dxl_rx_message[50] = {};  // received from dynamixel
 
-    bool    MotorDrivers::Dynamixel2::_uart_started      = false;
+    bool MotorDrivers::Dynamixel2::_uart_started = false;
 
     void Dynamixel2::init() {
         _has_errors = false;  // Initially assume okay
@@ -74,9 +74,7 @@ namespace MotorDrivers {
         startUpdateTask(_timer_ms);
     }
 
-    void Dynamixel2::config_message() {
-        log_info("    " << name() << " id::" << _id << " Count(" << _countMin << "," << _countMax << ")");
-    }
+    void Dynamixel2::config_message() { log_info("    " << name() << " id::" << _id << " Count(" << _countMin << "," << _countMax << ")"); }
 
     bool Dynamixel2::test() {
         uint16_t len = 3;
@@ -127,7 +125,9 @@ namespace MotorDrivers {
         }
 
         if (_disabled) {
-            dxl_read_position();
+            // TO DO need to properly time this. Currently it would read too fast.
+            // Needs delay between reads or bulk read.
+            //dxl_read_position();
         } else {
             if (_id == _last_id) {  // from a LIFO List
                 // initialize message
