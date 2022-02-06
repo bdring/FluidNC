@@ -11,10 +11,12 @@
 namespace Displays {
 
     enum UpdateType {
-        Mode    = 0,
-        Network = 1,
-        Gcode   = 2,
-        Message = 3,
+        Mode    = 0,  // mode changes
+        Network = 1,  // network changes
+        Gcode   = 2,  // print GCode
+        Message = 3,  // Message Info
+        Alarm   = 4,  // Alarm Info
+        Error   = 5,  // Error info
     };
 
     class Display;
