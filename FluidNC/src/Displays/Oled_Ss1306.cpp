@@ -127,7 +127,7 @@ namespace Displays {
 
     void Oled_Ss1306::update(UpdateType t, String s = "") {
         switch (t) {
-            case UpdateType::Mode:
+            case UpdateType::SysState:
                 oled->clear();
                 switch (geo) {
                     case GEOMETRY_128_64:

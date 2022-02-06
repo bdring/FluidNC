@@ -11,12 +11,18 @@
 namespace Displays {
 
     enum UpdateType {
-        Mode    = 0,  // mode changes
-        Network = 1,  // network changes
-        Gcode   = 2,  // print GCode
-        Message = 3,  // Message Info
-        Alarm   = 4,  // Alarm Info
-        Error   = 5,  // Error info
+        SysState     = 0,  // State changes
+        Network      = 1,  // network changes
+        Gcode        = 2,  // GCode Processed
+        Message      = 3,  // Message Info
+        Alarm        = 4,  // Alarm Info
+        Error        = 5,  // Error info
+        Override     = 6,  // Override Changes
+        GsModeChange = 7,  // Gc mode ($G stuff) change
+        SdCard       = 8,  // SD Card event
+        LocalFSEvent = 9,
+        SwitchState  = 10,
+        ConfigEvent  = 11,
     };
 
     class Display;
