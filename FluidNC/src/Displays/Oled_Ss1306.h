@@ -23,7 +23,8 @@ namespace Displays {
 
         void config_message() override;
 
-        static void update(void* pvParameters);
+        static void timed_update(void* pvParameters);
+        void        update(UpdateType foo, String s) override;
         static void update_64x48();
         static void update_128x64();
         static void radioInfo();

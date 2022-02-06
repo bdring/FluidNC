@@ -87,7 +87,7 @@ namespace Displays {
 
         config_message();
 
-        xTaskCreatePinnedToCore(update,            // task
+        xTaskCreatePinnedToCore(timed_update,      // task
                                 "oledUpdateTask",  // name for task
                                 4096,              // size of task stack
                                 NULL,              // parameters
@@ -103,7 +103,7 @@ namespace Displays {
         log_info("Display: " << name() << " sda:" << _sda_pin.name() << " scl:" << _scl_pin.name() << " goemetry:" << _geometry);
     }
 
-    void Oled_Ss1306::update(void* pvParameters) {
+    void Oled_Ss1306::timed_update(void* pvParameters) {
         TickType_t xOledInterval = 1000;  // in ticks (typically ms)
 
         vTaskDelay(2500);
@@ -120,10 +120,29 @@ namespace Displays {
                 default:
                     break;
             }
-
             oled->display();
-
             vTaskDelay(xOledInterval);
+        }
+    }
+
+    void Oled_Ss1306::update(UpdateType t, String s = "") {
+        switch (t) {
+            case UpdateType::Mode:
+                oled->clear();
+                switch (geo) {
+                    case GEOMETRY_128_64:
+                        update_128x64();
+                        break;
+                    case GEOMETRY_64_48:
+                        update_64x48();
+                        break;
+                    default:
+                        break;
+                }
+                oled->display();
+                break;
+                default:
+                    break;
         }
     }
 

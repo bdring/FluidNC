@@ -9,6 +9,14 @@
 #include "../Configuration/GenericFactory.h"
 
 namespace Displays {
+
+    enum UpdateType {
+        Mode    = 0,
+        Network = 1,
+        Gcode   = 2,
+        Message = 3,
+    };
+
     class Display;
     using DisplayList = std::vector<Display*>;
 
@@ -17,8 +25,9 @@ namespace Displays {
     public:
         virtual void init();
         virtual void config_message() = 0;
-        virtual void status_changed(); // future pushed notification
+        virtual void status_changed();  // future pushed notification
         void         afterParse() override;
+        virtual void update(UpdateType t, String s);
 
         uint32_t _refresh_ms = 100;
 

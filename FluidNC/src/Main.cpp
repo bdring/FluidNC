@@ -37,8 +37,6 @@ void setup() {
 
         WebUI::WiFiConfig::reset();
 
-        display_init();
-
         // Load settings from non-volatile storage
         settings_init();  // requires config
 
@@ -111,7 +109,6 @@ void setup() {
             }
             Spindles::Spindle::switchSpindle(0, config->_spindles, spindle);
 
-            
             for (auto disp : config->_displays) {
                 disp->init();
             }

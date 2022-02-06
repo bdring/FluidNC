@@ -522,7 +522,9 @@ namespace WebUI {
                     return false;
                 case WL_CONNECTED:
                     log_info("Connected - IP is " << WiFi.localIP().toString());
-                    display("IP", WiFi.localIP().toString());
+                    for (auto d : config->_displays) {
+                        d->update(Displays::UpdateType::Network, WiFi.localIP().toString());
+                    }
                     return true;
                 default:
                     if ((dot > 3) || (dot == 0)) {
@@ -635,7 +637,9 @@ namespace WebUI {
         //Start AP
         if (WiFi.softAP(SSID.c_str(), (password.length() > 0) ? password.c_str() : NULL, channel)) {
             log_info("AP started");
-            display("IP", ip.toString());
+            for (auto d : config->_displays) {
+                d->update(Displays::UpdateType::Network, ip.toString());
+            }
             return true;
         }
 
