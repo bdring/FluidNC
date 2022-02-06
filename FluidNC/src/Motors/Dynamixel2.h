@@ -21,12 +21,11 @@ namespace MotorDrivers {
 
         void set_location();
 
-        uint8_t _id;
-        char    _dxl_tx_message[50];  // outgoing to dynamixel
-        uint8_t _dxl_rx_message[50];  // received from dynamixel
+        uint8_t        _id;
+        uint8_t        _dxl_tx_message[50];  // outgoing to dynamixel
+        static uint8_t _dxl_rx_message[50];  // received from dynamixel
 
         bool     test();
-        uint16_t dxl_get_response(uint16_t length);
         uint32_t dxl_read_position();
         void     dxl_read(uint16_t address, uint16_t data_len);
         void     dxl_write(uint16_t address, uint8_t paramCount, ...);
@@ -34,19 +33,23 @@ namespace MotorDrivers {
         void     set_operating_mode(uint8_t mode);
         void     LED_on(bool on);
 
-        static void     dxl_finish_message(uint8_t id, char* msg, uint16_t msg_len);
-        static uint16_t dxl_update_crc(uint16_t crc_accum, char* data_blk_ptr, uint8_t data_blk_size);
-        void            dxl_bulk_goal_position();
+        static void     dxl_finish_message(uint8_t id, uint8_t* msg, uint16_t msg_len);
+        static uint16_t dxl_get_response(uint16_t length);
+        static uint16_t dxl_update_crc(uint16_t crc_accum, uint8_t* data_blk_ptr, uint8_t data_blk_size);
 
-        float _homing_position;
+        // static things for the bulk position command (set all axes at one time)
+        static void    init_bulk_message();
+        void           add_to_bulk_message();
+        static void    send_bulk_message();
+        static uint8_t bulk_message[100];
+        static uint8_t bulk_message_index;
 
-        float _dxl_count_min;
-        float _dxl_count_max;
+        int _axis_index;
 
-        int  _axis_index;
-        bool _invert_direction = false;
-
-        Uart* _uart = nullptr;
+        static Uart*   _uart;
+        bool           _my_uart = false;
+        static uint8_t _first_id;
+        static uint8_t _last_id;
 
         static bool _uart_started;
 
@@ -91,16 +94,12 @@ namespace MotorDrivers {
     public:
         Dynamixel2() : _id(255), _disabled(true), _has_errors(true) {}
 
-        String idString() { return "Dynamixel Servo ID " + _id; }
-
         // Overrides for inherited methods
         void init() override;
         void read_settings() override;
         bool set_homing_mode(bool isHoming) override;
         void set_disable(bool disable) override;
         void update() override;
-
-        static uint8_t ids[MAX_N_AXIS][2];
 
         // Configuration handlers:
         void validate() const override {
@@ -110,15 +109,23 @@ namespace MotorDrivers {
         }
 
         void group(Configuration::HandlerBase& handler) override {
-            handler.item("invert_direction", _invert_direction);
+            handler.item("id", _id);
 
             handler.item("count_min", _countMin);
             handler.item("count_max", _countMax);
-            handler.section("uart", _uart);
 
-            int id = _id;
-            handler.item("id", id);
-            _id = id;
+            if (_uart == nullptr) {
+                // If _uart is null this must be the parsing phase
+                handler.section("uart", _uart);
+                // If we just defined _uart, record that this is the enclosing instance
+                if (_uart != nullptr) {
+                    _my_uart = true;
+                }
+            } else if (_my_uart) {
+                // _uart is already defined and this is the enclosing instance, so we
+                // handle the uart section in a non-parsing phase
+                handler.section("uart", _uart);
+            }
         }
 
         // Name of the configurable. Must match the name registered in the cpp file.
