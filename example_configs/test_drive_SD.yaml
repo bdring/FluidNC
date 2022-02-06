@@ -35,15 +35,6 @@ spi:
   mosi_pin: NO_PIN
   sck_pin: NO_PIN
 
-control:
-  safety_door: NO_PIN
-  reset: NO_PIN
-  feed_hold: NO_PIN
-  cycle_start: NO_PIN
-  macro0: NO_PIN
-  macro1: NO_PIN
-  macro2: NO_PIN
-  macro3: NO_PIN
 
 probe:
   pin: NO_PIN
@@ -56,20 +47,6 @@ macros:
   macro1:
   macro2:
   macro3:
-
-user_outputs:
-  analog0: NO_PIN
-  analog1: NO_PIN
-  analog2: NO_PIN
-  analog3: NO_PIN
-  analog0_hz: 5000
-  analog1_hz: 5000
-  analog2_hz: 5000
-  analog3_hz: 5000
-  digital0: NO_PIN
-  digital1: NO_PIN
-  digital2: NO_PIN
-  digital3: NO_PIN
 
 sdcard:
   card_detect_pin: NO_PIN
