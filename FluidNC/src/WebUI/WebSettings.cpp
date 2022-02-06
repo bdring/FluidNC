@@ -245,11 +245,7 @@ namespace WebUI {
 
         try {
             infile = new InputFile(fs, path.c_str(), auth_level, out);
-        } catch (Error err) {
-            report_status_message(err, out);
-            out << "" << '\n';
-            return err;
-        }
+        } catch (Error err) { return err; }
         return Error::Ok;
     }
 
