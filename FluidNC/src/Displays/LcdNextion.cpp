@@ -12,7 +12,7 @@
 #include "../Limits.h"  // limits_get_state
 
 static TaskHandle_t lcdUpdateTaskHandle = 0;
-static int          geo                  = 0;
+static int          geo                 = 0;
 
 namespace Displays {
 
@@ -20,6 +20,7 @@ namespace Displays {
 
     void LcdNextion::init() {
         config_message();
+        _uart->config_message("  lcd_nextion", " ");
 
         xTaskCreatePinnedToCore(timed_update,         // task
                                 "nextionUpdateTask",  // name for task
@@ -33,7 +34,7 @@ namespace Displays {
     }
 
     // prints the startup message of the spindle config
-    void LcdNextion ::config_message() {}
+    void LcdNextion ::config_message() { log_info("Display: " << name()); }
 
     void LcdNextion::timed_update(void* pvParameters) {
         TickType_t xLcdInterval = 1000;  // in ticks (typically ms)

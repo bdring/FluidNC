@@ -111,3 +111,9 @@ start:
   must_home: true
   
 lcd_nextion:
+  model_code: 0
+  uart:
+    txd_pin: gpio.13
+    rxd_pin: gpio.14
+    baud: 1000000
+    mode: 8N1
