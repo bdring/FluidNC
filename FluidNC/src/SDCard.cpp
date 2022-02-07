@@ -64,6 +64,9 @@ SDCard::State SDCard::test_or_open(bool refresh) {
 }
 
 SDCard::State SDCard::begin(SDCard::State newState) {
+    if (newState != SDCard::State::Idle && _state > SDCard::State::Idle) {
+        return _state;
+    }
     SDCard::State oldState = test_or_open(true);
     if (oldState == SDCard::State::Idle) {
         _state = newState;

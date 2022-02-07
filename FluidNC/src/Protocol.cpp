@@ -504,8 +504,6 @@ static void protocol_do_initiate_cycle() {
         sys.state         = State::Cycle;
         Stepper::prep_buffer();  // Initialize step segment buffer before beginning cycle.
         Stepper::wake_up();
-        // Make sure the steppers can't be scheduled for a shutdown while this cycle is running.
-        protocol_cancel_disable_steppers();
     } else {                    // Otherwise, do nothing. Set and resume IDLE state.
         sys.suspend.value = 0;  // Break suspend state.
         sys.state         = State::Idle;
