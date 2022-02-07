@@ -1,7 +1,5 @@
 #include "Oled_Ss1306.h"
 
-#include "../Main.h"  // display_init()
-
 #include "../Machine/MachineConfig.h"
 #include "WiFi.h"
 #include "../WebUI/WebSettings.h"
