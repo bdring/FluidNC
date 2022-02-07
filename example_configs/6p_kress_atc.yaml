@@ -198,13 +198,14 @@ kress_atc:
   tool_num: 0
   speed_map: 0=0.000% 0=100.000% 1=100.000%
   
-Laser:
-  pwm_hz: 5000
+relay:
   output_pin: gpio.27
   enable_pin: NO_PIN
+  direction_pin: NO_PIN
   disable_with_s0: false
   s0_with_disable: true
-  tool_num: 5
-  speed_map: 0=0.000% 255=100.000%
-  offset_mm: 5.0 -5.0 -8.0
+  spinup_ms: 0
+  spindown_ms: 0
+  tool_num: 100
+  speed_map: 0=0.000% 0=100.000% 1=100%
   
