@@ -36,6 +36,7 @@ void protocol_buffer_synchronize();
 
 // Disables the stepper motors or schedules it to happen
 void protocol_disable_steppers();
+void protocol_cancel_disable_steppers();
 
 extern volatile bool rtStatusReport;
 extern volatile bool rtCycleStart;

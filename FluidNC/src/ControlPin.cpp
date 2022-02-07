@@ -23,9 +23,9 @@ void ControlPin::init() {
         attr = attr | Pin::Attr::PullUp;
     }
     _pin.setAttr(attr);
-    _pin.attachInterrupt<ControlPin, &ControlPin::handleISR>(this, CHANGE);
+    _pin.attachInterrupt(ISRHandler, CHANGE, this);
     _rtVariable = false;
-    _value      = _pin.read();
+    _value                            = _pin.read();
     // Control pins must start in inactive state
     if (_value) {
         log_error(_legend << " pin is active at startup");

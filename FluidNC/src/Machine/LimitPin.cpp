@@ -95,7 +95,7 @@ namespace Machine {
             attr = attr | Pin::Attr::PullUp;
         }
         _pin.setAttr(attr);
-        _pin.attachInterrupt<LimitPin, &LimitPin::handleISR>(this, CHANGE);
+        _pin.attachInterrupt(ISRHandler, CHANGE, this);
 
         read();
     }

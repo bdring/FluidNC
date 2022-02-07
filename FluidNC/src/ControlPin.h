@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Pin.h"
+#include <esp_attr.h>  // IRAM_ATTR
 
 class ControlPin {
 private:
@@ -9,7 +10,8 @@ private:
     volatile bool& _rtVariable;
     const char*    _legend;
 
-    void handleISR();
+    void IRAM_ATTR handleISR();
+    CreateISRHandlerFor(ControlPin, handleISR);
 
 public:
     ControlPin(volatile bool& rtVariable, const char* legend, char letter) :
