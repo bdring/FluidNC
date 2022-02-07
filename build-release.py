@@ -94,7 +94,7 @@ for platform in ['win64', 'macos', 'linux-amd64', 'linux-python3']:
         'linux-python3': '',
         'macos': ''
     }
-    withEsptool = {
+    withEsptoolBinary = {
         'win64': True,
         'linux-amd64': True,
         'linux-python3': False,
@@ -102,13 +102,13 @@ for platform in ['win64', 'macos', 'linux-amd64', 'linux-python3']:
     }
 
     zipFileName = os.path.join(relPath, 'fluidnc-' + tag + '-' + platform + '.zip')
-    
+
     with ZipFile(zipFileName, 'w') as zipObj:
         name = 'HOWTO-INSTALL.txt'
         zipObj.write(os.path.join(sharedPath, platform, name), name)
-    
+
         pioPath = os.path.join('.pio', 'build')
-    
+
         # Put bootloader binaries in the archive
         tools = os.path.join(os.path.expanduser('~'),'.platformio','packages','framework-arduinoespressif32','tools')
         bootloader = 'bootloader_dio_80m.bin'
@@ -132,7 +132,7 @@ for platform in ['win64', 'macos', 'linux-amd64', 'linux-python3']:
             objPath = os.path.join(pioPath, envName)
             for obj in ['firmware.bin','partitions.bin']:
                 zipObj.write(os.path.join(objPath, obj), os.path.join(envName, obj))
-            
+
             # E.g. macos/install-wifi.sh -> install-wifi.sh
             copyToZip(zipObj, platform, 'install-' + envName + scriptExtension[platform])
 
@@ -144,24 +144,32 @@ for platform in ['win64', 'macos', 'linux-amd64', 'linux-python3']:
         for obj in ['fluidterm.py', 'README.md']:
             fn = os.path.join('fluidterm', obj)
             zipObj.write(fn, fn)
-            
+
         if platform == 'win64':
             obj = 'fluidterm' + exeExtension[platform]
             zipObj.write(os.path.join('fluidterm', obj), os.path.join(platform, obj))
 
-        # Put esptool and related tools in the archive
-        if withEsptool[platform]:
-            EsptoolVersion = 'v3.1'
-            EspRepo = 'https://github.com/espressif/esptool/releases/download/' + EsptoolVersion + '/'
-            name = 'README-ESPTOOL.txt'
-            zipObj.write(os.path.join(sharedPath, name), os.path.join(platform, name))
+        EsptoolVersion = 'v3.1'
 
+        # Put esptool and related tools in the archive
+        if withEsptoolBinary[platform]:
+            name = 'README-ESPTOOL.txt'
+            EspRepo = 'https://github.com/espressif/esptool/releases/download/' + EsptoolVersion + '/'
             EspDir = 'esptool-' + EsptoolVersion + '-' + platform
-            # Download and unzip from ESP repo
-            ZipFileName = EspDir + '.zip'
-            if not os.path.isfile(ZipFileName):
-                with urllib.request.urlopen(EspRepo + ZipFileName) as u:
-                    open(ZipFileName, 'wb').write(u.read())
+        else:
+            name = 'README-ESPTOOL-SOURCE.txt'
+            EspRepo = 'https://github.com/espressif/esptool/archive/refs/tags/'
+            EspDir = EsptoolVersion
+
+        zipObj.write(os.path.join(sharedPath, name), os.path.join(platform, name))
+
+        # Download and unzip from ESP repo
+        ZipFileName = EspDir + '.zip'
+        if not os.path.isfile(ZipFileName):
+            with urllib.request.urlopen(EspRepo + ZipFileName) as u:
+                open(ZipFileName, 'wb').write(u.read())
+
+        if withEsptoolBinary[platform]:
             for Binary in ['esptool']:
                 Binary += exeExtension[platform]
                 sourceFileName = EspDir + '/' + Binary
@@ -170,5 +178,7 @@ for platform in ['win64', 'macos', 'linux-amd64', 'linux-python3']:
                     info = ZipInfo(destFileName)
                     info.external_attr = 0o100755 << 16
                     zipObj.writestr(info, zipReader.read(sourceFileName))
+        else:
+            zipObj.write(os.path.join(ZipFileName), os.path.join(platform, 'esptool-source.zip'))
 
 sys.exit(0)
