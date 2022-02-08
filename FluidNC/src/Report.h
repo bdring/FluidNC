@@ -103,8 +103,10 @@ void addPinReport(char* status, char pinLetter);
 
 #include "MyIOStream.h"
 
-void        mpos_to_wpos(float* position);
-const char* state_name();
+static float* get_wco();
+
+void          mpos_to_wpos(float* position);
+const char*   state_name();
 
 extern const char* grbl_version;
 extern const char* git_info;

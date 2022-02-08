@@ -62,11 +62,14 @@ namespace Spindles {
         uint32_t _spindown_ms = 0;
 
         int _tool = -1;
+        std::vector<float> _offset;
 
         std::vector<Configuration::speedEntry> _speeds;
 
         // ATC Stuff
-        virtual void atc_init() {}
+        virtual void atc_init() {}  //
+        virtual void activate();    //
+        virtual void deactivate();  //
 
         // preselect is used to notify the ATC of a pending tool change in case the ATC can prepare
         // for the futute M6.  This is done with M61, which is not parsed yet.
@@ -89,6 +92,7 @@ namespace Spindles {
                 handler.item("spindown_ms", _spindown_ms);
             }
             handler.item("tool_num", _tool);
+            handler.item("offset", _offset);
             handler.item("speed_map", _speeds);            
         }
 

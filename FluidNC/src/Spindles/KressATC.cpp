@@ -96,7 +96,7 @@ namespace Spindles {
             return false;
 
         if (new_tool > TOOL_COUNT) {
-            log_error("Exceeds tool count");
+            log_error(name() << ":Exceeds tool count");
             return false;
         }
 

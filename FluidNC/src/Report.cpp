@@ -426,7 +426,7 @@ void addPinReport(char* status, char pinLetter) {
     status[pos + 1] = '\0';
 }
 
-static float* get_wco() {
+float* get_wco() {
     static float wco[MAX_N_AXIS];
     auto         n_axis = config->_axes->_numberAxis;
     for (int idx = 0; idx < n_axis; idx++) {

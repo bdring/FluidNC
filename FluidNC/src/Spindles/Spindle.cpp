@@ -8,6 +8,10 @@
 
 #include "../System.h"  //sys.spindle_speed_ovr
 #include <esp32-hal.h>  // delay()
+#include "../Report.h"  // get_wco()
+#include "../Machine/MachineConfig.h"
+#include <string>
+#include <sstream>
 
 Spindles::Spindle* spindle = nullptr;
 
@@ -26,9 +30,11 @@ namespace Spindles {
             if (candidate != spindle) {
                 if (spindle != nullptr) {
                     spindle->stop();
+                    spindle->deactivate();
                 }
                 spindle = candidate;
                 log_info("Using spindle " << spindle->name());
+                spindle->activate();
             }
         } else {
             if (spindle == nullptr) {
@@ -39,7 +45,7 @@ namespace Spindles {
                 spindle = spindles[0];
             }
         }
-        
+
         spindle->tool_change(new_tool, false);
     }
 
@@ -208,4 +214,24 @@ namespace Spindles {
         _current_state = state;
         _current_speed = speed;
     }
+
+    void Spindle::activate() {
+        log_info(name() << ":Tool activated");
+
+        if (_offset.size() == 0)
+            return;
+
+        char report[200] = {};
+        char temp[20]    = {};
+
+        strcat(report, "G10 L2 P0");
+        for (int axis = 0; axis < config->_axes->_numberAxis; axis++) {
+            sprintf(temp, " %c%0.3f", config->_axes->axisName(axis), gc_state.coord_system[axis] - _offset.at(axis));
+            strcat(report, temp);
+        }
+
+        log_info(report);  // TODO actual execute it
+    }
+
+    void Spindle::deactivate() { log_info(name() << ":Tool deactivated"); }
 }
