@@ -282,7 +282,8 @@ static Error disable_alarm_lock(const char* value, WebUI::AuthenticationLevel au
             return err;
         }
         report_feedback_message(Message::AlarmUnlock);
-        sys.state = State::Idle;
+        //sys.state = State::Idle;
+        sys_setState(State::Idle);
         // Don't run startup script. Prevents stored moves in startup from causing accidents.
     }  // Otherwise, no effect.
     return Error::Ok;
@@ -316,7 +317,8 @@ static Error home(int cycle) {
         return Error::CheckDoor;  // Block if safety door is ajar.
     }
 
-    sys.state = State::Homing;  // Set system state variable
+    //sys.state = State::Homing;  // Set system state variable
+    sys_setState(State::Homing);
 
     config->_stepping->beginLowLatency();
 
@@ -325,7 +327,8 @@ static Error home(int cycle) {
     config->_stepping->endLowLatency();
 
     if (!sys.abort) {             // Execute startup scripts after successful homing.
-        sys.state = State::Idle;  // Set to IDLE when complete.
+        //sys.state = State::Idle;  // Set to IDLE when complete.
+        sys_setState(State::Idle);
         Stepper::go_idle();       // Set steppers to the settings idle state before returning.
         if (cycle == Machine::Homing::AllCycles) {
             settings_execute_startup();

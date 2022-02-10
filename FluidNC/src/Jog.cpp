@@ -30,7 +30,8 @@ Error jog_execute(plan_line_data_t* pl_data, parser_block_t* gc_block, bool* can
 
     if (sys.state == State::Idle) {
         if (plan_get_current_block() != NULL) {  // Check if there is a block to execute.
-            sys.state = State::Jog;
+            //sys.state = State::Jog;
+            sys_setState(State::Jog);
             Stepper::prep_buffer();
             Stepper::wake_up();  // NOTE: Manual start. No state machine required.
         }

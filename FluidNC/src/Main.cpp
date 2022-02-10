@@ -86,9 +86,11 @@ void setup() {
         if (sys.state != State::ConfigAlarm) {
             if (FORCE_INITIALIZATION_ALARM) {
                 // Force ALARM state upon a power-cycle or hard reset.
-                sys.state = State::Alarm;
+                //sys.state = State::Alarm;
+                sys_setState(State::Alarm);
             } else {
-                sys.state = State::Idle;
+                //sys.state = State::Idle;
+                sys_setState(State::Idle);
             }
 
             limits_init();
@@ -102,7 +104,8 @@ void setup() {
             // things uncontrollably. Very bad.
             if (config->_start->_mustHome && Machine::Axes::homingMask) {
                 // If there is an axis with homing configured, enter Alarm state on startup
-                sys.state = State::Alarm;
+                //sys.state = State::Alarm;
+                sys_setState(State::Alarm);
             }
             for (auto s : config->_spindles) {
                 s->init();
@@ -120,7 +123,8 @@ void setup() {
     } catch (const AssertionFailed& ex) {
         // This means something is terribly broken:
         log_error("Critical error in main_init: " << ex.what());
-        sys.state = State::ConfigAlarm;
+        //sys.state = State::ConfigAlarm;
+        sys_setState(State::ConfigAlarm);
     }
 
     WebUI::wifi_config.begin();
@@ -188,7 +192,8 @@ void loop() {
         // to avoid memory leaks. It is probably worth doing eventually.
         log_error("Critical error in run_once: " << ex.msg);
         log_error("Stacktrace: " << ex.stackTrace);
-        sys.state = State::ConfigAlarm;
+        //sys.state = State::ConfigAlarm;
+        sys_setState(State::ConfigAlarm);
     }
     // sys.abort is a user-initiated exit via ^x so we don't limit the number of occurrences
     if (!sys.abort && ++tries > 1) {

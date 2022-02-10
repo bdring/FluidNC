@@ -33,7 +33,7 @@ void channel_init();
 enum class Cmd : uint8_t {
     Reset                 = 0x18,  // Ctrl-X
     StatusReport          = '?',
-    CycleStart            = '~',
+    CycleStart            = '~',   // 126 0x7E
     FeedHold              = '!',
     SafetyDoor            = 0x84,
     JogCancel             = 0x85,
@@ -56,8 +56,7 @@ enum class Cmd : uint8_t {
     CoolantFloodOvrToggle = 0xA0,
     CoolantMistOvrToggle  = 0xA1,
 #ifdef DEBUG_STEPPING
-    TestPl = '^',
-    TestSt = '%',
+    TestPl = '^', TestSt = '%',
 #endif
 };
 

@@ -367,7 +367,8 @@ namespace Machine {
             }
             if (!someAxisHomed) {
                 log_error("No homing cycles defined");
-                sys.state = State::Alarm;
+                //sys.state = State::Alarm;
+                sys_setState(State::Alarm);
             }
         }
     }

@@ -31,6 +31,13 @@ void system_reset() {
     report_wco_counter = 0;
 }
 
+void sys_setState(State newState) {
+    sys.state = newState;
+    for (auto d : config->_displays) {
+        d->update(Displays::UpdateType::SysState, "");
+    }
+}
+
 float steps_to_mpos(int32_t steps, size_t axis) {
     return float(steps / config->_axes->_axis[axis]->_stepsPerMm);
 }

@@ -219,18 +219,22 @@ namespace Machine {
             }
 
         } catch (const Configuration::ParseException& ex) {
-            sys.state = State::ConfigAlarm;
+            //sys.state = State::ConfigAlarm;
+            sys_setState(State::ConfigAlarm);
             log_error("Configuration parse error: " << ex.What() << " Line " << ex.LineNumber() << " column " << ex.ColumnNumber());
         } catch (const AssertionFailed& ex) {
-            sys.state = State::ConfigAlarm;
+            //sys.state = State::ConfigAlarm;
+            sys_setState(State::ConfigAlarm);
             // Get rid of buffer and return
             log_error("Configuration loading failed: " << ex.what());
         } catch (std::exception& ex) {
-            sys.state = State::ConfigAlarm;
+            //sys.state = State::ConfigAlarm;
+            sys_setState(State::ConfigAlarm);
             // Log exception:
             log_error("Configuration validation error: " << ex.what());
         } catch (...) {
-            sys.state = State::ConfigAlarm;
+            //sys.state = State::ConfigAlarm;
+            sys_setState(State::ConfigAlarm);
             // Get rid of buffer and return
             log_error("Unknown error while processing config file");
         }

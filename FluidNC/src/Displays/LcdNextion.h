@@ -13,21 +13,23 @@
 namespace Displays {
     class LcdNextion : public Display {
     protected:
-        int          _geometry = 0;
-        bool         _flip     = false;
+        int   _geometry = 0;
+        bool  _flip     = false;
         static Uart* _uart;
+        static bool  _uart_started;
+
+        static void sendDROs();
+        static void timed_update(void* pvParameters);
 
     public:
         void init() override;
 
         void config_message() override;
 
-        static void timed_update(void* pvParameters);
-        void        update(UpdateType foo, String s) override;
+        
+        void update(UpdateType foo, String s) override;
 
-        void validate() const override {
-            Assert(_uart != nullptr, "lcs_nextion: Missing UART configuration");
-        }
+        void validate() const override { Assert(_uart != nullptr, "lcs_nextion: Missing UART configuration"); }
 
         void group(Configuration::HandlerBase& handler) override {
             handler.item("geometry", _geometry);
