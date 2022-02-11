@@ -41,7 +41,7 @@ namespace Displays {
     void LcdNextion ::config_message() { log_info("Display: " << name()); }
 
     void LcdNextion::timed_update(void* pvParameters) {
-        TickType_t xLcdInterval = 250;  // in ticks (typically ms)
+        TickType_t xLcdInterval = 150;  // in ticks (typically ms)
 
         vTaskDelay(2500);
 
@@ -54,7 +54,6 @@ namespace Displays {
                     ch = _uart->read();                    
                     if (is_realtime_command(ch)) {
                         WebUI::inputBuffer.push(ch);
-                        log_info("RT:" << ch);
                     } else {                        
                         WebUI::inputBuffer.push(ch);
                     }
