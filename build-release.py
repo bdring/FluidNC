@@ -161,7 +161,8 @@ for platform in ['win64', 'macos', 'linux-amd64', 'linux-python3']:
             EspRepo = 'https://github.com/espressif/esptool/archive/refs/tags/'
             EspDir = EsptoolVersion
 
-        zipObj.write(os.path.join(sharedPath, name), os.path.join(platform, name))
+        zipObj.write(os.path.join(sharedPath, name), os.path.join(platform,
+            name.replace('.txt', '-' + EsptoolVersion + '.txt')))
 
         # Download and unzip from ESP repo
         ZipFileName = EspDir + '.zip'
