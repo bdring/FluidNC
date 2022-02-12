@@ -13,7 +13,6 @@ namespace MotorDrivers {
 
 namespace Machine {
     class Axes : public Configuration::Configurable {
-
         bool _switchedStepper = false;
 
         // During homing, this is used to stop stepping on motors that have
@@ -43,15 +42,6 @@ namespace Machine {
         // is helpful for some motors that need this info, as well as debug information.
         size_t findAxisIndex(const MotorDrivers::MotorDriver* const motor) const;
         size_t findAxisMotor(const MotorDrivers::MotorDriver* const motor) const;
-
-        inline bool hasSoftLimits() const {
-            for (int i = 0; i < _numberAxis; ++i) {
-                if (_axis[i]->_softLimits) {
-                    return true;
-                }
-            }
-            return false;
-        }
 
         inline bool hasHardLimits() const {
             for (int axis = 0; axis < _numberAxis; ++axis) {
