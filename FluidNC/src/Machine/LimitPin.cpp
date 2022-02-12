@@ -65,7 +65,7 @@ namespace Machine {
         }
     }
 
-    void LimitPin::read() {
+    void IRAM_ATTR LimitPin::read() {
         _value = _pin.read();
         if (_value) {
             if (_posLimits != nullptr) {
