@@ -21,6 +21,7 @@
 #include "Uart.h"                 // Uart0.write()
 #include "FileStream.h"           // FileStream()
 #include "xmodem.h"               // xmodemReceive(), xmodemTransmit()
+#include "StartupLog.h"           // startupLog
 
 #include <cstring>
 #include <map>
@@ -625,6 +626,11 @@ static Error showChannelInfo(const char* value, WebUI::AuthenticationLevel auth_
     return Error::Ok;
 }
 
+static Error showStartupLog(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+    out << startupLog.messages();
+    return Error::Ok;
+}
+
 // Commands use the same syntax as Settings, but instead of setting or
 // displaying a persistent value, a command causes some action to occur.
 // That action could be anything, from displaying a run-time parameter
@@ -667,6 +673,8 @@ void make_user_commands() {
     new UserCommand("I", "Build/Info", get_report_build_info, notIdleOrAlarm);
     new UserCommand("N", "GCode/StartupLines", report_startup_lines, notIdleOrAlarm);
     new UserCommand("RST", "Settings/Restore", restore_settings, notIdleOrAlarm, WA);
+
+    new UserCommand("SS", "Startup/Show", showStartupLog, anyState);
 
     new UserCommand("32", "FakeLaserMode", fakeLaserMode, notIdleOrAlarm);
 };

@@ -168,9 +168,8 @@ namespace MotorDrivers {
             }
         }
 
-
-	// The TMCStepper library uses the value 0 to mean 1x microstepping
-	int usteps = _microsteps == 1 ? 0 : _microsteps;
+        // The TMCStepper library uses the value 0 to mean 1x microstepping
+        int usteps = _microsteps == 1 ? 0 : _microsteps;
         if (tmc2130) {
             tmc2130->microsteps(usteps);
             tmc2130->rms_current(run_i_ma, hold_i_percent);
@@ -274,8 +273,8 @@ namespace MotorDrivers {
 
         // The bit locations differ somewhat between different chips.
         // The layout is the same for TMC2130 and TMC5160
-        TMC2130_n ::DRV_STATUS_t status { 0 };  // a useful struct to access the bits.
-        status.sr = tmc2130 ? tmc2130->DRV_STATUS() : tmc5160->DRV_STATUS();
+        // TMC2130_n ::DRV_STATUS_t status { 0 };  // a useful struct to access the bits.
+        // status.sr = tmc2130 ? tmc2130->DRV_STATUS() : tmc5160->DRV_STATUS();
 
         // these only report if there is a fault condition
         // report_open_load(status.ola, status.olb);

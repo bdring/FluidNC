@@ -163,9 +163,9 @@ namespace MotorDrivers {
             }
         }
 
-	// The TMCStepper library uses the value 0 to mean 1x microstepping
-	int usteps = _microsteps == 1 ? 0 : _microsteps;
-	if (tmc2208) {
+        // The TMCStepper library uses the value 0 to mean 1x microstepping
+        int usteps = _microsteps == 1 ? 0 : _microsteps;
+        if (tmc2208) {
             tmc2208->microsteps(usteps);
             tmc2208->rms_current(run_i_ma, hold_i_percent);
         } else {
@@ -243,8 +243,8 @@ namespace MotorDrivers {
                                 << " mm/min SG_Setting:" << constrain(_stallguard, -64, 63));
         }
 
-        TMC2208_n ::DRV_STATUS_t status { 0 };  // a useful struct to access the bits.
-        status.sr = tmc2208 ? tmc2208->DRV_STATUS() : tmc2209->DRV_STATUS();
+        // TMC2208_n ::DRV_STATUS_t status { 0 };  // a useful struct to access the bits.
+        // status.sr = tmc2208 ? tmc2208->DRV_STATUS() : tmc2209->DRV_STATUS();
 
         // these only report if there is a fault condition
         // report_open_load(status.ola, status.olb);

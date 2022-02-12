@@ -241,9 +241,9 @@ void protocol_main_loop() {
 // Block until all buffered steps are executed or in a cycle state. Works with feed hold
 // during a synchronize call, if it should happen. Also, waits for clean cycle end.
 void protocol_buffer_synchronize() {
-    // If system is queued, ensure cycle resumes if the auto start flag is present.
-    protocol_auto_cycle_start();
     do {
+        // Restart motion if there are blocks in the planner queue
+        protocol_auto_cycle_start();
         pollChannels();
         protocol_execute_realtime();  // Check and execute run-time commands
         if (sys.abort) {
