@@ -1,7 +1,7 @@
 #include "CoreXY.h"
 
 #include "../Machine/MachineConfig.h"
-#include "../Limits.h"  // limits_soft_check
+#include "../Limits.h"  // ambiguousLimit()
 #include "../Machine/Homing.h"
 
 #include "../Protocol.h"  // protocol_execute_realtime
@@ -149,9 +149,6 @@ namespace Kinematics {
         }
 
         if (ambiguousLimit()) {
-            // TODO: Maybe ambiguousLimit() should do this stuff because this could be a several places
-            mc_reset();  // Issue system reset and ensure spindle and coolant are shutdown
-            rtAlarm = ExecAlarm::HardLimit;
             log_error("Ambiguous limit switch touching. Manually clear all switches");
             return true;
         }

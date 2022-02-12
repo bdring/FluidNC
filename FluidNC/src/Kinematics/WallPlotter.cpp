@@ -86,10 +86,10 @@ namespace Kinematics {
         if (segment_count == 0 && target[Z_AXIS] != position[Z_AXIS]) {
             // We are moving vertically.
             last_z = target[Z_AXIS];
-    
+
             // Note that the left motor runs backward.
             float cables[MAX_N_AXIS] = { 0 - (last_left - zero_left), 0 + (last_right - zero_right), last_z };
-    
+
             if (!mc_move_motors(cables, pl_data)) {
                 return false;
             }
@@ -112,7 +112,7 @@ namespace Kinematics {
             float cx, cy;
             // These are absolute.
             lengths_to_xy(seg_left, seg_right, cx, cy);
-    
+
             if (abs(seg_x - cx) > 0.1 || abs(seg_y - cy) > 0.1) {
                 // FIX: Produce an alarm state?
             }
@@ -147,21 +147,13 @@ namespace Kinematics {
         // Note that the left motor runs backward.
         float absolute_x, absolute_y;
         lengths_to_xy((0 - motors[_left_axis]) + zero_left, (0 + motors[_right_axis]) + zero_right, absolute_x, absolute_y);
-    
+
         // Producing these relative coordinates.
         cartesian[X_AXIS] = absolute_x;
         cartesian[Y_AXIS] = absolute_y;
         cartesian[Z_AXIS] = motors[Z_AXIS];
-    
-        // Now we have a number that if fed back into the system should produce the same value.
-    }
 
-    /*
-      limitsCheckTravel() is called to check soft limits
-      It returns true if the motion is outside the limit values
-    */
-    bool WallPlotter::limitsCheckTravel(float* target) {
-        return false;
+        // Now we have a number that if fed back into the system should produce the same value.
     }
 
     /*
@@ -218,7 +210,6 @@ namespace Kinematics {
         float right_dx = _right_anchor_x - x;
         right_length   = sqrt(right_dx * right_dx + right_dy * right_dy);
     }
-
 
     // Configuration registration
     namespace {
