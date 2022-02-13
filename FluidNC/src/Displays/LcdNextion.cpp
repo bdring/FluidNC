@@ -70,7 +70,7 @@ namespace Displays {
         if (t == UpdateType::SysState) {
             // log_info("Update: " << name() << " type:" << (int)t);
             auto& uart = *_uart;
-            uart << "st0.txt=\"" << state_name() << "\"";
+            uart << "page0.st0.txt=\"" << state_name() << "\"";
             _uart->write(255);
             _uart->write(255);
             _uart->write(255);
@@ -85,7 +85,7 @@ namespace Displays {
 
         for (int axis = 0; axis < config->_axes->_numberAxis; axis++) {
             auto& uart = *_uart;
-            uart << "dr" << axis << ".val=" << int(print_position[axis] * 1000);
+            uart << "page0.dr" << axis << ".val=" << int(print_position[axis] * 1000);
             _uart->write(255);
             _uart->write(255);
             _uart->write(255);
