@@ -1,0 +1,172 @@
+name: "XYYZ Ext-Drvs PWM-Spidle LED-Relay v0.0.1"
+board: "ESP32 DevKitC, no PCB"
+meta: Created on 02/12/2022 by Edward Webber <github.com/Domush>
+# Config defaults:
+# XYYZ axis w/external drivers
+# PWM spindle (0-100)
+# Shared stepper enable pin
+# X, Y0, Y1, Z limit switches + Probe
+# LED relay
+# Fan/Coolant
+
+
+stepping:
+  engine: RMT
+  idle_ms: 250
+  dir_delay_us: 0
+  pulse_us: 2
+  disable_delay_us: 50
+  verbose_errors: false
+
+axes:
+  shared_stepper_disable_pin: gpio.13:low
+
+  x:
+    acceleration_mm_per_sec2: 100.000
+    max_rate_mm_per_min: 5000.000
+    max_travel_mm: 300.000
+    soft_limits: false
+    steps_per_mm: 800.000
+    homing:
+      cycle: 2
+      feed_mm_per_min: 100.000
+      feed_scaler: 1.100
+      mpos_mm: 150.000
+      positive_direction: false
+      seek_mm_per_min: 200.000
+      seek_scaler: 1.100
+      settle_ms: 500
+
+    motor0:
+      hard_limits: false
+      limit_all_pin: gpio.17:low:pu
+      pulloff_mm: 1.000
+      standard_stepper:
+        direction_pin: gpio.27
+        step_pin: gpio.33
+
+  y:
+    acceleration_mm_per_sec2: 100.000
+    max_rate_mm_per_min: 5000.000
+    max_travel_mm: 300.000
+    soft_limits: false
+    steps_per_mm: 800.000
+    homing:
+      cycle: 2
+      feed_mm_per_min: 100.000
+      feed_scaler: 1.100
+      mpos_mm: 150.000
+      positive_direction: true
+      seek_mm_per_min: 200.000
+      seek_scaler: 1.100
+      settle_ms: 500
+
+    motor0:
+      hard_limits: false
+      limit_all_pin: gpio.4:low:pu
+      pulloff_mm: 1.000
+      standard_stepper:
+        direction_pin: gpio.15
+        step_pin: gpio.26
+    motor1:
+      hard_limits: false
+      limit_all_pin: gpio.19:low:pu
+      pulloff_mm: 1.000
+      standard_stepper:
+        direction_pin: gpio.23
+        step_pin: gpio.18
+
+  z:
+    acceleration_mm_per_sec2: 100.000
+    max_rate_mm_per_min: 5000.000
+    max_travel_mm: 300.000
+    soft_limits: false
+    steps_per_mm: 800.000
+    homing:
+      cycle: 1
+      feed_mm_per_min: 100.000
+      feed_scaler: 1.100
+      mpos_mm: 150.000
+      positive_direction: true
+      seek_mm_per_min: 800.000
+      seek_scaler: 1.100
+      settle_ms: 500
+
+    motor0:
+      hard_limits: false
+      limit_all_pin: gpio.16:low:pu
+      limit_neg_pin: NO_PIN
+      limit_pos_pin: NO_PIN
+      pulloff_mm:1.000
+      standard_stepper:
+        direction_pin: gpio.14
+        step_pin: gpio.5
+
+relay:
+  output_pin: gpio.2
+  enable_pin: NO_PIN
+  direction_pin: NO_PIN
+  disable_with_s0: true
+  s0_with_disable: true
+  spinup_ms: 3000
+  spindown_ms: 3000
+  tool_num: 0
+  speed_map: 0=0% 0=100% 1=100%
+
+# i2so:
+#   bck_pin: gpio.22
+#   data_pin: gpio.21
+#   ws_pin: gpio.17
+
+# spi:
+#   miso_pin: gpio.19
+#   mosi_pin: gpio.23
+#   sck_pin: gpio.18
+
+# sdcard:
+#   card_detect_pin: NO_PIN
+#   cs_pin: gpio.5
+
+control:
+  safety_door_pin: NO_PIN
+  reset_pin: NO_PIN
+  feed_hold_pin: NO_PIN
+  cycle_start_pin: NO_PIN
+  macro0_pin: NO_PIN
+  macro1_pin: NO_PIN
+  macro2_pin: NO_PIN
+  macro3_pin: NO_PIN
+
+coolant:
+  flood_pin: NO_PIN
+  mist_pin: NO_PIN
+  delay_ms: 0
+
+probe:
+  pin: gpio.32:low:pu
+  check_mode_start: true
+
+macros:
+  startup_line0:
+  startup_line1:
+  macro0:
+  macro1:
+  macro2:
+  macro3:
+
+user_outputs:
+  analog0_pin: gpio.25
+  analog1_pin: NO_PIN
+  analog2_pin: NO_PIN
+  analog3_pin: NO_PIN
+  analog0_hz: 5000
+  analog1_hz: 5000
+  analog2_hz: 5000
+  analog3_hz: 5000
+  digital0_pin: gpio.21
+  digital1_pin: NO_PIN
+  digital2_pin: NO_PIN
+  digital3_pin: NO_PIN
+
+start:
+  must_home: false
