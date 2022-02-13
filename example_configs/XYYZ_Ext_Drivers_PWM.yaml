@@ -16,25 +16,25 @@ stepping:
   dir_delay_us: 0
   pulse_us: 2
   disable_delay_us: 50
-  verbose_errors: false
+  # verbose_errors: true
 
 axes:
   shared_stepper_disable_pin: gpio.13:low
 
   x:
-    acceleration_mm_per_sec2: 100.000
-    max_rate_mm_per_min: 5000.000
-    max_travel_mm: 300.000
+    acceleration_mm_per_sec2: 762.000
+    max_rate_mm_per_min: 30480.000
+    max_travel_mm: 852.000
     soft_limits: false
-    steps_per_mm: 800.000
+    steps_per_mm: 16.6
     homing:
       cycle: 2
-      feed_mm_per_min: 100.000
+      feed_mm_per_min: 200.000
       feed_scaler: 1.100
-      mpos_mm: 150.000
+      mpos_mm: 0.000
       positive_direction: false
-      seek_mm_per_min: 200.000
-      seek_scaler: 1.100
+      seek_mm_per_min: 800.000
+      seek_scaler: 1.050
       settle_ms: 500
 
     motor0:
@@ -46,19 +46,19 @@ axes:
         step_pin: gpio.33
 
   y:
-    acceleration_mm_per_sec2: 100.000
-    max_rate_mm_per_min: 5000.000
-    max_travel_mm: 300.000
+    acceleration_mm_per_sec2: 762.000
+    max_rate_mm_per_min: 30480.000
+    max_travel_mm: 1961.000
     soft_limits: false
-    steps_per_mm: 800.000
+    steps_per_mm: 16.6
     homing:
       cycle: 2
-      feed_mm_per_min: 100.000
+      feed_mm_per_min: 200.000
       feed_scaler: 1.100
-      mpos_mm: 150.000
-      positive_direction: true
-      seek_mm_per_min: 200.000
-      seek_scaler: 1.100
+      mpos_mm: 0.000
+      positive_direction: false
+      seek_mm_per_min: 800.000
+      seek_scaler: 1.050
       settle_ms: 500
 
     motor0:
@@ -77,19 +77,19 @@ axes:
         step_pin: gpio.18
 
   z:
-    acceleration_mm_per_sec2: 100.000
-    max_rate_mm_per_min: 5000.000
-    max_travel_mm: 300.000
+    acceleration_mm_per_sec2: 482.000
+    max_rate_mm_per_min: 22860.000
+    max_travel_mm: 150.000
     soft_limits: false
-    steps_per_mm: 800.000
+    steps_per_mm: 160.0
     homing:
       cycle: 1
-      feed_mm_per_min: 100.000
+      feed_mm_per_min: 250.000
       feed_scaler: 1.100
       mpos_mm: 150.000
       positive_direction: true
       seek_mm_per_min: 800.000
-      seek_scaler: 1.100
+      seek_scaler: 1.050
       settle_ms: 500
 
     motor0:
@@ -102,6 +102,7 @@ axes:
         direction_pin: gpio.14
         step_pin: gpio.5
 
+# Spindle is either on or off
 relay:
   output_pin: gpio.2
   enable_pin: NO_PIN
@@ -137,17 +138,18 @@ control:
   macro2_pin: NO_PIN
   macro3_pin: NO_PIN
 
-coolant:
-  flood_pin: NO_PIN
-  mist_pin: NO_PIN
-  delay_ms: 0
+# coolant:
+#   flood_pin: NO_PIN
+#   mist_pin: NO_PIN
+#   delay_ms: 0
 
 probe:
   pin: gpio.32:low:pu
   check_mode_start: true
 
 macros:
-  startup_line0:
+  # Start the case fan at 50% on startup
+  startup_line0:M67 E0 Q50
   startup_line1:
   macro0:
   macro1:
@@ -155,6 +157,7 @@ macros:
   macro3:
 
 user_outputs:
+  # Case fan(s)
   analog0_pin: gpio.25
   analog1_pin: NO_PIN
   analog2_pin: NO_PIN
@@ -163,6 +166,7 @@ user_outputs:
   analog1_hz: 5000
   analog2_hz: 5000
   analog3_hz: 5000
+  # LED light support
   digital0_pin: gpio.21
   digital1_pin: NO_PIN
   digital2_pin: NO_PIN
