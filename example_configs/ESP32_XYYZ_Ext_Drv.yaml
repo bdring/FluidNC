@@ -1,14 +1,13 @@
-name: "XYYZ Ext-Drvs PWM-Spidle LED-Relay v0.0.1"
+name: "XYYZ Ext-Drv Relay-Spidle LED FAN v1.0.0"
 board: "ESP32 DevKitC, no PCB"
 meta: Created on 02/12/2022 by Edward Webber <github.com/Domush>
 # Config defaults:
 # XYYZ axis w/external drivers
-# PWM spindle (0-100)
+# Relay spindle (on/off)
 # Shared stepper enable pin
 # X, Y0, Y1, Z limit switches + Probe
-# LED relay
-# Fan/Coolant
-
+# LED relay support
+# PWM Fan support
 
 stepping:
   engine: RMT
@@ -97,7 +96,7 @@ axes:
       limit_all_pin: gpio.16:low:pu
       limit_neg_pin: NO_PIN
       limit_pos_pin: NO_PIN
-      pulloff_mm:1.000
+      pulloff_mm: 1.000
       standard_stepper:
         direction_pin: gpio.14
         step_pin: gpio.5
