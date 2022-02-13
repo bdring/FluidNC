@@ -21,6 +21,7 @@
 #include "Uart.h"                 // Uart0.write()
 #include "FileStream.h"           // FileStream()
 #include "xmodem.h"               // xmodemReceive(), xmodemTransmit()
+#include "StartupLog.h"           // startupLog
 
 #include <cstring>
 #include <map>
@@ -282,7 +283,8 @@ static Error disable_alarm_lock(const char* value, WebUI::AuthenticationLevel au
             return err;
         }
         report_feedback_message(Message::AlarmUnlock);
-        sys.state = State::Idle;
+        //sys.state = State::Idle;
+        sys_setState(State::Idle);
         // Don't run startup script. Prevents stored moves in startup from causing accidents.
     }  // Otherwise, no effect.
     return Error::Ok;
@@ -316,7 +318,8 @@ static Error home(int cycle) {
         return Error::CheckDoor;  // Block if safety door is ajar.
     }
 
-    sys.state = State::Homing;  // Set system state variable
+    //sys.state = State::Homing;  // Set system state variable
+    sys_setState(State::Homing);
 
     config->_stepping->beginLowLatency();
 
@@ -325,7 +328,8 @@ static Error home(int cycle) {
     config->_stepping->endLowLatency();
 
     if (!sys.abort) {             // Execute startup scripts after successful homing.
-        sys.state = State::Idle;  // Set to IDLE when complete.
+        //sys.state = State::Idle;  // Set to IDLE when complete.
+        sys_setState(State::Idle);
         Stepper::go_idle();       // Set steppers to the settings idle state before returning.
         if (cycle == Machine::Homing::AllCycles) {
             settings_execute_startup();
@@ -622,6 +626,11 @@ static Error showChannelInfo(const char* value, WebUI::AuthenticationLevel auth_
     return Error::Ok;
 }
 
+static Error showStartupLog(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+    out << startupLog.messages();
+    return Error::Ok;
+}
+
 // Commands use the same syntax as Settings, but instead of setting or
 // displaying a persistent value, a command causes some action to occur.
 // That action could be anything, from displaying a run-time parameter
@@ -664,6 +673,8 @@ void make_user_commands() {
     new UserCommand("I", "Build/Info", get_report_build_info, notIdleOrAlarm);
     new UserCommand("N", "GCode/StartupLines", report_startup_lines, notIdleOrAlarm);
     new UserCommand("RST", "Settings/Restore", restore_settings, notIdleOrAlarm, WA);
+
+    new UserCommand("SS", "Startup/Show", showStartupLog, anyState);
 
     new UserCommand("32", "FakeLaserMode", fakeLaserMode, notIdleOrAlarm);
 };

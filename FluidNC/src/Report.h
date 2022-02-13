@@ -111,8 +111,4 @@ const char*   state_name();
 extern const char* grbl_version;
 extern const char* git_info;
 
-// Callout to custom code
-void display_init();
-void display(const char* tag, String s);
-
 extern bool readyNext;

@@ -285,12 +285,10 @@ namespace Machine {
         try {
             if (squaredOneSwitch(motors)) {
                 //log_info("POG Squaring");
-                run(motors, true, true);             // Approach slowly
-                run(motors, false, false);           // Pulloff
-                run(motors & MOTOR0, true, false);   // Approach slowly
-                run(motors & MOTOR0, false, false);  // Pulloff
-                run(motors & MOTOR1, true, false);   // Approach slowly
-                run(motors & MOTOR1, false, false);  // Pulloff
+                run(motors, true, true);    // Approach slowly
+                run(motors, false, false);  // Pulloff
+                run(motors, true, false);   // Approach slowly
+                run(motors, false, false);  // Pulloff
             } else if (squaredStressfree(motors)) {
                 //log_info("Stress Free Squaring 0x" << String(motors, 16));
                 run(motors, true, true);    // Approach fast
@@ -367,7 +365,8 @@ namespace Machine {
             }
             if (!someAxisHomed) {
                 log_error("No homing cycles defined");
-                sys.state = State::Alarm;
+                //sys.state = State::Alarm;
+                sys_setState(State::Alarm);
             }
         }
     }

@@ -15,6 +15,7 @@
 #include "../Probe.h"
 #include "../SDCard.h"
 #include "../Spindles/Spindle.h"
+#include "../Displays/Display.h"
 #include "../Stepping.h"
 #include "../Stepper.h"
 #include "../Logging.h"
@@ -68,6 +69,7 @@ namespace Machine {
         Macros*               _macros      = nullptr;
         Start*                _start       = nullptr;
         Spindles::SpindleList _spindles;
+        Displays::DisplayList _displays;
 
         float _arcTolerance      = 0.002f;
         float _junctionDeviation = 0.01f;

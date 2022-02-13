@@ -50,6 +50,7 @@
 #include "InputFile.h"
 #include "WebUI/InputBuffer.h"  // XXX could this be a StringStream ?
 #include "Main.h"               // display()
+#include "StartupLog.h"         // startupLog
 
 #include <atomic>
 #include <cstring>
@@ -196,9 +197,17 @@ void execute_realtime_command(Cmd command, Channel& channel) {
 
 // checks to see if a character is a realtime character
 bool is_realtime_command(uint8_t data) {
+    // if (data >= uint8_t(Cmd::Reset) && data <= uint8_t(Cmd::CoolantMistOvrToggle)) {
+    //     return true;
+    // }
+
     if (data >= 0x80) {
         return true;
     }
+
+    if (data > 0xA1)
+        return false;
+
     auto cmd = static_cast<Cmd>(data);
     return cmd == Cmd::Reset || cmd == Cmd::StatusReport || cmd == Cmd::CycleStart || cmd == Cmd::FeedHold
 #ifdef DEBUG_STEPPING
@@ -210,6 +219,7 @@ bool is_realtime_command(uint8_t data) {
 void AllChannels::init() {
     registration(&Uart0);               // USB Serial
     registration(&WebUI::inputBuffer);  // Macros
+    registration(&startupLog);          // USB Serial
 }
 
 void AllChannels::registration(Channel* channel) {

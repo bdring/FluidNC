@@ -656,6 +656,3 @@ void reportTaskStackSize(UBaseType_t& saved) {
     }
 #endif
 }
-
-void WEAK_LINK display_init() {}
-void WEAK_LINK display(const char* tag, String s) {}

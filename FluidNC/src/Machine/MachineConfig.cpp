@@ -58,6 +58,7 @@ namespace Machine {
         handler.item("use_line_numbers", _useLineNumbers);
 
         Spindles::SpindleFactory::factory(handler, _spindles);
+        Displays::DisplayFactory::factory(handler, _displays);
     }
 
     void MachineConfig::afterParse() {
@@ -133,7 +134,7 @@ namespace Machine {
         // builtin config.  This helps prevent reset loops on bad config files.
         esp_reset_reason_t reason = esp_reset_reason();
         if (reason == ESP_RST_PANIC) {
-            log_debug("Skipping configuration file due to panic");
+            log_error("Skipping configuration file due to panic");
             configOkay = false;
         } else {
             configOkay = load(config_filename->get());
@@ -218,18 +219,22 @@ namespace Machine {
             }
 
         } catch (const Configuration::ParseException& ex) {
-            sys.state = State::ConfigAlarm;
+            //sys.state = State::ConfigAlarm;
+            sys_setState(State::ConfigAlarm);
             log_error("Configuration parse error: " << ex.What() << " Line " << ex.LineNumber() << " column " << ex.ColumnNumber());
         } catch (const AssertionFailed& ex) {
-            sys.state = State::ConfigAlarm;
+            //sys.state = State::ConfigAlarm;
+            sys_setState(State::ConfigAlarm);
             // Get rid of buffer and return
             log_error("Configuration loading failed: " << ex.what());
         } catch (std::exception& ex) {
-            sys.state = State::ConfigAlarm;
+            //sys.state = State::ConfigAlarm;
+            sys_setState(State::ConfigAlarm);
             // Log exception:
             log_error("Configuration validation error: " << ex.what());
         } catch (...) {
-            sys.state = State::ConfigAlarm;
+            //sys.state = State::ConfigAlarm;
+            sys_setState(State::ConfigAlarm);
             // Get rid of buffer and return
             log_error("Unknown error while processing config file");
         }

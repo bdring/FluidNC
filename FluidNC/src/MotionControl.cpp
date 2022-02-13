@@ -50,14 +50,6 @@ bool mc_move_motors(float* target, plan_line_data_t* pl_data) {
     // store the plan data so it can be cancelled by the protocol system if needed
     mc_pl_data_inflight = pl_data;
 
-    // If enabled, check for soft limit violations.
-    bool hasSoftLimits = config->_axes->hasSoftLimits();
-    if (hasSoftLimits) {
-        // NOTE: Block jog state. Jogging is a special case and soft limits are handled independently.
-        if (sys.state != State::Jog) {
-            limits_soft_check(target);
-        }
-    }
     // If in check gcode mode, prevent motion by blocking planner. Soft limits still work.
     if (sys.state == State::CheckMode) {
         mc_pl_data_inflight = NULL;
@@ -137,7 +129,7 @@ void mc_arc(float*            target,
     float rt_axis0     = target[axis_0] - center_axis0;
     float rt_axis1     = target[axis_1] - center_axis1;
 
-    auto     n_axis = config->_axes->_numberAxis;
+    auto n_axis = config->_axes->_numberAxis;
 
     float previous_position[n_axis] = { 0.0 };
     for (size_t i = 0; i < n_axis; i++) {
@@ -170,7 +162,7 @@ void mc_arc(float*            target,
             pl_data->feed_rate *= segments;
             pl_data->motion.inverseTime = 0;  // Force as feed absolute mode over arc segments.
         }
-        float theta_per_segment  = angular_travel / segments;
+        float theta_per_segment = angular_travel / segments;
         float linear_per_segment[n_axis];
         linear_per_segment[axis_linear] = (target[axis_linear] - position[axis_linear]) / segments;
         for (size_t i = A_AXIS; i < n_axis; i++) {
@@ -272,8 +264,6 @@ void mc_homing_cycle(AxisMask axis_mask) {
     // or if it is impossible to tell which end is engaged.  In that situation
     // we do not know the pulloff direction.
     if (ambiguousLimit()) {
-        mc_reset();  // Issue system reset and ensure spindle and coolant are shutdown.
-        rtAlarm = ExecAlarm::HardLimit;
         return;
     }
 

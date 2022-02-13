@@ -136,17 +136,21 @@ void protocol_main_loop() {
         // Perform some machine checks to make sure everything is good to go.
         if (config->_start->_checkLimits && config->_axes->hasHardLimits()) {
             if (limits_get_state()) {
-                sys.state = State::Alarm;  // Ensure alarm state is active.
+                //sys.state = State::Alarm;  // Ensure alarm state is active.
+                sys_setState(State::Alarm);
                 report_feedback_message(Message::CheckLimits);
             }
         }
 
         if (sys.state == State::Alarm || sys.state == State::Sleep) {
             report_feedback_message(Message::AlarmLock);
-            sys.state = State::Alarm;  // Ensure alarm state is set.
+            //sys.state = State::Alarm;  // Ensure alarm state is set.
+            sys_setState(State::Alarm);
+
         } else {
             // Check if the safety door is open.
-            sys.state = State::Idle;
+            //sys.state = State::Idle;            
+            sys_setState(State::Idle);
             if (config->_control->system_check_safety_door_ajar()) {
                 rtSafetyDoor = true;
                 protocol_execute_realtime();  // Enter safety door mode. Should return as IDLE state.
@@ -201,7 +205,9 @@ void protocol_main_loop() {
 #ifdef DEBUG_REPORT_ECHO_RAW_LINE_RECEIVED
             report_echo_line_received(line, *chan);
 #endif
-            display("GCODE", line);
+            for (auto d : config->_displays) {
+                d->update(Displays::UpdateType::Gcode, "");
+            }
             // auth_level can be upgraded by supplying a password on the command line
             report_status_message(execute_line(line, *chan, WebUI::AuthenticationLevel::LEVEL_GUEST), *chan);
         }
@@ -235,9 +241,9 @@ void protocol_main_loop() {
 // Block until all buffered steps are executed or in a cycle state. Works with feed hold
 // during a synchronize call, if it should happen. Also, waits for clean cycle end.
 void protocol_buffer_synchronize() {
-    // If system is queued, ensure cycle resumes if the auto start flag is present.
-    protocol_auto_cycle_start();
     do {
+        // Restart motion if there are blocks in the planner queue
+        protocol_auto_cycle_start();
         pollChannels();
         protocol_execute_realtime();  // Check and execute run-time commands
         if (sys.abort) {
@@ -291,7 +297,8 @@ static void protocol_do_alarm() {
         // System alarm. Everything has shutdown by something that has gone severely wrong. Report
         case ExecAlarm::HardLimit:
         case ExecAlarm::SoftLimit:
-            sys.state = State::Alarm;  // Set system alarm state
+            //sys.state = State::Alarm;  // Set system alarm state
+            sys_setState(State::Alarm);
             alarm_msg(rtAlarm);
             report_feedback_message(Message::CriticalEvent);
             rtReset = false;  // Disable any existing reset
@@ -305,7 +312,8 @@ static void protocol_do_alarm() {
             } while (!rtReset);
             break;
         default:
-            sys.state = State::Alarm;  // Set system alarm state
+            //sys.state = State::Alarm;  // Set system alarm state
+            sys_setState(State::Alarm);
             alarm_msg(rtAlarm);
             break;
     }
@@ -398,7 +406,8 @@ static void protocol_do_feedhold() {
             protocol_cancel_jogging();
             return;  // Do not change the state to Hold
     }
-    sys.state = State::Hold;
+    //sys.state = State::Hold;
+    sys_setState(State::Hold);
 }
 
 static void protocol_do_safety_door() {
@@ -486,7 +495,8 @@ static void protocol_do_sleep() {
         case State::SafetyDoor:
             break;
     }
-    sys.state = State::Sleep;
+    //sys.state = State::Sleep;
+    sys_setState(State::Sleep);
 }
 
 void protocol_cancel_disable_steppers() {
@@ -499,12 +509,14 @@ static void protocol_do_initiate_cycle() {
     sys.step_control = {};  // Restore step control to normal operation
     if (plan_get_current_block() && !sys.suspend.bit.motionCancel) {
         sys.suspend.value = 0;  // Break suspend state.
-        sys.state         = State::Cycle;
+        //sys.state         = State::Cycle;
+        sys_setState(State::Cycle);
         Stepper::prep_buffer();  // Initialize step segment buffer before beginning cycle.
         Stepper::wake_up();
     } else {                    // Otherwise, do nothing. Set and resume IDLE state.
         sys.suspend.value = 0;  // Break suspend state.
-        sys.state         = State::Idle;
+        //sys.state         = State::Idle;
+        sys_setState(State::Idle);
     }
 }
 
@@ -520,7 +532,8 @@ static void protocol_do_cycle_start() {
         case State::SafetyDoor:
             if (!sys.suspend.bit.safetyDoorAjar) {
                 if (sys.suspend.bit.restoreComplete) {
-                    sys.state = State::Idle;  // Set to IDLE to immediately resume the cycle.
+                    //sys.state = State::Idle;  // Set to IDLE to immediately resume the cycle.
+                    sys_setState(State::Idle);
                 } else if (sys.suspend.bit.retractComplete) {
                     // Flag to re-energize powered components and restore original position, if disabled by SAFETY_DOOR.
                     // NOTE: For a safety door to resume, the switch must be closed, as indicated by HOLD state, and
@@ -631,7 +644,8 @@ void protocol_do_cycle_stop() {
                 sys.state                    = State::SafetyDoor;
             } else {
                 sys.suspend.value = 0;
-                sys.state         = State::Idle;
+                //sys.state         = State::Idle;
+                sys_setState(State::Idle);
             }
             break;
     }

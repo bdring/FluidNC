@@ -78,6 +78,8 @@ extern int32_t probe_steps[MAX_N_AXIS];  // Last probe position in machine coord
 
 void system_reset();
 
+void sys_setState(State newState);
+
 float   steps_to_mpos(int32_t steps, size_t axis);
 int32_t mpos_to_steps(float mpos, size_t axis);
 
