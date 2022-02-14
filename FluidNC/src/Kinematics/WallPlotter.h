@@ -28,7 +28,6 @@ namespace Kinematics {
         void kinematics_post_homing() override;
         bool cartesian_to_motors(float* target, plan_line_data_t* pl_data, float* position) override;
         void motors_to_cartesian(float* cartesian, float* motors, int n_axis) override;
-        bool limitsCheckTravel(float* target) override;
 
         // Configuration handlers:
         void validate() const override {}
@@ -45,20 +44,20 @@ namespace Kinematics {
         void xy_to_lengths(float x, float y, float& left_length, float& right_length);
 
         // State
-        float zero_left; //  The left cord offset corresponding to cartesian (0, 0).
-        float zero_right; //  The right cord offset corresponding to cartesian (0, 0).
-        float last_left; //  The last produced left cord length.
-        float last_right; //  The last produced right cord length.
-        float last_z; //  The last produced z value.
+        float zero_left;   //  The left cord offset corresponding to cartesian (0, 0).
+        float zero_right;  //  The right cord offset corresponding to cartesian (0, 0).
+        float last_left;   //  The last produced left cord length.
+        float last_right;  //  The last produced right cord length.
+        float last_z;      //  The last produced z value.
 
         // Parameters
-        int _left_axis = 0;
+        int   _left_axis     = 0;
         float _left_anchor_x = -100;
         float _left_anchor_y = 100;
 
-        int _right_axis = 1;
+        int   _right_axis     = 1;
         float _right_anchor_x = 100;
         float _right_anchor_y = 100;
         float _segment_length = 10;
     };
-} //  namespace Kinematics
+}  //  namespace Kinematics

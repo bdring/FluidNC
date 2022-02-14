@@ -17,7 +17,10 @@ void limits_init();
 MotorMask limits_get_state();
 
 // Check for soft limit violations
-void limits_soft_check(float* target);
+void limits_soft_check(float* cartesian);
+
+// Constrain the coordinates to stay within the soft limit envelope
+void constrainToSoftLimits(float* cartesian);
 
 float limitsMaxPosition(size_t axis);
 float limitsMinPosition(size_t axis);
