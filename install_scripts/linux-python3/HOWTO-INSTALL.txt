@@ -1,19 +1,88 @@
 ## Installing FluidNC on your ESP32
 
-_Please note: These instructions apply to the case where you have
-downloaded a release bundle from
-https://github.com/bdring/FluidNC/releases - a zip file named
-fluidnc-vN.N.N-linux-python3.zip .  They do not apply to installing from
-a source tree.  This HOWTO file is present in the source tree so that
-it can be packed into a release bundle by automated release scripting,
-but it does not tell you how to install from source.  For that, visit
+Select the Installer(s) you want to run:
+
+The main firmware is in:
+`install-wifi.sh` or `install-bt.sh`
+Choose one OR the other depending on whether you want to use Wifi
+or Bluetooth to communicate with the controller (see main documentation
+if unsure).
+
+The firmware will be installed directly, replacing any existing code sketch
+on the ESP32.
+
+You will also want to run `install-fs.sh` on your first install, but not when
+applying upgrades, see below for more.
+
+### Desktop (GUI) install
+- Only Raspberry PI or systems with lxde and other 'light' desktop managers)
+- Many other linux desktops's (eg Gnome) disable this, use the commandline.
+
+Unpack the zip file with this guide into a local folder, eg Downloadsi/fluidnc.
+Browse to the folder and pick the installer you want to run:
+Right-click on that and make sure to select 'Run in a Terminal'
+
+If the terminal starts correctly skip the next section and
+follow the rest of the guide.
+
+### Install using the commandline.
+
+You must have Python3, version 3.6 or higher installed, to test run:
+
+    python3 --version
+
+This should be the default for any recent linux system, please see
+the notes below if you are having trouble with getting the correct
+python3 version.
+
+Plug your ESP32 into a USB port.
+
+In the folder where you unpacked this script run the installer
+that matches your needs:
+
+To install the WiFi version:            sh install-wifi.sh
+To install the Bluetooth version:       sh install-bt.sh
+To replace the ESP32 local filesystem:  sh install-fs.sh
+
+### The Installer
+
+The script should find and connect to the ESP32, if you have any trouble
+with connecting or finding the correct device please start at the
+troubleshooting sections below.
+
+After the install an attempt will be made to run fluidterm and connect
+to the newly installed firmware, this is described in more detail below.
+Use `Ctrl-]` to exit fluidterm, send `$I` for firmware version info.
+
+### Group membership Considerations
+
+Your user must be a member of the `dialup` group in order to access
+the USB serial device, you can use `id -a` to see your current
+groups. To add yourself to the 'dialup' group you need to use:
+
+    sudo usermod -a -G dialup <username>
+
+## Post Install
+
+Once FLuidNC is installed on the ESP32 you will need to complete the
+configuration for your specific hardware, start here:
+https://github.com/bdring/FluidNC/wiki/FluidNC-Config-File-Overview
+
+### Caveat
+
+Please note: These instructions apply to the case where you have downloaded
+a zip release bundle (fluidnc-vN.N.N-linux-python3.zip) from:
+https://github.com/bdring/FluidNC/releases
+They do not apply to installing FluidNC from a source tree.
+For that, visit
 https://github.com/bdring/FluidNC/wiki/FluidNC-Compiling#use-vs-code--platformio-to-compile
-_
 
-These install scripts use Python3 and the Python version of esptool.
-https://docs.espressif.com/projects/esptool/en/latest/esp32/
+### Python3 required
 
-They are suitable for any system supporting esptool.py
+These install scripts use Python3 and the Python version of esptool
+from https://docs.espressif.com/projects/esptool/en/latest/esp32/
+
+They are suitable for any linux system supporting esptool.py
 eg. non-intel (arm) linux systems, such as Raspberry PI's or
 legacy machines running 32bit distributions.
 
@@ -23,30 +92,10 @@ preinstalled.  If you have problems, search the web for:
 replacing <OS> with the name and version of your operating system.
 
 The script will attempt to install esptool.py if it is not already
-present, if this fails please see the esptool documentation and
-forums for support.
+present, if this fails please check the esptool documentation and
+forums for support for common problems:
 https://docs.espressif.com/projects/esptool/en/latest/esp32/installation.html
 https://www.esp32.com/viewforum.php?f=23
-_
-
-Unpack this FluidNC release Zip file.
-
-Plug your ESP32 into a USB port.
-
-At a shell prompt, cd to the directory that contains the file
-you are reading and run one of the following commands:
-
-To install the WiFi version:            sh install-wifi.sh
-To install the Bluetooth version:       sh install-bt.sh
-To replace the ESP32 local filesystem:  sh install-fs.sh
-
-### Group membership Considerations
-
-Your user should be a member of the `dialup` group in order to access
-the USB serial device, you can use `id -a` to see your current
-groups. To add yourself to the 'dialup' group you need to use:
-
-    sudo usermod -a -G dialup <username>
 
 ### Local Filesystem Considerations
 
@@ -61,9 +110,22 @@ the WebUI code.  Another way to get a new index.html.gz is to upload
 it via WebUI from wifi/index.html.gz herein.
 
 A good approach is to use install-fs only on your first FluidNC
-installation, to start from a clean slate.
+installation, or if you want to start from a clean slate.
 
-### Running Fluidterm
+### Connection problems
+
+If esptool is having trouble connecting to the board, or programming
+please start by reading the wiki section on using precompiled files:
+https://github.com/bdring/FluidNC/wiki/FluidNC-Compiling#using-pre-compiled-files
+
+Some board and programmer combinations require you to put the board
+into programming mode manually, see the entry in the FAQ for this:
+https://github.com/bdring/FluidNC/wiki/FluidNC-FAQ
+
+The Wiki also has information on how to get further support if all
+else fails.
+
+## Running Fluidterm
 
 The FluidNC install scripts run Fluidterm automatically at the end,
 but if you want to run it separately, you can type
@@ -85,7 +147,7 @@ On headless (no GUI installed) machines fluidterm may fail with:
 
     ModuleNotFoundError: No module named 'tkinter'
 
-In this case you will need to install the correct system package for tkinter;
+In this case you will need to install the correct system package for tkinter.
 - note that trying to install via pip/pypi is usually not sufficient.
 
     Debian/Raspbian: $ sudo apt install python3-tk
@@ -122,7 +184,19 @@ To exit from screen, type  Control-A k
 Search the web for more documentation about screen, or for instructions
 for installing it on other versions of Linux.
 
-### What Can Go Wrong?
+## What Can Go Wrong?
+
+Most common problems are already discussed above, and in the Wiki.
+
+Make sure to use a good quality USB cable, beware of low-power cables
+that appear to work but 'brownout' the ESP32 during programming and wifi
+operations.
+
+If you already have esptool.py installed on your system the scripts will
+attempt to use that,  if this is broken or outdated it may fail.
+You can either upgrade that install or use the `venv` based approach
+as noted below. Look at the 'install-python3' folder in this archive to
+see the supplied and supported esptool version.
 
 esptool.py is only available on Python3.6 and higher, if your system
 does not support that you may be able to use the python2.7 version of
@@ -138,7 +212,7 @@ python virtual environment (venv) to do the install without needing to
 modify your system-wide python environment:
 https://packaging.python.org/en/latest/guides/installing-using-pip-and-virtual-environments/
 
-### FreeBSD and other *Nix *BSD platforms
+### FreeBSD and other *Nix & *BSD platforms
 
 This tool has been used successfully on FreeBSD 13 and should work
 on any unix-like platform where Python3 and esptool.py are available.
