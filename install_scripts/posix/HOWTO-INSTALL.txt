@@ -122,19 +122,9 @@ for installing it on other versions of Linux.
 
 ### What Can Go Wrong?
 
-esptool.py is only available on Python3.6 and higher, if your system
-does not support that you may be able to use the python2.7 version of
-esptool.py by manually installing it first:
-    pip install esptool.py
-The install_* scripts should then be able to complete the firmware install,
-but will fail after that when they cannot run fluidterm. See above
-for alternatives to fluidterm.
-
-If Python3.6+ is available on your system, but (for whatever reason) you
-use a lower Python version as the system default you can use a
-python virtual environment (venv) to do the install without needing to
-modify your system-wide python environment:
-https://packaging.python.org/en/latest/guides/installing-using-pip-and-virtual-environments/
+Many of these programs need at least Python3.6.  If you have an earlier
+version of Python3, you will need to install a later version.  Ask the
+internet for help.
 
 ### FreeBSD and other *Nix *BSD platforms
 
@@ -144,3 +134,18 @@ However this is unsupported; and for advanced users only.
 For reference:
 FreeBSD(13):
   User had to be added to 'dialer' group
+
+### Starting Over
+
+The first time that you run this installer, it creates a Python
+"virtual environment" with all of the necessary packages.  That can
+take awhile, especially on slower systems like Raspberry Pi.  After
+that first time, the tools are already installed and subsequent runs
+should be much faster, even if you download a new version of the
+FluidNC installer.
+
+If you want to start fresh and reinstall all the packages from
+scratch, you can just delete the directory that contains the
+virtual environment with:
+
+   rm -rf ~/.fluidnc_venv

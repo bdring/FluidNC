@@ -86,7 +86,7 @@ Firmware="0x10000 ${BuildType}/firmware.bin"
 Partitions="0x8000 ${BuildType}/partitions.bin"
 
 run_fluidterm() {
-    python3 fluidterm/fluidterm.py $*
+    python3 common/fluidterm.py $*
 }
 
 install() {

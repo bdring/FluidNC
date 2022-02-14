@@ -82,27 +82,23 @@ for envName in ['wifi','bt']:
     if buildEnv(envName, verbose=verbose) != 0:
         sys.exit(1)
 
-for platform in ['win64', 'macos', 'linux']:
+for platform in ['win64', 'posix']:
     print("Creating zip file for ", platform)
     terseOSName = {
         'win64': 'win',
-        'linux': 'linux',
-        'macos': 'macos'
+        'posix': 'posix',
     }
     scriptExtension = {
         'win64': '.bat',
-        'linux': '.sh',
-        'macos': '.sh'
+        'posix': '.sh',
     }
     exeExtension = {
         'win64': '.exe',
-        'linux': '',
-        'macos': ''
+        'posix': '',
     }
     withEsptoolBinary = {
         'win64': True,
-        'linux': False,
-        'macos': True
+        'posix': False,
     }
 
     zipDirName = os.path.join('fluidnc-' + tag + '-' + platform)
@@ -138,17 +134,17 @@ for platform in ['win64', 'macos', 'linux']:
             for obj in ['firmware.bin','partitions.bin']:
                 zipObj.write(os.path.join(objPath, obj), os.path.join(zipDirName, envName, obj))
 
-            # E.g. macos/install-wifi.sh -> install-wifi.sh
+            # E.g. posix/install-wifi.sh -> install-wifi.sh
             copyToZip(zipObj, platform, 'install-' + envName + scriptExtension[platform], zipDirName)
 
         for script in ['install-fs', 'fluidterm', 'checksecurity', 'erase', 'tools']:
-            # E.g. macos/fluidterm.sh -> fluidterm.sh
+            # E.g. posix/fluidterm.sh -> fluidterm.sh
             copyToZip(zipObj, platform, script + scriptExtension[platform], zipDirName)
 
         # Put the fluidterm code in the archive
-        for obj in ['fluidterm.py', 'README.md']:
+        for obj in ['fluidterm.py', 'README-FluidTerm.md']:
             fn = os.path.join('fluidterm', obj)
-            zipObj.write(fn, os.path.join(zipDirName, fn))
+            zipObj.write(fn, os.path.join(zipDirName, os.path.join('common', obj)))
 
         if platform == 'win64':
             obj = 'fluidterm' + exeExtension[platform]
@@ -161,13 +157,15 @@ for platform in ['win64', 'macos', 'linux']:
             name = 'README-ESPTOOL.txt'
             EspRepo = 'https://github.com/espressif/esptool/releases/download/' + EsptoolVersion + '/'
             EspDir = 'esptool-' + EsptoolVersion + '-' + platform
+            zipObj.write(os.path.join(sharedPath, name), os.path.join(zipDirName, platform,
+                         name.replace('.txt', '-' + EsptoolVersion + '.txt')))
         else:
             name = 'README-ESPTOOL-SOURCE.txt'
             EspRepo = 'https://github.com/espressif/esptool/archive/refs/tags/'
             EspDir = EsptoolVersion
+            zipObj.write(os.path.join(sharedPath, name), os.path.join(zipDirName, 'common',
+                         name.replace('.txt', '-' + EsptoolVersion + '.txt')))
 
-        zipObj.write(os.path.join(sharedPath, name), os.path.join(zipDirName, platform,
-            name.replace('.txt', '-' + EsptoolVersion + '.txt')))
 
         # Download and unzip from ESP repo
         ZipFileName = EspDir + '.zip'
@@ -185,6 +183,6 @@ for platform in ['win64', 'macos', 'linux']:
                     info.external_attr = 0o100755 << 16
                     zipObj.writestr(info, zipReader.read(sourceFileName))
         else:
-            zipObj.write(os.path.join(ZipFileName), os.path.join(zipDirName, platform, 'esptool-source.zip'))
+            zipObj.write(os.path.join(ZipFileName), os.path.join(zipDirName, 'common', 'esptool-source.zip'))
 
 sys.exit(0)
