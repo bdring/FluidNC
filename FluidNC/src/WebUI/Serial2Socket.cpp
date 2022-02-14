@@ -70,13 +70,10 @@ namespace WebUI {
             _lastflush = millis();
         }
 
-        //send full line
-        if (_TXbufferSize + size > TXBUFFERSIZE) {
-            flush();
-        }
-
-        //need periodic check to force to flush in case of no end
         for (int i = 0; i < size; i++) {
+            if (_TXbufferSize >= TXBUFFERSIZE) {
+                flush();
+            }
             _TXbuffer[_TXbufferSize] = buffer[i];
             _TXbufferSize++;
         }
