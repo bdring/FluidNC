@@ -117,7 +117,7 @@ for platform in ['win64', 'posix']:
         bootapp = 'boot_app0.bin';
         zipObj.write(os.path.join(tools, "partitions", bootapp), os.path.join(zipDirName, 'common', bootapp))
         for secFuses in ['SecurityFusesOK.bin', 'SecurityFusesOK0.bin']:
-            zipObj.write(os.path.join(sharedPath, secFuses), os.path.join(zipDirName, 'common', secFuses))
+            zipObj.write(os.path.join(sharedPath, 'common', secFuses), os.path.join(zipDirName, 'common', secFuses))
 
         # Put FluidNC binaries, partition maps, and installers in the archive
         for envName in ['wifi','bt']:
@@ -157,13 +157,13 @@ for platform in ['win64', 'posix']:
             name = 'README-ESPTOOL.txt'
             EspRepo = 'https://github.com/espressif/esptool/releases/download/' + EsptoolVersion + '/'
             EspDir = 'esptool-' + EsptoolVersion + '-' + platform
-            zipObj.write(os.path.join(sharedPath, name), os.path.join(zipDirName, platform,
+            zipObj.write(os.path.join(sharedPath, platform, name), os.path.join(zipDirName, platform,
                          name.replace('.txt', '-' + EsptoolVersion + '.txt')))
         else:
             name = 'README-ESPTOOL-SOURCE.txt'
             EspRepo = 'https://github.com/espressif/esptool/archive/refs/tags/'
             EspDir = EsptoolVersion
-            zipObj.write(os.path.join(sharedPath, name), os.path.join(zipDirName, 'common',
+            zipObj.write(os.path.join(sharedPath, 'common', name), os.path.join(zipDirName, 'common',
                          name.replace('.txt', '-' + EsptoolVersion + '.txt')))
 
 
