@@ -67,6 +67,10 @@ relPath = os.path.join('release')
 if not os.path.exists(relPath):
     os.makedirs(relPath)
 
+pkgPath = os.path.join('esp-packages')
+if not os.path.exists(pkgPath):
+    os.makedirs(pkgPath)
+
 if buildFs('wifi', verbose=verbose) != 0:
     sys.exit(1)
 
@@ -156,10 +160,12 @@ for platform in ['win64', 'macos', 'linux-amd64', 'linux-python3']:
             name = 'README-ESPTOOL.txt'
             EspRepo = 'https://github.com/espressif/esptool/releases/download/' + EsptoolVersion + '/'
             EspDir = 'esptool-' + EsptoolVersion + '-' + platform
+            LocalZip = os.path.join(pkgPath, EspDir + '.zip')
         else:
             name = 'README-ESPTOOL-SOURCE.txt'
             EspRepo = 'https://github.com/espressif/esptool/archive/refs/tags/'
             EspDir = EsptoolVersion
+            LocalZip = os.path.join(pkgPath, 'esptool-' + EspDir + '-source.zip')
 
         zipObj.write(os.path.join(sharedPath, name), os.path.join(platform,
             name.replace('.txt', '-' + EsptoolVersion + '.txt')))
@@ -168,18 +174,18 @@ for platform in ['win64', 'macos', 'linux-amd64', 'linux-python3']:
         ZipFileName = EspDir + '.zip'
         if not os.path.isfile(ZipFileName):
             with urllib.request.urlopen(EspRepo + ZipFileName) as u:
-                open(ZipFileName, 'wb').write(u.read())
+                open(LocalZip, 'wb').write(u.read())
 
         if withEsptoolBinary[platform]:
             for Binary in ['esptool']:
                 Binary += exeExtension[platform]
                 sourceFileName = EspDir + '/' + Binary
-                with ZipFile(ZipFileName, 'r') as zipReader:
+                with ZipFile(LocalZip, 'r') as zipReader:
                     destFileName = os.path.join(platform, Binary)
                     info = ZipInfo(destFileName)
                     info.external_attr = 0o100755 << 16
                     zipObj.writestr(info, zipReader.read(sourceFileName))
         else:
-            zipObj.write(os.path.join(ZipFileName), os.path.join(platform, 'esptool-source.zip'))
+            zipObj.write(LocalZip, os.path.join(platform, 'esptool-source.zip'))
 
 sys.exit(0)

@@ -23,6 +23,5 @@ packages/
 pio_machine.h
 project.checksum
 version.cpp
-esptool*.zip
-v*.zip
+esp-packages/
 /FluidNC/data/config.yaml
