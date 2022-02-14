@@ -2,4 +2,4 @@
 
 . ./tools.sh
 
-check_security
+esptool_erase

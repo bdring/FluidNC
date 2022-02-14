@@ -3,7 +3,7 @@
 _Please note: These instructions apply to the case where you have
 downloaded a release bundle from
 https://github.com/bdring/FluidNC/releases - a zip file named
-fluidnc-vN.N.N-linux-python3.zip .  They do not apply to installing from
+fluidnc-vN.N.N-linux.zip .  They do not apply to installing from
 a source tree.  This HOWTO file is present in the source tree so that
 it can be packed into a release bundle by automated release scripting,
 but it does not tell you how to install from source.  For that, visit
@@ -13,18 +13,12 @@ _
 These install scripts use Python3 and the Python version of esptool.
 https://docs.espressif.com/projects/esptool/en/latest/esp32/
 
-They are suitable for any system supporting esptool.py
-eg. non-intel (arm) linux systems, such as Raspberry PI's or
-legacy machines running 32bit distributions.
+Most Linux distributions already have Python3 preinstalled.  If you
+have problems, search the web for: "install python3 on <OS>" replacing
+ls<OS> with the name of your Linux version (Raspbian, Debian, etc.).
 
-Most Linux distributions will already have Python3
-preinstalled.  If you have problems, search the web for:
-"install python3 on <OS>"
-replacing <OS> with the name and version of your operating system.
-
-The script will attempt to install esptool.py if it is not already
-present, if this fails please see the esptool documentation and
-forums for support.
+The script will install esptool.py if necessary.  If this fails please
+see the esptool documentation and forums for support.
 https://docs.espressif.com/projects/esptool/en/latest/esp32/installation.html
 https://www.esp32.com/viewforum.php?f=23
 _
@@ -39,14 +33,26 @@ you are reading and run one of the following commands:
 To install the WiFi version:            sh install-wifi.sh
 To install the Bluetooth version:       sh install-bt.sh
 To replace the ESP32 local filesystem:  sh install-fs.sh
+To erase everything on the ESP32:       sh erase.sh
+To just run FluidTerm:                  sh fluidterm.sh
 
-### Group membership Considerations
+### Serial Port Permission Problems
 
-Your user should be a member of the `dialup` group in order to access
-the USB serial device, you can use `id -a` to see your current
-groups. To add yourself to the 'dialup' group you need to use:
+Linux systems often deny access to serial ports by default.  This
+often shows up as a "Permission denied" message.  To fix that,
+this command works on most Linux systems:
 
-    sudo usermod -a -G dialup <username>
+    sudo usermod -aG dialout $USER
+
+### Erasing the ESP32
+
+If your ESP32 already has other software on it, installing FluidNC
+on top of that other software might not work right.  You can get
+rid of that other software with:
+
+    sh erase.sh
+
+Then you can install FluidNC with install-* commands mentioned above.
 
 ### Local Filesystem Considerations
 
@@ -63,9 +69,12 @@ it via WebUI from wifi/index.html.gz herein.
 A good approach is to use install-fs only on your first FluidNC
 installation, to start from a clean slate.
 
-### Running Fluidterm
+### Running FluidTerm
 
-The FluidNC install scripts run Fluidterm automatically at the end,
+FluidTerm is a simple serial terminal emulator program with a few
+features specific to FluidNC - it can upload files and reset the ESP32.
+
+The FluidNC install scripts run FluidTerm automatically at the end,
 but if you want to run it separately, you can type
 
   sh fluidterm.sh
@@ -74,29 +83,18 @@ or just
 
   ./fluidterm.sh
 
-### If Fluidterm Won't Start ...
+### If FluidTerm Won't Start ...
 
-Fluidterm is intended to be helpful but it is not absolutely necessary
-for using FluidNC.  Fluidterm lets you interact directly with FluidNC
+FluidTerm is intended to be helpful but it is not absolutely necessary
+for using FluidNC.  FluidTerm lets you interact directly with FluidNC
 over a USB serial port.  There are other ways to do that, so if you
-have trouble running Fluidterm, you can just ignore it.
+have trouble running FluidTerm, you can just ignore it.
 
-On headless (no GUI installed) machines fluidterm may fail with:
-
-    ModuleNotFoundError: No module named 'tkinter'
-
-In this case you will need to install the correct system package for tkinter;
-- note that trying to install via pip/pypi is usually not sufficient.
-
-    Debian/Raspbian: $ sudo apt install python3-tk
-    Fedora/RHEL: $ sudo dnf install python3-tkinter
-etc..
-
-### Alternatives to Fluidterm
+### Alternatives to FluidTerm
 
 Most GCode sender programs have some way to send commands directly to
 FluidNC, but it can sometimes be helpful to bypass the complexity of
-a sender and use a more direct path.  Fluidterm is one such direct
+a sender and use a more direct path.  FluidTerm is one such direct
 path, but there are others, typically called "serial terminals".
 
 For Linux, there are many such programs, such as "screen", "minicom", "cu",
@@ -145,5 +143,4 @@ on any unix-like platform where Python3 and esptool.py are available.
 However this is unsupported; and for advanced users only.
 For reference:
 FreeBSD(13):
-  User had to be added to 'dialer' group, and py-tkinter installed from
-  ports to enable fluidterm.
+  User had to be added to 'dialer' group
