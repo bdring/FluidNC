@@ -11,6 +11,10 @@ verbose = '-v' in sys.argv
 
 environ = dict(os.environ)
 
+def buildEmbeddedPage():
+    print('Building embedded web page')
+    return subprocess.run(["python", "build.py"], cwd="embedded").returncode
+
 def buildEnv(pioEnv, verbose=True, extraArgs=None):
     cmd = ['platformio','run', '--disable-auto-clean', '-e', pioEnv]
     if extraArgs:
@@ -70,6 +74,10 @@ if not os.path.exists(relPath):
 pkgPath = os.path.join('esp-packages')
 if not os.path.exists(pkgPath):
     os.makedirs(pkgPath)
+
+# We avoid doing this every time, instead checking in a new NoFile.h as necessary
+# if buildEmbeddedPage() != 0:
+#    sys.exit(1)
 
 if buildFs('wifi', verbose=verbose) != 0:
     sys.exit(1)

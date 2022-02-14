@@ -304,6 +304,7 @@ namespace Spindles {
     void VFD::config_message() { _uart->config_message(name(), " Spindle "); }
 
     void VFD::setState(SpindleState state, SpindleSpeed speed) {
+        log_info("VFD setState:" << uint8_t(state) << " SpindleSpeed:" << speed);
         if (sys.abort) {
             return;  // Block during abort.
         }
@@ -346,12 +347,13 @@ namespace Spindles {
 #ifdef DEBUG_VFD
                 log_debug("Syncing speed. Requested: " << int(dev_speed) << " current:" << int(_sync_dev_speed));
 #endif
-                if (!mc_dwell(500)) {
-                    // Something happened while we were dwelling, like a safety door.
-                    unchanged = limit;
-                    last      = _sync_dev_speed;
-                    break;
-                }
+                // if (!mc_dwell(500)) {
+                //     // Something happened while we were dwelling, like a safety door.
+                //     unchanged = limit;
+                //     last      = _sync_dev_speed;
+                //     break;
+                // }
+                delay(500);
 
                 // unchanged counts the number of consecutive times that we see the same speed
                 unchanged = (_sync_dev_speed == last) ? unchanged + 1 : 0;
