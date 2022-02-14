@@ -114,7 +114,100 @@ namespace Spindles {
         );
     }
 
+    /* Implementation of Bresenham's Line Algorithm, negative gradient.
+    * See the interpolate function description.
+    */
+    static void interpolate_low(uint32_t x0, uint32_t y0, uint32_t x1, uint32_t y1, uint32_t * y_result)
+    {
+        uint32_t x;
+        int32_t dx = (int32_t)(x1 - x0);
+        int32_t dy = (int32_t)(y1 - y0);
+
+        int32_t yi = 1;
+        if (dy < 0)
+        {
+            yi = -1;
+            dy = -dy;
+        }
+        int32_t D = (2 * dy) - dx;
+        int32_t y = y0;
+
+        for(x = x0; x < x1; x++)
+        {
+            y_result[x] = y;
+            if(D > 0)
+            {
+                y = y + yi;
+                D = D + (2 * (dy - dx));
+            }
+            else
+            {
+                D = D + 2*dy;
+            }
+        }
+    }
+
+    /* Implementation of Bresenham's Line Algorithm, positive gradient.
+    * See the interpolate function description.
+    */
+    static void interpolate_high(uint32_t x0, uint32_t y0, uint32_t x1, uint32_t y1, uint32_t * y_result)
+    {
+        uint32_t y;
+        int32_t dx = (int32_t)(x1 - x0);
+        int32_t dy = (int32_t)(y1 - y0);
+
+        int32_t xi = 1;
+        int32_t x = x0;
+        if(dx < 0)
+        {
+            xi = -1;
+            dx = -dx;
+            x -= 1;
+        }
+        int32_t D = (2 * dx) - dy;
+
+        for(y = y0; y < y1; y++)
+        {
+            if(D > 0)
+            {
+                y_result[x] = y;
+                x = x + xi;
+                D = D + (2 * (dx - dy));
+            }
+            else
+            {
+                D = D + 2*dx;
+            }
+        }
+    }
+
+    /* Implementation of Bresenham's Line Algorithm
+    * This function is used for pwm spindle ramping, to calculate the points of a line, where
+    * each y point is a pwm that is applied in a increasing or decreasing linear progression.
+    * For further information see: https://en.wikipedia.org/wiki/Bresenham%27s_line_algorithm
+    */
+    static void interpolate(uint32_t x0, uint32_t y0, uint32_t x1, uint32_t y1, uint32_t * y_result)
+    {
+        if(abs(y1 - y0) < abs(x1 - x0))
+        {
+            if(x0 > x1)
+                interpolate_low(x1, y1, x0, y0, y_result);
+            else
+                interpolate_low(x0, y0, x1, y1, y_result);
+        }
+        else
+        {
+            if(y0 > y1)
+                interpolate_high(x1, y1, x0, y0, y_result);
+            else
+                interpolate_high(x0, y0, x1, y1, y_result);
+        }
+    }
+
     void IRAM_ATTR PWM::set_output(uint32_t duty) {
+        
+        uint32_t pwm_prog_y[100];
+
         if (_output_pin.undefined()) {
             return;
         }
@@ -123,6 +216,13 @@ namespace Spindles {
         if (duty == _current_pwm_duty) {
             return;
         }
+
+        interpolate(0, _current_pwm_duty, 20, duty, pwm_prog_y);
+        for(uint32_t i = 0; i < 20; i++)
+		{
+			ledcSetDuty(_pwm_chan_num, pwm_prog_y[i]);
+			delay_ms(100);
+		}
 
         _current_pwm_duty = duty;
 
