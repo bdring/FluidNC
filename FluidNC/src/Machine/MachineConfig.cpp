@@ -133,7 +133,7 @@ namespace Machine {
         // builtin config.  This helps prevent reset loops on bad config files.
         esp_reset_reason_t reason = esp_reset_reason();
         if (reason == ESP_RST_PANIC) {
-            log_debug("Skipping configuration file due to panic");
+            log_error("Skipping configuration file due to panic");
             configOkay = false;
         } else {
             configOkay = load(config_filename->get());

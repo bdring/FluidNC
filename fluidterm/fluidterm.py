@@ -20,9 +20,13 @@ import platform
 if platform.system() == 'Darwin':
     import subprocess
 else:
-    from tkinter import *
-    from tkinter import filedialog
-    from tkinter import simpledialog
+    try:
+        from tkinter import *
+        from tkinter import filedialog
+        from tkinter import simpledialog
+    except:
+        pass
+
 import time
 
 import serial
@@ -498,6 +502,7 @@ def ask_for_port():
     ports = []
     if len(comports()) == 1:
         return comports()[0].device
+
     sys.stderr.write('\n--- Available ports:\n')
     for n, (port, desc, hwid) in enumerate(sorted(comports()), 1):
         sys.stderr.write('--- {:2}: {:20} {!r}\n'.format(n, port, desc))
@@ -686,8 +691,7 @@ class Miniterm(object):
         # If you restart FluidNC with $bye or the reset switch, you
         # will have to trigger interactive mode manually
         time.sleep(2) # Time for FluidNC to be ready for input
-        right_arrow = '\x1b[C'
-        self.serial.write(self.tx_encoder.encode(right_arrow))
+        self.enable_fluid_echo();
 
         try:
             while self.alive:
@@ -698,11 +702,10 @@ class Miniterm(object):
                 for c in data:
                     if not self.alive:
                         break
-                    if menu_active:
-                        self.handle_menu_key(c)
-                        menu_active = False
-                    elif c == self.menu_character:
-                        menu_active = True      # next char will be for menu
+                    if c == '\x15':     # CTRL+U -> upload file with XModem
+                        self.upload_xmodem()
+                    elif c == '\x12':   # CTRL+R -> reset FluidNC
+                        self.reset_fluidnc()
                     elif c == self.exit_character:
                         self.stop()             # exit app
                         break
@@ -885,12 +888,32 @@ class Miniterm(object):
             destname = self.mac_askstring(os.path.split(pathname)[1])
             return (pathname, destname)
         else:
-            window = Tk()
-            pathname = filedialog.askopenfilename(title="File to Upload", initialfile=initial, filetypes=[("FluidNC Config", "*.yaml *.flnc *.txt"), ("All files", "*")])
-            print("path",pathname)
-            destname = simpledialog.askstring("Uploader", "Destination Filename", initialvalue=os.path.split(pathname)[1])
-            window.destroy()
-            return (pathname, destname)
+            try:
+                window = Tk()
+            except:
+                pathname = raw_input("Local file to send: ")
+                destname = raw_input("File on FluidNC: ")
+                return (pathname, destname)
+            else:
+                pathname = filedialog.askopenfilename(title="File to Upload", initialfile=initial, filetypes=[("FluidNC Config", "*.yaml *.flnc *.txt"), ("All files", "*")])
+                print("path",pathname)
+                destname = simpledialog.askstring("Uploader", "Destination Filename", initialvalue=os.path.split(pathname)[1])
+                window.destroy()
+                return (pathname, destname)
+
+    def enable_fluid_echo(self):
+        right_arrow = '\x1b[C'
+        self.serial.write(self.tx_encoder.encode(right_arrow))
+
+    def reset_fluidnc(self):
+        """Pulse the reset line for FluidNC"""
+        self.console.write("Resetting MCU\n")
+        self.serial.rts = True
+        self.serial.dtr = False
+        time.sleep(1)
+        self.serial.rts = False
+        time.sleep(1)
+        self.enable_fluid_echo()
 
     def upload_xmodem(self):
         """Ask user for filename and send its contents"""
@@ -1053,6 +1076,7 @@ class Miniterm(object):
 ---    {exit:7} Send the exit character itself to remote
 ---    {info:7} Show info
 ---    {upload:7} Upload file (prompt will be shown)
+---    {xmodem:7} Upload file via XMODEM (prompt will be shown)
 ---    {repr:7} encoding
 ---    {filter:7} edit filters
 --- Toggles:
@@ -1076,6 +1100,7 @@ class Miniterm(object):
            echo=key_description('\x05'),
            info=key_description('\x09'),
            upload=key_description('\x15'),
+           xmodem=key_description('\x18'),
            repr=key_description('\x01'),
            filter=key_description('\x06'),
            eol=key_description('\x0c'))
@@ -1295,11 +1320,10 @@ def main(default_port=None, default_baudrate=115200, default_rts=None, default_d
     if not args.quiet:
         sys.stderr.write('--- Fluidterm on {p.name}  {p.baudrate},{p.bytesize},{p.parity},{p.stopbits} ---\n'.format(
             p=miniterm.serial))
-        sys.stderr.write('--- Quit: {} | Menu: {} | Help: {} followed by {} ---\n'.format(
+        sys.stderr.write('--- Quit: {} | Upload: {} | Reset: {} ---\n'.format(
             key_description(miniterm.exit_character),
-            key_description(miniterm.menu_character),
-            key_description(miniterm.menu_character),
-            key_description('H')))
+            key_description('\x15'),
+            key_description('\x12')))
 
     miniterm.start()
     try:

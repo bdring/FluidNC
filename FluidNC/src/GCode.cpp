@@ -878,7 +878,7 @@ Error gc_execute_line(char* line, Channel& channel) {
     // Pre-convert XYZ coordinate values to millimeters, if applicable.
     if (gc_block.modal.units == Units::Inches) {
         for (size_t idx = 0; idx < n_axis; idx++) {  // Axes indices are consistent, so loop may be used.
-            if (bitnum_is_true(axis_words, idx)) {
+            if ((idx < A_AXIS || idx > C_AXIS) && bitnum_is_true(axis_words, idx)) {
                 gc_block.values.xyz[idx] *= MM_PER_INCH;
             }
         }
