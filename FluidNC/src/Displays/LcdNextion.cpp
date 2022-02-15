@@ -22,6 +22,7 @@ namespace Displays {
 
     void LcdNextion::init() {
         config_message();
+        allChannels.registration(_uart);
         _uart->begin();
         _uart_started = true;
         _uart->config_message("  lcd_nextion", " ");
@@ -49,15 +50,15 @@ namespace Displays {
             if (_uart_started) {
                 sendDROs();
 
-                int ch;
-                while (_uart->available()) {
-                    ch = _uart->read();                    
-                    if (is_realtime_command(ch)) {
-                        WebUI::inputBuffer.push(ch);
-                    } else {                        
-                        WebUI::inputBuffer.push(ch);
-                    }
-                }
+                // int ch;
+                // while (_uart->available()) {
+                //     ch = _uart->read();                    
+                //     if (is_realtime_command(ch)) {
+                //         WebUI::inputBuffer.push(ch);
+                //     } else {                        
+                //         WebUI::inputBuffer.push(ch);
+                //     }
+                // }
             }
             vTaskDelay(xLcdInterval);
         }

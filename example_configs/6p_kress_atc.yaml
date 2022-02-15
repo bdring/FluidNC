@@ -15,13 +15,13 @@ axes:
     steps_per_mm: 800.000
     max_rate_mm_per_min: 4500.000
     acceleration_mm_per_sec2: 100.000
-    max_travel_mm: 300.000
-    soft_limits: false
+    max_travel_mm: 180.000
+    soft_limits: true
     homing:
       cycle: 2
       allow_single_axis: true
       positive_direction: false
-      mpos_mm: 150.000
+      mpos_mm: 0.000
       feed_mm_per_min: 500.000
       seek_mm_per_min: 1000.000
       settle_ms: 50
@@ -48,12 +48,12 @@ axes:
     max_rate_mm_per_min: 4500.000
     acceleration_mm_per_sec2: 100.000
     max_travel_mm: 300.000
-    soft_limits: false
+    soft_limits: true
     homing:
       cycle: 2
       allow_single_axis: true
       positive_direction: true
-      mpos_mm: 150.000
+      mpos_mm: 0.000
       feed_mm_per_min: 500.000
       seek_mm_per_min: 1000.000
       settle_ms: 50
@@ -80,7 +80,7 @@ axes:
     max_rate_mm_per_min: 4500.000
     acceleration_mm_per_sec2: 100.000
     max_travel_mm: 80.000
-    soft_limits: false
+    soft_limits: true
     homing:
       cycle: 1
       allow_single_axis: true
