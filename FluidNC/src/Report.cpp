@@ -81,15 +81,25 @@ static const int axesStringLen  = coordStringLen * MAX_N_AXIS;
 
 // Sends the axis values to the output channel
 static void report_util_axis_values(const float* axis_value, Print& channel) {
-    float unit_conv = 1.0;  // unit conversion multiplier..default is mm
-    int   decimals  = 3;    // Default - report mm to 3 decimal places
-    if (config->_reportInches) {
-        unit_conv = 1.0f / MM_PER_INCH;
-        decimals  = 4;  // Report inches to 4 decimal places
-    }
     auto n_axis = config->_axes->_numberAxis;
     for (size_t idx = 0; idx < n_axis; idx++) {
-        channel << setprecision(decimals) << (axis_value[idx] * unit_conv);
+        int   decimals;
+        float value = axis_value[idx];
+        if (idx >= A_AXIS && idx <= C_AXIS) {
+            // Rotary axes are in degrees so mm vs inch is not
+            // relevant.  Three decimal places is probably overkill
+            // for rotary axes but we use 3 in case somebody wants
+            // to use ABC as linear axes in mm.
+            decimals = 3;
+        } else {
+            if (config->_reportInches) {
+                value /= MM_PER_INCH;
+                decimals = 4;  // Report inches to 4 decimal places
+            } else {
+                decimals = 3;  // Report mm to 3 decimal places
+            }
+        }
+        channel << setprecision(decimals) << value;
         if (idx < (n_axis - 1)) {
             channel << ",";
         }

@@ -1,0 +1,151 @@
+## Installing FluidNC on your ESP32
+
+_Please note: These instructions apply to the case where you have
+downloaded a release bundle from
+https://github.com/bdring/FluidNC/releases - a zip file named
+fluidnc-vN.N.N-linux.zip .  They do not apply to installing from
+a source tree.  This HOWTO file is present in the source tree so that
+it can be packed into a release bundle by automated release scripting,
+but it does not tell you how to install from source.  For that, visit
+https://github.com/bdring/FluidNC/wiki/FluidNC-Compiling#use-vs-code--platformio-to-compile
+_
+
+These install scripts use Python3 and the Python version of esptool.
+https://docs.espressif.com/projects/esptool/en/latest/esp32/
+
+Most Linux distributions already have Python3 preinstalled.  If you
+have problems, search the web for: "install python3 on <OS>" replacing
+ls<OS> with the name of your Linux version (Raspbian, Debian, etc.).
+
+The script will install esptool.py if necessary.  If this fails please
+see the esptool documentation and forums for support.
+https://docs.espressif.com/projects/esptool/en/latest/esp32/installation.html
+https://www.esp32.com/viewforum.php?f=23
+_
+
+Unpack this FluidNC release Zip file.
+
+Plug your ESP32 into a USB port.
+
+At a shell prompt, cd to the directory that contains the file
+you are reading and run one of the following commands:
+
+To install the WiFi version:            sh install-wifi.sh
+To install the Bluetooth version:       sh install-bt.sh
+To replace the ESP32 local filesystem:  sh install-fs.sh
+To erase everything on the ESP32:       sh erase.sh
+To just run FluidTerm:                  sh fluidterm.sh
+
+### Serial Port Permission Problems
+
+Linux systems often deny access to serial ports by default.  This
+often shows up as a "Permission denied" message.  To fix that,
+this command works on most Linux systems:
+
+    sudo usermod -aG dialout $USER
+
+### Erasing the ESP32
+
+If your ESP32 already has other software on it, installing FluidNC
+on top of that other software might not work right.  You can get
+rid of that other software with:
+
+    sh erase.sh
+
+Then you can install FluidNC with install-* commands mentioned above.
+
+### Local Filesystem Considerations
+
+Replacing the local filesystem is only useful for the wifi version.
+The Bluetooth version can start with an empty local filesystem.
+
+The disadvantage of replacing the local filesystem is that it will
+overwrite any files that you might already have there, such as FluidNC
+config files, WebUI preferences and macros.  The advantage is that you
+will get the latest version of the index.html.gz file that contains
+the WebUI code.  Another way to get a new index.html.gz is to upload
+it via WebUI from wifi/index.html.gz herein.
+
+A good approach is to use install-fs only on your first FluidNC
+installation, to start from a clean slate.
+
+### Running FluidTerm
+
+FluidTerm is a simple serial terminal emulator program with a few
+features specific to FluidNC - it can upload files and reset the ESP32.
+
+The FluidNC install scripts run FluidTerm automatically at the end,
+but if you want to run it separately, you can type
+
+  sh fluidterm.sh
+
+or just
+
+  ./fluidterm.sh
+
+### If FluidTerm Won't Start ...
+
+FluidTerm is intended to be helpful but it is not absolutely necessary
+for using FluidNC.  FluidTerm lets you interact directly with FluidNC
+over a USB serial port.  There are other ways to do that, so if you
+have trouble running FluidTerm, you can just ignore it.
+
+### Alternatives to FluidTerm
+
+Most GCode sender programs have some way to send commands directly to
+FluidNC, but it can sometimes be helpful to bypass the complexity of
+a sender and use a more direct path.  FluidTerm is one such direct
+path, but there are others, typically called "serial terminals".
+
+For Linux, there are many such programs, such as "screen", "minicom", "cu",
+"picocom", and "PuTTY".  The one that is most likely to be preinstalled
+is named "screen".  If screen is not preinstalled, you might be able to
+install it with (on Ubuntu or Debian).
+
+   sudo apt update
+   sudo apt install screen
+
+To use screen, go to a shell window and type:
+
+  ls /dev/tty*
+
+That will give you a list of serial ports.  You need to find the one
+that is connected to FluidNC.  It will probably have a name that starts
+with "/dev/ttyUSB".  Once you have found that name, type
+
+  screen /dev/ttyUSBWHATEVER 115200
+
+To exit from screen, type  Control-A k
+
+Search the web for more documentation about screen, or for instructions
+for installing it on other versions of Linux.
+
+### What Can Go Wrong?
+
+Many of these programs need at least Python3.6.  If you have an earlier
+version of Python3, you will need to install a later version.  Ask the
+internet for help.
+
+### FreeBSD and other *Nix *BSD platforms
+
+This tool has been used successfully on FreeBSD 13 and should work
+on any unix-like platform where Python3 and esptool.py are available.
+However this is unsupported; and for advanced users only.
+For reference:
+FreeBSD(13):
+  User had to be added to 'dialer' group
+
+### Starting Over
+
+The first time that you run this installer, it creates a Python
+"virtual environment" with all of the necessary packages.  That can
+take awhile, especially on slower systems like Raspberry Pi.  After
+that first time, the tools are already installed and subsequent runs
+should be much faster, even if you download a new version of the
+FluidNC installer.
+
+If you want to start fresh and reinstall all the packages from
+scratch, you can just delete the directory that contains the
+virtual environment with:
+
+   rm -rf ~/.fluidnc_venv
