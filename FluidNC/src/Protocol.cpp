@@ -761,8 +761,8 @@ void protocol_exec_rt_system() {
 #endif
     if (rtReset) {
         if (config->_control->_dual_mode_reset && (sys.state == State::Cycle || sys.state == State::Jog)) {
-            rtFeedHold = true;
             rtReset = false;
+            protocol_do_feedhold();
         } else {
             if (sys.state == State::Homing) {
                 rtAlarm = ExecAlarm::HomingFailReset;
@@ -798,6 +798,9 @@ void protocol_exec_rt_system() {
     if (rtCycleStart) {
         if(config->_control->_dual_mode_cycle_start && (sys.state == State::Alarm)) {
             rtCycleStart = false;
+            if (config->_control->stuck()) {
+                mc_reset();
+            } 
             report_feedback_message(Message::AlarmUnlock);
             sys.state = State::Idle;
         } else {
