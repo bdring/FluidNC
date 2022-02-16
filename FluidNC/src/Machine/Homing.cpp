@@ -263,19 +263,12 @@ namespace Machine {
 
         // Set machine positions for homed limit switches. Don't update non-homed axes.
         for (int axis = 0; axis < n_axis; axis++) {
-            Machine::Axis* axisConf = config->_axes->_axis[axis];
-            auto           homing   = axisConf->_homing;
-
             if (bitnum_is_true(axisMask, axis)) {
-                auto mpos    = homing->_mpos;
-                auto pulloff = axisConf->_motors[0]->_pulloff;
-
-                mpos += homing->_positiveDirection ? -pulloff : pulloff;
-                motor_steps[axis] = mpos_to_steps(mpos, axis);
+                motor_steps[axis] = mpos_to_steps(axes->_axis[axis]->_homing->_mpos, axis);
             }
         }
-        sys.step_control = {};                            // Return step control to normal operation.
-        config->_axes->set_homing_mode(axisMask, false);  // tell motors homing is done
+        sys.step_control = {};                   // Return step control to normal operation.
+        axes->set_homing_mode(axisMask, false);  // tell motors homing is done
     }
 
     void Homing::run_one_cycle(AxisMask axisMask) {
