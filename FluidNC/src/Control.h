@@ -20,6 +20,10 @@ public:
     ControlPin _macro3;
 
 public:
+    // Configurable
+    bool _dual_mode_reset = false;
+    bool _dual_mode_cycle_start = false;
+    
     Control();
 
     // Initializes control pins.

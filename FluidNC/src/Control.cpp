@@ -22,6 +22,8 @@ void Control::init() {
 }
 
 void Control::group(Configuration::HandlerBase& handler) {
+    handler.item("enable_dual_mode_reset_pin", _dual_mode_reset); // reset button becomes a "feedhold button" if active state is "Cycle" or "Jog"
+    handler.item("enable_dual_mode_cycle_start_pin", _dual_mode_cycle_start); // cycle_start button becomes an "unlock button" if active state is "Alarm"
     handler.item("safety_door_pin", _safetyDoor._pin);
     handler.item("reset_pin", _reset._pin);
     handler.item("feed_hold_pin", _feedHold._pin);
