@@ -221,10 +221,7 @@ namespace Kinematics {
 
             if (axisConf->_homing) {
                 auto mpos_mm = axisConf->_homing->_mpos;
-                auto pulloff = axisConf->_motors[0]->_pulloff;
-
-                pulloff    = axisConf->_homing->_positiveDirection ? -pulloff : pulloff;
-                mpos[axis] = mpos_mm + pulloff;
+                mpos[axis]   = mpos_mm;
             }
         }
 
