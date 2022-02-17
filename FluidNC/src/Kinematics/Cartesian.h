@@ -27,7 +27,6 @@ namespace Kinematics {
         virtual void init() override;
         virtual bool kinematics_homing(AxisMask cycle_mask) override;
         virtual void kinematics_post_homing() override;
-        virtual bool limitsCheckTravel(float* target) override;
         virtual void motors_to_cartesian(float* cartesian, float* motors, int n_axis) override;
 
         // Configuration handlers:

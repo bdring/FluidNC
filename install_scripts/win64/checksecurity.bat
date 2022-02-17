@@ -15,15 +15,18 @@ if not %ErrorLevel% equ 0 (
 
 fc /b SecurityFuses.bin common\SecurityFusesOK.bin > nul 2>&1
 if not %Errorlevel% equ 0 (
-   echo *******************************************
-   echo *  Secure boot is enabled on this ESP32   *
-   echo * Loading FluidNC would probably brick it *
-   echo *    !ABORTED! Read Wiki for more Info    *
-   echo *******************************************
-   fc /b SecurityFuses.bin common\SecurityFusesOK.bin
-   del SecurityFuses.bin
-   pause
-   exit /b 1
+  fc /b SecurityFuses.bin common\SecurityFusesOK0.bin > nul 2>&1
+  if not %Errorlevel% equ 0 (
+    echo *******************************************
+    echo *  Secure boot is enabled on this ESP32   *
+    echo * Loading FluidNC would probably brick it *
+    echo *    !ABORTED! Read Wiki for more Info    *
+    echo *******************************************
+    fc /b SecurityFuses.bin common\SecurityFusesOK0.bin
+    del SecurityFuses.bin
+    pause
+    exit /b 1
+  )
 )
 del SecurityFuses.bin
 exit /b 0

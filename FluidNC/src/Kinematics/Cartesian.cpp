@@ -1,6 +1,5 @@
 #include "Cartesian.h"
 
-#include "../Limits.h"
 #include "../Machine/MachineConfig.h"
 
 namespace Kinematics {
@@ -23,27 +22,6 @@ namespace Kinematics {
     void Cartesian::motors_to_cartesian(float* cartesian, float* motors, int n_axis) {
         // Motor space is cartesian space, so we do no transform.
         memcpy(cartesian, motors, n_axis * sizeof(motors[0]));
-    }
-
-    // Checks and reports if target array exceeds machine travel limits.
-    // Return true if exceeding limits
-    bool Cartesian::limitsCheckTravel(float* target) {
-        auto axes   = config->_axes;
-        auto n_axis = config->_axes->_numberAxis;
-
-        float cartesian[MAX_N_AXIS];
-        motors_to_cartesian(cartesian, target, n_axis);  // Convert to cartesian then check
-
-        bool limit_error = false;
-        for (int axis = 0; axis < n_axis; axis++) {
-            auto axisSetting = axes->_axis[axis];
-            if (axisSetting->_softLimits && (cartesian[axis] < limitsMinPosition(axis) || cartesian[axis] > limitsMaxPosition(axis))) {
-                String axis_letter = String(Machine::Axes::_names[axis]);
-                log_info("Soft limit on " << axis_letter << " target:" << cartesian[axis]);
-                limit_error = true;
-            }
-        }
-        return limit_error;
     }
 
     // Configuration registration
