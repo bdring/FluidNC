@@ -634,6 +634,18 @@ static Error showStartupLog(const char* value, WebUI::AuthenticationLevel auth_l
     return Error::Ok;
 }
 
+static Error setReportInterval(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+    char*   endptr;
+    int32_t intValue = strtol(value, &endptr, 10);
+
+    if (endptr == value || *endptr != '\0') {
+        return Error::BadNumberFormat;
+    }
+
+    out.setReportInterval(intValue);
+    return Error::Ok;
+}
+
 // Commands use the same syntax as Settings, but instead of setting or
 // displaying a persistent value, a command causes some action to occur.
 // That action could be anything, from displaying a run-time parameter
@@ -678,6 +690,8 @@ void make_user_commands() {
     new UserCommand("RST", "Settings/Restore", restore_settings, notIdleOrAlarm, WA);
 
     new UserCommand("SS", "Startup/Show", showStartupLog, anyState);
+
+    new UserCommand("SRI", "Report/Interval", setReportInterval, anyState);
 
     new UserCommand("32", "FakeLaserMode", fakeLaserMode, notIdleOrAlarm);
 };

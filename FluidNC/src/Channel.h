@@ -30,6 +30,9 @@ protected:
     bool        _addCR     = false;
     char        _lastWasCR = false;
 
+    long _reportInterval = 0;
+    long _nextReportTime = 0;
+
 public:
     Channel(const char* name, bool addCR = false) : _name(name), _linelen(0), _addCR(addCR) {}
     virtual ~Channel() = default;
@@ -39,4 +42,6 @@ public:
     virtual void     ack(Error status);
     const char*      name() { return _name; }
     virtual int      rx_buffer_available() = 0;
+    void             setReportInterval(long ms);
+    void             autoReport();
 };

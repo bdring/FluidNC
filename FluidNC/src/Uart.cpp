@@ -136,6 +136,7 @@ Channel* Uart::pollLine(char* line) {
             _queue.push(uint8_t(ch));
         }
     }
+    autoReport();
     return nullptr;
 }
 

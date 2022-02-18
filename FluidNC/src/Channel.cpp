@@ -5,6 +5,17 @@
 #include "Machine/MachineConfig.h"  // config
 #include "Serial.h"                 // execute_realtime_command
 
+void Channel::setReportInterval(long ms) {
+    _reportInterval = ms;
+    _nextReportTime = xTaskGetTickCount();
+}
+void Channel::autoReport() {
+    if (_reportInterval && (long(xTaskGetTickCount()) - _nextReportTime) >= 0) {
+        _nextReportTime = xTaskGetTickCount() + _reportInterval;
+        report_realtime_status(*this);
+    }
+}
+
 Channel* Channel::pollLine(char* line) {
     handle();
     while (1) {
@@ -66,8 +77,10 @@ Channel* Channel::pollLine(char* line) {
             // _discarding = true;
         }
     }
+    autoReport();
     return nullptr;
 }
+
 void Channel::ack(Error status) {
     switch (status) {
         case Error::Ok:  // Error::Ok
