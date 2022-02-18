@@ -30,3 +30,8 @@ Changes
 You can restart the ESP32 to see the boot messages with the FluidNC **$bye** command or you can toggle the DTR function to restart most ESP32 modules by doing Ctrl+T Ctrl+D twice. 
 
 <img src="https://github.com/bdring/fluidterm/blob/main/images/screenshot_01.png" width="800" >
+
+### Source Code
+
+The source code for fluidterm.py (the Python version) is in this directory.  The source code for
+fluidterm.exe (the Windows native version) is at https://github.com/MitchBradley/FluidTerm2 .
