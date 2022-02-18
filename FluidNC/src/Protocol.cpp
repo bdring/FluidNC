@@ -101,6 +101,7 @@ bool can_park() {
 
 void protocol_reset() {
     probeState                = ProbeState::Off;
+    soft_limit                = false;
     rtStatusReport            = false;
     rtCycleStart              = false;
     rtFeedHold                = false;
