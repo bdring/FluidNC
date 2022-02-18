@@ -60,7 +60,7 @@ namespace Pins {
         Assert(value.validateWith(this->_capabilities), "Requested attributes do not match the I2SO pin capabilities");
         Assert(!_attributes.conflictsWith(value), "Attributes on this pin have been set before, and there's a conflict.");
 
-        _attributes = value;
+        _attributes = _attributes | value;
 
         // I2S out pins cannot be configured, hence there
         // is nothing to do here for them. We basically
