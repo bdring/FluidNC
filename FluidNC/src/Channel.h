@@ -18,6 +18,7 @@
 
 #include "Error.h"  // Error
 #include "GCode.h"  // gc_modal_t
+#include "Types.h"  // State
 #include <Stream.h>
 
 class Channel : public Stream {
@@ -38,6 +39,7 @@ protected:
     uint8_t    _lastTool;
     float      _lastSpindleSpeed;
     float      _lastFeedRate;
+    State      _lastState;
 
 public:
     Channel(const char* name, bool addCR = false) : _name(name), _linelen(0), _addCR(addCR) {}

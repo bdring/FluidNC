@@ -11,8 +11,8 @@ void Channel::setReportInterval(long ms) {
     _lastTool       = 255;  // Force GCodeState report
 }
 void Channel::autoReportGCodeState() {
-    if (memcmp(&_lastModal, &gc_state.modal, sizeof(_lastModal)) || (_lastTool != gc_state.tool) ||
-        (_lastSpindleSpeed != gc_state.spindle_speed) || (_lastFeedRate != gc_state.feed_rate)) {
+    if (memcmp(&_lastModal, &gc_state.modal, sizeof(_lastModal)) || _lastTool != gc_state.tool ||
+        _lastSpindleSpeed != gc_state.spindle_speed || _lastFeedRate != gc_state.feed_rate) {
         report_gcode_modes(*this);
         memcpy(&_lastModal, &gc_state.modal, sizeof(_lastModal));
         _lastTool         = gc_state.tool;
@@ -20,10 +20,17 @@ void Channel::autoReportGCodeState() {
         _lastFeedRate     = gc_state.feed_rate;
     }
 }
+static bool motionState() {
+    return sys.state == State::Cycle || sys.state == State::Homing || sys.state == State::Jog;
+}
+
 void Channel::autoReport() {
-    if (_reportInterval && (long(xTaskGetTickCount()) - _nextReportTime) >= 0) {
-        _nextReportTime = xTaskGetTickCount() + _reportInterval;
-        report_realtime_status(*this);
+    if (_reportInterval) {
+        if (sys.state != _lastState || (motionState() && (long(xTaskGetTickCount()) - _nextReportTime) >= 0)) {
+            _lastState      = sys.state;
+            _nextReportTime = xTaskGetTickCount() + _reportInterval;
+            report_realtime_status(*this);
+        }
         autoReportGCodeState();
     }
 }
