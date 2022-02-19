@@ -17,6 +17,7 @@
 #pragma once
 
 #include "Error.h"  // Error
+#include "GCode.h"  // gc_modal_t
 #include <Stream.h>
 
 class Channel : public Stream {
@@ -33,6 +34,11 @@ protected:
     long _reportInterval = 0;
     long _nextReportTime = 0;
 
+    gc_modal_t _lastModal;
+    uint8_t    _lastTool;
+    float      _lastSpindleSpeed;
+    float      _lastFeedRate;
+
 public:
     Channel(const char* name, bool addCR = false) : _name(name), _linelen(0), _addCR(addCR) {}
     virtual ~Channel() = default;
@@ -44,4 +50,5 @@ public:
     virtual int      rx_buffer_available() = 0;
     void             setReportInterval(long ms);
     void             autoReport();
+    void             autoReportGCodeState();
 };

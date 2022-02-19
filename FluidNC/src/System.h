@@ -53,11 +53,6 @@ union Suspend {
     SuspendBits bit;
 };
 
-enum class Override : uint8_t {
-    ParkingMotion = 0,  // M56 (Default: Must be zero)
-    Disabled      = 1,  // Parking disabled.
-};
-
 // Global system variables
 struct system_t {
     volatile State state;              // Tracks the current system state

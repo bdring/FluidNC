@@ -454,7 +454,7 @@ static Error doJog(const char* value, WebUI::AuthenticationLevel auth_level, Cha
     char jogLine[LINE_BUFFER_SIZE];
     strcpy(jogLine, "$J=");
     strcat(jogLine, value);
-    return gc_execute_line(jogLine, out);
+    return gc_execute_line(jogLine /*, out*/);
 }
 
 static const char* alarmString(ExecAlarm alarmNumber) {
@@ -883,7 +883,7 @@ void settings_execute_startup() {
             // gc_execute_line modifies the line while parsing.
             char gcline[256];
             strncpy(gcline, s, 255);
-            status_code = gc_execute_line(gcline, Uart0);
+            status_code = gc_execute_line(gcline /*, Uart0*/);
             Uart0 << ">" << gcline << ":";
             report_status_message(status_code, Uart0);
         }
@@ -904,5 +904,5 @@ Error execute_line(char* line, Channel& channel, WebUI::AuthenticationLevel auth
     if (sys.state == State::Alarm || sys.state == State::ConfigAlarm || sys.state == State::Jog) {
         return Error::SystemGcLock;
     }
-    return gc_execute_line(line, channel);
+    return gc_execute_line(line /*, channel*/);
 }

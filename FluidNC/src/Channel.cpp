@@ -8,11 +8,23 @@
 void Channel::setReportInterval(long ms) {
     _reportInterval = ms;
     _nextReportTime = xTaskGetTickCount();
+    _lastTool       = 255;  // Force GCodeState report
+}
+void Channel::autoReportGCodeState() {
+    if (memcmp(&_lastModal, &gc_state.modal, sizeof(_lastModal)) || (_lastTool != gc_state.tool) ||
+        (_lastSpindleSpeed != gc_state.spindle_speed) || (_lastFeedRate != gc_state.feed_rate)) {
+        report_gcode_modes(*this);
+        memcpy(&_lastModal, &gc_state.modal, sizeof(_lastModal));
+        _lastTool         = gc_state.tool;
+        _lastSpindleSpeed = gc_state.spindle_speed;
+        _lastFeedRate     = gc_state.feed_rate;
+    }
 }
 void Channel::autoReport() {
     if (_reportInterval && (long(xTaskGetTickCount()) - _nextReportTime) >= 0) {
         _nextReportTime = xTaskGetTickCount() + _reportInterval;
         report_realtime_status(*this);
+        autoReportGCodeState();
     }
 }
 
