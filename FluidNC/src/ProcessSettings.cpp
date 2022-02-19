@@ -635,14 +635,28 @@ static Error showStartupLog(const char* value, WebUI::AuthenticationLevel auth_l
 }
 
 static Error setReportInterval(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
-    char*   endptr;
-    int32_t intValue = strtol(value, &endptr, 10);
+    if (!value) {
+        uint32_t actual = out.getReportInterval();
+        if (actual) {
+            log_info("Channel auto report interval is " << actual << " ms");
+        } else {
+            log_info("Channel auto reporting is off");
+        }
+        return Error::Ok;
+    }
+    char*    endptr;
+    uint32_t intValue = strtol(value, &endptr, 10);
 
     if (endptr == value || *endptr != '\0') {
         return Error::BadNumberFormat;
     }
 
-    out.setReportInterval(intValue);
+    uint32_t actual = out.setReportInterval(intValue);
+    if (actual) {
+        log_info("Channel auto report interval set to " << actual << " ms");
+    } else {
+        log_info("Channel auto reporting turned off");
+    }
     return Error::Ok;
 }
 
@@ -691,7 +705,7 @@ void make_user_commands() {
 
     new UserCommand("SS", "Startup/Show", showStartupLog, anyState);
 
-    new UserCommand("SRI", "Report/Interval", setReportInterval, anyState);
+    new UserCommand("RI", "Report/Interval", setReportInterval, anyState);
 
     new UserCommand("32", "FakeLaserMode", fakeLaserMode, notIdleOrAlarm);
 };

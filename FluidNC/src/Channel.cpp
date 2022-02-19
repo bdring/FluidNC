@@ -5,10 +5,15 @@
 #include "Machine/MachineConfig.h"  // config
 #include "Serial.h"                 // execute_realtime_command
 
-void Channel::setReportInterval(long ms) {
-    _reportInterval = ms;
-    _nextReportTime = xTaskGetTickCount();
+uint32_t Channel::setReportInterval(uint32_t ms) {
+    uint32_t actual = ms;
+    if (actual) {
+        actual = std::max(actual, uint32_t(50));
+    }
+    _reportInterval = actual;
+    _nextReportTime = int32_t(xTaskGetTickCount());
     _lastTool       = 255;  // Force GCodeState report
+    return actual;
 }
 void Channel::autoReportGCodeState() {
     if (memcmp(&_lastModal, &gc_state.modal, sizeof(_lastModal)) || _lastTool != gc_state.tool ||
@@ -26,7 +31,7 @@ static bool motionState() {
 
 void Channel::autoReport() {
     if (_reportInterval) {
-        if (sys.state != _lastState || (motionState() && (long(xTaskGetTickCount()) - _nextReportTime) >= 0)) {
+        if (sys.state != _lastState || (motionState() && (int32_t(xTaskGetTickCount()) - _nextReportTime) >= 0)) {
             _lastState      = sys.state;
             _nextReportTime = xTaskGetTickCount() + _reportInterval;
             report_realtime_status(*this);

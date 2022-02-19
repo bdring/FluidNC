@@ -32,8 +32,8 @@ protected:
     bool        _addCR     = false;
     char        _lastWasCR = false;
 
-    long _reportInterval = 0;
-    long _nextReportTime = 0;
+    uint32_t _reportInterval = 0;
+    int32_t  _nextReportTime = 0;
 
     gc_modal_t _lastModal;
     uint8_t    _lastTool;
@@ -50,7 +50,8 @@ public:
     virtual void     ack(Error status);
     const char*      name() { return _name; }
     virtual int      rx_buffer_available() = 0;
-    void             setReportInterval(long ms);
+    uint32_t         setReportInterval(uint32_t ms);
+    uint32_t         getReportInterval() { return _reportInterval; }
     void             autoReport();
     void             autoReportGCodeState();
 };
