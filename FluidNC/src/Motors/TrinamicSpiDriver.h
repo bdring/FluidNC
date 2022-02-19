@@ -45,6 +45,9 @@ namespace MotorDrivers {
         void trinamic_test_response();
         void trinamic_stepper_enable(bool enable);
 
+        bool         first_time = true;
+        TrinamicMode last_mode  = TrinamicMode::CoolStep;
+
     protected:
         void config_message() override;
 

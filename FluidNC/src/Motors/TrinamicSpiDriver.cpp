@@ -185,11 +185,21 @@ namespace MotorDrivers {
     }
 
     void TrinamicSpiDriver::set_mode(bool isHoming) {
+        
+
         if (_has_errors) {
             return;
         }
 
         _mode = static_cast<TrinamicMode>(trinamicModes[isHoming ? _homing_mode : _run_mode].value);
+
+        if (!first_time && _mode == last_mode) {
+            return;
+        }
+
+        first_time = false;
+        last_mode = _mode;
+
 
         if (tmc2130) {
             switch (_mode) {
@@ -300,6 +310,7 @@ namespace MotorDrivers {
         _disable_pin.synchronousWrite(_disabled);
 
         if (_use_enable) {
+            log_info("tmc disable");
             uint8_t toff_value;
             if (_disabled) {
                 toff_value = _toff_disable;
