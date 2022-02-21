@@ -35,6 +35,7 @@ namespace Spindles {
         bool tool_change(uint8_t new_tool, bool pre_select) override;
         void probe_notification() override;
         bool is_ATC_ok();
+        void deactivate() override;
 
         void group(Configuration::HandlerBase& handler) override {
             handler.item("atc_valve_pin", _atc_valve_pin);

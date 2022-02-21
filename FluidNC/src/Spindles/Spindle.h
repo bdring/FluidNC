@@ -100,6 +100,7 @@ namespace Spindles {
         virtual ~Spindle() {}
     protected:
         uint8_t current_tool = 0;
+        void applyOffset(bool activating);
     };
     using SpindleFactory = Configuration::GenericFactory<Spindle>;
 }

@@ -200,6 +200,7 @@ namespace Spindles {
     }
 
     bool KressATC::set_ATC_open(bool open) {
+        log_debug("ATC Open:" << open);
         if (gc_state.modal.spindle != SpindleState::Disable) {
             return false;
         }
@@ -279,7 +280,7 @@ namespace Spindles {
     }
 
     void KressATC::goto_top_of_z() {
-        gc_exec_linef(false, Uart0, "G53 G0 Z%0.3f", top_of_z);  // Go to top of Z travel
+        gc_exec_linef(true, Uart0, "G53 G0 Z%0.3f", top_of_z);  // Go to top of Z travel
     }
 
     void KressATC::probe_notification() {
@@ -294,6 +295,12 @@ namespace Spindles {
         }
 
         zeroed_tool_index = current_tool;
+    }
+
+    void KressATC::deactivate() {
+        log_debug("Deactivating ATC spindle:" << current_tool);
+        tool_change(0, false); // return any tool we have
+        Spindle::deactivate(); // call base function
     }
 
     // Configuration registration    namespace {

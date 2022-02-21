@@ -9,6 +9,8 @@
 #include "../System.h"  //sys.spindle_speed_ovr
 #include <esp32-hal.h>  // delay()
 #include "../Report.h"  // get_wco()
+#include "../Uart.h"  // Uart0
+
 #include "../Machine/MachineConfig.h"
 #include <string>
 #include <sstream>
@@ -217,21 +219,33 @@ namespace Spindles {
 
     void Spindle::activate() {
         log_info(name() << ":Tool activated");
-
-        if (_offset.size() == 0)
-            return;
-
-        char report[200] = {};
-        char temp[20]    = {};
-
-        strcat(report, "G10 L2 P0");
-        for (int axis = 0; axis < config->_axes->_numberAxis; axis++) {
-            sprintf(temp, " %c%0.3f", config->_axes->axisName(axis), gc_state.coord_system[axis] - _offset.at(axis));
-            strcat(report, temp);
-        }
-
-        log_info(report);  // TODO actual execute it
+        applyOffset(true);
     }
 
-    void Spindle::deactivate() { log_info(name() << ":Tool deactivated"); }
+    void Spindle::deactivate() {
+        applyOffset(false);
+        log_info(name() << ":Tool deactivated");
+    }
+
+    void Spindle::applyOffset(bool activating) {
+        if (_offset.size() < 2)
+            return;
+
+        float offset;
+
+        char cmd[200] = {};
+        char temp[20] = {};
+
+        strcat(cmd, "G10 L2 P0");
+        for (int axis = 0; axis < 2; axis++) {
+            offset = activating ? -_offset.at(axis) : _offset.at(axis);
+            sprintf(temp, " %c%0.3f", config->_axes->axisName(axis), gc_state.coord_system[axis] + offset);
+            strcat(cmd, temp);
+        }
+
+        log_debug(cmd);  // TODO execute it
+        gc_exec_linef(true,Uart0,"G4P1");
+        gc_exec_linef(true,Uart0,cmd);
+        gc_exec_linef(true,Uart0,"G4P1");
+    }
 }

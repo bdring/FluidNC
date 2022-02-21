@@ -40,6 +40,9 @@ namespace MotorDrivers {
         PinMapper _cs_mapping;
         int32_t   _spi_index = -1;
 
+        uint32_t _thigh = 0 ;
+        uint32_t _tcoolthrs = 0xFFFFF;
+
         bool test();
         void set_mode(bool isHoming);
         void trinamic_test_response();
@@ -93,6 +96,9 @@ namespace MotorDrivers {
         void group(Configuration::HandlerBase& handler) override {
             handler.item("cs_pin", _cs_pin);
             handler.item("spi_index", _spi_index);
+            handler.item("thigh", _thigh);
+            handler.item("tcoolthrs", _tcoolthrs);
+
             TrinamicBase::group(handler);
         }
 

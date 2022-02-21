@@ -185,8 +185,6 @@ namespace MotorDrivers {
     }
 
     void TrinamicSpiDriver::set_mode(bool isHoming) {
-        
-
         if (_has_errors) {
             return;
         }
@@ -198,8 +196,7 @@ namespace MotorDrivers {
         }
 
         first_time = false;
-        last_mode = _mode;
-
+        last_mode  = _mode;
 
         if (tmc2130) {
             switch (_mode) {
@@ -223,8 +220,8 @@ namespace MotorDrivers {
 
                         tmc2130->en_pwm_mode(false);
                         tmc2130->pwm_autoscale(false);
-                        tmc2130->TCOOLTHRS(calc_tstep(feedrate, 150.0));
-                        tmc2130->THIGH(calc_tstep(feedrate, 60.0));
+                        tmc2130->TCOOLTHRS(_thigh);
+                        tmc2130->THIGH(_tcoolthrs);
                         tmc2130->sfilt(1);
                         tmc2130->diag1_stall(true);  // stallguard i/o is on diag1
                         tmc2130->sgt(constrain(_stallguard, -64, 63));
@@ -238,13 +235,20 @@ namespace MotorDrivers {
                     tmc5160->en_pwm_mode(true);
                     tmc5160->pwm_autoscale(true);
                     tmc5160->diag1_stall(false);
+                    tmc5160->toff(4);
+                    tmc5160->hend(2);
+                    tmc5160->hstrt(1);
+                    tmc5160->tpfd(0);
+                    tmc5160->THIGH(_thigh);
+                    tmc5160->TCOOLTHRS(_tcoolthrs);
                     break;
                 case TrinamicMode ::CoolStep:
                     log_debug("Coolstep");
                     tmc5160->en_pwm_mode(false);
                     tmc5160->pwm_autoscale(false);
-                    tmc5160->TCOOLTHRS(NORMAL_TCOOLTHRS);  // when to turn on coolstep
-                    tmc5160->THIGH(NORMAL_THIGH);
+                    //tmc5160->TCOOLTHRS(NORMAL_TCOOLTHRS);  // when to turn on coolstep
+                    tmc5160->THIGH(calc_tstep(1000, 80.0));
+                    tmc5160->TCOOLTHRS(calc_tstep(1000, 110.0));  // when to turn on coolstep
                     break;
                 case TrinamicMode ::StallGuard:
                     log_debug("Stallguard");
