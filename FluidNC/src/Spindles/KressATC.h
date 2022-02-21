@@ -84,7 +84,7 @@ namespace Spindles {
 
         int zeroed_tool_index = 1;  // Which tool was zero'd on the work piece
         bool  _atc_ok              = false;
-        float top_of_z            = 0.0;    // position of top of Z in mpos, for safe XY travel
+        float top_of_z            = -1.0;    // position of top of Z in mpos, for safe XY travel
         bool  tool_setter_probing = false;  // used to determine if current probe cycle is for the setter
 
         //float tool_location[TOOL_COUNT][MAX_N_AXIS];

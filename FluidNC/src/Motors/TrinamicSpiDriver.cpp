@@ -210,8 +210,8 @@ namespace MotorDrivers {
                     log_debug("Coolstep");
                     tmc2130->en_pwm_mode(false);
                     tmc2130->pwm_autoscale(false);
-                    tmc2130->TCOOLTHRS(NORMAL_TCOOLTHRS);  // when to turn on coolstep
-                    tmc2130->THIGH(NORMAL_THIGH);
+                    tmc2130->TCOOLTHRS(_tcoolthrs);  // when to turn on coolstep
+                    tmc2130->THIGH(_thigh);
                     break;
                 case TrinamicMode ::StallGuard:
                     log_debug("Stallguard");
@@ -235,10 +235,10 @@ namespace MotorDrivers {
                     tmc5160->en_pwm_mode(true);
                     tmc5160->pwm_autoscale(true);
                     tmc5160->diag1_stall(false);
-                    tmc5160->toff(4);
-                    tmc5160->hend(2);
-                    tmc5160->hstrt(1);
-                    tmc5160->tpfd(0);
+                    tmc5160->toff(_toff);
+                    tmc5160->hend(_hend);
+                    tmc5160->hstrt(_hstrt);
+                    tmc5160->tpfd(_tpfd);
                     tmc5160->THIGH(_thigh);
                     tmc5160->TCOOLTHRS(_tcoolthrs);
                     break;
@@ -247,8 +247,14 @@ namespace MotorDrivers {
                     tmc5160->en_pwm_mode(false);
                     tmc5160->pwm_autoscale(false);
                     //tmc5160->TCOOLTHRS(NORMAL_TCOOLTHRS);  // when to turn on coolstep
-                    tmc5160->THIGH(calc_tstep(1000, 80.0));
-                    tmc5160->TCOOLTHRS(calc_tstep(1000, 110.0));  // when to turn on coolstep
+                    tmc5160->toff(_toff);
+                    tmc5160->hend(_hend);
+                    tmc5160->hstrt(_hstrt);
+                    tmc5160->tpfd(_tpfd);
+                    tmc5160->tbl(_tbl);
+                    tmc5160->THIGH(_thigh);
+                    tmc5160->TCOOLTHRS(_tcoolthrs);
+                    tmc5160->chm(0);
                     break;
                 case TrinamicMode ::StallGuard:
                     log_debug("Stallguard");

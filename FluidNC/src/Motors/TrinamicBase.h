@@ -39,6 +39,13 @@ namespace MotorDrivers {
         int   _microsteps          = 16;
         int   _stallguard          = 0;
         bool  _stallguardDebugMode = false;
+        uint32_t _thigh = 0 ;
+        uint32_t _tcoolthrs = 0xFFFFF;
+        uint8_t _hend = 1;
+        uint8_t _hstrt = 4;
+        uint8_t _tpfd = 0;
+        uint8_t _toff = 3;
+        uint8_t _tbl = 2;
 
         uint8_t _toff_disable     = 0;
         uint8_t _toff_stealthchop = 5;
@@ -72,6 +79,8 @@ namespace MotorDrivers {
             handler.item("toff_disable", _toff_disable);
             handler.item("toff_stealthchop", _toff_stealthchop);
             handler.item("toff_coolstep", _toff_coolstep);
+            handler.item("thigh", _thigh);
+            handler.item("tcoolthrs", _tcoolthrs);
             handler.item("run_mode", _run_mode, trinamicModes);
             handler.item("homing_mode", _homing_mode, trinamicModes);
             handler.item("use_enable", _use_enable);
