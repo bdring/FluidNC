@@ -102,6 +102,9 @@ FileStream::FileStream(const char* filename, const char* mode, const char* defau
     }
     _fd = fopen(_path.c_str(), mode);
     if (!_fd) {
+        if (_isSD) {
+            config->_sdCard->end();
+        }
         throw strcmp(mode, "w") ? Error::FsFailedOpenFile : Error::FsFailedCreateFile;
     }
 }

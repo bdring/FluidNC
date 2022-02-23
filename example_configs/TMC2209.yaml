@@ -123,14 +123,14 @@ sdcard:
   card_detect_pin: NO_PIN
 
 control:
-  safety_door: NO_PIN
-  reset: NO_PIN
-  feed_hold: NO_PIN
-  cycle_start: NO_PIN
-  macro0: NO_PIN
-  macro1: NO_PIN
-  macro2: NO_PIN
-  macro3: NO_PIN
+  safety_door_pin: NO_PIN
+  reset_pin: NO_PIN
+  feed_hold_pin: NO_PIN
+  cycle_start_pin: NO_PIN
+  macro0_pin: NO_PIN
+  macro1_pin: NO_PIN
+  macro2_pin: NO_PIN
+  macro3_pin: NO_PIN
 
 probe:
   pin: NO_PIN
@@ -145,18 +145,18 @@ macros:
   macro3:
 
 user_outputs:
-  analog0: NO_PIN
-  analog1: NO_PIN
-  analog2: NO_PIN
-  analog3: NO_PIN
+  analog0_pin: NO_PIN
+  analog1_pin: NO_PIN
+  analog2_pin: NO_PIN
+  analog3_pin: NO_PIN
   analog0_hz: 5000
   analog1_hz: 5000
   analog2_hz: 5000
   analog3_hz: 5000
-  digital0: NO_PIN
-  digital1: NO_PIN
-  digital2: NO_PIN
-  digital3: NO_PIN
+  digital0_pin: NO_PIN
+  digital1_pin: NO_PIN
+  digital2_pin: NO_PIN
+  digital3_pin: NO_PIN
 
 start:
   must_home: false

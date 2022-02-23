@@ -65,7 +65,7 @@ namespace Machine {
         }
     }
 
-    void LimitPin::read() {
+    void IRAM_ATTR LimitPin::read() {
         _value = _pin.read();
         if (_value) {
             if (_posLimits != nullptr) {
@@ -95,7 +95,7 @@ namespace Machine {
             attr = attr | Pin::Attr::PullUp;
         }
         _pin.setAttr(attr);
-        _pin.attachInterrupt<LimitPin, &LimitPin::handleISR>(this, CHANGE);
+        _pin.attachInterrupt(ISRHandler, CHANGE, this);
 
         read();
     }

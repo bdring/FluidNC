@@ -50,14 +50,6 @@ bool mc_move_motors(float* target, plan_line_data_t* pl_data) {
     // store the plan data so it can be cancelled by the protocol system if needed
     mc_pl_data_inflight = pl_data;
 
-    // If enabled, check for soft limit violations.
-    bool hasSoftLimits = config->_axes->hasSoftLimits();
-    if (hasSoftLimits) {
-        // NOTE: Block jog state. Jogging is a special case and soft limits are handled independently.
-        if (sys.state != State::Jog) {
-            limits_soft_check(target);
-        }
-    }
     // If in check gcode mode, prevent motion by blocking planner. Soft limits still work.
     if (sys.state == State::CheckMode) {
         mc_pl_data_inflight = NULL;
@@ -111,6 +103,7 @@ void mc_cancel_jog() {
 // unless invert_feed_rate is true. Then the feed_rate means that the motion should be completed in
 // (1 minute)/feed_rate time.
 bool mc_linear(float* target, plan_line_data_t* pl_data, float* position) {
+    limits_soft_check(target);
     return config->_kinematics->cartesian_to_motors(target, pl_data, position);
 }
 
@@ -137,12 +130,11 @@ void mc_arc(float*            target,
     float rt_axis0     = target[axis_0] - center_axis0;
     float rt_axis1     = target[axis_1] - center_axis1;
 
-    float previous_position[MAX_N_AXIS] = { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 };
+    auto n_axis = config->_axes->_numberAxis;
 
-    uint16_t n;
-    auto     n_axis = config->_axes->_numberAxis;
-    for (n = 0; n < n_axis; n++) {
-        previous_position[n] = position[n];
+    float previous_position[n_axis] = { 0.0 };
+    for (size_t i = 0; i < n_axis; i++) {
+        previous_position[i] = position[i];
     }
 
     // CCW angle between position and target from circle center. Only one atan2() trig computation required.
@@ -157,14 +149,12 @@ void mc_arc(float*            target,
         }
     }
 
-    auto mconfig = config;
-
     // NOTE: Segment end points are on the arc, which can lead to the arc diameter being smaller by up to
     // (2x) arc_tolerance. For 99% of users, this is just fine. If a different arc segment fit
     // is desired, i.e. least-squares, midpoint on arc, just change the mm_per_arc_segment calculation.
     // For most uses, this value should not exceed 2000.
     uint16_t segments =
-        uint16_t(floor(fabs(0.5 * angular_travel * radius) / sqrt(mconfig->_arcTolerance * (2 * radius - mconfig->_arcTolerance))));
+        uint16_t(floor(fabs(0.5 * angular_travel * radius) / sqrt(config->_arcTolerance * (2 * radius - config->_arcTolerance))));
     if (segments) {
         // Multiply inverse feed_rate to compensate for the fact that this movement is approximated
         // by a number of discrete segments. The inverse feed_rate should be correct for the sum of
@@ -173,8 +163,12 @@ void mc_arc(float*            target,
             pl_data->feed_rate *= segments;
             pl_data->motion.inverseTime = 0;  // Force as feed absolute mode over arc segments.
         }
-        float theta_per_segment  = angular_travel / segments;
-        float linear_per_segment = (target[axis_linear] - position[axis_linear]) / segments;
+        float theta_per_segment = angular_travel / segments;
+        float linear_per_segment[n_axis];
+        linear_per_segment[axis_linear] = (target[axis_linear] - position[axis_linear]) / segments;
+        for (size_t i = A_AXIS; i < n_axis; i++) {
+            linear_per_segment[i] = (target[i] - position[i]) / segments;
+        }
         /* Vector rotation by transformation matrix: r is the original vector, r_T is the rotated vector,
            and phi is the angle of rotation. Solution approach by Jens Geisler.
                r_T = [cos(phi) -sin(phi);
@@ -229,7 +223,10 @@ void mc_arc(float*            target,
             // Update arc_target location
             position[axis_0] = center_axis0 + r_axis0;
             position[axis_1] = center_axis1 + r_axis1;
-            position[axis_linear] += linear_per_segment;
+            position[axis_linear] += linear_per_segment[axis_linear];
+            for (size_t i = A_AXIS; i < n_axis; i++) {
+                position[i] += linear_per_segment[i];
+            }
             pl_data->feed_rate = original_feedrate;  // This restores the feedrate kinematics may have altered
             mc_linear(position, pl_data, previous_position);
             previous_position[axis_0]      = position[axis_0];
@@ -268,8 +265,6 @@ void mc_homing_cycle(AxisMask axis_mask) {
     // or if it is impossible to tell which end is engaged.  In that situation
     // we do not know the pulloff direction.
     if (ambiguousLimit()) {
-        mc_reset();  // Issue system reset and ensure spindle and coolant are shutdown.
-        rtAlarm = ExecAlarm::HardLimit;
         return;
     }
 
