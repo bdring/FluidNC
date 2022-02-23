@@ -17,6 +17,7 @@
 #    include "Uart.h"
 #    include "MotionControl.h"
 #    include "Platform.h"
+#    include "StartupLog.h"
 
 #    include "WebUI/TelnetServer.h"
 #    include "WebUI/Serial2Socket.h"
@@ -126,6 +127,7 @@ void setup() {
     WebUI::wifi_config.begin();
     WebUI::bt_config.begin();
     WebUI::inputBuffer.begin();
+    allChannels.deregistration(&startupLog);
 }
 
 static void reset_variables() {

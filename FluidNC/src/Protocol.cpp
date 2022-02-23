@@ -235,9 +235,9 @@ void protocol_main_loop() {
 // Block until all buffered steps are executed or in a cycle state. Works with feed hold
 // during a synchronize call, if it should happen. Also, waits for clean cycle end.
 void protocol_buffer_synchronize() {
-    // If system is queued, ensure cycle resumes if the auto start flag is present.
-    protocol_auto_cycle_start();
     do {
+        // Restart motion if there are blocks in the planner queue
+        protocol_auto_cycle_start();
         pollChannels();
         protocol_execute_realtime();  // Check and execute run-time commands
         if (sys.abort) {
@@ -502,8 +502,6 @@ static void protocol_do_initiate_cycle() {
         sys.state         = State::Cycle;
         Stepper::prep_buffer();  // Initialize step segment buffer before beginning cycle.
         Stepper::wake_up();
-        // Make sure the steppers can't be scheduled for a shutdown while this cycle is running.
-        protocol_cancel_disable_steppers();
     } else {                    // Otherwise, do nothing. Set and resume IDLE state.
         sys.suspend.value = 0;  // Break suspend state.
         sys.state         = State::Idle;
