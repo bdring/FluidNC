@@ -122,8 +122,9 @@ void setup() {
         sys.state = State::ConfigAlarm;
     }
 
-    WebUI::wifi_config.begin();
-    WebUI::bt_config.begin();
+    if (!WebUI::wifi_config.begin()) {
+        WebUI::bt_config.begin();
+    }
     WebUI::inputBuffer.begin();
     allChannels.deregistration(&startupLog);
 }
