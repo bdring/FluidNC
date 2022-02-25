@@ -197,6 +197,17 @@ char* trim(char* str) {
     return str;
 }
 
+// Count the number of bits that are on.
+uint8_t popcount(uint32_t val) {  // TODO Is there a built in function for this. Tried all the usual ones.
+    uint8_t count = 0;
+    for (int i = 0; i < 32; i++) {
+        if (bitnum_is_true(val, i)) {
+            count++;
+        }
+    }
+    return count;
+}
+
 String formatBytes(uint64_t bytes) {
     if (bytes < 1024) {
         return String((uint16_t)bytes) + " B";

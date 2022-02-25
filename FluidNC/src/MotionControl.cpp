@@ -14,6 +14,7 @@
 #include "I2SOut.h"          // i2s_out_reset
 #include "InputFile.h"       // infile
 #include "Platform.h"        // WEAK_LINK
+#include "Settings.h"        // coords
 
 #include <cmath>
 
@@ -290,7 +291,7 @@ bool probe_succeeded = false;
 
 // Perform tool length probe cycle. Requires probe switch.
 // NOTE: Upon probe failure, the program will be stopped and placed into ALARM state.
-GCUpdatePos mc_probe_cycle(float* target, plan_line_data_t* pl_data, uint8_t parser_flags) {
+GCUpdatePos mc_probe_cycle(float* target, plan_line_data_t* pl_data, uint8_t parser_flags, uint8_t offsetAxis, float offset) {
     if (!config->_probe->exists()) {
         log_error("Probe pin is not configured");
         return GCUpdatePos::None;
@@ -321,7 +322,6 @@ GCUpdatePos mc_probe_cycle(float* target, plan_line_data_t* pl_data, uint8_t par
         return GCUpdatePos::None;  // Nothing else to do but bail.
     }
     // Setup and queue probing motion. Auto cycle-start should not start the cycle.
-    log_info("Found");
     mc_linear(target, pl_data, gc_state.position);
     // Activate the probing state monitor in the stepper module.
     probeState = ProbeState::Active;
@@ -360,6 +360,26 @@ GCUpdatePos mc_probe_cycle(float* target, plan_line_data_t* pl_data, uint8_t par
         report_probe_parameters(allChannels);
     }
     if (probe_succeeded) {
+        if (offset != __FLT_MAX__) {
+            float coord_data[MAX_N_AXIS];
+            float probe_contact[MAX_N_AXIS];
+
+            motor_steps_to_mpos(probe_contact, probe_steps);
+            coords[gc_state.modal.coord_select]->get(coord_data);  // get a copy of the current coordinate offsets
+            auto n_axis = config->_axes->_numberAxis;
+            for (int axis = 0; axis < n_axis; axis++) {  // find the axis specified. There should only be one.
+                if (offsetAxis & (1 << axis)) {
+                    coord_data[axis] = probe_contact[axis] + offset;
+                    log_info("Offset:" << coord_data[axis]);
+                    break;
+                }
+            }
+            log_info("Probe offset applied:");
+            coords[gc_state.modal.coord_select]->set(coord_data);  // save it
+            memcpy(gc_state.coord_system, coord_data, sizeof(gc_state.coord_system));
+            report_wco_counter = 0;
+        }
+
         return GCUpdatePos::System;  // Successful probe cycle.
     } else {
         return GCUpdatePos::Target;  // Failed to trigger probe within travel. With or without error.
