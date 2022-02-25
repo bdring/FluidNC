@@ -14,6 +14,8 @@
 #include <cstdint>
 
 namespace Stepper {
+    void init();
+
     void pulse_func();
 
     // Enable steppers, but cycle does not start unless called by motion control or realtime command.

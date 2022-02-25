@@ -15,9 +15,6 @@
 
 #include <cstdint>
 
-// The number of linear motions in the planner buffer to be planned at any give time.
-const int BLOCK_BUFFER_SIZE = 16;
-
 // Define planner data condition flags. Used to denote running conditions of a block.
 struct PlMotion {
     uint8_t rapidMotion : 1;
@@ -79,6 +76,8 @@ struct plan_line_data_t {
     int32_t      line_number;    // Desired line number to report when executing.
     bool         is_jog;         // true if this was generated due to a jog command
 };
+
+void plan_init();
 
 // Initialize and reset the motion plan subsystem
 void plan_reset();         // Reset all

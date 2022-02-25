@@ -16,11 +16,18 @@
 #include <cstdlib>  // PSoc Required for labs
 #include <cmath>
 
-static plan_block_t block_buffer[BLOCK_BUFFER_SIZE];  // A ring buffer for motion instructions
-static uint8_t      block_buffer_tail;                // Index of the block to process now
-static uint8_t      block_buffer_head;                // Index of the next block to be pushed
-static uint8_t      next_buffer_head;                 // Index of the next buffer head
-static uint8_t      block_buffer_planned;             // Index of the optimally planned block
+static plan_block_t* block_buffer = nullptr;  // A ring buffer for motion instructions
+static uint8_t       block_buffer_tail;       // Index of the block to process now
+static uint8_t       block_buffer_head;       // Index of the next block to be pushed
+static uint8_t       next_buffer_head;        // Index of the next buffer head
+static uint8_t       block_buffer_planned;    // Index of the optimally planned block
+
+void plan_init() {
+    if (block_buffer) {
+        delete[] block_buffer;
+    }
+    block_buffer = new plan_block_t[config->_planner_blocks];
+}
 
 // Define planner variables
 typedef struct {
@@ -35,7 +42,7 @@ static planner_t pl;
 // Returns the index of the next block in the ring buffer. Also called by stepper segment buffer.
 static uint8_t plan_next_block_index(uint8_t block_index) {
     block_index++;
-    if (block_index == BLOCK_BUFFER_SIZE) {
+    if (block_index == config->_planner_blocks) {
         block_index = 0;
     }
     return block_index;
@@ -44,7 +51,7 @@ static uint8_t plan_next_block_index(uint8_t block_index) {
 // Returns the index of the previous block in the ring buffer
 static uint8_t plan_prev_block_index(uint8_t block_index) {
     if (block_index == 0) {
-        block_index = BLOCK_BUFFER_SIZE;
+        block_index = config->_planner_blocks;
     }
     block_index--;
     return block_index;
@@ -435,7 +442,7 @@ void plan_sync_position() {
 // Called from report_realtime_status
 uint8_t plan_get_block_buffer_available() {
     if (block_buffer_head >= block_buffer_tail) {
-        return (BLOCK_BUFFER_SIZE - 1) - (block_buffer_head - block_buffer_tail);
+        return (config->_planner_blocks - 1) - (block_buffer_head - block_buffer_tail);
     } else {
         return block_buffer_tail - block_buffer_head - 1;
     }
