@@ -9,7 +9,8 @@
 #include "../System.h"  //sys.spindle_speed_ovr
 #include <esp32-hal.h>  // delay()
 #include "../Report.h"  // get_wco()
-#include "../Uart.h"  // Uart0
+#include "../Uart.h"    // Uart0
+
 
 #include "../Machine/MachineConfig.h"
 #include <string>
@@ -228,24 +229,20 @@ namespace Spindles {
     }
 
     void Spindle::applyOffset(bool activating) {
-        if (_offset.size() < 2)
+        log_debug("Spindle.cpp apply offset:" << activating);
+        if (_offset.size() < 2) {
             return;
-
-        float offset;
-
-        char cmd[200] = {};
-        char temp[20] = {};
-
-        strcat(cmd, "G10 L2 P0");
-        for (int axis = 0; axis < 2; axis++) {
-            offset = activating ? -_offset.at(axis) : _offset.at(axis);
-            sprintf(temp, " %c%0.3f", config->_axes->axisName(axis), gc_state.coord_system[axis] + offset);
-            strcat(cmd, temp);
         }
 
-        log_debug(cmd);  // TODO execute it
-        gc_exec_linef(true,Uart0,"G4P1");
-        gc_exec_linef(true,Uart0,cmd);
-        gc_exec_linef(true,Uart0,"G4P1");
+        log_debug("applyOffset: " << "G10 L2 P0 X135.750 Y88.500");
+        //protocol_buffer_synchronize();  // wait for all previous moves to complete
+        gc_exec_linef(true, Uart0, "G10 L2 P0 X135.750 Y88.500");
+
+        // for (int axis = 0; axis < 2; axis++) {
+        //     offset = activating ? -_offset.at(axis) : _offset.at(axis);
+        //     log_debug("coord:" << gc_state.coord_system[axis] << " Offset:" << offset);            
+        //     gc_state.coord_system[axis] += offset;
+        // }
+
     }
 }

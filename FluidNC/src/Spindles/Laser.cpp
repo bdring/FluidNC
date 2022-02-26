@@ -7,6 +7,8 @@
 */
 
 #include "Laser.h"
+#include "../Uart.h"
+#include "../Protocol.h"
 
 #include "../Machine/MachineConfig.h"
 
@@ -38,6 +40,29 @@ namespace Spindles {
         }
 
         setupSpeeds(_pwm_period);
+    }
+
+    void Laser::applyOffset(bool activating) {
+        log_debug("Laser.cpp apply offset:" << activating);
+        if (_offset.size() < 2) {
+            return;
+        }
+
+        if (activating) {
+            float offset;
+            for (int axis = 0; axis < 2; axis++) {
+                offset                      = activating ? -_offset.at(axis) : 0.0;
+                gc_state.coord_offset[axis] = offset;
+            }
+            // index probe -42.034:
+            // laser touch -94.639:
+            // laser focus 42.8
+
+            // laser focus - laser_offset - index_probe - 
+            log_info("g92: " << gc_state.coord_offset[Z_AXIS] << " Offset:" << _offset.at(Z_AXIS) << " Focus:" << _focal_length);
+            gc_state.coord_offset[Z_AXIS] = - (gc_state.coord_offset[Z_AXIS] - _offset.at(Z_AXIS) - _focal_length);
+
+        }
     }
 
     // Configuration registration

@@ -36,9 +36,15 @@ namespace Spindles {
             // We cannot call PWM::group() because that would pick up
             // direction_pin, which we do not want in Laser
             handler.item("pwm_hz", _pwm_freq);
+            handler.item("focal_mm", _focal_length);
 
             OnOff::groupCommon(handler);
         }
+
+    protected:
+        float _focal_length = 50;
+
+        void applyOffset(bool activating) override;
 
         ~Laser() {}
     };

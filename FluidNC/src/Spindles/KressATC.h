@@ -19,6 +19,7 @@
 #include "OnOffSpindle.h"
 
 const int TOOL_COUNT = 4;
+const int MANUAL_CHG = TOOL_COUNT + 1;
 
 namespace Spindles {
     // This is for an on/off spindle all RPMs above 0 are on
@@ -46,6 +47,7 @@ namespace Spindles {
             handler.item("tool2_mpos_mm", _tool_mpos[1]);
             handler.item("tool3_mpos_mm", _tool_mpos[2]);
             handler.item("tool4_mpos_mm", _tool_mpos[3]);
+            handler.item("empty_safe_z", _empty_safe_z);
 
             OnOff::group(handler);
         }
@@ -73,8 +75,7 @@ namespace Spindles {
         const int     ETS_INDEX        = 0;      // electronic tool setter index
         const float   TOOL_GRAB_TIME   = 0.25;   // seconds. How long it takes to grab a tool
         const float   RACK_SAFE_DIST_Y = 25.0;   // how far in front of rack is safe to move in X
-        const float   ATC_EMPTY_SAFE_Z = 135.0;  // at what Z in mpos can an empty atc traverse the rack with no tool
-        const float   PROBE_FEEDRATE   = 600.0;
+        const float   PROBE_FEEDRATE   = 300.0;
 
         Pin                _atc_valve_pin;
         Pin                _atc_dustoff_pin;
@@ -82,10 +83,12 @@ namespace Spindles {
         std::vector<float> _ets_mpos;
         std::vector<float> _tool_mpos[TOOL_COUNT];
 
+
         int zeroed_tool_index = 1;  // Which tool was zero'd on the work piece
         bool  _atc_ok              = false;
         float top_of_z            = -1.0;    // position of top of Z in mpos, for safe XY travel
         bool  tool_setter_probing = false;  // used to determine if current probe cycle is for the setter
+        float _empty_safe_z   = 0;  // machine space location where is it safe to cross over tools when empty
 
         //float tool_location[TOOL_COUNT][MAX_N_AXIS];
 

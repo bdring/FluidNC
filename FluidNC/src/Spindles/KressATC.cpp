@@ -88,20 +88,31 @@ namespace Spindles {
     }
 
     bool KressATC::tool_change(uint8_t new_tool, bool pre_select) {
-        log_debug("Tool change to: " << new_tool << " From:" << current_tool);
+        log_debug(name() << " tool change to:" << new_tool << " From:" << current_tool << " Preselect:" << pre_select);
         bool  spindle_was_on         = false;
         bool  was_incremental_mode   = false;  // started in G91 mode
         float saved_mpos[MAX_N_AXIS] = {};     // the position before the tool change
 
+        if (pre_select) {
+            log_error("Tool preselect:" << new_tool);
+            return true;
+        }
+
         if (!is_ATC_ok())
             return false;
 
-        if (new_tool > TOOL_COUNT + 1) {  // plus 1 for manual tool change
-            log_error(name() << ":Exceeds tool count");
+        if (new_tool > MANUAL_CHG) {
+            log_error(name() << ":invalid tool number:" << new_tool);
             return false;
         }
 
         if (new_tool == current_tool) {
+            if (current_tool == MANUAL_CHG) {
+                set_ATC_open(true);
+                gc_exec_linef(true, Uart0, "G4P2");
+                set_ATC_open(false);
+                current_tool = 0;
+            }
             return true;
         }
 
@@ -126,16 +137,22 @@ namespace Spindles {
         }
 
         // ============= Start of tool change ====================
-        log_debug("Start of change");
 
-        if (current_tool == 0 && new_tool == TOOL_COUNT + 1) {
+        if (current_tool == 0 && new_tool == MANUAL_CHG) {
             log_info("Grab manual tool change");
+            // open...pause...close
+            set_ATC_open(true);
+            gc_exec_linef(true, Uart0, "G4P2");
+            set_ATC_open(false);
             current_tool = 5;
             return true;
         }
 
-        if (current_tool == TOOL_COUNT + 1 && new_tool == 0) {
+        if (current_tool == MANUAL_CHG) {
             log_info("Drop manual tool change...done");
+            set_ATC_open(true);
+            gc_exec_linef(true, Uart0, "G4P0.5");
+            set_ATC_open(false);
             if (new_tool == 0) {
                 current_tool = 0;
                 return true;
@@ -155,9 +172,12 @@ namespace Spindles {
             return true;
         }
 
-        if (new_tool == TOOL_COUNT + 1) {
+        if (new_tool == MANUAL_CHG) {
             // manual tool change
             log_info("Grab manual tool");
+            set_ATC_open(true);
+            gc_exec_linef(true, Uart0, "G4P2");
+            set_ATC_open(false);
             return true;
         }
 
@@ -186,7 +206,7 @@ namespace Spindles {
         gc_exec_linef(false, Uart0, "G53 G0 X%0.3f Y%0.3f Z%0.3f", saved_mpos[X_AXIS], saved_mpos[Y_AXIS], top_of_z);
 
         // return to saved mpos in Z if it is not outside of work area.
-        gc_exec_linef(false, Uart0, "G53 G0 Z%0.3f", saved_mpos[Z_AXIS]);
+        gc_exec_linef(false, Uart0, "G53 G0 Z%0.3f", saved_mpos[Z_AXIS] + gc_state.tool_length_offset);
 
         // was was_incremental on? If so, return to that state
         if (was_incremental_mode) {
@@ -202,17 +222,23 @@ namespace Spindles {
             return false;
         }
 
+        if (tool_num == TOOL_COUNT + 1)
+            return true;
+
         go_above_tool(tool_num);
         gc_exec_linef(true, Uart0, "G53 G0 Z%0.3f", tool[tool_num].mpos[Z_AXIS]);  // drop down to tool
         set_ATC_open(true);
-        goto_top_of_z();
+        gc_exec_linef(true, Uart0, "G53 G0 Z%0.3f", _empty_safe_z);
         set_ATC_open(false);  // close ATC
 
         return true;
     }
 
     void KressATC::go_above_tool(uint8_t tool_num) {
-        goto_top_of_z();
+        if (current_tool != 0)
+            goto_top_of_z();
+        else
+            gc_exec_linef(false, Uart0, "G53 G0 Z%0.3f", _empty_safe_z);
 
         if (current_tool != 0) {
             // move in front of tool
@@ -223,7 +249,6 @@ namespace Spindles {
     }
 
     bool KressATC::set_ATC_open(bool open) {
-        log_debug("ATC Open:" << open);
         if (gc_state.modal.spindle != SpindleState::Disable) {
             return false;
         }
@@ -303,12 +328,10 @@ namespace Spindles {
     }
 
     void KressATC::goto_top_of_z() {
-        log_debug("Top of Z");
         gc_exec_linef(true, Uart0, "G53 G0 Z%0.3f", top_of_z);  // Go to top of Z travel
     }
 
     void KressATC::probe_notification() {
-        float probe_position[MAX_N_AXIS];
 
         if (sys.state == State::Alarm) {
             return;  // probe failed
@@ -324,6 +347,19 @@ namespace Spindles {
     void KressATC::deactivate() {
         log_debug("Deactivating ATC spindle:" << current_tool);
         tool_change(0, false);  // return any tool we have
+
+
+        float probe_position[MAX_N_AXIS];
+        motor_steps_to_mpos(probe_position, probe_steps);
+        log_info("ETS:" << tool[zeroed_tool_index].offset[Z_AXIS]);
+        log_info("Surface:" << gc_state.coord_system[Z_AXIS]);
+        log_info("Delta:" << tool[zeroed_tool_index].offset[Z_AXIS] - gc_state.coord_system[Z_AXIS]);
+
+        // set G92 Z to the zeroed tool probe height for refernece of the next spindle
+                                        
+        gc_state.coord_offset[Z_AXIS] = tool[zeroed_tool_index].offset[Z_AXIS];
+
+
         Spindle::deactivate();  // call base function
     }
 

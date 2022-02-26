@@ -13,7 +13,7 @@ axes:
   shared_stepper_disable_pin: NO_PIN
   x:
     steps_per_mm: 80.000
-    max_rate_mm_per_min: 5000.000
+    max_rate_mm_per_min: 8000.000
     acceleration_mm_per_sec2: 100.000
     max_travel_mm: 280.000
     soft_limits: true
@@ -53,7 +53,7 @@ axes:
 
   y:
     steps_per_mm: 80.000
-    max_rate_mm_per_min: 5000.000
+    max_rate_mm_per_min: 8000.000
     acceleration_mm_per_sec2: 100.000
     max_travel_mm: 300.000
     soft_limits: true
@@ -117,8 +117,8 @@ axes:
 
   z:
     steps_per_mm: 377.953
-    max_rate_mm_per_min: 1200.000
-    acceleration_mm_per_sec2: 30.000
+    max_rate_mm_per_min: 2000.000
+    acceleration_mm_per_sec2: 50.000
     max_travel_mm: 300.000
     soft_limits: false
     homing:
@@ -227,10 +227,11 @@ kress_atc:
   atc_dustoff_pin: gpio.4
   ets_dustoff_pin: gpio.16
   ets_mpos_mm: 101.00 289.5 -60.0
-  tool1_mpos_mm: 143.7 289.5 -90.29
-  tool2_mpos_mm: 178.7 289.5 -90.29
-  tool3_mpos_mm: 213.7 289.5 -90.29
-  tool4_mpos_mm: 248.7 289.5 -90.29
+  tool1_mpos_mm: 143.7 289.5 -88.0
+  tool2_mpos_mm: 178.7 289.5 -88.0
+  tool3_mpos_mm: 213.7 289.5 -88.0
+  tool4_mpos_mm: 248.7 289.5 -88.0
+  empty_safe_z: -50
   direction_pin: NO_PIN
   output_pin: gpio.14
   enable_pin: NO_PIN
@@ -241,17 +242,16 @@ kress_atc:
   tool_num: 0
   speed_map: 0=0.000% 0=100.000% 1=100.000%
   
-relay:
+Laser:
+  pwm_hz: 5000
   output_pin: gpio.27
   enable_pin: NO_PIN
-  direction_pin: NO_PIN
   disable_with_s0: false
   s0_with_disable: true
-  spinup_ms: 0
-  spindown_ms: 0
   tool_num: 6
-  offset: -58.75 -21.5 0.0
-  speed_map: 0=0.000% 0=100.000% 1=100%
+  offset: -55.95 -22.0 -94.639
+  focal_mm: 42.8
+  speed_map: 0=0.000% 1=100.000%
 
 arc_tolerance_mm: 0.002
 junction_deviation_mm: 0.010
