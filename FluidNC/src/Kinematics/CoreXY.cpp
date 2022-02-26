@@ -154,7 +154,7 @@ namespace Kinematics {
         }
 
         if (cycle_mask != 0) {
-            if (bitnum_is_true(cycle_mask, X_AXIS) || bitnum_is_true(cycle_mask, X_AXIS)) {
+            if (bitnum_is_true(cycle_mask, X_AXIS) || bitnum_is_true(cycle_mask, Y_AXIS)) {
                 log_error("CoreXY cannot single axis home X or Y axes");
                 // TODO: Set some Kinematics error or alarm
                 return true;
