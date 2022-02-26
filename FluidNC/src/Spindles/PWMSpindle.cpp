@@ -124,24 +124,27 @@ namespace Spindles {
         ledcSetDuty(_pwm_chan_num, duty);
     }
 
-    /*
-		Calculate the highest precision of a PWM based on the frequency in bits
-
-		80,000,000 / freq = period
-		determine the highest precision where (1 << precision) < period
-	*/
+    // Calculate the highest PWM precision in bits for the desired frequency
+    // 80,000,000 (APB Clock) = freq * maxCount
+    // maxCount is a power of two between 2^1 and 2^20
+    // frequency is at most 80,000,000 / 2^1 = 40,000,000, limited elsewhere
+    // to 20,000,000 to give a period of at least 2^2 = 4 levels of control.
     uint8_t PWM::calc_pwm_precision(uint32_t freq) {
-        uint8_t precision = 0;
         if (freq == 0) {
-            return precision;
+            freq = 1;  // Limited elsewhere but just to be safe...
         }
 
-        // increase the precision (bits) until it exceeds allow by frequency the max or is 16
-        while ((1u << precision) < uint32_t(80000000 / freq) && precision <= 16) {
-            precision++;
+        // Increase the precision (bits) until it exceeds the frequency
+        // The hardware maximum precision is 20 bits
+        const uint8_t  ledcMaxBits = 20;
+        const uint32_t apbFreq     = 80000000;
+        const uint32_t maxCount    = apbFreq / freq;
+        for (uint8_t bits = 2; bits <= ledcMaxBits; ++bits) {
+            if ((1u << bits) > maxCount) {
+                return bits - 1;
+            }
         }
-
-        return precision - 1;
+        return ledcMaxBits;
     }
 
     void PWM::deinit() {

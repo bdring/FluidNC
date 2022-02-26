@@ -35,7 +35,20 @@ namespace Spindles {
         void validate() const override { Spindle::validate(); }
 
         void group(Configuration::HandlerBase& handler) override {
-            handler.item("pwm_hz", _pwm_freq, 500, 100000);
+            // The APB clock frequency is 80MHz and the maximum divisor
+            // is 2^10.  The maximum precision is 2^20. 80MHz/2^(20+10)
+            // is 0.075 Hz, or one cycle in 13.4 seconds.  We cannot
+            // represent that in an integer so we set the minimum
+            // frequency to 1 Hz.  Frequencies of 76 Hz or less use
+            // the full 20 bit resolution, 77 to 152 Hz uses 19 bits,
+            // 153 to 305 uses 18 bits, ...
+            // At the other end, the minimum useful precision is 2^2
+            // or 4 levels of control, so the max is 80MHz/2^2 = 20MHz.
+            // Those might not be practical for many CNC applications,
+            // but the ESP32 hardware can handle them, so we let the
+            // user choose.
+            handler.item("pwm_hz", _pwm_freq, 1, 20000000);
+
             OnOff::group(handler);
         }
 
