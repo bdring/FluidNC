@@ -20,11 +20,6 @@
 
 namespace Spindles {
     void PWM::init() {
-        if (_pwm_freq == 0) {
-            log_error(name() << " PWM frequency is 0.");
-            return;
-        }
-
         get_pins_and_settings();
         setupSpeeds(_pwm_freq);
 

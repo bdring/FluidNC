@@ -35,8 +35,7 @@ namespace Spindles {
         void validate() const override { Spindle::validate(); }
 
         void group(Configuration::HandlerBase& handler) override {
-            handler.item("pwm_hz", _pwm_freq);
-
+            handler.item("pwm_hz", _pwm_freq, 500, 100000);
             OnOff::group(handler);
         }
 
