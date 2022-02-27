@@ -48,12 +48,6 @@
 namespace MotorDrivers {
 
     void Solenoid::init() {
-        constrain_with_message(_pwm_freq, (uint32_t)1000, (uint32_t)10000);
-        constrain_with_message(_off_percent, 0.0f, 100.0f);
-        constrain_with_message(_pull_percent, 0.0f, 100.0f);
-        constrain_with_message(_hold_percent, 0.0f, 100.0f);
-        constrain_with_message(_pull_ms, (uint32_t)0, (uint32_t)3000);
-
         if (_output_pin.undefined()) {
             log_warn("    Solenoid disabled: No output pin");
             _has_errors = true;
