@@ -29,6 +29,12 @@ namespace Machine {
             _sharedStepperDisable.report("Shared stepper disable");
         }
 
+        if (_sharedStepperReset.defined()) {
+            _sharedStepperReset.setAttr(Pin::Attr::Output | Pin::Attr::InitialOn);
+            _sharedStepperReset.on();
+            _sharedStepperReset.report("Shared stepper reset");
+        }
+
         unlock_all_motors();
 
         // certain motors need features to be turned on. Check them here
@@ -189,6 +195,7 @@ namespace Machine {
 
     void Axes::group(Configuration::HandlerBase& handler) {
         handler.item("shared_stepper_disable_pin", _sharedStepperDisable);
+        handler.item("shared_stepper_reset_pin", _sharedStepperReset);
 
         // Handle axis names xyzabc.  handler.section is inferred
         // from a template.
