@@ -32,7 +32,7 @@ uint32_t pl_seq0;
 
 // Stores the planner block Bresenham algorithm execution data for the segments in the segment
 // buffer. Normally, this buffer is partially in-use, but, for the worst case scenario, it will
-// never exceed the number of accessible stepper buffer segments (SEGMENT_BUFFER_SIZE-1).
+// never exceed the number of accessible stepper buffer segments (config->_stepping->_segments-1).
 // NOTE: This data is copied from the prepped planner blocks so that the planner blocks may be
 // discarded when entirely consumed and completed by the segment buffer. Also, AMASS alters this
 // data for its own use.
@@ -46,7 +46,7 @@ struct st_block_t {
     //    uint32_t exit[MAX_N_AXIS];
 #endif
 };
-static volatile st_block_t st_block_buffer[SEGMENT_BUFFER_SIZE - 1];
+static volatile st_block_t* st_block_buffer = nullptr;
 
 // Primary stepper segment ring buffer. Contains small, short line segments for the stepper
 // algorithm to execute, which are "checked-out" incrementally from the first block in the
@@ -63,7 +63,18 @@ struct segment_t {
     uint16_t     spindle_dev_speed;  // Spindle speed scaled to the device
     SpindleSpeed spindle_speed;      // Spindle speed in GCode units
 };
-static segment_t segment_buffer[SEGMENT_BUFFER_SIZE];
+static segment_t* segment_buffer = nullptr;
+
+void Stepper::init() {
+    if (st_block_buffer) {
+        delete[] st_block_buffer;
+    }
+    st_block_buffer = new st_block_t[config->_stepping->_segments - 1];
+    if (segment_buffer) {
+        delete[] segment_buffer;
+    }
+    segment_buffer = new segment_t[config->_stepping->_segments];
+}
 
 // Stepper ISR data struct. Contains the running data for the main stepper ISR.
 typedef struct {
@@ -293,7 +304,7 @@ void IRAM_ATTR Stepper::pulse_func() {
     if (st.step_count == 0) {
         // Segment is complete. Discard current segment and advance segment indexing.
         st.exec_segment     = NULL;
-        segment_buffer_tail = segment_buffer_tail >= (SEGMENT_BUFFER_SIZE - 1) ? 0 : segment_buffer_tail + 1;
+        segment_buffer_tail = segment_buffer_tail >= (config->_stepping->_segments - 1) ? 0 : segment_buffer_tail + 1;
     }
 
     config->_axes->unstep();
@@ -382,7 +393,7 @@ void Stepper::parking_restore_buffer() {
 // Increments the step segment buffer block data ring buffer.
 static uint8_t next_block_index(uint8_t block_index) {
     block_index++;
-    return block_index == (SEGMENT_BUFFER_SIZE - 1) ? 0 : block_index;
+    return block_index == (config->_stepping->_segments - 1) ? 0 : block_index;
 }
 
 /* Prepares step segment buffer. Continuously called from main program.
@@ -773,7 +784,7 @@ void Stepper::prep_buffer() {
 
         // Segment complete! Increment segment buffer indices, so stepper ISR can immediately execute it.
         auto lastseg        = segment_next_head;
-        segment_next_head   = segment_next_head >= (SEGMENT_BUFFER_SIZE - 1) ? 0 : segment_next_head + 1;
+        segment_next_head   = segment_next_head >= (config->_stepping->_segments - 1) ? 0 : segment_next_head + 1;
         segment_buffer_head = lastseg;
 
         // Update the appropriate planner and segment data.
