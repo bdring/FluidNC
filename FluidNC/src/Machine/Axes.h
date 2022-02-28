@@ -34,6 +34,7 @@ namespace Machine {
         inline char axisName(int index) { return index < MAX_N_AXIS ? _names[index] : '?'; }  // returns axis letter
 
         Pin _sharedStepperDisable;
+        Pin _sharedStepperReset;
 
         int   _numberAxis = 0;
         Axis* _axis[MAX_N_AXIS];

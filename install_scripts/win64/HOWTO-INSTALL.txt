@@ -20,6 +20,20 @@ name as below).
 To install the WiFi version:            install-wifi.bat
 To install the Bluetooth version:       install-bt.bat
 To replace the ESP32 local filesystem:  install-fs.bat
+To erase everything on the ESP32:       erase.bat
+To just run FluidTerm:                  fluidterm.bat
+
+### Erasing the ESP32
+
+If your ESP32 already has other software on it, installing FluidNC
+on top of that other software might not work right.  You can get
+rid of that other software with:
+
+    erase.bat
+
+Then you can install FluidNC with install-* commands mentioned above.
+
+### Local Filesystem Considerations
 
 Replacing the local filesystem is only useful for the wifi
 version, since its default contents are only needed for
@@ -35,3 +49,28 @@ it via WebUI from wifi/index.html.gz herein.
 
 A good approach is to use install-fs only on your first
 FluidNC installation, or to start from a clean slate.
+
+### Running FluidTerm
+
+FluidTerm is a simple serial terminal emulator program with a few
+features specific to FluidNC - it can upload files and reset the ESP32.
+
+The FluidNC install scripts run FluidTerm automatically at the end,
+but if you want to run it separately, you can type
+
+  fluidterm.bat
+
+### Alternatives to FluidTerm
+
+Most GCode sender programs have some way to send commands directly to
+FluidNC, but it can sometimes be helpful to bypass the complexity of
+a sender and use a more direct path.  FluidTerm is one such direct
+path, but there are others, typically called "serial terminals".
+
+For Windows, there are many such programs, such as "PuTTY" and
+"TeraTerm Pro".  None are preinstalled by default, but you can
+download one from the internet.  Setting one up requires that
+you know which COM port is for the ESP32, the baud rate (115200),
+and some other settings - no hardware or software flow control,
+accept linefeed as end-of-line on input, etc.  FluidTerm tried
+to make it easy for you by using all the correct defaults.
