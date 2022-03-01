@@ -132,7 +132,7 @@ void mc_arc(float*            target,
 
     auto n_axis = config->_axes->_numberAxis;
 
-    float previous_position[n_axis] = { 0.0 };
+    float previous_position[MAX_N_AXIS] = { 0.0f };
     for (size_t i = 0; i < n_axis; i++) {
         previous_position[i] = position[i];
     }
@@ -164,7 +164,7 @@ void mc_arc(float*            target,
             pl_data->motion.inverseTime = 0;  // Force as feed absolute mode over arc segments.
         }
         float theta_per_segment = angular_travel / segments;
-        float linear_per_segment[n_axis];
+        float linear_per_segment[MAX_N_AXIS];
         linear_per_segment[axis_linear] = (target[axis_linear] - position[axis_linear]) / segments;
         for (size_t i = A_AXIS; i < n_axis; i++) {
             linear_per_segment[i] = (target[i] - position[i]) / segments;

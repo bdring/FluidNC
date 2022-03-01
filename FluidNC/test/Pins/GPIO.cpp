@@ -301,7 +301,7 @@ namespace Pins {
 
             hitCount     = 0;
             int expected = 0;
-            gpio16.attachInterrupt<GPIOISR, &GPIOISR::HandleISR>(this, mode);
+            // gpio16.attachInterrupt<GPIOISR, &GPIOISR::HandleISR>(this, mode);
 
             // Two ways to set I/O:
             // 1. using on/off
