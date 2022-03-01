@@ -24,22 +24,26 @@ namespace Extenders {
     }
 
     uint8_t PCA9539::I2CGetValue(Machine::I2CBus* bus, uint8_t address, uint8_t reg) {
+        Assert(bus != nullptr, "I2C bus is not initialized; cannot continue.");
+
         auto err = bus->write(address, &reg, 1);
 
         if (err) {
-            // log_info("Error writing to i2c bus. Code: " << err);
+            log_info("Error writing to i2c bus. Code: " << err);
             return 0;
         }
 
         uint8_t inputData;
         if (bus->read(address, &inputData, 1) != 1) {
-            // log_info("Error reading from i2c bus.");
+            log_info("Error reading from i2c bus.");
         }
 
         return inputData;
     }
 
     void PCA9539::I2CSetValue(Machine::I2CBus* bus, uint8_t address, uint8_t reg, uint8_t value) {
+        Assert(bus != nullptr, "I2C bus is not initialized; cannot continue.");
+
         uint8_t data[2];
         data[0]  = reg;
         data[1]  = uint8_t(value);
@@ -68,7 +72,7 @@ namespace Extenders {
             void* ptr;
             if (xQueueReceive(inst->_isrQueue, &ptr, portMAX_DELAY)) {
                 ISRData* valuePtr = static_cast<ISRData*>(ptr);
-                // log_info("PCA state change ISR");
+                log_info("PCA state change ISR");
                 valuePtr->updateValueFromDevice();
             }
         }
@@ -80,7 +84,7 @@ namespace Extenders {
         _isrQueue = xQueueCreate(16, sizeof(void*));
         xTaskCreatePinnedToCore(isrTaskLoop,                     // task
                                 "isr_handler",                   // name for task
-                                configMINIMAL_STACK_SIZE + 256,  // size of task stack
+                                configMINIMAL_STACK_SIZE + 512,  // size of task stack
                                 this,                            // parameters
                                 1,                               // priority
                                 &_isrHandler,
@@ -124,7 +128,7 @@ namespace Extenders {
                 uint16_t mask = uint16_t(1) << i;
 
                 if (_isrCallback[i] != nullptr && (oldValue & mask) != (value & mask)) {
-                    // log_info("State change pin " << i);
+                    log_info("State change pin " << i);
                     switch (_isrMode[i]) {
                         case RISING:
                             if ((value & mask) == mask) {
@@ -168,7 +172,7 @@ namespace Extenders {
         uint8_t value = uint8_t(_configuration >> (8 * (index / 8)));
         uint8_t reg   = ConfigReg + ((index / 8) & 1);
 
-        // log_info("Setup reg " << int(reg) << " with value " << int(value));
+        log_info("Setup reg " << int(reg) << " with value " << int(value));
 
         I2CSetValue(_i2cBus, address, reg, value);
     }
@@ -199,11 +203,10 @@ namespace Extenders {
 
             _value = ((newValue ^ _invert) & mask) | (_value & ~mask);
 
-            // log_info("Read reg " << int(readReg) << " <- value " << int(newValue) << " gives " << int(_value));
+            log_info("Read reg " << int(readReg) << " <- value " << int(newValue) << " gives " << int(_value));
+        } else {
+            log_info("No read, value is " << int(_value));
         }
-        // else {
-        //     log_info("No read, value is " << int(_value));
-        // }
 
         return (_value & (1ull << index)) != 0;
     }

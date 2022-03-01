@@ -3,6 +3,8 @@
 
 #include "I2CBus.h"
 
+#include <Wire.h>
+
 namespace Machine {
     void I2CBus::validate() const {
         if (_sda.defined() || _scl.defined()) {
@@ -20,8 +22,6 @@ namespace Machine {
     }
 
     void I2CBus::init() {
-        log_info("I2C SDA:" << _sda.name() << ", SCL:" << _scl.name() << ", Bus:" << _busNumber);
-
         auto sdaPin = _sda.getNative(Pin::Capabilities::Native | Pin::Capabilities::Input | Pin::Capabilities::Output);
         auto sclPin = _scl.getNative(Pin::Capabilities::Native | Pin::Capabilities::Input | Pin::Capabilities::Output);
 
@@ -31,9 +31,14 @@ namespace Machine {
             i2c = &Wire1;
         }
         i2c->begin(sdaPin, sclPin /*, _frequency */);
+
+        log_info("I2C SDA:" << _sda.name() << ", SCL:" << _scl.name() << ", Bus:" << _busNumber);
     }
 
     int I2CBus::write(uint8_t address, const uint8_t* data, size_t count) {
+        // log_info("I2C write addr=" << int(address) << ", count=" << int(count) << ", data " << (data ? "non null" : "null") << ", i2c "
+        //                            << (i2c ? "non null" : "null"));
+
         i2c->beginTransmission(address);
         for (size_t i = 0; i < count; ++i) {
             i2c->write(data[i]);
@@ -42,6 +47,9 @@ namespace Machine {
     }
 
     int I2CBus::read(uint8_t address, uint8_t* data, size_t count) {
+        // log_info("I2C read addr=" << int(address) << ", count=" << int(count) << ", data " << (data ? "non null" : "null") << ", i2c "
+        //                           << (i2c ? "non null" : "null"));
+
         for (size_t i = 0; i < count; ++i) {
             if (i2c->requestFrom((int)address, 1) != 1) {
                 return i;
