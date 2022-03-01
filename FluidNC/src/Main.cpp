@@ -72,17 +72,19 @@ void setup() {
                     config->_sdCard->init();
                 }
             }
+            if (config->_i2c) {
+                config->_i2c->init();
+            }
+
+            // TODO FIXME: Initialize extenders *here*
 
             config->_stepping->init();  // Configure stepper interrupt timers
 
             plan_init();
 
             config->_userOutputs->init();
-
             config->_axes->init();
-
             config->_control->init();
-
             config->_kinematics->init();
 
             auto n_axis = config->_axes->_numberAxis;

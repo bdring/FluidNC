@@ -33,8 +33,15 @@
   <ImportGroup Label="PropertySheets" />
   <PropertyGroup Label="UserMacros" />
   <ItemGroup>
+    <ClInclude Include="FluidNC\src\Extenders\Extenders.h" />
+    <ClInclude Include="FluidNC\src\Extenders\PCA9539.h" />
+    <ClInclude Include="FluidNC\src\Extenders\PinExtender.h" />
+    <ClInclude Include="FluidNC\src\Extenders\PinExtenderDriver.h" />
+    <ClInclude Include="FluidNC\src\Machine\I2CBus.h" />
+    <ClInclude Include="FluidNC\src\Pins\ExtPinDetail.h" />
     <ClInclude Include="FluidNC\src\SettingsDefinitions.h" />
     <ClInclude Include="FluidNC\src\PinUsers\PwmPin.h" />
+    <ClInclude Include="FluidNC\src\StartupLog.h" />
     <ClInclude Include="FluidNC\src\WebUI\BTConfig.h" />
     <ClInclude Include="FluidNC\src\Config.h" />
     <ClInclude Include="FluidNC\src\Machine\Macros.h" />
@@ -97,7 +104,6 @@
     <ClInclude Include="FluidNC\src\Pins\I2SOPinDetail.h" />
     <ClInclude Include="FluidNC\src\StringStream.h" />
     <ClInclude Include="FluidNC\src\Configuration\AfterParse.h" />
-    <ClInclude Include="FluidNC\src\UserOutput.h" />
     <ClInclude Include="X86TestSupport\TestSupport\driver\ledc.h" />
     <ClInclude Include="FluidNC\src\Motors\MotorDriver.h" />
     <ClInclude Include="X86TestSupport\TestSupport\driver\rmt.h" />
@@ -206,10 +212,17 @@
     <ClInclude Include="X86TestSupport\TestSupport\Stream.h" />
     <ClInclude Include="X86TestSupport\TestSupport\TMC\TMCStepper.h" />
     <ClInclude Include="X86TestSupport\TestSupport\TMC\TMCStepper_UTILITY.h" />
+    <ClInclude Include="X86TestSupport\TestSupport\Wire.h" />
     <ClInclude Include="X86TestSupport\TestSupport\WString.h" />
     <ClInclude Include="X86TestSupport\TestSupport\xtensa\core-macros.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="FluidNC\src\Extenders\Extenders.cpp" />
+    <ClCompile Include="FluidNC\src\Extenders\PCA9539.cpp" />
+    <ClCompile Include="FluidNC\src\Extenders\PinExtenderDriver.cpp" />
+    <ClCompile Include="FluidNC\src\Machine\I2CBus.cpp" />
+    <ClCompile Include="FluidNC\src\Pins\ExtPinDetail.cpp" />
+    <ClCompile Include="FluidNC\src\StartupLog.cpp" />
     <ClCompile Include="FluidNC\src\System.cpp" />
     <ClCompile Include="FluidNC\src\Spindles\BESCSpindle.cpp" />
     <ClCompile Include="FluidNC\src\SettingsDefinitions.cpp" />
@@ -223,6 +236,7 @@
     <ClCompile Include="FluidNC\src\MotionControl.cpp" />
     <ClCompile Include="FluidNC\src\ProcessSettings.cpp" />
     <ClCompile Include="FluidNC\src\Motors\Servo.cpp" />
+    <ClCompile Include="FluidNC\src\version.cpp" />
     <ClCompile Include="FluidNC\src\WebUI\WifiServices.cpp" />
     <ClCompile Include="FluidNC\src\Regex.cpp" />
     <ClCompile Include="FluidNC\src\InputFile.cpp" />
@@ -240,7 +254,6 @@
     <ClCompile Include="FluidNC\src\Spindles\H2ASpindle.cpp" />
     <ClCompile Include="FluidNC\src\Motors\Dynamixel2.cpp" />
     <ClCompile Include="FluidNC\src\Configuration\RuntimeSetting.cpp" />
-    <ClCompile Include="FluidNC\src\UserOutput.cpp" />
     <ClCompile Include="FluidNC\src\StackTrace\AssertionFailed.cpp" />
     <ClCompile Include="FluidNC\src\PinMapper.cpp" />
     <ClCompile Include="FluidNC\src\Uart.cpp" />
@@ -305,7 +318,6 @@
     <ClCompile Include="FluidNC\src\Pins\GPIOPinDetail.cpp" />
     <ClCompile Include="FluidNC\src\Spindles\NullSpindle.cpp" />
     <ClCompile Include="X86TestSupport\TestSupport\driver\dac.cpp" />
-    <ClCompile Include="FluidNC\src\version.cpp" />
     <ClCompile Include="FluidNC\src\Machine\LimitPin.cpp" />
     <ClCompile Include="FluidNC\src\Pins\ErrorPinDetail.cpp" />
     <ClCompile Include="X86TestSupport\TestSupport\driver\rmt.cpp" />
@@ -347,6 +359,7 @@
     <ClCompile Include="X86TestSupport\TestSupport\SPI.cpp" />
     <ClCompile Include="X86TestSupport\TestSupport\SPIFFS.cpp" />
     <ClCompile Include="X86TestSupport\TestSupport\Stream.cpp" />
+    <ClCompile Include="X86TestSupport\TestSupport\Wire.cpp" />
     <ClCompile Include="X86TestSupport\TestSupport\WString.cpp" />
   </ItemGroup>
   <ItemGroup>
