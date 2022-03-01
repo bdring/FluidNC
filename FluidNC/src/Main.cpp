@@ -28,6 +28,51 @@
 
 extern void make_user_commands();
 
+// FOR TESTING:
+
+#    include <esp32-hal-gpio.h>
+#    include <Wire.h>
+
+extern "C" void __pinMode(pinnum_t pin, uint8_t mode);
+
+uint8_t I2CGetValue(uint8_t address, uint8_t reg) {
+    Wire.beginTransmission(address);
+    Wire.write(reg);
+    auto err = Wire.endTransmission();  // i2c_err_t
+
+    if (Wire.requestFrom((int)address, 1) != 1) {
+        Uart0.println("Error reading from i2c bus.");
+        return 0;
+    }
+    uint8_t result = Wire.read();
+    return result;
+}
+
+void I2CSetValue(uint8_t address, uint8_t reg, uint8_t value) {
+    uint8_t data[2];
+    data[0] = reg;
+    data[1] = uint8_t(value);
+
+    Wire.beginTransmission(address);
+    for (size_t i = 0; i < 2; ++i) {
+        Wire.write(data[i]);
+    }
+    auto err = Wire.endTransmission();  // i2c_err_t ??
+
+    if (err) {
+        Uart0.println("Error writing to i2c bus; PCA9539 failed. Code: ");
+        Uart0.println(int(err));
+    }
+}
+
+volatile bool fired = false;
+
+void isrHandler() {
+    fired = true;
+}
+
+// --- Until here.
+
 void setup() {
     try {
         uartInit();       // Setup serial port
@@ -38,6 +83,49 @@ void setup() {
         allChannels.init();
 
         WebUI::WiFiConfig::reset();
+
+        /* TEST STUFF! */
+
+        /*
+        // THIS WORKS:
+        {
+            Uart0.println("Basic test of pin extender.");
+            // Wire.begin(sda , scl, frequency);
+            Wire.begin(13, 14, 100000);
+
+            Uart0.println("Setup pins:");
+
+            // 1. Setup pins:
+            I2CSetValue(0x74, 6, 0xFF);  // All input pins
+            I2CSetValue(0x74, 7, 0xFF);  // All input pins
+
+            __pinMode(36, INPUT);
+            attachInterrupt(36, isrHandler, CHANGE);
+
+            // 2. Read input register:
+            Uart0.println("Main loop:");
+            while (true) {
+                auto     r1 = I2CGetValue(0x74, 0);
+                auto     r2 = I2CGetValue(0x74, 1);
+                uint16_t v  = (uint16_t(r1) << 8) | uint16_t(r2);
+                Uart0.print("Status: ");
+                for (int i = 0; i < 16; ++i) {
+                    uint16_t mask = uint16_t(1 << i);
+                    Uart0.print((v & mask) ? '1' : '0');
+                }
+
+                if (fired) {
+                    Uart0.print(" ** ISR");
+                    fired = false;
+                }
+
+                Uart0.println();
+
+                delay(1000);
+            }
+        }
+        */
+        /* END TEST STUFF */
 
         display_init();
 
@@ -76,7 +164,10 @@ void setup() {
                 config->_i2c->init();
             }
 
-            // TODO FIXME: Initialize extenders *here*
+            // We have to initialize the extenders first, before pins are used
+            if (config->_extenders) {
+                config->_extenders->init();
+            }
 
             config->_stepping->init();  // Configure stepper interrupt timers
 
@@ -125,7 +216,6 @@ void setup() {
             config->_coolant->init();
             config->_probe->init();
         }
-
     } catch (const AssertionFailed& ex) {
         // This means something is terribly broken:
         log_error("Critical error in main_init: " << ex.what());
