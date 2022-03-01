@@ -204,10 +204,7 @@ void protocol_main_loop() {
             }
 #ifdef DEBUG_REPORT_ECHO_RAW_LINE_RECEIVED
             report_echo_line_received(line, *chan);
-#endif
-            for (auto d : config->_displays) {
-                d->update(Displays::UpdateType::Gcode, "");
-            }
+#endif            
             // auth_level can be upgraded by supplying a password on the command line
             report_status_message(execute_line(line, *chan, WebUI::AuthenticationLevel::LEVEL_GUEST), *chan);
         }

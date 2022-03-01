@@ -111,11 +111,7 @@ void setup() {
             for (auto s : config->_spindles) {
                 s->init();
             }
-            Spindles::Spindle::switchSpindle(0, config->_spindles, spindle);
-
-            for (auto disp : config->_displays) {
-                disp->init();
-            }
+            Spindles::Spindle::switchSpindle(0, config->_spindles, spindle);            
 
             config->_coolant->init();
             config->_probe->init();
