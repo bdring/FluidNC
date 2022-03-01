@@ -69,17 +69,19 @@ void setup() {
                     config->_sdCard->init();
                 }
             }
+            if (config->_i2c) {
+                config->_i2c->init();
+            }
+
+            // TODO FIXME: Initialize extenders *here*
 
             config->_stepping->init();  // Configure stepper interrupt timers
 
             plan_init();
 
             config->_userOutputs->init();
-
             config->_axes->init();
-
             config->_control->init();
-
             config->_kinematics->init();
 
             memset(motor_steps, 0, sizeof(motor_steps));  // Clear machine position.
