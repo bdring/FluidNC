@@ -582,9 +582,6 @@
     <ClInclude Include="FluidNC\src\Machine\I2CBus.h">
       <Filter>src\Machine</Filter>
     </ClInclude>
-    <ClInclude Include="FluidNC\src\Extenders\PCA9539.h">
-      <Filter>src\Extenders</Filter>
-    </ClInclude>
     <ClInclude Include="FluidNC\src\Extenders\PinExtender.h">
       <Filter>src\Extenders</Filter>
     </ClInclude>
@@ -596,6 +593,12 @@
     </ClInclude>
     <ClInclude Include="FluidNC\src\Pins\ExtPinDetail.h">
       <Filter>src\Pins</Filter>
+    </ClInclude>
+    <ClInclude Include="X86TestSupport\TestSupport\esp32-hal-i2c.h">
+      <Filter>X86TestSupport</Filter>
+    </ClInclude>
+    <ClInclude Include="FluidNC\src\Extenders\I2CExtender.h">
+      <Filter>src\Extenders</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -1016,9 +1019,6 @@
     <ClCompile Include="FluidNC\src\Machine\I2CBus.cpp">
       <Filter>src\Machine</Filter>
     </ClCompile>
-    <ClCompile Include="FluidNC\src\Extenders\PCA9539.cpp">
-      <Filter>src\Extenders</Filter>
-    </ClCompile>
     <ClCompile Include="FluidNC\src\Extenders\PinExtenderDriver.cpp">
       <Filter>src\Extenders</Filter>
     </ClCompile>
@@ -1030,6 +1030,9 @@
     </ClCompile>
     <ClCompile Include="FluidNC\src\Pins\ExtPinDetail.cpp">
       <Filter>src\Pins</Filter>
+    </ClCompile>
+    <ClCompile Include="FluidNC\src\Extenders\I2CExtender.cpp">
+      <Filter>src\Extenders</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
