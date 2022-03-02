@@ -21,8 +21,6 @@ namespace Extenders {
         PCA9539,
     };
 
-    EnumItem i2cDevice[] = { { int(I2CExtenderDevice::PCA9539), "pca9539" }, EnumItem(int(I2CExtenderDevice::Unknown)) };
-
     // Pin extenders...
     //
     // The PCA9539 is identical to the PCA9555 in terms of API. It provides 2 address

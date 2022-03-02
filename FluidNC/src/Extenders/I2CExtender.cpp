@@ -13,6 +13,8 @@
 #include <freertos/FreeRTOS.h>
 
 namespace Extenders {
+    EnumItem i2cDevice[] = { { int(I2CExtenderDevice::PCA9539), "pca9539" }, EnumItem(int(I2CExtenderDevice::Unknown)) };
+
     I2CExtender::I2CExtender() : _usedIORegisters(0), _dirtyWriteBuffer(0), _dirtyWrite(0), _status(0) {}
 
     uint8_t I2CExtender::I2CGetValue(Machine::I2CBus* bus, uint8_t address, uint8_t reg) {
@@ -216,7 +218,7 @@ namespace Extenders {
         //   device: pca9539
         //   device_id: 0
         //   interrupt: gpio.36
-        handler.item("device", _device);
+        handler.item("device", _device, i2cDevice);
         handler.item("device_id", _deviceId);
         handler.item("interrupt", _interruptPin);
     }
@@ -228,6 +230,7 @@ namespace Extenders {
 
     void I2CExtender::init() {
         Assert(_isrHandler == nullptr, "Init has already been called on I2C extender.");
+        this->_i2cBus = config->_i2c;
 
         switch (I2CExtenderDevice(_device)) {
             case I2CExtenderDevice::PCA9539:
