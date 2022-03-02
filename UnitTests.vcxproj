@@ -34,7 +34,7 @@
   <PropertyGroup Label="UserMacros" />
   <ItemGroup>
     <ClInclude Include="FluidNC\src\Extenders\Extenders.h" />
-    <ClInclude Include="FluidNC\src\Extenders\PCA9539.h" />
+    <ClInclude Include="FluidNC\src\Extenders\I2CExtender.h" />
     <ClInclude Include="FluidNC\src\Extenders\PinExtender.h" />
     <ClInclude Include="FluidNC\src\Extenders\PinExtenderDriver.h" />
     <ClInclude Include="FluidNC\src\Machine\I2CBus.h" />
@@ -182,6 +182,7 @@
     <ClInclude Include="X86TestSupport\TestSupport\esp32-hal-cpu.h" />
     <ClInclude Include="X86TestSupport\TestSupport\esp32-hal-dac.h" />
     <ClInclude Include="X86TestSupport\TestSupport\esp32-hal-gpio.h" />
+    <ClInclude Include="X86TestSupport\TestSupport\esp32-hal-i2c.h" />
     <ClInclude Include="X86TestSupport\TestSupport\esp32-hal-ledc.h" />
     <ClInclude Include="X86TestSupport\TestSupport\esp32-hal-matrix.h" />
     <ClInclude Include="X86TestSupport\TestSupport\esp32-hal-timer.h" />
@@ -218,7 +219,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="FluidNC\src\Extenders\Extenders.cpp" />
-    <ClCompile Include="FluidNC\src\Extenders\PCA9539.cpp" />
+    <ClCompile Include="FluidNC\src\Extenders\I2CExtender.cpp" />
     <ClCompile Include="FluidNC\src\Extenders\PinExtenderDriver.cpp" />
     <ClCompile Include="FluidNC\src\Machine\I2CBus.cpp" />
     <ClCompile Include="FluidNC\src\Pins\ExtPinDetail.cpp" />
