@@ -18,7 +18,7 @@ namespace Machine {
     void I2CBus::group(Configuration::HandlerBase& handler) {
         handler.item("sda", _sda);
         handler.item("scl", _scl);
-        handler.item("busNumber", _busNumber);
+        handler.item("bus", _busNumber);
         handler.item("frequency", _frequency);
     }
 
