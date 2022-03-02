@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include "esp32-hal-i2c.h"
 #include "Stream.h"
 
 class TwoWire : public Stream {
