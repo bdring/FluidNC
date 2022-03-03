@@ -279,6 +279,7 @@
     <ClCompile Include="FluidNC\test\Configuration\YamlComplete.cpp" />
     <ClCompile Include="FluidNC\test\Configuration\YamlParser.cpp" />
     <ClCompile Include="FluidNC\test\Configuration\YamlTreeBuilder.cpp" />
+    <ClCompile Include="FluidNC\test\Extender\I2CExtenderTests.cpp" />
     <ClCompile Include="FluidNC\test\Pins\BasicGPIO.cpp" />
     <ClCompile Include="FluidNC\test\Pins\ErrorPinTest.cpp" />
     <ClCompile Include="FluidNC\test\Pins\GPIO.cpp" />

@@ -15,7 +15,7 @@
 namespace Extenders {
     EnumItem i2cDevice[] = { { int(I2CExtenderDevice::PCA9539), "pca9539" }, EnumItem(int(I2CExtenderDevice::Unknown)) };
 
-    I2CExtender::I2CExtender() : _usedIORegisters(0), _dirtyWriteBuffer(0), _dirtyWrite(0), _status(0) {}
+    I2CExtender::I2CExtender() : _i2cBus(nullptr), _usedIORegisters(0), _dirtyWriteBuffer(0), _dirtyWrite(0), _status(0) {}
 
     uint8_t I2CExtender::I2CGetValue(Machine::I2CBus* bus, uint8_t address, uint8_t reg) {
         int err;
@@ -67,6 +67,7 @@ namespace Extenders {
 
             if (newStatus != 0) {
                 if ((newStatus & 2) != 0) {
+                    _status = 0;
                     break;
                 }
 
@@ -81,7 +82,21 @@ namespace Extenders {
                     claimedValues = 0;
                     for (int i = 0; i < 8; ++i) {
                         if (_claimed.bytes[i] != 0) {
-                            claimedValues = i;
+                            claimedValues = i + 1;
+                        }
+                    }
+                    // Invert:
+                    if (_invertReg != 0xFF) {
+                        uint8_t currentRegister = _invertReg;
+                        uint8_t address         = _address;
+                        for (int i = 0; i < claimedValues; ++i) {
+                            uint8_t by = _invert.bytes[i];
+                            I2CSetValue(this->_i2cBus, address, currentRegister, by);
+
+                            currentRegister++;
+                            if (currentRegister == registersPerDevice + _invertReg) {
+                                ++address;
+                            }
                         }
                     }
                     // Configuration:
@@ -99,24 +114,11 @@ namespace Extenders {
                             }
                         }
                     }
-                    // Invert:
-                    if (_invertReg != 0xFF) {
-                        uint8_t currentRegister = _invertReg;
-                        uint8_t address         = _address;
-                        for (int i = 0; i < claimedValues; ++i) {
-                            uint8_t by = _invert.bytes[i];
-                            I2CSetValue(this->_i2cBus, address, currentRegister, by);
-
-                            currentRegister++;
-                            if (currentRegister == registersPerDevice + _invertReg) {
-                                ++address;
-                            }
-                        }
-                    }
 
                     // Configuration changed. Writes and reads must be updated.
                     if (_outputReg != 0xFF) {
-                        newStatus |= 4;  // writes
+                        newStatus |= 4;      // writes
+                        _dirtyWrite = 0xFF;  // everything is dirty.
                     }
                     if (_inputReg != 0xFF) {
                         newStatus |= 8;  // reads
@@ -248,6 +250,9 @@ namespace Extenders {
                 break;
         }
 
+        // Ensure data is available:
+        std::atomic_thread_fence(std::memory_order::memory_order_seq_cst);
+
         xTaskCreatePinnedToCore(isrTaskLoop,                     // task
                                 "i2cHandler",                    // name for task
                                 configMINIMAL_STACK_SIZE + 512,  // size of task stack
@@ -300,15 +305,19 @@ namespace Extenders {
     void IRAM_ATTR I2CExtender::writePin(pinnum_t index, bool high) {
         Assert(index < 64 && index >= 0, "Pin index out of range");
 
-        uint64_t mask = 1ull << index;
+        uint64_t mask     = 1ull << index;
+        auto     oldValue = _output.value;
         if (high) {
             _output.value |= mask;
         } else {
             _output.value &= ~mask;
         }
 
-        uint8_t dirtyMask = uint8_t(1 << (index / 8));
-        _dirtyWriteBuffer |= dirtyMask;
+        // Did something change?
+        if (oldValue != _output.value) {
+            uint8_t dirtyMask = uint8_t(1 << (index / 8));
+            _dirtyWriteBuffer |= dirtyMask;
+        }
 
         // Note that _status is *not* updated! flushWrites takes care of this!
     }
@@ -398,7 +407,9 @@ namespace Extenders {
         }
 
         // Give enough time for the task to stop:
-        vTaskDelay(TaskDelayBetweenIterations * 10);
+        for (int i = 0; i < 10 && _status != 0; ++i) {
+            vTaskDelay(TaskDelayBetweenIterations);
+        }
 
         // Should be safe now to stop.
         _isrHandler = nullptr;

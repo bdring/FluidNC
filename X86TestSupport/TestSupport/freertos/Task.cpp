@@ -27,6 +27,7 @@ BaseType_t xTaskCreatePinnedToCore(TaskFunction_t      pvTaskCode,
 
 void vTaskDelay(const TickType_t xTicksToDelay) {
     Capture::instance().wait(xTicksToDelay);
+    delay(xTicksToDelay);
 }
 
 void vTaskDelayUntil(TickType_t* const pxPreviousWakeTime, const TickType_t xTimeIncrement) {
