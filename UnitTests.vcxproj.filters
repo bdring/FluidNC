@@ -49,6 +49,9 @@
     <Filter Include="src\Extenders">
       <UniqueIdentifier>{2b9b9202-4bb3-450e-a90b-99f042de0af2}</UniqueIdentifier>
     </Filter>
+    <Filter Include="test\Extender">
+      <UniqueIdentifier>{4f2af482-2e54-41bf-b698-1ab77a1a5ea3}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="FluidNC\src\SettingsDefinitions.h">
@@ -1033,6 +1036,9 @@
     </ClCompile>
     <ClCompile Include="FluidNC\src\Extenders\I2CExtender.cpp">
       <Filter>src\Extenders</Filter>
+    </ClCompile>
+    <ClCompile Include="FluidNC\test\Extender\I2CExtenderTests.cpp">
+      <Filter>test\Extender</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

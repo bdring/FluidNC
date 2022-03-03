@@ -21,7 +21,7 @@ class Capture {
     Capture() = default;
 
     std::vector<CaptureEvent> events;
-    uint32_t                  currentTime = 0;
+    volatile uint32_t         currentTime = 0;
 
 public:
     static Capture& instance() {

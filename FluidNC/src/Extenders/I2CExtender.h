@@ -144,18 +144,16 @@ namespace Extenders {
         static void isrTaskLoop(void* arg);
         void        isrTaskLoopDetail();
 
+        static void interruptHandler(void* arg);
+
     public:
         I2CExtender();
 
         void claim(pinnum_t index) override;
         void free(pinnum_t index) override;
 
-        void validate() const override;
-
         void group(Configuration::HandlerBase& handler) override;
-
-        static void interruptHandler(void* arg);
-
+        void validate() const override;
         void init();
 
         void IRAM_ATTR setupPin(pinnum_t index, Pins::PinAttributes attr) override;
@@ -164,7 +162,6 @@ namespace Extenders {
         void IRAM_ATTR flushWrites() override;
 
         void attachInterrupt(pinnum_t index, void (*callback)(void*), void* arg, int mode) override;
-
         void detachInterrupt(pinnum_t index) override;
 
         const char* name() const override;
