@@ -100,6 +100,8 @@ namespace Extenders {
 
         static const int TaskDelayBetweenIterations = 10;
 
+        int errorCount = 0;
+
         // Operation and status work together and form a common bitmask. Operation is just not reset,
         // while status is.
         uint8_t _operation = 0;
@@ -118,8 +120,8 @@ namespace Extenders {
 
         Machine::I2CBus* _i2cBus;
 
-        static uint8_t I2CGetValue(Machine::I2CBus* bus, uint8_t address, uint8_t reg);
-        static void    I2CSetValue(Machine::I2CBus* bus, uint8_t address, uint8_t reg, uint8_t value);
+        uint8_t I2CGetValue(uint8_t address, uint8_t reg);
+        void    I2CSetValue(uint8_t address, uint8_t reg, uint8_t value);
 
         // Current register values:
         RegisterSet          _configuration;
@@ -145,6 +147,8 @@ namespace Extenders {
         void        isrTaskLoopDetail();
 
         static void interruptHandler(void* arg);
+
+        void IOError();
 
     public:
         I2CExtender();

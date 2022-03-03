@@ -2,6 +2,8 @@
 
 #include <cstdint>
 #include <vector>
+#include <mutex>
+
 #include "esp32-hal-i2c.h"
 #include "Stream.h"
 #include "../FluidNC/test/TestFramework.h"
@@ -10,6 +12,10 @@ class TwoWire : public Stream {
     bool                 inTransmission = false;
     std::vector<uint8_t> receivedData;
     std::vector<uint8_t> sentData;
+    std::mutex           mut;
+
+    using ResponseHandler = void (*)(TwoWire* theWire, std::vector<uint8_t>& data);
+    ResponseHandler handler;
 
 public:
     TwoWire(uint8_t bus_num);
@@ -18,8 +24,11 @@ public:
     // For unit tests:
     void                 Send(std::vector<uint8_t> data);
     void                 Send(uint8_t value);
+    size_t               SendSize() { return receivedData.size(); }
     std::vector<uint8_t> Receive();
+    size_t               ReceiveSize() { return sentData.size(); }
     void                 Clear();
+    void                 SetResponseHandler(ResponseHandler handler) { this->handler = handler; }
 
     // TwoWire interface:
 

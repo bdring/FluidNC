@@ -1,10 +1,11 @@
 #include "Wire.h"
 
+#include <mutex>
+
 TwoWire Wire(0);
 TwoWire Wire1(1);
 
-TwoWire::TwoWire(uint8_t bus_num) {}
-TwoWire::~TwoWire() {}
+TwoWire::TwoWire(uint8_t bus_num) : handler(nullptr) {}
 
 // For unit tests:
 void TwoWire::Send(std::vector<uint8_t> data) {
@@ -13,17 +14,21 @@ void TwoWire::Send(std::vector<uint8_t> data) {
     }
 }
 void TwoWire::Send(uint8_t value) {
+    std::lock_guard<std::mutex> guard(mut);
     receivedData.push_back(value);
 }
 std::vector<uint8_t> TwoWire::Receive() {
-    std::vector<uint8_t> data;
+    std::lock_guard<std::mutex> guard(mut);
+    std::vector<uint8_t>        data;
     std::swap(sentData, data);
     return data;
 }
 
 void TwoWire::Clear() {
+    std::lock_guard<std::mutex> guard(mut);
     sentData.clear();
     receivedData.clear();
+    handler = nullptr;
 }
 
 // TwoWire interface:
@@ -81,6 +86,8 @@ uint8_t TwoWire::endTransmission(void) {
 }
 
 size_t TwoWire::requestFrom(uint16_t address, size_t size, bool sendStop) {
+    std::lock_guard<std::mutex> guard(mut);
+
     auto available = receivedData.size();
     if (available > size) {
         available = size;
@@ -113,8 +120,15 @@ uint8_t TwoWire::requestFrom(int address, int size) {
 }
 
 size_t TwoWire::write(uint8_t ch) {
-    Assert(inTransmission, "Should be in a transmission");
-    sentData.push_back(ch);
+    {
+        Assert(inTransmission, "Should be in a transmission");
+        std::lock_guard<std::mutex> guard(mut);
+        sentData.push_back(ch);
+    }
+
+    if (handler) {
+        (*handler)(this, sentData);
+    }
     return 0;
 }
 
@@ -125,9 +139,11 @@ size_t TwoWire::write(const uint8_t* buf, size_t size) {
     return size;
 }
 int TwoWire::available(void) {
+    std::lock_guard<std::mutex> guard(mut);
     return receivedData.size();
 }
 int TwoWire::read(void) {
+    std::lock_guard<std::mutex> guard(mut);
     if (receivedData.size()) {
         auto result = receivedData[0];
         receivedData.erase(receivedData.begin());
@@ -137,6 +153,7 @@ int TwoWire::read(void) {
     }
 }
 int TwoWire::peek(void) {
+    std::lock_guard<std::mutex> guard(mut);
     if (receivedData.size()) {
         auto result = receivedData[0];
         return result;
@@ -145,6 +162,8 @@ int TwoWire::peek(void) {
     }
 }
 void TwoWire::flush(void) {}
+
+TwoWire::~TwoWire() {}
 
 extern TwoWire Wire;
 extern TwoWire Wire1;
