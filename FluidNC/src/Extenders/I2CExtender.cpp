@@ -17,21 +17,34 @@ namespace Extenders {
 
     I2CExtender::I2CExtender() : _i2cBus(nullptr), _usedIORegisters(0), _dirtyWriteBuffer(0), _dirtyWrite(0), _status(0) {}
 
-    uint8_t I2CExtender::I2CGetValue(Machine::I2CBus* bus, uint8_t address, uint8_t reg) {
+    uint8_t I2CExtender::I2CGetValue(uint8_t address, uint8_t reg) {
+        auto bus = _i2cBus;
+
+        // First make sure the bus is empty, so we read that which we have written:
+        // while (bus->read(address, &reg, 1) != 0) {}
+
         int err;
         if ((err = bus->write(address, &reg, 1)) != 0) {
             log_warn("Cannot read from I2C bus: " << Machine::I2CBus::ErrorDescription(err));
+
+            IOError();
             return 0;
         } else {
             uint8_t result = 0;
             if (bus->read(address, &result, 1) != 1) {
                 log_warn("Cannot read from I2C bus: "
                          << "no response");
+
+                IOError();
+            } else {
+                errorCount = 0;
             }
             return result;
         }
     }
-    void I2CExtender::I2CSetValue(Machine::I2CBus* bus, uint8_t address, uint8_t reg, uint8_t value) {
+    void I2CExtender::I2CSetValue(uint8_t address, uint8_t reg, uint8_t value) {
+        auto bus = _i2cBus;
+
         uint8_t data[2];
         data[0] = reg;
         data[1] = uint8_t(value);
@@ -40,6 +53,27 @@ namespace Extenders {
 
         if (err) {
             log_warn("Cannot write to I2C bus: " << Machine::I2CBus::ErrorDescription(err));
+            IOError();
+        } else {
+            errorCount = 0;
+        }
+    }
+
+    void I2CExtender::IOError() {
+        if (errorCount != 0) {
+            delay(errorCount * 10);
+            if (errorCount < 50) {
+                ++errorCount;
+            }
+        }
+
+        // If an I/O error occurred, the best we can do is just reset the whole thing, and get it over with:
+        _status = 1;
+        if (_outputReg != 0xFF) {
+            _status |= 4;  // writes
+        }
+        if (_inputReg != 0xFF) {
+            _status |= 8;  // reads
         }
     }
 
@@ -50,17 +84,13 @@ namespace Extenders {
         uint8_t commonStatus       = _operation;
 
         // Update everything the first operation
-        _status = 1;
-        if (_outputReg != 0xFF) {
-            _status |= 4;  // writes
-        }
-        if (_inputReg != 0xFF) {
-            _status |= 8;  // reads
-        }
+        IOError();
 
         // Main loop for I2C handling:
         while (true) {
-            uint8_t newStatus = 0;
+            // If we set it to 0, we don't know if we can use the read data. 0x10 locks the status until we're done
+            // reading
+            uint8_t newStatus = 0x10;
 
             newStatus = _status.exchange(newStatus);
             newStatus |= commonStatus;
@@ -89,9 +119,10 @@ namespace Extenders {
                     if (_invertReg != 0xFF) {
                         uint8_t currentRegister = _invertReg;
                         uint8_t address         = _address;
+
                         for (int i = 0; i < claimedValues; ++i) {
                             uint8_t by = _invert.bytes[i];
-                            I2CSetValue(this->_i2cBus, address, currentRegister, by);
+                            I2CSetValue(address, currentRegister, by);
 
                             currentRegister++;
                             if (currentRegister == registersPerDevice + _invertReg) {
@@ -101,12 +132,12 @@ namespace Extenders {
                     }
                     // Configuration:
                     {
-                        for (int i = 0; i < claimedValues; ++i) {
-                            uint8_t currentRegister = _operationReg;
-                            uint8_t address         = _address;
+                        uint8_t currentRegister = _operationReg;
+                        uint8_t address         = _address;
 
+                        for (int i = 0; i < claimedValues; ++i) {
                             uint8_t by = _configuration.bytes[i];
-                            I2CSetValue(this->_i2cBus, address, currentRegister, by);
+                            I2CSetValue(address, currentRegister, by);
 
                             currentRegister++;
                             if (currentRegister == registersPerDevice + _operationReg) {
@@ -138,7 +169,7 @@ namespace Extenders {
                     for (int i = 0; i < claimedValues; ++i) {
                         if ((toWrite & (1 << i)) != 0) {
                             uint8_t by = handleInvertSoftware ? (_output.bytes[i] ^ _invert.bytes[i]) : _output.bytes[i];
-                            I2CSetValue(this->_i2cBus, address, currentRegister, by);
+                            I2CSetValue(address, currentRegister, by);
                         }
 
                         currentRegister++;
@@ -158,7 +189,7 @@ namespace Extenders {
 
                     for (int i = 0; i < claimedValues; ++i) {
                         auto oldByte = _input.bytes[i];
-                        auto newByte = I2CGetValue(this->_i2cBus, address, currentRegister);
+                        auto newByte = I2CGetValue(address, currentRegister);
                         if (handleInvertSoftware) {
                             newByte ^= _invert.bytes[i];
                         }
@@ -166,7 +197,7 @@ namespace Extenders {
                         if (oldByte != newByte) {
                             // Handle ISR's:
                             _input.bytes[i] = newByte;
-                            int offset      = claimedValues * 8;
+                            int offset      = i * 8;
                             for (int j = 0; j < 8; ++j) {
                                 auto isr = _isrData[offset + j];
                                 if (isr.defined()) {
@@ -181,12 +212,14 @@ namespace Extenders {
                         }
 
                         currentRegister++;
-                        if (currentRegister == registersPerDevice + _invertReg) {
+                        if (currentRegister == registersPerDevice + _inputReg) {
                             ++address;
                         }
                     }
                 }
             }
+
+            _status &= ~0x10;
 
             vTaskDelay(TaskDelayBetweenIterations);
         }
@@ -334,7 +367,7 @@ namespace Extenders {
             _status |= 8;
         }
         while (_status != 0) {
-            vTaskDelay(1);
+            vTaskDelay(1);  // Must be <TaskDelayBetweenIterations and as small as possible.
         }
 
         // Use the value:
