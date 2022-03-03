@@ -219,6 +219,7 @@ namespace Extenders {
                 }
             }
 
+            // Remove the busy flag, keep the rest.
             _status &= ~0x10;
 
             vTaskDelay(TaskDelayBetweenIterations);
