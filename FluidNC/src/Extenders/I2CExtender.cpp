@@ -21,7 +21,7 @@ namespace Extenders {
         auto bus = _i2cBus;
 
         // First make sure the bus is empty, so we read that which we have written:
-        // while (bus->read(address, &reg, 1) != 0) {}
+        while (bus->read(address, &reg, 1) != 0) {}
 
         int err;
         if ((err = bus->write(address, &reg, 1)) != 0) {
@@ -42,6 +42,7 @@ namespace Extenders {
             return result;
         }
     }
+
     void I2CExtender::I2CSetValue(uint8_t address, uint8_t reg, uint8_t value) {
         auto bus = _i2cBus;
 
@@ -68,7 +69,7 @@ namespace Extenders {
         }
 
         // If an I/O error occurred, the best we can do is just reset the whole thing, and get it over with:
-        _status = 1;
+        _status |= 1;
         if (_outputReg != 0xFF) {
             _status |= 4;  // writes
         }
@@ -98,7 +99,7 @@ namespace Extenders {
             if (newStatus != 0) {
                 if ((newStatus & 2) != 0) {
                     _status = 0;
-                    break;
+                    return;  // Stop running
                 }
 
                 // Update config:

@@ -14,7 +14,8 @@ class TwoWire : public Stream {
     std::vector<uint8_t> sentData;
     std::mutex           mut;
 
-    using ResponseHandler = void (*)(TwoWire* theWire, std::vector<uint8_t>& data);
+    using ResponseHandler = void (*)(TwoWire* theWire, std::vector<uint8_t>& data, void* userData);
+    void*           handlerUserData;
     ResponseHandler handler;
 
 public:
@@ -28,7 +29,10 @@ public:
     std::vector<uint8_t> Receive();
     size_t               ReceiveSize() { return sentData.size(); }
     void                 Clear();
-    void                 SetResponseHandler(ResponseHandler handler) { this->handler = handler; }
+    void                 SetResponseHandler(ResponseHandler handler, void* userData) {
+        this->handlerUserData = userData;
+        this->handler         = handler;
+    }
 
     // TwoWire interface:
 
