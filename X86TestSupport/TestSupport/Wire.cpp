@@ -28,7 +28,8 @@ void TwoWire::Clear() {
     std::lock_guard<std::mutex> guard(mut);
     sentData.clear();
     receivedData.clear();
-    handler = nullptr;
+    handler         = nullptr;
+    handlerUserData = nullptr;
 }
 
 // TwoWire interface:
@@ -127,7 +128,7 @@ size_t TwoWire::write(uint8_t ch) {
     }
 
     if (handler) {
-        (*handler)(this, sentData);
+        (*handler)(this, sentData, handlerUserData);
     }
     return 0;
 }
