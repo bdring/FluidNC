@@ -10,6 +10,7 @@
 #include "Capture.h"
 
 #include <SoftwareGPIO.h>
+#include <mutex>
 
 namespace {
     struct GPIONative {
@@ -27,6 +28,158 @@ namespace {
         inline static void write(int pin, bool val) { SoftwareGPIO::instance().writeOutput(pin, val); }
         inline static bool read(int pin) { return SoftwareGPIO::instance().read(pin); }
     };
+
+    class PCA9539Emulator {
+        uint8_t reg_config[2];
+        uint8_t reg_invert[2];
+        uint8_t reg_input[2];
+        uint8_t reg_output[2];
+        uint8_t pad_value[2];  // input values
+
+        uint8_t accessedRegisters = 0;
+        uint8_t previousRegisters = 0;  // For debugging purposes.
+
+        int isrPin_;
+
+        void setRegister(int reg, uint8_t value) {
+            accessedRegisters |= uint8_t(1 << reg);
+            switch (reg) {
+                // input
+                case 2:
+                    reg_output[0] = value;
+                    break;
+                case 3:
+                    reg_output[1] = value;
+                    break;
+                    // invert
+                case 4:
+                    reg_invert[0] = value;
+                    reg_input[0]  = reg_invert[0] ^ pad_value[0];
+                    break;
+                case 5:
+                    reg_invert[1] = value;
+                    reg_input[1]  = reg_invert[1] ^ pad_value[1];
+                    break;
+                    // config
+                case 6:
+                    reg_config[0] = value;
+                    break;
+                case 7:
+                    reg_config[1] = value;
+                    break;
+                default:
+                    Assert(false, "Not supported");
+                    break;
+            }
+        }
+
+        void handler(TwoWire* theWire, std::vector<uint8_t>& data) {
+            if (data.size() == 1) {
+                if (data[0] == 0 || data[0] == 1) {
+                    accessedRegisters |= uint8_t(1 << data[0]);
+                    Assert(theWire->SendSize() == 0);
+                    theWire->Send(uint8_t(reg_input[data[0]]));
+                    data.clear();
+
+                    // Clear ISR:
+                    if (isrPin_ >= 0) {
+                        GPIONative::write(isrPin_, true);
+                    }
+                } else if (data[0] >= 2 && data[0] <= 7) {
+                    // ignore until next roundtrip
+                } else {
+                    Assert(false, "Unknown register");
+                }
+            } else if (data.size() == 2) {
+                if (data[0] >= 2 && data[0] <= 7) {
+                    setRegister(data[0], data[1]);
+                    data.clear();
+                } else {
+                    Assert(false, "Unknown register");
+                }
+            } else {
+                Assert(false, "Unknown size");
+            }
+        }
+
+    public:
+        PCA9539Emulator(int isrPin) : isrPin_(isrPin) {
+            for (int i = 0; i < 2; ++i) {
+                reg_config[i] = 0;
+                reg_invert[i] = 0;
+                reg_input[i]  = 0;
+                reg_output[i] = 0;
+                pad_value[i]  = 0;
+            }
+
+            if (isrPin_ >= 0) {
+                GPIONative::write(isrPin_, true);
+            }
+        }
+
+        static void wireResponseHandler(TwoWire* theWire, std::vector<uint8_t>& data, void* userData) {
+            static_cast<PCA9539Emulator*>(userData)->handler(theWire, data);
+        }
+
+        void setPadValue(int pinId, bool v) {
+            uint8_t mask = uint8_t(1 << (pinId % 8));
+            int     idx  = pinId / 8;
+
+            if (reg_config[idx] & mask)  // input
+            {
+                auto oldValue = pad_value[idx] & mask;
+                auto newValue = v ? mask : uint8_t(0);
+
+                if (oldValue != newValue) {
+                    pad_value[idx] = (pad_value[idx] & ~mask) | newValue;
+                    reg_input[idx] = reg_invert[idx] ^ pad_value[idx];
+
+                    // Trigger ISR on 'falling'.
+                    if (isrPin_ >= 0) {
+                        GPIONative::write(isrPin_, false);
+                    }
+                }
+            }
+        }
+
+        bool getPadValue(int pinId) {
+            uint8_t mask = uint8_t(1 << (pinId % 8));
+            int     idx  = pinId / 8;
+
+            if ((reg_config[idx] & mask) == 0) {
+                // This is an output pin, so combine registers:
+                return ((reg_output[idx] ^ reg_invert[idx]) & mask) != 0;
+            } else {
+                // This is an input pin, so use the pad_value
+                return (pad_value[idx] & mask) != 0;
+            }
+        }
+
+        uint8_t registersUsed() {
+            auto result       = accessedRegisters;
+            previousRegisters = result;
+            accessedRegisters = 0;
+            return result;
+        }
+    };
+
+    class Roundtrip {
+        uint32_t before;
+
+    public:
+        Roundtrip() { before = Capture::instance().current(); }
+
+        ~Roundtrip() {
+            for (int i = 0; i < 3; ++i) {
+                while (Capture::instance().current() < before + 1) {
+                    delay(10);
+                }
+                before = Capture::instance().current();
+            }
+        }
+    };
+
+    std::mutex single_thread;
 }
 
 namespace Configuration {
@@ -104,6 +257,10 @@ namespace Configuration {
     };
 
     Test(I2CExtender, InitDeinit) {
+        std::lock_guard<std::mutex> guard(single_thread);
+
+        PCA9539Emulator pca(-1);
+
         // Initialize I2C bus
         Machine::I2CBus bus;
         bus._sda       = Pin::create("gpio.16");
@@ -116,6 +273,9 @@ namespace Configuration {
         Machine::MachineConfig mconfig;
         mconfig._i2c = &bus;
         config       = &mconfig;
+
+        Wire.Clear();
+        Wire.SetResponseHandler(PCA9539Emulator::wireResponseHandler, &pca);
 
         // Setup the extender
         Extenders::I2CExtender i2c;
@@ -126,6 +286,9 @@ namespace Configuration {
     }
 
     Test(I2CExtender, ClaimRelease) {
+        std::lock_guard<std::mutex> guard(single_thread);
+        PCA9539Emulator             pca(-1);
+
         // Initialize I2C bus
         Machine::I2CBus bus;
         bus._sda       = Pin::create("gpio.16");
@@ -138,6 +301,9 @@ namespace Configuration {
         Machine::MachineConfig mconfig;
         mconfig._i2c = &bus;
         config       = &mconfig;
+
+        Wire.Clear();
+        Wire.SetResponseHandler(PCA9539Emulator::wireResponseHandler, &pca);
 
         // Setup the extender
         Extenders::I2CExtender i2c;
@@ -161,23 +327,10 @@ namespace Configuration {
         i2c.free(2);
     }
 
-    class Roundtrip {
-        uint32_t before;
-
-    public:
-        Roundtrip() { before = Capture::instance().current(); }
-
-        ~Roundtrip() {
-            for (int i = 0; i < 10; ++i) {
-                while (Capture::instance().current() < before + 1) {
-                    delay(10);
-                }
-                before = Capture::instance().current();
-            }
-        }
-    };
-
     Test(I2CExtender, ExtenderNoInterrupt) {
+        std::lock_guard<std::mutex> guard(single_thread);
+        PCA9539Emulator             pca(-1);
+
         // Initialize I2C bus
         Machine::I2CBus bus;
         bus._sda       = Pin::create("gpio.16");
@@ -192,6 +345,7 @@ namespace Configuration {
         config       = &mconfig;
 
         Wire.Clear();
+        Wire.SetResponseHandler(PCA9539Emulator::wireResponseHandler, &pca);
 
         // Setup the extender
         Extenders::I2CExtender i2c;
@@ -200,25 +354,8 @@ namespace Configuration {
         i2c.validate();
         i2c.init();
 
-        // Expected register values (see datasheet):
-        //
-        // 4 invert
-        // 1 = invert, 0 = normal
-        //
-        // 6 config
-        // 1 = input, 0 = output
-        //
-        // 2 write
-        // 1 = high, 0 = low
-        //
-        // 0 read
-        // high = 1, low = 0
-
         {
             // Setup will trigger some events on I2C: 'config', 'invert', 'write', 'read'.
-            // We have to set the 'read' before setting up the pin, or the I2C comms are going to fail.
-            // Let's just set it 'high':
-            Wire.Send(0x01);
 
             i2c.claim(0);
             i2c.setupPin(0, Pin::Attr::Output);
@@ -226,24 +363,17 @@ namespace Configuration {
             // Wait until synced (should be immediate after the thread gets some cpu) and check I2C comms:
             { Roundtrip rt; }
 
-            auto buffer = Wire.Receive();
-            Assert(buffer.size() == 3 * 2 + 1, "Expected invert, config, write, read bytes being sent");
-
-            const uint8_t expected[7] = { uint8_t(0x04), uint8_t(0x00), uint8_t(0x06), uint8_t(0x00),
-                                          uint8_t(0x02), uint8_t(0x00), uint8_t(0x00) };
-            Assert(!memcmp(expected, buffer.data(), 7), "Didn't expect data");
+            // Check PCA values:
+            Assert(pca.registersUsed() == 0x55, "Expected invert, config, write, read bytes being used");
+            Assert(!pca.getPadValue(0));
         }
 
         // Read will trigger an update, because we don't have an ISR
         {
-            Wire.Send(0x01);
             bool readPin = i2c.readPin(0);
             { Roundtrip rt; }
-            auto recv = Wire.Receive();
-
-            Assert(recv.size() == 1, "Expected single data request / response roundtrip, got %d", int(recv.size()));
-            Assert(recv[0] == 0, "Expected read");
-            Assert(readPin == true, "Expected 'true' on pin");
+            Assert(pca.registersUsed() == 0x01, "Expected roundtrip for read / no ISR");
+            Assert(readPin == false, "Expected 'true' on pin");
         }
 
         // Test write pin:
@@ -252,28 +382,24 @@ namespace Configuration {
             i2c.writePin(0, true);
             i2c.flushWrites();
             { Roundtrip rt; }
-            auto recv = Wire.Receive();
-
-            Assert(recv.size() == 2, "Expected single data request / response roundtrip");
-            Assert(recv[0] == 2, "Expected write reg 0");
-            Assert(recv[1] == 1, "Expected write reg 0 = 0");
+            Assert(pca.registersUsed() == 0x04, "Expected roundtrip for write / no ISR");
+            Assert(pca.getPadValue(0), "Expected pad to be 'true'");
         }
         {
             // Write to set it 'low'.
             i2c.writePin(0, false);
             i2c.flushWrites();
             { Roundtrip rt; }
-            auto recv = Wire.Receive();
-
-            Assert(recv.size() == 2, "Expected single data request / response roundtrip");
-            Assert(recv[0] == 2, "Expected write reg 0");
-            Assert(recv[1] == 0, "Expected write reg 0 = 0");
+            Assert(pca.registersUsed() == 0x04, "Expected roundtrip for write / no ISR");
+            Assert(!pca.getPadValue(0), "Expected pad to be 'false'");
         }
         {
             // Write to set it 'low'. It's already low, no-op.
             i2c.writePin(0, false);
             i2c.flushWrites();
             // no-op.
+            Assert(pca.registersUsed() == 0x00, "Expected roundtrip for write / no ISR");
+            Assert(!pca.getPadValue(0), "Expected pad to be 'false'");
         }
         {
             // Write to set it 'high'.
@@ -282,82 +408,83 @@ namespace Configuration {
             { Roundtrip rt; }
             auto recv = Wire.Receive();
 
-            Assert(recv.size() == 2, "Expected single data request / response roundtrip");
-            Assert(recv[0] == 2, "Expected write reg 0");
-            Assert(recv[1] == 1, "Expected write reg 0 = 0");
+            Assert(pca.registersUsed() == 0x04, "Expected roundtrip for write / no ISR");
+            Assert(pca.getPadValue(0), "Expected pad to be 'false'");
         }
 
         // NOTE: We ended with setting pin #0 to 'high' = 0x01
 
         // Setup pin for reading:
         {
-            // Setup will trigger some events on I2C: 'config', 'invert', 'write', 'read'.
-            // We have to set the 'read' before setting up the pin, or the I2C comms are going to fail.
-            // Let's just set it 'high':
-            Wire.Send(0x00);
-
             i2c.claim(1);
             i2c.setupPin(1, Pin::Attr::Input);
 
             // Wait until synced (should be immediate after the thread gets some cpu) and check I2C comms:
             { Roundtrip rt; }
 
-            auto buffer = Wire.Receive();
-            Assert(buffer.size() == 3 * 2 + 1, "Expected invert, config, write, read bytes being sent");
-
-            const uint8_t expected[7] = { uint8_t(0x04), uint8_t(0x00), uint8_t(0x06), uint8_t(0x02),
-                                          uint8_t(0x02), uint8_t(0x01), uint8_t(0x00) };
-            Assert(!memcmp(expected, buffer.data(), 7), "Didn't expect data");
+            Assert(pca.registersUsed() == 0x55, "Expected invert, config, write, read bytes being used");
+            Assert(pca.getPadValue(0));
+            Assert(!pca.getPadValue(1));
         }
 
         // Setup another pin for reading with an invert mask and a PU:
         {
-            // Setup will trigger some events on I2C: 'config', 'invert', 'write', 'read'.
-            // We have to set the 'read' before setting up the pin, or the I2C comms are going to fail.
-            // Let's just set it 'high':
-            Wire.Send(0x04);
-
             i2c.claim(2);
             i2c.setupPin(2, Pin::Attr::Input | Pin::Attr::ActiveLow | Pin::Attr::PullUp);
 
             // Wait until synced (should be immediate after the thread gets some cpu) and check I2C comms:
             { Roundtrip rt; }
 
-            auto buffer = Wire.Receive();
-            Assert(buffer.size() == 3 * 2 + 1, "Expected invert, config, write, read bytes being sent");
-
-            const uint8_t expected[7] = { uint8_t(0x04), uint8_t(0x04), uint8_t(0x06), uint8_t(0x06),
-                                          uint8_t(0x02), uint8_t(0x05), uint8_t(0x00) };
-            Assert(!memcmp(expected, buffer.data(), 7), "Didn't expect data");
+            Assert(pca.registersUsed() == 0x55, "Expected invert, config, write, read bytes being used");
+            Assert(pca.getPadValue(0));
+            Assert(!pca.getPadValue(1));
+            Assert(!pca.getPadValue(2));
         }
 
         // Test read pin:
         {
-            Wire.Send(0x02);
             bool readPin = i2c.readPin(1);
             { Roundtrip rt; }
-            auto recv = Wire.Receive();
 
-            Assert(recv.size() == 1, "Expected single data request / response roundtrip");
-            Assert(recv[0] == 0, "Expected read");
+            Assert(pca.registersUsed() == 0x01, "Expected invert, config, write, read bytes being used");
+            Assert(readPin == false);
+        }
+
+        // Test read pin:
+        {
+            bool readPin = i2c.readPin(2);
+            { Roundtrip rt; }
+
+            Assert(pca.registersUsed() == 0x01, "Expected invert, config, write, read bytes being used");
             Assert(readPin == true, "Expected 'true' on pin");
         }
 
+        pca.setPadValue(1, true);
+        pca.setPadValue(2, true);
+
         // Test read pin:
         {
-            Wire.Send(0x02);
+            bool readPin = i2c.readPin(1);
+            { Roundtrip rt; }
+
+            Assert(pca.registersUsed() == 0x01, "Expected invert, config, write, read bytes being used");
+            Assert(readPin == true);
+        }
+
+        // Test read pin:
+        {
             bool readPin = i2c.readPin(2);
             { Roundtrip rt; }
-            auto recv = Wire.Receive();
 
-            Assert(recv.size() == 1, "Expected single data request / response roundtrip");
-            Assert(recv[0] == 0, "Expected read");
+            Assert(pca.registersUsed() == 0x01, "Expected invert, config, write, read bytes being used");
             Assert(readPin == false, "Expected 'true' on pin");
         }
     }
 
     Test(I2CExtender, ExtenderWithInterrupt) {
+        std::lock_guard<std::mutex> guard(single_thread);
         GPIONative::initialize();
+        PCA9539Emulator pca(15);
 
         // Initialize I2C bus
         Machine::I2CBus bus;
@@ -373,6 +500,7 @@ namespace Configuration {
         config       = &mconfig;
 
         Wire.Clear();
+        Wire.SetResponseHandler(PCA9539Emulator::wireResponseHandler, &pca);
 
         // Setup the extender with ISR on gpio.15
         Extenders::I2CExtender i2c;
@@ -381,48 +509,19 @@ namespace Configuration {
         i2c.validate();
         i2c.init();
 
-        // Expected register values (see datasheet):
-        //
-        // 4 invert
-        // 1 = invert, 0 = normal
-        //
-        // 6 config
-        // 1 = input, 0 = output
-        //
-        // 2 write
-        // 1 = high, 0 = low
-        //
-        // 0 read
-        // high = 1, low = 0
-
         {
-            // Setup will trigger some events on I2C: 'config', 'invert', 'write', 'read'.
-            // We have to set the 'read' before setting up the pin, or the I2C comms are going to fail.
-            // Let's just set it 'high':
-            Wire.Send(0x01);
-
             i2c.claim(0);
             i2c.setupPin(0, Pin::Attr::Output);
             { Roundtrip rt; }
 
-            // Wait until synced (should be immediate after the thread gets some cpu) and check I2C comms:
-            auto buffer = Wire.Receive();
-            Assert(buffer.size() == 3 * 2 + 1, "Expected invert, config, write, read bytes being sent");
-
-            const uint8_t expected[7] = { uint8_t(0x04), uint8_t(0x00), uint8_t(0x06), uint8_t(0x00),
-                                          uint8_t(0x02), uint8_t(0x00), uint8_t(0x00) };
-            Assert(!memcmp(expected, buffer.data(), 7), "Didn't expect data");
+            Assert(pca.registersUsed() == 0x55, "Expected invert, config, write, read bytes being used");
         }
 
         // Read will NOT trigger an update because we have an ISR to tell us when it changes:
         {
             bool readPin = i2c.readPin(0);
-            auto recv    = Wire.Receive();
-
-            Assert(recv.size() == 0, "Expected single data request / response roundtrip, got %d", int(recv.size()));
-            Assert(readPin == true, "Expected 'true' on pin");
-
-            Assert(Wire.ReceiveSize() == 0, "Expected empty receive buffer");
+            Assert(readPin == false, "Expected 'false' on pin");
+            Assert(pca.registersUsed() == 0, "Expected no-op for read");
         }
 
         // Test write pin:
@@ -431,24 +530,14 @@ namespace Configuration {
             i2c.writePin(0, true);
             i2c.flushWrites();
             { Roundtrip rt; }
-            auto recv = Wire.Receive();
-
-            Assert(recv.size() == 2, "Expected single data request / response roundtrip");
-            Assert(recv[0] == 2, "Expected write reg 0");
-            Assert(recv[1] == 1, "Expected write reg 0 = 0");
-            Assert(Wire.ReceiveSize() == 0, "Expected empty receive buffer");
+            Assert(pca.registersUsed() == 0x04, "Expected no-op for read");
         }
         {
             // Write to set it 'low'.
             i2c.writePin(0, false);
             i2c.flushWrites();
             { Roundtrip rt; }
-            auto recv = Wire.Receive();
-
-            Assert(recv.size() == 2, "Expected single data request / response roundtrip");
-            Assert(recv[0] == 2, "Expected write reg 0");
-            Assert(recv[1] == 0, "Expected write reg 0 = 0");
-            Assert(Wire.ReceiveSize() == 0, "Expected empty receive buffer");
+            Assert(pca.registersUsed() == 0x04);
         }
         {
             // Write to set it 'low'. It's already low, no-op.
@@ -456,141 +545,83 @@ namespace Configuration {
             i2c.flushWrites();
             // no-op.
 
-            Assert(Wire.ReceiveSize() == 0, "Expected empty receive buffer");
+            Assert(pca.registersUsed() == 0, "Expected no-op");
         }
         {
             // Write to set it 'high'.
             i2c.writePin(0, true);
             i2c.flushWrites();
             { Roundtrip rt; }
-            auto recv = Wire.Receive();
-
-            Assert(recv.size() == 2, "Expected single data request / response roundtrip");
-            Assert(recv[0] == 2, "Expected write reg 0");
-            Assert(recv[1] == 1, "Expected write reg 0 = 0");
-
-            Assert(Wire.ReceiveSize() == 0, "Expected empty receive buffer");
+            Assert(pca.registersUsed() == 0x04);
         }
 
         // NOTE: We ended with setting pin #0 to 'high' = 0x01
 
         // Setup pin for reading:
         {
-            // Setup will trigger some events on I2C: 'config', 'invert', 'write', 'read'.
-            // We have to set the 'read' before setting up the pin, or the I2C comms are going to fail.
-            // Let's just set it 'high':
-            Wire.Send(0x00);
-
             i2c.claim(1);
             i2c.setupPin(1, Pin::Attr::Input);
 
             // Wait until synced (should be immediate after the thread gets some cpu) and check I2C comms:
             { Roundtrip rt; }
-
-            auto buffer = Wire.Receive();
-            Assert(buffer.size() == 3 * 2 + 1, "Expected invert, config, write, read bytes being sent");
-
-            const uint8_t expected[7] = { uint8_t(0x04), uint8_t(0x00), uint8_t(0x06), uint8_t(0x02),
-                                          uint8_t(0x02), uint8_t(0x01), uint8_t(0x00) };
-            Assert(!memcmp(expected, buffer.data(), 7), "Didn't expect data");
-
-            Assert(Wire.ReceiveSize() == 0, "Expected empty receive buffer");
+            Assert(pca.registersUsed() == 0x55);
         }
 
         // Setup another pin for reading with an invert mask and a PU:
         {
-            // Setup will trigger some events on I2C: 'config', 'invert', 'write', 'read'.
-            // We have to set the 'read' before setting up the pin, or the I2C comms are going to fail.
-            // Let's just set it 'high':
-            Wire.Send(0x04);
-
             i2c.claim(2);
             i2c.setupPin(2, Pin::Attr::Input | Pin::Attr::ActiveLow | Pin::Attr::PullUp);
 
             // Wait until synced (should be immediate after the thread gets some cpu) and check I2C comms:
             { Roundtrip rt; }
-
-            auto buffer = Wire.Receive();
-            Assert(buffer.size() == 3 * 2 + 1, "Expected invert, config, write, read bytes being sent");
-
-            const uint8_t expected[7] = { uint8_t(0x04), uint8_t(0x04), uint8_t(0x06), uint8_t(0x06),
-                                          uint8_t(0x02), uint8_t(0x05), uint8_t(0x00) };
-            Assert(!memcmp(expected, buffer.data(), 7), "Didn't expect data");
-
-            Assert(Wire.ReceiveSize() == 0, "Expected empty receive buffer");
+            Assert(pca.registersUsed() == 0x55);
         }
 
         // Test read pin:
         {
             bool readPin = i2c.readPin(1);
-            Assert(Wire.ReceiveSize() == 0, "Expected empty receive buffer");
+            { Roundtrip rt; }
+            Assert(pca.registersUsed() == 0x0);
             Assert(readPin == false, "Expected 'true' on pin");
         }
 
         // Test read pin:
         {
             bool readPin = i2c.readPin(2);
-            Assert(Wire.ReceiveSize() == 0, "Expected empty receive buffer");
+            { Roundtrip rt; }
+            Assert(pca.registersUsed() == 0x0);
             Assert(readPin == true, "Expected 'true' on pin");
         }
 
         // Trigger an ISR, change both pins
         {
-            Wire.Send(0x02);
-            GPIONative::write(15, true);
-            GPIONative::write(15, false);
+            pca.setPadValue(1, true);
+            pca.setPadValue(2, true);
             { Roundtrip rt; }
-            auto recv = Wire.Receive();
-            Assert(recv.size() == 1);
-            Assert(recv[0] == 0);
+            Assert(pca.registersUsed() == 0x01);
         }
 
         // Test read pin:
         {
             bool readPin = i2c.readPin(1);
-            Assert(Wire.ReceiveSize() == 0, "Expected empty receive buffer");
+            Assert(pca.registersUsed() == 0x0);
             Assert(readPin == true, "Expected 'true' on pin");
         }
 
         // Test read pin:
         {
             bool readPin = i2c.readPin(2);
-            Assert(Wire.ReceiveSize() == 0, "Expected empty receive buffer");
+            Assert(pca.registersUsed() == 0x0);
             Assert(readPin == false, "Expected 'true' on pin");
         }
     }
 
     void HandleInterrupt(void* data) { ++(*reinterpret_cast<uint32_t*>(data)); }
 
-    volatile uint16_t currentInput = 0;
-    void              WireResponseHandler(TwoWire* theWire, std::vector<uint8_t>& data) {
-        if (data.size() == 1) {
-            if (data[0] == 0) {
-                Assert(theWire->SendSize() == 0);
-                theWire->Send(uint8_t(currentInput));
-                data.clear();
-            } else if (data[0] == 1) {
-                Assert(theWire->SendSize() == 0);
-                theWire->Send(uint8_t(currentInput >> 8));
-                data.clear();
-            } else if (data[0] >= 2 && data[0] <= 7) {
-                // ignore until next roundtrip
-            } else {
-                Assert(false, "Unknown register");
-            }
-        } else if (data.size() == 2) {
-            if (data[0] >= 2 && data[0] <= 7) {
-                data.clear();
-            } else {
-                Assert(false, "Unknown register");
-            }
-        } else {
-            Assert(false, "Unknown size");
-        }
-    }
-
     Test(I2CExtender, ISRTriggerWithInterrupt) {
+        std::lock_guard<std::mutex> guard(single_thread);
         GPIONative::initialize();
+        PCA9539Emulator pca(15);
 
         // Initialize I2C bus
         Machine::I2CBus bus;
@@ -606,6 +637,7 @@ namespace Configuration {
         config       = &mconfig;
 
         Wire.Clear();
+        Wire.SetResponseHandler(PCA9539Emulator::wireResponseHandler, &pca);
 
         // Setup the extender
         Extenders::I2CExtender i2c;
@@ -615,45 +647,24 @@ namespace Configuration {
         i2c.init();
 
         {
-            // Setup will trigger some events on I2C: 'config', 'invert', 'write', 'read'.
-            // We have to set the 'read' before setting up the pin, or the I2C comms are going to fail.
-            // Let's just set it 'high':
-            Wire.Send(0x00);
-            Wire.Send(0x00);
-
             i2c.claim(9);
             i2c.setupPin(9, Pin::Attr::Input | Pin::Attr::ISR);
 
             // Wait until synced (should be immediate after the thread gets some cpu) and check I2C comms:
             { Roundtrip rt; }
 
-            auto buffer = Wire.Receive();
-            Assert(buffer.size() == 3 * 2 * 2 + 2, "Expected invert, config, write, read bytes being sent");
-
-            const uint8_t expected[14] = { uint8_t(0x04), uint8_t(0x00), uint8_t(0x05), uint8_t(0x00), uint8_t(0x06),
-                                           uint8_t(0x00), uint8_t(0x07), uint8_t(0x02), uint8_t(0x02), uint8_t(0x00),
-                                           uint8_t(0x03), uint8_t(0x00), uint8_t(0x00), uint8_t(0x01) };
-            Assert(!memcmp(expected, buffer.data(), 14), "Unexpected data");
+            Assert(pca.registersUsed() == 0xFF);
         }
 
         uint32_t isrCounter = 0;
 
         {
-            Wire.Send(0x00);
-            Wire.Send(0x00);
-
             i2c.attachInterrupt(9, HandleInterrupt, &isrCounter, CHANGE);
 
             // Wait until synced (should be immediate after the thread gets some cpu) and check I2C comms:
             { Roundtrip rt; }
 
-            auto buffer = Wire.Receive();
-            Assert(buffer.size() == 3 * 2 * 2 + 2, "Expected invert, config, write, read bytes being sent");
-
-            const uint8_t expected[14] = { uint8_t(0x04), uint8_t(0x00), uint8_t(0x05), uint8_t(0x00), uint8_t(0x06),
-                                           uint8_t(0x00), uint8_t(0x07), uint8_t(0x02), uint8_t(0x02), uint8_t(0x00),
-                                           uint8_t(0x03), uint8_t(0x00), uint8_t(0x00), uint8_t(0x01) };
-            Assert(!memcmp(expected, buffer.data(), 14), "Unexpected data");
+            Assert(pca.registersUsed() == 0xFF);
         }
 
         { Roundtrip rt; }
@@ -661,38 +672,49 @@ namespace Configuration {
         // Test read pin:
         {
             bool readPin = i2c.readPin(9);
-            Assert(Wire.ReceiveSize() == 0, "Expected empty receive buffer");
             Assert(readPin == false, "Expected 'true' on pin");
+            Assert(pca.registersUsed() == 0x00);
         }
 
         // Change state, wait till roundtrip
         {
-            Wire.Send(0x00);
-            Wire.Send(0x02);
-
-            // Trigger ISR pin 'falling'
-            GPIONative::write(15, true);
-            GPIONative::write(15, false);
-            { Roundtrip rt; }
-
-            auto recv = Wire.Receive();
-            Assert(recv.size() == 2);
-            Assert(recv[0] == 0);
-            Assert(recv[1] == 1);
+            pca.setPadValue(9, true);
             { Roundtrip rt; }
 
             // Test if ISR update went correctly:
             Assert(isrCounter == 1);
+            Assert(pca.registersUsed() == 0x03);
 
             // Test read pin:
             bool readPin = i2c.readPin(9);
-            Assert(Wire.ReceiveSize() == 0, "Expected empty receive buffer");
             Assert(readPin == true, "Expected 'true' on pin");
+            Assert(pca.registersUsed() == 0x00);
+        }
+
+        {
+            i2c.detachInterrupt(9);
+
+            // Wait until synced (should be immediate after the thread gets some cpu) and check I2C comms:
+            { Roundtrip rt; }
+
+            Assert(pca.registersUsed() == 0xFF);
+        }
+
+        // Change state, wait till roundtrip
+        {
+            pca.setPadValue(9, false);
+            { Roundtrip rt; }
+
+            // Test if ISR detach went correctly:
+            Assert(isrCounter == 1);
+            Assert(pca.registersUsed() == 0x03);
         }
     }
 
     Test(I2CExtender, ISRTriggerWithoutInterrupt) {
+        std::lock_guard<std::mutex> guard(single_thread);
         GPIONative::initialize();
+        PCA9539Emulator pca(15);
 
         // Initialize I2C bus
         Machine::I2CBus bus;
@@ -708,6 +730,7 @@ namespace Configuration {
         config       = &mconfig;
 
         Wire.Clear();
+        Wire.SetResponseHandler(PCA9539Emulator::wireResponseHandler, &pca);
 
         // Setup the extender
         Extenders::I2CExtender i2c;
@@ -717,35 +740,19 @@ namespace Configuration {
         i2c.init();
 
         {
-            // Setup will trigger some events on I2C: 'config', 'invert', 'write', 'read'.
-            // We have to set the 'read' before setting up the pin, or the I2C comms are going to fail.
-            // Let's just set it 'high':
-            Wire.Send(0x00);
-            Wire.Send(0x00);
-
             i2c.claim(9);
             i2c.setupPin(9, Pin::Attr::Input | Pin::Attr::ISR);
 
             // Wait until synced (should be immediate after the thread gets some cpu) and check I2C comms:
             { Roundtrip rt; }
 
-            auto buffer = Wire.Receive();
-            Assert(buffer.size() == 3 * 2 * 2 + 2, "Expected invert, config, write, read bytes being sent");
-
-            const uint8_t expected[14] = { uint8_t(0x04), uint8_t(0x00), uint8_t(0x05), uint8_t(0x00), uint8_t(0x06),
-                                           uint8_t(0x00), uint8_t(0x07), uint8_t(0x02), uint8_t(0x02), uint8_t(0x00),
-                                           uint8_t(0x03), uint8_t(0x00), uint8_t(0x00), uint8_t(0x01) };
-            Assert(!memcmp(expected, buffer.data(), 14), "Unexpected data");
+            Assert(pca.registersUsed() == 0xFF);
         }
 
         uint32_t isrCounter = 0;
 
         {
             // From this point on, we just need to respond to wire requests
-            currentInput = 0x0000;
-            Wire.Clear();
-            Wire.SetResponseHandler(WireResponseHandler);
-
             i2c.attachInterrupt(9, HandleInterrupt, &isrCounter, CHANGE);
         }
 
@@ -757,7 +764,8 @@ namespace Configuration {
 
         // Change state, wait till roundtrip
         {
-            currentInput = 0x0200;
+            pca.setPadValue(9, true);
+
             { Roundtrip rt; }
 
             // Test if ISR update went correctly:
@@ -766,17 +774,37 @@ namespace Configuration {
             // Test read pin:
             bool readPin = i2c.readPin(9);
             Assert(readPin == true, "Expected 'true' on pin");
+        }
+
+        {
+            pca.setPadValue(9, false);
 
             { Roundtrip rt; }
 
             // Test if ISR update went correctly:
-            Assert(isrCounter == 1);
+            Assert(isrCounter == 2);
 
             // Test read pin:
             bool readPin2 = i2c.readPin(9);
-            Assert(readPin2 == true, "Expected 'true' on pin");
+            Assert(readPin2 == false, "Expected 'false' on pin");
         }
 
-        Wire.Clear();
+        {
+            i2c.detachInterrupt(9);
+
+            // Wait until synced (should be immediate after the thread gets some cpu) and check I2C comms:
+            { Roundtrip rt; }
+
+            Assert(pca.registersUsed() == 0xFF);
+        }
+
+        // Change state, wait till roundtrip
+        {
+            pca.setPadValue(9, false);
+            { Roundtrip rt; }
+
+            // Test if ISR detach went correctly:
+            Assert(isrCounter == 2);
+        }
     }
 }
