@@ -20,9 +20,6 @@ namespace Extenders {
     uint8_t I2CExtender::I2CGetValue(uint8_t address, uint8_t reg) {
         auto bus = _i2cBus;
 
-        // First make sure the bus is empty, so we read that which we have written:
-        while (bus->read(address, &reg, 1) != 0) {}
-
         int err;
         if ((err = bus->write(address, &reg, 1)) != 0) {
             log_warn("Cannot read from I2C bus: " << Machine::I2CBus::ErrorDescription(err));
@@ -37,6 +34,8 @@ namespace Extenders {
 
                 IOError();
             } else {
+                // This log line will probably generate a stack overflow and way too much data. Use with care:
+                // log_info("Request address: " << int(address) << ", reg: " << int(reg) << " gives: " << int(result));
                 errorCount = 0;
             }
             return result;
@@ -56,6 +55,8 @@ namespace Extenders {
             log_warn("Cannot write to I2C bus: " << Machine::I2CBus::ErrorDescription(err));
             IOError();
         } else {
+            // This log line will probably generate a stack overflow and way too much data. Use with care:
+            // log_info("Set address: " << int(address) << ", reg: " << int(reg) << " to: " << int(value));
             errorCount = 0;
         }
     }
@@ -188,12 +189,27 @@ namespace Extenders {
                     // If we don't have an ISR, we must update everything. Otherwise, we can cherry pick:
                     bool handleInvertSoftware = (_invertReg == 0xFF);
 
+                    uint8_t newBytes[8];
                     for (int i = 0; i < claimedValues; ++i) {
-                        auto oldByte = _input.bytes[i];
                         auto newByte = I2CGetValue(address, currentRegister);
                         if (handleInvertSoftware) {
                             newByte ^= _invert.bytes[i];
                         }
+                        newBytes[i] = newByte;
+
+                        currentRegister++;
+                        if (currentRegister == registersPerDevice + _inputReg) {
+                            ++address;
+                        }
+                    }
+
+                    // Remove the busy flag, keep the rest. If we don't do that here, we
+                    // end up with a race condition if we use _status in the ISR.
+                    _status &= ~0x10;
+
+                    for (int i = 0; i < claimedValues; ++i) {
+                        auto oldByte = _input.bytes[i];
+                        auto newByte = newBytes[i];
 
                         if (oldByte != newByte) {
                             // Handle ISR's:
@@ -206,15 +222,10 @@ namespace Extenders {
                                     auto o    = (oldByte & mask);
                                     auto n    = (newByte & mask);
                                     if (o != n) {
-                                        isr.callback(isr.data);
+                                        isr.callback(isr.data);  // bug; race condition
                                     }
                                 }
                             }
-                        }
-
-                        currentRegister++;
-                        if (currentRegister == registersPerDevice + _inputReg) {
-                            ++address;
                         }
                     }
                 }
@@ -288,11 +299,11 @@ namespace Extenders {
         // Ensure data is available:
         std::atomic_thread_fence(std::memory_order::memory_order_seq_cst);
 
-        xTaskCreatePinnedToCore(isrTaskLoop,                     // task
-                                "i2cHandler",                    // name for task
-                                configMINIMAL_STACK_SIZE + 512,  // size of task stack
-                                this,                            // parameters
-                                1,                               // priority
+        xTaskCreatePinnedToCore(isrTaskLoop,                            // task
+                                "i2cHandler",                           // name for task
+                                configMINIMAL_STACK_SIZE + 512 + 2048,  // size of task stack
+                                this,                                   // parameters
+                                1,                                      // priority
                                 &_isrHandler,
                                 SUPPORT_TASK_CORE  // core
         );
@@ -391,6 +402,8 @@ namespace Extenders {
         Assert(mode == CHANGE, "Only mode CHANGE is allowed for pin extender ISR's.");
         Assert(index < 64 && index >= 0, "Pin index out of range");
 
+        // log_debug("Attaching interrupt (I2C) on index " << int(index));
+
         ISRData& data = _isrData[index];
         data.callback = callback;
         data.data     = arg;
@@ -408,6 +421,8 @@ namespace Extenders {
 
     void I2CExtender::detachInterrupt(pinnum_t index) {
         Assert(index < 64 && index >= 0, "Pin index out of range");
+
+        // log_debug("Detaching interrupt (I2C) on index " << int(index));
 
         ISRData& data = _isrData[index];
         data.callback = nullptr;

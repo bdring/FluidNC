@@ -653,7 +653,8 @@ namespace Configuration {
             // Wait until synced (should be immediate after the thread gets some cpu) and check I2C comms:
             { Roundtrip rt; }
 
-            Assert(pca.registersUsed() == 0xFF);
+            auto regUsed = pca.registersUsed();
+            Assert(regUsed >= 0xfd && regUsed <= 0xFF);
         }
 
         uint32_t isrCounter = 0;
@@ -664,7 +665,8 @@ namespace Configuration {
             // Wait until synced (should be immediate after the thread gets some cpu) and check I2C comms:
             { Roundtrip rt; }
 
-            Assert(pca.registersUsed() == 0xFF);
+            auto regUsed = pca.registersUsed();
+            Assert(regUsed >= 0xfd && regUsed <= 0xFF);
         }
 
         { Roundtrip rt; }
@@ -697,7 +699,8 @@ namespace Configuration {
             // Wait until synced (should be immediate after the thread gets some cpu) and check I2C comms:
             { Roundtrip rt; }
 
-            Assert(pca.registersUsed() == 0xFF);
+            auto regUsed = pca.registersUsed();
+            Assert(regUsed >= 0xfd && regUsed <= 0xFF);
         }
 
         // Change state, wait till roundtrip
@@ -746,7 +749,8 @@ namespace Configuration {
             // Wait until synced (should be immediate after the thread gets some cpu) and check I2C comms:
             { Roundtrip rt; }
 
-            Assert(pca.registersUsed() == 0xFF);
+            auto regUsed = pca.registersUsed();
+            Assert(regUsed >= 0xfd && regUsed <= 0xFF);
         }
 
         uint32_t isrCounter = 0;
@@ -795,7 +799,8 @@ namespace Configuration {
             // Wait until synced (should be immediate after the thread gets some cpu) and check I2C comms:
             { Roundtrip rt; }
 
-            Assert(pca.registersUsed() == 0xFF);
+            auto regUsed = pca.registersUsed();
+            Assert(regUsed >= 0xfd && regUsed <= 0xFF);
         }
 
         // Change state, wait till roundtrip
@@ -805,6 +810,60 @@ namespace Configuration {
 
             // Test if ISR detach went correctly:
             Assert(isrCounter == 2);
+        }
+    }
+
+    void ReadInISRHandler(void* data) {
+        auto i2c   = static_cast<Extenders::I2CExtender*>(data);
+        auto value = i2c->readPin(9);
+        Assert(value == true);
+    }
+
+    Test(I2CExtender, ReadInISR) {
+        std::lock_guard<std::mutex> guard(single_thread);
+        GPIONative::initialize();
+        PCA9539Emulator pca(15);
+
+        // Initialize I2C bus
+        Machine::I2CBus bus;
+        bus._sda       = Pin::create("gpio.16");
+        bus._scl       = Pin::create("gpio.17");
+        bus._frequency = 100000;
+        bus._busNumber = 0;
+        bus.init();
+
+        // We need to set up the I2C config in the global 'config', or init of the extender will fail.
+        Machine::MachineConfig mconfig;
+        mconfig._i2c = &bus;
+        config       = &mconfig;
+
+        Wire.Clear();
+        Wire.SetResponseHandler(PCA9539Emulator::wireResponseHandler, &pca);
+
+        // Setup the extender
+        Extenders::I2CExtender i2c;
+        FakeInitHandler        fakeInit(false);
+        i2c.group(fakeInit);
+        i2c.validate();
+        i2c.init();
+
+        {
+            i2c.claim(9);
+            i2c.setupPin(9, Pin::Attr::Input | Pin::Attr::ISR);
+
+            // Wait until synced (should be immediate after the thread gets some cpu) and check I2C comms:
+            { Roundtrip rt; }
+
+            auto regUsed = pca.registersUsed();
+            Assert(regUsed >= 0xfd && regUsed <= 0xFF);
+        }
+
+        {
+            pca.setPadValue(9, false);
+            i2c.attachInterrupt(9, ReadInISRHandler, &i2c, CHANGE);
+            pca.setPadValue(9, true);
+            i2c.detachInterrupt(9);
+            pca.setPadValue(9, false);
         }
     }
 }
