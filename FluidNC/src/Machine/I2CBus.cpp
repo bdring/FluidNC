@@ -77,13 +77,12 @@ namespace Machine {
         // log_debug("I2C read addr=" << int(address) << ", count=" << int(count) << ", data " << (data ? "non null" : "null") << ", i2c "
         //                            << (i2c ? "non null" : "null"));
 
-        for (size_t i = 0; i < count; ++i) {
-            if (i2c->requestFrom((int)address, 1) != 1) {
-                return i;
-            }
+        size_t c = i2c->requestFrom((int)address, count);
+
+        for (size_t i = 0; i < c; ++i) {
             data[i] = i2c->read();
         }
-        return count;
+        return c;
     }
 
 }
