@@ -50,6 +50,7 @@
 #include "InputFile.h"
 #include "WebUI/InputBuffer.h"  // XXX could this be a StringStream ?
 #include "Main.h"               // display()
+#include "StartupLog.h"         // startupLog
 
 #include <atomic>
 #include <cstring>
@@ -210,6 +211,7 @@ bool is_realtime_command(uint8_t data) {
 void AllChannels::init() {
     registration(&Uart0);               // USB Serial
     registration(&WebUI::inputBuffer);  // Macros
+    registration(&startupLog);          // USB Serial
 }
 
 void AllChannels::registration(Channel* channel) {

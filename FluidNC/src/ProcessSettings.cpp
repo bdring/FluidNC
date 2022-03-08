@@ -21,6 +21,7 @@
 #include "Uart.h"                 // Uart0.write()
 #include "FileStream.h"           // FileStream()
 #include "xmodem.h"               // xmodemReceive(), xmodemTransmit()
+#include "StartupLog.h"           // startupLog
 
 #include <cstring>
 #include <map>
@@ -357,33 +358,39 @@ static Error home_c(const char* value, WebUI::AuthenticationLevel auth_level, Ch
 static void write_limit_set(uint32_t mask, Channel& out) {
     const char* motor0AxisName = "xyzabc";
     for (int i = 0; i < MAX_N_AXIS; i++) {
-        out.write(bitnum_is_true(mask, i) ? char(motor0AxisName[i]) : ' ');
+        out << (bitnum_is_true(mask, i) ? char(motor0AxisName[i]) : ' ');
     }
     const char* motor1AxisName = "XYZABC";
     for (int i = 0; i < MAX_N_AXIS; i++) {
-        out.write(bitnum_is_true(mask, i + 16) ? char(motor1AxisName[i]) : ' ');
+        out << (bitnum_is_true(mask, i + 16) ? char(motor1AxisName[i]) : ' ');
     }
 }
 static Error show_limits(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
     out.print("Send ! to exit\n");
     out.print("Homing Axes: ");
     write_limit_set(Machine::Axes::homingMask, out);
-    out.write('\n');
-    out.print("Limit  Axes: ");
+    out << '\n';
+    out << "Limit  Axes: ";
     write_limit_set(Machine::Axes::limitMask, out);
-    out.write('\n');
-    out.print("  PosLimitPins NegLimitPins\n");
+    out << '\n';
+    out << "  PosLimitPins NegLimitPins\n";
+    const TickType_t interval = 500;
+    TickType_t       limit    = xTaskGetTickCount();
     do {
-        out.print(": ");  // Prevents WebUI from suppressing an empty line
-        write_limit_set(Machine::Axes::posLimitMask, out);
-        out.write(' ');
-        write_limit_set(Machine::Axes::negLimitMask, out);
-        out.print("\r\n");
-        vTaskDelay(500);  // Delay for a reasonable repeat rate
+        TickType_t thisTime = xTaskGetTickCount();
+        if (((long)(thisTime - limit)) > 0) {
+            out << ": ";  // Prevents WebUI from suppressing an empty line
+            write_limit_set(Machine::Axes::posLimitMask, out);
+            out << ' ';
+            write_limit_set(Machine::Axes::negLimitMask, out);
+            out << '\n';
+            limit = thisTime + interval;
+        }
+        vTaskDelay(1);
         pollChannels();
     } while (!rtFeedHold);
     rtFeedHold = false;
-    out.write('\n');
+    out << '\n';
     return Error::Ok;
 }
 static Error go_to_sleep(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
@@ -622,6 +629,11 @@ static Error showChannelInfo(const char* value, WebUI::AuthenticationLevel auth_
     return Error::Ok;
 }
 
+static Error showStartupLog(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+    out << startupLog.messages();
+    return Error::Ok;
+}
+
 // Commands use the same syntax as Settings, but instead of setting or
 // displaying a persistent value, a command causes some action to occur.
 // That action could be anything, from displaying a run-time parameter
@@ -664,6 +676,8 @@ void make_user_commands() {
     new UserCommand("I", "Build/Info", get_report_build_info, notIdleOrAlarm);
     new UserCommand("N", "GCode/StartupLines", report_startup_lines, notIdleOrAlarm);
     new UserCommand("RST", "Settings/Restore", restore_settings, notIdleOrAlarm, WA);
+
+    new UserCommand("SS", "Startup/Show", showStartupLog, anyState);
 
     new UserCommand("32", "FakeLaserMode", fakeLaserMode, notIdleOrAlarm);
 };

@@ -5,10 +5,10 @@
 #include "Limits.h"
 
 #include "Machine/MachineConfig.h"
-#include "MotionControl.h"         // mc_reset
-#include "System.h"                // sys.*
-#include "Protocol.h"              // protocol_execute_realtime
-#include "Platform.h"              // WEAK_LINK
+#include "MotionControl.h"  // mc_reset
+#include "System.h"         // sys.*
+#include "Protocol.h"       // protocol_execute_realtime
+#include "Platform.h"       // WEAK_LINK
 
 #include <freertos/task.h>
 #include <freertos/queue.h>
@@ -44,16 +44,53 @@ MotorMask limits_get_state() {
 }
 
 bool ambiguousLimit() {
-    return Machine::Axes::posLimitMask & Machine::Axes::negLimitMask;
+    if (Machine::Axes::posLimitMask & Machine::Axes::negLimitMask) {
+        mc_reset();  // Issue system reset and ensure spindle and coolant are shutdown.
+        rtAlarm = ExecAlarm::HardLimit;
+        return true;
+    }
+    return false;
 }
 
 bool soft_limit = false;
 
+// Constrain the coordinates to stay within the soft limit envelope
+void constrainToSoftLimits(float* cartesian) {
+    auto axes   = config->_axes;
+    auto n_axis = config->_axes->_numberAxis;
+
+    bool limit_error = false;
+    for (int axis = 0; axis < n_axis; axis++) {
+        auto axisSetting = axes->_axis[axis];
+        if (axisSetting->_softLimits) {
+            if (cartesian[axis] < limitsMinPosition(axis)) {
+                cartesian[axis] = limitsMinPosition(axis);
+            }
+            if (cartesian[axis] > limitsMaxPosition(axis)) {
+                cartesian[axis] = limitsMaxPosition(axis);
+            }
+        }
+    }
+}
+
 // Performs a soft limit check. Called from mcline() only. Assumes the machine has been homed,
 // the workspace volume is in all negative space, and the system is in normal operation.
 // NOTE: Used by jogging to limit travel within soft-limit volume.
-void limits_soft_check(float* target) {
-    if (config->_kinematics->limitsCheckTravel(target)) {
+void limits_soft_check(float* cartesian) {
+    bool limit_error = false;
+
+    auto axes   = config->_axes;
+    auto n_axis = config->_axes->_numberAxis;
+
+    for (int axis = 0; axis < n_axis; axis++) {
+        if (axes->_axis[axis]->_softLimits && (cartesian[axis] < limitsMinPosition(axis) || cartesian[axis] > limitsMaxPosition(axis))) {
+            String axis_letter = String(Machine::Axes::_names[axis]);
+            log_info("Soft limit on " << axis_letter << " target:" << cartesian[axis]);
+            limit_error = true;
+        }
+    }
+
+    if (limit_error) {
         soft_limit = true;
         // Force feed hold if cycle is active. All buffered blocks are guaranteed to be within
         // workspace volume so just come to a controlled stop so position is not lost. When complete
@@ -72,7 +109,6 @@ void limits_soft_check(float* target) {
         mc_reset();                      // Issue system reset and ensure spindle and coolant are shutdown.
         rtAlarm = ExecAlarm::SoftLimit;  // Indicate soft limit critical event
         protocol_execute_realtime();     // Execute to enter critical event loop and system abort
-        return;
     }
 }
 
@@ -117,4 +153,3 @@ float limitsMinPosition(size_t axis) {
     //return (homing == nullptr || homing->_positiveDirection) ? mpos : mpos - maxtravel;
     return (homing == nullptr || homing->_positiveDirection) ? mpos - maxtravel : mpos;
 }
-
