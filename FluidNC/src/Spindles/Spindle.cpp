@@ -105,9 +105,13 @@ namespace Spindles {
 
     uint32_t IRAM_ATTR Spindle::mapSpeed(SpindleSpeed speed) {
         if (_speeds.size() == 0) {
+            log_info("Speeds.size = 0");
             return 0;
         }
-        speed             = speed * sys.spindle_speed_ovr / 100;
+        if (sys.spindle_speed_ovr != 0) {
+            speed = speed * sys.spindle_speed_ovr / 100;
+        }
+            
         sys.spindle_speed = speed;
         if (speed < _speeds[0].speed) {
             return _speeds[0].offset;

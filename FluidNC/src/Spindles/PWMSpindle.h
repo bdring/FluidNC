@@ -48,6 +48,7 @@ namespace Spindles {
             // but the ESP32 hardware can handle them, so we let the
             // user choose.
             handler.item("pwm_hz", _pwm_freq, 1, 20000000);
+            handler.item("use_ramp", _use_pwm_ramping);
 
             OnOff::group(handler);
         }
@@ -62,14 +63,21 @@ namespace Spindles {
         int      _pwm_chan_num;
         uint32_t _pwm_period;     // how many counts in 1 period
         uint8_t  _pwm_precision;  // auto calculated
+        bool     _use_pwm_ramping = false;
 
         // Configurable
-        uint32_t _pwm_freq = 5000;
+        uint32_t _pwm_freq      = 5000;
+        uint32_t _ramp_interval = 100;  // milliseconds
+        uint32_t _ramp_up_dev_increment;
+        uint32_t _ramp_down_dev_increment;
+        uint32_t _current_duty = 0;
 
         void         set_output(uint32_t duty) override;
         virtual void deinit();
 
         virtual void get_pins_and_settings();
         uint8_t      calc_pwm_precision(uint32_t freq);
+
+        void ramp_speed(uint32_t speed);
     };
 }
