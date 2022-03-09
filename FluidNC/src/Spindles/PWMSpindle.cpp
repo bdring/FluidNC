@@ -33,7 +33,7 @@ namespace Spindles {
         if (!_output_pin.capabilities().has(Pin::Capabilities::PWM)) {
             log_warn(name() << " output pin " << _output_pin.name().c_str() << " cannot do PWM");
             return;
-        }        
+        }
 
         _current_state    = SpindleState::Disable;
         _current_pwm_duty = 0;
@@ -51,16 +51,15 @@ namespace Spindles {
         }
         setupSpeeds(_pwm_period);
 
-        
         if (_use_pwm_ramping) {
-            if (maxSpeed() < 500 || _spinup_ms < 500 || _spindown_ms < 500) {  // Some reasonable values for ramping
-                log_warn("PWM Ramping max speed < 500 or spinup_ms/spindown_ms < 500...disabling");
+            if (maxSpeed() < 300 || _spinup_ms < 500 || _spindown_ms < 500) {  // Some reasonable values for ramping
+                log_warn("PWM Ramping max speed < 300 or spinup_ms/spindown_ms < 500...disabling");
                 _use_pwm_ramping = false;
             } else {
                 // TODO: Do we want to deal with a min speed?
                 _ramp_up_dev_increment   = mapSpeed(maxSpeed()) / (_spinup_ms / _ramp_interval);
                 _ramp_down_dev_increment = mapSpeed(maxSpeed()) / (_spindown_ms / _ramp_interval);
-                log_info("PWM Ramping Maxspeed:" << maxSpeed() << " spinup incr:" << _ramp_up_dev_increment
+                //log_info("PWM Ramping Maxspeed:" << maxSpeed() << " spinup incr:" << _ramp_up_dev_increment
                                                  << " spindown incr:" << _ramp_down_dev_increment);
             }
         }
@@ -100,7 +99,7 @@ namespace Spindles {
                     ramp_speed(0);
                 }
                 set_direction(state == SpindleState::Cw);
-                ramp_speed(speed);                
+                ramp_speed(speed);
             } else {
                 ramp_speed(0);  // Always want to ramp down on diable
             }
@@ -192,8 +191,8 @@ namespace Spindles {
     void PWM::ramp_speed(uint32_t target_rpm) {
         // speed is given, but we need to work in dev_speed
         uint32_t target_duty = mapSpeed(target_rpm);
-        uint32_t next_duty = _current_duty; // this is the value that increments in this function
-        bool spinup = (target_duty > _current_duty);
+        uint32_t next_duty   = _current_duty;  // this is the value that increments in this function
+        bool     spinup      = (target_duty > _current_duty);
 
         //log_info("Ramp duty from:" << _current_duty << " to:" << target_duty);
 

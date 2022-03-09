@@ -66,11 +66,12 @@ namespace Spindles {
         bool     _use_pwm_ramping = false;
 
         // Configurable
-        uint32_t _pwm_freq      = 5000;
-        uint32_t _ramp_interval = 100;  // milliseconds
-        uint32_t _ramp_up_dev_increment;
-        uint32_t _ramp_down_dev_increment;
-        uint32_t _current_duty = 0;
+        uint32_t _pwm_freq = 5000;
+
+        const uint32_t _ramp_interval = 50;  // milliseconds
+        uint32_t       _ramp_up_dev_increment;
+        uint32_t       _ramp_down_dev_increment;
+        uint32_t       _current_duty = 0;
 
         void         set_output(uint32_t duty) override;
         virtual void deinit();
