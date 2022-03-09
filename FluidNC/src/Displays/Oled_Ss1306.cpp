@@ -123,25 +123,25 @@ namespace Displays {
         }
     }
 
-    void Oled_Ss1306::update(UpdateType t, String s = "") {
-        switch (t) {
-            case UpdateType::SysState:
-                oled->clear();
-                switch (geo) {
-                    case GEOMETRY_128_64:
-                        update_128x64();
-                        break;
-                    case GEOMETRY_64_48:
-                        update_64x48();
-                        break;
-                    default:
-                        break;
-                }
-                oled->display();
-                break;
-                default:
-                    break;
-        }
+    void Oled_Ss1306::update(statusCounter sysCounter) {
+        // switch (t) {
+        //     case UpdateType::SysState:
+        //         oled->clear();
+        //         switch (geo) {
+        //             case GEOMETRY_128_64:
+        //                 update_128x64();
+        //                 break;
+        //             case GEOMETRY_64_48:
+        //                 update_64x48();
+        //                 break;
+        //             default:
+        //                 break;
+        //         }
+        //         oled->display();
+        //         break;
+        //         default:
+        //             break;
+        // }
     }
 
     void Oled_Ss1306::update_64x48() {

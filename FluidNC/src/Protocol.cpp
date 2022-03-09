@@ -130,6 +130,9 @@ void protocol_main_loop() {
     // Check for and report alarm state after a reset, error, or an initial power up.
     // NOTE: Sleep mode disables the stepper drivers and position can't be guaranteed.
     // Re-initialize the sleep state as an ALARM mode to ensure user homes or acknowledges.
+
+    int32_t lastDroTime = getCpuTicks();
+
     if (sys.state == State::ConfigAlarm) {
         report_feedback_message(Message::ConfigAlarmLock);
     } else {
@@ -149,7 +152,7 @@ void protocol_main_loop() {
 
         } else {
             // Check if the safety door is open.
-            //sys.state = State::Idle;            
+            //sys.state = State::Idle;
             sys_setState(State::Idle);
             if (config->_control->system_check_safety_door_ajar()) {
                 rtSafetyDoor = true;
@@ -205,9 +208,9 @@ void protocol_main_loop() {
 #ifdef DEBUG_REPORT_ECHO_RAW_LINE_RECEIVED
             report_echo_line_received(line, *chan);
 #endif
-            for (auto d : config->_displays) {
-                d->update(Displays::UpdateType::Gcode, "");
-            }
+            // for (auto d : config->_displays) {
+            //     d->update(Displays::UpdateType::Gcode, "");
+            // }
             // auth_level can be upgraded by supplying a password on the command line
             report_status_message(execute_line(line, *chan, WebUI::AuthenticationLevel::LEVEL_GUEST), *chan);
         }
@@ -217,6 +220,16 @@ void protocol_main_loop() {
         protocol_execute_realtime();  // Runtime command check point.
         if (sys.abort) {
             return;  // Bail to main() program loop to reset system.
+        }
+
+        
+        // this should be throttled here or in the display classes.
+        if (sys.state == State::Cycle) {
+            sysStateCounter.DRO++;
+        }
+
+        for (auto d : config->_displays) {
+            d->update(sysStateCounter);
         }
 
         // check to see if we should disable the stepper drivers

@@ -15,6 +15,7 @@
 
 // Declare system global variable structure
 system_t sys;
+statusCounter sysStateCounter; // keeps track of system state change events
 int32_t  motor_steps[MAX_N_AXIS];  // Real-time position in steps.
 int32_t  probe_steps[MAX_N_AXIS];  // Last probe position in steps.
 
@@ -29,13 +30,13 @@ void system_reset() {
     memset(probe_steps, 0, sizeof(probe_steps));            // Clear probe position.
     report_ovr_counter = 0;
     report_wco_counter = 0;
+
+    sysStateCounter.sysState++;
 }
 
 void sys_setState(State newState) {
     sys.state = newState;
-    for (auto d : config->_displays) {
-        d->update(Displays::UpdateType::SysState, "");
-    }
+    sysStateCounter.sysState++;
 }
 
 float steps_to_mpos(int32_t steps, size_t axis) {

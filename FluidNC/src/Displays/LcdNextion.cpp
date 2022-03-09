@@ -64,18 +64,18 @@ namespace Displays {
         }
     }
 
-    void LcdNextion::update(UpdateType t, String s = "") {
+    void LcdNextion::update(statusCounter sysCounter) {
         if (!_uart_started)
             return;
 
-        if (t == UpdateType::SysState) {
-            // log_info("Update: " << name() << " type:" << (int)t);
-            auto& uart = *_uart;
-            uart << "page0.st0.txt=\"" << state_name() << "\"";
-            _uart->write(255);
-            _uart->write(255);
-            _uart->write(255);
-        }
+        // if (t == UpdateType::SysState) {
+        //     // log_info("Update: " << name() << " type:" << (int)t);
+        //     auto& uart = *_uart;
+        //     uart << "page0.st0.txt=\"" << state_name() << "\"";
+        //     _uart->write(255);
+        //     _uart->write(255);
+        //     _uart->write(255);
+        // }
     }
 
     void LcdNextion::sendDROs() {

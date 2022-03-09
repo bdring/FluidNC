@@ -10,6 +10,6 @@ namespace Displays {
     // ========================= Spindle ==================================
     void Display::init() {}
     void Display::status_changed() {}
-    void Display::update(UpdateType t, String s) {}
+    void Display::update(statusCounter sysCounter) {}
     void Display::afterParse() {}
 }

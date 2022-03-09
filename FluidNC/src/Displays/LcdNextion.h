@@ -13,8 +13,8 @@
 namespace Displays {
     class LcdNextion : public Display {
     protected:
-        int   _geometry = 0;
-        bool  _flip     = false;
+        int          _geometry = 0;
+        bool         _flip     = false;
         static Uart* _uart;
         static bool  _uart_started;
 
@@ -26,8 +26,7 @@ namespace Displays {
 
         void config_message() override;
 
-        
-        void update(UpdateType foo, String s) override;
+        void update(statusCounter sysCounter) override;
 
         void validate() const override { Assert(_uart != nullptr, "lcs_nextion: Missing UART configuration"); }
 
