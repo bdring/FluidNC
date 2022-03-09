@@ -60,7 +60,7 @@ namespace Spindles {
                 _ramp_up_dev_increment   = mapSpeed(maxSpeed()) / (_spinup_ms / _ramp_interval);
                 _ramp_down_dev_increment = mapSpeed(maxSpeed()) / (_spindown_ms / _ramp_interval);
                 //log_info("PWM Ramping Maxspeed:" << maxSpeed() << " spinup incr:" << _ramp_up_dev_increment
-                                                 << " spindown incr:" << _ramp_down_dev_increment);
+                                                 //<< " spindown incr:" << _ramp_down_dev_increment);
             }
         }
 
