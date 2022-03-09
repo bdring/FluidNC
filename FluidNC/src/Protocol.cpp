@@ -131,8 +131,6 @@ void protocol_main_loop() {
     // NOTE: Sleep mode disables the stepper drivers and position can't be guaranteed.
     // Re-initialize the sleep state as an ALARM mode to ensure user homes or acknowledges.
 
-    int32_t lastDroTime = getCpuTicks();
-
     if (sys.state == State::ConfigAlarm) {
         report_feedback_message(Message::ConfigAlarmLock);
     } else {
@@ -222,7 +220,6 @@ void protocol_main_loop() {
             return;  // Bail to main() program loop to reset system.
         }
 
-        
         // this should be throttled here or in the display classes.
         if (sys.state == State::Cycle) {
             sysStateCounter.DRO++;
