@@ -108,9 +108,8 @@ namespace Spindles {
             log_info("Speeds.size = 0");
             return 0;
         }
-        if (sys.spindle_speed_ovr != 0) {
-            speed = speed * sys.spindle_speed_ovr / 100;
-        }
+        
+        speed = speed * sys.spindle_speed_ovr / 100;        
             
         sys.spindle_speed = speed;
         if (speed < _speeds[0].speed) {

@@ -671,6 +671,8 @@ static void protocol_execute_overrides() {
             } else if (spindle_stop_ovr.bit.enabled) {
                 spindle_stop_ovr.bit.restore = true;
             }
+        } else {
+            log_info("Spindle override stop only allowed in Hold");
         }
     }
 

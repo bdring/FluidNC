@@ -23,6 +23,8 @@ namespace Spindles {
         get_pins_and_settings();
         setupSpeeds(_pwm_freq);
 
+        sys.spindle_speed_ovr = SpindleSpeedOverride::Default;  // Set to 100%
+
         if (_output_pin.undefined()) {
             log_warn(name() << " output pin not defined");
             return;  // We cannot continue without the output pin
@@ -31,9 +33,7 @@ namespace Spindles {
         if (!_output_pin.capabilities().has(Pin::Capabilities::PWM)) {
             log_warn(name() << " output pin " << _output_pin.name().c_str() << " cannot do PWM");
             return;
-        }
-
-        
+        }        
 
         _current_state    = SpindleState::Disable;
         _current_pwm_duty = 0;
@@ -65,7 +65,7 @@ namespace Spindles {
             }
         }
 
-        log_info("Maxspeed:" << maxSpeed() << " mapped max:" << mapSpeed(maxSpeed()) << " ovr:" << sys.spindle_speed_ovr);
+        //log_info("Maxspeed:" << maxSpeed() << " mapped max:" << mapSpeed(maxSpeed()) << " ovr:" << sys.spindle_speed_ovr);
 
         config_message();
     }
