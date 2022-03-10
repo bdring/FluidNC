@@ -2,7 +2,7 @@
 // Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
 
 /*
-    A Base class for spindles and spindle like things such as lasers
+
 */
 #include "Display.h"
 

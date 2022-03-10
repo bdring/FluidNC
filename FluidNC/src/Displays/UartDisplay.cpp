@@ -45,7 +45,7 @@ namespace Displays {
         }
 
         if (_statusCount.network < sysCounter.network) {
-            uart << "Network Event\r\n";
+            uart << "<Network>\r\n";
             _statusCount.network = sysCounter.network;
         }
     }

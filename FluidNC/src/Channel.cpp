@@ -78,6 +78,7 @@ void Channel::ack(Error status) {
             // Grbl 0.9 used to display the text, while Grbl 1.1 switched to the number.
             // Many senders support both formats.
             print("error:");
+            sysStateCounter.error++;  // TODO: no way to know what error number
             if (config->_verboseErrors) {
                 print(errorString(status));
             } else {
