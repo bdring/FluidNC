@@ -19,7 +19,7 @@ namespace Displays {
 
     void UartDisplay::init() {
         config_message();
-        allChannels.registration(_uart);
+        //allChannels.registration(_uart);
         _uart->begin();
         _uart_started = true;
         _uart->config_message("  uart_display", " ");
@@ -38,14 +38,15 @@ namespace Displays {
 
         auto& uart = *_uart;
 
-        if (_statusCount.sysState < sysCounter.sysState) {
-            uart << "New State:" << state_name() << "\r\n";
+        if ((sysCounter.sysState - _statusCount.sysState > 0) || (sysCounter.DRO - _statusCount.DRO > 0)) {
+            report_realtime_status(uart);  // should be a
             _statusCount.sysState = sysCounter.sysState;
+            _statusCount.DRO      = sysCounter.DRO;
         }
 
-        if (_statusCount.DRO < sysCounter.DRO) {
-            report_realtime_status(uart);     // should be a
-            _statusCount.DRO = sysCounter.DRO;  // catch up
+        if (_statusCount.network < sysCounter.network) {
+            uart << "Network Event\r\n";
+            _statusCount.network = sysCounter.network;
         }
     }
 

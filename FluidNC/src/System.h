@@ -73,12 +73,13 @@ struct system_t {
 extern system_t sys;
 
 struct statusCounter {  // add to this as new status item changes are supported
-    uint32_t sysState;
-    uint32_t DRO;
-    uint32_t network;
-    uint32_t alarm;
-    uint32_t error;
-    uint32_t gcState;    
+    int32_t sysState;
+    int32_t DRO;
+    int32_t coords;  // G54-G59 G28,G30 change
+    int32_t network;
+    int32_t alarm;
+    int32_t error;
+    int32_t gcState;
 };
 extern statusCounter sysStateCounter;
 
