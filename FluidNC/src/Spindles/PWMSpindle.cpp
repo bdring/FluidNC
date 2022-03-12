@@ -190,33 +190,41 @@ namespace Spindles {
 
     void PWM::ramp_speed(uint32_t target_rpm) {
         // speed is given, but we need to work in dev_speed
-        uint32_t target_duty = mapSpeed(target_rpm);
+        uint32_t target_duty = mapSpeed(target_rpm); 
         uint32_t next_duty   = _current_duty;  // this is the value that increments in this function
+        uint32_t min_duty    = mapSpeed(_speeds[0].speed);
         bool     spinup      = (target_duty > _current_duty);
 
         // log_info("Ramp duty from:" << _current_duty << " to:" << target_duty);
 
-        while ((spinup && next_duty < target_duty) || (!spinup && (next_duty > target_duty))) {
-            if (spinup) {
-                if (next_duty + _ramp_up_dev_increment < target_duty) {
-                    next_duty += _ramp_up_dev_increment;
+        if (next_duty < min_duty) {
+            set_output(min_duty);
+            _current_duty = min_duty;
+            // log_info("Force duty:" << _speeds[0].speed << " mapped:" << mapSpeed(_speeds[0].speed));
+            return;
+        } else {
+            while ((spinup && next_duty < target_duty) || (!spinup && (next_duty > target_duty))) {
+                if (spinup) {
+                    if (next_duty + _ramp_up_dev_increment < target_duty) {
+                        next_duty += _ramp_up_dev_increment;
+                    } else {
+                        next_duty = target_duty;
+                    }
                 } else {
-                    next_duty = target_duty;
+                    if ((next_duty > _ramp_down_dev_increment) && (next_duty - _ramp_down_dev_increment > target_duty)) {  // is is safe to subtract?
+                        next_duty -= _ramp_down_dev_increment;
+                    } else {
+                        next_duty = target_duty;
+                    }
                 }
-            } else {
-                if ((next_duty > _ramp_down_dev_increment) && (next_duty - _ramp_down_dev_increment > target_duty)) {  // is is safe to subtract?
-                    next_duty -= _ramp_down_dev_increment;
-                } else {
-                    next_duty = target_duty;
+                // log_info("Actual duty:" << next_duty << " to:" << target_duty);
+                set_output(next_duty);
+                _current_duty = next_duty;
+                if (next_duty == target_duty) {
+                    return;
                 }
+                delay_ms(_ramp_interval);
             }
-            
-            set_output(next_duty);
-            _current_duty = next_duty;
-            if (next_duty == target_duty) {
-                return;
-            }
-            delay_ms(_ramp_interval);
         }
     }
 
