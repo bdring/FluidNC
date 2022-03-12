@@ -35,7 +35,7 @@ namespace Displays {
             return;
         }
 
-        if (_geometry != GEOMETRY_128_64 && _geometry != GEOMETRY_64_48) {
+        if (_geometry != OLEDDISPLAY_GEOMETRY::GEOMETRY_128_64 && _geometry != OLEDDISPLAY_GEOMETRY::GEOMETRY_64_48) {
             log_info("Display geometry value invalid (0,2)");
             return;
         }
@@ -84,16 +84,6 @@ namespace Displays {
         oled->display();
 
         config_message();
-
-        xTaskCreatePinnedToCore(timed_update,      // task
-                                "oledUpdateTask",  // name for task
-                                4096,              // size of task stack
-                                NULL,              // parameters
-                                1,                 // priority
-                                &oledUpdateTaskHandle,
-                                CONFIG_ARDUINO_RUNNING_CORE  // must run the task on same core
-                                                             // core
-        );
     }
 
     // prints the startup message of the spindle config
@@ -101,47 +91,27 @@ namespace Displays {
         log_info("Display: " << name() << " sda:" << _sda_pin.name() << " scl:" << _scl_pin.name() << " goemetry:" << _geometry);
     }
 
-    void Oled_Ss1306::timed_update(void* pvParameters) {
-        TickType_t xOledInterval = 1000;  // in ticks (typically ms)
-
-        vTaskDelay(2500);
-
-        while (true) {
-            oled->clear();
-            switch (geo) {
-                case GEOMETRY_128_64:
-                    update_128x64();
-                    break;
-                case GEOMETRY_64_48:
-                    update_64x48();
-                    break;
-                default:
-                    break;
-            }
-            oled->display();
-            vTaskDelay(xOledInterval);
-        }
-    }
-
     void Oled_Ss1306::update(statusCounter sysCounter) {
-        // switch (t) {
-        //     case UpdateType::SysState:
-        //         oled->clear();
-        //         switch (geo) {
-        //             case GEOMETRY_128_64:
-        //                 update_128x64();
-        //                 break;
-        //             case GEOMETRY_64_48:
-        //                 update_64x48();
-        //                 break;
-        //             default:
-        //                 break;
-        //         }
-        //         oled->display();
-        //         break;
-        //         default:
-        //             break;
-        // }
+        //
+        switch (_geometry) {
+            case OLEDDISPLAY_GEOMETRY::GEOMETRY_128_64:
+
+                if (sysCounter.sysState - _statusCount.sysState > 0 || (sysCounter.DRO - _statusCount.DRO > 0)) {
+                    update_128x64();
+                    _statusCount.sysState = sysCounter.sysState;
+                    _statusCount.DRO      = sysCounter.DRO;
+                }
+                break;
+            case OLEDDISPLAY_GEOMETRY::GEOMETRY_64_48:
+                // The initial circle is a good indication of a recent reboot
+                if (sysCounter.sysState - _statusCount.sysState > 0 || (sysCounter.DRO - _statusCount.DRO > 0)) {
+                    update_64x48();
+                    _statusCount.sysState = sysCounter.sysState;
+                }
+                break;
+            default:
+                break;
+        }
     }
 
     void Oled_Ss1306::update_64x48() {
@@ -169,6 +139,8 @@ namespace Displays {
     void Oled_Ss1306::update_128x64() {
         uint16_t file_ticker  = 0;
         String   state_string = "";
+
+        oled->clear();
 
         oled->setTextAlignment(TEXT_ALIGN_LEFT);
         oled->setFont(ArialMT_Plain_16);
@@ -200,6 +172,8 @@ namespace Displays {
             DRO();
             radioInfo();
         }
+
+        oled->display();
     }
 
     void Oled_Ss1306::radioInfo() {
@@ -273,8 +247,6 @@ namespace Displays {
 
         char axisVal[20];
 
-        oled->drawString(80, 14, "L");  // Limit switch
-
         auto n_axis        = config->_axes->_numberAxis;
         auto ctrl_pins     = config->_control;
         bool prb_pin_state = config->_probe->get_state();
@@ -291,6 +263,7 @@ namespace Displays {
 
         MotorMask lim_pin_state = limits_get_state();
 
+        bool show_l = false;  // whether to show the "L" header over limit switches
         for (uint8_t axis_index = X_AXIS; axis_index < n_axis; axis_index++) {
             oled_y_pos = 24 + (axis_index * 10);
 
@@ -311,7 +284,12 @@ namespace Displays {
                 } else {
                     draw_checkbox(80, oled_y_pos + 3, 7, 7, false);
                 }
+                show_l = true;
             }
+        }
+
+        if (show_l) {
+            oled->drawString(80, 14, "L");  // Limit switch
         }
 
         oled_y_pos = 14;

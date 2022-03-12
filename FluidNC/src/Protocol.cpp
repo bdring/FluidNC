@@ -131,7 +131,7 @@ void protocol_main_loop() {
     // NOTE: Sleep mode disables the stepper drivers and position can't be guaranteed.
     // Re-initialize the sleep state as an ALARM mode to ensure user homes or acknowledges.
 
-    int32_t _nextDro = 0;
+    
 
     if (sys.state == State::ConfigAlarm) {
         report_feedback_message(Message::ConfigAlarmLock);
@@ -224,18 +224,7 @@ void protocol_main_loop() {
 
         // this should be throttled here or in the display classes.
 
-        if ((getCpuTicks() - _nextDro) > 0) {
-            sysStateCounter.DRO++;
-            if (sys.state == State::Cycle) {
-                _nextDro = usToEndTicks(250000);
-            } else {
-                _nextDro = usToEndTicks(1000000);
-            }
-        }
-
-        for (auto d : config->_displays) {
-            d->update(sysStateCounter);
-        }
+        //protocol_update_displays();
 
         // check to see if we should disable the stepper drivers
         // If idleEndTime is 0, no disable is pending.
@@ -1087,6 +1076,26 @@ static void protocol_exec_rt_suspend() {
             }
         }
         pollChannels();  // Handle realtime commands like status report, cycle start and reset
+
+        //protocol_update_displays();
+
         protocol_exec_rt_system();
+    }
+}
+
+void protocol_update_displays() {
+    static int32_t _nextDro = 0;
+
+    if ((getCpuTicks() - _nextDro) > 0) {
+        sysStateCounter.DRO++;
+        if (sys.state == State::Cycle) {
+            _nextDro = usToEndTicks(250000);
+        } else {
+            _nextDro = usToEndTicks(1000000);
+        }
+    }
+
+    for (auto d : config->_displays) {
+        d->update(sysStateCounter);
     }
 }

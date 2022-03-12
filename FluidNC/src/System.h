@@ -80,6 +80,7 @@ struct statusCounter {  // add to this as new status item changes are supported
     int32_t alarm;
     int32_t error;
     int32_t gcState;
+    int32_t limitSwitch; //  limit switch state change
 };
 extern statusCounter sysStateCounter;
 

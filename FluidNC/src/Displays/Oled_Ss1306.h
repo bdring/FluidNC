@@ -4,6 +4,15 @@
 #pragma once
 
 /*
+
+Typical config
+
+oled_ss1306:
+  sda_pin: gpio.14
+  scl_pin: gpio.13
+  address: 60
+  geometry: 0
+  flip: true
 	
 */
 

@@ -19,7 +19,7 @@ namespace Displays {
 
     void UartDisplay::init() {
         config_message();
-        //allChannels.registration(_uart);
+        allChannels.registration(_uart);
         _uart->begin();
         _uart_started = true;
         _uart->config_message("  uart_display", " ");
@@ -30,7 +30,7 @@ namespace Displays {
     // prints the startup message of the spindle config
     void UartDisplay ::config_message() { log_info("Display: " << name()); }
 
-    void UartDisplay::timed_update(void* pvParameters) {}
+    //void UartDisplay::timed_update(void* pvParameters) {}
 
     void UartDisplay::update(statusCounter sysCounter) {
         if (!_uart_started)
@@ -45,7 +45,7 @@ namespace Displays {
         }
 
         if (_statusCount.network < sysCounter.network) {
-            uart << "<Network>\r\n";
+            //uart << "<Network>\r\n";
             _statusCount.network = sysCounter.network;
         }
     }

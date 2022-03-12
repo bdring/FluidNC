@@ -38,6 +38,10 @@ void protocol_buffer_synchronize();
 void protocol_disable_steppers();
 void protocol_cancel_disable_steppers();
 
+void protocol_update_displays();
+
+void protocol_update_displays();
+
 extern volatile bool rtStatusReport;
 extern volatile bool rtCycleStart;
 extern volatile bool rtFeedHold;

@@ -112,7 +112,7 @@ start:
   
 uart_display:
   uart:
-    txd_pin: gpio.14
-    rxd_pin: gpio.13
+    txd_pin: gpio.26
+    rxd_pin: gpio.4
     baud: 115200
     mode: 8N1

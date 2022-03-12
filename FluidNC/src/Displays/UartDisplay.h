@@ -4,7 +4,15 @@
 #pragma once
 
 /*
-	
+
+uart_display:
+  uart:
+    txd_pin: gpio.26
+    rxd_pin: gpio.4
+    baud: 115200
+    mode: 8N1
+
+
 */
 
 #include "Display.h"
@@ -12,14 +20,10 @@
 
 namespace Displays {
     class UartDisplay : public Display {
-    protected:       
+    protected:
         static Uart* _uart;
         static bool  _uart_started;
-
-        static void timed_update(void* pvParameters);
-
-        int32_t _lastDROUpdate;
-
+        int32_t      _lastDROUpdate;
 
     public:
         void init() override;
@@ -30,14 +34,11 @@ namespace Displays {
 
         void validate() const override { Assert(_uart != nullptr, "lcs_nextion: Missing UART configuration"); }
 
-        void group(Configuration::HandlerBase& handler) override {
-            handler.section("uart", _uart);
-        }
+        void group(Configuration::HandlerBase& handler) override { handler.section("uart", _uart); }
 
         virtual ~UartDisplay() {}
 
         // Name of the configurable. Must match the name registered in the cpp file.
         const char* name() const override { return "uart_display"; }
-
     };
 }

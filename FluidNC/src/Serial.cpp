@@ -292,5 +292,7 @@ Channel* pollChannels(char* line) {
     WebUI::COMMANDS::handle();      // Handles feeding watchdog and ESP restart
     WebUI::wifi_services.handle();  // OTA, web_server, telnet_server polling
 
+    protocol_update_displays();
+
     return retval;
 }
