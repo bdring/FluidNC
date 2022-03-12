@@ -57,10 +57,10 @@ namespace Spindles {
                 _use_pwm_ramping = false;
             } else {
                 // TODO: Do we want to deal with a min speed?
-                _ramp_up_dev_increment   = mapSpeed(maxSpeed()) / (_spinup_ms / _ramp_interval);
-                _ramp_down_dev_increment = mapSpeed(maxSpeed()) / (_spindown_ms / _ramp_interval);
-                //log_info("PWM Ramping Maxspeed:" << maxSpeed() << " spinup incr:" << _ramp_up_dev_increment
-                                                 //<< " spindown incr:" << _ramp_down_dev_increment);
+                _ramp_up_dev_increment   = (mapSpeed(maxSpeed()) - mapSpeed(minSpeed())) / (_spinup_ms / _ramp_interval);
+                _ramp_down_dev_increment = (mapSpeed(maxSpeed()) - mapSpeed(minSpeed())) / (_spindown_ms / _ramp_interval);
+                // log_info("PWM Ramping Maxspeed:" << maxSpeed() << " spinup incr:" << _ramp_up_dev_increment
+                //                                  << " spindown incr:" << _ramp_down_dev_increment);
             }
         }
 
@@ -194,7 +194,7 @@ namespace Spindles {
         uint32_t next_duty   = _current_duty;  // this is the value that increments in this function
         bool     spinup      = (target_duty > _current_duty);
 
-        //log_info("Ramp duty from:" << _current_duty << " to:" << target_duty);
+        // log_info("Ramp duty from:" << _current_duty << " to:" << target_duty);
 
         while ((spinup && next_duty < target_duty) || (!spinup && (next_duty > target_duty))) {
             if (spinup) {
@@ -210,7 +210,7 @@ namespace Spindles {
                     next_duty = target_duty;
                 }
             }
-
+            
             set_output(next_duty);
             _current_duty = next_duty;
             if (next_duty == target_duty) {
