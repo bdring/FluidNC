@@ -12,6 +12,7 @@ Channel* Channel::pollLine(char* line) {
         if (ch < 0) {
             break;
         }
+        //log_info("ch:" << ch);
         if (is_realtime_command(ch)) {
             execute_realtime_command(static_cast<Cmd>(ch), *this);
             continue;
@@ -47,6 +48,7 @@ Channel* Channel::pollLine(char* line) {
             // Return the complete line
             _line[_linelen] = '\0';
             strcpy(line, _line);
+            //log_info("line:" << line);
             _linelen = 0;
             return this;
         }

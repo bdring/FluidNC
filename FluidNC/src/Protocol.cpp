@@ -1091,7 +1091,7 @@ void protocol_update_displays() {
         if (sys.state == State::Cycle) {
             _nextDro = usToEndTicks(250000);
         } else {
-            _nextDro = usToEndTicks(1000000);
+            _nextDro = usToEndTicks(2000000);
         }
     }
 

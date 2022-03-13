@@ -18,7 +18,7 @@ private:
     uart_port_t         _uart_num;
     int                 _pushback;
     std::queue<uint8_t> _queue;
-    Lineedit*           _lineedit;
+    Lineedit*           _lineedit = nullptr;
 
 public:
     // These are public so that validators from classes
@@ -36,7 +36,7 @@ public:
     Pin _rts_pin;
     Pin _cts_pin;
 
-    Uart(int uart_num = -1, bool addCR = false);
+    Uart(int uart_num = -1, bool addCR = false, bool useLineedit = false);
     bool   setHalfDuplex();
     bool   setPins(int tx_pin, int rx_pin, int rts_pin = -1, int cts_pin = -1);
     void   begin();

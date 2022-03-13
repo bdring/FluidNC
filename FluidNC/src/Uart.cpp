@@ -19,14 +19,15 @@
 
 #include "lineedit.h"
 
-Uart::Uart(int uart_num, bool addCR) : Channel("uart", addCR), _pushback(-1) {
+Uart::Uart(int uart_num, bool addCR, bool useLineedit) : Channel("uart", addCR), _pushback(-1) {
     // Auto-assign Uart harware engine numbers; the pins will be
     // assigned to the engines separately
     static int currentNumber = 1;
     if (uart_num == -1) {
         Assert(currentNumber <= 3, "Max number of UART's reached.");
         uart_num = currentNumber++;
-    } else {
+    }
+    if (useLineedit) {
         _lineedit = new Lineedit(this, _line, Channel::maxLine - 1);
     }
     _uart_num = uart_port_t(uart_num);
@@ -102,7 +103,8 @@ Channel* Uart::pollLine(char* line) {
     // For now we only allow UART0 to be a channel input device
     // Other UART users like RS485 use it as a dumb character device
     if (_lineedit == nullptr) {
-        return nullptr;
+        // Fall back to the basic Channel pollLine implementation if we are not doing line editing
+        return Channel::pollLine(line);
     }
     while (1) {
         int ch;
@@ -123,10 +125,12 @@ Channel* Uart::pollLine(char* line) {
             continue;
         }
         if (line) {
+            //log_info("UART" << _uart_num << " ch:" << ch);
             if (_lineedit->step(ch)) {
                 _linelen        = _lineedit->finish();
                 _line[_linelen] = '\0';
                 strcpy(line, _line);
+                //log_info("UART" << _uart_num << " line:" << line);
                 _linelen = 0;
                 return this;
             }
@@ -201,7 +205,7 @@ bool Uart::flushTxTimed(TickType_t ticks) {
     return uart_wait_tx_done(_uart_num, ticks) != ESP_OK;
 }
 
-Uart Uart0(0, true);  // Primary serial channel with LF to CRLF conversion
+Uart Uart0(0, true, true);  // Primary serial channel with LF to CRLF conversion and line editing
 
 void uartInit() {
     Uart0.setPins(GPIO_NUM_1, GPIO_NUM_3);  // Tx 1, Rx 3 - standard hardware pins
