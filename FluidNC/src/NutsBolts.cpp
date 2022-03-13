@@ -197,15 +197,12 @@ char* trim(char* str) {
     return str;
 }
 
-// Count the number of bits that are on.
-uint8_t popcount(uint32_t val) {  // TODO Is there a built in function for this. Tried all the usual ones.
-    uint8_t count = 0;
-    for (int i = 0; i < 32; i++) {
-        if (bitnum_is_true(val, i)) {
-            count++;
-        }
-    }
-    return count;
+bool multiple_bits_set(uint32_t val) {
+    // Takes advantage of a quirk of twos-complement math.  If a number has
+    // only one bit set, for example 0b1000, then subtracting 1 will clear that
+    // bit and set only other bits giving e.g. 0b0111, and anding the two gives 0.
+    // If multiple bits are set, subtracting 1 will not clear the high bit.
+    return val & (val - 1);
 }
 
 String formatBytes(uint64_t bytes) {

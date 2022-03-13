@@ -1258,7 +1258,7 @@ Error gc_execute_line(char* line, Channel& channel) {
                     //   an error, it issues an alarm to prevent further motion to the probe. It's also done there to
                     //   allow the planner buffer to empty and move off the probe trigger before another probing cycle.
                     if (bitnum_is_true(value_words, GCodeWord::P)) {
-                        if (popcount(axis_words) > 1) {     // There should only be one axis word given
+                        if (multiple_bits_set(axis_words)) {  // There should only be one axis word given
                             FAIL(Error::GcodeUnusedWords);  // we have more axis words than allowed.
                         }
                     } else {
