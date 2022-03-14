@@ -44,7 +44,7 @@ namespace Displays {
             _statusCount.DRO      = sysCounter.DRO;
         }
 
-        if (_statusCount.network < sysCounter.network) {
+        if (sysCounter.network - _statusCount.network > 0) {
             //uart << "<Network>\r\n";
             _statusCount.network = sysCounter.network;
         }

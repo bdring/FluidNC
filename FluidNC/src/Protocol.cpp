@@ -131,8 +131,6 @@ void protocol_main_loop() {
     // NOTE: Sleep mode disables the stepper drivers and position can't be guaranteed.
     // Re-initialize the sleep state as an ALARM mode to ensure user homes or acknowledges.
 
-    
-
     if (sys.state == State::ConfigAlarm) {
         report_feedback_message(Message::ConfigAlarmLock);
     } else {
@@ -1084,14 +1082,18 @@ static void protocol_exec_rt_suspend() {
 }
 
 void protocol_update_displays() {
-    static int32_t _nextDro = 0;
+    static int32_t _nextDro    = 0;
+    static int32_t _lastUpdate = 0;
 
-    if ((getCpuTicks() - _nextDro) > 0) {
-        sysStateCounter.DRO++;
-        if (sys.state == State::Cycle) {
-            _nextDro = usToEndTicks(250000);
-        } else {
-            _nextDro = usToEndTicks(2000000);
+    if (sys.state == State::Cycle) {
+        if (getCpuTicks() - (_lastUpdate + usToCpuTicks(250000)) > 0) {
+            _lastUpdate = getCpuTicks();
+            sysStateCounter.DRO++;
+        }
+    } else {
+        if (getCpuTicks() - (_lastUpdate + usToCpuTicks(1000000)) > 0) {
+            _lastUpdate = getCpuTicks();
+            sysStateCounter.DRO++;
         }
     }
 
