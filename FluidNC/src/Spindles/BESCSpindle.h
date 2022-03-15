@@ -60,8 +60,8 @@ namespace Spindles {
         void group(Configuration::HandlerBase& handler) override {
             PWM::group(handler);
 
-            handler.item("min_pulse_us", _min_pulse_us);
-            handler.item("max_pulse_us", _max_pulse_us);
+            handler.item("min_pulse_us", _min_pulse_us, 500, 3000);
+            handler.item("max_pulse_us", _max_pulse_us, 500, 3000);
         }
 
         void afterParse() override {}

@@ -45,15 +45,15 @@ namespace Machine {
         void validate() const override { Assert(_cycle >= 0, "Homing cycle must be defined"); }
 
         void group(Configuration::HandlerBase& handler) override {
-            handler.item("cycle", _cycle);
+            handler.item("cycle", _cycle, -1, 6);
             handler.item("allow_single_axis", _allow_single_axis);
             handler.item("positive_direction", _positiveDirection);
             handler.item("mpos_mm", _mpos);
-            handler.item("feed_mm_per_min", _feedRate);
-            handler.item("seek_mm_per_min", _seekRate);
-            handler.item("settle_ms", _settle_ms);
-            handler.item("seek_scaler", _seek_scaler);
-            handler.item("feed_scaler", _feed_scaler);
+            handler.item("feed_mm_per_min", _feedRate, 1.0, 100000.0);
+            handler.item("seek_mm_per_min", _seekRate, 1.0, 100000.0);
+            handler.item("settle_ms", _settle_ms, 0, 1000);
+            handler.item("seek_scaler", _seek_scaler, 1.0, 100.0);
+            handler.item("feed_scaler", _feed_scaler, 1.0, 100.0);
         }
 
         void init() {}
