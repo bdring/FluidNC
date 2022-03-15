@@ -77,8 +77,8 @@ namespace Spindles {
 
         void group(Configuration::HandlerBase& handler) override {
             if (use_delay_settings()) {
-                handler.item("spinup_ms", _spinup_ms, 0, 20);
-                handler.item("spindown_ms", _spindown_ms, 0, 20);
+                handler.item("spinup_ms", _spinup_ms, 0, 20000);
+                handler.item("spindown_ms", _spindown_ms, 0, 20000);
             }
             handler.item("tool_num", _tool);
             handler.item("speed_map", _speeds);
