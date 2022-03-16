@@ -76,13 +76,12 @@ namespace Spindles {
         void afterParse() override;
 
         void group(Configuration::HandlerBase& handler) override {
-             if (use_delay_settings()) {
-                handler.item("spinup_ms", _spinup_ms);            
-                handler.item("spindown_ms", _spindown_ms);
-            }            
+            if (use_delay_settings()) {
+                handler.item("spinup_ms", _spinup_ms, 0, 20000);
+                handler.item("spindown_ms", _spindown_ms, 0, 20000);
+            }
             handler.item("tool_num", _tool);
             handler.item("speed_map", _speeds);
-                
         }
 
         // Virtual base classes require a virtual destructor.
