@@ -197,6 +197,14 @@ char* trim(char* str) {
     return str;
 }
 
+bool multiple_bits_set(uint32_t val) {
+    // Takes advantage of a quirk of twos-complement math.  If a number has
+    // only one bit set, for example 0b1000, then subtracting 1 will clear that
+    // bit and set only other bits giving e.g. 0b0111, and anding the two gives 0.
+    // If multiple bits are set, subtracting 1 will not clear the high bit.
+    return val & (val - 1);
+}
+
 String formatBytes(uint64_t bytes) {
     if (bytes < 1024) {
         return String((uint16_t)bytes) + " B";

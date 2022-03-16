@@ -168,4 +168,6 @@ bool constrain_with_message(T& value, T min, T max) {
     return true;
 }
 
+bool multiple_bits_set(uint32_t val);
+
 String formatBytes(uint64_t bytes);
