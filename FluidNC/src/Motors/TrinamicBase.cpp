@@ -30,7 +30,8 @@ namespace MotorDrivers {
                 for (TrinamicBase* p = List; p; p = p->link) {
                     if (p->_stallguardDebugMode) {
                         //log_info("SG:" << p->_stallguardDebugMode);
-                        p->debug_message();
+                        DebugStream ss("INFO");
+                        p->debug_message(ss);
                     }
                 }
             }  // sys.state

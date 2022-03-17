@@ -30,7 +30,7 @@ namespace MotorDrivers {
         return String(config->_axes->axisName(axis_index())) + (dual_axis_index() ? "2" : "") + " Axis";
     }
 
-    void MotorDriver::debug_message() {}
+    void MotorDriver::debug_message(Print& out) {}
 
     bool MotorDriver::test() { return true; };  // true = OK
 

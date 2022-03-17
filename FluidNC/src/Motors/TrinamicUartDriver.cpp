@@ -225,7 +225,7 @@ namespace MotorDrivers {
     }
 
     //  Report diagnostic and tuning info.
-    void TrinamicUartDriver::debug_message() {
+    void TrinamicUartDriver::debug_message(Print& out) {
         if (_has_errors) {
             return;
         }
@@ -239,8 +239,8 @@ namespace MotorDrivers {
 
         // TMC2208 does not have StallGuard
         if (tmc2209) {
-            log_info(axisName() << " SG_Val: " << tmc2209->SG_RESULT() << "   Rate: " << feedrate
-                                << " mm/min SG_Setting:" << constrain(_stallguard, -64, 63));
+            out << axisName() << " SG_Val: " << tmc2209->SG_RESULT() << "   Rate: " << feedrate
+                                << " mm/min SG_Setting:" << constrain(_stallguard, -64, 63) << "\n";
         }
 
         // TMC2208_n ::DRV_STATUS_t status { 0 };  // a useful struct to access the bits.

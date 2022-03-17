@@ -59,7 +59,7 @@ namespace MotorDrivers {
 
         void config_motor() override;
 
-        void debug_message();
+        void debug_message(Print& out);
 
         // Configuration handlers:
         void afterParse() override {

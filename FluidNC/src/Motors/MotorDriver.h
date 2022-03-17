@@ -24,6 +24,7 @@
 
 #include "../Configuration/Configurable.h"
 
+#include <Print.h>
 #include <cstdint>
 
 namespace MotorDrivers {
@@ -39,12 +40,9 @@ namespace MotorDrivers {
         virtual void init() {}
 
         // debug_message() displays motor-specific information that can be
-        // used to assist with motor configuration.  For many motor types,
-        // it is a no-op.
-        // TODO Architecture: Should this be private?  It only applies to
-        // Trinamic drivers so maybe there is a cleaner approach to solving
-        // the stallguard debugging problem.
-        virtual void debug_message();
+        // used to assist with motor configuration.  You can request motor status
+        // with $MS.
+        virtual void debug_message(Print& out);
 
         // read_settings(), called from init(), re-establishes the motor
         // setup from configurable arameters.
