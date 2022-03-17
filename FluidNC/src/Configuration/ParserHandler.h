@@ -21,12 +21,40 @@ namespace Configuration {
         std::vector<const char*> _path;
 
     public:
+        void enterSectionList(const char* name, BuilderBase<Configurable>* builder, std::vector<Configurable*>& inst) override {
+            int entryIndent = _parser.token_.indent_;
+            // check if list
+            _parser.Tokenize();
+            _parser.token_.state = TokenState::Held;
+            if (!_parser.token_.is_list_) {
+#ifdef DEBUG_CHATTY_YAML_PARSER
+                log_debug("----------- Entered single item under " << name << " at indent " << _parser.token_.indent_);
+#endif
+                inst.push_back(builder->create());
+                this->enterSectionItem(name, inst.back(), entryIndent);
+            }
+
+            while (_parser.token_.is_list_) {
+                _parser.token_.is_list_ = false;
+                entryIndent             = _parser.token_.indent_;
+                _parser.token_.indent_ += 2;
+#ifdef DEBUG_CHATTY_YAML_PARSER
+                log_debug("----------- Entered list item under " << name << " at indent " << _parser.token_.indent_);
+#endif
+                inst.push_back(builder->create());
+                this->enterSectionItem(name, inst.back(), entryIndent);
+            }
+        }
+
         void enterSection(const char* name, Configuration::Configurable* section) override {
+            this->enterSectionItem(name, section, _parser.token_.indent_);
+        }
+
+        void enterSectionItem(const char* name, Configuration::Configurable* section, int entryIndent) {
             _path.push_back(name);  // For error handling
 
             // On entry, the token is for the section that invoked us.
             // We will handle following nodes with indents greater than entryIndent
-            int entryIndent = _parser.token_.indent_;
 #ifdef DEBUG_CHATTY_YAML_PARSER
             log_debug("Entered section " << name << " at indent " << entryIndent);
 #endif

@@ -9,6 +9,22 @@
 
 namespace Configuration {
     template <typename BaseType>
+    class BuilderBase {
+        const char* name_;
+
+    public:
+        BuilderBase(const char* name) : name_(name) {}
+
+        BuilderBase(const BuilderBase& o) = delete;
+        BuilderBase& operator=(const BuilderBase& o) = delete;
+
+        virtual BaseType* create() const = 0;
+        const char*       name() const { return name_; }
+
+        virtual ~BuilderBase() = default;
+    };
+
+    template <typename BaseType>
     class GenericFactory {
         static GenericFactory& instance() {
             static GenericFactory instance_;
@@ -20,30 +36,15 @@ namespace Configuration {
         GenericFactory(const GenericFactory&) = delete;
         GenericFactory& operator=(const GenericFactory&) = delete;
 
-        class BuilderBase {
-            const char* name_;
+        std::vector<BuilderBase<BaseType>*> builders_;
 
-        public:
-            BuilderBase(const char* name) : name_(name) {}
-
-            BuilderBase(const BuilderBase& o) = delete;
-            BuilderBase& operator=(const BuilderBase& o) = delete;
-
-            virtual BaseType* create() const = 0;
-            const char*       name() const { return name_; }
-
-            virtual ~BuilderBase() = default;
-        };
-
-        std::vector<BuilderBase*> builders_;
-
-        inline static void registerBuilder(BuilderBase* builder) { instance().builders_.push_back(builder); }
+        inline static void registerBuilder(BuilderBase<BaseType>* builder) { instance().builders_.push_back(builder); }
 
     public:
         template <typename DerivedType>
-        class InstanceBuilder : public BuilderBase {
+        class InstanceBuilder : public BuilderBase<BaseType> {
         public:
-            InstanceBuilder(const char* name) : BuilderBase(name) { instance().registerBuilder(this); }
+            InstanceBuilder(const char* name) : BuilderBase<BaseType>(name) { instance().registerBuilder(this); }
 
             BaseType* create() const override { return new DerivedType(); }
         };
@@ -66,9 +67,11 @@ namespace Configuration {
             if (handler.handlerType() == HandlerType::Parser) {
                 for (auto it : instance().builders_) {
                     if (handler.matchesUninitialized(it->name())) {
-                        auto product = it->create();
-                        inst.push_back(product);
-                        handler.enterFactory(it->name(), *product);
+                        std::vector<Configurable*> instlocal;
+                        handler.enterFactoryList(it->name(), it, instlocal);
+                        for (const auto& value : instlocal) {
+                            inst.push_back((BaseType*)value);
+                        }
 
                         return;
                     }
