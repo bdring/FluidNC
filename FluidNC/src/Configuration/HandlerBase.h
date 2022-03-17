@@ -24,10 +24,16 @@ namespace Configuration {
     template <typename BaseType>
     class GenericFactory;
 
+    template <typename BaseType>
+    class BuilderBase;
+
     class HandlerBase {
     protected:
-        virtual void enterSection(const char* name, Configurable* value) = 0;
-        virtual bool matchesUninitialized(const char* name)              = 0;
+        virtual void enterSectionList(const char* name, BuilderBase<Configurable>* builder, std::vector<Configurable*>& inst) {
+            throw "WIP: Won't work";
+        };
+        virtual void enterSection(const char* name, Configuration::Configurable* value) = 0;
+        virtual bool matchesUninitialized(const char* name)                             = 0;
 
         template <typename BaseType>
         friend class GenericFactory;
@@ -75,6 +81,11 @@ namespace Configuration {
                     enterSection(name, value);
                 }
             }
+        }
+
+        template <typename T>
+        void enterFactoryList(const char* name, BuilderBase<T>* value, std::vector<Configuration::Configurable*>& inst) {
+            enterSectionList(name, (BuilderBase<Configurable>*)value, inst);
         }
 
         template <typename T>
