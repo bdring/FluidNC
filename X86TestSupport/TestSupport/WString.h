@@ -6,6 +6,8 @@
 #include <WString.h>
 #include <string>
 #include <algorithm>
+#include <cctype>
+
 
 class StringAppender;
 

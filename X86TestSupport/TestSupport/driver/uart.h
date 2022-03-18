@@ -8,6 +8,8 @@
 /**
  * @brief UART mode selection
  */
+#define UART_FIFO_LEN           (128)        /*!< Length of the hardware FIFO buffers */
+
 typedef enum {
     UART_MODE_UART                   = 0x00, /*!< mode: regular UART mode*/
     UART_MODE_RS485_HALF_DUPLEX      = 0x01, /*!< mode: half duplex RS485 UART mode control by RTS pin */

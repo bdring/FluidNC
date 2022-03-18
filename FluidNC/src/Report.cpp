@@ -39,6 +39,7 @@
 #include <cstring>
 #include <cstdio>
 #include <cstdarg>
+#include <iostream>
 
 #ifdef DEBUG_REPORT_HEAP
 EspClass esp;
@@ -421,8 +422,13 @@ void report_build_info(const char* line, Print& channel) {
 
 // Prints the character string line that was received, which has been pre-parsed,
 // and has been sent into protocol_execute_line() routine to be executed.
+
 void report_echo_line_received(char* line, Print& channel) {
+#ifdef FLUIDNC_CONSOLE
+    std::cout << "[echo: " << line << "]\n";
+#else
     channel << "[echo: " << line << "]\n";
+#endif
 }
 
 // Calculate the position for status reports.
@@ -515,14 +521,7 @@ static void pinString(Print& channel) {
         }
     }
 
-    String ctrl_pin_report = config->_control->report();
-    if (ctrl_pin_report.length()) {
-        if (prefixNeeded) {
-            prefixNeeded = false;
-            channel << "|Pn:";
-        }
-        channel << ctrl_pin_report;
-    }
+    channel << config->_control->report();
 }
 
 // Prints real-time data. This function grabs a real-time snapshot of the stepper subprogram
