@@ -89,7 +89,7 @@ namespace MotorDrivers {
 
         void group(Configuration::HandlerBase& handler) override {
             handler.item("cs_pin", _cs_pin);
-            handler.item("spi_index", _spi_index);
+            handler.item("spi_index", _spi_index, -1, 127);
             TrinamicBase::group(handler);
         }
 

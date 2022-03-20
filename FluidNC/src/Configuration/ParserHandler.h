@@ -102,7 +102,7 @@ namespace Configuration {
         void item(const char* name, int32_t& value, int32_t minValue, int32_t maxValue) override {
             if (_parser.is(name)) {
                 value = _parser.intValue();
-                constrain_with_message(value, minValue, maxValue);
+                constrain_with_message(value, minValue, maxValue, name);
             }
         }
 
@@ -121,7 +121,7 @@ namespace Configuration {
         void item(const char* name, float& value, float minValue, float maxValue) override {
             if (_parser.is(name)) {
                 value = _parser.floatValue();
-                constrain_with_message(value, minValue, maxValue);
+                constrain_with_message(value, minValue, maxValue, name);
             }
         }
 
