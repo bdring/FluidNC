@@ -748,7 +748,7 @@ Error do_command_or_setting(const char* key, char* value, WebUI::AuthenticationL
             return Error::Ok;
         }
     } catch (const Configuration::ParseException& ex) {
-        log_error("Configuration parse error: " << ex.What() << " @ " << ex.LineNumber() << ":" << ex.ColumnNumber());
+        log_error("Configuration parse error at line " << ex.LineNumber() << ": " << ex.What());
         return Error::ConfigurationInvalid;
     } catch (const AssertionFailed& ex) {
         log_error("Configuration change failed: " << ex.what());

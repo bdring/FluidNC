@@ -220,7 +220,7 @@ namespace Machine {
 
         } catch (const Configuration::ParseException& ex) {
             sys.state = State::ConfigAlarm;
-            log_error("Configuration parse error: " << ex.What() << " Line " << ex.LineNumber() << " column " << ex.ColumnNumber());
+            log_error("Configuration parse error on line " << ex.LineNumber() << ": " << ex.What());
         } catch (const AssertionFailed& ex) {
             sys.state = State::ConfigAlarm;
             // Get rid of buffer and return
