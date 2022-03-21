@@ -86,7 +86,7 @@ namespace MotorDrivers {
         } else {
             tmc5160->begin();
         }
-        //_has_errors = !test();  // Try communicating with motor. Prints an error if there is a problem.
+        _has_errors = !test();  // Try communicating with motor. Prints an error if there is a problem.
 
         init_step_dir_pins();
         read_settings();  // pull info from settings
