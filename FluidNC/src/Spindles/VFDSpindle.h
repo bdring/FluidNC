@@ -100,7 +100,7 @@ namespace Spindles {
 
         void group(Configuration::HandlerBase& handler) override {
             handler.section("uart", _uart);
-            handler.item("modbus_id", _modbus_id);
+            handler.item("modbus_id", _modbus_id, 0, 247); // per https://modbus.org/docs/PI_MBUS_300.pdf
 
             Spindle::group(handler);
         }
