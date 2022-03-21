@@ -69,7 +69,7 @@ namespace MotorDrivers {
             handler.item("microsteps", _microsteps, 1, 256);
             handler.item("stallguard", _stallguard, -64, 63);
             handler.item("stallguard_debug", _stallguardDebugMode);
-            handler.item("toff_disable", _toff_disable, 2, 15);
+            handler.item("toff_disable", _toff_disable, 0, 15);
             handler.item("toff_stealthchop", _toff_stealthchop, 2, 15);
             handler.item("toff_coolstep", _toff_coolstep, 2, 15);
             handler.item("run_mode", _run_mode, trinamicModes);
