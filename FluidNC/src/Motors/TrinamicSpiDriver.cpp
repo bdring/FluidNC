@@ -90,9 +90,6 @@ namespace MotorDrivers {
 
         init_step_dir_pins();
         read_settings();  // pull info from settings
-
-        log_info("Here 1")
-
         set_mode(false);
     }
 
