@@ -31,6 +31,8 @@ namespace Machine {
         // Register pulse_func with the I2S subsystem
         // This could be done via the linker.
         //        i2s_out_set_pulse_callback(Stepper::pulse_func);
+
+        Stepper::init();
     }
 
     void Stepping::reset() {
@@ -164,10 +166,11 @@ namespace Machine {
 
     void Stepping::group(Configuration::HandlerBase& handler) {
         handler.item("engine", _engine, stepTypes);
-        handler.item("idle_ms", _idleMsecs);
-        handler.item("pulse_us", _pulseUsecs);
-        handler.item("dir_delay_us", _directionDelayUsecs);
-        handler.item("disable_delay_us", _disableDelayUsecs);
+        handler.item("idle_ms", _idleMsecs, 0, 255);  // full range
+        handler.item("pulse_us", _pulseUsecs, 0, 10);
+        handler.item("dir_delay_us", _directionDelayUsecs, 0, 10);
+        handler.item("disable_delay_us", _disableDelayUsecs, 0, 10);
+        handler.item("segments", _segments, 6, 20);
     }
 
     void Stepping::afterParse() {

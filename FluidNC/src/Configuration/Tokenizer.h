@@ -61,6 +61,7 @@ namespace Configuration {
 
     public:
         const char* start_;
+        int         line_;
 
         // Results:
         struct TokenData {

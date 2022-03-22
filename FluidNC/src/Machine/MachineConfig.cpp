@@ -56,6 +56,7 @@ namespace Machine {
         handler.item("report_inches", _reportInches);
         handler.item("enable_parking_override_control", _enableParkingOverrideControl);
         handler.item("use_line_numbers", _useLineNumbers);
+        handler.item("planner_blocks", _planner_blocks, 10, 120);
 
         Spindles::SpindleFactory::factory(handler, _spindles);
     }
@@ -219,7 +220,7 @@ namespace Machine {
 
         } catch (const Configuration::ParseException& ex) {
             sys.state = State::ConfigAlarm;
-            log_error("Configuration parse error: " << ex.What() << " Line " << ex.LineNumber() << " column " << ex.ColumnNumber());
+            log_error("Configuration parse error on line " << ex.LineNumber() << ": " << ex.What());
         } catch (const AssertionFailed& ex) {
             sys.state = State::ConfigAlarm;
             // Get rid of buffer and return

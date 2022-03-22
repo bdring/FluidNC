@@ -81,13 +81,13 @@ FileStream::FileStream(const char* filename, const char* mode, const char* defau
     }
     if (_path.startsWith(sdPrefix)) {
         if (config->_sdCard->begin(SDCard::State::BusyWriting) != SDCard::State::Idle) {
-            log_info("FS busy ");
+            log_info("FS busy");
             throw Error::FsFailedMount;
         }
         _isSD = true;
     }
     if (_path.startsWith(actualLocalFs) && _path.length() > (30 + strlen(actualLocalFs))) {
-        log_info("Filename too long");
+        log_info("Filename too long: " << _path);
     }
     _fd = fopen(_path.c_str(), mode);
     if (!_fd) {

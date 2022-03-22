@@ -18,7 +18,7 @@ namespace Machine {
         handler.item("limit_pos_pin", _posPin);
         handler.item("limit_all_pin", _allPin);
         handler.item("hard_limits", _hardLimits);
-        handler.item("pulloff_mm", _pulloff);
+        handler.item("pulloff_mm", _pulloff, 0.1, 100000.0);
         MotorDrivers::MotorFactory::factory(handler, _driver);
     }
 

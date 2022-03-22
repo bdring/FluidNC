@@ -17,7 +17,7 @@ namespace Configuration {
     void Parser::parseError(const char* description) const {
         // Attempt to use the correct position in the parser:
         if (token_.keyEnd_) {
-            throw ParseException(token_.keyStart_, token_.keyEnd_, description);
+            throw ParseException(line_, description);
         } else {
             Tokenizer::ParseError(description);
         }
