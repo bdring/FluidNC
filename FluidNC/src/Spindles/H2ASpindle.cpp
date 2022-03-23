@@ -52,8 +52,8 @@ namespace Spindles {
         data.msg[1] = 0x06;  // WRITE
         data.msg[2] = 0x10;  // Command ID 0x1000
         data.msg[3] = 0x00;
-        data.msg[4] = dev_speed >> 8;
-        data.msg[5] = dev_speed & 0xFF;
+        data.msg[4] = speed >> 8;
+        data.msg[5] = speed & 0xFF;
     }
 
     VFD::response_parser H2A::initialization_sequence(int index, ModbusCommand& data) {
