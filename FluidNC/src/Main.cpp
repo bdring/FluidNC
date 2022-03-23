@@ -72,6 +72,8 @@ void setup() {
 
             config->_stepping->init();  // Configure stepper interrupt timers
 
+            plan_init();
+
             config->_userOutputs->init();
 
             config->_axes->init();

@@ -83,7 +83,7 @@ public:
         handler.item("rts_pin", _rts_pin);
         handler.item("cts_pin", _cts_pin);
 
-        handler.item("baud", baud);
+        handler.item("baud", baud, 2400, 4000000);
         handler.item("mode", dataBits, parity, stopBits);
     }
 

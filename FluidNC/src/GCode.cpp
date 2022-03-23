@@ -1257,6 +1257,15 @@ Error gc_execute_line(char* line, Channel& channel) {
                     //   is undefined. Probe is triggered. NOTE: Probe check moved to probe cycle. Instead of returning
                     //   an error, it issues an alarm to prevent further motion to the probe. It's also done there to
                     //   allow the planner buffer to empty and move off the probe trigger before another probing cycle.
+                    if (bitnum_is_true(value_words, GCodeWord::P)) {
+                        if (multiple_bits_set(axis_words)) {  // There should only be one axis word given
+                            FAIL(Error::GcodeUnusedWords);  // we have more axis words than allowed.
+                        }
+                    } else {
+                        gc_block.values.p = __FLT_MAX__;  // This is a hack to signal the probe cycle that not to auto offset.
+                    }
+                    clear_bitnum(value_words, GCodeWord::P);  // allow P to be used
+
                     if (!axis_words) {
                         FAIL(Error::GcodeNoAxisWords);  // [No axis words]
                     }
@@ -1575,7 +1584,7 @@ Error gc_execute_line(char* line, Channel& channel) {
                 if (!ALLOW_FEED_OVERRIDE_DURING_PROBE_CYCLES) {
                     pl_data->motion.noFeedOverride = 1;
                 }
-                gc_update_pos = mc_probe_cycle(gc_block.values.xyz, pl_data, gc_parser_flags);
+                gc_update_pos = mc_probe_cycle(gc_block.values.xyz, pl_data, gc_parser_flags, axis_words, gc_block.values.p);
             }
             // As far as the parser is concerned, the position is now == target. In reality the
             // motion control system might still be processing the action and the real tool position

@@ -50,7 +50,7 @@ bool mc_dwell(int32_t milliseconds);
 void mc_homing_cycle(AxisMask cycle_mask);
 
 // Perform tool length probe cycle. Requires probe switch.
-GCUpdatePos mc_probe_cycle(float* target, plan_line_data_t* pl_data, uint8_t parser_flags);
+GCUpdatePos mc_probe_cycle(float* target, plan_line_data_t* pl_data, uint8_t parser_flags, uint8_t offsetAxis = 0, float offset = 0.0);
 
 // Handles updating the override control state.
 void mc_override_ctrl_update(Override override_state);
