@@ -26,3 +26,5 @@ version.cpp
 esptool*.zip
 v*.zip
 /FluidNC/data/config.yaml
+build/
+dist/

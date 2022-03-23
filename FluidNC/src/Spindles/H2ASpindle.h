@@ -22,6 +22,8 @@ namespace Spindles {
         // Name of the configurable. Must match the name registered in the cpp file.
         const char* name() const override { return "H2A"; }
 
+        uint32_t _maxRPM;
+
     public:
         H2A();
     };
