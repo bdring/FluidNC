@@ -23,22 +23,19 @@ namespace Spindles {
         get_pins_and_settings();
         setupSpeeds(_pwm_freq);
 
-        if (_output_pin.undefined()) {
-            log_warn(name() << " output pin not defined");
-            return;  // We cannot continue without the output pin
-        }
-
-        if (!_output_pin.capabilities().has(Pin::Capabilities::PWM)) {
-            log_warn(name() << " output pin " << _output_pin.name().c_str() << " cannot do PWM");
-            return;
+        if (_output_pin.defined()) {
+            if (_output_pin.capabilities().has(Pin::Capabilities::PWM)) {
+                auto outputNative = _output_pin.getNative(Pin::Capabilities::PWM);
+                _pwm_chan_num     = ledcInit(_output_pin, -1, (double)_pwm_freq, _pwm_precision);
+            } else {
+                log_error(name() << " output pin " << _output_pin.name().c_str() << " cannot do PWM");
+            }
+        } else {
+            log_error(name() << " output pin not defined");
         }
 
         _current_state    = SpindleState::Disable;
         _current_pwm_duty = 0;
-
-        auto outputNative = _output_pin.getNative(Pin::Capabilities::PWM);
-
-        _pwm_chan_num = ledcInit(_output_pin, -1, (double)_pwm_freq, _pwm_precision);
 
         _enable_pin.setAttr(Pin::Attr::Output);
         _direction_pin.setAttr(Pin::Attr::Output);
@@ -110,7 +107,7 @@ namespace Spindles {
     }
 
     void IRAM_ATTR PWM::set_output(uint32_t duty) {
-        if (_output_pin.undefined()) {
+        if (_pwm_chan_num == -1) {
             return;
         }
 
