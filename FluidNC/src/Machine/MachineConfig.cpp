@@ -170,7 +170,7 @@ namespace Machine {
             delete[] buffer;
             return retval;
         } catch (...) {
-            log_info("Cannot open configuration file:" << filename);
+            log_warn("Cannot open configuration file:" << filename);
             return false;
         }
     }
