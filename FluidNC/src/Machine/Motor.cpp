@@ -11,9 +11,6 @@
 
 namespace Machine {
     void Motor::group(Configuration::HandlerBase& handler) {
-        _negLimitPin = new LimitPin(_negPin, _axis, _motorNum, -1, _hardLimits);
-        _posLimitPin = new LimitPin(_posPin, _axis, _motorNum, 1, _hardLimits);
-        _allLimitPin = new LimitPin(_allPin, _axis, _motorNum, 0, _hardLimits);
         handler.item("limit_neg_pin", _negPin);
         handler.item("limit_pos_pin", _posPin);
         handler.item("limit_all_pin", _allPin);
@@ -33,6 +30,10 @@ namespace Machine {
             set_bitnum(Machine::Axes::motorMask, _axis + 16 * _motorNum);
         }
         _driver->init();
+
+        _negLimitPin = new LimitPin(_negPin, _axis, _motorNum, -1, _hardLimits);
+        _posLimitPin = new LimitPin(_posPin, _axis, _motorNum, 1, _hardLimits);
+        _allLimitPin = new LimitPin(_allPin, _axis, _motorNum, 0, _hardLimits);
 
         _negLimitPin->init();
         _posLimitPin->init();
