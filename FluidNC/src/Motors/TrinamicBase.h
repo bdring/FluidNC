@@ -5,7 +5,7 @@
 
 #include "StandardStepper.h"
 #include "../EnumItem.h"
-
+#include <TMCStepper.h>  // https://github.com/teemuatlut/TMCStepper
 #include <cstdint>
 
 namespace MotorDrivers {
@@ -60,9 +60,11 @@ namespace MotorDrivers {
         const char* yn(bool v) { return v ? "Y" : "N"; }
 
     public:
-        TrinamicBase(uint16_t partNumber) : StandardStepper(), _driver_part_number(partNumber) {}
+        TrinamicBase() = default;
 
         void group(Configuration::HandlerBase& handler) override {
+            StandardStepper::group(handler);
+
             handler.item("r_sense_ohms", _r_sense, 0.01, 1.00);
             handler.item("run_amps", _run_current, 0.05, 10.0);
             handler.item("hold_amps", _hold_current, 0.05, 10.0);
@@ -75,8 +77,6 @@ namespace MotorDrivers {
             handler.item("run_mode", _run_mode, trinamicModes);
             handler.item("homing_mode", _homing_mode, trinamicModes);
             handler.item("use_enable", _use_enable);
-
-            StandardStepper::group(handler);
         }
     };
 
