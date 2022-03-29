@@ -14,11 +14,10 @@ const float TMC5160_RSENSE_DEFAULT = 0.075f;
 
 namespace MotorDrivers {
 
-    class Trinamic5160Driver : public TrinamicSpiDriver {
+    class TMC5160Driver : public TrinamicSpiDriver {
     public:
         // Overrides for inherited methods
         void init() override;
-        void read_settings() override;
         void set_disable(bool disable);
         void config_motor() override;
         void debug_message() override;
@@ -27,7 +26,7 @@ namespace MotorDrivers {
         void group(Configuration::HandlerBase& handler) override {
             TrinamicSpiDriver::group(handler);
             handler.item("tpfd", _tpfd, 0, 15);
-                }
+        }
 
         // Name of the configurable. Must match the name registered in the cpp file.
         const char* name() const override { return "tmc_5160"; }

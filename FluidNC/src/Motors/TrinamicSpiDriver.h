@@ -53,7 +53,7 @@ namespace MotorDrivers {
             TrinamicBase::group(handler);
 
             handler.item("cs_pin", _cs_pin);
-            handler.item("spi_index", _spi_index, -1, 127);            
+            handler.item("spi_index", _spi_index, -1, 127);
         }
 
     protected:
@@ -62,7 +62,12 @@ namespace MotorDrivers {
         void         config_message() override;
         const int    _spi_freq = 100000;
         virtual void set_mode(bool isHoming);
-        uint8_t      SPI_setup();
+        uint8_t      setupSPI();
+        void         finalInit();
+        float        holdPercent();
+        bool         reportTest(uint8_t result);
+        uint8_t      toffValue();
+        bool         startDisable(bool disable);
 
     private:
         static pinnum_t daisy_chain_cs_id;

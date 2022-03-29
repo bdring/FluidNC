@@ -14,11 +14,10 @@ const float TMC2130_RSENSE_DEFAULT = 0.11f;
 
 namespace MotorDrivers {
 
-    class Trinamic2130Driver : public TrinamicSpiDriver {
+    class TMC2130Driver : public TrinamicSpiDriver {
     public:
         // Overrides for inherited methods
         void init() override;
-        void read_settings() override;
         void set_disable(bool disable);
         void config_motor() override;
         void debug_message() override;
@@ -32,6 +31,7 @@ namespace MotorDrivers {
 
         bool test();
         void set_mode(bool isHoming);
+        void set_homing_mode();
         void trinamic_test_response();
         void trinamic_stepper_enable(bool enable);
     };

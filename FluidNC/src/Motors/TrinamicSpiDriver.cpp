@@ -17,7 +17,9 @@ namespace MotorDrivers {
 
     void TrinamicSpiDriver::init() {}  // TODO put some common stuff here
 
-    uint8_t TrinamicSpiDriver::SPI_setup() {
+    uint8_t TrinamicSpiDriver::setupSPI() {
+        _has_errors = false;
+
         auto spiConfig = config->_spi;
         Assert(spiConfig && spiConfig->defined(), "SPI bus is not configured. Cannot initialize TMC driver.");
 
@@ -33,6 +35,34 @@ namespace MotorDrivers {
         return cs_id;
     }
 
+    void TrinamicSpiDriver::finalInit() {
+        _has_errors = false;
+
+        link = List;
+        List = this;
+
+        // Display the stepper library version message once, before the first
+        // TMC config message.  Link is NULL for the first TMC instance.
+        if (!link) {
+            log_debug("TMCStepper Library Ver. 0x" << String(TMCSTEPPER_VERSION, HEX));
+        }
+
+        config_message();
+
+        // After initializing all of the TMC drivers, create a task to
+        // display StallGuard data.  List == this for the final instance.
+        if (List == this) {
+            xTaskCreatePinnedToCore(readSgTask,    // task
+                                    "readSgTask",  // name for task
+                                    4096,          // size of task stack
+                                    this,          // parameters
+                                    1,             // priority
+                                    NULL,
+                                    SUPPORT_TASK_CORE  // must run the task on same core
+            );
+        }
+    }
+
     /*
     This is the startup message showing the basic definition
     */
@@ -45,6 +75,85 @@ namespace MotorDrivers {
 
     bool TrinamicSpiDriver::set_homing_mode(bool isHoming) {
         set_mode(isHoming);
+        return true;
+    }
+
+    float TrinamicSpiDriver::holdPercent() {
+        if (_run_current == 0) {
+            return 0.0;
+        }
+
+        float hold_i_percent = _hold_current / _run_current;
+        if (hold_i_percent > 1.0) {
+            hold_i_percent = 1.0;
+        }
+        return hold_i_percent;
+    }
+
+    bool TrinamicSpiDriver::reportTest(uint8_t result) {
+        if (_has_errors) {
+            return false;
+        }
+
+        switch (result) {
+            case 1:
+                log_error(axisName() << " driver test failed. Check connection");
+                return false;
+            case 2:
+                log_error(axisName() << " driver test failed. Check motor power");
+                return false;
+            default:
+                // driver responded, so check for other errors from the DRV_STATUS register
+
+                // TMC2130_n ::DRV_STATUS_t status { 0 };  // a useful struct to access the bits.
+                // status.sr = tmc2130 ? tmc2130stepper->DRV_STATUS() : tmc5160stepper->DRV_STATUS();;
+
+                // bool err = false;
+
+                // look for errors
+                // if (report_short_to_ground(status.s2ga, status.s2gb)) {
+                //     err = true;
+                // }
+
+                // if (report_over_temp(status.ot, status.otpw)) {
+                //     err = true;
+                // }
+
+                // if (report_short_to_ps(bits_are_true(status.sr, 12), bits_are_true(status.sr, 13))) {
+                //     err = true;
+                // }
+
+                // XXX why not report_open_load(status.ola, status.olb) ?
+
+                // if (err) {
+                //     return false;
+                // }
+
+                log_info(axisName() << " driver test passed");
+                return true;
+        }
+    }
+
+    uint8_t TrinamicSpiDriver::toffValue() {
+        if (_disabled) {
+            return _toff_disable;
+        }
+        return _mode == TrinamicMode::StealthChop ? _toff_stealthchop : _toff_coolstep;
+    }
+
+    bool TrinamicSpiDriver::startDisable(bool disable) {
+        if (_has_errors) {
+            return false;
+        }
+
+        if ((_disabled == disable) && _disable_state_known) {
+            return false;
+        }
+
+        _disable_state_known = true;
+        _disabled            = disable;
+
+        _disable_pin.synchronousWrite(_disabled);
         return true;
     }
 }
