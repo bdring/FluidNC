@@ -6,7 +6,6 @@
 #include "TrinamicBase.h"
 #include "../Pin.h"
 #include "../PinMapper.h"
-#include <TMCStepper.h>
 
 #include <cstdint>
 
@@ -21,7 +20,7 @@ namespace MotorDrivers {
 
         // Overrides for inherited methods
         virtual void init() override;
-        bool         set_homing_mode(bool ishoming) override;
+        //bool         set_homing_mode(bool ishoming) override;
 
         // Configuration handlers:
         void afterParse() override {
@@ -61,17 +60,16 @@ namespace MotorDrivers {
         int32_t   _spi_index = -1;
         const int _spi_freq  = 100000;
 
-        void config_message() override;
-        virtual void set_registers(bool isHoming);
+        void         config_message() override;
+        
         uint8_t      setupSPI();
         void         finalInit();
-        float        holdPercent();
-        bool         reportTest(uint8_t result);
-        uint8_t      toffValue();
-        bool         startDisable(bool disable);
+
+        bool    reportTest(uint8_t result);
+        uint8_t toffValue();
+        
 
     private:
-    
         static pinnum_t daisy_chain_cs_id;
         static uint8_t  spi_index_mask;
 

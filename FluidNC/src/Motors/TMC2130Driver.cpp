@@ -25,18 +25,20 @@ namespace MotorDrivers {
 
     void TMC2130Driver::config_motor() {
         tmc2130->begin();
-        _has_errors = !test();  // Try communicating with motor. Prints an error if there is a problem.
+        TrinamicBase::config_motor();
 
-        init_step_dir_pins();
+        // _has_errors = !test();  // Try communicating with motor. Prints an error if there is a problem.
 
-        if (_has_errors) {
-            return;
-        }
+        // init_step_dir_pins();
 
-        set_registers(false);
+        // if (_has_errors) {
+        //     return;
+        // }
+
+        // set_registers(false);
     }
 
-    bool TMC2130Driver::test() { return TrinamicSpiDriver::reportTest(tmc2130->test_connection()); }
+    bool TMC2130Driver::test() { return TrinamicBase::reportTest(tmc2130->test_connection()); }
 
     void TMC2130Driver::set_registers(bool isHoming) {
         if (_has_errors) {

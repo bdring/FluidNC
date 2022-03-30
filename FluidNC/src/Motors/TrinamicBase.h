@@ -52,10 +52,16 @@ namespace MotorDrivers {
 
         const double fclk = 12700000.0;  // Internal clock Approx (Hz) used to calculate TSTEP from homing rate
 
-        bool report_open_load(bool ola, bool olb);
-        bool report_short_to_ground(bool s2ga, bool s2gb);
-        bool report_over_temp(bool ot, bool otpw);
-        bool report_short_to_ps(bool vsa, bool vsb);
+        float        holdPercent();
+        bool         report_open_load(bool ola, bool olb);
+        bool         report_short_to_ground(bool s2ga, bool s2gb);
+        bool         report_over_temp(bool ot, bool otpw);
+        bool         report_short_to_ps(bool vsa, bool vsb);
+        bool         set_homing_mode(bool isHoming);
+        virtual void set_registers(bool isHoming) {}
+        bool         reportTest(uint8_t result);
+        bool         startDisable(bool disable);
+        virtual void config_motor();
 
         const char* yn(bool v) { return v ? "Y" : "N"; }
 

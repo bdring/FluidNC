@@ -3,14 +3,14 @@
 
 #pragma once
 
-#include "TrinamicBase.h"
+//#include "TrinamicBase.h"
 #include "TrinamicSpiDriver.h"
 #include "../Pin.h"
 #include "../PinMapper.h"
 
 #include <cstdint>
 
-const float TMC2130_RSENSE_DEFAULT = 0.11f;
+//const float TMC2130_RSENSE_DEFAULT = 0.11f;
 
 namespace MotorDrivers {
 
@@ -30,8 +30,8 @@ namespace MotorDrivers {
         TMC2130Stepper* tmc2130 = nullptr;
 
         bool test();
-        void set_registers(bool isHoming);
-        void set_homing_mode();
+        void set_registers(bool isHoming) override;
+        
         void trinamic_test_response();
         void trinamic_stepper_enable(bool enable);
     };

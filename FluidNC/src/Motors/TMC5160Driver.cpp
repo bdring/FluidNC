@@ -22,19 +22,20 @@ namespace MotorDrivers {
 
     void TMC5160Driver::config_motor() {
         tmc5160->begin();
+        TrinamicBase::config_motor();
 
-        _has_errors = !test();  // Try communicating with motor. Prints an error if there is a problem.
+        // _has_errors = !test();  // Try communicating with motor. Prints an error if there is a problem.
 
-        init_step_dir_pins();
+        // init_step_dir_pins();
 
-        if (_has_errors) {
-            return;
-        }
+        // if (_has_errors) {
+        //     return;
+        // }
 
-        set_registers(false);
+        // set_registers(false);
     }
 
-    bool TMC5160Driver::test() { return TrinamicSpiDriver::reportTest(tmc5160->test_connection()); }
+    bool TMC5160Driver::test() { return TrinamicBase::reportTest(tmc5160->test_connection()); }
 
     void TMC5160Driver::set_registers(bool isHoming) {
         if (_has_errors) {
@@ -48,7 +49,7 @@ namespace MotorDrivers {
         // and hold current as (float) fraction of run current.
         uint16_t run_i = (uint16_t)(_run_current * 1000.0);
         tmc5160->rms_current(run_i, TrinamicSpiDriver::holdPercent());
-        
+
         // The TMCStepper library uses the value 0 to mean 1x microstepping
         int usteps = _microsteps == 1 ? 0 : _microsteps;
         tmc5160->microsteps(usteps);

@@ -1,41 +1,38 @@
 // Copyright (c) 2020 -	Bart Dring
+// Copyright (c) 2020 -	The Ant Team
 // Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
 
 /*
-    This is used for Trinamic SPI controlled stepper motor drivers.
+    This is used for Trinamic UART controlled stepper motor drivers.
+
+    TMC2209 Datasheet
+    https://www.trinamic.com/fileadmin/assets/Products/ICs_Documents/TMC2209_Datasheet_V103.pdf
 */
 
-#include "TrinamicSpiDriver.h"
+#include "TrinamicUartDriver.h"
+
 #include "../Machine/MachineConfig.h"
+#include "../Uart.h"
+
 #include <TMCStepper.h>  // https://github.com/teemuatlut/TMCStepper
 #include <atomic>
 
 namespace MotorDrivers {
 
-    pinnum_t TrinamicSpiDriver::daisy_chain_cs_id = 255;
-    uint8_t  TrinamicSpiDriver::spi_index_mask    = 0;
+    Uart* TrinamicUartDriver::_uart         = nullptr;
+    bool  TrinamicUartDriver::_uart_started = false;
 
-    void TrinamicSpiDriver::init() {}
+    void TrinamicUartDriver::init() {}
 
-    uint8_t TrinamicSpiDriver::setupSPI() {
-        _has_errors = false;
-
-        auto spiConfig = config->_spi;
-        Assert(spiConfig && spiConfig->defined(), "SPI bus is not configured. Cannot initialize TMC driver.");
-
-        uint8_t cs_id;
-        if (daisy_chain_cs_id != 255) {
-            cs_id = daisy_chain_cs_id;
-        } else {
-            _cs_pin.setAttr(Pin::Attr::Output | Pin::Attr::InitialOn);
-            _cs_mapping = PinMapper(_cs_pin);
-            cs_id       = _cs_mapping.pinId();
-        }
-
-        return cs_id;
+    /*
+        This is the startup message showing the basic definition. 
+    */
+    void TrinamicUartDriver::config_message() {  //TODO: The RX/TX pin could be added to the msg.
+        log_info("    " << name() << " Step:" << _step_pin.name() << " Dir:" << _dir_pin.name() << " Disable:" << _disable_pin.name()
+                        << " Addr:" << _addr << " R:" << _r_sense);
     }
 
-    void TrinamicSpiDriver::finalInit() {
+    void TrinamicUartDriver::finalInit() {
         _has_errors = false;
 
         link = List;
@@ -63,15 +60,7 @@ namespace MotorDrivers {
         }
     }
 
-    /*
-    This is the startup message showing the basic definition
-    */
-    void TrinamicSpiDriver::config_message() {
-        log_info("    " << name() << " Step:" << _step_pin.name() << " Dir:" << _dir_pin.name() << " CS:" << _cs_pin.name()
-                        << " Disable:" << _disable_pin.name() << " Index:" << _spi_index << " R:" << _r_sense);
-    }
-
-    uint8_t TrinamicSpiDriver::toffValue() {
+    uint8_t TrinamicUartDriver::toffValue() {
         if (_disabled) {
             return _toff_disable;
         }
