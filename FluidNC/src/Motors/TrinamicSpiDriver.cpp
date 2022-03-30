@@ -15,8 +15,8 @@ namespace MotorDrivers {
     pinnum_t TrinamicSpiDriver::daisy_chain_cs_id = 255;
     uint8_t  TrinamicSpiDriver::spi_index_mask    = 0;
 
-    void TrinamicSpiDriver::init() {}  // TODO put some common stuff here
-
+    void TrinamicSpiDriver::init() {} 
+    
     uint8_t TrinamicSpiDriver::setupSPI() {
         _has_errors = false;
 
@@ -71,10 +71,10 @@ namespace MotorDrivers {
                         << " Disable:" << _disable_pin.name() << " Index:" << _spi_index << " R:" << _r_sense);
     }
 
-    void TrinamicSpiDriver::set_mode(bool isHoming) {}
+    void TrinamicSpiDriver::set_registers(bool isHoming) {}
 
     bool TrinamicSpiDriver::set_homing_mode(bool isHoming) {
-        set_mode(isHoming);
+        set_registers(isHoming);
         return true;
     }
 
@@ -83,11 +83,12 @@ namespace MotorDrivers {
             return 0.0;
         }
 
-        float hold_i_percent = _hold_current / _run_current;
-        if (hold_i_percent > 1.0) {
-            hold_i_percent = 1.0;
+        float hold_percent = _hold_current / _run_current;
+        if (hold_percent > 1.0) {
+            hold_percent = 1.0;
         }
-        return hold_i_percent;
+
+        return hold_percent;
     }
 
     bool TrinamicSpiDriver::reportTest(uint8_t result) {

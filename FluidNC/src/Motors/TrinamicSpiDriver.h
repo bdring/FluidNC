@@ -57,11 +57,12 @@ namespace MotorDrivers {
         }
 
     protected:
-        Pin          _cs_pin;  // The chip select pin (can be the same for daisy chain)
-        int32_t      _spi_index = -1;
-        void         config_message() override;
-        const int    _spi_freq = 100000;
-        virtual void set_mode(bool isHoming);
+        Pin       _cs_pin;  // The chip select pin (can be the same for daisy chain)
+        int32_t   _spi_index = -1;
+        const int _spi_freq  = 100000;
+
+        void config_message() override;
+        virtual void set_registers(bool isHoming);
         uint8_t      setupSPI();
         void         finalInit();
         float        holdPercent();
@@ -70,12 +71,12 @@ namespace MotorDrivers {
         bool         startDisable(bool disable);
 
     private:
+    
         static pinnum_t daisy_chain_cs_id;
         static uint8_t  spi_index_mask;
 
         PinMapper _cs_mapping;
 
-        //bool test();
         void trinamic_test_response();
         void trinamic_stepper_enable(bool enable);
     };
