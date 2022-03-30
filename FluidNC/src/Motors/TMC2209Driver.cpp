@@ -18,6 +18,10 @@ namespace MotorDrivers {
             _uart_started = true;
         }
 
+        if (_r_sense == 0) {
+            _r_sense = TMC2209_RSENSE_DEFAULT;
+        }
+
         tmc2209 = new TMC2209Stepper(_uart, _r_sense, _addr);
 
         finalInit();
@@ -26,15 +30,6 @@ namespace MotorDrivers {
     void TMC2209Driver::config_motor() {
         tmc2209->begin();
         TrinamicBase::config_motor();
-        // _has_errors = !test();  // Try communicating with motor. Prints an error if there is a problem.
-
-        // init_step_dir_pins();
-
-        // if (_has_errors) {
-        //     return;
-        // }
-
-        // set_registers(false);
     }
 
     void TMC2209Driver::set_registers(bool isHoming) {
@@ -97,19 +92,6 @@ namespace MotorDrivers {
             log_info(axisName() << " SG_Val: " << tmc2209->SG_RESULT() << "   Rate: " << feedrate
                                 << " mm/min SG_Setting:" << constrain(_stallguard, -64, 63));
         }
-
-        // The bit locations differ somewhat between different chips.
-        // The layout is the same for TMC2130 and TMC5160
-        // TMC2130_n ::DRV_STATUS_t status { 0 };  // a useful struct to access the bits.
-        // status.sr = tmc2130 ? tmc2130->DRV_STATUS() : tmc5160->DRV_STATUS();
-
-        // these only report if there is a fault condition
-        // report_open_load(status.ola, status.olb);
-        // report_short_to_ground(status.s2ga, status.s2gb);
-        // report_over_temp(status.ot, status.otpw);
-        // report_short_to_ps(bits_are_true(status.sr, 12), bits_are_true(status.sr, 13));
-
-        // log_info(axisName() << " Status Register " << String(status.sr, HEX) << " GSTAT " << String(tmc2130 ? tmc2130->GSTAT() : tmc5160->GSTAT(), HEX));
     }
 
     void TMC2209Driver::set_disable(bool disable) {

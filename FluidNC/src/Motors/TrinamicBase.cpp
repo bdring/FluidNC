@@ -142,11 +142,6 @@ namespace MotorDrivers {
     }
 
     void TrinamicBase::config_motor() {
-        // Each final motor class should have...
-        /*
-        tmcnnnn->begin();
-        TrinamicBase::config_motor();
-        */ 
         _has_errors = !test();  // Try communicating with motor. Prints an error if there is a problem.
 
         init_step_dir_pins();

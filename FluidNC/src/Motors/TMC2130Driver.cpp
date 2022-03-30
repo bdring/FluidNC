@@ -13,7 +13,12 @@ namespace MotorDrivers {
 
     void TMC2130Driver::init() {
         uint8_t cs_id;
-        cs_id   = setupSPI();
+        cs_id = setupSPI();
+
+        if (_r_sense == 0) { 
+            _r_sense = TMC2130_RSENSE_DEFAULT;
+        }
+
         tmc2130 = new TMC2130Stepper(cs_id, _r_sense, _spi_index);  // TODO hardwired to non daisy chain index
 
         // use slower speed if I2S
@@ -26,16 +31,6 @@ namespace MotorDrivers {
     void TMC2130Driver::config_motor() {
         tmc2130->begin();
         TrinamicBase::config_motor();
-
-        // _has_errors = !test();  // Try communicating with motor. Prints an error if there is a problem.
-
-        // init_step_dir_pins();
-
-        // if (_has_errors) {
-        //     return;
-        // }
-
-        // set_registers(false);
     }
 
     bool TMC2130Driver::test() { return TrinamicBase::reportTest(tmc2130->test_connection()); }
@@ -103,19 +98,6 @@ namespace MotorDrivers {
 
         log_info(axisName() << " Stallguard " << tmc2130->stallguard() << "   SG_Val:" << tmc2130->sg_result() << " Rate:" << feedrate
                             << " mm/min SG_Setting:" << constrain(_stallguard, -64, 63));
-
-        // The bit locations differ somewhat between different chips.
-        // The layout is the same for TMC2130 and TMC5160
-        // TMC2130_n ::DRV_STATUS_t status { 0 };  // a useful struct to access the bits.
-        // status.sr = tmc2130 ? tmc2130->DRV_STATUS() : tmc5160->DRV_STATUS();
-
-        // these only report if there is a fault condition
-        // report_open_load(status.ola, status.olb);
-        // report_short_to_ground(status.s2ga, status.s2gb);
-        // report_over_temp(status.ot, status.otpw);
-        // report_short_to_ps(bits_are_true(status.sr, 12), bits_are_true(status.sr, 13));
-
-        // log_info(axisName() << " Status Register " << String(status.sr, HEX) << " GSTAT " << String(tmc2130 ? tmc2130->GSTAT() : tmc5160->GSTAT(), HEX));
     }
 
     void TMC2130Driver::set_disable(bool disable) {

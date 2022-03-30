@@ -3,18 +3,18 @@
 
 #pragma once
 
-#include "TrinamicBase.h"
-#include "TrinamicSpiDriver.h"
+//#include "TrinamicBase.h"
+#include "TrinamicUartDriver.h"
 #include "../Pin.h"
 #include "../PinMapper.h"
 
 #include <cstdint>
 
-const float TMC5160_RSENSE_DEFAULT = 0.075f;
+const float TMC2208_RSENSE_DEFAULT = 0.11f;
 
 namespace MotorDrivers {
 
-    class TMC5160Driver : public TrinamicSpiDriver {
+    class TMC2208Driver : public TrinamicUartDriver {
     public:
         // Overrides for inherited methods
         void init() override;
@@ -24,20 +24,24 @@ namespace MotorDrivers {
         void validate() const override { StandardStepper::validate(); }
 
         void group(Configuration::HandlerBase& handler) override {
-            TrinamicSpiDriver::group(handler);
-            handler.item("tpfd", _tpfd, 0, 15);
+                        handler.item("run_mode", _run_mode, trinamicModes);
+            handler.item("homing_mode", _homing_mode, trinamicModes);
+            handler.item("stallguard", _stallguard, -64, 63);
+            handler.item("stallguard_debug", _stallguardDebugMode);
+            handler.item("toff_coolstep", _toff_coolstep, 2, 15);
+
+            TrinamicUartDriver::group(handler);
         }
 
         // Name of the configurable. Must match the name registered in the cpp file.
-        const char* name() const override { return "tmc_5160"; }
+        const char* name() const override { return "tmc_2208"; }
 
     private:
-        TMC5160Stepper* tmc5160 = nullptr;
-
-        uint8_t _tpfd = 4;
+        TMC2208Stepper* tmc2208 = nullptr;
 
         bool test();
         void set_registers(bool isHoming);
+        //void set_homing_mode();
         void trinamic_test_response();
         void trinamic_stepper_enable(bool enable);
     };

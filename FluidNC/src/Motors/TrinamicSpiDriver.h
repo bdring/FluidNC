@@ -53,6 +53,12 @@ namespace MotorDrivers {
 
             handler.item("cs_pin", _cs_pin);
             handler.item("spi_index", _spi_index, -1, 127);
+            
+            handler.item("run_mode", _run_mode, trinamicModes);
+            handler.item("homing_mode", _homing_mode, trinamicModes);
+            handler.item("stallguard", _stallguard, -64, 63);
+            handler.item("stallguard_debug", _stallguardDebugMode);
+            handler.item("toff_coolstep", _toff_coolstep, 2, 15);
         }
 
     protected:

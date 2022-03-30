@@ -48,10 +48,10 @@ namespace MotorDrivers {
             // $CD), _uart will be non-null, so we use the instance
             // variable _addr to force the generation of only one
             // uart: section, beneath the tmc_220x: section for addr 0.
+            handler.item("addr", _addr);
             if (_uart == nullptr || _addr == 0) {
                 handler.section("uart", _uart);
-            }
-            handler.item("addr", _addr);
+            }            
         }
 
     protected:

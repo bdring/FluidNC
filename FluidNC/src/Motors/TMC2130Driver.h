@@ -10,7 +10,7 @@
 
 #include <cstdint>
 
-//const float TMC2130_RSENSE_DEFAULT = 0.11f;
+const float TMC2130_RSENSE_DEFAULT = 0.11f;
 
 namespace MotorDrivers {
 

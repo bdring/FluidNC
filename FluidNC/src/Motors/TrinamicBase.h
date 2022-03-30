@@ -31,7 +31,7 @@ namespace MotorDrivers {
         // Configurable
         int   _homing_mode = StealthChop;
         int   _run_mode    = StealthChop;
-        float _r_sense     = 0.11;
+        float _r_sense     = 0;
         bool  _use_enable  = false;
 
         float _run_current         = 0.50;
@@ -71,17 +71,12 @@ namespace MotorDrivers {
         void group(Configuration::HandlerBase& handler) override {
             StandardStepper::group(handler);
 
-            handler.item("r_sense_ohms", _r_sense, 0.01, 1.00);
+            handler.item("r_sense_ohms", _r_sense, 0.0, 1.00);
             handler.item("run_amps", _run_current, 0.05, 10.0);
             handler.item("hold_amps", _hold_current, 0.05, 10.0);
-            handler.item("microsteps", _microsteps, 1, 256);
-            handler.item("stallguard", _stallguard, -64, 63);
-            handler.item("stallguard_debug", _stallguardDebugMode);
+            handler.item("microsteps", _microsteps, 1, 256);            
             handler.item("toff_disable", _toff_disable, 0, 15);
-            handler.item("toff_stealthchop", _toff_stealthchop, 2, 15);
-            handler.item("toff_coolstep", _toff_coolstep, 2, 15);
-            handler.item("run_mode", _run_mode, trinamicModes);
-            handler.item("homing_mode", _homing_mode, trinamicModes);
+            handler.item("toff_stealthchop", _toff_stealthchop, 2, 15);                        
             handler.item("use_enable", _use_enable);
         }
     };
