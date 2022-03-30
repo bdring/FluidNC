@@ -51,13 +51,12 @@ namespace MotorDrivers {
 
         switch (_mode) {
             case TrinamicMode ::StealthChop:
-                //log_info("StealthChop");
+                log_debug("StealthChop");
                 tmc2209->en_spreadCycle(false);
                 tmc2209->pwm_autoscale(true);
                 break;
             case TrinamicMode ::CoolStep:
-                //log_info("Coolstep");
-                // tmc2209->en_pwm_mode(false); //TODO: check if this is present in TMC2208/09
+                log_debug("Coolstep");
                 tmc2209->en_spreadCycle(true);
                 tmc2209->pwm_autoscale(false);
                 break;
@@ -65,7 +64,7 @@ namespace MotorDrivers {
             {
                 auto axisConfig     = config->_axes->_axis[this->axis_index()];
                 auto homingFeedRate = (axisConfig->_homing != nullptr) ? axisConfig->_homing->_feedRate : 200;
-                //log_info("Stallguard");
+                log_debug("Stallguard");
                 tmc2209->en_spreadCycle(false);
                 tmc2209->pwm_autoscale(false);
                 tmc2209->TCOOLTHRS(calc_tstep(homingFeedRate, 150.0));

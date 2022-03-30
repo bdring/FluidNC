@@ -3,7 +3,6 @@
 
 #pragma once
 
-//#include "TrinamicBase.h"
 #include "TrinamicUartDriver.h"
 #include "../Pin.h"
 #include "../PinMapper.h"
@@ -30,8 +29,7 @@ namespace MotorDrivers {
             handler.item("stallguard_debug", _stallguardDebugMode);
             handler.item("toff_coolstep", _toff_coolstep, 2, 15);
 
-             TrinamicUartDriver::group(handler);
-
+            TrinamicUartDriver::group(handler);
         }
 
         // Name of the configurable. Must match the name registered in the cpp file.

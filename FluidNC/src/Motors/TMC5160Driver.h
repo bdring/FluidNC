@@ -3,7 +3,6 @@
 
 #pragma once
 
-#include "TrinamicBase.h"
 #include "TrinamicSpiDriver.h"
 #include "../Pin.h"
 #include "../PinMapper.h"

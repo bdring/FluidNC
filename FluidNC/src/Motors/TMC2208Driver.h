@@ -3,7 +3,6 @@
 
 #pragma once
 
-//#include "TrinamicBase.h"
 #include "TrinamicUartDriver.h"
 #include "../Pin.h"
 #include "../PinMapper.h"
@@ -24,7 +23,7 @@ namespace MotorDrivers {
         void validate() const override { StandardStepper::validate(); }
 
         void group(Configuration::HandlerBase& handler) override {
-                        handler.item("run_mode", _run_mode, trinamicModes);
+            handler.item("run_mode", _run_mode, trinamicModes);
             handler.item("homing_mode", _homing_mode, trinamicModes);
             handler.item("stallguard", _stallguard, -64, 63);
             handler.item("stallguard_debug", _stallguardDebugMode);
@@ -41,7 +40,6 @@ namespace MotorDrivers {
 
         bool test();
         void set_registers(bool isHoming);
-        //void set_homing_mode();
         void trinamic_test_response();
         void trinamic_stepper_enable(bool enable);
     };
