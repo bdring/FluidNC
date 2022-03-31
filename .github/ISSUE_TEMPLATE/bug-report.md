@@ -2,14 +2,12 @@
 name: Bug Report
 about: Use this template to report bugs.
 title: ''
-labels:
+labels: bug
 assignees: ''
 
 ---
 
 Please only submit bugs for the **latest** version of the code. You can check the version number in the startup messages.
-
-**Do not add the bug label**. The developers of this repo will do that after confirming the issue.
 
 Please provide the [FluidNC boot messages per this page](https://github.com/bdring/FluidNC/wiki/Requesting-Help#fluidnc-boot-messages).
 

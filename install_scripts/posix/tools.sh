@@ -26,7 +26,7 @@ else
   if ! which esptool.py 2>&1 >/dev/null; then
     echo esptool.py not found, attempting to install
     
-    if ! python3 -m pip install -q common/esptool-source.zip; then
+    if ! python3 -m pip install -q linux/esptool-source.zip; then
       echo Installation of esptool.py failed
       deactivate
       return 1
