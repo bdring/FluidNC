@@ -443,8 +443,7 @@ void mc_reset() {
             } else {
                 rtAlarm = ExecAlarm::AbortCycle;
             }
-            Stepper::go_idle();  // Stop stepping immediately, possibly losing position
+            Stepper::stop_stepping();  // Stop stepping immediately, possibly losing position
         }
-        config->_stepping->reset();
     }
 }

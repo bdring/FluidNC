@@ -703,6 +703,9 @@ static void protocol_do_late_reset() {
     report_ovr_counter = 0;  // Set to report change immediately
     config->_coolant->stop();
 
+    protocol_disable_steppers();
+    config->_stepping->reset();
+
     // turn off all User I/O immediately
     config->_userOutputs->all_off();
 
