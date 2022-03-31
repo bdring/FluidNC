@@ -51,7 +51,7 @@ namespace MotorDrivers {
             handler.item("addr", _addr);
             if (_uart == nullptr || _addr == 0) {
                 handler.section("uart", _uart);
-            }            
+            }
         }
 
     protected:
