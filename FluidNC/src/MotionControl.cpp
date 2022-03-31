@@ -369,8 +369,7 @@ GCUpdatePos mc_probe_cycle(float* target, plan_line_data_t* pl_data, uint8_t par
             auto n_axis = config->_axes->_numberAxis;
             for (int axis = 0; axis < n_axis; axis++) {  // find the axis specified. There should only be one.
                 if (offsetAxis & (1 << axis)) {
-                    coord_data[axis] = probe_contact[axis] + offset;
-                    log_info("Offset:" << coord_data[axis]);
+                    coord_data[axis] = probe_contact[axis] - offset;
                     break;
                 }
             }
