@@ -2,7 +2,6 @@
 // Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
 
 #include "TrinamicBase.h"
-
 #include "../Machine/MachineConfig.h"
 
 #include <atomic>
@@ -87,5 +86,69 @@ namespace MotorDrivers {
             return true;
         }
         return false;  // no error
+    }
+
+    bool TrinamicBase::set_homing_mode(bool isHoming) {
+        set_registers(isHoming);
+        return true;
+    }
+
+    float TrinamicBase::holdPercent() {
+        if (_run_current == 0) {
+            return 0.0;
+        }
+
+        float hold_percent = _hold_current / _run_current;
+        if (hold_percent > 1.0) {
+            hold_percent = 1.0;
+        }
+
+        return hold_percent;
+    }
+
+    bool TrinamicBase::reportTest(uint8_t result) {
+        if (_has_errors) {
+            return false;
+        }
+
+        switch (result) {
+            case 1:
+                log_error(axisName() << " driver test failed. Check connection");
+                return false;
+            case 2:
+                log_error(axisName() << " driver test failed. Check motor power");
+                return false;
+            default:
+                log_info(axisName() << " driver test passed");
+                return true;
+        }
+    }
+
+    bool TrinamicBase::startDisable(bool disable) {
+        if (_has_errors) {
+            return false;
+        }
+
+        if ((_disabled == disable) && _disable_state_known) {
+            return false;
+        }
+
+        _disable_state_known = true;
+        _disabled            = disable;
+
+        _disable_pin.synchronousWrite(_disabled);
+        return true;
+    }
+
+    void TrinamicBase::config_motor() {
+        _has_errors = !test();  // Try communicating with motor. Prints an error if there is a problem.
+
+        init_step_dir_pins();
+
+        if (_has_errors) {
+            return;
+        }
+
+        set_registers(false);
     }
 }

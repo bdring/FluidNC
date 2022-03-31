@@ -263,6 +263,11 @@ namespace WebUI {
         String contentType = getContentType(path);
         String pathWithGz  = path + ".gz";
 
+        if (path.startsWith("/api/")) {
+            _webserver->send(404);
+            return;
+        }
+
         FileStream* datafile = nullptr;
         try {
             datafile = new FileStream(path.c_str(), "r", "/localfs");

@@ -69,6 +69,10 @@ namespace Spindles {
             return;  // Block during abort.
         }
 
+        if (!_output_pin.defined()) {
+            log_warn(name() << " spindle output_pin not defined");
+        }
+
         // We always use mapSpeed() with the unmodified input speed so it sets
         // sys.spindle_speed correctly.
         uint32_t dev_speed = mapSpeed(speed);
