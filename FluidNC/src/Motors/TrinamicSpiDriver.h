@@ -9,57 +9,18 @@
 
 #include <cstdint>
 
-const float TMC2130_RSENSE_DEFAULT = 0.11f;
-const float TMC5160_RSENSE_DEFAULT = 0.075f;
-
 const int NORMAL_TCOOLTHRS = 0xFFFFF;  // 20 bit is max
 const int NORMAL_THIGH     = 0;
-
-class TMC2130Stepper;  // Forward declaration
-class TMC5160Stepper;  // Forward declaration
 
 namespace MotorDrivers {
 
     class TrinamicSpiDriver : public TrinamicBase {
-    private:
-        const int _spi_freq = 100000;
-
-        static pinnum_t daisy_chain_cs_id;
-        static uint8_t  spi_index_mask;
-
-        // It is really tempting to have a single pointer here because
-        // TMC2130 and TMC5160 share many methods with the same names
-        // and API.  That does not work because the common methods are
-        // not virtual and their respective implementations are
-        // incompatible due to hardware differences.  Therefore it is
-        // necessary to preserve the full type knowledge in the pointers.
-        TMC2130Stepper* tmc2130 = nullptr;
-        TMC5160Stepper* tmc5160 = nullptr;
-
-        Pin       _cs_pin;  // The chip select pin (can be the same for daisy chain)
-        PinMapper _cs_mapping;
-        int32_t   _spi_index = -1;
-
-        bool test();
-        void set_mode(bool isHoming);
-        void trinamic_test_response();
-        void trinamic_stepper_enable(bool enable);
-
-    protected:
-        void config_message() override;
-
     public:
-        TrinamicSpiDriver(uint16_t driver_part_number);
+        TrinamicSpiDriver() = default;
 
         // Overrides for inherited methods
-        void init() override;
-        void read_settings() override;
-        bool set_homing_mode(bool ishoming) override;
-        void set_disable(bool disable) override;
-
-        void config_motor() override;
-
-        void debug_message();
+        virtual void init() override;
+        //bool         set_homing_mode(bool ishoming) override;
 
         // Configuration handlers:
         void afterParse() override {
@@ -88,28 +49,39 @@ namespace MotorDrivers {
         void validate() const override { StandardStepper::validate(); }
 
         void group(Configuration::HandlerBase& handler) override {
+            TrinamicBase::group(handler);
+
             handler.item("cs_pin", _cs_pin);
             handler.item("spi_index", _spi_index, -1, 127);
-            TrinamicBase::group(handler);
+
+            handler.item("run_mode", _run_mode, trinamicModes);
+            handler.item("homing_mode", _homing_mode, trinamicModes);
+            handler.item("stallguard", _stallguard, -64, 63);
+            handler.item("stallguard_debug", _stallguardDebugMode);
+            handler.item("toff_coolstep", _toff_coolstep, 2, 15);
         }
 
-        // Name of the configurable. Must match the name registered in the cpp file.
-        const char* name() const override { return "trinamic_spi"; }
+    protected:
+        Pin       _cs_pin;  // The chip select pin (can be the same for daisy chain)
+        int32_t   _spi_index = -1;
+        const int _spi_freq  = 100000;
+
+        void config_message() override;
+
+        uint8_t setupSPI();
+        void    finalInit();
+
+        bool    reportTest(uint8_t result);
+        uint8_t toffValue();
+
+    private:
+        static pinnum_t daisy_chain_cs_id;
+        static uint8_t  spi_index_mask;
+
+        PinMapper _cs_mapping;
+
+        void trinamic_test_response();
+        void trinamic_stepper_enable(bool enable);
     };
 
-    class TMC2130 : public TrinamicSpiDriver {
-    public:
-        TMC2130() : TrinamicSpiDriver(2130) {}
-
-        // Name of the configurable. Must match the name registered in the cpp file.
-        const char* name() const override { return "tmc_2130"; }
-    };
-
-    class TMC5160 : public TrinamicSpiDriver {
-    public:
-        TMC5160() : TrinamicSpiDriver(5160) {}
-
-        // Name of the configurable. Must match the name registered in the cpp file.
-        const char* name() const override { return "tmc_5160"; }
-    };
 }

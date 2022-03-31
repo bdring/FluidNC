@@ -5,7 +5,7 @@
 
 #include "StandardStepper.h"
 #include "../EnumItem.h"
-
+#include <TMCStepper.h>  // https://github.com/teemuatlut/TMCStepper
 #include <cstdint>
 
 namespace MotorDrivers {
@@ -31,7 +31,7 @@ namespace MotorDrivers {
         // Configurable
         int   _homing_mode = StealthChop;
         int   _run_mode    = StealthChop;
-        float _r_sense     = 0.11;
+        float _r_sense     = 0;
         bool  _use_enable  = false;
 
         float _run_current         = 0.50;
@@ -52,31 +52,32 @@ namespace MotorDrivers {
 
         const double fclk = 12700000.0;  // Internal clock Approx (Hz) used to calculate TSTEP from homing rate
 
-        bool report_open_load(bool ola, bool olb);
-        bool report_short_to_ground(bool s2ga, bool s2gb);
-        bool report_over_temp(bool ot, bool otpw);
-        bool report_short_to_ps(bool vsa, bool vsb);
+        float        holdPercent();
+        bool         report_open_load(bool ola, bool olb);
+        bool         report_short_to_ground(bool s2ga, bool s2gb);
+        bool         report_over_temp(bool ot, bool otpw);
+        bool         report_short_to_ps(bool vsa, bool vsb);
+        bool         set_homing_mode(bool isHoming);
+        virtual void set_registers(bool isHoming) {}
+        bool         reportTest(uint8_t result);
+        bool         startDisable(bool disable);
+        virtual void config_motor();
 
         const char* yn(bool v) { return v ? "Y" : "N"; }
 
     public:
-        TrinamicBase(uint16_t partNumber) : StandardStepper(), _driver_part_number(partNumber) {}
+        TrinamicBase() = default;
 
         void group(Configuration::HandlerBase& handler) override {
-            handler.item("r_sense_ohms", _r_sense, 0.01, 1.00);
+            StandardStepper::group(handler);
+
+            handler.item("r_sense_ohms", _r_sense, 0.0, 1.00);
             handler.item("run_amps", _run_current, 0.05, 10.0);
             handler.item("hold_amps", _hold_current, 0.05, 10.0);
             handler.item("microsteps", _microsteps, 1, 256);
-            handler.item("stallguard", _stallguard, -64, 63);
-            handler.item("stallguard_debug", _stallguardDebugMode);
             handler.item("toff_disable", _toff_disable, 0, 15);
             handler.item("toff_stealthchop", _toff_stealthchop, 2, 15);
-            handler.item("toff_coolstep", _toff_coolstep, 2, 15);
-            handler.item("run_mode", _run_mode, trinamicModes);
-            handler.item("homing_mode", _homing_mode, trinamicModes);
             handler.item("use_enable", _use_enable);
-
-            StandardStepper::group(handler);
         }
     };
 
