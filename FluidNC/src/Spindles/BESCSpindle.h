@@ -30,7 +30,8 @@ namespace Spindles {
     class BESC : public PWM {
     private:
         // Fixed
-        const uint32_t besc_pwm_freq = 50;  // 50 Hz
+        const uint32_t besc_pwm_min_freq = 50;    // 50 Hz
+        const uint32_t besc_pwm_max_freq = 2000;  // 50 Hz
 
         // Calculated
         uint16_t _pulse_span_counts;  // In counts of a 16-bit counter
