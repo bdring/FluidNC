@@ -32,16 +32,28 @@ namespace Spindles {
     }
 
     void H2A::set_speed_command(uint32_t dev_speed, ModbusCommand& data) {
-        // For the H2A VFD, the speed is directly units of RPM, unlike many
+        // NOTE: H2A inverters are a-symmetrical. You set the speed in 1/100 
+        // percentages, and you get the speed in RPM. So, we need to convert
+        // the RPM using maxRPM to a percentage. See MD document for details.
+        //
+        // For the H2A VFD, the speed is read directly units of RPM, unlike many
         // other VFDs where it is given in Hz times some scale factor.
         data.tx_length = 6;
         data.rx_length = 6;
 
+        uint16_t speed = (uint32_t(dev_speed) * 10000L) / uint32_t(_maxRPM);
+        if (speed < 0) {
+            speed = 0;
+        }
+        if (speed > 10000) {
+            speed = 10000;
+        }
+
         data.msg[1] = 0x06;  // WRITE
         data.msg[2] = 0x10;  // Command ID 0x1000
         data.msg[3] = 0x00;
-        data.msg[4] = dev_speed >> 8;
-        data.msg[5] = dev_speed & 0xFF;
+        data.msg[4] = speed >> 8;
+        data.msg[5] = speed & 0xFF;
     }
 
     VFD::response_parser H2A::initialization_sequence(int index, ModbusCommand& data) {
@@ -65,8 +77,10 @@ namespace Spindles {
                     vfd->shelfSpeeds(maxRPM / 4, maxRPM);
                 }
 
-                vfd->setupSpeeds(1);  // The speed is given directly in RPM
-                vfd->_slop = 300;     // 300 RPM
+                vfd->setupSpeeds(maxRPM);               // The speed is given directly in RPM
+                vfd->_slop                      = 300;  // 300 RPM
+
+                static_cast<H2A*>(vfd)->_maxRPM = uint32_t(maxRPM);
 
                 log_info("H2A spindle initialized at " << maxRPM << " RPM");
 
