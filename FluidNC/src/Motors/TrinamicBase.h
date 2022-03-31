@@ -74,9 +74,9 @@ namespace MotorDrivers {
             handler.item("r_sense_ohms", _r_sense, 0.0, 1.00);
             handler.item("run_amps", _run_current, 0.05, 10.0);
             handler.item("hold_amps", _hold_current, 0.05, 10.0);
-            handler.item("microsteps", _microsteps, 1, 256);            
+            handler.item("microsteps", _microsteps, 1, 256);
             handler.item("toff_disable", _toff_disable, 0, 15);
-            handler.item("toff_stealthchop", _toff_stealthchop, 2, 15);                        
+            handler.item("toff_stealthchop", _toff_stealthchop, 2, 15);
             handler.item("use_enable", _use_enable);
         }
     };

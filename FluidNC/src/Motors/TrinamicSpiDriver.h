@@ -53,7 +53,7 @@ namespace MotorDrivers {
 
             handler.item("cs_pin", _cs_pin);
             handler.item("spi_index", _spi_index, -1, 127);
-            
+
             handler.item("run_mode", _run_mode, trinamicModes);
             handler.item("homing_mode", _homing_mode, trinamicModes);
             handler.item("stallguard", _stallguard, -64, 63);
@@ -66,14 +66,13 @@ namespace MotorDrivers {
         int32_t   _spi_index = -1;
         const int _spi_freq  = 100000;
 
-        void         config_message() override;
-        
-        uint8_t      setupSPI();
-        void         finalInit();
+        void config_message() override;
+
+        uint8_t setupSPI();
+        void    finalInit();
 
         bool    reportTest(uint8_t result);
         uint8_t toffValue();
-        
 
     private:
         static pinnum_t daisy_chain_cs_id;

@@ -54,20 +54,20 @@ namespace MotorDrivers {
 
         switch (_mode) {
             case TrinamicMode ::StealthChop:
-                log_debug("StealthChop");
+                log_debug(axisName() <<  " StealthChop");
                 tmc2130->en_pwm_mode(true);
                 tmc2130->pwm_autoscale(true);
                 tmc2130->diag1_stall(false);
                 break;
             case TrinamicMode ::CoolStep:
-                log_debug("Coolstep");
+                log_debug(axisName() <<  " Coolstep");
                 tmc2130->en_pwm_mode(false);
                 tmc2130->pwm_autoscale(false);
                 tmc2130->TCOOLTHRS(NORMAL_TCOOLTHRS);  // when to turn on coolstep
                 tmc2130->THIGH(NORMAL_THIGH);
                 break;
             case TrinamicMode ::StallGuard:
-                log_debug("Stallguard");
+                log_debug(axisName() <<  " Stallguard");
                 {
                     auto feedrate = config->_axes->_axis[axis_index()]->_homing->_feedRate;
 
