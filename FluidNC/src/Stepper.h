@@ -21,8 +21,11 @@ namespace Stepper {
     // Enable steppers, but cycle does not start unless called by motion control or realtime command.
     void wake_up();
 
-    // Stops stepping
+    // Stops stepping and disables stepper (not ISR-safe)
     void go_idle();
+
+    // Stops stepping (ISR-safe)
+    void stop_stepping();
 
     // Reset the stepper subsystem variables
     void reset();

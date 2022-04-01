@@ -191,7 +191,7 @@ static st_prep_t prep;
 */
 
 // Stepper shutdown
-static void IRAM_ATTR stop_stepping() {
+void IRAM_ATTR Stepper::stop_stepping() {
     // Disable Stepping Driver Interrupt.
     config->_stepping->stopTimer();
     config->_axes->unstep();
