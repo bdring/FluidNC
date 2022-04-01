@@ -295,6 +295,7 @@ static void protocol_do_alarm() {
             sys.state = State::Alarm;  // Set system alarm state
             alarm_msg(rtAlarm);
             report_feedback_message(Message::CriticalEvent);
+            protocol_disable_steppers();
             rtReset = false;  // Disable any existing reset
             do {
                 // Block everything except reset and status reports until user issues reset or power
