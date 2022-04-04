@@ -4,7 +4,7 @@
 
 from shutil import copy
 from zipfile import ZipFile, ZipInfo
-import subprocess, os, sys
+import subprocess, os, sys, shutil
 import urllib.request
 
 verbose = '-v' in sys.argv
@@ -81,6 +81,7 @@ if buildFs('wifi', verbose=verbose) != 0:
 for envName in ['wifi','bt']:
     if buildEnv(envName, verbose=verbose) != 0:
         sys.exit(1)
+    shutil.copy(os.path.join('.pio', 'build', envName, 'firmware.elf'), os.path.join(relPath, envName + '-' + 'firmware.elf'))
 
 for platform in ['win64', 'posix']:
     print("Creating zip file for ", platform)
