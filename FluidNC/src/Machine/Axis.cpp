@@ -28,6 +28,10 @@ namespace Machine {
         uint32_t stepRate = uint32_t(_stepsPerMm * _maxRate / 60.0);
         auto     maxRate  = config->_stepping->maxPulsesPerSec();
         Assert(stepRate <= maxRate, "Stepping rate %d steps/sec exceeds the maximum rate %d", stepRate, maxRate);
+        if (_homing == nullptr) {
+            _homing         = new Homing();
+            _homing->_cycle = 0;
+        }
     }
 
     void Axis::init() {
