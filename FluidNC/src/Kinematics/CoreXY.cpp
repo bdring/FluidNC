@@ -61,7 +61,9 @@ namespace Kinematics {
             dist *= -1.000;
         }
 
-        float move_to[MAX_N_AXIS] = { 0 };
+        auto n_axis = config->_axes->_numberAxis;
+
+        float move_to[n_axis] = { 0 };
         // zero all X&Y posiitons before each cycle
         // leave other axes unchanged
         for (int axis = X_AXIS; axis <= config->_axes->_numberAxis; axis++) {
@@ -213,7 +215,7 @@ namespace Kinematics {
 
         auto n_axis = config->_axes->_numberAxis;
 
-        float mpos[MAX_N_AXIS] = { 0 };
+        float mpos[n_axis] = { 0 };
 
         // Set machine positions for homed limit switches. Don't update non-homed axes.
         for (int axis = 0; axis < n_axis; axis++) {
@@ -225,7 +227,7 @@ namespace Kinematics {
             }
         }
 
-        float motors_mm[MAX_N_AXIS];
+        float motors_mm[n_axis];
         transform_cartesian_to_motors(motors_mm, mpos);
 
         // the only single axis homing allowed is Z and above
@@ -261,30 +263,25 @@ namespace Kinematics {
       All linear motions pass through cartesian_to_motors() to be planned as mc_move_motors operations.
 
       Parameters:
-        target = an MAX_N_AXIS array of target positions (where the move is supposed to go)
+        target = an n_axis array of target positions (where the move is supposed to go)
         pl_data = planner data (see the definition of this type to see what it is)
-        position = an MAX_N_AXIS array of where the machine is starting from for this move
+        position = an n_axis array of where the machine is starting from for this move
     */
     bool CoreXY::cartesian_to_motors(float* target, plan_line_data_t* pl_data, float* position) {
-        float dx, dy, dz;  // distances in each cartesian axis
-
         //log_info("cartesian_to_motors position (" << position[X_AXIS] << "," << position[Y_AXIS] << ")");
-
-        // calculate cartesian move distance for each axis
-        dx         = target[X_AXIS] - position[X_AXIS];
-        dy         = target[Y_AXIS] - position[Y_AXIS];
-        dz         = target[Z_AXIS] - position[Z_AXIS];
-        float dist = sqrt((dx * dx) + (dy * dy) + (dz * dz));
 
         auto n_axis = config->_axes->_numberAxis;
 
-        float motors[MAX_N_AXIS];
+        // calculate cartesian move distance for each axis
+        float dist = vector_distance(target, position, Z_AXIS);
+
+        float motors[n_axis];
         transform_cartesian_to_motors(motors, target);
 
         if (!pl_data->motion.rapidMotion) {
-            float last_motors[MAX_N_AXIS];
+            float last_motors[n_axis];
             transform_cartesian_to_motors(last_motors, position);
-            pl_data->feed_rate *= (three_axis_dist(motors, last_motors) / dist);
+            pl_data->feed_rate *= vector_distance(motors, last_motors, Z_AXIS) / dist;
         }
 
         return mc_move_motors(motors, pl_data);
@@ -295,9 +292,7 @@ namespace Kinematics {
 
     /*
       The status command uses motors_to_cartesian() to convert
-      your motor positions to cartesian X,Y,Z... coordinates.
-
-      Convert the MAX_N_AXIS array of motor positions to cartesian in your code.
+      motor positions to cartesian X,Y,Z... coordinates.
     */
     void CoreXY::motors_to_cartesian(float* cartesian, float* motors, int n_axis) {
         // apply the forward kinemetics to the machine coordinates
@@ -311,7 +306,7 @@ namespace Kinematics {
     }
 
     /*
-    Kinematic equations
+      Kinematic equations
     */
     void CoreXY::transform_cartesian_to_motors(float* motors, float* cartesian) {
         motors[X_AXIS] = (_x_scaler * cartesian[X_AXIS]) + cartesian[Y_AXIS];
@@ -321,13 +316,6 @@ namespace Kinematics {
         for (uint8_t axis = Z_AXIS; axis <= n_axis; axis++) {
             motors[axis] = cartesian[axis];
         }
-    }
-
-    // Determine the unit distance between (2) 3D points
-    // TODO. This might below in nut & bolts as a helper function for other uses.
-    float CoreXY::three_axis_dist(float* point1, float* point2) {
-        return sqrt(((point1[0] - point2[0]) * (point1[0] - point2[0])) + ((point1[1] - point2[1]) * (point1[1] - point2[1])) +
-                    ((point1[2] - point2[2]) * (point1[2] - point2[2])));
     }
 
     // Configuration registration

@@ -403,7 +403,7 @@ bool plan_buffer_line(float* target, plan_line_data_t* pl_data) {
             } else {
                 convert_delta_vector_to_unit_vector(junction_unit_vec);
                 float junction_acceleration = limit_acceleration_by_axis_maximum(junction_unit_vec);
-                float sin_theta_d2 = float(sqrt(0.5f * (1.0f - junction_cos_theta)));  // Trig half angle identity. Always positive.
+                float sin_theta_d2          = sqrtf(0.5f * (1.0f - junction_cos_theta));  // Trig half angle identity. Always positive.
                 block->max_junction_speed_sqr =
                     MAX(MINIMUM_JUNCTION_SPEED * MINIMUM_JUNCTION_SPEED,
                         (junction_acceleration * config->_junctionDeviation * sin_theta_d2) / (1.0f - sin_theta_d2));
