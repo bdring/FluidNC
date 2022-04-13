@@ -35,7 +35,7 @@ namespace Spindles {
         is_reversable = _direction_pin.defined();
 
         // override some settings in the PWM base class to what is required for a BESC
-        _pwm_freq      = besc_pwm_freq;
+        constrain_with_message(_pwm_freq, besc_pwm_min_freq, besc_pwm_max_freq, "pwm_freq");
         _pwm_precision = 16;
         _pwm_period    = (1 << _pwm_precision);
 
