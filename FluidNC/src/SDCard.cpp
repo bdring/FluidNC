@@ -99,7 +99,7 @@ void SDCard::init() {
     }
 
     _cs.setAttr(Pin::Attr::Output);
-    _cardDetect.setAttr(Pin::Attr::Output);
+    _cardDetect.setAttr(Pin::Attr::Input);
 }
 
 void SDCard::afterParse() {
