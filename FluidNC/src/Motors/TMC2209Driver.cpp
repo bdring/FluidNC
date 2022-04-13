@@ -68,7 +68,7 @@ namespace MotorDrivers {
                 tmc2209->en_spreadCycle(false);
                 tmc2209->pwm_autoscale(false);
                 tmc2209->TCOOLTHRS(calc_tstep(homingFeedRate, 150.0));
-                tmc2209->SGTHRS(constrain(_stallguard, 0, 255));
+                tmc2209->SGTHRS(_stallguard);
                 break;
             }
         }
@@ -89,7 +89,7 @@ namespace MotorDrivers {
         // TMC2208 does not have StallGuard
         if (tmc2209) {
             log_info(axisName() << " SG_Val: " << tmc2209->SG_RESULT() << "   Rate: " << feedrate
-                                << " mm/min SG_Setting:" << constrain(_stallguard, -64, 63));
+                                << " mm/min SG_Setting:" << _stallguard);
         }
     }
 
