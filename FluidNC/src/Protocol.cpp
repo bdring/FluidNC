@@ -16,6 +16,7 @@
 #include "MotionControl.h"  // PARKING_MOTION_LINE_NUMBER
 #include "Settings.h"       // settings_execute_startup
 #include "InputFile.h"      // infile
+#include "WebUI\Commands.h"
 
 #ifdef DEBUG_STEPPING
 volatile bool rtCrash;
@@ -297,6 +298,10 @@ static void protocol_do_alarm() {
             report_feedback_message(Message::CriticalEvent);
             protocol_disable_steppers();
             rtReset = false;  // Disable any existing reset
+
+            WebUI::COMMANDS::restart_MCU();
+            WebUI::COMMANDS::handle();
+            
             do {
                 // Block everything except reset and status reports until user issues reset or power
                 // cycles. Hard limits typically occur while unattended or not paying attention. Gives
