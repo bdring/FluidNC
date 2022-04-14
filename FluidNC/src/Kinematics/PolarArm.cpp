@@ -1,3 +1,5 @@
+// Copyright (c) 2022 -  Bob Klosinski
+// Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
 #include "PolarArm.h"
 
 #include "../Machine/MachineConfig.h"

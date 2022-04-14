@@ -1,10 +1,10 @@
-// Copyright (c) 2020 -	Bart Dring
+// Copyright (c) 2022 -	Bob Klosinski
 // Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
 
 #pragma once
 
 /*
-	WallPlotter.h
+	PolarArm.h
 
 	This is a kinematic system to move a puck suspended by two cords by adjusting the cord length.
 */
