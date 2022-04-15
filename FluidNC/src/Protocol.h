@@ -99,9 +99,24 @@ enum class ExecAlarm : uint8_t {
     SpindleControl        = 10,
     ControlPin            = 11,
     HomingAmbiguousSwitch = 12,
+    MotorFailInit         = 13,
 };
 
-extern volatile ExecAlarm rtAlarm;  // Global realtime executor variable for setting various alarms.
+extern ExecAlarm activeAlarm;  // Remembers the reason for the alarm
 
 #include <map>
 extern std::map<ExecAlarm, const char*> AlarmNames;
+
+struct Event {
+    enum { ALARM, RTEVENT } type;
+    union {
+        ExecAlarm alarmCode;
+        // EventCode eventCode;
+    };
+};
+
+const int MAX_N_EVENTS = 10;
+
+void protocolInit();
+void send(const Event& event);
+void sendFromISR(const Event& event);

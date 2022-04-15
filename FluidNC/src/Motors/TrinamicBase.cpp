@@ -3,6 +3,7 @@
 
 #include "TrinamicBase.h"
 #include "../Machine/MachineConfig.h"
+#include "../Protocol.h"  // Event
 
 #include <atomic>
 
@@ -107,16 +108,14 @@ namespace MotorDrivers {
     }
 
     bool TrinamicBase::reportTest(uint8_t result) {
-        if (_has_errors) {
-            return false;
-        }
-
         switch (result) {
             case 1:
                 log_error(axisName() << " driver test failed. Check connection");
+                send({ Event::ALARM, ExecAlarm::MotorFailInit });
                 return false;
             case 2:
                 log_error(axisName() << " driver test failed. Check motor power");
+                send({ Event::ALARM, ExecAlarm::MotorFailInit });
                 return false;
             default:
                 log_info(axisName() << " driver test passed");

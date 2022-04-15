@@ -5,7 +5,7 @@
 #include "../NutsBolts.h"      // set_bitnum etc
 #include "../MotionControl.h"  // mc_reset
 #include "../Limits.h"
-#include "../Protocol.h"  // rtAlarm
+#include "../Protocol.h"  // Event
 
 #include <esp32-hal-gpio.h>  // CHANGE
 
@@ -47,7 +47,7 @@ namespace Machine {
     void IRAM_ATTR LimitPin::handleISR() {
         read();
         if (sys.state != State::Alarm && sys.state != State::ConfigAlarm && sys.state != State::Homing) {
-            if (_pHardLimits && rtAlarm == ExecAlarm::None) {
+            if (_pHardLimits && sys.state != State::Alarm) {
 #if 0
 
                 if (config->_softwareDebounceMs) {
@@ -59,8 +59,8 @@ namespace Machine {
 #endif
 
                 // log_debug("Hard limits");  // This might not work from ISR context
-                mc_reset();                      // Initiate system kill.
-                rtAlarm = ExecAlarm::HardLimit;  // Indicate hard limit critical event
+                mc_reset();                                    // Initiate system kill.
+                send({ Event::ALARM, ExecAlarm::HardLimit });  // Indicate hard limit critical event
             }
         }
     }

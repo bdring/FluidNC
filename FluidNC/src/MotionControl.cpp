@@ -316,7 +316,7 @@ GCUpdatePos mc_probe_cycle(float* target, plan_line_data_t* pl_data, uint8_t par
     // After syncing, check if probe is already triggered. If so, halt and issue alarm.
     // NOTE: This probe initialization error applies to all probing cycles.
     if (config->_probe->tripped()) {
-        rtAlarm = ExecAlarm::ProbeFailInitial;
+        send({ Event::ALARM, ExecAlarm::ProbeFailInitial });
         protocol_execute_realtime();
         config->_stepping->endLowLatency();
         return GCUpdatePos::None;  // Nothing else to do but bail.
@@ -344,7 +344,7 @@ GCUpdatePos mc_probe_cycle(float* target, plan_line_data_t* pl_data, uint8_t par
         if (is_no_error) {
             memcpy(probe_steps, motor_steps, sizeof(motor_steps));
         } else {
-            rtAlarm = ExecAlarm::ProbeFailContact;
+            send({ Event::ALARM, ExecAlarm::ProbeFailContact });
         }
     } else {
         probe_succeeded = true;  // Indicate to system the probing cycle completed successfully.
@@ -436,13 +436,7 @@ void mc_reset() {
         // violated, by which, all bets are off.
         if ((sys.state == State::Cycle || sys.state == State::Homing || sys.state == State::Jog) ||
             (sys.step_control.executeHold || sys.step_control.executeSysMotion)) {
-            if (sys.state == State::Homing) {
-                if (rtAlarm == ExecAlarm::None) {
-                    rtAlarm = ExecAlarm::HomingFailReset;
-                }
-            } else {
-                rtAlarm = ExecAlarm::AbortCycle;
-            }
+            send({ Event::ALARM, sys.state == State::Homing ? ExecAlarm::HomingFailReset : ExecAlarm::AbortCycle });
             Stepper::stop_stepping();  // Stop stepping immediately, possibly losing position
         }
     }

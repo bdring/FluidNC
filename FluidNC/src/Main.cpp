@@ -32,6 +32,8 @@ void setup() {
     try {
         uartInit();  // Setup serial port
 
+        protocolInit();
+
         // Setup input polling loop after loading the configuration,
         // because the polling may depend on the config
         allChannels.init();

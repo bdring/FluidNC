@@ -22,7 +22,7 @@
 
 #include "../Machine/MachineConfig.h"
 #include "../MotionControl.h"  // mc_reset
-#include "../Protocol.h"       // rtAlarm
+#include "../Protocol.h"       // Event
 #include "../Report.h"         // hex message
 
 #include <freertos/task.h>
@@ -246,7 +246,7 @@ namespace Spindles {
                 if (next_cmd.critical) {
                     log_error("Critical VFD RS485 Unresponsive");
                     mc_reset();
-                    rtAlarm = ExecAlarm::SpindleControl;
+                    send({ Event::ALARM, ExecAlarm::SpindleControl });
                 }
             }
         }
@@ -368,7 +368,7 @@ namespace Spindles {
             if (unchanged == limit) {
                 log_error(name() << " spindle did not reach device units " << dev_speed << ". Reported value is " << _sync_dev_speed);
                 mc_reset();
-                rtAlarm = ExecAlarm::SpindleControl;
+                send({ Event::ALARM, ExecAlarm::SpindleControl });
             }
 
             _syncing = false;

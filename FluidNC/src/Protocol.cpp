@@ -30,7 +30,7 @@ uint32_t      expected_steps[MAX_N_AXIS];
 volatile bool rtExecDebug;
 #endif
 
-volatile ExecAlarm rtAlarm;  // Global realtime executor bitflag variable for setting various alarms.
+ExecAlarm activeAlarm;  // The alarm code that caused entry to alarm state
 
 std::map<ExecAlarm, const char*> AlarmNames = {
     { ExecAlarm::None, "None" },
@@ -46,6 +46,7 @@ std::map<ExecAlarm, const char*> AlarmNames = {
     { ExecAlarm::SpindleControl, "Spindle Control" },
     { ExecAlarm::ControlPin, "Control Pin Initially On" },
     { ExecAlarm::HomingAmbiguousSwitch, "Ambiguous Switch" },
+    { ExecAlarm::MotorFailInit, "Motor Init Failed" },
 };
 
 volatile Accessory rtAccessoryOverride;  // Global realtime executor bitflag variable for spindle/coolant overrides.
@@ -115,9 +116,6 @@ void protocol_reset() {
     rtROverride               = RapidOverride::Default;
     rtSOverride               = SpindleSpeedOverride::Default;
     spindle_stop_ovr.value    = 0;
-
-    // Do not clear rtAlarm because it might have been set during configuration
-    // rtAlarm = ExecAlarm::None;
 }
 
 static int32_t idleEndTime = 0;
@@ -281,19 +279,19 @@ static void alarm_msg(ExecAlarm alarm_code) {
     allChannels << "ALARM:" << static_cast<int>(alarm_code) << '\n';
     delay_ms(500);  // Force delay to ensure message clears serial write buffer.
 }
-
-// Executes run-time commands, when required. This function is the primary state
-// machine that controls the various real-time features.
-// NOTE: Do not alter this unless you know exactly what you are doing!
-static void protocol_do_alarm() {
-    switch (rtAlarm) {
+#include "Uart.h"
+static void protocol_do_alarm(ExecAlarm alarmCode) {
+    if (activeAlarm == ExecAlarm::None) {
+        activeAlarm = alarmCode;
+    }
+    switch (alarmCode) {
         case ExecAlarm::None:
             return;
         // System alarm. Everything has shutdown by something that has gone severely wrong. Report
         case ExecAlarm::HardLimit:
         case ExecAlarm::SoftLimit:
             sys.state = State::Alarm;  // Set system alarm state
-            alarm_msg(rtAlarm);
+            alarm_msg(alarmCode);
             report_feedback_message(Message::CriticalEvent);
             protocol_disable_steppers();
             rtReset = false;  // Disable any existing reset
@@ -305,13 +303,13 @@ static void protocol_do_alarm() {
                 // lost, continued streaming could cause a serious crash if by chance it gets executed.
                 pollChannels();  // Handle ^X realtime RESET command
             } while (!rtReset);
+            activeAlarm = ExecAlarm::None;
             break;
         default:
             sys.state = State::Alarm;  // Set system alarm state
-            alarm_msg(rtAlarm);
+            alarm_msg(alarmCode);
             break;
     }
-    rtAlarm = ExecAlarm::None;
 }
 
 static void protocol_start_holding() {
@@ -422,7 +420,7 @@ static void protocol_do_safety_door() {
         case State::Hold:
             break;
         case State::Homing:
-            rtAlarm = ExecAlarm::HomingFailDoor;
+            send({ Event::ALARM, ExecAlarm::HomingFailDoor });
             break;
         case State::SafetyDoor:
             if (!sys.suspend.bit.jogCancel && sys.suspend.bit.initiateRestore) {  // Actively restoring
@@ -563,7 +561,7 @@ void protocol_disable_steppers() {
         config->_axes->set_disable(false);
         return;
     }
-    if (sys.state == State::Sleep || rtAlarm != ExecAlarm::None) {
+    if (sys.state == State::Sleep || sys.state == State::Alarm) {
         // Disable steppers immediately in sleep or alarm state
         config->_axes->set_disable(true);
         return;
@@ -733,8 +731,21 @@ void protocol_do_macro(int macro_num) {
     config->_macros->run_macro(macro_num);
 }
 
+xQueueHandle eventQueue;
+
+// Executes run-time commands, when required. This function is the primary state
+// machine that controls the various real-time features.
 void protocol_exec_rt_system() {
-    protocol_do_alarm();  // If there is a hard or soft limit, this will block until rtReset is set
+    Event event;
+    if (xQueueReceive(eventQueue, &event, 0)) {
+        switch (event.type) {
+            case Event::ALARM:
+                protocol_do_alarm(event.alarmCode);  // If there is a hard or soft limit, this will block until rtReset is set
+                break;
+            case Event::RTEVENT:
+                break;
+        }
+    }
 
 #ifdef DEBUG_STEPPING
     if (rtSegSeq) {
@@ -766,7 +777,7 @@ void protocol_exec_rt_system() {
 #endif
     if (rtReset) {
         if (sys.state == State::Homing) {
-            rtAlarm = ExecAlarm::HomingFailReset;
+            send({ Event::ALARM, ExecAlarm::HomingFailReset });
         }
         protocol_do_late_reset();
         // Trigger system abort.
@@ -1062,4 +1073,15 @@ static void protocol_exec_rt_suspend() {
         pollChannels();  // Handle realtime commands like status report, cycle start and reset
         protocol_exec_rt_system();
     }
+}
+
+void protocolInit() {
+    eventQueue = xQueueCreate(MAX_N_EVENTS, sizeof(Event));
+}
+
+void send(const Event& event) {
+    xQueueSend(eventQueue, &event, 0);
+}
+void sendFromISR(const Event& event) {
+    xQueueSendFromISR(eventQueue, &event, NULL);
 }

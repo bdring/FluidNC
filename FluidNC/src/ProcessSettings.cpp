@@ -263,12 +263,12 @@ static Error toggle_check_mode(const char* value, WebUI::AuthenticationLevel aut
 static Error isStuck() {
     // Block if a control pin is stuck on
     if (config->_control->system_check_safety_door_ajar()) {
-        rtAlarm = ExecAlarm::ControlPin;
+        send({ Event::ALARM, ExecAlarm::ControlPin });
         return Error::CheckDoor;
     }
     if (config->_control->stuck()) {
         log_info("Control pins:" << config->_control->report());
-        rtAlarm = ExecAlarm::ControlPin;
+        send({ Event::ALARM, ExecAlarm::ControlPin });
         return Error::CheckControlPins;
     }
     return Error::Ok;
@@ -283,7 +283,8 @@ static Error disable_alarm_lock(const char* value, WebUI::AuthenticationLevel au
             return err;
         }
         report_feedback_message(Message::AlarmUnlock);
-        sys.state = State::Idle;
+        activeAlarm = ExecAlarm::None;
+        sys.state   = State::Idle;
         // Don't run startup script. Prevents stored moves in startup from causing accidents.
     }  // Otherwise, no effect.
     return Error::Ok;
@@ -465,9 +466,10 @@ static const char* alarmString(ExecAlarm alarmNumber) {
 static Error listAlarms(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
     if (sys.state == State::ConfigAlarm) {
         out << "Configuration alarm is active. Check the boot messages for 'ERR'.\n";
-    } else if (rtAlarm != ExecAlarm::None) {
-        out << "Active alarm: " << int(rtAlarm) << " (" << alarmString(rtAlarm) << ")\n";
+    } else if (activeAlarm != ExecAlarm::None) {
+        out << "Active alarm: " << int(activeAlarm) << " (" << alarmString(activeAlarm) << ")\n";
     }
+
     if (value) {
         char*   endptr      = NULL;
         uint8_t alarmNumber = uint8_t(strtol(value, &endptr, 10));
