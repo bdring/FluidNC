@@ -552,6 +552,11 @@ static Error motor_disable(const char* value, WebUI::AuthenticationLevel auth_le
     return Error::Ok;
 }
 
+static Error motors_init(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+    config->_axes->config_motors();
+    return Error::Ok;
+}
+
 static Error xmodem_receive(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
     if (!value || !*value) {
         value = "uploaded";
@@ -664,6 +669,7 @@ void make_user_commands() {
     new UserCommand("#", "GCode/Offsets", report_ngc, notIdleOrAlarm);
     new UserCommand("H", "Home", home_all, notIdleOrAlarm);
     new UserCommand("MD", "Motor/Disable", motor_disable, notIdleOrAlarm);
+    new UserCommand("MI", "Motors/Init", motors_init, notIdleOrAlarm);
 
     new UserCommand("HX", "Home/X", home_x, notIdleOrAlarm);
     new UserCommand("HY", "Home/Y", home_y, notIdleOrAlarm);
