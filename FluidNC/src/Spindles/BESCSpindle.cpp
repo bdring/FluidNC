@@ -46,7 +46,7 @@ namespace Spindles {
         // BESC PWM typically represents 0 speed as a 1ms pulse and max speed as a 2ms pulse
 
         // 1000000 is us/sec
-        const uint32_t pulse_period_us = 1000000 / besc_pwm_freq;
+        const uint32_t pulse_period_us = 1000000 / _pwm_freq;
 
         // Calculate the pulse length offset and scaler in counts of the LEDC controller
         _min_pulse_counts  = (_min_pulse_us << _pwm_precision) / pulse_period_us;
