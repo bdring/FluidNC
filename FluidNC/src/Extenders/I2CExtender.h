@@ -13,12 +13,14 @@
 
 namespace Pins {
     class PCA9539PinDetail;
+    class PCA9555PinDetail;
 }
 
 namespace Extenders {
     enum class I2CExtenderDevice {
         Unknown,
         PCA9539,
+        PCA9555,
     };
 
     // Pin extenders...
