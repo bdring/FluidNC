@@ -37,7 +37,7 @@ namespace MotorDrivers {
         void init() override;
         void read_settings() override;
         bool set_homing_mode(bool isHoming) override;
-        virtual void set_disable(bool disable) override;
+        void set_disable(bool disable) override;
         void update() override;
 
         void _write_pwm(uint32_t duty);
