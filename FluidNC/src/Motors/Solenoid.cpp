@@ -65,8 +65,6 @@ namespace MotorDrivers {
         _pwm_chan_num     = ledcInit(_output_pin, -1, double(_pwm_freq), SERVO_PWM_RESOLUTION_BITS);  // Allocate a channel
         _current_pwm_duty = 0;
 
-        _disabled = true;
-
         startUpdateTask(_update_rate_ms);
     }
 
@@ -80,7 +78,7 @@ namespace MotorDrivers {
     void Solenoid::set_location() {
         bool is_solenoid_on;
 
-        if (_disabled || _has_errors) {
+        if (_has_errors) {
             return;
         }
 
@@ -119,6 +117,8 @@ namespace MotorDrivers {
 
         _write_pwm(pwm_cnt[_current_mode]);
     }
+
+    void Solenoid::set_disable(bool disable) {}  // NOP
 
     namespace {
         MotorFactory::InstanceBuilder<Solenoid> registration("solenoid");

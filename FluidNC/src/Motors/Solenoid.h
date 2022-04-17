@@ -33,6 +33,7 @@ namespace MotorDrivers {
 
         void set_location();
         void init() override;
+        void set_disable(bool disable) override;
 
         float _transition_point;
 
