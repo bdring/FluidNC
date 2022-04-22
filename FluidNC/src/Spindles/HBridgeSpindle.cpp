@@ -120,8 +120,6 @@ namespace Spindles {
 
         set_enable(state != SpindleState::Disable);
         spindleDelay(state, speed);
-
-        log_info("Dev speed:" << dev_speed);
     }
 
     // prints the startup message of the spindle config
@@ -141,8 +139,6 @@ namespace Spindles {
         if (duty == _current_pwm_duty && !_duty_update_needed) {
             return;
         }
-
-        log_info("Duty:" << duty);
 
         _duty_update_needed = false;
 
