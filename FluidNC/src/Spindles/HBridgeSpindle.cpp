@@ -23,26 +23,26 @@ namespace Spindles {
         get_pins_and_settings();
         setupSpeeds(_pwm_freq);
 
-        if (_output_a_pin.defined()) {
-            if (_output_a_pin.capabilities().has(Pin::Capabilities::PWM)) {
-                auto outputNative = _output_a_pin.getNative(Pin::Capabilities::PWM);
-                _pwm_a_chan_num     = ledcInit(_output_a_pin, -1, (double)_pwm_freq, _pwm_precision);
+        if (_output_cw_pin.defined()) {
+            if (_output_cw_pin.capabilities().has(Pin::Capabilities::PWM)) {
+                auto outputNative = _output_cw_pin.getNative(Pin::Capabilities::PWM);
+                _pwm_cw_chan_num  = ledcInit(_output_cw_pin, -1, (double)_pwm_freq, _pwm_precision);
             } else {
-                log_error(name() << " output A pin " << _output_a_pin.name().c_str() << " cannot do PWM");
+                log_error(name() << " output_cw_pin " << _output_cw_pin.name().c_str() << " cannot do PWM");
             }
         } else {
-            log_error(name() << " output A pin not defined");
+            log_error(name() << " output_cw_pin not defined");
         }
 
-        if (_output_b_pin.defined()) {
-            if (_output_b_pin.capabilities().has(Pin::Capabilities::PWM)) {
-                auto outputBNative = _output_b_pin.getNative(Pin::Capabilities::PWM);
-                _pwm_b_chan_num     = ledcInit(_output_b_pin, -1, (double)_pwm_freq, _pwm_precision);
+        if (_output_ccw_pin.defined()) {
+            if (_output_ccw_pin.capabilities().has(Pin::Capabilities::PWM)) {
+                auto outputBNative = _output_ccw_pin.getNative(Pin::Capabilities::PWM);
+                _pwm_ccw_chan_num  = ledcInit(_output_ccw_pin, -1, (double)_pwm_freq, _pwm_precision);
             } else {
-                log_error(name() << " output B pin " << _output_b_pin.name().c_str() << " cannot do PWM");
+                log_error(name() << " output_ccw_pin " << _output_ccw_pin.name().c_str() << " cannot do PWM");
             }
         } else {
-            log_info(name() << " no output B pin defined (Only Clockwise support)");
+            log_error(name() << " output_ccw_pin not defined");
         }
 
         _current_state    = SpindleState::Disable;
@@ -61,7 +61,7 @@ namespace Spindles {
     void HBridgeSpindle::get_pins_and_settings() {
         // setup all the pins
 
-         is_reversable = _output_b_pin.defined();
+        is_reversable = _output_ccw_pin.defined();
 
         _pwm_precision = calc_pwm_precision(_pwm_freq);  // determine the best precision
         _pwm_period    = (1 << _pwm_precision);
@@ -85,8 +85,8 @@ namespace Spindles {
             return;  // Block during abort.
         }
 
-        if (!_output_a_pin.defined()) {
-            log_warn(name() << " spindle output_pin not defined");
+        if (!_output_cw_pin.defined() || !_output_ccw_pin.defined()) {
+            log_warn(name() << " spindle pins not defined");
         }
 
         // We always use mapSpeed() with the unmodified input speed so it sets
@@ -100,16 +100,19 @@ namespace Spindles {
             // PWM: this could wreak havoc if the direction is changed without first
             // spinning down. But it looks like the framework is stopping the motor
             // before changing direction M4 is not accepted during M3 if M5 is not run first.
-            if (state == SpindleState::Cw || state == SpindleState::Ccw) {
-	    }
+            if (state == SpindleState::Cw || state == SpindleState::Ccw) {}
         }
-	_state = state;
+        _state = state;
+
+        if (_current_state != state) {
+            _current_state      = state;
+            _duty_update_needed = true;
+        }
 
         // rate adjusted spindles (laser) in M4 set power via the stepper engine, not here
 
         // set_output must go first because of the way enable is used for level
         // converters on some boards.
-
         if (isRateAdjusted() && (state == SpindleState::Ccw)) {
             dev_speed = offSpeed();
             set_output(dev_speed);
@@ -119,42 +122,44 @@ namespace Spindles {
 
         set_enable(state != SpindleState::Disable);
         spindleDelay(state, speed);
+
+        log_info("Dev speed:" << dev_speed);
     }
 
     // prints the startup message of the spindle config
     void HBridgeSpindle::config_message() {
-        log_info(name() << " Spindle Ena:" << _enable_pin.name()
-            << " OutA:" << _output_a_pin.name() <<  " OutB:" << _output_b_pin.name()
-            << " Freq:" << _pwm_freq << "Hz Res:" << _pwm_precision << "bits"
+        log_info(name() << " Spindle Ena:" << _enable_pin.name() << " Out CW:" << _output_cw_pin.name()
+                        << " Out CCW:" << _output_ccw_pin.name() << " Freq:" << _pwm_freq << "Hz Res:" << _pwm_precision << "bits"
 
         );
     }
 
-  void IRAM_ATTR HBridgeSpindle::set_output(uint32_t duty) {
-        if (_pwm_a_chan_num == -1) {
+    void IRAM_ATTR HBridgeSpindle::set_output(uint32_t duty) {
+        if (_pwm_cw_chan_num == -1 || _pwm_cw_chan_num == -1) {
             return;
         }
 
         // to prevent excessive calls to ledcSetDuty, make sure duty has changed
-        if (duty == _current_pwm_duty) {
+        if (duty == _current_pwm_duty && !_duty_update_needed) {
             return;
         }
 
-        _current_pwm_duty = duty;
-	if (_output_b_pin.defined()) {
-	  if (_state == SpindleState::Cw) {
-	    ledcSetDuty(_pwm_a_chan_num, 0);
-	    ledcSetDuty(_pwm_b_chan_num, duty);
-	  }
-	  else if (_state == SpindleState::Ccw) {
+        log_info("Duty:" << duty);
 
-	    ledcSetDuty(_pwm_b_chan_num, 0);
-	    ledcSetDuty(_pwm_a_chan_num, duty);
-	  }
-	}
-	else {
-	  ledcSetDuty(_pwm_a_chan_num, duty);
-	}
+        _duty_update_needed = false;
+
+        _current_pwm_duty = duty;
+
+        if (_state == SpindleState::Cw) {
+            ledcSetDuty(_pwm_cw_chan_num, 0);
+            ledcSetDuty(_pwm_ccw_chan_num, duty);
+        } else if (_state == SpindleState::Ccw) {
+            ledcSetDuty(_pwm_ccw_chan_num, 0);
+            ledcSetDuty(_pwm_cw_chan_num, duty);
+        } else {  // M5
+            ledcSetDuty(_pwm_cw_chan_num, duty);
+            ledcSetDuty(_pwm_ccw_chan_num, duty);
+        }
     }
 
     // Calculate the highest PWM precision in bits for the desired frequency
@@ -182,10 +187,10 @@ namespace Spindles {
 
     void HBridgeSpindle::deinit() {
         stop();
-        ledcDetachPin(_output_a_pin.getNative(Pin::Capabilities::PWM));
-        ledcDetachPin(_output_b_pin.getNative(Pin::Capabilities::PWM));
-        _output_a_pin.setAttr(Pin::Attr::Input);
-        _output_b_pin.setAttr(Pin::Attr::Input);
+        ledcDetachPin(_output_cw_pin.getNative(Pin::Capabilities::PWM));
+        ledcDetachPin(_output_ccw_pin.getNative(Pin::Capabilities::PWM));
+        _output_cw_pin.setAttr(Pin::Attr::Input);
+        _output_ccw_pin.setAttr(Pin::Attr::Input);
         _enable_pin.setAttr(Pin::Attr::Input);
     }
 

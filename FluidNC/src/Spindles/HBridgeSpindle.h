@@ -56,8 +56,8 @@ namespace Spindles {
             // but the ESP32 hardware can handle them, so we let the
             // user choose.
             handler.item("pwm_hz", _pwm_freq, 1, 20000000);
-	    handler.item("output_a_pin", _output_a_pin);
-	    handler.item("output_b_pin", _output_b_pin);
+            handler.item("output_cw_pin", _output_cw_pin);
+            handler.item("output_ccw_pin", _output_ccw_pin);
             handler.item("enable_pin", _enable_pin);
             handler.item("disable_with_s0", _disable_with_zero_speed);
             handler.item("s0_with_disable", _zero_speed_with_disable);
@@ -71,12 +71,14 @@ namespace Spindles {
         virtual ~HBridgeSpindle() {}
 
     protected:
-      // TODO: A/B rename
-        int32_t  _current_pwm_duty;
-        int      _pwm_a_chan_num = -1;
-        int      _pwm_b_chan_num = -1;
-        uint32_t _pwm_period;     // how many counts in 1 period
-        uint8_t  _pwm_precision;  // auto calculated
+        // TODO: A/B rename
+        int32_t      _current_pwm_duty;
+        SpindleState _current_state    = SpindleState::Unknown;
+        int          _pwm_cw_chan_num  = -1;
+        int          _pwm_ccw_chan_num = -1;
+        uint32_t     _pwm_period;     // how many counts in 1 period
+        uint8_t      _pwm_precision;  // auto calculated
+        bool         _duty_update_needed = false;
 
         // _disable_with_zero_speed forces a disable when speed is 0
         bool _disable_with_zero_speed = false;
@@ -88,13 +90,13 @@ namespace Spindles {
         // Clock wise is achieved setting PWM on the output_pin and LOW reverse_pin.
         // CClock wise is achieved setting PWM on the reverse pin and LOW on output_pin
         Pin _enable_pin;
-        Pin _output_a_pin;
-        Pin _output_b_pin;
+        Pin _output_cw_pin;
+        Pin _output_ccw_pin;
 
         // Configurable
-        uint32_t _pwm_freq = 5000;
+        uint32_t     _pwm_freq = 5000;
         SpindleState _state;
-        void set_enable(bool enable);
+        void         set_enable(bool enable);
 
         void         set_output(uint32_t duty);
         virtual void deinit();
