@@ -93,9 +93,7 @@ namespace Spindles {
         // sys.spindle_speed correctly.
         uint32_t dev_speed = mapSpeed(speed);
         if (state == SpindleState::Disable) {  // Halt or set spindle direction and speed.
-            if (_zero_speed_with_disable) {
-                dev_speed = offSpeed();
-            }
+            dev_speed = 0;
         } else {
             // PWM: this could wreak havoc if the direction is changed without first
             // spinning down. But it looks like the framework is stopping the motor
@@ -157,8 +155,8 @@ namespace Spindles {
             ledcSetDuty(_pwm_ccw_chan_num, 0);
             ledcSetDuty(_pwm_cw_chan_num, duty);
         } else {  // M5
-            ledcSetDuty(_pwm_cw_chan_num, duty);
-            ledcSetDuty(_pwm_ccw_chan_num, duty);
+            ledcSetDuty(_pwm_cw_chan_num, 0);
+            ledcSetDuty(_pwm_ccw_chan_num, 0);
         }
     }
 

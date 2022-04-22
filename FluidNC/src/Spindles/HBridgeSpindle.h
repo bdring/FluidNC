@@ -60,7 +60,6 @@ namespace Spindles {
             handler.item("output_ccw_pin", _output_ccw_pin);
             handler.item("enable_pin", _enable_pin);
             handler.item("disable_with_s0", _disable_with_zero_speed);
-            handler.item("s0_with_disable", _zero_speed_with_disable);
 
             Spindle::group(handler);
         }
@@ -82,8 +81,6 @@ namespace Spindles {
 
         // _disable_with_zero_speed forces a disable when speed is 0
         bool _disable_with_zero_speed = false;
-        // _zero_speed_with_disable forces speed to 0 when disabled
-        bool _zero_speed_with_disable = true;
 
         // The parent class does not support a reverse pin
         // Reverse pin is intended for HW in which two PWM outputs are needed
