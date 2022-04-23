@@ -9,7 +9,7 @@
 #include <esp32-hal-ledc.h>  // ledcDetachPin
 
 namespace Spindles {
-    void HBridgeSpindle::init() {
+    void HBridge::init() {
         get_pins_and_settings();
         setupSpeeds(_pwm_freq);
 
@@ -48,7 +48,7 @@ namespace Spindles {
     }
 
     // Get the GPIO from the machine definition
-    void HBridgeSpindle::get_pins_and_settings() {
+    void HBridge::get_pins_and_settings() {
         // setup all the pins
 
         is_reversable = _output_ccw_pin.defined();
@@ -57,7 +57,7 @@ namespace Spindles {
         _pwm_period    = (1 << _pwm_precision);
     }
 
-    void IRAM_ATTR HBridgeSpindle::set_enable(bool enable) {
+    void IRAM_ATTR HBridge::set_enable(bool enable) {
         if (_disable_with_zero_speed && sys.spindle_speed == 0) {
             enable = false;
         }
@@ -65,12 +65,12 @@ namespace Spindles {
         _enable_pin.synchronousWrite(enable);
     }
 
-    void IRAM_ATTR HBridgeSpindle::setSpeedfromISR(uint32_t dev_speed) {
+    void IRAM_ATTR HBridge::setSpeedfromISR(uint32_t dev_speed) {
         set_enable(gc_state.modal.spindle != SpindleState::Disable);
         set_output(dev_speed);
     }
 
-    void HBridgeSpindle::setState(SpindleState state, SpindleSpeed speed) {
+    void HBridge::setState(SpindleState state, SpindleSpeed speed) {
         if (sys.abort) {
             return;  // Block during abort.
         }
@@ -112,14 +112,14 @@ namespace Spindles {
     }
 
     // prints the startup message of the spindle config
-    void HBridgeSpindle::config_message() {
+    void HBridge::config_message() {
         log_info(name() << " Spindle Ena:" << _enable_pin.name() << " Out CW:" << _output_cw_pin.name()
                         << " Out CCW:" << _output_ccw_pin.name() << " Freq:" << _pwm_freq << "Hz Res:" << _pwm_precision << "bits"
 
         );
     }
 
-    void IRAM_ATTR HBridgeSpindle::set_output(uint32_t duty) {
+    void IRAM_ATTR HBridge::set_output(uint32_t duty) {
         if (_pwm_cw_chan_num == -1 || _pwm_cw_chan_num == -1) {
             return;
         }
@@ -150,7 +150,7 @@ namespace Spindles {
     // maxCount is a power of two between 2^1 and 2^20
     // frequency is at most 80,000,000 / 2^1 = 40,000,000, limited elsewhere
     // to 20,000,000 to give a period of at least 2^2 = 4 levels of control.
-    uint8_t HBridgeSpindle::calc_pwm_precision(uint32_t freq) {
+    uint8_t HBridge::calc_pwm_precision(uint32_t freq) {
         if (freq == 0) {
             freq = 1;  // Limited elsewhere but just to be safe...
         }
@@ -168,7 +168,7 @@ namespace Spindles {
         return ledcMaxBits;
     }
 
-    void HBridgeSpindle::deinit() {
+    void HBridge::deinit() {
         stop();
         ledcDetachPin(_output_cw_pin.getNative(Pin::Capabilities::PWM));
         ledcDetachPin(_output_ccw_pin.getNative(Pin::Capabilities::PWM));
@@ -179,6 +179,6 @@ namespace Spindles {
 
     // Configuration registration
     namespace {
-        SpindleFactory::InstanceBuilder<HBridgeSpindle> registration("HBridgeSpindle");
+        SpindleFactory::InstanceBuilder<HBridge> registration("HBridge");
     }
 }

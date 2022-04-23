@@ -28,18 +28,18 @@
 
 namespace Spindles {
     // This adds support for PWM H-Bridge Spindles
-    class HBridgeSpindle : public Spindle {
+    class HBridge : public Spindle {
     public:
-        HBridgeSpindle() = default;
+        HBridge() = default;
 
         // PWM(Pin&& output, Pin&& enable, Pin&& direction, uint32_t minRpm, uint32_t maxRpm) :
         //     _min_rpm(minRpm), _max_rpm(maxRpm), _output_pin(std::move(output)), _enable_pin(std::move(enable)),
         //     _direction_pin(std::move(direction)) {}
 
-        HBridgeSpindle(const HBridgeSpindle&) = delete;
-        HBridgeSpindle(HBridgeSpindle&&)      = delete;
-        HBridgeSpindle& operator=(const HBridgeSpindle&) = delete;
-        HBridgeSpindle& operator=(HBridgeSpindle&&) = delete;
+        HBridge(const HBridge&) = delete;
+        HBridge(HBridge&&)      = delete;
+        HBridge& operator=(const HBridge&) = delete;
+        HBridge& operator=(HBridge&&) = delete;
 
         void init() override;
         void setSpeedfromISR(uint32_t dev_speed) override;
@@ -71,9 +71,9 @@ namespace Spindles {
         }
 
         // Name of the configurable. Must match the name registered in the cpp file.
-        const char* name() const override { return "HBridgeSpindle"; }
+        const char* name() const override { return "HBridge"; }
 
-        virtual ~HBridgeSpindle() {}
+        virtual ~HBridge() {}
 
     protected:
         // TODO: A/B rename
