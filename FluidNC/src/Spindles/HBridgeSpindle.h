@@ -4,15 +4,21 @@
 #pragma once
 
 /*
-	This is a full PWM spindle driver without speed compensation for an H Bridge controller
+	This is a PWM spindle driver without speed compensation for a full H-Bridge controller
    with support for two directions. The external HW has the following PINS:
      enable_pin : optional.
-     output_a_pin : Clockwise PWM signal
-     output_b_pin : Counter Clockwise PWM signal
-     When the output A is toggling, B is set LOW, and viceversa.
+     output_cw_pin : Clockwise PWM signal
+     output_ccw_pin : Counter Clockwise PWM signal
+     When the output CW is toggling, CCW is set LOW, and viceversa.
 
      Features which could be added afterwards:
-     # Soft start to prevent unnecessary current spikes on the spindle supply. The spindleDelay function seems to be a way to delay the application from using a spindle which has not accelerated yet. A similar feature could be added completing or replacing that functionality for this spindle type.
+
+     Soft start to prevent unnecessary current spikes on the spindle power
+     supply. The spindleDelay function seems to be a way to delay the
+     application from using a spindle which has not accelerated yet. A similar
+     feature could be added completing or replacing that functionality for
+     this spindle type, or for all spindles.
+
 
 */
 
@@ -82,10 +88,8 @@ namespace Spindles {
         // _disable_with_zero_speed forces a disable when speed is 0
         bool _disable_with_zero_speed = false;
 
-        // The parent class does not support a reverse pin
-        // Reverse pin is intended for HW in which two PWM outputs are needed
-        // Clock wise is achieved setting PWM on the output_pin and LOW reverse_pin.
-        // CClock wise is achieved setting PWM on the reverse pin and LOW on output_pin
+        // Clockwise is achieved setting PWM on the output_pin and LOW reverse_pin.
+        // Counter Clockwise is achieved setting PWM on the reverse pin and LOW on output_pin
         Pin _enable_pin;
         Pin _output_cw_pin;
         Pin _output_ccw_pin;

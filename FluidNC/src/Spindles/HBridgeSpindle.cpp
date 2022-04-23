@@ -1,22 +1,12 @@
 // Copyright (c) 2022 -	Santiago Palomino
 // Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
 
-/*
-    This is a full featured TTL PWM spindle This does not include speed/power
-    compensation. Use the Laser class for that.
-*/
 #include "HBridgeSpindle.h"
 
 #include "../GCode.h"  // gc_state.modal
 #include "../Logging.h"
 #include "../Pins/LedcPin.h"
 #include <esp32-hal-ledc.h>  // ledcDetachPin
-
-// ======================= PWM ==============================
-/*
-    This gets called at startup or whenever a spindle setting changes
-    If the spindle is running it will stop and need to be restarted with M3Snnnn
-*/
 
 namespace Spindles {
     void HBridgeSpindle::init() {
@@ -95,9 +85,8 @@ namespace Spindles {
         if (state == SpindleState::Disable) {  // Halt or set spindle direction and speed.
             dev_speed = 0;
         } else {
-            // PWM: this could wreak havoc if the direction is changed without first
-            // spinning down. But it looks like the framework is stopping the motor
-            // before changing direction M4 is not accepted during M3 if M5 is not run first.
+            // The core is responsible for stopping the motor before changing
+            // direction
             if (state == SpindleState::Cw || state == SpindleState::Ccw) {}
         }
         _state = state;
