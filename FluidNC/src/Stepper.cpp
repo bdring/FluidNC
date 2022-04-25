@@ -478,7 +478,7 @@ void Stepper::prep_buffer() {
                     pl_block->entry_speed_sqr           = prep.exit_speed * prep.exit_speed;
                     prep.recalculate_flag.decelOverride = 0;
                 } else {
-                    prep.current_speed = float(sqrt(pl_block->entry_speed_sqr));
+                    prep.current_speed = sqrtf(pl_block->entry_speed_sqr);
                 }
 
                 // prep.inv_rate is only used if is_pwm_rate_adjusted is true
@@ -508,7 +508,7 @@ void Stepper::prep_buffer() {
                 float decel_dist = pl_block->millimeters - inv_2_accel * pl_block->entry_speed_sqr;
                 if (decel_dist < 0.0) {
                     // Deceleration through entire planner block. End of feed hold is not in this block.
-                    prep.exit_speed = float(sqrt(pl_block->entry_speed_sqr - 2 * pl_block->acceleration * pl_block->millimeters));
+                    prep.exit_speed = sqrtf(pl_block->entry_speed_sqr - 2 * pl_block->acceleration * pl_block->millimeters);
                 } else {
                     prep.mm_complete = decel_dist;  // End of feed hold.
                     prep.exit_speed  = 0.0;
@@ -523,7 +523,7 @@ void Stepper::prep_buffer() {
                     prep.exit_speed = exit_speed_sqr = 0.0;  // Enforce stop at end of system motion.
                 } else {
                     exit_speed_sqr  = plan_get_exec_block_exit_speed_sqr();
-                    prep.exit_speed = float(sqrt(exit_speed_sqr));
+                    prep.exit_speed = sqrtf(exit_speed_sqr);
                 }
 
                 nominal_speed            = plan_compute_profile_nominal_speed(pl_block);
@@ -536,7 +536,7 @@ void Stepper::prep_buffer() {
                         // prep.decelerate_after = pl_block->millimeters;
                         // prep.maximum_speed = prep.current_speed;
                         // Compute override block exit speed since it doesn't match the planner exit speed.
-                        prep.exit_speed = float(sqrt(pl_block->entry_speed_sqr - 2 * pl_block->acceleration * pl_block->millimeters));
+                        prep.exit_speed = sqrtf(pl_block->entry_speed_sqr - 2 * pl_block->acceleration * pl_block->millimeters);
                         prep.recalculate_flag.decelOverride = 1;  // Flag to load next block as deceleration override.
                         // TODO: Determine correct handling of parameters in deceleration-only.
                         // Can be tricky since entry speed will be current speed, as in feed holds.
@@ -563,7 +563,7 @@ void Stepper::prep_buffer() {
                         } else {  // Triangle type
                             prep.accelerate_until = intersect_distance;
                             prep.decelerate_after = intersect_distance;
-                            prep.maximum_speed    = float(sqrt(2.0f * pl_block->acceleration * intersect_distance + exit_speed_sqr));
+                            prep.maximum_speed    = sqrtf(2.0f * pl_block->acceleration * intersect_distance + exit_speed_sqr);
                         }
                     } else {  // Deceleration-only type
                         prep.ramp_type = RAMP_DECEL;
@@ -733,8 +733,8 @@ void Stepper::prep_buffer() {
            machines (i.e. exceeding 10 meters axis travel at 200 step/mm).
         */
         float step_dist_remaining    = prep.step_per_mm * mm_remaining;                       // Convert mm_remaining to steps
-        float n_steps_remaining      = float(ceil(step_dist_remaining));                      // Round-up current steps remaining
-        float last_n_steps_remaining = float(ceil(prep.steps_remaining));                     // Round-up last steps remaining
+        float n_steps_remaining      = ceilf(step_dist_remaining);                            // Round-up current steps remaining
+        float last_n_steps_remaining = ceilf(prep.steps_remaining);                           // Round-up last steps remaining
         prep_segment->n_step         = uint16_t(last_n_steps_remaining - n_steps_remaining);  // Compute number of steps to execute.
 
         // Bail if we are at the end of a feed hold and don't have a step to execute.
@@ -766,7 +766,7 @@ void Stepper::prep_buffer() {
         // Compute CPU cycles per step for the prepped segment.
         // fStepperTimer is in units of timerTicks/sec, so the dimensional analysis is
         // timerTicks/sec * 60 sec/minute * minutes = timerTicks
-        uint32_t timerTicks = uint32_t(ceil((Machine::Stepping::fStepperTimer * 60) * inv_rate));  // (timerTicks/step)
+        uint32_t timerTicks = uint32_t(ceilf((Machine::Stepping::fStepperTimer * 60) * inv_rate));  // (timerTicks/step)
         int      level;
 
         // Compute step timing and multi-axis smoothing level.

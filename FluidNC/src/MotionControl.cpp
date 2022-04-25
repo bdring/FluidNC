@@ -139,7 +139,7 @@ void mc_arc(float*            target,
     }
 
     // CCW angle between position and target from circle center. Only one atan2() trig computation required.
-    float angular_travel = float(atan2(r_axis0 * rt_axis1 - r_axis1 * rt_axis0, r_axis0 * rt_axis0 + r_axis1 * rt_axis1));
+    float angular_travel = atan2f(r_axis0 * rt_axis1 - r_axis1 * rt_axis0, r_axis0 * rt_axis0 + r_axis1 * rt_axis1);
     if (is_clockwise_arc) {  // Correct atan2 output per direction
         if (angular_travel >= -ARC_ANGULAR_TRAVEL_EPSILON) {
             angular_travel -= 2 * float(M_PI);
@@ -155,7 +155,7 @@ void mc_arc(float*            target,
     // is desired, i.e. least-squares, midpoint on arc, just change the mm_per_arc_segment calculation.
     // For most uses, this value should not exceed 2000.
     uint16_t segments =
-        uint16_t(floor(fabs(0.5 * angular_travel * radius) / sqrt(config->_arcTolerance * (2 * radius - config->_arcTolerance))));
+        uint16_t(floorf(fabsf(0.5 * angular_travel * radius) / sqrtf(config->_arcTolerance * (2 * radius - config->_arcTolerance))));
     if (segments) {
         // Multiply inverse feed_rate to compensate for the fact that this movement is approximated
         // by a number of discrete segments. The inverse feed_rate should be correct for the sum of
@@ -215,8 +215,8 @@ void mc_arc(float*            target,
             } else {
                 // Arc correction to radius vector. Computed only every N_ARC_CORRECTION increments. ~375 usec
                 // Compute exact location by applying transformation matrix from initial radius vector(=-offset).
-                cos_Ti  = float(cos(i * theta_per_segment));
-                sin_Ti  = float(sin(i * theta_per_segment));
+                cos_Ti  = cosf(i * theta_per_segment);
+                sin_Ti  = sinf(i * theta_per_segment);
                 r_axis0 = -offset[axis_0] * cos_Ti + offset[axis_1] * sin_Ti;
                 r_axis1 = -offset[axis_0] * sin_Ti - offset[axis_1] * cos_Ti;
                 count   = 0;

@@ -49,8 +49,7 @@ namespace Kinematics {
 
         void plan_homing_move(AxisMask axisMask, bool approach, bool seek);
 
-        void  transform_cartesian_to_motors(float* motors, float* cartesian);
-        float three_axis_dist(float* point1, float* point2);
+        void transform_cartesian_to_motors(float* motors, float* cartesian);
 
     protected:
         float _x_scaler = 1.0;
