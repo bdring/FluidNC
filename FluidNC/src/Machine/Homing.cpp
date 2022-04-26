@@ -121,8 +121,8 @@ namespace Machine {
         plan_data.line_number           = REPORT_LINE_NUMBER;
         plan_data.is_jog                = false;
 
-        plan_data.feed_rate = float(sqrt(rate));  // Magnitude of homing rate vector
-        plan_buffer_line(target, &plan_data);     // Bypass mc_move_motors(). Directly plan homing motion.
+        plan_data.feed_rate = sqrtf(rate);     // Magnitude of homing rate vector
+        plan_buffer_line(target, &plan_data);  // Bypass mc_move_motors(). Directly plan homing motion.
 
         sys.step_control                  = {};
         sys.step_control.executeSysMotion = true;  // Set to execute homing motion and clear existing flags.
