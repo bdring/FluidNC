@@ -1234,7 +1234,7 @@ Error gc_execute_line(char* line, Channel& channel) {
                         // Compute arc radius for mc_arc. Defined from current location to center.
                         gc_block.values.r = hypot_f(gc_block.values.ijk[axis_0], gc_block.values.ijk[axis_1]);
                         // Compute difference between current location and target radii for final error-checks.
-                        float delta_r = fabs(target_r - gc_block.values.r);
+                        float delta_r = fabsf(target_r - gc_block.values.r);
                         if (delta_r > 0.005) {
                             if (delta_r > 0.5) {
                                 FAIL(Error::GcodeInvalidTarget);  // [Arc definition error] > 0.5mm
@@ -1259,7 +1259,7 @@ Error gc_execute_line(char* line, Channel& channel) {
                     //   allow the planner buffer to empty and move off the probe trigger before another probing cycle.
                     if (bitnum_is_true(value_words, GCodeWord::P)) {
                         if (multiple_bits_set(axis_words)) {  // There should only be one axis word given
-                            FAIL(Error::GcodeUnusedWords);  // we have more axis words than allowed.
+                            FAIL(Error::GcodeUnusedWords);    // we have more axis words than allowed.
                         }
                     } else {
                         gc_block.values.p = __FLT_MAX__;  // This is a hack to signal the probe cycle that not to auto offset.

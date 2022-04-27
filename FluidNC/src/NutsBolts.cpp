@@ -123,24 +123,39 @@ bool delay_msec(uint32_t milliseconds, DwellMode mode) {
     return true;
 }
 
-// Simple hypotenuse computation function.
+// Hypotenuse of a triangle
 float hypot_f(float x, float y) {
-    return float(sqrt(x * x + y * y));
+    return sqrtf(x * x + y * y);
 }
 
-float convert_delta_vector_to_unit_vector(float* vector) {
-    float magnitude = 0.0;
+float vector_distance(float* v1, float* v2, size_t n) {
+    float sum = 0.0;
+    for (size_t i = 0; i < n; i++) {
+        float d = v2[i] - v1[i];
+        sum += d * d;
+    }
+    return sqrtf(sum);
+}
+
+float vector_length(float* v, size_t n) {
+    float sum = 0.0;
+    for (size_t i = 0; i < n; i++) {
+        float d = v[i];
+        sum += d * d;
+    }
+    return sqrtf(sum);
+}
+
+void scale_vector(float* v, float scale, size_t n) {
+    for (size_t i = 0; i < n; i++) {
+        v[i] *= scale;
+    }
+}
+
+float convert_delta_vector_to_unit_vector(float* v) {
     auto  n_axis    = config->_axes->_numberAxis;
-    for (size_t idx = 0; idx < n_axis; idx++) {
-        if (vector[idx] != 0.0) {
-            magnitude += vector[idx] * vector[idx];
-        }
-    }
-    magnitude           = float(sqrt(magnitude));
-    float inv_magnitude = 1.0f / magnitude;
-    for (size_t idx = 0; idx < n_axis; idx++) {
-        vector[idx] *= inv_magnitude;
-    }
+    float magnitude = vector_length(v, n_axis);
+    scale_vector(v, 1.0f / magnitude, n_axis);
     return magnitude;
 }
 
@@ -152,7 +167,7 @@ float limit_acceleration_by_axis_maximum(float* unit_vec) {
     for (size_t idx = 0; idx < n_axis; idx++) {
         auto axisSetting = config->_axes->_axis[idx];
         if (unit_vec[idx] != 0) {  // Avoid divide by zero.
-            limit_value = MIN(limit_value, float(fabs(axisSetting->_acceleration / unit_vec[idx])));
+            limit_value = MIN(limit_value, fabsf(axisSetting->_acceleration / unit_vec[idx]));
         }
     }
     // The acceleration setting is stored and displayed in units of mm/sec^2,
@@ -168,7 +183,7 @@ float limit_rate_by_axis_maximum(float* unit_vec) {
     for (size_t idx = 0; idx < n_axis; idx++) {
         auto axisSetting = config->_axes->_axis[idx];
         if (unit_vec[idx] != 0) {  // Avoid divide by zero.
-            limit_value = MIN(limit_value, float(fabs(axisSetting->_maxRate / unit_vec[idx])));
+            limit_value = MIN(limit_value, fabsf(axisSetting->_maxRate / unit_vec[idx]));
         }
     }
     return limit_value;

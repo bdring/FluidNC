@@ -76,11 +76,12 @@ namespace Kinematics {
 
         // calculate the total X,Y axis move distance
         // Z axis is the same in both coord systems, so it is ignored
-        float dist = sqrt((dx * dx) + (dy * dy));
+        float dist = vector_distance(target, position, Y_AXIS);
+
         if (pl_data->motion.rapidMotion) {
             segment_count = 1;  // rapid G0 motion is not used to draw, so skip the segmentation
         } else {
-            segment_count = ceil(dist / _segment_length);  // determine the number of segments we need ... round up so there is at least 1
+            segment_count = ceilf(dist / _segment_length);  // determine the number of segments we need ... round up so there is at least 1
         }
 
         if (segment_count == 0 && target[Z_AXIS] != position[Z_AXIS]) {
@@ -97,10 +98,11 @@ namespace Kinematics {
 
         dist /= segment_count;  // segment distance
         for (uint32_t segment = 1; segment <= segment_count; segment++) {
+            float segment_distance = float(segment_count) * segment;
             // determine this segment's absolute target
-            float seg_x = position[X_AXIS] + (dx / float(segment_count) * segment);
-            float seg_y = position[Y_AXIS] + (dy / float(segment_count) * segment);
-            float seg_z = position[Z_AXIS] + (dz / float(segment_count) * segment);
+            float seg_x = position[X_AXIS] + (dx / segment_distance);
+            float seg_y = position[Y_AXIS] + (dy / segment_distance);
+            float seg_z = position[Z_AXIS] + (dz / segment_distance);
 
             float seg_left, seg_right;
             // FIX: Z needs to be interpolated properly.
@@ -192,7 +194,7 @@ namespace Kinematics {
         // Compute a and h.
         float a  = (left_radius2 - right_radius2 + distance2) / (2 * distance);
         float a2 = a * a;
-        float h  = sqrt(left_radius2 - a2);
+        float h  = sqrtf(left_radius2 - a2);
 
         // Translate to absolute coordinates.
         x = _left_anchor_x + a;
@@ -200,15 +202,15 @@ namespace Kinematics {
     }
 
     void WallPlotter::xy_to_lengths(float x, float y, float& left_length, float& right_length) {
-        // We just need to compute the respective hypotenuse of each triangle.
+        // Compute the hypotenuse of each triangle.
 
         float left_dy = _left_anchor_y - y;
         float left_dx = _left_anchor_x - x;
-        left_length   = sqrt(left_dx * left_dx + left_dy * left_dy);
+        left_length   = hypot_f(left_dx, left_dy);
 
         float right_dy = _right_anchor_y - y;
         float right_dx = _right_anchor_x - x;
-        right_length   = sqrt(right_dx * right_dx + right_dy * right_dy);
+        right_length   = hypot_f(right_dx, right_dy);
     }
 
     // Configuration registration

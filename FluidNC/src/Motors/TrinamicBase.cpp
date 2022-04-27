@@ -107,10 +107,6 @@ namespace MotorDrivers {
     }
 
     bool TrinamicBase::reportTest(uint8_t result) {
-        if (_has_errors) {
-            return false;
-        }
-
         switch (result) {
             case 1:
                 log_error(axisName() << " driver test failed. Check connection");

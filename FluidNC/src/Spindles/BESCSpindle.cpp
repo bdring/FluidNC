@@ -35,7 +35,7 @@ namespace Spindles {
         is_reversable = _direction_pin.defined();
 
         // override some settings in the PWM base class to what is required for a BESC
-        _pwm_freq      = besc_pwm_freq;
+        constrain_with_message(_pwm_freq, besc_pwm_min_freq, besc_pwm_max_freq, "pwm_freq");
         _pwm_precision = 16;
         _pwm_period    = (1 << _pwm_precision);
 
@@ -46,7 +46,7 @@ namespace Spindles {
         // BESC PWM typically represents 0 speed as a 1ms pulse and max speed as a 2ms pulse
 
         // 1000000 is us/sec
-        const uint32_t pulse_period_us = 1000000 / besc_pwm_freq;
+        const uint32_t pulse_period_us = 1000000 / _pwm_freq;
 
         // Calculate the pulse length offset and scaler in counts of the LEDC controller
         _min_pulse_counts  = (_min_pulse_us << _pwm_precision) / pulse_period_us;
