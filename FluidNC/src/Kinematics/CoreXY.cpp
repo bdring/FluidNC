@@ -171,8 +171,8 @@ namespace Kinematics {
             AxisMask axisMask = Machine::Homing::axis_mask_from_cycle(cycle);
             uint8_t  count    = 0;
 
-            for (int i = 0; i < 16; i++) {
-                if (bitnum_is_true(axisMask, i)) {
+            for (int axis = 0; axis < MAX_N_AXIS; axis++) {
+                if (bitnum_is_true(axisMask, axis)) {
                     if (++count > 1) {  // Error with any axis with more than one axis per cycle
                         log_error("CoreXY cannot multi-axis home. Check homing cycle:" << cycle);
                         // TODO: Set some Kinematics error or alarm

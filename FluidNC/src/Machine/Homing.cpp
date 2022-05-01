@@ -51,7 +51,7 @@ namespace Machine {
         AxisMask axesMask = 0;
         // Find the axis that will take the longest
         for (int axis = 0; axis < n_axis; axis++) {
-            if (bitnum_is_false(motors, axis) && bitnum_is_false(motors, axis + 16)) {
+            if (bitnum_is_false(motors, Machine::Axes::motor_bit(axis, 0)) && bitnum_is_false(motors, Machine::Axes::motor_bit(axis, 1))) {
                 continue;
             }
 
@@ -77,13 +77,15 @@ namespace Machine {
                 travel = axisConfig->_maxTravel;
             } else {  // see if which pull off we use
                 // If both motors are running use the first pull off
-                if (bitnum_is_true(motors, axis) && bitnum_is_true(motors, axis + 16)) {
+                if (bitnum_is_true(motors, Axes::motor_bit(axis, 0)) && bitnum_is_true(motors, Axes::motor_bit(axis, 1))) {
                     travel = axisConfig->_motors[0]->_pulloff;
                 } else {
                     if (customPulloff != 0) {
                         travel = customPulloff;
                     } else {
-                        bitnum_is_true(motors, axis) ? travel = axisConfig->_motors[0]->_pulloff : travel = axisConfig->_motors[1]->_pulloff;
+                        // If motor 0 is not running, use the pulloff for motor 1
+                        int motor = bitnum_is_false(motors, Axes::motor_bit(axis, 0));
+                        travel    = axisConfig->_motors[motor]->_pulloff;
                     }
                 }
             }

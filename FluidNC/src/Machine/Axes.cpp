@@ -79,7 +79,7 @@ namespace Machine {
                     for (size_t motor = 0; motor < Axis::MAX_MOTORS_PER_AXIS; motor++) {
                         auto m = _axis[axis]->_motors[motor];
                         if (m && m->_driver->set_homing_mode(isHoming)) {
-                            set_bitnum(motorsCanHome, motor * 16 + axis);
+                            set_bitnum(motorsCanHome, motor_bit(axis, motor));
                         }
                     }
                 }

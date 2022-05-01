@@ -33,6 +33,10 @@ namespace Machine {
 
         inline char axisName(int index) { return index < MAX_N_AXIS ? _names[index] : '?'; }  // returns axis letter
 
+        static inline size_t    motor_bit(size_t axis, size_t motor) { return motor ? axis + 16 : axis; }
+        static inline AxisMask  motors_to_axes(MotorMask motors) { return (motors & 0xffff) | (motors >> 16); }
+        static inline MotorMask axes_to_motors(AxisMask axes) { return axes | (axes << 16); }
+
         Pin _sharedStepperDisable;
         Pin _sharedStepperReset;
 
