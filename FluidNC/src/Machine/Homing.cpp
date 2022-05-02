@@ -34,6 +34,8 @@ namespace Machine {
     // Then we scale the travel distances for the other axes so they would complete
     // at the same time.
 
+    bool Homing::_approach = false;
+
     const uint32_t MOTOR0 = 0xffff;
     const uint32_t MOTOR1 = 0xffff0000;
 
@@ -141,18 +143,15 @@ namespace Machine {
             return;
         }
 
-        uint32_t settling_ms = plan_move(remainingMotors, approach, seek, customPulloff);
+        _approach = approach;
 
-        config->_axes->lock_motors(0xffffffff);
-        config->_axes->unlock_motors(remainingMotors);
+        uint32_t settling_ms = plan_move(remainingMotors, approach, seek, customPulloff);
 
         do {
             if (approach) {
-                // Check limit state. Lock out cycle axes when they change.
-                // XXX do we check only the switch in the direction of motion?
+                // As limit bits are set, remove the corresponding bits from remaingMotors.
+                // The stepping ISR code takes care of stopping the motors when limit bits are set
                 MotorMask limitedMotors = Machine::Axes::posLimitMask | Machine::Axes::negLimitMask;
-
-                config->_axes->lock_motors(limitedMotors);
                 clear_bits(remainingMotors, limitedMotors);
             }
 
@@ -189,6 +188,7 @@ namespace Machine {
 
         Stepper::reset();       // Immediately force kill steppers and reset step segment buffer.
         delay_ms(settling_ms);  // Delay to allow transient dynamics to dissipate.
+        _approach = false;
     }
 
     // This homing mode never forces the machine out of square
@@ -253,9 +253,13 @@ namespace Machine {
         MotorMask motors = config->_axes->set_homing_mode(axisMask, true);
 
         try {
-            run(motors, true, true);    // Approach slowly
+            log_debug("Fast approach");
+            run(motors, true, true);  // Approach slowly
+            log_debug("Pulloff");
             run(motors, false, false);  // Pulloff
-            run(motors, true, false);   // Approach slowly
+            log_debug("Slow approach");
+            run(motors, true, false);  // Approach slowly
+            log_debug("Pulloff");
             run(motors, false, false);  // Pulloff
             if (squaredStressfree(motors)) {
                 //log_info("Stress Free Squaring 0x" << String(motors, 16));

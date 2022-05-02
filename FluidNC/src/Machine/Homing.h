@@ -23,6 +23,8 @@ namespace Machine {
 
         static const int AllCycles = 0;  // Must be zero.
 
+        static bool _approach;
+
         static void run_cycles(AxisMask axisMask);
         static void run_one_cycle(AxisMask axisMask);
 

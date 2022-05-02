@@ -35,8 +35,6 @@ namespace Machine {
             _sharedStepperReset.report("Shared stepper reset");
         }
 
-        unlock_all_motors();
-
         // certain motors need features to be turned on. Check them here
         for (size_t axis = X_AXIS; axis < _numberAxis; axis++) {
             auto a = _axis[axis];
@@ -69,7 +67,6 @@ namespace Machine {
     // Put the motors in the given axes into homing mode, returning a
     // mask of which motors can do homing.
     MotorMask Axes::set_homing_mode(AxisMask axisMask, bool isHoming) {
-        unlock_all_motors();  // On homing transitions, cancel all motor lockouts
         MotorMask motorsCanHome = 0;
 
         for (size_t axis = X_AXIS; axis < _numberAxis; axis++) {
@@ -88,10 +85,6 @@ namespace Machine {
 
         return motorsCanHome;
     }
-
-    void Axes::unlock_all_motors() { _motorLockoutMask = 0; }
-    void Axes::lock_motors(MotorMask mask) { set_bits(_motorLockoutMask, mask); }
-    void Axes::unlock_motors(MotorMask mask) { clear_bits(_motorLockoutMask, mask); }
 
     void IRAM_ATTR Axes::step(uint8_t step_mask, uint8_t dir_mask) {
         auto n_axis = _numberAxis;
@@ -116,21 +109,26 @@ namespace Machine {
             config->_stepping->waitDirection();
         }
 
+        auto limitedMotors    = posLimitMask | negLimitMask;
+        bool isHomingApproach = Homing::_approach;
+
         // Turn on step pulses for motors that are supposed to step now
         for (size_t axis = X_AXIS; axis < n_axis; axis++) {
             if (bitnum_is_true(step_mask, axis)) {
+                int stepIncrement = bitnum_is_true(dir_mask, axis) ? 1 : -1;
+
                 auto a = _axis[axis];
 
-                if (bitnum_is_false(_motorLockoutMask, axis)) {
+                // Skip steps based on limit pins if:
+                // (Homing approach or axis hard limits) & limit pin is true
+
+                for (size_t motor = 0; motor < Axis::MAX_MOTORS_PER_AXIS; motor++) {
                     auto m = a->_motors[0];
                     if (m) {
-                        m->_driver->step();
-                    }
-                }
-                if (bitnum_is_false(_motorLockoutMask, axis + 16)) {
-                    auto m = a->_motors[1];
-                    if (m) {
-                        m->_driver->step();
+                        if (!((isHomingApproach || m->_hardLimits) && bitnum_is_true(limitedMotors, motor_bit(axis, motor)))) {
+                            m->_driver->step();
+                            m->_steps += stepIncrement;
+                        }
                     }
                 }
             }

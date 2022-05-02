@@ -15,10 +15,6 @@ namespace Machine {
     class Axes : public Configuration::Configurable {
         bool _switchedStepper = false;
 
-        // During homing, this is used to stop stepping on motors that have
-        // reached their limit switches, by clearing bits in the mask.
-        MotorMask _motorLockoutMask = 0;
-
     public:
         static constexpr const char* _names = "XYZABC";
 
@@ -67,9 +63,6 @@ namespace Machine {
         // These are used during homing cycles.
         // The return value is a bitmask of axes that can home
         MotorMask set_homing_mode(AxisMask homing_mask, bool isHoming);
-        void      unlock_all_motors();
-        void      lock_motors(MotorMask motor_mask);
-        void      unlock_motors(MotorMask motor_mask);
 
         void set_disable(int axis, bool disable);
         void set_disable(bool disable);

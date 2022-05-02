@@ -35,6 +35,8 @@ namespace Machine {
         Pin  _allPin;
         bool _hardLimits = false;
 
+        int32_t _steps = 0;
+
         // Configuration system helpers:
         void group(Configuration::HandlerBase& handler) override;
         void afterParse() override;
