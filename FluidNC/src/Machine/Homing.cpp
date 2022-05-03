@@ -34,7 +34,7 @@ namespace Machine {
     // Then we scale the travel distances for the other axes so they would complete
     // at the same time.
 
-    bool Homing::_approach = false;
+    volatile bool Homing::_approach = false;
 
     const uint32_t MOTOR0 = 0xffff;
     const uint32_t MOTOR1 = 0xffff0000;
@@ -61,7 +61,7 @@ namespace Machine {
             set_bitnum(axesMask, axis);
 
             // Set target location for active axes and setup computation for homing rate.
-            motor_steps[axis] = 0;
+            set_motor_steps(axis, 0);
 
             auto axisConfig = axes->_axis[axis];
             auto homing     = axisConfig->_homing;
@@ -241,7 +241,7 @@ namespace Machine {
         // Set machine positions for homed limit switches. Don't update non-homed axes.
         for (int axis = 0; axis < n_axis; axis++) {
             if (bitnum_is_true(axisMask, axis)) {
-                motor_steps[axis] = mpos_to_steps(axes->_axis[axis]->_homing->_mpos, axis);
+                set_motor_steps(axis, mpos_to_steps(axes->_axis[axis]->_homing->_mpos, axis));
             }
         }
         sys.step_control = {};                   // Return step control to normal operation.

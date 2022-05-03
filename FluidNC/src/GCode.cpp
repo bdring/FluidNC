@@ -52,7 +52,7 @@ void gc_init() {
 // Sets g-code parser position in mm. Input in steps. Called by the system abort and hard
 // limit pull-off routines.
 void gc_sync_position() {
-    motor_steps_to_mpos(gc_state.position, motor_steps);
+    motor_steps_to_mpos(gc_state.position, get_motor_steps());
 }
 
 static void gcode_comment_msg(char* comment) {

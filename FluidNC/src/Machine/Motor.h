@@ -35,7 +35,8 @@ namespace Machine {
         Pin  _allPin;
         bool _hardLimits = false;
 
-        int32_t _steps = 0;
+        int32_t _steps   = 0;
+        bool    _limited = false;  // _limited is set by the LimitPin ISR
 
         // Configuration system helpers:
         void group(Configuration::HandlerBase& handler) override;
@@ -45,6 +46,8 @@ namespace Machine {
         void makeDualSwitches();
         void init();
         void config_motor();
+        void step(bool reverse);
+        void unstep();
         ~Motor();
     };
 }

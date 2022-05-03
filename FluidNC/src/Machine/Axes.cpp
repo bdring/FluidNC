@@ -109,26 +109,16 @@ namespace Machine {
             config->_stepping->waitDirection();
         }
 
-        auto limitedMotors    = posLimitMask | negLimitMask;
-        bool isHomingApproach = Homing::_approach;
-
         // Turn on step pulses for motors that are supposed to step now
         for (size_t axis = X_AXIS; axis < n_axis; axis++) {
             if (bitnum_is_true(step_mask, axis)) {
-                int stepIncrement = bitnum_is_true(dir_mask, axis) ? 1 : -1;
+                bool dir = bitnum_is_true(dir_mask, axis);
 
                 auto a = _axis[axis];
-
-                // Skip steps based on limit pins if:
-                // (Homing approach or axis hard limits) & limit pin is true
-
                 for (size_t motor = 0; motor < Axis::MAX_MOTORS_PER_AXIS; motor++) {
-                    auto m = a->_motors[0];
+                    auto m = a->_motors[motor];
                     if (m) {
-                        if (!((isHomingApproach || m->_hardLimits) && bitnum_is_true(limitedMotors, motor_bit(axis, motor)))) {
-                            m->_driver->step();
-                            m->_steps += stepIncrement;
-                        }
+                        m->step(dir);
                     }
                 }
             }

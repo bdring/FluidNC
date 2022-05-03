@@ -10,8 +10,8 @@
 #include <esp32-hal-gpio.h>  // CHANGE
 
 namespace Machine {
-    LimitPin::LimitPin(Pin& pin, int axis, int motor, int direction, bool& pHardLimits) :
-        _axis(axis), _motorNum(motor), _value(false), _pHardLimits(pHardLimits), _pin(pin) {
+    LimitPin::LimitPin(Pin& pin, int axis, int motor, int direction, bool& pHardLimits, bool& pLimited) :
+        _axis(axis), _motorNum(motor), _value(false), _pHardLimits(pHardLimits), _pLimited(pLimited), _pin(pin) {
         String sDir;
         // Select one or two bitmask variables to receive the switch data
         switch (direction) {
@@ -65,7 +65,8 @@ namespace Machine {
     }
 
     void IRAM_ATTR LimitPin::read() {
-        _value = _pin.read();
+        _value    = _pin.read();
+        _pLimited = _value;
         if (_value) {
             if (_posLimits != nullptr) {
                 set_bits(*_posLimits, _bitmask);

@@ -31,9 +31,9 @@ namespace Machine {
         }
         _driver->init();
 
-        _negLimitPin = new LimitPin(_negPin, _axis, _motorNum, -1, _hardLimits);
-        _posLimitPin = new LimitPin(_posPin, _axis, _motorNum, 1, _hardLimits);
-        _allLimitPin = new LimitPin(_allPin, _axis, _motorNum, 0, _hardLimits);
+        _negLimitPin = new LimitPin(_negPin, _axis, _motorNum, -1, _hardLimits, _limited);
+        _posLimitPin = new LimitPin(_posPin, _axis, _motorNum, 1, _hardLimits, _limited);
+        _allLimitPin = new LimitPin(_allPin, _axis, _motorNum, 0, _hardLimits, _limited);
 
         _negLimitPin->init();
         _posLimitPin->init();
@@ -57,6 +57,17 @@ namespace Machine {
     }
 
     bool Motor::isReal() { return _driver->isReal(); }
+
+    void Motor::step(bool reverse) {
+        // Skip steps based on limit pins
+        if (_limited && (Homing::_approach || (sys.state != State::Homing && _hardLimits))) {
+            return;
+        }
+        _driver->step();
+        _steps += reverse ? -1 : 1;
+    }
+
+    void Motor::unstep() { _driver->unstep(); }
 
     Motor::~Motor() { delete _driver; }
 }

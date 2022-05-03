@@ -68,8 +68,8 @@ namespace Kinematics {
         // leave other axes unchanged
         for (int axis = X_AXIS; axis <= config->_axes->_numberAxis; axis++) {
             if (axis < Z_AXIS) {
-                motor_steps[axis] = 0.0;
-                target[axis]      = 0.0;
+                set_motor_steps(axis, 0);
+                target[axis] = 0.0;
             } else {
                 move_to[axis] = target[axis];
             }
@@ -235,13 +235,13 @@ namespace Kinematics {
             for (int axis = Z_AXIS; axis < n_axis; axis++) {
                 if (bitnum_is_true(cycle_mask, axis)) {
                     // set the Z motor position
-                    motor_steps[axis] = mpos_to_steps(motors_mm[axis], axis);
+                    set_motor_steps(axis, mpos_to_steps(motors_mm[axis], axis));
                 }
             }
         } else {
             // set all of them
             for (int axis = X_AXIS; axis < n_axis; axis++) {
-                motor_steps[axis] = mpos_to_steps(motors_mm[axis], axis);
+                set_motor_steps(axis, mpos_to_steps(motors_mm[axis], axis));
             }
         }
 

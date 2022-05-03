@@ -20,16 +20,6 @@
 
 using namespace Stepper;
 
-#ifdef DEBUG_STEPPING
-uint32_t st_seq = 0;
-uint32_t st_seq0;
-uint32_t seg_seq0 = 0;
-uint32_t seg_seq1 = 0;
-uint32_t seg_seq_act;
-uint32_t seg_seq_exp;
-uint32_t pl_seq0;
-#endif
-
 // Stores the planner block Bresenham algorithm execution data for the segments in the segment
 // buffer. Normally, this buffer is partially in-use, but, for the worst case scenario, it will
 // never exceed the number of accessible stepper buffer segments (config->_stepping->_segments-1).
@@ -41,10 +31,6 @@ struct st_block_t {
     uint32_t step_event_count;
     uint8_t  direction_bits;
     bool     is_pwm_rate_adjusted;  // Tracks motions that require constant laser power/rate
-#ifdef DEBUG_STEPPING
-    uint32_t entry[MAX_N_AXIS];
-    //    uint32_t exit[MAX_N_AXIS];
-#endif
 };
 static volatile st_block_t* st_block_buffer = nullptr;
 
@@ -53,9 +39,6 @@ static volatile st_block_t* st_block_buffer = nullptr;
 // planner buffer. Once "checked-out", the steps in the segments buffer cannot be modified by
 // the planner, where the remaining planner block steps still can.
 struct segment_t {
-#ifdef DEBUG_STEPPING
-    uint32_t seq;
-#endif
     uint16_t     n_step;             // Number of step events to be executed for this segment
     uint16_t     isrPeriod;          // Time to next ISR tick, in units of timer ticks
     uint8_t      st_block_index;     // Stepper block data index. Uses this information to execute this segment.
@@ -216,14 +199,6 @@ void IRAM_ATTR Stepper::pulse_func() {
         if (segment_buffer_head != segment_buffer_tail) {
             // Initialize new step segment and load number of steps to execute
             st.exec_segment = &segment_buffer[segment_buffer_tail];
-#ifdef DEBUG_STEPPING
-            if (st.exec_segment->seq != seg_seq1) {
-                seg_seq_act = st.exec_segment->seq;
-                seg_seq_exp = seg_seq1;
-                rtSegSeq    = true;
-            }
-            seg_seq1++;
-#endif
             // Initialize step segment timing per step and load number of steps to execute.
             config->_stepping->setTimerPeriod(st.exec_segment->isrPeriod);
             st.step_count = st.exec_segment->n_step;  // NOTE: Can sometimes be zero when moving slow.
@@ -232,26 +207,10 @@ void IRAM_ATTR Stepper::pulse_func() {
             if (st.exec_block_index != st.exec_segment->st_block_index) {
                 st.exec_block_index = st.exec_segment->st_block_index;
                 st.exec_block       = &st_block_buffer[st.exec_block_index];
-#ifdef DEBUG_STEPPING
-                bool offstep = false;
-#endif
                 // Initialize Bresenham line and distance counters
                 for (int axis = 0; axis < n_axis; axis++) {
-#ifdef DEBUG_STEPPING
-                    if (st.exec_block->entry[axis] != motor_steps[axis]) {
-                        offstep = true;
-                    }
-#endif
                     st.counter[axis] = st.exec_block->step_event_count >> 1;
                 }
-#ifdef DEBUG_STEPPING
-                if (offstep) {
-                    for (int axis = 0; axis < n_axis; axis++) {
-                        expected_steps[axis] = st.exec_block->entry[axis];
-                    }
-                    rtCrash = true;
-                }
-#endif
             }
 
             st.dir_outbits = st.exec_block->direction_bits;
@@ -279,7 +238,11 @@ void IRAM_ATTR Stepper::pulse_func() {
     if (probeState == ProbeState::Active && config->_probe->tripped()) {
         probeState = ProbeState::Off;
         // Memcpy is not IRAM_ATTR, but: most compilers optimize memcpy away.
-        memcpy(probe_steps, motor_steps, sizeof(motor_steps));
+        auto axes = config->_axes;
+        for (int axis = 0; axis < n_axis; axis++) {
+            auto m            = axes->_axis[axis]->_motors[0];
+            probe_steps[axis] = m ? m->_steps : 0;
+        }
         rtMotionCancel = true;
     }
 
@@ -292,11 +255,6 @@ void IRAM_ATTR Stepper::pulse_func() {
         if (st.counter[axis] > st.exec_block->step_event_count) {
             set_bitnum(st.step_outbits, axis);
             st.counter[axis] -= st.exec_block->step_event_count;
-            if (bitnum_is_true(st.exec_block->direction_bits, axis)) {
-                motor_steps[axis]--;
-            } else {
-                motor_steps[axis]++;
-            }
         }
     }
 
@@ -452,19 +410,7 @@ void Stepper::prep_buffer() {
                 // If the original data is divided, we can lose a step from integer roundoff.
                 for (idx = 0; idx < n_axis; idx++) {
                     st_prep_block->steps[idx] = pl_block->steps[idx] << maxAmassLevel;
-#ifdef DEBUG_STEPPING
-                    st_prep_block->entry[idx] = pl_block->entry_pos[idx];
-                    // st_prep_block->exit[idx]  = pl_block->exit_pos[idx];
-#endif
                 }
-#ifdef DEBUG_STEPPING
-                if (pl_block->seq != st_seq && !rtSeq) {
-                    rtSeq   = true;
-                    st_seq0 = st_seq;
-                    pl_seq0 = pl_block->seq;
-                }
-                ++st_seq;
-#endif
                 st_prep_block->step_event_count = pl_block->step_event_count << maxAmassLevel;
 
                 // Initialize segment buffer data for generating the segments.
@@ -582,10 +528,6 @@ void Stepper::prep_buffer() {
 
         // Initialize new segment
         volatile segment_t* prep_segment = &segment_buffer[segment_buffer_head];
-
-#ifdef DEBUG_STEPPING
-        prep_segment->seq = seg_seq0++;
-#endif
 
         // Set new segment to point to the current segment data block.
         prep_segment->st_block_index = prep.st_block_index;
