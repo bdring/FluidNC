@@ -31,7 +31,7 @@ axes:
       limit_pos_pin: NO_PIN
       limit_all_pin: NO_PIN
       hard_limits: false
-      pulloff_mm:1.000
+      pulloff_mm: 1.000
       stepstick:
         step_pin:  i2so.1
         direction_pin: I2SO.2
@@ -57,7 +57,7 @@ axes:
       limit_pos_pin: NO_PIN
       limit_all_pin: NO_PIN
       hard_limits: false
-      pulloff_mm:1.000
+      pulloff_mm: 1.000
       stepstick:
         step_pin: I2SO.5
         direction_pin: I2SO.6
@@ -83,7 +83,7 @@ axes:
       limit_pos_pin: NO_PIN
       limit_all_pin: NO_PIN
       hard_limits: false
-      pulloff_mm:1.000
+      pulloff_mm: 1.000
       stepstick:
         step_pin: I2SO.3
         direction_pin: I2SO.4
