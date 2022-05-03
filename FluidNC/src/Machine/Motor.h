@@ -44,6 +44,7 @@ namespace Machine {
         bool hasSwitches();
         bool isReal();
         void makeDualSwitches();
+        void limitOtherAxis(int axis);
         void init();
         void config_motor();
         void step(bool reverse);

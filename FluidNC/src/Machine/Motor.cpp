@@ -56,6 +56,13 @@ namespace Machine {
         _allLimitPin->makeDualMask();
     }
 
+    // Used for CoreXY when one limit switch should stop multiple motors
+    void Motor::limitOtherAxis(int axis) {
+        _negLimitPin->setExtraMotorLimit(axis, _motorNum);
+        _posLimitPin->setExtraMotorLimit(axis, _motorNum);
+        _allLimitPin->setExtraMotorLimit(axis, _motorNum);
+    }
+
     bool Motor::isReal() { return _driver->isReal(); }
 
     void Motor::step(bool reverse) {

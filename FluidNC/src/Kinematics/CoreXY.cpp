@@ -29,7 +29,13 @@ TODO: If touching back off
 namespace Kinematics {
     void CoreXY::group(Configuration::HandlerBase& handler) {}
 
-    void CoreXY::init() { log_info("Kinematic system: " << name()); }
+    void CoreXY::init() {
+        log_info("Kinematic system: " << name());
+
+        // A limit switch on either axis stops both motors
+        config->_axes->_axis[X_AXIS]->_motors[0]->limitOtherAxis(Y_AXIS);
+        config->_axes->_axis[Y_AXIS]->_motors[0]->limitOtherAxis(X_AXIS);
+    }
 
     // plan a homing mve in motor space for the homing sequence
     void CoreXY::plan_homing_move(AxisMask axisMask, bool approach, bool seek) {

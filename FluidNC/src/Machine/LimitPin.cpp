@@ -67,6 +67,9 @@ namespace Machine {
     void IRAM_ATTR LimitPin::read() {
         _value    = _pin.read();
         _pLimited = _value;
+        if (_pExtraLimited != nullptr) {
+            *_pExtraLimited = _value;
+        }
         if (_value) {
             if (_posLimits != nullptr) {
                 set_bits(*_posLimits, _bitmask);
@@ -104,6 +107,8 @@ namespace Machine {
     // This should be called from a higher level object, that has the logic to figure out
     // if this belongs to a dual motor, single switch axis
     void LimitPin::makeDualMask() { _bitmask = Axes::axes_to_motors(Axes::motors_to_axes(_bitmask)); }
+
+    void LimitPin::setExtraMotorLimit(int axis, int motorNum) { _pExtraLimited = &config->_axes->_axis[axis]->_motors[motorNum]->_limited; }
 
     LimitPin::~LimitPin() { _pin.detachInterrupt(); }
 }
