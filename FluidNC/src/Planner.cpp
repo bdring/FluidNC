@@ -307,12 +307,9 @@ bool plan_buffer_line(float* target, plan_line_data_t* pl_data) {
     int32_t target_steps[MAX_N_AXIS], position_steps[MAX_N_AXIS];
     float   unit_vec[MAX_N_AXIS], delta_mm;
     // Copy position data based on type of motion being planned.
+    copyAxes(position_steps, block->motion.systemMotion ? get_motor_steps() : pl.position);
+
     auto n_axis = config->_axes->_numberAxis;
-    if (block->motion.systemMotion) {
-        memcpy(position_steps, get_motor_steps(), n_axis * sizeof(position_steps[0]));
-    } else {
-        memcpy(position_steps, pl.position, n_axis * sizeof(position_steps[0]));
-    }
     for (size_t idx = 0; idx < n_axis; idx++) {
         // Calculate target position in absolute steps, number of steps for each axis, and determine max step events.
         // Also, compute individual axes distance for move and prep unit vector calculations.
@@ -406,8 +403,8 @@ bool plan_buffer_line(float* target, plan_line_data_t* pl_data) {
         plan_compute_profile_parameters(block, nominal_speed, pl.previous_nominal_speed);
         pl.previous_nominal_speed = nominal_speed;
         // Update previous path unit_vector and planner position.
-        memcpy(pl.previous_unit_vec, unit_vec, sizeof(unit_vec));  // pl.previous_unit_vec[] = unit_vec[]
-        memcpy(pl.position, target_steps, sizeof(target_steps));   // pl.position[] = target_steps[]
+        copyAxes(pl.previous_unit_vec, unit_vec);
+        copyAxes(pl.position, target_steps);
         // New block is all set. Update buffer head and next buffer head indices.
         block_buffer_head = next_buffer_head;
         next_buffer_head  = plan_next_block_index(block_buffer_head);
@@ -421,9 +418,9 @@ bool plan_buffer_line(float* target, plan_line_data_t* pl_data) {
 void plan_sync_position() {
     // TODO: For motor configurations not in the same coordinate frame as the machine position,
     // this function needs to be updated to accomodate the difference.
-    auto a      = config->_axes;
-    auto n_axis = a ? a->_numberAxis : 0;
-    memcpy(pl.position, get_motor_steps(), n_axis * sizeof(pl.position[0]));
+    if (config->_axes) {
+        copyAxes(pl.position, get_motor_steps());
+    }
 }
 
 // Returns the number of available blocks are in the planner buffer.

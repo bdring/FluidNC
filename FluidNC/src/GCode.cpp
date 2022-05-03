@@ -906,7 +906,7 @@ Error gc_execute_line(char* line, Channel& channel) {
     // future versions on processors with enough memory, all coordinate data should be stored
     // in memory and written to non-volatile storage only when there is not a cycle active.
     float block_coord_system[MAX_N_AXIS];
-    memcpy(block_coord_system, gc_state.coord_system, sizeof(gc_state.coord_system));
+    copyAxes(block_coord_system, gc_state.coord_system);
     if (bitnum_is_true(command_words, ModalGroup::MG12)) {  // Check if called in block
         // This error probably cannot happen because preceding code sets
         // gc_block.modal.coord_select only to specific supported values
@@ -1324,7 +1324,7 @@ Error gc_execute_line(char* line, Channel& channel) {
         bool  cancelledInflight = false;
         Error status            = jog_execute(pl_data, &gc_block, &cancelledInflight);
         if (status == Error::Ok && !cancelledInflight) {
-            memcpy(gc_state.position, gc_block.values.xyz, sizeof(gc_block.values.xyz));
+            copyAxes(gc_state.position, gc_block.values.xyz);
         }
         // JogCancelled is not reported as a GCode error
         return status == Error::JogCancelled ? Error::Ok : status;
@@ -1510,7 +1510,7 @@ Error gc_execute_line(char* line, Channel& channel) {
     // [15. Coordinate system selection ]:
     if (gc_state.modal.coord_select != gc_block.modal.coord_select) {
         gc_state.modal.coord_select = gc_block.modal.coord_select;
-        memcpy(gc_state.coord_system, block_coord_system, sizeof(gc_state.coord_system));
+        copyAxes(gc_state.coord_system, block_coord_system);
         gc_wco_changed();
     }
     // [16. Set path control mode ]: G61.1/G64 NOT SUPPORTED
@@ -1524,7 +1524,7 @@ Error gc_execute_line(char* line, Channel& channel) {
             coords[coord_select]->set(coord_data);
             // Update system coordinate system if currently active.
             if (gc_state.modal.coord_select == coord_select) {
-                memcpy(gc_state.coord_system, coord_data, sizeof(gc_state.coord_system));
+                copyAxes(gc_state.coord_system, coord_data);
                 gc_wco_changed();
             }
             break;
@@ -1537,7 +1537,7 @@ Error gc_execute_line(char* line, Channel& channel) {
                 mc_linear(gc_block.values.xyz, pl_data, gc_state.position);
             }
             mc_linear(coord_data, pl_data, gc_state.position);
-            memcpy(gc_state.position, coord_data, sizeof(gc_state.position));
+            copyAxes(gc_state.position, coord_data);
             break;
         case NonModal::SetHome0:
             coords[CoordIndex::G28]->set(gc_state.position);
@@ -1546,7 +1546,7 @@ Error gc_execute_line(char* line, Channel& channel) {
             coords[CoordIndex::G30]->set(gc_state.position);
             break;
         case NonModal::SetCoordinateOffset:
-            memcpy(gc_state.coord_offset, gc_block.values.xyz, sizeof(gc_block.values.xyz));
+            copyAxes(gc_state.coord_offset, gc_block.values.xyz);
             gc_wco_changed();
             break;
         case NonModal::ResetCoordinateOffset:
@@ -1590,7 +1590,7 @@ Error gc_execute_line(char* line, Channel& channel) {
             // motion control system might still be processing the action and the real tool position
             // in any intermediate location.
             if (gc_update_pos == GCUpdatePos::Target) {
-                memcpy(gc_state.position, gc_block.values.xyz, sizeof(gc_block.values.xyz));  // gc_state.position[] = gc_block.values.xyz[]
+                copyAxes(gc_state.position, gc_block.values.xyz);
             } else if (gc_update_pos == GCUpdatePos::System) {
                 gc_sync_position();
             }  // == GCUpdatePos::None

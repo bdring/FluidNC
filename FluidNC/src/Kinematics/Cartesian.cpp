@@ -21,7 +21,7 @@ namespace Kinematics {
 
     void Cartesian::motors_to_cartesian(float* cartesian, float* motors, int n_axis) {
         // Motor space is cartesian space, so we do no transform.
-        memcpy(cartesian, motors, n_axis * sizeof(motors[0]));
+        copyAxes(cartesian, motors);
     }
 
     // Configuration registration

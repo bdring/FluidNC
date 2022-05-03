@@ -866,7 +866,7 @@ static void protocol_exec_rt_suspend() {
 
                     // Get current position and store restore location and spindle retract waypoint.
                     if (!sys.suspend.bit.restartRetract) {
-                        memcpy(restore_target, parking_target, sizeof(restore_target[0]) * config->_axes->_numberAxis);
+                        copyAxes(restore_target, parking_target);
                         retract_waypoint += restore_target[PARKING_AXIS];
                         retract_waypoint = MIN(retract_waypoint, PARKING_TARGET);
                     }
