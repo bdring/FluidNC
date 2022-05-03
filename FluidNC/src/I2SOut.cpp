@@ -20,7 +20,7 @@
 #include <soc/i2s_struct.h>
 #include <freertos/queue.h>
 
-#include <stdatomic.h>
+#include <atomic>
 
 // Make Arduino functions available
 extern "C" void __digitalWrite(pinnum_t pin, uint8_t val);
@@ -57,7 +57,7 @@ static i2s_out_dma_t o_dma;
 static intr_handle_t i2s_out_isr_handle;
 
 // output value
-static atomic_uint_least32_t i2s_out_port_data = ATOMIC_VAR_INIT(0);
+static std::atomic<std::uint32_t> i2s_out_port_data = ATOMIC_VAR_INIT(0);
 
 // inner lock
 static portMUX_TYPE i2s_out_spinlock = portMUX_INITIALIZER_UNLOCKED;

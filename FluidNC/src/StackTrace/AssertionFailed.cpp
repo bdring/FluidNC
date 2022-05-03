@@ -8,7 +8,7 @@
 
 #ifdef ESP32
 
-#    include "debug_helpers.h"
+#    include "esp_debug_helpers.h"
 #    include "WString.h"
 #    include "stdio.h"
 
