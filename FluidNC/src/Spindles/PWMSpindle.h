@@ -70,6 +70,5 @@ namespace Spindles {
         virtual void deinit();
 
         virtual void get_pins_and_settings();
-        uint8_t      calc_pwm_precision(uint32_t freq);
     };
 }
