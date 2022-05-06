@@ -19,8 +19,6 @@ namespace Spindles {
 
     // This is the base class. Do not use this as your spindle
     class Spindle : public Configuration::Configurable {
-    protected:
-        uint8_t calc_pwm_precision(uint32_t freq);
     public:
         Spindle() = default;
 

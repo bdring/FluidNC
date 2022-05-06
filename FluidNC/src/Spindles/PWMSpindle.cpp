@@ -54,7 +54,7 @@ namespace Spindles {
 
         is_reversable = _direction_pin.defined();
 
-        _pwm_precision = calc_pwm_precision(_pwm_freq);  // determine the best precision
+        _pwm_precision = ledc_calc_pwm_precision(_pwm_freq);  // determine the best precision
         _pwm_period    = (1 << _pwm_precision);
     }
 

@@ -64,3 +64,27 @@ void IRAM_ATTR ledcSetDuty(uint8_t chan, uint32_t duty) {
     LEDC.channel_group[g].channel[c].conf0.sig_out_en = on;
     LEDC.channel_group[g].channel[c].conf1.duty_start = on;
 }
+
+// Calculate the highest PWM precision in bits for the desired frequency
+// 80,000,000 (APB Clock) = freq * maxCount
+// maxCount is a power of two between 2^1 and 2^20
+// frequency is at most 80,000,000 / 2^1 = 40,000,000, limited elsewhere
+// to 20,000,000 to give a period of at least 2^2 = 4 levels of control.
+uint8_t ledc_calc_pwm_precision(uint32_t freq) {
+    if (freq == 0) {
+        freq = 1;  // Limited elsewhere but just to be safe...
+    }
+
+    // Increase the precision (bits) until it exceeds the frequency
+    // The hardware maximum precision is 20 bits
+    const uint8_t  ledcMaxBits = 20;
+    const uint32_t apbFreq     = 80000000;
+    const uint32_t maxCount    = apbFreq / freq;
+    for (uint8_t bits = 2; bits <= ledcMaxBits; ++bits) {
+        if ((1u << bits) > maxCount) {
+            return bits - 1;
+        }
+    }
+
+    return ledcMaxBits;
+}
