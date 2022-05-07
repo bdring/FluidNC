@@ -7,6 +7,7 @@
 */
 
 #include "Laser.h"
+#include "../Pins/LedcPin.h"
 
 #include "../Machine/MachineConfig.h"
 
@@ -29,7 +30,7 @@ namespace Spindles {
 
         is_reversable = false;
 
-        _pwm_precision = calc_pwm_precision(_pwm_freq);  // determine the best precision
+        _pwm_precision = ledc_calc_pwm_precision(_pwm_freq);  // determine the best precision
         _pwm_period    = (1 << _pwm_precision);
 
         if (_speeds.size() == 0) {

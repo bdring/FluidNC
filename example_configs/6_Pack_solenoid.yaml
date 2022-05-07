@@ -30,7 +30,7 @@ axes:
       limit_pos_pin: NO_PIN
       limit_all_pin: NO_PIN
       hard_limits: false
-      pulloff_mm:1.000
+      pulloff_mm: 1.000
       stepstick:
         ms3_pin: i2so.3
         step_pin: I2SO.2
@@ -58,7 +58,7 @@ axes:
       limit_pos_pin: NO_PIN
       limit_all_pin: NO_PIN
       hard_limits: false
-      pulloff_mm:1.000
+      pulloff_mm: 1.000
       stepstick:
         ms3_pin: i2so.6
         step_pin: I2SO.5
@@ -86,7 +86,7 @@ axes:
       limit_pos_pin: NO_PIN
       limit_all_pin: NO_PIN
       hard_limits: false
-      pulloff_mm:1.000
+      pulloff_mm: 1.000
       solenoid:
         output_pin: gpio.26
         pwm_hz: 5000
