@@ -16,3 +16,4 @@
 
 extern int  ledcInit(Pin& pin, int chan, double freq, uint8_t bit_num);
 extern void ledcSetDuty(uint8_t chan, uint32_t duty);
+uint8_t ledc_calc_pwm_precision(uint32_t freq);

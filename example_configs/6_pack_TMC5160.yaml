@@ -30,7 +30,7 @@ axes:
       limit_pos_pin: NO_PIN
       limit_all_pin: gpio.33:pu
       hard_limits: false
-      pulloff_mm:1.000
+      pulloff_mm: 1.000
       tmc_5160:
         cs_pin: i2so.3
         r_sense_ohms: 0.075
@@ -70,7 +70,7 @@ axes:
       limit_pos_pin: NO_PIN
       limit_all_pin: gpio.32:pu
       hard_limits: false
-      pulloff_mm:1.000
+      pulloff_mm: 1.000
       tmc_5160:
         cs_pin: i2so.6
         r_sense_ohms: 0.075
@@ -110,7 +110,7 @@ axes:
       limit_pos_pin: NO_PIN
       limit_all_pin: gpio.35
       hard_limits: false
-      pulloff_mm:1.000
+      pulloff_mm: 1.000
       tmc_5160:
         cs_pin: i2so.11
         r_sense_ohms: 0.075

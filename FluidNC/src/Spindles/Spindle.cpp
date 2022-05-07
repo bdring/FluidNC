@@ -68,7 +68,7 @@ namespace Spindles {
             scale *= max_dev_speed;
 
             // float scale = deltaPercent * max_dev_speed;
-            scaler           = uint32_t(scale * 65536);
+            scaler           = uint32_t(scale * 65536);  //  computation is done in fixed point with 16 fractional bits.
             _speeds[i].scale = scaler;
         }
 
@@ -131,7 +131,7 @@ namespace Spindles {
         // Otherwise, we interpolate by applying the segment scale factor
         // to the segment offset .
         if (i < num_segments) {
-            dev_speed += (((speed - _speeds[i].speed) * _speeds[i].scale) >> 16);
+            dev_speed += uint32_t((((speed - _speeds[i].speed) * uint64_t(_speeds[i].scale)) >> 16));
         }
 
         // log_debug("rpm " << speed << " speed " << dev_speed); // This will spew quite a bit of data on your output

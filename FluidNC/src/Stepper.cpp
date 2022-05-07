@@ -60,7 +60,7 @@ struct segment_t {
     uint16_t     isrPeriod;          // Time to next ISR tick, in units of timer ticks
     uint8_t      st_block_index;     // Stepper block data index. Uses this information to execute this segment.
     uint8_t      amass_level;        // AMASS level for the ISR to execute this segment
-    uint16_t     spindle_dev_speed;  // Spindle speed scaled to the device
+    uint32_t     spindle_dev_speed;  // Spindle speed scaled to the device
     SpindleSpeed spindle_speed;      // Spindle speed in GCode units
 };
 static segment_t* segment_buffer = nullptr;
