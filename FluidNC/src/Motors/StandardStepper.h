@@ -48,10 +48,6 @@ namespace MotorDrivers {
         bool _invert_step;
         bool _invert_disable;
 
-        rmt_channel_t _rmt_chan_num;
-
-        static rmt_channel_t get_next_RMT_chan_num();
-        static rmt_item32_t  rmtItem[2];
-        static rmt_config_t  rmtConfig;
+        rmt_channel_t _rmt_chan_num = RMT_CHANNEL_MAX;
     };
 }
