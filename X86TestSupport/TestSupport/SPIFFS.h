@@ -29,7 +29,7 @@ namespace fs {
         void   end();
 
     private:
-        char* partitionLabel_;
+        String partitionLabel_;
     };
 
 }
