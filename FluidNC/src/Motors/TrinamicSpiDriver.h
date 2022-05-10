@@ -24,26 +24,29 @@ namespace MotorDrivers {
 
         // Configuration handlers:
         void afterParse() override {
-            if (daisy_chain_cs_id == 255) {
-                // Either it is not a daisy chain or this is the first daisy-chained TMC in the config file
-                Assert(_cs_pin.defined(), "TMC cs_pin: pin must be configured");
-                if (_spi_index != -1) {
-                    // This is the first daisy-chained TMC in the config file
-                    // Do the cs pin mapping now and record the ID in daisy_chain_cs_id
-                    _cs_pin.setAttr(Pin::Attr::Output | Pin::Attr::InitialOn);
-                    _cs_mapping       = PinMapper(_cs_pin);
-                    daisy_chain_cs_id = _cs_mapping.pinId();
-                    set_bitnum(spi_index_mask, _spi_index);
+            if (!_spi_setup_done) {
+                if (daisy_chain_cs_id == 255) {
+                    // Either it is not a daisy chain or this is the first daisy-chained TMC in the config file
+                    Assert(_cs_pin.defined(), "TMC cs_pin: pin must be configured");
+                    if (_spi_index != -1) {
+                        // This is the first daisy-chained TMC in the config file
+                        // Do the cs pin mapping now and record the ID in daisy_chain_cs_id
+                        _cs_pin.setAttr(Pin::Attr::Output | Pin::Attr::InitialOn);
+                        _cs_mapping       = PinMapper(_cs_pin);
+                        daisy_chain_cs_id = _cs_mapping.pinId();
+                        set_bitnum(spi_index_mask, _spi_index);
+                    } else {
+                        // The TMC SPI is not daisy-chained
+                    }
                 } else {
-                    // The TMC SPI is not daisy-chained
+                    // This is another - not the first - daisy-chained TMC
+                    Assert(_cs_pin.undefined(), "For daisy-chained TMC, cs_pin: pin must be configured only once");
+                    Assert(_spi_index != -1, "spi_index: must be configured on all daisy-chained TMCs");
+                    Assert(bitnum_is_false(spi_index_mask, _spi_index), "spi_index: must be unique among all daisy-chained TMCs");
+                    set_bitnum(spi_index_mask, _spi_index);
                 }
-            } else {
-                // This is another - not the first - daisy-chained TMC
-                Assert(_cs_pin.undefined(), "For daisy-chained TMC, cs_pin: pin must be configured only once");
-                Assert(_spi_index != -1, "spi_index: must be configured on all daisy-chained TMCs");
-                Assert(bitnum_is_false(spi_index_mask, _spi_index), "spi_index: must be unique among all daisy-chained TMCs");
-                set_bitnum(spi_index_mask, _spi_index);
             }
+            _spi_setup_done = true;
         }
 
         void validate() const override { StandardStepper::validate(); }
@@ -63,8 +66,9 @@ namespace MotorDrivers {
 
     protected:
         Pin       _cs_pin;  // The chip select pin (can be the same for daisy chain)
-        int32_t   _spi_index = -1;
-        const int _spi_freq  = 100000;
+        int32_t   _spi_index      = -1;
+        const int _spi_freq       = 100000;
+        bool      _spi_setup_done = false;
 
         void config_message() override;
 
