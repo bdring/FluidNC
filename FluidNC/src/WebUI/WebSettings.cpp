@@ -195,17 +195,33 @@ namespace WebUI {
     }
 
     static Error setWebSetting(char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP401
+        // The string is of the form "P=name T=type V=value
         // We do not need the "T=" (type) parameter because the
-        // Setting objects know their own type
-        if (!split_params(parameter)) {
+        // Setting objects know their own type.  We do not use
+        // split_params because if fails if the value string
+        // contains '='
+        if (strncmp(parameter, "P=", strlen("P="))) {
             return Error::InvalidValue;
         }
-        char*       sval = get_param("V", true);
-        const char* spos = get_param("P", false);
-        if (*spos == '\0') {
-            out << "Missing parameter" << '\n';
+        char* spos = &parameter[2];
+        char* scan;
+        for (scan = spos; *scan != ' ' && *scan != '\0'; ++scan) {}
+        if (*scan == '\0') {
             return Error::InvalidValue;
         }
+        // *scan is ' ' so we have found the end of the spos string
+        *scan++ = '\0';
+
+        if (strncmp(scan, "T=", strlen("T="))) {
+            return Error::InvalidValue;
+        }
+        // Find the end of the T=type string
+        for (scan += strlen("T="); *scan != ' ' && *scan != '\0'; ++scan) {}
+        if (strncmp(scan, " V=", strlen(" V="))) {
+            return Error::InvalidValue;
+        }
+        char* sval = scan + strlen(" V=");
+
         Error ret = do_command_or_setting(spos, sval, auth_level, out);
         return ret;
     }
