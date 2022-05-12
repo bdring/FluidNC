@@ -357,12 +357,12 @@ static Error home_c(const char* value, WebUI::AuthenticationLevel auth_level, Ch
 }
 static void write_limit_set(uint32_t mask, Channel& out) {
     const char* motor0AxisName = "xyzabc";
-    for (int i = 0; i < MAX_N_AXIS; i++) {
-        out << (bitnum_is_true(mask, i) ? char(motor0AxisName[i]) : ' ');
+    for (int axis = 0; axis < MAX_N_AXIS; axis++) {
+        out << (bitnum_is_true(mask, Machine::Axes::motor_bit(axis, 0)) ? char(motor0AxisName[axis]) : ' ');
     }
     const char* motor1AxisName = "XYZABC";
-    for (int i = 0; i < MAX_N_AXIS; i++) {
-        out << (bitnum_is_true(mask, i + 16) ? char(motor1AxisName[i]) : ' ');
+    for (int axis = 0; axis < MAX_N_AXIS; axis++) {
+        out << (bitnum_is_true(mask, Machine::Axes::motor_bit(axis, 1)) ? char(motor1AxisName[axis]) : ' ');
     }
 }
 static Error show_limits(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {

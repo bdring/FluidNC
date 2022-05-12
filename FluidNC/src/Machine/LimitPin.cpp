@@ -10,8 +10,8 @@
 #include <esp32-hal-gpio.h>  // CHANGE
 
 namespace Machine {
-    LimitPin::LimitPin(Pin& pin, int axis, int motor, int direction, bool& pHardLimits) :
-        _axis(axis), _motorNum(motor), _value(false), _pHardLimits(pHardLimits), _pin(pin) {
+    LimitPin::LimitPin(Pin& pin, int axis, int motor, int direction, bool& pHardLimits, bool& pLimited) :
+        _axis(axis), _motorNum(motor), _value(false), _pHardLimits(pHardLimits), _pLimited(pLimited), _pin(pin) {
         String sDir;
         // Select one or two bitmask variables to receive the switch data
         switch (direction) {
@@ -38,10 +38,9 @@ namespace Machine {
         }
 
         // Set a bitmap with bits to represent the axis and which motors are affected
-        // The bitmap looks like CBAZYXcbazyx where motor0 motors are in the lower bits
-        motor == 0 ? _bitmask = 1 : _bitmask = 1 << 16;
-        _bitmask <<= axis;  // Shift the bits into position
-        _legend = String("    " + sDir + " Limit");
+        // The bitmap looks like CBAZYX..cbazyx where motor0 motors are in the lower bits
+        _bitmask = 1 << Axes::motor_bit(axis, motor);
+        _legend  = String("    " + sDir + " Limit");
     }
 
     void IRAM_ATTR LimitPin::handleISR() {
@@ -66,7 +65,11 @@ namespace Machine {
     }
 
     void IRAM_ATTR LimitPin::read() {
-        _value = _pin.read();
+        _value    = _pin.read();
+        _pLimited = _value;
+        if (_pExtraLimited != nullptr) {
+            *_pExtraLimited = _value;
+        }
         if (_value) {
             if (_posLimits != nullptr) {
                 set_bits(*_posLimits, _bitmask);
@@ -103,10 +106,9 @@ namespace Machine {
     // Make this switch act like an axis level switch. Both motors will report the same
     // This should be called from a higher level object, that has the logic to figure out
     // if this belongs to a dual motor, single switch axis
-    void LimitPin::makeDualMask() {
-        uint32_t both = ((_bitmask >> 16) | (_bitmask & 0xffff));
-        _bitmask      = (both << 16) | both;
-    }
+    void LimitPin::makeDualMask() { _bitmask = Axes::axes_to_motors(Axes::motors_to_axes(_bitmask)); }
+
+    void LimitPin::setExtraMotorLimit(int axis, int motorNum) { _pExtraLimited = &config->_axes->_axis[axis]->_motors[motorNum]->_limited; }
 
     LimitPin::~LimitPin() { _pin.detachInterrupt(); }
 }

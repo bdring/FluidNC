@@ -57,11 +57,6 @@ const char* const DEFAULT_ADMIN_LOGIN = "admin";
 const char* const DEFAULT_USER_LOGIN  = "user";
 #endif
 
-// Number of homing cycles performed after when the machine initially jogs to limit switches.
-// This help in preventing overshoot and should improve repeatability. This value should be one or
-// greater.
-static const uint8_t NHomingLocateCycle = 1;  // Integer (1-128)
-
 // Upon a successful probe cycle, this option provides immediately feedback of the probe coordinates
 // through an automatically generated message. If disabled, users can still access the last probe
 // coordinates through the '$#' print parameters command.
@@ -220,5 +215,3 @@ const double PARKING_PULLOUT_INCREMENT = 5.0;    // Spindle pull-out and plunge 
 
 // INCLUDE_OLED_BASIC includes a driver for a modest sized OLED display
 // #define INCLUDE_OLED_BASIC
-
-// #define DEBUG_STEPPING

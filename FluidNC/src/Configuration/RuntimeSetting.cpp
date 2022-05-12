@@ -57,7 +57,6 @@ namespace Configuration {
                 out_ << "$/" << setting_ << "=" << (value ? "true" : "false") << '\n';
             } else {
                 value = (!strcasecmp(newValue_, "true") || !strcasecmp(newValue_, "yes") || !strcasecmp(newValue_, "1"));
-                log_info("Bool value:" << value);
             }
         }
     }
