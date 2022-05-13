@@ -101,15 +101,14 @@ FileStream::FileStream(const char* filename, const char* mode, const char* defau
         }
         _isSD = true;
     }
-    if (_path.startsWith(actualLocalFs) && _path.length() > (30 + strlen(actualLocalFs))) {
-        log_info("Filename too long: " << _path);
-    }
     _fd = fopen(_path.c_str(), mode);
     if (!_fd) {
+        bool opening = strcmp(mode, "w");
+        log_debug("Cannot " << (opening ? "open" : "create") << " file " << _path);
         if (_isSD) {
             config->_sdCard->end();
         }
-        throw strcmp(mode, "w") ? Error::FsFailedOpenFile : Error::FsFailedCreateFile;
+        throw opening ? Error::FsFailedOpenFile : Error::FsFailedCreateFile;
     }
 }
 

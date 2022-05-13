@@ -334,7 +334,9 @@ namespace WebUI {
             out << "Cannot find file!" << '\n';
             return Error::FsFileNotFound;
         }
-        if (file2del.isDirectory()) {
+        bool isDir = file2del.isDirectory();
+        file2del.close();
+        if (isDir) {
             if (!fs.rmdir(path)) {
                 out << "Cannot delete directory! Is directory empty?" << '\n';
                 return Error::FsFailedDelDir;
@@ -347,7 +349,6 @@ namespace WebUI {
             }
             out << "File deleted." << '\n';
         }
-        file2del.close();
         return Error::Ok;
     }
 
