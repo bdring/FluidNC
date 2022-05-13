@@ -145,9 +145,6 @@ namespace Machine {
 
         _approach = approach;
 
-        config->_axes->lock_motors(0xffffffff);
-        config->_axes->unlock_motors(remainingMotors);
-
         uint32_t settling_ms = plan_move(remainingMotors, approach, seek, customPulloff);
 
         do {
