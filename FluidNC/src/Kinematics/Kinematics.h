@@ -3,9 +3,9 @@
 // Kinematics interface.
 #include "../Configuration/Configurable.h"
 #include "../Configuration/GenericFactory.h"
+#include "../Types.h"
 #include "../MotionControl.h"
 #include "../Planner.h"
-#include "../Types.h"
 
 /*
 Special types

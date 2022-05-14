@@ -17,6 +17,8 @@
 #pragma once
 
 #include "Error.h"  // Error
+#include "GCode.h"  // gc_modal_t
+#include "Types.h"  // State
 #include <Stream.h>
 
 class Channel : public Stream {
@@ -30,6 +32,15 @@ protected:
     bool        _addCR     = false;
     char        _lastWasCR = false;
 
+    uint32_t _reportInterval = 0;
+    int32_t  _nextReportTime = 0;
+
+    gc_modal_t _lastModal;
+    uint8_t    _lastTool;
+    float      _lastSpindleSpeed;
+    float      _lastFeedRate;
+    State      _lastState;
+
 public:
     Channel(const char* name, bool addCR = false) : _name(name), _linelen(0), _addCR(addCR) {}
     virtual ~Channel() = default;
@@ -39,4 +50,8 @@ public:
     virtual void     ack(Error status);
     const char*      name() { return _name; }
     virtual int      rx_buffer_available() = 0;
+    uint32_t         setReportInterval(uint32_t ms);
+    uint32_t         getReportInterval() { return _reportInterval; }
+    void             autoReport();
+    void             autoReportGCodeState();
 };
