@@ -1,0 +1,63 @@
+name: Problem Report
+blank_issues_enabled: true
+description: Report a problem with FluidNC
+title: "[Problem]: "
+labels: ["triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Please fill in the forms below.  The better the information you provide, the better we can help you.
+        Information that you might think is irrelevant is often the key to solving the problem.
+  - type: textarea
+    id: controller-board
+    attributes:
+      label: Controller Board
+      description: |
+        Tell us which controller board you are using, for example 6-pack, MPCNC, MKS DLC32, XPro V5, etc.
+        If it is a custom board of your own design, tell us all about it and, if possible, provide a 
+        photograph and a link to schematics.
+      required: true
+  - type: textarea
+    id: machine-description
+    attributes:
+      label: Machine Description
+      description: Tell us about your machine - is it a mill, router, laser engraver, or what? 
+    validations:
+      required: true
+  - type: textarea
+    id: configuration-file
+    attributes:
+      label: Configuration file
+      description: Paste the contents of your machine configuration file (.yaml) here
+      render: yaml
+     validations:
+      required: true
+  - type: textarea
+    id: boot-messages
+    attributes:
+      label: Startup Messages
+      description: Paste the startup messages here.  You can see them by sending "$ss" from FluidTerm, WebUI Console, or any sender's console.
+      render: shell
+    validations:
+      required: true
+  - type: input
+    id: user-interface
+    attributes:
+      label: User Interface Software
+      description: What user interface software are you using?
+      placeholder: E.g. WebUI, FluidTerm, UGS, Candle, ...
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: Also tell us, what did you expect to happen?  The more detail, the better.
+      placeholder: Tell us what you did, what you expected to happen, what happened, and any other information that might help us understand your situation.
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant log output
+      description: Please copy and paste any relevant log output.
+      render: shell
