@@ -53,15 +53,14 @@ body:
   id: what-happened
   attributes:
     label: What happened?
-    description: Also tell us, what did you expect to happen?  The more detail, the better.
-    placeholder: Tell us what you did, what you expected to happen, what happened, and any other information that might help us understand your situation.
-    value: I did something, expected this, and that happened
+    description: Tell use exactly what you did, what you expected to happen, and what happened instead.  The more detail, the better.
+    placeholder: I did something, expected this, and that happened
   validations:
     required: true
 - type: textarea
-  id: logs
+  id: other-info
   attributes:
-    label: Relevant log output
-    description: Please copy and paste any relevant log output.
-    value: Other information
+    label: Other Information
+    description: Please add any other information that might help us understand your situation.  Context is crucial!
+    placeholder: Log messages from the console, screenshots, or anything else of interest.
     render: shell
