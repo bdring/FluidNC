@@ -38,9 +38,12 @@ body:
   id: boot-messages
   attributes:
     label: Startup Messages
-    description: Paste the startup messages here.  You can see them by sending "$ss" from FluidTerm, WebUI Console, or any sender's console.
+    description: |
+      Paste the startup messages here.  You can see them by sending "$ss" from FluidTerm, WebUI Console, or any sender's console.
+      Look through the messages for any MSG:ERR or MSG:WARN lines.  They indicate problems in your config file.  You might be able
+      to solve the problem yourself.
     placeholder: <Paste startup messages here>
-    render: shell
+    render: text
   validations:
     required: true
 - type: input
