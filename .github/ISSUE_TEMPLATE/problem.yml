@@ -1,5 +1,4 @@
 name: Problem Report
-blank_issues_enabled: true
 description: Report a problem with FluidNC
 title: "[Problem]: "
 labels: ["triage"]
