@@ -39,7 +39,7 @@ body:
   attributes:
     label: Startup Messages
     description: Paste the startup messages here.  You can see them by sending "$ss" from FluidTerm, WebUI Console, or any sender's console.
-    placeholder <Paste startup messages here>
+    placeholder: <Paste startup messages here>
     render: shell
   validations:
     required: true
