@@ -22,6 +22,7 @@ body:
   attributes:
     label: Machine Description
     description: Tell us about your machine - is it a mill, router, laser engraver, or what?
+    placeholder: Gantry router with external DM542 stepper drivers, dual Y motors, optical endstops on all axes.  Spindle is a DeWalt DW618M router.
   validations:
     required: true
 - type: textarea
@@ -29,7 +30,7 @@ body:
   attributes:
     label: Configuration file
     description: Paste the contents of your machine configuration file (.yaml) here
-    value: <Paste config file contents here>
+    placeholder: <Paste config file contents here>
     render: yaml
   validations:
     required: true
@@ -38,7 +39,7 @@ body:
   attributes:
     label: Startup Messages
     description: Paste the startup messages here.  You can see them by sending "$ss" from FluidTerm, WebUI Console, or any sender's console.
-    value: <Paste startup messages here>
+    placeholder <Paste startup messages here>
     render: shell
   validations:
     required: true
@@ -48,14 +49,13 @@ body:
     label: User Interface Software
     description: What user interface software are you using?
     placeholder: E.g. WebUI, FluidTerm, UGS, Candle, ...
-    value: WebUI
 - type: textarea
   id: what-happened
   attributes:
     label: What happened?
     description: Also tell us, what did you expect to happen?  The more detail, the better.
     placeholder: Tell us what you did, what you expected to happen, what happened, and any other information that might help us understand your situation.
-    value: I did something, expecting this, and that happened
+    value: I did something, expected this, and that happened
   validations:
     required: true
 - type: textarea
