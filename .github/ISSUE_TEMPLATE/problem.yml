@@ -3,12 +3,10 @@ description: Report a problem with FluidNC
 title: "[Problem]: "
 labels: ["triage"]
 body:
-  - type: markdown
+- type: markdown
     attributes:
-      value: |
-        Please fill in the forms below.  The better the information you provide, the better we can help you.
-        Information that you might think is irrelevant is often the key to solving the problem.
-  - type: textarea
+      value: Please fill in the forms below.  The better the information you provide, the better we can help you. Information that you might think is irrelevant is often the key to solving the problem.
+- type: textarea
     id: controller-board
     attributes:
       label: Controller Board
@@ -18,14 +16,14 @@ body:
         photograph and a link to schematics.
      validations:
       required: true
-  - type: textarea
+- type: textarea
     id: machine-description
     attributes:
       label: Machine Description
       description: Tell us about your machine - is it a mill, router, laser engraver, or what?
     validations:
       required: true
-  - type: textarea
+- type: textarea
     id: configuration-file
     attributes:
       label: Configuration file
@@ -33,7 +31,7 @@ body:
       render: yaml
     validations:
       required: true
-  - type: textarea
+- type: textarea
     id: boot-messages
     attributes:
       label: Startup Messages
@@ -41,13 +39,13 @@ body:
       render: shell
     validations:
       required: true
-  - type: input
+- type: input
     id: user-interface
     attributes:
       label: User Interface Software
       description: What user interface software are you using?
       placeholder: E.g. WebUI, FluidTerm, UGS, Candle, ...
-  - type: textarea
+- type: textarea
     id: what-happened
     attributes:
       label: What happened?
@@ -55,7 +53,7 @@ body:
       placeholder: Tell us what you did, what you expected to happen, what happened, and any other information that might help us understand your situation.
     validations:
       required: true
-  - type: textarea
+- type: textarea
     id: logs
     attributes:
       label: Relevant log output
