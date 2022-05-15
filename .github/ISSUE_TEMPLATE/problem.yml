@@ -63,4 +63,3 @@ body:
     label: Other Information
     description: Please add any other information that might help us understand your situation.  Context is crucial!
     placeholder: Log messages from the console, screenshots, or anything else of interest.
-    render: shell
