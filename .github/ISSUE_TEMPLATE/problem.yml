@@ -14,6 +14,7 @@ body:
       Tell us which controller board you are using, for example 6-pack, MPCNC, MKS DLC32, XPro V5, etc.
       If it is a custom board of your own design, tell us all about it and, if possible, provide a 
       photograph and a link to schematics.
+   value: 6-pack
    validations:
     required: true
 - type: textarea
@@ -28,6 +29,7 @@ body:
   attributes:
     label: Configuration file
     description: Paste the contents of your machine configuration file (.yaml) here
+    value: <Paste config file contents here>
     render: yaml
   validations:
     required: true
@@ -36,6 +38,7 @@ body:
   attributes:
     label: Startup Messages
     description: Paste the startup messages here.  You can see them by sending "$ss" from FluidTerm, WebUI Console, or any sender's console.
+    value: <Paste startup messages here>
     render: shell
   validations:
     required: true
@@ -45,12 +48,14 @@ body:
     label: User Interface Software
     description: What user interface software are you using?
     placeholder: E.g. WebUI, FluidTerm, UGS, Candle, ...
+    value: WebUI
 - type: textarea
   id: what-happened
   attributes:
     label: What happened?
     description: Also tell us, what did you expect to happen?  The more detail, the better.
     placeholder: Tell us what you did, what you expected to happen, what happened, and any other information that might help us understand your situation.
+    value: I did something, expecting this, and that happened
   validations:
     required: true
 - type: textarea
@@ -58,4 +63,5 @@ body:
   attributes:
     label: Relevant log output
     description: Please copy and paste any relevant log output.
+    value: Other information
     render: shell
