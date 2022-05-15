@@ -21,7 +21,7 @@ body:
     id: machine-description
     attributes:
       label: Machine Description
-      description: Tell us about your machine - is it a mill, router, laser engraver, or what? 
+      description: Tell us about your machine - is it a mill, router, laser engraver, or what?
     validations:
       required: true
   - type: textarea
@@ -30,7 +30,7 @@ body:
       label: Configuration file
       description: Paste the contents of your machine configuration file (.yaml) here
       render: yaml
-     validations:
+    validations:
       required: true
   - type: textarea
     id: boot-messages
