@@ -1,6 +1,6 @@
 name: Problem Report
 description: Report a problem with FluidNC
-title: "[Problem]: "
+title: "Problem: "
 labels: ["triage"]
 body:
 - type: markdown
