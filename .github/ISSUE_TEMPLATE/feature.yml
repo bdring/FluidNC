@@ -19,7 +19,7 @@ body:
       by dilithium crystals.  Dilithium crystals can overheat if Klingons are nearby.
   validations:
     required: true
-- type: input
+- type: textarea
   id: feature-description
   attributes:
     label: Feature Description
