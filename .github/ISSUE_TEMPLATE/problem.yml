@@ -12,11 +12,21 @@ body:
     label: Controller Board
     description: |
       Tell us which controller board you are using, for example 6-pack, MPCNC, MKS DLC32, XPro V5, etc.
-      If it is a custom board of your own design, tell us all about it and, if possible, provide a 
-      photograph and a link to schematics.
+      If it listed at https://github.com/bdring/FluidNC/wiki/Hardware-that-Runs-FluidNC , just give
+      the name.  If it is not, provide a photo and a link to documentation.  If it a custom board of
+      your own design, tell us all about it and, if possible, provide a photo and a link to schematics.
     value: 6-pack
   validations:
     required: true
+- type: checkboxes
+    id: vendor-help
+    attributes:
+      label: Help From Board Vendor
+      description: If the board is not one of Bart Dring's designs, have you asked the board vendor for help?
+      options:
+        - label: "Yes"
+        - label: "No"
+        - label: "Not Applicable"
 - type: textarea
   id: machine-description
   attributes:
