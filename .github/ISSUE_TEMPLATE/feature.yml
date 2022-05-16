@@ -55,10 +55,9 @@ body:
       coding, testing on hardware, documentation, and long term support.  Tell us how you can
       contribute to the overall effort.
     placeholder: |
-      I can provide the team with hardware to test the new feature.  In addition, I would be willing
-      to write all the documentation for the new feature, and to support it in the long term by
-      answering any related questions on Discord. I plan to market my machine to superheros with
-      adamantium implants.  Some of the proceeds from that will be used to sponsor FluidNC, unless
-      Wolverine gets mad and slashes it all to bits.
+      I can provide the team with hardware to test the new feature.  I will write the documentation
+      and support it in the long term by answering questions on Discord. I plan to sell my machine
+      to superheros with adamantium implants.  I will sponsor FluidNC using whatever proceeds that
+      Wolverine does not slash to bits.
   validations:
     required: true
