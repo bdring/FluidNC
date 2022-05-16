@@ -10,7 +10,7 @@ body:
   id: context
   attributes:
     label: Machine Context
-    description: }
+    description: |
       Tell us about the kind of machine or system context where the feature would be useful.
       New features are often tied to machines with capabilities beyond the ordinary, widely-used setups.
       We need to understand the big picture of what you are thinking.
