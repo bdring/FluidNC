@@ -19,14 +19,14 @@ body:
   validations:
     required: true
 - type: checkboxes
-    id: vendor-help
-    attributes:
-      label: Help From Board Vendor
-      description: If the board is not one of Bart Dring's designs, have you asked the board vendor for help?
-      options:
-        - label: "Yes"
-        - label: "No"
-        - label: "Not Applicable"
+  id: vendor-help
+  attributes:
+    label: Help From Board Vendor
+    description: If the board is not one of Bart Dring's designs, have you asked the board vendor for help?
+    options:
+      - label: "Yes"
+      - label: "No"
+      - label: "Not Applicable"
 - type: textarea
   id: machine-description
   attributes:
