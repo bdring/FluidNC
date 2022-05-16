@@ -50,7 +50,7 @@ body:
   id: user-interface
   attributes:
     label: User Interface Software
-    description: What user interface software are you using?
+    description: What user interface software are you using when the problem happens?  List all that you have tried.
     placeholder: E.g. WebUI, FluidTerm, UGS, Candle, ...
 - type: textarea
   id: what-happened
