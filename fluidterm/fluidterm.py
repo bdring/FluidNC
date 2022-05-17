@@ -538,6 +538,7 @@ class Miniterm(object):
         self.filters = ['fluidNC']
         self.update_transformations()
         self.exit_character = unichr(0x1d)  # GS/CTRL+]
+        self.exit_character2 = unichr(0x11)  # GS/CTRL+Q
         self.menu_character = unichr(0x14)  # Menu: CTRL+T
         self.alive = None
         self._reader_alive = None
@@ -706,7 +707,7 @@ class Miniterm(object):
                         self.upload_xmodem()
                     elif c == '\x12':   # CTRL+R -> reset FluidNC
                         self.reset_fluidnc()
-                    elif c == self.exit_character:
+                    elif c == self.exit_character or c == self.exit_character2:
                         self.stop()             # exit app
                         break
                     else:
@@ -724,7 +725,7 @@ class Miniterm(object):
 
     def handle_menu_key(self, c):
         """Implement a simple menu / settings"""
-        if c == self.menu_character or c == self.exit_character:
+        if c == self.menu_character or c == self.exit_character or c == self.exit_character2:
             # Menu/exit character again -> send itself
             self.serial.write(self.tx_encoder.encode(c))
             if self.echo:
@@ -1046,7 +1047,7 @@ class Miniterm(object):
             sys.stderr.write('--- Quit: {exit} | p: port change | any other key to reconnect ---\n'.format(
                 exit=key_description(self.exit_character)))
             k = self.console.getkey()
-            if k == self.exit_character:
+            if k == self.exit_character or c == self.exit_character2:
                 self.stop()             # exit app
                 break
             elif k in 'pP':
@@ -1093,6 +1094,7 @@ class Miniterm(object):
 ---    r R        disable/enable hardware flow control
 """.format(version=getattr(serial, 'VERSION', 'unknown version'),
            exit=key_description(self.exit_character),
+           exit2=key_description(self.exit_character2),
            menu=key_description(self.menu_character),
            rts=key_description('\x12'),
            dtr=key_description('\x04'),
@@ -1320,8 +1322,9 @@ def main(default_port=None, default_baudrate=115200, default_rts=None, default_d
     if not args.quiet:
         sys.stderr.write('--- Fluidterm on {p.name}  {p.baudrate},{p.bytesize},{p.parity},{p.stopbits} ---\n'.format(
             p=miniterm.serial))
-        sys.stderr.write('--- Quit: {} | Upload: {} | Reset: {} ---\n'.format(
+        sys.stderr.write('--- Quit: {} or {} | Upload: {} | Reset: {} ---\n'.format(
             key_description(miniterm.exit_character),
+            key_description(miniterm.exit_character2),
             key_description('\x15'),
             key_description('\x12')))
 
