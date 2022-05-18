@@ -1,0 +1,63 @@
+name: Feature Request
+description: Report a new FluidNC feature
+title: "Feature: "
+labels: ["enhancement"]
+body:
+- type: markdown
+  attributes:
+    value: Please describe the desired new capability in the forms below.
+- type: textarea
+  id: context
+  attributes:
+    label: Machine Context
+    description: |
+      Tell us about the kind of machine or system context where the feature would be useful.
+      New features are often tied to machines with capabilities beyond the ordinary, widely-used setups.
+      We need to understand the big picture of what you are thinking.
+    placeholder: |
+      I am building a machine that can melt adamantium using a phaser powered
+      by dilithium crystals.  Dilithium crystals can overheat if Klingons are nearby.
+  validations:
+    required: true
+- type: textarea
+  id: feature-description
+  attributes:
+    label: Feature Description
+    description: |
+      Tell us, in great detail, how they new feature should work.  If there is an existing system
+      that has something similar, you may reference it as supporting information, but please note
+      that we have little interest in adding features just because Marlin (for example) has them.
+    placeholder: |
+      FluidNC needs a way to sense that the dilithium crystals are too hot, in which
+      case it should send a text message to Starfleet Command over subspace radio.
+  validations:
+    required: true
+- type: textarea
+  id: other-approaches
+  attributes:
+    label: Other Approaches
+    description: |
+      Tell us about other ways of solving the problem and why adding the feature directly
+      in FluidNC is better.
+    placeholder: |
+      I tried adding a Arduino-based heat sensor to the dilithium crystal stack.  It correctly
+      identified the problem, but it needed to integrate with FluidNC more closely in order
+      to reconfigure the ESP32 radio to subspace mode.
+  validations:
+    required: true
+- type: textarea
+  id: incentives
+  attributes:
+    label: How I Can Help
+    description: |
+      Developer time and money is quite limited and there are many competing demands on our time.
+      New features require design effort to ensure that they work well with existing features,
+      coding, testing on hardware, documentation, and long term support.  Tell us how you can
+      contribute to the overall effort.
+    placeholder: |
+      I can provide the team with hardware to test the new feature.  I will write the documentation
+      and support it in the long term by answering questions on Discord. I plan to sell my machine
+      to superheros with adamantium implants.  I will sponsor FluidNC using whatever proceeds that
+      Wolverine does not slash to bits.
+  validations:
+    required: true
