@@ -114,7 +114,7 @@ for platform in ['win64', 'posix']:
         # Put bootloader binaries in the archive
         tools = os.path.join(os.path.expanduser('~'),'.platformio','packages','framework-arduinoespressif32','tools')
         bootloader = 'bootloader_dio_80m.bin'
-        zipObj.write(os.path.join(tools, 'sdk', 'bin', bootloader), os.path.join(zipDirName, 'common', bootloader))
+        zipObj.write(os.path.join(tools, 'sdk', 'esp32', 'bin', bootloader), os.path.join(zipDirName, 'common', bootloader))
         bootapp = 'boot_app0.bin';
         zipObj.write(os.path.join(tools, "partitions", bootapp), os.path.join(zipDirName, 'common', bootapp))
         for secFuses in ['SecurityFusesOK.bin', 'SecurityFusesOK0.bin']:
