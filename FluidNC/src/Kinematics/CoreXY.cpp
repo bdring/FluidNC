@@ -278,16 +278,20 @@ namespace Kinematics {
 
         auto n_axis = config->_axes->_numberAxis;
 
-        // calculate cartesian move distance for each axis
-        float dist = vector_distance(target, position, Z_AXIS);
-
         float motors[n_axis];
         transform_cartesian_to_motors(motors, target);
 
         if (!pl_data->motion.rapidMotion) {
+            // Calculate vector distance of the motion in cartesian coordinates
+            float cartesian_distance = vector_distance(target, position, n_axis);
+
+            // Calculate vector distance of the motion in motor coordinates
             float last_motors[n_axis];
             transform_cartesian_to_motors(last_motors, position);
-            pl_data->feed_rate *= vector_distance(motors, last_motors, Z_AXIS) / dist;
+            float motor_distance = vector_distance(motors, last_motors, n_axis);
+
+            // Scale the feed rate by the motor/cartesian ratio
+            pl_data->feed_rate *= motor_distance / cartesian_distance;
         }
 
         return mc_move_motors(motors, pl_data);
@@ -316,7 +320,7 @@ namespace Kinematics {
         motors[Y_AXIS] = (_x_scaler * cartesian[X_AXIS]) - cartesian[Y_AXIS];
 
         auto n_axis = config->_axes->_numberAxis;
-        for (uint8_t axis = Z_AXIS; axis <= n_axis; axis++) {
+        for (size_t axis = Z_AXIS; axis < n_axis; axis++) {
             motors[axis] = cartesian[axis];
         }
     }
