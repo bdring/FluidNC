@@ -75,7 +75,7 @@ namespace Spindles {
         uint8_t       rx_message[VFD_RS485_MAX_MSG_SIZE];
         bool          safetyPollingEnabled = instance->safety_polling();
 
-        for (; true; vTaskDelay(VFD_RS485_POLL_RATE / portTICK_PERIOD_MS)) {
+        for (; true; delay_ms(VFD_RS485_POLL_RATE)) {
             std::atomic_thread_fence(std::memory_order::memory_order_seq_cst);  // read fence for settings
             response_parser parser = nullptr;
 
@@ -228,7 +228,7 @@ namespace Spindles {
 
                     // Wait a bit before we retry. Set the delay to poll-rate. Not sure
                     // if we should use a different value...
-                    vTaskDelay(VFD_RS485_POLL_RATE / portTICK_PERIOD_MS);
+                    delay_ms(VFD_RS485_POLL_RATE);
 
 #ifdef DEBUG_TASK_STACK
                     static UBaseType_t uxHighWaterMark = 0;
@@ -353,7 +353,7 @@ namespace Spindles {
                 //     last      = _sync_dev_speed;
                 //     break;
                 // }
-                delay(500);
+                delay_ms(500);
 
                 // unchanged counts the number of consecutive times that we see the same speed
                 unchanged = (_sync_dev_speed == last) ? unchanged + 1 : 0;

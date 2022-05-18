@@ -79,9 +79,9 @@ typedef struct {
 static stepper_t st;
 
 // Step segment ring buffer indices
-static volatile uint8_t segment_buffer_tail;
-static volatile uint8_t segment_buffer_head;
-static uint8_t          segment_next_head;
+static volatile uint32_t segment_buffer_tail;
+static volatile uint32_t segment_buffer_head;
+static uint32_t          segment_next_head;
 
 // Pointers for the step segment being prepped from the planner buffer. Accessed only by the
 // main program. Pointers may be planning segments or planner blocks ahead of what being executed.
@@ -269,7 +269,6 @@ void IRAM_ATTR Stepper::pulse_func() {
 
 // enabled. Startup init and limits call this function but shouldn't start the cycle.
 void Stepper::wake_up() {
-    //log_info("st_wake_up");
     // Cancel any pending stepper disable
     protocol_cancel_disable_steppers();
     // Enable stepper drivers.
