@@ -291,9 +291,6 @@ namespace Kinematics {
         }
 
         return mc_move_motors(motors, pl_data);
-
-        // TO DO don't need a feedrate for rapids
-        return true;
     }
 
     /*
