@@ -99,7 +99,7 @@ void IRAM_ATTR delay_us(int32_t us) {
 }
 
 void delay_ms(uint16_t ms) {
-    delay(ms);
+    vTaskDelay(ms / portTICK_PERIOD_MS);
 }
 
 // Non-blocking delay function used for general operation and suspend features.
@@ -118,7 +118,7 @@ bool delay_msec(uint32_t milliseconds, DwellMode mode) {
         if (sys.abort) {
             return false;
         }
-        delay(1);
+        vTaskDelay(1 / portTICK_PERIOD_MS);
     }
     return true;
 }

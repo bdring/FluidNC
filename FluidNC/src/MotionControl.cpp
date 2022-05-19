@@ -342,7 +342,7 @@ GCUpdatePos mc_probe_cycle(float* target, plan_line_data_t* pl_data, uint8_t par
     // Set state variables and error out, if the probe failed and cycle with error is enabled.
     if (probeState == ProbeState::Active) {
         if (is_no_error) {
-            memcpy(probe_steps, motor_steps, sizeof(motor_steps));
+            copyAxes(probe_steps, get_motor_steps());
         } else {
             rtAlarm = ExecAlarm::ProbeFailContact;
         }
@@ -375,7 +375,7 @@ GCUpdatePos mc_probe_cycle(float* target, plan_line_data_t* pl_data, uint8_t par
             }
             log_info("Probe offset applied:");
             coords[gc_state.modal.coord_select]->set(coord_data);  // save it
-            memcpy(gc_state.coord_system, coord_data, sizeof(gc_state.coord_system));
+            copyAxes(gc_state.coord_system, coord_data);
             report_wco_counter = 0;
         }
 

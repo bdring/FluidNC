@@ -155,8 +155,8 @@ namespace MotorDrivers {
             return false;
         }
 
-        auto axis                = config->_axes->_axis[_axis_index];
-        motor_steps[_axis_index] = mpos_to_steps(axis->_homing->_mpos, _axis_index);
+        auto axis = config->_axes->_axis[_axis_index];
+        set_motor_steps(_axis_index, mpos_to_steps(axis->_homing->_mpos, _axis_index));
 
         set_disable(false);
         set_location();  // force the PWM to update now
@@ -192,7 +192,7 @@ namespace MotorDrivers {
 
             uint32_t temp = myMap(dxl_position, _countMin, _countMax, pos_min_steps, pos_max_steps);
 
-            motor_steps[_axis_index] = temp;
+            set_motor_steps(_axis_index, temp);
 
             plan_sync_position();
 

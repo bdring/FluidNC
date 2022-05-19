@@ -35,14 +35,20 @@ namespace Machine {
         Pin  _allPin;
         bool _hardLimits = false;
 
+        int32_t _steps   = 0;
+        bool    _limited = false;  // _limited is set by the LimitPin ISR
+
         // Configuration system helpers:
         void group(Configuration::HandlerBase& handler) override;
         void afterParse() override;
         bool hasSwitches();
         bool isReal();
         void makeDualSwitches();
+        void limitOtherAxis(int axis);
         void init();
         void config_motor();
+        void step(bool reverse);
+        void unstep();
         ~Motor();
     };
 }

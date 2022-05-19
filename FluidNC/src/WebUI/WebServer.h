@@ -11,6 +11,7 @@
 #    include "../Settings.h"
 #    include "Authentication.h"  // AuthenticationLevel
 #    include "Commands.h"
+#    include <FS.h>
 
 class WebSocketsServer;
 class WebServer;
@@ -82,7 +83,7 @@ namespace WebUI {
         static void handle_web_command() { _handle_web_command(false); }
         static void handle_web_command_silent() { _handle_web_command(true); }
         static void handle_Websocket_Event(uint8_t num, uint8_t type, uint8_t* payload, size_t length);
-        static void SPIFFSFileupload();
+        static void LocalFSFileupload();
         static void handleFileList();
         static void handleUpdate();
         static void WebUpdateUpload();
@@ -90,6 +91,8 @@ namespace WebUI {
         static void cancelUpload();
         static void handle_direct_SDFileList();
         static void SDFile_direct_upload();
+        static bool deleteFSRecursive(fs::FS& fs, String path);
+        static bool deleteLocalFSRecursive(String path);
         static bool deleteRecursive(String path);
         static void uploadStart(String filename, size_t filesize, const char* fs);
         static void uploadWrite(uint8_t* buffer, size_t length);

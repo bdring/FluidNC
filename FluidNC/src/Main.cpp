@@ -24,7 +24,7 @@
 #    include "WebUI/InputBuffer.h"
 
 #    include "WebUI/WifiConfig.h"
-#    include <SPIFFS.h>
+#    include "LocalFS.h"
 
 extern void make_user_commands();
 
@@ -46,8 +46,10 @@ void setup() {
         log_info("FluidNC " << git_info);
         log_info("Compiled with ESP32 SDK:" << ESP.getSdkVersion());
 
-        if (!SPIFFS.begin(true)) {
-            log_error("Cannot mount the local filesystem");
+        if (LocalFS.begin(true)) {
+            log_info("Local filesystem type is " << LOCALFS_NAME);
+        } else {
+            log_error("Cannot mount the local filesystem " << LOCALFS_NAME);
         }
 
         bool configOkay = config->load();
@@ -82,7 +84,10 @@ void setup() {
 
             config->_kinematics->init();
 
-            memset(motor_steps, 0, sizeof(motor_steps));  // Clear machine position.
+            auto n_axis = config->_axes->_numberAxis;
+            for (size_t axis = 0; axis < n_axis; axis++) {
+                set_motor_steps(axis, 0);  // Clear machine position.
+            }
 
             machine_init();  // user supplied function for special initialization
         }
@@ -132,16 +137,6 @@ void setup() {
 }
 
 static void reset_variables() {
-#    ifdef DEBUG_STEPPING
-    rtTestPl    = false;
-    rtTestSt    = false;
-    st_seq      = 0;
-    st_seq0     = 0;
-    pl_seq0     = 0;
-    seg_seq0    = 0;
-    seg_seq1    = 0;
-    planner_seq = 0;
-#    endif
     // Reset primary systems.
     system_reset();
     protocol_reset();
