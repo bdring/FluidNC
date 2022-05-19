@@ -29,7 +29,13 @@ TODO: If touching back off
 namespace Kinematics {
     void CoreXY::group(Configuration::HandlerBase& handler) {}
 
-    void CoreXY::init() { log_info("Kinematic system: " << name()); }
+    void CoreXY::init() {
+        log_info("Kinematic system: " << name());
+
+        // A limit switch on either axis stops both motors
+        config->_axes->_axis[X_AXIS]->_motors[0]->limitOtherAxis(Y_AXIS);
+        config->_axes->_axis[Y_AXIS]->_motors[0]->limitOtherAxis(X_AXIS);
+    }
 
     // plan a homing mve in motor space for the homing sequence
     void CoreXY::plan_homing_move(AxisMask axisMask, bool approach, bool seek) {
@@ -68,8 +74,8 @@ namespace Kinematics {
         // leave other axes unchanged
         for (int axis = X_AXIS; axis <= config->_axes->_numberAxis; axis++) {
             if (axis < Z_AXIS) {
-                motor_steps[axis] = 0.0;
-                target[axis]      = 0.0;
+                set_motor_steps(axis, 0);
+                target[axis] = 0.0;
             } else {
                 move_to[axis] = target[axis];
             }
@@ -171,8 +177,8 @@ namespace Kinematics {
             AxisMask axisMask = Machine::Homing::axis_mask_from_cycle(cycle);
             uint8_t  count    = 0;
 
-            for (int i = 0; i < 16; i++) {
-                if (bitnum_is_true(axisMask, i)) {
+            for (int axis = 0; axis < MAX_N_AXIS; axis++) {
+                if (bitnum_is_true(axisMask, axis)) {
                     if (++count > 1) {  // Error with any axis with more than one axis per cycle
                         log_error("CoreXY cannot multi-axis home. Check homing cycle:" << cycle);
                         // TODO: Set some Kinematics error or alarm
@@ -235,13 +241,13 @@ namespace Kinematics {
             for (int axis = Z_AXIS; axis < n_axis; axis++) {
                 if (bitnum_is_true(cycle_mask, axis)) {
                     // set the Z motor position
-                    motor_steps[axis] = mpos_to_steps(motors_mm[axis], axis);
+                    set_motor_steps(axis, mpos_to_steps(motors_mm[axis], axis));
                 }
             }
         } else {
             // set all of them
             for (int axis = X_AXIS; axis < n_axis; axis++) {
-                motor_steps[axis] = mpos_to_steps(motors_mm[axis], axis);
+                set_motor_steps(axis, mpos_to_steps(motors_mm[axis], axis));
             }
         }
 
@@ -272,22 +278,23 @@ namespace Kinematics {
 
         auto n_axis = config->_axes->_numberAxis;
 
-        // calculate cartesian move distance for each axis
-        float dist = vector_distance(target, position, Z_AXIS);
-
         float motors[n_axis];
         transform_cartesian_to_motors(motors, target);
 
         if (!pl_data->motion.rapidMotion) {
+            // Calculate vector distance of the motion in cartesian coordinates
+            float cartesian_distance = vector_distance(target, position, n_axis);
+
+            // Calculate vector distance of the motion in motor coordinates
             float last_motors[n_axis];
             transform_cartesian_to_motors(last_motors, position);
-            pl_data->feed_rate *= vector_distance(motors, last_motors, Z_AXIS) / dist;
+            float motor_distance = vector_distance(motors, last_motors, n_axis);
+
+            // Scale the feed rate by the motor/cartesian ratio
+            pl_data->feed_rate *= motor_distance / cartesian_distance;
         }
 
         return mc_move_motors(motors, pl_data);
-
-        // TO DO don't need a feedrate for rapids
-        return true;
     }
 
     /*
@@ -313,7 +320,7 @@ namespace Kinematics {
         motors[Y_AXIS] = (_x_scaler * cartesian[X_AXIS]) - cartesian[Y_AXIS];
 
         auto n_axis = config->_axes->_numberAxis;
-        for (uint8_t axis = Z_AXIS; axis <= n_axis; axis++) {
+        for (size_t axis = Z_AXIS; axis < n_axis; axis++) {
             motors[axis] = cartesian[axis];
         }
     }

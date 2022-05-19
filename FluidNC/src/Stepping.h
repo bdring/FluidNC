@@ -5,7 +5,7 @@
 #pragma once
 
 #include "Configuration/Configurable.h"
-#include <esp32-hal-timer.h>  // hw_timer_t
+#include "Driver/StepTimer.h"
 
 namespace Machine {
     class Stepping : public Configuration::Configurable {
@@ -14,12 +14,9 @@ namespace Machine {
         static const uint32_t fStepperTimer = 20000000;  // frequency of step pulse timer
 
     private:
-        static const int   stepTimerNumber = 0;
-        static hw_timer_t* stepTimer;
-        static void        onStepperDriverTimer();
+        static bool onStepperDriverTimer();
 
-        static const uint32_t fTimers             = 80000000;  // the frequency of ESP32 timers
-        static const int      ticksPerMicrosecond = fStepperTimer / 1000000;
+        static const int ticksPerMicrosecond = fStepperTimer / 1000000;
 
         bool    _switchedStepper = false;
         int32_t _stepPulseEndTime;

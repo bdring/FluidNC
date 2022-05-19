@@ -293,9 +293,6 @@ void plan_update_velocity_profile_parameters() {
     pl.previous_nominal_speed = prev_nominal_speed;  // Update prev nominal speed for next incoming block.
 }
 
-#ifdef DEBUG_STEPPING
-uint32_t planner_seq = 0;
-#endif
 bool plan_buffer_line(float* target, plan_line_data_t* pl_data) {
     // Prepare and initialize new block. Copy relevant pl_data for block execution.
     plan_block_t* block = &block_buffer[block_buffer_head];
@@ -310,21 +307,14 @@ bool plan_buffer_line(float* target, plan_line_data_t* pl_data) {
     int32_t target_steps[MAX_N_AXIS], position_steps[MAX_N_AXIS];
     float   unit_vec[MAX_N_AXIS], delta_mm;
     // Copy position data based on type of motion being planned.
-    if (block->motion.systemMotion) {
-        memcpy(position_steps, motor_steps, sizeof(motor_steps));
-    } else {
-        memcpy(position_steps, pl.position, sizeof(pl.position));
-    }
+    copyAxes(position_steps, block->motion.systemMotion ? get_motor_steps() : pl.position);
+
     auto n_axis = config->_axes->_numberAxis;
     for (size_t idx = 0; idx < n_axis; idx++) {
         // Calculate target position in absolute steps, number of steps for each axis, and determine max step events.
         // Also, compute individual axes distance for move and prep unit vector calculations.
         // NOTE: Computes true distance from converted step values.
-        target_steps[idx] = lround(mpos_to_steps(target[idx], idx));
-#ifdef DEBUG_STEPPING
-        block->entry_pos[idx] = position_steps[idx];
-        block->exit_pos[idx]  = target_steps[idx];
-#endif
+        target_steps[idx]       = lround(mpos_to_steps(target[idx], idx));
         block->steps[idx]       = labs(target_steps[idx] - position_steps[idx]);
         block->step_event_count = MAX(block->step_event_count, block->steps[idx]);
         delta_mm                = steps_to_mpos((target_steps[idx] - position_steps[idx]), idx);
@@ -334,9 +324,6 @@ bool plan_buffer_line(float* target, plan_line_data_t* pl_data) {
             block->direction_bits |= bitnum_to_mask(idx);
         }
     }
-#ifdef DEBUG_STEPPING
-    block->seq = planner_seq++;
-#endif
     // Bail if this is a zero-length block. Highly unlikely to occur.
     if (block->step_event_count == 0) {
         return false;
@@ -416,8 +403,8 @@ bool plan_buffer_line(float* target, plan_line_data_t* pl_data) {
         plan_compute_profile_parameters(block, nominal_speed, pl.previous_nominal_speed);
         pl.previous_nominal_speed = nominal_speed;
         // Update previous path unit_vector and planner position.
-        memcpy(pl.previous_unit_vec, unit_vec, sizeof(unit_vec));  // pl.previous_unit_vec[] = unit_vec[]
-        memcpy(pl.position, target_steps, sizeof(target_steps));   // pl.position[] = target_steps[]
+        copyAxes(pl.previous_unit_vec, unit_vec);
+        copyAxes(pl.position, target_steps);
         // New block is all set. Update buffer head and next buffer head indices.
         block_buffer_head = next_buffer_head;
         next_buffer_head  = plan_next_block_index(block_buffer_head);
@@ -431,10 +418,8 @@ bool plan_buffer_line(float* target, plan_line_data_t* pl_data) {
 void plan_sync_position() {
     // TODO: For motor configurations not in the same coordinate frame as the machine position,
     // this function needs to be updated to accomodate the difference.
-    auto a      = config->_axes;
-    auto n_axis = a ? a->_numberAxis : 0;
-    for (size_t idx = 0; idx < n_axis; idx++) {
-        pl.position[idx] = motor_steps[idx];
+    if (config->_axes) {
+        copyAxes(pl.position, get_motor_steps());
     }
 }
 

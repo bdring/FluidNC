@@ -85,7 +85,7 @@ namespace MotorDrivers {
             return;
         }
 
-        float mpos = steps_to_mpos(motor_steps[_axis_index], _axis_index);  // get the axis machine position in mm
+        float mpos = steps_to_mpos(get_axis_motor_steps(_axis_index), _axis_index);  // get the axis machine position in mm
 
         _dir_invert ? is_solenoid_on = (mpos < 0.0) : is_solenoid_on = (mpos > 0.0);
 

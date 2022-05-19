@@ -84,8 +84,8 @@ namespace MotorDrivers {
             return false;
 
         if (isHoming) {
-            auto axis                = config->_axes->_axis[_axis_index];
-            motor_steps[_axis_index] = mpos_to_steps(axis->_homing->_mpos, _axis_index);
+            auto axis = config->_axes->_axis[_axis_index];
+            set_motor_steps(_axis_index, mpos_to_steps(axis->_homing->_mpos, _axis_index));
 
             float home_time_sec = (axis->_maxTravel / axis->_maxRate * 60 * 1.1);  // 1.1 fudge factor for accell time.
 
@@ -108,8 +108,8 @@ namespace MotorDrivers {
 
         read_settings();
 
-        float mpos = steps_to_mpos(motor_steps[_axis_index], _axis_index);  // get the axis machine position in mm
-        servo_pos  = mpos;                                                  // determine the current work position
+        float mpos = steps_to_mpos(get_axis_motor_steps(_axis_index), _axis_index);  // get the axis machine position in mm
+        servo_pos  = mpos;                                                           // determine the current work position
 
         // determine the pulse length
         servo_pulse_len = static_cast<uint32_t>(mapConstrain(

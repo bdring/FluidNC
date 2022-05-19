@@ -16,7 +16,15 @@ namespace Machine {
         // _pHardLimits is a reference so the shared variable at the
         // Endstops level can be changed at runtime to control the
         // limit behavior dynamically.
-        bool&              _pHardLimits;
+        bool& _pHardLimits;
+
+        // _pHardLimits is a reference to the _limited member of
+        // the Motor class.  Setting it when the Limit ISR fires
+        // lets the motor driver respond rapidly to a limit switch
+        // touch, increasing the accuracy of homing
+        volatile bool& _pLimited;
+        volatile bool* _pExtraLimited = nullptr;
+
         volatile uint32_t* _posLimits = nullptr;
         volatile uint32_t* _negLimits = nullptr;
 
@@ -27,7 +35,7 @@ namespace Machine {
         void read();
 
     public:
-        LimitPin(Pin& pin, int axis, int motorNum, int direction, bool& phardLimits);
+        LimitPin(Pin& pin, int axis, int motorNum, int direction, bool& phardLimits, bool& pLimited);
 
         Pin& _pin;
 
@@ -36,6 +44,7 @@ namespace Machine {
         void init();
         bool get() { return _value; }
         void makeDualMask();  // makes this a mask for motor0 and motor1
+        void setExtraMotorLimit(int axis, int motorNum);
 
         ~LimitPin();
     };

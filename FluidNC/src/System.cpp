@@ -15,7 +15,6 @@
 
 // Declare system global variable structure
 system_t sys;
-int32_t  motor_steps[MAX_N_AXIS];  // Real-time position in steps.
 int32_t  probe_steps[MAX_N_AXIS];  // Last probe position in steps.
 
 void system_reset() {
@@ -48,9 +47,37 @@ void motor_steps_to_mpos(float* position, int32_t* steps) {
     config->_kinematics->motors_to_cartesian(position, motor_mpos, n_axis);
 }
 
+void set_motor_steps(size_t axis, int32_t steps) {
+    auto a = config->_axes->_axis[axis];
+    for (size_t motor = 0; motor < Machine::Axis::MAX_MOTORS_PER_AXIS; motor++) {
+        auto m = a->_motors[motor];
+        if (m) {
+            m->_steps = steps;
+        }
+    }
+}
+
+int32_t get_axis_motor_steps(size_t axis) {
+    auto m = config->_axes->_axis[axis]->_motors[0];
+    return m ? m->_steps : 0;
+}
+
+int32_t* get_motor_steps() {
+    static int32_t motor_steps[MAX_N_AXIS];
+
+    auto axes   = config->_axes;
+    auto n_axis = axes->_numberAxis;
+    for (size_t axis = 0; axis < n_axis; axis++) {
+        auto m            = axes->_axis[axis]->_motors[0];
+        motor_steps[axis] = m ? m->_steps : 0;
+    }
+    return motor_steps;
+}
+
 float* get_mpos() {
     static float position[MAX_N_AXIS];
-    motor_steps_to_mpos(position, motor_steps);
+
+    motor_steps_to_mpos(position, get_motor_steps());
     return position;
 };
 

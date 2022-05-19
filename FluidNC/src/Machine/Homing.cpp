@@ -34,6 +34,8 @@ namespace Machine {
     // Then we scale the travel distances for the other axes so they would complete
     // at the same time.
 
+    volatile bool Homing::_approach = false;
+
     const uint32_t MOTOR0 = 0xffff;
     const uint32_t MOTOR1 = 0xffff0000;
 
@@ -51,7 +53,7 @@ namespace Machine {
         AxisMask axesMask = 0;
         // Find the axis that will take the longest
         for (int axis = 0; axis < n_axis; axis++) {
-            if (bitnum_is_false(motors, axis) && bitnum_is_false(motors, axis + 16)) {
+            if (bitnum_is_false(motors, Machine::Axes::motor_bit(axis, 0)) && bitnum_is_false(motors, Machine::Axes::motor_bit(axis, 1))) {
                 continue;
             }
 
@@ -59,7 +61,7 @@ namespace Machine {
             set_bitnum(axesMask, axis);
 
             // Set target location for active axes and setup computation for homing rate.
-            motor_steps[axis] = 0;
+            set_motor_steps(axis, 0);
 
             auto axisConfig = axes->_axis[axis];
             auto homing     = axisConfig->_homing;
@@ -77,13 +79,15 @@ namespace Machine {
                 travel = axisConfig->_maxTravel;
             } else {  // see if which pull off we use
                 // If both motors are running use the first pull off
-                if (bitnum_is_true(motors, axis) && bitnum_is_true(motors, axis + 16)) {
+                if (bitnum_is_true(motors, Axes::motor_bit(axis, 0)) && bitnum_is_true(motors, Axes::motor_bit(axis, 1))) {
                     travel = axisConfig->_motors[0]->_pulloff;
                 } else {
                     if (customPulloff != 0) {
                         travel = customPulloff;
                     } else {
-                        bitnum_is_true(motors, axis) ? travel = axisConfig->_motors[0]->_pulloff : travel = axisConfig->_motors[1]->_pulloff;
+                        // If motor 0 is not running, use the pulloff for motor 1
+                        int motor = bitnum_is_false(motors, Axes::motor_bit(axis, 0));
+                        travel    = axisConfig->_motors[motor]->_pulloff;
                     }
                 }
             }
@@ -139,18 +143,15 @@ namespace Machine {
             return;
         }
 
-        uint32_t settling_ms = plan_move(remainingMotors, approach, seek, customPulloff);
+        _approach = approach;
 
-        config->_axes->lock_motors(0xffffffff);
-        config->_axes->unlock_motors(remainingMotors);
+        uint32_t settling_ms = plan_move(remainingMotors, approach, seek, customPulloff);
 
         do {
             if (approach) {
-                // Check limit state. Lock out cycle axes when they change.
-                // XXX do we check only the switch in the direction of motion?
+                // As limit bits are set, remove the corresponding bits from remaingMotors.
+                // The stepping ISR code takes care of stopping the motors when limit bits are set
                 MotorMask limitedMotors = Machine::Axes::posLimitMask | Machine::Axes::negLimitMask;
-
-                config->_axes->lock_motors(limitedMotors);
                 clear_bits(remainingMotors, limitedMotors);
             }
 
@@ -187,31 +188,7 @@ namespace Machine {
 
         Stepper::reset();       // Immediately force kill steppers and reset step segment buffer.
         delay_ms(settling_ms);  // Delay to allow transient dynamics to dissipate.
-    }
-
-    // This homing mode is the POG style squaring
-    // For this you can only have switches defined at the axis level
-    bool Homing::squaredOneSwitch(MotorMask motors) {
-        AxisMask squaredAxes = motors & (motors >> 16);
-        if (squaredAxes == 0) {
-            // No axis has multiple motors
-            return false;
-        }
-
-        auto axes   = config->_axes;
-        auto n_axis = axes->_numberAxis;
-        for (int axis = 0; axis < n_axis; axis++) {
-            if (bitnum_is_false(squaredAxes, axis)) {
-                continue;
-            }
-
-            if (axes->_axis[axis]->motorsWithSwitches() == 1) {
-                return true;
-            }
-        }
-        // If we get here, all of the squared axes in this cycle have separate
-        // limit switches.
-        return false;
+        _approach = false;
     }
 
     // This homing mode never forces the machine out of square
@@ -264,7 +241,7 @@ namespace Machine {
         // Set machine positions for homed limit switches. Don't update non-homed axes.
         for (int axis = 0; axis < n_axis; axis++) {
             if (bitnum_is_true(axisMask, axis)) {
-                motor_steps[axis] = mpos_to_steps(axes->_axis[axis]->_homing->_mpos, axis);
+                set_motor_steps(axis, mpos_to_steps(axes->_axis[axis]->_homing->_mpos, axis));
             }
         }
         sys.step_control = {};                   // Return step control to normal operation.
@@ -276,18 +253,16 @@ namespace Machine {
         MotorMask motors = config->_axes->set_homing_mode(axisMask, true);
 
         try {
-            if (squaredOneSwitch(motors)) {
-                //log_info("POG Squaring");
-                run(motors, true, true);    // Approach slowly
-                run(motors, false, false);  // Pulloff
-                run(motors, true, false);   // Approach slowly
-                run(motors, false, false);  // Pulloff
-            } else if (squaredStressfree(motors)) {
+            log_debug("Fast approach");
+            run(motors, true, true);  // Approach slowly
+            log_debug("Pulloff");
+            run(motors, false, false);  // Pulloff
+            log_debug("Slow approach");
+            run(motors, true, false);  // Approach slowly
+            log_debug("Pulloff");
+            run(motors, false, false);  // Pulloff
+            if (squaredStressfree(motors)) {
                 //log_info("Stress Free Squaring 0x" << String(motors, 16));
-                run(motors, true, true);    // Approach fast
-                run(motors, false, false);  // Pulloff
-                run(motors, true, false);   // Approach fast
-                run(motors, false, false);  // Pulloff
                 // TODO See if we need to do a nudge for asymmetric pulloffs.
                 auto  n_axis = config->_axes->_numberAxis;
                 float pulloffOffset;
@@ -303,14 +278,6 @@ namespace Machine {
                             }
                         }
                     }
-                }
-            } else {
-                //log_info("Single Axis Homing");
-                for (int i = 0; i < NHomingLocateCycle; i++) {
-                    run(motors, true, true);    // Approach fast
-                    run(motors, false, false);  // Pulloff
-                    run(motors, true, false);   // Approach slowly
-                    run(motors, false, false);  // Pulloff
                 }
             }
         } catch (ExecAlarm alarm) {

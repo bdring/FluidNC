@@ -123,4 +123,4 @@ At this point, this is simply not implemented.
 
 The generator basically traverses the complete tree, and generates a 
 yaml file. The main point of this is to create a `config.yaml` file 
-in SPIFFS, which holds the main startup configuration. 
+in LocalFS, which holds the main startup configuration.

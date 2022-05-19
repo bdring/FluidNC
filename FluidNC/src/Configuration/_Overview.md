@@ -106,9 +106,9 @@ trigger a link-time name collision.
 ## Getting started with Yaml settings
 
 During startup, `MachineConfig::load` is called, with the 
-default filename `/spiffs/config.yaml`. 
+default filename `/localfs/config.yaml`.
 
-You can upload a new config file to spiffs by putting it in the 
+You can upload a new config file to localfs by putting it in the
 data folder, and calling `pio run -t uploadfs`. Another option
 is to upload it using WiFi.
 

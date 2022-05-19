@@ -25,11 +25,7 @@ public:
     FileStream(String filename, const char* mode, const char* defaultFs = "");
     FileStream(const char* filename, const char* mode, const char* defaultFs = "");
 
-    String path() {
-        String retval = _path;
-        retval.replace("/spiffs/", "/localfs/");
-        return retval;
-    }
+    String path();
     int    available() override;
     int    read() override;
     int    peek() override;

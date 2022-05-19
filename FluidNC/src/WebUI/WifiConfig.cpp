@@ -20,7 +20,7 @@ WebUI::WiFiConfig wifi_config;
 
 #    include <WiFi.h>
 #    include <esp_wifi.h>
-#    include <SPIFFS.h>
+#    include "../LocalFS.h"
 #    include <cstring>
 
 #    include <esp_ota_ops.h>
@@ -107,7 +107,7 @@ namespace WebUI {
                 }
             }
             out << "Available Size for update: " << formatBytes(flashsize) << '\n';
-            out << "Available Size for SPIFFS: " << formatBytes(SPIFFS.totalBytes()) << '\n';
+            out << "Available Size for LocalFS: " << formatBytes(LocalFS.totalBytes()) << '\n';
 
             out << "Web port: " << String(web_server.port()) << '\n';
             out << "Data port: " << String(telnet_server.port()) << '\n';

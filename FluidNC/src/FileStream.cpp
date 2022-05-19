@@ -5,7 +5,14 @@
 #include "Machine/MachineConfig.h"  // config->
 #include "SDCard.h"
 #include "Logging.h"
+#include "LocalFS.h"
 #include <sys/stat.h>
+
+String FileStream::path() {
+    String retval = _path;
+    retval.replace(LOCALFS_PREFIX, "/localfs/");
+    return retval;
+}
 
 int FileStream::available() {
     return 1;
@@ -49,7 +56,7 @@ static void replaceInitialSubstring(String& s, const char* replaced, const char*
 }
 
 FileStream::FileStream(const char* filename, const char* mode, const char* defaultFs) : Channel("file") {
-    const char* actualLocalFs = "/spiffs/";
+    const char* actualLocalFs = LOCALFS_PREFIX;
     const char* sdPrefix      = "/sd/";
     const char* localFsPrefix = "/localfs/";
 
@@ -69,6 +76,8 @@ FileStream::FileStream(const char* filename, const char* mode, const char* defau
         replaceInitialSubstring(_path, "/LOCALFS/", actualLocalFs);
     } else if (_path.startsWith("/SPIFFS/")) {
         replaceInitialSubstring(_path, "/SPIFFS/", actualLocalFs);
+    } else if (_path.startsWith("/LITTLEFS/")) {
+        replaceInitialSubstring(_path, "/LITTLEFS/", actualLocalFs);
     } else {
         if (*filename != '/') {
             _path = '/' + _path;
@@ -92,15 +101,14 @@ FileStream::FileStream(const char* filename, const char* mode, const char* defau
         }
         _isSD = true;
     }
-    if (_path.startsWith(actualLocalFs) && _path.length() > (30 + strlen(actualLocalFs))) {
-        log_info("Filename too long: " << _path);
-    }
     _fd = fopen(_path.c_str(), mode);
     if (!_fd) {
+        bool opening = strcmp(mode, "w");
+        log_debug("Cannot " << (opening ? "open" : "create") << " file " << _path);
         if (_isSD) {
             config->_sdCard->end();
         }
-        throw strcmp(mode, "w") ? Error::FsFailedOpenFile : Error::FsFailedCreateFile;
+        throw opening ? Error::FsFailedOpenFile : Error::FsFailedCreateFile;
     }
 }
 

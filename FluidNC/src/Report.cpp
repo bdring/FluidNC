@@ -504,13 +504,14 @@ static void pinString(Print& channel) {
     MotorMask lim_pin_state = limits_get_state();
     if (lim_pin_state) {
         auto n_axis = config->_axes->_numberAxis;
-        for (int i = 0; i < n_axis; i++) {
-            if (bitnum_is_true(lim_pin_state, i) || bitnum_is_true(lim_pin_state, i + 16)) {
+        for (size_t axis = 0; axis < n_axis; axis++) {
+            if (bitnum_is_true(lim_pin_state, Machine::Axes::motor_bit(axis, 0)) ||
+                bitnum_is_true(lim_pin_state, Machine::Axes::motor_bit(axis, 1))) {
                 if (prefixNeeded) {
                     prefixNeeded = false;
                     channel << "|Pn:";
                 }
-                channel << config->_axes->axisName(i);
+                channel << config->_axes->axisName(axis);
             }
         }
     }
