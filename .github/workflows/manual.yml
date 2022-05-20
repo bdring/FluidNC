@@ -38,7 +38,7 @@ jobs:
         git config user.name "Mitch Bradley"
         git tag "${{ github.event.inputs.tag }}" -a -m "Release test"
     - name: Build
-      run: python build-release.py
+      run: python build-release.py -v
     - name: Create release
       uses: softprops/action-gh-release@v1
       with:
