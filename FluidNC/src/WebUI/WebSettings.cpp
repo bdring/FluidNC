@@ -367,32 +367,31 @@ namespace WebUI {
         return deleteObject(LocalFS, parameter, out);
     }
 
-    static void listDir(fs::FS& fs, const char* dirname, size_t levels, Channel& out) {
-        File root = fs.open(dirname);
-        if (!root) {
-            report_status_message(Error::FsFailedOpenDir, out);
-            return;
-        }
+    static void listDir(fs::FS& fs, File root, String indent, size_t levels, Channel& out) {
         if (!root.isDirectory()) {
-            report_status_message(Error::FsDirNotFound, out);
+            log_info("Not directory");
+            root.close();
             return;
         }
-        File file = root.openNextFile();
-        while (file) {
+
+        File file;
+        while (file = root.openNextFile()) {
             if (file.isDirectory()) {
                 if (levels) {
-                    listDir(fs, file.name(), levels - 1, out);
+                    out << "[DIR: " << indent << file.name() << "]\n";
+                    listDir(fs, file, indent + " ", levels - 1, out);
                 }
             } else {
-                allChannels << "[FILE:" << file.name() << "|SIZE:" << file.size() << "]\n";
+                out << "[FILE:" << indent << file.name() << "|SIZE:" << file.size() << "]\n";
             }
-            file = root.openNextFile();
+            file.close();
         }
+        root.close();
     }
 
     static void listFs(fs::FS& fs, const char* fsname, size_t levels, uint64_t totalBytes, uint64_t usedBytes, Channel& out) {
         out << '\n';
-        listDir(fs, "/", levels, out);
+        listDir(fs, fs.open("/"), " ", levels, out);
         out << "[" << fsname;
         out << " Free:" << formatBytes(totalBytes - usedBytes);
         out << " Used:" << formatBytes(usedBytes);
@@ -422,16 +421,15 @@ namespace WebUI {
         return Error::Ok;
     }
 
-    static void listDirJSON(fs::FS fs, const char* dirname, size_t levels, JSONencoder* j) {
+    static void listDirJSON(fs::FS fs, File root, size_t levels, JSONencoder* j) {
         j->begin_array("files");
-        File root = fs.open(dirname);
         File file = root.openNextFile();
         while (file) {
             const char* tailName = strchr(file.name(), '/');
             tailName             = tailName ? tailName + 1 : file.name();
             if (file.isDirectory() && levels) {
                 j->begin_array(tailName);
-                listDirJSON(fs, file.name(), levels - 1, j);
+                listDirJSON(fs, file, levels - 1, j);
                 j->end_array();
             } else {
                 j->begin_object();
@@ -439,15 +437,17 @@ namespace WebUI {
                 j->member("size", file.size());
                 j->end_object();
             }
+            file.close();
             file = root.openNextFile();
         }
+        root.close();
         j->end_array();
     }
 
     static Error listLocalFilesJSON(char* parameter, AuthenticationLevel auth_level, Channel& out) {  // No ESP command
         JSONencoder j(false, out);
         j.begin();
-        listDirJSON(LocalFS, "/", 4, &j);
+        listDirJSON(LocalFS, LocalFS.open("/"), 4, &j);
         j.member("total", LocalFS.totalBytes());
         j.member("used", LocalFS.usedBytes());
         j.member("occupation", String(long(100 * LocalFS.usedBytes() / LocalFS.totalBytes())));

@@ -159,6 +159,7 @@ static void reset_variables() {
     // Sync cleared gcode and planner positions to current system position.
     plan_sync_position();
     gc_sync_position();
+    allChannels.flushRx();
     report_init_message(allChannels);
     mc_init();
 }

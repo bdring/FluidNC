@@ -41,6 +41,7 @@ namespace WebUI {
         bool   push(uint8_t data);
         bool   push(const uint8_t* data, int datasize);
         void   flush() override {}
+        void   flushRx() override;
 
         int rx_buffer_available() override;
 

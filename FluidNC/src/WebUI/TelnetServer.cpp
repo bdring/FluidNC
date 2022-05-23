@@ -59,6 +59,12 @@ namespace WebUI {
         return no_error;
     }
 
+    void Telnet_Server::flushRx() {
+        _RXbufferSize = 0;
+        _RXbufferpos  = 0;
+        Channel::flushRx();
+    }
+
     void Telnet_Server::end() {
         _setupdone    = false;
         _RXbufferSize = 0;

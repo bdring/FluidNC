@@ -218,6 +218,12 @@ String AllChannels::info() {
     return retval;
 }
 
+void AllChannels::flushRx() {
+    for (auto channel : _channelq) {
+        channel->flushRx();
+    }
+}
+
 size_t AllChannels::write(uint8_t data) {
     for (auto channel : _channelq) {
         channel->write(data);

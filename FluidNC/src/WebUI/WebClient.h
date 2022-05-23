@@ -26,6 +26,8 @@ namespace WebUI {
         int read() { return -1; }
         int peek() { return -1; }
 
+        void flushRx() override;
+
         int rx_buffer_available() { return BUFLEN - available(); }
 
     private:
