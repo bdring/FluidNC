@@ -211,3 +211,12 @@ void uartInit() {
 void Uart::config_message(const char* prefix, const char* usage) {
     log_info(prefix << usage << "Uart Tx:" << _txd_pin.name() << " Rx:" << _rxd_pin.name() << " RTS:" << _rts_pin.name() << " Baud:" << baud);
 }
+
+void Uart::flushRx() {
+    uart_flush_input(_uart_num);
+    _pushback = -1;
+    while (_queue.size()) {
+        _queue.pop();
+    }
+    Channel::flushRx();
+}

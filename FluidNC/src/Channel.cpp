@@ -5,6 +5,11 @@
 #include "Machine/MachineConfig.h"  // config
 #include "Serial.h"                 // execute_realtime_command
 
+void Channel::flushRx() {
+    _linelen   = 0;
+    _lastWasCR = false;
+}
+
 Channel* Channel::pollLine(char* line) {
     handle();
     while (1) {

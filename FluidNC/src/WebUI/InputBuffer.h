@@ -19,7 +19,7 @@ namespace WebUI {
         int    read(void);
         bool   push(const char* data);
         bool   push(char data);
-        void   flush(void);
+        void   flushRx(void) override;
 
         int rx_buffer_available() { return RXBUFFERSIZE - available(); }
 
