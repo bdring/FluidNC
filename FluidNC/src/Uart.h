@@ -55,7 +55,7 @@ public:
     size_t write(const uint8_t* buffer, size_t length) override;
     // inline size_t write(const char* buffer, size_t size) { return write(reinterpret_cast<const uint8_t*>(buffer), size); }
     // size_t        write(const char* text) override;
-    void flush() { uart_flush(_uart_num); }
+    void flushRx() override;
     bool flushTxTimed(TickType_t ticks);
 
     bool setCr(bool on) {

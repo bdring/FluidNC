@@ -14,10 +14,12 @@ namespace WebUI {
         _RXbufferpos  = 0;
     }
 
-    void InputBuffer::end() {
-        _RXbufferSize = 0;
-        _RXbufferpos  = 0;
+    void InputBuffer::flushRx() {
+        begin();
+        Channel::flushRx();
     }
+
+    void InputBuffer::end() { begin(); }
 
     InputBuffer::operator bool() const { return true; }
 
@@ -70,13 +72,5 @@ namespace WebUI {
         }
     }
 
-    void InputBuffer::flush(void) {
-        //No need currently
-        //keep for compatibility
-    }
-
-    InputBuffer::~InputBuffer() {
-        _RXbufferSize = 0;
-        _RXbufferpos  = 0;
-    }
+    InputBuffer::~InputBuffer() { begin(); }
 }

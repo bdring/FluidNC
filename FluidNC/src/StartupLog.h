@@ -21,7 +21,6 @@ public:
     size_t readBytes(char* buffer, size_t length) override { return 0; };
     int    peek(void) override { return -1; }
     size_t write(uint8_t data) override;
-    void   flush() override {}
 
     Channel* pollLine(char* line) override { return nullptr; }
 

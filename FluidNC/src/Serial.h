@@ -79,7 +79,7 @@ public:
     int  available() override { return 0; }
     int  read() { return -1; }
     int  peek() { return -1; }
-    void flush() {}
+    void flushRx();
 
     // All channels cannot be a direct command source so
     // its rx_buffer_available() method should not be called.

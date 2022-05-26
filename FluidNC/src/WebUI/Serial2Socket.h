@@ -52,6 +52,7 @@ namespace WebUI {
         bool push(const uint8_t* data, size_t length);
         bool push(const char* data);
         void flush(void);
+        void flushRx(void) override;
         void handle_flush();
         bool attachWS(WebSocketsServer* web_socket);
         bool detachWS();

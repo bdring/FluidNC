@@ -148,6 +148,12 @@ namespace WebUI {
         }
     }
 
+    void Serial_2_Socket::flushRx() {
+        _RXbufferSize = 0;
+        _RXbufferpos  = 0;
+        Channel::flush();
+    }
+
     Serial_2_Socket::~Serial_2_Socket() {
         if (_web_socket) {
             detachWS();
