@@ -44,7 +44,7 @@ else:
             .decode("utf-8")
         )
         if modified:
-            dirty = "-dirty"
+            dirty = "-avataar120"
         else:
             dirty = ""
 
