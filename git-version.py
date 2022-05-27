@@ -19,8 +19,10 @@ else:
             .strip()
             .decode("utf-8")
         )
+
     except:
         tag = "v3.0.x"
+        
 
     # Check to see if the head commit exactly matches a tag.
     # If so, the revision is "release", otherwise it is BRANCH-COMMIT
@@ -43,6 +45,11 @@ else:
             .strip()
             .decode("utf-8")
         )
+        repo = (
+            subprocess.check_output(["git", "config", "--get", "remote.origin.url"])
+            .strip()
+            .decode("utf-8")
+        )
         if modified:
             dirty = "-avataar120"
         else:
@@ -58,6 +65,11 @@ final = "FluidNC/src/version.cpp"
 with open(provisional, "w") as fp:
     fp.write('const char* grbl_version = \"' + grbl_version + '\";\n')
     fp.write('const char* git_info     = \"' + git_info + '\";\n')
+    fp.write('const char* tag = \"' + tag + '\";\n')
+    fp.write('const char* branchname = \"' + branchname + '\";\n')
+    fp.write('const char* revision = \"' + revision + '\";\n')
+    fp.write('const char* modified = \"' + modified + '\";\n')
+    fp.write('const char* repo = \"' + repo + '\";\n')
 
 if not os.path.exists(final):
     # No version.cpp so rename version.cxx to version.cpp
