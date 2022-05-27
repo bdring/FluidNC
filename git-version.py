@@ -51,9 +51,9 @@ else:
             .decode("utf-8")
         )
         if modified:
-            dirty = "-avataar120"
+            dirty = "-avataar120-Beta"
         else:
-            dirty = ""
+            dirty = "-avataar120-Release"
 
         rev = " (%s-%s%s)" % (branchname, revision, dirty)
 
