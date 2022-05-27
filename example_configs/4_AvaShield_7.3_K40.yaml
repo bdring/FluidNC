@@ -5,7 +5,7 @@ kinematics:
   Cartesian:
 
 stepping:
-  engine: RMTI2S_STREAM
+  engine: I2S_STREAM
   idle_ms: 255
   dir_delay_us: 1
   pulse_us: 4
@@ -88,7 +88,7 @@ axes:
       feed_scaler: 5.000
 
     motor0:
-      limit_neg_pin: gpio.35
+      limit_neg_pin: gpio.35:low
       limit_pos_pin: NO_PIN
       limit_all_pin: NO_PIN
       hard_limits: true
@@ -121,7 +121,7 @@ control:
   cycle_start_pin: gpio.13:low:pu
 
 coolant:
-  flood_pin: gpio.4
+  mist_pin: gpio.4
   delay_ms: 50.000
 
 probe:
