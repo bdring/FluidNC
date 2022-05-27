@@ -22,6 +22,7 @@
 #include "FileStream.h"           // FileStream()
 #include "xmodem.h"               // xmodemReceive(), xmodemTransmit()
 #include "StartupLog.h"           // startupLog
+#include "WebUI\Commands.h"
 
 #include <cstring>
 #include <map>
@@ -520,6 +521,12 @@ static Error listErrors(const char* value, WebUI::AuthenticationLevel auth_level
     return Error::Ok;
 }
 
+static Error resetESP32 (const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+    WebUI::COMMANDS::restart_MCU();
+    
+    return Error::Ok;
+}
+
 static Error motor_disable(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
     if (sys.state == State::ConfigAlarm) {
         return Error::ConfigurationInvalid;
@@ -686,6 +693,9 @@ void make_user_commands() {
     new UserCommand("SS", "Startup/Show", showStartupLog, anyState);
 
     new UserCommand("32", "FakeLaserMode", fakeLaserMode, notIdleOrAlarm);
+
+    new UserCommand("RESET", "Reset ESP32", resetESP32, anyState);
+
 };
 
 // normalize_key puts a key string into canonical form -
