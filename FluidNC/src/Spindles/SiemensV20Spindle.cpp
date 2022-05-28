@@ -73,19 +73,28 @@ namespace Spindles {
         // RPM is Hz * 60 sec/min.  The maximum possible speed is 400 Hz so
         // 400 * 60 = 24000 RPM.
         
-        log_warn("Setting VFD speed to " << speed);
+
+        log_warn("Setting VFD speed to " << uint32_t(speed));
 
         if (speed != 0 && (speed < _minFrequency || speed > _maxFrequency)) {
-            log_warn(name() << " requested freq " << (speed) << " is outside of range (" << _minFrequency << "," << _maxFrequency << ")");
+            log_warn(name() << " requested freq " << uint32_t(speed) << " is outside of range (" << _minFrequency << "," << _maxFrequency << ")");
         }
+        /*
+        V20 has a scalled input and is standardized to 16384 
+        please note Signed numbers work IE -16384 to 16384 
+        but for this implementation only posivite number are allowed
+        */
+        uint32_t ScaledFreq = speed * _FreqScaler;
+        log_debug("Setting VFD Scaled Value " << float(ScaledFreq));
+
         data.tx_length = 6;
         data.rx_length = 6;
 
         data.msg[1] = 0x06;
         data.msg[2] = 0x00;
         data.msg[3] = 0x64;
-        data.msg[4] = speed >> 8;
-        data.msg[5] = speed & 0xFF;
+        data.msg[4] = ScaledFreq >> 8;
+        data.msg[5] = ScaledFreq & 0xFF;
         /*
         // NOTE: data length is excluding the CRC16 checksum.
         data.tx_length = 6;
@@ -107,7 +116,23 @@ namespace Spindles {
         data.msg[5] = (speed & 0xFF);
         */
     }
-	
+    VFD::response_parser SiemensV20::initialization_sequence(int index, ModbusCommand& data) {
+
+        if (_minFrequency > _maxFrequency) {
+            _minFrequency = _maxFrequency;
+        }
+        if (_speeds.size() == 0) {
+            //RPM = (Frequency * (360/ Num_Phases))/Num_Poles
+            SpindleSpeed minRPM = (_minFrequency * (360/ _NumberPhases)) / _numberPoles;
+            SpindleSpeed maxRPM = (_maxFrequency * (360/ _NumberPhases)) / _numberPoles;
+            shelfSpeeds(minRPM, maxRPM);
+        }
+        setupSpeeds(_maxFrequency);
+        _slop = std::max(_maxFrequency / 40, 1);
+        return nullptr;
+    }
+
+
 
     VFD::response_parser SiemensV20::get_current_speed(ModbusCommand& data) {
         // NOTE: data length is excluding the CRC16 checksum.
@@ -123,7 +148,10 @@ namespace Spindles {
 
 
         return [](const uint8_t* response, Spindles::VFD* vfd) -> bool {
-            uint16_t frequency = (response[4] << 8) | response[5];
+            auto siemensV20           = static_cast<SiemensV20*>(vfd);
+            uint16_t Scaledfrequency = ((response[3] << 8) | response[4]);
+            uint16_t frequency = Scaledfrequency / (siemensV20->_FreqScaler);
+            log_debug("VFD Measured Value " << uint16_t(Scaledfrequency) << "Freq " << uint16_t(frequency));
 
             // Store speed for synchronization
             vfd->_sync_dev_speed = frequency;
