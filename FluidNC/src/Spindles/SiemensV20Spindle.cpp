@@ -84,7 +84,7 @@ namespace Spindles {
         please note Signed numbers work IE -16384 to 16384 
         but for this implementation only posivite number are allowed
         */
-        uint32_t ScaledFreq = speed * _FreqScaler;
+        int16_t ScaledFreq = speed * _FreqScaler;
         log_debug("Setting VFD Scaled Value " << float(ScaledFreq));
 
         data.tx_length = 6;
@@ -149,12 +149,12 @@ namespace Spindles {
 
         return [](const uint8_t* response, Spindles::VFD* vfd) -> bool {
             auto siemensV20           = static_cast<SiemensV20*>(vfd);
-            uint16_t Scaledfrequency = ((response[3] << 8) | response[4]);
-            uint16_t frequency = Scaledfrequency / (siemensV20->_FreqScaler);
-            log_debug("VFD Measured Value " << uint16_t(Scaledfrequency) << "Freq " << uint16_t(frequency));
+            int16_t Scaledfrequency = ((response[3] << 8) | response[4]);
+            int16_t frequency = Scaledfrequency / (siemensV20->_FreqScaler);
+            log_debug("VFD Measured Value " << int16_t(Scaledfrequency) << " Freq " << int16_t(frequency));
 
             // Store speed for synchronization
-            vfd->_sync_dev_speed = frequency;
+            vfd->_sync_dev_speed = uint16_t(frequency);
             return true;
         };
     }
