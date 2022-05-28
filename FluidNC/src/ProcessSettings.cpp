@@ -344,6 +344,9 @@ static Error home_x(const char* value, WebUI::AuthenticationLevel auth_level, Ch
 static Error home_y(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
     return home(bitnum_to_mask(Y_AXIS));
 }
+static Error home_xy(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+    return home(bitnum_to_mask(X_AXIS) | bitnum_to_mask(Y_AXIS));
+}
 static Error home_z(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
     return home(bitnum_to_mask(Z_AXIS));
 }
@@ -680,6 +683,7 @@ void make_user_commands() {
 
     new UserCommand("HX", "Home/X", home_x, notIdleOrAlarm);
     new UserCommand("HY", "Home/Y", home_y, notIdleOrAlarm);
+    new UserCommand("HXY", "Home/XY", home_xy, notIdleOrAlarm);
     new UserCommand("HZ", "Home/Z", home_z, notIdleOrAlarm);
     new UserCommand("HA", "Home/A", home_a, notIdleOrAlarm);
     new UserCommand("HB", "Home/B", home_b, notIdleOrAlarm);
