@@ -14,7 +14,7 @@ namespace Spindles {
         uint16_t _maxFrequency = 400;  // PD005: max frequency the VFD will allow. Normally 400.
         uint16_t _numberPoles  = 2; // 4 or 2 poles in motor. Default is 4. A spindle being 24000RPM@400Hz implies 2 poles
         uint16_t _NumberPhases  = 3; // Typically 3 Phases for standard VFDs
-        float _FreqScaler = int(-16384) / _maxFrequency; // SPEED_SCALING Internally it is standardized to 16384. (16384 / 400) With this scaling HSW and HIW are transferred via the Modbus register.
+        float _FreqScaler = float(-16384.0) / _maxFrequency; // SPEED_SCALING Internally it is standardized to 16384. (16384 / 400) With this scaling HSW and HIW are transferred via the Modbus register.
 
 
         void direction_command(SpindleState mode, ModbusCommand& data) override;

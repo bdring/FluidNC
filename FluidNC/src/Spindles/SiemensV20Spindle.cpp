@@ -5,9 +5,9 @@
 
 /*
 STW1 -  Control word
-Address = 40100 = 100 = 0x0063
+Address = 40100 = 99 = 0x0063
 +-----+----------------------------+--------------+---------------+--------------+---------------+-----------+
-|  -  |             -              | Forward - ON | Forward - OFF | Reverse - ON | Reverse - OFF | Dissable? |
+|  -  |             -              | Forward - ON | Forward - OFF | Reverse - ON | Reverse - OFF | Disable?  |
 +-----+----------------------------+--------------+---------------+--------------+---------------+-----------+
 | Bit | Signal name                | 0x0C7F       | 0x0C7E        | 0x047F       | 0x047E        | 0x0C3E    |
 +-----+----------------------------+--------------+---------------+--------------+---------------+-----------+
@@ -30,6 +30,60 @@ Address = 40100 = 100 = 0x0063
 +-----+----------------------------+--------------+---------------+--------------+---------------+-----------+
 Function Manual, 04/2018, FW V4.7 SP10, A5E34229197B AEprint3d
 
+HSW - Speed Set point Register
+16 bit signed number - scaled to 16384 - this depends on the max frequency set by the user on the VFD
+Address = 40101 = 100 = 0x0064
+
+HIW - Actual Speed
+16 bit signed number - scaled to 16384 - this depends on the max frequency set by the user on the VFD
+Address = 40111 = 110 = 0x006E
+
+ZSW - Status Word
+Address = 40110 = 109 = 0x006D
++-----+---------------------------------+-------------+
+| Bit |              Name               |    Type     |
++-----+---------------------------------+-------------+
+|   0 | Drive ready                     |             |
+|   1 | Drive ready to run              |             |
+|   2 | Drive running                   |             |
+|   3 | Drive fault active              |             |
+|   4 | OFF2 active                     | Low enabled |
+|   5 | OFF3 active                     | Low enabled |
+|   6 | ON inhibit active               |             |
+|   7 | Drive warning active            |             |
+|   8 | Deviation setpoint / act. value | Low enabled |
+|   9 | PZD control                     |             |
+|  10 | |fact|    P1082 (fmax)          |             |
+|  11 | Warning: Motor current limit    | Low enabled |
+|  12 | Motor holding brake active      |             |
+|  13 | Motor overload                  | Low enabled |
+|  14 | Motor runs right                |             |
+|  15 | Inverter overload               | Low enabled |
++-----+---------------------------------+-------------+
+SINAMICS V20 at S7-1200 via Modbus Entry-ID: 63696870, V1.2, 11/2014
+
+
+VFD Settings:
+To use this spindle type - it assumes you have a working/ configued VFD with motor - the following settings
+are to change the method of which the VFD takes it information.
+please do not enable this without a properly configured VFD
+
+
++-----------+------------------------------+-----------------+-------------------+---------+--------------------------------------------------+
+| Parameter |         Description          | Factory default | Default for Cn011 | Set to: |                     Remarks                      |
++-----------+------------------------------+-----------------+-------------------+---------+--------------------------------------------------+
+| P0700[0]  | Selection of command source  |               1 |                 5 |       5 | RS485 as the command source                      |
+| P1000[0]  | Selection of frequency       |               1 |                 5 |       5 | RS485 as the speed setpoint                      |
+| P2023[0]  | RS485 protocol selection     |               1 |                 2 |       2 | MODBUS RTU protocol                              |
+| P2010[0]  | USS/MODBUS baudrate          |               6 |                 6 |       6 | Baudrate 9600 bps                                |
+| P2021[0]  | MODBUS address               |               1 |                 1 |       1 | MODBUS address for inverter                      |
+| P2022[0]  | MODBUS reply timeout         |            1000 |              1000 |    1000 | Maximum time to send reply back to the master    |
+| P2014[0]  | USS/MODBUS telegram off time |            2000 |               100 |       0 | Time to receive data 0 = Disabled                |
+| P2034     | MODBUS parity on RS485       |               2 |                 2 |       2 | Parity of MODBUS telegrams on RS485              |
+| P2035     | MODBUS stop bits on RS485    |               1 |                 1 |       1 | Number of stop bits in MODBUS telegrams on RS485 |
++-----------+------------------------------+-----------------+-------------------+---------+--------------------------------------------------+
+Operating Instructions, 09/2014, A5E34559884
+Once the following setting have been set - you can then go ahead and enable connection macro - CN011
 */
 
 #include "SiemensV20Spindle.h"
@@ -74,7 +128,7 @@ namespace Spindles {
         // 400 * 60 = 24000 RPM.
         
 
-        log_warn("Setting VFD speed to " << uint32_t(speed));
+        log_debug("Setting VFD speed to " << uint32_t(speed));
 
         if (speed != 0 && (speed < _minFrequency || speed > _maxFrequency)) {
             log_warn(name() << " requested freq " << uint32_t(speed) << " is outside of range (" << _minFrequency << "," << _maxFrequency << ")");
@@ -85,7 +139,7 @@ namespace Spindles {
         but for this implementation only posivite number are allowed
         */
         int16_t ScaledFreq = speed * _FreqScaler;
-        log_debug("Setting VFD Scaled Value " << float(ScaledFreq));
+        log_debug("Setting VFD Scaled Value " << int16_t(ScaledFreq) << " Byte 1 " << uint8_t(ScaledFreq >> 8)  << " Byte 2 " << uint8_t(ScaledFreq & 0xFF));
 
         data.tx_length = 6;
         data.rx_length = 6;
@@ -95,29 +149,13 @@ namespace Spindles {
         data.msg[3] = 0x64;
         data.msg[4] = ScaledFreq >> 8;
         data.msg[5] = ScaledFreq & 0xFF;
-        /*
-        // NOTE: data length is excluding the CRC16 checksum.
-        data.tx_length = 6;
-        data.rx_length = 6;
 
-        // data.msg[0] is omitted (modbus address is filled in later)
-        data.msg[1] = 0x06;
-        data.msg[2] = 0x00;
-        data.msg[3] = 0x64;
-
-        uint16_t speed =  uint32_t(dev_speed) / 1.46484375;
-        if (speed < 0) {
-            speed = 0;
-        }
-        if (speed > 16384) {
-            speed = 16384;
-        }
-        data.msg[4] = (speed >> 8) ;
-        data.msg[5] = (speed & 0xFF);
-        */
     }
     VFD::response_parser SiemensV20::initialization_sequence(int index, ModbusCommand& data) {
-
+        /*
+        The VFD does not have any noticeable registers to set this information up programmatically
+        For now - it is user set in the software but is a typical setup
+        */ 
         if (_minFrequency > _maxFrequency) {
             _minFrequency = _maxFrequency;
         }
@@ -150,7 +188,7 @@ namespace Spindles {
         return [](const uint8_t* response, Spindles::VFD* vfd) -> bool {
             auto siemensV20           = static_cast<SiemensV20*>(vfd);
             int16_t Scaledfrequency = ((response[3] << 8) | response[4]);
-            int16_t frequency = Scaledfrequency / (siemensV20->_FreqScaler);
+            int16_t frequency = float(Scaledfrequency) / (-1* (siemensV20->_FreqScaler));
             log_debug("VFD Measured Value " << int16_t(Scaledfrequency) << " Freq " << int16_t(frequency));
 
             // Store speed for synchronization
