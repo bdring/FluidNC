@@ -84,6 +84,22 @@ please do not enable this without a properly configured VFD
 +-----------+------------------------------+-----------------+-------------------+---------+--------------------------------------------------+
 Operating Instructions, 09/2014, A5E34559884
 Once the following setting have been set - you can then go ahead and enable connection macro - CN011
+
+Machine spindle configuration:
+
+SiemensV20:
+  uart:
+    txd_pin: gpio.17
+    rxd_pin: gpio.16
+    rts_pin: gpio.4
+    baud: 9600
+    mode: 8E1
+  modbus_id: 1
+  tool_num: 0
+  speed_map: 0=0% 24000=100%
+
+Take note that the serial interface use EVEN parity!
+
 */
 
 #include "SiemensV20Spindle.h"
