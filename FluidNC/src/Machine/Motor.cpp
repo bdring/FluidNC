@@ -38,6 +38,8 @@ namespace Machine {
         _negLimitPin->init();
         _posLimitPin->init();
         _allLimitPin->init();
+
+        unblock();
     }
 
     void Motor::config_motor() {
@@ -67,7 +69,7 @@ namespace Machine {
 
     void Motor::step(bool reverse) {
         // Skip steps based on limit pins
-        if (_limited && (Homing::_approach || (sys.state != State::Homing && _hardLimits))) {
+        if (_blocked || (_limited && (Homing::_approach || (sys.state != State::Homing && _hardLimits)))) {
             return;
         }
         _driver->step();
