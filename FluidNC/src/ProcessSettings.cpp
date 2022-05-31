@@ -335,8 +335,43 @@ static Error home(int cycle) {
     }
     return Error::Ok;
 }
-static Error home_all(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
-    return home(Machine::Homing::AllCycles);
+static Error home_axis(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+    const char* AxisNames = "XYZABC";
+    int requestedAxis = 0;
+    
+    //check if request form user is valid (meaning that all requested axis are existing)
+    if ( value ) {
+        for (int i = 0; i < strlen ( value ); i ++ ) {
+            if ( strchr ( AxisNames, toupper ( value[i] ) ) == NULL ) {
+                out.print ( "Argument not valid. Axis " );
+                out << value[i];
+                out << " is not existing\n";
+                out << "Please use combination of ";
+                out << AxisNames;
+                out << "\n";
+
+                return Error::InvalidValue;
+            }
+        }
+    }
+
+    //if no particular axis given by user, requestedAxis will stay at 0 (which is the value for all axis - Machine::Homing::AllCycles - explicit affectation however)
+    //Otherwise, value is calculated assuming axis values defined in NutsBolts.h
+    if ( value ) {
+
+        for (int i = 0; i < strlen ( AxisNames ); i ++ ) {
+            if ( ( strchr ( value, AxisNames[i] ) ) || ( strchr ( value, tolower( AxisNames[i] ) ) ) ) requestedAxis += 1 << i;    
+        }
+    } else 
+        requestedAxis = Machine::Homing::AllCycles;
+
+    log_debug("Home feature\n");
+    log_debug("Request from user : ");
+    log_debug ( value );
+    log_debug("Value calculated : ");
+    log_debug ( requestedAxis );
+    
+    return home( requestedAxis );
 }
 static Error home_x(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
     return home(bitnum_to_mask(X_AXIS));
@@ -677,7 +712,7 @@ void make_user_commands() {
     new UserCommand("NVX", "Settings/Erase", Setting::eraseNVS, notIdleOrAlarm, WA);
     new UserCommand("V", "Settings/Stats", Setting::report_nvs_stats, notIdleOrAlarm);
     new UserCommand("#", "GCode/Offsets", report_ngc, notIdleOrAlarm);
-    new UserCommand("H", "Home", home_all, notIdleOrAlarm);
+    new UserCommand("H", "Home", home_axis, notIdleOrAlarm);
     new UserCommand("MD", "Motor/Disable", motor_disable, notIdleOrAlarm);
     new UserCommand("MI", "Motors/Init", motors_init, notIdleOrAlarm);
 
