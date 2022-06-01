@@ -89,9 +89,25 @@ namespace Machine {
         return count;
     }
 
+    float Axis::commonPulloff() {
+        auto motor0Pulloff = _motors[0]->_pulloff;
+        if (hasDualMotor()) {
+            auto motor1Pulloff = _motors[1]->_pulloff;
+            return std::min(motor0Pulloff, motor1Pulloff);
+        } else {
+            return motor0Pulloff;
+        }
+    }
+
     // returns the offset between the pulloffs
     // value is positive when motor1 has a larger pulloff
-    float Axis::pulloffOffset() { return hasDualMotor() ? _motors[1]->_pulloff - _motors[0]->_pulloff : 0.0f; }
+    float Axis::extraPulloff() {
+        if (hasDualMotor()) {
+            return _motors[1]->_pulloff - _motors[0]->_pulloff;
+        } else {
+            return 0.0f;
+        }
+    }
 
     Axis::~Axis() {
         for (size_t i = 0; i < MAX_MOTORS_PER_AXIS; i++) {
