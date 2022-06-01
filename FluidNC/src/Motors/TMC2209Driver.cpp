@@ -48,6 +48,7 @@ namespace MotorDrivers {
         // The TMCStepper library uses the value 0 to mean 1x microstepping
         int usteps = _microsteps == 1 ? 0 : _microsteps;
         tmc2209->microsteps(usteps);
+        tmc2209->pdn_disable(true); // powerdown pin is disabled. uses ihold.
 
         switch (_mode) {
             case TrinamicMode ::StealthChop:

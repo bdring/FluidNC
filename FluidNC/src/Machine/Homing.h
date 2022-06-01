@@ -9,14 +9,21 @@
 
 namespace Machine {
     class Homing : public Configuration::Configurable {
-        // The return value is the setting time
-        static uint32_t plan_move(MotorMask motors, bool approach, bool seek, float customPulloff);
-
-        static bool squaredOneSwitch(MotorMask motors);
-        static bool squaredStressfree(MotorMask motors);
         static void set_mpos(AxisMask axisMask);
 
         static const int REPORT_LINE_NUMBER = 0;
+
+        static bool needsPulloff2(MotorMask motors);
+
+        enum class HomingPhase {
+            FastApproach,
+            Pulloff0,
+            SlowApproach,
+            Pulloff1,
+            Pulloff2,
+        };
+
+        static uint32_t plan_move(MotorMask motors, HomingPhase phase);
 
     public:
         Homing() = default;
@@ -29,7 +36,7 @@ namespace Machine {
         static void run_one_cycle(AxisMask axisMask);
 
         static AxisMask axis_mask_from_cycle(int cycle);
-        static void     run(MotorMask remainingMotors, bool approach, bool seek, float customPulloff);
+        static void     run(MotorMask remainingMotors, HomingPhase phase);
 
         // The homing cycles are 1,2,3 etc.  0 means not homed as part of home-all,
         // but you can still home it manually with e.g. $HA

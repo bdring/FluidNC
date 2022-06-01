@@ -55,7 +55,10 @@ namespace Pins {
     }
 
     void I2SOPinDetail::setAttr(PinAttributes value) {
-        // Check the attributes first:
+        // The Arduino framework encodes OUTPUT as OUTPUT | INPUT.  We can't do the input part.
+        if (value.has(PinAttributes::Output) && value.has(PinAttributes::Input)) {
+            value = PinAttributes::Output;
+        }
         Assert(!value.has(PinAttributes::Input), "I2SO pins cannot be used as input");
         Assert(value.validateWith(this->_capabilities), "Requested attributes do not match the I2SO pin capabilities");
         Assert(!_attributes.conflictsWith(value), "Attributes on this pin have been set before, and there's a conflict.");
