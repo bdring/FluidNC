@@ -236,6 +236,21 @@ namespace Machine {
         return retval;
     }
 
+    bool Axes::namesToMask(const char* names, AxisMask& mask) {
+        bool retval = true;
+        for (int i = 0; i < strlen(names); i++) {
+            char  axisName = toupper(names[i]);
+            char* pos      = index(_names, axisName);
+            if (!pos) {
+                log_error("Invalid axis name " << names[i]);
+                retval = false;
+            }
+            set_bitnum(mask, pos - Machine::Axes::_names);
+        }
+
+        return retval;
+    }
+
     Axes::~Axes() {
         for (int i = 0; i < MAX_N_AXIS; ++i) {
             if (_axis[i] != nullptr) {

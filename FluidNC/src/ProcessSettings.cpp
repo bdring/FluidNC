@@ -368,19 +368,12 @@ static Error home_all(const char* value, WebUI::AuthenticationLevel auth_level, 
                 return retval;
             }
         }
-
-        for (int i = 0; i < strlen(value); i++) {
-            char  axisName = toupper(value[i]);
-            char* pos      = index(Machine::Axes::_names, axisName);
-            if (pos) {
-                set_bitnum(requestedAxes, pos - Machine::Axes::_names);
-            } else {
-                log_error("Invalid axis name " << value[i]);
-                retval = Error::InvalidValue;
-            }
+        if (!config->_axes->namesToMask(value, requestedAxes)) {
+            return Error::InvalidValue;
         }
     }
-    return retval != Error::Ok ? retval : home(requestedAxes);
+
+    return home(requestedAxes);
 }
 
 static Error home_x(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
