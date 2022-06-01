@@ -335,8 +335,54 @@ static Error home(int cycle) {
     return Error::Ok;
 }
 static Error home_all(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
-    return home(Machine::Homing::AllCycles);
+    AxisMask requestedAxes = Machine::Homing::AllCycles;
+    auto     retval        = Error::Ok;
+
+    // value can be a list of cycle numbers like "21", which will run homing cycle 2 then cycle 1,
+    // or a list of axis names like "XZ", which will home the X and Z axes simultaneously
+    if (value) {
+        int ndigits = 0;
+        for (int i = 0; i < strlen(value); i++) {
+            char cycleName = value[i];
+            if (isdigit(cycleName)) {
+                if (!Machine::Homing::axis_mask_from_cycle(cycleName - '0')) {
+                    log_error("No axes for homing cycle " << cycleName);
+                    return Error::InvalidValue;
+                }
+                ++ndigits;
+            }
+        }
+        if (ndigits) {
+            if (ndigits != strlen(value)) {
+                log_error("Invalid homing cycle list");
+                return Error::InvalidValue;
+            } else {
+                for (int i = 0; i < strlen(value); i++) {
+                    char cycleName = value[i];
+                    requestedAxes  = Machine::Homing::axis_mask_from_cycle(cycleName - '0');
+                    retval         = home(requestedAxes);
+                    if (retval != Error::Ok) {
+                        return retval;
+                    }
+                }
+                return retval;
+            }
+        }
+
+        for (int i = 0; i < strlen(value); i++) {
+            char  axisName = toupper(value[i]);
+            char* pos      = index(Machine::Axes::_names, axisName);
+            if (pos) {
+                set_bitnum(requestedAxes, pos - Machine::Axes::_names);
+            } else {
+                log_error("Invalid axis name " << value[i]);
+                retval = Error::InvalidValue;
+            }
+        }
+    }
+    return retval != Error::Ok ? retval : home(requestedAxes);
 }
+
 static Error home_x(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
     return home(bitnum_to_mask(X_AXIS));
 }

@@ -13,7 +13,7 @@
 namespace Machine {
     // Calculate the motion for the next homing move.
     //  Input: motors - the motors that should participate in this homing cycle
-    //  Input: phase - one of FastApproach, Pulloff0, SlowApproach, Pulloff1, Pulloff2
+    //  Input: phase - one of PrePulloff, FastApproach, Pulloff0, SlowApproach, Pulloff1, Pulloff2
     //  Return: settle - the maximum delay time of all the axes
 
     // For multi-axis homing, we use the per-axis rates and travel limits to compute
@@ -73,6 +73,7 @@ namespace Machine {
                     axis_rate = homing->_seekRate;
                     travel    = axisConfig->_maxTravel;
                     break;
+                case HomingPhase::PrePulloff:
                 case HomingPhase::SlowApproach:
                 case HomingPhase::Pulloff0:
                 case HomingPhase::Pulloff1:
@@ -149,10 +150,14 @@ namespace Machine {
             return;
         }
 
-        _approach = (phase == HomingPhase::FastApproach || phase == HomingPhase::SlowApproach);
+        if (phase == HomingPhase::PrePulloff) {
+            // Pulloff to clear switches
+            if (!((Machine::Axes::posLimitMask | Machine::Axes::negLimitMask) & remainingMotors)) {
+                return;
+            }
+        }
 
-        //        config->_axes->lock_motors(0xffffffff);
-        //        config->_axes->unlock_motors(remainingMotors);
+        _approach = (phase == HomingPhase::FastApproach || phase == HomingPhase::SlowApproach);
 
         uint32_t settling_ms = plan_move(remainingMotors, phase);
 
@@ -259,11 +264,26 @@ namespace Machine {
         axes->set_homing_mode(axisMask, false);  // tell motors homing is done
     }
 
+    static String axisNames(AxisMask axisMask) {
+        String retval = "";
+        auto   n_axis = config->_axes->_numberAxis;
+        for (int axis = 0; axis < n_axis; axis++) {
+            if (bitnum_is_true(axisMask, axis)) {
+                retval += Machine::Axes::_names[axis];
+            }
+        }
+        return retval;
+    }
+
     void Homing::run_one_cycle(AxisMask axisMask) {
         axisMask &= Machine::Axes::homingMask;
+        log_debug("Homing " << config->_axes->maskToNames(axisMask));
+
         MotorMask motors = config->_axes->set_homing_mode(axisMask, true);
 
         try {
+            log_debug("PrePulloff");
+            run(motors, HomingPhase::PrePulloff);  // Approach slowly
             log_debug("Fast approach");
             run(motors, HomingPhase::FastApproach);  // Approach slowly
             log_debug("Pulloff0");

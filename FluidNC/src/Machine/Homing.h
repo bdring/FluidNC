@@ -16,6 +16,7 @@ namespace Machine {
         static bool needsPulloff2(MotorMask motors);
 
         enum class HomingPhase {
+            PrePulloff,
             FastApproach,
             Pulloff0,
             SlowApproach,

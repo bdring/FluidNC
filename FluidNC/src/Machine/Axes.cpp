@@ -225,6 +225,17 @@ namespace Machine {
         }
     }
 
+    String Axes::maskToNames(AxisMask mask) {
+        String retval = "";
+        auto   n_axis = _numberAxis;
+        for (int axis = 0; axis < n_axis; axis++) {
+            if (bitnum_is_true(mask, axis)) {
+                retval += _names[axis];
+            }
+        }
+        return retval;
+    }
+
     Axes::~Axes() {
         for (int i = 0; i < MAX_N_AXIS; ++i) {
             if (_axis[i] != nullptr) {
