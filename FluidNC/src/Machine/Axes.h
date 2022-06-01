@@ -70,6 +70,9 @@ namespace Machine {
         void unstep();
         void config_motors();
 
+        String maskToNames(AxisMask mask);
+        bool   namesToMask(const char* names, AxisMask& mask);
+
         // Configuration helpers:
         void group(Configuration::HandlerBase& handler) override;
         void afterParse() override;
