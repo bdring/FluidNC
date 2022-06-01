@@ -68,7 +68,7 @@ with open(provisional, "w") as fp:
     fp.write('const char* tag = \"' + tag + '\";\n')
     fp.write('const char* branchname = \"' + branchname + '\";\n')
     fp.write('const char* revision = \"' + revision + '\";\n')
-    fp.write('const char* modified = \"' + modified + '\";\n')
+    #fp.write('const char* modified = \"' + modified + '\";\n')
     fp.write('const char* repo = \"' + repo + '\";\n')
 
 if not os.path.exists(final):
