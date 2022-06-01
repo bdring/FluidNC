@@ -142,6 +142,10 @@ namespace Pins {
     }
 
     void GPIOPinDetail::setAttr(PinAttributes value) {
+        // The Arduino framework encodes OUTPUT as OUTPUT | INPUT.  We can't do the input part.
+        if (value.has(PinAttributes::Output) && value.has(PinAttributes::Input)) {
+            value = PinAttributes::Output;
+        }
         // These two assertions will fail if we do them for index 1/3 (Serial uart). This is because
         // they are initialized by HardwareSerial well before we start our main operations. Best to
         // just ignore them for now, and figure this out later. TODO FIXME!
@@ -161,6 +165,8 @@ namespace Pins {
 
         if (value.has(PinAttributes::Input)) {
             pinModeValue |= INPUT;
+        } else if (value.has(PinAttributes::Output)) {
+            pinModeValue |= OUTPUT;
         }
 
         // PU/PD should be specified by the user. Code has nothing to do with them:
