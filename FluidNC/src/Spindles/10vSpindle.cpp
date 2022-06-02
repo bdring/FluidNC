@@ -40,6 +40,9 @@ namespace Spindles {
             shelfSpeeds(6000, 20000);
         }
 
+        _current_state    = SpindleState::Disable;
+        _current_pwm_duty = 0; 
+
         // We set the dev_speed scale in the speed map to the full PWM period (64K)
         // Then, in set_output, we map the dev_speed range of 0..64K to the pulse
         // length range of ~1ms .. 2ms

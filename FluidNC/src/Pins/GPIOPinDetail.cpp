@@ -161,7 +161,8 @@ namespace Pins {
 
         if (value.has(PinAttributes::Input)) {
             pinModeValue |= INPUT;
-        } else if (value.has(PinAttributes::Output)) {
+        }
+        if (value.has(PinAttributes::Output)) {
             pinModeValue |= OUTPUT;
         }
 

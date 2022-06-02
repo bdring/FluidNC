@@ -118,8 +118,8 @@ sdcard:
   card_detect_pin: NO_PIN
 
 coolant:
-  flood: NO_PIN
-  mist:  NO_PIN
+  flood_pin: NO_PIN
+  mist_pin:  NO_PIN
 
 probe:
   pin: NO_PIN

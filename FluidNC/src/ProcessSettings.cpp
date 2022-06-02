@@ -335,44 +335,48 @@ static Error home(int cycle) {
     }
     return Error::Ok;
 }
-static Error home_axis(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
-    const char* AxisNames = "XYZABC";
-    int requestedAxis = 0;
-    
-    //check if request form user is valid (meaning that all requested axis are existing)
-    if ( value ) {
-        for (int i = 0; i < strlen ( value ); i ++ ) {
-            if ( strchr ( AxisNames, toupper ( value[i] ) ) == NULL ) {
-                out.print ( "Argument not valid. Axis " );
-                out << value[i];
-                out << " is not existing\n";
-                out << "Please use combination of ";
-                out << AxisNames;
-                out << "\n";
+static Error home_all(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+    AxisMask requestedAxes = Machine::Homing::AllCycles;
+    auto     retval        = Error::Ok;
 
-                return Error::InvalidValue;
+    // value can be a list of cycle numbers like "21", which will run homing cycle 2 then cycle 1,
+    // or a list of axis names like "XZ", which will home the X and Z axes simultaneously
+    if (value) {
+        int ndigits = 0;
+        for (int i = 0; i < strlen(value); i++) {
+            char cycleName = value[i];
+            if (isdigit(cycleName)) {
+                if (!Machine::Homing::axis_mask_from_cycle(cycleName - '0')) {
+                    log_error("No axes for homing cycle " << cycleName);
+                    return Error::InvalidValue;
+                }
+                ++ndigits;
             }
+        }
+        if (ndigits) {
+            if (ndigits != strlen(value)) {
+                log_error("Invalid homing cycle list");
+                return Error::InvalidValue;
+            } else {
+                for (int i = 0; i < strlen(value); i++) {
+                    char cycleName = value[i];
+                    requestedAxes  = Machine::Homing::axis_mask_from_cycle(cycleName - '0');
+                    retval         = home(requestedAxes);
+                    if (retval != Error::Ok) {
+                        return retval;
+                    }
+                }
+                return retval;
+            }
+        }
+        if (!config->_axes->namesToMask(value, requestedAxes)) {
+            return Error::InvalidValue;
         }
     }
 
-    //if no particular axis given by user, requestedAxis will stay at 0 (which is the value for all axis - Machine::Homing::AllCycles - explicit affectation however)
-    //Otherwise, value is calculated assuming axis values defined in NutsBolts.h
-    if ( value ) {
-
-        for (int i = 0; i < strlen ( AxisNames ); i ++ ) {
-            if ( ( strchr ( value, AxisNames[i] ) ) || ( strchr ( value, tolower( AxisNames[i] ) ) ) ) requestedAxis += 1 << i;    
-        }
-    } else 
-        requestedAxis = Machine::Homing::AllCycles;
-
-    log_debug("Home feature\n");
-    log_debug("Request from user : ");
-    log_debug ( value );
-    log_debug("Value calculated : ");
-    log_debug ( requestedAxis );
-    
-    return home( requestedAxis );
+    return home(requestedAxes);
 }
+
 static Error home_x(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
     return home(bitnum_to_mask(X_AXIS));
 }
@@ -712,7 +716,7 @@ void make_user_commands() {
     new UserCommand("NVX", "Settings/Erase", Setting::eraseNVS, notIdleOrAlarm, WA);
     new UserCommand("V", "Settings/Stats", Setting::report_nvs_stats, notIdleOrAlarm);
     new UserCommand("#", "GCode/Offsets", report_ngc, notIdleOrAlarm);
-    new UserCommand("H", "Home", home_axis, notIdleOrAlarm);
+    new UserCommand("H", "Home", home_all, notIdleOrAlarm);
     new UserCommand("MD", "Motor/Disable", motor_disable, notIdleOrAlarm);
     new UserCommand("MI", "Motors/Init", motors_init, notIdleOrAlarm);
 
