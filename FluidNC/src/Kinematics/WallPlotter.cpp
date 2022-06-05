@@ -4,19 +4,50 @@
 
 #include <cmath>
 
-/*
-Default configuration
-
-kinematics:
-  WallPlotter:
-    left_axis: 0
-    left_anchor_x: -267.000
-    left_anchor_y: 250.000
-    right_axis: 1
-    right_anchor_x: 267.000
-    right_anchor_y: 250.000
-    segment_length: 10.000
-*/
+    // Kinematic equations
+    //
+    //               M (motor separation)
+    //          V-----------------------------V
+    // left motor                             right motor
+    //          +--------------+--------------+
+    //           \      X1     :     X2      /
+    //            \            :            /
+    //             \           :           /
+    //              \          :Y         /
+    //             H1\         :         / H2
+    //                \        :        /
+    //                 \       :       /
+    //                  \      :      /
+    //                   \     :     /
+    //                    \    :    /
+    //                     \   :   /
+    //                      \  :  /
+    //                       \ : /
+    //                        \:/
+    //                         + Pen (desired cartesian origin 0,0 at startup, no homing switches)
+    //
+    //  Need to make sure the pen is manually located to "home" per your .yaml file to 
+    //  synchronize kinematics with cartesion at startup
+    //  
+    // Derivation for cartesian given hypotenuses:
+    //  looking to solve for X1 and Y given H1, H2, M
+    //  X1 does not need to be equal to X2 (from .yaml file) 
+    //  pen starting origin should be below and to right of left motor
+    //  motor separation (M) is abs(x1)+abs(x2)
+    //  Two hypotenuses are H1 and H2
+    //        H1^2=X1^2+Y^2
+    //        H2^2=X2^2+Y^2
+    //    subtract two above equations
+    //  H1^2-H2^2 = X1^2-X2^2
+    //    substitute in X2=M-X1 for X2
+    //  H1^2-H2^2 = X1^2-(M-X1)^2
+    //  H1^2-H2^2 = X1^2-(M^2-2*X1*M+X1^2)
+    //  (H1^2-H2^2+M^2)/(2*M) = X1
+    //  Y is solved via pythagorean
+    //  translate to origin per .yaml
+    //
+    // Derivation for hypotenuses given cartesion:
+    //   use pythagorean
 
 namespace Kinematics {
     void WallPlotter::group(Configuration::HandlerBase& handler) {
@@ -37,8 +68,6 @@ namespace Kinematics {
         // We assume the machine starts at cartesian (0, 0, 0).
         // The motors assume they start from (0, 0, 0).
         // So we need to derive the zero lengths to satisfy the kinematic equations.
-        //
-        // TODO: Maybe we can change where the motors start, which would be simpler?
         xy_to_lengths(0, 0, zero_left, zero_right);
         last_left  = zero_left;
         last_right = zero_right;
@@ -66,48 +95,29 @@ namespace Kinematics {
     */
     bool WallPlotter::cartesian_to_motors(float* target, plan_line_data_t* pl_data, float* position) {
         float    dx, dy, dz;        // distances in each cartesian axis
-        float    p_dx, p_dy, p_dz;  // distances in each polar axis
         uint32_t segment_count;     // number of segments the move will be broken in to.
-
-        // calculate cartesian move distance for each axis
         dx = target[X_AXIS] - position[X_AXIS];
         dy = target[Y_AXIS] - position[Y_AXIS];
         dz = target[Z_AXIS] - position[Z_AXIS];
 
         // calculate the total X,Y axis move distance
-        // Z axis is the same in both coord systems, so it is ignored
+        // Z axis is the same in both coord systems, so it does not undergo conversion
         float dist = vector_distance(target, position, Y_AXIS);
-
-        if (pl_data->motion.rapidMotion) {
-            segment_count = 1;  // rapid G0 motion is not used to draw, so skip the segmentation
-        } else {
-            segment_count = ceilf(dist / _segment_length);  // determine the number of segments we need ... round up so there is at least 1
+        // Segment our G1 and G0 moves based on yaml file. If we choose a small enough _segment_length we can hide the nonlinearity
+        segment_count = dist / _segment_length;
+        if (segment_count < 1) { // Make sure there is at least one segment, even if there is no movement
+            // We need to do this to make sure other things like S and M codes get updated properly by
+            // the planner even if there is no movement??
+            segment_count = 1;   
         }
-
-        if (segment_count == 0 && target[Z_AXIS] != position[Z_AXIS]) {
-            // We are moving vertically.
-            last_z = target[Z_AXIS];
-
-            // Note that the left motor runs backward.
-            float cables[MAX_N_AXIS] = { 0 - (last_left - zero_left), 0 + (last_right - zero_right), last_z };
-
-            if (!mc_move_motors(cables, pl_data)) {
-                return false;
-            }
-        }
-
-        dist /= segment_count;  // segment distance
         for (uint32_t segment = 1; segment <= segment_count; segment++) {
-            float segment_distance = float(segment_count) * segment;
-            // determine this segment's absolute target
-            float seg_x = position[X_AXIS] + (dx / segment_distance);
-            float seg_y = position[Y_AXIS] + (dy / segment_distance);
-            float seg_z = position[Z_AXIS] + (dz / segment_distance);
+            float seg_x = position[X_AXIS] + (dx / segment_count * segment);
+            float seg_y = position[Y_AXIS] + (dy / segment_count * segment);
+            float seg_z = position[Z_AXIS] + (dz / segment_count * segment);
 
             float seg_left, seg_right;
-            // FIX: Z needs to be interpolated properly.
-
             xy_to_lengths(seg_x, seg_y, seg_left, seg_right);
+            // TODO: Need to adjust cartesian feedrate to motor/plotter space, just leave them alone for now
 
 #ifdef USE_CHECKED_KINEMATICS
             // Check the inverse computation.
@@ -122,19 +132,16 @@ namespace Kinematics {
 
             // mc_move_motors() returns false if a jog is cancelled.
             // In that case we stop sending segments to the planner.
-
             last_left  = seg_left;
             last_right = seg_right;
             last_z     = seg_z;
-
             // Note that the left motor runs backward.
+            // TODO: It might be better to adjust motor direction in .yaml file by inverting direction pin??
             float cables[MAX_N_AXIS] = { 0 - (last_left - zero_left), 0 + (last_right - zero_right), seg_z };
             if (!mc_move_motors(cables, pl_data)) {
                 return false;
             }
         }
-
-        // TO DO don't need a feedrate for rapids
         return true;
     }
 
@@ -147,63 +154,31 @@ namespace Kinematics {
     void WallPlotter::motors_to_cartesian(float* cartesian, float* motors, int n_axis) {
         // The motors start at zero, but effectively at zero_left, so we need to correct for the computation.
         // Note that the left motor runs backward.
+        // TODO: It might be better to adjust motor direction in .yaml file by inverting direction pin??
         float absolute_x, absolute_y;
         lengths_to_xy((0 - motors[_left_axis]) + zero_left, (0 + motors[_right_axis]) + zero_right, absolute_x, absolute_y);
-
-        // Producing these relative coordinates.
         cartesian[X_AXIS] = absolute_x;
         cartesian[Y_AXIS] = absolute_y;
         cartesian[Z_AXIS] = motors[Z_AXIS];
-
-        // Now we have a number that if fed back into the system should produce the same value.
+        // Now we have numbers that if fed back into the system should produce the same values.
     }
 
-    /*
-    Kinematic equations
-
-    See http://paulbourke.net/geometry/circlesphere/
-
-    First calculate the distance d between the center of the circles. d = ||P1 - P0||.
-
-    If d > r0 + r1 then there are no solutions, the circles are separate.
-    If d < |r0 - r1| then there are no solutions because one circle is contained within the other.
-    If d = 0 and r0 = r1 then the circles are coincident and there are an infinite number of solutions.
-    Considering the two triangles P0P2P3 and P1P2P3 we can write
-    a2 + h2 = r02 and b2 + h2 = r12
-    Using d = a + b we can solve for a,
-
-    a = (r02 - r12 + d2 ) / (2 d)
-    It can be readily shown that this reduces to r0 when the two circles touch at one point, ie: d = r0 ± r1
-
-    Solve for h by substituting a into the first equation, h2 = r02 - a2
-
-    h = sqrt(r02 - a2)
-    */
-
-    void WallPlotter::lengths_to_xy(float left_length, float right_length, float& x, float& y) {
-        float distance  = _right_anchor_x - _left_anchor_x;
-        float distance2 = distance * distance;
-
-        // The lengths are the radii of the circles to intersect.
-        float left_radius  = left_length;
-        float left_radius2 = left_radius * left_radius;
-
-        float right_radius  = right_length;
-        float right_radius2 = right_radius * right_radius;
-
-        // Compute a and h.
-        float a  = (left_radius2 - right_radius2 + distance2) / (2 * distance);
-        float a2 = a * a;
-        float h  = sqrtf(left_radius2 - a2);
-
-        // Translate to absolute coordinates.
-        x = _left_anchor_x + a;
-        y = _left_anchor_y + h;
+    
+    void WallPlotter::lengths_to_xy(float h1, float h2, float& x, float& y) {
+        // calculate x y lengths from the two given hypotenuses
+        // Assumes origin is to the right and below of left motor...
+        // TODO Optimize equations to reduce floating point operations
+        float m = abs(_left_anchor_x)+abs(_right_anchor_x); // motor separation
+        x = (h1*h1-h2*h2+m*m) / (2*m); // solve for X1
+        y = sqrtf(h1*h1-x*x); // using X1 and H1 solve for Y
+        // Now translate X1 Y per .yaml.  Assumes cartesian origin is to the right and below of left motor...
+        x = x + _left_anchor_x;
+        y = _right_anchor_y - y; //  flip
+        //log_info("lengths_to_xy: h1:"<< h1 << " h2:"<< h2 <<" x:"<< x << " y:" << y );
     }
 
     void WallPlotter::xy_to_lengths(float x, float y, float& left_length, float& right_length) {
         // Compute the hypotenuse of each triangle.
-
         float left_dy = _left_anchor_y - y;
         float left_dx = _left_anchor_x - x;
         left_length   = hypot_f(left_dx, left_dy);
