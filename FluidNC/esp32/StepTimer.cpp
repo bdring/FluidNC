@@ -52,12 +52,15 @@ void IRAM_ATTR stepTimerStop() {
 
 void stepTimerInit(uint32_t frequency, bool (*fn)(void)) {
     timer_config_t config = {
-        .alarm_en    = TIMER_ALARM_DIS,
-        .counter_en  = TIMER_PAUSE,
-        .counter_dir = TIMER_COUNT_UP,
-        .auto_reload = TIMER_AUTORELOAD_EN,
-        // .clk_src = TIMER_SRC_CLK_DEFAULT,
-        .divider = fTimers / frequency,
+        alarm_en: TIMER_ALARM_DIS,
+        counter_en: TIMER_PAUSE,
+        intr_type: TIMER_INTR_LEVEL,
+        counter_dir: TIMER_COUNT_UP,
+        auto_reload: TIMER_AUTORELOAD_EN,
+        divider: fTimers / frequency,
+#    if SOC_TIMER_GROUP_SUPPORT_XTAL
+        clk_src: TIMER_SRC_CLK_DEFAULT,
+#    endif
     };
     timer_init(TIMER_GROUP_NUM, &config);
     timer_set_counter_value(TIMER_GROUP_NUM, 0);
