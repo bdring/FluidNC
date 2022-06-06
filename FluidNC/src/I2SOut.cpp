@@ -22,7 +22,27 @@
 #include <soc/gpio_periph.h>
 #include <driver/gpio.h>
 
-#include <atomic>
+// The <atomic> library routines are not in IRAM so they can crash when called from FLASH
+// The GCC intrinsic versions which are prefixed with __ are compiled inline
+#define USE_INLINE_ATOMIC
+
+#ifdef USE_INLINE_ATOMIC
+#    define MEMORY_MODEL_FETCH __ATOMIC_RELAXED
+#    define MEMORY_MODEL_STORE __ATOMIC_RELAXED
+#    define ATOMIC_LOAD(var) __atomic_load_n(var, MEMORY_MODEL_FETCH)
+#    define ATOMIC_STORE(var, val) __atomic_store_n(var, val, MEMORY_MODEL_STORE)
+#    define ATOMIC_FETCH_AND(var, val) __atomic_fetch_and(var, val, MEMORY_MODEL_FETCH)
+#    define ATOMIC_FETCH_OR(var, val) __atomic_fetch_or(var, val, MEMORY_MODEL_FETCH)
+static uint32_t i2s_out_port_data = 0;
+#else
+#    include <atomic>
+#    define ATOMIC_LOAD(var) atomic_load(var)
+#    define ATOMIC_STORE(var, val) atomic_store(var, val)
+#    define ATOMIC_FETCH_AND(var, val) atomic_fetch_and(var, val)
+#    define ATOMIC_FETCH_OR(var, val) atomic_fetch_or(var, val)
+static std::atomic<std::uint32_t> i2s_out_port_data = ATOMIC_VAR_INIT(0);
+
+#endif
 
 // Make Arduino functions available
 extern "C" void __digitalWrite(pinnum_t pin, uint8_t val);
@@ -57,9 +77,6 @@ typedef struct {
 
 static i2s_out_dma_t o_dma;
 static intr_handle_t i2s_out_isr_handle;
-
-// output value
-static std::atomic<std::uint32_t> i2s_out_port_data = ATOMIC_VAR_INIT(0);
 
 // inner lock
 static portMUX_TYPE i2s_out_spinlock = portMUX_INITIALIZER_UNLOCKED;
@@ -139,7 +156,7 @@ static void IRAM_ATTR set_single_data(uint32_t portData) {
 
 void IRAM_ATTR i2s_out_push() {
     if (i2s_out_pulser_status == PASSTHROUGH) {
-        set_single_data(atomic_load(&i2s_out_port_data));
+        set_single_data(ATOMIC_LOAD(&i2s_out_port_data));
     }
 }
 
@@ -230,7 +247,7 @@ static int i2s_out_stop() {
     __digitalWrite(i2s_out_bck_pin, 0);
 
     // Transmit recovery data to 74HC595
-    uint32_t port_data = atomic_load(&i2s_out_port_data);  // current expanded port value
+    uint32_t port_data = ATOMIC_LOAD(&i2s_out_port_data);  // current expanded port value
     i2s_out_gpio_shiftout(port_data);
 
     //clear pending interrupt
@@ -247,7 +264,7 @@ static int i2s_out_start() {
 
     I2S_OUT_ENTER_CRITICAL();
     // Transmit recovery data to 74HC595
-    uint32_t port_data = atomic_load(&i2s_out_port_data);  // current expanded port value
+    uint32_t port_data = ATOMIC_LOAD(&i2s_out_port_data);  // current expanded port value
     i2s_out_gpio_shiftout(port_data);
 
     // Attach I2S to specified GPIO pin
@@ -348,7 +365,7 @@ static int i2s_fillout_dma_buffer(lldesc_t* dma_desc) {
                 }
             }
             // no pulse data in push buffer (pulse off or idle or callback is not defined)
-            buf[o_dma.rw_pos++] = atomic_load(&i2s_out_port_data);
+            buf[o_dma.rw_pos++] = ATOMIC_LOAD(&i2s_out_port_data);
             if (i2s_out_remain_time_until_next_pulse >= I2S_OUT_USEC_PER_PULSE) {
                 i2s_out_remain_time_until_next_pulse -= I2S_OUT_USEC_PER_PULSE;
             }
@@ -401,7 +418,7 @@ static void IRAM_ATTR i2s_out_intr_handler(void* arg) {
             I2S_OUT_PULSER_ENTER_CRITICAL_ISR();
             uint32_t port_data = 0;
             if (i2s_out_pulser_status == STEPPING) {
-                port_data = atomic_load(&i2s_out_port_data);
+                port_data = ATOMIC_LOAD(&i2s_out_port_data);
             }
             I2S_OUT_PULSER_EXIT_CRITICAL_ISR();
             for (int i = 0; i < DMA_SAMPLE_COUNT; i++) {
@@ -501,14 +518,14 @@ void i2s_out_delay() {
 void IRAM_ATTR i2s_out_write(pinnum_t pin, uint8_t val) {
     uint32_t bit = bitnum_to_mask(pin);
     if (val) {
-        atomic_fetch_or(&i2s_out_port_data, bit);
+        ATOMIC_FETCH_OR(&i2s_out_port_data, bit);
     } else {
-        atomic_fetch_and(&i2s_out_port_data, ~bit);
+        ATOMIC_FETCH_AND(&i2s_out_port_data, ~bit);
     }
 }
 
 uint8_t i2s_out_read(pinnum_t pin) {
-    uint32_t port_data = atomic_load(&i2s_out_port_data);
+    uint32_t port_data = ATOMIC_LOAD(&i2s_out_port_data);
     return (!!(port_data & bitnum_to_mask(pin)));
 }
 
@@ -522,7 +539,7 @@ void IRAM_ATTR i2s_out_push_sample(uint32_t usec) {
     if (num == 0) {
         num = 1;
     }
-    uint32_t port_data = atomic_load(&i2s_out_port_data);
+    uint32_t port_data = ATOMIC_LOAD(&i2s_out_port_data);
     do {
         o_dma.current[o_dma.rw_pos++] = port_data;
     } while (--num);
@@ -581,7 +598,7 @@ int i2s_out_set_stepping() {
 
     // Change I2S state from PASSTHROUGH to STEPPING
     i2s_out_stop();
-    uint32_t port_data = atomic_load(&i2s_out_port_data);
+    uint32_t port_data = ATOMIC_LOAD(&i2s_out_port_data);
     i2s_clear_o_dma_buffers(port_data);
 
     // You need to set the status before calling i2s_out_start()
@@ -601,7 +618,7 @@ int i2s_out_reset() {
     I2S_OUT_PULSER_ENTER_CRITICAL();
     i2s_out_stop();
     if (i2s_out_pulser_status == STEPPING) {
-        uint32_t port_data = atomic_load(&i2s_out_port_data);
+        uint32_t port_data = ATOMIC_LOAD(&i2s_out_port_data);
         i2s_clear_o_dma_buffers(port_data);
     } else if (i2s_out_pulser_status == WAITING) {
         i2s_clear_o_dma_buffers(0);
@@ -624,7 +641,7 @@ int i2s_out_init(i2s_out_init_t& init_param) {
         return -1;
     }
 
-    atomic_store(&i2s_out_port_data, init_param.init_val);
+    ATOMIC_STORE(&i2s_out_port_data, init_param.init_val);
 
     // To make sure hardware is enabled before any hardware register operations.
     periph_module_reset(PERIPH_I2S0_MODULE);
