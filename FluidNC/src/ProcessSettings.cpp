@@ -922,7 +922,6 @@ void settings_execute_startup() {
 }
 
 Error execute_line(char* line, Channel& channel, WebUI::AuthenticationLevel auth_level) {
-    Error result = Error::Ok;
     // Empty or comment line. For syncing purposes.
     if (line[0] == 0) {
         return Error::Ok;
@@ -935,5 +934,9 @@ Error execute_line(char* line, Channel& channel, WebUI::AuthenticationLevel auth
     if (sys.state == State::Alarm || sys.state == State::ConfigAlarm || sys.state == State::Jog) {
         return Error::SystemGcLock;
     }
-    return gc_execute_line(line, channel);
+    Error result = gc_execute_line(line, channel);
+    if (result != Error::Ok) {
+        log_debug("Bad GCode: " << line);
+    }
+    return result;
 }
