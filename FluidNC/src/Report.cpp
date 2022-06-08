@@ -172,24 +172,72 @@ void report_feedback_message(Message message) {  // ok to send to all channels
 }
 
 #include "Uart.h"
+
+const char* radio =
+#if defined(ENABLE_WIFI) || defined(ENABLE_BLUETOOTH)
+#    ifdef ENABLE_WIFI
+    "wifi";
+#    endif
+#    ifdef ENABLE_BLUETOOTH
+"bt";
+#    endif
+#else
+    "noradio";
+#endif
+
 // Welcome message
+void report_init_message(Print& channel) {
+    channel << '\n';
+    const char* p = start_message->get();
+    char        c;
+    while ((c = *p++) != '\0') {
+        if (c == '\\') {
+            switch ((c = *p++)) {
+                case '\0':
+                    --p;  // Unconsume the null character
+                    break;
+                case 'H':
+                    channel << "'$' for help";
+                    break;
+                case 'B':
+                    channel << git_info;
+                    break;
+                case 'V':
+                    channel << grbl_version;
+                    break;
+                case 'R':
+                    channel << radio;
+                    break;
+                default:
+                    channel << c;
+                    break;
+            }
+        } else {
+            channel << c;
+        }
+    }
+    channel << '\n';
+}
+
+#if 0
 void report_init_message(Print& channel) {
     channel << "\r\nGrbl " << grbl_version << " [FluidNC " << git_info << " (";
 
-#if defined(ENABLE_WIFI) || defined(ENABLE_BLUETOOTH)
-#    ifdef ENABLE_WIFI
+#    if defined(ENABLE_WIFI) || defined(ENABLE_BLUETOOTH)
+#        ifdef ENABLE_WIFI
     channel << "wifi";
-#    endif
+#        endif
 
-#    ifdef ENABLE_BLUETOOTH
+#        ifdef ENABLE_BLUETOOTH
     channel << "bt";
-#    endif
-#else
+#        endif
+#    else
     channel << "noradio";
-#endif
+#    endif
 
     channel << ") '$' for help]\n";
 }
+#endif
 
 // Prints current probe parameters. Upon a probe command, these parameters are updated upon a
 // successful probe or upon a failed probe with the G38.3 without errors command (if supported).
