@@ -17,8 +17,6 @@
 #include <driver/uart.h>
 #include <esp32-hal-gpio.h>  // GPIO_NUM_1 etc
 
-#include "lineedit.h"
-
 Uart::Uart(int uart_num, bool addCR) : Channel("uart", addCR) {
     // Auto-assign Uart harware engine numbers; the pins will be
     // assigned to the engines separately
@@ -71,15 +69,15 @@ void Uart::begin(unsigned long baudrate, UartData dataBits, UartStop stopBits, U
 int Uart::available() {
     size_t size = 0;
     uart_get_buffered_data_len(_uart_num, &size);
-    return size + _queue.size();
+    return size + Channel::available();
 }
 
 int Uart::peek() {
-    if (_queue.size()) {
-        return _queue.front();
+    int ch;
+    if ((ch = Channel::peek()) != -1) {
+        return ch;
     }
-    int ch = read();
-    if (ch == -1) {
+    if ((ch = read()) == -1) {
         return -1;
     }
     _queue.push(uint8_t(ch));
@@ -87,10 +85,9 @@ int Uart::peek() {
 }
 
 int Uart::read(TickType_t timeout) {
-    if (_queue.size()) {
-        int ret = _queue.front();
-        _queue.pop();
-        return ret;
+    int ch = Channel::read();
+    if (ch != -1) {
+        return ch;
     }
     uint8_t c;
     int     res = uart_read_bytes(_uart_num, &c, 1, timeout);
@@ -105,48 +102,34 @@ int Uart::rx_buffer_available() {
     return UART_FIFO_LEN - available();
 }
 
+bool Uart::realtimeOkay(char c) {
+    return _lineedit->realtime(c);
+}
+
+bool Uart::lineComplete(char* line, char c) {
+    if (_lineedit->step(c)) {
+        _linelen        = _lineedit->finish();
+        _line[_linelen] = '\0';
+        strcpy(line, _line);
+        _linelen = 0;
+        return true;
+    }
+    return false;
+}
+
 Channel* Uart::pollLine(char* line) {
-    // For now we only allow UART0 to be a channel input device
+    // UART0 is the only Uart instance that can be a channel input device
     // Other UART users like RS485 use it as a dumb character device
     if (_lineedit == nullptr) {
         return nullptr;
     }
-    while (1) {
-        int ch;
-        if (line && _queue.size()) {
-            ch = _queue.front();
-            _queue.pop();
-        } else {
-            ch = read();
-        }
-
-        // ch will only be negative if read() was called and returned -1
-        // The _queue path will return only nonnegative character values
-        if (ch < 0) {
-            break;
-        }
-        if (_lineedit->realtime(ch) && is_realtime_command(ch)) {
-            execute_realtime_command(static_cast<Cmd>(ch), *this);
-            continue;
-        }
-        if (!line) {
-            // If we are not able to handle a line we save the character
-            // until later
-            _queue.push(uint8_t(ch));
-            continue;
-        }
-        if (_lineedit->step(ch)) {
-            _linelen        = _lineedit->finish();
-            _line[_linelen] = '\0';
-            strcpy(line, _line);
-            _linelen = 0;
-            return this;
-        }
-    }
-    return nullptr;
+    return Channel::pollLine(line);
 }
 
-size_t Uart::readBytes(char* buffer, size_t length, TickType_t timeout) {
+size_t Uart::timedReadBytes(char* buffer, size_t length, TickType_t timeout) {
+    // It is likely that _queue will be empty because timedReadBytes() is only
+    // used in situations where the UART is not receiving GCode commands
+    // and Grbl realtime characters.
     size_t remlen = length;
     while (remlen && _queue.size()) {
         *buffer++ = _queue.front();
@@ -157,9 +140,6 @@ size_t Uart::readBytes(char* buffer, size_t length, TickType_t timeout) {
     // If res < 0, no bytes were read
     remlen -= (res < 0) ? 0 : res;
     return length - remlen;
-}
-size_t Uart::readBytes(char* buffer, size_t length) {
-    return readBytes(buffer, length, (TickType_t)0);
 }
 size_t Uart::write(uint8_t c) {
     return uart_write_bytes(_uart_num, (char*)&c, 1);

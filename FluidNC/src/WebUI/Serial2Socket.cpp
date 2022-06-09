@@ -4,7 +4,7 @@
 #include "Serial2Socket.h"
 
 namespace WebUI {
-    Serial_2_Socket Serial2Socket;
+    Serial_2_Socket serial2Socket;
 }
 
 #ifdef ENABLE_WIFI
@@ -15,17 +15,9 @@ namespace WebUI {
 namespace WebUI {
     Serial_2_Socket::Serial_2_Socket() : Channel("websocket"), _web_socket(nullptr), _TXbufferSize(0), _RXbufferSize(0), _RXbufferpos(0) {}
 
-    void Serial_2_Socket::begin(long speed) {
-        _TXbufferSize = 0;
-        _RXbufferSize = 0;
-        _RXbufferpos  = 0;
-    }
+    void Serial_2_Socket::begin(long speed) { _TXbufferSize = 0; }
 
-    void Serial_2_Socket::end() {
-        _TXbufferSize = 0;
-        _RXbufferSize = 0;
-        _RXbufferpos  = 0;
-    }
+    void Serial_2_Socket::end() { _TXbufferSize = 0; }
 
     long Serial_2_Socket::baudRate() { return 0; }
 
@@ -44,8 +36,6 @@ namespace WebUI {
     }
 
     Serial_2_Socket::operator bool() const { return true; }
-
-    int Serial_2_Socket::available() { return _RXbufferSize; }
 
     size_t Serial_2_Socket::write(uint8_t c) {
         if (!_web_socket) {
@@ -82,51 +72,19 @@ namespace WebUI {
         return size;
     }
 
-    int Serial_2_Socket::peek(void) {
-        if (_RXbufferSize > 0) {
-            return _RXbuffer[_RXbufferpos];
-        } else {
-            return -1;
-        }
-    }
-
     bool Serial_2_Socket::push(const uint8_t* data, size_t length) {
-        if ((length + _RXbufferSize) <= RXBUFFERSIZE) {
-            int current = _RXbufferpos + _RXbufferSize;
-            if (current > RXBUFFERSIZE) {
-                current = current - RXBUFFERSIZE;
-            }
-
-            for (int i = 0; i < length; i++) {
-                if (current > (RXBUFFERSIZE - 1)) {
-                    current = 0;
-                }
-                _RXbuffer[current] = data[i];
-                current++;
-            }
-
-            _RXbufferSize += length;
-            return true;
+        char c;
+        while ((c = *data++) != '\0') {
+            _queue.push(c);
         }
-        return false;
+        return true;
     }
 
     bool Serial_2_Socket::push(const char* data) { return push((uint8_t*)data, strlen(data)); }
 
-    int Serial_2_Socket::read(void) {
+    int Serial_2_Socket::read() {
         handle_flush();
-        if (_RXbufferSize > 0) {
-            int v = _RXbuffer[_RXbufferpos];
-            _RXbufferpos++;
-
-            if (_RXbufferpos > (RXBUFFERSIZE - 1)) {
-                _RXbufferpos = 0;
-            }
-            _RXbufferSize--;
-            return v;
-        } else {
-            return -1;
-        }
+        return Channel::read();
     }
 
     void Serial_2_Socket::handle_flush() {
@@ -148,19 +106,11 @@ namespace WebUI {
         }
     }
 
-    void Serial_2_Socket::flushRx() {
-        _RXbufferSize = 0;
-        _RXbufferpos  = 0;
-        Channel::flush();
-    }
-
     Serial_2_Socket::~Serial_2_Socket() {
         if (_web_socket) {
             detachWS();
         }
         _TXbufferSize = 0;
-        _RXbufferSize = 0;
-        _RXbufferpos  = 0;
     }
 }
 #endif

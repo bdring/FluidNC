@@ -21,15 +21,6 @@ namespace WebUI {
 
         bool anyOutput() { return _header_sent; }
 
-        // Stub implementations to satisfy Stream requirements
-        int available() override { return 0; }
-        int read() { return -1; }
-        int peek() { return -1; }
-
-        void flushRx() override;
-
-        int rx_buffer_available() { return BUFLEN - available(); }
-
     private:
         bool                _header_sent;
         bool                _silent;

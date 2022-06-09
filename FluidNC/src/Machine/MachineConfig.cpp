@@ -160,7 +160,7 @@ namespace Machine {
 
             char* buffer     = new char[filesize + 1];
             buffer[filesize] = '\0';
-            auto actual      = file.readBytes(buffer, filesize);
+            auto actual      = file.read(buffer, filesize);
             if (actual != filesize) {
                 log_info("Configuration file:" << filename << " read error");
                 return false;

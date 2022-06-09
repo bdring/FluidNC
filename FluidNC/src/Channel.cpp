@@ -13,6 +13,69 @@ void Channel::flushRx() {
     }
 }
 
+int Channel::peek() {
+    return _queue.size() ? _queue.front() : -1;
+}
+
+int Channel::read() {
+    if (_queue.size()) {
+        uint8_t c = _queue.front();
+        _queue.pop();
+        return c;
+    }
+    return -1;
+}
+
+bool Channel::lineComplete(char* line, char ch) {
+    // The objective here is to treat any of CR, LF, or CR-LF
+    // as a single line ending.  When we see CR, we immediately
+    // complete the line, setting a flag to say that the last
+    // character was CR.  When we see LF, if the last character
+    // was CR, we ignore the LF because the line has already
+    // been completed, otherwise we complete the line.
+    if (ch == '\n') {
+        if (_lastWasCR) {
+            _lastWasCR = false;
+            return false;
+        }
+        // if (_discarding) {
+        //     _linelen = 0;
+        //     _discarding = false;
+        //     return nullptr;
+        // }
+
+        // Return the complete line
+        _line[_linelen] = '\0';
+        strcpy(line, _line);
+        _linelen = 0;
+        return true;
+    }
+    _lastWasCR = ch == '\r';
+    if (_lastWasCR) {
+        // Return the complete line
+        _line[_linelen] = '\0';
+        strcpy(line, _line);
+        _linelen = 0;
+        return true;
+    }
+    if (ch == '\b') {
+        // Simple editing for interactive input - backspace erases
+        if (_linelen) {
+            --_linelen;
+        }
+        return false;
+    }
+    if (_linelen < (Channel::maxLine - 1)) {
+        _line[_linelen++] = ch;
+    } else {
+        //  report_status_message(Error::Overflow, this);
+        // _linelen = 0;
+        // Probably should discard the rest of the line too.
+        // _discarding = true;
+    }
+    return false;
+}
+
 Channel* Channel::pollLine(char* line) {
     handle();
     while (1) {
@@ -29,7 +92,7 @@ Channel* Channel::pollLine(char* line) {
         if (ch < 0) {
             break;
         }
-        if (is_realtime_command(ch)) {
+        if (realtimeOkay(ch) && is_realtime_command(ch)) {
             execute_realtime_command(static_cast<Cmd>(ch), *this);
             continue;
         }
@@ -39,55 +102,17 @@ Channel* Channel::pollLine(char* line) {
             _queue.push(uint8_t(ch));
             continue;
         }
-        // The objective here is to treat any of CR, LF, or CR-LF
-        // as a single line ending.  When we see CR, we immediately
-        // complete the line, setting a flag to say that the last
-        // character was CR.  When we see LF, if the last character
-        // was CR, we ignore the LF because the line has already
-        // been completed, otherwise we complete the line.
-        if (ch == '\n') {
-            if (_lastWasCR) {
-                _lastWasCR = false;
-                continue;
-            }
-            // if (_discarding) {
-            //     _linelen = 0;
-            //     _discarding = false;
-            //     return nullptr;
-            // }
-
-            // Return the complete line
-            _line[_linelen] = '\0';
-            strcpy(line, _line);
-            _linelen = 0;
+        if (lineComplete(line, ch)) {
             return this;
-        }
-        _lastWasCR = ch == '\r';
-        if (_lastWasCR) {
-            // Return the complete line
-            _line[_linelen] = '\0';
-            strcpy(line, _line);
-            _linelen = 0;
-            return this;
-        }
-        if (ch == '\b') {
-            // Simple editing for interactive input - backspace erases
-            if (_linelen) {
-                --_linelen;
-            }
-            continue;
-        }
-        if (_linelen < (Channel::maxLine - 1)) {
-            _line[_linelen++] = ch;
-        } else {
-            //  report_status_message(Error::Overflow, this);
-            // _linelen = 0;
-            // Probably should discard the rest of the line too.
-            // _discarding = true;
         }
     }
     return nullptr;
 }
+
+int Channel::available() {
+    return _queue.size();
+}
+
 void Channel::ack(Error status) {
     switch (status) {
         case Error::Ok:  // Error::Ok

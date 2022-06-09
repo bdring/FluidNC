@@ -115,8 +115,8 @@ namespace WebUI {
         _socket_server->onEvent(handle_Websocket_Event);
 
         //Websocket output
-        Serial2Socket.attachWS(_socket_server);
-        allChannels.registration(&WebUI::Serial2Socket);
+        serial2Socket.attachWS(_socket_server);
+        allChannels.registration(&WebUI::serial2Socket);
 
         //events functions
         //_web_events->onConnect(handle_onevent_connect);
@@ -207,7 +207,7 @@ namespace WebUI {
         mdns_service_remove("_http", "_tcp");
 
         if (_socket_server) {
-            allChannels.deregistration(&WebUI::Serial2Socket);
+            allChannels.deregistration(&WebUI::serial2Socket);
             delete _socket_server;
             _socket_server = NULL;
         }
@@ -458,7 +458,7 @@ namespace WebUI {
             bool   hasError = false;
             // TODO Settings - this is very inefficient.  get_Splited_Value() is O(n^2)
             // when it could easily be O(n).  Also, it would be just as easy to push
-            // the entire string into Serial2Socket and pull off lines from there.
+            // the entire string into serial2Socket and pull off lines from there.
             for (size_t sindex = 0; (scmd = get_Splited_Value(cmd, '\n', sindex)) != ""; sindex++) {
                 // 0xC2 is an HTML encoding prefix that, in UTF-8 mode,
                 // precede 0x90 and 0xa0-0bf, which are GRBL realtime commands.
@@ -474,7 +474,7 @@ namespace WebUI {
                 } else if (!is_realtime_command(scmd[0])) {
                     scmd += "\n";
                 }
-                if (!Serial2Socket.push(scmd.c_str())) {
+                if (!serial2Socket.push(scmd.c_str())) {
                     hasError = true;
                 }
             }
@@ -1470,7 +1470,7 @@ namespace WebUI {
             } break;
             case WStype_TEXT:
             case WStype_BIN:
-                Serial2Socket.push(payload, length);
+                serial2Socket.push(payload, length);
                 break;
             default:
                 break;

@@ -179,7 +179,7 @@ namespace Spindles {
 
                 // Read the response
                 size_t read_length  = 0;
-                size_t current_read = uart.readBytes(rx_message, next_cmd.rx_length, response_ticks);
+                size_t current_read = uart.timedReadBytes(rx_message, next_cmd.rx_length, response_ticks);
                 read_length += current_read;
 
                 // Apparently some Huanyang report modbus errors in the correct way, and the rest not. Sigh.
@@ -190,7 +190,7 @@ namespace Spindles {
 
                 while (read_length < next_cmd.rx_length && current_read > 0) {
                     // Try to read more; we're not there yet...
-                    current_read = uart.readBytes(rx_message + read_length, next_cmd.rx_length - read_length, response_ticks);
+                    current_read = uart.timedReadBytes(rx_message + read_length, next_cmd.rx_length - read_length, response_ticks);
                     read_length += current_read;
                 }
 

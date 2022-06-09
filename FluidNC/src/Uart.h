@@ -42,11 +42,8 @@ public:
     int    available(void) override;
     int    read(void) override;
     int    read(TickType_t timeout);
-    size_t readBytes(char* buffer, size_t length, TickType_t timeout);
-    size_t readBytes(uint8_t* buffer, size_t length, TickType_t timeout) {
-        return readBytes(reinterpret_cast<char*>(buffer), length, timeout);
-    }
-    size_t readBytes(char* buffer, size_t length) override;
+    size_t timedReadBytes(char* buffer, size_t length, TickType_t timeout) override;
+    size_t timedReadBytes(uint8_t* buffer, size_t length, TickType_t timeout) { return timedReadBytes((char*)buffer, length, timeout); };
     int    peek(void) override;
     size_t write(uint8_t data) override;
     size_t write(const uint8_t* buffer, size_t length) override;
@@ -55,11 +52,8 @@ public:
     void flushRx() override;
     bool flushTxTimed(TickType_t ticks);
 
-    bool setCr(bool on) {
-        bool retval = _addCR;
-        _addCR      = on;
-        return retval;
-    }
+    bool realtimeOkay(char c) override;
+    bool lineComplete(char* line, char c) override;
 
     Channel* pollLine(char* line) override;
 

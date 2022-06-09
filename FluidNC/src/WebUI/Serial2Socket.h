@@ -17,7 +17,7 @@ namespace WebUI {
         void   handle_flush() {}
         size_t write(const uint8_t* buffer, size_t size) { return 0; }
     };
-    extern Serial_2_Socket Serial2Socket;
+    extern Serial_2_Socket serial2Socket;
 }
 #else
 
@@ -30,6 +30,8 @@ namespace WebUI {
         static const int TXBUFFERSIZE = 1200;
         static const int RXBUFFERSIZE = 256;
         static const int FLUSHTIMEOUT = 500;
+
+        void handle_flush();
 
     public:
         Serial_2_Socket();
@@ -46,18 +48,15 @@ namespace WebUI {
         long baudRate();
         void begin(long speed);
         void end();
-        int  available();
-        int  peek(void);
-        int  read(void);
+        int  read() override;
+
         bool push(const uint8_t* data, size_t length);
         bool push(const char* data);
         void flush(void);
-        void flushRx(void) override;
-        void handle_flush();
         bool attachWS(WebSocketsServer* web_socket);
         bool detachWS();
 
-        int rx_buffer_available() { return RXBUFFERSIZE - available(); }
+        int rx_buffer_available() override { return RXBUFFERSIZE - available(); }
 
         operator bool() const;
 
@@ -75,7 +74,7 @@ namespace WebUI {
         uint16_t _RXbufferpos;
     };
 
-    extern Serial_2_Socket Serial2Socket;
+    extern Serial_2_Socket serial2Socket;
 }
 
 #endif

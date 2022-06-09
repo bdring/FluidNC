@@ -122,6 +122,44 @@ namespace WebUI {
         return str;
     }
 
+    int BTChannel::available() { return SerialBT.available() + Channel::available(); }
+    int BTChannel::read() {
+        int ch = Channel::read();
+        if (ch != -1) {
+            return ch;
+        }
+        return SerialBT.read();
+    }
+    int BTChannel::peek() {
+        int ch = Channel::peek();
+        if (ch != -1) {
+            return ch;
+        }
+        return SerialBT.peek();
+    }
+
+    bool BTChannel::realtimeOkay(char c) { return _lineedit->realtime(c); }
+
+    bool BTChannel::lineComplete(char* line, char c) {
+        if (_lineedit->step(c)) {
+            _linelen        = _lineedit->finish();
+            _line[_linelen] = '\0';
+            strcpy(line, _line);
+            _linelen = 0;
+            return true;
+        }
+        return false;
+    }
+
+    Channel* BTChannel::pollLine(char* line) {
+        // UART0 is the only Uart instance that can be a channel input device
+        // Other UART users like RS485 use it as a dumb character device
+        if (_lineedit == nullptr) {
+            return nullptr;
+        }
+        return Channel::pollLine(line);
+    }
+
     /**
      * begin WiFi setup
      */

@@ -44,7 +44,6 @@ namespace WebUI {
             _buflen = 0;
         }
     }
-    void WebClient::flushRx() { Channel::flushRx(); }
 
     WebClient::~WebClient() {
         flush();

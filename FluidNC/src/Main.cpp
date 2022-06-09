@@ -132,7 +132,6 @@ void setup() {
     if (!WebUI::wifi_config.begin()) {
         WebUI::bt_config.begin();
     }
-    WebUI::inputBuffer.begin();
     allChannels.deregistration(&startupLog);
 }
 
