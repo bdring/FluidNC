@@ -11,14 +11,11 @@
 #include "lineedit.h"
 #include "Channel.h"
 #include <freertos/FreeRTOS.h>  // TickType_T
-#include <queue>
 
 class Uart : public Channel, public Configuration::Configurable {
 private:
-    uart_port_t         _uart_num;
-    int                 _pushback;
-    std::queue<uint8_t> _queue;
-    Lineedit*           _lineedit;
+    uart_port_t _uart_num;
+    Lineedit*   _lineedit;
 
 public:
     // These are public so that validators from classes

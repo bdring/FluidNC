@@ -19,7 +19,7 @@
 
 #include "lineedit.h"
 
-Uart::Uart(int uart_num, bool addCR) : Channel("uart", addCR), _pushback(-1) {
+Uart::Uart(int uart_num, bool addCR) : Channel("uart", addCR) {
     // Auto-assign Uart harware engine numbers; the pins will be
     // assigned to the engines separately
     static int currentNumber = 1;
@@ -71,24 +71,32 @@ void Uart::begin(unsigned long baudrate, UartData dataBits, UartStop stopBits, U
 int Uart::available() {
     size_t size = 0;
     uart_get_buffered_data_len(_uart_num, &size);
-    return size + (_pushback >= 0);
+    return size + _queue.size();
 }
 
 int Uart::peek() {
-    _pushback = read();
-    return _pushback;
+    if (_queue.size()) {
+        return _queue.front();
+    }
+    int ch = read();
+    if (ch == -1) {
+        return -1;
+    }
+    _queue.push(uint8_t(ch));
+    return ch;
 }
 
 int Uart::read(TickType_t timeout) {
-    if (_pushback >= 0) {
-        int ret   = _pushback;
-        _pushback = -1;
+    if (_queue.size()) {
+        int ret = _queue.front();
+        _queue.pop();
         return ret;
     }
     uint8_t c;
     int     res = uart_read_bytes(_uart_num, &c, 1, timeout);
     return res == 1 ? c : -1;
 }
+
 int Uart::read() {
     return read(0);
 }
@@ -121,34 +129,34 @@ Channel* Uart::pollLine(char* line) {
             execute_realtime_command(static_cast<Cmd>(ch), *this);
             continue;
         }
-        if (line) {
-            if (_lineedit->step(ch)) {
-                _linelen        = _lineedit->finish();
-                _line[_linelen] = '\0';
-                strcpy(line, _line);
-                _linelen = 0;
-                return this;
-            }
-        } else {
+        if (!line) {
             // If we are not able to handle a line we save the character
             // until later
             _queue.push(uint8_t(ch));
+            continue;
+        }
+        if (_lineedit->step(ch)) {
+            _linelen        = _lineedit->finish();
+            _line[_linelen] = '\0';
+            strcpy(line, _line);
+            _linelen = 0;
+            return this;
         }
     }
     return nullptr;
 }
 
 size_t Uart::readBytes(char* buffer, size_t length, TickType_t timeout) {
-    bool pushback = _pushback >= 0;
-    if (pushback && length) {
-        *buffer++ = _pushback;
-        _pushback = -1;
-        --length;
+    size_t remlen = length;
+    while (remlen && _queue.size()) {
+        *buffer++ = _queue.front();
+        _queue.pop();
     }
-    int res = uart_read_bytes(_uart_num, (uint8_t*)buffer, length, timeout);
-    // The Stream class version of readBytes never returns -1,
-    // so if uart_read_bytes returns -1, we change that to 0
-    return pushback + (res >= 0 ? res : 0);
+
+    int res = uart_read_bytes(_uart_num, (uint8_t*)buffer, remlen, timeout);
+    // If res < 0, no bytes were read
+    remlen -= (res < 0) ? 0 : res;
+    return length - remlen;
 }
 size_t Uart::readBytes(char* buffer, size_t length) {
     return readBytes(buffer, length, (TickType_t)0);
@@ -214,9 +222,5 @@ void Uart::config_message(const char* prefix, const char* usage) {
 
 void Uart::flushRx() {
     uart_flush_input(_uart_num);
-    _pushback = -1;
-    while (_queue.size()) {
-        _queue.pop();
-    }
     Channel::flushRx();
 }

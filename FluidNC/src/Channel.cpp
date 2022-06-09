@@ -8,12 +8,24 @@
 void Channel::flushRx() {
     _linelen   = 0;
     _lastWasCR = false;
+    while (_queue.size()) {
+        _queue.pop();
+    }
 }
 
 Channel* Channel::pollLine(char* line) {
     handle();
     while (1) {
-        int ch = read();
+        int ch;
+        if (line && _queue.size()) {
+            ch = _queue.front();
+            _queue.pop();
+        } else {
+            ch = read();
+        }
+
+        // ch will only be negative if read() was called and returned -1
+        // The _queue path will return only nonnegative character values
         if (ch < 0) {
             break;
         }
@@ -22,6 +34,9 @@ Channel* Channel::pollLine(char* line) {
             continue;
         }
         if (!line) {
+            // If we are not able to handle a line we save the character
+            // until later
+            _queue.push(uint8_t(ch));
             continue;
         }
         // The objective here is to treat any of CR, LF, or CR-LF

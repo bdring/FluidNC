@@ -18,6 +18,7 @@
 
 #include "Error.h"  // Error
 #include <Stream.h>
+#include <queue>
 
 class Channel : public Stream {
 public:
@@ -29,6 +30,8 @@ protected:
     size_t      _linelen;
     bool        _addCR     = false;
     char        _lastWasCR = false;
+
+    std::queue<uint8_t> _queue;
 
 public:
     Channel(const char* name, bool addCR = false) : _name(name), _linelen(0), _addCR(addCR) {}
