@@ -28,3 +28,6 @@ v*.zip
 /FluidNC/data/config.yaml
 build/
 dist/
+install_scripts/win64/wifi/spiffs.bin
+spiffs/spiffs.bin
+spiffs/output/config.yaml
