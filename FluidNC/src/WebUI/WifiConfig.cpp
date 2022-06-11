@@ -342,7 +342,7 @@ namespace WebUI {
             if (WiFi.getMode() == WIFI_MODE_APSTA) {
                 result += "]\n[MSG:";
             }
-            result += "Mode=AP:SSDI=";
+            result += "Mode=AP:SSID=";
             wifi_config_t conf;
             esp_wifi_get_config(WIFI_IF_AP, &conf);
             result += (const char*)conf.ap.ssid;
