@@ -14,7 +14,6 @@ namespace WebUI {
     public:
         Serial_2_Socket() = default;
         int    read() { return -1; }
-        void   handle_flush() {}
         size_t write(const uint8_t* buffer, size_t size) { return 0; }
     };
     extern Serial_2_Socket serial2Socket;
@@ -31,8 +30,6 @@ namespace WebUI {
         static const int RXBUFFERSIZE = 256;
         static const int FLUSHTIMEOUT = 500;
 
-        void handle_flush();
-
     public:
         Serial_2_Socket();
 
@@ -45,10 +42,9 @@ namespace WebUI {
         inline size_t write(unsigned int n) { return write((uint8_t)n); }
         inline size_t write(int n) { return write((uint8_t)n); }
 
-        long baudRate();
         void begin(long speed);
         void end();
-        int  read() override;
+        void handle();
 
         bool push(const uint8_t* data, size_t length);
         bool push(const char* data);

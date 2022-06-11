@@ -17,6 +17,13 @@ private:
     uart_port_t _uart_num;
     Lineedit*   _lineedit;
 
+    // One character of pushback for implementing peek().
+    // We cannot use the queue for this because the queue
+    // is after the check for realtime characters, whereas
+    // peek() deals with characters before realtime ones
+    // are handled.
+    int _pushback = -1;
+
 public:
     // These are public so that validators from classes
     // that use Uart can check that the setup is suitable.

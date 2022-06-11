@@ -122,21 +122,9 @@ namespace WebUI {
         return str;
     }
 
-    int BTChannel::available() { return SerialBT.available() + Channel::available(); }
-    int BTChannel::read() {
-        int ch = Channel::read();
-        if (ch != -1) {
-            return ch;
-        }
-        return SerialBT.read();
-    }
-    int BTChannel::peek() {
-        int ch = Channel::peek();
-        if (ch != -1) {
-            return ch;
-        }
-        return SerialBT.peek();
-    }
+    int BTChannel::available() { return SerialBT.available(); }
+    int BTChannel::read() { return SerialBT.read(); }
+    int BTChannel::peek() { return SerialBT.peek(); }
 
     bool BTChannel::realtimeOkay(char c) { return _lineedit->realtime(c); }
 

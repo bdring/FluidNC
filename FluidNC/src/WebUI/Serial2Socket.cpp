@@ -19,8 +19,6 @@ namespace WebUI {
 
     void Serial_2_Socket::end() { _TXbufferSize = 0; }
 
-    long Serial_2_Socket::baudRate() { return 0; }
-
     bool Serial_2_Socket::attachWS(WebSocketsServer* web_socket) {
         if (web_socket) {
             _web_socket   = web_socket;
@@ -68,7 +66,7 @@ namespace WebUI {
             _TXbufferSize++;
         }
         log_i("[SOCKET]buffer size %d", _TXbufferSize);
-        handle_flush();
+        handle();
         return size;
     }
 
@@ -82,12 +80,7 @@ namespace WebUI {
 
     bool Serial_2_Socket::push(const char* data) { return push((uint8_t*)data, strlen(data)); }
 
-    int Serial_2_Socket::read() {
-        handle_flush();
-        return Channel::read();
-    }
-
-    void Serial_2_Socket::handle_flush() {
+    void Serial_2_Socket::handle() {
         if (_TXbufferSize > 0 && ((_TXbufferSize >= TXBUFFERSIZE) || ((millis() - _lastflush) > FLUSHTIMEOUT))) {
             log_i("[SOCKET]need flush, buffer size %d", _TXbufferSize);
             flush();

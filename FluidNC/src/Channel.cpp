@@ -13,19 +13,6 @@ void Channel::flushRx() {
     }
 }
 
-int Channel::peek() {
-    return _queue.size() ? _queue.front() : -1;
-}
-
-int Channel::read() {
-    if (_queue.size()) {
-        uint8_t c = _queue.front();
-        _queue.pop();
-        return c;
-    }
-    return -1;
-}
-
 bool Channel::lineComplete(char* line, char ch) {
     // The objective here is to treat any of CR, LF, or CR-LF
     // as a single line ending.  When we see CR, we immediately
@@ -102,15 +89,11 @@ Channel* Channel::pollLine(char* line) {
             _queue.push(uint8_t(ch));
             continue;
         }
-        if (lineComplete(line, ch)) {
+        if (line && lineComplete(line, ch)) {
             return this;
         }
     }
     return nullptr;
-}
-
-int Channel::available() {
-    return _queue.size();
 }
 
 void Channel::ack(Error status) {

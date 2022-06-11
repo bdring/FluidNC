@@ -64,10 +64,6 @@ public:
     // end is seen.
     virtual bool lineComplete(char* line, char c);
 
-    int peek() override;
-    int read() override;
-    int available() override;
-
     virtual size_t timedReadBytes(char* buffer, size_t length, TickType_t timeout) {
         setTimeout(timeout);
         return readBytes(buffer, length);
@@ -79,4 +75,8 @@ public:
         _addCR      = on;
         return retval;
     }
+
+    int peek() override { return -1; }
+    int read() override { return -1; }
+    int available() override { return 0; }
 };

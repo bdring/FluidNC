@@ -69,25 +69,26 @@ void Uart::begin(unsigned long baudrate, UartData dataBits, UartStop stopBits, U
 int Uart::available() {
     size_t size = 0;
     uart_get_buffered_data_len(_uart_num, &size);
-    return size + Channel::available();
+    return size + (_pushback != -1);
 }
 
 int Uart::peek() {
-    int ch;
-    if ((ch = Channel::peek()) != -1) {
-        return ch;
+    if (_pushback != -1) {
+        return _pushback;
     }
-    if ((ch = read()) == -1) {
+    int ch = read();
+    if (ch == -1) {
         return -1;
     }
-    _queue.push(uint8_t(ch));
+    _pushback = ch;
     return ch;
 }
 
 int Uart::read(TickType_t timeout) {
-    int ch = Channel::read();
-    if (ch != -1) {
-        return ch;
+    if (_pushback != -1) {
+        int ret   = _pushback;
+        _pushback = -1;
+        return ret;
     }
     uint8_t c;
     int     res = uart_read_bytes(_uart_num, &c, 1, timeout);
