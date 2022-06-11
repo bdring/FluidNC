@@ -453,31 +453,19 @@ namespace WebUI {
                 _webserver->send(401, "text/plain", "Authentication failed!\n");
                 return;
             }
-            //Instead of send several commands one by one by web  / send full set and split here
-            String scmd;
-            bool   hasError = false;
-            // TODO Settings - this is very inefficient.  get_Splited_Value() is O(n^2)
-            // when it could easily be O(n).  Also, it would be just as easy to push
-            // the entire string into serial2Socket and pull off lines from there.
-            for (size_t sindex = 0; (scmd = get_Splited_Value(cmd, '\n', sindex)) != ""; sindex++) {
+            if (!silent) {
                 // 0xC2 is an HTML encoding prefix that, in UTF-8 mode,
-                // precede 0x90 and 0xa0-0bf, which are GRBL realtime commands.
+                // precedes 0x90 and 0xa0-0bf, which are GRBL realtime commands.
                 // There are other encodings for 0x91-0x9f, so I am not sure
                 // how - or whether - those commands work.
                 // Ref: https://www.w3schools.com/tags/ref_urlencode.ASP
-                if (!silent && (scmd.length() == 2) && (scmd[0] == 0xC2)) {
-                    scmd[0] = scmd[1];
-                    scmd.remove(1, 1);
-                }
-                if (scmd.length() > 1) {
-                    scmd += "\n";
-                } else if (!is_realtime_command(scmd[0])) {
-                    scmd += "\n";
-                }
-                if (!serial2Socket.push(scmd.c_str())) {
-                    hasError = true;
-                }
+                String prefix(0xc2);
+                cmd.replace(prefix, "");
             }
+            if (!(cmd.length() == 1 && is_realtime_command(cmd[0])) && !cmd.endsWith("\n")) {
+                cmd += '\n';
+            }
+            bool hasError = !serial2Socket.push(cmd.c_str());
             _webserver->send(200, "text/plain", hasError ? "Error" : "");
         }
     }
@@ -1475,26 +1463,6 @@ namespace WebUI {
             default:
                 break;
         }
-    }
-
-    // The separator that is passed in to this function is always '\n'
-    // The string that is returned does not contain the separator
-    // The calling code adds back the separator, unless the string is
-    // a one-character realtime command.
-    String Web_Server::get_Splited_Value(String data, char separator, int index) {
-        int found      = 0;
-        int strIndex[] = { 0, -1 };
-        int maxIndex   = data.length() - 1;
-
-        for (int i = 0; i <= maxIndex && found <= index; i++) {
-            if (data.charAt(i) == separator || i == maxIndex) {
-                found++;
-                strIndex[0] = strIndex[1] + 1;
-                strIndex[1] = (i == maxIndex) ? i + 1 : i;
-            }
-        }
-
-        return found > index ? data.substring(strIndex[0], strIndex[1]) : "";
     }
 
     //helper to extract content type from file extension
