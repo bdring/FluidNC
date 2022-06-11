@@ -430,11 +430,11 @@ namespace WebUI {
         if (ESPpos > -1) {
             char line[256];
             strncpy(line, cmd.c_str(), 255);
-            WebClient* webresponse = new WebClient(_webserver, silent);
-            Error      err         = settings_execute_line(line, *webresponse, auth_level);
-            String     answer;
+            webClient.attachWS(_webserver, silent);
+            Error  err = settings_execute_line(line, webClient, auth_level);
+            String answer;
             if (err == Error::Ok) {
-                answer = "ok";
+                answer = "ok\n";
             } else {
                 const char* msg = errorString(err);
                 answer          = "Error: ";
@@ -443,11 +443,12 @@ namespace WebUI {
                 } else {
                     answer += static_cast<int>(err);
                 }
+                answer += "\n";
             }
-            if (!webresponse->anyOutput()) {
+            if (!webClient.anyOutput()) {
                 _webserver->send(err != Error::Ok ? 500 : 200, "text/plain", answer);
             }
-            delete webresponse;
+            webClient.detachWS();
         } else {  //execute GCODE
             if (auth_level == AuthenticationLevel::LEVEL_GUEST) {
                 _webserver->send(401, "text/plain", "Authentication failed!\n");
