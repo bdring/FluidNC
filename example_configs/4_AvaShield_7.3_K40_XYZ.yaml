@@ -68,7 +68,7 @@ axes:
       stepstick:
         ms3_pin: I2SO.7
         step_pin: I2SO.6
-        direction_pin: I2SO.5
+        direction_pin: I2SO.5:low
         disable_pin: I2SO.4
 
   z:
