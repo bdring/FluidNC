@@ -1329,6 +1329,9 @@ Error gc_execute_line(char* line, Channel& channel) {
         // JogCancelled is not reported as a GCode error
         return status == Error::JogCancelled ? Error::Ok : status;
     }
+    
+
+    
     // If in laser mode, setup laser power based on current and past parser conditions.
     if (spindle->isRateAdjusted()) {
         if (!((gc_block.modal.motion == Motion::Linear) || (gc_block.modal.motion == Motion::CwArc) ||
@@ -1408,11 +1411,19 @@ Error gc_execute_line(char* line, Channel& channel) {
         if (sys.state != State::CheckMode) {
             protocol_buffer_synchronize();
             spindle->setState(gc_block.modal.spindle, (uint32_t)pl_data->spindle_speed);
+
             report_ovr_counter = 0;  // Set to report change immediately
         }
         gc_state.modal.spindle = gc_block.modal.spindle;
     }
     pl_data->spindle = gc_state.modal.spindle;
+ 
+    //If laser mode and motion is G0 (fast movement) -> clear PWM
+    if ( spindle->isRateAdjusted() &&  gc_block.modal.motion == Motion::Seek ) {
+        pl_data->spindle_speed = 0;
+        log_debug ("Clear spindle PWM");
+    }
+
     // [8. Coolant control ]:
     // At most one of M7, M8, M9 can appear in a GCode block, but the overall coolant
     // state can have both mist (M7) and flood (M8) on at once, by issuing M7 and M8
