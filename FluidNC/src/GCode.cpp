@@ -1318,6 +1318,7 @@ Error gc_execute_line(char* line, Channel& channel) {
             FAIL(Error::InvalidJogCommand);
         }
         // Initialize planner data to current spindle and coolant modal state.
+        pl_data->spindle_speed  = gc_state.spindle_speed;
         pl_data->spindle        = gc_state.modal.spindle;
         pl_data->coolant        = gc_state.modal.coolant;
         bool  cancelledInflight = false;
