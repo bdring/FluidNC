@@ -290,8 +290,8 @@ static void protocol_do_alarm() {
             protocol_disable_steppers();
             rtReset = false;  // Disable any existing reset
 
-            WebUI::COMMANDS::restart_MCU();
-            WebUI::COMMANDS::handle();
+            //WebUI::COMMANDS::restart_MCU();
+            //WebUI::COMMANDS::handle();
 
             do {
                 // Block everything except reset and status reports until user issues reset or power
