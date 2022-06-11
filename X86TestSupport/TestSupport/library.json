@@ -1,0 +1,31 @@
+{
+  "name": "X86TestSupport",
+  "keywords": "X86TestSupport",
+  "description": "X86TestSupport is a testing framework developed for FluidNC.",
+  "license": "GPL",
+  "homepage": "https://github.com/bdring/FluidNC",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/bdring/FluidNC"
+  },
+  "version": "1.0.0",
+  "export": {
+    "include": [
+      "*",
+      "driver/*",
+      "freertos/*",
+      "soc/*",
+      "xtensa/*"
+    ],
+    "exclude": [
+    ]
+  },
+  "build": {
+    "flags": [
+    ],
+    "srcFilter": [
+      "+<*>",
+      "+<*/*>"
+    ]
+  }
+}
