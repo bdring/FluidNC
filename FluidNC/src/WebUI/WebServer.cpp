@@ -66,7 +66,7 @@ namespace WebUI {
     const int ESP_ERROR_UPLOAD_CANCELLED = 6;
     const int ESP_ERROR_FILE_CLOSE       = 7;
 
-    Web_Server        web_server;
+    Web_Server        webServer;
     bool              Web_Server::_setupdone     = false;
     uint16_t          Web_Server::_port          = 0;
     long              Web_Server::_id_connection = 0;
@@ -894,7 +894,6 @@ namespace WebUI {
             }
         }
         uploadCheck(upload.filename, "/localfs");
-        COMMANDS::wait(0);
     }
 
     //Web Update handler
@@ -916,7 +915,7 @@ namespace WebUI {
 
         //if success restart
         if (_upload_status == UploadStatus::SUCCESSFUL) {
-            COMMANDS::wait(1000);
+            delay_ms(1000);
             COMMANDS::restart_MCU();
         } else {
             _upload_status = UploadStatus::NONE;
@@ -1014,8 +1013,6 @@ namespace WebUI {
             cancelUpload();
             Update.end();
         }
-
-        COMMANDS::wait(0);
     }
 
     //Function to delete not empty directory on SD card
@@ -1052,7 +1049,6 @@ namespace WebUI {
                     break;
                 }
             }
-            COMMANDS::wait(0);  //wdtFeed
         }
         file.close();
         return result ? fs.rmdir(path) : false;
@@ -1197,7 +1193,6 @@ namespace WebUI {
             File entry = dir.openNextFile();
             int  i     = 0;
             while (entry) {
-                COMMANDS::wait(1);
                 if (i > 0) {
                     jsonfile += ",";
                 }
@@ -1421,12 +1416,10 @@ namespace WebUI {
             }
         }
         uploadCheck(upload.filename, "/sd");
-        COMMANDS::wait(0);
     }
 
     void Web_Server::handle() {
         static uint32_t start_time = millis();
-        COMMANDS::wait(0);
         if (WiFi.getMode() == WIFI_AP) {
             dnsServer.processNextRequest();
         }

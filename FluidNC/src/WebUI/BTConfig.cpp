@@ -199,10 +199,7 @@ namespace WebUI {
     /**
      * Handle not critical actions that must be done in sync environement
      */
-    void BTConfig::handle() {
-        //If needed
-        COMMANDS::wait(0);
-    }
+    void BTConfig::handle() {}
 
     BTConfig::~BTConfig() { end(); }
 }

@@ -8,14 +8,7 @@
 #include "Logging.h"
 #include "Uart.h"
 
-#include <esp_system.h>
-#include <soc/uart_reg.h>
-#include <soc/io_mux_reg.h>
-#include <soc/gpio_sig_map.h>
-#include <soc/dport_reg.h>
-#include <soc/rtc.h>
 #include <driver/uart.h>
-#include <esp32-hal-gpio.h>  // GPIO_NUM_1 etc
 
 Uart::Uart(int uart_num, bool addCR) : Channel("uart", addCR) {
     // Auto-assign Uart harware engine numbers; the pins will be
@@ -43,7 +36,6 @@ void Uart::begin(unsigned long baudrate) {
     }
 
     begin(baudrate, dataBits, stopBits, parity);
-    // Hmm.. TODO FIXME: if (uart_param_config(_uart_num, &conf) != ESP_OK) { ... } -> should assert?!
 }
 
 // Use the configured baud rate
@@ -61,6 +53,7 @@ void Uart::begin(unsigned long baudrate, UartData dataBits, UartStop stopBits, U
     conf.flow_ctrl           = UART_HW_FLOWCTRL_DISABLE;
     conf.rx_flow_ctrl_thresh = 0;
     if (uart_param_config(_uart_num, &conf) != ESP_OK) {
+        // TODO FIXME - should this throw an error?
         return;
     };
     uart_driver_install(_uart_num, 256, 0, 0, NULL, 0);
@@ -192,9 +185,8 @@ bool Uart::flushTxTimed(TickType_t ticks) {
 Uart Uart0(0, true);  // Primary serial channel with LF to CRLF conversion
 
 void uartInit() {
-    Uart0.setPins(GPIO_NUM_1, GPIO_NUM_3);  // Tx 1, Rx 3 - standard hardware pins
+    // Uart0.setPins(GPIO_NUM_1, GPIO_NUM_3);  // Tx 1, Rx 3 - standard hardware pins
     Uart0.begin(BAUD_RATE, UartData::Bits8, UartStop::Bits1, UartParity::None);
-    Uart0.println();  // create some white space after ESP32 boot info
 }
 
 void Uart::config_message(const char* prefix, const char* usage) {
@@ -202,6 +194,7 @@ void Uart::config_message(const char* prefix, const char* usage) {
 }
 
 void Uart::flushRx() {
+    _pushback = -1;
     uart_flush_input(_uart_num);
     Channel::flushRx();
 }
