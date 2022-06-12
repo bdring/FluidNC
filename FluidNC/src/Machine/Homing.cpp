@@ -181,22 +181,23 @@ namespace Machine {
             }
             if (rtReset) {
                 // Homing failure: Reset issued during cycle.
-                throw ExecAlarm::HomingFailReset;
+
+                throw Event({ Event::ALARM, ExecAlarm::HomingFailReset });
             }
             if (rtSafetyDoor) {
                 // Homing failure: Safety door was opened.
-                throw ExecAlarm::HomingFailDoor;
+                throw Event({ Event::ALARM, ExecAlarm::HomingFailDoor });
             }
             if (rtCycleStop) {
                 rtCycleStop = false;
                 if (_approach) {
                     // Homing failure: Limit switch not found during approach.
-                    throw ExecAlarm::HomingFailApproach;
+                    throw Event({ Event::ALARM, ExecAlarm::HomingFailApproach });
                 }
                 // Pulloff
                 if ((Machine::Axes::posLimitMask | Machine::Axes::negLimitMask) & remainingMotors) {
                     // Homing failure: Limit switch still engaged after pull-off motion
-                    throw ExecAlarm::HomingFailPulloff;
+                    throw Event({ Event::ALARM, ExecAlarm::HomingFailPulloff });
                 }
                 // Normal termination for pulloff cycle
                 remainingMotors = 0;
@@ -297,8 +298,8 @@ namespace Machine {
                 // At least one axis has multiple motors with different pulloffs
                 run(motors, HomingPhase::Pulloff2);
             }
-        } catch (ExecAlarm alarm) {
-            rtAlarm = alarm;
+        } catch (Event e) {
+            send(e);
             config->_axes->set_homing_mode(axisMask, false);  // tell motors homing is done...failed
             log_error("Homing fail");
             mc_reset();  // Stop motors, if they are running.

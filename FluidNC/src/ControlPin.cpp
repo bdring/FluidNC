@@ -25,11 +25,11 @@ void ControlPin::init() {
     _pin.setAttr(attr);
     _pin.attachInterrupt(ISRHandler, CHANGE, this);
     _rtVariable = false;
-    _value                            = _pin.read();
+    _value      = _pin.read();
     // Control pins must start in inactive state
     if (_value) {
         log_error(_legend << " pin is active at startup");
-        rtAlarm = ExecAlarm::ControlPin;
+        send({ Event::ALARM, ExecAlarm::ControlPin });
     }
 }
 
