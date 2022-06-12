@@ -19,7 +19,7 @@ axes:
     max_rate_mm_per_min: 20000.000
     acceleration_mm_per_sec2: 2000.000
     max_travel_mm: 300.000
-    soft_limits: false
+    soft_limits: true
     homing:
       cycle: 1
       positive_direction: false
@@ -48,7 +48,7 @@ axes:
     max_rate_mm_per_min: 20000.000
     acceleration_mm_per_sec2: 2000.000
     max_travel_mm: 200.000
-    soft_limits: false
+    soft_limits: true
     homing:
       cycle: 1
       positive_direction: false
@@ -96,7 +96,7 @@ axes:
       stepstick:
         ms3_pin: I2SO.11
         step_pin: I2SO.10
-        direction_pin: I2SO.9
+        direction_pin: I2SO.9:low
         disable_pin: I2SO.8
     motor1:
       null_motor:
