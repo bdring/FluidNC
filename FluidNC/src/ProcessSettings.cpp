@@ -596,6 +596,17 @@ static Error motors_init(const char* value, WebUI::AuthenticationLevel auth_leve
     return Error::Ok;
 }
 
+static Error macros_run(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+    if (value) {
+        log_info("Running macro " << *value);
+        size_t macro_num = (*value) - '0';
+        config->_macros->run_macro(macro_num);
+        return Error::Ok;
+    }
+    log_error("$Macros/Run requires a macro number argument");
+    return Error::InvalidStatement;
+}
+
 static Error xmodem_receive(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
     if (!value || !*value) {
         value = "uploaded";
@@ -604,12 +615,15 @@ static Error xmodem_receive(const char* value, WebUI::AuthenticationLevel auth_l
     try {
         outfile = new FileStream(value, "w", "/localfs");
     } catch (...) {
-        vTaskDelay(1000);   // Delay for FluidTerm to handle command echoing
-        Uart0.write(0x04);  // Cancel xmodem transfer with EOT
+        delay_ms(1000);   // Delay for FluidTerm to handle command echoing
+        out.write(0x04);  // Cancel xmodem transfer with EOT
         log_info("Cannot open " << value);
         return Error::UploadFailed;
     }
-    int size = xmodemReceive(&Uart0, outfile);
+    bool oldCr = out.setCr(false);
+    delay_ms(1000);
+    int size = xmodemReceive(&out, outfile);
+    out.setCr(oldCr);
     if (size >= 0) {
         log_info("Received " << size << " bytes to file " << outfile->path());
     } else {
@@ -623,7 +637,7 @@ static Error xmodem_send(const char* value, WebUI::AuthenticationLevel auth_leve
     if (!value || !*value) {
         value = "config.yaml";
     }
-    Channel* infile;
+    FileStream* infile;
     try {
         infile = new FileStream(value, "r");
     } catch (...) {
@@ -631,7 +645,7 @@ static Error xmodem_send(const char* value, WebUI::AuthenticationLevel auth_leve
         return Error::DownloadFailed;
     }
     log_info("Sending " << value << " via XModem");
-    int size = xmodemTransmit(&Uart0, infile);
+    int size = xmodemTransmit(&out, infile);
     delete infile;
     if (size >= 0) {
         log_info("Sent " << size << " bytes");
@@ -709,6 +723,8 @@ void make_user_commands() {
     new UserCommand("H", "Home", home_all, notIdleOrAlarm);
     new UserCommand("MD", "Motor/Disable", motor_disable, notIdleOrAlarm);
     new UserCommand("MI", "Motors/Init", motors_init, notIdleOrAlarm);
+
+    new UserCommand("RM", "Macros/Run", macros_run, notIdleOrAlarm);
 
     new UserCommand("HX", "Home/X", home_x, notIdleOrAlarm);
     new UserCommand("HY", "Home/Y", home_y, notIdleOrAlarm);

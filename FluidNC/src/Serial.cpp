@@ -184,6 +184,18 @@ void execute_realtime_command(Cmd command, Channel& channel) {
         case Cmd::CoolantMistOvrToggle:
             rtAccessoryOverride.bit.coolantMistOvrToggle = 1;
             break;
+        case Cmd::Macro0:
+            rtButtonMacro0 = true;
+            break;
+        case Cmd::Macro1:
+            rtButtonMacro1 = true;
+            break;
+        case Cmd::Macro2:
+            rtButtonMacro2 = true;
+            break;
+        case Cmd::Macro3:
+            rtButtonMacro3 = true;
+            break;
     }
 }
 
@@ -275,8 +287,8 @@ Channel* pollChannels(char* line) {
 
     Channel* retval = allChannels.pollLine(line);
 
-    WebUI::COMMANDS::handle();      // Handles feeding watchdog and ESP restart
-    WebUI::wifi_services.handle();  // OTA, web_server, telnet_server polling
+    WebUI::COMMANDS::handle();      // Handles ESP restart
+    WebUI::wifi_services.handle();  // OTA, webServer, telnetServer polling
 
     return retval;
 }

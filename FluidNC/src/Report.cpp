@@ -27,9 +27,8 @@
 #include "Planner.h"                     // plan_get_block_buffer_available
 #include "Stepper.h"                     // step_count
 #include "Platform.h"                    // WEAK_LINK
-#include "WebUI/NotificationsService.h"  // WebUI::notificationsservice
+#include "WebUI/NotificationsService.h"  // WebUI::notificationsService
 #include "WebUI/WifiConfig.h"            // wifi_config
-#include "WebUI/TelnetServer.h"          // WebUI::telnet_server
 #include "WebUI/BTConfig.h"              // bt_config
 #include "WebUI/WebSettings.h"
 #include "InputFile.h"
@@ -47,7 +46,7 @@ EspClass esp;
 portMUX_TYPE mmux = portMUX_INITIALIZER_UNLOCKED;
 
 void _notify(const char* title, const char* msg) {
-    WebUI::notificationsservice.sendMSG(title, msg);
+    WebUI::notificationsService.sendMSG(title, msg);
 }
 
 void _notifyf(const char* title, const char* format, ...) {

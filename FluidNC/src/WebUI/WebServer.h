@@ -104,7 +104,7 @@ namespace WebUI {
         static uint64_t fsAvail(const char* fs);
     };
 
-    extern Web_Server web_server;
+    extern Web_Server webServer;
 }
 
 #endif
