@@ -283,7 +283,7 @@ static void protocol_do_alarm() {
             return;
         // System alarm. Everything has shutdown by something that has gone severely wrong. Report
         case ExecAlarm::HardLimit:
-        case ExecAlarm::SoftLimit:
+
             sys.state = State::Alarm;  // Set system alarm state
             alarm_msg(rtAlarm);
             report_feedback_message(Message::CriticalEvent);
@@ -302,6 +302,8 @@ static void protocol_do_alarm() {
                 pollChannels();  // Handle ^X realtime RESET command
             } while (!rtReset);
             break;
+            
+        case ExecAlarm::SoftLimit:
         default:
             sys.state = State::Alarm;  // Set system alarm state
             alarm_msg(rtAlarm);
