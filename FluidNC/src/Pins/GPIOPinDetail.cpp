@@ -179,6 +179,11 @@ namespace Pins {
         }
 
         __pinMode(_index, pinModeValue);
+
+        // This gives a little delay for :pu :pd work with R/C filters
+        if (value.has(PinAttributes::Input)) {
+            delay(5);
+        }
     }
 
     void GPIOPinDetail::attachInterrupt(void (*callback)(void*), void* arg, int mode) {
