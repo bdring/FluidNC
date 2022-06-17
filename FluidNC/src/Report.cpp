@@ -563,7 +563,7 @@ static void pinString(Print& channel) {
         }
     }
 
-    String ctrl_pin_report = config->_control->report();
+    String ctrl_pin_report = config->_control->report_status();
     if (ctrl_pin_report.length()) {
         if (prefixNeeded) {
             prefixNeeded = false;

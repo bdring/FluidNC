@@ -262,12 +262,12 @@ static Error toggle_check_mode(const char* value, WebUI::AuthenticationLevel aut
 }
 static Error isStuck() {
     // Block if a control pin is stuck on
-    if (config->_control->system_check_safety_door_ajar()) {
+    if (config->_control->safety_door_ajar()) {
         rtAlarm = ExecAlarm::ControlPin;
         return Error::CheckDoor;
     }
     if (config->_control->stuck()) {
-        log_info("Control pins:" << config->_control->report());
+        log_info("Control pins:" << config->_control->report_status());
         rtAlarm = ExecAlarm::ControlPin;
         return Error::CheckControlPins;
     }
@@ -313,7 +313,7 @@ static Error home(int cycle) {
         return Error::SettingDisabled;
     }
 
-    if (config->_control->system_check_safety_door_ajar()) {
+    if (config->_control->safety_door_ajar()) {
         return Error::CheckDoor;  // Block if safety door is ajar.
     }
 
