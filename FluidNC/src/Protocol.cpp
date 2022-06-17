@@ -133,6 +133,10 @@ void protocol_main_loop() {
             }
         }
 
+        if (config->_control->startup_check()) {
+            rtAlarm = ExecAlarm::ControlPin;
+        }
+
         if (sys.state == State::Alarm || sys.state == State::Sleep) {
             report_feedback_message(Message::AlarmLock);
             sys.state = State::Alarm;  // Ensure alarm state is set.

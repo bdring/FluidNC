@@ -26,5 +26,7 @@ public:
 
     String report();
 
+    bool startup_check();
+
     ~ControlPin();
 };

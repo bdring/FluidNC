@@ -42,6 +42,11 @@ bool Control::stuck() {
            _macro3.get();
 }
 
+bool Control::startup_check() {
+    return _safetyDoor.startup_check() || _reset.startup_check() || _feedHold.startup_check() || _cycleStart.startup_check() ||
+           _macro0.startup_check() || _macro1.startup_check() || _macro2.startup_check() || _macro3.startup_check();
+}
+
 // Returns if safety door is ajar(T) or closed(F), based on pin state.
 bool Control::system_check_safety_door_ajar() {
     // If a safety door pin is not defined, this will return false
