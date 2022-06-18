@@ -84,9 +84,9 @@ void limits_soft_check(float* cartesian) {
 
     for (int axis = 0; axis < n_axis; axis++) {
         //Add little margin to avoid false soft limit triggering
-        if (axes->_axis[axis]->_softLimits && (cartesian[axis] < limitsMinPosition(axis)+1 || cartesian[axis] > limitsMaxPosition(axis) - 1 )) {
+        if (axes->_axis[axis]->_softLimits && (( cartesian[axis] < limitsMinPosition(axis)-1) || (cartesian[axis] > limitsMaxPosition(axis) + 1 ))) {
             String axis_letter = String(Machine::Axes::_names[axis]);
-            log_info("Soft limit on " << axis_letter << " target:" << cartesian[axis]);
+            log_info("Soft limit on " << axis_letter << " target:" << cartesian[axis] << " Limits:" << limitsMinPosition(axis)-1 << ".." << limitsMaxPosition(axis)+1 );
             limit_error = true;
         }
     }
