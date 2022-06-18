@@ -18,7 +18,7 @@ axes:
     steps_per_mm: 78.74
     max_rate_mm_per_min: 20000.000
     acceleration_mm_per_sec2: 2000.000
-    max_travel_mm: 300.000
+    max_travel_mm: 310.000
     soft_limits: true
     homing:
       cycle: 1
@@ -47,7 +47,7 @@ axes:
     steps_per_mm: 78.74
     max_rate_mm_per_min: 20000.000
     acceleration_mm_per_sec2: 2000.000
-    max_travel_mm: 200.000
+    max_travel_mm: 210.000
     soft_limits: true
     homing:
       cycle: 1
