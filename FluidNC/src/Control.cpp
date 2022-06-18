@@ -5,47 +5,64 @@
 
 #include "Protocol.h"  // rtSafetyDoor, etc
 
-Control::Control() :
-    _safetyDoor(rtSafetyDoor, "Door", 'D'), _reset(rtReset, "Reset", 'R'), _feedHold(rtFeedHold, "FeedHold", 'H'),
-    _cycleStart(rtCycleStart, "CycleStart", 'S'), _macro0(rtButtonMacro0, "Macro 0", '0'), _macro1(rtButtonMacro1, "Macro 1", '1'),
-    _macro2(rtButtonMacro2, "Macro 2", '2'), _macro3(rtButtonMacro3, "Macro 3", '3') {}
+Control::Control() {
+    // The SafetyDoor pin must be defined first because it is checked explicity in safety_door_ajar()
+    _pins.push_back(new ControlPin(rtSafetyDoor, "safety_door_pin", 'D'));
+    _pins.push_back(new ControlPin(rtReset, "reset_pin", 'R'));
+    _pins.push_back(new ControlPin(rtFeedHold, "feed_hold_pin", 'H'));
+    _pins.push_back(new ControlPin(rtCycleStart, "cycle_start_pin", 'S'));
+    _pins.push_back(new ControlPin(rtButtonMacro0, "macro0_pin", '0'));
+    _pins.push_back(new ControlPin(rtButtonMacro1, "macro1_pin", '1'));
+    _pins.push_back(new ControlPin(rtButtonMacro2, "macro2_pin", '2'));
+    _pins.push_back(new ControlPin(rtButtonMacro3, "macro3_pin", '3'));
+}
 
 void Control::init() {
-    _safetyDoor.init();
-    _reset.init();
-    _feedHold.init();
-    _cycleStart.init();
-    _macro0.init();
-    _macro1.init();
-    _macro2.init();
-    _macro3.init();
+    for (auto pin : _pins) {
+        pin->init();
+    }
 }
 
 void Control::group(Configuration::HandlerBase& handler) {
-    handler.item("safety_door_pin", _safetyDoor._pin);
-    handler.item("reset_pin", _reset._pin);
-    handler.item("feed_hold_pin", _feedHold._pin);
-    handler.item("cycle_start_pin", _cycleStart._pin);
-    handler.item("macro0_pin", _macro0._pin);
-    handler.item("macro1_pin", _macro1._pin);
-    handler.item("macro2_pin", _macro2._pin);
-    handler.item("macro3_pin", _macro3._pin);
+    for (auto pin : _pins) {
+        handler.item(pin->_legend, pin->_pin);
+    }
 }
 
-String Control::report() {
-    return _safetyDoor.report() + _reset.report() + _feedHold.report() + _cycleStart.report() + _macro0.report() + _macro1.report() +
-           _macro2.report() + _macro3.report();
+String Control::report_status() {
+    String ret = "";
+    for (auto pin : _pins) {
+        if (pin->get()) {
+            ret += pin->_letter;
+        }
+    }
+    return ret;
 }
 
 bool Control::stuck() {
-    return _safetyDoor.get() || _reset.get() || _feedHold.get() || _cycleStart.get() || _macro0.get() || _macro1.get() || _macro2.get() ||
-           _macro3.get();
+    for (auto pin : _pins) {
+        if (pin->get()) {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool Control::startup_check() {
+    bool ret = false;
+    for (auto pin : _pins) {
+        if (pin->get()) {
+            log_error(pin->_legend << " is active at startup");
+            ret = true;
+        }
+    }
+    return ret;
 }
 
 // Returns if safety door is ajar(T) or closed(F), based on pin state.
-bool Control::system_check_safety_door_ajar() {
+bool Control::safety_door_ajar() {
     // If a safety door pin is not defined, this will return false
     // because that is the default for the value field, which will
     // never be changed for an undefined pin.
-    return _safetyDoor.get();
+    return _pins[0]->get();
 }
