@@ -187,8 +187,8 @@ namespace MotorDrivers {
 
             auto axis = config->_axes->_axis[_axis_index];
 
-            uint32_t pos_min_steps = lround(mpos_to_steps(limitsMinPosition(_axis_index), _axis_index));
-            uint32_t pos_max_steps = lround(mpos_to_steps(limitsMaxPosition(_axis_index), _axis_index));
+            uint32_t pos_min_steps = mpos_to_steps(limitsMinPosition(_axis_index), _axis_index);
+            uint32_t pos_max_steps = mpos_to_steps(limitsMaxPosition(_axis_index), _axis_index);
 
             uint32_t temp = myMap(dxl_position, _countMin, _countMax, pos_min_steps, pos_max_steps);
 
