@@ -6,6 +6,7 @@
 
 #include "../Configuration/Configurable.h"
 #include "../WebUI/InputBuffer.h"  // WebUI::inputBuffer
+#include "../Uart.h"
 
 namespace Machine {
     class Macros : public Configuration::Configurable {
@@ -20,13 +21,13 @@ namespace Machine {
     public:
         Macros() = default;
 
-        void run_macro(size_t index) {
+        bool run_macro(size_t index) {
             if (index >= n_macros) {
-                return;
+                return false;
             }
             String macro = _macro[index];
             if (macro == "") {
-                return;
+                return true;
             }
 
             // & is a proxy for newlines in macros, because you cannot
@@ -35,6 +36,7 @@ namespace Machine {
             macro += "\n";
 
             WebUI::inputBuffer.push(macro.c_str());
+            return true;
         }
 
         String startup_line(size_t index) {

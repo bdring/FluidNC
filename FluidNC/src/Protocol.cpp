@@ -133,6 +133,9 @@ void protocol_main_loop() {
                 report_feedback_message(Message::CheckLimits);
             }
         }
+        if (config->_control->startup_check()) {
+            rtAlarm = ExecAlarm::ControlPin;
+        }
 
         if (sys.state == State::Alarm || sys.state == State::Sleep) {
             report_feedback_message(Message::AlarmLock);
@@ -140,7 +143,7 @@ void protocol_main_loop() {
         } else {
             // Check if the safety door is open.
             sys.state = State::Idle;
-            if (config->_control->system_check_safety_door_ajar()) {
+            if (config->_control->safety_door_ajar()) {
                 rtSafetyDoor = true;
                 protocol_execute_realtime();  // Enter safety door mode. Should return as IDLE state.
             }
@@ -931,7 +934,7 @@ static void protocol_exec_rt_suspend() {
                     }
                     // Allows resuming from parking/safety door. Actively checks if safety door is closed and ready to resume.
                     if (sys.state == State::SafetyDoor) {
-                        if (!config->_control->system_check_safety_door_ajar()) {
+                        if (!config->_control->safety_door_ajar()) {
                             sys.suspend.bit.safetyDoorAjar = false;  // Reset door ajar flag to denote ready to resume.
                         }
                     }

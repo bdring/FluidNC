@@ -12,7 +12,7 @@ namespace WebUI {
         NotificationsService() = default;
         bool sendMSG(const char* title, const char* message) { return false; };
     };
-    extern NotificationsService notificationsservice;
+    extern NotificationsService notificationsService;
 }
 #else
 #    include <WString.h>
@@ -49,7 +49,7 @@ namespace WebUI {
         bool getEmailFromSettings();
     };
 
-    extern NotificationsService notificationsservice;
+    extern NotificationsService notificationsService;
 }
 
 #endif

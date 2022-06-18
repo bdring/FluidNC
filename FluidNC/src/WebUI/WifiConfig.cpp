@@ -14,8 +14,8 @@ WebUI::WiFiConfig wifi_config;
 #    include "WifiServices.h"  // wifi_services.start() etc.
 #    include "WebSettings.h"   // split_params(), get_params()
 
-#    include "WebServer.h"             // web_server.port()
-#    include "TelnetServer.h"          // telnet_server
+#    include "WebServer.h"             // webServer.port()
+#    include "TelnetServer.h"          // telnetServer
 #    include "NotificationsService.h"  // notificationsservice
 
 #    include <WiFi.h>
@@ -109,8 +109,8 @@ namespace WebUI {
             out << "Available Size for update: " << formatBytes(flashsize) << '\n';
             out << "Available Size for LocalFS: " << formatBytes(LocalFS.totalBytes()) << '\n';
 
-            out << "Web port: " << String(web_server.port()) << '\n';
-            out << "Data port: " << String(telnet_server.port()) << '\n';
+            out << "Web port: " << String(webServer.port()) << '\n';
+            out << "Data port: " << String(telnetServer.port()) << '\n';
             out << "Hostname: " << wifi_config.Hostname() << '\n';
         }
 
@@ -220,9 +220,9 @@ namespace WebUI {
                 break;
         }
 
-        out << "Notifications: " << (notificationsservice.started() ? "Enabled" : "Disabled");
-        if (notificationsservice.started()) {
-            out << "(" << notificationsservice.getTypeString() << ")";
+        out << "Notifications: " << (notificationsService.started() ? "Enabled" : "Disabled");
+        if (notificationsService.started()) {
+            out << "(" << notificationsService.getTypeString() << ")";
         }
         out << '\n';
     }
@@ -297,7 +297,7 @@ namespace WebUI {
 
     String WiFiConfig::webInfo() {
         String s = " # webcommunication: Sync: ";
-        s += String(web_server.port() + 1);
+        s += String(webServer.port() + 1);
         s += ":";
         switch (WiFi.getMode()) {
             case WIFI_MODE_AP:
@@ -342,7 +342,7 @@ namespace WebUI {
             if (WiFi.getMode() == WIFI_MODE_APSTA) {
                 result += "]\n[MSG:";
             }
-            result += "Mode=AP:SSDI=";
+            result += "Mode=AP:SSID=";
             wifi_config_t conf;
             esp_wifi_get_config(WIFI_IF_AP, &conf);
             result += (const char*)conf.ap.ssid;
@@ -535,7 +535,7 @@ namespace WebUI {
                     break;
             }
             log_info(msg);
-            COMMANDS::wait(2000);
+            delay_ms(2000);  // Give it some time to connect
         }
         return false;
     }
@@ -748,11 +748,7 @@ namespace WebUI {
     /**
      * Handle not critical actions that must be done in sync environment
      */
-    void WiFiConfig::handle() {
-        //Services
-        COMMANDS::wait(0);
-        wifi_services.handle();
-    }
+    void WiFiConfig::handle() { wifi_services.handle(); }
 
     Error WiFiConfig::listAPs(char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP410
         JSONencoder j(false, out);

@@ -33,18 +33,21 @@
  */
 
 #include "xmodem.h"
-#include <freertos/FreeRTOS.h>
+// #include <freertos/FreeRTOS.h>
 
-static Uart*  serialPort;
-static Print* file;
+static Channel* serialPort;
+static Print*   file;
 
 static int _inbyte(uint16_t timeout) {
     uint8_t data;
-    auto    res = serialPort->readBytes(&data, 1, timeout);
+    auto    res = serialPort->timedReadBytes(&data, 1, timeout);
     return res != 1 ? -1 : data;
 }
 static void _outbyte(int c) {
     serialPort->write((uint8_t)c);
+}
+static void _outbytes(uint8_t* buf, size_t len) {
+    serialPort->write(buf, len);
 }
 
 /* CRC16 implementation acording to CCITT standards */
@@ -148,9 +151,7 @@ static void write_packet(uint8_t* buf, size_t packet_len, size_t& total_len) {
     memcpy(held_packet, buf, packet_len);
     held = true;
 }
-int xmodemReceive(Uart* serial, Channel* out) {
-    bool oldCr = serial->setCr(false);
-    vTaskDelay(1000);
+int xmodemReceive(Channel* serial, FileStream* out) {
     serialPort = serial;
     file       = out;
 
@@ -182,13 +183,11 @@ int xmodemReceive(Uart* serial, Channel* out) {
                         flush_packet(bufsz, len);
                         _outbyte(ACK);
                         flushinput();
-                        serial->setCr(oldCr);
                         return len; /* normal end */
                     case CAN:
                         if ((c = _inbyte(DLY_1S)) == CAN) {
                             flushinput();
                             _outbyte(ACK);
-                            serial->setCr(oldCr);
                             return -1; /* canceled by remote */
                         }
                         break;
@@ -205,7 +204,6 @@ int xmodemReceive(Uart* serial, Channel* out) {
         _outbyte(CAN);
         _outbyte(CAN);
         _outbyte(CAN);
-        serial->setCr(oldCr);
         return -2; /* sync error */
 
     start_recv:
@@ -231,7 +229,6 @@ int xmodemReceive(Uart* serial, Channel* out) {
                 _outbyte(CAN);
                 _outbyte(CAN);
                 _outbyte(CAN);
-                serial->setCr(oldCr);
                 return -3; /* too many retry error */
             }
             _outbyte(ACK);
@@ -241,10 +238,9 @@ int xmodemReceive(Uart* serial, Channel* out) {
         flushinput();
         _outbyte(NAK);
     }
-    serial->setCr(oldCr);
 }
 
-int xmodemTransmit(Uart* serial, Channel* in) {
+int xmodemTransmit(Channel* serial, FileStream* infile) {
     serialPort = serial;
 
     uint8_t xbuff[1030]; /* 1024 for XModem 1k + 3 head chars + 2 crc + nul */
@@ -294,7 +290,7 @@ int xmodemTransmit(Uart* serial, Channel* in) {
             xbuff[1] = packetno;
             xbuff[2] = ~packetno;
 
-            auto nbytes = in->readBytes(&xbuff[3], bufsz);
+            auto nbytes = infile->read(&xbuff[3], bufsz);
             if (nbytes > 0) {
                 while (nbytes < bufsz) {
                     xbuff[3 + nbytes] = CTRLZ;
@@ -312,9 +308,7 @@ int xmodemTransmit(Uart* serial, Channel* in) {
                     xbuff[bufsz + 3] = ccks;
                 }
                 for (retry = 0; retry < MAXRETRANS; ++retry) {
-                    for (i = 0; i < bufsz + 4 + (crc ? 1 : 0); ++i) {
-                        _outbyte(xbuff[i]);
-                    }
+                    _outbytes(xbuff, bufsz + 4 + (crc ? 1 : 0));
                     if ((c = _inbyte(DLY_1S)) >= 0) {
                         switch (c) {
                             case ACK:

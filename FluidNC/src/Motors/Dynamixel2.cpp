@@ -225,7 +225,7 @@ namespace MotorDrivers {
 
     // wait for and get the servo response
     uint16_t Dynamixel2::dxl_get_response(uint16_t length) {
-        length = _uart->readBytes(_dxl_rx_message, length, DXL_RESPONSE_WAIT_TICKS);
+        length = _uart->timedReadBytes((char*)_dxl_rx_message, length, DXL_RESPONSE_WAIT_TICKS);
         return length;
     }
 
