@@ -7,11 +7,25 @@
 #    include <WebServer.h>
 
 namespace WebUI {
-    WebClient::WebClient(WebServer* webserver, bool silent) :
-        Channel("webclient"), _header_sent(false), _silent(silent), _webserver(webserver), _buflen(0) {}
+    WebClient webClient;
+
+    WebClient::WebClient() : Channel("webclient") {}
+
+    void WebClient::attachWS(WebServer* webserver, bool silent) {
+        _header_sent = false;
+        _silent      = silent;
+        _webserver   = webserver;
+        _buflen      = 0;
+    }
+
+    void WebClient::detachWS() {
+        flush();
+        _webserver->sendContent("");  //close connection
+        _webserver = nullptr;
+    }
 
     size_t WebClient::write(const uint8_t* buffer, size_t length) {
-        if (_silent) {
+        if (!_webserver || _silent) {
             return length;
         }
         if (!_header_sent) {
@@ -39,12 +53,11 @@ namespace WebUI {
     size_t WebClient::write(uint8_t data) { return write(&data, 1); }
 
     void WebClient::flush() {
-        if (_buflen) {
+        if (_webserver && _buflen) {
             _webserver->sendContent(_buffer, _buflen);
             _buflen = 0;
         }
     }
-    void WebClient::flushRx() { Channel::flushRx(); }
 
     WebClient::~WebClient() {
         flush();

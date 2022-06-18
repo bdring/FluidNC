@@ -18,6 +18,8 @@
 
 #include "Error.h"  // Error
 #include <Stream.h>
+#include <queue>
+#include <freertos/FreeRTOS.h>  // TickType_T
 
 class Channel : public Stream {
 public:
@@ -30,6 +32,8 @@ protected:
     bool        _addCR     = false;
     char        _lastWasCR = false;
 
+    std::queue<uint8_t> _queue;
+
 public:
     Channel(const char* name, bool addCR = false) : _name(name), _linelen(0), _addCR(addCR) {}
     virtual ~Channel() = default;
@@ -38,6 +42,41 @@ public:
     virtual Channel* pollLine(char* line);
     virtual void     ack(Error status);
     const char*      name() { return _name; }
-    virtual int      rx_buffer_available() = 0;
-    virtual void     flushRx();
+
+    // rx_buffer_available() is the number of bytes that can be sent without overflowing
+    // a reception buffer, even if the system is busy.  Channels that can handle external
+    // input via an interrupt or other background mechanism should override it to return
+    // the remaining space that mechanism has available.
+    virtual int rx_buffer_available() { return 0; };
+
+    // flushRx() discards any characters that have already been received.  It is used
+    // after a reset, so that anything already sent will not be processed.
+    virtual void flushRx();
+
+    // realtimeOkay() returns true if the channel can currently interpret the character as
+    // a Grbl realtime character.  Some situations where it might return false are when
+    // the channel is being used for file upload or if the channel is doing line editing
+    // and is in the middle of an escape sequence that could include what would otherwise
+    // be a realtime character.
+    virtual bool realtimeOkay(char c) { return true; }
+
+    // lineComplete() accumulates the character into the line, returning true if a line
+    // end is seen.
+    virtual bool lineComplete(char* line, char c);
+
+    virtual size_t timedReadBytes(char* buffer, size_t length, TickType_t timeout) {
+        setTimeout(timeout);
+        return readBytes(buffer, length);
+    }
+    size_t timedReadBytes(uint8_t* buffer, size_t length, TickType_t timeout) { return timedReadBytes((char*)buffer, length, timeout); }
+
+    bool setCr(bool on) {
+        bool retval = _addCR;
+        _addCR      = on;
+        return retval;
+    }
+
+    int peek() override { return -1; }
+    int read() override { return -1; }
+    int available() override { return 0; }
 };

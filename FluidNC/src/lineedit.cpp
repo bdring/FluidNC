@@ -458,6 +458,12 @@ bool Lineedit::realtime(int c) {
 
 // Returns true when the line is complete
 bool Lineedit::step(int c) {
+    // Regardless of editing mode, ^L turns off editing/echoing
+    if (c == CTRL('l')) {
+        editing = false;
+        return false;
+    }
+
     if (!editing) {
         if (c < ' ') {
             if (c == '\r' || c == '\n') {
