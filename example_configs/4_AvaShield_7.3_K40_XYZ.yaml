@@ -23,7 +23,7 @@ axes:
     homing:
       cycle: 1
       positive_direction: false
-      mpos_mm: 5.000
+      mpos_mm: 4.000
       feed_mm_per_min: 200.000
       seek_mm_per_min: 2500.000
       settle_ms: 250.000
@@ -52,7 +52,7 @@ axes:
     homing:
       cycle: 1
       positive_direction: false
-      mpos_mm: 5.000
+      mpos_mm: 4.000
       feed_mm_per_min: 200.000
       seek_mm_per_min: 2500.000
       settle_ms: 250.000
@@ -80,7 +80,7 @@ axes:
     homing:
       cycle: 2
       positive_direction: true
-      mpos_mm: 5.000
+      mpos_mm: 9.500
       feed_mm_per_min: 200.000
       seek_mm_per_min: 2500.000
       settle_ms: 250.000
@@ -92,7 +92,7 @@ axes:
       limit_pos_pin: NO_PIN
       limit_all_pin: NO_PIN
       hard_limits: true
-      pulloff_mm: 5.000
+      pulloff_mm: 9.500
       stepstick:
         ms3_pin: I2SO.11
         step_pin: I2SO.10
