@@ -8,9 +8,6 @@
 #include <vector>
 
 class Control : public Configuration::Configurable {
-    // private:
-    // TODO: Should we not just put this in an array so we can enumerate it easily?
-
 public:
     Control();
 
