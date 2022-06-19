@@ -8,8 +8,16 @@
 void IRAM_ATTR ControlPin::handleISR() {
     bool pinState = _pin.read();
     _value        = pinState;
-    if (pinState) {
-        _rtVariable = pinState;
+
+    // Rate limit control pin events so switch bounce does not cause multiple events
+    if (pinState && (_debounceEnd == 0 || ((getCpuTicks() - _debounceEnd) >= 0))) {
+        _debounceEnd = usToEndTicks(debounceUs);
+        // We use 0 to mean that the debounce lockout is inactive,
+        // so if the end time happens to be 0, bump it up by one tick.
+        if (_debounceEnd == 0) {
+            _debounceEnd = 1;
+        }
+        _rtVariable = true;
     }
 }
 
@@ -25,16 +33,7 @@ void ControlPin::init() {
     _pin.setAttr(attr);
     _pin.attachInterrupt(ISRHandler, CHANGE, this);
     _rtVariable = false;
-    _value                            = _pin.read();
-    // Control pins must start in inactive state
-    if (_value) {
-        log_error(_legend << " pin is active at startup");
-        rtAlarm = ExecAlarm::ControlPin;
-    }
-}
-
-String ControlPin::report() {
-    return get() ? String(_letter) : String("");
+    _value      = _pin.read();
 }
 
 ControlPin::~ControlPin() {

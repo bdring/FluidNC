@@ -122,6 +122,32 @@ namespace WebUI {
         return str;
     }
 
+    int BTChannel::available() { return SerialBT.available(); }
+    int BTChannel::read() { return SerialBT.read(); }
+    int BTChannel::peek() { return SerialBT.peek(); }
+
+    bool BTChannel::realtimeOkay(char c) { return _lineedit->realtime(c); }
+
+    bool BTChannel::lineComplete(char* line, char c) {
+        if (_lineedit->step(c)) {
+            _linelen        = _lineedit->finish();
+            _line[_linelen] = '\0';
+            strcpy(line, _line);
+            _linelen = 0;
+            return true;
+        }
+        return false;
+    }
+
+    Channel* BTChannel::pollLine(char* line) {
+        // UART0 is the only Uart instance that can be a channel input device
+        // Other UART users like RS485 use it as a dumb character device
+        if (_lineedit == nullptr) {
+            return nullptr;
+        }
+        return Channel::pollLine(line);
+    }
+
     /**
      * begin WiFi setup
      */
@@ -173,10 +199,7 @@ namespace WebUI {
     /**
      * Handle not critical actions that must be done in sync environement
      */
-    void BTConfig::handle() {
-        //If needed
-        COMMANDS::wait(0);
-    }
+    void BTConfig::handle() {}
 
     BTConfig::~BTConfig() { end(); }
 }

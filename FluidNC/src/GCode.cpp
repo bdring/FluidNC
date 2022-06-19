@@ -213,8 +213,8 @@ Error gc_execute_line(char* line, Channel& channel) {
         // a good enough compromise and catch most all non-integer errors. To make it compliant,
         // we would simply need to change the mantissa to int16, but this add compiled flash space.
         // Maybe update this later.
-        int_value = int8_t(trunc(value));
-        mantissa  = int16_t(round(100 * (value - int_value)));  // Compute mantissa for Gxx.x commands.
+        int_value = int8_t(truncf(value));
+        mantissa  = lroundf(100 * (value - int_value));  // Compute mantissa for Gxx.x commands.
         // NOTE: Rounding must be used to catch small floating point errors.
         // Check if the g-code word is supported or errors due to modal group violations or has
         // been repeated in the g-code block. If ok, update the command or record its value.
@@ -646,7 +646,7 @@ Error gc_execute_line(char* line, Channel& channel) {
                         break;
                     case 'N':
                         axis_word_bit     = GCodeWord::N;
-                        gc_block.values.n = int32_t(trunc(value));
+                        gc_block.values.n = int32_t(truncf(value));
                         break;
                     case 'P':
                         axis_word_bit     = GCodeWord::P;
@@ -946,7 +946,7 @@ Error gc_execute_line(char* line, Channel& channel) {
                 }
             }
             // Select the coordinate system based on the P word
-            pValue = int8_t(trunc(gc_block.values.p));  // Convert p value to integer
+            pValue = int8_t(truncf(gc_block.values.p));  // Convert p value to integer
             if (pValue > 0) {
                 // P1 means G54, P2 means G55, etc.
                 coord_select = static_cast<CoordIndex>(pValue - 1 + int(CoordIndex::G54));

@@ -18,12 +18,12 @@ axes:
     steps_per_mm: 78.74
     max_rate_mm_per_min: 20000.000
     acceleration_mm_per_sec2: 2000.000
-    max_travel_mm: 300.000
+    max_travel_mm: 310.000
     soft_limits: true
     homing:
       cycle: 1
       positive_direction: false
-      mpos_mm: 5.000
+      mpos_mm: 4.000
       feed_mm_per_min: 200.000
       seek_mm_per_min: 2500.000
       settle_ms: 250.000
@@ -47,12 +47,12 @@ axes:
     steps_per_mm: 78.74
     max_rate_mm_per_min: 20000.000
     acceleration_mm_per_sec2: 2000.000
-    max_travel_mm: 200.000
+    max_travel_mm: 210.000
     soft_limits: true
     homing:
       cycle: 1
       positive_direction: false
-      mpos_mm: 5.000
+      mpos_mm: 4.000
       feed_mm_per_min: 200.000
       seek_mm_per_min: 2500.000
       settle_ms: 250.000
@@ -80,7 +80,7 @@ axes:
     homing:
       cycle: 2
       positive_direction: true
-      mpos_mm: 5.000
+      mpos_mm: 9.500
       feed_mm_per_min: 200.000
       seek_mm_per_min: 2500.000
       settle_ms: 250.000
@@ -92,7 +92,7 @@ axes:
       limit_pos_pin: NO_PIN
       limit_all_pin: NO_PIN
       hard_limits: true
-      pulloff_mm: 5.000
+      pulloff_mm: 9.500
       stepstick:
         ms3_pin: I2SO.11
         step_pin: I2SO.10

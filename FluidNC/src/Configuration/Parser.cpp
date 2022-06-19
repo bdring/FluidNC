@@ -53,7 +53,7 @@ namespace Configuration {
         }
         float fvalue;
         if (str.isFloat(fvalue)) {
-            return int(round(fvalue));
+            return lroundf(fvalue);
         }
         parseError("Expected an integer value");
         return 0;

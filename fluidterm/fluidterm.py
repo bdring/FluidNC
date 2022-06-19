@@ -722,6 +722,7 @@ class Miniterm(object):
         except:
             self.alive = False
             raise
+        self.disable_fluid_echo();
 
     def handle_menu_key(self, c):
         """Implement a simple menu / settings"""
@@ -905,6 +906,10 @@ class Miniterm(object):
     def enable_fluid_echo(self):
         right_arrow = '\x1b[C'
         self.serial.write(self.tx_encoder.encode(right_arrow))
+
+    def disable_fluid_echo(self):
+        ctrl_l = '\x0c'
+        self.serial.write(self.tx_encoder.encode(ctrl_l))
 
     def reset_fluidnc(self):
         """Pulse the reset line for FluidNC"""

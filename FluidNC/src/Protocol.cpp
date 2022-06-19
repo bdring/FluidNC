@@ -133,6 +133,9 @@ void protocol_main_loop() {
                 report_feedback_message(Message::CheckLimits);
             }
         }
+        if (config->_control->startup_check()) {
+            rtAlarm = ExecAlarm::ControlPin;
+        }
 
         if (sys.state == State::Alarm || sys.state == State::Sleep) {
             report_feedback_message(Message::AlarmLock);
@@ -140,7 +143,7 @@ void protocol_main_loop() {
         } else {
             // Check if the safety door is open.
             sys.state = State::Idle;
-            if (config->_control->system_check_safety_door_ajar()) {
+            if (config->_control->safety_door_ajar()) {
                 rtSafetyDoor = true;
                 protocol_execute_realtime();  // Enter safety door mode. Should return as IDLE state.
             }
@@ -283,7 +286,7 @@ static void protocol_do_alarm() {
             return;
         // System alarm. Everything has shutdown by something that has gone severely wrong. Report
         case ExecAlarm::HardLimit:
-        case ExecAlarm::SoftLimit:
+
             sys.state = State::Alarm;  // Set system alarm state
             alarm_msg(rtAlarm);
             report_feedback_message(Message::CriticalEvent);
@@ -302,6 +305,8 @@ static void protocol_do_alarm() {
                 pollChannels();  // Handle ^X realtime RESET command
             } while (!rtReset);
             break;
+            
+        case ExecAlarm::SoftLimit:
         default:
             sys.state = State::Alarm;  // Set system alarm state
             alarm_msg(rtAlarm);
@@ -929,7 +934,7 @@ static void protocol_exec_rt_suspend() {
                     }
                     // Allows resuming from parking/safety door. Actively checks if safety door is closed and ready to resume.
                     if (sys.state == State::SafetyDoor) {
-                        if (!config->_control->system_check_safety_door_ajar()) {
+                        if (!config->_control->safety_door_ajar()) {
                             sys.suspend.bit.safetyDoorAjar = false;  // Reset door ajar flag to denote ready to resume.
                         }
                     }
