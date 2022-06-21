@@ -202,19 +202,6 @@ enum class GCUpdatePos : uint8_t {
     None   = 2,
 };
 
-// GCode parser flags for handling special cases.
-enum GCParserFlags {
-    GCParserNone           = 0,  // Must be zero.
-    GCParserJogMotion      = bitnum_to_mask(0),
-    GCParserCheckMantissa  = bitnum_to_mask(1),
-    GCParserArcIsClockwise = bitnum_to_mask(2),
-    GCParserProbeIsAway    = bitnum_to_mask(3),
-    GCParserProbeIsNoError = bitnum_to_mask(4),
-    GCParserLaserForceSync = bitnum_to_mask(5),
-    GCParserLaserDisable   = bitnum_to_mask(6),  // disable laser when motion stops
-    GCParserLaserIsMotion  = bitnum_to_mask(7),  //
-};
-
 // Various places in the code access saved coordinate system data
 // by a small integer index according to the values below.
 enum CoordIndex : uint8_t {
