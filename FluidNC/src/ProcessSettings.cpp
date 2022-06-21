@@ -904,7 +904,7 @@ Error settings_execute_line(char* line, Channel& out, WebUI::AuthenticationLevel
 
     char* value;
     if (*line++ == '[') {  // [ESPxxx] form
-        value = strrchr(line, ']');
+        value = strchr(line, ']');
         if (!value) {
             // Missing ] is an error in this form
             return Error::InvalidStatement;

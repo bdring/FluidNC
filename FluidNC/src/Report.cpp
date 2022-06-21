@@ -174,11 +174,15 @@ void report_feedback_message(Message message) {  // ok to send to all channels
 
 const char* radio =
 #if defined(ENABLE_WIFI) || defined(ENABLE_BLUETOOTH)
-#    ifdef ENABLE_WIFI
+#    if defined(ENABLE_WIFI) && defined(ENABLE_BLUETOOTH)
+    "wifi+bt";
+#    else
+#        ifdef ENABLE_WIFI
     "wifi";
-#    endif
-#    ifdef ENABLE_BLUETOOTH
+#        endif
+#        ifdef ENABLE_BLUETOOTH
 "bt";
+#        endif
 #    endif
 #else
     "noradio";
