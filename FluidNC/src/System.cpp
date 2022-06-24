@@ -12,6 +12,7 @@
 #include "Machine/MachineConfig.h"  // config
 
 #include <cstring>  // memset
+#include <cmath>    // roundf
 
 // Declare system global variable structure
 system_t sys;
@@ -34,7 +35,7 @@ float steps_to_mpos(int32_t steps, size_t axis) {
     return float(steps / config->_axes->_axis[axis]->_stepsPerMm);
 }
 int32_t mpos_to_steps(float mpos, size_t axis) {
-    return int32_t(mpos * config->_axes->_axis[axis]->_stepsPerMm);
+    return lroundf(mpos * config->_axes->_axis[axis]->_stepsPerMm);
 }
 
 void motor_steps_to_mpos(float* position, int32_t* steps) {

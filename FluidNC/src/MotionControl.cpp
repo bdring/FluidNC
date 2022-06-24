@@ -291,7 +291,7 @@ bool probe_succeeded = false;
 
 // Perform tool length probe cycle. Requires probe switch.
 // NOTE: Upon probe failure, the program will be stopped and placed into ALARM state.
-GCUpdatePos mc_probe_cycle(float* target, plan_line_data_t* pl_data, uint8_t parser_flags, uint8_t offsetAxis, float offset) {
+GCUpdatePos mc_probe_cycle(float* target, plan_line_data_t* pl_data, bool away, bool no_error, uint8_t offsetAxis, float offset) {
     if (!config->_probe->exists()) {
         log_error("Probe pin is not configured");
         return GCUpdatePos::None;
@@ -309,10 +309,8 @@ GCUpdatePos mc_probe_cycle(float* target, plan_line_data_t* pl_data, uint8_t par
     config->_stepping->beginLowLatency();
 
     // Initialize probing control variables
-    bool is_probe_away = bits_are_true(parser_flags, GCParserProbeIsAway);
-    bool is_no_error   = bits_are_true(parser_flags, GCParserProbeIsNoError);
-    probe_succeeded    = false;  // Re-initialize probe history before beginning cycle.
-    config->_probe->set_direction(is_probe_away);
+    probe_succeeded = false;  // Re-initialize probe history before beginning cycle.
+    config->_probe->set_direction(away);
     // After syncing, check if probe is already triggered. If so, halt and issue alarm.
     // NOTE: This probe initialization error applies to all probing cycles.
     if (config->_probe->tripped()) {
@@ -341,7 +339,7 @@ GCUpdatePos mc_probe_cycle(float* target, plan_line_data_t* pl_data, uint8_t par
     // Probing cycle complete!
     // Set state variables and error out, if the probe failed and cycle with error is enabled.
     if (probeState == ProbeState::Active) {
-        if (is_no_error) {
+        if (no_error) {
             copyAxes(probe_steps, get_motor_steps());
         } else {
             rtAlarm = ExecAlarm::ProbeFailContact;
