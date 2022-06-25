@@ -34,20 +34,17 @@ capabilities to let us use a modified script.
 ### How It Normally Works
 
 PlatformIO specifies the list of linker scripts via the Python script
-~/.platformio/packages/framework-arduinoespressif32/tools/platformio-build.py .
-The files are esp32.project.ld, esp32.rom.ld, esp32.peripherals.ld,
-esp32.rom.libgcc.ld, and esp32.rom.spiram_incompatible_fns.ld .
-The file that we need to change is esp32.project.ld ; the others can
-be used as-is.
+~/.platformio/packages/framework-arduinoespressif32/tools/platformio-build-esp32.py .
+The file we care about is sections.ld ; the others can be used as-is.
 
 The stock linker scripts are found in the directory
-.platformio/packages/framework-arduinoespressif32/tools/sdk/ld .  That
+.platformio/packages/framework-arduinoespressif32/tools/sdk/esp32/ld .  That
 directory is specified in platformio-build.py via the environment
 variable LIBPATH .
 
-### Changes to esp32.project.ld
+### Changes to sections.ld
 
-First, we need to modify esp32.project.ld .  We copy that file into
+First, we need to modify sections.ld .  We copy that file into
 the FluidNC tree at ./FluidNC/ld/esp32/ (this directory).  We then
 add into that file the line
 
@@ -62,7 +59,7 @@ maintenance.
 
 ### Making PlatformIO Use the Modified File
 
-To make PlatformIO use the modified esp32.project.ld instead
+To make PlatformIO use the modified sections.ld instead
 of the stock one, we use PlatformIO's "advanced scripting"
 feature.  In the platformio.ini [env] section, we add this line
 

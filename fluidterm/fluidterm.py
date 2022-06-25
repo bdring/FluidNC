@@ -9,6 +9,8 @@
 
 from __future__ import absolute_import
 
+VERSION = 'v1.2.0'
+
 import codecs
 import os
 from re import split
@@ -234,6 +236,9 @@ if os.name == 'nt':  # noqa
             hwnd = ctypes.windll.kernel32.GetConsoleWindow()
             ctypes.windll.user32.PostMessageA(hwnd, 0x100, 0x0d, 0)
 
+        def clear_screen(self):
+            os.system('cls');
+
 elif os.name == 'posix':
     import atexit
     import termios
@@ -252,6 +257,7 @@ elif os.name == 'posix':
 
         def setup(self):
             new = termios.tcgetattr(self.fd)
+            new[0] = new[0] & ~termios.IXON
             new[3] = new[3] & ~termios.ICANON & ~termios.ECHO & ~termios.ISIG
             new[6][termios.VMIN] = 1
             new[6][termios.VTIME] = 0
@@ -268,6 +274,9 @@ elif os.name == 'posix':
 
         def cleanup(self):
             termios.tcsetattr(self.fd, termios.TCSAFLUSH, self.old)
+
+        def clear_screen(self):
+            self.write('\x1b[2J')
 
 else:
     raise NotImplementedError(
@@ -703,11 +712,13 @@ class Miniterm(object):
                 for c in data:
                     if not self.alive:
                         break
+                    if c == '\x17':     # CTRL+W -> clear screen
+                        self.console.clear_screen()
                     if c == '\x15':     # CTRL+U -> upload file with XModem
                         self.upload_xmodem()
                     elif c == '\x12':   # CTRL+R -> reset FluidNC
                         self.reset_fluidnc()
-                    elif c == self.exit_character or c == self.exit_character2:
+                    elif c == self.exit_character or c == self.exit_character2 or c == unichr(3):
                         self.stop()             # exit app
                         break
                     else:
@@ -1325,9 +1336,9 @@ def main(default_port=None, default_baudrate=115200, default_rts=None, default_d
     miniterm.set_tx_encoding(args.serial_port_encoding)
 
     if not args.quiet:
-        sys.stderr.write('--- Fluidterm on {p.name}  {p.baudrate},{p.bytesize},{p.parity},{p.stopbits} ---\n'.format(
+        sys.stderr.write('--- FluidTerm ' + VERSION + ' on {p.name}  {p.baudrate},{p.bytesize},{p.parity},{p.stopbits} ---\n'.format(
             p=miniterm.serial))
-        sys.stderr.write('--- Quit: {} or {} | Upload: {} | Reset: {} ---\n'.format(
+        sys.stderr.write('--- Quit: {} or {} | Upload: {} | Reset: {} | ClearScreen: Ctrl+W ---\n'.format(
             key_description(miniterm.exit_character),
             key_description(miniterm.exit_character2),
             key_description('\x15'),
