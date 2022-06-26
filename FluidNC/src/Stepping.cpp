@@ -108,7 +108,6 @@ namespace Machine {
             // The argument to i2s_out_set_pulse_period is in units of microseconds
             i2s_out_set_pulse_period(((uint32_t)timerTicks) / ticksPerMicrosecond);
         } else {
-            auto ticks = stepTimerGetTicks();
             stepTimerSetTicks((uint32_t)timerTicks);
         }
     }
