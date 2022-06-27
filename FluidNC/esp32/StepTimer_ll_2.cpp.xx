@@ -1,0 +1,89 @@
+// Copyright 2022 Mitch Bradley
+//
+// Interface to the ESP32 alarm timer for step timing
+
+// This uses the timer_ll API from ESP-IDF V5
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+static const unsigned long fTimers = 80000000;  // the frequency of ESP32 timers
+    // #include "driver/timer.h"
+
+#include "hal/timer_ll.h"
+#include "esp_private/periph_ctrl.h"
+
+#include "driver/timer.h"
+
+bool (*timer_isr_callback)(void);
+
+static void IRAM_ATTR timer_isr(void* arg) {
+    uint32_t intr_status = timer_ll_get_intr_status(&TIMERG0);
+    if (intr_status & TIMER_LL_EVENT_ALARM(TIMER_0)) {
+        // Clear interrupt status
+        timer_ll_clear_intr_status(&TIMERG0, TIMER_LL_EVENT_ALARM(TIMER_0));
+
+        // call user registered callback
+        timer_isr_callback();
+
+        // This is in another version of timer_ll.h
+        timer_ll_enable_alarm(&TIMERG0, TIMER_0, true);
+    }
+}
+
+void IRAM_ATTR stepTimerStart() {
+    timer_ll_enable_alarm(&TIMERG0, TIMER_0, TIMER_ALARM_EN);
+    timer_ll_enable_counter(&TIMERG0, TIMER_0, true);
+}
+
+void IRAM_ATTR stepTimerRestart() {
+    // Resetting the counter value here is unnecessary because it
+    // happens automatically via the autoreload hardware.
+    //        timer_hal_set_counter_value(&hal, 0);
+}
+
+void IRAM_ATTR stepTimerSetTicks(uint32_t ticks) {
+    timer_ll_set_alarm_value(&TIMERG0, TIMER_0, (uint64_t)ticks);
+}
+
+void IRAM_ATTR stepTimerStop() {
+    timer_ll_enable_counter(&TIMERG0, TIMER_0, false);
+    timer_ll_enable_alarm(&TIMERG0, TIMER_0, false);
+}
+
+void stepTimerInit(uint32_t frequency, bool (*callback)(void)) {
+    periph_module_enable(timer_group_periph_signals.groups[TIMER_GROUP_0].module);
+
+    // timer_hal_init(&hal, TIMER_GROUP_0, TIMER_0);
+
+    //    timer_ll_set_counter_value(&TIMERG0, TIMER_0, 0);
+
+    // This just checks that source is GPTIMER_CLK_SRC_APB
+    timer_ll_set_clock_source(&TIMERG0, TIMER_0, (gptimer_clock_source_t)TIMER_SRC_CLK_DEFAULT);
+    timer_ll_set_clock_prescale(&TIMERG0, TIMER_0, fTimers / frequency);
+    timer_ll_set_count_direction(&TIMERG0, TIMER_0, GPTIMER_COUNT_UP);
+    timer_ll_enable_intr(&TIMERG0, TIMER_LL_EVENT_ALARM(TIMER_0), false);
+    timer_ll_clear_intr_status(&TIMERG0, TIMER_LL_EVENT_ALARM(TIMER_0));
+    timer_ll_enable_alarm(&TIMERG0, TIMER_0, false);
+    timer_ll_enable_auto_reload(&TIMERG0, TIMER_0, true);
+    timer_ll_enable_counter(&TIMERG0, TIMER_0, false);
+
+    // timer_ll_set_counter_value(&TIMERG0, TIMER_0, 0);
+
+    timer_isr_callback = callback;
+
+    esp_intr_alloc_intrstatus(timer_group_periph_signals.groups[TIMER_GROUP_0].t0_irq_id,
+                              ESP_INTR_FLAG_IRAM,
+                              (uint32_t)timer_ll_get_intr_status_reg(&TIMERG0),
+                              1 << TIMER_0,
+                              timer_isr,
+                              NULL,
+                              NULL);
+
+    timer_ll_enable_intr(&TIMERG0, TIMER_LL_EVENT_ALARM(TIMER_0), true);
+}
+
+#ifdef __cplusplus
+}
+#endif

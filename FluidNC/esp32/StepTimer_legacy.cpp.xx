@@ -1,0 +1,70 @@
+// Copyright 2022 Mitch Bradley
+//
+// Interface to the ESP32 alarm timer for step timing
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+// #include "../src/Driver/StepTimer.h"
+#include "driver/timer.h"
+#include "hal/timer_hal.h"
+
+static const uint32_t fTimers = 80000000;  // the frequency of ESP32 timers
+
+#define TIMER_GROUP_NUM TIMER_GROUP_0, TIMER_0
+
+void stepTimerStart() {
+    //    timer_set_counter_value(TIMER_GROUP_NUM, 0);
+    //    timer_group_enable_alarm_in_isr(TIMER_GROUP_NUM);
+    timer_set_alarm(TIMER_GROUP_NUM, TIMER_ALARM_EN);
+    timer_start(TIMER_GROUP_NUM);
+}
+
+void IRAM_ATTR stepTimerRestart() {
+    // Resetting the counter value here si unnecessary because it
+    // happens automatically via the autoreload hardware.
+    // The timer framework requires autoreload.
+    // If you set autoreload to false, the ISR wrapper will
+    // disable the alarm after our ISR function returns, so
+    // an attempt to enable the alarm here is ineffective.
+    // Furthermore, setting the counter value directly is problematic
+    // due to clock domain issues.
+    //    timer_set_counter_value(TIMER_GROUP_NUM, 0);
+}
+
+void IRAM_ATTR stepTimerSetTicks(uint32_t ticks) {
+    timer_group_set_alarm_value_in_isr(TIMER_GROUP_NUM, (uint64_t)ticks);
+}
+
+#include "hal/timer_ll.h"
+
+void IRAM_ATTR stepTimerStop() {
+    timer_group_set_counter_enable_in_isr(TIMER_GROUP_NUM, TIMER_PAUSE);
+
+    // Alas, there is no timer_group_disable_alarm_in_isr()
+    timer_ll_set_alarm_enable(&TIMERG0, TIMER_0, false);
+}
+
+void stepTimerInit(uint32_t frequency, bool (*fn)(void)) {
+    timer_config_t config = {
+        alarm_en: TIMER_ALARM_DIS,
+        counter_en: TIMER_PAUSE,
+        intr_type: TIMER_INTR_LEVEL,
+        counter_dir: TIMER_COUNT_UP,
+        auto_reload: TIMER_AUTORELOAD_EN,
+        divider: fTimers / frequency,
+#if SOC_TIMER_GROUP_SUPPORT_XTAL
+        clk_src: TIMER_SRC_CLK_DEFAULT,
+#endif
+    };
+    timer_init(TIMER_GROUP_NUM, &config);
+    timer_set_counter_value(TIMER_GROUP_NUM, 0);
+    timer_isr_callback_add(TIMER_GROUP_NUM, (timer_isr_t)fn, NULL, ESP_INTR_FLAG_IRAM);
+    //timer_pause(TIMER_GROUP_NUM);
+    // timer_start(TIMER_GROUP_NUM);
+}
+
+#ifdef __cplusplus
+}
+#endif
