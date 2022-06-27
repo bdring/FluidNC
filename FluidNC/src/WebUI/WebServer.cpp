@@ -230,6 +230,19 @@ namespace WebUI {
     //Root of Webserver/////////////////////////////////////////////////////
 
     void Web_Server::handle_root() {
+        // If you load or reload WebUI while a program is running, there is a high
+        // risk of stalling the motion because serving the index.html.gz file from
+        // the local FLASH filesystem takes away a lot of CPU cycles.  If we get
+        // a request for index.html.gz when running, reject it to preserve the motion
+        // integrity.
+        // This can make it hard to debug ISR IRAM problems, because the easiest
+        // way to trigger such problems is to refresh WebUI during motion.
+        // If you need to do such debugging, comment out this check temporarily.
+        if (sys.state == State::Cycle || sys.state == State::Jog || sys.state == State::Homing) {
+            _webserver->send(503, "text/plain", "FluidNC is busy running GCode.  Try again later.");
+            return;
+        }
+
         String path        = "/index.html";
         String contentType = getContentType(path);
         String pathWithGz  = path + ".gz";
