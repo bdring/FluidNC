@@ -12,12 +12,8 @@
 
 namespace Machine {
     // Calculate the motion for the next homing move.
-    //  Input: axesMask - the axes that should participate in this homing cycle
-    //  Input: approach - the direction of motion - true for approach, false for pulloff
-    //  Input: seek - the phase - true for the initial high-speed seek, false for the slow second phase
-    //  Output: axislock - the axes that actually participate, accounting
-    //  Output: target - the endpoint vector of the motion
-    //  Output: rate - the feed rate
+    //  Input: motors - the motors that should participate in this homing cycle
+    //  Input: phase - one of PrePulloff, FastApproach, Pulloff0, SlowApproach, Pulloff1, Pulloff2
     //  Return: settle - the maximum delay time of all the axes
 
     // For multi-axis homing, we use the per-axis rates and travel limits to compute
@@ -40,7 +36,7 @@ namespace Machine {
     const uint32_t MOTOR1 = 0xffff0000;
 
     // The return value is the setting time
-    uint32_t Homing::plan_move(MotorMask motors, bool approach, bool seek, float customPulloff) {
+    uint32_t Homing::plan_move(MotorMask motors, HomingPhase phase) {
         float    maxSeekTime  = 0.0;
         float    limitingRate = 0.0;
         uint32_t settle       = 0;
@@ -49,6 +45,8 @@ namespace Machine {
         auto   axes   = config->_axes;
         auto   n_axis = axes->_numberAxis;
         float* target = get_mpos();
+
+        bool seeking = phase == HomingPhase::FastApproach;
 
         AxisMask axesMask = 0;
         // Find the axis that will take the longest
@@ -68,36 +66,45 @@ namespace Machine {
 
             settle = std::max(settle, homing->_settle_ms);
 
-            float axis_rate = seek ? homing->_seekRate : homing->_feedRate;
+            float axis_rate;
+            float travel;
+            switch (phase) {
+                case HomingPhase::FastApproach:
+                    axis_rate = homing->_seekRate;
+                    travel    = axisConfig->_maxTravel;
+                    break;
+                case HomingPhase::PrePulloff:
+                case HomingPhase::SlowApproach:
+                case HomingPhase::Pulloff0:
+                case HomingPhase::Pulloff1:
+                    axis_rate = homing->_feedRate;
+                    travel    = axisConfig->commonPulloff();
+                    break;
+                case HomingPhase::Pulloff2:
+                    axis_rate = homing->_feedRate;
+                    travel    = axisConfig->extraPulloff();
+                    if (travel < 0) {
+                        // Motor0's pulloff is greater than motor1's, so we block motor1
+                        axisConfig->_motors[1]->block();
+                        travel = -travel;
+                    } else if (travel > 0) {
+                        // Motor1's pulloff is greater than motor0's, so we block motor0
+                        axisConfig->_motors[0]->block();
+                    }
+                    // All motors will be unblocked later by set_homing_mode()
+                    break;
+            }
 
             // Accumulate the squares of the homing rates for later use
             // in computing the aggregate feed rate.
             rate += (axis_rate * axis_rate);
-
-            float travel = 0.0;
-            if (seek) {
-                travel = axisConfig->_maxTravel;
-            } else {  // see if which pull off we use
-                // If both motors are running use the first pull off
-                if (bitnum_is_true(motors, Axes::motor_bit(axis, 0)) && bitnum_is_true(motors, Axes::motor_bit(axis, 1))) {
-                    travel = axisConfig->_motors[0]->_pulloff;
-                } else {
-                    if (customPulloff != 0) {
-                        travel = customPulloff;
-                    } else {
-                        // If motor 0 is not running, use the pulloff for motor 1
-                        int motor = bitnum_is_false(motors, Axes::motor_bit(axis, 0));
-                        travel    = axisConfig->_motors[motor]->_pulloff;
-                    }
-                }
-            }
 
             // First we compute the maximum-time-to-completion vector; later we will
             // convert it back to positions after we determine the limiting axis.
             // Set target direction based on cycle mask and homing cycle approach state.
             auto seekTime = travel / axis_rate;
 
-            target[axis] = (homing->_positiveDirection ^ approach) ? -seekTime : seekTime;
+            target[axis] = (homing->_positiveDirection ^ _approach) ? -seekTime : seekTime;
             if (seekTime > maxSeekTime) {
                 maxSeekTime  = seekTime;
                 limitingRate = axis_rate;
@@ -109,7 +116,7 @@ namespace Machine {
         for (int axis = 0; axis < n_axis; axis++) {
             if (bitnum_is_true(axesMask, axis)) {
                 auto homing = axes->_axis[axis]->_homing;
-                auto scaler = approach ? (seek ? homing->_seek_scaler : homing->_feed_scaler) : 1.0;
+                auto scaler = _approach ? (seeking ? homing->_seek_scaler : homing->_feed_scaler) : 1.0;
                 target[axis] *= limitingRate * scaler;
             }
         }
@@ -136,19 +143,26 @@ namespace Machine {
         return settle;
     }
 
-    void Homing::run(MotorMask remainingMotors, bool approach, bool seek, float customPulloff = 0) {
+    void Homing::run(MotorMask remainingMotors, HomingPhase phase) {
         // See if any motors are left.  This could be 0 if none of the motors specified
         // by the original value of axes is capable of standard homing.
         if (remainingMotors == 0) {
             return;
         }
 
-        _approach = approach;
+        if (phase == HomingPhase::PrePulloff) {
+            // Pulloff to clear switches
+            if (!((Machine::Axes::posLimitMask | Machine::Axes::negLimitMask) & remainingMotors)) {
+                return;
+            }
+        }
 
-        uint32_t settling_ms = plan_move(remainingMotors, approach, seek, customPulloff);
+        _approach = (phase == HomingPhase::FastApproach || phase == HomingPhase::SlowApproach);
+
+        uint32_t settling_ms = plan_move(remainingMotors, phase);
 
         do {
-            if (approach) {
+            if (_approach) {
                 // As limit bits are set, remove the corresponding bits from remaingMotors.
                 // The stepping ISR code takes care of stopping the motors when limit bits are set
                 MotorMask limitedMotors = Machine::Axes::posLimitMask | Machine::Axes::negLimitMask;
@@ -161,6 +175,10 @@ namespace Machine {
             // by protocol_execute_realtime().  The homing loop is time-critical
             // so we handle those events directly here, calling protocol_execute_realtime()
             // only if one of those events is active.
+            if (rtStatusReport) {
+                rtStatusReport = false;
+                report_realtime_status(allChannels);
+            }
             if (rtReset) {
                 // Homing failure: Reset issued during cycle.
                 throw ExecAlarm::HomingFailReset;
@@ -171,7 +189,7 @@ namespace Machine {
             }
             if (rtCycleStop) {
                 rtCycleStop = false;
-                if (approach) {
+                if (_approach) {
                     // Homing failure: Limit switch not found during approach.
                     throw ExecAlarm::HomingFailApproach;
                 }
@@ -191,9 +209,7 @@ namespace Machine {
         _approach = false;
     }
 
-    // This homing mode never forces the machine out of square
-    // This requires independent switches on each motor.
-    bool Homing::squaredStressfree(MotorMask motors) {
+    bool Homing::needsPulloff2(MotorMask motors) {
         AxisMask squaredAxes = motors & (motors >> 16);
         if (squaredAxes == 0) {
             // No axis has multiple motors
@@ -207,13 +223,13 @@ namespace Machine {
                 continue;
             }
 
-            // check to see if either side is missing a switch
-            if (axes->_axis[axis]->motorsWithSwitches() != 2) {
-                return false;
+            // check to see if the axis has different pulloffs for its motors
+            if (axes->_axis[axis]->extraPulloff()) {
+                return true;
             }
         }
 
-        return true;
+        return false;
     }
 
     // Homes the specified cycle axes, sets the machine position, and performs a pull-off motion after
@@ -248,37 +264,38 @@ namespace Machine {
         axes->set_homing_mode(axisMask, false);  // tell motors homing is done
     }
 
+    static String axisNames(AxisMask axisMask) {
+        String retval = "";
+        auto   n_axis = config->_axes->_numberAxis;
+        for (int axis = 0; axis < n_axis; axis++) {
+            if (bitnum_is_true(axisMask, axis)) {
+                retval += Machine::Axes::_names[axis];
+            }
+        }
+        return retval;
+    }
+
     void Homing::run_one_cycle(AxisMask axisMask) {
         axisMask &= Machine::Axes::homingMask;
+        log_debug("Homing " << config->_axes->maskToNames(axisMask));
+
         MotorMask motors = config->_axes->set_homing_mode(axisMask, true);
 
         try {
+            log_debug("PrePulloff");
+            run(motors, HomingPhase::PrePulloff);  // Approach slowly
             log_debug("Fast approach");
-            run(motors, true, true);  // Approach slowly
-            log_debug("Pulloff");
-            run(motors, false, false);  // Pulloff
+            run(motors, HomingPhase::FastApproach);  // Approach slowly
+            log_debug("Pulloff0");
+            run(motors, HomingPhase::Pulloff0);
             log_debug("Slow approach");
-            run(motors, true, false);  // Approach slowly
-            log_debug("Pulloff");
-            run(motors, false, false);  // Pulloff
-            if (squaredStressfree(motors)) {
-                //log_info("Stress Free Squaring 0x" << String(motors, 16));
-                // TODO See if we need to do a nudge for asymmetric pulloffs.
-                auto  n_axis = config->_axes->_numberAxis;
-                float pulloffOffset;
-                for (int axis = 0; axis < n_axis; axis++) {
-                    if (bitnum_is_true(motors, axis)) {
-                        auto axisConfig = config->_axes->_axis[axis];
-                        if (axisConfig->hasDualMotor()) {
-                            pulloffOffset = axisConfig->pulloffOffset();
-                            if (pulloffOffset != 0) {
-                                //log_info("Pulloff offset needed on axis " << axis << " of " << pulloffOffset);
-                                // TODO Do it
-                                run(motors & MOTOR1, false, false, pulloffOffset);
-                            }
-                        }
-                    }
-                }
+            run(motors, HomingPhase::SlowApproach);  // Approach slowly
+            log_debug("Pulloff1");
+            run(motors, HomingPhase::Pulloff1);
+            if (needsPulloff2(motors)) {
+                log_debug("Differential Pulloff");
+                // At least one axis has multiple motors with different pulloffs
+                run(motors, HomingPhase::Pulloff2);
             }
         } catch (ExecAlarm alarm) {
             rtAlarm = alarm;
@@ -296,7 +313,6 @@ namespace Machine {
     // XXX this should return Error or at least set ExecAlarm::HomingNoCycles (not yet defined)
     void Homing::run_cycles(AxisMask axisMask) {
         // -------------------------------------------------------------------------------------
-        // Perform homing routine. NOTE: Special motion case. Only system reset works.
         if (axisMask != AllCycles) {
             run_one_cycle(axisMask);
         } else {
@@ -304,19 +320,13 @@ namespace Machine {
             bool someAxisHomed = false;
 
             for (int cycle = 1; cycle <= MAX_N_AXIS; cycle++) {
+                // home() sets state to Homing.  If a cycle fails, we skip following cycles
+                if (sys.state == State::Alarm) {
+                    return;
+                }
                 // Set axisMask to the axes that home on this cycle
 
                 axisMask = axis_mask_from_cycle(cycle);
-
-                // axisMask    = 0;
-                // auto n_axis = config->_axes->_numberAxis;
-                // for (int axis = 0; axis < n_axis; axis++) {
-                //     auto axisConfig = config->_axes->_axis[axis];
-                //     auto homing     = axisConfig->_homing;
-                //     if (homing && homing->_cycle == cycle) {
-                //         set_bitnum(axisMask, axis);
-                //     }
-                // }
 
                 if (axisMask) {  // if there are some axes in this cycle
                     someAxisHomed = true;

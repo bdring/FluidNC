@@ -5,6 +5,8 @@ StringSetting* config_filename;
 
 StringSetting* build_info;
 
+StringSetting* start_message;
+
 IntSetting* status_mask;
 
 EnumSetting* message_level;
@@ -53,4 +55,7 @@ void make_settings() {
     status_mask = new IntSetting("What to include in status report", GRBL, WG, "10", "Report/Status", 1, 0, 3, NULL);
 
     build_info = new StringSetting("OEM build info for $I command", EXTENDED, WG, NULL, "Firmware/Build", "", 0, 20, NULL);
+
+    start_message =
+        new StringSetting("Message issued at startup", EXTENDED, WG, NULL, "Start/Message", "Grbl \\V [FluidNC \\B (\\R) \\H]", 0, 40, NULL);
 }

@@ -27,9 +27,8 @@
 #include "Planner.h"                     // plan_get_block_buffer_available
 #include "Stepper.h"                     // step_count
 #include "Platform.h"                    // WEAK_LINK
-#include "WebUI/NotificationsService.h"  // WebUI::notificationsservice
+#include "WebUI/NotificationsService.h"  // WebUI::notificationsService
 #include "WebUI/WifiConfig.h"            // wifi_config
-#include "WebUI/TelnetServer.h"          // WebUI::telnet_server
 #include "WebUI/BTConfig.h"              // bt_config
 #include "WebUI/WebSettings.h"
 #include "InputFile.h"
@@ -47,7 +46,7 @@ EspClass esp;
 portMUX_TYPE mmux = portMUX_INITIALIZER_UNLOCKED;
 
 void _notify(const char* title, const char* msg) {
-    WebUI::notificationsservice.sendMSG(title, msg);
+    WebUI::notificationsService.sendMSG(title, msg);
 }
 
 void _notifyf(const char* title, const char* format, ...) {
@@ -172,24 +171,76 @@ void report_feedback_message(Message message) {  // ok to send to all channels
 }
 
 #include "Uart.h"
+
+const char* radio =
+#if defined(ENABLE_WIFI) || defined(ENABLE_BLUETOOTH)
+#    if defined(ENABLE_WIFI) && defined(ENABLE_BLUETOOTH)
+    "wifi+bt";
+#    else
+#        ifdef ENABLE_WIFI
+    "wifi";
+#        endif
+#        ifdef ENABLE_BLUETOOTH
+"bt";
+#        endif
+#    endif
+#else
+    "noradio";
+#endif
+
 // Welcome message
+void report_init_message(Print& channel) {
+    channel << '\n';
+    const char* p = start_message->get();
+    char        c;
+    while ((c = *p++) != '\0') {
+        if (c == '\\') {
+            switch ((c = *p++)) {
+                case '\0':
+                    --p;  // Unconsume the null character
+                    break;
+                case 'H':
+                    channel << "'$' for help";
+                    break;
+                case 'B':
+                    channel << git_info;
+                    break;
+                case 'V':
+                    channel << grbl_version;
+                    break;
+                case 'R':
+                    channel << radio;
+                    break;
+                default:
+                    channel << c;
+                    break;
+            }
+        } else {
+            channel << c;
+        }
+    }
+    channel << '\n';
+}
+
+#if 0
 void report_init_message(Print& channel) {
     channel << "\r\nGrbl " << grbl_version << " [FluidNC " << git_info << " (";
 
-#if defined(ENABLE_WIFI) || defined(ENABLE_BLUETOOTH)
-#    ifdef ENABLE_WIFI
+#    if defined(ENABLE_WIFI) || defined(ENABLE_BLUETOOTH)
+#        ifdef ENABLE_WIFI
     channel << "wifi";
-#    endif
+#        endif
 
-#    ifdef ENABLE_BLUETOOTH
+#        ifdef ENABLE_BLUETOOTH
     channel << "bt";
-#    endif
-#else
+#        endif
+#    else
     channel << "noradio";
-#endif
+#    endif
 
     channel << ") '$' for help]\n";
 }
+#endif
 
 // Prints current probe parameters. Upon a probe command, these parameters are updated upon a
 // successful probe or upon a failed probe with the G38.3 without errors command (if supported).
@@ -516,7 +567,7 @@ static void pinString(Print& channel) {
         }
     }
 
-    String ctrl_pin_report = config->_control->report();
+    String ctrl_pin_report = config->_control->report_status();
     if (ctrl_pin_report.length()) {
         if (prefixNeeded) {
             prefixNeeded = false;

@@ -58,7 +58,7 @@ namespace Spindles {
         virtual ~PWM() {}
 
     protected:
-        int32_t  _current_pwm_duty;
+        int32_t  _current_pwm_duty = 0;
         int      _pwm_chan_num = -1;
         uint32_t _pwm_period;     // how many counts in 1 period
         uint8_t  _pwm_precision;  // auto calculated

@@ -187,8 +187,8 @@ namespace MotorDrivers {
 
             auto axis = config->_axes->_axis[_axis_index];
 
-            uint32_t pos_min_steps = lround(mpos_to_steps(limitsMinPosition(_axis_index), _axis_index));
-            uint32_t pos_max_steps = lround(mpos_to_steps(limitsMaxPosition(_axis_index), _axis_index));
+            uint32_t pos_min_steps = mpos_to_steps(limitsMinPosition(_axis_index), _axis_index);
+            uint32_t pos_max_steps = mpos_to_steps(limitsMaxPosition(_axis_index), _axis_index);
 
             uint32_t temp = myMap(dxl_position, _countMin, _countMax, pos_min_steps, pos_max_steps);
 
@@ -225,7 +225,7 @@ namespace MotorDrivers {
 
     // wait for and get the servo response
     uint16_t Dynamixel2::dxl_get_response(uint16_t length) {
-        length = _uart->readBytes(_dxl_rx_message, length, DXL_RESPONSE_WAIT_TICKS);
+        length = _uart->timedReadBytes((char*)_dxl_rx_message, length, DXL_RESPONSE_WAIT_TICKS);
         return length;
     }
 

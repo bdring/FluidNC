@@ -262,12 +262,12 @@ static Error toggle_check_mode(const char* value, WebUI::AuthenticationLevel aut
 }
 static Error isStuck() {
     // Block if a control pin is stuck on
-    if (config->_control->system_check_safety_door_ajar()) {
+    if (config->_control->safety_door_ajar()) {
         rtAlarm = ExecAlarm::ControlPin;
         return Error::CheckDoor;
     }
     if (config->_control->stuck()) {
-        log_info("Control pins:" << config->_control->report());
+        log_info("Control pins:" << config->_control->report_status());
         rtAlarm = ExecAlarm::ControlPin;
         return Error::CheckControlPins;
     }
@@ -313,7 +313,7 @@ static Error home(int cycle) {
         return Error::SettingDisabled;
     }
 
-    if (config->_control->system_check_safety_door_ajar()) {
+    if (config->_control->safety_door_ajar()) {
         return Error::CheckDoor;  // Block if safety door is ajar.
     }
 
@@ -335,8 +335,47 @@ static Error home(int cycle) {
     return Error::Ok;
 }
 static Error home_all(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
-    return home(Machine::Homing::AllCycles);
+    AxisMask requestedAxes = Machine::Homing::AllCycles;
+    auto     retval        = Error::Ok;
+
+    // value can be a list of cycle numbers like "21", which will run homing cycle 2 then cycle 1,
+    // or a list of axis names like "XZ", which will home the X and Z axes simultaneously
+    if (value) {
+        int ndigits = 0;
+        for (int i = 0; i < strlen(value); i++) {
+            char cycleName = value[i];
+            if (isdigit(cycleName)) {
+                if (!Machine::Homing::axis_mask_from_cycle(cycleName - '0')) {
+                    log_error("No axes for homing cycle " << cycleName);
+                    return Error::InvalidValue;
+                }
+                ++ndigits;
+            }
+        }
+        if (ndigits) {
+            if (ndigits != strlen(value)) {
+                log_error("Invalid homing cycle list");
+                return Error::InvalidValue;
+            } else {
+                for (int i = 0; i < strlen(value); i++) {
+                    char cycleName = value[i];
+                    requestedAxes  = Machine::Homing::axis_mask_from_cycle(cycleName - '0');
+                    retval         = home(requestedAxes);
+                    if (retval != Error::Ok) {
+                        return retval;
+                    }
+                }
+                return retval;
+            }
+        }
+        if (!config->_axes->namesToMask(value, requestedAxes)) {
+            return Error::InvalidValue;
+        }
+    }
+
+    return home(requestedAxes);
 }
+
 static Error home_x(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
     return home(bitnum_to_mask(X_AXIS));
 }
@@ -557,6 +596,17 @@ static Error motors_init(const char* value, WebUI::AuthenticationLevel auth_leve
     return Error::Ok;
 }
 
+static Error macros_run(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+    if (value) {
+        log_info("Running macro " << *value);
+        size_t macro_num = (*value) - '0';
+        config->_macros->run_macro(macro_num);
+        return Error::Ok;
+    }
+    log_error("$Macros/Run requires a macro number argument");
+    return Error::InvalidStatement;
+}
+
 static Error xmodem_receive(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
     if (!value || !*value) {
         value = "uploaded";
@@ -565,12 +615,15 @@ static Error xmodem_receive(const char* value, WebUI::AuthenticationLevel auth_l
     try {
         outfile = new FileStream(value, "w", "/localfs");
     } catch (...) {
-        vTaskDelay(1000);   // Delay for FluidTerm to handle command echoing
-        Uart0.write(0x04);  // Cancel xmodem transfer with EOT
+        delay_ms(1000);   // Delay for FluidTerm to handle command echoing
+        out.write(0x04);  // Cancel xmodem transfer with EOT
         log_info("Cannot open " << value);
         return Error::UploadFailed;
     }
-    int size = xmodemReceive(&Uart0, outfile);
+    bool oldCr = out.setCr(false);
+    delay_ms(1000);
+    int size = xmodemReceive(&out, outfile);
+    out.setCr(oldCr);
     if (size >= 0) {
         log_info("Received " << size << " bytes to file " << outfile->path());
     } else {
@@ -584,7 +637,7 @@ static Error xmodem_send(const char* value, WebUI::AuthenticationLevel auth_leve
     if (!value || !*value) {
         value = "config.yaml";
     }
-    Channel* infile;
+    FileStream* infile;
     try {
         infile = new FileStream(value, "r");
     } catch (...) {
@@ -592,7 +645,7 @@ static Error xmodem_send(const char* value, WebUI::AuthenticationLevel auth_leve
         return Error::DownloadFailed;
     }
     log_info("Sending " << value << " via XModem");
-    int size = xmodemTransmit(&Uart0, infile);
+    int size = xmodemTransmit(&out, infile);
     delete infile;
     if (size >= 0) {
         log_info("Sent " << size << " bytes");
@@ -670,6 +723,8 @@ void make_user_commands() {
     new UserCommand("H", "Home", home_all, notIdleOrAlarm);
     new UserCommand("MD", "Motor/Disable", motor_disable, notIdleOrAlarm);
     new UserCommand("MI", "Motors/Init", motors_init, notIdleOrAlarm);
+
+    new UserCommand("RM", "Macros/Run", macros_run, notIdleOrAlarm);
 
     new UserCommand("HX", "Home/X", home_x, notIdleOrAlarm);
     new UserCommand("HY", "Home/Y", home_y, notIdleOrAlarm);
@@ -835,7 +890,7 @@ Error settings_execute_line(char* line, Channel& out, WebUI::AuthenticationLevel
 
     char* value;
     if (*line++ == '[') {  // [ESPxxx] form
-        value = strrchr(line, ']');
+        value = strchr(line, ']');
         if (!value) {
             // Missing ] is an error in this form
             return Error::InvalidStatement;
@@ -883,7 +938,6 @@ void settings_execute_startup() {
 }
 
 Error execute_line(char* line, Channel& channel, WebUI::AuthenticationLevel auth_level) {
-    Error result = Error::Ok;
     // Empty or comment line. For syncing purposes.
     if (line[0] == 0) {
         return Error::Ok;
@@ -896,5 +950,9 @@ Error execute_line(char* line, Channel& channel, WebUI::AuthenticationLevel auth
     if (sys.state == State::Alarm || sys.state == State::ConfigAlarm || sys.state == State::Jog) {
         return Error::SystemGcLock;
     }
-    return gc_execute_line(line, channel);
+    Error result = gc_execute_line(line, channel);
+    if (result != Error::Ok) {
+        log_debug("Bad GCode: " << line);
+    }
+    return result;
 }

@@ -16,6 +16,7 @@ namespace MotorDrivers {
 namespace Machine {
     class Axis : public Configuration::Configurable {
         int _axis;
+        int motorsWithSwitches();
 
     public:
         Axis(int currentAxis) : _axis(currentAxis) {
@@ -40,10 +41,11 @@ namespace Machine {
         void afterParse() override;
 
         // Checks if a motor matches this axis:
-        bool  hasMotor(const MotorDrivers::MotorDriver* const driver) const;
-        bool  hasDualMotor();
-        int   motorsWithSwitches();
-        float pulloffOffset();
+        bool hasMotor(const MotorDrivers::MotorDriver* const driver) const;
+        bool hasDualMotor();
+
+        float commonPulloff();
+        float extraPulloff();
 
         void init();
         void config_motors();

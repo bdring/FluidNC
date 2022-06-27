@@ -1,6 +1,7 @@
 #pragma once
 
-#include "Uart.h"
+#include "Channel.h"
+#include "FileStream.h"
 
-int xmodemReceive(Uart* serial, Channel* out);
-int xmodemTransmit(Uart* serial, Channel* out);
+int xmodemReceive(Channel* serial, FileStream* outfile);
+int xmodemTransmit(Channel* serial, FileStream* infile);

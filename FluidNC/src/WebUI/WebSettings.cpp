@@ -155,22 +155,19 @@ namespace WebUI {
     }
 #endif
 
+    static Error restart(char* parameter, AuthenticationLevel auth_level, Channel& out) {
+        log_info("Restarting");
+        COMMANDS::restart_MCU();
+        return Error::Ok;
+    }
+
     static Error setSystemMode(char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP444
         parameter = trim(parameter);
         if (strcasecmp(parameter, "RESTART") != 0) {
             out << "Parameter must be RESTART" << '\n';
             return Error::InvalidValue;
         }
-        log_info("Restarting");
-        COMMANDS::restart_MCU();
-        return Error::Ok;
-    }
-
-    static Error restart(char* parameter, AuthenticationLevel auth_level, Channel& out) {
-        parameter = trim(parameter);
-        log_info("Restarting");
-        COMMANDS::restart_MCU();
-        return Error::Ok;
+        return restart(parameter, auth_level, out);
     }
 
     static Error showSysStats(char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP420

@@ -15,7 +15,7 @@
 #include "NotificationsService.h"
 
 namespace WebUI {
-    NotificationsService notificationsservice;
+    NotificationsService notificationsService;
 }
 
 #ifdef ENABLE_WIFI
@@ -91,7 +91,7 @@ namespace WebUI {
             out << "Invalid message!" << '\n';
             return Error::InvalidValue;
         }
-        if (!notificationsservice.sendMSG("GRBL Notification", parameter)) {
+        if (!notificationsService.sendMSG("GRBL Notification", parameter)) {
             out << "Cannot send message!" << '\n';
             return Error::MessageFailed;
         }
@@ -142,7 +142,7 @@ namespace WebUI {
                 if ((answer.indexOf(linetrigger) != -1) || (strlen(linetrigger) == 0)) {
                     break;
                 }
-                COMMANDS::wait(10);
+                delay_ms(10);
             }
             if (strlen(expected_answer) == 0) {
                 log_d("Answer ignored as requested");
