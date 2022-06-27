@@ -16,7 +16,7 @@
 namespace Stepper {
     void init();
 
-    void pulse_func();
+    bool pulse_func();
 
     // Enable steppers, but cycle does not start unless called by motion control or realtime command.
     void wake_up();

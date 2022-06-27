@@ -552,7 +552,7 @@ i2s_out_pulser_status_t i2s_out_get_pulser_status() {
     return s;
 }
 
-int i2s_out_set_passthrough() {
+int IRAM_ATTR i2s_out_set_passthrough() {
     I2S_OUT_PULSER_ENTER_CRITICAL();
     // Triggers a change of mode if it is compiled to use I2S stream.
     // The mode is not changed directly by this function.

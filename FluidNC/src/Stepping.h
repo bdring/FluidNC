@@ -50,7 +50,7 @@ namespace Machine {
         uint32_t _directionDelayUsecs = 0;
         uint32_t _disableDelayUsecs   = 0;
 
-        int _engine = RMT;
+        static int _engine;
 
         // Interfaces to stepping engine
         void init();
@@ -67,9 +67,9 @@ namespace Machine {
         uint32_t maxPulsesPerSec();
 
         // Timers
-        void setTimerPeriod(uint16_t timerTicks);
-        void startTimer();
-        void stopTimer();
+        void        setTimerPeriod(uint16_t timerTicks);
+        void        startTimer();
+        static void stopTimer();
 
         // Configuration system helpers:
         void group(Configuration::HandlerBase& handler) override;

@@ -175,8 +175,6 @@ static st_prep_t prep;
 
 // Stepper shutdown
 void IRAM_ATTR Stepper::stop_stepping() {
-    // Disable Stepping Driver Interrupt.
-    config->_stepping->stopTimer();
     config->_axes->unstep();
     st.step_outbits = 0;
 }
@@ -187,8 +185,9 @@ void IRAM_ATTR Stepper::stop_stepping() {
  * interrupt and the start of the pulses. DON'T add any logic ahead of the
  * call to this method that might cause variation in the timing. The aim
  * is to keep pulse timing as regular as possible.
+ * Returns true if step interrupts should continue
  */
-void IRAM_ATTR Stepper::pulse_func() {
+bool IRAM_ATTR Stepper::pulse_func() {
     auto n_axis = config->_axes->_numberAxis;
 
     config->_axes->step(st.step_outbits, st.dir_outbits);
@@ -230,7 +229,7 @@ void IRAM_ATTR Stepper::pulse_func() {
                 }
             }
             rtCycleStop = true;
-            return;  // Nothing to do but exit.
+            return false;  // Nothing to do but exit.
         }
     }
 
@@ -265,6 +264,7 @@ void IRAM_ATTR Stepper::pulse_func() {
     }
 
     config->_axes->unstep();
+    return true;
 }
 
 // enabled. Startup init and limits call this function but shouldn't start the cycle.

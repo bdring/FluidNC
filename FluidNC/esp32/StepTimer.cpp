@@ -20,7 +20,6 @@ static void IRAM_ATTR timer_isr(void* arg) {
     // esp_intr_alloc_intrstatus() takes care of filtering based on the interrupt status register
     timer_hal_clear_intr_status(&hal);
     timer_isr_callback();
-    timer_hal_set_alarm_enable(&hal, true);
 }
 
 void IRAM_ATTR stepTimerStart() {
@@ -34,7 +33,7 @@ void IRAM_ATTR stepTimerRestart() {
     // Newer versions of the timer_ll API do not implement
     // _set_counter_value(), perhaps because of clock domain
     // hazards.
-    //   timer_hal_set_counter_value(&hal, 0);
+    timer_hal_set_alarm_enable(&hal, true);
 }
 
 void IRAM_ATTR stepTimerSetTicks(uint32_t ticks) {
@@ -43,7 +42,6 @@ void IRAM_ATTR stepTimerSetTicks(uint32_t ticks) {
 
 void IRAM_ATTR stepTimerStop() {
     timer_hal_set_counter_enable(&hal, false);
-
     timer_hal_set_alarm_enable(&hal, false);
 }
 

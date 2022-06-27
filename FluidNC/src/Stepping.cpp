@@ -8,6 +8,8 @@
 
 namespace Machine {
 
+    int Stepping::_engine = RMT;
+
     EnumItem stepTypes[] = { { Stepping::TIMED, "Timed" },
                              { Stepping::RMT, "RMT" },
                              { Stepping::I2S_STATIC, "I2S_static" },
@@ -144,13 +146,11 @@ namespace Machine {
         // The intermediate handler clears the timer interrupt so we need not do it here
         ++isr_count;
 
-        // It is tempting to defer this until after pulse_func(),
-        // but if pulse_func() determines that no more stepping
-        // is required and disables the timer, then that will be undone
-        // if the re-enable happens afterwards.
-        stepTimerRestart();
-
-        Stepper::pulse_func();
+        if (Stepper::pulse_func()) {
+            stepTimerRestart();
+        } else {
+            stopTimer();
+        }
         return false;
     }
 
