@@ -34,6 +34,8 @@ jobs:
         pip install --upgrade platformio
     - name: Set release version
       run: |
+        echo SHA $GITHUB_SHA
+        echo REF $GITHUB_REF
         git config user.email "wmb@firmworks.com"
         git config user.name "Mitch Bradley"
         git tag "${{ github.event.inputs.tag }}" -a -m "Release test"
