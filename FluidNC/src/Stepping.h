@@ -14,7 +14,7 @@ namespace Machine {
         static const uint32_t fStepperTimer = 20000000;  // frequency of step pulse timer
 
     private:
-        static bool onStepperDriverTimer();
+        static void onStepperDriverTimer();
 
         static const int ticksPerMicrosecond = fStepperTimer / 1000000;
 

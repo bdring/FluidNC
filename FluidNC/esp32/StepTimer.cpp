@@ -14,7 +14,7 @@ static const uint32_t fTimers = 80000000;  // the frequency of ESP32 timers
 
 static timer_hal_context_t hal;
 
-static bool (*timer_isr_callback)(void);
+static void (*timer_isr_callback)(void);
 
 static void IRAM_ATTR timer_isr(void* arg) {
     // esp_intr_alloc_intrstatus() takes care of filtering based on the interrupt status register
@@ -45,9 +45,9 @@ void IRAM_ATTR stepTimerStop() {
     timer_hal_set_alarm_enable(&hal, false);
 }
 
-void stepTimerInit(uint32_t frequency, bool (*callback)(void)) {
+void stepTimerInit(uint32_t frequency, void (*callback)(void)) {
     timer_hal_init(&hal, TIMER_GROUP_0, TIMER_0);
-    timer_hal_set_counter_value(&hal, 0);
+    timer_hal_reset_periph(&hal);
 
     timer_hal_set_divider(&hal, fTimers / frequency);
     timer_hal_set_counter_increase(&hal, true);

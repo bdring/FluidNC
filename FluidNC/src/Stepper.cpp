@@ -20,6 +20,8 @@
 
 using namespace Stepper;
 
+static bool awake = false;
+
 // Stores the planner block Bresenham algorithm execution data for the segments in the segment
 // buffer. Normally, this buffer is partially in-use, but, for the worst case scenario, it will
 // never exceed the number of accessible stepper buffer segments (config->_stepping->_segments-1).
@@ -188,6 +190,10 @@ void IRAM_ATTR Stepper::stop_stepping() {
  * Returns true if step interrupts should continue
  */
 bool IRAM_ATTR Stepper::pulse_func() {
+    // This is a precaution in case we get a spurious interrupt
+    if (!awake) {
+        return false;
+    }
     auto n_axis = config->_axes->_numberAxis;
 
     config->_axes->step(st.step_outbits, st.dir_outbits);
@@ -269,6 +275,10 @@ bool IRAM_ATTR Stepper::pulse_func() {
 
 // enabled. Startup init and limits call this function but shouldn't start the cycle.
 void Stepper::wake_up() {
+    if (awake) {
+        return;
+    }
+    awake = true;
     // Cancel any pending stepper disable
     protocol_cancel_disable_steppers();
     // Enable stepper drivers.
@@ -279,6 +289,7 @@ void Stepper::wake_up() {
 }
 
 void Stepper::go_idle() {
+    awake = false;
     stop_stepping();
     protocol_disable_steppers();
 }

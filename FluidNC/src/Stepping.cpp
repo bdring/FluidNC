@@ -140,7 +140,7 @@ namespace Machine {
     // TODO: Replace direct updating of the int32 position counters in the ISR somehow. Perhaps use smaller
     // int8 variables and update position counters only when a segment completes. This can get complicated
     // with probing and homing cycles that require true real-time positions.
-    bool IRAM_ATTR Stepping::onStepperDriverTimer() {
+    void IRAM_ATTR Stepping::onStepperDriverTimer() {
         // Timer ISR, normally takes a step.
         //
         // The intermediate handler clears the timer interrupt so we need not do it here
@@ -151,7 +151,6 @@ namespace Machine {
         } else {
             stopTimer();
         }
-        return false;
     }
 
     void Stepping::group(Configuration::HandlerBase& handler) {
