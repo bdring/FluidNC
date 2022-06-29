@@ -45,5 +45,5 @@ namespace Stepper {
     // Called by realtime status reporting if realtime rate reporting is enabled in config.h.
     float get_realtime_rate();
 
-    extern uint32_t isr_count;  // for debugging only
+    extern uint32_t isr_count;
 }

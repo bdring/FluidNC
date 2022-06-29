@@ -181,6 +181,10 @@ void IRAM_ATTR Stepper::stop_stepping() {
     st.step_outbits = 0;
 }
 
+#ifdef DEBUG_STEPPER_ISR
+uint32_t Stepper::isr_count;  // for debugging only
+#endif
+
 /**
  * This phase of the ISR should ONLY create the pulses for the steppers.
  * This prevents jitter caused by the interval between the start of the
@@ -190,6 +194,9 @@ void IRAM_ATTR Stepper::stop_stepping() {
  * Returns true if step interrupts should continue
  */
 bool IRAM_ATTR Stepper::pulse_func() {
+#ifdef DEBUG_STEPPER_ISR
+    isr_count++;
+#endif
     // This is a precaution in case we get a spurious interrupt
     if (!awake) {
         return false;
@@ -235,6 +242,7 @@ bool IRAM_ATTR Stepper::pulse_func() {
                 }
             }
             rtCycleStop = true;
+            awake       = false;
             return false;  // Nothing to do but exit.
         }
     }

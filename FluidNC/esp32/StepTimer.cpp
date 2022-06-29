@@ -14,26 +14,26 @@ static const uint32_t fTimers = 80000000;  // the frequency of ESP32 timers
 
 static timer_hal_context_t hal;
 
-static void (*timer_isr_callback)(void);
+static bool (*timer_isr_callback)(void);
 
 static void IRAM_ATTR timer_isr(void* arg) {
     // esp_intr_alloc_intrstatus() takes care of filtering based on the interrupt status register
     timer_hal_clear_intr_status(&hal);
-    timer_isr_callback();
+    if (timer_isr_callback()) {
+        // We could just pass the result of timer_isr_callback() as
+        // the argument to timer_hal_set_alarm_enable(), but the
+        // enable is automatically cleared when the alarm occurs,
+        // so setting it to false is redundant.  Writing the
+        // device register is much slower than a branch, so
+        // this way of doing it is the most efficient.
+        timer_hal_set_alarm_enable(&hal, true);
+    }
 }
 
 void IRAM_ATTR stepTimerStart() {
+    timer_hal_set_alarm_value(&hal, 10ULL);  // Interrupt very soon to start the stepping
     timer_hal_set_alarm_enable(&hal, true);
     timer_hal_set_counter_enable(&hal, true);
-}
-
-void IRAM_ATTR stepTimerRestart() {
-    // Resetting the counter value here is unnecessary because it
-    // happens automatically via the autoreload hardware.
-    // Newer versions of the timer_ll API do not implement
-    // _set_counter_value(), perhaps because of clock domain
-    // hazards.
-    timer_hal_set_alarm_enable(&hal, true);
 }
 
 void IRAM_ATTR stepTimerSetTicks(uint32_t ticks) {
@@ -45,7 +45,7 @@ void IRAM_ATTR stepTimerStop() {
     timer_hal_set_alarm_enable(&hal, false);
 }
 
-void stepTimerInit(uint32_t frequency, void (*callback)(void)) {
+void stepTimerInit(uint32_t frequency, bool (*callback)(void)) {
     timer_hal_init(&hal, TIMER_GROUP_0, TIMER_0);
     timer_hal_reset_periph(&hal);
 

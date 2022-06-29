@@ -14,7 +14,7 @@ namespace Machine {
         static const uint32_t fStepperTimer = 20000000;  // frequency of step pulse timer
 
     private:
-        static void onStepperDriverTimer();
+        static bool onStepperDriverTimer();
 
         static const int ticksPerMicrosecond = fStepperTimer / 1000000;
 
@@ -22,11 +22,6 @@ namespace Machine {
         int32_t _stepPulseEndTime;
 
     public:
-        // Counts stepper ISR invocations.  This variable can be inspected
-        // from the mainline code to determine if the stepper ISR is running,
-        // since printing from the ISR is not a good idea.
-        static uint32_t isr_count;
-
         enum stepper_id_t {
             TIMED = 0,
             RMT,
