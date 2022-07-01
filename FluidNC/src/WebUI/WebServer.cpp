@@ -476,10 +476,15 @@ namespace WebUI {
                 String prefix(0xc2);
                 cmd.replace(prefix, "");
             }
-            if (!(cmd.length() == 1 && is_realtime_command(cmd[0])) && !cmd.endsWith("\n")) {
-                cmd += '\n';
+            bool hasError = false;
+            if (cmd.length() == 1 && is_realtime_command(cmd[0])) {
+                serial2Socket.pushRT(cmd[0]);
+            } else {
+                if (!cmd.endsWith("\n")) {
+                    cmd += '\n';
+                }
+                hasError = !serial2Socket.push(cmd.c_str());
             }
-            bool hasError = !serial2Socket.push(cmd.c_str());
             _webserver->send(200, "text/plain", hasError ? "Error" : "");
         }
     }

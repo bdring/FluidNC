@@ -19,6 +19,16 @@ namespace WebUI {
 
     void Serial_2_Socket::end() { _TXbufferSize = 0; }
 
+    int Serial_2_Socket::read() {
+        if (_rtchar == -1) {
+            return -1;
+        } else {
+            auto ret = _rtchar;
+            _rtchar  = -1;
+            return ret;
+        }
+    }
+
     bool Serial_2_Socket::attachWS(WebSocketsServer* web_socket) {
         if (web_socket) {
             _web_socket   = web_socket;
@@ -68,6 +78,8 @@ namespace WebUI {
         handle();
         return size;
     }
+
+    void Serial_2_Socket::pushRT(char ch) { _rtchar = ch; }
 
     bool Serial_2_Socket::push(const uint8_t* data, size_t length) {
         char c;
