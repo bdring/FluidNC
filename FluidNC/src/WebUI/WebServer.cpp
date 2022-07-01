@@ -141,6 +141,8 @@ namespace WebUI {
         //web commands
         _webserver->on("/command", HTTP_ANY, handle_web_command);
         _webserver->on("/command_silent", HTTP_ANY, handle_web_command_silent);
+        _webserver->on("/reload_blocked", HTTP_ANY, handleReloadBlocked);
+        _webserver->on("/feedhold_reload", HTTP_ANY, handleFeedholdReload);
 
         //LocalFS
         _webserver->on("/files", HTTP_ANY, handleFileList, LocalFSFileupload);
@@ -239,7 +241,13 @@ namespace WebUI {
         // way to trigger such problems is to refresh WebUI during motion.
         // If you need to do such debugging, comment out this check temporarily.
         if (sys.state == State::Cycle || sys.state == State::Jog || sys.state == State::Homing) {
-            _webserver->send(503, "text/plain", "FluidNC is busy running GCode.  Try again later.");
+            //           _webserver->send(503, "text/plain", "FluidNC is busy running GCode.  Try again later.");
+            //            _webserver->sendHeader("Cache-Control", "no-cache");
+            _webserver->send(200,
+                             "text/html",
+                             "<!DOCTYPE html><html><body>"
+                             "<script>window.location.assign('/reload_blocked');</script>"
+                             "</body></html>");
             return;
         }
 
@@ -658,6 +666,29 @@ namespace WebUI {
         _webserver->sendHeader("Cache-Control", "no-cache");
         _webserver->send(200, "application/json", "{\"status\":\"Ok\",\"authentication_lvl\":\"admin\"}");
 #    endif
+    }
+
+    void Web_Server::handleReloadBlocked() {
+        _webserver->send(200,
+                         "text/html",
+                         "<!DOCTYPE html><html><body>"
+                         "<h3>Cannot load WebUI while moving</h3>"
+                         "<button onclick='window.location.replace(\"/\")'>Retry</button>"
+                         "&nbsp;Retry (you must first wait for motion to finish)<br><br>"
+                         "<button onclick='window.location.replace(\"/feedhold_reload\")'>Feedhold</button>"
+                         "&nbsp;Stop the motion with feedhold and then retry<br>"
+                         "</body></html>");
+    }
+    void Web_Server::handleFeedholdReload() {
+        // Send feedhold to FluidNC
+        serial2Socket.pushRT('!');
+
+        // Go to the main page
+        _webserver->send(200,
+                         "text/html",
+                         "<!DOCTYPE html><html><body>"
+                         "<script>window.location.replace('/');</script>"
+                         "</body></html>");
     }
 
     //LocalFS
