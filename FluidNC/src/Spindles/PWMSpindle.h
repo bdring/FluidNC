@@ -9,6 +9,7 @@
 */
 
 #include "OnOffSpindle.h"
+#include "Driver/PwmPin.h"
 
 #include <cstdint>
 
@@ -58,10 +59,8 @@ namespace Spindles {
         virtual ~PWM() {}
 
     protected:
-        int32_t  _current_pwm_duty = 0;
-        int      _pwm_chan_num = -1;
-        uint32_t _pwm_period;     // how many counts in 1 period
-        uint8_t  _pwm_precision;  // auto calculated
+        int32_t _current_pwm_duty = 0;
+        PwmPin* _pwm              = nullptr;
 
         // Configurable
         uint32_t _pwm_freq = 5000;

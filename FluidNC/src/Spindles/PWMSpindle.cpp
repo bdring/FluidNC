@@ -9,8 +9,6 @@
 
 #include "../GCode.h"  // gc_state.modal
 #include "../Logging.h"
-#include "../Pins/LedcPin.h"
-#include <esp32-hal-ledc.h>  // ledcDetachPin
 
 // ======================= PWM ==============================
 /*
@@ -26,7 +24,7 @@ namespace Spindles {
         if (_output_pin.defined()) {
             if (_output_pin.capabilities().has(Pin::Capabilities::PWM)) {
                 auto outputNative = _output_pin.getNative(Pin::Capabilities::PWM);
-                _pwm_chan_num     = ledcInit(_output_pin, -1, (double)_pwm_freq, _pwm_precision);
+                _pwm              = new PwmPin(_output_pin, _pwm_freq);
             } else {
                 log_error(name() << " output pin " << _output_pin.name().c_str() << " cannot do PWM");
             }
@@ -44,7 +42,7 @@ namespace Spindles {
             // The default speed map for a PWM spindle is linear from 0=0% to 10000=100%
             linearSpeeds(10000, 100.0f);
         }
-        setupSpeeds(_pwm_period);
+        setupSpeeds(_pwm->period());
         config_message();
     }
 
@@ -53,9 +51,6 @@ namespace Spindles {
         // setup all the pins
 
         is_reversable = _direction_pin.defined();
-
-        _pwm_precision = ledc_calc_pwm_precision(_pwm_freq);  // determine the best precision
-        _pwm_period    = (1 << _pwm_precision);
     }
 
     void IRAM_ATTR PWM::setSpeedfromISR(uint32_t dev_speed) {
@@ -105,28 +100,31 @@ namespace Spindles {
     // prints the startup message of the spindle config
     void PWM::config_message() {
         log_info(name() << " Spindle Ena:" << _enable_pin.name() << " Out:" << _output_pin.name() << " Dir:" << _direction_pin.name()
-                        << " Freq:" << _pwm_freq << "Hz Res:" << _pwm_precision << "bits"
+                        << " Freq:" << _pwm->frequency() << "Hz Period:" << _pwm->period()
 
         );
     }
 
     void IRAM_ATTR PWM::set_output(uint32_t duty) {
-        if (_pwm_chan_num == -1) {
+        if (!_pwm) {
             return;
         }
 
-        // to prevent excessive calls to ledcSetDuty, make sure duty has changed
+        // to prevent excessive calls to pwmSetDuty, make sure duty has changed
         if (duty == _current_pwm_duty) {
             return;
         }
 
         _current_pwm_duty = duty;
-        ledcSetDuty(_pwm_chan_num, duty);
+        _pwm->setDuty(duty);
     }
 
     void PWM::deinit() {
         stop();
-        ledcDetachPin(_output_pin.getNative(Pin::Capabilities::PWM));
+        if (_pwm) {
+            delete _pwm;
+            _pwm = nullptr;
+        }
         _output_pin.setAttr(Pin::Attr::Input);
         _enable_pin.setAttr(Pin::Attr::Input);
         _direction_pin.setAttr(Pin::Attr::Input);
