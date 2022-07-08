@@ -72,44 +72,39 @@ static uint8_t calc_pwm_precision(uint32_t frequency) {
 }
 
 PwmPin::PwmPin(Pin& pin, uint32_t frequency) : _frequency(frequency) {
-    uint8_t bits  = calc_pwm_precision(frequency);
-    _period       = (1 << bits) - 1;
-    _channel      = allocateChannel();
-    uint8_t group = (_channel / 8), timer = ((_channel / 2) % 4);
+    uint8_t bits       = calc_pwm_precision(frequency);
+    _period            = (1 << bits) - 1;
+    _channel           = allocateChannel();
+    uint8_t      group = (_channel / 8);
+    ledc_timer_t timer = ledc_timer_t((_channel / 2) % 4);
 
     ledc_timer_config_t ledc_timer = { .speed_mode      = ledc_mode_t(group),
                                        .duty_resolution = ledc_timer_bit_t(bits),
-                                       .timer_num       = ledc_timer_t(timer),
+                                       .timer_num       = timer,
                                        .freq_hz         = frequency,
                                        .clk_cfg         = LEDC_DEFAULT_CLK };
 
     if (ledc_timer_config(&ledc_timer) != ESP_OK) {
-        log_error("ledc timer setup failed!");
+        log_error("ledc timer setup failed");
         throw -1;
     }
-
-    // The Arduino framework should do this, but neglects to
-    ledc_bind_channel_timer(LEDC_HIGH_SPEED_MODE, ledc_channel_t(_channel), ledc_timer_t(_channel / 2));
 
     _gpio = pin.getNative(Pin::Capabilities::PWM);
 
     bool isActiveLow = pin.getAttr().has(Pin::Attr::ActiveLow);
 
-    gpio_config_t conf = {
-        .pin_bit_mask = (1ULL << _gpio),       /*!< GPIO pin: set with bit mask, each bit maps to a GPIO */
-        .mode         = GPIO_MODE_OUTPUT,      /*!< GPIO mode: set input/output mode                     */
-        .pull_up_en   = GPIO_PULLUP_DISABLE,   /*!< GPIO pull-up                                         */
-        .pull_down_en = GPIO_PULLDOWN_DISABLE, /*!< GPIO pull-down                                       */
-        .intr_type    = GPIO_INTR_DISABLE      /*!< GPIO interrupt type                                  */
-    };
-    gpio_config(&conf);
-
-    // This is equivalent to ledcAttachPin with the addition of
-    // using the hardware inversion function in the GPIO matrix.
-    // We use that to apply the active low function in hardware.
-
-    uint8_t function = ((_channel / 8) ? LEDC_LS_SIG_OUT0_IDX : LEDC_HS_SIG_OUT0_IDX) + (_channel % 8);
-    gpio_matrix_out(_gpio, function, isActiveLow, false);
+    ledc_channel_config_t ledc_channel = { .gpio_num   = _gpio,
+                                           .speed_mode = ledc_mode_t(group),
+                                           .channel    = ledc_channel_t(_channel),
+                                           .intr_type  = LEDC_INTR_DISABLE,
+                                           .timer_sel  = timer,
+                                           .duty       = 0,
+                                           .hpoint     = 0,
+                                           .flags      = { .output_invert = isActiveLow } };
+    if (ledc_channel_config(&ledc_channel) != ESP_OK) {
+        log_error("ledc channel setup failed");
+        throw -1;
+    }
 }
 
 void IRAM_ATTR PwmPin::setDuty(uint32_t duty) {
