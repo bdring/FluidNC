@@ -6,8 +6,8 @@
 #include "Report.h"
 #include "Logging.h"
 
-InputFile::InputFile(const char* defaultFs, const char* path, WebUI::AuthenticationLevel auth_level, Channel& out) :
-    FileStream(path, "r", defaultFs), _auth_level(auth_level), _out(out), _line_num(0) {}
+InputFile::InputFile(const FileSystem::FsInfo& fs, const char* path, WebUI::AuthenticationLevel auth_level, Channel& out) :
+    FileStream(path, "r", fs), _auth_level(auth_level), _out(out), _line_num(0) {}
 /*
   Read a line from the file
   Returns Error::Ok if a line was read, even if the line was empty.
