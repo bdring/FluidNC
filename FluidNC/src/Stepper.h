@@ -16,7 +16,7 @@
 namespace Stepper {
     void init();
 
-    void pulse_func();
+    bool pulse_func();
 
     // Enable steppers, but cycle does not start unless called by motion control or realtime command.
     void wake_up();
@@ -45,5 +45,5 @@ namespace Stepper {
     // Called by realtime status reporting if realtime rate reporting is enabled in config.h.
     float get_realtime_rate();
 
-    extern uint32_t isr_count;  // for debugging only
+    extern uint32_t isr_count;
 }

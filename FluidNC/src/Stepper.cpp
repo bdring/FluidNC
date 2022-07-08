@@ -20,6 +20,8 @@
 
 using namespace Stepper;
 
+static bool awake = false;
+
 // Stores the planner block Bresenham algorithm execution data for the segments in the segment
 // buffer. Normally, this buffer is partially in-use, but, for the worst case scenario, it will
 // never exceed the number of accessible stepper buffer segments (config->_stepping->_segments-1).
@@ -175,11 +177,13 @@ static st_prep_t prep;
 
 // Stepper shutdown
 void IRAM_ATTR Stepper::stop_stepping() {
-    // Disable Stepping Driver Interrupt.
-    config->_stepping->stopTimer();
     config->_axes->unstep();
     st.step_outbits = 0;
 }
+
+#ifdef DEBUG_STEPPER_ISR
+uint32_t Stepper::isr_count;  // for debugging only
+#endif
 
 /**
  * This phase of the ISR should ONLY create the pulses for the steppers.
@@ -187,8 +191,16 @@ void IRAM_ATTR Stepper::stop_stepping() {
  * interrupt and the start of the pulses. DON'T add any logic ahead of the
  * call to this method that might cause variation in the timing. The aim
  * is to keep pulse timing as regular as possible.
+ * Returns true if step interrupts should continue
  */
-void IRAM_ATTR Stepper::pulse_func() {
+bool IRAM_ATTR Stepper::pulse_func() {
+#ifdef DEBUG_STEPPER_ISR
+    isr_count++;
+#endif
+    // This is a precaution in case we get a spurious interrupt
+    if (!awake) {
+        return false;
+    }
     auto n_axis = config->_axes->_numberAxis;
 
     config->_axes->step(st.step_outbits, st.dir_outbits);
@@ -230,7 +242,8 @@ void IRAM_ATTR Stepper::pulse_func() {
                 }
             }
             rtCycleStop = true;
-            return;  // Nothing to do but exit.
+            awake       = false;
+            return false;  // Nothing to do but exit.
         }
     }
 
@@ -265,10 +278,15 @@ void IRAM_ATTR Stepper::pulse_func() {
     }
 
     config->_axes->unstep();
+    return true;
 }
 
 // enabled. Startup init and limits call this function but shouldn't start the cycle.
 void Stepper::wake_up() {
+    if (awake) {
+        return;
+    }
+    awake = true;
     // Cancel any pending stepper disable
     protocol_cancel_disable_steppers();
     // Enable stepper drivers.
@@ -279,6 +297,7 @@ void Stepper::wake_up() {
 }
 
 void Stepper::go_idle() {
+    awake = false;
     stop_stepping();
     protocol_disable_steppers();
 }
