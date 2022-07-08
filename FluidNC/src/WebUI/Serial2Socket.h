@@ -48,6 +48,8 @@ namespace WebUI {
 
         bool push(const uint8_t* data, size_t length);
         bool push(const char* data);
+        void pushRT(char ch);
+
         void flush(void);
         bool attachWS(WebSocketsServer* web_socket);
         bool detachWS();
@@ -57,6 +59,9 @@ namespace WebUI {
         operator bool() const;
 
         ~Serial_2_Socket();
+
+        int read() override;
+        int available() override { return _rtchar == -1 ? 0 : 1; }
 
     private:
         uint32_t          _lastflush;
@@ -68,6 +73,11 @@ namespace WebUI {
         uint8_t  _RXbuffer[RXBUFFERSIZE];
         uint16_t _RXbufferSize;
         uint16_t _RXbufferpos;
+
+        // Instead of queueing realtime characters, we put them here
+        // so they can be processed immediately during operations like
+        // homing where GCode handling is blocked.
+        int _rtchar = -1;
     };
 
     extern Serial_2_Socket serial2Socket;

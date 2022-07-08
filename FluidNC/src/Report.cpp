@@ -689,7 +689,7 @@ void report_realtime_status(Channel& channel) {
         channel << "|SD:" << setprecision(2) << infile->percent_complete() << "," << infile->path();
     }
 #ifdef DEBUG_STEPPER_ISR
-    channel << "|ISRs:" << config->_stepping->isr_count;
+    channel << "|ISRs:" << Stepper::isr_count;
 #endif
 #ifdef DEBUG_REPORT_HEAP
     channel << "|Heap:" << esp.getHeapSize();

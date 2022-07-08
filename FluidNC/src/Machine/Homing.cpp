@@ -45,6 +45,7 @@ namespace Machine {
         auto   axes   = config->_axes;
         auto   n_axis = axes->_numberAxis;
         float* target = get_mpos();
+        float  rates[n_axis];
 
         bool seeking = phase == HomingPhase::FastApproach;
 
@@ -104,7 +105,9 @@ namespace Machine {
             // Set target direction based on cycle mask and homing cycle approach state.
             auto seekTime = travel / axis_rate;
 
-            target[axis] = (homing->_positiveDirection ^ _approach) ? -seekTime : seekTime;
+            target[axis] = (homing->_positiveDirection ^ _approach) ? -travel : travel;
+            rates[axis]  = axis_rate;
+
             if (seekTime > maxSeekTime) {
                 maxSeekTime  = seekTime;
                 limitingRate = axis_rate;
@@ -117,7 +120,12 @@ namespace Machine {
             if (bitnum_is_true(axesMask, axis)) {
                 auto homing = axes->_axis[axis]->_homing;
                 auto scaler = _approach ? (seeking ? homing->_seek_scaler : homing->_feed_scaler) : 1.0;
-                target[axis] *= limitingRate * scaler;
+                target[axis] *= scaler;
+                if (phase == HomingPhase::FastApproach) {
+                    // For fast approach the vector direction is determined by the rates
+                    target[axis] *= rates[axis] / limitingRate;
+                }
+                log_debug(Axes::_names[axis] << " target " << target[axis] << " rate " << rates[axis]);
             }
         }
 

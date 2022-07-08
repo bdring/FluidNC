@@ -141,6 +141,8 @@ namespace WebUI {
         //web commands
         _webserver->on("/command", HTTP_ANY, handle_web_command);
         _webserver->on("/command_silent", HTTP_ANY, handle_web_command_silent);
+        _webserver->on("/reload_blocked", HTTP_ANY, handleReloadBlocked);
+        _webserver->on("/feedhold_reload", HTTP_ANY, handleFeedholdReload);
 
         //LocalFS
         _webserver->on("/files", HTTP_ANY, handleFileList, LocalFSFileupload);
@@ -230,6 +232,25 @@ namespace WebUI {
     //Root of Webserver/////////////////////////////////////////////////////
 
     void Web_Server::handle_root() {
+        // If you load or reload WebUI while a program is running, there is a high
+        // risk of stalling the motion because serving the index.html.gz file from
+        // the local FLASH filesystem takes away a lot of CPU cycles.  If we get
+        // a request for index.html.gz when running, reject it to preserve the motion
+        // integrity.
+        // This can make it hard to debug ISR IRAM problems, because the easiest
+        // way to trigger such problems is to refresh WebUI during motion.
+        // If you need to do such debugging, comment out this check temporarily.
+        if (sys.state == State::Cycle || sys.state == State::Jog || sys.state == State::Homing) {
+            //           _webserver->send(503, "text/plain", "FluidNC is busy running GCode.  Try again later.");
+            //            _webserver->sendHeader("Cache-Control", "no-cache");
+            _webserver->send(200,
+                             "text/html",
+                             "<!DOCTYPE html><html><body>"
+                             "<script>window.location.assign('/reload_blocked');</script>"
+                             "</body></html>");
+            return;
+        }
+
         String path        = "/index.html";
         String contentType = getContentType(path);
         String pathWithGz  = path + ".gz";
@@ -463,10 +484,15 @@ namespace WebUI {
                 String prefix(0xc2);
                 cmd.replace(prefix, "");
             }
-            if (!(cmd.length() == 1 && is_realtime_command(cmd[0])) && !cmd.endsWith("\n")) {
-                cmd += '\n';
+            bool hasError = false;
+            if (cmd.length() == 1 && is_realtime_command(cmd[0])) {
+                serial2Socket.pushRT(cmd[0]);
+            } else {
+                if (!cmd.endsWith("\n")) {
+                    cmd += '\n';
+                }
+                hasError = !serial2Socket.push(cmd.c_str());
             }
-            bool hasError = !serial2Socket.push(cmd.c_str());
             _webserver->send(200, "text/plain", hasError ? "Error" : "");
         }
     }
@@ -640,6 +666,29 @@ namespace WebUI {
         _webserver->sendHeader("Cache-Control", "no-cache");
         _webserver->send(200, "application/json", "{\"status\":\"Ok\",\"authentication_lvl\":\"admin\"}");
 #    endif
+    }
+
+    void Web_Server::handleReloadBlocked() {
+        _webserver->send(200,
+                         "text/html",
+                         "<!DOCTYPE html><html><body>"
+                         "<h3>Cannot load WebUI while moving</h3>"
+                         "<button onclick='window.location.replace(\"/\")'>Retry</button>"
+                         "&nbsp;Retry (you must first wait for motion to finish)<br><br>"
+                         "<button onclick='window.location.replace(\"/feedhold_reload\")'>Feedhold</button>"
+                         "&nbsp;Stop the motion with feedhold and then retry<br>"
+                         "</body></html>");
+    }
+    void Web_Server::handleFeedholdReload() {
+        // Send feedhold to FluidNC
+        serial2Socket.pushRT('!');
+
+        // Go to the main page
+        _webserver->send(200,
+                         "text/html",
+                         "<!DOCTYPE html><html><body>"
+                         "<script>window.location.replace('/');</script>"
+                         "</body></html>");
     }
 
     //LocalFS
