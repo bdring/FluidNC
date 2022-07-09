@@ -8,6 +8,8 @@
 
 namespace Machine {
 
+    int Stepping::_engine = RMT;
+
     EnumItem stepTypes[] = { { Stepping::TIMED, "Timed" },
                              { Stepping::RMT, "RMT" },
                              { Stepping::I2S_STATIC, "I2S_static" },
@@ -22,7 +24,7 @@ namespace Machine {
         // used is determined by timerStart() and timerStop()
 
         // Setup a timer for direct stepping
-        stepTimerInit(fStepperTimer, onStepperDriverTimer);
+        stepTimerInit(fStepperTimer, Stepper::pulse_func);
 
         // Register pulse_func with the I2S subsystem
         // This could be done via the linker.
@@ -108,7 +110,6 @@ namespace Machine {
             // The argument to i2s_out_set_pulse_period is in units of microseconds
             i2s_out_set_pulse_period(((uint32_t)timerTicks) / ticksPerMicrosecond);
         } else {
-            auto ticks = stepTimerGetTicks();
             stepTimerSetTicks((uint32_t)timerTicks);
         }
     }
@@ -128,31 +129,6 @@ namespace Machine {
         } else {
             stepTimerStop();
         }
-    }
-
-    // Counts stepper ISR invocations.  This variable can be inspected
-    // from the mainline code to determine if the stepper ISR is running,
-    // since printing from the ISR is not a good idea.
-    uint32_t Stepping::isr_count = 0;
-
-    // Used to avoid ISR nesting of the "Stepper Driver Interrupt". Should never occur though.
-    // TODO: Replace direct updating of the int32 position counters in the ISR somehow. Perhaps use smaller
-    // int8 variables and update position counters only when a segment completes. This can get complicated
-    // with probing and homing cycles that require true real-time positions.
-    bool IRAM_ATTR Stepping::onStepperDriverTimer() {
-        // Timer ISR, normally takes a step.
-        //
-        // The intermediate handler clears the timer interrupt so we need not do it here
-        ++isr_count;
-
-        // It is tempting to defer this until after pulse_func(),
-        // but if pulse_func() determines that no more stepping
-        // is required and disables the timer, then that will be undone
-        // if the re-enable happens afterwards.
-        stepTimerRestart();
-
-        Stepper::pulse_func();
-        return false;
     }
 
     void Stepping::group(Configuration::HandlerBase& handler) {

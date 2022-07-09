@@ -18,6 +18,8 @@
 #include <esp32-hal-matrix.h>  // pinMatrixOutAttach
 #include <esp32-hal-gpio.h>    // OUTPUT
 
+#include <esp32-hal-ledc.h>  // ledc_bind_channel_timer()
+
 extern "C" void __pinMode(pinnum_t pin, uint8_t mode);
 
 static int ledcAllocateChannel() {
@@ -40,6 +42,9 @@ int ledcInit(Pin& pin, int chan, double freq, uint8_t bit_num) {
         chan = ledcAllocateChannel();
     }
     ledcSetup(chan, freq, bit_num);  // setup the channel
+
+    // The Arduino framework should do this, but neglects to
+    ledc_bind_channel_timer(LEDC_HIGH_SPEED_MODE, ledc_channel_t(chan), ledc_timer_t(chan / 2));
 
     auto nativePin = pin.getNative(Pin::Capabilities::PWM);
 
