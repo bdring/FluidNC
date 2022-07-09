@@ -162,7 +162,7 @@ void FileSystem::listDirJSON(const String& path, size_t levels, WebUI::JSONencod
     if (xpath.endsWith("/")) {
         xpath = xpath.substring(0, xpath.length() - 1);
     }
-    DIR* dir = opendir(xpath.c_str());
+    DIR* dir = opendir(path.c_str());
     while (dir) {
         struct dirent* file = readdir(dir);
         if (!file) {
@@ -302,5 +302,23 @@ bool FileSystem::deleteDir() {
     return deleteRecursive(_fspath);
 }
 bool FileSystem::deleteDir(const String& filename) {
-    return deleteRecursive(joinFile(_fspath, filename).c_str());
+    return deleteRecursive(joinFile(_fspath, filename));
+}
+
+bool FileSystem::openDir() {
+    _dir = opendir(_fspath.c_str());
+    return _dir;
+}
+
+FileSystem::FileInfo* FileSystem::nextFile() {
+    struct dirent* file = readdir(_dir);
+    if (file) {
+        bool        isDir    = file->d_type == DT_DIR;
+        String      fullPath = _fspath + "/" + file->d_name;
+        struct stat statbuf;
+        stat(fullPath.c_str(), &statbuf);
+        _fileinfo = { file->d_name, isDir, size_t(statbuf.st_size) };
+        return &_fileinfo;
+    }
+    return nullptr;
 }

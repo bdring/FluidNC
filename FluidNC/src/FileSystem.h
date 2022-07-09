@@ -30,6 +30,12 @@ public:
         void (*closefn)(void);
     };
 
+    struct FileInfo {
+        String name;
+        bool   isDir;
+        size_t size;
+    };
+
 private:
     int  _fsindex;
     bool _hasSubdirs = false;
@@ -41,6 +47,10 @@ private:
 
     static void openSD();
     static void closeSD();
+
+    DIR* _dir;
+
+    FileInfo _fileinfo;
 
 public:
     FileSystem(const String& path, const FsInfo& fs);
@@ -75,6 +85,9 @@ public:
 
     bool deleteDir();
     bool deleteDir(const String& filename);
+
+    bool      openDir();
+    FileInfo* nextFile();
 
     static FsInfo            filesystems[3];
     static constexpr FsInfo& sd       = filesystems[0];

@@ -432,6 +432,59 @@ namespace WebUI {
         return Error::Ok;
     }
 
+    static Error fileCopy(const String&             sourceName,
+                          const FileSystem::FsInfo& sourceFs,
+                          const String&             destName,
+                          const FileSystem::FsInfo& destFs) {
+        FileStream* sourceFile;
+        FileStream* destFile;
+        try {
+            sourceFile = new FileStream(sourceName, "r", sourceFs);
+        } catch (Error err) {
+            log_error("Cannot open source file " << sourceName);
+            return err;
+        }
+        try {
+            destFile = new FileStream(destName, "w", destFs);
+        } catch (Error err) {
+            delete sourceFile;
+            log_error("Cannot open destination file " << destName);
+            return err;
+        }
+        uint8_t buf[1024];
+        size_t  actual;
+        while ((actual = sourceFile->read(buf, 1024)) > 0) {
+            destFile->write(buf, actual);
+        }
+
+        delete sourceFile;
+        delete destFile;
+        return Error::Ok;
+    }
+
+    static Error fileList(char* parameter, AuthenticationLevel auth_level, Channel& out) {
+        FileSystem fs(parameter, FileSystem::localfs);
+        if (fs.openDir()) {
+            FileSystem::FileInfo* fi;
+            while ((fi = fs.nextFile())) {
+                out << fi->name << " " << fi->size << '\n';
+            }
+        }
+        return Error::Ok;
+    }
+
+    static Error fileCopyCommand(char* parameter, AuthenticationLevel auth_level, Channel& out) {
+        String s   = parameter;
+        auto   loc = s.indexOf(' ');
+        if (loc == -1) {
+            log_error("$File/Copy=source_path destination_path");
+            return Error::InvalidStatement;
+        }
+        String sourceName = s.substring(0, loc);
+        String destName   = s.substring(loc + 1);
+        return fileCopy(sourceName, FileSystem::localfs, destName, FileSystem::sd);
+    }
+
     static Error showWebHelp(char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP0
         out << "Persistent web settings - $name to show, $name=value to set" << '\n';
         out << "ESPname FullName         Description" << '\n';
@@ -509,6 +562,9 @@ namespace WebUI {
         new WebCommand(NULL, WEBCMD, WU, "ESP210", "SD/List", listSDFiles);
         new WebCommand(NULL, WEBCMD, WU, NULL, "SD/ListJSON", listSDFilesJSON);
         new WebCommand(NULL, WEBCMD, WU, "ESP200", "SD/Status", showSDStatus);
+
+        new WebCommand(NULL, WEBCMD, WU, NULL, "File/Copy", fileCopyCommand);
+        new WebCommand(NULL, WEBCMD, WU, NULL, "File/List", fileList);
 
         new WebCommand("ON|OFF", WEBCMD, WA, "ESP115", "Radio/State", setRadioState);
 
