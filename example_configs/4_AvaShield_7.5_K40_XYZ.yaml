@@ -1,5 +1,5 @@
 name: K40_AvaShield
-board: Ava_Shield_7.3
+board: Ava_Shield_7.5
 
 kinematics:
   Cartesian:
@@ -148,7 +148,7 @@ laser:
   speed_map: 0=0.0% 1000=100.0%
   output_pin: gpio.15
   enable_pin: gpio.16:low
-  disable_with_s0: false
+  disable_with_s0: true
   s0_with_disable: false
   pwm_hz: 15000
 
