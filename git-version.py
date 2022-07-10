@@ -3,6 +3,8 @@ import filecmp, tempfile, shutil, os
 
 # Thank you https://docs.platformio.org/en/latest/projectconf/section_env_build.html !
 
+print('start')
+
 gitFail = False
 try:
     subprocess.check_call(["git", "status"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
@@ -14,11 +16,13 @@ if gitFail:
     rev = " (noGit)"
 else:
     try:
+        
         tag = (
             subprocess.check_output(["git", "describe", "--tags", "--abbrev=0"], stderr=subprocess.DEVNULL)
             .strip()
             .decode("utf-8")
         )
+        print ('tag : ', tag)
 
     except:
         tag = "v3.0.x"
@@ -29,12 +33,19 @@ else:
     try:
         subprocess.check_call(["git", "describe", "--tags", "--exact"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         rev = ''
+        branchname = ''
+        revision = ''
+        repo = ''
+
+
     except:
         branchname = (
             subprocess.check_output(["git", "rev-parse", "--abbrev-ref", "HEAD"])
             .strip()
             .decode("utf-8")
         )
+        
+        
         revision = (
             subprocess.check_output(["git", "rev-parse", "--short", "HEAD"])
             .strip()
