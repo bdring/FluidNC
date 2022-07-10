@@ -3,8 +3,6 @@ import filecmp, tempfile, shutil, os
 
 # Thank you https://docs.platformio.org/en/latest/projectconf/section_env_build.html !
 
-print('start')
-
 gitFail = False
 try:
     subprocess.check_call(["git", "status"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
@@ -22,7 +20,6 @@ else:
             .strip()
             .decode("utf-8")
         )
-        print ('tag : ', tag)
 
     except:
         tag = "v3.0.x"
