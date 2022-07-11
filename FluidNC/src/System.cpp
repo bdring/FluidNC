@@ -94,3 +94,7 @@ std::map<State, const char*> StateName = {
     { State::Sleep, "Sleep" },
     { State::ConfigAlarm, "ConfigAlarm" },
 };
+
+bool inMotionState() {
+    return sys.state == State::Cycle || sys.state == State::Homing || sys.state == State::Jog;
+}

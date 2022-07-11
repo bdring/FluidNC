@@ -240,7 +240,7 @@ namespace WebUI {
         // This can make it hard to debug ISR IRAM problems, because the easiest
         // way to trigger such problems is to refresh WebUI during motion.
         // If you need to do such debugging, comment out this check temporarily.
-        if (sys.state == State::Cycle || sys.state == State::Jog || sys.state == State::Homing) {
+        if (inMotionState()) {
             //           _webserver->send(503, "text/plain", "FluidNC is busy running GCode.  Try again later.");
             //            _webserver->sendHeader("Cache-Control", "no-cache");
             _webserver->send(200,

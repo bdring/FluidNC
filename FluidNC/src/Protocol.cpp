@@ -649,9 +649,9 @@ static void protocol_execute_overrides() {
         sys.spindle_speed_ovr               = rtSOverride;
         report_ovr_counter                  = 0;  // Set to report change immediately
 
-        // XXX this might not be necessary if the override is processed at the right level
         // If spindle is on, tell it the RPM has been overridden
-        if (gc_state.modal.spindle != SpindleState::Disable) {
+        // When moving, the override is handled by the stepping code
+        if (gc_state.modal.spindle != SpindleState::Disable && !inMotionState()) {
             spindle->setState(gc_state.modal.spindle, gc_state.spindle_speed);
             report_ovr_counter = 0;  // Set to report change immediately
         }
