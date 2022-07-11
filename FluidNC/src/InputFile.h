@@ -32,7 +32,7 @@ public:
     // fsname is the default file system on which the file is located, in case the path does not specify
     // path is the full path to the file
     // channel is the I/O channel on which status about the use of this file will be reported
-    InputFile(const char* fsname, const char* path, WebUI::AuthenticationLevel auth_level, Channel& channel);
+    InputFile(const FileSystem::FsInfo& fs, const char* path, WebUI::AuthenticationLevel auth_level, Channel& channel);
 
     InputFile(const InputFile&) = delete;
     InputFile& operator=(const InputFile&) = delete;

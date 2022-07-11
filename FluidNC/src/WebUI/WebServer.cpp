@@ -13,13 +13,9 @@
 
 #    include "Serial2Socket.h"
 #    include "WebServer.h"
-#    include "../SDCard.h"
 
 #    include <WebSocketsServer.h>
 #    include <WiFi.h>
-#    include <FS.h>
-#    include "../LocalFS.h"
-#    include <SD.h>
 #    include <WebServer.h>
 #    include <ESP32SSDP.h>
 #    include <StreamString.h>
@@ -43,19 +39,6 @@ namespace WebUI {
 #    include "NoFile.h"
 
 namespace WebUI {
-    //Default 404
-    const char PAGE_404[] =
-        "<HTML>\n<HEAD>\n<title>Redirecting...</title> \n</HEAD>\n<BODY>\n<CENTER>Unknown page : $QUERY$- you will be "
-        "redirected...\n<BR><BR>\nif not redirected, <a href='http://$WEB_ADDRESS$'>click here</a>\n<BR><BR>\n<PROGRESS name='prg' "
-        "id='prg'></PROGRESS>\n\n<script>\nvar i = 0; \nvar x = document.getElementById(\"prg\"); \nx.max=5; \nvar "
-        "interval=setInterval(function(){\ni=i+1; \nvar x = document.getElementById(\"prg\"); \nx.value=i; \nif (i>5) "
-        "\n{\nclearInterval(interval);\nwindow.location.href='/';\n}\n},1000);\n</script>\n</CENTER>\n</BODY>\n</HTML>\n\n";
-    const char PAGE_CAPTIVE[] =
-        "<HTML>\n<HEAD>\n<title>Captive Portal</title> \n</HEAD>\n<BODY>\n<CENTER>Captive Portal page : $QUERY$- you will be "
-        "redirected...\n<BR><BR>\nif not redirected, <a href='http://$WEB_ADDRESS$'>click here</a>\n<BR><BR>\n<PROGRESS name='prg' "
-        "id='prg'></PROGRESS>\n\n<script>\nvar i = 0; \nvar x = document.getElementById(\"prg\"); \nx.max=5; \nvar "
-        "interval=setInterval(function(){\ni=i+1; \nvar x = document.getElementById(\"prg\"); \nx.value=i; \nif (i>5) "
-        "\n{\nclearInterval(interval);\nwindow.location.href='/';\n}\n},1000);\n</script>\n</CENTER>\n</BODY>\n</HTML>\n\n";
 
     // Error codes for upload
     const int ESP_ERROR_AUTHENTICATION   = 1;
@@ -70,7 +53,7 @@ namespace WebUI {
     bool              Web_Server::_setupdone     = false;
     uint16_t          Web_Server::_port          = 0;
     long              Web_Server::_id_connection = 0;
-    UploadStatus      Web_Server::_upload_status = UploadStatus::NONE;
+    UploadStatus      Web_Server::_uploadStatus  = UploadStatus::NONE;
     WebServer*        Web_Server::_webserver     = NULL;
     WebSocketsServer* Web_Server::_socket_server = NULL;
 #    ifdef ENABLE_AUTHENTICATION
@@ -78,8 +61,9 @@ namespace WebUI {
     uint8_t           Web_Server::_nb_ip = 0;
     const int         MAX_AUTH_IP        = 10;
 #    endif
-    String      Web_Server::_uploadFilename;
-    FileStream* Web_Server::_uploadFile = nullptr;
+    String                    Web_Server::_uploadFilename;
+    const FileSystem::FsInfo* Web_Server::_uploadFs;
+    FileStream*               Web_Server::_uploadFile = nullptr;
 
     EnumSetting* http_enable;
     IntSetting*  http_port;
@@ -141,18 +125,17 @@ namespace WebUI {
         //web commands
         _webserver->on("/command", HTTP_ANY, handle_web_command);
         _webserver->on("/command_silent", HTTP_ANY, handle_web_command_silent);
-        _webserver->on("/reload_blocked", HTTP_ANY, handleReloadBlocked);
-        _webserver->on("/feedhold_reload", HTTP_ANY, handleFeedholdReload);
+        _webserver->on("/reload_blocked", HTTP_ANY, blockReload);
+        _webserver->on("/feedhold_reload", HTTP_ANY, feedholdAndReload);
 
         //LocalFS
-        _webserver->on("/files", HTTP_ANY, handleFileList, LocalFSFileupload);
+        _webserver->on("/files", HTTP_ANY, listLocalFiles, uploadLocalFile);
 
         //web update
         _webserver->on("/updatefw", HTTP_ANY, handleUpdate, WebUpdateUpload);
 
         //Direct SD management
-        _webserver->on("/upload", HTTP_ANY, handle_direct_SDFileList, SDFile_direct_upload);
-        //_webserver->on("/SD", HTTP_ANY, handle_SDCARD);
+        _webserver->on("/upload", HTTP_ANY, listSDFiles, uploadSDFile);
 
         if (WiFi.getMode() == WIFI_AP) {
             // if DNSServer is started with "*" for domain name, it will reply with
@@ -241,8 +224,6 @@ namespace WebUI {
         // way to trigger such problems is to refresh WebUI during motion.
         // If you need to do such debugging, comment out this check temporarily.
         if (sys.state == State::Cycle || sys.state == State::Jog || sys.state == State::Homing) {
-            //           _webserver->send(503, "text/plain", "FluidNC is busy running GCode.  Try again later.");
-            //            _webserver->sendHeader("Cache-Control", "no-cache");
             _webserver->send(200,
                              "text/html",
                              "<!DOCTYPE html><html><body>"
@@ -251,26 +232,64 @@ namespace WebUI {
             return;
         }
 
-        String path        = "/index.html";
-        String contentType = getContentType(path);
-        String pathWithGz  = path + ".gz";
-        //if have a index.html or gzip version this is default root page
-        if ((LocalFS.exists(pathWithGz) || LocalFS.exists(path)) && !_webserver->hasArg("forcefallback") &&
-            _webserver->arg("forcefallback") != "yes") {
-            if (LocalFS.exists(pathWithGz)) {
-                path = pathWithGz;
+        if (!(_webserver->hasArg("forcefallback") && _webserver->arg("forcefallback") == "yes")) {
+            if (streamFile("/index.html")) {
+                return;
             }
-
-            File file = LocalFS.open(path, FILE_READ);
-            _webserver->streamFile(file, contentType);
-            file.close();
-            return;
         }
 
-        //if no lets launch the default content
+        //Send the default content if forced to or index.html or index.html.gz could not be sent
         _webserver->sendHeader("Content-Encoding", "gzip");
         _webserver->send_P(200, "text/html", PAGE_NOFILES, PAGE_NOFILES_SIZE);
     }
+
+    // Send a file, either the specified path or path.gz
+    bool Web_Server::streamFile(String path, const FileSystem::FsInfo& fs) {
+        FileStream* file;
+        try {
+            file = new FileStream(path, "r", fs);
+        } catch (const Error err) {
+            try {
+                file = new FileStream(path + ".gz", "r", fs);
+            } catch (const Error err) { return false; }
+        }
+        _webserver->streamFile(*file, getContentType(path));
+        delete file;
+        return true;
+    }
+
+    void Web_Server::sendWithOurAddress(String content) {
+        auto   ip    = WiFi.getMode() == WIFI_STA ? WiFi.localIP() : WiFi.softAPIP();
+        String ipstr = ip.toString();
+        if (_port != 80) {
+            ipstr += ":";
+            ipstr += String(_port);
+        }
+
+        content.replace("$WEB_ADDRESS$", ipstr);
+        content.replace("$QUERY$", _webserver->uri());
+        _webserver->send(200, "text/html", content);
+    }
+
+    // Captive Portal Page for use in AP mode
+    const char PAGE_CAPTIVE[] =
+        "<HTML>\n<HEAD>\n<title>Captive Portal</title> \n</HEAD>\n<BODY>\n<CENTER>Captive Portal page : $QUERY$- you will be "
+        "redirected...\n<BR><BR>\nif not redirected, <a href='http://$WEB_ADDRESS$'>click here</a>\n<BR><BR>\n<PROGRESS name='prg' "
+        "id='prg'></PROGRESS>\n\n<script>\nvar i = 0; \nvar x = document.getElementById(\"prg\"); \nx.max=5; \nvar "
+        "interval=setInterval(function(){\ni=i+1; \nvar x = document.getElementById(\"prg\"); \nx.value=i; \nif (i>5) "
+        "\n{\nclearInterval(interval);\nwindow.location.href='/';\n}\n},1000);\n</script>\n</CENTER>\n</BODY>\n</HTML>\n\n";
+
+    void Web_Server::sendCaptivePortal() { sendWithOurAddress(PAGE_CAPTIVE); }
+
+    //Default 404 page that is sent when a request cannot be satisfied
+    const char PAGE_404[] =
+        "<HTML>\n<HEAD>\n<title>Redirecting...</title> \n</HEAD>\n<BODY>\n<CENTER>Unknown page : $QUERY$- you will be "
+        "redirected...\n<BR><BR>\nif not redirected, <a href='http://$WEB_ADDRESS$'>click here</a>\n<BR><BR>\n<PROGRESS name='prg' "
+        "id='prg'></PROGRESS>\n\n<script>\nvar i = 0; \nvar x = document.getElementById(\"prg\"); \nx.max=5; \nvar "
+        "interval=setInterval(function(){\ni=i+1; \nvar x = document.getElementById(\"prg\"); \nx.value=i; \nif (i>5) "
+        "\n{\nclearInterval(interval);\nwindow.location.href='/';\n}\n},1000);\n</script>\n</CENTER>\n</BODY>\n</HTML>\n\n";
+
+    void Web_Server::send404Page() { sendWithOurAddress(PAGE_404); }
 
     // Handle filenames and other things that are not explicitly registered
     void Web_Server::handle_not_found() {
@@ -280,149 +299,69 @@ namespace WebUI {
             return;
         }
 
-        String path        = _webserver->urlDecode(_webserver->uri());
-        String contentType = getContentType(path);
-        String pathWithGz  = path + ".gz";
+        String path = _webserver->urlDecode(_webserver->uri());
 
         if (path.startsWith("/api/")) {
             _webserver->send(404);
             return;
         }
 
-        FileStream* datafile = nullptr;
-        try {
-            datafile = new FileStream(path.c_str(), "r", "/localfs");
-        } catch (const Error err) {
-            try {
-                datafile = new FileStream(pathWithGz.c_str(), "r", "/localfs");
-                path     = pathWithGz;
-            } catch (const Error err) {}
-        }
-
-        if (datafile) {
-            vTaskDelay(1 / portTICK_RATE_MS);
-            size_t totalFileSize = datafile->size();
-            size_t i             = 0;
-            bool   done          = false;
-            _webserver->setContentLength(totalFileSize);
-            // String disp = "attachment; filename=\"" + path + "\"";
-            String disp = "attachment";
-            _webserver->sendHeader("Content-Disposition", disp);
-            _webserver->send(200, contentType, "");
-            uint8_t buf[1024];
-            while (!done) {
-                vTaskDelay(1 / portTICK_RATE_MS);
-                int v = datafile->read(buf, 1024);
-                if ((v == -1) || (v == 0)) {
-                    done = true;
-                } else {
-                    _webserver->client().write(buf, 1024);
-                    i += v;
-                }
-                if (i >= totalFileSize) {
-                    done = true;
-                }
-            }
-            delete datafile;
-            if (i != totalFileSize) {
-                //error: TBD
-            }
+        if (streamFile(path)) {
             return;
         }
-
-        // _webserver->streamFile(file, contentType);
 
         if (WiFi.getMode() == WIFI_AP) {
-            String contentType = PAGE_CAPTIVE;
-            String stmp        = WiFi.softAPIP().toString();
-            //Web address = ip + port
-            String KEY_IP    = "$WEB_ADDRESS$";
-            String KEY_QUERY = "$QUERY$";
-            if (_port != 80) {
-                stmp += ":";
-                stmp += String(_port);
-            }
-            contentType.replace(KEY_IP, stmp);
-            contentType.replace(KEY_IP, stmp);
-            contentType.replace(KEY_QUERY, _webserver->uri());
-            _webserver->send(200, "text/html", contentType);
-            //_webserver->sendContent_P(NOT_AUTH_NF);
-            //_webserver->client().stop();
+            sendCaptivePortal();
             return;
         }
 
-        path        = "/404.htm";
-        contentType = getContentType(path);
-        pathWithGz  = path + ".gz";
-        if (LocalFS.exists(pathWithGz) || LocalFS.exists(path)) {
-            if (LocalFS.exists(pathWithGz)) {
-                path = pathWithGz;
-            }
-            File file = LocalFS.open(path, FILE_READ);
-            _webserver->streamFile(file, contentType);
-            file.close();
+        // This lets the user customize the not-found page by
+        // putting a "404.htm" file on the local filesystem
+        if (streamFile("/404.htm")) {
             return;
         }
 
-        //if not template use default page
-        contentType = PAGE_404;
-        String stmp;
-        if (WiFi.getMode() == WIFI_STA) {
-            stmp = WiFi.localIP().toString();
-        } else {
-            stmp = WiFi.softAPIP().toString();
-        }
-        //Web address = ip + port
-        String KEY_IP    = "$WEB_ADDRESS$";
-        String KEY_QUERY = "$QUERY$";
-        if (_port != 80) {
-            stmp += ":";
-            stmp += String(_port);
-        }
-        contentType.replace(KEY_IP, stmp);
-        contentType.replace(KEY_QUERY, _webserver->uri());
-        _webserver->send(200, "text/html", contentType);
+        send404Page();
     }
 
     //http SSDP xml presentation
     void Web_Server::handle_SSDP() {
         StreamString sschema;
         if (sschema.reserve(1024)) {
-            String templ = "<?xml version=\"1.0\"?>"
-                           "<root xmlns=\"urn:schemas-upnp-org:device-1-0\">"
-                           "<specVersion>"
-                           "<major>1</major>"
-                           "<minor>0</minor>"
-                           "</specVersion>"
-                           "<URLBase>http://%s:%u/</URLBase>"
-                           "<device>"
-                           "<deviceType>upnp:rootdevice</deviceType>"
-                           "<friendlyName>%s</friendlyName>"
-                           "<presentationURL>/</presentationURL>"
-                           "<serialNumber>%s</serialNumber>"
-                           "<modelName>ESP32</modelName>"
-                           "<modelNumber>Marlin</modelNumber>"
-                           "<modelURL>http://espressif.com/en/products/hardware/esp-wroom-32/overview</modelURL>"
-                           "<manufacturer>Espressif Systems</manufacturer>"
-                           "<manufacturerURL>http://espressif.com</manufacturerURL>"
-                           "<UDN>uuid:%s</UDN>"
-                           "</device>"
-                           "</root>\r\n"
-                           "\r\n";
-            char     uuid[37];
-            String   sip    = WiFi.localIP().toString();
-            uint32_t chipId = (uint16_t)(ESP.getEfuseMac() >> 32);
-            sprintf(uuid,
-                    "38323636-4558-4dda-9188-cda0e6%02x%02x%02x",
-                    (uint16_t)((chipId >> 16) & 0xff),
-                    (uint16_t)((chipId >> 8) & 0xff),
-                    (uint16_t)chipId & 0xff);
-            String serialNumber = String(chipId);
-            sschema.printf(templ.c_str(), sip.c_str(), _port, wifi_config.Hostname().c_str(), serialNumber.c_str(), uuid);
-            _webserver->send(200, "text/xml", (String)sschema);
-        } else {
             _webserver->send(500);
         }
+        String templ = "<?xml version=\"1.0\"?>"
+                       "<root xmlns=\"urn:schemas-upnp-org:device-1-0\">"
+                       "<specVersion>"
+                       "<major>1</major>"
+                       "<minor>0</minor>"
+                       "</specVersion>"
+                       "<URLBase>http://%s:%u/</URLBase>"
+                       "<device>"
+                       "<deviceType>upnp:rootdevice</deviceType>"
+                       "<friendlyName>%s</friendlyName>"
+                       "<presentationURL>/</presentationURL>"
+                       "<serialNumber>%s</serialNumber>"
+                       "<modelName>ESP32</modelName>"
+                       "<modelNumber>Marlin</modelNumber>"
+                       "<modelURL>http://espressif.com/en/products/hardware/esp-wroom-32/overview</modelURL>"
+                       "<manufacturer>Espressif Systems</manufacturer>"
+                       "<manufacturerURL>http://espressif.com</manufacturerURL>"
+                       "<UDN>uuid:%s</UDN>"
+                       "</device>"
+                       "</root>\r\n"
+                       "\r\n";
+        char     uuid[37];
+        String   sip    = WiFi.localIP().toString();
+        uint32_t chipId = (uint16_t)(ESP.getEfuseMac() >> 32);
+        sprintf(uuid,
+                "38323636-4558-4dda-9188-cda0e6%02x%02x%02x",
+                (uint16_t)((chipId >> 16) & 0xff),
+                (uint16_t)((chipId >> 8) & 0xff),
+                (uint16_t)chipId & 0xff);
+        String serialNumber = String(chipId);
+        sschema.printf(templ.c_str(), sip.c_str(), _port, wifi_config.Hostname().c_str(), serialNumber.c_str(), uuid);
+        _webserver->send(200, "text/xml", (String)sschema);
     }
 
     void Web_Server::_handle_web_command(bool silent) {
@@ -445,6 +384,7 @@ namespace WebUI {
             _webserver->send(200, "text/plain", "Invalid command");
             return;
         }
+
         //if it is internal command [ESPXXX]<parameter>
         cmd.trim();
         int ESPpos = cmd.indexOf("[ESP");
@@ -472,7 +412,7 @@ namespace WebUI {
             webClient.detachWS();
         } else {  //execute GCODE
             if (auth_level == AuthenticationLevel::LEVEL_GUEST) {
-                _webserver->send(401, "text/plain", "Authentication failed!\n");
+                _webserver->send(401, "text/plain", "Authentication failed\n");
                 return;
             }
             if (!silent) {
@@ -517,8 +457,9 @@ namespace WebUI {
             ClearAuthIP(_webserver->client().remoteIP(), sessionID.c_str());
             _webserver->sendHeader("Set-Cookie", "ESPSESSIONID=0");
             _webserver->sendHeader("Cache-Control", "no-cache");
-            String buffer2send = "{\"status\":\"Ok\",\"authentication_lvl\":\"guest\"}";
-            _webserver->send(code, "application/json", buffer2send);
+
+            sendAuth("Ok", "guest", "");
+
             //_webserver->client().stop();
             return;
         }
@@ -636,11 +577,7 @@ namespace WebUI {
                 smsg = "Ok";
             }
 
-            //build  JSON
-            String buffer2send = "{\"status\":\"" + smsg + "\",\"authentication_lvl\":\"";
-            buffer2send += auths;
-            buffer2send += "\"}";
-            _webserver->send(code, "application/json", buffer2send);
+            sendAuth(smsg, auths, "");
         } else {
             if (auth_level != AuthenticationLevel::LEVEL_GUEST) {
                 String cookie = _webserver->header("Cookie");
@@ -655,20 +592,17 @@ namespace WebUI {
                     }
                 }
             }
-            String buffer2send = "{\"status\":\"200\",\"authentication_lvl\":\"";
-            buffer2send += auths;
-            buffer2send += "\",\"user\":\"";
-            buffer2send += sUser;
-            buffer2send += "\"}";
-            _webserver->send(code, "application/json", buffer2send);
+            sendAuth("Ok", auths, sUser);
         }
 #    else
-        _webserver->sendHeader("Cache-Control", "no-cache");
-        _webserver->send(200, "application/json", "{\"status\":\"Ok\",\"authentication_lvl\":\"admin\"}");
+        sendAuth("Ok", "admin", "");
 #    endif
     }
 
-    void Web_Server::handleReloadBlocked() {
+    // This page is used when you try to reload WebUI during motion,
+    // to avoid interrupting that motion.  It lets you wait until
+    // motion is finished or issue a feedhold.
+    void Web_Server::blockReload() {
         _webserver->send(200,
                          "text/html",
                          "<!DOCTYPE html><html><body>"
@@ -679,7 +613,9 @@ namespace WebUI {
                          "&nbsp;Stop the motion with feedhold and then retry<br>"
                          "</body></html>");
     }
-    void Web_Server::handleFeedholdReload() {
+
+    // This page issues a feedhold to pause the motion then retries the WebUI reload
+    void Web_Server::feedholdAndReload() {
         // Send feedhold to FluidNC
         serial2Socket.pushRT('!');
 
@@ -691,200 +627,62 @@ namespace WebUI {
                          "</body></html>");
     }
 
-    //LocalFS
-    //LocalFS files list and file commands
-    void Web_Server::handleFileList() {
+    void Web_Server::listLocalFiles() { listFiles(FileSystem::localfs); }
+    void Web_Server::listSDFiles() { listFiles(FileSystem::sd); }
+
+    void Web_Server::listFiles(const FileSystem::FsInfo& fs) {
         AuthenticationLevel auth_level = is_authenticated();
         if (auth_level == AuthenticationLevel::LEVEL_GUEST) {
-            _upload_status = UploadStatus::NONE;
-            _webserver->send(401, "text/plain", "Authentication failed!\n");
+            _uploadStatus = UploadStatus::NONE;
+            sendAuthFailed();
             return;
         }
 
-        String path;
-        String status = "Ok";
-        if (_upload_status == UploadStatus::FAILED) {
-            status         = "Upload failed";
-            _upload_status = UploadStatus::NONE;
+        String sstatus = "Ok";
+        if (_uploadStatus == UploadStatus::FAILED) {
+            sstatus = "Upload failed";
         }
-        _upload_status = UploadStatus::NONE;
-
-        //be sure root is correct according authentication
-        if (auth_level == AuthenticationLevel::LEVEL_ADMIN) {
-            path = "/";
-        } else {
-            path = "/user";
-        }
+        _uploadStatus = UploadStatus::NONE;
 
         //get current path
-        if (_webserver->hasArg("path")) {
-            path += _webserver->arg("path");
-        }
-
-        //to have a clean path
-        path.trim();
-        path.replace("//", "/");
-        if (path[path.length() - 1] != '/') {
-            path += "/";
-        }
+        String path = _webserver->hasArg("path") ? _webserver->arg("path") : "/";
 
         //check if query need some action
-        if (_webserver->hasArg("action")) {
-            //delete a file
-            if (_webserver->arg("action") == "delete" && _webserver->hasArg("filename")) {
-                String filename;
-                String shortname = _webserver->arg("filename");
-                shortname.replace("/", "");
-                filename = path + _webserver->arg("filename");
-                filename.replace("//", "/");
-                if (!LocalFS.exists(filename)) {
-                    status = shortname + " does not exists!";
-                } else {
-                    if (LocalFS.remove(filename)) {
-                        status = shortname + " deleted";
-                        //what happen if no "/." and no other subfiles ?
-                        String ptmp = path;
-                        if ((path != "/") && (path[path.length() - 1] = '/')) {
-                            ptmp = path.substring(0, path.length() - 1);
-                        }
-
-                        File dir        = LocalFS.open(ptmp);
-                        File dircontent = dir.openNextFile();
-                        if (!dircontent) {
-                            //keep directory alive even empty
-                            File r = LocalFS.open(path + "/.", FILE_WRITE);
-                            if (r) {
-                                r.close();
-                            }
-                        }
+        if (_webserver->hasArg("action") && _webserver->hasArg("filename")) {
+            String action   = _webserver->arg("action");
+            String filename = _webserver->arg("filename");
+            try {
+                if (action == "delete") {
+                    if (FileSystem(path, fs).deleteFile(filename)) {
+                        sstatus = filename + " deleted";
                     } else {
-                        status = "Cannot deleted ";
-                        status += shortname;
+                        sstatus = "Cannot delete ";
+                        sstatus += filename;
+                    }
+                } else if (action == "deletedir") {
+                    if (FileSystem(path, fs).deleteDir(filename)) {
+                        sstatus = filename + " deleted";
+                    } else {
+                        sstatus = "Cannot delete ";
+                        sstatus += filename;
+                    }
+                } else if (action == "createdir") {
+                    if (!FileSystem(path, fs).mkdir(filename)) {
+                        sstatus = "Cannot create ";
+                        sstatus += filename;
+                    } else {
+                        sstatus = filename + " created";
                     }
                 }
-            }
-            //delete a directory
-            if (_webserver->arg("action") == "deletedir" && _webserver->hasArg("filename")) {
-                String filename;
-                String shortname = _webserver->arg("filename");
-                shortname.replace("/", "");
-                filename = path + shortname;
-                filename.replace("//", "/");
-                if (filename != "/") {
-                    if (LocalFS.exists(filename)) {
-                        status = shortname + " does not exist";
-                    } else {
-                        if (!deleteLocalFSRecursive(filename)) {
-                            status = "Error deleting: ";
-                            status += shortname;
-                        } else {
-                            status = shortname;
-                            status += " deleted";
-                        }
-                    }
-                }
-            }
-            //create a directory
-            if (_webserver->arg("action") == "createdir" && _webserver->hasArg("filename")) {
-                String filename;
-                filename         = path + _webserver->arg("filename") + "/.";
-                String shortname = _webserver->arg("filename");
-                shortname.replace("/", "");
-                filename.replace("//", "/");
-                if (LocalFS.exists(filename)) {
-                    status = shortname + " already exists!";
-                } else {
-                    File r = LocalFS.open(filename, FILE_WRITE);
-                    if (!r) {
-                        status = "Cannot create ";
-                        status += shortname;
-                    } else {
-                        r.close();
-                        status = shortname + " created";
-                    }
-                }
-            }
+            } catch (const Error err) { sstatus = FSError(err); }
         }
 
-        String jsonfile = "{";
-        String ptmp     = path;
-        if ((path != "/") && (path[path.length() - 1] = '/')) {
-            ptmp = path.substring(0, path.length() - 1);
-        }
-
-        File dir = LocalFS.open(ptmp);
-        jsonfile += "\"files\":[";
-        bool   firstentry = true;
-        String subdirlist = "";
-        File   fileparsed = dir.openNextFile();
-        while (fileparsed) {
-            String filename  = fileparsed.name();
-            String size      = "";
-            bool   addtolist = true;
-            //remove path from name - possibly unnecessary with recent framework versions
-            if (filename.startsWith(path)) {
-                filename = filename.substring(path.length(), filename.length());
-            }
-            //check if file or subfile
-            if (filename.indexOf("/") > -1) {
-                // XXX this is probably SPIFFS-specific, and it might not work at all
-                // with recent versions of the Arduino frameworks
-
-                //Do not rely on "/." to define directory as SPIFFS upload won't create it but directly files
-                //and no need to overload SPIFFS if not necessary to create "/." if no need
-                //it will reduce SPIFFS available space so limit it to creation
-                filename   = filename.substring(0, filename.indexOf("/"));
-                String tag = "*";
-                tag += filename + "*";
-                if (subdirlist.indexOf(tag) > -1 || filename.length() == 0) {  //already in list
-                    addtolist = false;                                         //no need to add
-                } else {
-                    size = "-1";  //it is subfile so display only directory, size will be -1 to describe it is directory
-                    if (subdirlist.length() == 0) {
-                        subdirlist += "*";
-                    }
-                    subdirlist += filename + "*";  //add to list
-                }
-            } else {
-                //do not add "." file
-                if (!((filename == ".") || (filename == ""))) {
-                    size = formatBytes(fileparsed.size());
-                } else {
-                    addtolist = false;
-                }
-            }
-            if (addtolist) {
-                if (!firstentry) {
-                    jsonfile += ",";
-                } else {
-                    firstentry = false;
-                }
-                jsonfile += "{";
-                jsonfile += "\"name\":\"";
-                jsonfile += filename;
-                jsonfile += "\",\"size\":\"";
-                jsonfile += size;
-                jsonfile += "\"";
-                jsonfile += "}";
-            }
-            fileparsed = dir.openNextFile();
-        }
-        jsonfile += "],";
-        jsonfile += "\"path\":\"" + path + "\",";
-        jsonfile += "\"status\":\"" + status + "\",";
-        size_t totalBytes;
-        size_t usedBytes;
-        totalBytes = LocalFS.totalBytes();
-        usedBytes  = LocalFS.usedBytes();
-        jsonfile += "\"total\":\"" + formatBytes(totalBytes) + "\",";
-        jsonfile += "\"used\":\"" + formatBytes(usedBytes) + "\",";
-        jsonfile.concat(F("\"occupation\":\""));
-        jsonfile += String(100 * usedBytes / totalBytes);
-        jsonfile += "\"";
-        jsonfile += "}";
-        path = "";
-        _webserver->sendHeader("Cache-Control", "no-cache");
-        _webserver->send(200, "application/json", jsonfile);
+        // Send a list of the files
+        try {
+            StreamString s;
+            FileSystem(path, fs).listJSON(sstatus, s);
+            sendJSON(200, s);
+        } catch (const Error err) { sendStatus(200, FSError(err)); }
     }
 
     //push error code and message to websocket
@@ -916,58 +714,85 @@ namespace WebUI {
         }
     }
 
-    //LocalFS files uploader handle
-    void Web_Server::LocalFSFileupload() {
+    void Web_Server::uploadLocalFile() { uploadFile(FileSystem::localfs); }
+    void Web_Server::uploadSDFile() { uploadFile(FileSystem::sd); }
+    void Web_Server::uploadFile(const FileSystem::FsInfo& fs) {
         HTTPUpload& upload = _webserver->upload();
         //this is only for admin and user
         if (is_authenticated() == AuthenticationLevel::LEVEL_GUEST) {
-            _upload_status = UploadStatus::FAILED;
+            _uploadStatus = UploadStatus::FAILED;
             log_info("Upload rejected");
+            sendAuthFailed();
             pushError(ESP_ERROR_AUTHENTICATION, "Upload rejected", 401);
-        } else {
-            if ((_upload_status != UploadStatus::FAILED) || (upload.status == UPLOAD_FILE_START)) {
-                if (upload.status == UPLOAD_FILE_START) {
-                    String sizeargname = upload.filename + "S";
-                    size_t filesize    = _webserver->hasArg(sizeargname) ? _webserver->arg(sizeargname).toInt() : 0;
-                    uploadStart(upload.filename, filesize, "/localfs");
-                } else if (upload.status == UPLOAD_FILE_WRITE) {
-                    uploadWrite(upload.buf, upload.currentSize);
-                } else if (upload.status == UPLOAD_FILE_END) {
-                    String sizeargname = upload.filename + "S";
-                    size_t filesize    = _webserver->hasArg(sizeargname) ? _webserver->arg(sizeargname).toInt() : 0;
-                    uploadEnd(filesize, "/localfs");
-                } else {  //Upload cancelled
-                    uploadStop();
-                    return;
-                }
+            return;
+        }
+        if ((_uploadStatus != UploadStatus::FAILED) || (upload.status == UPLOAD_FILE_START)) {
+            if (upload.status == UPLOAD_FILE_START) {
+                String sizeargname = upload.filename + "S";
+                size_t filesize    = _webserver->hasArg(sizeargname) ? _webserver->arg(sizeargname).toInt() : 0;
+                uploadStart(upload.filename, filesize, fs);
+            } else if (upload.status == UPLOAD_FILE_WRITE) {
+                uploadWrite(upload.buf, upload.currentSize);
+            } else if (upload.status == UPLOAD_FILE_END) {
+                String sizeargname = upload.filename + "S";
+                size_t filesize    = _webserver->hasArg(sizeargname) ? _webserver->arg(sizeargname).toInt() : 0;
+                uploadEnd(filesize);
+            } else {  //Upload cancelled
+                uploadStop();
+                return;
             }
         }
-        uploadCheck(upload.filename, "/localfs");
+        uploadCheck();
     }
+
+    void Web_Server::sendJSON(int code, const String& s) {
+        _webserver->sendHeader("Cache-Control", "no-cache");
+        _webserver->send(200, "application/json", s);
+    }
+
+    void Web_Server::sendAuth(const String& status, const String& level, const String& user) {
+        StreamString s;
+        JSONencoder  j(false, s);
+        j.begin();
+        j.member("status", status);
+        if (level != "") {
+            j.member("authentication_lvl", level);
+        }
+        if (user != "") {
+            j.member("user", user);
+        }
+        j.end();
+        sendJSON(200, s);
+    }
+
+    void Web_Server::sendStatus(int code, const String& status) {
+        StreamString s;
+        JSONencoder  j(false, s);
+        j.begin();
+        j.member("status", status);
+        j.end();
+        sendJSON(code, s);
+    }
+
+    void Web_Server::sendAuthFailed() { sendStatus(401, "Authentication failed"); }
 
     //Web Update handler
     void Web_Server::handleUpdate() {
         AuthenticationLevel auth_level = is_authenticated();
         if (auth_level != AuthenticationLevel::LEVEL_ADMIN) {
-            _upload_status = UploadStatus::NONE;
+            _uploadStatus = UploadStatus::NONE;
             _webserver->send(403, "text/plain", "Not allowed, log in first!\n");
             return;
         }
 
-        String jsonfile = "{\"status\":\"";
-        jsonfile += String(int32_t(uint8_t(_upload_status)));
-        jsonfile += "\"}";
-
-        //send status
-        _webserver->sendHeader("Cache-Control", "no-cache");
-        _webserver->send(200, "application/json", jsonfile);
+        sendStatus(200, String(int(_uploadStatus)));
 
         //if success restart
-        if (_upload_status == UploadStatus::SUCCESSFUL) {
+        if (_uploadStatus == UploadStatus::SUCCESSFUL) {
             delay_ms(1000);
             COMMANDS::restart_MCU();
         } else {
-            _upload_status = UploadStatus::NONE;
+            _uploadStatus = UploadStatus::NONE;
         }
     }
 
@@ -978,18 +803,18 @@ namespace WebUI {
 
         //only admin can update FW
         if (is_authenticated() != AuthenticationLevel::LEVEL_ADMIN) {
-            _upload_status = UploadStatus::FAILED;
+            _uploadStatus = UploadStatus::FAILED;
             log_info("Upload rejected");
             pushError(ESP_ERROR_AUTHENTICATION, "Upload rejected", 401);
         } else {
             //get current file ID
             HTTPUpload& upload = _webserver->upload();
-            if ((_upload_status != UploadStatus::FAILED) || (upload.status == UPLOAD_FILE_START)) {
+            if ((_uploadStatus != UploadStatus::FAILED) || (upload.status == UPLOAD_FILE_START)) {
                 //Upload start
                 //**************
                 if (upload.status == UPLOAD_FILE_START) {
                     log_info("Update Firmware");
-                    _upload_status     = UploadStatus::ONGOING;
+                    _uploadStatus      = UploadStatus::ONGOING;
                     String sizeargname = upload.filename + "S";
                     if (_webserver->hasArg(sizeargname)) {
                         maxSketchSpace = _webserver->arg(sizeargname).toInt();
@@ -1004,13 +829,13 @@ namespace WebUI {
                     }
                     if (flashsize < maxSketchSpace) {
                         pushError(ESP_ERROR_NOT_ENOUGH_SPACE, "Upload rejected, not enough space");
-                        _upload_status = UploadStatus::FAILED;
+                        _uploadStatus = UploadStatus::FAILED;
                         log_info("Update cancelled");
                     }
-                    if (_upload_status != UploadStatus::FAILED) {
+                    if (_uploadStatus != UploadStatus::FAILED) {
                         last_upload_update = 0;
                         if (!Update.begin()) {  //start with max available size
-                            _upload_status = UploadStatus::FAILED;
+                            _uploadStatus = UploadStatus::FAILED;
                             log_info("Update cancelled");
                             pushError(ESP_ERROR_NOT_ENOUGH_SPACE, "Upload rejected, not enough space");
                         } else {
@@ -1022,7 +847,7 @@ namespace WebUI {
                 } else if (upload.status == UPLOAD_FILE_WRITE) {
                     vTaskDelay(1 / portTICK_RATE_MS);
                     //check if no error
-                    if (_upload_status == UploadStatus::ONGOING) {
+                    if (_uploadStatus == UploadStatus::ONGOING) {
                         if (((100 * upload.totalSize) / maxSketchSpace) != last_upload_update) {
                             if (maxSketchSpace > 0) {
                                 last_upload_update = (100 * upload.totalSize) / maxSketchSpace;
@@ -1033,7 +858,7 @@ namespace WebUI {
                             log_info("Update " << last_upload_update << "%");
                         }
                         if (Update.write(upload.buf, upload.currentSize) != upload.currentSize) {
-                            _upload_status = UploadStatus::FAILED;
+                            _uploadStatus = UploadStatus::FAILED;
                             log_info("Update write failed");
                             pushError(ESP_ERROR_FILE_WRITE, "File write failed");
                         }
@@ -1044,349 +869,85 @@ namespace WebUI {
                     if (Update.end(true)) {  //true to set the size to the current progress
                         //Now Reboot
                         log_info("Update 100%");
-                        _upload_status = UploadStatus::SUCCESSFUL;
+                        _uploadStatus = UploadStatus::SUCCESSFUL;
                     } else {
-                        _upload_status = UploadStatus::FAILED;
+                        _uploadStatus = UploadStatus::FAILED;
                         log_info("Update failed");
                         pushError(ESP_ERROR_UPLOAD, "Update upload failed");
                     }
                 } else if (upload.status == UPLOAD_FILE_ABORTED) {
                     log_info("Update failed");
-                    _upload_status = UploadStatus::FAILED;
+                    _uploadStatus = UploadStatus::FAILED;
                     return;
                 }
             }
         }
 
-        if (_upload_status == UploadStatus::FAILED) {
+        if (_uploadStatus == UploadStatus::FAILED) {
             cancelUpload();
             Update.end();
         }
     }
 
-    //Function to delete not empty directory on SD card
-    bool Web_Server::deleteFSRecursive(fs::FS& fs, String path) {
-        bool result = true;
-        File file   = fs.open(path);
-        //failed
-        if (!file) {
-            return false;
-        }
-        if (!file.isDirectory()) {
-            file.close();
-            //return if success or not
-            return fs.remove(path);
-        }
-        file.rewindDirectory();
-        while (true) {
-            File entry = file.openNextFile();
-            if (!entry) {
-                break;
-            }
-            String entryPath = entry.name();
-            // XXX this might be necessary for LittleFS
-            // entryPath = path + "/" + entryPath;
-            if (entry.isDirectory()) {
-                entry.close();
-                if (!deleteFSRecursive(fs, entryPath)) {
-                    result = false;
-                }
-            } else {
-                entry.close();
-                if (!fs.remove(entryPath)) {
-                    result = false;
-                    break;
-                }
-            }
-        }
-        file.close();
-        return result ? fs.rmdir(path) : false;
-    }
-
-    bool Web_Server::deleteRecursive(String path) { return deleteFSRecursive(SD, path); }
-
-    bool Web_Server::deleteLocalFSRecursive(String path) {
-#    ifdef USE_LITTLEFS
-        return deleteFSRecursive(LittleFS, path);
-#    else
-        return false;
-#    endif
-    }
-
-    //direct SD files list//////////////////////////////////////////////////
-    void Web_Server::handle_direct_SDFileList() {
-        //this is only for admin and user
-        if (is_authenticated() == AuthenticationLevel::LEVEL_GUEST) {
-            _upload_status = UploadStatus::NONE;
-            _webserver->send(401, "application/json", "{\"status\":\"Authentication failed!\"}");
-            return;
-        }
-
-        String path    = "/";
-        String sstatus = "Ok";
-        if ((_upload_status == UploadStatus::FAILED) || (_upload_status == UploadStatus::FAILED)) {
-            sstatus = "Upload failed";
-        }
-        _upload_status      = UploadStatus::NONE;
-        bool     list_files = true;
-        uint64_t totalspace = 0;
-        uint64_t usedspace  = 0;
-        auto     state      = config->_sdCard->begin(SDCard::State::BusyParsing);
-        if (state != SDCard::State::Idle) {
-            String status = "{\"status\":\"";
-            status += (state == SDCard::State::NotPresent) ? "No SD Card\"}" : "Busy\"}";
-            _webserver->sendHeader("Cache-Control", "no-cache");
-            _webserver->send(200, "application/json", status);
-            return;
-        }
-
-        //get current path
-        if (_webserver->hasArg("path")) {
-            path += _webserver->arg("path");
-        }
-
-        //to have a clean path
-        path.trim();
-        path.replace("//", "/");
-        if (path[path.length() - 1] != '/') {
-            path += "/";
-        }
-        //check if query need some action
-        if (_webserver->hasArg("action")) {
-            //delete a file
-            if (_webserver->arg("action") == "delete" && _webserver->hasArg("filename")) {
-                String filename;
-                String shortname = _webserver->arg("filename");
-                filename         = path + shortname;
-                shortname.replace("/", "");
-                filename.replace("//", "/");
-                if (!SD.exists(filename)) {
-                    sstatus = shortname + " does not exist!";
-                } else {
-                    if (SD.remove(filename)) {
-                        sstatus = shortname + " deleted";
-                    } else {
-                        sstatus = "Cannot deleted ";
-                        sstatus += shortname;
-                    }
-                }
-            }
-            //delete a directory
-            if (_webserver->arg("action") == "deletedir" && _webserver->hasArg("filename")) {
-                String filename;
-                String shortname = _webserver->arg("filename");
-                shortname.replace("/", "");
-                filename = path + "/" + shortname;
-                filename.replace("//", "/");
-                if (filename != "/") {
-                    if (!SD.exists(filename)) {
-                        sstatus = shortname + " does not exist!";
-                    } else {
-                        if (!deleteRecursive(filename)) {
-                            sstatus = "Error deleting: ";
-                            sstatus += shortname;
-                        } else {
-                            sstatus = shortname;
-                            sstatus += " deleted";
-                        }
-                    }
-                } else {
-                    sstatus = "Cannot delete root";
-                }
-            }
-            //create a directory
-            if (_webserver->arg("action") == "createdir" && _webserver->hasArg("filename")) {
-                String filename;
-                String shortname = _webserver->arg("filename");
-                filename         = path + shortname;
-                shortname.replace("/", "");
-                filename.replace("//", "/");
-                if (SD.exists(filename)) {
-                    sstatus = shortname + " already exists!";
-                } else {
-                    if (!SD.mkdir(filename)) {
-                        sstatus = "Cannot create ";
-                        sstatus += shortname;
-                    } else {
-                        sstatus = shortname + " created";
-                    }
-                }
-            }
-        }
-        //check if no need build file list
-        if (_webserver->hasArg("dontlist") && _webserver->arg("dontlist") == "yes") {
-            list_files = false;
-        }
-
-        // TODO Settings - consider using the JSONEncoder class
-        String jsonfile = "{";
-        jsonfile += "\"files\":[";
-
-        if (path != "/") {
-            path = path.substring(0, path.length() - 1);
-        }
-        if (path != "/" && !SD.exists(path)) {
-            String s = "{\"status\":\" ";
-            s += path;
-            s += " does not exist on SD Card\"}";
-            _webserver->send(200, "application/json", s);
-            config->_sdCard->end();
-            return;
-        }
-        if (list_files) {
-            File dir = SD.open(path);
-            if (!dir.isDirectory()) {
-                dir.close();
-            }
-            dir.rewindDirectory();
-            File entry = dir.openNextFile();
-            int  i     = 0;
-            while (entry) {
-                if (i > 0) {
-                    jsonfile += ",";
-                }
-                jsonfile += "{\"name\":\"";
-                String tmpname = entry.name();
-                int    pos     = tmpname.lastIndexOf("/");
-                tmpname        = tmpname.substring(pos + 1);
-                jsonfile += tmpname;
-                jsonfile += "\",\"shortname\":\"";  //No need here
-                jsonfile += tmpname;
-                jsonfile += "\",\"size\":\"";
-                if (entry.isDirectory()) {
-                    jsonfile += "-1";
-                } else {
-                    // files have sizes, directories do not
-                    jsonfile += formatBytes(entry.size());
-                }
-                jsonfile += "\",\"datetime\":\"";
-                //TODO - can be done later
-                jsonfile += "\"}";
-                i++;
-                entry.close();
-                entry = dir.openNextFile();
-            }
-            dir.close();
-        }
-        jsonfile += "],\"path\":\"";
-        jsonfile += path + "\",";
-        jsonfile += "\"total\":\"";
-        String stotalspace, susedspace;
-        //SDCard are in GB or MB but no less
-        totalspace  = SD.totalBytes();
-        usedspace   = SD.usedBytes();
-        stotalspace = formatBytes(totalspace);
-        susedspace  = formatBytes(usedspace + 1);
-
-        uint32_t occupedspace = 1;
-        uint32_t usedspace2   = usedspace / (1024 * 1024);
-        uint32_t totalspace2  = totalspace / (1024 * 1024);
-        occupedspace          = (usedspace2 * 100) / totalspace2;
-        //minimum if even one byte is used is 1%
-        if (occupedspace <= 1) {
-            occupedspace = 1;
-        }
-        if (totalspace) {
-            jsonfile += stotalspace;
-        } else {
-            jsonfile += "-1";
-        }
-        jsonfile += "\",\"used\":\"";
-        jsonfile += susedspace;
-        jsonfile += "\",\"occupation\":\"";
-        if (totalspace) {
-            jsonfile += String(occupedspace);
-        } else {
-            jsonfile += "-1";
-        }
-        jsonfile += "\",";
-        jsonfile += "\"mode\":\"direct\",";
-        jsonfile += "\"status\":\"";
-        jsonfile += sstatus + "\"";
-        jsonfile += "}";
-        _webserver->sendHeader("Cache-Control", "no-cache");
-        _webserver->send(200, "application/json", jsonfile);
-        config->_sdCard->end();
-    }
-
-    void Web_Server::deleteFile(const char* filename, const char* fs) {
-        bool isSD = !strcmp(fs, "/sd");
-        if (isSD) {
-            if (config->_sdCard->begin(SDCard::State::BusyUploading) == SDCard::State::Idle) {
-                if (SD.exists(filename)) {
-                    SD.remove(filename);
-                }
-                config->_sdCard->end();
-            }
-        } else {
-            if (LocalFS.exists(filename)) {
-                LocalFS.remove(filename);
-            }
+    const char* Web_Server::FSError(Error err) {
+        switch (err) {
+            case Error::FsFailedBusy:
+                return "Filesystem Busy";
+            case Error::FsFailedMount:
+                return "Filesystem Unavailable";
+            default:
+                return "Filesystem Error";
         }
     }
-    uint64_t Web_Server::fsAvail(const char* fs) {
-        uint64_t avail = 0;
-        bool     isSD  = !strcmp(fs, "/sd");
-        if (isSD) {
-            if (config->_sdCard->begin(SDCard::State::BusyUploading) == SDCard::State::Idle) {
-                avail = SD.totalBytes() - SD.usedBytes();
-                config->_sdCard->end();
-            }
-        } else {
-            avail = LocalFS.totalBytes() - LocalFS.usedBytes();
-        }
-        return avail;
-    }
 
-    //SD File upload
-    void Web_Server::uploadStart(String filename, size_t filesize, const char* fs) {
-        _upload_status  = UploadStatus::ONGOING;
-        _uploadFilename = filename[0] != '/' ? "/" + filename : filename;
+    void Web_Server::uploadStart(const String& filename, size_t filesize, const FileSystem::FsInfo& fs) {
+        _uploadFs       = &fs;
+        _uploadFilename = filename;
+        try {
+            FileSystem fso(filename, fs);
+            fso.deleteFile();
 
-        //check if SD Card is available
-        deleteFile(_uploadFilename.c_str(), fs);
-
-        if (filesize) {
-            uint64_t freespace = fsAvail(fs);
-
-            if (filesize > freespace) {
-                _upload_status = UploadStatus::FAILED;
+            if (filesize > (fso.totalBytes() - fso.usedBytes())) {
+                _uploadStatus = UploadStatus::FAILED;
                 log_info("Upload not enough space");
                 pushError(ESP_ERROR_NOT_ENOUGH_SPACE, "Upload rejected, not enough space");
+                return;
             }
+        } catch (const Error err) {
+            pushError(ESP_ERROR_UPLOAD, "Upload rejected - filesystem unavailable");
+            return;
         }
+        _uploadStatus = UploadStatus::ONGOING;
 
-        if (_upload_status != UploadStatus::FAILED) {
-            //Create file for writing
-            try {
-                _uploadFile    = new FileStream(_uploadFilename, "w", fs);
-                _upload_status = UploadStatus::ONGOING;
-            } catch (const Error err) {
-                _uploadFile    = nullptr;
-                _upload_status = UploadStatus::FAILED;
-                log_info("Upload failed - cannot create file");
-                pushError(ESP_ERROR_FILE_CREATION, "File creation failed");
-            }
+        //Create file for writing
+        try {
+            _uploadFile   = new FileStream(_uploadFilename, "w", fs);
+            _uploadStatus = UploadStatus::ONGOING;
+        } catch (const Error err) {
+            _uploadFile   = nullptr;
+            _uploadStatus = UploadStatus::FAILED;
+            log_info("Upload failed - cannot create file");
+            pushError(ESP_ERROR_FILE_CREATION, "File creation failed");
         }
     }
 
     void Web_Server::uploadWrite(uint8_t* buffer, size_t length) {
         vTaskDelay(1 / portTICK_RATE_MS);
-        if (_uploadFile && _upload_status == UploadStatus::ONGOING) {
+        if (_uploadFile && _uploadStatus == UploadStatus::ONGOING) {
             //no error write post data
             if (length != _uploadFile->write(buffer, length)) {
-                _upload_status = UploadStatus::FAILED;
+                _uploadStatus = UploadStatus::FAILED;
                 log_info("Upload failed - file write failed");
                 pushError(ESP_ERROR_FILE_WRITE, "File write failed");
             }
         } else {  //if error set flag UploadStatus::FAILED
-            _upload_status = UploadStatus::FAILED;
+            _uploadStatus = UploadStatus::FAILED;
             log_info("Upload failed - file not open");
             pushError(ESP_ERROR_FILE_WRITE, "File not open");
         }
     }
 
-    void Web_Server::uploadEnd(size_t filesize, const char* fs) {
+    void Web_Server::uploadEnd(size_t filesize) {
         //if file is open close it
         if (_uploadFile) {
             delete _uploadFile;
@@ -1396,75 +957,46 @@ namespace WebUI {
             if (filesize) {
                 uint32_t actual_size;
                 try {
-                    FileStream* theFile = new FileStream(_uploadFilename, "r", fs);
+                    FileStream* theFile = new FileStream(_uploadFilename, "r", *_uploadFs);
                     actual_size         = theFile->size();
                     delete theFile;
                 } catch (const Error err) { actual_size = 0; }
 
                 if (filesize != actual_size) {
-                    _upload_status = UploadStatus::FAILED;
+                    _uploadStatus = UploadStatus::FAILED;
                     pushError(ESP_ERROR_UPLOAD, "File upload mismatch");
                     log_info("Upload failed - size mismatch - exp " << filesize << " got " << actual_size);
                 }
             }
         } else {
-            _upload_status = UploadStatus::FAILED;
+            _uploadStatus = UploadStatus::FAILED;
             log_info("Upload failed - file not open");
             pushError(ESP_ERROR_FILE_CLOSE, "File close failed");
         }
-        if (_upload_status == UploadStatus::ONGOING) {
-            _upload_status = UploadStatus::SUCCESSFUL;
+        if (_uploadStatus == UploadStatus::ONGOING) {
+            _uploadStatus = UploadStatus::SUCCESSFUL;
         } else {
-            _upload_status = UploadStatus::FAILED;
+            _uploadStatus = UploadStatus::FAILED;
             pushError(ESP_ERROR_UPLOAD, "Upload error 8");
         }
     }
     void Web_Server::uploadStop() {
-        _upload_status = UploadStatus::FAILED;
+        _uploadStatus = UploadStatus::FAILED;
         log_info("Upload cancelled");
         if (_uploadFile) {
             delete _uploadFile;
             _uploadFile = nullptr;
         }
     }
-    void Web_Server::uploadCheck(String filename, const char* fs) {
-        if (_upload_status == UploadStatus::FAILED) {
+    void Web_Server::uploadCheck() {
+        if (_uploadStatus == UploadStatus::FAILED) {
             cancelUpload();
             if (_uploadFile) {
                 delete _uploadFile;
                 _uploadFile = nullptr;
             }
-            deleteFile(filename.c_str(), fs);
+            FileSystem(_uploadFilename, *_uploadFs).deleteFile();
         }
-    }
-
-    void Web_Server::SDFile_direct_upload() {
-        HTTPUpload& upload = _webserver->upload();
-        //this is only for admin and user
-        if (is_authenticated() == AuthenticationLevel::LEVEL_GUEST) {
-            _upload_status = UploadStatus::FAILED;
-            log_info("Upload rejected");
-            _webserver->send(401, "application/json", "{\"status\":\"Authentication failed!\"}");
-            pushError(ESP_ERROR_AUTHENTICATION, "Upload rejected", 401);
-        } else {
-            if ((_upload_status != UploadStatus::FAILED) || (upload.status == UPLOAD_FILE_START)) {
-                if (upload.status == UPLOAD_FILE_START) {
-                    String sizeargname = upload.filename + "S";
-                    size_t filesize    = _webserver->hasArg(sizeargname) ? _webserver->arg(sizeargname).toInt() : 0;
-                    uploadStart(upload.filename, filesize, "/sd");
-                } else if (upload.status == UPLOAD_FILE_WRITE) {
-                    uploadWrite(upload.buf, upload.currentSize);
-                } else if (upload.status == UPLOAD_FILE_END) {
-                    String sizeargname = upload.filename + "S";
-                    size_t filesize    = _webserver->hasArg(sizeargname) ? _webserver->arg(sizeargname).toInt() : 0;
-                    uploadEnd(filesize, "/sd");
-                } else {  //Upload cancelled
-                    uploadStop();
-                    return;
-                }
-            }
-        }
-        uploadCheck(upload.filename, "/sd");
     }
 
     void Web_Server::handle() {

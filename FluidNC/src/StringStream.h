@@ -4,18 +4,16 @@
 #pragma once
 
 #include "Print.h"
-#include "StringRange.h"
-
-#include <vector>
 
 class StringStream : public Print {
-    std::vector<char> data_;
+    String _data;
 
 public:
     size_t write(uint8_t c) override {
-        data_.push_back(c);
+        _data += char(c);
         return 1;
     }
 
+    String str() { return _data; }
     //    StringRange str() const { return StringRange(data_.data(), data_.data() + data_.size()); }
 };

@@ -613,7 +613,7 @@ static Error xmodem_receive(const char* value, WebUI::AuthenticationLevel auth_l
     }
     FileStream* outfile;
     try {
-        outfile = new FileStream(value, "w", "/localfs");
+        outfile = new FileStream(value, "w");
     } catch (...) {
         delay_ms(1000);   // Delay for FluidTerm to handle command echoing
         out.write(0x04);  // Cancel xmodem transfer with EOT
@@ -660,7 +660,7 @@ static Error dump_config(const char* value, WebUI::AuthenticationLevel auth_leve
     try {
         if (value) {
             // Use a file on the local file system unless there is an explicit prefix like /sd/
-            ss = new FileStream(value, "w", "/localfs");
+            ss = new FileStream(value, "w");
         } else {
             ss = &out;
         }
