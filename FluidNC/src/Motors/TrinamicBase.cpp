@@ -25,7 +25,7 @@ namespace MotorDrivers {
         xLastWakeTime = xTaskGetTickCount();  // Initialise the xLastWakeTime variable with the current time.
         while (true) {                        // don't ever return from this or the task dies
             std::atomic_thread_fence(std::memory_order::memory_order_seq_cst);  // read fence for settings
-            if (sys.state == State::Cycle || sys.state == State::Homing || sys.state == State::Jog) {
+            if (inMotionState()) {
                 for (TrinamicBase* p = List; p; p = p->link) {
                     if (p->_stallguardDebugMode) {
                         //log_info("SG:" << p->_stallguardDebugMode);
