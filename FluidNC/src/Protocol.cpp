@@ -517,6 +517,7 @@ static void protocol_do_cycle_start() {
             if (!sys.suspend.bit.safetyDoorAjar) {
                 if (sys.suspend.bit.restoreComplete) {
                     sys.state = State::Idle;  // Set to IDLE to immediately resume the cycle.
+                    protocol_do_initiate_cycle();
                 } else if (sys.suspend.bit.retractComplete) {
                     // Flag to re-energize powered components and restore original position, if disabled by SAFETY_DOOR.
                     // NOTE: For a safety door to resume, the switch must be closed, as indicated by HOLD state, and
