@@ -9,7 +9,8 @@
 
 namespace Spindles {
     void HBridge::init() {
-        get_pins_and_settings();
+        is_reversable = _output_ccw_pin.defined();
+
         setupSpeeds(_pwm_freq);
 
         if (_output_cw_pin.defined()) {
@@ -44,13 +45,6 @@ namespace Spindles {
         }
         setupSpeeds(_pwm_cw->period());
         config_message();
-    }
-
-    // Get the GPIO from the machine definition
-    void HBridge::get_pins_and_settings() {
-        // setup all the pins
-
-        is_reversable = _output_ccw_pin.defined();
     }
 
     void IRAM_ATTR HBridge::set_enable(bool enable) {

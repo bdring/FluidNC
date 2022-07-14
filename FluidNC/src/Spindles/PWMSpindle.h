@@ -67,7 +67,5 @@ namespace Spindles {
 
         void         set_output(uint32_t duty) override;
         virtual void deinit();
-
-        virtual void get_pins_and_settings();
     };
 }

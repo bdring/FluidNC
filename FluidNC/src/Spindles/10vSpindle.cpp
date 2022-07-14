@@ -20,8 +20,6 @@
 
 namespace Spindles {
     void _10v::init() {
-        get_pins_and_settings();
-
         // a couple more pins not inherited from PWM Spindle
         if (_output_pin.undefined()) {
             log_warn("Spindle output pin not defined");
