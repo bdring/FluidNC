@@ -18,8 +18,7 @@
 
 namespace Spindles {
     void PWM::init() {
-        get_pins_and_settings();
-        setupSpeeds(_pwm_freq);
+        is_reversable = _direction_pin.defined();
 
         if (_output_pin.defined()) {
             if (_output_pin.capabilities().has(Pin::Capabilities::PWM)) {
@@ -44,13 +43,6 @@ namespace Spindles {
         }
         setupSpeeds(_pwm->period());
         config_message();
-    }
-
-    // Get the GPIO from the machine definition
-    void PWM::get_pins_and_settings() {
-        // setup all the pins
-
-        is_reversable = _direction_pin.defined();
     }
 
     void IRAM_ATTR PWM::setSpeedfromISR(uint32_t dev_speed) {

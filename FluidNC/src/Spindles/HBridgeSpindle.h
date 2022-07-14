@@ -100,7 +100,5 @@ namespace Spindles {
 
         void         set_output(uint32_t duty);
         virtual void deinit();
-
-        virtual void get_pins_and_settings();
     };
 }
