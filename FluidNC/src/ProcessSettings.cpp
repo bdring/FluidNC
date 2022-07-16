@@ -644,10 +644,10 @@ static Error xmodem_send(const char* value, WebUI::AuthenticationLevel auth_leve
         log_info("Cannot open " << value);
         return Error::DownloadFailed;
     }
-    bool prevAddCr = out.setCr(false);
+    bool oldCr = out.setCr(false);
     log_info("Sending " << value << " via XModem");
     int size = xmodemTransmit(&out, infile);
-    out.setCr(prevAddCr);
+    out.setCr(oldCr);
     delete infile;
     if (size >= 0) {
         log_info("Sent " << size << " bytes");
