@@ -136,7 +136,8 @@ size_t Uart::timedReadBytes(char* buffer, size_t length, TickType_t timeout) {
     return length - remlen;
 }
 size_t Uart::write(uint8_t c) {
-    return uart_write_bytes(_uart_num, (char*)&c, 1);
+    // Use Uart::write(buf, len) instead of uart_write_bytes() for _addCR
+    return write(&c, 1);
 }
 
 size_t Uart::write(const uint8_t* buffer, size_t length) {
