@@ -36,6 +36,8 @@ namespace Configuration {
             return c == ' ' || c == '\t' || c == '\f' || c == '\r';
         }
 
+        inline bool IsListItem() { return Current() == '-'; }
+
         inline bool IsIdentifierChar() { return IsAlpha() || IsDigit() || Current() == '_'; }
 
         inline bool IsEndLine() { return Eof() || Current() == '\n'; }
@@ -69,11 +71,13 @@ namespace Configuration {
             // is called to handle the top level of the YAML config file, tokens at
             // indent 0 will be processed.
             TokenData() :
-                keyStart_(nullptr), keyEnd_(nullptr), indent_(-1), state(TokenState::Bof), sValueStart_(nullptr), sValueEnd_(nullptr) {}
+                keyStart_(nullptr), keyEnd_(nullptr), indent_(-1), is_list_(false), state(TokenState::Bof), sValueStart_(nullptr),
+                sValueEnd_(nullptr) {}
 
             const char* keyStart_;
             const char* keyEnd_;
             int         indent_;
+            bool        is_list_;
 
             TokenState state = TokenState::Bof;
 

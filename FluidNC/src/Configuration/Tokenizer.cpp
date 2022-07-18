@@ -76,6 +76,17 @@ namespace Configuration {
                 goto parseAgain;
 
             default:
+                if (IsListItem()) {
+                    token_.is_list_ = true;
+                    Inc();
+                    // skip expected whitespace. TODO: validate that it's indeed a whitespace
+                    Inc();
+
+#ifdef DEBUG_VERBOSE_YAML_TOKENIZER
+                    log_debug("List token");
+#endif
+                }
+
                 if (!IsIdentifierChar()) {
                     ParseError("Invalid character");
                 }
