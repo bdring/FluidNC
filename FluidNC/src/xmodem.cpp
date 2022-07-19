@@ -33,7 +33,7 @@
  */
 
 #include "xmodem.h"
-#include "crc.h"
+#include "crc16_ccitt.h"
 // #include <freertos/FreeRTOS.h>
 
 static Channel* serialPort;
@@ -101,13 +101,13 @@ static void flushinput(void) {
 static bool    held = false;
 static uint8_t held_packet[1024];
 static void    flush_packet(size_t packet_len, size_t& total_len) {
-       if (held) {
-           // Remove trailing ctrl-z's on the final packet
+    if (held) {
+        // Remove trailing ctrl-z's on the final packet
         held = false;
         size_t count;
         for (count = packet_len; count > 0; --count) {
-               if (held_packet[count - 1] != CTRLZ) {
-                   break;
+            if (held_packet[count - 1] != CTRLZ) {
+                break;
             }
         }
         file->write(held_packet, count);

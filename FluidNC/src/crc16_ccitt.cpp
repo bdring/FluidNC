@@ -1,4 +1,9 @@
-#include "crc.h"
+/*
+This code was originally part of xmodem.cpp and has been moved
+to its own file to make it accessible for other parts of the project.
+*/
+
+#include "crc16_ccitt.h"
 
 /* CRC16 implementation acording to CCITT standards */
 

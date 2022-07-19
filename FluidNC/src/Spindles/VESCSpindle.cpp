@@ -1,6 +1,9 @@
+// Copyright (c) 2022 -	Lukas Goßmann (GitHub: LukasGossmann)
+// Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
+
 #include "VESCSpindle.h"
 
-#include "../crc.h"            // crc16_ccitt
+#include "../crc16_ccitt.h"    // crc16_ccitt
 #include "../MotionControl.h"  // mc_reset
 #include "../Protocol.h"       // rtAlarm
 
