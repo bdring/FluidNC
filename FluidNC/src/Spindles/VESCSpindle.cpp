@@ -28,15 +28,19 @@ namespace Spindles {
         uint8_t  speedCommandBuffer[10];
         uint32_t speedCommandLength = 0;
 
-        uint8_t statusCommandBuffer[10];
-        int     statusCommandLength = create_get_fault_code_command(sizeof(statusCommandBuffer), statusCommandBuffer);
+        // https://github.com/vedderb/bldc/blob/553548a6e2145dd5df14e62a4e40a41b8a5c0334/comm/commands.c#L366
+        const uint32_t value_selector_fault = 1 << 15;
+        uint8_t        statusCommandBuffer[10];
+        int            statusCommandLength = create_command(
+            comm_packet_id::COMM_GET_VALUES_SELECTIVE, value_selector_fault, sizeof(statusCommandBuffer), statusCommandBuffer);
 
         for (; true; delay_ms(VESC_UART_POLL_RATE)) {
             std::atomic_thread_fence(std::memory_order::memory_order_seq_cst);  // read fence for settings
 
             vesc_action action;
             if (xQueueReceive(_vesc_cmd_queue, &action, 0)) {
-                speedCommandLength = create_set_value_command(action.mode, action.value, sizeof(speedCommandBuffer), speedCommandBuffer);
+                speedCommandLength =
+                    create_command((comm_packet_id)action.mode, action.value, sizeof(speedCommandBuffer), speedCommandBuffer);
             }
 
             if (speedCommandLength > 0) {
@@ -80,63 +84,19 @@ namespace Spindles {
         }
     }
 
-    int VESC::create_set_value_command(vesc_control_mode mode, int value, size_t buffLen, uint8_t* buffer) {
+    int VESC::create_command(comm_packet_id packetId, int value, size_t buffLen, uint8_t* buffer) {
         if (buffLen < 10)
             return 0;
 
         // https://github.com/vedderb/bldc/blob/b900ffcde534780842c581b76ceaa44c202c6054/comm/packet.c#L155
-        buffer[0] = 2;              // Start byte
-        buffer[1] = 5;              // Packet length (packet id + value)
-        buffer[2] = (uint8_t)mode;  // Packet id
+        buffer[0] = 2;                  // Start byte
+        buffer[1] = 5;                  // Packet length (packet id + value)
+        buffer[2] = (uint8_t)packetId;  // Packet id
 
-        int scaledValue = 0;
-
-        switch (mode) {
-            case vesc_control_mode::CURRENT: {
-                // Scaling factor is based on the value ranges used here and not within vesc!
-                scaledValue = value * 10;
-
-            } break;
-
-            case vesc_control_mode::DUTY: {
-                // Scaling factor is based on the value ranges used here and not within vesc!
-                scaledValue = value * 1000;
-            } break;
-
-            case vesc_control_mode::RPM: {
-                scaledValue = value;
-            } break;
-        }
-
-        buffer[3] = (scaledValue & 0xFF000000) >> 24;
-        buffer[4] = (scaledValue & 0x00FF0000) >> 16;
-        buffer[5] = (scaledValue & 0x0000FF00) >> 8;
-        buffer[6] = (scaledValue & 0x000000FF);
-
-        uint16_t crc = crc16_ccitt(buffer + 2, 5);
-
-        buffer[7] = ((crc & 0xFF00) >> 8);  // CRC
-        buffer[8] = (crc & 0x00FF);         // CRC
-        buffer[9] = 3;                      // Stop byte
-
-        return 10;
-    }
-
-    int VESC::create_get_fault_code_command(size_t buffLen, uint8_t* buffer) {
-        if (buffLen < 10)
-            return 0;
-
-        // https://github.com/vedderb/bldc/blob/b900ffcde534780842c581b76ceaa44c202c6054/comm/packet.c#L155
-        buffer[0] = 2;  // Start byte
-        buffer[1] = 5;  // Length of payload (packet id + flags)
-        buffer[2] = comm_packet_id::COMM_GET_VALUES_SELECTIVE;
-
-        // https://github.com/vedderb/bldc/blob/553548a6e2145dd5df14e62a4e40a41b8a5c0334/comm/commands.c#L366
-        const uint32_t value_selector_fault = 1 << 15;
-        buffer[3]                           = (value_selector_fault & 0xFF000000) >> 24;  // Flags for value selection
-        buffer[4]                           = (value_selector_fault & 0x00FF0000) >> 16;  // Flags for value selection
-        buffer[5]                           = (value_selector_fault & 0x0000FF00) >> 8;   // Flags for value selection
-        buffer[6]                           = (value_selector_fault & 0x000000FF);        // Flags for value selection
+        buffer[3] = (value & 0xFF000000) >> 24;
+        buffer[4] = (value & 0x00FF0000) >> 16;
+        buffer[5] = (value & 0x0000FF00) >> 8;
+        buffer[6] = (value & 0x000000FF);
 
         uint16_t crc = crc16_ccitt(buffer + 2, 5);
 
@@ -222,7 +182,27 @@ namespace Spindles {
     void VESC::set_state_internal(SpindleState state, SpindleSpeed speed) {
         if (_vesc_cmd_queue) {
             vesc_action action;
-            uint32_t    mappedSpeed = mapSpeed(speed);
+            uint32_t    mappedValue = mapSpeed(speed);
+            uint32_t    scaledValue = 0;
+
+            switch (_control_mode_to_use) {
+                case vesc_control_mode::CURRENT: {
+                    // Scaling factor is based on the value ranges used here and not within vesc!
+                    scaledValue = mappedValue * 10;
+
+                } break;
+
+                case vesc_control_mode::DUTY: {
+                    // Scaling factor is based on the value ranges used here and not within vesc!
+                    scaledValue = mappedValue * 1000;
+                } break;
+
+                case vesc_control_mode::RPM: {
+                    // VESC uses ERPM to drive the motor. RPM = ERPM / _number_of_pole_pairs
+                    scaledValue = mappedValue * _number_of_pole_pairs;
+                } break;
+            }
+
             switch (state) {
                 default:
                 // For disable current mode is used otherwise the motor will still be energized while its not spinning.
@@ -232,12 +212,12 @@ namespace Spindles {
                 } break;
 
                 case SpindleState::Cw: {
-                    action.value = mappedSpeed;
+                    action.value = scaledValue;
                     action.mode  = (vesc_control_mode)_control_mode_to_use;
                 } break;
 
                 case SpindleState::Ccw: {
-                    action.value = -mappedSpeed;
+                    action.value = -scaledValue;
                     action.mode  = (vesc_control_mode)_control_mode_to_use;
                 } break;
             }

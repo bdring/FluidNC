@@ -45,13 +45,13 @@ namespace Spindles {
         static QueueHandle_t _vesc_cmd_queue;
         static TaskHandle_t  _vesc_cmdTaskHandle;
         static void          vesc_cmd_task(void* pvParameters);
-        static int           create_set_value_command(vesc_control_mode mode, int value, size_t buffLen, uint8_t* buffer);
-        static int           create_get_fault_code_command(size_t buffLen, uint8_t* buffer);
+        static int           create_command(comm_packet_id packetId, int value, size_t buffLen, uint8_t* buffer);
         static bool          parse_fault_code_response(uint8_t& faultCode, size_t readByteCount, uint8_t* buffer);
 
-        int   _control_mode_to_use;
-        Uart* _uart = nullptr;
-        void  set_state_internal(SpindleState state, SpindleSpeed speed);
+        int      _control_mode_to_use;
+        uint32_t _number_of_pole_pairs;
+        Uart*    _uart = nullptr;
+        void     set_state_internal(SpindleState state, SpindleSpeed speed);
 
     public:
         VESC() = default;
@@ -74,6 +74,7 @@ namespace Spindles {
         void group(Configuration::HandlerBase& handler) override {
             handler.section("uart", _uart);
             handler.item("control_type", _control_mode_to_use, _vesc_control_mode_selection);
+            handler.item("num_pole_pairs", _number_of_pole_pairs, 1);
             Spindle::group(handler);
         }
 
