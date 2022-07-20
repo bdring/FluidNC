@@ -69,6 +69,9 @@ namespace Spindles {
         void validate() const override {
             Spindle::validate();
             Assert(_uart != nullptr, "VESC: missing UART configuration");
+            if (_control_mode_to_use == vesc_control_mode::RPM) {
+                Assert(_number_of_pole_pairs >= 1, "VESC: num_pole_pairs is required when control_type = RPM");
+            }
         }
 
         void group(Configuration::HandlerBase& handler) override {
