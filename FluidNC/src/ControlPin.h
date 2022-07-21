@@ -9,9 +9,6 @@ private:
     volatile bool& _rtVariable;  // The variable that is set when the pin is asserted
     int32_t        _debounceEnd = 0;
 
-    void IRAM_ATTR handleISR();
-    CreateISRHandlerFor(ControlPin, handleISR);
-
     // Interval during which we ignore repeated control pin activations
     const int debounceUs = 10000;  // 10000 us = 10 ms
     void IRAM_ATTR handleISR();
@@ -30,6 +27,8 @@ public:
 
     void init();
     bool get() { return _value; }
+
+    String report();
 
     ~ControlPin();
 };
