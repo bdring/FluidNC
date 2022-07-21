@@ -38,30 +38,8 @@ namespace Machine {
         log_info("I2C SDA: " << _sda.name() << ", SCL: " << _scl.name() << ", Freq: " << _frequency << ", Bus #: " << _busNumber);
     }
 
-    const char* I2CBus::ErrorDescription(int code) {
-        switch (code) {
-            case I2C_ERROR_OK:
-                return "ok";
-            case I2C_ERROR_DEV:
-                return "general device error";
-            case I2C_ERROR_ACK:
-                return "no ack returned by device";
-            case I2C_ERROR_TIMEOUT:
-                return "timeout";
-            case I2C_ERROR_BUS:
-                return "bus error";
-            case I2C_ERROR_BUSY:
-                return "device busy";
-            case I2C_ERROR_MEMORY:
-                return "insufficient memory";
-            case I2C_ERROR_CONTINUE:
-                return "continue";
-            case I2C_ERROR_NO_BEGIN:
-                return "begin transmission missing";
-            default:
-                return "unknown";
-        }
-    }
+    const char* I2CBus::ErrorDescription(int code) { return esp_err_to_name(code); }
+
     int I2CBus::write(uint8_t address, const uint8_t* data, size_t count) {
         // log_debug("I2C write addr=" << int(address) << ", count=" << int(count) << ", data " << (data ? "non null" : "null") << ", i2c "
         //                             << (i2c ? "non null" : "null"));
