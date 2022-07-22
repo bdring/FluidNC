@@ -35,9 +35,10 @@ namespace Machine {
         Pin  _allPin;
         bool _hardLimits = false;
 
-        int32_t _steps   = 0;
-        bool    _limited = false;  // _limited is set by the LimitPin ISR
-        bool    _blocked = false;  // _blocked is used during asymmetric homing pulloff
+        int32_t _stepsOffset = 0;
+        int32_t _steps       = 0;
+        bool    _limited     = false;  // _limited is set by the LimitPin ISR
+        bool    _blocked     = false;  // _blocked is used during asymmetric homing pulloff
 
         // Configuration system helpers:
         void group(Configuration::HandlerBase& handler) override;

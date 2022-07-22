@@ -596,6 +596,23 @@ static Error motors_init(const char* value, WebUI::AuthenticationLevel auth_leve
     return Error::Ok;
 }
 
+static Error motorPosition(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+    out << "[MSG: DBG: Motor position: (";
+    auto axes   = config->_axes;
+    auto n_axis = axes->_numberAxis;
+    for (size_t axis = 0; axis < n_axis; axis++) {
+        auto m     = axes->_axis[axis]->_motors[0];
+        auto steps = m ? (m->_steps + m->_stepsOffset) : 0;
+        if (axis != 0) {
+            out << ", ";
+        }
+        out << steps;
+    }
+    out << ")]\n";
+
+    return Error::Ok;
+}
+
 static Error macros_run(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
     if (value) {
         log_info("Running macro " << *value);
@@ -723,6 +740,7 @@ void make_user_commands() {
     new UserCommand("H", "Home", home_all, notIdleOrAlarm);
     new UserCommand("MD", "Motor/Disable", motor_disable, notIdleOrAlarm);
     new UserCommand("MI", "Motors/Init", motors_init, notIdleOrAlarm);
+    new UserCommand("MP", "Motors/Position", motorPosition, anyState);
 
     new UserCommand("RM", "Macros/Run", macros_run, notIdleOrAlarm);
 

@@ -53,6 +53,7 @@ void set_motor_steps(size_t axis, int32_t steps) {
     for (size_t motor = 0; motor < Machine::Axis::MAX_MOTORS_PER_AXIS; motor++) {
         auto m = a->_motors[motor];
         if (m) {
+            m->_stepsOffset += (m->_steps - steps);
             m->_steps = steps;
         }
     }
