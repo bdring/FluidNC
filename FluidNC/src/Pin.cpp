@@ -10,6 +10,7 @@
 #include "Pins/VoidPinDetail.h"
 #include "Pins/I2SOPinDetail.h"
 #include "Pins/ErrorPinDetail.h"
+#include "Pins/ExtPinDetail.h"
 #include <stdio.h>  // snprintf()
 
 Pins::PinDetail* Pin::undefinedPin = new Pins::VoidPinDetail();
@@ -92,6 +93,16 @@ const char* Pin::parse(StringRange tmp, Pins::PinDetail*& pinImplementation) {
     if (prefix == "void") {
         // Note: having multiple void pins has its uses for debugging.
         pinImplementation = new Pins::VoidPinDetail();
+    }
+
+    if (prefix.startsWith("pinext")) {
+        if (prefix.length() == 7 && prefix[6] >= '0' && prefix[6] <= '9') {
+            auto deviceId     = prefix[6] - '0';
+            pinImplementation = new Pins::ExtPinDetail(deviceId, pinnum_t(pinNumber), parser);
+        } else {
+            // For now this should be sufficient, if not we can easily change it to 100 extenders:
+            return "Incorrect pin extender specification. Expected 'pinext[0-9].[port number]'.";
+        }
     }
 
     if (pinImplementation == nullptr) {

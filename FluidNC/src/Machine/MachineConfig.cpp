@@ -40,12 +40,14 @@ namespace Machine {
         handler.section("axes", _axes);
         handler.section("kinematics", _kinematics);
         handler.section("i2so", _i2so);
+        handler.section("i2c", _i2c);
         handler.section("spi", _spi);
         handler.section("sdcard", _sdCard);
         handler.section("control", _control);
         handler.section("coolant", _coolant);
         handler.section("probe", _probe);
         handler.section("macros", _macros);
+        handler.section("extenders", _extenders);
         handler.section("start", _start);
 
         handler.section("user_outputs", _userOutputs);

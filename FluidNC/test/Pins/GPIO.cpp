@@ -8,38 +8,41 @@ extern "C" void __pinMode(uint8_t pin, uint8_t mode);
 extern "C" int  __digitalRead(uint8_t pin);
 extern "C" void __digitalWrite(uint8_t pin, uint8_t val);
 
-struct GPIONative {
-    inline static void initialize() {
-        for (int i = 16; i <= 17; ++i) {
-            __pinMode(i, OUTPUT);
-            __digitalWrite(i, LOW);
+namespace {
+    struct GPIONative {
+        inline static void initialize() {
+            for (int i = 16; i <= 17; ++i) {
+                __pinMode(i, OUTPUT);
+                __digitalWrite(i, LOW);
+            }
         }
-    }
-    inline static void mode(int pin, uint8_t mode) { __pinMode(pin, mode); }
-    inline static void write(int pin, bool val) { __digitalWrite(pin, val ? HIGH : LOW); }
-    inline static bool read(int pin) { return __digitalRead(pin) != LOW; }
-};
+        inline static void mode(int pin, uint8_t mode) { __pinMode(pin, mode); }
+        inline static void write(int pin, bool val) { __digitalWrite(pin, val ? HIGH : LOW); }
+        inline static bool read(int pin) { return __digitalRead(pin) != LOW; }
+    };
+}
 #else
 #    include <SoftwareGPIO.h>
 
-struct GPIONative {
-    // We test GPIO pin 16 and 17, and GPIO 16 is wired directly to 17:
-    static void WriteVirtualCircuitHystesis(SoftwarePin* pins, int pin, bool value) {
-        switch (pin) {
-            case 16:
-            case 17:
-                pins[16].handlePadChange(value);
-                pins[17].handlePadChange(value);
-                break;
+namespace {
+    struct GPIONative {
+        // We test GPIO pin 16 and 17, and GPIO 16 is wired directly to 17:
+        static void WriteVirtualCircuitHystesis(SoftwarePin* pins, int pin, bool value) {
+            switch (pin) {
+                case 16:
+                case 17:
+                    pins[16].handlePadChange(value);
+                    pins[17].handlePadChange(value);
+                    break;
+            }
         }
-    }
 
-    inline static void initialize() { SoftwareGPIO::instance().reset(WriteVirtualCircuitHystesis, false); }
-    inline static void mode(int pin, uint8_t mode) { SoftwareGPIO::instance().setMode(pin, mode); }
-    inline static void write(int pin, bool val) { SoftwareGPIO::instance().writeOutput(pin, val); }
-    inline static bool read(int pin) { return SoftwareGPIO::instance().read(pin); }
-};
-
+        inline static void initialize() { SoftwareGPIO::instance().reset(WriteVirtualCircuitHystesis, false); }
+        inline static void mode(int pin, uint8_t mode) { SoftwareGPIO::instance().setMode(pin, mode); }
+        inline static void write(int pin, bool val) { SoftwareGPIO::instance().writeOutput(pin, val); }
+        inline static bool read(int pin) { return SoftwareGPIO::instance().read(pin); }
+    };
+}
 void digitalWrite(uint8_t pin, uint8_t val);
 void pinMode(uint8_t pin, uint8_t mode);
 int  digitalRead(uint8_t pin);
@@ -301,7 +304,7 @@ namespace Pins {
 
             hitCount     = 0;
             int expected = 0;
-            gpio16.attachInterrupt<GPIOISR, &GPIOISR::HandleISR>(this, mode);
+            // gpio16.attachInterrupt<GPIOISR, &GPIOISR::HandleISR>(this, mode);
 
             // Two ways to set I/O:
             // 1. using on/off

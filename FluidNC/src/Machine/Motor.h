@@ -25,7 +25,7 @@ namespace Machine {
         int _motorNum;
 
     public:
-        Motor(int axis, int motorNum) : _axis(axis), _motorNum(motorNum) {}
+        Motor(int axis, int motorNum);
 
         MotorDrivers::MotorDriver* _driver  = nullptr;
         float                      _pulloff = 1.0f;  // mm

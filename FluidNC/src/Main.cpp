@@ -72,17 +72,22 @@ void setup() {
                     config->_sdCard->init();
                 }
             }
+            if (config->_i2c) {
+                config->_i2c->init();
+            }
+
+            // We have to initialize the extenders first, before pins are used
+            if (config->_extenders) {
+                config->_extenders->init();
+            }
 
             config->_stepping->init();  // Configure stepper interrupt timers
 
             plan_init();
 
             config->_userOutputs->init();
-
             config->_axes->init();
-
             config->_control->init();
-
             config->_kinematics->init();
 
             auto n_axis = config->_axes->_numberAxis;
@@ -123,7 +128,6 @@ void setup() {
             config->_coolant->init();
             config->_probe->init();
         }
-
     } catch (const AssertionFailed& ex) {
         // This means something is terribly broken:
         log_error("Critical error in main_init: " << ex.what());

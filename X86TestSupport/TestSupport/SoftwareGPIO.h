@@ -128,7 +128,7 @@ public:
                 pins[index].handlePadChangeWithHystesis(value);
             }
         } else {
-            pins[index].driverValue = value;
+            pins[index].handlePadChange(value);
         }
     }
 
