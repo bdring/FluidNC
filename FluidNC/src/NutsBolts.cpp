@@ -161,13 +161,21 @@ float convert_delta_vector_to_unit_vector(float* v) {
 
 const float secPerMinSq = 60.0 * 60.0;  // Seconds Per Minute Squared, for acceleration conversion
 
-float limit_acceleration_by_axis_maximum(float* unit_vec) {
+float limit_acceleration_by_axis_maximum(float* unit_vec, float factor) {
     float limit_value = SOME_LARGE_VALUE;
     auto  n_axis      = config->_axes->_numberAxis;
     for (size_t idx = 0; idx < n_axis; idx++) {
         auto axisSetting = config->_axes->_axis[idx];
         if (unit_vec[idx] != 0) {  // Avoid divide by zero.
-            limit_value = MIN(limit_value, fabsf(axisSetting->_acceleration / unit_vec[idx]));
+            float maxAccel = axisSetting->_acceleration; 
+            if (axisSetting->_proportionalAcceleration) {
+                maxAccel *= factor;
+                if (maxAccel < axisSetting->_minAcceleration) {
+                    maxAccel = axisSetting->_minAcceleration;
+                }
+            }
+
+            limit_value = MIN(limit_value, fabsf(maxAccel / unit_vec[idx]));
         }
     }
     // The acceleration setting is stored and displayed in units of mm/sec^2,

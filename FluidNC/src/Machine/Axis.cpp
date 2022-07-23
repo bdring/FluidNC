@@ -9,6 +9,8 @@ namespace Machine {
         handler.item("steps_per_mm", _stepsPerMm, 0.001, 100000.0);
         handler.item("max_rate_mm_per_min", _maxRate, 0.001, 100000.0);
         handler.item("acceleration_mm_per_sec2", _acceleration, 0.001, 100000.0);
+        handler.item("min_acceleration_mm_per_sec2", _minAcceleration, 0, 100000.0);
+        handler.item("proportional_acceleration", _proportionalAcceleration);
         handler.item("max_travel_mm", _maxTravel, 0.1, 10000000.0);
         handler.item("soft_limits", _softLimits);
         handler.section("homing", _homing);
