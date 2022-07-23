@@ -1,5 +1,5 @@
 name: K40_AvaShield
-board: 4_Ava_Shield_7.x_XYZ
+board: 4_Test_Ava_Shield_7.x_XYZ
 
 kinematics:
   Cartesian:
@@ -31,10 +31,10 @@ axes:
       feed_scaler: 5.000
 
     motor0:
-      limit_neg_pin: gpio.39
+      limit_neg_pin: gpio.39:low
       limit_pos_pin: NO_PIN
       limit_all_pin: NO_PIN
-      hard_limits: true
+      hard_limits: false
       pulloff_mm: 5.000
       stepstick:
         ms3_pin: I2SO.3
@@ -60,10 +60,10 @@ axes:
       feed_scaler: 5.000
 
     motor0:
-      limit_neg_pin: gpio.34
+      limit_neg_pin: gpio.34:low
       limit_pos_pin: NO_PIN
       limit_all_pin: NO_PIN
-      hard_limits: true
+      hard_limits: false
       pulloff_mm: 5.000
       stepstick:
         ms3_pin: I2SO.7
@@ -78,7 +78,7 @@ axes:
     max_travel_mm: 20.000
     soft_limits: false
     homing:
-      cycle: 2
+      cycle: 
       positive_direction: true
       mpos_mm: 9.500
       feed_mm_per_min: 100.000
@@ -91,7 +91,7 @@ axes:
       limit_neg_pin: gpio.35:low
       limit_pos_pin: NO_PIN
       limit_all_pin: NO_PIN
-      hard_limits: true
+      hard_limits: false
       pulloff_mm: 9.500
       stepstick:
         ms3_pin: I2SO.11

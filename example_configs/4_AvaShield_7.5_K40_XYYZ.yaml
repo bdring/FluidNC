@@ -1,5 +1,5 @@
 name: K40_AvaShield
-board: 4_Ava_Shield_7.x_XYZ
+board: 4_Ava_Shield_7.x_XYYZ
 
 kinematics:
   Cartesian:
@@ -15,11 +15,11 @@ axes:
   shared_stepper_disable_pin: NO_PIN
 
   x:
-    steps_per_mm: 78.74
+    steps_per_mm: 80
     max_rate_mm_per_min: 20000.000
     acceleration_mm_per_sec2: 2000.000
-    max_travel_mm: 310.000
-    soft_limits: true
+    max_travel_mm: 300.000
+    soft_limits: false
     homing:
       cycle: 1
       positive_direction: false
@@ -31,7 +31,7 @@ axes:
       feed_scaler: 5.000
 
     motor0:
-      limit_neg_pin: gpio.39
+      limit_neg_pin: gpio.39:low
       limit_pos_pin: NO_PIN
       limit_all_pin: NO_PIN
       hard_limits: true
@@ -44,11 +44,11 @@ axes:
 
 
   y:
-    steps_per_mm: 78.74
+    steps_per_mm: 80
     max_rate_mm_per_min: 20000.000
     acceleration_mm_per_sec2: 2000.000
-    max_travel_mm: 210.000
-    soft_limits: true
+    max_travel_mm: 200.000
+    soft_limits: false
     homing:
       cycle: 1
       positive_direction: false
@@ -60,7 +60,7 @@ axes:
       feed_scaler: 5.000
 
     motor0:
-      limit_neg_pin: gpio.34
+      limit_neg_pin: gpio.34:low
       limit_pos_pin: NO_PIN
       limit_all_pin: NO_PIN
       hard_limits: true
@@ -71,6 +71,18 @@ axes:
         direction_pin: I2SO.5:low
         disable_pin: I2SO.4
 
+    motor1:
+      limit_neg_pin: gpio.32:low
+      limit_pos_pin: NO_PIN
+      limit_all_pin: NO_PIN
+      hard_limits: true
+      pulloff_mm: 5.000
+      stepstick:
+        ms3_pin: I2SO.15
+        step_pin: I2SO.14
+        direction_pin: I2SO.13
+        disable_pin: I2SO.12
+
   z:
     steps_per_mm: 1000.000
     max_rate_mm_per_min: 400.000
@@ -80,7 +92,7 @@ axes:
     homing:
       cycle: 2
       positive_direction: true
-      mpos_mm: 9.500
+      mpos_mm: 5.000
       feed_mm_per_min: 100.000
       seek_mm_per_min: 100.000
       settle_ms: 250.000
@@ -92,11 +104,11 @@ axes:
       limit_pos_pin: NO_PIN
       limit_all_pin: NO_PIN
       hard_limits: true
-      pulloff_mm: 9.500
+      pulloff_mm: 5.000
       stepstick:
         ms3_pin: I2SO.11
         step_pin: I2SO.10
-        direction_pin: I2SO.9:low
+        direction_pin: I2SO.9
         disable_pin: I2SO.8
     motor1:
       null_motor:
