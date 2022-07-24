@@ -433,7 +433,7 @@ void report_build_info(const char* line, Print& channel) {
     channel << "[VER:" << grbl_version << " FluidNC " << git_info << ":" << line << "]\n";
     channel << "[OPT:";
     if (config->_coolant->hasMist()) {
-        channel << "M";  // TODO Need to deal with M8...it could be disabled
+        channel << "M";
     }
     channel << "PH";
     if (ALLOW_FEED_OVERRIDE_DURING_PROBE_CYCLES) {
@@ -676,11 +676,10 @@ void report_realtime_status(Channel& channel) {
             }
 
             auto coolant = coolant_state;
-            // XXX WMB why .Flood in one case and ->hasMist() in the other? also see above
             if (coolant.Flood) {
                 channel << "F";
             }
-            if (config->_coolant->hasMist()) {
+            if (coolant.Mist) {
                 channel << "M";
             }
         }
