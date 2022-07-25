@@ -172,14 +172,14 @@ namespace Spindles {
 
         config_message();
 
-        set_state_internal(SpindleState::Disable, 0);
+        set_state_internal(SpindleState::Disable, 0, false);
     }
 
     void VESC::config_message() {
         _uart->config_message(name(), " Spindle ");
     }
 
-    void VESC::set_state_internal(SpindleState state, SpindleSpeed speed) {
+    void VESC::set_state_internal(SpindleState state, SpindleSpeed speed, bool fromISR) {
         if (_vesc_cmd_queue) {
             vesc_action action;
             uint32_t    mappedValue = mapSpeed(speed);
@@ -222,9 +222,18 @@ namespace Spindles {
                 } break;
             }
 
-            if (xQueueSend(_vesc_cmd_queue, &action, 0) != pdTRUE) {
-                log_warn("VESC Queue Full");
+            if (fromISR) {
+                if (xQueueSendFromISR(_vesc_cmd_queue, &action, 0) != pdTRUE) {
+                    log_warn("VESC Queue Full");
+                }
+            } else {
+                if (xQueueSend(_vesc_cmd_queue, &action, 0) != pdTRUE) {
+                    log_warn("VESC Queue Full");
+                }
             }
+
+            _last_spindle_state = state;
+            _last_spindle_speed = speed;
         }
     }
 
@@ -233,13 +242,21 @@ namespace Spindles {
             return;  // Block during abort.
         }
 
-        set_state_internal(state, speed);
+        if (_last_spindle_state == state && _last_spindle_speed == speed) {
+            return;
+        }
+
+        set_state_internal(state, speed, false);
 
         spindleDelay(state, speed);
     }
 
     void IRAM_ATTR VESC::setSpeedfromISR(uint32_t dev_speed) {
-        set_state_internal(_current_state, dev_speed);
+        if (_last_spindle_speed == dev_speed) {
+            return;
+        }
+
+        set_state_internal(_current_state, dev_speed, true);
     }
 
     // Configuration registration

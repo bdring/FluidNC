@@ -51,7 +51,10 @@ namespace Spindles {
         int      _control_mode_to_use;
         uint32_t _number_of_pole_pairs;
         Uart*    _uart = nullptr;
-        void     set_state_internal(SpindleState state, SpindleSpeed speed);
+        void     set_state_internal(SpindleState state, SpindleSpeed speed, bool fromISR);
+
+        SpindleState _last_spindle_state;
+        uint32_t     _last_spindle_speed;
 
     public:
         VESC() = default;
