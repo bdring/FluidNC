@@ -172,14 +172,14 @@ namespace Spindles {
 
         config_message();
 
-        set_state_internal(SpindleState::Disable, 0, false);
+        set_state_internal(SpindleState::Disable, 0);
     }
 
     void VESC::config_message() {
         _uart->config_message(name(), " Spindle ");
     }
 
-    void VESC::set_state_internal(SpindleState state, SpindleSpeed speed, bool fromISR) {
+    void VESC::set_state_internal(SpindleState state, SpindleSpeed speed) {
         if (_vesc_cmd_queue) {
             vesc_action action;
             uint32_t    mappedValue = mapSpeed(speed);
@@ -222,14 +222,8 @@ namespace Spindles {
                 } break;
             }
 
-            if (fromISR) {
-                if (xQueueSendFromISR(_vesc_cmd_queue, &action, 0) != pdTRUE) {
-                    log_warn("VESC Queue Full");
-                }
-            } else {
-                if (xQueueSend(_vesc_cmd_queue, &action, 0) != pdTRUE) {
-                    log_warn("VESC Queue Full");
-                }
+            if (xQueueSend(_vesc_cmd_queue, &action, 0) != pdTRUE) {
+                log_warn("VESC Queue Full");
             }
 
             _last_spindle_state = state;
@@ -246,17 +240,9 @@ namespace Spindles {
             return;
         }
 
-        set_state_internal(state, speed, false);
+        set_state_internal(state, speed);
 
         spindleDelay(state, speed);
-    }
-
-    void IRAM_ATTR VESC::setSpeedfromISR(uint32_t dev_speed) {
-        if (_last_spindle_speed == dev_speed) {
-            return;
-        }
-
-        set_state_internal(_current_state, dev_speed, true);
     }
 
     // Configuration registration
