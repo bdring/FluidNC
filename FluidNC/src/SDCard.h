@@ -25,11 +25,6 @@
 
 #include <cstdint>
 
-// Forward declaration:
-namespace fs {
-    class FS;
-}
-
 // XXX This should be a configuration parameter of the SPI bus
 const int32_t SPIfreq = 4000000;
 
@@ -44,8 +39,6 @@ public:
         BusyWriting   = 5,
         BusyReading   = 6,
     };
-
-    class FileWrap;  // holds a single 'File'; we don't want to include <FS.h> here
 
 private:
     State         _state;

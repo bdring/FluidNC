@@ -8,8 +8,8 @@
 #include "Channel.h"
 #include "Report.h"
 
-#include <SD.h>
-#include <SPI.h>
+#include "Driver/sdspi.h"
+#include "FluidPath.h"
 
 SDCard::SDCard() : _state(State::Idle) {}
 
@@ -23,12 +23,12 @@ SDCard::State SDCard::test_or_open(bool refresh) {
     auto spiConfig = config->_spi;
 
     if (spiConfig == nullptr || !spiConfig->defined()) {
-        //log_debug("SPI not defined");
+        // log_debug("SPI not defined");
         return SDCard::State::NotPresent;
     }
 
     if (spiConfig == nullptr || _cs.undefined()) {
-        //log_debug("SD cs not defined");
+        // log_debug("SD cs not defined");
         return SDCard::State::NotPresent;
     }
 
@@ -47,19 +47,16 @@ SDCard::State SDCard::test_or_open(bool refresh) {
         return _state;  //to avoid refresh=true + busy to reset SD and waste time
     }
 
-    //SD is idle or not detected, let see if still the case
-    SD.end();
-
     _state = SDCard::State::NotPresent;
 
     auto csPin = _cs.getNative(Pin::Capabilities::Output | Pin::Capabilities::Native);
 
     //refresh content if card was removed
-    if (SD.begin(csPin, SPI, SPIfreq, "/sd", 2)) {
-        if (SD.cardSize() > 0) {
-            _state = SDCard::State::Idle;
-        }
-    }
+    try {
+        FluidPath path { "", "/sd" };
+        _state = SDCard::State::Idle;
+    } catch (std::error_code err) { _state = SDCard::State::NotPresent; }
+
     return _state;
 }
 
@@ -79,7 +76,6 @@ SDCard::State SDCard::get_state() {
 }
 
 void SDCard::end() {
-    SD.end();
     _state = State::Idle;
 }
 
@@ -99,7 +95,14 @@ void SDCard::init() {
     }
 
     _cs.setAttr(Pin::Attr::Output);
-    _cardDetect.setAttr(Pin::Attr::Input);
+    auto csPin = _cs.getNative(Pin::Capabilities::Output | Pin::Capabilities::Native);
+    if (_cardDetect.defined()) {
+        _cardDetect.setAttr(Pin::Attr::Input);
+        auto cdPin = _cardDetect.getNative(Pin::Capabilities::Output | Pin::Capabilities::Native);
+        sd_init_slot(csPin, cdPin);
+    } else {
+        sd_init_slot(csPin);
+    }
 }
 
 void SDCard::afterParse() {
