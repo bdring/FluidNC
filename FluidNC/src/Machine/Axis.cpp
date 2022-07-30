@@ -47,6 +47,11 @@ namespace Machine {
             set_bitnum(Axes::homingMask, _axis);
         }
 
+        if (!_motors[0] && _motors[1]) {
+            sys.state = State::ConfigAlarm;
+            log_error("motor1 defined without motor0");
+        }
+
         // If dual motors and only one motor has switches, this is the configuration
         // for a POG style squaring. The switch should report as being on both axes
         if (hasDualMotor() && (motorsWithSwitches() == 1)) {
