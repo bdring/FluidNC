@@ -4,8 +4,7 @@
 // Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
 
 #include "SPIBus.h"
-
-#include <SPI.h>
+#include "Driver/spi.h"
 
 namespace Machine {
     void SPIBus::validate() const {
@@ -24,16 +23,18 @@ namespace Machine {
             auto sckPin  = _sck.getNative(Pin::Capabilities::Output | Pin::Capabilities::Native);
             auto misoPin = _miso.getNative(Pin::Capabilities::Input | Pin::Capabilities::Native);
 
-            // Start the SPI bus with the pins defined here.  Once it has been started,
-            // those pins "stick" and subsequent attempts to restart it with defaults
-            // for the miso, mosi, and sck pins are ignored
-            SPI.begin(sckPin, misoPin, mosiPin);  // CS is defined by each device
+            if (spi_init_bus(sckPin, misoPin, mosiPin)) {
+                log_error("SPIBus init failed");
+                return;
+            }
             _defined = true;
-        } else {
-            _defined = false;
-            log_info("SPI not defined");
+            return;
         }
+        log_info("SPI not defined");
+        _defined = false;
     }
+
+    void SPIBus::deinit() { spi_deinit_bus(); }
 
     void SPIBus::group(Configuration::HandlerBase& handler) {
         handler.item("miso_pin", _miso);

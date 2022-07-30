@@ -39,6 +39,12 @@ public:
 extern bool atMsgLevel(MsgLevel level);
 
 // Note: these '{'..'}' scopes are here for a reason: the destructor should flush.
+#define log_verbose(x)                                                                                                                     \
+    if (atMsgLevel(MsgLevelVerbose)) {                                                                                                     \
+        DebugStream ss("VRB");                                                                                                             \
+        ss << x;                                                                                                                           \
+    }
+
 #define log_debug(x)                                                                                                                       \
     if (atMsgLevel(MsgLevelDebug)) {                                                                                                       \
         DebugStream ss("DBG");                                                                                                             \

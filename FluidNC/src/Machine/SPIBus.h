@@ -20,10 +20,12 @@ namespace Machine {
         void afterParse() override;
 
         void init();
+        void deinit();
 
         bool defined();
 
         ~SPIBus() = default;
+
     private:
         bool _defined = false;
     };
