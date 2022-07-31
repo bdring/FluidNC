@@ -72,7 +72,14 @@ namespace std _GLIBCXX_VISIBILITY(default) {
                         return advance(skip_permission_denied, ec);
                     return entp;
                 } else if (err) {
+#ifdef __FLUIDNC
+                    // SPIFFS returns EIO when readdir() fails
+                    // It is possible that this is fixed by
+                    // https://github.com/pellepl/spiffs/commit/1239341b
+                    if (err == EIO || (err == EACCES && skip_permission_denied))
+#else
                     if (err == EACCES && skip_permission_denied)
+#endif
                         return nullptr;
                     ec.assign(err, std::generic_category());
                     return nullptr;
