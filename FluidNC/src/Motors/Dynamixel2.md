@@ -4,7 +4,7 @@ This allows Dynamixel Servo motors to be used as an axis motor. This document wa
 
 They can be used in place of any lettered axis, but only one per axis. These servos are limited to a single 360° of rotation. This is mapped to the MaxTravel of the axis. If you want map 300mm of travel to an X axis servo, you set $X/MaxTravel=300.
 
-This sets a range in machine space. You are allowed to zero the axis anywhere in that travel. If you do a move that exceeds the travel, the servo will move to the end of of travel and stay there. The axis position will still be running, but the servo will stop. You can use $Limits/Soft=On to alarm if the range is exceeded.
+This sets a range in machine space. You are allowed to zero the axis anywhere in that travel. If you do a move that exceeds the travel, the servo will move to the end of of travel and stay there. The axis position will still be running, but the servo will stop.
 
 You should set the the axis speed and acceleration to what the servo can handle. If those settings are too high, the motor will still move, but will lag behind where the firmware thinks it is.
 

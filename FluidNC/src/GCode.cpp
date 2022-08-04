@@ -167,6 +167,7 @@ Error gc_execute_line(char* line, Channel& channel) {
     bool jogMotion     = false;
     bool checkMantissa = false;
     bool clockwiseArc  = false;
+    bool probeExplicit = false;
     bool probeAway     = false;
     bool probeNoError  = false;
     bool syncLaser     = false;
@@ -311,6 +312,14 @@ Error gc_execute_line(char* line, Channel& channel) {
                         if (axis_command != AxisCommand::None) {
                             FAIL(Error::GcodeAxisCommandConflict);  // [Axis word/command conflict]
                         }
+
+                        // Indicate that the block contains an explicit G38.n word.  This lets us
+                        // allow "G53 G38.n ..." without also allowing a sequence like
+                        // "G38.n F10 Z-5 \n G53 X5".  In other words, we can use G53 to make the
+                        // probe limit be in machine coordinates, without causing a later G53 that
+                        // has no motion word to infer G38.n mode.
+                        probeExplicit = true;
+
                         axis_command = AxisCommand::MotionMode;
                         switch (mantissa) {
                             case 20:
@@ -1063,7 +1072,7 @@ Error gc_execute_line(char* line, Channel& channel) {
                 case NonModal::AbsoluteOverride:
                     // [G53 Errors]: G0 and G1 are not active. Cutter compensation is enabled.
                     // NOTE: All explicit axis word commands are in this modal group. So no implicit check necessary.
-                    if (!(gc_block.modal.motion == Motion::Seek || gc_block.modal.motion == Motion::Linear)) {
+                    if (!(probeExplicit || gc_block.modal.motion == Motion::Seek || gc_block.modal.motion == Motion::Linear)) {
                         FAIL(Error::GcodeG53InvalidMotionMode);  // [G53 G0/1 not active]
                     }
                     break;

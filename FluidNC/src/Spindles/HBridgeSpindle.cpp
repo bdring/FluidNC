@@ -5,18 +5,18 @@
 
 #include "../GCode.h"  // gc_state.modal
 #include "../Logging.h"
-#include "../Pins/LedcPin.h"
-#include <esp32-hal-ledc.h>  // ledcDetachPin
+#include "Driver/PwmPin.h"  // pwmInit(), etc.
 
 namespace Spindles {
     void HBridge::init() {
-        get_pins_and_settings();
+        is_reversable = _output_ccw_pin.defined();
+
         setupSpeeds(_pwm_freq);
 
         if (_output_cw_pin.defined()) {
             if (_output_cw_pin.capabilities().has(Pin::Capabilities::PWM)) {
                 auto outputNative = _output_cw_pin.getNative(Pin::Capabilities::PWM);
-                _pwm_cw_chan_num  = ledcInit(_output_cw_pin, -1, (double)_pwm_freq, _pwm_precision);
+                _pwm_cw           = new PwmPin(_output_cw_pin, _pwm_freq);
             } else {
                 log_error(name() << " output_cw_pin " << _output_cw_pin.name().c_str() << " cannot do PWM");
             }
@@ -27,7 +27,7 @@ namespace Spindles {
         if (_output_ccw_pin.defined()) {
             if (_output_ccw_pin.capabilities().has(Pin::Capabilities::PWM)) {
                 auto outputBNative = _output_ccw_pin.getNative(Pin::Capabilities::PWM);
-                _pwm_ccw_chan_num  = ledcInit(_output_ccw_pin, -1, (double)_pwm_freq, _pwm_precision);
+                _pwm_ccw           = new PwmPin(_output_ccw_pin, _pwm_freq);
             } else {
                 log_error(name() << " output_ccw_pin " << _output_ccw_pin.name().c_str() << " cannot do PWM");
             }
@@ -43,18 +43,8 @@ namespace Spindles {
             // The default speed map for a PWM spindle is linear from 0=0% to 10000=100%
             linearSpeeds(10000, 100.0f);
         }
-        setupSpeeds(_pwm_period);
+        setupSpeeds(_pwm_cw->period());
         config_message();
-    }
-
-    // Get the GPIO from the machine definition
-    void HBridge::get_pins_and_settings() {
-        // setup all the pins
-
-        is_reversable = _output_ccw_pin.defined();
-
-        _pwm_precision = ledc_calc_pwm_precision(_pwm_freq);  // determine the best precision
-        _pwm_period    = (1 << _pwm_precision);
     }
 
     void IRAM_ATTR HBridge::set_enable(bool enable) {
@@ -114,17 +104,17 @@ namespace Spindles {
     // prints the startup message of the spindle config
     void HBridge::config_message() {
         log_info(name() << " Spindle Ena:" << _enable_pin.name() << " Out CW:" << _output_cw_pin.name()
-                        << " Out CCW:" << _output_ccw_pin.name() << " Freq:" << _pwm_freq << "Hz Res:" << _pwm_precision << "bits"
+                        << " Out CCW:" << _output_ccw_pin.name() << " Freq:" << _pwm_cw->frequency() << "Hz Period:" << _pwm_cw->period()
 
         );
     }
 
     void IRAM_ATTR HBridge::set_output(uint32_t duty) {
-        if (_pwm_cw_chan_num == -1 || _pwm_cw_chan_num == -1) {
+        if (!(_pwm_cw && _pwm_ccw)) {
             return;
         }
 
-        // to prevent excessive calls to ledcSetDuty, make sure duty has changed
+        // to prevent excessive calls to pwm->setDuty, make sure duty has changed
         if (duty == _current_pwm_duty && !_duty_update_needed) {
             return;
         }
@@ -134,21 +124,25 @@ namespace Spindles {
         _current_pwm_duty = duty;
 
         if (_state == SpindleState::Cw) {
-            ledcSetDuty(_pwm_cw_chan_num, 0);
-            ledcSetDuty(_pwm_ccw_chan_num, duty);
+            _pwm_cw->setDuty(0);
+            _pwm_ccw->setDuty(duty);
         } else if (_state == SpindleState::Ccw) {
-            ledcSetDuty(_pwm_ccw_chan_num, 0);
-            ledcSetDuty(_pwm_cw_chan_num, duty);
+            _pwm_cw->setDuty(0);
+            _pwm_ccw->setDuty(duty);
         } else {  // M5
-            ledcSetDuty(_pwm_cw_chan_num, 0);
-            ledcSetDuty(_pwm_ccw_chan_num, 0);
+            _pwm_cw->setDuty(0);
+            _pwm_ccw->setDuty(0);
         }
     }
 
     void HBridge::deinit() {
         stop();
-        ledcDetachPin(_output_cw_pin.getNative(Pin::Capabilities::PWM));
-        ledcDetachPin(_output_ccw_pin.getNative(Pin::Capabilities::PWM));
+        if (_pwm_cw) {
+            delete _pwm_cw;
+            delete _pwm_ccw;
+            _pwm_cw  = nullptr;
+            _pwm_ccw = nullptr;
+        }
         _output_cw_pin.setAttr(Pin::Attr::Input);
         _output_ccw_pin.setAttr(Pin::Attr::Input);
         _enable_pin.setAttr(Pin::Attr::Input);

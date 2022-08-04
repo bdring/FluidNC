@@ -23,6 +23,7 @@
 */
 
 #include "Spindle.h"
+#include "Driver/PwmPin.h"
 
 #include <cstdint>
 
@@ -78,11 +79,9 @@ namespace Spindles {
     protected:
         // TODO: A/B rename
         int32_t      _current_pwm_duty;
-        SpindleState _current_state    = SpindleState::Unknown;
-        int          _pwm_cw_chan_num  = -1;
-        int          _pwm_ccw_chan_num = -1;
-        uint32_t     _pwm_period;     // how many counts in 1 period
-        uint8_t      _pwm_precision;  // auto calculated
+        SpindleState _current_state      = SpindleState::Unknown;
+        PwmPin*      _pwm_cw             = nullptr;
+        PwmPin*      _pwm_ccw            = nullptr;
         bool         _duty_update_needed = false;
 
         // _disable_with_zero_speed forces a disable when speed is 0
@@ -101,7 +100,5 @@ namespace Spindles {
 
         void         set_output(uint32_t duty);
         virtual void deinit();
-
-        virtual void get_pins_and_settings();
     };
 }
