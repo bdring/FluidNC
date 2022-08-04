@@ -322,8 +322,8 @@ namespace WebUI {
     }
 
     String WiFiConfig::info() {
-        static String result;
-        String        tmp;
+        String result;
+        String tmp;
 
         if ((WiFi.getMode() == WIFI_MODE_STA) || (WiFi.getMode() == WIFI_MODE_APSTA)) {
             result += "Mode=STA:SSID=";
