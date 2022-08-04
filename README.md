@@ -37,7 +37,7 @@ The Wifi and WebUI is based on [this project.](https://github.com/luc-github/ESP
 
 ## Discussion
 
-<img src="http://wiki.fluidnc.com/discord-logo_trans.png" width="180" align="left">
+<img src="http://wiki.fluidnc.com/discord-logo_trans.png" width="180">
 
 We have a Discord server for the development this project. Ask for an invite
 
