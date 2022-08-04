@@ -45,7 +45,7 @@ void setup() {
         settings_init();  // requires config
 
         log_info("FluidNC " << git_info);
-        log_info("Compiled with ESP32 SDK:" << ESP.getSdkVersion());
+        log_info("Compiled with ESP32 SDK:" << esp_get_idf_version());
 
         if (localfs_mount()) {
             log_error("Cannot mount a local filesystem");
