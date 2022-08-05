@@ -73,7 +73,7 @@ namespace Machine {
             *_pExtraLimited = _value;
         }
         if (_value) {
-            log_debug("1");
+            //log_debug("1");
             if (_posLimits != nullptr) {
                 set_bits(*_posLimits, _bitmask);
             }
@@ -81,7 +81,7 @@ namespace Machine {
                 set_bits(*_negLimits, _bitmask);
             }
         } else {
-            log_debug("0");
+            //log_debug("0");
             if (_posLimits != nullptr) {
                 clear_bits(*_posLimits, _bitmask);
             }
