@@ -4,29 +4,44 @@
 #include <cstddef>            // NULL
 #include <cstring>
 #include "src/Logging.h"
+#include "esp_partition.h"
 
 const char* localFsName = NULL;
 
+static bool has_partition(const char* label) {
+    auto part = esp_partition_find_first(ESP_PARTITION_TYPE_DATA, ESP_PARTITION_SUBTYPE_ANY, label);
+    return part != NULL;
+}
+
 bool localfs_mount() {
-    if (defaultLocalFsName == spiffsName) {
-        if (!spiffs_mount()) {
+    if (has_partition(spiffsName)) {
+        if (!spiffs_mount(spiffsName, false)) {
             localFsName = spiffsName;
             return false;
         }
-        if (!littlefs_mount()) {
+        // Migration - littlefs in spiffs partition
+        if (!littlefs_mount(spiffsName, false)) {
             localFsName = littlefsName;
             return false;
         }
-    } else {
-        if (!littlefs_mount()) {
-            localFsName = littlefsName;
-            return false;
-        }
-        if (!spiffs_mount()) {
+        // Try to create a SPIFFS filesystem
+        if (!spiffs_mount(spiffsName, true)) {
             localFsName = spiffsName;
             return false;
         }
+        log_error("Cannot mount or create a local filesystem in the spiffs partition");
+        return true;
     }
+    if (has_partition(littlefsName)) {
+        // Mount LittleFS, create if necessary
+        if (!littlefs_mount(littlefsName, true)) {
+            localFsName = littlefsName;
+            return false;
+        }
+        log_error("Cannot mount or create a local filesystem in the littlefs partition");
+        return true;
+    }
+    log_error("The partition map has neither a spiffs partition nor a littlefs partition");
     return true;
 }
 void localfs_unmount() {
