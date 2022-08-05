@@ -12,8 +12,8 @@ bool spiffs_format(const char* partition_label) {
     }
     return false;
 }
-bool spiffs_mount() {
-    esp_vfs_spiffs_conf_t conf = { .base_path = "/spiffs", .partition_label = "spiffs", .max_files = 2, .format_if_mount_failed = false };
+bool spiffs_mount(const char* label, bool format) {
+    esp_vfs_spiffs_conf_t conf = { .base_path = "/spiffs", .partition_label = label, .max_files = 2, .format_if_mount_failed = format };
 
     esp_err_t err = esp_vfs_spiffs_register(&conf);
     if (err) {

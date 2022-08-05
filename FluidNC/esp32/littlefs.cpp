@@ -26,8 +26,8 @@ bool littlefs_format(const char* partition_label) {
     return false;
 }
 
-bool littlefs_mount() {
-    esp_vfs_littlefs_conf_t conf = { .base_path = "/littlefs", .partition_label = "littlefs", .format_if_mount_failed = false };
+bool littlefs_mount(const char* label, bool format) {
+    esp_vfs_littlefs_conf_t conf = { .base_path = "/littlefs", .partition_label = label, .format_if_mount_failed = format };
 
     return esp_vfs_littlefs_register(&conf);
 }
