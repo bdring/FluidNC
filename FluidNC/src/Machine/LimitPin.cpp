@@ -65,12 +65,15 @@ namespace Machine {
     }
 
     void IRAM_ATTR LimitPin::read() {
-        _value    = _pin.read();
+        delay_us(100);
+        _value = _pin.read();
+
         _pLimited = _value;
         if (_pExtraLimited != nullptr) {
             *_pExtraLimited = _value;
         }
         if (_value) {
+            log_debug("1");
             if (_posLimits != nullptr) {
                 set_bits(*_posLimits, _bitmask);
             }
@@ -78,6 +81,7 @@ namespace Machine {
                 set_bits(*_negLimits, _bitmask);
             }
         } else {
+            log_debug("0");
             if (_posLimits != nullptr) {
                 clear_bits(*_posLimits, _bitmask);
             }
