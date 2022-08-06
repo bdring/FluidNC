@@ -94,7 +94,7 @@ float vector_length(float* v, size_t n);
 void scale_vector(float* v, float scale, size_t n);
 
 float convert_delta_vector_to_unit_vector(float* vector);
-float limit_acceleration_by_axis_maximum(float* unit_vec);
+float limit_acceleration_by_axis_maximum(float* unit_vec, float factor);
 float limit_rate_by_axis_maximum(float* unit_vec);
 
 bool  char_is_numeric(char value);

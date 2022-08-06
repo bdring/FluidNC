@@ -29,3 +29,5 @@ inline void vTaskEnterCritical(portMUX_TYPE* mux) {
 inline int32_t xPortGetFreeHeapSize() {
     return 1024 * 1024 * 4;
 }
+
+#define configMINIMAL_STACK_SIZE 768

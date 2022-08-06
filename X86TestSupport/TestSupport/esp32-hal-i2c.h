@@ -1,0 +1,13 @@
+#pragma once
+
+typedef enum {
+    I2C_ERROR_OK = 0,
+    I2C_ERROR_DEV,
+    I2C_ERROR_ACK,
+    I2C_ERROR_TIMEOUT,
+    I2C_ERROR_BUS,
+    I2C_ERROR_BUSY,
+    I2C_ERROR_MEMORY,
+    I2C_ERROR_CONTINUE,
+    I2C_ERROR_NO_BEGIN
+} i2c_err_t;
