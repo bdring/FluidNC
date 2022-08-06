@@ -30,6 +30,7 @@
 
 #    include "src/FluidPath.h"
 #    include "src/WebUI/JSONEncoder.h"
+#    include "Driver/localfs.h"
 
 namespace WebUI {
     const byte DNS_PORT = 53;
@@ -718,8 +719,8 @@ namespace WebUI {
 
     void Web_Server::sendAuthFailed() { sendStatus(401, "Authentication failed"); }
 
-    void Web_Server::LocalFSFileupload() { fileUpload("/spiffs"); }
-    void Web_Server::SDFileUpload() { fileUpload("/sd"); }
+    void Web_Server::LocalFSFileupload() { fileUpload(localfsName); }
+    void Web_Server::SDFileUpload() { fileUpload(sdName); }
 
     //Web Update handler
     void Web_Server::handleUpdate() {
@@ -944,8 +945,8 @@ namespace WebUI {
         sendJSON(200, s);
     }
 
-    void Web_Server::handle_direct_SDFileList() { handleFileOps("/sd"); }
-    void Web_Server::handleFileList() { handleFileOps("/spiffs"); }
+    void Web_Server::handle_direct_SDFileList() { handleFileOps(sdName); }
+    void Web_Server::handleFileList() { handleFileOps(localfsName); }
 
     // File upload
     void Web_Server::uploadStart(String filename, size_t filesize, const char* fs) {

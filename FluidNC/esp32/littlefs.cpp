@@ -3,10 +3,15 @@
 #include "wdt.h"
 #include "src/Logging.h"
 
+// Remember the partition label of the littlefs filesystem -
+// typically littlefs or spiffs - so we can pass it to esp_littlefs_info
+const char* littlefs_label;
+
 bool littlefs_format(const char* partition_label) {
     esp_err_t err;
     disable_core0_WDT();
     if (partition_label) {
+        log_debug("esp_littlefs_format " << partition_label);
         err = esp_littlefs_format(partition_label);
     } else {
         err = esp_littlefs_format("littlefs");
@@ -29,7 +34,12 @@ bool littlefs_format(const char* partition_label) {
 bool littlefs_mount(const char* label, bool format) {
     esp_vfs_littlefs_conf_t conf = { .base_path = "/littlefs", .partition_label = label, .format_if_mount_failed = format };
 
-    return esp_vfs_littlefs_register(&conf);
+    esp_err_t err = esp_vfs_littlefs_register(&conf);
+
+    if (!err) {
+        littlefs_label = label;
+    }
+    return err;
 }
 void littlefs_unmount() {
     esp_vfs_littlefs_unregister("littlefs");

@@ -41,19 +41,14 @@ public:
     };
 
 private:
-    State         _state;
-    Pin           _cardDetect;
-    Pin           _cs;
-    SDCard::State test_or_open(bool refresh);
+    State _state;
+    Pin   _cardDetect;
+    Pin   _cs;
 
 public:
     SDCard();
     SDCard(const SDCard&) = delete;
     SDCard& operator=(const SDCard&) = delete;
-
-    SDCard::State get_state();
-    SDCard::State begin(SDCard::State newState);
-    void          end();
 
     void afterParse() override;
 

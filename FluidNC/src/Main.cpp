@@ -50,7 +50,7 @@ void setup() {
         if (localfs_mount()) {
             log_error("Cannot mount a local filesystem");
         } else {
-            log_info("Local filesystem type is " << localFsName);
+            log_info("Local filesystem type is " << localfsName);
         }
 
         bool configOkay = config->load();

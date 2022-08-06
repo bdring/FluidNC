@@ -60,7 +60,6 @@ sdmmc_card_t* card        = NULL;
 const char*   base_path   = "/sd";
 
 static void call_host_deinit(const sdmmc_host_t* host_config) {
-    log_debug("DEINIT");
     if (host_config->flags & SDMMC_HOST_FLAG_DEINIT_ARG) {
         host_config->deinit_p(host_config->slot);
     } else {
@@ -158,7 +157,7 @@ cleanup:
 }
 
 void sd_unmount() {
-    //    log_debug("Unmount_sd");
+    // log_debug("Unmount_sd");
     BYTE pdrv = ff_diskio_get_pdrv_card(card);
     if (pdrv == 0xff) {
         return;
