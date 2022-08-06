@@ -2,11 +2,10 @@
 #include <string.h>
 #include <src/Logging.h>
 
-// #include "SPIFFS.h"
 #include "esp_spiffs.h"
 #include "ff.h"
 #include "esp_littlefs.h"
-// #include "LittleFS.h"
+#include "Driver/littlefs.h"
 
 bool isSPIFFS(const char* mountpoint) {
     return !strcmp(mountpoint, "spiffs");
@@ -36,11 +35,10 @@ bool fluidnc_vfs_stats(const char* mountpoint, uint64_t& total, uint64_t& used) 
     if (isSPIFFS(mountpoint)) {
         esp_err_t err;
         if ((err = esp_spiffs_info("spiffs", &stotal, &sused)) != ESP_OK) {
-            log_debug("esp_spiffs_info: " << err << " " << esp_err_to_name(err));
             return false;
         }
     } else if (isLittleFS(mountpoint)) {
-        if (esp_littlefs_info(NULL, &stotal, &sused)) {
+        if (esp_littlefs_info(littlefs_label, &stotal, &sused)) {
             return false;
         }
     } else {

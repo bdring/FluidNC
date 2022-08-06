@@ -9,10 +9,14 @@ const char* canonicalPath(const char* filename, const char* defaultFs);
 
 std::uintmax_t localfs_size();
 
-extern const char* localFsName;
+extern const char* localfsName;
 
+constexpr const char* sdName       = "sd";
 constexpr const char* spiffsName   = "spiffs";
 constexpr const char* littlefsName = "littlefs";
 
-constexpr const char* defaultLocalFsName  = spiffsName;
-constexpr const char* actualLocalFsPrefix = "/spiffs";
+#ifdef USE_LITTLEFS
+constexpr const char* defaultLocalfsName = littlefsName;
+#else
+constexpr const char* defaultLocalfsName = spiffsName;
+#endif

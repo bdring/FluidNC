@@ -25,6 +25,10 @@ public:
     FluidPath& operator=(const FluidPath& o);  // copy assignment
     FluidPath& operator=(FluidPath&& o);       // move assignment
 
+    // true if there is something after the mount name.
+    // /localfs/foo -> true,  /localfs -> false
+    bool hasTail() { return ++(++begin()) != end(); }
+
 private:
     FluidPath(const char* name, const char* fs, std::error_code*);
 

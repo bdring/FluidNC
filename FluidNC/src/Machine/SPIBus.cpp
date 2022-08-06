@@ -5,6 +5,7 @@
 
 #include "SPIBus.h"
 #include "Driver/spi.h"
+#include "src/SettingsDefinitions.h"
 
 namespace Machine {
     void SPIBus::validate() const {
@@ -16,22 +17,28 @@ namespace Machine {
     }
 
     void SPIBus::init() {
+        pinnum_t mosiPin = 23;
+        pinnum_t misoPin = 19;
+        pinnum_t sckPin  = 18;
+
         if (_miso.defined() || _mosi.defined() || _sck.defined()) {  // validation ensures the rest is also defined.
             log_info("SPI SCK:" << _sck.name() << " MOSI:" << _mosi.name() << " MISO:" << _miso.name());
 
-            auto mosiPin = _mosi.getNative(Pin::Capabilities::Output | Pin::Capabilities::Native);
-            auto sckPin  = _sck.getNative(Pin::Capabilities::Output | Pin::Capabilities::Native);
-            auto misoPin = _miso.getNative(Pin::Capabilities::Input | Pin::Capabilities::Native);
-
-            if (spi_init_bus(sckPin, misoPin, mosiPin)) {
-                log_error("SPIBus init failed");
+            mosiPin = _mosi.getNative(Pin::Capabilities::Output | Pin::Capabilities::Native);
+            sckPin  = _sck.getNative(Pin::Capabilities::Output | Pin::Capabilities::Native);
+            misoPin = _miso.getNative(Pin::Capabilities::Input | Pin::Capabilities::Native);
+        } else {
+            if (sd_fallback_cs->get() == 255) {
+                log_info("SPI not defined");
                 return;
             }
-            _defined = true;
+            log_info("Using default SPI pins");
+        }
+        if (!spi_init_bus(sckPin, misoPin, mosiPin)) {
+            log_error("SPIBus init failed");
             return;
         }
-        log_info("SPI not defined");
-        _defined = false;
+        _defined = true;
     }
 
     void SPIBus::deinit() { spi_deinit_bus(); }

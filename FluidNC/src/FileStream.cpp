@@ -3,6 +3,7 @@
 
 #include "FileStream.h"
 #include "Machine/MachineConfig.h"  // config->
+#include "Driver/localfs.h"
 #include "Logging.h"
 
 String FileStream::path() {

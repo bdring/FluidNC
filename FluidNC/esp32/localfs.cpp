@@ -6,7 +6,7 @@
 #include "src/Logging.h"
 #include "esp_partition.h"
 
-const char* localFsName = NULL;
+const char* localfsName = NULL;
 
 static bool has_partition(const char* label) {
     auto part = esp_partition_find_first(ESP_PARTITION_TYPE_DATA, ESP_PARTITION_SUBTYPE_ANY, label);
@@ -16,17 +16,17 @@ static bool has_partition(const char* label) {
 bool localfs_mount() {
     if (has_partition(spiffsName)) {
         if (!spiffs_mount(spiffsName, false)) {
-            localFsName = spiffsName;
+            localfsName = spiffsName;
             return false;
         }
         // Migration - littlefs in spiffs partition
         if (!littlefs_mount(spiffsName, false)) {
-            localFsName = littlefsName;
+            localfsName = littlefsName;
             return false;
         }
         // Try to create a SPIFFS filesystem
         if (!spiffs_mount(spiffsName, true)) {
-            localFsName = spiffsName;
+            localfsName = spiffsName;
             return false;
         }
         log_error("Cannot mount or create a local filesystem in the spiffs partition");
@@ -35,7 +35,7 @@ bool localfs_mount() {
     if (has_partition(littlefsName)) {
         // Mount LittleFS, create if necessary
         if (!littlefs_mount(littlefsName, true)) {
-            localFsName = littlefsName;
+            localfsName = littlefsName;
             return false;
         }
         log_error("Cannot mount or create a local filesystem in the littlefs partition");
@@ -45,33 +45,46 @@ bool localfs_mount() {
     return true;
 }
 void localfs_unmount() {
-    if (localFsName == spiffsName) {
+    if (localfsName == spiffsName) {
         spiffs_unmount();
         return;
     }
-    if (localFsName == littlefsName) {
+    if (localfsName == littlefsName) {
         littlefs_unmount();
         return;
     }
-    localFsName = NULL;
+    localfsName = NULL;
 }
 bool localfs_format(const char* fsname) {
     if (!strcasecmp(fsname, "format") || !strcasecmp(fsname, "localfs")) {
-        fsname = defaultLocalFsName;
+        fsname = defaultLocalfsName;
     }
     if (!strcasecmp(fsname, spiffsName)) {
         localfs_unmount();
-        if (spiffs_format(spiffsName)) {
-            return true;
+        if (!spiffs_format(spiffsName)) {
+            if (!spiffs_mount(spiffsName)) {
+                localfsName = spiffsName;
+                return false;
+            }
         }
-        return spiffs_mount();
     }
     if (!strcasecmp(fsname, littlefsName)) {
         localfs_unmount();
-        if (littlefs_format(littlefsName)) {
-            return true;
+        if (!littlefs_format(littlefsName)) {
+            if (!littlefs_mount(littlefsName)) {
+                localfsName = littlefsName;
+                return false;
+            }
         }
-        return littlefs_mount();
+        log_info("Trying LittleFS in spiffs partition");
+        if (!littlefs_format(spiffsName)) {
+            if (!littlefs_mount(spiffsName)) {
+                localfsName = littlefsName;
+                return false;
+            }
+        }
+        localfs_mount();
+        return true;
     }
     return true;
 }
@@ -79,84 +92,79 @@ bool localfs_format(const char* fsname) {
 uint64_t localfs_size() {
     std::error_code ec;
 
-    auto space = std::filesystem::space(localFsName, ec);
+    auto space = std::filesystem::space(localfsName, ec);
     if (ec) {
         return 0;
     }
     return space.capacity;
 }
 
-static void insertString(char* s, const char* prefix) {
+static void insertFsName(char* s, const char* prefix) {
     size_t slen = strlen(s);
     size_t plen = strlen(prefix);
-    memmove(s + plen, s, slen + 1);
-    memmove(s, prefix, plen);
+    memmove(s + 1 + plen, s, slen + 1);
+    memmove(s + 1, prefix, plen);
+    *s = '/';
 }
 
-static bool replacedInitialSubstring(char* s, const char* replaced, const char* with) {
-    if (*s == '\0') {
+static bool replacedFsName(char* s, const char* replaced, const char* with) {
+    if (*s != '/') {
         return false;
     }
 
-    const char* tail = strchrnul(s + 1, '/');  // tail string after prefix
-    size_t      plen = tail - s;               // Prefix length
-    size_t      rlen = strlen(replaced);       // replaced length
+    char*       head = s + 1;
+    const char* tail = strchrnul(head, '/');  // tail string after prefix
+    size_t      plen = tail - head;           // Prefix length
+    size_t      rlen = strlen(replaced);      // replaced length
 
     if (plen != rlen) {
         return false;
     }
 
-    if (strncasecmp(s, replaced, rlen) == 0) {
+    if (strncasecmp(head, replaced, rlen) == 0) {
         // replaced matches the prefix of s
 
         size_t tlen = strlen(tail);
         size_t wlen = strlen(with);
 
-        if (wlen > rlen) {
-            // Slide tail to the right
-            memmove(s + rlen, tail, tlen + 1);
+        if (wlen != rlen) {
+            // Move tail to new location
+            memmove(head + wlen, tail, tlen + 1);
         }
-        // Insert with at the beginning
-        memmove(s, with, wlen);
 
-        if (wlen < rlen) {
-            // Slide tail to the left
-            memmove(s + wlen, tail, tlen + 1);
-        }
+        // Insert with at the beginning
+        memmove(head, with, wlen);
         return true;
     }
     return false;
 }
 
 const char* canonicalPath(const char* filename, const char* defaultFs) {
-    const char* spiffsPrefix   = "/spiffs";
-    const char* sdPrefix       = "/sd";
-    const char* localFsPrefix  = "/localfs";
-    const char* littleFsPrefix = "/littlefs";
-
     static char path[128];
     strncpy(path, filename, 128);
 
+    // log_debug("filename is " << filename << " deffs " << defaultFs);
+
     // Map file system names to canonical form.  The input name is case-independent,
     // while the canonical name is lower case.
-    if (!(replacedInitialSubstring(path, localFsPrefix, actualLocalFsPrefix) ||
-          replacedInitialSubstring(path, spiffsPrefix, actualLocalFsPrefix) ||
-          replacedInitialSubstring(path, littleFsPrefix, actualLocalFsPrefix) ||
+    if (!(replacedFsName(path, "localfs", localfsName) || replacedFsName(path, spiffsName, localfsName) ||
+          replacedFsName(path, littlefsName, localfsName) ||
           // The following looks like a no-op but it is not because of case independence
-          replacedInitialSubstring(path, sdPrefix, sdPrefix))) {
+          replacedFsName(path, sdName, sdName))) {
         if (*filename != '/') {
-            insertString(path, "/");
+            insertFsName(path, "");
         }
         // path now begins with /
         if (!strcmp(defaultFs, "")) {
             // If the default filesystem is empty, insert
             // the local file system prefix
-            insertString(path, actualLocalFsPrefix);
+            insertFsName(path, localfsName);
         } else {
             // If the default filesystem is not empty, insert
             // the defaultFs name as the mountpoint name
-            insertString(path, defaultFs);
+            insertFsName(path, defaultFs);
         }
     }
+    // log_debug("path is " << path);
     return path;
 }

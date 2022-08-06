@@ -134,7 +134,7 @@ namespace WebUI {
     static Error LocalFSSize(char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP720
         std::error_code ec;
 
-        auto space = stdfs::space("/spiffs", ec);
+        auto space = stdfs::space(FluidPath { "", localfsName, ec }, ec);
         if (ec) {
             out << "Error " << ec.message() << '\n';
             return Error::FsFailedMount;
@@ -366,11 +366,11 @@ namespace WebUI {
     }
 
     static Error deleteSDObject(char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP215
-        return deleteObject("/sd", parameter, out);
+        return deleteObject(sdName, parameter, out);
     }
 
     static Error deleteLocalFile(char* parameter, AuthenticationLevel auth_level, Channel& out) {
-        return deleteObject("/spiffs", parameter, out);
+        return deleteObject(localfsName, parameter, out);
     }
 
     static Error listFilesystem(const char* fs, const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
@@ -413,11 +413,79 @@ namespace WebUI {
     }
 
     static Error listSDFiles(char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP210
-        return listFilesystem("/sd", parameter, auth_level, out);
+        return listFilesystem(sdName, parameter, auth_level, out);
     }
 
     static Error listLocalFiles(char* parameter, AuthenticationLevel auth_level, Channel& out) {  // No ESP command
-        return listFilesystem("/spiffs", parameter, auth_level, out);
+        return listFilesystem(localfsName, parameter, auth_level, out);
+    }
+
+    static Error copyFile(const char* ipath, const char* opath, Channel& out) {  // No ESP command
+        try {
+            FileStream outFile { opath, "w" };
+            FileStream inFile { ipath, "r" };
+            uint8_t    buf[512];
+            size_t     len;
+            while ((len = inFile.read(buf, 512)) > 0) {
+                outFile.write(buf, len);
+            }
+        } catch (const Error err) {
+            log_error("Cannot create file " << opath);
+            return Error::FsFailedCreateFile;
+        }
+        return Error::Ok;
+    }
+    static Error copyDir(String iDir, String oDir, Channel& out) {  // No ESP command
+        std::error_code ec;
+
+        {  // Block to manage scope of outDir
+            FluidPath outDir { oDir, "", ec };
+            if (ec) {
+                out << "Cannot mount /sd\n";
+                return Error::FsFailedMount;
+            }
+
+            if (outDir.hasTail()) {
+                stdfs::create_directory(outDir, ec);
+                if (ec) {
+                    out << "Cannot create " << oDir << '\n';
+                    return Error::FsFailedOpenDir;
+                }
+            }
+        }
+
+        FluidPath fpath { iDir, "", ec };
+        if (ec) {
+            out << "Cannot open " << iDir << '\n';
+            return Error::FsFailedMount;
+        }
+
+        auto iter = stdfs::directory_iterator { fpath, ec };
+        if (ec) {
+            out << "Error: " << fpath << " " << ec.message() << '\n';
+            return Error::FsFailedMount;
+        }
+        Error err = Error::Ok;
+        for (auto const& dir_entry : iter) {
+            if (dir_entry.is_directory()) {
+                log_error("Not handling localfs subdirectories");
+            } else {
+                String opath = oDir + "/" + dir_entry.path().filename().c_str();
+                String ipath = iDir + "/" + dir_entry.path().filename().c_str();
+                out << ipath << " -> " << opath << '\n';
+                auto err1 = copyFile(ipath.c_str(), opath.c_str(), out);
+                if (err1 != Error::Ok) {
+                    err = err1;
+                }
+            }
+        }
+        return err;
+    }
+    static Error backupLocalFS(char* parameter, AuthenticationLevel auth_level, Channel& out) {  // No ESP command
+        return copyDir("/localfs", "/sd/localfs", out);
+    }
+    static Error restoreLocalFS(char* parameter, AuthenticationLevel auth_level, Channel& out) {  // No ESP command
+        return copyDir("/sd/localfs", "/localfs", out);
     }
 
     // Used by js/files.js
@@ -536,6 +604,8 @@ namespace WebUI {
         new WebCommand("path", WEBCMD, WU, NULL, "LocalFS/ListJSON", listLocalFilesJSON);
 #endif
         new WebCommand("path", WEBCMD, WU, NULL, "LocalFS/Delete", deleteLocalFile);
+        new WebCommand("path", WEBCMD, WU, NULL, "LocalFS/Backup", backupLocalFS);
+        new WebCommand("path", WEBCMD, WU, NULL, "LocalFS/Restore", restoreLocalFS);
 
         new WebCommand("path", WEBCMD, WU, "ESP221", "SD/Show", showSDFile);
         new WebCommand("path", WEBCMD, WU, "ESP220", "SD/Run", runSDFile);

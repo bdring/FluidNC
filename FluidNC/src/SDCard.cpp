@@ -9,78 +9,14 @@
 #include "Report.h"
 
 #include "Driver/sdspi.h"
+#include "src/SettingsDefinitions.h"
 #include "FluidPath.h"
 
 SDCard::SDCard() : _state(State::Idle) {}
 
-// NotPresent can mean several different things:
-// 1. The hardware does not support an SD card
-// 2. The system configuration does not include the SD card
-// 3. The SD card is not plugged in and there is a detect pin to tell us that
-// 4. The SD card is not plugged in and we have to discover that by trying to read it.
-// 5. The SD card is plugged in but its filesystem cannot be read
-SDCard::State SDCard::test_or_open(bool refresh) {
-    auto spiConfig = config->_spi;
-
-    if (spiConfig == nullptr || !spiConfig->defined()) {
-        // log_debug("SPI not defined");
-        return SDCard::State::NotPresent;
-    }
-
-    if (spiConfig == nullptr || _cs.undefined()) {
-        // log_debug("SD cs not defined");
-        return SDCard::State::NotPresent;
-    }
-
-    //no need to go further if SD detect is not correct
-    if (_cardDetect.defined() && !_cardDetect.read()) {
-        _state = SDCard::State::NotPresent;
-        return _state;
-    }
-
-    //if busy doing something return state
-    if (_state >= SDCard::State::Busy) {
-        return _state;
-    }
-
-    if (!refresh) {
-        return _state;  //to avoid refresh=true + busy to reset SD and waste time
-    }
-
-    _state = SDCard::State::NotPresent;
-
-    auto csPin = _cs.getNative(Pin::Capabilities::Output | Pin::Capabilities::Native);
-
-    //refresh content if card was removed
-    try {
-        FluidPath path { "", "/sd" };
-        _state = SDCard::State::Idle;
-    } catch (std::error_code err) { _state = SDCard::State::NotPresent; }
-
-    return _state;
-}
-
-SDCard::State SDCard::begin(SDCard::State newState) {
-    if (_state >= SDCard::State::Busy) {
-        return _state;
-    }
-    SDCard::State oldState = test_or_open(true);
-    if (oldState == SDCard::State::Idle) {
-        _state = newState;
-    }
-    return oldState;
-}
-
-SDCard::State SDCard::get_state() {
-    return test_or_open(false);
-}
-
-void SDCard::end() {
-    _state = State::Idle;
-}
-
 void SDCard::init() {
     static bool init_message = true;  // used to show messages only once.
+    pinnum_t    csPin;
 
     if (_cs.defined()) {
         if (!config->_spi->defined()) {
@@ -92,10 +28,15 @@ void SDCard::init() {
             }
             log_info("SD Card cs_pin:" << _cs.name() << " detect:" << _cardDetect.name());
         }
+        _cs.setAttr(Pin::Attr::Output);
+        csPin = _cs.getNative(Pin::Capabilities::Output | Pin::Capabilities::Native);
+    } else if ((csPin = sd_fallback_cs->get()) != 255) {
+        log_info("Using fallback CS pin " << int(csPin));
+    } else {
+        log_error("No SD Card CS Pin");
+        return;
     }
 
-    _cs.setAttr(Pin::Attr::Output);
-    auto csPin = _cs.getNative(Pin::Capabilities::Output | Pin::Capabilities::Native);
     if (_cardDetect.defined()) {
         _cardDetect.setAttr(Pin::Attr::Input);
         auto cdPin = _cardDetect.getNative(Pin::Capabilities::Output | Pin::Capabilities::Native);
