@@ -152,7 +152,7 @@ namespace WebUI {
         if (localfs_format(parameter)) {
             return Error::FsFailedFormat;
         }
-        out << "Filesystem Formatted\n";
+        log_info("Local filesystem formatted to " << localfsName);
         return Error::Ok;
     }
 

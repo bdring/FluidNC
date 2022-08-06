@@ -76,7 +76,7 @@ bool localfs_format(const char* fsname) {
                 return false;
             }
         }
-        log_info("Trying LittleFS in spiffs partition");
+        log_debug("Trying LittleFS in spiffs partition");
         if (!littlefs_format(spiffsName)) {
             if (!littlefs_mount(spiffsName)) {
                 localfsName = littlefsName;
@@ -86,6 +86,7 @@ bool localfs_format(const char* fsname) {
         localfs_mount();
         return true;
     }
+    localfsName = "";
     return true;
 }
 
