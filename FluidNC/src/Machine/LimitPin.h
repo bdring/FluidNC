@@ -35,7 +35,7 @@ namespace Machine {
         void read();
 
     public:
-        LimitPin(Pin& pin, int axis, int motorNum, int direction, bool& phardLimits, bool& pLimited);
+        LimitPin(Pin& pin, int axis, int motor, int direction, bool& pHardLimits, bool& pLimited);
 
         Pin& _pin;
 
