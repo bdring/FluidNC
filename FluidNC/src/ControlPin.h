@@ -7,6 +7,7 @@ class ControlPin {
 private:
     bool           _value;
     volatile bool& _rtVariable;  // The variable that is set when the pin is asserted
+    bool           _attached    = false;
     int32_t        _debounceEnd = 0;
 
     // Interval during which we ignore repeated control pin activations

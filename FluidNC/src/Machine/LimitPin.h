@@ -10,8 +10,9 @@ namespace Machine {
         int _axis;
         int _motorNum;
 
-        bool     _value   = 0;
-        uint32_t _bitmask = 0;
+        bool     _value    = false;
+        bool     _attached = false;
+        uint32_t _bitmask  = 0;
 
         // _pHardLimits is a reference so the shared variable at the
         // Endstops level can be changed at runtime to control the

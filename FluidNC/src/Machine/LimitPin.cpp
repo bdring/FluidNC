@@ -101,6 +101,7 @@ namespace Machine {
         }
         _pin.setAttr(attr);
         _pin.attachInterrupt(ISRHandler, CHANGE, this);
+        _attached = true;
 
         read();
     }
@@ -112,5 +113,9 @@ namespace Machine {
 
     void LimitPin::setExtraMotorLimit(int axis, int motorNum) { _pExtraLimited = &config->_axes->_axis[axis]->_motors[motorNum]->_limited; }
 
-    LimitPin::~LimitPin() { _pin.detachInterrupt(); }
+    LimitPin::~LimitPin() {
+        if (_attached) {
+            _pin.detachInterrupt();
+        }
+    }
 }
