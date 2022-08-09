@@ -100,6 +100,17 @@ namespace Extenders {
             newStatus |= commonStatus;
 
             if (newStatus != 0) {
+                if ((newStatus & 0x20) == 0x20) {
+                    // Update ISR status. Apparently there's a bug in the ESP32 which means we cannot
+                    // directly use the ISR to track FALLING edges.
+                    bool newIsrStatus = _interruptPin.read();
+                    if (newIsrStatus != _interruptPinState && !newIsrStatus)  // Falling edge
+                    {
+                        newStatus |= 8;
+                    }
+                    _interruptPinState = newIsrStatus;
+                }
+
                 if ((newStatus & 2) != 0) {
                     _status = 0;
                     return;  // Stop running
@@ -205,6 +216,10 @@ namespace Extenders {
                         }
                     }
 
+                    // Reading the registers triggers the interrupt pin to go high. We just assume it is here,
+                    // so that we won't incidentally miss a falling edge.
+                    _interruptPinState = true;
+
                     // Remove the busy flag, keep the rest. If we don't do that here, we
                     // end up with a race condition if we use _status in the ISR.
                     _status &= ~0x10;
@@ -275,7 +290,7 @@ namespace Extenders {
 
     void I2CExtender::interruptHandler(void* arg) {
         auto ext = static_cast<I2CExtender*>(arg);
-        ext->_status |= 8;
+        ext->_status |= 0x20;
     }
 
     void I2CExtender::init() {
@@ -322,7 +337,8 @@ namespace Extenders {
 
         if (_interruptPin.defined()) {
             _interruptPin.setAttr(Pin::Attr::ISR | Pin::Attr::Input);
-            _interruptPin.attachInterrupt(interruptHandler, FALLING, this);
+            _interruptPinState = _interruptPin.read();
+            _interruptPin.attachInterrupt(interruptHandler, CHANGE, this);
         }
     }
 

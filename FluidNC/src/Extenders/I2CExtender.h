@@ -116,6 +116,7 @@ namespace Extenders {
         uint8_t _operationReg = 0xFF;
         uint8_t _inputReg     = 0xFF;
         uint8_t _outputReg    = 0xFF;
+        bool    _interruptPinState;
         Pin     _interruptPin;
 
         RegisterSet _claimed;
