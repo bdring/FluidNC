@@ -7,8 +7,6 @@
 #include "../Limits.h"
 #include "../Protocol.h"  // rtAlarm
 
-#include <esp32-hal-gpio.h>  // CHANGE
-
 namespace Machine {
     LimitPin::LimitPin(Pin& pin, int axis, int motor, int direction, bool& pHardLimits, bool& pLimited) :
         _axis(axis), _motorNum(motor), _value(false), _pHardLimits(pHardLimits), _pLimited(pLimited), _pin(pin) {
@@ -43,27 +41,6 @@ namespace Machine {
         _legend  = String("    " + sDir + " Limit");
     }
 
-    void IRAM_ATTR LimitPin::handleISR() {
-        read();
-        if (sys.state != State::Alarm && sys.state != State::ConfigAlarm && sys.state != State::Homing) {
-            if (_pHardLimits && rtAlarm == ExecAlarm::None) {
-#if 0
-
-                if (config->_softwareDebounceMs) {
-                    // send a message to wakeup the task that rechecks the switches after a small delay
-                    int evt;
-                    xQueueSendFromISR(limit_sw_queue, &evt, NULL);
-                    return;
-                }
-#endif
-
-                // log_debug("Hard limits");  // This might not work from ISR context
-                mc_reset();                      // Initiate system kill.
-                rtAlarm = ExecAlarm::HardLimit;  // Indicate hard limit critical event
-            }
-        }
-    }
-
     void IRAM_ATTR LimitPin::read() {
         _value    = _pin.read();
         _pLimited = _value;
@@ -87,6 +64,22 @@ namespace Machine {
         }
     }
 
+    void IRAM_ATTR LimitPin::handleISR() {
+        Event* evt = this;
+        xQueueSendFromISR(event_queue, &evt, NULL);
+    }
+
+    void LimitPin::run() {
+        read();
+        if (sys.state != State::Alarm && sys.state != State::ConfigAlarm && sys.state != State::Homing) {
+            if (_pHardLimits && rtAlarm == ExecAlarm::None) {
+                log_debug("Hard limits");
+                mc_reset();                      // Initiate system kill.
+                rtAlarm = ExecAlarm::HardLimit;  // Indicate hard limit critical event
+            }
+        }
+    }
+
     void LimitPin::init() {
         if (_pin.undefined()) {
             return;
@@ -98,7 +91,7 @@ namespace Machine {
             attr = attr | Pin::Attr::PullUp;
         }
         _pin.setAttr(attr);
-        _pin.attachInterrupt(ISRHandler, CHANGE, this);
+        _pin.attachInterrupt(ISRHandler, Pin::EITHER_EDGE, this);
 
         read();
     }

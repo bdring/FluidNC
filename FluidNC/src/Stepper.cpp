@@ -255,7 +255,7 @@ bool IRAM_ATTR Stepper::pulse_func() {
             auto m            = axes->_axis[axis]->_motors[0];
             probe_steps[axis] = m ? m->_steps : 0;
         }
-        rtMotionCancel = true;
+        protocol_send_event_from_ISR(&motionCancelEvent);
     }
 
     // Reset step out bits.

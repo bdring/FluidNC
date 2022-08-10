@@ -1,11 +1,12 @@
 #pragma once
 
-#include "../Pin.h"
+#include "src/Pin.h"
+#include "src/Event.h"
 
 #include <esp_attr.h>  // IRAM_ATTR
 
 namespace Machine {
-    class LimitPin {
+    class LimitPin : public Event {
     private:
         int _axis;
         int _motorNum;
@@ -43,6 +44,7 @@ namespace Machine {
 
         void init();
         bool get() { return _value; }
+        void run() override;
         void makeDualMask();  // makes this a mask for motor0 and motor1
         void setExtraMotorLimit(int axis, int motorNum);
 

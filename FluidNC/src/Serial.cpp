@@ -85,23 +85,23 @@ void execute_realtime_command(Cmd command, Channel& channel) {
     switch (command) {
         case Cmd::Reset:
             log_debug("Cmd::Reset");
-            mc_reset();  // Call motion control reset routine.
+            protocol_send_event(&resetEvent);
             break;
         case Cmd::StatusReport:
             report_realtime_status(channel);  // direct call instead of setting flag
             break;
         case Cmd::CycleStart:
-            rtCycleStart = true;
+            protocol_send_event(&cycleStartEvent);
             break;
         case Cmd::FeedHold:
-            rtFeedHold = true;
+            protocol_send_event(&feedHoldEvent);
             break;
         case Cmd::SafetyDoor:
-            rtSafetyDoor = true;
+            protocol_send_event(&safetyDoorEvent);
             break;
         case Cmd::JogCancel:
             if (sys.state == State::Jog) {  // Block all other states from invoking motion cancel.
-                rtMotionCancel = true;
+                protocol_send_event(&motionCancelEvent);
             }
             break;
         case Cmd::DebugReport:
@@ -185,16 +185,16 @@ void execute_realtime_command(Cmd command, Channel& channel) {
             rtAccessoryOverride.bit.coolantMistOvrToggle = 1;
             break;
         case Cmd::Macro0:
-            rtButtonMacro0 = true;
+            protocol_send_event(&macro0Event);
             break;
         case Cmd::Macro1:
-            rtButtonMacro1 = true;
+            protocol_send_event(&macro1Event);
             break;
         case Cmd::Macro2:
-            rtButtonMacro2 = true;
+            protocol_send_event(&macro2Event);
             break;
         case Cmd::Macro3:
-            rtButtonMacro3 = true;
+            protocol_send_event(&macro3Event);
             break;
     }
 }

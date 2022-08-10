@@ -2,32 +2,32 @@
 
 #include "Pin.h"
 #include <esp_attr.h>  // IRAM_ATTR
+#include "Event.h"
 
-class ControlPin {
+class ControlPin : public Event {
 private:
-    bool           _value;
-    volatile bool& _rtVariable;  // The variable that is set when the pin is asserted
-    int32_t        _debounceEnd = 0;
-
     void IRAM_ATTR handleISR();
     CreateISRHandlerFor(ControlPin, handleISR);
 
-    // Interval during which we ignore repeated control pin activations
-    const int debounceUs = 10000;  // 10000 us = 10 ms
+    Event* _event = nullptr;
 
 public:
     const char* _legend;  // The name that appears in init() messages and the name of the configuration item
     const char  _letter;  // The letter that appears in status reports when the pin is active
 
-    ControlPin(volatile bool& rtVariable, const char* legend, char letter) :
-        _value(false), _letter(letter), _rtVariable(rtVariable), _legend(legend) {
-        _rtVariable = _value;
-    }
+    ControlPin(Event* event, const char* legend, char letter) : _event(event), _letter(letter), _legend(legend) {}
 
     Pin _pin;
 
     void init();
-    bool get() { return _value; }
+    bool get() { return _pin.read(); }
+    void run() override {
+        // Since we do not trust the ISR to always trigger precisely,
+        // we check the pin state before calling the event handler
+        if (get()) {
+            _event->run();
+        }
+    }
 
     ~ControlPin();
 };

@@ -142,6 +142,7 @@ namespace Kinematics {
 
                 switch_touch = true;  // used to break out of the do loop
             }
+            protocol_handle_events();
             pollChannels();
         } while (!switch_touch);
 

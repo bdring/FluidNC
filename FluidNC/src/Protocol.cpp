@@ -8,6 +8,7 @@
 */
 
 #include "Protocol.h"
+#include "Event.h"
 
 #include "Machine/MachineConfig.h"
 #include "Report.h"         // report_feedback_message
@@ -16,6 +17,12 @@
 #include "MotionControl.h"  // PARKING_MOTION_LINE_NUMBER
 #include "Settings.h"       // settings_execute_startup
 #include "InputFile.h"      // infile
+
+xQueueHandle event_queue;
+
+void protocol_init() {
+    event_queue = xQueueCreate(10, sizeof(Event*));
+}
 
 #ifdef DEBUG_REPORT_REALTIME
 volatile bool rtExecDebug;
@@ -44,18 +51,11 @@ volatile Percent   rtFOverride;          // Global realtime executor feedrate ov
 volatile Percent   rtROverride;          // Global realtime executor rapid override percentage
 volatile Percent   rtSOverride;          // Global realtime executor spindle override percentage
 
-volatile bool rtStatusReport;
 volatile bool rtCycleStart;
 volatile bool rtFeedHold;
 volatile bool rtReset;
 volatile bool rtSafetyDoor;
-volatile bool rtMotionCancel;
-volatile bool rtSleep;
 volatile bool rtCycleStop;  // For state transitions, instead of bitflag
-volatile bool rtButtonMacro0;
-volatile bool rtButtonMacro1;
-volatile bool rtButtonMacro2;
-volatile bool rtButtonMacro3;
 
 static void protocol_exec_rt_suspend();
 
@@ -93,13 +93,10 @@ bool can_park() {
 void protocol_reset() {
     probeState                = ProbeState::Off;
     soft_limit                = false;
-    rtStatusReport            = false;
     rtCycleStart              = false;
     rtFeedHold                = false;
     rtReset                   = false;
     rtSafetyDoor              = false;
-    rtMotionCancel            = false;
-    rtSleep                   = false;
     rtCycleStop               = false;
     rtAccessoryOverride.value = 0;
     rtFOverride               = FeedOverride::Default;
@@ -292,6 +289,7 @@ static void protocol_do_alarm() {
             protocol_disable_steppers();
             rtReset = false;  // Disable any existing reset
             do {
+                protocol_handle_events();
                 // Block everything except reset and status reports until user issues reset or power
                 // cycles. Hard limits typically occur while unattended or not paying attention. Gives
                 // the user and a GUI time to do what is needed before resetting, like killing the
@@ -330,8 +328,7 @@ static void protocol_hold_complete() {
 static void protocol_do_motion_cancel() {
     // Execute and flag a motion cancel with deceleration and return to idle. Used primarily by probing cycle
     // to halt and cancel the remainder of the motion.
-    rtMotionCancel = false;
-    rtCycleStart   = false;  // Cancel any pending start
+    rtCycleStart = false;  // Cancel any pending start
 
     // MOTION_CANCEL only occurs during a CYCLE, but a HOLD and SAFETY_DOOR may have been initiated
     // beforehand. Motion cancel affects only a single planner block motion, while jog cancel
@@ -457,7 +454,6 @@ static void protocol_do_safety_door() {
 }
 
 static void protocol_do_sleep() {
-    rtSleep = false;
     switch (sys.state) {
         case State::ConfigAlarm:
         case State::Alarm:
@@ -504,7 +500,7 @@ static void protocol_do_initiate_cycle() {
     }
 }
 
-// The handlers for rtFeedHold, rtMotionCancel, and rtsDafetyDoor clear rtCycleStart to
+// The handlers for FeedHold, MotionCancel, and SafetyDoor clear rtCycleStart to
 // ensure that auto-cycle-start does not resume a hold without explicit user input.
 static void protocol_do_cycle_start() {
     rtCycleStart = false;
@@ -717,16 +713,6 @@ static void protocol_do_late_reset() {
     }
 }
 
-void protocol_do_macro(int macro_num) {
-    // must be in Idle
-    if (sys.state != State::Idle) {
-        log_error("Macro button only permitted in idle");
-        return;
-    }
-
-    config->_macros->run_macro(macro_num);
-}
-
 void protocol_exec_rt_system() {
     protocol_do_alarm();  // If there is a hard or soft limit, this will block until rtReset is set
 
@@ -740,25 +726,12 @@ void protocol_exec_rt_system() {
         return;            // Nothing else to do but exit.
     }
 
-    if (rtStatusReport) {
-        rtStatusReport = false;
-        report_realtime_status(allChannels);
-    }
-
-    if (rtMotionCancel) {
-        protocol_do_motion_cancel();
-    }
-
     if (rtFeedHold) {
         protocol_do_feedhold();
     }
 
     if (rtSafetyDoor) {
         protocol_do_safety_door();
-    }
-
-    if (rtSleep) {
-        protocol_do_sleep();
     }
 
     if (rtCycleStart) {
@@ -769,22 +742,7 @@ void protocol_exec_rt_system() {
         protocol_do_cycle_stop();
     }
 
-    if (rtButtonMacro0) {
-        rtButtonMacro0 = false;
-        protocol_do_macro(0);
-    }
-    if (rtButtonMacro1) {
-        rtButtonMacro1 = false;
-        protocol_do_macro(1);
-    }
-    if (rtButtonMacro2) {
-        rtButtonMacro2 = false;
-        protocol_do_macro(2);
-    }
-    if (rtButtonMacro3) {
-        rtButtonMacro3 = false;
-        protocol_do_macro(3);
-    }
+    protocol_handle_events();
 
     protocol_execute_overrides();
 
@@ -1027,5 +985,28 @@ static void protocol_exec_rt_suspend() {
         }
         pollChannels();  // Handle realtime commands like status report, cycle start and reset
         protocol_exec_rt_system();
+    }
+}
+
+Event safetyDoorEvent { protocol_do_safety_door };
+Event feedHoldEvent { protocol_do_feedhold };
+Event cycleStartEvent { protocol_do_cycle_start };
+Event motionCancelEvent { protocol_do_motion_cancel };
+Event sleepEvent { protocol_do_sleep };
+
+// Only mc_reset() is permitted to set rtReset.
+Event resetEvent { mc_reset };
+
+// The problem is that report_realtime_status needs a channel argument
+// Event statusReportEvent { protocol_do_status_report(XXX) };
+
+void protocol_send_event(Event* evt) {
+    xQueueSend(event_queue, &evt, 0);
+}
+void protocol_handle_events() {
+    Event* ep;
+    while (xQueueReceive(event_queue, &ep, 0)) {
+        // log_debug("event");
+        ep->run();
     }
 }

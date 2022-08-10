@@ -426,6 +426,7 @@ static Error show_limits(const char* value, WebUI::AuthenticationLevel auth_leve
             limit = thisTime + interval;
         }
         vTaskDelay(1);
+        protocol_handle_events();
         pollChannels();
     } while (!rtFeedHold);
     rtFeedHold = false;
@@ -433,7 +434,7 @@ static Error show_limits(const char* value, WebUI::AuthenticationLevel auth_leve
     return Error::Ok;
 }
 static Error go_to_sleep(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
-    rtSleep = true;
+    protocol_send_event(&sleepEvent);
     return Error::Ok;
 }
 static Error get_report_build_info(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {

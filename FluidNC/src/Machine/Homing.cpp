@@ -4,7 +4,7 @@
 #include "../NutsBolts.h"      // set_bitnum, etc
 #include "../System.h"         // sys.*
 #include "../Stepper.h"        // st_wake
-#include "../Protocol.h"       // protocol_execute_realtime
+#include "../Protocol.h"       // protocol_handle_events
 #include "../Machine/Axes.h"
 #include "../Machine/MachineConfig.h"  // config
 
@@ -183,10 +183,6 @@ namespace Machine {
             // by protocol_execute_realtime().  The homing loop is time-critical
             // so we handle those events directly here, calling protocol_execute_realtime()
             // only if one of those events is active.
-            if (rtStatusReport) {
-                rtStatusReport = false;
-                report_realtime_status(allChannels);
-            }
             if (rtReset) {
                 // Homing failure: Reset issued during cycle.
                 throw ExecAlarm::HomingFailReset;
@@ -209,6 +205,7 @@ namespace Machine {
                 // Normal termination for pulloff cycle
                 remainingMotors = 0;
             }
+            protocol_handle_events();
             pollChannels();
         } while (remainingMotors);
 

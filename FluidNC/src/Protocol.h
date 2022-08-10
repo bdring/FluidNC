@@ -7,6 +7,9 @@
 
 #include "Types.h"
 
+#include <freertos/FreeRTOS.h>
+#include <freertos/queue.h>
+
 // Line buffer size from the serial input stream to be executed.Also, governs the size of
 // each of the startup blocks, as they are each stored as a string of this size.
 //
@@ -19,6 +22,8 @@
 const int LINE_BUFFER_SIZE = 256;
 
 void protocol_reset();
+
+void protocol_init();
 
 // Starts the main loop. It handles all incoming characters from the serial port and executes
 // them as they complete. It is also responsible for finishing the initialization procedures.
@@ -38,18 +43,11 @@ void protocol_buffer_synchronize();
 void protocol_disable_steppers();
 void protocol_cancel_disable_steppers();
 
-extern volatile bool rtStatusReport;
 extern volatile bool rtCycleStart;
 extern volatile bool rtFeedHold;
 extern volatile bool rtReset;
 extern volatile bool rtSafetyDoor;
-extern volatile bool rtMotionCancel;
-extern volatile bool rtSleep;
 extern volatile bool rtCycleStop;
-extern volatile bool rtButtonMacro0;
-extern volatile bool rtButtonMacro1;
-extern volatile bool rtButtonMacro2;
-extern volatile bool rtButtonMacro3;
 
 #ifdef DEBUG_REPORT_REALTIME
 extern volatile bool rtExecDebug;
@@ -96,3 +94,21 @@ extern volatile ExecAlarm rtAlarm;  // Global realtime executor variable for set
 
 #include <map>
 extern std::map<ExecAlarm, const char*> AlarmNames;
+
+#include "Event.h"
+extern Event resetEvent;
+extern Event feedHoldEvent;
+extern Event cycleStartEvent;
+extern Event safetyDoorEvent;
+extern Event motionCancelEvent;
+extern Event sleepEvent;
+// extern Event statusReportEvent;
+
+extern xQueueHandle event_queue;
+
+void protocol_send_event(Event*);
+void protocol_handle_events();
+
+inline void protocol_send_event_from_ISR(Event* evt) {
+    xQueueSendFromISR(event_queue, &evt, NULL);
+}
