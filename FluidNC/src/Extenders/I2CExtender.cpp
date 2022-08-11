@@ -407,7 +407,14 @@ namespace Extenders {
         if (!_interruptPin.defined()) {
             _status |= 8;
         }
+
+        int cnt = 0;
         while (_status != 0) {
+            cnt++;
+            if (cnt > 500) {
+                log_debug("Boom");
+                break;
+            }
             vTaskDelay(1);  // Must be <TaskDelayBetweenIterations and as small as possible.
         }
 
