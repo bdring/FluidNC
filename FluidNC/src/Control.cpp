@@ -3,7 +3,7 @@
 
 #include "Control.h"
 
-#include "Protocol.h"        // rtSafetyDoor
+#include "Protocol.h"        // *Event
 #include "Machine/Macros.h"  // macro0Event
 
 Control::Control() {

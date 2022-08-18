@@ -43,35 +43,10 @@ void protocol_buffer_synchronize();
 void protocol_disable_steppers();
 void protocol_cancel_disable_steppers();
 
-extern volatile bool rtCycleStart;
-extern volatile bool rtFeedHold;
 extern volatile bool rtReset;
-extern volatile bool rtSafetyDoor;
 extern volatile bool rtCycleStop;
 
-#ifdef DEBUG_REPORT_REALTIME
-extern volatile bool rtExecDebug;
-#endif
-
-// Override bit maps. Realtime bitflags to control feed, rapid, spindle, and coolant overrides.
-// Spindle/coolant and feed/rapids are separated into two controlling flag variables.
-
-struct AccessoryBits {
-    uint8_t spindleOvrStop : 1;
-    uint8_t coolantFloodOvrToggle : 1;
-    uint8_t coolantMistOvrToggle : 1;
-};
-
-union Accessory {
-    uint8_t       value;
-    AccessoryBits bit;
-};
-
-extern volatile Accessory rtAccessoryOverride;  // Global realtime executor bitflag variable for spindle/coolant overrides.
-
-extern volatile Percent rtFOverride;  // Feed override value in percent
-extern volatile Percent rtROverride;  // Rapid feed override value in percent
-extern volatile Percent rtSOverride;  // Spindle override value in percent
+extern volatile bool runLimitLoop;
 
 // Alarm codes.
 enum class ExecAlarm : uint8_t {
@@ -96,19 +71,43 @@ extern volatile ExecAlarm rtAlarm;  // Global realtime executor variable for set
 extern std::map<ExecAlarm, const char*> AlarmNames;
 
 #include "Event.h"
-extern Event resetEvent;
-extern Event feedHoldEvent;
-extern Event cycleStartEvent;
-extern Event safetyDoorEvent;
-extern Event motionCancelEvent;
-extern Event sleepEvent;
-// extern Event statusReportEvent;
+namespace AccessoryOverride {
+    const int SpindleStop = 1;
+    const int FloodToggle = 2;
+    const int MistToggle  = 3;
+};
+
+extern ArgEvent feedOverrideEvent;
+extern ArgEvent rapidOverrideEvent;
+extern ArgEvent spindleOverrideEvent;
+extern ArgEvent accessoryOverrideEvent;
+
+extern ArgEvent reportStatusEvent;
+
+extern NoArgEvent safetyDoorEvent;
+extern NoArgEvent feedHoldEvent;
+extern NoArgEvent cycleStartEvent;
+extern NoArgEvent cycleStopEvent;
+extern NoArgEvent motionCancelEvent;
+extern NoArgEvent sleepEvent;
+extern NoArgEvent resetEvent;
+extern NoArgEvent debugEvent;
+
+extern NoArgEvent limitEvent;
+
+// extern NoArgEvent statusReportEvent;
 
 extern xQueueHandle event_queue;
 
-void protocol_send_event(Event*);
+struct EventItem {
+    Event* event;
+    int    arg;
+};
+
+void protocol_send_event(Event*, int arg = 0);
 void protocol_handle_events();
 
-inline void protocol_send_event_from_ISR(Event* evt) {
-    xQueueSendFromISR(event_queue, &evt, NULL);
+inline void protocol_send_event_from_ISR(Event* evt, int arg = 0) {
+    EventItem item { evt, arg };
+    xQueueSendFromISR(event_queue, &item, NULL);
 }

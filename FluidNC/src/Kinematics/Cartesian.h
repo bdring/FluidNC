@@ -27,7 +27,11 @@ namespace Kinematics {
         virtual void init() override;
         virtual bool kinematics_homing(AxisMask cycle_mask) override;
         virtual void kinematics_post_homing() override;
-        virtual void motors_to_cartesian(float* cartesian, float* motors, int n_axis) override;
+        void         motors_to_cartesian(float* cartesian, float* motors, int n_axis) override;
+
+        bool     canHome(AxisMask axisMask) override;
+        uint32_t homingMove(AxisMask axisMask, MotorMask motors, Machine::Homing::Phase phase, float* target, float& rate) override;
+        bool     limitReached(AxisMask& axisMask, MotorMask& motors, MotorMask limited) override;
 
         // Configuration handlers:
         void afterParse() override {}

@@ -2,10 +2,14 @@
 #include "Axes.h"
 #include "MachineConfig.h"  // config
 
-#include "../NutsBolts.h"      // set_bitnum etc
-#include "../MotionControl.h"  // mc_reset
-#include "../Limits.h"
-#include "../Protocol.h"  // rtAlarm
+#include "src/NutsBolts.h"      // set_bitnum etc
+#include "src/MotionControl.h"  // mc_reset
+#include "src/Limits.h"
+#include "src/Protocol.h"  // protocol_send_event_from_ISR(), limitEvent
+
+#include "soc/soc.h"
+#include "soc/gpio_periph.h"
+#include "hal/gpio_hal.h"
 
 namespace Machine {
     LimitPin::LimitPin(Pin& pin, int axis, int motor, int direction, bool& pHardLimits, bool& pLimited) :
@@ -39,6 +43,7 @@ namespace Machine {
         // The bitmap looks like CBAZYX..cbazyx where motor0 motors are in the lower bits
         _bitmask = 1 << Axes::motor_bit(axis, motor);
         _legend  = String("    " + sDir + " Limit");
+        _gpio    = _pin.getNative(Pin::Capabilities::Input | Pin::Capabilities::ISR);
     }
 
     void IRAM_ATTR LimitPin::read() {
@@ -65,11 +70,19 @@ namespace Machine {
     }
 
     void IRAM_ATTR LimitPin::handleISR() {
-        Event* evt = this;
-        xQueueSendFromISR(event_queue, &evt, NULL);
+        // This is the body of gpio_hal_intr_disable() which is in not IRAM_ATTR
+        gpio_num_t  gpio_num = gpio_num_t(_gpio);
+        gpio_dev_t* dev      = GPIO_LL_GET_HW(GPIO_PORT_0);
+        gpio_ll_intr_disable(dev, gpio_num);
+        if (gpio_num < 32) {
+            gpio_ll_clear_intr_status(dev, BIT(gpio_num));
+        } else {
+            gpio_ll_clear_intr_status_high(dev, BIT(gpio_num - 32));
+        }
+        protocol_send_event_from_ISR(&limitEvent);
     }
 
-    void LimitPin::run() {
+    void LimitPin::run(int arg) {
         read();
         if (sys.state != State::Alarm && sys.state != State::ConfigAlarm && sys.state != State::Homing) {
             if (_pHardLimits && rtAlarm == ExecAlarm::None) {

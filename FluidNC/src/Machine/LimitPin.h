@@ -35,6 +35,8 @@ namespace Machine {
 
         void read();
 
+        pinnum_t _gpio;
+
     public:
         LimitPin(Pin& pin, int axis, int motorNum, int direction, bool& phardLimits, bool& pLimited);
 
@@ -44,7 +46,7 @@ namespace Machine {
 
         void init();
         bool get() { return _value; }
-        void run() override;
+        void run(int) override;
         void makeDualMask();  // makes this a mask for motor0 and motor1
         void setExtraMotorLimit(int axis, int motorNum);
 

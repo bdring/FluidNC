@@ -5,7 +5,7 @@
 #include "src/System.h"                 // sys
 #include "src/Machine/MachineConfig.h"  // config
 
-void MacroEvent::run() {
+void MacroEvent::run(int arg) {
     if (sys.state != State::Idle) {
         log_error("Macro can only be used in idle state");
         return;

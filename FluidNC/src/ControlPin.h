@@ -21,11 +21,11 @@ public:
 
     void init();
     bool get() { return _pin.read(); }
-    void run() override {
+    void run(int arg) override {
         // Since we do not trust the ISR to always trigger precisely,
         // we check the pin state before calling the event handler
         if (get()) {
-            _event->run();
+            _event->run(arg);
         }
     }
 

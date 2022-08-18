@@ -6,6 +6,7 @@
 #include "../MotionControl.h"
 #include "../Planner.h"
 #include "../Types.h"
+#include "src/Machine/Homing.h"
 
 /*
 Special types
@@ -47,6 +48,10 @@ namespace Kinematics {
         bool cartesian_to_motors(float* target, plan_line_data_t* pl_data, float* position);
         void motors_to_cartesian(float* cartesian, float* motors, int n_axis);
 
+        bool     canHome(AxisMask axisMask);
+        uint32_t homingMove(AxisMask axisMask, MotorMask motors, Machine::Homing::Phase phase, float* target, float& rate);
+        bool     limitReached(AxisMask& axisMask, MotorMask& motors, MotorMask limited);
+
     private:
         ::Kinematics::KinematicSystem* _system = nullptr;
     };
@@ -66,6 +71,12 @@ namespace Kinematics {
         virtual bool kinematics_homing(AxisMask cycle_mask)                                         = 0;
         virtual void kinematics_post_homing()                                                       = 0;
         virtual void motors_to_cartesian(float* cartesian, float* motors, int n_axis)               = 0;
+
+        virtual bool     canHome(AxisMask axisMask) { return false; }
+        virtual uint32_t homingMove(AxisMask axisMask, MotorMask motors, Machine::Homing::Phase phase, float* target, float& rate) {
+            return 0;
+        }
+        virtual bool limitReached(AxisMask& axisMask, MotorMask& motors, MotorMask limited) { return false; }
 
         // Configuration interface.
         void afterParse() override {}

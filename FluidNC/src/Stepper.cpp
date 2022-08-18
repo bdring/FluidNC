@@ -241,8 +241,9 @@ bool IRAM_ATTR Stepper::pulse_func() {
                     spindle->setSpeedfromISR(0);
                 }
             }
-            rtCycleStop = true;
-            awake       = false;
+
+            protocol_send_event_from_ISR(&cycleStopEvent);
+            awake = false;
             return false;  // Nothing to do but exit.
         }
     }

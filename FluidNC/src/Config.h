@@ -96,7 +96,7 @@ namespace SpindleSpeedOverride {
     const int Min             = 10;   // Percent of programmed spindle speed (1-100). Usually 10%.
     const int CoarseIncrement = 10;   // (1-99). Usually 10%.
     const int FineIncrement   = 1;    // (1-99). Usually 1%.
-}
+};
 
 // When a M2 or M30 program end command is executed, most GCode states are restored to their defaults.
 // This compile-time option includes the restoring of the feed, rapid, and spindle speed override values

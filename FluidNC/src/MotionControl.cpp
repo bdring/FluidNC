@@ -324,7 +324,7 @@ GCUpdatePos mc_probe_cycle(float* target, plan_line_data_t* pl_data, bool away, 
     // Activate the probing state monitor in the stepper module.
     probeState = ProbeState::Active;
     // Perform probing cycle. Wait here until probe is triggered or motion completes.
-    rtCycleStart = true;
+    protocol_send_event(&cycleStartEvent);
     do {
         pollChannels();
         protocol_execute_realtime();

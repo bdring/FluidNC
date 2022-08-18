@@ -577,6 +577,9 @@ static void pinString(Print& channel) {
     }
 }
 
+// Define this to do something if a debug request comes in over serial
+void report_realtime_debug() {}
+
 // Prints real-time data. This function grabs a real-time snapshot of the stepper subprogram
 // and the actual location of the CNC machine. Users may change the following function to their
 // specific needs, but the desired real-time data report must be as short as possible. This is

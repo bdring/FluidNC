@@ -5,14 +5,31 @@
 #include <Arduino.h>  // String
 
 class Event {
+public:
+    Event() {}
+    virtual void run(int arg) = 0;
+};
+
+class NoArgEvent : public Event {
     void (*_function)() = nullptr;
 
 public:
-    Event() {}
-    Event(void (*function)()) : _function(function) {}
-    virtual void run() {
+    NoArgEvent(void (*function)()) : _function(function) {}
+    void run(int arg) override {
         if (_function) {
             _function();
+        }
+    }
+};
+
+class ArgEvent : public Event {
+    void (*_function)(int) = nullptr;
+
+public:
+    ArgEvent(void (*function)(int)) : _function(function) {}
+    void run(int arg) override {
+        if (_function) {
+            _function(arg);
         }
     }
 };

@@ -415,6 +415,7 @@ static Error show_limits(const char* value, WebUI::AuthenticationLevel auth_leve
     out << "  PosLimitPins NegLimitPins\n";
     const TickType_t interval = 500;
     TickType_t       limit    = xTaskGetTickCount();
+    runLimitLoop              = true;
     do {
         TickType_t thisTime = xTaskGetTickCount();
         if (((long)(thisTime - limit)) > 0) {
@@ -428,8 +429,7 @@ static Error show_limits(const char* value, WebUI::AuthenticationLevel auth_leve
         vTaskDelay(1);
         protocol_handle_events();
         pollChannels();
-    } while (!rtFeedHold);
-    rtFeedHold = false;
+    } while (runLimitLoop);
     out << '\n';
     return Error::Ok;
 }

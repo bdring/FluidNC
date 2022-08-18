@@ -4,7 +4,7 @@
 
 #include "Kinematics.h"
 
-#include "../Config.h"
+#include "src/Config.h"
 #include "Cartesian.h"
 
 namespace Kinematics {
@@ -28,10 +28,22 @@ namespace Kinematics {
         return _system->motors_to_cartesian(cartesian, motors, n_axis);
     }
 
-    void Kinematics::group(Configuration::HandlerBase& handler) {
-        ::Kinematics::KinematicsFactory::factory(handler, _system);
-        Assert(_system != nullptr, "No kinematics system.");
+    bool Kinematics::canHome(AxisMask axisMask) {
+        Assert(_system != nullptr, "No kinematic system");
+        return _system->canHome(axisMask);
     }
+
+    uint32_t Kinematics::homingMove(AxisMask axisMask, MotorMask motors, Machine::Homing::Phase phase, float* target, float& rate) {
+        Assert(_system != nullptr, "No kinematic system");
+        return _system->homingMove(axisMask, motors, phase, target, rate);
+    }
+
+    bool Kinematics::limitReached(AxisMask& axisMask, MotorMask& motors, MotorMask limited) {
+        Assert(_system != nullptr, "No kinematics system.");
+        return _system->limitReached(axisMask, motors, limited);
+    }
+
+    void Kinematics::group(Configuration::HandlerBase& handler) { ::Kinematics::KinematicsFactory::factory(handler, _system); }
 
     void Kinematics::afterParse() {
         if (_system == nullptr) {

@@ -11,22 +11,13 @@
 #include "Event.h"
 
 #include "Machine/MachineConfig.h"
+#include "Machine/Homing.h"
 #include "Report.h"         // report_feedback_message
 #include "Limits.h"         // limits_get_state, soft_limit
 #include "Planner.h"        // plan_get_current_block
 #include "MotionControl.h"  // PARKING_MOTION_LINE_NUMBER
 #include "Settings.h"       // settings_execute_startup
 #include "InputFile.h"      // infile
-
-xQueueHandle event_queue;
-
-void protocol_init() {
-    event_queue = xQueueCreate(10, sizeof(Event*));
-}
-
-#ifdef DEBUG_REPORT_REALTIME
-volatile bool rtExecDebug;
-#endif
 
 volatile ExecAlarm rtAlarm;  // Global realtime executor bitflag variable for setting various alarms.
 
@@ -46,16 +37,11 @@ std::map<ExecAlarm, const char*> AlarmNames = {
     { ExecAlarm::HomingAmbiguousSwitch, "Ambiguous Switch" },
 };
 
-volatile Accessory rtAccessoryOverride;  // Global realtime executor bitflag variable for spindle/coolant overrides.
-volatile Percent   rtFOverride;          // Global realtime executor feedrate override percentage
-volatile Percent   rtROverride;          // Global realtime executor rapid override percentage
-volatile Percent   rtSOverride;          // Global realtime executor spindle override percentage
-
-volatile bool rtCycleStart;
-volatile bool rtFeedHold;
 volatile bool rtReset;
-volatile bool rtSafetyDoor;
-volatile bool rtCycleStop;  // For state transitions, instead of bitflag
+
+static volatile bool rtSafetyDoor;
+
+volatile bool runLimitLoop;  // Interface to show_limits()
 
 static void protocol_exec_rt_suspend();
 
@@ -91,18 +77,11 @@ bool can_park() {
 }
 
 void protocol_reset() {
-    probeState                = ProbeState::Off;
-    soft_limit                = false;
-    rtCycleStart              = false;
-    rtFeedHold                = false;
-    rtReset                   = false;
-    rtSafetyDoor              = false;
-    rtCycleStop               = false;
-    rtAccessoryOverride.value = 0;
-    rtFOverride               = FeedOverride::Default;
-    rtROverride               = RapidOverride::Default;
-    rtSOverride               = SpindleSpeedOverride::Default;
-    spindle_stop_ovr.value    = 0;
+    probeState             = ProbeState::Off;
+    soft_limit             = false;
+    rtReset                = false;
+    rtSafetyDoor           = false;
+    spindle_stop_ovr.value = 0;
 
     // Do not clear rtAlarm because it might have been set during configuration
     // rtAlarm = ExecAlarm::None;
@@ -114,6 +93,10 @@ static int32_t idleEndTime = 0;
   PRIMARY LOOP:
 */
 Channel* exclusiveChannel = nullptr;
+
+static void request_safety_door() {
+    rtSafetyDoor = true;
+}
 
 void protocol_main_loop() {
     // Check for and report alarm state after a reset, error, or an initial power up.
@@ -140,7 +123,7 @@ void protocol_main_loop() {
             // Check if the safety door is open.
             sys.state = State::Idle;
             if (config->_control->safety_door_ajar()) {
-                rtSafetyDoor = true;
+                request_safety_door();
                 protocol_execute_realtime();  // Enter safety door mode. Should return as IDLE state.
             }
             // All systems go!
@@ -245,8 +228,8 @@ void protocol_buffer_synchronize() {
 // is finished, single commands), a command that needs to wait for the motions in the buffer to
 // execute calls a buffer sync, or the planner buffer is full and ready to go.
 void protocol_auto_cycle_start() {
-    if (plan_get_current_block() != NULL) {  // Check if there are any blocks in the buffer.
-        rtCycleStart = true;                 // If so, execute them!
+    if (plan_get_current_block() != NULL) {     // Check if there are any blocks in the buffer.
+        protocol_send_event(&cycleStartEvent);  // If so, execute them
     }
 }
 
@@ -328,7 +311,6 @@ static void protocol_hold_complete() {
 static void protocol_do_motion_cancel() {
     // Execute and flag a motion cancel with deceleration and return to idle. Used primarily by probing cycle
     // to halt and cancel the remainder of the motion.
-    rtCycleStart = false;  // Cancel any pending start
 
     // MOTION_CANCEL only occurs during a CYCLE, but a HOLD and SAFETY_DOOR may have been initiated
     // beforehand. Motion cancel affects only a single planner block motion, while jog cancel
@@ -353,9 +335,10 @@ static void protocol_do_motion_cancel() {
             // When jogging, we do not set motionCancel, hence return not break
             return;
 
+        case State::Homing:
+            // XXX maybe motion cancel should stop homing
         case State::Sleep:
         case State::Hold:
-        case State::Homing:
         case State::SafetyDoor:
             break;
     }
@@ -364,8 +347,6 @@ static void protocol_do_motion_cancel() {
 
 static void protocol_do_feedhold() {
     // Execute a feed hold with deceleration, if required. Then, suspend system.
-    rtFeedHold   = false;
-    rtCycleStart = false;  // Cancel any pending start
     switch (sys.state) {
         case State::ConfigAlarm:
         case State::Alarm:
@@ -374,11 +355,13 @@ static void protocol_do_feedhold() {
         case State::Sleep:
             return;  // Do not change the state to Hold
 
-        case State::Hold:
         case State::Homing:
+            // XXX maybe feedhold should stop homing
+        case State::Hold:
             break;
 
         case State::Idle:
+            runLimitLoop = false;  // Hack to stop show_limits()
             protocol_hold_complete();
             break;
 
@@ -399,7 +382,6 @@ static void protocol_do_safety_door() {
     // NOTE: Safety door differs from feed holds by stopping everything no matter state, disables powered
     // devices (spindle/coolant), and blocks resuming until switch is re-engaged.
 
-    rtCycleStart = false;  // Cancel any pending start
     report_feedback_message(Message::SafetyDoorAjar);
     switch (sys.state) {
         case State::ConfigAlarm:
@@ -413,7 +395,7 @@ static void protocol_do_safety_door() {
         case State::Hold:
             break;
         case State::Homing:
-            rtAlarm = ExecAlarm::HomingFailDoor;
+            Machine::Homing::fail(ExecAlarm::HomingFailDoor);
             break;
         case State::SafetyDoor:
             if (!sys.suspend.bit.jogCancel && sys.suspend.bit.initiateRestore) {  // Actively restoring
@@ -500,11 +482,7 @@ static void protocol_do_initiate_cycle() {
     }
 }
 
-// The handlers for FeedHold, MotionCancel, and SafetyDoor clear rtCycleStart to
-// ensure that auto-cycle-start does not resume a hold without explicit user input.
 static void protocol_do_cycle_start() {
-    rtCycleStart = false;
-
     // Execute a cycle start by starting the stepper interrupt to begin executing the blocks in queue.
 
     // Resume door state when parking motion has retracted and door has been closed.
@@ -536,12 +514,14 @@ static void protocol_do_cycle_start() {
                 }
             }
             break;
+        case State::Homing:
+            // XXX do we need protocol_initiate_cycle() here?
+            break;
         case State::ConfigAlarm:
         case State::Alarm:
         case State::CheckMode:
         case State::Sleep:
         case State::Cycle:
-        case State::Homing:
         case State::Jog:
             break;
     }
@@ -576,8 +556,6 @@ void protocol_disable_steppers() {
 }
 
 void protocol_do_cycle_stop() {
-    rtCycleStop = false;
-
     protocol_disable_steppers();
 
     switch (sys.state) {
@@ -588,7 +566,7 @@ void protocol_do_cycle_stop() {
             // realtime command execution in the main program, ensuring that the planner re-plans safely.
             // NOTE: Bresenham algorithm variables are still maintained through both the planner and stepper
             // cycle reinitializations. The stepper path should continue exactly as if nothing has happened.
-            // NOTE: rtCycleStop is set by the stepper subsystem when a cycle or feed hold completes.
+            // NOTE: cycleStopEvent is set by the stepper subsystem when a cycle or feed hold completes.
             if (!soft_limit && !sys.suspend.bit.jogCancel) {
                 // Hold complete. Set to indicate ready to resume.  Remain in HOLD or DOOR states until user
                 // has issued a resume command or reset.
@@ -606,7 +584,6 @@ void protocol_do_cycle_stop() {
         case State::CheckMode:
         case State::Idle:
         case State::Cycle:
-        case State::Homing:
         case State::Jog:
             // Motion complete. Includes CYCLE/JOG/HOMING states and jog cancel/motion cancel/soft limit events.
             // NOTE: Motion and jog cancel both immediately return to idle after the hold completes.
@@ -626,64 +603,16 @@ void protocol_do_cycle_stop() {
                 sys.state         = State::Idle;
             }
             break;
+        case State::Homing:
+            Machine::Homing::cycleStop();
+            break;
     }
 }
 
-static void protocol_execute_overrides() {
-    // Execute overrides.
-    if ((rtFOverride != sys.f_override) || (rtROverride != sys.r_override)) {
-        sys.f_override     = rtFOverride;
-        sys.r_override     = rtROverride;
-        report_ovr_counter = 0;  // Set to report change immediately
-        plan_update_velocity_profile_parameters();
-        plan_cycle_reinitialize();
-    }
-
-    // NOTE: Unlike motion overrides, spindle overrides do not require a planner reinitialization.
-    if (rtSOverride != sys.spindle_speed_ovr) {
-        sys.step_control.updateSpindleSpeed = true;
-        sys.spindle_speed_ovr               = rtSOverride;
-        report_ovr_counter                  = 0;  // Set to report change immediately
-
-        // If spindle is on, tell it the RPM has been overridden
-        // When moving, the override is handled by the stepping code
-        if (gc_state.modal.spindle != SpindleState::Disable && !inMotionState()) {
-            spindle->setState(gc_state.modal.spindle, gc_state.spindle_speed);
-            report_ovr_counter = 0;  // Set to report change immediately
-        }
-    }
-
-    if (rtAccessoryOverride.bit.spindleOvrStop) {
-        rtAccessoryOverride.bit.spindleOvrStop = false;
-        // Spindle stop override allowed only while in HOLD state.
-        if (sys.state == State::Hold) {
-            if (spindle_stop_ovr.value == 0) {
-                spindle_stop_ovr.bit.initiate = true;
-            } else if (spindle_stop_ovr.bit.enabled) {
-                spindle_stop_ovr.bit.restore = true;
-            }
-        }
-    }
-
-    // NOTE: Since coolant state always performs a planner sync whenever it changes, the current
-    // run state can be determined by checking the parser state.
-    if (rtAccessoryOverride.bit.coolantFloodOvrToggle) {
-        rtAccessoryOverride.bit.coolantFloodOvrToggle = false;
-        if (config->_coolant->hasFlood() && (sys.state == State::Idle || sys.state == State::Cycle || sys.state == State::Hold)) {
-            gc_state.modal.coolant.Flood = !gc_state.modal.coolant.Flood;
-            config->_coolant->set_state(gc_state.modal.coolant);
-            report_ovr_counter = 0;  // Set to report change immediately
-        }
-    }
-    if (rtAccessoryOverride.bit.coolantMistOvrToggle) {
-        rtAccessoryOverride.bit.coolantMistOvrToggle = false;
-
-        if (config->_coolant->hasMist() && (sys.state == State::Idle || sys.state == State::Cycle || sys.state == State::Hold)) {
-            gc_state.modal.coolant.Mist = !gc_state.modal.coolant.Mist;
-            config->_coolant->set_state(gc_state.modal.coolant);
-            report_ovr_counter = 0;  // Set to report change immediately
-        }
-    }
+static void update_velocities() {
+    report_ovr_counter = 0;  // Set to report change immediately
+    plan_update_velocity_profile_parameters();
+    plan_cycle_reinitialize();
 }
 
 // This is the final phase of the shutdown activity that is initiated by mc_reset().
@@ -718,7 +647,7 @@ void protocol_exec_rt_system() {
 
     if (rtReset) {
         if (sys.state == State::Homing) {
-            rtAlarm = ExecAlarm::HomingFailReset;
+            Machine::Homing::fail(ExecAlarm::HomingFailReset);
         }
         protocol_do_late_reset();
         // Trigger system abort.
@@ -726,32 +655,12 @@ void protocol_exec_rt_system() {
         return;            // Nothing else to do but exit.
     }
 
-    if (rtFeedHold) {
-        protocol_do_feedhold();
-    }
-
     if (rtSafetyDoor) {
         protocol_do_safety_door();
     }
 
-    if (rtCycleStart) {
-        protocol_do_cycle_start();
-    }
-
-    if (rtCycleStop) {
-        protocol_do_cycle_stop();
-    }
-
     protocol_handle_events();
 
-    protocol_execute_overrides();
-
-#ifdef DEBUG_PROTOCOL
-    if (rtExecDebug) {
-        rtExecDebug = false;
-        report_realtime_debug();
-    }
-#endif
     // Reload step segment buffer
     switch (sys.state) {
         case State::ConfigAlarm:
@@ -801,7 +710,7 @@ static void protocol_exec_rt_suspend() {
         restore_spindle_speed = block->spindle_speed;
     }
     if (spindle->isRateAdjusted()) {
-        rtAccessoryOverride.bit.spindleOvrStop = true;
+        protocol_send_event(&accessoryOverrideEvent, AccessoryOverride::SpindleStop);
     }
 
     while (sys.suspend.value) {
@@ -938,7 +847,7 @@ static void protocol_exec_rt_suspend() {
                         }
                         if (!sys.suspend.bit.restartRetract) {
                             sys.suspend.bit.restoreComplete = true;
-                            rtCycleStart                    = true;  // Set to resume program.
+                            protocol_send_event(&cycleStartEvent);  // Resume program.
                         }
                     }
                 }
@@ -969,7 +878,7 @@ static void protocol_exec_rt_suspend() {
                             }
                         }
                         if (spindle_stop_ovr.bit.restoreCycle) {
-                            rtCycleStart = true;  // Set to resume program.
+                            protocol_send_event(&cycleStartEvent);  // Resume program.
                         }
                         spindle_stop_ovr.value = 0;  // Clear stop override state
                     }
@@ -988,25 +897,128 @@ static void protocol_exec_rt_suspend() {
     }
 }
 
-Event safetyDoorEvent { protocol_do_safety_door };
-Event feedHoldEvent { protocol_do_feedhold };
-Event cycleStartEvent { protocol_do_cycle_start };
-Event motionCancelEvent { protocol_do_motion_cancel };
-Event sleepEvent { protocol_do_sleep };
+static void protocol_do_feed_override(int increment) {
+    int percent;
+    if (increment == FeedOverride::Default) {
+        percent = FeedOverride::Default;
+    } else {
+        percent = sys.f_override + increment;
+        if (percent > FeedOverride::Max) {
+            percent = FeedOverride::Max;
+        } else if (percent < FeedOverride::Min) {
+            percent = FeedOverride::Min;
+        }
+    }
+    if (percent != sys.f_override) {
+        sys.f_override = percent;
+        update_velocities();
+    }
+}
+
+static void protocol_do_rapid_override(int percent) {
+    if (percent != sys.r_override) {
+        sys.r_override = percent;
+        update_velocities();
+    }
+}
+
+static void protocol_do_spindle_override(int increment) {
+    int percent;
+    if (increment == SpindleSpeedOverride::Default) {
+        percent = SpindleSpeedOverride::Default;
+    } else {
+        percent = sys.spindle_speed_ovr + increment;
+        if (percent > SpindleSpeedOverride::Max) {
+            percent = SpindleSpeedOverride::Max;
+        } else if (percent < SpindleSpeedOverride::Min) {
+            percent = SpindleSpeedOverride::Min;
+        }
+    }
+    if (percent != sys.spindle_speed_ovr) {
+        sys.spindle_speed_ovr               = percent;
+        sys.step_control.updateSpindleSpeed = true;
+        report_ovr_counter                  = 0;  // Set to report change immediately
+
+        // If spindle is on, tell it the RPM has been overridden
+        // When moving, the override is handled by the stepping code
+        if (gc_state.modal.spindle != SpindleState::Disable && !inMotionState()) {
+            spindle->setState(gc_state.modal.spindle, gc_state.spindle_speed);
+            report_ovr_counter = 0;  // Set to report change immediately
+        }
+    }
+}
+
+static void protocol_do_accessory_override(int type) {
+    switch (type) {
+        case AccessoryOverride::SpindleStop:
+            // Spindle stop override allowed only while in HOLD state.
+            if (sys.state == State::Hold) {
+                if (spindle_stop_ovr.value == 0) {
+                    spindle_stop_ovr.bit.initiate = true;
+                } else if (spindle_stop_ovr.bit.enabled) {
+                    spindle_stop_ovr.bit.restore = true;
+                }
+                report_ovr_counter = 0;  // Set to report change immediately
+            }
+            break;
+        case AccessoryOverride::FloodToggle:
+            // NOTE: Since coolant state always performs a planner sync whenever it changes, the current
+            // run state can be determined by checking the parser state.
+            if (config->_coolant->hasFlood() && (sys.state == State::Idle || sys.state == State::Cycle || sys.state == State::Hold)) {
+                gc_state.modal.coolant.Flood = !gc_state.modal.coolant.Flood;
+                config->_coolant->set_state(gc_state.modal.coolant);
+                report_ovr_counter = 0;  // Set to report change immediately
+            }
+            break;
+        case AccessoryOverride::MistToggle:
+            if (config->_coolant->hasMist() && (sys.state == State::Idle || sys.state == State::Cycle || sys.state == State::Hold)) {
+                gc_state.modal.coolant.Mist = !gc_state.modal.coolant.Mist;
+                config->_coolant->set_state(gc_state.modal.coolant);
+                report_ovr_counter = 0;  // Set to report change immediately
+            }
+            break;
+        default:
+            break;
+    }
+}
+
+ArgEvent feedOverrideEvent { protocol_do_feed_override };
+ArgEvent rapidOverrideEvent { protocol_do_rapid_override };
+ArgEvent spindleOverrideEvent { protocol_do_spindle_override };
+ArgEvent accessoryOverrideEvent { protocol_do_accessory_override };
+
+ArgEvent reportStatusEvent { (void (*)(int))report_realtime_status };
+
+NoArgEvent safetyDoorEvent { request_safety_door };
+NoArgEvent feedHoldEvent { protocol_do_feedhold };
+NoArgEvent cycleStartEvent { protocol_do_cycle_start };
+NoArgEvent cycleStopEvent { protocol_do_cycle_stop };
+NoArgEvent motionCancelEvent { protocol_do_motion_cancel };
+NoArgEvent sleepEvent { protocol_do_sleep };
+NoArgEvent debugEvent { report_realtime_debug };
+
+NoArgEvent limitEvent { Machine::Homing::limitReached };
 
 // Only mc_reset() is permitted to set rtReset.
-Event resetEvent { mc_reset };
+NoArgEvent resetEvent { mc_reset };
 
 // The problem is that report_realtime_status needs a channel argument
 // Event statusReportEvent { protocol_do_status_report(XXX) };
 
-void protocol_send_event(Event* evt) {
-    xQueueSend(event_queue, &evt, 0);
+xQueueHandle event_queue;
+
+void protocol_init() {
+    event_queue = xQueueCreate(10, sizeof(EventItem));
+}
+
+void protocol_send_event(Event* evt, int arg) {
+    EventItem item { evt, arg };
+    xQueueSend(event_queue, &item, 0);
 }
 void protocol_handle_events() {
-    Event* ep;
-    while (xQueueReceive(event_queue, &ep, 0)) {
+    EventItem item;
+    while (xQueueReceive(event_queue, &item, 0)) {
         // log_debug("event");
-        ep->run();
+        item.event->run(item.arg);
     }
 }

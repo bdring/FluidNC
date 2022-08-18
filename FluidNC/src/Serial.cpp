@@ -46,7 +46,7 @@
 #include "MotionControl.h"
 #include "Report.h"
 #include "System.h"
-#include "Protocol.h"  // rtSafetyDoor etc
+#include "Protocol.h"  // *Event
 #include "InputFile.h"
 #include "WebUI/InputBuffer.h"  // XXX could this be a StringStream ?
 #include "Main.h"               // display()
@@ -89,6 +89,7 @@ void execute_realtime_command(Cmd command, Channel& channel) {
             break;
         case Cmd::StatusReport:
             report_realtime_status(channel);  // direct call instead of setting flag
+            // protocol_send_event(&reportStatusEvent, int(&channel));
             break;
         case Cmd::CycleStart:
             protocol_send_event(&cycleStartEvent);
@@ -105,84 +106,58 @@ void execute_realtime_command(Cmd command, Channel& channel) {
             }
             break;
         case Cmd::DebugReport:
-#ifdef DEBUG_REPORT_REALTIME
-            rtExecDebug = true;
-#endif
+            protocol_send_event(&debugEvent);
             break;
         case Cmd::SpindleOvrStop:
-            rtAccessoryOverride.bit.spindleOvrStop = 1;
+            protocol_send_event(&accessoryOverrideEvent, AccessoryOverride::SpindleStop);
             break;
         case Cmd::FeedOvrReset:
-            rtFOverride = FeedOverride::Default;
+            protocol_send_event(&feedOverrideEvent, FeedOverride::Default);
             break;
         case Cmd::FeedOvrCoarsePlus:
-            rtFOverride += FeedOverride::CoarseIncrement;
-            if (rtFOverride > FeedOverride::Max) {
-                rtFOverride = FeedOverride::Max;
-            }
+            protocol_send_event(&feedOverrideEvent, FeedOverride::CoarseIncrement);
             break;
         case Cmd::FeedOvrCoarseMinus:
-            rtFOverride -= FeedOverride::CoarseIncrement;
-            if (rtFOverride < FeedOverride::Min) {
-                rtFOverride = FeedOverride::Min;
-            }
+            protocol_send_event(&feedOverrideEvent, -FeedOverride::CoarseIncrement);
             break;
         case Cmd::FeedOvrFinePlus:
-            rtFOverride += FeedOverride::FineIncrement;
-            if (rtFOverride > FeedOverride::Max) {
-                rtFOverride = FeedOverride::Max;
-            }
+            protocol_send_event(&feedOverrideEvent, FeedOverride::FineIncrement);
             break;
         case Cmd::FeedOvrFineMinus:
-            rtFOverride -= FeedOverride::FineIncrement;
-            if (rtFOverride < FeedOverride::Min) {
-                rtFOverride = FeedOverride::Min;
-            }
+            protocol_send_event(&feedOverrideEvent, -FeedOverride::FineIncrement);
             break;
         case Cmd::RapidOvrReset:
-            rtROverride = RapidOverride::Default;
+            protocol_send_event(&rapidOverrideEvent, RapidOverride::Default);
             break;
         case Cmd::RapidOvrMedium:
-            rtROverride = RapidOverride::Medium;
+            protocol_send_event(&rapidOverrideEvent, RapidOverride::Medium);
             break;
         case Cmd::RapidOvrLow:
-            rtROverride = RapidOverride::Low;
+            protocol_send_event(&rapidOverrideEvent, RapidOverride::Low);
             break;
         case Cmd::RapidOvrExtraLow:
-            rtROverride = RapidOverride::ExtraLow;
+            protocol_send_event(&rapidOverrideEvent, RapidOverride::ExtraLow);
             break;
         case Cmd::SpindleOvrReset:
-            rtSOverride = SpindleSpeedOverride::Default;
+            protocol_send_event(&spindleOverrideEvent, SpindleSpeedOverride::Default);
             break;
         case Cmd::SpindleOvrCoarsePlus:
-            rtSOverride += SpindleSpeedOverride::CoarseIncrement;
-            if (rtSOverride > SpindleSpeedOverride::Max) {
-                rtSOverride = SpindleSpeedOverride::Max;
-            }
+            protocol_send_event(&spindleOverrideEvent, SpindleSpeedOverride::CoarseIncrement);
             break;
         case Cmd::SpindleOvrCoarseMinus:
-            rtSOverride -= SpindleSpeedOverride::CoarseIncrement;
-            if (rtSOverride < SpindleSpeedOverride::Min) {
-                rtSOverride = SpindleSpeedOverride::Min;
-            }
+            protocol_send_event(&spindleOverrideEvent, -SpindleSpeedOverride::CoarseIncrement);
             break;
         case Cmd::SpindleOvrFinePlus:
-            rtSOverride += SpindleSpeedOverride::FineIncrement;
-            if (rtSOverride > SpindleSpeedOverride::Max) {
-                rtSOverride = SpindleSpeedOverride::Max;
-            }
+            protocol_send_event(&spindleOverrideEvent, SpindleSpeedOverride::FineIncrement);
             break;
         case Cmd::SpindleOvrFineMinus:
-            rtSOverride -= SpindleSpeedOverride::FineIncrement;
-            if (rtSOverride < SpindleSpeedOverride::Min) {
-                rtSOverride = SpindleSpeedOverride::Min;
-            }
+            protocol_send_event(&spindleOverrideEvent, -SpindleSpeedOverride::FineIncrement);
             break;
         case Cmd::CoolantFloodOvrToggle:
-            rtAccessoryOverride.bit.coolantFloodOvrToggle = 1;
+            protocol_send_event(&accessoryOverrideEvent, AccessoryOverride::FloodToggle);
             break;
         case Cmd::CoolantMistOvrToggle:
-            rtAccessoryOverride.bit.coolantMistOvrToggle = 1;
+            protocol_send_event(&accessoryOverrideEvent, AccessoryOverride::MistToggle);
             break;
         case Cmd::Macro0:
             protocol_send_event(&macro0Event);
