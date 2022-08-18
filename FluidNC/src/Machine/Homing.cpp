@@ -62,6 +62,7 @@ namespace Machine {
         sys.step_control.executeSysMotion = true;  // Set to execute homing motion and clear existing flags.
         Stepper::prep_buffer();                    // Prep and fill segment buffer from newly planned block.
         Stepper::wake_up();                        // Initiate motion
+        protocol_send_event(&cycleStartEvent);
     }
 
     void Homing::cycleStop() {
@@ -118,6 +119,7 @@ namespace Machine {
         float  rate;
 
         _settling_ms = config->_kinematics->homingMove(_axisMask, _remainingMotors, _phase, target, rate);
+        log_debug("planned move to " << target[0] << "," << target[1] << "," << target[2] << "@" << rate);
 
         startMove(target, rate);
 
@@ -189,7 +191,7 @@ namespace Machine {
         log_debug("Homing Cycle axes " << int(_axisMask));
 
         _axisMask &= Machine::Axes::homingMask;
-        MotorMask motors = config->_axes->set_homing_mode(_axisMask, true);
+        _remainingMotors = config->_axes->set_homing_mode(_axisMask, true);
 
         _phase = Phase::PrePulloff;
         runPhase();
@@ -297,7 +299,7 @@ namespace Machine {
             }
         }
 
-        if (!_remainingCycles.empty()) {
+        if (_remainingCycles.empty()) {
             log_error("No homing cycles defined");
             sys.state = State::Alarm;
             return;

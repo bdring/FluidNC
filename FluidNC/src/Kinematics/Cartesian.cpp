@@ -46,6 +46,8 @@ namespace Kinematics {
         uint32_t settle       = 0;
         float    ratesq       = 0.0;
 
+        log_debug("Cartesian homing " << int(axisMask) << " motors " << int(motors));
+
         auto  axes   = config->_axes;
         auto  n_axis = axes->_numberAxis;
         float rates[n_axis];
