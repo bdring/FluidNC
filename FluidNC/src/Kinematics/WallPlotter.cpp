@@ -54,7 +54,7 @@ namespace Kinematics {
 
         // calculate the total X,Y axis move distance
         // Z axis is the same in both coord systems, so it does not undergo conversion
-        float dist = vector_distance(target, position, Y_AXIS);
+        float dist = vector_distance(target, position, 2); // Only compute distance for both axes. X and Y
         // Segment our G1 and G0 moves based on yaml file. If we choose a small enough _segment_length we can hide the nonlinearity
         segment_count = dist / _segment_length;
         if (segment_count < 1) { // Make sure there is at least one segment, even if there is no movement
@@ -62,7 +62,7 @@ namespace Kinematics {
             // the planner even if there is no movement??
             segment_count = 1;   
         }
-        // Calc distance of individual segments
+        // Calc distance of individual cartesian segments
         dx = (target[X_AXIS] - position[X_AXIS])/segment_count; 
         dy = (target[Y_AXIS] - position[Y_AXIS])/segment_count; 
         dz = (target[Z_AXIS] - position[Z_AXIS])/segment_count;
@@ -70,15 +70,16 @@ namespace Kinematics {
         float seg_x = position[X_AXIS];  
         float seg_y = position[Y_AXIS];
         float seg_z = position[Z_AXIS];
+        // Calculate desired cartesian feedrate distance ratio. Same for each seg.
+        float vdcart_ratio = pl_data->feed_rate/(dist/segment_count);
         for (uint32_t segment = 1; segment <= segment_count; segment++) {
             // calc next cartesian end point of the next segment
             seg_x += dx;
             seg_y += dy;
             seg_z += dz;
+            // Convert cartesian space coords to motor space
             float seg_left, seg_right; 
             xy_to_lengths(seg_x, seg_y, seg_left, seg_right);
-            // TODO: Need to adjust cartesian feedrate to motor/plotter space, just leave them alone for now
-
 #ifdef USE_CHECKED_KINEMATICS
             // Check the inverse computation.
             float cx, cy;
@@ -89,18 +90,26 @@ namespace Kinematics {
                 // FIX: Produce an alarm state?
             }
 #endif  // end USE_CHECKED_KINEMATICS
-
-            // mc_move_motors() returns false if a jog is cancelled.
-            // In that case we stop sending segments to the planner.
-
+            // Set interpolated feedrate in motor space for this segment to
+            // get desired feedrate in cartesian space
+            if (!pl_data->motion.rapidMotion) { // Rapid motions ignore feedrate. Don't convert.
+              // T=D/V, Tcart=Tmotor, Dcart/Vcart=Dmotor/Vmotor
+              // Vmotor = Dmotor*(Vcart/Dcart)
+              pl_data->feed_rate = hypot_f(last_left-seg_left,last_right-seg_right)*vdcart_ratio; 
+            }
+            // TODO: G93 pl_data->motion.inverseTime logic?? Does this even make sense for wallplotter? 
+            // Remember absolute motor lengths for next time
             last_left  = seg_left;
             last_right = seg_right;
             last_z     = seg_z;
-
+            // Initiate motor movement with converted feedrate and converted position
+            // mc_move_motors() returns false if a jog is cancelled.
+            // In that case we stop sending segments to the planner.
             // Note that the left motor runs backward.
             // TODO: It might be better to adjust motor direction in .yaml file by inverting direction pin??
-            float cables[MAX_N_AXIS] = { 0 - (last_left - zero_left), 0 + (last_right - zero_right), seg_z };
+            float cables[MAX_N_AXIS] = { 0 - (seg_left - zero_left), 0 + (seg_right - zero_right), seg_z };
             if (!mc_move_motors(cables, pl_data)) {
+                // TODO fixup last_left last_right?? What is position state when jog is cancelled?
                 return false;
             }
         }

@@ -104,7 +104,7 @@ besc:
   spindown_ms: 2000
   tool_num: 100
   speed_map: 0=0.000% 255=100.000%
-  min_pulse_us: 600
-  max_pulse_us: 2300
+  min_pulse_us: 700
+  max_pulse_us: 2200
 
 
