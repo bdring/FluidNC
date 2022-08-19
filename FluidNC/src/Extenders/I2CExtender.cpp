@@ -79,183 +79,224 @@ namespace Extenders {
         if (_inputReg != 0xFF) {
             _status |= 8;  // reads
         }
+        notify();
     }
 
-    void I2CExtender::isrTaskLoopDetail() {
-        std::atomic_thread_fence(std::memory_order::memory_order_seq_cst);
+    bool I2CExtender::updateState() {
+        portENTER_CRITICAL(&spinlock);
+        bool u = isUpdating;
+        if (!u) {
+            isUpdating = true;  // We're the victim.
+        }
+        portEXIT_CRITICAL(&spinlock);
+
+        if (u) {
+            return false;
+        }
+
         int     registersPerDevice = _ports / 8;
         int     claimedValues      = 0;
         uint8_t commonStatus       = _operation;
 
-        // Update everything the first operation
-        IOError();
+        // If we set it to 0, we don't know if we can use the read data. 0x10 locks the status until we're done
+        // reading
+        uint8_t newStatus = 0x10;
 
-        // Main loop for I2C handling:
-        while (true) {
-            // If we set it to 0, we don't know if we can use the read data. 0x10 locks the status until we're done
-            // reading
-            uint8_t newStatus = 0x10;
+        newStatus = _status.exchange(newStatus);
+        newStatus |= commonStatus;
 
-            newStatus = _status.exchange(newStatus);
-            newStatus |= commonStatus;
-
-            if (newStatus != 0) {
-                if ((newStatus & 0x20) == 0x20) {
-                    // Update ISR status. Apparently there's a bug in the ESP32 which means we cannot
-                    // directly use the ISR to track FALLING edges.
-                    bool newIsrStatus = _interruptPin.read();
-                    if (newIsrStatus != _interruptPinState && !newIsrStatus)  // Falling edge
-                    {
-                        newStatus |= 8;
-                    }
-                    _interruptPinState = newIsrStatus;
+        if (newStatus != 0) {
+            if ((newStatus & 0x20) == 0x20) {
+                // Update ISR status. Apparently there's a bug in the ESP32 which means we cannot
+                // directly use the ISR to track FALLING edges.
+                bool newIsrStatus = _interruptPin.read();
+                if (newIsrStatus != _interruptPinState && !newIsrStatus)  // Falling edge
+                {
+                    newStatus |= 8;
                 }
+                _interruptPinState = newIsrStatus;
+            }
 
-                if ((newStatus & 2) != 0) {
-                    _status = 0;
-                    return;  // Stop running
+            log_info("Updating... status = " << newStatus);
+
+            if ((newStatus & 2) != 0) {
+                _status = 0;
+
+                portENTER_CRITICAL(&spinlock);
+                isUpdating = false;
+                portEXIT_CRITICAL(&spinlock);
+                return false;  // Stop running
+            }
+
+            // Update config:
+            if ((newStatus & 1) != 0) {
+                // First fence!
+                std::atomic_thread_fence(std::memory_order::memory_order_seq_cst);
+
+                // Configuration dirty. Update _configuration and _invert.
+                //
+                // First check how many u8's are claimed:
+                claimedValues = 0;
+                for (int i = 0; i < 8; ++i) {
+                    if (_claimed.bytes[i] != 0) {
+                        claimedValues = i + 1;
+                    }
                 }
-
-                // Update config:
-                if ((newStatus & 1) != 0) {
-                    // First fence!
-                    std::atomic_thread_fence(std::memory_order::memory_order_seq_cst);
-
-                    // Configuration dirty. Update _configuration and _invert.
-                    //
-                    // First check how many u8's are claimed:
-                    claimedValues = 0;
-                    for (int i = 0; i < 8; ++i) {
-                        if (_claimed.bytes[i] != 0) {
-                            claimedValues = i + 1;
-                        }
-                    }
-                    // Invert:
-                    if (_invertReg != 0xFF) {
-                        uint8_t currentRegister = _invertReg;
-                        uint8_t address         = _address;
-
-                        for (int i = 0; i < claimedValues; ++i) {
-                            uint8_t by = _invert.bytes[i];
-                            I2CSetValue(address, currentRegister, by);
-
-                            currentRegister++;
-                            if (currentRegister == registersPerDevice + _invertReg) {
-                                ++address;
-                            }
-                        }
-                    }
-                    // Configuration:
-                    {
-                        uint8_t currentRegister = _operationReg;
-                        uint8_t address         = _address;
-
-                        for (int i = 0; i < claimedValues; ++i) {
-                            uint8_t by = _configuration.bytes[i];
-                            I2CSetValue(address, currentRegister, by);
-
-                            currentRegister++;
-                            if (currentRegister == registersPerDevice + _operationReg) {
-                                ++address;
-                            }
-                        }
-                    }
-
-                    // Configuration changed. Writes and reads must be updated.
-                    if (_outputReg != 0xFF) {
-                        newStatus |= 4;      // writes
-                        _dirtyWrite = 0xFF;  // everything is dirty.
-                    }
-                    if (_inputReg != 0xFF) {
-                        newStatus |= 8;  // reads
-                    }
-
-                    commonStatus = _operation;
-                }
-
-                // Handle writes:
-                if ((newStatus & 4) != 0) {
-                    uint8_t currentRegister = _outputReg;
+                // Invert:
+                if (_invertReg != 0xFF) {
+                    uint8_t currentRegister = _invertReg;
                     uint8_t address         = _address;
 
-                    bool handleInvertSoftware = (_invertReg == 0xFF);
-
-                    auto toWrite = _dirtyWrite.exchange(0);
                     for (int i = 0; i < claimedValues; ++i) {
-                        if ((toWrite & (1 << i)) != 0) {
-                            uint8_t by = handleInvertSoftware ? (_output.bytes[i] ^ _invert.bytes[i]) : _output.bytes[i];
-                            I2CSetValue(address, currentRegister, by);
-                        }
+                        uint8_t by = _invert.bytes[i];
+                        I2CSetValue(address, currentRegister, by);
 
                         currentRegister++;
-                        if (currentRegister == registersPerDevice + _outputReg) {
+                        if (currentRegister == registersPerDevice + _invertReg) {
+                            ++address;
+                        }
+                    }
+                }
+                // Configuration:
+                {
+                    uint8_t currentRegister = _operationReg;
+                    uint8_t address         = _address;
+
+                    for (int i = 0; i < claimedValues; ++i) {
+                        uint8_t by = _configuration.bytes[i];
+                        I2CSetValue(address, currentRegister, by);
+
+                        currentRegister++;
+                        if (currentRegister == registersPerDevice + _operationReg) {
                             ++address;
                         }
                     }
                 }
 
-                // Handle reads:
-                if ((newStatus & 8) != 0) {
-                    uint8_t currentRegister = _inputReg;
-                    uint8_t address         = _address;
+                // Configuration changed. Writes and reads must be updated.
+                if (_outputReg != 0xFF) {
+                    newStatus |= 4;      // writes
+                    _dirtyWrite = 0xFF;  // everything is dirty.
+                }
+                if (_inputReg != 0xFF) {
+                    newStatus |= 8;  // reads
+                }
 
-                    // If we don't have an ISR, we must update everything. Otherwise, we can cherry pick:
-                    bool handleInvertSoftware = (_invertReg == 0xFF);
+                commonStatus = _operation;
+            }
 
-                    uint8_t newBytes[8];
-                    for (int i = 0; i < claimedValues; ++i) {
-                        auto newByte = I2CGetValue(address, currentRegister);
-                        if (handleInvertSoftware) {
-                            newByte ^= _invert.bytes[i];
-                        }
-                        newBytes[i] = newByte;
+            // Handle writes:
+            if ((newStatus & 4) != 0) {
+                uint8_t currentRegister = _outputReg;
+                uint8_t address         = _address;
 
-                        currentRegister++;
-                        if (currentRegister == registersPerDevice + _inputReg) {
-                            ++address;
-                        }
+                bool handleInvertSoftware = (_invertReg == 0xFF);
+
+                auto toWrite = _dirtyWrite.exchange(0);
+                for (int i = 0; i < claimedValues; ++i) {
+                    if ((toWrite & (1 << i)) != 0) {
+                        uint8_t by = handleInvertSoftware ? (_output.bytes[i] ^ _invert.bytes[i]) : _output.bytes[i];
+                        I2CSetValue(address, currentRegister, by);
                     }
 
-                    // Reading the registers triggers the interrupt pin to go high. We just assume it is here,
-                    // so that we won't incidentally miss a falling edge.
-                    _interruptPinState = true;
+                    currentRegister++;
+                    if (currentRegister == registersPerDevice + _outputReg) {
+                        ++address;
+                    }
+                }
+            }
 
-                    // Remove the busy flag, keep the rest. If we don't do that here, we
-                    // end up with a race condition if we use _status in the ISR.
-                    _status &= ~0x10;
+            // Handle reads:
+            if ((newStatus & 8) != 0) {
+                uint8_t currentRegister = _inputReg;
+                uint8_t address         = _address;
 
-                    for (int i = 0; i < claimedValues; ++i) {
-                        auto oldByte = _input.bytes[i];
-                        auto newByte = newBytes[i];
+                // If we don't have an ISR, we must update everything. Otherwise, we can cherry pick:
+                bool handleInvertSoftware = (_invertReg == 0xFF);
 
-                        if (oldByte != newByte) {
-                            // Handle ISR's:
-                            _input.bytes[i] = newByte;
-                            int offset      = i * 8;
-                            for (int j = 0; j < 8; ++j) {
-                                auto isr = _isrData[offset + j];
-                                if (isr.defined()) {
-                                    auto mask = uint8_t(1 << j);
-                                    auto o    = (oldByte & mask);
-                                    auto n    = (newByte & mask);
-                                    if (o != n) {
-                                        isr.callback(isr.data);  // bug; race condition
-                                    }
+                uint8_t newBytes[8];
+                for (int i = 0; i < claimedValues; ++i) {
+                    auto newByte = I2CGetValue(address, currentRegister);
+                    if (handleInvertSoftware) {
+                        newByte ^= _invert.bytes[i];
+                    }
+                    newBytes[i] = newByte;
+
+                    currentRegister++;
+                    if (currentRegister == registersPerDevice + _inputReg) {
+                        ++address;
+                    }
+                }
+
+                // Reading the registers triggers the interrupt pin to go high. We just assume it is here,
+                // so that we won't incidentally miss a falling edge.
+                _interruptPinState = true;
+
+                // Remove the busy flag, keep the rest. If we don't do that here, we
+                // end up with a race condition if we use _status in the ISR.
+                _status &= ~0x10;
+
+                for (int i = 0; i < claimedValues; ++i) {
+                    auto oldByte = _input.bytes[i];
+                    auto newByte = newBytes[i];
+
+                    if (oldByte != newByte) {
+                        // Handle ISR's:
+                        _input.bytes[i] = newByte;
+                        int offset      = i * 8;
+                        for (int j = 0; j < 8; ++j) {
+                            auto isr = _isrData[offset + j];
+                            if (isr.defined()) {
+                                auto mask = uint8_t(1 << j);
+                                auto o    = (oldByte & mask);
+                                auto n    = (newByte & mask);
+                                if (o != n) {
+                                    isr.callback(isr.data);  // bug; race condition
                                 }
                             }
                         }
                     }
                 }
             }
+        }
 
-            // Remove the busy flag, keep the rest.
-            _status &= ~0x10;
+        // Remove the busy flag, keep the rest.
+        _status &= ~0x10;
 
-            vTaskDelay(TaskDelayBetweenIterations);
+        portENTER_CRITICAL(&spinlock);
+        isUpdating = false;
+        portEXIT_CRITICAL(&spinlock);
+        return true;
+    }
+
+    void I2CExtender::isrTaskLoopDetail() {
+        std::atomic_thread_fence(std::memory_order::memory_order_seq_cst);
+
+        // Update everything the first operation
+        IOError();
+
+        // Main loop for I2C handling:
+        while (true) {
+            updateState();
+
+            if (_status == 0) {
+                // vTaskPrioritySet(_isrHandler, tskIDLE_PRIORITY + 1);
+                vTaskDelay(TaskDelayBetweenIterations);
+            } else if ((_status & 2) != 0) {
+                return;  // stop running
+            }
         }
     }
 
     void I2CExtender::isrTaskLoop(void* arg) { static_cast<I2CExtender*>(arg)->isrTaskLoopDetail(); }
+
+    void I2CExtender::notify() {
+        if (!xPortInIsrContext()) {
+            // vTaskPrioritySet(_isrHandler, uxTaskPriorityGet(NULL));
+            taskYIELD();
+        }
+        // vTaskDelay(TaskDelayBetweenIterations); // taskYIELD?
+    }
 
     void I2CExtender::claim(pinnum_t index) {
         Assert(index >= 0 && index < 64, "I2CExtender IO index should be [0-63]; %d is out of range", index);
@@ -291,6 +332,7 @@ namespace Extenders {
     void I2CExtender::interruptHandler(void* arg) {
         auto ext = static_cast<I2CExtender*>(arg);
         ext->_status |= 0x20;
+        ext->notify();
     }
 
     void I2CExtender::init() {
@@ -374,6 +416,7 @@ namespace Extenders {
         // Trigger an update:
         std::atomic_thread_fence(std::memory_order::memory_order_seq_cst);
         _status |= 1;
+        notify();
     }
 
     void IRAM_ATTR I2CExtender::writePin(pinnum_t index, bool high) {
@@ -408,14 +451,10 @@ namespace Extenders {
             _status |= 8;
         }
 
-        int cnt = 0;
-        while (_status != 0) {
-            cnt++;
-            if (cnt > 500) {
-                log_debug("Boom");
-                break;
+        if (!xPortInIsrContext()) {
+            if (!updateState()) {
+                delay_ms(15);
             }
-            vTaskDelay(1);  // Must be <TaskDelayBetweenIterations and as small as possible.
         }
 
         // Use the value:
@@ -428,8 +467,10 @@ namespace Extenders {
         _dirtyWrite |= writeMask;
         _status |= 4;
 
-        while (_status != 0) {
-            vTaskDelay(1);
+        if (!xPortInIsrContext()) {
+            if (!updateState()) {
+                delay_ms(15);
+            }
         }
     }
 
@@ -452,6 +493,7 @@ namespace Extenders {
         // Trigger task configuration update:
         std::atomic_thread_fence(std::memory_order::memory_order_seq_cst);  // write fence first!
         _status |= 1;
+        notify();
     }
 
     void I2CExtender::detachInterrupt(pinnum_t index) {
@@ -478,6 +520,7 @@ namespace Extenders {
         // Trigger task configuration update:
         std::atomic_thread_fence(std::memory_order::memory_order_seq_cst);  // write fence first!
         _status |= 1;
+        notify();
     }
 
     const char* I2CExtender::name() const { return "i2c_extender"; }
@@ -485,6 +528,7 @@ namespace Extenders {
     I2CExtender::~I2CExtender() {
         // The task might have allocated temporary data, so we cannot just destroy it:
         _status |= 2;
+        notify();
 
         // Detach the interrupt pin:
         if (_interruptPin.defined()) {

@@ -100,7 +100,7 @@ namespace Extenders {
         int _device   = int(I2CExtenderDevice::Unknown);
         int _deviceId = 0;
 
-        static const int TaskDelayBetweenIterations = 10;
+        static const int TaskDelayBetweenIterations = 20;
 
         int errorCount = 0;
 
@@ -152,6 +152,11 @@ namespace Extenders {
         static void interruptHandler(void* arg);
 
         void IOError();
+        void notify();
+
+        portMUX_TYPE spinlock = portMUX_INITIALIZER_UNLOCKED;
+        bool         updateState();
+        bool         isUpdating = false;
 
     public:
         I2CExtender();
