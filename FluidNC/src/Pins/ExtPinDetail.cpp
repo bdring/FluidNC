@@ -47,7 +47,7 @@ namespace Pins {
         Assert(value.validateWith(this->_capabilities), "Requested attributes do not match the PCA9539 pin capabilities.");
         Assert(!_attributes.conflictsWith(value), "Attributes on this pin have been set before, and there's a conflict.");
 
-        _attributes = value;
+        _attributes = _attributes | value;
 
         bool activeLow = _attributes.has(PinAttributes::ActiveLow);
 
