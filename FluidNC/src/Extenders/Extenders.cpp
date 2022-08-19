@@ -21,7 +21,7 @@ namespace Extenders {
     PinExtender::~PinExtender() { delete _driver; }
 
     Extenders::Extenders() {
-        for (int i = 0; i < 16; ++i) {
+        for (int i = 0; i < 10; ++i) {
             _pinDrivers[i] = nullptr;
         }
     }
@@ -34,16 +34,14 @@ namespace Extenders {
             tmp[0] = 0;
             strcat(tmp, "pinextender");
 
-            for (size_t i = 0; i < 10; ++i) {
-                tmp[11] = char(i + '0');
-                tmp[12] = '\0';
-                handler.section(tmp, _pinDrivers[i]);
-            }
+            tmp[11] = char(i + '0');
+            tmp[12] = '\0';
+            handler.section(tmp, _pinDrivers[i]);
         }
     }
 
     void Extenders::init() {
-        for (int i = 0; i < 16; ++i) {
+        for (int i = 0; i < 10; ++i) {
             if (_pinDrivers[i] != nullptr) {
                 _pinDrivers[i]->init();
             }
@@ -51,7 +49,7 @@ namespace Extenders {
     }
 
     Extenders::~Extenders() {
-        for (int i = 0; i < 16; ++i) {
+        for (int i = 0; i < 10; ++i) {
             delete _pinDrivers[i];
         }
     }

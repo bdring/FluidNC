@@ -12,7 +12,7 @@ namespace Extenders {
     public:
         Extenders();
 
-        PinExtender* _pinDrivers[16];
+        PinExtender* _pinDrivers[10];
 
         void validate() const override;
         void group(Configuration::HandlerBase& handler) override;
