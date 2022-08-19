@@ -12,6 +12,8 @@
 #include "hal/gpio_hal.h"
 
 namespace Machine {
+    std::queue<LimitPin*> LimitPin::_blockedLimits;
+
     LimitPin::LimitPin(Pin& pin, int axis, int motor, int direction, bool& pHardLimits, bool& pLimited) :
         _axis(axis), _motorNum(motor), _value(false), _pHardLimits(pHardLimits), _pLimited(pLimited), _pin(pin) {
         String sDir;
@@ -46,7 +48,7 @@ namespace Machine {
         _gpio    = _pin.getNative(Pin::Capabilities::Input | Pin::Capabilities::ISR);
     }
 
-    void IRAM_ATTR LimitPin::read() {
+    bool IRAM_ATTR LimitPin::read() {
         _value    = _pin.read();
         _pLimited = _value;
         if (_pExtraLimited != nullptr) {
@@ -67,6 +69,7 @@ namespace Machine {
                 clear_bits(*_negLimits, _bitmask);
             }
         }
+        return _value;
     }
 
     void IRAM_ATTR LimitPin::handleISR() {
@@ -79,10 +82,23 @@ namespace Machine {
         } else {
             gpio_ll_clear_intr_status_high(dev, BIT(gpio_num - 32));
         }
-        protocol_send_event_from_ISR(&limitEvent);
+        protocol_send_event_from_ISR(&limitEvent, this);
+        _blockedLimits.push(this);
     }
 
-    void LimitPin::run(int arg) {
+    void LimitPin::reenableISRs() {
+        while (!_blockedLimits.empty()) {
+            auto pin = _blockedLimits.front();
+            _blockedLimits.pop();
+            auto value = pin->read();  // To reestablish the limit bitmasks
+            log_debug("Reenabling limit for axis " << pin->_axis << " motor " << pin->_motorNum << " value " << value);
+            pin->enableISR();
+        }
+    }
+
+    void LimitPin::enableISR() { gpio_intr_enable(gpio_num_t(_gpio)); }
+
+    void LimitPin::run(void* arg) {
         read();
         if (sys.state != State::Alarm && sys.state != State::ConfigAlarm && sys.state != State::Homing) {
             if (_pHardLimits && rtAlarm == ExecAlarm::None) {

@@ -29,8 +29,6 @@ namespace Machine {
 
         static bool approach() { return _phase == FastApproach || _phase == SlowApproach; }
 
-        static AxisMask _axisMask;
-
         static void fail(ExecAlarm alarm);
         static void cycleStop();
 
@@ -77,7 +75,7 @@ namespace Machine {
 
         static bool needsPulloff2(MotorMask motors);
 
-        static void limitReached();
+        static void limitReached(void*);
 
     private:
         static uint32_t planMove(AxisMask axisMask, MotorMask motors, Phase phase, float* target, float& rate);
@@ -87,9 +85,14 @@ namespace Machine {
         static void nextPhase();
         static void nextCycle();
 
-        static MotorMask       _remainingMotors;
+        static MotorMask _cycleMotors;  // Motors for this cycle
+        static MotorMask _phaseMotors;  // Motors still running in this phase
+        static AxisMask  _cycleAxes;    // Axes for this cycle
+        static AxisMask  _phaseAxes;    // Axes still active in this phase
+
         static std::queue<int> _remainingCycles;
-        static uint32_t        _settling_ms;
+
+        static uint32_t _settling_ms;
 
         static const char* _phaseNames[];
         static const char* phaseName(Phase phase) { return _phaseNames[static_cast<int>(phase)]; }

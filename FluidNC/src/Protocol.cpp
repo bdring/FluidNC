@@ -309,6 +309,7 @@ static void protocol_hold_complete() {
 }
 
 static void protocol_do_motion_cancel() {
+    // log_debug("protocol_do_motion_cancel " << int(sys.state));
     // Execute and flag a motion cancel with deceleration and return to idle. Used primarily by probing cycle
     // to halt and cancel the remainder of the motion.
 
@@ -346,6 +347,7 @@ static void protocol_do_motion_cancel() {
 }
 
 static void protocol_do_feedhold() {
+    // log_debug("protocol_do_feedhold " << int(sys.state));
     // Execute a feed hold with deceleration, if required. Then, suspend system.
     switch (sys.state) {
         case State::ConfigAlarm:
@@ -378,6 +380,7 @@ static void protocol_do_feedhold() {
 }
 
 static void protocol_do_safety_door() {
+    // log_debug("protocol_do_safety_door " << int(sys.state));
     // Execute a safety door stop with a feed hold and disable spindle/coolant.
     // NOTE: Safety door differs from feed holds by stopping everything no matter state, disables powered
     // devices (spindle/coolant), and blocks resuming until switch is re-engaged.
@@ -436,6 +439,7 @@ static void protocol_do_safety_door() {
 }
 
 static void protocol_do_sleep() {
+    // log_debug("protocol_do_sleep " << int(sys.state));
     switch (sys.state) {
         case State::ConfigAlarm:
         case State::Alarm:
@@ -469,6 +473,7 @@ void protocol_cancel_disable_steppers() {
 }
 
 static void protocol_do_initiate_cycle() {
+    //    log_debug("protocol_do_initiate_cycle " << int(sys.state));
     // Start cycle only if queued motions exist in planner buffer and the motion is not canceled.
     sys.step_control = {};  // Restore step control to normal operation
     if (plan_get_current_block() && !sys.suspend.bit.motionCancel) {
@@ -481,8 +486,17 @@ static void protocol_do_initiate_cycle() {
         sys.state         = State::Idle;
     }
 }
+static void protocol_initiate_homing_cycle() {
+    //    log_debug("protocol_initiate_homing_cycle " << int(sys.state));
+    sys.step_control                  = {};    // Restore step control to normal operation
+    sys.suspend.value                 = 0;     // Break suspend state.
+    sys.step_control.executeSysMotion = true;  // Set to execute homing motion and clear existing flags.
+    Stepper::prep_buffer();                    // Initialize step segment buffer before beginning cycle.
+    Stepper::wake_up();
+}
 
 static void protocol_do_cycle_start() {
+    //    log_debug("protocol_do_cycle_start " << int(sys.state));
     // Execute a cycle start by starting the stepper interrupt to begin executing the blocks in queue.
 
     // Resume door state when parking motion has retracted and door has been closed.
@@ -504,6 +518,9 @@ static void protocol_do_cycle_start() {
         case State::Idle:
             protocol_do_initiate_cycle();
             break;
+        case State::Homing:
+            protocol_initiate_homing_cycle();
+            break;
         case State::Hold:
             // Cycle start only when IDLE or when a hold is complete and ready to resume.
             if (sys.suspend.bit.holdComplete) {
@@ -514,9 +531,6 @@ static void protocol_do_cycle_start() {
                 }
             }
             break;
-        case State::Homing:
-            // XXX do we need protocol_initiate_cycle() here?
-            break;
         case State::ConfigAlarm:
         case State::Alarm:
         case State::CheckMode:
@@ -525,6 +539,7 @@ static void protocol_do_cycle_start() {
         case State::Jog:
             break;
     }
+    //    log_debug("protocol_do_cycle_start final state " << int(sys.state));
 }
 
 void protocol_disable_steppers() {
@@ -556,6 +571,7 @@ void protocol_disable_steppers() {
 }
 
 void protocol_do_cycle_stop() {
+    //    log_debug("protocol_do_cycle_stop " << int(sys.state));
     protocol_disable_steppers();
 
     switch (sys.state) {
@@ -710,7 +726,7 @@ static void protocol_exec_rt_suspend() {
         restore_spindle_speed = block->spindle_speed;
     }
     if (spindle->isRateAdjusted()) {
-        protocol_send_event(&accessoryOverrideEvent, AccessoryOverride::SpindleStop);
+        protocol_send_event(&accessoryOverrideEvent, (void*)AccessoryOverride::SpindleStopOvr);
     }
 
     while (sys.suspend.value) {
@@ -897,7 +913,8 @@ static void protocol_exec_rt_suspend() {
     }
 }
 
-static void protocol_do_feed_override(int increment) {
+static void protocol_do_feed_override(void* incrementvp) {
+    int increment = int(incrementvp);
     int percent;
     if (increment == FeedOverride::Default) {
         percent = FeedOverride::Default;
@@ -915,15 +932,17 @@ static void protocol_do_feed_override(int increment) {
     }
 }
 
-static void protocol_do_rapid_override(int percent) {
+static void protocol_do_rapid_override(void* percentvp) {
+    int percent = int(percentvp);
     if (percent != sys.r_override) {
         sys.r_override = percent;
         update_velocities();
     }
 }
 
-static void protocol_do_spindle_override(int increment) {
+static void protocol_do_spindle_override(void* incrementvp) {
     int percent;
+    int increment = int(incrementvp);
     if (increment == SpindleSpeedOverride::Default) {
         percent = SpindleSpeedOverride::Default;
     } else {
@@ -948,9 +967,9 @@ static void protocol_do_spindle_override(int increment) {
     }
 }
 
-static void protocol_do_accessory_override(int type) {
-    switch (type) {
-        case AccessoryOverride::SpindleStop:
+static void protocol_do_accessory_override(void* type) {
+    switch (int(type)) {
+        case AccessoryOverride::SpindleStopOvr:
             // Spindle stop override allowed only while in HOLD state.
             if (sys.state == State::Hold) {
                 if (spindle_stop_ovr.value == 0) {
@@ -987,7 +1006,7 @@ ArgEvent rapidOverrideEvent { protocol_do_rapid_override };
 ArgEvent spindleOverrideEvent { protocol_do_spindle_override };
 ArgEvent accessoryOverrideEvent { protocol_do_accessory_override };
 
-ArgEvent reportStatusEvent { (void (*)(int))report_realtime_status };
+ArgEvent reportStatusEvent { (void (*)(void*))report_realtime_status };
 
 NoArgEvent safetyDoorEvent { request_safety_door };
 NoArgEvent feedHoldEvent { protocol_do_feedhold };
@@ -997,7 +1016,7 @@ NoArgEvent motionCancelEvent { protocol_do_motion_cancel };
 NoArgEvent sleepEvent { protocol_do_sleep };
 NoArgEvent debugEvent { report_realtime_debug };
 
-NoArgEvent limitEvent { Machine::Homing::limitReached };
+ArgEvent limitEvent { Machine::Homing::limitReached };
 
 // Only mc_reset() is permitted to set rtReset.
 NoArgEvent resetEvent { mc_reset };
@@ -1011,7 +1030,7 @@ void protocol_init() {
     event_queue = xQueueCreate(10, sizeof(EventItem));
 }
 
-void protocol_send_event(Event* evt, int arg) {
+void protocol_send_event(Event* evt, void* arg) {
     EventItem item { evt, arg };
     xQueueSend(event_queue, &item, 0);
 }

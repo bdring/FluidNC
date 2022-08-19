@@ -1,7 +1,8 @@
 #include "Cartesian.h"
 
 #include "src/Machine/MachineConfig.h"
-#include "src/Machine/Axes.h"
+#include "src/Machine/Axes.h"  // ambiguousLimit()
+#include "src/Limits.h"
 
 namespace Kinematics {
     void Cartesian::init() { log_info("Kinematic system: " << name()); }
@@ -25,7 +26,13 @@ namespace Kinematics {
         copyAxes(cartesian, motors);
     }
 
-    bool Cartesian::canHome(AxisMask axisMask) { return true; }
+    bool Cartesian::canHome(AxisMask axisMask) {
+        if (ambiguousLimit()) {
+            log_error("Ambiguous limit switch touching. Manually clear all switches");
+            return false;
+        }
+        return true;
+    }
 
     bool Cartesian::limitReached(AxisMask& axisMask, MotorMask& motorMask, MotorMask limited) {
         // For Cartesian, the limit switches are associated with individual motors, since
@@ -46,7 +53,7 @@ namespace Kinematics {
         uint32_t settle       = 0;
         float    ratesq       = 0.0;
 
-        log_debug("Cartesian homing " << int(axisMask) << " motors " << int(motors));
+        //        log_debug("Cartesian homing " << int(axisMask) << " motors " << int(motors));
 
         auto  axes   = config->_axes;
         auto  n_axis = axes->_numberAxis;
@@ -131,7 +138,7 @@ namespace Kinematics {
                     // For fast approach the vector direction is determined by the rates
                     target[axis] *= rates[axis] / limitingRate;
                 }
-                log_debug(axes->axisName(axis) << " target " << target[axis] << " rate " << rates[axis]);
+                // log_debug(axes->axisName(axis) << " target " << target[axis] << " rate " << rates[axis]);
             }
         }
 

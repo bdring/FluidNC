@@ -5,6 +5,7 @@
 #include "../System.h"         // sys.*
 #include "../Stepper.h"        // st_wake
 #include "../Protocol.h"       // protocol_handle_events
+#include "../Limits.h"         // ambiguousLimit
 #include "../Machine/Axes.h"
 #include "../Machine/MachineConfig.h"  // config
 
@@ -33,9 +34,11 @@ namespace Machine {
     const uint32_t MOTOR0 = 0xffff;
     const uint32_t MOTOR1 = 0xffff0000;
 
-    Homing::Phase   Homing::_phase    = Phase::None;
-    AxisMask        Homing::_axisMask = 0;
-    MotorMask       Homing::_remainingMotors;
+    Homing::Phase   Homing::_phase       = Phase::None;
+    AxisMask        Homing::_cycleAxes   = 0;
+    AxisMask        Homing::_phaseAxes   = 0;
+    MotorMask       Homing::_cycleMotors = 0;
+    MotorMask       Homing::_phaseMotors;
     std::queue<int> Homing::_remainingCycles;
     uint32_t        Homing::_settling_ms;
 
@@ -58,10 +61,10 @@ namespace Machine {
 
         plan_buffer_line(target, &plan_data);  // Bypass mc_move_motors(). Directly plan homing motion.
 
-        sys.step_control                  = {};
-        sys.step_control.executeSysMotion = true;  // Set to execute homing motion and clear existing flags.
-        Stepper::prep_buffer();                    // Prep and fill segment buffer from newly planned block.
-        Stepper::wake_up();                        // Initiate motion
+        //        sys.step_control                  = {};
+        //        sys.step_control.executeSysMotion = true;  // Set to execute homing motion and clear existing flags.
+        //        Stepper::prep_buffer();                    // Prep and fill segment buffer from newly planned block.
+        //        Stepper::wake_up();                        // Initiate motion
         protocol_send_event(&cycleStartEvent);
     }
 
@@ -75,13 +78,13 @@ namespace Machine {
         }
         // Cycle stop in pulloff is success unless
         // the limit switches are still active.
-        if ((Machine::Axes::posLimitMask | Machine::Axes::negLimitMask) & _remainingMotors) {
+        if ((Machine::Axes::posLimitMask | Machine::Axes::negLimitMask) & _phaseMotors) {
             // Homing failure: Limit switch still engaged after pull-off motion
             fail(ExecAlarm::HomingFailPulloff);
             return;
         }
         // Normal termination for pulloff cycle
-        _remainingMotors = 0;
+        _phaseMotors = 0;
 
         // Advance to next cycle
         Stepper::reset();        // Stop steppers and reset step segment buffer
@@ -93,7 +96,7 @@ namespace Machine {
     void Homing::nextPhase() {
         _phase = static_cast<Phase>(static_cast<int>(_phase) + 1);
         log_debug("Homing nextPhase " << phaseName(_phase));
-        if (_phase == CycleDone) {
+        if (_phase == CycleDone || (_phase == Phase::Pulloff2 && !needsPulloff2(_cycleMotors))) {
             set_mpos();
             nextCycle();
         } else {
@@ -102,9 +105,11 @@ namespace Machine {
     }
 
     void Homing::runPhase() {
+        _phaseAxes   = _cycleAxes;
+        _phaseMotors = _cycleMotors;
         if (_phase == Phase::PrePulloff) {
             //            homingLimitMode();  // as opposed to hardLimitMode
-            if (!((Machine::Axes::posLimitMask | Machine::Axes::negLimitMask) & _remainingMotors)) {
+            if (!((Machine::Axes::posLimitMask | Machine::Axes::negLimitMask) & _phaseMotors)) {
                 // No pulloff needed
                 nextPhase();
                 return;
@@ -115,20 +120,26 @@ namespace Machine {
             return;
         }
 
+        // Reset the limits
+        Machine::Axes::posLimitMask = Machine::Axes::negLimitMask = 0;
+
+        if (approach()) {
+            Machine::LimitPin::reenableISRs();
+            // XXX check for limits still set
+        }
+
         float* target = get_mpos();
         float  rate;
 
-        _settling_ms = config->_kinematics->homingMove(_axisMask, _remainingMotors, _phase, target, rate);
+        _settling_ms = config->_kinematics->homingMove(_phaseAxes, _phaseMotors, _phase, target, rate);
         log_debug("planned move to " << target[0] << "," << target[1] << "," << target[2] << "@" << rate);
 
         startMove(target, rate);
-
-        if (approach()) {
-            // XXX            enableHomingLimits(_remainingMotors);
-        }
     }
 
-    void Homing::limitReached() {
+    void Homing::limitReached(void* limitPin) {
+        static_cast<LimitPin*>(limitPin)->read();
+
         log_debug("Homing limit reached");
 
         if (!approach()) {
@@ -141,9 +152,9 @@ namespace Machine {
         // means in terms of axes, motors, and whether to stop and replan
         MotorMask limited = Machine::Axes::posLimitMask | Machine::Axes::negLimitMask;
 
-        log_debug("Homing limited 0x" << String(int(limited), 16););
+        // log_debug("Homing limited 0x" << String(int(limited), 16););
 
-        bool stop = config->_kinematics->limitReached(_axisMask, _remainingMotors, limited);
+        bool stop = config->_kinematics->limitReached(_phaseAxes, _phaseMotors, limited);
 
         // stop tells us whether we have to halt the motion and replan a new move to
         // complete the homing cycle for this set of axes.
@@ -151,13 +162,13 @@ namespace Machine {
         if (stop) {
             Stepper::reset();  // Stop moving
 
-            if (_axisMask) {
-                log_debug("Homing replan with axes" << int(_axisMask));
+            if (_phaseAxes) {
+                log_debug("Homing replan with axes" << int(_phaseAxes));
                 // If there are any axes that have not yet hit their limits, replan with
                 // the remaining axes.
                 float* target = get_mpos();
                 float  rate;
-                _settling_ms = config->_kinematics->homingMove(_axisMask, _remainingMotors, _phase, target, rate);
+                _settling_ms = config->_kinematics->homingMove(_phaseAxes, _phaseMotors, _phase, target, rate);
                 startMove(target, rate);
             } else {
                 // If all axes have hit their limits, this phase is complete and
@@ -169,8 +180,24 @@ namespace Machine {
 
     void Homing::done() {
         log_debug("Homing done");
-        // XXX need to endLowLatency, etc
-        sys.state = State::Idle;
+
+        if (sys.abort) {
+            return;  // Did not complete. Alarm state set by mc_alarm.
+        }
+        // Homing cycle complete! Setup system for normal operation.
+        // -------------------------------------------------------------------------------------
+        // Sync gcode parser and planner positions to homed position.
+        gc_sync_position();
+        plan_sync_position();
+        // This give kinematics a chance to do something after normal homing
+        config->_kinematics->kinematics_post_homing();
+
+        config->_stepping->endLowLatency();
+
+        if (!sys.abort) {             // Execute startup scripts after successful homing.
+            sys.state = State::Idle;  // Set to IDLE when complete.
+            Stepper::go_idle();       // Set steppers to the settings idle state before returning.
+        }
     }
 
     void Homing::nextCycle() {
@@ -185,13 +212,13 @@ namespace Machine {
             done();
             return;
         }
-        _axisMask = _remainingCycles.front();
+        _cycleAxes = _remainingCycles.front();
         _remainingCycles.pop();
 
-        log_debug("Homing Cycle axes " << int(_axisMask));
+        log_debug("Homing Cycle axes " << int(_cycleAxes));
 
-        _axisMask &= Machine::Axes::homingMask;
-        _remainingMotors = config->_axes->set_homing_mode(_axisMask, true);
+        _cycleAxes &= Machine::Axes::homingMask;
+        _cycleMotors = config->_axes->set_homing_mode(_cycleAxes, true);
 
         _phase = Phase::PrePulloff;
         runPhase();
@@ -199,7 +226,7 @@ namespace Machine {
 
     void Homing::fail(ExecAlarm alarm) {
         rtAlarm = alarm;
-        config->_axes->set_homing_mode(_axisMask, false);  // tell motors homing is done...failed
+        config->_axes->set_homing_mode(_cycleAxes, false);  // tell motors homing is done...failed
     }
 
     bool Homing::needsPulloff2(MotorMask motors) {
@@ -249,12 +276,12 @@ namespace Machine {
 
         // Set machine positions for homed limit switches. Don't update non-homed axes.
         for (int axis = 0; axis < n_axis; axis++) {
-            if (bitnum_is_true(_axisMask, axis)) {
+            if (bitnum_is_true(_cycleAxes, axis)) {
                 set_motor_steps(axis, mpos_to_steps(axes->_axis[axis]->_homing->_mpos, axis));
             }
         }
-        sys.step_control = {};                    // Return step control to normal operation.
-        axes->set_homing_mode(_axisMask, false);  // tell motors homing is done
+        sys.step_control = {};                     // Return step control to normal operation.
+        axes->set_homing_mode(_cycleAxes, false);  // tell motors homing is done
     }
 
     static String axisNames(AxisMask axisMask) {
@@ -273,6 +300,12 @@ namespace Machine {
     // cycle.  The protocol loop will then respond to events and advance
     // the homing state machine through its phases.
     void Homing::run_cycles(AxisMask axisMask) {
+        if (config->_kinematics->kinematics_homing(axisMask)) {
+            // Allow kinematics to replace homing.
+            // TODO: Better integrate this logic.
+            return;
+        }
+
         if (!config->_kinematics->canHome(axisMask)) {
             log_error("This kinematic system cannot do homing");
             sys.state = State::Alarm;
@@ -304,6 +337,8 @@ namespace Machine {
             sys.state = State::Alarm;
             return;
         }
+        config->_stepping->beginLowLatency();
+
         sys.state = State::Homing;
         nextCycle();
     }

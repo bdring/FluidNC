@@ -7,7 +7,7 @@
 class Event {
 public:
     Event() {}
-    virtual void run(int arg) = 0;
+    virtual void run(void* arg) = 0;
 };
 
 class NoArgEvent : public Event {
@@ -15,7 +15,7 @@ class NoArgEvent : public Event {
 
 public:
     NoArgEvent(void (*function)()) : _function(function) {}
-    void run(int arg) override {
+    void run(void* arg) override {
         if (_function) {
             _function();
         }
@@ -23,11 +23,11 @@ public:
 };
 
 class ArgEvent : public Event {
-    void (*_function)(int) = nullptr;
+    void (*_function)(void*) = nullptr;
 
 public:
-    ArgEvent(void (*function)(int)) : _function(function) {}
-    void run(int arg) override {
+    ArgEvent(void (*function)(void*)) : _function(function) {}
+    void run(void* arg) override {
         if (_function) {
             _function(arg);
         }

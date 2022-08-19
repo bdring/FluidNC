@@ -21,7 +21,7 @@ public:
 
     void init();
     bool get() { return _pin.read(); }
-    void run(int arg) override {
+    void run(void* arg) override {
         // Since we do not trust the ISR to always trigger precisely,
         // we check the pin state before calling the event handler
         if (get()) {

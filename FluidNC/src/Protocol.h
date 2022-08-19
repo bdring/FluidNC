@@ -71,10 +71,10 @@ extern volatile ExecAlarm rtAlarm;  // Global realtime executor variable for set
 extern std::map<ExecAlarm, const char*> AlarmNames;
 
 #include "Event.h"
-namespace AccessoryOverride {
-    const int SpindleStop = 1;
-    const int FloodToggle = 2;
-    const int MistToggle  = 3;
+enum AccessoryOverride {
+    SpindleStopOvr = 1,
+    FloodToggle    = 2,
+    MistToggle     = 3,
 };
 
 extern ArgEvent feedOverrideEvent;
@@ -93,7 +93,7 @@ extern NoArgEvent sleepEvent;
 extern NoArgEvent resetEvent;
 extern NoArgEvent debugEvent;
 
-extern NoArgEvent limitEvent;
+extern ArgEvent limitEvent;
 
 // extern NoArgEvent statusReportEvent;
 
@@ -101,13 +101,17 @@ extern xQueueHandle event_queue;
 
 struct EventItem {
     Event* event;
-    int    arg;
+    void*  arg;
 };
 
-void protocol_send_event(Event*, int arg = 0);
+void protocol_send_event(Event*, void* arg = 0);
 void protocol_handle_events();
 
-inline void protocol_send_event_from_ISR(Event* evt, int arg = 0) {
+inline void protocol_send_event(Event* evt, int arg) {
+    protocol_send_event(evt, (void*)arg);
+}
+
+inline void protocol_send_event_from_ISR(Event* evt, void* arg = 0) {
     EventItem item { evt, arg };
     xQueueSendFromISR(event_queue, &item, NULL);
 }

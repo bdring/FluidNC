@@ -109,7 +109,7 @@ void execute_realtime_command(Cmd command, Channel& channel) {
             protocol_send_event(&debugEvent);
             break;
         case Cmd::SpindleOvrStop:
-            protocol_send_event(&accessoryOverrideEvent, AccessoryOverride::SpindleStop);
+            protocol_send_event(&accessoryOverrideEvent, AccessoryOverride::SpindleStopOvr);
             break;
         case Cmd::FeedOvrReset:
             protocol_send_event(&feedOverrideEvent, FeedOverride::Default);

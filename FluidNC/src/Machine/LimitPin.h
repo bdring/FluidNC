@@ -4,6 +4,7 @@
 #include "src/Event.h"
 
 #include <esp_attr.h>  // IRAM_ATTR
+#include <queue>
 
 namespace Machine {
     class LimitPin : public Event {
@@ -33,9 +34,9 @@ namespace Machine {
 
         CreateISRHandlerFor(LimitPin, handleISR);
 
-        void read();
-
         pinnum_t _gpio;
+
+        static std::queue<LimitPin*> _blockedLimits;
 
     public:
         LimitPin(Pin& pin, int axis, int motorNum, int direction, bool& phardLimits, bool& pLimited);
@@ -44,11 +45,17 @@ namespace Machine {
 
         String _legend;
 
+        bool read();
+
         void init();
         bool get() { return _value; }
-        void run(int) override;
+        void run(void*) override;
         void makeDualMask();  // makes this a mask for motor0 and motor1
         void setExtraMotorLimit(int axis, int motorNum);
+
+        static void reenableISRs();
+
+        void enableISR();
 
         ~LimitPin();
     };
