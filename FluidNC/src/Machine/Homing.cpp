@@ -173,6 +173,7 @@ namespace Machine {
             } else {
                 // If all axes have hit their limits, this phase is complete and
                 // we can start the next one
+                delay_ms(_settling_ms);  // Delay to allow transient dynamics to dissipate.
                 nextPhase();
             }
         }
@@ -226,6 +227,7 @@ namespace Machine {
     }
 
     void Homing::fail(ExecAlarm alarm) {
+        Stepper::reset();  // Stop moving
         Machine::LimitPin::reenableISRs();
         rtAlarm = alarm;
         config->_axes->set_homing_mode(_cycleAxes, false);  // tell motors homing is done...failed
