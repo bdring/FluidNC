@@ -86,7 +86,7 @@ namespace Extenders {
         portENTER_CRITICAL(&spinlock);
         bool u = isUpdating;
         if (!u) {
-            isUpdating = true;  // We're the victim.
+            isUpdating = true;  // We're the update victim.
         }
         portEXIT_CRITICAL(&spinlock);
 
@@ -95,7 +95,6 @@ namespace Extenders {
         }
 
         int     registersPerDevice = _ports / 8;
-        int     claimedValues      = 0;
         uint8_t commonStatus       = _operation;
 
         // If we set it to 0, we don't know if we can use the read data. 0x10 locks the status until we're done
@@ -116,8 +115,6 @@ namespace Extenders {
                 }
                 _interruptPinState = newIsrStatus;
             }
-
-            log_info("Updating... status = " << newStatus);
 
             if ((newStatus & 2) != 0) {
                 _status = 0;
@@ -280,7 +277,6 @@ namespace Extenders {
             updateState();
 
             if (_status == 0) {
-                // vTaskPrioritySet(_isrHandler, tskIDLE_PRIORITY + 1);
                 vTaskDelay(TaskDelayBetweenIterations);
             } else if ((_status & 2) != 0) {
                 return;  // stop running
@@ -292,10 +288,8 @@ namespace Extenders {
 
     void I2CExtender::notify() {
         if (!xPortInIsrContext()) {
-            // vTaskPrioritySet(_isrHandler, uxTaskPriorityGet(NULL));
             taskYIELD();
         }
-        // vTaskDelay(TaskDelayBetweenIterations); // taskYIELD?
     }
 
     void I2CExtender::claim(pinnum_t index) {
@@ -372,7 +366,7 @@ namespace Extenders {
                                 "i2cHandler",                           // name for task
                                 configMINIMAL_STACK_SIZE + 512 + 2048,  // size of task stack
                                 this,                                   // parameters
-                                1,                                      // priority
+                                1,                                      // priority. 24 is max, 0 is idle. 
                                 &_isrHandler,
                                 SUPPORT_TASK_CORE  // core
         );

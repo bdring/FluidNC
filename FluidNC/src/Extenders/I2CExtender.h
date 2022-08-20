@@ -132,6 +132,10 @@ namespace Extenders {
         volatile RegisterSet _input;
         volatile RegisterSet _output;
 
+        portMUX_TYPE spinlock      = portMUX_INITIALIZER_UNLOCKED;
+        bool         isUpdating    = false;
+        int          claimedValues = 0;
+
         // I2C communications within an ISR is not a good idea, it will crash everything. We offload
         // the communications using a task queue. Dirty tells which devices and registers to poll.
         // Every I2C roundtrip is always responsible for 8 bytes.
@@ -154,9 +158,7 @@ namespace Extenders {
         void IOError();
         void notify();
 
-        portMUX_TYPE spinlock = portMUX_INITIALIZER_UNLOCKED;
-        bool         updateState();
-        bool         isUpdating = false;
+        bool updateState();
 
     public:
         I2CExtender();
