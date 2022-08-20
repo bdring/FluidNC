@@ -102,7 +102,19 @@ namespace MotorDrivers {
         }
     }
 
-    bool TMC2209Driver::test() { return TrinamicBase::reportTest(tmc2209->test_connection()); }
+    bool TMC2209Driver::test() { 
+        uint16_t ifcnt_before = tmc2209->IFCNT();
+        tmc2209->GSTAT(0); // clear GSTAT to increase ifcnt
+        uint16_t ifcnt_after = tmc2209->IFCNT();
+        if(ifcnt_after != ifcnt_before) // Check if ifcnt has changed, if so we're communicating ok. ifcnt wraps so can't use a >
+        {
+            return TrinamicBase::reportCommsCheck(true);
+        }
+        else
+        {
+            return TrinamicBase::reportCommsCheck(false);
+        }   
+    }
 
     // Configuration registration
     namespace {
