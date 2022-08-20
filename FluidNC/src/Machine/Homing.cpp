@@ -190,8 +190,6 @@ namespace Machine {
         // Sync gcode parser and planner positions to homed position.
         gc_sync_position();
         plan_sync_position();
-        // This give kinematics a chance to do something after normal homing
-        config->_kinematics->kinematics_post_homing();
 
         Machine::LimitPin::reenableISRs();
         config->_stepping->endLowLatency();
@@ -304,12 +302,6 @@ namespace Machine {
     // cycle.  The protocol loop will then respond to events and advance
     // the homing state machine through its phases.
     void Homing::run_cycles(AxisMask axisMask) {
-        if (config->_kinematics->kinematics_homing(axisMask)) {
-            // Allow kinematics to replace homing.
-            // TODO: Better integrate this logic.
-            return;
-        }
-
         if (!config->_kinematics->canHome(axisMask)) {
             log_error("This kinematic system cannot do homing");
             sys.state = State::Alarm;

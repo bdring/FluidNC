@@ -8,16 +8,6 @@
 #include "Cartesian.h"
 
 namespace Kinematics {
-    bool Kinematics::kinematics_homing(AxisMask cycle_mask) {
-        Assert(_system != nullptr, "No kinematic system");
-        return _system->kinematics_homing(cycle_mask);
-    }
-
-    void Kinematics::kinematics_post_homing() {
-        Assert(_system != nullptr, "No kinematic system");
-        return _system->kinematics_post_homing();
-    }
-
     bool Kinematics::cartesian_to_motors(float* target, plan_line_data_t* pl_data, float* position) {
         Assert(_system != nullptr, "No kinematic system");
         return _system->cartesian_to_motors(target, pl_data, position);

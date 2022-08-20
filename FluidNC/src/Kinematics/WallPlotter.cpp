@@ -29,15 +29,6 @@ namespace Kinematics {
         last_z     = 0;
     }
 
-    bool WallPlotter::kinematics_homing(AxisMask cycle_mask) {
-        // Do nothing.
-        return false;
-    }
-
-    void WallPlotter::kinematics_post_homing() {
-        // Do nothing.
-    }
-
     /*
       cartesian_to_motors() converts from cartesian coordinates to motor space.
 

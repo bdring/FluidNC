@@ -114,15 +114,6 @@ namespace Kinematics {
         return axisConf->_homing->_settle_ms;
     }
 
-    bool CoreXY::kinematics_homing(AxisMask cycle_mask) {  // TODO cycle_mask s/b axisMask...this is not about cycles
-        // Do nothing.
-        return false;
-    }
-
-    void CoreXY::kinematics_post_homing() {
-        // Do nothing.
-    }
-
     /*
       cartesian_to_motors() converts from cartesian coordinates to motor space.
 
