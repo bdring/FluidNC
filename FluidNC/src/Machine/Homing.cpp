@@ -137,9 +137,7 @@ namespace Machine {
         startMove(target, rate);
     }
 
-    void Homing::limitReached(void* limitPin) {
-        static_cast<LimitPin*>(limitPin)->read();
-
+    void Homing::limitReached() {
         log_debug("Homing limit reached");
 
         if (!approach()) {

@@ -284,6 +284,10 @@ static Error disable_alarm_lock(const char* value, WebUI::AuthenticationLevel au
         }
         report_feedback_message(Message::AlarmUnlock);
         sys.state = State::Idle;
+
+        // Turn limit pin ISRs back on; they could be off due to hard limit triggering
+        Machine::LimitPin::reenableISRs();
+
         // Don't run startup script. Prevents stored moves in startup from causing accidents.
     }  // Otherwise, no effect.
     return Error::Ok;

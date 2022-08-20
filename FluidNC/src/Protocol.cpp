@@ -1016,8 +1016,6 @@ NoArgEvent motionCancelEvent { protocol_do_motion_cancel };
 NoArgEvent sleepEvent { protocol_do_sleep };
 NoArgEvent debugEvent { report_realtime_debug };
 
-ArgEvent limitEvent { Machine::Homing::limitReached };
-
 // Only mc_reset() is permitted to set rtReset.
 NoArgEvent resetEvent { mc_reset };
 

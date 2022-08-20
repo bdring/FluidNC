@@ -93,8 +93,6 @@ extern NoArgEvent sleepEvent;
 extern NoArgEvent resetEvent;
 extern NoArgEvent debugEvent;
 
-extern ArgEvent limitEvent;
-
 // extern NoArgEvent statusReportEvent;
 
 extern xQueueHandle event_queue;

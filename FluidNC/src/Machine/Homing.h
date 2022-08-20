@@ -75,7 +75,7 @@ namespace Machine {
 
         static bool needsPulloff2(MotorMask motors);
 
-        static void limitReached(void*);
+        static void limitReached();
 
     private:
         static uint32_t planMove(AxisMask axisMask, MotorMask motors, Phase phase, float* target, float& rate);

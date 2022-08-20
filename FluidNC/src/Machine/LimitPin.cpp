@@ -5,7 +5,7 @@
 #include "src/NutsBolts.h"      // set_bitnum etc
 #include "src/MotionControl.h"  // mc_reset
 #include "src/Limits.h"
-#include "src/Protocol.h"  // protocol_send_event_from_ISR(), limitEvent
+#include "src/Protocol.h"  // protocol_send_event_from_ISR()
 
 #include "soc/soc.h"
 #include "soc/gpio_periph.h"
@@ -82,8 +82,7 @@ namespace Machine {
         } else {
             gpio_ll_clear_intr_status_high(dev, BIT(gpio_num - 32));
         }
-        protocol_send_event_from_ISR(&limitEvent, this);
-        _blockedLimits.push(this);
+        protocol_send_event_from_ISR(this);
     }
 
     void LimitPin::reenableISRs() {
@@ -99,8 +98,17 @@ namespace Machine {
     void LimitPin::enableISR() { gpio_intr_enable(gpio_num_t(_gpio)); }
 
     void LimitPin::run(void* arg) {
-        read();
-        if (sys.state != State::Alarm && sys.state != State::ConfigAlarm && sys.state != State::Homing) {
+        bool active = read();
+        if (!active) {
+            enableISR();
+            return;
+        }
+        _blockedLimits.push(this);
+        if (sys.state == State::Homing) {
+            Machine::Homing::limitReached();
+            return;
+        }
+        if (sys.state != State::Alarm && sys.state != State::ConfigAlarm) {
             if (_pHardLimits && rtAlarm == ExecAlarm::None) {
                 log_debug("Hard limits");
                 mc_reset();                      // Initiate system kill.
