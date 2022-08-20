@@ -32,10 +32,22 @@ void ControlPin::init() {
     }
     _pin.setAttr(attr);
     _pin.attachInterrupt(ISRHandler, CHANGE, this);
+    _attached   = true;
     _rtVariable = false;
     _value      = _pin.read();
+    // Control pins must start in inactive state
+    if (_value) {
+        log_error(_legend << " pin is active at startup");
+        rtAlarm = ExecAlarm::ControlPin;
+    }
+}
+
+String ControlPin::report() {
+    return get() ? String(_letter) : String("");
 }
 
 ControlPin::~ControlPin() {
-    _pin.detachInterrupt();
+    if (_attached) {
+        _pin.detachInterrupt();
+    }
 }

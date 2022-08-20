@@ -26,3 +26,5 @@
     **Detail.cpp.o(.rodata .rodata.* .xt.prop .xt.prop.*)
     *PwmPin.cpp.o(.rodata .rodata.* .xt.prop .xt.prop.*)
     *Pin.cpp.o(.rodata .rodata.* .xt.prop .xt.prop.*)
+	*PinExtenderDriver.cpp.o(.rodata .rodata.* .xt.prop .xt.prop.*)
+	*Extender.cpp.o(.rodata .rodata.* .xt.prop .xt.prop.*)

@@ -7,13 +7,13 @@ class ControlPin {
 private:
     bool           _value;
     volatile bool& _rtVariable;  // The variable that is set when the pin is asserted
+    bool           _attached    = false;
     int32_t        _debounceEnd = 0;
-
-    void IRAM_ATTR handleISR();
-    CreateISRHandlerFor(ControlPin, handleISR);
 
     // Interval during which we ignore repeated control pin activations
     const int debounceUs = 10000;  // 10000 us = 10 ms
+    void IRAM_ATTR handleISR();
+    CreateISRHandlerFor(ControlPin, handleISR);
 
 public:
     const char* _legend;  // The name that appears in init() messages and the name of the configuration item
@@ -28,6 +28,8 @@ public:
 
     void init();
     bool get() { return _value; }
+
+    String report();
 
     ~ControlPin();
 };

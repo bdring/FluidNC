@@ -11,6 +11,7 @@
 #include "../CoolantControl.h"
 #include "../Kinematics/Kinematics.h"
 #include "../WebUI/BTConfig.h"
+#include "../Extenders/Extenders.h"
 #include "../Control.h"
 #include "../Probe.h"
 #include "../SDCard.h"
@@ -21,6 +22,7 @@
 #include "../Config.h"
 #include "Axes.h"
 #include "SPIBus.h"
+#include "I2CBus.h"
 #include "I2SOBus.h"
 #include "UserOutputs.h"
 #include "Macros.h"
@@ -58,6 +60,7 @@ namespace Machine {
         Axes*                 _axes        = nullptr;
         Kinematics*           _kinematics  = nullptr;
         SPIBus*               _spi         = nullptr;
+        I2CBus*               _i2c         = nullptr;
         I2SOBus*              _i2so        = nullptr;
         Stepping*             _stepping    = nullptr;
         CoolantControl*       _coolant     = nullptr;
@@ -68,6 +71,7 @@ namespace Machine {
         Macros*               _macros      = nullptr;
         Start*                _start       = nullptr;
         Spindles::SpindleList _spindles;
+        Extenders::Extenders* _extenders = nullptr;
 
         float _arcTolerance      = 0.002f;
         float _junctionDeviation = 0.01f;

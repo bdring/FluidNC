@@ -45,6 +45,7 @@ namespace Machine {
 
     void IRAM_ATTR LimitPin::handleISR() {
         read();
+
         if (sys.state != State::Alarm && sys.state != State::ConfigAlarm && sys.state != State::Homing) {
             if (_pHardLimits && rtAlarm == ExecAlarm::None) {
 #if 0
@@ -57,7 +58,7 @@ namespace Machine {
                 }
 #endif
 
-                // log_debug("Hard limits");  // This might not work from ISR context
+                // log_debug("Hard limits");        // This might not work from ISR context
                 mc_reset();                      // Initiate system kill.
                 rtAlarm = ExecAlarm::HardLimit;  // Indicate hard limit critical event
             }
@@ -91,6 +92,7 @@ namespace Machine {
         if (_pin.undefined()) {
             return;
         }
+
         set_bitnum(Axes::limitMask, _axis);
         _pin.report(_legend.c_str());
         auto attr = Pin::Attr::Input | Pin::Attr::ISR;
@@ -99,6 +101,7 @@ namespace Machine {
         }
         _pin.setAttr(attr);
         _pin.attachInterrupt(ISRHandler, CHANGE, this);
+        _attached = true;
 
         read();
     }
@@ -110,5 +113,9 @@ namespace Machine {
 
     void LimitPin::setExtraMotorLimit(int axis, int motorNum) { _pExtraLimited = &config->_axes->_axis[axis]->_motors[motorNum]->_limited; }
 
-    LimitPin::~LimitPin() { _pin.detachInterrupt(); }
+    LimitPin::~LimitPin() {
+        if (_attached) {
+            _pin.detachInterrupt();
+        }
+    }
 }
