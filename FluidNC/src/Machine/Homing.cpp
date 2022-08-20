@@ -192,6 +192,7 @@ namespace Machine {
         // This give kinematics a chance to do something after normal homing
         config->_kinematics->kinematics_post_homing();
 
+        Machine::LimitPin::reenableISRs();
         config->_stepping->endLowLatency();
 
         if (!sys.abort) {             // Execute startup scripts after successful homing.
@@ -225,6 +226,7 @@ namespace Machine {
     }
 
     void Homing::fail(ExecAlarm alarm) {
+        Machine::LimitPin::reenableISRs();
         rtAlarm = alarm;
         config->_axes->set_homing_mode(_cycleAxes, false);  // tell motors homing is done...failed
     }
