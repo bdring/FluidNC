@@ -107,32 +107,29 @@ namespace Machine {
     void Homing::runPhase() {
         _phaseAxes   = _cycleAxes;
         _phaseMotors = _cycleMotors;
+
         if (_phase == Phase::PrePulloff) {
-            //            homingLimitMode();  // as opposed to hardLimitMode
             if (!((Machine::Axes::posLimitMask | Machine::Axes::negLimitMask) & _phaseMotors)) {
-                // No pulloff needed
+                // No initial pulloff needed
                 nextPhase();
                 return;
             }
-            // Pulloff to clear switches
-            // XXX Implement me. Maybe it is just like any other phase, with homingMove()
-            // doing the right thing.
-            return;
         }
-
-        // Reset the limits
-        Machine::Axes::posLimitMask = Machine::Axes::negLimitMask = 0;
 
         if (approach()) {
             Machine::LimitPin::reenableISRs();
-            // XXX check for limits still set
         }
 
         float* target = get_mpos();
         float  rate;
 
         _settling_ms = config->_kinematics->homingMove(_phaseAxes, _phaseMotors, _phase, target, rate);
+
         log_debug("planned move to " << target[0] << "," << target[1] << "," << target[2] << "@" << rate);
+
+        // Reset the limits so the motors will move
+        clear_bits(Machine::Axes::posLimitMask, _cycleMotors);
+        clear_bits(Machine::Axes::negLimitMask, _cycleMotors);
 
         startMove(target, rate);
     }

@@ -100,18 +100,46 @@ namespace Kinematics {
                     break;
             }
 
+            // Set target direction based on various factors
+            switch (phase) {
+                case Machine::Homing::Phase::PrePulloff: {
+                    // For PrePulloff, the motion depends on which switches are active.
+                    MotorMask axisMotors = Machine::Axes::axes_to_motors(1 << axis);
+                    bool      posLimited = bits_are_true(Machine::Axes::posLimitMask, axisMotors);
+                    bool      negLimited = bits_are_true(Machine::Axes::negLimitMask, axisMotors);
+                    if (posLimited && negLimited) {
+                        log_error("Both positive and negative limit switches are active for axis " << axes->axisName(axis));
+                        // xxx need to abort somehow
+                        return 0;
+                    }
+                    if (posLimited) {
+                        target[axis] = -travel;
+                    } else if (negLimited) {
+                        target[axis] = travel;
+                    } else {
+                        target[axis] = 0;
+                    }
+                } break;
+
+                case Machine::Homing::Phase::FastApproach:
+                case Machine::Homing::Phase::SlowApproach:
+                    target[axis] = homing->_positiveDirection ? travel : -travel;
+                    break;
+
+                case Machine::Homing::Phase::Pulloff0:
+                case Machine::Homing::Phase::Pulloff1:
+                case Machine::Homing::Phase::Pulloff2:
+                    target[axis] = homing->_positiveDirection ? -travel : travel;
+                    break;
+            }
+
             // Accumulate the squares of the homing rates for later use
             // in computing the aggregate feed rate.
             ratesq += (axis_rate * axis_rate);
 
-            // First we compute the maximum-time-to-completion vector; later we will
-            // convert it back to positions after we determine the limiting axis.
-            // Set target direction based on cycle mask and homing cycle approach state.
+            rates[axis] = axis_rate;
+
             auto seekTime = travel / axis_rate;
-
-            target[axis] = (homing->_positiveDirection ^ approach) ? -travel : travel;
-            rates[axis]  = axis_rate;
-
             if (seekTime > maxSeekTime) {
                 maxSeekTime  = seekTime;
                 limitingRate = axis_rate;
