@@ -228,8 +228,8 @@ void protocol_buffer_synchronize() {
 // is finished, single commands), a command that needs to wait for the motions in the buffer to
 // execute calls a buffer sync, or the planner buffer is full and ready to go.
 void protocol_auto_cycle_start() {
-    if (plan_get_current_block() != NULL) {     // Check if there are any blocks in the buffer.
-        protocol_send_event(&cycleStartEvent);  // If so, execute them
+    if (plan_get_current_block() != NULL && sys.state != State::Cycle) {  // Check if there are any blocks in the buffer.
+        protocol_send_event(&cycleStartEvent);                            // If so, execute them
     }
 }
 
