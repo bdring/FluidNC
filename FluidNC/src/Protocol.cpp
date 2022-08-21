@@ -503,14 +503,17 @@ static void protocol_do_cycle_start() {
     switch (sys.state) {
         case State::SafetyDoor:
             if (!sys.suspend.bit.safetyDoorAjar) {
+                // If the safety door is still open, do not restart yet
                 if (sys.suspend.bit.restoreComplete) {
-                    sys.state = State::Idle;  // Set to IDLE to immediately resume the cycle.
+                    // Restore is complete.  Set the state to IDLE and resume normal motion
+                    sys.state = State::Idle;
+                    protocol_do_initiate_cycle();
                 } else if (sys.suspend.bit.retractComplete) {
-                    // Flag to re-energize powered components and restore original position, if disabled by SAFETY_DOOR.
-                    // NOTE: For a safety door to resume, the switch must be closed, as indicated by HOLD state, and
-                    // the retraction execution is complete, which implies the initial feed hold is not active. To
-                    // restore normal operation, the restore procedures must be initiated by the following flag. Once,
-                    // they are complete, it will call CYCLE_START automatically to resume and exit the suspend.
+                    // retractComplete means that all of the retraction operations that were
+                    // initiated by the safety door opening, such as spindle stop and parking,
+                    // are done.  Thus we can respond to this cycle start by "restoring",
+                    // i.e. undoing those retraction operations.  Afterwards, restoreComplete
+                    // will be set and another cycle start event will be issued automatically.
                     sys.suspend.bit.initiateRestore = true;
                 }
             }
