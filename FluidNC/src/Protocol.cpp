@@ -67,13 +67,23 @@ static SpindleStop spindle_stop_ovr;
 
 bool can_park() {
     if (spindle->isRateAdjusted()) {
+        // No parking in Laser mode
         return false;
     }
-    if (config->_enableParkingOverrideControl) {
-        return sys.override_ctrl == Override::ParkingMotion && Machine::Axes::homingMask;
-    } else {
-        return Machine::Axes::homingMask;
+    if (!Machine::Axes::homingMask) {
+        // No parking without homing
+        return false;
     }
+    if (!config->_enableParkingOverrideControl) {
+        // _enableParkingOverrideControl adds M56 whereby you can
+        // disable parking via GCode.  If that feature is not present,
+        // parking is enabled subject to the preceding tests.
+        return true;
+    }
+    // If the M56 feature is present, M56 controls the value
+    // of sys.override_ctrl, thus letting you disable parking
+    // by saying M56 P0
+    return sys.override_ctrl == Override::ParkingMotion;
 }
 
 void protocol_reset() {
@@ -542,7 +552,6 @@ static void protocol_do_cycle_start() {
         case State::Jog:
             break;
     }
-    //    log_debug("protocol_do_cycle_start final state " << int(sys.state));
 }
 
 void protocol_disable_steppers() {
