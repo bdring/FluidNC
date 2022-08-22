@@ -60,7 +60,7 @@ namespace MotorDrivers {
         bool         set_homing_mode(bool isHoming);
         virtual void set_registers(bool isHoming) {}
         bool         reportTest(uint8_t result);
-        bool         reportCommsCheck(bool result);
+        void         TrinamicBase::reportCommsFailure(void);
         bool         startDisable(bool disable);
         virtual void config_motor();
 

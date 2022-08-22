@@ -64,18 +64,16 @@ namespace MotorDrivers {
         }
     }
 
-    bool TMC2208Driver::test() { 
-        uint16_t ifcnt_before = tmc2208->IFCNT();
-        tmc2208->GSTAT(0); // clear GSTAT to increase ifcnt
-        uint16_t ifcnt_after = tmc2208->IFCNT();
-        if(ifcnt_after != ifcnt_before) // Check if ifcnt has changed, if so we're communicating ok. ifcnt wraps so can't use a >
-        {
-            return TrinamicBase::reportCommsCheck(true);
+    bool TMC2208Driver::test() {
+        uint8_t ifcnt_before = tmc2208->IFCNT();
+        tmc2208->GSTAT(0);  // clear GSTAT to increase ifcnt
+        uint8_t ifcnt_after = tmc2208->IFCNT();
+        bool    okay        = ((ifcnt_before + 1) & 0xff) == ifcnt_after;
+        if (!okay) {
+            TrinamicBase::reportCommsFailure();
+            return false;
         }
-        else
-        {
-            return TrinamicBase::reportCommsCheck(false);
-        }   
+        return true;
     }
 
     // Configuration registration

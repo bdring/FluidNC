@@ -120,17 +120,8 @@ namespace MotorDrivers {
         }
     }
 
-    bool TrinamicBase::reportCommsCheck(bool result) {
-        if(result)
-        {
-            log_info(axisName() << " communications check passed");
-            return true;
-        }
-        else
-        {
-            log_info(axisName() << " communications check failed");
-            return false;
-        }
+    void TrinamicBase::reportCommsFailure(void) {
+        log_info(axisName() << " communications check failed");
     }
 
     bool TrinamicBase::startDisable(bool disable) {

@@ -48,11 +48,11 @@ namespace MotorDrivers {
         // The TMCStepper library uses the value 0 to mean 1x microstepping
         int usteps = _microsteps == 1 ? 0 : _microsteps;
         tmc2209->microsteps(usteps);
-        tmc2209->pdn_disable(true); // powerdown pin is disabled. uses ihold.
+        tmc2209->pdn_disable(true);  // powerdown pin is disabled. uses ihold.
 
         switch (_mode) {
             case TrinamicMode ::StealthChop:
-                log_debug(axisName() <<  " StealthChop");
+                log_debug(axisName() << " StealthChop");
                 tmc2209->en_spreadCycle(false);
                 tmc2209->pwm_autoscale(true);
                 break;
@@ -65,7 +65,7 @@ namespace MotorDrivers {
             {
                 auto axisConfig     = config->_axes->_axis[this->axis_index()];
                 auto homingFeedRate = (axisConfig->_homing != nullptr) ? axisConfig->_homing->_feedRate : 200;
-                log_debug(axisName() <<  " Stallguard");
+                log_debug(axisName() << " Stallguard");
                 tmc2209->en_spreadCycle(false);
                 tmc2209->pwm_autoscale(false);
                 tmc2209->TCOOLTHRS(calc_tstep(homingFeedRate, 150.0));
@@ -89,8 +89,7 @@ namespace MotorDrivers {
 
         // TMC2208 does not have StallGuard
         if (tmc2209) {
-            log_info(axisName() << " SG_Val: " << tmc2209->SG_RESULT() << "   Rate: " << feedrate
-                                << " mm/min SG_Setting:" << _stallguard);
+            log_info(axisName() << " SG_Val: " << tmc2209->SG_RESULT() << "   Rate: " << feedrate << " mm/min SG_Setting:" << _stallguard);
         }
     }
 
@@ -102,18 +101,16 @@ namespace MotorDrivers {
         }
     }
 
-    bool TMC2209Driver::test() { 
-        uint16_t ifcnt_before = tmc2209->IFCNT();
-        tmc2209->GSTAT(0); // clear GSTAT to increase ifcnt
-        uint16_t ifcnt_after = tmc2209->IFCNT();
-        if(ifcnt_after != ifcnt_before) // Check if ifcnt has changed, if so we're communicating ok. ifcnt wraps so can't use a >
-        {
-            return TrinamicBase::reportCommsCheck(true);
+    bool TMC2209Driver::test() {
+        uint8_t ifcnt_before = tmc2209->IFCNT();
+        tmc2209->GSTAT(0);  // clear GSTAT to increase ifcnt
+        uint8_t ifcnt_after = tmc2209->IFCNT();
+        bool    okay        = ((ifcnt_before + 1) & 0xff) == ifcnt_after;
+        if (!okay) {
+            TrinamicBase::reportCommsFailure();
+            return false;
         }
-        else
-        {
-            return TrinamicBase::reportCommsCheck(false);
-        }   
+        return true;
     }
 
     // Configuration registration

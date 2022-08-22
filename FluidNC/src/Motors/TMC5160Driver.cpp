@@ -29,18 +29,16 @@ namespace MotorDrivers {
         TrinamicBase::config_motor();
     }
 
-    bool TMC5160Driver::test() { 
-        uint16_t ifcnt_before = tmc5160->IFCNT();
-        tmc5160->GSTAT(0); // clear GSTAT to increase ifcnt
-        uint16_t ifcnt_after = tmc5160->IFCNT();
-        if(ifcnt_after != ifcnt_before) // Check if ifcnt has changed, if so we're communicating ok. ifcnt wraps so can't use a >
-        {
-            return TrinamicBase::reportCommsCheck(true);
+    bool TMC5160Driver::test() {
+        uint8_t ifcnt_before = tmc5160->IFCNT();
+        tmc5160->GSTAT(0);  // clear GSTAT to increase ifcnt
+        uint8_t ifcnt_after = tmc5160->IFCNT();
+        bool    okay        = ((ifcnt_before + 1) & 0xff) == ifcnt_after;
+        if (!okay) {
+            TrinamicBase::reportCommsFailure();
+            return false;
         }
-        else
-        {
-            return TrinamicBase::reportCommsCheck(false);
-        }   
+        return true;
     }
 
     void TMC5160Driver::set_registers(bool isHoming) {
