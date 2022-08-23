@@ -12,10 +12,17 @@
 #include "hal/gpio_hal.h"
 
 namespace Machine {
-    std::queue<LimitPin*> LimitPin::_blockedLimits;
+    TimerHandle_t LimitPin::_limitTimer = 0;
+    void          LimitPin::limitTimerCallback(void*) { checkLimits(); }
+
+    std::list<LimitPin*> LimitPin::_blockedLimits;
 
     LimitPin::LimitPin(Pin& pin, int axis, int motor, int direction, bool& pHardLimits, bool& pLimited) :
         _axis(axis), _motorNum(motor), _value(false), _pHardLimits(pHardLimits), _pLimited(pLimited), _pin(pin) {
+        if (_limitTimer == 0) {
+            _limitTimer = xTimerCreate("limitTimer", pdMS_TO_TICKS(500), false, NULL, limitTimerCallback);
+        }
+
         String sDir;
         // Select one or two bitmask variables to receive the switch data
         switch (direction) {
@@ -85,14 +92,34 @@ namespace Machine {
         protocol_send_event_from_ISR(this);
     }
 
-    void LimitPin::reenableISRs() {
+    bool LimitPin::limitInactive(LimitPin* pin) {
+        auto value = pin->read();
+        if (value) {
+            log_debug("limit for axis " << pin->_axis << " motor " << pin->_motorNum << " is still active");
+            if (sys.state != State::Homing) {
+                xTimerStart(_limitTimer, 0);
+            }
+        } else {
+            log_debug("Reenabling limit for axis " << pin->_axis << " motor " << pin->_motorNum);
+            pin->enableISR();
+        }
+        return !value;
+    }
+
+    void LimitPin::checkLimits() {
+#if 1
+        _blockedLimits.remove_if(limitInactive);
+
+#else
         while (!_blockedLimits.empty()) {
             auto pin = _blockedLimits.front();
             _blockedLimits.pop();
             auto value = pin->read();  // To reestablish the limit bitmasks
+            if (value) {}
             log_debug("Reenabling limit for axis " << pin->_axis << " motor " << pin->_motorNum << " value " << value);
             pin->enableISR();
         }
+#endif
     }
 
     void LimitPin::enableISR() { gpio_intr_enable(gpio_num_t(_gpio)); }
@@ -103,18 +130,21 @@ namespace Machine {
             enableISR();
             return;
         }
-        _blockedLimits.push(this);
+        _blockedLimits.emplace_back(this);
         if (sys.state == State::Homing) {
             Machine::Homing::limitReached();
             return;
         }
-        if (sys.state != State::Alarm && sys.state != State::ConfigAlarm) {
+        if (sys.state == State::Cycle) {
             if (_pHardLimits && rtAlarm == ExecAlarm::None) {
                 log_debug("Hard limits");
                 mc_reset();                      // Initiate system kill.
                 rtAlarm = ExecAlarm::HardLimit;  // Indicate hard limit critical event
             }
+            return;
         }
+        log_debug("Limit switch tripped for axis " << _axis << " motor " << _motorNum);
+        xTimerStart(_limitTimer, 0);
     }
 
     void LimitPin::init() {

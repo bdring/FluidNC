@@ -68,6 +68,8 @@ namespace Machine {
         protocol_send_event(&cycleStartEvent);
     }
 
+    static MotorMask limited() { return Machine::Axes::posLimitMask | Machine::Axes::negLimitMask; }
+
     void Homing::cycleStop() {
         log_debug("Homing cycleStop");
         if (approach()) {
@@ -76,9 +78,11 @@ namespace Machine {
             fail(ExecAlarm::HomingFailApproach);
             return;
         }
+        Machine::LimitPin::checkLimits();
+
         // Cycle stop in pulloff is success unless
         // the limit switches are still active.
-        if ((Machine::Axes::posLimitMask | Machine::Axes::negLimitMask) & _phaseMotors) {
+        if (limited() & _phaseMotors) {
             // Homing failure: Limit switch still engaged after pull-off motion
             fail(ExecAlarm::HomingFailPulloff);
             return;
@@ -109,7 +113,8 @@ namespace Machine {
         _phaseMotors = _cycleMotors;
 
         if (_phase == Phase::PrePulloff) {
-            if (!((Machine::Axes::posLimitMask | Machine::Axes::negLimitMask) & _phaseMotors)) {
+            Machine::LimitPin::checkLimits();
+            if (!(limited() & _phaseMotors)) {
                 // No initial pulloff needed
                 nextPhase();
                 return;
@@ -117,7 +122,7 @@ namespace Machine {
         }
 
         if (approach()) {
-            Machine::LimitPin::reenableISRs();
+            Machine::LimitPin::checkLimits();
         }
 
         float* target = get_mpos();
@@ -186,7 +191,7 @@ namespace Machine {
         gc_sync_position();
         plan_sync_position();
 
-        Machine::LimitPin::reenableISRs();
+        Machine::LimitPin::checkLimits();
         config->_stepping->endLowLatency();
 
         if (!sys.abort) {             // Execute startup scripts after successful homing.
@@ -221,7 +226,7 @@ namespace Machine {
 
     void Homing::fail(ExecAlarm alarm) {
         Stepper::reset();  // Stop moving
-        Machine::LimitPin::reenableISRs();
+        Machine::LimitPin::checkLimits();
         rtAlarm = alarm;
         config->_axes->set_homing_mode(_cycleAxes, false);  // tell motors homing is done...failed
     }

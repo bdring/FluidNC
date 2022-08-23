@@ -3,15 +3,13 @@
 #include "src/Pin.h"
 #include "src/Event.h"
 
-#include <esp_attr.h>  // IRAM_ATTR
-#include <queue>
+#include <esp_attr.h>         // IRAM_ATTR
+#include "FreeRTOS/timers.h"  // TimerHandle_t
+#include <list>
 
 namespace Machine {
     class LimitPin : public Event {
     private:
-        int _axis;
-        int _motorNum;
-
         bool     _value   = 0;
         uint32_t _bitmask = 0;
 
@@ -36,7 +34,11 @@ namespace Machine {
 
         pinnum_t _gpio;
 
-        static std::queue<LimitPin*> _blockedLimits;
+        static std::list<LimitPin*> _blockedLimits;
+
+        static void          limitTimerCallback(void*);
+        static TimerHandle_t _limitTimer;
+        static bool          limitInactive(LimitPin* pin);
 
     public:
         LimitPin(Pin& pin, int axis, int motorNum, int direction, bool& phardLimits, bool& pLimited);
@@ -53,9 +55,12 @@ namespace Machine {
         void makeDualMask();  // makes this a mask for motor0 and motor1
         void setExtraMotorLimit(int axis, int motorNum);
 
-        static void reenableISRs();
+        static void checkLimits();
 
         void enableISR();
+
+        int _axis;
+        int _motorNum;
 
         ~LimitPin();
     };
