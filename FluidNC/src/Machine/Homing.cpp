@@ -132,10 +132,6 @@ namespace Machine {
 
         log_debug("planned move to " << target[0] << "," << target[1] << "," << target[2] << "@" << rate);
 
-        // Reset the limits so the motors will move
-        clear_bits(Machine::Axes::posLimitMask, _cycleMotors);
-        clear_bits(Machine::Axes::negLimitMask, _cycleMotors);
-
         startMove(target, rate);
     }
 

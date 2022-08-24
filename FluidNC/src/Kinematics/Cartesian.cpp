@@ -63,7 +63,6 @@ namespace Kinematics {
             // Record active axes for the next phase
             set_bitnum(axesMask, axis);
 
-            // Set target location for active axes and setup computation for homing rate.
             set_motor_steps(axis, 0);
 
             auto axisConfig = axes->_axis[axis];
@@ -150,14 +149,22 @@ namespace Kinematics {
         // but no fudge factor when pulling off.
         for (int axis = 0; axis < n_axis; axis++) {
             if (bitnum_is_true(axesMask, axis)) {
-                auto homing = axes->_axis[axis]->_homing;
+                auto paxis  = axes->_axis[axis];
+                auto homing = paxis->_homing;
                 auto scaler = approach ? (seeking ? homing->_seek_scaler : homing->_feed_scaler) : 1.0;
                 target[axis] *= scaler;
                 if (phase == Machine::Homing::Phase::FastApproach) {
                     // For fast approach the vector direction is determined by the rates
                     target[axis] *= rates[axis] / limitingRate;
                 }
+
                 // log_debug(axes->axisName(axis) << " target " << target[axis] << " rate " << rates[axis]);
+
+                // Turn off axis limits in case they were set by a limit switch
+                paxis->_motors[0]->unlimit();
+                if (paxis->_motors[1]) {
+                    paxis->_motors[1]->unlimit();
+                }
             }
         }
 
