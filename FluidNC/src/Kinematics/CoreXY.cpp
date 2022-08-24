@@ -57,61 +57,105 @@ namespace Kinematics {
         // clear the associated axis bit and stop motion.  The homing code will then replan
         // a new move along the remaining axes.
         // XXX this will not work if there dual motors on the Z axis.
-        bool stop = bitnum_is_true(axisMask, limited);
+        bool stop = bits_are_true(axisMask, limited);
         clear_bits(axisMask, limited);
         return stop;
     }
 
     // plan a homing move in motor space for the homing sequence
-    uint32_t CoreXY::homingMove(AxisMask axisMask, float* target, float& rate, bool seeking) {
-        rate = 0;
+    uint32_t CoreXY::homingMove(AxisMask axisMask, MotorMask motors, Machine::Homing::Phase phase, float* target, float& rate) {
+        auto axes   = config->_axes;
+        auto n_axis = axes->_numberAxis;
 
-        float   dist = 0;
-        uint8_t axis = X_AXIS;
+        uint32_t settle = 0;
+        float    ratesq = 0;
 
-        if (bitnum_is_true(axisMask, Y_AXIS)) {
-            axis = Y_AXIS;
-        }
+        float cartesian_target[n_axis] = { 0 };
 
-        auto axisConf = config->_axes->_axis[axis];
-
-        if (seeking) {
-            dist = axisConf->_maxTravel * axisConf->_homing->_seek_scaler;
-            rate = axisConf->_homing->_seekRate;
-        } else {
-            dist = axisConf->_motors[0]->_pulloff;
-            rate = axisConf->_homing->_feedRate;
-            if (Machine::Homing::approach()) {
-                dist *= -1.000;                           // backoff
-            } else {                                      // approach
-                dist *= axisConf->_homing->_feed_scaler;  // times scaler to make sure we hit
-            }
-        }
-
-        if (!axisConf->_homing->_positiveDirection) {
-            dist *= -1.000;
-        }
-
-        auto n_axis = config->_axes->_numberAxis;
-
-        float move_to[n_axis] = { 0 };
-        // zero all X&Y posiitons before each cycle
-        // leave other axes unchanged
         for (int axis = X_AXIS; axis <= config->_axes->_numberAxis; axis++) {
-            if (axis < Z_AXIS) {
-                set_motor_steps(axis, 0);
-                target[axis] = 0.0;
-            } else {
-                move_to[axis] = target[axis];
+            if (bitnum_is_false(axisMask, axis)) {
+                continue;
             }
+
+            set_motor_steps(axis, 0);
+
+            auto axisConfig = axes->_axis[axis];
+            auto homing     = axisConfig->_homing;
+
+            settle = std::max(settle, homing->_settle_ms);
+
+            float axis_rate;
+            float travel;
+            switch (phase) {
+                case Machine::Homing::Phase::FastApproach:
+                    axis_rate = homing->_seekRate;
+                    travel    = axisConfig->_maxTravel * homing->_seek_scaler;
+                    break;
+                case Machine::Homing::Phase::SlowApproach:
+                    axis_rate = homing->_feedRate;
+                    travel    = axisConfig->_motors[0]->_pulloff * homing->_feed_scaler;
+                    break;
+                case Machine::Homing::Phase::PrePulloff:
+                case Machine::Homing::Phase::Pulloff0:
+                case Machine::Homing::Phase::Pulloff1:
+                    axis_rate = homing->_feedRate;
+                    travel    = -axisConfig->_motors[0]->_pulloff;
+                    break;
+                case Machine::Homing::Phase::Pulloff2:
+                    log_error("Pulloff2 phase in CoreXY homing");
+                    break;
+            }
+            // Set target direction based on various factors
+            switch (phase) {
+                case Machine::Homing::Phase::PrePulloff: {
+#if 0
+                    // For PrePulloff, the motion depends on which switches are active.
+                    MotorMask axisMotors = Machine::Axes::axes_to_motors(1 << axis);
+                    bool      posLimited = bits_are_true(Machine::Axes::posLimitMask, axisMotors);
+                    bool      negLimited = bits_are_true(Machine::Axes::negLimitMask, axisMotors);
+                    if (posLimited && negLimited) {
+                        log_error("Both positive and negative limit switches are active for axis " << axes->axisName(axis));
+                        // xxx need to abort somehow
+                        return 0;
+                    }
+                    if (posLimited) {
+                        target[axis] = -travel;
+                    } else if (negLimited) {
+                        target[axis] = travel;
+                    } else {
+                        target[axis] = 0;
+                    }
+#else
+// XXX implement me
+#endif
+                } break;
+
+                case Machine::Homing::Phase::FastApproach:
+                case Machine::Homing::Phase::SlowApproach:
+                    target[axis] = homing->_positiveDirection ? travel : -travel;
+                    break;
+
+                case Machine::Homing::Phase::Pulloff0:
+                case Machine::Homing::Phase::Pulloff1:
+                case Machine::Homing::Phase::Pulloff2:
+                    target[axis] = homing->_positiveDirection ? -travel : travel;
+                    break;
+            }
+
+            ratesq += (axis_rate * axis_rate);
+
+            cartesian_target[axis] = travel;
         }
 
-        //TODO Need to adjust the rate for CoreXY 1.414
+        rate = sqrtf(ratesq);
+        //TODO Need to adjust the rate.  Maybe transform_cartesian_to_motors should do it
 
-        (axis == X_AXIS) ? move_to[X_AXIS] = dist : move_to[Y_AXIS] = dist;
+        transform_cartesian_to_motors(target, cartesian_target);
 
-        transform_cartesian_to_motors(target, move_to);
-        return axisConf->_homing->_settle_ms;
+        log_debug("CoreXY axes " << cartesian_target[0] << "," << cartesian_target[1] << "," << cartesian_target[2] << " motors "
+                                 << target[0] << "," << target[1] << "," << target[2]);
+
+        return settle;
     }
 
     /*

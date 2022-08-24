@@ -80,7 +80,7 @@ namespace Machine {
     }
 
     void IRAM_ATTR LimitPin::handleISR() {
-        // This is the body of gpio_hal_intr_disable() which is in not IRAM_ATTR
+        // This is the body of gpio_hal_intr_disable() which is not IRAM_ATTR
         gpio_num_t  gpio_num = gpio_num_t(_gpio);
         gpio_dev_t* dev      = GPIO_LL_GET_HW(GPIO_PORT_0);
         gpio_ll_intr_disable(dev, gpio_num);
@@ -95,12 +95,12 @@ namespace Machine {
     bool LimitPin::limitInactive(LimitPin* pin) {
         auto value = pin->read();
         if (value) {
-            log_debug("limit for axis " << pin->_axis << " motor " << pin->_motorNum << " is still active");
+            log_debug("limit for " << config->_axes->axisName(pin->_axis) << " motor " << pin->_motorNum << " is still active");
             if (sys.state != State::Homing) {
                 xTimerStart(_limitTimer, 0);
             }
         } else {
-            log_debug("Reenabling limit for axis " << pin->_axis << " motor " << pin->_motorNum);
+            log_debug("Reenabling limit for " << config->_axes->axisName(pin->_axis) << " motor " << pin->_motorNum);
             pin->enableISR();
         }
         return !value;
@@ -116,7 +116,7 @@ namespace Machine {
             _blockedLimits.pop();
             auto value = pin->read();  // To reestablish the limit bitmasks
             if (value) {}
-            log_debug("Reenabling limit for axis " << pin->_axis << " motor " << pin->_motorNum << " value " << value);
+            log_debug("Reenabling limit for " << config->_axes->axisName(pin->_axis) << " motor " << pin->_motorNum << " value " << value);
             pin->enableISR();
         }
 #endif
@@ -143,7 +143,7 @@ namespace Machine {
             }
             return;
         }
-        log_debug("Limit switch tripped for axis " << _axis << " motor " << _motorNum);
+        log_debug("Limit switch tripped for " << config->_axes->axisName(_axis) << " motor " << _motorNum);
         xTimerStart(_limitTimer, 0);
     }
 

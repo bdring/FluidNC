@@ -140,19 +140,17 @@ namespace Machine {
     }
 
     void Homing::limitReached() {
-        log_debug("Homing limit reached");
+        // As limit bits are set, let the kinematics system figure out what that
+        // means in terms of axes, motors, and whether to stop and replan
+        MotorMask limited = Machine::Axes::posLimitMask | Machine::Axes::negLimitMask;
+
+        log_debug("Homing limited " << config->_axes->maskToNames(limited));
 
         if (!approach()) {
             // We are not supposed to see a limitReached event while pulling off
             fail(ExecAlarm::HomingFailPulloff);
             return;
         }
-
-        // As limit bits are set, let the kinematics system figure out what that
-        // means in terms of axes, motors, and whether to stop and replan
-        MotorMask limited = Machine::Axes::posLimitMask | Machine::Axes::negLimitMask;
-
-        // log_debug("Homing limited 0x" << String(int(limited), 16););
 
         bool stop = config->_kinematics->limitReached(_phaseAxes, _phaseMotors, limited);
 
@@ -163,7 +161,7 @@ namespace Machine {
             Stepper::reset();  // Stop moving
 
             if (_phaseAxes) {
-                log_debug("Homing replan with axes" << int(_phaseAxes));
+                log_debug("Homing replan with " << config->_axes->maskToNames(_phaseAxes));
                 // If there are any axes that have not yet hit their limits, replan with
                 // the remaining axes.
                 float* target = get_mpos();
@@ -215,7 +213,7 @@ namespace Machine {
         _cycleAxes = _remainingCycles.front();
         _remainingCycles.pop();
 
-        log_debug("Homing Cycle axes " << int(_cycleAxes));
+        log_debug("Homing Cycle " << config->_axes->maskToNames(_cycleAxes));
 
         _cycleAxes &= Machine::Axes::homingMask;
         _cycleMotors = config->_axes->set_homing_mode(_cycleAxes, true);
