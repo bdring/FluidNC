@@ -68,7 +68,9 @@ namespace Machine {
         protocol_send_event(&cycleStartEvent);
     }
 
-    static MotorMask limited() { return Machine::Axes::posLimitMask | Machine::Axes::negLimitMask; }
+    static MotorMask limited() {
+        return Machine::Axes::posLimitMask | Machine::Axes::negLimitMask;
+    }
 
     void Homing::cycleStop() {
         log_debug("Homing cycleStop");
@@ -133,8 +135,6 @@ namespace Machine {
 
             // Record active axes for the next phase
             set_bitnum(axesMask, axis);
-
-            set_motor_steps(axis, 0);
 
             auto axisConfig = axes->_axis[axis];
             auto homing     = axisConfig->_homing;

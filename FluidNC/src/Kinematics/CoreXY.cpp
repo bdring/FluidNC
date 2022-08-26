@@ -74,11 +74,13 @@ namespace Kinematics {
 
         Machine::Homing::axisVector(axisMask, motors, phase, axis_target, rate, settle_ms);
 
-        if (bitnum_is_true(axisMask, X_AXIS)) {
+        // CoreXY couples the X and Y axes in motor space
+        if (bitnum_is_true(axisMask, X_AXIS) || bitnum_is_true(Y_AXIS, 0)) {
+            set_motor_steps(X_AXIS, 0);
             set_motor_steps(Y_AXIS, 0);
         }
-        if (bitnum_is_true(axisMask, Y_AXIS)) {
-            set_motor_steps(X_AXIS, 0);
+        for (size_t axis = Z_AXIS; axis < n_axis; axis++) {
+            set_motor_steps(axis, 0);
         }
 
         transform_cartesian_to_motors(target, axis_target);

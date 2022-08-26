@@ -5,7 +5,9 @@
 #include "src/Limits.h"
 
 namespace Kinematics {
-    void Cartesian::init() { log_info("Kinematic system: " << name()); }
+    void Cartesian::init() {
+        log_info("Kinematic system: " << name());
+    }
 
     bool Cartesian::cartesian_to_motors(float* target, plan_line_data_t* pl_data, float* position) {
         // Motor space is cartesian space, so we do no transform.
@@ -47,6 +49,9 @@ namespace Kinematics {
         auto n_axis = axes->_numberAxis;
         for (int axis = 0; axis < n_axis; axis++) {
             if (bitnum_is_true(axisMask, axis)) {
+                // Homing moves are calculated as though they start from 0
+                set_motor_steps(axis, 0);
+
                 auto paxis = axes->_axis[axis];
 
                 if (bitnum_is_true(motors, Machine::Axes::motor_bit(axis, 0))) {
