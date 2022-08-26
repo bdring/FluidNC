@@ -23,15 +23,19 @@ namespace Kinematics {
         return _system->canHome(axisMask);
     }
 
-    bool Kinematics::homingMove(
-        AxisMask axisMask, MotorMask motors, Machine::Homing::Phase phase, float* target, float& rate, uint32_t& settle_ms) {
+    void Kinematics::releaseMotors(AxisMask axisMask, MotorMask motors, Machine::Homing::Phase phase) {
         Assert(_system != nullptr, "No kinematic system");
-        return _system->homingMove(axisMask, motors, phase, target, rate, settle_ms);
+        _system->releaseMotors(axisMask, motors, phase);
     }
 
     bool Kinematics::limitReached(AxisMask& axisMask, MotorMask& motors, MotorMask limited) {
         Assert(_system != nullptr, "No kinematics system.");
         return _system->limitReached(axisMask, motors, limited);
+    }
+
+    void Kinematics::transform_cartesian_to_motors(float* motors, float* cartesian) {
+        Assert(_system != nullptr, "No kinematics system.");
+        return _system->transform_cartesian_to_motors(motors, cartesian);
     }
 
     void Kinematics::group(Configuration::HandlerBase& handler) { ::Kinematics::KinematicsFactory::factory(handler, _system); }

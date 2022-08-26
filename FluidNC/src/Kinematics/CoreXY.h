@@ -32,14 +32,15 @@ namespace Kinematics {
         void         motors_to_cartesian(float* cartesian, float* motors, int n_axis) override;
 
         bool canHome(AxisMask axisMask) override;
-        bool homingMove(
-            AxisMask axisMask, MotorMask motors, Machine::Homing::Phase phase, float* target, float& rate, uint32_t& settle_ms) override;
+        void releaseMotors(AxisMask axisMask, MotorMask motors, Machine::Homing::Phase phase) override;
         bool limitReached(AxisMask& axisMask, MotorMask& motors, MotorMask limited);
 
         // Configuration handlers:
         void         validate() const override {}
         virtual void group(Configuration::HandlerBase& handler) override;
         void         afterParse() override {}
+
+        void transform_cartesian_to_motors(float* motors, float* cartesian) override;
 
         // Name of the configurable. Must match the name registered in the cpp file.
         virtual const char* name() const override { return "CoreXY"; }
@@ -51,8 +52,6 @@ namespace Kinematics {
         void xy_to_lengths(float x, float y, float& left_length, float& right_length);
 
         void plan_homing_move(AxisMask axisMask, bool approach, bool seek);
-
-        void transform_cartesian_to_motors(float* motors, float* cartesian);
 
     protected:
         float _x_scaler = 1.0;

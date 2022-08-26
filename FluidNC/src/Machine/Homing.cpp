@@ -47,6 +47,10 @@ namespace Machine {
     };
 
     void Homing::startMove(float* target, float rate) {
+        float motors[config->_axes->_numberAxis];
+        config->_kinematics->transform_cartesian_to_motors(motors, target);
+        log_debug("motor space target is " << motors[0] << "," << motors[1] << "," << motors[2]);
+
         plan_line_data_t plan_data;
         plan_data.spindle_speed         = 0;
         plan_data.motion                = {};
@@ -59,18 +63,12 @@ namespace Machine {
         plan_data.is_jog                = false;
         plan_data.feed_rate             = rate;  // Magnitude of homing rate vector
 
-        plan_buffer_line(target, &plan_data);  // Bypass mc_move_motors(). Directly plan homing motion.
+        plan_buffer_line(motors, &plan_data);  // Bypass mc_move_motors(). Directly plan homing motion.
 
-        //        sys.step_control                  = {};
-        //        sys.step_control.executeSysMotion = true;  // Set to execute homing motion and clear existing flags.
-        //        Stepper::prep_buffer();                    // Prep and fill segment buffer from newly planned block.
-        //        Stepper::wake_up();                        // Initiate motion
         protocol_send_event(&cycleStartEvent);
     }
 
-    static MotorMask limited() {
-        return Machine::Axes::posLimitMask | Machine::Axes::negLimitMask;
-    }
+    static MotorMask limited() { return Machine::Axes::posLimitMask | Machine::Axes::negLimitMask; }
 
     void Homing::cycleStop() {
         log_debug("Homing cycleStop");
@@ -111,6 +109,8 @@ namespace Machine {
     }
 
     void Homing::axisVector(AxisMask axisMask, MotorMask motors, Machine::Homing::Phase phase, float* target, float& rate, uint32_t& settle_ms) {
+        log_debug("Starting from " << target[0] << "," << target[1] << "," << target[2]);
+
         float maxSeekTime  = 0.0;
         float limitingRate = 0.0;
         float ratesq       = 0.0;
@@ -119,9 +119,11 @@ namespace Machine {
 
         //        log_debug("Cartesian homing " << int(axisMask) << " motors " << int(motors));
 
-        auto  axes   = config->_axes;
-        auto  n_axis = axes->_numberAxis;
-        float rates[n_axis];
+        auto axes   = config->_axes;
+        auto n_axis = axes->_numberAxis;
+
+        float rates[n_axis]    = { 0 };
+        float distance[n_axis] = { 0 };
 
         bool seeking  = phase == Machine::Homing::Phase::FastApproach;
         bool approach = seeking || phase == Machine::Homing::Phase::SlowApproach;
@@ -183,23 +185,23 @@ namespace Machine {
                         return;
                     }
                     if (posLimited) {
-                        target[axis] = -travel;
+                        distance[axis] = -travel;
                     } else if (negLimited) {
-                        target[axis] = travel;
+                        distance[axis] = travel;
                     } else {
-                        target[axis] = 0;
+                        distance[axis] = 0;
                     }
                 } break;
 
                 case Machine::Homing::Phase::FastApproach:
                 case Machine::Homing::Phase::SlowApproach:
-                    target[axis] = homing->_positiveDirection ? travel : -travel;
+                    distance[axis] = homing->_positiveDirection ? travel : -travel;
                     break;
 
                 case Machine::Homing::Phase::Pulloff0:
                 case Machine::Homing::Phase::Pulloff1:
                 case Machine::Homing::Phase::Pulloff2:
-                    target[axis] = homing->_positiveDirection ? -travel : travel;
+                    distance[axis] = homing->_positiveDirection ? -travel : travel;
                     break;
             }
 
@@ -215,7 +217,7 @@ namespace Machine {
                 limitingRate = axis_rate;
             }
         }
-        // Scale the target array, currently in units of time, back to positions
+        // Scale the distance array, currently in units of time, back to positions
         // When approaching add a fudge factor (scaler) to ensure that the limit is reached -
         // but no fudge factor when pulling off.
         for (int axis = 0; axis < n_axis; axis++) {
@@ -223,16 +225,18 @@ namespace Machine {
                 auto paxis  = axes->_axis[axis];
                 auto homing = paxis->_homing;
                 auto scaler = approach ? (seeking ? homing->_seek_scaler : homing->_feed_scaler) : 1.0;
-                target[axis] *= scaler;
+                distance[axis] *= scaler;
                 if (phase == Machine::Homing::Phase::FastApproach) {
                     // For fast approach the vector direction is determined by the rates
-                    target[axis] *= rates[axis] / limitingRate;
+                    distance[axis] *= rates[axis] / limitingRate;
                 }
-                // log_debug(axes->axisName(axis) << " target " << target[axis] << " rate " << rates[axis]);
+                target[axis] += distance[axis];
+                log_debug(axes->axisName(axis) << " target " << target[axis] << " rate " << rates[axis]);
             }
         }
 
         rate = sqrtf(ratesq);  // Magnitude of homing rate vector
+        log_debug("planned move to " << target[0] << "," << target[1] << "," << target[2] << " @ " << rate);
     }
 
     void Homing::runPhase() {
@@ -252,13 +256,11 @@ namespace Machine {
             Machine::LimitPin::checkLimits();
         }
 
+        config->_kinematics->releaseMotors(_phaseAxes, _phaseMotors, _phase);
+
         float* target = get_mpos();
         float  rate;
-
-        config->_kinematics->homingMove(_phaseAxes, _phaseMotors, _phase, target, rate, _settling_ms);
-
-        log_debug("planned move to " << target[0] << "," << target[1] << "," << target[2] << "@" << rate);
-
+        axisVector(_phaseAxes, _phaseMotors, _phase, target, rate, _settling_ms);
         startMove(target, rate);
     }
 
@@ -285,11 +287,14 @@ namespace Machine {
 
             if (_phaseAxes) {
                 log_debug("Homing replan with " << config->_axes->maskToNames(_phaseAxes));
+
+                config->_kinematics->releaseMotors(_phaseAxes, _phaseMotors, _phase);
+
                 // If there are any axes that have not yet hit their limits, replan with
                 // the remaining axes.
                 float* target = get_mpos();
                 float  rate;
-                config->_kinematics->homingMove(_phaseAxes, _phaseMotors, _phase, target, rate, _settling_ms);
+                axisVector(_phaseAxes, _phaseMotors, _phase, target, rate, _settling_ms);
                 startMove(target, rate);
             } else {
                 // If all axes have hit their limits, this phase is complete and

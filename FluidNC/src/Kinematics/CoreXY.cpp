@@ -67,32 +67,12 @@ namespace Kinematics {
     }
 
     // plan a homing move in motor space for the homing sequence
-    bool CoreXY::homingMove(AxisMask axisMask, MotorMask motors, Machine::Homing::Phase phase, float* target, float& rate, uint32_t& settle_ms) {
-        auto  axes   = config->_axes;
-        auto  n_axis = axes->_numberAxis;
-        float axis_target[n_axis];
-
-        Machine::Homing::axisVector(axisMask, motors, phase, axis_target, rate, settle_ms);
-
-        // CoreXY couples the X and Y axes in motor space
-        if (bitnum_is_true(axisMask, X_AXIS) || bitnum_is_true(Y_AXIS, 0)) {
-            set_motor_steps(X_AXIS, 0);
-            set_motor_steps(Y_AXIS, 0);
-        }
-        for (size_t axis = Z_AXIS; axis < n_axis; axis++) {
-            set_motor_steps(axis, 0);
-        }
-
-        transform_cartesian_to_motors(target, axis_target);
-
+    void CoreXY::releaseMotors(AxisMask axisMask, MotorMask motors, Machine::Homing::Phase phase) {
+        auto axes   = config->_axes;
+        auto n_axis = axes->_numberAxis;
         for (size_t axis = X_AXIS; axis < n_axis; axis++) {
             axes->_axis[axis]->_motors[0]->unlimit();
         }
-
-        log_debug("CoreXY axes " << axis_target[0] << "," << axis_target[1] << "," << axis_target[2] << " motors " << target[0] << ","
-                                 << target[1] << "," << target[2]);
-
-        return true;
     }
 
     /*

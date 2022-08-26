@@ -29,6 +29,10 @@ namespace Kinematics {
         last_z     = 0;
     }
 
+    void WallPlotter::transform_cartesian_to_motors(float* cartesian, float* motors) {
+        log_error("WallPlotter::transform_cartesian_to_motors is broken");
+    }
+
     /*
       cartesian_to_motors() converts from cartesian coordinates to motor space.
 

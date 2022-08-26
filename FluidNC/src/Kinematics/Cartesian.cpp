@@ -5,9 +5,7 @@
 #include "src/Limits.h"
 
 namespace Kinematics {
-    void Cartesian::init() {
-        log_info("Kinematic system: " << name());
-    }
+    void Cartesian::init() { log_info("Kinematic system: " << name()); }
 
     bool Cartesian::cartesian_to_motors(float* target, plan_line_data_t* pl_data, float* position) {
         // Motor space is cartesian space, so we do no transform.
@@ -17,6 +15,11 @@ namespace Kinematics {
     void Cartesian::motors_to_cartesian(float* cartesian, float* motors, int n_axis) {
         // Motor space is cartesian space, so we do no transform.
         copyAxes(cartesian, motors);
+    }
+
+    void Cartesian::transform_cartesian_to_motors(float* cartesian, float* motors) {
+        // Motor space is cartesian space, so we do no transform.
+        copyAxes(motors, cartesian);
     }
 
     bool Cartesian::canHome(AxisMask axisMask) {
@@ -40,20 +43,12 @@ namespace Kinematics {
         return !axisMask;
     }
 
-    bool Cartesian::homingMove(
-        AxisMask axisMask, MotorMask motors, Machine::Homing::Phase phase, float* target, float& rate, uint32_t& settle_ms) {
-        Machine::Homing::axisVector(axisMask, motors, phase, target, rate, settle_ms);
-        // Turn off axis limits in case they were set by a limit switch
-
+    void Cartesian::releaseMotors(AxisMask axisMask, MotorMask motors, Machine::Homing::Phase phase) {
         auto axes   = config->_axes;
         auto n_axis = axes->_numberAxis;
         for (int axis = 0; axis < n_axis; axis++) {
             if (bitnum_is_true(axisMask, axis)) {
-                // Homing moves are calculated as though they start from 0
-                set_motor_steps(axis, 0);
-
                 auto paxis = axes->_axis[axis];
-
                 if (bitnum_is_true(motors, Machine::Axes::motor_bit(axis, 0))) {
                     paxis->_motors[0]->unlimit();
                 }
@@ -62,8 +57,6 @@ namespace Kinematics {
                 }
             }
         }
-
-        return true;
     }
 
     // Configuration registration
