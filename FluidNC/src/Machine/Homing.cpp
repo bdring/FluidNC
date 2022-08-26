@@ -47,10 +47,6 @@ namespace Machine {
     };
 
     void Homing::startMove(float* target, float rate) {
-        float motors[config->_axes->_numberAxis];
-        config->_kinematics->transform_cartesian_to_motors(motors, target);
-        log_debug("motor space target is " << motors[0] << "," << motors[1] << "," << motors[2]);
-
         plan_line_data_t plan_data;
         plan_data.spindle_speed         = 0;
         plan_data.motion                = {};
@@ -63,7 +59,7 @@ namespace Machine {
         plan_data.is_jog                = false;
         plan_data.feed_rate             = rate;  // Magnitude of homing rate vector
 
-        plan_buffer_line(motors, &plan_data);  // Bypass mc_move_motors(). Directly plan homing motion.
+        mc_move_motors(target, &plan_data);
 
         protocol_send_event(&cycleStartEvent);
     }
