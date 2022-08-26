@@ -66,7 +66,6 @@ namespace Kinematics {
         return bool(toClear);
     }
 
-    // plan a homing move in motor space for the homing sequence
     void CoreXY::releaseMotors(AxisMask axisMask, MotorMask motors, Machine::Homing::Phase phase) {
         auto axes   = config->_axes;
         auto n_axis = axes->_numberAxis;

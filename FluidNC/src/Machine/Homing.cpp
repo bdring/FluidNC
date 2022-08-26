@@ -380,34 +380,26 @@ namespace Machine {
         return false;
     }
 
-    // Homes the specified cycle axes, sets the machine position, and performs a pull-off motion after
-    // completing. Homing is a special motion case, which involves rapid uncontrolled stops to locate
-    // the trigger point of the limit switches. The rapid stops are handled by a system level axis lock
-    // mask, which prevents the stepper algorithm from executing step pulses. Homing motions typically
-    // circumvent the processes for executing motions in normal operation.
-    // NOTE: Only the abort realtime command can interrupt this process.
-
-    // axes cannot be 0.  The 0 case - run all cycles - is
-    // handled by the caller mc_homing_cycle()
-
     void Homing::set_mpos() {
-        // The active cycle axes should now be homed and machine limits have been located. By
-        // default, as with most CNCs, machine space is all negative, but that can be changed.
-        // Since limit switches
-        // can be on either side of an axes, check and set axes machine zero appropriately. Also,
-        // set up pull-off maneuver from axes limit switches that have been homed. This provides
-        // some initial clearance off the switches and should also help prevent them from falsely
-        // triggering when hard limits are enabled or when more than one axes shares a limit pin.
-
         auto axes   = config->_axes;
         auto n_axis = axes->_numberAxis;
 
-        // Set machine positions for homed limit switches. Don't update non-homed axes.
-        for (int axis = 0; axis < n_axis; axis++) {
+        float* mpos = get_mpos();
+
+        log_debug("mpos was " << mpos[0] << "," << mpos[1] << "," << mpos[2]);
+        // Replace coordinates homed axes with the homing values.
+        for (size_t axis = 0; axis < n_axis; axis++) {
             if (bitnum_is_true(_cycleAxes, axis)) {
-                set_motor_steps(axis, mpos_to_steps(axes->_axis[axis]->_homing->_mpos, axis));
+                mpos[axis] = axes->_axis[axis]->_homing->_mpos;
             }
         }
+        log_debug("mpos becomes " << mpos[0] << "," << mpos[1] << "," << mpos[2]);
+
+        set_motor_steps_from_mpos(mpos);
+
+        mpos = get_mpos();
+        log_debug("mpos transformed " << mpos[0] << "," << mpos[1] << "," << mpos[2]);
+
         sys.step_control = {};                     // Return step control to normal operation.
         axes->set_homing_mode(_cycleAxes, false);  // tell motors homing is done
     }
@@ -415,7 +407,7 @@ namespace Machine {
     static String axisNames(AxisMask axisMask) {
         String retval = "";
         auto   n_axis = config->_axes->_numberAxis;
-        for (int axis = 0; axis < n_axis; axis++) {
+        for (size_t axis = 0; axis < n_axis; axis++) {
             if (bitnum_is_true(axisMask, axis)) {
                 retval += Machine::Axes::_names[axis];
             }
