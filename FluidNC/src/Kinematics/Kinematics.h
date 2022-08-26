@@ -46,9 +46,9 @@ namespace Kinematics {
         bool cartesian_to_motors(float* target, plan_line_data_t* pl_data, float* position);
         void motors_to_cartesian(float* cartesian, float* motors, int n_axis);
 
-        bool     canHome(AxisMask axisMask);
-        uint32_t homingMove(AxisMask axisMask, MotorMask motors, Machine::Homing::Phase phase, float* target, float& rate);
-        bool     limitReached(AxisMask& axisMask, MotorMask& motors, MotorMask limited);
+        bool canHome(AxisMask axisMask);
+        bool homingMove(AxisMask axisMask, MotorMask motors, Machine::Homing::Phase phase, float* target, float& rate, uint32_t& settle_ms);
+        bool limitReached(AxisMask& axisMask, MotorMask& motors, MotorMask limited);
 
     private:
         ::Kinematics::KinematicSystem* _system = nullptr;
@@ -68,9 +68,10 @@ namespace Kinematics {
         virtual void init()                                                                         = 0;
         virtual void motors_to_cartesian(float* cartesian, float* motors, int n_axis)               = 0;
 
-        virtual bool     canHome(AxisMask axisMask) { return false; }
-        virtual uint32_t homingMove(AxisMask axisMask, MotorMask motors, Machine::Homing::Phase phase, float* target, float& rate) {
-            return 0;
+        virtual bool canHome(AxisMask axisMask) { return false; }
+        virtual bool homingMove(
+            AxisMask axisMask, MotorMask motors, Machine::Homing::Phase phase, float* target, float& rate, uint32_t& settling_ms) {
+            return false;
         }
         virtual bool limitReached(AxisMask& axisMask, MotorMask& motors, MotorMask limited) { return false; }
 

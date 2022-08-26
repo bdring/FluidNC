@@ -23,9 +23,10 @@ namespace Kinematics {
         return _system->canHome(axisMask);
     }
 
-    uint32_t Kinematics::homingMove(AxisMask axisMask, MotorMask motors, Machine::Homing::Phase phase, float* target, float& rate) {
+    bool Kinematics::homingMove(
+        AxisMask axisMask, MotorMask motors, Machine::Homing::Phase phase, float* target, float& rate, uint32_t& settle_ms) {
         Assert(_system != nullptr, "No kinematic system");
-        return _system->homingMove(axisMask, motors, phase, target, rate);
+        return _system->homingMove(axisMask, motors, phase, target, rate, settle_ms);
     }
 
     bool Kinematics::limitReached(AxisMask& axisMask, MotorMask& motors, MotorMask limited) {

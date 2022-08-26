@@ -39,6 +39,7 @@ namespace Machine {
         static void     run(MotorMask remainingMotors, Phase phase);
 
         static void startMove(float* target, float rate);
+        static void axisVector(AxisMask axisMask, MotorMask motors, Phase phase, float* target, float& rate, uint32_t& settle_ms);
 
         // The homing cycles are 1,2,3 etc.  0 means not homed as part of home-all,
         // but you can still home it manually with e.g. $HA
