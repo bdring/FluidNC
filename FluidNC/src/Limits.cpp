@@ -84,9 +84,11 @@ void limits_soft_check(float* cartesian) {
 
     for (int axis = 0; axis < n_axis; axis++) {
         //Add little margin to avoid false soft limit triggering
-        if (axes->_axis[axis]->_softLimits && (( cartesian[axis] < limitsMinPosition(axis)-1) || (cartesian[axis] > limitsMaxPosition(axis) + 1 ))) {
+        if (axes->_axis[axis]->_softLimits &&
+            ((cartesian[axis] < limitsMinPosition(axis) - 1) || (cartesian[axis] > limitsMaxPosition(axis) + 1))) {
             String axis_letter = String(Machine::Axes::_names[axis]);
-            log_info("Soft limit on " << axis_letter << " target:" << cartesian[axis] << " Limits:" << limitsMinPosition(axis)-1 << ".." << limitsMaxPosition(axis)+1 );
+            log_info("Soft limit on " << axis_letter << " target:" << cartesian[axis] << " Limits:" << limitsMinPosition(axis) - 1 << ".."
+                                      << limitsMaxPosition(axis) + 1);
             limit_error = true;
         }
     }
@@ -146,12 +148,12 @@ float limitsMaxPosition(size_t axis) {
 }
 
 float limitsMinPosition(size_t axis) {
-    auto  axisConfig = config->_axes->_axis[axis];
-    auto  homing     = axisConfig->_homing;
+    auto axisConfig = config->_axes->_axis[axis];
+    auto homing     = axisConfig->_homing;
     //Avataar120 : Fix min limit to get mpos instead of 0 when homing is not done to avoid false soft limit alerts
     //float mpos = (homing != nullptr) ? homing->_mpos : 0;
-    float mpos = homing->_mpos;
-    auto  maxtravel  = axisConfig->_maxTravel;
+    float mpos      = 0;
+    auto  maxtravel = axisConfig->_maxTravel;
 
     //return (homing == nullptr || homing->_positiveDirection) ? mpos : mpos - maxtravel;
     return (homing == nullptr || homing->_positiveDirection) ? mpos - maxtravel : mpos;

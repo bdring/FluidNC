@@ -5,11 +5,12 @@
 #pragma once
 
 #include "../Configuration/Configurable.h"
-#include "../GCode.h"  // MaxUserDigitalPin MaxUserAnalogPin
+#include "../GCode.h"       // MaxUserDigitalPin MaxUserAnalogPin
+#include "Driver/PwmPin.h"  // pwm_chan_t
 
 namespace Machine {
     class UserOutputs : public Configuration::Configurable {
-        uint8_t  _pwm_channel[MaxUserAnalogPin];
+        PwmPin*  _pwm[MaxUserAnalogPin];
         uint32_t _current_value[MaxUserAnalogPin];
         uint32_t _denominator[MaxUserAnalogPin];
 
