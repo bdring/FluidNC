@@ -240,8 +240,9 @@ void protocol_buffer_synchronize() {
 // is finished, single commands), a command that needs to wait for the motions in the buffer to
 // execute calls a buffer sync, or the planner buffer is full and ready to go.
 void protocol_auto_cycle_start() {
-    if (plan_get_current_block() != NULL && sys.state != State::Cycle) {  // Check if there are any blocks in the buffer.
-        protocol_send_event(&cycleStartEvent);                            // If so, execute them
+    if (plan_get_current_block() != NULL && sys.state != State::Cycle &&
+        sys.state != State::Hold) {             // Check if there are any blocks in the buffer.
+        protocol_send_event(&cycleStartEvent);  // If so, execute them
     }
 }
 
@@ -321,7 +322,7 @@ static void protocol_hold_complete() {
 }
 
 static void protocol_do_motion_cancel() {
-    // log_debug("protocol_do_motion_cancel " << int(sys.state));
+    // log_debug("protocol_do_motion_cancel " << state_name());
     // Execute and flag a motion cancel with deceleration and return to idle. Used primarily by probing cycle
     // to halt and cancel the remainder of the motion.
 
@@ -359,7 +360,7 @@ static void protocol_do_motion_cancel() {
 }
 
 static void protocol_do_feedhold() {
-    // log_debug("protocol_do_feedhold " << int(sys.state));
+    // log_debug("protocol_do_feedhold " << state_name());
     // Execute a feed hold with deceleration, if required. Then, suspend system.
     switch (sys.state) {
         case State::ConfigAlarm:
@@ -451,7 +452,7 @@ static void protocol_do_safety_door() {
 }
 
 static void protocol_do_sleep() {
-    // log_debug("protocol_do_sleep " << int(sys.state));
+    // log_debug("protocol_do_sleep " << state_name());
     switch (sys.state) {
         case State::ConfigAlarm:
         case State::Alarm:
@@ -485,7 +486,7 @@ void protocol_cancel_disable_steppers() {
 }
 
 static void protocol_do_initiate_cycle() {
-    //    log_debug("protocol_do_initiate_cycle " << int(sys.state));
+    // log_debug("protocol_do_initiate_cycle " << state_name());
     // Start cycle only if queued motions exist in planner buffer and the motion is not canceled.
     sys.step_control = {};  // Restore step control to normal operation
     if (plan_get_current_block() && !sys.suspend.bit.motionCancel) {
@@ -493,13 +494,14 @@ static void protocol_do_initiate_cycle() {
         sys.state         = State::Cycle;
         Stepper::prep_buffer();  // Initialize step segment buffer before beginning cycle.
         Stepper::wake_up();
-    } else {                    // Otherwise, do nothing. Set and resume IDLE state.
+    } else {  // Otherwise, do nothing. Set and resume IDLE state.
+
         sys.suspend.value = 0;  // Break suspend state.
         sys.state         = State::Idle;
     }
 }
 static void protocol_initiate_homing_cycle() {
-    //    log_debug("protocol_initiate_homing_cycle " << int(sys.state));
+    // log_debug("protocol_initiate_homing_cycle " << state_name());
     sys.step_control                  = {};    // Restore step control to normal operation
     sys.suspend.value                 = 0;     // Break suspend state.
     sys.step_control.executeSysMotion = true;  // Set to execute homing motion and clear existing flags.
@@ -508,7 +510,7 @@ static void protocol_initiate_homing_cycle() {
 }
 
 static void protocol_do_cycle_start() {
-    //    log_debug("protocol_do_cycle_start " << int(sys.state));
+    // log_debug("protocol_do_cycle_start " << state_name());
     // Execute a cycle start by starting the stepper interrupt to begin executing the blocks in queue.
 
     // Resume door state when parking motion has retracted and door has been closed.
@@ -585,7 +587,7 @@ void protocol_disable_steppers() {
 }
 
 void protocol_do_cycle_stop() {
-    //    log_debug("protocol_do_cycle_stop " << int(sys.state));
+    // log_debug("protocol_do_cycle_stop " << state_name());
     protocol_disable_steppers();
 
     switch (sys.state) {
