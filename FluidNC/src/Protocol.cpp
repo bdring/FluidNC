@@ -18,6 +18,8 @@
 #include "MotionControl.h"  // PARKING_MOTION_LINE_NUMBER
 #include "Settings.h"       // settings_execute_startup
 #include "InputFile.h"      // infile
+#include "Logging.h"
+#include "Machine/LimitPin.h"
 
 volatile ExecAlarm rtAlarm;  // Global realtime executor bitflag variable for setting various alarms.
 
@@ -1013,10 +1015,29 @@ static void protocol_do_accessory_override(void* type) {
     }
 }
 
+static void protocol_do_limit(void* arg) {
+    Machine::LimitPin* limit = (Machine::LimitPin*)arg;
+    limit->update(limit->get());
+    if (sys.state == State::Homing) {
+        Machine::Homing::limitReached();
+        return;
+    }
+    if (sys.state == State::Cycle) {
+        if (limit->isHard() && rtAlarm == ExecAlarm::None) {
+            log_debug("Hard limits");
+            mc_reset();                      // Initiate system kill.
+            rtAlarm = ExecAlarm::HardLimit;  // Indicate hard limit critical event
+        }
+        return;
+    }
+    log_debug("Limit switch tripped for " << config->_axes->axisName(limit->_axis) << " motor " << limit->_motorNum);
+    Machine::EventPin::startTimer();
+}
 ArgEvent feedOverrideEvent { protocol_do_feed_override };
 ArgEvent rapidOverrideEvent { protocol_do_rapid_override };
 ArgEvent spindleOverrideEvent { protocol_do_spindle_override };
 ArgEvent accessoryOverrideEvent { protocol_do_accessory_override };
+ArgEvent limitEvent { protocol_do_limit };
 
 ArgEvent reportStatusEvent { (void (*)(void*))report_realtime_status };
 

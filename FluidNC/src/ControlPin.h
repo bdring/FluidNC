@@ -2,32 +2,19 @@
 
 #include "Pin.h"
 #include <esp_attr.h>  // IRAM_ATTR
-#include "Event.h"
+#include "Machine/EventPin.h"
+namespace Machine {
+    class ControlPin : public Machine::EventPin {
+    private:
+        const char _letter;  // The name that appears in init() messages and the name of the configuration item
 
-class ControlPin : public Event {
-private:
-    void IRAM_ATTR handleISR();
-    CreateISRHandlerFor(ControlPin, handleISR);
+    public:
+        ControlPin(Event* event, const char* legend, char letter) : EventPin(event, legend), _letter(letter) {}
 
-    Event* _event = nullptr;
+        char letter() { return _letter; };
 
-public:
-    const char* _legend;  // The name that appears in init() messages and the name of the configuration item
-    const char  _letter;  // The letter that appears in status reports when the pin is active
+        void run(void* arg) override;
 
-    ControlPin(Event* event, const char* legend, char letter) : _event(event), _letter(letter), _legend(legend) {}
-
-    Pin _pin;
-
-    void init();
-    bool get() { return _pin.read(); }
-    void run(void* arg) override {
-        // Since we do not trust the ISR to always trigger precisely,
-        // we check the pin state before calling the event handler
-        if (get()) {
-            _event->run(arg);
-        }
-    }
-
-    ~ControlPin();
-};
+        ~ControlPin();
+    };
+}

@@ -4,6 +4,8 @@
 #pragma once
 #include <Arduino.h>  // String
 
+// Objects derived from the Event base class are placed in the event queue.
+// Protocol dequeues them and calls their run methods.
 class Event {
 public:
     Event() {}

@@ -81,6 +81,7 @@ extern ArgEvent feedOverrideEvent;
 extern ArgEvent rapidOverrideEvent;
 extern ArgEvent spindleOverrideEvent;
 extern ArgEvent accessoryOverrideEvent;
+extern ArgEvent limitEvent;
 
 extern ArgEvent reportStatusEvent;
 

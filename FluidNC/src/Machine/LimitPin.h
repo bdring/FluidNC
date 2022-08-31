@@ -1,14 +1,9 @@
 #pragma once
 
-#include "src/Pin.h"
-#include "src/Event.h"
-
-#include <esp_attr.h>         // IRAM_ATTR
-#include <freertos/timers.h>  // TimerHandle_t
-#include <list>
+#include "EventPin.h"
 
 namespace Machine {
-    class LimitPin : public Event {
+    class LimitPin : public EventPin {
     private:
         bool     _value   = 0;
         uint32_t _bitmask = 0;
@@ -28,40 +23,18 @@ namespace Machine {
         volatile uint32_t* _posLimits = nullptr;
         volatile uint32_t* _negLimits = nullptr;
 
-        void IRAM_ATTR handleISR();
-
-        CreateISRHandlerFor(LimitPin, handleISR);
-
-        pinnum_t _gpio;
-
-        static std::list<LimitPin*> _blockedLimits;
-
-        static void          limitTimerCallback(void*);
-        static TimerHandle_t _limitTimer;
-        static bool          limitInactive(LimitPin* pin);
-
     public:
         LimitPin(Pin& pin, int axis, int motorNum, int direction, bool& phardLimits, bool& pLimited);
 
-        Pin& _pin;
+        void update(bool value) override;
 
-        String _legend;
-
-        bool read();
-
-        void init();
-        bool get() { return _value; }
-        void run(void*) override;
+        //void init();
         void makeDualMask();  // makes this a mask for motor0 and motor1
         void setExtraMotorLimit(int axis, int motorNum);
 
-        static void checkLimits();
-
-        void enableISR();
+        bool isHard() { return _pHardLimits; }
 
         int _axis;
         int _motorNum;
-
-        ~LimitPin();
     };
 }

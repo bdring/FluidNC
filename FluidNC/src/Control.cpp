@@ -26,7 +26,7 @@ void Control::init() {
 
 void Control::group(Configuration::HandlerBase& handler) {
     for (auto pin : _pins) {
-        handler.item(pin->_legend, pin->_pin);
+        handler.item(pin->_legend.c_str(), pin->_pin);
     }
 }
 
@@ -34,7 +34,7 @@ String Control::report_status() {
     String ret = "";
     for (auto pin : _pins) {
         if (pin->get()) {
-            ret += pin->_letter;
+            ret += pin->letter();
         }
     }
     return ret;
