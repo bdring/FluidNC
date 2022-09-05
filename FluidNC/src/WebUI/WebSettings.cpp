@@ -44,35 +44,35 @@ namespace WebUI {
 
     static keyval_t params[10];
     bool            split_params(char* parameter) {
-        int i = 0;
-        for (char* s = parameter; *s; s++) {
-            if (*s == '=') {
-                params[i].value = s + 1;
-                *s              = '\0';
-                // Search backward looking for the start of the key,
-                // either just after a space or at the beginning of the strin
-                if (s == parameter) {
-                    return false;
+                   int i = 0;
+                   for (char* s = parameter; *s; s++) {
+                       if (*s == '=') {
+                           params[i].value = s + 1;
+                           *s              = '\0';
+                           // Search backward looking for the start of the key,
+                           // either just after a space or at the beginning of the strin
+                           if (s == parameter) {
+                               return false;
                 }
-                for (char* k = s - 1; k >= parameter; --k) {
-                    if (*k == '\0') {
-                        // If we find a NUL - i.e. the end of the previous key -
+                           for (char* k = s - 1; k >= parameter; --k) {
+                               if (*k == '\0') {
+                                   // If we find a NUL - i.e. the end of the previous key -
                         // before finding a space, the string is malformed.
                         return false;
                     }
-                    if (*k == ' ') {
-                        *k              = '\0';
-                        params[i++].key = k + 1;
-                        break;
+                               if (*k == ' ') {
+                                   *k              = '\0';
+                                   params[i++].key = k + 1;
+                                   break;
                     }
-                    if (k == parameter) {
-                        params[i++].key = k;
+                               if (k == parameter) {
+                                   params[i++].key = k;
                     }
                 }
             }
         }
-        params[i].key = NULL;
-        return true;
+                   params[i].key = NULL;
+                   return true;
     }
 
     char  nullstr[1] = { '\0' };
@@ -172,8 +172,9 @@ namespace WebUI {
 
     static Error showSysStats(char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP420
         out << "Chip ID: " << (uint16_t)(ESP.getEfuseMac() >> 32) << '\n';
-        out << "CPU Frequency: " << ESP.getCpuFreqMHz() + "Mhz" << '\n';
-        out << "CPU Temperature: " << String(temperatureRead(), 1) << "C\n";
+        out << "CPU Cores: " << ESP.getChipCores() << '\n';
+        out << "CPU Frequency: " << ESP.getCpuFreqMHz() << "Mhz" << '\n';
+        out << "CPU Temperature: " << String(temperatureRead(), 1) << "°C\n";
         out << "Free memory: " << formatBytes(ESP.getFreeHeap()) << '\n';
         out << "SDK: " << ESP.getSdkVersion() << '\n';
         out << "Flash Size: " << formatBytes(ESP.getFlashChipSize()) << '\n';
