@@ -29,13 +29,8 @@ namespace Kinematics {
         last_z     = 0;
     }
 
-    bool WallPlotter::kinematics_homing(AxisMask cycle_mask) {
-        // Do nothing.
-        return false;
-    }
-
-    void WallPlotter::kinematics_post_homing() {
-        // Do nothing.
+    void WallPlotter::transform_cartesian_to_motors(float* cartesian, float* motors) {
+        log_error("WallPlotter::transform_cartesian_to_motors is broken");
     }
 
     /*
@@ -49,25 +44,25 @@ namespace Kinematics {
         position = an MAX_N_AXIS array of where the machine is starting from for this move
     */
     bool WallPlotter::cartesian_to_motors(float* target, plan_line_data_t* pl_data, float* position) {
-        float    dx, dy, dz;        // segment distances in each cartesian axis
-        uint32_t segment_count;     // number of segments the move will be broken in to.
+        float    dx, dy, dz;     // segment distances in each cartesian axis
+        uint32_t segment_count;  // number of segments the move will be broken in to.
 
         // calculate the total X,Y axis move distance
         // Z axis is the same in both coord systems, so it does not undergo conversion
         float dist = vector_distance(target, position, Y_AXIS);
         // Segment our G1 and G0 moves based on yaml file. If we choose a small enough _segment_length we can hide the nonlinearity
         segment_count = dist / _segment_length;
-        if (segment_count < 1) { // Make sure there is at least one segment, even if there is no movement
+        if (segment_count < 1) {  // Make sure there is at least one segment, even if there is no movement
             // We need to do this to make sure other things like S and M codes get updated properly by
             // the planner even if there is no movement??
-            segment_count = 1;   
+            segment_count = 1;
         }
         // Calc distance of individual segments
-        dx = (target[X_AXIS] - position[X_AXIS])/segment_count; 
-        dy = (target[Y_AXIS] - position[Y_AXIS])/segment_count; 
-        dz = (target[Z_AXIS] - position[Z_AXIS])/segment_count;
-        // Current cartesian end point of the segment        
-        float seg_x = position[X_AXIS];  
+        dx = (target[X_AXIS] - position[X_AXIS]) / segment_count;
+        dy = (target[Y_AXIS] - position[Y_AXIS]) / segment_count;
+        dz = (target[Z_AXIS] - position[Z_AXIS]) / segment_count;
+        // Current cartesian end point of the segment
+        float seg_x = position[X_AXIS];
         float seg_y = position[Y_AXIS];
         float seg_z = position[Z_AXIS];
         for (uint32_t segment = 1; segment <= segment_count; segment++) {
@@ -75,7 +70,7 @@ namespace Kinematics {
             seg_x += dx;
             seg_y += dy;
             seg_z += dz;
-            float seg_left, seg_right; 
+            float seg_left, seg_right;
             xy_to_lengths(seg_x, seg_y, seg_left, seg_right);
             // TODO: Need to adjust cartesian feedrate to motor/plotter space, just leave them alone for now
 

@@ -64,6 +64,3 @@ void mc_reset();
 void mc_cancel_jog();
 
 void mc_init();
-
-bool kinematics_pre_homing(AxisMask cycle_mask);
-void kinematics_post_homing();

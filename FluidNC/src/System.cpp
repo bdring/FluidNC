@@ -58,6 +58,15 @@ void set_motor_steps(size_t axis, int32_t steps) {
     }
 }
 
+void set_motor_steps_from_mpos(float* mpos) {
+    auto  n_axis = config->_axes->_numberAxis;
+    float motor_steps[n_axis];
+    config->_kinematics->transform_cartesian_to_motors(motor_steps, mpos);
+    for (size_t axis = 0; axis < n_axis; axis++) {
+        set_motor_steps(axis, mpos_to_steps(motor_steps[axis], axis));
+    }
+}
+
 int32_t get_axis_motor_steps(size_t axis) {
     auto m = config->_axes->_axis[axis]->_motors[0];
     return m ? m->_steps : 0;

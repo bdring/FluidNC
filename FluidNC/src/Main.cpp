@@ -41,6 +41,8 @@ void setup() {
 
         display_init();
 
+        protocol_init();
+
         // Load settings from non-volatile storage
         settings_init();  // requires config
 
