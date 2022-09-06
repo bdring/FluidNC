@@ -1628,7 +1628,7 @@ Error gc_execute_line(char* line, Channel& channel) {
         case ProgramFlow::Paused:
             protocol_buffer_synchronize();  // Sync and finish all remaining buffered motions before moving on.
             if (sys.state != State::CheckMode) {
-                rtFeedHold = true;            // Use feed hold for program pause.
+                protocol_send_event(&feedHoldEvent);
                 protocol_execute_realtime();  // Execute suspend.
             }
             break;

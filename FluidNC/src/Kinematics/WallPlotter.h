@@ -24,10 +24,9 @@ namespace Kinematics {
         // Kinematic Interface
 
         void init() override;
-        bool kinematics_homing(AxisMask cycle_mask) override;
-        void kinematics_post_homing() override;
         bool cartesian_to_motors(float* target, plan_line_data_t* pl_data, float* position) override;
         void motors_to_cartesian(float* cartesian, float* motors, int n_axis) override;
+        void transform_cartesian_to_motors(float* cartesian, float* motors) override;
 
         // Configuration handlers:
         void validate() const override {}

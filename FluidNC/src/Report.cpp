@@ -433,7 +433,7 @@ void report_build_info(const char* line, Print& channel) {
     channel << "[VER:" << grbl_version << " FluidNC " << git_info << ":" << line << "]\n";
     channel << "[OPT:";
     if (config->_coolant->hasMist()) {
-        channel << "M";  // TODO Need to deal with M8...it could be disabled
+        channel << "M";
     }
     channel << "PH";
     if (ALLOW_FEED_OVERRIDE_DURING_PROBE_CYCLES) {
@@ -577,6 +577,9 @@ static void pinString(Print& channel) {
     }
 }
 
+// Define this to do something if a debug request comes in over serial
+void report_realtime_debug() {}
+
 // Prints real-time data. This function grabs a real-time snapshot of the stepper subprogram
 // and the actual location of the CNC machine. Users may change the following function to their
 // specific needs, but the desired real-time data report must be as short as possible. This is
@@ -676,11 +679,10 @@ void report_realtime_status(Channel& channel) {
             }
 
             auto coolant = coolant_state;
-            // XXX WMB why .Flood in one case and ->hasMist() in the other? also see above
             if (coolant.Flood) {
                 channel << "F";
             }
-            if (config->_coolant->hasMist()) {
+            if (coolant.Mist) {
                 channel << "M";
             }
         }
