@@ -14,22 +14,19 @@
 
 #include "10vSpindle.h"
 
-#include "../Pins/LedcPin.h"
-#include "../System.h"       // sys.spindle_speed
-#include "../GCode.h"        // gc_state.modal
-#include <esp32-hal-ledc.h>  // ledcDetachPin
+#include "Driver/PwmPin.h"  // pwmInit(), etc.
+#include "../System.h"      // sys.spindle_speed
+#include "../GCode.h"       // gc_state.modal
 
 namespace Spindles {
     void _10v::init() {
-        get_pins_and_settings();
-
         // a couple more pins not inherited from PWM Spindle
         if (_output_pin.undefined()) {
             log_warn("Spindle output pin not defined");
             return;  // We cannot continue without the output pin
         }
 
-        _pwm_chan_num = ledcInit(_output_pin, -1, (double)_pwm_freq, _pwm_precision);  // allocate and setup a PWM channel
+        _pwm = new PwmPin(_output_pin, _pwm_freq);  // allocate and setup a PWM channel
 
         _enable_pin.setAttr(Pin::Attr::Output);
         _direction_pin.setAttr(Pin::Attr::Output);
@@ -41,12 +38,12 @@ namespace Spindles {
         }
 
         _current_state    = SpindleState::Disable;
-        _current_pwm_duty = 0; 
+        _current_pwm_duty = 0;
 
         // We set the dev_speed scale in the speed map to the full PWM period (64K)
         // Then, in set_output, we map the dev_speed range of 0..64K to the pulse
         // length range of ~1ms .. 2ms
-        setupSpeeds(_pwm_period);
+        setupSpeeds(_pwm->period());
 
         stop();
 
@@ -58,8 +55,8 @@ namespace Spindles {
     // prints the startup message of the spindle config
     void _10v::config_message() {
         log_info(name() << " Spindle Ena:" << _enable_pin.name() << " Out:" << _output_pin.name() << " Dir:" << _direction_pin.name()
-                        << " Fwd:" << _forward_pin.name() << " Rev:" << _reverse_pin.name() << " Freq:" << _pwm_freq
-                        << "Hz Res:" << _pwm_precision << "bits");
+                        << " Fwd:" << _forward_pin.name() << " Rev:" << _reverse_pin.name() << " Freq:" << _pwm->frequency()
+                        << "Hz Period:" << _pwm->period());
     }
 
     // This appears identical to the code in PWMSpindle.cpp but
@@ -95,7 +92,10 @@ namespace Spindles {
         _direction_pin.setAttr(Pin::Attr::Input);
         _forward_pin.setAttr(Pin::Attr::Input);
         _reverse_pin.setAttr(Pin::Attr::Input);
-        ledcDetachPin(_output_pin.getNative(Pin::Capabilities::PWM));
+        if (_pwm) {
+            delete _pwm;
+            _pwm = nullptr;
+        }
         _output_pin.setAttr(Pin::Attr::Input);
     }
 

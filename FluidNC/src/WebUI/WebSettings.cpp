@@ -227,7 +227,7 @@ namespace WebUI {
     }
 
     static Error listSettings(char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP400
-        JSONencoder j(false, out);
+        JSONencoder j(true, out);
         j.begin();
         j.begin_array("EEPROM");
 

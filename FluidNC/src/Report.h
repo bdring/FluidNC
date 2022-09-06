@@ -91,9 +91,7 @@ void report_gcode_modes(Print& channel);
 // Prints build info and user info
 void report_build_info(const char* line, Print& channel);
 
-#ifdef DEBUG_REPORT_REALTIME
 void report_realtime_debug();
-#endif
 
 void reportTaskStackSize(UBaseType_t& saved);
 

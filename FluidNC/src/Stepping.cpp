@@ -42,6 +42,8 @@ namespace Machine {
         _switchedStepper = _engine == I2S_STREAM;
         if (_switchedStepper) {
             _engine = I2S_STATIC;
+            i2s_out_set_passthrough();
+            i2s_out_delay();  // Wait for a change in mode.
         }
     }
     void Stepping::endLowLatency() {

@@ -284,6 +284,10 @@ static Error disable_alarm_lock(const char* value, WebUI::AuthenticationLevel au
         }
         report_feedback_message(Message::AlarmUnlock);
         sys.state = State::Idle;
+
+        // Turn event pin ISRs back on; they could be off due to hard limit triggering
+        Machine::EventPin::check();
+
         // Don't run startup script. Prevents stored moves in startup from causing accidents.
     }  // Otherwise, no effect.
     return Error::Ok;
@@ -292,12 +296,12 @@ static Error report_ngc(const char* value, WebUI::AuthenticationLevel auth_level
     report_ngc_parameters(out);
     return Error::Ok;
 }
-static Error home(int cycle) {
-    if (cycle != 0) {  // if not AllCycles we need to make sure the cycle is not prohibited
+static Error home(AxisMask axisMask) {
+    if (axisMask != Machine::Homing::AllCycles) {  // if not AllCycles we need to make sure the cycle is not prohibited
         // if there is a cycle it is the axis from $H<axis>
         auto n_axis = config->_axes->_numberAxis;
         for (int axis = 0; axis < n_axis; axis++) {
-            if (bitnum_is_true(cycle, axis)) {
+            if (bitnum_is_true(axisMask, axis)) {
                 auto axisConfig     = config->_axes->_axis[axis];
                 auto homing_allowed = axisConfig->_homing->_allow_single_axis;
                 if (!homing_allowed)
@@ -317,21 +321,15 @@ static Error home(int cycle) {
         return Error::CheckDoor;  // Block if safety door is ajar.
     }
 
-    sys.state = State::Homing;  // Set system state variable
+    Machine::Homing::run_cycles(axisMask);
 
-    config->_stepping->beginLowLatency();
+    do {
+        pollChannels();
+        protocol_execute_realtime();
+    } while (sys.state == State::Homing);
 
-    mc_homing_cycle(cycle);
+    settings_execute_startup();
 
-    config->_stepping->endLowLatency();
-
-    if (!sys.abort) {             // Execute startup scripts after successful homing.
-        sys.state = State::Idle;  // Set to IDLE when complete.
-        Stepper::go_idle();       // Set steppers to the settings idle state before returning.
-        if (cycle == Machine::Homing::AllCycles) {
-            settings_execute_startup();
-        }
-    }
     return Error::Ok;
 }
 static Error home_all(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
@@ -415,6 +413,7 @@ static Error show_limits(const char* value, WebUI::AuthenticationLevel auth_leve
     out << "  PosLimitPins NegLimitPins\n";
     const TickType_t interval = 500;
     TickType_t       limit    = xTaskGetTickCount();
+    runLimitLoop              = true;
     do {
         TickType_t thisTime = xTaskGetTickCount();
         if (((long)(thisTime - limit)) > 0) {
@@ -426,14 +425,14 @@ static Error show_limits(const char* value, WebUI::AuthenticationLevel auth_leve
             limit = thisTime + interval;
         }
         vTaskDelay(1);
+        protocol_handle_events();
         pollChannels();
-    } while (!rtFeedHold);
-    rtFeedHold = false;
+    } while (runLimitLoop);
     out << '\n';
     return Error::Ok;
 }
 static Error go_to_sleep(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
-    rtSleep = true;
+    protocol_send_event(&sleepEvent);
     return Error::Ok;
 }
 static Error get_report_build_info(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
@@ -644,8 +643,10 @@ static Error xmodem_send(const char* value, WebUI::AuthenticationLevel auth_leve
         log_info("Cannot open " << value);
         return Error::DownloadFailed;
     }
+    bool oldCr = out.setCr(false);
     log_info("Sending " << value << " via XModem");
     int size = xmodemTransmit(&out, infile);
+    out.setCr(oldCr);
     delete infile;
     if (size >= 0) {
         log_info("Sent " << size << " bytes");

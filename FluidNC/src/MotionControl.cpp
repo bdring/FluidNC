@@ -252,39 +252,6 @@ bool mc_dwell(int32_t milliseconds) {
     return delay_msec(milliseconds, DwellMode::Dwell);
 }
 
-// Perform homing cycle to locate and set machine zero. Only '$H' executes this command.
-// NOTE: There should be no motions in the buffer and the system must be in idle state before
-// executing the homing cycle. This prevents incorrect buffered plans after homing.
-void mc_homing_cycle(AxisMask axis_mask) {
-    if (config->_kinematics->kinematics_homing(axis_mask)) {
-        // Allow kinematics to replace homing.
-        // TODO: Better integrate this logic.
-        return;
-    }
-
-    // Abort homing cycle if an axis has limit switches engaged on both ends,
-    // or if it is impossible to tell which end is engaged.  In that situation
-    // we do not know the pulloff direction.
-    if (ambiguousLimit()) {
-        return;
-    }
-
-    // Might set an alarm; if so protocol_execute_realtime will handle it
-    Machine::Homing::run_cycles(axis_mask);
-
-    protocol_execute_realtime();  // Check for reset and set system abort.
-    if (sys.abort) {
-        return;  // Did not complete. Alarm state set by mc_alarm.
-    }
-    // Homing cycle complete! Setup system for normal operation.
-    // -------------------------------------------------------------------------------------
-    // Sync gcode parser and planner positions to homed position.
-    gc_sync_position();
-    plan_sync_position();
-    // This give kinematics a chance to do something after normal homing
-    config->_kinematics->kinematics_post_homing();
-}
-
 volatile ProbeState probeState;
 
 bool probe_succeeded = false;
@@ -324,7 +291,7 @@ GCUpdatePos mc_probe_cycle(float* target, plan_line_data_t* pl_data, bool away, 
     // Activate the probing state monitor in the stepper module.
     probeState = ProbeState::Active;
     // Perform probing cycle. Wait here until probe is triggered or motion completes.
-    rtCycleStart = true;
+    protocol_send_event(&cycleStartEvent);
     do {
         pollChannels();
         protocol_execute_realtime();
@@ -432,8 +399,7 @@ void mc_reset() {
         // NOTE: If steppers are kept enabled via the step idle delay setting, this also keeps
         // the steppers enabled by avoiding the go_idle call altogether, unless the motion state is
         // violated, by which, all bets are off.
-        if ((sys.state == State::Cycle || sys.state == State::Homing || sys.state == State::Jog) ||
-            (sys.step_control.executeHold || sys.step_control.executeSysMotion)) {
+        if (inMotionState() || sys.step_control.executeHold || sys.step_control.executeSysMotion) {
             if (sys.state == State::Homing) {
                 if (rtAlarm == ExecAlarm::None) {
                     rtAlarm = ExecAlarm::HomingFailReset;
