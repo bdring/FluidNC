@@ -25,14 +25,16 @@ class String;
 // with ISRHandler.
 //
 // Usage:
-// - In header file (private / protected members) or in cpp file in anonymous namespace (public members) 
+// - In header file (private / protected members) or in cpp file in anonymous namespace (public members)
 //   CreateISRHandlerFor(LimitPin, handleISR);
-// - When attaching an ISR: _pin.attachInterrupt(ISRHandler, CHANGE, this);
+// - When attaching an ISR: _pin.attachInterrupt(ISRHandler, EITHER_EDGE, this);
 //
 // I'd rather not use any defines, but templates... but apparently there's no choice here. Let's just make it as safe
 // as possible...
 #define CreateISRHandlerFor(className, methodName)                                                                                         \
-    static void IRAM_ATTR ISRHandler(void* data) { static_cast<className*>(data)->methodName(); }
+    static void IRAM_ATTR ISRHandler(void* data) {                                                                                         \
+        static_cast<className*>(data)->methodName();                                                                                       \
+    }
 
 // Pin class. A pin is basically a thing that can 'output', 'input' or do both. GPIO on an ESP32 comes to mind,
 // but there are way more possible pins. Think about I2S/I2C/SPI extenders, RS485 driven pin devices and even
@@ -93,6 +95,14 @@ public:
     static const bool On  = true;
     static const bool Off = false;
 
+    static const int NO_INTERRUPT = 0;
+    static const int RISING_EDGE  = 1;
+    static const int FALLING_EDGE = 2;
+    static const int EITHER_EDGE  = 3;
+
+    static const int ASSERTING   = 0x10;
+    static const int DEASSERTING = 0x11;
+
     // inline static Pins::PinDetail* create(const char* str) { return create(StringRange(str)); };
 
     static Pin  create(const char* str) { return create(StringRange(str)); }  // ensure it's not ambiguous
@@ -107,7 +117,7 @@ public:
     inline Pin(Pin&& o) : _detail(nullptr) { std::swap(_detail, o._detail); }
 
     inline Pin& operator=(const Pin& o) = delete;
-    inline Pin& operator                =(Pin&& o) {
+    inline Pin& operator=(Pin&& o) {
         std::swap(_detail, o._detail);
         return *this;
     }
@@ -153,6 +163,7 @@ public:
     inline String name() const { return _detail->toString(); }
 
     void report(const char* legend);
+    void report(String legend) { report(legend.c_str()); }
 
     inline void swap(Pin& o) { std::swap(o._detail, _detail); }
 
