@@ -63,7 +63,9 @@ namespace WebUI {
         { "Static", STATIC_MODE },
     };
 
-    static void print_mac(const char* s, String mac, Channel& out) { out << s << " (" << mac << ")\n"; }
+    static void print_mac(const char* s, String mac, Channel& out) {
+        out << s << " (" << mac << ")\n";
+    }
 
     static Error showIP(char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP111
         out << parameter << (WiFi.getMode() == WIFI_STA ? WiFi.localIP() : WiFi.softAPIP()).toString() << '\n';
@@ -322,8 +324,8 @@ namespace WebUI {
     }
 
     String WiFiConfig::info() {
-        static String result;
-        String        tmp;
+        String result;
+        String tmp;
 
         if ((WiFi.getMode() == WIFI_MODE_STA) || (WiFi.getMode() == WIFI_MODE_APSTA)) {
             result += "Mode=STA:SSID=";
@@ -723,7 +725,9 @@ namespace WebUI {
     /**
      * End WiFi
      */
-    void WiFiConfig::end() { StopWiFi(); }
+    void WiFiConfig::end() {
+        StopWiFi();
+    }
 
     /**
      * Reset ESP
@@ -743,12 +747,16 @@ namespace WebUI {
         }
         log_info("WiFi reset done");
     }
-    bool WiFiConfig::isOn() { return !(WiFi.getMode() == WIFI_MODE_NULL); }
+    bool WiFiConfig::isOn() {
+        return !(WiFi.getMode() == WIFI_MODE_NULL);
+    }
 
     /**
      * Handle not critical actions that must be done in sync environment
      */
-    void WiFiConfig::handle() { wifi_services.handle(); }
+    void WiFiConfig::handle() {
+        wifi_services.handle();
+    }
 
     Error WiFiConfig::listAPs(char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP410
         JSONencoder j(false, out);
@@ -787,6 +795,8 @@ namespace WebUI {
         return Error::Ok;
     }
 
-    WiFiConfig::~WiFiConfig() { end(); }
+    WiFiConfig::~WiFiConfig() {
+        end();
+    }
 }
 #endif
