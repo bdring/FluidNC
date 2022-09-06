@@ -64,7 +64,17 @@ namespace MotorDrivers {
         }
     }
 
-    bool TMC2208Driver::test() { return TrinamicBase::reportTest(tmc2208->test_connection()); }
+    bool TMC2208Driver::test() {
+        uint8_t ifcnt_before = tmc2208->IFCNT();
+        tmc2208->GSTAT(0);  // clear GSTAT to increase ifcnt
+        uint8_t ifcnt_after = tmc2208->IFCNT();
+        bool    okay        = ((ifcnt_before + 1) & 0xff) == ifcnt_after;
+        if (!okay) {
+            TrinamicBase::reportCommsFailure();
+            return false;
+        }
+        return true;
+    }
 
     // Configuration registration
     namespace {

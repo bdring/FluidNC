@@ -120,6 +120,8 @@ namespace MotorDrivers {
         }
     }
 
+    void TrinamicBase::reportCommsFailure(void) { log_info(axisName() << " communications check failed"); }
+
     bool TrinamicBase::startDisable(bool disable) {
         if (_has_errors) {
             return false;
