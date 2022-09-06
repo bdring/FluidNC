@@ -21,7 +21,6 @@ namespace Spindles {
         static const int MAX_RETRIES            = 5;   // otherwise the spindle is marked 'unresponsive'
 
         void set_mode(SpindleState mode, bool critical);
-        bool get_pins_and_settings();
 
         int32_t  _current_dev_speed   = -1;
         uint32_t _last_speed          = 0;
@@ -100,7 +99,7 @@ namespace Spindles {
 
         void group(Configuration::HandlerBase& handler) override {
             handler.section("uart", _uart);
-            handler.item("modbus_id", _modbus_id, 0, 247); // per https://modbus.org/docs/PI_MBUS_300.pdf
+            handler.item("modbus_id", _modbus_id, 0, 247);  // per https://modbus.org/docs/PI_MBUS_300.pdf
 
             Spindle::group(handler);
         }

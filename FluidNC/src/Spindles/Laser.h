@@ -25,7 +25,7 @@ namespace Spindles {
 
         bool isRateAdjusted() override;
         void config_message() override;
-        void get_pins_and_settings() override;
+        void init() override;
         void set_direction(bool Clockwise) override {};
         bool use_delay_settings() const override { return false; }
         // Name of the configurable. Must match the name registered in the cpp file.
