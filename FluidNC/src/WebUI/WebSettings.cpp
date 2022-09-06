@@ -172,8 +172,9 @@ namespace WebUI {
 
     static Error showSysStats(char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP420
         out << "Chip ID: " << (uint16_t)(ESP.getEfuseMac() >> 32) << '\n';
-        out << "CPU Frequency: " << ESP.getCpuFreqMHz() + "Mhz" << '\n';
-        out << "CPU Temperature: " << String(temperatureRead(), 1) << "C\n";
+        out << "CPU Cores: " << ESP.getChipCores() << '\n';
+        out << "CPU Frequency: " << ESP.getCpuFreqMHz() << "Mhz" << '\n';
+        out << "CPU Temperature: " << String(temperatureRead(), 1) << "°C\n";
         out << "Free memory: " << formatBytes(ESP.getFreeHeap()) << '\n';
         out << "SDK: " << ESP.getSdkVersion() << '\n';
         out << "Flash Size: " << formatBytes(ESP.getFlashChipSize()) << '\n';
