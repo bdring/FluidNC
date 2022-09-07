@@ -2,32 +2,19 @@
 
 #include "Pin.h"
 #include <esp_attr.h>  // IRAM_ATTR
+#include "Machine/EventPin.h"
+namespace Machine {
+    class ControlPin : public Machine::EventPin {
+    private:
+        const char _letter;  // The name that appears in init() messages and the name of the configuration item
 
-class ControlPin {
-private:
-    bool           _value;
-    volatile bool& _rtVariable;  // The variable that is set when the pin is asserted
-    int32_t        _debounceEnd = 0;
+    public:
+        ControlPin(Event* event, const char* legend, char letter) : EventPin(event, legend), _letter(letter) {}
 
-    void IRAM_ATTR handleISR();
-    CreateISRHandlerFor(ControlPin, handleISR);
+        char letter() { return _letter; };
 
-    // Interval during which we ignore repeated control pin activations
-    const int debounceUs = 10000;  // 10000 us = 10 ms
+        void run(void* arg) override;
 
-public:
-    const char* _legend;  // The name that appears in init() messages and the name of the configuration item
-    const char  _letter;  // The letter that appears in status reports when the pin is active
-
-    ControlPin(volatile bool& rtVariable, const char* legend, char letter) :
-        _value(false), _letter(letter), _rtVariable(rtVariable), _legend(legend) {
-        _rtVariable = _value;
-    }
-
-    Pin _pin;
-
-    void init();
-    bool get() { return _value; }
-
-    ~ControlPin();
-};
+        ~ControlPin();
+    };
+}

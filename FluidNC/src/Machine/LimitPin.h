@@ -1,15 +1,10 @@
 #pragma once
 
-#include "../Pin.h"
-
-#include <esp_attr.h>  // IRAM_ATTR
+#include "EventPin.h"
 
 namespace Machine {
-    class LimitPin {
+    class LimitPin : public EventPin {
     private:
-        int _axis;
-        int _motorNum;
-
         bool     _value   = 0;
         uint32_t _bitmask = 0;
 
@@ -28,24 +23,18 @@ namespace Machine {
         volatile uint32_t* _posLimits = nullptr;
         volatile uint32_t* _negLimits = nullptr;
 
-        void IRAM_ATTR handleISR();
-
-        CreateISRHandlerFor(LimitPin, handleISR);
-
-        void read();
-
     public:
         LimitPin(Pin& pin, int axis, int motorNum, int direction, bool& phardLimits, bool& pLimited);
 
-        Pin& _pin;
+        void update(bool value) override;
 
-        String _legend;
-
-        void init();
-        bool get() { return _value; }
+        //void init();
         void makeDualMask();  // makes this a mask for motor0 and motor1
         void setExtraMotorLimit(int axis, int motorNum);
 
-        ~LimitPin();
+        bool isHard() { return _pHardLimits; }
+
+        int _axis;
+        int _motorNum;
     };
 }

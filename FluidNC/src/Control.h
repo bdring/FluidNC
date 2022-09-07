@@ -7,6 +7,7 @@
 #include "ControlPin.h"
 #include <vector>
 
+using namespace Machine;
 class Control : public Configuration::Configurable {
 public:
     Control();

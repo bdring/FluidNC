@@ -52,11 +52,9 @@ namespace Spindles {
             shelfSpeeds(4000, 20000);
         }
 
-        // We set the dev_speed scale in the speed map to the full PWM period.
-        // Then, in set_output, we map the dev_speed range of 0..64K to the pulse
-        // length range of ~1ms .. 2ms
-        setupSpeeds(_pwm->period());
-
+        // Use yaml speed_map to setup speed map for "spindle speed" conversion to timer counts used by PWM controller
+        //setupSpeeds(_pulse_span_counts); // Map the counts for just the part of the pulse that changes to keep math inside 32bits later...
+        setupSpeeds(_pwm->period());       // Map the entire pulse width period in counts
         stop();
         config_message();
     }
@@ -73,19 +71,22 @@ namespace Spindles {
 
         _current_pwm_duty = duty;
 
-        // This maps the dev_speed range of 0.._pwm->period() into the pulse length
+        // This maps the dev_speed range of 0..(1<<_pwm_precision) into the pulse length
         // where _min_pulse_counts represents off and (_min_pulse_counts + _pulse_span_counts)
         // represents full on.  Typically the off value is a 1ms pulse length and the
         // full on value is a 2ms pulse.
-        uint32_t pulse_counts = _min_pulse_counts + ((duty * _pulse_span_counts) / _pwm->period());
+        // uint32_t pulse_counts = _min_pulse_counts + (_pulse_span_counts * (uint64_t) duty)/_pwm->period();
+        _pwm->setDuty(_min_pulse_counts + (_pulse_span_counts * (uint64_t) duty)/_pwm->period());
+        // _pwm->setDuty(_min_pulse_counts+duty); // More efficient by keeping math within 32bits??
+        // log_info(name() << " duty:" << duty << " _min_pulse_counts:" << _min_pulse_counts
+        //                 << " _pulse_span_counts:" << _pulse_span_counts << " pulse_counts" << pulse_counts);
 
-        _pwm->setDuty(pulse_counts);
     }
 
     // prints the startup message of the spindle config
     void BESC::config_message() {
         log_info(name() << " Spindle Out:" << _output_pin.name() << " Min:" << _min_pulse_us << "us Max:" << _max_pulse_us
-                        << "us Freq:" << _pwm->frequency() << "Hz Period:" << _pwm->period());
+                        << "us Freq:" << _pwm->frequency() << "Hz Full Period count:" << _pwm->period());
     }
 
     // Configuration registration

@@ -4,9 +4,23 @@
 
 #pragma once
 
-#include "../Configuration/Configurable.h"
-#include "../WebUI/InputBuffer.h"  // WebUI::inputBuffer
-#include "../Uart.h"
+#include "src/Configuration/Configurable.h"
+#include "src/WebUI/InputBuffer.h"  // WebUI::inputBuffer
+#include "src/Uart.h"
+#include "src/Event.h"
+
+class MacroEvent : public Event {
+    int _num;
+
+public:
+    MacroEvent(int num) : _num(num) {}
+    void run(void*) override;
+};
+
+extern MacroEvent macro0Event;
+extern MacroEvent macro1Event;
+extern MacroEvent macro2Event;
+extern MacroEvent macro3Event;
 
 namespace Machine {
     class Macros : public Configuration::Configurable {
