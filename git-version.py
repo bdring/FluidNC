@@ -65,7 +65,7 @@ else:
 
         rev = " (%s-%s%s)" % (branchname, revision, dirty)
 
-grbl_version = tag.replace('v','').rpartition('.')[0]
+grbl_version = tag.rpartition('.')[0]
 git_info = '%s%s' % (tag, rev)
 
 provisional = "FluidNC/src/version.cxx"
