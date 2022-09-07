@@ -516,21 +516,6 @@ static void protocol_do_cycle_start() {
     // Resume door state when parking motion has retracted and door has been closed.
     switch (sys.state) {
         case State::SafetyDoor:
-            if (!sys.suspend.bit.safetyDoorAjar) {
-                // If the safety door is still open, do not restart yet
-                if (sys.suspend.bit.restoreComplete) {
-                    // Restore is complete.  Set the state to IDLE and resume normal motion
-                    sys.state = State::Idle;
-                    protocol_do_initiate_cycle();
-                } else if (sys.suspend.bit.retractComplete) {
-                    // retractComplete means that all of the retraction operations that were
-                    // initiated by the safety door opening, such as spindle stop and parking,
-                    // are done.  Thus we can respond to this cycle start by "restoring",
-                    // i.e. undoing those retraction operations.  Afterwards, restoreComplete
-                    // will be set and another cycle start event will be issued automatically.
-                    sys.suspend.bit.initiateRestore = true;
-                }
-            }
             break;
         case State::Idle:
             protocol_do_initiate_cycle();
@@ -828,58 +813,69 @@ static void protocol_exec_rt_suspend() {
                     if (sys.state == State::SafetyDoor) {
                         if (!config->_control->safety_door_ajar()) {
                             sys.suspend.bit.safetyDoorAjar = false;  // Reset door ajar flag to denote ready to resume.
-                        }
-                    }
-                    // Handles parking restore and safety door resume.
-                    if (sys.suspend.bit.initiateRestore) {
-                        // Execute fast restore motion to the pull-out position. Parking requires homing enabled.
-                        // NOTE: State is will remain DOOR, until the de-energizing and retract is complete.
-                        if (can_park()) {
-                            // Check to ensure the motion doesn't move below pull-out position.
-                            if (parking_target[PARKING_AXIS] <= PARKING_TARGET) {
-                                parking_target[PARKING_AXIS] = retract_waypoint;
-                                pl_data->feed_rate           = PARKING_RATE;
-                                mc_parking_motion(parking_target, pl_data);
-                            }
-                        }
-                        // Delayed Tasks: Restart spindle and coolant, delay to power-up, then resume cycle.
-                        if (gc_state.modal.spindle != SpindleState::Disable) {
-                            // Block if safety door re-opened during prior restore actions.
-                            if (!sys.suspend.bit.restartRetract) {
-                                if (spindle->isRateAdjusted()) {
-                                    // When in laser mode, defer turn on until cycle starts
-                                    sys.step_control.updateSpindleSpeed = true;
-                                } else {
-                                    spindle->setState(restore_spindle, restore_spindle_speed);
-                                    report_ovr_counter = 0;  // Set to report change immediately
+                            if (sys.suspend.bit.retractComplete) {
+                                // retractComplete means that all of the retraction operations that were
+                                // initiated by the safety door opening, such as spindle stop and parking,
+                                // are done.  Thus we can respond to this cycle start by "restoring",
+                                // i.e. undoing those retraction operations.  Afterwards, restoreComplete
+                                // will be set and another cycle start event will be issued automatically.
+                                sys.suspend.bit.initiateRestore = true;
+                                log_info("Safety door restore starting");
+
+                                // Execute fast restore motion to the pull-out position. Parking requires homing enabled.
+                                // NOTE: State is will remain DOOR, until the de-energizing and retract is complete.
+                                if (can_park()) {
+                                    // Check to ensure the motion doesn't move below pull-out position.
+                                    if (parking_target[PARKING_AXIS] <= PARKING_TARGET) {
+                                        parking_target[PARKING_AXIS] = retract_waypoint;
+                                        pl_data->feed_rate           = PARKING_RATE;
+                                        mc_parking_motion(parking_target, pl_data);
+                                    }
+                                }
+                                // Delayed Tasks: Restart spindle and coolant, delay to power-up, then resume cycle.
+                                if (gc_state.modal.spindle != SpindleState::Disable) {
+                                    // Block if safety door re-opened during prior restore actions.
+                                    if (!sys.suspend.bit.restartRetract) {
+                                        if (spindle->isRateAdjusted()) {
+                                            // When in laser mode, defer turn on until cycle starts
+                                            sys.step_control.updateSpindleSpeed = true;
+                                        } else {
+                                            spindle->setState(restore_spindle, restore_spindle_speed);
+                                            report_ovr_counter = 0;  // Set to report change immediately
+                                        }
+                                    }
+                                }
+                                if (gc_state.modal.coolant.Flood || gc_state.modal.coolant.Mist) {
+                                    // Block if safety door re-opened during prior restore actions.
+                                    if (!sys.suspend.bit.restartRetract) {
+                                        config->_coolant->set_state(restore_coolant);
+                                        report_ovr_counter = 0;  // Set to report change immediately
+                                    }
+                                }
+
+                                // Execute slow plunge motion from pull-out position to resume position.
+                                if (can_park()) {
+                                    // Block if safety door re-opened during prior restore actions.
+                                    if (!sys.suspend.bit.restartRetract) {
+                                        // Regardless if the retract parking motion was a valid/safe motion or not, the
+                                        // restore parking motion should logically be valid, either by returning to the
+                                        // original position through valid machine space or by not moving at all.
+                                        pl_data->feed_rate     = PARKING_PULLOUT_RATE;
+                                        pl_data->spindle       = restore_spindle;
+                                        pl_data->coolant       = restore_coolant;
+                                        pl_data->spindle_speed = restore_spindle_speed;
+                                        mc_parking_motion(restore_target, pl_data);
+                                    }
+                                }
+                                if (!sys.suspend.bit.restartRetract && sys.state == State::SafetyDoor && !sys.suspend.bit.safetyDoorAjar) {
+                                    // sys.suspend.bit.restoreComplete = true;
+                                    sys.state = State::Idle;
+                                    protocol_send_event(&cycleStartEvent);  // Resume program.
+                                    log_info("Safety door restore complete");
+
+                                    //                              protocol_send_event(&restoreCompleteEvent);  // Resume program.
                                 }
                             }
-                        }
-                        if (gc_state.modal.coolant.Flood || gc_state.modal.coolant.Mist) {
-                            // Block if safety door re-opened during prior restore actions.
-                            if (!sys.suspend.bit.restartRetract) {
-                                config->_coolant->set_state(restore_coolant);
-                                report_ovr_counter = 0;  // Set to report change immediately
-                            }
-                        }
-
-                        // Execute slow plunge motion from pull-out position to resume position.
-                        if (can_park()) {
-                            // Block if safety door re-opened during prior restore actions.
-                            if (!sys.suspend.bit.restartRetract) {
-                                // Regardless if the retract parking motion was a valid/safe motion or not, the
-                                // restore parking motion should logically be valid, either by returning to the
-                                // original position through valid machine space or by not moving at all.
-                                pl_data->feed_rate     = PARKING_PULLOUT_RATE;
-                                pl_data->spindle       = restore_spindle;
-                                pl_data->coolant       = restore_coolant;
-                                pl_data->spindle_speed = restore_spindle_speed;
-                                mc_parking_motion(restore_target, pl_data);
-                            }
-                        }
-                        if (!sys.suspend.bit.restartRetract) {
-                            sys.suspend.bit.restoreComplete = true;
-                            protocol_send_event(&cycleStartEvent);  // Resume program.
                         }
                     }
                 }
