@@ -46,17 +46,11 @@ void mc_arc(float*            target,
 // Dwell for a specific number of seconds
 bool mc_dwell(int32_t milliseconds);
 
-// Perform homing cycle to locate machine zero. Requires limit switches.
-void mc_homing_cycle(AxisMask cycle_mask);
-
 // Perform tool length probe cycle. Requires probe switch.
 GCUpdatePos mc_probe_cycle(float* target, plan_line_data_t* pl_data, bool away, bool no_error, uint8_t offsetAxis, float offset);
 
 // Handles updating the override control state.
 void mc_override_ctrl_update(Override override_state);
-
-// Plans and executes the single special motion case for parking. Independent of main planner buffer.
-void mc_parking_motion(float* parking_target, plan_line_data_t* pl_data);
 
 // Performs system reset. If in motion state, kills all motion and sets system alarm.
 void mc_reset();

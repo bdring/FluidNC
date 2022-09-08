@@ -67,27 +67,6 @@ union SpindleStop {
 
 static SpindleStop spindle_stop_ovr;
 
-bool can_park() {
-    if (spindle->isRateAdjusted()) {
-        // No parking in Laser mode
-        return false;
-    }
-    if (!Machine::Axes::homingMask) {
-        // No parking without homing
-        return false;
-    }
-    if (!config->_enableParkingOverrideControl) {
-        // _enableParkingOverrideControl adds M56 whereby you can
-        // disable parking via GCode.  If that feature is not present,
-        // parking is enabled subject to the preceding tests.
-        return true;
-    }
-    // If the M56 feature is present, M56 controls the value
-    // of sys.override_ctrl, thus letting you disable parking
-    // by saying M56 P0
-    return sys.override_ctrl == Override::ParkingMotion;
-}
-
 void protocol_reset() {
     probeState             = ProbeState::Off;
     soft_limit             = false;
@@ -426,7 +405,6 @@ static void protocol_do_safety_door() {
 
                 sys.suspend.bit.retractComplete = false;
                 sys.suspend.bit.initiateRestore = false;
-                sys.suspend.bit.restoreComplete = false;
                 sys.suspend.bit.restartRetract  = true;
             }
             break;
@@ -516,21 +494,6 @@ static void protocol_do_cycle_start() {
     // Resume door state when parking motion has retracted and door has been closed.
     switch (sys.state) {
         case State::SafetyDoor:
-            if (!sys.suspend.bit.safetyDoorAjar) {
-                // If the safety door is still open, do not restart yet
-                if (sys.suspend.bit.restoreComplete) {
-                    // Restore is complete.  Set the state to IDLE and resume normal motion
-                    sys.state = State::Idle;
-                    protocol_do_initiate_cycle();
-                } else if (sys.suspend.bit.retractComplete) {
-                    // retractComplete means that all of the retraction operations that were
-                    // initiated by the safety door opening, such as spindle stop and parking,
-                    // are done.  Thus we can respond to this cycle start by "restoring",
-                    // i.e. undoing those retraction operations.  Afterwards, restoreComplete
-                    // will be set and another cycle start event will be issued automatically.
-                    sys.suspend.bit.initiateRestore = true;
-                }
-            }
             break;
         case State::Idle:
             protocol_do_initiate_cycle();
@@ -711,36 +674,53 @@ void protocol_exec_rt_system() {
     }
 }
 
+static void protocol_manage_spindle() {
+    // Feed hold manager. Controls spindle stop override states.
+    // NOTE: Hold ensured as completed by condition check at the beginning of suspend routine.
+    if (spindle_stop_ovr.value) {
+        // Handles beginning of spindle stop
+        if (spindle_stop_ovr.bit.initiate) {
+            if (gc_state.modal.spindle != SpindleState::Disable) {
+                spindle->spinDown();
+                report_ovr_counter           = 0;  // Set to report change immediately
+                spindle_stop_ovr.value       = 0;
+                spindle_stop_ovr.bit.enabled = true;  // Set stop override state to enabled, if de-energized.
+            } else {
+                spindle_stop_ovr.value = 0;  // Clear stop override state
+            }
+            // Handles restoring of spindle state
+        } else if (spindle_stop_ovr.bit.restore || spindle_stop_ovr.bit.restoreCycle) {
+            if (gc_state.modal.spindle != SpindleState::Disable) {
+                report_feedback_message(Message::SpindleRestore);
+                if (spindle->isRateAdjusted()) {
+                    // When in laser mode, defer turn on until cycle starts
+                    sys.step_control.updateSpindleSpeed = true;
+                } else {
+                    config->_parking->restore_spindle();
+                    report_ovr_counter = 0;  // Set to report change immediately
+                }
+            }
+            if (spindle_stop_ovr.bit.restoreCycle) {
+                protocol_send_event(&cycleStartEvent);  // Resume program.
+            }
+            spindle_stop_ovr.value = 0;  // Clear stop override state
+        }
+    } else {
+        // Handles spindle state during hold. NOTE: Spindle speed overrides may be altered during hold state.
+        // NOTE: sys.step_control.updateSpindleSpeed is automatically reset upon resume in step generator.
+        if (sys.step_control.updateSpindleSpeed) {
+            config->_parking->restore_spindle();
+            sys.step_control.updateSpindleSpeed = false;
+        }
+    }
+}
+
 // Handles system suspend procedures, such as feed hold, safety door, and parking motion.
 // The system will enter this loop, create local variables for suspend tasks, and return to
 // whatever function that invoked the suspend, resuming normal operation.
-// This function is written in a way to promote custom parking motions. Simply use this as a
-// template
 static void protocol_exec_rt_suspend() {
-    // Declare and initialize parking local variables
-    float             restore_target[MAX_N_AXIS];
-    float             retract_waypoint = PARKING_PULLOUT_INCREMENT;
-    plan_line_data_t  plan_data;
-    plan_line_data_t* pl_data = &plan_data;
-    memset(pl_data, 0, sizeof(plan_line_data_t));
-    pl_data->motion                = {};
-    pl_data->motion.systemMotion   = 1;
-    pl_data->motion.noFeedOverride = 1;
-    pl_data->line_number           = PARKING_MOTION_LINE_NUMBER;
+    config->_parking->setup();
 
-    plan_block_t* block = plan_get_current_block();
-    CoolantState  restore_coolant;
-    SpindleState  restore_spindle;
-    SpindleSpeed  restore_spindle_speed;
-    if (block == NULL) {
-        restore_coolant       = gc_state.modal.coolant;
-        restore_spindle       = gc_state.modal.spindle;
-        restore_spindle_speed = gc_state.spindle_speed;
-    } else {
-        restore_coolant       = block->coolant;
-        restore_spindle       = block->spindle;
-        restore_spindle_speed = block->spindle_speed;
-    }
     if (spindle->isRateAdjusted()) {
         protocol_send_event(&accessoryOverrideEvent, (void*)AccessoryOverride::SpindleStopOvr);
     }
@@ -761,56 +741,18 @@ static void protocol_exec_rt_suspend() {
             // the safety door and sleep states.
             if (sys.state == State::SafetyDoor || sys.state == State::Sleep) {
                 // Handles retraction motions and de-energizing.
-                float* parking_target = get_mpos();
+                config->_parking->set_target();
                 if (!sys.suspend.bit.retractComplete) {
                     // Ensure any prior spindle stop override is disabled at start of safety door routine.
                     spindle_stop_ovr.value = 0;  // Disable override
 
-                    // Get current position and store restore location and spindle retract waypoint.
-                    if (!sys.suspend.bit.restartRetract) {
-                        copyAxes(restore_target, parking_target);
-                        retract_waypoint += restore_target[PARKING_AXIS];
-                        retract_waypoint = MIN(retract_waypoint, PARKING_TARGET);
-                    }
                     // Execute slow pull-out parking retract motion. Parking requires homing enabled, the
                     // current location not exceeding the parking target location, and laser mode disabled.
                     // NOTE: State will remain DOOR, until the de-energizing and retract is complete.
-                    if (can_park() && parking_target[PARKING_AXIS] < PARKING_TARGET) {
-                        // Retract spindle by pullout distance. Ensure retraction motion moves away from
-                        // the workpiece and waypoint motion doesn't exceed the parking target location.
-                        if (parking_target[PARKING_AXIS] < retract_waypoint) {
-                            parking_target[PARKING_AXIS] = retract_waypoint;
-                            pl_data->feed_rate           = PARKING_PULLOUT_RATE;
-                            pl_data->coolant             = restore_coolant;
-                            pl_data->spindle             = restore_spindle;
-                            pl_data->spindle_speed       = restore_spindle_speed;
-                            mc_parking_motion(parking_target, pl_data);
-                        }
-                        // NOTE: Clear accessory state after retract and after an aborted restore motion.
-                        pl_data->spindle               = SpindleState::Disable;
-                        pl_data->coolant               = {};
-                        pl_data->motion                = {};
-                        pl_data->motion.systemMotion   = 1;
-                        pl_data->motion.noFeedOverride = 1;
-                        pl_data->spindle_speed         = 0.0;
-                        spindle->spinDown();
-                        report_ovr_counter = 0;  // Set to report change immediately
-                        // Execute fast parking retract motion to parking target location.
-                        if (parking_target[PARKING_AXIS] < PARKING_TARGET) {
-                            parking_target[PARKING_AXIS] = PARKING_TARGET;
-                            pl_data->feed_rate           = PARKING_RATE;
-                            mc_parking_motion(parking_target, pl_data);
-                        }
-                    } else {
-                        // Parking motion not possible. Just disable the spindle and coolant.
-                        // NOTE: Laser mode does not start a parking motion to ensure the laser stops immediately.
-                        spindle->spinDown();
-                        config->_coolant->off();
-                        report_ovr_counter = 0;  // Set to report changes immediately
-                    }
+                    config->_parking->park(sys.suspend.bit.restartRetract);
 
-                    sys.suspend.bit.restartRetract  = false;
                     sys.suspend.bit.retractComplete = true;
+                    sys.suspend.bit.restartRetract  = false;
                 } else {
                     if (sys.state == State::Sleep) {
                         report_feedback_message(Message::SleepMode);
@@ -824,104 +766,31 @@ static void protocol_exec_rt_suspend() {
                         }
                         return;  // Abort received. Return to re-initialize.
                     }
-                    // Allows resuming from parking/safety door. Actively checks if safety door is closed and ready to resume.
+                    // Allows resuming from parking/safety door. Polls to see if safety door is closed and ready to resume.
                     if (sys.state == State::SafetyDoor) {
                         if (!config->_control->safety_door_ajar()) {
                             sys.suspend.bit.safetyDoorAjar = false;  // Reset door ajar flag to denote ready to resume.
-                        }
-                    }
-                    // Handles parking restore and safety door resume.
-                    if (sys.suspend.bit.initiateRestore) {
-                        // Execute fast restore motion to the pull-out position. Parking requires homing enabled.
-                        // NOTE: State is will remain DOOR, until the de-energizing and retract is complete.
-                        if (can_park()) {
-                            // Check to ensure the motion doesn't move below pull-out position.
-                            if (parking_target[PARKING_AXIS] <= PARKING_TARGET) {
-                                parking_target[PARKING_AXIS] = retract_waypoint;
-                                pl_data->feed_rate           = PARKING_RATE;
-                                mc_parking_motion(parking_target, pl_data);
-                            }
-                        }
-                        // Delayed Tasks: Restart spindle and coolant, delay to power-up, then resume cycle.
-                        if (gc_state.modal.spindle != SpindleState::Disable) {
-                            // Block if safety door re-opened during prior restore actions.
-                            if (!sys.suspend.bit.restartRetract) {
-                                if (spindle->isRateAdjusted()) {
-                                    // When in laser mode, defer turn on until cycle starts
-                                    sys.step_control.updateSpindleSpeed = true;
-                                } else {
-                                    spindle->setState(restore_spindle, restore_spindle_speed);
-                                    report_ovr_counter = 0;  // Set to report change immediately
+                            if (sys.suspend.bit.retractComplete) {
+                                // retractComplete means that all of the retraction operations that were
+                                // initiated by the safety door opening, such as spindle stop and parking,
+                                // are done.  Thus we can respond to this cycle start by "restoring",
+                                // i.e. undoing those retraction operations.  When that is complete,
+                                // a cycle start event will be issued automatically.
+                                sys.suspend.bit.initiateRestore = true;
+                                log_info("Safety door closed");
+
+                                config->_parking->unpark(sys.suspend.bit.restartRetract);
+
+                                if (!sys.suspend.bit.restartRetract && sys.state == State::SafetyDoor && !sys.suspend.bit.safetyDoorAjar) {
+                                    sys.state = State::Idle;
+                                    protocol_send_event(&cycleStartEvent);  // Resume program.
                                 }
                             }
-                        }
-                        if (gc_state.modal.coolant.Flood || gc_state.modal.coolant.Mist) {
-                            // Block if safety door re-opened during prior restore actions.
-                            if (!sys.suspend.bit.restartRetract) {
-                                config->_coolant->set_state(restore_coolant);
-                                report_ovr_counter = 0;  // Set to report change immediately
-                            }
-                        }
-
-                        // Execute slow plunge motion from pull-out position to resume position.
-                        if (can_park()) {
-                            // Block if safety door re-opened during prior restore actions.
-                            if (!sys.suspend.bit.restartRetract) {
-                                // Regardless if the retract parking motion was a valid/safe motion or not, the
-                                // restore parking motion should logically be valid, either by returning to the
-                                // original position through valid machine space or by not moving at all.
-                                pl_data->feed_rate     = PARKING_PULLOUT_RATE;
-                                pl_data->spindle       = restore_spindle;
-                                pl_data->coolant       = restore_coolant;
-                                pl_data->spindle_speed = restore_spindle_speed;
-                                mc_parking_motion(restore_target, pl_data);
-                            }
-                        }
-                        if (!sys.suspend.bit.restartRetract) {
-                            sys.suspend.bit.restoreComplete = true;
-                            protocol_send_event(&cycleStartEvent);  // Resume program.
                         }
                     }
                 }
             } else {
-                // Feed hold manager. Controls spindle stop override states.
-                // NOTE: Hold ensured as completed by condition check at the beginning of suspend routine.
-                if (spindle_stop_ovr.value) {
-                    // Handles beginning of spindle stop
-                    if (spindle_stop_ovr.bit.initiate) {
-                        if (gc_state.modal.spindle != SpindleState::Disable) {
-                            spindle->spinDown();
-                            report_ovr_counter           = 0;  // Set to report change immediately
-                            spindle_stop_ovr.value       = 0;
-                            spindle_stop_ovr.bit.enabled = true;  // Set stop override state to enabled, if de-energized.
-                        } else {
-                            spindle_stop_ovr.value = 0;  // Clear stop override state
-                        }
-                        // Handles restoring of spindle state
-                    } else if (spindle_stop_ovr.bit.restore || spindle_stop_ovr.bit.restoreCycle) {
-                        if (gc_state.modal.spindle != SpindleState::Disable) {
-                            report_feedback_message(Message::SpindleRestore);
-                            if (spindle->isRateAdjusted()) {
-                                // When in laser mode, defer turn on until cycle starts
-                                sys.step_control.updateSpindleSpeed = true;
-                            } else {
-                                spindle->setState(restore_spindle, restore_spindle_speed);
-                                report_ovr_counter = 0;  // Set to report change immediately
-                            }
-                        }
-                        if (spindle_stop_ovr.bit.restoreCycle) {
-                            protocol_send_event(&cycleStartEvent);  // Resume program.
-                        }
-                        spindle_stop_ovr.value = 0;  // Clear stop override state
-                    }
-                } else {
-                    // Handles spindle state during hold. NOTE: Spindle speed overrides may be altered during hold state.
-                    // NOTE: sys.step_control.updateSpindleSpeed is automatically reset upon resume in step generator.
-                    if (sys.step_control.updateSpindleSpeed) {
-                        spindle->setState(restore_spindle, restore_spindle_speed);
-                        sys.step_control.updateSpindleSpeed = false;
-                    }
-                }
+                protocol_manage_spindle();
             }
         }
         pollChannels();  // Handle realtime commands like status report, cycle start and reset
