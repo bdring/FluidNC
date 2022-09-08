@@ -197,14 +197,6 @@ const bool FORCE_BUFFER_SYNC_DURING_WCO_CHANGE = true;  // Default enabled. Comm
 // repeatable. If needed, you can disable this behavior by uncommenting the define below.
 const bool ALLOW_FEED_OVERRIDE_DURING_PROBE_CYCLES = false;
 
-// Configure options for the parking motion, if enabled.
-#define PARKING_AXIS Z_AXIS                      // Define which axis that performs the parking motion
-const double PARKING_TARGET            = -5.0;   // Parking axis target. In mm, as machine coordinate.
-const double PARKING_RATE              = 800.0;  // Parking fast rate after pull-out in mm/min.
-const double PARKING_PULLOUT_RATE      = 250.0;  // Pull-out/plunge slow feed rate in mm/min.
-const double PARKING_PULLOUT_INCREMENT = 5.0;    // Spindle pull-out and plunge distance in mm. Incremental distance.
-// Must be positive value or equal to zero.
-
 // INCLUDE_OLED_IO enables access to a basic OLED library.  To use it you must uncomment the
 //  "thingpulse/ESP8266 and ESP32 OLED driver for SSD1306 displays" line in platformio.ini
 // You must uncomment it if you use either INCLUDE_OLED_TINY or INCLUDE_OLED_BASIC

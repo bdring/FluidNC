@@ -43,7 +43,6 @@ struct SuspendBits {
     uint8_t restartRetract : 1;   // Flag to indicate a retract from a restore parking motion.
     uint8_t retractComplete : 1;  // (Safety door only) Indicates retraction and de-energizing is complete.
     uint8_t initiateRestore : 1;  // (Safety door only) Flag to initiate resume procedures from a cycle start.
-    uint8_t restoreComplete : 1;  // (Safety door only) Indicates ready to resume normal operation.
     uint8_t safetyDoorAjar : 1;   // Tracks safety door state for resuming.
     uint8_t motionCancel : 1;     // Indicates a canceled resume motion. Currently used by probing routine.
     uint8_t jogCancel : 1;        // Indicates a jog cancel in process and to reset buffers when complete.

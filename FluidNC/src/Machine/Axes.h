@@ -6,6 +6,7 @@
 
 #include "../Configuration/Configurable.h"
 #include "Axis.h"
+#include "../EnumItem.h"
 
 namespace MotorDrivers {
     class MotorDriver;
@@ -80,3 +81,4 @@ namespace Machine {
         ~Axes();
     };
 }
+extern EnumItem axisType[];

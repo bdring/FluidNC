@@ -350,31 +350,6 @@ GCUpdatePos mc_probe_cycle(float* target, plan_line_data_t* pl_data, bool away, 
     }
 }
 
-// Plans and executes the single special motion case for parking. Independent of main planner buffer.
-// NOTE: Uses the always free planner ring buffer head to store motion parameters for execution.
-void mc_parking_motion(float* parking_target, plan_line_data_t* pl_data) {
-    if (sys.abort) {
-        return;  // Block during abort.
-    }
-    if (plan_buffer_line(parking_target, pl_data)) {
-        sys.step_control.executeSysMotion = true;
-        sys.step_control.endMotion        = false;  // Allow parking motion to execute, if feed hold is active.
-        Stepper::parking_setup_buffer();            // Setup step segment buffer for special parking motion case
-        Stepper::prep_buffer();
-        Stepper::wake_up();
-        do {
-            protocol_exec_rt_system();
-            if (sys.abort) {
-                return;
-            }
-        } while (sys.step_control.executeSysMotion);
-        Stepper::parking_restore_buffer();  // Restore step segment buffer to normal run state.
-    } else {
-        sys.step_control.executeSysMotion = false;
-        protocol_exec_rt_system();
-    }
-}
-
 void mc_override_ctrl_update(Override override_state) {
     // Finish all queued commands before altering override control state
     protocol_buffer_synchronize();
