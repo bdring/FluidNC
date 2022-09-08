@@ -962,10 +962,15 @@ namespace WebUI {
 
         auto space = stdfs::space(fpath);
         if (filesize && filesize > space.available) {
-            _upload_status = UploadStatus::FAILED;
-            log_info("Upload not enough space");
-            pushError(ESP_ERROR_NOT_ENOUGH_SPACE, "Upload rejected, not enough space");
-            return;
+            // If the file already exists, maybe there will be enough space
+            // when we replace it.
+            auto existing_size = stdfs::file_size(fpath, ec);
+            if (ec || (filesize > (space.available + existing_size))) {
+                _upload_status = UploadStatus::FAILED;
+                log_info("Upload not enough space");
+                pushError(ESP_ERROR_NOT_ENOUGH_SPACE, "Upload rejected, not enough space");
+                return;
+            }
         }
 
         if (_upload_status != UploadStatus::FAILED) {
