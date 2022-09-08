@@ -75,3 +75,46 @@ extern bool atMsgLevel(MsgLevel level);
         ss << x;                                                                                                                           \
         Assert(false, "A fatal error occurred.");                                                                                          \
     }
+
+#define log_verbose_to(out, x)                                                                                                             \
+    if (atMsgLevel(MsgLevelVerbose)) {                                                                                                     \
+        out << "[MSG:VRB: ";                                                                                                               \
+        out << x;                                                                                                                          \
+        out << "]\n";                                                                                                                      \
+    }
+
+#define log_debug_to(out, x)                                                                                                               \
+    if (atMsgLevel(MsgLevelDebug)) {                                                                                                       \
+        out << "[MSG:DBG: ";                                                                                                               \
+        out << x;                                                                                                                          \
+        out << "]\n";                                                                                                                      \
+    }
+
+#define log_info_to(out, x)                                                                                                                \
+    if (atMsgLevel(MsgLevelInfo)) {                                                                                                        \
+        out << "[MSG:INFO: ";                                                                                                              \
+        out << x;                                                                                                                          \
+        out << "]\n";                                                                                                                      \
+    }
+
+#define log_warn_to(out, x)                                                                                                                \
+    if (atMsgLevel(MsgLevelWarning)) {                                                                                                     \
+        out << "[MSG:WARN: ";                                                                                                              \
+        out << x;                                                                                                                          \
+        out << "]\n";                                                                                                                      \
+    }
+
+#define log_error_to(out, x)                                                                                                               \
+    if (atMsgLevel(MsgLevelError)) {                                                                                                       \
+        out << "[MSG:ERR: ";                                                                                                               \
+        out << x;                                                                                                                          \
+        out << "]\n";                                                                                                                      \
+    }
+
+#define log_fatal_to(out, x)                                                                                                               \
+    {                                                                                                                                      \
+        out << "[MSG:FATAL: ";                                                                                                             \
+        out << x;                                                                                                                          \
+        out << "]\n";                                                                                                                      \
+        Assert(false, "A fatal error occurred.");                                                                                          \
+    }

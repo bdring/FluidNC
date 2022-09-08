@@ -302,7 +302,7 @@ namespace WebUI {
     }
 
     static Error showSDFile(char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP221
-        return showFile("/sd", parameter, auth_level, out);
+        return showFile("sd", parameter, auth_level, out);
     }
     static Error showLocalFile(char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP701
         return showFile("", parameter, auth_level, out);
@@ -327,7 +327,7 @@ namespace WebUI {
     }
 
     static Error runSDFile(char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP220
-        return runFile("/sd", parameter, auth_level, out);
+        return runFile("sd", parameter, auth_level, out);
     }
 
     // Used by js/controls.js
@@ -441,14 +441,14 @@ namespace WebUI {
         {  // Block to manage scope of outDir
             FluidPath outDir { oDir, "", ec };
             if (ec) {
-                out << "Cannot mount /sd\n";
+                log_error_to(out, "Cannot mount /sd");
                 return Error::FsFailedMount;
             }
 
             if (outDir.hasTail()) {
                 stdfs::create_directory(outDir, ec);
                 if (ec) {
-                    out << "Cannot create " << oDir << '\n';
+                    log_error_to(out, "Cannot create " << oDir);
                     return Error::FsFailedOpenDir;
                 }
             }
@@ -456,13 +456,14 @@ namespace WebUI {
 
         FluidPath fpath { iDir, "", ec };
         if (ec) {
-            out << "Cannot open " << iDir << '\n';
+            log_error_to(out, "Cannot open " << iDir);
             return Error::FsFailedMount;
         }
 
         auto iter = stdfs::directory_iterator { fpath, ec };
         if (ec) {
-            out << "Error: " << fpath << " " << ec.message() << '\n';
+            log_error_to(out, fpath << " " << ec.message());
+            ;
             return Error::FsFailedMount;
         }
         Error err = Error::Ok;
@@ -472,7 +473,7 @@ namespace WebUI {
             } else {
                 String opath = oDir + "/" + dir_entry.path().filename().c_str();
                 String ipath = iDir + "/" + dir_entry.path().filename().c_str();
-                out << ipath << " -> " << opath << '\n';
+                log_info_to(out, ipath << " -> " << opath);
                 auto err1 = copyFile(ipath.c_str(), opath.c_str(), out);
                 if (err1 != Error::Ok) {
                     err = err1;
@@ -485,6 +486,20 @@ namespace WebUI {
         return copyDir("/localfs", "/sd/localfs", out);
     }
     static Error restoreLocalFS(char* parameter, AuthenticationLevel auth_level, Channel& out) {  // No ESP command
+        return copyDir("/sd/localfs", "/localfs", out);
+    }
+    static Error migrateLocalFS(char* parameter, AuthenticationLevel auth_level, Channel& out) {  // No ESP command
+        log_info("Backing up local filesystem contents to SD");
+        Error err = copyDir("/localfs", "/sd/localfs", out);
+        if (err != Error::Ok) {
+            return err;
+        }
+        const char* newfs = parameter && *parameter ? parameter : "littlefs";
+        log_info("Reformatting local filesystem to " << newfs);
+        if (localfs_format(newfs)) {
+            return Error::FsFailedFormat;
+        }
+        log_info("Restoring local filesystem contents");
         return copyDir("/sd/localfs", "/localfs", out);
     }
 
@@ -606,6 +621,7 @@ namespace WebUI {
         new WebCommand("path", WEBCMD, WU, NULL, "LocalFS/Delete", deleteLocalFile);
         new WebCommand("path", WEBCMD, WU, NULL, "LocalFS/Backup", backupLocalFS);
         new WebCommand("path", WEBCMD, WU, NULL, "LocalFS/Restore", restoreLocalFS);
+        new WebCommand("path", WEBCMD, WU, NULL, "LocalFS/Migrate", migrateLocalFS);
 
         new WebCommand("path", WEBCMD, WU, "ESP221", "SD/Show", showSDFile);
         new WebCommand("path", WEBCMD, WU, "ESP220", "SD/Run", runSDFile);
