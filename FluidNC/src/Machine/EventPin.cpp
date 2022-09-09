@@ -19,15 +19,9 @@ namespace Machine {
             _eventPinTimer = xTimerCreate("eventPinTimer", pdMS_TO_TICKS(200), false, NULL, eventPinTimerCallback);
         }
     }
-    EventPin::EventPin(Event* event, const char* legend, Pin& pin) : EventPin(event, legend) {
-        _pin.swap(pin);
-    }
-    bool EventPin::get() {
-        return _pin.read();
-    }
-    void EventPin::eventPinTimerCallback(void*) {
-        check();
-    }
+    EventPin::EventPin(Event* event, const char* legend, Pin& pin) : EventPin(event, legend) { _pin.swap(pin); }
+    bool EventPin::get() { return _pin.read(); }
+    void EventPin::eventPinTimerCallback(void*) { check(); }
     void EventPin::run(void* arg) {
         log_debug("EP run");
         // Since we do not trust the ISR to always trigger precisely,
@@ -39,13 +33,9 @@ namespace Machine {
             reArm();
         }
     }
-    void EventPin::check() {
-        _blockedPins.remove_if(inactive);
-    }
+    void EventPin::check() { _blockedPins.remove_if(inactive); }
 
-    void EventPin::block() {
-        _blockedPins.emplace_back(this);
-    }
+    void EventPin::block() { _blockedPins.emplace_back(this); }
 
     bool EventPin::inactive(EventPin* pin) {
         bool value = pin->get();
@@ -73,13 +63,9 @@ namespace Machine {
         }
         protocol_send_event_from_ISR(this, this);
     }
-    void EventPin::startTimer() {
-        xTimerStart(_eventPinTimer, 0);
-    }
+    void EventPin::startTimer() { xTimerStart(_eventPinTimer, 0); }
 
-    void EventPin::reArm() {
-        gpio_intr_enable(gpio_num_t(_gpio));
-    }
+    void EventPin::reArm() { gpio_intr_enable(gpio_num_t(_gpio)); }
     void EventPin::init() {
         if (_pin.undefined()) {
             return;
@@ -92,7 +78,5 @@ namespace Machine {
         _gpio = _pin.getNative(Pin::Capabilities::Input | Pin::Capabilities::ISR);
     }
 
-    EventPin::~EventPin() {
-        _pin.detachInterrupt();
-    }
+    EventPin::~EventPin() { _pin.detachInterrupt(); }
 };
