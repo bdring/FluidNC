@@ -905,12 +905,14 @@ class Miniterm(object):
                 window = Tk()
             except:
                 pathname = raw_input("Local file to send: ")
-                destname = raw_input("File on FluidNC: ")
+                # destname = raw_input("File on FluidNC: ")
+                destname = "config.yaml"
                 return (pathname, destname)
             else:
                 pathname = filedialog.askopenfilename(title="File to Upload", initialfile=initial, filetypes=[("FluidNC Config", "*.yaml *.flnc *.txt"), ("All files", "*")])
                 print("path",pathname)
-                destname = simpledialog.askstring("Uploader", "Destination Filename", initialvalue=os.path.split(pathname)[1])
+                # destname = simpledialog.askstring("Uploader", "Destination Filename", initialvalue=os.path.split(pathname)[1])
+                destname = simpledialog.askstring("Uploader", "Destination Filename", initialvalue="config.yaml")
                 window.destroy()
                 return (pathname, destname)
 
