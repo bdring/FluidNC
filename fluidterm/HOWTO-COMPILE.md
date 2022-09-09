@@ -4,7 +4,7 @@ You have to do this on the host system on which you wish to run
 the executable.
 
   python3 -m pip install pyinstaller
-  python3 -m PyInstaller --oneline fluidterm.py
+  python3 -m PyInstaller --onefile fluidterm.py
 
 The output is in dist\fluidterm.exe (Windows) or dist\fluidterm
 (Linux and MacOS).  On Linux and Mac, the executable may depend
