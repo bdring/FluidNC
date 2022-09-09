@@ -9,7 +9,7 @@
 
 from __future__ import absolute_import
 
-VERSION = 'v1.2.0'
+VERSION = 'Ava-v1.3.0'
 
 import codecs
 import os
