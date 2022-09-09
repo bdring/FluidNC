@@ -29,7 +29,6 @@ namespace Machine {
         check();
     }
     void EventPin::run(void* arg) {
-        log_debug("EP run");
         // Since we do not trust the ISR to always trigger precisely,
         // we check the pin state before calling the event handler
         if (get()) {
