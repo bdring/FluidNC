@@ -901,20 +901,21 @@ class Miniterm(object):
             destname = self.mac_askstring(os.path.split(pathname)[1])
             return (pathname, destname)
         else:
-            try:
+            #try:
                 window = Tk()
-            except:
-                pathname = raw_input("Local file to send: ")
-                # destname = raw_input("File on FluidNC: ")
-                destname = "config.yaml"
-                return (pathname, destname)
-            else:
+            #except:
                 pathname = filedialog.askopenfilename(title="File to Upload", initialfile=initial, filetypes=[("FluidNC Config", "*.yaml *.flnc *.txt"), ("All files", "*")])
-                print("path",pathname)
-                # destname = simpledialog.askstring("Uploader", "Destination Filename", initialvalue=os.path.split(pathname)[1])
-                destname = simpledialog.askstring("Uploader", "Destination Filename", initialvalue="config.yaml")
                 window.destroy()
+                destname = raw_input("File on FluidNC [config.yaml] : ")
+                if destname == '': destname = "config.yaml"
                 return (pathname, destname)
+            #else:
+            #    pathname = filedialog.askopenfilename(title="File to Upload", initialfile=initial, filetypes=[("FluidNC Config", "*.yaml *.flnc *.txt"), ("All files", "*")])
+            #    print("path",pathname)
+            #    # destname = simpledialog.askstring("Uploader", "Destination Filename", initialvalue=os.path.split(pathname)[1])
+            #    destname = simpledialog.askstring("Uploader", "Destination Filename", initialvalue="config.yaml")
+            #    window.destroy()
+            #    return (pathname, destname)
 
     def enable_fluid_echo(self):
         right_arrow = '\x1b[C'
