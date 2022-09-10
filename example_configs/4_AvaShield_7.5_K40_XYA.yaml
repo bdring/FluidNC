@@ -146,7 +146,7 @@ laser:
   speed_map: 0=0.0% 1000=100.0%
   output_pin: gpio.15
   enable_pin: gpio.16:low
-  disable_with_s0: true
+  disable_with_s0: false
   s0_with_disable: false
   pwm_hz: 15000
 
