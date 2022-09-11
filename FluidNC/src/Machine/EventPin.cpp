@@ -72,9 +72,6 @@ namespace Machine {
         _pin->report(_legend);
 
         auto attr = Pin::Attr::Input | Pin::Attr::ISR;
-        if (_pin->capabilities().has(Pins::PinCapabilities::PullUp)) {
-            attr = attr | Pin::Attr::PullUp;
-        }
         _pin->setAttr(attr);
         _pin->attachInterrupt(ISRHandler, Pin::EITHER_EDGE, this);
         _gpio = _pin->getNative(Pin::Capabilities::Input | Pin::Capabilities::ISR);
