@@ -32,9 +32,7 @@ class String;
 // I'd rather not use any defines, but templates... but apparently there's no choice here. Let's just make it as safe
 // as possible...
 #define CreateISRHandlerFor(className, methodName)                                                                                         \
-    static void IRAM_ATTR ISRHandler(void* data) {                                                                                         \
-        static_cast<className*>(data)->methodName();                                                                                       \
-    }
+    static void IRAM_ATTR ISRHandler(void* data) { static_cast<className*>(data)->methodName(); }
 
 // Pin class. A pin is basically a thing that can 'output', 'input' or do both. GPIO on an ESP32 comes to mind,
 // but there are way more possible pins. Think about I2S/I2C/SPI extenders, RS485 driven pin devices and even
@@ -117,7 +115,7 @@ public:
     inline Pin(Pin&& o) : _detail(nullptr) { std::swap(_detail, o._detail); }
 
     inline Pin& operator=(const Pin& o) = delete;
-    inline Pin& operator=(Pin&& o) {
+    inline Pin& operator                =(Pin&& o) {
         std::swap(_detail, o._detail);
         return *this;
     }

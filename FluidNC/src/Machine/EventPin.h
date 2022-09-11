@@ -29,10 +29,13 @@ namespace Machine {
 
         String _legend;  // The name that appears in init() messages and the name of the configuration item
 
-        EventPin(Event* event, const char* legend);
-        EventPin(Event* event, const char* legend, Pin& pin);
+        EventPin(Event* event, const char* legend, Pin* pin);
 
-        Pin _pin;
+        // This is a pointer instead of a reference because the derived classes
+        // like ControlPin and LimitPin "own" the actual Pin object.  That is
+        // necessary because those objects are configurable and must stay
+        // within their class for later operations on the configuration tree.
+        Pin* _pin = nullptr;
 
         void init();
         bool get();
