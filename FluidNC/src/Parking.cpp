@@ -42,7 +42,7 @@ bool Parking::can_park() {
         // No parking in Laser mode
         return false;
     }
-    if (!Machine::Axes::homingMask) {
+    if (bitnum_is_false(Machine::Axes::homingMask, _axis)) {
         // No parking without homing
         return false;
     }
