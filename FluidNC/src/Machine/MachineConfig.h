@@ -13,6 +13,7 @@
 #include "../WebUI/BTConfig.h"
 #include "../Control.h"
 #include "../Probe.h"
+#include "src/Parking.h"
 #include "../SDCard.h"
 #include "../Spindles/Spindle.h"
 #include "../Stepping.h"
@@ -67,6 +68,7 @@ namespace Machine {
         SDCard*               _sdCard      = nullptr;
         Macros*               _macros      = nullptr;
         Start*                _start       = nullptr;
+        Parking*              _parking     = nullptr;
         Spindles::SpindleList _spindles;
 
         float _arcTolerance      = 0.002f;
