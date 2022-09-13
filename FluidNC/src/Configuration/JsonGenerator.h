@@ -30,6 +30,8 @@ namespace Configuration {
     protected:
         void        enterSection(const char* name, Configurable* value) override;
         bool        matchesUninitialized(const char* name) override { return false; }
+        const char* matchUninitialized(const char* name) override { return nullptr; }
+
         HandlerType handlerType() override { return HandlerType::Generator; }
 
     public:
@@ -42,6 +44,7 @@ namespace Configuration {
         void item(const char* name, std::vector<speedEntry>& value) override;
         void item(const char* name, UartData& wordLength, UartParity& parity, UartStop& stopBits) override;
         void item(const char* name, String& value, int minLength, int maxLength) override;
+        void item(const char* name, Uart*& uart) override;
         void item(const char* name, Pin& value) override;
         void item(const char* name, IPAddress& value) override;
         void item(const char* name, int& value, EnumItem* e) override;

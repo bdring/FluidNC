@@ -7,9 +7,11 @@
 #include "../EnumItem.h"
 
 #include "../Config.h"
+#include "../Uart.h"
 
 #include <climits>
 #include <math.h>  // round
+#include <regex.h>
 
 namespace Configuration {
     Parser::Parser(const char* start, const char* end) : Tokenizer(start, end) {}
@@ -38,8 +40,48 @@ namespace Configuration {
         return result;
     }
 
+    char const* Parser::match(const char* pattern) {
+        if (token_.state != TokenState::Matching || token_.keyStart_ == nullptr) {
+            return nullptr;
+        }
+
+        regex_t reg;
+        if (regcomp(&reg, pattern, REG_EXTENDED | REG_NOSUB) != 0) {
+            log_error("Can not compile regex: " << pattern);
+            return nullptr;
+        }
+
+        size_t length = 0;
+        for (const char* pos = token_.keyStart_; pos != token_.keyEnd_; pos++) {
+            length++;
+        }
+
+        char name[40];
+        strncpy(name, token_.keyStart_, length);
+        name[length] = '\0';
+
+        int result = regexec(&reg, name, 0, 0, 0);
+        regfree(&reg);
+
+        if (result == 0) {
+            char* result = new char[length+1];
+            strncpy(result, name, length + 1);
+            return result;
+        } else {
+            return nullptr;
+        }
+    }
+
     StringRange Parser::stringValue() const {
         return StringRange(token_.sValueStart_, token_.sValueEnd_);
+    }
+
+    void Parser::uartValue(Uart*& uart) const {
+        size_t length = token_.sValueEnd_ - token_.sValueStart_;
+        char name[40];
+        strncpy(name, token_.sValueStart_, length);
+        name[length] = '\0';
+        Uart::externals.get(name, uart);
     }
 
     bool Parser::boolValue() const {

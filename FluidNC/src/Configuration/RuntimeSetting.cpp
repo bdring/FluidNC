@@ -6,6 +6,7 @@
 #include "../Report.h"
 #include "../Protocol.h"  // send_line()
 
+#include "../Uart.h"
 #include <cstdlib>
 #include <atomic>
 
@@ -116,6 +117,17 @@ namespace Configuration {
                 log_to(out_, "", setting_prefix() << value);
             } else {
                 value = String(newValue_);
+            }
+        }
+    }
+
+    void RuntimeSetting::item(const char* name, Uart*& value) {
+        if (is(name)) {
+            isHandled_ = true;
+            if (newValue_ == nullptr) {
+                out_ << "$/" << setting_ << "=" << Uart::externals.getName(value) << '\n';
+            } else {
+                Uart::externals.get(newValue_, value);
             }
         }
     }

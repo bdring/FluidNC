@@ -19,17 +19,14 @@
 
 namespace MotorDrivers {
 
-    Uart* TrinamicUartDriver::_uart         = nullptr;
-    bool  TrinamicUartDriver::_uart_started = false;
-
-    void TrinamicUartDriver::init() {}
+    void TrinamicUartDriver::init() { }
 
     /*
         This is the startup message showing the basic definition. 
     */
     void TrinamicUartDriver::config_message() {  //TODO: The RX/TX pin could be added to the msg.
         log_info("    " << name() << " Step:" << _step_pin.name() << " Dir:" << _dir_pin.name() << " Disable:" << _disable_pin.name()
-                        << " Addr:" << _addr << " R:" << _r_sense);
+                        << " RX: " << _uart->_rxd_pin.name() << " TX: " << _uart->_txd_pin.name() << " Addr:" << _addr << " R:" << _r_sense);
     }
 
     void TrinamicUartDriver::finalInit() {
@@ -65,6 +62,33 @@ namespace MotorDrivers {
             return _toff_disable;
         }
         return _mode == TrinamicMode::StealthChop ? _toff_stealthchop : _toff_coolstep;
+    }
+
+
+    // this code is to track uarts that are initialsed
+
+    static Uart* initializedUarts[3]{nullptr};
+
+    void TrinamicUartDriver::initUart(Uart* uart) {
+        // nothing to do if already initialised 
+        for(int i = 0; i < 3; i++){
+            if(initializedUarts[i] == uart){
+                return;
+            }
+        }
+
+        // init uart
+        uart->begin();
+        uart->config_message("Trinamic", " Stepper ");
+
+        // add to list of initialised uarts
+        for(int i = 0; i < 3; i++){
+            if(initializedUarts[i] == nullptr){
+                initializedUarts[i] = uart;
+                return;
+            }
+        }
+
     }
 
 }

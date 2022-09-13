@@ -9,8 +9,11 @@
 #include "../Report.h"    // report_gcode_modes()
 #include "../Protocol.h"  // send_line()
 #include "HandlerBase.h"
+#include "./ExternalList.h"
 
-namespace Configuration {
+class Uart;
+
+ namespace Configuration {
     class Configurable;
 
     class Generator : public HandlerBase {
@@ -28,6 +31,7 @@ namespace Configuration {
     protected:
         void        enterSection(const char* name, Configurable* value) override;
         bool        matchesUninitialized(const char* name) override { return false; }
+        const char* matchUninitialized(const char* name) override { return nullptr; }
         HandlerType handlerType() override { return HandlerType::Generator; }
 
     public:
@@ -97,6 +101,8 @@ namespace Configuration {
             }
             send_item(name, s);
         }
+
+        void item(const char* name, Uart*& uart) override;
 
         void item(const char* name, String& value, int minLength, int maxLength) override { send_item(name, value.c_str()); }
 

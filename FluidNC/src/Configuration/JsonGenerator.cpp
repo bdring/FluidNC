@@ -107,6 +107,10 @@ namespace Configuration {
         leave();
     }
 
+    void JsonGenerator::item(const char* name, Uart*& uart) {
+        // Not sure if we want to have the uart section here or just the name of the external uart
+    }
+
     void JsonGenerator::item(const char* name, Pin& value) {
         // We commented this out, because pins are very confusing for users. The code is correct,
         // but it really gives more support than it's worth.

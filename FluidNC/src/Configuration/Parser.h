@@ -8,11 +8,14 @@
 #include "../StringRange.h"
 #include "../EnumItem.h"
 #include "../UartTypes.h"
+
 #include "HandlerBase.h"
 
 #include <stack>
 #include <cstring>
 #include <IPAddress.h>
+
+class Uart; 
 
 namespace Configuration {
     class Parser : public Tokenizer {
@@ -22,6 +25,7 @@ namespace Configuration {
         Parser(const char* start, const char* end);
 
         bool is(const char* expected);
+        char const* match(const char* regex);
 
         StringRange             stringValue() const;
         bool                    boolValue() const;
@@ -29,6 +33,7 @@ namespace Configuration {
         uint32_t                uintValue() const;
         std::vector<speedEntry> speedEntryValue() const;
         float                   floatValue() const;
+        void                    uartValue(Uart*& uart) const;
         Pin                     pinValue() const;
         int                     enumValue(EnumItem* e) const;
         IPAddress               ipValue() const;

@@ -92,7 +92,13 @@ namespace Configuration {
             _path.erase(_path.begin() + (_path.size() - 1));
         }
 
-        bool matchesUninitialized(const char* name) override { return _parser.is(name); }
+        bool matchesUninitialized(const char* name) override {
+             return _parser.is(name); 
+        }
+
+        const char* matchUninitialized(const char* pattern) override {
+             return _parser.match(pattern); 
+        }
 
     public:
         ParserHandler(Configuration::Parser& parser) : _parser(parser) {}
@@ -139,6 +145,12 @@ namespace Configuration {
         void item(const char* name, UartData& wordLength, UartParity& parity, UartStop& stopBits) override {
             if (_parser.is(name)) {
                 _parser.uartMode(wordLength, parity, stopBits);
+            }
+        }
+
+        void item(const char* name, Uart*& uart) override {
+            if (_parser.is(name)) {
+                _parser.uartValue(uart);
             }
         }
 

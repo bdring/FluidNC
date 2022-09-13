@@ -6,6 +6,7 @@
 #include "Config.h"
 
 #include "Configuration/Configurable.h"
+#include "Configuration/ExternalList.h"
 #include "UartTypes.h"
 
 #include "lineedit.h"
@@ -25,6 +26,8 @@ private:
     int _pushback = -1;
 
 public:
+    static ExternalList<Uart> externals;
+
     // These are public so that validators from classes
     // that use Uart can check that the setup is suitable.
     // E.g. some uses require an RTS pin.

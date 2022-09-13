@@ -8,8 +8,12 @@
 #include "../EnumItem.h"
 #include "../SpindleDatatypes.h"
 #include "../UartTypes.h"
+#include "./ExternalList.h"
+#include "../Logging.h"
 
 #include <IPAddress.h>
+
+class Uart;
 
 namespace Configuration {
     class Configurable;
@@ -28,6 +32,7 @@ namespace Configuration {
     protected:
         virtual void enterSection(const char* name, Configurable* value) = 0;
         virtual bool matchesUninitialized(const char* name)              = 0;
+        virtual const char* matchUninitialized(const char* pattern)      = 0;
 
         template <typename BaseType>
         friend class GenericFactory;
@@ -47,6 +52,7 @@ namespace Configuration {
         virtual void item(const char* name, std::vector<speedEntry>& value)                               = 0;
         virtual void item(const char* name, UartData& wordLength, UartParity& parity, UartStop& stopBits) = 0;
 
+        virtual void item(const char* name, Uart*& uart)      = 0;
         virtual void item(const char* name, Pin& value)       = 0;
         virtual void item(const char* name, IPAddress& value) = 0;
 
@@ -59,7 +65,6 @@ namespace Configuration {
         template <typename T, typename... U>
         void section(const char* name, T*& value, U... args) {
             if (handlerType() == HandlerType::Parser) {
-                // For Parser, matchesUninitialized(name) resolves to _parser.is(name)
                 if (value == nullptr && matchesUninitialized(name)) {
                     value = new T(args...);
                     enterSection(name, value);
@@ -67,6 +72,18 @@ namespace Configuration {
             } else {
                 if (value != nullptr) {
                     enterSection(name, value);
+                }
+            }
+        }
+
+        template <typename T, typename... U>
+        void extSection(const char* pattern, ExternalList<T>* list, U... args) {
+            if (handlerType() == HandlerType::Parser) {
+                const char* name = matchUninitialized(pattern);
+                if (name != nullptr) {
+                    T* value = new T(args...);
+                    enterSection(name, value);  
+                    list->add(name, value);  
                 }
             }
         }

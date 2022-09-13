@@ -19,6 +19,7 @@ namespace Configuration {
     protected:
         void enterSection(const char* name, Configuration::Configurable* value) override;
         bool matchesUninitialized(const char* name) override { return false; }
+        const char* matchUninitialized(const char* pattern) override { return nullptr; }
 
     public:
         Completer(const char* key, int requestedMatch, char* matchedStr);
@@ -33,6 +34,7 @@ namespace Configuration {
         void item(const char* name, std::vector<speedEntry>& value) override { item(name); }
         void item(const char* name, UartData& wordLength, UartParity& parity, UartStop& stopBits) override { item(name); }
         void item(const char* name, String& value, int minLength, int maxLength) override { item(name); }
+        void item(const char* name, Uart*& uart) override { item(name); }
         void item(const char* name, Pin& value) { item(name); }
         void item(const char* name, IPAddress& value) override { item(name); }
         void item(const char* name, int& value, EnumItem* e) override { item(name); }

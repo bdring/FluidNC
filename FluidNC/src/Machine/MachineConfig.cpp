@@ -35,6 +35,8 @@ namespace Machine {
         handler.item("name", _name);
         handler.item("meta", _meta);
 
+        handler.extSection("uart_", &Uart::externals);
+
         handler.section("stepping", _stepping);
         handler.section("axes", _axes);
         handler.section("kinematics", _kinematics);

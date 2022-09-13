@@ -10,6 +10,8 @@
 #include <driver/uart.h>
 #include <esp_ipc.h>
 
+ExternalList<Uart> Uart::externals = ExternalList<Uart>();
+
 Uart::Uart(int uart_num, bool addCR) : Channel("uart", addCR) {
     // Auto-assign Uart harware engine numbers; the pins will be
     // assigned to the engines separately

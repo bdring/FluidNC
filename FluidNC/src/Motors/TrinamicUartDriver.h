@@ -8,6 +8,7 @@
 #include "../Pin.h"
 #include "../Uart.h"
 
+#include "../Logging.h"
 #include <cstdint>
 
 namespace MotorDrivers {
@@ -48,18 +49,18 @@ namespace MotorDrivers {
             // $CD), _uart will be non-null, so we use the instance
             // variable _addr to force the generation of only one
             // uart: section, beneath the tmc_220x: section for addr 0.
+            handler.item("uart", _uart);
             handler.item("addr", _addr);
-            if (_uart == nullptr || _addr == 0) {
-                handler.section("uart", _uart);
-            }
+            // if (_uart == nullptr || _addr == 0) {
+            //     handler.section("uart", _uart);
+            // }
         }
 
     protected:
-        static Uart* _uart;
+        Uart* _uart;
 
-        static bool _uart_started;
-        void        config_message() override;
-
+        static void initUart(Uart* uart);
+        void config_message() override;
         void finalInit();
 
         uint8_t toffValue();  // TO DO move to Base?

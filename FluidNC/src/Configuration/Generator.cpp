@@ -2,7 +2,7 @@
 // Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
 
 #include "Generator.h"
-
+#include "../Uart.h"
 #include "Configurable.h"
 
 #include <cstring>
@@ -23,6 +23,11 @@ namespace Configuration {
         if (configurable != nullptr) {
             configurable->group(*this);
         }
+    }
+
+    void Generator::item(const char* name, Uart*& uart) {
+        send_item(name, Uart::externals.getName(uart));
+        indent_++;
     }
 
     void Generator::leave() {

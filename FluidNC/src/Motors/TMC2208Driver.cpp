@@ -12,12 +12,8 @@
 namespace MotorDrivers {
 
     void TMC2208Driver::init() {
-        if (!_uart_started) {
-            _uart->begin();
-            _uart->config_message("Trinamic", " Stepper ");
-            _uart_started = true;
-        }
-
+        TrinamicUartDriver::initUart(_uart);
+        
         if (_r_sense == 0) {
             _r_sense = TMC2208_RSENSE_DEFAULT;
         }
