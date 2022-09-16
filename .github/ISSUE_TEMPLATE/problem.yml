@@ -36,6 +36,20 @@ body:
   validations:
     required: true
 - type: textarea
+  id: input-pin-circuits
+  attributes:
+    label: Input Circuits
+    description: |
+      If your problem is in any way related to input pins, limits, or homing, please supply
+      schematics for the corresponding circuits.  You can supply a link to a schematic for
+      a third party board, a hand-drawn schematic, or anything that will let us understand
+      the circuits.  If you are using one of Bart's modular boards, also indicate which
+      input module you are using.
+    placeholder: <Input pin circuit>
+    render: yaml
+  validations:
+    required: false
+- type: textarea
   id: configuration-file
   attributes:
     label: Configuration file
