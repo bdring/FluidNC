@@ -74,6 +74,8 @@ namespace Machine {
         String maskToNames(AxisMask mask);
         bool   namesToMask(const char* names, AxisMask& mask);
 
+        String motorMaskToNames(MotorMask mask);
+
         // Configuration helpers:
         void group(Configuration::HandlerBase& handler) override;
         void afterParse() override;

@@ -339,6 +339,10 @@ static void protocol_do_motion_cancel() {
 }
 
 static void protocol_do_feedhold() {
+    if (runLimitLoop) {
+        runLimitLoop = false;  // Hack to stop show_limits()
+        return;
+    }
     // log_debug("protocol_do_feedhold " << state_name());
     // Execute a feed hold with deceleration, if required. Then, suspend system.
     switch (sys.state) {
@@ -355,7 +359,6 @@ static void protocol_do_feedhold() {
             break;
 
         case State::Idle:
-            runLimitLoop = false;  // Hack to stop show_limits()
             protocol_hold_complete();
             break;
 
@@ -890,7 +893,6 @@ static void protocol_do_accessory_override(void* type) {
 
 static void protocol_do_limit(void* arg) {
     Machine::LimitPin* limit = (Machine::LimitPin*)arg;
-    limit->update(limit->get());
     if (sys.state == State::Homing) {
         Machine::Homing::limitReached();
         return;
