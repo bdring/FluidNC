@@ -252,31 +252,25 @@ static void alarm_msg(ExecAlarm alarm_code) {
 // machine that controls the various real-time features.
 // NOTE: Do not alter this unless you know exactly what you are doing!
 static void protocol_do_alarm() {
-    switch (rtAlarm) {
-        case ExecAlarm::None:
-            return;
-        // System alarm. Everything has shutdown by something that has gone severely wrong. Report
-        case ExecAlarm::HardLimit:
-        case ExecAlarm::SoftLimit:
-            sys.state = State::Alarm;  // Set system alarm state
-            alarm_msg(rtAlarm);
-            report_feedback_message(Message::CriticalEvent);
-            protocol_disable_steppers();
-            rtReset = false;  // Disable any existing reset
-            do {
-                protocol_handle_events();
-                // Block everything except reset and status reports until user issues reset or power
-                // cycles. Hard limits typically occur while unattended or not paying attention. Gives
-                // the user and a GUI time to do what is needed before resetting, like killing the
-                // incoming stream. The same could be said about soft limits. While the position is not
-                // lost, continued streaming could cause a serious crash if by chance it gets executed.
-                pollChannels();  // Handle ^X realtime RESET command
-            } while (!rtReset);
-            break;
-        default:
-            sys.state = State::Alarm;  // Set system alarm state
-            alarm_msg(rtAlarm);
-            break;
+    if (rtAlarm == ExecAlarm::None) {
+        return;
+    }
+    spindle->stop();
+    sys.state = State::Alarm;  // Set system alarm state
+    alarm_msg(rtAlarm);
+    if (rtAlarm == ExecAlarm::HardLimit || rtAlarm == ExecAlarm::SoftLimit) {
+        report_feedback_message(Message::CriticalEvent);
+        protocol_disable_steppers();
+        rtReset = false;  // Disable any existing reset
+        do {
+            protocol_handle_events();
+            // Block everything except reset and status reports until user issues reset or power
+            // cycles. Hard limits typically occur while unattended or not paying attention. Gives
+            // the user and a GUI time to do what is needed before resetting, like killing the
+            // incoming stream. The same could be said about soft limits. While the position is not
+            // lost, continued streaming could cause a serious crash if by chance it gets executed.
+            pollChannels();  // Handle ^X realtime RESET command
+        } while (!rtReset);
     }
     rtAlarm = ExecAlarm::None;
 }
