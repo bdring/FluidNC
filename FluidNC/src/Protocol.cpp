@@ -252,31 +252,27 @@ static void alarm_msg(ExecAlarm alarm_code) {
 // machine that controls the various real-time features.
 // NOTE: Do not alter this unless you know exactly what you are doing!
 static void protocol_do_alarm() {
-    switch (rtAlarm) {
-        case ExecAlarm::None:
-            return;
-        // System alarm. Everything has shutdown by something that has gone severely wrong. Report
-        case ExecAlarm::HardLimit:
-        case ExecAlarm::SoftLimit:
-            sys.state = State::Alarm;  // Set system alarm state
-            alarm_msg(rtAlarm);
-            report_feedback_message(Message::CriticalEvent);
-            protocol_disable_steppers();
-            rtReset = false;  // Disable any existing reset
-            do {
-                protocol_handle_events();
-                // Block everything except reset and status reports until user issues reset or power
-                // cycles. Hard limits typically occur while unattended or not paying attention. Gives
-                // the user and a GUI time to do what is needed before resetting, like killing the
-                // incoming stream. The same could be said about soft limits. While the position is not
-                // lost, continued streaming could cause a serious crash if by chance it gets executed.
-                pollChannels();  // Handle ^X realtime RESET command
-            } while (!rtReset);
-            break;
-        default:
-            sys.state = State::Alarm;  // Set system alarm state
-            alarm_msg(rtAlarm);
-            break;
+    if (rtAlarm == ExecAlarm::None) {
+        return;
+    }
+    if (spindle->_off_on_alarm) {
+        spindle->stop();
+    }
+    sys.state = State::Alarm;  // Set system alarm state
+    alarm_msg(rtAlarm);
+    if (rtAlarm == ExecAlarm::HardLimit || rtAlarm == ExecAlarm::SoftLimit) {
+        report_feedback_message(Message::CriticalEvent);
+        protocol_disable_steppers();
+        rtReset = false;  // Disable any existing reset
+        do {
+            protocol_handle_events();
+            // Block everything except reset and status reports until user issues reset or power
+            // cycles. Hard limits typically occur while unattended or not paying attention. Gives
+            // the user and a GUI time to do what is needed before resetting, like killing the
+            // incoming stream. The same could be said about soft limits. While the position is not
+            // lost, continued streaming could cause a serious crash if by chance it gets executed.
+            pollChannels();  // Handle ^X realtime RESET command
+        } while (!rtReset);
     }
     rtAlarm = ExecAlarm::None;
 }
@@ -339,6 +335,10 @@ static void protocol_do_motion_cancel() {
 }
 
 static void protocol_do_feedhold() {
+    if (runLimitLoop) {
+        runLimitLoop = false;  // Hack to stop show_limits()
+        return;
+    }
     // log_debug("protocol_do_feedhold " << state_name());
     // Execute a feed hold with deceleration, if required. Then, suspend system.
     switch (sys.state) {
@@ -355,7 +355,6 @@ static void protocol_do_feedhold() {
             break;
 
         case State::Idle:
-            runLimitLoop = false;  // Hack to stop show_limits()
             protocol_hold_complete();
             break;
 
@@ -405,6 +404,7 @@ static void protocol_do_safety_door() {
 
                 sys.suspend.bit.retractComplete = false;
                 sys.suspend.bit.initiateRestore = false;
+                sys.suspend.bit.restoreComplete = false;
                 sys.suspend.bit.restartRetract  = true;
             }
             break;
@@ -494,6 +494,14 @@ static void protocol_do_cycle_start() {
     // Resume door state when parking motion has retracted and door has been closed.
     switch (sys.state) {
         case State::SafetyDoor:
+            if (!sys.suspend.bit.safetyDoorAjar) {
+                if (sys.suspend.bit.restoreComplete) {
+                    sys.state = State::Idle;
+                    protocol_do_initiate_cycle();
+                } else if (sys.suspend.bit.retractComplete) {
+                    sys.suspend.bit.initiateRestore = true;
+                }
+            }
             break;
         case State::Idle:
             protocol_do_initiate_cycle();
@@ -767,31 +775,24 @@ static void protocol_exec_rt_suspend() {
                         return;  // Abort received. Return to re-initialize.
                     }
                     // Allows resuming from parking/safety door. Polls to see if safety door is closed and ready to resume.
-                    if (sys.state == State::SafetyDoor) {
-                        if (!config->_control->safety_door_ajar()) {
-                            sys.suspend.bit.safetyDoorAjar = false;  // Reset door ajar flag to denote ready to resume.
-                            if (sys.suspend.bit.retractComplete) {
-                                // retractComplete means that all of the retraction operations that were
-                                // initiated by the safety door opening, such as spindle stop and parking,
-                                // are done.  Thus we can respond to this cycle start by "restoring",
-                                // i.e. undoing those retraction operations.  When that is complete,
-                                // a cycle start event will be issued automatically.
-                                sys.suspend.bit.initiateRestore = true;
-                                log_info("Safety door closed");
+                    if (sys.state == State::SafetyDoor && !config->_control->safety_door_ajar()) {
+                        if (sys.suspend.bit.safetyDoorAjar) {
+                            log_info("Safety door closed.  Issue cycle start to resume");
+                        }
+                        sys.suspend.bit.safetyDoorAjar = false;  // Reset door ajar flag to denote ready to resume.
+                    }
+                    if (sys.suspend.bit.initiateRestore) {
+                        config->_parking->unpark(sys.suspend.bit.restartRetract);
 
-                                config->_parking->unpark(sys.suspend.bit.restartRetract);
-
-                                if (!sys.suspend.bit.restartRetract && sys.state == State::SafetyDoor && !sys.suspend.bit.safetyDoorAjar) {
-                                    sys.state = State::Idle;
-                                    protocol_send_event(&cycleStartEvent);  // Resume program.
-                                }
-                            }
+                        if (!sys.suspend.bit.restartRetract && sys.state == State::SafetyDoor && !sys.suspend.bit.safetyDoorAjar) {
+                            sys.state = State::Idle;
+                            protocol_send_event(&cycleStartEvent);  // Resume program.
                         }
                     }
                 }
-            } else {
-                protocol_manage_spindle();
             }
+        } else {
+            protocol_manage_spindle();
         }
         pollChannels();  // Handle realtime commands like status report, cycle start and reset
         protocol_exec_rt_system();
@@ -888,7 +889,6 @@ static void protocol_do_accessory_override(void* type) {
 
 static void protocol_do_limit(void* arg) {
     Machine::LimitPin* limit = (Machine::LimitPin*)arg;
-    limit->update(limit->get());
     if (sys.state == State::Homing) {
         Machine::Homing::limitReached();
         return;

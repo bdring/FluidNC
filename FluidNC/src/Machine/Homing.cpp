@@ -67,10 +67,12 @@ namespace Machine {
     static MotorMask limited() { return Machine::Axes::posLimitMask | Machine::Axes::negLimitMask; }
 
     void Homing::cycleStop() {
+        log_debug("CycleStop " << phaseName(_phase));
         if (approach()) {
             // Cycle stop while approaching means that we did not hit
             // a limit switch in the programmed distance
             fail(ExecAlarm::HomingFailApproach);
+            report_realtime_status(allChannels);
             return;
         }
         Machine::EventPin::check();
@@ -226,12 +228,11 @@ namespace Machine {
                     distance[axis] *= rates[axis] / limitingRate;
                 }
                 target[axis] += distance[axis];
-                log_debug(axes->axisName(axis) << " target " << target[axis] << " rate " << rates[axis]);
             }
         }
 
         rate = sqrtf(ratesq);  // Magnitude of homing rate vector
-        log_debug("planned move to " << target[0] << "," << target[1] << "," << target[2] << " @ " << rate);
+        log_debug("Planned move to " << target[0] << "," << target[1] << "," << target[2] << " @ " << rate);
     }
 
     void Homing::runPhase() {
@@ -264,7 +265,7 @@ namespace Machine {
         // means in terms of axes, motors, and whether to stop and replan
         MotorMask limited = Machine::Axes::posLimitMask | Machine::Axes::negLimitMask;
 
-        log_debug("Homing limited " << config->_axes->maskToNames(limited));
+        log_debug("Homing limited" << config->_axes->motorMaskToNames(limited));
 
         if (!approach()) {
             // We are not supposed to see a limitReached event while pulling off
@@ -350,6 +351,7 @@ namespace Machine {
         Machine::EventPin::check();
         rtAlarm = alarm;
         config->_axes->set_homing_mode(_cycleAxes, false);  // tell motors homing is done...failed
+        config->_axes->set_disable(config->_stepping->_idleMsecs != 255);
     }
 
     bool Homing::needsPulloff2(MotorMask motors) {

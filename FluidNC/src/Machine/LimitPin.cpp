@@ -12,7 +12,6 @@
 #include "hal/gpio_hal.h"
 
 namespace Machine {
-    static void foo(void* bar) {};
     LimitPin::LimitPin(Pin& pin, int axis, int motor, int direction, bool& pHardLimits, bool& pLimited) :
         EventPin(&limitEvent, "Limit", &pin), _axis(axis), _motorNum(motor), _value(false), _pHardLimits(pHardLimits), _pLimited(pLimited) {
         String sDir;
@@ -43,10 +42,34 @@ namespace Machine {
         // Set a bitmap with bits to represent the axis and which motors are affected
         // The bitmap looks like CBAZYX..cbazyx where motor0 motors are in the lower bits
         _bitmask = 1 << Axes::motor_bit(axis, motor);
-        _legend  = String("    " + sDir + " Limit");
+        _legend  = config->_axes->motorMaskToNames(_bitmask);
+        _legend += " " + sDir + " Limit";
+    }
+
+    void LimitPin::init() {
+        EventPin::init();
+        if (_pin->undefined()) {
+            return;
+        }
+        log_debug("Updating " << _legend);
+        update(get());
+    }
+
+    void LimitPin::run(void* arg) {
+        bool value = get();
+        // Since we do not trust the ISR to always trigger precisely,
+        // we check the pin state before calling the event handler
+        update(value);
+        if (value) {
+            block();
+            _event->run(arg);
+        } else {
+            reArm();
+        }
     }
 
     void IRAM_ATTR LimitPin::update(bool value) {
+        log_debug(_legend << " " << value);
         _pLimited = value;
 
         if (_pExtraLimited != nullptr) {
