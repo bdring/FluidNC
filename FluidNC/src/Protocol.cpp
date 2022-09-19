@@ -255,7 +255,9 @@ static void protocol_do_alarm() {
     if (rtAlarm == ExecAlarm::None) {
         return;
     }
-    spindle->stop();
+    if (spindle->_off_on_alarm) {
+        spindle->stop();
+    }
     sys.state = State::Alarm;  // Set system alarm state
     alarm_msg(rtAlarm);
     if (rtAlarm == ExecAlarm::HardLimit || rtAlarm == ExecAlarm::SoftLimit) {
