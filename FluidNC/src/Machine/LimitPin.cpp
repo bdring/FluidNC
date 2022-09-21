@@ -12,9 +12,8 @@
 #include "hal/gpio_hal.h"
 
 namespace Machine {
-    static void foo(void* bar) {};
     LimitPin::LimitPin(Pin& pin, int axis, int motor, int direction, bool& pHardLimits, bool& pLimited) :
-        EventPin(&limitEvent, "Limit", pin), _axis(axis), _motorNum(motor), _value(false), _pHardLimits(pHardLimits), _pLimited(pLimited) {
+        EventPin(&limitEvent, "Limit", &pin), _axis(axis), _motorNum(motor), _value(false), _pHardLimits(pHardLimits), _pLimited(pLimited) {
         String sDir;
         // Select one or two bitmask variables to receive the switch data
         switch (direction) {
@@ -43,10 +42,34 @@ namespace Machine {
         // Set a bitmap with bits to represent the axis and which motors are affected
         // The bitmap looks like CBAZYX..cbazyx where motor0 motors are in the lower bits
         _bitmask = 1 << Axes::motor_bit(axis, motor);
-        _legend  = String("    " + sDir + " Limit");
+        _legend  = config->_axes->motorMaskToNames(_bitmask);
+        _legend += " " + sDir + " Limit";
+    }
+
+    void LimitPin::init() {
+        EventPin::init();
+        if (_pin->undefined()) {
+            return;
+        }
+        log_debug("Updating " << _legend);
+        update(get());
+    }
+
+    void LimitPin::run(void* arg) {
+        bool value = get();
+        // Since we do not trust the ISR to always trigger precisely,
+        // we check the pin state before calling the event handler
+        update(value);
+        if (value) {
+            block();
+            _event->run(arg);
+        } else {
+            reArm();
+        }
     }
 
     void IRAM_ATTR LimitPin::update(bool value) {
+        log_debug(_legend << " " << value);
         _pLimited = value;
 
         if (_pExtraLimited != nullptr) {
@@ -72,11 +95,7 @@ namespace Machine {
     // Make this switch act like an axis level switch. Both motors will report the same
     // This should be called from a higher level object, that has the logic to figure out
     // if this belongs to a dual motor, single switch axis
-    void LimitPin::makeDualMask() {
-        _bitmask = Axes::axes_to_motors(Axes::motors_to_axes(_bitmask));
-    }
+    void LimitPin::makeDualMask() { _bitmask = Axes::axes_to_motors(Axes::motors_to_axes(_bitmask)); }
 
-    void LimitPin::setExtraMotorLimit(int axis, int motorNum) {
-        _pExtraLimited = &config->_axes->_axis[axis]->_motors[motorNum]->_limited;
-    }
+    void LimitPin::setExtraMotorLimit(int axis, int motorNum) { _pExtraLimited = &config->_axes->_axis[axis]->_motors[motorNum]->_limited; }
 }

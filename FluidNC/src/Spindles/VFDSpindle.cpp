@@ -293,7 +293,7 @@ namespace Spindles {
     void VFD::config_message() { _uart->config_message(name(), " Spindle "); }
 
     void VFD::setState(SpindleState state, SpindleSpeed speed) {
-        log_info("VFD setState:" << uint8_t(state) << " SpindleSpeed:" << speed);
+        log_debug("VFD setState:" << uint8_t(state) << " SpindleSpeed:" << speed);
         if (sys.abort) {
             return;  // Block during abort.
         }

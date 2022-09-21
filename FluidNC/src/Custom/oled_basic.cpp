@@ -134,7 +134,7 @@ static void oledDRO() {
         oled_y_pos += 10;
     }
     for (auto pin : ctrl_pins->_pins) {
-        char letter = pin->_letter;
+        char letter = pin->letter();
         if (!isdigit(letter)) {
             oled->drawString(110, oled_y_pos, String(letter));
             draw_checkbox(120, oled_y_pos + 3, 7, 7, pin->get());

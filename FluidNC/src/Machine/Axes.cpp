@@ -8,6 +8,8 @@
 #include "MachineConfig.h"  // config->
 #include "../Limits.h"
 
+EnumItem axisType[] = { { 0, "X" }, { 1, "Y" }, { 2, "Z" }, { 3, "A" }, { 4, "B" }, { 5, "C" }, EnumItem(0) };
+
 namespace Machine {
     MotorMask Axes::posLimitMask = 0;
     MotorMask Axes::negLimitMask = 0;
@@ -231,6 +233,25 @@ namespace Machine {
         for (int axis = 0; axis < n_axis; axis++) {
             if (bitnum_is_true(mask, axis)) {
                 retval += _names[axis];
+            }
+        }
+        return retval;
+    }
+    String Axes::motorMaskToNames(MotorMask mask) {
+        String retval = "";
+        auto   n_axis = _numberAxis;
+        for (int axis = 0; axis < n_axis; axis++) {
+            if (bitnum_is_true(mask, axis)) {
+                retval += " ";
+                retval += _names[axis];
+            }
+        }
+        mask >>= 16;
+        for (int axis = 0; axis < n_axis; axis++) {
+            if (bitnum_is_true(mask, axis)) {
+                retval += " ";
+                retval += _names[axis];
+                retval += "2";
             }
         }
         return retval;

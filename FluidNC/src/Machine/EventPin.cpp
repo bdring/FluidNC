@@ -14,22 +14,14 @@ namespace Machine {
 
     TimerHandle_t EventPin::_eventPinTimer = 0;
 
-    EventPin::EventPin(Event* event, const char* legend) : _event(event), _legend(legend) {
+    EventPin::EventPin(Event* event, const char* legend, Pin* pin) : _event(event), _legend(legend), _pin(pin) {
         if (_eventPinTimer == 0) {
             _eventPinTimer = xTimerCreate("eventPinTimer", pdMS_TO_TICKS(200), false, NULL, eventPinTimerCallback);
         }
     }
-    EventPin::EventPin(Event* event, const char* legend, Pin& pin) : EventPin(event, legend) {
-        _pin.swap(pin);
-    }
-    bool EventPin::get() {
-        return _pin.read();
-    }
-    void EventPin::eventPinTimerCallback(void*) {
-        check();
-    }
+    bool EventPin::get() { return _pin->read(); }
+    void EventPin::eventPinTimerCallback(void*) { check(); }
     void EventPin::run(void* arg) {
-        log_debug("EP run");
         // Since we do not trust the ISR to always trigger precisely,
         // we check the pin state before calling the event handler
         if (get()) {
@@ -39,13 +31,9 @@ namespace Machine {
             reArm();
         }
     }
-    void EventPin::check() {
-        _blockedPins.remove_if(inactive);
-    }
+    void EventPin::check() { _blockedPins.remove_if(inactive); }
 
-    void EventPin::block() {
-        _blockedPins.emplace_back(this);
-    }
+    void EventPin::block() { _blockedPins.emplace_back(this); }
 
     bool EventPin::inactive(EventPin* pin) {
         bool value = pin->get();
@@ -73,29 +61,21 @@ namespace Machine {
         }
         protocol_send_event_from_ISR(this, this);
     }
-    void EventPin::startTimer() {
-        xTimerStart(_eventPinTimer, 0);
-    }
+    void EventPin::startTimer() { xTimerStart(_eventPinTimer, 0); }
 
-    void EventPin::reArm() {
-        gpio_intr_enable(gpio_num_t(_gpio));
-    }
+    void EventPin::reArm() { gpio_intr_enable(gpio_num_t(_gpio)); }
     void EventPin::init() {
-        if (_pin.undefined()) {
+        if (_pin->undefined()) {
             return;
         }
 
-        _pin.report(_legend);
+        _pin->report(_legend);
+
         auto attr = Pin::Attr::Input | Pin::Attr::ISR;
-        if (_pin.capabilities().has(Pins::PinCapabilities::PullUp)) {
-            attr = attr | Pin::Attr::PullUp;
-        }
-        _pin.setAttr(attr);
-        _pin.attachInterrupt(ISRHandler, Pin::EITHER_EDGE, this);
-        _gpio = _pin.getNative(Pin::Capabilities::Input | Pin::Capabilities::ISR);
+        _pin->setAttr(attr);
+        _pin->attachInterrupt(ISRHandler, Pin::EITHER_EDGE, this);
+        _gpio = _pin->getNative(Pin::Capabilities::Input | Pin::Capabilities::ISR);
     }
 
-    EventPin::~EventPin() {
-        _pin.detachInterrupt();
-    }
+    EventPin::~EventPin() { _pin->detachInterrupt(); }
 };

@@ -28,9 +28,11 @@ namespace Machine {
 
         void update(bool value) override;
 
-        //void init();
+        void init();
         void makeDualMask();  // makes this a mask for motor0 and motor1
         void setExtraMotorLimit(int axis, int motorNum);
+
+        void run(void* arg) override;
 
         bool isHard() { return _pHardLimits; }
 
