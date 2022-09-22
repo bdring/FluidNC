@@ -28,7 +28,7 @@ namespace Machine {
             sckPin  = _sck.getNative(Pin::Capabilities::Output | Pin::Capabilities::Native);
             misoPin = _miso.getNative(Pin::Capabilities::Input | Pin::Capabilities::Native);
         } else {
-            if (sd_fallback_cs->get() == 255) {
+            if (sd_fallback_cs->get() == -1) {
                 log_info("SPI not defined");
                 return;
             }
