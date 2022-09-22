@@ -10,6 +10,7 @@
 const char* littlefs_label;
 
 bool littlefs_format(const char* partition_label) {
+    esp_log_level_set("esp_littlefs", ESP_LOG_NONE);
     esp_err_t err;
     disable_core0_WDT();
     err = esp_littlefs_format(partition_label);
