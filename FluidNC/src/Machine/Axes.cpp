@@ -237,6 +237,25 @@ namespace Machine {
         }
         return retval;
     }
+    String Axes::motorMaskToNames(MotorMask mask) {
+        String retval = "";
+        auto   n_axis = _numberAxis;
+        for (int axis = 0; axis < n_axis; axis++) {
+            if (bitnum_is_true(mask, axis)) {
+                retval += " ";
+                retval += _names[axis];
+            }
+        }
+        mask >>= 16;
+        for (int axis = 0; axis < n_axis; axis++) {
+            if (bitnum_is_true(mask, axis)) {
+                retval += " ";
+                retval += _names[axis];
+                retval += "2";
+            }
+        }
+        return retval;
+    }
 
     bool Axes::namesToMask(const char* names, AxisMask& mask) {
         bool retval = true;
