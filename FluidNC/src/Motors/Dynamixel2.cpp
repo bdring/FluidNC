@@ -77,7 +77,7 @@ namespace MotorDrivers {
     }
 
     void Dynamixel2::config_message() {
-        log_info("    " << name() << " id::" << _id << " Count(" << _countMin << "," << _countMax << ")");
+        log_info("    " << name() << " id:" << _id << " Count(" << _countMin << "," << _countMax << ")");
     }
 
     bool Dynamixel2::test() {
