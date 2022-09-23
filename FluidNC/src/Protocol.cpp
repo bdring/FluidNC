@@ -253,42 +253,41 @@ static void alarm_msg(ExecAlarm alarm_code) {
 // machine that controls the various real-time features.
 // NOTE: Do not alter this unless you know exactly what you are doing!
 static void protocol_do_alarm() {
-    switch (rtAlarm) {
-        if (spindle->_off_on_alarm) {
-            spindle->stop();
-        }
-
-        case ExecAlarm::None:
-            return;
-        // System alarm. Everything has shutdown by something that has gone severely wrong. Report
-        case ExecAlarm::HardLimit:
-
-            sys.state = State::Alarm;  // Set system alarm state
-            alarm_msg(rtAlarm);
-            report_feedback_message(Message::CriticalEvent);
-            protocol_disable_steppers();
-            rtReset = false;  // Disable any existing reset
-
-            //WebUI::COMMANDS::restart_MCU();
-            //WebUI::COMMANDS::handle();
-
-            do {
-                protocol_handle_events();
-                // Block everything except reset and status reports until user issues reset or power
-                // cycles. Hard limits typically occur while unattended or not paying attention. Gives
-                // the user and a GUI time to do what is needed before resetting, like killing the
-                // incoming stream. The same could be said about soft limits. While the position is not
-                // lost, continued streaming could cause a serious crash if by chance it gets executed.
-                pollChannels();  // Handle ^X realtime RESET command
-            } while (!rtReset);
-            break;
-
-        case ExecAlarm::SoftLimit:
-        default:
-            sys.state = State::Alarm;  // Set system alarm state
-            alarm_msg(rtAlarm);
-            break;
+    if (spindle->_off_on_alarm) {
+        spindle->stop();
     }
+
+    if (rtAlarm == ExecAlarm::None) {
+        return;
+    }
+
+    // System alarm. Everything has shutdown by something that has gone severely wrong. Report
+    if (rtAlarm == ExecAlarm::HardLimit) {
+        sys.state = State::Alarm;  // Set system alarm state
+        alarm_msg(rtAlarm);
+        report_feedback_message(Message::CriticalEvent);
+        protocol_disable_steppers();
+        rtReset = false;  // Disable any existing reset
+
+        //WebUI::COMMANDS::restart_MCU();
+        //WebUI::COMMANDS::handle();
+
+        do {
+            protocol_handle_events();
+            // Block everything except reset and status reports until user issues reset or power
+            // cycles. Hard limits typically occur while unattended or not paying attention. Gives
+            // the user and a GUI time to do what is needed before resetting, like killing the
+            // incoming stream. The same could be said about soft limits. While the position is not
+            // lost, continued streaming could cause a serious crash if by chance it gets executed.
+            pollChannels();  // Handle ^X realtime RESET command
+        } while (!rtReset);
+    }
+
+    if (rtAlarm == ExecAlarm::SoftLimit) {
+        sys.state = State::Alarm;  // Set system alarm state
+        alarm_msg(rtAlarm);
+    }
+
     rtAlarm = ExecAlarm::None;
 }
 
