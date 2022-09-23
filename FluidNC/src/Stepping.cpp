@@ -135,7 +135,7 @@ namespace Machine {
 
     void Stepping::group(Configuration::HandlerBase& handler) {
         handler.item("engine", _engine, stepTypes);
-        handler.item("idle_ms", _idleMsecs, 0, 255);  // full range
+        handler.item("idle_ms", _idleMsecs, 0, 10000000);  // full range
         handler.item("pulse_us", _pulseUsecs, 0, 10);
         handler.item("dir_delay_us", _directionDelayUsecs, 0, 10);
         handler.item("disable_delay_us", _disableDelayUsecs, 0, 10);
