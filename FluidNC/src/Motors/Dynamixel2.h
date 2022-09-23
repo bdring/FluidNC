@@ -70,6 +70,7 @@ namespace MotorDrivers {
 
         // protocol 2 instruction numbers
         static const int  DXL_INSTR_PING = 0x01;
+        static const char DXL_REBOOT     = char(0x08);
         static const int  PING_RSP_LEN   = 14;
         static const char DXL_READ       = char(0x02);
         static const char DXL_WRITE      = char(0x03);
@@ -100,6 +101,7 @@ namespace MotorDrivers {
         bool set_homing_mode(bool isHoming) override;
         void set_disable(bool disable) override;
         void update() override;
+        void config_motor() override;
 
         // Configuration handlers:
         void validate() const override {
@@ -113,6 +115,7 @@ namespace MotorDrivers {
 
             handler.item("count_min", _countMin);
             handler.item("count_max", _countMax);
+            handler.item("timer_ms", _timer_ms);
 
             if (_uart == nullptr) {
                 // If _uart is null this must be the parsing phase
