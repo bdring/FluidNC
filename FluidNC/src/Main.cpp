@@ -24,7 +24,7 @@
 #    include "WebUI/InputBuffer.h"
 
 #    include "WebUI/WifiConfig.h"
-#    include "LocalFS.h"
+#    include "Driver/localfs.h"
 
 extern void make_user_commands();
 
@@ -47,12 +47,12 @@ void setup() {
         settings_init();  // requires config
 
         log_info("FluidNC " << git_info);
-        log_info("Compiled with ESP32 SDK:" << ESP.getSdkVersion());
+        log_info("Compiled with ESP32 SDK:" << esp_get_idf_version());
 
-        if (LocalFS.begin(true)) {
-            log_info("Local filesystem type is " << LOCALFS_NAME);
+        if (localfs_mount()) {
+            log_error("Cannot mount a local filesystem");
         } else {
-            log_error("Cannot mount the local filesystem " << LOCALFS_NAME);
+            log_info("Local filesystem type is " << localfsName);
         }
 
         bool configOkay = config->load();

@@ -10,4 +10,6 @@ extern StringSetting* start_message;
 
 extern IntSetting* status_mask;
 
+extern IntSetting* sd_fallback_cs;
+
 extern EnumSetting* message_level;

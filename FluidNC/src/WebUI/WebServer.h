@@ -11,7 +11,6 @@
 #    include "../Settings.h"
 #    include "Authentication.h"  // AuthenticationLevel
 #    include "Commands.h"
-#    include <FS.h>
 
 class WebSocketsServer;
 class WebServer;
@@ -60,10 +59,9 @@ namespace WebUI {
         static WebSocketsServer* _socket_server;
         static uint16_t          _port;
         static UploadStatus      _upload_status;
-        static String            _uploadFilename;
         static FileStream*       _uploadFile;
-        static String            getContentType(String filename);
-        static String            get_Splited_Value(String data, char separator, int index);
+
+        static String getContentType(String filename);
 
         static AuthenticationLevel is_authenticated();
 #    ifdef ENABLE_AUTHENTICATION
@@ -89,21 +87,31 @@ namespace WebUI {
         static void handleFileList();
         static void handleUpdate();
         static void WebUpdateUpload();
+
+        static bool streamFile(String path, bool download = false);
+
         static void pushError(int code, const char* st, bool web_error = 500, uint16_t timeout = 1000);
+
         static void cancelUpload();
+        static void handleFileOps(const char* mountpoint);
         static void handle_direct_SDFileList();
-        static void SDFile_direct_upload();
-        static bool deleteFSRecursive(fs::FS& fs, String path);
-        static bool deleteLocalFSRecursive(String path);
-        static bool deleteRecursive(String path);
+        static void fileUpload(const char* fs);
+        static void SDFileUpload();
         static void uploadStart(String filename, size_t filesize, const char* fs);
         static void uploadWrite(uint8_t* buffer, size_t length);
-        static void uploadEnd(size_t filesize, const char* fs);
+        static void uploadEnd(size_t filesize);
         static void uploadStop();
-        static void uploadCheck(String filename, const char* fs);
-        static void deleteFile(const char* filename, const char* fs);
+        static void uploadCheck(String filename);
 
-        static uint64_t fsAvail(const char* fs);
+        static void sendFSError(Error err);
+        static void sendJSON(int code, const String& s);
+        static void sendAuth(const String& status, const String& level, const String& user);
+        static void sendAuthFailed();
+        static void sendStatus(int code, const String& str);
+
+        static void sendWithOurAddress(String s);
+        static void sendCaptivePortal();
+        static void send404Page();
     };
 
     extern Web_Server webServer;
