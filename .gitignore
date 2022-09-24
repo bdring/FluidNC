@@ -34,3 +34,5 @@ spiffs/output/config.yaml
 FluidNC/src/version.cxx
 install_scripts/win64/wifi/spiffs.bin
 example_configs/
+ava_configs/
+
