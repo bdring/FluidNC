@@ -91,7 +91,7 @@ namespace Pins {
         // WILL get into trouble.
 
         Assert(index < nGPIOPins, "Pin number is greater than max %d", nGPIOPins - 1);
-        Assert(_capabilities != PinCapabilities::Reserved, "Reserved GPIO");
+        Assert(_capabilities != PinCapabilities::Reserved, "Unusable GPIO");
         Assert(_capabilities != PinCapabilities::None, "Unavailable GPIO");
         Assert(!_claimed[index], "Pin is already used.");
 
