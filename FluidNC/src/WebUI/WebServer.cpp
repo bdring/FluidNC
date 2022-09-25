@@ -11,7 +11,7 @@
 #    include "WifiServices.h"
 #    include "WifiConfig.h"  // wifi_config
 
-#    include "Serial2Socket.h"
+#    include "WSChannel.h"
 #    include "WebServer.h"
 
 #    include <WebSocketsServer.h>
@@ -28,6 +28,7 @@
 
 #    include "WebClient.h"
 
+#    include "src/Protocol.h"  // protocol_send_event
 #    include "src/FluidPath.h"
 #    include "src/WebUI/JSONEncoder.h"
 #    include "Driver/localfs.h"
@@ -53,10 +54,13 @@ namespace WebUI {
     const int ESP_ERROR_UPLOAD_CANCELLED = 6;
     const int ESP_ERROR_FILE_CLOSE       = 7;
 
-    Web_Server        webServer;
-    bool              Web_Server::_setupdone     = false;
-    uint16_t          Web_Server::_port          = 0;
-    long              Web_Server::_id_connection = 0;
+    static std::map<uint8_t, WSChannel*> wsChannels;
+    static std::list<WSChannel*>         webWsChannels;
+
+    Web_Server webServer;
+    bool       Web_Server::_setupdone = false;
+    uint16_t   Web_Server::_port      = 0;
+
     UploadStatus      Web_Server::_upload_status = UploadStatus::NONE;
     WebServer*        Web_Server::_webserver     = NULL;
     WebSocketsServer* Web_Server::_socket_server = NULL;
@@ -75,8 +79,6 @@ namespace WebUI {
         http_enable = new EnumSetting("HTTP Enable", WEBSET, WA, "ESP120", "HTTP/Enable", DEFAULT_HTTP_STATE, &onoffOptions, NULL);
     }
     Web_Server::~Web_Server() { end(); }
-
-    long Web_Server::get_client_ID() { return _id_connection; }
 
     bool Web_Server::begin() {
         bool no_error = true;
@@ -100,19 +102,10 @@ namespace WebUI {
         _socket_server->begin();
         _socket_server->onEvent(handle_Websocket_Event);
 
-        //Websocket output
-        serial2Socket.attachWS(_socket_server);
-        allChannels.registration(&WebUI::serial2Socket);
-
         //events functions
         //_web_events->onConnect(handle_onevent_connect);
         //events management
         // _webserver->addHandler(_web_events);
-
-        //Websocket function
-        //_web_socket->onEvent(handle_Websocket_Event);
-        //Websocket management
-        //_webserver->addHandler(_web_socket);
 
         //Web server handlers
         //trick to catch command line on "/" before file being processed
@@ -195,7 +188,6 @@ namespace WebUI {
         mdns_service_remove("_http", "_tcp");
 
         if (_socket_server) {
-            allChannels.deregistration(&WebUI::serial2Socket);
             delete _socket_server;
             _socket_server = NULL;
         }
@@ -371,15 +363,6 @@ namespace WebUI {
     }
 
     void Web_Server::_handle_web_command(bool silent) {
-        //to save time if already disconnected
-        //if (_webserver->hasArg ("PAGEID") ) {
-        //    if (_webserver->arg ("PAGEID").length() > 0 ) {
-        //       if (_webserver->arg ("PAGEID").toInt() != _id_connection) {
-        //       _webserver->send (200, "text/plain", "Invalid command");
-        //       return;
-        //       }
-        //    }
-        //}
         AuthenticationLevel auth_level = is_authenticated();
         String              cmd        = "";
         if (_webserver->hasArg("plain")) {
@@ -430,14 +413,24 @@ namespace WebUI {
                 cmd.replace(prefix, "");
             }
             bool hasError = false;
-            if (cmd.length() == 1 && is_realtime_command(cmd[0])) {
-                serial2Socket.pushRT(cmd[0]);
-            } else {
-                if (!cmd.endsWith("\n")) {
-                    cmd += '\n';
+            try {
+                WSChannel* wsChannel;
+                if (_webserver->hasArg("PAGEID")) {
+                    int wsId  = _webserver->arg("PAGEID").toInt();
+                    wsChannel = wsChannels.at(wsId);
                 }
-                hasError = !serial2Socket.push(cmd.c_str());
-            }
+                if (wsChannel) {
+                    if (cmd.length() == 1 && is_realtime_command(cmd[0])) {
+                        wsChannel->pushRT(cmd[0]);
+                    } else {
+                        if (!cmd.endsWith("\n")) {
+                            cmd += '\n';
+                        }
+                        hasError = !wsChannel->push(cmd.c_str());
+                    }
+                }
+            } catch (std::out_of_range& oor) { hasError = true; }
+
             _webserver->send(200, "text/plain", hasError ? "Error" : "");
         }
     }
@@ -618,9 +611,7 @@ namespace WebUI {
     }
     // This page issues a feedhold to pause the motion then retries the WebUI reload
     void Web_Server::handleFeedholdReload() {
-        // Send feedhold to FluidNC
-        serial2Socket.pushRT('!');
-
+        protocol_send_event(&feedHoldEvent);
         // Go to the main page
         _webserver->send(200,
                          "text/html",
@@ -629,12 +620,22 @@ namespace WebUI {
                          "</body></html>");
     }
 
-    //push error code and message to websocket
+    //push error code and message to websocket.  Used by upload code
     void Web_Server::pushError(int code, const char* st, bool web_error, uint16_t timeout) {
         if (_socket_server && st) {
             String s = "ERROR:" + String(code) + ":";
             s += st;
-            _socket_server->sendTXT(_id_connection, s);
+
+            try {
+                WSChannel* wsChannel;
+                if (_webserver->hasArg("PAGEID")) {
+                    int wsId  = _webserver->arg("PAGEID").toInt();
+                    wsChannel = wsChannels.at(wsId);
+                }
+                if (wsChannel) {
+                    wsChannel->sendTXT(s);
+                }
+            } catch (std::out_of_range& oor) {}
             if (web_error != 0 && _webserver && _webserver->client().available() > 0) {
                 _webserver->send(web_error, "text/xml", st);
             }
@@ -1072,29 +1073,57 @@ namespace WebUI {
             _socket_server->loop();
         }
         if ((millis() - start_time) > 10000 && _socket_server) {
-            String s = "PING:";
-            s += String(_id_connection);
-            _socket_server->broadcastTXT(s);
+            for (WSChannel* wsChannel : webWsChannels) {
+                String s = "PING:";
+                s += String(wsChannel->id());
+                wsChannel->sendTXT(s);
+            }
+
             start_time = millis();
         }
     }
 
     void Web_Server::handle_Websocket_Event(uint8_t num, uint8_t type, uint8_t* payload, size_t length) {
+        char data[length + 1];
+        memcpy(data, (char*)payload, length);
+        data[length] = '\0';
+
         switch (type) {
             case WStype_DISCONNECTED:
+                log_debug("WebSocket disconnect " << num);
+                try {
+                    WSChannel* wsChannel = wsChannels.at(num);
+                    webWsChannels.remove(wsChannel);
+                    allChannels.deregistration(wsChannel);
+                    wsChannels.erase(num);
+                    delete wsChannel;
+                } catch (std::out_of_range& oor) {}
                 break;
             case WStype_CONNECTED: {
-                IPAddress ip = _socket_server->remoteIP(num);
-                String    s  = "CURRENT_ID:" + String(num);
-                // send message to client
-                _id_connection = num;
-                _socket_server->sendTXT(_id_connection, s);
-                s = "ACTIVE_ID:" + String(_id_connection);
-                _socket_server->broadcastTXT(s);
+                IPAddress  ip        = _socket_server->remoteIP(num);
+                WSChannel* wsChannel = new WSChannel(_socket_server, num);
+                if (!wsChannel) {
+                    log_error("Creating WebSocket channel failed");
+                } else {
+                    log_debug("WebSocket " << num << " from " << ip << " uri " << data);
+                    allChannels.registration(wsChannel);
+                    wsChannels[num] = wsChannel;
+
+                    if (strcmp(data, "/") == 0) {
+                        String s = "CURRENT_ID:" + String(num);
+                        // send message to client
+                        webWsChannels.push_front(wsChannel);
+                        wsChannel->sendTXT(s);
+                        s = "ACTIVE_ID:" + String(wsChannel->id());
+                        wsChannel->sendTXT(s);
+                    }
+                }
             } break;
             case WStype_TEXT:
             case WStype_BIN:
-                serial2Socket.push(payload, length);
+                try {
+                    wsChannels.at(num)->push(payload, length);
+                } catch (std::out_of_range& oor) {}
                 break;
             default:
                 break;
