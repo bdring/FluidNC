@@ -49,9 +49,19 @@ namespace WebUI {
     void WSChannel::pushRT(char ch) { _rtchar = ch; }
 
     bool WSChannel::push(const uint8_t* data, size_t length) {
-        char c;
-        while ((c = *data++) != '\0') {
-            _queue.push(c);
+        while (length--) {
+            uint8_t c = *data++;
+            // Skip UTF-8 encoding prefix C2 and spurious nulls
+            // A null in this case is not end-of-string but rather
+            // an artifact of a bug in WebUI that improperly converts
+            // realtime characters to strings
+            if (c != 0xc2 && c != 0) {
+                if (is_realtime_command(c)) {
+                    _rtchar = c;
+                } else {
+                    _queue.push(char(c));
+                }
+            }
         }
         return true;
     }
