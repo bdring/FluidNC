@@ -25,7 +25,8 @@ namespace Pins {
         PinCapabilities& operator=(const PinCapabilities&) = default;
 
         // All the capabilities we use and test:
-        static PinCapabilities None;
+        static PinCapabilities None;      // Nonexistent pin
+        static PinCapabilities Reserved;  // Pin reserved for system use
 
         static PinCapabilities Input;     // NOTE: Mapped in PinAttributes!
         static PinCapabilities Output;    // NOTE: Mapped in PinAttributes!
