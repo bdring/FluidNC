@@ -790,9 +790,9 @@ static void protocol_exec_rt_suspend() {
                         }
                     }
                 }
+            } else {
+                protocol_manage_spindle();
             }
-        } else {
-            protocol_manage_spindle();
         }
         pollChannels();  // Handle realtime commands like status report, cycle start and reset
         protocol_exec_rt_system();
