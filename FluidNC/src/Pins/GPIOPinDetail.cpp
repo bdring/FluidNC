@@ -68,8 +68,7 @@ namespace Pins {
             case 9:
             case 10:
             case 11:
-                return PinCapabilities::Native | PinCapabilities::Input | PinCapabilities::Output | PinCapabilities::PWM |
-                       PinCapabilities::ISR | PinCapabilities::UART;
+                return PinCapabilities::Reserved;
 
             case 34:  // Input only pins
             case 35:
@@ -92,6 +91,7 @@ namespace Pins {
         // WILL get into trouble.
 
         Assert(index < nGPIOPins, "Pin number is greater than max %d", nGPIOPins - 1);
+        Assert(_capabilities != PinCapabilities::Reserved, "Unusable GPIO");
         Assert(_capabilities != PinCapabilities::None, "Unavailable GPIO");
         Assert(!_claimed[index], "Pin is already used.");
 
