@@ -82,14 +82,23 @@ namespace WebUI {
     void Serial_2_Socket::pushRT(char ch) { _rtchar = ch; }
 
     bool Serial_2_Socket::push(const uint8_t* data, size_t length) {
-        char c;
-        while ((c = *data++) != '\0') {
-            _queue.push(c);
+        while (length--) {
+            uint8_t c = *data++;
+            // Skip UTF-8 encoding prefix C2 and spurious nulls
+            // A null in this case is not end-of-string but rather
+            // an artifact of a bug in WebUI that improperly converts
+            // realtime characters to strings
+            if (c != 0xc2 && c != 0) {
+                if (is_realtime_command(c)) {
+                    _rtchar = c;
+                } else {
+                    _queue.push(char(c));
+                }
+            }
         }
         return true;
     }
-
-    bool Serial_2_Socket::push(const char* data) { return push((uint8_t*)data, strlen(data)); }
+    bool Serial_2_Socket::push(const String& s) { return push((uint8_t*)s.c_str(), s.length()); }
 
     void Serial_2_Socket::handle() {
         if (_TXbufferSize > 0 && ((_TXbufferSize >= TXBUFFERSIZE) || ((millis() - _lastflush) > FLUSHTIMEOUT))) {
