@@ -403,16 +403,8 @@ namespace WebUI {
                 _webserver->send(401, "text/plain", "Authentication failed\n");
                 return;
             }
-            if (!silent) {
-                // 0xC2 is an HTML encoding prefix that, in UTF-8 mode,
-                // precedes 0x90 and 0xa0-0bf, which are GRBL realtime commands.
-                // There are other encodings for 0x91-0x9f, so I am not sure
-                // how - or whether - those commands work.
-                // Ref: https://www.w3schools.com/tags/ref_urlencode.ASP
-                String prefix(0xc2);
-                cmd.replace(prefix, "");
-            }
             bool hasError = false;
+
             try {
                 WSChannel* wsChannel;
                 if (_webserver->hasArg("PAGEID")) {
@@ -420,7 +412,18 @@ namespace WebUI {
                     wsChannel = wsChannels.at(wsId);
                 }
                 if (wsChannel) {
-                    if (cmd.length() == 1 && is_realtime_command(cmd[0])) {
+                    // It is very tempting to let Serial_2_Socket.push() handle the realtime
+                    // character sequences so we don't have to do it here.  That does not work
+                    // because we need to know whether to add a newline.  We should not add one
+                    // on a realtime sequence, but we must add one (if not already present)
+                    // on a text command.
+                    if (cmd.length() == 3 && cmd[0] == 0xc2 && is_realtime_command(cmd[1]) && cmd[2] == '\0') {
+                        // Handles old WebUIs that send a null after high-bit-set realtime chars
+                        wsChannel->pushRT(cmd[1]);
+                    } else if (cmd.length() == 2 && cmd[0] == 0xc2 && is_realtime_command(cmd[1])) {
+                        // Handles old WebUIs that send a null after high-bit-set realtime chars
+                        wsChannel->pushRT(cmd[1]);
+                    } else if (cmd.length() == 1 && is_realtime_command(cmd[0])) {
                         wsChannel->pushRT(cmd[0]);
                     } else {
                         if (!cmd.endsWith("\n")) {
