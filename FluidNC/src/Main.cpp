@@ -20,7 +20,6 @@
 #    include "StartupLog.h"
 
 #    include "WebUI/TelnetServer.h"
-#    include "WebUI/Serial2Socket.h"
 #    include "WebUI/InputBuffer.h"
 
 #    include "WebUI/WifiConfig.h"

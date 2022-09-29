@@ -55,7 +55,6 @@ namespace WebUI {
     private:
         static bool              _setupdone;
         static WebServer*        _webserver;
-        static long              _id_connection;
         static WebSocketsServer* _socket_server;
         static uint16_t          _port;
         static UploadStatus      _upload_status;
