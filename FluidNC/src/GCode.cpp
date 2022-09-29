@@ -31,7 +31,6 @@ CoordIndex& operator++(CoordIndex& i) {
 // arbitrary value, and some GUIs may require more. So we increased it based on a max safe
 // value when converting a float (7.2 digit precision)s to an integer.
 static const int32_t MaxLineNumber = 10000000;
-static const uint8_t MaxToolNumber = 255;  // Limited by max unsigned 8-bit value
 
 // Declare gc extern struct
 parser_state_t gc_state;
@@ -1708,7 +1707,7 @@ Error gc_execute_line(char* line, Channel& channel) {
 
 void WEAK_LINK user_m30() {}
 
-void WEAK_LINK user_tool_change(uint8_t new_tool) {
+void WEAK_LINK user_tool_change(uint32_t new_tool) {
     Spindles::Spindle::switchSpindle(new_tool, config->_spindles, spindle);
     report_ovr_counter = 0;  // Set to report change immediately
 }
