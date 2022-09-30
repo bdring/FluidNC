@@ -24,8 +24,11 @@
 #include "StartupLog.h"           // startupLog
 #include "WebUI\Commands.h"
 
+#include "FluidPath.h"
+
 #include <cstring>
 #include <map>
+#include <filesystem>
 
 // WG Readable and writable as guest
 // WU Readable and writable as user and admin
@@ -622,7 +625,7 @@ static Error xmodem_receive(const char* value, WebUI::AuthenticationLevel auth_l
     }
     FileStream* outfile;
     try {
-        outfile = new FileStream(value, "w", "/localfs");
+        outfile = new FileStream(value, "w");
     } catch (...) {
         delay_ms(1000);   // Delay for FluidTerm to handle command echoing
         out.write(0x04);  // Cancel xmodem transfer with EOT
@@ -668,14 +671,17 @@ static Error xmodem_send(const char* value, WebUI::AuthenticationLevel auth_leve
 
 static Error dump_config(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
     Print* ss;
-    try {
-        if (value) {
-            // Use a file on the local file system unless there is an explicit prefix like /sd/
-            ss = new FileStream(value, "w", "/localfs");
-        } else {
-            ss = &out;
-        }
-    } catch (Error err) { return err; }
+    if (value) {
+        // Use a file on the local file system unless there is an explicit prefix like /sd/
+        std::error_code ec;
+
+        try {
+            //            ss = new FileStream(std::string(value), "", "w");
+            ss = new FileStream(value, "w", "");
+        } catch (Error err) { return err; }
+    } else {
+        ss = &out;
+    }
     try {
         Configuration::Generator generator(*ss);
         config->group(generator);

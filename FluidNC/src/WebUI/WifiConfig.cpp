@@ -20,7 +20,7 @@ WebUI::WiFiConfig wifi_config;
 
 #    include <WiFi.h>
 #    include <esp_wifi.h>
-#    include "../LocalFS.h"
+#    include "Driver/localfs.h"
 #    include <cstring>
 
 #    include <esp_ota_ops.h>
@@ -109,7 +109,7 @@ namespace WebUI {
                 }
             }
             out << "Available Size for update: " << formatBytes(flashsize) << '\n';
-            out << "Available Size for LocalFS: " << formatBytes(LocalFS.totalBytes()) << '\n';
+            out << "Available Size for LocalFS: " << formatBytes(localfs_size()) << '\n';
 
             out << "Web port: " << String(webServer.port()) << '\n';
             out << "Data port: " << String(telnetServer.port()) << '\n';
@@ -758,6 +758,7 @@ namespace WebUI {
         wifi_services.handle();
     }
 
+    // Used by js/scanwifidlg.js
     Error WiFiConfig::listAPs(char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP410
         JSONencoder j(false, out);
         j.begin();
