@@ -58,10 +58,15 @@ namespace Machine {
     void LimitPin::run(void* arg) {
         //CVI : add 100us as discrepency between INT circuitry and pin reading circuitry to read the good value of the pin ...
         //Workaround waiting for better solution from upstream repo
-
-        delay_us(100);
-
+        //Need to keep both readings as well
+        
         bool value = get();
+        log_debug ("Before : " << value );
+        delay_us(400);
+
+        value = get();
+        log_debug ("After : " << value );
+
         // Since we do not trust the ISR to always trigger precisely,
         // we check the pin state before calling the event handler
         update(value);
