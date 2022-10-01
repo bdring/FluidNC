@@ -62,7 +62,7 @@ namespace Machine {
         
         bool value = get();
         log_debug ("Before : " << value );
-        delay_us(400);
+        delay_us(500);
 
         value = get();
         log_debug ("After : " << value );
