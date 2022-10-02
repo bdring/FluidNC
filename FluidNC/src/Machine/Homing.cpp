@@ -46,7 +46,11 @@ namespace Machine {
         "None", "PrePulloff", "FastApproach", "Pulloff0", "SlowApproach", "Pulloff1", "Pulloff2", "CycleDone",
     };
 
-    void Homing::startMove(float* target, float rate) {
+    void Homing::startMove(AxisMask axisMask, MotorMask motors, Phase phase, uint32_t& settle_ms) {
+        float rate;
+        float target[config->_axes->_numberAxis];
+        axisVector(_phaseAxes, _phaseMotors, _phase, target, rate, _settling_ms);
+
         plan_line_data_t plan_data;
         plan_data.spindle_speed         = 0;
         plan_data.motion                = {};
@@ -59,7 +63,7 @@ namespace Machine {
         plan_data.is_jog                = false;
         plan_data.feed_rate             = rate;  // Magnitude of homing rate vector
 
-        mc_move_motors(target, &plan_data);
+        config->_kinematics->cartesian_to_motors(target, &plan_data, get_mpos());
 
         protocol_send_event(&cycleStartEvent);
     }
@@ -105,6 +109,8 @@ namespace Machine {
     }
 
     void Homing::axisVector(AxisMask axisMask, MotorMask motors, Machine::Homing::Phase phase, float* target, float& rate, uint32_t& settle_ms) {
+        copyAxes(target, get_mpos());
+
         log_debug("Starting from " << target[0] << "," << target[1] << "," << target[2]);
 
         float maxSeekTime  = 0.0;
@@ -248,10 +254,7 @@ namespace Machine {
 
         config->_kinematics->releaseMotors(_phaseAxes, _phaseMotors, _phase);
 
-        float* target = get_mpos();
-        float  rate;
-        axisVector(_phaseAxes, _phaseMotors, _phase, target, rate, _settling_ms);
-        startMove(target, rate);
+        startMove(_phaseAxes, _phaseMotors, _phase, _settling_ms);
     }
 
     void Homing::limitReached() {
@@ -282,10 +285,7 @@ namespace Machine {
 
                 // If there are any axes that have not yet hit their limits, replan with
                 // the remaining axes.
-                float* target = get_mpos();
-                float  rate;
-                axisVector(_phaseAxes, _phaseMotors, _phase, target, rate, _settling_ms);
-                startMove(target, rate);
+                startMove(_phaseAxes, _phaseMotors, _phase, _settling_ms);
             } else {
                 // If all axes have hit their limits, this phase is complete and
                 // we can start the next one

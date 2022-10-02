@@ -85,7 +85,7 @@ namespace Kinematics {
         position = an n_axis array of where the machine is starting from for this move
     */
     bool CoreXY::cartesian_to_motors(float* target, plan_line_data_t* pl_data, float* position) {
-        //log_info("cartesian_to_motors position (" << position[X_AXIS] << "," << position[Y_AXIS] << ")");
+        //        log_debug("cartesian_to_motors position (" << position[X_AXIS] << "," << position[Y_AXIS] << ") target (" << target[X_AXIS] << "," << target[Y_AXIS] << ")");
 
         auto n_axis = config->_axes->_numberAxis;
 
