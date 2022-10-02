@@ -57,16 +57,20 @@ namespace Kinematics {
         // clear the associated axis bit and stop motion.  The homing code will then replan
         // a new move along the remaining axes.
         MotorMask toClear = axisMask & limited;
-        auto      axes    = config->_axes;
 
         clear_bits(axisMask, limited);
         clear_bits(motors, limited);
-        //        clear_bits(Machine::Axes::posLimitMask, toClear);
-        //        clear_bits(Machine::Axes::negLimitMask, toClear);
+
+        // During CoreXY homing of, say, the X axis, if the Y axis limit trips
+        // it will stop both motors, motion will cease. and the X homing will
+        // not finish.  To combat the, we release all the motors that are still
+        // needed to finish the cycle.
+        releaseMotors(axisMask, motors);
+
         return bool(toClear);
     }
 
-    void CoreXY::releaseMotors(AxisMask axisMask, MotorMask motors, Machine::Homing::Phase phase) {
+    void CoreXY::releaseMotors(AxisMask axisMask, MotorMask motors) {
         auto axes   = config->_axes;
         auto n_axis = axes->_numberAxis;
         for (size_t axis = X_AXIS; axis < n_axis; axis++) {

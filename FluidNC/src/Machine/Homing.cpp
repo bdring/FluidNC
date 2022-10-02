@@ -252,7 +252,7 @@ namespace Machine {
             }
         }
 
-        config->_kinematics->releaseMotors(_phaseAxes, _phaseMotors, _phase);
+        config->_kinematics->releaseMotors(_phaseAxes, _phaseMotors);
 
         startMove(_phaseAxes, _phaseMotors, _phase, _settling_ms);
     }
@@ -280,7 +280,7 @@ namespace Machine {
             if (_phaseAxes) {
                 log_debug("Homing replan with " << config->_axes->maskToNames(_phaseAxes));
 
-                config->_kinematics->releaseMotors(_phaseAxes, _phaseMotors, _phase);
+                config->_kinematics->releaseMotors(_phaseAxes, _phaseMotors);
 
                 // If there are any axes that have not yet hit their limits, replan with
                 // the remaining axes.
