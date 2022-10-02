@@ -262,13 +262,12 @@ namespace Machine {
         // means in terms of axes, motors, and whether to stop and replan
         MotorMask limited = Machine::Axes::posLimitMask | Machine::Axes::negLimitMask;
 
-        log_debug("Homing limited" << config->_axes->motorMaskToNames(limited));
-
         if (!approach()) {
-            // We are not supposed to see a limitReached event while pulling off
-            fail(ExecAlarm::HomingFailPulloff);
+            // Ignore limit switch chatter while pulling off
             return;
         }
+
+        log_debug("Homing limited" << config->_axes->motorMaskToNames(limited));
 
         bool stop = config->_kinematics->limitReached(_phaseAxes, _phaseMotors, limited);
 

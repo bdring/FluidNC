@@ -7,10 +7,6 @@
 #include "src/Limits.h"
 #include "src/Protocol.h"  // protocol_send_event_from_ISR()
 
-#include "soc/soc.h"
-#include "soc/gpio_periph.h"
-#include "hal/gpio_hal.h"
-
 namespace Machine {
     LimitPin::LimitPin(Pin& pin, int axis, int motor, int direction, bool& pHardLimits, bool& pLimited) :
         EventPin(&limitEvent, "Limit", &pin), _axis(axis), _motorNum(motor), _value(false), _pHardLimits(pHardLimits), _pLimited(pLimited) {
@@ -54,7 +50,7 @@ namespace Machine {
         update(get());
     }
 
-    void IRAM_ATTR LimitPin::update(bool value) {
+    void LimitPin::update(bool value) {
         log_debug(_legend << " " << value);
         _pLimited = value;
 
