@@ -15,8 +15,6 @@ namespace Machine {
 
         char letter() { return _letter; };
 
-        void run(void* arg) override;
-
         ~ControlPin();
     };
 }

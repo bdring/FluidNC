@@ -75,7 +75,6 @@ namespace Machine {
             report_realtime_status(allChannels);
             return;
         }
-        Machine::EventPin::check();
 
         // Cycle stop in pulloff is success unless
         // the limit switches are still active.
@@ -240,16 +239,11 @@ namespace Machine {
         _phaseMotors = _cycleMotors;
 
         if (_phase == Phase::PrePulloff) {
-            Machine::EventPin::check();
             if (!(limited() & _phaseMotors)) {
                 // No initial pulloff needed
                 nextPhase();
                 return;
             }
-        }
-
-        if (approach()) {
-            Machine::EventPin::check();
         }
 
         config->_kinematics->releaseMotors(_phaseAxes, _phaseMotors, _phase);
@@ -313,7 +307,6 @@ namespace Machine {
         gc_sync_position();
         plan_sync_position();
 
-        Machine::EventPin::check();
         config->_stepping->endLowLatency();
 
         if (!sys.abort) {             // Execute startup scripts after successful homing.
@@ -348,7 +341,6 @@ namespace Machine {
 
     void Homing::fail(ExecAlarm alarm) {
         Stepper::reset();  // Stop moving
-        Machine::EventPin::check();
         rtAlarm = alarm;
         config->_axes->set_homing_mode(_cycleAxes, false);  // tell motors homing is done...failed
         config->_axes->set_disable(config->_stepping->_idleMsecs != 255);

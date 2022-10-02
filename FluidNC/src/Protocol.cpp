@@ -902,7 +902,6 @@ static void protocol_do_limit(void* arg) {
         return;
     }
     log_debug("Limit switch tripped for " << config->_axes->axisName(limit->_axis) << " motor " << limit->_motorNum);
-    Machine::EventPin::startTimer();
 }
 ArgEvent feedOverrideEvent { protocol_do_feed_override };
 ArgEvent rapidOverrideEvent { protocol_do_rapid_override };

@@ -51,21 +51,7 @@ namespace Machine {
         if (_pin->undefined()) {
             return;
         }
-        log_debug("Updating " << _legend);
         update(get());
-    }
-
-    void LimitPin::run(void* arg) {
-        bool value = get();
-        // Since we do not trust the ISR to always trigger precisely,
-        // we check the pin state before calling the event handler
-        update(value);
-        if (value) {
-            block();
-            _event->run(arg);
-        } else {
-            reArm();
-        }
     }
 
     void IRAM_ATTR LimitPin::update(bool value) {
