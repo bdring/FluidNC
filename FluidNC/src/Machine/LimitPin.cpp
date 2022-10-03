@@ -52,12 +52,15 @@ namespace Machine {
 
     void LimitPin::update(bool value) {
         log_debug(_legend << " " << value);
-        _pLimited = value;
-
-        if (_pExtraLimited != nullptr) {
-            *_pExtraLimited = value;
-        }
         if (value) {
+            if (Homing::approach() || (sys.state != State::Homing && _pHardLimits)) {
+                _pLimited = value;
+
+                if (_pExtraLimited != nullptr) {
+                    *_pExtraLimited = value;
+                }
+            }
+
             if (_posLimits != nullptr) {
                 set_bits(*_posLimits, _bitmask);
             }
@@ -65,6 +68,11 @@ namespace Machine {
                 set_bits(*_negLimits, _bitmask);
             }
         } else {
+            _pLimited = value;
+
+            if (_pExtraLimited != nullptr) {
+                *_pExtraLimited = value;
+            }
             if (_posLimits != nullptr) {
                 clear_bits(*_posLimits, _bitmask);
             }
