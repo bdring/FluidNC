@@ -207,3 +207,10 @@ const bool ALLOW_FEED_OVERRIDE_DURING_PROBE_CYCLES = false;
 
 // INCLUDE_OLED_BASIC includes a driver for a modest sized OLED display
 // #define INCLUDE_OLED_BASIC
+
+// Read rotary daily to select X in configuration file configX.yaml
+// Syntax is according to GPIO input pin defintion from http://wiki.fluidnc.com/en/config/config_IO
+#define ROTARY_DIAL_PIN_1 "gpio.35:low"
+#define ROTARY_DIAL_PIN_2 "gpio.15:low"
+#define ROTARY_DIAL_PIN_4 "gpio.5:low"
+#define ROTARY_DIAL_PIN_8 "gpio.34:low"

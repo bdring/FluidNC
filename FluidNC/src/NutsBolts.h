@@ -178,3 +178,10 @@ bool constrain_with_message(T& value, T min, T max, const char* name = "") {
 bool multiple_bits_set(uint32_t val);
 
 String formatBytes(uint64_t bytes);
+
+const char hex_lut[16] = { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F' };
+
+/*
+Read value from a rotary coded (real code) dial switch, e.g. SH-7050TA
+*/
+uint8_t read_rotary_coded_switch(const char* pin1, const char* pin2, const char* pin4, const char* pin8);
