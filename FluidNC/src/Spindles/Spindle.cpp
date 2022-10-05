@@ -14,7 +14,7 @@ Spindles::Spindle* spindle = nullptr;
 namespace Spindles {
     // ========================= Spindle ==================================
 
-    void Spindle::switchSpindle(uint8_t new_tool, SpindleList spindles, Spindle*& spindle) {
+    void Spindle::switchSpindle(uint32_t new_tool, SpindleList spindles, Spindle*& spindle) {
         // Find the spindle whose tool number is closest to and below the new tool number
         Spindle* candidate = nullptr;
         for (auto s : spindles) {

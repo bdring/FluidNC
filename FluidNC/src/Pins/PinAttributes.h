@@ -29,6 +29,7 @@ namespace Pins {
         // All the capabilities we use and test:
         static PinAttributes Undefined;
         static PinAttributes None;
+        static PinAttributes Reserved;
 
         static PinAttributes Input;
         static PinAttributes Output;

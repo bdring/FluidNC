@@ -2,7 +2,7 @@
 // Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
 
 // FileStream inherits from Channel, making it possible to use a
-// file (on either SD or the local FLASH filesystem) as a source
+// file on either SD or the local FLASH filesystem as a source
 // or sink for data that would otherwise be sent over a Channel.
 // That is useful for things like logging to a file or transferring
 // data between files and other channels.
@@ -11,25 +11,35 @@
 #pragma once
 
 #include "Channel.h"
+#include "FluidPath.h"
 
 extern "C" {
 #include <stdio.h>
 }
 
 class FileStream : public Channel {
-    bool   _isSD = false;
-    FILE*  _fd;
-    String _path;
+    FluidPath _fpath;  // Keeps the volume mounted while the file is in use
+    FILE*     _fd;
+    size_t    _size;
+
+    void setup(const char* mode);
 
 public:
-    FileStream(String filename, const char* mode, const char* defaultFs = "");
+    FileStream() = default;
+    FileStream(String filename, const char* mode, const char* defaultFs = "") : FileStream(filename.c_str(), mode, defaultFs) {}
     FileStream(const char* filename, const char* mode, const char* defaultFs = "");
+    FileStream(FluidPath fpath, const char* mode);
+
+    FluidPath fpath() { return _fpath; }
 
     String path();
+    String name();
     int    available() override;
     int    read() override;
     int    peek() override;
     void   flush() override;
+
+    size_t readBytes(char* buffer, size_t length) { return read((uint8_t*)buffer, length); }
 
     size_t read(char* buffer, size_t length);  // read chars from stream into buffer
     size_t read(uint8_t* buffer, size_t length) { return read((char*)buffer, length); }

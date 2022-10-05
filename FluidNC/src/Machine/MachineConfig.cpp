@@ -155,7 +155,7 @@ namespace Machine {
 
     bool MachineConfig::load(const char* filename) {
         try {
-            FileStream file(filename, "r", "/localfs");
+            FileStream file(filename, "r", "");
 
             auto filesize = file.size();
             if (filesize <= 0) {

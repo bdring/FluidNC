@@ -40,7 +40,7 @@ namespace Machine {
 
         size_t _segments = 12;
 
-        uint8_t  _idleMsecs           = 255;
+        uint32_t _idleMsecs           = 255;
         uint32_t _pulseUsecs          = 4;
         uint32_t _directionDelayUsecs = 0;
         uint32_t _disableDelayUsecs   = 0;
