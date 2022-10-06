@@ -210,7 +210,7 @@ const bool ALLOW_FEED_OVERRIDE_DURING_PROBE_CYCLES = false;
 
 // Read rotary daily to select X in configuration file configX.yaml
 // Syntax is according to GPIO input pin defintion from http://wiki.fluidnc.com/en/config/config_IO
-#define ROTARY_DIAL_PIN_1 "gpio.35:low"
-#define ROTARY_DIAL_PIN_2 "gpio.15:low"
-#define ROTARY_DIAL_PIN_4 "gpio.5:low"
-#define ROTARY_DIAL_PIN_8 "gpio.34:low"
+#define ROTARY_CODED_SWITCH_PIN_1 "gpio.35:low"
+#define ROTARY_CODED_SWITCH_PIN_2 "gpio.15:low"
+#define ROTARY_CODED_SWITCH_PIN_4 "gpio.5:low"
+#define ROTARY_CODED_SWITCH_PIN_8 "gpio.34:low"
