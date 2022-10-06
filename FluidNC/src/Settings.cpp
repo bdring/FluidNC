@@ -4,6 +4,7 @@
 #include "WebUI/WifiConfig.h"   // WebUI::WiFiConfig
 #include "WebUI/Commands.h"     // WebUI::COMMANDS
 #include "Protocol.h"           // protocol_buffer_synchronize
+#include "NutsBolts.h"          // read rotary coded switch
 
 #include <map>
 #include <limits>
@@ -76,8 +77,14 @@ Error Setting::check(char* s) {
 nvs_handle Setting::_handle = 0;
 
 void Setting::init() {
+#ifdef ROTARY_DIAL_PIN_1
+    char nvs_namespace[] = "FluidNC0";
+    nvs_namespace[7]     = hex_lut[read_rotary_coded_switch(ROTARY_DIAL_PIN_1, ROTARY_DIAL_PIN_2, ROTARY_DIAL_PIN_4, ROTARY_DIAL_PIN_8)];
+#else
+    const char nvs_namespace[] = "FluidNC";
+#endif
     if (!_handle) {
-        if (esp_err_t err = nvs_open("FluidNC", NVS_READWRITE, &_handle)) {
+        if (esp_err_t err = nvs_open(nvs_namespace, NVS_READWRITE, &_handle)) {
             log_debug("nvs_open failed with error " << err);
         }
     }
