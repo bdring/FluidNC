@@ -103,11 +103,15 @@ static void tmc_spi_rw_reg(uint8_t cmd, uint32_t data, int index) {
     size_t       total_bits      = total_bytes * 8;
 
     uint8_t out[total_bytes] = { 0 };
-    out[dummy_out_bytes]     = cmd;
-    out[dummy_out_bytes + 1] = data >> 24;
-    out[dummy_out_bytes + 2] = data >> 16;
-    out[dummy_out_bytes + 3] = data >> 8;
-    out[dummy_out_bytes + 4] = data >> 0;
+
+    // The data always starts at the beginning of the buffer then
+    // the trailing 0 bytes will push it through the chain to the
+    // target chip.
+    out[0] = cmd;
+    out[1] = data >> 24;
+    out[2] = data >> 16;
+    out[3] = data >> 8;
+    out[4] = data >> 0;
 
     tmc_spi_transfer_data(out, total_bits, NULL, 0);
 }
@@ -148,6 +152,10 @@ uint32_t TMC2130Stepper::read(uint8_t reg) {
 
     switchCSpin(0);
     tmc_spi_transfer_data(in, total_bits, in, total_bits);
+
+    // The received data has the dummy bytes from the trailing chips
+    // at the beginning of the buffer, with the data from the target
+    // chip at the end.
 
     uint8_t status = in[dummy_in_bytes];
 
