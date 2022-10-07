@@ -15,16 +15,12 @@ namespace MotorDrivers {
         uint8_t cs_id;
         cs_id = setupSPI();
 
-        if (_r_sense == 0) { 
+        if (_r_sense == 0) {
             _r_sense = TMC2130_RSENSE_DEFAULT;
         }
 
         tmc2130 = new TMC2130Stepper(cs_id, _r_sense, _spi_index);  // TODO hardwired to non daisy chain index
 
-        // use slower speed if I2S
-        if (_cs_pin.capabilities().has(Pin::Capabilities::I2S)) {
-            tmc2130->setSPISpeed(_spi_freq);
-        }
         TrinamicSpiDriver::finalInit();
     }
 
@@ -54,20 +50,20 @@ namespace MotorDrivers {
 
         switch (_mode) {
             case TrinamicMode ::StealthChop:
-                log_debug(axisName() <<  " StealthChop");
+                log_debug(axisName() << " StealthChop");
                 tmc2130->en_pwm_mode(true);
                 tmc2130->pwm_autoscale(true);
                 tmc2130->diag1_stall(false);
                 break;
             case TrinamicMode ::CoolStep:
-                log_debug(axisName() <<  " Coolstep");
+                log_debug(axisName() << " Coolstep");
                 tmc2130->en_pwm_mode(false);
                 tmc2130->pwm_autoscale(false);
                 tmc2130->TCOOLTHRS(NORMAL_TCOOLTHRS);  // when to turn on coolstep
                 tmc2130->THIGH(NORMAL_THIGH);
                 break;
             case TrinamicMode ::StallGuard:
-                log_debug(axisName() <<  " Stallguard");
+                log_debug(axisName() << " Stallguard");
                 {
                     auto feedrate = config->_axes->_axis[axis_index()]->_homing->_feedRate;
 

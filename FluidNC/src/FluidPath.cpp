@@ -64,7 +64,7 @@ FluidPath& FluidPath::operator=(FluidPath&& o) {
 
 FluidPath::~FluidPath() {
     // log_debug("~ refcnt " << _isSD << " " << _refcnt);
-    if (_isSD && --_refcnt == 0) {
+    if (_isSD && (_refcnt && --_refcnt == 0)) {
         sd_unmount();
     }
 }

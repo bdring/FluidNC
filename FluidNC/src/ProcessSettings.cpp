@@ -22,6 +22,7 @@
 #include "FileStream.h"           // FileStream()
 #include "xmodem.h"               // xmodemReceive(), xmodemTransmit()
 #include "StartupLog.h"           // startupLog
+#include "Driver/fluidnc_gpio.h"  // gpio_dump()
 
 #include "FluidPath.h"
 
@@ -699,12 +700,19 @@ static Error showStartupLog(const char* value, WebUI::AuthenticationLevel auth_l
     return Error::Ok;
 }
 
+static Error showGPIOs(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+    gpio_dump(out);
+    return Error::Ok;
+}
+
 // Commands use the same syntax as Settings, but instead of setting or
 // displaying a persistent value, a command causes some action to occur.
 // That action could be anything, from displaying a run-time parameter
 // to performing some system state change.  Each command is responsible
 // for decoding its own value string, if it needs one.
 void make_user_commands() {
+    new UserCommand("GD", "GPIO/Dump", showGPIOs, anyState);
+
     new UserCommand("CI", "Channel/Info", showChannelInfo, anyState);
     new UserCommand("XR", "Xmodem/Receive", xmodem_receive, notIdleOrAlarm);
     new UserCommand("XS", "Xmodem/Send", xmodem_send, notIdleOrJog);
