@@ -29,16 +29,7 @@ namespace MotorDrivers {
         TrinamicBase::config_motor();
     }
 
-    bool TMC5160Driver::test() {
-        tmc5160->THIGH(NORMAL_THIGH);
-        uint32_t thigh = tmc5160->THIGH();
-        if (thigh != NORMAL_THIGH) {
-            log_error(axisName() << " driver test failed.  Wrote 0x" << String(NORMAL_THIGH, 16) << " read 0x" << thigh);
-            return false;
-        }
-        log_info(axisName() << " driver test passed");
-        return true;
-    }
+    bool TMC5160Driver::test() { return checkVersion(0x30, tmc5160->version()); }
 
     void TMC5160Driver::set_registers(bool isHoming) {
         if (_has_errors) {
