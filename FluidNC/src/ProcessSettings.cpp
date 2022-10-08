@@ -562,7 +562,7 @@ static Error listErrors(const char* value, WebUI::AuthenticationLevel auth_level
     return Error::Ok;
 }
 
-static Error motor_disable(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+static Error motor_control(const char* value, bool disable) {
     if (sys.state == State::ConfigAlarm) {
         return Error::ConfigurationInvalid;
     }
@@ -571,15 +571,15 @@ static Error motor_disable(const char* value, WebUI::AuthenticationLevel auth_le
         ++value;
     }
     if (!value || *value == '\0') {
-        log_info("Disabling all motors");
-        config->_axes->set_disable(true);
+        log_info((disable ? "Dis" : "En") << "abling all motors");
+        config->_axes->set_disable(disable);
         return Error::Ok;
     }
 
     auto axes = config->_axes;
 
     if (axes->_sharedStepperDisable.defined()) {
-        log_error("Cannot disable individual axes with a shared disable pin");
+        log_error("Cannot " << (disable ? "dis" : "en") << "able individual axes with a shared disable pin");
         return Error::InvalidStatement;
     }
 
@@ -587,11 +587,18 @@ static Error motor_disable(const char* value, WebUI::AuthenticationLevel auth_le
         char axisName = axes->axisName(i);
 
         if (strchr(value, axisName) || strchr(value, tolower(axisName))) {
-            log_info("Disabling " << String(axisName) << " motors");
-            axes->set_disable(i, true);
+            log_info((disable ? "Dis" : "En") << "abling " << String(axisName) << " motors");
+            axes->set_disable(i, disable);
         }
     }
     return Error::Ok;
+}
+static Error motor_disable(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+    return motor_control(value, true);
+}
+
+static Error motor_enable(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+    return motor_control(value, false);
 }
 
 static Error motors_init(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
@@ -737,6 +744,7 @@ void make_user_commands() {
     new UserCommand("#", "GCode/Offsets", report_ngc, notIdleOrAlarm);
     new UserCommand("H", "Home", home_all, notIdleOrAlarm);
     new UserCommand("MD", "Motor/Disable", motor_disable, notIdleOrAlarm);
+    new UserCommand("ME", "Motor/Enable", motor_enable, notIdleOrAlarm);
     new UserCommand("MI", "Motors/Init", motors_init, notIdleOrAlarm);
 
     new UserCommand("RM", "Macros/Run", macros_run, notIdleOrAlarm);
