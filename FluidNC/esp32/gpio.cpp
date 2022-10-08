@@ -432,52 +432,6 @@ void gpio_dump(Print& out) {
     show_matrix(out);
 }
 
-#if 0
-void IRAM_ATTR     check_switches() {
-    gpio_mask_t gpio_this = REG_READ(GPIO_IN_REG);
-    if ((gpio_this ^ gpio_current_l) & gpio_interest_l) {
-        gpioActions
-        //            protocol_send_event_from_ISR(&gpio_changed_l, (void*)gpio_this);
-        protocol_send_event_from_ISR(&motionCancelEvent, (void*)gpio_this);
-        gpio_current_l = gpio_this;
-    }
-    gpio_this = REG_READ(GPIO_IN1_REG);
-    if ((gpio_this ^ gpio_current_h) & gpio_interest_h) {
-        //            protocol_send_event_from_ISR(&gpio_changed_h, (void*)gpio_this);
-        protocol_send_event_from_ISR(&motionCancelEvent, (void*)gpio_this);
-        gpio_current_h = gpio_this;
-    }
-    ++gpio_interest_l;
-    ++gpio_interest_h;
-}
-#endif
-
-#if 0
-typedef uint32_t   gpio_mask_t;
-static gpio_mask_t gpio_inverts_l  = 0;
-static gpio_mask_t gpio_inverts_h  = 0;
-static gpio_mask_t gpio_interest_l = 0;
-static gpio_mask_t gpio_interest_h = 0;
-static gpio_mask_t gpio_current_l  = 0;
-static gpio_mask_t gpio_current_h  = 0;
-void IRAM_ATTR     check_switches() {
-    gpio_mask_t gpio_this = REG_READ(GPIO_IN_REG);
-    if ((gpio_this ^ gpio_current_l) & gpio_interest_l) {
-        //            protocol_send_event_from_ISR(&gpio_changed_l, (void*)gpio_this);
-        protocol_send_event_from_ISR(&motionCancelEvent, (void*)gpio_this);
-        gpio_current_l = gpio_this;
-    }
-    gpio_this = REG_READ(GPIO_IN1_REG);
-    if ((gpio_this ^ gpio_current_h) & gpio_interest_h) {
-        //            protocol_send_event_from_ISR(&gpio_changed_h, (void*)gpio_this);
-        protocol_send_event_from_ISR(&motionCancelEvent, (void*)gpio_this);
-        gpio_current_h = gpio_this;
-    }
-    ++gpio_interest_l;
-    ++gpio_interest_h;
-}
-#endif
-#if 1
 typedef uint64_t   gpio_mask_t;
 static gpio_mask_t gpio_inverts  = 0;
 static gpio_mask_t gpio_interest = 0;
@@ -537,5 +491,3 @@ void poll_gpios() {
     }
     gpio_current = gpio_this;
 }
-
-#endif

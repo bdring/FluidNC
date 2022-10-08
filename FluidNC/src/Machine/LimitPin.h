@@ -13,10 +13,12 @@ namespace Machine {
         // limit behavior dynamically.
         bool& _pHardLimits;
 
-        // _pHardLimits is a reference to the _limited member of
+        // _pLimited is a reference to the _limited member of
         // the Motor class.  Setting it when the Limit ISR fires
         // lets the motor driver respond rapidly to a limit switch
         // touch, increasing the accuracy of homing
+        // _pExtraLimited lets the limit control two motors, as with
+        // CoreXY
         volatile bool& _pLimited;
         volatile bool* _pExtraLimited = nullptr;
 
@@ -31,8 +33,6 @@ namespace Machine {
         void init();
         void makeDualMask();  // makes this a mask for motor0 and motor1
         void setExtraMotorLimit(int axis, int motorNum);
-
-        void run(void* arg) override;
 
         bool isHard() { return _pHardLimits; }
 
