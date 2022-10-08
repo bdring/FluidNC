@@ -118,7 +118,7 @@ bool init_spi_bus(int mosi_pin, int miso_pin, int clk_pin) {
 
 // adapted from vfs_fat_sdmmc.c:esp_vfs_fat_sdmmc_mount()
 std::error_code sd_mount(int max_files) {
-    //    log_debug("Mount_sd");
+    log_verbose("Mount_sd");
     esp_err_t err;
 
     // mount_prepare_mem() ... minus the strdup of base_path
@@ -157,7 +157,7 @@ cleanup:
 }
 
 void sd_unmount() {
-    // log_debug("Unmount_sd");
+    log_verbose("Unmount_sd");
     BYTE pdrv = ff_diskio_get_pdrv_card(card);
     if (pdrv == 0xff) {
         return;
@@ -177,10 +177,12 @@ void sd_unmount() {
 }
 
 void sd_deinit_slot() {
+    // log_debug("Deinit slot");
+    sdspi_host_remove_device(host_config.slot);
     call_host_deinit(&host_config);
 
     //deinitialize the bus after all devices are removed
-    spi_bus_free(HSPI_HOST);
+    //    spi_bus_free(HSPI_HOST);
 }
 
 #if 0

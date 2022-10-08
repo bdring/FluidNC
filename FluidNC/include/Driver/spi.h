@@ -2,11 +2,10 @@
 // Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
 
 #include "src/Pins/PinDetail.h"  // pinnum_t
+#include "driver/spi_master.h"
 
-bool spi_init_bus(pinnum_t sck_pin, pinnum_t miso_pin, pinnum_t mosi_pin);
+bool spi_init_bus(pinnum_t sck_pin, pinnum_t miso_pin, pinnum_t mosi_pin, bool dma);
 void spi_deinit_bus();
-
-typedef int spi_device_t;
 
 // Returns devid or -1
 spi_device_t spi_register_device(pinnum_t cs_pin);

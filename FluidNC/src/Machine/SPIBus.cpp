@@ -34,7 +34,8 @@ namespace Machine {
             }
             log_info("Using default SPI pins");
         }
-        if (!spi_init_bus(sckPin, misoPin, mosiPin)) {
+        // Init in DMA mode
+        if (!spi_init_bus(sckPin, misoPin, mosiPin, true)) {
             log_error("SPIBus init failed");
             return;
         }
