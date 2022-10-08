@@ -101,6 +101,9 @@ namespace MotorDrivers {
     }
 
     bool TMC2209Driver::test() {
+        if (!checkVersion(0x21, tmc2209->version())) {
+            return false;
+        }
         uint8_t ifcnt_before = tmc2209->IFCNT();
         tmc2209->GSTAT(0);  // clear GSTAT to increase ifcnt
         uint8_t ifcnt_after = tmc2209->IFCNT();

@@ -5,12 +5,12 @@
 
 #include <SPI.h>
 #include "driver/spi_common.h"
+#include "src/Logging.h"
 
-bool spi_init_bus(pinnum_t sck_pin, pinnum_t miso_pin, pinnum_t mosi_pin) {
+bool spi_init_bus(pinnum_t sck_pin, pinnum_t miso_pin, pinnum_t mosi_pin, bool dma) {
     // Start the SPI bus with the pins defined here.  Once it has been started,
     // those pins "stick" and subsequent attempts to restart it with defaults
     // for the miso, mosi, and sck pins are ignored
-    SPI.begin(sck_pin, miso_pin, mosi_pin);  // CS is defined by each device
 
     spi_bus_config_t bus_cfg = {
         .mosi_io_num     = mosi_pin,
@@ -22,11 +22,10 @@ bool spi_init_bus(pinnum_t sck_pin, pinnum_t miso_pin, pinnum_t mosi_pin) {
     };
 
     // Depends on the chip variant
-#define SPI_DMA_CHAN 1
-    return !spi_bus_initialize(HSPI_HOST, &bus_cfg, 1);
+    return !spi_bus_initialize(HSPI_HOST, &bus_cfg, dma ? SPI_DMA_CH1 : SPI_DMA_DISABLED);
 }
 
 void spi_deinit_bus() {
-    spi_bus_free(HSPI_HOST);
-    SPI.end();
+    esp_err_t err = spi_bus_free(HSPI_HOST);
+    log_debug("deinit spi " << int(err));
 }
