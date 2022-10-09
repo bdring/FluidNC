@@ -46,7 +46,11 @@ namespace Machine {
         "None", "PrePulloff", "FastApproach", "Pulloff0", "SlowApproach", "Pulloff1", "Pulloff2", "CycleDone",
     };
 
-    void Homing::startMove(float* target, float rate) {
+    void Homing::startMove(AxisMask axisMask, MotorMask motors, Phase phase, uint32_t& settle_ms) {
+        float rate;
+        float target[config->_axes->_numberAxis];
+        axisVector(_phaseAxes, _phaseMotors, _phase, target, rate, _settling_ms);
+
         plan_line_data_t plan_data;
         plan_data.spindle_speed         = 0;
         plan_data.motion                = {};
@@ -59,7 +63,7 @@ namespace Machine {
         plan_data.is_jog                = false;
         plan_data.feed_rate             = rate;  // Magnitude of homing rate vector
 
-        mc_move_motors(target, &plan_data);
+        config->_kinematics->cartesian_to_motors(target, &plan_data, get_mpos());
 
         protocol_send_event(&cycleStartEvent);
     }
@@ -75,7 +79,6 @@ namespace Machine {
             report_realtime_status(allChannels);
             return;
         }
-        Machine::EventPin::check();
 
         // Cycle stop in pulloff is success unless
         // the limit switches are still active.
@@ -106,6 +109,8 @@ namespace Machine {
     }
 
     void Homing::axisVector(AxisMask axisMask, MotorMask motors, Machine::Homing::Phase phase, float* target, float& rate, uint32_t& settle_ms) {
+        copyAxes(target, get_mpos());
+
         log_debug("Starting from " << target[0] << "," << target[1] << "," << target[2]);
 
         float maxSeekTime  = 0.0;
@@ -240,7 +245,6 @@ namespace Machine {
         _phaseMotors = _cycleMotors;
 
         if (_phase == Phase::PrePulloff) {
-            Machine::EventPin::check();
             if (!(limited() & _phaseMotors)) {
                 // No initial pulloff needed
                 nextPhase();
@@ -248,16 +252,9 @@ namespace Machine {
             }
         }
 
-        if (approach()) {
-            Machine::EventPin::check();
-        }
+        config->_kinematics->releaseMotors(_phaseAxes, _phaseMotors);
 
-        config->_kinematics->releaseMotors(_phaseAxes, _phaseMotors, _phase);
-
-        float* target = get_mpos();
-        float  rate;
-        axisVector(_phaseAxes, _phaseMotors, _phase, target, rate, _settling_ms);
-        startMove(target, rate);
+        startMove(_phaseAxes, _phaseMotors, _phase, _settling_ms);
     }
 
     void Homing::limitReached() {
@@ -265,13 +262,12 @@ namespace Machine {
         // means in terms of axes, motors, and whether to stop and replan
         MotorMask limited = Machine::Axes::posLimitMask | Machine::Axes::negLimitMask;
 
-        log_debug("Homing limited" << config->_axes->motorMaskToNames(limited));
-
         if (!approach()) {
-            // We are not supposed to see a limitReached event while pulling off
-            fail(ExecAlarm::HomingFailPulloff);
+            // Ignore limit switch chatter while pulling off
             return;
         }
+
+        log_debug("Homing limited" << config->_axes->motorMaskToNames(limited));
 
         bool stop = config->_kinematics->limitReached(_phaseAxes, _phaseMotors, limited);
 
@@ -284,14 +280,11 @@ namespace Machine {
             if (_phaseAxes) {
                 log_debug("Homing replan with " << config->_axes->maskToNames(_phaseAxes));
 
-                config->_kinematics->releaseMotors(_phaseAxes, _phaseMotors, _phase);
+                config->_kinematics->releaseMotors(_phaseAxes, _phaseMotors);
 
                 // If there are any axes that have not yet hit their limits, replan with
                 // the remaining axes.
-                float* target = get_mpos();
-                float  rate;
-                axisVector(_phaseAxes, _phaseMotors, _phase, target, rate, _settling_ms);
-                startMove(target, rate);
+                startMove(_phaseAxes, _phaseMotors, _phase, _settling_ms);
             } else {
                 // If all axes have hit their limits, this phase is complete and
                 // we can start the next one
@@ -313,7 +306,6 @@ namespace Machine {
         gc_sync_position();
         plan_sync_position();
 
-        Machine::EventPin::check();
         config->_stepping->endLowLatency();
 
         if (!sys.abort) {             // Execute startup scripts after successful homing.
@@ -348,7 +340,6 @@ namespace Machine {
 
     void Homing::fail(ExecAlarm alarm) {
         Stepper::reset();  // Stop moving
-        Machine::EventPin::check();
         rtAlarm = alarm;
         config->_axes->set_homing_mode(_cycleAxes, false);  // tell motors homing is done...failed
         config->_axes->set_disable(config->_stepping->_idleMsecs != 255);

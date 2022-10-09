@@ -43,7 +43,7 @@ namespace Kinematics {
         return !axisMask;
     }
 
-    void Cartesian::releaseMotors(AxisMask axisMask, MotorMask motors, Machine::Homing::Phase phase) {
+    void Cartesian::releaseMotors(AxisMask axisMask, MotorMask motors) {
         auto axes   = config->_axes;
         auto n_axis = axes->_numberAxis;
         for (int axis = 0; axis < n_axis; axis++) {

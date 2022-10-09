@@ -48,7 +48,7 @@ namespace Kinematics {
         void transform_cartesian_to_motors(float* motors, float* cartesian);
 
         bool canHome(AxisMask axisMask);
-        void releaseMotors(AxisMask axisMask, MotorMask motors, Machine::Homing::Phase phase);
+        void releaseMotors(AxisMask axisMask, MotorMask motors);
         bool limitReached(AxisMask& axisMask, MotorMask& motors, MotorMask limited);
 
     private:
@@ -72,7 +72,7 @@ namespace Kinematics {
         virtual void transform_cartesian_to_motors(float* motors, float* cartesian) = 0;
 
         virtual bool canHome(AxisMask axisMask) { return false; }
-        virtual void releaseMotors(AxisMask axisMask, MotorMask motors, Machine::Homing::Phase phase) {}
+        virtual void releaseMotors(AxisMask axisMask, MotorMask motors) {}
         virtual bool limitReached(AxisMask& axisMask, MotorMask& motors, MotorMask limited) { return false; }
 
         // Configuration interface.
