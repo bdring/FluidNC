@@ -129,12 +129,15 @@ namespace Pins {
     PinCapabilities GPIOPinDetail::capabilities() const { return _capabilities; }
 
     void IRAM_ATTR GPIOPinDetail::write(int high) {
-        if (!_attributes.has(PinAttributes::Output)) {
-            log_error(toString());
+        if (high != _lastWrittenValue) {
+            _lastWrittenValue = high;
+            if (!_attributes.has(PinAttributes::Output)) {
+                log_error(toString());
+            }
+            Assert(_attributes.has(PinAttributes::Output), "Pin %s cannot be written", toString().c_str());
+            int value = _readWriteMask ^ high;
+            __digitalWrite(_index, value);
         }
-        Assert(_attributes.has(PinAttributes::Output), "Pin %s cannot be written", toString().c_str());
-        int value = _readWriteMask ^ high;
-        __digitalWrite(_index, value);
     }
     int IRAM_ATTR GPIOPinDetail::read() {
         auto raw = __digitalRead(_index);
