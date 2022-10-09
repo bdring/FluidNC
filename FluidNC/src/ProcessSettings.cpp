@@ -682,6 +682,13 @@ static Error dump_config(const char* value, WebUI::AuthenticationLevel auth_leve
     return Error::Ok;
 }
 
+static Error fakeMaxSpindleSpeed(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+    if (!value) {
+        out << "$30=" << spindle->maxSpeed() << '\n';
+    }
+    return Error::Ok;
+}
+
 static Error fakeLaserMode(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
     if (!value) {
         out << "$32=" << (spindle->isRateAdjusted() ? "1" : "0") << '\n';
@@ -747,6 +754,7 @@ void make_user_commands() {
 
     new UserCommand("SS", "Startup/Show", showStartupLog, anyState);
 
+    new UserCommand("30", "FakeMaxSpindleSpeed", fakeMaxSpindleSpeed, notIdleOrAlarm);
     new UserCommand("32", "FakeLaserMode", fakeLaserMode, notIdleOrAlarm);
 };
 
