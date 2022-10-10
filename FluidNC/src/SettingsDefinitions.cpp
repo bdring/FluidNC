@@ -51,16 +51,7 @@ void make_settings() {
 
     message_level = new EnumSetting("Which Messages", EXTENDED, WG, NULL, "Message/Level", MsgLevelInfo, &messageLevels, NULL);
 
-#ifdef ROTARY_CODED_SWITCH_PIN_1
-    uint8_t dial_value =
-        read_rotary_coded_switch(ROTARY_CODED_SWITCH_PIN_1, ROTARY_CODED_SWITCH_PIN_2, ROTARY_CODED_SWITCH_PIN_4, ROTARY_CODED_SWITCH_PIN_8);
-    char filename[] = "config0.yaml";
-    filename[6]     = hex_lut[dial_value];
-#else
-    char filename[] = "config.yaml";
-#endif
-
-    config_filename = new StringSetting("Name of Configuration File", EXTENDED, WG, NULL, "Config/Filename", filename, 1, 50, NULL);
+    config_filename = new StringSetting("Name of Configuration File", EXTENDED, WG, NULL, "Config/Filename", "config.yaml", 1, 50, NULL);
 
     // GRBL Numbered Settings
     status_mask = new IntSetting("What to include in status report", GRBL, WG, "10", "Report/Status", 1, 0, 3, NULL);
