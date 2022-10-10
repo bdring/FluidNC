@@ -246,10 +246,9 @@ namespace Machine {
 
         // _phaseMotors can be 0 if set_homing_mode() either rejected all the
         // motors or handled them independently.  In that case we do not have
-        // to run a conventional move-to-limit cycle.
-        // It might be possible to skip directly to the final phase but just
-        // advancing the phase incrementally works too.
+        // to run a conventional move-to-limit cycle.  Just skip to the end.
         if (!_phaseMotors) {
+            _phase = static_cast<Phase>(static_cast<int>(Phase::CycleDone) - 1);
             nextPhase();
             return;
         }
