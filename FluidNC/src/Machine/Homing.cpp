@@ -244,6 +244,16 @@ namespace Machine {
         _phaseAxes   = _cycleAxes;
         _phaseMotors = _cycleMotors;
 
+        // _phaseMotors can be 0 if set_homing_mode() either rejected all the
+        // motors or handled them independently.  In that case we do not have
+        // to run a conventional move-to-limit cycle.
+        // It might be possible to skip directly to the final phase but just
+        // advancing the phase incrementally works too.
+        if (!_phaseMotors) {
+            nextPhase();
+            return;
+        }
+
         if (_phase == Phase::PrePulloff) {
             if (!(limited() & _phaseMotors)) {
                 // No initial pulloff needed
