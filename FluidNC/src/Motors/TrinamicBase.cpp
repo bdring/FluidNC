@@ -120,6 +120,15 @@ namespace MotorDrivers {
         }
     }
 
+    bool TrinamicBase::checkVersion(uint8_t expected, uint8_t got) {
+        if (expected != got) {
+            log_error(axisName() << " TMC driver not detected - expected 0x" << String(expected, 16) << " got 0x" << String(got, 16));
+            return false;
+        }
+        log_info(axisName() << " driver test passed");
+        return true;
+    }
+
     void TrinamicBase::reportCommsFailure(void) { log_info(axisName() << " communications check failed"); }
 
     bool TrinamicBase::startDisable(bool disable) {
