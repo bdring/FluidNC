@@ -33,6 +33,8 @@
 #    include "src/WebUI/JSONEncoder.h"
 #    include "Driver/localfs.h"
 
+#    include <list>
+
 namespace WebUI {
     const byte DNS_PORT = 53;
     DNSServer  dnsServer;

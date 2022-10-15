@@ -23,9 +23,9 @@ namespace Kinematics {
         return _system->canHome(axisMask);
     }
 
-    void Kinematics::releaseMotors(AxisMask axisMask, MotorMask motors, Machine::Homing::Phase phase) {
+    void Kinematics::releaseMotors(AxisMask axisMask, MotorMask motors) {
         Assert(_system != nullptr, "No kinematic system");
-        _system->releaseMotors(axisMask, motors, phase);
+        _system->releaseMotors(axisMask, motors);
     }
 
     bool Kinematics::limitReached(AxisMask& axisMask, MotorMask& motors, MotorMask limited) {

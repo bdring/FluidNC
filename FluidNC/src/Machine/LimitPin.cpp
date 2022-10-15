@@ -7,10 +7,6 @@
 #include "src/Limits.h"
 #include "src/Protocol.h"  // protocol_send_event_from_ISR()
 
-#include "soc/soc.h"
-#include "soc/gpio_periph.h"
-#include "hal/gpio_hal.h"
-
 namespace Machine {
     LimitPin::LimitPin(Pin& pin, int axis, int motor, int direction, bool& pHardLimits, bool& pLimited) :
         EventPin(&limitEvent, "Limit", &pin), _axis(axis), _motorNum(motor), _value(false), _pHardLimits(pHardLimits), _pLimited(pLimited) {
@@ -51,41 +47,20 @@ namespace Machine {
         if (_pin->undefined()) {
             return;
         }
-        log_debug("Updating " << _legend);
         update(get());
     }
 
-    void LimitPin::run(void* arg) {
-        //CVI : add 500us as discrepency between INT circuitry and pin reading circuitry to read the good value of the pin ...
-        //Workaround waiting for better solution from upstream repo
-        //Need to keep both readings as well
-
-        bool value = get();
-        log_debug("Before : " << value);
-        delay_us(500);
-
-        value = get();
-        log_debug("After : " << value);
-
-        // Since we do not trust the ISR to always trigger precisely,
-        // we check the pin state before calling the event handler
-        update(value);
-        if (value) {
-            block();
-            _event->run(arg);
-        } else {
-            reArm();
-        }
-    }
-
-    void IRAM_ATTR LimitPin::update(bool value) {
+    void LimitPin::update(bool value) {
         log_debug(_legend << " " << value);
-        _pLimited = value;
-
-        if (_pExtraLimited != nullptr) {
-            *_pExtraLimited = value;
-        }
         if (value) {
+            if (Homing::approach() || (sys.state != State::Homing && _pHardLimits)) {
+                _pLimited = value;
+
+                if (_pExtraLimited != nullptr) {
+                    *_pExtraLimited = value;
+                }
+            }
+
             if (_posLimits != nullptr) {
                 set_bits(*_posLimits, _bitmask);
             }
@@ -93,7 +68,11 @@ namespace Machine {
                 set_bits(*_negLimits, _bitmask);
             }
         } else {
-            //log_debug("0");
+            _pLimited = value;
+
+            if (_pExtraLimited != nullptr) {
+                *_pExtraLimited = value;
+            }
             if (_posLimits != nullptr) {
                 clear_bits(*_posLimits, _bitmask);
             }
