@@ -28,7 +28,7 @@ namespace MotorDrivers {
             next_RMT_chan_num = static_cast<rmt_channel_t>(static_cast<int>(next_RMT_chan_num) + 1);
         }
 
-        rmt_config_t rmtConfig;
+        rmt_config_t rmtConfig                   = {};
         rmtConfig.rmt_mode                       = RMT_MODE_TX;
         rmtConfig.clk_div                        = 20;
         rmtConfig.mem_block_num                  = 2;
