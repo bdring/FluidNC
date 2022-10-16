@@ -28,16 +28,26 @@ namespace MotorDrivers {
             next_RMT_chan_num = static_cast<rmt_channel_t>(static_cast<int>(next_RMT_chan_num) + 1);
         }
 
-        rmt_config_t rmtConfig                   = {};
-        rmtConfig.rmt_mode                       = RMT_MODE_TX;
-        rmtConfig.clk_div                        = 20;
-        rmtConfig.mem_block_num                  = 2;
-        rmtConfig.tx_config.loop_en              = false;
-        rmtConfig.tx_config.carrier_en           = false;
-        rmtConfig.tx_config.carrier_freq_hz      = 0;
-        rmtConfig.tx_config.carrier_duty_percent = 50;
-        rmtConfig.tx_config.carrier_level        = RMT_CARRIER_LEVEL_LOW;
-        rmtConfig.tx_config.idle_output_en       = true;
+        auto step_pin_gpio = step_pin.getNative(Pin::Capabilities::Output);
+
+        rmt_config_t rmtConfig = { .rmt_mode      = RMT_MODE_TX,
+                                   .channel       = rmt_chan_num,
+                                   .gpio_num      = gpio_num_t(step_pin_gpio),
+                                   .clk_div       = 20,
+                                   .mem_block_num = 2,
+                                   .flags         = 0,
+                                   .tx_config     = {
+                                       .carrier_freq_hz      = 0,
+                                       .carrier_level        = RMT_CARRIER_LEVEL_LOW,
+                                       .idle_level           = invert_step ? RMT_IDLE_LEVEL_HIGH : RMT_IDLE_LEVEL_LOW,
+                                       .carrier_duty_percent = 50,
+#if SOC_RMT_SUPPORT_TX_LOOP_COUNT
+                                       .loop_count = DONT_KNOW_YET_SINCE_ESP32_DOES_NOT_HAVE_IT,
+#endif
+                                       .carrier_en     = false,
+                                       .loop_en        = false,
+                                       .idle_output_en = true,
+                                   } };
 
         rmt_item32_t rmtItem[2];
         rmtItem[0].duration0 = dir_delay_ms ? dir_delay_ms * 4 : 1;
@@ -45,13 +55,8 @@ namespace MotorDrivers {
         rmtItem[1].duration0 = 0;
         rmtItem[1].duration1 = 0;
 
-        auto step_pin_gpio = step_pin.getNative(Pin::Capabilities::Output);
-        rmt_set_source_clk(rmt_chan_num, RMT_BASECLK_APB);
-        rmtConfig.channel              = rmt_chan_num;
-        rmtConfig.tx_config.idle_level = invert_step ? RMT_IDLE_LEVEL_HIGH : RMT_IDLE_LEVEL_LOW;
-        rmtConfig.gpio_num             = gpio_num_t(step_pin_gpio);
-        rmtItem[0].level0              = rmtConfig.tx_config.idle_level;
-        rmtItem[0].level1              = !rmtConfig.tx_config.idle_level;
+        rmtItem[0].level0 = rmtConfig.tx_config.idle_level;
+        rmtItem[0].level1 = !rmtConfig.tx_config.idle_level;
         rmt_config(&rmtConfig);
         rmt_fill_tx_items(rmtConfig.channel, &rmtItem[0], rmtConfig.mem_block_num, 0);
     }
