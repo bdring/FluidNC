@@ -78,9 +78,11 @@ nvs_handle Setting::_handle = 0;
 
 void Setting::init() {
 #ifdef ROTARY_CODED_SWITCH_PIN_1
-    char nvs_namespace[] = "FluidNC0";
-    nvs_namespace[7]     = hex_lut[read_rotary_coded_switch(
-        ROTARY_CODED_SWITCH_PIN_1, ROTARY_CODED_SWITCH_PIN_2, ROTARY_CODED_SWITCH_PIN_4, ROTARY_CODED_SWITCH_PIN_8)];
+    char    nvs_namespace[] = "FluidNC0";
+    uint8_t rotary_coded_switch_position =
+        read_rotary_coded_switch(ROTARY_CODED_SWITCH_PIN_1, ROTARY_CODED_SWITCH_PIN_2, ROTARY_CODED_SWITCH_PIN_4, ROTARY_CODED_SWITCH_PIN_8);
+    nvs_namespace[7] = hex_lut[rotary_coded_switch_position];
+    log_info("Rotary coded switch position is " << rotary_coded_switch_position << "; using namespace " << nvs_namespace);
 #else
     const char nvs_namespace[] = "FluidNC";
 #endif

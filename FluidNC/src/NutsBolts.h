@@ -181,7 +181,7 @@ String formatBytes(uint64_t bytes);
 
 const char hex_lut[16] = { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F' };
 
-/*
-Read value from a rotary coded (real code) dial switch, e.g. SH-7050TA
-*/
+// Read value from a rotary coded (real code) dial switch, e.g. SH-7050TA.
+// Activation of pin1 refers value of one, pin2 to a value of two, pin4 to a value of 4, pin8 to a value of eight.
+// The return value is the sum of values of all active pins.
 uint8_t read_rotary_coded_switch(const char* pin1, const char* pin2, const char* pin4, const char* pin8);

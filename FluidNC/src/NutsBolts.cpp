@@ -245,12 +245,20 @@ String formatBytes(uint64_t bytes) {
 }
 
 uint8_t read_rotary_coded_switch(const char* pin1, const char* pin2, const char* pin4, const char* pin8) {
-    static Pin _pin1      = Pin::create(pin1);
-    static Pin _pin2      = Pin::create(pin2);
-    static Pin _pin4      = Pin::create(pin4);
-    static Pin _pin8      = Pin::create(pin8);
-    uint8_t    dial_value = _pin1.read() + 2 * _pin2.read() + 4 * _pin4.read() + 8 * _pin8.read();
-    log_info("Dial: pins=[" << _pin1.read() << ", " << _pin2.read() << ", " << _pin4.read() << ", " << _pin8.read()
-                            << "], value=" << dial_value);
+    static Pin _pin1 = Pin::create(pin1);
+    static Pin _pin2 = Pin::create(pin2);
+    static Pin _pin4 = Pin::create(pin4);
+    static Pin _pin8 = Pin::create(pin8);
+
+    // not necessarily all pins are set to input after a reset, thus ensure pin is set to input
+    _pin1.setAttr(Pins::PinAttributes::Input);
+    _pin2.setAttr(Pins::PinAttributes::Input);
+    _pin4.setAttr(Pins::PinAttributes::Input);
+    _pin8.setAttr(Pins::PinAttributes::Input);
+
+    // assemble integer number from pin readouts
+    uint8_t dial_value = _pin1.read() + 2 * _pin2.read() + 4 * _pin4.read() + 8 * _pin8.read();
+    log_debug("Dial: pins=[" << _pin1.read() << ", " << _pin2.read() << ", " << _pin4.read() << ", " << _pin8.read()
+                             << "], value=" << dial_value);
     return dial_value;
 }

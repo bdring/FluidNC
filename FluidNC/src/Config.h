@@ -208,9 +208,9 @@ const bool ALLOW_FEED_OVERRIDE_DURING_PROBE_CYCLES = false;
 // INCLUDE_OLED_BASIC includes a driver for a modest sized OLED display
 // #define INCLUDE_OLED_BASIC
 
-// Read rotary daily to select X in configuration file configX.yaml
+// Read rotary coded switch, e.g. SH-7050TA, to select nvs parameter namespace.
 // Syntax is according to GPIO input pin defintion from http://wiki.fluidnc.com/en/config/config_IO
 #define ROTARY_CODED_SWITCH_PIN_1 "gpio.35:low"
-#define ROTARY_CODED_SWITCH_PIN_2 "gpio.15:low"
-#define ROTARY_CODED_SWITCH_PIN_4 "gpio.5:low"
-#define ROTARY_CODED_SWITCH_PIN_8 "gpio.34:low"
+#define ROTARY_CODED_SWITCH_PIN_2 "gpio.34:low"
+#define ROTARY_CODED_SWITCH_PIN_4 "gpio.15:low"
+#define ROTARY_CODED_SWITCH_PIN_8 "gpio.5:low"
