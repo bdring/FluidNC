@@ -15,6 +15,8 @@ namespace Pins {
         static const int         nI2SOPins = 32;
         static std::vector<bool> _claimed;
 
+        bool _lastWrittenValue = false;
+
     public:
         I2SOPinDetail(pinnum_t index, const PinOptionsParser& options);
 

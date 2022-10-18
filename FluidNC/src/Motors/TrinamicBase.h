@@ -61,6 +61,7 @@ namespace MotorDrivers {
         virtual void set_registers(bool isHoming) {}
         bool         reportTest(uint8_t result);
         void         reportCommsFailure(void);
+        bool         checkVersion(uint8_t expected, uint8_t got);
         bool         startDisable(bool disable);
         virtual void config_motor();
 

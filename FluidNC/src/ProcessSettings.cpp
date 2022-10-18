@@ -22,6 +22,7 @@
 #include "FileStream.h"           // FileStream()
 #include "xmodem.h"               // xmodemReceive(), xmodemTransmit()
 #include "StartupLog.h"           // startupLog
+#include "Driver/fluidnc_gpio.h"  // gpio_dump()
 
 #include "FluidPath.h"
 
@@ -287,9 +288,6 @@ static Error disable_alarm_lock(const char* value, WebUI::AuthenticationLevel au
         }
         report_feedback_message(Message::AlarmUnlock);
         sys.state = State::Idle;
-
-        // Turn event pin ISRs back on; they could be off due to hard limit triggering
-        Machine::EventPin::check();
 
         // Don't run startup script. Prevents stored moves in startup from causing accidents.
     }  // Otherwise, no effect.
@@ -561,7 +559,7 @@ static Error listErrors(const char* value, WebUI::AuthenticationLevel auth_level
     return Error::Ok;
 }
 
-static Error motor_disable(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+static Error motor_control(const char* value, bool disable) {
     if (sys.state == State::ConfigAlarm) {
         return Error::ConfigurationInvalid;
     }
@@ -570,15 +568,15 @@ static Error motor_disable(const char* value, WebUI::AuthenticationLevel auth_le
         ++value;
     }
     if (!value || *value == '\0') {
-        log_info("Disabling all motors");
-        config->_axes->set_disable(true);
+        log_info((disable ? "Dis" : "En") << "abling all motors");
+        config->_axes->set_disable(disable);
         return Error::Ok;
     }
 
     auto axes = config->_axes;
 
     if (axes->_sharedStepperDisable.defined()) {
-        log_error("Cannot disable individual axes with a shared disable pin");
+        log_error("Cannot " << (disable ? "dis" : "en") << "able individual axes with a shared disable pin");
         return Error::InvalidStatement;
     }
 
@@ -586,11 +584,18 @@ static Error motor_disable(const char* value, WebUI::AuthenticationLevel auth_le
         char axisName = axes->axisName(i);
 
         if (strchr(value, axisName) || strchr(value, tolower(axisName))) {
-            log_info("Disabling " << String(axisName) << " motors");
-            axes->set_disable(i, true);
+            log_info((disable ? "Dis" : "En") << "abling " << String(axisName) << " motors");
+            axes->set_disable(i, disable);
         }
     }
     return Error::Ok;
+}
+static Error motor_disable(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+    return motor_control(value, true);
+}
+
+static Error motor_enable(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+    return motor_control(value, false);
 }
 
 static Error motors_init(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
@@ -682,6 +687,13 @@ static Error dump_config(const char* value, WebUI::AuthenticationLevel auth_leve
     return Error::Ok;
 }
 
+static Error fakeMaxSpindleSpeed(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+    if (!value) {
+        out << "$30=" << spindle->maxSpeed() << '\n';
+    }
+    return Error::Ok;
+}
+
 static Error fakeLaserMode(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
     if (!value) {
         out << "$32=" << (spindle->isRateAdjusted() ? "1" : "0") << '\n';
@@ -699,12 +711,19 @@ static Error showStartupLog(const char* value, WebUI::AuthenticationLevel auth_l
     return Error::Ok;
 }
 
+static Error showGPIOs(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+    gpio_dump(out);
+    return Error::Ok;
+}
+
 // Commands use the same syntax as Settings, but instead of setting or
 // displaying a persistent value, a command causes some action to occur.
 // That action could be anything, from displaying a run-time parameter
 // to performing some system state change.  Each command is responsible
 // for decoding its own value string, if it needs one.
 void make_user_commands() {
+    new UserCommand("GD", "GPIO/Dump", showGPIOs, anyState);
+
     new UserCommand("CI", "Channel/Info", showChannelInfo, anyState);
     new UserCommand("XR", "Xmodem/Receive", xmodem_receive, notIdleOrAlarm);
     new UserCommand("XS", "Xmodem/Send", xmodem_send, notIdleOrJog);
@@ -729,6 +748,7 @@ void make_user_commands() {
     new UserCommand("#", "GCode/Offsets", report_ngc, notIdleOrAlarm);
     new UserCommand("H", "Home", home_all, notIdleOrAlarm);
     new UserCommand("MD", "Motor/Disable", motor_disable, notIdleOrAlarm);
+    new UserCommand("ME", "Motor/Enable", motor_enable, notIdleOrAlarm);
     new UserCommand("MI", "Motors/Init", motors_init, notIdleOrAlarm);
 
     new UserCommand("RM", "Macros/Run", macros_run, notIdleOrAlarm);
@@ -747,6 +767,7 @@ void make_user_commands() {
 
     new UserCommand("SS", "Startup/Show", showStartupLog, anyState);
 
+    new UserCommand("30", "FakeMaxSpindleSpeed", fakeMaxSpindleSpeed, notIdleOrAlarm);
     new UserCommand("32", "FakeLaserMode", fakeLaserMode, notIdleOrAlarm);
 };
 

@@ -15,6 +15,8 @@ namespace Pins {
 
         static std::vector<bool> _claimed;
 
+        bool _lastWrittenValue = false;
+
     public:
         static const int nGPIOPins = 40;
 
