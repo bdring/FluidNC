@@ -93,6 +93,7 @@ namespace MotorDrivers {
     void IRAM_ATTR StandardStepper::step() {
         if (config->_stepping->_engine == Stepping::RMT && _rmt_chan_num != RMT_CHANNEL_MAX) {
             RMT.conf_ch[_rmt_chan_num].conf1.mem_rd_rst = 1;
+            RMT.conf_ch[_rmt_chan_num].conf1.mem_rd_rst = 0;
             RMT.conf_ch[_rmt_chan_num].conf1.tx_start   = 1;
         } else {
             _step_pin.on();

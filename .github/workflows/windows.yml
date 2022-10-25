@@ -1,0 +1,64 @@
+name: FluidNC Release Builder
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release version'
+        required: true
+
+jobs:
+  build:
+
+    runs-on: windows-latest
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Cache pip
+      uses: actions/cache@v2
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+    - name: Cache PlatformIO
+      uses: actions/cache@v2
+      with:
+        path: ~/.platformio
+        key: ${{ runner.os }}-${{ hashFiles('**/lockfiles') }}
+    - name: Set up Python
+      uses: actions/setup-python@v2
+    - name: Install PlatformIO
+      run: |
+        python -m pip install --upgrade pip
+        pip install --upgrade platformio
+    - name: Set release version
+      run: |
+        git config user.email "wmb@firmworks.com"
+        git config user.name "Mitch Bradley"
+        git tag "${{ github.event.inputs.tag }}" -a -m "Release test"
+    - name: Build
+      run: python build-release.py
+    - name: Create release
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: ${{ github.event.inputs.tag }}
+        files: |
+          release/*.zip
+          release/*.elf
+        draft: True
+    # - name: Upload mac bundle
+    #   uses: actions/upload-artifact@v2
+    #   with:
+    #     name: release-macos
+    #     path: release/*macos*
+    # - name: Upload Windows bundle
+    #   uses: actions/upload-artifact@v2
+    #   with:
+    #     name: release-win32
+    #     path: release/*win*
+    # - name: Upload Linux bundle
+    #   uses: actions/upload-artifact@v2
+    #   with:
+    #     name: release-linux
+    #     path: release/*linux*
