@@ -47,6 +47,7 @@ namespace Machine {
         handler.section("probe", _probe);
         handler.section("macros", _macros);
         handler.section("start", _start);
+        handler.section("parking", _parking);
 
         handler.section("user_outputs", _userOutputs);
         // TODO: Consider putting these under a gcode: hierarchy level? Or motion control?
@@ -56,6 +57,7 @@ namespace Machine {
         handler.item("report_inches", _reportInches);
         handler.item("enable_parking_override_control", _enableParkingOverrideControl);
         handler.item("use_line_numbers", _useLineNumbers);
+        handler.item("planner_blocks", _planner_blocks, 10, 120);
 
         Spindles::SpindleFactory::factory(handler, _spindles);
     }
@@ -105,6 +107,10 @@ namespace Machine {
             _start = new Start();
         }
 
+        if (_parking == nullptr) {
+            _parking = new Parking();
+        }
+
         if (_spindles.size() == 0) {
             _spindles.push_back(new Spindles::Null());
         }
@@ -149,7 +155,7 @@ namespace Machine {
 
     bool MachineConfig::load(const char* filename) {
         try {
-            FileStream file(filename, "r", "/localfs");
+            FileStream file(filename, "r", "");
 
             auto filesize = file.size();
             if (filesize <= 0) {
@@ -159,7 +165,7 @@ namespace Machine {
 
             char* buffer     = new char[filesize + 1];
             buffer[filesize] = '\0';
-            auto actual      = file.readBytes(buffer, filesize);
+            auto actual      = file.read(buffer, filesize);
             if (actual != filesize) {
                 log_info("Configuration file:" << filename << " read error");
                 return false;
@@ -169,7 +175,7 @@ namespace Machine {
             delete[] buffer;
             return retval;
         } catch (...) {
-            log_info("Cannot open configuration file:" << filename);
+            log_warn("Cannot open configuration file:" << filename);
             return false;
         }
     }
@@ -219,7 +225,7 @@ namespace Machine {
 
         } catch (const Configuration::ParseException& ex) {
             sys.state = State::ConfigAlarm;
-            log_error("Configuration parse error: " << ex.What() << " Line " << ex.LineNumber() << " column " << ex.ColumnNumber());
+            log_error("Configuration parse error on line " << ex.LineNumber() << ": " << ex.What());
         } catch (const AssertionFailed& ex) {
             sys.state = State::ConfigAlarm;
             // Get rid of buffer and return

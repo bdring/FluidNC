@@ -168,6 +168,8 @@ enum class ToolLengthOffset : uint8_t {
     EnableDynamic = 1,  // G43.1
 };
 
+static const uint32_t MaxToolNumber = 99999999;
+
 enum class ToolChange : uint8_t {
     Disable = 0,
     Enable  = 1,
@@ -203,19 +205,6 @@ enum class GCUpdatePos : uint8_t {
     Target = 0,  // Must be zero
     System = 1,
     None   = 2,
-};
-
-// GCode parser flags for handling special cases.
-enum GCParserFlags {
-    GCParserNone           = 0,  // Must be zero.
-    GCParserJogMotion      = bitnum_to_mask(0),
-    GCParserCheckMantissa  = bitnum_to_mask(1),
-    GCParserArcIsClockwise = bitnum_to_mask(2),
-    GCParserProbeIsAway    = bitnum_to_mask(3),
-    GCParserProbeIsNoError = bitnum_to_mask(4),
-    GCParserLaserForceSync = bitnum_to_mask(5),
-    GCParserLaserDisable   = bitnum_to_mask(6),  // disable laser when motion stops
-    GCParserLaserIsMotion  = bitnum_to_mask(7),  //
 };
 
 // Various places in the code access saved coordinate system data
@@ -265,26 +254,26 @@ struct gc_modal_t {
 };
 
 struct gc_values_t {
-    uint8_t e;                // M67
-    float   f;                // Feed
-    float   ijk[3];           // I,J,K Axis arc offsets - only 3 are possible
-    uint8_t l;                // G10 or canned cycles parameters
-    int32_t n;                // Line number
-    float   p;                // G10 or dwell parameters
-    float   q;                // M67
-    float   r;                // Arc radius
-    float   s;                // Spindle speed
-    uint8_t t;                // Tool selection
-    float   xyz[MAX_N_AXIS];  // X,Y,Z Translational axes
+    uint8_t  e;                // M67
+    float    f;                // Feed
+    float    ijk[3];           // I,J,K Axis arc offsets - only 3 are possible
+    uint8_t  l;                // G10 or canned cycles parameters
+    int32_t  n;                // Line number
+    float    p;                // G10 or dwell parameters
+    float    q;                // M67
+    float    r;                // Arc radius
+    float    s;                // Spindle speed
+    uint32_t t;                // Tool selection
+    float    xyz[MAX_N_AXIS];  // X,Y,Z Translational axes
 };
 
 struct parser_state_t {
     gc_modal_t modal;
 
-    float   spindle_speed;  // RPM
-    float   feed_rate;      // Millimeters/min
-    uint8_t tool;           // Tracks tool number. NOT USED.
-    int32_t line_number;    // Last line number sent
+    float    spindle_speed;  // RPM
+    float    feed_rate;      // Millimeters/min
+    uint32_t tool;           // Tracks tool number. NOT USED.
+    int32_t  line_number;    // Last line number sent
 
     float position[MAX_N_AXIS];  // Where the interpreter considers the tool to be at this point in the code
 
@@ -320,5 +309,5 @@ Error gc_execute_line(char* line /*, Channel& channel*/);
 // Set g-code parser position. Input in steps.
 void gc_sync_position();
 
-void user_tool_change(uint8_t new_tool);
+void user_tool_change(uint32_t new_tool);
 void user_m30();

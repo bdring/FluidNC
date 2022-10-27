@@ -8,6 +8,8 @@
 
 namespace Machine {
 
+    int Stepping::_engine = RMT;
+
     EnumItem stepTypes[] = { { Stepping::TIMED, "Timed" },
                              { Stepping::RMT, "RMT" },
                              { Stepping::I2S_STATIC, "I2S_static" },
@@ -21,16 +23,14 @@ namespace Machine {
         // Prepare stepping interrupt callbacks.  The one that is actually
         // used is determined by timerStart() and timerStop()
 
-        const bool isEdge  = false;
-        const bool countUp = true;
-
         // Setup a timer for direct stepping
-        stepTimer = timerBegin(stepTimerNumber, fTimers / fStepperTimer, countUp);
-        timerAttachInterrupt(stepTimer, onStepperDriverTimer, isEdge);
+        stepTimerInit(fStepperTimer, Stepper::pulse_func);
 
         // Register pulse_func with the I2S subsystem
         // This could be done via the linker.
         //        i2s_out_set_pulse_callback(Stepper::pulse_func);
+
+        Stepper::init();
     }
 
     void Stepping::reset() {
@@ -42,6 +42,8 @@ namespace Machine {
         _switchedStepper = _engine == I2S_STREAM;
         if (_switchedStepper) {
             _engine = I2S_STATIC;
+            i2s_out_set_passthrough();
+            i2s_out_delay();  // Wait for a change in mode.
         }
     }
     void Stepping::endLowLatency() {
@@ -106,76 +108,50 @@ namespace Machine {
     // The argument is in units of ticks of the timer that generates ISRs
     void IRAM_ATTR Stepping::setTimerPeriod(uint16_t timerTicks) {
         if (_engine == I2S_STREAM) {
-            // 1 tick = fTimers / fStepperTimer
             // Pulse ISR is called for each tick of alarm_val.
             // The argument to i2s_out_set_pulse_period is in units of microseconds
             i2s_out_set_pulse_period(((uint32_t)timerTicks) / ticksPerMicrosecond);
         } else {
-            timerAlarmWrite(stepTimer, (uint64_t)timerTicks, false);  // false disables autoreload
+            stepTimerSetTicks((uint32_t)timerTicks);
         }
     }
+
     // Called only from Stepper::wake_up which is not used in ISR context
     void Stepping::startTimer() {
         if (_engine == I2S_STREAM) {
             i2s_out_set_stepping();
         } else {
-            timerWrite(stepTimer, 0ULL);
-            timerAlarmEnable(stepTimer);
+            stepTimerStart();
         }
     }
     // Called only from Stepper::stop_stepping, used in both ISR and foreground contexts
     void IRAM_ATTR Stepping::stopTimer() {
         if (_engine == I2S_STREAM) {
             i2s_out_set_passthrough();
-        } else if (stepTimer) {
-            timerAlarmDisable(stepTimer);
+        } else {
+            stepTimerStop();
         }
-    }
-
-    // Stepper timer configuration
-    hw_timer_t* Stepping::stepTimer = nullptr;  // Handle
-
-    // Counts stepper ISR invocations.  This variable can be inspected
-    // from the mainline code to determine if the stepper ISR is running,
-    // since printing from the ISR is not a good idea.
-    uint32_t Stepping::isr_count = 0;
-
-    // Used to avoid ISR nesting of the "Stepper Driver Interrupt". Should never occur though.
-    // TODO: Replace direct updating of the int32 position counters in the ISR somehow. Perhaps use smaller
-    // int8 variables and update position counters only when a segment completes. This can get complicated
-    // with probing and homing cycles that require true real-time positions.
-    void IRAM_ATTR Stepping::onStepperDriverTimer() {
-        // Timer ISR, normally takes a step.
-        //
-        // The intermediate handler clears the timer interrupt so we need not do it here
-        ++isr_count;
-
-        timerWrite(stepTimer, 0ULL);
-
-        // It is tempting to defer this until after pulse_func(),
-        // but if pulse_func() determines that no more stepping
-        // is required and disables the timer, then that will be undone
-        // if the re-enable happens afterwards.
-
-        timerAlarmEnable(stepTimer);
-
-        Stepper::pulse_func();
     }
 
     void Stepping::group(Configuration::HandlerBase& handler) {
         handler.item("engine", _engine, stepTypes);
-        handler.item("idle_ms", _idleMsecs);
-        handler.item("pulse_us", _pulseUsecs);
-        handler.item("dir_delay_us", _directionDelayUsecs);
-        handler.item("disable_delay_us", _disableDelayUsecs);
+        handler.item("idle_ms", _idleMsecs, 0, 10000000);  // full range
+        handler.item("pulse_us", _pulseUsecs, 0, 30);
+        handler.item("dir_delay_us", _directionDelayUsecs, 0, 10);
+        handler.item("disable_delay_us", _disableDelayUsecs, 0, 10);
+        handler.item("segments", _segments, 6, 20);
     }
 
     void Stepping::afterParse() {
         if (_engine == I2S_STREAM || _engine == I2S_STATIC) {
             Assert(config->_i2so, "I2SO bus must be configured for this stepping type");
             if (_pulseUsecs < I2S_OUT_USEC_PER_PULSE) {
-                log_info("Increasing stepping/pulse_us to the IS2 minimum value " << I2S_OUT_USEC_PER_PULSE);
+                log_warn("Increasing stepping/pulse_us to the IS2 minimum value " << I2S_OUT_USEC_PER_PULSE);
                 _pulseUsecs = I2S_OUT_USEC_PER_PULSE;
+            }
+            if (_engine == I2S_STREAM && _pulseUsecs > I2S_STREAM_MAX_USEC_PER_PULSE) {
+                log_warn("Decreasing stepping/pulse_us to " << I2S_STREAM_MAX_USEC_PER_PULSE << ", the maximum value for I2S_STREAM");
+                _pulseUsecs = I2S_STREAM_MAX_USEC_PER_PULSE;
             }
         }
     }

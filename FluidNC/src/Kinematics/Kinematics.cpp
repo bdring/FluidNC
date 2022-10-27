@@ -4,20 +4,10 @@
 
 #include "Kinematics.h"
 
-#include "../Config.h"
+#include "src/Config.h"
 #include "Cartesian.h"
 
 namespace Kinematics {
-    bool Kinematics::kinematics_homing(AxisMask cycle_mask) {
-        Assert(_system != nullptr, "No kinematic system");
-        return _system->kinematics_homing(cycle_mask);
-    }
-
-    void Kinematics::kinematics_post_homing() {
-        Assert(_system != nullptr, "No kinematic system");
-        return _system->kinematics_post_homing();
-    }
-
     bool Kinematics::cartesian_to_motors(float* target, plan_line_data_t* pl_data, float* position) {
         Assert(_system != nullptr, "No kinematic system");
         return _system->cartesian_to_motors(target, pl_data, position);
@@ -28,10 +18,27 @@ namespace Kinematics {
         return _system->motors_to_cartesian(cartesian, motors, n_axis);
     }
 
-    void Kinematics::group(Configuration::HandlerBase& handler) {
-        ::Kinematics::KinematicsFactory::factory(handler, _system);
-        Assert(_system != nullptr, "No kinematics system.");
+    bool Kinematics::canHome(AxisMask axisMask) {
+        Assert(_system != nullptr, "No kinematic system");
+        return _system->canHome(axisMask);
     }
+
+    void Kinematics::releaseMotors(AxisMask axisMask, MotorMask motors) {
+        Assert(_system != nullptr, "No kinematic system");
+        _system->releaseMotors(axisMask, motors);
+    }
+
+    bool Kinematics::limitReached(AxisMask& axisMask, MotorMask& motors, MotorMask limited) {
+        Assert(_system != nullptr, "No kinematics system.");
+        return _system->limitReached(axisMask, motors, limited);
+    }
+
+    void Kinematics::transform_cartesian_to_motors(float* motors, float* cartesian) {
+        Assert(_system != nullptr, "No kinematics system.");
+        return _system->transform_cartesian_to_motors(motors, cartesian);
+    }
+
+    void Kinematics::group(Configuration::HandlerBase& handler) { ::Kinematics::KinematicsFactory::factory(handler, _system); }
 
     void Kinematics::afterParse() {
         if (_system == nullptr) {

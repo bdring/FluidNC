@@ -6,6 +6,7 @@
 
 #include "../Configuration/Configurable.h"
 #include "Axis.h"
+#include "../EnumItem.h"
 
 namespace MotorDrivers {
     class MotorDriver;
@@ -14,10 +15,6 @@ namespace MotorDrivers {
 namespace Machine {
     class Axes : public Configuration::Configurable {
         bool _switchedStepper = false;
-
-        // During homing, this is used to stop stepping on motors that have
-        // reached their limit switches, by clearing bits in the mask.
-        MotorMask _motorLockoutMask = 0;
 
     public:
         static constexpr const char* _names = "XYZABC";
@@ -33,7 +30,12 @@ namespace Machine {
 
         inline char axisName(int index) { return index < MAX_N_AXIS ? _names[index] : '?'; }  // returns axis letter
 
+        static inline size_t    motor_bit(size_t axis, size_t motor) { return motor ? axis + 16 : axis; }
+        static inline AxisMask  motors_to_axes(MotorMask motors) { return (motors & 0xffff) | (motors >> 16); }
+        static inline MotorMask axes_to_motors(AxisMask axes) { return axes | (axes << 16); }
+
         Pin _sharedStepperDisable;
+        Pin _sharedStepperReset;
 
         int   _numberAxis = 0;
         Axis* _axis[MAX_N_AXIS];
@@ -62,15 +64,17 @@ namespace Machine {
         // These are used during homing cycles.
         // The return value is a bitmask of axes that can home
         MotorMask set_homing_mode(AxisMask homing_mask, bool isHoming);
-        void      unlock_all_motors();
-        void      lock_motors(MotorMask motor_mask);
-        void      unlock_motors(MotorMask motor_mask);
 
         void set_disable(int axis, bool disable);
         void set_disable(bool disable);
         void step(uint8_t step_mask, uint8_t dir_mask);
         void unstep();
         void config_motors();
+
+        String maskToNames(AxisMask mask);
+        bool   namesToMask(const char* names, AxisMask& mask);
+
+        String motorMaskToNames(MotorMask mask);
 
         // Configuration helpers:
         void group(Configuration::HandlerBase& handler) override;
@@ -79,3 +83,4 @@ namespace Machine {
         ~Axes();
     };
 }
+extern EnumItem axisType[];

@@ -22,9 +22,13 @@
 #include "FileStream.h"           // FileStream()
 #include "xmodem.h"               // xmodemReceive(), xmodemTransmit()
 #include "StartupLog.h"           // startupLog
+#include "Driver/fluidnc_gpio.h"  // gpio_dump()
+
+#include "FluidPath.h"
 
 #include <cstring>
 #include <map>
+#include <filesystem>
 
 // WG Readable and writable as guest
 // WU Readable and writable as user and admin
@@ -262,12 +266,12 @@ static Error toggle_check_mode(const char* value, WebUI::AuthenticationLevel aut
 }
 static Error isStuck() {
     // Block if a control pin is stuck on
-    if (config->_control->system_check_safety_door_ajar()) {
+    if (config->_control->safety_door_ajar()) {
         rtAlarm = ExecAlarm::ControlPin;
         return Error::CheckDoor;
     }
     if (config->_control->stuck()) {
-        log_info("Control pins:" << config->_control->report());
+        log_info("Control pins:" << config->_control->report_status());
         rtAlarm = ExecAlarm::ControlPin;
         return Error::CheckControlPins;
     }
@@ -284,6 +288,7 @@ static Error disable_alarm_lock(const char* value, WebUI::AuthenticationLevel au
         }
         report_feedback_message(Message::AlarmUnlock);
         sys.state = State::Idle;
+
         // Don't run startup script. Prevents stored moves in startup from causing accidents.
     }  // Otherwise, no effect.
     return Error::Ok;
@@ -292,12 +297,12 @@ static Error report_ngc(const char* value, WebUI::AuthenticationLevel auth_level
     report_ngc_parameters(out);
     return Error::Ok;
 }
-static Error home(int cycle) {
-    if (cycle != 0) {  // if not AllCycles we need to make sure the cycle is not prohibited
+static Error home(AxisMask axisMask) {
+    if (axisMask != Machine::Homing::AllCycles) {  // if not AllCycles we need to make sure the cycle is not prohibited
         // if there is a cycle it is the axis from $H<axis>
         auto n_axis = config->_axes->_numberAxis;
         for (int axis = 0; axis < n_axis; axis++) {
-            if (bitnum_is_true(cycle, axis)) {
+            if (bitnum_is_true(axisMask, axis)) {
                 auto axisConfig     = config->_axes->_axis[axis];
                 auto homing_allowed = axisConfig->_homing->_allow_single_axis;
                 if (!homing_allowed)
@@ -313,30 +318,63 @@ static Error home(int cycle) {
         return Error::SettingDisabled;
     }
 
-    if (config->_control->system_check_safety_door_ajar()) {
+    if (config->_control->safety_door_ajar()) {
         return Error::CheckDoor;  // Block if safety door is ajar.
     }
 
-    sys.state = State::Homing;  // Set system state variable
+    Machine::Homing::run_cycles(axisMask);
 
-    config->_stepping->beginLowLatency();
+    do {
+        pollChannels();
+        protocol_execute_realtime();
+    } while (sys.state == State::Homing);
 
-    mc_homing_cycle(cycle);
+    settings_execute_startup();
 
-    config->_stepping->endLowLatency();
-
-    if (!sys.abort) {             // Execute startup scripts after successful homing.
-        sys.state = State::Idle;  // Set to IDLE when complete.
-        Stepper::go_idle();       // Set steppers to the settings idle state before returning.
-        if (cycle == Machine::Homing::AllCycles) {
-            settings_execute_startup();
-        }
-    }
     return Error::Ok;
 }
 static Error home_all(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
-    return home(Machine::Homing::AllCycles);
+    AxisMask requestedAxes = Machine::Homing::AllCycles;
+    auto     retval        = Error::Ok;
+
+    // value can be a list of cycle numbers like "21", which will run homing cycle 2 then cycle 1,
+    // or a list of axis names like "XZ", which will home the X and Z axes simultaneously
+    if (value) {
+        int ndigits = 0;
+        for (int i = 0; i < strlen(value); i++) {
+            char cycleName = value[i];
+            if (isdigit(cycleName)) {
+                if (!Machine::Homing::axis_mask_from_cycle(cycleName - '0')) {
+                    log_error("No axes for homing cycle " << cycleName);
+                    return Error::InvalidValue;
+                }
+                ++ndigits;
+            }
+        }
+        if (ndigits) {
+            if (ndigits != strlen(value)) {
+                log_error("Invalid homing cycle list");
+                return Error::InvalidValue;
+            } else {
+                for (int i = 0; i < strlen(value); i++) {
+                    char cycleName = value[i];
+                    requestedAxes  = Machine::Homing::axis_mask_from_cycle(cycleName - '0');
+                    retval         = home(requestedAxes);
+                    if (retval != Error::Ok) {
+                        return retval;
+                    }
+                }
+                return retval;
+            }
+        }
+        if (!config->_axes->namesToMask(value, requestedAxes)) {
+            return Error::InvalidValue;
+        }
+    }
+
+    return home(requestedAxes);
 }
+
 static Error home_x(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
     return home(bitnum_to_mask(X_AXIS));
 }
@@ -357,12 +395,12 @@ static Error home_c(const char* value, WebUI::AuthenticationLevel auth_level, Ch
 }
 static void write_limit_set(uint32_t mask, Channel& out) {
     const char* motor0AxisName = "xyzabc";
-    for (int i = 0; i < MAX_N_AXIS; i++) {
-        out << (bitnum_is_true(mask, i) ? char(motor0AxisName[i]) : ' ');
+    for (int axis = 0; axis < MAX_N_AXIS; axis++) {
+        out << (bitnum_is_true(mask, Machine::Axes::motor_bit(axis, 0)) ? char(motor0AxisName[axis]) : ' ');
     }
     const char* motor1AxisName = "XYZABC";
-    for (int i = 0; i < MAX_N_AXIS; i++) {
-        out << (bitnum_is_true(mask, i + 16) ? char(motor1AxisName[i]) : ' ');
+    for (int axis = 0; axis < MAX_N_AXIS; axis++) {
+        out << (bitnum_is_true(mask, Machine::Axes::motor_bit(axis, 1)) ? char(motor1AxisName[axis]) : ' ');
     }
 }
 static Error show_limits(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
@@ -376,6 +414,7 @@ static Error show_limits(const char* value, WebUI::AuthenticationLevel auth_leve
     out << "  PosLimitPins NegLimitPins\n";
     const TickType_t interval = 500;
     TickType_t       limit    = xTaskGetTickCount();
+    runLimitLoop              = true;
     do {
         TickType_t thisTime = xTaskGetTickCount();
         if (((long)(thisTime - limit)) > 0) {
@@ -387,14 +426,14 @@ static Error show_limits(const char* value, WebUI::AuthenticationLevel auth_leve
             limit = thisTime + interval;
         }
         vTaskDelay(1);
+        protocol_handle_events();
         pollChannels();
-    } while (!rtFeedHold);
-    rtFeedHold = false;
+    } while (runLimitLoop);
     out << '\n';
     return Error::Ok;
 }
 static Error go_to_sleep(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
-    rtSleep = true;
+    protocol_send_event(&sleepEvent);
     return Error::Ok;
 }
 static Error get_report_build_info(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
@@ -520,7 +559,7 @@ static Error listErrors(const char* value, WebUI::AuthenticationLevel auth_level
     return Error::Ok;
 }
 
-static Error motor_disable(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+static Error motor_control(const char* value, bool disable) {
     if (sys.state == State::ConfigAlarm) {
         return Error::ConfigurationInvalid;
     }
@@ -529,15 +568,15 @@ static Error motor_disable(const char* value, WebUI::AuthenticationLevel auth_le
         ++value;
     }
     if (!value || *value == '\0') {
-        log_info("Disabling all motors");
-        config->_axes->set_disable(true);
+        log_info((disable ? "Dis" : "En") << "abling all motors");
+        config->_axes->set_disable(disable);
         return Error::Ok;
     }
 
     auto axes = config->_axes;
 
     if (axes->_sharedStepperDisable.defined()) {
-        log_error("Cannot disable individual axes with a shared disable pin");
+        log_error("Cannot " << (disable ? "dis" : "en") << "able individual axes with a shared disable pin");
         return Error::InvalidStatement;
     }
 
@@ -545,11 +584,34 @@ static Error motor_disable(const char* value, WebUI::AuthenticationLevel auth_le
         char axisName = axes->axisName(i);
 
         if (strchr(value, axisName) || strchr(value, tolower(axisName))) {
-            log_info("Disabling " << String(axisName) << " motors");
-            axes->set_disable(i, true);
+            log_info((disable ? "Dis" : "En") << "abling " << String(axisName) << " motors");
+            axes->set_disable(i, disable);
         }
     }
     return Error::Ok;
+}
+static Error motor_disable(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+    return motor_control(value, true);
+}
+
+static Error motor_enable(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+    return motor_control(value, false);
+}
+
+static Error motors_init(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+    config->_axes->config_motors();
+    return Error::Ok;
+}
+
+static Error macros_run(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+    if (value) {
+        log_info("Running macro " << *value);
+        size_t macro_num = (*value) - '0';
+        config->_macros->run_macro(macro_num);
+        return Error::Ok;
+    }
+    log_error("$Macros/Run requires a macro number argument");
+    return Error::InvalidStatement;
 }
 
 static Error xmodem_receive(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
@@ -558,14 +620,17 @@ static Error xmodem_receive(const char* value, WebUI::AuthenticationLevel auth_l
     }
     FileStream* outfile;
     try {
-        outfile = new FileStream(value, "w", "/localfs");
+        outfile = new FileStream(value, "w");
     } catch (...) {
-        vTaskDelay(1000);   // Delay for FluidTerm to handle command echoing
-        Uart0.write(0x04);  // Cancel xmodem transfer with EOT
+        delay_ms(1000);   // Delay for FluidTerm to handle command echoing
+        out.write(0x04);  // Cancel xmodem transfer with EOT
         log_info("Cannot open " << value);
         return Error::UploadFailed;
     }
-    int size = xmodemReceive(&Uart0, outfile);
+    bool oldCr = out.setCr(false);
+    delay_ms(1000);
+    int size = xmodemReceive(&out, outfile);
+    out.setCr(oldCr);
     if (size >= 0) {
         log_info("Received " << size << " bytes to file " << outfile->path());
     } else {
@@ -579,15 +644,17 @@ static Error xmodem_send(const char* value, WebUI::AuthenticationLevel auth_leve
     if (!value || !*value) {
         value = "config.yaml";
     }
-    Channel* infile;
+    FileStream* infile;
     try {
         infile = new FileStream(value, "r");
     } catch (...) {
         log_info("Cannot open " << value);
         return Error::DownloadFailed;
     }
+    bool oldCr = out.setCr(false);
     log_info("Sending " << value << " via XModem");
-    int size = xmodemTransmit(&Uart0, infile);
+    int size = xmodemTransmit(&out, infile);
+    out.setCr(oldCr);
     delete infile;
     if (size >= 0) {
         log_info("Sent " << size << " bytes");
@@ -599,20 +666,30 @@ static Error xmodem_send(const char* value, WebUI::AuthenticationLevel auth_leve
 
 static Error dump_config(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
     Print* ss;
-    try {
-        if (value) {
-            // Use a file on the local file system unless there is an explicit prefix like /sd/
-            ss = new FileStream(value, "w", "/localfs");
-        } else {
-            ss = &out;
-        }
-    } catch (Error err) { return err; }
+    if (value) {
+        // Use a file on the local file system unless there is an explicit prefix like /sd/
+        std::error_code ec;
+
+        try {
+            //            ss = new FileStream(std::string(value), "", "w");
+            ss = new FileStream(value, "w", "");
+        } catch (Error err) { return err; }
+    } else {
+        ss = &out;
+    }
     try {
         Configuration::Generator generator(*ss);
         config->group(generator);
     } catch (std::exception& ex) { log_info("Config dump error: " << ex.what()); }
     if (value) {
         delete ss;
+    }
+    return Error::Ok;
+}
+
+static Error fakeMaxSpindleSpeed(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+    if (!value) {
+        out << "$30=" << spindle->maxSpeed() << '\n';
     }
     return Error::Ok;
 }
@@ -660,12 +737,19 @@ static Error setReportInterval(const char* value, WebUI::AuthenticationLevel aut
     return Error::Ok;
 }
 
+static Error showGPIOs(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+    gpio_dump(out);
+    return Error::Ok;
+}
+
 // Commands use the same syntax as Settings, but instead of setting or
 // displaying a persistent value, a command causes some action to occur.
 // That action could be anything, from displaying a run-time parameter
 // to performing some system state change.  Each command is responsible
 // for decoding its own value string, if it needs one.
 void make_user_commands() {
+    new UserCommand("GD", "GPIO/Dump", showGPIOs, anyState);
+
     new UserCommand("CI", "Channel/Info", showChannelInfo, anyState);
     new UserCommand("XR", "Xmodem/Receive", xmodem_receive, notIdleOrAlarm);
     new UserCommand("XS", "Xmodem/Send", xmodem_send, notIdleOrJog);
@@ -690,6 +774,10 @@ void make_user_commands() {
     new UserCommand("#", "GCode/Offsets", report_ngc, notIdleOrAlarm);
     new UserCommand("H", "Home", home_all, notIdleOrAlarm);
     new UserCommand("MD", "Motor/Disable", motor_disable, notIdleOrAlarm);
+    new UserCommand("ME", "Motor/Enable", motor_enable, notIdleOrAlarm);
+    new UserCommand("MI", "Motors/Init", motors_init, notIdleOrAlarm);
+
+    new UserCommand("RM", "Macros/Run", macros_run, notIdleOrAlarm);
 
     new UserCommand("HX", "Home/X", home_x, notIdleOrAlarm);
     new UserCommand("HY", "Home/Y", home_y, notIdleOrAlarm);
@@ -707,6 +795,7 @@ void make_user_commands() {
 
     new UserCommand("RI", "Report/Interval", setReportInterval, anyState);
 
+    new UserCommand("30", "FakeMaxSpindleSpeed", fakeMaxSpindleSpeed, notIdleOrAlarm);
     new UserCommand("32", "FakeLaserMode", fakeLaserMode, notIdleOrAlarm);
 };
 
@@ -776,7 +865,7 @@ Error do_command_or_setting(const char* key, char* value, WebUI::AuthenticationL
             return Error::Ok;
         }
     } catch (const Configuration::ParseException& ex) {
-        log_error("Configuration parse error: " << ex.What() << " @ " << ex.LineNumber() << ":" << ex.ColumnNumber());
+        log_error("Configuration parse error at line " << ex.LineNumber() << ": " << ex.What());
         return Error::ConfigurationInvalid;
     } catch (const AssertionFailed& ex) {
         log_error("Configuration change failed: " << ex.what());
@@ -857,7 +946,7 @@ Error settings_execute_line(char* line, Channel& out, WebUI::AuthenticationLevel
 
     char* value;
     if (*line++ == '[') {  // [ESPxxx] form
-        value = strrchr(line, ']');
+        value = strchr(line, ']');
         if (!value) {
             // Missing ] is an error in this form
             return Error::InvalidStatement;
@@ -905,7 +994,6 @@ void settings_execute_startup() {
 }
 
 Error execute_line(char* line, Channel& channel, WebUI::AuthenticationLevel auth_level) {
-    Error result = Error::Ok;
     // Empty or comment line. For syncing purposes.
     if (line[0] == 0) {
         return Error::Ok;
@@ -918,5 +1006,9 @@ Error execute_line(char* line, Channel& channel, WebUI::AuthenticationLevel auth
     if (sys.state == State::Alarm || sys.state == State::ConfigAlarm || sys.state == State::Jog) {
         return Error::SystemGcLock;
     }
-    return gc_execute_line(line /*, channel*/);
+    Error result = gc_execute_line(line, channel);
+    if (result != Error::Ok) {
+        log_debug("Bad GCode: " << line);
+    }
+    return result;
 }

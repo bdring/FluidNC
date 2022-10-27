@@ -12,8 +12,11 @@ class WebServer;
 namespace WebUI {
     class WebClient : public Channel {
     public:
-        WebClient(WebServer* webserver, bool silent);
+        WebClient();
         ~WebClient();
+
+        void attachWS(WebServer* webserver, bool silent);
+        void detachWS();
 
         size_t write(uint8_t data) override;
         size_t write(const uint8_t* buffer, size_t length) override;
@@ -21,20 +24,16 @@ namespace WebUI {
 
         bool anyOutput() { return _header_sent; }
 
-        // Stub implementations to satisfy Stream requirements
-        int available() override { return 0; }
-        int read() { return -1; }
-        int peek() { return -1; }
-
-        int rx_buffer_available() { return BUFLEN - available(); }
-
     private:
-        bool                _header_sent;
-        bool                _silent;
-        WebServer*          _webserver;
-        static const size_t BUFLEN = 1200;
+        bool                _header_sent = false;
+        bool                _silent      = false;
+        WebServer*          _webserver   = nullptr;
+        static const size_t BUFLEN       = 1200;
         char                _buffer[BUFLEN];
-        size_t              _buflen;
+        size_t              _buflen = 0;
     };
+
+    extern WebClient webClient;
 }
+
 #endif

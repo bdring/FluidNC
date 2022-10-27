@@ -9,6 +9,7 @@
 */
 
 #include "OnOffSpindle.h"
+#include "Driver/PwmPin.h"
 
 #include <cstdint>
 
@@ -35,7 +36,19 @@ namespace Spindles {
         void validate() const override { Spindle::validate(); }
 
         void group(Configuration::HandlerBase& handler) override {
-            handler.item("pwm_hz", _pwm_freq);
+            // The APB clock frequency is 80MHz and the maximum divisor
+            // is 2^10.  The maximum precision is 2^20. 80MHz/2^(20+10)
+            // is 0.075 Hz, or one cycle in 13.4 seconds.  We cannot
+            // represent that in an integer so we set the minimum
+            // frequency to 1 Hz.  Frequencies of 76 Hz or less use
+            // the full 20 bit resolution, 77 to 152 Hz uses 19 bits,
+            // 153 to 305 uses 18 bits, ...
+            // At the other end, the minimum useful precision is 2^2
+            // or 4 levels of control, so the max is 80MHz/2^2 = 20MHz.
+            // Those might not be practical for many CNC applications,
+            // but the ESP32 hardware can handle them, so we let the
+            // user choose.
+            handler.item("pwm_hz", _pwm_freq, 1, 20000000);
 
             OnOff::group(handler);
         }
@@ -46,18 +59,13 @@ namespace Spindles {
         virtual ~PWM() {}
 
     protected:
-        int32_t  _current_pwm_duty;
-        int      _pwm_chan_num;
-        uint32_t _pwm_period;     // how many counts in 1 period
-        uint8_t  _pwm_precision;  // auto calculated
+        uint32_t _current_pwm_duty = 0;
+        PwmPin* _pwm              = nullptr;
 
         // Configurable
         uint32_t _pwm_freq = 5000;
 
         void         set_output(uint32_t duty) override;
         virtual void deinit();
-
-        virtual void get_pins_and_settings();
-        uint8_t      calc_pwm_precision(uint32_t freq);
     };
 }

@@ -38,15 +38,21 @@ namespace Pins {
     // The write will not happen immediately; the data is queued for
     // delivery to the serial shift register chain via DMA and a FIFO
     void IRAM_ATTR I2SOPinDetail::write(int high) {
-        int value = _readWriteMask ^ high;
-        i2s_out_write(_index, value);
+        if (high != _lastWrittenValue) {
+            _lastWrittenValue = high;
+            i2s_out_write(_index, _readWriteMask ^ high);
+        }
     }
 
     // Write and wait for completion.  Not suitable for use from an ISR
     void I2SOPinDetail::synchronousWrite(int high) {
-        write(high);
-        i2s_out_push();
-        i2s_out_delay();
+        if (high != _lastWrittenValue) {
+            _lastWrittenValue = high;
+
+            i2s_out_write(_index, _readWriteMask ^ high);
+            i2s_out_push();
+            i2s_out_delay();
+        }
     }
 
     int I2SOPinDetail::read() {
@@ -55,12 +61,15 @@ namespace Pins {
     }
 
     void I2SOPinDetail::setAttr(PinAttributes value) {
-        // Check the attributes first:
+        // The Arduino framework encodes OUTPUT as OUTPUT | INPUT.  We can't do the input part.
+        if (value.has(PinAttributes::Output) && value.has(PinAttributes::Input)) {
+            value = PinAttributes::Output;
+        }
         Assert(!value.has(PinAttributes::Input), "I2SO pins cannot be used as input");
         Assert(value.validateWith(this->_capabilities), "Requested attributes do not match the I2SO pin capabilities");
         Assert(!_attributes.conflictsWith(value), "Attributes on this pin have been set before, and there's a conflict.");
 
-        _attributes = value;
+        _attributes = _attributes | value;
 
         // I2S out pins cannot be configured, hence there
         // is nothing to do here for them. We basically

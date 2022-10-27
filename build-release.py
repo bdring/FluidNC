@@ -4,7 +4,7 @@
 
 from shutil import copy
 from zipfile import ZipFile, ZipInfo
-import subprocess, os, sys
+import subprocess, os, sys, shutil
 import urllib.request
 
 verbose = '-v' in sys.argv
@@ -81,6 +81,7 @@ if buildFs('wifi', verbose=verbose) != 0:
 for envName in ['wifi','bt']:
     if buildEnv(envName, verbose=verbose) != 0:
         sys.exit(1)
+    shutil.copy(os.path.join('.pio', 'build', envName, 'firmware.elf'), os.path.join(relPath, envName + '-' + 'firmware.elf'))
 
 for platform in ['win64', 'posix']:
     print("Creating zip file for ", platform)
@@ -113,7 +114,7 @@ for platform in ['win64', 'posix']:
         # Put bootloader binaries in the archive
         tools = os.path.join(os.path.expanduser('~'),'.platformio','packages','framework-arduinoespressif32','tools')
         bootloader = 'bootloader_dio_80m.bin'
-        zipObj.write(os.path.join(tools, 'sdk', 'bin', bootloader), os.path.join(zipDirName, 'common', bootloader))
+        zipObj.write(os.path.join(tools, 'sdk', 'esp32', 'bin', bootloader), os.path.join(zipDirName, 'common', bootloader))
         bootapp = 'boot_app0.bin';
         zipObj.write(os.path.join(tools, "partitions", bootapp), os.path.join(zipDirName, 'common', bootapp))
         for secFuses in ['SecurityFusesOK.bin', 'SecurityFusesOK0.bin']:

@@ -3,10 +3,8 @@
 // Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
 
 #include "UserOutputs.h"
-#include "../Logging.h"       // log_*
-#include "../Pins/LedcPin.h"  // ledcInit()
-#include <esp32-hal-ledc.h>   // ledc*
-#include <esp32-hal-cpu.h>    // getApbFrequency()
+#include "../Logging.h"     // log_*
+#include <esp32-hal-cpu.h>  // getApbFrequency()
 
 namespace Machine {
     UserOutputs::UserOutputs() {
@@ -32,18 +30,9 @@ namespace Machine {
             uint8_t resolution_bits;
             Pin&    pin = _analogOutput[i];
             if (pin.defined()) {
-                // increase the precision (bits) until it exceeds allow by frequency the max or is 16
-                resolution_bits    = 0;
-                auto pwm_frequency = _analogFrequency[i];
-                while ((1u << resolution_bits) < (apb_frequency / pwm_frequency) && resolution_bits <= 16) {
-                    ++resolution_bits;
-                }
-                // resolution_bits is now just barely too high, so drop it down one
-                --resolution_bits;
-                _denominator[i] = 1UL << resolution_bits;
-                _pwm_channel[i] = ledcInit(pin, -1, pwm_frequency, resolution_bits);
-                ledcWrite(_pwm_channel[i], 0);
-                log_info("User Analog Output " << i << " on Pin:" << pin.name() << " Freq:" << pwm_frequency << "Hz");
+                _pwm[i] = new PwmPin(pin, _analogFrequency[i]);
+                _pwm[i]->setDuty(0);
+                log_info("User Analog Output " << i << " on Pin:" << pin.name() << " Freq:" << _pwm[i]->frequency() << "Hz");
             }
         }
     }
@@ -72,21 +61,21 @@ namespace Machine {
             return percent == 0.0;
         }
 
-        uint32_t numerator = uint32_t(percent / 100.0f * _denominator[io_num]);
+        uint32_t duty = uint32_t(percent / 100.0f * _denominator[io_num]);
 
-        auto pwm_channel = _pwm_channel[io_num];
-        if (pwm_channel == -1) {
+        auto pwm = _pwm[io_num];
+        if (!pwm) {
             log_error("M67 PWM channel error");
             return false;
         }
 
-        if (_current_value[io_num] == numerator) {
+        if (_current_value[io_num] == duty) {
             return true;
         }
 
-        _current_value[io_num] = numerator;
+        _current_value[io_num] = duty;
 
-        ledcWrite(pwm_channel, numerator);
+        pwm->setDuty(duty);
 
         return true;
     }
@@ -96,10 +85,10 @@ namespace Machine {
         handler.item("analog1_pin", _analogOutput[1]);
         handler.item("analog2_pin", _analogOutput[2]);
         handler.item("analog3_pin", _analogOutput[3]);
-        handler.item("analog0_hz", _analogFrequency[0]);
-        handler.item("analog1_hz", _analogFrequency[1]);
-        handler.item("analog2_hz", _analogFrequency[2]);
-        handler.item("analog3_hz", _analogFrequency[3]);
+        handler.item("analog0_hz", _analogFrequency[0], 1, 20000000);
+        handler.item("analog1_hz", _analogFrequency[1], 1, 20000000);
+        handler.item("analog2_hz", _analogFrequency[2], 1, 20000000);
+        handler.item("analog3_hz", _analogFrequency[3], 1, 20000000);
         handler.item("digital0_pin", _digitalOutput[0]);
         handler.item("digital1_pin", _digitalOutput[1]);
         handler.item("digital2_pin", _digitalOutput[2]);

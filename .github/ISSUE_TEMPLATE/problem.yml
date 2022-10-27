@@ -1,0 +1,88 @@
+name: Problem Report
+description: Report a problem with FluidNC
+title: "Problem: "
+labels: ["triage"]
+body:
+- type: markdown
+  attributes:
+    value: Please fill in the forms below.  The better the information you provide, the better we can help you. Information that you might think is irrelevant is often the key to solving the problem.  **If we have to keep asking for information that you should have provided at the outset, we will become annoyed fairly quickly.**  The amount of information that we ask for might seem excessive; it is not.  We handle several issues a day.  We cannot solve problems efficiently if we have to keep going back and forth for the basic information that we need.
+- type: textarea
+  id: controller-board
+  attributes:
+    label: Controller Board
+    description: |
+      Tell us which controller board you are using, for example 6-pack, MKS DLC32, XPro V5, etc.
+      If it listed at https://github.com/bdring/FluidNC/wiki/Hardware-that-Runs-FluidNC , just give
+      the name and version.  If it is not, **provide a photo** and documentation.  If it a custom
+      board of your own design, you need to give us **a lot** of information.  Do not expect us to
+      guess.
+    value: 6-pack
+  validations:
+    required: true
+- type: textarea
+  id: machine-description
+  attributes:
+    label: Machine Description
+    description: |
+      Tell us about your machine and provide detailed photos, especially of parts of the machine
+      you are having trouble with.
+    placeholder: Gantry router with external DM542 stepper drivers, dual Y motors, optical endstops on all axes.  Spindle is a DeWalt DW618M router.
+  validations:
+    required: true
+- type: textarea
+  id: input-pin-circuits
+  attributes:
+    label: Input Circuits
+    description: |
+      If your problem is in any way related to input pins, limits, or homing, please supply
+      schematics and photos for the corresponding circuits.  You can supply a link to a schematic for
+      a third party board, a hand-drawn schematic, or anything that will let us understand
+      the circuits.  If you are using one of Bart's modular boards, also indicate which
+      input module you are using.  We need to know what is on both ends of the circuit - the
+      switch end, the controller end, and everything in between.
+    placeholder: <Input pin circuit>
+    render: yaml
+  validations:
+    required: false
+- type: textarea
+  id: configuration-file
+  attributes:
+    label: Configuration file
+    description: Paste the contents of your machine configuration file (.yaml) here
+    placeholder: <Paste config file contents here>
+    render: yaml
+  validations:
+    required: true
+- type: textarea
+  id: boot-messages
+  attributes:
+    label: Startup Messages
+    description: |
+      Paste the startup messages here.  You can see them by sending "$ss" from FluidTerm, WebUI Console, or any sender's console.
+      Look through the messages for any MSG:ERR or MSG:WARN lines.  They indicate problems in your config file.  You might be able
+      to solve the problem yourself.  **Do not excerpt just the messages you think are revelant.
+      We need to see everything.**
+    placeholder: <Paste startup messages here>
+    render: text
+  validations:
+    required: true
+- type: input
+  id: user-interface
+  attributes:
+    label: User Interface Software
+    description: What user interface software are you using when the problem happens?  List all that you have tried.  We will be able to help you better if you can reproduce the problem with FluidTerm.
+    placeholder: E.g. WebUI, FluidTerm, UGS, Candle, ...
+- type: textarea
+  id: what-happened
+  attributes:
+    label: What happened?
+    description: Tell use exactly what you did, what you expected to happen, and what happened instead.  The more detail, the better.  **Do not summarize by saying, for example, "I tried to jog".  Tell us step by step which commands you typed or which buttons you pushed**
+    placeholder: I did something, expected this, and that happened
+  validations:
+    required: true
+- type: textarea
+  id: other-info
+  attributes:
+    label: Other Information
+    description: Please add any other information that might help us understand your situation.  Context is crucial!
+    placeholder: Log messages from the console, screenshots, or anything else of interest.

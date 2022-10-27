@@ -27,9 +27,8 @@
 #include "Planner.h"                     // plan_get_block_buffer_available
 #include "Stepper.h"                     // step_count
 #include "Platform.h"                    // WEAK_LINK
-#include "WebUI/NotificationsService.h"  // WebUI::notificationsservice
+#include "WebUI/NotificationsService.h"  // WebUI::notificationsService
 #include "WebUI/WifiConfig.h"            // wifi_config
-#include "WebUI/TelnetServer.h"          // WebUI::telnet_server
 #include "WebUI/BTConfig.h"              // bt_config
 #include "WebUI/WebSettings.h"
 #include "InputFile.h"
@@ -47,7 +46,7 @@ EspClass esp;
 portMUX_TYPE mmux = portMUX_INITIALIZER_UNLOCKED;
 
 void _notify(const char* title, const char* msg) {
-    WebUI::notificationsservice.sendMSG(title, msg);
+    WebUI::notificationsService.sendMSG(title, msg);
 }
 
 void _notifyf(const char* title, const char* format, ...) {
@@ -172,24 +171,76 @@ void report_feedback_message(Message message) {  // ok to send to all channels
 }
 
 #include "Uart.h"
+
+const char* radio =
+#if defined(ENABLE_WIFI) || defined(ENABLE_BLUETOOTH)
+#    if defined(ENABLE_WIFI) && defined(ENABLE_BLUETOOTH)
+    "wifi+bt";
+#    else
+#        ifdef ENABLE_WIFI
+    "wifi";
+#        endif
+#        ifdef ENABLE_BLUETOOTH
+"bt";
+#        endif
+#    endif
+#else
+    "noradio";
+#endif
+
 // Welcome message
+void report_init_message(Print& channel) {
+    channel << '\n';
+    const char* p = start_message->get();
+    char        c;
+    while ((c = *p++) != '\0') {
+        if (c == '\\') {
+            switch ((c = *p++)) {
+                case '\0':
+                    --p;  // Unconsume the null character
+                    break;
+                case 'H':
+                    channel << "'$' for help";
+                    break;
+                case 'B':
+                    channel << git_info;
+                    break;
+                case 'V':
+                    channel << grbl_version;
+                    break;
+                case 'R':
+                    channel << radio;
+                    break;
+                default:
+                    channel << c;
+                    break;
+            }
+        } else {
+            channel << c;
+        }
+    }
+    channel << '\n';
+}
+
+#if 0
 void report_init_message(Print& channel) {
     channel << "\r\nGrbl " << grbl_version << " [FluidNC " << git_info << " (";
 
-#if defined(ENABLE_WIFI) || defined(ENABLE_BLUETOOTH)
-#    ifdef ENABLE_WIFI
+#    if defined(ENABLE_WIFI) || defined(ENABLE_BLUETOOTH)
+#        ifdef ENABLE_WIFI
     channel << "wifi";
-#    endif
+#        endif
 
-#    ifdef ENABLE_BLUETOOTH
+#        ifdef ENABLE_BLUETOOTH
     channel << "bt";
-#    endif
-#else
+#        endif
+#    else
     channel << "noradio";
-#endif
+#    endif
 
     channel << ") '$' for help]\n";
 }
+#endif
 
 // Prints current probe parameters. Upon a probe command, these parameters are updated upon a
 // successful probe or upon a failed probe with the G38.3 without errors command (if supported).
@@ -250,16 +301,16 @@ void report_gcode_modes(Print& channel) {
             mode = "G3";
             break;
         case Motion::ProbeToward:
-            mode = "G38.1";
-            break;
-        case Motion::ProbeTowardNoError:
             mode = "G38.2";
             break;
-        case Motion::ProbeAway:
+        case Motion::ProbeTowardNoError:
             mode = "G38.3";
             break;
-        case Motion::ProbeAwayNoError:
+        case Motion::ProbeAway:
             mode = "G38.4";
+            break;
+        case Motion::ProbeAwayNoError:
+            mode = "G38.5";
             break;
     }
     channel << mode;
@@ -382,7 +433,7 @@ void report_build_info(const char* line, Print& channel) {
     channel << "[VER:" << grbl_version << " FluidNC " << git_info << ":" << line << "]\n";
     channel << "[OPT:";
     if (config->_coolant->hasMist()) {
-        channel << "M";  // TODO Need to deal with M8...it could be disabled
+        channel << "M";
     }
     channel << "PH";
     if (ALLOW_FEED_OVERRIDE_DURING_PROBE_CYCLES) {
@@ -504,18 +555,19 @@ static void pinString(Print& channel) {
     MotorMask lim_pin_state = limits_get_state();
     if (lim_pin_state) {
         auto n_axis = config->_axes->_numberAxis;
-        for (int i = 0; i < n_axis; i++) {
-            if (bitnum_is_true(lim_pin_state, i) || bitnum_is_true(lim_pin_state, i + 16)) {
+        for (size_t axis = 0; axis < n_axis; axis++) {
+            if (bitnum_is_true(lim_pin_state, Machine::Axes::motor_bit(axis, 0)) ||
+                bitnum_is_true(lim_pin_state, Machine::Axes::motor_bit(axis, 1))) {
                 if (prefixNeeded) {
                     prefixNeeded = false;
                     channel << "|Pn:";
                 }
-                channel << config->_axes->axisName(i);
+                channel << config->_axes->axisName(axis);
             }
         }
     }
 
-    String ctrl_pin_report = config->_control->report();
+    String ctrl_pin_report = config->_control->report_status();
     if (ctrl_pin_report.length()) {
         if (prefixNeeded) {
             prefixNeeded = false;
@@ -524,6 +576,9 @@ static void pinString(Print& channel) {
         channel << ctrl_pin_report;
     }
 }
+
+// Define this to do something if a debug request comes in over serial
+void report_realtime_debug() {}
 
 // Prints real-time data. This function grabs a real-time snapshot of the stepper subprogram
 // and the actual location of the CNC machine. Users may change the following function to their
@@ -624,11 +679,10 @@ void report_realtime_status(Channel& channel) {
             }
 
             auto coolant = coolant_state;
-            // XXX WMB why .Flood in one case and ->hasMist() in the other? also see above
             if (coolant.Flood) {
                 channel << "F";
             }
-            if (config->_coolant->hasMist()) {
+            if (coolant.Mist) {
                 channel << "M";
             }
         }
@@ -637,7 +691,7 @@ void report_realtime_status(Channel& channel) {
         channel << "|SD:" << setprecision(2) << infile->percent_complete() << "," << infile->path();
     }
 #ifdef DEBUG_STEPPER_ISR
-    channel << "|ISRs:" << config->_stepping->isr_count;
+    channel << "|ISRs:" << Stepper::isr_count;
 #endif
 #ifdef DEBUG_REPORT_HEAP
     channel << "|Heap:" << esp.getHeapSize();

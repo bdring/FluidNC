@@ -7,6 +7,7 @@
 namespace Pins {
     PinAttributes PinAttributes::Undefined(0);
     PinAttributes PinAttributes::None(0);
+    PinAttributes PinAttributes::Reserved(1);
 
     // The attributes that have a mapped capability have to be at
     // the top of the list. Note that this list must match the list
@@ -33,11 +34,6 @@ namespace Pins {
     }
 
     bool PinAttributes::conflictsWith(PinAttributes t) {
-        // Input and output are mutually exclusive:
-        if (t.has(Input) && t.has(Output)) {
-            return true;
-        }
-
         // If it's exclusive, we are not allowed to set it again:
         if (_value != Undefined._value && this->has(Exclusive) && _value != t._value) {
             return true;

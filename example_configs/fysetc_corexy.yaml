@@ -7,6 +7,9 @@ stepping:
   dir_delay_us: 1
   pulse_us: 2
   disable_delay_us: 0
+  
+kinematics:
+  corexy:
 
 axes:
   shared_stepper_disable_pin: gpio.25:high
@@ -21,15 +24,15 @@ axes:
       cycle: 1
       positive_direction: true
       mpos_mm: 150.000
-      feed_mm_per_min: 100.000
-      seek_mm_per_min: 200.000
+      feed_mm_per_min: 200.000
+      seek_mm_per_min: 400.000
       settle_ms: 500
       seek_scaler: 1.100
       feed_scaler: 1.100
 
     motor0:
       limit_all_pin: gpio.34:low
-      hard_limits: false
+      hard_limits: true
       pulloff_mm: 1.000
       tmc_2209:
         uart:
@@ -39,7 +42,7 @@ axes:
           mode: 8N1
         addr: 1
         r_sense_ohms: 0.110
-        run_amps: 1.200
+        run_amps: 1.500
         hold_amps: 0.500
         microsteps: 16
         stallguard: 0
@@ -47,8 +50,8 @@ axes:
         toff_disable: 0
         toff_stealthchop: 5
         toff_coolstep: 3
-        run_mode: StallGuard
-        homing_mode: StallGuard
+        run_mode: CoolStep
+        homing_mode: CoolStep
         use_enable: false
         step_pin: gpio.27
         direction_pin: gpio.26
@@ -64,8 +67,8 @@ axes:
       cycle: 2
       positive_direction: true
       mpos_mm: 150.000
-      feed_mm_per_min: 100.000
-      seek_mm_per_min: 200.000
+      feed_mm_per_min: 200.000
+      seek_mm_per_min: 400.000
       settle_ms: 500
       seek_scaler: 1.100
       feed_scaler: 1.100
@@ -77,7 +80,7 @@ axes:
       tmc_2209:
         addr: 3
         r_sense_ohms: 0.110
-        run_amps: 1.200
+        run_amps: 1.5200
         hold_amps: 0.500
         microsteps: 16
         stallguard: 0
@@ -85,8 +88,8 @@ axes:
         toff_disable: 0
         toff_stealthchop: 5
         toff_coolstep: 3
-        run_mode: StallGuard
-        homing_mode: StallGuard
+        run_mode: CoolStep
+        homing_mode: CoolStep
         use_enable: false
         step_pin: gpio.33
         direction_pin: gpio.32:low

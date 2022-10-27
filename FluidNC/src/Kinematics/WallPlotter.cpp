@@ -4,20 +4,6 @@
 
 #include <cmath>
 
-/*
-Default configuration
-
-kinematics:
-  WallPlotter:
-    left_axis: 0
-    left_anchor_x: -267.000
-    left_anchor_y: 250.000
-    right_axis: 1
-    right_anchor_x: 267.000
-    right_anchor_y: 250.000
-    segment_length: 10.000
-*/
-
 namespace Kinematics {
     void WallPlotter::group(Configuration::HandlerBase& handler) {
         handler.item("left_axis", _left_axis);
@@ -37,21 +23,14 @@ namespace Kinematics {
         // We assume the machine starts at cartesian (0, 0, 0).
         // The motors assume they start from (0, 0, 0).
         // So we need to derive the zero lengths to satisfy the kinematic equations.
-        //
-        // TODO: Maybe we can change where the motors start, which would be simpler?
         xy_to_lengths(0, 0, zero_left, zero_right);
         last_left  = zero_left;
         last_right = zero_right;
         last_z     = 0;
     }
 
-    bool WallPlotter::kinematics_homing(AxisMask cycle_mask) {
-        // Do nothing.
-        return false;
-    }
-
-    void WallPlotter::kinematics_post_homing() {
-        // Do nothing.
+    void WallPlotter::transform_cartesian_to_motors(float* cartesian, float* motors) {
+        log_error("WallPlotter::transform_cartesian_to_motors is broken");
     }
 
     /*
@@ -65,48 +44,37 @@ namespace Kinematics {
         position = an MAX_N_AXIS array of where the machine is starting from for this move
     */
     bool WallPlotter::cartesian_to_motors(float* target, plan_line_data_t* pl_data, float* position) {
-        float    dx, dy, dz;        // distances in each cartesian axis
-        float    p_dx, p_dy, p_dz;  // distances in each polar axis
-        uint32_t segment_count;     // number of segments the move will be broken in to.
-
-        // calculate cartesian move distance for each axis
-        dx = target[X_AXIS] - position[X_AXIS];
-        dy = target[Y_AXIS] - position[Y_AXIS];
-        dz = target[Z_AXIS] - position[Z_AXIS];
+        float    dx, dy, dz;     // segment distances in each cartesian axis
+        uint32_t segment_count;  // number of segments the move will be broken in to.
 
         // calculate the total X,Y axis move distance
-        // Z axis is the same in both coord systems, so it is ignored
-        float dist = sqrt((dx * dx) + (dy * dy));
-        if (pl_data->motion.rapidMotion) {
-            segment_count = 1;  // rapid G0 motion is not used to draw, so skip the segmentation
-        } else {
-            segment_count = ceil(dist / _segment_length);  // determine the number of segments we need ... round up so there is at least 1
+        // Z axis is the same in both coord systems, so it does not undergo conversion
+        float dist = vector_distance(target, position, 2); // Only compute distance for both axes. X and Y
+        // Segment our G1 and G0 moves based on yaml file. If we choose a small enough _segment_length we can hide the nonlinearity
+        segment_count = dist / _segment_length;
+        if (segment_count < 1) {  // Make sure there is at least one segment, even if there is no movement
+            // We need to do this to make sure other things like S and M codes get updated properly by
+            // the planner even if there is no movement??
+            segment_count = 1;
         }
-
-        if (segment_count == 0 && target[Z_AXIS] != position[Z_AXIS]) {
-            // We are moving vertically.
-            last_z = target[Z_AXIS];
-
-            // Note that the left motor runs backward.
-            float cables[MAX_N_AXIS] = { 0 - (last_left - zero_left), 0 + (last_right - zero_right), last_z };
-
-            if (!mc_move_motors(cables, pl_data)) {
-                return false;
-            }
-        }
-
-        dist /= segment_count;  // segment distance
+        // Calc distance of individual cartesian segments
+        dx = (target[X_AXIS] - position[X_AXIS])/segment_count; 
+        dy = (target[Y_AXIS] - position[Y_AXIS])/segment_count; 
+        dz = (target[Z_AXIS] - position[Z_AXIS])/segment_count;
+        // Current cartesian end point of the segment        
+        float seg_x = position[X_AXIS];  
+        float seg_y = position[Y_AXIS];
+        float seg_z = position[Z_AXIS];
+        // Calculate desired cartesian feedrate distance ratio. Same for each seg.
+        float vdcart_ratio = pl_data->feed_rate/(dist/segment_count);
         for (uint32_t segment = 1; segment <= segment_count; segment++) {
-            // determine this segment's absolute target
-            float seg_x = position[X_AXIS] + (dx / float(segment_count) * segment);
-            float seg_y = position[Y_AXIS] + (dy / float(segment_count) * segment);
-            float seg_z = position[Z_AXIS] + (dz / float(segment_count) * segment);
-
-            float seg_left, seg_right;
-            // FIX: Z needs to be interpolated properly.
-
+            // calc next cartesian end point of the next segment
+            seg_x += dx;
+            seg_y += dy;
+            seg_z += dz;
+            // Convert cartesian space coords to motor space
+            float seg_left, seg_right; 
             xy_to_lengths(seg_x, seg_y, seg_left, seg_right);
-
 #ifdef USE_CHECKED_KINEMATICS
             // Check the inverse computation.
             float cx, cy;
@@ -117,22 +85,29 @@ namespace Kinematics {
                 // FIX: Produce an alarm state?
             }
 #endif  // end USE_CHECKED_KINEMATICS
-
-            // mc_move_motors() returns false if a jog is cancelled.
-            // In that case we stop sending segments to the planner.
-
+            // Set interpolated feedrate in motor space for this segment to
+            // get desired feedrate in cartesian space
+            if (!pl_data->motion.rapidMotion) { // Rapid motions ignore feedrate. Don't convert.
+              // T=D/V, Tcart=Tmotor, Dcart/Vcart=Dmotor/Vmotor
+              // Vmotor = Dmotor*(Vcart/Dcart)
+              pl_data->feed_rate = hypot_f(last_left-seg_left,last_right-seg_right)*vdcart_ratio; 
+            }
+            // TODO: G93 pl_data->motion.inverseTime logic?? Does this even make sense for wallplotter? 
+            // Remember absolute motor lengths for next time
             last_left  = seg_left;
             last_right = seg_right;
             last_z     = seg_z;
-
+            // Initiate motor movement with converted feedrate and converted position
+            // mc_move_motors() returns false if a jog is cancelled.
+            // In that case we stop sending segments to the planner.
             // Note that the left motor runs backward.
-            float cables[MAX_N_AXIS] = { 0 - (last_left - zero_left), 0 + (last_right - zero_right), seg_z };
+            // TODO: It might be better to adjust motor direction in .yaml file by inverting direction pin??
+            float cables[MAX_N_AXIS] = { 0 - (seg_left - zero_left), 0 + (seg_right - zero_right), seg_z };
             if (!mc_move_motors(cables, pl_data)) {
+                // TODO fixup last_left last_right?? What is position state when jog is cancelled?
                 return false;
             }
         }
-
-        // TO DO don't need a feedrate for rapids
         return true;
     }
 
@@ -145,15 +120,15 @@ namespace Kinematics {
     void WallPlotter::motors_to_cartesian(float* cartesian, float* motors, int n_axis) {
         // The motors start at zero, but effectively at zero_left, so we need to correct for the computation.
         // Note that the left motor runs backward.
+        // TODO: It might be better to adjust motor direction in .yaml file by inverting direction pin??
         float absolute_x, absolute_y;
         lengths_to_xy((0 - motors[_left_axis]) + zero_left, (0 + motors[_right_axis]) + zero_right, absolute_x, absolute_y);
 
-        // Producing these relative coordinates.
         cartesian[X_AXIS] = absolute_x;
         cartesian[Y_AXIS] = absolute_y;
         cartesian[Z_AXIS] = motors[Z_AXIS];
 
-        // Now we have a number that if fed back into the system should produce the same value.
+        // Now we have numbers that if fed back into the system should produce the same values.
     }
 
     /*
@@ -192,23 +167,23 @@ namespace Kinematics {
         // Compute a and h.
         float a  = (left_radius2 - right_radius2 + distance2) / (2 * distance);
         float a2 = a * a;
-        float h  = sqrt(left_radius2 - a2);
+        float h  = sqrtf(left_radius2 - a2);
 
         // Translate to absolute coordinates.
         x = _left_anchor_x + a;
-        y = _left_anchor_y + h;
+        y = _left_anchor_y - h;  // flip
     }
 
     void WallPlotter::xy_to_lengths(float x, float y, float& left_length, float& right_length) {
-        // We just need to compute the respective hypotenuse of each triangle.
+        // Compute the hypotenuse of each triangle.
 
         float left_dy = _left_anchor_y - y;
         float left_dx = _left_anchor_x - x;
-        left_length   = sqrt(left_dx * left_dx + left_dy * left_dy);
+        left_length   = hypot_f(left_dx, left_dy);
 
         float right_dy = _right_anchor_y - y;
         float right_dx = _right_anchor_x - x;
-        right_length   = sqrt(right_dx * right_dx + right_dy * right_dy);
+        right_length   = hypot_f(right_dx, right_dy);
     }
 
     // Configuration registration

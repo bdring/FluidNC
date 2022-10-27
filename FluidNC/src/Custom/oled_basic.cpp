@@ -133,27 +133,13 @@ static void oledDRO() {
         draw_checkbox(120, oled_y_pos + 3, 7, 7, prb_pin_state);
         oled_y_pos += 10;
     }
-    if (ctrl_pins->_feedHold._pin.defined()) {
-        oled->drawString(110, oled_y_pos, "H");
-        draw_checkbox(120, oled_y_pos + 3, 7, 7, ctrl_pins->_feedHold.get());
-        oled_y_pos += 10;
-    }
-    if (ctrl_pins->_cycleStart._pin.defined()) {
-        oled->drawString(110, oled_y_pos, "S");
-        draw_checkbox(120, oled_y_pos + 3, 7, 7, ctrl_pins->_cycleStart.get());
-        oled_y_pos += 10;
-    }
-
-    if (ctrl_pins->_reset._pin.defined()) {
-        oled->drawString(110, oled_y_pos, "R");
-        draw_checkbox(120, oled_y_pos + 3, 7, 7, ctrl_pins->_reset.get());
-        oled_y_pos += 10;
-    }
-
-    if (ctrl_pins->_safetyDoor._pin.defined()) {
-        oled->drawString(110, oled_y_pos, "D");
-        draw_checkbox(120, oled_y_pos + 3, 7, 7, ctrl_pins->_safetyDoor.get());
-        oled_y_pos += 10;
+    for (auto pin : ctrl_pins->_pins) {
+        char letter = pin->letter();
+        if (!isdigit(letter)) {
+            oled->drawString(110, oled_y_pos, String(letter));
+            draw_checkbox(120, oled_y_pos + 3, 7, 7, pin->get());
+            oled_y_pos += 10;
+        }
     }
 }
 

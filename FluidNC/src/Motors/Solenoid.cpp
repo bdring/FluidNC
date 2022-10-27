@@ -36,42 +36,34 @@
 #include "Solenoid.h"
 
 #include "../Machine/MachineConfig.h"
-#include "../System.h"  // mpos_to_steps() etc
-#include "../Pins/LedcPin.h"
+#include "../System.h"      // mpos_to_steps() etc
+#include "Driver/PwmPin.h"  // pwmInit(), etc.
 #include "../Pin.h"
 #include "../Limits.h"  // limitsMaxPosition
 #include "../NutsBolts.h"
 
-#include <esp32-hal-ledc.h>  // ledcWrite
-#include <freertos/task.h>   // vTaskDelay
+#include <freertos/task.h>  // vTaskDelay
 
 namespace MotorDrivers {
 
     void Solenoid::init() {
-        constrain_with_message(_pwm_freq, (uint32_t)1000, (uint32_t)10000);
-        constrain_with_message(_off_percent, 0.0f, 100.0f);
-        constrain_with_message(_pull_percent, 0.0f, 100.0f);
-        constrain_with_message(_hold_percent, 0.0f, 100.0f);
-        constrain_with_message(_pull_ms, (uint32_t)0, (uint32_t)3000);
-
         if (_output_pin.undefined()) {
             log_warn("    Solenoid disabled: No output pin");
             _has_errors = true;
             return;  // We cannot continue without the output pin
         }
 
-        pwm_cnt[SolenoidMode::Off]  = uint32_t(_off_percent / 100.0f * 65535.0f);
-        pwm_cnt[SolenoidMode::Pull] = uint32_t(_pull_percent / 100.0f * 65535.0f);
-        pwm_cnt[SolenoidMode::Hold] = uint32_t(_hold_percent / 100.0f * 65535.0f);
-
         _axis_index = axis_index();
+
+        _pwm = new PwmPin(_output_pin, _pwm_freq);  // Allocate a channel
+
+        pwm_cnt[SolenoidMode::Off]  = uint32_t(_off_percent / 100.0f * _pwm->period());
+        pwm_cnt[SolenoidMode::Pull] = uint32_t(_pull_percent / 100.0f * _pwm->period());
+        pwm_cnt[SolenoidMode::Hold] = uint32_t(_hold_percent / 100.0f * _pwm->period());
 
         config_message();
 
-        _pwm_chan_num     = ledcInit(_output_pin, -1, double(_pwm_freq), SERVO_PWM_RESOLUTION_BITS);  // Allocate a channel
         _current_pwm_duty = 0;
-
-        _disabled = true;
 
         startUpdateTask(_update_rate_ms);
     }
@@ -79,18 +71,18 @@ namespace MotorDrivers {
     void Solenoid::update() { set_location(); }
 
     void Solenoid::config_message() {
-        log_info("    " << name() << " Pin: " << _output_pin.name() << " Off: " << _off_percent << " Hold: " << _hold_percent
-                        << " Pull:" << _pull_percent << " Duration:" << _pull_ms);
+        log_info("    " << name() << " Pin: " << _output_pin.name() << " Off: " << _off_percent << " Hold: " << _hold_percent << " Pull:"
+                        << _pull_percent << " Duration:" << _pull_ms << " pwm hz:" << _pwm->frequency() << " period:" << _pwm->frequency());
     }
 
     void Solenoid::set_location() {
         bool is_solenoid_on;
 
-        if (_disabled || _has_errors) {
+        if (_has_errors) {
             return;
         }
 
-        float mpos = steps_to_mpos(motor_steps[_axis_index], _axis_index);  // get the axis machine position in mm
+        float mpos = steps_to_mpos(get_axis_motor_steps(_axis_index), _axis_index);  // get the axis machine position in mm
 
         _dir_invert ? is_solenoid_on = (mpos < 0.0) : is_solenoid_on = (mpos > 0.0);
 
@@ -125,6 +117,8 @@ namespace MotorDrivers {
 
         _write_pwm(pwm_cnt[_current_mode]);
     }
+
+    void Solenoid::set_disable(bool disable) {}  // NOP
 
     namespace {
         MotorFactory::InstanceBuilder<Solenoid> registration("solenoid");

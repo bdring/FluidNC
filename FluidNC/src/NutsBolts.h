@@ -48,8 +48,6 @@ const float INCH_PER_MM = (0.0393701f);
 
 // Useful macros
 #define clear_vector(a) memset(a, 0, sizeof(a))
-#define clear_vector_float(a) memset(a, 0.0, sizeof(float) * MAX_N_AXIS)
-// #define clear_vector_long(a) memset(a, 0.0, sizeof(long)*MAX_N_AXIS)
 #define MAX(a, b) (((a) > (b)) ? (a) : (b))  // changed to upper case to remove conflicts with other libraries
 #define MIN(a, b) (((a) < (b)) ? (a) : (b))  // changed to upper case to remove conflicts with other libraries
 #define isequal_position_vector(a, b) !(memcmp(a, b, sizeof(float) * MAX_N_AXIS))
@@ -85,6 +83,15 @@ void delay_ms(uint16_t ms);
 
 // Computes hypotenuse, avoiding avr-gcc's bloated version and the extra error checking.
 float hypot_f(float x, float y);
+
+// Distance between endpoints of n-vectors
+float vector_distance(float* v1, float* v2, size_t n);
+
+// Length of an n-vector
+float vector_length(float* v, size_t n);
+
+// Multiply a vector by a scale factor
+void scale_vector(float* v, float scale, size_t n);
 
 float convert_delta_vector_to_unit_vector(float* vector);
 float limit_acceleration_by_axis_maximum(float* unit_vec);
@@ -159,13 +166,15 @@ T mapConstrain(T x, T in_min, T in_max, T out_min, T out_max) {
 
 // constrain a value and issue a message. Returns true is the value was OK
 template <typename T>
-bool constrain_with_message(T& value, T min, T max) {
+bool constrain_with_message(T& value, T min, T max, const char* name = "") {
     if (value < min || value > max) {
-        log_warn("Value " << value << " constrained to range (" << min << "," << max << ")");
+        log_warn(name << " value " << value << " constrained to range (" << min << "," << max << ")");
         value = myConstrain(value, min, max);
         return false;
     }
     return true;
 }
+
+bool multiple_bits_set(uint32_t val);
 
 String formatBytes(uint64_t bytes);

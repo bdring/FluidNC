@@ -57,11 +57,6 @@ const char* const DEFAULT_ADMIN_LOGIN = "admin";
 const char* const DEFAULT_USER_LOGIN  = "user";
 #endif
 
-// Number of homing cycles performed after when the machine initially jogs to limit switches.
-// This help in preventing overshoot and should improve repeatability. This value should be one or
-// greater.
-static const uint8_t NHomingLocateCycle = 1;  // Integer (1-128)
-
 // Upon a successful probe cycle, this option provides immediately feedback of the probe coordinates
 // through an automatically generated message. If disabled, users can still access the last probe
 // coordinates through the '$#' print parameters command.
@@ -101,7 +96,7 @@ namespace SpindleSpeedOverride {
     const int Min             = 10;   // Percent of programmed spindle speed (1-100). Usually 10%.
     const int CoarseIncrement = 10;   // (1-99). Usually 10%.
     const int FineIncrement   = 1;    // (1-99). Usually 1%.
-}
+};
 
 // When a M2 or M30 program end command is executed, most GCode states are restored to their defaults.
 // This compile-time option includes the restoring of the feed, rapid, and spindle speed override values
@@ -202,14 +197,6 @@ const bool FORCE_BUFFER_SYNC_DURING_WCO_CHANGE = true;  // Default enabled. Comm
 // repeatable. If needed, you can disable this behavior by uncommenting the define below.
 const bool ALLOW_FEED_OVERRIDE_DURING_PROBE_CYCLES = false;
 
-// Configure options for the parking motion, if enabled.
-#define PARKING_AXIS Z_AXIS                      // Define which axis that performs the parking motion
-const double PARKING_TARGET            = -5.0;   // Parking axis target. In mm, as machine coordinate.
-const double PARKING_RATE              = 800.0;  // Parking fast rate after pull-out in mm/min.
-const double PARKING_PULLOUT_RATE      = 250.0;  // Pull-out/plunge slow feed rate in mm/min.
-const double PARKING_PULLOUT_INCREMENT = 5.0;    // Spindle pull-out and plunge distance in mm. Incremental distance.
-// Must be positive value or equal to zero.
-
 // INCLUDE_OLED_IO enables access to a basic OLED library.  To use it you must uncomment the
 //  "thingpulse/ESP8266 and ESP32 OLED driver for SSD1306 displays" line in platformio.ini
 // You must uncomment it if you use either INCLUDE_OLED_TINY or INCLUDE_OLED_BASIC
@@ -220,5 +207,3 @@ const double PARKING_PULLOUT_INCREMENT = 5.0;    // Spindle pull-out and plunge 
 
 // INCLUDE_OLED_BASIC includes a driver for a modest sized OLED display
 // #define INCLUDE_OLED_BASIC
-
-// #define DEBUG_STEPPING

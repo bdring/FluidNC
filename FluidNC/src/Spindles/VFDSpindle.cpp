@@ -75,7 +75,7 @@ namespace Spindles {
         uint8_t       rx_message[VFD_RS485_MAX_MSG_SIZE];
         bool          safetyPollingEnabled = instance->safety_polling();
 
-        for (; true; vTaskDelay(VFD_RS485_POLL_RATE / portTICK_PERIOD_MS)) {
+        for (; true; delay_ms(VFD_RS485_POLL_RATE)) {
             std::atomic_thread_fence(std::memory_order::memory_order_seq_cst);  // read fence for settings
             response_parser parser = nullptr;
 
@@ -179,7 +179,7 @@ namespace Spindles {
 
                 // Read the response
                 size_t read_length  = 0;
-                size_t current_read = uart.readBytes(rx_message, next_cmd.rx_length, response_ticks);
+                size_t current_read = uart.timedReadBytes(rx_message, next_cmd.rx_length, response_ticks);
                 read_length += current_read;
 
                 // Apparently some Huanyang report modbus errors in the correct way, and the rest not. Sigh.
@@ -190,7 +190,7 @@ namespace Spindles {
 
                 while (read_length < next_cmd.rx_length && current_read > 0) {
                     // Try to read more; we're not there yet...
-                    current_read = uart.readBytes(rx_message + read_length, next_cmd.rx_length - read_length, response_ticks);
+                    current_read = uart.timedReadBytes(rx_message + read_length, next_cmd.rx_length - read_length, response_ticks);
                     read_length += current_read;
                 }
 
@@ -228,7 +228,7 @@ namespace Spindles {
 
                     // Wait a bit before we retry. Set the delay to poll-rate. Not sure
                     // if we should use a different value...
-                    vTaskDelay(VFD_RS485_POLL_RATE / portTICK_PERIOD_MS);
+                    delay_ms(VFD_RS485_POLL_RATE);
 
 #ifdef DEBUG_TASK_STACK
                     static UBaseType_t uxHighWaterMark = 0;
@@ -257,12 +257,6 @@ namespace Spindles {
     void VFD::init() {
         _sync_dev_speed = 0;
         _syncing        = false;
-
-        // fail if required items are not defined
-        // get_pins_and_settings reports detailed error messages
-        if (!get_pins_and_settings()) {
-            return;
-        }
 
         _uart->begin();
 
@@ -296,15 +290,10 @@ namespace Spindles {
         set_mode(SpindleState::Disable, true);
     }
 
-    // Checks for all the required pin definitions
-    // It returns a message for each missing pin
-    // Returns true if all pins are defined.
-    bool VFD::get_pins_and_settings() { return true; }
-
     void VFD::config_message() { _uart->config_message(name(), " Spindle "); }
 
     void VFD::setState(SpindleState state, SpindleSpeed speed) {
-        log_info("VFD setState:" << uint8_t(state) << " SpindleSpeed:" << speed);
+        log_debug("VFD setState:" << uint8_t(state) << " SpindleSpeed:" << speed);
         if (sys.abort) {
             return;  // Block during abort.
         }
@@ -353,7 +342,7 @@ namespace Spindles {
                 //     last      = _sync_dev_speed;
                 //     break;
                 // }
-                delay(500);
+                delay_ms(500);
 
                 // unchanged counts the number of consecutive times that we see the same speed
                 unchanged = (_sync_dev_speed == last) ? unchanged + 1 : 0;

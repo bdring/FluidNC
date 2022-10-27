@@ -43,7 +43,9 @@ jobs:
       uses: softprops/action-gh-release@v1
       with:
         tag_name: ${{ github.event.inputs.tag }}
-        files: release/*.zip
+        files: |
+          release/*.zip
+          release/*.elf
         draft: True
     # - name: Upload mac bundle
     #   uses: actions/upload-artifact@v2

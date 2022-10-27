@@ -15,9 +15,6 @@
 
 #include <cstdint>
 
-// The number of linear motions in the planner buffer to be planned at any give time.
-const int BLOCK_BUFFER_SIZE = 16;
-
 // Define planner data condition flags. Used to denote running conditions of a block.
 struct PlMotion {
     uint8_t rapidMotion : 1;
@@ -28,18 +25,9 @@ struct PlMotion {
 
 // This struct stores a linear movement of a g-code block motion with its critical "nominal" values
 // are as specified in the source g-code.
-#ifdef DEBUG_STEPPING
-extern uint32_t planner_seq;
-#endif
 struct plan_block_t {
     // Fields used by the bresenham algorithm for tracing the line
     // NOTE: Used by stepper algorithm to execute the block correctly. Do not alter these values.
-
-#ifdef DEBUG_STEPPING
-    uint32_t entry_pos[MAX_N_AXIS];  // Expected mpos when this block starts execution
-    uint32_t exit_pos[MAX_N_AXIS];   // Expected mpos when this block finishes execution
-    uint32_t seq;                    // Sequence number
-#endif
 
     uint32_t steps[MAX_N_AXIS];  // Step count along each axis
     uint32_t step_event_count;   // The maximum step axis count and number of steps required to complete this block.
@@ -79,6 +67,8 @@ struct plan_line_data_t {
     int32_t      line_number;    // Desired line number to report when executing.
     bool         is_jog;         // true if this was generated due to a jog command
 };
+
+void plan_init();
 
 // Initialize and reset the motion plan subsystem
 void plan_reset();         // Reset all

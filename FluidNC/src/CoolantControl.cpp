@@ -83,5 +83,5 @@ void CoolantControl::off() {
 void CoolantControl::group(Configuration::HandlerBase& handler) {
     handler.item("flood_pin", _flood);
     handler.item("mist_pin", _mist);
-    handler.item("delay_ms", _delay_ms);
+    handler.item("delay_ms", _delay_ms, 0, 10000);
 }

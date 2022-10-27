@@ -1,17 +1,15 @@
-#include "LimitPin.h"
-#include "Axes.h"
-#include "MachineConfig.h"  // config
+#include "src/Machine/EventPin.h"
+#include "src/Machine/Axes.h"
+#include "src/Machine/MachineConfig.h"  // config
 
-#include "../NutsBolts.h"      // set_bitnum etc
-#include "../MotionControl.h"  // mc_reset
-#include "../Limits.h"
-#include "../Protocol.h"  // rtAlarm
-
-#include <esp32-hal-gpio.h>  // CHANGE
+#include "src/NutsBolts.h"      // set_bitnum etc
+#include "src/MotionControl.h"  // mc_reset
+#include "src/Limits.h"
+#include "src/Protocol.h"  // protocol_send_event_from_ISR()
 
 namespace Machine {
-    LimitPin::LimitPin(Pin& pin, int axis, int motor, int direction, bool& pHardLimits) :
-        _axis(axis), _motorNum(motor), _value(false), _pHardLimits(pHardLimits), _pin(pin) {
+    LimitPin::LimitPin(Pin& pin, int axis, int motor, int direction, bool& pHardLimits, bool& pLimited) :
+        EventPin(&limitEvent, "Limit", &pin), _axis(axis), _motorNum(motor), _value(false), _pHardLimits(pHardLimits), _pLimited(pLimited) {
         String sDir;
         // Select one or two bitmask variables to receive the switch data
         switch (direction) {
@@ -38,36 +36,31 @@ namespace Machine {
         }
 
         // Set a bitmap with bits to represent the axis and which motors are affected
-        // The bitmap looks like CBAZYXcbazyx where motor0 motors are in the lower bits
-        motor == 0 ? _bitmask = 1 : _bitmask = 1 << 16;
-        _bitmask <<= axis;  // Shift the bits into position
-        _legend = String("    " + sDir + " Limit");
+        // The bitmap looks like CBAZYX..cbazyx where motor0 motors are in the lower bits
+        _bitmask = 1 << Axes::motor_bit(axis, motor);
+        _legend  = config->_axes->motorMaskToNames(_bitmask);
+        _legend += " " + sDir + " Limit";
     }
 
-    void IRAM_ATTR LimitPin::handleISR() {
-        read();
-        if (sys.state != State::Alarm && sys.state != State::ConfigAlarm && sys.state != State::Homing) {
-            if (_pHardLimits && rtAlarm == ExecAlarm::None) {
-#if 0
-
-                if (config->_softwareDebounceMs) {
-                    // send a message to wakeup the task that rechecks the switches after a small delay
-                    int evt;
-                    xQueueSendFromISR(limit_sw_queue, &evt, NULL);
-                    return;
-                }
-#endif
-
-                // log_debug("Hard limits");  // This might not work from ISR context
-                mc_reset();                      // Initiate system kill.
-                rtAlarm = ExecAlarm::HardLimit;  // Indicate hard limit critical event
-            }
+    void LimitPin::init() {
+        EventPin::init();
+        if (_pin->undefined()) {
+            return;
         }
+        update(get());
     }
 
-    void IRAM_ATTR LimitPin::read() {
-        _value = _pin.read();
-        if (_value) {
+    void LimitPin::update(bool value) {
+        log_debug(_legend << " " << value);
+        if (value) {
+            if (Homing::approach() || (sys.state != State::Homing && _pHardLimits)) {
+                _pLimited = value;
+
+                if (_pExtraLimited != nullptr) {
+                    *_pExtraLimited = value;
+                }
+            }
+
             if (_posLimits != nullptr) {
                 set_bits(*_posLimits, _bitmask);
             }
@@ -75,6 +68,11 @@ namespace Machine {
                 set_bits(*_negLimits, _bitmask);
             }
         } else {
+            _pLimited = value;
+
+            if (_pExtraLimited != nullptr) {
+                *_pExtraLimited = value;
+            }
             if (_posLimits != nullptr) {
                 clear_bits(*_posLimits, _bitmask);
             }
@@ -84,29 +82,10 @@ namespace Machine {
         }
     }
 
-    void LimitPin::init() {
-        if (_pin.undefined()) {
-            return;
-        }
-        set_bitnum(Axes::limitMask, _axis);
-        _pin.report(_legend.c_str());
-        auto attr = Pin::Attr::Input | Pin::Attr::ISR;
-        if (_pin.capabilities().has(Pins::PinCapabilities::PullUp)) {
-            attr = attr | Pin::Attr::PullUp;
-        }
-        _pin.setAttr(attr);
-        _pin.attachInterrupt(ISRHandler, CHANGE, this);
-
-        read();
-    }
-
     // Make this switch act like an axis level switch. Both motors will report the same
     // This should be called from a higher level object, that has the logic to figure out
     // if this belongs to a dual motor, single switch axis
-    void LimitPin::makeDualMask() {
-        uint32_t both = ((_bitmask >> 16) | (_bitmask & 0xffff));
-        _bitmask      = (both << 16) | both;
-    }
+    void LimitPin::makeDualMask() { _bitmask = Axes::axes_to_motors(Axes::motors_to_axes(_bitmask)); }
 
-    LimitPin::~LimitPin() { _pin.detachInterrupt(); }
+    void LimitPin::setExtraMotorLimit(int axis, int motorNum) { _pExtraLimited = &config->_axes->_axis[axis]->_motors[motorNum]->_limited; }
 }

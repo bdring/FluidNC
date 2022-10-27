@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: General Questions
+    url: http://wiki.fluidnc.com/
+    about: Please read our wiki which answers many questions
+  - name: Discord server
+    url: https://discord.com/invite/vGhne3QmFZ
+    about: Please ask and answer questions on our Discord server.

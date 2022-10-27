@@ -20,17 +20,17 @@
 #    include "StartupLog.h"
 
 #    include "WebUI/TelnetServer.h"
-#    include "WebUI/Serial2Socket.h"
 #    include "WebUI/InputBuffer.h"
 
 #    include "WebUI/WifiConfig.h"
-#    include <SPIFFS.h>
+#    include "Driver/localfs.h"
 
 extern void make_user_commands();
 
 void setup() {
     try {
-        uartInit();  // Setup serial port
+        uartInit();       // Setup serial port
+        Uart0.println();  // create some white space after ESP32 boot info
 
         // Setup input polling loop after loading the configuration,
         // because the polling may depend on the config
@@ -40,14 +40,18 @@ void setup() {
 
         display_init();
 
+        protocol_init();
+
         // Load settings from non-volatile storage
         settings_init();  // requires config
 
         log_info("FluidNC " << git_info);
-        log_info("Compiled with ESP32 SDK:" << ESP.getSdkVersion());
+        log_info("Compiled with ESP32 SDK:" << esp_get_idf_version());
 
-        if (!SPIFFS.begin(true)) {
-            log_error("Cannot mount the local filesystem");
+        if (localfs_mount()) {
+            log_error("Cannot mount a local filesystem");
+        } else {
+            log_info("Local filesystem type is " << localfsName);
         }
 
         bool configOkay = config->load();
@@ -72,6 +76,8 @@ void setup() {
 
             config->_stepping->init();  // Configure stepper interrupt timers
 
+            plan_init();
+
             config->_userOutputs->init();
 
             config->_axes->init();
@@ -80,7 +86,10 @@ void setup() {
 
             config->_kinematics->init();
 
-            memset(motor_steps, 0, sizeof(motor_steps));  // Clear machine position.
+            auto n_axis = config->_axes->_numberAxis;
+            for (size_t axis = 0; axis < n_axis; axis++) {
+                set_motor_steps(axis, 0);  // Clear machine position.
+            }
 
             machine_init();  // user supplied function for special initialization
         }
@@ -122,23 +131,13 @@ void setup() {
         sys.state = State::ConfigAlarm;
     }
 
-    WebUI::wifi_config.begin();
-    WebUI::bt_config.begin();
-    WebUI::inputBuffer.begin();
+    if (!WebUI::wifi_config.begin()) {
+        WebUI::bt_config.begin();
+    }
     allChannels.deregistration(&startupLog);
 }
 
 static void reset_variables() {
-#    ifdef DEBUG_STEPPING
-    rtTestPl    = false;
-    rtTestSt    = false;
-    st_seq      = 0;
-    st_seq0     = 0;
-    pl_seq0     = 0;
-    seg_seq0    = 0;
-    seg_seq1    = 0;
-    planner_seq = 0;
-#    endif
     // Reset primary systems.
     system_reset();
     protocol_reset();
@@ -161,6 +160,7 @@ static void reset_variables() {
     // Sync cleared gcode and planner positions to current system position.
     plan_sync_position();
     gc_sync_position();
+    allChannels.flushRx();
     report_init_message(allChannels);
     mc_init();
 }

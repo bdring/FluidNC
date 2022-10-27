@@ -33,17 +33,18 @@ namespace MotorDrivers {
 
         void set_location();
         void init() override;
+        void set_disable(bool disable) override;
 
         float _transition_point;
 
         // Configuration handlers:
         void group(Configuration::HandlerBase& handler) override {
             handler.item("output_pin", _output_pin);
-            handler.item("pwm_hz", _pwm_freq);
-            handler.item("off_percent", _off_percent);
-            handler.item("pull_percent", _pull_percent);
-            handler.item("hold_percent", _hold_percent);
-            handler.item("pull_ms", _pull_ms);
+            handler.item("pwm_hz", _pwm_freq, 1000, 100000);
+            handler.item("off_percent", _off_percent, 0.0f, 100.0f);
+            handler.item("pull_percent", _pull_percent, 0.0f, 100.0f);
+            handler.item("hold_percent", _hold_percent, 0.0f, 100.0f);
+            handler.item("pull_ms", _pull_ms, 0, 3000);
             handler.item("direction_invert", _dir_invert);
         }
 

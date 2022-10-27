@@ -47,7 +47,7 @@ namespace Spindles {
         ~_10v() {}
 
     protected:
-        void set_enable(bool enable_pin);
+        void set_enable(bool enable_pin) override;
         void set_direction(bool Clockwise);
 
         Pin _forward_pin;

@@ -11,14 +11,18 @@
 #include "lineedit.h"
 #include "Channel.h"
 #include <freertos/FreeRTOS.h>  // TickType_T
-#include <queue>
 
 class Uart : public Channel, public Configuration::Configurable {
 private:
-    uart_port_t         _uart_num;
-    int                 _pushback;
-    std::queue<uint8_t> _queue;
-    Lineedit*           _lineedit;
+    uart_port_t _uart_num;
+    Lineedit*   _lineedit;
+
+    // One character of pushback for implementing peek().
+    // We cannot use the queue for this because the queue
+    // is after the check for realtime characters, whereas
+    // peek() deals with characters before realtime ones
+    // are handled.
+    int _pushback = -1;
 
 public:
     // These are public so that validators from classes
@@ -45,24 +49,18 @@ public:
     int    available(void) override;
     int    read(void) override;
     int    read(TickType_t timeout);
-    size_t readBytes(char* buffer, size_t length, TickType_t timeout);
-    size_t readBytes(uint8_t* buffer, size_t length, TickType_t timeout) {
-        return readBytes(reinterpret_cast<char*>(buffer), length, timeout);
-    }
-    size_t readBytes(char* buffer, size_t length) override;
+    size_t timedReadBytes(char* buffer, size_t length, TickType_t timeout) override;
+    size_t timedReadBytes(uint8_t* buffer, size_t length, TickType_t timeout) { return timedReadBytes((char*)buffer, length, timeout); };
     int    peek(void) override;
     size_t write(uint8_t data) override;
     size_t write(const uint8_t* buffer, size_t length) override;
     // inline size_t write(const char* buffer, size_t size) { return write(reinterpret_cast<const uint8_t*>(buffer), size); }
     // size_t        write(const char* text) override;
-    void flush() { uart_flush(_uart_num); }
+    void flushRx() override;
     bool flushTxTimed(TickType_t ticks);
 
-    bool setCr(bool on) {
-        bool retval = _addCR;
-        _addCR      = on;
-        return retval;
-    }
+    bool realtimeOkay(char c) override;
+    bool lineComplete(char* line, char c) override;
 
     Channel* pollLine(char* line) override;
 
@@ -83,7 +81,7 @@ public:
         handler.item("rts_pin", _rts_pin);
         handler.item("cts_pin", _cts_pin);
 
-        handler.item("baud", baud);
+        handler.item("baud", baud, 2400, 4000000);
         handler.item("mode", dataBits, parity, stopBits);
     }
 

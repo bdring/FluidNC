@@ -5,7 +5,7 @@
 #pragma once
 
 #include "Configuration/Configurable.h"
-#include <esp32-hal-timer.h>  // hw_timer_t
+#include "Driver/StepTimer.h"
 
 namespace Machine {
     class Stepping : public Configuration::Configurable {
@@ -14,22 +14,14 @@ namespace Machine {
         static const uint32_t fStepperTimer = 20000000;  // frequency of step pulse timer
 
     private:
-        static const int   stepTimerNumber = 0;
-        static hw_timer_t* stepTimer;
-        static void        onStepperDriverTimer();
+        static bool onStepperDriverTimer();
 
-        static const uint32_t fTimers             = 80000000;  // the frequency of ESP32 timers
-        static const int      ticksPerMicrosecond = fStepperTimer / 1000000;
+        static const int ticksPerMicrosecond = fStepperTimer / 1000000;
 
         bool    _switchedStepper = false;
         int32_t _stepPulseEndTime;
 
     public:
-        // Counts stepper ISR invocations.  This variable can be inspected
-        // from the mainline code to determine if the stepper ISR is running,
-        // since printing from the ISR is not a good idea.
-        static uint32_t isr_count;
-
         enum stepper_id_t {
             TIMED = 0,
             RMT,
@@ -39,12 +31,21 @@ namespace Machine {
 
         Stepping() = default;
 
-        uint8_t  _idleMsecs           = 255;
+        // _segments is the number of entries in the step segment buffer between the step execution algorithm
+        // and the planner blocks. Each segment is set of steps executed at a constant velocity over a
+        // fixed time defined by ACCELERATION_TICKS_PER_SECOND. They are computed such that the planner
+        // block velocity profile is traced exactly. The size of this buffer governs how much step
+        // execution lead time there is for other processes to run.  The latency for a feedhold or other
+        // override is roughly 10 ms times _segments.
+
+        size_t _segments = 12;
+
+        uint32_t _idleMsecs           = 255;
         uint32_t _pulseUsecs          = 4;
         uint32_t _directionDelayUsecs = 0;
         uint32_t _disableDelayUsecs   = 0;
 
-        int _engine = RMT;
+        static int _engine;
 
         // Interfaces to stepping engine
         void init();
@@ -61,9 +62,9 @@ namespace Machine {
         uint32_t maxPulsesPerSec();
 
         // Timers
-        void setTimerPeriod(uint16_t timerTicks);
-        void startTimer();
-        void stopTimer();
+        void        setTimerPeriod(uint16_t timerTicks);
+        void        startTimer();
+        static void stopTimer();
 
         // Configuration system helpers:
         void group(Configuration::HandlerBase& handler) override;

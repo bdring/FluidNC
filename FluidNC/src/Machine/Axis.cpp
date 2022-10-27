@@ -6,10 +6,10 @@
 
 namespace Machine {
     void Axis::group(Configuration::HandlerBase& handler) {
-        handler.item("steps_per_mm", _stepsPerMm);
-        handler.item("max_rate_mm_per_min", _maxRate);
-        handler.item("acceleration_mm_per_sec2", _acceleration);
-        handler.item("max_travel_mm", _maxTravel);
+        handler.item("steps_per_mm", _stepsPerMm, 0.001, 100000.0);
+        handler.item("max_rate_mm_per_min", _maxRate, 0.001, 100000.0);
+        handler.item("acceleration_mm_per_sec2", _acceleration, 0.001, 100000.0);
+        handler.item("max_travel_mm", _maxTravel, 0.1, 10000000.0);
         handler.item("soft_limits", _softLimits);
         handler.section("homing", _homing);
 
@@ -28,6 +28,10 @@ namespace Machine {
         uint32_t stepRate = uint32_t(_stepsPerMm * _maxRate / 60.0);
         auto     maxRate  = config->_stepping->maxPulsesPerSec();
         Assert(stepRate <= maxRate, "Stepping rate %d steps/sec exceeds the maximum rate %d", stepRate, maxRate);
+        if (_homing == nullptr) {
+            _homing         = new Homing();
+            _homing->_cycle = 0;
+        }
     }
 
     void Axis::init() {
@@ -41,6 +45,11 @@ namespace Machine {
         if (_homing) {
             _homing->init();
             set_bitnum(Axes::homingMask, _axis);
+        }
+
+        if (!_motors[0] && _motors[1]) {
+            sys.state = State::ConfigAlarm;
+            log_error("motor1 defined without motor0");
         }
 
         // If dual motors and only one motor has switches, this is the configuration
@@ -85,9 +94,25 @@ namespace Machine {
         return count;
     }
 
+    float Axis::commonPulloff() {
+        auto motor0Pulloff = _motors[0]->_pulloff;
+        if (hasDualMotor()) {
+            auto motor1Pulloff = _motors[1]->_pulloff;
+            return std::min(motor0Pulloff, motor1Pulloff);
+        } else {
+            return motor0Pulloff;
+        }
+    }
+
     // returns the offset between the pulloffs
     // value is positive when motor1 has a larger pulloff
-    float Axis::pulloffOffset() { return hasDualMotor() ? _motors[1]->_pulloff - _motors[0]->_pulloff : 0.0f; }
+    float Axis::extraPulloff() {
+        if (hasDualMotor()) {
+            return _motors[1]->_pulloff - _motors[0]->_pulloff;
+        } else {
+            return 0.0f;
+        }
+    }
 
     Axis::~Axis() {
         for (size_t i = 0; i < MAX_MOTORS_PER_AXIS; i++) {

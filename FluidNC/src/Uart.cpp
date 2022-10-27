@@ -8,18 +8,10 @@
 #include "Logging.h"
 #include "Uart.h"
 
-#include <esp_system.h>
-#include <soc/uart_reg.h>
-#include <soc/io_mux_reg.h>
-#include <soc/gpio_sig_map.h>
-#include <soc/dport_reg.h>
-#include <soc/rtc.h>
 #include <driver/uart.h>
-#include <esp32-hal-gpio.h>  // GPIO_NUM_1 etc
+#include <esp_ipc.h>
 
-#include "lineedit.h"
-
-Uart::Uart(int uart_num, bool addCR) : Channel("uart", addCR), _pushback(-1) {
+Uart::Uart(int uart_num, bool addCR) : Channel("uart", addCR) {
     // Auto-assign Uart harware engine numbers; the pins will be
     // assigned to the engines separately
     static int currentNumber = 1;
@@ -45,12 +37,15 @@ void Uart::begin(unsigned long baudrate) {
     }
 
     begin(baudrate, dataBits, stopBits, parity);
-    // Hmm.. TODO FIXME: if (uart_param_config(_uart_num, &conf) != ESP_OK) { ... } -> should assert?!
 }
 
 // Use the configured baud rate
 void Uart::begin() {
     begin(static_cast<unsigned long>(baud));
+}
+
+static void uart_driver_n_install(void* arg) {
+    uart_driver_install((uart_port_t)arg, 256, 0, 0, NULL, ESP_INTR_FLAG_IRAM);
 }
 
 void Uart::begin(unsigned long baudrate, UartData dataBits, UartStop stopBits, UartParity parity) {
@@ -62,26 +57,36 @@ void Uart::begin(unsigned long baudrate, UartData dataBits, UartStop stopBits, U
     conf.stop_bits           = uart_stop_bits_t(stopBits);
     conf.flow_ctrl           = UART_HW_FLOWCTRL_DISABLE;
     conf.rx_flow_ctrl_thresh = 0;
-    conf.use_ref_tick        = false;
     if (uart_param_config(_uart_num, &conf) != ESP_OK) {
+        // TODO FIXME - should this throw an error?
         return;
     };
-    uart_driver_install(_uart_num, 256, 0, 0, NULL, 0);
+
+    // We init the UART on core 0 so the interrupt handler runs there,
+    // thus avoiding conflict with the StepTimer interrupt
+    esp_ipc_call_blocking(0, uart_driver_n_install, (void*)_uart_num);
 }
 
 int Uart::available() {
     size_t size = 0;
     uart_get_buffered_data_len(_uart_num, &size);
-    return size + (_pushback >= 0);
+    return size + (_pushback != -1);
 }
 
 int Uart::peek() {
-    _pushback = read();
-    return _pushback;
+    if (_pushback != -1) {
+        return _pushback;
+    }
+    int ch = read();
+    if (ch == -1) {
+        return -1;
+    }
+    _pushback = ch;
+    return ch;
 }
 
 int Uart::read(TickType_t timeout) {
-    if (_pushback >= 0) {
+    if (_pushback != -1) {
         int ret   = _pushback;
         _pushback = -1;
         return ret;
@@ -90,6 +95,7 @@ int Uart::read(TickType_t timeout) {
     int     res = uart_read_bytes(_uart_num, &c, 1, timeout);
     return res == 1 ? c : -1;
 }
+
 int Uart::read() {
     return read(0);
 }
@@ -98,65 +104,49 @@ int Uart::rx_buffer_available() {
     return UART_FIFO_LEN - available();
 }
 
+bool Uart::realtimeOkay(char c) {
+    return _lineedit->realtime(c);
+}
+
+bool Uart::lineComplete(char* line, char c) {
+    if (_lineedit->step(c)) {
+        _linelen        = _lineedit->finish();
+        _line[_linelen] = '\0';
+        strcpy(line, _line);
+        _linelen = 0;
+        return true;
+    }
+    return false;
+}
+
 Channel* Uart::pollLine(char* line) {
-    // For now we only allow UART0 to be a channel input device
+    // UART0 is the only Uart instance that can be a channel input device
     // Other UART users like RS485 use it as a dumb character device
     if (_lineedit == nullptr) {
         return nullptr;
     }
-    while (1) {
-        int ch;
-        if (line && _queue.size()) {
-            ch = _queue.front();
-            _queue.pop();
-        } else {
-            ch = read();
-        }
-
-        // ch will only be negative if read() was called and returned -1
-        // The _queue path will return only nonnegative character values
-        if (ch < 0) {
-            break;
-        }
-        if (_lineedit->realtime(ch) && is_realtime_command(ch)) {
-            execute_realtime_command(static_cast<Cmd>(ch), *this);
-            continue;
-        }
-        if (line) {
-            if (_lineedit->step(ch)) {
-                _linelen        = _lineedit->finish();
-                _line[_linelen] = '\0';
-                strcpy(line, _line);
-                _linelen = 0;
-                return this;
-            }
-        } else {
-            // If we are not able to handle a line we save the character
-            // until later
-            _queue.push(uint8_t(ch));
-        }
-    }
     autoReport();
-    return nullptr;
+    return Channel::pollLine(line);
 }
 
-size_t Uart::readBytes(char* buffer, size_t length, TickType_t timeout) {
-    bool pushback = _pushback >= 0;
-    if (pushback && length) {
-        *buffer++ = _pushback;
-        _pushback = -1;
-        --length;
+size_t Uart::timedReadBytes(char* buffer, size_t length, TickType_t timeout) {
+    // It is likely that _queue will be empty because timedReadBytes() is only
+    // used in situations where the UART is not receiving GCode commands
+    // and Grbl realtime characters.
+    size_t remlen = length;
+    while (remlen && _queue.size()) {
+        *buffer++ = _queue.front();
+        _queue.pop();
     }
-    int res = uart_read_bytes(_uart_num, (uint8_t*)buffer, length, timeout);
-    // The Stream class version of readBytes never returns -1,
-    // so if uart_read_bytes returns -1, we change that to 0
-    return pushback + (res >= 0 ? res : 0);
-}
-size_t Uart::readBytes(char* buffer, size_t length) {
-    return readBytes(buffer, length, (TickType_t)0);
+
+    int res = uart_read_bytes(_uart_num, (uint8_t*)buffer, remlen, timeout);
+    // If res < 0, no bytes were read
+    remlen -= (res < 0) ? 0 : res;
+    return length - remlen;
 }
 size_t Uart::write(uint8_t c) {
-    return uart_write_bytes(_uart_num, (char*)&c, 1);
+    // Use Uart::write(buf, len) instead of uart_write_bytes() for _addCR
+    return write(&c, 1);
 }
 
 size_t Uart::write(const uint8_t* buffer, size_t length) {
@@ -205,11 +195,15 @@ bool Uart::flushTxTimed(TickType_t ticks) {
 Uart Uart0(0, true);  // Primary serial channel with LF to CRLF conversion
 
 void uartInit() {
-    Uart0.setPins(GPIO_NUM_1, GPIO_NUM_3);  // Tx 1, Rx 3 - standard hardware pins
     Uart0.begin(BAUD_RATE, UartData::Bits8, UartStop::Bits1, UartParity::None);
-    Uart0.println();  // create some white space after ESP32 boot info
 }
 
 void Uart::config_message(const char* prefix, const char* usage) {
     log_info(prefix << usage << "Uart Tx:" << _txd_pin.name() << " Rx:" << _rxd_pin.name() << " RTS:" << _rts_pin.name() << " Baud:" << baud);
+}
+
+void Uart::flushRx() {
+    _pushback = -1;
+    uart_flush_input(_uart_num);
+    Channel::flushRx();
 }

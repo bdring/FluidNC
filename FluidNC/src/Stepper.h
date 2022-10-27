@@ -14,13 +14,18 @@
 #include <cstdint>
 
 namespace Stepper {
-    void pulse_func();
+    void init();
+
+    bool pulse_func();
 
     // Enable steppers, but cycle does not start unless called by motion control or realtime command.
     void wake_up();
 
-    // Stops stepping
+    // Stops stepping and disables stepper (not ISR-safe)
     void go_idle();
+
+    // Stops stepping (ISR-safe)
+    void stop_stepping();
 
     // Reset the stepper subsystem variables
     void reset();
@@ -40,15 +45,5 @@ namespace Stepper {
     // Called by realtime status reporting if realtime rate reporting is enabled in config.h.
     float get_realtime_rate();
 
-    extern uint32_t isr_count;  // for debugging only
+    extern uint32_t isr_count;
 }
-#ifdef DEBUG_STEPPING
-extern uint32_t st_seq;
-extern uint32_t st_seq0;
-extern uint32_t pl_seq0;
-extern uint32_t seg_seq0;
-extern uint32_t seg_seq1;
-extern uint32_t seg_seq_act;
-extern uint32_t seg_seq_exp;
-
-#endif

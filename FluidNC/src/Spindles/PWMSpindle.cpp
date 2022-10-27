@@ -10,8 +10,6 @@
 #include "../System.h"  // sys
 #include "../GCode.h"   // gc_state.modal
 #include "../Logging.h"
-#include "../Pins/LedcPin.h"
-#include <esp32-hal-ledc.h>  // ledcDetachPin
 
 // ======================= PWM ==============================
 /*
@@ -21,30 +19,21 @@
 
 namespace Spindles {
     void PWM::init() {
-        if (_pwm_freq == 0) {
-            log_error(name() << " PWM frequency is 0.");
-            return;
-        }
+        is_reversable = _direction_pin.defined();
 
-        get_pins_and_settings();
-        setupSpeeds(_pwm_freq);
-
-        if (_output_pin.undefined()) {
-            log_warn(name() << " output pin not defined");
-            return;  // We cannot continue without the output pin
-        }
-
-        if (!_output_pin.capabilities().has(Pin::Capabilities::PWM)) {
-            log_warn(name() << " output pin " << _output_pin.name().c_str() << " cannot do PWM");
-            return;
+        if (_output_pin.defined()) {
+            if (_output_pin.capabilities().has(Pin::Capabilities::PWM)) {
+                auto outputNative = _output_pin.getNative(Pin::Capabilities::PWM);
+                _pwm              = new PwmPin(_output_pin, _pwm_freq);
+            } else {
+                log_error(name() << " output pin " << _output_pin.name().c_str() << " cannot do PWM");
+            }
+        } else {
+            log_error(name() << " output pin not defined");
         }
 
         _current_state    = SpindleState::Disable;
         _current_pwm_duty = 0;
-
-        auto outputNative = _output_pin.getNative(Pin::Capabilities::PWM);
-
-        _pwm_chan_num = ledcInit(_output_pin, -1, (double)_pwm_freq, _pwm_precision);
 
         _enable_pin.setAttr(Pin::Attr::Output);
         _direction_pin.setAttr(Pin::Attr::Output);
@@ -53,18 +42,8 @@ namespace Spindles {
             // The default speed map for a PWM spindle is linear from 0=0% to 10000=100%
             linearSpeeds(10000, 100.0f);
         }
-        setupSpeeds(_pwm_period);
+        setupSpeeds(_pwm->period());
         config_message();
-    }
-
-    // Get the GPIO from the machine definition
-    void PWM::get_pins_and_settings() {
-        // setup all the pins
-
-        is_reversable = _direction_pin.defined();
-
-        _pwm_precision = calc_pwm_precision(_pwm_freq);  // determine the best precision
-        _pwm_period    = (1 << _pwm_precision);
     }
 
     void IRAM_ATTR PWM::setSpeedfromISR(uint32_t dev_speed) {
@@ -76,6 +55,10 @@ namespace Spindles {
     void PWM::setState(SpindleState state, SpindleSpeed speed) {
         if (sys.abort) {
             return;  // Block during abort.
+        }
+
+        if (!_output_pin.defined()) {
+            log_warn(name() << " spindle output_pin not defined");
         }
 
         // We always use mapSpeed() with the unmodified input speed so it sets
@@ -110,49 +93,31 @@ namespace Spindles {
     // prints the startup message of the spindle config
     void PWM::config_message() {
         log_info(name() << " Spindle Ena:" << _enable_pin.name() << " Out:" << _output_pin.name() << " Dir:" << _direction_pin.name()
-                        << " Freq:" << _pwm_freq << "Hz Res:" << _pwm_precision << "bits"
+                        << " Freq:" << _pwm->frequency() << "Hz Period:" << _pwm->period()
 
         );
     }
 
     void IRAM_ATTR PWM::set_output(uint32_t duty) {
-        if (_output_pin.undefined()) {
+        if (!_pwm) {
             return;
         }
 
-        // to prevent excessive calls to ledcSetDuty, make sure duty has changed
+        // to prevent excessive calls to pwmSetDuty, make sure duty has changed
         if (duty == _current_pwm_duty) {
             return;
         }
 
         _current_pwm_duty = duty;
-
-        ledcSetDuty(_pwm_chan_num, duty);
-    }
-
-    /*
-		Calculate the highest precision of a PWM based on the frequency in bits
-
-		80,000,000 / freq = period
-		determine the highest precision where (1 << precision) < period
-	*/
-    uint8_t PWM::calc_pwm_precision(uint32_t freq) {
-        uint8_t precision = 0;
-        if (freq == 0) {
-            return precision;
-        }
-
-        // increase the precision (bits) until it exceeds allow by frequency the max or is 16
-        while ((1u << precision) < uint32_t(80000000 / freq) && precision <= 16) {
-            precision++;
-        }
-
-        return precision - 1;
+        _pwm->setDuty(duty);
     }
 
     void PWM::deinit() {
         stop();
-        ledcDetachPin(_output_pin.getNative(Pin::Capabilities::PWM));
+        if (_pwm) {
+            delete _pwm;
+            _pwm = nullptr;
+        }
         _output_pin.setAttr(Pin::Attr::Input);
         _enable_pin.setAttr(Pin::Attr::Input);
         _direction_pin.setAttr(Pin::Attr::Input);

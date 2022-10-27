@@ -4,30 +4,42 @@
 
 #pragma once
 
-#include "../Configuration/Configurable.h"
-#include "../System.h"  // AxisMask, MotorMask
+#include "src/Configuration/Configurable.h"
+#include "src/System.h"    // AxisMask, MotorMask
+#include "src/Protocol.h"  // ExecAlarm
+#include <queue>
 
 namespace Machine {
     class Homing : public Configuration::Configurable {
-        // The return value is the setting time
-        static uint32_t plan_move(MotorMask motors, bool approach, bool seek, float customPulloff);
-
-        static bool squaredOneSwitch(MotorMask motors);
-        static bool squaredStressfree(MotorMask motors);
-        static void set_mpos(AxisMask axisMask);
-
-        static const int REPORT_LINE_NUMBER = 0;
-
     public:
+        static enum Phase {
+            None         = 0,
+            PrePulloff   = 1,
+            FastApproach = 2,
+            Pulloff0     = 3,
+            SlowApproach = 4,
+            Pulloff1     = 5,
+            Pulloff2     = 6,
+            CycleDone    = 7,
+        } _phase;
+
         Homing() = default;
 
         static const int AllCycles = 0;  // Must be zero.
+
+        static bool approach() { return _phase == FastApproach || _phase == SlowApproach; }
+
+        static void fail(ExecAlarm alarm);
+        static void cycleStop();
 
         static void run_cycles(AxisMask axisMask);
         static void run_one_cycle(AxisMask axisMask);
 
         static AxisMask axis_mask_from_cycle(int cycle);
-        static void     run(MotorMask remainingMotors, bool approach, bool seek, float customPulloff);
+        static void     run(MotorMask remainingMotors, Phase phase);
+
+        static void startMove(AxisMask axisMask, MotorMask motors, Phase phase, uint32_t& settle_ms);
+        static void axisVector(AxisMask axisMask, MotorMask motors, Phase phase, float* target, float& rate, uint32_t& settle_ms);
 
         // The homing cycles are 1,2,3 etc.  0 means not homed as part of home-all,
         // but you can still home it manually with e.g. $HA
@@ -45,18 +57,45 @@ namespace Machine {
         void validate() const override { Assert(_cycle >= 0, "Homing cycle must be defined"); }
 
         void group(Configuration::HandlerBase& handler) override {
-            handler.item("cycle", _cycle);
+            handler.item("cycle", _cycle, -1, 6);
             handler.item("allow_single_axis", _allow_single_axis);
             handler.item("positive_direction", _positiveDirection);
             handler.item("mpos_mm", _mpos);
-            handler.item("feed_mm_per_min", _feedRate);
-            handler.item("seek_mm_per_min", _seekRate);
-            handler.item("settle_ms", _settle_ms);
-            handler.item("seek_scaler", _seek_scaler);
-            handler.item("feed_scaler", _feed_scaler);
+            handler.item("feed_mm_per_min", _feedRate, 1.0, 100000.0);
+            handler.item("seek_mm_per_min", _seekRate, 1.0, 100000.0);
+            handler.item("settle_ms", _settle_ms, 0, 1000);
+            handler.item("seek_scaler", _seek_scaler, 1.0, 100.0);
+            handler.item("feed_scaler", _feed_scaler, 1.0, 100.0);
         }
 
         void init() {}
-    };
 
+        static void set_mpos();
+
+        static const int REPORT_LINE_NUMBER = 0;
+
+        static bool needsPulloff2(MotorMask motors);
+
+        static void limitReached();
+
+    private:
+        static uint32_t planMove(AxisMask axisMask, MotorMask motors, Phase phase, float* target, float& rate);
+
+        static void done();
+        static void runPhase();
+        static void nextPhase();
+        static void nextCycle();
+
+        static MotorMask _cycleMotors;  // Motors for this cycle
+        static MotorMask _phaseMotors;  // Motors still running in this phase
+        static AxisMask  _cycleAxes;    // Axes for this cycle
+        static AxisMask  _phaseAxes;    // Axes still active in this phase
+
+        static std::queue<int> _remainingCycles;
+
+        static uint32_t _settling_ms;
+
+        static const char* _phaseNames[];
+        static const char* phaseName(Phase phase) { return _phaseNames[static_cast<int>(phase)]; }
+    };
 }

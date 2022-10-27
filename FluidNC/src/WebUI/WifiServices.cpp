@@ -24,8 +24,7 @@ namespace WebUI {
 #    include "Commands.h"
 
 #    include <WiFi.h>
-#    include <FS.h>
-#    include <SPIFFS.h>
+#    include "Driver/localfs.h"
 #    include <ESPmDNS.h>
 #    include <ArduinoOTA.h>
 #    include "WebSettings.h"
@@ -50,10 +49,9 @@ namespace WebUI {
                 String type;
                 if (ArduinoOTA.getCommand() == U_FLASH) {
                     type = "sketch";
-                } else {  // U_SPIFFS
-                    // NOTE: if updating SPIFFS this would be the place to unmount SPIFFS using SPIFFS.end()
+                } else {
                     type = "filesystem";
-                    SPIFFS.end();
+                    localfs_unmount();
                 }
                 log_info("Start OTA updating " << type);
             })
@@ -95,18 +93,18 @@ namespace WebUI {
                 log_info("Start mDNS with hostname:http://" << h << ".local/");
             }
         }
-        web_server.begin();
-        telnet_server.begin();
-        notificationsservice.begin();
+        webServer.begin();
+        telnetServer.begin();
+        notificationsService.begin();
 
         //be sure we are not is mixed mode in setup
         WiFi.scanNetworks(true);
         return no_error;
     }
     void WiFiServices::end() {
-        notificationsservice.end();
-        telnet_server.end();
-        web_server.end();
+        notificationsService.end();
+        telnetServer.end();
+        webServer.end();
 
         //stop OTA
         ArduinoOTA.end();
@@ -116,7 +114,6 @@ namespace WebUI {
     }
 
     void WiFiServices::handle() {
-        COMMANDS::wait(0);
         //to avoid mixed mode due to scan network
         if (WiFi.getMode() == WIFI_AP_STA) {
             // In principle it should be sufficient to check for != WIFI_SCAN_RUNNING,
@@ -127,7 +124,8 @@ namespace WebUI {
             }
         }
         ArduinoOTA.handle();
-        web_server.handle();
+        webServer.handle();
+        telnetServer.handle();
     }
 }
 #endif

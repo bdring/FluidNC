@@ -13,6 +13,7 @@
 #include "../WebUI/BTConfig.h"
 #include "../Control.h"
 #include "../Probe.h"
+#include "src/Parking.h"
 #include "../SDCard.h"
 #include "../Spindles/Spindle.h"
 #include "../Stepping.h"
@@ -67,12 +68,15 @@ namespace Machine {
         SDCard*               _sdCard      = nullptr;
         Macros*               _macros      = nullptr;
         Start*                _start       = nullptr;
+        Parking*              _parking     = nullptr;
         Spindles::SpindleList _spindles;
 
         float _arcTolerance      = 0.002f;
         float _junctionDeviation = 0.01f;
         bool  _verboseErrors     = false;
         bool  _reportInches      = false;
+
+        size_t _planner_blocks = 16;
 
         // Enables a special set of M-code commands that enables and disables the parking motion.
         // These are controlled by `M56`, `M56 P1`, or `M56 Px` to enable and `M56 P0` to disable.
@@ -105,3 +109,11 @@ namespace Machine {
 }
 
 extern Machine::MachineConfig* config;
+
+template <typename T>
+void copyAxes(T* dest, T* src) {
+    auto n_axis = config->_axes->_numberAxis;
+    for (size_t axis = 0; axis < n_axis; axis++) {
+        dest[axis] = src[axis];
+    }
+}

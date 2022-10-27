@@ -38,6 +38,10 @@ enum class Cmd : uint8_t {
     SafetyDoor            = 0x84,
     JogCancel             = 0x85,
     DebugReport           = 0x86,  // Only when DEBUG_REPORT_REALTIME enabled, sends debug report in '{}' braces.
+    Macro0                = 0x87,
+    Macro1                = 0x88,
+    Macro2                = 0x89,
+    Macro3                = 0x8a,
     FeedOvrReset          = 0x90,  // Restores feed override value to 100%.
     FeedOvrCoarsePlus     = 0x91,
     FeedOvrCoarseMinus    = 0x92,
@@ -55,10 +59,6 @@ enum class Cmd : uint8_t {
     SpindleOvrStop        = 0x9E,
     CoolantFloodOvrToggle = 0xA0,
     CoolantMistOvrToggle  = 0xA1,
-#ifdef DEBUG_STEPPING
-    TestPl = '^',
-    TestSt = '%',
-#endif
 };
 
 bool is_realtime_command(uint8_t data);
@@ -79,15 +79,7 @@ public:
     size_t write(uint8_t data) override;
     size_t write(const uint8_t* buffer, size_t length) override;
 
-    // Stub implementations to satisfy Stream requirements
-    int  available() override { return 0; }
-    int  read() { return -1; }
-    int  peek() { return -1; }
-    void flush() {}
-
-    // All channels cannot be a direct command source so
-    // its rx_buffer_available() method should not be called.
-    int rx_buffer_available() override { return 0; }
+    void flushRx();
 
     String info();
 

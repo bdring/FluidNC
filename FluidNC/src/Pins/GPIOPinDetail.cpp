@@ -68,8 +68,7 @@ namespace Pins {
             case 9:
             case 10:
             case 11:
-                return PinCapabilities::Native | PinCapabilities::Input | PinCapabilities::Output | PinCapabilities::PWM |
-                       PinCapabilities::ISR | PinCapabilities::UART;
+                return PinCapabilities::Reserved;
 
             case 34:  // Input only pins
             case 35:
@@ -92,6 +91,7 @@ namespace Pins {
         // WILL get into trouble.
 
         Assert(index < nGPIOPins, "Pin number is greater than max %d", nGPIOPins - 1);
+        Assert(_capabilities != PinCapabilities::Reserved, "Unusable GPIO");
         Assert(_capabilities != PinCapabilities::None, "Unavailable GPIO");
         Assert(!_claimed[index], "Pin is already used.");
 
@@ -129,12 +129,15 @@ namespace Pins {
     PinCapabilities GPIOPinDetail::capabilities() const { return _capabilities; }
 
     void IRAM_ATTR GPIOPinDetail::write(int high) {
-        if (!_attributes.has(PinAttributes::Output)) {
-            log_error(toString());
+        if (high != _lastWrittenValue) {
+            _lastWrittenValue = high;
+            if (!_attributes.has(PinAttributes::Output)) {
+                log_error(toString());
+            }
+            Assert(_attributes.has(PinAttributes::Output), "Pin %s cannot be written", toString().c_str());
+            int value = _readWriteMask ^ high;
+            __digitalWrite(_index, value);
         }
-        Assert(_attributes.has(PinAttributes::Output), "Pin %s cannot be written", toString().c_str());
-        int value = _readWriteMask ^ high;
-        __digitalWrite(_index, value);
     }
     int IRAM_ATTR GPIOPinDetail::read() {
         auto raw = __digitalRead(_index);
@@ -161,7 +164,8 @@ namespace Pins {
 
         if (value.has(PinAttributes::Input)) {
             pinModeValue |= INPUT;
-        } else if (value.has(PinAttributes::Output)) {
+        }
+        if (value.has(PinAttributes::Output)) {
             pinModeValue |= OUTPUT;
         }
 

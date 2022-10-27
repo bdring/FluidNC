@@ -4,6 +4,8 @@
 #pragma once
 
 #include <Print.h>
+#include <IPAddress.h>
+#include <string>
 
 #include "Pin.h"
 
@@ -18,6 +20,11 @@ inline Print& operator<<(Print& lhs, const char* v) {
 }
 
 inline Print& operator<<(Print& lhs, String v) {
+    lhs.print(v.c_str());
+    return lhs;
+}
+
+inline Print& operator<<(Print& lhs, std::string v) {
     lhs.print(v.c_str());
     return lhs;
 }
@@ -49,6 +56,11 @@ inline Print& operator<<(Print& lhs, double v) {
 
 inline Print& operator<<(Print& lhs, const Pin& v) {
     lhs.print(v.name());
+    return lhs;
+}
+
+inline Print& operator<<(Print& lhs, IPAddress a) {
+    lhs.print(a.toString());
     return lhs;
 }
 

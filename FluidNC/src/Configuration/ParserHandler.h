@@ -51,8 +51,8 @@ namespace Configuration {
                                       << _parser.token_.indent_);
 #endif
                     if (_parser.token_.indent_ > thisIndent) {
-                        log_error("Skipping key " << _parser.key().str() << " indent " << _parser.token_.indent_ << " thisIndent "
-                                                 << thisIndent);
+                        log_error("Skipping key " << _parser.key().str() << " indent " << _parser.token_.indent_ << " this indent "
+                                                  << thisIndent);
                     } else {
 #ifdef DEBUG_VERBOSE_YAML_PARSER
                         log_debug("Parsing key " << _parser.key().str());
@@ -102,6 +102,7 @@ namespace Configuration {
         void item(const char* name, int32_t& value, int32_t minValue, int32_t maxValue) override {
             if (_parser.is(name)) {
                 value = _parser.intValue();
+                constrain_with_message(value, minValue, maxValue, name);
             }
         }
 
@@ -120,6 +121,7 @@ namespace Configuration {
         void item(const char* name, float& value, float minValue, float maxValue) override {
             if (_parser.is(name)) {
                 value = _parser.floatValue();
+                constrain_with_message(value, minValue, maxValue, name);
             }
         }
 

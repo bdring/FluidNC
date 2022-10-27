@@ -9,6 +9,8 @@
 
 from __future__ import absolute_import
 
+VERSION = 'v1.2.0'
+
 import codecs
 import os
 from re import split
@@ -234,6 +236,9 @@ if os.name == 'nt':  # noqa
             hwnd = ctypes.windll.kernel32.GetConsoleWindow()
             ctypes.windll.user32.PostMessageA(hwnd, 0x100, 0x0d, 0)
 
+        def clear_screen(self):
+            os.system('cls');
+
 elif os.name == 'posix':
     import atexit
     import termios
@@ -252,6 +257,7 @@ elif os.name == 'posix':
 
         def setup(self):
             new = termios.tcgetattr(self.fd)
+            new[0] = new[0] & ~termios.IXON
             new[3] = new[3] & ~termios.ICANON & ~termios.ECHO & ~termios.ISIG
             new[6][termios.VMIN] = 1
             new[6][termios.VTIME] = 0
@@ -268,6 +274,9 @@ elif os.name == 'posix':
 
         def cleanup(self):
             termios.tcsetattr(self.fd, termios.TCSAFLUSH, self.old)
+
+        def clear_screen(self):
+            self.write('\x1b[2J')
 
 else:
     raise NotImplementedError(
@@ -538,6 +547,7 @@ class Miniterm(object):
         self.filters = ['fluidNC']
         self.update_transformations()
         self.exit_character = unichr(0x1d)  # GS/CTRL+]
+        self.exit_character2 = unichr(0x11)  # GS/CTRL+Q
         self.menu_character = unichr(0x14)  # Menu: CTRL+T
         self.alive = None
         self._reader_alive = None
@@ -702,11 +712,13 @@ class Miniterm(object):
                 for c in data:
                     if not self.alive:
                         break
+                    if c == '\x17':     # CTRL+W -> clear screen
+                        self.console.clear_screen()
                     if c == '\x15':     # CTRL+U -> upload file with XModem
                         self.upload_xmodem()
                     elif c == '\x12':   # CTRL+R -> reset FluidNC
                         self.reset_fluidnc()
-                    elif c == self.exit_character:
+                    elif c == self.exit_character or c == self.exit_character2 or c == unichr(3):
                         self.stop()             # exit app
                         break
                     else:
@@ -721,10 +733,11 @@ class Miniterm(object):
         except:
             self.alive = False
             raise
+        self.disable_fluid_echo();
 
     def handle_menu_key(self, c):
         """Implement a simple menu / settings"""
-        if c == self.menu_character or c == self.exit_character:
+        if c == self.menu_character or c == self.exit_character or c == self.exit_character2:
             # Menu/exit character again -> send itself
             self.serial.write(self.tx_encoder.encode(c))
             if self.echo:
@@ -905,6 +918,10 @@ class Miniterm(object):
         right_arrow = '\x1b[C'
         self.serial.write(self.tx_encoder.encode(right_arrow))
 
+    def disable_fluid_echo(self):
+        ctrl_l = '\x0c'
+        self.serial.write(self.tx_encoder.encode(ctrl_l))
+
     def reset_fluidnc(self):
         """Pulse the reset line for FluidNC"""
         self.console.write("Resetting MCU\n")
@@ -1046,7 +1063,7 @@ class Miniterm(object):
             sys.stderr.write('--- Quit: {exit} | p: port change | any other key to reconnect ---\n'.format(
                 exit=key_description(self.exit_character)))
             k = self.console.getkey()
-            if k == self.exit_character:
+            if k == self.exit_character or c == self.exit_character2:
                 self.stop()             # exit app
                 break
             elif k in 'pP':
@@ -1093,6 +1110,7 @@ class Miniterm(object):
 ---    r R        disable/enable hardware flow control
 """.format(version=getattr(serial, 'VERSION', 'unknown version'),
            exit=key_description(self.exit_character),
+           exit2=key_description(self.exit_character2),
            menu=key_description(self.menu_character),
            rts=key_description('\x12'),
            dtr=key_description('\x04'),
@@ -1318,10 +1336,11 @@ def main(default_port=None, default_baudrate=115200, default_rts=None, default_d
     miniterm.set_tx_encoding(args.serial_port_encoding)
 
     if not args.quiet:
-        sys.stderr.write('--- Fluidterm on {p.name}  {p.baudrate},{p.bytesize},{p.parity},{p.stopbits} ---\n'.format(
+        sys.stderr.write('--- FluidTerm ' + VERSION + ' on {p.name}  {p.baudrate},{p.bytesize},{p.parity},{p.stopbits} ---\n'.format(
             p=miniterm.serial))
-        sys.stderr.write('--- Quit: {} | Upload: {} | Reset: {} ---\n'.format(
+        sys.stderr.write('--- Quit: {} or {} | Upload: {} | Reset: {} | ClearScreen: Ctrl+W ---\n'.format(
             key_description(miniterm.exit_character),
+            key_description(miniterm.exit_character2),
             key_description('\x15'),
             key_description('\x12')))
 

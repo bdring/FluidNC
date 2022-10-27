@@ -10,6 +10,8 @@
 #include "../Configuration/Configurable.h"
 #include "../Configuration/GenericFactory.h"
 
+#include "src/GCode.h"  // MaxToolNumber
+
 // ===============  No floats! ===========================
 // ================ NO FLOATS! ==========================
 
@@ -35,7 +37,7 @@ namespace Spindles {
         void     shelfSpeeds(SpindleSpeed min, SpindleSpeed max);
         void     linearSpeeds(SpindleSpeed maxSpeed, float maxPercent);
 
-        static void switchSpindle(uint8_t new_tool, SpindleList spindles, Spindle*& spindle);
+        static void switchSpindle(uint32_t new_tool, SpindleList spindles, Spindle*& spindle);
 
         void         spindleDelay(SpindleState state, SpindleSpeed speed);
         virtual void init() = 0;  // not in constructor because this also gets called when $$ settings change
@@ -65,6 +67,8 @@ namespace Spindles {
 
         std::vector<Configuration::speedEntry> _speeds;
 
+        bool _off_on_alarm = false;
+
         // Name is required for the configuration factory to work.
         virtual const char* name() const = 0;
 
@@ -76,13 +80,13 @@ namespace Spindles {
         void afterParse() override;
 
         void group(Configuration::HandlerBase& handler) override {
-             if (use_delay_settings()) {
-                handler.item("spinup_ms", _spinup_ms);            
-                handler.item("spindown_ms", _spindown_ms);
-            }            
-            handler.item("tool_num", _tool);
+            if (use_delay_settings()) {
+                handler.item("spinup_ms", _spinup_ms, 0, 20000);
+                handler.item("spindown_ms", _spindown_ms, 0, 20000);
+            }
+            handler.item("tool_num", _tool, 0, MaxToolNumber);
             handler.item("speed_map", _speeds);
-                
+            handler.item("off_on_alarm", _off_on_alarm);
         }
 
         // Virtual base classes require a virtual destructor.

@@ -13,20 +13,12 @@ namespace Configuration {
         while (!IsEndLine()) {
             Inc();
         }
+        Inc();
     }
 
-    Tokenizer::Tokenizer(const char* start, const char* end) : current_(start), end_(end), start_(start), token_() {
-        // If start is a yaml document start ('---' [newline]), skip that first.
-        if (EqualsCaseInsensitive("---")) {
-            for (int i = 0; i < 3; ++i) {
-                Inc();
-            }
-            skipToEol();
-            start_ = current_;
-        }
-    }
+    Tokenizer::Tokenizer(const char* start, const char* end) : current_(start), end_(end), start_(start), line_(0), token_() {}
 
-    void Tokenizer::ParseError(const char* description) const { throw ParseException(start_, current_, description); }
+    void Tokenizer::ParseError(const char* description) const { throw ParseException(line_, description); }
 
     void Tokenizer::Tokenize() {
         // Release a held token
@@ -44,6 +36,8 @@ namespace Configuration {
         // is at the start of the line.
 
     parseAgain:
+        ++line_;
+
         int indent = 0;
 
         while (!Eof() && IsSpace()) {
@@ -60,7 +54,7 @@ namespace Configuration {
         }
         switch (Current()) {
             case '\t':
-                ParseError("Tabs are not allowed. Use spaces for indentation.");
+                ParseError("Use spaces, not tabs, for indentation");
                 break;
 
             case '#':  // Comment till end of line
@@ -83,7 +77,7 @@ namespace Configuration {
 
             default:
                 if (!IsIdentifierChar()) {
-                    ParseError("Expected identifier.");
+                    ParseError("Invalid character");
                 }
 
                 token_.keyStart_ = current_;
@@ -99,7 +93,10 @@ namespace Configuration {
                 }
 
                 if (Current() != ':') {
-                    ParseError("Keys must be followed by ':'");
+                    String err = "Key ";
+                    err += StringRange(token_.keyStart_, token_.keyEnd_).str();
+                    err += "must be followed by ':'";
+                    ParseError(err.c_str());
                 }
                 Inc();
 

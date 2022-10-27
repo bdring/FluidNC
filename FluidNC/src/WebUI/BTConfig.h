@@ -20,6 +20,7 @@ namespace WebUI {
 #    include "../Configuration/Configurable.h"
 #    include "../Config.h"    // ENABLE_*
 #    include "../Settings.h"  // ENABLE_*
+#    include "../lineedit.h"
 
 #    include <WString.h>
 #    include <BluetoothSerial.h>
@@ -34,18 +35,25 @@ namespace WebUI {
 
     class BTChannel : public Channel {
     private:
+        Lineedit* _lineedit;
+
     public:
         // BTChannel(bool addCR = false) : _linelen(0), _addCR(addCR) {}
-        BTChannel() : Channel("bluetooth", true) {}
+        BTChannel() : Channel("bluetooth", true) { _lineedit = new Lineedit(this, _line, Channel::maxLine - 1); }
         virtual ~BTChannel() = default;
 
-        int    available() override { return SerialBT.available(); }
-        int    read() override { return SerialBT.read(); }
-        int    peek() override { return SerialBT.peek(); }
-        void   flush() override { return SerialBT.flush(); }
+        int    available() override;
+        int    read() override;
+        int    peek() override;
+        void   flush() override { SerialBT.flush(); }
         size_t write(uint8_t data) override;
         // 512 is RX_QUEUE_SIZE which is defined in BluetoothSerial.cpp but not in its .h
-        int rx_buffer_available() override { return 512 - available(); }
+        int rx_buffer_available() override { return 512 - SerialBT.available(); }
+
+        bool realtimeOkay(char c) override;
+        bool lineComplete(char* line, char c) override;
+
+        Channel* pollLine(char* line) override;
     };
     extern BTChannel btChannel;
 

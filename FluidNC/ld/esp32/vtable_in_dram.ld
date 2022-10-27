@@ -13,8 +13,10 @@
     *NullMotor.cpp.o(.rodata .rodata.* .xt.prop .xt.prop.*)
     *RcServo.cpp.o(.rodata .rodata.* .xt.prop .xt.prop.*)
     *Servo.cpp.o(.rodata .rodata.* .xt.prop .xt.prop.*)
+    *Solenoid.cpp.o(.rodata .rodata.* .xt.prop .xt.prop.*)
     *StandardStepper.cpp.o(.rodata .rodata.* .xt.prop .xt.prop.*)
     *StepStick.cpp.o(.rodata .rodata.* .xt.prop .xt.prop.*)
+    *TMC*Driver.cpp.o(.rodata .rodata.* .xt.prop .xt.prop.*)
     *TrinamicBase.cpp.o(.rodata .rodata.* .xt.prop .xt.prop.*)
     *TrinamicSpiDriver.cpp.o(.rodata .rodata.* .xt.prop .xt.prop.*)
     *TrinamicUartDriver.cpp.o(.rodata .rodata.* .xt.prop .xt.prop.*)
@@ -22,5 +24,5 @@
 
     /* Pin Details */
     **Detail.cpp.o(.rodata .rodata.* .xt.prop .xt.prop.*)
-    *LedcPin.cpp.o(.rodata .rodata.* .xt.prop .xt.prop.*)
+    *PwmPin.cpp.o(.rodata .rodata.* .xt.prop .xt.prop.*)
     *Pin.cpp.o(.rodata .rodata.* .xt.prop .xt.prop.*)
