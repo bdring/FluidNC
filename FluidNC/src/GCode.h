@@ -96,11 +96,12 @@ enum class ArcDistance : uint8_t {
 
 // Modal Group M4: Program flow
 enum class ProgramFlow : uint8_t {
-    Running      = 0,   // (Default: Must be zero)
-    Paused       = 3,   // M0
-    OptionalStop = 1,   // M1 NOTE: Not supported, but valid and ignored.
-    CompletedM2  = 2,   // M2 (Do not alter value)
-    CompletedM30 = 30,  // M30 (Do not alter value)
+    Running      = 0,    // (Default: Must be zero)
+    Paused       = 3,    // M0
+    OptionalStop = 1,    // M1 NOTE: Not supported, but valid and ignored.
+    CompletedM2  = 2,    // M2 (Do not alter value)
+    CompletedM30 = 30,   // M30 (Do not alter value)
+    StartJobM100 = 100,  // M100 (Do not alter value)
 };
 
 // Modal Group G5: Feed rate mode
@@ -308,3 +309,4 @@ void gc_sync_position();
 
 void user_tool_change(uint32_t new_tool);
 void user_m30();
+void user_m100();

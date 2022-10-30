@@ -57,6 +57,9 @@ namespace WebUI {
     IntSetting* wifi_ap_channel;
 
     StringSetting* wifi_hostname;
+    StringSetting* URL_ToCall;
+    StringSetting* CMD_EndJob;
+    StringSetting* CMD_StartJob;
 
     enum_opt_t staModeOptions = {
         { "DHCP", DHCP_MODE },
@@ -234,6 +237,10 @@ namespace WebUI {
 
     WiFiConfig::WiFiConfig() {
         new WebCommand(NULL, WEBCMD, WU, "ESP410", "WiFi/ListAPs", listAPs);
+
+        URL_ToCall   = new StringSetting("URL to call", WEBSET, WA, "NULL", "URLToCall", DEFAULT_URLTOCALL, 0, 255, NULL);
+        CMD_EndJob   = new StringSetting("CMD End Job", WEBSET, WA, "NULL", "CMDEndJob", DEFAULT_CMDENDJOB, 0, 255, NULL);
+        CMD_StartJob = new StringSetting("CMD Start Job", WEBSET, WA, "NULL", "CMDStartJob", DEFAULT_CMDSTARTJOB, 0, 255, NULL);
 
         wifi_hostname = new StringSetting("Hostname",
                                           WEBSET,
