@@ -25,6 +25,10 @@
 /* 32-bit mode: 1000000 usec / ((160000000 Hz) /  5 / 2) x 32 bit/pulse x 2(stereo) = 4 usec/pulse */
 const uint32_t I2S_OUT_USEC_PER_PULSE = 4;
 
+// This value is empirically determined.  It might depend on I2S_OUT_USEC_PULSE but
+// the root cause of the limitation has not been analyzed so that is just a guess.
+const uint32_t I2S_STREAM_MAX_USEC_PER_PULSE = 20;
+
 constexpr uint32_t i2s_out_max_steps_per_sec = 1000000 / (2 * I2S_OUT_USEC_PER_PULSE);
 
 const int I2S_OUT_DMABUF_COUNT = 5;    /* number of DMA buffers to store data */
