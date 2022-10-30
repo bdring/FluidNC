@@ -583,6 +583,11 @@ Error gc_execute_line(char* line, Channel& channel) {
                         gc_block.modal.io_control = IoControl::SetAnalogImmediate;
                         mg_word_bit               = ModalGroup::MM10;
                         break;
+                    case 100:
+                        // M100 - User defined - start program
+                        gc_block.modal.program_flow = ProgramFlow::StartJobM100;
+                        mg_word_bit                 = ModalGroup::MM4;
+                        break;
                     default:
                         FAIL(Error::GcodeUnsupportedCommand);  // [Unsupported M command]
                 }
@@ -1343,9 +1348,7 @@ Error gc_execute_line(char* line, Channel& channel) {
         // JogCancelled is not reported as a GCode error
         return status == Error::JogCancelled ? Error::Ok : status;
     }
-    
 
-    
     // If in laser mode, setup laser power based on current and past parser conditions.
     if (spindle->isRateAdjusted()) {
         bool blockIsFeedrateMotion = (gc_block.modal.motion == Motion::Linear) || (gc_block.modal.motion == Motion::CwArc) ||
@@ -1434,7 +1437,7 @@ Error gc_execute_line(char* line, Channel& channel) {
         gc_state.modal.spindle = gc_block.modal.spindle;
     }
     pl_data->spindle = gc_state.modal.spindle;
- 
+
     //CVI : no longer needed with latest change from Bdring
     //If laser mode and motion is G0 (fast movement) -> clear PWM
     /*if ( spindle->isRateAdjusted() &&  gc_block.modal.motion == Motion::Seek ) {
@@ -1685,6 +1688,9 @@ Error gc_execute_line(char* line, Channel& channel) {
             report_feedback_message(Message::ProgramEnd);
             user_m30();
             break;
+        case ProgramFlow::StartJobM100:
+            user_m100();
+            break;
     }
     gc_state.modal.program_flow = ProgramFlow::Running;  // Reset program flow.
 
@@ -1717,7 +1723,17 @@ Error gc_execute_line(char* line, Channel& channel) {
    group 13 = {G61.1, G64} path control mode (G61 is supported)
 */
 
-void WEAK_LINK user_m30() {}
+extern void   CallURL(String cmd);
+extern String GetCMDEndPrg();
+extern String GetCMDStartPrg();
+
+void WEAK_LINK user_m30() {
+    CallURL(GetCMDEndPrg());
+}
+
+void WEAK_LINK user_m100() {
+    CallURL(GetCMDStartPrg());
+}
 
 void WEAK_LINK user_tool_change(uint8_t new_tool) {
     Spindles::Spindle::switchSpindle(new_tool, config->_spindles, spindle);

@@ -57,13 +57,18 @@ namespace WebUI {
     IntSetting* wifi_ap_channel;
 
     StringSetting* wifi_hostname;
+    StringSetting* URL_ToCall;
+    StringSetting* CMD_EndJob;
+    StringSetting* CMD_StartJob;
 
     enum_opt_t staModeOptions = {
         { "DHCP", DHCP_MODE },
         { "Static", STATIC_MODE },
     };
 
-    static void print_mac(const char* s, String mac, Channel& out) { out << s << " (" << mac << ")\n"; }
+    static void print_mac(const char* s, String mac, Channel& out) {
+        out << s << " (" << mac << ")\n";
+    }
 
     static Error showIP(char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP111
         out << parameter << (WiFi.getMode() == WIFI_STA ? WiFi.localIP() : WiFi.softAPIP()).toString() << '\n';
@@ -232,6 +237,10 @@ namespace WebUI {
 
     WiFiConfig::WiFiConfig() {
         new WebCommand(NULL, WEBCMD, WU, "ESP410", "WiFi/ListAPs", listAPs);
+
+        URL_ToCall   = new StringSetting("URL to call", WEBSET, WA, "NULL", "URLToCall", DEFAULT_URLTOCALL, 0, 255, NULL);
+        CMD_EndJob   = new StringSetting("CMD End Job", WEBSET, WA, "NULL", "CMDEndJob", DEFAULT_CMDENDJOB, 0, 255, NULL);
+        CMD_StartJob = new StringSetting("CMD Start Job", WEBSET, WA, "NULL", "CMDStartJob", DEFAULT_CMDSTARTJOB, 0, 255, NULL);
 
         wifi_hostname = new StringSetting("Hostname",
                                           WEBSET,
@@ -723,7 +732,9 @@ namespace WebUI {
     /**
      * End WiFi
      */
-    void WiFiConfig::end() { StopWiFi(); }
+    void WiFiConfig::end() {
+        StopWiFi();
+    }
 
     /**
      * Reset ESP
@@ -743,12 +754,16 @@ namespace WebUI {
         }
         log_info("WiFi reset done");
     }
-    bool WiFiConfig::isOn() { return !(WiFi.getMode() == WIFI_MODE_NULL); }
+    bool WiFiConfig::isOn() {
+        return !(WiFi.getMode() == WIFI_MODE_NULL);
+    }
 
     /**
      * Handle not critical actions that must be done in sync environment
      */
-    void WiFiConfig::handle() { wifi_services.handle(); }
+    void WiFiConfig::handle() {
+        wifi_services.handle();
+    }
 
     Error WiFiConfig::listAPs(char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP410
         JSONencoder j(false, out);
@@ -787,6 +802,8 @@ namespace WebUI {
         return Error::Ok;
     }
 
-    WiFiConfig::~WiFiConfig() { end(); }
+    WiFiConfig::~WiFiConfig() {
+        end();
+    }
 }
 #endif
