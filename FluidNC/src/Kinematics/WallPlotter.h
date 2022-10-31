@@ -45,9 +45,7 @@ namespace Kinematics {
         // State
         float zero_left;   //  The left cord offset corresponding to cartesian (0, 0).
         float zero_right;  //  The right cord offset corresponding to cartesian (0, 0).
-        float last_left;   //  The last produced left cord length.
-        float last_right;  //  The last produced right cord length.
-        float last_z;      //  The last produced z value.
+        float last_motor_segment_end[MAX_N_AXIS];
 
         // Parameters
         int   _left_axis     = 0;
