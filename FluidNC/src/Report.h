@@ -15,21 +15,6 @@
 #include <cstdint>
 #include <freertos/FreeRTOS.h>  // UBaseType_t
 
-// Enabling this sends back an echo of each received line, which has been pre-parsed (spaces
-// removed, capitalized letters, no comments) prior to its execution. Echoes will not be
-// sent upon a line buffer overflow. For example, if a user
-// sendss the line 'g1 x1.032 y2.45 (test comment)', it will be echoed in the form '[echo: G1X1.032Y2.45]'.
-// Only GCode lines are echoed, not command lines starting with $ or [ESP.
-// NOTE: Only use this for debugging purposes!! When echoing, this takes up valuable resources and can effect
-// performance. If absolutely needed for normal operation, the serial write buffer should be greatly increased
-// to help minimize transmission waiting within the serial write protocol.
-//#define DEBUG_REPORT_ECHO_LINE_RECEIVED // Default disabled. Uncomment to enable.
-
-// This is similar to DEBUG_REPORT_ECHO_LINE_RECEIVED and subject to all its caveats,
-// but instead of echoing the pre-parsed line, it echos the raw line exactly as
-// received, including not only GCode lines, but also $ and [ESP commands.
-//#define DEBUG_REPORT_ECHO_RAW_LINE_RECEIVED // Default disabled. Uncomment to enable.
-
 // Define status reporting boolean enable bit flags in status_report_mask
 enum RtStatus {
     Position = bitnum_to_mask(0),

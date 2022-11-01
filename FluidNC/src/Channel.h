@@ -17,6 +17,8 @@
 #pragma once
 
 #include "Error.h"  // Error
+#include "GCode.h"  // gc_modal_t
+#include "Types.h"  // State
 #include <Stream.h>
 #include <queue>
 #include <freertos/FreeRTOS.h>  // TickType_T
@@ -33,6 +35,15 @@ protected:
     char        _lastWasCR = false;
 
     std::queue<uint8_t> _queue;
+
+    uint32_t _reportInterval = 0;
+    int32_t  _nextReportTime = 0;
+
+    gc_modal_t _lastModal;
+    uint8_t    _lastTool;
+    float      _lastSpindleSpeed;
+    float      _lastFeedRate;
+    State      _lastState;
 
 public:
     Channel(const char* name, bool addCR = false) : _name(name), _linelen(0), _addCR(addCR) {}
@@ -79,4 +90,9 @@ public:
     int peek() override { return -1; }
     int read() override { return -1; }
     int available() override { return 0; }
+
+    uint32_t setReportInterval(uint32_t ms);
+    uint32_t getReportInterval() { return _reportInterval; }
+    void     autoReport();
+    void     autoReportGCodeState();
 };

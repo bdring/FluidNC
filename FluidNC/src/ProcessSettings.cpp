@@ -493,7 +493,7 @@ static Error doJog(const char* value, WebUI::AuthenticationLevel auth_level, Cha
     char jogLine[LINE_BUFFER_SIZE];
     strcpy(jogLine, "$J=");
     strcat(jogLine, value);
-    return gc_execute_line(jogLine, out);
+    return gc_execute_line(jogLine);
 }
 
 static const char* alarmString(ExecAlarm alarmNumber) {
@@ -716,6 +716,32 @@ static Error showGPIOs(const char* value, WebUI::AuthenticationLevel auth_level,
     return Error::Ok;
 }
 
+static Error setReportInterval(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+    if (!value) {
+        uint32_t actual = out.getReportInterval();
+        if (actual) {
+            log_info("Channel auto report interval is " << actual << " ms");
+        } else {
+            log_info("Channel auto reporting is off");
+        }
+        return Error::Ok;
+    }
+    char*    endptr;
+    uint32_t intValue = strtol(value, &endptr, 10);
+
+    if (endptr == value || *endptr != '\0') {
+        return Error::BadNumberFormat;
+    }
+
+    uint32_t actual = out.setReportInterval(intValue);
+    if (actual) {
+        log_info("Channel auto report interval set to " << actual << " ms");
+    } else {
+        log_info("Channel auto reporting turned off");
+    }
+    return Error::Ok;
+}
+
 // Commands use the same syntax as Settings, but instead of setting or
 // displaying a persistent value, a command causes some action to occur.
 // That action could be anything, from displaying a run-time parameter
@@ -766,6 +792,8 @@ void make_user_commands() {
     new UserCommand("RST", "Settings/Restore", restore_settings, notIdleOrAlarm, WA);
 
     new UserCommand("SS", "Startup/Show", showStartupLog, anyState);
+
+    new UserCommand("RI", "Report/Interval", setReportInterval, anyState);
 
     new UserCommand("30", "FakeMaxSpindleSpeed", fakeMaxSpindleSpeed, notIdleOrAlarm);
     new UserCommand("32", "FakeLaserMode", fakeLaserMode, notIdleOrAlarm);
@@ -958,7 +986,7 @@ void settings_execute_startup() {
             // gc_execute_line modifies the line while parsing.
             char gcline[256];
             strncpy(gcline, s, 255);
-            status_code = gc_execute_line(gcline, Uart0);
+            status_code = gc_execute_line(gcline);
             Uart0 << ">" << gcline << ":";
             report_status_message(status_code, Uart0);
         }
@@ -978,9 +1006,9 @@ Error execute_line(char* line, Channel& channel, WebUI::AuthenticationLevel auth
     if (sys.state == State::Alarm || sys.state == State::ConfigAlarm || sys.state == State::Jog) {
         return Error::SystemGcLock;
     }
-    Error result = gc_execute_line(line, channel);
+    Error result = gc_execute_line(line);
     if (result != Error::Ok) {
-        log_debug("Bad GCode: " << line);
+        log_debug_to(channel, "Bad GCode: " << line);
     }
     return result;
 }

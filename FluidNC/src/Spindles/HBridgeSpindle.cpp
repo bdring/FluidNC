@@ -5,6 +5,7 @@
 
 #include "../GCode.h"  // gc_state.modal
 #include "../Logging.h"
+#include "../System.h"      // sys
 #include "Driver/PwmPin.h"  // pwmInit(), etc.
 
 namespace Spindles {

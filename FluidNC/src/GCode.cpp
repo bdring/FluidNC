@@ -138,12 +138,9 @@ static void gc_wco_changed() {
 // In this function, all units and positions are converted and
 // exported to internal functions in terms of (mm, mm/min) and absolute machine
 // coordinates, respectively.
-Error gc_execute_line(char* line, Channel& channel) {
+Error gc_execute_line(char* line) {
     // Step 0 - remove whitespace and comments and convert to upper case
     collapseGCode(line);
-#ifdef DEBUG_REPORT_ECHO_LINE_RECEIVED
-    report_echo_line_received(line, channel);
-#endif
 
     /* -------------------------------------------------------------------------------------
        STEP 1: Initialize parser block struct and copy current g-code state modes. The parser
