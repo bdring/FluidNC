@@ -739,6 +739,12 @@ static Error setReportInterval(const char* value, WebUI::AuthenticationLevel aut
     } else {
         log_info("Channel auto reporting turned off");
     }
+
+    // Send a full status report immediately so the client has all the data
+    report_wco_counter = 0;
+    report_ovr_counter = 0;
+    protocol_send_event(&reportStatusEvent, int(&out));
+
     return Error::Ok;
 }
 
