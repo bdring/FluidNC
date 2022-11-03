@@ -44,6 +44,9 @@ protected:
     float      _lastSpindleSpeed;
     float      _lastFeedRate;
     State      _lastState;
+    MotorMask  _lastLimits;
+
+    bool _reportChanged = true;
 
 public:
     Channel(const char* name, bool addCR = false) : _name(name), _linelen(0), _addCR(addCR) {}
@@ -86,6 +89,8 @@ public:
         _addCR      = on;
         return retval;
     }
+
+    void notifyChange() { _reportChanged = true; }
 
     int peek() override { return -1; }
     int read() override { return -1; }

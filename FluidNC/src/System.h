@@ -67,7 +67,9 @@ void     set_motor_steps_from_mpos(float* mpos);
 int32_t* get_motor_steps();
 
 // Updates a machine position array from a steps array
-void   motor_steps_to_mpos(float* position, int32_t* steps);
+void motor_steps_to_mpos(float* position, int32_t* steps);
+
 float* get_mpos();
+float* get_wco();
 
 bool inMotionState();  // True if moving, i.e. the stepping engine is active

@@ -219,6 +219,12 @@ size_t AllChannels::write(uint8_t data) {
     }
     return 1;
 }
+void AllChannels::notifyChange(void) {
+    for (auto channel : _channelq) {
+        channel->notifyChange();
+    }
+}
+
 size_t AllChannels::write(const uint8_t* buffer, size_t length) {
     for (auto channel : _channelq) {
         channel->write(buffer, length);

@@ -81,6 +81,8 @@ public:
 
     void flushRx();
 
+    void notifyChange();
+
     String info();
 
     Channel* pollLine(char* line) override;

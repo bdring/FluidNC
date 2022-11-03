@@ -19,27 +19,8 @@ enum class DwellMode : uint8_t {
 
 const float SOME_LARGE_VALUE = 1.0E+38f;
 
-// Axis array index values. Must start with 0 and be continuous.
-// Note: You set the number of axes used by changing MAX_N_AXIS.
-// Be sure to define pins or servos in the machine definition file.
-const int X_AXIS = 0;  // Axis indexing value.
-const int Y_AXIS = 1;
-const int Z_AXIS = 2;
-const int A_AXIS = 3;
-const int B_AXIS = 4;
-const int C_AXIS = 5;
-
-const int MAX_AXES = 6;
-
-const int X2_AXIS = (X_AXIS + MAX_AXES);
-const int Y2_AXIS = (Y_AXIS + MAX_AXES);
-const int Z2_AXIS = (Z_AXIS + MAX_AXES);
-const int A2_AXIS = (A_AXIS + MAX_AXES);
-const int B2_AXIS = (B_AXIS + MAX_AXES);
-const int C2_AXIS = (C_AXIS + MAX_AXES);
-
 static inline int toMotor2(int axis) {
-    return axis + MAX_AXES;
+    return axis + MAX_N_AXIS;
 }
 
 // Conversions

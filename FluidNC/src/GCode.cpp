@@ -10,7 +10,6 @@
 #include "Config.h"
 #include "Report.h"
 #include "Jog.h"
-#include "NutsBolts.h"
 #include "Protocol.h"             // protocol_buffer_synchronize
 #include "MotionControl.h"        // mc_override_ctrl_update
 #include "Machine/UserOutputs.h"  // setAnalogPercent
@@ -130,6 +129,7 @@ static void gc_wco_changed() {
         protocol_buffer_synchronize();
     }
     report_wco_counter = 0;
+    allChannels.notifyChange();
 }
 
 // Executes one line of NUL-terminated G-Code.
@@ -1416,6 +1416,7 @@ Error gc_execute_line(char* line) {
     }
     // [7. Spindle control ]:
     if (gc_state.modal.spindle != gc_block.modal.spindle) {
+        allChannels.notifyChange();
         // Update spindle control and apply spindle speed when enabling it in this block.
         // NOTE: All spindle state changes are synced, even in laser mode. Also, pl_data,
         // rather than gc_state, is used to manage laser state for non-laser motions.
@@ -1434,6 +1435,7 @@ Error gc_execute_line(char* line) {
     // you can turn them off simultaneously with M9.  You can turn them off separately
     // with real-time overrides, but that is out of the scope of GCode.
     if (gc_block.coolant != GCodeCoolant::None) {
+        allChannels.notifyChange();
         switch (gc_block.coolant) {
             case GCodeCoolant::None:
                 break;

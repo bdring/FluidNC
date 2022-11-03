@@ -4,6 +4,7 @@
 #include "Channel.h"
 #include "Machine/MachineConfig.h"  // config
 #include "Serial.h"                 // execute_realtime_command
+#include "Limits.h"
 
 void Channel::flushRx() {
     _linelen   = 0;
@@ -89,8 +90,12 @@ static bool motionState() {
 
 void Channel::autoReport() {
     if (_reportInterval) {
-        if (sys.state != _lastState || (motionState() && (int32_t(xTaskGetTickCount()) - _nextReportTime) >= 0)) {
+        auto limitState = limits_get_state();
+        if (_reportChanged || sys.state != _lastState || limitState != _lastLimits ||
+            (motionState() && (int32_t(xTaskGetTickCount()) - _nextReportTime) >= 0)) {
+            _reportChanged  = false;
             _lastState      = sys.state;
+            _lastLimits     = limitState;
             _nextReportTime = xTaskGetTickCount() + _reportInterval;
             report_realtime_status(*this);
         }

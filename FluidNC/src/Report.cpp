@@ -487,19 +487,6 @@ void addPinReport(char* status, char pinLetter) {
     status[pos + 1] = '\0';
 }
 
-static float* get_wco() {
-    static float wco[MAX_N_AXIS];
-    auto         n_axis = config->_axes->_numberAxis;
-    for (int idx = 0; idx < n_axis; idx++) {
-        // Apply work coordinate offsets and tool length offset to current position.
-        wco[idx] = gc_state.coord_system[idx] + gc_state.coord_offset[idx];
-        if (idx == TOOL_LENGTH_OFFSET_AXIS) {
-            wco[idx] += gc_state.tool_length_offset;
-        }
-    }
-    return wco;
-}
-
 void mpos_to_wpos(float* position) {
     float* wco    = get_wco();
     auto   n_axis = config->_axes->_numberAxis;
