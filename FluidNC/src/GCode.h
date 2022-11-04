@@ -223,10 +223,10 @@ enum CoordIndex : uint8_t {
     // G59_2,
     // G59_3,
     NWCSystems,
-    G28 = NWCSystems,
-    G30,
-    // G92_2,
-    // G92_3,
+    G28 = NWCSystems,  // Home0
+    G30,               // Home1
+    G92,               // Temporary work offset
+    TLO,               // Tool Length Offset, affected by G43.1 and G49
     End,
 };
 

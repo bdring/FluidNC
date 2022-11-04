@@ -91,16 +91,20 @@ static bool motionState() {
 void Channel::autoReport() {
     if (_reportInterval) {
         auto limitState = limits_get_state();
-        if (_reportChanged || sys.state != _lastState || limitState != _lastLimits ||
+        if (_reportWco || sys.state != _lastState || limitState != _lastLimits ||
             (motionState() && (int32_t(xTaskGetTickCount()) - _nextReportTime) >= 0)) {
-            if (_reportChanged) {
+            if (_reportWco) {
                 report_wco_counter = 0;
             }
-            _reportChanged  = false;
+            _reportWco      = false;
             _lastState      = sys.state;
             _lastLimits     = limitState;
             _nextReportTime = xTaskGetTickCount() + _reportInterval;
             report_realtime_status(*this);
+        }
+        if (_reportNgc != CoordIndex::End) {
+            report_ngc_coord(_reportNgc, *this);
+            _reportNgc = CoordIndex::End;
         }
         autoReportGCodeState();
     }

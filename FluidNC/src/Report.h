@@ -67,6 +67,8 @@ void report_realtime_status(Channel& channel);
 // Prints recorded probe position
 void report_probe_parameters(Print& channel);
 
+void report_ngc_coord(CoordIndex coord, Print& channel);
+
 // Prints NGC parameters (coordinate offsets, probe)
 void report_ngc_parameters(Print& channel);
 

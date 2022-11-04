@@ -46,7 +46,8 @@ protected:
     State      _lastState;
     MotorMask  _lastLimits;
 
-    bool _reportChanged = true;
+    bool       _reportWco = true;
+    CoordIndex _reportNgc = CoordIndex::End;
 
 public:
     Channel(const char* name, bool addCR = false) : _name(name), _linelen(0), _addCR(addCR) {}
@@ -90,7 +91,8 @@ public:
         return retval;
     }
 
-    void notifyChange() { _reportChanged = true; }
+    void notifyWco() { _reportWco = true; }
+    void notifyNgc(CoordIndex coord) { _reportNgc = coord; }
 
     int peek() override { return -1; }
     int read() override { return -1; }

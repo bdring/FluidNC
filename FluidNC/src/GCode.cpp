@@ -124,11 +124,15 @@ void collapseGCode(char* line) {
     *outPtr = '\0';
 }
 
+static void gc_ngc_changed(CoordIndex coord) {
+    allChannels.notifyNgc(coord);
+}
+
 static void gc_wco_changed() {
     if (FORCE_BUFFER_SYNC_DURING_WCO_CHANGE) {
         protocol_buffer_synchronize();
     }
-    allChannels.notifyChange();
+    allChannels.notifyWco();
 }
 
 // Executes one line of NUL-terminated G-Code.
@@ -903,6 +907,7 @@ Error gc_execute_line(char* line) {
     //   axis that is configured (in config.h). There should be an error if the configured axis
     //   is absent or if any of the other axis words are present.
     if (axis_command == AxisCommand::ToolLengthOffset) {  // Indicates called in block.
+        gc_ngc_changed(CoordIndex::TLO);
         if (gc_block.modal.tool_length == ToolLengthOffset::EnableDynamic) {
             if (axis_words ^ bitnum_to_mask(TOOL_LENGTH_OFFSET_AXIS)) {
                 FAIL(Error::GcodeG43DynamicAxisError);
@@ -986,6 +991,7 @@ Error gc_execute_line(char* line) {
                     }
                 }  // Else, keep current stored value.
             }
+            gc_ngc_changed(static_cast<CoordIndex>(coord_select));
             break;
         case NonModal::SetCoordinateOffset:
             // [G92 Errors]: No axis words.
@@ -1005,6 +1011,7 @@ Error gc_execute_line(char* line) {
                     gc_block.values.xyz[idx] = gc_state.coord_offset[idx];
                 }
             }
+            gc_ngc_changed(CoordIndex::G92);
             break;
         default:
             // At this point, the rest of the explicit axis commands treat the axis values as the traditional
@@ -1415,7 +1422,6 @@ Error gc_execute_line(char* line) {
     }
     // [7. Spindle control ]:
     if (gc_state.modal.spindle != gc_block.modal.spindle) {
-        allChannels.notifyChange();
         // Update spindle control and apply spindle speed when enabling it in this block.
         // NOTE: All spindle state changes are synced, even in laser mode. Also, pl_data,
         // rather than gc_state, is used to manage laser state for non-laser motions.
@@ -1434,7 +1440,6 @@ Error gc_execute_line(char* line) {
     // you can turn them off simultaneously with M9.  You can turn them off separately
     // with real-time overrides, but that is out of the scope of GCode.
     if (gc_block.coolant != GCodeCoolant::None) {
-        allChannels.notifyChange();
         switch (gc_block.coolant) {
             case GCodeCoolant::None:
                 break;
@@ -1519,7 +1524,6 @@ Error gc_execute_line(char* line) {
         // else G43.1
         if (gc_state.tool_length_offset != gc_block.values.xyz[TOOL_LENGTH_OFFSET_AXIS]) {
             gc_state.tool_length_offset = gc_block.values.xyz[TOOL_LENGTH_OFFSET_AXIS];
-            gc_wco_changed();
         }
     }
     // [15. Coordinate system selection ]:
@@ -1556,16 +1560,20 @@ Error gc_execute_line(char* line) {
             break;
         case NonModal::SetHome0:
             coords[CoordIndex::G28]->set(gc_state.position);
+            gc_ngc_changed(CoordIndex::G28);
             break;
         case NonModal::SetHome1:
             coords[CoordIndex::G30]->set(gc_state.position);
+            gc_ngc_changed(CoordIndex::G30);
             break;
         case NonModal::SetCoordinateOffset:
             copyAxes(gc_state.coord_offset, gc_block.values.xyz);
+            gc_ngc_changed(CoordIndex::G92);
             gc_wco_changed();
             break;
         case NonModal::ResetCoordinateOffset:
             clear_vector(gc_state.coord_offset);  // Disable G92 offsets by zeroing offset vector.
+            gc_ngc_changed(CoordIndex::G92);
             gc_wco_changed();
             break;
         default:

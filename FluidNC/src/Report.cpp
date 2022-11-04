@@ -256,26 +256,34 @@ void report_probe_parameters(Print& channel) {
 }
 
 // Prints NGC parameters (coordinate offsets, probing)
-void report_ngc_parameters(Print& channel) {
-    // Print persistent offsets G54 - G59, G28, and G30
-    for (auto coord_select = CoordIndex::Begin; coord_select < CoordIndex::End; ++coord_select) {
-        channel << '[' << coords[coord_select]->getName() << ":";
-        report_util_axis_values(coords[coord_select]->get(), channel);
+void report_g92(Print& channel) {}
+void report_tlo(Print& channel) {}
+
+void report_ngc_coord(CoordIndex coord, Print& channel) {
+    if (coord == CoordIndex::TLO) {  // Non-persistent tool length offset
+        float tlo      = gc_state.tool_length_offset;
+        int   decimals = 3;
+        if (config->_reportInches) {
+            tlo *= INCH_PER_MM;
+            decimals = 4;
+        }
+        channel << "[TLO:" << setprecision(decimals) << tlo << "]\n";
+        return;
+    }
+    if (coord == CoordIndex::G92) {  // Non-persistent G92 offset
+        channel << "[G92:";
+        report_util_axis_values(gc_state.coord_offset, channel);
         channel << "]\n";
+        return;
     }
-    // Print non-persistent G92,G92.1
-    channel << "[G92:";
-    report_util_axis_values(gc_state.coord_offset, channel);
+    // Persistent offsets G54 - G59, G28, and G30
+    channel << '[' << coords[coord]->getName() << ":";
+    report_util_axis_values(coords[coord]->get(), channel);
     channel << "]\n";
-    // Print tool length offset
-    channel << "[TLO:";
-    float tlo = gc_state.tool_length_offset;
-    if (config->_reportInches) {
-        tlo *= INCH_PER_MM;
-    }
-    channel << setprecision(3) << tlo << "]\n";
-    if (probe_succeeded) {
-        report_probe_parameters(channel);
+}
+void report_ngc_parameters(Print& channel) {
+    for (auto coord = CoordIndex::Begin; coord < CoordIndex::End; ++coord) {
+        report_ngc_coord(coord, channel);
     }
 }
 

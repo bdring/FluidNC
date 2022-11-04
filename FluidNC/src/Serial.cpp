@@ -219,9 +219,14 @@ size_t AllChannels::write(uint8_t data) {
     }
     return 1;
 }
-void AllChannels::notifyChange(void) {
+void AllChannels::notifyWco(void) {
     for (auto channel : _channelq) {
-        channel->notifyChange();
+        channel->notifyWco();
+    }
+}
+void AllChannels::notifyNgc(CoordIndex coord) {
+    for (auto channel : _channelq) {
+        channel->notifyNgc(coord);
     }
 }
 
