@@ -93,6 +93,9 @@ void Channel::autoReport() {
         auto limitState = limits_get_state();
         if (_reportChanged || sys.state != _lastState || limitState != _lastLimits ||
             (motionState() && (int32_t(xTaskGetTickCount()) - _nextReportTime) >= 0)) {
+            if (_reportChanged) {
+                report_wco_counter = 0;
+            }
             _reportChanged  = false;
             _lastState      = sys.state;
             _lastLimits     = limitState;

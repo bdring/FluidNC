@@ -128,7 +128,6 @@ static void gc_wco_changed() {
     if (FORCE_BUFFER_SYNC_DURING_WCO_CHANGE) {
         protocol_buffer_synchronize();
     }
-    report_wco_counter = 0;
     allChannels.notifyChange();
 }
 
