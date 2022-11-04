@@ -81,7 +81,8 @@ public:
 
     void flushRx();
 
-    void notifyChange();
+    void notifyWco();
+    void notifyNgc(CoordIndex coord);
 
     String info();
 
