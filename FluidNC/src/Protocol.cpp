@@ -83,13 +83,80 @@ static int32_t idleEndTime = 0;
 /*
   PRIMARY LOOP:
 */
-Channel* exclusiveChannel = nullptr;
-
 static void request_safety_door() {
     rtSafetyDoor = true;
 }
 
-void protocol_main_loop() {
+Channel* activeChannel = nullptr;
+
+char activeLine[Channel::maxLine];
+
+void polling_loop(void* unused) {
+    log_debug("Polling loop on core " << xPortGetCoreID());
+    // Poll the input sources waiting for a complete line to arrive
+    for (; true; feedLoopWDT(), vTaskDelay(0)) {
+        if (activeChannel) {
+            // Poll for realtime characters when waiting for the primary loop
+            // (in another thread) to pick up the line.
+            pollChannels();
+            continue;
+        }
+
+        if (infile) {
+            // Polling without an argument checks for realtime characters
+            pollChannels();
+            if (readyNext) {
+                readyNext     = false;
+                activeChannel = &infile->getChannel();
+                switch (auto err = infile->readLine(activeLine, Channel::maxLine)) {
+                    case Error::Ok:
+                        break;
+                    case Error::Eof:
+                        _notifyf("File job done", "%s file job succeeded", infile->path());
+                        *activeChannel << "[MSG:" << infile->path() << " file job succeeded]\n";
+                        delete infile;
+                        infile = nullptr;
+                        break;
+                    default:
+                        *activeChannel << "[MSG: ERR:" << static_cast<int>(err) << " (" << errorString(err) << ") in " << infile->path()
+                                       << " at line " << infile->getLineNumber() << "]\n";
+                        delete infile;
+                        infile = nullptr;
+                        break;
+                }
+            }
+        } else {
+            // Polling without an argument both checks for realtime characters and
+            // returns a line-oriented command if one is ready.
+            activeChannel = pollChannels(activeLine);
+        }
+    }
+}
+
+TaskHandle_t pollingTask = nullptr;
+
+void stop_polling() {
+    if (pollingTask) {
+        vTaskSuspend(pollingTask);
+    }
+}
+
+void start_polling() {
+    if (pollingTask) {
+        vTaskResume(pollingTask);
+    } else {
+        xTaskCreatePinnedToCore(polling_loop,      // task
+                                "poller",          // name for task
+                                8192,              // size of task stack
+                                0,                 // parameters
+                                1,                 // priority
+                                &pollingTask,      // task handle
+                                SUPPORT_TASK_CORE  // core
+        );
+    }
+}
+
+static void check_startup_state() {
     // Check for and report alarm state after a reset, error, or an initial power up.
     // NOTE: Sleep mode disables the stepper drivers and position can't be guaranteed.
     // Re-initialize the sleep state as an ALARM mode to ensure user homes or acknowledges.
@@ -113,7 +180,7 @@ void protocol_main_loop() {
         } else {
             // Check if the safety door is open.
             sys.state = State::Idle;
-            if (config->_control->safety_door_ajar()) {
+            while (config->_control->safety_door_ajar()) {
                 request_safety_door();
                 protocol_execute_realtime();  // Enter safety door mode. Should return as IDLE state.
             }
@@ -121,61 +188,37 @@ void protocol_main_loop() {
             settings_execute_startup();  // Execute startup script.
         }
     }
+}
+
+void protocol_main_loop() {
+    log_debug("Protocol loop on core " << xPortGetCoreID());
+
+    check_startup_state();
+    start_polling();
 
     // ---------------------------------------------------------------------------------
     // Primary loop! Upon a system abort, this exits back to main() to reset the system.
     // This is also where the system idles while waiting for something to do.
     // ---------------------------------------------------------------------------------
-    for (;;) {
-        // Poll the input sources waiting for a complete line to arrive
-        while (true) {
-            Channel* chan = nullptr;
-            char     line[Channel::maxLine];
-            protocol_execute_realtime();  // Runtime command check point.
-            if (sys.abort) {
-                return;  // Bail to calling function upon system abort
-            }
-
-            if (infile) {
-                pollChannels();
-                if (readyNext) {
-                    readyNext = false;
-                    chan      = &infile->getChannel();
-                    switch (auto err = infile->readLine(line, Channel::maxLine)) {
-                        case Error::Ok:
-                            break;
-                        case Error::Eof:
-                            _notifyf("File job done", "%s file job succeeded", infile->path());
-                            *chan << "[MSG:" << infile->path() << " file job succeeded]\n";
-                            delete infile;
-                            infile = nullptr;
-                            break;
-                        default:
-                            *chan << "[MSG: ERR:" << static_cast<int>(err) << " (" << errorString(err) << ") in " << infile->path()
-                                  << " at line " << infile->getLineNumber() << "]\n";
-                            delete infile;
-                            infile = nullptr;
-                            break;
-                    }
-                }
-            } else {
-                chan = pollChannels(line);
-            }
-            if (chan == nullptr) {
-                break;
-            }
+    for (;; vTaskDelay(0)) {
+        if (activeChannel) {
+            // The input polling task has collected a line of input
 #ifdef DEBUG_REPORT_ECHO_RAW_LINE_RECEIVED
-            report_echo_line_received(line, *chan);
+            report_echo_line_received(activeLine, *activeChannel);
 #endif
-            display("GCODE", line);
+            display("GCODE", activeLine);
             // auth_level can be upgraded by supplying a password on the command line
-            report_status_message(execute_line(line, *chan, WebUI::AuthenticationLevel::LEVEL_GUEST), *chan);
+            report_status_message(execute_line(activeLine, *activeChannel, WebUI::AuthenticationLevel::LEVEL_GUEST), *activeChannel);
+            // Tell the input polling task that the line has been processed,
+            // so it can give us another one when available
+            activeChannel = nullptr;
         }
-        // If there are no more lines to be processed and executed,
-        // auto-cycle start, if enabled, any queued moves.
+
+        // Auto-cycle start any queued moves.
         protocol_auto_cycle_start();
         protocol_execute_realtime();  // Runtime command check point.
         if (sys.abort) {
+            stop_polling();
             return;  // Bail to main() program loop to reset system.
         }
 
@@ -204,7 +247,6 @@ void protocol_buffer_synchronize() {
     do {
         // Restart motion if there are blocks in the planner queue
         protocol_auto_cycle_start();
-        pollChannels();
         protocol_execute_realtime();  // Check and execute run-time commands
         if (sys.abort) {
             return;  // Check for system abort
@@ -271,7 +313,6 @@ static void protocol_do_alarm() {
             // the user and a GUI time to do what is needed before resetting, like killing the
             // incoming stream. The same could be said about soft limits. While the position is not
             // lost, continued streaming could cause a serious crash if by chance it gets executed.
-            pollChannels();  // Handle ^X realtime RESET command
         } while (!rtReset);
     }
     rtAlarm = ExecAlarm::None;
@@ -794,7 +835,6 @@ static void protocol_exec_rt_suspend() {
                 protocol_manage_spindle();
             }
         }
-        pollChannels();  // Handle realtime commands like status report, cycle start and reset
         protocol_exec_rt_system();
     }
 }

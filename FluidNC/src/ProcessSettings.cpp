@@ -325,7 +325,6 @@ static Error home(AxisMask axisMask) {
     Machine::Homing::run_cycles(axisMask);
 
     do {
-        pollChannels();
         protocol_execute_realtime();
     } while (sys.state == State::Homing);
 
@@ -427,7 +426,6 @@ static Error show_limits(const char* value, WebUI::AuthenticationLevel auth_leve
         }
         vTaskDelay(1);
         protocol_handle_events();
-        pollChannels();
     } while (runLimitLoop);
     out << '\n';
     return Error::Ok;

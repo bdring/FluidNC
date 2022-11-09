@@ -21,7 +21,6 @@ void Parking::moveto(float* target) {
         Stepper::prep_buffer();
         Stepper::wake_up();
         do {
-            pollChannels();  // Handle realtime commands like status report, cycle start and reset
             protocol_exec_rt_system();
             if (sys.abort) {
                 return;

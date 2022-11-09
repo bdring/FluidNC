@@ -103,7 +103,6 @@ void delay_ms(uint16_t ms) {
 // Non-blocking delay function used for general operation and suspend features.
 bool delay_msec(uint32_t milliseconds, DwellMode mode) {
     while (milliseconds--) {
-        pollChannels();
         if (mode == DwellMode::Dwell) {
             protocol_execute_realtime();
         } else {  // DwellMode::SysSuspend
