@@ -54,8 +54,9 @@ namespace WebUI {
     static const char* DEFAULT_AP_MK      = "255.255.255.0";
     static const int   DEFAULT_AP_CHANNEL = 1;
 
-    static const int   DEFAULT_STA_IP_MODE = DHCP_MODE;
-    static const char* HIDDEN_PASSWORD     = "********";
+    static const int   DEFAULT_STA_MIN_SECURITY = WIFI_AUTH_WPA2_PSK;
+    static const int   DEFAULT_STA_IP_MODE      = DHCP_MODE;
+    static const char* HIDDEN_PASSWORD          = "********";
 
     //boundaries
     static const int MAX_SSID_LENGTH     = 32;
@@ -114,6 +115,8 @@ namespace WebUI {
     extern StringSetting* wifi_sta_ssid;
     extern StringSetting* wifi_sta_password;
 
+    extern EnumSetting*   wifi_fast_scan;
+    extern EnumSetting*   wifi_sta_min_security;
     extern EnumSetting*   wifi_sta_mode;
     extern IPaddrSetting* wifi_sta_ip;
     extern IPaddrSetting* wifi_sta_gateway;

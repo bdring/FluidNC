@@ -44,6 +44,8 @@ namespace WebUI {
     StringSetting* wifi_sta_ssid;
     StringSetting* wifi_sta_password;
 
+    EnumSetting*   wifi_fast_scan;
+    EnumSetting*   wifi_sta_min_security;
     EnumSetting*   wifi_sta_mode;
     IPaddrSetting* wifi_sta_ip;
     IPaddrSetting* wifi_sta_gateway;
@@ -63,9 +65,16 @@ namespace WebUI {
         { "Static", STATIC_MODE },
     };
 
-    static void print_mac(const char* s, String mac, Channel& out) {
-        out << s << " (" << mac << ")\n";
-    }
+    enum_opt_t staSecurityOptions = {
+        { "OPEN", WIFI_AUTH_OPEN },
+        { "WEP", WIFI_AUTH_WEP },
+        { "WPA-PSK", WIFI_AUTH_WPA_PSK },
+        { "WPA2-PSK", WIFI_AUTH_WPA2_PSK },
+        { "WPA-WPA2-PSK", WIFI_AUTH_WPA_WPA2_PSK },
+        { "WPA2-ENTERPRISE", WIFI_AUTH_WPA2_ENTERPRISE },
+    };
+
+    static void print_mac(const char* s, String mac, Channel& out) { out << s << " (" << mac << ")\n"; }
 
     static Error showIP(char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP111
         out << parameter << (WiFi.getMode() == WIFI_STA ? WiFi.localIP() : WiFi.softAPIP()).toString() << '\n';
@@ -175,10 +184,13 @@ namespace WebUI {
                         mode = "WEP";
                         break;
                     case WIFI_AUTH_WPA_PSK:
-                        mode = "WPA";
+                        mode = "WPA-PSK";
                         break;
                     case WIFI_AUTH_WPA2_PSK:
-                        mode = "WPA2";
+                        mode = "WPA2-PSK";
+                        break;
+                    case WIFI_AUTH_WPA_WPA2_PSK:
+                        mode = "WPA-WPA2-PSK";
                         break;
                     default:
                         mode = "WPA/WPA2";
@@ -262,7 +274,10 @@ namespace WebUI {
         wifi_sta_netmask = new IPaddrSetting("Station Static Mask", WEBSET, WA, NULL, "Sta/Netmask", DEFAULT_STA_MK, NULL);
         wifi_sta_gateway = new IPaddrSetting("Station Static Gateway", WEBSET, WA, NULL, "Sta/Gateway", DEFAULT_STA_GW, NULL);
         wifi_sta_ip      = new IPaddrSetting("Station Static IP", WEBSET, WA, NULL, "Sta/IP", DEFAULT_STA_IP, NULL);
-        wifi_sta_mode = new EnumSetting("Station IP Mode", WEBSET, WA, "ESP102", "Sta/IPMode", DEFAULT_STA_IP_MODE, &staModeOptions, NULL);
+        wifi_sta_mode  = new EnumSetting("Station IP Mode", WEBSET, WA, "ESP102", "Sta/IPMode", DEFAULT_STA_IP_MODE, &staModeOptions, NULL);
+        wifi_fast_scan = new EnumSetting("WiFi Fast Scan", WEBSET, WA, NULL, "WiFi/FastScan", 0, &onoffOptions, NULL);
+        wifi_sta_min_security =
+            new EnumSetting("Station IP Mode", WEBSET, WA, NULL, "Sta/MinSecurity", DEFAULT_STA_MIN_SECURITY, &staSecurityOptions, NULL);
         wifi_sta_password = new StringSetting("Station Password",
                                               WEBSET,
                                               WA,
@@ -564,6 +579,8 @@ namespace WebUI {
             return false;
         }
         WiFi.mode(WIFI_STA);
+        WiFi.setMinSecurity(static_cast<wifi_auth_mode_t>(wifi_sta_min_security->get()));
+        WiFi.setScanMethod(wifi_fast_scan->get() ? WIFI_FAST_SCAN : WIFI_ALL_CHANNEL_SCAN);
         //Get parameters for STA
         String h = wifi_hostname->get();
         WiFi.setHostname(h.c_str());
@@ -725,9 +742,7 @@ namespace WebUI {
     /**
      * End WiFi
      */
-    void WiFiConfig::end() {
-        StopWiFi();
-    }
+    void WiFiConfig::end() { StopWiFi(); }
 
     /**
      * Reset ESP
@@ -747,16 +762,12 @@ namespace WebUI {
         }
         log_info("WiFi reset done");
     }
-    bool WiFiConfig::isOn() {
-        return !(WiFi.getMode() == WIFI_MODE_NULL);
-    }
+    bool WiFiConfig::isOn() { return !(WiFi.getMode() == WIFI_MODE_NULL); }
 
     /**
      * Handle not critical actions that must be done in sync environment
      */
-    void WiFiConfig::handle() {
-        wifi_services.handle();
-    }
+    void WiFiConfig::handle() { wifi_services.handle(); }
 
     // Used by js/scanwifidlg.js
     Error WiFiConfig::listAPs(char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP410
@@ -796,8 +807,6 @@ namespace WebUI {
         return Error::Ok;
     }
 
-    WiFiConfig::~WiFiConfig() {
-        end();
-    }
+    WiFiConfig::~WiFiConfig() { end(); }
 }
 #endif
