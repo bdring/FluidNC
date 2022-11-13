@@ -138,7 +138,7 @@ namespace Machine {
     void Stepping::group(Configuration::HandlerBase& handler) {
         handler.item("engine", _engine, stepTypes);
         handler.item("idle_ms", _idleMsecs, 0, 10000000);  // full range
-        handler.item("pulse_us", _pulseUsecs, 0, 10);
+        handler.item("pulse_us", _pulseUsecs, 0, 30);
         handler.item("dir_delay_us", _directionDelayUsecs, 0, 10);
         handler.item("disable_delay_us", _disableDelayUsecs, 0, 10);
         handler.item("segments", _segments, 6, 20);
@@ -148,8 +148,12 @@ namespace Machine {
         if (_engine == I2S_STREAM || _engine == I2S_STATIC) {
             Assert(config->_i2so, "I2SO bus must be configured for this stepping type");
             if (_pulseUsecs < I2S_OUT_USEC_PER_PULSE) {
-                log_info("Increasing stepping/pulse_us to the IS2 minimum value " << I2S_OUT_USEC_PER_PULSE);
+                log_warn("Increasing stepping/pulse_us to the IS2 minimum value " << I2S_OUT_USEC_PER_PULSE);
                 _pulseUsecs = I2S_OUT_USEC_PER_PULSE;
+            }
+            if (_engine == I2S_STREAM && _pulseUsecs > I2S_STREAM_MAX_USEC_PER_PULSE) {
+                log_warn("Decreasing stepping/pulse_us to " << I2S_STREAM_MAX_USEC_PER_PULSE << ", the maximum value for I2S_STREAM");
+                _pulseUsecs = I2S_STREAM_MAX_USEC_PER_PULSE;
             }
         }
     }
