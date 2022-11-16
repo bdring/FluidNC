@@ -113,9 +113,8 @@ namespace Machine {
 
         log_debug("Starting from " << target[0] << "," << target[1] << "," << target[2]);
 
-        float maxSeekTime  = 0.0;
-        float limitingRate = 0.0;
-        float ratesq       = 0.0;
+        float maxSeekTime = 0.0;
+        float ratesq      = 0.0;
 
         settle_ms = 0;
 
@@ -215,23 +214,27 @@ namespace Machine {
 
             auto seekTime = travel / axis_rate;
             if (seekTime > maxSeekTime) {
-                maxSeekTime  = seekTime;
-                limitingRate = axis_rate;
+                maxSeekTime = seekTime;
             }
         }
-        // Scale the distance array, currently in units of time, back to positions
+
         // When approaching add a fudge factor (scaler) to ensure that the limit is reached -
         // but no fudge factor when pulling off.
+        // For fast approach, scale the distance array according to the axis that will
+        // take the longest time to reach its max range at its seek rate, preserving
+        // the speeds of the axes.
+
         for (int axis = 0; axis < n_axis; axis++) {
             if (bitnum_is_true(axesMask, axis)) {
+                if (phase == Machine::Homing::Phase::FastApproach) {
+                    // For fast approach the vector direction is determined by the rates
+                    distance[axis] = maxSeekTime * rates[axis];
+                }
+
                 auto paxis  = axes->_axis[axis];
                 auto homing = paxis->_homing;
                 auto scaler = approach ? (seeking ? homing->_seek_scaler : homing->_feed_scaler) : 1.0;
                 distance[axis] *= scaler;
-                if (phase == Machine::Homing::Phase::FastApproach) {
-                    // For fast approach the vector direction is determined by the rates
-                    distance[axis] *= rates[axis] / limitingRate;
-                }
                 target[axis] += distance[axis];
             }
         }
