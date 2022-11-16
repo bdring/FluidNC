@@ -9,6 +9,7 @@
 #include "Uart.h"
 
 #include <driver/uart.h>
+#include <esp_ipc.h>
 
 Uart::Uart(int uart_num, bool addCR) : Channel("uart", addCR) {
     // Auto-assign Uart harware engine numbers; the pins will be
@@ -43,6 +44,10 @@ void Uart::begin() {
     begin(static_cast<unsigned long>(baud));
 }
 
+static void uart_driver_n_install(void* arg) {
+    uart_driver_install((uart_port_t)arg, 256, 0, 0, NULL, ESP_INTR_FLAG_IRAM);
+}
+
 void Uart::begin(unsigned long baudrate, UartData dataBits, UartStop stopBits, UartParity parity) {
     //    uart_driver_delete(_uart_num);
     uart_config_t conf;
@@ -56,7 +61,10 @@ void Uart::begin(unsigned long baudrate, UartData dataBits, UartStop stopBits, U
         // TODO FIXME - should this throw an error?
         return;
     };
-    uart_driver_install(_uart_num, 256, 0, 0, NULL, 0);
+
+    // We init the UART on core 0 so the interrupt handler runs there,
+    // thus avoiding conflict with the StepTimer interrupt
+    esp_ipc_call_blocking(0, uart_driver_n_install, (void*)_uart_num);
 }
 
 int Uart::available() {
@@ -186,7 +194,6 @@ bool Uart::flushTxTimed(TickType_t ticks) {
 Uart Uart0(0, true);  // Primary serial channel with LF to CRLF conversion
 
 void uartInit() {
-    // Uart0.setPins(GPIO_NUM_1, GPIO_NUM_3);  // Tx 1, Rx 3 - standard hardware pins
     Uart0.begin(BAUD_RATE, UartData::Bits8, UartStop::Bits1, UartParity::None);
 }
 

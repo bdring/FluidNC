@@ -244,6 +244,15 @@ namespace Machine {
         _phaseAxes   = _cycleAxes;
         _phaseMotors = _cycleMotors;
 
+        // _phaseMotors can be 0 if set_homing_mode() either rejected all the
+        // motors or handled them independently.  In that case we do not have
+        // to run a conventional move-to-limit cycle.  Just skip to the end.
+        if (!_phaseMotors) {
+            _phase = static_cast<Phase>(static_cast<int>(Phase::CycleDone) - 1);
+            nextPhase();
+            return;
+        }
+
         if (_phase == Phase::PrePulloff) {
             if (!(limited() & _phaseMotors)) {
                 // No initial pulloff needed
