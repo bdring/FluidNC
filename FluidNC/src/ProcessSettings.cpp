@@ -422,6 +422,9 @@ static Error show_limits(const char* value, WebUI::AuthenticationLevel auth_leve
             write_limit_set(Machine::Axes::posLimitMask, out);
             out << ' ';
             write_limit_set(Machine::Axes::negLimitMask, out);
+            if (config->_probe->get_state()) {
+                out << " P";
+            }
             out << '\n';
             limit = thisTime + interval;
         }
