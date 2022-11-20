@@ -331,7 +331,7 @@ Error gc_execute_line(char* line, Channel& channel) {
                                 gc_block.modal.motion = Motion::ProbeAway;
                                 break;
                             case 50:
-                                gc_block.modal.motion = Motion::ProbeAwayNoError;
+                                gc_block.modal.motion = Motion::ProbeAway;
                                 break;
                             default:
                                 FAIL(Error::GcodeUnsupportedCommand);
