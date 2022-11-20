@@ -123,8 +123,8 @@ void report_status_message(Error status_code, Channel& channel) {
                 readyNext = true;  // flag so protocol_main_loop() will send the next line
                 break;
             default:
-                infile->getChannel() << "[MSG: ERR:" << static_cast<int>(status_code) << " (" << errorString(status_code) << ") in "
-                                     << infile->path() << " at line " << infile->getLineNumber() << "]\n";
+                log_error(static_cast<int>(status_code)
+                          << " (" << errorString(status_code) << ") in " << infile->path() << " at line " << infile->getLineNumber());
                 if (status_code == Error::GcodeUnsupportedCommand) {
                     // Do not stop on unsupported commands because most senders do not
                     readyNext = true;
