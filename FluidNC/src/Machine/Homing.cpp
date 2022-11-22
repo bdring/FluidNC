@@ -227,7 +227,8 @@ namespace Machine {
             if (bitnum_is_true(axesMask, axis)) {
                 if (phase == Machine::Homing::Phase::FastApproach) {
                     // For fast approach the vector direction is determined by the rates
-                    distance[axis] = maxSeekTime * rates[axis];
+                    float absDistance = maxSeekTime * rates[axis];
+                    distance[axis]    = distance[axis] >= 0 ? absDistance : -absDistance;
                 }
 
                 auto paxis  = axes->_axis[axis];
