@@ -93,7 +93,7 @@ char activeLine[Channel::maxLine];
 bool pollingPaused = false;
 void polling_loop(void* unused) {
     // Poll the input sources waiting for a complete line to arrive
-    for (; true; feedLoopWDT(), vTaskDelay(0)) {
+    for (; true; /*feedLoopWDT(), */ vTaskDelay(0)) {
         // Polling is paused when xmodem is using a channel for binary upload
         if (pollingPaused) {
             vTaskDelay(100);
