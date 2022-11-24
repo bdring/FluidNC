@@ -28,6 +28,8 @@ private:
     Channel& _out;
 
     uint32_t _line_num;  // the most recent line number read
+    bool     _readyNext = true;
+
 public:
     // fsname is the default file system on which the file is located, in case the path does not specify
     // path is the full path to the file
@@ -59,6 +61,12 @@ public:
 
     WebUI::AuthenticationLevel getAuthLevel() { return _auth_level; }
 
+    // Channel methods
+    size_t   write(uint8_t c) override { return 0; }
+    void     ack(Error status) override;
+    Channel* pollLine(char* line) override;
+    void     stopJob() override;
+    String   jobStatus() override;
+
     ~InputFile();
 };
-extern InputFile* infile;

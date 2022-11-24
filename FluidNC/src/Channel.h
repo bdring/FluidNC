@@ -83,6 +83,10 @@ public:
         setTimeout(timeout);
         return readBytes(buffer, length);
     }
+
+    virtual void   stopJob() {}
+    virtual String jobStatus() { return String(); }
+
     size_t timedReadBytes(uint8_t* buffer, size_t length, TickType_t timeout) { return timedReadBytes((char*)buffer, length, timeout); }
 
     bool setCr(bool on) {

@@ -105,42 +105,6 @@ static void report_util_axis_values(const float* axis_value, Print& channel) {
     }
 }
 
-// Handles the primary confirmation protocol response for streaming interfaces and human-feedback.
-// For every incoming line, this method responds with an 'ok' for a successful command or an
-// 'error:'  to indicate some error event with the line or some critical system error during
-// operation. Errors events can originate from the g-code parser, settings module, or asynchronously
-// from a critical error, such as a triggered hard limit. Interface should always monitor for these
-// responses.
-bool readyNext = false;
-void report_status_message(Error status_code, Channel& channel) {
-    if (infile) {
-        // When running from a file, the GCode is not coming from a sender, so we are not
-        // using the Grbl send/response/error protocol.  We set the readyNext flag instead
-        // sending "ok" to indicate readiness for another line.  We report verbose error
-        // messages with [MSG: ...] encapsulation
-        switch (status_code) {
-            case Error::Ok:
-                readyNext = true;  // flag so protocol_main_loop() will send the next line
-                break;
-            default:
-                infile->getChannel() << "[MSG: ERR:" << static_cast<int>(status_code) << " (" << errorString(status_code) << ") in "
-                                     << infile->path() << " at line " << infile->getLineNumber() << "]\n";
-                if (status_code == Error::GcodeUnsupportedCommand) {
-                    // Do not stop on unsupported commands because most senders do not
-                    readyNext = true;
-                } else {
-                    // Stop the file job on other errors
-                    _notifyf("File job error", "Error:%d in %s at line: %d", status_code, infile->path(), infile->getLineNumber());
-                    delete infile;
-                    infile = nullptr;
-                }
-        }
-    } else {
-        // Input is coming from a sender so use the classic Grbl line protocol
-        channel.ack(status_code);
-    }
-}
-
 std::map<Message, const char*> MessageText = {
     { Message::CriticalEvent, "Reset to continue" },
     { Message::AlarmLock, "'$H'|'$X' to unlock" },
@@ -682,8 +646,9 @@ void report_realtime_status(Channel& channel) {
             }
         }
     }
-    if (infile) {
-        channel << "|SD:" << setprecision(2) << infile->percent_complete() << "," << infile->path();
+    String jobStatus = channel.jobStatus();
+    if (jobStatus.length()) {
+        channel << "|" << jobStatus;
     }
 #ifdef DEBUG_STEPPER_ISR
     channel << "|ISRs:" << Stepper::isr_count;

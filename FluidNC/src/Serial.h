@@ -12,6 +12,7 @@
 #include <vector>
 #include <stdint.h>
 #include "Channel.h"
+#include <freertos/queue.h>
 
 // See if the character is an action command like feedhold or jogging. If so, do the action and return true
 uint8_t check_action_command(uint8_t data);
@@ -69,8 +70,13 @@ Channel* pollChannels(char* line = nullptr);
 class AllChannels : public Channel {
     std::vector<Channel*> _channelq;
 
+    Channel*     _lastChannel = nullptr;
+    xQueueHandle _killQueue;
+
 public:
-    AllChannels() : Channel("all") {}
+    AllChannels() : Channel("all") { _killQueue = xQueueCreate(3, sizeof(Channel*)); }
+
+    void kill(Channel* channel);
 
     void registration(Channel* channel);
     void deregistration(Channel* channel);

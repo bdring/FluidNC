@@ -17,7 +17,6 @@
 #include "Planner.h"        // plan_get_current_block
 #include "MotionControl.h"  // PARKING_MOTION_LINE_NUMBER
 #include "Settings.h"       // settings_execute_startup
-#include "InputFile.h"      // infile
 #include "Logging.h"
 #include "Machine/LimitPin.h"
 
@@ -87,14 +86,19 @@ static void request_safety_door() {
     rtSafetyDoor = true;
 }
 
-Channel* activeChannel = nullptr;
+Channel* activeChannel = nullptr;  // Channel associated with the input line
 
 char activeLine[Channel::maxLine];
 
+bool pollingPaused = false;
 void polling_loop(void* unused) {
-    log_debug("Polling loop on core " << xPortGetCoreID());
     // Poll the input sources waiting for a complete line to arrive
     for (; true; feedLoopWDT(), vTaskDelay(0)) {
+        // Polling is paused when xmodem is using a channel for binary upload
+        if (pollingPaused) {
+            vTaskDelay(100);
+            continue;
+        }
         if (activeChannel) {
             // Poll for realtime characters when waiting for the primary loop
             // (in another thread) to pick up the line.
@@ -102,34 +106,9 @@ void polling_loop(void* unused) {
             continue;
         }
 
-        if (infile) {
-            // Polling without an argument checks for realtime characters
-            pollChannels();
-            if (readyNext) {
-                readyNext     = false;
-                activeChannel = &infile->getChannel();
-                switch (auto err = infile->readLine(activeLine, Channel::maxLine)) {
-                    case Error::Ok:
-                        break;
-                    case Error::Eof:
-                        _notifyf("File job done", "%s file job succeeded", infile->path());
-                        *activeChannel << "[MSG:" << infile->path() << " file job succeeded]\n";
-                        delete infile;
-                        infile = nullptr;
-                        break;
-                    default:
-                        *activeChannel << "[MSG: ERR:" << static_cast<int>(err) << " (" << errorString(err) << ") in " << infile->path()
-                                       << " at line " << infile->getLineNumber() << "]\n";
-                        delete infile;
-                        infile = nullptr;
-                        break;
-                }
-            }
-        } else {
-            // Polling without an argument both checks for realtime characters and
-            // returns a line-oriented command if one is ready.
-            activeChannel = pollChannels(activeLine);
-        }
+        // Polling without an argument both checks for realtime characters and
+        // returns a line-oriented command if one is ready.
+        activeChannel = pollChannels(activeLine);
     }
 }
 
@@ -191,8 +170,6 @@ static void check_startup_state() {
 }
 
 void protocol_main_loop() {
-    log_debug("Protocol loop on core " << xPortGetCoreID());
-
     check_startup_state();
     start_polling();
 
@@ -204,11 +181,15 @@ void protocol_main_loop() {
         if (activeChannel) {
             // The input polling task has collected a line of input
 #ifdef DEBUG_REPORT_ECHO_RAW_LINE_RECEIVED
-            report_echo_line_received(activeLine, *activeChannel);
+            report_echo_line_received(activeLine, allChannels);
 #endif
             display("GCODE", activeLine);
-            // auth_level can be upgraded by supplying a password on the command line
-            report_status_message(execute_line(activeLine, *activeChannel, WebUI::AuthenticationLevel::LEVEL_GUEST), *activeChannel);
+
+            Error status_code = execute_line(activeLine, *activeChannel, WebUI::AuthenticationLevel::LEVEL_GUEST);
+
+            // Tell the channel that the line has been processed.
+            activeChannel->ack(status_code);
+
             // Tell the input polling task that the line has been processed,
             // so it can give us another one when available
             activeChannel = nullptr;
@@ -320,8 +301,10 @@ static void protocol_do_alarm() {
 
 static void protocol_start_holding() {
     if (!(sys.suspend.bit.motionCancel || sys.suspend.bit.jogCancel)) {  // Block, if already holding.
-        Stepper::update_plan_block_parameters();                         // Notify stepper module to recompute for hold deceleration.
-        sys.step_control             = {};
+        sys.step_control = {};
+        if (!Stepper::update_plan_block_parameters()) {  // Notify stepper module to recompute for hold deceleration.
+            sys.step_control.endMotion = true;
+        }
         sys.step_control.executeHold = true;  // Initiate suspend state with active flag.
     }
 }
@@ -674,16 +657,7 @@ static void protocol_do_late_reset() {
     config->_userOutputs->all_off();
 
     // do we need to stop a running file job?
-    if (infile) {
-        //Report print stopped
-        _notifyf("File print canceled", "Reset during file job at line: %d", infile->getLineNumber());
-        // log_info() does not work well in this case because the message gets broken in half
-        // by report_init_message().  The flow of control that causes it is obscure.
-        infile->getChannel() << "[MSG:"
-                             << "Reset during file job at line: " << infile->getLineNumber();
-        delete infile;
-        infile = nullptr;
-    }
+    allChannels.stopJob();
 }
 
 void protocol_exec_rt_system() {

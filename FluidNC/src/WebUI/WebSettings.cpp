@@ -15,7 +15,7 @@
 #include "../Configuration/JsonGenerator.h"
 #include "../Uart.h"       // Uart0.baud
 #include "../Report.h"     // git_info
-#include "../InputFile.h"  // infile
+#include "../InputFile.h"  // InputFile
 
 #include "Driver/localfs.h"  // localfs_format
 
@@ -265,7 +265,7 @@ namespace WebUI {
         return Error::Ok;
     }
 
-    static Error openFile(const char* fs, char* parameter, AuthenticationLevel auth_level, Channel& out) {
+    static Error openFile(const char* fs, char* parameter, AuthenticationLevel auth_level, Channel& out, InputFile*& theFile) {
         if (*parameter == '\0') {
             out << "Missing file name!" << '\n';
             return Error::InvalidValue;
@@ -276,7 +276,7 @@ namespace WebUI {
         }
 
         try {
-            infile = new InputFile(fs, path.c_str(), auth_level, out);
+            theFile = new InputFile(fs, path.c_str(), auth_level, out);
         } catch (Error err) { return err; }
         return Error::Ok;
     }
@@ -285,20 +285,20 @@ namespace WebUI {
         if (notIdleOrAlarm()) {
             return Error::IdleError;
         }
-        Error err;
-        if ((err = openFile(fs, parameter, auth_level, out)) != Error::Ok) {
+        InputFile* theFile;
+        Error      err;
+        if ((err = openFile(fs, parameter, auth_level, out, theFile)) != Error::Ok) {
             return err;
         }
         char  fileLine[255];
         Error res;
-        while ((res = infile->readLine(fileLine, 255)) == Error::Ok) {
+        while ((res = theFile->readLine(fileLine, 255)) == Error::Ok) {
             out << fileLine << '\n';
         }
         if (res != Error::Eof) {
             out << errorString(res) << '\n';
         }
-        delete infile;
-        infile = nullptr;
+        delete theFile;
         return Error::Ok;
     }
 
@@ -319,11 +319,13 @@ namespace WebUI {
             out << "Busy" << '\n';
             return Error::IdleError;
         }
-        if ((err = openFile(fs, parameter, auth_level, out)) != Error::Ok) {
+        InputFile* theFile;
+        if ((err = openFile(fs, parameter, auth_level, out, theFile)) != Error::Ok) {
             return err;
         }
-        readyNext = true;
-        report_realtime_status(out);
+        allChannels.registration(theFile);
+
+        //report_realtime_status(out);
         return Error::Ok;
     }
 

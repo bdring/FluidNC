@@ -39,6 +39,55 @@ float InputFile::percent_complete() {
     return (float)position() / (float)size() * 100.0f;
 }
 
-InputFile::~InputFile() {}
+void InputFile::ack(Error status) {
+    if (status != Error::Ok) {
+        log_error(static_cast<int>(status) << " (" << errorString(status) << ") in " << path() << " at line " << getLineNumber());
+        if (status != Error::GcodeUnsupportedCommand) {
+            // Do not stop on unsupported commands because most senders do not
+            // Stop the file job on other errors
+            _notifyf("File job error", "Error:%d in %s at line: %d", status, path(), getLineNumber());
+            allChannels.kill(this);
+            return;
+        }
+    }
+    _readyNext = true;
+}
 
-InputFile* infile = nullptr;
+Channel* InputFile::pollLine(char* line) {
+    // File input never returns realtime characters, so we do nothing
+    // if line is null.
+    if (!_readyNext || !line) {
+        return nullptr;
+    }
+    switch (auto err = readLine(line, Channel::maxLine)) {
+        case Error::Ok:
+            return &allChannels;
+        case Error::Eof:
+            _notifyf("File job done", "%s file job succeeded", path());
+            allChannels << "[MSG:" << path() << " file job succeeded]\n";
+            allChannels.kill(this);
+            return nullptr;
+        default:
+            allChannels << "[MSG: ERR:" << static_cast<int>(err) << " (" << errorString(err) << ") in " << path() << " at line "
+                        << getLineNumber() << "]\n";
+            allChannels.kill(this);
+            return nullptr;
+    }
+}
+
+void InputFile::stopJob() {
+    //Report print stopped
+    _notifyf("File print canceled", "Reset during file job at line: %d", getLineNumber());
+    log_info("Reset during file job at line: " << getLineNumber());
+    allChannels.kill(this);
+}
+
+String InputFile::jobStatus() {
+    String ret = "SD:";
+    ret += String(percent_complete(), 2);
+    ret += ",";
+    ret += path();
+    return ret;
+}
+
+InputFile::~InputFile() {}

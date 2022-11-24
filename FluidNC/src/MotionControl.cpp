@@ -12,7 +12,6 @@
 #include "Protocol.h"        // protocol_execute_realtime
 #include "Planner.h"         // plan_reset, etc
 #include "I2SOut.h"          // i2s_out_reset
-#include "InputFile.h"       // infile
 #include "Platform.h"        // WEAK_LINK
 #include "Settings.h"        // coords
 

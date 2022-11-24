@@ -98,6 +98,8 @@ extern NoArgEvent debugEvent;
 
 extern xQueueHandle event_queue;
 
+extern bool pollingPaused;
+
 struct EventItem {
     Event* event;
     void*  arg;

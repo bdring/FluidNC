@@ -191,10 +191,17 @@ void AllChannels::init() {
     registration(&startupLog);          // USB Serial
 }
 
+void AllChannels::kill(Channel* channel) {
+    xQueueSend(_killQueue, &channel, 0);
+}
+
 void AllChannels::registration(Channel* channel) {
     _channelq.push_back(channel);
 }
 void AllChannels::deregistration(Channel* channel) {
+    if (channel == _lastChannel) {
+        _lastChannel = nullptr;
+    }
     _channelq.erase(std::remove(_channelq.begin(), _channelq.end(), channel), _channelq.end());
 }
 
@@ -237,23 +244,28 @@ size_t AllChannels::write(const uint8_t* buffer, size_t length) {
     return length;
 }
 Channel* AllChannels::pollLine(char* line) {
-    static Channel* lastChannel = nullptr;
+    Channel* deadChannel;
+    while (xQueueReceive(_killQueue, &deadChannel, 0)) {
+        deregistration(deadChannel);
+        delete deadChannel;
+    }
+
     // To avoid starving other channels when one has a lot
     // of traffic, we poll the other channels before the last
     // one that returned a line.
     for (auto channel : _channelq) {
         // Skip the last channel in the loop
-        if (channel != lastChannel && channel->pollLine(line)) {
-            lastChannel = channel;
-            return lastChannel;
+        if (channel != _lastChannel && channel->pollLine(line)) {
+            _lastChannel = channel;
+            return _lastChannel;
         }
     }
     // If no other channel returned a line, try the last one
-    if (lastChannel && lastChannel->pollLine(line)) {
-        return lastChannel;
+    if (_lastChannel && _lastChannel->pollLine(line)) {
+        return _lastChannel;
     }
-    lastChannel = nullptr;
-    return lastChannel;
+    _lastChannel = nullptr;
+    return _lastChannel;
 }
 
 AllChannels allChannels;

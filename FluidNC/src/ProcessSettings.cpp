@@ -625,10 +625,12 @@ static Error xmodem_receive(const char* value, WebUI::AuthenticationLevel auth_l
         log_info("Cannot open " << value);
         return Error::UploadFailed;
     }
-    bool oldCr = out.setCr(false);
+    pollingPaused = true;
+    bool oldCr    = out.setCr(false);
     delay_ms(1000);
     int size = xmodemReceive(&out, outfile);
     out.setCr(oldCr);
+    pollingPaused = false;
     if (size >= 0) {
         log_info("Received " << size << " bytes to file " << outfile->path());
     } else {
@@ -732,11 +734,13 @@ static Error setReportInterval(const char* value, WebUI::AuthenticationLevel aut
     }
 
     uint32_t actual = out.setReportInterval(intValue);
+#if 1
     if (actual) {
         log_info("Channel auto report interval set to " << actual << " ms");
     } else {
         log_info("Channel auto reporting turned off");
     }
+#endif
 
     // Send a full status report immediately so the client has all the data
     report_wco_counter = 0;
@@ -992,7 +996,9 @@ void settings_execute_startup() {
             strncpy(gcline, s, 255);
             status_code = gc_execute_line(gcline);
             Uart0 << ">" << gcline << ":";
-            report_status_message(status_code, Uart0);
+            if (status_code != Error::Ok) {
+                log_error("Startup line: " << errorString(status_code));
+            }
         }
     }
 }

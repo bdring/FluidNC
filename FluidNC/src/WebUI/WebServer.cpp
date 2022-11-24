@@ -1098,9 +1098,8 @@ namespace WebUI {
                 try {
                     WSChannel* wsChannel = wsChannels.at(num);
                     webWsChannels.remove(wsChannel);
-                    allChannels.deregistration(wsChannel);
+                    allChannels.kill(wsChannel);
                     wsChannels.erase(num);
-                    delete wsChannel;
                 } catch (std::out_of_range& oor) {}
                 break;
             case WStype_CONNECTED: {
