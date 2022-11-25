@@ -408,7 +408,7 @@ namespace Extenders {
             _status |= 8;
         }
         while (_status != 0) {
-            vTaskDelay(1);  // Must be <TaskDelayBetweenIterations and as small as possible.
+            taskYIELD();  // Must be <TaskDelayBetweenIterations and as small as possible. Can't get smaller than yield.
         }
 
         // Use the value:
@@ -422,7 +422,7 @@ namespace Extenders {
         _status |= 4;
 
         while (_status != 0) {
-            vTaskDelay(1);
+            taskYIELD();
         }
     }
 
