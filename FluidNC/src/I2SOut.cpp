@@ -545,44 +545,44 @@ static bool IRAM_ATTR i2s_out_intr_handler(gdma_channel_handle_t dma_chan, gdma_
     lldesc_t*     finish_desc               = (lldesc_t*)(event_data->tx_eof_desc_addr);
     portBASE_TYPE high_priority_task_awoken = pdFALSE;
 
-    if (dma_chan->int_st.out_eof || dma_chan->int_st.out_total_eof) {
-        if (dma_chan->int_st.out_total_eof) {
-            // This is tail of the DMA descriptors
-            I2S_OUT_ENTER_CRITICAL_ISR();
+    // if (dma_chan->int_st.out_eof || dma_chan->int_st.out_total_eof) {
+    // if (dma_chan->int_st.out_total_eof) {
+    //     // This is tail of the DMA descriptors
+    //     I2S_OUT_ENTER_CRITICAL_ISR();
+    //
+    //     // Stop TX module
+    //     I2S0.tx_conf.tx_start = 0;
+    //     gdma_stop(i2s_out_isr_handle);
+    //
+    //     // Disconnect DMA from FIFO
+    //     I2S_OUT_EXIT_CRITICAL_ISR();
+    // }
 
-            // Stop TX module
-            I2S0.tx_conf.tx_start = 0;
-            gdma_stop(i2s_out_isr_handle);
+    // Get the descriptor of the last item in the linkedlist
+    // finish_desc = (lldesc_t*)I2S0.out_eof_des_addr;
 
-            // Disconnect DMA from FIFO
-            I2S_OUT_EXIT_CRITICAL_ISR();
+    // If the queue is full it's because we have an underflow,
+    // more than buf_count isr without new data, remove the front buffer
+    if (xQueueIsQueueFullFromISR(o_dma.queue)) {
+        lldesc_t* front_desc;
+
+        // Remove a descriptor from the DMA complete event queue
+        xQueueReceiveFromISR(o_dma.queue, &front_desc, &high_priority_task_awoken);
+        I2S_OUT_PULSER_ENTER_CRITICAL_ISR();
+        uint32_t port_data = 0;
+        if (i2s_out_pulser_status == STEPPING) {
+            port_data = ATOMIC_LOAD(&i2s_out_port_data);
         }
-
-        // Get the descriptor of the last item in the linkedlist
-        // finish_desc = (lldesc_t*)I2S0.out_eof_des_addr;
-
-        // If the queue is full it's because we have an underflow,
-        // more than buf_count isr without new data, remove the front buffer
-        if (xQueueIsQueueFullFromISR(o_dma.queue)) {
-            lldesc_t* front_desc;
-
-            // Remove a descriptor from the DMA complete event queue
-            xQueueReceiveFromISR(o_dma.queue, &front_desc, &high_priority_task_awoken);
-            I2S_OUT_PULSER_ENTER_CRITICAL_ISR();
-            uint32_t port_data = 0;
-            if (i2s_out_pulser_status == STEPPING) {
-                port_data = ATOMIC_LOAD(&i2s_out_port_data);
-            }
-            I2S_OUT_PULSER_EXIT_CRITICAL_ISR();
-            for (int i = 0; i < DMA_SAMPLE_COUNT; i++) {
-                front_desc->buf[i] = port_data;
-            }
-            front_desc->length = I2S_OUT_DMABUF_LEN;
+        I2S_OUT_PULSER_EXIT_CRITICAL_ISR();
+        for (int i = 0; i < DMA_SAMPLE_COUNT; i++) {
+            front_desc->buf[i] = port_data;
         }
-
-        // Send a DMA complete event to the I2S bitstreamer task with finished buffer
-        xQueueSendFromISR(o_dma.queue, &finish_desc, &high_priority_task_awoken);
+        front_desc->length = I2S_OUT_DMABUF_LEN;
     }
+
+    // Send a DMA complete event to the I2S bitstreamer task with finished buffer
+    xQueueSendFromISR(o_dma.queue, &finish_desc, &high_priority_task_awoken);
+    // }
 
     if (high_priority_task_awoken == pdTRUE) {
         portYIELD_FROM_ISR();
@@ -986,14 +986,14 @@ int i2s_out_init(i2s_out_init_t& init_param) {
 
     I2S0.tx_conf.tx_slave_mod           = 0;  // Master
     I2S0.fifo_conf.tx_fifo_mod_force_en = 1;  //The bit should always be set to 1.
-    I2S0.pdm_conf.rx_pdm_en             = 0;  // Set this bit to enable receiver’s PDM mode.
-    I2S0.pdm_conf.tx_pdm_en             = 0;  // Set this bit to enable transmitter’s PDM mode.
+    I2S0.rx_conf.rx_pdm_en              = 0;  // Set this bit to enable receiver’s PDM mode.
+    I2S0.tx_conf.tx_pdm_en              = 0;  // Set this bit to enable transmitter’s PDM mode.
 
-    // I2S_COMM_FORMAT_I2S_LSB
-    I2S0.tx_conf.tx_short_sync = 0;  // Set this bit to enable transmitter in PCM standard mode.
-    I2S0.rx_conf.rx_short_sync = 0;  // Set this bit to enable receiver in PCM standard mode.
-    I2S0.tx_conf.tx_msb_shift  = 0;  // Do not use the Philips standard to avoid bit-shifting
-    I2S0.rx_conf.rx_msb_shift  = 0;  // Do not use the Philips standard to avoid bit-shifting
+    // I2S_COMM_FORMAT_I2S_LSB TODO FIXME?
+    // I2S0.tx_conf1.tx_short_sync = 0;  // Set this bit to enable transmitter in PCM standard mode.
+    // I2S0.tx_conf1.rx_short_sync = 0;  // Set this bit to enable receiver in PCM standard mode.
+    I2S0.tx_conf1.tx_msb_shift = 0;  // Do not use the Philips standard to avoid bit-shifting
+    I2S0.rx_conf1.rx_msb_shift = 0;  // Do not use the Philips standard to avoid bit-shifting
 
     //
     // i2s_set_clk
@@ -1009,11 +1009,17 @@ int i2s_out_init(i2s_out_init_t& init_param) {
     // N = 5
     // 5 could be changed to 2 to make I2SO pulse at 312.5 kHZ instead of 125 kHz, but doing so would
     // require some changes to deal with pulse lengths that are not an integral number of microseconds.
-    I2S0.clkm_conf.clkm_div_num = 5;  // minimum value of 2, reset value of 4, max 256 (I²S clock divider’s integral value)
+    I2S0.tx_clkm_conf.tx_clkm_div_num = 5;  // minimum value of 2, reset value of 4, max 256 (I²S clock divider’s integral value)
 #endif
     // b/a = 0
-    I2S0.clkm_conf.clkm_div_b = 0;  // 0 at reset
-    I2S0.clkm_conf.clkm_div_a = 0;  // 0 at reset, what about divide by 0? (not an issue)
+    // TODO FIXME!
+
+    // I2S0.tx_clkm_conf.clkm_div_b = 0;  // 0 at reset
+    // I2S0.tx_clkm_conf.clkm_div_a = 0;  // 0 at reset, what about divide by 0? (not an issue)
+    // TODO FIXME: is this correct?
+    I2S0.tx_clkm_div_conf.tx_clkm_div_x = 0;
+    I2S0.tx_clkm_div_conf.tx_clkm_div_y = 0;
+    I2S0.tx_clkm_div_conf.tx_clkm_div_z = 0;
 
     // Bit clock configuration bit in transmitter mode.
     // fbck = fi2s / tx_bck_div_num = (160 MHz / 5) / 2 = 16 MHz
