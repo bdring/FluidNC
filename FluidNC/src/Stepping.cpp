@@ -8,13 +8,13 @@
 
 namespace Machine {
 
-    int Stepping::_engine = RMT;
+    int Stepping::_engine = TIMED; // RMT;
 
     EnumItem stepTypes[] = { { Stepping::TIMED, "Timed" },
-                             { Stepping::RMT, "RMT" },
+                             // { Stepping::RMT, "RMT" },
                              { Stepping::I2S_STATIC, "I2S_static" },
                              { Stepping::I2S_STREAM, "I2S_stream" },
-                             EnumItem(Stepping::RMT) };
+                             EnumItem(Stepping::TIMED) };
 
     void Stepping::init() {
         log_info("Stepping:" << stepTypes[_engine].name << " Pulse:" << _pulseUsecs << "us Dsbl Delay:" << _disableDelayUsecs
@@ -155,8 +155,8 @@ namespace Machine {
             case stepper_id_t::I2S_STREAM:
             case stepper_id_t::I2S_STATIC:
                 return i2s_out_max_steps_per_sec;
-            case stepper_id_t::RMT:
-                return 1000000 / (2 * _pulseUsecs + _directionDelayUsecs);
+            // case stepper_id_t::RMT:
+            //     return 1000000 / (2 * _pulseUsecs + _directionDelayUsecs);
             case stepper_id_t::TIMED:
             default:
                 return 80000;  // based on testing

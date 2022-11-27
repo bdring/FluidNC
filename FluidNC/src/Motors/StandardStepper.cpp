@@ -72,11 +72,11 @@ namespace MotorDrivers {
         _dir_pin.setAttr(Pin::Attr::Output);
 
         auto stepping = config->_stepping;
-        if (stepping->_engine == Stepping::RMT) {
-            init_rmt_channel(_rmt_chan_num, _step_pin, _invert_step, stepping->_directionDelayUsecs, stepping->_pulseUsecs);
-        } else {
+        // if (stepping->_engine == Stepping::RMT) {
+        //     init_rmt_channel(_rmt_chan_num, _step_pin, _invert_step, stepping->_directionDelayUsecs, stepping->_pulseUsecs);
+        // } else {
             _step_pin.setAttr(Pin::Attr::Output);
-        }
+        // }
 
         _disable_pin.setAttr(Pin::Attr::Output);
     }
@@ -86,18 +86,18 @@ namespace MotorDrivers {
     }
 
     void IRAM_ATTR StandardStepper::step() {
-        if (config->_stepping->_engine == Stepping::RMT && _rmt_chan_num != RMT_CHANNEL_MAX) {
-            RMT.conf_ch[_rmt_chan_num].conf1.mem_rd_rst = 1;
-            RMT.conf_ch[_rmt_chan_num].conf1.tx_start   = 1;
-        } else {
+        //if (config->_stepping->_engine == Stepping::RMT && _rmt_chan_num != RMT_CHANNEL_MAX) {
+        //    RMT.conf_ch[_rmt_chan_num].conf1.mem_rd_rst = 1;
+        //    RMT.conf_ch[_rmt_chan_num].conf1.tx_start   = 1;
+        //} else {
             _step_pin.on();
-        }
+        // }
     }
 
     void IRAM_ATTR StandardStepper::unstep() {
-        if (config->_stepping->_engine != Stepping::RMT) {
+        // if (config->_stepping->_engine != Stepping::RMT) {
             _step_pin.off();
-        }
+        // }
     }
 
     void IRAM_ATTR StandardStepper::set_direction(bool dir) { _dir_pin.write(dir); }

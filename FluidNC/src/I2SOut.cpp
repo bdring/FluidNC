@@ -32,6 +32,7 @@
 #include <esp_private/i2s_platform.h>
 #include <esp_private/esp_clk.h>
 #include <esp_private/gdma.h>
+
 #include <soc/gdma_channel.h>
 
 // The <atomic> library routines are not in IRAM so they can crash when called from FLASH
@@ -256,7 +257,7 @@ static int i2s_clear_o_dma_buffers(uint32_t port_data) {
 
 static int i2s_out_gpio_attach(pinnum_t ws, pinnum_t bck, pinnum_t data) {
     // Route the i2s pins to the appropriate GPIO
-    gpio_matrix_out_check(data, I2S0O_DATA_OUT23_IDX, 0, 0);
+    gpio_matrix_out_check(data, I2S0O_SD_OUT_IDX, 0, 0);
     gpio_matrix_out_check(bck, I2S0O_BCK_OUT_IDX, 0, 0);
     gpio_matrix_out_check(ws, I2S0O_WS_OUT_IDX, 0, 0);
     return 0;
@@ -315,6 +316,65 @@ static int i2s_out_stop() {
 
     I2S_OUT_EXIT_CRITICAL();
     return 0;
+}
+
+//
+// I2S out DMA Interrupts handler
+//
+
+// I2SCommon -> static bool IRAM_ATTR i2s_dma_tx_callback(gdma_channel_handle_t dma_chan, gdma_event_data_t *event_data, void *user_data)
+// https://github.com/espressif/esp-idf/blob/96b0cb2828fb550ab0fe5cc7a5b3ac42fb87b1d2/components/driver/deprecated/i2s_legacy.c line 190-ish.
+static bool IRAM_ATTR i2s_out_intr_handler(gdma_channel_handle_t dma_chan, gdma_event_data_t* event_data, void* user_data) {
+    // static void IRAM_ATTR i2s_out_intr_handler(void* arg) {
+
+    i2s_out_dma_t* handle                    = (i2s_out_dma_t*)user_data;
+    lldesc_t*      finish_desc               = (lldesc_t*)(event_data->tx_eof_desc_addr);
+    portBASE_TYPE  high_priority_task_awoken = pdFALSE;
+    portBASE_TYPE  tmp                       = pdFALSE;
+
+    // if (dma_chan->int_st.out_eof || dma_chan->int_st.out_total_eof) {
+    // if (dma_chan->int_st.out_total_eof) {
+    //     // This is tail of the DMA descriptors
+    //     I2S_OUT_ENTER_CRITICAL_ISR();
+    //
+    //     // Stop TX module
+    //     I2S0.tx_conf.tx_start = 0;
+    //     gdma_stop(i2s_out_isr_handle);
+    //
+    //     // Disconnect DMA from FIFO
+    //     I2S_OUT_EXIT_CRITICAL_ISR();
+    // }
+
+    // Get the descriptor of the last item in the linkedlist
+    // finish_desc = (lldesc_t*)I2S0.out_eof_des_addr;
+
+    // If the queue is full it's because we have an underflow,
+    // more than buf_count isr without new data, remove the front buffer
+    if (xQueueIsQueueFullFromISR(o_dma.queue)) {
+        lldesc_t* front_desc;
+
+        // Remove a descriptor from the DMA complete event queue
+        xQueueReceiveFromISR(o_dma.queue, &front_desc, &tmp);
+        I2S_OUT_PULSER_ENTER_CRITICAL_ISR();
+        uint32_t port_data = 0;
+        if (i2s_out_pulser_status == STEPPING) {
+            port_data = ATOMIC_LOAD(&i2s_out_port_data);
+        }
+        I2S_OUT_PULSER_EXIT_CRITICAL_ISR();
+        for (int i = 0; i < DMA_SAMPLE_COUNT; i++) {
+            front_desc->buf[i] = port_data;
+        }
+        front_desc->length = I2S_OUT_DMABUF_LEN;
+    }
+
+    // Send a DMA complete event to the I2S bitstreamer task with finished buffer
+    xQueueSendFromISR(o_dma.queue, &finish_desc, &high_priority_task_awoken);
+    high_priority_task_awoken |= tmp;
+    // }
+
+    // clear interrupt
+    // dma_chan->int_clr.val = dma_chan->int_st.val;  //clear pending interrupt
+    return high_priority_task_awoken != pdFALSE;
 }
 
 static int i2s_out_start() {
@@ -530,66 +590,6 @@ static int i2s_fillout_dma_buffer(lldesc_t* dma_desc) {
     }
 
     return 0;
-}
-
-//
-// I2S out DMA Interrupts handler
-//
-
-// I2SCommon -> static bool IRAM_ATTR i2s_dma_tx_callback(gdma_channel_handle_t dma_chan, gdma_event_data_t *event_data, void *user_data)
-
-static bool IRAM_ATTR i2s_out_intr_handler(gdma_channel_handle_t dma_chan, gdma_event_data_t* event_data, void* user_data) {
-    // static void IRAM_ATTR i2s_out_intr_handler(void* arg) {
-
-    i2s_out_dma_t handle                    = (i2s_out_dma_t)user_data;
-    lldesc_t*     finish_desc               = (lldesc_t*)(event_data->tx_eof_desc_addr);
-    portBASE_TYPE high_priority_task_awoken = pdFALSE;
-
-    // if (dma_chan->int_st.out_eof || dma_chan->int_st.out_total_eof) {
-    // if (dma_chan->int_st.out_total_eof) {
-    //     // This is tail of the DMA descriptors
-    //     I2S_OUT_ENTER_CRITICAL_ISR();
-    //
-    //     // Stop TX module
-    //     I2S0.tx_conf.tx_start = 0;
-    //     gdma_stop(i2s_out_isr_handle);
-    //
-    //     // Disconnect DMA from FIFO
-    //     I2S_OUT_EXIT_CRITICAL_ISR();
-    // }
-
-    // Get the descriptor of the last item in the linkedlist
-    // finish_desc = (lldesc_t*)I2S0.out_eof_des_addr;
-
-    // If the queue is full it's because we have an underflow,
-    // more than buf_count isr without new data, remove the front buffer
-    if (xQueueIsQueueFullFromISR(o_dma.queue)) {
-        lldesc_t* front_desc;
-
-        // Remove a descriptor from the DMA complete event queue
-        xQueueReceiveFromISR(o_dma.queue, &front_desc, &high_priority_task_awoken);
-        I2S_OUT_PULSER_ENTER_CRITICAL_ISR();
-        uint32_t port_data = 0;
-        if (i2s_out_pulser_status == STEPPING) {
-            port_data = ATOMIC_LOAD(&i2s_out_port_data);
-        }
-        I2S_OUT_PULSER_EXIT_CRITICAL_ISR();
-        for (int i = 0; i < DMA_SAMPLE_COUNT; i++) {
-            front_desc->buf[i] = port_data;
-        }
-        front_desc->length = I2S_OUT_DMABUF_LEN;
-    }
-
-    // Send a DMA complete event to the I2S bitstreamer task with finished buffer
-    xQueueSendFromISR(o_dma.queue, &finish_desc, &high_priority_task_awoken);
-    // }
-
-    if (high_priority_task_awoken == pdTRUE) {
-        portYIELD_FROM_ISR();
-    }
-
-    // clear interrupt
-    dma_chan->int_clr.val = dma_chan->int_st.val;  //clear pending interrupt
 }
 
 //
@@ -966,28 +966,30 @@ int i2s_out_init(i2s_out_init_t& init_param) {
     I2S0.tx_conf1.tx_bits_mod  = 16;  // default is 16-bits
     I2S0.rx_conf1.rx_bits_mod  = 16;  // default is 16-bits
 #else
-    I2S0.fifo_conf.tx_fifo_mod = 3;  // 0: 16-bit dual channel data, 3: 32-bit single channel data
-    I2S0.fifo_conf.rx_fifo_mod = 3;  // 0: 16-bit dual channel data, 3: 32-bit single channel data
-    // Data width is 32-bit. Forgetting this setting will result in a 16-bit transfer.
-    I2S0.tx_conf1.tx_bits_mod = 32;
-    I2S0.rx_conf1.rx_bits_mod = 32;
+    // From: i2s_ll.h:397 (s3) vs i2s_ll.h:
+    // Data width is 32-bit:
+    I2S0.tx_conf1.tx_bits_mod      = 32 - 1;
+    I2S0.tx_conf1.tx_tdm_chan_bits = 32 - 1;
+    I2S0.rx_conf1.rx_bits_mod      = 32 - 1;
+    I2S0.rx_conf1.rx_tdm_chan_bits = 32 - 1;
 #endif
+
     I2S0.tx_conf.tx_mono = 0;  // Set this bit to enable transmitter’s mono mode in PCM standard mode.
 
-    I2S0.rx_conf.rx_chan_mod = 1;  // 1: right+right
-    I2S0.rx_conf.rx_mono     = 0;
+    // I2S0.rx_conf.rx_chan_mod = 1;  // 1: right+right
+    I2S0.rx_conf.rx_mono = 0;
 
-    I2S0.fifo_conf.dscr_en = 1;  //connect DMA to fifo
-    I2S0.tx_conf.tx_start  = 0;
-    I2S0.rx_conf.rx_start  = 0;
+    // I2S0.fifo_conf.dscr_en = 1;  //connect DMA to fifo
+    I2S0.tx_conf.tx_start = 0;
+    I2S0.rx_conf.rx_start = 0;
 
-    I2S0.tx_conf.tx_msb_right   = 1;  // Set this bit to place right-channel data at the MSB in the transmit FIFO.
-    I2S0.tx_conf.tx_right_first = 0;  // Setting this bit allows the right-channel data to be sent first.
+    I2S0.tx_conf.tx_bit_order = 1;  // Set this bit to place right-channel data at the MSB in the transmit FIFO.
+    // I2S0.tx_conf.tx_right_first = 0;  // Setting this bit allows the right-channel data to be sent first.
 
-    I2S0.tx_conf.tx_slave_mod           = 0;  // Master
-    I2S0.fifo_conf.tx_fifo_mod_force_en = 1;  //The bit should always be set to 1.
-    I2S0.rx_conf.rx_pdm_en              = 0;  // Set this bit to enable receiver’s PDM mode.
-    I2S0.tx_conf.tx_pdm_en              = 0;  // Set this bit to enable transmitter’s PDM mode.
+    I2S0.tx_conf.tx_slave_mod = 0;  // Master
+    // I2S0.fifo_conf.tx_fifo_mod_force_en = 1;  //The bit should always be set to 1.
+    I2S0.rx_conf.rx_pdm_en = 0;  // Set this bit to enable receiver’s PDM mode.
+    I2S0.tx_conf.tx_pdm_en = 0;  // Set this bit to enable transmitter’s PDM mode.
 
     // I2S_COMM_FORMAT_I2S_LSB TODO FIXME?
     // I2S0.tx_conf1.tx_short_sync = 0;  // Set this bit to enable transmitter in PCM standard mode.
@@ -1000,8 +1002,9 @@ int i2s_out_init(i2s_out_init_t& init_param) {
     //
 
     // set clock (fi2s) 160MHz / 5
-    I2S0.clkm_conf.clka_en = 0;  // Use 160 MHz PLL_D2_CLK as reference
-                                 // N + b/a = 0
+    // I2S0.clkm_conf.clka_en = 0;  // Use 160 MHz PLL_D2_CLK as reference
+    I2S0.tx_clkm_conf.tx_clk_sel = 2;  // CLK160
+                                       // N + b/a = 0
 #if I2S_OUT_NUM_BITS == 16
     // N = 10
     I2S0.clkm_conf.clkm_div_num = 10;  // minimum value of 2, reset value of 4, max 256 (I²S clock divider’s integral value)
@@ -1023,17 +1026,21 @@ int i2s_out_init(i2s_out_init_t& init_param) {
 
     // Bit clock configuration bit in transmitter mode.
     // fbck = fi2s / tx_bck_div_num = (160 MHz / 5) / 2 = 16 MHz
-    I2S0.sample_rate_conf.tx_bck_div_num = 2;  // minimum value of 2 defaults to 6
-    I2S0.sample_rate_conf.rx_bck_div_num = 2;
+    I2S0.tx_conf1.tx_bck_div_num = 2;  // minimum value of 2 defaults to 6
+    I2S0.rx_conf1.rx_bck_div_num = 2;
 
     // Enable TX interrupts (DMA Interrupts)
 
-    // i2s_ll_tx_disable_intr
-    I2S0.int_ena.out_eof      = 1;  // Triggered when rxlink has finished sending a packet.
-    I2S0.int_ena.out_dscr_err = 0;  // Triggered when invalid rxlink descriptors are encountered.
+    I2S0.tx_conf.tx_start = 0;
+    gdma_stop(i2s_out_isr_handle);
 
-    I2S0.int_ena.out_total_eof = 1;  // Triggered when all transmitting linked lists are used up.
-    I2S0.int_ena.out_done      = 0;  // Triggered when all transmitted and buffered data have been read.
+
+    // i2s_ll_tx_disable_intr
+    // I2S0.int_ena.out_eof      = 1;  // Triggered when rxlink has finished sending a packet.
+    // I2S0.int_ena.out_dscr_err = 0;  // Triggered when invalid rxlink descriptors are encountered.
+    // 
+    // I2S0.int_ena.out_total_eof = 1;  // Triggered when all transmitting linked lists are used up.
+    // I2S0.int_ena.out_done      = 0;  // Triggered when all transmitted and buffered data have been read.
 
     // default pulse callback period (μsec)
     i2s_out_pulse_period = init_param.pulse_period;
@@ -1049,8 +1056,12 @@ int i2s_out_init(i2s_out_init_t& init_param) {
     );
 
     // Allocate and Enable the I2S interrupt
-    esp_intr_alloc(ETS_I2S0_INTR_SOURCE, 0, i2s_out_intr_handler, nullptr, &i2s_out_isr_handle);
-    esp_intr_enable(i2s_out_isr_handle);
+    // 
+    // https://github.com/espressif/esp-idf/blob/6cfa88ed49b7d1209732347dae55578f4a679c98/components/driver/i2s/i2s_common.c 
+    // line 660 and on.
+    //
+    // esp_intr_alloc(ETS_I2S0_INTR_SOURCE, 0, i2s_out_intr_handler, nullptr, &i2s_out_isr_handle);
+    // esp_intr_enable(i2s_out_isr_handle);
 
     // Remember GPIO pin numbers
     i2s_out_ws_pin      = init_param.ws_pin;

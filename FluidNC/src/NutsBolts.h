@@ -121,7 +121,9 @@ extern uint32_t g_ticks_per_us_pro;  // For CPU 0 - typically 240 MHz
 extern uint32_t g_ticks_per_us_app;  // For CPU 1 - typically 240 MHz
 
 inline int32_t IRAM_ATTR usToCpuTicks(int32_t us) {
-    return us * g_ticks_per_us_pro;
+    // TODO FIXME: Shouldn't be hard coded! g_ticks_per_us_pro for non-s3
+    const uint32_t ticks_per_us_pro = 240 * 1000 * 1000;  // For CPU 0 - typically 240 MHz
+    return us * ticks_per_us_pro;
 }
 
 inline int32_t IRAM_ATTR usToEndTicks(int32_t us) {

@@ -24,7 +24,7 @@ namespace Machine {
     public:
         enum stepper_id_t {
             TIMED = 0,
-            RMT,
+            // RMT,
             I2S_STATIC,
             I2S_STREAM,
         };

@@ -12,6 +12,7 @@
 	an Op Amp type circuit to get from the 0.3.3V of the ESP32 to that voltage.
 */
 
+/*
 #include "OnOffSpindle.h"
 
 #include <cstdint>
@@ -46,3 +47,5 @@ namespace Spindles {
         void set_output(uint32_t duty);  // sets DAC instead of PWM
     };
 }
+
+*/
