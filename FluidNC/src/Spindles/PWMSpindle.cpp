@@ -9,7 +9,6 @@
 
 #include "../System.h"  // sys
 #include "../GCode.h"   // gc_state.modal
-#include "../Logging.h"
 
 // ======================= PWM ==============================
 /*

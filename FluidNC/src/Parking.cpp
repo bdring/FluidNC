@@ -2,7 +2,6 @@
 // Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
 
 #include "Parking.h"
-#include "Logging.h"
 #include "System.h"                 // sys
 #include "Stepper.h"                // Stepper::
 #include "Machine/MachineConfig.h"  // config

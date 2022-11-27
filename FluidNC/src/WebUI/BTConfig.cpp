@@ -73,9 +73,8 @@ namespace WebUI {
         }
     }
 
-    String BTConfig::info() {
-        String result;
-        String tmp;
+    std::string BTConfig::info() {
+        std::string result;
         if (isOn()) {
             result += "Mode=BT:Name=";
             result += _btname;

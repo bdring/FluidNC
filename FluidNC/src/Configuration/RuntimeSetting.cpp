@@ -4,12 +4,13 @@
 #include "RuntimeSetting.h"
 
 #include "../Report.h"
+#include "../Protocol.h"  // send_line()
 
 #include <cstdlib>
 #include <atomic>
 
 namespace Configuration {
-    RuntimeSetting::RuntimeSetting(const char* key, const char* value, Print& out) : newValue_(value), out_(out) {
+    RuntimeSetting::RuntimeSetting(const char* key, const char* value, Channel& out) : newValue_(value), out_(out) {
         // Remove leading '/' if it is present
         setting_ = (*key == '/') ? key + 1 : key;
         // Also remove trailing '/' if it is present
@@ -17,6 +18,13 @@ namespace Configuration {
         start_ = setting_;
         // Read fence for config. Shouldn't be necessary, but better safe than sorry.
         std::atomic_thread_fence(std::memory_order::memory_order_seq_cst);
+    }
+
+    std::string RuntimeSetting::setting_prefix() {
+        std::string s("$/");
+        s += setting_;
+        s += "=";
+        return s;
     }
 
     void RuntimeSetting::enterSection(const char* name, Configuration::Configurable* value) {
@@ -36,7 +44,10 @@ namespace Configuration {
                 value->group(*this);
             } else {
                 if (newValue_ == nullptr) {
-                    allChannels << "/" << setting_ << ":\n";
+                    std::string s("/");
+                    s += setting_;
+                    s += ":";
+                    send_line(&out_, s);
                     Configuration::Generator generator(allChannels, 1);
                     value->group(generator);
                     isHandled_ = true;
@@ -54,7 +65,7 @@ namespace Configuration {
         if (is(name)) {
             isHandled_ = true;
             if (newValue_ == nullptr) {
-                out_ << "$/" << setting_ << "=" << (value ? "true" : "false") << '\n';
+                send_line(&out_, setting_prefix() + (value ? "true" : "false"));
             } else {
                 value = (!strcasecmp(newValue_, "true") || !strcasecmp(newValue_, "yes") || !strcasecmp(newValue_, "1"));
             }
@@ -65,7 +76,7 @@ namespace Configuration {
         if (is(name)) {
             isHandled_ = true;
             if (newValue_ == nullptr) {
-                out_ << "$/" << setting_ << "=" << value << '\n';
+                send_line(&out_, setting_prefix() + std::to_string(value));
             } else {
                 value = atoi(newValue_);
             }
@@ -76,7 +87,8 @@ namespace Configuration {
         if (is(name)) {
             isHandled_ = true;
             if (newValue_ == nullptr) {
-                out_ << "$/" << setting_ << "=" << value << '\n';
+                // XXX precision
+                send_line(&out_, setting_prefix() + std::to_string(value));
             } else {
                 char* floatEnd;
                 value = strtof(newValue_, &floatEnd);
@@ -88,7 +100,7 @@ namespace Configuration {
         if (is(name)) {
             isHandled_ = true;
             if (newValue_ == nullptr) {
-                out_ << "$/" << setting_ << "=" << value << '\n';
+                send_line(&out_, setting_prefix() + value.c_str());
             } else {
                 value = String(newValue_);
             }
@@ -101,7 +113,7 @@ namespace Configuration {
             if (newValue_ == nullptr) {
                 for (auto e2 = e; e2->name; ++e2) {
                     if (e2->value == value) {
-                        out_ << "$/" << setting_ << "=" << e2->name << '\n';
+                        send_line(&out_, setting_prefix() + e2->name);
                         return;
                     }
                 }
@@ -140,13 +152,17 @@ namespace Configuration {
             isHandled_ = true;
             if (newValue_ == nullptr) {
                 if (value.size() == 0) {
-                    out_ << "None";
+                    send_line(&out_, "None");
                 } else {
                     for (speedEntry n : value) {
-                        out_ << n.speed << '=' << n.percent << '%';
+                        std::string s;
+                        s += std::to_string(n.speed);
+                        s += '=';
+                        s += std::to_string(n.percent);
+                        s += '%';
+                        send_line(&out_, s);
                     }
                 }
-                out_ << '\n';
             } else {
                 // It is distasteful to have this code that essentially duplicates
                 // Parser.cpp speedEntryValue(), albeit using String instead of
@@ -181,7 +197,7 @@ namespace Configuration {
         if (is(name)) {
             isHandled_ = true;
             if (newValue_ == nullptr) {
-                out_ << "$/" << setting_ << "=" << value.toString() << '\n';
+                send_line(&out_, setting_prefix() + value.toString().c_str());
             } else {
                 IPAddress ip;
                 if (!ip.fromString(newValue_)) {
@@ -196,9 +212,9 @@ namespace Configuration {
         if (is(name)) {
             isHandled_ = true;
             if (newValue_ == nullptr) {
-                out_ << "$/" << setting_ << "=" << value.name() << '\n';
+                send_line(&out_, setting_prefix() + value.name().c_str());
             } else {
-                out_ << "Runtime setting of Pin objects is not supported\n";
+                send_line(&out_, "Runtime setting of Pin objects is not supported");
                 // auto parsed = Pin::create(newValue);
                 // value.swap(parsed);
             }

@@ -12,6 +12,7 @@
 #include <vector>
 #include <stdint.h>
 #include "Channel.h"
+#include <freertos/FreeRTOS.h>  // TickType_T
 #include <freertos/queue.h>
 
 // See if the character is an action command like feedhold or jogging. If so, do the action and return true

@@ -7,7 +7,7 @@
 #include "driver/sdspi_host.h"
 
 #include "Driver/sdspi.h"
-#include "src/Logging.h"
+#include "src/Config.h"
 
 #define CHECK_EXECUTE_RESULT(err, str)                                                                                                     \
     do {                                                                                                                                   \

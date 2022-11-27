@@ -1,7 +1,7 @@
 #include "esp_spiffs.h"
 #include "esp_log.h"
 #include "wdt.h"
-#include "src/Logging.h"
+#include "src/Config.h"
 
 bool spiffs_format(const char* partition_label) {
     disable_core0_WDT();

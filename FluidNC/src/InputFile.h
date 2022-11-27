@@ -66,7 +66,8 @@ public:
     void     ack(Error status) override;
     Channel* pollLine(char* line) override;
     void     stopJob() override;
-    String   jobStatus() override;
+
+    std::string jobStatus() override;
 
     ~InputFile();
 };

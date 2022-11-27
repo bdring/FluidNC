@@ -5,6 +5,8 @@
 
 #include <cstdint>
 
+class Channel;
+
 enum MsgLevel {
     MsgLevelNone    = 0,
     MsgLevelError   = 1,
@@ -30,99 +32,43 @@ enum MsgLevel {
 #include "MyIOStream.h"
 
 class DebugStream : public Print {
-    // Log lines are collected in a buffer and sent to the output stream
-    // when the line is complete, thus avoiding the possibility of interleaving
-    // output from multiple cores.
-    static const int MAXLINE = 256;
-
-    char _outline[MAXLINE];
-    int  _charcnt = 0;
-
 public:
+    DebugStream(const char* name, Channel* channel);
     DebugStream(const char* name);
     size_t write(uint8_t c) override;
     ~DebugStream();
+
+private:
+    // Log lines are collected in a buffer and sent to the output stream
+    // when the line is complete, thus avoiding the possibility of interleaving
+    // output from multiple cores.
+    int _charcnt = 0;
+
+    Channel* _channel;
+    char     _line[MAX_MESSAGE_LINE];
 };
 
 extern bool atMsgLevel(MsgLevel level);
 
+// clang-format off
+
 // Note: these '{'..'}' scopes are here for a reason: the destructor should flush.
-#define log_verbose(x)                                                                                                                     \
-    if (atMsgLevel(MsgLevelVerbose)) {                                                                                                     \
-        DebugStream ss("VRB");                                                                                                             \
-        ss << x;                                                                                                                           \
-    }
 
-#define log_debug(x)                                                                                                                       \
-    if (atMsgLevel(MsgLevelDebug)) {                                                                                                       \
-        DebugStream ss("DBG");                                                                                                             \
-        ss << x;                                                                                                                           \
-    }
+#define log_bare(prefix, x) { DebugStream ss(prefix); ss << x; }
+#define log_msg(x) { DebugStream ss("MSG: "); ss << x; }
+#define log_verbose(x) if (atMsgLevel(MsgLevelVerbose)) { DebugStream ss("MSG:VRB: "); ss << x; }
+#define log_debug(x) if (atMsgLevel(MsgLevelDebug)) { DebugStream ss("MSG:DBG: "); ss << x; }
+#define log_info(x) if (atMsgLevel(MsgLevelInfo)) { DebugStream ss("MSG:INFO: "); ss << x; }
+#define log_warn(x) if (atMsgLevel(MsgLevelWarning)) { DebugStream ss("MSG:WARN: "); ss << x; }
+#define log_error(x) if (atMsgLevel(MsgLevelError)) { DebugStream ss("MSG:ERR: "); ss << x; }
+#define log_fatal(x) { DebugStream ss("MSG:FATAL: "); ss << x;  Assert(false, "A fatal error occurred."); }
 
-#define log_info(x)                                                                                                                        \
-    if (atMsgLevel(MsgLevelInfo)) {                                                                                                        \
-        DebugStream ss("INFO");                                                                                                            \
-        ss << x;                                                                                                                           \
-    }
+#define log_bare_to(out, prefix, x) { DebugStream ss(prefix, &out); ss << x; }
+#define log_msg_to(out, x) { DebugStream ss("MSG: ", &out); ss << x; }
+#define log_verbose_to(out, x) if (atMsgLevel(MsgLevelVerbose)) { DebugStream ss("MSG:VRB: ", &out); ss << x; }
+#define log_debug_to(out, x) if (atMsgLevel(MsgLevelDebug)) { DebugStream ss("MSG:DBG: ", &out); ss << x; }
+#define log_info_to(out, x) if (atMsgLevel(MsgLevelInfo)) { DebugStream ss("MSG:INFO: ", &out); ss << x; }
+#define log_warn_to(out, x) if (atMsgLevel(MsgLevelWarning)) { DebugStream ss("MSG:WARN: ", &out); ss << x; }
+#define log_error_to(out, x) if (atMsgLevel(MsgLevelError)) { DebugStream ss("MSG:ERR: ", &out); ss << x; }
+#define log_fatal_to(out, x) { DebugStream ss("MSG:FATAL: ", &out); ss << x;  Assert(false, "A fatal error occurred."); }
 
-#define log_warn(x)                                                                                                                        \
-    if (atMsgLevel(MsgLevelWarning)) {                                                                                                     \
-        DebugStream ss("WARN");                                                                                                            \
-        ss << x;                                                                                                                           \
-    }
-
-#define log_error(x)                                                                                                                       \
-    if (atMsgLevel(MsgLevelError)) {                                                                                                       \
-        DebugStream ss("ERR");                                                                                                             \
-        ss << x;                                                                                                                           \
-    }
-
-#define log_fatal(x)                                                                                                                       \
-    {                                                                                                                                      \
-        DebugStream ss("FATAL");                                                                                                           \
-        ss << x;                                                                                                                           \
-        Assert(false, "A fatal error occurred.");                                                                                          \
-    }
-
-#define log_verbose_to(out, x)                                                                                                             \
-    if (atMsgLevel(MsgLevelVerbose)) {                                                                                                     \
-        out << "[MSG:VRB: ";                                                                                                               \
-        out << x;                                                                                                                          \
-        out << "]\n";                                                                                                                      \
-    }
-
-#define log_debug_to(out, x)                                                                                                               \
-    if (atMsgLevel(MsgLevelDebug)) {                                                                                                       \
-        out << "[MSG:DBG: ";                                                                                                               \
-        out << x;                                                                                                                          \
-        out << "]\n";                                                                                                                      \
-    }
-
-#define log_info_to(out, x)                                                                                                                \
-    if (atMsgLevel(MsgLevelInfo)) {                                                                                                        \
-        out << "[MSG:INFO: ";                                                                                                              \
-        out << x;                                                                                                                          \
-        out << "]\n";                                                                                                                      \
-    }
-
-#define log_warn_to(out, x)                                                                                                                \
-    if (atMsgLevel(MsgLevelWarning)) {                                                                                                     \
-        out << "[MSG:WARN: ";                                                                                                              \
-        out << x;                                                                                                                          \
-        out << "]\n";                                                                                                                      \
-    }
-
-#define log_error_to(out, x)                                                                                                               \
-    if (atMsgLevel(MsgLevelError)) {                                                                                                       \
-        out << "[MSG:ERR: ";                                                                                                               \
-        out << x;                                                                                                                          \
-        out << "]\n";                                                                                                                      \
-    }
-
-#define log_fatal_to(out, x)                                                                                                               \
-    {                                                                                                                                      \
-        out << "[MSG:FATAL: ";                                                                                                             \
-        out << x;                                                                                                                          \
-        out << "]\n";                                                                                                                      \
-        Assert(false, "A fatal error occurred.");                                                                                          \
-    }

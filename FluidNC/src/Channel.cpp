@@ -2,6 +2,7 @@
 // Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
 
 #include "Channel.h"
+#include "Report.h"                 // report_gcode_modes
 #include "Machine/MachineConfig.h"  // config
 #include "Serial.h"                 // execute_realtime_command
 #include "Limits.h"
@@ -145,21 +146,18 @@ Channel* Channel::pollLine(char* line) {
 }
 
 void Channel::ack(Error status) {
-    switch (status) {
-        case Error::Ok:  // Error::Ok
-            print("ok\n");
-            break;
-        default:
-            // With verbose errors, the message text is displayed instead of the number.
-            // Grbl 0.9 used to display the text, while Grbl 1.1 switched to the number.
-            // Many senders support both formats.
-            print("error:");
-            if (config->_verboseErrors) {
-                print(errorString(status));
-            } else {
-                print(static_cast<int>(status));
-            }
-            write('\n');
-            break;
+    if (status == Error::Ok) {
+        send_line(this, "ok");
+        return;
     }
+    // With verbose errors, the message text is displayed instead of the number.
+    // Grbl 0.9 used to display the text, while Grbl 1.1 switched to the number.
+    // Many senders support both formats.
+    std::string msg("error:");
+    if (config->_verboseErrors) {
+        msg += errorString(status);
+    } else {
+        msg += std::to_string(static_cast<int>(status));
+    }
+    send_line(this, msg.c_str());
 }

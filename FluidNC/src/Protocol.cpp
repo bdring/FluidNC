@@ -17,7 +17,6 @@
 #include "Planner.h"        // plan_get_current_block
 #include "MotionControl.h"  // PARKING_MOTION_LINE_NUMBER
 #include "Settings.h"       // settings_execute_startup
-#include "Logging.h"
 #include "Machine/LimitPin.h"
 
 volatile ExecAlarm rtAlarm;  // Global realtime executor bitflag variable for setting various alarms.
@@ -86,7 +85,44 @@ static void request_safety_door() {
     rtSafetyDoor = true;
 }
 
+TaskHandle_t outputTask = nullptr;
+
+xQueueHandle message_queue;
+
+struct LogMessage {
+    Channel* channel;
+    char     line[MAX_MESSAGE_LINE];
+};
+
+void send_line(Channel* channel, const char* line) {
+    if (outputTask) {
+        LogMessage msg { channel };
+        strncpy(msg.line, line, MAX_MESSAGE_LINE);
+        while (!xQueueSend(message_queue, &msg, 10)) {}
+    } else {
+        channel->println(line);
+    }
+}
+void send_line(Channel* channel, const std::string& line) {
+    send_line(channel, line.c_str());
+}
+void send_line(Channel* channel, const String& line) {
+    send_line(channel, line.c_str());
+}
+
+void output_loop(void* unused) {
+    while (true) {
+        LogMessage message;
+        if (xQueueReceive(message_queue, &message, 0)) {
+            message.channel->println(message.line);
+        }
+        vTaskDelay(0);
+    }
+}
+
 Channel* activeChannel = nullptr;  // Channel associated with the input line
+
+TaskHandle_t pollingTask = nullptr;
 
 char activeLine[Channel::maxLine];
 
@@ -112,8 +148,6 @@ void polling_loop(void* unused) {
     }
 }
 
-TaskHandle_t pollingTask = nullptr;
-
 void stop_polling() {
     if (pollingTask) {
         vTaskSuspend(pollingTask);
@@ -130,6 +164,14 @@ void start_polling() {
                                 0,                 // parameters
                                 1,                 // priority
                                 &pollingTask,      // task handle
+                                SUPPORT_TASK_CORE  // core
+        );
+        xTaskCreatePinnedToCore(output_loop,       // task
+                                "output",          // name for task
+                                8192,              // size of task stack
+                                0,                 // parameters
+                                1,                 // priority
+                                &outputTask,       // task handle
                                 SUPPORT_TASK_CORE  // core
         );
     }
@@ -267,7 +309,8 @@ void protocol_execute_realtime() {
 }
 
 static void alarm_msg(ExecAlarm alarm_code) {
-    allChannels << "ALARM:" << static_cast<int>(alarm_code) << '\n';
+    std::string s("ALARM:");
+    send_line(&allChannels, s + std::to_string(static_cast<int>(alarm_code)));
     delay_ms(500);  // Force delay to ensure message clears serial write buffer.
 }
 
@@ -942,7 +985,8 @@ NoArgEvent resetEvent { mc_reset };
 xQueueHandle event_queue;
 
 void protocol_init() {
-    event_queue = xQueueCreate(10, sizeof(EventItem));
+    event_queue   = xQueueCreate(10, sizeof(EventItem));
+    message_queue = xQueueCreate(5, MAX_MESSAGE_LINE);
 }
 
 void protocol_send_event(Event* evt, void* arg) {

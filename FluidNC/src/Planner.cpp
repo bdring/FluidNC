@@ -9,8 +9,6 @@
 */
 
 #include "Planner.h"
-#include "Logging.h"
-
 #include "Machine/MachineConfig.h"
 
 #include <cstdlib>  // PSoc Required for labs

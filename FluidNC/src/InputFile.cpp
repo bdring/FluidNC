@@ -4,7 +4,6 @@
 #include "InputFile.h"
 
 #include "Report.h"
-#include "Logging.h"
 
 InputFile::InputFile(const char* defaultFs, const char* path, WebUI::AuthenticationLevel auth_level, Channel& out) :
     FileStream(path, "r", defaultFs), _auth_level(auth_level), _out(out), _line_num(0) {}
@@ -64,12 +63,11 @@ Channel* InputFile::pollLine(char* line) {
             return &allChannels;
         case Error::Eof:
             _notifyf("File job done", "%s file job succeeded", path());
-            allChannels << "[MSG:" << path() << " file job succeeded]\n";
+            log_msg(path() << " file job succeeded");
             allChannels.kill(this);
             return nullptr;
         default:
-            allChannels << "[MSG: ERR:" << static_cast<int>(err) << " (" << errorString(err) << ") in " << path() << " at line "
-                        << getLineNumber() << "]\n";
+            log_error(static_cast<int>(err) << " (" << errorString(err) << ") in " << path() << " at line " << getLineNumber());
             allChannels.kill(this);
             return nullptr;
     }
@@ -82,12 +80,12 @@ void InputFile::stopJob() {
     allChannels.kill(this);
 }
 
-String InputFile::jobStatus() {
-    String ret = "SD:";
-    ret += String(percent_complete(), 2);
-    ret += ",";
-    ret += path();
-    return ret;
+#include <sstream>
+#include <iomanip>
+std::string InputFile::jobStatus() {
+    std::ostringstream ret;
+    ret << "SD:" << std::setprecision(2) << percent_complete() << "," << path();
+    return ret.str();
 }
 
 InputFile::~InputFile() {}

@@ -20,8 +20,8 @@
 #include "GCode.h"  // gc_modal_t
 #include "Types.h"  // State
 #include <Stream.h>
-#include <queue>
 #include <freertos/FreeRTOS.h>  // TickType_T
+#include <queue>
 
 class Channel : public Stream {
 public:
@@ -84,8 +84,8 @@ public:
         return readBytes(buffer, length);
     }
 
-    virtual void   stopJob() {}
-    virtual String jobStatus() { return String(); }
+    virtual void        stopJob() {}
+    virtual std::string jobStatus() { return std::string(); }
 
     size_t timedReadBytes(uint8_t* buffer, size_t length, TickType_t timeout) { return timedReadBytes((char*)buffer, length, timeout); }
 

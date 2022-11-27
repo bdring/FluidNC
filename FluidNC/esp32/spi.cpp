@@ -5,7 +5,7 @@
 
 #include <SPI.h>
 #include "driver/spi_common.h"
-#include "src/Logging.h"
+#include "src/COnfig.h"
 
 bool spi_init_bus(pinnum_t sck_pin, pinnum_t miso_pin, pinnum_t mosi_pin, bool dma) {
     // Start the SPI bus with the pins defined here.  Once it has been started,

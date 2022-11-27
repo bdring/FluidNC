@@ -56,27 +56,27 @@ void report_status_message(Error status_code, Channel& channel);
 void report_feedback_message(Message message);
 
 // Prints welcome message
-void report_init_message(Print& channel);
+void report_init_message(Channel& channel);
 
 // Prints an echo of the pre-parsed line received right before execution.
-void report_echo_line_received(char* line, Print& channel);
+void report_echo_line_received(char* line, Channel& channel);
 
 // Prints realtime status report
 void report_realtime_status(Channel& channel);
 
 // Prints recorded probe position
-void report_probe_parameters(Print& channel);
+void report_probe_parameters(Channel& channel);
 
-void report_ngc_coord(CoordIndex coord, Print& channel);
+void report_ngc_coord(CoordIndex coord, Channel& channel);
 
 // Prints NGC parameters (coordinate offsets, probe)
-void report_ngc_parameters(Print& channel);
+void report_ngc_parameters(Channel& channel);
 
 // Prints current g-code parser mode state
-void report_gcode_modes(Print& channel);
+void report_gcode_modes(Channel& channel);
 
 // Prints build info and user info
-void report_build_info(const char* line, Print& channel);
+void report_build_info(const char* line, Channel& channel);
 
 void report_realtime_debug();
 

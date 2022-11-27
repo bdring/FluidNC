@@ -28,6 +28,7 @@
 extern void make_user_commands();
 
 void setup() {
+    disableCore0WDT();
     try {
         uartInit();       // Setup serial port
         Uart0.println();  // create some white space after ESP32 boot info

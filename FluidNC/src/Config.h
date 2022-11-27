@@ -25,6 +25,8 @@ Some features should not be changed. See notes below.
 
 const int MAX_N_AXIS = 6;
 
+const int MAX_MESSAGE_LINE = 256;
+
 // Axis array index values. Must start with 0 and be continuous.
 // Note: You set the number of axes used by changing MAX_N_AXIS.
 // Be sure to define pins or servos in the machine definition file.

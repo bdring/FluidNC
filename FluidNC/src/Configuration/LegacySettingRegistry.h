@@ -4,7 +4,7 @@
 #pragma once
 
 #include <vector>
-#include "../Logging.h"
+#include "../Config.h"
 
 namespace Configuration {
     class LegacySettingHandler;
