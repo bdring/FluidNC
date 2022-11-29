@@ -294,7 +294,12 @@ namespace WebUI {
         char  fileLine[255];
         Error res;
         while ((res = theFile->readLine(fileLine, 255)) == Error::Ok) {
-            log_to(out, fileLine);
+            // We cannot use the 2-argument form of log_to() here because
+            // fileLine can be overwritten by readLine before the output
+            // task has a chance to forward the line to the output channel.
+            // The 3-argument form works because it copies the line to a
+            // temporary string.
+            log_to(out, "", fileLine);
         }
         if (res != Error::Eof) {
             log_to(out, errorString(res));
