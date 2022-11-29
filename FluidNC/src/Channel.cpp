@@ -147,17 +147,16 @@ Channel* Channel::pollLine(char* line) {
 
 void Channel::ack(Error status) {
     if (status == Error::Ok) {
-        send_line(this, "ok");
+        log_to(*this, "ok");
         return;
     }
     // With verbose errors, the message text is displayed instead of the number.
     // Grbl 0.9 used to display the text, while Grbl 1.1 switched to the number.
     // Many senders support both formats.
-    std::string msg("error:");
+    LogStream msg(*this, "error:");
     if (config->_verboseErrors) {
-        msg += errorString(status);
+        msg << errorString(status);
     } else {
-        msg += std::to_string(static_cast<int>(status));
+        msg << static_cast<int>(status);
     }
-    send_line(this, msg.c_str());
 }

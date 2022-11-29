@@ -27,7 +27,7 @@ namespace Configuration {
 
     void Generator::leave() {
         if (!lastIsNewline_) {
-            send_line(&dst_, "");
+            log_to(dst_, "");
             lastIsNewline_ = true;
         }
 

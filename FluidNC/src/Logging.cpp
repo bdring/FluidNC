@@ -10,26 +10,20 @@ bool atMsgLevel(MsgLevel level) {
     return message_level == nullptr || message_level->get() >= level;
 }
 
-DebugStream::DebugStream(const char* name, Channel* channel) {
-    _channel = channel;
-    _charcnt = 0;
-    print("[");
+LogStream::LogStream(Channel& channel, const char* name) : _channel(channel) {
+    _line = new std::string();
     print(name);
 }
-DebugStream::DebugStream(const char* name) : DebugStream(name, &allChannels) {}
+LogStream::LogStream(const char* name) : LogStream(allChannels, name) {}
 
-size_t DebugStream::write(uint8_t c) {
-    if (_charcnt < MAX_MESSAGE_LINE - 2) {
-        // Leave room for ]\0
-        _line[_charcnt++] = (char)c;
-        return 1;
-    }
-    return 0;
+size_t LogStream::write(uint8_t c) {
+    *_line += (char)c;
+    return 1;
 }
 
-DebugStream::~DebugStream() {
-    // write() leaves space for the null at the end
-    _line[_charcnt++] = ']';
-    _line[_charcnt++] = '\0';
+LogStream::~LogStream() {
+    if ((*_line).length() && (*_line)[0] == '[') {
+        *_line += ']';
+    }
     send_line(_channel, _line);
 }

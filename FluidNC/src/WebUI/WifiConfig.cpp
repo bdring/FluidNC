@@ -11,6 +11,7 @@
 WebUI::WiFiConfig wifi_config;
 
 #ifdef ENABLE_WIFI
+#    include "../Config.h"
 #    include "../Main.h"       // display()
 #    include "Commands.h"      // COMMANDS
 #    include "WifiServices.h"  // wifi_services.start() etc.
@@ -76,31 +77,19 @@ namespace WebUI {
         { "WPA2-ENTERPRISE", WIFI_AUTH_WPA2_ENTERPRISE },
     };
 
-    static void print_mac(Channel& out, const char* prefix, String mac) {
-        std::string s(prefix);
-        s += " (";
-        s += mac.c_str();
-        s += ")";
-        send_line(&out, s);
-    }
+    static void print_mac(Channel& out, const char* prefix, String mac) { log_to(out, prefix, " (" << mac << ")"); }
 
     static Error showIP(char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP111
-        std::string s(parameter);
-        s += (WiFi.getMode() == WIFI_STA ? WiFi.localIP() : WiFi.softAPIP()).toString().c_str();
-        send_line(&out, s);
+        log_to(out, parameter, (WiFi.getMode() == WIFI_STA ? WiFi.localIP() : WiFi.softAPIP()).toString());
         return Error::Ok;
     }
 
     static Error showSetStaParams(char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP103
         if (*parameter == '\0') {
-            std::string s;
-            s += "IP:";
-            s += wifi_sta_ip->getStringValue();
-            s += " GW:";
-            s += wifi_sta_gateway->getStringValue();
-            s += " MSK:";
-            s += wifi_sta_netmask->getStringValue();
-            send_line(&out, s);
+            log_to(out,
+                   "",
+                   "IP:" << wifi_sta_ip->getStringValue() << " GW:" << wifi_sta_gateway->getStringValue()
+                         << " MSK:" << wifi_sta_netmask->getStringValue());
             return Error::Ok;
         }
         if (!split_params(parameter)) {
@@ -120,19 +109,8 @@ namespace WebUI {
         return err;
     }
 
-    static void send_tagged(Channel& out, const char* tag, const char* value) {
-        std::string s(tag);
-        send_line(&out, s + value);
-    }
-
-    static void send_tagged(Channel& out, const char* tag, const String& value) { send_tagged(out, tag, value.c_str()); }
-
-    static void send_tagged(Channel& out, const char* tag, int value) { send_tagged(out, tag, std::to_string(value).c_str()); }
-
-    static void send_tagged(Channel& out, const char* tag, const std::string& value) { send_tagged(out, tag, value.c_str()); }
-
     void WiFiConfig::showWifiStats(Channel& out) {
-        send_tagged(out, "Sleep mode: ", WiFi.getSleep() ? "Modem" : "None");
+        log_to(out, "Sleep mode: ", (WiFi.getSleep() ? "Modem" : "None"));
         int mode = WiFi.getMode();
         if (mode != WIFI_MODE_NULL) {
             //Is OTA available ?
@@ -143,11 +121,11 @@ namespace WebUI {
                     flashsize = partition->size;
                 }
             }
-            send_tagged(out, "Available Size for update: ", formatBytes(flashsize).c_str());
-            send_tagged(out, "Available Size for LocalFS: ", formatBytes(localfs_size()).c_str());
-            send_tagged(out, "Web port: ", webServer.port());
-            send_tagged(out, "Data port: ", telnetServer.port());
-            send_tagged(out, "Hostname: ", wifi_config.Hostname());
+            log_to(out, "Available Size for update: ", formatBytes(flashsize));
+            log_to(out, "Available Size for LocalFS: ", formatBytes(localfs_size()));
+            log_to(out, "Web port: ", webServer.port());
+            log_to(out, "Data port: ", telnetServer.port());
+            log_to(out, "Hostname: ", wifi_config.Hostname());
         }
 
         switch (mode) {
@@ -155,11 +133,8 @@ namespace WebUI {
                 print_mac(out, "Current WiFi Mode: STA", WiFi.macAddress());
 
                 if (WiFi.isConnected()) {  //in theory no need but ...
-                    send_tagged(out, "Connected to: ", WiFi.SSID().c_str());
-                    std::string s;
-                    s += std::to_string(wifi_config.getSignal(WiFi.RSSI()));
-                    s += "%";
-                    send_tagged(out, "Signal: ", s);
+                    log_to(out, "Connected to: ", WiFi.SSID());
+                    log_to(out, "Signal: ", wifi_config.getSignal(WiFi.RSSI()) << "%");
 
                     uint8_t PhyMode;
                     esp_wifi_get_protocol(WIFI_IF_STA, &PhyMode);
@@ -177,16 +152,16 @@ namespace WebUI {
                         default:
                             modeName = "???";
                     }
-                    send_tagged(out, "Phy Mode: ", modeName);
-                    send_tagged(out, "Channel: ", std::to_string(WiFi.channel()));
+                    log_to(out, "Phy Mode: ", modeName);
+                    log_to(out, "Channel: ", WiFi.channel());
 
                     tcpip_adapter_dhcp_status_t dhcp_status;
                     tcpip_adapter_dhcpc_get_status(TCPIP_ADAPTER_IF_STA, &dhcp_status);
-                    send_tagged(out, "IP Mode: ", dhcp_status == TCPIP_ADAPTER_DHCP_STARTED ? "DHCP" : "Static");
-                    send_tagged(out, "IP: ", WiFi.localIP().toString());
-                    send_tagged(out, "Gateway: ", WiFi.gatewayIP().toString());
-                    send_tagged(out, "Mask: ", WiFi.subnetMask().toString());
-                    send_tagged(out, "DNS: ", WiFi.dnsIP().toString());
+                    log_to(out, "IP Mode: ", (dhcp_status == TCPIP_ADAPTER_DHCP_STARTED ? "DHCP" : "Static"));
+                    log_to(out, "IP: ", WiFi.localIP().toString());
+                    log_to(out, "Gateway: ", WiFi.gatewayIP().toString());
+                    log_to(out, "Mask: ", WiFi.subnetMask().toString());
+                    log_to(out, "DNS: ", WiFi.dnsIP().toString());
 
                 }  //this is web command so connection => no command
                 print_mac(out, "Disabled Mode: AP", WiFi.softAPmacAddress());
@@ -196,8 +171,8 @@ namespace WebUI {
 
                 wifi_config_t conf;
                 esp_wifi_get_config(WIFI_IF_AP, &conf);
-                send_tagged(out, "SSID: ", (const char*)conf.ap.ssid);
-                send_tagged(out, "Visible: ", conf.ap.ssid_hidden == 0 ? "Yes" : "No");
+                log_to(out, "SSID: ", (const char*)conf.ap.ssid);
+                log_to(out, "Visible: ", (conf.ap.ssid_hidden == 0 ? "Yes" : "No"));
 
                 const char* mode;
                 switch (conf.ap.authmode) {
@@ -220,55 +195,50 @@ namespace WebUI {
                         mode = "WPA/WPA2";
                 }
 
-                send_tagged(out, "Authentication: ", mode);
-                send_tagged(out, "Max Connections: ", conf.ap.max_connection);
+                log_to(out, "Authentication: ", mode);
+                log_to(out, "Max Connections: ", conf.ap.max_connection);
 
                 tcpip_adapter_dhcp_status_t dhcp_status;
                 tcpip_adapter_dhcps_get_status(TCPIP_ADAPTER_IF_AP, &dhcp_status);
-                send_tagged(out, "DHCP Server: ", dhcp_status == TCPIP_ADAPTER_DHCP_STARTED ? "Started" : "Stopped");
+                log_to(out, "DHCP Server: ", (dhcp_status == TCPIP_ADAPTER_DHCP_STARTED ? "Started" : "Stopped"));
 
-                send_tagged(out, "IP: ", WiFi.softAPIP().toString());
+                log_to(out, "IP: ", WiFi.softAPIP().toString());
 
                 tcpip_adapter_ip_info_t ip_AP;
                 tcpip_adapter_get_ip_info(TCPIP_ADAPTER_IF_AP, &ip_AP);
-                send_tagged(out, "Gateway: ", IPAddress(ip_AP.gw.addr).toString());
-                send_tagged(out, "Mask: ", IPAddress(ip_AP.netmask.addr).toString());
+                log_to(out, "Gateway: ", IPAddress(ip_AP.gw.addr).toString());
+                log_to(out, "Mask: ", IPAddress(ip_AP.netmask.addr).toString());
 
                 wifi_sta_list_t          station;
                 tcpip_adapter_sta_list_t tcpip_sta_list;
                 esp_wifi_ap_get_sta_list(&station);
                 tcpip_adapter_get_sta_list(&station, &tcpip_sta_list);
-                send_tagged(out, "Connected channels: ", station.num);
+                log_to(out, "Connected channels: ", station.num);
 
                 for (int i = 0; i < station.num; i++) {
-                    std::string s;
-                    s += wifi_config.mac2str(tcpip_sta_list.sta[i].mac);
-                    s += " ";
-                    s += IPAddress(tcpip_sta_list.sta[i].ip.addr).toString().c_str();
-                    send_line(&out, s);
+                    log_to(out,
+                           "",
+                           wifi_config.mac2str(tcpip_sta_list.sta[i].mac) << " " << IPAddress(tcpip_sta_list.sta[i].ip.addr).toString());
                 }
                 print_mac(out, "Disabled Mode: STA", WiFi.macAddress());
                 break;
             case WIFI_AP_STA:  //we should not be in this state but just in case ....
-                send_line(&out, "");
+                log_to(out, "");
 
                 print_mac(out, "Mixed: STA", WiFi.macAddress());
                 print_mac(out, "Mixed: AP", WiFi.softAPmacAddress());
                 break;
             default:  //we should not be there if no wifi ....
 
-                send_line(&out, "Current WiFi Mode: Off");
+                log_to(out, "Current WiFi Mode: Off");
                 break;
         }
 
-        std::string s("Notifications: ");
-        s += notificationsService.started() ? "Enabled" : "Disabled";
+        LogStream s("Notifications: ");
+        s << (notificationsService.started() ? "Enabled" : "Disabled");
         if (notificationsService.started()) {
-            s += "(";
-            s += notificationsService.getTypeString();
-            s += ")";
+            s << "(" << notificationsService.getTypeString() << ")";
         }
-        send_line(&out, s);
     }
 
     std::string WiFiConfig::_hostname("");
@@ -811,7 +781,6 @@ namespace WebUI {
         }
         j.end_array();
         j.end();
-        send_line(&out, "");
         return Error::Ok;
     }
 

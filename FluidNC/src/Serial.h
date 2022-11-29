@@ -91,7 +91,7 @@ public:
     void notifyWco();
     void notifyNgc(CoordIndex coord);
 
-    String info();
+    void listChannels(Channel& out);
 
     Channel* pollLine(char* line) override;
 };

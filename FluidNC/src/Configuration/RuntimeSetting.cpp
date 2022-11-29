@@ -44,10 +44,7 @@ namespace Configuration {
                 value->group(*this);
             } else {
                 if (newValue_ == nullptr) {
-                    std::string s("/");
-                    s += setting_;
-                    s += ":";
-                    send_line(&out_, s);
+                    log_to(out_, "/", setting_ << ":");
                     Configuration::Generator generator(allChannels, 1);
                     value->group(generator);
                     isHandled_ = true;
@@ -65,7 +62,7 @@ namespace Configuration {
         if (is(name)) {
             isHandled_ = true;
             if (newValue_ == nullptr) {
-                send_line(&out_, setting_prefix() + (value ? "true" : "false"));
+                log_to(out_, "", setting_prefix() << (value ? "true" : "false"));
             } else {
                 value = (!strcasecmp(newValue_, "true") || !strcasecmp(newValue_, "yes") || !strcasecmp(newValue_, "1"));
             }
@@ -76,7 +73,7 @@ namespace Configuration {
         if (is(name)) {
             isHandled_ = true;
             if (newValue_ == nullptr) {
-                send_line(&out_, setting_prefix() + std::to_string(value));
+                log_to(out_, "", setting_prefix() << value);
             } else {
                 value = atoi(newValue_);
             }
@@ -88,7 +85,7 @@ namespace Configuration {
             isHandled_ = true;
             if (newValue_ == nullptr) {
                 // XXX precision
-                send_line(&out_, setting_prefix() + std::to_string(value));
+                log_to(out_, "", setting_prefix() << value);
             } else {
                 char* floatEnd;
                 value = strtof(newValue_, &floatEnd);
@@ -100,7 +97,7 @@ namespace Configuration {
         if (is(name)) {
             isHandled_ = true;
             if (newValue_ == nullptr) {
-                send_line(&out_, setting_prefix() + value.c_str());
+                log_to(out_, "", setting_prefix() << value);
             } else {
                 value = String(newValue_);
             }
@@ -113,7 +110,7 @@ namespace Configuration {
             if (newValue_ == nullptr) {
                 for (auto e2 = e; e2->name; ++e2) {
                     if (e2->value == value) {
-                        send_line(&out_, setting_prefix() + e2->name);
+                        log_to(out_, "", setting_prefix() << e2->name);
                         return;
                     }
                 }
@@ -152,15 +149,10 @@ namespace Configuration {
             isHandled_ = true;
             if (newValue_ == nullptr) {
                 if (value.size() == 0) {
-                    send_line(&out_, "None");
+                    log_to(out_, "None");
                 } else {
                     for (speedEntry n : value) {
-                        std::string s;
-                        s += std::to_string(n.speed);
-                        s += '=';
-                        s += std::to_string(n.percent);
-                        s += '%';
-                        send_line(&out_, s);
+                        log_to(out_, "", n.speed << "=" << n.percent << "%")
                     }
                 }
             } else {
@@ -197,7 +189,7 @@ namespace Configuration {
         if (is(name)) {
             isHandled_ = true;
             if (newValue_ == nullptr) {
-                send_line(&out_, setting_prefix() + value.toString().c_str());
+                log_to(out_, "", setting_prefix() << value.toString());
             } else {
                 IPAddress ip;
                 if (!ip.fromString(newValue_)) {
@@ -212,9 +204,9 @@ namespace Configuration {
         if (is(name)) {
             isHandled_ = true;
             if (newValue_ == nullptr) {
-                send_line(&out_, setting_prefix() + value.name().c_str());
+                log_to(out_, "", setting_prefix() << value.name());
             } else {
-                send_line(&out_, "Runtime setting of Pin objects is not supported");
+                log_to(out_, "Runtime setting of Pin objects is not supported");
                 // auto parsed = Pin::create(newValue);
                 // value.swap(parsed);
             }

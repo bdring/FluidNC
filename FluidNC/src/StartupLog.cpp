@@ -12,7 +12,7 @@ std::string StartupLog::messages() {
 void StartupLog::dump(Channel& out) {
     std::istringstream iss(_messages);
     for (std::string line; std::getline(iss, line);) {
-        send_line(&out, line);
+        log_to(out, line);
     }
 }
 

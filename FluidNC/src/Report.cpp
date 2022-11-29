@@ -156,8 +156,8 @@ const char* radio =
 
 // Welcome message
 void report_init_message(Channel& channel) {
-    std::string msg;
-    msg += '\n';
+    log_to(channel, "");  // Empty line for spacer
+    LogStream   msg(channel, "");
     const char* p = start_message->get();
     char        c;
     while ((c = *p++) != '\0') {
@@ -167,26 +167,26 @@ void report_init_message(Channel& channel) {
                     --p;  // Unconsume the null character
                     break;
                 case 'H':
-                    msg += "'$' for help";
+                    msg << "'$' for help";
                     break;
                 case 'B':
-                    msg += git_info;
+                    msg << git_info;
                     break;
                 case 'V':
-                    msg += grbl_version;
+                    msg << grbl_version;
                     break;
                 case 'R':
-                    msg += radio;
+                    msg << radio;
                     break;
                 default:
-                    msg += c;
+                    msg << c;
                     break;
             }
         } else {
-            msg += c;
+            msg << c;
         }
     }
-    send_line(&channel, msg);
+    // When msg goes out of scope, the destructor will send the line
 }
 
 // Prints current probe parameters. Upon a probe command, these parameters are updated upon a
@@ -198,7 +198,7 @@ void report_probe_parameters(Channel& channel) {
     float print_position[MAX_N_AXIS];
     motor_steps_to_mpos(print_position, probe_steps);
 
-    log_bare_to(channel, "PRB:", report_util_axis_values(print_position) << ":" << probe_succeeded);
+    log_to(channel, "[PRB:", report_util_axis_values(print_position) << ":" << probe_succeeded);
 }
 
 // Prints NGC parameters (coordinate offsets, probing)
@@ -215,17 +215,17 @@ void report_ngc_coord(CoordIndex coord, Channel& channel) {
         }
         std::ostringstream msg;
         msg << std::setprecision(decimals) << tlo;
-        log_bare_to(channel, "TLO:", msg.str());
+        log_to(channel, "[TLO:", msg.str());
         return;
     }
     if (coord == CoordIndex::G92) {  // Non-persistent G92 offset
-        log_bare_to(channel, "G92:", report_util_axis_values(gc_state.coord_offset));
+        log_to(channel, "[G92:", report_util_axis_values(gc_state.coord_offset));
         return;
     }
     // Persistent offsets G54 - G59, G28, and G30
     String name = coords[coord]->getName();
     name += ":";
-    log_bare_to(channel, name.c_str(), report_util_axis_values(coords[coord]->get()));
+    log_to(channel, "[", name.c_str() << report_util_axis_values(coords[coord]->get()));
 }
 void report_ngc_parameters(Channel& channel) {
     for (auto coord = CoordIndex::Begin; coord < CoordIndex::End; ++coord) {
@@ -369,12 +369,12 @@ void report_gcode_modes(Channel& channel) {
     int digits = config->_reportInches ? 1 : 0;
     msg << " F" << std::setprecision(digits) << gc_state.feed_rate;
     msg << " S" << uint32_t(gc_state.spindle_speed);
-    log_bare_to(channel, "GC:", msg.str())
+    log_to(channel, "[GC:", msg.str())
 }
 
 // Prints build info line
 void report_build_info(const char* line, Channel& channel) {
-    log_bare_to(channel, "VER:", grbl_version << " FluidNC " << git_info << ":" << line);
+    log_to(channel, "[VER:", grbl_version << " FluidNC " << git_info << ":" << line);
 
     // The option message is included for backwards compatibility but
     // is not particularly useful for FluidNC, which has runtime
@@ -403,7 +403,7 @@ void report_build_info(const char* line, Channel& channel) {
     if (!FORCE_BUFFER_SYNC_DURING_WCO_CHANGE) {
         msg += "W";  // Shown when disabled.
     }
-    log_bare_to(channel, "OPT:", msg);
+    log_to(channel, "[OPT:", msg);
 
     log_msg_to(channel, "Machine: " << config->_name);
 
@@ -427,7 +427,7 @@ void report_build_info(const char* line, Channel& channel) {
 // Prints the character string line that was received, which has been pre-parsed,
 // and has been sent into protocol_execute_line() routine to be executed.
 void report_echo_line_received(char* line, Channel& channel) {
-    log_bare_to(channel, "echo: ", line);
+    log_to(channel, "[echo: ", line);
 }
 
 // Calculate the position for status reports.
@@ -529,8 +529,8 @@ void report_realtime_debug() {}
 // requires as it minimizes the computational overhead to keep running smoothly,
 // especially during g-code programs with fast, short line segments and high frequency reports (5-20Hz).
 void report_realtime_status(Channel& channel) {
-    std::ostringstream msg;
-    msg << "<" << state_name();
+    LogStream msg(channel, "<");
+    msg << state_name();
 
     // Report position
     float* print_position = get_mpos();
@@ -564,7 +564,7 @@ void report_realtime_status(Channel& channel) {
     if (config->_reportInches) {
         rate /= MM_PER_INCH;
     }
-    msg << "|FS:" << std::setprecision(0) << rate << "," << sys.spindle_speed;
+    msg << "|FS:" << setprecision(0) << rate << "," << sys.spindle_speed;
 
     msg << pinString();
 
@@ -641,7 +641,8 @@ void report_realtime_status(Channel& channel) {
     msg << "|Heap:" << esp.getHeapSize();
 #endif
     msg << ">";
-    send_line(&channel, msg.str());
+    // The DebugStream destructor sends the line
+    // when msg goes out of scope
 }
 
 void hex_msg(uint8_t* buf, const char* prefix, int len) {

@@ -91,30 +91,73 @@ xQueueHandle message_queue;
 
 struct LogMessage {
     Channel* channel;
-    char     line[MAX_MESSAGE_LINE];
+    void*    line;
+    bool     isString;
 };
 
-void send_line(Channel* channel, const char* line) {
+// This overload is used primarily with fixed string
+// values.  It sends a pointer to the string whose
+// memory does not need to be reclaimed later.
+// This is the most efficient form, but it only works
+// with fixed messages.
+void send_line(Channel& channel, const char* line) {
     if (outputTask) {
-        LogMessage msg { channel };
-        strncpy(msg.line, line, MAX_MESSAGE_LINE);
+        LogMessage msg { &channel, (void*)line, false };
         while (!xQueueSend(message_queue, &msg, 10)) {}
     } else {
-        channel->println(line);
+        channel.println(line);
     }
 }
-void send_line(Channel* channel, const std::string& line) {
-    send_line(channel, line.c_str());
+
+// This overload is used primarily with log_*() where
+// a std::string is dynamically allocated with "new",
+// and then extended to construct the message.  Its
+// pointer is sent to the output task, which sends
+// the message to the output channel and then "delete"s
+// the pointer to reclaim the memory.
+// This form has intermediate efficiency, as the string
+// is allocated once and freed once.
+void send_line(Channel& channel, const std::string* line) {
+    if (outputTask) {
+        LogMessage msg { &channel, (void*)line, true };
+        while (!xQueueSend(message_queue, &msg, 10)) {}
+    } else {
+        channel.println(line->c_str());
+        delete line;
+    }
 }
-void send_line(Channel* channel, const String& line) {
-    send_line(channel, line.c_str());
+
+// This overload is used for many miscellaneous messages
+// where the std::string is allocated in a code block and
+// then extended with various information.  This send_line()
+// copies that string to a newly allocated one and sends that
+// via the std::string* version of send_line().  The original
+// string is freed by the caller sometime after send_line()
+// returns, while the new string is freed by the output task
+// after the message is forwared to the output channel.
+// This is the least efficient form, requiring two strings
+// to be allocated and freed, with an intermediate copy.
+// It is used only rarely.
+void send_line(Channel& channel, const std::string& line) {
+    if (outputTask) {
+        send_line(channel, new std::string(line));
+    } else {
+        channel.println(line.c_str());
+    }
 }
 
 void output_loop(void* unused) {
     while (true) {
         LogMessage message;
         if (xQueueReceive(message_queue, &message, 0)) {
-            message.channel->println(message.line);
+            if (message.isString) {
+                std::string* s = static_cast<std::string*>(message.line);
+                message.channel->println(s->c_str());
+                delete s;
+            } else {
+                const char* cp = static_cast<const char*>(message.line);
+                message.channel->println(cp);
+            }
         }
         vTaskDelay(0);
     }
@@ -166,9 +209,10 @@ void start_polling() {
                                 &pollingTask,      // task handle
                                 SUPPORT_TASK_CORE  // core
         );
-        xTaskCreatePinnedToCore(output_loop,       // task
-                                "output",          // name for task
-                                8192,              // size of task stack
+        xTaskCreatePinnedToCore(output_loop,  // task
+                                "output",     // name for task
+                                16000,
+                                // 8192,              // size of task stack
                                 0,                 // parameters
                                 1,                 // priority
                                 &outputTask,       // task handle
@@ -309,8 +353,7 @@ void protocol_execute_realtime() {
 }
 
 static void alarm_msg(ExecAlarm alarm_code) {
-    std::string s("ALARM:");
-    send_line(&allChannels, s + std::to_string(static_cast<int>(alarm_code)));
+    log_to(allChannels, "ALARM:", static_cast<int>(alarm_code));
     delay_ms(500);  // Force delay to ensure message clears serial write buffer.
 }
 
@@ -986,7 +1029,7 @@ xQueueHandle event_queue;
 
 void protocol_init() {
     event_queue   = xQueueCreate(10, sizeof(EventItem));
-    message_queue = xQueueCreate(5, MAX_MESSAGE_LINE);
+    message_queue = xQueueCreate(10, sizeof(LogMessage));
 }
 
 void protocol_send_event(Event* evt, void* arg) {

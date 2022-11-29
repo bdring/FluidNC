@@ -205,13 +205,11 @@ void AllChannels::deregistration(Channel* channel) {
     _channelq.erase(std::remove(_channelq.begin(), _channelq.end(), channel), _channelq.end());
 }
 
-String AllChannels::info() {
-    String retval;
+void AllChannels::listChannels(Channel& out) {
+    std::string retval;
     for (auto channel : _channelq) {
-        retval += channel->name();
-        retval += "\n";
+        log_to(out, channel->name());
     }
-    return retval;
 }
 
 void AllChannels::flushRx() {

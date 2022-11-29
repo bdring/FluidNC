@@ -34,15 +34,14 @@ namespace Configuration {
         Generator(Channel& dst, int indent = 0);
 
         void send_item(const char* name, const std::string& value) {
-            std::string s;
+            LogStream s(dst_, "");
             lastIsNewline_ = false;
             for (int i = 0; i < indent_ * 2; ++i) {
-                s += ' ';
+                s << ' ';
             }
-            s += name;
-            s += ":";
-            s += value;
-            send_line(&dst_, s);
+            s << name;
+            s << ":";
+            s << value;
         }
 
         void item(const char* name, int& value, int32_t minValue, int32_t maxValue) override { send_item(name, std::to_string(value)); }

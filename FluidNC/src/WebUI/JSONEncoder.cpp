@@ -121,7 +121,7 @@ namespace WebUI {
         } else {
             // Always pretty print to a channel, because channels
             // cannot necessary handle really long lines.
-            send_line(_channel, linebuf);
+            log_to(*_channel, linebuf);
             linebuf = "";
             for (int i = 0; i < 2 * level; i++) {
                 add(' ');

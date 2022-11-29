@@ -117,15 +117,12 @@ done:
 }
 
 static void show_setting(const char* name, const char* value, const char* description, Channel& out) {
-    std::string s("$");
-    s += name;
-    s += "=";
-    s += uriEncodeGrblCharacters(value);
+    LogStream s("$");
+    s << name << "=" << uriEncodeGrblCharacters(value);
     if (description) {
-        s += "    ";
-        s += description;
+        s << "    ";
+        s << description;
     }
-    send_line(&out, s);
 }
 
 void settings_restore(uint8_t restore_flag) {
@@ -178,7 +175,7 @@ void settings_init() {
 }
 
 static Error show_help(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
-    log_bare_to(out, "HLP:", "$$ $+ $# $S $L $G $I $N $x=val $Nx=line $J=line $SLP $C $X $H $F $E=err ~ ! ? ctrl-x");
+    log_to(out, "HLP:", "$$ $+ $# $S $L $G $I $N $x=val $Nx=line $J=line $SLP $C $X $H $F $E=err ~ ! ? ctrl-x");
     return Error::Ok;
 }
 
@@ -204,11 +201,7 @@ static Error list_grbl_names(const char* value, WebUI::AuthenticationLevel auth_
     for (Setting* setting = Setting::List; setting; setting = setting->next()) {
         const char* gn = setting->getGrblName();
         if (gn) {
-            std::string s("$");
-            s += gn;
-            s += " => $";
-            s += setting->getName();
-            send_line(&out, s);
+            log_to(out, "$", gn << " => $" << setting->getName());
         }
     }
     return Error::Ok;
@@ -231,25 +224,22 @@ static Error list_changed_settings(const char* value, WebUI::AuthenticationLevel
             }
         }
     }
-    send_line(&out, "(Passwords not shown)");
+    log_to(out, "(Passwords not shown)");
     return Error::Ok;
 }
 static Error list_commands(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
     for (Command* cp = Command::List; cp; cp = cp->next()) {
         const char* name    = cp->getName();
         const char* oldName = cp->getGrblName();
-        std::string s("$");
-        s += name;
+        LogStream   s("$");
+        s << name;
         if (oldName) {
-            s += " or $";
-            s += oldName;
+            s << " or $" << oldName;
         }
         const char* description = cp->getDescription();
         if (description) {
-            s += " =";
-            s += description;
+            s << " =" << description;
         }
-        send_line(&out, s);
     }
     return Error::Ok;
 }
@@ -402,10 +392,9 @@ static Error home_b(const char* value, WebUI::AuthenticationLevel auth_level, Ch
 static Error home_c(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
     return home(bitnum_to_mask(C_AXIS));
 }
-static std::string limit_set(const char* prefix, uint32_t mask) {
+static std::string limit_set(uint32_t mask) {
     const char* motor0AxisName = "xyzabc";
     std::string s;
-    s += prefix;
     for (int axis = 0; axis < MAX_N_AXIS; axis++) {
         s += bitnum_is_true(mask, Machine::Axes::motor_bit(axis, 0)) ? char(motor0AxisName[axis]) : ' ';
     }
@@ -416,10 +405,10 @@ static std::string limit_set(const char* prefix, uint32_t mask) {
     return s;
 }
 static Error show_limits(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
-    send_line(&out, "Send ! to exit");
-    send_line(&out, limit_set("Homing Axes: ", Machine::Axes::homingMask));
-    send_line(&out, limit_set("Limit  Axes: ", Machine::Axes::limitMask));
-    send_line(&out, "  PosLimitPins NegLimitPins");
+    log_to(out, "Send ! to exit");
+    log_to(out, "Homing Axes : ", limit_set(Machine::Axes::homingMask));
+    log_to(out, "Limit Axes : ", limit_set(Machine::Axes::limitMask));
+    log_to(out, "  PosLimitPins NegLimitPins");
 
     const TickType_t interval = 500;
     TickType_t       limit    = xTaskGetTickCount();
@@ -427,13 +416,13 @@ static Error show_limits(const char* value, WebUI::AuthenticationLevel auth_leve
     do {
         TickType_t thisTime = xTaskGetTickCount();
         if (((long)(thisTime - limit)) > 0) {
-            send_line(&out, limit_set(": ", Machine::Axes::posLimitMask) + limit_set(" ", Machine::Axes::negLimitMask));
+            log_to(out, ": ", limit_set(Machine::Axes::posLimitMask) << " " << limit_set(Machine::Axes::negLimitMask));
             limit = thisTime + interval;
         }
         vTaskDelay(1);
         protocol_handle_events();
     } while (runLimitLoop);
-    send_line(&out, "");
+    log_to(out, "");
     return Error::Ok;
 }
 static Error go_to_sleep(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
@@ -449,11 +438,7 @@ static Error get_report_build_info(const char* value, WebUI::AuthenticationLevel
 }
 static Error report_startup_lines(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
     for (int i = 0; i < config->_macros->n_startup_lines; i++) {
-        std::string s("$N");
-        s += std::to_string(i);
-        s += "=";
-        s += config->_macros->startup_line(i).c_str();
-        send_line(&out, s);
+        log_to(out, "$N", i << "=" << config->_macros->startup_line(i));
     }
     return Error::Ok;
 }
@@ -482,11 +467,7 @@ static Error showState(const char* value, WebUI::AuthenticationLevel auth_level,
     auto        it    = StateName.find(state);
     name              = it == StateName.end() ? "<invalid>" : it->second;
 
-    std::string s("State ");
-    s += std::to_string(static_cast<int>(state));
-    s += " (";
-    s += name;
-    send_line(&out, s);
+    log_to(out, "State ", int(state) << " (" << name << ")");
     return Error::Ok;
 }
 
@@ -515,37 +496,29 @@ static const char* alarmString(ExecAlarm alarmNumber) {
 
 static Error listAlarms(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
     if (sys.state == State::ConfigAlarm) {
-        send_line(&out, "Configuration alarm is active. Check the boot messages for 'ERR'.");
+        log_to(out, "Configuration alarm is active. Check the boot messages for 'ERR'.");
     } else if (rtAlarm != ExecAlarm::None) {
-        std::string s("Active alarm: ");
-        s += std::to_string(int(rtAlarm));
-        s += " (";
-        s += alarmString(rtAlarm);
-        send_line(&out, s);
+        log_to(out, "Active alarm: ", int(rtAlarm) << " (" << alarmString(rtAlarm));
     }
     if (value) {
         char*   endptr      = NULL;
         uint8_t alarmNumber = uint8_t(strtol(value, &endptr, 10));
         if (*endptr) {
-            send_line(&out, std::string("Malformed alarm number: ") + value);
+            log_to(out, "Malformed alarm number: ", value);
             return Error::InvalidValue;
         }
         const char* alarmName = alarmString(static_cast<ExecAlarm>(alarmNumber));
         if (alarmName) {
-            std::string s;
-            s += std::to_string(alarmNumber);
-            s += ": ";
-            s += alarmName;
-            send_line(&out, s);
+            log_to(out, "", alarmNumber << ": " << alarmName);
             return Error::Ok;
         } else {
-            send_line(&out, std::string("Unknown alarm number: ") + std::to_string(alarmNumber));
+            log_to(out, "Unknown alarm number: ", alarmNumber);
             return Error::InvalidValue;
         }
     }
 
     for (auto it = AlarmNames.begin(); it != AlarmNames.end(); it++) {
-        send_line(&out, std::to_string(static_cast<int>(it->first)) + ": " + it->second);
+        log_to(out, "", static_cast<int>(it->first) << ": " << it->second);
     }
     return Error::Ok;
 }
@@ -560,31 +533,21 @@ static Error listErrors(const char* value, WebUI::AuthenticationLevel auth_level
         char* endptr      = NULL;
         int   errorNumber = strtol(value, &endptr, 10);
         if (*endptr) {
-            std::string s("Malformed error number: ");
-            s += value;
-            send_line(&out, s);
+            log_to(out, "Malformed error number: ", value);
             return Error::InvalidValue;
         }
         const char* errorName = errorString(static_cast<Error>(errorNumber));
         if (errorName) {
-            std::string s;
-            s += std::to_string(errorNumber);
-            s += ": ";
-            s += errorName;
-            send_line(&out, s);
+            log_to(out, "", errorNumber << ": " << errorName);
             return Error::Ok;
         } else {
-            std::string s("Unknown error number: ");
-            s += std::to_string(errorNumber);
-            send_line(&out, s);
+            log_to(out, "Unknown error number: ", errorNumber);
             return Error::InvalidValue;
         }
     }
 
     for (auto it = ErrorNames.begin(); it != ErrorNames.end(); it++) {
-        std::string s;
-        s += std::to_string(static_cast<int>(it->first)) + ": " + it->second;
-        send_line(&out, s);
+        log_to(out, "", static_cast<int>(it->first) << ": " << it->second);
     }
     return Error::Ok;
 }
@@ -721,24 +684,20 @@ static Error dump_config(const char* value, WebUI::AuthenticationLevel auth_leve
 
 static Error fakeMaxSpindleSpeed(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
     if (!value) {
-        std::string s("$30=");
-        s += std::to_string(spindle->maxSpeed());
-        send_line(&out, s);
+        log_to(out, "$30=", spindle->maxSpeed())
     }
     return Error::Ok;
 }
 
 static Error fakeLaserMode(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
     if (!value) {
-        std::string s("$32=");
-        s += spindle->isRateAdjusted() ? "1" : "0";
-        send_line(&out, s);
+        log_to(out, "$32=", (spindle->isRateAdjusted() ? "1" : "0"));
     }
     return Error::Ok;
 }
 
 static Error showChannelInfo(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
-    send_line(&out, allChannels.info());
+    allChannels.listChannels(out);
     return Error::Ok;
 }
 
