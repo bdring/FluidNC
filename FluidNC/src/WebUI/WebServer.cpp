@@ -11,7 +11,6 @@
 #    include "WifiServices.h"
 #    include "WifiConfig.h"  // wifi_config
 
-#    include "WSChannel.h"
 #    include "WebServer.h"
 
 #    include <WebSocketsServer.h>
@@ -81,6 +80,27 @@ namespace WebUI {
         http_enable = new EnumSetting("HTTP Enable", WEBSET, WA, "ESP120", "HTTP/Enable", DEFAULT_HTTP_STATE, &onoffOptions, NULL);
     }
     Web_Server::~Web_Server() { end(); }
+
+    WSChannel* Web_Server::lastWSChannel = nullptr;
+    WSChannel* Web_Server::getWSChannel() {
+        WSChannel* wsChannel = nullptr;
+        if (_webserver->hasArg("PAGEID")) {
+            int wsId  = _webserver->arg("PAGEID").toInt();
+            wsChannel = wsChannels.at(wsId);
+        } else {
+            // If there is no PAGEID URL argument, it is an old version of WebUI
+            // that does not supply PAGEID in all cases.  In that case, we use
+            // the most recently used websocket if it is still in the list.
+            for (auto it = wsChannels.begin(); it != wsChannels.end(); ++it) {
+                if (it->second == lastWSChannel) {
+                    wsChannel = lastWSChannel;
+                    break;
+                }
+            }
+        }
+        lastWSChannel = wsChannel;
+        return wsChannel;
+    }
 
     bool Web_Server::begin() {
         bool no_error = true;
@@ -412,11 +432,7 @@ namespace WebUI {
             }
             bool hasError = false;
             try {
-                WSChannel* wsChannel;
-                if (_webserver->hasArg("PAGEID")) {
-                    int wsId  = _webserver->arg("PAGEID").toInt();
-                    wsChannel = wsChannels.at(wsId);
-                }
+                WSChannel* wsChannel = getWSChannel();
                 if (wsChannel) {
                     // It is very tempting to let Serial_2_Socket.push() handle the realtime
                     // character sequences so we don't have to do it here.  That does not work
@@ -636,11 +652,7 @@ namespace WebUI {
             s += st;
 
             try {
-                WSChannel* wsChannel;
-                if (_webserver->hasArg("PAGEID")) {
-                    int wsId  = _webserver->arg("PAGEID").toInt();
-                    wsChannel = wsChannels.at(wsId);
-                }
+                WSChannel* wsChannel = getWSChannel();
                 if (wsChannel) {
                     wsChannel->sendTXT(s);
                 }
@@ -1113,6 +1125,7 @@ namespace WebUI {
                 if (!wsChannel) {
                     log_error("Creating WebSocket channel failed");
                 } else {
+                    lastWSChannel = wsChannel;
                     log_debug("WebSocket " << num << " from " << ip << " uri " << data);
                     allChannels.registration(wsChannel);
                     wsChannels[num] = wsChannel;
