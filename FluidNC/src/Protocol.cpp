@@ -461,6 +461,8 @@ static void protocol_do_feedhold() {
 
         case State::Homing:
             // XXX maybe feedhold should stop homing
+            log_info("Feedhold ignored while homing; use Reset instead");
+            return;
         case State::Hold:
             break;
 
