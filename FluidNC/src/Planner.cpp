@@ -300,6 +300,7 @@ bool plan_buffer_line(float* target, plan_line_data_t* pl_data) {
     block->spindle       = pl_data->spindle;
     block->spindle_speed = pl_data->spindle_speed;
     block->line_number   = pl_data->line_number;
+    block->is_jog        = pl_data->is_jog;
 
     // Compute and store initial move distance data.
     int32_t target_steps[MAX_N_AXIS], position_steps[MAX_N_AXIS];

@@ -577,9 +577,10 @@ static void protocol_do_initiate_cycle() {
     // log_debug("protocol_do_initiate_cycle " << state_name());
     // Start cycle only if queued motions exist in planner buffer and the motion is not canceled.
     sys.step_control = {};  // Restore step control to normal operation
-    if (plan_get_current_block() && !sys.suspend.bit.motionCancel) {
+    plan_block_t* pb;
+    if ((pb = plan_get_current_block()) && !sys.suspend.bit.motionCancel) {
         sys.suspend.value = 0;  // Break suspend state.
-        sys.state         = State::Cycle;
+        sys.state         = pb->is_jog ? State::Jog : State::Cycle;
         Stepper::prep_buffer();  // Initialize step segment buffer before beginning cycle.
         Stepper::wake_up();
     } else {  // Otherwise, do nothing. Set and resume IDLE state.
