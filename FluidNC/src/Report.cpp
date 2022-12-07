@@ -101,7 +101,7 @@ static std::string report_util_axis_values(const float* axis_value) {
                 decimals = 3;  // Report mm to 3 decimal places
             }
         }
-        msg << std::setprecision(decimals) << value;
+        msg << std::fixed << std::setprecision(decimals) << value;
         if (idx < (n_axis - 1)) {
             msg << ",";
         }
@@ -214,7 +214,7 @@ void report_ngc_coord(CoordIndex coord, Channel& channel) {
             decimals = 4;
         }
         std::ostringstream msg;
-        msg << std::setprecision(decimals) << tlo;
+        msg << std::fixed << std::setprecision(decimals) << tlo;
         log_to(channel, "[TLO:", msg.str());
         return;
     }
@@ -367,7 +367,7 @@ void report_gcode_modes(Channel& channel) {
 
     msg << " T" + gc_state.tool;
     int digits = config->_reportInches ? 1 : 0;
-    msg << " F" << std::setprecision(digits) << gc_state.feed_rate;
+    msg << " F" << std::fixed << std::setprecision(digits) << gc_state.feed_rate;
     msg << " S" << uint32_t(gc_state.spindle_speed);
     log_to(channel, "[GC:", msg.str())
 }
