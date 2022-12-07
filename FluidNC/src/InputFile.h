@@ -31,6 +31,8 @@ private:
     bool     _readyNext = true;
 
 public:
+    static std::string _progress;
+
     // fsname is the default file system on which the file is located, in case the path does not specify
     // path is the full path to the file
     // channel is the I/O channel on which status about the use of this file will be reported
@@ -66,8 +68,6 @@ public:
     void     ack(Error status) override;
     Channel* pollLine(char* line) override;
     void     stopJob() override;
-
-    std::string jobStatus() override;
 
     ~InputFile();
 };

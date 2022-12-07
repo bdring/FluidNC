@@ -630,9 +630,8 @@ void report_realtime_status(Channel& channel) {
             }
         }
     }
-    std::string jobStatus = channel.jobStatus();
-    if (jobStatus.length()) {
-        msg << "|" + jobStatus;
+    if (InputFile::_progress.length()) {
+        msg << "|" + InputFile::_progress;
     }
 #ifdef DEBUG_STEPPER_ISR
     msg << "|ISRs:" << Stepper::isr_count;

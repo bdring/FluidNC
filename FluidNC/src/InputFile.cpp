@@ -52,6 +52,11 @@ void InputFile::ack(Error status) {
     _readyNext = true;
 }
 
+std::string InputFile::_progress = "";
+
+#include <sstream>
+#include <iomanip>
+
 Channel* InputFile::pollLine(char* line) {
     // File input never returns realtime characters, so we do nothing
     // if line is null.
@@ -59,14 +64,20 @@ Channel* InputFile::pollLine(char* line) {
         return nullptr;
     }
     switch (auto err = readLine(line, Channel::maxLine)) {
-        case Error::Ok:
+        case Error::Ok: {
+            std::ostringstream s;
+            s << "SD:" << std::fixed << std::setprecision(2) << percent_complete() << "," << path().c_str();
+            _progress = s.str();
+        }
             return &allChannels;
         case Error::Eof:
+            _progress = "";
             _notifyf("File job done", "%s file job succeeded", path());
             log_msg(path() << " file job succeeded");
             allChannels.kill(this);
             return nullptr;
         default:
+            _progress = "";
             log_error(static_cast<int>(err) << " (" << errorString(err) << ") in " << path() << " at line " << getLineNumber());
             allChannels.kill(this);
             return nullptr;
@@ -80,12 +91,6 @@ void InputFile::stopJob() {
     allChannels.kill(this);
 }
 
-#include <sstream>
-#include <iomanip>
-std::string InputFile::jobStatus() {
-    std::ostringstream ret;
-    ret << "SD:" << std::setprecision(2) << percent_complete() << "," << path();
-    return ret.str();
+InputFile::~InputFile() {
+    _progress = "";
 }
-
-InputFile::~InputFile() {}
