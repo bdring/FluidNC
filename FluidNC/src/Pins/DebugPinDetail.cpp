@@ -4,6 +4,7 @@
 #include "DebugPinDetail.h"
 
 #include "../Uart.h"
+#include "../NativeSerial.h"
 #include <esp32-hal.h>  // millis()
 #include <cstdio>       // vsnprintf
 #include <cstdarg>

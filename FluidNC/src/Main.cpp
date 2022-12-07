@@ -15,9 +15,11 @@
 #    include "Protocol.h"
 #    include "System.h"
 #    include "Uart.h"
+#    include "NativeSerial.h"
 #    include "MotionControl.h"
 #    include "Platform.h"
 #    include "StartupLog.h"
+#    include "StatusLed.h"
 
 #    include "WebUI/TelnetServer.h"
 #    include "WebUI/Serial2Socket.h"
@@ -30,7 +32,11 @@ extern void make_user_commands();
 
 void setup() {
     try {
-        uartInit();       // Setup serial port
+        nativeSerialInit();  // Setup serial port from USB-CDC
+        // uartInit();       // Setup serial port
+
+        statusLed.init();
+
         Uart0.println();  // create some white space after ESP32 boot info
 
         // Setup input polling loop after loading the configuration,

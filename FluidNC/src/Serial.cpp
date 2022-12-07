@@ -39,6 +39,7 @@
 
 #include "Serial.h"
 #include "Uart.h"
+#include "NativeSerial.h"
 #include "Machine/MachineConfig.h"
 #include "WebUI/InputBuffer.h"
 #include "WebUI/Commands.h"

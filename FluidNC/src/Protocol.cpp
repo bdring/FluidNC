@@ -16,6 +16,7 @@
 #include "MotionControl.h"  // PARKING_MOTION_LINE_NUMBER
 #include "Settings.h"       // settings_execute_startup
 #include "InputFile.h"      // infile
+#include "StatusLed.h"
 
 #ifdef DEBUG_REPORT_REALTIME
 volatile bool rtExecDebug;
@@ -119,6 +120,8 @@ static int32_t idleEndTime = 0;
 Channel* exclusiveChannel = nullptr;
 
 void protocol_main_loop() {
+    statusLed.update();
+
     // Check for and report alarm state after a reset, error, or an initial power up.
     // NOTE: Sleep mode disables the stepper drivers and position can't be guaranteed.
     // Re-initialize the sleep state as an ALARM mode to ensure user homes or acknowledges.
@@ -158,6 +161,8 @@ void protocol_main_loop() {
     for (;;) {
         // Poll the input sources waiting for a complete line to arrive
         while (true) {
+            statusLed.update();
+
             Channel* chan = nullptr;
             char     line[Channel::maxLine];
             protocol_execute_realtime();  // Runtime command check point.

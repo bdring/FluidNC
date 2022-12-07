@@ -183,12 +183,12 @@ bool Uart::flushTxTimed(TickType_t ticks) {
     return uart_wait_tx_done(_uart_num, ticks) != ESP_OK;
 }
 
-Uart Uart0(0, true);  // Primary serial channel with LF to CRLF conversion
+// Uart Uart0(0, true);  // Primary serial channel with LF to CRLF conversion
 
-void uartInit() {
-    // Uart0.setPins(GPIO_NUM_1, GPIO_NUM_3);  // Tx 1, Rx 3 - standard hardware pins
-    Uart0.begin(BAUD_RATE, UartData::Bits8, UartStop::Bits1, UartParity::None);
-}
+// void uartInit() {
+//     // Uart0.setPins(GPIO_NUM_1, GPIO_NUM_3);  // Tx 1, Rx 3 - standard hardware pins
+//     Uart0.begin(BAUD_RATE, UartData::Bits8, UartStop::Bits1, UartParity::None);
+// }
 
 void Uart::config_message(const char* prefix, const char* usage) {
     log_info(prefix << usage << "Uart Tx:" << _txd_pin.name() << " Rx:" << _rxd_pin.name() << " RTS:" << _rts_pin.name() << " Baud:" << baud);

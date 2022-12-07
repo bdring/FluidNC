@@ -88,6 +88,5 @@ public:
     void config_message(const char* prefix, const char* usage);
 };
 
-extern Uart Uart0;
-
-extern void uartInit();
+// extern Uart Uart0;
+// extern void uartInit();
