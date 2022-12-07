@@ -1132,6 +1132,10 @@ Error gc_execute_line(char* line) {
                     if (!(axis_words & (bitnum_to_mask(axis_0) | bitnum_to_mask(axis_1)))) {
                         FAIL(Error::GcodeNoAxisWordsInPlane);  // [No axis words in plane]
                     }
+                    if (gc_block.values.p != truncf(gc_block.values.p) || gc_block.values.p < 0.0) {
+                        FAIL(Error::GcodeCommandValueNotInteger);  // [P word is not an integer]
+                    }
+
                     // Calculate the change in position along each selected axis
                     float x, y;
                     x = gc_block.values.xyz[axis_0] - gc_state.position[axis_0];  // Delta x between current position and target
@@ -1260,6 +1264,7 @@ Error gc_execute_line(char* line) {
                             }
                         }
                     }
+                    clear_bitnum(value_words, GCodeWord::P);
                     break;
                 case Motion::ProbeTowardNoError:
                 case Motion::ProbeAwayNoError:
@@ -1600,7 +1605,8 @@ Error gc_execute_line(char* line) {
                        axis_0,
                        axis_1,
                        axis_linear,
-                       clockwiseArc);
+                       clockwiseArc,
+                       int(gc_block.values.p));
             } else {
                 // NOTE: gc_block.values.xyz is returned from mc_probe_cycle with the updated position value. So
                 // upon a successful probing cycle, the machine position and the returned value should be the same.

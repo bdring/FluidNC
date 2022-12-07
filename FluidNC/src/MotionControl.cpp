@@ -121,7 +121,8 @@ void mc_arc(float*            target,
             size_t            axis_0,
             size_t            axis_1,
             size_t            axis_linear,
-            bool              is_clockwise_arc) {
+            bool              is_clockwise_arc,
+            int               pword_rotations) {
     float center_axis0 = position[axis_0] + offset[axis_0];
     float center_axis1 = position[axis_1] + offset[axis_1];
     float r_axis0      = -offset[axis_0];  // Radius vector from center to current location
@@ -142,9 +143,18 @@ void mc_arc(float*            target,
         if (angular_travel >= -ARC_ANGULAR_TRAVEL_EPSILON) {
             angular_travel -= 2 * float(M_PI);
         }
+        // See https://linuxcnc.org/docs/2.6/html/gcode/gcode.html#sec:G2-G3-Arc
+        // The P word specifies the number of extra rotations.  Missing P, P0 or P1
+        // is just the programmed arc.  Pn adds n-1 rotations
+        if (pword_rotations > 1) {
+            angular_travel -= (pword_rotations - 1) * 2 * float(M_PI);
+        }
     } else {
         if (angular_travel <= ARC_ANGULAR_TRAVEL_EPSILON) {
             angular_travel += 2 * float(M_PI);
+        }
+        if (pword_rotations > 1) {
+            angular_travel += (pword_rotations - 1) * 2 * float(M_PI);
         }
     }
 
