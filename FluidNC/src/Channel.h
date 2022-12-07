@@ -84,8 +84,7 @@ public:
         return readBytes(buffer, length);
     }
 
-    virtual void        stopJob() {}
-    virtual std::string jobStatus() { return std::string(); }
+    virtual void stopJob() {}
 
     size_t timedReadBytes(uint8_t* buffer, size_t length, TickType_t timeout) { return timedReadBytes((char*)buffer, length, timeout); }
 

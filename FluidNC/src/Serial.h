@@ -14,6 +14,7 @@
 #include "Channel.h"
 #include <freertos/FreeRTOS.h>  // TickType_T
 #include <freertos/queue.h>
+#include <mutex>
 
 // See if the character is an action command like feedhold or jogging. If so, do the action and return true
 uint8_t check_action_command(uint8_t data);
@@ -74,6 +75,8 @@ class AllChannels : public Channel {
     Channel*     _lastChannel = nullptr;
     xQueueHandle _killQueue;
 
+    static std::mutex _mutex;
+
 public:
     AllChannels() : Channel("all") { _killQueue = xQueueCreate(3, sizeof(Channel*)); }
 
@@ -94,6 +97,8 @@ public:
     void listChannels(Channel& out);
 
     Channel* pollLine(char* line) override;
+
+    void stopJob() override;
 };
 
 extern AllChannels allChannels;

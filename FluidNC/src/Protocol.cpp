@@ -753,6 +753,7 @@ void protocol_exec_rt_system() {
     protocol_do_alarm();  // If there is a hard or soft limit, this will block until rtReset is set
 
     if (rtReset) {
+        rtReset = false;
         if (sys.state == State::Homing) {
             Machine::Homing::fail(ExecAlarm::HomingFailReset);
         }
