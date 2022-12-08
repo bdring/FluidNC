@@ -36,11 +36,14 @@ namespace Kinematics {
         // the mask whose limits have been reached.
         clear_bits(motorMask, limited);
 
+        auto oldAxisMask = axisMask;
+
         // Set axisMask according to the motors that are still running.
         axisMask = Machine::Axes::motors_to_axes(motorMask);
 
-        // We do not have to stop until all motors have reached their limits
-        return !axisMask;
+        // Return true when an axis drops out of the mask, causing replan
+        // on any remaining axes.
+        return axisMask != oldAxisMask;
     }
 
     void Cartesian::releaseMotors(AxisMask axisMask, MotorMask motors) {
