@@ -324,12 +324,14 @@ void Stepper::reset() {
 }
 
 // Called by planner_recalculate() when the executing block is updated by the new plan.
-void Stepper::update_plan_block_parameters() {
+bool Stepper::update_plan_block_parameters() {
     if (pl_block != NULL) {  // Ignore if at start of a new block.
         prep.recalculate_flag.recalculate = 1;
         pl_block->entry_speed_sqr         = prep.current_speed * prep.current_speed;  // Update entry speed.
         pl_block                          = NULL;  // Flag prep_segment() to load and check active velocity profile.
+        return true;
     }
+    return false;
 }
 
 // Changes the run state of the step segment buffer to execute the special parking motion.

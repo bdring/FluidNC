@@ -411,7 +411,7 @@ static Error show_limits(const char* value, WebUI::AuthenticationLevel auth_leve
     out << "Limit  Axes: ";
     write_limit_set(Machine::Axes::limitMask, out);
     out << '\n';
-    out << "  PosLimitPins NegLimitPins\n";
+    out << "  PosLimitPins NegLimitPins Probe\n";
     const TickType_t interval = 500;
     TickType_t       limit    = xTaskGetTickCount();
     runLimitLoop              = true;
@@ -422,6 +422,9 @@ static Error show_limits(const char* value, WebUI::AuthenticationLevel auth_leve
             write_limit_set(Machine::Axes::posLimitMask, out);
             out << ' ';
             write_limit_set(Machine::Axes::negLimitMask, out);
+            if (config->_probe->get_state()) {
+                out << " P";
+            }
             out << '\n';
             limit = thisTime + interval;
         }
