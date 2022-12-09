@@ -43,9 +43,9 @@ void SDCard::init() {
     if (_cardDetect.defined()) {
         _cardDetect.setAttr(Pin::Attr::Input);
         auto cdPin = _cardDetect.getNative(Pin::Capabilities::Input | Pin::Capabilities::Native);
-        sd_init_slot(csPin, cdPin);
+        sd_init_slot(_frequency_hz, csPin, cdPin);
     } else {
-        sd_init_slot(csPin);
+        sd_init_slot(_frequency_hz, csPin);
     }
 }
 
