@@ -147,13 +147,13 @@ void protocol_main_loop() {
                             break;
                         case Error::Eof:
                             _notifyf("File job done", "%s file job succeeded", infile->path());
-                            *chan << "[MSG:" << infile->path() << " file job succeeded]\n";
+                            allChannels << "[MSG:" << infile->path() << " file job succeeded]\n";
                             delete infile;
                             infile = nullptr;
                             break;
                         default:
-                            *chan << "[MSG: ERR:" << static_cast<int>(err) << " (" << errorString(err) << ") in " << infile->path()
-                                  << " at line " << infile->getLineNumber() << "]\n";
+                            allChannels << "[MSG: ERR:" << static_cast<int>(err) << " (" << errorString(err) << ") in " << infile->path()
+                                        << " at line " << infile->getLineNumber() << "]\n";
                             delete infile;
                             infile = nullptr;
                             break;
@@ -166,11 +166,11 @@ void protocol_main_loop() {
                 break;
             }
 #ifdef DEBUG_REPORT_ECHO_RAW_LINE_RECEIVED
-            report_echo_line_received(line, *chan);
+            report_echo_line_received(line, allChannels);
 #endif
             display("GCODE", line);
             // auth_level can be upgraded by supplying a password on the command line
-            report_status_message(execute_line(line, *chan, WebUI::AuthenticationLevel::LEVEL_GUEST), *chan);
+            report_status_message(execute_line(line, *chan, WebUI::AuthenticationLevel::LEVEL_GUEST), allChannels);
         }
         // If there are no more lines to be processed and executed,
         // auto-cycle start, if enabled, any queued moves.
@@ -293,8 +293,10 @@ static void protocol_do_alarm() {
 
 static void protocol_start_holding() {
     if (!(sys.suspend.bit.motionCancel || sys.suspend.bit.jogCancel)) {  // Block, if already holding.
-        Stepper::update_plan_block_parameters();                         // Notify stepper module to recompute for hold deceleration.
-        sys.step_control             = {};
+        sys.step_control = {};
+        if (!Stepper::update_plan_block_parameters()) {  // Notify stepper module to recompute for hold deceleration.
+            sys.step_control.endMotion = true;
+        }
         sys.step_control.executeHold = true;  // Initiate suspend state with active flag.
     }
 }
@@ -365,6 +367,8 @@ static void protocol_do_feedhold() {
 
         case State::Homing:
             // XXX maybe feedhold should stop homing
+            log_info("Feedhold ignored while homing; use Reset instead");
+            return;
         case State::Hold:
             break;
 
@@ -652,8 +656,8 @@ static void protocol_do_late_reset() {
         _notifyf("File print canceled", "Reset during file job at line: %d", infile->getLineNumber());
         // log_info() does not work well in this case because the message gets broken in half
         // by report_init_message().  The flow of control that causes it is obscure.
-        infile->getChannel() << "[MSG:"
-                             << "Reset during file job at line: " << infile->getLineNumber();
+        allChannels << "[MSG:"
+                    << "Reset during file job at line: " << infile->getLineNumber();
         delete infile;
         infile = nullptr;
     }
@@ -943,6 +947,11 @@ xQueueHandle event_queue;
 
 void protocol_init() {
     event_queue = xQueueCreate(10, sizeof(EventItem));
+}
+
+void IRAM_ATTR protocol_send_event_from_ISR(Event* evt, void* arg) {
+    EventItem item { evt, arg };
+    xQueueSendFromISR(event_queue, &item, NULL);
 }
 
 void protocol_send_event(Event* evt, void* arg) {

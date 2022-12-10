@@ -30,6 +30,14 @@ enum MsgLevel {
 #include "MyIOStream.h"
 
 class DebugStream : public Print {
+    // Log lines are collected in a buffer and sent to the output stream
+    // when the line is complete, thus avoiding the possibility of interleaving
+    // output from multiple cores.
+    static const int MAXLINE = 256;
+
+    char _outline[MAXLINE];
+    int  _charcnt = 0;
+
 public:
     DebugStream(const char* name);
     size_t write(uint8_t c) override;
