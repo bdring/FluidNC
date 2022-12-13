@@ -1,6 +1,6 @@
 #include <system_error>
 
-bool sd_init_slot(int cs_pin, int cd_pin = -1, int wp_pin = -1);
+bool sd_init_slot(uint32_t freq_hz, int cs_pin, int cd_pin = -1, int wp_pin = -1);
 void sd_unmount();
 void sd_deinit_slot();
 
