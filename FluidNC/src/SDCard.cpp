@@ -23,11 +23,8 @@ void SDCard::init() {
         if (!config->_spi->defined()) {
             log_error("SD needs SPI defined");
         } else {
-            if (init_message) {
-                _cardDetect.report("SD Card Detect");
-                init_message = false;
-            }
             log_info("SD Card cs_pin:" << _cs.name() << " detect:" << _cardDetect.name());
+            init_message = false;
         }
         _cs.setAttr(Pin::Attr::Output);
         csPin = _cs.getNative(Pin::Capabilities::Output | Pin::Capabilities::Native);
