@@ -176,14 +176,25 @@ namespace WebUI {
         return Error::Ok;
     }
 
+    static Error hibernate(char* parameter, AuthenticationLevel auth_level, Channel& out) {
+        log_info("About to hibernate");
+        Stepper::stop_stepping();
+        COMMANDS::hibernate_MCU();
+        return Error::Ok;
+    }
+
     // used by js/restartdlg.js
     static Error setSystemMode(char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP444
         parameter = trim(parameter);
-        if (strcasecmp(parameter, "RESTART") != 0) {
-            out << "Parameter must be RESTART" << '\n';
+        if (strcasecmp(parameter, "RESTART") != 0 && strcasecmp(parameter, "HIBERNATE") != 0) {
+            out << "Parameter must be RESTART or HIBERNATE" << '\n';
             return Error::InvalidValue;
         }
-        return restart(parameter, auth_level, out);
+        if (strcasecmp(parameter, "RESTART") == 0) {
+            return restart(parameter, auth_level, out);
+        }
+
+        return hibernate(parameter, auth_level, out);
     }
 
     // Used by js/statusdlg.js

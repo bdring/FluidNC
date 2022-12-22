@@ -9,9 +9,11 @@ namespace WebUI {
     public:
         static void handle();
         static void restart_MCU();
+        static void hibernate_MCU();
         static bool isLocalPasswordValid(char* password);
 
     private:
         static bool _restart_MCU;
+        static bool _hibernate_MCU;
     };
 }

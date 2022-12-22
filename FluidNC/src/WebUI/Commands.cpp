@@ -12,6 +12,7 @@
 
 namespace WebUI {
     bool COMMANDS::_restart_MCU = false;
+    bool COMMANDS::_hibernate_MCU = false;
 
     bool COMMANDS::isLocalPasswordValid(char* password) {
         if (!password) {
@@ -39,12 +40,34 @@ namespace WebUI {
     void COMMANDS::restart_MCU() { _restart_MCU = true; }
 
     /**
+     * hibernate
+     */
+    void COMMANDS::hibernate_MCU() { _hibernate_MCU = true; }
+
+    /**
      * Handle not critical actions that must be done in sync environement
      */
     void COMMANDS::handle() {
         if (_restart_MCU) {
             ESP.restart();
             while (1) {}
+        } else {
+            if (_hibernate_MCU) {
+                // now we go to deep sleep (hibernate)
+                esp_sleep_pd_config(ESP_PD_DOMAIN_MAX, ESP_PD_OPTION_OFF);
+                esp_sleep_pd_config(ESP_PD_DOMAIN_RTC_PERIPH,   ESP_PD_OPTION_OFF);
+                esp_sleep_pd_config(ESP_PD_DOMAIN_RTC_SLOW_MEM, ESP_PD_OPTION_OFF);
+                esp_sleep_pd_config(ESP_PD_DOMAIN_RTC_FAST_MEM, ESP_PD_OPTION_OFF);
+                esp_sleep_pd_config(ESP_PD_DOMAIN_XTAL,         ESP_PD_OPTION_OFF);
+
+                uint64_t sleep_time = 31536000 * 1000000ULL; // for one year
+                esp_sleep_enable_timer_wakeup(sleep_time);
+                esp_deep_sleep_start();
+
+                // we should never get here
+                ESP.restart();
+                while (1) {}
+            }
         }
     }
 }
