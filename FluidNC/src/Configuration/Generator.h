@@ -40,7 +40,7 @@ namespace Configuration {
                 s << ' ';
             }
             s << name;
-            s << ":";
+            s << ": ";
             s << value;
         }
 
