@@ -117,7 +117,7 @@ done:
 }
 
 static void show_setting(const char* name, const char* value, const char* description, Channel& out) {
-    LogStream s("$");
+    LogStream s(out, "$");
     s << name << "=" << uriEncodeGrblCharacters(value);
     if (description) {
         s << "    ";
@@ -231,7 +231,7 @@ static Error list_commands(const char* value, WebUI::AuthenticationLevel auth_le
     for (Command* cp = Command::List; cp; cp = cp->next()) {
         const char* name    = cp->getName();
         const char* oldName = cp->getGrblName();
-        LogStream   s("$");
+        LogStream   s(out, "$");
         s << name;
         if (oldName) {
             s << " or $" << oldName;

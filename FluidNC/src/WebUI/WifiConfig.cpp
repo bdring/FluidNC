@@ -234,7 +234,7 @@ namespace WebUI {
                 break;
         }
 
-        LogStream s("Notifications: ");
+        LogStream s(out, "Notifications: ");
         s << (notificationsService.started() ? "Enabled" : "Disabled");
         if (notificationsService.started()) {
             s << "(" << notificationsService.getTypeString() << ")";

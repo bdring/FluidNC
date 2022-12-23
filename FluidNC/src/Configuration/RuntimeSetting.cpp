@@ -45,7 +45,7 @@ namespace Configuration {
             } else {
                 if (newValue_ == nullptr) {
                     log_to(out_, "/", setting_ << ":");
-                    Configuration::Generator generator(allChannels, 1);
+                    Configuration::Generator generator(out_, 1);
                     value->group(generator);
                     isHandled_ = true;
                 } else {
