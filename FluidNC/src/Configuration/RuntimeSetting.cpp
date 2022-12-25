@@ -81,6 +81,7 @@ namespace Configuration {
                 value = atoi(newValue_);
             }
         }
+        log_info("RuntimeSetting::item(...):" << value);
     }
 
 

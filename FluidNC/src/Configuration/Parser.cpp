@@ -59,6 +59,21 @@ namespace Configuration {
         return 0;
     }
 
+    uint32_t Parser::uintValue() const {
+        log_info("Parser::uintValue()");
+        auto    str = StringRange(token_.sValueStart_, token_.sValueEnd_);
+        uint32_t value;
+        if (str.isUnsignedInteger(value)) {
+            return value;
+        }
+        float fvalue;
+        if (str.isFloat(fvalue)) {
+            return lroundf(fvalue);
+        }
+        parseError("Expected an integer value");
+        return 0;
+    }
+
     float Parser::floatValue() const {
         auto  str = StringRange(token_.sValueStart_, token_.sValueEnd_);
         float value;
