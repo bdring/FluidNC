@@ -78,12 +78,15 @@ namespace Configuration {
             if (newValue_ == nullptr) {
                 out_ << "$/" << setting_ << "=" << value << '\n';
             } else {
-                value = atoi(newValue_);
+                if (newValue_[0] == '-') {  // constrian negative values to 0
+                    value = 0;
+                    log_warn("Negative value not allowed");
+                } else
+                    value = atoll(newValue_);
             }
+            constrain_with_message(value, minValue, maxValue);
         }
-        log_info("RuntimeSetting::item(...):" << value);
     }
-
 
     void RuntimeSetting::item(const char* name, float& value, float minValue, float maxValue) {
         if (is(name)) {

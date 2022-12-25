@@ -120,6 +120,7 @@ void IntSetting::setDefault() {
 }
 
 Error IntSetting::setStringValue(char* s) {
+    log_info("IntSetting::setStringValue");
     s         = trim(s);
     Error err = check(s);
     if (err != Error::Ok) {
