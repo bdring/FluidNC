@@ -44,6 +44,11 @@ namespace Configuration {
             dst_ << name << ": " << value << '\n';
         }
 
+        void item(const char* name, uint32_t& value, uint32_t minValue, uint32_t maxValue) override {
+            indent();
+            dst_ << name << ": " << value << '\n';
+        }
+
         void item(const char* name, float& value, float minValue, float maxValue) override {
             indent();
             dst_ << name << ": " << value << '\n';
