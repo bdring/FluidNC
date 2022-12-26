@@ -80,6 +80,22 @@ namespace Configuration {
         }
     }
 
+    void RuntimeSetting::item(const char* name, uint32_t& value, uint32_t minValue, uint32_t maxValue) {
+        if (is(name)) {
+            isHandled_ = true;
+            if (newValue_ == nullptr) {
+                out_ << "$/" << setting_ << "=" << value << '\n';
+            } else {
+                if (newValue_[0] == '-') {  // constrian negative values to 0
+                    value = 0;
+                    log_warn("Negative value not allowed");
+                } else
+                    value = atoll(newValue_);
+            }
+            constrain_with_message(value, minValue, maxValue);
+        }
+    }
+
     void RuntimeSetting::item(const char* name, float& value, float minValue, float maxValue) {
         if (is(name)) {
             isHandled_ = true;

@@ -46,6 +46,10 @@ namespace Configuration {
 
         void item(const char* name, int& value, int32_t minValue, int32_t maxValue) override { send_item(name, std::to_string(value)); }
 
+        void item(const char* name, uint32_t& value, uint32_t minValue, uint32_t maxValue) override {
+            send_item(name, std::to_string(value));
+        }
+
         void item(const char* name, float& value, float minValue, float maxValue) override { send_item(name, std::to_string(value)); }
 
         void item(const char* name, std::vector<speedEntry>& value) {
