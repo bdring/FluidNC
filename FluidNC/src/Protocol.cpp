@@ -1036,6 +1036,11 @@ void protocol_init() {
     message_queue = xQueueCreate(10, sizeof(LogMessage));
 }
 
+void IRAM_ATTR protocol_send_event_from_ISR(Event* evt, void* arg = 0) {
+    EventItem item { evt, arg };
+    xQueueSendFromISR(event_queue, &item, NULL);
+}
+
 void protocol_send_event(Event* evt, void* arg) {
     EventItem item { evt, arg };
     xQueueSend(event_queue, &item, 0);

@@ -113,10 +113,7 @@ inline void protocol_send_event(Event* evt, int arg) {
     protocol_send_event(evt, (void*)arg);
 }
 
-inline void protocol_send_event_from_ISR(Event* evt, void* arg = 0) {
-    EventItem item { evt, arg };
-    xQueueSendFromISR(event_queue, &item, NULL);
-}
+void protocol_send_event_from_ISR(Event* evt, void* arg = 0);
 
 void send_line(Channel& channel, const char* message);
 void send_line(Channel& channel, const std::string* message);
