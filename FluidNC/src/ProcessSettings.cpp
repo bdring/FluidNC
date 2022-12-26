@@ -408,7 +408,7 @@ static Error show_limits(const char* value, WebUI::AuthenticationLevel auth_leve
     log_to(out, "Send ! to exit");
     log_to(out, "Homing Axes : ", limit_set(Machine::Axes::homingMask));
     log_to(out, "Limit Axes : ", limit_set(Machine::Axes::limitMask));
-    log_to(out, "  PosLimitPins NegLimitPins");
+    log_to(out, "  PosLimitPins NegLimitPins Probe");
 
     const TickType_t interval = 500;
     TickType_t       limit    = xTaskGetTickCount();
@@ -416,7 +416,7 @@ static Error show_limits(const char* value, WebUI::AuthenticationLevel auth_leve
     do {
         TickType_t thisTime = xTaskGetTickCount();
         if (((long)(thisTime - limit)) > 0) {
-            log_to(out, ": ", limit_set(Machine::Axes::posLimitMask) << " " << limit_set(Machine::Axes::negLimitMask));
+            log_to(out, ": ", limit_set(Machine::Axes::posLimitMask) << " " << limit_set(Machine::Axes::negLimitMask << (config->probe->get_state() ? " P" : ""))));
             limit = thisTime + interval;
         }
         vTaskDelay(1);
