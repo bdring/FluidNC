@@ -14,13 +14,6 @@ namespace WebUI {
 
     JSONencoder::JSONencoder(bool pretty, std::string* str) : pretty(pretty), level(0), _str(str), category("nvs") { count[level] = 0; }
 
-    // Constructor.  If _pretty is true, newlines are
-    // inserted into the JSON string for easy reading.
-    // JSONencoder::JSONencoder(bool pretty) : JSONencoder(pretty, nullptr) {}
-
-    // Constructor that supplies a default falue for "pretty"
-    // JSONencoder::JSONencoder() : JSONencoder(false) {}
-
     void JSONencoder::add(char c) {
         if (_str) {
             (*_str) += c;
@@ -84,8 +77,8 @@ namespace WebUI {
                     add('\"');
                     break;
                 case '\\':
-                    //                    add('\\');
                     add('\\');
+                    // Fall through
                 default:
                     add(c);
                     break;

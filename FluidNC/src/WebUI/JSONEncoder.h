@@ -29,12 +29,6 @@ namespace WebUI {
         std::string category;
 
     public:
-        // If you don't set _pretty it defaults to false
-        //        JSONencoder();
-
-        // Constructor; set _pretty true for pretty printing
-        //       JSONencoder(bool pretty);
-
         // Constructor; set _pretty true for pretty printing
         JSONencoder(bool pretty, Channel* channel);
         JSONencoder(bool pretty, std::string* str);
