@@ -86,7 +86,7 @@ namespace Configuration {
             if (newValue_ == nullptr) {
                 out_ << "$/" << setting_ << "=" << value << '\n';
             } else {
-                if (newValue_[0] == '-') {  // constrian negative values to 0
+                if (newValue_[0] == '-') {  // constrain negative values to 0
                     value = 0;
                     log_warn("Negative value not allowed");
                 } else
