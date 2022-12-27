@@ -25,7 +25,13 @@ namespace MotorDrivers {
         void group(Configuration::HandlerBase& handler) override {
             TrinamicSpiDriver::group(handler);
             //handler.item("tpfd", _tpfd, 0, 15);
-            handler.item("CHOPCONF", CHOPCONF, 0, 0xFFFFFFFF);
+            handler.item("CHOPCONF", CHOPCONF);
+            handler.item("COOLCONF", COOLCONF);
+            handler.item("THIGH", THIGH);
+            handler.item("TCOOLTHRS", TCOOLTHRS);
+            handler.item("GCONF", GCONF);
+            handler.item("PWMCONF", PWMCONF);
+            handler.item("IHOLD_IRUN", IHOLD_IRUN);
         }
 
         // Name of the configurable. Must match the name registered in the cpp file.
@@ -34,9 +40,13 @@ namespace MotorDrivers {
     private:
         TMC5160Stepper* tmc5160 = nullptr;
 
-        //uint8_t _tpfd = 4;
-
         uint32_t CHOPCONF = 0;
+        uint32_t COOLCONF = 0;
+        uint32_t THIGH    = 0;
+        uint32_t TCOOLTHRS = 0;
+        uint32_t GCONF     = 0;
+        uint32_t PWMCONF   = 0;
+        uint32_t IHOLD_IRUN = 0;
 
         bool test();
         void set_registers(bool isHoming);

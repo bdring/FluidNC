@@ -22,6 +22,15 @@ namespace MotorDrivers {
             tmc5160->setSPISpeed(_spi_freq);
         }
         TrinamicSpiDriver::finalInit();
+
+        // display the defaults
+        log_info("CHOPCONF: 0x" << String(tmc5160->CHOPCONF(), HEX));
+        log_info("COOLCONF: 0x" << String(tmc5160->COOLCONF(), HEX));
+        log_info("THIGH: 0x" << String(tmc5160->THIGH(), HEX));
+        log_info("TCOOLTHRS: 0x" << String(tmc5160->TCOOLTHRS(), HEX));
+        log_info("GCONF: 0x" << String(tmc5160->GCONF(), HEX));
+        log_info("PWMCONF: 0x" << String(tmc5160->PWMCONF(), HEX));
+        log_info("IHOLD_IRUN: 0x" << String(tmc5160->IHOLD_IRUN(), HEX));
     }
 
     void TMC5160ProDriver::config_motor() {
@@ -38,7 +47,6 @@ namespace MotorDrivers {
             return;
         }
 
-        CHOPCONF = 1;
         log_info("CHOPCONF: " << CHOPCONF);
     }
 

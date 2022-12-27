@@ -38,7 +38,9 @@ namespace Configuration {
         return result;
     }
 
-    StringRange Parser::stringValue() const { return StringRange(token_.sValueStart_, token_.sValueEnd_); }
+    StringRange Parser::stringValue() const {
+        return StringRange(token_.sValueStart_, token_.sValueEnd_);
+    }
 
     bool Parser::boolValue() const {
         auto str = StringRange(token_.sValueStart_, token_.sValueEnd_);
@@ -60,8 +62,7 @@ namespace Configuration {
     }
 
     uint32_t Parser::uintValue() const {
-        log_info("Parser::uintValue()");
-        auto    str = StringRange(token_.sValueStart_, token_.sValueEnd_);
+        auto     str = StringRange(token_.sValueStart_, token_.sValueEnd_);
         uint32_t value;
         if (str.isUnsignedInteger(value)) {
             return value;
