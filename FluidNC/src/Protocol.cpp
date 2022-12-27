@@ -95,6 +95,12 @@ struct LogMessage {
     bool     isString;
 };
 
+void drain_messages() {
+    while (uxQueueMessagesWaiting(message_queue)) {
+        vTaskDelay(1);  // Let the output task finish sending data
+    }
+}
+
 // This overload is used primarily with fixed string
 // values.  It sends a pointer to the string whose
 // memory does not need to be reclaimed later.

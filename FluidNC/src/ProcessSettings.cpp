@@ -680,6 +680,7 @@ static Error dump_config(const char* value, WebUI::AuthenticationLevel auth_leve
         config->group(generator);
     } catch (std::exception& ex) { log_info("Config dump error: " << ex.what()); }
     if (value) {
+        drain_messages();
         delete ss;
     }
     return Error::Ok;
