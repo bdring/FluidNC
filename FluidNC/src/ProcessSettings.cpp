@@ -416,7 +416,10 @@ static Error show_limits(const char* value, WebUI::AuthenticationLevel auth_leve
     do {
         TickType_t thisTime = xTaskGetTickCount();
         if (((long)(thisTime - limit)) > 0) {
-            log_to(out, ": ", limit_set(Machine::Axes::posLimitMask) << " " << limit_set(Machine::Axes::negLimitMask << (config->probe->get_state() ? " P" : ""))));
+            log_to(out,
+                   ": ",
+                   limit_set(Machine::Axes::posLimitMask)
+                       << " " << limit_set(Machine::Axes::negLimitMask) << (config->_probe->get_state() ? " P" : ""));
             limit = thisTime + interval;
         }
         vTaskDelay(1);
