@@ -40,6 +40,7 @@ namespace MotorDrivers {
             handler.item("cs_pin", _cs_pin);
             handler.item("spi_index", _spi_index, -1, 127);
 
+            handler.item("use_enable", _use_enable);
             handler.item("CHOPCONF", CHOPCONF);
             handler.item("COOLCONF", COOLCONF);
             handler.item("THIGH", THIGH);
@@ -71,7 +72,7 @@ namespace MotorDrivers {
         uint32_t THIGH      = 0;
         uint32_t TCOOLTHRS  = 0;
         uint32_t GCONF      = 4;
-        uint32_t PWMCONF    = 20468989982;
+        uint32_t PWMCONF    = 3289120798;
         uint32_t IHOLD_IRUN = 7948;
 
         bool test();
