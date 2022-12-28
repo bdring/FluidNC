@@ -11,11 +11,7 @@ namespace MotorDrivers {
         uint8_t cs_id;
         cs_id = setupSPI();
 
-        if (_r_sense == 0) {
-            _r_sense = TMC5160_RSENSE_DEFAULT;
-        }
-
-        tmc5160 = new TMC5160Stepper(cs_id, _r_sense, _spi_index);
+        tmc5160 = new TMC5160Stepper(cs_id, TMC5160_RSENSE_DEFAULT, _spi_index); // rsense is not used with registers
 
         // use slower speed if I2S
         if (_cs_pin.capabilities().has(Pin::Capabilities::I2S)) {

@@ -23,8 +23,11 @@ namespace MotorDrivers {
         void validate() const override { StandardStepper::validate(); }
 
         void group(Configuration::HandlerBase& handler) override {
-            TrinamicSpiDriver::group(handler);
             //handler.item("tpfd", _tpfd, 0, 15);
+            StandardStepper::group(handler);
+            handler.item("cs_pin", _cs_pin);
+            handler.item("spi_index", _spi_index, -1, 127);
+
             handler.item("CHOPCONF", CHOPCONF);
             handler.item("COOLCONF", COOLCONF);
             handler.item("THIGH", THIGH);
