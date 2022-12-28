@@ -11,6 +11,18 @@
 
 const float TMC5160_RSENSE_DEFAULT = 0.075f;
 
+/* 
+Dump from an existing setup
+[MSG:INFO: CHOPCONF: 0x13408158] 322994520
+[MSG:INFO: COOLCONF: 0x0]
+[MSG:INFO: THIGH: 0x0]
+[MSG:INFO: TCOOLTHRS: 0x0]
+[MSG:INFO: GCONF: 0x4] 4
+[MSG:INFO: PWMCONF: 0xc40c001e] // 20468989982
+[MSG:INFO: IHOLD_IRUN: 0x1f0c] // 7948
+
+*/
+
 namespace MotorDrivers {
 
     class TMC5160ProDriver : public TrinamicSpiDriver {
@@ -43,13 +55,24 @@ namespace MotorDrivers {
     private:
         TMC5160Stepper* tmc5160 = nullptr;
 
-        uint32_t CHOPCONF = 0;
-        uint32_t COOLCONF = 0;
-        uint32_t THIGH    = 0;
-        uint32_t TCOOLTHRS = 0;
-        uint32_t GCONF     = 0;
-        uint32_t PWMCONF   = 0;
-        uint32_t IHOLD_IRUN = 0;
+        /* 
+        Dump from an existing setup
+        [MSG:INFO: CHOPCONF: 0x13408158] 322994520
+        [MSG:INFO: COOLCONF: 0x0]
+        [MSG:INFO: THIGH: 0x0]
+        [MSG:INFO: TCOOLTHRS: 0x0]
+        [MSG:INFO: GCONF: 0x4] 4
+        [MSG:INFO: PWMCONF: 0xc40c001e] // 20468989982
+        [MSG:INFO: IHOLD_IRUN: 0x1f0c] // 7948
+        */
+
+        uint32_t CHOPCONF   = 322994520;
+        uint32_t COOLCONF   = 0;
+        uint32_t THIGH      = 0;
+        uint32_t TCOOLTHRS  = 0;
+        uint32_t GCONF      = 4;
+        uint32_t PWMCONF    = 20468989982;
+        uint32_t IHOLD_IRUN = 7948;
 
         bool test();
         void set_registers(bool isHoming);
