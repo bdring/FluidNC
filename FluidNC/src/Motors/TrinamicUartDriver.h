@@ -67,8 +67,6 @@ namespace MotorDrivers {
     private:
         bool test();
         void set_mode(bool isHoming);
-        void trinamic_test_response();
-        void trinamic_stepper_enable(bool enable);
     };
 
 }

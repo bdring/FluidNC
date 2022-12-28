@@ -12,23 +12,13 @@ namespace MotorDrivers {
         cs_id = setupSPI();
 
         // rsense is not used with registers, but needed for the TMCStepper Lib
-        tmc5160 = new TMC5160Stepper(cs_id, TMC5160_RSENSE_DEFAULT, _spi_index); 
+        tmc5160 = new TMC5160Stepper(cs_id, TMC5160_RSENSE_DEFAULT, _spi_index);
 
         // use slower speed if I2S
         if (_cs_pin.capabilities().has(Pin::Capabilities::I2S)) {
             tmc5160->setSPISpeed(_spi_freq);
         }
         TrinamicSpiDriver::finalInit();
-        /*
-        // display the defaults
-        log_info("CHOPCONF: 0x" << String(tmc5160->CHOPCONF(), HEX));
-        log_info("COOLCONF: 0x" << String(tmc5160->COOLCONF(), HEX));
-        log_info("THIGH: 0x" << String(tmc5160->THIGH(), HEX));
-        log_info("TCOOLTHRS: 0x" << String(tmc5160->TCOOLTHRS(), HEX));
-        log_info("GCONF: 0x" << String(tmc5160->GCONF(), HEX));
-        log_info("PWMCONF: 0x" << String(tmc5160->PWMCONF(), HEX));
-        log_info("IHOLD_IRUN: 0x" << String(tmc5160->IHOLD_IRUN(), HEX));
-        */
     }
 
     void TMC5160ProDriver::config_motor() {
@@ -73,7 +63,7 @@ namespace MotorDrivers {
 
     void TMC5160ProDriver::set_disable(bool disable) {
         if (TrinamicSpiDriver::startDisable(disable)) {
-            if (_use_enable) { // use the register to disable the driver
+            if (_use_enable) {  // use the register to disable the driver
                 tmc5160->toff(TrinamicSpiDriver::toffValue());
             }
         }

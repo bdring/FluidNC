@@ -56,17 +56,6 @@ namespace MotorDrivers {
     private:
         TMC5160Stepper* tmc5160 = nullptr;
 
-        /* 
-        Dump from an existing setup
-        [MSG:INFO: CHOPCONF: 0x13408158] 322994520
-        [MSG:INFO: COOLCONF: 0x0]
-        [MSG:INFO: THIGH: 0x0]
-        [MSG:INFO: TCOOLTHRS: 0x0]
-        [MSG:INFO: GCONF: 0x4] 4
-        [MSG:INFO: PWMCONF: 0xc40c001e] // 20468989982
-        [MSG:INFO: IHOLD_IRUN: 0x1f0c] // 7948
-        */
-
         uint32_t CHOPCONF   = 322994520;
         uint32_t COOLCONF   = 0;
         uint32_t THIGH      = 0;
@@ -77,7 +66,5 @@ namespace MotorDrivers {
 
         bool test();
         void set_registers(bool isHoming);
-        void trinamic_test_response();
-        void trinamic_stepper_enable(bool enable);
     };
 }
