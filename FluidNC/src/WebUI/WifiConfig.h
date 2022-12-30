@@ -17,7 +17,8 @@ namespace WebUI {
     class WiFiConfig {
     public:
         static std::string webInfo() { return std::string(); }
-        static std::string info() { return std::string(); }
+        static std::string station_info() { return std::string(); }
+        static std::string ap_info() { return std::string(); }
 
         static bool isPasswordValid(const char* password) { return false; }
         static bool begin() { return false; }

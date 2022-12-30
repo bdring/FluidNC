@@ -77,12 +77,13 @@ namespace WebUI {
         std::string result;
         if (isOn()) {
             result += "Mode=BT:Name=";
-            result += _btname;
+            result += _btname.c_str();
             result += "(";
             result += device_address();
             result += "):Status=";
             if (SerialBT.hasClient()) {
-                result += "Connected with " + _btclient;
+                result += "Connected with ";
+                result + _btclient.c_str();
             } else {
                 result += "Not connected";
             }
@@ -166,8 +167,7 @@ namespace WebUI {
 
         if (_btname.length()) {
             if (!SerialBT.begin(_btname)) {
-                log_debug("name");
-                report_status_message(Error::BtFailBegin, allChannels);
+                log_error("Bluetooth failed to start");
                 return false;
             }
             SerialBT.register_callback(&my_spp_cb);

@@ -49,9 +49,6 @@ extern Counter report_wco_counter;
 void _notify(const char* title, const char* msg);
 void _notifyf(const char* title, const char* format, ...);
 
-// Prints system status messages.
-void report_status_message(Error status_code, Channel& channel);
-
 // Prints miscellaneous feedback messages.
 void report_feedback_message(Message message);
 
