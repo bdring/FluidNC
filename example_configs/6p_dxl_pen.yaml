@@ -1,0 +1,89 @@
+name: "Dynamixel Pen"
+board: "6 Pack with DXL Module"
+
+stepping:
+  engine: RMT
+  idle_ms: 255
+  dir_delay_us: 1
+  pulse_us: 2
+  disable_delay_us: 0
+
+axes:
+
+  x:
+    steps_per_mm: 100.000
+    max_rate_mm_per_min: 1000.000
+    acceleration_mm_per_sec2: 50.000
+    max_travel_mm: 300.000
+    soft_limits: false
+    homing:
+      cycle: 2
+      positive_direction: false
+      mpos_mm: 0.000
+      feed_mm_per_min: 100.000
+      seek_mm_per_min: 200.000
+      settle_ms: 500
+      seek_scaler: 1.100
+      feed_scaler: 1.100
+
+    motor0:
+      hard_limits: false
+      pulloff_mm: 1.000
+      dynamixel2:
+        id: 1
+        uart:
+#          txd_pin: gpio.4
+#          rxd_pin: gpio.13
+#          rts_pin: gpio.17
+          txd_pin: gpio.16
+          rxd_pin: gpio.26
+          rts_pin: gpio.4
+          cts_pin: NO_PIN
+          baud: 1000000
+          mode: 8N1
+      count_min: 1024
+      count_max: 3072
+
+  y:
+    steps_per_mm: 100.000
+    max_rate_mm_per_min: 1000.000
+    acceleration_mm_per_sec2: 50.000
+    max_travel_mm: 300.000
+    soft_limits: false
+    homing:
+      cycle: 2
+      positive_direction: false
+      mpos_mm: 0.000
+      feed_mm_per_min: 100.000
+      seek_mm_per_min: 200.000
+      settle_ms: 500
+      seek_scaler: 1.100
+      feed_scaler: 1.100
+
+    motor0:
+      hard_limits: false
+      pulloff_mm: 1.000
+      dynamixel2:
+        id: 2
+        count_min: 1024
+        count_max: 3072
+
+  z:
+    steps_per_mm: 100.000
+    max_rate_mm_per_min: 5000.000
+    acceleration_mm_per_sec2: 100.000
+    max_travel_mm: 5.000
+    soft_limits: true
+    homing:
+      cycle: 1
+      positive_direction: true
+      mpos_mm: 5.000
+
+    motor0:
+      rc_servo:
+        pwm_hz: 50
+        output_pin: gpio.27
+        min_pulse_us: 1000
+        max_pulse_us: 2000
+
+
