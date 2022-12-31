@@ -34,6 +34,7 @@ void channel_init();
 // space, serial.c's RX ISR will need to be modified to accommodate the change.
 
 enum class Cmd : uint8_t {
+    None                  = 0,
     Reset                 = 0x18,  // Ctrl-X
     StatusReport          = '?',
     CycleStart            = '~',

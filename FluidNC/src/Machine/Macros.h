@@ -35,23 +35,7 @@ namespace Machine {
     public:
         Macros() = default;
 
-        bool run_macro(size_t index) {
-            if (index >= n_macros) {
-                return false;
-            }
-            String macro = _macro[index];
-            if (macro == "") {
-                return true;
-            }
-
-            // & is a proxy for newlines in macros, because you cannot
-            // enter a newline directly in a config file string value.
-            macro.replace('&', '\n');
-            macro += "\n";
-
-            WebUI::inputBuffer.push(macro.c_str());
-            return true;
-        }
+        bool run_macro(size_t index);
 
         String startup_line(size_t index) {
             if (index >= n_startup_lines) {
