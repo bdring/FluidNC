@@ -33,8 +33,9 @@ namespace MotorDrivers {
         if (_timer_ms == 0 || ms < _timer_ms) {
             _timer_ms = ms;
         }
-        //log_info("Servo Update Task Started");
+        log_info("Servo Update request " << ms << "ms");
         if (this == List) {
+            log_info("Servo Update Task Started with " << _timer_ms << "ms");
             xTaskCreatePinnedToCore(updateTask,         // task
                                     "servoUpdateTask",  // name for task
                                     4096,               // size of task stack

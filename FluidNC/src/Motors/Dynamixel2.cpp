@@ -85,6 +85,8 @@ namespace MotorDrivers {
 
         _dxl_tx_message[DXL_MSG_INSTR] = DXL_INSTR_PING;
 
+        vTaskDelay(25);
+
         dxl_finish_message(_id, _dxl_tx_message, len);
         len = dxl_get_response(PING_RSP_LEN);  // wait for and get response
 
@@ -92,18 +94,18 @@ namespace MotorDrivers {
             uint16_t model_num = _dxl_rx_message[10] << 8 | _dxl_rx_message[9];
             switch (model_num) {
                 case 1060:
-                    log_info("Axis ping reply " << axisName() << " Model XL430-W250 F/W Rev " << String(_dxl_rx_message[11], HEX));
+                    log_info(axisName() << " replied Model XL430-W250 F/W Rev " << String(_dxl_rx_message[11], HEX));
                     break;
                 case 1200:
-                    log_info("Axis ping reply " << axisName() << " Model XL330-M288 F/W Rev " << String(_dxl_rx_message[11], HEX));
+                    log_info(axisName() << " replied Model XL330-M288 F/W Rev " << String(_dxl_rx_message[11], HEX));
                     break;
                 default:
-                    log_info("Axis ping reply " << axisName() << " M/N " << model_num << " F/W Rev " << String(_dxl_rx_message[11], HEX));
+                    log_info(axisName() << " replied M/N " << model_num << " F/W Rev " << String(_dxl_rx_message[11], HEX));
                     break;
             }
 
         } else {
-            log_warn("Ping failed on " << axisName() << " with motor id:" << _id);
+            log_warn(axisName() << " failed test");
             return false;
         }
 
@@ -193,15 +195,15 @@ namespace MotorDrivers {
         data_len = dxl_get_response(15);
 
         if (data_len == 15) {
-            uint32_t dxl_position = _dxl_rx_message[9] | (_dxl_rx_message[10] << 8) | (_dxl_rx_message[11] << 16) |
-                                    (_dxl_rx_message[12] << 24);
+            int32_t dxl_position = _dxl_rx_message[9] | (_dxl_rx_message[10] << 8) | (_dxl_rx_message[11] << 16) |
+                                   (_dxl_rx_message[12] << 24);
 
             auto axis = config->_axes->_axis[_axis_index];
 
-            uint32_t pos_min_steps = mpos_to_steps(limitsMinPosition(_axis_index), _axis_index);
-            uint32_t pos_max_steps = mpos_to_steps(limitsMaxPosition(_axis_index), _axis_index);
+            int32_t pos_min_steps = mpos_to_steps(limitsMinPosition(_axis_index), _axis_index);
+            int32_t pos_max_steps = mpos_to_steps(limitsMaxPosition(_axis_index), _axis_index);
 
-            uint32_t temp = myMap(dxl_position, _countMin, _countMax, pos_min_steps, pos_max_steps);
+            int32_t temp = myMap(dxl_position, _countMin, _countMax, pos_min_steps, pos_max_steps);
 
             set_motor_steps(_axis_index, temp);
 
@@ -297,8 +299,8 @@ namespace MotorDrivers {
     }
 
     void Dynamixel2::add_to_bulk_message() {
-        float    dxl_count_min, dxl_count_max;
-        uint32_t dxl_position;
+        float   dxl_count_min, dxl_count_max;
+        int32_t dxl_position;
 
         float* mpos = get_mpos();
         float  motors[MAX_N_AXIS];
@@ -309,8 +311,10 @@ namespace MotorDrivers {
         config->_kinematics->transform_cartesian_to_motors(motors, mpos);
 
         // map the mm range to the servo range
-        dxl_position = static_cast<uint32_t>(mapConstrain(
+        dxl_position = static_cast<int32_t>(mapConstrain(
             motors[_axis_index], limitsMinPosition(_axis_index), limitsMaxPosition(_axis_index), dxl_count_min, dxl_count_max));
+
+        log_debug("id:" << _id << " goal:" << dxl_position);
 
         bulk_message[++bulk_message_index] = _id;                                // ID of the servo
         bulk_message[++bulk_message_index] = dxl_position & 0xFF;                // data
@@ -359,7 +363,7 @@ namespace MotorDrivers {
         _uart->flush();
         _uart->write(msg, msg_len + 7);
 
-        //hex_msg(msg, "0x", msg_len + 7);
+        hex_msg(msg, "0x", msg_len + 7);
     }
 
     // from http://emanual.robotis.com/docs/en/dxl/crc/

@@ -86,8 +86,8 @@ namespace MotorDrivers {
         // control modes
         static const int DXL_CONTROL_MODE_POSITION = 3;
 
-        uint32_t _countMin = 1024;
-        uint32_t _countMax = 3072;
+        int32_t _countMin = 1024;
+        int32_t _countMax = 3072;
 
         bool _disabled;
         bool _has_errors;
@@ -113,8 +113,8 @@ namespace MotorDrivers {
         void group(Configuration::HandlerBase& handler) override {
             handler.item("id", _id);
 
-            handler.item("count_min", _countMin);
-            handler.item("count_max", _countMax);
+            handler.item("count_min", _countMin, -1048575, 1048575);
+            handler.item("count_max", _countMax, - 1048575, 1048575);
             handler.item("timer_ms", _timer_ms);
 
             if (_uart == nullptr) {
