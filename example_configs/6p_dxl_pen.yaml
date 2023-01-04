@@ -7,19 +7,26 @@ stepping:
   dir_delay_us: 1
   pulse_us: 2
   disable_delay_us: 0
+  
+kinematics:
+  SingleArmScara:
+    upper_arm_mm: 65.0
+    forearm_mm: 50.0
+    segment_mm: 1.0
 
 axes:
 
+# X is the servo with the arm attached
   x:
-    steps_per_mm: 100.000
-    max_rate_mm_per_min: 1000.000
-    acceleration_mm_per_sec2: 50.000
-    max_travel_mm: 200.000
+    steps_per_mm: 2000.000
+    max_rate_mm_per_min: 100.000
+    acceleration_mm_per_sec2: 40.000
+    max_travel_mm: 4.712
     soft_limits: false
     homing:
       cycle: 2
       positive_direction: true
-      mpos_mm: 100.000
+      mpos_mm: 3.142
       feed_mm_per_min: 100.000
       seek_mm_per_min: 200.000
       settle_ms: 500
@@ -46,15 +53,15 @@ axes:
       count_max: 1024
 
   y:
-    steps_per_mm: 100.000
-    max_rate_mm_per_min: 1000.000
-    acceleration_mm_per_sec2: 50.000
-    max_travel_mm: 200.000
+    steps_per_mm: 2000.000
+    max_rate_mm_per_min: 100.000
+    acceleration_mm_per_sec2: 40.000
+    max_travel_mm: 12.566
     soft_limits: false
     homing:
       cycle: 2
       positive_direction: true
-      mpos_mm: 100.000
+      mpos_mm: 6.283
       feed_mm_per_min: 100.000
       seek_mm_per_min: 200.000
       settle_ms: 500

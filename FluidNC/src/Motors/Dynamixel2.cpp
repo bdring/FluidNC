@@ -363,7 +363,7 @@ namespace MotorDrivers {
         _uart->flush();
         _uart->write(msg, msg_len + 7);
 
-        hex_msg(msg, "0x", msg_len + 7);
+        //hex_msg(msg, "0x", msg_len + 7);
     }
 
     // from http://emanual.robotis.com/docs/en/dxl/crc/
