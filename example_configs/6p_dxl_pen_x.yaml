@@ -13,13 +13,12 @@ kinematics:
     upper_arm_mm: 65.0
     forearm_mm: 50.0
     segment_mm: 1.0
-    elbow_motor: true
 
 axes:
 
 # X is the servo with the arm attached
   x:
-    steps_per_mm: 1000.000
+    steps_per_mm: 2000.000
     max_rate_mm_per_min: 100.000
     acceleration_mm_per_sec2: 40.000
     max_travel_mm: 4.712
@@ -43,6 +42,9 @@ axes:
         count_min: 3072
         count_max: 0
         uart:
+#          txd_pin: gpio.4
+#          rxd_pin: gpio.13
+#          rts_pin: gpio.17
           txd_pin: gpio.16
           rxd_pin: gpio.26
           rts_pin: gpio.4
@@ -50,30 +52,7 @@ axes:
           baud: 1000000
           mode: 8N1
 
-  y:
-    steps_per_mm: 1000.000
-    max_rate_mm_per_min: 100.000
-    acceleration_mm_per_sec2: 40.000
-    max_travel_mm: 12.566
-    soft_limits: false
-    homing:
-      cycle: 2
-      positive_direction: true
-      mpos_mm: 6.283
-      feed_mm_per_min: 100.000
-      seek_mm_per_min: 200.000
-      settle_ms: 500
-      seek_scaler: 1.100
-      feed_scaler: 1.100
 
-    motor0:
-      hard_limits: false
-      pulloff_mm: 1.000
-      dynamixel2:
-        id: 2
-        timer_ms: 40
-        count_min: -4095
-        count_max: 4095
 
 start:
   must_home: false

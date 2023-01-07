@@ -39,12 +39,13 @@ namespace Kinematics {
         ~SingleArmScara() {}
 
     private:
-        bool  xy_to_angles(float x, float y, float& angle1, float& angle2);
+        bool  xy_to_angles(float* cartesian, float* angles);
         float last_motor_segment_end[MAX_N_AXIS];
 
         // config Parameters
         float _upper_arm_mm   = 65;
         float _forearm_mm     = 50;
         float _segment_length = 1;
+        bool  _elbow_motor    = true; // is the motor at the elbow or belt driven
     };
 }  //  namespace Kinematics

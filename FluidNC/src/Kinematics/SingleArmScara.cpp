@@ -9,14 +9,30 @@ namespace Kinematics {
         handler.item("upper_arm_mm", _upper_arm_mm);
         handler.item("forearm_mm", _forearm_mm);
         handler.item("segment_mm", _segment_length);
+        handler.item("elbow_motor", _elbow_motor);
     }
 
     void SingleArmScara::init() {
+        float angles[MAX_N_AXIS]    = { 0.0, 3.14159 };
+        float cartesian[MAX_N_AXIS] = { 115.0, 0.0 };
         log_info("Kinematic system: " << name());
+        // we need it initialize the machine to this becuse 0,0 is not a reachable location
+        //cartesian[X_AXIS] = _upper_arm_mm + _forearm_mm;
+        //cartesian[Y_AXIS] = 0.0;
+
+        //log_info("Init Kins (" << cartesian[X_AXIS] << "," << cartesian[Y_AXIS] << ")");
+
+        //transform_cartesian_to_motors(cartesian, angles);
+
+        //motors_to_cartesian(cartesian, angles, 3);
+
+        set_motor_steps_from_mpos(cartesian);
+
+        //motors_to_cartesian(cartesian, angles, 3);  // Sets the cartesian values
     }
 
-    void SingleArmScara::transform_cartesian_to_motors(float* cartesian, float* motors) {
-        log_info("transform_cartesian_to_motors (" << cartesian[X_AXIS] << "," << cartesian[Y_AXIS] << ")");
+    void SingleArmScara::transform_cartesian_to_motors(float* motors, float* cartesian) {
+                xy_to_angles(cartesian, motors);
     }
 
     /*
@@ -30,7 +46,7 @@ namespace Kinematics {
         position = an n_axis array of where the machine is starting from for this move
     */
     bool SingleArmScara::cartesian_to_motors(float* target, plan_line_data_t* pl_data, float* position) {
-        log_info("Go to cartesian x:" << target[X_AXIS] << " y:" << target[Y_AXIS]);
+        //log_info("Go to cartesian x:" << target[X_AXIS] << " y:" << target[Y_AXIS]);
 
         float    dx, dy, dz;     // segment distances in each cartesian axis
         uint32_t segment_count;  // number of segments the move will be broken in to.
@@ -40,19 +56,17 @@ namespace Kinematics {
         float motor_segment_end[n_axis];
 
         float shoulder_motor_angle, elbow_motor_angle;
-
-        xy_to_angles(target[X_AXIS], target[Y_AXIS], shoulder_motor_angle, elbow_motor_angle);
-
+        float angles[2];
         float motors[n_axis];
-        motors[0] = shoulder_motor_angle;
-        motors[1] = elbow_motor_angle;
+        xy_to_angles(target, motors);
+
+        //motors[0] = shoulder_motor_angle;
+        //motors[1] = elbow_motor_angle;
         for (size_t axis = Z_AXIS; axis < n_axis; axis++) {
             motors[axis] = target[axis];
         }
-
-        mc_move_motors(motors, pl_data);
-
-        return true;
+        log_info("Move motors (" << motors[0] << "," << motors[1] << ")");
+        return mc_move_motors(motors, pl_data);
 
         // ----------------------------------------
 
@@ -96,7 +110,7 @@ namespace Kinematics {
 
             // Convert cartesian space coords to motor space
             float motor_segment_end[n_axis];
-            xy_to_angles(cartesian_segment_end[X_AXIS], cartesian_segment_end[Y_AXIS], motor_segment_end[0], motor_segment_end[1]);
+            xy_to_angles(cartesian_segment_end, motor_segment_end);
             for (size_t axis = Z_AXIS; axis < n_axis; axis++) {
                 motor_segment_end[axis] = cartesian_segment_end[axis];
             }
@@ -149,9 +163,9 @@ namespace Kinematics {
         // if (A1 >= 0)
         //     A3 = (A1 - A4) * -1;
         // else
-            A3 = A1 - A4;
+        A3 = A1 - A4;
 
-        log_info("D:" << D << " A3:" << A3 << " A4:" << A4);
+        //log_info("D:" << D << " A3:" << A3 << " A4:" << A4);
 
         cartesian[X_AXIS] = cosf(A3) * D;
         cartesian[Y_AXIS] = sinf(A3) * D;
@@ -163,24 +177,39 @@ namespace Kinematics {
     /*
     Kinematic equations
     */
-    bool SingleArmScara::xy_to_angles(float x, float y, float& angle1, float& angle2) {
-        float D = sqrtf(x * x + y * y);
+    bool SingleArmScara::xy_to_angles(float* cartesian, float* angles) {
+        log_info("xy_to_angles xy:(" << cartesian[0] << "," << cartesian[1] << ")");
+
+        float D = sqrtf(cartesian[0] * cartesian[0] + cartesian[1] * cartesian[1]);
+
+        //float D = hypot_f(cartesian[0], cartesian[1]);
 
         if (D > (_upper_arm_mm + _forearm_mm)) {
-            log_error("Location unreachable") return false;
+            log_error("Location exceeds reach");
+            return false;
+        }
+
+        if (D < 20.0) {
+            log_error("Tip and elbow too close:" << D << " (" << cartesian[0] << "," << cartesian[1] << ")");
+            return false;
         }
 
         float L1 = _upper_arm_mm;
         float L2 = _forearm_mm;
-        float A3 = atan2f(y, x);
+        float A3 = atan2f(cartesian[1], cartesian[0]);
         float A4 = acosf((L1 * L1 + D * D - L2 * L2) / (2 * L1 * D));
-        log_info("A3:" << A3 << " A4:" << A4);
+        //log_info("A3:" << A3 << " A4:" << A4);
 
-        angle1 = A4 + A3;
-        angle2 = acosf((L1 * L1 + L2 * L2 - D * D) / (2 * L1 * L2));
+        angles[0] = A4 + A3;
+        angles[1] = acosf((L1 * L1 + L2 * L2 - D * D) / (2 * L1 * L2));
 
-        log_info("L1:" << L1 << " L2:" << L2 << " D:" << D);
-        log_info("Go to angles A1:" << angle1 << " A2:" << angle2);
+        // if the motor is at the base we have to compensate for the motion of motor1
+        if (!_elbow_motor) {
+            angles[1] += angles[0];
+        }
+
+        //log_info("L1:" << L1 << " L2:" << L2 << " D:" << D);
+        log_info("Go to angles (" << angles[0] << "," << angles[1] << ")");
 
         return true;
     }

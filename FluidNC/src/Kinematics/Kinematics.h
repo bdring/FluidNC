@@ -41,6 +41,7 @@ namespace Kinematics {
         void group(Configuration::HandlerBase& handler) override;
         void afterParse() override;
         void init();
+        void init_position();
         void config_kinematics();
 
         bool cartesian_to_motors(float* target, plan_line_data_t* pl_data, float* position);
@@ -59,14 +60,15 @@ namespace Kinematics {
     public:
         KinematicSystem() = default;
 
-        KinematicSystem(const KinematicSystem&) = delete;
-        KinematicSystem(KinematicSystem&&)      = delete;
+        KinematicSystem(const KinematicSystem&)            = delete;
+        KinematicSystem(KinematicSystem&&)                 = delete;
         KinematicSystem& operator=(const KinematicSystem&) = delete;
-        KinematicSystem& operator=(KinematicSystem&&) = delete;
+        KinematicSystem& operator=(KinematicSystem&&)      = delete;
 
         // Kinematic system interface.
         virtual bool cartesian_to_motors(float* target, plan_line_data_t* pl_data, float* position) = 0;
         virtual void init()                                                                         = 0;
+        virtual void init_position()                                                                = 0;
         virtual void motors_to_cartesian(float* cartesian, float* motors, int n_axis)               = 0;
 
         virtual void transform_cartesian_to_motors(float* motors, float* cartesian) = 0;

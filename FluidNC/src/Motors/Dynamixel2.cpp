@@ -68,7 +68,7 @@ namespace MotorDrivers {
         }
 
         set_disable(true);                              // turn off torque so we can set EEPROM registers
-        set_operating_mode(DXL_CONTROL_MODE_POSITION);  // set it in the right control mode
+        //set_operating_mode(DXL_CONTROL_MODE_POSITION);  // set it in the right control mode
 
         // servos will blink in axis order for reference
         LED_on(true);
@@ -85,7 +85,7 @@ namespace MotorDrivers {
 
         _dxl_tx_message[DXL_MSG_INSTR] = DXL_INSTR_PING;
 
-        vTaskDelay(25);
+        vTaskDelay(5);
 
         dxl_finish_message(_id, _dxl_tx_message, len);
         len = dxl_get_response(PING_RSP_LEN);  // wait for and get response
@@ -125,11 +125,13 @@ namespace MotorDrivers {
         _disabled = disable;
 
         dxl_write(DXL_ADDR_TORQUE_EN, param_count, !_disabled);
+        vTaskDelay(5);
     }
 
     void Dynamixel2::set_operating_mode(uint8_t mode) {
         uint8_t param_count = 1;
         dxl_write(DXL_OPERATING_MODE, param_count, mode);
+        vTaskDelay(5);
     }
 
     void Dynamixel2::update() {
@@ -234,6 +236,8 @@ namespace MotorDrivers {
             dxl_write(DXL_ADDR_LED_ON, param_count, 1);
         else
             dxl_write(DXL_ADDR_LED_ON, param_count, 0);
+
+        vTaskDelay(5);
     }
 
     // wait for and get the servo response
