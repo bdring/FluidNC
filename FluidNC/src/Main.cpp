@@ -85,13 +85,6 @@ void setup() {
             config->_control->init();
 
             config->_kinematics->init();
-
-            auto n_axis = config->_axes->_numberAxis;
-            for (size_t axis = 0; axis < n_axis; axis++) {
-                set_motor_steps(axis, 0);  // Clear machine position.
-            }
-
-            machine_init();  // user supplied function for special initialization
         }
 
         // Initialize system state.
