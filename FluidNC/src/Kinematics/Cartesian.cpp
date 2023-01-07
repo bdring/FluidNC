@@ -7,15 +7,17 @@
 namespace Kinematics {
     void Cartesian::init() {
         log_info("Kinematic system: " << name());
+        init_position();
     }
 
+    // Initialize the machine position
     void Cartesian::init_position() {
         auto n_axis = config->_axes->_numberAxis;
         for (size_t axis = 0; axis < n_axis; axis++) {
-            set_motor_steps(axis, 0);  // Clear machine position.
+            set_motor_steps(axis, 0);  // Set to zeros
         }
     }
-    
+
     bool Cartesian::cartesian_to_motors(float* target, plan_line_data_t* pl_data, float* position) {
         // Motor space is cartesian space, so we do no transform.
         return mc_move_motors(target, pl_data);

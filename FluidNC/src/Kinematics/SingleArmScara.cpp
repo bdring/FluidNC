@@ -13,26 +13,21 @@ namespace Kinematics {
     }
 
     void SingleArmScara::init() {
-        float angles[MAX_N_AXIS]    = { 0.0, 3.14159 };
-        float cartesian[MAX_N_AXIS] = { 115.0, 0.0 };
         log_info("Kinematic system: " << name());
-        // we need it initialize the machine to this becuse 0,0 is not a reachable location
-        //cartesian[X_AXIS] = _upper_arm_mm + _forearm_mm;
-        //cartesian[Y_AXIS] = 0.0;
+        init_position();
+    }
 
-        //log_info("Init Kins (" << cartesian[X_AXIS] << "," << cartesian[Y_AXIS] << ")");
-
-        //transform_cartesian_to_motors(cartesian, angles);
-
-        //motors_to_cartesian(cartesian, angles, 3);
+    // Initialize the machine position
+    void SingleArmScara::init_position() {
+        // initialize to the arms fully extended
+        float cartesian[MAX_N_AXIS] = { 0.0 };
+        cartesian[X_AXIS]           = _upper_arm_mm + _forearm_mm;
 
         set_motor_steps_from_mpos(cartesian);
-
-        //motors_to_cartesian(cartesian, angles, 3);  // Sets the cartesian values
     }
 
     void SingleArmScara::transform_cartesian_to_motors(float* motors, float* cartesian) {
-                xy_to_angles(cartesian, motors);
+        xy_to_angles(cartesian, motors);
     }
 
     /*

@@ -38,7 +38,9 @@ namespace Kinematics {
         return _system->transform_cartesian_to_motors(motors, cartesian);
     }
 
-    void Kinematics::group(Configuration::HandlerBase& handler) { ::Kinematics::KinematicsFactory::factory(handler, _system); }
+    void Kinematics::group(Configuration::HandlerBase& handler) {
+        ::Kinematics::KinematicsFactory::factory(handler, _system);
+    }
 
     void Kinematics::afterParse() {
         if (_system == nullptr) {
@@ -56,5 +58,7 @@ namespace Kinematics {
         _system->init_position();
     }
 
-    Kinematics::~Kinematics() { delete _system; }
+    Kinematics::~Kinematics() {
+        delete _system;
+    }
 };

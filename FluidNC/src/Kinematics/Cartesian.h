@@ -16,10 +16,10 @@ namespace Kinematics {
     public:
         Cartesian() = default;
 
-        Cartesian(const Cartesian&) = delete;
-        Cartesian(Cartesian&&)      = delete;
+        Cartesian(const Cartesian&)            = delete;
+        Cartesian(Cartesian&&)                 = delete;
         Cartesian& operator=(const Cartesian&) = delete;
-        Cartesian& operator=(Cartesian&&) = delete;
+        Cartesian& operator=(Cartesian&&)      = delete;
 
         // Kinematic Interface
 

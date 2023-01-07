@@ -30,6 +30,16 @@ namespace Kinematics {
         for (size_t axis = Z_AXIS; axis < n_axis; axis++) {
             last_motor_segment_end[axis] = 0.0;
         }
+
+        init_position();
+    }
+
+    // Initialize the machine position
+    void WallPlotter::init_position() {
+        auto n_axis = config->_axes->_numberAxis;
+        for (size_t axis = 0; axis < n_axis; axis++) {
+            set_motor_steps(axis, 0);  // Set to zeros
+        }
     }
 
     void WallPlotter::transform_cartesian_to_motors(float* cartesian, float* motors) {
