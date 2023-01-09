@@ -60,7 +60,7 @@ namespace Kinematics {
         for (size_t axis = Z_AXIS; axis < n_axis; axis++) {
             motors[axis] = target[axis];
         }
-        log_info("Move motors (" << motors[0] << "," << motors[1] << ")");
+        //log_info("Move motors (" << motors[0] << "," << motors[1] << ")");
         return mc_move_motors(motors, pl_data);
 
         // ----------------------------------------
@@ -142,7 +142,7 @@ namespace Kinematics {
       Convert the n_axis array of motor positions to cartesian in your code.
     */
     void SingleArmScara::motors_to_cartesian(float* cartesian, float* motors, int n_axis) {
-        log_info("motors_to_cartesian (" << motors[X_AXIS] << "," << motors[Y_AXIS] << ")");
+        //log_info("motors_to_cartesian (" << motors[X_AXIS] << "," << motors[Y_AXIS] << ")");
 
         float L1 = _upper_arm_mm;
         float L2 = _forearm_mm;
@@ -150,6 +150,10 @@ namespace Kinematics {
         float A1 = motors[0];
         float A2 = motors[1];
         float A3;
+
+        if (!_elbow_motor) {
+            A2 = A2 - A1;
+        }
 
         D = sqrtf(L1 * L1 + L2 * L2 - (2 * L1 * L2 * cosf(A2)));
 
@@ -166,26 +170,26 @@ namespace Kinematics {
         cartesian[Y_AXIS] = sinf(A3) * D;
         // The rest of cartesian are not changed
 
-        log_info("cartesian (" << cartesian[X_AXIS] << "," << cartesian[Y_AXIS] << ")");
+        //log_info("cartesian (" << cartesian[X_AXIS] << "," << cartesian[Y_AXIS] << ")");
     }
 
     /*
     Kinematic equations
     */
     bool SingleArmScara::xy_to_angles(float* cartesian, float* angles) {
-        log_info("xy_to_angles xy:(" << cartesian[0] << "," << cartesian[1] << ")");
+        //log_info("xy_to_angles xy:(" << cartesian[0] << "," << cartesian[1] << ")");
 
         float D = sqrtf(cartesian[0] * cartesian[0] + cartesian[1] * cartesian[1]);
 
         //float D = hypot_f(cartesian[0], cartesian[1]);
 
         if (D > (_upper_arm_mm + _forearm_mm)) {
-            log_error("Location exceeds reach");
+            log_error("Location exceeds arm reach");
             return false;
         }
 
         if (D < 20.0) {
-            log_error("Tip and elbow too close:" << D << " (" << cartesian[0] << "," << cartesian[1] << ")");
+            log_error("Tip and shoulder too close:" << D << " (" << cartesian[0] << "," << cartesian[1] << ")");
             return false;
         }
 
@@ -199,12 +203,13 @@ namespace Kinematics {
         angles[1] = acosf((L1 * L1 + L2 * L2 - D * D) / (2 * L1 * L2));
 
         // if the motor is at the base we have to compensate for the motion of motor1
+        //og_info("Go to angles (" << angles[0] << "," << angles[1] << ")");
         if (!_elbow_motor) {
-            angles[1] += angles[0];
+            angles[1] = angles[1] + angles[0];
         }
 
         //log_info("L1:" << L1 << " L2:" << L2 << " D:" << D);
-        log_info("Go to angles (" << angles[0] << "," << angles[1] << ")");
+        //log_info("Go to angles (" << angles[0] << "," << angles[1] << ")");
 
         return true;
     }

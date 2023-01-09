@@ -47,6 +47,6 @@ namespace Kinematics {
         float _upper_arm_mm   = 65;
         float _forearm_mm     = 50;
         float _segment_length = 1;
-        bool  _elbow_motor    = true; // is the motor at the elbow or belt driven
+        bool  _elbow_motor    = true;  // is the motor at the elbow or belt driven
     };
 }  //  namespace Kinematics

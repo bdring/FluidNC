@@ -16,6 +16,8 @@
 
 namespace MotorDrivers {
     class Dynamixel2 : public Servo {
+    private:
+        float _last_mpos;  // init outside the range
     protected:
         void config_message() override;
 
@@ -50,6 +52,7 @@ namespace MotorDrivers {
         bool           _my_uart = false;
         static uint8_t _first_id;
         static uint8_t _last_id;
+        static bool    _position_changed;
 
         static bool _uart_started;
 
@@ -114,7 +117,7 @@ namespace MotorDrivers {
             handler.item("id", _id);
 
             handler.item("count_min", _countMin, -1048575, 1048575);
-            handler.item("count_max", _countMax, - 1048575, 1048575);
+            handler.item("count_max", _countMax, -1048575, 1048575);
             handler.item("timer_ms", _timer_ms);
 
             if (_uart == nullptr) {

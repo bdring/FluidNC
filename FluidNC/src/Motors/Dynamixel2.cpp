@@ -36,6 +36,8 @@ namespace MotorDrivers {
 
     bool MotorDrivers::Dynamixel2::_uart_started = false;
 
+    bool MotorDrivers::Dynamixel2::_position_changed = true;
+
     void Dynamixel2::init() {
         _has_errors = false;  // Initially assume okay
         _axis_index = axis_index();
@@ -67,7 +69,7 @@ namespace MotorDrivers {
             return;
         }
 
-        set_disable(true);                              // turn off torque so we can set EEPROM registers
+        set_disable(true);  // turn off torque so we can set EEPROM registers
         //set_operating_mode(DXL_CONTROL_MODE_POSITION);  // set it in the right control mode
 
         // servos will blink in axis order for reference
@@ -155,7 +157,7 @@ namespace MotorDrivers {
                 bulk_message[++bulk_message_index] = 0;                                  // high order data length
             }
             add_to_bulk_message();
-            if (_id == _first_id) {
+            if (_id == _first_id && _position_changed) {
                 send_bulk_message();
             }
         }
@@ -309,6 +311,11 @@ namespace MotorDrivers {
         float* mpos = get_mpos();
         float  motors[MAX_N_AXIS];
 
+        if (_last_mpos != mpos[_axis_index]) {
+            _position_changed = true;
+        }
+        _last_mpos = mpos[_axis_index];
+
         dxl_count_min = float(_countMin);
         dxl_count_max = float(_countMax);
 
@@ -318,7 +325,8 @@ namespace MotorDrivers {
         dxl_position = static_cast<int32_t>(mapConstrain(
             motors[_axis_index], limitsMinPosition(_axis_index), limitsMaxPosition(_axis_index), dxl_count_min, dxl_count_max));
 
-        log_debug("id:" << _id << " goal:" << dxl_position);
+        if (_position_changed)
+            log_debug("id:" << _id << " mpos:" << motors[_axis_index] << " dxl:" << dxl_position);
 
         bulk_message[++bulk_message_index] = _id;                                // ID of the servo
         bulk_message[++bulk_message_index] = dxl_position & 0xFF;                // data
@@ -332,6 +340,7 @@ namespace MotorDrivers {
         //log_debug("Ping:" << esp_timer_get_time() / 1000 - ping);
         //ping = esp_timer_get_time() / 1000;
         dxl_finish_message(DXL_BROADCAST_ID, bulk_message, bulk_message_index - DXL_MSG_INSTR + 3);
+        _position_changed = false;
     }
 
     /*

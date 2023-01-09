@@ -13,7 +13,7 @@ kinematics:
     upper_arm_mm: 65.0
     forearm_mm: 50.0
     segment_mm: 1.0
-    elbow_motor: true
+    elbow_motor: false
 
 axes:
 
@@ -74,6 +74,33 @@ axes:
         timer_ms: 40
         count_min: -4095
         count_max: 4095
+        
+  z:
+    steps_per_mm: 100.000
+    max_rate_mm_per_min: 5000.000
+    acceleration_mm_per_sec2: 100.000
+    max_travel_mm: 5.000
+    soft_limits: false
+    homing:
+      cycle: 1
+      positive_direction: true
+      mpos_mm: 5.000
+
+    motor0:
+      rc_servo:
+        pwm_hz: 50
+        output_pin: gpio.27
+        min_pulse_us: 1000
+        max_pulse_us: 2000
+        
+spi:
+  miso_pin: gpio.19
+  mosi_pin: gpio.23
+  sck_pin: gpio.18
+
+sdcard:
+  card_detect_pin: NO_PIN
+  cs_pin: gpio.5
 
 start:
   must_home: false
