@@ -170,9 +170,12 @@ namespace WebUI {
                 print_mac(out, "Current WiFi Mode: AP", WiFi.softAPmacAddress());
 
                 wifi_config_t conf;
+                wifi_country_t country;
                 esp_wifi_get_config(WIFI_IF_AP, &conf);
+                esp_wifi_get_country(&country);
                 log_to(out, "SSID: ", (const char*)conf.ap.ssid);
                 log_to(out, "Visible: ", (conf.ap.ssid_hidden == 0 ? "Yes" : "No"));
+                log_to(out, "Radio country set: ", country.cc << " (channels " << country.schan << "-" << (country.schan+country.nchan-1) << ", max power " << country.max_tx_power << "dBm)");
 
                 const char* mode;
                 switch (conf.ap.authmode) {
