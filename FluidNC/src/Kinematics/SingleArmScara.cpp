@@ -17,6 +17,13 @@ namespace Kinematics {
         init_position();
     }
 
+    bool SingleArmScara::kinematics_homing(AxisMask axisMask) {
+        // disable the motors
+        // manually 
+        log_info("SCARA here...I got this homing thing");
+        return true;
+    }
+
     // Initialize the machine position
     void SingleArmScara::init_position() {
         // initialize to the arms fully extended
@@ -188,10 +195,10 @@ namespace Kinematics {
             return false;
         }
 
-        if (D < 20.0) {
-            log_error("Tip and shoulder too close:" << D << " (" << cartesian[0] << "," << cartesian[1] << ")");
-            return false;
-        }
+        // if (D < 20.0) {
+        //     log_error("Tip and shoulder too close:" << D << " (" << cartesian[0] << "," << cartesian[1] << ")");
+        //     return false;
+        // }
 
         float L1 = _upper_arm_mm;
         float L2 = _forearm_mm;

@@ -41,6 +41,10 @@ namespace Kinematics {
         return true;
     }
 
+    bool Cartesian::kinematics_homing(AxisMask axisMask) {        
+        return false; // false means this kinematics does not do the homing
+    }
+
     bool Cartesian::limitReached(AxisMask& axisMask, MotorMask& motorMask, MotorMask limited) {
         // For Cartesian, the limit switches are associated with individual motors, since
         // an axis can have dual motors each with its own limit switch.  We clear the motors in
