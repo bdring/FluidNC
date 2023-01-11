@@ -38,7 +38,9 @@ namespace Configuration {
         return result;
     }
 
-    StringRange Parser::stringValue() const { return StringRange(token_.sValueStart_, token_.sValueEnd_); }
+    StringRange Parser::stringValue() const {
+        return StringRange(token_.sValueStart_, token_.sValueEnd_);
+    }
 
     bool Parser::boolValue() const {
         auto str = StringRange(token_.sValueStart_, token_.sValueEnd_);

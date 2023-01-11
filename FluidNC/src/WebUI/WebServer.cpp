@@ -289,7 +289,8 @@ namespace WebUI {
         // This can make it hard to debug ISR IRAM problems, because the easiest
         // way to trigger such problems is to refresh WebUI during motion.
         // If you need to do such debugging, comment out this check temporarily.
-        if (inMotionState()) {
+        //        if (inMotionState()) {
+        if (false) {
             _webserver->send(200,
                              "text/html",
                              "<!DOCTYPE html><html><body>"
