@@ -59,8 +59,6 @@ std::map<Error, const char*> ErrorNames = {
     { Error::FsFailedDelFile, "Failed to delete file" },
     { Error::FsFailedCreateFile, "Failed to create file" },
     { Error::FsFailedFormat, "Failed to format filesystem" },
-    { Error::BtFailBegin, "Bluetooth failed to start" },
-    { Error::WifiFailBegin, "WiFi failed to start" },
     { Error::NumberRange, "Number out of range for setting" },
     { Error::InvalidValue, "Invalid value for setting" },
     { Error::MessageFailed, "Failed to send message" },

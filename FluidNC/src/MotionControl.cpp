@@ -12,7 +12,6 @@
 #include "Protocol.h"        // protocol_execute_realtime
 #include "Planner.h"         // plan_reset, etc
 #include "I2SOut.h"          // i2s_out_reset
-#include "InputFile.h"       // infile
 #include "Platform.h"        // WEAK_LINK
 #include "Settings.h"        // coords
 
@@ -77,7 +76,6 @@ bool mc_move_motors(float* target, plan_line_data_t* pl_data) {
 
         // While we are waiting for room in the buffer, look for realtime
         // commands and other situations that could cause state changes.
-        pollChannels();
         protocol_execute_realtime();
         if (sys.abort) {
             mc_pl_data_inflight = NULL;
@@ -303,7 +301,6 @@ GCUpdatePos mc_probe_cycle(float* target, plan_line_data_t* pl_data, bool away, 
     // Perform probing cycle. Wait here until probe is triggered or motion completes.
     protocol_send_event(&cycleStartEvent);
     do {
-        pollChannels();
         protocol_execute_realtime();
         if (sys.abort) {
             config->_stepping->endLowLatency();

@@ -5,8 +5,10 @@
 
 #pragma once
 
+#include "Types.h"  // AxisMask
 #include "Planner.h"
-#include "NutsBolts.h"
+#include "Config.h"
+#include "Probe.h"
 
 #include <cstdint>
 

@@ -17,9 +17,7 @@ namespace Pins {
         va_copy(copy, arg);
         size_t len = vsnprintf(buf, 50, format, arg);
         va_end(copy);
-        Uart0.print("[MSG: ");
-        Uart0.print(buf);
-        Uart0.println(" ]");
+        log_msg_to(Uart0, buf);
         va_end(arg);
     }
 

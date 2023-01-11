@@ -3,7 +3,7 @@
 #include "Driver/littlefs.h"  // littlefs_format
 #include <cstddef>            // NULL
 #include <cstring>
-#include "src/Logging.h"
+#include "src/Config.h"
 #include "esp_partition.h"
 
 const char* localfsName = NULL;

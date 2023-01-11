@@ -116,7 +116,7 @@ public:
         return intEnd == end_;
     }
 
-    inline bool isUnsignedInteger(uint32_t& intval) {       
+    inline bool isUnsignedInteger(uint32_t& intval) {
         char* intEnd;
         intval = strtoul(start_, &intEnd, 10);
         return intEnd == end_;

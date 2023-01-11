@@ -8,7 +8,6 @@
 #include "driver/gpio.h"
 #include "hal/gpio_hal.h"
 
-#include "src/Logging.h"
 #include "src/Protocol.h"
 
 #include <vector>

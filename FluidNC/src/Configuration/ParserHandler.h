@@ -8,8 +8,6 @@
 #include "Configurable.h"
 #include "../System.h"
 
-#include "../Logging.h"
-
 #include <vector>
 
 // #define DEBUG_VERBOSE_YAML_PARSER

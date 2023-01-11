@@ -6,7 +6,7 @@
 */
 
 #include "Driver/PwmPin.h"
-#include "src/Logging.h"
+#include "src/Config.h"
 
 #include <soc/ledc_struct.h>  // LEDC
 

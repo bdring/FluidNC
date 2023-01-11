@@ -6,7 +6,7 @@
 #include "ParseException.h"
 #include "../EnumItem.h"
 
-#include "../Logging.h"
+#include "../Config.h"
 
 #include <climits>
 #include <math.h>  // round
