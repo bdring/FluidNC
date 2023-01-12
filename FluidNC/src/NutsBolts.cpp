@@ -3,8 +3,6 @@
 // Copyright (c) 2018 -	Bart Dring
 // Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
 
-#include "NutsBolts.h"
-
 #include "Machine/MachineConfig.h"
 #include "Protocol.h"  // protocol_exec_rt_system
 
@@ -105,7 +103,6 @@ void delay_ms(uint16_t ms) {
 // Non-blocking delay function used for general operation and suspend features.
 bool delay_msec(uint32_t milliseconds, DwellMode mode) {
     while (milliseconds--) {
-        pollChannels();
         if (mode == DwellMode::Dwell) {
             protocol_execute_realtime();
         } else {  // DwellMode::SysSuspend

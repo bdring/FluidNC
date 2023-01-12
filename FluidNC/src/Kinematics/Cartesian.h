@@ -16,15 +16,16 @@ namespace Kinematics {
     public:
         Cartesian() = default;
 
-        Cartesian(const Cartesian&) = delete;
-        Cartesian(Cartesian&&)      = delete;
+        Cartesian(const Cartesian&)            = delete;
+        Cartesian(Cartesian&&)                 = delete;
         Cartesian& operator=(const Cartesian&) = delete;
-        Cartesian& operator=(Cartesian&&) = delete;
+        Cartesian& operator=(Cartesian&&)      = delete;
 
         // Kinematic Interface
 
         virtual bool cartesian_to_motors(float* target, plan_line_data_t* pl_data, float* position) override;
         virtual void init() override;
+        virtual void init_position() override;
         void         motors_to_cartesian(float* cartesian, float* motors, int n_axis) override;
         void         transform_cartesian_to_motors(float* cartesian, float* motors) override;
 

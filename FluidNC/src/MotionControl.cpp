@@ -12,7 +12,6 @@
 #include "Protocol.h"        // protocol_execute_realtime
 #include "Planner.h"         // plan_reset, etc
 #include "I2SOut.h"          // i2s_out_reset
-#include "InputFile.h"       // infile
 #include "Platform.h"        // WEAK_LINK
 #include "Settings.h"        // coords
 
@@ -77,7 +76,6 @@ bool mc_move_motors(float* target, plan_line_data_t* pl_data) {
 
         // While we are waiting for room in the buffer, look for realtime
         // commands and other situations that could cause state changes.
-        pollChannels();
         protocol_execute_realtime();
         if (sys.abort) {
             mc_pl_data_inflight = NULL;
@@ -123,7 +121,8 @@ void mc_arc(float*            target,
             size_t            axis_0,
             size_t            axis_1,
             size_t            axis_linear,
-            bool              is_clockwise_arc) {
+            bool              is_clockwise_arc,
+            int               pword_rotations) {
     float center_axis0 = position[axis_0] + offset[axis_0];
     float center_axis1 = position[axis_1] + offset[axis_1];
     float r_axis0      = -offset[axis_0];  // Radius vector from center to current location
@@ -144,9 +143,18 @@ void mc_arc(float*            target,
         if (angular_travel >= -ARC_ANGULAR_TRAVEL_EPSILON) {
             angular_travel -= 2 * float(M_PI);
         }
+        // See https://linuxcnc.org/docs/2.6/html/gcode/gcode.html#sec:G2-G3-Arc
+        // The P word specifies the number of extra rotations.  Missing P, P0 or P1
+        // is just the programmed arc.  Pn adds n-1 rotations
+        if (pword_rotations > 1) {
+            angular_travel -= (pword_rotations - 1) * 2 * float(M_PI);
+        }
     } else {
         if (angular_travel <= ARC_ANGULAR_TRAVEL_EPSILON) {
             angular_travel += 2 * float(M_PI);
+        }
+        if (pword_rotations > 1) {
+            angular_travel += (pword_rotations - 1) * 2 * float(M_PI);
         }
     }
 
@@ -293,7 +301,6 @@ GCUpdatePos mc_probe_cycle(float* target, plan_line_data_t* pl_data, bool away, 
     // Perform probing cycle. Wait here until probe is triggered or motion completes.
     protocol_send_event(&cycleStartEvent);
     do {
-        pollChannels();
         protocol_execute_realtime();
         if (sys.abort) {
             config->_stepping->endLowLatency();

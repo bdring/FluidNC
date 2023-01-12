@@ -91,6 +91,19 @@ float* get_mpos() {
     return position;
 };
 
+float* get_wco() {
+    static float wco[MAX_N_AXIS];
+    auto         n_axis = config->_axes->_numberAxis;
+    for (int idx = 0; idx < n_axis; idx++) {
+        // Apply work coordinate offsets and tool length offset to current position.
+        wco[idx] = gc_state.coord_system[idx] + gc_state.coord_offset[idx];
+        if (idx == TOOL_LENGTH_OFFSET_AXIS) {
+            wco[idx] += gc_state.tool_length_offset;
+        }
+    }
+    return wco;
+}
+
 std::map<State, const char*> StateName = {
     { State::Idle, "Idle" },
     { State::Alarm, "Alarm" },

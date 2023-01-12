@@ -4,12 +4,13 @@
 #include "RuntimeSetting.h"
 
 #include "../Report.h"
+#include "../Protocol.h"  // send_line()
 
 #include <cstdlib>
 #include <atomic>
 
 namespace Configuration {
-    RuntimeSetting::RuntimeSetting(const char* key, const char* value, Print& out) : newValue_(value), out_(out) {
+    RuntimeSetting::RuntimeSetting(const char* key, const char* value, Channel& out) : newValue_(value), out_(out) {
         // Remove leading '/' if it is present
         setting_ = (*key == '/') ? key + 1 : key;
         // Also remove trailing '/' if it is present
@@ -17,6 +18,13 @@ namespace Configuration {
         start_ = setting_;
         // Read fence for config. Shouldn't be necessary, but better safe than sorry.
         std::atomic_thread_fence(std::memory_order::memory_order_seq_cst);
+    }
+
+    std::string RuntimeSetting::setting_prefix() {
+        std::string s("$/");
+        s += setting_;
+        s += "=";
+        return s;
     }
 
     void RuntimeSetting::enterSection(const char* name, Configuration::Configurable* value) {
@@ -36,8 +44,8 @@ namespace Configuration {
                 value->group(*this);
             } else {
                 if (newValue_ == nullptr) {
-                    allChannels << "/" << setting_ << ":\n";
-                    Configuration::Generator generator(allChannels, 1);
+                    log_to(out_, "/", setting_ << ":");
+                    Configuration::Generator generator(out_, 1);
                     value->group(generator);
                     isHandled_ = true;
                 } else {
@@ -54,7 +62,7 @@ namespace Configuration {
         if (is(name)) {
             isHandled_ = true;
             if (newValue_ == nullptr) {
-                out_ << "$/" << setting_ << "=" << (value ? "true" : "false") << '\n';
+                log_to(out_, "", setting_prefix() << (value ? "true" : "false"));
             } else {
                 value = (!strcasecmp(newValue_, "true") || !strcasecmp(newValue_, "yes") || !strcasecmp(newValue_, "1"));
             }
@@ -65,10 +73,26 @@ namespace Configuration {
         if (is(name)) {
             isHandled_ = true;
             if (newValue_ == nullptr) {
-                out_ << "$/" << setting_ << "=" << value << '\n';
+                log_to(out_, "", setting_prefix() << value);
             } else {
                 value = atoi(newValue_);
             }
+        }
+    }
+
+    void RuntimeSetting::item(const char* name, uint32_t& value, uint32_t minValue, uint32_t maxValue) {
+        if (is(name)) {
+            isHandled_ = true;
+            if (newValue_ == nullptr) {
+                out_ << "$/" << setting_ << "=" << value << '\n';
+            } else {
+                if (newValue_[0] == '-') {  // constrain negative values to 0
+                    value = 0;
+                    log_warn("Negative value not allowed");
+                } else
+                    value = atoll(newValue_);
+            }
+            constrain_with_message(value, minValue, maxValue);
         }
     }
 
@@ -76,7 +100,8 @@ namespace Configuration {
         if (is(name)) {
             isHandled_ = true;
             if (newValue_ == nullptr) {
-                out_ << "$/" << setting_ << "=" << value << '\n';
+                // XXX precision
+                log_to(out_, "", setting_prefix() << value);
             } else {
                 char* floatEnd;
                 value = strtof(newValue_, &floatEnd);
@@ -88,7 +113,7 @@ namespace Configuration {
         if (is(name)) {
             isHandled_ = true;
             if (newValue_ == nullptr) {
-                out_ << "$/" << setting_ << "=" << value << '\n';
+                log_to(out_, "", setting_prefix() << value);
             } else {
                 value = String(newValue_);
             }
@@ -101,7 +126,7 @@ namespace Configuration {
             if (newValue_ == nullptr) {
                 for (auto e2 = e; e2->name; ++e2) {
                     if (e2->value == value) {
-                        out_ << "$/" << setting_ << "=" << e2->name << '\n';
+                        log_to(out_, "", setting_prefix() << e2->name);
                         return;
                     }
                 }
@@ -140,13 +165,12 @@ namespace Configuration {
             isHandled_ = true;
             if (newValue_ == nullptr) {
                 if (value.size() == 0) {
-                    out_ << "None";
+                    log_to(out_, "None");
                 } else {
                     for (speedEntry n : value) {
-                        out_ << n.speed << '=' << n.percent << '%';
+                        log_to(out_, "", n.speed << "=" << n.percent << "%")
                     }
                 }
-                out_ << '\n';
             } else {
                 // It is distasteful to have this code that essentially duplicates
                 // Parser.cpp speedEntryValue(), albeit using String instead of
@@ -181,7 +205,7 @@ namespace Configuration {
         if (is(name)) {
             isHandled_ = true;
             if (newValue_ == nullptr) {
-                out_ << "$/" << setting_ << "=" << value.toString() << '\n';
+                log_to(out_, "", setting_prefix() << value.toString());
             } else {
                 IPAddress ip;
                 if (!ip.fromString(newValue_)) {
@@ -196,9 +220,9 @@ namespace Configuration {
         if (is(name)) {
             isHandled_ = true;
             if (newValue_ == nullptr) {
-                out_ << "$/" << setting_ << "=" << value.name() << '\n';
+                log_to(out_, "", setting_prefix() << value.name());
             } else {
-                out_ << "Runtime setting of Pin objects is not supported\n";
+                log_to(out_, "Runtime setting of Pin objects is not supported");
                 // auto parsed = Pin::create(newValue);
                 // value.swap(parsed);
             }

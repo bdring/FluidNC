@@ -16,10 +16,9 @@
 #include "Dynamixel2.h"
 
 #include "../Machine/MachineConfig.h"
-#include "../System.h"     // mpos_to_steps() etc
-#include "../Limits.h"     // limitsMinPosition
-#include "../NutsBolts.h"  // map(), mapConstrain()
-#include "../Planner.h"    // plan_sync_position()
+#include "../System.h"   // mpos_to_steps() etc
+#include "../Limits.h"   // limitsMinPosition
+#include "../Planner.h"  // plan_sync_position()
 
 #include <cstdarg>
 #include <cmath>
@@ -76,9 +75,7 @@ namespace MotorDrivers {
         LED_on(false);
     }
 
-    void Dynamixel2::config_message() {
-        log_info("    " << name() << " id:" << _id << " Count(" << _countMin << "," << _countMax << ")");
-    }
+    void Dynamixel2::config_message() { log_info("    " << name() << " id:" << _id << " Count(" << _countMin << "," << _countMax << ")"); }
 
     bool Dynamixel2::test() {
         uint16_t len = 3;

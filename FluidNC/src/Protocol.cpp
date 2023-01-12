@@ -17,8 +17,6 @@
 #include "Planner.h"        // plan_get_current_block
 #include "MotionControl.h"  // PARKING_MOTION_LINE_NUMBER
 #include "Settings.h"       // settings_execute_startup
-#include "InputFile.h"      // infile
-#include "Logging.h"
 #include "Machine/LimitPin.h"
 
 volatile ExecAlarm rtAlarm;  // Global realtime executor bitflag variable for setting various alarms.
@@ -83,13 +81,153 @@ static int32_t idleEndTime = 0;
 /*
   PRIMARY LOOP:
 */
-Channel* exclusiveChannel = nullptr;
-
 static void request_safety_door() {
     rtSafetyDoor = true;
 }
 
-void protocol_main_loop() {
+TaskHandle_t outputTask = nullptr;
+
+xQueueHandle message_queue;
+
+struct LogMessage {
+    Channel* channel;
+    void*    line;
+    bool     isString;
+};
+
+void drain_messages() {
+    while (uxQueueMessagesWaiting(message_queue)) {
+        vTaskDelay(1);  // Let the output task finish sending data
+    }
+}
+
+// This overload is used primarily with fixed string
+// values.  It sends a pointer to the string whose
+// memory does not need to be reclaimed later.
+// This is the most efficient form, but it only works
+// with fixed messages.
+void send_line(Channel& channel, const char* line) {
+    if (outputTask) {
+        LogMessage msg { &channel, (void*)line, false };
+        while (!xQueueSend(message_queue, &msg, 10)) {}
+    } else {
+        channel.println(line);
+    }
+}
+
+// This overload is used primarily with log_*() where
+// a std::string is dynamically allocated with "new",
+// and then extended to construct the message.  Its
+// pointer is sent to the output task, which sends
+// the message to the output channel and then "delete"s
+// the pointer to reclaim the memory.
+// This form has intermediate efficiency, as the string
+// is allocated once and freed once.
+void send_line(Channel& channel, const std::string* line) {
+    if (outputTask) {
+        LogMessage msg { &channel, (void*)line, true };
+        while (!xQueueSend(message_queue, &msg, 10)) {}
+    } else {
+        channel.println(line->c_str());
+        delete line;
+    }
+}
+
+// This overload is used for many miscellaneous messages
+// where the std::string is allocated in a code block and
+// then extended with various information.  This send_line()
+// copies that string to a newly allocated one and sends that
+// via the std::string* version of send_line().  The original
+// string is freed by the caller sometime after send_line()
+// returns, while the new string is freed by the output task
+// after the message is forwared to the output channel.
+// This is the least efficient form, requiring two strings
+// to be allocated and freed, with an intermediate copy.
+// It is used only rarely.
+void send_line(Channel& channel, const std::string& line) {
+    if (outputTask) {
+        send_line(channel, new std::string(line));
+    } else {
+        channel.println(line.c_str());
+    }
+}
+
+void output_loop(void* unused) {
+    while (true) {
+        LogMessage message;
+        if (xQueueReceive(message_queue, &message, 0)) {
+            if (message.isString) {
+                std::string* s = static_cast<std::string*>(message.line);
+                message.channel->println(s->c_str());
+                delete s;
+            } else {
+                const char* cp = static_cast<const char*>(message.line);
+                message.channel->println(cp);
+            }
+        }
+        vTaskDelay(0);
+    }
+}
+
+Channel* activeChannel = nullptr;  // Channel associated with the input line
+
+TaskHandle_t pollingTask = nullptr;
+
+char activeLine[Channel::maxLine];
+
+bool pollingPaused = false;
+void polling_loop(void* unused) {
+    // Poll the input sources waiting for a complete line to arrive
+    for (; true; /*feedLoopWDT(), */ vTaskDelay(0)) {
+        // Polling is paused when xmodem is using a channel for binary upload
+        if (pollingPaused) {
+            vTaskDelay(100);
+            continue;
+        }
+        if (activeChannel) {
+            // Poll for realtime characters when waiting for the primary loop
+            // (in another thread) to pick up the line.
+            pollChannels();
+            continue;
+        }
+
+        // Polling without an argument both checks for realtime characters and
+        // returns a line-oriented command if one is ready.
+        activeChannel = pollChannels(activeLine);
+    }
+}
+
+void stop_polling() {
+    if (pollingTask) {
+        vTaskSuspend(pollingTask);
+    }
+}
+
+void start_polling() {
+    if (pollingTask) {
+        vTaskResume(pollingTask);
+    } else {
+        xTaskCreatePinnedToCore(polling_loop,      // task
+                                "poller",          // name for task
+                                8192,              // size of task stack
+                                0,                 // parameters
+                                1,                 // priority
+                                &pollingTask,      // task handle
+                                SUPPORT_TASK_CORE  // core
+        );
+        xTaskCreatePinnedToCore(output_loop,  // task
+                                "output",     // name for task
+                                16000,
+                                // 8192,              // size of task stack
+                                0,                 // parameters
+                                1,                 // priority
+                                &outputTask,       // task handle
+                                SUPPORT_TASK_CORE  // core
+        );
+    }
+}
+
+static void check_startup_state() {
     // Check for and report alarm state after a reset, error, or an initial power up.
     // NOTE: Sleep mode disables the stepper drivers and position can't be guaranteed.
     // Re-initialize the sleep state as an ALARM mode to ensure user homes or acknowledges.
@@ -113,7 +251,7 @@ void protocol_main_loop() {
         } else {
             // Check if the safety door is open.
             sys.state = State::Idle;
-            if (config->_control->safety_door_ajar()) {
+            while (config->_control->safety_door_ajar()) {
                 request_safety_door();
                 protocol_execute_realtime();  // Enter safety door mode. Should return as IDLE state.
             }
@@ -121,61 +259,39 @@ void protocol_main_loop() {
             settings_execute_startup();  // Execute startup script.
         }
     }
+}
+
+void protocol_main_loop() {
+    check_startup_state();
+    start_polling();
 
     // ---------------------------------------------------------------------------------
     // Primary loop! Upon a system abort, this exits back to main() to reset the system.
     // This is also where the system idles while waiting for something to do.
     // ---------------------------------------------------------------------------------
-    for (;;) {
-        // Poll the input sources waiting for a complete line to arrive
-        while (true) {
-            Channel* chan = nullptr;
-            char     line[Channel::maxLine];
-            protocol_execute_realtime();  // Runtime command check point.
-            if (sys.abort) {
-                return;  // Bail to calling function upon system abort
-            }
-
-            if (infile) {
-                pollChannels();
-                if (readyNext) {
-                    readyNext = false;
-                    chan      = &infile->getChannel();
-                    switch (auto err = infile->readLine(line, Channel::maxLine)) {
-                        case Error::Ok:
-                            break;
-                        case Error::Eof:
-                            _notifyf("File job done", "%s file job succeeded", infile->path());
-                            allChannels << "[MSG:" << infile->path() << " file job succeeded]\n";
-                            delete infile;
-                            infile = nullptr;
-                            break;
-                        default:
-                            allChannels << "[MSG: ERR:" << static_cast<int>(err) << " (" << errorString(err) << ") in " << infile->path()
-                                        << " at line " << infile->getLineNumber() << "]\n";
-                            delete infile;
-                            infile = nullptr;
-                            break;
-                    }
-                }
-            } else {
-                chan = pollChannels(line);
-            }
-            if (chan == nullptr) {
-                break;
-            }
+    for (;; vTaskDelay(0)) {
+        if (activeChannel) {
+            // The input polling task has collected a line of input
 #ifdef DEBUG_REPORT_ECHO_RAW_LINE_RECEIVED
-            report_echo_line_received(line, allChannels);
+            report_echo_line_received(activeLine, allChannels);
 #endif
-            display("GCODE", line);
-            // auth_level can be upgraded by supplying a password on the command line
-            report_status_message(execute_line(line, *chan, WebUI::AuthenticationLevel::LEVEL_GUEST), allChannels);
+            display("GCODE", activeLine);
+
+            Error status_code = execute_line(activeLine, *activeChannel, WebUI::AuthenticationLevel::LEVEL_GUEST);
+
+            // Tell the channel that the line has been processed.
+            activeChannel->ack(status_code);
+
+            // Tell the input polling task that the line has been processed,
+            // so it can give us another one when available
+            activeChannel = nullptr;
         }
-        // If there are no more lines to be processed and executed,
-        // auto-cycle start, if enabled, any queued moves.
+
+        // Auto-cycle start any queued moves.
         protocol_auto_cycle_start();
         protocol_execute_realtime();  // Runtime command check point.
         if (sys.abort) {
+            stop_polling();
             return;  // Bail to main() program loop to reset system.
         }
 
@@ -204,7 +320,6 @@ void protocol_buffer_synchronize() {
     do {
         // Restart motion if there are blocks in the planner queue
         protocol_auto_cycle_start();
-        pollChannels();
         protocol_execute_realtime();  // Check and execute run-time commands
         if (sys.abort) {
             return;  // Check for system abort
@@ -244,7 +359,7 @@ void protocol_execute_realtime() {
 }
 
 static void alarm_msg(ExecAlarm alarm_code) {
-    allChannels << "ALARM:" << static_cast<int>(alarm_code) << '\n';
+    log_to(allChannels, "ALARM:", static_cast<int>(alarm_code));
     delay_ms(500);  // Force delay to ensure message clears serial write buffer.
 }
 
@@ -271,7 +386,6 @@ static void protocol_do_alarm() {
             // the user and a GUI time to do what is needed before resetting, like killing the
             // incoming stream. The same could be said about soft limits. While the position is not
             // lost, continued streaming could cause a serious crash if by chance it gets executed.
-            pollChannels();  // Handle ^X realtime RESET command
         } while (!rtReset);
     }
     rtAlarm = ExecAlarm::None;
@@ -471,9 +585,10 @@ static void protocol_do_initiate_cycle() {
     // log_debug("protocol_do_initiate_cycle " << state_name());
     // Start cycle only if queued motions exist in planner buffer and the motion is not canceled.
     sys.step_control = {};  // Restore step control to normal operation
-    if (plan_get_current_block() && !sys.suspend.bit.motionCancel) {
+    plan_block_t* pb;
+    if ((pb = plan_get_current_block()) && !sys.suspend.bit.motionCancel) {
         sys.suspend.value = 0;  // Break suspend state.
-        sys.state         = State::Cycle;
+        sys.state         = pb->is_jog ? State::Jog : State::Cycle;
         Stepper::prep_buffer();  // Initialize step segment buffer before beginning cycle.
         Stepper::wake_up();
     } else {  // Otherwise, do nothing. Set and resume IDLE state.
@@ -637,22 +752,14 @@ static void protocol_do_late_reset() {
     config->_userOutputs->all_off();
 
     // do we need to stop a running file job?
-    if (infile) {
-        //Report print stopped
-        _notifyf("File print canceled", "Reset during file job at line: %d", infile->getLineNumber());
-        // log_info() does not work well in this case because the message gets broken in half
-        // by report_init_message().  The flow of control that causes it is obscure.
-        allChannels << "[MSG:"
-                    << "Reset during file job at line: " << infile->getLineNumber();
-        delete infile;
-        infile = nullptr;
-    }
+    allChannels.stopJob();
 }
 
 void protocol_exec_rt_system() {
     protocol_do_alarm();  // If there is a hard or soft limit, this will block until rtReset is set
 
     if (rtReset) {
+        rtReset = false;
         if (sys.state == State::Homing) {
             Machine::Homing::fail(ExecAlarm::HomingFailReset);
         }
@@ -798,7 +905,6 @@ static void protocol_exec_rt_suspend() {
                 protocol_manage_spindle();
             }
         }
-        pollChannels();  // Handle realtime commands like status report, cycle start and reset
         protocol_exec_rt_system();
     }
 }
@@ -932,14 +1038,14 @@ NoArgEvent resetEvent { mc_reset };
 xQueueHandle event_queue;
 
 void protocol_init() {
-    event_queue = xQueueCreate(10, sizeof(EventItem));
+    event_queue   = xQueueCreate(10, sizeof(EventItem));
+    message_queue = xQueueCreate(10, sizeof(LogMessage));
 }
 
 void IRAM_ATTR protocol_send_event_from_ISR(Event* evt, void* arg) {
     EventItem item { evt, arg };
     xQueueSendFromISR(event_queue, &item, NULL);
 }
-
 void protocol_send_event(Event* evt, void* arg) {
     EventItem item { evt, arg };
     xQueueSend(event_queue, &item, 0);

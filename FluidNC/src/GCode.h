@@ -6,12 +6,15 @@
 #pragma once
 
 #include "Config.h"
-#include "Serial.h"
 #include "Error.h"
-#include "System.h"
 #include "SpindleDatatypes.h"
 
 #include <cstdint>
+
+enum class Override : uint8_t {
+    ParkingMotion = 0,  // M56 (Default: Must be zero)
+    Disabled      = 1,  // Parking disabled.
+};
 
 // Modal group internal numbers for checking multiple command violations and tracking the
 // type of command that is called in the block. A modal group is a group of g-code commands that are
@@ -220,10 +223,10 @@ enum CoordIndex : uint8_t {
     // G59_2,
     // G59_3,
     NWCSystems,
-    G28 = NWCSystems,
-    G30,
-    // G92_2,
-    // G92_3,
+    G28 = NWCSystems,  // Home0
+    G30,               // Home1
+    G92,               // Temporary work offset
+    TLO,               // Tool Length Offset, affected by G43.1 and G49
     End,
 };
 
@@ -301,7 +304,7 @@ enum class AxisCommand : uint8_t {
 void gc_init();
 
 // Execute one block of rs275/ngc/g-code
-Error gc_execute_line(char* line, Channel& channel);
+Error gc_execute_line(char* line);
 
 // Set g-code parser position. Input in steps.
 void gc_sync_position();

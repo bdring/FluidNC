@@ -4,7 +4,7 @@
 #include "Pin.h"
 
 // Pins:
-#include "Logging.h"
+#include "Config.h"
 #include "Pins/PinOptionsParser.h"
 #include "Pins/GPIOPinDetail.h"
 #include "Pins/VoidPinDetail.h"

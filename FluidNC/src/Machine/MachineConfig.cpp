@@ -13,7 +13,6 @@
 
 #include "../SettingsDefinitions.h"  // config_filename
 #include "../FileStream.h"
-#include "../Logging.h"
 
 #include "../Configuration/Parser.h"
 #include "../Configuration/ParserHandler.h"

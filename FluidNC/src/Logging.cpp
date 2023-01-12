@@ -1,48 +1,29 @@
 // Copyright (c) 2021 -  Stefan de Bruijn
 // Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
 
-#include "Logging.h"
+#include "Config.h"
+#include "Protocol.h"
+#include "Serial.h"
 #include "SettingsDefinitions.h"
 
-#ifndef ESP32
-
-#    include <iostream>
-
-#    define DEBUG_OUT std::cout
 bool atMsgLevel(MsgLevel level) {
     return message_level == nullptr || message_level->get() >= level;
 }
-#else
-#    define DEBUG_OUT allChannels
-bool atMsgLevel(MsgLevel level) {
-    return message_level == nullptr || message_level->get() >= level;
-}
-#endif
 
-DebugStream::DebugStream(const char* name) {
-    _charcnt = 0;
-    print("[MSG:");
-    if (*name) {
-        print(name);
-        print(": ");
-    } else {
-        print(" ");
+LogStream::LogStream(Channel& channel, const char* name) : _channel(channel) {
+    _line = new std::string();
+    print(name);
+}
+LogStream::LogStream(const char* name) : LogStream(allChannels, name) {}
+
+size_t LogStream::write(uint8_t c) {
+    *_line += (char)c;
+    return 1;
+}
+
+LogStream::~LogStream() {
+    if ((*_line).length() && (*_line)[0] == '[') {
+        *_line += ']';
     }
-}
-
-size_t DebugStream::write(uint8_t c) {
-    if (_charcnt < MAXLINE - 2) {
-        // Leave room for ]\n\0
-        _outline[_charcnt++] = (char)c;
-        return 1;
-    }
-    return 0;
-}
-
-DebugStream::~DebugStream() {
-    // write() leaves space for three characters at the end
-    _outline[_charcnt++] = ']';
-    _outline[_charcnt++] = '\n';
-    _outline[_charcnt++] = '\0';
-    DEBUG_OUT << _outline;
+    send_line(_channel, _line);
 }

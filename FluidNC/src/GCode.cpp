@@ -10,7 +10,6 @@
 #include "Config.h"
 #include "Report.h"
 #include "Jog.h"
-#include "NutsBolts.h"
 #include "Protocol.h"             // protocol_buffer_synchronize
 #include "MotionControl.h"        // mc_override_ctrl_update
 #include "Machine/UserOutputs.h"  // setAnalogPercent
@@ -125,11 +124,15 @@ void collapseGCode(char* line) {
     *outPtr = '\0';
 }
 
+static void gc_ngc_changed(CoordIndex coord) {
+    allChannels.notifyNgc(coord);
+}
+
 static void gc_wco_changed() {
     if (FORCE_BUFFER_SYNC_DURING_WCO_CHANGE) {
         protocol_buffer_synchronize();
     }
-    report_wco_counter = 0;
+    allChannels.notifyWco();
 }
 
 // Executes one line of NUL-terminated G-Code.
@@ -138,12 +141,9 @@ static void gc_wco_changed() {
 // In this function, all units and positions are converted and
 // exported to internal functions in terms of (mm, mm/min) and absolute machine
 // coordinates, respectively.
-Error gc_execute_line(char* line, Channel& channel) {
+Error gc_execute_line(char* line) {
     // Step 0 - remove whitespace and comments and convert to upper case
     collapseGCode(line);
-#ifdef DEBUG_REPORT_ECHO_LINE_RECEIVED
-    report_echo_line_received(line, channel);
-#endif
 
     /* -------------------------------------------------------------------------------------
        STEP 1: Initialize parser block struct and copy current g-code state modes. The parser
@@ -907,6 +907,7 @@ Error gc_execute_line(char* line, Channel& channel) {
     //   axis that is configured (in config.h). There should be an error if the configured axis
     //   is absent or if any of the other axis words are present.
     if (axis_command == AxisCommand::ToolLengthOffset) {  // Indicates called in block.
+        gc_ngc_changed(CoordIndex::TLO);
         if (gc_block.modal.tool_length == ToolLengthOffset::EnableDynamic) {
             if (axis_words ^ bitnum_to_mask(TOOL_LENGTH_OFFSET_AXIS)) {
                 FAIL(Error::GcodeG43DynamicAxisError);
@@ -990,6 +991,7 @@ Error gc_execute_line(char* line, Channel& channel) {
                     }
                 }  // Else, keep current stored value.
             }
+            gc_ngc_changed(static_cast<CoordIndex>(coord_select));
             break;
         case NonModal::SetCoordinateOffset:
             // [G92 Errors]: No axis words.
@@ -1009,6 +1011,7 @@ Error gc_execute_line(char* line, Channel& channel) {
                     gc_block.values.xyz[idx] = gc_state.coord_offset[idx];
                 }
             }
+            gc_ngc_changed(CoordIndex::G92);
             break;
         default:
             // At this point, the rest of the explicit axis commands treat the axis values as the traditional
@@ -1129,6 +1132,10 @@ Error gc_execute_line(char* line, Channel& channel) {
                     if (!(axis_words & (bitnum_to_mask(axis_0) | bitnum_to_mask(axis_1)))) {
                         FAIL(Error::GcodeNoAxisWordsInPlane);  // [No axis words in plane]
                     }
+                    if (gc_block.values.p != truncf(gc_block.values.p) || gc_block.values.p < 0.0) {
+                        FAIL(Error::GcodeCommandValueNotInteger);  // [P word is not an integer]
+                    }
+
                     // Calculate the change in position along each selected axis
                     float x, y;
                     x = gc_block.values.xyz[axis_0] - gc_state.position[axis_0];  // Delta x between current position and target
@@ -1257,6 +1264,7 @@ Error gc_execute_line(char* line, Channel& channel) {
                             }
                         }
                     }
+                    clear_bitnum(value_words, GCodeWord::P);
                     break;
                 case Motion::ProbeTowardNoError:
                 case Motion::ProbeAwayNoError:
@@ -1521,7 +1529,6 @@ Error gc_execute_line(char* line, Channel& channel) {
         // else G43.1
         if (gc_state.tool_length_offset != gc_block.values.xyz[TOOL_LENGTH_OFFSET_AXIS]) {
             gc_state.tool_length_offset = gc_block.values.xyz[TOOL_LENGTH_OFFSET_AXIS];
-            gc_wco_changed();
         }
     }
     // [15. Coordinate system selection ]:
@@ -1558,16 +1565,20 @@ Error gc_execute_line(char* line, Channel& channel) {
             break;
         case NonModal::SetHome0:
             coords[CoordIndex::G28]->set(gc_state.position);
+            gc_ngc_changed(CoordIndex::G28);
             break;
         case NonModal::SetHome1:
             coords[CoordIndex::G30]->set(gc_state.position);
+            gc_ngc_changed(CoordIndex::G30);
             break;
         case NonModal::SetCoordinateOffset:
             copyAxes(gc_state.coord_offset, gc_block.values.xyz);
+            gc_ngc_changed(CoordIndex::G92);
             gc_wco_changed();
             break;
         case NonModal::ResetCoordinateOffset:
             clear_vector(gc_state.coord_offset);  // Disable G92 offsets by zeroing offset vector.
+            gc_ngc_changed(CoordIndex::G92);
             gc_wco_changed();
             break;
         default:
@@ -1594,7 +1605,8 @@ Error gc_execute_line(char* line, Channel& channel) {
                        axis_0,
                        axis_1,
                        axis_linear,
-                       clockwiseArc);
+                       clockwiseArc,
+                       int(gc_block.values.p));
             } else {
                 // NOTE: gc_block.values.xyz is returned from mc_probe_cycle with the updated position value. So
                 // upon a successful probing cycle, the machine position and the returned value should be the same.

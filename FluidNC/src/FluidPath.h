@@ -3,7 +3,6 @@
 #include <Arduino.h>
 #include <filesystem>
 #include <string>
-#include "Logging.h"
 
 namespace stdfs = std::filesystem;
 

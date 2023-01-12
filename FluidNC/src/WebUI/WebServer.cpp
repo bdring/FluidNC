@@ -172,7 +172,7 @@ namespace WebUI {
             //Add specific for SSDP
             SSDP.setSchemaURL("description.xml");
             SSDP.setHTTPPort(_port);
-            SSDP.setName(wifi_config.Hostname());
+            SSDP.setName(wifi_config.Hostname().c_str());
             SSDP.setURL("/");
             SSDP.setDeviceType("upnp:rootdevice");
             /*Any customization could be here
@@ -417,6 +417,11 @@ namespace WebUI {
                 }
                 answer += "\n";
             }
+
+            // Give the output task a chance to dequeue and forward a message
+            // to webClient, if there is one.
+            vTaskDelay(10);
+
             if (!webClient.anyOutput()) {
                 _webserver->send(err != Error::Ok ? 500 : 200, "text/plain", answer);
             }
@@ -712,8 +717,8 @@ namespace WebUI {
     }
 
     void Web_Server::sendAuth(const String& status, const String& level, const String& user) {
-        StreamString s;
-        JSONencoder  j(false, s);
+        std::string s;
+        JSONencoder j(false, &s);
         j.begin();
         j.member("status", status);
         if (level != "") {
@@ -723,16 +728,16 @@ namespace WebUI {
             j.member("user", user);
         }
         j.end();
-        sendJSON(200, s);
+        sendJSON(200, s.c_str());
     }
 
     void Web_Server::sendStatus(int code, const String& status) {
-        StreamString s;
-        JSONencoder  j(false, s);
+        std::string s;
+        JSONencoder j(false, &s);
         j.begin();
         j.member("status", status);
         j.end();
-        sendJSON(code, s);
+        sendJSON(code, s.c_str());
     }
 
     void Web_Server::sendAuthFailed() { sendStatus(401, "Authentication failed"); }
@@ -926,8 +931,8 @@ namespace WebUI {
             list_files = false;
         }
 
-        StreamString       s;
-        WebUI::JSONencoder j(true, s);
+        std::string        s;
+        WebUI::JSONencoder j(false, &s);
         j.begin();
 
         if (list_files) {
@@ -960,7 +965,7 @@ namespace WebUI {
         j.member("occupation", String(percent));
         j.member("status", sstatus);
         j.end();
-        sendJSON(200, s);
+        sendJSON(200, s.c_str());
     }
 
     void Web_Server::handle_direct_SDFileList() { handleFileOps(sdName); }

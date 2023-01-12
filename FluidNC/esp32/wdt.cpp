@@ -4,7 +4,7 @@
 #include "wdt.h"
 #include "esp_task_wdt.h"
 #include <freertos/FreeRTOS.h>
-#include "src/Logging.h"
+#include "src/Config.h"
 
 void enable_core0_WDT() {
     TaskHandle_t idle_0 = xTaskGetIdleTaskHandleForCPU(0);

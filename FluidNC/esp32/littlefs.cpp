@@ -3,7 +3,7 @@
 #include "esp_log.h"
 #include "wdt.h"
 #include "Driver/localfs.h"
-#include "src/Logging.h"
+#include "src/Config.h"
 
 // Remember the partition label of the littlefs filesystem -
 // typically littlefs or spiffs - so we can pass it to esp_littlefs_info

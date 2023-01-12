@@ -3,7 +3,7 @@
 // Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
 
 #include "UserOutputs.h"
-#include "../Logging.h"     // log_*
+#include "../Config.h"      // log_*
 #include <esp32-hal-cpu.h>  // getApbFrequency()
 
 namespace Machine {

@@ -2,7 +2,6 @@
 // Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
 
 #include "Parking.h"
-#include "Logging.h"
 #include "System.h"                 // sys
 #include "Stepper.h"                // Stepper::
 #include "Machine/MachineConfig.h"  // config
@@ -21,7 +20,6 @@ void Parking::moveto(float* target) {
         Stepper::prep_buffer();
         Stepper::wake_up();
         do {
-            pollChannels();  // Handle realtime commands like status report, cycle start and reset
             protocol_exec_rt_system();
             if (sys.abort) {
                 return;
