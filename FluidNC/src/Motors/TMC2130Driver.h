@@ -29,8 +29,6 @@ namespace MotorDrivers {
         TMC2130Stepper* tmc2130 = nullptr;
 
         bool test();
-        void set_registers(bool isHoming) override;        
-        void trinamic_test_response();
-        void trinamic_stepper_enable(bool enable);
+        void set_registers(bool isHoming) override;
     };
 }

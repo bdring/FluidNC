@@ -83,9 +83,6 @@ namespace MotorDrivers {
         static uint8_t  spi_index_mask;
 
         PinMapper _cs_mapping;
-
-        void trinamic_test_response();
-        void trinamic_stepper_enable(bool enable);
     };
 
 }
