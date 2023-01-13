@@ -15,7 +15,7 @@
 #include "Planner.h"        // plan_get_current_block
 #include "MotionControl.h"  // PARKING_MOTION_LINE_NUMBER
 #include "Settings.h"       // settings_execute_startup
-#include "InputFile.h"      // infile 
+#include "InputFile.h"      // infile
 #include "WebUI\Commands.h"
 
 #ifdef DEBUG_REPORT_REALTIME
@@ -287,14 +287,17 @@ static void protocol_do_alarm() {
         // System alarm. Everything has shutdown by something that has gone severely wrong. Report
         case ExecAlarm::HardLimit:
 
+            report_realtime_status(allChannels);
+
             sys.state = State::Alarm;  // Set system alarm state
             alarm_msg(rtAlarm);
             report_feedback_message(Message::CriticalEvent);
+
             protocol_disable_steppers();
             rtReset = false;  // Disable any existing reset
 
-            //WebUI::COMMANDS::restart_MCU();
-            //WebUI::COMMANDS::handle();
+            WebUI::COMMANDS::restart_MCU();
+            WebUI::COMMANDS::handle();
 
             do {
                 // Block everything except reset and status reports until user issues reset or power
@@ -305,7 +308,7 @@ static void protocol_do_alarm() {
                 pollChannels();  // Handle ^X realtime RESET command
             } while (!rtReset);
             break;
-            
+
         case ExecAlarm::SoftLimit:
         default:
             sys.state = State::Alarm;  // Set system alarm state
