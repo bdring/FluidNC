@@ -51,5 +51,10 @@ namespace Kinematics {
         _system->init();
     }
 
+    void Kinematics::init_position() {
+        Assert(_system != nullptr, "init_position: Kinematics system missing.");
+        _system->init_position();
+    }
+
     Kinematics::~Kinematics() { delete _system; }
 };

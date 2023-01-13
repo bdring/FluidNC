@@ -73,6 +73,15 @@ namespace Configuration {
         leave();
     }
 
+        void JsonGenerator::item(const char* name, uint32_t& value, uint32_t minValue, uint32_t maxValue) {
+        enter(name);
+        char buf[32];
+        itoa(value, buf, 10);
+        _encoder.begin_webui(_currentPath, _currentPath, "I", buf, minValue, maxValue);
+        _encoder.end_object();
+        leave();
+    }
+
     void JsonGenerator::item(const char* name, float& value, float minValue, float maxValue) {
         enter(name);
         // WebUI does not explicitly recognize the R type, but nevertheless handles it correctly.

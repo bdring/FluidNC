@@ -23,7 +23,7 @@
 SSD1306Wire* oled;
 
 void init_oled(uint8_t address, pinnum_t sda_gpio, pinnum_t scl_gpio, OLEDDISPLAY_GEOMETRY geometry) {
-    Uart0 << "[MSG:INFO Init OLED SDA:gpio." << sda_gpio << " SCL:gpio." << scl_gpio << "]\n";
+    log_info_to(Uart0, " Init OLED SDA:gpio." << sda_gpio << " SCL:gpio." << scl_gpio);
     oled = new SSD1306Wire(address, sda_gpio, scl_gpio, geometry, I2C_ONE, 400000);
     oled->init();
 }

@@ -3,6 +3,7 @@
 #include "WebUI/JSONEncoder.h"  // JSON
 #include "WebUI/WifiConfig.h"   // WebUI::WiFiConfig
 #include "WebUI/Commands.h"     // WebUI::COMMANDS
+#include "System.h"             // sys
 #include "Protocol.h"           // protocol_buffer_synchronize
 
 #include <map>

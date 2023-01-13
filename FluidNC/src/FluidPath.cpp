@@ -4,7 +4,7 @@
 #include "FluidPath.h"
 #include "Driver/sdspi.h"
 #include "Driver/localfs.h"
-#include "Logging.h"
+#include "Config.h"
 
 int FluidPath::_refcnt = 0;
 

@@ -1,7 +1,6 @@
 #include "Homing.h"
 
 #include "../MotionControl.h"  // mc_reset
-#include "../NutsBolts.h"      // set_bitnum, etc
 #include "../System.h"         // sys.*
 #include "../Stepper.h"        // st_wake
 #include "../Protocol.h"       // protocol_handle_events

@@ -17,9 +17,11 @@
 #pragma once
 
 #include "Error.h"  // Error
+#include "GCode.h"  // gc_modal_t
+#include "Types.h"  // State
 #include <Stream.h>
-#include <queue>
 #include <freertos/FreeRTOS.h>  // TickType_T
+#include <queue>
 
 class Channel : public Stream {
 public:
@@ -33,6 +35,19 @@ protected:
     char        _lastWasCR = false;
 
     std::queue<uint8_t> _queue;
+
+    uint32_t _reportInterval = 0;
+    int32_t  _nextReportTime = 0;
+
+    gc_modal_t _lastModal;
+    uint8_t    _lastTool;
+    float      _lastSpindleSpeed;
+    float      _lastFeedRate;
+    State      _lastState;
+    MotorMask  _lastLimits;
+
+    bool       _reportWco = true;
+    CoordIndex _reportNgc = CoordIndex::End;
 
 public:
     Channel(const char* name, bool addCR = false) : _name(name), _linelen(0), _addCR(addCR) {}
@@ -68,6 +83,9 @@ public:
         setTimeout(timeout);
         return readBytes(buffer, length);
     }
+
+    virtual void stopJob() {}
+
     size_t timedReadBytes(uint8_t* buffer, size_t length, TickType_t timeout) { return timedReadBytes((char*)buffer, length, timeout); }
 
     bool setCr(bool on) {
@@ -76,7 +94,15 @@ public:
         return retval;
     }
 
+    void notifyWco() { _reportWco = true; }
+    void notifyNgc(CoordIndex coord) { _reportNgc = coord; }
+
     int peek() override { return -1; }
     int read() override { return -1; }
     int available() override { return 0; }
+
+    uint32_t setReportInterval(uint32_t ms);
+    uint32_t getReportInterval() { return _reportInterval; }
+    void     autoReport();
+    void     autoReportGCodeState();
 };

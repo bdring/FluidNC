@@ -2,7 +2,7 @@
 
 #include "src/Pin.h"
 #include "src/Event.h"
-#include "src/Logging.h"
+#include "src/Config.h"
 
 namespace Machine {
     class EventPin {

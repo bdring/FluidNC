@@ -74,7 +74,9 @@ namespace Kinematics {
         auto axes   = config->_axes;
         auto n_axis = axes->_numberAxis;
         for (size_t axis = X_AXIS; axis < n_axis; axis++) {
-            axes->_axis[axis]->_motors[0]->unlimit();
+            if (bitnum_is_true(axisMask, axis)) {
+                axes->_axis[axis]->_motors[0]->unlimit();
+            }
         }
     }
 

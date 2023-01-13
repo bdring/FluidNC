@@ -1,5 +1,5 @@
 #include "SettingsDefinitions.h"
-#include "Logging.h"
+#include "Config.h"
 
 StringSetting* config_filename;
 

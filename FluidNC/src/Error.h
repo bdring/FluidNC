@@ -61,8 +61,6 @@ enum class Error : uint8_t {
     FsFailedBusy                = 67,  // Filesystem is busy
     FsFailedDelDir              = 68,
     FsFailedDelFile             = 69,
-    BtFailBegin                 = 70,  // Bluetooth failed to start
-    WifiFailBegin               = 71,  // WiFi failed to start
     NumberRange                 = 80,  // Setting number range problem
     InvalidValue                = 81,  // Setting string problem
     FsFailedCreateFile          = 82,
