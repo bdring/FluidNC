@@ -84,7 +84,14 @@ Channel* I2C_OLED::pollLine(char* line) {
     return nullptr;
 }
 
-void I2C_OLED::show_limits(bool probe, const bool* limits) {}
+void I2C_OLED::show_limits(bool probe, const bool* limits) {
+
+    for (uint8_t axis = X_AXIS; axis < config->_axes->_numberAxis; axis++) {
+        draw_checkbox(80, 27 + (axis * 10), 7, 7, limits[axis]);
+    }
+
+    _oled->display();
+}
 void I2C_OLED::show_file(float percent, const char* filename) {
     _oled->clear();
     _oled->setTextAlignment(TEXT_ALIGN_CENTER);
@@ -355,4 +362,12 @@ size_t I2C_OLED::write(uint8_t data) {
     }
     _report += c;
     return 1;
+}
+
+void I2C_OLED::draw_checkbox(int16_t x, int16_t y, int16_t width, int16_t height, bool checked) {
+    if (checked) {
+        _oled->fillRect(x, y, width, height);  // If log.0
+    } else {
+        _oled->drawRect(x, y, width, height);  // If log.1
+    }
 }

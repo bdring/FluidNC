@@ -21,6 +21,7 @@ private:
     void show_limits(bool probe, const bool* limits);
     void show_file(float percent, const char* filename);
     void show_dro(const float* axes, bool is_mpos);
+    void draw_checkbox(int16_t x, int16_t y, int16_t width, int16_t height, bool checked);
 
     OLEDDISPLAY_GEOMETRY _geometry = GEOMETRY_64_48;
 
