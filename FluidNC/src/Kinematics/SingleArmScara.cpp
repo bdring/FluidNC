@@ -18,9 +18,23 @@ namespace Kinematics {
     }
 
     bool SingleArmScara::kinematics_homing(AxisMask axisMask) {
+        auto  n_axis = config->_axes->_numberAxis;
+        float cartesian[n_axis] = {0.0};
+        float motors[n_axis];
+        plan_line_data_t pl_data;
+
+        cartesian[0] = _forearm_mm - _upper_arm_mm;
+        cartesian[1] = 0.1;  // just a tiny bit above to prevent crazyness.
+        pl_data.feed_rate = config->_axes->_axis[X_AXIS]->_homing->_feedRate;
+
+        xy_to_angles(cartesian, motors);
+
+        mc_move_motors(motors, &pl_data);
+
         // disable the motors
-        // manually 
+        // manually
         log_info("SCARA here...I got this homing thing");
+
         return true;
     }
 
@@ -52,6 +66,8 @@ namespace Kinematics {
 
         float    dx, dy, dz;     // segment distances in each cartesian axis
         uint32_t segment_count;  // number of segments the move will be broken in to.
+
+
 
         auto n_axis = config->_axes->_numberAxis;
 

@@ -53,19 +53,15 @@ void set_motor_steps(size_t axis, int32_t steps) {
     for (size_t motor = 0; motor < Machine::Axis::MAX_MOTORS_PER_AXIS; motor++) {
         auto m = a->_motors[motor];
         if (m) {
-            m->_steps = steps;
-            log_info("Steps motor:" << motor << " steps:" << steps);
+            m->_steps = steps;            
         }
     }
 }
 
 void set_motor_steps_from_mpos(float* mpos) {
     auto  n_axis = config->_axes->_numberAxis;
-    float motor_mpos[n_axis];
-
-    log_info("1 set_motor_steps_from_mpos (" << mpos[X_AXIS] << "," << mpos[Y_AXIS] << ")");
+    float motor_mpos[n_axis];    
     config->_kinematics->transform_cartesian_to_motors(motor_mpos, mpos);
-    log_info("2 set_motor_steps_from_mpos (" << motor_mpos[X_AXIS] << "," << motor_mpos[Y_AXIS] << ")");
     for (size_t axis = 0; axis < n_axis; axis++) {
         set_motor_steps(axis, mpos_to_steps(motor_mpos[axis], axis));
     }
