@@ -75,6 +75,10 @@ void setup() {
                 }
             }
 
+            if (config->_i2c_oled) {
+                config->_i2c_oled->init();
+            }
+
             config->_stepping->init();  // Configure stepper interrupt timers
 
             plan_init();

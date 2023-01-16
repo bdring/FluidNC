@@ -19,6 +19,7 @@
 #include "../Stepping.h"
 #include "../Stepper.h"
 #include "../Config.h"
+#include "../I2C_OLED.h"
 #include "Axes.h"
 #include "SPIBus.h"
 #include "I2SOBus.h"
@@ -68,6 +69,7 @@ namespace Machine {
         Macros*               _macros      = nullptr;
         Start*                _start       = nullptr;
         Parking*              _parking     = nullptr;
+        I2C_OLED*             _i2c_oled    = nullptr;
         Spindles::SpindleList _spindles;
 
         float _arcTolerance      = 0.002f;
