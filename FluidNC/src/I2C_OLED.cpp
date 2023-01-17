@@ -84,16 +84,18 @@ Channel* I2C_OLED::pollLine(char* line) {
     return nullptr;
 }
 
-void I2C_OLED::show_limits(bool probe, const bool* limits) {
+void I2C_OLED::show_state(std::string& state) {
+    _oled->setTextAlignment(TEXT_ALIGN_LEFT);
+    _oled->setFont(ArialMT_Plain_16);
+    _oled->drawString(0, 0, (String)state.c_str());
+}
 
-    for (uint8_t axis = X_AXIS; axis < config->_axes->_numberAxis; axis++) {
+void I2C_OLED::show_limits(bool probe, const bool* limits) {
+    for (uint8_t axis = X_AXIS; axis < 3; axis++) {
         draw_checkbox(80, 27 + (axis * 10), 7, 7, limits[axis]);
     }
-
-    _oled->display();
 }
 void I2C_OLED::show_file(float percent, const char* filename) {
-    _oled->clear();
     _oled->setTextAlignment(TEXT_ALIGN_CENTER);
     _oled->setFont(ArialMT_Plain_10);
     std::string state_string = "File";
@@ -119,8 +121,6 @@ void I2C_OLED::show_file(float percent, const char* filename) {
 }
 
 void I2C_OLED::show_dro(const float* axes, bool is_mpos) {
-    _oled->clear();
-
     _oled->setTextAlignment(TEXT_ALIGN_LEFT);
     _oled->setFont(ArialMT_Plain_10);
 
@@ -192,7 +192,13 @@ void I2C_OLED::parse_status_report() {
     // Now the string is a sequence of field|field|field
     size_t pos     = 0;
     auto   nextpos = _report.find_first_of("|", pos);
-    auto   state   = _report.substr(pos, nextpos - pos);
+    auto   state   = _report.substr(pos + 1, nextpos - pos - 1);
+
+    bool probe              = false;
+    bool limits[MAX_N_AXIS] = { false };
+
+    _oled->clear();
+
     // ... handle it
     while (nextpos != std::string::npos) {
         pos        = nextpos + 1;
@@ -231,8 +237,6 @@ void I2C_OLED::parse_status_report() {
         }
         if (tag == "Pn") {
             // PXxYy etc
-            bool probe              = false;
-            bool limits[MAX_N_AXIS] = { false };
             for (char const& c : value) {
                 switch (c) {
                     case 'P':
@@ -257,52 +261,54 @@ void I2C_OLED::parse_status_report() {
                         limits[C_AXIS] = true;
                         break;
                 }
-                show_limits(probe, limits);
-                continue;
-            }
-            if (tag == "WCO") {
-                // x,y,z,...
-                auto wcos = parse_axes(value);
-                continue;
-            }
-            if (tag == "Ov") {
-                // feed_ovr,rapid_ovr,spindle_ovr
-                float frs[3];
-                parse_numbers(value, frs, 3);  // feed in [0], rapid in [1], spindle in [2]
-                continue;
-            }
-            if (tag == "A") {
-                // SCFM
-                int  spindle = 0;
-                bool flood   = false;
-                bool mist    = false;
-                for (char const& c : value) {
-                    switch (c) {
-                        case 'S':
-                            spindle = 1;
-                            break;
-                        case 'C':
-                            spindle = 2;
-                            break;
-                        case 'F':
-                            flood = true;
-                            break;
-                        case 'M':
-                            mist = true;
-                            break;
-                    }
-                }
-                continue;
-            }
-            if (tag == "SD") {
-                auto comma   = value.find_first_of(",");
-                auto percent = std::strtof(value.substr(0, comma).c_str(), nullptr);
-                auto file    = value.substr(comma + 1);
-                show_file(percent, file.c_str());
                 continue;
             }
         }
+        show_limits(probe, limits);
+        if (tag == "WCO") {
+            // x,y,z,...
+            auto wcos = parse_axes(value);
+            continue;
+        }
+        if (tag == "Ov") {
+            // feed_ovr,rapid_ovr,spindle_ovr
+            float frs[3];
+            parse_numbers(value, frs, 3);  // feed in [0], rapid in [1], spindle in [2]
+            continue;
+        }
+        if (tag == "A") {
+            // SCFM
+            int  spindle = 0;
+            bool flood   = false;
+            bool mist    = false;
+            for (char const& c : value) {
+                switch (c) {
+                    case 'S':
+                        spindle = 1;
+                        break;
+                    case 'C':
+                        spindle = 2;
+                        break;
+                    case 'F':
+                        flood = true;
+                        break;
+                    case 'M':
+                        mist = true;
+                        break;
+                }
+            }
+            continue;
+        }
+        if (tag == "SD") {
+            auto comma   = value.find_first_of(",");
+            auto percent = std::strtof(value.substr(0, comma).c_str(), nullptr);
+            auto file    = value.substr(comma + 1);
+            show_file(percent, file.c_str());
+            continue;
+        }
     }
+    show_state(state);
+    _oled->display();
 }
 
 void I2C_OLED::parse_gcode_report() {
