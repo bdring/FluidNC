@@ -66,8 +66,7 @@ namespace Kinematics {
 
         float    dx, dy, dz;     // segment distances in each cartesian axis
         uint32_t segment_count;  // number of segments the move will be broken in to.
-
-
+        plan_line_data_t* segment_pl_data = pl_data; // copy the plan data. The feedrate will be changing
 
         auto n_axis = config->_axes->_numberAxis;
 
@@ -78,21 +77,16 @@ namespace Kinematics {
         float motors[n_axis];
         xy_to_angles(target, motors);
 
-        //motors[0] = shoulder_motor_angle;
-        //motors[1] = elbow_motor_angle;
-        for (size_t axis = Z_AXIS; axis < n_axis; axis++) {
-            motors[axis] = target[axis];
-        }
-        //log_info("Move motors (" << motors[0] << "," << motors[1] << ")");
         return mc_move_motors(motors, pl_data);
 
-        // ----------------------------------------
+        // ---------------------------------------- Temporary endpoint -------------------------
 
         float total_cartesian_distance = vector_distance(position, target, n_axis);
 
         // if move is zero do nothing and pass back the existing values
         if (total_cartesian_distance == 0) {
-            mc_move_motors(target, pl_data);
+            xy_to_angles(target, motors);
+            mc_move_motors(motors, pl_data);
             return true;
         }
 
@@ -108,6 +102,9 @@ namespace Kinematics {
             // the planner even if there is no movement??
             segment_count = 1;
         }
+
+        log_info("Segment Count:" << segment_count);
+
         float cartesian_segment_length = total_cartesian_distance / segment_count;
 
         // Calc length of each cartesian segment - the same for all segments
@@ -133,23 +130,18 @@ namespace Kinematics {
                 motor_segment_end[axis] = cartesian_segment_end[axis];
             }
 
+            
+
             // to do deal with feedrate
 
             // Remember the last motor position so the length can be computed the next time
             copyAxes(last_motor_segment_end, motor_segment_end);
 
-            // Initiate motor movement with converted feedrate and converted position
-            // mc_move_motors() returns false if a jog is cancelled.
-            // In that case we stop sending segments to the planner.
-            // Note that the left motor runs backward.
-            // TODO: It might be better to adjust motor direction in .yaml file by inverting direction pin??
-            float motors[n_axis];
-            motors[0] = motor_segment_end[0];
-            motors[1] = motor_segment_end[1];
-            for (size_t axis = Z_AXIS; axis < n_axis; axis++) {
-                motors[axis] = cartesian_segment_end[axis];
-            }
-            if (!mc_move_motors(motors, pl_data)) {
+            float motor_dist = vector_distance(last_motor_segment_end, motor_segment_end, 2);
+
+            segment_pl_data->feed_rate = pl_data->feed_rate * (motor_dist / cartesian_segment_length);
+
+            if (!mc_move_motors(motor_segment_end, segment_pl_data)) {
                 // TODO fixup last_left last_right?? What is position state when jog is cancelled?
                 return false;
             }
@@ -233,6 +225,11 @@ namespace Kinematics {
 
         //log_info("L1:" << L1 << " L2:" << L2 << " D:" << D);
         //log_info("Go to angles (" << angles[0] << "," << angles[1] << ")");
+
+        // copy motors not affected by kinematics
+        for (size_t axis = Z_AXIS; axis < config->_axes->_numberAxis; axis++) {
+            angles[axis] = cartesian[axis];
+        }
 
         return true;
     }
