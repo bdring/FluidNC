@@ -18,13 +18,13 @@ namespace Kinematics {
     }
 
     bool SingleArmScara::kinematics_homing(AxisMask axisMask) {
-        auto  n_axis = config->_axes->_numberAxis;
-        float cartesian[n_axis] = {0.0};
-        float motors[n_axis];
+        auto             n_axis            = config->_axes->_numberAxis;
+        float            cartesian[n_axis] = { 0.0 };
+        float            motors[n_axis];
         plan_line_data_t pl_data;
 
-        cartesian[0] = _forearm_mm - _upper_arm_mm;
-        cartesian[1] = 0.1;  // just a tiny bit above to prevent crazyness.
+        cartesian[0]      = _forearm_mm - _upper_arm_mm;
+        cartesian[1]      = 0.1;  // just a tiny bit above to prevent crazyness.
         pl_data.feed_rate = config->_axes->_axis[X_AXIS]->_homing->_feedRate;
 
         xy_to_angles(cartesian, motors);
@@ -64,9 +64,9 @@ namespace Kinematics {
     bool SingleArmScara::cartesian_to_motors(float* target, plan_line_data_t* pl_data, float* position) {
         //log_info("Go to cartesian x:" << target[X_AXIS] << " y:" << target[Y_AXIS]);
 
-        float    dx, dy, dz;     // segment distances in each cartesian axis
-        uint32_t segment_count;  // number of segments the move will be broken in to.
-        plan_line_data_t* segment_pl_data = pl_data; // copy the plan data. The feedrate will be changing
+        float             dx, dy, dz;                 // segment distances in each cartesian axis
+        uint32_t          segment_count;              // number of segments the move will be broken in to.
+        plan_line_data_t* segment_pl_data = pl_data;  // copy the plan data. The feedrate will be changing
 
         auto n_axis = config->_axes->_numberAxis;
 
@@ -77,7 +77,7 @@ namespace Kinematics {
         float motors[n_axis];
         xy_to_angles(target, motors);
 
-        return mc_move_motors(motors, pl_data);
+        //return mc_move_motors(motors, pl_data);
 
         // ---------------------------------------- Temporary endpoint -------------------------
 
@@ -90,24 +90,21 @@ namespace Kinematics {
             return true;
         }
 
-        float cartesian_feed_rate = pl_data->feed_rate;
+        //float cartesian_feed_rate = pl_data->feed_rate;
 
         // calculate the total X,Y axis move distance
-        // Z axis is the same in both coord systems, so it does not undergo conversion
-        float xydist = vector_distance(target, position, 2);  // Only compute distance for both axes. X and Y
-        // Segment our G1 and G0 moves based on yaml file. If we choose a small enough _segment_length we can hide the nonlinearity
+        // higher axes are the same in both coord systems, so it does not undergo conversion
+        float xydist = vector_distance(target, position, 2);
+        // Segment the moves. If we choose a small enough _segment_length we can hide the nonlinearity
         segment_count = xydist / _segment_length;
         if (segment_count < 1) {  // Make sure there is at least one segment, even if there is no movement
-            // We need to do this to make sure other things like S and M codes get updated properly by
-            // the planner even if there is no movement??
             segment_count = 1;
         }
-
         log_info("Segment Count:" << segment_count);
 
         float cartesian_segment_length = total_cartesian_distance / segment_count;
 
-        // Calc length of each cartesian segment - the same for all segments
+        // Calc length of each cartesian segment - The are the same for all segments.
         float cartesian_segment_components[n_axis];
         for (size_t axis = X_AXIS; axis < n_axis; axis++) {
             cartesian_segment_components[axis] = (target[axis] - position[axis]) / segment_count;
@@ -126,13 +123,6 @@ namespace Kinematics {
             // Convert cartesian space coords to motor space
             float motor_segment_end[n_axis];
             xy_to_angles(cartesian_segment_end, motor_segment_end);
-            for (size_t axis = Z_AXIS; axis < n_axis; axis++) {
-                motor_segment_end[axis] = cartesian_segment_end[axis];
-            }
-
-            
-
-            // to do deal with feedrate
 
             // Remember the last motor position so the length can be computed the next time
             copyAxes(last_motor_segment_end, motor_segment_end);

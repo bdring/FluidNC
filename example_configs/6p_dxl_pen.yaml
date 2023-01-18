@@ -92,7 +92,8 @@ axes:
         output_pin: gpio.27
         min_pulse_us: 1000
         max_pulse_us: 2000
-        
+        timer_ms: 40
+
 spi:
   miso_pin: gpio.19
   mosi_pin: gpio.23
