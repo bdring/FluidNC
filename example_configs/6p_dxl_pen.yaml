@@ -20,8 +20,8 @@ axes:
 # X is the servo with the arm attached
   x:
     steps_per_mm: 1000.000
-    max_rate_mm_per_min: 100.000
-    acceleration_mm_per_sec2: 40.000
+    max_rate_mm_per_min: 10.000
+    acceleration_mm_per_sec2: 5.000
     max_travel_mm: 4.712
     soft_limits: false
     homing:
@@ -52,8 +52,8 @@ axes:
 
   y:
     steps_per_mm: 1000.000
-    max_rate_mm_per_min: 100.000
-    acceleration_mm_per_sec2: 40.000
+    max_rate_mm_per_min: 10.000
+    acceleration_mm_per_sec2: 5.000
     max_travel_mm: 12.566
     soft_limits: false
     homing:
@@ -92,7 +92,7 @@ axes:
         output_pin: gpio.27
         min_pulse_us: 1000
         max_pulse_us: 2000
-        timer_ms: 40
+        timer_ms: 20
 
 spi:
   miso_pin: gpio.19

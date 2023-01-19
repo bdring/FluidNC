@@ -77,7 +77,7 @@ namespace Kinematics {
         float motors[n_axis];
         xy_to_angles(target, motors);
 
-        //return mc_move_motors(motors, pl_data);
+        return mc_move_motors(motors, pl_data);
 
         // ---------------------------------------- Temporary endpoint -------------------------
 
