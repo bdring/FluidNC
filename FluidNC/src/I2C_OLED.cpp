@@ -1,5 +1,11 @@
 #include "I2C_OLED.h"
-#include "Machine/MachineConfig.h"  // config
+#include "Machine/MachineConfig.h"
+#include "WiFi.h"
+#include "WebUI/WifiConfig.h"  // wifi_config
+#include "WebUI/BTConfig.h"    // bt_config
+#include "WebUI/WebSettings.h"
+#include "SettingsDefinitions.h"
+#include "Report.h"
 
 void I2C_OLED::afterParse() {
     if (_sda_pin.undefined()) {
@@ -91,6 +97,8 @@ void I2C_OLED::show_state(std::string& state) {
 }
 
 void I2C_OLED::show_limits(bool probe, const bool* limits) {
+    if (sys.state == State::Alarm)
+        return;
     for (uint8_t axis = X_AXIS; axis < 3; axis++) {
         draw_checkbox(80, 27 + (axis * 10), 7, 7, limits[axis]);
     }
@@ -121,6 +129,9 @@ void I2C_OLED::show_file(float percent, const char* filename) {
 }
 
 void I2C_OLED::show_dro(const float* axes, bool is_mpos) {
+    if (sys.state == State::Alarm)
+        return;
+
     _oled->setTextAlignment(TEXT_ALIGN_LEFT);
     _oled->setFont(ArialMT_Plain_10);
 
@@ -146,12 +157,43 @@ void I2C_OLED::show_dro(const float* axes, bool is_mpos) {
         _oled->setTextAlignment(TEXT_ALIGN_RIGHT);
         snprintf(axisVal, 20 - 1, "%.3f", axes[axis]);
         _oled->drawString(60, oled_y_pos, axisVal);
-
-        //if (bitnum_is_true(limitAxes, axis)) {  // only draw the box if a switch has been defined
-        //    draw_checkbox(80, 27 + (axis * 10), 7, 7, limits_check(bitnum_to_mask(axis)));
-        //}
     }
     _oled->display();
+}
+
+void I2C_OLED::setRadioString() {
+    _radio_addr = "";
+#ifdef ENABLE_WIFI
+    if (WiFi.getMode() == WIFI_MODE_STA) {
+        _radio_info = String("STA: ") + WiFi.SSID();
+        _radio_addr = WiFi.localIP().toString();
+    } else if (WiFi.getMode() == WIFI_MODE_AP) {
+        _radio_info = String("AP: ") + WebUI::wifi_ap_ssid->get();
+        _radio_addr = WiFi.softAPIP().toString();
+    } else if (WiFi.getMode() == WIFI_MODE_APSTA) {
+        _radio_info = String("STA>AP: ") + WebUI::wifi_ap_ssid->get();
+    } else {
+        _radio_info = String("WiFi Off");
+    }
+#elif ENABLE_BLUETOOTH
+    if (WebUI::bt_enable->get()) {
+        radio_name = String("BT: ") + WebUI::bt_name->get();
+    }
+#else
+    _radio_info = "Radios off"
+#endif
+}
+
+void I2C_OLED::showRadioInfo() {
+    _oled->setTextAlignment(TEXT_ALIGN_LEFT);
+    _oled->setFont(ArialMT_Plain_10);
+
+    if (sys.state == State::Alarm) {
+        _oled->drawString(0, 18, _radio_info);
+        _oled->drawString(0, 30, _radio_addr);
+    } else {
+        _oled->drawString(50, 0, _radio_info);
+    }
 }
 
 void I2C_OLED::parse_numbers(std::string s, float* nums, int maxnums) {
@@ -308,6 +350,8 @@ void I2C_OLED::parse_status_report() {
         }
     }
     show_state(state);
+    setRadioString();  // this could probably be moved or throttled
+    showRadioInfo();
     _oled->display();
 }
 

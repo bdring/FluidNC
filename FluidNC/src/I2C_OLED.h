@@ -11,6 +11,9 @@ class I2C_OLED : public Channel, public Configuration::Configurable {
 private:
     std::string _report;
 
+    String _radio_info;
+    String _radio_addr;
+
     void parse_report();
     void parse_status_report();
     void parse_gcode_report();
@@ -18,10 +21,13 @@ private:
     float* parse_axes(std::string s);
     void   parse_numbers(std::string s, float* nums, int maxnums);
 
+    void setRadioString();
+
     void show_limits(bool probe, const bool* limits);
     void show_state(std::string& state);
     void show_file(float percent, const char* filename);
     void show_dro(const float* axes, bool is_mpos);
+    void showRadioInfo();
     void draw_checkbox(int16_t x, int16_t y, int16_t width, int16_t height, bool checked);
 
     OLEDDISPLAY_GEOMETRY _geometry = GEOMETRY_64_48;
@@ -67,15 +73,15 @@ public:
     void validate() const override {
         Assert(!_sda_pin.undefined(), "I2C_OLED: sda_pin is undefined");
         Assert(!_scl_pin.undefined(), "I2C_OLED: scl_pin is undefined");
-        }
+    }
 
-        void afterParse() override;
+    void afterParse() override;
 
-        void group(Configuration::HandlerBase & handler) override {
-            handler.item("sda_pin", _sda_pin);
-            handler.item("scl_pin", _scl_pin);
-            handler.item("i2c_address", _address);
-            handler.item("width", _width);
-            handler.item("height", _height);
-        }
-    };
+    void group(Configuration::HandlerBase& handler) override {
+        handler.item("sda_pin", _sda_pin);
+        handler.item("scl_pin", _scl_pin);
+        handler.item("i2c_address", _address);
+        handler.item("width", _width);
+        handler.item("height", _height);
+    }
+};
