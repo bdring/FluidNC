@@ -11,7 +11,7 @@
 
 #include <climits>
 #include <math.h>  // round
-#include <regex.h>
+#include <regex>
 
 namespace Configuration {
     Parser::Parser(const char* start, const char* end) : Tokenizer(start, end) {}
@@ -45,25 +45,13 @@ namespace Configuration {
             return nullptr;
         }
 
-        regex_t reg;
-        if (regcomp(&reg, pattern, REG_EXTENDED | REG_NOSUB) != 0) {
-            log_error("Can not compile regex: " << pattern);
-            return nullptr;
-        }
-
-        size_t length = 0;
-        for (const char* pos = token_.keyStart_; pos != token_.keyEnd_; pos++) {
-            length++;
-        }
-
+        std::regex rp(pattern);
+        size_t length = token_.keyEnd_ - token_.keyStart_;
         char name[40];
         strncpy(name, token_.keyStart_, length);
         name[length] = '\0';
 
-        int result = regexec(&reg, name, 0, 0, 0);
-        regfree(&reg);
-
-        if (result == 0) {
+        if (std::regex_search(name, rp)) {
             char* result = new char[length+1];
             strncpy(result, name, length + 1);
             return result;
