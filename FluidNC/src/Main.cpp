@@ -14,7 +14,7 @@
 #    include "Limits.h"
 #    include "Protocol.h"
 #    include "System.h"
-#    include "Uart.h"
+#    include "UartChannel.h"
 #    include "MotionControl.h"
 #    include "Platform.h"
 #    include "StartupLog.h"

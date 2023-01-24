@@ -69,6 +69,7 @@ namespace Machine {
         Start*                _start       = nullptr;
         Parking*              _parking     = nullptr;
         Spindles::SpindleList _spindles;
+        std::vector<Uart*>    _uarts;
 
         float _arcTolerance      = 0.002f;
         float _junctionDeviation = 0.01f;

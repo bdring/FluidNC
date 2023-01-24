@@ -346,7 +346,7 @@ namespace MotorDrivers {
         msg[msg_len + 5] = crc & 0xFF;  // CRC_L
         msg[msg_len + 6] = (crc & 0xFF00) >> 8;
 
-        _uart->flush();
+        // _uart->flush();
         _uart->write(msg, msg_len + 7);
 
         //hex_msg(msg, "0x", msg_len + 7);

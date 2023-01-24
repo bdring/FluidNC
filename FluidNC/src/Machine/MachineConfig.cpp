@@ -10,6 +10,7 @@
 #include "../Motors/NullMotor.h"
 
 #include "../Spindles/NullSpindle.h"
+#include "../UartChannel.h"
 
 #include "../SettingsDefinitions.h"  // config_filename
 #include "../FileStream.h"
@@ -58,6 +59,7 @@ namespace Machine {
         handler.item("use_line_numbers", _useLineNumbers);
         handler.item("planner_blocks", _planner_blocks, 10, 120);
 
+        UartFactory::factory(handler, _uarts);
         Spindles::SpindleFactory::factory(handler, _spindles);
     }
 

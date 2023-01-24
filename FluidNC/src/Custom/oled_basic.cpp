@@ -26,7 +26,7 @@
 #    include "../SettingsDefinitions.h"
 #    include "../Report.h"
 #    include "../Machine/Axes.h"
-#    include "../Uart.h"
+#    include "../UartChannel.h"
 #    include "../InputFile.h"
 
 static TaskHandle_t oledUpdateTaskHandle = 0;

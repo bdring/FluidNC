@@ -199,7 +199,7 @@ namespace WebUI {
         log_to(out, "Flash Size: ", formatBytes(ESP.getFlashChipSize()));
 
         // Round baudRate to nearest 100 because ESP32 can say e.g. 115201
-        log_to(out, "Baud rate: ", ((Uart0.baud / 100) * 100));
+        //        log_to(out, "Baud rate: ", ((Uart0.baud / 100) * 100));
 
         WiFiConfig::showWifiStats(out);
 

@@ -18,7 +18,7 @@
 
 #ifdef INCLUDE_OLED_IO
 #    include "oled_io.h"
-#    include "../Uart.h"
+#    include "../UartChannel.h"
 
 SSD1306Wire* oled;
 

@@ -12,7 +12,7 @@
 #include "TrinamicUartDriver.h"
 
 #include "../Machine/MachineConfig.h"
-#include "../Uart.h"
+#include "../UartChannel.h"
 
 #include <TMCStepper.h>  // https://github.com/teemuatlut/TMCStepper
 #include <atomic>
