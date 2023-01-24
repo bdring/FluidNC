@@ -64,6 +64,17 @@ void setup() {
             log_info("Board " << config->_board);
 
             // The initialization order reflects dependencies between the subsystems
+            for (size_t i = 1; i < MAX_N_UARTS; i++) {
+                if (config->_uarts[i]) {
+                    config->_uarts[i]->begin();
+                }
+            }
+            for (size_t i = 1; i < MAX_N_UARTS; i++) {
+                if (config->_uart_channels[i]) {
+                    config->_uart_channels[i]->init();
+                }
+            }
+
             if (config->_i2so) {
                 config->_i2so->init();
             }

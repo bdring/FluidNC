@@ -258,7 +258,17 @@ namespace Spindles {
         _sync_dev_speed = 0;
         _syncing        = false;
 
-        _uart->begin();
+        // The following lets you have either a uart: section below the VFD section,
+        // or "uart_num: N" referring to an externally defined uartN: section - but not both
+        if (_uart) {
+            _uart->begin();
+        } else {
+            _uart = config->_uarts[_uart_num];
+            if (!_uart) {
+                log_error("VFDSpindle: Missing uart" << _uart_num << "section");
+                return;
+            }
+        }
 
         if (_uart->setHalfDuplex()) {
             log_info("VFD: RS485 UART set half duplex failed");

@@ -12,10 +12,9 @@
 namespace MotorDrivers {
 
     void TMC2209Driver::init() {
-        if (!_uart_started) {
-            _uart->begin();
-            _uart->config_message("Trinamic", " Stepper ");
-            _uart_started = true;
+        TrinamicUartDriver::init();
+        if (!_uart) {
+            return;
         }
 
         if (_r_sense == 0) {
@@ -24,7 +23,7 @@ namespace MotorDrivers {
 
         tmc2209 = new TMC2209Stepper(_uart, _r_sense, _addr);
 
-        finalInit();
+        TrinamicUartDriver::finalInit();
     }
 
     void TMC2209Driver::config_motor() {

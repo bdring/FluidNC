@@ -186,9 +186,8 @@ bool is_realtime_command(uint8_t data) {
 }
 
 void AllChannels::init() {
-    registration(&Uart0);               // USB Serial
     registration(&WebUI::inputBuffer);  // Macros
-    registration(&startupLog);          // USB Serial
+    registration(&startupLog);          // Early startup messages for $SS
 }
 
 void AllChannels::kill(Channel* channel) {

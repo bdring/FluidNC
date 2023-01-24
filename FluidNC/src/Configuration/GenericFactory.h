@@ -60,7 +60,6 @@ namespace Configuration {
                     }
                 }
             } else {
-                log_debug("Enter " << inst->name());
                 handler.enterSection(inst->name(), inst);
             }
         }
@@ -77,7 +76,6 @@ namespace Configuration {
                 }
             } else {
                 for (auto it : inst) {
-                    log_debug("Enter V " << it->name());
                     handler.enterSection(it->name(), it);
                 }
             }

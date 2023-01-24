@@ -12,24 +12,27 @@
 #include "TrinamicUartDriver.h"
 
 #include "../Machine/MachineConfig.h"
-#include "../UartChannel.h"
+#include "../Uart.h"
 
 #include <TMCStepper.h>  // https://github.com/teemuatlut/TMCStepper
 #include <atomic>
 
 namespace MotorDrivers {
 
-    Uart* TrinamicUartDriver::_uart         = nullptr;
-    bool  TrinamicUartDriver::_uart_started = false;
-
-    void TrinamicUartDriver::init() {}
+    void TrinamicUartDriver::init() {
+        _uart = config->_uarts[_uart_num];
+        if (!_uart) {
+            log_error("TMC2208: Missing uart" << _uart_num << "section");
+            return;
+        }
+    }
 
     /*
         This is the startup message showing the basic definition. 
     */
     void TrinamicUartDriver::config_message() {  //TODO: The RX/TX pin could be added to the msg.
-        log_info("    " << name() << " Step:" << _step_pin.name() << " Dir:" << _dir_pin.name() << " Disable:" << _disable_pin.name()
-                        << " Addr:" << _addr << " R:" << _r_sense);
+        log_info("    " << name() << " UART" << _uart_num << " Addr:" << _addr << " Step:" << _step_pin.name() << " Dir:" << _dir_pin.name()
+                        << " Disable:" << _disable_pin.name() << " R:" << _r_sense);
     }
 
     void TrinamicUartDriver::finalInit() {

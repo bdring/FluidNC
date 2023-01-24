@@ -37,11 +37,20 @@ namespace Machine {
         handler.item("meta", _meta);
 
         handler.section("stepping", _stepping);
-        handler.section("axes", _axes);
-        handler.section("kinematics", _kinematics);
+
+        handler.section("uart1", _uarts[1], 1);
+        handler.section("uart2", _uarts[2], 2);
+
+        handler.section("uart_channel1", _uart_channels[1]);
+        handler.section("uart_channel2", _uart_channels[2]);
+
         handler.section("i2so", _i2so);
         handler.section("spi", _spi);
         handler.section("sdcard", _sdCard);
+
+        handler.section("kinematics", _kinematics);
+        handler.section("axes", _axes);
+
         handler.section("control", _control);
         handler.section("coolant", _coolant);
         handler.section("probe", _probe);
@@ -50,6 +59,10 @@ namespace Machine {
         handler.section("parking", _parking);
 
         handler.section("user_outputs", _userOutputs);
+
+        // UartFactory::factory(handler, _uarts);
+        Spindles::SpindleFactory::factory(handler, _spindles);
+
         // TODO: Consider putting these under a gcode: hierarchy level? Or motion control?
         handler.item("arc_tolerance_mm", _arcTolerance, 0.001, 1.0);
         handler.item("junction_deviation_mm", _junctionDeviation, 0.01, 1.0);
@@ -58,9 +71,6 @@ namespace Machine {
         handler.item("enable_parking_override_control", _enableParkingOverrideControl);
         handler.item("use_line_numbers", _useLineNumbers);
         handler.item("planner_blocks", _planner_blocks, 10, 120);
-
-        UartFactory::factory(handler, _uarts);
-        Spindles::SpindleFactory::factory(handler, _spindles);
     }
 
     void MachineConfig::afterParse() {

@@ -20,13 +20,16 @@ private:
     // are handled.
     int _pushback = -1;
 
+    bool setPins(int tx_pin, int rx_pin, int rts_pin = -1, int cts_pin = -1);
+
+    int _uart_num = 0;  // Hardware UART engine number
+
 public:
     // These are public so that validators from classes
     // that use Uart can check that the setup is suitable.
     // E.g. some uses require an RTS pin.
 
     // Configurable.  Uart0 uses a fixed configuration
-    int        _uart_num = 1;
     int        _baud     = 115200;
     UartData   _dataBits = UartData::Bits8;
     UartParity _parity   = UartParity::None;
@@ -40,31 +43,35 @@ public:
     // Name is required for the configuration factory to work.
     const char* name() {
         static char nstr[6] = "uartN";
-        nstr[4]             = _uart_num - '1';
+        nstr[4]             = _uart_num - '0';
         return nstr;
     }
 
     Uart(int uart_num = -1);
-    bool setHalfDuplex();
-    bool setPins(int tx_pin, int rx_pin, int rts_pin = -1, int cts_pin = -1);
     void begin();
+    void begin(unsigned long baud, UartData dataBits, UartStop stopBits, UartParity parity);
 
+    // Stream methods - Uart must inherit from Stream because the TMCStepper library
+    // needs a Stream instance.
     int peek(void) override;
     int available(void) override;
+    int read(void) override;
 
-    int rx_buffer_available(void);
+    // Print methods (Stream inherits from Print)
+    size_t write(uint8_t data) override;
+    size_t write(const uint8_t* buffer, size_t length) override;
 
-    int    read(void);
-    int    read(TickType_t timeout);
+    // Support methods for UartChannel
+    void   flushRx();
+    int    rx_buffer_available(void);
     size_t timedReadBytes(char* buffer, size_t len, TickType_t timeout);
     size_t timedReadBytes(uint8_t* buffer, size_t len, TickType_t timeout) { return timedReadBytes((char*)buffer, len, timeout); }
-    size_t write(uint8_t data);
-    size_t write(const uint8_t* buffer, size_t length);
-    // inline size_t write(const char* buffer, size_t size) { return write(reinterpret_cast<const uint8_t*>(buffer), size); }
-    // size_t        write(const char* text);
 
-    void flushRx();
+    // Used by VFDSpindle
     bool flushTxTimed(TickType_t ticks);
+
+    // Used by VFDSpindle and Dynamixel2
+    bool setHalfDuplex();
 
     // Configuration handlers:
     void validate() const override {
@@ -76,8 +83,6 @@ public:
     void afterParse() override {}
 
     void group(Configuration::HandlerBase& handler) override {
-        handler.item("uart_num", _uart_num, 1, 3);
-
         handler.item("txd_pin", _txd_pin);
         handler.item("rxd_pin", _rxd_pin);
         handler.item("rts_pin", _rts_pin);
