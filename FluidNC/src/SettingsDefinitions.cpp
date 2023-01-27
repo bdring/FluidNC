@@ -48,6 +48,8 @@ void make_settings() {
     make_coordinate(CoordIndex::G59, "G59");
     make_coordinate(CoordIndex::G28, "G28");
     make_coordinate(CoordIndex::G30, "G30");
+    make_coordinate(CoordIndex::G92, "G92");
+    make_coordinate(CoordIndex::TLO, "TLO");
 
     message_level = new EnumSetting("Which Messages", EXTENDED, WG, NULL, "Message/Level", MsgLevelInfo, &messageLevels, NULL);
 
