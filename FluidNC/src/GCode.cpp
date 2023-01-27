@@ -480,7 +480,7 @@ Error gc_execute_line(char* line) {
                 break;
             case 'M':
                 // Determine 'M' command and its modal group
-                if (mantissa > 0) {
+                if (mantissa > 0 && !(int_value == 7 || int_value == 8)) {
                     FAIL(Error::GcodeCommandValueNotInteger);  // [No Mxx.x commands]
                 }
                 switch (int_value) {
@@ -533,11 +533,17 @@ Error gc_execute_line(char* line) {
                     case 9:
                         switch (int_value) {
                             case 7:
+                                if (mantissa && mantissa != 10) {
+                                    FAIL(Error::GcodeUnsupportedCommand);  // M7 and M7.1 are supported
+                                }
                                 if (config->_coolant->hasMist()) {
                                     gc_block.coolant = GCodeCoolant::M7;
                                 }
                                 break;
                             case 8:
+                                if (mantissa && mantissa != 10) {
+                                    FAIL(Error::GcodeUnsupportedCommand);  // M8 and M8.1 are supported
+                                }
                                 if (config->_coolant->hasFlood()) {
                                     gc_block.coolant = GCodeCoolant::M8;
                                 }
@@ -1449,10 +1455,10 @@ Error gc_execute_line(char* line) {
             case GCodeCoolant::None:
                 break;
             case GCodeCoolant::M7:
-                gc_state.modal.coolant.Mist = 1;
+                gc_state.modal.coolant.Mist = mantissa == 10 ? 0 : 1;
                 break;
             case GCodeCoolant::M8:
-                gc_state.modal.coolant.Flood = 1;
+                gc_state.modal.coolant.Flood = mantissa == 10 ? 0 : 1;
                 break;
             case GCodeCoolant::M9:
                 gc_state.modal.coolant = {};
