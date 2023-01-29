@@ -42,6 +42,11 @@ namespace Kinematics {
         }
     }
 
+    bool WallPlotter::canHome(AxisMask axisMask) {
+        log_error("This kinematic system cannot home");
+        return false;
+    }
+
     void WallPlotter::transform_cartesian_to_motors(float* cartesian, float* motors) {
         log_error("WallPlotter::transform_cartesian_to_motors is broken");
     }
