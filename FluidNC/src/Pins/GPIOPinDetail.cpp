@@ -3,15 +3,12 @@
 
 #include <esp_attr.h>  // IRAM_ATTR
 #include <esp32-hal-gpio.h>
+#include "Driver/fluidnc_gpio.h"
 #include <stdexcept>
 
 #include "GPIOPinDetail.h"
 #include "../Assert.h"
 #include "../Config.h"
-
-extern "C" void __pinMode(pinnum_t pin, uint8_t mode);
-extern "C" int  __digitalRead(pinnum_t pin);
-extern "C" void __digitalWrite(pinnum_t pin, uint8_t val);
 
 namespace Pins {
     std::vector<bool> GPIOPinDetail::_claimed(nGPIOPins, false);
@@ -136,11 +133,11 @@ namespace Pins {
             }
             Assert(_attributes.has(PinAttributes::Output), "Pin %s cannot be written", toString().c_str());
             int value = _readWriteMask ^ high;
-            __digitalWrite(_index, value);
+            gpio_write(_index, value);
         }
     }
     int IRAM_ATTR GPIOPinDetail::read() {
-        auto raw = __digitalRead(_index);
+        auto raw = gpio_read(_index);
         return raw ^ _readWriteMask;
     }
 
@@ -159,29 +156,17 @@ namespace Pins {
 
         _attributes = _attributes | value;
 
-        // Handle attributes:
-        uint8_t pinModeValue = 0;
-
-        if (value.has(PinAttributes::Input)) {
-            pinModeValue |= INPUT;
-        }
-        if (value.has(PinAttributes::Output)) {
-            pinModeValue |= OUTPUT;
-        }
-
-        // PU/PD should be specified by the user. Code has nothing to do with them:
-        if (_attributes.has(PinAttributes::PullUp)) {
-            pinModeValue |= PULLUP;
-        } else if (_attributes.has(PinAttributes::PullDown)) {
-            pinModeValue |= PULLDOWN;
-        }
-
         // If the pin is ActiveLow, we should take that into account here:
         if (value.has(PinAttributes::Output)) {
-            __digitalWrite(_index, int(value.has(PinAttributes::InitialOn)) ^ _readWriteMask);
+            gpio_write(_index, int(value.has(PinAttributes::InitialOn)) ^ _readWriteMask);
         }
 
-        __pinMode(_index, pinModeValue);
+        gpio_mode(_index,
+                  value.has(PinAttributes::Input),
+                  value.has(PinAttributes::Output),
+                  _attributes.has(PinAttributes::PullUp),
+                  _attributes.has(PinAttributes::PullDown),
+                  false);  // We do not have an OpenDrain attribute yet
     }
 
     void GPIOPinDetail::attachInterrupt(void (*callback)(void*), void* arg, int mode) {
