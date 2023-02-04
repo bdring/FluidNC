@@ -74,12 +74,13 @@ namespace WebUI {
 #    endif
     FileStream* Web_Server::_uploadFile = nullptr;
 
-    EnumSetting* http_enable;
-    IntSetting*  http_port;
+    EnumSetting *http_enable, *http_block_during_motion;
+    IntSetting  *http_port;
 
     Web_Server::Web_Server() {
-        http_port   = new IntSetting("HTTP Port", WEBSET, WA, "ESP121", "HTTP/Port", DEFAULT_HTTP_PORT, MIN_HTTP_PORT, MAX_HTTP_PORT, NULL);
-        http_enable = new EnumSetting("HTTP Enable", WEBSET, WA, "ESP120", "HTTP/Enable", DEFAULT_HTTP_STATE, &onoffOptions, NULL);
+        http_port                = new IntSetting("HTTP Port", WEBSET, WA, "ESP121", "HTTP/Port", DEFAULT_HTTP_PORT, MIN_HTTP_PORT, MAX_HTTP_PORT, NULL);
+        http_enable              = new EnumSetting("HTTP Enable", WEBSET, WA, "ESP120", "HTTP/Enable", DEFAULT_HTTP_STATE, &onoffOptions, NULL);
+        http_block_during_motion = new EnumSetting("Block serving HTTP content during motion", WEBSET, WA, "", "HTTP/BlockDuringMotion", DEFAULT_HTTP_BLOCKED_DURING_MOTION, &onoffOptions, NULL);
     }
     Web_Server::~Web_Server() { end(); }
 
@@ -289,9 +290,7 @@ namespace WebUI {
         // integrity.
         // This can make it hard to debug ISR IRAM problems, because the easiest
         // way to trigger such problems is to refresh WebUI during motion.
-        // If you need to do such debugging, comment out this check temporarily.
-        //        if (inMotionState()) {
-        if (false) {
+        if (http_block_during_motion->get() && inMotionState()) {
             Web_Server::handleReloadBlocked();
             return;
         }

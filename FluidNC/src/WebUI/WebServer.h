@@ -18,6 +18,7 @@ class WebServer;
 
 namespace WebUI {
     static const int DEFAULT_HTTP_STATE = 1;
+    static const int DEFAULT_HTTP_BLOCKED_DURING_MOTION = 1;
     static const int DEFAULT_HTTP_PORT  = 80;
 
     static const int MIN_HTTP_PORT = 1;
