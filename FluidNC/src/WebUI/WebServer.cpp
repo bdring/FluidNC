@@ -625,7 +625,7 @@ namespace WebUI {
     // to avoid interrupting that motion.  It lets you wait until
     // motion is finished or issue a feedhold.
     void Web_Server::handleReloadBlocked() {
-        _webserver->send(200,
+        _webserver->send(503,
                          "text/html",
                          "<!DOCTYPE html><html><body>"
                          "<h3>Cannot load WebUI while moving</h3>"
