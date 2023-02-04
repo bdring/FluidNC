@@ -233,6 +233,18 @@ namespace WebUI {
 
     // Send a file, either the specified path or path.gz
     bool Web_Server::streamFile(String path, bool download) {
+        // If you load or reload WebUI while a program is running, there is a high
+        // risk of stalling the motion because serving a file from
+        // the local FLASH filesystem takes away a lot of CPU cycles.  If we get
+        // a request for a file when running, reject it to preserve the motion
+        // integrity.
+        // This can make it hard to debug ISR IRAM problems, because the easiest
+        // way to trigger such problems is to refresh WebUI during motion.
+        if (http_block_during_motion->get() && inMotionState()) {
+            Web_Server::handleReloadBlocked();
+            return true;
+        }
+
         FileStream* file;
         try {
             file = new FileStream(path, "r", "");
@@ -283,18 +295,6 @@ namespace WebUI {
     void Web_Server::send404Page() { sendWithOurAddress(PAGE_404); }
 
     void Web_Server::handle_root() {
-        // If you load or reload WebUI while a program is running, there is a high
-        // risk of stalling the motion because serving the index.html.gz file from
-        // the local FLASH filesystem takes away a lot of CPU cycles.  If we get
-        // a request for index.html.gz when running, reject it to preserve the motion
-        // integrity.
-        // This can make it hard to debug ISR IRAM problems, because the easiest
-        // way to trigger such problems is to refresh WebUI during motion.
-        if (http_block_during_motion->get() && inMotionState()) {
-            Web_Server::handleReloadBlocked();
-            return;
-        }
-
         if (!(_webserver->hasArg("forcefallback") && _webserver->arg("forcefallback") == "yes")) {
             if (streamFile("/index.html")) {
                 return;
