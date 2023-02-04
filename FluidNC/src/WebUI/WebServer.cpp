@@ -55,6 +55,8 @@ namespace WebUI {
     const int ESP_ERROR_UPLOAD_CANCELLED = 6;
     const int ESP_ERROR_FILE_CLOSE       = 7;
 
+    static const char LOCATION_HEADER[] = "Location";
+
     static std::map<uint8_t, WSChannel*> wsChannels;
     static std::list<WSChannel*>         webWsChannels;
 
@@ -142,7 +144,6 @@ namespace WebUI {
         //web commands
         _webserver->on("/command", HTTP_ANY, handle_web_command);
         _webserver->on("/command_silent", HTTP_ANY, handle_web_command_silent);
-        _webserver->on("/reload_blocked", HTTP_ANY, handleReloadBlocked);
         _webserver->on("/feedhold_reload", HTTP_ANY, handleFeedholdReload);
 
         //LocalFS
@@ -291,11 +292,7 @@ namespace WebUI {
         // If you need to do such debugging, comment out this check temporarily.
         //        if (inMotionState()) {
         if (false) {
-            _webserver->send(200,
-                             "text/html",
-                             "<!DOCTYPE html><html><body>"
-                             "<script>window.location.assign('/reload_blocked');</script>"
-                             "</body></html>");
+            Web_Server::handleReloadBlocked();
             return;
         }
 
@@ -313,7 +310,9 @@ namespace WebUI {
     // Handle filenames and other things that are not explicitly registered
     void Web_Server::handle_not_found() {
         if (is_authenticated() == AuthenticationLevel::LEVEL_GUEST) {
-            _webserver->sendContent_P("HTTP/1.1 301 OK\r\nLocation: /\r\nCache-Control: no-cache\r\n\r\n");
+            _webserver->sendHeader(String(FPSTR(LOCATION_HEADER)), String(F("/")));
+            _webserver->send(302);
+
             //_webserver->client().stop();
             return;
         }
@@ -629,7 +628,7 @@ namespace WebUI {
                          "text/html",
                          "<!DOCTYPE html><html><body>"
                          "<h3>Cannot load WebUI while moving</h3>"
-                         "<button onclick='window.location.replace(\"/\")'>Retry</button>"
+                         "<button onclick='window.location.reload()'>Retry</button>"
                          "&nbsp;Retry (you must first wait for motion to finish)<br><br>"
                          "<button onclick='window.location.replace(\"/feedhold_reload\")'>Feedhold</button>"
                          "&nbsp;Stop the motion with feedhold and then retry<br>"
@@ -639,11 +638,8 @@ namespace WebUI {
     void Web_Server::handleFeedholdReload() {
         protocol_send_event(&feedHoldEvent);
         // Go to the main page
-        _webserver->send(200,
-                         "text/html",
-                         "<!DOCTYPE html><html><body>"
-                         "<script>window.location.replace('/');</script>"
-                         "</body></html>");
+        _webserver->sendHeader(String(FPSTR(LOCATION_HEADER)), String(F("/")));
+        _webserver->send(302);
     }
 
     //push error code and message to websocket.  Used by upload code
