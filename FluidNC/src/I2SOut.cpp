@@ -20,7 +20,7 @@
 #include <soc/i2s_struct.h>
 #include <freertos/queue.h>
 #include <soc/gpio_periph.h>
-#include <driver/gpio.h>
+#include "Driver/fluidnc_gpio.h"
 
 // The <atomic> library routines are not in IRAM so they can crash when called from FLASH
 // The GCC intrinsic versions which are prefixed with __ are compiled inline
@@ -43,9 +43,6 @@ static uint32_t i2s_out_port_data = 0;
 static std::atomic<std::uint32_t> i2s_out_port_data = ATOMIC_VAR_INIT(0);
 
 #endif
-
-// Make Arduino functions available
-extern "C" void __digitalWrite(pinnum_t pin, uint8_t val);
 
 //
 // Configrations for DMA connected I2S
@@ -213,13 +210,13 @@ static int i2s_out_gpio_detach(pinnum_t ws, pinnum_t bck, pinnum_t data) {
 }
 
 static int i2s_out_gpio_shiftout(uint32_t port_data) {
-    __digitalWrite(i2s_out_ws_pin, 0);
+    gpio_write(i2s_out_ws_pin, 0);
     for (int i = 0; i < I2S_OUT_NUM_BITS; i++) {
-        __digitalWrite(i2s_out_data_pin, !!(port_data & bitnum_to_mask(I2S_OUT_NUM_BITS - 1 - i)));
-        __digitalWrite(i2s_out_bck_pin, 1);
-        __digitalWrite(i2s_out_bck_pin, 0);
+        gpio_write(i2s_out_data_pin, !!(port_data & bitnum_to_mask(I2S_OUT_NUM_BITS - 1 - i)));
+        gpio_write(i2s_out_bck_pin, 1);
+        gpio_write(i2s_out_bck_pin, 0);
     }
-    __digitalWrite(i2s_out_ws_pin, 1);  // Latch
+    gpio_write(i2s_out_ws_pin, 1);  // Latch
     return 0;
 }
 
@@ -236,7 +233,7 @@ static int i2s_out_stop() {
 
     // Force WS to LOW before detach
     // This operation prevents unintended WS edge trigger when detach
-    __digitalWrite(i2s_out_ws_pin, 0);
+    gpio_write(i2s_out_ws_pin, 0);
 
     // Now, detach GPIO pin from I2S
     i2s_out_gpio_detach(i2s_out_ws_pin, i2s_out_bck_pin, i2s_out_data_pin);
@@ -244,7 +241,7 @@ static int i2s_out_stop() {
     // Force BCK to LOW
     // After the TX module is stopped, BCK always seems to be in LOW.
     // However, I'm going to do it manually to ensure the BCK's LOW.
-    __digitalWrite(i2s_out_bck_pin, 0);
+    gpio_write(i2s_out_bck_pin, 0);
 
     // Transmit recovery data to 74HC595
     uint32_t port_data = ATOMIC_LOAD(&i2s_out_port_data);  // current expanded port value

@@ -7,8 +7,6 @@
 #    include "../I2SOut.h"
 #    include "../Assert.h"
 
-extern "C" void __digitalWrite(pinnum_t pin, uint8_t val);
-
 namespace Pins {
     std::vector<bool> I2SOPinDetail::_claimed(nI2SOPins, false);
 
