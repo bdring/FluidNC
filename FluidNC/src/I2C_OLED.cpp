@@ -1,4 +1,5 @@
 #include "I2C_OLED.h"
+
 #include "Machine/MachineConfig.h"
 #include "WiFi.h"
 #include "WebUI/WifiConfig.h"  // wifi_config
@@ -8,21 +9,10 @@
 #include "Report.h"
 
 void I2C_OLED::afterParse() {
-    if (_sda_pin.undefined()) {
-        log_error("OLED sda_pin must be configured");
+    if (!config->_i2c[_i2c_num]) {
+        log_error("i2c" << _i2c_num << " section must be defined for OLED");
         _error = true;
-    }
-    if (_scl_pin.undefined()) {
-        log_error("OLED scl_pin must be configured");
-        _error = true;
-    }
-    if (!_sda_pin.capabilities().has(Pin::Capabilities::Input | Pin::Capabilities::Output | Pin::Capabilities::Native)) {
-        log_error("OLED sda_pin must be a native gpio with input and output capability");
-        _error = true;
-    }
-    if (!_scl_pin.capabilities().has(Pin::Capabilities::Output | Pin::Capabilities::Native)) {
-        log_error("OLED scl_pin must be a native gpio with input capability");
-        _error = true;
+        return;
     }
     switch (_width) {
         case 128:
@@ -63,11 +53,8 @@ void I2C_OLED::init() {
     if (_error) {
         return;
     }
-    log_info("OLED I2C SDA:" << _sda_pin.name() << " SCL:" << _scl_pin.name() << " address:" << to_hex(_address) << " width: " << _width
-                             << " height: " << _height);
-    auto sdaPin = _sda_pin.getNative(Pin::Capabilities::Input | Pin::Capabilities::Output);
-    auto sclPin = _scl_pin.getNative(Pin::Capabilities::Output);
-    _oled       = new SSD1306Wire(_address, sdaPin, sclPin, _geometry, I2C_ONE, 400000);
+    log_info("OLED I2C address:" << to_hex(_address) << " width: " << _width << " height: " << _height);
+    _oled = new SSD1306_I2C(_address, _geometry, config->_i2c[_i2c_num], 400000);
     _oled->init();
 
     _oled->flipScreenVertically();

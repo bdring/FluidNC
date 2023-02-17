@@ -5,7 +5,7 @@
 #include "Configuration/Configurable.h"
 
 #include "Channel.h"
-#include <SSD1306Wire.h>
+#include "SSD1306_I2C.h"
 
 class I2C_OLED : public Channel, public Configuration::Configurable {
 private:
@@ -13,6 +13,8 @@ private:
 
     String _radio_info;
     String _radio_addr;
+
+    uint8_t _i2c_num = 0;
 
     void parse_report();
     void parse_status_report();
@@ -37,21 +39,19 @@ private:
 public:
     I2C_OLED() : Channel("oled") {}
 
-    I2C_OLED(const I2C_OLED&)            = delete;
-    I2C_OLED(I2C_OLED&&)                 = delete;
+    I2C_OLED(const I2C_OLED&) = delete;
+    I2C_OLED(I2C_OLED&&)      = delete;
     I2C_OLED& operator=(const I2C_OLED&) = delete;
-    I2C_OLED& operator=(I2C_OLED&&)      = delete;
+    I2C_OLED& operator=(I2C_OLED&&) = delete;
 
     virtual ~I2C_OLED() = default;
 
     void init();
 
-    SSD1306Wire* _oled;
+    SSD1306_I2C* _oled;
 
     // Configurable
 
-    Pin     _sda_pin;
-    Pin     _scl_pin;
     uint8_t _address = 0x3c;
     int     _width   = 64;
     int     _height  = 48;
@@ -70,16 +70,12 @@ public:
     size_t timedReadBytes(char* buffer, size_t length, TickType_t timeout) override { return 0; }
 
     // Configuration handlers:
-    void validate() const override {
-        Assert(!_sda_pin.undefined(), "I2C_OLED: sda_pin is undefined");
-        Assert(!_scl_pin.undefined(), "I2C_OLED: scl_pin is undefined");
-    }
+    void validate() const override {}
 
     void afterParse() override;
 
     void group(Configuration::HandlerBase& handler) override {
-        handler.item("sda_pin", _sda_pin);
-        handler.item("scl_pin", _scl_pin);
+        handler.item("i2c_num", _i2c_num);
         handler.item("i2c_address", _address);
         handler.item("width", _width);
         handler.item("height", _height);

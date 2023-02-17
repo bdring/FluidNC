@@ -39,6 +39,10 @@ namespace Machine {
         handler.section("axes", _axes);
         handler.section("kinematics", _kinematics);
         handler.section("i2so", _i2so);
+
+        handler.section("i2c0", _i2c[0], 0);
+        handler.section("i2c1", _i2c[1], 1);
+
         handler.section("spi", _spi);
         handler.section("sdcard", _sdCard);
         handler.section("control", _control);

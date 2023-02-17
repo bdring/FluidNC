@@ -225,4 +225,6 @@ const bool ALLOW_FEED_OVERRIDE_DURING_PROBE_CYCLES = false;
 // INCLUDE_OLED_BASIC includes a driver for a modest sized OLED display
 // #define INCLUDE_OLED_BASIC
 
+const int MAX_N_I2C = 2;
+
 #include "NutsBolts.h"
