@@ -1,9 +1,6 @@
 // Copyright 2022 - Mitch Bradley
 // Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
 
-#include "soc/i2c_periph.h"
-#include "hal/i2c_hal.h"
-#include "hal/i2c_ll.h"
 #include "driver/i2c.h"
 
 #include "Driver/fluidnc_i2c.h"
@@ -30,7 +27,7 @@ bool i2c_master_init(int bus_number, pinnum_t sda_pin, pinnum_t scl_pin, uint32_
         return true;
     }
     //Clock Stretching Timeout: 20b:esp32, 5b:esp32-c3, 24b:esp32-s2
-    i2c_set_timeout((i2c_port_t)bus_number, I2C_LL_MAX_TIMEOUT);
+    i2c_set_timeout((i2c_port_t)bus_number, 0xfffff);
     return false;
 }
 
