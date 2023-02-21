@@ -1,14 +1,8 @@
-#include "I2C_OLED.h"
+#include "OLED.h"
 
 #include "Machine/MachineConfig.h"
-#include "WiFi.h"
-#include "WebUI/WifiConfig.h"  // wifi_config
-#include "WebUI/BTConfig.h"    // bt_config
-#include "WebUI/WebSettings.h"
-#include "SettingsDefinitions.h"
-#include "Report.h"
 
-void I2C_OLED::afterParse() {
+void OLED::afterParse() {
     if (!config->_i2c[_i2c_num]) {
         log_error("i2c" << _i2c_num << " section must be defined for OLED");
         _error = true;
@@ -44,17 +38,36 @@ void I2C_OLED::afterParse() {
             }
             break;
         default:
-            log_error("I2C_OLED width must be 64 or 128");
+            log_error("OLED width must be 64 or 128");
             _error = true;
     }
 }
 
-void I2C_OLED::init() {
+// For 128-wide display
+font_t fonts128[] = {
+    ArialMT_Plain_24,  // Large font for banner
+    ArialMT_Plain_16,  // Medium font for state
+    ArialMT_Plain_10,  // Small font for text
+};
+
+// For 64-wide display
+font_t fonts64[] = {
+    ArialMT_Plain_16,  // Large font for banner
+    ArialMT_Plain_16,  // Medium font for state
+    ArialMT_Plain_10,  // Small font for text
+};
+font_t* fonts;
+#define LARGE_FONT fonts[0]
+#define MEDIUM_FONT fonts[1]
+#define SMALL_FONT fonts[2]
+
+void OLED::init() {
     if (_error) {
         return;
     }
     log_info("OLED I2C address:" << to_hex(_address) << " width: " << _width << " height: " << _height);
     _oled = new SSD1306_I2C(_address, _geometry, config->_i2c[_i2c_num], 400000);
+    fonts = _width == 128 ? fonts128 : fonts64;
     _oled->init();
 
     _oled->flipScreenVertically();
@@ -62,128 +75,130 @@ void I2C_OLED::init() {
 
     _oled->clear();
 
-    _oled->setFont(ArialMT_Plain_24);
-    _oled->drawString(10, 20, "FluidNC");
+    _oled->setFont(LARGE_FONT);
+    _oled->drawString(_width == 128 ? 10 : 0, 20, "FluidNC");
 
     _oled->display();
 
     allChannels.registration(this);
     setReportInterval(500);
-    delay(1000);
 }
 
-Channel* I2C_OLED::pollLine(char* line) {
+Channel* OLED::pollLine(char* line) {
     autoReport();
     return nullptr;
 }
 
-void I2C_OLED::show_state(std::string& state) {
+void OLED::show_state(std::string& state) {
     _oled->setTextAlignment(TEXT_ALIGN_LEFT);
-    _oled->setFont(ArialMT_Plain_16);
+    _oled->setFont(MEDIUM_FONT);
     _oled->drawString(0, 0, (String)state.c_str());
 }
 
-void I2C_OLED::show_limits(bool probe, const bool* limits) {
-    if (sys.state == State::Alarm)
+void OLED::show_limits(bool probe, const bool* limits) {
+    if (_state == "Alarm") {
         return;
+    }
     for (uint8_t axis = X_AXIS; axis < 3; axis++) {
         draw_checkbox(80, 27 + (axis * 10), 7, 7, limits[axis]);
     }
 }
-void I2C_OLED::show_file(float percent, const char* filename) {
-    _oled->setTextAlignment(TEXT_ALIGN_CENTER);
-    _oled->setFont(ArialMT_Plain_10);
-    std::string state_string = "File";
-
-    int file_ticker = 0;
-    for (int i = 0; i < file_ticker % 10; i++) {
-        state_string += ".";
+void OLED::show_file(float percent, const char* filename) {
+    if (_state != "Run") {
+        return;
     }
-    file_ticker++;
-    _oled->drawString(63, 0, state_string.c_str());
+    if (_width == 128) {
+        _oled->setTextAlignment(TEXT_ALIGN_CENTER);
+        _oled->setFont(SMALL_FONT);
+        std::string state_string = "File";
 
-    _oled->drawString(63, 12, filename);
+        int file_ticker = 0;
+        for (int i = 0; i < file_ticker % 10; i++) {
+            state_string += ".";
+        }
+        file_ticker++;
+        _oled->drawString(63, 0, state_string.c_str());
 
-    int progress = percent;
+        _oled->drawString(63, 12, filename);
 
-    // draw the progress bar
-    _oled->drawProgressBar(0, 45, 120, 10, progress);
+        int progress = percent;
 
-    _oled->setFont(ArialMT_Plain_10);
-    _oled->setTextAlignment(TEXT_ALIGN_CENTER);
-    _oled->drawString(64, 25, String(progress) + "%");
-    _oled->display();
+        // draw the progress bar
+        _oled->drawProgressBar(0, 45, 120, 10, progress);
+
+        _oled->setFont(SMALL_FONT);
+        _oled->setTextAlignment(TEXT_ALIGN_CENTER);
+        _oled->drawString(64, 25, String(progress) + "%");
+    } else {
+        _oled->setFont(MEDIUM_FONT);
+        _oled->setTextAlignment(TEXT_ALIGN_RIGHT);
+        _oled->drawString(64, 0, String(int(percent)) + "%");
+    }
 }
 
-void I2C_OLED::show_dro(const float* axes, bool is_mpos) {
-    if (sys.state == State::Alarm)
+void OLED::show_dro(const float* axes, bool is_mpos, bool* limits) {
+    if (_state == "Alarm") {
         return;
-
-    _oled->setTextAlignment(TEXT_ALIGN_LEFT);
-    _oled->setFont(ArialMT_Plain_10);
-
-    char axisVal[20];
-
-    _oled->drawString(80, 14, "L");  // Limit switch
+    }
 
     auto n_axis = config->_axes->_numberAxis;
+    char axisVal[20];
+
+    _oled->setTextAlignment(TEXT_ALIGN_LEFT);
+    _oled->setFont(SMALL_FONT);
+
+    if (_width == 128) {
+        _oled->drawString(80, 14, "L");  // Limit switch
+    }
 
     _oled->setTextAlignment(TEXT_ALIGN_RIGHT);
 
-    _oled->drawString(60, 14, is_mpos ? "M Pos" : "W Pos");
+    if (_width == 128) {
+        _oled->drawString(60, 14, is_mpos ? "M Pos" : "W Pos");
+    }
 
     uint8_t oled_y_pos;
     for (uint8_t axis = X_AXIS; axis < n_axis; axis++) {
-        oled_y_pos = 24 + (axis * 10);
+        oled_y_pos = (_height == 64 ? 24 : 17) + (axis * 10);
 
         String axis_letter = String(Machine::Axes::_names[axis]);
-        axis_letter += ":";
+        if (_width == 128) {
+            axis_letter += ":";
+        } else {
+            // For small displays there isn't room for separate limit boxes
+            // so we put it after the label
+            axis_letter += limits[axis] ? "L" : ":";
+        }
         _oled->setTextAlignment(TEXT_ALIGN_LEFT);
         _oled->drawString(0, oled_y_pos, axis_letter);
 
         _oled->setTextAlignment(TEXT_ALIGN_RIGHT);
         snprintf(axisVal, 20 - 1, "%.3f", axes[axis]);
-        _oled->drawString(60, oled_y_pos, axisVal);
+        _oled->drawString(_width = 128 ? 60 : 63, oled_y_pos, axisVal);
     }
     _oled->display();
 }
 
-void I2C_OLED::setRadioString() {
-    _radio_addr = "";
-#ifdef ENABLE_WIFI
-    if (WiFi.getMode() == WIFI_MODE_STA) {
-        _radio_info = String("STA: ") + WiFi.SSID();
-        _radio_addr = WiFi.localIP().toString();
-    } else if (WiFi.getMode() == WIFI_MODE_AP) {
-        _radio_info = String("AP: ") + WebUI::wifi_ap_ssid->get();
-        _radio_addr = WiFi.softAPIP().toString();
-    } else if (WiFi.getMode() == WIFI_MODE_APSTA) {
-        _radio_info = String("STA>AP: ") + WebUI::wifi_ap_ssid->get();
-    } else {
-        _radio_info = String("WiFi Off");
-    }
-#elif ENABLE_BLUETOOTH
-    if (WebUI::bt_enable->get()) {
-        radio_name = String("BT: ") + WebUI::bt_name->get();
-    }
-#else
-    _radio_info = "Radios off"
-#endif
-}
-
-void I2C_OLED::showRadioInfo() {
+void OLED::showRadioInfo() {
     _oled->setTextAlignment(TEXT_ALIGN_LEFT);
-    _oled->setFont(ArialMT_Plain_10);
+    _oled->setFont(SMALL_FONT);
 
-    if (sys.state == State::Alarm) {
-        _oled->drawString(0, 18, _radio_info);
-        _oled->drawString(0, 30, _radio_addr);
+    if (_width == 128) {
+        if (_state == "Alarm") {
+            wrappedDrawString(18, _radio_info, SMALL_FONT);
+            wrappedDrawString(30, _radio_addr, SMALL_FONT);
+        } else {
+            _oled->drawString(50, 0, _radio_info);
+        }
     } else {
-        _oled->drawString(50, 0, _radio_info);
+        if (_state == "Alarm") {
+            wrappedDrawString(10, _radio_info, SMALL_FONT);
+            wrappedDrawString(28, _radio_addr, SMALL_FONT);
+        }
     }
 }
 
-void I2C_OLED::parse_numbers(std::string s, float* nums, int maxnums) {
+void OLED::parse_numbers(std::string s, float* nums, int maxnums) {
     size_t pos     = 0;
     size_t nextpos = -1;
     size_t i;
@@ -198,11 +213,12 @@ void I2C_OLED::parse_numbers(std::string s, float* nums, int maxnums) {
     } while (nextpos != std::string::npos);
 }
 
-float* I2C_OLED::parse_axes(std::string s) {
+float* OLED::parse_axes(std::string s) {
     static float axes[MAX_N_AXIS];
-    size_t       pos     = 0;
-    size_t       nextpos = -1;
-    size_t       axis    = 0;
+
+    size_t pos     = 0;
+    size_t nextpos = -1;
+    size_t axis    = 0;
     do {
         nextpos  = s.find_first_of(",", pos);
         auto num = s.substr(pos, nextpos - pos);
@@ -214,17 +230,20 @@ float* I2C_OLED::parse_axes(std::string s) {
     return axes;
 }
 
-void I2C_OLED::parse_status_report() {
+void OLED::parse_status_report() {
     if (_report.back() == '>') {
         _report.pop_back();
     }
     // Now the string is a sequence of field|field|field
     size_t pos     = 0;
     auto   nextpos = _report.find_first_of("|", pos);
-    auto   state   = _report.substr(pos + 1, nextpos - pos - 1);
+    _state         = _report.substr(pos + 1, nextpos - pos - 1);
 
     bool probe              = false;
     bool limits[MAX_N_AXIS] = { false };
+
+    float* axes;
+    bool   isMpos = false;
 
     _oled->clear();
 
@@ -239,14 +258,14 @@ void I2C_OLED::parse_status_report() {
         auto value = field.substr(colon + 1);
         if (tag == "MPos") {
             // x,y,z,...
-            auto mpos = parse_axes(value);
-            show_dro(mpos, true);
+            axes   = parse_axes(value);
+            isMpos = true;
             continue;
         }
         if (tag == "WPos") {
             // x,y,z...
-            auto wpos = parse_axes(value);
-            show_dro(wpos, false);
+            axes   = parse_axes(value);
+            isMpos = false;
             continue;
         }
         if (tag == "Bf") {
@@ -293,7 +312,6 @@ void I2C_OLED::parse_status_report() {
                 continue;
             }
         }
-        show_limits(probe, limits);
         if (tag == "WCO") {
             // x,y,z,...
             auto wcos = parse_axes(value);
@@ -336,13 +354,16 @@ void I2C_OLED::parse_status_report() {
             continue;
         }
     }
-    show_state(state);
-    setRadioString();  // this could probably be moved or throttled
+    if (_width == 128) {
+        show_limits(probe, limits);
+    }
+    show_state(_state);
+    show_dro(axes, isMpos, limits);
     showRadioInfo();
     _oled->display();
 }
 
-void I2C_OLED::parse_gcode_report() {
+void OLED::parse_gcode_report() {
     size_t pos     = 0;
     size_t nextpos = _report.find_first_of(":", pos);
     auto   name    = _report.substr(pos, nextpos - pos);
@@ -373,7 +394,65 @@ void I2C_OLED::parse_gcode_report() {
     } while (nextpos != std::string::npos);
 }
 
-void I2C_OLED::parse_report() {
+// [MSG:INFO: Connecting to STA:SSID foo]
+void OLED::parse_STA() {
+    size_t      start = strlen("[MSG:INFO: Connecting to STA SSID:");
+    std::string ssid  = _report.substr(start, _report.size() - start - 1);
+    _radio_info       = String(ssid.c_str());
+
+    _oled->clear();
+    auto fh = font_height(SMALL_FONT);
+    wrappedDrawString(0, _radio_info, SMALL_FONT);
+    _oled->display();
+}
+
+// [MSG:INFO: Connected - IP is 192.168.68.134]
+void OLED::parse_IP() {
+    size_t      start  = _report.rfind(" ") + 1;
+    std::string ipaddr = _report.substr(start, _report.size() - start - 1);
+    _radio_addr        = String(ipaddr.c_str());
+
+    _oled->clear();
+    auto fh = font_height(SMALL_FONT);
+    wrappedDrawString(0, _radio_info, SMALL_FONT);
+    wrappedDrawString(fh * 2, _radio_addr, SMALL_FONT);
+    _oled->display();
+    delay_ms(_radio_delay);
+}
+
+// [MSG:INFO: AP SSID foo IP 192.168.68.134 mask foo channel foo]
+void OLED::parse_AP() {
+    size_t      start    = strlen("[MSG:INFO: AP SSID ");
+    size_t      ssid_end = _report.rfind(" IP ");
+    size_t      ip_end   = _report.rfind(" mask ");
+    std::string ssid     = _report.substr(start, ssid_end - start);
+    size_t      ip_start = ssid_end + strlen(" IP ");
+    std::string ipaddr   = _report.substr(ip_start, ip_end - ip_start);
+    _radio_info          = "AP: ";
+    _radio_info += ssid.c_str();
+    _radio_addr = String(ipaddr.c_str());
+
+    _oled->clear();
+    auto fh = font_height(SMALL_FONT);
+    wrappedDrawString(0, _radio_info, SMALL_FONT);
+    wrappedDrawString(fh * 2, _radio_addr, SMALL_FONT);
+    _oled->display();
+    delay_ms(_radio_delay);
+}
+
+void OLED::parse_BT() {
+    size_t      start  = strlen("[MSG:INFO: BT Started with ");
+    std::string btname = _report.substr(start, _report.size() - start - 1);
+    _radio_info        = "BT: ";
+    _radio_info += btname.c_str();
+
+    _oled->clear();
+    wrappedDrawString(0, _radio_info, SMALL_FONT);
+    _oled->display();
+    delay_ms(_radio_delay);
+}
+
+void OLED::parse_report() {
     if (_report.length() == 0) {
         return;
     }
@@ -385,9 +464,26 @@ void I2C_OLED::parse_report() {
         parse_gcode_report();
         return;
     }
+    if (_report.rfind("[MSG:INFO: Connecting to STA SSID:", 0) == 0) {
+        parse_STA();
+        return;
+    }
+    if (_report.rfind("[MSG:INFO: Connected", 0) == 0) {
+        parse_IP();
+        return;
+    }
+    if (_report.rfind("[MSG:INFO: AP SSID ", 0) == 0) {
+        parse_AP();
+        return;
+    }
+    if (_report.rfind("[MSG:INFO: BT Started with ", 0) == 0) {
+        parse_BT();
+        return;
+    }
 }
 
-size_t I2C_OLED::write(uint8_t data) {
+// This is how the OLED driver receives channel data
+size_t OLED::write(uint8_t data) {
     char c = data;
     if (c == '\r') {
         return 1;
@@ -401,7 +497,51 @@ size_t I2C_OLED::write(uint8_t data) {
     return 1;
 }
 
-void I2C_OLED::draw_checkbox(int16_t x, int16_t y, int16_t width, int16_t height, bool checked) {
+uint8_t OLED::font_width(font_t font) {
+    return ((uint8_t*)font)[0];
+}
+uint8_t OLED::font_height(font_t font) {
+    return ((uint8_t*)font)[1];
+}
+struct glyph_t {
+    uint8_t msb;
+    uint8_t lsb;
+    uint8_t size;
+    uint8_t width;
+};
+struct xfont_t {
+    uint8_t width;
+    uint8_t height;
+    uint8_t first;
+    uint8_t nchars;
+    glyph_t glyphs[];
+};
+size_t OLED::charWidth(char c, font_t font) {
+    xfont_t* xf    = (xfont_t*)font;
+    int      index = c - xf->first;
+    return index < 0 ? 0 : xf->glyphs[index].width;
+}
+
+void OLED::wrappedDrawString(int16_t y, String& s, font_t font) {
+    _oled->setFont(font);
+    size_t slen   = s.length();
+    size_t swidth = 0;
+    size_t i;
+    for (i = 0; i < slen && swidth < _width; i++) {
+        swidth += charWidth(s[i], font);
+        if (swidth > _width) {
+            break;
+        }
+    }
+    if (swidth < _width) {
+        _oled->drawString(0, y, s);
+    } else {
+        _oled->drawString(0, y, s.substring(0, i));
+        _oled->drawString(0, y + font_height(font) - 1, s.substring(i, slen));
+    }
+}
+
+void OLED::draw_checkbox(int16_t x, int16_t y, int16_t width, int16_t height, bool checked) {
     if (checked) {
         _oled->fillRect(x, y, width, height);  // If log.0
     } else {

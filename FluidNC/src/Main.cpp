@@ -80,8 +80,8 @@ void setup() {
                 }
             }
 
-            if (config->_i2c_oled) {
-                config->_i2c_oled->init();
+            if (config->_oled) {
+                config->_oled->init();
             }
 
             config->_stepping->init();  // Configure stepper interrupt timers

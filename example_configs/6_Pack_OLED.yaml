@@ -7,11 +7,12 @@ i2c0:
    sda_pin: gpio.14
    scl_pin: gpio.13
         
-i2c_oled:
+oled:
    i2c_num: 0
    i2c_address: 60
    width: 128
    height: 64
+   radio_delay_ms: 1000
 
 i2so:
   bck_pin: gpio.22

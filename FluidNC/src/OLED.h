@@ -7,48 +7,61 @@
 #include "Channel.h"
 #include "SSD1306_I2C.h"
 
-class I2C_OLED : public Channel, public Configuration::Configurable {
+typedef const uint8_t* font_t;
+
+class OLED : public Channel, public Configuration::Configurable {
 private:
     std::string _report;
 
     String _radio_info;
     String _radio_addr;
 
+    std::string _state;
+
+    int _radio_delay = 0;
+
     uint8_t _i2c_num = 0;
 
     void parse_report();
     void parse_status_report();
     void parse_gcode_report();
+    void parse_STA();
+    void parse_IP();
+    void parse_AP();
+    void parse_BT();
 
     float* parse_axes(std::string s);
     void   parse_numbers(std::string s, float* nums, int maxnums);
 
-    void setRadioString();
-
     void show_limits(bool probe, const bool* limits);
     void show_state(std::string& state);
     void show_file(float percent, const char* filename);
-    void show_dro(const float* axes, bool is_mpos);
+    void show_dro(const float* axes, bool is_mpos, bool* limits);
     void showRadioInfo();
     void draw_checkbox(int16_t x, int16_t y, int16_t width, int16_t height, bool checked);
+    void wrappedDrawString(int16_t y, String& s, font_t font);
+
+    uint8_t font_width(font_t font);
+    uint8_t font_height(font_t font);
+    size_t  charWidth(char s, font_t font);
 
     OLEDDISPLAY_GEOMETRY _geometry = GEOMETRY_64_48;
 
     bool _error = false;
 
 public:
-    I2C_OLED() : Channel("oled") {}
+    OLED() : Channel("oled") {}
 
-    I2C_OLED(const I2C_OLED&) = delete;
-    I2C_OLED(I2C_OLED&&)      = delete;
-    I2C_OLED& operator=(const I2C_OLED&) = delete;
-    I2C_OLED& operator=(I2C_OLED&&) = delete;
+    OLED(const OLED&) = delete;
+    OLED(OLED&&)      = delete;
+    OLED& operator=(const OLED&) = delete;
+    OLED& operator=(OLED&&) = delete;
 
-    virtual ~I2C_OLED() = default;
+    virtual ~OLED() = default;
 
     void init();
 
-    SSD1306_I2C* _oled;
+    OLEDDisplay* _oled;
 
     // Configurable
 
@@ -79,5 +92,6 @@ public:
         handler.item("i2c_address", _address);
         handler.item("width", _width);
         handler.item("height", _height);
+        handler.item("radio_delay_ms", _radio_delay);
     }
 };

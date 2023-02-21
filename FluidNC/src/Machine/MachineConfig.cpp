@@ -62,7 +62,7 @@ namespace Machine {
         handler.item("use_line_numbers", _useLineNumbers);
         handler.item("planner_blocks", _planner_blocks, 10, 120);
 
-        handler.section("i2c_oled", _i2c_oled);
+        handler.section("oled", _oled);
 
         Spindles::SpindleFactory::factory(handler, _spindles);
     }
