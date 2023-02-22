@@ -2,6 +2,26 @@
 
 #include "Machine/MachineConfig.h"
 
+void OLED::show(Layout& layout, const String& msg) {
+    if (_width < layout._width_required) {
+        return;
+    }
+    _oled->setTextAlignment(layout._align);
+    _oled->setFont(layout._font);
+    _oled->drawString(layout._x, layout._y, msg);
+}
+
+OLED::Layout OLED::bannerLayout128  = { 0, 0, 0, ArialMT_Plain_24, TEXT_ALIGN_CENTER };
+OLED::Layout OLED::bannerLayout64   = { 0, 0, 0, ArialMT_Plain_16, TEXT_ALIGN_CENTER };
+OLED::Layout OLED::stateLayout      = { 0, 0, 0, ArialMT_Plain_16, TEXT_ALIGN_LEFT };
+OLED::Layout OLED::tickerLayout     = { 63, 0, 128, ArialMT_Plain_10, TEXT_ALIGN_CENTER };
+OLED::Layout OLED::filenameLayout   = { 63, 13, 128, ArialMT_Plain_10, TEXT_ALIGN_CENTER };
+OLED::Layout OLED::percentLayout128 = { 128, 0, 128, ArialMT_Plain_16, TEXT_ALIGN_RIGHT };
+OLED::Layout OLED::percentLayout64  = { 64, 0, 64, ArialMT_Plain_16, TEXT_ALIGN_RIGHT };
+OLED::Layout OLED::limitLabelLayout = { 80, 14, 128, ArialMT_Plain_10, TEXT_ALIGN_LEFT };
+OLED::Layout OLED::posLabelLayout   = { 60, 14, 128, ArialMT_Plain_10, TEXT_ALIGN_RIGHT };
+OLED::Layout OLED::radioAddrLayout  = { 50, 0, 128, ArialMT_Plain_10, TEXT_ALIGN_LEFT };
+
 void OLED::afterParse() {
     if (!config->_i2c[_i2c_num]) {
         log_error("i2c" << _i2c_num << " section must be defined for OLED");
@@ -43,31 +63,12 @@ void OLED::afterParse() {
     }
 }
 
-// For 128-wide display
-font_t fonts128[] = {
-    ArialMT_Plain_24,  // Large font for banner
-    ArialMT_Plain_16,  // Medium font for state
-    ArialMT_Plain_10,  // Small font for text
-};
-
-// For 64-wide display
-font_t fonts64[] = {
-    ArialMT_Plain_16,  // Large font for banner
-    ArialMT_Plain_16,  // Medium font for state
-    ArialMT_Plain_10,  // Small font for text
-};
-font_t* fonts;
-#define LARGE_FONT fonts[0]
-#define MEDIUM_FONT fonts[1]
-#define SMALL_FONT fonts[2]
-
 void OLED::init() {
     if (_error) {
         return;
     }
     log_info("OLED I2C address:" << to_hex(_address) << " width: " << _width << " height: " << _height);
     _oled = new SSD1306_I2C(_address, _geometry, config->_i2c[_i2c_num], 400000);
-    fonts = _width == 128 ? fonts128 : fonts64;
     _oled->init();
 
     _oled->flipScreenVertically();
@@ -75,8 +76,7 @@ void OLED::init() {
 
     _oled->clear();
 
-    _oled->setFont(LARGE_FONT);
-    _oled->drawString(_width == 128 ? 10 : 0, 20, "FluidNC");
+    show((_width == 128) ? bannerLayout128 : bannerLayout64, "FluidNC");
 
     _oled->display();
 
@@ -89,13 +89,17 @@ Channel* OLED::pollLine(char* line) {
     return nullptr;
 }
 
-void OLED::show_state(std::string& state) {
-    _oled->setTextAlignment(TEXT_ALIGN_LEFT);
-    _oled->setFont(MEDIUM_FONT);
-    _oled->drawString(0, 0, (String)state.c_str());
+void OLED::show_state() {
+    show(stateLayout, _state);
 }
 
 void OLED::show_limits(bool probe, const bool* limits) {
+    if (_width != 128) {
+        return;
+    }
+    if (_filename.length() != 0) {
+        return;
+    }
     if (_state == "Alarm") {
         return;
     }
@@ -103,63 +107,51 @@ void OLED::show_limits(bool probe, const bool* limits) {
         draw_checkbox(80, 27 + (axis * 10), 7, 7, limits[axis]);
     }
 }
-void OLED::show_file(float percent, const char* filename) {
-    if (_state != "Run") {
+void OLED::show_file() {
+    int pct = int(_percent);
+    if (_filename.length() == 0) {
+        return;
+    }
+    if (_state != "Run" && pct == 100) {
+        // This handles the case where the system returns to idle
+        // but shows one last SD report
         return;
     }
     if (_width == 128) {
-        _oled->setTextAlignment(TEXT_ALIGN_CENTER);
-        _oled->setFont(SMALL_FONT);
-        std::string state_string = "File";
+        show(percentLayout128, String(pct) + '%');
 
-        int file_ticker = 0;
-        for (int i = 0; i < file_ticker % 10; i++) {
-            state_string += ".";
+        _ticker += "-";
+        if (_ticker.length() >= 12) {
+            _ticker = "-";
         }
-        file_ticker++;
-        _oled->drawString(63, 0, state_string.c_str());
+        show(tickerLayout, _ticker);
 
-        _oled->drawString(63, 12, filename);
+        wrapped_draw_string(14, _filename.c_str(), ArialMT_Plain_16);
 
-        int progress = percent;
-
-        // draw the progress bar
-        _oled->drawProgressBar(0, 45, 120, 10, progress);
-
-        _oled->setFont(SMALL_FONT);
-        _oled->setTextAlignment(TEXT_ALIGN_CENTER);
-        _oled->drawString(64, 25, String(progress) + "%");
+        _oled->drawProgressBar(0, 45, 120, 10, pct);
     } else {
-        _oled->setFont(MEDIUM_FONT);
-        _oled->setTextAlignment(TEXT_ALIGN_RIGHT);
-        _oled->drawString(64, 0, String(int(percent)) + "%");
+        show(percentLayout64, String(pct) + '%');
     }
 }
-
-void OLED::show_dro(const float* axes, bool is_mpos, bool* limits) {
+void OLED::show_dro(const float* axes, bool isMpos, bool* limits) {
     if (_state == "Alarm") {
+        return;
+    }
+    if (_width == 128 && _filename.length()) {
+        // wide displays will show a progress bar instead of DROs
         return;
     }
 
     auto n_axis = config->_axes->_numberAxis;
     char axisVal[20];
 
-    _oled->setTextAlignment(TEXT_ALIGN_LEFT);
-    _oled->setFont(SMALL_FONT);
+    show(limitLabelLayout, "L");
+    show(posLabelLayout, isMpos ? "M Pos" : "W Pos");
 
-    if (_width == 128) {
-        _oled->drawString(80, 14, "L");  // Limit switch
-    }
-
-    _oled->setTextAlignment(TEXT_ALIGN_RIGHT);
-
-    if (_width == 128) {
-        _oled->drawString(60, 14, is_mpos ? "M Pos" : "W Pos");
-    }
-
+    _oled->setFont(ArialMT_Plain_10);
     uint8_t oled_y_pos;
     for (uint8_t axis = X_AXIS; axis < n_axis; axis++) {
-        oled_y_pos = (_height == 64 ? 24 : 17) + (axis * 10);
+        oled_y_pos = ((_height == 64) ? 24 : 17) + (axis * 10);
 
         String axis_letter = String(Machine::Axes::_names[axis]);
         if (_width == 128) {
@@ -174,26 +166,26 @@ void OLED::show_dro(const float* axes, bool is_mpos, bool* limits) {
 
         _oled->setTextAlignment(TEXT_ALIGN_RIGHT);
         snprintf(axisVal, 20 - 1, "%.3f", axes[axis]);
-        _oled->drawString(_width = 128 ? 60 : 63, oled_y_pos, axisVal);
+        _oled->drawString((_width == 128) ? 60 : 63, oled_y_pos, axisVal);
     }
     _oled->display();
 }
 
-void OLED::showRadioInfo() {
-    _oled->setTextAlignment(TEXT_ALIGN_LEFT);
-    _oled->setFont(SMALL_FONT);
-
+void OLED::show_radio_info() {
+    if (_filename.length()) {
+        return;
+    }
     if (_width == 128) {
         if (_state == "Alarm") {
-            wrappedDrawString(18, _radio_info, SMALL_FONT);
-            wrappedDrawString(30, _radio_addr, SMALL_FONT);
-        } else {
-            _oled->drawString(50, 0, _radio_info);
+            wrapped_draw_string(18, _radio_info, ArialMT_Plain_10);
+            wrapped_draw_string(30, _radio_addr, ArialMT_Plain_10);
+        } else if (_state != "Run") {
+            show(radioAddrLayout, _radio_addr);
         }
     } else {
         if (_state == "Alarm") {
-            wrappedDrawString(10, _radio_info, SMALL_FONT);
-            wrappedDrawString(28, _radio_addr, SMALL_FONT);
+            wrapped_draw_string(10, _radio_info, ArialMT_Plain_10);
+            wrapped_draw_string(28, _radio_addr, ArialMT_Plain_10);
         }
     }
 }
@@ -244,8 +236,7 @@ void OLED::parse_status_report() {
 
     float* axes;
     bool   isMpos = false;
-
-    _oled->clear();
+    _filename     = "";
 
     // ... handle it
     while (nextpos != std::string::npos) {
@@ -347,19 +338,18 @@ void OLED::parse_status_report() {
             continue;
         }
         if (tag == "SD") {
-            auto comma   = value.find_first_of(",");
-            auto percent = std::strtof(value.substr(0, comma).c_str(), nullptr);
-            auto file    = value.substr(comma + 1);
-            show_file(percent, file.c_str());
+            auto commaPos = value.find_first_of(",");
+            _percent      = std::strtof(value.substr(0, commaPos).c_str(), nullptr);
+            _filename     = value.substr(commaPos + 1);
             continue;
         }
     }
-    if (_width == 128) {
-        show_limits(probe, limits);
-    }
-    show_state(_state);
+    _oled->clear();
+    show_state();
+    show_file();
+    show_limits(probe, limits);
     show_dro(axes, isMpos, limits);
-    showRadioInfo();
+    show_radio_info();
     _oled->display();
 }
 
@@ -401,8 +391,8 @@ void OLED::parse_STA() {
     _radio_info       = String(ssid.c_str());
 
     _oled->clear();
-    auto fh = font_height(SMALL_FONT);
-    wrappedDrawString(0, _radio_info, SMALL_FONT);
+    auto fh = font_height(ArialMT_Plain_10);
+    wrapped_draw_string(0, _radio_info, ArialMT_Plain_10);
     _oled->display();
 }
 
@@ -413,9 +403,9 @@ void OLED::parse_IP() {
     _radio_addr        = String(ipaddr.c_str());
 
     _oled->clear();
-    auto fh = font_height(SMALL_FONT);
-    wrappedDrawString(0, _radio_info, SMALL_FONT);
-    wrappedDrawString(fh * 2, _radio_addr, SMALL_FONT);
+    auto fh = font_height(ArialMT_Plain_10);
+    wrapped_draw_string(0, _radio_info, ArialMT_Plain_10);
+    wrapped_draw_string(fh * 2, _radio_addr, ArialMT_Plain_10);
     _oled->display();
     delay_ms(_radio_delay);
 }
@@ -433,9 +423,9 @@ void OLED::parse_AP() {
     _radio_addr = String(ipaddr.c_str());
 
     _oled->clear();
-    auto fh = font_height(SMALL_FONT);
-    wrappedDrawString(0, _radio_info, SMALL_FONT);
-    wrappedDrawString(fh * 2, _radio_addr, SMALL_FONT);
+    auto fh = font_height(ArialMT_Plain_10);
+    wrapped_draw_string(0, _radio_info, ArialMT_Plain_10);
+    wrapped_draw_string(fh * 2, _radio_addr, ArialMT_Plain_10);
     _oled->display();
     delay_ms(_radio_delay);
 }
@@ -447,7 +437,7 @@ void OLED::parse_BT() {
     _radio_info += btname.c_str();
 
     _oled->clear();
-    wrappedDrawString(0, _radio_info, SMALL_FONT);
+    wrapped_draw_string(0, _radio_info, ArialMT_Plain_10);
     _oled->display();
     delay_ms(_radio_delay);
 }
@@ -516,19 +506,21 @@ struct xfont_t {
     uint8_t nchars;
     glyph_t glyphs[];
 };
-size_t OLED::charWidth(char c, font_t font) {
+size_t OLED::char_width(char c, font_t font) {
     xfont_t* xf    = (xfont_t*)font;
     int      index = c - xf->first;
-    return index < 0 ? 0 : xf->glyphs[index].width;
+    return (index < 0) ? 0 : xf->glyphs[index].width;
 }
 
-void OLED::wrappedDrawString(int16_t y, String& s, font_t font) {
+void OLED::wrapped_draw_string(int16_t y, const String& s, font_t font) {
     _oled->setFont(font);
+    _oled->setTextAlignment(TEXT_ALIGN_LEFT);
+
     size_t slen   = s.length();
     size_t swidth = 0;
     size_t i;
     for (i = 0; i < slen && swidth < _width; i++) {
-        swidth += charWidth(s[i], font);
+        swidth += char_width(s[i], font);
         if (swidth > _width) {
             break;
         }

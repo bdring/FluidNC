@@ -10,6 +10,25 @@
 typedef const uint8_t* font_t;
 
 class OLED : public Channel, public Configuration::Configurable {
+public:
+    struct Layout {
+        uint8_t                    _x;
+        uint8_t                    _y;
+        uint8_t                    _width_required;
+        font_t                     _font;
+        OLEDDISPLAY_TEXT_ALIGNMENT _align;
+    };
+    static Layout bannerLayout128;
+    static Layout bannerLayout64;
+    static Layout stateLayout;
+    static Layout tickerLayout;
+    static Layout filenameLayout;
+    static Layout percentLayout128;
+    static Layout percentLayout64;
+    static Layout limitLabelLayout;
+    static Layout posLabelLayout;
+    static Layout radioAddrLayout;
+
 private:
     std::string _report;
 
@@ -17,6 +36,10 @@ private:
     String _radio_addr;
 
     std::string _state;
+    std::string _filename;
+
+    float       _percent;
+    std::string _ticker;
 
     int _radio_delay = 0;
 
@@ -34,16 +57,27 @@ private:
     void   parse_numbers(std::string s, float* nums, int maxnums);
 
     void show_limits(bool probe, const bool* limits);
-    void show_state(std::string& state);
-    void show_file(float percent, const char* filename);
-    void show_dro(const float* axes, bool is_mpos, bool* limits);
-    void showRadioInfo();
+    void show_state();
+    void show_file();
+    void show_dro(const float* axes, bool isMpos, bool* limits);
+    void show_radio_info();
     void draw_checkbox(int16_t x, int16_t y, int16_t width, int16_t height, bool checked);
-    void wrappedDrawString(int16_t y, String& s, font_t font);
+
+    void wrapped_draw_string(int16_t y, const String& s, font_t font);
+
+    void show(Layout& layout, const String& msg);
+    void show(Layout& layout, const char* msg) {
+        String s(msg);
+        show(layout, s);
+    }
+    void show(Layout& layout, const std::string& msg) {
+        String s(msg.c_str());
+        show(layout, s);
+    }
 
     uint8_t font_width(font_t font);
     uint8_t font_height(font_t font);
-    size_t  charWidth(char s, font_t font);
+    size_t  char_width(char s, font_t font);
 
     OLEDDISPLAY_GEOMETRY _geometry = GEOMETRY_64_48;
 
