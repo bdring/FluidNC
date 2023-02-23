@@ -9,7 +9,7 @@ kinematics:
   Cartesian:
 
 stepping:
-  engine: I2S_STREAM
+  engine: I2S_STATIC
   idle_ms: 255
   pulse_us: 4
   dir_delay_us: 1
