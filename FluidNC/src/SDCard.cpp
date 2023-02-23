@@ -23,7 +23,7 @@ void SDCard::init() {
         if (!config->_spi->defined()) {
             log_error("SD needs SPI defined");
         } else {
-            log_info("SD Card cs_pin:" << _cs.name() << " detect:" << _cardDetect.name());
+            log_info("SD Card cs_pin:" << _cs.name() << " detect:" << _cardDetect.name() << " freq:" << _frequency_hz);
             init_message = false;
         }
         _cs.setAttr(Pin::Attr::Output);
