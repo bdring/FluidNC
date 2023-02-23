@@ -426,6 +426,7 @@ namespace Machine {
             sys.state = State::Alarm;
             return;
         }
+
         // Find any cycles that set the m_pos without motion
         auto n_axis = config->_axes->_numberAxis;
         for (int axis = X_AXIS; axis < n_axis; axis++) {
@@ -434,8 +435,9 @@ namespace Machine {
                     float* mpos = get_mpos();
                     mpos[axis]  = config->_axes->_axis[axis]->_homing->_mpos;
                     set_motor_steps_from_mpos(mpos);
-                    if (axisMask == 1 << axis)  // If this was a $H<axis> command
+                    if (axisMask == 1 << axis)
                         return;
+                    axisMask &= ~(1 << axis);
                 }
             }
         }
