@@ -67,7 +67,9 @@ namespace Machine {
         protocol_send_event(&cycleStartEvent);
     }
 
-    static MotorMask limited() { return Machine::Axes::posLimitMask | Machine::Axes::negLimitMask; }
+    static MotorMask limited() {
+        return Machine::Axes::posLimitMask | Machine::Axes::negLimitMask;
+    }
 
     void Homing::cycleStop() {
         log_debug("CycleStop " << phaseName(_phase));
@@ -420,9 +422,25 @@ namespace Machine {
     // cycle.  The protocol loop will then respond to events and advance
     // the homing state machine through its phases.
     void Homing::run_cycles(AxisMask axisMask) {
-        if (!config->_kinematics->canHome(axisMask)) {            
+        if (!config->_kinematics->canHome(axisMask)) {
             sys.state = State::Alarm;
             return;
+        }
+
+        // Find any cycles that set the m_pos without motion
+        auto n_axis = config->_axes->_numberAxis;
+        for (int axis = X_AXIS; axis < n_axis; axis++) {
+            if (config->_axes->_axis[axis]->_homing->_cycle == set_mpos_only) {
+                if (axisMask == 0 || axisMask & 1 << axis) {
+                    float* mpos = get_mpos();
+                    mpos[axis]  = config->_axes->_axis[axis]->_homing->_mpos;
+                    set_motor_steps_from_mpos(mpos);
+                    if (axisMask == bitnum_to_mask(axis))
+                        return;
+
+                    clear_bitnum(axisMask, axis);
+                }
+            }
         }
 
         while (!_remainingCycles.empty()) {
