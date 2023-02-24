@@ -435,9 +435,10 @@ namespace Machine {
                     float* mpos = get_mpos();
                     mpos[axis]  = config->_axes->_axis[axis]->_homing->_mpos;
                     set_motor_steps_from_mpos(mpos);
-                    if (axisMask == 1 << axis)
+                    if (axisMask == bitnum_to_mask(axis))
                         return;
-                    axisMask &= ~(1 << axis);
+
+                    clear_bitnum(axisMask, axis);
                 }
             }
         }
