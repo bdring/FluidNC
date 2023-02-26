@@ -39,6 +39,10 @@ namespace Machine {
         handler.section("axes", _axes);
         handler.section("kinematics", _kinematics);
         handler.section("i2so", _i2so);
+
+        handler.section("i2c0", _i2c[0], 0);
+        handler.section("i2c1", _i2c[1], 1);
+
         handler.section("spi", _spi);
         handler.section("sdcard", _sdCard);
         handler.section("control", _control);
@@ -57,6 +61,8 @@ namespace Machine {
         handler.item("enable_parking_override_control", _enableParkingOverrideControl);
         handler.item("use_line_numbers", _useLineNumbers);
         handler.item("planner_blocks", _planner_blocks, 10, 120);
+
+        handler.section("oled", _oled);
 
         Spindles::SpindleFactory::factory(handler, _spindles);
     }
