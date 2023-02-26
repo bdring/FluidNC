@@ -85,6 +85,15 @@ void setup() {
                     config->_sdCard->init();
                 }
             }
+            for (size_t i = 0; i < MAX_N_I2C; i++) {
+                if (config->_i2c[i]) {
+                    config->_i2c[i]->init();
+                }
+            }
+
+            if (config->_oled) {
+                config->_oled->init();
+            }
 
             config->_stepping->init();  // Configure stepper interrupt timers
 

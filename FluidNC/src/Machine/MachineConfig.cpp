@@ -45,6 +45,10 @@ namespace Machine {
         handler.section("uart_channel2", _uart_channels[2]);
 
         handler.section("i2so", _i2so);
+
+        handler.section("i2c0", _i2c[0], 0);
+        handler.section("i2c1", _i2c[1], 1);
+
         handler.section("spi", _spi);
         handler.section("sdcard", _sdCard);
 
@@ -60,7 +64,8 @@ namespace Machine {
 
         handler.section("user_outputs", _userOutputs);
 
-        // UartFactory::factory(handler, _uarts);
+        handler.section("oled", _oled);
+        
         Spindles::SpindleFactory::factory(handler, _spindles);
 
         // TODO: Consider putting these under a gcode: hierarchy level? Or motion control?

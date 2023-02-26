@@ -25,7 +25,8 @@ namespace Machine {
 
         Homing() = default;
 
-        static const int AllCycles = 0;  // Must be zero.
+        static const int AllCycles     = 0;   // Must be zero.
+        static const int set_mpos_only = -1;  // If homing cycle is this value then don't move, just set mpos
 
         static bool approach() { return _phase == FastApproach || _phase == SlowApproach; }
 
@@ -54,10 +55,10 @@ namespace Machine {
         float    _feed_scaler       = 1.1f;    // multiplier to pulloff for moving to switch after pulloff
 
         // Configuration system helpers:
-        void validate() const override { Assert(_cycle >= 0, "Homing cycle must be defined"); }
+        void validate() const override { Assert(_cycle >= set_mpos_only, "Homing cycle must be defined"); }
 
         void group(Configuration::HandlerBase& handler) override {
-            handler.item("cycle", _cycle, -1, 6);
+            handler.item("cycle", _cycle, set_mpos_only, MAX_N_AXIS);
             handler.item("allow_single_axis", _allow_single_axis);
             handler.item("positive_direction", _positiveDirection);
             handler.item("mpos_mm", _mpos);

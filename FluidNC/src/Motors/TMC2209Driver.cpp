@@ -66,7 +66,7 @@ namespace MotorDrivers {
                 auto homingFeedRate = (axisConfig->_homing != nullptr) ? axisConfig->_homing->_feedRate : 200;
                 log_debug(axisName() << " Stallguard");
                 tmc2209->en_spreadCycle(false);
-                tmc2209->pwm_autoscale(false);
+                tmc2209->pwm_autoscale(true);
                 tmc2209->TCOOLTHRS(calc_tstep(homingFeedRate, 150.0));
                 tmc2209->SGTHRS(_stallguard);
                 break;

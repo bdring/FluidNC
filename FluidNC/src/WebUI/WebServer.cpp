@@ -943,7 +943,7 @@ namespace WebUI {
                     j.begin_object();
                     j.member("name", dir_entry.path().filename().c_str());
                     j.member("shortname", dir_entry.path().filename().c_str());
-                    j.member("size", dir_entry.is_directory() ? String(-1) : formatBytes(dir_entry.file_size()));
+                    j.member("size", dir_entry.is_directory() ? -1 : dir_entry.file_size());
                     j.member("datetime", "");
                     j.end_object();
                 }
