@@ -6,8 +6,6 @@
 #include "TelnetServer.h"
 #include "WebSettings.h"
 
-#include "../Uart.h"
-
 #ifdef ENABLE_WIFI
 
 namespace WebUI {

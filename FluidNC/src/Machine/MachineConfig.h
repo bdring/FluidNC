@@ -74,6 +74,9 @@ namespace Machine {
         OLED*                 _oled           = nullptr;
         Spindles::SpindleList _spindles;
 
+        UartChannel* _uart_channels[MAX_N_UARTS] = { nullptr };
+        Uart*        _uarts[MAX_N_UARTS]         = { nullptr };
+
         float _arcTolerance      = 0.002f;
         float _junctionDeviation = 0.01f;
         bool  _verboseErrors     = false;

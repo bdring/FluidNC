@@ -46,8 +46,10 @@ namespace MotorDrivers {
 
         int _axis_index;
 
-        static Uart*   _uart;
-        bool           _my_uart = false;
+        static Uart* _uart;
+
+        int _uart_num = -1;
+
         static uint8_t _first_id;
         static uint8_t _last_id;
 
@@ -105,30 +107,17 @@ namespace MotorDrivers {
 
         // Configuration handlers:
         void validate() const override {
-            Assert(_uart != nullptr, "Dynamixel: Missing UART configuration");
-            Assert(!_uart->_rts_pin.undefined(), "Dynamixel: UART RTS pin must be configured.");
+            Assert(_uart_num != -1, "Dynamixel: Missing uart_num configuration");
             Assert(_id != 255, "Dynamixel: ID must be configured.");
         }
 
         void group(Configuration::HandlerBase& handler) override {
+            handler.item("uart_num", _uart_num);
             handler.item("id", _id);
 
             handler.item("count_min", _countMin);
             handler.item("count_max", _countMax);
             handler.item("timer_ms", _timer_ms);
-
-            if (_uart == nullptr) {
-                // If _uart is null this must be the parsing phase
-                handler.section("uart", _uart);
-                // If we just defined _uart, record that this is the enclosing instance
-                if (_uart != nullptr) {
-                    _my_uart = true;
-                }
-            } else if (_my_uart) {
-                // _uart is already defined and this is the enclosing instance, so we
-                // handle the uart section in a non-parsing phase
-                handler.section("uart", _uart);
-            }
         }
 
         // Name of the configurable. Must match the name registered in the cpp file.

@@ -2,6 +2,8 @@
 
 #include <driver/uart.h>
 
+const int MAX_N_UARTS = UART_NUM_MAX;
+
 enum class UartData : int {
     Bits5 = UART_DATA_5_BITS,
     Bits6 = UART_DATA_6_BITS,
@@ -20,4 +22,3 @@ enum class UartParity : int {
     Even = UART_PARITY_EVEN,
     Odd  = UART_PARITY_ODD,
 };
-

@@ -23,13 +23,13 @@ namespace MotorDrivers {
         void validate() const override { StandardStepper::validate(); }
 
         void group(Configuration::HandlerBase& handler) override {
+            TrinamicUartDriver::group(handler);
+
             handler.item("run_mode", _run_mode, trinamicModes);
             handler.item("homing_mode", _homing_mode, trinamicModes);
             handler.item("stallguard", _stallguard, 0, 255);
             handler.item("stallguard_debug", _stallguardDebugMode);
             handler.item("toff_coolstep", _toff_coolstep, 2, 15);
-
-            TrinamicUartDriver::group(handler);
         }
 
         // Name of the configurable. Must match the name registered in the cpp file.
