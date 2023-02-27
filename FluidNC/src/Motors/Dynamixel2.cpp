@@ -16,10 +16,9 @@
 #include "Dynamixel2.h"
 
 #include "../Machine/MachineConfig.h"
-#include "../System.h"     // mpos_to_steps() etc
-#include "../Limits.h"     // limitsMinPosition
-#include "../NutsBolts.h"  // map(), mapConstrain()
-#include "../Planner.h"    // plan_sync_position()
+#include "../System.h"   // mpos_to_steps() etc
+#include "../Limits.h"   // limitsMinPosition
+#include "../Planner.h"  // plan_sync_position()
 
 #include <cstdarg>
 #include <cmath>
@@ -41,12 +40,17 @@ namespace MotorDrivers {
         _axis_index = axis_index();
 
         if (!_uart_started) {
-            _uart->begin();
-            if (_uart->setHalfDuplex()) {
-                log_info("Dynamixel: UART set half duplex failed");
+            _uart = config->_uarts[_uart_num];
+            if (_uart->_rts_pin.undefined()) {
+                log_error("Dynamixel: UART RTS pin must be configured.");
+                _has_errors = true;
                 return;
             }
-            _uart->config_message("    dynamixel2", " ");
+            if (_uart->setHalfDuplex()) {
+                log_error("Dynamixel: UART set half duplex failed");
+                _has_errors = true;
+                return;
+            }
             _uart_started = true;
         }
 
@@ -58,6 +62,10 @@ namespace MotorDrivers {
 
         config_message();  // print the config
 
+        startUpdateTask(_timer_ms);
+    }
+
+    void Dynamixel2::config_motor() {
         if (!test()) {  // ping the motor
             _has_errors = true;
             return;
@@ -70,11 +78,11 @@ namespace MotorDrivers {
         LED_on(true);
         vTaskDelay(100);
         LED_on(false);
-
-        startUpdateTask(_timer_ms);
     }
 
-    void Dynamixel2::config_message() { log_info("    " << name() << " id::" << _id << " Count(" << _countMin << "," << _countMax << ")"); }
+    void Dynamixel2::config_message() {
+        log_info("    " << name() << " UART" << _uart_num << " id:" << _id << " Count(" << _countMin << "," << _countMax << ")");
+    }
 
     bool Dynamixel2::test() {
         uint16_t len = 3;
@@ -87,12 +95,12 @@ namespace MotorDrivers {
         if (len == PING_RSP_LEN) {
             uint16_t model_num = _dxl_rx_message[10] << 8 | _dxl_rx_message[9];
             if (model_num == 1060) {
-                log_info("    Model XL430-W250 F/W Rev " << String(_dxl_rx_message[11], HEX));
+                log_info("Axis ping reply " << axisName() << " Model XL430-W250 F/W Rev " << String(_dxl_rx_message[11], HEX));
             } else {
-                log_info("    M/N " << model_num << " F/W Rev " << String(_dxl_rx_message[11], HEX));
+                log_info("Axis ping reply " << axisName() << " M/N " << model_num << " F/W Rev " << String(_dxl_rx_message[11], HEX));
             }
         } else {
-            log_warn("    Ping failed");
+            log_warn(" Ping failed");
             return false;
         }
 
@@ -256,32 +264,32 @@ namespace MotorDrivers {
             uint8_t err = _dxl_rx_message[8];
             switch (err) {
                 case 1:
-                    log_info(name() << " ID " << _id << " Write fail error");
+                    log_error(name() << " ID " << _id << " Write fail error");
                     break;
                 case 2:
-                    log_info(name() << " ID " << _id << " Write instruction error");
+                    log_error(name() << " ID " << _id << " Write instruction error");
                     break;
                 case 3:
-                    log_info(name() << " ID " << _id << " Write access error");
+                    log_error(name() << " ID " << _id << " CRC Error");
                     break;
                 case 4:
-                    log_info(name() << " ID " << _id << " Write data range error");
+                    log_error(name() << " ID " << _id << " Write data range error");
                     break;
                 case 5:
-                    log_info(name() << " ID " << _id << " Write data length error");
+                    log_error(name() << " ID " << _id << " Write data length error");
                     break;
                 case 6:
-                    log_info(name() << " ID " << _id << " Write data limit error");
+                    log_error(name() << " ID " << _id << " Write data limit error");
                     break;
                 case 7:
-                    log_info(name() << " ID " << _id << " Write access error");
+                    log_error(name() << " ID " << _id << " Write access error addr:" << address);
                     break;
                 default:
                     break;
             }
         } else {
             // timeout
-            log_info(name() << " ID " << _id << " Timeout");
+            log_error(name() << " ID " << _id << " Timeout");
         }
     }
 
@@ -290,15 +298,16 @@ namespace MotorDrivers {
         uint32_t dxl_position;
 
         float* mpos = get_mpos();
+        float  motors[MAX_N_AXIS];
 
         dxl_count_min = float(_countMin);
         dxl_count_max = float(_countMax);
 
-        // map the mm range to the servo range
-        dxl_position = static_cast<uint32_t>(
-            mapConstrain(mpos[_axis_index], limitsMinPosition(_axis_index), limitsMaxPosition(_axis_index), dxl_count_min, dxl_count_max));
+        config->_kinematics->transform_cartesian_to_motors(motors, mpos);
 
-        log_debug("dxl:" << _id << " pos:" << dxl_position);
+        // map the mm range to the servo range
+        dxl_position = static_cast<uint32_t>(mapConstrain(
+            motors[_axis_index], limitsMinPosition(_axis_index), limitsMaxPosition(_axis_index), dxl_count_min, dxl_count_max));
 
         bulk_message[++bulk_message_index] = _id;                                // ID of the servo
         bulk_message[++bulk_message_index] = dxl_position & 0xFF;                // data
@@ -307,7 +316,12 @@ namespace MotorDrivers {
         bulk_message[++bulk_message_index] = (dxl_position & 0xFF000000) >> 24;  // data
     }
 
-    void Dynamixel2::send_bulk_message() { dxl_finish_message(DXL_BROADCAST_ID, bulk_message, bulk_message_index - DXL_MSG_INSTR + 1); }
+    void Dynamixel2::send_bulk_message() {
+        //static uint64_t ping = esp_timer_get_time() / 1000;
+        //log_debug("Ping:" << esp_timer_get_time() / 1000 - ping);
+        //ping = esp_timer_get_time() / 1000;
+        dxl_finish_message(DXL_BROADCAST_ID, bulk_message, bulk_message_index - DXL_MSG_INSTR + 3);
+    }
 
     /*
     Static
@@ -339,8 +353,10 @@ namespace MotorDrivers {
         msg[msg_len + 5] = crc & 0xFF;  // CRC_L
         msg[msg_len + 6] = (crc & 0xFF00) >> 8;
 
-        _uart->flush();
+        _uart->flushRx();
         _uart->write(msg, msg_len + 7);
+
+        //hex_msg(msg, "0x", msg_len + 7);
     }
 
     // from http://emanual.robotis.com/docs/en/dxl/crc/

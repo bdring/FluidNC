@@ -20,7 +20,7 @@
 #include <soc/i2s_struct.h>
 #include <freertos/queue.h>
 #include <soc/gpio_periph.h>
-#include <driver/gpio.h>
+#include "Driver/fluidnc_gpio.h"
 
 // The <atomic> library routines are not in IRAM so they can crash when called from FLASH
 // The GCC intrinsic versions which are prefixed with __ are compiled inline
@@ -43,9 +43,6 @@ static uint32_t i2s_out_port_data = 0;
 static std::atomic<std::uint32_t> i2s_out_port_data = ATOMIC_VAR_INIT(0);
 
 #endif
-
-// Make Arduino functions available
-extern "C" void __digitalWrite(pinnum_t pin, uint8_t val);
 
 //
 // Configrations for DMA connected I2S
@@ -213,13 +210,13 @@ static int i2s_out_gpio_detach(pinnum_t ws, pinnum_t bck, pinnum_t data) {
 }
 
 static int i2s_out_gpio_shiftout(uint32_t port_data) {
-    __digitalWrite(i2s_out_ws_pin, 0);
+    gpio_write(i2s_out_ws_pin, 0);
     for (int i = 0; i < I2S_OUT_NUM_BITS; i++) {
-        __digitalWrite(i2s_out_data_pin, !!(port_data & bitnum_to_mask(I2S_OUT_NUM_BITS - 1 - i)));
-        __digitalWrite(i2s_out_bck_pin, 1);
-        __digitalWrite(i2s_out_bck_pin, 0);
+        gpio_write(i2s_out_data_pin, !!(port_data & bitnum_to_mask(I2S_OUT_NUM_BITS - 1 - i)));
+        gpio_write(i2s_out_bck_pin, 1);
+        gpio_write(i2s_out_bck_pin, 0);
     }
-    __digitalWrite(i2s_out_ws_pin, 1);  // Latch
+    gpio_write(i2s_out_ws_pin, 1);  // Latch
     return 0;
 }
 
@@ -236,7 +233,7 @@ static int i2s_out_stop() {
 
     // Force WS to LOW before detach
     // This operation prevents unintended WS edge trigger when detach
-    __digitalWrite(i2s_out_ws_pin, 0);
+    gpio_write(i2s_out_ws_pin, 0);
 
     // Now, detach GPIO pin from I2S
     i2s_out_gpio_detach(i2s_out_ws_pin, i2s_out_bck_pin, i2s_out_data_pin);
@@ -244,7 +241,7 @@ static int i2s_out_stop() {
     // Force BCK to LOW
     // After the TX module is stopped, BCK always seems to be in LOW.
     // However, I'm going to do it manually to ensure the BCK's LOW.
-    __digitalWrite(i2s_out_bck_pin, 0);
+    gpio_write(i2s_out_bck_pin, 0);
 
     // Transmit recovery data to 74HC595
     uint32_t port_data = ATOMIC_LOAD(&i2s_out_port_data);  // current expanded port value
@@ -421,9 +418,14 @@ static void IRAM_ATTR i2s_out_intr_handler(void* arg) {
                 port_data = ATOMIC_LOAD(&i2s_out_port_data);
             }
             I2S_OUT_PULSER_EXIT_CRITICAL_ISR();
+#ifdef CONFIG_IDF_TARGET_ESP32
+            // lldesc_t.buf is const for S2.  Perhaps we can get by
+            // without replacing the data in the buffer since we are
+            // already in an error situation.
             for (int i = 0; i < DMA_SAMPLE_COUNT; i++) {
                 front_desc->buf[i] = port_data;
             }
+#endif
             front_desc->length = I2S_OUT_DMABUF_LEN;
         }
 
@@ -552,7 +554,7 @@ i2s_out_pulser_status_t i2s_out_get_pulser_status() {
     return s;
 }
 
-int i2s_out_set_passthrough() {
+int IRAM_ATTR i2s_out_set_passthrough() {
     I2S_OUT_PULSER_ENTER_CRITICAL();
     // Triggers a change of mode if it is compiled to use I2S stream.
     // The mode is not changed directly by this function.
@@ -736,6 +738,8 @@ int i2s_out_init(i2s_out_init_t& init_param) {
     I2S0.lc_conf.out_rst = 1;  // Set this bit to reset out DMA FSM. (R/W)
     I2S0.lc_conf.out_rst = 0;
 
+    // A lot of the stuff below could probably be replaced by i2s_set_clk();
+
     i2s_out_reset_fifo_without_lock();
 
     //Enable and configure DMA
@@ -749,8 +753,12 @@ int i2s_out_init(i2s_out_init_t& init_param) {
     I2S0.lc_conf.out_eof_mode       = 1;  // I2S_OUT_EOF_INT generated when DMA has popped all data from the FIFO;
     I2S0.conf2.lcd_en               = 0;
     I2S0.conf2.camera_en            = 0;
-    I2S0.pdm_conf.pcm2pdm_conv_en   = 0;
-    I2S0.pdm_conf.pdm2pcm_conv_en   = 0;
+#ifdef SOC_I2S_SUPPORTS_PDM_TX
+    // i2s_ll_tx_enable_pdm(dev, false);
+    // i2s_ll_tx_enable_pdm(dev2, false);
+    I2S0.pdm_conf.pcm2pdm_conv_en = 0;
+    I2S0.pdm_conf.pdm2pcm_conv_en = 0;
+#endif
 
     I2S0.fifo_conf.dscr_en = 0;
 
@@ -790,8 +798,14 @@ int i2s_out_init(i2s_out_init_t& init_param) {
 
     I2S0.conf.tx_slave_mod              = 0;  // Master
     I2S0.fifo_conf.tx_fifo_mod_force_en = 1;  //The bit should always be set to 1.
-    I2S0.pdm_conf.rx_pdm_en             = 0;  // Set this bit to enable receiver’s PDM mode.
-    I2S0.pdm_conf.tx_pdm_en             = 0;  // Set this bit to enable transmitter’s PDM mode.
+#ifdef SOC_I2S_SUPPORTS_PDM_RX
+    //i2s_ll_rx_enable_pdm(dev, false);
+    I2S0.pdm_conf.rx_pdm_en = 0;  // Set this bit to enable receiver’s PDM mode.
+#endif
+#ifdef SOC_I2S_SUPPORTS_PDM_TX
+    //i2s_ll_tx_enable_pdm(dev, false);
+    I2S0.pdm_conf.tx_pdm_en = 0;  // Set this bit to enable transmitter’s PDM mode.
+#endif
 
     // I2S_COMM_FORMAT_I2S_LSB
     I2S0.conf.tx_short_sync = 0;  // Set this bit to enable transmitter in PCM standard mode.
@@ -804,8 +818,11 @@ int i2s_out_init(i2s_out_init_t& init_param) {
     //
 
     // set clock (fi2s) 160MHz / 5
+#ifdef CONFIG_IDF_TARGET_ESP32
+    // i2s_ll_rx_clk_set_src(dev, I2S_CLK_D2CLK);
     I2S0.clkm_conf.clka_en = 0;  // Use 160 MHz PLL_D2_CLK as reference
-                                 // N + b/a = 0
+#endif
+        // N + b/a = 0
 #if I2S_OUT_NUM_BITS == 16
     // N = 10
     I2S0.clkm_conf.clkm_div_num = 10;  // minimum value of 2, reset value of 4, max 256 (I²S clock divider’s integral value)

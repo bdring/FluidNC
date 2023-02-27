@@ -4,9 +4,23 @@
 
 #pragma once
 
-#include "../Configuration/Configurable.h"
-#include "../WebUI/InputBuffer.h"  // WebUI::inputBuffer
-#include "../Uart.h"
+#include "src/Configuration/Configurable.h"
+#include "src/WebUI/InputBuffer.h"  // WebUI::inputBuffer
+#include "src/UartChannel.h"
+#include "src/Event.h"
+
+class MacroEvent : public Event {
+    int _num;
+
+public:
+    MacroEvent(int num) : _num(num) {}
+    void run(void*) override;
+};
+
+extern MacroEvent macro0Event;
+extern MacroEvent macro1Event;
+extern MacroEvent macro2Event;
+extern MacroEvent macro3Event;
 
 namespace Machine {
     class Macros : public Configuration::Configurable {
@@ -21,23 +35,7 @@ namespace Machine {
     public:
         Macros() = default;
 
-        bool run_macro(size_t index) {
-            if (index >= n_macros) {
-                return false;
-            }
-            String macro = _macro[index];
-            if (macro == "") {
-                return true;
-            }
-
-            // & is a proxy for newlines in macros, because you cannot
-            // enter a newline directly in a config file string value.
-            macro.replace('&', '\n');
-            macro += "\n";
-
-            WebUI::inputBuffer.push(macro.c_str());
-            return true;
-        }
+        bool run_macro(size_t index);
 
         String startup_line(size_t index) {
             if (index >= n_startup_lines) {

@@ -21,9 +21,7 @@
 */
 #include "BESCSpindle.h"
 
-#include "../Pins/LedcPin.h"
-
-#include <soc/ledc_struct.h>
+#include "Driver/PwmPin.h"  // pwmInit(), etc.
 
 namespace Spindles {
     void BESC::init() {
@@ -36,31 +34,27 @@ namespace Spindles {
 
         // override some settings in the PWM base class to what is required for a BESC
         constrain_with_message(_pwm_freq, besc_pwm_min_freq, besc_pwm_max_freq, "pwm_freq");
-        _pwm_precision = 16;
-        _pwm_period    = (1 << _pwm_precision);
 
-        _pwm_chan_num = ledcInit(_output_pin, -1, double(_pwm_freq), _pwm_precision);  // allocate and setup a PWM channel
+        _pwm = new PwmPin(_output_pin, _pwm_freq);  // allocate and setup a PWM channel
 
         _enable_pin.setAttr(Pin::Attr::Output);
 
         // BESC PWM typically represents 0 speed as a 1ms pulse and max speed as a 2ms pulse
 
         // 1000000 is us/sec
-        const uint32_t pulse_period_us = 1000000 / _pwm_freq;
+        const uint32_t pulse_period_us = 1000000 / _pwm->frequency();
 
-        // Calculate the pulse length offset and scaler in counts of the LEDC controller
-        _min_pulse_counts  = (_min_pulse_us << _pwm_precision) / pulse_period_us;
-        _pulse_span_counts = ((_max_pulse_us - _min_pulse_us) << _pwm_precision) / pulse_period_us;
+        // Calculate the pulse length offset and scaler in counts of the PWM controller
+        _min_pulse_counts  = (_min_pulse_us * _pwm->period()) / pulse_period_us;
+        _pulse_span_counts = ((_max_pulse_us - _min_pulse_us) * _pwm->period()) / pulse_period_us;
 
         if (_speeds.size() == 0) {
             shelfSpeeds(4000, 20000);
         }
 
-        // We set the dev_speed scale in the speed map to the full PWM period (64K)
-        // Then, in set_output, we map the dev_speed range of 0..64K to the pulse
-        // length range of ~1ms .. 2ms
-        setupSpeeds(_pwm_period);
-
+        // Use yaml speed_map to setup speed map for "spindle speed" conversion to timer counts used by PWM controller
+        //setupSpeeds(_pulse_span_counts); // Map the counts for just the part of the pulse that changes to keep math inside 32bits later...
+        setupSpeeds(_pwm->period());       // Map the entire pulse width period in counts
         stop();
         config_message();
     }
@@ -70,7 +64,7 @@ namespace Spindles {
             return;
         }
 
-        // to prevent excessive calls to ledcSetDuty, make sure duty has changed
+        // to prevent excessive calls to pwmSetDuty, make sure duty has changed
         if (duty == _current_pwm_duty) {
             return;
         }
@@ -81,15 +75,18 @@ namespace Spindles {
         // where _min_pulse_counts represents off and (_min_pulse_counts + _pulse_span_counts)
         // represents full on.  Typically the off value is a 1ms pulse length and the
         // full on value is a 2ms pulse.
-        uint32_t pulse_counts = _min_pulse_counts + ((duty * _pulse_span_counts) >> _pwm_precision);
+        // uint32_t pulse_counts = _min_pulse_counts + (_pulse_span_counts * (uint64_t) duty)/_pwm->period();
+        _pwm->setDuty(_min_pulse_counts + (_pulse_span_counts * (uint64_t) duty)/_pwm->period());
+        // _pwm->setDuty(_min_pulse_counts+duty); // More efficient by keeping math within 32bits??
+        // log_info(name() << " duty:" << duty << " _min_pulse_counts:" << _min_pulse_counts
+        //                 << " _pulse_span_counts:" << _pulse_span_counts << " pulse_counts" << pulse_counts);
 
-        ledcSetDuty(_pwm_chan_num, pulse_counts);
     }
 
     // prints the startup message of the spindle config
     void BESC::config_message() {
         log_info(name() << " Spindle Out:" << _output_pin.name() << " Min:" << _min_pulse_us << "us Max:" << _max_pulse_us
-                        << "us Freq:" << _pwm_freq << "Hz Res:" << _pwm_precision << "bits");
+                        << "us Freq:" << _pwm->frequency() << "Hz Full Period count:" << _pwm->period());
     }
 
     // Configuration registration

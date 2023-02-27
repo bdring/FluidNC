@@ -67,16 +67,18 @@ namespace Machine {
 
     bool Motor::isReal() { return _driver->isReal(); }
 
-    void Motor::step(bool reverse) {
+    void IRAM_ATTR Motor::step(bool reverse) {
         // Skip steps based on limit pins
-        if (_blocked || (_limited && (Homing::_approach || (sys.state != State::Homing && _hardLimits)))) {
+        // _blocked is for asymmetric pulloff
+        // _limited is for limit pins
+        if (_blocked || _limited) {
             return;
         }
         _driver->step();
         _steps += reverse ? -1 : 1;
     }
 
-    void Motor::unstep() { _driver->unstep(); }
+    void IRAM_ATTR Motor::unstep() { _driver->unstep(); }
 
     Motor::~Motor() { delete _driver; }
 }

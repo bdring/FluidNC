@@ -32,6 +32,9 @@ namespace Machine {
             _homing         = new Homing();
             _homing->_cycle = 0;
         }
+        if (_motors[0] == nullptr) {
+            _motors[0] = new Machine::Motor(_axis, 0);
+        }
     }
 
     void Axis::init() {
@@ -45,6 +48,11 @@ namespace Machine {
         if (_homing) {
             _homing->init();
             set_bitnum(Axes::homingMask, _axis);
+        }
+
+        if (!_motors[0] && _motors[1]) {
+            sys.state = State::ConfigAlarm;
+            log_error("motor1 defined without motor0");
         }
 
         // If dual motors and only one motor has switches, this is the configuration

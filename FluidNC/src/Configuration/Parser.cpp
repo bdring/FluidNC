@@ -6,7 +6,7 @@
 #include "ParseException.h"
 #include "../EnumItem.h"
 
-#include "../Logging.h"
+#include "../Config.h"
 
 #include <climits>
 #include <math.h>  // round
@@ -38,7 +38,9 @@ namespace Configuration {
         return result;
     }
 
-    StringRange Parser::stringValue() const { return StringRange(token_.sValueStart_, token_.sValueEnd_); }
+    StringRange Parser::stringValue() const {
+        return StringRange(token_.sValueStart_, token_.sValueEnd_);
+    }
 
     bool Parser::boolValue() const {
         auto str = StringRange(token_.sValueStart_, token_.sValueEnd_);
@@ -49,6 +51,20 @@ namespace Configuration {
         auto    str = StringRange(token_.sValueStart_, token_.sValueEnd_);
         int32_t value;
         if (str.isInteger(value)) {
+            return value;
+        }
+        float fvalue;
+        if (str.isFloat(fvalue)) {
+            return lroundf(fvalue);
+        }
+        parseError("Expected an integer value");
+        return 0;
+    }
+
+    uint32_t Parser::uintValue() const {
+        auto     str = StringRange(token_.sValueStart_, token_.sValueEnd_);
+        uint32_t value;
+        if (str.isUnsignedInteger(value)) {
             return value;
         }
         float fvalue;

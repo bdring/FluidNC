@@ -24,8 +24,7 @@ namespace WebUI {
 #    include "Commands.h"
 
 #    include <WiFi.h>
-#    include <FS.h>
-#    include "../LocalFS.h"
+#    include "Driver/localfs.h"
 #    include <ESPmDNS.h>
 #    include <ArduinoOTA.h>
 #    include "WebSettings.h"
@@ -52,7 +51,7 @@ namespace WebUI {
                     type = "sketch";
                 } else {
                     type = "filesystem";
-                    LocalFS.end();
+                    localfs_unmount();
                 }
                 log_info("Start OTA updating " << type);
             })

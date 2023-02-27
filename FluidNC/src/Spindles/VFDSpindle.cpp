@@ -258,13 +258,17 @@ namespace Spindles {
         _sync_dev_speed = 0;
         _syncing        = false;
 
-        // fail if required items are not defined
-        // get_pins_and_settings reports detailed error messages
-        if (!get_pins_and_settings()) {
-            return;
+        // The following lets you have either a uart: section below the VFD section,
+        // or "uart_num: N" referring to an externally defined uartN: section - but not both
+        if (_uart) {
+            _uart->begin();
+        } else {
+            _uart = config->_uarts[_uart_num];
+            if (!_uart) {
+                log_error("VFDSpindle: Missing uart" << _uart_num << "section");
+                return;
+            }
         }
-
-        _uart->begin();
 
         if (_uart->setHalfDuplex()) {
             log_info("VFD: RS485 UART set half duplex failed");
@@ -296,15 +300,10 @@ namespace Spindles {
         set_mode(SpindleState::Disable, true);
     }
 
-    // Checks for all the required pin definitions
-    // It returns a message for each missing pin
-    // Returns true if all pins are defined.
-    bool VFD::get_pins_and_settings() { return true; }
-
     void VFD::config_message() { _uart->config_message(name(), " Spindle "); }
 
     void VFD::setState(SpindleState state, SpindleSpeed speed) {
-        log_info("VFD setState:" << uint8_t(state) << " SpindleSpeed:" << speed);
+        log_debug("VFD setState:" << uint8_t(state) << " SpindleSpeed:" << speed);
         if (sys.abort) {
             return;  // Block during abort.
         }

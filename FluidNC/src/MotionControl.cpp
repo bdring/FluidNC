@@ -12,7 +12,6 @@
 #include "Protocol.h"        // protocol_execute_realtime
 #include "Planner.h"         // plan_reset, etc
 #include "I2SOut.h"          // i2s_out_reset
-#include "InputFile.h"       // infile
 #include "Platform.h"        // WEAK_LINK
 #include "Settings.h"        // coords
 
@@ -77,7 +76,6 @@ bool mc_move_motors(float* target, plan_line_data_t* pl_data) {
 
         // While we are waiting for room in the buffer, look for realtime
         // commands and other situations that could cause state changes.
-        pollChannels();
         protocol_execute_realtime();
         if (sys.abort) {
             mc_pl_data_inflight = NULL;
@@ -123,7 +121,8 @@ void mc_arc(float*            target,
             size_t            axis_0,
             size_t            axis_1,
             size_t            axis_linear,
-            bool              is_clockwise_arc) {
+            bool              is_clockwise_arc,
+            int               pword_rotations) {
     float center_axis0 = position[axis_0] + offset[axis_0];
     float center_axis1 = position[axis_1] + offset[axis_1];
     float r_axis0      = -offset[axis_0];  // Radius vector from center to current location
@@ -144,9 +143,18 @@ void mc_arc(float*            target,
         if (angular_travel >= -ARC_ANGULAR_TRAVEL_EPSILON) {
             angular_travel -= 2 * float(M_PI);
         }
+        // See https://linuxcnc.org/docs/2.6/html/gcode/gcode.html#sec:G2-G3-Arc
+        // The P word specifies the number of extra rotations.  Missing P, P0 or P1
+        // is just the programmed arc.  Pn adds n-1 rotations
+        if (pword_rotations > 1) {
+            angular_travel -= (pword_rotations - 1) * 2 * float(M_PI);
+        }
     } else {
         if (angular_travel <= ARC_ANGULAR_TRAVEL_EPSILON) {
             angular_travel += 2 * float(M_PI);
+        }
+        if (pword_rotations > 1) {
+            angular_travel += (pword_rotations - 1) * 2 * float(M_PI);
         }
     }
 
@@ -252,39 +260,6 @@ bool mc_dwell(int32_t milliseconds) {
     return delay_msec(milliseconds, DwellMode::Dwell);
 }
 
-// Perform homing cycle to locate and set machine zero. Only '$H' executes this command.
-// NOTE: There should be no motions in the buffer and the system must be in idle state before
-// executing the homing cycle. This prevents incorrect buffered plans after homing.
-void mc_homing_cycle(AxisMask axis_mask) {
-    if (config->_kinematics->kinematics_homing(axis_mask)) {
-        // Allow kinematics to replace homing.
-        // TODO: Better integrate this logic.
-        return;
-    }
-
-    // Abort homing cycle if an axis has limit switches engaged on both ends,
-    // or if it is impossible to tell which end is engaged.  In that situation
-    // we do not know the pulloff direction.
-    if (ambiguousLimit()) {
-        return;
-    }
-
-    // Might set an alarm; if so protocol_execute_realtime will handle it
-    Machine::Homing::run_cycles(axis_mask);
-
-    protocol_execute_realtime();  // Check for reset and set system abort.
-    if (sys.abort) {
-        return;  // Did not complete. Alarm state set by mc_alarm.
-    }
-    // Homing cycle complete! Setup system for normal operation.
-    // -------------------------------------------------------------------------------------
-    // Sync gcode parser and planner positions to homed position.
-    gc_sync_position();
-    plan_sync_position();
-    // This give kinematics a chance to do something after normal homing
-    config->_kinematics->kinematics_post_homing();
-}
-
 volatile ProbeState probeState;
 
 bool probe_succeeded = false;
@@ -324,9 +299,8 @@ GCUpdatePos mc_probe_cycle(float* target, plan_line_data_t* pl_data, bool away, 
     // Activate the probing state monitor in the stepper module.
     probeState = ProbeState::Active;
     // Perform probing cycle. Wait here until probe is triggered or motion completes.
-    rtCycleStart = true;
+    protocol_send_event(&cycleStartEvent);
     do {
-        pollChannels();
         protocol_execute_realtime();
         if (sys.abort) {
             config->_stepping->endLowLatency();
@@ -383,31 +357,6 @@ GCUpdatePos mc_probe_cycle(float* target, plan_line_data_t* pl_data, bool away, 
     }
 }
 
-// Plans and executes the single special motion case for parking. Independent of main planner buffer.
-// NOTE: Uses the always free planner ring buffer head to store motion parameters for execution.
-void mc_parking_motion(float* parking_target, plan_line_data_t* pl_data) {
-    if (sys.abort) {
-        return;  // Block during abort.
-    }
-    if (plan_buffer_line(parking_target, pl_data)) {
-        sys.step_control.executeSysMotion = true;
-        sys.step_control.endMotion        = false;  // Allow parking motion to execute, if feed hold is active.
-        Stepper::parking_setup_buffer();            // Setup step segment buffer for special parking motion case
-        Stepper::prep_buffer();
-        Stepper::wake_up();
-        do {
-            protocol_exec_rt_system();
-            if (sys.abort) {
-                return;
-            }
-        } while (sys.step_control.executeSysMotion);
-        Stepper::parking_restore_buffer();  // Restore step segment buffer to normal run state.
-    } else {
-        sys.step_control.executeSysMotion = false;
-        protocol_exec_rt_system();
-    }
-}
-
 void mc_override_ctrl_update(Override override_state) {
     // Finish all queued commands before altering override control state
     protocol_buffer_synchronize();
@@ -432,8 +381,7 @@ void mc_reset() {
         // NOTE: If steppers are kept enabled via the step idle delay setting, this also keeps
         // the steppers enabled by avoiding the go_idle call altogether, unless the motion state is
         // violated, by which, all bets are off.
-        if ((sys.state == State::Cycle || sys.state == State::Homing || sys.state == State::Jog) ||
-            (sys.step_control.executeHold || sys.step_control.executeSysMotion)) {
+        if (inMotionState() || sys.step_control.executeHold || sys.step_control.executeSysMotion) {
             if (sys.state == State::Homing) {
                 if (rtAlarm == ExecAlarm::None) {
                     rtAlarm = ExecAlarm::HomingFailReset;

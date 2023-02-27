@@ -24,5 +24,5 @@
 
     /* Pin Details */
     **Detail.cpp.o(.rodata .rodata.* .xt.prop .xt.prop.*)
-    *LedcPin.cpp.o(.rodata .rodata.* .xt.prop .xt.prop.*)
+    *PwmPin.cpp.o(.rodata .rodata.* .xt.prop .xt.prop.*)
     *Pin.cpp.o(.rodata .rodata.* .xt.prop .xt.prop.*)

@@ -25,7 +25,7 @@ namespace MotorDrivers {
         xLastWakeTime = xTaskGetTickCount();  // Initialise the xLastWakeTime variable with the current time.
         while (true) {                        // don't ever return from this or the task dies
             std::atomic_thread_fence(std::memory_order::memory_order_seq_cst);  // read fence for settings
-            if (sys.state == State::Cycle || sys.state == State::Homing || sys.state == State::Jog) {
+            if (inMotionState()) {
                 for (TrinamicBase* p = List; p; p = p->link) {
                     if (p->_stallguardDebugMode) {
                         //log_info("SG:" << p->_stallguardDebugMode);
@@ -119,6 +119,17 @@ namespace MotorDrivers {
                 return true;
         }
     }
+
+    bool TrinamicBase::checkVersion(uint8_t expected, uint8_t got) {
+        if (expected != got) {
+            log_error(axisName() << " TMC driver not detected - expected 0x" << String(expected, 16) << " got 0x" << String(got, 16));
+            return false;
+        }
+        log_info(axisName() << " driver test passed");
+        return true;
+    }
+
+    void TrinamicBase::reportCommsFailure(void) { log_info(axisName() << " communications check failed"); }
 
     bool TrinamicBase::startDisable(bool disable) {
         if (_has_errors) {

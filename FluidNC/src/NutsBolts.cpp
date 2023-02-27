@@ -3,8 +3,6 @@
 // Copyright (c) 2018 -	Bart Dring
 // Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
 
-#include "NutsBolts.h"
-
 #include "Machine/MachineConfig.h"
 #include "Protocol.h"  // protocol_exec_rt_system
 
@@ -105,7 +103,6 @@ void delay_ms(uint16_t ms) {
 // Non-blocking delay function used for general operation and suspend features.
 bool delay_msec(uint32_t milliseconds, DwellMode mode) {
     while (milliseconds--) {
-        pollChannels();
         if (mode == DwellMode::Dwell) {
             protocol_execute_realtime();
         } else {  // DwellMode::SysSuspend
@@ -218,6 +215,12 @@ bool multiple_bits_set(uint32_t val) {
     // bit and set only other bits giving e.g. 0b0111, and anding the two gives 0.
     // If multiple bits are set, subtracting 1 will not clear the high bit.
     return val & (val - 1);
+}
+
+const char* to_hex(uint32_t n) {
+    static char hexstr[12];
+    snprintf(hexstr, 11, "0x%x", n);
+    return hexstr;
 }
 
 String formatBytes(uint64_t bytes) {

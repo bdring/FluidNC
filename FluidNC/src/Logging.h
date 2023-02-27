@@ -5,6 +5,8 @@
 
 #include <cstdint>
 
+class Channel;
+
 enum MsgLevel {
     MsgLevelNone    = 0,
     MsgLevelError   = 1,
@@ -29,43 +31,50 @@ enum MsgLevel {
 
 #include "MyIOStream.h"
 
-class DebugStream : public Print {
+class LogStream : public Print {
 public:
-    DebugStream(const char* name);
+    LogStream(Channel& channel, const char* name);
+    LogStream(const char* name);
     size_t write(uint8_t c) override;
-    ~DebugStream();
+    ~LogStream();
+
+private:
+    Channel&     _channel;
+    std::string* _line;
 };
 
 extern bool atMsgLevel(MsgLevel level);
 
+// clang-format off
+
 // Note: these '{'..'}' scopes are here for a reason: the destructor should flush.
-#define log_debug(x)                                                                                                                       \
-    if (atMsgLevel(MsgLevelDebug)) {                                                                                                       \
-        DebugStream ss("DBG");                                                                                                             \
-        ss << x;                                                                                                                           \
-    }
 
-#define log_info(x)                                                                                                                        \
-    if (atMsgLevel(MsgLevelInfo)) {                                                                                                        \
-        DebugStream ss("INFO");                                                                                                            \
-        ss << x;                                                                                                                           \
-    }
+// #define log_bare(prefix, x) { LogStream ss(prefix); ss << x; }
+#define log_msg(x) { LogStream ss("[MSG: "); ss << x; }
+#define log_verbose(x) if (atMsgLevel(MsgLevelVerbose)) { LogStream ss("[MSG:VRB: "); ss << x; }
+#define log_debug(x) if (atMsgLevel(MsgLevelDebug)) { LogStream ss("[MSG:DBG: "); ss << x; }
+#define log_info(x) if (atMsgLevel(MsgLevelInfo)) { LogStream ss("[MSG:INFO: "); ss << x; }
+#define log_warn(x) if (atMsgLevel(MsgLevelWarning)) { LogStream ss("[MSG:WARN: "); ss << x; }
+#define log_error(x) if (atMsgLevel(MsgLevelError)) { LogStream ss("[MSG:ERR: "); ss << x; }
+#define log_fatal(x) { LogStream ss("[MSG:FATAL: "); ss << x;  Assert(false, "A fatal error occurred."); }
 
-#define log_warn(x)                                                                                                                        \
-    if (atMsgLevel(MsgLevelWarning)) {                                                                                                     \
-        DebugStream ss("WARN");                                                                                                            \
-        ss << x;                                                                                                                           \
-    }
+#define log_msg_to(out, x) { LogStream ss(out, "[MSG: "); ss << x; }
+#define log_verbose_to(out, x) if (atMsgLevel(MsgLevelVerbose)) { LogStream ss(out, "[MSG:VRB: "); ss << x; }
+#define log_debug_to(out, x) if (atMsgLevel(MsgLevelDebug)) { LogStream ss(out, "[MSG:DBG: "); ss << x; }
+#define log_info_to(out, x) if (atMsgLevel(MsgLevelInfo)) { LogStream ss(out, "[MSG:INFO: "); ss << x; }
+#define log_warn_to(out, x) if (atMsgLevel(MsgLevelWarning)) { LogStream ss(out, "[MSG:WARN: "); ss << x; }
+#define log_error_to(out, x) if (atMsgLevel(MsgLevelError)) { LogStream ss(out, "[MSG:ERR: "); ss << x; }
+#define log_fatal_to(out, x) { LogStream ss(out, "[MSG:FATAL: "); ss << x;  Assert(false, "A fatal error occurred."); }
 
-#define log_error(x)                                                                                                                       \
-    if (atMsgLevel(MsgLevelError)) {                                                                                                       \
-        DebugStream ss("ERR");                                                                                                             \
-        ss << x;                                                                                                                           \
-    }
+// GET_MACRO is a preprocessor trick to let log_to() behave differently
+// with 2 arguments vs 3.  The 2 argument case is super efficient
+// while the 3 argument case is slightly less so, but you get to contruct
+// the message string with << stream operators, while 2 arguments can
+// only send a fixed string.  The fixed-string case is especially important
+// because it is how the "ok" ack - the most common message - is sent.
 
-#define log_fatal(x)                                                                                                                       \
-    {                                                                                                                                      \
-        DebugStream ss("FATAL");                                                                                                           \
-        ss << x;                                                                                                                           \
-        Assert(false, "A fatal error occurred.");                                                                                          \
-    }
+#define GET_MACRO(_1,_2,_3, NAME, ...) NAME
+#define log_to(...) GET_MACRO(__VA_ARGS__, log_to3, log_to2)(__VA_ARGS__)
+
+#define log_to2(out, prefix) send_line(out, prefix)
+#define log_to3(out, prefix, x) { LogStream ss(out, prefix); ss << x; }

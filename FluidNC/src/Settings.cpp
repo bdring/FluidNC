@@ -3,6 +3,7 @@
 #include "WebUI/JSONEncoder.h"  // JSON
 #include "WebUI/WifiConfig.h"   // WebUI::WiFiConfig
 #include "WebUI/Commands.h"     // WebUI::COMMANDS
+#include "System.h"             // sys
 #include "Protocol.h"           // protocol_buffer_synchronize
 
 #include <map>
@@ -21,7 +22,7 @@ bool notIdleOrAlarm() {
     return sys.state != State::Idle && sys.state != State::Alarm && sys.state != State::ConfigAlarm;
 }
 bool cycleOrHold() {
-    return sys.state == State::Cycle && sys.state == State::Hold;
+    return sys.state == State::Cycle || sys.state == State::Hold;
 }
 
 Word::Word(type_t type, permissions_t permissions, const char* description, const char* grblName, const char* fullName) :

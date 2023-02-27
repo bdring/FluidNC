@@ -4,9 +4,7 @@
 #include "Assert.h"
 
 #include <esp32-hal-gpio.h>  // PULLUP, INPUT, OUTPUT
-extern "C" void __pinMode(pinnum_t pin, uint8_t mode);
-extern "C" int  __digitalRead(pinnum_t pin);
-extern "C" void __digitalWrite(pinnum_t pin, uint8_t val);
+#include "Driver/fluidnc_gpio.h"
 
 // Pin mapping lets you use non-GPIO pins as though they were GPIOs by
 // storing Pin object references in an array indexed by a small
@@ -21,8 +19,8 @@ extern "C" void __digitalWrite(pinnum_t pin, uint8_t val);
 // Matrix.  For such cases, the real GPIO number - lower than the
 // offset - can be used directly.  When the pinMode(), digitalWrite()
 // and digitalRead() overloads encounter a real GPIO number, they pass
-// the operation through to the lower level __pinMode(),
-// __digitalRead() and __digitalWrite() routines.
+// the operation through to the lower level gpio_mode(),
+// gpio_read() and gpio_write() routines.
 
 namespace {
     class PinMap {
@@ -98,7 +96,8 @@ PinMapper::~PinMapper() {
 // Arduino compatibility functions, which basically forward the call to the mapper:
 void IRAM_ATTR digitalWrite(pinnum_t pin, uint8_t val) {
     if (pin < PinMap::BOUNDARY) {
-        return __digitalWrite(pin, val);
+        gpio_write(pin, val);
+        return;
     }
     auto thePin = PinMap::instance()._mapping[pin - PinMap::BOUNDARY];
     if (thePin) {
@@ -108,7 +107,7 @@ void IRAM_ATTR digitalWrite(pinnum_t pin, uint8_t val) {
 
 void IRAM_ATTR pinMode(pinnum_t pin, uint8_t mode) {
     if (pin < PinMap::PinMap::BOUNDARY) {
-        __pinMode(pin, mode);
+        gpio_mode(pin, mode & INPUT, mode & OUTPUT, mode & PULLUP, mode & PULLDOWN, mode & OPEN_DRAIN);
         return;
     }
 
@@ -136,7 +135,7 @@ void IRAM_ATTR pinMode(pinnum_t pin, uint8_t mode) {
 
 int IRAM_ATTR digitalRead(pinnum_t pin) {
     if (pin < PinMap::BOUNDARY) {
-        return __digitalRead(pin);
+        return gpio_read(pin);
     }
     auto thePin = PinMap::instance()._mapping[pin - PinMap::BOUNDARY];
     return (thePin) ? thePin->read() : 0;

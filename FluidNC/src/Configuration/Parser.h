@@ -26,6 +26,7 @@ namespace Configuration {
         StringRange             stringValue() const;
         bool                    boolValue() const;
         int                     intValue() const;
+        uint32_t                uintValue() const;
         std::vector<speedEntry> speedEntryValue() const;
         float                   floatValue() const;
         Pin                     pinValue() const;

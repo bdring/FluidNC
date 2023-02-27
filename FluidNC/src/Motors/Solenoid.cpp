@@ -36,14 +36,12 @@
 #include "Solenoid.h"
 
 #include "../Machine/MachineConfig.h"
-#include "../System.h"  // mpos_to_steps() etc
-#include "../Pins/LedcPin.h"
+#include "../System.h"      // mpos_to_steps() etc
+#include "Driver/PwmPin.h"  // pwmInit(), etc.
 #include "../Pin.h"
 #include "../Limits.h"  // limitsMaxPosition
-#include "../NutsBolts.h"
 
-#include <esp32-hal-ledc.h>  // ledcWrite
-#include <freertos/task.h>   // vTaskDelay
+#include <freertos/task.h>  // vTaskDelay
 
 namespace MotorDrivers {
 
@@ -54,18 +52,16 @@ namespace MotorDrivers {
             return;  // We cannot continue without the output pin
         }
 
-        uint8_t pwm_precision = ledc_calc_pwm_precision(_pwm_freq);  // determine the best precision
-        float   max_duty      = float((1 << pwm_precision));
-
-        pwm_cnt[SolenoidMode::Off]  = uint32_t(_off_percent / 100.0f * max_duty);
-        pwm_cnt[SolenoidMode::Pull] = uint32_t(_pull_percent / 100.0f * max_duty);
-        pwm_cnt[SolenoidMode::Hold] = uint32_t(_hold_percent / 100.0f * max_duty);
-
         _axis_index = axis_index();
+
+        _pwm = new PwmPin(_output_pin, _pwm_freq);  // Allocate a channel
+
+        pwm_cnt[SolenoidMode::Off]  = uint32_t(_off_percent / 100.0f * _pwm->period());
+        pwm_cnt[SolenoidMode::Pull] = uint32_t(_pull_percent / 100.0f * _pwm->period());
+        pwm_cnt[SolenoidMode::Hold] = uint32_t(_hold_percent / 100.0f * _pwm->period());
 
         config_message();
 
-        _pwm_chan_num     = ledcInit(_output_pin, -1, double(_pwm_freq), pwm_precision);  // Allocate a channel
         _current_pwm_duty = 0;
 
         startUpdateTask(_update_rate_ms);
@@ -74,8 +70,8 @@ namespace MotorDrivers {
     void Solenoid::update() { set_location(); }
 
     void Solenoid::config_message() {
-        log_info("    " << name() << " Pin: " << _output_pin.name() << " Off: " << _off_percent << " Hold: " << _hold_percent
-                        << " Pull:" << _pull_percent << " Duration:" << _pull_ms << " pwm hz:" << _pwm_freq);
+        log_info("    " << name() << " Pin: " << _output_pin.name() << " Off: " << _off_percent << " Hold: " << _hold_percent << " Pull:"
+                        << _pull_percent << " Duration:" << _pull_ms << " pwm hz:" << _pwm->frequency() << " period:" << _pwm->frequency());
     }
 
     void Solenoid::set_location() {

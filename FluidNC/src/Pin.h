@@ -25,9 +25,9 @@ class String;
 // with ISRHandler.
 //
 // Usage:
-// - In header file (private / protected members) or in cpp file in anonymous namespace (public members) 
+// - In header file (private / protected members) or in cpp file in anonymous namespace (public members)
 //   CreateISRHandlerFor(LimitPin, handleISR);
-// - When attaching an ISR: _pin.attachInterrupt(ISRHandler, CHANGE, this);
+// - When attaching an ISR: _pin.attachInterrupt(ISRHandler, EITHER_EDGE, this);
 //
 // I'd rather not use any defines, but templates... but apparently there's no choice here. Let's just make it as safe
 // as possible...
@@ -93,6 +93,14 @@ public:
     static const bool On  = true;
     static const bool Off = false;
 
+    static const int NO_INTERRUPT = 0;
+    static const int RISING_EDGE  = 1;
+    static const int FALLING_EDGE = 2;
+    static const int EITHER_EDGE  = 3;
+
+    static const int ASSERTING   = 0x10;
+    static const int DEASSERTING = 0x11;
+
     // inline static Pins::PinDetail* create(const char* str) { return create(StringRange(str)); };
 
     static Pin  create(const char* str) { return create(StringRange(str)); }  // ensure it's not ambiguous
@@ -153,6 +161,7 @@ public:
     inline String name() const { return _detail->toString(); }
 
     void report(const char* legend);
+    void report(String legend) { report(legend.c_str()); }
 
     inline void swap(Pin& o) { std::swap(o._detail, _detail); }
 

@@ -4,7 +4,7 @@
 #include "Pin.h"
 
 // Pins:
-#include "Logging.h"
+#include "Config.h"
 #include "Pins/PinOptionsParser.h"
 #include "Pins/GPIOPinDetail.h"
 #include "Pins/VoidPinDetail.h"
@@ -127,12 +127,12 @@ Pin Pin::create(const StringRange& str) {
     } catch (const AssertionFailed& ex) {  // We shouldn't get here under normal circumstances.
 
         char buf[255];
-        snprintf(buf, 255, "ERR: Setting up pin [%s] failed. Details: %s", str.str().c_str(), ex.what());
+        snprintf(buf, 255, "ERR: %s - %s", str.str().c_str(), ex.what());
 
         Assert(false, buf);
 
         /*
-          log_error("ERR: Setting up pin ["<<str.str()<<"] failed. Details:"<< ex.what());
+          log_error("ERR: " << str.str() << " - " << ex.what());
 
         return Pin(new Pins::ErrorPinDetail(str.str()));
         */

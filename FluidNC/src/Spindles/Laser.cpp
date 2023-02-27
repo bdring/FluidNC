@@ -7,7 +7,7 @@
 */
 
 #include "Laser.h"
-#include "../Pins/LedcPin.h"
+#include "Driver/PwmPin.h"  // pwmInit(), etc.
 
 #include "../Machine/MachineConfig.h"
 
@@ -19,26 +19,22 @@ namespace Spindles {
     }
 
     void Laser::config_message() {
-        log_info(name() << " Spindle Ena:" << _enable_pin.name() << " Out:" << _output_pin.name() << " Freq:" << _pwm_freq
-                        << "Hz Res:" << _pwm_precision << "bits Laser mode:On");
+        log_info(name() << " Ena:" << _enable_pin.name() << " Out:" << _output_pin.name() << " Freq:" << _pwm->frequency()
+                        << "Hz Period:" << _pwm->period());
     }
 
-    // Get the GPIO from the machine definition
-    void Laser::get_pins_and_settings() {
-        // setup all the pins
-        PWM::get_pins_and_settings();
-
-        is_reversable = false;
-
-        _pwm_precision = ledc_calc_pwm_precision(_pwm_freq);  // determine the best precision
-        _pwm_period    = (1 << _pwm_precision);
-
+    void Laser::init() {
         if (_speeds.size() == 0) {
             // The default speed map for a Laser is linear from 0=0% to 255=100%
             linearSpeeds(255, 100.0f);
         }
+        // A speed map is now present and PWM::init() will not set its own default
 
-        setupSpeeds(_pwm_period);
+        PWM::init();
+
+        // Turn off is_reversable regardless of what PWM::init() thinks.
+        // Laser mode uses M4 for speed-dependent power instead of CCW rotation.
+        is_reversable = false;
     }
 
     // Configuration registration

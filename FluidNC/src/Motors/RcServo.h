@@ -5,6 +5,7 @@
 
 #include "Servo.h"
 #include "RcServoSettings.h"
+#include "Driver/PwmPin.h"
 
 namespace MotorDrivers {
     class RcServo : public Servo {
@@ -15,7 +16,7 @@ namespace MotorDrivers {
 
         Pin      _output_pin;
         uint32_t _pwm_freq = SERVO_PWM_FREQ_DEFAULT;  // 50 Hz
-        uint8_t  _pwm_chan_num;
+        PwmPin*  _pwm;
         uint32_t _current_pwm_duty;
 
         bool _disabled;
@@ -32,6 +33,11 @@ namespace MotorDrivers {
 
     public:
         RcServo() = default;
+        ~RcServo() {
+            if (_pwm) {
+                delete _pwm;
+            }
+        }
 
         // Overrides for inherited methods
         void init() override;

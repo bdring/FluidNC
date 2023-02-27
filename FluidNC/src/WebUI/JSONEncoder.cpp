@@ -2,20 +2,24 @@
 
 #include "JSONEncoder.h"
 #include "../Report.h"
+#include "../Protocol.h"  // send_line()
 
 namespace WebUI {
     // Constructor.  If _pretty is true, newlines are
     // inserted into the JSON string for easy reading.
-    JSONencoder::JSONencoder(bool pretty, Print& s) : pretty(pretty), level(0), stream(s), category("nvs") { count[level] = 0; }
+    JSONencoder::JSONencoder(bool pretty, Channel* channel) : pretty(pretty), level(0), _channel(channel), category("nvs") {
+        count[level] = 0;
+    }
 
-    // Constructor.  If _pretty is true, newlines are
-    // inserted into the JSON string for easy reading.
-    // JSONencoder::JSONencoder(bool pretty) : JSONencoder(pretty, nullptr) {}
+    JSONencoder::JSONencoder(bool pretty, std::string* str) : pretty(pretty), level(0), _str(str), category("nvs") { count[level] = 0; }
 
-    // Constructor that supplies a default falue for "pretty"
-    // JSONencoder::JSONencoder() : JSONencoder(false) {}
-
-    void JSONencoder::add(char c) { stream << c; }
+    void JSONencoder::add(char c) {
+        if (_str) {
+            (*_str) += c;
+        } else {
+            linebuf += c;
+        }
+    }
 
     // Private function to add commas between
     // elements as needed, omitting the comma
@@ -48,28 +52,34 @@ namespace WebUI {
             // Escape JSON special characters
             switch (c) {
                 case '\b':
-                    stream << "\\b";
+                    add('\\');
+                    add('b');
                     break;
                 case '\n':
-                    stream << "\\n";
+                    add('\\');
+                    add('n');
                     break;
                 case '\f':
-                    stream << "\\f";
+                    add('\\');
+                    add('f');
                     break;
                 case '\r':
-                    stream << "\\r";
+                    add('\\');
+                    add('r');
                     break;
                 case '\t':
-                    stream << "\\t";
+                    add('\\');
+                    add('t');
                     break;
                 case '"':
-                    stream << "\\\"";
+                    add('\\');
+                    add('\"');
                     break;
                 case '\\':
-                    stream << "\\\\";
-                    break;
+                    add('\\');
+                    // Fall through
                 default:
-                    stream << c;
+                    add(c);
                     break;
             }
         }
@@ -92,8 +102,19 @@ namespace WebUI {
 
     // Private function to implement pretty-printing
     void JSONencoder::line() {
-        if (pretty) {
-            add('\n');
+        if (_str) {
+            if (pretty) {
+                add('\n');
+                linebuf = "";
+                for (int i = 0; i < 2 * level; i++) {
+                    add(' ');
+                }
+            }
+        } else {
+            // Always pretty print to a channel, because channels
+            // cannot necessary handle really long lines.
+            log_to(*_channel, linebuf);
+            linebuf = "";
             for (int i = 0; i < 2 * level; i++) {
                 add(' ');
             }
@@ -107,9 +128,7 @@ namespace WebUI {
     // and returning the encoded string
     void JSONencoder::end() {
         end_object();
-        if (pretty) {
-            add('\n');
-        }
+        line();
     }
 
     // Starts a member element.
@@ -153,6 +172,12 @@ namespace WebUI {
     void JSONencoder::member(const char* tag, const char* value) {
         begin_member(tag);
         quoted(value);
+    }
+
+    // Creates a "tag":"value" member from a C++ string
+    void JSONencoder::member(const char* tag, const std::string& value) {
+        begin_member(tag);
+        quoted(value.c_str());
     }
 
     // Creates a "tag":"value" member from an Arduino string
