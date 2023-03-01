@@ -70,6 +70,7 @@ namespace Spindles {
         bool                    use_delay_settings() const override { return true; }
 
         // The constructor sets these
+        int     _uart_num  = -1;
         Uart*   _uart      = nullptr;
         uint8_t _modbus_id = 1;
 
@@ -79,10 +80,10 @@ namespace Spindles {
 
     public:
         VFD() {}
-        VFD(const VFD&)            = delete;
-        VFD(VFD&&)                 = delete;
+        VFD(const VFD&) = delete;
+        VFD(VFD&&)      = delete;
         VFD& operator=(const VFD&) = delete;
-        VFD& operator=(VFD&&)      = delete;
+        VFD& operator=(VFD&&) = delete;
 
         void init();
         void config_message();
@@ -95,11 +96,13 @@ namespace Spindles {
         // Configuration handlers:
         void validate() const override {
             Spindle::validate();
-            Assert(_uart != nullptr, "VFD: missing UART configuration");
+            Assert(_uart != nullptr || _uart_num != -1, "VFD: missing UART configuration");
+            Assert(!(_uart != nullptr && _uart_num != -1), "VFD: conflicting UART configuration");
         }
 
         void group(Configuration::HandlerBase& handler) override {
-            handler.section("uart", _uart);
+            handler.section("uart", _uart, 1);
+            handler.item("uart_num", _uart_num);
             handler.item("modbus_id", _modbus_id, 0, 247);  // per https://modbus.org/docs/PI_MBUS_300.pdf
 
             Spindle::group(handler);

@@ -12,11 +12,13 @@
 
 #include <vector>
 
-void gpio_write(pinnum_t pin, bool value) {
-    gpio_set_level((gpio_num_t)pin, value);
+static gpio_dev_t* _gpio_dev = GPIO_HAL_GET_HW(GPIO_PORT_0);
+
+void IRAM_ATTR gpio_write(pinnum_t pin, bool value) {
+    gpio_ll_set_level(_gpio_dev, (gpio_num_t)pin, value);
 }
-bool gpio_read(pinnum_t pin) {
-    return gpio_get_level((gpio_num_t)pin);
+bool IRAM_ATTR gpio_read(pinnum_t pin) {
+    return gpio_ll_get_level(_gpio_dev, (gpio_num_t)pin);
 }
 void gpio_mode(pinnum_t pin, bool input, bool output, bool pullup, bool pulldown, bool opendrain) {
     gpio_config_t conf = { .pin_bit_mask = (1ULL << pin), .intr_type = GPIO_INTR_DISABLE };
@@ -401,6 +403,7 @@ void show_matrix(Print& out) {
     }
 }
 
+#include <Print.h>
 void gpio_dump(Print& out) {
     for (int gpio = 0; gpio < SOC_GPIO_PIN_COUNT; ++gpio) {
         gpio_num_t gpio_num = static_cast<gpio_num_t>(gpio);
