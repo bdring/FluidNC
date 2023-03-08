@@ -78,7 +78,7 @@ namespace Kinematics {
         // Configuration interface.
         void afterParse() override {}
         void group(Configuration::HandlerBase& handler) override {}
-        void validate() const override {}
+        void validate() override {}
 
         // Name of the configurable. Must match the name registered in the cpp file.
         virtual const char* name() const = 0;

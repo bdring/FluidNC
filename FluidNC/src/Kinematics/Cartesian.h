@@ -12,6 +12,8 @@
 #include "Kinematics.h"
 
 namespace Kinematics {
+    class Skew;
+
     class Cartesian : public KinematicSystem {
     public:
         Cartesian() = default;
@@ -34,13 +36,16 @@ namespace Kinematics {
 
         // Configuration handlers:
         void afterParse() override {}
-        void group(Configuration::HandlerBase& handler) override {}
-        void validate() const override {}
+        void group(Configuration::HandlerBase& handler) override;
+        void validate() override {}
 
         // Name of the configurable. Must match the name registered in the cpp file.
         const char* name() const override { return "Cartesian"; }
 
     protected:
+        Skew* _skew = nullptr;
+        float _buffer[6];
+
         ~Cartesian() {}
     };
 }  //  namespace Kinematics

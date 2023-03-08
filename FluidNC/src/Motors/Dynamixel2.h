@@ -104,7 +104,7 @@ namespace MotorDrivers {
         void config_motor() override;
 
         // Configuration handlers:
-        void validate() const override {
+        void validate() override {
             Assert(_uart != nullptr, "Dynamixel: Missing UART configuration");
             Assert(!_uart->_rts_pin.undefined(), "Dynamixel: UART RTS pin must be configured.");
             Assert(_id != 255, "Dynamixel: ID must be configured.");

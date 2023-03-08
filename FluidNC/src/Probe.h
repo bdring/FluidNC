@@ -46,7 +46,7 @@ public:
     bool IRAM_ATTR tripped();
 
     // Configuration handlers.
-    void validate() const override;
+    void validate() override;
     void group(Configuration::HandlerBase& handler) override;
 
     ~Probe() = default;

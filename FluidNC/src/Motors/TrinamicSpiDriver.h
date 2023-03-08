@@ -49,7 +49,7 @@ namespace MotorDrivers {
             _spi_setup_done = true;
         }
 
-        void validate() const override { StandardStepper::validate(); }
+        void validate() override { StandardStepper::validate(); }
 
         void group(Configuration::HandlerBase& handler) override {
             TrinamicBase::group(handler);

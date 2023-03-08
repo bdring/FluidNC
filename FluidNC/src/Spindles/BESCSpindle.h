@@ -56,7 +56,7 @@ namespace Spindles {
         void set_output(uint32_t duty) override;
 
         // Configuration handlers:
-        void validate() const override { PWM::validate(); }
+        void validate() override { PWM::validate(); }
 
         void group(Configuration::HandlerBase& handler) override {
             PWM::group(handler);

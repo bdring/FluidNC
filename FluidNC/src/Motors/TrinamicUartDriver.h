@@ -28,7 +28,7 @@ namespace MotorDrivers {
         uint8_t _addr;
 
         // Configuration handlers:
-        void validate() const override { StandardStepper::validate(); }
+        void validate() override { StandardStepper::validate(); }
 
         void afterParse() override {
             StandardStepper::validate();

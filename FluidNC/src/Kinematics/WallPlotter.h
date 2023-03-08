@@ -29,7 +29,7 @@ namespace Kinematics {
         void transform_cartesian_to_motors(float* cartesian, float* motors) override;
 
         // Configuration handlers:
-        void validate() const override {}
+        void validate() override {}
         void group(Configuration::HandlerBase& handler) override;
         void afterParse() override {}
 

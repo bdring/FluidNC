@@ -36,7 +36,7 @@ bool IRAM_ATTR Probe::tripped() {
     return _probePin.read() ^ _isProbeAway;
 }
 
-void Probe::validate() const {}
+void Probe::validate() {}
 
 void Probe::group(Configuration::HandlerBase& handler) {
     handler.item("pin", _probePin);

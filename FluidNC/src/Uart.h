@@ -67,7 +67,7 @@ public:
     int rx_buffer_available() override;
 
     // Configuration handlers:
-    void validate() const override {
+    void validate() override {
         Assert(!_txd_pin.undefined(), "UART: TXD is undefined");
         Assert(!_rxd_pin.undefined(), "UART: RXD is undefined");
         // RTS and CTS are optional.

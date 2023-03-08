@@ -73,7 +73,7 @@ namespace Spindles {
         virtual const char* name() const = 0;
 
         // Configuration handlers:
-        void validate() const override {
+        void validate() override {
             // TODO: Validate spinup/spindown delay?
         }
 

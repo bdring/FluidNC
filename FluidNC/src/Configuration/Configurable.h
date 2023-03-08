@@ -19,7 +19,7 @@ namespace Configuration {
     public:
         Configurable() = default;
 
-        virtual void validate() const {};
+        virtual void validate() {};
         virtual void group(HandlerBase& handler) = 0;
         virtual void afterParse() {}
         // virtual const char* name() const = 0;

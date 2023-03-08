@@ -54,7 +54,7 @@ namespace Machine {
         float    _feed_scaler       = 1.1f;    // multiplier to pulloff for moving to switch after pulloff
 
         // Configuration system helpers:
-        void validate() const override { Assert(_cycle >= 0, "Homing cycle must be defined"); }
+        void validate() override { Assert(_cycle >= 0, "Homing cycle must be defined"); }
 
         void group(Configuration::HandlerBase& handler) override {
             handler.item("cycle", _cycle, -1, 6);

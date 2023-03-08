@@ -92,7 +92,7 @@ namespace Spindles {
         SpindleSpeed      _slop;
 
         // Configuration handlers:
-        void validate() const override {
+        void validate() override {
             Spindle::validate();
             Assert(_uart != nullptr, "VFD: missing UART configuration");
         }

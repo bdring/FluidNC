@@ -18,7 +18,7 @@ namespace MotorDrivers {
     }
 
     // Configuration handlers:
-    void StepStick::validate() const { StandardStepper::validate(); }
+    void StepStick::validate() { StandardStepper::validate(); }
 
     void StepStick::group(Configuration::HandlerBase& handler) {
         StandardStepper::group(handler);
