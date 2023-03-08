@@ -10,13 +10,12 @@
 #include <atomic>
 
 namespace Configuration {
-    Generator::Generator(Print& dst, int indent) : indent_(indent), dst_(dst) {
+    Generator::Generator(Channel& dst, int indent) : indent_(indent), dst_(dst) {
         std::atomic_thread_fence(std::memory_order::memory_order_seq_cst);
     }
 
     void Generator::enter(const char* name) {
-        indent();
-        dst_ << name << ":\n";
+        send_item(name, "");
         indent_++;
     }
 
@@ -28,7 +27,7 @@ namespace Configuration {
 
     void Generator::leave() {
         if (!lastIsNewline_) {
-            dst_ << '\n';
+            log_to(dst_, "");
             lastIsNewline_ = true;
         }
 

@@ -67,6 +67,7 @@ namespace Spindles {
         virtual response_parser get_current_direction(ModbusCommand& data) { return nullptr; }
         virtual response_parser get_status_ok(ModbusCommand& data) = 0;
         virtual bool            safety_polling() const { return true; }
+        bool                    use_delay_settings() const override { return true; }
 
         // The constructor sets these
         Uart*   _uart      = nullptr;
@@ -78,10 +79,10 @@ namespace Spindles {
 
     public:
         VFD() {}
-        VFD(const VFD&) = delete;
-        VFD(VFD&&)      = delete;
+        VFD(const VFD&)            = delete;
+        VFD(VFD&&)                 = delete;
         VFD& operator=(const VFD&) = delete;
-        VFD& operator=(VFD&&) = delete;
+        VFD& operator=(VFD&&)      = delete;
 
         void init();
         void config_message();

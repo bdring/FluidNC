@@ -8,8 +8,6 @@
 #include "Configurable.h"
 #include "../System.h"
 
-#include "../Logging.h"
-
 #include <vector>
 
 // #define DEBUG_VERBOSE_YAML_PARSER
@@ -102,6 +100,13 @@ namespace Configuration {
         void item(const char* name, int32_t& value, int32_t minValue, int32_t maxValue) override {
             if (_parser.is(name)) {
                 value = _parser.intValue();
+                constrain_with_message(value, minValue, maxValue, name);
+            }
+        }
+
+        void item(const char* name, uint32_t& value, uint32_t minValue, uint32_t maxValue) override {
+            if (_parser.is(name)) {
+                value = _parser.uintValue();
                 constrain_with_message(value, minValue, maxValue, name);
             }
         }

@@ -8,11 +8,12 @@
 namespace WebUI {
     class BTConfig {
     public:
-        static String info() { return String(); }
-        static bool   begin() { return false; };
-        static void   end() {};
-        static void   handle() {}
-        static bool   isOn() { return false; }
+        static std::string info() { return std::string(); }
+
+        static bool begin() { return false; };
+        static void end() {};
+        static void handle() {}
+        static bool isOn() { return false; }
     };
     extern BTConfig bt_config;
 }
@@ -74,7 +75,8 @@ namespace WebUI {
 
         BTConfig();
 
-        String        info();
+        std::string info();
+
         static bool   isBTnameValid(const char* hostname);
         const String& BTname() const { return _btname; }
         const String& client_name() const { return _btclient; }

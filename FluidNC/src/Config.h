@@ -18,16 +18,33 @@ Some features should not be changed. See notes below.
 
 */
 
-#include "NutsBolts.h"
-
 // It is no longer necessary to edit this file to choose
 // a machine configuration; edit machine.h instead
 // machine.h is #included below, after some definitions
 // that the machine file might choose to undefine.
 
-const int SUPPORT_TASK_CORE = 1;  // Reference: CONFIG_ARDUINO_RUNNING_CORE = 1
-
 const int MAX_N_AXIS = 6;
+
+const int MAX_MESSAGE_LINE = 256;
+
+// Axis array index values. Must start with 0 and be continuous.
+// Note: You set the number of axes used by changing MAX_N_AXIS.
+// Be sure to define pins or servos in the machine definition file.
+const int X_AXIS = 0;  // Axis indexing value.
+const int Y_AXIS = 1;
+const int Z_AXIS = 2;
+const int A_AXIS = 3;
+const int B_AXIS = 4;
+const int C_AXIS = 5;
+
+const int X2_AXIS = (X_AXIS + MAX_N_AXIS);
+const int Y2_AXIS = (Y_AXIS + MAX_N_AXIS);
+const int Z2_AXIS = (Z_AXIS + MAX_N_AXIS);
+const int A2_AXIS = (A_AXIS + MAX_N_AXIS);
+const int B2_AXIS = (B_AXIS + MAX_N_AXIS);
+const int C2_AXIS = (C_AXIS + MAX_N_AXIS);
+
+const int SUPPORT_TASK_CORE = 0;  // Reference: CONFIG_ARDUINO_RUNNING_CORE = 1
 
 // Serial baud rate
 // OK to change, but the ESP32 boot text is 115200, so you will not see that is your
@@ -207,3 +224,5 @@ const bool ALLOW_FEED_OVERRIDE_DURING_PROBE_CYCLES = false;
 
 // INCLUDE_OLED_BASIC includes a driver for a modest sized OLED display
 // #define INCLUDE_OLED_BASIC
+
+#include "NutsBolts.h"

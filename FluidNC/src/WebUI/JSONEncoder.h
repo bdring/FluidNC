@@ -1,7 +1,7 @@
 #pragma once
 
-#include <WString.h>
-#include <Print.h>
+#include "../Channel.h"
+#include <string>
 
 // Class for creating JSON-encoded strings.
 
@@ -10,29 +10,28 @@ namespace WebUI {
     private:
         static const int MAX_JSON_LEVEL = 16;
 
-        bool   pretty;
-        int    level;
-        int    count[MAX_JSON_LEVEL];
-        void   add(char c);
-        void   comma_line();
-        void   comma();
-        void   quoted(const char* s);
-        void   inc_level();
-        void   dec_level();
-        void   line();
-        Print& stream;
+        bool pretty;
+        int  level;
+        int  count[MAX_JSON_LEVEL];
+        void add(char c);
+        void comma_line();
+        void comma();
+        void quoted(const char* s);
+        void inc_level();
+        void dec_level();
+        void line();
 
-        String category;
+        std::string linebuf;
+
+        std::string* _str     = nullptr;
+        Channel*     _channel = nullptr;
+
+        std::string category;
 
     public:
-        // If you don't set _pretty it defaults to false
-        JSONencoder();
-
         // Constructor; set _pretty true for pretty printing
-        JSONencoder(bool pretty);
-
-        // Constructor; set _pretty true for pretty printing
-        JSONencoder(bool pretty, Print& s);
+        JSONencoder(bool pretty, Channel* channel);
+        JSONencoder(bool pretty, std::string* str);
 
         // begin() starts the encoding process.
         void begin();
@@ -44,6 +43,7 @@ namespace WebUI {
         // member() creates a "tag":"value" element
         void member(const char* tag, const char* value);
         void member(const char* tag, String value);
+        void member(const char* tag, const std::string& value);
         void member(const char* tag, int value);
 
         // begin_array() starts a "tag":[  array element

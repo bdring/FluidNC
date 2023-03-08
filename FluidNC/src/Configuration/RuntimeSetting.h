@@ -14,7 +14,7 @@ namespace Configuration {
 
         const char* newValue_;  // null (read) or 123 (value)
 
-        Print& out_;
+        Channel& out_;
 
         bool is(const char* name) const {
             if (start_ != nullptr) {
@@ -31,10 +31,11 @@ namespace Configuration {
         bool matchesUninitialized(const char* name) override { return false; }
 
     public:
-        RuntimeSetting(const char* key, const char* value, Print& out);
+        RuntimeSetting(const char* key, const char* value, Channel& out);
 
         void item(const char* name, bool& value) override;
         void item(const char* name, int32_t& value, int32_t minValue, int32_t maxValue) override;
+        void item(const char* name, uint32_t& value, uint32_t minValue, uint32_t maxValue) override;
         void item(const char* name, float& value, float minValue, float maxValue) override;
         void item(const char* name, std::vector<speedEntry>& value) override;
         void item(const char* name, UartData& wordLength, UartParity& parity, UartStop& stopBits) override {}
@@ -42,6 +43,8 @@ namespace Configuration {
         void item(const char* name, Pin& value) override;
         void item(const char* name, IPAddress& value) override;
         void item(const char* name, int& value, EnumItem* e) override;
+
+        std::string setting_prefix();
 
         HandlerType handlerType() override { return HandlerType::Runtime; }
 

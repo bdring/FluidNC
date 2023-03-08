@@ -35,7 +35,7 @@
 // This code assumes that the SPI bus has already been initialized,
 // with SCK, MOSI, and MISO pins assigned, via SPIBus.cpp
 
-#include "src/Logging.h"
+#include "src/Config.h"
 #include <TMCStepper.h>  // https://github.com/teemuatlut/TMCStepper
 
 #include "hal/spi_ll.h"

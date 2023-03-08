@@ -25,9 +25,6 @@
 
 #include <cstdint>
 
-// XXX This should be a configuration parameter of the SPI bus
-const int32_t SPIfreq = 4000000;
-
 class SDCard : public Configuration::Configurable {
 public:
     enum class State : uint8_t {
@@ -45,6 +42,8 @@ private:
     Pin   _cardDetect;
     Pin   _cs;
 
+    uint32_t _frequency_hz = 0;  // Set to nonzero to override the default
+
 public:
     SDCard();
     SDCard(const SDCard&) = delete;
@@ -61,6 +60,7 @@ public:
     void group(Configuration::HandlerBase& handler) override {
         handler.item("cs_pin", _cs);
         handler.item("card_detect_pin", _cardDetect);
+        handler.item("frequency_hz", _frequency_hz);
     }
 
     ~SDCard();

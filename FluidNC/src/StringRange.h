@@ -116,6 +116,12 @@ public:
         return intEnd == end_;
     }
 
+    inline bool isUnsignedInteger(uint32_t& intval) {
+        char* intEnd;
+        intval = strtoul(start_, &intEnd, 10);
+        return intEnd == end_;
+    }
+
     inline bool isFloat(float& floatval) {
         char* floatEnd;
         floatval = float(strtod(start_, &floatEnd));

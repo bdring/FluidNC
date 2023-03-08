@@ -8,7 +8,16 @@
 namespace Kinematics {
     void Cartesian::init() { 
         log_info("Kinematic system: " << name());
+        init_position();
         if ( _skew ) _skew->init();
+    }
+
+    // Initialize the machine position
+    void Cartesian::init_position() {
+        auto n_axis = config->_axes->_numberAxis;
+        for (size_t axis = 0; axis < n_axis; axis++) {
+            set_motor_steps(axis, 0);  // Set to zeros
+        }
     }
 
     bool Cartesian::cartesian_to_motors(float* target, plan_line_data_t* pl_data, float* position) {
@@ -54,11 +63,14 @@ namespace Kinematics {
         // the mask whose limits have been reached.
         clear_bits(motorMask, limited);
 
+        auto oldAxisMask = axisMask;
+
         // Set axisMask according to the motors that are still running.
         axisMask = Machine::Axes::motors_to_axes(motorMask);
 
-        // We do not have to stop until all motors have reached their limits
-        return !axisMask;
+        // Return true when an axis drops out of the mask, causing replan
+        // on any remaining axes.
+        return axisMask != oldAxisMask;
     }
 
     void Cartesian::releaseMotors(AxisMask axisMask, MotorMask motors) {

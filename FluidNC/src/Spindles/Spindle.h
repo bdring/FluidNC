@@ -24,10 +24,10 @@ namespace Spindles {
     public:
         Spindle() = default;
 
-        Spindle(const Spindle&) = delete;
-        Spindle(Spindle&&)      = delete;
+        Spindle(const Spindle&)            = delete;
+        Spindle(Spindle&&)                 = delete;
         Spindle& operator=(const Spindle&) = delete;
-        Spindle& operator=(Spindle&&) = delete;
+        Spindle& operator=(Spindle&&)      = delete;
 
         bool     _defaultedSpeeds;
         uint32_t offSpeed() { return _speeds[0].offset; }
@@ -81,8 +81,8 @@ namespace Spindles {
 
         void group(Configuration::HandlerBase& handler) override {
             if (use_delay_settings()) {
-                handler.item("spinup_ms", _spinup_ms, 0, 20000);
-                handler.item("spindown_ms", _spindown_ms, 0, 20000);
+                handler.item("spinup_ms", _spinup_ms, 0, 60000);
+                handler.item("spindown_ms", _spindown_ms, 0, 60000);
             }
             handler.item("tool_num", _tool, 0, MaxToolNumber);
             handler.item("speed_map", _speeds);

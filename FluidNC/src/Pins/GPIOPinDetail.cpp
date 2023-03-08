@@ -7,7 +7,7 @@
 
 #include "GPIOPinDetail.h"
 #include "../Assert.h"
-#include "../Logging.h"
+#include "../Config.h"
 
 extern "C" void __pinMode(pinnum_t pin, uint8_t mode);
 extern "C" int  __digitalRead(pinnum_t pin);

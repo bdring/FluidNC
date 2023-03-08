@@ -2,7 +2,7 @@
 
 #include "../Motors/MotorDriver.h"
 #include "../Motors/NullMotor.h"
-#include "../NutsBolts.h"
+#include "../Config.h"
 #include "../MotionControl.h"
 #include "../Stepper.h"     // stepper_id_t
 #include "MachineConfig.h"  // config->

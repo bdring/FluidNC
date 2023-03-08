@@ -11,7 +11,6 @@
 #    include "WifiServices.h"
 #    include "WifiConfig.h"  // wifi_config
 
-#    include "WSChannel.h"
 #    include "WebServer.h"
 
 #    include <WebSocketsServer.h>
@@ -81,6 +80,27 @@ namespace WebUI {
         http_enable = new EnumSetting("HTTP Enable", WEBSET, WA, "ESP120", "HTTP/Enable", DEFAULT_HTTP_STATE, &onoffOptions, NULL);
     }
     Web_Server::~Web_Server() { end(); }
+
+    WSChannel* Web_Server::lastWSChannel = nullptr;
+    WSChannel* Web_Server::getWSChannel() {
+        WSChannel* wsChannel = nullptr;
+        if (_webserver->hasArg("PAGEID")) {
+            int wsId  = _webserver->arg("PAGEID").toInt();
+            wsChannel = wsChannels.at(wsId);
+        } else {
+            // If there is no PAGEID URL argument, it is an old version of WebUI
+            // that does not supply PAGEID in all cases.  In that case, we use
+            // the most recently used websocket if it is still in the list.
+            for (auto it = wsChannels.begin(); it != wsChannels.end(); ++it) {
+                if (it->second == lastWSChannel) {
+                    wsChannel = lastWSChannel;
+                    break;
+                }
+            }
+        }
+        lastWSChannel = wsChannel;
+        return wsChannel;
+    }
 
     bool Web_Server::begin() {
         bool no_error = true;
@@ -152,7 +172,7 @@ namespace WebUI {
             //Add specific for SSDP
             SSDP.setSchemaURL("description.xml");
             SSDP.setHTTPPort(_port);
-            SSDP.setName(wifi_config.Hostname());
+            SSDP.setName(wifi_config.Hostname().c_str());
             SSDP.setURL("/");
             SSDP.setDeviceType("upnp:rootdevice");
             /*Any customization could be here
@@ -269,7 +289,8 @@ namespace WebUI {
         // This can make it hard to debug ISR IRAM problems, because the easiest
         // way to trigger such problems is to refresh WebUI during motion.
         // If you need to do such debugging, comment out this check temporarily.
-        if (inMotionState()) {
+        //        if (inMotionState()) {
+        if (false) {
             _webserver->send(200,
                              "text/html",
                              "<!DOCTYPE html><html><body>"
@@ -396,6 +417,11 @@ namespace WebUI {
                 }
                 answer += "\n";
             }
+
+            // Give the output task a chance to dequeue and forward a message
+            // to webClient, if there is one.
+            vTaskDelay(10);
+
             if (!webClient.anyOutput()) {
                 _webserver->send(err != Error::Ok ? 500 : 200, "text/plain", answer);
             }
@@ -407,11 +433,7 @@ namespace WebUI {
             }
             bool hasError = false;
             try {
-                WSChannel* wsChannel;
-                if (_webserver->hasArg("PAGEID")) {
-                    int wsId  = _webserver->arg("PAGEID").toInt();
-                    wsChannel = wsChannels.at(wsId);
-                }
+                WSChannel* wsChannel = getWSChannel();
                 if (wsChannel) {
                     // It is very tempting to let Serial_2_Socket.push() handle the realtime
                     // character sequences so we don't have to do it here.  That does not work
@@ -631,11 +653,7 @@ namespace WebUI {
             s += st;
 
             try {
-                WSChannel* wsChannel;
-                if (_webserver->hasArg("PAGEID")) {
-                    int wsId  = _webserver->arg("PAGEID").toInt();
-                    wsChannel = wsChannels.at(wsId);
-                }
+                WSChannel* wsChannel = getWSChannel();
                 if (wsChannel) {
                     wsChannel->sendTXT(s);
                 }
@@ -699,8 +717,8 @@ namespace WebUI {
     }
 
     void Web_Server::sendAuth(const String& status, const String& level, const String& user) {
-        StreamString s;
-        JSONencoder  j(false, s);
+        std::string s;
+        JSONencoder j(false, &s);
         j.begin();
         j.member("status", status);
         if (level != "") {
@@ -710,16 +728,16 @@ namespace WebUI {
             j.member("user", user);
         }
         j.end();
-        sendJSON(200, s);
+        sendJSON(200, s.c_str());
     }
 
     void Web_Server::sendStatus(int code, const String& status) {
-        StreamString s;
-        JSONencoder  j(false, s);
+        std::string s;
+        JSONencoder j(false, &s);
         j.begin();
         j.member("status", status);
         j.end();
-        sendJSON(code, s);
+        sendJSON(code, s.c_str());
     }
 
     void Web_Server::sendAuthFailed() { sendStatus(401, "Authentication failed"); }
@@ -913,8 +931,8 @@ namespace WebUI {
             list_files = false;
         }
 
-        StreamString       s;
-        WebUI::JSONencoder j(true, s);
+        std::string        s;
+        WebUI::JSONencoder j(false, &s);
         j.begin();
 
         if (list_files) {
@@ -947,7 +965,7 @@ namespace WebUI {
         j.member("occupation", String(percent));
         j.member("status", sstatus);
         j.end();
-        sendJSON(200, s);
+        sendJSON(200, s.c_str());
     }
 
     void Web_Server::handle_direct_SDFileList() { handleFileOps(sdName); }
@@ -1098,9 +1116,8 @@ namespace WebUI {
                 try {
                     WSChannel* wsChannel = wsChannels.at(num);
                     webWsChannels.remove(wsChannel);
-                    allChannels.deregistration(wsChannel);
+                    allChannels.kill(wsChannel);
                     wsChannels.erase(num);
-                    delete wsChannel;
                 } catch (std::out_of_range& oor) {}
                 break;
             case WStype_CONNECTED: {
@@ -1109,6 +1126,7 @@ namespace WebUI {
                 if (!wsChannel) {
                     log_error("Creating WebSocket channel failed");
                 } else {
+                    lastWSChannel = wsChannel;
                     log_debug("WebSocket " << num << " from " << ip << " uri " << data);
                     allChannels.registration(wsChannel);
                     wsChannels[num] = wsChannel;

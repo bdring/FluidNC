@@ -29,7 +29,7 @@ namespace Machine {
             misoPin = _miso.getNative(Pin::Capabilities::Input | Pin::Capabilities::Native);
         } else {
             if (sd_fallback_cs->get() == -1) {
-                log_info("SPI not defined");
+                log_debug("SPI not defined");
                 return;
             }
             log_info("Using default SPI pins");
@@ -42,7 +42,9 @@ namespace Machine {
         _defined = true;
     }
 
-    void SPIBus::deinit() { spi_deinit_bus(); }
+    void SPIBus::deinit() {
+        spi_deinit_bus();
+    }
 
     void SPIBus::group(Configuration::HandlerBase& handler) {
         handler.item("miso_pin", _miso);
@@ -63,5 +65,7 @@ namespace Machine {
         // }
     }
 
-    bool SPIBus::defined() { return _defined; }
+    bool SPIBus::defined() {
+        return _defined;
+    }
 }

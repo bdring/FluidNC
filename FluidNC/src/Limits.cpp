@@ -98,7 +98,6 @@ void limits_soft_check(float* cartesian) {
         if (sys.state == State::Cycle) {
             protocol_send_event(&feedHoldEvent);
             do {
-                pollChannels();
                 protocol_execute_realtime();
                 if (sys.abort) {
                     return;

@@ -5,7 +5,6 @@
  * UART driver that accesses the ESP32 hardware FIFOs directly.
  */
 
-#include "Logging.h"
 #include "Uart.h"
 
 #include <driver/uart.h>

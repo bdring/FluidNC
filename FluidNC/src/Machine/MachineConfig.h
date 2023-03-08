@@ -18,7 +18,6 @@
 #include "../Spindles/Spindle.h"
 #include "../Stepping.h"
 #include "../Stepper.h"
-#include "../Logging.h"
 #include "../Config.h"
 #include "Axes.h"
 #include "SPIBus.h"

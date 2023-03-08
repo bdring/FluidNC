@@ -5,8 +5,10 @@
 
 #pragma once
 
+#include "Types.h"  // AxisMask
 #include "Planner.h"
-#include "NutsBolts.h"
+#include "Config.h"
+#include "Probe.h"
 
 #include <cstdint>
 
@@ -41,7 +43,8 @@ void mc_arc(float*            target,
             size_t            axis_0,
             size_t            axis_1,
             size_t            axis_linear,
-            bool              is_clockwise_arc);
+            bool              is_clockwise_arc,
+            int               pword_rotations);
 
 // Dwell for a specific number of seconds
 bool mc_dwell(int32_t milliseconds);
