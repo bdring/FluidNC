@@ -6,10 +6,169 @@ from shutil import copy
 from zipfile import ZipFile, ZipInfo
 import subprocess, os, sys, shutil
 import urllib.request
+import json
 
 verbose = '-v' in sys.argv
 
 environ = dict(os.environ)
+
+
+relPath = os.path.join('release')
+if not os.path.exists(relPath):
+    os.makedirs(relPath)
+
+
+# Define all images that should be included in the package
+tools = os.path.join(os.path.expanduser('~'), '.platformio',
+                     'packages', 'framework-arduinoespressif32', 'tools')
+images = [
+    {
+        "name": "bootloader_dio_80m.bin",
+        "source": os.path.join(tools, 'sdk', 'esp32', 'bin', "bootloader_dio_80m.bin"),
+        "target": os.path.join(relPath, "bootloader_dio_80m.bin"),
+        "offset": "0x1000"
+    },
+    {
+        "name": "boot_app0.bin",
+        "source": os.path.join(tools, "partitions", "boot_app0.bin"),
+        "target": os.path.join(relPath, "boot_app0.bin"),
+        "offset": "0xe000"
+    },
+    {
+        "name": "spiffs.bin",
+        "source": os.path.join('.pio', 'build', "wifi", "spiffs.bin"),
+        "target": os.path.join(relPath, "spiffs.bin"),
+        "offset": "0x3d0000"
+    },
+    {
+        "name": "bt-firmware.elf",
+        "source": os.path.join('.pio', 'build', "bt", "firmware.elf"),
+        "target": os.path.join(relPath, "bt-firmware.elf"),
+    },
+    {
+        "name": "bt-firmware.bin",
+        "source": os.path.join('.pio', 'build', "bt", "firmware.bin"),
+        "target": os.path.join(relPath, "bt-firmware.bin"),
+        "offset": "0x10000"
+    },
+    {
+        "name": "bt-firmware.elf",
+        "source": os.path.join('.pio', 'build', "bt", "firmware.elf"),
+        "target": os.path.join(relPath, "bt-firmware.elf")
+    },
+    {
+        "name": "bt-firmware.bin",
+        "source": os.path.join('.pio', 'build', "bt", "firmware.bin"),
+        "target": os.path.join(relPath, "bt-firmware.bin"),
+        "offset": "0x10000"
+    },
+    {
+        "name": "bt-partitions.bin",
+        "source": os.path.join('.pio', 'build', "bt", "partitions.bin"),
+        "target": os.path.join(relPath, "bt-partitions.bin"),
+        "offset": "0x8000"
+    },
+    {
+        "name": "wifi-firmware.elf",
+        "source": os.path.join('.pio', 'build', "wifi", "firmware.elf"),
+        "target": os.path.join(relPath, "wifi-firmware.elf")
+    },
+    {
+        "name": "wifi-firmware.bin",
+        "source": os.path.join('.pio', 'build', "wifi", "firmware.bin"),
+        "target": os.path.join(relPath, "wifi-firmware.bin"),
+        "offset": "0x1000"
+    },
+    {
+        "name": "wifi-partitions.bin",
+        "source": os.path.join('.pio', 'build', "wifi", "partitions.bin"),
+        "target": os.path.join(relPath, "wifi-partitions.bin"),
+        "offset": "0x8000"
+    }]
+
+installables = [
+    {
+        "chip": "ESP32-WROOM",
+        "flashSize": "4MB",
+        "description": "Complete FluidNC installation, erasing all previous data.",
+        "install-variant": "fresh-install",
+        "variant": "wifi",
+        "erase": True,
+        "images": [
+            "bootloader_dio_80m.bin",
+            "boot_app0.bin",
+            "wifi-firmware.bin",
+            "wifi-partitions.bin",
+            "spiffs.bin"
+        ]
+    },
+    {
+        "chip": "ESP32-WROOM",
+        "flashSize": "4MB",
+        "description": "Update FluidNC to latest firmware version, preserving previous filesystem data.",
+        "install-variant": "firmware-update",
+        "variant": "wifi",
+        "erase": False,
+        "images": [
+            "bootloader_dio_80m.bin",
+            "boot_app0.bin",
+            "wifi-firmware.bin",
+            "wifi-partitions.bin"
+        ]
+    },
+    {
+        "chip": "ESP32-WROOM",
+        "flashSize": "4MB",
+        "description": "Update FluidNC filesystem only, erasing previous filesystem contents.",
+        "install-variant": "filesystem-update",
+        "variant": "wifi",
+        "erase": False,
+        "images": [
+            "spiffs.bin"
+        ]
+    },
+        {
+        "chip": "ESP32-WROOM",
+        "flashSize": "4MB",
+        "description": "Complete FluidNC installation, erasing all previous data.",
+        "install-variant": "fresh-install",
+        "variant": "bt",
+        "erase": True,
+        "images": [
+            "bootloader_dio_80m.bin",
+            "boot_app0.bin",
+            "bt-firmware.bin",
+            "bt-partitions.bin",
+            "spiffs.bin"
+        ]
+    },
+    {
+        "chip": "ESP32-WROOM",
+        "flashSize": "4MB",
+        "description": "Update FluidNC to latest firmware version, preserving previous filesystem data.",
+        "install-variant": "firmware-update",
+        "variant": "bt",
+        "erase": False,
+        "images": [
+            "bootloader_dio_80m.bin",
+            "boot_app0.bin",
+            "bt-firmware.bin",
+            "bt-partitions.bin"
+        ]
+    },
+    {
+        "chip": "ESP32-WROOM",
+        "flashSize": "4MB",
+        "description": "Update FluidNC filesystem only, erasing previous filesystem contents.",
+        "install-variant": "filesystem-update",
+        "variant": "bt",
+        "erase": False,
+        "images": [
+            "spiffs.bin"
+        ]
+    }
+]
+
 
 def buildEmbeddedPage():
     print('Building embedded web page')
@@ -50,6 +209,33 @@ def buildFs(pioEnv, verbose=verbose, extraArgs=None):
     print()
     return app.returncode
 
+
+def generateManifest(tag):
+    print('Generating manifest')
+    manifestData = {
+        "name": "FluidNC",
+        "version": tag,
+        "source_url": f"https://github.com/bdring/FluidNC/tree/{tag}",
+        "release_url": f"https://github.com/bdring/FluidNC/releases/tag/{tag}",
+        "funding_url": "https://www.paypal.com/donate/?hosted_button_id=8DYLB6ZYYDG7Y",
+        "images": [],
+        "installables": installables
+    }
+
+    for image in images:
+        if "offset" in image:
+            manifestData["images"].append({
+                "name": image["name"],
+                "path": image["name"],
+                "offset": image["offset"]
+            })
+
+    jsonData = json.dumps(manifestData, indent=4)
+    with open(os.path.join(relPath, "manifest.json"), "w") as outfile:
+        outfile.write(jsonData)
+    return
+
+
 tag = (
     subprocess.check_output(["git", "describe", "--tags", "--abbrev=0"])
     .strip()
@@ -67,10 +253,6 @@ def copyToZip(zipObj, platform, fileName, destPath, mode=0o100755):
     zipObj.writestr(info, bytes)
 
 
-relPath = os.path.join('release')
-if not os.path.exists(relPath):
-    os.makedirs(relPath)
-
 # We avoid doing this every time, instead checking in a new NoFile.h as necessary
 # if buildEmbeddedPage() != 0:
 #    sys.exit(1)
@@ -78,10 +260,11 @@ if not os.path.exists(relPath):
 if buildFs('wifi', verbose=verbose) != 0:
     sys.exit(1)
 
-for envName in ['wifi','bt']:
-    if buildEnv(envName, verbose=verbose) != 0:
-        sys.exit(1)
-    shutil.copy(os.path.join('.pio', 'build', envName, 'firmware.elf'), os.path.join(relPath, envName + '-' + 'firmware.elf'))
+# Copy all built images to the release folder
+for image in images:
+    shutil.copy(image["source"], image["target"])
+
+generateManifest(tag)
 
 for platform in ['win64', 'posix']:
     print("Creating zip file for ", platform)

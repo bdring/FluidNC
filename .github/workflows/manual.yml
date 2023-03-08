@@ -46,6 +46,8 @@ jobs:
         files: |
           release/*.zip
           release/*.elf
+          release/*.bin
+          release/manifest.json
         draft: True
     # - name: Upload mac bundle
     #   uses: actions/upload-artifact@v2
