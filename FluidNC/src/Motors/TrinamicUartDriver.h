@@ -32,30 +32,19 @@ namespace MotorDrivers {
 
         void afterParse() override {
             StandardStepper::validate();
-            Assert(_uart != nullptr, "TrinamicUartDriver must have a uart: subsection");
+            Assert(_uart_num != -1, "TrinamicUartDriver must set uart_num: ");
         }
 
         void group(Configuration::HandlerBase& handler) override {
-            TrinamicBase::group(handler);
-            // This is tricky.  The problem is that the UART is shared
-            // between all TrinamicUartDriver instances (which is why
-            // _uart is a static variable).  In the config file we
-            // want exactly one uart: subsection underneath one of the
-            // tmc220x: sections.  During the parsing phase of tree
-            // traversal, _uart will start out as nullptr, so the
-            // first time that a uart: section is seen, it will be
-            // handled.  During other phases like Generate (called by
-            // $CD), _uart will be non-null, so we use the instance
-            // variable _addr to force the generation of only one
-            // uart: section, beneath the tmc_220x: section for addr 0.
             handler.item("addr", _addr);
-            if (_uart == nullptr || _addr == 0) {
-                handler.section("uart", _uart);
-            }
+            handler.item("uart_num", _uart_num);
+            TrinamicBase::group(handler);
         }
 
     protected:
-        static Uart* _uart;
+        Uart* _uart = nullptr;
+
+        int _uart_num = -1;
 
         static bool _uart_started;
         void        config_message() override;

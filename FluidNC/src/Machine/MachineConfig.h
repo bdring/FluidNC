@@ -19,8 +19,10 @@
 #include "../Stepping.h"
 #include "../Stepper.h"
 #include "../Config.h"
+#include "../OLED.h"
 #include "Axes.h"
 #include "SPIBus.h"
+#include "I2CBus.h"
 #include "I2SOBus.h"
 #include "UserOutputs.h"
 #include "Macros.h"
@@ -55,20 +57,25 @@ namespace Machine {
     public:
         MachineConfig() = default;
 
-        Axes*                 _axes        = nullptr;
-        Kinematics*           _kinematics  = nullptr;
-        SPIBus*               _spi         = nullptr;
-        I2SOBus*              _i2so        = nullptr;
-        Stepping*             _stepping    = nullptr;
-        CoolantControl*       _coolant     = nullptr;
-        Probe*                _probe       = nullptr;
-        Control*              _control     = nullptr;
-        UserOutputs*          _userOutputs = nullptr;
-        SDCard*               _sdCard      = nullptr;
-        Macros*               _macros      = nullptr;
-        Start*                _start       = nullptr;
-        Parking*              _parking     = nullptr;
+        Axes*                 _axes           = nullptr;
+        Kinematics*           _kinematics     = nullptr;
+        SPIBus*               _spi            = nullptr;
+        I2CBus*               _i2c[MAX_N_I2C] = { nullptr };
+        I2SOBus*              _i2so           = nullptr;
+        Stepping*             _stepping       = nullptr;
+        CoolantControl*       _coolant        = nullptr;
+        Probe*                _probe          = nullptr;
+        Control*              _control        = nullptr;
+        UserOutputs*          _userOutputs    = nullptr;
+        SDCard*               _sdCard         = nullptr;
+        Macros*               _macros         = nullptr;
+        Start*                _start          = nullptr;
+        Parking*              _parking        = nullptr;
+        OLED*                 _oled           = nullptr;
         Spindles::SpindleList _spindles;
+
+        UartChannel* _uart_channels[MAX_N_UARTS] = { nullptr };
+        Uart*        _uarts[MAX_N_UARTS]         = { nullptr };
 
         float _arcTolerance      = 0.002f;
         float _junctionDeviation = 0.01f;

@@ -217,6 +217,12 @@ bool multiple_bits_set(uint32_t val) {
     return val & (val - 1);
 }
 
+const char* to_hex(uint32_t n) {
+    static char hexstr[12];
+    snprintf(hexstr, 11, "0x%x", n);
+    return hexstr;
+}
+
 String formatBytes(uint64_t bytes) {
     if (bytes < 1024) {
         return String((uint16_t)bytes) + " B";

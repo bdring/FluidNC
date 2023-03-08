@@ -40,12 +40,17 @@ namespace MotorDrivers {
         _axis_index = axis_index();
 
         if (!_uart_started) {
-            _uart->begin();
-            if (_uart->setHalfDuplex()) {
-                log_info("Dynamixel: UART set half duplex failed");
+            _uart = config->_uarts[_uart_num];
+            if (_uart->_rts_pin.undefined()) {
+                log_error("Dynamixel: UART RTS pin must be configured.");
+                _has_errors = true;
                 return;
             }
-            _uart->config_message("    dynamixel2", " ");
+            if (_uart->setHalfDuplex()) {
+                log_error("Dynamixel: UART set half duplex failed");
+                _has_errors = true;
+                return;
+            }
             _uart_started = true;
         }
 
@@ -75,7 +80,9 @@ namespace MotorDrivers {
         LED_on(false);
     }
 
-    void Dynamixel2::config_message() { log_info("    " << name() << " id:" << _id << " Count(" << _countMin << "," << _countMax << ")"); }
+    void Dynamixel2::config_message() {
+        log_info("    " << name() << " UART" << _uart_num << " id:" << _id << " Count(" << _countMin << "," << _countMax << ")");
+    }
 
     bool Dynamixel2::test() {
         uint16_t len = 3;
@@ -346,7 +353,7 @@ namespace MotorDrivers {
         msg[msg_len + 5] = crc & 0xFF;  // CRC_L
         msg[msg_len + 6] = (crc & 0xFF00) >> 8;
 
-        _uart->flush();
+        _uart->flushRx();
         _uart->write(msg, msg_len + 7);
 
         //hex_msg(msg, "0x", msg_len + 7);

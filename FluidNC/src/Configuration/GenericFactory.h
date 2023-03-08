@@ -4,6 +4,7 @@
 #pragma once
 
 #include <vector>
+#include "../Logging.h"
 
 #include "HandlerBase.h"
 
