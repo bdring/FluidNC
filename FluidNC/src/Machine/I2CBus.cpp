@@ -7,7 +7,7 @@
 namespace Machine {
     I2CBus::I2CBus(int busNumber) : _busNumber(busNumber) {}
 
-    void I2CBus::validate() const {
+    void I2CBus::validate() {
         if (_sda.defined() || _scl.defined()) {
             Assert(_sda.defined(), "I2C SDA pin configured multiple times");
             Assert(_scl.defined(), "I2C SCL pin configured multiple times");

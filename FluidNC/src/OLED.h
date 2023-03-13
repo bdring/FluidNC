@@ -117,7 +117,7 @@ public:
     size_t timedReadBytes(char* buffer, size_t length, TickType_t timeout) override { return 0; }
 
     // Configuration handlers:
-    void validate() const override {}
+    void validate() override {}
 
     void afterParse() override;
 

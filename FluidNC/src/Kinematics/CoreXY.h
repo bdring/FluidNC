@@ -36,7 +36,7 @@ namespace Kinematics {
         bool limitReached(AxisMask& axisMask, MotorMask& motors, MotorMask limited);
 
         // Configuration handlers:
-        void         validate() const override {}
+        void         validate() override {}
         virtual void group(Configuration::HandlerBase& handler) override;
         void         afterParse() override {}
 

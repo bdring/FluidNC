@@ -32,7 +32,7 @@ namespace MotorDrivers {
         void set_disable(bool disable);
         void config_motor() override;
         void debug_message() override;
-        void validate() const override { StandardStepper::validate(); }
+        void validate() override { StandardStepper::validate(); }
 
         void group(Configuration::HandlerBase& handler) override {
             //handler.item("tpfd", _tpfd, 0, 15);

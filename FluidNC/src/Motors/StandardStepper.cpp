@@ -115,7 +115,7 @@ namespace MotorDrivers {
         MotorFactory::InstanceBuilder<StandardStepper> registration("standard_stepper");
     }
 
-    void StandardStepper::validate() const {
+    void StandardStepper::validate() {
         Assert(_step_pin.defined(), "Step pin must be configured.");
         bool isI2SO = config->_stepping->_engine == Stepping::I2S_STREAM || config->_stepping->_engine == Stepping::I2S_STATIC;
         if (isI2SO) {

@@ -32,7 +32,7 @@ namespace MotorDrivers {
         Pin _disable_pin;
 
         // Configuration handlers:
-        void validate() const override;
+        void validate() override;
 
         void group(Configuration::HandlerBase& handler) override {
             handler.item("step_pin", _step_pin);
