@@ -8,7 +8,7 @@
 #include "src/SettingsDefinitions.h"
 
 namespace Machine {
-    void SPIBus::validate() const {
+    void SPIBus::validate() {
         if (_miso.defined() || _mosi.defined() || _sck.defined()) {
             Assert(_miso.defined(), "SPI MISO pin should be configured once");
             Assert(_mosi.defined(), "SPI MOSI pin should be configured once");

@@ -23,7 +23,7 @@ namespace Machine {
         uint32_t _frequency = 100000;
 
         void init();
-        void validate() const override;
+        void validate() override;
         void group(Configuration::HandlerBase& handler) override;
 
         int write(uint8_t address, const uint8_t* data, size_t count);
