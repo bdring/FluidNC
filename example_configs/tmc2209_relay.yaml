@@ -1,5 +1,6 @@
 name: "TMC2209 XYYZ Laser"
 board: "TMC2209 4x DK"
+meta: "update for 3.6.8"
 
 stepping:
   engine: RMT
@@ -7,6 +8,14 @@ stepping:
   dir_delay_us: 1
   pulse_us: 2
   disable_delay_us: 0
+  
+  uart1:
+  txd_pin: gpio.22
+  rxd_pin: gpio.21
+  rts_pin: NO_PIN
+  cts_pin: NO_PIN
+  baud: 115200
+  mode: 8N1
 
 axes:
   shared_stepper_disable_pin: gpio.25:high
@@ -29,11 +38,7 @@ axes:
       hard_limits: false
       pulloff_mm: 1.000
       tmc_2209:
-        uart:
-          txd_pin: gpio.22
-          rxd_pin: gpio.21
-          baud: 115200
-          mode: 8N1
+        uart_num: 1
         addr: 0
         r_sense_ohms: 0.110
         run_amps: 0.500
@@ -73,11 +78,12 @@ axes:
       limit_pos_pin: gpio.34
       limit_all_pin: NO_PIN
       hard_limits: false
-      pulloff_mm:1.00
+      pulloff_mm: 1.00
       tmc_2209:
         step_pin: gpio.33
         direction_pin: gpio.32
         microsteps: 16
+        uart_num: 1
         addr: 1
 
     motor1:
@@ -102,10 +108,11 @@ axes:
       limit_pos_pin: gpio.39
       limit_all_pin: NO_PIN
       hard_limits: false
-      pulloff_mm:1.00
+      pulloff_mm: 1.00
       tmc_2209:
         step_pin: gpio.2
         direction_pin: gpio.14
+        uart_num: 1
         addr: 2
 
     motor1:
@@ -131,7 +138,7 @@ axes:
       limit_pos_pin: gpio.36
       limit_all_pin: NO_PIN
       hard_limits: false
-      pulloff_mm:1.00
+      pulloff_mm: 1.00
       tmc_2209:
         step_pin: gpio.16
         direction_pin: gpio.15
