@@ -117,7 +117,7 @@ namespace Machine {
 extern Machine::MachineConfig* config;
 
 template <typename T>
-void copyAxes(T* dest, T* src) {
+void copyAxes(T* dest, const T* src) {
     auto n_axis = config->_axes->_numberAxis;
     for (size_t axis = 0; axis < n_axis; axis++) {
         dest[axis] = src[axis];
