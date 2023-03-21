@@ -1,7 +1,6 @@
 // Class for creating JSON-encoded strings.
 
 #include "JSONEncoder.h"
-#include "../Uart.h"
 #include "../Report.h"
 #include "../Protocol.h"  // send_line()
 

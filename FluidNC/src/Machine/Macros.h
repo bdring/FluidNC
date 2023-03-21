@@ -6,7 +6,7 @@
 
 #include "src/Configuration/Configurable.h"
 #include "src/WebUI/InputBuffer.h"  // WebUI::inputBuffer
-#include "src/Uart.h"
+#include "src/UartChannel.h"
 #include "src/Event.h"
 
 class MacroEvent : public Event {

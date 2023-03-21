@@ -55,6 +55,8 @@ namespace WebUI {
     const int ESP_ERROR_UPLOAD_CANCELLED = 6;
     const int ESP_ERROR_FILE_CLOSE       = 7;
 
+    static const char LOCATION_HEADER[] = "Location";
+
     static std::map<uint8_t, WSChannel*> wsChannels;
     static std::list<WSChannel*>         webWsChannels;
 
@@ -72,12 +74,13 @@ namespace WebUI {
 #    endif
     FileStream* Web_Server::_uploadFile = nullptr;
 
-    EnumSetting* http_enable;
-    IntSetting*  http_port;
+    EnumSetting *http_enable, *http_block_during_motion;
+    IntSetting  *http_port;
 
     Web_Server::Web_Server() {
-        http_port   = new IntSetting("HTTP Port", WEBSET, WA, "ESP121", "HTTP/Port", DEFAULT_HTTP_PORT, MIN_HTTP_PORT, MAX_HTTP_PORT, NULL);
-        http_enable = new EnumSetting("HTTP Enable", WEBSET, WA, "ESP120", "HTTP/Enable", DEFAULT_HTTP_STATE, &onoffOptions, NULL);
+        http_port                = new IntSetting("HTTP Port", WEBSET, WA, "ESP121", "HTTP/Port", DEFAULT_HTTP_PORT, MIN_HTTP_PORT, MAX_HTTP_PORT, NULL);
+        http_enable              = new EnumSetting("HTTP Enable", WEBSET, WA, "ESP120", "HTTP/Enable", DEFAULT_HTTP_STATE, &onoffOptions, NULL);
+        http_block_during_motion = new EnumSetting("Block serving HTTP content during motion", WEBSET, WA, "", "HTTP/BlockDuringMotion", DEFAULT_HTTP_BLOCKED_DURING_MOTION, &onoffOptions, NULL);
     }
     Web_Server::~Web_Server() { end(); }
 
@@ -142,7 +145,6 @@ namespace WebUI {
         //web commands
         _webserver->on("/command", HTTP_ANY, handle_web_command);
         _webserver->on("/command_silent", HTTP_ANY, handle_web_command_silent);
-        _webserver->on("/reload_blocked", HTTP_ANY, handleReloadBlocked);
         _webserver->on("/feedhold_reload", HTTP_ANY, handleFeedholdReload);
 
         //LocalFS
@@ -231,6 +233,18 @@ namespace WebUI {
 
     // Send a file, either the specified path or path.gz
     bool Web_Server::streamFile(String path, bool download) {
+        // If you load or reload WebUI while a program is running, there is a high
+        // risk of stalling the motion because serving a file from
+        // the local FLASH filesystem takes away a lot of CPU cycles.  If we get
+        // a request for a file when running, reject it to preserve the motion
+        // integrity.
+        // This can make it hard to debug ISR IRAM problems, because the easiest
+        // way to trigger such problems is to refresh WebUI during motion.
+        if (http_block_during_motion->get() && inMotionState()) {
+            Web_Server::handleReloadBlocked();
+            return true;
+        }
+
         FileStream* file;
         try {
             file = new FileStream(path, "r", "");
@@ -281,24 +295,6 @@ namespace WebUI {
     void Web_Server::send404Page() { sendWithOurAddress(PAGE_404); }
 
     void Web_Server::handle_root() {
-        // If you load or reload WebUI while a program is running, there is a high
-        // risk of stalling the motion because serving the index.html.gz file from
-        // the local FLASH filesystem takes away a lot of CPU cycles.  If we get
-        // a request for index.html.gz when running, reject it to preserve the motion
-        // integrity.
-        // This can make it hard to debug ISR IRAM problems, because the easiest
-        // way to trigger such problems is to refresh WebUI during motion.
-        // If you need to do such debugging, comment out this check temporarily.
-        //        if (inMotionState()) {
-        if (false) {
-            _webserver->send(200,
-                             "text/html",
-                             "<!DOCTYPE html><html><body>"
-                             "<script>window.location.assign('/reload_blocked');</script>"
-                             "</body></html>");
-            return;
-        }
-
         if (!(_webserver->hasArg("forcefallback") && _webserver->arg("forcefallback") == "yes")) {
             if (streamFile("/index.html")) {
                 return;
@@ -313,7 +309,9 @@ namespace WebUI {
     // Handle filenames and other things that are not explicitly registered
     void Web_Server::handle_not_found() {
         if (is_authenticated() == AuthenticationLevel::LEVEL_GUEST) {
-            _webserver->sendContent_P("HTTP/1.1 301 OK\r\nLocation: /\r\nCache-Control: no-cache\r\n\r\n");
+            _webserver->sendHeader(String(FPSTR(LOCATION_HEADER)), String(F("/")));
+            _webserver->send(302);
+
             //_webserver->client().stop();
             return;
         }
@@ -625,11 +623,11 @@ namespace WebUI {
     // to avoid interrupting that motion.  It lets you wait until
     // motion is finished or issue a feedhold.
     void Web_Server::handleReloadBlocked() {
-        _webserver->send(200,
+        _webserver->send(503,
                          "text/html",
                          "<!DOCTYPE html><html><body>"
                          "<h3>Cannot load WebUI while moving</h3>"
-                         "<button onclick='window.location.replace(\"/\")'>Retry</button>"
+                         "<button onclick='window.location.reload()'>Retry</button>"
                          "&nbsp;Retry (you must first wait for motion to finish)<br><br>"
                          "<button onclick='window.location.replace(\"/feedhold_reload\")'>Feedhold</button>"
                          "&nbsp;Stop the motion with feedhold and then retry<br>"
@@ -639,11 +637,8 @@ namespace WebUI {
     void Web_Server::handleFeedholdReload() {
         protocol_send_event(&feedHoldEvent);
         // Go to the main page
-        _webserver->send(200,
-                         "text/html",
-                         "<!DOCTYPE html><html><body>"
-                         "<script>window.location.replace('/');</script>"
-                         "</body></html>");
+        _webserver->sendHeader(String(FPSTR(LOCATION_HEADER)), String(F("/")));
+        _webserver->send(302);
     }
 
     //push error code and message to websocket.  Used by upload code
@@ -943,7 +938,7 @@ namespace WebUI {
                     j.begin_object();
                     j.member("name", dir_entry.path().filename().c_str());
                     j.member("shortname", dir_entry.path().filename().c_str());
-                    j.member("size", dir_entry.is_directory() ? String(-1) : formatBytes(dir_entry.file_size()));
+                    j.member("size", dir_entry.is_directory() ? -1 : dir_entry.file_size());
                     j.member("datetime", "");
                     j.end_object();
                 }

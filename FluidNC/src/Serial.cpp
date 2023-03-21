@@ -38,7 +38,7 @@
 */
 
 #include "Serial.h"
-#include "Uart.h"
+#include "UartChannel.h"
 #include "Machine/MachineConfig.h"
 #include "WebUI/InputBuffer.h"
 #include "WebUI/Commands.h"
@@ -186,9 +186,8 @@ bool is_realtime_command(uint8_t data) {
 }
 
 void AllChannels::init() {
-    registration(&Uart0);               // USB Serial
     registration(&WebUI::inputBuffer);  // Macros
-    registration(&startupLog);          // USB Serial
+    registration(&startupLog);          // Early startup messages for $SS
 }
 
 void AllChannels::kill(Channel* channel) {
