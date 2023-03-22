@@ -8,14 +8,17 @@
 
 Control::Control() {
     // The SafetyDoor pin must be defined first because it is checked explicity in safety_door_ajar()
-    _pins.push_back(new ControlPin(&safetyDoorEvent, "safety_door_pin", 'D'));
-    _pins.push_back(new ControlPin(&resetEvent, "reset_pin", 'R'));
-    _pins.push_back(new ControlPin(&feedHoldEvent, "feed_hold_pin", 'H'));
-    _pins.push_back(new ControlPin(&cycleStartEvent, "cycle_start_pin", 'S'));
-    _pins.push_back(new ControlPin(&macro0Event, "macro0_pin", '0'));
-    _pins.push_back(new ControlPin(&macro1Event, "macro1_pin", '1'));
-    _pins.push_back(new ControlPin(&macro2Event, "macro2_pin", '2'));
-    _pins.push_back(new ControlPin(&macro3Event, "macro3_pin", '3'));
+    //_pins.push_back(new ControlPin(&safetyDoorEvent, "safety_door_pin", 'D'));
+    //_pins.push_back(new ControlPin(&resetEvent, "reset_pin", 'R'));
+    //_pins.push_back(new ControlPin(&feedHoldEvent, "feed_hold_pin", 'H'));
+    //_pins.push_back(new ControlPin(&cycleStartEvent, "cycle_start_pin", 'S'));
+    //_pins.push_back(new ControlPin(&macro0Event, "macro0_pin", '0'));
+    //_pins.push_back(new ControlPin(&macro1Event, "macro1_pin", '1'));
+    //_pins.push_back(new ControlPin(&macro2Event, "macro2_pin", '2'));
+    //_pins.push_back(new ControlPin(&macro3Event, "macro3_pin", '3'));
+    _pins.push_back(new ControlPin(&reportStatusEvent,"key_pin1",'1'));
+    _pins.push_back(new ControlPin(&reportStatusEvent,"key_pin2",'2'));
+    _pins.push_back(new ControlPin(&reportStatusEvent,"key_pin3",'3'));
 }
 
 void Control::init() {
