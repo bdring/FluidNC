@@ -93,5 +93,9 @@ namespace Machine {
         handler.item("digital1_pin", _digitalOutput[1]);
         handler.item("digital2_pin", _digitalOutput[2]);
         handler.item("digital3_pin", _digitalOutput[3]);
+        handler.item("digital4_pin", _digitalOutput[4]);
+        handler.item("digital5_pin", _digitalOutput[5]);
+        handler.item("digital6_pin", _digitalOutput[6]);
+        handler.item("digital7_pin", _digitalOutput[7]);
     }
 }
