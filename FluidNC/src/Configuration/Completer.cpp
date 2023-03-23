@@ -50,6 +50,14 @@ namespace Configuration {
 
 #include "../Settings.h"
 
+static bool isInitialSubstringCI(const char* key, const char* test) {
+    while (*key && *test) {
+        if (tolower(*key++) != tolower(*test++)) {
+            return false;
+        }
+    }
+    return *key == '\0';
+}
 // This provides the interface to the completion routines in lineedit.cpp
 // The argument signature is idiosyncratic, based on the needs of the
 // Forth implementation for which the completion code was first developed.
@@ -73,16 +81,8 @@ int num_initial_matches(char* key, int keylen, int matchnum, char* matchname) {
         nfound = completer._numMatches;
     } else {
         // Match NVS settings
-        std::string lcKey(key);
-        for (auto& c : lcKey) {
-            c = tolower(c);
-        }
         for (Setting* s = Setting::List; s; s = s->next()) {
-            std::string lcTest(s->getName());
-            for (auto& c : lcTest) {
-                c = tolower(c);
-            }
-            if (*key == '\0' || (lcTest.rfind(lcKey, 0) == 0)) {
+            if (isInitialSubstringCI(key, s->getName())) {
                 if (matchname && nfound == matchnum) {
                     strcpy(matchname, s->getName());
                 }
