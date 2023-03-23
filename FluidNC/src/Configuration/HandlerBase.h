@@ -10,6 +10,7 @@
 #include "../UartTypes.h"
 
 #include <IPAddress.h>
+#include <string>
 
 namespace Configuration {
     class Configurable;
@@ -52,7 +53,7 @@ namespace Configuration {
 
         virtual void item(const char* name, int& value, EnumItem* e) = 0;
 
-        virtual void item(const char* name, String& value, int minLength = 0, int maxLength = 255) = 0;
+        virtual void item(const char* name, std::string& value, int minLength = 0, int maxLength = 255) = 0;
 
         virtual HandlerType handlerType() = 0;
 

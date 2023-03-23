@@ -109,13 +109,13 @@ namespace Configuration {
         }
     }
 
-    void RuntimeSetting::item(const char* name, String& value, int minLength, int maxLength) {
+    void RuntimeSetting::item(const char* name, std::string& value, int minLength, int maxLength) {
         if (is(name)) {
             isHandled_ = true;
             if (newValue_ == nullptr) {
                 log_to(out_, "", setting_prefix() << value);
             } else {
-                value = String(newValue_);
+                value = newValue_;
             }
         }
     }

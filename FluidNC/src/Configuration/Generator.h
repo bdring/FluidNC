@@ -98,7 +98,7 @@ namespace Configuration {
             send_item(name, s);
         }
 
-        void item(const char* name, String& value, int minLength, int maxLength) override { send_item(name, value.c_str()); }
+        void item(const char* name, std::string& value, int minLength, int maxLength) override { send_item(name, value.c_str()); }
 
         void item(const char* name, bool& value) override { send_item(name, value ? "true" : "false"); }
 

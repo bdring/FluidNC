@@ -985,7 +985,7 @@ Error settings_execute_line(char* line, Channel& out, WebUI::AuthenticationLevel
 void settings_execute_startup() {
     Error status_code;
     for (int i = 0; i < config->_macros->n_startup_lines; i++) {
-        String str = config->_macros->startup_line(i);
+        auto str = config->_macros->startup_line(i);
         if (str.length()) {
             // We have to copy this to a mutable array because
             // gc_execute_line modifies the line while parsing.
