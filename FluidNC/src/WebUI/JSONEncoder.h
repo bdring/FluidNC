@@ -42,7 +42,6 @@ namespace WebUI {
 
         // member() creates a "tag":"value" element
         void member(const char* tag, const char* value);
-        void member(const char* tag, String value);
         void member(const char* tag, const std::string& value);
         void member(const char* tag, int value);
 

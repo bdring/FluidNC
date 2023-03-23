@@ -17,9 +17,9 @@ class WebSocketsServer;
 class WebServer;
 
 namespace WebUI {
-    static const int DEFAULT_HTTP_STATE = 1;
+    static const int DEFAULT_HTTP_STATE                 = 1;
     static const int DEFAULT_HTTP_BLOCKED_DURING_MOTION = 1;
-    static const int DEFAULT_HTTP_PORT  = 80;
+    static const int DEFAULT_HTTP_PORT                  = 80;
 
     static const int MIN_HTTP_PORT = 1;
     static const int MAX_HTTP_PORT = 65001;
@@ -106,9 +106,9 @@ namespace WebUI {
 
         static void sendFSError(Error err);
         static void sendJSON(int code, const String& s);
-        static void sendAuth(const String& status, const String& level, const String& user);
+        static void sendAuth(const char* status, const char* level, const char* user);
         static void sendAuthFailed();
-        static void sendStatus(int code, const String& str);
+        static void sendStatus(int code, const char* str);
 
         static void sendWithOurAddress(String s);
         static void sendCaptivePortal();

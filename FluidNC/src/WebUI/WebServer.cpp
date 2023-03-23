@@ -75,12 +75,19 @@ namespace WebUI {
     FileStream* Web_Server::_uploadFile = nullptr;
 
     EnumSetting *http_enable, *http_block_during_motion;
-    IntSetting  *http_port;
+    IntSetting*  http_port;
 
     Web_Server::Web_Server() {
-        http_port                = new IntSetting("HTTP Port", WEBSET, WA, "ESP121", "HTTP/Port", DEFAULT_HTTP_PORT, MIN_HTTP_PORT, MAX_HTTP_PORT, NULL);
-        http_enable              = new EnumSetting("HTTP Enable", WEBSET, WA, "ESP120", "HTTP/Enable", DEFAULT_HTTP_STATE, &onoffOptions, NULL);
-        http_block_during_motion = new EnumSetting("Block serving HTTP content during motion", WEBSET, WA, "", "HTTP/BlockDuringMotion", DEFAULT_HTTP_BLOCKED_DURING_MOTION, &onoffOptions, NULL);
+        http_port   = new IntSetting("HTTP Port", WEBSET, WA, "ESP121", "HTTP/Port", DEFAULT_HTTP_PORT, MIN_HTTP_PORT, MAX_HTTP_PORT, NULL);
+        http_enable = new EnumSetting("HTTP Enable", WEBSET, WA, "ESP120", "HTTP/Enable", DEFAULT_HTTP_STATE, &onoffOptions, NULL);
+        http_block_during_motion = new EnumSetting("Block serving HTTP content during motion",
+                                                   WEBSET,
+                                                   WA,
+                                                   "",
+                                                   "HTTP/BlockDuringMotion",
+                                                   DEFAULT_HTTP_BLOCKED_DURING_MOTION,
+                                                   &onoffOptions,
+                                                   NULL);
     }
     Web_Server::~Web_Server() { end(); }
 
@@ -462,11 +469,11 @@ namespace WebUI {
     //login status check
     void Web_Server::handle_login() {
 #    ifdef ENABLE_AUTHENTICATION
-        String smsg;
-        String sUser, sPassword;
-        String auths;
-        int    code            = 200;
-        bool   msg_alert_error = false;
+        const char* smsg;
+        String      sUser, sPassword;
+        const char* auths;
+        int         code            = 200;
+        bool        msg_alert_error = false;
         //disconnect can be done anytime no need to check credential
         if (_webserver->hasArg("DISCONNECT")) {
             String cookie = _webserver->header("Cookie");
@@ -711,22 +718,22 @@ namespace WebUI {
         _webserver->send(200, "application/json", s);
     }
 
-    void Web_Server::sendAuth(const String& status, const String& level, const String& user) {
+    void Web_Server::sendAuth(const char* status, const char* level, const char* user) {
         std::string s;
         JSONencoder j(false, &s);
         j.begin();
         j.member("status", status);
-        if (level != "") {
+        if (*level != '\0') {
             j.member("authentication_lvl", level);
         }
-        if (user != "") {
+        if (*user != '\0') {
             j.member("user", user);
         }
         j.end();
         sendJSON(200, s.c_str());
     }
 
-    void Web_Server::sendStatus(int code, const String& status) {
+    void Web_Server::sendStatus(int code, const char* status) {
         std::string s;
         JSONencoder j(false, &s);
         j.begin();
@@ -749,7 +756,7 @@ namespace WebUI {
             return;
         }
 
-        sendStatus(200, String(int(_upload_status)));
+        sendStatus(200, std::to_string(int(_upload_status)).c_str());
 
         //if success restart
         if (_upload_status == UploadStatus::SUCCESSFUL) {
@@ -864,8 +871,8 @@ namespace WebUI {
 
         std::error_code ec;
 
-        String path    = "";
-        String sstatus = "Ok";
+        String      path    = "";
+        std::string sstatus = "Ok";
         if ((_upload_status == UploadStatus::FAILED) || (_upload_status == UploadStatus::FAILED)) {
             sstatus = "Upload failed";
         }
@@ -895,28 +902,28 @@ namespace WebUI {
 
         // Handle deletions and directory creation
         if (_webserver->hasArg("action") && _webserver->hasArg("filename")) {
-            String action   = _webserver->arg("action");
-            String filename = _webserver->arg("filename");
+            String      action   = _webserver->arg("action");
+            std::string filename = std::string(_webserver->arg("filename").c_str());
             if (action == "delete") {
                 if (stdfs::remove(fpath / filename.c_str(), ec)) {
                     sstatus = filename + " deleted";
                 } else {
                     sstatus = "Cannot delete ";
-                    sstatus += filename + " " + ec.message().c_str();
+                    sstatus += filename + " " + ec.message();
                 }
             } else if (action == "deletedir") {
                 if (stdfs::remove_all(fpath / filename.c_str(), ec)) {
                     sstatus = filename + " deleted";
                 } else {
                     sstatus = "Cannot delete ";
-                    sstatus += filename + " " + ec.message().c_str();
+                    sstatus += filename + " " + ec.message();
                 }
             } else if (action == "createdir") {
-                if (stdfs::create_directory(fpath / filename.c_str(), ec)) {
+                if (stdfs::create_directory(fpath / filename, ec)) {
                     sstatus = filename + " created";
                 } else {
                     sstatus = "Cannot create ";
-                    sstatus += filename + " " + ec.message().c_str();
+                    sstatus += filename + " " + ec.message();
                 }
             }
         }
@@ -951,13 +958,13 @@ namespace WebUI {
         totalspace   = space.capacity;
         usedspace    = totalspace - space.available;
 
-        j.member("path", path);
-        j.member("total", formatBytes(totalspace));
-        j.member("used", formatBytes(usedspace + 1));
+        j.member("path", path.c_str());
+        j.member("total", formatBytes(totalspace).c_str());
+        j.member("used", formatBytes(usedspace + 1).c_str());
 
         uint32_t percent = totalspace ? (usedspace * 100) / totalspace : 100;
 
-        j.member("occupation", String(percent));
+        j.member("occupation", percent);
         j.member("status", sstatus);
         j.end();
         sendJSON(200, s.c_str());

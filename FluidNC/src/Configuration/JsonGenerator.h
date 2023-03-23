@@ -6,7 +6,6 @@
 #include <vector>
 
 #include "../Pin.h"
-#include "../StringStream.h"
 #include "HandlerBase.h"
 
 #include "../WebUI/JSONEncoder.h"

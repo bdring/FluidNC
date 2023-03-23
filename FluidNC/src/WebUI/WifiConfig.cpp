@@ -44,7 +44,7 @@ namespace WebUI {
     };
 
     enum WiFiContry {
-        WiFiCountry01 = 0, // country "01" is the safest set of settings which complies with all regulatory domains
+        WiFiCountry01 = 0,  // country "01" is the safest set of settings which complies with all regulatory domains
         WiFiCountryAT,
         WiFiCountryAU,
         WiFiCountryBE,
@@ -92,51 +92,15 @@ namespace WebUI {
     };
 
     enum_opt_t wifiContryOptions = {
-        { "01", WiFiCountry01 },
-        { "AT", WiFiCountryAT },
-        { "AU", WiFiCountryAU },
-        { "BE", WiFiCountryBE },
-        { "BG", WiFiCountryBG },
-        { "BR", WiFiCountryBR },
-        { "CA", WiFiCountryCA },
-        { "CH", WiFiCountryCH },
-        { "CN", WiFiCountryCN },
-        { "CY", WiFiCountryCY },
-        { "CZ", WiFiCountryCZ },
-        { "DE", WiFiCountryDE },
-        { "DK", WiFiCountryDK },
-        { "EE", WiFiCountryEE },
-        { "ES", WiFiCountryES },
-        { "FI", WiFiCountryFI },
-        { "FR", WiFiCountryFR },
-        { "GB", WiFiCountryGB },
-        { "GR", WiFiCountryGR },
-        { "HK", WiFiCountryHK },
-        { "HR", WiFiCountryHR },
-        { "HU", WiFiCountryHU },
-        { "IE", WiFiCountryIE },
-        { "IN", WiFiCountryIN },
-        { "IS", WiFiCountryIS },
-        { "IT", WiFiCountryIT },
-        { "JP", WiFiCountryJP },
-        { "KR", WiFiCountryKR },
-        { "LI", WiFiCountryLI },
-        { "LT", WiFiCountryLT },
-        { "LU", WiFiCountryLU },
-        { "LV", WiFiCountryLV },
-        { "MT", WiFiCountryMT },
-        { "MX", WiFiCountryMX },
-        { "NL", WiFiCountryNL },
-        { "NO", WiFiCountryNO },
-        { "NZ", WiFiCountryNZ },
-        { "PL", WiFiCountryPL },
-        { "PT", WiFiCountryPT },
-        { "RO", WiFiCountryRO },
-        { "SE", WiFiCountrySE },
-        { "SI", WiFiCountrySI },
-        { "SK", WiFiCountrySK },
-        { "TW", WiFiCountryTW },
-        { "US", WiFiCountryUS },
+        { "01", WiFiCountry01 }, { "AT", WiFiCountryAT }, { "AU", WiFiCountryAU }, { "BE", WiFiCountryBE }, { "BG", WiFiCountryBG },
+        { "BR", WiFiCountryBR }, { "CA", WiFiCountryCA }, { "CH", WiFiCountryCH }, { "CN", WiFiCountryCN }, { "CY", WiFiCountryCY },
+        { "CZ", WiFiCountryCZ }, { "DE", WiFiCountryDE }, { "DK", WiFiCountryDK }, { "EE", WiFiCountryEE }, { "ES", WiFiCountryES },
+        { "FI", WiFiCountryFI }, { "FR", WiFiCountryFR }, { "GB", WiFiCountryGB }, { "GR", WiFiCountryGR }, { "HK", WiFiCountryHK },
+        { "HR", WiFiCountryHR }, { "HU", WiFiCountryHU }, { "IE", WiFiCountryIE }, { "IN", WiFiCountryIN }, { "IS", WiFiCountryIS },
+        { "IT", WiFiCountryIT }, { "JP", WiFiCountryJP }, { "KR", WiFiCountryKR }, { "LI", WiFiCountryLI }, { "LT", WiFiCountryLT },
+        { "LU", WiFiCountryLU }, { "LV", WiFiCountryLV }, { "MT", WiFiCountryMT }, { "MX", WiFiCountryMX }, { "NL", WiFiCountryNL },
+        { "NO", WiFiCountryNO }, { "NZ", WiFiCountryNZ }, { "PL", WiFiCountryPL }, { "PT", WiFiCountryPT }, { "RO", WiFiCountryRO },
+        { "SE", WiFiCountrySE }, { "SI", WiFiCountrySI }, { "SK", WiFiCountrySK }, { "TW", WiFiCountryTW }, { "US", WiFiCountryUS },
     };
 
     EnumSetting* wifi_mode;
@@ -267,13 +231,16 @@ namespace WebUI {
             case WIFI_AP:
                 print_mac(out, "Current WiFi Mode: AP", WiFi.softAPmacAddress());
 
-                wifi_config_t conf;
+                wifi_config_t  conf;
                 wifi_country_t country;
                 esp_wifi_get_config(WIFI_IF_AP, &conf);
                 esp_wifi_get_country(&country);
                 log_to(out, "SSID: ", (const char*)conf.ap.ssid);
                 log_to(out, "Visible: ", (conf.ap.ssid_hidden == 0 ? "Yes" : "No"));
-                log_to(out, "Radio country set: ", country.cc << " (channels " << country.schan << "-" << (country.schan+country.nchan-1) << ", max power " << country.max_tx_power << "dBm)");
+                log_to(out,
+                       "Radio country set: ",
+                       country.cc << " (channels " << country.schan << "-" << (country.schan + country.nchan - 1) << ", max power "
+                                  << country.max_tx_power << "dBm)");
 
                 const char* mode;
                 switch (conf.ap.authmode) {
@@ -372,8 +339,7 @@ namespace WebUI {
                                              (bool (*)(char*))WiFiConfig::isPasswordValid);
         wifi_ap_ssid     = new StringSetting(
             "AP SSID", WEBSET, WA, "ESP105", "AP/SSID", DEFAULT_AP_SSID, MIN_SSID_LENGTH, MAX_SSID_LENGTH, (bool (*)(char*))WiFiConfig::isSSIDValid);
-        wifi_ap_country  = new EnumSetting(
-            "AP regulatory domain", WEBSET, WA, NULL, "AP/Country", WiFiCountry01, &wifiContryOptions, NULL);
+        wifi_ap_country  = new EnumSetting("AP regulatory domain", WEBSET, WA, NULL, "AP/Country", WiFiCountry01, &wifiContryOptions, NULL);
         wifi_sta_netmask = new IPaddrSetting("Station Static Mask", WEBSET, WA, NULL, "Sta/Netmask", DEFAULT_STA_MK, NULL);
         wifi_sta_gateway = new IPaddrSetting("Station Static Gateway", WEBSET, WA, NULL, "Sta/Gateway", DEFAULT_STA_GW, NULL);
         wifi_sta_ip      = new IPaddrSetting("Station Static IP", WEBSET, WA, NULL, "Sta/IP", DEFAULT_STA_IP, NULL);
@@ -701,7 +667,7 @@ namespace WebUI {
         WiFi.enableSTA(false);
         WiFi.mode(WIFI_AP);
 
-        const char *country = wifi_ap_country->getStringValue();
+        const char* country = wifi_ap_country->getStringValue();
         if (ESP_OK != esp_wifi_set_country_code(country, true)) {
             log_error("failed to set Wifi regulatory domain to " << country);
         }
@@ -872,7 +838,7 @@ namespace WebUI {
             default:
                 for (int i = 0; i < n; ++i) {
                     j.begin_object();
-                    j.member("SSID", WiFi.SSID(i));
+                    j.member("SSID", WiFi.SSID(i).c_str());
                     j.member("SIGNAL", wifi_config.getSignal(WiFi.RSSI(i)));
                     j.member("IS_PROTECTED", WiFi.encryptionType(i) != WIFI_AUTH_OPEN);
                     //            j->member("IS_PROTECTED", WiFi.encryptionType(i) == WIFI_AUTH_OPEN ? "0" : "1");
