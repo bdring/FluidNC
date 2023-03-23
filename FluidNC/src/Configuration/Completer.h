@@ -9,12 +9,12 @@
 namespace Configuration {
     class Completer : public Configuration::HandlerBase {
     private:
-        String _key;
-        int    _reqMatch;
-        char*  _matchedStr;
-        String _currentPath;
+        std::string _key;
+        int         _reqMatch;
+        char*       _matchedStr;
+        std::string _currentPath;
 
-        void addCandidate(String fullName);
+        void addCandidate(std::string fullName);
 
     protected:
         void enterSection(const char* name, Configuration::Configurable* value) override;
