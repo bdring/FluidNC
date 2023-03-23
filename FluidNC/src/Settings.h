@@ -229,12 +229,12 @@ extern Coordinates* coords[CoordIndex::End];
 
 class StringSetting : public Setting {
 private:
-    String _defaultValue;
-    String _currentValue;
-    String _storedValue;
-    int    _minLength;
-    int    _maxLength;
-    void   _setStoredValue(const char* s);
+    std::string _defaultValue;
+    std::string _currentValue;
+    std::string _storedValue;
+    int         _minLength;
+    int         _maxLength;
+    void        _setStoredValue(const char* s);
 
 public:
     StringSetting(const char*   description,

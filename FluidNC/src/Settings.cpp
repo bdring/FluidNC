@@ -220,7 +220,7 @@ void StringSetting::load() {
         _currentValue = _defaultValue;
         return;
     }
-    _storedValue  = String(buf);
+    _storedValue  = buf;
     _currentValue = _storedValue;
 }
 
