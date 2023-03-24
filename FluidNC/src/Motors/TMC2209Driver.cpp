@@ -72,6 +72,15 @@ namespace MotorDrivers {
                 break;
             }
         }
+
+        // dump the registers. This is helpful for people migrating to the Pro version
+        log_debug("CHOPCONF: 0x" << String(tmc2209->CHOPCONF(), HEX));
+        log_debug("COOLCONF: 0x" << String(tmc2209->COOLCONF(), HEX));
+        log_debug("TPWMTHRS: 0x" << String(tmc2209->TPWMTHRS(), HEX));
+        log_debug("TCOOLTHRS: 0x" << String(tmc2209->TCOOLTHRS(), HEX));
+        log_debug("GCONF: 0x" << String(tmc2209->GCONF(), HEX));
+        log_debug("PWMCONF: 0x" << String(tmc2209->PWMCONF(), HEX));
+        log_debug("IHOLD_IRUN: 0x" << String(tmc2209->IHOLD_IRUN(), HEX));
     }
 
     void TMC2209Driver::debug_message() {
