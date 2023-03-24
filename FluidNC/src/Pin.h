@@ -10,6 +10,7 @@
 
 #include <esp_attr.h>  // IRAM_ATTR
 #include <cstdint>
+#include <string>
 #include <cstring>
 #include <utility>
 #include "Assert.h"
@@ -161,7 +162,7 @@ public:
     inline String name() const { return _detail->toString(); }
 
     void report(const char* legend);
-    void report(String legend) { report(legend.c_str()); }
+    void report(std::string legend) { report(legend.c_str()); }
 
     inline void swap(Pin& o) { std::swap(o._detail, _detail); }
 

@@ -16,7 +16,7 @@ namespace Machine {
         static bool inactive(EventPin* pin);
 
     public:
-        String _legend;  // The name that appears in init() messages and the name of the configuration item
+        std::string _legend;  // The name that appears in init() messages and the name of the configuration item
 
         EventPin(Event* event, const char* legend, Pin* pin);
 

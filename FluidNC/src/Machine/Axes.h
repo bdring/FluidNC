@@ -71,10 +71,10 @@ namespace Machine {
         void unstep();
         void config_motors();
 
-        String maskToNames(AxisMask mask);
-        bool   namesToMask(const char* names, AxisMask& mask);
+        std::string maskToNames(AxisMask mask);
+        bool        namesToMask(const char* names, AxisMask& mask);
 
-        String motorMaskToNames(MotorMask mask);
+        std::string motorMaskToNames(MotorMask mask);
 
         // Configuration helpers:
         void group(Configuration::HandlerBase& handler) override;

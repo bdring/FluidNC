@@ -84,8 +84,7 @@ void limits_soft_check(float* cartesian) {
 
     for (int axis = 0; axis < n_axis; axis++) {
         if (axes->_axis[axis]->_softLimits && (cartesian[axis] < limitsMinPosition(axis) || cartesian[axis] > limitsMaxPosition(axis))) {
-            String axis_letter = String(Machine::Axes::_names[axis]);
-            log_info("Soft limit on " << axis_letter << " target:" << cartesian[axis]);
+            log_info("Soft limit on " << Machine::Axes::_names[axis] << " target:" << cartesian[axis]);
             limit_error = true;
         }
     }
@@ -121,7 +120,7 @@ void limitCheckTask(void* pvParameters) {
         vTaskDelay(config->_softwareDebounceMs / portTICK_PERIOD_MS);  // delay a while
         auto switch_state = limits_get_state();
         if (switch_state) {
-            log_debug("Limit Switch State " << String(switch_state, HEX));
+            log_debug("Limit Switch State " << to_hex(switch_state));
             mc_reset();                      // Initiate system kill.
             rtAlarm = ExecAlarm::HardLimit;  // Indicate hard limit critical event
         }
