@@ -98,19 +98,20 @@ namespace WebUI {
         static void handle_direct_SDFileList();
         static void fileUpload(const char* fs);
         static void SDFileUpload();
-        static void uploadStart(String filename, size_t filesize, const char* fs);
+        static void uploadStart(const char* filename, size_t filesize, const char* fs);
         static void uploadWrite(uint8_t* buffer, size_t length);
         static void uploadEnd(size_t filesize);
         static void uploadStop();
-        static void uploadCheck(String filename);
+        static void uploadCheck();
 
         static void sendFSError(Error err);
-        static void sendJSON(int code, const String& s);
+        static void sendJSON(int code, const char* s);
+        static void sendJSON(int code, const std::string& s) { sendJSON(code, s.c_str()); }
         static void sendAuth(const char* status, const char* level, const char* user);
         static void sendAuthFailed();
         static void sendStatus(int code, const char* str);
 
-        static void sendWithOurAddress(String s);
+        static void sendWithOurAddress(const char* s);
         static void sendCaptivePortal();
         static void send404Page();
 

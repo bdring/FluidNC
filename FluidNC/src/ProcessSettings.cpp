@@ -580,7 +580,7 @@ static Error motor_control(const char* value, bool disable) {
         char axisName = axes->axisName(i);
 
         if (strchr(value, axisName) || strchr(value, tolower(axisName))) {
-            log_info((disable ? "Dis" : "En") << "abling " << String(axisName) << " motors");
+            log_info((disable ? "Dis" : "En") << "abling " << axisName << " motors");
             axes->set_disable(i, disable);
         }
     }

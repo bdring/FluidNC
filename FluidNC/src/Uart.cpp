@@ -49,7 +49,7 @@ void Uart::begin() {
     }
 
     begin(_baud, _dataBits, _stopBits, _parity);
-    config_message("UART", String(_uart_num, 10).c_str());
+    config_message("UART", std::to_string(_uart_num).c_str());
 }
 
 int Uart::read() {

@@ -12,7 +12,7 @@ WebUI::WiFiConfig wifi_config;
 
 #ifdef ENABLE_WIFI
 #    include "../Config.h"
-#    include "../Main.h"       // display()
+#    include "../Main.h"
 #    include "Commands.h"      // COMMANDS
 #    include "WifiServices.h"  // wifi_services.start() etc.
 #    include "WebSettings.h"   // split_params(), get_params()
@@ -586,7 +586,6 @@ namespace WebUI {
                     return false;
                 case WL_CONNECTED:
                     log_info("Connected - IP is " << WiFi.localIP().toString());
-                    display("IP", WiFi.localIP().toString());
                     return true;
                 default:
                     if ((dot > 3) || (dot == 0)) {
@@ -620,8 +619,8 @@ namespace WebUI {
         }
         WiFi.enableAP(false);
         //SSID
-        String SSID = wifi_sta_ssid->get();
-        if (SSID.length() == 0) {
+        const char* SSID = wifi_sta_ssid->get();
+        if (strlen(SSID) == 0) {
             log_info("STA SSID is not set");
             return false;
         }
@@ -629,21 +628,20 @@ namespace WebUI {
         WiFi.setMinSecurity(static_cast<wifi_auth_mode_t>(wifi_sta_min_security->get()));
         WiFi.setScanMethod(wifi_fast_scan->get() ? WIFI_FAST_SCAN : WIFI_ALL_CHANNEL_SCAN);
         //Get parameters for STA
-        String h = wifi_hostname->get();
-        WiFi.setHostname(h.c_str());
+        WiFi.setHostname(wifi_hostname->get());
         //password
-        String  password = wifi_sta_password->get();
-        int8_t  IP_mode  = wifi_sta_mode->get();
-        int32_t IP       = wifi_sta_ip->get();
-        int32_t GW       = wifi_sta_gateway->get();
-        int32_t MK       = wifi_sta_netmask->get();
+        const char* password = wifi_sta_password->get();
+        int8_t      IP_mode  = wifi_sta_mode->get();
+        int32_t     IP       = wifi_sta_ip->get();
+        int32_t     GW       = wifi_sta_gateway->get();
+        int32_t     MK       = wifi_sta_netmask->get();
         //if not DHCP
         if (IP_mode != DHCP_MODE) {
             IPAddress ip(IP), mask(MK), gateway(GW);
             WiFi.config(ip, gateway, mask);
         }
-        if (WiFi.begin(SSID.c_str(), (password.length() > 0) ? password.c_str() : NULL)) {
-            log_info("Connecting to STA SSID:" << SSID.c_str());
+        if (WiFi.begin(SSID, (strlen(password) > 0) ? password : NULL)) {
+            log_info("Connecting to STA SSID:" << SSID);
             return ConnectSTA2AP();
         } else {
             log_info("Starting client failed");
@@ -682,12 +680,12 @@ namespace WebUI {
 
         //Get parameters for AP
         //SSID
-        String SSID = wifi_ap_ssid->get();
-        if (SSID.length() == 0) {
+        const char* SSID = wifi_ap_ssid->get();
+        if (strlen(SSID) == 0) {
             SSID = DEFAULT_AP_SSID;
         }
 
-        String password = wifi_ap_password->get();
+        const char* password = wifi_ap_password->get();
 
         int8_t channel = int8_t(wifi_ap_channel->get());
         if (channel == 0) {
@@ -704,9 +702,8 @@ namespace WebUI {
         WiFi.softAPConfig(ip, ip, mask);
 
         //Start AP
-        if (WiFi.softAP(SSID.c_str(), (password.length() > 0) ? password.c_str() : NULL, channel)) {
+        if (WiFi.softAP(SSID, (strlen(password) > 0) ? password : NULL, channel)) {
             log_info("AP started");
-            display("IP", ip.toString());
             return true;
         }
 

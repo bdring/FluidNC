@@ -444,7 +444,7 @@ namespace WebUI {
         }
         return Error::Ok;
     }
-    static Error copyDir(String iDir, String oDir, Channel& out) {  // No ESP command
+    static Error copyDir(const char* iDir, const char* oDir, Channel& out) {  // No ESP command
         std::error_code ec;
 
         {  // Block to manage scope of outDir
@@ -479,8 +479,12 @@ namespace WebUI {
             if (dir_entry.is_directory()) {
                 log_error("Not handling localfs subdirectories");
             } else {
-                String opath = oDir + "/" + dir_entry.path().filename().c_str();
-                String ipath = iDir + "/" + dir_entry.path().filename().c_str();
+                std::string opath(oDir);
+                opath += "/";
+                opath += dir_entry.path().filename().c_str();
+                std::string ipath(iDir);
+                ipath += "/";
+                ipath += dir_entry.path().filename().c_str();
                 log_info_to(out, ipath << " -> " << opath);
                 auto err1 = copyFile(ipath.c_str(), opath.c_str(), out);
                 if (err1 != Error::Ok) {

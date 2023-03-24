@@ -275,7 +275,6 @@ void protocol_main_loop() {
 #ifdef DEBUG_REPORT_ECHO_RAW_LINE_RECEIVED
             report_echo_line_received(activeLine, allChannels);
 #endif
-            display("GCODE", activeLine);
 
             Error status_code = execute_line(activeLine, *activeChannel, WebUI::AuthenticationLevel::LEVEL_GUEST);
 

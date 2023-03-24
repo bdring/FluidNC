@@ -44,7 +44,7 @@ namespace MotorDrivers {
         // Display the stepper library version message once, before the first
         // TMC config message.  Link is NULL for the first TMC instance.
         if (!link) {
-            log_debug("TMCStepper Library Ver. 0x" << String(TMCSTEPPER_VERSION, HEX));
+            log_debug("TMCStepper Library Ver. 0x" << to_hex(TMCSTEPPER_VERSION));
         }
 
         config_message();

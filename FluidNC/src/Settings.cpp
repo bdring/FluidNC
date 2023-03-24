@@ -376,7 +376,7 @@ const char* EnumSetting::getStringValue() {
 }
 
 void EnumSetting::showList() {
-    String optList = "";
+    std::string optList = "";
     for (enum_opt_t::iterator it = _options->begin(); it != _options->end(); it++) {
         optList = optList + " " + it->first;
     }
@@ -387,7 +387,7 @@ void EnumSetting::addWebui(WebUI::JSONencoder* j) {
     if (!getDescription()) {
         return;
     }
-    j->begin_webui(getName(), getName(), "B", String(get()).c_str());
+    j->begin_webui(getName(), getName(), "B", get());
     j->begin_array("O");
     for (enum_opt_t::iterator it = _options->begin(); it != _options->end(); it++) {
         j->begin_object();
@@ -505,14 +505,14 @@ Error IPaddrSetting::setStringValue(char* s) {
 }
 
 const char* IPaddrSetting::getDefaultString() {
-    static String s;
-    s = IPAddress(_defaultValue).toString();
-    return s.c_str();
+    static char ipstr[50];
+    strncpy(ipstr, IPAddress(_defaultValue).toString().c_str(), 50);
+    return ipstr;
 }
 const char* IPaddrSetting::getStringValue() {
-    static String s;
-    s = IPAddress(get()).toString();
-    return s.c_str();
+    static char ipstr[50];
+    strncpy(ipstr, IPAddress(get()).toString().c_str(), 50);
+    return ipstr;
 }
 
 void IPaddrSetting::addWebui(WebUI::JSONencoder* j) {

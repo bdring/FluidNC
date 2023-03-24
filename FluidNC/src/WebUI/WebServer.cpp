@@ -283,7 +283,7 @@ namespace WebUI {
         delete file;
         return true;
     }
-    void Web_Server::sendWithOurAddress(String content) {
+    void Web_Server::sendWithOurAddress(const char* content) {
         auto   ip    = WiFi.getMode() == WIFI_STA ? WiFi.localIP() : WiFi.softAPIP();
         String ipstr = ip.toString();
         if (_port != 80) {
@@ -291,9 +291,10 @@ namespace WebUI {
             ipstr += String(_port);
         }
 
-        content.replace("$WEB_ADDRESS$", ipstr);
-        content.replace("$QUERY$", _webserver->uri());
-        _webserver->send(200, "text/html", content);
+        String scontent(content);
+        scontent.replace("$WEB_ADDRESS$", ipstr);
+        scontent.replace("$QUERY$", _webserver->uri());
+        _webserver->send(200, "text/html", scontent);
     }
 
     // Captive Portal Page for use in AP mode
@@ -331,7 +332,7 @@ namespace WebUI {
     // Handle filenames and other things that are not explicitly registered
     void Web_Server::handle_not_found() {
         if (is_authenticated() == AuthenticationLevel::LEVEL_GUEST) {
-            _webserver->sendHeader(String(FPSTR(LOCATION_HEADER)), String(F("/")));
+            _webserver->sendHeader(LOCATION_HEADER, "/");
             _webserver->send(302);
 
             //_webserver->client().stop();
@@ -371,60 +372,60 @@ namespace WebUI {
             _webserver->send(500);
             return;
         }
-        String templ = "<?xml version=\"1.0\"?>"
-                       "<root xmlns=\"urn:schemas-upnp-org:device-1-0\">"
-                       "<specVersion>"
-                       "<major>1</major>"
-                       "<minor>0</minor>"
-                       "</specVersion>"
-                       "<URLBase>http://%s:%u/</URLBase>"
-                       "<device>"
-                       "<deviceType>upnp:rootdevice</deviceType>"
-                       "<friendlyName>%s</friendlyName>"
-                       "<presentationURL>/</presentationURL>"
-                       "<serialNumber>%s</serialNumber>"
-                       "<modelName>ESP32</modelName>"
-                       "<modelNumber>Marlin</modelNumber>"
-                       "<modelURL>http://espressif.com/en/products/hardware/esp-wroom-32/overview</modelURL>"
-                       "<manufacturer>Espressif Systems</manufacturer>"
-                       "<manufacturerURL>http://espressif.com</manufacturerURL>"
-                       "<UDN>uuid:%s</UDN>"
-                       "</device>"
-                       "</root>\r\n"
-                       "\r\n";
-        char     uuid[37];
-        String   sip    = WiFi.localIP().toString();
-        uint32_t chipId = (uint16_t)(ESP.getEfuseMac() >> 32);
+        const char* templ = "<?xml version=\"1.0\"?>"
+                            "<root xmlns=\"urn:schemas-upnp-org:device-1-0\">"
+                            "<specVersion>"
+                            "<major>1</major>"
+                            "<minor>0</minor>"
+                            "</specVersion>"
+                            "<URLBase>http://%s:%u/</URLBase>"
+                            "<device>"
+                            "<deviceType>upnp:rootdevice</deviceType>"
+                            "<friendlyName>%s</friendlyName>"
+                            "<presentationURL>/</presentationURL>"
+                            "<serialNumber>%s</serialNumber>"
+                            "<modelName>ESP32</modelName>"
+                            "<modelNumber>Marlin</modelNumber>"
+                            "<modelURL>http://espressif.com/en/products/hardware/esp-wroom-32/overview</modelURL>"
+                            "<manufacturer>Espressif Systems</manufacturer>"
+                            "<manufacturerURL>http://espressif.com</manufacturerURL>"
+                            "<UDN>uuid:%s</UDN>"
+                            "</device>"
+                            "</root>\r\n"
+                            "\r\n";
+        char        uuid[37];
+        const char* sip    = WiFi.localIP().toString().c_str();
+        uint32_t    chipId = (uint16_t)(ESP.getEfuseMac() >> 32);
         sprintf(uuid,
                 "38323636-4558-4dda-9188-cda0e6%02x%02x%02x",
                 (uint16_t)((chipId >> 16) & 0xff),
                 (uint16_t)((chipId >> 8) & 0xff),
                 (uint16_t)chipId & 0xff);
-        String serialNumber = String(chipId);
-        sschema.printf(templ.c_str(), sip.c_str(), _port, wifi_config.Hostname().c_str(), serialNumber.c_str(), uuid);
-        _webserver->send(200, "text/xml", (String)sschema);
+        const char* serialNumber = std::to_string(chipId).c_str();
+        sschema.printf(templ, sip, _port, wifi_config.Hostname().c_str(), serialNumber, uuid);
+        _webserver->send(200, "text/xml", sschema);
     }
 
     void Web_Server::_handle_web_command(bool silent) {
         AuthenticationLevel auth_level = is_authenticated();
-        String              cmd        = "";
+        std::string         cmd;
         if (_webserver->hasArg("plain")) {
-            cmd = _webserver->arg("plain");
+            cmd = std::string(_webserver->arg("plain").c_str());
         } else if (_webserver->hasArg("commandText")) {
-            cmd = _webserver->arg("commandText");
+            cmd = std::string(_webserver->arg("commandText").c_str());
         } else {
             _webserver->send(200, "text/plain", "Invalid command");
             return;
         }
         //if it is internal command [ESPXXX]<parameter>
-        cmd.trim();
-        int ESPpos = cmd.indexOf("[ESP");
-        if (ESPpos > -1) {
+        // cmd.trim();
+        int ESPpos = cmd.find("[ESP");
+        if (ESPpos != std::string::npos) {
             char line[256];
             strncpy(line, cmd.c_str(), 255);
             webClient.attachWS(_webserver, silent);
-            Error  err = settings_execute_line(line, webClient, auth_level);
-            String answer;
+            Error       err = settings_execute_line(line, webClient, auth_level);
+            std::string answer;
             if (err == Error::Ok) {
                 answer = "ok\n";
             } else {
@@ -433,7 +434,7 @@ namespace WebUI {
                 if (msg) {
                     answer += msg;
                 } else {
-                    answer += static_cast<int>(err);
+                    answer += std::to_string(static_cast<int>(err));
                 }
                 answer += "\n";
             }
@@ -443,7 +444,7 @@ namespace WebUI {
             vTaskDelay(10);
 
             if (!webClient.anyOutput()) {
-                _webserver->send(err != Error::Ok ? 500 : 200, "text/plain", answer);
+                _webserver->send(err != Error::Ok ? 500 : 200, "text/plain", answer.c_str());
             }
             webClient.detachWS();
         } else {  //execute GCODE
@@ -469,7 +470,7 @@ namespace WebUI {
                     } else if (cmd.length() == 1 && is_realtime_command(cmd[0])) {
                         wsChannel->pushRT(cmd[0]);
                     } else {
-                        if (!cmd.endsWith("\n")) {
+                        if (cmd.length() && cmd[cmd.length() - 1] == '\n') {
                             cmd += '\n';
                         }
                         hasError = !wsChannel->push(cmd);
@@ -659,14 +660,15 @@ namespace WebUI {
     void Web_Server::handleFeedholdReload() {
         protocol_send_event(&feedHoldEvent);
         // Go to the main page
-        _webserver->sendHeader(String(FPSTR(LOCATION_HEADER)), String(F("/")));
+        _webserver->sendHeader(LOCATION_HEADER, "/");
         _webserver->send(302);
     }
 
     //push error code and message to websocket.  Used by upload code
     void Web_Server::pushError(int code, const char* st, bool web_error, uint16_t timeout) {
         if (_socket_server && st) {
-            String s = "ERROR:" + String(code) + ":";
+            std::string s("ERROR:");
+            s += std::to_string(code) + ":";
             s += st;
 
             try {
@@ -712,7 +714,7 @@ namespace WebUI {
                 if (upload.status == UPLOAD_FILE_START) {
                     String sizeargname = upload.filename + "S";
                     size_t filesize    = _webserver->hasArg(sizeargname) ? _webserver->arg(sizeargname).toInt() : 0;
-                    uploadStart(upload.filename, filesize, fs);
+                    uploadStart(upload.filename.c_str(), filesize, fs);
                 } else if (upload.status == UPLOAD_FILE_WRITE) {
                     uploadWrite(upload.buf, upload.currentSize);
                 } else if (upload.status == UPLOAD_FILE_END) {
@@ -725,10 +727,10 @@ namespace WebUI {
                 }
             }
         }
-        uploadCheck(upload.filename);
+        uploadCheck();
     }
 
-    void Web_Server::sendJSON(int code, const String& s) {
+    void Web_Server::sendJSON(int code, const char* s) {
         _webserver->sendHeader("Cache-Control", "no-cache");
         _webserver->send(200, "application/json", s);
     }
@@ -745,7 +747,7 @@ namespace WebUI {
             j.member("user", user);
         }
         j.end();
-        sendJSON(200, s.c_str());
+        sendJSON(200, s);
     }
 
     void Web_Server::sendStatus(int code, const char* status) {
@@ -754,7 +756,7 @@ namespace WebUI {
         j.begin();
         j.member("status", status);
         j.end();
-        sendJSON(code, s.c_str());
+        sendJSON(code, s);
     }
 
     void Web_Server::sendAuthFailed() { sendStatus(401, "Authentication failed"); }
@@ -909,7 +911,7 @@ namespace WebUI {
             }
         }
 
-        FluidPath fpath { path, fs, ec };
+        FluidPath fpath { path.c_str(), fs, ec };
         if (ec) {
             sendJSON(200, "{\"status\":\"No SD card\"}");
             return;
@@ -917,7 +919,7 @@ namespace WebUI {
 
         // Handle deletions and directory creation
         if (_webserver->hasArg("action") && _webserver->hasArg("filename")) {
-            String      action   = _webserver->arg("action");
+            std::string action(_webserver->arg("action").c_str());
             std::string filename = std::string(_webserver->arg("filename").c_str());
             if (action == "delete") {
                 if (stdfs::remove(fpath / filename.c_str(), ec)) {
@@ -968,10 +970,9 @@ namespace WebUI {
             }
         }
 
-        String stotalspace, susedspace;
-        auto   space = stdfs::space(fpath, ec);
-        totalspace   = space.capacity;
-        usedspace    = totalspace - space.available;
+        auto space = stdfs::space(fpath, ec);
+        totalspace = space.capacity;
+        usedspace  = totalspace - space.available;
 
         j.member("path", path.c_str());
         j.member("total", formatBytes(totalspace));
@@ -982,14 +983,14 @@ namespace WebUI {
         j.member("occupation", percent);
         j.member("status", sstatus);
         j.end();
-        sendJSON(200, s.c_str());
+        sendJSON(200, s);
     }
 
     void Web_Server::handle_direct_SDFileList() { handleFileOps(sdName); }
     void Web_Server::handleFileList() { handleFileOps(localfsName); }
 
     // File upload
-    void Web_Server::uploadStart(String filename, size_t filesize, const char* fs) {
+    void Web_Server::uploadStart(const char* filename, size_t filesize, const char* fs) {
         std::error_code ec;
 
         FluidPath fpath { filename, fs, ec };
@@ -1049,7 +1050,6 @@ namespace WebUI {
             //            delete _uploadFile;
             // _uploadFile = nullptr;
 
-            //            String path = _uploadFile->path().c_str();
             auto fpath = _uploadFile->fpath();
             delete _uploadFile;
             _uploadFile = nullptr;
@@ -1087,7 +1087,7 @@ namespace WebUI {
             _uploadFile = nullptr;
         }
     }
-    void Web_Server::uploadCheck(String filename) {
+    void Web_Server::uploadCheck() {
         std::error_code error_code;
         if (_upload_status == UploadStatus::FAILED) {
             cancelUpload();
@@ -1113,8 +1113,8 @@ namespace WebUI {
         }
         if ((millis() - start_time) > 10000 && _socket_server) {
             for (WSChannel* wsChannel : webWsChannels) {
-                String s = "PING:";
-                s += String(wsChannel->id());
+                std::string s("PING:");
+                s += wsChannel->id();
                 wsChannel->sendTXT(s);
             }
 
@@ -1149,11 +1149,13 @@ namespace WebUI {
                     wsChannels[num] = wsChannel;
 
                     if (strcmp(data, "/") == 0) {
-                        String s = "CURRENT_ID:" + String(num);
+                        std::string s("CURRENT_ID:");
+                        s += std::to_string(num);
                         // send message to client
                         webWsChannels.push_front(wsChannel);
                         wsChannel->sendTXT(s);
-                        s = "ACTIVE_ID:" + String(wsChannel->id());
+                        s = "ACTIVE_ID:";
+                        s += wsChannel->id();
                         wsChannel->sendTXT(s);
                     }
                 }
@@ -1208,12 +1210,12 @@ namespace WebUI {
     AuthenticationLevel Web_Server::is_authenticated() {
 #    ifdef ENABLE_AUTHENTICATION
         if (_webserver->hasHeader("Cookie")) {
-            String cookie = _webserver->header("Cookie");
-            int    pos    = cookie.indexOf("ESPSESSIONID=");
-            if (pos != -1) {
-                int       pos2      = cookie.indexOf(";", pos);
-                String    sessionID = cookie.substring(pos + strlen("ESPSESSIONID="), pos2);
-                IPAddress ip        = _webserver->client().remoteIP();
+            std::string cookie(_webserver->header("Cookie").c_str());
+            size_t      pos = cookie.find("ESPSESSIONID=");
+            if (pos != std::string::npos) {
+                size_t      pos2      = cookie.find(";", pos);
+                std::string sessionID = cookie.substr(pos + strlen("ESPSESSIONID="), pos2);
+                IPAddress   ip        = _webserver->client().remoteIP();
                 //check if cookie can be reset and clean table in same time
                 return ResetAuthIP(ip, sessionID.c_str());
             }

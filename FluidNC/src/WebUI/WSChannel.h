@@ -37,7 +37,7 @@ namespace WebUI {
         size_t write(uint8_t c);
         size_t write(const uint8_t* buffer, size_t size);
 
-        size_t sendTXT(String& s);
+        size_t sendTXT(std::string& s);
 
         inline size_t write(const char* s) { return write((uint8_t*)s, ::strlen(s)); }
         inline size_t write(unsigned long n) { return write((uint8_t)n); }
@@ -50,7 +50,7 @@ namespace WebUI {
         void handle();
 
         bool push(const uint8_t* data, size_t length);
-        bool push(String& s);
+        bool push(std::string& s);
         void pushRT(char ch);
 
         void flush(void);
