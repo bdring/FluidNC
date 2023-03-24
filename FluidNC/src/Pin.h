@@ -17,9 +17,6 @@
 
 // #define DEBUG_PIN_DUMP  // Pin debugging. WILL spam you with a lot of data!
 
-// Forward declarations:
-class String;
-
 // Yuck, yuck, yuck... apparently we can't create a template with an IRAM_ATTR, because GCC refuses to obide
 // by the attributes. In other words, _all_ templates are out when using an ISR! This define makes an anonymous
 // method in the class, which can be used to wrap a single function. It can then be used by running the attachInterrupt
@@ -106,8 +103,7 @@ public:
 
     static Pin  create(const char* str) { return create(StringRange(str)); }  // ensure it's not ambiguous
     static Pin  create(const StringRange& str);
-    static Pin  create(const String& str);
-    static bool validate(const String& str);
+    static bool validate(const char* str);
 
     // We delete the copy constructor, and implement the move constructor. The move constructor is required to support
     // the correct execution of 'return' in f.ex. `create` calls. It basically transfers ownership from the callee to the
@@ -159,7 +155,7 @@ public:
     // Other functions:
     Capabilities capabilities() const { return _detail->capabilities(); }
 
-    inline String name() const { return _detail->toString(); }
+    inline std::string name() const { return _detail->toString(); }
 
     void report(const char* legend);
     void report(std::string legend) { report(legend.c_str()); }

@@ -5,8 +5,6 @@
 
 #include <cstring>
 
-#include "WString.h"
-
 class StringRange {
     const char* start_;
     const char* end_;
@@ -21,10 +19,26 @@ public:
     StringRange(const StringRange& o) = default;
     StringRange(StringRange&& o)      = default;
 
-    StringRange(const String& str) : StringRange(str.begin(), str.end()) {}
-
     StringRange& operator=(const StringRange& o) = default;
     StringRange& operator=(StringRange&& o) = default;
+    inline bool  operator==(const char* s) {
+        const char* p = start_;
+        while (p != end_ && *s) {
+            if (::tolower(*p++) != ::tolower(*s++)) {
+                return false;
+            }
+        }
+        return !*s && p == end_;
+    }
+    inline bool operator!=(const char* s) {
+        const char* p = start_;
+        while (p != end_ && *s) {
+            if (::tolower(*p++) != ::tolower(*s++)) {
+                return true;
+            }
+        }
+        return *s || p != end_;
+    }
 
     int find(char c) const {
         const char* s = start_;
@@ -89,6 +103,7 @@ public:
     const char* begin() const { return start_; }
     const char* end() const { return end_; }
 
+#if 0
     String str() const {
         // TODO: Check if we can eliminate this function. I'm pretty sure we can.
         auto len = length();
@@ -103,6 +118,22 @@ public:
             return tmp;
         }
     }
+#else
+    std::string str() const {
+        // TODO: Check if we can eliminate this function. I'm pretty sure we can.
+        auto len = length();
+        if (len == 0) {
+            return std::string();
+        } else {
+            char* buf = new char[len + 1];
+            memcpy(buf, begin(), len);
+            buf[len] = 0;
+            std::string tmp(buf);
+            delete[] buf;
+            return tmp;
+        }
+    }
+#endif
 
     inline bool isUInteger(uint32_t& intval) {
         char* intEnd;

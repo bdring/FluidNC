@@ -18,15 +18,11 @@ namespace Machine {
 
         std::string _ssid = "FluidNC";
 
-        // Passwords don't belong in a YAML!
-        // String _password = "12345678";
-
         bool _dhcp = true;
 
         void group(Configuration::HandlerBase& handler) override {
             handler.item("ssid", _ssid);
-            // handler.item("password", _password);
-
+            // No passwords in the config file!
             handler.item("ip_address", _ipAddress);
             handler.item("gateway", _gateway);
             handler.item("netmask", _netmask);

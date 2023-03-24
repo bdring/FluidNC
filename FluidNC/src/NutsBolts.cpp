@@ -256,3 +256,20 @@ std::string formatBytes(uint64_t bytes) {
     msg << std::fixed << std::setprecision(2) << b << " GB";
     return msg.str();
 }
+
+std::string IP_string(uint32_t ipaddr) {
+    std::string retval;
+    retval += std::to_string(uint8_t((ipaddr >> 00) & 0xff)) + ".";
+    retval += std::to_string(uint8_t((ipaddr >> 8) & 0xff)) + ".";
+    retval += std::to_string(uint8_t((ipaddr >> 16) & 0xff)) + ".";
+    retval += std::to_string(uint8_t((ipaddr >> 24) & 0xff));
+    return retval;
+}
+
+void replace_string_in_place(std::string& subject, const std::string& search, const std::string& replace) {
+    size_t pos = 0;
+    while ((pos = subject.find(search, pos)) != std::string::npos) {
+        subject.replace(pos, search.length(), replace);
+        pos += replace.length();
+    }
+}

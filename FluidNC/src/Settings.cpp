@@ -506,12 +506,12 @@ Error IPaddrSetting::setStringValue(char* s) {
 
 const char* IPaddrSetting::getDefaultString() {
     static char ipstr[50];
-    strncpy(ipstr, IPAddress(_defaultValue).toString().c_str(), 50);
+    strncpy(ipstr, IP_string(IPAddress(_defaultValue)).c_str(), 50);
     return ipstr;
 }
 const char* IPaddrSetting::getStringValue() {
     static char ipstr[50];
-    strncpy(ipstr, IPAddress(get()).toString().c_str(), 50);
+    strncpy(ipstr, IP_string(IPAddress(get())).c_str(), 50);
     return ipstr;
 }
 

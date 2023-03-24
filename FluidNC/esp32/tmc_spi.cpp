@@ -120,7 +120,7 @@ static void tmc_spi_rw_reg(uint8_t cmd, uint32_t data, int index) {
 // This is executed in the object context so it has access to class
 // data such as the CS pin that switchCSpin() uses
 void TMC2130Stepper::write(uint8_t reg, uint32_t data) {
-    log_verbose("TMC reg 0x" << String(reg, 16) << " write 0x" << String(data, 16));
+    log_verbose("TMC reg 0x" << to_hex(reg) << " write 0x" << to_hex(data));
     tmc_spi_bus_setup();
 
     switchCSpin(0);
@@ -165,7 +165,7 @@ uint32_t TMC2130Stepper::read(uint8_t reg) {
     data += (uint32_t)in[dummy_in_bytes + 4];
     switchCSpin(1);
 
-    log_verbose("TMC reg 0x" << String(reg, 16) << " read 0x" << String(data, 16) << " status 0x" << String(status, 16));
+    log_verbose("TMC reg 0x" << to_hex(reg) << " read 0x" << to_hex(data) << " status 0x" << to_hex(status));
 
     return data;
 }

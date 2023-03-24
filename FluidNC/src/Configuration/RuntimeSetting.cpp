@@ -205,7 +205,7 @@ namespace Configuration {
         if (is(name)) {
             isHandled_ = true;
             if (newValue_ == nullptr) {
-                log_to(out_, "", setting_prefix() << value.toString());
+                log_to(out_, "", setting_prefix() << IP_string(value));
             } else {
                 IPAddress ip;
                 if (!ip.fromString(newValue_)) {

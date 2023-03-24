@@ -284,17 +284,17 @@ namespace WebUI {
         return true;
     }
     void Web_Server::sendWithOurAddress(const char* content) {
-        auto   ip    = WiFi.getMode() == WIFI_STA ? WiFi.localIP() : WiFi.softAPIP();
-        String ipstr = ip.toString();
+        auto        ip    = WiFi.getMode() == WIFI_STA ? WiFi.localIP() : WiFi.softAPIP();
+        std::string ipstr = IP_string(ip);
         if (_port != 80) {
             ipstr += ":";
-            ipstr += String(_port);
+            ipstr += std::to_string(_port);
         }
 
-        String scontent(content);
-        scontent.replace("$WEB_ADDRESS$", ipstr);
-        scontent.replace("$QUERY$", _webserver->uri());
-        _webserver->send(200, "text/html", scontent);
+        std::string scontent(content);
+        replace_string_in_place(scontent, "$WEB_ADDRESS$", ipstr);
+        replace_string_in_place(scontent, "$QUERY$", _webserver->uri().c_str());
+        _webserver->send(200, "text/html", scontent.c_str());
     }
 
     // Captive Portal Page for use in AP mode
@@ -394,7 +394,7 @@ namespace WebUI {
                             "</root>\r\n"
                             "\r\n";
         char        uuid[37];
-        const char* sip    = WiFi.localIP().toString().c_str();
+        const char* sip    = IP_string(WiFi.localIP()).c_str();
         uint32_t    chipId = (uint16_t)(ESP.getEfuseMac() >> 32);
         sprintf(uuid,
                 "38323636-4558-4dda-9188-cda0e6%02x%02x%02x",
@@ -1155,7 +1155,7 @@ namespace WebUI {
                         webWsChannels.push_front(wsChannel);
                         wsChannel->sendTXT(s);
                         s = "ACTIVE_ID:";
-                        s += wsChannel->id();
+                        s += std::to_string(wsChannel->id());
                         wsChannel->sendTXT(s);
                     }
                 }

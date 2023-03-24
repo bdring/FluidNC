@@ -23,6 +23,8 @@
 #include "WifiConfig.h"
 
 #include <cstring>
+#include <sstream>
+#include <iomanip>
 
 namespace WebUI {
 
@@ -193,7 +195,9 @@ namespace WebUI {
         log_to(out, "Chip ID: ", (uint16_t)(ESP.getEfuseMac() >> 32));
         log_to(out, "CPU Cores: ", ESP.getChipCores());
         log_to(out, "CPU Frequency: ", ESP.getCpuFreqMHz() << "Mhz");
-        log_to(out, "CPU Temperature: ", String(temperatureRead(), 1) << "°C");
+        std::ostringstream msg;
+        msg << std::fixed << std::setprecision(1) << temperatureRead() << "°C";
+        log_to(out, "CPU Temperature: ", msg.str());
         log_to(out, "Free memory: ", formatBytes(ESP.getFreeHeap()));
         log_to(out, "SDK: ", ESP.getSdkVersion());
         log_to(out, "Flash Size: ", formatBytes(ESP.getFlashChipSize()));

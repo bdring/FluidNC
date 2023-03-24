@@ -3,15 +3,15 @@
 
 #pragma once
 
-#include "WString.h"
+#include <string>
 
 #ifdef ESP32
 class AssertionFailed {
 public:
-    String stackTrace;
-    String msg;
+    std::string stackTrace;
+    std::string msg;
 
-    AssertionFailed(String st, String message) : stackTrace(st), msg(message) {}
+    AssertionFailed(std::string st, std::string message) : stackTrace(st), msg(message) {}
 
     static AssertionFailed create(const char* condition) { return create(condition, "Assertion failed"); }
     static AssertionFailed create(const char* condition, const char* msg, ...);
@@ -24,8 +24,8 @@ public:
 
 class AssertionFailed {
 public:
-    String stackTrace;
-    String msg;
+    std::string stackTrace;
+    std::string msg;
 
     static std::exception create(const char* condition) { return create(condition, "Assertion failed"); }
     static std::exception create(const char* condition, const char* msg, ...);

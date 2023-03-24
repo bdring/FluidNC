@@ -38,9 +38,7 @@ namespace Configuration {
         return result;
     }
 
-    StringRange Parser::stringValue() const {
-        return StringRange(token_.sValueStart_, token_.sValueEnd_);
-    }
+    StringRange Parser::stringValue() const { return StringRange(token_.sValueStart_, token_.sValueEnd_); }
 
     bool Parser::boolValue() const {
         auto str = StringRange(token_.sValueStart_, token_.sValueEnd_);
@@ -118,7 +116,7 @@ namespace Configuration {
     IPAddress Parser::ipValue() const {
         IPAddress ip;
         auto      str = StringRange(token_.sValueStart_, token_.sValueEnd_);
-        if (!ip.fromString(str.str())) {
+        if (!ip.fromString(str.str().c_str())) {
             parseError("Expected an IP address like 192.168.0.100");
         }
         return ip;

@@ -98,13 +98,13 @@ namespace Configuration {
             send_item(name, s);
         }
 
-        void item(const char* name, std::string& value, int minLength, int maxLength) override { send_item(name, value.c_str()); }
+        void item(const char* name, std::string& value, int minLength, int maxLength) override { send_item(name, value); }
 
         void item(const char* name, bool& value) override { send_item(name, value ? "true" : "false"); }
 
-        void item(const char* name, Pin& value) override { send_item(name, value.name().c_str()); }
+        void item(const char* name, Pin& value) override { send_item(name, value.name()); }
 
-        void item(const char* name, IPAddress& value) override { send_item(name, value.toString().c_str()); }
+        void item(const char* name, IPAddress& value) override { send_item(name, IP_string(value)); }
         void item(const char* name, int& value, EnumItem* e) override {
             const char* str = "unknown";
             for (; e->name; ++e) {

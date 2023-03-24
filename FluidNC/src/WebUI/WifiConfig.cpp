@@ -139,10 +139,10 @@ namespace WebUI {
         { "WPA2-ENTERPRISE", WIFI_AUTH_WPA2_ENTERPRISE },
     };
 
-    static void print_mac(Channel& out, const char* prefix, String mac) { log_to(out, prefix, " (" << mac << ")"); }
+    static void print_mac(Channel& out, const char* prefix, const char* mac) { log_to(out, prefix, " (" << mac << ")"); }
 
     static Error showIP(char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP111
-        log_to(out, parameter, (WiFi.getMode() == WIFI_STA ? WiFi.localIP() : WiFi.softAPIP()).toString());
+        log_to(out, parameter, IP_string(WiFi.getMode() == WIFI_STA ? WiFi.localIP() : WiFi.softAPIP()));
         return Error::Ok;
     }
 
@@ -192,10 +192,10 @@ namespace WebUI {
 
         switch (mode) {
             case WIFI_STA:
-                print_mac(out, "Current WiFi Mode: STA", WiFi.macAddress());
+                print_mac(out, "Current WiFi Mode: STA", WiFi.macAddress().c_str());
 
                 if (WiFi.isConnected()) {  //in theory no need but ...
-                    log_to(out, "Connected to: ", WiFi.SSID());
+                    log_to(out, "Connected to: ", WiFi.SSID().c_str());
                     log_to(out, "Signal: ", wifi_config.getSignal(WiFi.RSSI()) << "%");
 
                     uint8_t PhyMode;
@@ -220,16 +220,16 @@ namespace WebUI {
                     tcpip_adapter_dhcp_status_t dhcp_status;
                     tcpip_adapter_dhcpc_get_status(TCPIP_ADAPTER_IF_STA, &dhcp_status);
                     log_to(out, "IP Mode: ", (dhcp_status == TCPIP_ADAPTER_DHCP_STARTED ? "DHCP" : "Static"));
-                    log_to(out, "IP: ", WiFi.localIP().toString());
-                    log_to(out, "Gateway: ", WiFi.gatewayIP().toString());
-                    log_to(out, "Mask: ", WiFi.subnetMask().toString());
-                    log_to(out, "DNS: ", WiFi.dnsIP().toString());
+                    log_to(out, "IP: ", IP_string(WiFi.localIP()));
+                    log_to(out, "Gateway: ", IP_string(WiFi.gatewayIP()));
+                    log_to(out, "Mask: ", IP_string(WiFi.subnetMask()));
+                    log_to(out, "DNS: ", IP_string(WiFi.dnsIP()));
 
                 }  //this is web command so connection => no command
-                print_mac(out, "Disabled Mode: AP", WiFi.softAPmacAddress());
+                print_mac(out, "Disabled Mode: AP", WiFi.softAPmacAddress().c_str());
                 break;
             case WIFI_AP:
-                print_mac(out, "Current WiFi Mode: AP", WiFi.softAPmacAddress());
+                print_mac(out, "Current WiFi Mode: AP", WiFi.softAPmacAddress().c_str());
 
                 wifi_config_t  conf;
                 wifi_country_t country;
@@ -270,12 +270,12 @@ namespace WebUI {
                 tcpip_adapter_dhcps_get_status(TCPIP_ADAPTER_IF_AP, &dhcp_status);
                 log_to(out, "DHCP Server: ", (dhcp_status == TCPIP_ADAPTER_DHCP_STARTED ? "Started" : "Stopped"));
 
-                log_to(out, "IP: ", WiFi.softAPIP().toString());
+                log_to(out, "IP: ", IP_string(WiFi.softAPIP()));
 
                 tcpip_adapter_ip_info_t ip_AP;
                 tcpip_adapter_get_ip_info(TCPIP_ADAPTER_IF_AP, &ip_AP);
-                log_to(out, "Gateway: ", IPAddress(ip_AP.gw.addr).toString());
-                log_to(out, "Mask: ", IPAddress(ip_AP.netmask.addr).toString());
+                log_to(out, "Gateway: ", IP_string(IPAddress(ip_AP.gw.addr)));
+                log_to(out, "Mask: ", IP_string(IPAddress(ip_AP.netmask.addr)));
 
                 wifi_sta_list_t          station;
                 tcpip_adapter_sta_list_t tcpip_sta_list;
@@ -286,15 +286,15 @@ namespace WebUI {
                 for (int i = 0; i < station.num; i++) {
                     log_to(out,
                            "",
-                           wifi_config.mac2str(tcpip_sta_list.sta[i].mac) << " " << IPAddress(tcpip_sta_list.sta[i].ip.addr).toString());
+                           wifi_config.mac2str(tcpip_sta_list.sta[i].mac) << " " << IP_string(IPAddress(tcpip_sta_list.sta[i].ip.addr)));
                 }
-                print_mac(out, "Disabled Mode: STA", WiFi.macAddress());
+                print_mac(out, "Disabled Mode: STA", WiFi.macAddress().c_str());
                 break;
             case WIFI_AP_STA:  //we should not be in this state but just in case ....
                 log_to(out, "");
 
-                print_mac(out, "Mixed: STA", WiFi.macAddress());
-                print_mac(out, "Mixed: AP", WiFi.softAPmacAddress());
+                print_mac(out, "Mixed: STA", WiFi.macAddress().c_str());
+                print_mac(out, "Mixed: AP", WiFi.softAPmacAddress().c_str());
                 break;
             default:  //we should not be there if no wifi ....
 
@@ -387,13 +387,13 @@ namespace WebUI {
         s += std::to_string(webServer.port() + 1) + ":";
         switch (WiFi.getMode()) {
             case WIFI_MODE_AP:
-                s += WiFi.softAPIP().toString().c_str();
+                s += IP_string(WiFi.softAPIP());
                 break;
             case WIFI_MODE_STA:
-                s += WiFi.localIP().toString().c_str();
+                s += IP_string(WiFi.localIP());
                 break;
             case WIFI_MODE_APSTA:
-                s += WiFi.softAPIP().toString().c_str();
+                s += IP_string(WiFi.softAPIP());
                 break;
             default:
                 s += "0.0.0.0";
@@ -415,11 +415,11 @@ namespace WebUI {
             result += ":Status=";
             result += (WiFi.status() == WL_CONNECTED) ? "Connected" : "Not connected";
             result += ":IP=";
-            result += WiFi.localIP().toString().c_str();
+            result += IP_string(WiFi.localIP());
             result += ":MAC=";
-            String tmp = WiFi.macAddress();
-            tmp.replace(":", "-");
-            result += tmp.c_str();
+            std::string mac(WiFi.macAddress().c_str());
+            std::replace(mac.begin(), mac.end(), ':', '-');
+            result += mac;
         }
         return result;
     }
@@ -436,11 +436,11 @@ namespace WebUI {
             esp_wifi_get_config(WIFI_IF_AP, &conf);
             result += (const char*)conf.ap.ssid;
             result += ":IP=";
-            result += WiFi.softAPIP().toString().c_str();
+            result += IP_string(WiFi.softAPIP());
             result += ":MAC=";
-            String tmp = WiFi.softAPmacAddress();
-            tmp.replace(":", "-");
-            result += tmp.c_str();
+            std::string mac(WiFi.softAPmacAddress().c_str());
+            std::replace(mac.begin(), mac.end(), ':', '-');
+            result += mac;
         }
         return result;
     }
@@ -585,7 +585,7 @@ namespace WebUI {
                     log_info("Connection failed");
                     return false;
                 case WL_CONNECTED:
-                    log_info("Connected - IP is " << WiFi.localIP().toString());
+                    log_info("Connected - IP is " << IP_string(WiFi.localIP()));
                     return true;
                 default:
                     if ((dot > 3) || (dot == 0)) {
@@ -696,7 +696,7 @@ namespace WebUI {
         IPAddress mask;
         mask.fromString(DEFAULT_AP_MK);
 
-        log_info("AP SSID " << SSID << " IP " << ip.toString() << " mask " << mask.toString() << " channel " << channel);
+        log_info("AP SSID " << SSID << " IP " << IP_string(ip) << " mask " << IP_string(mask) << " channel " << channel);
 
         //Set static IP
         WiFi.softAPConfig(ip, ip, mask);

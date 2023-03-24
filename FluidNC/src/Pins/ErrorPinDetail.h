@@ -8,10 +8,10 @@
 
 namespace Pins {
     class ErrorPinDetail : public PinDetail {
-        String _description;
+        std::string _description;
 
     public:
-        ErrorPinDetail(const String& descr);
+        ErrorPinDetail(const char* descr);
 
         PinCapabilities capabilities() const override;
 
@@ -21,7 +21,7 @@ namespace Pins {
         void          setAttr(PinAttributes value) override;
         PinAttributes getAttr() const override;
 
-        String toString() override;
+        std::string toString() override;
 
         ~ErrorPinDetail() override {}
     };

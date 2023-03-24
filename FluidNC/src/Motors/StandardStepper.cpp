@@ -119,15 +119,15 @@ namespace MotorDrivers {
         Assert(_step_pin.defined(), "Step pin must be configured.");
         bool isI2SO = config->_stepping->_engine == Stepping::I2S_STREAM || config->_stepping->_engine == Stepping::I2S_STATIC;
         if (isI2SO) {
-            Assert(_step_pin.name().startsWith("I2SO"), "Step pin must be an I2SO pin");
+            Assert(_step_pin.name().rfind("I2SO", 0) == 0, "Step pin must be an I2SO pin");
             if (_dir_pin.defined()) {
-                Assert((_dir_pin.name().startsWith("I2SO")), "Direction pin must be an I2SO pin");
+                Assert(_dir_pin.name().rfind("I2SO", 0) == 0, "Direction pin must be an I2SO pin");
             }
 
         } else {
-            Assert(_step_pin.name().startsWith("gpio"), "Step pin must be a GPIO pin");
+            Assert(_step_pin.name().rfind("gpio", 0) == 0, "Step pin must be a GPIO pin");
             if (_dir_pin.defined()) {
-                Assert((_dir_pin.name().startsWith("gpio")), "Direction pin must be a GPIO pin");
+                Assert(_dir_pin.name().rfind("gpio", 0) == 0, "Direction pin must be a GPIO pin");
             }
         }
     }

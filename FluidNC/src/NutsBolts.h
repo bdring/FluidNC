@@ -164,3 +164,7 @@ bool constrain_with_message(T& value, T min, T max, const char* name = "") {
 bool multiple_bits_set(uint32_t val);
 
 std::string formatBytes(uint64_t bytes);
+
+std::string IP_string(uint32_t ipaddr);
+
+void replace_string_in_place(std::string& subject, const std::string& search, const std::string& replace);
