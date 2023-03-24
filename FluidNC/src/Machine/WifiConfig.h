@@ -16,7 +16,7 @@ namespace Machine {
 
         WifiConfig() : _ipAddress(10, 0, 0, 1), _gateway(10, 0, 0, 1), _netmask(255, 255, 0, 0) {}
 
-        String _ssid = "FluidNC";
+        std::string _ssid = "FluidNC";
 
         // Passwords don't belong in a YAML!
         // String _password = "12345678";

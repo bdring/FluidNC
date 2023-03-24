@@ -974,8 +974,8 @@ namespace WebUI {
         usedspace    = totalspace - space.available;
 
         j.member("path", path.c_str());
-        j.member("total", formatBytes(totalspace).c_str());
-        j.member("used", formatBytes(usedspace + 1).c_str());
+        j.member("total", formatBytes(totalspace));
+        j.member("used", formatBytes(usedspace + 1));
 
         uint32_t percent = totalspace ? (usedspace * 100) / totalspace : 100;
 

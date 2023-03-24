@@ -6,7 +6,6 @@
 // #define false 0
 // #define true 1
 
-#include <WString.h>
 #include <cstdint>
 #include <esp_attr.h>
 #include <xtensa/core-macros.h>
@@ -164,4 +163,4 @@ bool constrain_with_message(T& value, T min, T max, const char* name = "") {
 
 bool multiple_bits_set(uint32_t val);
 
-String formatBytes(uint64_t bytes);
+std::string formatBytes(uint64_t bytes);

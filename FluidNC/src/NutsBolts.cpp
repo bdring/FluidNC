@@ -9,6 +9,8 @@
 #include <cstring>
 #include <cstdint>
 #include <cmath>
+#include <sstream>
+#include <iomanip>
 
 const int MAX_INT_DIGITS = 8;  // Maximum number of digits in int32 (and float)
 
@@ -223,26 +225,34 @@ const char* to_hex(uint32_t n) {
     return hexstr;
 }
 
-String formatBytes(uint64_t bytes) {
+std::string formatBytes(uint64_t bytes) {
     if (bytes < 1024) {
-        return String((uint16_t)bytes) + " B";
+        return std::to_string((uint16_t)bytes) + " B";
     }
     float b = bytes;
     b /= 1024;
     if (b < 1024) {
-        return String(b, 2) + " KB";
+        std::ostringstream msg;
+        msg << std::fixed << std::setprecision(2) << b << " KB";
+        return msg.str();
     }
     b /= 1024;
     if (b < 1024) {
-        return String(b, 2) + " MB";
+        std::ostringstream msg;
+        msg << std::fixed << std::setprecision(2) << b << " MB";
+        return msg.str();
     }
     b /= 1024;
     if (b < 1024) {
-        return String(b, 2) + " GB";
+        std::ostringstream msg;
+        msg << std::fixed << std::setprecision(2) << b << " TB";
+        return msg.str();
     }
     b /= 1024;
     if (b > 99999) {
         b = 99999;
     }
-    return String(b, 2) + " TB";
+    std::ostringstream msg;
+    msg << std::fixed << std::setprecision(2) << b << " GB";
+    return msg.str();
 }
