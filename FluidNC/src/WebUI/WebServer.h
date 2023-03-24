@@ -62,7 +62,7 @@ namespace WebUI {
         static UploadStatus      _upload_status;
         static FileStream*       _uploadFile;
 
-        static String getContentType(String filename);
+        static const char* getContentType(const char* filename);
 
         static AuthenticationLevel is_authenticated();
 #    ifdef ENABLE_AUTHENTICATION
@@ -89,7 +89,7 @@ namespace WebUI {
         static void handleUpdate();
         static void WebUpdateUpload();
 
-        static bool streamFile(String path, bool download = false);
+        static bool myStreamFile(const char* path, bool download = false);
 
         static void pushError(int code, const char* st, bool web_error = 500, uint16_t timeout = 1000);
 

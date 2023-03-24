@@ -239,7 +239,7 @@ namespace WebUI {
     }
 
     // Send a file, either the specified path or path.gz
-    bool Web_Server::streamFile(String path, bool download) {
+    bool Web_Server::myStreamFile(const char* path, bool download) {
         // If you load or reload WebUI while a program is running, there is a high
         // risk of stalling the motion because serving a file from
         // the local FLASH filesystem takes away a lot of CPU cycles.  If we get
@@ -252,19 +252,34 @@ namespace WebUI {
             return true;
         }
 
+        bool        isGzip = false;
         FileStream* file;
         try {
             file = new FileStream(path, "r", "");
         } catch (const Error err) {
             try {
-                file = new FileStream(path + ".gz", "r", "");
+                std::string spath(path);
+                file   = new FileStream(spath + ".gz", "r", "");
+                isGzip = true;
             } catch (const Error err) { return false; }
         }
         if (download) {
             _webserver->sendHeader("Content-Disposition", "attachment");
         }
 
-        _webserver->streamFile(*file, getContentType(path));
+        log_debug("path " << path << " CT " << getContentType(path));
+        _webserver->setContentLength(file->size());
+        if (isGzip) {
+            _webserver->sendHeader("Content-Encoding", "gzip");
+        }
+        _webserver->send(200, getContentType(path), "");
+
+        // This depends on the fact that FileStream inherits from Stream
+        // The Arduino implementation of WiFiClient::write(Stream*) just
+        // reads repetitively from the stream in 1360-byte chunks and
+        // sends the data over the TCP socket. so nothing special.
+        _webserver->client().write(*file);
+
         delete file;
         return true;
     }
@@ -303,7 +318,7 @@ namespace WebUI {
 
     void Web_Server::handle_root() {
         if (!(_webserver->hasArg("forcefallback") && _webserver->arg("forcefallback") == "yes")) {
-            if (streamFile("/index.html")) {
+            if (myStreamFile("/index.html")) {
                 return;
             }
         }
@@ -331,7 +346,7 @@ namespace WebUI {
         }
 
         // Download a file.  The true forces a download instead of displaying the file
-        if (streamFile(path, true)) {
+        if (myStreamFile(path.c_str(), true)) {
             return;
         }
 
@@ -342,7 +357,7 @@ namespace WebUI {
 
         // This lets the user customize the not-found page by
         // putting a "404.htm" file on the local filesystem
-        if (streamFile("/404.htm")) {
+        if (myStreamFile("/404.htm")) {
             return;
         }
 
@@ -1154,41 +1169,39 @@ namespace WebUI {
         }
     }
 
-    //helper to extract content type from file extension
-    //Check what is the content tye according extension file
-    String Web_Server::getContentType(String filename) {
-        String file_name = filename;
-        file_name.toLowerCase();
-        if (filename.endsWith(".htm")) {
-            return "text/html";
-        } else if (file_name.endsWith(".html")) {
-            return "text/html";
-        } else if (file_name.endsWith(".css")) {
-            return "text/css";
-        } else if (file_name.endsWith(".js")) {
-            return "application/javascript";
-        } else if (file_name.endsWith(".png")) {
-            return "image/png";
-        } else if (file_name.endsWith(".gif")) {
-            return "image/gif";
-        } else if (file_name.endsWith(".jpeg")) {
-            return "image/jpeg";
-        } else if (file_name.endsWith(".jpg")) {
-            return "image/jpeg";
-        } else if (file_name.endsWith(".ico")) {
-            return "image/x-icon";
-        } else if (file_name.endsWith(".xml")) {
-            return "text/xml";
-        } else if (file_name.endsWith(".pdf")) {
-            return "application/x-pdf";
-        } else if (file_name.endsWith(".zip")) {
-            return "application/x-zip";
-        } else if (file_name.endsWith(".gz")) {
-            return "application/x-gzip";
-        } else if (file_name.endsWith(".txt")) {
-            return "text/plain";
+    //Convert file extension to content type
+    struct mime_type {
+        const char* suffix;
+        const char* mime_type;
+    } mime_types[] = {
+        { ".htm", "text/html" },         { ".html", "text/html" },        { ".css", "text/css" },   { ".js", "application/javascript" },
+        { ".htm", "text/html" },         { ".png", "image/png" },         { ".gif", "image/gif" },  { ".jpeg", "image/jpeg" },
+        { ".jpg", "image/jpeg" },        { ".ico", "image/x-icon" },      { ".xml", "text/xml" },   { ".pdf", "application/x-pdf" },
+        { ".zip", "application/x-zip" }, { ".gz", "application/x-gzip" }, { ".txt", "text/plain" }, { "", "application/octet-stream" }
+    };
+    static bool endsWithCI(const char* suffix, const char* test) {
+        size_t slen = strlen(suffix);
+        size_t tlen = strlen(test);
+        if (slen > tlen) {
+            return false;
         }
-        return "application/octet-stream";
+        const char* s = suffix + slen;
+        const char* t = test + tlen;
+        while (--s != s) {
+            if (tolower(*s) != tolower(*--t)) {
+                return false;
+            }
+        }
+        return true;
+    }
+    const char* Web_Server::getContentType(const char* filename) {
+        mime_type* m;
+        for (m = mime_types; *(m->suffix) != '\0'; ++m) {
+            if (endsWithCI(m->suffix, filename)) {
+                return m->mime_type;
+            }
+        }
+        return m->mime_type;
     }
 
     //check authentification
