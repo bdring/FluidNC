@@ -95,9 +95,9 @@ namespace MotorDrivers {
         if (len == PING_RSP_LEN) {
             uint16_t model_num = _dxl_rx_message[10] << 8 | _dxl_rx_message[9];
             if (model_num == 1060) {
-                log_info("Axis ping reply " << axisName() << " Model XL430-W250 F/W Rev " << String(_dxl_rx_message[11], HEX));
+                log_info("Axis ping reply " << axisName() << " Model XL430-W250 F/W Rev " << to_hex(_dxl_rx_message[11]));
             } else {
-                log_info("Axis ping reply " << axisName() << " M/N " << model_num << " F/W Rev " << String(_dxl_rx_message[11], HEX));
+                log_info("Axis ping reply " << axisName() << " M/N " << model_num << " F/W Rev " << to_hex(_dxl_rx_message[11]));
             }
         } else {
             log_warn(" Ping failed");
