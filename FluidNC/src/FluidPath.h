@@ -9,10 +9,8 @@ namespace stdfs = std::filesystem;
 class FluidPath : public stdfs::path {
 public:
     FluidPath(const char* name, const char* fs, std::error_code& ec) noexcept : FluidPath(name, fs, &ec) {}
-    // FluidPath(String name, const char* fs, std::error_code& ec) noexcept : FluidPath(name.c_str(), fs, &ec) {}
     FluidPath(const std::string& name, const char* fs, std::error_code& ec) noexcept : FluidPath(name.c_str(), fs, &ec) {}
     FluidPath(const char* name, const char* fs) : FluidPath(name, fs, nullptr) {}
-    // FluidPath(String name, const char* fs) : FluidPath(name.c_str(), fs) {}
     FluidPath(const std::string& name, const char* fs) : FluidPath(name.c_str(), fs) {}
 
     ~FluidPath();

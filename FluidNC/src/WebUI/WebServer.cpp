@@ -339,9 +339,9 @@ namespace WebUI {
             return;
         }
 
-        String path = _webserver->urlDecode(_webserver->uri());
+        std::string path(_webserver->urlDecode(_webserver->uri()).c_str());
 
-        if (path.startsWith("/api/")) {
+        if (path.rfind("/api/", 0) == 0) {
             _webserver->send(404);
             return;
         }
@@ -486,20 +486,20 @@ namespace WebUI {
     void Web_Server::handle_login() {
 #    ifdef ENABLE_AUTHENTICATION
         const char* smsg;
-        String      sUser, sPassword;
+        std::string sUser, sPassword;
         const char* auths;
         int         code            = 200;
         bool        msg_alert_error = false;
         //disconnect can be done anytime no need to check credential
         if (_webserver->hasArg("DISCONNECT")) {
-            String cookie = _webserver->header("Cookie");
-            int    pos    = cookie.indexOf("ESPSESSIONID=");
-            String sessionID;
-            if (pos != -1) {
-                int pos2  = cookie.indexOf(";", pos);
-                sessionID = cookie.substring(pos + strlen("ESPSESSIONID="), pos2);
+            std::string cookie(_webserver->header("Cookie").c_str());
+            int         pos = cookie.find("ESPSESSIONID=");
+            std::string sessionID;
+            if (pos != std::string::npos) {
+                int pos2  = cookie.find(";", pos);
+                sessionID = cookie.substr(pos + strlen("ESPSESSIONID="), pos2);
             }
-            ClearAuthIP(_webserver->client().remoteIP(), sessionID.c_str());
+            ClearAuthIP(_webserver->client().remoteIP(), sessionID);
             _webserver->sendHeader("Set-Cookie", "ESPSESSIONID=0");
             _webserver->sendHeader("Cache-Control", "no-cache");
             sendAuth("Ok", "guest", "");
@@ -523,7 +523,7 @@ namespace WebUI {
             //is there a correct list of query?
             if (_webserver->hasArg("PASSWORD") && _webserver->hasArg("USER")) {
                 //USER
-                sUser = _webserver->arg("USER");
+                sUser = _webserver->arg("USER").c_str();
                 if (!((sUser == DEFAULT_ADMIN_LOGIN) || (sUser == DEFAULT_USER_LOGIN))) {
                     msg_alert_error = true;
                     smsg            = "Error : Incorrect User";
@@ -532,9 +532,9 @@ namespace WebUI {
 
                 if (msg_alert_error == false) {
                     //Password
-                    sPassword             = _webserver->arg("PASSWORD");
-                    String sadminPassword = admin_password->get();
-                    String suserPassword  = user_password->get();
+                    sPassword = _webserver->arg("PASSWORD").c_str();
+                    std::string sadminPassword(admin_password->get());
+                    std::string suserPassword(user_password->get());
 
                     if (!(sUser == DEFAULT_ADMIN_LOGIN && sPassword == sadminPassword) ||
                         (sUser == DEFAULT_USER_LOGIN && sPassword == suserPassword)) {
@@ -551,7 +551,7 @@ namespace WebUI {
             //change password
             if (_webserver->hasArg("PASSWORD") && _webserver->hasArg("USER") && _webserver->hasArg("NEWPASSWORD") &&
                 (msg_alert_error == false)) {
-                String newpassword = _webserver->arg("NEWPASSWORD");
+                std::string newpassword(_webserver->arg("NEWPASSWORD").c_str());
 
                 char pwdbuf[MAX_LOCAL_PASSWORD_LENGTH + 1];
                 newpassword.toCharArray(pwdbuf, MAX_LOCAL_PASSWORD_LENGTH + 1);
@@ -593,8 +593,8 @@ namespace WebUI {
                     strcpy(current_auth->userID, sUser.c_str());
                     current_auth->last_time = millis();
                     if (AddAuthIP(current_auth)) {
-                        String tmps = "ESPSESSIONID=";
-                        tmps += current_auth->sessionID;
+                        std::string tmps = "ESPSESSIONID=";
+                        tmps += current_auth->sessionID.c_str();
                         _webserver->sendHeader("Set-Cookie", tmps);
                         _webserver->sendHeader("Cache-Control", "no-cache");
                         switch (current_auth->level) {
@@ -623,12 +623,12 @@ namespace WebUI {
             sendAuth("Ok", "guest", "");
         } else {
             if (auth_level != AuthenticationLevel::LEVEL_GUEST) {
-                String cookie = _webserver->header("Cookie");
-                int    pos    = cookie.indexOf("ESPSESSIONID=");
-                String sessionID;
-                if (pos != -1) {
-                    int pos2                            = cookie.indexOf(";", pos);
-                    sessionID                           = cookie.substring(pos + strlen("ESPSESSIONID="), pos2);
+                std::string cookie(_webserver->header("Cookie").c_str());
+                int         pos = cookie.find("ESPSESSIONID=");
+                std::string sessionID;
+                if (pos != std::string::npos) {
+                    int pos2                            = cookie.find(";", pos);
+                    sessionID                           = cookie.substr(pos + strlen("ESPSESSIONID="), pos2);
                     AuthenticationIP* current_auth_info = GetAuth(_webserver->client().remoteIP(), sessionID.c_str());
                     if (current_auth_info != NULL) {
                         sUser = current_auth_info->userID;
@@ -712,14 +712,16 @@ namespace WebUI {
         } else {
             if ((_upload_status != UploadStatus::FAILED) || (upload.status == UPLOAD_FILE_START)) {
                 if (upload.status == UPLOAD_FILE_START) {
-                    String sizeargname = upload.filename + "S";
-                    size_t filesize    = _webserver->hasArg(sizeargname) ? _webserver->arg(sizeargname).toInt() : 0;
+                    std::string sizeargname(upload.filename.c_str());
+                    sizeargname += "S";
+                    size_t filesize = _webserver->hasArg(sizeargname.c_str()) ? _webserver->arg(sizeargname.c_str()).toInt() : 0;
                     uploadStart(upload.filename.c_str(), filesize, fs);
                 } else if (upload.status == UPLOAD_FILE_WRITE) {
                     uploadWrite(upload.buf, upload.currentSize);
                 } else if (upload.status == UPLOAD_FILE_END) {
-                    String sizeargname = upload.filename + "S";
-                    size_t filesize    = _webserver->hasArg(sizeargname) ? _webserver->arg(sizeargname).toInt() : 0;
+                    std::string sizeargname(upload.filename.c_str());
+                    sizeargname += "S";
+                    size_t filesize = _webserver->hasArg(sizeargname.c_str()) ? _webserver->arg(sizeargname.c_str()).toInt() : 0;
                     uploadEnd(filesize);
                 } else {  //Upload cancelled
                     uploadStop();
@@ -803,10 +805,11 @@ namespace WebUI {
                 //**************
                 if (upload.status == UPLOAD_FILE_START) {
                     log_info("Update Firmware");
-                    _upload_status     = UploadStatus::ONGOING;
-                    String sizeargname = upload.filename + "S";
-                    if (_webserver->hasArg(sizeargname)) {
-                        maxSketchSpace = _webserver->arg(sizeargname).toInt();
+                    _upload_status = UploadStatus::ONGOING;
+                    std::string sizeargname(upload.filename.c_str());
+                    sizeargname += "S";
+                    if (_webserver->hasArg(sizeargname.c_str())) {
+                        maxSketchSpace = _webserver->arg(sizeargname.c_str()).toInt();
                     }
                     //check space
                     size_t flashsize = 0;
@@ -888,8 +891,8 @@ namespace WebUI {
 
         std::error_code ec;
 
-        String      path    = "";
-        std::string sstatus = "Ok";
+        std::string path("");
+        std::string sstatus("Ok");
         if ((_upload_status == UploadStatus::FAILED) || (_upload_status == UploadStatus::FAILED)) {
             sstatus = "Upload failed";
         }
@@ -900,18 +903,18 @@ namespace WebUI {
 
         //get current path
         if (_webserver->hasArg("path")) {
-            path += _webserver->arg("path");
-            path.trim();
-            path.replace("//", "/");
+            path += _webserver->arg("path").c_str();
+            // path.trim();
+            replace_string_in_place(path, "//", "/");
             if (path[path.length() - 1] == '/') {
-                path = path.substring(0, path.length() - 1);
+                path = path.substr(0, path.length() - 1);
             }
-            if (path.startsWith("/")) {
-                path = path.substring(1);
+            if (path.length() & path[0] == '/') {
+                path = path.substr(1);
             }
         }
 
-        FluidPath fpath { path.c_str(), fs, ec };
+        FluidPath fpath { path, fs, ec };
         if (ec) {
             sendJSON(200, "{\"status\":\"No SD card\"}");
             return;
@@ -960,8 +963,8 @@ namespace WebUI {
                 j.begin_array("files");
                 for (auto const& dir_entry : iter) {
                     j.begin_object();
-                    j.member("name", dir_entry.path().filename().c_str());
-                    j.member("shortname", dir_entry.path().filename().c_str());
+                    j.member("name", dir_entry.path().filename());
+                    j.member("shortname", dir_entry.path().filename());
                     j.member("size", dir_entry.is_directory() ? -1 : dir_entry.file_size());
                     j.member("datetime", "");
                     j.end_object();

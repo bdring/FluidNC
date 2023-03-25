@@ -927,16 +927,16 @@ Error do_command_or_setting(const char* key, char* value, WebUI::AuthenticationL
     // text form of the name, not to the nnn and ESPnnn forms.
     Error retval = Error::InvalidStatement;
     if (!value) {
-        auto lcKey = String(key);
-        lcKey.toLowerCase();
         bool found = false;
         for (Setting* s = Setting::List; s; s = s->next()) {
-            auto lcTest = String(s->getName());
-            lcTest.toLowerCase();
-
-            if (regexMatch(lcKey.c_str(), lcTest.c_str())) {
+            auto test = s->getName();
+            // The C++ standard regular expression library supports many more
+            // regular expression forms than the simple one in Regex.cpp, but
+            // consumes a lot of FLASH.  The extra capability is rarely useful
+            // especially now that there are only a few NVS settings.
+            if (regexMatch(key, test, false)) {
                 const char* displayValue = auth_failed(s, value, auth_level) ? "<Authentication required>" : s->getStringValue();
-                show_setting(s->getName(), displayValue, NULL, out);
+                show_setting(test, displayValue, NULL, out);
                 found = true;
             }
         }

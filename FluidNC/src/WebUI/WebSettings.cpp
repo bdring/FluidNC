@@ -275,7 +275,7 @@ namespace WebUI {
             log_to(out, "Missing file name!");
             return Error::InvalidValue;
         }
-        String path = trim(parameter);
+        std::string path(parameter);
         if (path[0] != '/') {
             path = "/" + path;
         }

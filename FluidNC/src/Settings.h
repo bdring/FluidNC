@@ -154,8 +154,7 @@ public:
     virtual void addWebui(WebUI::JSONencoder*) {};
 
     virtual Error       setStringValue(char* value) = 0;
-    Error               setStringValue(String s) { return setStringValue(s.c_str()); }
-    virtual const char* getStringValue() = 0;
+    virtual const char* getStringValue()            = 0;
     virtual const char* getCompatibleValue() { return getStringValue(); }
     virtual const char* getDefaultString() = 0;
 };

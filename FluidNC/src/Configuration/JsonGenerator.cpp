@@ -125,7 +125,7 @@ namespace Configuration {
 
     void JsonGenerator::item(const char* name, IPAddress& value) {
         enter(name);
-        _encoder.begin_webui(_currentPath, _currentPath, "A", value.toString().c_str());
+        _encoder.begin_webui(_currentPath, _currentPath, "A", IP_string(value));
         _encoder.end_object();
         leave();
     }

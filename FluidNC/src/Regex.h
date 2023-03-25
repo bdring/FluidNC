@@ -2,4 +2,4 @@
 // See Regex.cpp for attribution, description and discussion
 
 // Returns true if text contains the regular expression regexp
-bool regexMatch(const char* regexp, const char* text);
+bool regexMatch(const char* regexp, const char* text, bool case_sensitive = true);

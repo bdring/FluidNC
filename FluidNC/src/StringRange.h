@@ -46,7 +46,7 @@ public:
         return (*s) ? (s - start_) : -1;
     }
 
-    StringRange subString(int index, int length) const {
+    StringRange substr(int index, int length) const {
         const char* s = start_ + index;
         if (s > end_) {
             s = end_;
@@ -103,22 +103,6 @@ public:
     const char* begin() const { return start_; }
     const char* end() const { return end_; }
 
-#if 0
-    String str() const {
-        // TODO: Check if we can eliminate this function. I'm pretty sure we can.
-        auto len = length();
-        if (len == 0) {
-            return String();
-        } else {
-            char* buf = new char[len + 1];
-            memcpy(buf, begin(), len);
-            buf[len] = 0;
-            String tmp(buf);
-            delete[] buf;
-            return tmp;
-        }
-    }
-#else
     std::string str() const {
         // TODO: Check if we can eliminate this function. I'm pretty sure we can.
         auto len = length();
@@ -133,7 +117,6 @@ public:
             return tmp;
         }
     }
-#endif
 
     inline bool isUInteger(uint32_t& intval) {
         char* intEnd;

@@ -6,7 +6,7 @@
 
 #include "../Report.h"
 
-#include <cstdlib>
+#include <ctype.h>
 #include <atomic>
 
 namespace Configuration {
