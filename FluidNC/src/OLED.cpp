@@ -8,7 +8,7 @@ void OLED::show(Layout& layout, const char* msg) {
     }
     _oled->setTextAlignment(layout._align);
     _oled->setFont(layout._font);
-    _oled->drawString(layout._x, layout._y, String(msg));
+    _oled->drawString(layout._x, layout._y, msg);
 }
 
 OLED::Layout OLED::bannerLayout128  = { 0, 0, 0, ArialMT_Plain_24, TEXT_ALIGN_CENTER };
@@ -126,7 +126,7 @@ void OLED::show_file() {
         }
         show(tickerLayout, _ticker);
 
-        wrapped_draw_string(14, _filename.c_str(), ArialMT_Plain_16);
+        wrapped_draw_string(14, _filename, ArialMT_Plain_16);
 
         _oled->drawProgressBar(0, 45, 120, 10, pct);
     } else {
@@ -162,7 +162,7 @@ void OLED::show_dro(const float* axes, bool isMpos, bool* limits) {
             axis_msg += limits[axis] ? "L" : ":";
         }
         _oled->setTextAlignment(TEXT_ALIGN_LEFT);
-        _oled->drawString(0, oled_y_pos, String(axis_msg.c_str()));
+        _oled->drawString(0, oled_y_pos, axis_msg.c_str());
 
         _oled->setTextAlignment(TEXT_ALIGN_RIGHT);
         snprintf(axisVal, 20 - 1, "%.3f", axes[axis]);
@@ -523,10 +523,10 @@ void OLED::wrapped_draw_string(int16_t y, const std::string& s, font_t font) {
         }
     }
     if (swidth < _width) {
-        _oled->drawString(0, y, String(s.c_str()));
+        _oled->drawString(0, y, s.c_str());
     } else {
-        _oled->drawString(0, y, String(s.substr(0, i).c_str()));
-        _oled->drawString(0, y + font_height(font) - 1, String(s.substr(i, slen).c_str()));
+        _oled->drawString(0, y, s.substr(0, i).c_str());
+        _oled->drawString(0, y + font_height(font) - 1, s.substr(i, slen).c_str());
     }
 }
 
