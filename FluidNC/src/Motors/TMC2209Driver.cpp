@@ -42,6 +42,7 @@ namespace MotorDrivers {
         // but the TMCStepper library expresses run current as (uint16_t) mA
         // and hold current as (float) fraction of run current.
         uint16_t run_i = (uint16_t)(_run_current * 1000.0);
+        tmc2209->I_scale_analog(false);  // do not scale via pot
         tmc2209->rms_current(run_i, TrinamicBase::holdPercent());
 
         // The TMCStepper library uses the value 0 to mean 1x microstepping
@@ -72,6 +73,15 @@ namespace MotorDrivers {
                 break;
             }
         }
+
+        // dump the registers. This is helpful for people migrating to the Pro version
+        log_debug("CHOPCONF: 0x" << String(tmc2209->CHOPCONF(), HEX));
+        log_debug("COOLCONF: 0x" << String(tmc2209->COOLCONF(), HEX));
+        log_debug("TPWMTHRS: 0x" << String(tmc2209->TPWMTHRS(), HEX));
+        log_debug("TCOOLTHRS: 0x" << String(tmc2209->TCOOLTHRS(), HEX));
+        log_debug("GCONF: 0x" << String(tmc2209->GCONF(), HEX));
+        log_debug("PWMCONF: 0x" << String(tmc2209->PWMCONF(), HEX));
+        log_debug("IHOLD_IRUN: 0x" << String(tmc2209->IHOLD_IRUN(), HEX));
     }
 
     void TMC2209Driver::debug_message() {
