@@ -4,35 +4,34 @@
 #pragma once
 
 /*
-	Cartesian.h
+	Skewed.h
 
-	This is a kinematic system for where the motors operate in the cartesian space.
+	This is a kinematic system for where the motors operate in the cartesian space. 
+    But unlike Cartesian kinematic system, it adds ability to tweak skew correction, 
+    for cases when physical geometry of CNC machine is not ideal.
 */
 
 #include "GenericCartesian.h"
 
 namespace Kinematics {
     class SkewAxis  : public Configuration::Configurable {
-        uint _axisIdx;
     public:
-        SkewAxis( int currentAxis ) : _axisIdx( currentAxis ) { _x[5] = _x[4] = _x[3] = _x[2] = _x[1] = _x[0] = 0.0f; };
+        SkewAxis() { _offsets[5] = _offsets[4] = _offsets[3] = _offsets[2] = _offsets[1] = _offsets[0] = 0.0f; };
 
         float    _dist     = 10.0f;
-        float    _x[ 6 ];
+        float    _offsets[ 6 ];
 
         // Configuration system helpers:
         void validate() override {};
         void afterParse() override {};
         void group(Configuration::HandlerBase& handler) override;
-        void init();
 
-        void getRow( const uint count, float* buf );
+        void init();
     };
 
 
     class Skewed : public GenericCartesian {
-        static constexpr const char* _names = "xyzabc";
-        uint _numberAxis;
+        uint _numberSkewAxis;
 
     public:
         Skewed();
@@ -54,7 +53,7 @@ namespace Kinematics {
         const char* name() const override { return "Skew corrected Cartesian"; }
 
     protected:
-        SkewAxis* _axis[6];
+        SkewAxis* _skewAxis[6];
 //        float _buffer[6];
 
         ~Skewed() {}

@@ -7,31 +7,25 @@
 namespace Kinematics {
 
     void SkewAxis::group(Configuration::HandlerBase& handler) {
-        handler.item("dist", _dist, 1.0f, 100000.0f );
-        handler.item("x", _x[0], -1000.0f, 1000.0f );
-        handler.item("y", _x[1], -1000.0f, 1000.0f );
-        handler.item("z", _x[2], -1000.0f, 1000.0f );
-        handler.item("a", _x[3], -1000.0f, 1000.0f );
-        handler.item("b", _x[4], -1000.0f, 1000.0f );
-        handler.item("c", _x[5], -1000.0f, 1000.0f );
+        handler.item("distance_mm", _dist, 1.0f, 100000.0f );
+        handler.item("offset_x_mm", _offsets[0], -1000.0f, 1000.0f );
+        handler.item("offset_y_mm", _offsets[1], -1000.0f, 1000.0f );
+        handler.item("offset_z_mm", _offsets[2], -1000.0f, 1000.0f );
+        handler.item("offset_a_mm", _offsets[3], -1000.0f, 1000.0f );
+        handler.item("offset_b_mm", _offsets[4], -1000.0f, 1000.0f );
+        handler.item("offset_c_mm", _offsets[5], -1000.0f, 1000.0f );
     }
 
     void SkewAxis::init() {
-        log_info( "      Skew ( " << _x[0] << ", " << _x[1] << ", " << _x[2] << " ) over " << _dist << "mm" );
+        log_debug( "      Skew ( " << _offsets[0] << ", " << _offsets[1] << ", " << _offsets[2] << " ) over " << _dist << "mm" );
     }
 
-
-    // This return a row of transformation matrix 
-    void SkewAxis::getRow( const uint count, float* buf ) {
-        for( uint i = 0; i < count; ++i )
-            buf[ i ] = _x[ i ] / _dist + (( i == _axisIdx ) ? 1.0f : 0.0 );
-    }
 
     ////////////////////
 
-    Skewed::Skewed() : _numberAxis( MAX_N_AXIS ), _axis() {
+    Skewed::Skewed() : _numberSkewAxis( MAX_N_AXIS ) {
         for (int i = 0; i < MAX_N_AXIS; ++i) {
-            _axis[i] = nullptr;
+            _skewAxis[i] = nullptr;
         }
 
     }
@@ -47,14 +41,21 @@ namespace Kinematics {
         if (_rev)
             delete _rev;
 
-        _mtx = new Mtx<float>(_numberAxis, _numberAxis);
-        _rev = new Mtx<float>(_numberAxis, _numberAxis);
+        _mtx = new Mtx<float>( _numberSkewAxis, _numberSkewAxis );
+        _rev = new Mtx<float>( _numberSkewAxis, _numberSkewAxis );
 
-        for (size_t axis = 0; axis < _numberAxis; axis++) {
-            auto a = _axis[axis];
+        for (size_t axis = 0; axis < _numberSkewAxis; axis++) {
+            auto a = _skewAxis[axis];
             if (a) {
                 a->init();
-                a->getRow( _numberAxis, _mtx->ptr( axis, 0 ) );
+                
+                float* row = _mtx->ptr( axis, 0 );
+                const SkewAxis* skew = _skewAxis[axis];
+
+                for( uint i = 0; i < _numberSkewAxis; ++i ) {
+                    row[ i ]  = skew->_offsets[ i ] / skew->_dist;
+                    row[ i ] += ( i == axis ) ? 1.0f : 0.0f;
+                }
             } else {
                 fail = true;
                 break;
@@ -62,15 +63,13 @@ namespace Kinematics {
         }
 
         if (!fail)
-            fail = ! GJ_invertMatrix(_numberAxis, _mtx, _rev);
+            fail = ! GJ_invertMatrix( _numberSkewAxis, _mtx, _rev );
 
         if (!fail) {
-#ifdef LOG_MATRIX_CONTENT
-            log_info("Direct transform");
+            log_debug("Direct transform");
             _mtx->dump();
-            log_info("Reverse transform");
+            log_debug("Reverse transform");
             _rev->dump();
-#endif
         } else {
             log_warn("Fail during building transformation matrices. Probably skew settings are too wild. Skew correction will be "
                      "disabled.");
@@ -88,41 +87,39 @@ namespace Kinematics {
     }
 
     void Skewed::afterParse() {
-        // Find the last axis that was declared and set _numberAxis accordingly
+        // Find the last axis that was declared and set _numberSkewAxis accordingly
         for (size_t i = MAX_N_AXIS; i > 0; --i) {
-            if (_axis[i - 1] != nullptr) {
-                _numberAxis = i;
+            if (_skewAxis[i - 1] != nullptr) {
+                _numberSkewAxis = i;
                 break;
             }
         }
         // Senders might assume 3 axes in reports
-        if (_numberAxis < 3) {
-            _numberAxis = 3;
+        if (_numberSkewAxis < 3) {
+            _numberSkewAxis = 3;
         }
 
-        for (size_t i = 0; i < _numberAxis; ++i) {
-            if (_axis[i] == nullptr) {
-                _axis[i] = new SkewAxis(i);
+        for (size_t i = 0; i < _numberSkewAxis; ++i) {
+            if (_skewAxis[i] == nullptr) {
+                _skewAxis[i] = new SkewAxis();
             }
         }
     }
 
     void Skewed::group(Configuration::HandlerBase& handler) {
         char   tmp[2];
-        size_t n_axis = _numberAxis ? _numberAxis : MAX_N_AXIS;
+        size_t n_axis = _numberSkewAxis ? _numberSkewAxis : MAX_N_AXIS;
 
         for (size_t i = 0; i < n_axis; ++i) {
-            tmp[0] = _names[i];
+            tmp[0] = config->_axes->axisName( i );
             tmp[1] = 0;
 
-            handler.section(tmp, _axis[i], i);
+            handler.section(tmp, _skewAxis[i]);
         }
     }
 
     void Skewed::validate() {
-        log_info("validation for Skewed");
         init();
-        log_info("validation is done")
     }
 
     // Configuration registration

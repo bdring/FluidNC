@@ -11,15 +11,13 @@
 
     An abstract class which should be a base for diferent transformation cases.
 
-    Unlike Cartisian kinamatic system, this system allow motor space to vary from machine space. 
-	Transformation from system space to motor space is defined as matrix.
-    All axis must by linearly independent. Matrix has to be inversable.
+    Unlike Cartisian kinematic system which uses the identity transform between the
+    axis and motor spaces, this system uses an arbitrary linear transform 
+    defined by an invertible matrix.
 
 */
 
 #include "Kinematics.h"
-
-#define LOG_MATRIX_CONTENT
 
 namespace Kinematics {
 
@@ -44,47 +42,39 @@ namespace Kinematics {
         void releaseMotors(AxisMask axisMask, MotorMask motors) override;
         bool limitReached(AxisMask& axisMask, MotorMask& motors, MotorMask limited) override;
 
-        // Configuration handlers:
-//        void afterParse() override {}
-//        void group(Configuration::HandlerBase& handler) override;
-//        void validate() override {}
-
-        // Name of the configurable. Must match the name registered in the cpp file.
-//        const char* name() const override { return "Generic Cartesian"; }
-
     protected:
         template <typename number>
         class Mtx {
-            uint    _pitch;
-            uint    _lines;
+            size_t  _pitch; // Here, it's equal the number of columns in a matrix row
+            size_t  _lines; // The number of rows
             number* _buffer;
 
         public:
-            Mtx(const uint row, const uint col) : _pitch(col), _lines(row) { _buffer = new number[_pitch * _lines]; };
+            Mtx(const size_t row, const size_t col) : _pitch(col), _lines(row) { _buffer = new number[_pitch * _lines]; };
 
-            void allocate() {  }
-            void deallocate() {
-            }
+            void allocate() {}
+            void deallocate() {}
 
             number* getBuffer() { return _buffer; }
-            number  value(const uint row, const uint col) const { return _buffer[row * _pitch + col]; }
-            number* ptr(const uint row, const uint col) { return _buffer + row * _pitch + col; }
+            number  value(const size_t row, const size_t col) const { return _buffer[row * _pitch + col]; }
+            number* ptr(const size_t row, const size_t col) { return _buffer + row * _pitch + col; }
             void    transform(number* to, const number* from) const;
 
-            void dumpRow(const uint idx) const;
+            void dumpRow(const size_t idx) const;
             void dump() const;
 
             ~Mtx() {
-                if ( _buffer )
+                if (_buffer) {
                     delete[] _buffer;
+                }
             }
         };
 
-        float _buffer[6];
+        float       _buffer[6];
         Mtx<float>* _mtx = nullptr;
         Mtx<float>* _rev = nullptr;
 
-        bool GJ_invertMatrix( const uint size, const Mtx<float>* const A, Mtx<float>* const B );
+        bool GJ_invertMatrix(const size_t size, const Mtx<float>* const A, Mtx<float>* const B);
 
         ~GenericCartesian();
     };
