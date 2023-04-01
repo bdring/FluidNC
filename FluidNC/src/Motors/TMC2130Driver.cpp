@@ -29,7 +29,9 @@ namespace MotorDrivers {
         TrinamicBase::config_motor();
     }
 
-    bool TMC2130Driver::test() { return checkVersion(0x11, tmc2130->version()); }
+    bool TMC2130Driver::test() {
+        return checkVersion(0x11, tmc2130->version());
+    }
 
     void TMC2130Driver::set_registers(bool isHoming) {
         if (_has_errors) {
@@ -42,6 +44,7 @@ namespace MotorDrivers {
         // but the TMCStepper library expresses run current as (uint16_t) mA
         // and hold current as (float) fraction of run current.
         uint16_t run_i = (uint16_t)(_run_current * 1000.0);
+        tmc2130->I_scale_analog(false);  // do not scale via pot
         tmc2130->rms_current(run_i, TrinamicSpiDriver::holdPercent());
 
         // The TMCStepper library uses the value 0 to mean 1x microstepping

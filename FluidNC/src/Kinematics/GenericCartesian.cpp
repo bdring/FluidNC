@@ -9,8 +9,12 @@
 //#include "Skew.h"              // Skew, SkewAxis
 #include "src/Limits.h"
 
+#include <iostream>
+#include <sstream>
+#include <iomanip>
+
 namespace Kinematics {
-    void GenericCartesian::init() { 
+    void GenericCartesian::init() {
         log_info("Kinematic system: " << name());
         init_position();
     }
@@ -24,30 +28,31 @@ namespace Kinematics {
     }
 
     bool GenericCartesian::cartesian_to_motors(float* target, plan_line_data_t* pl_data, float* position) {
-        if ( _mtx ) {
-            _mtx->transform( _buffer, target );
-            return mc_move_motors( _buffer, pl_data);
-        } else
-            // Without skew correction motor space is the same cartesian space, so we do no transform.
-            return mc_move_motors(target, pl_data);
+        if (_mtx) {
+            _mtx->transform(_buffer, target);
+            return mc_move_motors(_buffer, pl_data);
+        }
+
+        // Without skew correction motor space is the same cartesian space, so we do no transform.
+        return mc_move_motors(target, pl_data);
     }
 
     void GenericCartesian::motors_to_cartesian(float* cartesian, float* motors, int n_axis) {
-        if ( _rev ) {        
-            _rev->transform( cartesian, motors );
-        }
-        else
+        if (_rev) {
+            _rev->transform(cartesian, motors);
+        } else {
             // Without skew correction motor space is the same cartesian space, so we do no transform.
             copyAxes(cartesian, motors);
+        }
     }
 
     void GenericCartesian::transform_cartesian_to_motors(float* motors, float* cartesian) {
         // Without skew correction motor space is the same cartesian space, so we do no transform.
-        if ( _mtx ) {
-            _mtx->transform( motors, cartesian );
-        }
-        else
+        if (_mtx) {
+            _mtx->transform(motors, cartesian);
+        } else {
             copyAxes(motors, cartesian);
+        }
     }
 
     bool GenericCartesian::canHome(AxisMask axisMask) {
@@ -91,97 +96,93 @@ namespace Kinematics {
     }
 
     GenericCartesian::~GenericCartesian() {
-        if (_mtx)
+        if (_mtx) {
             delete _mtx;
+        }
 
-        if (_rev)
+        if (_rev) {
             delete _rev;
+        }
     }
 
     ////////////////////
 
-    template< typename number >
-    void GenericCartesian::Mtx< number >::dumpRow( const uint idx ) const {
+    template <typename number>
+    void GenericCartesian::Mtx<number>::dumpRow(const size_t rowIdx) const {
         // Prints a row of the matrix into log.
         // Useful for debuging.
-        char line[256];
-        char* C = line;
-
-        for( uint i = 0; i < _pitch; ++i ) {
-            number V = value( idx, i );
-            if ( V >= 0.0 )
-                sprintf( C, " %4.4f ", V );
-            else
-                sprintf( C, "%4.4f ", V );
-
-            C = C + strlen( C );
+        std::ostringstream msg;
+        for (size_t col = 0; col < _pitch; ++col) {
+            number V = value( rowIdx, col );
+            msg << std::fixed << std::setw(9) << std::setprecision(5) << V;
         }
 
-        log_info( line );
+        log_debug( msg.str() );
     }
 
-    template< typename number >
-    void GenericCartesian::Mtx< number >::dump() const {
-        for( uint i = 0; i < _lines; ++i ) {
-            dumpRow( i );
+    template <typename number>
+    void GenericCartesian::Mtx<number>::dump() const {
+        for (size_t i = 0; i < _lines; ++i) {
+            dumpRow(i);
         }
     }
 
-    template< typename number >
-    void GenericCartesian::Mtx< number >::transform(  number* to, const number* from ) const {
-        for( uint j = 0; j < _pitch; ++j ) {
+    template <typename number>
+    void GenericCartesian::Mtx<number>::transform(number* to, const number* from) const {
+        for (size_t j = 0; j < _pitch; ++j) {
             number A = 0.0;
-            for( uint i = 0; i < _lines; ++i )
-                A += from[ i ] * value( i, j );
+            for (size_t i = 0; i < _lines; ++i) {
+                A += from[i] * value(i, j);
+            }
 
-            to[ j ] = A;
+            to[j] = A;
         }
     }
 
-    bool GenericCartesian::GJ_invertMatrix( const uint size, const Mtx<float>* A, Mtx<float>* const B ) {
-        //log_info( "GJ_invertMatrix" );
-        // Gauss Jordan Matrix inversion. 
-        Mtx<double> T( size, size * 2 );
-        uint i,j,k;
+    bool GenericCartesian::GJ_invertMatrix(const size_t size, const Mtx<float>* A, Mtx<float>* const B) {
+        //log_debug( "GJ_invertMatrix" );
+        // Gauss Jordan Matrix inversion.
+        Mtx<double> T(size, size * 2);
+        size_t      i, j, k;
 
         T.allocate();
-        
-        for( i = 0; i < size; ++i ) {
-            for( j = 0; j < size; ++j ) {
-                *T.ptr( i, j )        = A->value( i, j );
-                *T.ptr( i, j + size ) = ( i == j ) ? 1.0 : 0.0;
+
+        for (i = 0; i < size; ++i) {
+            for (j = 0; j < size; ++j) {
+                *T.ptr(i, j)        = A->value(i, j);
+                *T.ptr(i, j + size) = (i == j) ? 1.0 : 0.0;
             }
         }
 
         //T.dump();
-        for( i = 0; i < size; ++i ) {
-            if ( T.value( i,i ) == 0 ) {
+        for (i = 0; i < size; ++i) {
+            if (T.value(i, i) == 0) {
                 T.deallocate();
                 return false;
             }
 
-            for( j = 0; j < size; ++j ) {
-                if ( i != j ) {
-                    double S = T.value( j, i ) / T.value( i, i );
-                    for( k = 0; k < size*2; ++k )
-                        *T.ptr( j, k ) = T.value( j, k ) - S * T.value( i, k );
-                    
+            for (j = 0; j < size; ++j) {
+                if (i != j) {
+                    double S = T.value(j, i) / T.value(i, i);
+                    for (k = 0; k < size * 2; ++k) {
+                        *T.ptr(j, k) = T.value(j, k) - S * T.value(i, k);
+                    }
                 }
             }
         }
 
-        //log_info( "After elimination" );
-        //T.dump();    
-        for( i = 0; i < size; ++i ) {
-            for( j = 0; j < size; ++j ) 
-                *B->ptr( i, j ) = static_cast< float >( T.value( i, j + size ) / T.value( i,i ) );
+        //log_debug( "After elimination" );
+        //T.dump();
+        for (i = 0; i < size; ++i) {
+            for (j = 0; j < size; ++j)
+                *B->ptr(i, j) = static_cast<float>(T.value(i, j + size) / T.value(i, i));
         }
 
         T.deallocate();
         return true;
     }
 
-    template void GenericCartesian::Mtx< float >::transform( float* to, const float* from  ) const;
-    template void GenericCartesian::Mtx< float >::dump() const;
+    template void GenericCartesian::Mtx<float>::transform(float* to, const float* from) const;
+    template void GenericCartesian::Mtx<float>::dump() const;
 
 }
