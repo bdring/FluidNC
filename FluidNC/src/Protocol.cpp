@@ -1,6 +1,7 @@
 // Copyright (c) 2011-2016 Sungeun K. Jeon for Gnea Research LLC
 // Copyright (c) 2009-2011 Simen Svale Skogsrud
 // Copyright (c) 2018 -	Bart Dring
+// Copyright (c) 2023 -	Sergio Gosalvez
 // Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
 
 /*
@@ -9,7 +10,8 @@
 
 #include "Protocol.h"
 #include "Event.h"
-#include "Paige.h"          //Paige Connect 
+#include "Paige.h"          // Paige Connect variables
+#include "FileStream.h" 
 
 #include "Machine/MachineConfig.h"
 #include "Machine/Homing.h"
@@ -1016,7 +1018,7 @@ static void protocol_do_limit(void* arg) {
 }
 
 //Paige Connect - Keyboard 
-std::string protocol_ascii(){
+String protocol_ascii(){
     const unsigned char ASCII[65] = 
         {' ','a','1','b','\'','k','2','l',
         '@','c','i','f','/','m','s','p',
@@ -1026,9 +1028,8 @@ std::string protocol_ascii(){
         '.','%','[','$','+','x','!','&',
         ';','u','4','\\','0','z','7','(',
         '_','?','w',']','#','y',')','=','\n'};
-    std::string ret = "";
-    ret = std::string(1,char(ASCII[paige_pressed]));
-    paige_pressed = 0;
+    String ret = "";
+    ret = String(char(ASCII[paige_pressed]));
 
     return ret;
 }
@@ -1046,6 +1047,10 @@ static void protocol_key1() {
         }
         if(sum == 0){
             log_info("PAIGE:ASCII:"+protocol_ascii());
+            if(paige_file_open == 1){
+                paige_file += protocol_ascii();
+            }
+            paige_pressed = 0;
         }
     }
 }
@@ -1063,6 +1068,10 @@ static void protocol_key2() {
         }
         if(sum == 0){
             log_info("PAIGE:ASCII:"+protocol_ascii());
+            if(paige_file_open == 1){
+                paige_file += protocol_ascii();
+            }
+            paige_pressed = 0;
         }
     }
 }
@@ -1080,6 +1089,10 @@ static void protocol_key3() {
         }
         if(sum == 0){
             log_info("PAIGE:ASCII:"+protocol_ascii());
+            if(paige_file_open == 1){
+                paige_file += protocol_ascii();
+            }
+            paige_pressed = 0;
         }
     }
 }
@@ -1097,6 +1110,10 @@ static void protocol_key4() {
         }
         if(sum == 0){
             log_info("PAIGE:ASCII:"+protocol_ascii());
+            if(paige_file_open == 1){
+                paige_file += protocol_ascii();
+            }
+            paige_pressed = 0;
         }
     }
 }
@@ -1114,6 +1131,10 @@ static void protocol_key5() {
         }
         if(sum == 0){
             log_info("PAIGE:ASCII:"+protocol_ascii());
+            if(paige_file_open == 1){
+                paige_file += protocol_ascii();
+            }
+            paige_pressed = 0;
         }
     }
 }
@@ -1131,17 +1152,46 @@ static void protocol_key6() {
         }
         if(sum == 0){
             log_info("PAIGE:ASCII:"+protocol_ascii());
+            if(paige_file_open == 1){
+                paige_file += protocol_ascii();
+            }
+            paige_pressed = 0;
         }
     }
 }
 
 static void protocol_keyN() {
     if(paige_newline == 0){
+        paige_file_start_time = millis();
         paige_newline = 1;
     }
     else if(paige_newline == 1){
         paige_newline = 0;
-        log_info("PAIGE:ASCII:\n");
+        if(millis()-paige_file_start_time > 500 && paige_file_open == 0){
+            paige_file_open = 1;
+            paige_file = "";
+            log_info("FILE OPENED");
+        }
+        else if(millis()-paige_file_start_time > 500 && paige_file_open == 1){
+            int strLen = paige_file.length();
+            uint8_t charArray[strLen];
+            paige_file.getBytes(charArray, strLen);
+            // Name file
+            int nl = paige_file.indexOf('\n',2);
+            String filename = String("/sd/") + String(paige_file.substring(0,nl));
+            filename += String(".brf");
+            // Write file to SD card.
+            FileStream nFile { filename, "w" };
+            nFile.write(charArray, strLen);
+            paige_file_open = 0;
+            log_info("FILE CLOSED");
+        }
+        else{
+            log_info("PAIGE:ASCII:\n");
+            if(paige_file_open == 1){
+                paige_file += "\n";
+            }
+        }
     }
 }
 
@@ -1152,6 +1202,11 @@ static void protocol_keyB() {
     else if(paige_backspace == 1){
         paige_backspace = 0;
         log_info("PAIGE:BACK_SPACE");
+        if(paige_file_open == 1){
+            unsigned int strLen = paige_file.length() - 1;
+            paige_file.remove(strLen);
+        }
+        
     }
 }
 
@@ -1162,6 +1217,9 @@ static void protocol_keyS() {
     else if(paige_space == 1){
         paige_space = 0;
         log_info("PAIGE:ASCII: ");
+        if(paige_file_open == 1){
+                paige_file += " ";
+        }
     }
 }
 

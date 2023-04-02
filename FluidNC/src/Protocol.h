@@ -1,6 +1,7 @@
 // Copyright (c) 2011-2016 Sungeun K. Jeon for Gnea Research LLC
 // Copyright (c) 2009-2011 Simen Svale Skogsrud
 // Copyright (c) 2018 -	Bart Dring
+// Copyright (c) 2023 -	Sergio Gosalvez
 // Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
 
 #pragma once
