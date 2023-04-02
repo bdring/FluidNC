@@ -9,6 +9,7 @@
 
 #include "Protocol.h"
 #include "Event.h"
+#include "Paige.h"          //Paige Connect 
 
 #include "Machine/MachineConfig.h"
 #include "Machine/Homing.h"
@@ -16,7 +17,7 @@
 #include "Limits.h"         // limits_get_state, soft_limit
 #include "Planner.h"        // plan_get_current_block
 #include "MotionControl.h"  // PARKING_MOTION_LINE_NUMBER
-#include "Settings.h"       // settings_execute_startup
+#include "Settings.h"       // settings_execute_startup2
 #include "Machine/LimitPin.h"
 
 volatile ExecAlarm rtAlarm;  // Global realtime executor bitflag variable for setting various alarms.
@@ -1013,6 +1014,157 @@ static void protocol_do_limit(void* arg) {
         return;
     }
 }
+
+//Paige Connect - Keyboard 
+std::string protocol_ascii(){
+    const unsigned char ASCII[65] = 
+        {' ','a','1','b','\'','k','2','l',
+        '@','c','i','f','/','m','s','p',
+        '"','e','3','h','9','o','6','r',
+        '^','d','j','g','>','n','t','q',
+        ',','*','5','<','-','u','8','v',
+        '.','%','[','$','+','x','!','&',
+        ';','u','4','\\','0','z','7','(',
+        '_','?','w',']','#','y',')','=','\n'};
+    std::string ret = "";
+    ret = std::string(1,char(ASCII[paige_pressed]));
+    paige_pressed = 0;
+
+    return ret;
+}
+
+static void protocol_key1() {
+    if(paige_buttons[0] == 0){
+        paige_pressed |= (1<<0);  // Set a bit to remember the button being down
+        paige_buttons[0] = 1;
+    }
+    else if(paige_buttons[0] == 1){
+        paige_buttons[0] = 0;
+        int sum = 0;
+        for(int i = 0; i<6; i++){
+            sum += paige_buttons[i];
+        }
+        if(sum == 0){
+            log_info("PAIGE:ASCII:"+protocol_ascii());
+        }
+    }
+}
+
+static void protocol_key2() {
+    if(paige_buttons[1] == 0){
+        paige_pressed |= (1<<1);  // Set a bit to remember the button being down
+        paige_buttons[1] = 1;
+    }
+    else if(paige_buttons[1] == 1){
+        paige_buttons[1] = 0;
+        int sum = 0;
+        for(int i = 0; i<6; i++){
+            sum += paige_buttons[i];
+        }
+        if(sum == 0){
+            log_info("PAIGE:ASCII:"+protocol_ascii());
+        }
+    }
+}
+
+static void protocol_key3() {
+    if(paige_buttons[2] == 0){
+        paige_pressed |= (1<<2);  // Set a bit to remember the button being down
+        paige_buttons[2] = 1;
+    }
+    else if(paige_buttons[2] == 1){
+        paige_buttons[2] = 0;
+        int sum = 0;
+        for(int i = 0; i<6; i++){
+            sum += paige_buttons[i];
+        }
+        if(sum == 0){
+            log_info("PAIGE:ASCII:"+protocol_ascii());
+        }
+    }
+}
+
+static void protocol_key4() {
+    if(paige_buttons[3] == 0){
+        paige_pressed |= (1<<3);  // Set a bit to remember the button being down
+        paige_buttons[3] = 1;
+    }
+    else if(paige_buttons[3] == 1){
+        paige_buttons[3] = 0;
+        int sum = 0;
+        for(int i = 0; i<6; i++){
+            sum += paige_buttons[i];
+        }
+        if(sum == 0){
+            log_info("PAIGE:ASCII:"+protocol_ascii());
+        }
+    }
+}
+
+static void protocol_key5() {
+    if(paige_buttons[4] == 0){
+        paige_pressed |= (1<<4);  // Set a bit to remember the button being down
+        paige_buttons[4] = 1;
+    }
+    else if(paige_buttons[4] == 1){
+        paige_buttons[4] = 0;
+        int sum = 0;
+        for(int i = 0; i<6; i++){
+            sum += paige_buttons[i];
+        }
+        if(sum == 0){
+            log_info("PAIGE:ASCII:"+protocol_ascii());
+        }
+    }
+}
+
+static void protocol_key6() {
+    if(paige_buttons[5] == 0){
+        paige_pressed |= (1<<5);  // Set a bit to remember the button being down
+        paige_buttons[5] = 1;
+    }
+    else if(paige_buttons[5] == 1){
+        paige_buttons[5] = 0;
+        int sum = 0;
+        for(int i = 0; i<6; i++){
+            sum += paige_buttons[i];
+        }
+        if(sum == 0){
+            log_info("PAIGE:ASCII:"+protocol_ascii());
+        }
+    }
+}
+
+static void protocol_keyN() {
+    if(paige_newline == 0){
+        paige_newline = 1;
+    }
+    else if(paige_newline == 1){
+        paige_newline = 0;
+        log_info("PAIGE:ASCII:\n");
+    }
+}
+
+static void protocol_keyB() {
+    if(paige_backspace == 0){
+        paige_backspace = 1;
+    }
+    else if(paige_backspace == 1){
+        paige_backspace = 0;
+        log_info("PAIGE:BACK_SPACE");
+    }
+}
+
+static void protocol_keyS() {
+    if(paige_space == 0){
+        paige_space = 1;
+    }
+    else if(paige_space == 1){
+        paige_space = 0;
+        log_info("PAIGE:ASCII: ");
+    }
+}
+
 ArgEvent feedOverrideEvent { protocol_do_feed_override };
 ArgEvent rapidOverrideEvent { protocol_do_rapid_override };
 ArgEvent spindleOverrideEvent { protocol_do_spindle_override };
@@ -1028,6 +1180,15 @@ NoArgEvent cycleStopEvent { protocol_do_cycle_stop };
 NoArgEvent motionCancelEvent { protocol_do_motion_cancel };
 NoArgEvent sleepEvent { protocol_do_sleep };
 NoArgEvent debugEvent { report_realtime_debug };
+NoArgEvent key1Event { protocol_key1 };
+NoArgEvent key2Event { protocol_key2 };
+NoArgEvent key3Event { protocol_key3 };
+NoArgEvent key4Event { protocol_key4 };
+NoArgEvent key5Event { protocol_key5 };
+NoArgEvent key6Event { protocol_key6 };
+NoArgEvent keyNEvent { protocol_keyN };
+NoArgEvent keyBEvent { protocol_keyB };
+NoArgEvent keySEvent { protocol_keyS };
 
 // Only mc_reset() is permitted to set rtReset.
 NoArgEvent resetEvent { mc_reset };
@@ -1053,7 +1214,8 @@ void protocol_send_event(Event* evt, void* arg) {
 void protocol_handle_events() {
     EventItem item;
     while (xQueueReceive(event_queue, &item, 0)) {
-        // log_debug("event");
+        //report_feedback_message(Message::SafetyDoorAjar);
+        //log_debug("event");
         item.event->run(item.arg);
     }
 }

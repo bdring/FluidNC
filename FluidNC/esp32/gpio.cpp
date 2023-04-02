@@ -474,20 +474,19 @@ void gpio_clear_action(int gpio_num) {
 }
 void poll_gpios() {
     gpio_mask_t gpio_this = (((uint64_t)REG_READ(GPIO_IN1_REG)) << 32) | REG_READ(GPIO_IN_REG);
-
     gpio_mask_t gpio_changes = (gpio_this ^ gpio_current) & gpio_interest;
     if (gpio_changes) {
-        gpio_mask_t gpio_active = gpio_this ^ gpio_inverts;
+        gpio_mask_t gpio_active = gpio_this;
         int         zeros;
         while ((zeros = __builtin_clzll(gpio_changes)) != 64) {
             int         gpio_num = 63 - zeros;
             gpio_mask_t mask     = 1ULL << gpio_num;
-            bool        isActive = gpio_active & mask;
+            bool        isActive = gpio_active;
             // Uart0 << gpio_num << " " << isActive << "\n";
             gpio_dispatch_t action = gpioActions[gpio_num];
-            if (action) {
+            //if (action) {
                 action(gpio_num, gpioArgs[gpio_num], isActive);
-            }
+            //}
             gpio_changes &= ~mask;
         }
     }

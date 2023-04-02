@@ -4,11 +4,13 @@
 #include "Control.h"
 
 #include "Protocol.h"        // *Event
+#include "Paige.h"           // Paige Connect 
 #include "Machine/Macros.h"  // macro0Event
 
 Control::Control() {
     // The SafetyDoor pin must be defined first because it is checked explicity in safety_door_ajar()
     //_pins.push_back(new ControlPin(&safetyDoorEvent, "safety_door_pin", 'D'));
+    //_pins.push_back(new ControlPin(&safetyDoorEvent, "safety_door_pin2", 'J'));
     //_pins.push_back(new ControlPin(&resetEvent, "reset_pin", 'R'));
     //_pins.push_back(new ControlPin(&feedHoldEvent, "feed_hold_pin", 'H'));
     //_pins.push_back(new ControlPin(&cycleStartEvent, "cycle_start_pin", 'S'));
@@ -16,9 +18,16 @@ Control::Control() {
     //_pins.push_back(new ControlPin(&macro1Event, "macro1_pin", '1'));
     //_pins.push_back(new ControlPin(&macro2Event, "macro2_pin", '2'));
     //_pins.push_back(new ControlPin(&macro3Event, "macro3_pin", '3'));
-    _pins.push_back(new ControlPin(&reportStatusEvent,"key_pin1",'1'));
-    _pins.push_back(new ControlPin(&reportStatusEvent,"key_pin2",'2'));
-    _pins.push_back(new ControlPin(&reportStatusEvent,"key_pin3",'3'));
+    _pins.push_back(new ControlPin(&key1Event, "key1_pin", '0'));
+    _pins.push_back(new ControlPin(&key2Event, "key2_pin", '1'));
+    _pins.push_back(new ControlPin(&key3Event, "key3_pin", '2'));
+    _pins.push_back(new ControlPin(&key4Event, "key4_pin", '3'));
+    _pins.push_back(new ControlPin(&key5Event, "key5_pin", '4'));
+    _pins.push_back(new ControlPin(&key6Event, "key6_pin", '5'));
+    _pins.push_back(new ControlPin(&keyNEvent, "keyN_pin", 'N'));
+    _pins.push_back(new ControlPin(&keyBEvent, "keyB_pin", 'B'));
+    _pins.push_back(new ControlPin(&keySEvent, "keyS_pin", 'S'));
+
 }
 
 void Control::init() {
@@ -68,5 +77,10 @@ bool Control::safety_door_ajar() {
     // If a safety door pin is not defined, this will return false
     // because that is the default for the value field, which will
     // never be changed for an undefined pin.
-    return _pins[0]->get();
+    for (auto pin : _pins) {
+        if (pin->get()) {
+            return true;
+        }
+    }
+    return false;
 }
