@@ -22,7 +22,8 @@ You can find Paige's WebUI [here.](https://github.com/PaigeBraille/paige-web-app
 
 ## Credits
 
-This project is an adaptation of [FluidNC](https://github.com/bdring/FluidNC),  a CNC firmware optimized for the ESP32 controller. FluidNC is the next generation of firmware from the creators of Grbl_ESP32. It includes a web based UI and the flexibility to operate a wide variety of machine types. This includes the ability to control machines with multiple tool types such as laser plus spindle or a tool changer.  
-The original [Grbl](https://github.com/gnea/grbl) is an awesome project by Sungeon (Sonny) Jeon. I have known him for many years and he is always very helpful. I have used Grbl on many projects.
+This project is an adaptation of [FluidNC](https://github.com/bdring/FluidNC),  a CNC firmware optimized for the ESP32 controller. FluidNC is the next generation of firmware from the creators of Grbl_ESP32. It includes a web based UI and the flexibility to operate a wide variety of machine types.
+
+The original [Grbl](https://github.com/gnea/grbl) is a project by Sungeon (Sonny) Jeon.
 
 The Wifi and WebUI is based on [this project.](https://github.com/luc-github/ESP3D-WEBUI)  

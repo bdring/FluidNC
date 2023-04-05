@@ -1201,7 +1201,7 @@ static void protocol_keyB() {
     }
     else if(paige_backspace == 1){
         paige_backspace = 0;
-        log_info("PAIGE:BACK_SPACE");
+        log_info("PAIGE:BACK_SPACE:");
         if(paige_file_open == 1){
             unsigned int strLen = paige_file.length() - 1;
             paige_file.remove(strLen);
