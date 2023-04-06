@@ -81,7 +81,7 @@ namespace MotorDrivers {
         log_debug("TCOOLTHRS: 0x" << to_hex(tmc2209->TCOOLTHRS()));
         log_debug("GCONF: 0x" << to_hex(tmc2209->GCONF()));
         log_debug("PWMCONF: 0x" << to_hex(tmc2209->PWMCONF()));
-        log_debug("IHOLD_IRUN: 0x" << to_hex// (tmc2209->IHOLD_IRUN()));
+        log_debug("IHOLD_IRUN: 0x" << to_hex(tmc2209->IHOLD_IRUN()));
     }
 
     void TMC2209Driver::debug_message() {
