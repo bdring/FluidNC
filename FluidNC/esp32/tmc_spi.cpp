@@ -40,7 +40,12 @@
 
 #include "hal/spi_ll.h"
 
-spi_dev_t* hw = SPI_LL_GET_HW(HSPI_HOST);
+#include <sdkconfig.h>
+#ifdef CONFIG_IDF_TARGET_ESP32S3
+#    define HSPI_HOST SPI2_HOST
+#endif
+
+spi_dev_t* hw = &GPSPI2;
 
 static spi_ll_clock_val_t clk_reg_val = 0;
 
