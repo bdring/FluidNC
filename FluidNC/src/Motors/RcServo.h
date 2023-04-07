@@ -54,6 +54,8 @@ namespace MotorDrivers {
             handler.item("pwm_hz", _pwm_freq, SERVO_PWM_FREQ_MIN, SERVO_PWM_FREQ_MAX);
             handler.item("min_pulse_us", _min_pulse_us, SERVO_PULSE_US_MIN, SERVO_PULSE_US_MAX);
             handler.item("max_pulse_us", _max_pulse_us, SERVO_PULSE_US_MIN, SERVO_PULSE_US_MAX);
+
+            Servo::group(handler);
         }
 
         // Name of the configurable. Must match the name registered in the cpp file.

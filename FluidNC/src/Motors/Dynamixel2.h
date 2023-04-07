@@ -114,10 +114,10 @@ namespace MotorDrivers {
         void group(Configuration::HandlerBase& handler) override {
             handler.item("uart_num", _uart_num);
             handler.item("id", _id);
-
             handler.item("count_min", _countMin);
             handler.item("count_max", _countMax);
-            handler.item("timer_ms", _timer_ms);
+
+            Servo::group(handler);
         }
 
         // Name of the configurable. Must match the name registered in the cpp file.
