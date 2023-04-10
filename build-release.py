@@ -34,11 +34,11 @@ def buildEnv(pioEnv, verbose=True, extraArgs=None):
     return app.returncode
 
 def buildFs(pioEnv, verbose=verbose, extraArgs=None):
-    cmd = ['platformio','run', '--disable-auto-clean', '-e', pioEnv, '-v', '-t', 'buildfs']
+    cmd = ['platformio','run', '--disable-auto-clean', '-e', pioEnv, '-t', 'buildfs']
     if extraArgs:
         cmd.append(extraArgs)
     print('Building file system for ' + pioEnv)
-    if True:
+    if verbose:
         app = subprocess.Popen(cmd, env=environ)
     else:
         app = subprocess.Popen(cmd, env=environ, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, bufsize=1)
