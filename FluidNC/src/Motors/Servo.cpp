@@ -22,50 +22,19 @@
 #include <freertos/task.h>  // portTICK_PERIOD_MS, vTaskDelay
 
 namespace MotorDrivers {
-    Servo* Servo::List = NULL;
 
-    Servo::Servo() : MotorDriver() {
-        link = List;
-        List = this;
+    Servo::Servo() : MotorDriver() {}
+
+    void Servo::update_servo(TimerHandle_t object) {
+        Servo* servo = static_cast<Servo*>(object);
+        servo->update();
     }
 
-    void Servo::startUpdateTask(int ms) {
-        if (_timer_ms == 0 || ms < _timer_ms) {
-            _timer_ms = ms;
-        }
-        //log_info("Servo Update Task Started");
-        if (this == List) {
-            xTaskCreatePinnedToCore(updateTask,         // task
-                                    "servoUpdateTask",  // name for task
-                                    4096,               // size of task stack
-                                    (void*)&_timer_ms,  // parameters
-                                    1,                  // priority
-                                    NULL,               // handle
-                                    SUPPORT_TASK_CORE   // core
-            );
-        }
-    }
-
-    void Servo::updateTask(void* pvParameters) {
-        TickType_t       xLastWakeTime;
-        const TickType_t xUpdate = *static_cast<TickType_t*>(pvParameters) / portTICK_PERIOD_MS;  // in ticks (typically ms)
-        auto             n_axis  = config->_axes->_numberAxis;
-
-        xLastWakeTime = xTaskGetTickCount();  // Initialise the xLastWakeTime variable with the current time.
-        vTaskDelay(2000);                     // initial delay
-        while (true) {                        // don't ever return from this or the task dies
-            std::atomic_thread_fence(std::memory_order::memory_order_seq_cst);  // read fence for settings
-            //log_info("Servo update");
-            for (Servo* p = List; p; p = p->link) {
-                p->update();
-            }
-
-            vTaskDelayUntil(&xLastWakeTime, xUpdate);
-
-            static UBaseType_t uxHighWaterMark = 0;
-#ifdef DEBUG_TASK_STACK
-            reportTaskStackSize(uxHighWaterMark);
-#endif
-        }
+    void Servo::schedule_update(Servo* object, int interval) {
+        xTimerCreate("",
+                     interval,
+                     true,  // auto reload
+                     (TimerHandle_t)object,
+                     update_servo);
     }
 }

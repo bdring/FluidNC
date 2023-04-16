@@ -23,7 +23,7 @@ namespace MotorDrivers {
 
         tmc2209 = new TMC2209Stepper(_uart, _r_sense, _addr);
 
-        TrinamicUartDriver::finalInit();
+        registration();
     }
 
     void TMC2209Driver::config_motor() {

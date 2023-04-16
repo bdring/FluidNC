@@ -12,34 +12,18 @@ namespace MotorDrivers {
                                  { TrinamicMode::StallGuard, "StallGuard" },
                                  EnumItem(TrinamicMode::StealthChop) };
 
-    TrinamicBase* TrinamicBase::List = NULL;  // a static list of all drivers for stallguard reporting
+    std::vector<TrinamicBase*> TrinamicBase::_instances;  // static list of all drivers for stallguard reporting
 
-    // Prints StallGuard data that is useful for tuning.
-    void TrinamicBase::readSgTask(void* pvParameters) {
-        auto trinamicDriver = static_cast<TrinamicBase*>(pvParameters);
-
-        TickType_t       xLastWakeTime;
-        const TickType_t xreadSg = 200;  // in ticks (typically ms)
-        auto             n_axis  = config->_axes->_numberAxis;
-
-        xLastWakeTime = xTaskGetTickCount();  // Initialise the xLastWakeTime variable with the current time.
-        while (true) {                        // don't ever return from this or the task dies
-            std::atomic_thread_fence(std::memory_order::memory_order_seq_cst);  // read fence for settings
-            if (inMotionState()) {
-                for (TrinamicBase* p = List; p; p = p->link) {
-                    if (p->_stallguardDebugMode) {
-                        //log_info("SG:" << p->_stallguardDebugMode);
-                        p->debug_message();
-                    }
+    // Another approach would be to register a separate timer for each instance.
+    // I think that timers are cheap so having only a single timer might not buy us much
+    void TrinamicBase::read_sg(TimerHandle_t obj) {
+        if (inMotionState()) {
+            for (TrinamicBase* t : _instances) {
+                if (t->_stallguardDebugMode) {
+                    //log_info("SG:" << t->_stallguardDebugMode);
+                    t->debug_message();
                 }
-            }  // sys.state
-
-            vTaskDelayUntil(&xLastWakeTime, xreadSg);
-
-            static UBaseType_t uxHighWaterMark = 0;
-#ifdef DEBUG_TASK_STACK
-            reportTaskStackSize(uxHighWaterMark);
-#endif
+            }
         }
     }
 
@@ -157,5 +141,17 @@ namespace MotorDrivers {
         }
 
         set_registers(false);
+    }
+    void TrinamicBase::registration() {
+        // Display the stepper library version message once, before the first
+        // TMC config message.
+        if (_instances.empty()) {
+            log_debug("TMCStepper Library Ver. 0x" << String(TMCSTEPPER_VERSION, HEX));
+            xTimerCreate("Stallguard", 200, true, nullptr, read_sg);
+        }
+
+        _instances.push_back(this);
+
+        config_message();
     }
 }

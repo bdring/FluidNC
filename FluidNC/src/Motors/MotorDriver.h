@@ -87,11 +87,6 @@ namespace MotorDrivers {
         // TODO Architecture: Should this be private?
         virtual bool test();
 
-        // update() is used for some types of "smart" motors that
-        // can be told to move to a specific position.  It is
-        // called from a periodic task.
-        virtual void update() {}
-
         // Name is required for the configuration factory to work.
         virtual const char* name() const = 0;
 

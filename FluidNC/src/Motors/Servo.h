@@ -17,27 +17,12 @@ namespace MotorDrivers {
         int _timer_ms = 75;
 
         Servo();
-#if 0
-        // Overrides for inherited methods
-        void init() override;
-        void read_settings() override;
-        bool set_homing_mode(bool isHoming) override;
-        void IRAM_ATTR set_disable(bool disable) override;
-#endif
+
         virtual void update() = 0;  // This must be implemented by derived classes
         void         group(Configuration::HandlerBase& handler) override { handler.item("timer_ms", _timer_ms); }
 
     protected:
-        // Start the servo update task.  Each derived subclass instance calls this
-        // during init(), which happens after all objects have been constructed.
-        // startUpdateTask(ms) finds the smallest update interval among all
-        // the calls, and starts the task on the final call.
-        void startUpdateTask(int ms);
-
-    private:
-        // Linked list of servo instances, used by the servo task
-        static Servo* List;
-        Servo*        link;
-        static void   updateTask(void*);
+        static void update_servo(TimerHandle_t object);
+        static void schedule_update(Servo* object, int interval);
     };
 }
