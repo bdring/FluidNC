@@ -33,7 +33,7 @@ namespace MotorDrivers {
         if (_timer_ms == 0 || ms < _timer_ms) {
             _timer_ms = ms;
         }
-        //log_info("Servo Update Task Started");
+        
         if (this == List) {
             xTaskCreatePinnedToCore(updateTask,         // task
                                     "servoUpdateTask",  // name for task
@@ -43,7 +43,10 @@ namespace MotorDrivers {
                                     NULL,               // handle
                                     SUPPORT_TASK_CORE   // core
             );
+            log_info("Servo Update Task Started with ms:" << ms);
         }
+
+        
     }
 
     void Servo::updateTask(void* pvParameters) {

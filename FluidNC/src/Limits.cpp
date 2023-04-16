@@ -59,10 +59,12 @@ void constrainToSoftLimits(float* cartesian) {
     auto axes   = config->_axes;
     auto n_axis = config->_axes->_numberAxis;
 
-    bool limit_error = false;
+    float* current_position = get_mpos();
+
     for (int axis = 0; axis < n_axis; axis++) {
         auto axisSetting = axes->_axis[axis];
-        if (axisSetting->_softLimits) {
+        // If the axis is moving from the current location and soft limits are on.
+        if (axisSetting->_softLimits && cartesian[axis] != current_position[axis]) {
             if (cartesian[axis] < limitsMinPosition(axis)) {
                 cartesian[axis] = limitsMinPosition(axis);
             }
