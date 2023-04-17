@@ -65,6 +65,17 @@ void constrainToSoftLimits(float* cartesian) {
         auto axisSetting = axes->_axis[axis];
         // If the axis is moving from the current location and soft limits are on.
         if (axisSetting->_softLimits && cartesian[axis] != current_position[axis]) {
+            // When outside the axis range, only small nudges to clear switches are allowed
+            if (current_position[axis] < limitsMinPosition(axis) || current_position[axis] > limitsMaxPosition(axis)) {
+                float jog_dist = cartesian[axis] - current_position[axis];
+                auto  nudge_max = axisSetting->_motors[0]->_pulloff;
+                if (abs(jog_dist) < nudge_max) {
+                    cartesian[axis] = (jog_dist >= 0) ? current_position[axis] + nudge_max : current_position[axis] + nudge_max;
+                    log_debug("Jog amount limited when outside soft limits")
+                }
+                continue;
+            }
+
             if (cartesian[axis] < limitsMinPosition(axis)) {
                 cartesian[axis] = limitsMinPosition(axis);
             }
