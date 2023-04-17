@@ -63,7 +63,8 @@ void constrainToSoftLimits(float* cartesian) {
     MotorMask lim_pin_state    = limits_get_state();
 
     for (int axis = 0; axis < n_axis; axis++) {
-        auto axisSetting = axes->_axis[axis];
+        auto   axisSetting = axes->_axis[axis];
+        String axis_letter = String(Machine::Axes::_names[axis]);
         // If the axis is moving from the current location and soft limits are on.
         if (axisSetting->_softLimits && cartesian[axis] != current_position[axis]) {
             // When outside the axis range, only small nudges to clear switches are allowed
@@ -71,12 +72,16 @@ void constrainToSoftLimits(float* cartesian) {
                 // only allow a nudge if a switch is active
                 if (bitnum_is_false(lim_pin_state, Machine::Axes::motor_bit(axis, 0)) &&
                     bitnum_is_false(lim_pin_state, Machine::Axes::motor_bit(axis, 1))) {
-                    cartesian[axis] = current_position[axis]; // cancel the move on this axis
-                    log_debug("Soft limit violation on axis " << axis);
+                    cartesian[axis] = current_position[axis];  // cancel the move on this axis
+                    log_debug("Soft limit violation on axis " << axis_letter);
                     continue;
-                    }
-                float jog_dist  = cartesian[axis] - current_position[axis];
-                auto  nudge_max = axisSetting->_motors[0]->_pulloff;
+                }
+                float jog_dist = cartesian[axis] - current_position[axis];
+                //TODO
+                // if jog is positive and only the positive switch is active, then kill the move
+                // if jog is negative and only the negative switch is active, then kill the move
+
+                auto nudge_max = axisSetting->_motors[0]->_pulloff;
                 if (abs(jog_dist) > nudge_max) {
                     cartesian[axis] = (jog_dist >= 0) ? current_position[axis] + nudge_max : current_position[axis] + nudge_max;
                     log_debug("Jog amount limited when outside soft limits")
