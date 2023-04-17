@@ -73,13 +73,24 @@ void constrainToSoftLimits(float* cartesian) {
                 if (bitnum_is_false(lim_pin_state, Machine::Axes::motor_bit(axis, 0)) &&
                     bitnum_is_false(lim_pin_state, Machine::Axes::motor_bit(axis, 1))) {
                     cartesian[axis] = current_position[axis];  // cancel the move on this axis
-                    log_debug("Soft limit violation on axis " << axis_letter);
+                    log_debug("Soft limit violation on " << axis_letter);
                     continue;
                 }
                 float jog_dist = cartesian[axis] - current_position[axis];
-                //TODO
+
+                MotorMask axisMotors = Machine::Axes::axes_to_motors(1 << axis);
+                bool      posLimited = bits_are_true(Machine::Axes::posLimitMask, axisMotors);
+                bool      negLimited = bits_are_true(Machine::Axes::negLimitMask, axisMotors);
+
                 // if jog is positive and only the positive switch is active, then kill the move
                 // if jog is negative and only the negative switch is active, then kill the move
+                if (posLimited != negLimited) {  // XOR, because ambiguous (both) is OK
+                    if ((negLimited && (jog_dist < 0)) || (posLimited && (jog_dist > 0))) {
+                        cartesian[axis] = current_position[axis];  // cancel the move on this axis
+                        log_debug("Jog into active switch blocked on " << axis_letter);
+                        continue;
+                    }
+                }
 
                 auto nudge_max = axisSetting->_motors[0]->_pulloff;
                 if (abs(jog_dist) > nudge_max) {
