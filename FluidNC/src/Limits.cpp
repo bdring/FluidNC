@@ -59,7 +59,8 @@ void constrainToSoftLimits(float* cartesian) {
     auto axes   = config->_axes;
     auto n_axis = config->_axes->_numberAxis;
 
-    float* current_position = get_mpos();
+    float*    current_position = get_mpos();
+    MotorMask lim_pin_state    = limits_get_state();
 
     for (int axis = 0; axis < n_axis; axis++) {
         auto axisSetting = axes->_axis[axis];
@@ -67,9 +68,16 @@ void constrainToSoftLimits(float* cartesian) {
         if (axisSetting->_softLimits && cartesian[axis] != current_position[axis]) {
             // When outside the axis range, only small nudges to clear switches are allowed
             if (current_position[axis] < limitsMinPosition(axis) || current_position[axis] > limitsMaxPosition(axis)) {
-                float jog_dist = cartesian[axis] - current_position[axis];
+                // only allow a nudge if a switch is active
+                if (bitnum_is_false(lim_pin_state, Machine::Axes::motor_bit(axis, 0)) &&
+                    bitnum_is_false(lim_pin_state, Machine::Axes::motor_bit(axis, 1))) {
+                    cartesian[axis] = current_position[axis]; // cancel the move on this axis
+                    log_debug("Soft limit violation on axis " << axis);
+                    continue;
+                    }
+                float jog_dist  = cartesian[axis] - current_position[axis];
                 auto  nudge_max = axisSetting->_motors[0]->_pulloff;
-                if (abs(jog_dist) < nudge_max) {
+                if (abs(jog_dist) > nudge_max) {
                     cartesian[axis] = (jog_dist >= 0) ? current_position[axis] + nudge_max : current_position[axis] + nudge_max;
                     log_debug("Jog amount limited when outside soft limits")
                 }
@@ -78,10 +86,12 @@ void constrainToSoftLimits(float* cartesian) {
 
             if (cartesian[axis] < limitsMinPosition(axis)) {
                 cartesian[axis] = limitsMinPosition(axis);
-            }
-            if (cartesian[axis] > limitsMaxPosition(axis)) {
+            } else if (cartesian[axis] > limitsMaxPosition(axis)) {
                 cartesian[axis] = limitsMaxPosition(axis);
+            } else {
+                continue;
             }
+            log_debug("Jog constrained to axis range");
         }
     }
 }
