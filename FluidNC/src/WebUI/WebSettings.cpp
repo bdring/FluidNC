@@ -505,12 +505,16 @@ namespace WebUI {
         return copyDir("/sd/localfs", "/localfs", out);
     }
     static Error migrateLocalFS(char* parameter, AuthenticationLevel auth_level, Channel& out) {  // No ESP command
+        const char* newfs = parameter && *parameter ? parameter : "littlefs";
+        if (strcmp(newfs, localfsName) == 0) {
+            log_error("localfs format is already " << newfs);
+            return Error::InvalidValue;
+        }
         log_info("Backing up local filesystem contents to SD");
         Error err = copyDir("/localfs", "/sd/localfs", out);
         if (err != Error::Ok) {
             return err;
         }
-        const char* newfs = parameter && *parameter ? parameter : "littlefs";
         log_info("Reformatting local filesystem to " << newfs);
         if (localfs_format(newfs)) {
             return Error::FsFailedFormat;
