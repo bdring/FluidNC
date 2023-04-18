@@ -61,9 +61,12 @@ namespace Configuration {
         void section(const char* name, T*& value, U... args) {
             if (handlerType() == HandlerType::Parser) {
                 // For Parser, matchesUninitialized(name) resolves to _parser.is(name)
-                if (value == nullptr && matchesUninitialized(name)) {
-                    value = new T(args...);
-                    enterSection(name, value);
+                if (matchesUninitialized(name)) {
+                    Assert(value == nullptr, "Duplicate section %s", name);
+                    if (value == nullptr) {
+                        value = new T(args...);
+                        enterSection(name, value);
+                    }
                 }
             } else {
                 if (value != nullptr) {
