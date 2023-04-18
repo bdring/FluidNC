@@ -95,7 +95,7 @@ namespace Configuration {
                 if (Current() != ':') {
                     std::string err = "Key ";
                     err += StringRange(token_.keyStart_, token_.keyEnd_).str().c_str();
-                    err += "must be followed by ':'";
+                    err += " must be followed by ':'";
                     ParseError(err.c_str());
                 }
                 Inc();

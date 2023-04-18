@@ -137,6 +137,12 @@ void report_feedback_message(Message message) {  // ok to send to all channels
         log_info(it->second);
     }
 }
+void report_error_message(Message message) {  // ok to send to all channels
+    auto it = MessageText.find(message);
+    if (it != MessageText.end()) {
+        log_error(it->second);
+    }
+}
 
 const char* radio =
 #if defined(ENABLE_WIFI) || defined(ENABLE_BLUETOOTH)

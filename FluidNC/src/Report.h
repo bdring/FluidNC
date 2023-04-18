@@ -51,6 +51,7 @@ void _notifyf(const char* title, const char* format, ...);
 
 // Prints miscellaneous feedback messages.
 void report_feedback_message(Message message);
+void report_error_message(Message message);
 
 // Prints welcome message
 void report_init_message(Channel& channel);
