@@ -36,7 +36,7 @@ namespace MotorDrivers {
                                   true,  // auto reload
                                   (TimerHandle_t)object,
                                   update_servo);
-        if (timer) {
+        if (!timer) {
             log_error("Failed to create timer for " << object->name());
             return;
         }
