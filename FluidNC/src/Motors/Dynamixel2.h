@@ -111,6 +111,8 @@ namespace MotorDrivers {
         static void update_all();
         void        config_motor() override;
 
+        const char* name() override { return "Dynamixel2"; }
+
         // Configuration handlers:
         void validate() override {
             Assert(_uart_num != -1, "Dynamixel: Missing uart_num configuration");

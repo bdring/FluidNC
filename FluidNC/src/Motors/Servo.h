@@ -23,6 +23,8 @@ namespace MotorDrivers {
         virtual void update() = 0;  // This must be implemented by derived classes
         void         group(Configuration::HandlerBase& handler) override { handler.item("timer_ms", _timer_ms); }
 
+        virtual const char* name() = 0;  // This must be implemented by derived classes
+
     protected:
         static void update_servo(TimerHandle_t object);
         static void schedule_update(Servo* object, int interval);

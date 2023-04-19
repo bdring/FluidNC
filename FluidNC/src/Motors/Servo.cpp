@@ -31,10 +31,17 @@ namespace MotorDrivers {
     }
 
     void Servo::schedule_update(Servo* object, int interval) {
-        xTimerCreate("",
-                     interval,
-                     true,  // auto reload
-                     (TimerHandle_t)object,
-                     update_servo);
+        auto timer = xTimerCreate("",
+                                  interval,
+                                  true,  // auto reload
+                                  (TimerHandle_t)object,
+                                  update_servo);
+        if (timer) {
+            log_error("Failed to create timer for " << object->name());
+            return;
+        }
+        if (xTimerStart(timer, 0) == pdFAIL) {
+            log_error("Failed to start timer for " << object->name());
+        }
     }
 }

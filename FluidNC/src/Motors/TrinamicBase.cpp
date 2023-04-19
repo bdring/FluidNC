@@ -147,7 +147,13 @@ namespace MotorDrivers {
         // TMC config message.
         if (_instances.empty()) {
             log_debug("TMCStepper Library Ver. 0x" << to_hex(TMCSTEPPER_VERSION));
-            xTimerCreate("Stallguard", 200, true, nullptr, read_sg);
+            auto timer = xTimerCreate("Stallguard", 200, true, nullptr, read_sg);
+            // Timer failure is not fatal because you can still use the system
+            if (!timer) {
+                log_error("Failed to create timer for stallguard");
+            } else if (xTimerStart(timer, 0) == pdFAIL) {
+                log_error("Failed to start timer for stallguard");
+            }
         }
 
         _instances.push_back(this);

@@ -48,6 +48,8 @@ namespace MotorDrivers {
 
         void _write_pwm(uint32_t duty);
 
+        const char* name() override { return "RcServo"; }
+
         // Configuration handlers:
         void group(Configuration::HandlerBase& handler) override {
             handler.item("output_pin", _output_pin);
