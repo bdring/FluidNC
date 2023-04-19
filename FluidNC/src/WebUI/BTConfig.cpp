@@ -166,7 +166,7 @@ namespace WebUI {
         _btname = bt_name->getStringValue();
 
         if (_btname.length()) {
-            if (!SerialBT.begin(_btname)) {
+            if (!SerialBT.begin(_btname.c_str())) {
                 log_error("Bluetooth failed to start");
                 return false;
             }

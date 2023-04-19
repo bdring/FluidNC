@@ -38,7 +38,6 @@ void gpio_mode(pinnum_t pin, bool input, bool output, bool pullup, bool pulldown
     if (opendrain) {
         conf.mode = (gpio_mode_t)((int)conf.mode | GPIO_MODE_DEF_OD);
     }
-    log_debug("gpio conf " << conf.pull_up_en << " " << pin);
     gpio_config(&conf);
 }
 void IRAM_ATTR gpio_set_interrupt_type(pinnum_t pin, int mode) {
