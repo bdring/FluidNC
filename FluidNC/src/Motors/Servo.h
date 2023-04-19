@@ -2,6 +2,8 @@
 // Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
 
 #pragma once
+#include <freertos/FreeRTOS.h>
+#include <freertos/timers.h>  // TimerHandle_t
 
 /*
     This is a base class for servo-type motors - ones that autonomously

@@ -146,7 +146,7 @@ namespace MotorDrivers {
         // Display the stepper library version message once, before the first
         // TMC config message.
         if (_instances.empty()) {
-            log_debug("TMCStepper Library Ver. 0x" << String(TMCSTEPPER_VERSION, HEX));
+            log_debug("TMCStepper Library Ver. 0x" << to_hex(TMCSTEPPER_VERSION));
             xTimerCreate("Stallguard", 200, true, nullptr, read_sg);
         }
 
