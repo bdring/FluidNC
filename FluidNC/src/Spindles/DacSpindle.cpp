@@ -9,9 +9,12 @@
     a 0-5V or 0-10V value to control the spindle. You would use
     an Op Amp type circuit to get from the 0.3.3V of the ESP32 to that voltage.
 */
-#include "DacSpindle.h"
+#include <sdkconfig.h>
+#ifdef CONFIG_IDF_TARGET_ESP32
 
-#include <esp32-hal-dac.h>  // dacWrite
+#    include "DacSpindle.h"
+
+#    include <esp32-hal-dac.h>  // dacWrite
 
 namespace Spindles {
     // ======================================== Dac ======================================
@@ -58,3 +61,4 @@ namespace Spindles {
         SpindleFactory::InstanceBuilder<Dac> registration("DAC");
     }
 }
+#endif

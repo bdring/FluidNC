@@ -91,6 +91,7 @@ namespace MotorDrivers {
             std::string msg("Axis ping reply ");
             msg += axisName().c_str();
             if (model_num == 1060) {
+
                 msg += " Model XL430-W250";
             } else {
                 msg += " M/N " + std::to_string(model_num);

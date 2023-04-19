@@ -10,8 +10,6 @@
 #include "../Error.h"        // Error
 #include "Authentication.h"  // AuthenticationLevel
 
-#include <WString.h>
-
 #ifndef ENABLE_WIFI
 namespace WebUI {
     class WiFiConfig {

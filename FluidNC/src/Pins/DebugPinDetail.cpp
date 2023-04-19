@@ -26,7 +26,7 @@ namespace Pins {
         if (high != int(_isHigh)) {
             _isHigh = bool(high);
             if (shouldEvent()) {
-                WriteSerial("Write %s < %d", toString().c_str(), high);
+                WriteSerial("Write %s < %d", toString(), high);
             }
         }
         _implementation->write(high);
@@ -35,7 +35,7 @@ namespace Pins {
     int DebugPinDetail::read() {
         auto result = _implementation->read();
         if (shouldEvent()) {
-            WriteSerial("Read  %s > %d", toString().c_str(), result);
+            WriteSerial("Read  %s > %d", toString(), result);
         }
         return result;
     }
@@ -66,7 +66,7 @@ namespace Pins {
         buf[n++] = 0;
 
         if (shouldEvent()) {
-            WriteSerial("Set pin attr %s = %s", toString().c_str(), buf);
+            WriteSerial("Set pin attr %s = %s", toString(), buf);
         }
         _implementation->setAttr(value);
     }
@@ -76,7 +76,7 @@ namespace Pins {
     void DebugPinDetail::CallbackHandler::handle(void* arg) {
         auto handler = static_cast<CallbackHandler*>(arg);
         if (handler->_myPin->shouldEvent()) {
-            WriteSerial("Received ISR on %s", handler->_myPin->toString().c_str());
+            WriteSerial("Received ISR on %s", handler->_myPin->toString());
         }
         handler->callback(handler->argument);
     }
@@ -88,7 +88,7 @@ namespace Pins {
         _isrHandler.callback = callback;
 
         if (shouldEvent()) {
-            WriteSerial("Attaching interrupt to pin %s, mode %d", toString().c_str(), mode);
+            WriteSerial("Attaching interrupt to pin %s, mode %d", toString(), mode);
         }
         _implementation->attachInterrupt(_isrHandler.handle, &_isrHandler, mode);
     }

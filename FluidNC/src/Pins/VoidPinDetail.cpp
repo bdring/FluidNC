@@ -18,6 +18,6 @@ namespace Pins {
     void           VoidPinDetail::setAttr(PinAttributes value) {}
     PinAttributes  VoidPinDetail::getAttr() const { return PinAttributes::None; }
 
-    String VoidPinDetail::toString() { return "NO_PIN"; }
+    std::string VoidPinDetail::toString() { return std::string("NO_PIN"); }
 
 }

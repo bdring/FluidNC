@@ -2,7 +2,6 @@
 // Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
 
 #pragma once
-#include <Arduino.h>  // String
 
 // Objects derived from the Event base class are placed in the event queue.
 // Protocol dequeues them and calls their run methods.
