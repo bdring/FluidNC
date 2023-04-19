@@ -25,8 +25,8 @@ namespace MotorDrivers {
 
     Servo::Servo() : MotorDriver() {}
 
-    void Servo::update_servo(TimerHandle_t object) {
-        Servo* servo = static_cast<Servo*>(object);
+    void Servo::update_servo(TimerHandle_t timer) {
+        Servo* servo = static_cast<Servo*>(pvTimerGetTimerID(timer));
         servo->update();
     }
 
@@ -34,7 +34,7 @@ namespace MotorDrivers {
         auto timer = xTimerCreate("",
                                   interval,
                                   true,  // auto reload
-                                  (TimerHandle_t)object,
+                                  (void*)object,
                                   update_servo);
         if (!timer) {
             log_error("Failed to create timer for " << object->name());

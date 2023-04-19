@@ -16,7 +16,7 @@ namespace MotorDrivers {
 
     // Another approach would be to register a separate timer for each instance.
     // I think that timers are cheap so having only a single timer might not buy us much
-    void TrinamicBase::read_sg(TimerHandle_t obj) {
+    void TrinamicBase::read_sg(TimerHandle_t timer) {
         if (inMotionState()) {
             for (TrinamicBase* t : _instances) {
                 if (t->_stallguardDebugMode) {

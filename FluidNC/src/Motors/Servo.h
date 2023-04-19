@@ -26,7 +26,7 @@ namespace MotorDrivers {
         virtual const char* name() = 0;  // This must be implemented by derived classes
 
     protected:
-        static void update_servo(TimerHandle_t object);
+        static void update_servo(TimerHandle_t timer);
         static void schedule_update(Servo* object, int interval);
     };
 }
