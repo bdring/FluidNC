@@ -42,6 +42,9 @@ namespace MotorDrivers {
         }
         if (xTimerStart(timer, 0) == pdFAIL) {
             log_error("Failed to start timer for " << object->name());
+            return;
         }
+
+        log_info("     Update timer " << interval << "ms");
     }
 }
