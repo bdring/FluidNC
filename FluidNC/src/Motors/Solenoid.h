@@ -5,6 +5,8 @@
 namespace MotorDrivers {
     class Solenoid : public RcServo {
     protected:
+        int _timer_ms = 50;
+
         void config_message() override;
         void update() override;
 

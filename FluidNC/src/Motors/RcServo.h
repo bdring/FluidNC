@@ -10,7 +10,7 @@
 namespace MotorDrivers {
     class RcServo : public Servo {
     protected:
-        int _timer_ms = 75;
+        int _timer_ms = 20;
 
         void config_message() override;
 
