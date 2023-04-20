@@ -10,6 +10,8 @@
 namespace MotorDrivers {
     class RcServo : public Servo {
     protected:
+        int _timer_ms = 75;
+
         void config_message() override;
 
         void set_location();
@@ -48,7 +50,7 @@ namespace MotorDrivers {
 
         void _write_pwm(uint32_t duty);
 
-        const char* name() override { return "RcServo"; }
+        const char* name() override { return "rc_servo"; }
 
         // Configuration handlers:
         void group(Configuration::HandlerBase& handler) override {
@@ -56,6 +58,7 @@ namespace MotorDrivers {
             handler.item("pwm_hz", _pwm_freq, SERVO_PWM_FREQ_MIN, SERVO_PWM_FREQ_MAX);
             handler.item("min_pulse_us", _min_pulse_us, SERVO_PULSE_US_MIN, SERVO_PULSE_US_MAX);
             handler.item("max_pulse_us", _max_pulse_us, SERVO_PULSE_US_MIN, SERVO_PULSE_US_MAX);
+            handler.item("timer_ms", _timer_ms);
 
             Servo::group(handler);
         }

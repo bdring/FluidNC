@@ -16,12 +16,10 @@
 namespace MotorDrivers {
     class Servo : public MotorDriver {
     public:
-        int _timer_ms = 75;
-
         Servo();
 
         virtual void update() = 0;  // This must be implemented by derived classes
-        void         group(Configuration::HandlerBase& handler) override { handler.item("timer_ms", _timer_ms); }
+        void         group(Configuration::HandlerBase& handler) override {}
 
         virtual const char* name() = 0;  // This must be implemented by derived classes
 

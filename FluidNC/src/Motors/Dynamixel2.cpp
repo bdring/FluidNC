@@ -29,6 +29,8 @@ namespace MotorDrivers {
     std::vector<Dynamixel2*> Dynamixel2::_instances;
     bool                     Dynamixel2::_has_errors = false;
 
+    int Dynamixel2::_timer_ms = 1000;
+
     uint8_t Dynamixel2::_tx_message[100];  // send to dynamixel
     uint8_t Dynamixel2::_rx_message[50];   // received from dynamixel
     uint8_t Dynamixel2::_msg_index = 0;    // Current length of message being constructed
@@ -91,7 +93,6 @@ namespace MotorDrivers {
             std::string msg("Axis ping reply ");
             msg += axisName().c_str();
             if (model_num == 1060) {
-
                 msg += " Model XL430-W250";
             } else {
                 msg += " M/N " + std::to_string(model_num);

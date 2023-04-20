@@ -46,6 +46,9 @@ namespace MotorDrivers {
             handler.item("hold_percent", _hold_percent, 0.0f, 100.0f);
             handler.item("pull_ms", _pull_ms, 0, 3000);
             handler.item("direction_invert", _dir_invert);
+            handler.item("timer_ms", _timer_ms);
+
+            Servo::group(handler);
         }
 
         // Name of the configurable. Must match the name registered in the cpp file.

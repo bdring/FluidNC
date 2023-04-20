@@ -21,7 +21,10 @@ namespace MotorDrivers {
 
         void set_location();
 
-        uint8_t        _id;
+        uint8_t _id;
+
+        static int _timer_ms;
+
         static uint8_t _tx_message[100];  // outgoing to dynamixel
         static uint8_t _msg_index;
         static uint8_t _rx_message[50];  // received from dynamixel
@@ -111,7 +114,7 @@ namespace MotorDrivers {
         static void update_all();
         void        config_motor() override;
 
-        const char* name() override { return "Dynamixel2"; }
+        const char* name() override { return "dynamixel2"; }
 
         // Configuration handlers:
         void validate() override {
@@ -124,6 +127,7 @@ namespace MotorDrivers {
             handler.item("id", _id);
             handler.item("count_min", _countMin);
             handler.item("count_max", _countMax);
+            handler.item("timer_ms", _timer_ms);
 
             Servo::group(handler);
         }
