@@ -47,7 +47,7 @@ namespace MotorDrivers {
 
         _disabled = true;
 
-        startUpdateTask(_timer_ms);
+        schedule_update(this, _timer_ms);
     }
 
     void RcServo::config_message() {

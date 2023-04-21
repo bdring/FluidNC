@@ -22,50 +22,27 @@
 #include <freertos/task.h>  // portTICK_PERIOD_MS, vTaskDelay
 
 namespace MotorDrivers {
-    Servo* Servo::List = NULL;
 
-    Servo::Servo() : MotorDriver() {
-        link = List;
-        List = this;
+    Servo::Servo() : MotorDriver() {}
+
+    void Servo::update_servo(TimerHandle_t timer) {
+        Servo* servo = static_cast<Servo*>(pvTimerGetTimerID(timer));
+        servo->update();
     }
 
-    void Servo::startUpdateTask(int ms) {
-        if (_timer_ms == 0 || ms < _timer_ms) {
-            _timer_ms = ms;
+    void Servo::schedule_update(Servo* object, int interval) {
+        auto timer = xTimerCreate("",
+                                  interval,
+                                  true,  // auto reload
+                                  (void*)object,
+                                  update_servo);
+        if (!timer) {
+            log_error("Failed to create timer for " << object->name());
+            return;
         }
-        //log_info("Servo Update Task Started");
-        if (this == List) {
-            xTaskCreatePinnedToCore(updateTask,         // task
-                                    "servoUpdateTask",  // name for task
-                                    4096,               // size of task stack
-                                    (void*)&_timer_ms,  // parameters
-                                    1,                  // priority
-                                    NULL,               // handle
-                                    SUPPORT_TASK_CORE   // core
-            );
+        if (xTimerStart(timer, 0) == pdFAIL) {
+            log_error("Failed to start timer for " << object->name());
         }
-    }
-
-    void Servo::updateTask(void* pvParameters) {
-        TickType_t       xLastWakeTime;
-        const TickType_t xUpdate = *static_cast<TickType_t*>(pvParameters) / portTICK_PERIOD_MS;  // in ticks (typically ms)
-        auto             n_axis  = config->_axes->_numberAxis;
-
-        xLastWakeTime = xTaskGetTickCount();  // Initialise the xLastWakeTime variable with the current time.
-        vTaskDelay(2000);                     // initial delay
-        while (true) {                        // don't ever return from this or the task dies
-            std::atomic_thread_fence(std::memory_order::memory_order_seq_cst);  // read fence for settings
-            //log_info("Servo update");
-            for (Servo* p = List; p; p = p->link) {
-                p->update();
-            }
-
-            vTaskDelayUntil(&xLastWakeTime, xUpdate);
-
-            static UBaseType_t uxHighWaterMark = 0;
-#ifdef DEBUG_TASK_STACK
-            reportTaskStackSize(uxHighWaterMark);
-#endif
-        }
+        log_info("    Update timer for " << object->name() << " at " << interval << " ms");
     }
 }
