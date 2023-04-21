@@ -470,7 +470,7 @@ namespace WebUI {
                     } else if (cmd.length() == 1 && is_realtime_command(cmd[0])) {
                         wsChannel->pushRT(cmd[0]);
                     } else {
-                        if (cmd.length() && cmd[cmd.length() - 1] == '\n') {
+                        if (cmd.length() && cmd[cmd.length() - 1] != '\n') {
                             cmd += '\n';
                         }
                         hasError = !wsChannel->push(cmd);
