@@ -63,8 +63,7 @@ void constrainToSoftLimits(float* cartesian) {
     MotorMask lim_pin_state    = limits_get_state();
 
     for (int axis = 0; axis < n_axis; axis++) {
-        auto   axisSetting = axes->_axis[axis];
-        String axis_letter = String(Machine::Axes::_names[axis]);
+        auto axisSetting = axes->_axis[axis];
         // If the axis is moving from the current location and soft limits are on.
         if (axisSetting->_softLimits && cartesian[axis] != current_position[axis]) {
             // When outside the axis range, only small nudges to clear switches are allowed
@@ -73,7 +72,7 @@ void constrainToSoftLimits(float* cartesian) {
                 if (bitnum_is_false(lim_pin_state, Machine::Axes::motor_bit(axis, 0)) &&
                     bitnum_is_false(lim_pin_state, Machine::Axes::motor_bit(axis, 1))) {
                     cartesian[axis] = current_position[axis];  // cancel the move on this axis
-                    log_debug("Soft limit violation on " << axis_letter);
+                    log_debug("Soft limit violation on " << Machine::Axes::_names[axis]);
                     continue;
                 }
                 float jog_dist = cartesian[axis] - current_position[axis];
@@ -87,7 +86,7 @@ void constrainToSoftLimits(float* cartesian) {
                 if (posLimited != negLimited) {  // XOR, because ambiguous (both) is OK
                     if ((negLimited && (jog_dist < 0)) || (posLimited && (jog_dist > 0))) {
                         cartesian[axis] = current_position[axis];  // cancel the move on this axis
-                        log_debug("Jog into active switch blocked on " << axis_letter);
+                        log_debug("Jog into active switch blocked on " << Machine::Axes::_names[axis]);
                         continue;
                     }
                 }
