@@ -73,7 +73,6 @@ namespace MotorDrivers {
         void config_message() override;
 
         uint8_t setupSPI();
-        void    finalInit();
 
         bool    reportTest(uint8_t result);
         uint8_t toffValue();

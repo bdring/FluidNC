@@ -137,6 +137,12 @@ void report_feedback_message(Message message) {  // ok to send to all channels
         log_info(it->second);
     }
 }
+void report_error_message(Message message) {  // ok to send to all channels
+    auto it = MessageText.find(message);
+    if (it != MessageText.end()) {
+        log_error(it->second);
+    }
+}
 
 const char* radio =
 #if defined(ENABLE_WIFI) || defined(ENABLE_BLUETOOTH)
@@ -223,9 +229,9 @@ void report_ngc_coord(CoordIndex coord, Channel& channel) {
         return;
     }
     // Persistent offsets G54 - G59, G28, and G30
-    String name = coords[coord]->getName();
+    std::string name(coords[coord]->getName());
     name += ":";
-    log_to(channel, "[", name.c_str() << report_util_axis_values(coords[coord]->get()));
+    log_to(channel, "[", name << report_util_axis_values(coords[coord]->get()));
 }
 void report_ngc_parameters(Channel& channel) {
     for (auto coord = CoordIndex::Begin; coord < CoordIndex::End; ++coord) {
@@ -667,4 +673,3 @@ void reportTaskStackSize(UBaseType_t& saved) {
 }
 
 void WEAK_LINK display_init() {}
-void WEAK_LINK display(const char* tag, String s) {}

@@ -19,6 +19,11 @@ namespace MotorDrivers {
     extern EnumItem trinamicModes[];
 
     class TrinamicBase : public StandardStepper {
+    private:
+        static void read_sg(TimerHandle_t);
+
+        static std::vector<TrinamicBase*> _instances;
+
     protected:
         uint32_t calc_tstep(float speed, float percent);
 
@@ -44,12 +49,6 @@ namespace MotorDrivers {
         uint8_t _toff_stealthchop = 5;
         uint8_t _toff_coolstep    = 3;
 
-        // Linked list of Trinamic driver instances, used by the
-        // StallGuard reporting task.
-        static TrinamicBase* List;
-        TrinamicBase*        link;
-        static void          readSgTask(void*);
-
         const double fclk = 12700000.0;  // Internal clock Approx (Hz) used to calculate TSTEP from homing rate
 
         float        holdPercent();
@@ -66,6 +65,8 @@ namespace MotorDrivers {
         virtual void config_motor();
 
         const char* yn(bool v) { return v ? "Y" : "N"; }
+
+        void registration();
 
     public:
         TrinamicBase() = default;

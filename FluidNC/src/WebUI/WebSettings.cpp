@@ -23,6 +23,8 @@
 #include "WifiConfig.h"
 
 #include <cstring>
+#include <sstream>
+#include <iomanip>
 
 namespace WebUI {
 
@@ -193,7 +195,9 @@ namespace WebUI {
         log_to(out, "Chip ID: ", (uint16_t)(ESP.getEfuseMac() >> 32));
         log_to(out, "CPU Cores: ", ESP.getChipCores());
         log_to(out, "CPU Frequency: ", ESP.getCpuFreqMHz() << "Mhz");
-        log_to(out, "CPU Temperature: ", String(temperatureRead(), 1) << "°C");
+        std::ostringstream msg;
+        msg << std::fixed << std::setprecision(1) << temperatureRead() << "°C";
+        log_to(out, "CPU Temperature: ", msg.str());
         log_to(out, "Free memory: ", formatBytes(ESP.getFreeHeap()));
         log_to(out, "SDK: ", ESP.getSdkVersion());
         log_to(out, "Flash Size: ", formatBytes(ESP.getFlashChipSize()));
@@ -271,7 +275,7 @@ namespace WebUI {
             log_to(out, "Missing file name!");
             return Error::InvalidValue;
         }
-        String path = trim(parameter);
+        std::string path(parameter);
         if (path[0] != '/') {
             path = "/" + path;
         }
@@ -444,7 +448,7 @@ namespace WebUI {
         }
         return Error::Ok;
     }
-    static Error copyDir(String iDir, String oDir, Channel& out) {  // No ESP command
+    static Error copyDir(const char* iDir, const char* oDir, Channel& out) {  // No ESP command
         std::error_code ec;
 
         {  // Block to manage scope of outDir
@@ -479,8 +483,12 @@ namespace WebUI {
             if (dir_entry.is_directory()) {
                 log_error("Not handling localfs subdirectories");
             } else {
-                String opath = oDir + "/" + dir_entry.path().filename().c_str();
-                String ipath = iDir + "/" + dir_entry.path().filename().c_str();
+                std::string opath(oDir);
+                opath += "/";
+                opath += dir_entry.path().filename().c_str();
+                std::string ipath(iDir);
+                ipath += "/";
+                ipath += dir_entry.path().filename().c_str();
                 log_info_to(out, ipath << " -> " << opath);
                 auto err1 = copyFile(ipath.c_str(), opath.c_str(), out);
                 if (err1 != Error::Ok) {
@@ -497,12 +505,16 @@ namespace WebUI {
         return copyDir("/sd/localfs", "/localfs", out);
     }
     static Error migrateLocalFS(char* parameter, AuthenticationLevel auth_level, Channel& out) {  // No ESP command
+        const char* newfs = parameter && *parameter ? parameter : "littlefs";
+        if (strcmp(newfs, localfsName) == 0) {
+            log_error("localfs format is already " << newfs);
+            return Error::InvalidValue;
+        }
         log_info("Backing up local filesystem contents to SD");
         Error err = copyDir("/localfs", "/sd/localfs", out);
         if (err != Error::Ok) {
             return err;
         }
-        const char* newfs = parameter && *parameter ? parameter : "littlefs";
         log_info("Reformatting local filesystem to " << newfs);
         if (localfs_format(newfs)) {
             return Error::FsFailedFormat;

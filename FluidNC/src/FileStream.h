@@ -26,18 +26,18 @@ class FileStream : public Channel {
 
 public:
     FileStream() = default;
-    FileStream(String filename, const char* mode, const char* defaultFs = "") : FileStream(filename.c_str(), mode, defaultFs) {}
+    FileStream(std::string filename, const char* mode, const char* defaultFs = "") : FileStream(filename.c_str(), mode, defaultFs) {}
     FileStream(const char* filename, const char* mode, const char* defaultFs = "");
     FileStream(FluidPath fpath, const char* mode);
 
     FluidPath fpath() { return _fpath; }
 
-    String path();
-    String name();
-    int    available() override;
-    int    read() override;
-    int    peek() override;
-    void   flush() override;
+    std::string path();
+    std::string name();
+    int         available() override;
+    int         read() override;
+    int         peek() override;
+    void        flush() override;
 
     size_t readBytes(char* buffer, size_t length) { return read((uint8_t*)buffer, length); }
 

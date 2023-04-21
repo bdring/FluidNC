@@ -49,8 +49,6 @@ namespace MotorDrivers {
         static bool _uart_started;
         void        config_message() override;
 
-        void finalInit();
-
         uint8_t toffValue();  // TO DO move to Base?
 
     private:

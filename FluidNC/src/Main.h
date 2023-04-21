@@ -3,7 +3,5 @@
 
 #pragma once
 
-#include <WString.h>
-
 void main_init();
 void run_once();

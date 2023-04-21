@@ -16,12 +16,14 @@
 // "bare * wildcard" is similar to filename wildcarding in many shells
 // and CLIs.
 
-static bool matchHere(const char* regexp, const char* text);
+#include <ctype.h>
+
+static bool matchHere(const char* regexp, const char* text, bool case_sensitive);
 
 // matchStar - search for *regexp at beginning of text
-static bool matchStar(const char* regexp, const char* text) {
+static bool matchStar(const char* regexp, const char* text, bool case_sensitive) {
     do {
-        if (matchHere(regexp, text)) {
+        if (matchHere(regexp, text, case_sensitive)) {
             return true;
         }
     } while (*text++ != '\0');
@@ -29,30 +31,30 @@ static bool matchStar(const char* regexp, const char* text) {
 }
 
 // matchHere - search for regex at beginning of text
-static bool matchHere(const char* regexp, const char* text) {
+static bool matchHere(const char* regexp, const char* text, bool case_sensitive) {
     if (regexp[0] == '\0') {
         return true;
     }
     if (regexp[0] == '*') {
-        return matchStar(regexp + 1, text);
+        return matchStar(regexp + 1, text, case_sensitive);
     }
     if (regexp[0] == '$' && regexp[1] == '\0') {
         return *text == '\0';
     }
-    if (*text != '\0' && (regexp[0] == *text)) {
-        return matchHere(++regexp, ++text);
+    if (*text != '\0' && (case_sensitive ? regexp[0] == *text : tolower(regexp[0]) == tolower(*text))) {
+        return matchHere(++regexp, ++text, case_sensitive);
     }
     return false;
 }
 
 // match - search for regular expression anywhere in text
 // Returns true if text contains the regular expression regexp
-bool regexMatch(const char* regexp, const char* text) {
+bool regexMatch(const char* regexp, const char* text, bool case_sensitive) {
     if (regexp[0] == '^') {
-        return matchHere(++regexp, text);
+        return matchHere(++regexp, text, case_sensitive);
     }
     do {
-        if (matchHere(regexp, text)) {
+        if (matchHere(regexp, text, case_sensitive)) {
             return true;
         }
     } while (*text++ != '\0');

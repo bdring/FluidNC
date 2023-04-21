@@ -179,8 +179,9 @@ namespace Pins {
         ::detachInterrupt(_index);
     }
 
-    String GPIOPinDetail::toString() {
-        auto s = String("gpio.") + int(_index);
+    std::string GPIOPinDetail::toString() {
+        std::string s("gpio.");
+        s += std::to_string(_index);
         if (_attributes.has(PinAttributes::ActiveLow)) {
             s += ":low";
         }

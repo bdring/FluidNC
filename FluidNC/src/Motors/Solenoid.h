@@ -5,6 +5,8 @@
 namespace MotorDrivers {
     class Solenoid : public RcServo {
     protected:
+        int _timer_ms = 50;
+
         void config_message() override;
         void update() override;
 
@@ -46,6 +48,9 @@ namespace MotorDrivers {
             handler.item("hold_percent", _hold_percent, 0.0f, 100.0f);
             handler.item("pull_ms", _pull_ms, 0, 3000);
             handler.item("direction_invert", _dir_invert);
+            handler.item("timer_ms", _timer_ms);
+
+            Servo::group(handler);
         }
 
         // Name of the configurable. Must match the name registered in the cpp file.

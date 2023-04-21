@@ -227,9 +227,9 @@ namespace Machine {
         }
     }
 
-    String Axes::maskToNames(AxisMask mask) {
-        String retval = "";
-        auto   n_axis = _numberAxis;
+    std::string Axes::maskToNames(AxisMask mask) {
+        std::string retval("");
+        auto        n_axis = _numberAxis;
         for (int axis = 0; axis < n_axis; axis++) {
             if (bitnum_is_true(mask, axis)) {
                 retval += _names[axis];
@@ -237,9 +237,9 @@ namespace Machine {
         }
         return retval;
     }
-    String Axes::motorMaskToNames(MotorMask mask) {
-        String retval = "";
-        auto   n_axis = _numberAxis;
+    std::string Axes::motorMaskToNames(MotorMask mask) {
+        std::string retval("");
+        auto        n_axis = _numberAxis;
         for (int axis = 0; axis < n_axis; axis++) {
             if (bitnum_is_true(mask, axis)) {
                 retval += " ";

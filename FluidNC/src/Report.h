@@ -51,6 +51,7 @@ void _notifyf(const char* title, const char* format, ...);
 
 // Prints miscellaneous feedback messages.
 void report_feedback_message(Message message);
+void report_error_message(Message message);
 
 // Prints welcome message
 void report_init_message(Channel& channel);
@@ -93,6 +94,5 @@ extern const char* git_info;
 
 // Callout to custom code
 void display_init();
-void display(const char* tag, String s);
 
 extern bool readyNext;
