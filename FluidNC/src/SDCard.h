@@ -60,7 +60,7 @@ public:
     void group(Configuration::HandlerBase& handler) override {
         handler.item("cs_pin", _cs);
         handler.item("card_detect_pin", _cardDetect);
-        handler.item("frequency_hz", _frequency_hz, 1000000, 20000000);
+        handler.item("frequency_hz", _frequency_hz, 400000, 20000000);
     }
 
     ~SDCard();
