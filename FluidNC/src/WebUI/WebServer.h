@@ -17,9 +17,9 @@ class WebSocketsServer;
 class WebServer;
 
 namespace WebUI {
-    static const int DEFAULT_HTTP_STATE = 1;
+    static const int DEFAULT_HTTP_STATE                 = 1;
     static const int DEFAULT_HTTP_BLOCKED_DURING_MOTION = 1;
-    static const int DEFAULT_HTTP_PORT  = 80;
+    static const int DEFAULT_HTTP_PORT                  = 80;
 
     static const int MIN_HTTP_PORT = 1;
     static const int MAX_HTTP_PORT = 65001;
@@ -62,7 +62,7 @@ namespace WebUI {
         static UploadStatus      _upload_status;
         static FileStream*       _uploadFile;
 
-        static String getContentType(String filename);
+        static const char* getContentType(const char* filename);
 
         static AuthenticationLevel is_authenticated();
 #    ifdef ENABLE_AUTHENTICATION
@@ -89,7 +89,7 @@ namespace WebUI {
         static void handleUpdate();
         static void WebUpdateUpload();
 
-        static bool streamFile(String path, bool download = false);
+        static bool myStreamFile(const char* path, bool download = false);
 
         static void pushError(int code, const char* st, bool web_error = 500, uint16_t timeout = 1000);
 
@@ -98,19 +98,20 @@ namespace WebUI {
         static void handle_direct_SDFileList();
         static void fileUpload(const char* fs);
         static void SDFileUpload();
-        static void uploadStart(String filename, size_t filesize, const char* fs);
+        static void uploadStart(const char* filename, size_t filesize, const char* fs);
         static void uploadWrite(uint8_t* buffer, size_t length);
         static void uploadEnd(size_t filesize);
         static void uploadStop();
-        static void uploadCheck(String filename);
+        static void uploadCheck();
 
         static void sendFSError(Error err);
-        static void sendJSON(int code, const String& s);
-        static void sendAuth(const String& status, const String& level, const String& user);
+        static void sendJSON(int code, const char* s);
+        static void sendJSON(int code, const std::string& s) { sendJSON(code, s.c_str()); }
+        static void sendAuth(const char* status, const char* level, const char* user);
         static void sendAuthFailed();
-        static void sendStatus(int code, const String& str);
+        static void sendStatus(int code, const char* str);
 
-        static void sendWithOurAddress(String s);
+        static void sendWithOurAddress(const char* s);
         static void sendCaptivePortal();
         static void send404Page();
 

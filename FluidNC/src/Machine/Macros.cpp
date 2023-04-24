@@ -51,7 +51,7 @@ bool Macros::run_macro(size_t index) {
     if (index >= n_macros) {
         return false;
     }
-    String macro = _macro[index];
+    auto macro = _macro[index];
     if (macro == "") {
         return true;
     }

@@ -45,7 +45,7 @@ public:
     Pin _bck;
     // ...
 
-    void validate() const override {
+    void validate() override {
         if (!_bck.undefined() || !_data.undefined() || !_ws.undefined()) {
             Assert(!_bck.undefined(), "I2SO BCK pin should be configured once.");
             // ...

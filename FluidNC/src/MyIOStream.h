@@ -8,6 +8,9 @@
 #include <string>
 
 #include "Pin.h"
+#include "StringRange.h"
+
+std::string IP_string(uint32_t ipaddr);
 
 inline Print& operator<<(Print& lhs, char c) {
     lhs.print(c);
@@ -19,8 +22,10 @@ inline Print& operator<<(Print& lhs, const char* v) {
     return lhs;
 }
 
-inline Print& operator<<(Print& lhs, String v) {
-    lhs.print(v.c_str());
+inline Print& operator<<(Print& lhs, const StringRange& s) {
+    for (const char* p = s.begin(); p < s.end(); ++p) {
+        lhs.print(*p);
+    }
     return lhs;
 }
 
@@ -55,12 +60,12 @@ inline Print& operator<<(Print& lhs, double v) {
 }
 
 inline Print& operator<<(Print& lhs, const Pin& v) {
-    lhs.print(v.name());
+    lhs.print(v.name().c_str());
     return lhs;
 }
 
-inline Print& operator<<(Print& lhs, IPAddress a) {
-    lhs.print(a.toString());
+inline Print& operator<<(Print& lhs, IPAddress v) {
+    lhs.print(IP_string(v).c_str());
     return lhs;
 }
 

@@ -8,6 +8,8 @@
 #include <cstring>
 #include <cstdio>
 #include <atomic>
+#include <sstream>
+#include <iomanip>
 
 namespace Configuration {
     JsonGenerator::JsonGenerator(WebUI::JSONencoder& encoder) : _encoder(encoder) {
@@ -73,7 +75,7 @@ namespace Configuration {
         leave();
     }
 
-        void JsonGenerator::item(const char* name, uint32_t& value, uint32_t minValue, uint32_t maxValue) {
+    void JsonGenerator::item(const char* name, uint32_t& value, uint32_t minValue, uint32_t maxValue) {
         enter(name);
         char buf[32];
         itoa(value, buf, 10);
@@ -90,7 +92,9 @@ namespace Configuration {
         } else if (value < -999999.999f) {
             value = -999999.999f;
         }
-        _encoder.begin_webui(_currentPath, _currentPath, "R", String(value, 3).c_str());
+        std::ostringstream fstr;
+        fstr << std::fixed << std::setprecision(3) << value;
+        _encoder.begin_webui(_currentPath, _currentPath, "R", fstr.str());
         _encoder.end_object();
         leave();
     }
@@ -100,7 +104,7 @@ namespace Configuration {
         // Not sure if I should comment this out or not. The implementation is similar to the one in Generator.h.
     }
 
-    void JsonGenerator::item(const char* name, String& value, int minLength, int maxLength) {
+    void JsonGenerator::item(const char* name, std::string& value, int minLength, int maxLength) {
         enter(name);
         _encoder.begin_webui(_currentPath, _currentPath, "S", value.c_str(), minLength, maxLength);
         _encoder.end_object();
@@ -121,7 +125,7 @@ namespace Configuration {
 
     void JsonGenerator::item(const char* name, IPAddress& value) {
         enter(name);
-        _encoder.begin_webui(_currentPath, _currentPath, "A", value.toString().c_str());
+        _encoder.begin_webui(_currentPath, _currentPath, "A", IP_string(value));
         _encoder.end_object();
         leave();
     }

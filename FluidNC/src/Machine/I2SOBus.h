@@ -15,7 +15,7 @@ namespace Machine {
         Pin _data;
         Pin _ws;
 
-        void validate() const override;
+        void validate() override;
         void group(Configuration::HandlerBase& handler) override;
 
         void init();

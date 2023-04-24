@@ -67,9 +67,7 @@ namespace Machine {
         protocol_send_event(&cycleStartEvent);
     }
 
-    static MotorMask limited() {
-        return Machine::Axes::posLimitMask | Machine::Axes::negLimitMask;
-    }
+    static MotorMask limited() { return Machine::Axes::posLimitMask | Machine::Axes::negLimitMask; }
 
     void Homing::cycleStop() {
         log_debug("CycleStop " << phaseName(_phase));
@@ -406,9 +404,10 @@ namespace Machine {
         axes->set_homing_mode(_cycleAxes, false);  // tell motors homing is done
     }
 
-    static String axisNames(AxisMask axisMask) {
-        String retval = "";
-        auto   n_axis = config->_axes->_numberAxis;
+#if 0
+    static std::string axisNames(AxisMask axisMask) {
+        std::string retval = "";
+        auto        n_axis = config->_axes->_numberAxis;
         for (size_t axis = 0; axis < n_axis; axis++) {
             if (bitnum_is_true(axisMask, axis)) {
                 retval += Machine::Axes::_names[axis];
@@ -416,6 +415,7 @@ namespace Machine {
         }
         return retval;
     }
+#endif
 
     // Construct a list of homing cycles to run.  If there are any
     // such cycles, enter Homing state and begin running the first

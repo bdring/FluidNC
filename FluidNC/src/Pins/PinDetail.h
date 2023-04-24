@@ -7,9 +7,9 @@
 #include "PinAttributes.h"
 #include "PinOptionsParser.h"
 
-#include <WString.h>
 #include <cstdint>
 #include <cstring>
+#include <string>
 #include <vector>
 
 typedef uint8_t pinnum_t;
@@ -41,7 +41,7 @@ namespace Pins {
         virtual void attachInterrupt(void (*callback)(void*), void* arg, int mode);
         virtual void detachInterrupt();
 
-        virtual String toString() = 0;
+        virtual std::string toString() = 0;
 
         inline int number() const { return _index; }
 

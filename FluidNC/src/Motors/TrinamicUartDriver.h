@@ -28,7 +28,7 @@ namespace MotorDrivers {
         uint8_t _addr;
 
         // Configuration handlers:
-        void validate() const override { StandardStepper::validate(); }
+        void validate() override { StandardStepper::validate(); }
 
         void afterParse() override {
             StandardStepper::validate();
@@ -48,8 +48,6 @@ namespace MotorDrivers {
 
         static bool _uart_started;
         void        config_message() override;
-
-        void finalInit();
 
         uint8_t toffValue();  // TO DO move to Base?
 

@@ -64,7 +64,7 @@ namespace MotorDrivers {
 
         _current_pwm_duty = 0;
 
-        startUpdateTask(_update_rate_ms);
+        schedule_update(this, _update_rate_ms);
     }
 
     void Solenoid::update() { set_location(); }

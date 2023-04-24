@@ -102,7 +102,9 @@ void mc_cancel_jog() {
 // unless invert_feed_rate is true. Then the feed_rate means that the motion should be completed in
 // (1 minute)/feed_rate time.
 bool mc_linear(float* target, plan_line_data_t* pl_data, float* position) {
-    limits_soft_check(target);
+    if (!pl_data->is_jog) { // soft limits for jogs have already been dealt with
+        limits_soft_check(target);
+    }    
     return config->_kinematics->cartesian_to_motors(target, pl_data, position);
 }
 
