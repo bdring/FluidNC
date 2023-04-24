@@ -246,7 +246,7 @@ static void check_startup_state() {
         }
 
         if (sys.state == State::Alarm || sys.state == State::Sleep) {
-            report_error_message(Message::AlarmLock);
+            report_feedback_message(Message::AlarmLock);
             sys.state = State::Alarm;  // Ensure alarm state is set.
         } else {
             // Check if the safety door is open.
