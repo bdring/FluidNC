@@ -32,6 +32,9 @@ namespace Machine {
             _homing         = new Homing();
             _homing->_cycle = 0;
         }
+        if (_motors[0] == nullptr) {
+            _motors[0] = new Machine::Motor(_axis, 0);
+        }
     }
 
     void Axis::init() {

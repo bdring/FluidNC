@@ -23,7 +23,7 @@ void SDCard::init() {
         if (!config->_spi->defined()) {
             log_error("SD needs SPI defined");
         } else {
-            log_info("SD Card cs_pin:" << _cs.name() << " detect:" << _cardDetect.name());
+            log_info("SD Card cs_pin:" << _cs.name() << " detect:" << _cardDetect.name() << " freq:" << _frequency_hz);
             init_message = false;
         }
         _cs.setAttr(Pin::Attr::Output);
@@ -32,8 +32,7 @@ void SDCard::init() {
         csPin = static_cast<pinnum_t>(csFallback);
         log_info("Using fallback CS pin " << int(csPin));
     } else {
-        log_info("No SD Card CS Pin");
-        log_info("See http://wiki.fluidnc.com/en/config/sd_card#sdfallbackcs-access-sd-without-a-config-file");
+        log_debug("See http://wiki.fluidnc.com/en/config/sd_card#sdfallbackcs-access-sd-without-a-config-file");
         return;
     }
 

@@ -404,9 +404,10 @@ namespace Machine {
         axes->set_homing_mode(_cycleAxes, false);  // tell motors homing is done
     }
 
-    static String axisNames(AxisMask axisMask) {
-        String retval = "";
-        auto   n_axis = config->_axes->_numberAxis;
+#if 0
+    static std::string axisNames(AxisMask axisMask) {
+        std::string retval = "";
+        auto        n_axis = config->_axes->_numberAxis;
         for (size_t axis = 0; axis < n_axis; axis++) {
             if (bitnum_is_true(axisMask, axis)) {
                 retval += Machine::Axes::_names[axis];
@@ -414,6 +415,7 @@ namespace Machine {
         }
         return retval;
     }
+#endif
 
     // Construct a list of homing cycles to run.  If there are any
     // such cycles, enter Homing state and begin running the first
@@ -421,9 +423,24 @@ namespace Machine {
     // the homing state machine through its phases.
     void Homing::run_cycles(AxisMask axisMask) {
         if (!config->_kinematics->canHome(axisMask)) {
-            log_error("This kinematic system cannot do homing");
             sys.state = State::Alarm;
             return;
+        }
+
+        // Find any cycles that set the m_pos without motion
+        auto n_axis = config->_axes->_numberAxis;
+        for (int axis = X_AXIS; axis < n_axis; axis++) {
+            if (config->_axes->_axis[axis]->_homing->_cycle == set_mpos_only) {
+                if (axisMask == 0 || axisMask & 1 << axis) {
+                    float* mpos = get_mpos();
+                    mpos[axis]  = config->_axes->_axis[axis]->_homing->_mpos;
+                    set_motor_steps_from_mpos(mpos);
+                    if (axisMask == bitnum_to_mask(axis))
+                        return;
+
+                    clear_bitnum(axisMask, axis);
+                }
+            }
         }
 
         while (!_remainingCycles.empty()) {

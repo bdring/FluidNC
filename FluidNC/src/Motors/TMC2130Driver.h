@@ -20,7 +20,7 @@ namespace MotorDrivers {
         void set_disable(bool disable);
         void config_motor() override;
         void debug_message() override;
-        void validate() const override { StandardStepper::validate(); }
+        void validate() override { StandardStepper::validate(); }
 
         // Name of the configurable. Must match the name registered in the cpp file.
         const char* name() const override { return "tmc_2130"; }

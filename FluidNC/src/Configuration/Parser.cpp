@@ -38,9 +38,7 @@ namespace Configuration {
         return result;
     }
 
-    StringRange Parser::stringValue() const {
-        return StringRange(token_.sValueStart_, token_.sValueEnd_);
-    }
+    StringRange Parser::stringValue() const { return StringRange(token_.sValueStart_, token_.sValueEnd_); }
 
     bool Parser::boolValue() const {
         auto str = StringRange(token_.sValueStart_, token_.sValueEnd_);
@@ -118,7 +116,7 @@ namespace Configuration {
     IPAddress Parser::ipValue() const {
         IPAddress ip;
         auto      str = StringRange(token_.sValueStart_, token_.sValueEnd_);
-        if (!ip.fromString(str.str())) {
+        if (!ip.fromString(str.str().c_str())) {
             parseError("Expected an IP address like 192.168.0.100");
         }
         return ip;
@@ -138,7 +136,7 @@ namespace Configuration {
         auto str = StringRange(token_.sValueStart_, token_.sValueEnd_);
         if (str.length() == 5 || str.length() == 3) {
             int32_t wordLenInt;
-            if (!str.subString(0, 1).isInteger(wordLenInt)) {
+            if (!str.substr(0, 1).isInteger(wordLenInt)) {
                 parseError("Uart mode should be specified as [Bits Parity Stopbits] like [8N1]");
             } else if (wordLenInt < 5 || wordLenInt > 8) {
                 parseError("Number of data bits for uart is out of range. Expected format like [8N1].");
@@ -163,7 +161,7 @@ namespace Configuration {
                     break;  // Omits compiler warning. Never hit.
             }
 
-            auto stop = str.subString(2, str.length() - 2);
+            auto stop = str.substr(2, str.length() - 2);
             if (stop.equals("1")) {
                 stopBits = UartStop::Bits1;
             } else if (stop.equals("1.5")) {

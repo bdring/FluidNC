@@ -6,8 +6,9 @@
 
 #include "src/Configuration/Configurable.h"
 #include "src/WebUI/InputBuffer.h"  // WebUI::inputBuffer
-#include "src/Uart.h"
+#include "src/UartChannel.h"
 #include "src/Event.h"
+#include <algorithm>
 
 class MacroEvent : public Event {
     int _num;
@@ -29,25 +30,25 @@ namespace Machine {
         static const int n_macros        = 4;
 
     private:
-        String _startup_line[n_startup_lines];
-        String _macro[n_macros];
+        std::string _startup_line[n_startup_lines];
+        std::string _macro[n_macros];
 
     public:
         Macros() = default;
 
         bool run_macro(size_t index);
 
-        String startup_line(size_t index) {
+        std::string startup_line(size_t index) {
             if (index >= n_startup_lines) {
                 return "";
             }
-            String s = _startup_line[index];
+            auto s = _startup_line[index];
             if (s == "") {
                 return s;
             }
             // & is a proxy for newlines in startup lines, because you cannot
             // enter a newline directly in a config file string value.
-            s.replace('&', '\n');
+            std::replace(s.begin(), s.end(), '&', '\n');
             return s + "\n";
         }
 

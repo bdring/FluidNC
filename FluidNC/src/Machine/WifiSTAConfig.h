@@ -12,7 +12,7 @@ namespace Machine {
     public:
         WifiSTAConfig() = default;
 
-        void validate() const override { WifiConfig::validate(); }
+        void validate() override { WifiConfig::validate(); }
 
         void group(Configuration::HandlerBase& handler) override { WifiConfig::group(handler); }
 

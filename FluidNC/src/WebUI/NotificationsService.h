@@ -15,7 +15,6 @@ namespace WebUI {
     extern NotificationsService notificationsService;
 }
 #else
-#    include <WString.h>
 #    include <cstdint>
 
 namespace WebUI {

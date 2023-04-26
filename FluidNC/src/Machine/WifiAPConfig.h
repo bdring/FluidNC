@@ -14,7 +14,7 @@ namespace Machine {
 
         int _channel = 1;
 
-        void validate() const override {
+        void validate() override {
             WifiConfig::validate();
             Assert(_channel >= 1 && _channel <= 16, "WIFI channel %d is out of bounds", _channel);  // TODO: I guess?
         }

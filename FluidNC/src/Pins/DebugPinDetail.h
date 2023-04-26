@@ -42,7 +42,7 @@ namespace Pins {
         void attachInterrupt(void (*callback)(void*), void* arg, int mode) override;
         void detachInterrupt() override;
 
-        String toString() override { return _implementation->toString(); }
+        std::string toString() override { return _implementation->toString(); }
 
         ~DebugPinDetail() override {}
     };

@@ -42,7 +42,7 @@ private:
     Pin   _cardDetect;
     Pin   _cs;
 
-    uint32_t _frequency_hz = 0;  // Set to nonzero to override the default
+    uint32_t _frequency_hz = 8000000;  // Set to nonzero to override the default
 
 public:
     SDCard();
@@ -60,7 +60,7 @@ public:
     void group(Configuration::HandlerBase& handler) override {
         handler.item("cs_pin", _cs);
         handler.item("card_detect_pin", _cardDetect);
-        handler.item("frequency_hz", _frequency_hz);
+        handler.item("frequency_hz", _frequency_hz, 400000, 20000000);
     }
 
     ~SDCard();

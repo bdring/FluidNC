@@ -214,15 +214,6 @@ const bool FORCE_BUFFER_SYNC_DURING_WCO_CHANGE = true;  // Default enabled. Comm
 // repeatable. If needed, you can disable this behavior by uncommenting the define below.
 const bool ALLOW_FEED_OVERRIDE_DURING_PROBE_CYCLES = false;
 
-// INCLUDE_OLED_IO enables access to a basic OLED library.  To use it you must uncomment the
-//  "thingpulse/ESP8266 and ESP32 OLED driver for SSD1306 displays" line in platformio.ini
-// You must uncomment it if you use either INCLUDE_OLED_TINY or INCLUDE_OLED_BASIC
-// #define INCLUDE_OLED_IO
-
-// INCLUDE_OLED_TINY includes a driver for a very small 64x48 OLED display
-// #define INCLUDE_OLED_TINY
-
-// INCLUDE_OLED_BASIC includes a driver for a modest sized OLED display
-// #define INCLUDE_OLED_BASIC
+const int MAX_N_I2C = 2;
 
 #include "NutsBolts.h"

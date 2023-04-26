@@ -14,6 +14,8 @@ void gpio_set_interrupt_type(pinnum_t pin, int mode);
 void gpio_add_interrupt(pinnum_t pin, int mode, void (*callback)(void*), void* arg);
 void gpio_remove_interrupt(pinnum_t pin);
 void gpio_route(pinnum_t pin, uint32_t signal);
+
+class Print;
 void gpio_dump(Print& out);
 
 typedef void (*gpio_dispatch_t)(int, void*, bool);

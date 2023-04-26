@@ -1,7 +1,6 @@
 // Class for creating JSON-encoded strings.
 
 #include "JSONEncoder.h"
-#include "../Uart.h"
 #include "../Report.h"
 #include "../Protocol.h"  // send_line()
 
@@ -181,14 +180,8 @@ namespace WebUI {
         quoted(value.c_str());
     }
 
-    // Creates a "tag":"value" member from an Arduino string
-    void JSONencoder::member(const char* tag, String value) {
-        begin_member(tag);
-        quoted(value.c_str());
-    }
-
     // Creates a "tag":"value" member from an integer
-    void JSONencoder::member(const char* tag, int value) { member(tag, String(value)); }
+    void JSONencoder::member(const char* tag, int value) { member(tag, std::to_string(value)); }
 
     // Creates an Esp32_WebUI configuration item specification from
     // a value passed in as a C-style string.
@@ -209,7 +202,7 @@ namespace WebUI {
     // Creates an Esp32_WebUI configuration item specification from
     // an integer value.
     void JSONencoder::begin_webui(const char* brief, const char* full, const char* type, int val) {
-        begin_webui(brief, full, type, String(val).c_str());
+        begin_webui(brief, full, type, std::to_string(val).c_str());
     }
 
     // Creates an Esp32_WebUI configuration item specification from

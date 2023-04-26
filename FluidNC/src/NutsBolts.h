@@ -6,11 +6,9 @@
 // #define false 0
 // #define true 1
 
-#include <WString.h>
 #include <cstdint>
-#include <esp_attr.h>
-#include <xtensa/core-macros.h>
 #include "Logging.h"
+#include "Driver/delay_usecs.h"
 
 enum class DwellMode : uint8_t {
     Dwell      = 0,  // (Default: Must be zero)
@@ -82,6 +80,8 @@ float convert_delta_vector_to_unit_vector(float* vector);
 float limit_acceleration_by_axis_maximum(float* unit_vec);
 float limit_rate_by_axis_maximum(float* unit_vec);
 
+const char* to_hex(uint32_t n);
+
 bool  char_is_numeric(char value);
 char* trim(char* value);
 
@@ -91,41 +91,6 @@ void swap(T& a, T& b) {
     a = b;
     b = c;
 }
-
-// Short delays measured using the CPU cycle counter.  There is a ROM
-// routine "esp_delay_us(us)" that almost does what what we need,
-// except that it is in ROM and thus dodgy for use from ISRs.  We
-// duplicate the esp_delay_us() here, but placed in IRAM, inlined,
-// and factored so it can be used in different ways.
-
-inline int32_t IRAM_ATTR getCpuTicks() {
-    return XTHAL_GET_CCOUNT();
-}
-
-extern uint32_t g_ticks_per_us_pro;  // For CPU 0 - typically 240 MHz
-extern uint32_t g_ticks_per_us_app;  // For CPU 1 - typically 240 MHz
-
-inline int32_t IRAM_ATTR usToCpuTicks(int32_t us) {
-    return us * g_ticks_per_us_pro;
-}
-
-inline int32_t IRAM_ATTR usToEndTicks(int32_t us) {
-    return getCpuTicks() + usToCpuTicks(us);
-}
-
-// At the usual ESP32 clock rate of 240MHz, the range of this is
-// just under 18 seconds, but it really should be used only for
-// short delays up to a few tens of microseconds.
-
-inline void IRAM_ATTR spinUntil(int32_t endTicks) {
-    while ((getCpuTicks() - endTicks) < 0) {
-#ifdef ESP32
-        asm volatile("nop");
-#endif
-    }
-}
-
-void delay_us(int32_t us);
 
 template <typename T>
 T myMap(T x, T in_min, T in_max, T out_min, T out_max) {  // DrawBot_Badge
@@ -162,4 +127,8 @@ bool constrain_with_message(T& value, T min, T max, const char* name = "") {
 
 bool multiple_bits_set(uint32_t val);
 
-String formatBytes(uint64_t bytes);
+std::string formatBytes(uint64_t bytes);
+
+std::string IP_string(uint32_t ipaddr);
+
+void replace_string_in_place(std::string& subject, const std::string& search, const std::string& replace);

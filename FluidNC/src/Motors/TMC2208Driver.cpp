@@ -12,19 +12,17 @@
 namespace MotorDrivers {
 
     void TMC2208Driver::init() {
-        if (!_uart_started) {
-            _uart->begin();
-            _uart->config_message("Trinamic", " Stepper ");
-            _uart_started = true;
+        TrinamicUartDriver::init();
+        if (!_uart) {
+            return;
         }
-
         if (_r_sense == 0) {
             _r_sense = TMC2208_RSENSE_DEFAULT;
         }
 
         tmc2208 = new TMC2209Stepper(_uart, _r_sense, _addr);
 
-        finalInit();
+        registration();
     }
 
     void TMC2208Driver::config_motor() {
@@ -43,6 +41,7 @@ namespace MotorDrivers {
         // but the TMCStepper library expresses run current as (uint16_t) mA
         // and hold current as (float) fraction of run current.
         uint16_t run_i = (uint16_t)(_run_current * 1000.0);
+        tmc2208->I_scale_analog(false);  // do not scale via pot
         tmc2208->rms_current(run_i, TrinamicBase::holdPercent());
 
         // The TMCStepper library uses the value 0 to mean 1x microstepping

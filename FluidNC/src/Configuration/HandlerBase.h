@@ -10,6 +10,7 @@
 #include "../UartTypes.h"
 
 #include <IPAddress.h>
+#include <string>
 
 namespace Configuration {
     class Configurable;
@@ -52,7 +53,7 @@ namespace Configuration {
 
         virtual void item(const char* name, int& value, EnumItem* e) = 0;
 
-        virtual void item(const char* name, String& value, int minLength = 0, int maxLength = 255) = 0;
+        virtual void item(const char* name, std::string& value, int minLength = 0, int maxLength = 255) = 0;
 
         virtual HandlerType handlerType() = 0;
 
@@ -60,9 +61,12 @@ namespace Configuration {
         void section(const char* name, T*& value, U... args) {
             if (handlerType() == HandlerType::Parser) {
                 // For Parser, matchesUninitialized(name) resolves to _parser.is(name)
-                if (value == nullptr && matchesUninitialized(name)) {
-                    value = new T(args...);
-                    enterSection(name, value);
+                if (matchesUninitialized(name)) {
+                    Assert(value == nullptr, "Duplicate section %s", name);
+                    if (value == nullptr) {
+                        value = new T(args...);
+                        enterSection(name, value);
+                    }
                 }
             } else {
                 if (value != nullptr) {
