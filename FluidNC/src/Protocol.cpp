@@ -369,19 +369,18 @@ static void alarm_msg(ExecAlarm alarm_code) {
 // machine that controls the various real-time features.
 // NOTE: Do not alter this unless you know exactly what you are doing!
 static void protocol_do_alarm() {
+    if (rtAlarm == ExecAlarm::None) {
+        return;
+    }
     if (spindle->_off_on_alarm) {
         spindle->stop();
     }
     sys.state = State::Alarm;  // Set system alarm state
     alarm_msg(rtAlarm);
-    if (rtAlarm == ExecAlarm::HardLimit || rtAlarm == ExecAlarm::SoftLimit) {
+    if (rtAlarm == ExecAlarm::HardLimit) {
         report_error_message(Message::CriticalEvent);
         protocol_disable_steppers();
         rtReset = false;  // Disable any existing reset
-
-        //WebUI::COMMANDS::restart_MCU();
-        //WebUI::COMMANDS::handle();
-
         do {
             protocol_handle_events();
             // Block everything except reset and status reports until user issues reset or power
@@ -393,10 +392,10 @@ static void protocol_do_alarm() {
     }
 
     if (rtAlarm == ExecAlarm::SoftLimit) {
-        sys.state = State::Alarm;  // Set system alarm state
-        alarm_msg(rtAlarm);
+        report_error_message(Message::CriticalEvent);
+        protocol_disable_steppers();
+        rtReset = false;  // Disable any existing reset
     }
-
     rtAlarm = ExecAlarm::None;
 }
 
@@ -1012,7 +1011,7 @@ static void protocol_do_limit(void* arg) {
         Machine::Homing::limitReached();
         return;
     }
-    log_debug("Limit switch tripped for " << config->_axes->axisName(limit->_axis) << " motor " << limit->_motorNum);
+    log_info("Limit switch tripped for " << config->_axes->axisName(limit->_axis) << " motor " << limit->_motorNum);
     if (sys.state == State::Cycle || sys.state == State::Jog) {
         if (limit->isHard() && rtAlarm == ExecAlarm::None) {
             log_debug("Hard limits");
