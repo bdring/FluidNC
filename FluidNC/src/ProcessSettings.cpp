@@ -618,12 +618,14 @@ void CallURL(String cmd) {
         url += cmd;
     }
 
-    log_debug("URL to call  : " << url);
-    log_debug("Host : '" << host << "'");
+    url  = "URL to call  : " + url;
+    host = "Host : '" + host + "'";
 
-    if (!(((WiFi.status() == WL_CONNECTED)) && ((WiFi.getMode() == WIFI_MODE_STA) || (WiFi.getMode() == WIFI_MODE_APSTA)))) 
-    {
-        log_debug ("Try to reconnext to Wifi");
+    log_debug(url.c_str());
+    log_debug(host.c_str());
+
+    if (!(((WiFi.status() == WL_CONNECTED)) && ((WiFi.getMode() == WIFI_MODE_STA) || (WiFi.getMode() == WIFI_MODE_APSTA)))) {
+        log_debug("Try to reconnext to Wifi");
         WebUI::WiFiConfig::begin();
     }
 
