@@ -82,6 +82,7 @@ namespace WebUI {
         }
         if (!_server->sendTXT(_clientNum, s.c_str())) {
             _dead = true;
+            log_debug("WebSocket is unresponsive; closing");
             WSChannels::removeChannel(this);
             return false;
         }
@@ -94,6 +95,7 @@ namespace WebUI {
             }
             if (!_server->sendBIN(_clientNum, _TXbuffer, _TXbufferSize)) {
                 _dead = true;
+                log_debug("WebSocket is unresponsive; closing");
                 WSChannels::removeChannel(this);
             }
 
