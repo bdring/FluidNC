@@ -40,6 +40,8 @@ namespace Machine {
     void UserOutputs::all_off() {
         for (size_t io_num = 0; io_num < MaxUserDigitalPin; io_num++) {
             setDigital(io_num, false);
+        }
+        for (size_t io_num = 0; io_num < MaxUserAnalogPin; io_num++) {
             setAnalogPercent(io_num, 0);
         }
     }
