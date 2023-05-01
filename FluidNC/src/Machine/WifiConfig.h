@@ -16,17 +16,13 @@ namespace Machine {
 
         WifiConfig() : _ipAddress(10, 0, 0, 1), _gateway(10, 0, 0, 1), _netmask(255, 255, 0, 0) {}
 
-        String _ssid = "FluidNC";
-
-        // Passwords don't belong in a YAML!
-        // String _password = "12345678";
+        std::string _ssid = "FluidNC";
 
         bool _dhcp = true;
 
         void group(Configuration::HandlerBase& handler) override {
             handler.item("ssid", _ssid);
-            // handler.item("password", _password);
-
+            // No passwords in the config file!
             handler.item("ip_address", _ipAddress);
             handler.item("gateway", _gateway);
             handler.item("netmask", _netmask);

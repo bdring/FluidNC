@@ -6,7 +6,7 @@
 namespace Configuration {
     class ParseException {
         int         line_;
-        const char* description_;
+        std::string description_;
 
     public:
         ParseException()                      = default;
@@ -14,7 +14,7 @@ namespace Configuration {
 
         ParseException(int line, const char* description) : line_(line), description_(description) {}
 
-        inline int         LineNumber() const { return line_; }
-        inline const char* What() const { return description_; }
+        inline int                LineNumber() const { return line_; }
+        inline const std::string& What() const { return description_; }
     };
 }

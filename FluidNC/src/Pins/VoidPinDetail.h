@@ -20,7 +20,7 @@ namespace Pins {
         void          setAttr(PinAttributes value) override;
         PinAttributes getAttr() const override;
 
-        String toString() override;
+        std::string toString() override;
 
         ~VoidPinDetail() override {}
     };

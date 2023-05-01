@@ -142,9 +142,9 @@ namespace Configuration {
             }
         }
 
-        void item(const char* name, String& value, int minLength, int maxLength) override {
+        void item(const char* name, std::string& value, int minLength, int maxLength) override {
             if (_parser.is(name)) {
-                value = _parser.stringValue().str();
+                value = _parser.stringValue().str().c_str();
             }
         }
 

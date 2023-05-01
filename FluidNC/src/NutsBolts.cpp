@@ -9,6 +9,8 @@
 #include <cstring>
 #include <cstdint>
 #include <cmath>
+#include <sstream>
+#include <iomanip>
 
 const int MAX_INT_DIGITS = 8;  // Maximum number of digits in int32 (and float)
 
@@ -90,10 +92,6 @@ bool read_float(const char* line, size_t* char_counter, float* float_ptr) {
     }
     *char_counter = ptr - line - 1;  // Set char_counter to next statement
     return true;
-}
-
-void IRAM_ATTR delay_us(int32_t us) {
-    spinUntil(usToEndTicks(us));
 }
 
 void delay_ms(uint16_t ms) {
@@ -223,26 +221,51 @@ const char* to_hex(uint32_t n) {
     return hexstr;
 }
 
-String formatBytes(uint64_t bytes) {
+std::string formatBytes(uint64_t bytes) {
     if (bytes < 1024) {
-        return String((uint16_t)bytes) + " B";
+        return std::to_string((uint16_t)bytes) + " B";
     }
     float b = bytes;
     b /= 1024;
     if (b < 1024) {
-        return String(b, 2) + " KB";
+        std::ostringstream msg;
+        msg << std::fixed << std::setprecision(2) << b << " KB";
+        return msg.str();
     }
     b /= 1024;
     if (b < 1024) {
-        return String(b, 2) + " MB";
+        std::ostringstream msg;
+        msg << std::fixed << std::setprecision(2) << b << " MB";
+        return msg.str();
     }
     b /= 1024;
     if (b < 1024) {
-        return String(b, 2) + " GB";
+        std::ostringstream msg;
+        msg << std::fixed << std::setprecision(2) << b << " GB";
+        return msg.str();
     }
     b /= 1024;
     if (b > 99999) {
         b = 99999;
     }
-    return String(b, 2) + " TB";
+    std::ostringstream msg;
+    msg << std::fixed << std::setprecision(2) << b << " TB";
+    return msg.str();
+}
+
+std::string IP_string(uint32_t ipaddr) {
+    std::string retval;
+    retval += std::to_string(uint8_t((ipaddr >> 00) & 0xff)) + ".";
+    retval += std::to_string(uint8_t((ipaddr >> 8) & 0xff)) + ".";
+    retval += std::to_string(uint8_t((ipaddr >> 16) & 0xff)) + ".";
+    retval += std::to_string(uint8_t((ipaddr >> 24) & 0xff));
+    return retval;
+}
+
+void replace_string_in_place(std::string& subject, const std::string& search, const std::string& replace) {
+    size_t pos = 0;
+    while ((pos = subject.find(search, pos)) != std::string::npos) {
+        subject.replace(pos, search.length(), replace);
+        pos += replace.length();
+    }
 }

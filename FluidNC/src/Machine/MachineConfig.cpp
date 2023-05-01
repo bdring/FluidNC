@@ -65,7 +65,7 @@ namespace Machine {
         handler.section("user_outputs", _userOutputs);
 
         handler.section("oled", _oled);
-        
+
         Spindles::SpindleFactory::factory(handler, _spindles);
 
         // TODO: Consider putting these under a gcode: hierarchy level? Or motion control?
@@ -221,7 +221,7 @@ namespace Machine {
                 Configuration::AfterParse afterParse;
                 config->afterParse();
                 config->group(afterParse);
-            } catch (std::exception& ex) { log_info("Validation error: " << ex.what()); }
+            } catch (std::exception& ex) { log_error("Validation error: " << ex.what()); }
 
             log_debug("Checking configuration");
 
@@ -229,14 +229,14 @@ namespace Machine {
                 Configuration::Validator validator;
                 config->validate();
                 config->group(validator);
-            } catch (std::exception& ex) { log_info("Validation error: " << ex.what()); }
+            } catch (std::exception& ex) { log_error("Validation error: " << ex.what()); }
 
             // log_info("Heap size after configuation load is " << uint32_t(xPortGetFreeHeapSize()));
 
             successful = (sys.state != State::ConfigAlarm);
 
             if (!successful) {
-                log_info("Configuration is invalid");
+                log_error("Configuration is invalid");
             }
 
         } catch (const Configuration::ParseException& ex) {

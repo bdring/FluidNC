@@ -56,14 +56,14 @@ namespace WebUI {
         return true;
     }
 
-    bool WSChannel::push(String& s) { return push((uint8_t*)s.c_str(), s.length()); }
+    bool WSChannel::push(std::string& s) { return push((uint8_t*)s.c_str(), s.length()); }
 
     void WSChannel::handle() {
         if (_TXbufferSize > 0 && ((_TXbufferSize >= TXBUFFERSIZE) || ((millis() - _lastflush) > FLUSHTIMEOUT))) {
             flush();
         }
     }
-    size_t WSChannel::sendTXT(String& s) { return _server->sendTXT(_clientNum, s); }
+    size_t WSChannel::sendTXT(std::string& s) { return _server->sendTXT(_clientNum, s.c_str()); }
     void   WSChannel::flush(void) {
         if (_TXbufferSize > 0) {
             _server->sendBIN(_clientNum, _TXbuffer, _TXbufferSize);
