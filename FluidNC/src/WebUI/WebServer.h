@@ -38,6 +38,8 @@ namespace WebUI {
     };
 #    endif
 
+    extern std::map<std::string, std::string> localFsHashes;
+
     //Upload status
     enum class UploadStatus : uint8_t { NONE = 0, FAILED = 1, CANCELLED = 2, SUCCESSFUL = 3, ONGOING = 4 };
 
@@ -111,7 +113,7 @@ namespace WebUI {
         static void sendAuthFailed();
         static void sendStatus(int code, const char* str);
 
-        static void sendWithOurAddress(const char* s);
+        static void sendWithOurAddress(const char* s, int code);
         static void sendCaptivePortal();
         static void send404Page();
 

@@ -45,6 +45,7 @@ namespace WebUI {
 #    include "NoFile.h"
 
 namespace WebUI {
+    std::map<std::string, std::string> localFsHashes;
 
     // Error codes for upload
     const int ESP_ERROR_AUTHENTICATION   = 1;
@@ -112,6 +113,81 @@ namespace WebUI {
         return wsChannel;
     }
 
+    static char hexNibble(int i) { return "0123456789ABCDEF"[i & 0xf]; }
+
+    static Error hashFile(const char* ipath, std::string& str) {  // No ESP command
+        mbedtls_md_context_t ctx;
+
+        uint8_t shaResult[32];
+
+        try {
+            FileStream inFile { ipath, "r" };
+            uint8_t    buf[512];
+            size_t     len;
+
+            mbedtls_md_init(&ctx);
+            mbedtls_md_setup(&ctx, mbedtls_md_info_from_type(MBEDTLS_MD_SHA256), 0);
+            mbedtls_md_starts(&ctx);
+            while ((len = inFile.read(buf, 512)) > 0) {
+                mbedtls_md_update(&ctx, buf, len);
+            }
+            mbedtls_md_finish(&ctx, shaResult);
+            mbedtls_md_free(&ctx);
+        } catch (const Error err) {
+            log_error("Cannot open file " << ipath);
+            return Error::FsFailedOpenFile;
+        }
+
+        str = '"';
+        for (int i = 0; i < 32; i++) {
+            uint8_t b = shaResult[i];
+            str += hexNibble(b >> 4);
+            str += hexNibble(b);
+        }
+        str += '"';
+
+        return Error::Ok;
+    }
+
+    static Error hashLocalFS() {
+        const char*     iDir = "/localfs";
+        std::error_code ec;
+
+        localFsHashes.clear();
+
+        FluidPath fpath { iDir, "", ec };
+        if (ec) {
+            log_error("Cannot open " << iDir);
+            return Error::FsFailedMount;
+        }
+
+        auto iter = stdfs::directory_iterator { fpath, ec };
+        if (ec) {
+            log_error(fpath << " " << ec.message());
+            return Error::FsFailedMount;
+        }
+        Error err = Error::Ok;
+        for (auto const& dir_entry : iter) {
+            if (dir_entry.is_directory()) {
+                log_error("Not handling localfs subdirectories");
+            } else {
+                std::string ipath(iDir);
+                ipath += "/";
+                ipath += dir_entry.path().filename();
+                std::string hash;
+                auto        err1 = hashFile(ipath.c_str(), hash);
+                if (err1 != Error::Ok) {
+                    err = err1;
+                } else {
+                    std::string filename("/");
+                    filename += dir_entry.path().filename();
+                    localFsHashes[filename] = hash;
+                }
+            }
+        }
+        return err;
+    }
+
     bool Web_Server::begin() {
         bool no_error = true;
         _setupdone    = false;
@@ -130,6 +206,12 @@ namespace WebUI {
         //ask server to track these headers
         _webserver->collectHeaders(headerkeys, headerkeyssize);
 #    endif
+
+        //here the list of headers to be recorded
+        const char* headerkeys[]   = { "If-None-Match" };
+        size_t      headerkeyssize = sizeof(headerkeys) / sizeof(char*);
+        _webserver->collectHeaders(headerkeys, headerkeyssize);
+
         _socket_server = new WebSocketsServer(_port + 1);
         _socket_server->begin();
         _socket_server->onEvent(handle_Websocket_Event);
@@ -206,6 +288,8 @@ namespace WebUI {
             MDNS.addService("http", "tcp", _port);
         }
 
+        hashLocalFS();
+
         _setupdone = true;
         return no_error;
     }
@@ -240,6 +324,27 @@ namespace WebUI {
 
     // Send a file, either the specified path or path.gz
     bool Web_Server::myStreamFile(const char* path, bool download) {
+        std::string spath(path);
+        std::string hash;
+        // Check for brower cache match
+
+        std::map<std::string, std::string>::iterator it;
+        it = localFsHashes.find(spath);
+        if (it != localFsHashes.end()) {
+            hash = it->second;
+
+        } else {
+            log_debug("Checking " << (spath + ".gz"));
+            it = localFsHashes.find(spath + ".gz");
+            if (it != localFsHashes.end()) {
+                hash = it->second;
+            }
+        }
+        if (hash.length() && std::string(_webserver->header("If-None-Match").c_str()) == hash) {
+            log_debug(path << " is cached");
+            _webserver->send(304);
+            return true;
+        }
         // If you load or reload WebUI while a program is running, there is a high
         // risk of stalling the motion because serving a file from
         // the local FLASH filesystem takes away a lot of CPU cycles.  If we get
@@ -255,19 +360,25 @@ namespace WebUI {
         bool        isGzip = false;
         FileStream* file;
         try {
-            file = new FileStream(path, "r", "");
+            file = new FileStream(spath, "r", "");
         } catch (const Error err) {
             try {
-                std::string spath(path);
                 file   = new FileStream(spath + ".gz", "r", "");
                 isGzip = true;
-            } catch (const Error err) { return false; }
+            } catch (const Error err) {
+                log_debug(spath << " not found");
+                return false;
+            }
         }
+        log_debug(spath << " found");
         if (download) {
             _webserver->sendHeader("Content-Disposition", "attachment");
         }
+        if (hash.length()) {
+            _webserver->sendHeader("ETag", hash.c_str());
+        }
 
-        log_debug("path " << path << " CT " << getContentType(path));
+        log_debug("path " << path << " CT " << getContentType(path) << " hash " << hash);
         _webserver->setContentLength(file->size());
         if (isGzip) {
             _webserver->sendHeader("Content-Encoding", "gzip");
@@ -283,7 +394,7 @@ namespace WebUI {
         delete file;
         return true;
     }
-    void Web_Server::sendWithOurAddress(const char* content) {
+    void Web_Server::sendWithOurAddress(const char* content, int code) {
         auto        ip    = WiFi.getMode() == WIFI_STA ? WiFi.localIP() : WiFi.softAPIP();
         std::string ipstr = IP_string(ip);
         if (_port != 80) {
@@ -294,7 +405,7 @@ namespace WebUI {
         std::string scontent(content);
         replace_string_in_place(scontent, "$WEB_ADDRESS$", ipstr);
         replace_string_in_place(scontent, "$QUERY$", _webserver->uri().c_str());
-        _webserver->send(200, "text/html", scontent.c_str());
+        _webserver->send(code, "text/html", scontent.c_str());
     }
 
     // Captive Portal Page for use in AP mode
@@ -305,7 +416,7 @@ namespace WebUI {
         "interval=setInterval(function(){\ni=i+1; \nvar x = document.getElementById(\"prg\"); \nx.value=i; \nif (i>5) "
         "\n{\nclearInterval(interval);\nwindow.location.href='/';\n}\n},1000);\n</script>\n</CENTER>\n</BODY>\n</HTML>\n\n";
 
-    void Web_Server::sendCaptivePortal() { sendWithOurAddress(PAGE_CAPTIVE); }
+    void Web_Server::sendCaptivePortal() { sendWithOurAddress(PAGE_CAPTIVE, 200); }
 
     //Default 404 page that is sent when a request cannot be satisfied
     const char PAGE_404[] =
@@ -315,7 +426,7 @@ namespace WebUI {
         "interval=setInterval(function(){\ni=i+1; \nvar x = document.getElementById(\"prg\"); \nx.value=i; \nif (i>5) "
         "\n{\nclearInterval(interval);\nwindow.location.href='/';\n}\n},1000);\n</script>\n</CENTER>\n</BODY>\n</HTML>\n\n";
 
-    void Web_Server::send404Page() { sendWithOurAddress(PAGE_404); }
+    void Web_Server::send404Page() { sendWithOurAddress(PAGE_404, 404); }
 
     void Web_Server::handle_root() {
         if (!(_webserver->hasArg("forcefallback") && _webserver->arg("forcefallback") == "yes")) {
@@ -763,7 +874,10 @@ namespace WebUI {
 
     void Web_Server::sendAuthFailed() { sendStatus(401, "Authentication failed"); }
 
-    void Web_Server::LocalFSFileupload() { fileUpload(localfsName); }
+    void Web_Server::LocalFSFileupload() {
+        fileUpload(localfsName);
+        hashLocalFS();
+    }
     void Web_Server::SDFileUpload() { fileUpload(sdName); }
 
     //Web Update handler
@@ -925,7 +1039,12 @@ namespace WebUI {
             std::string action(_webserver->arg("action").c_str());
             std::string filename = std::string(_webserver->arg("filename").c_str());
             if (action == "delete") {
-                if (stdfs::remove(fpath / filename.c_str(), ec)) {
+                log_debug("Deleting " << fpath << " / " << filename);
+                //                if (stdfs::remove(fpath / filename.c_str(), ec)) {
+                if (stdfs::remove(fpath / filename, ec)) {
+                    if (fpath.isLocalFS()) {
+                        localFsHashes.erase("/" + filename);
+                    }
                     sstatus = filename + " deleted";
                 } else {
                     sstatus = "Cannot delete ";
