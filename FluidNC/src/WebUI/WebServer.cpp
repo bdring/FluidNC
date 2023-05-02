@@ -34,6 +34,9 @@
 #    include "src/WebUI/JSONEncoder.h"
 #    include "Driver/localfs.h"
 
+#    include "src/HashFS.h"
+#    include <list>
+
 namespace WebUI {
     const byte DNS_PORT = 53;
     DNSServer  dnsServer;
@@ -45,7 +48,6 @@ namespace WebUI {
 #    include "NoFile.h"
 
 namespace WebUI {
-
     // Error codes for upload
     const int ESP_ERROR_AUTHENTICATION   = 1;
     const int ESP_ERROR_FILE_CREATION    = 2;
@@ -106,6 +108,12 @@ namespace WebUI {
         //ask server to track these headers
         _webserver->collectHeaders(headerkeys, headerkeyssize);
 #    endif
+
+        //here the list of headers to be recorded
+        const char* headerkeys[]   = { "If-None-Match" };
+        size_t      headerkeyssize = sizeof(headerkeys) / sizeof(char*);
+        _webserver->collectHeaders(headerkeys, headerkeyssize);
+
         _socket_server = new WebSocketsServer(_port + 1);
         _socket_server->begin();
         _socket_server->onEvent(handle_Websocket_Event);
@@ -182,6 +190,8 @@ namespace WebUI {
             MDNS.addService("http", "tcp", _port);
         }
 
+        HashFS::rehash();
+
         _setupdone = true;
         return no_error;
     }
@@ -216,6 +226,20 @@ namespace WebUI {
 
     // Send a file, either the specified path or path.gz
     bool Web_Server::myStreamFile(const char* path, bool download) {
+        std::string spath(path);
+        std::string hash;
+        // Check for brower cache match
+
+        hash = HashFS::hash(spath);
+        if (!hash.length()) {
+            hash = HashFS::hash(spath + ".gz");
+        }
+
+        if (hash.length() && std::string(_webserver->header("If-None-Match").c_str()) == hash) {
+            log_debug(path << " is cached");
+            _webserver->send(304);
+            return true;
+        }
         // If you load or reload WebUI while a program is running, there is a high
         // risk of stalling the motion because serving a file from
         // the local FLASH filesystem takes away a lot of CPU cycles.  If we get
@@ -231,19 +255,25 @@ namespace WebUI {
         bool        isGzip = false;
         FileStream* file;
         try {
-            file = new FileStream(path, "r", "");
+            file = new FileStream(spath, "r", "");
         } catch (const Error err) {
             try {
-                std::string spath(path);
                 file   = new FileStream(spath + ".gz", "r", "");
                 isGzip = true;
-            } catch (const Error err) { return false; }
+            } catch (const Error err) {
+                log_debug(spath << " not found");
+                return false;
+            }
         }
+        log_debug(spath << " found");
         if (download) {
             _webserver->sendHeader("Content-Disposition", "attachment");
         }
+        if (hash.length()) {
+            _webserver->sendHeader("ETag", hash.c_str());
+        }
 
-        log_debug("path " << path << " CT " << getContentType(path));
+        log_debug("path " << path << " CT " << getContentType(path) << " hash " << hash);
         _webserver->setContentLength(file->size());
         if (isGzip) {
             _webserver->sendHeader("Content-Encoding", "gzip");
@@ -259,7 +289,7 @@ namespace WebUI {
         delete file;
         return true;
     }
-    void Web_Server::sendWithOurAddress(const char* content) {
+    void Web_Server::sendWithOurAddress(const char* content, int code) {
         auto        ip    = WiFi.getMode() == WIFI_STA ? WiFi.localIP() : WiFi.softAPIP();
         std::string ipstr = IP_string(ip);
         if (_port != 80) {
@@ -270,7 +300,7 @@ namespace WebUI {
         std::string scontent(content);
         replace_string_in_place(scontent, "$WEB_ADDRESS$", ipstr);
         replace_string_in_place(scontent, "$QUERY$", _webserver->uri().c_str());
-        _webserver->send(200, "text/html", scontent.c_str());
+        _webserver->send(code, "text/html", scontent.c_str());
     }
 
     // Captive Portal Page for use in AP mode
@@ -281,7 +311,7 @@ namespace WebUI {
         "interval=setInterval(function(){\ni=i+1; \nvar x = document.getElementById(\"prg\"); \nx.value=i; \nif (i>5) "
         "\n{\nclearInterval(interval);\nwindow.location.href='/';\n}\n},1000);\n</script>\n</CENTER>\n</BODY>\n</HTML>\n\n";
 
-    void Web_Server::sendCaptivePortal() { sendWithOurAddress(PAGE_CAPTIVE); }
+    void Web_Server::sendCaptivePortal() { sendWithOurAddress(PAGE_CAPTIVE, 200); }
 
     //Default 404 page that is sent when a request cannot be satisfied
     const char PAGE_404[] =
@@ -291,7 +321,7 @@ namespace WebUI {
         "interval=setInterval(function(){\ni=i+1; \nvar x = document.getElementById(\"prg\"); \nx.value=i; \nif (i>5) "
         "\n{\nclearInterval(interval);\nwindow.location.href='/';\n}\n},1000);\n</script>\n</CENTER>\n</BODY>\n</HTML>\n\n";
 
-    void Web_Server::send404Page() { sendWithOurAddress(PAGE_404); }
+    void Web_Server::send404Page() { sendWithOurAddress(PAGE_404, 404); }
 
     void Web_Server::handle_root() {
         if (!(_webserver->hasArg("forcefallback") && _webserver->arg("forcefallback") == "yes")) {
@@ -881,7 +911,9 @@ namespace WebUI {
             std::string action(_webserver->arg("action").c_str());
             std::string filename = std::string(_webserver->arg("filename").c_str());
             if (action == "delete") {
-                if (stdfs::remove(fpath / filename.c_str(), ec)) {
+                log_debug("Deleting " << fpath << " / " << filename);
+                if (stdfs::remove(fpath / filename, ec)) {
+                    fpath.rehash_fs();
                     sstatus = filename + " deleted";
                 } else {
                     sstatus = "Cannot delete ";
@@ -1010,6 +1042,7 @@ namespace WebUI {
             // _uploadFile = nullptr;
 
             auto fpath = _uploadFile->fpath();
+            fpath.rehash_fs();
             delete _uploadFile;
             _uploadFile = nullptr;
 
@@ -1042,6 +1075,7 @@ namespace WebUI {
         _upload_status = UploadStatus::FAILED;
         log_info("Upload cancelled");
         if (_uploadFile) {
+            _uploadFile->fpath().rehash_fs();
             delete _uploadFile;
             _uploadFile = nullptr;
         }
@@ -1055,6 +1089,7 @@ namespace WebUI {
                 delete _uploadFile;
                 _uploadFile = nullptr;
                 stdfs::remove(fpath, error_code);
+                fpath.rehash_fs();
             }
         }
     }

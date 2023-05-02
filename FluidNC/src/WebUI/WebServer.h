@@ -110,7 +110,7 @@ namespace WebUI {
         static void sendAuthFailed();
         static void sendStatus(int code, const char* str);
 
-        static void sendWithOurAddress(const char* s);
+        static void sendWithOurAddress(const char* s, int code);
         static void sendCaptivePortal();
         static void send404Page();
 
