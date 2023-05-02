@@ -748,6 +748,11 @@ static Error setReportInterval(const char* value, WebUI::AuthenticationLevel aut
     return Error::Ok;
 }
 
+static Error showHeap(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+    log_info("Heap free: " << xPortGetFreeHeapSize() << " min: " << heapLowWater);
+    return Error::Ok;
+}
+
 // Commands use the same syntax as Settings, but instead of setting or
 // displaying a persistent value, a command causes some action to occur.
 // That action could be anything, from displaying a run-time parameter
@@ -797,6 +802,7 @@ void make_user_commands() {
     new UserCommand("N", "GCode/StartupLines", report_startup_lines, notIdleOrAlarm);
     new UserCommand("RST", "Settings/Restore", restore_settings, notIdleOrAlarm, WA);
 
+    new UserCommand("Heap", "Heap/Show", showHeap, anyState);
     new UserCommand("SS", "Startup/Show", showStartupLog, anyState);
 
     new UserCommand("RI", "Report/Interval", setReportInterval, anyState);
