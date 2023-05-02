@@ -25,6 +25,8 @@
 #    include <DNSServer.h>
 #    include "WebSettings.h"
 
+#    include "WSChannel.h"
+
 #    include "WebClient.h"
 
 #    include "src/Protocol.h"  // protocol_send_event
@@ -57,9 +59,6 @@ namespace WebUI {
 
     static const char LOCATION_HEADER[] = "Location";
 
-    static std::map<uint8_t, WSChannel*> wsChannels;
-    static std::list<WSChannel*>         webWsChannels;
-
     Web_Server webServer;
     bool       Web_Server::_setupdone = false;
     uint16_t   Web_Server::_port      = 0;
@@ -90,27 +89,6 @@ namespace WebUI {
                                                    NULL);
     }
     Web_Server::~Web_Server() { end(); }
-
-    WSChannel* Web_Server::lastWSChannel = nullptr;
-    WSChannel* Web_Server::getWSChannel() {
-        WSChannel* wsChannel = nullptr;
-        if (_webserver->hasArg("PAGEID")) {
-            int wsId  = _webserver->arg("PAGEID").toInt();
-            wsChannel = wsChannels.at(wsId);
-        } else {
-            // If there is no PAGEID URL argument, it is an old version of WebUI
-            // that does not supply PAGEID in all cases.  In that case, we use
-            // the most recently used websocket if it is still in the list.
-            for (auto it = wsChannels.begin(); it != wsChannels.end(); ++it) {
-                if (it->second == lastWSChannel) {
-                    wsChannel = lastWSChannel;
-                    break;
-                }
-            }
-        }
-        lastWSChannel = wsChannel;
-        return wsChannel;
-    }
 
     bool Web_Server::begin() {
         bool no_error = true;
@@ -434,6 +412,14 @@ namespace WebUI {
         _webserver->send(200, "text/xml", sschema);
     }
 
+    // WebUI sends a PAGEID arg to identify the websocket it is using
+    int Web_Server::getPageid() {
+        if (_webserver->hasArg("PAGEID")) {
+            return _webserver->arg("PAGEID").toInt();
+        }
+        return -1;
+    }
+
     void Web_Server::_handle_web_command(bool silent) {
         AuthenticationLevel auth_level = is_authenticated();
         std::string         cmd;
@@ -480,31 +466,7 @@ namespace WebUI {
                 _webserver->send(401, "text/plain", "Authentication failed\n");
                 return;
             }
-            bool hasError = false;
-            try {
-                WSChannel* wsChannel = getWSChannel();
-                if (wsChannel) {
-                    // It is very tempting to let Serial_2_Socket.push() handle the realtime
-                    // character sequences so we don't have to do it here.  That does not work
-                    // because we need to know whether to add a newline.  We should not add one
-                    // on a realtime sequence, but we must add one (if not already present)
-                    // on a text command.
-                    if (cmd.length() == 3 && cmd[0] == 0xc2 && is_realtime_command(cmd[1]) && cmd[2] == '\0') {
-                        // Handles old WebUIs that send a null after high-bit-set realtime chars
-                        wsChannel->pushRT(cmd[1]);
-                    } else if (cmd.length() == 2 && cmd[0] == 0xc2 && is_realtime_command(cmd[1])) {
-                        // Handles old WebUIs that send a null after high-bit-set realtime chars
-                        wsChannel->pushRT(cmd[1]);
-                    } else if (cmd.length() == 1 && is_realtime_command(cmd[0])) {
-                        wsChannel->pushRT(cmd[0]);
-                    } else {
-                        if (cmd.length() && cmd[cmd.length() - 1] != '\n') {
-                            cmd += '\n';
-                        }
-                        hasError = !wsChannel->push(cmd);
-                    }
-                }
-            } catch (std::out_of_range& oor) { hasError = true; }
+            bool hasError = WSChannels::runGCode(getPageid(), cmd);
 
             _webserver->send(200, "text/plain", hasError ? "Error" : "");
         }
@@ -699,12 +661,8 @@ namespace WebUI {
             s += std::to_string(code) + ":";
             s += st;
 
-            try {
-                WSChannel* wsChannel = getWSChannel();
-                if (wsChannel) {
-                    wsChannel->sendTXT(s);
-                }
-            } catch (std::out_of_range& oor) {}
+            WSChannels::sendError(getPageid(), st);
+
             if (web_error != 0 && _webserver && _webserver->client().available() > 0) {
                 _webserver->send(web_error, "text/xml", st);
             }
@@ -1148,63 +1106,13 @@ namespace WebUI {
             _socket_server->loop();
         }
         if ((millis() - start_time) > 10000 && _socket_server) {
-            for (WSChannel* wsChannel : webWsChannels) {
-                std::string s("PING:");
-                s += wsChannel->id();
-                wsChannel->sendTXT(s);
-            }
-
+            WSChannels::sendPing();
             start_time = millis();
         }
     }
 
     void Web_Server::handle_Websocket_Event(uint8_t num, uint8_t type, uint8_t* payload, size_t length) {
-        char data[length + 1];
-        memcpy(data, (char*)payload, length);
-        data[length] = '\0';
-
-        switch (type) {
-            case WStype_DISCONNECTED:
-                log_debug("WebSocket disconnect " << num);
-                try {
-                    WSChannel* wsChannel = wsChannels.at(num);
-                    webWsChannels.remove(wsChannel);
-                    allChannels.kill(wsChannel);
-                    wsChannels.erase(num);
-                } catch (std::out_of_range& oor) {}
-                break;
-            case WStype_CONNECTED: {
-                IPAddress  ip        = _socket_server->remoteIP(num);
-                WSChannel* wsChannel = new WSChannel(_socket_server, num);
-                if (!wsChannel) {
-                    log_error("Creating WebSocket channel failed");
-                } else {
-                    lastWSChannel = wsChannel;
-                    log_debug("WebSocket " << num << " from " << ip << " uri " << data);
-                    allChannels.registration(wsChannel);
-                    wsChannels[num] = wsChannel;
-
-                    if (strcmp(data, "/") == 0) {
-                        std::string s("CURRENT_ID:");
-                        s += std::to_string(num);
-                        // send message to client
-                        webWsChannels.push_front(wsChannel);
-                        wsChannel->sendTXT(s);
-                        s = "ACTIVE_ID:";
-                        s += std::to_string(wsChannel->id());
-                        wsChannel->sendTXT(s);
-                    }
-                }
-            } break;
-            case WStype_TEXT:
-            case WStype_BIN:
-                try {
-                    wsChannels.at(num)->push(payload, length);
-                } catch (std::out_of_range& oor) {}
-                break;
-            default:
-                break;
-        }
+        WSChannels::handleEvent(_socket_server, num, type, payload, length);
     }
 
     //Convert file extension to content type
