@@ -634,6 +634,7 @@ static Error xmodem_receive(const char* value, WebUI::AuthenticationLevel auth_l
     } else {
         log_info("Reception failed or was canceled");
     }
+    outfile->fpath().rehash_fs();
     delete outfile;
     return size < 0 ? Error::UploadFailed : Error::Ok;
 }

@@ -32,6 +32,7 @@
 #    include "src/WebUI/JSONEncoder.h"
 #    include "Driver/localfs.h"
 
+#    include "src/HashFS.h"
 #    include <list>
 
 namespace WebUI {
@@ -45,8 +46,6 @@ namespace WebUI {
 #    include "NoFile.h"
 
 namespace WebUI {
-    std::map<std::string, std::string> localFsHashes;
-
     // Error codes for upload
     const int ESP_ERROR_AUTHENTICATION   = 1;
     const int ESP_ERROR_FILE_CREATION    = 2;
@@ -111,81 +110,6 @@ namespace WebUI {
         }
         lastWSChannel = wsChannel;
         return wsChannel;
-    }
-
-    static char hexNibble(int i) { return "0123456789ABCDEF"[i & 0xf]; }
-
-    static Error hashFile(const char* ipath, std::string& str) {  // No ESP command
-        mbedtls_md_context_t ctx;
-
-        uint8_t shaResult[32];
-
-        try {
-            FileStream inFile { ipath, "r" };
-            uint8_t    buf[512];
-            size_t     len;
-
-            mbedtls_md_init(&ctx);
-            mbedtls_md_setup(&ctx, mbedtls_md_info_from_type(MBEDTLS_MD_SHA256), 0);
-            mbedtls_md_starts(&ctx);
-            while ((len = inFile.read(buf, 512)) > 0) {
-                mbedtls_md_update(&ctx, buf, len);
-            }
-            mbedtls_md_finish(&ctx, shaResult);
-            mbedtls_md_free(&ctx);
-        } catch (const Error err) {
-            log_error("Cannot open file " << ipath);
-            return Error::FsFailedOpenFile;
-        }
-
-        str = '"';
-        for (int i = 0; i < 32; i++) {
-            uint8_t b = shaResult[i];
-            str += hexNibble(b >> 4);
-            str += hexNibble(b);
-        }
-        str += '"';
-
-        return Error::Ok;
-    }
-
-    static Error hashLocalFS() {
-        const char*     iDir = "/localfs";
-        std::error_code ec;
-
-        localFsHashes.clear();
-
-        FluidPath fpath { iDir, "", ec };
-        if (ec) {
-            log_error("Cannot open " << iDir);
-            return Error::FsFailedMount;
-        }
-
-        auto iter = stdfs::directory_iterator { fpath, ec };
-        if (ec) {
-            log_error(fpath << " " << ec.message());
-            return Error::FsFailedMount;
-        }
-        Error err = Error::Ok;
-        for (auto const& dir_entry : iter) {
-            if (dir_entry.is_directory()) {
-                log_error("Not handling localfs subdirectories");
-            } else {
-                std::string ipath(iDir);
-                ipath += "/";
-                ipath += dir_entry.path().filename();
-                std::string hash;
-                auto        err1 = hashFile(ipath.c_str(), hash);
-                if (err1 != Error::Ok) {
-                    err = err1;
-                } else {
-                    std::string filename("/");
-                    filename += dir_entry.path().filename();
-                    localFsHashes[filename] = hash;
-                }
-            }
-        }
-        return err;
     }
 
     bool Web_Server::begin() {
@@ -288,7 +212,7 @@ namespace WebUI {
             MDNS.addService("http", "tcp", _port);
         }
 
-        hashLocalFS();
+        HashFS::rehash();
 
         _setupdone = true;
         return no_error;
@@ -328,18 +252,11 @@ namespace WebUI {
         std::string hash;
         // Check for brower cache match
 
-        std::map<std::string, std::string>::iterator it;
-        it = localFsHashes.find(spath);
-        if (it != localFsHashes.end()) {
-            hash = it->second;
-
-        } else {
-            log_debug("Checking " << (spath + ".gz"));
-            it = localFsHashes.find(spath + ".gz");
-            if (it != localFsHashes.end()) {
-                hash = it->second;
-            }
+        hash = HashFS::hash(spath);
+        if (!hash.length()) {
+            hash = HashFS::hash(spath + ".gz");
         }
+
         if (hash.length() && std::string(_webserver->header("If-None-Match").c_str()) == hash) {
             log_debug(path << " is cached");
             _webserver->send(304);
@@ -874,10 +791,7 @@ namespace WebUI {
 
     void Web_Server::sendAuthFailed() { sendStatus(401, "Authentication failed"); }
 
-    void Web_Server::LocalFSFileupload() {
-        fileUpload(localfsName);
-        hashLocalFS();
-    }
+    void Web_Server::LocalFSFileupload() { fileUpload(localfsName); }
     void Web_Server::SDFileUpload() { fileUpload(sdName); }
 
     //Web Update handler
@@ -1040,11 +954,8 @@ namespace WebUI {
             std::string filename = std::string(_webserver->arg("filename").c_str());
             if (action == "delete") {
                 log_debug("Deleting " << fpath << " / " << filename);
-                //                if (stdfs::remove(fpath / filename.c_str(), ec)) {
                 if (stdfs::remove(fpath / filename, ec)) {
-                    if (fpath.isLocalFS()) {
-                        localFsHashes.erase("/" + filename);
-                    }
+                    fpath.rehash_fs();
                     sstatus = filename + " deleted";
                 } else {
                     sstatus = "Cannot delete ";
@@ -1173,6 +1084,7 @@ namespace WebUI {
             // _uploadFile = nullptr;
 
             auto fpath = _uploadFile->fpath();
+            fpath.rehash_fs();
             delete _uploadFile;
             _uploadFile = nullptr;
 
@@ -1205,6 +1117,7 @@ namespace WebUI {
         _upload_status = UploadStatus::FAILED;
         log_info("Upload cancelled");
         if (_uploadFile) {
+            _uploadFile->fpath().rehash_fs();
             delete _uploadFile;
             _uploadFile = nullptr;
         }
@@ -1218,6 +1131,7 @@ namespace WebUI {
                 delete _uploadFile;
                 _uploadFile = nullptr;
                 stdfs::remove(fpath, error_code);
+                fpath.rehash_fs();
             }
         }
     }

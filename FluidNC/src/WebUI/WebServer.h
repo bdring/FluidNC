@@ -38,8 +38,6 @@ namespace WebUI {
     };
 #    endif
 
-    extern std::map<std::string, std::string> localFsHashes;
-
     //Upload status
     enum class UploadStatus : uint8_t { NONE = 0, FAILED = 1, CANCELLED = 2, SUCCESSFUL = 3, ONGOING = 4 };
 

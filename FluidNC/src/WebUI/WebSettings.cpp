@@ -22,7 +22,7 @@
 #include "Commands.h"  // COMMANDS::restart_MCU();
 #include "WifiConfig.h"
 
-#include "WebServer.h"  // localFsHashes
+#include "src/HashFS.h"
 
 #include <cstring>
 #include <sstream>
@@ -365,15 +365,14 @@ namespace WebUI {
         }
         if (isDir) {
             stdfs::remove_all(fpath, ec);
+            fpath.rehash_fs();
             if (ec) {
                 log_to(out, "Delete Directory failed: ", ec.message());
                 return Error::FsFailedDelDir;
             }
         } else {
             stdfs::remove(fpath, ec);
-            if (fpath.isLocalFS()) {
-                localFsHashes.erase("/" + filename);
-            }
+            fpath.rehash_fs();
             if (ec) {
                 log_to(out, "Delete File failed: ", ec.message());
                 return Error::FsFailedDelFile;
@@ -447,6 +446,7 @@ namespace WebUI {
             while ((len = inFile.read(buf, 512)) > 0) {
                 outFile.write(buf, len);
             }
+            outFile.fpath().rehash_fs();
         } catch (const Error err) {
             log_error("Cannot create file " << opath);
             return Error::FsFailedCreateFile;
@@ -504,7 +504,7 @@ namespace WebUI {
         return err;
     }
     static Error showLocalFSHashes(char* parameter, WebUI::AuthenticationLevel auth_level, Channel& out) {
-        for (const auto& [name, hash] : localFsHashes) {
+        for (const auto& [name, hash] : HashFS::localFsHashes) {
             log_info_to(out, name << ": " << hash);
         }
         return Error::Ok;
