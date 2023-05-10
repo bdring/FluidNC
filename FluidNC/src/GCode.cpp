@@ -1745,11 +1745,13 @@ extern String GetCMDEndPrg();
 extern String GetCMDStartPrg();
 
 void WEAK_LINK user_m30() {
-    CallURL(GetCMDEndPrg());
+    String s = GetCMDEndPrg();
+    if (s != "" ) CallURL(s);
 }
 
 void WEAK_LINK user_m100() {
-    CallURL(GetCMDStartPrg());
+    String s = GetCMDStartPrg();
+    if (s != "" ) CallURL(s);
 }
 
 void WEAK_LINK user_tool_change(uint32_t new_tool) {
