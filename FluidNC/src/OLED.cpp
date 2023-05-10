@@ -205,9 +205,7 @@ void OLED::parse_numbers(std::string s, float* nums, int maxnums) {
     } while (nextpos != std::string::npos);
 }
 
-float* OLED::parse_axes(std::string s) {
-    static float axes[MAX_N_AXIS];
-
+void OLED::parse_axes(std::string s, float* axes) {
     size_t pos     = 0;
     size_t nextpos = -1;
     size_t axis    = 0;
@@ -219,7 +217,6 @@ float* OLED::parse_axes(std::string s) {
         }
         pos = nextpos + 1;
     } while (nextpos != std::string::npos);
-    return axes;
 }
 
 void OLED::parse_status_report() {
@@ -234,9 +231,9 @@ void OLED::parse_status_report() {
     bool probe              = false;
     bool limits[MAX_N_AXIS] = { false };
 
-    float* axes;
-    bool   isMpos = false;
-    _filename     = "";
+    float axes[MAX_N_AXIS];
+    bool  isMpos = false;
+    _filename    = "";
 
     // ... handle it
     while (nextpos != std::string::npos) {
@@ -249,13 +246,13 @@ void OLED::parse_status_report() {
         auto value = field.substr(colon + 1);
         if (tag == "MPos") {
             // x,y,z,...
-            axes   = parse_axes(value);
+            parse_axes(value, axes);
             isMpos = true;
             continue;
         }
         if (tag == "WPos") {
             // x,y,z...
-            axes   = parse_axes(value);
+            parse_axes(value, axes);
             isMpos = false;
             continue;
         }
@@ -305,7 +302,10 @@ void OLED::parse_status_report() {
         }
         if (tag == "WCO") {
             // x,y,z,...
-            auto wcos = parse_axes(value);
+            // We do not use the WCO values because the DROs show whichever
+            // position is in the status report
+            // float wcos[MAX_N_AXIS];
+            // auto  wcos = parse_axes(value, wcos);
             continue;
         }
         if (tag == "Ov") {
