@@ -22,13 +22,14 @@
 #include <Stream.h>
 #include <freertos/FreeRTOS.h>  // TickType_T
 #include <queue>
+#include <stack>
 
 class Channel : public Stream {
 public:
     static const int maxLine = 255;
 
 protected:
-    const char* _name;
+    std::string _name;
     char        _line[maxLine];
     size_t      _linelen;
     bool        _addCR     = false;
@@ -50,14 +51,19 @@ protected:
     bool       _reportWco = true;
     CoordIndex _reportNgc = CoordIndex::End;
 
+    size_t _line_number = 0;
+
 public:
-    Channel(const char* name, bool addCR = false) : _name(name), _linelen(0), _addCR(addCR) {}
+    std::string _progress;
+
+    Channel(std::string name, bool addCR = false) : _name(name), _linelen(0), _addCR(addCR) {}
     virtual ~Channel() = default;
 
-    virtual void     handle() {};
-    virtual Channel* pollLine(char* line);
-    virtual void     ack(Error status);
-    const char*      name() { return _name; }
+    virtual void  handle() {};
+    virtual Error pollLine(char* line);
+    virtual void  ack(Error status);
+
+    const std::string name() { return _name; }
 
     // rx_buffer_available() is the number of bytes that can be sent without overflowing
     // a reception buffer, even if the system is busy.  Channels that can handle external
@@ -85,8 +91,6 @@ public:
         return readBytes(buffer, length);
     }
 
-    virtual void stopJob() {}
-
     size_t timedReadBytes(uint8_t* buffer, size_t length, TickType_t timeout) { return timedReadBytes((char*)buffer, length, timeout); }
 
     bool setCr(bool on) {
@@ -106,4 +110,8 @@ public:
     uint32_t getReportInterval() { return _reportInterval; }
     void     autoReport();
     void     autoReportGCodeState();
+
+    size_t lineNumber() { return _line_number; }
 };
+
+extern std::stack<Channel*> jobChannels;

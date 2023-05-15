@@ -103,6 +103,7 @@ namespace Configuration {
         void item(const char* name, bool& value) override { send_item(name, value ? "true" : "false"); }
 
         void item(const char* name, Pin& value) override { send_item(name, value.name()); }
+        void item(const char* name, Macro& value) override { send_item(name, value._value); }
 
         void item(const char* name, IPAddress& value) override { send_item(name, IP_string(value)); }
         void item(const char* name, int& value, EnumItem* e) override {

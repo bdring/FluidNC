@@ -328,7 +328,7 @@ static Error home(AxisMask axisMask) {
         protocol_execute_realtime();
     } while (sys.state == State::Homing);
 
-    settings_execute_startup();
+    config->_macros->run_startup();
 
     return Error::Ok;
 }
@@ -439,13 +439,6 @@ static Error get_report_build_info(const char* value, WebUI::AuthenticationLevel
     }
     return Error::InvalidStatement;
 }
-static Error report_startup_lines(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
-    for (int i = 0; i < config->_macros->n_startup_lines; i++) {
-        log_to(out, "$N", i << "=" << config->_macros->startup_line(i));
-    }
-    return Error::Ok;
-}
-
 std::map<const char*, uint8_t, cmp_str> restoreCommands = {
     { "$", SettingsRestore::Defaults },   { "settings", SettingsRestore::Defaults },
     { "#", SettingsRestore::Parameters }, { "gcode", SettingsRestore::Parameters },
@@ -603,8 +596,8 @@ static Error macros_run(const char* value, WebUI::AuthenticationLevel auth_level
     if (value) {
         log_info("Running macro " << *value);
         size_t macro_num = (*value) - '0';
-        config->_macros->run_macro(macro_num);
-        return Error::Ok;
+        auto   ok        = config->_macros->run_macro(macro_num);
+        return ok ? Error::Ok : Error::NumberRange;
     }
     log_error("$Macros/Run requires a macro number argument");
     return Error::InvalidStatement;
@@ -789,7 +782,7 @@ void make_user_commands() {
     new UserCommand("ME", "Motor/Enable", motor_enable, notIdleOrAlarm);
     new UserCommand("MI", "Motors/Init", motors_init, notIdleOrAlarm);
 
-    new UserCommand("RM", "Macros/Run", macros_run, notIdleOrAlarm);
+    new UserCommand("RM", "Macros/Run", macros_run, nullptr);
 
     new UserCommand("HX", "Home/X", home_x, notIdleOrAlarm);
     new UserCommand("HY", "Home/Y", home_y, notIdleOrAlarm);
@@ -800,7 +793,6 @@ void make_user_commands() {
 
     new UserCommand("SLP", "System/Sleep", go_to_sleep, notIdleOrAlarm);
     new UserCommand("I", "Build/Info", get_report_build_info, notIdleOrAlarm);
-    new UserCommand("N", "GCode/StartupLines", report_startup_lines, notIdleOrAlarm);
     new UserCommand("RST", "Settings/Restore", restore_settings, notIdleOrAlarm, WA);
 
     new UserCommand("Heap", "Heap/Show", showHeap, anyState);
@@ -850,8 +842,7 @@ Error do_command_or_setting(const char* key, char* value, WebUI::AuthenticationL
     // If value is NULL, it means that there was no value string, i.e.
     // $key without =, or [key] with nothing following.
     // If value is not NULL, but the string is empty, that is the form
-    // $key= with nothing following the = .  It is important to distinguish
-    // those cases so that you can say "$N0=" to clear a startup line.
+    // $key= with nothing following the = .
 
     // First search the yaml settings by name. If found, set a new
     // value if one is given, otherwise display the current value
@@ -987,24 +978,6 @@ Error settings_execute_line(char* line, Channel& out, WebUI::AuthenticationLevel
     // empty string - $xxx= with nothing after
     // non-empty string - [ESPxxx]yyy or $xxx=yyy
     return do_command_or_setting(key, value, auth_level, out);
-}
-
-void settings_execute_startup() {
-    Error status_code;
-    for (int i = 0; i < config->_macros->n_startup_lines; i++) {
-        auto str = config->_macros->startup_line(i);
-        if (str.length()) {
-            // We have to copy this to a mutable array because
-            // gc_execute_line modifies the line while parsing.
-            char gcline[256];
-            strncpy(gcline, str.c_str(), 255);
-            status_code = gc_execute_line(gcline);
-            // Uart0 << ">" << gcline << ":";
-            if (status_code != Error::Ok) {
-                log_error("Startup line: " << errorString(status_code));
-            }
-        }
-    }
 }
 
 Error execute_line(char* line, Channel& channel, WebUI::AuthenticationLevel auth_level) {

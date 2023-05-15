@@ -84,9 +84,9 @@ void OLED::init() {
     setReportInterval(500);
 }
 
-Channel* OLED::pollLine(char* line) {
+Error OLED::pollLine(char* line) {
     autoReport();
-    return nullptr;
+    return Error::NoData;
 }
 
 void OLED::show_state() {

@@ -114,7 +114,7 @@ void Channel::autoReport() {
     }
 }
 
-Channel* Channel::pollLine(char* line) {
+Error Channel::pollLine(char* line) {
     handle();
     while (1) {
         int ch;
@@ -141,11 +141,11 @@ Channel* Channel::pollLine(char* line) {
             continue;
         }
         if (line && lineComplete(line, ch)) {
-            return this;
+            return Error::Ok;
         }
     }
     autoReport();
-    return nullptr;
+    return Error::NoData;
 }
 
 void Channel::ack(Error status) {
@@ -163,3 +163,5 @@ void Channel::ack(Error status) {
         msg << static_cast<int>(status);
     }
 }
+
+std::stack<Channel*> jobChannels;

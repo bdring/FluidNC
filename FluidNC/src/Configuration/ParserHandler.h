@@ -155,6 +155,12 @@ namespace Configuration {
             }
         }
 
+        void item(const char* name, Macro& value) override {
+            if (_parser.is(name)) {
+                value._value = _parser.stringValue().str();
+            }
+        }
+
         void item(const char* name, IPAddress& value) override {
             if (_parser.is(name)) {
                 value = _parser.ipValue();

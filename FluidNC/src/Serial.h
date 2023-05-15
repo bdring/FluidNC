@@ -97,9 +97,7 @@ public:
 
     void listChannels(Channel& out);
 
-    Channel* pollLine(char* line) override;
-
-    void stopJob() override;
+    Channel* poll(char* line);
 };
 
 extern AllChannels allChannels;

@@ -8,6 +8,7 @@
 #include "../EnumItem.h"
 #include "../SpindleDatatypes.h"
 #include "../UartTypes.h"
+#include "src/Macro.h"
 
 #include <IPAddress.h>
 #include <string>
@@ -49,6 +50,7 @@ namespace Configuration {
         virtual void item(const char* name, UartData& wordLength, UartParity& parity, UartStop& stopBits) = 0;
 
         virtual void item(const char* name, Pin& value)       = 0;
+        virtual void item(const char* name, Macro& value)     = 0;
         virtual void item(const char* name, IPAddress& value) = 0;
 
         virtual void item(const char* name, int& value, EnumItem* e) = 0;

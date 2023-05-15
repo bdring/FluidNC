@@ -26,6 +26,8 @@ enum_opt_t messageLevels = {
 
 enum_opt_t onoffOptions = { { "OFF", 0 }, { "ON", 1 } };
 
+EnumSetting* gcode_echo;
+
 void make_coordinate(CoordIndex index, const char* name) {
     float coord_data[MAX_N_AXIS] = { 0.0 };
     auto  coord                  = new Coordinates(name);
@@ -64,4 +66,6 @@ void make_settings() {
 
     start_message =
         new StringSetting("Message issued at startup", EXTENDED, WG, NULL, "Start/Message", "Grbl \\V [FluidNC \\B (\\R) \\H]", 0, 40, NULL);
+
+    gcode_echo = new EnumSetting("GCode Echo Enable", WEBSET, WG, NULL, "GCode/Echo", 0, &onoffOptions, NULL);
 }

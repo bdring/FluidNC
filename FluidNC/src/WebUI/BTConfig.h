@@ -53,7 +53,7 @@ namespace WebUI {
         bool realtimeOkay(char c) override;
         bool lineComplete(char* line, char c) override;
 
-        Channel* pollLine(char* line) override;
+        Error pollLine(char* line) override;
     };
     extern BTChannel btChannel;
 

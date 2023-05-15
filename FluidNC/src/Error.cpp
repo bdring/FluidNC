@@ -67,6 +67,7 @@ std::map<Error, const char*> ErrorNames = {
     { Error::AuthenticationFailed, "Authentication failed!" },
     { Error::Eol, "End of line" },
     { Error::Eof, "End of file" },
+    { Error::NoData, "No Data" },
     { Error::AnotherInterfaceBusy, "Another interface is busy" },
     { Error::BadPinSpecification, "Bad Pin Specification" },
     { Error::JogCancelled, "Jog Cancelled" },

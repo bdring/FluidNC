@@ -16,7 +16,8 @@
 #include "Limits.h"         // limits_get_state, soft_limit
 #include "Planner.h"        // plan_get_current_block
 #include "MotionControl.h"  // PARKING_MOTION_LINE_NUMBER
-#include "Settings.h"       // settings_execute_startup
+
+#include "SettingsDefinitions.h"  // gcode_echo
 #include "Machine/LimitPin.h"
 
 volatile ExecAlarm rtAlarm;  // Global realtime executor bitflag variable for setting various alarms.
@@ -184,16 +185,49 @@ void polling_loop(void* unused) {
             vTaskDelay(100);
             continue;
         }
-        if (activeChannel) {
-            // Poll for realtime characters when waiting for the primary loop
-            // (in another thread) to pick up the line.
-            pollChannels();
-            continue;
-        }
 
-        // Polling without an argument both checks for realtime characters and
+        // Polling without an argument checks for realtime characters
+        // Polling with an argument both checks for realtime characters and
         // returns a line-oriented command if one is ready.
-        activeChannel = pollChannels(activeLine);
+        pollChannels();
+
+        // If activeChannel is non-null, it means that we have recieved a line
+        // but the task running protocol_main_loop() has not yet picked it up.
+        // activeChannel is thus a form of flow control between the protocol
+        // task that processes GCode lines and other events and this task that
+        // handles IO from channels.
+        if (!activeChannel) {
+            // Job channels have priority
+            if (jobChannels.empty()) {
+                // No job channel is active, so poll all of the serial-style
+                // channels to see if one has a line ready.
+                activeChannel = pollChannels(activeLine);
+            } else {
+                // A job channel is active, so accept line-oriented input only
+                // from the job channel on top of the job stack.
+                auto channel = jobChannels.top();
+                auto status  = channel->pollLine(activeLine);
+                switch (status) {
+                    case Error::Ok:
+                        activeChannel = channel;
+                        break;
+                    case Error::NoData:
+                        break;
+                    case Error::Eof:
+                        _notifyf("Job done", "%s job succeeded", channel->name());
+                        log_msg(channel->name() << " job succeeded");
+                        jobChannels.pop();
+                        delete channel;
+                        break;
+                    default:
+                        log_error(static_cast<int>(status)
+                                  << " (" << errorString(status) << ") in " << channel->name() << " at line " << channel->lineNumber());
+                        jobChannels.pop();
+                        delete channel;
+                        break;
+                }
+            }
+        }
     }
 }
 
@@ -256,7 +290,7 @@ static void check_startup_state() {
                 protocol_execute_realtime();  // Enter safety door mode. Should return as IDLE state.
             }
             // All systems go!
-            settings_execute_startup();  // Execute startup script.
+            config->_macros->run_startup();
         }
     }
 }
@@ -275,9 +309,9 @@ void     protocol_main_loop() {
     for (;; vTaskDelay(0)) {
         if (activeChannel) {
             // The input polling task has collected a line of input
-#ifdef DEBUG_REPORT_ECHO_RAW_LINE_RECEIVED
-            report_echo_line_received(activeLine, allChannels);
-#endif
+            if (gcode_echo->get()) {
+                report_echo_line_received(activeLine, allChannels);
+            }
 
             Error status_code = execute_line(activeLine, *activeChannel, WebUI::AuthenticationLevel::LEVEL_GUEST);
 
@@ -760,8 +794,14 @@ static void protocol_do_late_reset() {
     // turn off all User I/O immediately
     config->_userOutputs->all_off();
 
-    // do we need to stop a running file job?
-    allChannels.stopJob();
+    // Kill all active jobs
+    while (!jobChannels.empty()) {
+        auto channel = jobChannels.top();
+        _notifyf("Job canceled", "Reset during job %s at line %d", channel->name(), channel->lineNumber());
+        log_info("Reset during job " << channel->name() << " at line " << channel->lineNumber());
+        jobChannels.pop();
+        delete channel;
+    }
 }
 
 void protocol_exec_rt_system() {

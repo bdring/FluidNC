@@ -103,8 +103,8 @@ public:
     int read(void) override { return -1; }
     int peek(void) override { return -1; }
 
-    Channel* pollLine(char* line) override;
-    void     flushRx() override {}
+    Error pollLine(char* line) override;
+    void  flushRx() override {}
 
     bool   lineComplete(char*, char) override { return false; }
     size_t timedReadBytes(char* buffer, size_t length, TickType_t timeout) override { return 0; }
