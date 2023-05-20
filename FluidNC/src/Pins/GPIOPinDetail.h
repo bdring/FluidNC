@@ -15,6 +15,8 @@ namespace Pins {
 
         static std::vector<bool> _claimed;
 
+        bool _lastWrittenValue = false;
+
     public:
         static const int nGPIOPins = 40;
 
@@ -32,7 +34,7 @@ namespace Pins {
         void attachInterrupt(void (*callback)(void*), void* arg, int mode) override;
         void detachInterrupt() override;
 
-        String toString() override;
+        std::string toString() override;
 
         ~GPIOPinDetail() override { _claimed[_index] = false; }
     };

@@ -18,7 +18,7 @@ namespace MotorDrivers {
         void step() override;
 
         // Configuration handlers:
-        void validate() const override {
+        void validate() override {
             Assert(!_pin_phase0.undefined(), "Phase 0 pin should be configured.");
             Assert(!_pin_phase1.undefined(), "Phase 1 pin should be configured.");
             Assert(!_pin_phase2.undefined(), "Phase 2 pin should be configured.");

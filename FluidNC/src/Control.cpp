@@ -3,18 +3,19 @@
 
 #include "Control.h"
 
-#include "Protocol.h"  // rtSafetyDoor, etc
+#include "Protocol.h"        // *Event
+#include "Machine/Macros.h"  // macro0Event
 
 Control::Control() {
     // The SafetyDoor pin must be defined first because it is checked explicity in safety_door_ajar()
-    _pins.push_back(new ControlPin(rtSafetyDoor, "safety_door_pin", 'D'));
-    _pins.push_back(new ControlPin(rtReset, "reset_pin", 'R'));
-    _pins.push_back(new ControlPin(rtFeedHold, "feed_hold_pin", 'H'));
-    _pins.push_back(new ControlPin(rtCycleStart, "cycle_start_pin", 'S'));
-    _pins.push_back(new ControlPin(rtButtonMacro0, "macro0_pin", '0'));
-    _pins.push_back(new ControlPin(rtButtonMacro1, "macro1_pin", '1'));
-    _pins.push_back(new ControlPin(rtButtonMacro2, "macro2_pin", '2'));
-    _pins.push_back(new ControlPin(rtButtonMacro3, "macro3_pin", '3'));
+    _pins.push_back(new ControlPin(&safetyDoorEvent, "safety_door_pin", 'D'));
+    _pins.push_back(new ControlPin(&resetEvent, "reset_pin", 'R'));
+    _pins.push_back(new ControlPin(&feedHoldEvent, "feed_hold_pin", 'H'));
+    _pins.push_back(new ControlPin(&cycleStartEvent, "cycle_start_pin", 'S'));
+    _pins.push_back(new ControlPin(&macro0Event, "macro0_pin", '0'));
+    _pins.push_back(new ControlPin(&macro1Event, "macro1_pin", '1'));
+    _pins.push_back(new ControlPin(&macro2Event, "macro2_pin", '2'));
+    _pins.push_back(new ControlPin(&macro3Event, "macro3_pin", '3'));
 }
 
 void Control::init() {
@@ -25,15 +26,15 @@ void Control::init() {
 
 void Control::group(Configuration::HandlerBase& handler) {
     for (auto pin : _pins) {
-        handler.item(pin->_legend, pin->_pin);
+        handler.item(pin->_legend.c_str(), pin->_pin);
     }
 }
 
-String Control::report_status() {
-    String ret = "";
+std::string Control::report_status() {
+    std::string ret = "";
     for (auto pin : _pins) {
         if (pin->get()) {
-            ret += pin->_letter;
+            ret += pin->letter();
         }
     }
     return ret;

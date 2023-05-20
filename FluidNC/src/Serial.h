@@ -12,6 +12,9 @@
 #include <vector>
 #include <stdint.h>
 #include "Channel.h"
+#include <freertos/FreeRTOS.h>  // TickType_T
+#include <freertos/queue.h>
+#include <mutex>
 
 // See if the character is an action command like feedhold or jogging. If so, do the action and return true
 uint8_t check_action_command(uint8_t data);
@@ -31,6 +34,7 @@ void channel_init();
 // space, serial.c's RX ISR will need to be modified to accommodate the change.
 
 enum class Cmd : uint8_t {
+    None                  = 0,
     Reset                 = 0x18,  // Ctrl-X
     StatusReport          = '?',
     CycleStart            = '~',
@@ -69,8 +73,15 @@ Channel* pollChannels(char* line = nullptr);
 class AllChannels : public Channel {
     std::vector<Channel*> _channelq;
 
+    Channel*     _lastChannel = nullptr;
+    xQueueHandle _killQueue;
+
+    static std::mutex _mutex;
+
 public:
-    AllChannels() : Channel("all") {}
+    AllChannels() : Channel("all") { _killQueue = xQueueCreate(3, sizeof(Channel*)); }
+
+    void kill(Channel* channel);
 
     void registration(Channel* channel);
     void deregistration(Channel* channel);
@@ -81,9 +92,14 @@ public:
 
     void flushRx();
 
-    String info();
+    void notifyWco();
+    void notifyNgc(CoordIndex coord);
+
+    void listChannels(Channel& out);
 
     Channel* pollLine(char* line) override;
+
+    void stopJob() override;
 };
 
 extern AllChannels allChannels;

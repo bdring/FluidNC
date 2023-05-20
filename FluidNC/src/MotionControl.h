@@ -5,8 +5,10 @@
 
 #pragma once
 
+#include "Types.h"  // AxisMask
 #include "Planner.h"
-#include "NutsBolts.h"
+#include "Config.h"
+#include "Probe.h"
 
 #include <cstdint>
 
@@ -41,13 +43,11 @@ void mc_arc(float*            target,
             size_t            axis_0,
             size_t            axis_1,
             size_t            axis_linear,
-            bool              is_clockwise_arc);
+            bool              is_clockwise_arc,
+            int               pword_rotations);
 
 // Dwell for a specific number of seconds
 bool mc_dwell(int32_t milliseconds);
-
-// Perform homing cycle to locate machine zero. Requires limit switches.
-void mc_homing_cycle(AxisMask cycle_mask);
 
 // Perform tool length probe cycle. Requires probe switch.
 GCUpdatePos mc_probe_cycle(float* target, plan_line_data_t* pl_data, bool away, bool no_error, uint8_t offsetAxis, float offset);
@@ -55,15 +55,9 @@ GCUpdatePos mc_probe_cycle(float* target, plan_line_data_t* pl_data, bool away, 
 // Handles updating the override control state.
 void mc_override_ctrl_update(Override override_state);
 
-// Plans and executes the single special motion case for parking. Independent of main planner buffer.
-void mc_parking_motion(float* parking_target, plan_line_data_t* pl_data);
-
 // Performs system reset. If in motion state, kills all motion and sets system alarm.
 void mc_reset();
 
 void mc_cancel_jog();
 
 void mc_init();
-
-bool kinematics_pre_homing(AxisMask cycle_mask);
-void kinematics_post_homing();

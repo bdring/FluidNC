@@ -34,8 +34,8 @@ namespace Spindles {
         const uint32_t besc_pwm_max_freq = 2000;  // 50 Hz
 
         // Calculated
-        uint16_t _pulse_span_counts;  // In counts of a 16-bit counter
-        uint16_t _min_pulse_counts;   // In counts of a 16-bit counter
+        uint32_t _pulse_span_counts;  // In counts of a 32-bit counter. ESP32 uses up to 20bits
+        uint32_t _min_pulse_counts;   // In counts of a 32-bit counter  ESP32 uses up to 20bits
 
     protected:
         // Configurable
@@ -56,7 +56,7 @@ namespace Spindles {
         void set_output(uint32_t duty) override;
 
         // Configuration handlers:
-        void validate() const override { PWM::validate(); }
+        void validate() override { PWM::validate(); }
 
         void group(Configuration::HandlerBase& handler) override {
             PWM::group(handler);

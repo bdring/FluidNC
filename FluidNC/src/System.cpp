@@ -58,6 +58,15 @@ void set_motor_steps(size_t axis, int32_t steps) {
     }
 }
 
+void set_motor_steps_from_mpos(float* mpos) {
+    auto  n_axis = config->_axes->_numberAxis;
+    float motor_steps[n_axis];
+    config->_kinematics->transform_cartesian_to_motors(motor_steps, mpos);
+    for (size_t axis = 0; axis < n_axis; axis++) {
+        set_motor_steps(axis, mpos_to_steps(motor_steps[axis], axis));
+    }
+}
+
 int32_t get_axis_motor_steps(size_t axis) {
     auto m = config->_axes->_axis[axis]->_motors[0];
     return m ? m->_steps : 0;
@@ -81,6 +90,19 @@ float* get_mpos() {
     motor_steps_to_mpos(position, get_motor_steps());
     return position;
 };
+
+float* get_wco() {
+    static float wco[MAX_N_AXIS];
+    auto         n_axis = config->_axes->_numberAxis;
+    for (int idx = 0; idx < n_axis; idx++) {
+        // Apply work coordinate offsets and tool length offset to current position.
+        wco[idx] = gc_state.coord_system[idx] + gc_state.coord_offset[idx];
+        if (idx == TOOL_LENGTH_OFFSET_AXIS) {
+            wco[idx] += gc_state.tool_length_offset;
+        }
+    }
+    return wco;
+}
 
 std::map<State, const char*> StateName = {
     { State::Idle, "Idle" },

@@ -2,8 +2,10 @@
 // Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
 
 #include "Channel.h"
+#include "Report.h"                 // report_gcode_modes
 #include "Machine/MachineConfig.h"  // config
 #include "Serial.h"                 // execute_realtime_command
+#include "Limits.h"
 
 void Channel::flushRx() {
     _linelen   = 0;
@@ -63,6 +65,55 @@ bool Channel::lineComplete(char* line, char ch) {
     return false;
 }
 
+uint32_t Channel::setReportInterval(uint32_t ms) {
+    uint32_t actual = ms;
+    if (actual) {
+        actual = std::max(actual, uint32_t(50));
+    }
+    _reportInterval = actual;
+    _nextReportTime = int32_t(xTaskGetTickCount());
+    _lastTool       = 255;  // Force GCodeState report
+    return actual;
+}
+void Channel::autoReportGCodeState() {
+    if (memcmp(&_lastModal, &gc_state.modal, sizeof(_lastModal)) || _lastTool != gc_state.tool ||
+        _lastSpindleSpeed != gc_state.spindle_speed || _lastFeedRate != gc_state.feed_rate) {
+        report_gcode_modes(*this);
+        memcpy(&_lastModal, &gc_state.modal, sizeof(_lastModal));
+        _lastTool         = gc_state.tool;
+        _lastSpindleSpeed = gc_state.spindle_speed;
+        _lastFeedRate     = gc_state.feed_rate;
+    }
+}
+static bool motionState() {
+    return sys.state == State::Cycle || sys.state == State::Homing || sys.state == State::Jog;
+}
+
+void Channel::autoReport() {
+    if (_reportInterval) {
+        auto limitState = limits_get_state();
+        auto probeState = config->_probe->get_state();
+        if (_reportWco || sys.state != _lastState || limitState != _lastLimits || probeState != _lastProbe ||
+            (motionState() && (int32_t(xTaskGetTickCount()) - _nextReportTime) >= 0)) {
+            if (_reportWco) {
+                report_wco_counter = 0;
+            }
+            _reportWco  = false;
+            _lastState  = sys.state;
+            _lastLimits = limitState;
+            _lastProbe  = probeState;
+
+            _nextReportTime = xTaskGetTickCount() + _reportInterval;
+            report_realtime_status(*this);
+        }
+        if (_reportNgc != CoordIndex::End) {
+            report_ngc_coord(_reportNgc, *this);
+            _reportNgc = CoordIndex::End;
+        }
+        autoReportGCodeState();
+    }
+}
+
 Channel* Channel::pollLine(char* line) {
     handle();
     while (1) {
@@ -93,25 +144,22 @@ Channel* Channel::pollLine(char* line) {
             return this;
         }
     }
+    autoReport();
     return nullptr;
 }
 
 void Channel::ack(Error status) {
-    switch (status) {
-        case Error::Ok:  // Error::Ok
-            print("ok\n");
-            break;
-        default:
-            // With verbose errors, the message text is displayed instead of the number.
-            // Grbl 0.9 used to display the text, while Grbl 1.1 switched to the number.
-            // Many senders support both formats.
-            print("error:");
-            if (config->_verboseErrors) {
-                print(errorString(status));
-            } else {
-                print(static_cast<int>(status));
-            }
-            write('\n');
-            break;
+    if (status == Error::Ok) {
+        log_to(*this, "ok");
+        return;
+    }
+    // With verbose errors, the message text is displayed instead of the number.
+    // Grbl 0.9 used to display the text, while Grbl 1.1 switched to the number.
+    // Many senders support both formats.
+    LogStream msg(*this, "error:");
+    if (config->_verboseErrors) {
+        msg << errorString(status);
+    } else {
+        msg << static_cast<int>(status);
     }
 }

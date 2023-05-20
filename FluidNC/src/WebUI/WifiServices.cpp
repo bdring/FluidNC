@@ -24,8 +24,7 @@ namespace WebUI {
 #    include "Commands.h"
 
 #    include <WiFi.h>
-#    include <FS.h>
-#    include "../LocalFS.h"
+#    include "Driver/localfs.h"
 #    include <ESPmDNS.h>
 #    include <ArduinoOTA.h>
 #    include "WebSettings.h"
@@ -43,16 +42,14 @@ namespace WebUI {
             return false;
         }
 
-        String h = wifi_hostname->get();
-
         ArduinoOTA
             .onStart([]() {
-                String type;
+                const char* type;
                 if (ArduinoOTA.getCommand() == U_FLASH) {
                     type = "sketch";
                 } else {
                     type = "filesystem";
-                    LocalFS.end();
+                    localfs_unmount();
                 }
                 log_info("Start OTA updating " << type);
             })
@@ -87,7 +84,8 @@ namespace WebUI {
         //no need in AP mode
         if (WiFi.getMode() == WIFI_STA) {
             //start mDns
-            if (!MDNS.begin(h.c_str())) {
+            const char* h = wifi_hostname->get();
+            if (!MDNS.begin(h)) {
                 log_info("Cannot start mDNS");
                 no_error = false;
             } else {

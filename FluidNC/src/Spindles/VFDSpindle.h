@@ -67,8 +67,10 @@ namespace Spindles {
         virtual response_parser get_current_direction(ModbusCommand& data) { return nullptr; }
         virtual response_parser get_status_ok(ModbusCommand& data) = 0;
         virtual bool            safety_polling() const { return true; }
+        bool                    use_delay_settings() const override { return true; }
 
         // The constructor sets these
+        int     _uart_num  = -1;
         Uart*   _uart      = nullptr;
         uint8_t _modbus_id = 1;
 
@@ -92,13 +94,15 @@ namespace Spindles {
         SpindleSpeed      _slop;
 
         // Configuration handlers:
-        void validate() const override {
+        void validate() override {
             Spindle::validate();
-            Assert(_uart != nullptr, "VFD: missing UART configuration");
+            Assert(_uart != nullptr || _uart_num != -1, "VFD: missing UART configuration");
+            Assert(!(_uart != nullptr && _uart_num != -1), "VFD: conflicting UART configuration");
         }
 
         void group(Configuration::HandlerBase& handler) override {
-            handler.section("uart", _uart);
+            handler.section("uart", _uart, 1);
+            handler.item("uart_num", _uart_num);
             handler.item("modbus_id", _modbus_id, 0, 247);  // per https://modbus.org/docs/PI_MBUS_300.pdf
 
             Spindle::group(handler);

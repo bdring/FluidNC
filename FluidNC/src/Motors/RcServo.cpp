@@ -22,7 +22,6 @@
 #include "../Pin.h"
 #include "../Limits.h"  // limitsMaxPosition
 #include "RcServoSettings.h"
-#include "../NutsBolts.h"
 
 #include <freertos/task.h>  // vTaskDelay
 
@@ -48,7 +47,7 @@ namespace MotorDrivers {
 
         _disabled = true;
 
-        startUpdateTask(_timer_ms);
+        schedule_update(this, _timer_ms);
     }
 
     void RcServo::config_message() {
@@ -80,7 +79,7 @@ namespace MotorDrivers {
 
     // Homing justs sets the new system position and the servo will move there
     bool RcServo::set_homing_mode(bool isHoming) {
-        //log_info("Servo homing:" << isHoming);
+        log_debug("Servo homing:" << isHoming);
         if (_has_errors)
             return false;
 

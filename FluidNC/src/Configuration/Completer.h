@@ -9,12 +9,12 @@
 namespace Configuration {
     class Completer : public Configuration::HandlerBase {
     private:
-        String _key;
-        int    _reqMatch;
-        char*  _matchedStr;
-        String _currentPath;
+        std::string _key;
+        int         _reqMatch;
+        char*       _matchedStr;
+        std::string _currentPath;
 
-        void addCandidate(String fullName);
+        void addCandidate(std::string fullName);
 
     protected:
         void enterSection(const char* name, Configuration::Configurable* value) override;
@@ -28,10 +28,11 @@ namespace Configuration {
         void item(const char* name);
         void item(const char* name, bool& value) override { item(name); }
         void item(const char* name, int32_t& value, int32_t minValue, int32_t maxValue) override { item(name); }
+        void item(const char* name, uint32_t& value, uint32_t minValue, uint32_t maxValue) override { item(name); }
         void item(const char* name, float& value, float minValue, float maxValue) override { item(name); }
         void item(const char* name, std::vector<speedEntry>& value) override { item(name); }
         void item(const char* name, UartData& wordLength, UartParity& parity, UartStop& stopBits) override { item(name); }
-        void item(const char* name, String& value, int minLength, int maxLength) override { item(name); }
+        void item(const char* name, std::string& value, int minLength, int maxLength) override { item(name); }
         void item(const char* name, Pin& value) { item(name); }
         void item(const char* name, IPAddress& value) override { item(name); }
         void item(const char* name, int& value, EnumItem* e) override { item(name); }

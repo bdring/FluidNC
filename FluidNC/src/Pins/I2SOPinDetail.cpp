@@ -7,8 +7,6 @@
 #    include "../I2SOut.h"
 #    include "../Assert.h"
 
-extern "C" void __digitalWrite(pinnum_t pin, uint8_t val);
-
 namespace Pins {
     std::vector<bool> I2SOPinDetail::_claimed(nI2SOPins, false);
 
@@ -38,15 +36,21 @@ namespace Pins {
     // The write will not happen immediately; the data is queued for
     // delivery to the serial shift register chain via DMA and a FIFO
     void IRAM_ATTR I2SOPinDetail::write(int high) {
-        int value = _readWriteMask ^ high;
-        i2s_out_write(_index, value);
+        if (high != _lastWrittenValue) {
+            _lastWrittenValue = high;
+            i2s_out_write(_index, _readWriteMask ^ high);
+        }
     }
 
     // Write and wait for completion.  Not suitable for use from an ISR
     void I2SOPinDetail::synchronousWrite(int high) {
-        write(high);
-        i2s_out_push();
-        i2s_out_delay();
+        if (high != _lastWrittenValue) {
+            _lastWrittenValue = high;
+
+            i2s_out_write(_index, _readWriteMask ^ high);
+            i2s_out_push();
+            i2s_out_delay();
+        }
     }
 
     int I2SOPinDetail::read() {
@@ -75,8 +79,9 @@ namespace Pins {
 
     PinAttributes I2SOPinDetail::getAttr() const { return _attributes; }
 
-    String I2SOPinDetail::toString() {
-        auto s = String("I2SO.") + int(_index);
+    std::string I2SOPinDetail::toString() {
+        std::string s("I2SO.");
+        s += std::to_string(_index);
         if (_attributes.has(PinAttributes::ActiveLow)) {
             s += ":low";
         }

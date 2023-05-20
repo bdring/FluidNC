@@ -52,6 +52,7 @@ namespace Machine {
         void unstep();
         void block() { _blocked = true; }
         void unblock() { _blocked = false; }
+        void unlimit() { _limited = false; }
         ~Motor();
     };
 }

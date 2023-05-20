@@ -12,19 +12,17 @@
 namespace MotorDrivers {
 
     void TMC2208Driver::init() {
-        if (!_uart_started) {
-            _uart->begin();
-            _uart->config_message("Trinamic", " Stepper ");
-            _uart_started = true;
+        TrinamicUartDriver::init();
+        if (!_uart) {
+            return;
         }
-
         if (_r_sense == 0) {
             _r_sense = TMC2208_RSENSE_DEFAULT;
         }
 
         tmc2208 = new TMC2209Stepper(_uart, _r_sense, _addr);
 
-        finalInit();
+        registration();
     }
 
     void TMC2208Driver::config_motor() {
@@ -43,6 +41,7 @@ namespace MotorDrivers {
         // but the TMCStepper library expresses run current as (uint16_t) mA
         // and hold current as (float) fraction of run current.
         uint16_t run_i = (uint16_t)(_run_current * 1000.0);
+        tmc2208->I_scale_analog(false);  // do not scale via pot
         tmc2208->rms_current(run_i, TrinamicBase::holdPercent());
 
         // The TMCStepper library uses the value 0 to mean 1x microstepping
@@ -64,7 +63,20 @@ namespace MotorDrivers {
         }
     }
 
-    bool TMC2208Driver::test() { return TrinamicBase::reportTest(tmc2208->test_connection()); }
+    bool TMC2208Driver::test() {
+        if (!checkVersion(0x20, tmc2208->version())) {
+            return false;
+        }
+        uint8_t ifcnt_before = tmc2208->IFCNT();
+        tmc2208->GSTAT(0);  // clear GSTAT to increase ifcnt
+        uint8_t ifcnt_after = tmc2208->IFCNT();
+        bool    okay        = ((ifcnt_before + 1) & 0xff) == ifcnt_after;
+        if (!okay) {
+            TrinamicBase::reportCommsFailure();
+            return false;
+        }
+        return true;
+    }
 
     // Configuration registration
     namespace {

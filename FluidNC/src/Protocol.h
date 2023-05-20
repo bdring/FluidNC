@@ -7,6 +7,10 @@
 
 #include "Types.h"
 
+#include <freertos/FreeRTOS.h>
+#include <freertos/queue.h>
+#include "Config.h"
+
 // Line buffer size from the serial input stream to be executed.Also, governs the size of
 // each of the startup blocks, as they are each stored as a string of this size.
 //
@@ -19,6 +23,8 @@
 const int LINE_BUFFER_SIZE = 256;
 
 void protocol_reset();
+
+void protocol_init();
 
 // Starts the main loop. It handles all incoming characters from the serial port and executes
 // them as they complete. It is also responsible for finishing the initialization procedures.
@@ -38,42 +44,10 @@ void protocol_buffer_synchronize();
 void protocol_disable_steppers();
 void protocol_cancel_disable_steppers();
 
-extern volatile bool rtStatusReport;
-extern volatile bool rtCycleStart;
-extern volatile bool rtFeedHold;
 extern volatile bool rtReset;
-extern volatile bool rtSafetyDoor;
-extern volatile bool rtMotionCancel;
-extern volatile bool rtSleep;
 extern volatile bool rtCycleStop;
-extern volatile bool rtButtonMacro0;
-extern volatile bool rtButtonMacro1;
-extern volatile bool rtButtonMacro2;
-extern volatile bool rtButtonMacro3;
 
-#ifdef DEBUG_REPORT_REALTIME
-extern volatile bool rtExecDebug;
-#endif
-
-// Override bit maps. Realtime bitflags to control feed, rapid, spindle, and coolant overrides.
-// Spindle/coolant and feed/rapids are separated into two controlling flag variables.
-
-struct AccessoryBits {
-    uint8_t spindleOvrStop : 1;
-    uint8_t coolantFloodOvrToggle : 1;
-    uint8_t coolantMistOvrToggle : 1;
-};
-
-union Accessory {
-    uint8_t       value;
-    AccessoryBits bit;
-};
-
-extern volatile Accessory rtAccessoryOverride;  // Global realtime executor bitflag variable for spindle/coolant overrides.
-
-extern volatile Percent rtFOverride;  // Feed override value in percent
-extern volatile Percent rtROverride;  // Rapid feed override value in percent
-extern volatile Percent rtSOverride;  // Spindle override value in percent
+extern volatile bool runLimitLoop;
 
 // Alarm codes.
 enum class ExecAlarm : uint8_t {
@@ -96,3 +70,55 @@ extern volatile ExecAlarm rtAlarm;  // Global realtime executor variable for set
 
 #include <map>
 extern std::map<ExecAlarm, const char*> AlarmNames;
+
+#include "Event.h"
+enum AccessoryOverride {
+    SpindleStopOvr = 1,
+    FloodToggle    = 2,
+    MistToggle     = 3,
+};
+
+extern ArgEvent feedOverrideEvent;
+extern ArgEvent rapidOverrideEvent;
+extern ArgEvent spindleOverrideEvent;
+extern ArgEvent accessoryOverrideEvent;
+extern ArgEvent limitEvent;
+
+extern ArgEvent reportStatusEvent;
+
+extern NoArgEvent safetyDoorEvent;
+extern NoArgEvent feedHoldEvent;
+extern NoArgEvent cycleStartEvent;
+extern NoArgEvent cycleStopEvent;
+extern NoArgEvent motionCancelEvent;
+extern NoArgEvent sleepEvent;
+extern NoArgEvent resetEvent;
+extern NoArgEvent debugEvent;
+
+// extern NoArgEvent statusReportEvent;
+
+extern xQueueHandle event_queue;
+
+extern bool pollingPaused;
+
+struct EventItem {
+    Event* event;
+    void*  arg;
+};
+
+void protocol_send_event(Event*, void* arg = 0);
+void protocol_handle_events();
+
+inline void protocol_send_event(Event* evt, int arg) {
+    protocol_send_event(evt, (void*)arg);
+}
+
+void protocol_send_event_from_ISR(Event* evt, void* arg = 0);
+
+void send_line(Channel& channel, const char* message);
+void send_line(Channel& channel, const std::string* message);
+void send_line(Channel& channel, const std::string& message);
+
+void drain_messages();
+
+extern uint32_t heapLowWater;

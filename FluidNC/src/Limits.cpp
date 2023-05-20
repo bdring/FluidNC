@@ -59,16 +59,54 @@ void constrainToSoftLimits(float* cartesian) {
     auto axes   = config->_axes;
     auto n_axis = config->_axes->_numberAxis;
 
-    bool limit_error = false;
+    float*    current_position = get_mpos();
+    MotorMask lim_pin_state    = limits_get_state();
+
     for (int axis = 0; axis < n_axis; axis++) {
         auto axisSetting = axes->_axis[axis];
-        if (axisSetting->_softLimits) {
+        // If the axis is moving from the current location and soft limits are on.
+        if (axisSetting->_softLimits && cartesian[axis] != current_position[axis]) {
+            // When outside the axis range, only small nudges to clear switches are allowed
+            if (current_position[axis] < limitsMinPosition(axis) || current_position[axis] > limitsMaxPosition(axis)) {
+                // only allow a nudge if a switch is active
+                if (bitnum_is_false(lim_pin_state, Machine::Axes::motor_bit(axis, 0)) &&
+                    bitnum_is_false(lim_pin_state, Machine::Axes::motor_bit(axis, 1))) {
+                    cartesian[axis] = current_position[axis];  // cancel the move on this axis
+                    log_debug("Soft limit violation on " << Machine::Axes::_names[axis]);
+                    continue;
+                }
+                float jog_dist = cartesian[axis] - current_position[axis];
+
+                MotorMask axisMotors = Machine::Axes::axes_to_motors(1 << axis);
+                bool      posLimited = bits_are_true(Machine::Axes::posLimitMask, axisMotors);
+                bool      negLimited = bits_are_true(Machine::Axes::negLimitMask, axisMotors);
+
+                // if jog is positive and only the positive switch is active, then kill the move
+                // if jog is negative and only the negative switch is active, then kill the move
+                if (posLimited != negLimited) {  // XOR, because ambiguous (both) is OK
+                    if ((negLimited && (jog_dist < 0)) || (posLimited && (jog_dist > 0))) {
+                        cartesian[axis] = current_position[axis];  // cancel the move on this axis
+                        log_debug("Jog into active switch blocked on " << Machine::Axes::_names[axis]);
+                        continue;
+                    }
+                }
+
+                auto nudge_max = axisSetting->_motors[0]->_pulloff;
+                if (abs(jog_dist) > nudge_max) {
+                    cartesian[axis] = (jog_dist >= 0) ? current_position[axis] + nudge_max : current_position[axis] + nudge_max;
+                    log_debug("Jog amount limited when outside soft limits")
+                }
+                continue;
+            }
+
             if (cartesian[axis] < limitsMinPosition(axis)) {
                 cartesian[axis] = limitsMinPosition(axis);
-            }
-            if (cartesian[axis] > limitsMaxPosition(axis)) {
+            } else if (cartesian[axis] > limitsMaxPosition(axis)) {
                 cartesian[axis] = limitsMaxPosition(axis);
+            } else {
+                continue;
             }
+            log_debug("Jog constrained to axis range");
         }
     }
 }
@@ -84,8 +122,7 @@ void limits_soft_check(float* cartesian) {
 
     for (int axis = 0; axis < n_axis; axis++) {
         if (axes->_axis[axis]->_softLimits && (cartesian[axis] < limitsMinPosition(axis) || cartesian[axis] > limitsMaxPosition(axis))) {
-            String axis_letter = String(Machine::Axes::_names[axis]);
-            log_info("Soft limit on " << axis_letter << " target:" << cartesian[axis]);
+            log_info("Soft limit on " << Machine::Axes::_names[axis] << " target:" << cartesian[axis]);
             limit_error = true;
         }
     }
@@ -96,9 +133,8 @@ void limits_soft_check(float* cartesian) {
         // workspace volume so just come to a controlled stop so position is not lost. When complete
         // enter alarm mode.
         if (sys.state == State::Cycle) {
-            rtFeedHold = true;
+            protocol_send_event(&feedHoldEvent);
             do {
-                pollChannels();
                 protocol_execute_realtime();
                 if (sys.abort) {
                     return;
@@ -122,7 +158,7 @@ void limitCheckTask(void* pvParameters) {
         vTaskDelay(config->_softwareDebounceMs / portTICK_PERIOD_MS);  // delay a while
         auto switch_state = limits_get_state();
         if (switch_state) {
-            log_debug("Limit Switch State " << String(switch_state, HEX));
+            log_debug("Limit Switch State " << to_hex(switch_state));
             mc_reset();                      // Initiate system kill.
             rtAlarm = ExecAlarm::HardLimit;  // Indicate hard limit critical event
         }

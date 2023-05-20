@@ -49,7 +49,7 @@ namespace MotorDrivers {
             _spi_setup_done = true;
         }
 
-        void validate() const override { StandardStepper::validate(); }
+        void validate() override { StandardStepper::validate(); }
 
         void group(Configuration::HandlerBase& handler) override {
             TrinamicBase::group(handler);
@@ -73,7 +73,6 @@ namespace MotorDrivers {
         void config_message() override;
 
         uint8_t setupSPI();
-        void    finalInit();
 
         bool    reportTest(uint8_t result);
         uint8_t toffValue();
@@ -83,9 +82,6 @@ namespace MotorDrivers {
         static uint8_t  spi_index_mask;
 
         PinMapper _cs_mapping;
-
-        void trinamic_test_response();
-        void trinamic_stepper_enable(bool enable);
     };
 
 }

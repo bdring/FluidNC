@@ -73,7 +73,9 @@ namespace Machine {
 
     void IRAM_ATTR Motor::step(bool reverse) {
         // Skip steps based on limit pins
-        if (_blocked || (_limited && (Homing::_approach || (sys.state != State::Homing && _hardLimits)))) {
+        // _blocked is for asymmetric pulloff
+        // _limited is for limit pins
+        if (_blocked || _limited) {
             return;
         }
         _driver->step();

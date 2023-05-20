@@ -33,7 +33,6 @@
  */
 
 #include "xmodem.h"
-// #include <freertos/FreeRTOS.h>
 
 static Channel* serialPort;
 static Print*   file;
@@ -126,36 +125,35 @@ static void flushinput(void) {
 // control-Z's.  Doing the control-Z removal only on the final
 // packet avoids removing interior control-Z's that happen to
 // land at the end of a packet.
-static bool    held = false;
 static uint8_t held_packet[1024];
+static size_t  held_packet_len;
 static void    flush_packet(size_t packet_len, size_t& total_len) {
-    if (held) {
+    if (held_packet_len > 0) {
         // Remove trailing ctrl-z's on the final packet
-        held = false;
         size_t count;
-        for (count = packet_len; count > 0; --count) {
+        for (count = held_packet_len; count > 0; --count) {
             if (held_packet[count - 1] != CTRLZ) {
                 break;
             }
         }
         file->write(held_packet, count);
         total_len += count;
+        held_packet_len = 0;
     }
 }
 static void write_packet(uint8_t* buf, size_t packet_len, size_t& total_len) {
-    if (held) {
-        held = false;
-        file->write(held_packet, packet_len);
-        total_len += packet_len;
+    if (held_packet_len > 0) {
+        file->write(held_packet, held_packet_len);
+        total_len += held_packet_len;
+        held_packet_len = 0;
     }
     memcpy(held_packet, buf, packet_len);
-    held = true;
+    held_packet_len = packet_len;
 }
 int xmodemReceive(Channel* serial, FileStream* out) {
-    serialPort = serial;
-    file       = out;
-
-    held = false;
+    serialPort      = serial;
+    file            = out;
+    held_packet_len = 0;
 
     uint8_t  xbuff[1030]; /* 1024 for XModem 1k + 3 head chars + 2 crc + nul */
     uint8_t* p;

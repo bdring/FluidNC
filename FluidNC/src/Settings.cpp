@@ -3,6 +3,7 @@
 #include "WebUI/JSONEncoder.h"  // JSON
 #include "WebUI/WifiConfig.h"   // WebUI::WiFiConfig
 #include "WebUI/Commands.h"     // WebUI::COMMANDS
+#include "System.h"             // sys
 #include "Protocol.h"           // protocol_buffer_synchronize
 
 #include <map>
@@ -21,7 +22,7 @@ bool notIdleOrAlarm() {
     return sys.state != State::Idle && sys.state != State::Alarm && sys.state != State::ConfigAlarm;
 }
 bool cycleOrHold() {
-    return sys.state == State::Cycle && sys.state == State::Hold;
+    return sys.state == State::Cycle || sys.state == State::Hold;
 }
 
 Word::Word(type_t type, permissions_t permissions, const char* description, const char* grblName, const char* fullName) :
@@ -219,7 +220,7 @@ void StringSetting::load() {
         _currentValue = _defaultValue;
         return;
     }
-    _storedValue  = String(buf);
+    _storedValue  = buf;
     _currentValue = _storedValue;
 }
 
@@ -375,7 +376,7 @@ const char* EnumSetting::getStringValue() {
 }
 
 void EnumSetting::showList() {
-    String optList = "";
+    std::string optList = "";
     for (enum_opt_t::iterator it = _options->begin(); it != _options->end(); it++) {
         optList = optList + " " + it->first;
     }
@@ -386,7 +387,7 @@ void EnumSetting::addWebui(WebUI::JSONencoder* j) {
     if (!getDescription()) {
         return;
     }
-    j->begin_webui(getName(), getName(), "B", String(get()).c_str());
+    j->begin_webui(getName(), getName(), "B", get());
     j->begin_array("O");
     for (enum_opt_t::iterator it = _options->begin(); it != _options->end(); it++) {
         j->begin_object();
@@ -504,14 +505,14 @@ Error IPaddrSetting::setStringValue(char* s) {
 }
 
 const char* IPaddrSetting::getDefaultString() {
-    static String s;
-    s = IPAddress(_defaultValue).toString();
-    return s.c_str();
+    static char ipstr[50];
+    strncpy(ipstr, IP_string(IPAddress(_defaultValue)).c_str(), 50);
+    return ipstr;
 }
 const char* IPaddrSetting::getStringValue() {
-    static String s;
-    s = IPAddress(get()).toString();
-    return s.c_str();
+    static char ipstr[50];
+    strncpy(ipstr, IP_string(IPAddress(get())).c_str(), 50);
+    return ipstr;
 }
 
 void IPaddrSetting::addWebui(WebUI::JSONencoder* j) {

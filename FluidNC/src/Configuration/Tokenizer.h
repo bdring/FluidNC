@@ -4,7 +4,7 @@
 #pragma once
 
 #include "TokenState.h"
-#include "../Logging.h"
+#include "../Config.h"
 
 namespace Configuration {
 
