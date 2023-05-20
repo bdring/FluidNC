@@ -18,10 +18,44 @@ namespace Machine {
         handler.item("bck_pin", _bck);
         handler.item("data_pin", _data);
         handler.item("ws_pin", _ws);
+        handler.item("oe_pin", _oe);
     }
 
     void I2SOBus::init() {
         log_info("I2SO BCK:" << _bck.name() << " WS:" << _ws.name() << " DATA:" << _data.name());
-        i2s_out_init();
+
+        portData_ = 0;
+
+        if (_oe.defined()) {
+            log_info("I2SO OE is defined on " << _oe.name());
+
+            // Output enable pin:
+            push();
+
+            _oe.setAttr(Pin::Attr::Output);
+            _oe.on();
+        }
+
+        _bck.setAttr(Pin::Attr::Output);
+        _ws.setAttr(Pin::Attr::Output);
+        _data.setAttr(Pin::Attr::Output);
+    }
+
+    void I2SOBus::write(int index, int high) {
+        if (high) {
+            portData_ |= bitnum_to_mask(index);
+        } else {
+            portData_ &= ~bitnum_to_mask(index);
+        }
+    }
+
+    void I2SOBus::push() {
+        _ws.off();
+        for (int i = 0; i < NUMBER_PINS; i++) {
+            _data.write(!!(portData_ & bitnum_to_mask(NUMBER_PINS - 1 - i)));
+            _bck.on();
+            _bck.off();
+        }
+        _ws.on();
     }
 }

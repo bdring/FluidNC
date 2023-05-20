@@ -1,11 +1,11 @@
 // Copyright (c) 2021 -  Stefan de Bruijn
 // Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
 
-#ifdef ESP32
-#    include "I2SOPinDetail.h"
+#include "I2SOPinDetail.h"
 
-#    include "../I2SOut.h"
-#    include "../Assert.h"
+#include "../I2SOut.h"
+#include "../Assert.h"
+#include "../Machine/MachineConfig.h"
 
 namespace Pins {
     std::vector<bool> I2SOPinDetail::_claimed(nI2SOPins, false);
@@ -38,7 +38,7 @@ namespace Pins {
     void IRAM_ATTR I2SOPinDetail::write(int high) {
         if (high != _lastWrittenValue) {
             _lastWrittenValue = high;
-            i2s_out_write(_index, _readWriteMask ^ high);
+            _i2soDriver->write(_index, _readWriteMask ^ high);
         }
     }
 
@@ -47,18 +47,24 @@ namespace Pins {
         if (high != _lastWrittenValue) {
             _lastWrittenValue = high;
 
-            i2s_out_write(_index, _readWriteMask ^ high);
-            i2s_out_push();
-            i2s_out_delay();
+            _i2soDriver->write(_index, _readWriteMask ^ high);
+            _i2soDriver->push();
+            
+            // Not sure if we need to wait for the write to be reflected; let's just do it:
+            const uint32_t I2S_OUT_USEC_PER_PULSE = 4;
+            delay_us(I2S_OUT_USEC_PER_PULSE * 2);
         }
     }
 
     int I2SOPinDetail::read() {
-        auto raw = i2s_out_read(_index);
+        auto raw = _i2soDriver->read(_index);
         return raw ^ _readWriteMask;
     }
 
     void I2SOPinDetail::setAttr(PinAttributes value) {
+        // Grab bus:
+        _i2soDriver = config->_i2so;
+
         // The Arduino framework encodes OUTPUT as OUTPUT | INPUT.  We can't do the input part.
         if (value.has(PinAttributes::Output) && value.has(PinAttributes::Input)) {
             value = PinAttributes::Output;
@@ -74,7 +80,7 @@ namespace Pins {
         // just check for conflicts above...
 
         // If the pin is ActiveLow, we should take that into account here:
-        i2s_out_write(_index, value.has(PinAttributes::InitialOn) ^ _readWriteMask);
+        _i2soDriver->write(_index, value.has(PinAttributes::InitialOn) ^ _readWriteMask);
     }
 
     PinAttributes I2SOPinDetail::getAttr() const { return _attributes; }
@@ -88,5 +94,3 @@ namespace Pins {
         return s;
     }
 }
-
-#endif

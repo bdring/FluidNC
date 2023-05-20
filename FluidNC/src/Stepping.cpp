@@ -74,7 +74,7 @@ namespace Machine {
                 i2s_out_push_sample(_directionDelayUsecs);
             } else if (_engine == stepper_id_t::I2S_STATIC) {
                 // Commit the pin changes to the hardware immediately
-                i2s_out_push();
+                config->_i2so->push();
                 delay_us(_directionDelayUsecs);
             } else if (_engine == stepper_id_t::TIMED) {
                 // If we are using RMT, we can't delay here.
@@ -90,7 +90,7 @@ namespace Machine {
             // Generate the number of pulses needed to span pulse_microseconds
             i2s_out_push_sample(_pulseUsecs);
         } else if (_engine == stepper_id_t::I2S_STATIC) {
-            i2s_out_push();
+            config->_i2so->push();
             _stepPulseEndTime = usToEndTicks(_pulseUsecs);
         } else if (_engine == stepper_id_t::TIMED) {
             _stepPulseEndTime = usToEndTicks(_pulseUsecs);
@@ -100,7 +100,7 @@ namespace Machine {
     // Called only from Axes::unstep()
     void IRAM_ATTR Stepping::finishPulse() {
         if (_engine == stepper_id_t::I2S_STATIC) {
-            i2s_out_push();
+            config->_i2so->push();
         }
     }
 

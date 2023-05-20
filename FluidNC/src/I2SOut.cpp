@@ -1,6 +1,7 @@
 // Copyright (c) 2018 - Simon Jouet
 // Copyright (c) 2020 - Michiyasu Odaki
 // Copyright (c) 2020 -	Mitch Bradley
+//
 // Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
 //
 // Where does all this shit come from? tools\sdk\esp32s2\include\hal\esp32s2\include\hal\i2s_ll.h
@@ -21,11 +22,21 @@
 uint8_t i2s_out_read(pinnum_t pin) {
     return 0;
 }
-void i2s_out_write(pinnum_t pin, uint8_t val) {}
-void i2s_out_push_sample(uint32_t usec) {}
-void i2s_out_push() {}
-void i2s_out_delay() {}
-int  i2s_out_set_passthrough() {
+void i2s_out_write(pinnum_t pin, uint8_t val) {
+    Assert(false, "I2SO stream is not supported on this hardware");
+}
+void i2s_out_push_sample(uint32_t usec) {
+    Assert(false, "I2SO stream is not supported on this hardware");
+}
+void i2s_out_push() {
+    Assert(false, "I2SO stream is not supported on this hardware");
+}
+void i2s_out_delay() {
+    Assert(false, "I2SO stream is not supported on this hardware");
+}
+int i2s_out_set_passthrough() {
+    Assert(false, "I2SO stream is not supported on this hardware");
+
     return 0;
 }
 i2s_out_pulser_status_t i2s_out_get_pulser_status() {
@@ -51,11 +62,11 @@ int i2s_out_init() {
 #    include "Machine/MachineConfig.h"
 #    include "Stepper.h"
 
-#include <esp_private/i2s_platform.h>
-#include <esp_private/esp_clk.h>
-#include <esp_private/gdma.h>
+#    include <esp_private/i2s_platform.h>
+#    include <esp_private/esp_clk.h>
+#    include <esp_private/gdma.h>
 
-#include <soc/gdma_channel.h>
+#    include <soc/gdma_channel.h>
 
 // The <atomic> library routines are not in IRAM so they can crash when called from FLASH
 // The GCC intrinsic versions which are prefixed with __ are compiled inline
@@ -84,7 +95,7 @@ extern "C" void __digitalWrite(pinnum_t pin, uint8_t val);
 
 // Well yuck.
 
-#include "hal/gdma_hal.h"
+#    include "hal/gdma_hal.h"
 
 typedef struct gdma_platform_t   gdma_platform_t;
 typedef struct gdma_group_t      gdma_group_t;
@@ -982,19 +993,19 @@ int i2s_out_init(i2s_out_init_t& init_param) {
         I2S0.conf_single_data    = init_param.init_val;
     }
 
-#if I2S_OUT_NUM_BITS == 16
+#    if I2S_OUT_NUM_BITS == 16
     I2S0.fifo_conf.tx_fifo_mod = 0;   // 0: 16-bit dual channel data, 3: 32-bit single channel data
     I2S0.fifo_conf.rx_fifo_mod = 0;   // 0: 16-bit dual channel data, 3: 32-bit single channel data
     I2S0.tx_conf1.tx_bits_mod  = 16;  // default is 16-bits
     I2S0.rx_conf1.rx_bits_mod  = 16;  // default is 16-bits
-#else
+#    else
     // From: i2s_ll.h:397 (s3) vs i2s_ll.h:
     // Data width is 32-bit:
     I2S0.tx_conf1.tx_bits_mod      = 32 - 1;
     I2S0.tx_conf1.tx_tdm_chan_bits = 32 - 1;
     I2S0.rx_conf1.rx_bits_mod      = 32 - 1;
     I2S0.rx_conf1.rx_tdm_chan_bits = 32 - 1;
-#endif
+#    endif
 
     I2S0.tx_conf.tx_mono = 0;  // Set this bit to enable transmitter’s mono mode in PCM standard mode.
 
@@ -1027,7 +1038,7 @@ int i2s_out_init(i2s_out_init_t& init_param) {
     // I2S0.clkm_conf.clka_en = 0;  // Use 160 MHz PLL_D2_CLK as reference
     I2S0.tx_clkm_conf.tx_clk_sel = 2;  // CLK160
                                        // N + b/a = 0
-#if I2S_OUT_NUM_BITS == 16
+#    if I2S_OUT_NUM_BITS == 16
     // N = 10
     I2S0.clkm_conf.clkm_div_num = 10;  // minimum value of 2, reset value of 4, max 256 (I²S clock divider’s integral value)
 #    else
@@ -1035,7 +1046,7 @@ int i2s_out_init(i2s_out_init_t& init_param) {
     // 5 could be changed to 2 to make I2SO pulse at 312.5 kHZ instead of 125 kHz, but doing so would
     // require some changes to deal with pulse lengths that are not an integral number of microseconds.
     I2S0.tx_clkm_conf.tx_clkm_div_num = 5;  // minimum value of 2, reset value of 4, max 256 (I²S clock divider’s integral value)
-#endif
+#    endif
     // b/a = 0
     // TODO FIXME!
 
@@ -1056,11 +1067,10 @@ int i2s_out_init(i2s_out_init_t& init_param) {
     I2S0.tx_conf.tx_start = 0;
     gdma_stop(i2s_out_isr_handle);
 
-
     // i2s_ll_tx_disable_intr
     // I2S0.int_ena.out_eof      = 1;  // Triggered when rxlink has finished sending a packet.
     // I2S0.int_ena.out_dscr_err = 0;  // Triggered when invalid rxlink descriptors are encountered.
-    // 
+    //
     // I2S0.int_ena.out_total_eof = 1;  // Triggered when all transmitting linked lists are used up.
     // I2S0.int_ena.out_done      = 0;  // Triggered when all transmitted and buffered data have been read.
 
@@ -1078,8 +1088,8 @@ int i2s_out_init(i2s_out_init_t& init_param) {
     );
 
     // Allocate and Enable the I2S interrupt
-    // 
-    // https://github.com/espressif/esp-idf/blob/6cfa88ed49b7d1209732347dae55578f4a679c98/components/driver/i2s/i2s_common.c 
+    //
+    // https://github.com/espressif/esp-idf/blob/6cfa88ed49b7d1209732347dae55578f4a679c98/components/driver/i2s/i2s_common.c
     // line 660 and on.
     //
     // esp_intr_alloc(ETS_I2S0_INTR_SOURCE, 0, i2s_out_intr_handler, nullptr, &i2s_out_isr_handle);
