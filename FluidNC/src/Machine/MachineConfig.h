@@ -14,13 +14,15 @@
 #include "../Extenders/Extenders.h"
 #include "../Control.h"
 #include "../Probe.h"
-#include "src/Parking.h"
+#include "../Parking.h"
 #include "../SDCard.h"
 #include "../Spindles/Spindle.h"
 #include "../Stepping.h"
 #include "../Stepper.h"
 #include "../Config.h"
 #include "../OLED.h"
+#include "../UartChannel.h"
+#include "../Uart.h"
 #include "Axes.h"
 #include "SPIBus.h"
 #include "I2CBus.h"
@@ -84,7 +86,7 @@ namespace Machine {
         bool  _verboseErrors     = false;
         bool  _reportInches      = false;
 
-        size_t _planner_blocks = 16;
+        int32_t _planner_blocks = 16;
 
         // Enables a special set of M-code commands that enables and disables the parking motion.
         // These are controlled by `M56`, `M56 P1`, or `M56 Px` to enable and `M56 P0` to disable.

@@ -20,6 +20,7 @@ namespace Pins {
 namespace Extenders {
     enum class I2CExtenderDevice {
         Unknown,
+        PCA9535,
         PCA9539,
         PCA9555,
     };

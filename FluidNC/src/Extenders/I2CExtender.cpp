@@ -14,6 +14,7 @@
 
 namespace Extenders {
     EnumItem i2cDevice[] = { { int(I2CExtenderDevice::PCA9539), "pca9539" },
+                             { int(I2CExtenderDevice::PCA9535), "pca9535" },
                              { int(I2CExtenderDevice::PCA9555), "pca9555" },
                              EnumItem(int(I2CExtenderDevice::Unknown)) };
 
@@ -287,8 +288,9 @@ namespace Extenders {
 
     void I2CExtender::init() {
         auto i2c = config->_i2c;
-        this->_i2cBus = i2c[_bus];
         Assert(i2c != nullptr, "I2CExtender works through I2C, but I2C is not configured.");
+        this->_i2cBus = i2c[_bus];
+        Assert(this->_i2cBus != nullptr, "I2CExtender works through I2C, but I2C is not configured.");
 
         // We cannot validate _i2cBus, because that's initialized during `init`.
         Assert(_device != int(I2CExtenderDevice::Unknown), "I2C device type is unknown. Cannot continue initializing extender.");
@@ -306,6 +308,7 @@ namespace Extenders {
                 _operationReg = 6;
                 break;
 
+            case I2CExtenderDevice::PCA9535:
             case I2CExtenderDevice::PCA9555:
                 // See data sheet page 7+:
                 _address      = 0x20 + _deviceId;
