@@ -14,6 +14,41 @@ namespace Pins {
     std::vector<bool> GPIOPinDetail::_claimed(nGPIOPins, false);
 
     PinCapabilities GPIOPinDetail::GetDefaultCapabilities(pinnum_t index) {
+#ifdef CONFIG_IDF_TARGET_ESP32S3
+        if ((index >= 0 && index <= 21) || (index >= 35 && index <= 48)) {
+            return PinCapabilities::Native | PinCapabilities::Input | PinCapabilities::Output | PinCapabilities::PullUp |
+                   PinCapabilities::PullDown | PinCapabilities::PWM | PinCapabilities::ISR | PinCapabilities::UART |
+                   (index <= 20 ? PinCapabilities::ADC : PinCapabilities::None);
+        } else {
+            // Not mapped to actual GPIO pins
+            return PinCapabilities::None;
+        }
+
+#elif CONFIG_IDF_TARGET_ESP32S2
+        switch (index) {
+            case 43:  // TX pin of Serial0. Note that Serial0 also runs through the Pins framework!
+                return PinCapabilities::Native | PinCapabilities::Output | PinCapabilities::Input | PinCapabilities::UART |
+                       PinCapabilities::ADC;
+
+            case 44:  // RX pin of Serial0. Note that Serial0 also runs through the Pins framework!
+                return PinCapabilities::Native | PinCapabilities::Output | PinCapabilities::Input | PinCapabilities::ISR |
+                       PinCapabilities::UART | PinCapabilities::ADC;
+
+            case 46:
+                return PinCapabilities::Native | PinCapabilities::Input | PinCapabilities::ADC | PinCapabilities::ISR | PinCapabilities::UART;
+
+            default:
+                if ((index >= 0 && index <= 21) || index == 26 || (index >= 33 && index <= 45)) {
+                    return PinCapabilities::Native | PinCapabilities::Input | PinCapabilities::Output | PinCapabilities::PullUp |
+                           PinCapabilities::PullDown | PinCapabilities::PWM | PinCapabilities::ISR | PinCapabilities::UART |
+                           (index <= 20 ? PinCapabilities::ADC : PinCapabilities::None);
+                } else {
+                    // Not mapped to actual GPIO pins
+                    return PinCapabilities::None;
+                }
+        }
+
+#else
         // See https://randomnerdtutorials.com/esp32-pinout-reference-gpios/ for an overview:
         switch (index) {
             case 0:  // Outputs PWM signal at boot
@@ -77,6 +112,7 @@ namespace Pins {
             default:  // Not mapped to actual GPIO pins
                 return PinCapabilities::None;
         }
+#endif
     }
 
     GPIOPinDetail::GPIOPinDetail(pinnum_t index, PinOptionsParser options) :

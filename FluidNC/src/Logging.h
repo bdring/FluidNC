@@ -33,13 +33,13 @@ enum MsgLevel {
 
 class LogStream : public Print {
 public:
-    LogStream(Channel& channel, const char* name);
+    LogStream(Print& channel, const char* name);
     LogStream(const char* name);
     size_t write(uint8_t c) override;
     ~LogStream();
 
 private:
-    Channel&     _channel;
+    Print&       _channel;
     std::string* _line;
 };
 

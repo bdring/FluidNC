@@ -4,6 +4,7 @@
 #include "DebugPinDetail.h"
 
 #include "../UartChannel.h"
+#include "../USBCDCChannel.h"
 #include <esp32-hal.h>  // millis()
 #include <cstdio>       // vsnprintf
 #include <cstdarg>

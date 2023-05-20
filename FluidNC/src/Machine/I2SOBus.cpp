@@ -26,6 +26,10 @@ namespace Machine {
 
         portData_ = 0;
 
+        _bck.setAttr(Pin::Attr::Output);
+        _ws.setAttr(Pin::Attr::Output);
+        _data.setAttr(Pin::Attr::Output);
+
         if (_oe.defined()) {
             log_info("I2SO OE is defined on " << _oe.name());
 
@@ -35,10 +39,6 @@ namespace Machine {
             _oe.setAttr(Pin::Attr::Output);
             _oe.on();
         }
-
-        _bck.setAttr(Pin::Attr::Output);
-        _ws.setAttr(Pin::Attr::Output);
-        _data.setAttr(Pin::Attr::Output);
     }
 
     void I2SOBus::write(int index, int high) {

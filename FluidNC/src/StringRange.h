@@ -58,6 +58,14 @@ public:
         return StringRange(s, e);
     }
 
+    char operator[](int index) const { const char* s = start_ + index;
+        if (s >= end_) {
+            return '\0';
+        } else {
+            return *s;
+        }
+    }
+
     // Blank-delimited word
     StringRange nextWord() {
         while (start_ != end_ && *start_ == ' ') {

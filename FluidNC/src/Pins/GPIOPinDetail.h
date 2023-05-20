@@ -18,7 +18,13 @@ namespace Pins {
         bool _lastWrittenValue = false;
 
     public:
+#ifdef ARDUINO_ESP32S3_DEV
+        static const int nGPIOPins = 49;
+#elif CONFIG_IDF_TARGET_ESP32S2
+        static const int nGPIOPins = 47;
+#else
         static const int nGPIOPins = 40;
+#endif
 
         GPIOPinDetail(pinnum_t index, PinOptionsParser options);
 

@@ -15,6 +15,7 @@
 #    include "Protocol.h"
 #    include "System.h"
 #    include "UartChannel.h"
+#    include "USBCDCChannel.h"
 #    include "MotionControl.h"
 #    include "Platform.h"
 #    include "StartupLog.h"
@@ -28,9 +29,14 @@
 extern void make_user_commands();
 
 void setup() {
+#    if ARDUINO_USB_CDC_ON_BOOT
+    delay_ms(5000);
+#    endif
+
     disableCore0WDT();
     try {
         timing_init();
+
         uartInit();       // Setup serial port
         Uart0.println();  // create some white space after ESP32 boot info
 

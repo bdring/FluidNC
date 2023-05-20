@@ -1,32 +1,24 @@
-// Copyright (c) 2023 -  Mitch Bradley
+// Copyright (c) 2023 -  Stefan de Bruijn
 // Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
 
-#include "UartChannel.h"
+#include "USBCDCChannel.h"
 #include "Machine/MachineConfig.h"  // config
 #include "Serial.h"                 // allChannels
 
-UartChannel::UartChannel(bool addCR) : Channel("uart", addCR) {
+USBCDCChannel::USBCDCChannel(bool addCR) : Channel("usbcdc", addCR) {
     _lineedit = new Lineedit(this, _line, Channel::maxLine - 1);
+    _uart     = &Serial;
 }
 
-void UartChannel::init() {
-    auto uart = config->_uarts[_uart_num];
-    if (uart) {
-        init(uart);
-    } else {
-        log_error("UartChannel: missing uart" << _uart_num);
-    }
-}
-void UartChannel::init(Uart* uart) {
-    _uart = uart;
+void USBCDCChannel::init() {
     allChannels.registration(this);
 }
 
-size_t UartChannel::write(uint8_t c) {
+size_t USBCDCChannel::write(uint8_t c) {
     return _uart->write(c);
 }
 
-size_t UartChannel::write(const uint8_t* buffer, size_t length) {
+size_t USBCDCChannel::write(const uint8_t* buffer, size_t length) {
     // Replace \n with \r\n
     if (_addCR) {
         size_t rem      = length;
@@ -54,23 +46,23 @@ size_t UartChannel::write(const uint8_t* buffer, size_t length) {
     }
 }
 
-int UartChannel::available() {
+int USBCDCChannel::available() {
     return _uart->available();
 }
 
-int UartChannel::peek() {
+int USBCDCChannel::peek() {
     return _uart->peek();
 }
 
-int UartChannel::rx_buffer_available() {
-    return _uart->rx_buffer_available();
+int USBCDCChannel::rx_buffer_available() {
+    return 64-_uart->available();
 }
 
-bool UartChannel::realtimeOkay(char c) {
+bool USBCDCChannel::realtimeOkay(char c) {
     return _lineedit->realtime(c);
 }
 
-bool UartChannel::lineComplete(char* line, char c) {
+bool USBCDCChannel::lineComplete(char* line, char c) {
     if (_lineedit->step(c)) {
         _linelen        = _lineedit->finish();
         _line[_linelen] = '\0';
@@ -81,7 +73,7 @@ bool UartChannel::lineComplete(char* line, char c) {
     return false;
 }
 
-Channel* UartChannel::pollLine(char* line) {
+Channel* USBCDCChannel::pollLine(char* line) {
     // UART0 is the only Uart instance that can be a channel input device
     // Other UART users like RS485 use it as a dumb character device
     if (_lineedit == nullptr) {
@@ -90,16 +82,15 @@ Channel* UartChannel::pollLine(char* line) {
     return Channel::pollLine(line);
 }
 
-int UartChannel::read() {
+int USBCDCChannel::read() {
     return _uart->read();
 }
 
-void UartChannel::flushRx() {
-    _uart->flushRx();
+void USBCDCChannel::flushRx() {
     Channel::flushRx();
 }
 
-size_t UartChannel::timedReadBytes(char* buffer, size_t length, TickType_t timeout) {
+size_t USBCDCChannel::timedReadBytes(char* buffer, size_t length, TickType_t timeout) {
     // It is likely that _queue will be empty because timedReadBytes() is only
     // used in situations where the UART is not receiving GCode commands
     // and Grbl realtime characters.
@@ -109,20 +100,22 @@ size_t UartChannel::timedReadBytes(char* buffer, size_t length, TickType_t timeo
         _queue.pop();
     }
 
-    int res = _uart->timedReadBytes(buffer, remlen, timeout);
+    int avail = _uart->available();
+    if (avail > remlen) {
+        avail = remlen;
+    }
+    
+    int res = int(_uart->read(buffer, remlen));
     // If res < 0, no bytes were read
     remlen -= (res < 0) ? 0 : res;
     return length - remlen;
 }
 
 #if ARDUINO_USB_CDC_ON_BOOT
-// Don't make Uart0 the main channel
-#else
-UartChannel Uart0(true);  // Primary serial channel with LF to CRLF conversion
+USBCDCChannel Uart0(true);  // Primary serial channel with LF to CRLF conversion
 
 void uartInit() {
-    auto uart0 = new Uart(0);
-    uart0->begin(BAUD_RATE, UartData::Bits8, UartStop::Bits1, UartParity::None);
-    Uart0.init(uart0);
+    Serial.begin(115200);
+    Uart0.init();
 }
 #endif

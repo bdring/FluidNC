@@ -1,24 +1,35 @@
-// Copyright (c) 2023 -  Mitch Bradley
-// Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
-
 #pragma once
 
-#include "Uart.h"
+// #ifndef ARDUINO_USB_CDC_ON_BOOT
+// #    define ARDUINO_USB_CDC_ON_BOOT 0
+// #endif
+// #if ARDUINO_USB_CDC_ON_BOOT  //Serial used for USB CDC
+// #    if !ARDUINO_USB_MODE
+// #        include "USB.h"
+// #        include "USBCDC.h"
+// #    endif
+// #endif
+// 
+// #if ARDUINO_USB_CDC_ON_BOOT && !ARDUINO_USB_MODE  //Serial used for USB CDC
+// extern USBCDC Serial;
+// #endif
+
+#include <USB.h>
+#include <USBCDC.h>
+#include <HWCDC.h>
+
 #include "Channel.h"
 #include "lineedit.h"
 
-class UartChannel : public Channel, public Configuration::Configurable {
+class USBCDCChannel : public Channel {
 private:
     Lineedit* _lineedit;
-    Uart*     _uart;
-
-    int _uart_num = 0;
+    HWCDC*     _uart;
 
 public:
-    UartChannel(bool addCR = false);
+    USBCDCChannel(bool addCR = false);
 
     void init();
-    void init(Uart* uart);
 
     // Print methods (Stream inherits from Print)
     size_t write(uint8_t c) override;
@@ -37,9 +48,6 @@ public:
     bool     realtimeOkay(char c) override;
     bool     lineComplete(char* line, char c) override;
     Channel* pollLine(char* line) override;
-
-    // Configuration methods
-    void group(Configuration::HandlerBase& handler) override { handler.item("uart_num", _uart_num); }
 };
 
 #ifndef ARDUINO_USB_CDC_ON_BOOT
@@ -47,9 +55,7 @@ public:
 #endif
 
 #if ARDUINO_USB_CDC_ON_BOOT  //Serial used for USB CDC
-// We don't want uart0 as channel
-#else
-extern UartChannel Uart0;
+extern USBCDCChannel Uart0;
 
 extern void uartInit();
 #endif

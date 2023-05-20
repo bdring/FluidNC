@@ -10,7 +10,7 @@ bool atMsgLevel(MsgLevel level) {
     return message_level == nullptr || message_level->get() >= level;
 }
 
-LogStream::LogStream(Channel& channel, const char* name) : _channel(channel) {
+LogStream::LogStream(Print& channel, const char* name) : _channel(channel) {
     _line = new std::string();
     print(name);
 }
