@@ -24,15 +24,14 @@ namespace Extenders {
 
         int err;
         if ((err = bus->write(address, &reg, 1)) != 0) {
-            log_warn("Cannot read from I2C bus: " << Machine::I2CBus::ErrorDescription(err));
+            log_warn("Cannot read from I2C bus: " << err);
 
             IOError();
             return 0;
         } else {
             uint8_t result = 0;
             if (bus->read(address, &result, 1) != 1) {
-                log_warn("Cannot read from I2C bus: "
-                         << "no response");
+                log_warn("Cannot read from I2C bus: no response");
 
                 IOError();
             } else {
@@ -54,7 +53,7 @@ namespace Extenders {
         int err = bus->write(address, data, 2);
 
         if (err) {
-            log_warn("Cannot write to I2C bus: " << Machine::I2CBus::ErrorDescription(err));
+            log_warn("Cannot write to I2C bus: " << err);
             IOError();
         } else {
             // This log line will probably generate a stack overflow and way too much data. Use with care:
@@ -271,18 +270,11 @@ namespace Extenders {
         _claimed.value &= ~mask;
     }
 
-    void I2CExtender::validate() const {
-        auto i2c = config->_i2c;
-        Assert(i2c != nullptr, "I2CExtender works through I2C, but I2C is not configured.");
-
-        // We cannot validate _i2cBus, because that's initialized during `init`.
-        Assert(_device != int(I2CExtenderDevice::Unknown), "I2C device type is unknown. Cannot continue initializing extender.");
-    }
-
     void I2CExtender::group(Configuration::HandlerBase& handler) {
         //   device: pca9539
         //   device_id: 0
         //   interrupt: gpio.36
+        handler.item("bus", _bus, 0, 2);
         handler.item("device", _device, i2cDevice);
         handler.item("device_id", _deviceId);
         handler.item("interrupt", _interruptPin);
@@ -294,8 +286,14 @@ namespace Extenders {
     }
 
     void I2CExtender::init() {
+        auto i2c = config->_i2c;
+        this->_i2cBus = i2c[_bus];
+        Assert(i2c != nullptr, "I2CExtender works through I2C, but I2C is not configured.");
+
+        // We cannot validate _i2cBus, because that's initialized during `init`.
+        Assert(_device != int(I2CExtenderDevice::Unknown), "I2C device type is unknown. Cannot continue initializing extender.");
+
         Assert(_isrHandler == nullptr, "Init has already been called on I2C extender.");
-        this->_i2cBus = config->_i2c;
 
         switch (I2CExtenderDevice(_device)) {
             case I2CExtenderDevice::PCA9539:

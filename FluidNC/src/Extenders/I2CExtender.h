@@ -9,6 +9,7 @@
 #include "../Machine/I2CBus.h"
 #include "../Platform.h"
 
+#include <freertos/FreeRTOS.h>
 #include <atomic>
 
 namespace Pins {
@@ -160,7 +161,6 @@ namespace Extenders {
         void free(pinnum_t index) override;
 
         void group(Configuration::HandlerBase& handler) override;
-        void validate() const override;
         void init();
 
         void IRAM_ATTR setupPin(pinnum_t index, Pins::PinAttributes attr) override;

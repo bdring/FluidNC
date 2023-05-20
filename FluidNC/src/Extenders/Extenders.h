@@ -14,7 +14,6 @@ namespace Extenders {
 
         PinExtender* _pinDrivers[16];
 
-        void validate() const override;
         void group(Configuration::HandlerBase& handler) override;
         void init();
 

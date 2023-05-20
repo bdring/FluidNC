@@ -10,6 +10,7 @@
 #include "../Machine/I2CBus.h"
 
 #include <bitset>
+#include <string>
 
 namespace Pins {
     class ExtPinDetail : public PinDetail {
@@ -36,7 +37,7 @@ namespace Pins {
         void          setAttr(PinAttributes value) override;
         PinAttributes getAttr() const override;
 
-        String toString() override;
+        std::string toString() override;
 
         ~ExtPinDetail() override;
     };

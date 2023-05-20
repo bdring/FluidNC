@@ -8,7 +8,7 @@
 #include "Pins/PinAttributes.h"
 #include "StringRange.h"
 
-#include <esp_attr.h>  // IRAM_ATTR
+#include "Platform.h"
 #include <cstdint>
 #include <string>
 #include <cstring>

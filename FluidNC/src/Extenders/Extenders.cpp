@@ -6,11 +6,6 @@
 namespace Extenders {
     PinExtender::PinExtender() : _driver(nullptr) {}
 
-    void PinExtender::validate() const {
-        if (_driver) {
-            _driver->validate();
-        }
-    }
     void PinExtender::group(Configuration::HandlerBase& handler) { PinExtenderFactory::factory(handler, _driver); }
     void PinExtender::init() {
         if (_driver) {
@@ -25,8 +20,6 @@ namespace Extenders {
             _pinDrivers[i] = nullptr;
         }
     }
-
-    void Extenders::validate() const {}
 
     void Extenders::group(Configuration::HandlerBase& handler) {
         for (int i = 0; i < 10; ++i) {

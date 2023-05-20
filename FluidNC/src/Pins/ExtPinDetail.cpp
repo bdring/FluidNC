@@ -77,8 +77,10 @@ namespace Pins {
         _owner->detachInterrupt(_index);
     }
 
-    String ExtPinDetail::toString() {
-        auto s = String("pinext") + int(_device) + String(".") + int(_index);
+    std::string ExtPinDetail::toString() {
+        char buf[20];
+        snprintf(buf, 20, "pinext%d.%d", int(_device), int(_index));
+        std::string s(buf);
         if (_attributes.has(PinAttributes::ActiveLow)) {
             s += ":low";
         }

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
 
 #include "I2CBus.h"
-#include "Driver/fluidnc_i2c.h"
+#include "../../include/Driver/fluidnc_i2c.h"
 
 namespace Machine {
     I2CBus::I2CBus(int busNumber) : _busNumber(busNumber) {}

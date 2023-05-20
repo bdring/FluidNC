@@ -5,9 +5,7 @@
 
 #include "../Configuration/Configurable.h"
 
-#include <esp_attr.h>
-
-class TwoWire;
+#include "../Platform.h"
 
 namespace Machine {
     class I2CBus : public Configuration::Configurable {
