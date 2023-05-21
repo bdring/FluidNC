@@ -14,7 +14,6 @@
 #include "../Machine/MachineConfig.h"
 #include "../Configuration/JsonGenerator.h"
 #include "../Uart.h"  // Uart0.baud
-#include "../NativeSerial.h"
 #include "../Report.h"     // git_info
 #include "../InputFile.h"  // InputFile
 

@@ -12,11 +12,11 @@ void StatusLed::init() {
 // TODO FIXME: Added alarm = red, etc.
 
 void StatusLed::update() {
-    if (Uart0.isConnected()) {
-        pixels.setPixelColor(0, pixels.Color(0, 64, 64));
-    } else {
-        pixels.setPixelColor(0, pixels.Color(0, 64, 0));
-    }
+    //if (Uart0.isConnected()) {
+    pixels.setPixelColor(0, pixels.Color(0, 64, 64));
+    //} else {
+    //    pixels.setPixelColor(0, pixels.Color(0, 64, 0));
+    //}
     pixels.show();
 }
 

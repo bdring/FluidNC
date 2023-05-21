@@ -1,7 +1,6 @@
 #pragma once
 
 #include <Adafruit_NeoPixel.h>
-#include "NativeSerial.h"
 
 class StatusLed {
     Adafruit_NeoPixel pixels;
