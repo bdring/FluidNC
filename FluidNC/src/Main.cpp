@@ -19,6 +19,7 @@
 #    include "MotionControl.h"
 #    include "Platform.h"
 #    include "StartupLog.h"
+#    include "StatusLed.h"
 
 #    include "WebUI/TelnetServer.h"
 #    include "WebUI/InputBuffer.h"
@@ -39,6 +40,10 @@ void setup() {
 
     disableCore0WDT();
     try {
+        // uartInit();       // Setup serial port
+
+        statusLed.init();
+
         timing_init();
 
         uartInit();       // Setup serial port
