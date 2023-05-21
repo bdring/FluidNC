@@ -37,6 +37,9 @@ namespace Machine {
         if (_error) {
             return -1;
         }
+
+        log_info("I2C write: " << int(address); for (int i = 0; i < count; ++i) { ss << ' ' << int(data[i]); });
+
         return i2c_write(_busNumber, address, data, count);
     }
 
@@ -44,6 +47,7 @@ namespace Machine {
         if (_error) {
             return -1;
         }
+        log_info("I2C read: " << int(address));
         return i2c_read(_busNumber, address, data, count);
     }
 }
