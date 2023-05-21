@@ -716,6 +716,68 @@ static Error showGPIOs(const char* value, WebUI::AuthenticationLevel auth_level,
     return Error::Ok;
 }
 
+std::map<std::string, Pin*> pins;
+
+static Error setGPIOInput(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+    if (pins.find(value) == pins.end()) {
+        Pin* thePin = new Pin(Pin::create(value));
+        pins[value] = thePin;
+    }
+
+    pins[value]->setAttr(Pin::Attr::Input);
+    log_info("Pin " << value << " set to input");
+
+    return Error::Ok;
+}
+
+static Error setGPIOOutput(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+    if (pins.find(value) == pins.end()) {
+        Pin* thePin = new Pin(Pin::create(value));
+        pins[value] = thePin;
+    }
+
+    pins[value]->setAttr(Pin::Attr::Output);
+    log_info("Pin " << value << " set to output");
+
+    return Error::Ok;
+}
+
+static Error readGPIO(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+    if (pins.find(value) == pins.end()) {
+        Pin* thePin = new Pin(Pin::create(value));
+        pins[value] = thePin;
+    }
+
+    const auto v = pins[value]->read() ? "on" : "off";
+    log_info("Pin " << value << " reads " << v);
+
+    return Error::Ok;
+}
+
+static Error writeGPIOOn(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+    if (pins.find(value) == pins.end()) {
+        Pin* thePin = new Pin(Pin::create(value));
+        pins[value] = thePin;
+    }
+
+    pins[value]->on();
+    log_info("Pin " << value << " is on");
+
+    return Error::Ok;
+}
+
+static Error writeGPIOOff(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+    if (pins.find(value) == pins.end()) {
+        Pin* thePin = new Pin(Pin::create(value));
+        pins[value] = thePin;
+    }
+
+    pins[value]->off();
+    log_info("Pin " << value << " is off");
+
+    return Error::Ok;
+}
+
 static Error setReportInterval(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
     if (!value) {
         uint32_t actual = out.getReportInterval();
@@ -761,6 +823,11 @@ static Error showHeap(const char* value, WebUI::AuthenticationLevel auth_level, 
 // for decoding its own value string, if it needs one.
 void make_user_commands() {
     new UserCommand("GD", "GPIO/Dump", showGPIOs, anyState);
+    new UserCommand("GI", "GPIO/Input", setGPIOInput, anyState);
+    new UserCommand("GO", "GPIO/Output", setGPIOOutput, anyState);
+    new UserCommand("G+", "GPIO/On", writeGPIOOn, anyState);
+    new UserCommand("G-", "GPIO/Off", writeGPIOOff, anyState);
+    new UserCommand("GR", "GPIO/Read", readGPIO, anyState);
 
     new UserCommand("CI", "Channel/Info", showChannelInfo, anyState);
     new UserCommand("XR", "Xmodem/Receive", xmodem_receive, notIdleOrAlarm);

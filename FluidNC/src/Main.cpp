@@ -32,6 +32,10 @@ void setup() {
 #    if ARDUINO_USB_CDC_ON_BOOT
     delay_ms(5000);
 #    endif
+    // auto dummyUart0 = new Uart(0);
+    // dummyUart0->_txd_pin = Pin::create("gpio.16");
+    // dummyUart0->_rxd_pin = Pin::create("gpio.17");
+    // dummyUart0->begin();
 
     disableCore0WDT();
     try {
@@ -97,7 +101,7 @@ void setup() {
                     config->_i2c[i]->init();
                 }
             }
-            
+
             // We have to initialize the extenders first, before pins are used
             if (config->_extenders) {
                 config->_extenders->init();
