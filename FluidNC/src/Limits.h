@@ -27,13 +27,10 @@ float limitsMinPosition(size_t axis);
 
 // Private
 
-// Returns limit state under mask
-AxisMask limits_check(AxisMask check_mask);
-
+#ifdef LATER  // We need to rethink debouncing
 // A task that runs after a limit switch interrupt.
 void limitCheckTask(void* pvParameters);
-
-bool limitsCheckTravel(float* target);
+#endif
 
 // True if an axis is reporting engaged limits on both ends.  This
 // typically happens when the same pin is used for a pair of switches,

@@ -122,8 +122,8 @@ namespace Machine {
     const char* I2CBus::ErrorDescription(int code) { return esp_err_to_name(code); }
 
     int I2CBus::write(uint8_t address, const uint8_t* data, size_t count) {
-        log_info("I2C write addr=" << int(address) << ", count=" << int(count) << ", data " << (data ? "non null" : "null") << ", i2c "
-                                    << (i2c ? "non null" : "null"));
+        // log_info("I2C write addr=" << int(address) << ", count=" << int(count) << ", data " << (data ? "non null" : "null") << ", i2c "
+        //                             << (i2c ? "non null" : "null"));
 
         i2c->beginTransmission(address);
         for (size_t i = 0; i < count; ++i) {
@@ -133,8 +133,8 @@ namespace Machine {
     }
 
     int I2CBus::read(uint8_t address, uint8_t* data, size_t count) {
-        log_info("I2C read addr=" << int(address) << ", count=" << int(count) << ", data " << (data ? "non null" : "null") << ", i2c "
-                                   << (i2c ? "non null" : "null"));
+        // log_info("I2C read addr=" << int(address) << ", count=" << int(count) << ", data " << (data ? "non null" : "null") << ", i2c "
+        //                            << (i2c ? "non null" : "null"));
 
         size_t c = i2c->requestFrom((int)address, count);
 

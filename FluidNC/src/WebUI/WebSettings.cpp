@@ -22,7 +22,7 @@
 #include "Commands.h"  // COMMANDS::restart_MCU();
 #include "WifiConfig.h"
 
-#include "src/HashFS.h"
+#include "../HashFS.h"
 
 #include <cstring>
 #include <sstream>

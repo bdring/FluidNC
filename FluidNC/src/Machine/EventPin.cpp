@@ -1,13 +1,14 @@
 #include "EventPin.h"
 
-#include "src/Report.h"    // addPinReport
-#include "src/Protocol.h"  // event_queue
-#include "src/System.h"    // sys
+#include "../Report.h"    // addPinReport
+#include "../Protocol.h"  // event_queue
+#include "../System.h"    // sys
 
 #include "Driver/fluidnc_gpio.h"
 
 namespace Machine {
     EventPin::EventPin(Event* event, const char* legend, Pin* pin) : _event(event), _legend(legend), _pin(pin) {}
+
     bool EventPin::get() { return _pin->read(); }
 
     void EventPin::gpioAction(int gpio_num, void* arg, bool active) {

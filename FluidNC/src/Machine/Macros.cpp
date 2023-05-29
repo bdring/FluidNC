@@ -2,9 +2,10 @@
 // Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
 
 #include "Macros.h"
-#include "src/Serial.h"                 // Cmd
-#include "src/System.h"                 // sys
-#include "src/Machine/MachineConfig.h"  // config
+#include "../Serial.h"                 // Cmd
+#include "../System.h"                 // sys
+#include "../Machine/MachineConfig.h"  // config
+#include "../Logging.h"
 
 void MacroEvent::run(void* arg) {
     if (sys.state != State::Idle) {

@@ -4,10 +4,10 @@
 
 #pragma once
 
-#include "src/Configuration/Configurable.h"
-#include "src/WebUI/InputBuffer.h"  // WebUI::inputBuffer
-#include "src/UartChannel.h"
-#include "src/Event.h"
+#include "../Configuration/Configurable.h"
+#include "../WebUI/InputBuffer.h"  // WebUI::inputBuffer
+#include "../UartChannel.h"
+#include "../Event.h"
 #include <algorithm>
 
 class MacroEvent : public Event {

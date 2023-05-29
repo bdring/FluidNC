@@ -1,12 +1,11 @@
-// Copyright (c) 2021 -  Stefan de Bruijn
-// Copyright (c) 2021 -  Mitch Bradley
+// Copyright (c) 2021 - Stefan de Bruijn, Mitch Bradley
 // Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
 
 #pragma once
 
-#include "src/Configuration/Configurable.h"
-#include "src/System.h"    // AxisMask, MotorMask
-#include "src/Protocol.h"  // ExecAlarm
+#include "../Configuration/Configurable.h"
+#include "../System.h"    // AxisMask, MotorMask
+#include "../Protocol.h"  // ExecAlarm
 #include <queue>
 
 namespace Machine {

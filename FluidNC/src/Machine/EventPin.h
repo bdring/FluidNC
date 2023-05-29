@@ -1,8 +1,8 @@
 #pragma once
 
-#include "src/Pin.h"
-#include "src/Event.h"
-#include "src/Config.h"
+#include "../Pin.h"
+#include "../Event.h"
+#include "../Config.h"
 
 namespace Machine {
     class EventPin {
@@ -12,8 +12,6 @@ namespace Machine {
         Event* _event = nullptr;  // Subordinate event that is called conditionally
 
         pinnum_t _gpio;
-
-        static bool inactive(EventPin* pin);
 
     public:
         std::string _legend;  // The name that appears in init() messages and the name of the configuration item
@@ -31,6 +29,6 @@ namespace Machine {
 
         virtual void update(bool state) {};
 
-        ~EventPin();
+        virtual ~EventPin();
     };
 };

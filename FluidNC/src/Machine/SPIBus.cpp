@@ -5,7 +5,7 @@
 
 #include "SPIBus.h"
 #include "Driver/spi.h"
-#include "src/SettingsDefinitions.h"
+#include "../SettingsDefinitions.h"
 
 namespace Machine {
     void SPIBus::validate() {

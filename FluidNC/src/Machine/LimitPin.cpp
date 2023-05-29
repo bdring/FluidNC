@@ -1,10 +1,14 @@
-#include "src/Machine/EventPin.h"
-#include "src/Machine/Axes.h"
-#include "src/Machine/MachineConfig.h"  // config
+// Copyright (c) 2021 -  Mitch Bradley
+// Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
 
-#include "src/MotionControl.h"  // mc_reset
-#include "src/Limits.h"
-#include "src/Protocol.h"  // protocol_send_event_from_ISR()
+#include "../Machine/EventPin.h"
+#include "../Machine/Axes.h"
+#include "../Machine/MachineConfig.h"  // config
+
+#include "../MotionControl.h"  // mc_reset
+#include "../Limits.h"
+#include "../Protocol.h"  // protocol_send_event_from_ISR()
+#include "LimitPin.h"
 
 namespace Machine {
     LimitPin::LimitPin(Pin& pin, int axis, int motor, int direction, bool& pHardLimits, bool& pLimited) :
