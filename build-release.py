@@ -151,7 +151,7 @@ for mcu in ['esp32']:
             bootappsrc = os.path.join(os.path.expanduser('~'),'.platformio','packages','framework-arduinoespressif32','tools','partitions', 'boot_app0.bin')
             shutil.copy(bootappsrc, buildDir)
 
-            addImage(mcu + '-' + envName + '-' + flashsize + '-filesystem', '0xe000', 'littlefs.bin', buildDir, mcu + '/' + envName + '/' + flashsize)
+            addImage(mcu + '-' + envName + '-' + flashsize + '-filesystem', '0x3d0000', 'littlefs.bin', buildDir, mcu + '/' + envName + '/' + flashsize)
             addImage(mcu + '-' + flashsize + '-partitions', '0x8000', 'partitions.bin', buildDir, mcu + '/' + flashsize)
             addImage(mcu + '-bootloader', '0x1000', 'bootloader.bin', buildDir, mcu)
             addImage(mcu + '-bootapp', '0xe000', 'boot_app0.bin', buildDir, mcu)
