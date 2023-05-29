@@ -746,6 +746,7 @@ static Error readGPIO(const char* value, WebUI::AuthenticationLevel auth_level, 
     if (pins.find(value) == pins.end()) {
         Pin* thePin = new Pin(Pin::create(value));
         pins[value] = thePin;
+        thePin->setAttr(Pin::Attr::Input);
     }
 
     const auto v = pins[value]->read() ? "on" : "off";
@@ -758,9 +759,10 @@ static Error writeGPIOOn(const char* value, WebUI::AuthenticationLevel auth_leve
     if (pins.find(value) == pins.end()) {
         Pin* thePin = new Pin(Pin::create(value));
         pins[value] = thePin;
+        thePin->setAttr(Pin::Attr::Output);
     }
 
-    pins[value]->on();
+    pins[value]->synchronousWrite(true);
     log_info("Pin " << value << " is on");
 
     return Error::Ok;
@@ -770,9 +772,10 @@ static Error writeGPIOOff(const char* value, WebUI::AuthenticationLevel auth_lev
     if (pins.find(value) == pins.end()) {
         Pin* thePin = new Pin(Pin::create(value));
         pins[value] = thePin;
+        thePin->setAttr(Pin::Attr::Output);
     }
 
-    pins[value]->off();
+    pins[value]->synchronousWrite(0);
     log_info("Pin " << value << " is off");
 
     return Error::Ok;

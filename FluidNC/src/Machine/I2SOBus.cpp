@@ -37,7 +37,7 @@ namespace Machine {
             push();
 
             _oe.setAttr(Pin::Attr::Output);
-            _oe.on();
+            _oe.off();
         }
     }
 
