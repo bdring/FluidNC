@@ -1,30 +1,21 @@
 #pragma once
 
-// #ifndef ARDUINO_USB_CDC_ON_BOOT
-// #    define ARDUINO_USB_CDC_ON_BOOT 0
-// #endif
-// #if ARDUINO_USB_CDC_ON_BOOT  //Serial used for USB CDC
-// #    if !ARDUINO_USB_MODE
-// #        include "USB.h"
-// #        include "USBCDC.h"
-// #    endif
-// #endif
-// 
-// #if ARDUINO_USB_CDC_ON_BOOT && !ARDUINO_USB_MODE  //Serial used for USB CDC
-// extern USBCDC Serial;
-// #endif
+#ifndef ARDUINO_USB_CDC_ON_BOOT
+#    define ARDUINO_USB_CDC_ON_BOOT 0
+#endif
+#if ARDUINO_USB_CDC_ON_BOOT  //Serial used for USB CDC
 
-#include <USB.h>
-#include <USBCDC.h>
-#include <HWCDC.h>
+#    include <USB.h>
+#    include <USBCDC.h>
+#    include <HWCDC.h>
 
-#include "Channel.h"
-#include "lineedit.h"
+#    include "Channel.h"
+#    include "lineedit.h"
 
 class USBCDCChannel : public Channel {
 private:
     Lineedit* _lineedit;
-    HWCDC*     _uart;
+    HWCDC*    _uart;
 
 public:
     USBCDCChannel(bool addCR = false);
@@ -50,12 +41,13 @@ public:
     Channel* pollLine(char* line) override;
 };
 
-#ifndef ARDUINO_USB_CDC_ON_BOOT
-#    define ARDUINO_USB_CDC_ON_BOOT 0
-#endif
+#    ifndef ARDUINO_USB_CDC_ON_BOOT
+#        define ARDUINO_USB_CDC_ON_BOOT 0
+#    endif
 
-#if ARDUINO_USB_CDC_ON_BOOT  //Serial used for USB CDC
+#    if ARDUINO_USB_CDC_ON_BOOT  //Serial used for USB CDC
 extern USBCDCChannel Uart0;
 
 extern void uartInit();
+#    endif
 #endif

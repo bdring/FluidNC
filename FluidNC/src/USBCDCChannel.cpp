@@ -2,6 +2,8 @@
 // Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
 
 #include "USBCDCChannel.h"
+#if ARDUINO_USB_CDC_ON_BOOT
+
 #include "Machine/MachineConfig.h"  // config
 #include "Serial.h"                 // allChannels
 
@@ -118,4 +120,5 @@ void uartInit() {
     Serial.begin(115200);
     Uart0.init();
 }
+#endif
 #endif
