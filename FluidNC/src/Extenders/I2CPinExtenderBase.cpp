@@ -51,7 +51,7 @@ namespace Extenders {
     }
 
     void I2CPinExtenderBase::group(Configuration::HandlerBase& handler) {
-        handler.item("_i2cBusId", _i2cBusId);
+        handler.item("busId", _i2cBusId);
         handler.item("interrupt0", _isrData[0]._pin);
         handler.item("interrupt1", _isrData[1]._pin);
         handler.item("interrupt2", _isrData[2]._pin);

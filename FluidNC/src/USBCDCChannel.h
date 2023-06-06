@@ -41,13 +41,7 @@ public:
     Channel* pollLine(char* line) override;
 };
 
-#    ifndef ARDUINO_USB_CDC_ON_BOOT
-#        define ARDUINO_USB_CDC_ON_BOOT 0
-#    endif
-
-#    if ARDUINO_USB_CDC_ON_BOOT  //Serial used for USB CDC
 extern USBCDCChannel Uart0;
 
 extern void uartInit();
-#    endif
 #endif

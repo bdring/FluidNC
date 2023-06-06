@@ -57,13 +57,13 @@ namespace Extenders {
         // Address can be set for up to 4 devices. Each device supports 16 pins.
 
         static const int numberPins = 16 * 4;
-        uint64_t         _claimed;
+        uint64_t         _claimed   = 0;
 
         Machine::I2CBus* _i2cBus;
         int              _i2cBusId = 0;
 
         static uint8_t IRAM_ATTR I2CGetValue(Machine::I2CBus* bus, uint8_t address, uint8_t reg);
-        static void IRAM_ATTR    I2CSetValue(Machine::I2CBus* bus, uint8_t address, uint8_t reg, uint8_t value);
+        static void IRAM_ATTR I2CSetValue(Machine::I2CBus* bus, uint8_t address, uint8_t reg, uint8_t value);
 
         // Registers:
         // 4x16 = 64 bits. Fits perfectly into an uint64.
@@ -97,7 +97,7 @@ namespace Extenders {
             void IRAM_ATTR updateValueFromDevice();
         };
 
-        ISRData               _isrData[4];
+        ISRData     _isrData[4];
         static void IRAM_ATTR updateRegisterState(void* ptr);
 
     protected:
