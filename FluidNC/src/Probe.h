@@ -32,8 +32,7 @@ public:
 
     Probe() = default;
 
-    bool exists() const { return _probePin.defined() || _toolsetter_Pin.defined(); }  // TODO
-
+    bool exists() const { return _probePin.defined() || _toolsetter_Pin.defined(); }
     // Probe pin initialization routine.
     void init();
 
