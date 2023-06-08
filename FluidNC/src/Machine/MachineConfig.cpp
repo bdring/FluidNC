@@ -187,7 +187,8 @@ namespace Machine {
                 return false;
             }
             log_info("Configuration file:" << filename);
-            bool retval = load(new StringRange(buffer, buffer + filesize));
+            // Trimming the overall config file could influence indentation, hence false
+            bool retval = load(new StringRange(buffer, buffer + filesize, false));
             delete[] buffer;
             return retval;
         } catch (...) {

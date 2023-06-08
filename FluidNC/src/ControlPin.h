@@ -1,7 +1,6 @@
 #pragma once
 
 #include "Pin.h"
-#include <esp_attr.h>  // IRAM_ATTR
 #include "Machine/EventPin.h"
 namespace Machine {
     class ControlPin : public Machine::EventPin {

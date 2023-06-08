@@ -53,8 +53,8 @@ private:
     void parse_AP();
     void parse_BT();
 
-    float* parse_axes(std::string s);
-    void   parse_numbers(std::string s, float* nums, int maxnums);
+    void parse_axes(std::string s, float* axes);
+    void parse_numbers(std::string s, float* nums, int maxnums);
 
     void show_limits(bool probe, const bool* limits);
     void show_state();

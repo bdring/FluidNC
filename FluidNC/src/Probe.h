@@ -21,6 +21,7 @@ class Probe : public Configuration::Configurable {
 
     // Configurable
     Pin _probePin;
+    Pin _toolsetter_Pin;
 
 public:
     // Configurable
@@ -31,8 +32,7 @@ public:
 
     Probe() = default;
 
-    bool exists() const { return _probePin.defined(); }
-
+    bool exists() const { return _probePin.defined() || _toolsetter_Pin.defined(); }
     // Probe pin initialization routine.
     void init();
 
