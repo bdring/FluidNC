@@ -51,7 +51,7 @@ jobs:
       uses: JamesIves/github-pages-deploy-action@v4
       with:
         folder: release/current
-        repository-name: MitchBradley/MitchBradley.github.io
+        repository-name: bdring/fluidnc.github.io
         ssh-key: ${{ secrets.GHP_DEPLOY_KEY }}
         target-folder: releases/${{ github.event.inputs.tag }}
     # - name: Upload mac bundle
