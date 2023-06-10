@@ -50,6 +50,7 @@ jobs:
     - name: Deploy to GitHub Pages
       uses: JamesIves/github-pages-deploy-action@v4
       with:
+        branch: releases
         folder: release/current
         repository-name: bdring/fluidnc.github.io
         ssh-key: ${{ secrets.GHP_DEPLOY_KEY }}
