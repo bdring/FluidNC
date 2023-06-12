@@ -19,6 +19,8 @@
 #include "Settings.h"       // settings_execute_startup
 #include "Machine/LimitPin.h"
 
+#include "./Maslow/Maslow.h"
+
 volatile ExecAlarm rtAlarm;  // Global realtime executor bitflag variable for setting various alarms.
 
 std::map<ExecAlarm, const char*> AlarmNames = {
@@ -259,6 +261,7 @@ static void check_startup_state() {
             settings_execute_startup();  // Execute startup script.
         }
     }
+    Maslow.begin();
 }
 
 void protocol_main_loop() {
@@ -355,6 +358,10 @@ void protocol_execute_realtime() {
     protocol_exec_rt_system();
     if (sys.suspend.value) {
         protocol_exec_rt_suspend();
+    }
+
+    if(random(10000) == 1){
+        Maslow.readEncoders();
     }
 }
 
@@ -598,6 +605,7 @@ static void protocol_do_initiate_cycle() {
     }
 }
 static void protocol_initiate_homing_cycle() {
+    log_info("Homing cycle begun");
     // log_debug("protocol_initiate_homing_cycle " << state_name());
     sys.step_control                  = {};    // Restore step control to normal operation
     sys.suspend.value                 = 0;     // Break suspend state.

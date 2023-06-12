@@ -1,4 +1,5 @@
 #include "MotorUnit.h"
+#include "../Report.h"
 
 #define TCAADDR 0x70
 
@@ -28,6 +29,8 @@ void MotorUnit::readEncoder(){
 
     if(encoder.isConnected()){
         Serial.println(" is connected");
+        log_info("Connected");
+        log_info(_encoderAddress);
     } else {
         Serial.println(" is not connected");
     }
