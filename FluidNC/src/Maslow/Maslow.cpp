@@ -1,6 +1,9 @@
 #include "Maslow.h"
+#include "../Report.h"
 
 void Maslow_::begin() {
+  initialized = 1;
+
   Serial.begin(115200);
 
   motorUnit1.begin(0);
@@ -15,6 +18,11 @@ void Maslow_::readEncoders() {
   motorUnit2.readEncoder();
   motorUnit3.readEncoder();
   motorUnit4.readEncoder();
+}
+
+void Maslow_::home(int axis){
+  log_info("Maslow home ran");
+  log_info(initialized);
 }
 
 Maslow_ &Maslow_::getInstance() {

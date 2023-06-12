@@ -15,10 +15,12 @@ class Maslow_ {
   public:
     void begin();
     void readEncoders();
+    void home(int axis);
     MotorUnit motorUnit1;
     MotorUnit motorUnit2;
     MotorUnit motorUnit3;
     MotorUnit motorUnit4;
+    int initialized = 0;
 };
 
 extern Maslow_ &Maslow;
