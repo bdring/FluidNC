@@ -3,7 +3,12 @@
 
 #define TCAADDR 0x70
 
-void MotorUnit::begin(int encoderAddress){
+void MotorUnit::begin(int forwardPin,
+               int backwardPin,
+               int readbackPin,
+               int encoderAddress,
+               int channel1,
+               int channel2){
     Serial.println("Beginning motor unit");
 
     _encoderAddress = encoderAddress;
@@ -34,4 +39,9 @@ void MotorUnit::readEncoder(){
     } else {
         Serial.println(" is not connected");
     }
+}
+
+void MotorUnit::zero(){
+    tcaselect(_encoderAddress);
+    encoder.resetCumulativePosition();
 }
