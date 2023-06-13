@@ -2,6 +2,7 @@
 #include <Arduino.h>
 #include "MotorUnit.h"
 #include "calibration.h"
+#include "../System.h"         // sys.*
 
 class Maslow_ {
   private:
@@ -74,6 +75,9 @@ class Maslow_ {
 
     float _beltEndExtension;
     float _armLength;
+
+    //Used to keep track of how often the PID controller is updated
+    unsigned long lastCallToPID = millis();
 };
 
 extern Maslow_ &Maslow;

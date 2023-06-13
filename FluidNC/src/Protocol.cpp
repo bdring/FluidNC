@@ -360,7 +360,7 @@ void protocol_execute_realtime() {
         protocol_exec_rt_suspend();
     }
 
-    if(random(100000) == 1){
+    if(random(10000) == 1){
         Maslow.readEncoders();
     }
 

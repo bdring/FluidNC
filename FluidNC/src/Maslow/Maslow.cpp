@@ -116,23 +116,23 @@ void Maslow_::recomputePID(){
         return;
     }
 
-    // //Stop everything but keep track of the encoder positions if we are idle or alarm. Unless doing calibration.
-    // if((sys.state == State::Idle || sys.state == State::Alarm) && !calibrationInProgress){
-    //     axisBL.stop();
-    //     axisBL.updateEncoderPosition();
-    //     axisBR.stop();
-    //     axisBR.updateEncoderPosition();
-    //     axisTR.stop();
-    //     axisTR.updateEncoderPosition();
-    //     axisTL.stop();
-    //     axisTL.updateEncoderPosition();
-    // }
-    // else{  //Position the axis
-    //     axisBL.recomputePID();
-    //     axisBR.recomputePID();
-    //     axisTR.recomputePID();
-    //     axisTL.recomputePID();
-    // }
+    //Stop everything but keep track of the encoder positions if we are idle or alarm. Unless doing calibration.
+    if((sys.state == State::Idle || sys.state == State::Alarm) && !calibrationInProgress){
+        axisBL.stop();
+        axisBL.updateEncoderPosition();
+        axisBR.stop();
+        axisBR.updateEncoderPosition();
+        axisTR.stop();
+        axisTR.updateEncoderPosition();
+        axisTL.stop();
+        axisTL.updateEncoderPosition();
+    }
+    else{  //Position the axis
+        axisBL.recomputePID();
+        axisBR.recomputePID();
+        axisTR.recomputePID();
+        axisTL.recomputePID();
+    }
 
     // int tlAngle = axisTL.readAngle();
     // if(tlAngle == 0 || tlAngle == 16383){
@@ -180,11 +180,12 @@ void Maslow_::recomputePID(){
     //     //log_info( "Encoder connection issue on BR\n");
     // }
 
-    // int timeSinceLastCall = millis() - lastCallToPID;
-    // lastCallToPID = millis();
-    // if(timeSinceLastCall > 50){
-    //     //log_info( "PID not being called often enough. Time since last call: %i\n", timeSinceLastCall);
-    // }
+    int timeSinceLastCall = millis() - lastCallToPID;
+    lastCallToPID = millis();
+    if(timeSinceLastCall > 50){
+        log_info( "PID not being called often enough. Time since last call:");
+        log_info(timeSinceLastCall);
+    }
 
     // if(random(250) == 0){
     //     grbl_sendf( "Angles: TL %i, TR: %i, BL: %i, BR: %i\n", axisTL.readAngle(), axisTR.readAngle(), axisBL.readAngle(), axisBR.readAngle());
