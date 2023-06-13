@@ -1,6 +1,7 @@
 #pragma once
 #include <Arduino.h>
 #include "MotorUnit.h"
+#include "calibration.h"
 
 class Maslow_ {
   private:
@@ -17,6 +18,29 @@ class Maslow_ {
     void readEncoders();
     void home(int axis);
     void updateCenterXY();
+    void recomputePID();
+    void computeTensions(float x, float y);
+    float computeBL(float x, float y, float z);
+    float computeBR(float x, float y, float z);
+    float computeTR(float x, float y, float z);
+    float computeTL(float x, float y, float z);
+    void setTargets(float xTarget, float yTarget, float zTarget);
+    void runCalibration();
+    void printMeasurements(float lengths[]);
+    void lowerBeltsGoSlack();
+    float printMeasurementMetrics(double avg, double m1, double m2, double m3, double m4, double m5);
+    void takeMeasurementAvgWithCheck(float lengths[]);
+    float takeMeasurementAvg(float avgLengths[]);
+    void takeMeasurement(float lengths[]);
+    void moveWithSlack(float x, float y);
+    void takeUpInternalSlack();
+    float computeVertical(float firstUpper, float firstLower, float secondUpper, float secondLower);
+    void computeFrameDimensions(float lengthsSet1[], float lengthsSet2[], float machineDimensions[]);
+
+
+
+
+
     MotorUnit axisTL;
     MotorUnit axisTR;
     MotorUnit axisBL;
