@@ -20,7 +20,7 @@ namespace MotorDrivers {
             _r_sense = TMC2208_RSENSE_DEFAULT;
         }
 
-        tmc2208 = new TMC2209Stepper(_uart, _r_sense, _addr);
+        tmc2208 = new TMC2208Stepper(_uart, _r_sense);
 
         registration();
     }

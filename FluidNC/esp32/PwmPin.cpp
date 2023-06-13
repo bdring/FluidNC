@@ -10,8 +10,8 @@
 
 #include <soc/ledc_struct.h>  // LEDC
 
-#include "soc/soc_caps.h"
-#include "driver/ledc.h"
+#include <soc/soc_caps.h>
+#include <driver/ledc.h>
 
 //Use XTAL clock if possible to avoid timer frequency error when setting APB clock < 80 Mhz
 //Need to be fixed in ESP-IDF
@@ -22,13 +22,13 @@
 #endif
 
 #if CONFIG_IDF_TARGET_ESP32  // ESP32/PICO-D4
-#    include "esp32/rom/gpio.h"
+#    include <esp32/rom/gpio.h>
 #elif CONFIG_IDF_TARGET_ESP32S2
-#    include "esp32s2/rom/gpio.h"
+#    include <esp32s2/rom/gpio.h>
 #elif CONFIG_IDF_TARGET_ESP32S3
-#    include "esp32s3/rom/gpio.h"
+#    include <esp32s3/rom/gpio.h>
 #elif CONFIG_IDF_TARGET_ESP32C3
-#    include "esp32c3/rom/gpio.h"
+#    include <esp32c3/rom/gpio.h>
 #else
 #    error Target CONFIG_IDF_TARGET is not supported
 #endif
@@ -58,10 +58,13 @@ static uint8_t calc_pwm_precision(uint32_t frequency) {
     }
 
     // Increase the precision (bits) until it exceeds the frequency
-    // The hardware maximum precision is 20 bits
-    const uint8_t  ledcMaxBits = 20;
-    const uint32_t apbFreq     = 80000000;
-    const uint32_t maxCount    = apbFreq / frequency;
+    // The hardware maximum precision is 20 bits... or 14... depending on the target really.
+    const uint8_t ledcMaxBits = LEDC_TIMER_BIT_MAX - 1;
+
+    log_info("Set ledc max bits to " << ledcMaxBits);
+
+    const uint32_t apbFreq  = LEDC_DEFAULT_CLK;
+    const uint32_t maxCount = apbFreq / frequency;
     for (uint8_t bits = 2; bits <= ledcMaxBits; ++bits) {
         if ((1u << bits) > maxCount) {
             return bits - 1;
@@ -78,15 +81,23 @@ PwmPin::PwmPin(Pin& pin, uint32_t frequency) : _frequency(frequency) {
     uint8_t      group = (_channel / 8);
     ledc_timer_t timer = ledc_timer_t((_channel / 2) % 4);
 
-    ledc_timer_config_t ledc_timer = { .speed_mode      = ledc_mode_t(group),
+    // Only ESP32 has LEDC_HIGH_SPEED_MODE
+#ifdef SOC_LEDC_SUPPORT_HS_MODE
+    int speedmode = int(group);
+#else
+    int speedmode = LEDC_LOW_SPEED_MODE;
+#endif
+
+    ledc_timer_config_t ledc_timer = { .speed_mode      = ledc_mode_t(speedmode),
                                        .duty_resolution = ledc_timer_bit_t(bits),
                                        .timer_num       = timer,
                                        .freq_hz         = frequency,
-                                       .clk_cfg         = LEDC_DEFAULT_CLK };
+                                       .clk_cfg         = LEDC_DEFAULT_CLK,
+                                       /* .deconfigure     = false  */ };
 
     if (ledc_timer_config(&ledc_timer) != ESP_OK) {
-        log_error("ledc timer setup failed");
-        throw -1;
+        log_error("ledc timer setup failed. Frequency: " << frequency << " hz; duty resolution: " << bits);
+        throw - 1;
     }
 
     _gpio = pin.getNative(Pin::Capabilities::PWM);
@@ -94,16 +105,18 @@ PwmPin::PwmPin(Pin& pin, uint32_t frequency) : _frequency(frequency) {
     bool isActiveLow = pin.getAttr().has(Pin::Attr::ActiveLow);
 
     ledc_channel_config_t ledc_channel = { .gpio_num   = _gpio,
-                                           .speed_mode = ledc_mode_t(group),
+                                           .speed_mode = ledc_mode_t(speedmode),
                                            .channel    = ledc_channel_t(_channel),
                                            .intr_type  = LEDC_INTR_DISABLE,
                                            .timer_sel  = timer,
                                            .duty       = 0,
                                            .hpoint     = 0,
                                            .flags      = { .output_invert = isActiveLow } };
+
     if (ledc_channel_config(&ledc_channel) != ESP_OK) {
-        log_error("ledc channel setup failed");
-        throw -1;
+        log_error("ledc channel setup failed. Frequency: " << frequency << " hz; duty resolution: " << bits
+                                                           << "; channel: " << int(_channel));
+        throw - 1;
     }
 }
 
