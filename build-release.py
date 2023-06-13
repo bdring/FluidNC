@@ -24,7 +24,7 @@ def buildEnv(pioEnv, verbose=True, extraArgs=None):
     if verbose:
         app = subprocess.Popen(cmd, env=environ)
     else:
-        app = subprocess.Popen(cmd, env=environ, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, bufsize=1)
+        app = subprocess.Popen(cmd, env=environ, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
         for line in app.stdout:
             line = line.decode('utf8')
             if "Took" in line or 'Uploading' in line or ("error" in line.lower() and "Compiling" not in line):
@@ -41,7 +41,7 @@ def buildFs(pioEnv, verbose=verbose, extraArgs=None):
     if verbose:
         app = subprocess.Popen(cmd, env=environ)
     else:
-        app = subprocess.Popen(cmd, env=environ, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, bufsize=1)
+        app = subprocess.Popen(cmd, env=environ, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
         for line in app.stdout:
             line = line.decode('utf8')
             if "Took" in line or 'Uploading' in line or ("error" in line.lower() and "Compiling" not in line):
