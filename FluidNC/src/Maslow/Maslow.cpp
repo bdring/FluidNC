@@ -147,6 +147,18 @@ void Maslow_::recomputePID(){
         return;
     }
 
+    int timeSinceLastCall = millis() - lastCallToPID;
+    lastCallToPID = millis();
+    if(timeSinceLastCall > 50){
+        log_info( "PID not being called often enough. Time since last call:");
+        log_info(timeSinceLastCall);
+    }
+
+    //We want to update the encoders at most ever 10ms to avoid it hogging the processor time
+    if(timeSinceLastCall < 10){
+      return;
+    }
+
     //Stop everything but keep track of the encoder positions if we are idle or alarm. Unless doing calibration.
     if((sys.state == State::Idle || sys.state == State::Alarm) && !calibrationInProgress){
         axisBL.stop();
@@ -210,13 +222,6 @@ void Maslow_::recomputePID(){
     // if(brEncoderErrorCount > 10 && brEncoderErrorCount < 100){
     //     //log_info( "Encoder connection issue on BR\n");
     // }
-
-    int timeSinceLastCall = millis() - lastCallToPID;
-    lastCallToPID = millis();
-    if(timeSinceLastCall > 50){
-        log_info( "PID not being called often enough. Time since last call:");
-        log_info(timeSinceLastCall);
-    }
 
     // if(random(250) == 0){
     //     grbl_sendf( "Angles: TL %i, TR: %i, BL: %i, BR: %i\n", axisTL.readAngle(), axisTR.readAngle(), axisBL.readAngle(), axisBR.readAngle());
