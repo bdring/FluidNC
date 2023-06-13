@@ -1,6 +1,11 @@
 #include "MotorUnit.h"
 #include "../Report.h"
 
+
+#define P 1600
+#define I 10
+#define D 0
+
 #define TCAADDR 0x70
 
 void tcaselect(uint8_t i) {
@@ -28,8 +33,8 @@ void MotorUnit::begin(int forwardPin,
 
     motor.begin(forwardPin, backwardPin, readbackPin, channel1, channel2);
 
-    positionPID.reset(new MiniPID(p,i,d));
-    positionPID->setOutputLimits(-1023,1023);
+    positionPID.setPID(P,I,D);
+    positionPID.setOutputLimits(-1023,1023);
 
     
 }
@@ -159,7 +164,7 @@ double MotorUnit::recomputePID(){
         _stallCount = 0;
     }
     
-    double commandPWM = positionPID->getOutput(getPosition(),setpoint);
+    double commandPWM = positionPID.getOutput(getPosition(),setpoint);
 
     int currentMeasurement = motor.readCurrent();
 

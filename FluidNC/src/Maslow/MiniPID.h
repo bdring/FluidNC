@@ -3,6 +3,7 @@
 
 class MiniPID{
 public:
+	MiniPID();
 	MiniPID(double, double, double);
 	MiniPID(double, double, double, double);
 	void setP(double);

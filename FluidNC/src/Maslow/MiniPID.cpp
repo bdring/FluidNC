@@ -14,6 +14,9 @@
 //**********************************
 //Constructor functions
 //**********************************
+MiniPID::MiniPID(){
+	init();
+}
 MiniPID::MiniPID(double p, double i, double d){
 	init();
 	P=p; I=i; D=d;
