@@ -94,9 +94,40 @@ void Maslow_::readEncoders() {
   axisBR.readEncoder();
 }
 
-void Maslow_::home(int axis){
+void Maslow_::home(int axis) {
   log_info("Maslow home ran");
   log_info(initialized);
+
+  switch(axis) {
+    case 0:
+      log_info("Bottom left");
+      axisBLHomed = axisBL.retract(computeBL(-200, 300, 0));
+      break;
+    case 1:
+      log_info("Top left");
+      axisTLHomed = axisTL.retract(computeTL(-200, 200, 0));
+      break;
+    case 2:
+      log_info("Top right");
+      axisTRHomed = axisTR.retract(computeTR(-200, 200, 0));
+      break;
+    case 4:
+      log_info("Bottom right");
+      if(axisBLHomed && axisBRHomed && axisTRHomed && axisTLHomed) {
+        runCalibration();
+      }
+      else {
+        axisBRHomed = axisBR.retract(computeBR(-200, 300, 0));
+      }
+      break;
+    default:
+      log_info("Unrecognized axis");
+      break;
+  }
+
+  if(axisBLHomed && axisBRHomed && axisTRHomed && axisTLHomed) {
+    log_info("All axis ready.\n");
+  }
 }
 
 //Updates where the center x and y positions are
@@ -477,7 +508,7 @@ void Maslow_::lowerBeltsGoSlack(){
     //grbl_sendf( "Going slack completed\n");
 }
 
-float printMeasurementMetrics(double avg, double m1, double m2, double m3, double m4, double m5){
+float Maslow_::printMeasurementMetrics(double avg, double m1, double m2, double m3, double m4, double m5){
     
     //grbl_sendf( "Avg: %f m1: %f, m2: %f, m3: %f, m4: %f, m5: %f\n", avg, m1, m2, m3, m4, m5);
     
