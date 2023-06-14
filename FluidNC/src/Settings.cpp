@@ -16,13 +16,13 @@ bool anyState() {
     return false;
 }
 bool notIdleOrJog() {
-    return sys.state != State::Idle && sys.state != State::Jog;
+    return sys.state() != State::Idle && sys.state() != State::Jog;
 }
 bool notIdleOrAlarm() {
-    return sys.state != State::Idle && sys.state != State::Alarm && sys.state != State::ConfigAlarm;
+    return sys.state() != State::Idle && sys.state() != State::Alarm && sys.state() != State::ConfigAlarm;
 }
 bool cycleOrHold() {
-    return sys.state == State::Cycle || sys.state == State::Hold;
+    return sys.state() == State::Cycle || sys.state() == State::Hold;
 }
 
 Word::Word(type_t type, permissions_t permissions, const char* description, const char* grblName, const char* fullName) :

@@ -20,13 +20,13 @@ int32_t  probe_steps[MAX_N_AXIS];  // Last probe position in steps.
 
 void system_reset() {
     // Reset system variables.
-    State prior_state = sys.state;
-    memset(&sys, 0, sizeof(system_t));  // Clear system struct variable.
-    sys.state             = prior_state;
-    sys.f_override        = FeedOverride::Default;          // Set to 100%
-    sys.r_override        = RapidOverride::Default;         // Set to 100%
-    sys.spindle_speed_ovr = SpindleSpeedOverride::Default;  // Set to 100%
-    memset(probe_steps, 0, sizeof(probe_steps));            // Clear probe position.
+    State prior_state = sys.state();
+    sys.reset();  // Clear system struct variable.
+    sys.set_state(prior_state);
+    sys.set_f_override(FeedOverride::Default);                 // Set to 100%
+    sys.set_r_override(RapidOverride::Default);                // Set to 100%
+    sys.set_spindle_speed_ovr(SpindleSpeedOverride::Default);  // Set to 100%
+    memset(probe_steps, 0, sizeof(probe_steps));               // Clear probe position.
     report_ovr_counter = 0;
     report_wco_counter = 0;
 }
@@ -118,5 +118,5 @@ std::map<State, const char*> StateName = {
 };
 
 bool inMotionState() {
-    return sys.state == State::Cycle || sys.state == State::Homing || sys.state == State::Jog;
+    return sys.state() == State::Cycle || sys.state() == State::Homing || sys.state() == State::Jog;
 }

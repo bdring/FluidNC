@@ -107,8 +107,8 @@ namespace Spindles {
         if (_speeds.size() == 0) {
             return 0;
         }
-        speed             = speed * sys.spindle_speed_ovr / 100;
-        sys.spindle_speed = speed;
+        speed = speed * sys.spindle_speed_ovr() / 100;
+        sys.set_spindle_speed(speed);
         if (speed < _speeds[0].speed) {
             return _speeds[0].offset;
         }

@@ -22,8 +22,8 @@ namespace Spindles {
     }
     void IRAM_ATTR Null::setSpeedfromISR(uint32_t dev_speed) {};
     void           Null::setState(SpindleState state, SpindleSpeed speed) {
-        _current_state    = state;
-        sys.spindle_speed = speed;
+        _current_state = state;
+        sys.set_spindle_speed(speed);
     }
     void Null::config_message() { /*log_info("No spindle");*/
     }

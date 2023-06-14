@@ -68,6 +68,7 @@ namespace Machine {
         handler.section("oled", _oled);
 
         Spindles::SpindleFactory::factory(handler, _spindles);
+        Listeners::SysListenerFactory::factory(handler, _sysListeners);
 
         // TODO: Consider putting these under a gcode: hierarchy level? Or motion control?
         handler.item("arc_tolerance_mm", _arcTolerance, 0.001, 1.0);
@@ -234,25 +235,25 @@ namespace Machine {
 
             // log_info("Heap size after configuation load is " << uint32_t(xPortGetFreeHeapSize()));
 
-            successful = (sys.state != State::ConfigAlarm);
+            successful = (sys.state() != State::ConfigAlarm);
 
             if (!successful) {
                 log_error("Configuration is invalid");
             }
 
         } catch (const Configuration::ParseException& ex) {
-            sys.state = State::ConfigAlarm;
+            sys.set_state(State::ConfigAlarm);
             log_error("Configuration parse error on line " << ex.LineNumber() << ": " << ex.What());
         } catch (const AssertionFailed& ex) {
-            sys.state = State::ConfigAlarm;
+            sys.set_state(State::ConfigAlarm);
             // Get rid of buffer and return
             log_error("Configuration loading failed: " << ex.what());
         } catch (std::exception& ex) {
-            sys.state = State::ConfigAlarm;
+            sys.set_state(State::ConfigAlarm);
             // Log exception:
             log_error("Configuration validation error: " << ex.what());
         } catch (...) {
-            sys.state = State::ConfigAlarm;
+            sys.set_state(State::ConfigAlarm);
             // Get rid of buffer and return
             log_error("Unknown error while processing config file");
         }

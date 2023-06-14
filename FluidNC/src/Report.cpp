@@ -367,7 +367,7 @@ void report_gcode_modes(Channel& channel) {
         }
     }
 
-    if (config->_enableParkingOverrideControl && sys.override_ctrl == Override::ParkingMotion) {
+    if (config->_enableParkingOverrideControl && sys.override_ctrl() == Override::ParkingMotion) {
         msg << " M56";
     }
 
@@ -456,14 +456,14 @@ void mpos_to_wpos(float* position) {
 }
 
 const char* state_name() {
-    switch (sys.state) {
+    switch (sys.state()) {
         case State::Idle:
             return "Idle";
         case State::Cycle:
             return "Run";
         case State::Hold:
-            if (!(sys.suspend.bit.jogCancel)) {
-                return sys.suspend.bit.holdComplete ? "Hold:0" : "Hold:1";
+            if (!(sys.suspend().bit.jogCancel)) {
+                return sys.suspend().bit.holdComplete ? "Hold:0" : "Hold:1";
             }  // Continues to print jog state during jog cancel.
         case State::Jog:
             return "Jog";
@@ -475,11 +475,11 @@ const char* state_name() {
         case State::CheckMode:
             return "Check";
         case State::SafetyDoor:
-            if (sys.suspend.bit.initiateRestore) {
+            if (sys.suspend().bit.initiateRestore) {
                 return "Door:3";  // Restoring
             }
-            if (sys.suspend.bit.retractComplete) {
-                return sys.suspend.bit.safetyDoorAjar ? "Door:1" : "Door:0";
+            if (sys.suspend().bit.retractComplete) {
+                return sys.suspend().bit.safetyDoorAjar ? "Door:1" : "Door:0";
                 // Door:0 means door closed and ready to resume
             }
             return "Door:2";  // Retracting
@@ -570,14 +570,14 @@ void report_realtime_status(Channel& channel) {
     if (config->_reportInches) {
         rate /= MM_PER_INCH;
     }
-    msg << "|FS:" << setprecision(0) << rate << "," << sys.spindle_speed;
+    msg << "|FS:" << setprecision(0) << rate << "," << sys.spindle_speed();
 
     msg << pinString();
 
     if (report_wco_counter > 0) {
         report_wco_counter--;
     } else {
-        switch (sys.state) {
+        switch (sys.state()) {
             case State::Homing:
             case State::Cycle:
             case State::Hold:
@@ -597,7 +597,7 @@ void report_realtime_status(Channel& channel) {
     if (report_ovr_counter > 0) {
         report_ovr_counter--;
     } else {
-        switch (sys.state) {
+        switch (sys.state()) {
             case State::Homing:
             case State::Cycle:
             case State::Hold:
@@ -609,7 +609,7 @@ void report_realtime_status(Channel& channel) {
                 break;
         }
 
-        msg << "|Ov:" << int(sys.f_override) << "," << int(sys.r_override) << "," << int(sys.spindle_speed_ovr);
+        msg << "|Ov:" << int(sys.f_override()) << "," << int(sys.r_override()) << "," << int(sys.spindle_speed_ovr());
         SpindleState sp_state      = spindle->get_state();
         CoolantState coolant_state = config->_coolant->get_state();
         if (sp_state != SpindleState::Disable || coolant_state.Mist || coolant_state.Flood) {

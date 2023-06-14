@@ -272,7 +272,7 @@ struct parser_state_t {
 
     float    spindle_speed;  // RPM
     float    feed_rate;      // Millimeters/min
-    uint32_t tool;           // Tracks tool number. NOT USED.
+    uint32_t tool;           // Tracks tool number.
     int32_t  line_number;    // Last line number sent
 
     float position[MAX_N_AXIS];  // Where the interpreter considers the tool to be at this point in the code

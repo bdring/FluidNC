@@ -86,20 +86,20 @@ void Channel::autoReportGCodeState() {
     }
 }
 static bool motionState() {
-    return sys.state == State::Cycle || sys.state == State::Homing || sys.state == State::Jog;
+    return sys.state() == State::Cycle || sys.state() == State::Homing || sys.state() == State::Jog;
 }
 
 void Channel::autoReport() {
     if (_reportInterval) {
         auto limitState = limits_get_state();
         auto probeState = config->_probe->get_state();
-        if (_reportWco || sys.state != _lastState || limitState != _lastLimits || probeState != _lastProbe ||
+        if (_reportWco || sys.state() != _lastState || limitState != _lastLimits || probeState != _lastProbe ||
             (motionState() && (int32_t(xTaskGetTickCount()) - _nextReportTime) >= 0)) {
             if (_reportWco) {
                 report_wco_counter = 0;
             }
             _reportWco  = false;
-            _lastState  = sys.state;
+            _lastState  = sys.state();
             _lastLimits = limitState;
             _lastProbe  = probeState;
 

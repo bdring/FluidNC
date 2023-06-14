@@ -8,7 +8,7 @@
 #include "../Logging.h"
 
 void MacroEvent::run(void* arg) {
-    if (sys.state != State::Idle) {
+    if (sys.state() != State::Idle) {
         log_error("Macro can only be used in idle state");
         return;
     }

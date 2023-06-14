@@ -106,11 +106,11 @@ bool delay_msec(uint32_t milliseconds, DwellMode mode) {
         } else {  // DwellMode::SysSuspend
             // Execute rt_system() only to avoid nesting suspend loops.
             protocol_exec_rt_system();
-            if (sys.suspend.bit.restartRetract) {
+            if (sys.suspend().bit.restartRetract) {
                 return false;  // Bail, if safety door reopens.
             }
         }
-        if (sys.abort) {
+        if (sys.abort()) {
             return false;
         }
         vTaskDelay(1 / portTICK_PERIOD_MS);

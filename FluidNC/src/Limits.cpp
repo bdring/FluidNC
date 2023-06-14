@@ -132,14 +132,14 @@ void limits_soft_check(float* cartesian) {
         // Force feed hold if cycle is active. All buffered blocks are guaranteed to be within
         // workspace volume so just come to a controlled stop so position is not lost. When complete
         // enter alarm mode.
-        if (sys.state == State::Cycle) {
+        if (sys.state() == State::Cycle) {
             protocol_send_event(&feedHoldEvent);
             do {
                 protocol_execute_realtime();
-                if (sys.abort) {
+                if (sys.abort()) {
                     return;
                 }
-            } while (sys.state != State::Idle);
+            } while (sys.state() != State::Idle);
         }
         log_debug("Soft limits");
         mc_reset();                      // Issue system reset and ensure spindle and coolant are shutdown.

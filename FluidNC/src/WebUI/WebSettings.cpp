@@ -13,7 +13,7 @@
 #include "../Settings.h"
 #include "../Machine/MachineConfig.h"
 #include "../Configuration/JsonGenerator.h"
-#include "../Uart.h"  // Uart0.baud
+#include "../Uart.h"       // Uart0.baud
 #include "../Report.h"     // git_info
 #include "../InputFile.h"  // InputFile
 
@@ -323,11 +323,11 @@ namespace WebUI {
 
     static Error runFile(const char* fs, char* parameter, AuthenticationLevel auth_level, Channel& out) {
         Error err;
-        if (sys.state == State::Alarm || sys.state == State::ConfigAlarm) {
+        if (sys.state() == State::Alarm || sys.state() == State::ConfigAlarm) {
             log_to(out, "Alarm");
             return Error::IdleError;
         }
-        if (sys.state != State::Idle) {
+        if (sys.state() != State::Idle) {
             log_to(out, "Busy");
             return Error::IdleError;
         }

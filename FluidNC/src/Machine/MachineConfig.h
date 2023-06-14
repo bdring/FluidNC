@@ -23,6 +23,7 @@
 #include "../OLED.h"
 #include "../UartChannel.h"
 #include "../Uart.h"
+#include "../Listeners/SysListener.h"
 #include "Axes.h"
 #include "SPIBus.h"
 #include "I2CBus.h"
@@ -60,23 +61,24 @@ namespace Machine {
     public:
         MachineConfig() = default;
 
-        Axes*                 _axes           = nullptr;
-        Kinematics*           _kinematics     = nullptr;
-        SPIBus*               _spi            = nullptr;
-        I2CBus*               _i2c[MAX_N_I2C] = { nullptr };
-        I2SOBus*              _i2so           = nullptr;
-        Stepping*             _stepping       = nullptr;
-        CoolantControl*       _coolant        = nullptr;
-        Probe*                _probe          = nullptr;
-        Control*              _control        = nullptr;
-        UserOutputs*          _userOutputs    = nullptr;
-        SDCard*               _sdCard         = nullptr;
-        Macros*               _macros         = nullptr;
-        Start*                _start          = nullptr;
-        Parking*              _parking        = nullptr;
-        OLED*                 _oled           = nullptr;
-        Spindles::SpindleList _spindles;
-        Extenders::Extenders* _extenders = nullptr;
+        Axes*                      _axes           = nullptr;
+        Kinematics*                _kinematics     = nullptr;
+        SPIBus*                    _spi            = nullptr;
+        I2CBus*                    _i2c[MAX_N_I2C] = { nullptr };
+        I2SOBus*                   _i2so           = nullptr;
+        Stepping*                  _stepping       = nullptr;
+        CoolantControl*            _coolant        = nullptr;
+        Probe*                     _probe          = nullptr;
+        Control*                   _control        = nullptr;
+        UserOutputs*               _userOutputs    = nullptr;
+        SDCard*                    _sdCard         = nullptr;
+        Macros*                    _macros         = nullptr;
+        Start*                     _start          = nullptr;
+        Parking*                   _parking        = nullptr;
+        OLED*                      _oled           = nullptr;
+        Listeners::SysListenerList _sysListeners;
+        Spindles::SpindleList      _spindles;
+        Extenders::Extenders*      _extenders = nullptr;
 
         UartChannel* _uart_channels[MAX_N_UARTS] = { nullptr };
         Uart*        _uarts[MAX_N_UARTS]         = { nullptr };

@@ -19,7 +19,6 @@
 #    include "MotionControl.h"
 #    include "Platform.h"
 #    include "StartupLog.h"
-#    include "StatusLed.h"
 
 #    include "WebUI/TelnetServer.h"
 #    include "WebUI/InputBuffer.h"
@@ -38,8 +37,6 @@ void setup() {
     disableCore0WDT();
     try {
         // uartInit();       // Setup serial port
-
-        statusLed.init();
 
         timing_init();
 
@@ -109,6 +106,10 @@ void setup() {
                 config->_extenders->init();
             }
 
+            for (auto s : config->_sysListeners) {
+                s->init();
+            }
+
             if (config->_oled) {
                 config->_oled->init();
             }
@@ -127,12 +128,12 @@ void setup() {
         }
 
         // Initialize system state.
-        if (sys.state != State::ConfigAlarm) {
+        if (sys.state() != State::ConfigAlarm) {
             if (FORCE_INITIALIZATION_ALARM) {
                 // Force ALARM state upon a power-cycle or hard reset.
-                sys.state = State::Alarm;
+                sys.set_state(State::Alarm);
             } else {
-                sys.state = State::Idle;
+                sys.set_state(State::Idle);
             }
 
             limits_init();
@@ -146,7 +147,7 @@ void setup() {
             // things uncontrollably. Very bad.
             if (config->_start->_mustHome && Machine::Axes::homingMask) {
                 // If there is an axis with homing configured, enter Alarm state on startup
-                sys.state = State::Alarm;
+                sys.set_state(State::Alarm);
             }
             for (auto s : config->_spindles) {
                 s->init();
@@ -160,7 +161,7 @@ void setup() {
     } catch (const AssertionFailed& ex) {
         // This means something is terribly broken:
         log_error("Critical error in main_init: " << ex.what());
-        sys.state = State::ConfigAlarm;
+        sys.set_state(State::ConfigAlarm);
     }
 
     if (!WebUI::wifi_config.begin()) {
@@ -170,6 +171,12 @@ void setup() {
 }
 
 static void reset_variables() {
+    if (config) {
+        for (auto it : config->_sysListeners) {
+            it->beforeVariableReset();
+        }
+    }
+
     // Reset primary systems.
     system_reset();
     protocol_reset();
@@ -181,7 +188,7 @@ static void reset_variables() {
 
     plan_reset();  // Clear block buffer and planner variables
 
-    if (sys.state != State::ConfigAlarm) {
+    if (sys.state() != State::ConfigAlarm) {
         if (spindle) {
             spindle->stop();
             report_ovr_counter = 0;  // Set to report change immediately
@@ -195,6 +202,12 @@ static void reset_variables() {
     allChannels.flushRx();
     report_init_message(allChannels);
     mc_init();
+
+    if (config) {
+        for (auto it : config->_sysListeners) {
+            it->afterVariableReset();
+        }
+    }
 }
 
 void loop() {
@@ -220,10 +233,10 @@ void loop() {
         // to avoid memory leaks. It is probably worth doing eventually.
         log_error("Critical error in run_once: " << ex.msg);
         log_error("Stacktrace: " << ex.stackTrace);
-        sys.state = State::ConfigAlarm;
+        sys.set_state(State::ConfigAlarm);
     }
     // sys.abort is a user-initiated exit via ^x so we don't limit the number of occurrences
-    if (!sys.abort && ++tries > 1) {
+    if (!sys.abort() && ++tries > 1) {
         log_info("Stalling due to too many failures");
         while (1) {}
     }

@@ -1412,7 +1412,7 @@ Error gc_execute_line(char* line) {
     if ((gc_state.spindle_speed != gc_block.values.s) || syncLaser) {
         if (gc_state.modal.spindle != SpindleState::Disable) {
             if (!laserIsMotion) {
-                if (sys.state != State::CheckMode) {
+                if (sys.state() != State::CheckMode) {
                     protocol_buffer_synchronize();
                     spindle->setState(gc_state.modal.spindle, disableLaser ? 0 : (uint32_t)gc_block.values.s);
                     report_ovr_counter = 0;  // Set to report change immediately
@@ -1436,7 +1436,7 @@ Error gc_execute_line(char* line) {
         // Update spindle control and apply spindle speed when enabling it in this block.
         // NOTE: All spindle state changes are synced, even in laser mode. Also, pl_data,
         // rather than gc_state, is used to manage laser state for non-laser motions.
-        if (sys.state != State::CheckMode) {
+        if (sys.state() != State::CheckMode) {
             protocol_buffer_synchronize();
             spindle->setState(gc_block.modal.spindle, (uint32_t)pl_data->spindle_speed);
         }
@@ -1464,7 +1464,7 @@ Error gc_execute_line(char* line) {
                 gc_state.modal.coolant = {};
                 break;
         }
-        if (sys.state != State::CheckMode) {
+        if (sys.state() != State::CheckMode) {
             protocol_buffer_synchronize();
             config->_coolant->set_state(gc_state.modal.coolant);
             report_ovr_counter = 0;  // Set to report change immediately
@@ -1644,7 +1644,7 @@ Error gc_execute_line(char* line) {
             break;
         case ProgramFlow::Paused:
             protocol_buffer_synchronize();  // Sync and finish all remaining buffered motions before moving on.
-            if (sys.state != State::CheckMode) {
+            if (sys.state() != State::CheckMode) {
                 protocol_send_event(&feedHoldEvent);
                 protocol_execute_realtime();  // Execute suspend.
             }
@@ -1675,13 +1675,13 @@ Error gc_execute_line(char* line) {
 
             // gc_state.modal.override = OVERRIDE_DISABLE; // Not supported.
             if (RESTORE_OVERRIDES_AFTER_PROGRAM_END) {
-                sys.f_override        = FeedOverride::Default;
-                sys.r_override        = RapidOverride::Default;
-                sys.spindle_speed_ovr = SpindleSpeedOverride::Default;
+                sys.set_f_override(FeedOverride::Default);
+                sys.set_r_override(RapidOverride::Default);
+                sys.set_spindle_speed_ovr(SpindleSpeedOverride::Default);
             }
 
             // Execute coordinate change and spindle/coolant stop.
-            if (sys.state != State::CheckMode) {
+            if (sys.state() != State::CheckMode) {
                 coords[gc_state.modal.coord_select]->get(gc_state.coord_system);
                 gc_wco_changed();  // Set to refresh immediately just in case something altered.
                 spindle->spinDown();

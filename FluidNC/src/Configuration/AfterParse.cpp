@@ -19,7 +19,7 @@ namespace Configuration {
             log_error("Initialization error at "; for (auto it : _path) { ss << '/' << it; } ss << ": " << ex.msg);
 
             // Set the state to config alarm, so users can't run time machine.
-            sys.state = State::ConfigAlarm;
+            sys.set_state(State::ConfigAlarm);
         }
 
         value->group(*this);

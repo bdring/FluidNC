@@ -304,11 +304,11 @@ namespace Spindles {
 
     void VFD::setState(SpindleState state, SpindleSpeed speed) {
         log_debug("VFD setState:" << uint8_t(state) << " SpindleSpeed:" << speed);
-        if (sys.abort) {
+        if (sys.abort()) {
             return;  // Block during abort.
         }
 
-        bool critical = (sys.state == State::Cycle || state != SpindleState::Disable);
+        bool critical = (sys.state() == State::Cycle || state != SpindleState::Disable);
 
         uint32_t dev_speed = mapSpeed(speed);
         log_debug("RPM:" << speed << " mapped to device units:" << dev_speed);
@@ -341,7 +341,7 @@ namespace Spindles {
             const int limit     = 20;  // 20 * 0.5s = 10 sec
             auto      last      = _sync_dev_speed;
 
-            while ((_last_override_value == sys.spindle_speed_ovr) &&  // skip if the override changes
+            while ((_last_override_value == sys.spindle_speed_ovr()) &&  // skip if the override changes
                    ((_sync_dev_speed < minSpeedAllowed || _sync_dev_speed > maxSpeedAllowed) && unchanged < limit)) {
 #ifdef DEBUG_VFD
                 log_debug("Syncing speed. Requested: " << int(dev_speed) << " current:" << int(_sync_dev_speed));
@@ -358,7 +358,7 @@ namespace Spindles {
                 unchanged = (_sync_dev_speed == last) ? unchanged + 1 : 0;
                 last      = _sync_dev_speed;
             }
-            _last_override_value = sys.spindle_speed_ovr;
+            _last_override_value = sys.spindle_speed_ovr();
 
 #ifdef DEBUG_VFD
             log_debug("Synced speed. Requested:" << int(dev_speed) << " current:" << int(_sync_dev_speed));
@@ -393,7 +393,7 @@ namespace Spindles {
     }
 
     void VFD::set_mode(SpindleState mode, bool critical) {
-        _last_override_value = sys.spindle_speed_ovr;  // sync these on mode changes
+        _last_override_value = sys.spindle_speed_ovr();  // sync these on mode changes
         if (vfd_cmd_queue) {
             VFDaction action;
             action.action   = actionSetMode;

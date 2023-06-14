@@ -50,7 +50,7 @@ bool mc_move_motors(float* target, plan_line_data_t* pl_data) {
     mc_pl_data_inflight = pl_data;
 
     // If in check gcode mode, prevent motion by blocking planner. Soft limits still work.
-    if (sys.state == State::CheckMode) {
+    if (sys.state() == State::CheckMode) {
         mc_pl_data_inflight = NULL;
         return submitted_result;  // Bail, if system abort.
     }
@@ -76,7 +76,7 @@ bool mc_move_motors(float* target, plan_line_data_t* pl_data) {
         // While we are waiting for room in the buffer, look for realtime
         // commands and other situations that could cause state changes.
         protocol_execute_realtime();
-        if (sys.abort) {
+        if (sys.abort()) {
             mc_pl_data_inflight = NULL;
             return submitted_result;  // Bail, if system abort.
         }
@@ -101,9 +101,9 @@ void mc_cancel_jog() {
 // unless invert_feed_rate is true. Then the feed_rate means that the motion should be completed in
 // (1 minute)/feed_rate time.
 bool mc_linear(float* target, plan_line_data_t* pl_data, float* position) {
-    if (!pl_data->is_jog) { // soft limits for jogs have already been dealt with
+    if (!pl_data->is_jog) {  // soft limits for jogs have already been dealt with
         limits_soft_check(target);
-    }    
+    }
     return config->_kinematics->cartesian_to_motors(target, pl_data, position);
 }
 
@@ -243,7 +243,7 @@ void mc_arc(float*            target,
             previous_position[axis_1]      = position[axis_1];
             previous_position[axis_linear] = position[axis_linear];
             // Bail mid-circle on system abort. Runtime command check already performed by mc_linear.
-            if (sys.abort) {
+            if (sys.abort()) {
                 return;
             }
         }
@@ -254,7 +254,7 @@ void mc_arc(float*            target,
 
 // Execute dwell in seconds.
 bool mc_dwell(int32_t milliseconds) {
-    if (milliseconds <= 0 || sys.state == State::CheckMode) {
+    if (milliseconds <= 0 || sys.state() == State::CheckMode) {
         return false;
     }
     protocol_buffer_synchronize();
@@ -273,12 +273,12 @@ GCUpdatePos mc_probe_cycle(float* target, plan_line_data_t* pl_data, bool away, 
         return GCUpdatePos::None;
     }
     // TODO: Need to update this cycle so it obeys a non-auto cycle start.
-    if (sys.state == State::CheckMode) {
+    if (sys.state() == State::CheckMode) {
         return config->_probe->_check_mode_start ? GCUpdatePos::None : GCUpdatePos::Target;
     }
     // Finish all queued commands and empty planner buffer before starting probe cycle.
     protocol_buffer_synchronize();
-    if (sys.abort) {
+    if (sys.abort()) {
         return GCUpdatePos::None;  // Return if system reset has been issued.
     }
 
@@ -303,11 +303,11 @@ GCUpdatePos mc_probe_cycle(float* target, plan_line_data_t* pl_data, bool away, 
     protocol_send_event(&cycleStartEvent);
     do {
         protocol_execute_realtime();
-        if (sys.abort) {
+        if (sys.abort()) {
             config->_stepping->endLowLatency();
             return GCUpdatePos::None;  // Check for system abort
         }
-    } while (sys.state != State::Idle);
+    } while (sys.state() != State::Idle);
 
     config->_stepping->endLowLatency();
 
@@ -361,10 +361,10 @@ GCUpdatePos mc_probe_cycle(float* target, plan_line_data_t* pl_data, bool away, 
 void mc_override_ctrl_update(Override override_state) {
     // Finish all queued commands before altering override control state
     protocol_buffer_synchronize();
-    if (sys.abort) {
+    if (sys.abort()) {
         return;
     }
-    sys.override_ctrl = override_state;
+    sys.set_override_ctrl(override_state);
 }
 
 // Method to ready the system to reset by setting the realtime reset command and killing any
@@ -383,7 +383,7 @@ void mc_reset() {
         // the steppers enabled by avoiding the go_idle call altogether, unless the motion state is
         // violated, by which, all bets are off.
         if (inMotionState() || sys.step_control.executeHold || sys.step_control.executeSysMotion) {
-            if (sys.state == State::Homing) {
+            if (sys.state() == State::Homing) {
                 if (rtAlarm == ExecAlarm::None) {
                     rtAlarm = ExecAlarm::HomingFailReset;
                 }

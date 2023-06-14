@@ -68,7 +68,7 @@ void CoolantControl::stop() {
 // parser program end, and g-code parser CoolantControl::sync().
 
 void CoolantControl::set_state(CoolantState state) {
-    if (sys.abort) {
+    if (sys.abort()) {
         return;  // Block during abort.
     }
     write(state);
