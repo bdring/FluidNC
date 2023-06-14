@@ -360,9 +360,9 @@ void protocol_execute_realtime() {
         protocol_exec_rt_suspend();
     }
 
-    if(random(10000) == 1){
-        Maslow.readEncoders();
-    }
+    // if(random(100000) == 1){
+    //     Maslow.readEncoders();
+    // }
 
     Maslow.recomputePID();
     Maslow.setTargets(steps_to_mpos(get_axis_motor_steps(0),0), steps_to_mpos(get_axis_motor_steps(1),1), steps_to_mpos(get_axis_motor_steps(2),2));

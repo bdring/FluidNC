@@ -2,8 +2,8 @@
 #include "../Report.h"
 
 
-#define P 1600
-#define I 10
+#define P 260
+#define I 5
 #define D 0
 
 #define TCAADDR 0x70
@@ -40,17 +40,14 @@ void MotorUnit::begin(int forwardPin,
 }
 
 void MotorUnit::readEncoder(){
-    Serial.print("Encoder at address ");
-    Serial.print(_encoderAddress);
-
     tcaselect(_encoderAddress);
 
     if(encoder.isConnected()){
-        Serial.println(" is connected");
-        log_info("Connected");
+        log_info("Connected:");
         log_info(_encoderAddress);
     } else {
-        Serial.println(" is not connected");
+        log_info("Not connected:");
+        log_info(_encoderAddress);
     }
 }
 
@@ -166,8 +163,6 @@ double MotorUnit::recomputePID(){
     
     double commandPWM = positionPID.getOutput(getPosition(),setpoint);
 
-    int currentMeasurement = motor.readCurrent();
-
     //Add some monitoring to the top right axis...this can crash the processor because it prints out so much data
     // if(_axisID == 3){
     //     _webPrint(0xFF,"TR PID: %f\n", commandPWM);
@@ -206,13 +201,14 @@ double MotorUnit::recomputePID(){
         _numPosErrors = 0;
     }
 
-    if(commandPWM > 0){
-        commandPWM = commandPWM + 7000;
-    }
+    //This code adds an offiset to remove the deadband. It needs to be tuned for the new 0-1023 values
+    // if(commandPWM > 0){
+    //     commandPWM = commandPWM + 7000;
+    // }
 
-    if(commandPWM > 65530){
-        commandPWM = 65530;
-    }
+    // if(commandPWM > 1023){
+    //     commandPWM = 1023;
+    // }
 
     motor.runAtPWM(commandPWM);
 
@@ -238,7 +234,7 @@ void MotorUnit::decompressBelt(){
 bool MotorUnit::comply(unsigned long *timeLastMoved, double *lastPosition, double *amtToMove, double maxSpeed){
     
     //Update position and PID loop
-    recomputePID();
+    int pidOutput = recomputePID();
     
     //If we've moved any, then drive the motor outwards to extend the belt
     float positionNow = getPosition();
@@ -246,36 +242,38 @@ bool MotorUnit::comply(unsigned long *timeLastMoved, double *lastPosition, doubl
 
     Serial.print("Dist moved: ");
     Serial.print(distMoved);
-    Serial.print("  Target: ");
-    Serial.println(getTarget());
+    Serial.print("  Error: ");
+    Serial.print(getTarget() - positionNow);
+    Serial.print(" PID: ");
+    Serial.println(pidOutput);
 
-    //If the belt is moving out, let's keep it moving out
-    if( distMoved > .001){
-        //Increment the target
-        setTarget(positionNow + *amtToMove);
-        
+
+    //This code simulates inertia to make the belt extension process smooth
+
+    //If the belt is moving out, let's keep it moving out and accelerate
+    if( distMoved > .1){
+
         *amtToMove = *amtToMove + 1;
-        
         *amtToMove = min(*amtToMove, maxSpeed);
-        
         //Reset the last moved counter
         *timeLastMoved = millis();
     
-    //If the belt is moving in we need to stop it from moving in
-    }else if(distMoved < -.04){
-        *amtToMove = 0;
-        setTarget(positionNow + .1);
-        stop();
     }
     //Finally if the belt is not moving we want to spool things down
     else{
         *amtToMove = *amtToMove / 2;
-        setTarget(positionNow);
-        stop();
     }
     
+    //Increment the target
+    setTarget(positionNow + *amtToMove);
 
     *lastPosition = positionNow;
+
+    //Prevents creep if we haven't moved in a bit
+    if(millis()-*timeLastMoved > 250){
+        setTarget(positionNow);
+    }
+
 
     //Return indicates if we have moved within the timeout threshold
     if(millis()-*timeLastMoved > 5000){
@@ -293,8 +291,8 @@ bool MotorUnit::retract(double targetLength){
     
     Serial.println("Retracting");
     log_info("Retracting called within MotorUnit!");
-    int absoluteCurrentThreshold = 1600;
-    int incrementalThreshold = 40;
+    int absoluteCurrentThreshold = 1900;
+    int incrementalThreshold = 75;
     int incrementalThresholdHits = 0;
     float alpha = .2;
     float baseline = 700;
@@ -303,13 +301,13 @@ bool MotorUnit::retract(double targetLength){
 
     //Keep track of the elapsed time
     unsigned long time = millis();
-    unsigned long elapsedTime = millis()-time;
+    unsigned long elapsedTime = 0;
     
     //Pull until taught
     while(true){
         
         //Gradually increase the pulling speed
-        if(random(0,7) == 2){ //This is a hack to make it speed up more slowly
+        if(random(0,4) == 2){ //This is a hack to make it speed up more slowly because we can't add less than 1 to an int
             speed = min(speed + 1, 1023);
         }
         motor.backward(speed);
@@ -357,6 +355,8 @@ bool MotorUnit::retract(double targetLength){
                 
                 //Extend some belt to get things started
                 decompressBelt();
+
+                Serial.println("After decompress belt");
                 
                 unsigned long timeLastMoved = millis();
                 double lastPosition = getPosition();

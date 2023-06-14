@@ -82,8 +82,9 @@ void Maslow_::begin() {
 }
 
 void printToWeb (double precision){
-    //Serial.println( "Calibration Precision: %fmm\n", precision);
-    //log_info( "Calibration Precision: %fmm\n", precision);
+    Serial.println( "Calibration Precision: %fmm\n", precision);
+    log_info( "Calibration Precision: ");
+    log_info(precision);
 }
 
 void Maslow_::readEncoders() {
@@ -148,16 +149,17 @@ void Maslow_::recomputePID(){
     }
 
     int timeSinceLastCall = millis() - lastCallToPID;
-    lastCallToPID = millis();
+    
     if(timeSinceLastCall > 50){
         log_info( "PID not being called often enough. Time since last call:");
         log_info(timeSinceLastCall);
     }
-
+    
     //We want to update the encoders at most ever 10ms to avoid it hogging the processor time
     if(timeSinceLastCall < 10){
       return;
     }
+
 
     //Stop everything but keep track of the encoder positions if we are idle or alarm. Unless doing calibration.
     if((sys.state == State::Idle || sys.state == State::Alarm) && !calibrationInProgress){
@@ -226,6 +228,8 @@ void Maslow_::recomputePID(){
     // if(random(250) == 0){
     //     grbl_sendf( "Angles: TL %i, TR: %i, BL: %i, BR: %i\n", axisTL.readAngle(), axisTR.readAngle(), axisBL.readAngle(), axisBR.readAngle());
     // }
+
+    lastCallToPID = millis();
 }
 
 
@@ -331,7 +335,8 @@ void Maslow_::setTargets(float xTarget, float yTarget, float zTarget){
 //Runs the calibration sequence to determine the machine's dimensions
 void Maslow_::runCalibration(){
     
-    //log_info( "Beginning calibration\n");
+    log_info( "Beginning calibration\n");
+    Serial.println("Beginning calibration");
     
     calibrationInProgress = true;
     
@@ -538,21 +543,24 @@ float Maslow_::printMeasurementMetrics(double avg, double m1, double m2, double 
 
 //Checks to make sure the deviation within the measurement avg looks good before moving on
 void Maslow_::takeMeasurementAvgWithCheck(float lengths[]){
-    //grbl_sendf( "Beginning takeMeasurementAvg\n");
+    log_info( "Beginning takeMeasurementAvg\n");
+    Serial.println( "Beginning takeMeasurementAvg\n");
     float threshold = 0.9;
     while(true){
         float repeatability = takeMeasurementAvg(lengths);
         if(repeatability < threshold){
-            //log_info( "Using measurement with precision %f\n", repeatability);
+            log_info( "Using measurement with precision:");
+            log_info(repeatability);
             break;
         }
-        //log_info( "Repeating measurement\n");
+        log_info( "Repeating measurement\n");
     }
 }
 
 //Takes 5 measurements and return how consistent they are
 float Maslow_::takeMeasurementAvg(float avgLengths[]){
-    //grbl_sendf( "Beginning to take averaged measurement.\n");
+    log_info( "Beginning to take averaged measurement.\n");
+    Serial.println( "Beginning to take averaged measurement.");
     
     //Where our five measurements will be stored
     float lengths1[4];
@@ -592,7 +600,7 @@ float Maslow_::takeMeasurementAvg(float avgLengths[]){
 
 //Retract the lower belts until they pull tight and take a measurement
 void Maslow_::takeMeasurement(float lengths[]){
-    //grbl_sendf( "Taking a measurement.\n");
+    log_info( "Taking a measurement.\n");
 
     axisBL.stop();
     axisBR.stop();
@@ -606,14 +614,25 @@ void Maslow_::takeMeasurement(float lengths[]){
     while(!axisBLDone || !axisBRDone){  //As long as one axis is still pulling
         
         //If any of the current values are over the threshold then stop and exit, otherwise pull each axis a little bit tighter by incrementing the target position
-        int currentThreshold = 11;
+        int currentThreshold = 1200;
+        Serial.print("Current: ");
+        Serial.print(axisBL.getCurrent());
+        Serial.print(" BLDist: ");
+        Serial.print(BLDist);
+        Serial.print(" BRDist: ");
+        Serial.print(BRDist);
+        Serial.print(" Calibration: ");
+        Serial.print(calibrationInProgress);
+        Serial.print(" Sys:State==Alarm: ");
+        Serial.println(sys.state == State::Alarm);
+
         
         if(axisBL.getCurrent() > currentThreshold || axisBLDone){  //Check if the current threshold is hit
             axisBLDone = true;
         }
         else{                                                       //If not
             axisBL.setTarget(axisBL.getPosition() - BLDist);                  //Pull in a little more
-            BLDist = min(.2, BLDist + .01);                                     //Slowly ramp up the speed
+            BLDist = min(0.2, BLDist + .01);                                     //Slowly ramp up the speed
         }
         
         if(axisBR.getCurrent() > currentThreshold || axisBRDone){
@@ -621,7 +640,7 @@ void Maslow_::takeMeasurement(float lengths[]){
         }
         else{
             axisBR.setTarget(axisBR.getPosition() - BRDist);
-            BRDist = min(.2, BRDist + .01);
+            BRDist = min(0.2, BRDist + .01);
         }
         
         // Delay without blocking
@@ -648,6 +667,7 @@ void Maslow_::takeMeasurement(float lengths[]){
     lengths[2] = axisTR.getPosition()+_beltEndExtension+_armLength;
     lengths[3] = axisTL.getPosition()+_beltEndExtension+_armLength;
     
+    log_info("Measurement finished");
     //log_info( "Measured:\n%f, %f \n%f %f \n",lengths[3], lengths[2], lengths[0], lengths[1]);
     
     return;
@@ -656,7 +676,7 @@ void Maslow_::takeMeasurement(float lengths[]){
 //Reposition the sled without knowing the machine dimensions
 void Maslow_::moveWithSlack(float x, float y){
     
-    //log_info( "Moving to (%f, %f) with slack lower belts\n", x, y);
+    /log_info( "Moving to with slack");
     
     //The distance we need to move is the current position minus the target position
     double TLDist = axisTL.getPosition() - computeTL(x,y,0);
@@ -729,6 +749,7 @@ void Maslow_::moveWithSlack(float x, float y){
 //If there is slack there then when the motor turns the belt won't move which triggers the
 //current threshold on pull tight too early. It only does this for the bottom axis.
 void Maslow_::takeUpInternalSlack(){
+    log_info("Take up internal slack");
     //Set the target to be .5mm in
     axisBL.setTarget(axisBL.getPosition() - 0.5);
     axisBR.setTarget(axisBR.getPosition() - 0.5);
