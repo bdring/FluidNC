@@ -390,10 +390,69 @@ namespace WebUI {
         return deleteObject(localfsName, parameter, out);
     }
 
-    static Error listFilesystem(const char* fs, const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+    static Error listFilesystemJSON(const char* fs, const char* path, WebUI::AuthenticationLevel auth_level, Channel& out) {
         std::error_code ec;
 
-        FluidPath fpath { value, fs, ec };
+        FluidPath fpath { path, fs, ec };
+        if (ec) {
+            log_to(out, "No SD card");
+            return Error::FsFailedMount;
+        }
+
+        std::string        s;
+        WebUI::JSONencoder j(true, &s);
+        j.begin();
+
+        auto iter = stdfs::recursive_directory_iterator { fpath, ec };
+        if (ec) {
+            log_to(out, "Error: ", ec.message());
+            return Error::FsFailedMount;
+        }
+        j.member("path", fpath.c_str());
+        j.begin_array("files");
+        for (auto const& dir_entry : iter) {
+            j.begin_object();
+            j.member("name", dir_entry.path().filename());
+            // j.member("shortname", dir_entry.path().filename());
+            j.member("size", dir_entry.is_directory() ? -1 : dir_entry.file_size());
+            // j.member("datetime", "");
+            j.end_object();
+        }
+        j.end_array();
+
+        auto space = stdfs::space(fpath, ec);
+        if (ec) {
+            log_to(out, "Error ", ec.value() << " " << ec.message());
+            return Error::FsFailedMount;
+        }
+
+        auto totalBytes = space.capacity;
+        auto freeBytes  = space.available;
+        auto usedBytes  = totalBytes - freeBytes;
+
+        j.member("total", totalBytes);
+        j.member("used", usedBytes);
+
+        uint32_t percent = totalBytes ? (usedBytes * 100) / totalBytes : 100;
+
+        j.member("occupation", percent);
+        j.end();
+
+        out << s;
+        return Error::Ok;
+    }
+
+    static Error listLocalFSJSON(char* parameter, WebUI::AuthenticationLevel auth_level, Channel& out) {
+        return listFilesystemJSON(localfsName, parameter, auth_level, out);
+    }
+    static Error listSDJSON(char* parameter, WebUI::AuthenticationLevel auth_level, Channel& out) {
+        return listFilesystemJSON(sdName, parameter, auth_level, out);
+    }
+
+    static Error listFilesystem(const char* fs, const char* path, WebUI::AuthenticationLevel auth_level, Channel& out) {
+        std::error_code ec;
+
+        FluidPath fpath { path, fs, ec };
         if (ec) {
             log_to(out, "No SD card");
             return Error::FsFailedMount;
@@ -435,6 +494,44 @@ namespace WebUI {
 
     static Error listLocalFiles(char* parameter, AuthenticationLevel auth_level, Channel& out) {  // No ESP command
         return listFilesystem(localfsName, parameter, auth_level, out);
+    }
+
+    static Error renameFile(const char* fs, const char* parameter, AuthenticationLevel auth_level, Channel& out) {  // No ESP command
+
+        std::istringstream arg(parameter);
+        std::string        oldname;
+        std::string        newname;
+        if (!std::getline(arg, oldname, '>') || !std::getline(arg, newname, '>')) {
+            log_to(out, "Arg must be oldname>newname");
+            return Error::InvalidValue;
+        }
+
+        std::error_code ec;
+
+        FluidPath oldpath { oldname, fs, ec };
+        if (ec) {
+            log_to(out, "File not found");
+            return Error::InvalidValue;
+        }
+        FluidPath newpath { newname, fs, ec };
+        if (ec) {
+            log_to(out, "New file name invalid");
+            return Error::InvalidValue;
+        }
+        stdfs::rename(oldpath, newpath, ec);
+        if (ec) {
+            log_to(out, "Rename failed");
+            return Error::InvalidValue;
+        }
+        return Error::Ok;
+    }
+
+    static Error renameSDFile(char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP210
+        return renameFile(sdName, parameter, auth_level, out);
+    }
+
+    static Error renameLocalFile(char* parameter, AuthenticationLevel auth_level, Channel& out) {  // No ESP command
+        return renameFile(localfsName, parameter, auth_level, out);
     }
 
     static Error copyFile(const char* ipath, const char* opath, Channel& out) {  // No ESP command
@@ -649,20 +746,23 @@ namespace WebUI {
         new WebCommand("path", WEBCMD, WU, "ESP701", "LocalFS/Show", showLocalFile);
         new WebCommand("path", WEBCMD, WU, "ESP700", "LocalFS/Run", runLocalFile);
         new WebCommand("path", WEBCMD, WU, NULL, "LocalFS/List", listLocalFiles);
-#if 0
-        new WebCommand("path", WEBCMD, WU, NULL, "LocalFS/ListJSON", listLocalFilesJSON);
-#endif
+
+        new WebCommand("path", WEBCMD, WU, NULL, "LocalFS/ListJSON", listLocalFSJSON);
+
         new WebCommand("path", WEBCMD, WU, NULL, "LocalFS/Delete", deleteLocalFile);
+        new WebCommand("path>path", WEBCMD, WU, NULL, "LocalFS/Hashes", showLocalFSHashes);
         new WebCommand("path", WEBCMD, WU, NULL, "LocalFS/Backup", backupLocalFS);
         new WebCommand("path", WEBCMD, WU, NULL, "LocalFS/Restore", restoreLocalFS);
         new WebCommand("path", WEBCMD, WU, NULL, "LocalFS/Migrate", migrateLocalFS);
-        new WebCommand(NULL, WEBCMD, WU, NULL, "LocalFS/Hashes", showLocalFSHashes);
+        new WebCommand("path", WEBCMD, WU, NULL, "LocalFS/Rename", renameLocalFile);
 
         new WebCommand("path", WEBCMD, WU, "ESP221", "SD/Show", showSDFile);
         new WebCommand("path", WEBCMD, WU, "ESP220", "SD/Run", runSDFile);
         new WebCommand("file_or_directory_path", WEBCMD, WU, "ESP215", "SD/Delete", deleteSDObject);
         new WebCommand(NULL, WEBCMD, WU, "ESP210", "SD/List", listSDFiles);
+        new WebCommand("path", WEBCMD, WU, NULL, "SD/ListJSON", listSDJSON);
         new WebCommand(NULL, WEBCMD, WU, "ESP200", "SD/Status", showSDStatus);
+        new WebCommand("path", WEBCMD, WU, NULL, "SD/Rename", renameSDFile);
 
         new WebCommand("ON|OFF", WEBCMD, WA, "ESP115", "Radio/State", setRadioState);
 

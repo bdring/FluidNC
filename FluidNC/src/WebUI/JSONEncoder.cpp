@@ -159,6 +159,7 @@ namespace WebUI {
         comma_line();
         add('{');
         inc_level();
+        line();
     }
 
     // Ends an object with }.
