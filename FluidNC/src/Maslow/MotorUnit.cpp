@@ -26,7 +26,7 @@ void MotorUnit::begin(int forwardPin,
 
     _encoderAddress = encoderAddress;
 
-    Wire.begin(5,4);
+    Wire.begin(5,4, 200000);
     tcaselect(_encoderAddress);
     encoder.begin();
     zero();
@@ -85,8 +85,7 @@ int MotorUnit::setPosition(double newPosition){
  *  @brief  Reads the current position of the axis
  */
 double MotorUnit::getPosition(){
-    tcaselect(_encoderAddress);
-    return (encoder.getCumulativePosition()/4096.0)*_mmPerRevolution*-1;
+    return (mostRecentCumulativeEncoderReading/4096.0)*_mmPerRevolution*-1;
 }
 
 /*!
@@ -122,8 +121,11 @@ void MotorUnit::stop(){
  *  @brief  Reads the encoder value and updates it's position and measures the velocity since the last call
  */
 void MotorUnit::updateEncoderPosition(){
+
     tcaselect(_encoderAddress);
-    encoder.getCumulativePosition(); //This updates and returns the encoder value
+
+    mostRecentCumulativeEncoderReading = encoder.getCumulativePosition(); //This updates and returns the encoder value
+
 }
 
 /*!
@@ -133,16 +135,21 @@ double MotorUnit::recomputePID(){
     
     updateEncoderPosition();
     
+    double commandPWM = positionPID.getOutput(getPosition(),setpoint);
+
+    motor.runAtPWM(commandPWM);
+
+    return commandPWM;
 
     //Read the motor current and check for stalls
-    double currentNow = getCurrent();
-    if(currentNow > _stallCurrent){
-        _stallCount = _stallCount + 1;
-    }
-    else{
-        _stallCount = 0;
-    }
-    if(_stallCount > _stallThreshold){
+    // double currentNow = getCurrent();
+    // if(currentNow > _stallCurrent){
+    //     _stallCount = _stallCount + 1;
+    // }
+    // else{
+    //     _stallCount = 0;
+    // }
+    // if(_stallCount > _stallThreshold){
         // if(_axisID == 1){    
         //     _webPrint(0xFF,"BR stalled at current: %f\n", currentNow);
         // }
@@ -158,18 +165,18 @@ double MotorUnit::recomputePID(){
         // else{    
         //     _webPrint(0xFF,"%i stalled at current: %f\n",_axisID, currentNow);
         // }
-        _stallCount = 0;
-    }
+    //     _stallCount = 0;
+    // }
     
-    double commandPWM = positionPID.getOutput(getPosition(),setpoint);
+    
 
     //Add some monitoring to the top right axis...this can crash the processor because it prints out so much data
     // if(_axisID == 3){
     //     _webPrint(0xFF,"TR PID: %f\n", commandPWM);
     // }
 
-    if(abs(getPosition() - setpoint ) > 5){
-        _numPosErrors = _numPosErrors + 1;
+    // if(abs(getPosition() - setpoint ) > 5){
+    //     _numPosErrors = _numPosErrors + 1;
 
         // if(_numPosErrors > 2){
         //     if(_axisID == 1){    
@@ -196,10 +203,10 @@ double MotorUnit::recomputePID(){
         //         _webPrint(0xFF,"%i position error of %fmm\n",_axisID, getPosition() - setpoint);
         //     }
         // }
-    }
-    else{
-        _numPosErrors = 0;
-    }
+    //}
+    // else{
+    //     _numPosErrors = 0;
+    // }
 
     //This code adds an offiset to remove the deadband. It needs to be tuned for the new 0-1023 values
     // if(commandPWM > 0){
@@ -210,9 +217,6 @@ double MotorUnit::recomputePID(){
     //     commandPWM = 1023;
     // }
 
-    motor.runAtPWM(commandPWM);
-
-    return commandPWM;
 }
 
 /*!

@@ -82,7 +82,9 @@ void Maslow_::begin() {
 }
 
 void printToWeb (double precision){
-    Serial.println( "Calibration Precision: %fmm\n", precision);
+    Serial.print( "Calibration Precision: ");
+    Serial.println(precision);
+
     log_info( "Calibration Precision: ");
     log_info(precision);
 }
@@ -159,7 +161,6 @@ void Maslow_::recomputePID(){
     if(timeSinceLastCall < 10){
       return;
     }
-
 
     //Stop everything but keep track of the encoder positions if we are idle or alarm. Unless doing calibration.
     if((sys.state == State::Idle || sys.state == State::Alarm) && !calibrationInProgress){
@@ -676,7 +677,7 @@ void Maslow_::takeMeasurement(float lengths[]){
 //Reposition the sled without knowing the machine dimensions
 void Maslow_::moveWithSlack(float x, float y){
     
-    /log_info( "Moving to with slack");
+    log_info( "Moving to with slack");
     
     //The distance we need to move is the current position minus the target position
     double TLDist = axisTL.getPosition() - computeTL(x,y,0);
