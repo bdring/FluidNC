@@ -328,11 +328,13 @@ class NoTerminal(Transform):
 class NoControls(NoTerminal):
     """Remove all control codes, incl. CR+LF"""
 
-    REPLACEMENT_MAP = {x: 0x2400 + x for x in range(32)} | {
-        0x20: 0x2423,  # visual space
-        0x7F: 0x2421,  # DEL
-        0x9B: 0x2425,  # CSI
-    }
+    REPLACEMENT_MAP = dict((x, 0x2400 + x) for x in range(32))
+    REPLACEMENT_MAP.update(
+        {
+            0x20: 0x2423,  # visual space
+            0x7F: 0x2421,  # DEL
+            0x9B: 0x2425,  # CSI
+        })
 
 
 class Printable(Transform):
