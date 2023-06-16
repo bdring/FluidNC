@@ -8,6 +8,14 @@ stepping:
   pulse_us: 2
   disable_delay_us: 0
   
+uart1:
+  txd_pin: gpio.22
+  rxd_pin: gpio.21
+  rts_pin: NO_PIN
+  cts_pin: NO_PIN
+  baud: 115200
+  mode: 8N1
+  
 kinematics:
   corexy:
 
@@ -35,11 +43,7 @@ axes:
       hard_limits: true
       pulloff_mm: 1.000
       tmc_2209:
-        uart:
-          txd_pin: gpio.22
-          rxd_pin: gpio.21
-          baud: 115200
-          mode: 8N1
+        uart_num: 1
         addr: 1
         r_sense_ohms: 0.110
         run_amps: 1.500
@@ -78,6 +82,7 @@ axes:
       hard_limits: false
       pulloff_mm: 1.000
       tmc_2209:
+        uart_num: 1
         addr: 3
         r_sense_ohms: 0.110
         run_amps: 1.5200
@@ -116,6 +121,7 @@ axes:
       hard_limits: false
       pulloff_mm: 1.000
       tmc_2209:
+        uart_num: 1
         addr: 0
         r_sense_ohms: 0.110
         run_amps: 1.200
