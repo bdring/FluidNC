@@ -15,7 +15,7 @@ class Maslow_ {
     Maslow_ &operator=(const Maslow_ &) = delete;
 
   public:
-    void begin();
+    void begin(void (*sys_rt)());
     void readEncoders();
     void home(int axis);
     void updateCenterXY();
@@ -78,6 +78,9 @@ class Maslow_ {
 
     //Used to keep track of how often the PID controller is updated
     unsigned long lastCallToPID = millis();
+
+    //Stores a reference to the global system runtime function to be called when blocking operations are needed
+    void (*_sys_rt)() = nullptr;
 };
 
 extern Maslow_ &Maslow;

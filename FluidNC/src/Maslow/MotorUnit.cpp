@@ -238,7 +238,7 @@ void MotorUnit::decompressBelt(){
 bool MotorUnit::comply(unsigned long *timeLastMoved, double *lastPosition, double *amtToMove, double maxSpeed){
     
     //Update position and PID loop
-    int pidOutput = recomputePID();
+    recomputePID();
     
     //If we've moved any, then drive the motor outwards to extend the belt
     float positionNow = getPosition();
@@ -246,38 +246,36 @@ bool MotorUnit::comply(unsigned long *timeLastMoved, double *lastPosition, doubl
 
     Serial.print("Dist moved: ");
     Serial.print(distMoved);
-    Serial.print("  Error: ");
-    Serial.print(getTarget() - positionNow);
-    Serial.print(" PID: ");
-    Serial.println(pidOutput);
+    Serial.print("  Target: ");
+    Serial.println(getTarget());
 
-
-    //This code simulates inertia to make the belt extension process smooth
-
-    //If the belt is moving out, let's keep it moving out and accelerate
-    if( distMoved > .1){
-
+    //If the belt is moving out, let's keep it moving out
+    if( distMoved > .001){
+        //Increment the target
+        setTarget(positionNow + *amtToMove);
+        
         *amtToMove = *amtToMove + 1;
+        
         *amtToMove = min(*amtToMove, maxSpeed);
+        
         //Reset the last moved counter
         *timeLastMoved = millis();
     
+    //If the belt is moving in we need to stop it from moving in
+    }else if(distMoved < -.04){
+        *amtToMove = 0;
+        setTarget(positionNow + .1);
+        stop();
     }
     //Finally if the belt is not moving we want to spool things down
     else{
         *amtToMove = *amtToMove / 2;
+        setTarget(positionNow);
+        stop();
     }
     
-    //Increment the target
-    setTarget(positionNow + *amtToMove);
 
     *lastPosition = positionNow;
-
-    //Prevents creep if we haven't moved in a bit
-    if(millis()-*timeLastMoved > 250){
-        setTarget(positionNow);
-    }
-
 
     //Return indicates if we have moved within the timeout threshold
     if(millis()-*timeLastMoved > 5000){

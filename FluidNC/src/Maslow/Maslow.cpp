@@ -37,7 +37,7 @@
 #define DC_TOP_LEFT_MM_PER_REV 44
 #define DC_Z_AXIS_MM_PER_REV 1
 
-void Maslow_::begin() {
+void Maslow_::begin(void (*sys_rt)()) {
   initialized = 1;
 
   Serial.begin(115200);
@@ -79,14 +79,15 @@ void Maslow_::begin() {
   _beltEndExtension = 30;
   _armLength = 114;
 
+  _sys_rt = sys_rt;
+
 }
 
 void printToWeb (double precision){
     Serial.print( "Calibration Precision: ");
     Serial.println(precision);
 
-    log_info( "Calibration Precision: ");
-    log_info(precision);
+    log_info( "Calibration Precision: " + String(precision));
 }
 
 void Maslow_::readEncoders() {
@@ -153,8 +154,7 @@ void Maslow_::recomputePID(int encoderNumber2Compute){
     int timeSinceLastCall = millis() - lastCallToPID;
     
     if(timeSinceLastCall > 50){
-        log_info( "PID not being called often enough. Time since last call:");
-        log_info(timeSinceLastCall);
+        log_info( "PID not being called often enough. Time since last call: " + String(timeSinceLastCall));
     }
     
     //We want to update the encoders at most ever 10ms to avoid it hogging the processor time
@@ -469,10 +469,10 @@ void Maslow_::runCalibration(){
     double results[6] = {0,0,0,0,0,0};
     computeCalibration(measurements, results, printToWeb, tlX, tlY, trX, trY, brX, tlZ, trZ, blZ, brZ);
     
-    //log_info( "After computing calibration %f\n", results[5]);
+    log_info( "After computing calibration " + String(results[5]));
     
     if(results[5] < 2){
-        //log_info( "Calibration successful with precision %f \n\n", results[5]);
+        log_info( "Calibration successful with precision: " + String(results[5]));
         tlX = results[0];
         tlY = results[1];
         trX = results[2];
@@ -485,7 +485,7 @@ void Maslow_::runCalibration(){
         //log_info( "tlx: %f tly: %f trx: %f try: %f blx: %f bly: %f brx: %f bry: %f \n", tlX, tlY, trX, trY, blX, blY, brX, brY);
     }
     else{
-        //log_info( "Calibration failed: %f\n", results[5]);
+        log_info( "Calibration failed: " + String(results[5]));
     }
     
     //---------------------------------------------------------Finish
@@ -501,20 +501,19 @@ void Maslow_::runCalibration(){
     double blError = (lengths1[0]-(_beltEndExtension+_armLength))-computeBL(0,0,0);
     double brError = (lengths1[1]-(_beltEndExtension+_armLength))-computeBR(0,0,0);
     
-    //log_info( "Lower belt length mismatch: bl: %f, br: %f\n", blError, brError);
+    log_info( "Lower belt length mismatch: " + String(blError) + ", " +String(brError));
     
     calibrationInProgress = false;
-    //log_info( "Calibration finished\n");
+    log_info( "Calibration finished");
     
 }
 
 void Maslow_::printMeasurements(float lengths[]){
-    Serial.println("Would print belt mesasurements but SOMEBODY didn't implement the function");
-    //log_info( "{bl:%f,   br:%f,   tr:%f,   tl:%f},\n", lengths[0], lengths[1], lengths[2], lengths[3]);
+    log_info( "{bl:" + String(lengths[0]) + ",   br:" + String(lengths[1]) + ",   tr:" + String(lengths[2]) + ",   tl:" + String(lengths[3]) + "}");
 }
 
 void Maslow_::lowerBeltsGoSlack(){
-    //log_info( "Lower belts going slack\n");
+    log_info( "Lower belts going slack");
     
     unsigned long startTime = millis();
 
@@ -528,6 +527,8 @@ void Maslow_::lowerBeltsGoSlack(){
         axisBR.recomputePID();
         axisTR.recomputePID();
         axisTL.recomputePID();
+
+        (*_sys_rt)();
         
         // Delay without blocking
         unsigned long time = millis();
@@ -550,6 +551,8 @@ void Maslow_::lowerBeltsGoSlack(){
         axisTR.recomputePID();
         axisTL.recomputePID();
 
+        (*_sys_rt)();
+
     }
 
     //grbl_sendf( "Going slack completed\n");
@@ -569,7 +572,7 @@ float Maslow_::printMeasurementMetrics(double avg, double m1, double m2, double 
     
     double maxDeviation = max(max(max(m1Variation, m2Variation), max(m3Variation, m4Variation)), m5Variation);
     
-    //log_info( "Max deviation: %f\n", maxDeviation);
+    log_info( "Max deviation: " + String(maxDeviation));
 
     //double avgDeviation = (m1Variation + m2Variation + m3Variation + m4Variation + m5Variation)/5.0;
     
@@ -630,7 +633,7 @@ float Maslow_::takeMeasurementAvg(float avgLengths[]){
 
     float avgMaxDeviation = (m1+m2+m3+m4)/4.0;
     
-    //log_info( "Average Max Deviation: %f\n", avgMaxDeviation);
+    log_info( "Average Max Deviation: " + String(avgMaxDeviation));
 
     return avgMaxDeviation;
 }
@@ -686,6 +689,7 @@ void Maslow_::takeMeasurement(float lengths[]){
         while(elapsedTime < 25){
             elapsedTime = millis()-time;
             recomputePID(4);  //This recomputes the PID four all four servos
+            (*_sys_rt)();
         }
     }
     
@@ -757,6 +761,8 @@ void Maslow_::moveWithSlack(float x, float y){
         }
         axisTR.recomputePID();
         axisTL.recomputePID();
+
+        (*_sys_rt)();
         
         // Delay without blocking
         unsigned long time = millis();
@@ -807,6 +813,7 @@ void Maslow_::takeUpInternalSlack(){
         }
 
         recomputePID(4);
+        (*_sys_rt)();
 
         // Delay without blocking
         unsigned long time = millis();

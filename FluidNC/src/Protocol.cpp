@@ -261,7 +261,7 @@ static void check_startup_state() {
             settings_execute_startup();  // Execute startup script.
         }
     }
-    Maslow.begin();
+    Maslow.begin(&protocol_exec_rt_system);
 }
 
 void protocol_main_loop() {
