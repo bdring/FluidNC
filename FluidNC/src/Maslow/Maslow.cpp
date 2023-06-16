@@ -144,7 +144,7 @@ void Maslow_::updateCenterXY(){
 }
 
 //Called from protocol.cpp
-void Maslow_::recomputePID(){
+void Maslow_::recomputePID(int encoderNumber2Compute){
 
     if(!initialized){ //If we haven't initialized we don't want to try to compute things because the PID controllers cause the processor to crash
         return;
@@ -164,20 +164,56 @@ void Maslow_::recomputePID(){
 
     //Stop everything but keep track of the encoder positions if we are idle or alarm. Unless doing calibration.
     if((sys.state == State::Idle || sys.state == State::Alarm) && !calibrationInProgress){
-        axisBL.stop();
-        axisBL.updateEncoderPosition();
-        axisBR.stop();
-        axisBR.updateEncoderPosition();
-        axisTR.stop();
-        axisTR.updateEncoderPosition();
-        axisTL.stop();
-        axisTL.updateEncoderPosition();
+        switch(encoderNumber2Compute){
+            case 0:
+                axisBL.stop();
+                axisBL.updateEncoderPosition();
+                break;
+            case 1:
+                axisBR.stop();
+                axisBR.updateEncoderPosition();
+                break;
+            case 2:
+                axisTR.stop();
+                axisTR.updateEncoderPosition();
+                break;
+            case 3:
+                axisTL.stop();
+                axisTL.updateEncoderPosition();
+                break;
+            case 4:
+                axisBL.stop();
+                axisBL.updateEncoderPosition();
+                axisBR.stop();
+                axisBR.updateEncoderPosition();
+                axisTR.stop();
+                axisTR.updateEncoderPosition();
+                axisTL.stop();
+                axisTL.updateEncoderPosition();
+                break;
+        }
     }
     else{  //Position the axis
-        axisBL.recomputePID();
-        axisBR.recomputePID();
-        axisTR.recomputePID();
-        axisTL.recomputePID();
+        switch(encoderNumber2Compute){
+            case 0:
+                axisBL.recomputePID();
+                break;
+            case 1:
+                axisBR.recomputePID();
+                break;
+            case 2:
+                axisTR.recomputePID();
+                break;
+            case 3:
+                axisTL.recomputePID();
+                break;
+            case 4:
+                axisBL.recomputePID();
+                axisBR.recomputePID();
+                axisTR.recomputePID();
+                axisTL.recomputePID();
+                break;
+        }
     }
 
     // int tlAngle = axisTL.readAngle();
@@ -649,7 +685,7 @@ void Maslow_::takeMeasurement(float lengths[]){
         unsigned long elapsedTime = millis()-time;
         while(elapsedTime < 25){
             elapsedTime = millis()-time;
-            recomputePID();  //This recomputes the PID four all four servos
+            recomputePID(4);  //This recomputes the PID four all four servos
         }
     }
     
@@ -770,7 +806,7 @@ void Maslow_::takeUpInternalSlack(){
             brDone = true;
         }
 
-        recomputePID();
+        recomputePID(4);
 
         // Delay without blocking
         unsigned long time = millis();

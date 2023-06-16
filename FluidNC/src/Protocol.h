@@ -106,6 +106,8 @@ struct EventItem {
     void*  arg;
 };
 
+extern int encoderNumber;
+
 void protocol_send_event(Event*, void* arg = 0);
 void protocol_handle_events();
 

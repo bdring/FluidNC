@@ -343,6 +343,7 @@ void protocol_auto_cycle_start() {
     }
 }
 
+int encoderNumber = 0;
 // This function is the general interface to the real-time command execution system. It is called
 // from various check points in the main program, primarily where there may be a while loop waiting
 // for a buffer to clear space or any point where the execution time from the last check point may
@@ -364,8 +365,14 @@ void protocol_execute_realtime() {
     //     Maslow.readEncoders();
     // }
 
-    Maslow.recomputePID();
+    Maslow.recomputePID(encoderNumber);
     Maslow.setTargets(steps_to_mpos(get_axis_motor_steps(0),0), steps_to_mpos(get_axis_motor_steps(1),1), steps_to_mpos(get_axis_motor_steps(2),2));
+
+    encoderNumber = encoderNumber + 1;
+
+    if(encoderNumber > 3){
+        encoderNumber = 0;
+    }
 
 }
 
