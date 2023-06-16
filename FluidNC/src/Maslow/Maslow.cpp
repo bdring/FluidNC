@@ -87,7 +87,7 @@ void printToWeb (double precision){
     Serial.print( "Calibration Precision: ");
     Serial.println(precision);
 
-    log_info( "Calibration Precision: " + String(precision));
+    log_info( "Calibration Precision: " + String(precision) +"mm");
 }
 
 void Maslow_::readEncoders() {
