@@ -337,8 +337,7 @@ namespace WebUI {
                                              MIN_PASSWORD_LENGTH,
                                              MAX_PASSWORD_LENGTH,
                                              (bool (*)(char*))WiFiConfig::isPasswordValid);
-        wifi_ap_ssid     = new StringSetting(
-            "AP SSID", WEBSET, WA, "ESP105", "AP/SSID", DEFAULT_AP_SSID, MIN_SSID_LENGTH, MAX_SSID_LENGTH, (bool (*)(char*))WiFiConfig::isSSIDValid);
+        wifi_ap_ssid = new StringSetting("AP SSID", WEBSET, WA, "ESP105", "AP/SSID", DEFAULT_AP_SSID, MIN_SSID_LENGTH, MAX_SSID_LENGTH, NULL);
         wifi_ap_country  = new EnumSetting("AP regulatory domain", WEBSET, WA, NULL, "AP/Country", WiFiCountry01, &wifiContryOptions, NULL);
         wifi_sta_netmask = new IPaddrSetting("Station Static Mask", WEBSET, WA, NULL, "Sta/Netmask", DEFAULT_STA_MK, NULL);
         wifi_sta_gateway = new IPaddrSetting("Station Static Gateway", WEBSET, WA, NULL, "Sta/Gateway", DEFAULT_STA_GW, NULL);
@@ -356,15 +355,8 @@ namespace WebUI {
                                               MIN_PASSWORD_LENGTH,
                                               MAX_PASSWORD_LENGTH,
                                               (bool (*)(char*))WiFiConfig::isPasswordValid);
-        wifi_sta_ssid     = new StringSetting("Station SSID",
-                                          WEBSET,
-                                          WA,
-                                          "ESP100",
-                                          "Sta/SSID",
-                                          DEFAULT_STA_SSID,
-                                          MIN_SSID_LENGTH,
-                                          MAX_SSID_LENGTH,
-                                          (bool (*)(char*))WiFiConfig::isSSIDValid);
+        wifi_sta_ssid =
+            new StringSetting("Station SSID", WEBSET, WA, "ESP100", "Sta/SSID", DEFAULT_STA_SSID, MIN_SSID_LENGTH, MAX_SSID_LENGTH, NULL);
 
         wifi_mode = new EnumSetting("WiFi mode", WEBSET, WA, "ESP116", "WiFi/Mode", WiFiFallback, &wifiModeOptions, NULL);
 
@@ -463,26 +455,6 @@ namespace WebUI {
                 return false;
             }
             if (c == ' ') {
-                return false;
-            }
-        }
-        return true;
-    }
-
-    /**
-     * Check if SSID string is valid
-     */
-
-    bool WiFiConfig::isSSIDValid(const char* ssid) {
-        //limited size
-        //char c;
-        // length is checked automatically by string setting
-        //only printable
-        if (!ssid) {
-            return true;
-        }
-        for (int i = 0; i < strlen(ssid); i++) {
-            if (!isPrintable(ssid[i])) {
                 return false;
             }
         }
