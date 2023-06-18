@@ -43,7 +43,7 @@ namespace MotorDrivers {
 
     protected:
         Uart* _uart = nullptr;
-
+       
         int _uart_num = -1;
 
         static bool _uart_started;
