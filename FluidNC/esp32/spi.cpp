@@ -3,8 +3,6 @@
 
 #include "Driver/spi.h"
 
-#include <Driver/gpio.h>
-
 #include "driver/spi_common.h"
 #include "src/Config.h"
 
