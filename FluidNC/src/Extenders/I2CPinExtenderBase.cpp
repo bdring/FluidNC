@@ -133,16 +133,16 @@ namespace Extenders {
                     switch (_isrMode[i]) {
                         case RISING:
                             if ((value & mask) == mask) {
-                                _isrCallback[i](_isrArgument, (value & mask) == mask);
+                                _isrCallback[i](_isrArgument[i], (value & mask) == mask);
                             }
                             break;
                         case FALLING:
                             if ((value & mask) == 0) {
-                                _isrCallback[i](_isrArgument, (value & mask) == mask);
+                                _isrCallback[i](_isrArgument[i], (value & mask) == mask);
                             }
                             break;
                         case CHANGE:
-                            _isrCallback[i](_isrArgument, (value & mask) == mask);
+                            _isrCallback[i](_isrArgument[i], (value & mask) == mask);
                             break;
                     }
                 }

@@ -28,10 +28,15 @@ namespace Machine {
         _pin->report(_legend);
 
         auto attr = Pin::Attr::Input;
-        _pin->setAttr(attr);
-        _gpio = _pin->getNative(Pin::Capabilities::Input);
-        gpio_set_action(_gpio, gpioAction, this, _pin->getAttr().has(Pin::Attr::ActiveLow));
+        _pin->setAttr(attr | Pin::Attr::ISR);
+        _pin->attachInterrupt(gpioAction, 0x03 /* irrelevant */, this);
+
+        // _gpio = _pin->getNative(Pin::Capabilities::Input);
+        // gpio_set_action(_gpio, gpioAction, this, _pin->getAttr().has(Pin::Attr::ActiveLow));
     }
 
-    EventPin::~EventPin() { gpio_clear_action(_gpio); }
+    EventPin::~EventPin() {
+        _pin->detachInterrupt();
+        // gpio_clear_action(_gpio);
+    }
 };
