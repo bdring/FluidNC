@@ -205,14 +205,17 @@ namespace Pins {
                   false);  // We do not have an OpenDrain attribute yet
     }
 
-    void GPIOPinDetail::attachInterrupt(void (*callback)(void*), void* arg, int mode) {
+    void GPIOPinDetail::attachInterrupt(void (*callback)(void*, bool), void* arg, int mode) {
         Assert(_attributes.has(PinAttributes::ISR), "Pin %s does not support interrupts", toString().c_str());
-        ::attachInterruptArg(_index, callback, arg, mode);
+
+        // ::attachInterruptArg(_index, callback, arg, mode);
+        gpio_set_action(_index, callback, arg, _attributes.has(PinAttributes::ActiveLow));
     }
 
     void GPIOPinDetail::detachInterrupt() {
         Assert(_attributes.has(PinAttributes::ISR), "Pin %s does not support interrupts");
-        ::detachInterrupt(_index);
+        // ::detachInterrupt(_index);
+        gpio_clear_action(_index);
     }
 
     std::string GPIOPinDetail::toString() {

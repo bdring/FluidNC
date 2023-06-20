@@ -38,7 +38,7 @@ namespace Pins {
         virtual PinAttributes getAttr() const              = 0;
 
         // ISR's.
-        virtual void attachInterrupt(void (*callback)(void*), void* arg, int mode);
+        virtual void attachInterrupt(void (*callback)(void*, bool), void* arg, int mode);
         virtual void detachInterrupt();
 
         virtual std::string toString() = 0;

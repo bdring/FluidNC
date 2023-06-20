@@ -81,7 +81,7 @@ PwmPin::PwmPin(Pin& pin, uint32_t frequency) : _frequency(frequency) {
 
 #ifdef SOC_LEDC_SUPPORT_HS_MODE
     // Only ESP32 has LEDC_HIGH_SPEED_MODE with 8 channels per group
-    ledc_mode_t speedmode = int(_channel / (LEDC_CHANNEL_MAX / LEDC_SPEED_MODE_MAX));
+    ledc_mode_t speedmode = ledc_mode_t(int(_channel / (LEDC_CHANNEL_MAX / LEDC_SPEED_MODE_MAX)));
 #else
     ledc_mode_t speedmode = LEDC_LOW_SPEED_MODE;
 #endif
@@ -146,7 +146,7 @@ void IRAM_ATTR PwmPin::setDuty(uint32_t duty) {
 
 #ifdef SOC_LEDC_SUPPORT_HS_MODE
     // Only ESP32 has LEDC_HIGH_SPEED_MODE with 8 channels per group
-    ledc_mode_t speedmode = int(_channel / (LEDC_CHANNEL_MAX / LEDC_SPEED_MODE_MAX));
+    ledc_mode_t speedmode = ledc_mode_t(int(_channel / (LEDC_CHANNEL_MAX / LEDC_SPEED_MODE_MAX)));
 #else
     ledc_mode_t speedmode = LEDC_LOW_SPEED_MODE;
 #endif

@@ -11,7 +11,7 @@ namespace Machine {
 
     bool EventPin::get() { return _pin->read(); }
 
-    void EventPin::gpioAction(int gpio_num, void* arg, bool active) {
+    void EventPin::gpioAction(void* arg, bool active) {
         EventPin* obj = static_cast<EventPin*>(arg);
         //        protocol_send_event(obj, obj);
         obj->update(active);
@@ -30,7 +30,7 @@ namespace Machine {
         auto attr = Pin::Attr::Input;
         _pin->setAttr(attr);
         _gpio = _pin->getNative(Pin::Capabilities::Input);
-        gpio_set_action(_gpio, gpioAction, (void*)this, _pin->getAttr().has(Pin::Attr::ActiveLow));
+        gpio_set_action(_gpio, gpioAction, this, _pin->getAttr().has(Pin::Attr::ActiveLow));
     }
 
     EventPin::~EventPin() { gpio_clear_action(_gpio); }

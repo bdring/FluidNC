@@ -87,7 +87,7 @@ namespace Extenders {
             volatile uint16_t*  _valueBase = nullptr;
             uint8_t             _address   = 0;
 
-            typedef void (*ISRCallback)(void*);
+            typedef void (*ISRCallback)(void*, bool);
 
             bool        _hasISR          = false;
             ISRCallback _isrCallback[16] = { 0 };
@@ -98,7 +98,7 @@ namespace Extenders {
         };
 
         ISRData     _isrData[4];
-        static void IRAM_ATTR updateRegisterState(void* ptr);
+        static void IRAM_ATTR updateRegisterState(void* ptr, bool newState);
 
     protected:
         uint8_t _baseAddress = 0x00;  // Set for each pin extender!
@@ -118,7 +118,7 @@ namespace Extenders {
         bool IRAM_ATTR readPin(pinnum_t index) override;
         void IRAM_ATTR flushWrites() override;
 
-        void attachInterrupt(pinnum_t index, void (*callback)(void*), void* arg, int mode) override;
+        void attachInterrupt(pinnum_t index, void (*callback)(void*, bool), void* arg, int mode) override;
         void detachInterrupt(pinnum_t index) override;
 
         ~I2CPinExtenderBase();

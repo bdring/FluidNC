@@ -18,7 +18,7 @@ void gpio_route(pinnum_t pin, uint32_t signal);
 class Print;
 void gpio_dump(Print& out);
 
-typedef void (*gpio_dispatch_t)(int, void*, bool);
+typedef void (*gpio_dispatch_t)(void*, bool);
 
 void gpio_set_action(int gpio_num, gpio_dispatch_t action, void* arg, bool invert);
 void gpio_clear_action(int gpio_num);

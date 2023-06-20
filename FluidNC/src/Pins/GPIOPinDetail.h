@@ -31,13 +31,13 @@ namespace Pins {
         PinCapabilities capabilities() const override;
 
         // I/O:
-        void          write(int high) override;
+        void write(int high) override;
         int IRAM_ATTR read() override;
         void          setAttr(PinAttributes value) override;
         PinAttributes getAttr() const override;
 
         // ISR's:
-        void attachInterrupt(void (*callback)(void*), void* arg, int mode) override;
+        void attachInterrupt(void (*callback)(void*, bool), void* arg, int mode) override;
         void detachInterrupt() override;
 
         std::string toString() override;

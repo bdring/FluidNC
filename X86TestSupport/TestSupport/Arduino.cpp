@@ -21,7 +21,7 @@ void attachInterrupt(uint8_t pin, void (*callback)(void), int mode) {
         mode);
 }
 
-void attachInterruptArg(uint8_t pin, void (*callback)(void*), void* arg, int mode) {
+void attachInterruptArg(uint8_t pin, void (*callback)(void*, bool), void* arg, int mode) {
     SoftwareGPIO::instance().attachISR(pin, callback, arg, mode);
 }
 

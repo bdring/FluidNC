@@ -68,7 +68,7 @@ namespace Pins {
 
     PinAttributes ExtPinDetail::getAttr() const { return _attributes; }
 
-    void ExtPinDetail::attachInterrupt(void (*callback)(void*), void* arg, int mode) {
+    void ExtPinDetail::attachInterrupt(void (*callback)(void*, bool), void* arg, int mode) {
         Assert(_owner != nullptr, "Cannot attach ISR on uninitialized pin");
         _owner->attachInterrupt(_index, callback, arg, mode);
     }

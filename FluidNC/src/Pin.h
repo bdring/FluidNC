@@ -148,7 +148,9 @@ public:
     // ISR handlers. Map methods on 'this' types.
 
     // Backward compatibility ISR handler:
-    void attachInterrupt(void (*callback)(void*), int mode, void* arg = nullptr) const { _detail->attachInterrupt(callback, arg, mode); }
+    void attachInterrupt(void (*callback)(void*, bool), int mode, void* arg = nullptr) const {
+        _detail->attachInterrupt(callback, arg, mode);
+    }
 
     void detachInterrupt() const { _detail->detachInterrupt(); }
 

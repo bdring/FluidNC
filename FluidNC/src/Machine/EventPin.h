@@ -7,7 +7,7 @@
 namespace Machine {
     class EventPin {
     protected:
-        static void gpioAction(int, void*, bool);
+        static void gpioAction(void*, bool);
 
         Event* _event = nullptr;  // Subordinate event that is called conditionally
 

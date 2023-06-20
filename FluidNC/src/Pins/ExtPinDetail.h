@@ -31,7 +31,7 @@ namespace Pins {
         int  read() override;
 
         // ISR's:
-        void attachInterrupt(void (*callback)(void*), void* arg, int mode) override;
+        void attachInterrupt(void (*callback)(void*, bool), void* arg, int mode) override;
         void detachInterrupt() override;
 
         void          setAttr(PinAttributes value) override;

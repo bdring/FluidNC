@@ -133,16 +133,16 @@ namespace Extenders {
                     switch (_isrMode[i]) {
                         case RISING:
                             if ((value & mask) == mask) {
-                                _isrCallback[i](_isrArgument);
+                                _isrCallback[i](_isrArgument, (value & mask) == mask);
                             }
                             break;
                         case FALLING:
                             if ((value & mask) == 0) {
-                                _isrCallback[i](_isrArgument);
+                                _isrCallback[i](_isrArgument, (value & mask) == mask);
                             }
                             break;
                         case CHANGE:
-                            _isrCallback[i](_isrArgument);
+                            _isrCallback[i](_isrArgument, (value & mask) == mask);
                             break;
                     }
                 }
@@ -150,7 +150,7 @@ namespace Extenders {
         }
     }
 
-    void I2CPinExtenderBase::updateRegisterState(void* ptr) {
+    void I2CPinExtenderBase::updateRegisterState(void* ptr, bool newState) {
         ISRData* valuePtr = static_cast<ISRData*>(ptr);
 
         BaseType_t xHigherPriorityTaskWoken = false;
@@ -230,7 +230,7 @@ namespace Extenders {
     }
 
     // ISR's:
-    void I2CPinExtenderBase::attachInterrupt(pinnum_t index, void (*callback)(void*), void* arg, int mode) {
+    void I2CPinExtenderBase::attachInterrupt(pinnum_t index, void (*callback)(void*, bool), void* arg, int mode) {
         int device    = index / 16;
         int pinNumber = index % 16;
 

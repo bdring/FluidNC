@@ -437,7 +437,7 @@ typedef uint64_t   gpio_mask_t;
 static gpio_mask_t gpio_inverts  = 0;
 static gpio_mask_t gpio_interest = 0;
 static gpio_mask_t gpio_current  = 0;
-void IRAM_ATTR     check_switches() {
+void IRAM_ATTR check_switches() {
     gpio_mask_t gpio_this = (((uint64_t)REG_READ(GPIO_IN_REG)) << 32) | REG_READ(GPIO_IN1_REG);
     if (gpio_this != gpio_current) {
         gpio_mask_t gpio_changes = (gpio_this ^ gpio_current) & gpio_interest;
@@ -452,9 +452,11 @@ void IRAM_ATTR     check_switches() {
     }
     ++gpio_interest;
 }
+
 static gpio_dispatch_t gpioActions[GPIO_NUM_MAX + 1];
 static void*           gpioArgs[GPIO_NUM_MAX + 1];
-void                   gpio_set_action(int gpio_num, gpio_dispatch_t action, void* arg, bool invert) {
+
+void gpio_set_action(int gpio_num, gpio_dispatch_t action, void* arg, bool invert) {
     gpioActions[gpio_num] = action;
     gpioArgs[gpio_num]    = arg;
     gpio_mask_t mask      = 1ULL << gpio_num;
@@ -465,12 +467,14 @@ void                   gpio_set_action(int gpio_num, gpio_dispatch_t action, voi
         gpio_inverts &= ~mask;
     }
 }
+
 void gpio_clear_action(int gpio_num) {
     gpioActions[gpio_num] = nullptr;
     gpioArgs[gpio_num]    = nullptr;
     gpio_mask_t mask      = 1ULL << gpio_num;
     gpio_interest &= ~mask;
 }
+
 void poll_gpios() {
     gpio_mask_t gpio_this = (((uint64_t)REG_READ(GPIO_IN1_REG)) << 32) | REG_READ(GPIO_IN_REG);
 
@@ -485,7 +489,7 @@ void poll_gpios() {
             // Uart0 << gpio_num << " " << isActive << "\n";
             gpio_dispatch_t action = gpioActions[gpio_num];
             if (action) {
-                action(gpio_num, gpioArgs[gpio_num], isActive);
+                action(gpioArgs[gpio_num], isActive);
             }
             gpio_changes &= ~mask;
         }
