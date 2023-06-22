@@ -1761,7 +1761,3 @@ void WEAK_LINK user_tool_change(uint32_t new_tool) {
     Spindles::Spindle::switchSpindle(new_tool, config->_spindles, spindle);
     report_ovr_counter = 0;  // Set to report change immediately
 }
-
-void WEAK_LINK user_m100() {
-    //CallURL(GetCMDStartPrg());
-}
