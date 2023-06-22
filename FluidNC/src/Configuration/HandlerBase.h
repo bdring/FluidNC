@@ -10,6 +10,7 @@
 #include "../UartTypes.h"
 
 #include <IPAddress.h>
+#include <string>
 
 namespace Configuration {
     class Configurable;
@@ -33,15 +34,9 @@ namespace Configuration {
         friend class GenericFactory;
 
     public:
-        virtual void item(const char* name, bool& value)                                                        = 0;
-        virtual void item(const char* name, int32_t& value, int32_t minValue = 0, int32_t maxValue = INT32_MAX) = 0;
-
-        /* We bound uint32_t to INT32_MAX because we use the same parser */
-        void item(const char* name, uint32_t& value, uint32_t minValue = 0, uint32_t maxValue = INT32_MAX) {
-            int32_t v = int32_t(value);
-            item(name, v, int32_t(minValue), int32_t(maxValue));
-            value = uint32_t(v);
-        }
+        virtual void item(const char* name, bool& value)                                                            = 0;
+        virtual void item(const char* name, int32_t& value, int32_t minValue = 0, int32_t maxValue = INT32_MAX)     = 0;
+        virtual void item(const char* name, uint32_t& value, uint32_t minValue = 0, uint32_t maxValue = UINT32_MAX) = 0;
 
         void item(const char* name, uint8_t& value, uint8_t minValue = 0, uint8_t maxValue = UINT8_MAX) {
             int32_t v = int32_t(value);
@@ -58,7 +53,7 @@ namespace Configuration {
 
         virtual void item(const char* name, int& value, EnumItem* e) = 0;
 
-        virtual void item(const char* name, String& value, int minLength = 0, int maxLength = 255) = 0;
+        virtual void item(const char* name, std::string& value, int minLength = 0, int maxLength = 255) = 0;
 
         virtual HandlerType handlerType() = 0;
 
@@ -66,9 +61,12 @@ namespace Configuration {
         void section(const char* name, T*& value, U... args) {
             if (handlerType() == HandlerType::Parser) {
                 // For Parser, matchesUninitialized(name) resolves to _parser.is(name)
-                if (value == nullptr && matchesUninitialized(name)) {
-                    value = new T(args...);
-                    enterSection(name, value);
+                if (matchesUninitialized(name)) {
+                    Assert(value == nullptr, "Duplicate section %s", name);
+                    if (value == nullptr) {
+                        value = new T(args...);
+                        enterSection(name, value);
+                    }
                 }
             } else {
                 if (value != nullptr) {

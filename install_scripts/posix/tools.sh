@@ -80,7 +80,7 @@ esptool_erase() {
     esptool_basic erase_flash
 }
 
-Bootloader="0x1000 common/bootloader_dio_80m.bin"
+Bootloader="0x1000 ${BuildType}/bootloader.bin"
 Bootapp="0xe000 common/boot_app0.bin"
 Firmware="0x10000 ${BuildType}/firmware.bin"
 Partitions="0x8000 ${BuildType}/partitions.bin"

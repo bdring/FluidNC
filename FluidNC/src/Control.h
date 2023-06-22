@@ -7,6 +7,7 @@
 #include "ControlPin.h"
 #include <vector>
 
+using namespace Machine;
 class Control : public Configuration::Configurable {
 public:
     Control();
@@ -19,9 +20,10 @@ public:
     // Configuration handlers.
     void group(Configuration::HandlerBase& handler) override;
 
-    bool   stuck();
-    bool   safety_door_ajar();
-    String report_status();
+    bool stuck();
+    bool safety_door_ajar();
+
+    std::string report_status();
 
     bool startup_check();
 

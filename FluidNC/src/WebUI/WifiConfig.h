@@ -10,22 +10,22 @@
 #include "../Error.h"        // Error
 #include "Authentication.h"  // AuthenticationLevel
 
-#include <WString.h>
-
 #ifndef ENABLE_WIFI
 namespace WebUI {
     class WiFiConfig {
     public:
-        static String webInfo() { return String(); }
-        static String info() { return String(); }
-        static bool   isPasswordValid(const char* password) { return false; }
-        static bool   begin() { return false; }
-        static void   end() {}
-        static void   reset() {}
-        static void   reset_settings() {}
-        static void   handle() {}
-        static bool   isOn() { return false; }
-        static void   showWifiStats(Channel& out) {}
+        static std::string webInfo() { return std::string(); }
+        static std::string station_info() { return std::string(); }
+        static std::string ap_info() { return std::string(); }
+
+        static bool isPasswordValid(const char* password) { return false; }
+        static bool begin() { return false; }
+        static void end() {}
+        static void reset() {}
+        static void reset_settings() {}
+        static void handle() {}
+        static bool isOn() { return false; }
+        static void showWifiStats(Channel& out) {}
     };
     extern WiFiConfig wifi_config;
 }
@@ -42,20 +42,24 @@ namespace WebUI {
     static const int STATIC_MODE = 1;
 
     //defaults values
-    static const char* DEFAULT_HOSTNAME   = "fluidnc";
-    static const char* DEFAULT_STA_SSID   = "";
-    static const char* DEFAULT_STA_PWD    = "";
-    static const char* DEFAULT_STA_IP     = "0.0.0.0";
-    static const char* DEFAULT_STA_GW     = "0.0.0.0";
-    static const char* DEFAULT_STA_MK     = "0.0.0.0";
-    static const char* DEFAULT_AP_SSID    = "FluidNC";
-    static const char* DEFAULT_AP_PWD     = "12345678";
-    static const char* DEFAULT_AP_IP      = "192.168.0.1";
-    static const char* DEFAULT_AP_MK      = "255.255.255.0";
-    static const int   DEFAULT_AP_CHANNEL = 1;
+    static const char* DEFAULT_URLTOCALL   = "";
+    static const char* DEFAULT_CMDENDJOB   = "";
+    static const char* DEFAULT_CMDSTARTJOB = "";
+    static const char* DEFAULT_HOSTNAME    = "fluidnc";
+    static const char* DEFAULT_STA_SSID    = "";
+    static const char* DEFAULT_STA_PWD     = "";
+    static const char* DEFAULT_STA_IP      = "0.0.0.0";
+    static const char* DEFAULT_STA_GW      = "0.0.0.0";
+    static const char* DEFAULT_STA_MK      = "0.0.0.0";
+    static const char* DEFAULT_AP_SSID     = "FluidNC";
+    static const char* DEFAULT_AP_PWD      = "12345678";
+    static const char* DEFAULT_AP_IP       = "192.168.0.1";
+    static const char* DEFAULT_AP_MK       = "255.255.255.0";
+    static const int   DEFAULT_AP_CHANNEL  = 1;
 
-    static const int   DEFAULT_STA_IP_MODE = DHCP_MODE;
-    static const char* HIDDEN_PASSWORD     = "********";
+    static const int   DEFAULT_STA_MIN_SECURITY = WIFI_AUTH_WPA2_PSK;
+    static const int   DEFAULT_STA_IP_MODE      = DHCP_MODE;
+    static const char* HIDDEN_PASSWORD          = "********";
 
     //boundaries
     static const int MAX_SSID_LENGTH     = 32;
@@ -75,25 +79,28 @@ namespace WebUI {
 
         static void reset();
 
-        static String   webInfo();
-        static String   info();
-        static bool     isValidIP(const char* string);
-        static bool     isPasswordValid(const char* password);
-        static bool     isSSIDValid(const char* ssid);
-        static bool     isHostnameValid(const char* hostname);
-        static uint32_t IP_int_from_string(String& s);
-        static String   IP_string_from_int(uint32_t ip_int);
-        static String   Hostname() { return _hostname; }
-        static char*    mac2str(uint8_t mac[8]);
-        static bool     StartAP();
-        static bool     StartSTA();
-        static void     StopWiFi();
-        static int32_t  getSignal(int32_t RSSI);
-        static bool     begin();
-        static void     end();
-        static void     handle();
-        static void     reset_settings();
-        static bool     isOn();
+        static std::string webInfo();
+
+        static std::string station_info();
+        static std::string ap_info();
+
+        static bool isValidIP(const char* string);
+        static bool isPasswordValid(const char* password);
+        static bool isSSIDValid(const char* ssid);
+        static bool isHostnameValid(const char* hostname);
+
+        static std::string Hostname() { return _hostname; }
+
+        static char*   mac2str(uint8_t mac[8]);
+        static bool    StartAP();
+        static bool    StartSTA();
+        static void    StopWiFi();
+        static int32_t getSignal(int32_t RSSI);
+        static bool    begin();
+        static void    end();
+        static void    handle();
+        static void    reset_settings();
+        static bool    isOn();
 
         static Error listAPs(char* parameter, AuthenticationLevel auth_level, Channel& out);
         static void  showWifiStats(Channel& out);
@@ -101,10 +108,11 @@ namespace WebUI {
         ~WiFiConfig();
 
     private:
-        static bool   ConnectSTA2AP();
-        static void   WiFiEvent(WiFiEvent_t event);
-        static String _hostname;
-        static bool   _events_registered;
+        static bool ConnectSTA2AP();
+        static void WiFiEvent(WiFiEvent_t event);
+        static bool _events_registered;
+
+        static std::string _hostname;
     };
 
     extern WiFiConfig wifi_config;
@@ -114,6 +122,8 @@ namespace WebUI {
     extern StringSetting* wifi_sta_ssid;
     extern StringSetting* wifi_sta_password;
 
+    extern EnumSetting*   wifi_fast_scan;
+    extern EnumSetting*   wifi_sta_min_security;
     extern EnumSetting*   wifi_sta_mode;
     extern IPaddrSetting* wifi_sta_ip;
     extern IPaddrSetting* wifi_sta_gateway;
@@ -127,5 +137,8 @@ namespace WebUI {
     extern IntSetting* wifi_ap_channel;
 
     extern StringSetting* wifi_hostname;
+    extern StringSetting* URL_ToCall;
+    extern StringSetting* CMD_EndJob;
+    extern StringSetting* CMD_StartJob;
 }
 #endif

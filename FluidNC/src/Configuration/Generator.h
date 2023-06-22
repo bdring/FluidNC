@@ -6,7 +6,8 @@
 #include <vector>
 
 #include "../Pin.h"
-#include "../Report.h"
+#include "../Report.h"    // report_gcode_modes()
+#include "../Protocol.h"  // send_line()
 #include "HandlerBase.h"
 
 namespace Configuration {
@@ -16,16 +17,9 @@ namespace Configuration {
         Generator(const Generator&) = delete;
         Generator& operator=(const Generator&) = delete;
 
-        int    indent_;
-        Print& dst_;
-        bool   lastIsNewline_ = false;
-
-        inline void indent() {
-            lastIsNewline_ = false;
-            for (int i = 0; i < indent_ * 2; ++i) {
-                dst_ << ' ';
-            }
-        }
+        int      indent_;
+        Channel& dst_;
+        bool     lastIsNewline_ = false;
 
         void enter(const char* name);
         void add(Configuration::Configurable* configurable);
@@ -37,82 +31,81 @@ namespace Configuration {
         HandlerType handlerType() override { return HandlerType::Generator; }
 
     public:
-        Generator(Print& dst, int indent = 0);
+        Generator(Channel& dst, int indent = 0);
 
-        void item(const char* name, int& value, int32_t minValue, int32_t maxValue) override {
-            indent();
-            dst_ << name << ": " << value << '\n';
+        void send_item(const char* name, const std::string& value) {
+            LogStream s(dst_, "");
+            lastIsNewline_ = false;
+            for (int i = 0; i < indent_ * 2; ++i) {
+                s << ' ';
+            }
+            s << name;
+            s << ": ";
+            s << value;
         }
 
-        void item(const char* name, float& value, float minValue, float maxValue) override {
-            indent();
-            dst_ << name << ": " << value << '\n';
+        void item(const char* name, int& value, int32_t minValue, int32_t maxValue) override { send_item(name, std::to_string(value)); }
+
+        void item(const char* name, uint32_t& value, uint32_t minValue, uint32_t maxValue) override {
+            send_item(name, std::to_string(value));
         }
+
+        void item(const char* name, float& value, float minValue, float maxValue) override { send_item(name, std::to_string(value)); }
 
         void item(const char* name, std::vector<speedEntry>& value) {
-            indent();
-            dst_ << name << ": ";
+            std::string s;
             if (value.size() == 0) {
-                dst_ << "None";
+                s += "None";
             } else {
                 const char* separator = "";
                 for (speedEntry n : value) {
-                    dst_ << separator << n.speed << '=' << n.percent << '%';
+                    s += separator;
                     separator = " ";
+                    s += std::to_string(n.speed);
+                    s += '=';
+                    s += std::to_string(n.percent);
+                    s += '%';
                 }
             }
-            dst_ << '\n';
+            send_item(name, s);
         }
 
         void item(const char* name, UartData& wordLength, UartParity& parity, UartStop& stopBits) override {
-            indent();
-            dst_ << name << ": " << (int(wordLength) - int(UartData::Bits5) + 5);
+            std::string s;
+            s += std::to_string(int(wordLength) - int(UartData::Bits5) + 5);
             switch (parity) {
                 case UartParity::Even:
-                    dst_ << 'E';
+                    s += 'E';
                     break;
                 case UartParity::Odd:
-                    dst_ << 'O';
+                    s += 'O';
                     break;
                 case UartParity::None:
-                    dst_ << 'N';
+                    s += 'N';
                     break;
             }
             switch (stopBits) {
                 case UartStop::Bits1:
-                    dst_ << '1';
+                    s += '1';
                     break;
                 case UartStop::Bits1_5:
-                    dst_ << "1.5";
+                    s += "1.5";
                     break;
                 case UartStop::Bits2:
-                    dst_ << '2';
+                    s += '2';
                     break;
             }
-            dst_ << '\n';
+            send_item(name, s);
         }
 
-        void item(const char* name, String& value, int minLength, int maxLength) override {
-            indent();
-            dst_ << name << ": " << value << '\n';
-        }
+        void item(const char* name, std::string& value, int minLength, int maxLength) override { send_item(name, value); }
 
-        void item(const char* name, bool& value) override {
-            indent();
-            const char* bval = value ? "true" : "false";
-            dst_ << name << ": " << bval << '\n';
-        }
+        void item(const char* name, bool& value) override { send_item(name, value ? "true" : "false"); }
 
-        void item(const char* name, Pin& value) override {
-            indent();
-            dst_ << name << ": " << value << '\n';
-        }
-        void item(const char* name, IPAddress& value) override {
-            indent();
-            dst_ << name << ": " << value.toString() << '\n';
-        }
+        void item(const char* name, Pin& value) override { send_item(name, value.name()); }
+
+        void item(const char* name, IPAddress& value) override { send_item(name, IP_string(value)); }
         void item(const char* name, int& value, EnumItem* e) override {
-            indent();
             const char* str = "unknown";
             for (; e->name; ++e) {
                 if (value == e->value) {
@@ -120,7 +113,7 @@ namespace Configuration {
                     break;
                 }
             }
-            dst_ << name << ": " << str << '\n';
+            send_item(name, str);
         }
     };
 }

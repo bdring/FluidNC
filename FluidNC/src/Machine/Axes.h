@@ -6,6 +6,7 @@
 
 #include "../Configuration/Configurable.h"
 #include "Axis.h"
+#include "../EnumItem.h"
 
 namespace MotorDrivers {
     class MotorDriver;
@@ -70,8 +71,10 @@ namespace Machine {
         void unstep();
         void config_motors();
 
-        String maskToNames(AxisMask mask);
-        bool   namesToMask(const char* names, AxisMask& mask);
+        std::string maskToNames(AxisMask mask);
+        bool        namesToMask(const char* names, AxisMask& mask);
+
+        std::string motorMaskToNames(MotorMask mask);
 
         // Configuration helpers:
         void group(Configuration::HandlerBase& handler) override;
@@ -80,3 +83,4 @@ namespace Machine {
         ~Axes();
     };
 }
+extern EnumItem axisType[];

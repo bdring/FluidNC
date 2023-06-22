@@ -63,7 +63,7 @@ namespace WebUI {
 
     static Error showSetNotification(char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP610
         if (*parameter == '\0') {
-            out << notification_type->getStringValue() << " " << notification_ts->getStringValue() << '\n';
+            log_to(out, "", notification_type->getStringValue() << " " << notification_ts->getStringValue());
             return Error::Ok;
         }
         if (!split_params(parameter)) {
@@ -88,11 +88,11 @@ namespace WebUI {
 
     static Error sendMessage(char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP600
         if (*parameter == '\0') {
-            out << "Invalid message!" << '\n';
+            log_to(out, "Invalid message!");
             return Error::InvalidValue;
         }
         if (!notificationsService.sendMSG("GRBL Notification", parameter)) {
-            out << "Cannot send message!" << '\n';
+            log_to(out, "Cannot send message!");
             return Error::MessageFailed;
         }
         return Error::Ok;
@@ -134,29 +134,20 @@ namespace WebUI {
 
     bool Wait4Answer(WiFiClientSecure& client, const char* linetrigger, const char* expected_answer, uint32_t timeout) {
         if (client.connected()) {
-            String   answer;
-            uint32_t start_time = millis();
+            std::string answer;
+            uint32_t    start_time = millis();
             while (client.connected() && ((millis() - start_time) < timeout)) {
-                answer = client.readStringUntil('\n');
-                log_d("Answer: %s", answer.c_str());
-                if ((answer.indexOf(linetrigger) != -1) || (strlen(linetrigger) == 0)) {
+                answer = std::string(client.readStringUntil('\n').c_str());
+                if ((answer.find(linetrigger) != std::string::npos) || (strlen(linetrigger) == 0)) {
                     break;
                 }
                 delay_ms(10);
             }
             if (strlen(expected_answer) == 0) {
-                log_d("Answer ignored as requested");
                 return true;
             }
-            if (answer.indexOf(expected_answer) == -1) {
-                log_d("Did not got answer!");
-                return false;
-            } else {
-                log_d("Got expected answer");
-                return true;
-            }
+            return answer.find(expected_answer) != std::string::npos;
         }
-        log_d("Failed to send message");
         return false;
     }
 
@@ -200,12 +191,10 @@ namespace WebUI {
     //Messages are currently limited to 1024 4-byte UTF-8 characters
     //but we do not do any check
     bool NotificationsService::sendPushoverMSG(const char* title, const char* message) {
-        String           data;
-        String           postcmd;
+        std::string      data, postcmd;
         bool             res;
         WiFiClientSecure Notificationclient;
         if (!Notificationclient.connect(_serveraddress.c_str(), _port)) {
-            log_d("Error connecting  server %s:%d", _serveraddress.c_str(), _port);
             return false;
         }
         //build data for post
@@ -226,105 +215,80 @@ namespace WebUI {
         postcmd += data.length();
         postcmd += "\r\n\r\n";
         postcmd += data;
-        log_d("Query: %s", postcmd.c_str());
         //send query
-        Notificationclient.print(postcmd);
+        Notificationclient.print(postcmd.c_str());
         res = Wait4Answer(Notificationclient, "{", "\"status\":1", PUSHOVERTIMEOUT);
         Notificationclient.stop();
         return res;
     }
     bool NotificationsService::sendEmailMSG(const char* title, const char* message) {
         WiFiClientSecure Notificationclient;
-        log_d("Connect to server");
         if (!Notificationclient.connect(_serveraddress.c_str(), _port)) {
-            log_d("Error connecting  server %s:%d", _serveraddress.c_str(), _port);
             return false;
         }
         //Check answer of connection
         if (!Wait4Answer(Notificationclient, "220", "220", EMAILTIMEOUT)) {
-            log_d("Connection failed!");
             return false;
         }
         //Do HELO
-        log_d("HELO");
         Notificationclient.print("HELO friend\r\n");
         if (!Wait4Answer(Notificationclient, "250", "250", EMAILTIMEOUT)) {
-            log_d("HELO failed!");
             return false;
         }
-        log_d("AUTH LOGIN");
         //Request AUthentication
         Notificationclient.print("AUTH LOGIN\r\n");
         if (!Wait4Answer(Notificationclient, "334", "334", EMAILTIMEOUT)) {
-            log_d("AUTH LOGIN failed!");
             return false;
         }
-        log_d("Send LOGIN");
         //sent Login
         Notificationclient.printf("%s\r\n", _token1.c_str());
         if (!Wait4Answer(Notificationclient, "334", "334", EMAILTIMEOUT)) {
-            log_d("Sent login failed!");
             return false;
         }
-        log_d("Send PASSWORD");
         //Send password
         Notificationclient.printf("%s\r\n", _token2.c_str());
         if (!Wait4Answer(Notificationclient, "235", "235", EMAILTIMEOUT)) {
-            log_d("Sent password failed!");
             return false;
         }
-        log_d("MAIL FROM");
         //Send From
         Notificationclient.printf("MAIL FROM: <%s>\r\n", _settings.c_str());
         if (!Wait4Answer(Notificationclient, "250", "250", EMAILTIMEOUT)) {
-            log_d("MAIL FROM failed!");
             return false;
         }
-        log_d("RCPT TO");
         //Send To
         Notificationclient.printf("RCPT TO: <%s>\r\n", _settings.c_str());
         if (!Wait4Answer(Notificationclient, "250", "250", EMAILTIMEOUT)) {
-            log_d("RCPT TO failed!");
             return false;
         }
-        log_d("DATA");
         //Send Data
         Notificationclient.print("DATA\r\n");
         if (!Wait4Answer(Notificationclient, "354", "354", EMAILTIMEOUT)) {
-            log_d("Preparing DATA failed!");
             return false;
         }
-        log_d("Send message");
         //Send message
         Notificationclient.printf("From:ESP3D<%s>\r\n", _settings.c_str());
         Notificationclient.printf("To: <%s>\r\n", _settings.c_str());
         Notificationclient.printf("Subject: %s\r\n\r\n", title);
         Notificationclient.println(message);
-        log_d("Send final dot");
         //Send Final dot
         Notificationclient.print(".\r\n");
         if (!Wait4Answer(Notificationclient, "250", "250", EMAILTIMEOUT)) {
-            log_d("Sending final dot failed!");
             return false;
         }
-        log_d("QUIT");
         //Quit
         Notificationclient.print("QUIT\r\n");
         if (!Wait4Answer(Notificationclient, "221", "221", EMAILTIMEOUT)) {
-            log_d("QUIT failed!");
             return false;
         }
         Notificationclient.stop();
         return true;
     }
     bool NotificationsService::sendLineMSG(const char* title, const char* message) {
-        String           data;
-        String           postcmd;
+        std::string      data, postcmd;
         bool             res;
         WiFiClientSecure Notificationclient;
         (void)title;
         if (!Notificationclient.connect(_serveraddress.c_str(), _port)) {
-            log_d("Error connecting  server %s:%d", _serveraddress.c_str(), _port);
             return false;
         }
         //build data for post
@@ -337,51 +301,49 @@ namespace WebUI {
         postcmd += "Authorization: Bearer ";
         postcmd += _token1 + "\r\n";
         postcmd += "Content-Length: ";
-        postcmd += data.length();
+        postcmd += std::to_string(data.length());
         postcmd += "\r\n\r\n";
         postcmd += data;
-        log_d("Query: %s", postcmd.c_str());
         //send query
-        Notificationclient.print(postcmd);
+        Notificationclient.print(postcmd.c_str());
         res = Wait4Answer(Notificationclient, "{", "\"status\":200", LINETIMEOUT);
         Notificationclient.stop();
         return res;
     }
     //Email#serveraddress:port
     bool NotificationsService::getPortFromSettings() {
-        String tmp = notification_ts->get();
-        int    pos = tmp.lastIndexOf(':');
-        if (pos == -1) {
+        std::string tmp(notification_ts->get());
+        size_t      pos = tmp.rfind(':');
+        if (pos == std::string::npos) {
             return false;
         }
 
-        _port = tmp.substring(pos + 1).toInt();
-        log_d("port : %d", _port);
-        return _port > 0;
+        try {
+            _port = stoi(tmp.substr(pos + 1));
+        } catch (...) { return false; }
+        return true;
     }
     //Email#serveraddress:port
     bool NotificationsService::getServerAddressFromSettings() {
-        String tmp  = notification_ts->get();
-        int    pos1 = tmp.indexOf('#');
-        int    pos2 = tmp.lastIndexOf(':');
-        if ((pos1 == -1) || (pos2 == -1)) {
+        std::string tmp(notification_ts->get());
+        int         pos1 = tmp.find('#');
+        int         pos2 = tmp.rfind(':');
+        if ((pos1 == std::string::npos) || (pos2 == std::string::npos)) {
             return false;
         }
 
         //TODO add a check for valid email ?
-        _serveraddress = tmp.substring(pos1 + 1, pos2);
-        log_d("server : %s", _serveraddress.c_str());
+        _serveraddress = tmp.substr(pos1 + 1, pos2);
         return true;
     }
     //Email#serveraddress:port
     bool NotificationsService::getEmailFromSettings() {
-        String tmp = notification_ts->get();
-        int    pos = tmp.indexOf('#');
-        if (pos == -1) {
+        std::string tmp(notification_ts->get());
+        int         pos = tmp.find('#');
+        if (pos == std::string::npos) {
             return false;
         }
-        _settings = tmp.substring(0, pos);
-        log_d("email : %s", _settings.c_str());
+        _settings = tmp.substr(0, pos);
         //TODO add a check for valid email ?
         return true;
     }
@@ -404,8 +366,8 @@ namespace WebUI {
                 _serveraddress = LINESERVER;
                 break;
             case EMAIL_NOTIFICATION:
-                _token1 = base64::encode(notification_t1->get());
-                _token2 = base64::encode(notification_t2->get());
+                _token1 = base64::encode(notification_t1->get()).c_str();
+                _token2 = base64::encode(notification_t2->get()).c_str();
                 if (!getEmailFromSettings() || !getPortFromSettings() || !getServerAddressFromSettings()) {
                     return false;
                 }

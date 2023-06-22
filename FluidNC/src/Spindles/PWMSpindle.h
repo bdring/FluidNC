@@ -33,7 +33,7 @@ namespace Spindles {
         void setState(SpindleState state, SpindleSpeed speed) override;
         void config_message() override;
         // Configuration handlers:
-        void validate() const override { Spindle::validate(); }
+        void validate() override { Spindle::validate(); }
 
         void group(Configuration::HandlerBase& handler) override {
             // The APB clock frequency is 80MHz and the maximum divisor
@@ -59,7 +59,7 @@ namespace Spindles {
         virtual ~PWM() {}
 
     protected:
-        int32_t _current_pwm_duty = 0;
+        uint32_t _current_pwm_duty = 0;
         PwmPin* _pwm              = nullptr;
 
         // Configurable

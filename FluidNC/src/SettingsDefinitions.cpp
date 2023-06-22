@@ -1,5 +1,5 @@
 #include "SettingsDefinitions.h"
-#include "Logging.h"
+#include "Config.h"
 
 StringSetting* config_filename;
 
@@ -8,6 +8,8 @@ StringSetting* build_info;
 StringSetting* start_message;
 
 IntSetting* status_mask;
+
+IntSetting* sd_fallback_cs;
 
 EnumSetting* message_level;
 
@@ -46,6 +48,8 @@ void make_settings() {
     make_coordinate(CoordIndex::G59, "G59");
     make_coordinate(CoordIndex::G28, "G28");
     make_coordinate(CoordIndex::G30, "G30");
+    make_coordinate(CoordIndex::G92, "G92");
+    make_coordinate(CoordIndex::TLO, "TLO");
 
     message_level = new EnumSetting("Which Messages", EXTENDED, WG, NULL, "Message/Level", MsgLevelInfo, &messageLevels, NULL);
 
@@ -53,6 +57,8 @@ void make_settings() {
 
     // GRBL Numbered Settings
     status_mask = new IntSetting("What to include in status report", GRBL, WG, "10", "Report/Status", 1, 0, 3, NULL);
+
+    sd_fallback_cs = new IntSetting("SD CS pin if not configured", EXTENDED, WG, NULL, "SD/FallbackCS", -1, -1, 40, NULL);
 
     build_info = new StringSetting("OEM build info for $I command", EXTENDED, WG, NULL, "Firmware/Build", "", 0, 20, NULL);
 

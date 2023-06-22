@@ -38,7 +38,7 @@
 */
 
 #include "Serial.h"
-#include "Uart.h"
+#include "UartChannel.h"
 #include "Machine/MachineConfig.h"
 #include "WebUI/InputBuffer.h"
 #include "WebUI/Commands.h"
@@ -46,11 +46,13 @@
 #include "MotionControl.h"
 #include "Report.h"
 #include "System.h"
-#include "Protocol.h"  // rtSafetyDoor etc
+#include "Protocol.h"  // *Event
 #include "InputFile.h"
 #include "WebUI/InputBuffer.h"  // XXX could this be a StringStream ?
 #include "Main.h"               // display()
 #include "StartupLog.h"         // startupLog
+
+#include "Driver/fluidnc_gpio.h"
 
 #include <atomic>
 #include <cstring>
@@ -58,7 +60,7 @@
 #include <algorithm>
 #include <freertos/task.h>  // portMUX_TYPE, TaskHandle_T
 
-portMUX_TYPE myMutex = portMUX_INITIALIZER_UNLOCKED;
+std::mutex AllChannels::_mutex;
 
 static TaskHandle_t channelCheckTaskHandle = 0;
 
@@ -85,116 +87,91 @@ void execute_realtime_command(Cmd command, Channel& channel) {
     switch (command) {
         case Cmd::Reset:
             log_debug("Cmd::Reset");
-            mc_reset();  // Call motion control reset routine.
+            protocol_send_event(&resetEvent);
             break;
         case Cmd::StatusReport:
             report_realtime_status(channel);  // direct call instead of setting flag
+            // protocol_send_event(&reportStatusEvent, int(&channel));
             break;
         case Cmd::CycleStart:
-            rtCycleStart = true;
+            protocol_send_event(&cycleStartEvent);
             break;
         case Cmd::FeedHold:
-            rtFeedHold = true;
+            protocol_send_event(&feedHoldEvent);
             break;
         case Cmd::SafetyDoor:
-            rtSafetyDoor = true;
+            protocol_send_event(&safetyDoorEvent);
             break;
         case Cmd::JogCancel:
             if (sys.state == State::Jog) {  // Block all other states from invoking motion cancel.
-                rtMotionCancel = true;
+                protocol_send_event(&motionCancelEvent);
             }
             break;
         case Cmd::DebugReport:
-#ifdef DEBUG_REPORT_REALTIME
-            rtExecDebug = true;
-#endif
+            protocol_send_event(&debugEvent);
             break;
         case Cmd::SpindleOvrStop:
-            rtAccessoryOverride.bit.spindleOvrStop = 1;
+            protocol_send_event(&accessoryOverrideEvent, AccessoryOverride::SpindleStopOvr);
             break;
         case Cmd::FeedOvrReset:
-            rtFOverride = FeedOverride::Default;
+            protocol_send_event(&feedOverrideEvent, FeedOverride::Default);
             break;
         case Cmd::FeedOvrCoarsePlus:
-            rtFOverride += FeedOverride::CoarseIncrement;
-            if (rtFOverride > FeedOverride::Max) {
-                rtFOverride = FeedOverride::Max;
-            }
+            protocol_send_event(&feedOverrideEvent, FeedOverride::CoarseIncrement);
             break;
         case Cmd::FeedOvrCoarseMinus:
-            rtFOverride -= FeedOverride::CoarseIncrement;
-            if (rtFOverride < FeedOverride::Min) {
-                rtFOverride = FeedOverride::Min;
-            }
+            protocol_send_event(&feedOverrideEvent, -FeedOverride::CoarseIncrement);
             break;
         case Cmd::FeedOvrFinePlus:
-            rtFOverride += FeedOverride::FineIncrement;
-            if (rtFOverride > FeedOverride::Max) {
-                rtFOverride = FeedOverride::Max;
-            }
+            protocol_send_event(&feedOverrideEvent, FeedOverride::FineIncrement);
             break;
         case Cmd::FeedOvrFineMinus:
-            rtFOverride -= FeedOverride::FineIncrement;
-            if (rtFOverride < FeedOverride::Min) {
-                rtFOverride = FeedOverride::Min;
-            }
+            protocol_send_event(&feedOverrideEvent, -FeedOverride::FineIncrement);
             break;
         case Cmd::RapidOvrReset:
-            rtROverride = RapidOverride::Default;
+            protocol_send_event(&rapidOverrideEvent, RapidOverride::Default);
             break;
         case Cmd::RapidOvrMedium:
-            rtROverride = RapidOverride::Medium;
+            protocol_send_event(&rapidOverrideEvent, RapidOverride::Medium);
             break;
         case Cmd::RapidOvrLow:
-            rtROverride = RapidOverride::Low;
+            protocol_send_event(&rapidOverrideEvent, RapidOverride::Low);
             break;
         case Cmd::RapidOvrExtraLow:
-            rtROverride = RapidOverride::ExtraLow;
+            protocol_send_event(&rapidOverrideEvent, RapidOverride::ExtraLow);
             break;
         case Cmd::SpindleOvrReset:
-            rtSOverride = SpindleSpeedOverride::Default;
+            protocol_send_event(&spindleOverrideEvent, SpindleSpeedOverride::Default);
             break;
         case Cmd::SpindleOvrCoarsePlus:
-            rtSOverride += SpindleSpeedOverride::CoarseIncrement;
-            if (rtSOverride > SpindleSpeedOverride::Max) {
-                rtSOverride = SpindleSpeedOverride::Max;
-            }
+            protocol_send_event(&spindleOverrideEvent, SpindleSpeedOverride::CoarseIncrement);
             break;
         case Cmd::SpindleOvrCoarseMinus:
-            rtSOverride -= SpindleSpeedOverride::CoarseIncrement;
-            if (rtSOverride < SpindleSpeedOverride::Min) {
-                rtSOverride = SpindleSpeedOverride::Min;
-            }
+            protocol_send_event(&spindleOverrideEvent, -SpindleSpeedOverride::CoarseIncrement);
             break;
         case Cmd::SpindleOvrFinePlus:
-            rtSOverride += SpindleSpeedOverride::FineIncrement;
-            if (rtSOverride > SpindleSpeedOverride::Max) {
-                rtSOverride = SpindleSpeedOverride::Max;
-            }
+            protocol_send_event(&spindleOverrideEvent, SpindleSpeedOverride::FineIncrement);
             break;
         case Cmd::SpindleOvrFineMinus:
-            rtSOverride -= SpindleSpeedOverride::FineIncrement;
-            if (rtSOverride < SpindleSpeedOverride::Min) {
-                rtSOverride = SpindleSpeedOverride::Min;
-            }
+            protocol_send_event(&spindleOverrideEvent, -SpindleSpeedOverride::FineIncrement);
             break;
         case Cmd::CoolantFloodOvrToggle:
-            rtAccessoryOverride.bit.coolantFloodOvrToggle = 1;
+            protocol_send_event(&accessoryOverrideEvent, AccessoryOverride::FloodToggle);
             break;
         case Cmd::CoolantMistOvrToggle:
-            rtAccessoryOverride.bit.coolantMistOvrToggle = 1;
+            protocol_send_event(&accessoryOverrideEvent, AccessoryOverride::MistToggle);
             break;
         case Cmd::Macro0:
-            rtButtonMacro0 = true;
+            protocol_send_event(&macro0Event);
             break;
         case Cmd::Macro1:
-            rtButtonMacro1 = true;
+            protocol_send_event(&macro1Event);
             break;
         case Cmd::Macro2:
-            rtButtonMacro2 = true;
+            protocol_send_event(&macro2Event);
             break;
         case Cmd::Macro3:
-            rtButtonMacro3 = true;
+            protocol_send_event(&macro3Event);
             break;
     }
 }
@@ -209,68 +186,117 @@ bool is_realtime_command(uint8_t data) {
 }
 
 void AllChannels::init() {
-    registration(&Uart0);               // USB Serial
     registration(&WebUI::inputBuffer);  // Macros
-    registration(&startupLog);          // USB Serial
+    registration(&startupLog);          // Early startup messages for $SS
+}
+
+void AllChannels::kill(Channel* channel) {
+    xQueueSend(_killQueue, &channel, 0);
 }
 
 void AllChannels::registration(Channel* channel) {
+    _mutex.lock();
     _channelq.push_back(channel);
+    _mutex.unlock();
 }
 void AllChannels::deregistration(Channel* channel) {
+    _mutex.lock();
+    if (channel == _lastChannel) {
+        _lastChannel = nullptr;
+    }
     _channelq.erase(std::remove(_channelq.begin(), _channelq.end(), channel), _channelq.end());
+    _mutex.unlock();
 }
 
-String AllChannels::info() {
-    String retval;
+void AllChannels::listChannels(Channel& out) {
+    _mutex.lock();
+    std::string retval;
     for (auto channel : _channelq) {
-        retval += channel->name();
-        retval += "\n";
+        log_to(out, channel->name());
     }
-    return retval;
+    _mutex.unlock();
 }
 
 void AllChannels::flushRx() {
+    _mutex.lock();
     for (auto channel : _channelq) {
         channel->flushRx();
     }
+    _mutex.unlock();
 }
 
 size_t AllChannels::write(uint8_t data) {
+    _mutex.lock();
     for (auto channel : _channelq) {
         channel->write(data);
     }
+    _mutex.unlock();
     return 1;
 }
+void AllChannels::notifyWco(void) {
+    _mutex.lock();
+    for (auto channel : _channelq) {
+        channel->notifyWco();
+    }
+    _mutex.unlock();
+}
+void AllChannels::notifyNgc(CoordIndex coord) {
+    _mutex.lock();
+    for (auto channel : _channelq) {
+        channel->notifyNgc(coord);
+    }
+    _mutex.unlock();
+}
+
+void AllChannels::stopJob() {
+    _mutex.lock();
+    for (auto channel : _channelq) {
+        channel->stopJob();
+    }
+    _mutex.unlock();
+}
+
 size_t AllChannels::write(const uint8_t* buffer, size_t length) {
+    _mutex.lock();
     for (auto channel : _channelq) {
         channel->write(buffer, length);
     }
+    _mutex.unlock();
     return length;
 }
 Channel* AllChannels::pollLine(char* line) {
-    static Channel* lastChannel = nullptr;
+    Channel* deadChannel;
+    while (xQueueReceive(_killQueue, &deadChannel, 0)) {
+        deregistration(deadChannel);
+        delete deadChannel;
+    }
+
     // To avoid starving other channels when one has a lot
     // of traffic, we poll the other channels before the last
     // one that returned a line.
+    _mutex.lock();
+
     for (auto channel : _channelq) {
         // Skip the last channel in the loop
-        if (channel != lastChannel && channel->pollLine(line)) {
-            lastChannel = channel;
-            return lastChannel;
+        if (channel != _lastChannel && channel->pollLine(line)) {
+            _lastChannel = channel;
+            _mutex.unlock();
+            return _lastChannel;
         }
     }
+    _mutex.unlock();
     // If no other channel returned a line, try the last one
-    if (lastChannel && lastChannel->pollLine(line)) {
-        return lastChannel;
+    if (_lastChannel && _lastChannel->pollLine(line)) {
+        return _lastChannel;
     }
-    lastChannel = nullptr;
-    return lastChannel;
+    _lastChannel = nullptr;
+    return _lastChannel;
 }
 
 AllChannels allChannels;
 
 Channel* pollChannels(char* line) {
+    poll_gpios();
     // Throttle polling when we are not ready for a line, thus preventing
     // planner buffer starvation due to not calling Stepper::prep_buffer()
     // frequently enough, which is normally called periodically at the end

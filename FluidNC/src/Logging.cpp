@@ -1,33 +1,29 @@
 // Copyright (c) 2021 -  Stefan de Bruijn
 // Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
 
-#include "Logging.h"
+#include "Config.h"
+#include "Protocol.h"
+#include "Serial.h"
 #include "SettingsDefinitions.h"
 
-#ifndef ESP32
-
-#    include <iostream>
-
-#    define DEBUG_OUT std::cout
 bool atMsgLevel(MsgLevel level) {
     return message_level == nullptr || message_level->get() >= level;
 }
-#else
-#    define DEBUG_OUT allChannels
-bool atMsgLevel(MsgLevel level) {
-    return message_level == nullptr || message_level->get() >= level;
-}
-#endif
 
-DebugStream::DebugStream(const char* name) {
-    DEBUG_OUT << "[MSG:" << name << ": ";
+LogStream::LogStream(Channel& channel, const char* name) : _channel(channel) {
+    _line = new std::string();
+    print(name);
 }
+LogStream::LogStream(const char* name) : LogStream(allChannels, name) {}
 
-size_t DebugStream::write(uint8_t c) {
-    DEBUG_OUT << static_cast<char>(c);
+size_t LogStream::write(uint8_t c) {
+    *_line += (char)c;
     return 1;
 }
 
-DebugStream::~DebugStream() {
-    DEBUG_OUT << "]\n";
+LogStream::~LogStream() {
+    if ((*_line).length() && (*_line)[0] == '[') {
+        *_line += ']';
+    }
+    send_line(_channel, _line);
 }

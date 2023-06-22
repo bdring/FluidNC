@@ -4,11 +4,11 @@
 // Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
 
 #include "SPIBus.h"
-
-#include <SPI.h>
+#include "Driver/spi.h"
+#include "src/SettingsDefinitions.h"
 
 namespace Machine {
-    void SPIBus::validate() const {
+    void SPIBus::validate() {
         if (_miso.defined() || _mosi.defined() || _sck.defined()) {
             Assert(_miso.defined(), "SPI MISO pin should be configured once");
             Assert(_mosi.defined(), "SPI MOSI pin should be configured once");
@@ -17,22 +17,33 @@ namespace Machine {
     }
 
     void SPIBus::init() {
+        pinnum_t mosiPin = 23;
+        pinnum_t misoPin = 19;
+        pinnum_t sckPin  = 18;
+
         if (_miso.defined() || _mosi.defined() || _sck.defined()) {  // validation ensures the rest is also defined.
             log_info("SPI SCK:" << _sck.name() << " MOSI:" << _mosi.name() << " MISO:" << _miso.name());
 
-            auto mosiPin = _mosi.getNative(Pin::Capabilities::Output | Pin::Capabilities::Native);
-            auto sckPin  = _sck.getNative(Pin::Capabilities::Output | Pin::Capabilities::Native);
-            auto misoPin = _miso.getNative(Pin::Capabilities::Input | Pin::Capabilities::Native);
-
-            // Start the SPI bus with the pins defined here.  Once it has been started,
-            // those pins "stick" and subsequent attempts to restart it with defaults
-            // for the miso, mosi, and sck pins are ignored
-            SPI.begin(sckPin, misoPin, mosiPin);  // CS is defined by each device
-            _defined = true;
+            mosiPin = _mosi.getNative(Pin::Capabilities::Output | Pin::Capabilities::Native);
+            sckPin  = _sck.getNative(Pin::Capabilities::Output | Pin::Capabilities::Native);
+            misoPin = _miso.getNative(Pin::Capabilities::Input | Pin::Capabilities::Native);
         } else {
-            _defined = false;
-            log_info("SPI not defined");
+            if (sd_fallback_cs->get() == -1) {
+                log_debug("SPI not defined");
+                return;
+            }
+            log_info("Using default SPI pins");
         }
+        // Init in DMA mode
+        if (!spi_init_bus(sckPin, misoPin, mosiPin, true)) {
+            log_error("SPIBus init failed");
+            return;
+        }
+        _defined = true;
+    }
+
+    void SPIBus::deinit() {
+        spi_deinit_bus();
     }
 
     void SPIBus::group(Configuration::HandlerBase& handler) {
@@ -54,5 +65,7 @@ namespace Machine {
         // }
     }
 
-    bool SPIBus::defined() { return _defined; }
+    bool SPIBus::defined() {
+        return _defined;
+    }
 }

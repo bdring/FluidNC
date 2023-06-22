@@ -12,9 +12,9 @@ namespace WebUI {
     StringSetting* admin_password;
 
     void remove_password(char* str, AuthenticationLevel& auth_level) {
-        String paramStr = String((const char*)str);
-        int    pos      = paramStr.indexOf("pwd=");
-        if (pos == -1) {
+        std::string paramStr(str);
+        size_t      pos = paramStr.find("pwd=");
+        if (pos == std::string::npos) {
             return;
         }
 

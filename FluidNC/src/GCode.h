@@ -6,12 +6,15 @@
 #pragma once
 
 #include "Config.h"
-#include "Serial.h"
 #include "Error.h"
-#include "System.h"
 #include "SpindleDatatypes.h"
 
 #include <cstdint>
+
+enum class Override : uint8_t {
+    ParkingMotion = 0,  // M56 (Default: Must be zero)
+    Disabled      = 1,  // Parking disabled.
+};
 
 // Modal group internal numbers for checking multiple command violations and tracking the
 // type of command that is called in the block. A modal group is a group of g-code commands that are
@@ -101,7 +104,7 @@ enum class ProgramFlow : uint8_t {
     OptionalStop = 1,    // M1 NOTE: Not supported, but valid and ignored.
     CompletedM2  = 2,    // M2 (Do not alter value)
     CompletedM30 = 30,   // M30 (Do not alter value)
-    StartJobM100 = 100,  //M100
+    StartJobM100 = 100,  // M100 (Do not alter value)
 };
 
 // Modal Group G5: Feed rate mode
@@ -166,6 +169,8 @@ enum class ToolLengthOffset : uint8_t {
     EnableDynamic = 1,  // G43.1
 };
 
+static const uint32_t MaxToolNumber = 99999999;
+
 enum class ToolChange : uint8_t {
     Disable = 0,
     Enable  = 1,
@@ -219,10 +224,10 @@ enum CoordIndex : uint8_t {
     // G59_2,
     // G59_3,
     NWCSystems,
-    G28 = NWCSystems,
-    G30,
-    // G92_2,
-    // G92_3,
+    G28 = NWCSystems,  // Home0
+    G30,               // Home1
+    G92,               // Temporary work offset
+    TLO,               // Tool Length Offset, affected by G43.1 and G49
     End,
 };
 
@@ -250,28 +255,28 @@ struct gc_modal_t {
 };
 
 struct gc_values_t {
-    uint8_t e;                // M67
-    float   f;                // Feed
-    float   ijk[3];           // I,J,K Axis arc offsets - only 3 are possible
-    uint8_t l;                // G10 or canned cycles parameters
-    int32_t n;                // Line number
-    float   p;                // G10 or dwell parameters
-    float   q;                // M67
-    float   r;                // Arc radius
-    float   s;                // Spindle speed
-    uint8_t t;                // Tool selection
-    float   xyz[MAX_N_AXIS];  // X,Y,Z Translational axes
+    uint8_t  e;                // M67
+    float    f;                // Feed
+    float    ijk[3];           // I,J,K Axis arc offsets - only 3 are possible
+    uint8_t  l;                // G10 or canned cycles parameters
+    int32_t  n;                // Line number
+    float    p;                // G10 or dwell parameters
+    float    q;                // M67
+    float    r;                // Arc radius
+    float    s;                // Spindle speed
+    uint32_t t;                // Tool selection
+    float    xyz[MAX_N_AXIS];  // X,Y,Z Translational axes
 };
 
 struct parser_state_t {
     gc_modal_t modal;
 
-    float   spindle_speed;  // RPM
-    float   feed_rate;      // Millimeters/min
-    uint8_t tool;           // Tracks tool number. NOT USED.
-    int32_t line_number;    // Last line number sent
+    float    spindle_speed;          // RPM
+    float    feed_rate;              // Millimeters/min
+    uint32_t tool;                   // Tracks tool number. NOT USED.
+    int32_t  line_number;            // Last line number sent
 
-    float position[MAX_N_AXIS];  // Where the interpreter considers the tool to be at this point in the code
+    float position[MAX_N_AXIS];      // Where the interpreter considers the tool to be at this point in the code
 
     float coord_system[MAX_N_AXIS];  // Current work coordinate system (G54+). Stores offset from absolute machine
     // position in mm. Loaded from non-volatile storage when called.
@@ -300,11 +305,11 @@ enum class AxisCommand : uint8_t {
 void gc_init();
 
 // Execute one block of rs275/ngc/g-code
-Error gc_execute_line(char* line, Channel& channel);
+Error gc_execute_line(char* line);
 
 // Set g-code parser position. Input in steps.
 void gc_sync_position();
 
-void user_tool_change(uint8_t new_tool);
+void user_tool_change(uint32_t new_tool);
 void user_m30();
 void user_m100();

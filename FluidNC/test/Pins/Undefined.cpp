@@ -1,7 +1,6 @@
 #include "../TestFramework.h"
 
 #include <src/Pin.h>
-#include <esp32-hal-gpio.h>  // CHANGE
 
 namespace Pins {
     Test(Undefined, Pins) {
@@ -22,7 +21,7 @@ namespace Pins {
             Assert(0 == result, "Result value incorrect");
         }
 
-        AssertThrow(unassigned.attachInterrupt([](void* arg) {}, CHANGE));
+        AssertThrow(unassigned.attachInterrupt([](void* arg) {}, EITHER_EDGE));
         AssertThrow(unassigned.detachInterrupt());
 
         Assert(unassigned.capabilities().has(Pin::Capabilities::Void));

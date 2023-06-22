@@ -5,6 +5,7 @@
 
 namespace Pins {
     PinCapabilities PinCapabilities::None(0);
+    PinCapabilities PinCapabilities::Reserved(1);
 
     // Use a little trick here to ensure we don't make mistakes...
     // Do NOT add empty lines here, or have more than 32 items!!!

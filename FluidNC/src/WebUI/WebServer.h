@@ -11,14 +11,15 @@
 #    include "../Settings.h"
 #    include "Authentication.h"  // AuthenticationLevel
 #    include "Commands.h"
-#    include <FS.h>
+#    include "WSChannel.h"
 
 class WebSocketsServer;
 class WebServer;
 
 namespace WebUI {
-    static const int DEFAULT_HTTP_STATE = 1;
-    static const int DEFAULT_HTTP_PORT  = 80;
+    static const int DEFAULT_HTTP_STATE                 = 1;
+    static const int DEFAULT_HTTP_BLOCKED_DURING_MOTION = 1;
+    static const int DEFAULT_HTTP_PORT                  = 80;
 
     static const int MIN_HTTP_PORT = 1;
     static const int MAX_HTTP_PORT = 65001;
@@ -56,14 +57,12 @@ namespace WebUI {
     private:
         static bool              _setupdone;
         static WebServer*        _webserver;
-        static long              _id_connection;
         static WebSocketsServer* _socket_server;
         static uint16_t          _port;
         static UploadStatus      _upload_status;
-        static String            _uploadFilename;
         static FileStream*       _uploadFile;
-        static String            getContentType(String filename);
-        static String            get_Splited_Value(String data, char separator, int index);
+
+        static const char* getContentType(const char* filename);
 
         static AuthenticationLevel is_authenticated();
 #    ifdef ENABLE_AUTHENTICATION
@@ -89,21 +88,35 @@ namespace WebUI {
         static void handleFileList();
         static void handleUpdate();
         static void WebUpdateUpload();
-        static void pushError(int code, const char* st, bool web_error = 500, uint16_t timeout = 1000);
-        static void cancelUpload();
-        static void handle_direct_SDFileList();
-        static void SDFile_direct_upload();
-        static bool deleteFSRecursive(fs::FS& fs, String path);
-        static bool deleteLocalFSRecursive(String path);
-        static bool deleteRecursive(String path);
-        static void uploadStart(String filename, size_t filesize, const char* fs);
-        static void uploadWrite(uint8_t* buffer, size_t length);
-        static void uploadEnd(size_t filesize, const char* fs);
-        static void uploadStop();
-        static void uploadCheck(String filename, const char* fs);
-        static void deleteFile(const char* filename, const char* fs);
 
-        static uint64_t fsAvail(const char* fs);
+        static bool myStreamFile(const char* path, bool download = false);
+
+        static void pushError(int code, const char* st, bool web_error = 500, uint16_t timeout = 1000);
+
+        static void cancelUpload();
+        static void handleFileOps(const char* mountpoint);
+        static void handle_direct_SDFileList();
+        static void fileUpload(const char* fs);
+        static void SDFileUpload();
+        static void uploadStart(const char* filename, size_t filesize, const char* fs);
+        static void uploadWrite(uint8_t* buffer, size_t length);
+        static void uploadEnd(size_t filesize);
+        static void uploadStop();
+        static void uploadCheck();
+
+        static void sendFSError(Error err);
+        static void sendJSON(int code, const char* s);
+        static void sendJSON(int code, const std::string& s) { sendJSON(code, s.c_str()); }
+        static void sendAuth(const char* status, const char* level, const char* user);
+        static void sendAuthFailed();
+        static void sendStatus(int code, const char* str);
+
+        static void sendWithOurAddress(const char* s);
+        static void sendCaptivePortal();
+        static void send404Page();
+
+        static WSChannel* lastWSChannel;
+        static WSChannel* getWSChannel();
     };
 
     extern Web_Server webServer;

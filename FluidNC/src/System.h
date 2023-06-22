@@ -7,25 +7,10 @@
 #include "Types.h"
 
 // Execution states and alarm
+#include "Types.h"
 #include "Probe.h"
 #include "Config.h"  // MAX_N_AXIS
 #include <map>
-
-// System states. The state variable primarily tracks the individual functions
-// to manage each without overlapping. It is also used as a messaging flag for
-// critical events.
-enum class State : uint8_t {
-    Idle = 0,     // Must be zero.
-    Alarm,        // In alarm state. Locks out all g-code processes. Allows settings access.
-    CheckMode,    // G-code check mode. Locks out planner and motion only.
-    Homing,       // Performing homing cycle
-    Cycle,        // Cycle is running or motions are being executed.
-    Hold,         // Active feed hold
-    Jog,          // Jogging mode.
-    SafetyDoor,   // Safety door is ajar. Feed holds and de-energizes system.
-    Sleep,        // Sleep state.
-    ConfigAlarm,  // You can't do anything but fix your config file.
-};
 
 extern std::map<State, const char*> StateName;
 
@@ -53,11 +38,6 @@ union Suspend {
     SuspendBits bit;
 };
 
-enum class Override : uint8_t {
-    ParkingMotion = 0,  // M56 (Default: Must be zero)
-    Disabled      = 1,  // Parking disabled.
-};
-
 // Global system variables
 struct system_t {
     volatile State state;              // Tracks the current system state
@@ -83,10 +63,13 @@ int32_t mpos_to_steps(float mpos, size_t axis);
 
 int32_t  get_axis_motor_steps(size_t axis);
 void     set_motor_steps(size_t axis, int32_t steps);
+void     set_motor_steps_from_mpos(float* mpos);
 int32_t* get_motor_steps();
 
 // Updates a machine position array from a steps array
-void   motor_steps_to_mpos(float* position, int32_t* steps);
+void motor_steps_to_mpos(float* position, int32_t* steps);
+
 float* get_mpos();
+float* get_wco();
 
 bool inMotionState();  // True if moving, i.e. the stepping engine is active

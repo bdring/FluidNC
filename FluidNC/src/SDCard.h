@@ -25,14 +25,6 @@
 
 #include <cstdint>
 
-// Forward declaration:
-namespace fs {
-    class FS;
-}
-
-// XXX This should be a configuration parameter of the SPI bus
-const int32_t SPIfreq = 4000000;
-
 class SDCard : public Configuration::Configurable {
 public:
     enum class State : uint8_t {
@@ -45,22 +37,17 @@ public:
         BusyReading   = 6,
     };
 
-    class FileWrap;  // holds a single 'File'; we don't want to include <FS.h> here
-
 private:
-    State         _state;
-    Pin           _cardDetect;
-    Pin           _cs;
-    SDCard::State test_or_open(bool refresh);
+    State _state;
+    Pin   _cardDetect;
+    Pin   _cs;
+
+    uint32_t _frequency_hz = 8000000;  // Set to nonzero to override the default
 
 public:
     SDCard();
     SDCard(const SDCard&) = delete;
     SDCard& operator=(const SDCard&) = delete;
-
-    SDCard::State get_state();
-    SDCard::State begin(SDCard::State newState);
-    void          end();
 
     void afterParse() override;
 
@@ -73,6 +60,7 @@ public:
     void group(Configuration::HandlerBase& handler) override {
         handler.item("cs_pin", _cs);
         handler.item("card_detect_pin", _cardDetect);
+        handler.item("frequency_hz", _frequency_hz, 400000, 20000000);
     }
 
     ~SDCard();
