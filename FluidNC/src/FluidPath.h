@@ -26,6 +26,8 @@ public:
     // /localfs/foo -> true,  /localfs -> false
     bool hasTail() { return ++(++begin()) != end(); }
 
+    void rehash_fs();
+
 private:
     FluidPath(const char* name, const char* fs, std::error_code*);
 

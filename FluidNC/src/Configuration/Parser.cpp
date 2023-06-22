@@ -38,7 +38,8 @@ namespace Configuration {
         return result;
     }
 
-    StringRange Parser::stringValue() const { return StringRange(token_.sValueStart_, token_.sValueEnd_); }
+    // String values might have meaningful leading and trailing spaces so we avoid trimming the string (false)
+    StringRange Parser::stringValue() const { return StringRange(token_.sValueStart_, token_.sValueEnd_, false); }
 
     bool Parser::boolValue() const {
         auto str = StringRange(token_.sValueStart_, token_.sValueEnd_);

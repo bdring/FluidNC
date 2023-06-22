@@ -92,14 +92,17 @@ static bool motionState() {
 void Channel::autoReport() {
     if (_reportInterval) {
         auto limitState = limits_get_state();
-        if (_reportWco || sys.state != _lastState || limitState != _lastLimits ||
+        auto probeState = config->_probe->get_state();
+        if (_reportWco || sys.state != _lastState || limitState != _lastLimits || probeState != _lastProbe ||
             (motionState() && (int32_t(xTaskGetTickCount()) - _nextReportTime) >= 0)) {
             if (_reportWco) {
                 report_wco_counter = 0;
             }
-            _reportWco      = false;
-            _lastState      = sys.state;
-            _lastLimits     = limitState;
+            _reportWco  = false;
+            _lastState  = sys.state;
+            _lastLimits = limitState;
+            _lastProbe  = probeState;
+
             _nextReportTime = xTaskGetTickCount() + _reportInterval;
             report_realtime_status(*this);
         }

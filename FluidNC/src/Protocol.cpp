@@ -264,7 +264,10 @@ static void check_startup_state() {
     }
 }
 
-void protocol_main_loop() {
+const uint32_t heapWarnThreshold = 15000;
+
+uint32_t heapLowWater = UINT_MAX;
+void     protocol_main_loop() {
     check_startup_state();
     start_polling();
 
@@ -311,6 +314,13 @@ void protocol_main_loop() {
         if (idleEndTime && (getCpuTicks() - idleEndTime) > 0) {
             idleEndTime = 0;  //
             config->_axes->set_disable(true);
+        }
+        uint32_t newHeapSize = xPortGetFreeHeapSize();
+        if (newHeapSize < heapLowWater) {
+            heapLowWater = newHeapSize;
+            if (heapLowWater < heapWarnThreshold) {
+                log_warn("Low memory: " << heapLowWater << " bytes");
+            }
         }
     }
     return; /* Never reached */
