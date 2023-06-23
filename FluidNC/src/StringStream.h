@@ -4,7 +4,6 @@
 #pragma once
 
 #include "Print.h"
-#include "StringRange.h"
 
 #include <vector>
 
@@ -16,6 +15,4 @@ public:
         data_.push_back(c);
         return 1;
     }
-
-    //    StringRange str() const { return StringRange(data_.data(), data_.data() + data_.size()); }
 };

@@ -6,7 +6,6 @@
 
 #include "Tokenizer.h"
 #include "../Pin.h"
-#include "../StringRange.h"
 #include "../EnumItem.h"
 #include "../UartTypes.h"
 #include "HandlerBase.h"
@@ -24,7 +23,7 @@ namespace Configuration {
 
         bool is(const char* expected);
 
-        StringRange             stringValue() const;
+        std::string_view        stringValue() const;
         bool                    boolValue() const;
         int                     intValue() const;
         uint32_t                uintValue() const;

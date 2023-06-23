@@ -5,16 +5,9 @@
 #include "Tokenizer.h"
 
 #include "ParseException.h"
+#include "parser_logging.h"
 
 #include <cstdlib>
-
-static constexpr bool verbose_debugging = false;
-#define log_parser_verbose(x)                                                                                                              \
-    do {                                                                                                                                   \
-        if (verbose_debugging) {                                                                                                           \
-            log_debug(x);                                                                                                                  \
-        }                                                                                                                                  \
-    } while (0)
 
 namespace Configuration {
 
@@ -35,7 +28,7 @@ namespace Configuration {
         // Release a held token
         if (token_.state == TokenState::Held) {
             token_.state = TokenState::Matching;
-            log_parser_verbose("Releasing " << key().str());
+            log_parser_verbose("Releasing " << key());
             return;
         }
 

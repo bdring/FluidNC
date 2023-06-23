@@ -8,6 +8,7 @@
 #include "../EnumItem.h"
 
 #include "../Config.h"
+#include "../string_util.h"
 
 #include <climits>
 #include <math.h>  // round
@@ -41,94 +42,114 @@ namespace Configuration {
     }
 
     // String values might have meaningful leading and trailing spaces so we avoid trimming the string (false)
-    StringRange Parser::stringValue() const { return StringRange(token_.value_.cbegin(), token_.value_.cend(), false); }
+    std::string_view Parser::stringValue() const {
+        return token_.value_;
+    }
 
     bool Parser::boolValue() const {
-        auto str = StringRange(token_.value_.cbegin(), token_.value_.cend());
-        return str.equals("true");
+        return string_util::equal_ignore_case(string_util::trim(token_.value_), "true");
     }
 
     int Parser::intValue() const {
-        auto    str = StringRange(token_.value_.cbegin(), token_.value_.cend());
-        int32_t value;
-        if (str.isInteger(value)) {
-            return value;
+        auto    value_token = string_util::trim(token_.value_);
+        int32_t int_value;
+        if (string_util::is_int(value_token, int_value)) {
+            return int_value;
         }
-        float fvalue;
-        if (str.isFloat(fvalue)) {
-            return lroundf(fvalue);
+
+        // TODO(dymk) - is there a situation where we want to round a float
+        // to an int, rather than throwing?
+        float float_value;
+        if (string_util::is_float(value_token, float_value)) {
+            return lroundf(float_value);
         }
+
         parseError("Expected an integer value");
         return 0;
     }
 
     uint32_t Parser::uintValue() const {
-        auto     str = StringRange(token_.value_.cbegin(), token_.value_.cend());
-        uint32_t value;
-        if (str.isUnsignedInteger(value)) {
-            return value;
+        auto     token = string_util::trim(token_.value_);
+        uint32_t uint_value;
+        if (string_util::is_uint(token, uint_value)) {
+            return uint_value;
         }
-        float fvalue;
-        if (str.isFloat(fvalue)) {
-            return lroundf(fvalue);
+
+        float float_value;
+        if (string_util::is_float(token, float_value)) {
+            return lroundf(float_value);
         }
+
         parseError("Expected an integer value");
         return 0;
     }
 
     float Parser::floatValue() const {
-        auto  str = StringRange(token_.value_.cbegin(), token_.value_.cend());
-        float value;
-        if (!str.isFloat(value)) {
-            parseError("Expected a float value like 123.456");
+        auto  token = string_util::trim(token_.value_);
+        float float_value;
+        if (string_util::is_float(token, float_value)) {
+            return float_value;
         }
-        return value;
+        parseError("Expected a float value like 123.456");
+        return NAN;
     }
 
     std::vector<speedEntry> Parser::speedEntryValue() const {
-        auto str = StringRange(token_.value_.cbegin(), token_.value_.cend());
+        auto str = string_util::trim(token_.value_);
 
-        std::vector<speedEntry> value;
-        StringRange             entryStr;
-        for (entryStr = str.nextWord(); entryStr.length(); entryStr = str.nextWord()) {
-            speedEntry  entry;
-            StringRange speed = entryStr.nextWord('=');
-            if (!speed.length() || !speed.isUInteger(entry.speed)) {
-                log_error("Bad speed number " << speed.str());
-                value.clear();
-                break;
+        std::vector<speedEntry> speed_entries;
+
+        while (!str.empty()) {
+            auto next_ws_delim = str.find(' ');
+            auto entry_str     = string_util::trim(str.substr(0, next_ws_delim));
+            if (next_ws_delim == std::string::npos) {
+                next_ws_delim = str.length();
+            } else {
+                next_ws_delim += 1;
             }
-            StringRange percent = entryStr.nextWord('%');
-            if (!percent.length() || !percent.isFloat(entry.percent)) {
-                log_error("Bad speed percent " << percent.str());
-                value.clear();
-                break;
+            str.remove_prefix(next_ws_delim);
+
+            speedEntry entry;
+            auto       next_eq_delim = entry_str.find('=');
+            auto       speed_str     = string_util::trim(entry_str.substr(0, next_eq_delim));
+            if (!string_util::is_uint(speed_str, entry.speed)) {
+                log_error("Bad speed number " << speed_str);
+                return {};
             }
-            value.push_back(entry);
+            entry_str.remove_prefix(next_eq_delim + 1);
+
+            auto next_pct_delim = entry_str.find('%');
+            auto percent_str    = string_util::trim(entry_str.substr(0, next_pct_delim));
+            if (!string_util::is_float(percent_str, entry.percent)) {
+                log_error("Bad speed percent " << percent_str);
+                return {};
+            }
+            entry_str.remove_prefix(next_pct_delim + 1);
         }
-        if (!value.size())
+
+        if (!speed_entries.size()) {
             log_info("Using default speed map");
-        return value;
+        }
+
+        return speed_entries;
     }
 
     Pin Parser::pinValue() const {
-        auto str = StringRange(token_.value_.cbegin(), token_.value_.cend());
-        return Pin::create(str);
+        return Pin::create(string_util::trim(token_.value_));
     }
 
     IPAddress Parser::ipValue() const {
         IPAddress ip;
-        auto      str = StringRange(token_.value_.cbegin(), token_.value_.cend());
-        if (!ip.fromString(str.str().c_str())) {
+        if (!ip.fromString(std::string(string_util::trim(token_.value_)).c_str())) {
             parseError("Expected an IP address like 192.168.0.100");
         }
         return ip;
     }
 
     int Parser::enumValue(EnumItem* e) const {
-        auto str = StringRange(token_.value_.cbegin(), token_.value_.cend());
+        auto token = string_util::trim(token_.value_);
         for (; e->name; ++e) {
-            if (str.equals(e->name)) {
+            if (string_util::equal_ignore_case(token, e->name)) {
                 break;
             }
         }
@@ -136,17 +157,17 @@ namespace Configuration {
     }
 
     void Parser::uartMode(UartData& wordLength, UartParity& parity, UartStop& stopBits) const {
-        auto str = StringRange(token_.value_.cbegin(), token_.value_.cend());
+        auto str = string_util::trim(token_.value_);
         if (str.length() == 5 || str.length() == 3) {
             int32_t wordLenInt;
-            if (!str.substr(0, 1).isInteger(wordLenInt)) {
+            if (!string_util::is_int(str.substr(0, 1), wordLenInt)) {
                 parseError("Uart mode should be specified as [Bits Parity Stopbits] like [8N1]");
             } else if (wordLenInt < 5 || wordLenInt > 8) {
                 parseError("Number of data bits for uart is out of range. Expected format like [8N1].");
             }
             wordLength = UartData(int(UartData::Bits5) + (wordLenInt - 5));
 
-            switch (str.begin()[1]) {
+            switch (str[1]) {
                 case 'N':
                 case 'n':
                     parity = UartParity::None;
@@ -165,11 +186,11 @@ namespace Configuration {
             }
 
             auto stop = str.substr(2, str.length() - 2);
-            if (stop.equals("1")) {
+            if (stop == "1") {
                 stopBits = UartStop::Bits1;
-            } else if (stop.equals("1.5")) {
+            } else if (stop == "1.5") {
                 stopBits = UartStop::Bits1_5;
-            } else if (stop.equals("2")) {
+            } else if (stop == "2") {
                 stopBits = UartStop::Bits2;
             } else {
                 parseError("Uart stopbits can only be 1, 1.5 or 2. Syntax is [8N1]");

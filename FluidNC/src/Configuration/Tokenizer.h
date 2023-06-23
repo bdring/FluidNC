@@ -46,14 +46,6 @@ namespace Configuration {
             return (c >= '0' && c <= '9');
         }
 
-        static char ToLower(char c) { return (c >= 'A' && c <= 'Z') ? (char)(c + 32) : c; }
-
-        bool EqualsCaseInsensitive(const char* input) {
-            std::string_view other { input };
-            return std::equal(
-                current_.begin(), current_.end(), other.begin(), other.end(), [](auto a, auto b) { return ToLower(a) == ToLower(b); });
-        }
-
     public:
         int line_;
 
@@ -76,8 +68,7 @@ namespace Configuration {
 
     public:
         Tokenizer(std::string_view yaml_string);
-        void Tokenize();
-
-        inline StringRange key() const { return StringRange(token_.key_.cbegin(), token_.key_.cend()); }
+        void                    Tokenize();
+        inline std::string_view key() const { return token_.key_; }
     };
 }

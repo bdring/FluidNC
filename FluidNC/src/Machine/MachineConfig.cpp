@@ -25,6 +25,7 @@
 #include <cstdio>
 #include <cstring>
 #include <atomic>
+#include <memory>
 
 Machine::MachineConfig* config;
 
@@ -147,7 +148,7 @@ namespace Machine {
         }
     }
 
-    char defaultConfig[] = "name: Default (Test Drive)\nboard: None\n";
+    const char defaultConfig[] = "name: Default (Test Drive)\nboard: None\n";
 
     bool MachineConfig::load() {
         bool configOkay;
@@ -158,20 +159,20 @@ namespace Machine {
             log_error("Skipping configuration file due to panic");
             configOkay = false;
         } else {
-            configOkay = load(config_filename->get());
+            configOkay = load_file(config_filename->get());
         }
 
         if (!configOkay) {
             log_info("Using default configuration");
-            configOkay = load(new StringRange(defaultConfig));
+            configOkay = load_yaml(defaultConfig);
         }
 
         return configOkay;
     }
 
-    bool MachineConfig::load(const char* filename) {
+    bool MachineConfig::load_file(const std::string_view filename) {
         try {
-            FileStream file(filename, "r", "");
+            FileStream file(std::string { filename }, "r", "");
 
             auto filesize = file.size();
             if (filesize <= 0) {
@@ -179,28 +180,26 @@ namespace Machine {
                 return false;
             }
 
-            char* buffer     = new char[filesize + 1];
+            auto buffer      = std::make_unique<char[]>(filesize + 1);
             buffer[filesize] = '\0';
-            auto actual      = file.read(buffer, filesize);
+            auto actual      = file.read(buffer.get(), filesize);
             if (actual != filesize) {
                 log_info("Configuration file:" << filename << " read error");
                 return false;
             }
             log_info("Configuration file:" << filename);
             // Trimming the overall config file could influence indentation, hence false
-            bool retval = load(new StringRange(buffer, buffer + filesize, false));
-            delete[] buffer;
-            return retval;
+            return load_yaml(std::string_view { buffer.get(), filesize });
         } catch (...) {
             log_warn("Cannot open configuration file:" << filename);
             return false;
         }
     }
 
-    bool MachineConfig::load(StringRange* input) {
+    bool MachineConfig::load_yaml(std::string_view input) {
         bool successful = false;
         try {
-            Configuration::Parser        parser(std::string_view { input->begin(), input->length() });
+            Configuration::Parser        parser(input);
             Configuration::ParserHandler handler(parser);
 
             // instance() is by reference, so we can just get rid of an old instance and
@@ -256,7 +255,6 @@ namespace Machine {
             // Get rid of buffer and return
             log_error("Unknown error while processing config file");
         }
-        delete[] input;
 
         std::atomic_thread_fence(std::memory_order::memory_order_seq_cst);
 
