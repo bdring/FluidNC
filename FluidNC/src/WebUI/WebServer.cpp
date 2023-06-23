@@ -900,81 +900,88 @@ namespace WebUI {
             }
         }
 
-        FluidPath fpath { path, fs, ec };
-        if (ec) {
-            sendJSON(200, "{\"status\":\"No SD card\"}");
-            return;
-        }
+        std::filesystem::path filepath;  // Initially empty
 
-        // Handle deletions and directory creation
-        if (_webserver->hasArg("action") && _webserver->hasArg("filename")) {
-            std::string action(_webserver->arg("action").c_str());
-            std::string filename = std::string(_webserver->arg("filename").c_str());
-            if (action == "delete") {
-                log_debug("Deleting " << fpath << " / " << filename);
-                if (stdfs::remove(fpath / filename, ec)) {
-                    fpath.rehash_fs();
-                    sstatus = filename + " deleted";
-                } else {
-                    sstatus = "Cannot delete ";
-                    sstatus += filename + " " + ec.message();
-                }
-            } else if (action == "deletedir") {
-                if (stdfs::remove_all(fpath / filename.c_str(), ec)) {
-                    sstatus = filename + " deleted";
-                } else {
-                    sstatus = "Cannot delete ";
-                    sstatus += filename + " " + ec.message();
-                }
-            } else if (action == "createdir") {
-                if (stdfs::create_directory(fpath / filename, ec)) {
-                    sstatus = filename + " created";
-                } else {
-                    sstatus = "Cannot create ";
-                    sstatus += filename + " " + ec.message();
+        {  // Scope for fpath; we need it to go out of scope for later rehash
+            FluidPath fpath { path, fs, ec };
+            if (ec) {
+                sendJSON(200, "{\"status\":\"No SD card\"}");
+                return;
+            }
+
+            // Handle deletions and directory creation
+            if (_webserver->hasArg("action") && _webserver->hasArg("filename")) {
+                std::string action(_webserver->arg("action").c_str());
+                std::string filename = std::string(_webserver->arg("filename").c_str());
+                if (action == "delete") {
+                    log_debug("Deleting " << fpath << " / " << filename);
+                    if (stdfs::remove(fpath / filename, ec)) {
+                        filepath = fpath;
+                        sstatus  = filename + " deleted";
+                    } else {
+                        sstatus = "Cannot delete ";
+                        sstatus += filename + " " + ec.message();
+                    }
+                } else if (action == "deletedir") {
+                    if (stdfs::remove_all(fpath / filename.c_str(), ec)) {
+                        sstatus = filename + " deleted";
+                    } else {
+                        sstatus = "Cannot delete ";
+                        sstatus += filename + " " + ec.message();
+                    }
+                } else if (action == "createdir") {
+                    if (stdfs::create_directory(fpath / filename, ec)) {
+                        sstatus = filename + " created";
+                    } else {
+                        sstatus = "Cannot create ";
+                        sstatus += filename + " " + ec.message();
+                    }
                 }
             }
-        }
 
-        //check if no need build file list
-        if (_webserver->hasArg("dontlist") && _webserver->arg("dontlist") == "yes") {
-            list_files = false;
-        }
-
-        std::string        s;
-        WebUI::JSONencoder j(false, &s);
-        j.begin();
-
-        if (list_files) {
-            auto iter = stdfs::directory_iterator { fpath, ec };
-            if (!ec) {
-                j.begin_array("files");
-                for (auto const& dir_entry : iter) {
-                    j.begin_object();
-                    j.member("name", dir_entry.path().filename());
-                    j.member("shortname", dir_entry.path().filename());
-                    j.member("size", dir_entry.is_directory() ? -1 : dir_entry.file_size());
-                    j.member("datetime", "");
-                    j.end_object();
-                }
-                j.end_array();
+            //check if no need build file list
+            if (_webserver->hasArg("dontlist") && _webserver->arg("dontlist") == "yes") {
+                list_files = false;
             }
+
+            std::string        s;
+            WebUI::JSONencoder j(false, &s);
+            j.begin();
+
+            if (list_files) {
+                auto iter = stdfs::directory_iterator { fpath, ec };
+                if (!ec) {
+                    j.begin_array("files");
+                    for (auto const& dir_entry : iter) {
+                        j.begin_object();
+                        j.member("name", dir_entry.path().filename());
+                        j.member("shortname", dir_entry.path().filename());
+                        j.member("size", dir_entry.is_directory() ? -1 : dir_entry.file_size());
+                        j.member("datetime", "");
+                        j.end_object();
+                    }
+                    j.end_array();
+                }
+            }
+
+            auto space = stdfs::space(fpath, ec);
+            totalspace = space.capacity;
+            usedspace  = totalspace - space.available;
+
+            j.member("path", path.c_str());
+            j.member("total", formatBytes(totalspace));
+            j.member("used", formatBytes(usedspace + 1));
+
+            uint32_t percent = totalspace ? (usedspace * 100) / totalspace : 100;
+
+            j.member("occupation", percent);
+            j.member("status", sstatus);
+            j.end();
+            sendJSON(200, s);
         }
-
-        auto space = stdfs::space(fpath, ec);
-        totalspace = space.capacity;
-        usedspace  = totalspace - space.available;
-
-        j.member("path", path.c_str());
-        j.member("total", formatBytes(totalspace));
-        j.member("used", formatBytes(usedspace + 1));
-
-        uint32_t percent = totalspace ? (usedspace * 100) / totalspace : 100;
-
-        j.member("occupation", percent);
-        j.member("status", sstatus);
-        j.end();
-        sendJSON(200, s);
+        if (!filepath.empty()) {
+            HashFS::rehash_file(filepath);
+        }
     }
 
     void Web_Server::handle_direct_SDFileList() { handleFileOps(sdName); }
@@ -1041,16 +1048,16 @@ namespace WebUI {
             //            delete _uploadFile;
             // _uploadFile = nullptr;
 
-            auto fpath = _uploadFile->fpath();
-            fpath.rehash_fs();
+            std::filesystem::path filepath = _uploadFile->fpath();
             delete _uploadFile;
             _uploadFile = nullptr;
+            HashFS::rehash_file(filepath);
 
             // Check size
             if (filesize) {
                 uint32_t actual_size;
                 try {
-                    actual_size = stdfs::file_size(fpath);
+                    actual_size = stdfs::file_size(filepath);
                 } catch (const Error err) { actual_size = 0; }
 
                 if (filesize != actual_size) {
@@ -1075,9 +1082,10 @@ namespace WebUI {
         _upload_status = UploadStatus::FAILED;
         log_info("Upload cancelled");
         if (_uploadFile) {
-            _uploadFile->fpath().rehash_fs();
+            std::filesystem::path filepath = _uploadFile->fpath();
             delete _uploadFile;
             _uploadFile = nullptr;
+            HashFS::rehash_file(filepath);
         }
     }
     void Web_Server::uploadCheck() {
@@ -1085,11 +1093,11 @@ namespace WebUI {
         if (_upload_status == UploadStatus::FAILED) {
             cancelUpload();
             if (_uploadFile) {
-                auto fpath = _uploadFile->fpath();
+                std::filesystem::path filepath = _uploadFile->fpath();
                 delete _uploadFile;
                 _uploadFile = nullptr;
-                stdfs::remove(fpath, error_code);
-                fpath.rehash_fs();
+                stdfs::remove(filepath, error_code);
+                HashFS::rehash_file(filepath);
             }
         }
     }

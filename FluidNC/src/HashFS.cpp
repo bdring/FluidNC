@@ -44,16 +44,28 @@ static Error hashFile(const char* ipath, std::string& str) {  // No ESP command
 }
 
 void HashFS::rehash() {
-    const char*     iDir = "/localfs";
+    rehash_file("/localfs");
+}
+
+void HashFS::rehash_fs(const std::filesystem::path& path) {
+    auto        it     = path.begin();
+    std::string fsname = "/";
+    fsname += *++it;
+    if (fsname != "/littlefs" && fsname != "/spiffs" && fsname != "/localfs") {
+        return;
+    }
+
     std::error_code ec;
 
     localFsHashes.clear();
 
-    FluidPath fpath { iDir, "", ec };
+    FluidPath fpath { fsname, "", ec };
     if (ec) {
-        log_error("Cannot open " << iDir);
+        log_error("Cannot open " << fsname);
         return;
     }
+
+    log_debug("Rehashing " << fsname);
 
     auto iter = stdfs::directory_iterator { fpath, ec };
     if (ec) {
@@ -63,9 +75,9 @@ void HashFS::rehash() {
     Error err = Error::Ok;
     for (auto const& dir_entry : iter) {
         if (dir_entry.is_directory()) {
-            log_error("Not handling localfs subdirectories");
+            log_debug("Not hashing localfs subdirectories");
         } else {
-            std::string ipath(iDir);
+            std::string ipath(fsname);
             ipath += "/";
             ipath += dir_entry.path().filename();
             std::string hash;
@@ -76,6 +88,7 @@ void HashFS::rehash() {
                 std::string filename("/");
                 filename += dir_entry.path().filename();
                 localFsHashes[filename] = hash;
+                log_debug(filename << " hash " << hash);
             }
         }
     }

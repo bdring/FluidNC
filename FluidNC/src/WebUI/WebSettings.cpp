@@ -353,31 +353,37 @@ namespace WebUI {
     static Error deleteObject(const char* fs, char* name, Channel& out) {
         std::error_code ec;
 
-        FluidPath fpath { name, fs, ec };
-        if (ec) {
-            log_to(out, "No SD");
-            return Error::FsFailedMount;
-        }
-        auto isDir = stdfs::is_directory(fpath, ec);
-        if (ec) {
-            log_to(out, "Delete failed: ", ec.message());
-            return Error::FsFileNotFound;
-        }
-        if (isDir) {
-            stdfs::remove_all(fpath, ec);
-            fpath.rehash_fs();
+        std::filesystem::path filepath;
+        {
+            FluidPath fpath { name, fs, ec };
             if (ec) {
-                log_to(out, "Delete Directory failed: ", ec.message());
-                return Error::FsFailedDelDir;
+                log_to(out, "No SD");
+                return Error::FsFailedMount;
             }
-        } else {
-            stdfs::remove(fpath, ec);
-            fpath.rehash_fs();
+            auto isDir = stdfs::is_directory(fpath, ec);
             if (ec) {
-                log_to(out, "Delete File failed: ", ec.message());
-                return Error::FsFailedDelFile;
+                log_to(out, "Delete failed: ", ec.message());
+                return Error::FsFileNotFound;
             }
+            if (isDir) {
+                stdfs::remove_all(fpath, ec);
+                if (ec) {
+                    log_to(out, "Delete Directory failed: ", ec.message());
+                    return Error::FsFailedDelDir;
+                }
+            } else {
+                stdfs::remove(fpath, ec);
+                if (ec) {
+                    log_to(out, "Delete File failed: ", ec.message());
+                    return Error::FsFailedDelFile;
+                }
+            }
+            // We want fpath to go out of scope so that any volume writes
+            // are committed before we recompute the hash.
+            filepath = fpath;
         }
+
+        HashFS::rehash_file(filepath);
 
         return Error::Ok;
     }
@@ -438,6 +444,7 @@ namespace WebUI {
     }
 
     static Error copyFile(const char* ipath, const char* opath, Channel& out) {  // No ESP command
+        std::filesystem::path filepath;
         try {
             FileStream outFile { opath, "w" };
             FileStream inFile { ipath, "r" };
@@ -446,11 +453,13 @@ namespace WebUI {
             while ((len = inFile.read(buf, 512)) > 0) {
                 outFile.write(buf, len);
             }
-            outFile.fpath().rehash_fs();
+            filepath = outFile.fpath();
         } catch (const Error err) {
             log_error("Cannot create file " << opath);
             return Error::FsFailedCreateFile;
         }
+        // Rehash after outFile goes out of scope
+        HashFS::rehash_file(filepath);
         return Error::Ok;
     }
     static Error copyDir(const char* iDir, const char* oDir, Channel& out) {  // No ESP command

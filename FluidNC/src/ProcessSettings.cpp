@@ -25,6 +25,7 @@
 #include "Driver/fluidnc_gpio.h"  // gpio_dump()
 
 #include "FluidPath.h"
+#include "HashFS.h"
 
 #include <cstring>
 #include <map>
@@ -634,8 +635,10 @@ static Error xmodem_receive(const char* value, WebUI::AuthenticationLevel auth_l
     } else {
         log_info("Reception failed or was canceled");
     }
-    outfile->fpath().rehash_fs();
+    std::filesystem::path fname = outfile->fpath();
     delete outfile;
+    HashFS::rehash_file(fname);
+
     return size < 0 ? Error::UploadFailed : Error::Ok;
 }
 
