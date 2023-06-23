@@ -32,7 +32,6 @@
 #    include "src/Protocol.h"  // protocol_send_event
 #    include "src/FluidPath.h"
 #    include "src/WebUI/JSONEncoder.h"
-#    include "Driver/localfs.h"
 
 #    include "src/HashFS.h"
 #    include <list>
@@ -190,7 +189,7 @@ namespace WebUI {
             MDNS.addService("http", "tcp", _port);
         }
 
-        HashFS::rehash();
+        HashFS::hash_all();
 
         _setupdone = true;
         return no_error;
@@ -226,13 +225,20 @@ namespace WebUI {
 
     // Send a file, either the specified path or path.gz
     bool Web_Server::myStreamFile(const char* path, bool download) {
-        std::string spath(path);
+        std::error_code ec;
+        FluidPath       fpath { path, localfsName, ec };
+        if (ec) {
+            return false;
+        }
+
         std::string hash;
         // Check for brower cache match
 
-        hash = HashFS::hash(spath);
+        hash = HashFS::hash(fpath);
         if (!hash.length()) {
-            hash = HashFS::hash(spath + ".gz");
+            std::filesystem::path gzpath(fpath);
+            gzpath += ".gz";
+            hash = HashFS::hash(gzpath);
         }
 
         if (hash.length() && std::string(_webserver->header("If-None-Match").c_str()) == hash) {
@@ -255,17 +261,19 @@ namespace WebUI {
         bool        isGzip = false;
         FileStream* file;
         try {
-            file = new FileStream(spath, "r", "");
+            file = new FileStream(path, "r", "");
         } catch (const Error err) {
             try {
-                file   = new FileStream(spath + ".gz", "r", "");
+                std::filesystem::path gzpath(fpath);
+                gzpath += ".gz";
+                file   = new FileStream(gzpath, "r", "");
                 isGzip = true;
             } catch (const Error err) {
-                log_debug(spath << " not found");
+                log_debug(path << " not found");
                 return false;
             }
         }
-        log_debug(spath << " found");
+        log_debug(path << " found");
         if (download) {
             _webserver->sendHeader("Content-Disposition", "attachment");
         }
@@ -325,7 +333,7 @@ namespace WebUI {
 
     void Web_Server::handle_root() {
         if (!(_webserver->hasArg("forcefallback") && _webserver->arg("forcefallback") == "yes")) {
-            if (myStreamFile("/index.html")) {
+            if (myStreamFile("index.html")) {
                 return;
             }
         }
@@ -364,7 +372,7 @@ namespace WebUI {
 
         // This lets the user customize the not-found page by
         // putting a "404.htm" file on the local filesystem
-        if (myStreamFile("/404.htm")) {
+        if (myStreamFile("404.htm")) {
             return;
         }
 
@@ -900,88 +908,86 @@ namespace WebUI {
             }
         }
 
-        std::filesystem::path filepath;  // Initially empty
+        FluidPath fpath { path, fs, ec };
+        if (ec) {
+            sendJSON(200, "{\"status\":\"No SD card\"}");
+            return;
+        }
 
-        {  // Scope for fpath; we need it to go out of scope for later rehash
-            FluidPath fpath { path, fs, ec };
-            if (ec) {
-                sendJSON(200, "{\"status\":\"No SD card\"}");
-                return;
-            }
+        // Handle deletions and directory creation
+        if (_webserver->hasArg("action") && _webserver->hasArg("filename")) {
+            std::string action(_webserver->arg("action").c_str());
+            std::string filename = std::string(_webserver->arg("filename").c_str());
+            if (action == "delete") {
+                log_debug("Deleting " << fpath << " / " << filename);
+                if (stdfs::remove(fpath / filename, ec)) {
+                    sstatus = filename + " deleted";
+                    HashFS::delete_file(fpath / filename);
 
-            // Handle deletions and directory creation
-            if (_webserver->hasArg("action") && _webserver->hasArg("filename")) {
-                std::string action(_webserver->arg("action").c_str());
-                std::string filename = std::string(_webserver->arg("filename").c_str());
-                if (action == "delete") {
-                    log_debug("Deleting " << fpath << " / " << filename);
-                    if (stdfs::remove(fpath / filename, ec)) {
-                        filepath = fpath;
-                        sstatus  = filename + " deleted";
-                    } else {
-                        sstatus = "Cannot delete ";
-                        sstatus += filename + " " + ec.message();
-                    }
-                } else if (action == "deletedir") {
-                    if (stdfs::remove_all(fpath / filename.c_str(), ec)) {
-                        sstatus = filename + " deleted";
-                    } else {
-                        sstatus = "Cannot delete ";
-                        sstatus += filename + " " + ec.message();
-                    }
-                } else if (action == "createdir") {
-                    if (stdfs::create_directory(fpath / filename, ec)) {
-                        sstatus = filename + " created";
-                    } else {
-                        sstatus = "Cannot create ";
-                        sstatus += filename + " " + ec.message();
-                    }
+                } else {
+                    sstatus = "Cannot delete ";
+                    sstatus += filename + " " + ec.message();
+                }
+            } else if (action == "deletedir") {
+                stdfs::path dirpath { fpath / filename };
+                log_debug("Deleting directory " << dirpath);
+                int count = stdfs::remove_all(dirpath, ec);
+                if (count > 0) {
+                    sstatus = filename + " deleted";
+                } else {
+                    log_debug("remove_all returned " << count);
+                    sstatus = "Cannot delete ";
+                    sstatus += filename + " " + ec.message();
+                }
+            } else if (action == "createdir") {
+                if (stdfs::create_directory(fpath / filename, ec)) {
+                    sstatus = filename + " created";
+                } else {
+                    sstatus = "Cannot create ";
+                    sstatus += filename + " " + ec.message();
                 }
             }
+        }
 
-            //check if no need build file list
-            if (_webserver->hasArg("dontlist") && _webserver->arg("dontlist") == "yes") {
-                list_files = false;
-            }
+        //check if no need build file list
+        if (_webserver->hasArg("dontlist") && _webserver->arg("dontlist") == "yes") {
+            list_files = false;
+        }
 
-            std::string        s;
-            WebUI::JSONencoder j(false, &s);
-            j.begin();
+        std::string        s;
+        WebUI::JSONencoder j(false, &s);
+        j.begin();
 
-            if (list_files) {
-                auto iter = stdfs::directory_iterator { fpath, ec };
-                if (!ec) {
-                    j.begin_array("files");
-                    for (auto const& dir_entry : iter) {
-                        j.begin_object();
-                        j.member("name", dir_entry.path().filename());
-                        j.member("shortname", dir_entry.path().filename());
-                        j.member("size", dir_entry.is_directory() ? -1 : dir_entry.file_size());
-                        j.member("datetime", "");
-                        j.end_object();
-                    }
-                    j.end_array();
+        if (list_files) {
+            auto iter = stdfs::directory_iterator { fpath, ec };
+            if (!ec) {
+                j.begin_array("files");
+                for (auto const& dir_entry : iter) {
+                    j.begin_object();
+                    j.member("name", dir_entry.path().filename());
+                    j.member("shortname", dir_entry.path().filename());
+                    j.member("size", dir_entry.is_directory() ? -1 : dir_entry.file_size());
+                    j.member("datetime", "");
+                    j.end_object();
                 }
+                j.end_array();
             }
-
-            auto space = stdfs::space(fpath, ec);
-            totalspace = space.capacity;
-            usedspace  = totalspace - space.available;
-
-            j.member("path", path.c_str());
-            j.member("total", formatBytes(totalspace));
-            j.member("used", formatBytes(usedspace + 1));
-
-            uint32_t percent = totalspace ? (usedspace * 100) / totalspace : 100;
-
-            j.member("occupation", percent);
-            j.member("status", sstatus);
-            j.end();
-            sendJSON(200, s);
         }
-        if (!filepath.empty()) {
-            HashFS::rehash_file(filepath);
-        }
+
+        auto space = stdfs::space(fpath, ec);
+        totalspace = space.capacity;
+        usedspace  = totalspace - space.available;
+
+        j.member("path", path.c_str());
+        j.member("total", formatBytes(totalspace));
+        j.member("used", formatBytes(usedspace + 1));
+
+        uint32_t percent = totalspace ? (usedspace * 100) / totalspace : 100;
+
+        j.member("occupation", percent);
+        j.member("status", sstatus);
+        j.end();
+        sendJSON(200, s);
     }
 
     void Web_Server::handle_direct_SDFileList() { handleFileOps(sdName); }

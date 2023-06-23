@@ -17,8 +17,6 @@
 #include "../Report.h"     // git_info
 #include "../InputFile.h"  // InputFile
 
-#include "Driver/localfs.h"  // localfs_format
-
 #include "Commands.h"  // COMMANDS::restart_MCU();
 #include "WifiConfig.h"
 
@@ -353,37 +351,30 @@ namespace WebUI {
     static Error deleteObject(const char* fs, char* name, Channel& out) {
         std::error_code ec;
 
-        std::filesystem::path filepath;
-        {
-            FluidPath fpath { name, fs, ec };
-            if (ec) {
-                log_to(out, "No SD");
-                return Error::FsFailedMount;
-            }
-            auto isDir = stdfs::is_directory(fpath, ec);
-            if (ec) {
-                log_to(out, "Delete failed: ", ec.message());
-                return Error::FsFileNotFound;
-            }
-            if (isDir) {
-                stdfs::remove_all(fpath, ec);
-                if (ec) {
-                    log_to(out, "Delete Directory failed: ", ec.message());
-                    return Error::FsFailedDelDir;
-                }
-            } else {
-                stdfs::remove(fpath, ec);
-                if (ec) {
-                    log_to(out, "Delete File failed: ", ec.message());
-                    return Error::FsFailedDelFile;
-                }
-            }
-            // We want fpath to go out of scope so that any volume writes
-            // are committed before we recompute the hash.
-            filepath = fpath;
+        FluidPath fpath { name, fs, ec };
+        if (ec) {
+            log_to(out, "No SD");
+            return Error::FsFailedMount;
         }
-
-        HashFS::rehash_file(filepath);
+        auto isDir = stdfs::is_directory(fpath, ec);
+        if (ec) {
+            log_to(out, "Delete failed: ", ec.message());
+            return Error::FsFileNotFound;
+        }
+        if (isDir) {
+            stdfs::remove_all(fpath, ec);
+            if (ec) {
+                log_to(out, "Delete Directory failed: ", ec.message());
+                return Error::FsFailedDelDir;
+            }
+        } else {
+            stdfs::remove(fpath, ec);
+            if (ec) {
+                log_to(out, "Delete File failed: ", ec.message());
+                return Error::FsFailedDelFile;
+            }
+        }
+        HashFS::delete_file(fpath);
 
         return Error::Ok;
     }

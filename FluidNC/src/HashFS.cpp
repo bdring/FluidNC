@@ -9,7 +9,7 @@ static char hexNibble(int i) {
     return "0123456789ABCDEF"[i & 0xf];
 }
 
-static Error hashFile(const char* ipath, std::string& str) {  // No ESP command
+static Error hashFile(const std::filesystem::path& ipath, std::string& str) {  // No ESP command
     mbedtls_md_context_t ctx;
 
     uint8_t shaResult[32];
@@ -28,7 +28,7 @@ static Error hashFile(const char* ipath, std::string& str) {  // No ESP command
         mbedtls_md_finish(&ctx, shaResult);
         mbedtls_md_free(&ctx);
     } catch (const Error err) {
-        log_error("Cannot open file " << ipath);
+        log_debug("Cannot hash file " << ipath);
         return Error::FsFailedOpenFile;
     }
 
@@ -43,62 +43,65 @@ static Error hashFile(const char* ipath, std::string& str) {  // No ESP command
     return Error::Ok;
 }
 
-void HashFS::rehash() {
-    rehash_file("/localfs");
+void HashFS::delete_file(const std::filesystem::path& path) {
+    localFsHashes.erase(path.filename());
+    log_debug("Deleting hash for " << path.filename());
 }
 
-void HashFS::rehash_fs(const std::filesystem::path& path) {
-    auto        it     = path.begin();
-    std::string fsname = "/";
-    fsname += *++it;
-    if (fsname != "/littlefs" && fsname != "/spiffs" && fsname != "/localfs") {
-        return;
+bool HashFS::file_is_hashed(const std::filesystem::path& path) {
+    int count = 0;
+    for (auto it = path.begin(); it != path.end(); ++it) {
+        ++count;
     }
-
-    std::error_code ec;
-
-    localFsHashes.clear();
-
-    FluidPath fpath { fsname, "", ec };
-    if (ec) {
-        log_error("Cannot open " << fsname);
-        return;
+    // The first component is "/", then e.g. "littlefs", then
+    // the filename.  If there are more components, there is
+    // a subdirectory and we do not hash it.
+    if (count != 3) {
+        return false;
     }
+    auto fsname = *++path.begin();
+    return fsname == "littlefs" || fsname == "spiffs" || fsname == "localfs";
+}
 
-    log_debug("Rehashing " << fsname);
-
-    auto iter = stdfs::directory_iterator { fpath, ec };
-    if (ec) {
-        log_error(fpath << " " << ec.message());
-        return;
-    }
-    Error err = Error::Ok;
-    for (auto const& dir_entry : iter) {
-        if (dir_entry.is_directory()) {
-            log_debug("Not hashing localfs subdirectories");
+void HashFS::rehash_file(const std::filesystem::path& path) {
+    if (file_is_hashed(path)) {
+        std::string hash;
+        if (hashFile(path, hash) != Error::Ok) {
+            delete_file(path);
         } else {
-            std::string ipath(fsname);
-            ipath += "/";
-            ipath += dir_entry.path().filename();
-            std::string hash;
-            auto        err1 = hashFile(ipath.c_str(), hash);
-            if (err1 != Error::Ok) {
-                err = err1;
-            } else {
-                std::string filename("/");
-                filename += dir_entry.path().filename();
-                localFsHashes[filename] = hash;
-                log_debug(filename << " hash " << hash);
-            }
+            localFsHashes[path.filename()] = hash;
+            log_debug(path.filename() << " hash " << hash);
         }
     }
 }
-std::string HashFS::hash(std::string name) {
-    std::map<std::string, std::string>::iterator it;
 
-    it = localFsHashes.find(name);
-    if (it != localFsHashes.end()) {
-        return it->second;
+void HashFS::hash_all() {
+    localFsHashes.clear();
+
+    std::error_code ec;
+    FluidPath       lfspath { "", localfsName, ec };
+    if (ec) {
+        return;
+    }
+
+    auto iter = stdfs::directory_iterator { lfspath, ec };
+    if (ec) {
+        log_error(lfspath << " " << ec.message());
+        return;
+    }
+    for (auto const& dir_entry : iter) {
+        if (!dir_entry.is_directory()) {
+            rehash_file(dir_entry);
+        }
+    }
+}
+std::string HashFS::hash(const std::filesystem::path& path) {
+    if (file_is_hashed(path)) {
+        std::map<std::string, std::string>::iterator it;
+        it = localFsHashes.find(path.filename());
+        if (it != localFsHashes.end()) {
+            return it->second;
+        }
     }
     return std::string();
 }
