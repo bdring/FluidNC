@@ -1,4 +1,5 @@
 // Copyright (c) 2021 -	Stefan de Bruijn
+// Copyright (c) 2023 -	Dylan Knutson <dymk@dymk.co>
 // Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
 
 #include "Parser.h"
@@ -10,13 +11,14 @@
 
 #include <climits>
 #include <math.h>  // round
+#include <string_view>
 
 namespace Configuration {
-    Parser::Parser(const char* start, const char* end) : Tokenizer(start, end) {}
+    Parser::Parser(std::string_view yaml_string) : Tokenizer(yaml_string) {}
 
     void Parser::parseError(const char* description) const {
         // Attempt to use the correct position in the parser:
-        if (token_.keyEnd_) {
+        if (!token_.key_.empty()) {
             throw ParseException(line_, description);
         } else {
             Tokenizer::ParseError(description);
@@ -24,14 +26,14 @@ namespace Configuration {
     }
 
     bool Parser::is(const char* expected) {
-        if (token_.state != TokenState::Matching || token_.keyStart_ == nullptr) {
+        if (token_.state != TokenState::Matching || token_.key_.empty()) {
             return false;
         }
         auto len = strlen(expected);
-        if (len != (token_.keyEnd_ - token_.keyStart_)) {
+        if (len != token_.key_.size()) {
             return false;
         }
-        bool result = !strncasecmp(expected, token_.keyStart_, len);
+        bool result = !strncasecmp(expected, token_.key_.cbegin(), len);
         if (result) {
             token_.state = TokenState::Matched;
         }
@@ -39,15 +41,15 @@ namespace Configuration {
     }
 
     // String values might have meaningful leading and trailing spaces so we avoid trimming the string (false)
-    StringRange Parser::stringValue() const { return StringRange(token_.sValueStart_, token_.sValueEnd_, false); }
+    StringRange Parser::stringValue() const { return StringRange(token_.value_.cbegin(), token_.value_.cend(), false); }
 
     bool Parser::boolValue() const {
-        auto str = StringRange(token_.sValueStart_, token_.sValueEnd_);
+        auto str = StringRange(token_.value_.cbegin(), token_.value_.cend());
         return str.equals("true");
     }
 
     int Parser::intValue() const {
-        auto    str = StringRange(token_.sValueStart_, token_.sValueEnd_);
+        auto    str = StringRange(token_.value_.cbegin(), token_.value_.cend());
         int32_t value;
         if (str.isInteger(value)) {
             return value;
@@ -61,7 +63,7 @@ namespace Configuration {
     }
 
     uint32_t Parser::uintValue() const {
-        auto     str = StringRange(token_.sValueStart_, token_.sValueEnd_);
+        auto     str = StringRange(token_.value_.cbegin(), token_.value_.cend());
         uint32_t value;
         if (str.isUnsignedInteger(value)) {
             return value;
@@ -75,7 +77,7 @@ namespace Configuration {
     }
 
     float Parser::floatValue() const {
-        auto  str = StringRange(token_.sValueStart_, token_.sValueEnd_);
+        auto  str = StringRange(token_.value_.cbegin(), token_.value_.cend());
         float value;
         if (!str.isFloat(value)) {
             parseError("Expected a float value like 123.456");
@@ -84,7 +86,7 @@ namespace Configuration {
     }
 
     std::vector<speedEntry> Parser::speedEntryValue() const {
-        auto str = StringRange(token_.sValueStart_, token_.sValueEnd_);
+        auto str = StringRange(token_.value_.cbegin(), token_.value_.cend());
 
         std::vector<speedEntry> value;
         StringRange             entryStr;
@@ -110,13 +112,13 @@ namespace Configuration {
     }
 
     Pin Parser::pinValue() const {
-        auto str = StringRange(token_.sValueStart_, token_.sValueEnd_);
+        auto str = StringRange(token_.value_.cbegin(), token_.value_.cend());
         return Pin::create(str);
     }
 
     IPAddress Parser::ipValue() const {
         IPAddress ip;
-        auto      str = StringRange(token_.sValueStart_, token_.sValueEnd_);
+        auto      str = StringRange(token_.value_.cbegin(), token_.value_.cend());
         if (!ip.fromString(str.str().c_str())) {
             parseError("Expected an IP address like 192.168.0.100");
         }
@@ -124,7 +126,7 @@ namespace Configuration {
     }
 
     int Parser::enumValue(EnumItem* e) const {
-        auto str = StringRange(token_.sValueStart_, token_.sValueEnd_);
+        auto str = StringRange(token_.value_.cbegin(), token_.value_.cend());
         for (; e->name; ++e) {
             if (str.equals(e->name)) {
                 break;
@@ -134,7 +136,7 @@ namespace Configuration {
     }
 
     void Parser::uartMode(UartData& wordLength, UartParity& parity, UartStop& stopBits) const {
-        auto str = StringRange(token_.sValueStart_, token_.sValueEnd_);
+        auto str = StringRange(token_.value_.cbegin(), token_.value_.cend());
         if (str.length() == 5 || str.length() == 3) {
             int32_t wordLenInt;
             if (!str.substr(0, 1).isInteger(wordLenInt)) {

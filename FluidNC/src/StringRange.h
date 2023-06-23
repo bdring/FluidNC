@@ -107,7 +107,7 @@ public:
         return c == end_ && *oc == '\0';
     }
 
-    int length() const { return end_ - start_; }
+    std::size_t length() const { return end_ - start_; }
 
     // Iterator support:
     const char* begin() const { return start_; }

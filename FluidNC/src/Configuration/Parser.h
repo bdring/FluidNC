@@ -1,4 +1,5 @@
 // Copyright (c) 2021 -	Stefan de Bruijn
+// Copyright (c) 2023 -	Dylan Knutson <dymk@dymk.co>
 // Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
 
 #pragma once
@@ -19,7 +20,7 @@ namespace Configuration {
         void parseError(const char* description) const;
 
     public:
-        Parser(const char* start, const char* end);
+        Parser(std::string_view yaml_string);
 
         bool is(const char* expected);
 

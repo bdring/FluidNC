@@ -200,7 +200,7 @@ namespace Machine {
     bool MachineConfig::load(StringRange* input) {
         bool successful = false;
         try {
-            Configuration::Parser        parser(input->begin(), input->end());
+            Configuration::Parser        parser(std::string_view { input->begin(), input->length() });
             Configuration::ParserHandler handler(parser);
 
             // instance() is by reference, so we can just get rid of an old instance and
