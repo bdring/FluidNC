@@ -12,7 +12,7 @@
 
 #include <freertos/task.h>
 #include <freertos/queue.h>
-#include <atomic>  // fence
+#include <atomic>             // fence
 
 xQueueHandle limit_sw_queue;  // used by limit switch debouncing
 
@@ -67,7 +67,9 @@ void constrainToSoftLimits(float* cartesian) {
         // If the axis is moving from the current location and soft limits are on.
         if (axisSetting->_softLimits && cartesian[axis] != current_position[axis]) {
             // When outside the axis range, only small nudges to clear switches are allowed
-            if (current_position[axis] < limitsMinPosition(axis) || current_position[axis] > limitsMaxPosition(axis)) {
+            bool move_positive = cartesian[axis] > current_position[axis];
+            if ((!move_positive && (current_position[axis] < limitsMinPosition(axis))) ||
+                (move_positive && (current_position[axis] > limitsMaxPosition(axis)))) {
                 // only allow a nudge if a switch is active
                 if (bitnum_is_false(lim_pin_state, Machine::Axes::motor_bit(axis, 0)) &&
                     bitnum_is_false(lim_pin_state, Machine::Axes::motor_bit(axis, 1))) {
@@ -83,7 +85,7 @@ void constrainToSoftLimits(float* cartesian) {
 
                 // if jog is positive and only the positive switch is active, then kill the move
                 // if jog is negative and only the negative switch is active, then kill the move
-                if (posLimited != negLimited) {  // XOR, because ambiguous (both) is OK
+                if (posLimited != negLimited) {                    // XOR, because ambiguous (both) is OK
                     if ((negLimited && (jog_dist < 0)) || (posLimited && (jog_dist > 0))) {
                         cartesian[axis] = current_position[axis];  // cancel the move on this axis
                         log_debug("Jog into active switch blocked on " << Machine::Axes::_names[axis]);
