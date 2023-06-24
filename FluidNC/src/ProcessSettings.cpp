@@ -580,9 +580,20 @@ void CallURL(String cmd) {
     String host = WebUI::URL_ToCall->get();
 
     WiFiClientSecure* client = new WiFiClientSecure;
+
+    WebUI::WiFiConfig::end();
+
+    if (!(((WiFi.status() == WL_CONNECTED)) && ((WiFi.getMode() == WIFI_MODE_STA) || (WiFi.getMode() == WIFI_MODE_APSTA)))) {
+        log_debug("Try to reconnext to Wifi");
+        WebUI::WiFiConfig::end();
+        delay(1000);
+        WebUI::WiFiConfig::begin();
+        delay(3000);
+    }
+
     client->setInsecure();
     if (!client->connect(host.c_str(), 443))
-        log_info("Connection to server failed!") else log_info("Connection succesfully to server !");
+        log_info("Connection to server failed! - Wifi status : " + WiFi.status()) else log_info("Connection succesfully to server !");
 
     log_debug("Start calling URL");
     url = host;
@@ -596,11 +607,6 @@ void CallURL(String cmd) {
 
     log_debug(urlDebug.c_str());
     log_debug(host.c_str());
-
-    if (!(((WiFi.status() == WL_CONNECTED)) && ((WiFi.getMode() == WIFI_MODE_STA) || (WiFi.getMode() == WIFI_MODE_APSTA)))) {
-        log_debug("Try to reconnext to Wifi");
-        WebUI::WiFiConfig::begin();
-    }
 
     if (((WiFi.status() == WL_CONNECTED)) && ((WiFi.getMode() == WIFI_MODE_STA) || (WiFi.getMode() == WIFI_MODE_APSTA))) {
         if (host != "") {
