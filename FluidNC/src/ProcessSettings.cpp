@@ -32,6 +32,8 @@
 #include <map>
 #include <filesystem>
 
+int once = 1;
+
 // WG Readable and writable as guest
 // WU Readable and writable as user and admin
 // WA Readable as user and admin, writable as admin
@@ -573,59 +575,78 @@ String GetCMDEndPrg() {
     return WebUI::CMD_EndJob->get();
 }
 
-void CallURL(String cmd) {
-    HTTPClient http;
-
-    String url, urlDebug;
-    String host = WebUI::URL_ToCall->get();
-
-    WiFiClientSecure* client = new WiFiClientSecure;
-
-    WebUI::WiFiConfig::end();
-
-    if (!(((WiFi.status() == WL_CONNECTED)) && ((WiFi.getMode() == WIFI_MODE_STA) || (WiFi.getMode() == WIFI_MODE_APSTA)))) {
+void ReconnectWifi ( WiFiClientSecure* client)
+{
         log_debug("Try to reconnext to Wifi");
         WebUI::WiFiConfig::end();
         delay(1000);
         WebUI::WiFiConfig::begin();
-        delay(3000);
+        delay(5000);
+
+}
+
+void CallURL(String cmd) {
+    HTTPClient http;
+    WiFiClientSecure client;
+
+    String url, urlDebug;
+    String host = WebUI::URL_ToCall->get();
+   
+
+    //WebUI::WiFiConfig::end();
+
+    if (!(((WiFi.status() == WL_CONNECTED)) && ((WiFi.getMode() == WIFI_MODE_STA) || (WiFi.getMode() == WIFI_MODE_APSTA)))) {
+        ReconnectWifi ( &client);
     }
 
-    client->setInsecure();
-    if (!client->connect(host.c_str(), 443))
-        log_info("Connection to server failed! - Wifi status : " + WiFi.status()) else log_info("Connection succesfully to server !");
+    client.setInsecure();
+    client.connect(host.c_str(), 443);
+    //if (!client.connect(host.c_str(), 443))
+    //    log_info("Connection to server failed! - Wifi status : " + std::to_string(WiFi.status()) + " - Wifi Mode : " +std::to_string(WiFi.getMode()) ) 
+    
+    {
+        //log_info("Connection succesfully to server !");
 
-    log_debug("Start calling URL");
-    url = host;
-    if (cmd != "") {
-        url += "?";
-        url += cmd;
-    }
-
-    urlDebug = "URL to call  : " + url;
-    host     = "Host : '" + host + "'";
-
-    log_debug(urlDebug.c_str());
-    log_debug(host.c_str());
-
-    if (((WiFi.status() == WL_CONNECTED)) && ((WiFi.getMode() == WIFI_MODE_STA) || (WiFi.getMode() == WIFI_MODE_APSTA))) {
-        if (host != "") {
-            http.begin(*client, url.c_str());  //Specify the URL and certificate
-            int httpCode = http.GET();         //Make the request
-
-            if (httpCode > 0) {                //Check for the returning code
-                log_info("URL call successful");
-            } else {
-                log_info("Failed to call URL");
-            }
-
-            http.end();  //Free the resources
-        } else {
-            log_debug("No URL to call");
+        log_debug("Start calling URL");
+        url = host;
+        if (cmd != "") {
+            url += "?";
+            url += cmd;
         }
-    } else {
-        log_debug("Wifi is not connected in STA Mode");
+
+        urlDebug = "URL to call  : " + url;
+        host     = "Host : '" + host + "'";
+
+        log_debug(urlDebug.c_str());
+        log_debug(host.c_str());
+
+        if (((WiFi.status() == WL_CONNECTED)) && ((WiFi.getMode() == WIFI_MODE_STA) || (WiFi.getMode() == WIFI_MODE_APSTA))) {
+            if (host != "") {
+                http.begin(client, url.c_str());  //Specify the URL and certificate
+                int httpCode = http.GET();         //Make the request
+
+                if (httpCode > 0) {                //Check for the returning code
+                    log_info("URL call successful");
+                } else {
+                    log_info("Failed to call URL");
+                    client.stop();
+                    ReconnectWifi (&client);
+                    if ( once ) CallURL (cmd);
+                    once = 0; 
+                }
+
+                http.end();  //Free the resources
+            } else {
+                log_debug("No URL to call");
+            }
+        } else {
+            log_debug("Wifi is not connected in STA Mode");
+        }
+
+        client.stop();
     }
+    once = 1;
+
 }
 
 static Error motor_control(const char* value, bool disable) {
