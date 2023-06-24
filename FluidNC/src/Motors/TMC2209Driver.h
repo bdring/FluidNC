@@ -39,7 +39,7 @@ namespace MotorDrivers {
     private:
         TMC2209Stepper* tmc2209 = nullptr;
 
-        Pin   _cs_pin;
+        Pin _cs_pin;
 
         bool test();
         void set_registers(bool isHoming);
