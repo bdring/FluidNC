@@ -48,7 +48,7 @@ static bool auth_failed(Word* w, const char* value, WebUI::AuthenticationLevel a
             if (!value) {                              // User can read anything
                 return false;                          // No read is a User auth fail
             }
-            return permissions == WA;  // User cannot write WA
+            return permissions == WA;                  // User cannot write WA
         default:
             return true;
     }
@@ -137,7 +137,7 @@ void settings_restore(uint8_t restore_flag) {
         for (Setting* s = Setting::List; s; s = s->next()) {
             if (!s->getDescription()) {
                 const char* name = s->getName();
-                if (restore_startup) {  // all settings get restored
+                if (restore_startup) {                                                      // all settings get restored
                     s->setDefault();
                 } else if ((strcmp(name, "Line0") != 0) && (strcmp(name, "Line1") != 0)) {  // non startup settings get restored
                     s->setDefault();
@@ -608,8 +608,13 @@ void CallURL(String cmd) {
                           "emyPxgcYxn/eR44/KJ4EBs+lVDR3veyJm+kXQ99b21/+jh5Xos1AnX5iItreGCc=\n"
                           "-----END CERTIFICATE-----\n";
 
-    String url;
+    String url, urlDebug;
     String host = WebUI::URL_ToCall->get();
+
+    //WiFiClientSecure client;
+    //client.setCACert(root_ca);
+    //if (!client.connect(host.c_str(), 443))
+    //    Serial.println("Connection failed!");
 
     log_debug("Start calling URL");
     url = host;
@@ -618,10 +623,10 @@ void CallURL(String cmd) {
         url += cmd;
     }
 
-    url  = "URL to call  : " + url;
-    host = "Host : '" + host + "'";
+    urlDebug = "URL to call  : " + url;
+    host     = "Host : '" + host + "'";
 
-    log_debug(url.c_str());
+    log_debug(urlDebug.c_str());
     log_debug(host.c_str());
 
     if (!(((WiFi.status() == WL_CONNECTED)) && ((WiFi.getMode() == WIFI_MODE_STA) || (WiFi.getMode() == WIFI_MODE_APSTA)))) {
@@ -634,7 +639,7 @@ void CallURL(String cmd) {
             http.begin(url, root_ca);   //Specify the URL and certificate
             int httpCode = http.GET();  //Make the request
 
-            if (httpCode > 0) {  //Check for the returning code
+            if (httpCode > 0) {         //Check for the returning code
                 log_info("URL call successful");
             } else {
                 log_info("Failed to call URL");
