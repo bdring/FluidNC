@@ -1743,21 +1743,17 @@ Error gc_execute_line(char* line) {
 */
 
 void WEAK_LINK user_m30() {
-    String s       = GetCMDEndPrg();
-    char   NbRetry = 3;
+    String s = GetCMDEndPrg();
 
     if (s != "")
-        while ((NbRetry--) && (CallURL(s) == NOT_SUCCESSFUL))
-            ;
+        CallURLWithRetryStrategy(s);
 }
 
 void WEAK_LINK user_m100() {
-    String s       = GetCMDStartPrg();
-    char   NbRetry = 3;
+    String s = GetCMDStartPrg();
 
     if (s != "")
-        while ((NbRetry--) && (CallURL(s) == NOT_SUCCESSFUL))
-            ;
+        CallURLWithRetryStrategy(s);
 }
 
 void WEAK_LINK user_tool_change(uint32_t new_tool) {

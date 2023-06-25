@@ -8,5 +8,6 @@ typedef enum : unsigned char {
 } urlFeedback;
 
 urlFeedback CallURL(String cmd);
+void        CallURLWithRetryStrategy(String cmd);
 String      GetCMDEndPrg();
 String      GetCMDStartPrg();

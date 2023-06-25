@@ -574,12 +574,23 @@ String GetCMDEndPrg() {
     return WebUI::CMD_EndJob->get();
 }
 
-void ReconnectWifi(WiFiClientSecure* client) {
+void ReconnectWifi() {
     log_debug("Try to reconnext to Wifi");
     WebUI::WiFiConfig::end();
     delay(1000);
     WebUI::WiFiConfig::begin();
     delay(5000);
+}
+
+void CallURLWithRetryStrategy(String cmd) {
+    const char NB_RTETRY_MAX = 3;
+    char       NbRetry       = NB_RTETRY_MAX;
+
+    while ((NbRetry--) && (CallURL(cmd) == NOT_SUCCESSFUL)) {
+        log_info("Retry URL call : " + std::to_string(NB_RTETRY_MAX - NbRetry) + "/" + std::to_string(NB_RTETRY_MAX));
+        if (!(WiFi.status() == WL_CONNECTED))
+            ReconnectWifi();
+    }
 }
 
 urlFeedback CallURL(String cmd) {
@@ -588,10 +599,6 @@ urlFeedback CallURL(String cmd) {
 
     String url, urlDebug;
     String host = WebUI::URL_ToCall->get();
-
-    if (!(((WiFi.status() == WL_CONNECTED)) && ((WiFi.getMode() == WIFI_MODE_STA) || (WiFi.getMode() == WIFI_MODE_APSTA)))) {
-        ReconnectWifi(&client);
-    }
 
     client.setInsecure();
     client.connect(host.c_str(), 443);
@@ -629,7 +636,6 @@ urlFeedback CallURL(String cmd) {
                     log_info("Failed to call URL");
                     http.end();
                     client.stop();
-                    ReconnectWifi(&client);
                     return NOT_SUCCESSFUL;
                 }
 
