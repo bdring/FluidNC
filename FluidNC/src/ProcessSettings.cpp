@@ -591,14 +591,16 @@ void ReconnectWifi() {
 }
 
 void CallURLWithRetryStrategy(String cmd) {
-    const char NB_RTETRY_MAX = 5;
+    const char NB_RTETRY_MAX = 9;
     char       NbRetry       = NB_RTETRY_MAX;
 
     while ((NbRetry--) && (CallURL(cmd) == NOT_SUCCESSFUL)) {
         log_info("Retry URL call : " + std::to_string(NB_RTETRY_MAX - NbRetry) + "/" + std::to_string(NB_RTETRY_MAX));
-        delay(2000);
-        if (!(WiFi.status() == WL_CONNECTED))
+
+        if (!(WiFi.status() == WL_CONNECTED) || (NbRetry % 3 == 0))
             ReconnectWifi();
+
+        delay(2000);
     }
 }
 
