@@ -29,9 +29,7 @@ namespace WebUI {
 
 namespace WebUI {
     class WSChannel : public Channel {
-        static const int TXBUFFERSIZE = 1200;
         static const int RXBUFFERSIZE = 256;
-        static const int FLUSHTIMEOUT = 500;
 
     public:
         WSChannel(WebSocketsServer* server, uint8_t clientNum);
@@ -47,13 +45,11 @@ namespace WebUI {
         inline size_t write(unsigned int n) { return write((uint8_t)n); }
         inline size_t write(int n) { return write((uint8_t)n); }
 
-        void handle();
-
         bool push(const uint8_t* data, size_t length);
         bool push(std::string& s);
         void pushRT(char ch);
 
-        void flush(void);
+        void flush(void) override {}
 
         int id() { return _clientNum; }
 
@@ -69,16 +65,14 @@ namespace WebUI {
     private:
         bool _dead = false;
 
-        uint32_t          _lastflush;
         WebSocketsServer* _server;
         uint8_t           _clientNum;
-
-        uint8_t  _TXbuffer[TXBUFFERSIZE];
-        uint16_t _TXbufferSize;
 
         uint8_t  _RXbuffer[RXBUFFERSIZE];
         uint16_t _RXbufferSize;
         uint16_t _RXbufferpos;
+
+        std::string _output_line;
 
         // Instead of queueing realtime characters, we put them here
         // so they can be processed immediately during operations like
