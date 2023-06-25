@@ -588,6 +588,7 @@ void CallURLWithRetryStrategy(String cmd) {
 
     while ((NbRetry--) && (CallURL(cmd) == NOT_SUCCESSFUL)) {
         log_info("Retry URL call : " + std::to_string(NB_RTETRY_MAX - NbRetry) + "/" + std::to_string(NB_RTETRY_MAX));
+        delay(1000);
         if (!(WiFi.status() == WL_CONNECTED))
             ReconnectWifi();
     }
