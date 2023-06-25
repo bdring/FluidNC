@@ -32,6 +32,8 @@ CoordIndex& operator++(CoordIndex& i) {
 // value when converting a float (7.2 digit precision)s to an integer.
 static const int32_t MaxLineNumber = 10000000;
 
+int StartURLCalled = 0;
+
 // Declare gc extern struct
 parser_state_t gc_state;
 parser_block_t gc_block;
@@ -506,7 +508,17 @@ Error gc_execute_line(char* line) {
                         break;
                     case 3:
                     case 4:
-                    case 5:
+                    case 5: {
+                        String s             = GetCMDStartPrg();
+                        int    StartWithM345 = GetStartURLWithM345();
+
+                        log_debug("M3/4/5");
+                        if ((s != "") && (StartWithM345) && (!StartURLCalled)) {
+                            log_debug("Call URL M345");
+                            StartURLCalled = 1;
+                            CallURLWithRetryStrategy(s);
+                        }
+
                         switch (int_value) {
                             case 3:
                                 gc_block.modal.spindle = SpindleState::Cw;
@@ -524,6 +536,8 @@ Error gc_execute_line(char* line) {
                         }
                         mg_word_bit = ModalGroup::MM7;
                         break;
+                    }
+
                     case 6:  // tool change
                         gc_block.modal.tool_change = ToolChange::Enable;
                         // user_tool_change(gc_state.tool);
@@ -1745,15 +1759,20 @@ Error gc_execute_line(char* line) {
 void WEAK_LINK user_m30() {
     String s = GetCMDEndPrg();
 
+    StartURLCalled = 0;
+
     if (s != "")
         CallURLWithRetryStrategy(s);
 }
 
 void WEAK_LINK user_m100() {
-    String s = GetCMDStartPrg();
+    String s            = GetCMDStartPrg();
+    int    StartWitM100 = GetStartURLWithM100();
 
-    if (s != "")
+    if ((s != "") && (StartWitM100)) {
+        StartURLCalled = 1;
         CallURLWithRetryStrategy(s);
+    }
 }
 
 void WEAK_LINK user_tool_change(uint32_t new_tool) {

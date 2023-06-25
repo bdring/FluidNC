@@ -574,6 +574,14 @@ String GetCMDEndPrg() {
     return WebUI::CMD_EndJob->get();
 }
 
+int GetStartURLWithM345() {
+    return WebUI::CMD_StartWithM345->get();
+}
+
+int GetStartURLWithM100() {
+    return WebUI::CMD_StartWithM100->get();
+}
+
 void ReconnectWifi() {
     log_debug("Try to reconnext to Wifi");
     WebUI::WiFiConfig::end();
@@ -583,12 +591,12 @@ void ReconnectWifi() {
 }
 
 void CallURLWithRetryStrategy(String cmd) {
-    const char NB_RTETRY_MAX = 3;
+    const char NB_RTETRY_MAX = 5;
     char       NbRetry       = NB_RTETRY_MAX;
 
     while ((NbRetry--) && (CallURL(cmd) == NOT_SUCCESSFUL)) {
         log_info("Retry URL call : " + std::to_string(NB_RTETRY_MAX - NbRetry) + "/" + std::to_string(NB_RTETRY_MAX));
-        delay(1000);
+        delay(2000);
         if (!(WiFi.status() == WL_CONNECTED))
             ReconnectWifi();
     }

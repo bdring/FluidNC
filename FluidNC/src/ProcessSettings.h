@@ -11,3 +11,5 @@ urlFeedback CallURL(String cmd);
 void        CallURLWithRetryStrategy(String cmd);
 String      GetCMDEndPrg();
 String      GetCMDStartPrg();
+int         GetStartURLWithM345();
+int         GetStartURLWithM100();
