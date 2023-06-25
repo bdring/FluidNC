@@ -7,11 +7,10 @@
 #include "Parser.h"
 #include "Configurable.h"
 #include "../System.h"
+#include "parser_logging.h"
 
 #include <vector>
 
-// #define DEBUG_VERBOSE_YAML_PARSER
-// #define DEBUG_CHATTY_YAML_PARSER
 namespace Configuration {
     class ParserHandler : public Configuration::HandlerBase {
     private:
@@ -25,17 +24,13 @@ namespace Configuration {
             // On entry, the token is for the section that invoked us.
             // We will handle following nodes with indents greater than entryIndent
             int entryIndent = _parser.token_.indent_;
-#ifdef DEBUG_CHATTY_YAML_PARSER
-            log_debug("Entered section " << name << " at indent " << entryIndent);
-#endif
+            log_parser_verbose("Entered section " << name << " at indent " << entryIndent);
 
             // The next token controls what we do next.  If thisIndent is greater
             // than entryIndent, there are some subordinate tokens.
             _parser.Tokenize();
             int thisIndent = _parser.token_.indent_;
-#ifdef DEBUG_VERBOSE_YAML_PARSER
-            log_debug("thisIndent " << _parser.key().str() << " " << thisIndent);
-#endif
+            log_parser_verbose("thisIndent " << _parser.key() << " " << thisIndent);
 
             // If thisIndent <= entryIndent, the section is empty - there are
             // no more-deeply-indented subordinate tokens.
@@ -44,17 +39,12 @@ namespace Configuration {
                 // If thisIndent > entryIndent, the new token is the first token within
                 // this section so we process tokens at the same level as thisIndent.
                 for (; _parser.token_.indent_ >= thisIndent; _parser.Tokenize()) {
-#ifdef DEBUG_VERBOSE_YAML_PARSER
-                    log_debug(" KEY " << _parser.key().str() << " state " << int(_parser.token_.state) << " indent "
-                                      << _parser.token_.indent_);
-#endif
+                    log_parser_verbose(" KEY " << _parser.key() << " state " << int(_parser.token_.state) << " indent "
+                                               << _parser.token_.indent_);
                     if (_parser.token_.indent_ > thisIndent) {
-                        log_error("Skipping key " << _parser.key().str() << " indent " << _parser.token_.indent_ << " this indent "
-                                                  << thisIndent);
+                        log_error("Skipping key " << _parser.key() << " indent " << _parser.token_.indent_ << " this indent " << thisIndent);
                     } else {
-#ifdef DEBUG_VERBOSE_YAML_PARSER
-                        log_debug("Parsing key " << _parser.key().str());
-#endif
+                        log_parser_verbose("Parsing key " << _parser.key());
                         try {
                             section->group(*this);
                         } catch (const AssertionFailed& ex) {
@@ -66,13 +56,11 @@ namespace Configuration {
                         }
 
                         if (_parser.token_.state == TokenState::Matching) {
-                            log_warn("Ignored key " << _parser.key().str());
+                            log_warn("Ignored key " << _parser.key());
                         }
-#ifdef DEBUG_CHATTY_YAML_PARSER
                         if (_parser.token_.state == Configuration::TokenState::Matched) {
-                            log_debug("Handled key " << _parser.key().str());
+                            log_parser_verbose("Handled key " << _parser.key());
                         }
-#endif
                     }
                 }
             }
@@ -85,9 +73,7 @@ namespace Configuration {
             // _parser.token_.held = true;
 
             _parser.token_.state = TokenState::Held;
-#ifdef DEBUG_CHATTY_YAML_PARSER
-            log_debug("Left section at indent " << entryIndent << " holding " << _parser.key().str());
-#endif
+            log_parser_verbose("Left section at indent " << entryIndent << " holding " << _parser.key());
 
             _path.erase(_path.begin() + (_path.size() - 1));
         }
@@ -144,7 +130,7 @@ namespace Configuration {
 
         void item(const char* name, std::string& value, int minLength, int maxLength) override {
             if (_parser.is(name)) {
-                value = _parser.stringValue().str().c_str();
+                value = _parser.stringValue();
             }
         }
 
