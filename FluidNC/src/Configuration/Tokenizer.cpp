@@ -23,8 +23,6 @@ namespace Configuration {
     void Tokenizer::ParseError(const char* description) const { throw ParseException(line_, description); }
 
     void Tokenizer::Tokenize() {
-        const char* tok_start = nullptr;
-
         // Release a held token
         if (token_.state == TokenState::Held) {
             token_.state = TokenState::Matching;
@@ -82,12 +80,12 @@ namespace Configuration {
                     ParseError("Invalid character");
                 }
 
-                tok_start = current_.cbegin();
+                const auto tok_start = current_.cbegin();
                 Inc();
                 while (!Eof() && IsIdentifierChar()) {
                     Inc();
                 }
-                token_.key_ = { tok_start, current_.cbegin() - tok_start };
+                token_.key_ = { tok_start, static_cast<size_t>(current_.cbegin() - tok_start) };
 
                 // Skip whitespaces:
                 while (IsWhiteSpace()) {
@@ -119,23 +117,23 @@ namespace Configuration {
                         auto delimiter = Current();
 
                         Inc();
-                        tok_start = current_.cbegin();
+                        const auto tok_start = current_.cbegin();
                         while (!Eof() && Current() != delimiter && !IsEndLine()) {
                             Inc();
                         }
-                        token_.value_ = { tok_start, current_.cbegin() - tok_start };
+                        token_.value_ = { tok_start, static_cast<size_t>(current_.cbegin() - tok_start) };
                         if (Current() != delimiter) {
                             ParseError("Did not find matching delimiter");
                         }
                         Inc();
                         log_parser_verbose("StringQ " << token_.key_ << " " << token_.value_);
                     } else {
-                        tok_start = current_.cbegin();
+                        const auto tok_start = current_.cbegin();
                         while (!IsEndLine()) {
                             Inc();
                         }
                         auto& value_tok = token_.value_;
-                        value_tok       = { tok_start, current_.cbegin() - tok_start };
+                        value_tok       = { tok_start, static_cast<size_t>(current_.cbegin() - tok_start) };
                         if (!value_tok.empty() && value_tok[value_tok.size() - 1] == '\r') {
                             value_tok.remove_suffix(1);
                         }
