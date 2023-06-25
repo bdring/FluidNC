@@ -24,6 +24,7 @@
 #include "StartupLog.h"           // startupLog
 #include "WebUI\Commands.h"
 #include "Driver/fluidnc_gpio.h"  // gpio_dump()
+#include "ProcessSettings.h"
 
 #include "FluidPath.h"
 #include "HTTPClient.h"
@@ -31,8 +32,6 @@
 #include <cstring>
 #include <map>
 #include <filesystem>
-
-int once = 1;
 
 // WG Readable and writable as guest
 // WU Readable and writable as user and admin
@@ -583,14 +582,12 @@ void ReconnectWifi(WiFiClientSecure* client) {
     delay(5000);
 }
 
-void CallURL(String cmd) {
+urlFeedback CallURL(String cmd) {
     HTTPClient       http;
     WiFiClientSecure client;
 
     String url, urlDebug;
     String host = WebUI::URL_ToCall->get();
-
-    //WebUI::WiFiConfig::end();
 
     if (!(((WiFi.status() == WL_CONNECTED)) && ((WiFi.getMode() == WIFI_MODE_STA) || (WiFi.getMode() == WIFI_MODE_APSTA)))) {
         ReconnectWifi(&client);
@@ -624,27 +621,29 @@ void CallURL(String cmd) {
 
                 if (httpCode > 0) {               //Check for the returning code
                     log_info("URL call successful");
+                    http.end();
+                    client.stop();
+                    return URL_CALL_OK;
+
                 } else {
                     log_info("Failed to call URL");
+                    http.end();
                     client.stop();
                     ReconnectWifi(&client);
-                    if (once) {
-                        once = 0;
-                        CallURL(cmd);
-                    }
+                    return NOT_SUCCESSFUL;
                 }
 
-                http.end();  //Free the resources
             } else {
                 log_debug("No URL to call");
+                client.stop();
+                return NO_URL;
             }
         } else {
             log_debug("Wifi is not connected in STA Mode");
+            client.stop();
+            return NO_GOOD_MODE;
         }
-
-        client.stop();
     }
-    once = 1;
 }
 
 static Error motor_control(const char* value, bool disable) {

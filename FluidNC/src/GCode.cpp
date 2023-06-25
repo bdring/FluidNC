@@ -14,6 +14,7 @@
 #include "MotionControl.h"        // mc_override_ctrl_update
 #include "Machine/UserOutputs.h"  // setAnalogPercent
 #include "Platform.h"             // WEAK_LINK
+#include "ProcessSettings.h"
 
 #include "Machine/MachineConfig.h"
 
@@ -1741,20 +1742,22 @@ Error gc_execute_line(char* line) {
    group 13 = {G61.1, G64} path control mode (G61 is supported)
 */
 
-extern void   CallURL(String cmd);
-extern String GetCMDEndPrg();
-extern String GetCMDStartPrg();
-
 void WEAK_LINK user_m30() {
-    String s = GetCMDEndPrg();
+    String s       = GetCMDEndPrg();
+    char   NbRetry = 3;
+
     if (s != "")
-        CallURL(s);
+        while ((NbRetry--) && (CallURL(s) == NOT_SUCCESSFUL))
+            ;
 }
 
 void WEAK_LINK user_m100() {
-    String s = GetCMDStartPrg();
+    String s       = GetCMDStartPrg();
+    char   NbRetry = 3;
+
     if (s != "")
-        CallURL(s);
+        while ((NbRetry--) && (CallURL(s) == NOT_SUCCESSFUL))
+            ;
 }
 
 void WEAK_LINK user_tool_change(uint32_t new_tool) {
