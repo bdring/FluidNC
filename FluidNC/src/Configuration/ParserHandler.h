@@ -23,13 +23,13 @@ namespace Configuration {
 
             // On entry, the token is for the section that invoked us.
             // We will handle following nodes with indents greater than entryIndent
-            int entryIndent = _parser.token_.indent_;
+            int entryIndent = _parser._token._indent;
             log_parser_verbose("Entered section " << name << " at indent " << entryIndent);
 
             // The next token controls what we do next.  If thisIndent is greater
             // than entryIndent, there are some subordinate tokens.
             _parser.Tokenize();
-            int thisIndent = _parser.token_.indent_;
+            int thisIndent = _parser._token._indent;
             log_parser_verbose("thisIndent " << _parser.key() << " " << thisIndent);
 
             // If thisIndent <= entryIndent, the section is empty - there are
@@ -38,11 +38,11 @@ namespace Configuration {
             if (thisIndent > entryIndent) {
                 // If thisIndent > entryIndent, the new token is the first token within
                 // this section so we process tokens at the same level as thisIndent.
-                for (; _parser.token_.indent_ >= thisIndent; _parser.Tokenize()) {
-                    log_parser_verbose(" KEY " << _parser.key() << " state " << int(_parser.token_.state) << " indent "
-                                               << _parser.token_.indent_);
-                    if (_parser.token_.indent_ > thisIndent) {
-                        log_error("Skipping key " << _parser.key() << " indent " << _parser.token_.indent_ << " this indent " << thisIndent);
+                for (; _parser._token._indent >= thisIndent; _parser.Tokenize()) {
+                    log_parser_verbose(" KEY " << _parser.key() << " state " << int(_parser._token._state) << " indent "
+                                               << _parser._token._indent);
+                    if (_parser._token._indent > thisIndent) {
+                        log_error("Skipping key " << _parser.key() << " indent " << _parser._token._indent << " this indent " << thisIndent);
                     } else {
                         log_parser_verbose("Parsing key " << _parser.key());
                         try {
@@ -55,10 +55,10 @@ namespace Configuration {
                             sys.state = State::ConfigAlarm;
                         }
 
-                        if (_parser.token_.state == TokenState::Matching) {
+                        if (_parser._token._state == TokenState::Matching) {
                             log_warn("Ignored key " << _parser.key());
                         }
-                        if (_parser.token_.state == Configuration::TokenState::Matched) {
+                        if (_parser._token._state == Configuration::TokenState::Matched) {
                             log_parser_verbose("Handled key " << _parser.key());
                         }
                     }
@@ -70,9 +70,9 @@ namespace Configuration {
             // the caller will call Tokenize() to get a token, so we
             // "hold" the current token so that Tokenize() will
             // release that token instead of parsing ahead.
-            // _parser.token_.held = true;
+            // _parser._token.held = true;
 
-            _parser.token_.state = TokenState::Held;
+            _parser._token._state = TokenState::Held;
             log_parser_verbose("Left section at indent " << entryIndent << " holding " << _parser.key());
 
             _path.erase(_path.begin() + (_path.size() - 1));
