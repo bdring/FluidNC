@@ -17,8 +17,6 @@
 #include "../Report.h"     // git_info
 #include "../InputFile.h"  // InputFile
 
-#include "Driver/localfs.h"  // localfs_format
-
 #include "Commands.h"  // COMMANDS::restart_MCU();
 #include "WifiConfig.h"
 
@@ -365,19 +363,18 @@ namespace WebUI {
         }
         if (isDir) {
             stdfs::remove_all(fpath, ec);
-            fpath.rehash_fs();
             if (ec) {
                 log_to(out, "Delete Directory failed: ", ec.message());
                 return Error::FsFailedDelDir;
             }
         } else {
             stdfs::remove(fpath, ec);
-            fpath.rehash_fs();
             if (ec) {
                 log_to(out, "Delete File failed: ", ec.message());
                 return Error::FsFailedDelFile;
             }
         }
+        HashFS::delete_file(fpath);
 
         return Error::Ok;
     }
@@ -438,6 +435,7 @@ namespace WebUI {
     }
 
     static Error copyFile(const char* ipath, const char* opath, Channel& out) {  // No ESP command
+        std::filesystem::path filepath;
         try {
             FileStream outFile { opath, "w" };
             FileStream inFile { ipath, "r" };
@@ -446,11 +444,13 @@ namespace WebUI {
             while ((len = inFile.read(buf, 512)) > 0) {
                 outFile.write(buf, len);
             }
-            outFile.fpath().rehash_fs();
+            filepath = outFile.fpath();
         } catch (const Error err) {
             log_error("Cannot create file " << opath);
             return Error::FsFailedCreateFile;
         }
+        // Rehash after outFile goes out of scope
+        HashFS::rehash_file(filepath);
         return Error::Ok;
     }
     static Error copyDir(const char* iDir, const char* oDir, Channel& out) {  // No ESP command
