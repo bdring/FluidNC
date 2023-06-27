@@ -19,39 +19,35 @@ namespace Configuration {
 
     void Parser::parseError(const char* description) const {
         // Attempt to use the correct position in the parser:
-        if (!token_.key_.empty()) {
-            throw ParseException(line_, description);
+        if (!_token._key.empty()) {
+            throw ParseException(_linenum, description);
         } else {
             Tokenizer::ParseError(description);
         }
     }
 
     bool Parser::is(const char* expected) {
-        if (token_.state != TokenState::Matching || token_.key_.empty()) {
+        if (_token._state != TokenState::Matching || _token._key.empty()) {
             return false;
         }
         auto len = strlen(expected);
-        if (len != token_.key_.size()) {
+        if (len != _token._key.size()) {
             return false;
         }
-        bool result = !strncasecmp(expected, token_.key_.cbegin(), len);
+        bool result = !strncasecmp(expected, _token._key.cbegin(), len);
         if (result) {
-            token_.state = TokenState::Matched;
+            _token._state = TokenState::Matched;
         }
         return result;
     }
 
     // String values might have meaningful leading and trailing spaces so we avoid trimming the string (false)
-    std::string_view Parser::stringValue() const {
-        return token_.value_;
-    }
+    std::string_view Parser::stringValue() const { return _token._value; }
 
-    bool Parser::boolValue() const {
-        return string_util::equal_ignore_case(string_util::trim(token_.value_), "true");
-    }
+    bool Parser::boolValue() const { return string_util::equal_ignore_case(string_util::trim(_token._value), "true"); }
 
     int Parser::intValue() const {
-        auto    value_token = string_util::trim(token_.value_);
+        auto    value_token = string_util::trim(_token._value);
         int32_t int_value;
         if (string_util::is_int(value_token, int_value)) {
             return int_value;
@@ -69,7 +65,7 @@ namespace Configuration {
     }
 
     uint32_t Parser::uintValue() const {
-        auto     token = string_util::trim(token_.value_);
+        auto     token = string_util::trim(_token._value);
         uint32_t uint_value;
         if (string_util::is_uint(token, uint_value)) {
             return uint_value;
@@ -85,7 +81,7 @@ namespace Configuration {
     }
 
     float Parser::floatValue() const {
-        auto  token = string_util::trim(token_.value_);
+        auto  token = string_util::trim(_token._value);
         float float_value;
         if (string_util::is_float(token, float_value)) {
             return float_value;
@@ -95,7 +91,7 @@ namespace Configuration {
     }
 
     std::vector<speedEntry> Parser::speedEntryValue() const {
-        auto str = string_util::trim(token_.value_);
+        auto str = string_util::trim(_token._value);
 
         std::vector<speedEntry> speed_entries;
 
@@ -134,20 +130,18 @@ namespace Configuration {
         return speed_entries;
     }
 
-    Pin Parser::pinValue() const {
-        return Pin::create(string_util::trim(token_.value_));
-    }
+    Pin Parser::pinValue() const { return Pin::create(string_util::trim(_token._value)); }
 
     IPAddress Parser::ipValue() const {
         IPAddress ip;
-        if (!ip.fromString(std::string(string_util::trim(token_.value_)).c_str())) {
+        if (!ip.fromString(std::string(string_util::trim(_token._value)).c_str())) {
             parseError("Expected an IP address like 192.168.0.100");
         }
         return ip;
     }
 
     int Parser::enumValue(EnumItem* e) const {
-        auto token = string_util::trim(token_.value_);
+        auto token = string_util::trim(_token._value);
         for (; e->name; ++e) {
             if (string_util::equal_ignore_case(token, e->name)) {
                 break;
@@ -157,7 +151,7 @@ namespace Configuration {
     }
 
     void Parser::uartMode(UartData& wordLength, UartParity& parity, UartStop& stopBits) const {
-        auto str = string_util::trim(token_.value_);
+        auto str = string_util::trim(_token._value);
         if (str.length() == 5 || str.length() == 3) {
             int32_t wordLenInt;
             if (!string_util::is_int(str.substr(0, 1), wordLenInt)) {
