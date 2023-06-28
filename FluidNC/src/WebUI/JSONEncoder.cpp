@@ -100,24 +100,26 @@ namespace WebUI {
     // Private function to increment the nesting level.
     void JSONencoder::dec_level() { --level; }
 
+    void JSONencoder::indent() {
+        for (int i = 0; i < 2 * level; i++) {
+            add(' ');
+        }
+    }
+
     // Private function to implement pretty-printing
     void JSONencoder::line() {
         if (_str) {
             if (pretty) {
                 add('\n');
-                linebuf = "";
-                for (int i = 0; i < 2 * level; i++) {
-                    add(' ');
-                }
+                indent();
             }
         } else {
             // Always pretty print to a channel, because channels
             // cannot necessary handle really long lines.
+            add('\n');
             log_to(*_channel, linebuf);
             linebuf = "";
-            for (int i = 0; i < 2 * level; i++) {
-                add(' ');
-            }
+            indent();
         }
     }
 
