@@ -265,15 +265,12 @@ namespace WebUI {
                 return false;
             }
         }
-        log_debug(spath << " found");
         if (download) {
             _webserver->sendHeader("Content-Disposition", "attachment");
         }
         if (hash.length()) {
             _webserver->sendHeader("ETag", hash.c_str());
         }
-
-        log_debug("path " << path << " CT " << getContentType(path) << " hash " << hash);
         _webserver->setContentLength(file->size());
         if (isGzip) {
             _webserver->sendHeader("Content-Encoding", "gzip");
