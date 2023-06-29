@@ -198,7 +198,7 @@ namespace WebUI {
     void WSChannels::sendPing() {
         for (WSChannel* wsChannel : _webWsChannels) {
             std::string s("PING:");
-            s += wsChannel->id();
+            s += std::to_string(wsChannel->id());
             // sendBIN would be okay too because the string contains only
             // ASCII characters, no UTF-8 extended characters.
             wsChannel->sendTXT(s);
