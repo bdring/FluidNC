@@ -30,7 +30,6 @@ namespace MotorDrivers {
             handler.item("stallguard", _stallguard, 0, 255);
             handler.item("stallguard_debug", _stallguardDebugMode);
             handler.item("toff_coolstep", _toff_coolstep, 2, 15);
-            handler.item("cs_pin", _cs_pin);
         }
 
         // Name of the configurable. Must match the name registered in the cpp file.
@@ -38,8 +37,6 @@ namespace MotorDrivers {
 
     private:
         TMC2209Stepper* tmc2209 = nullptr;
-
-        Pin _cs_pin;
 
         bool test();
         void set_registers(bool isHoming);

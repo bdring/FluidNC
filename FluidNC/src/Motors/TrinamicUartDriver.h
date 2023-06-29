@@ -30,6 +30,7 @@ namespace MotorDrivers {
 
         void group(Configuration::HandlerBase& handler) override {
             handler.item("addr", _addr);
+            handler.item("cs_pin", _cs_pin);
             handler.item("uart_num", _uart_num);
 
             TrinamicBase::group(handler);
@@ -37,6 +38,8 @@ namespace MotorDrivers {
 
     protected:
         Uart* _uart = nullptr;
+
+        Pin _cs_pin;
 
         int _uart_num = -1;
 

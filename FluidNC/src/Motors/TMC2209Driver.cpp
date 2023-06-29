@@ -25,8 +25,6 @@ namespace MotorDrivers {
 
         _cs_pin.setAttr(Pin::Attr::Output);
 
-        log_info(" UART CS:" << _cs_pin.name());
-
         registration();
     }
 
