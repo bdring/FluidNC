@@ -13,8 +13,7 @@
 namespace WebUI {
     class WSChannels;
 
-    WSChannel::WSChannel(WebSocketsServer* server, uint8_t clientNum) :
-        Channel("websocket"), _server(server), _clientNum(clientNum), _RXbufferSize(0), _RXbufferpos(0) {}
+    WSChannel::WSChannel(WebSocketsServer* server, uint8_t clientNum) : Channel("websocket"), _server(server), _clientNum(clientNum) {}
 
     int WSChannel::read() {
         if (_dead) {

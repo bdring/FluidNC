@@ -63,7 +63,9 @@ public:
     // a reception buffer, even if the system is busy.  Channels that can handle external
     // input via an interrupt or other background mechanism should override it to return
     // the remaining space that mechanism has available.
-    virtual int rx_buffer_available() { return 0; };
+    // The queue can handle more than 256 characters but we don't want it to get too
+    // large, so we report a limited size.
+    virtual int rx_buffer_available() { return std::max(0, 256 - int(_queue.size())); }
 
     // flushRx() discards any characters that have already been received.  It is used
     // after a reset, so that anything already sent will not be processed.
@@ -100,7 +102,7 @@ public:
 
     int peek() override { return -1; }
     int read() override { return -1; }
-    int available() override { return 0; }
+    int available() override { return _queue.size(); }
 
     uint32_t setReportInterval(uint32_t ms);
     uint32_t getReportInterval() { return _reportInterval; }

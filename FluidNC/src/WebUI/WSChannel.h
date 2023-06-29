@@ -29,8 +29,6 @@ namespace WebUI {
 
 namespace WebUI {
     class WSChannel : public Channel {
-        static const int RXBUFFERSIZE = 256;
-
     public:
         WSChannel(WebSocketsServer* server, uint8_t clientNum);
 
@@ -53,24 +51,20 @@ namespace WebUI {
 
         int id() { return _clientNum; }
 
-        int rx_buffer_available() override { return RXBUFFERSIZE - available(); }
+        int rx_buffer_available() override { return std::max(0, 256 - int(_queue.size())); }
 
         operator bool() const;
 
         ~WSChannel();
 
         int read() override;
-        int available() override { return _rtchar == -1 ? 0 : 1; }
+        int available() override { return _queue.size() + (_rtchar > -1); }
 
     private:
         bool _dead = false;
 
         WebSocketsServer* _server;
         uint8_t           _clientNum;
-
-        uint8_t  _RXbuffer[RXBUFFERSIZE];
-        uint16_t _RXbufferSize;
-        uint16_t _RXbufferpos;
 
         std::string _output_line;
 
