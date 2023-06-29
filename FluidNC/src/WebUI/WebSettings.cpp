@@ -255,7 +255,7 @@ namespace WebUI {
 
         // NVS settings
         j.setCategory("nvs");
-        for (Setting* js = Setting::List; js; js = js->next()) {
+        for (Setting* js : Setting::List) {
             js->addWebui(&j);
         }
 
@@ -584,7 +584,7 @@ namespace WebUI {
         log_to(out, "ESPname FullName         Description");
         log_to(out, "------- --------         -----------");
         ;
-        for (Setting* setting = Setting::List; setting; setting = setting->next()) {
+        for (Setting* setting : Setting::List) {
             if (setting->getType() == WEBSET) {
                 log_to(out,
                        "",
@@ -597,7 +597,7 @@ namespace WebUI {
         log_to(out, "ESPname FullName         Values");
         log_to(out, "------- --------         ------");
 
-        for (Command* cp = Command::List; cp; cp = cp->next()) {
+        for (Command* cp : Command::List) {
             if (cp->getType() == WEBCMD) {
                 LogStream s(out, "");
                 s << LeftJustify(cp->getGrblName() ? cp->getGrblName() : "", 8) << LeftJustify(cp->getName(), 25 - 8);
