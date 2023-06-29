@@ -772,7 +772,7 @@ namespace WebUI {
         bool error = false;
         // XXX this is probably wrong for YAML land.
         // We might want this function to go away.
-        for (Setting* s = Setting::List; s; s = s->next()) {
+        for (Setting* s : Setting::List) {
             if (s->getDescription()) {
                 s->setDefault();
             }
