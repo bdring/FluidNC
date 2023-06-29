@@ -907,8 +907,10 @@ bool fs::remove(const path& p) {
     return result;
 }
 bool fs::remove(const path& p, error_code& ec) noexcept {
-    if (exists(symlink_status(p, ec))) {
-        if (::remove(p.c_str()) == 0) {
+    auto fs = symlink_status(p, ec);
+    if (exists(fs)) {
+        int res = fs.type() == file_type::directory ? ::rmdir(p.c_str()) : ::remove(p.c_str());
+        if (res == 0) {
             ec.clear();
             return true;
         } else
