@@ -12,9 +12,8 @@ body:
   id: wiki-search
   attributes:
     label: Wiki Search Terms
-    description: |
-      Tell us some of the wiki search terms that you tried.  This could help us improve the wiki.
-      placeholder: motor limit direction install configuration
+    description: Tell us some of the wiki search terms that you tried.  This could help us improve the wiki.
+    placeholder: motor limit direction install configuration
   validations:
     required: true
 
