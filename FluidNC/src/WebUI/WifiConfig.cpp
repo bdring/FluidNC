@@ -589,7 +589,18 @@ namespace WebUI {
         if ((WiFi.getMode() == WIFI_AP) || (WiFi.getMode() == WIFI_AP_STA)) {
             WiFi.softAPdisconnect();
         }
+
         WiFi.enableAP(false);
+
+        // Set the number of receive and transmit buffers that the
+        // WiFi stack can use.  Making these numbers too large
+        // can eat up a lot of memory at 1.6K per buffer.  It
+        // can be especially bad when there are many dynamic buffers,
+        // allowing external network traffic to use a lot of the heap.
+        // The bawin parameters are for AMPDU aggregation.
+        // rx: static dynamic bawin  tx: static dynamic bawin cache
+        WiFi.setBuffers(4, 2, 0, 4, 0, 0, 4);
+
         //SSID
         const char* SSID = wifi_sta_ssid->get();
         if (strlen(SSID) == 0) {
