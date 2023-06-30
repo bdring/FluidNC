@@ -5,7 +5,7 @@ labels: ["triage"]
 body:
 - type: markdown
   attributes:
-    value: Please fill in the forms below.  The better the information you provide, the better we can help you. Information that you might think is irrelevant is often the key to solving the problem.  **If we have to keep asking for information that you should have provided at the outset, we will become annoyed fairly quickly.**  The amount of information that we ask for might seem excessive; it is not.  We handle several issues a day.  We cannot solve problems efficiently if we have to keep going back and forth for the basic information that we need.
+    value: Please read http://wiki.fluidnc.com/en/support/requesting_help then fill in the forms below.  The better the information you provide, the better we can help you. Information that you might think is irrelevant is often the key to solving the problem.  **If we have to keep asking for information that you should have provided at the outset, we will become annoyed fairly quickly.**  The amount of information that we ask for might seem excessive; it is not.  We handle several issues a day.  We cannot solve problems efficiently if we have to keep going back and forth for the basic information that we need.
 - type: textarea
   id: controller-board
   attributes:
