@@ -77,10 +77,11 @@ namespace Configuration {
 
             // Remove indentation and record the level
             _token._indent = _line.find_first_not_of(' ');
-            _line.remove_prefix(_token._indent);
-            if (_line.empty()) {
+            if (_token._indent == std::string_view::npos) {
+                // Line containing only spaces
                 continue;
             }
+            _line.remove_prefix(_token._indent);
 
             // Disallow inital tabs
             if (_line.front() == '\t') {
