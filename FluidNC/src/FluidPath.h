@@ -3,18 +3,15 @@
 #include <Arduino.h>
 #include <filesystem>
 #include <string>
-#include "Logging.h"
 
 namespace stdfs = std::filesystem;
 
 class FluidPath : public stdfs::path {
 public:
     FluidPath(const char* name, const char* fs, std::error_code& ec) noexcept : FluidPath(name, fs, &ec) {}
-    FluidPath(String name, const char* fs, std::error_code& ec) noexcept : FluidPath(name.c_str(), fs, &ec) {}
-    //    FluidPath(std::string name, std::error_code& ec) noexcept : FluidPath(name.c_str(), &ec) {}
+    FluidPath(const std::string& name, const char* fs, std::error_code& ec) noexcept : FluidPath(name.c_str(), fs, &ec) {}
     FluidPath(const char* name, const char* fs) : FluidPath(name, fs, nullptr) {}
-    FluidPath(String name, const char* fs) : FluidPath(name.c_str(), fs) {}
-    //    FluidPath(std::string name) : FluidPath(name.c_str()) {}
+    FluidPath(const std::string& name, const char* fs) : FluidPath(name.c_str(), fs) {}
 
     ~FluidPath();
 
@@ -28,6 +25,8 @@ public:
     // true if there is something after the mount name.
     // /localfs/foo -> true,  /localfs -> false
     bool hasTail() { return ++(++begin()) != end(); }
+
+    void rehash_fs();
 
 private:
     FluidPath(const char* name, const char* fs, std::error_code*);

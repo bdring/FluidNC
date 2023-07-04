@@ -7,6 +7,8 @@
 
 #include <cstdint>
 #include <cstring>
+#include <list>
+#include <map>
 
 class WebSocketsServer;
 
@@ -37,7 +39,7 @@ namespace WebUI {
         size_t write(uint8_t c);
         size_t write(const uint8_t* buffer, size_t size);
 
-        size_t sendTXT(String& s);
+        bool sendTXT(std::string& s);
 
         inline size_t write(const char* s) { return write((uint8_t*)s, ::strlen(s)); }
         inline size_t write(unsigned long n) { return write((uint8_t)n); }
@@ -45,12 +47,10 @@ namespace WebUI {
         inline size_t write(unsigned int n) { return write((uint8_t)n); }
         inline size_t write(int n) { return write((uint8_t)n); }
 
-        //        void begin(long speed);
-        //        void end();
         void handle();
 
         bool push(const uint8_t* data, size_t length);
-        bool push(String& s);
+        bool push(std::string& s);
         void pushRT(char ch);
 
         void flush(void);
@@ -67,6 +67,8 @@ namespace WebUI {
         int available() override { return _rtchar == -1 ? 0 : 1; }
 
     private:
+        bool _dead = false;
+
         uint32_t          _lastflush;
         WebSocketsServer* _server;
         uint8_t           _clientNum;
@@ -82,6 +84,24 @@ namespace WebUI {
         // so they can be processed immediately during operations like
         // homing where GCode handling is blocked.
         int _rtchar = -1;
+    };
+
+    class WSChannels {
+    private:
+        static std::map<uint8_t, WSChannel*> _wsChannels;
+        static std::list<WSChannel*>         _webWsChannels;
+
+        static WSChannel* _lastWSChannel;
+        static WSChannel* getWSChannel(int pageid);
+
+    public:
+        static void removeChannel(WSChannel* channel);
+        static void removeChannel(uint8_t num);
+
+        static bool runGCode(int pageid, std::string cmd);
+        static bool sendError(int pageid, std::string error);
+        static void sendPing();
+        static void handleEvent(WebSocketsServer* server, uint8_t num, uint8_t type, uint8_t* payload, size_t length);
     };
 }
 

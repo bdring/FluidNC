@@ -7,12 +7,12 @@
 #include "driver/sdspi_host.h"
 
 #include "Driver/sdspi.h"
-#include "src/Logging.h"
+#include "src/Config.h"
 
 #define CHECK_EXECUTE_RESULT(err, str)                                                                                                     \
     do {                                                                                                                                   \
         if ((err) != ESP_OK) {                                                                                                             \
-            log_error(str << " code 0x" << String(err, 16));                                                                               \
+            log_error(str << " code 0x" << to_hex(err));                                                                                   \
             goto cleanup;                                                                                                                  \
         }                                                                                                                                  \
     } while (0)
@@ -67,7 +67,7 @@ static void call_host_deinit(const sdmmc_host_t* host_config) {
     }
 }
 
-bool sd_init_slot(int cs_pin, int cd_pin, int wp_pin) {
+bool sd_init_slot(uint32_t freq_hz, int cs_pin, int cd_pin, int wp_pin) {
     esp_err_t err;
 
     // Note: esp_vfs_fat_sdmmc/sdspi_mount is all-in-one convenience functions.
@@ -77,6 +77,8 @@ bool sd_init_slot(int cs_pin, int cd_pin, int wp_pin) {
     bool host_inited = false;
 
     sdspi_device_config_t slot_config;
+
+    host_config.max_freq_khz = freq_hz / 1000;
 
     err = host_config.init();
     CHECK_EXECUTE_RESULT(err, "host init failed");
@@ -91,6 +93,17 @@ bool sd_init_slot(int cs_pin, int cd_pin, int wp_pin) {
 
     err = sdspi_host_init_device(&slot_config, &(host_config.slot));
     CHECK_EXECUTE_RESULT(err, "slot init failed");
+
+    // Empirically it is necessary to set the frequency twice.
+    // If you do it only above, the max frequency will be pinned
+    // at the highest "standard" frequency lower than the requested
+    // one, which is 400 kHz for requested frequencies < 20 MHz.
+    // If you do it only once below, the attempt to change it seems to
+    // be ignored, and you get 20 MHz regardless of what you ask for.
+    if (freq_hz) {
+        err = sdspi_host_set_card_clk(host_config.slot, freq_hz / 1000);
+        CHECK_EXECUTE_RESULT(err, "set slot clock speed failed");
+    }
 
     return true;
 

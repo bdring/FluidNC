@@ -55,6 +55,8 @@ struct plan_block_t {
 
     // Stored spindle speed data used by spindle overrides and resuming methods.
     SpindleSpeed spindle_speed;  // Block spindle speed. Copied from pl_line_data.
+
+    bool is_jog;
 };
 
 // Planner data prototype. Must be used when passing new motions to the planner.

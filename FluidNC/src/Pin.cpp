@@ -4,7 +4,7 @@
 #include "Pin.h"
 
 // Pins:
-#include "Logging.h"
+#include "Config.h"
 #include "Pins/PinOptionsParser.h"
 #include "Pins/GPIOPinDetail.h"
 #include "Pins/VoidPinDetail.h"
@@ -16,65 +16,55 @@ Pins::PinDetail* Pin::undefinedPin = new Pins::VoidPinDetail();
 Pins::PinDetail* Pin::errorPin     = new Pins::ErrorPinDetail("unknown");
 
 const char* Pin::parse(StringRange tmp, Pins::PinDetail*& pinImplementation) {
-    String str = tmp.str();
-
     // Initialize pinImplementation first! Callers might want to delete it, and we don't want a random pointer.
     pinImplementation = nullptr;
 
     // Parse the definition: [GPIO].[pinNumber]:[attributes]
 
-    // Skip whitespaces at the start
-    auto nameStart = str.begin();
-    for (; nameStart != str.end() && ::isspace(*nameStart); ++nameStart) {}
+    const char* end = tmp.end();
 
-    if (nameStart == str.end()) {
+    // Skip whitespaces at the start
+    auto nameStart = tmp.begin();
+    for (; nameStart != end && ::isspace(*nameStart); ++nameStart) {}
+
+    if (nameStart == end) {
         // Re-use undefined pins happens in 'create':
         pinImplementation = new Pins::VoidPinDetail();
         return nullptr;
     }
 
     auto idx = nameStart;
-    for (; idx != str.end() && *idx != '.' && *idx != ':'; ++idx) {
-        *idx = char(::tolower(*idx));
-    }
+    for (; idx != end && *idx != '.' && *idx != ':'; ++idx) {}
 
-    String prefix = str.substring(0, int(idx - str.begin()));
+    StringRange prefix(tmp.begin(), idx);
 
-    if (idx != str.end()) {  // skip '.'
+    if (idx != end) {  // skip '.'
         ++idx;
     }
 
     int pinNumber = 0;
     if (prefix != "") {
-        if (idx != str.end()) {
-            for (int n = 0; idx != str.end() && n <= 4 && *idx >= '0' && *idx <= '9'; ++idx, ++n) {
+        if (idx != end) {
+            for (int n = 0; idx != end && n <= 4 && *idx >= '0' && *idx <= '9'; ++idx, ++n) {
                 pinNumber = pinNumber * 10 + int(*idx - '0');
             }
         }
     }
 
-    while (idx != str.end() && ::isspace(*idx)) {
+    while (idx != end && ::isspace(*idx)) {
         ++idx;
     }
 
-    String options;
-    if (idx != str.end()) {
+    if (idx != end) {
         if (*idx != ':') {
             // Pin definition attributes or EOF expected.
             return "Pin attributes (':') were expected.";
         }
         ++idx;
-
-        options = str.substring(int(idx - str.begin()));
     }
 
-    // What would be a simple, practical way to parse the options? I figured, why not
-    // just use the C-style string, convert it to lower case, and change the separators
-    // into 'nul' tokens. We then pass the number of 'nul' tokens, and the first char*
-    // which is pretty easy to parse.
-
     // Build an options parser:
-    Pins::PinOptionsParser parser(options.begin(), options.end());
+    Pins::PinOptionsParser parser(idx, end);
 
     // Build this pin:
     if (prefix == "gpio") {
@@ -106,10 +96,6 @@ const char* Pin::parse(StringRange tmp, Pins::PinDetail*& pinImplementation) {
     }
 }
 
-Pin Pin::create(const String& str) {
-    return create(StringRange(str));
-}
-
 Pin Pin::create(const StringRange& str) {
     Pins::PinDetail* pinImplementation = nullptr;
     try {
@@ -120,7 +106,7 @@ Pin Pin::create(const StringRange& str) {
             }
 
             log_error("Setting up pin:" << str.str() << " failed:" << err);
-            return Pin(new Pins::ErrorPinDetail(str.str()));
+            return Pin(new Pins::ErrorPinDetail(str.str().c_str()));
         } else {
             return Pin(pinImplementation);
         }
@@ -139,7 +125,7 @@ Pin Pin::create(const StringRange& str) {
     }
 }
 
-bool Pin::validate(const String& str) {
+bool Pin::validate(const char* str) {
     Pins::PinDetail* pinImplementation;
 
     auto valid = parse(str, pinImplementation);

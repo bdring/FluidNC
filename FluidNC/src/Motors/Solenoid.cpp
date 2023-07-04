@@ -40,7 +40,6 @@
 #include "Driver/PwmPin.h"  // pwmInit(), etc.
 #include "../Pin.h"
 #include "../Limits.h"  // limitsMaxPosition
-#include "../NutsBolts.h"
 
 #include <freertos/task.h>  // vTaskDelay
 
@@ -65,7 +64,7 @@ namespace MotorDrivers {
 
         _current_pwm_duty = 0;
 
-        startUpdateTask(_update_rate_ms);
+        schedule_update(this, _update_rate_ms);
     }
 
     void Solenoid::update() { set_location(); }

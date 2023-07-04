@@ -6,7 +6,7 @@
 #include "../I2SOut.h"
 
 namespace Machine {
-    void I2SOBus::validate() const {
+    void I2SOBus::validate() {
         if (_bck.defined() || _data.defined() || _ws.defined()) {
             Assert(_bck.defined(), "I2SO BCK pin should be configured once");
             Assert(_data.defined(), "I2SO Data pin should be configured once");

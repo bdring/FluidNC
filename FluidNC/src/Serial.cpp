@@ -38,7 +38,7 @@
 */
 
 #include "Serial.h"
-#include "Uart.h"
+#include "UartChannel.h"
 #include "Machine/MachineConfig.h"
 #include "WebUI/InputBuffer.h"
 #include "WebUI/Commands.h"
@@ -60,7 +60,7 @@
 #include <algorithm>
 #include <freertos/task.h>  // portMUX_TYPE, TaskHandle_T
 
-portMUX_TYPE myMutex = portMUX_INITIALIZER_UNLOCKED;
+std::mutex AllChannels::_mutex;
 
 static TaskHandle_t channelCheckTaskHandle = 0;
 
@@ -186,63 +186,111 @@ bool is_realtime_command(uint8_t data) {
 }
 
 void AllChannels::init() {
-    registration(&Uart0);               // USB Serial
     registration(&WebUI::inputBuffer);  // Macros
-    registration(&startupLog);          // USB Serial
+    registration(&startupLog);          // Early startup messages for $SS
+}
+
+void AllChannels::kill(Channel* channel) {
+    xQueueSend(_killQueue, &channel, 0);
 }
 
 void AllChannels::registration(Channel* channel) {
+    _mutex.lock();
     _channelq.push_back(channel);
+    _mutex.unlock();
 }
 void AllChannels::deregistration(Channel* channel) {
+    _mutex.lock();
+    if (channel == _lastChannel) {
+        _lastChannel = nullptr;
+    }
     _channelq.erase(std::remove(_channelq.begin(), _channelq.end(), channel), _channelq.end());
+    _mutex.unlock();
 }
 
-String AllChannels::info() {
-    String retval;
+void AllChannels::listChannels(Channel& out) {
+    _mutex.lock();
+    std::string retval;
     for (auto channel : _channelq) {
-        retval += channel->name();
-        retval += "\n";
+        log_to(out, channel->name());
     }
-    return retval;
+    _mutex.unlock();
 }
 
 void AllChannels::flushRx() {
+    _mutex.lock();
     for (auto channel : _channelq) {
         channel->flushRx();
     }
+    _mutex.unlock();
 }
 
 size_t AllChannels::write(uint8_t data) {
+    _mutex.lock();
     for (auto channel : _channelq) {
         channel->write(data);
     }
+    _mutex.unlock();
     return 1;
 }
+void AllChannels::notifyWco(void) {
+    _mutex.lock();
+    for (auto channel : _channelq) {
+        channel->notifyWco();
+    }
+    _mutex.unlock();
+}
+void AllChannels::notifyNgc(CoordIndex coord) {
+    _mutex.lock();
+    for (auto channel : _channelq) {
+        channel->notifyNgc(coord);
+    }
+    _mutex.unlock();
+}
+
+void AllChannels::stopJob() {
+    _mutex.lock();
+    for (auto channel : _channelq) {
+        channel->stopJob();
+    }
+    _mutex.unlock();
+}
+
 size_t AllChannels::write(const uint8_t* buffer, size_t length) {
+    _mutex.lock();
     for (auto channel : _channelq) {
         channel->write(buffer, length);
     }
+    _mutex.unlock();
     return length;
 }
 Channel* AllChannels::pollLine(char* line) {
-    static Channel* lastChannel = nullptr;
+    Channel* deadChannel;
+    while (xQueueReceive(_killQueue, &deadChannel, 0)) {
+        deregistration(deadChannel);
+        delete deadChannel;
+    }
+
     // To avoid starving other channels when one has a lot
     // of traffic, we poll the other channels before the last
     // one that returned a line.
+    _mutex.lock();
+
     for (auto channel : _channelq) {
         // Skip the last channel in the loop
-        if (channel != lastChannel && channel->pollLine(line)) {
-            lastChannel = channel;
-            return lastChannel;
+        if (channel != _lastChannel && channel->pollLine(line)) {
+            _lastChannel = channel;
+            _mutex.unlock();
+            return _lastChannel;
         }
     }
+    _mutex.unlock();
     // If no other channel returned a line, try the last one
-    if (lastChannel && lastChannel->pollLine(line)) {
-        return lastChannel;
+    if (_lastChannel && _lastChannel->pollLine(line)) {
+        return _lastChannel;
     }
-    lastChannel = nullptr;
-    return lastChannel;
+    _lastChannel = nullptr;
+    return _lastChannel;
 }
 
 AllChannels allChannels;

@@ -11,11 +11,10 @@
 #    ifdef BACKTRACE_ON_ASSERT
 #        include "esp_debug_helpers.h"
 #    endif
-#    include "WString.h"
 #    include "stdio.h"
 
 AssertionFailed AssertionFailed::create(const char* condition, const char* msg, ...) {
-    String st = condition;
+    std::string st = condition;
     st += ": ";
 
     char    tmp[255];
@@ -40,11 +39,10 @@ AssertionFailed AssertionFailed::create(const char* condition, const char* msg, 
 #    include <iostream>
 #    include <string>
 #    include <sstream>
-#    include "WString.h"
 
 extern void DumpStackTrace(std::ostringstream& builder);
 
-String stackTrace;
+std::string stackTrace;
 
 std::exception AssertionFailed::create(const char* condition, const char* msg, ...) {
     std::ostringstream oss;

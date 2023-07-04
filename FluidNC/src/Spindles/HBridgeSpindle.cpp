@@ -3,8 +3,8 @@
 
 #include "HBridgeSpindle.h"
 
-#include "../GCode.h"  // gc_state.modal
-#include "../Logging.h"
+#include "../GCode.h"       // gc_state.modal
+#include "../System.h"      // sys
 #include "Driver/PwmPin.h"  // pwmInit(), etc.
 
 namespace Spindles {

@@ -5,7 +5,6 @@
 
 #include "Configurable.h"
 #include "../System.h"
-#include "../Logging.h"
 
 #include <cstring>
 

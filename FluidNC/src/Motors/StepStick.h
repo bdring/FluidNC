@@ -22,7 +22,7 @@ namespace MotorDrivers {
         void init() override;
 
         // Configuration handlers:
-        void validate() const override;
+        void validate() override;
         void group(Configuration::HandlerBase& handler) override;
 
         void afterParse() override;

@@ -9,6 +9,7 @@
 
 #include <freertos/FreeRTOS.h>
 #include <freertos/queue.h>
+#include "Config.h"
 
 // Line buffer size from the serial input stream to be executed.Also, governs the size of
 // each of the startup blocks, as they are each stored as a string of this size.
@@ -98,6 +99,8 @@ extern NoArgEvent debugEvent;
 
 extern xQueueHandle event_queue;
 
+extern bool pollingPaused;
+
 struct EventItem {
     Event* event;
     void*  arg;
@@ -110,7 +113,12 @@ inline void protocol_send_event(Event* evt, int arg) {
     protocol_send_event(evt, (void*)arg);
 }
 
-inline void protocol_send_event_from_ISR(Event* evt, void* arg = 0) {
-    EventItem item { evt, arg };
-    xQueueSendFromISR(event_queue, &item, NULL);
-}
+void protocol_send_event_from_ISR(Event* evt, void* arg = 0);
+
+void send_line(Channel& channel, const char* message);
+void send_line(Channel& channel, const std::string* message);
+void send_line(Channel& channel, const std::string& message);
+
+void drain_messages();
+
+extern uint32_t heapLowWater;

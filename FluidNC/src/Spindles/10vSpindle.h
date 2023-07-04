@@ -33,7 +33,7 @@ namespace Spindles {
         void deinit() override;
 
         // Configuration handlers:
-        void validate() const override { PWM::validate(); }
+        void validate() override { PWM::validate(); }
 
         void group(Configuration::HandlerBase& handler) override {
             handler.item("forward_pin", _forward_pin);

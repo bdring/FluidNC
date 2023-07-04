@@ -3,7 +3,7 @@
 // Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
 
 #include "UserOutputs.h"
-#include "../Logging.h"     // log_*
+#include "../Config.h"      // log_*
 #include <esp32-hal-cpu.h>  // getApbFrequency()
 
 namespace Machine {
@@ -40,6 +40,8 @@ namespace Machine {
     void UserOutputs::all_off() {
         for (size_t io_num = 0; io_num < MaxUserDigitalPin; io_num++) {
             setDigital(io_num, false);
+        }
+        for (size_t io_num = 0; io_num < MaxUserAnalogPin; io_num++) {
             setAnalogPercent(io_num, 0);
         }
     }
@@ -61,13 +63,13 @@ namespace Machine {
             return percent == 0.0;
         }
 
-        uint32_t duty = uint32_t(percent / 100.0f * _denominator[io_num]);
-
         auto pwm = _pwm[io_num];
         if (!pwm) {
             log_error("M67 PWM channel error");
             return false;
         }
+
+        uint32_t duty = uint32_t(percent * pwm->period() / 100.0f);
 
         if (_current_value[io_num] == duty) {
             return true;
@@ -93,5 +95,9 @@ namespace Machine {
         handler.item("digital1_pin", _digitalOutput[1]);
         handler.item("digital2_pin", _digitalOutput[2]);
         handler.item("digital3_pin", _digitalOutput[3]);
+        handler.item("digital4_pin", _digitalOutput[4]);
+        handler.item("digital5_pin", _digitalOutput[5]);
+        handler.item("digital6_pin", _digitalOutput[6]);
+        handler.item("digital7_pin", _digitalOutput[7]);
     }
 }

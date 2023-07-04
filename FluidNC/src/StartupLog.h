@@ -10,14 +10,15 @@
 
 class StartupLog : public Channel {
 private:
-    String _messages;
+    std::string _messages;
 
 public:
     StartupLog(const char* name) : Channel(name) {}
     virtual ~StartupLog();
 
-    size_t write(uint8_t data) override;
-    String messages();
+    size_t      write(uint8_t data) override;
+    std::string messages();
+    void        dump(Channel& channel);
 };
 
 extern StartupLog startupLog;

@@ -15,7 +15,6 @@ namespace WebUI {
     extern NotificationsService notificationsService;
 }
 #else
-#    include <WString.h>
 #    include <cstdint>
 
 namespace WebUI {
@@ -33,13 +32,13 @@ namespace WebUI {
         ~NotificationsService();
 
     private:
-        bool     _started;
-        uint8_t  _notificationType;
-        String   _token1;
-        String   _token2;
-        String   _settings;
-        String   _serveraddress;
-        uint16_t _port;
+        bool        _started;
+        uint8_t     _notificationType;
+        std::string _token1;
+        std::string _token2;
+        std::string _settings;
+        std::string _serveraddress;
+        uint16_t    _port;
 
         bool sendPushoverMSG(const char* title, const char* message);
         bool sendEmailMSG(const char* title, const char* message);

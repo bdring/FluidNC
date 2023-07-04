@@ -14,7 +14,7 @@
 #    include "Limits.h"
 #    include "Protocol.h"
 #    include "System.h"
-#    include "Uart.h"
+#    include "UartChannel.h"
 #    include "MotionControl.h"
 #    include "Platform.h"
 #    include "StartupLog.h"
@@ -28,7 +28,9 @@
 extern void make_user_commands();
 
 void setup() {
+    disableCore0WDT();
     try {
+        timing_init();
         uartInit();       // Setup serial port
         Uart0.println();  // create some white space after ESP32 boot info
 
@@ -63,6 +65,17 @@ void setup() {
             log_info("Board " << config->_board);
 
             // The initialization order reflects dependencies between the subsystems
+            for (size_t i = 1; i < MAX_N_UARTS; i++) {
+                if (config->_uarts[i]) {
+                    config->_uarts[i]->begin();
+                }
+            }
+            for (size_t i = 1; i < MAX_N_UARTS; i++) {
+                if (config->_uart_channels[i]) {
+                    config->_uart_channels[i]->init();
+                }
+            }
+
             if (config->_i2so) {
                 config->_i2so->init();
             }
@@ -72,6 +85,15 @@ void setup() {
                 if (config->_sdCard != nullptr) {
                     config->_sdCard->init();
                 }
+            }
+            for (size_t i = 0; i < MAX_N_I2C; i++) {
+                if (config->_i2c[i]) {
+                    config->_i2c[i]->init();
+                }
+            }
+
+            if (config->_oled) {
+                config->_oled->init();
             }
 
             config->_stepping->init();  // Configure stepper interrupt timers
@@ -85,13 +107,6 @@ void setup() {
             config->_control->init();
 
             config->_kinematics->init();
-
-            auto n_axis = config->_axes->_numberAxis;
-            for (size_t axis = 0; axis < n_axis; axis++) {
-                set_motor_steps(axis, 0);  // Clear machine position.
-            }
-
-            machine_init();  // user supplied function for special initialization
         }
 
         // Initialize system state.

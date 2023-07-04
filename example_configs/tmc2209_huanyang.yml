@@ -1,5 +1,6 @@
 name: "TMC2209 XYZA PWM Spindle"
 board: "TMC2209 4x"
+meta: "update for 3.6.8"
 
 stepping:
   engine: RMT
@@ -9,6 +10,14 @@ stepping:
   disable_delay_us: 0
 
 homing_init_lock: true
+
+uart1:
+  txd_pin: gpio.22
+  rxd_pin: gpio.21
+  rts_pin: NO_PIN
+  cts_pin: NO_PIN
+  baud: 115200
+  mode: 8N1
 
 axes:
   shared_stepper_disable_pin: gpio.25:high

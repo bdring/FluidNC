@@ -18,16 +18,33 @@ Some features should not be changed. See notes below.
 
 */
 
-#include "NutsBolts.h"
-
 // It is no longer necessary to edit this file to choose
 // a machine configuration; edit machine.h instead
 // machine.h is #included below, after some definitions
 // that the machine file might choose to undefine.
 
-const int SUPPORT_TASK_CORE = 1;  // Reference: CONFIG_ARDUINO_RUNNING_CORE = 1
-
 const int MAX_N_AXIS = 6;
+
+const int MAX_MESSAGE_LINE = 256;
+
+// Axis array index values. Must start with 0 and be continuous.
+// Note: You set the number of axes used by changing MAX_N_AXIS.
+// Be sure to define pins or servos in the machine definition file.
+const int X_AXIS = 0;  // Axis indexing value.
+const int Y_AXIS = 1;
+const int Z_AXIS = 2;
+const int A_AXIS = 3;
+const int B_AXIS = 4;
+const int C_AXIS = 5;
+
+const int X2_AXIS = (X_AXIS + MAX_N_AXIS);
+const int Y2_AXIS = (Y_AXIS + MAX_N_AXIS);
+const int Z2_AXIS = (Z_AXIS + MAX_N_AXIS);
+const int A2_AXIS = (A_AXIS + MAX_N_AXIS);
+const int B2_AXIS = (B_AXIS + MAX_N_AXIS);
+const int C2_AXIS = (C_AXIS + MAX_N_AXIS);
+
+const int SUPPORT_TASK_CORE = 0;  // Reference: CONFIG_ARDUINO_RUNNING_CORE = 1
 
 // Serial baud rate
 // OK to change, but the ESP32 boot text is 115200, so you will not see that is your
@@ -197,10 +214,9 @@ const bool FORCE_BUFFER_SYNC_DURING_WCO_CHANGE = true;  // Default enabled. Comm
 // repeatable. If needed, you can disable this behavior by uncommenting the define below.
 const bool ALLOW_FEED_OVERRIDE_DURING_PROBE_CYCLES = false;
 
-// INCLUDE_OLED_IO enables access to a basic OLED library.  To use it you must uncomment the
-//  "thingpulse/ESP8266 and ESP32 OLED driver for SSD1306 displays" line in platformio.ini
-// You must uncomment it if you use either INCLUDE_OLED_TINY or INCLUDE_OLED_BASIC
-// #define INCLUDE_OLED_IO
+const int MAX_N_I2C = 2;
+
+#include "NutsBolts.h"
 
 // INCLUDE_OLED_TINY includes a driver for a very small 64x48 OLED display
 // #define INCLUDE_OLED_TINY

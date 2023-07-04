@@ -30,8 +30,8 @@ void Control::group(Configuration::HandlerBase& handler) {
     }
 }
 
-String Control::report_status() {
-    String ret = "";
+std::string Control::report_status() {
+    std::string ret = "";
     for (auto pin : _pins) {
         if (pin->get()) {
             ret += pin->letter();

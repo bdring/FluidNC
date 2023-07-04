@@ -5,8 +5,6 @@
 
 #include <cstring>
 
-#include "WString.h"
-
 class StringRange {
     const char* start_;
     const char* end_;
@@ -16,15 +14,41 @@ public:
 
     StringRange(const char* str) : start_(str), end_(str + strlen(str)) {}
 
-    StringRange(const char* start, const char* end) : start_(start), end_(end) {}
+    // We usually want to ignore leading and trailing blanks, so we default to trim=true
+    StringRange(const char* start, const char* end, bool trim = true) : start_(start), end_(end) {
+        if (trim) {
+            while (start_ != end_ && isspace(*start_)) {
+                ++start_;
+            }
+            while (end_ != start_ && isspace(*(end_ - 1))) {
+                --end_;
+            }
+        }
+    }
 
     StringRange(const StringRange& o) = default;
     StringRange(StringRange&& o)      = default;
 
-    StringRange(const String& str) : StringRange(str.begin(), str.end()) {}
-
     StringRange& operator=(const StringRange& o) = default;
     StringRange& operator=(StringRange&& o) = default;
+    inline bool  operator==(const char* s) {
+        const char* p = start_;
+        while (p != end_ && *s) {
+            if (::tolower(*p++) != ::tolower(*s++)) {
+                return false;
+            }
+        }
+        return !*s && p == end_;
+    }
+    inline bool operator!=(const char* s) {
+        const char* p = start_;
+        while (p != end_ && *s) {
+            if (::tolower(*p++) != ::tolower(*s++)) {
+                return true;
+            }
+        }
+        return *s || p != end_;
+    }
 
     int find(char c) const {
         const char* s = start_;
@@ -32,7 +56,7 @@ public:
         return (*s) ? (s - start_) : -1;
     }
 
-    StringRange subString(int index, int length) const {
+    StringRange substr(int index, int length) const {
         const char* s = start_ + index;
         if (s > end_) {
             s = end_;
@@ -89,16 +113,16 @@ public:
     const char* begin() const { return start_; }
     const char* end() const { return end_; }
 
-    String str() const {
+    std::string str() const {
         // TODO: Check if we can eliminate this function. I'm pretty sure we can.
         auto len = length();
         if (len == 0) {
-            return String();
+            return std::string();
         } else {
             char* buf = new char[len + 1];
             memcpy(buf, begin(), len);
             buf[len] = 0;
-            String tmp(buf);
+            std::string tmp(buf);
             delete[] buf;
             return tmp;
         }
@@ -113,6 +137,12 @@ public:
     inline bool isInteger(int32_t& intval) {
         char* intEnd;
         intval = strtol(start_, &intEnd, 10);
+        return intEnd == end_;
+    }
+
+    inline bool isUnsignedInteger(uint32_t& intval) {
+        char* intEnd;
+        intval = strtoul(start_, &intEnd, 10);
         return intEnd == end_;
     }
 
