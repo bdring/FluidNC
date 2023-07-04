@@ -92,6 +92,12 @@ body:
   validations:
     required: true
 - type: textarea
+  id: gcode-file
+  attributes:
+    label: GCode File
+    description: If the problem occurs when running a GCode file, attach it here (with a .txt extension), or paste it if it is short.  If you can find a short file that exhibits the problem, it will be easier for us to debug.
+    placeholder: Paste or attach GCode here
+- type: textarea
   id: other-info
   attributes:
     label: Other Information
