@@ -79,6 +79,7 @@ namespace Configuration {
             _token._indent = _line.find_first_not_of(' ');
             if (_token._indent == std::string_view::npos) {
                 // Line containing only spaces
+                _line.remove_prefix(_line.size());
                 continue;
             }
             _line.remove_prefix(_token._indent);
