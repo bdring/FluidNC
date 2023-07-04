@@ -72,7 +72,7 @@ body:
       Paste the startup messages here.  You can see them by sending "$ss" from FluidTerm, WebUI Console, or any sender's console.
       Look through the messages for any MSG:ERR or MSG:WARN lines.  They indicate problems in your config file.  You might be able
       to solve the problem yourself.  **Do not excerpt just the messages you think are revelant.
-      We need to see everything.**
+      We need to see everything.**  [More info about startup messages](http://wiki.fluidnc.com/en/support/requesting_help#fluidnc-startup-messages)
     placeholder: <Paste startup messages here>
     render: text
   validations:
