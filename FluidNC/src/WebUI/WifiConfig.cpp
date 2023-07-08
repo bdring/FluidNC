@@ -596,10 +596,13 @@ namespace WebUI {
         // WiFi stack can use.  Making these numbers too large
         // can eat up a lot of memory at 1.6K per buffer.  It
         // can be especially bad when there are many dynamic buffers,
+        // If there are too few Rx buffers, file upload can fail,
+        // possibly due to IP packet fragments getting lost.  The limit
+        // for what works seems to be 4 static, 4 dynamic.
         // allowing external network traffic to use a lot of the heap.
         // The bawin parameters are for AMPDU aggregation.
         // rx: static dynamic bawin  tx: static dynamic bawin cache
-        WiFi.setBuffers(4, 2, 0, 4, 0, 0, 4);
+        WiFi.setBuffers(4, 5, 0, 4, 0, 0, 4);
 
         //SSID
         const char* SSID = wifi_sta_ssid->get();
