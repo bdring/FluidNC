@@ -61,6 +61,7 @@ enum class Error : uint8_t {
     FsFailedBusy                = 67,  // Filesystem is busy
     FsFailedDelDir              = 68,
     FsFailedDelFile             = 69,
+    FsFailedRenameFile          = 70,
     NumberRange                 = 80,  // Setting number range problem
     InvalidValue                = 81,  // Setting string problem
     FsFailedCreateFile          = 82,
