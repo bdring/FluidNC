@@ -107,6 +107,13 @@ namespace WebUI {
         return true;
     }
 
+    void WSChannel::autoReport() {
+        int stat = _server->canSend(_clientNum);
+        if (stat > 0) {
+            Channel::autoReport();
+        }
+    }
+
     WSChannel::~WSChannel() {}
 
     std::map<uint8_t, WSChannel*> WSChannels::_wsChannels;

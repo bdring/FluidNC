@@ -60,6 +60,8 @@ namespace WebUI {
         int read() override;
         int available() override { return _queue.size() + (_rtchar > -1); }
 
+        void autoReport() override;
+
     private:
         bool _dead = false;
 
