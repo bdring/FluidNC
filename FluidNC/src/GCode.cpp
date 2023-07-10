@@ -14,6 +14,7 @@
 #include "MotionControl.h"        // mc_override_ctrl_update
 #include "Machine/UserOutputs.h"  // setAnalogPercent
 #include "Platform.h"             // WEAK_LINK
+#include "ProcessSettings.h"
 
 #include "Machine/MachineConfig.h"
 
@@ -30,6 +31,8 @@ CoordIndex& operator++(CoordIndex& i) {
 // arbitrary value, and some GUIs may require more. So we increased it based on a max safe
 // value when converting a float (7.2 digit precision)s to an integer.
 static const int32_t MaxLineNumber = 10000000;
+
+int StartURLCalled = 0;
 
 // Declare gc extern struct
 parser_state_t gc_state;
@@ -505,7 +508,17 @@ Error gc_execute_line(char* line) {
                         break;
                     case 3:
                     case 4:
-                    case 5:
+                    case 5: {
+                        String s             = GetCMDStartPrg();
+                        int    StartWithM345 = GetStartURLWithM345();
+
+                        log_debug("M3/4/5");
+                        if ((s != "") && (StartWithM345) && (!StartURLCalled)) {
+                            log_debug("Call URL M345");
+                            StartURLCalled = 1;
+                            CallURLWithRetryStrategy(s);
+                        }
+
                         switch (int_value) {
                             case 3:
                                 gc_block.modal.spindle = SpindleState::Cw;
@@ -523,6 +536,8 @@ Error gc_execute_line(char* line) {
                         }
                         mg_word_bit = ModalGroup::MM7;
                         break;
+                    }
+
                     case 6:  // tool change
                         gc_block.modal.tool_change = ToolChange::Enable;
                         // user_tool_change(gc_state.tool);
@@ -1741,20 +1756,23 @@ Error gc_execute_line(char* line) {
    group 13 = {G61.1, G64} path control mode (G61 is supported)
 */
 
-extern void   CallURL(String cmd);
-extern String GetCMDEndPrg();
-extern String GetCMDStartPrg();
-
 void WEAK_LINK user_m30() {
     String s = GetCMDEndPrg();
+
+    StartURLCalled = 0;
+
     if (s != "")
-        CallURL(s);
+        CallURLWithRetryStrategy(s);
 }
 
 void WEAK_LINK user_m100() {
-    String s = GetCMDStartPrg();
-    if (s != "")
-        CallURL(s);
+    String s            = GetCMDStartPrg();
+    int    StartWitM100 = GetStartURLWithM100();
+
+    if ((s != "") && (StartWitM100)) {
+        StartURLCalled = 1;
+        CallURLWithRetryStrategy(s);
+    }
 }
 
 void WEAK_LINK user_tool_change(uint32_t new_tool) {

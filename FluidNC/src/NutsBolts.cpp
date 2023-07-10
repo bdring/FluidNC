@@ -241,7 +241,7 @@ std::string formatBytes(uint64_t bytes) {
     b /= 1024;
     if (b < 1024) {
         std::ostringstream msg;
-        msg << std::fixed << std::setprecision(2) << b << " TB";
+        msg << std::fixed << std::setprecision(2) << b << " GB";
         return msg.str();
     }
     b /= 1024;
@@ -249,7 +249,7 @@ std::string formatBytes(uint64_t bytes) {
         b = 99999;
     }
     std::ostringstream msg;
-    msg << std::fixed << std::setprecision(2) << b << " GB";
+    msg << std::fixed << std::setprecision(2) << b << " TB";
     return msg.str();
 }
 

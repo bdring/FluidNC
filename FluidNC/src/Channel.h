@@ -45,6 +45,7 @@ protected:
     float      _lastFeedRate;
     State      _lastState;
     MotorMask  _lastLimits;
+    bool       _lastProbe;
 
     bool       _reportWco = true;
     CoordIndex _reportNgc = CoordIndex::End;

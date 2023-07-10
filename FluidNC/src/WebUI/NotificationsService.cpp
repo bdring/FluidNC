@@ -142,11 +142,21 @@ namespace WebUI {
                     break;
                 }
                 delay_ms(10);
+                log_verbose("Received: '" << answer << "' (waiting 4 '" << expected_answer << "')");
             }
             if (strlen(expected_answer) == 0) {
                 return true;
             }
-            return answer.find(expected_answer) != std::string::npos;
+
+            bool result = answer.find(expected_answer) != std::string::npos;
+            if (!result) {
+                if (answer.length()) {
+                    log_debug("Received: '" << answer << "' (expected: '" << expected_answer << "')");
+                } else {
+                    log_debug("No answer (expected: " << expected_answer << ")");
+                }
+            }
+            return result;
         }
         return false;
     }
@@ -221,11 +231,26 @@ namespace WebUI {
         Notificationclient.stop();
         return res;
     }
+    
     bool NotificationsService::sendEmailMSG(const char* title, const char* message) {
         WiFiClientSecure Notificationclient;
+        // Switch off secure mode because the connect command always fails in secure mode:(
+        Notificationclient.setInsecure();
+
         if (!Notificationclient.connect(_serveraddress.c_str(), _port)) {
+            //Read & log error message (in debug mode)
+            if (atMsgLevel(MsgLevelDebug)) {
+                char errMsg[150];
+                const int lastError = Notificationclient.lastError(errMsg, sizeof(errMsg));
+                if (0 == lastError) {
+                    errMsg[0] = 0;
+                }
+                log_debug("Cannot connect to " << _serveraddress.c_str() << ":" << _port << ", err: " << lastError << " - " << errMsg);
+            }
             return false;
         }
+        log_verbose("Connected to " << _serveraddress.c_str() << ":" << _port);
+
         //Check answer of connection
         if (!Wait4Answer(Notificationclient, "220", "220", EMAILTIMEOUT)) {
             return false;
@@ -333,7 +358,7 @@ namespace WebUI {
         }
 
         //TODO add a check for valid email ?
-        _serveraddress = tmp.substr(pos1 + 1, pos2);
+        _serveraddress = tmp.substr(pos1 + 1, pos2 - pos1 - 1);
         return true;
     }
     //Email#serveraddress:port

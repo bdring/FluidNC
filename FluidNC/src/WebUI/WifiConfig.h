@@ -140,5 +140,7 @@ namespace WebUI {
     extern StringSetting* URL_ToCall;
     extern StringSetting* CMD_EndJob;
     extern StringSetting* CMD_StartJob;
+    extern IntSetting*    CMD_StartWithM100;
+    extern IntSetting*    CMD_StartWithM345;
 }
 #endif

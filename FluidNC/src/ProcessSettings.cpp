@@ -24,6 +24,7 @@
 #include "StartupLog.h"           // startupLog
 #include "WebUI\Commands.h"
 #include "Driver/fluidnc_gpio.h"  // gpio_dump()
+#include "ProcessSettings.h"
 
 #include "FluidPath.h"
 #include "HTTPClient.h"
@@ -48,7 +49,7 @@ static bool auth_failed(Word* w, const char* value, WebUI::AuthenticationLevel a
             if (!value) {                              // User can read anything
                 return false;                          // No read is a User auth fail
             }
-            return permissions == WA;  // User cannot write WA
+            return permissions == WA;                  // User cannot write WA
         default:
             return true;
     }
@@ -137,7 +138,7 @@ void settings_restore(uint8_t restore_flag) {
         for (Setting* s = Setting::List; s; s = s->next()) {
             if (!s->getDescription()) {
                 const char* name = s->getName();
-                if (restore_startup) {  // all settings get restored
+                if (restore_startup) {                                                      // all settings get restored
                     s->setDefault();
                 } else if ((strcmp(name, "Line0") != 0) && (strcmp(name, "Line1") != 0)) {  // non startup settings get restored
                     s->setDefault();
@@ -573,79 +574,92 @@ String GetCMDEndPrg() {
     return WebUI::CMD_EndJob->get();
 }
 
-void CallURL(String cmd) {
-    HTTPClient http;
+int GetStartURLWithM345() {
+    return WebUI::CMD_StartWithM345->get();
+}
 
-    const char* root_ca = "-----BEGIN CERTIFICATE-----\n"
-                          "MIIFazCCA1OgAwIBAgIRAIIQz7DSQONZRGPgu2OCiwAwDQYJKoZIhvcNAQELBQAw\n"
-                          "TzELMAkGA1UEBhMCVVMxKTAnBgNVBAoTIEludGVybmV0IFNlY3VyaXR5IFJlc2Vh\n"
-                          "cmNoIEdyb3VwMRUwEwYDVQQDEwxJU1JHIFJvb3QgWDEwHhcNMTUwNjA0MTEwNDM4\n"
-                          "WhcNMzUwNjA0MTEwNDM4WjBPMQswCQYDVQQGEwJVUzEpMCcGA1UEChMgSW50ZXJu\n"
-                          "ZXQgU2VjdXJpdHkgUmVzZWFyY2ggR3JvdXAxFTATBgNVBAMTDElTUkcgUm9vdCBY\n"
-                          "MTCCAiIwDQYJKoZIhvcNAQEBBQADggIPADCCAgoCggIBAK3oJHP0FDfzm54rVygc\n"
-                          "h77ct984kIxuPOZXoHj3dcKi/vVqbvYATyjb3miGbESTtrFj/RQSa78f0uoxmyF+\n"
-                          "0TM8ukj13Xnfs7j/EvEhmkvBioZxaUpmZmyPfjxwv60pIgbz5MDmgK7iS4+3mX6U\n"
-                          "A5/TR5d8mUgjU+g4rk8Kb4Mu0UlXjIB0ttov0DiNewNwIRt18jA8+o+u3dpjq+sW\n"
-                          "T8KOEUt+zwvo/7V3LvSye0rgTBIlDHCNAymg4VMk7BPZ7hm/ELNKjD+Jo2FR3qyH\n"
-                          "B5T0Y3HsLuJvW5iB4YlcNHlsdu87kGJ55tukmi8mxdAQ4Q7e2RCOFvu396j3x+UC\n"
-                          "B5iPNgiV5+I3lg02dZ77DnKxHZu8A/lJBdiB3QW0KtZB6awBdpUKD9jf1b0SHzUv\n"
-                          "KBds0pjBqAlkd25HN7rOrFleaJ1/ctaJxQZBKT5ZPt0m9STJEadao0xAH0ahmbWn\n"
-                          "OlFuhjuefXKnEgV4We0+UXgVCwOPjdAvBbI+e0ocS3MFEvzG6uBQE3xDk3SzynTn\n"
-                          "jh8BCNAw1FtxNrQHusEwMFxIt4I7mKZ9YIqioymCzLq9gwQbooMDQaHWBfEbwrbw\n"
-                          "qHyGO0aoSCqI3Haadr8faqU9GY/rOPNk3sgrDQoo//fb4hVC1CLQJ13hef4Y53CI\n"
-                          "rU7m2Ys6xt0nUW7/vGT1M0NPAgMBAAGjQjBAMA4GA1UdDwEB/wQEAwIBBjAPBgNV\n"
-                          "HRMBAf8EBTADAQH/MB0GA1UdDgQWBBR5tFnme7bl5AFzgAiIyBpY9umbbjANBgkq\n"
-                          "hkiG9w0BAQsFAAOCAgEAVR9YqbyyqFDQDLHYGmkgJykIrGF1XIpu+ILlaS/V9lZL\n"
-                          "ubhzEFnTIZd+50xx+7LSYK05qAvqFyFWhfFQDlnrzuBZ6brJFe+GnY+EgPbk6ZGQ\n"
-                          "3BebYhtF8GaV0nxvwuo77x/Py9auJ/GpsMiu/X1+mvoiBOv/2X/qkSsisRcOj/KK\n"
-                          "NFtY2PwByVS5uCbMiogziUwthDyC3+6WVwW6LLv3xLfHTjuCvjHIInNzktHCgKQ5\n"
-                          "ORAzI4JMPJ+GslWYHb4phowim57iaztXOoJwTdwJx4nLCgdNbOhdjsnvzqvHu7Ur\n"
-                          "TkXWStAmzOVyyghqpZXjFaH3pO3JLF+l+/+sKAIuvtd7u+Nxe5AW0wdeRlN8NwdC\n"
-                          "jNPElpzVmbUq4JUagEiuTDkHzsxHpFKVK7q4+63SM1N95R1NbdWhscdCb+ZAJzVc\n"
-                          "oyi3B43njTOQ5yOf+1CceWxG1bQVs5ZufpsMljq4Ui0/1lvh+wjChP4kqKOJ2qxq\n"
-                          "4RgqsahDYVvTH9w7jXbyLeiNdd8XM2w9U/t7y0Ff/9yi0GE44Za4rF2LN9d11TPA\n"
-                          "mRGunUHBcnWEvgJBQl9nJEiU0Zsnvgc/ubhPgXRR4Xq37Z0j4r7g1SgEEzwxA57d\n"
-                          "emyPxgcYxn/eR44/KJ4EBs+lVDR3veyJm+kXQ99b21/+jh5Xos1AnX5iItreGCc=\n"
-                          "-----END CERTIFICATE-----\n";
+int GetStartURLWithM100() {
+    return WebUI::CMD_StartWithM100->get();
+}
 
-    String url;
+void ReconnectWifi() {
+    log_debug("Try to reconnext to Wifi");
+    WebUI::WiFiConfig::end();
+    delay(1000);
+    WebUI::WiFiConfig::begin();
+    delay(5000);
+}
+
+void CallURLWithRetryStrategy(String cmd) {
+    const char NB_RTETRY_MAX = 9;
+    char       NbRetry       = NB_RTETRY_MAX;
+
+    while ((NbRetry--) && (CallURL(cmd) == NOT_SUCCESSFUL)) {
+        log_info("Retry URL call : " + std::to_string(NB_RTETRY_MAX - NbRetry) + "/" + std::to_string(NB_RTETRY_MAX));
+
+        if (!(WiFi.status() == WL_CONNECTED) || (NbRetry % 3 == 0))
+            ReconnectWifi();
+
+        delay(2000);
+    }
+}
+
+urlFeedback CallURL(String cmd) {
+    HTTPClient       http;
+    WiFiClientSecure client;
+
+    String url, urlDebug;
     String host = WebUI::URL_ToCall->get();
 
-    log_debug("Start calling URL");
-    url = host;
-    if (cmd != "") {
-        url += "?";
-        url += cmd;
-    }
+    client.setInsecure();
+    client.connect(host.c_str(), 443);
+    //if (!client.connect(host.c_str(), 443))
+    //    log_info("Connection to server failed! - Wifi status : " + std::to_string(WiFi.status()) + " - Wifi Mode : " +std::to_string(WiFi.getMode()) )
 
-    url  = "URL to call  : " + url;
-    host = "Host : '" + host + "'";
+    {
+        //log_info("Connection succesfully to server !");
 
-    log_debug(url.c_str());
-    log_debug(host.c_str());
-
-    if (!(((WiFi.status() == WL_CONNECTED)) && ((WiFi.getMode() == WIFI_MODE_STA) || (WiFi.getMode() == WIFI_MODE_APSTA)))) {
-        log_debug("Try to reconnext to Wifi");
-        WebUI::WiFiConfig::begin();
-    }
-
-    if (((WiFi.status() == WL_CONNECTED)) && ((WiFi.getMode() == WIFI_MODE_STA) || (WiFi.getMode() == WIFI_MODE_APSTA))) {
-        if (host != "") {
-            http.begin(url, root_ca);   //Specify the URL and certificate
-            int httpCode = http.GET();  //Make the request
-
-            if (httpCode > 0) {  //Check for the returning code
-                log_info("URL call successful");
-            } else {
-                log_info("Failed to call URL");
-            }
-
-            http.end();  //Free the resources
-        } else {
-            log_debug("No URL to call");
+        log_debug("Start calling URL");
+        url = host;
+        if (cmd != "") {
+            url += "?";
+            url += cmd;
         }
-    } else {
-        log_debug("Wifi is not connected in STA Mode");
+
+        urlDebug = "URL to call  : " + url;
+        host     = "Host : '" + host + "'";
+
+        log_debug(urlDebug.c_str());
+        log_debug(host.c_str());
+
+        if (((WiFi.status() == WL_CONNECTED)) && ((WiFi.getMode() == WIFI_MODE_STA) || (WiFi.getMode() == WIFI_MODE_APSTA))) {
+            if (host != "") {
+                http.begin(client, url.c_str());  //Specify the URL and certificate
+                int httpCode = http.GET();        //Make the request
+
+                if (httpCode > 0) {               //Check for the returning code
+                    log_info("URL call successful");
+                    http.end();
+                    client.stop();
+                    return URL_CALL_OK;
+
+                } else {
+                    log_info("Failed to call URL");
+                    http.end();
+                    client.stop();
+                    return NOT_SUCCESSFUL;
+                }
+
+            } else {
+                log_debug("No URL to call");
+                client.stop();
+                return NO_URL;
+            }
+        } else {
+            log_debug("Wifi is not connected in STA Mode");
+            client.stop();
+            return NO_GOOD_MODE;
+        }
     }
 }
 
@@ -729,6 +743,7 @@ static Error xmodem_receive(const char* value, WebUI::AuthenticationLevel auth_l
     } else {
         log_info("Reception failed or was canceled");
     }
+    outfile->fpath().rehash_fs();
     delete outfile;
     return size < 0 ? Error::UploadFailed : Error::Ok;
 }
@@ -843,6 +858,11 @@ static Error setReportInterval(const char* value, WebUI::AuthenticationLevel aut
     return Error::Ok;
 }
 
+static Error showHeap(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+    log_info("Heap free: " << xPortGetFreeHeapSize() << " min: " << heapLowWater);
+    return Error::Ok;
+}
+
 // Commands use the same syntax as Settings, but instead of setting or
 // displaying a persistent value, a command causes some action to occur.
 // That action could be anything, from displaying a run-time parameter
@@ -853,7 +873,7 @@ void make_user_commands() {
 
     new UserCommand("CI", "Channel/Info", showChannelInfo, anyState);
     new UserCommand("XR", "Xmodem/Receive", xmodem_receive, notIdleOrAlarm);
-    new UserCommand("XS", "Xmodem/Send", xmodem_send, notIdleOrJog);
+    new UserCommand("XS", "Xmodem/Send", xmodem_send, notIdleOrAlarm);
     new UserCommand("CD", "Config/Dump", dump_config, anyState);
     new UserCommand("", "Help", show_help, anyState);
     new UserCommand("T", "State", showState, anyState);
@@ -893,6 +913,7 @@ void make_user_commands() {
     new UserCommand("N", "GCode/StartupLines", report_startup_lines, notIdleOrAlarm);
     new UserCommand("RST", "Settings/Restore", restore_settings, notIdleOrAlarm, WA);
 
+    new UserCommand("Heap", "Heap/Show", showHeap, anyState);
     new UserCommand("SS", "Startup/Show", showStartupLog, anyState);
 
     new UserCommand("RI", "Report/Interval", setReportInterval, anyState);

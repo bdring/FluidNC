@@ -11,7 +11,6 @@
 #    include "../Settings.h"
 #    include "Authentication.h"  // AuthenticationLevel
 #    include "Commands.h"
-#    include "WSChannel.h"
 
 class WebSocketsServer;
 class WebServer;
@@ -111,12 +110,11 @@ namespace WebUI {
         static void sendAuthFailed();
         static void sendStatus(int code, const char* str);
 
-        static void sendWithOurAddress(const char* s);
+        static void sendWithOurAddress(const char* s, int code);
         static void sendCaptivePortal();
         static void send404Page();
 
-        static WSChannel* lastWSChannel;
-        static WSChannel* getWSChannel();
+        static int getPageid();
     };
 
     extern Web_Server webServer;

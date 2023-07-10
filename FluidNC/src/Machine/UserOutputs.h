@@ -12,7 +12,6 @@ namespace Machine {
     class UserOutputs : public Configuration::Configurable {
         PwmPin*  _pwm[MaxUserAnalogPin];
         uint32_t _current_value[MaxUserAnalogPin];
-        uint32_t _denominator[MaxUserAnalogPin];
 
     public:
         UserOutputs();

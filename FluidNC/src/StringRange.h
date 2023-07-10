@@ -14,7 +14,17 @@ public:
 
     StringRange(const char* str) : start_(str), end_(str + strlen(str)) {}
 
-    StringRange(const char* start, const char* end) : start_(start), end_(end) {}
+    // We usually want to ignore leading and trailing blanks, so we default to trim=true
+    StringRange(const char* start, const char* end, bool trim = true) : start_(start), end_(end) {
+        if (trim) {
+            while (start_ != end_ && isspace(*start_)) {
+                ++start_;
+            }
+            while (end_ != start_ && isspace(*(end_ - 1))) {
+                --end_;
+            }
+        }
+    }
 
     StringRange(const StringRange& o) = default;
     StringRange(StringRange&& o)      = default;

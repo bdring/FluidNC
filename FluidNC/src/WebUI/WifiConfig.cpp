@@ -13,9 +13,9 @@ WebUI::WiFiConfig wifi_config;
 #ifdef ENABLE_WIFI
 #    include "../Config.h"
 #    include "../Main.h"
-#    include "Commands.h"      // COMMANDS
-#    include "WifiServices.h"  // wifi_services.start() etc.
-#    include "WebSettings.h"   // split_params(), get_params()
+#    include "Commands.h"              // COMMANDS
+#    include "WifiServices.h"          // wifi_services.start() etc.
+#    include "WebSettings.h"           // split_params(), get_params()
 
 #    include "WebServer.h"             // webServer.port()
 #    include "TelnetServer.h"          // telnetServer
@@ -127,6 +127,8 @@ namespace WebUI {
     StringSetting* URL_ToCall;
     StringSetting* CMD_EndJob;
     StringSetting* CMD_StartJob;
+    IntSetting*    CMD_StartWithM100;
+    IntSetting*    CMD_StartWithM345;
 
     enum_opt_t staModeOptions = {
         { "DHCP", DHCP_MODE },
@@ -142,7 +144,9 @@ namespace WebUI {
         { "WPA2-ENTERPRISE", WIFI_AUTH_WPA2_ENTERPRISE },
     };
 
-    static void print_mac(Channel& out, const char* prefix, const char* mac) { log_to(out, prefix, " (" << mac << ")"); }
+    static void print_mac(Channel& out, const char* prefix, const char* mac) {
+        log_to(out, prefix, " (" << mac << ")");
+    }
 
     static Error showIP(char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP111
         log_to(out, parameter, IP_string(WiFi.getMode() == WIFI_STA ? WiFi.localIP() : WiFi.softAPIP()));
@@ -318,9 +322,11 @@ namespace WebUI {
     WiFiConfig::WiFiConfig() {
         new WebCommand(NULL, WEBCMD, WU, "ESP410", "WiFi/ListAPs", listAPs);
 
-        URL_ToCall   = new StringSetting("URL to call", WEBSET, WA, "NULL", "URLToCall", DEFAULT_URLTOCALL, 0, 255, NULL);
-        CMD_EndJob   = new StringSetting("CMD End Job", WEBSET, WA, "NULL", "CMDEndJob", DEFAULT_CMDENDJOB, 0, 255, NULL);
-        CMD_StartJob = new StringSetting("CMD Start Job", WEBSET, WA, "NULL", "CMDStartJob", DEFAULT_CMDSTARTJOB, 0, 255, NULL);
+        URL_ToCall        = new StringSetting("URL to call", WEBSET, WA, "NULL", "URLToCall", DEFAULT_URLTOCALL, 0, 255, NULL);
+        CMD_EndJob        = new StringSetting("CMD End Job", WEBSET, WA, "NULL", "CMDEndJob", DEFAULT_CMDENDJOB, 0, 255, NULL);
+        CMD_StartJob      = new StringSetting("CMD Start Job", WEBSET, WA, "NULL", "CMDStartJob", DEFAULT_CMDSTARTJOB, 0, 255, NULL);
+        CMD_StartWithM100 = new IntSetting("Call start URL with M100", WEBSET, WA, "NULL", "CMDStartURLwithM100", 0, 0, 1, NULL);
+        CMD_StartWithM345 = new IntSetting("Call start URL with M3 / M4 / M5", WEBSET, WA, "NULL", "CMDStartURLwithM345", 1, 0, 1, NULL);
 
         wifi_hostname = new StringSetting("Hostname",
                                           WEBSET,
@@ -798,7 +804,9 @@ namespace WebUI {
     /**
      * End WiFi
      */
-    void WiFiConfig::end() { StopWiFi(); }
+    void WiFiConfig::end() {
+        StopWiFi();
+    }
 
     /**
      * Reset ESP
@@ -818,12 +826,16 @@ namespace WebUI {
         }
         log_info("WiFi reset done");
     }
-    bool WiFiConfig::isOn() { return !(WiFi.getMode() == WIFI_MODE_NULL); }
+    bool WiFiConfig::isOn() {
+        return !(WiFi.getMode() == WIFI_MODE_NULL);
+    }
 
     /**
      * Handle not critical actions that must be done in sync environment
      */
-    void WiFiConfig::handle() { wifi_services.handle(); }
+    void WiFiConfig::handle() {
+        wifi_services.handle();
+    }
 
     // Used by js/scanwifidlg.js
     Error WiFiConfig::listAPs(char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP410
@@ -837,7 +849,7 @@ namespace WebUI {
             case -2:                      // Scan not triggered
                 WiFi.scanNetworks(true);  // Begin async scan
                 break;
-            case -1:  // Scan in progress
+            case -1:                      // Scan in progress
                 break;
             default:
                 for (int i = 0; i < n; ++i) {
@@ -862,6 +874,8 @@ namespace WebUI {
         return Error::Ok;
     }
 
-    WiFiConfig::~WiFiConfig() { end(); }
+    WiFiConfig::~WiFiConfig() {
+        end();
+    }
 }
 #endif

@@ -47,6 +47,18 @@ jobs:
           release/*.zip
           release/*.elf
         draft: True
+    - name: Deploy to fluidnc-releases
+      uses: datalbry/copy_folder_to_another_repo_action@1.0.0
+      env:
+        API_TOKEN_GITHUB: ${{ secrets.RELEASE_COPY_TOKEN }}
+      with:
+        source_folder: 'release/current'
+        destination_repo: 'bdring/fluidnc-releases'
+        destination_branch: 'main'
+        destination_folder: releases/${{ github.event.inputs.tag }}
+        user_email: bdring@buildlog.net
+        user_name: 'Bart Dring'
+        commit_msg: Release ${{ github.event.inputs.tag }}
     # - name: Upload mac bundle
     #   uses: actions/upload-artifact@v2
     #   with:
