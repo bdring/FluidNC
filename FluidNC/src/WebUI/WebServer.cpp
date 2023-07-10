@@ -1051,9 +1051,13 @@ namespace WebUI {
             //            delete _uploadFile;
             // _uploadFile = nullptr;
 
-            std::filesystem::path filepath = _uploadFile->fpath();
+            std::string pathname = _uploadFile->fpath();
             delete _uploadFile;
             _uploadFile = nullptr;
+            log_debug("pathname " << pathname);
+
+            FluidPath filepath { pathname, "" };
+
             HashFS::rehash_file(filepath);
 
             // Check size
