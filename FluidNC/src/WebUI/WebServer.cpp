@@ -943,6 +943,19 @@ namespace WebUI {
                     sstatus = "Cannot create ";
                     sstatus += filename + " " + ec.message();
                 }
+            } else if (action == "rename") {
+                if (!_webserver->hasArg("newname")) {
+                    sstatus = "Missing new filename";
+                } else {
+                    std::string newname = std::string(_webserver->arg("newname").c_str());
+                    std::filesystem::rename(fpath / filename, fpath / newname, ec);
+                    if (ec) {
+                        sstatus = "Cannot rename ";
+                        sstatus += filename + " " + ec.message();
+                    } else {
+                        sstatus = filename + " renamed to " + newname;
+                    }
+                }
             }
         }
 
