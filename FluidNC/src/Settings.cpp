@@ -12,6 +12,9 @@
 #include <vector>
 #include <nvs.h>
 
+std::vector<Setting*> Setting::List = {};
+std::vector<Command*> Command::List = {};
+
 bool anyState() {
     return false;
 }
@@ -28,24 +31,18 @@ bool cycleOrHold() {
 Word::Word(type_t type, permissions_t permissions, const char* description, const char* grblName, const char* fullName) :
     _description(description), _grblName(grblName), _fullName(fullName), _type(type), _permissions(permissions) {}
 
-Command* Command::List = NULL;
-
 Command::Command(
     const char* description, type_t type, permissions_t permissions, const char* grblName, const char* fullName, bool (*cmdChecker)()) :
     Word(type, permissions, description, grblName, fullName),
     _cmdChecker(cmdChecker) {
-    link = List;
-    List = this;
+    List.push_back(this);
 }
-
-Setting* Setting::List = NULL;
 
 Setting::Setting(
     const char* description, type_t type, permissions_t permissions, const char* grblName, const char* fullName, bool (*checker)(char*)) :
     Word(type, permissions, description, grblName, fullName),
     _checker(checker) {
-    link = List;
-    List = this;
+    List.push_back(this);
 
     // NVS keys are limited to 15 characters, so if the setting name is longer
     // than that, we derive a 15-character name from a hash function
