@@ -273,15 +273,12 @@ namespace WebUI {
                 return false;
             }
         }
-        log_debug(path << " found");
         if (download) {
             _webserver->sendHeader("Content-Disposition", "attachment");
         }
         if (hash.length()) {
             _webserver->sendHeader("ETag", hash.c_str());
         }
-
-        log_debug("path " << path << " CT " << getContentType(path) << " hash " << hash);
         _webserver->setContentLength(file->size());
         if (isGzip) {
             _webserver->sendHeader("Content-Encoding", "gzip");
@@ -946,6 +943,19 @@ namespace WebUI {
                     sstatus = "Cannot create ";
                     sstatus += filename + " " + ec.message();
                 }
+            } else if (action == "rename") {
+                if (!_webserver->hasArg("newname")) {
+                    sstatus = "Missing new filename";
+                } else {
+                    std::string newname = std::string(_webserver->arg("newname").c_str());
+                    std::filesystem::rename(fpath / filename, fpath / newname, ec);
+                    if (ec) {
+                        sstatus = "Cannot rename ";
+                        sstatus += filename + " " + ec.message();
+                    } else {
+                        sstatus = filename + " renamed to " + newname;
+                    }
+                }
             }
         }
 
@@ -1054,9 +1064,13 @@ namespace WebUI {
             //            delete _uploadFile;
             // _uploadFile = nullptr;
 
-            std::filesystem::path filepath = _uploadFile->fpath();
+            std::string pathname = _uploadFile->fpath();
             delete _uploadFile;
             _uploadFile = nullptr;
+            log_debug("pathname " << pathname);
+
+            FluidPath filepath { pathname, "" };
+
             HashFS::rehash_file(filepath);
 
             // Check size
