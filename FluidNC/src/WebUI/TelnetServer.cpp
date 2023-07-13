@@ -9,7 +9,7 @@
 #ifdef ENABLE_WIFI
 
 namespace WebUI {
-    TelnetServer telnetServer;
+    TelnetServer telnetServer  __attribute__((init_priority(107))) ;
 }
 
 #    include "WifiServices.h"

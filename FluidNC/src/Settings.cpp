@@ -12,8 +12,8 @@
 #include <vector>
 #include <nvs.h>
 
-std::vector<Setting*> Setting::List = {};
-std::vector<Command*> Command::List = {};
+std::vector<Setting*> Setting::List __attribute__((init_priority(101))) = {};
+std::vector<Command*> Command::List __attribute__((init_priority(102))) = {};
 
 bool anyState() {
     return false;
@@ -35,14 +35,14 @@ Command::Command(
     const char* description, type_t type, permissions_t permissions, const char* grblName, const char* fullName, bool (*cmdChecker)()) :
     Word(type, permissions, description, grblName, fullName),
     _cmdChecker(cmdChecker) {
-    List.push_back(this);
+    List.insert(List.begin(), this);
 }
 
 Setting::Setting(
     const char* description, type_t type, permissions_t permissions, const char* grblName, const char* fullName, bool (*checker)(char*)) :
     Word(type, permissions, description, grblName, fullName),
     _checker(checker) {
-    List.push_back(this);
+    List.insert(List.begin(), this);
 
     // NVS keys are limited to 15 characters, so if the setting name is longer
     // than that, we derive a 15-character name from a hash function

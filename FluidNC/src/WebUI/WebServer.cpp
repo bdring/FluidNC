@@ -58,7 +58,7 @@ namespace WebUI {
 
     static const char LOCATION_HEADER[] = "Location";
 
-    Web_Server webServer;
+    Web_Server webServer __attribute__((init_priority(108))) ;
     bool       Web_Server::_setupdone = false;
     uint16_t   Web_Server::_port      = 0;
 

@@ -17,7 +17,7 @@
 
 // SerialBT sends the data over Bluetooth
 namespace WebUI {
-    BTConfig        bt_config;
+    BTConfig        bt_config __attribute__((init_priority(105))) ;
     BluetoothSerial SerialBT;
     BTChannel       btChannel;
 }
