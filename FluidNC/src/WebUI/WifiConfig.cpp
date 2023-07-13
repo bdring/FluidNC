@@ -8,7 +8,7 @@
 #include <sstream>
 #include <iomanip>
 
-WebUI::WiFiConfig wifi_config;
+WebUI::WiFiConfig wifi_config  __attribute__((init_priority(109))) ;
 
 #ifdef ENABLE_WIFI
 #    include "../Config.h"
