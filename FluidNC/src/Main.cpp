@@ -28,7 +28,7 @@
 extern void make_user_commands();
 
 void setup() {
-    delay_ms(500);
+    delay_ms(1000);
 
     disableCore0WDT();
     try {
@@ -173,7 +173,7 @@ static void reset_variables() {
             spindle->stop();
             report_ovr_counter = 0;  // Set to report change immediately
         }
-        Stepper::reset();  // Clear stepper subsystem variables
+        Stepper::reset();            // Clear stepper subsystem variables
     }
 
     // Sync cleared gcode and planner positions to current system position.
