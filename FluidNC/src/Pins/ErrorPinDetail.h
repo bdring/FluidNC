@@ -5,13 +5,14 @@
 
 #include "PinDetail.h"
 #include "PinOptionsParser.h"
+#include <string_view>
 
 namespace Pins {
     class ErrorPinDetail : public PinDetail {
         std::string _description;
 
     public:
-        ErrorPinDetail(const char* descr);
+        ErrorPinDetail(std::string_view descr);
 
         PinCapabilities capabilities() const override;
 

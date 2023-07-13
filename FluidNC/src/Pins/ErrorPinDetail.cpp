@@ -6,7 +6,7 @@
 #include "../Assert.h"
 
 namespace Pins {
-    ErrorPinDetail::ErrorPinDetail(const char* descr) : PinDetail(0), _description(descr) {}
+    ErrorPinDetail::ErrorPinDetail(std::string_view descr) : PinDetail(0), _description(descr) {}
 
     PinCapabilities ErrorPinDetail::capabilities() const { return PinCapabilities::Error; }
 

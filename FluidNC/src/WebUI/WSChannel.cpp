@@ -13,8 +13,7 @@
 namespace WebUI {
     class WSChannels;
 
-    WSChannel::WSChannel(WebSocketsServer* server, uint8_t clientNum) :
-        Channel("websocket"), _server(server), _clientNum(clientNum), _TXbufferSize(0), _RXbufferSize(0), _RXbufferpos(0) {}
+    WSChannel::WSChannel(WebSocketsServer* server, uint8_t clientNum) : Channel("websocket"), _server(server), _clientNum(clientNum) {}
 
     int WSChannel::read() {
         if (_dead) {
@@ -34,22 +33,49 @@ namespace WebUI {
     size_t WSChannel::write(uint8_t c) { return write(&c, 1); }
 
     size_t WSChannel::write(const uint8_t* buffer, size_t size) {
-        if (buffer == NULL || _dead) {
+        if (buffer == NULL || _dead || !size) {
             return 0;
         }
 
-        if (_TXbufferSize == 0) {
-            _lastflush = millis();
+        bool complete_line = buffer[size - 1] == '\n';
+
+        const uint8_t* out;
+        size_t         outlen;
+        if (_output_line.length() == 0 && complete_line) {
+            // Avoid the overhead of std::string if we the
+            // input is a complete line and nothing is pending.
+            out    = buffer;
+            outlen = size;
+        } else {
+            // Otherwise collect input until we have line.
+            _output_line.append((char*)buffer, size);
+            if (!complete_line) {
+                return size;
+            }
+
+            out    = (uint8_t*)_output_line.c_str();
+            outlen = _output_line.length();
+        }
+        int stat = _server->canSend(_clientNum);
+        if (stat < 0) {
+            _dead = true;
+            log_debug("WebSocket is dead; closing");
+            return 0;
+        }
+        if (stat == 0) {
+            if (_output_line.length()) {
+                _output_line = "";
+            }
+            return size;
+        }
+        if (!_server->sendBIN(_clientNum, out, outlen)) {
+            _dead = true;
+            log_debug("WebSocket is unresponsive; closing");
+        }
+        if (_output_line.length()) {
+            _output_line = "";
         }
 
-        for (int i = 0; i < size; i++) {
-            if (_TXbufferSize >= TXBUFFERSIZE) {
-                flush();
-            }
-            _TXbuffer[_TXbufferSize] = buffer[i];
-            _TXbufferSize++;
-        }
-        handle();
         return size;
     }
 
@@ -68,14 +94,6 @@ namespace WebUI {
 
     bool WSChannel::push(std::string& s) { return push((uint8_t*)s.c_str(), s.length()); }
 
-    void WSChannel::handle() {
-        if (_dead) {
-            return;
-        }
-        if (_TXbufferSize > 0 && ((_TXbufferSize >= TXBUFFERSIZE) || ((millis() - _lastflush) > FLUSHTIMEOUT))) {
-            flush();
-        }
-    }
     bool WSChannel::sendTXT(std::string& s) {
         if (_dead) {
             return false;
@@ -88,22 +106,11 @@ namespace WebUI {
         }
         return true;
     }
-    void WSChannel::flush(void) {
-        if (_TXbufferSize > 0) {
-            if (_dead) {
-                return;
-            }
-            if (!_server->sendBIN(_clientNum, _TXbuffer, _TXbufferSize)) {
-                _dead = true;
-                log_debug("WebSocket is unresponsive; closing");
-                WSChannels::removeChannel(this);
-            }
 
-            //refresh timout
-            _lastflush = millis();
-
-            //reset buffer
-            _TXbufferSize = 0;
+    void WSChannel::autoReport() {
+        int stat = _server->canSend(_clientNum);
+        if (stat > 0) {
+            Channel::autoReport();
         }
     }
 
@@ -197,7 +204,7 @@ namespace WebUI {
     void WSChannels::sendPing() {
         for (WSChannel* wsChannel : _webWsChannels) {
             std::string s("PING:");
-            s += wsChannel->id();
+            s += std::to_string(wsChannel->id());
             // sendBIN would be okay too because the string contains only
             // ASCII characters, no UTF-8 extended characters.
             wsChannel->sendTXT(s);

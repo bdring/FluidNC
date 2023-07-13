@@ -246,19 +246,12 @@ static void check_startup_state() {
         }
         if (config->_control->startup_check()) {
             rtAlarm = ExecAlarm::ControlPin;
-        }
-
-        if (sys.state == State::Alarm || sys.state == State::Sleep) {
+        } else if (sys.state == State::Alarm || sys.state == State::Sleep) {
             report_feedback_message(Message::AlarmLock);
             sys.state = State::Alarm;  // Ensure alarm state is set.
         } else {
-            // Check if the safety door is open.
-            sys.state = State::Idle;
-            while (config->_control->safety_door_ajar()) {
-                request_safety_door();
-                protocol_execute_realtime();  // Enter safety door mode. Should return as IDLE state.
-            }
             // All systems go!
+            sys.state = State::Idle;
             settings_execute_startup();  // Execute startup script.
         }
     }

@@ -3,6 +3,7 @@
 #include <Arduino.h>
 #include <filesystem>
 #include <string>
+#include "Driver/localfs.h"
 
 namespace stdfs = std::filesystem;
 
@@ -25,8 +26,6 @@ public:
     // true if there is something after the mount name.
     // /localfs/foo -> true,  /localfs -> false
     bool hasTail() { return ++(++begin()) != end(); }
-
-    void rehash_fs();
 
 private:
     FluidPath(const char* name, const char* fs, std::error_code*);

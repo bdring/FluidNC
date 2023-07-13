@@ -38,3 +38,4 @@ ava_configs/
 
 *.cppx
 *.hx
+/compile_commands.json

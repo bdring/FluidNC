@@ -86,7 +86,6 @@ namespace WebUI {
 
         static bool isValidIP(const char* string);
         static bool isPasswordValid(const char* password);
-        static bool isSSIDValid(const char* ssid);
         static bool isHostnameValid(const char* hostname);
 
         static std::string Hostname() { return _hostname; }

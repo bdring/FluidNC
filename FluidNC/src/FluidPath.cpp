@@ -3,7 +3,6 @@
 
 #include "FluidPath.h"
 #include "Driver/sdspi.h"
-#include "Driver/localfs.h"
 #include "Config.h"
 #include "Error.h"
 #include "HashFS.h"
@@ -68,11 +67,5 @@ FluidPath::~FluidPath() {
     // log_debug("~ refcnt " << _isSD << " " << _refcnt);
     if (_isSD && (_refcnt && --_refcnt == 0)) {
         sd_unmount();
-    }
-}
-
-void FluidPath::rehash_fs() {
-    if (!_isSD) {
-        HashFS::rehash();
     }
 }

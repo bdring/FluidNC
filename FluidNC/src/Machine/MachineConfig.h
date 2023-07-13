@@ -27,6 +27,8 @@
 #include "UserOutputs.h"
 #include "Macros.h"
 
+#include <string_view>
+
 namespace Machine {
     using ::Kinematics::Kinematics;
 
@@ -107,8 +109,8 @@ namespace Machine {
         void group(Configuration::HandlerBase& handler) override;
 
         static bool load();
-        static bool load(const char* file);
-        static bool load(StringRange* input);
+        static bool load_file(std::string_view file);
+        static bool load_yaml(std::string_view yaml_string);
 
         ~MachineConfig();
     };

@@ -148,9 +148,11 @@ void setup() {
         sys.state = State::ConfigAlarm;
     }
 
-    if (!WebUI::wifi_config.begin()) {
-        WebUI::bt_config.begin();
+    // Try Bluetooth first so its memory can be released if it is disabled
+    if (!WebUI::bt_config.begin()) {
+        WebUI::wifi_config.begin();
     }
+
     allChannels.deregistration(&startupLog);
 }
 

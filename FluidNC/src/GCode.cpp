@@ -1387,16 +1387,11 @@ Error gc_execute_line(char* line) {
         if (!blockIsFeedrateMotion) {
             // If the new mode is not a feedrate move (G1/2/3) we want the laser off
             disableLaser = true;
-            // If we are changing from a feedrate move to a non-feedrate move,
-            // we must sync the planner and then update the laser state
-            if (stateIsFeedrateMotion) {
-                syncLaser = true;
-            }
         }
         // Any motion mode with axis words is allowed to be passed from a spindle speed update.
         // NOTE: G1 and G0 without axis words sets axis_command to none. G28/30 are intentionally omitted.
         // TODO: Check sync conditions for M3 enabled motions that don't enter the planner. (zero length).
-        if (blockIsFeedrateMotion && axis_words && (axis_command == AxisCommand::MotionMode)) {
+        if (axis_words && (axis_command == AxisCommand::MotionMode)) {
             laserIsMotion = true;
         } else {
             // M3 constant power laser requires planner syncs to update the laser when changing between
@@ -1431,14 +1426,10 @@ Error gc_execute_line(char* line) {
     pl_data->feed_rate = gc_state.feed_rate;  // Record data for planner use.
     // [4. Set spindle speed ]:
     if ((gc_state.spindle_speed != gc_block.values.s) || syncLaser) {
-        if (gc_state.modal.spindle != SpindleState::Disable) {
-            if (!laserIsMotion) {
-                if (sys.state != State::CheckMode) {
-                    protocol_buffer_synchronize();
-                    spindle->setState(gc_state.modal.spindle, disableLaser ? 0 : (uint32_t)gc_block.values.s);
-                    report_ovr_counter = 0;  // Set to report change immediately
-                }
-            }
+        if (gc_state.modal.spindle != SpindleState::Disable && !laserIsMotion && sys.state != State::CheckMode) {
+            protocol_buffer_synchronize();
+            spindle->setState(gc_state.modal.spindle, disableLaser ? 0 : (uint32_t)gc_block.values.s);
+            report_ovr_counter = 0;  // Set to report change immediately
         }
         gc_state.spindle_speed = gc_block.values.s;  // Update spindle speed state.
     }
