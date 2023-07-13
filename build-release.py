@@ -78,6 +78,11 @@ if os.path.exists(manifestRelPath):
 
 os.makedirs(manifestRelPath)
 
+# Copy the web application to the release directory
+dataRelPath = os.path.join(manifestRelPath, 'data')
+os.makedirs(dataRelPath)
+shutil.copy(os.path.join("FluidNC", "data", "index.html.gz"), dataRelPath)
+
 manifest = {
         "name": "FluidNC",
         "version": tag,
