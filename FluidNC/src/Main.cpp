@@ -28,6 +28,8 @@
 extern void make_user_commands();
 
 void setup() {
+    delay_ms(500);
+
     disableCore0WDT();
     try {
         timing_init();
