@@ -646,8 +646,7 @@ void report_realtime_status(Channel& channel) {
     msg << "|Heap:" << esp.getHeapSize();
 #endif
     msg << ">";
-    // The DebugStream destructor sends the line
-    // when msg goes out of scope
+    // The destructor sends the line when msg goes out of scope
 }
 
 void hex_msg(uint8_t* buf, const char* prefix, int len) {

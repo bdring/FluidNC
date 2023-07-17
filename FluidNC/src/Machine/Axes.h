@@ -7,6 +7,7 @@
 #include "../Configuration/Configurable.h"
 #include "Axis.h"
 #include "../EnumItem.h"
+#include "src/Machine/FaultPin.h"
 
 namespace MotorDrivers {
     class MotorDriver;
@@ -15,6 +16,8 @@ namespace MotorDrivers {
 namespace Machine {
     class Axes : public Configuration::Configurable {
         bool _switchedStepper = false;
+
+        Pin _sharedFaultPin;
 
     public:
         static constexpr const char* _names = "XYZABC";
@@ -28,14 +31,16 @@ namespace Machine {
         static MotorMask limitMask;
         static MotorMask motorMask;
 
+        Pin _sharedStepperDisable;
+        Pin _sharedStepperReset;
+
         inline char axisName(int index) { return index < MAX_N_AXIS ? _names[index] : '?'; }  // returns axis letter
 
         static inline size_t    motor_bit(size_t axis, size_t motor) { return motor ? axis + 16 : axis; }
         static inline AxisMask  motors_to_axes(MotorMask motors) { return (motors & 0xffff) | (motors >> 16); }
         static inline MotorMask axes_to_motors(AxisMask axes) { return axes | (axes << 16); }
 
-        Pin _sharedStepperDisable;
-        Pin _sharedStepperReset;
+        FaultPin* _faultPin = nullptr;
 
         int   _numberAxis = 0;
         Axis* _axis[MAX_N_AXIS];

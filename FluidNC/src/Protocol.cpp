@@ -18,6 +18,7 @@
 #include "MotionControl.h"  // PARKING_MOTION_LINE_NUMBER
 #include "Settings.h"       // settings_execute_startup
 #include "Machine/LimitPin.h"
+#include "Machine/FaultPin.h"
 
 volatile ExecAlarm rtAlarm;  // Global realtime executor bitflag variable for setting various alarms.
 
@@ -35,7 +36,13 @@ std::map<ExecAlarm, const char*> AlarmNames = {
     { ExecAlarm::SpindleControl, "Spindle Control" },
     { ExecAlarm::ControlPin, "Control Pin Initially On" },
     { ExecAlarm::HomingAmbiguousSwitch, "Ambiguous Switch" },
+    { ExecAlarm::FaultPin, "Fault Pin" },
 };
+
+const char* alarmString(ExecAlarm alarmNumber) {
+    auto it = AlarmNames.find(alarmNumber);
+    return it == AlarmNames.end() ? NULL : it->second;
+}
 
 volatile bool rtReset;
 
@@ -361,6 +368,7 @@ void protocol_execute_realtime() {
 }
 
 static void alarm_msg(ExecAlarm alarm_code) {
+    log_info_to(allChannels, "ALARM: " << alarmString(alarm_code));
     log_to(allChannels, "ALARM:", static_cast<int>(alarm_code));
     delay_ms(500);  // Force delay to ensure message clears serial write buffer.
 }
@@ -377,7 +385,7 @@ static void protocol_do_alarm() {
     }
     sys.state = State::Alarm;  // Set system alarm state
     alarm_msg(rtAlarm);
-    if (rtAlarm == ExecAlarm::HardLimit || rtAlarm == ExecAlarm::SoftLimit) {
+    if (rtAlarm == ExecAlarm::HardLimit || rtAlarm == ExecAlarm::SoftLimit || rtAlarm == ExecAlarm::FaultPin) {
         report_error_message(Message::CriticalEvent);
         protocol_disable_steppers();
         rtReset = false;  // Disable any existing reset
@@ -705,6 +713,7 @@ void protocol_do_cycle_stop() {
             // Fall through
         case State::ConfigAlarm:
         case State::Alarm:
+            break;
         case State::CheckMode:
         case State::Idle:
         case State::Cycle:
@@ -1012,7 +1021,15 @@ static void protocol_do_limit(void* arg) {
             mc_reset();                      // Initiate system kill.
             rtAlarm = ExecAlarm::HardLimit;  // Indicate hard limit critical event
         }
-        return;
+    }
+}
+static void protocol_do_fault_pin(void* arg) {
+    Machine::FaultPin* faultPin = (Machine::FaultPin*)arg;
+    if (sys.state == State::Cycle || sys.state == State::Jog) {
+        if (rtAlarm == ExecAlarm::None) {
+            mc_reset();                     // Initiate system kill.
+            rtAlarm = ExecAlarm::FaultPin;  // Indicate fault pin critical event
+        }
     }
 }
 ArgEvent feedOverrideEvent { protocol_do_feed_override };
@@ -1020,6 +1037,7 @@ ArgEvent rapidOverrideEvent { protocol_do_rapid_override };
 ArgEvent spindleOverrideEvent { protocol_do_spindle_override };
 ArgEvent accessoryOverrideEvent { protocol_do_accessory_override };
 ArgEvent limitEvent { protocol_do_limit };
+ArgEvent faultPinEvent { protocol_do_fault_pin };
 
 ArgEvent reportStatusEvent { (void (*)(void*))report_realtime_status };
 
