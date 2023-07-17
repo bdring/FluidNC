@@ -156,7 +156,6 @@ namespace Machine {
         // builtin config.  This helps prevent reset loops on bad config files.
         esp_reset_reason_t reason = esp_reset_reason();
 
-        //delay_ms(1000);
         log_debug("Reset reason : " + std::to_string(reason));
 
         if (reason == ESP_RST_PANIC) {

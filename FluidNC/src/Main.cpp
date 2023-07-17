@@ -28,7 +28,8 @@
 extern void make_user_commands();
 
 void setup() {
-    delay_ms(1000);
+    //Improve startup stability
+    delay_ms(2000);
 
     disableCore0WDT();
     try {
@@ -118,6 +119,12 @@ void setup() {
                 sys.state = State::Alarm;
             } else {
                 sys.state = State::Idle;
+            }
+
+            esp_reset_reason_t reason = esp_reset_reason();
+            if (reason == ESP_RST_POWERON) {
+                log_debug("PowerOn reset : Launch reboot to get good limit status after poweron");
+                ESP.restart();
             }
 
             limits_init();
