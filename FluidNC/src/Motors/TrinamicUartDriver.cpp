@@ -25,6 +25,8 @@ namespace MotorDrivers {
             log_error("TMC Driver missing uart" << _uart_num << " section");
             return;
         }
+
+        _cs_pin.setAttr(Pin::Attr::Output);
     }
 
     /*

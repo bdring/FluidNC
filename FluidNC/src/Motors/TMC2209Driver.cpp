@@ -23,8 +23,6 @@ namespace MotorDrivers {
 
         tmc2209 = new TMC2209Stepper(_uart, _r_sense, _addr);
 
-        _cs_pin.setAttr(Pin::Attr::Output);
-
         registration();
     }
 
