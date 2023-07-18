@@ -167,9 +167,14 @@ namespace Configuration {
                 if (value.size() == 0) {
                     log_to(out_, "None");
                 } else {
+                    LogStream msg(out_, "");
+                    msg << setting_prefix();
+                    const char* separator = "";
                     for (speedEntry n : value) {
-                        log_to(out_, "", n.speed << "=" << n.percent << "%")
+                        msg << separator << n.speed << "=" << setprecision(2) << n.percent << "%";
+                        separator = " ";
                     }
+                    // The destructor sends the line when msg goes out of scope
                 }
             } else {
                 // It is distasteful to have this code that essentially duplicates

@@ -121,6 +121,8 @@ namespace Configuration {
                 return {};
             }
             entry_str.remove_prefix(next_pct_delim + 1);
+
+            speed_entries.push_back(entry);
         }
 
         if (!speed_entries.size()) {
