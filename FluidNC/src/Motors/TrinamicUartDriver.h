@@ -17,13 +17,6 @@ namespace MotorDrivers {
         TrinamicUartDriver() = default;
 
         void init() override;
-        //void read_settings() override;
-        //bool set_homing_mode(bool is_homing) override;
-        void set_disable(bool disable) override;
-
-        void debug_message();
-
-        bool hw_serial_init();
 
         uint8_t _addr;
 
@@ -37,12 +30,16 @@ namespace MotorDrivers {
 
         void group(Configuration::HandlerBase& handler) override {
             handler.item("addr", _addr);
+            handler.item("cs_pin", _cs_pin);
             handler.item("uart_num", _uart_num);
+
             TrinamicBase::group(handler);
         }
 
     protected:
         Uart* _uart = nullptr;
+
+        Pin _cs_pin;
 
         int _uart_num = -1;
 
@@ -52,8 +49,7 @@ namespace MotorDrivers {
         uint8_t toffValue();  // TO DO move to Base?
 
     private:
-        bool test();
-        void set_mode(bool isHoming);
+
     };
 
 }

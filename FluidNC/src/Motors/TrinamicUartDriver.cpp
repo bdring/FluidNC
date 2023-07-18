@@ -22,17 +22,21 @@ namespace MotorDrivers {
     void TrinamicUartDriver::init() {
         _uart = config->_uarts[_uart_num];
         if (!_uart) {
-            log_error("TMC2208: Missing uart" << _uart_num << "section");
+            log_error("TMC Driver missing uart" << _uart_num << " section");
             return;
         }
+
+        _cs_pin.setAttr(Pin::Attr::Output);
     }
 
     /*
         This is the startup message showing the basic definition. 
+
+        log_info(" UART CS:" << );
     */
     void TrinamicUartDriver::config_message() {  //TODO: The RX/TX pin could be added to the msg.
-        log_info("    " << name() << " UART" << _uart_num << " Addr:" << _addr << " Step:" << _step_pin.name() << " Dir:" << _dir_pin.name()
-                        << " Disable:" << _disable_pin.name() << " R:" << _r_sense);
+        log_info("    " << name() << " UART" << _uart_num << " Addr:" << _addr << " CS:" << _cs_pin.name() << " Step:" << _step_pin.name()
+                        << " Dir:" << _dir_pin.name() << " Disable:" << _disable_pin.name() << " R:" << _r_sense);
     }
 
     uint8_t TrinamicUartDriver::toffValue() {
