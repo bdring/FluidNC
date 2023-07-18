@@ -17,8 +17,6 @@
 #include "../Report.h"     // git_info
 #include "../InputFile.h"  // InputFile
 
-#include "Driver/localfs.h"  // localfs_format
-
 #include "Commands.h"  // COMMANDS::restart_MCU();
 #include "WifiConfig.h"
 
@@ -257,7 +255,7 @@ namespace WebUI {
 
         // NVS settings
         j.setCategory("nvs");
-        for (Setting* js = Setting::List; js; js = js->next()) {
+        for (Setting* js : Setting::List) {
             js->addWebui(&j);
         }
 
@@ -365,19 +363,18 @@ namespace WebUI {
         }
         if (isDir) {
             stdfs::remove_all(fpath, ec);
-            fpath.rehash_fs();
             if (ec) {
                 log_to(out, "Delete Directory failed: ", ec.message());
                 return Error::FsFailedDelDir;
             }
         } else {
             stdfs::remove(fpath, ec);
-            fpath.rehash_fs();
             if (ec) {
                 log_to(out, "Delete File failed: ", ec.message());
                 return Error::FsFailedDelFile;
             }
         }
+        HashFS::delete_file(fpath);
 
         return Error::Ok;
     }
@@ -437,7 +434,32 @@ namespace WebUI {
         return listFilesystem(localfsName, parameter, auth_level, out);
     }
 
+    static Error renameObject(const char* fs, char* parameter, AuthenticationLevel auth_level, Channel& out) {
+        auto opath = strchr(parameter, '>');
+        if (*opath == '\0') {
+            return Error::InvalidValue;
+        }
+        const char* ipath = parameter;
+        *opath++          = '\0';
+        try {
+            FluidPath inPath { ipath, fs };
+            FluidPath outPath { opath, fs };
+            std::filesystem::rename(inPath, outPath);
+        } catch (const Error err) {
+            log_error_to(out, "Cannot rename " << ipath << " to " << opath);
+            return Error::FsFailedRenameFile;
+        }
+        return Error::Ok;
+    }
+    static Error renameSDObject(char* parameter, AuthenticationLevel auth_level, Channel& out) {
+        return renameObject(sdName, parameter, auth_level, out);
+    }
+    static Error renameLocalObject(char* parameter, AuthenticationLevel auth_level, Channel& out) {
+        return renameObject(localfsName, parameter, auth_level, out);
+    }
+
     static Error copyFile(const char* ipath, const char* opath, Channel& out) {  // No ESP command
+        std::filesystem::path filepath;
         try {
             FileStream outFile { opath, "w" };
             FileStream inFile { ipath, "r" };
@@ -446,11 +468,13 @@ namespace WebUI {
             while ((len = inFile.read(buf, 512)) > 0) {
                 outFile.write(buf, len);
             }
-            outFile.fpath().rehash_fs();
+            filepath = outFile.fpath();
         } catch (const Error err) {
             log_error("Cannot create file " << opath);
             return Error::FsFailedCreateFile;
         }
+        // Rehash after outFile goes out of scope
+        HashFS::rehash_file(filepath);
         return Error::Ok;
     }
     static Error copyDir(const char* iDir, const char* oDir, Channel& out) {  // No ESP command
@@ -584,7 +608,7 @@ namespace WebUI {
         log_to(out, "ESPname FullName         Description");
         log_to(out, "------- --------         -----------");
         ;
-        for (Setting* setting = Setting::List; setting; setting = setting->next()) {
+        for (Setting* setting : Setting::List) {
             if (setting->getType() == WEBSET) {
                 log_to(out,
                        "",
@@ -597,7 +621,7 @@ namespace WebUI {
         log_to(out, "ESPname FullName         Values");
         log_to(out, "------- --------         ------");
 
-        for (Command* cp = Command::List; cp; cp = cp->next()) {
+        for (Command* cp : Command::List) {
             if (cp->getType() == WEBCMD) {
                 LogStream s(out, "");
                 s << LeftJustify(cp->getGrblName() ? cp->getGrblName() : "", 8) << LeftJustify(cp->getName(), 25 - 8);
@@ -653,6 +677,7 @@ namespace WebUI {
         new WebCommand("path", WEBCMD, WU, NULL, "LocalFS/ListJSON", listLocalFilesJSON);
 #endif
         new WebCommand("path", WEBCMD, WU, NULL, "LocalFS/Delete", deleteLocalFile);
+        new WebCommand("path", WEBCMD, WU, NULL, "LocalFS/Rename", renameLocalObject);
         new WebCommand("path", WEBCMD, WU, NULL, "LocalFS/Backup", backupLocalFS);
         new WebCommand("path", WEBCMD, WU, NULL, "LocalFS/Restore", restoreLocalFS);
         new WebCommand("path", WEBCMD, WU, NULL, "LocalFS/Migrate", migrateLocalFS);
@@ -661,6 +686,7 @@ namespace WebUI {
         new WebCommand("path", WEBCMD, WU, "ESP221", "SD/Show", showSDFile);
         new WebCommand("path", WEBCMD, WU, "ESP220", "SD/Run", runSDFile);
         new WebCommand("file_or_directory_path", WEBCMD, WU, "ESP215", "SD/Delete", deleteSDObject);
+        new WebCommand("path", WEBCMD, WU, NULL, "SD/Rename", renameSDObject);
         new WebCommand(NULL, WEBCMD, WU, "ESP210", "SD/List", listSDFiles);
         new WebCommand(NULL, WEBCMD, WU, "ESP200", "SD/Status", showSDStatus);
 

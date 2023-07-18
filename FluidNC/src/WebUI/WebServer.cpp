@@ -32,7 +32,6 @@
 #    include "src/Protocol.h"  // protocol_send_event
 #    include "src/FluidPath.h"
 #    include "src/WebUI/JSONEncoder.h"
-#    include "Driver/localfs.h"
 
 #    include "src/HashFS.h"
 #    include <list>
@@ -59,7 +58,7 @@ namespace WebUI {
 
     static const char LOCATION_HEADER[] = "Location";
 
-    Web_Server webServer;
+    Web_Server webServer __attribute__((init_priority(108))) ;
     bool       Web_Server::_setupdone = false;
     uint16_t   Web_Server::_port      = 0;
 
@@ -190,7 +189,7 @@ namespace WebUI {
             MDNS.addService("http", "tcp", _port);
         }
 
-        HashFS::rehash();
+        HashFS::hash_all();
 
         _setupdone = true;
         return no_error;
@@ -226,13 +225,20 @@ namespace WebUI {
 
     // Send a file, either the specified path or path.gz
     bool Web_Server::myStreamFile(const char* path, bool download) {
-        std::string spath(path);
+        std::error_code ec;
+        FluidPath       fpath { path, localfsName, ec };
+        if (ec) {
+            return false;
+        }
+
         std::string hash;
         // Check for brower cache match
 
-        hash = HashFS::hash(spath);
+        hash = HashFS::hash(fpath);
         if (!hash.length()) {
-            hash = HashFS::hash(spath + ".gz");
+            std::filesystem::path gzpath(fpath);
+            gzpath += ".gz";
+            hash = HashFS::hash(gzpath);
         }
 
         if (hash.length() && std::string(_webserver->header("If-None-Match").c_str()) == hash) {
@@ -255,25 +261,24 @@ namespace WebUI {
         bool        isGzip = false;
         FileStream* file;
         try {
-            file = new FileStream(spath, "r", "");
+            file = new FileStream(path, "r", "");
         } catch (const Error err) {
             try {
-                file   = new FileStream(spath + ".gz", "r", "");
+                std::filesystem::path gzpath(fpath);
+                gzpath += ".gz";
+                file   = new FileStream(gzpath, "r", "");
                 isGzip = true;
             } catch (const Error err) {
-                log_debug(spath << " not found");
+                log_debug(path << " not found");
                 return false;
             }
         }
-        log_debug(spath << " found");
         if (download) {
             _webserver->sendHeader("Content-Disposition", "attachment");
         }
         if (hash.length()) {
             _webserver->sendHeader("ETag", hash.c_str());
         }
-
-        log_debug("path " << path << " CT " << getContentType(path) << " hash " << hash);
         _webserver->setContentLength(file->size());
         if (isGzip) {
             _webserver->sendHeader("Content-Encoding", "gzip");
@@ -325,7 +330,7 @@ namespace WebUI {
 
     void Web_Server::handle_root() {
         if (!(_webserver->hasArg("forcefallback") && _webserver->arg("forcefallback") == "yes")) {
-            if (myStreamFile("/index.html")) {
+            if (myStreamFile("index.html")) {
                 return;
             }
         }
@@ -364,7 +369,7 @@ namespace WebUI {
 
         // This lets the user customize the not-found page by
         // putting a "404.htm" file on the local filesystem
-        if (myStreamFile("/404.htm")) {
+        if (myStreamFile("404.htm")) {
             return;
         }
 
@@ -913,16 +918,21 @@ namespace WebUI {
             if (action == "delete") {
                 log_debug("Deleting " << fpath << " / " << filename);
                 if (stdfs::remove(fpath / filename, ec)) {
-                    fpath.rehash_fs();
                     sstatus = filename + " deleted";
+                    HashFS::delete_file(fpath / filename);
+
                 } else {
                     sstatus = "Cannot delete ";
                     sstatus += filename + " " + ec.message();
                 }
             } else if (action == "deletedir") {
-                if (stdfs::remove_all(fpath / filename.c_str(), ec)) {
+                stdfs::path dirpath { fpath / filename };
+                log_debug("Deleting directory " << dirpath);
+                int count = stdfs::remove_all(dirpath, ec);
+                if (count > 0) {
                     sstatus = filename + " deleted";
                 } else {
+                    log_debug("remove_all returned " << count);
                     sstatus = "Cannot delete ";
                     sstatus += filename + " " + ec.message();
                 }
@@ -932,6 +942,19 @@ namespace WebUI {
                 } else {
                     sstatus = "Cannot create ";
                     sstatus += filename + " " + ec.message();
+                }
+            } else if (action == "rename") {
+                if (!_webserver->hasArg("newname")) {
+                    sstatus = "Missing new filename";
+                } else {
+                    std::string newname = std::string(_webserver->arg("newname").c_str());
+                    std::filesystem::rename(fpath / filename, fpath / newname, ec);
+                    if (ec) {
+                        sstatus = "Cannot rename ";
+                        sstatus += filename + " " + ec.message();
+                    } else {
+                        sstatus = filename + " renamed to " + newname;
+                    }
                 }
             }
         }
@@ -1041,16 +1064,20 @@ namespace WebUI {
             //            delete _uploadFile;
             // _uploadFile = nullptr;
 
-            auto fpath = _uploadFile->fpath();
-            fpath.rehash_fs();
+            std::string pathname = _uploadFile->fpath();
             delete _uploadFile;
             _uploadFile = nullptr;
+            log_debug("pathname " << pathname);
+
+            FluidPath filepath { pathname, "" };
+
+            HashFS::rehash_file(filepath);
 
             // Check size
             if (filesize) {
                 uint32_t actual_size;
                 try {
-                    actual_size = stdfs::file_size(fpath);
+                    actual_size = stdfs::file_size(filepath);
                 } catch (const Error err) { actual_size = 0; }
 
                 if (filesize != actual_size) {
@@ -1075,9 +1102,10 @@ namespace WebUI {
         _upload_status = UploadStatus::FAILED;
         log_info("Upload cancelled");
         if (_uploadFile) {
-            _uploadFile->fpath().rehash_fs();
+            std::filesystem::path filepath = _uploadFile->fpath();
             delete _uploadFile;
             _uploadFile = nullptr;
+            HashFS::rehash_file(filepath);
         }
     }
     void Web_Server::uploadCheck() {
@@ -1085,11 +1113,11 @@ namespace WebUI {
         if (_upload_status == UploadStatus::FAILED) {
             cancelUpload();
             if (_uploadFile) {
-                auto fpath = _uploadFile->fpath();
+                std::filesystem::path filepath = _uploadFile->fpath();
                 delete _uploadFile;
                 _uploadFile = nullptr;
-                stdfs::remove(fpath, error_code);
-                fpath.rehash_fs();
+                stdfs::remove(filepath, error_code);
+                HashFS::rehash_file(filepath);
             }
         }
     }

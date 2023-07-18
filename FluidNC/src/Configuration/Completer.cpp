@@ -81,7 +81,7 @@ int num_initial_matches(char* key, int keylen, int matchnum, char* matchname) {
         nfound = completer._numMatches;
     } else {
         // Match NVS settings
-        for (Setting* s = Setting::List; s; s = s->next()) {
+        for (Setting* s : Setting::List) {
             if (isInitialSubstringCI(key, s->getName())) {
                 if (matchname && nfound == matchnum) {
                     strcpy(matchname, s->getName());

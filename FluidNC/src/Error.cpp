@@ -57,6 +57,7 @@ std::map<Error, const char*> ErrorNames = {
     { Error::FsFailedBusy, "Device is busy" },
     { Error::FsFailedDelDir, "Failed to delete directory" },
     { Error::FsFailedDelFile, "Failed to delete file" },
+    { Error::FsFailedRenameFile, "Failed to rename file" },
     { Error::FsFailedCreateFile, "Failed to create file" },
     { Error::FsFailedFormat, "Failed to format filesystem" },
     { Error::NumberRange, "Number out of range for setting" },

@@ -15,7 +15,7 @@
 #include "NotificationsService.h"
 
 namespace WebUI {
-    NotificationsService notificationsService;
+    NotificationsService notificationsService __attribute__((init_priority(106))) ;
 }
 
 #ifdef ENABLE_WIFI

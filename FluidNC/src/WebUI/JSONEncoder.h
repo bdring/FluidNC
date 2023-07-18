@@ -19,6 +19,7 @@ namespace WebUI {
         void quoted(const char* s);
         void inc_level();
         void dec_level();
+        void indent();
         void line();
 
         std::string linebuf;
