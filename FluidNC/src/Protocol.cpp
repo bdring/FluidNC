@@ -234,6 +234,12 @@ void start_polling() {
     }
 }
 
+static void alarm_msg(ExecAlarm alarm_code) {
+    log_info_to(allChannels, "ALARM: " << alarmString(alarm_code));
+    log_to(allChannels, "ALARM:", static_cast<int>(alarm_code));
+    delay_ms(500);  // Force delay to ensure message clears serial write buffer.
+}
+
 static void check_startup_state() {
     // Check for and report alarm state after a reset, error, or an initial power up.
     // NOTE: Sleep mode disables the stepper drivers and position can't be guaranteed.
@@ -242,10 +248,16 @@ static void check_startup_state() {
         report_error_message(Message::ConfigAlarmLock);
     } else {
         // Perform some machine checks to make sure everything is good to go.
-        if (config->_start->_checkLimits && config->_axes->hasHardLimits()) {
-            if (limits_get_state()) {
+        if (config->_start->_checkLimits) {
+            if (config->_axes->hasHardLimits() && limits_get_state()) {
                 sys.state = State::Alarm;  // Ensure alarm state is active.
+                alarm_msg(ExecAlarm::HardLimit);
                 report_error_message(Message::CheckLimits);
+            }
+            if (config->_axes->_sharedFaultPin.defined() && config->_axes->_sharedFaultPin.read()) {
+                sys.state = State::Alarm;  // Ensure alarm state is active.
+                alarm_msg(ExecAlarm::FaultPin);
+                report_error_message(Message::DriverFault);
             }
         }
         if (config->_control->startup_check()) {
@@ -365,12 +377,6 @@ void protocol_execute_realtime() {
     if (sys.suspend.value) {
         protocol_exec_rt_suspend();
     }
-}
-
-static void alarm_msg(ExecAlarm alarm_code) {
-    log_info_to(allChannels, "ALARM: " << alarmString(alarm_code));
-    log_to(allChannels, "ALARM:", static_cast<int>(alarm_code));
-    delay_ms(500);  // Force delay to ensure message clears serial write buffer.
 }
 
 // Executes run-time commands, when required. This function is the primary state

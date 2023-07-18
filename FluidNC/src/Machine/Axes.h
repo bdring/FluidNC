@@ -17,8 +17,6 @@ namespace Machine {
     class Axes : public Configuration::Configurable {
         bool _switchedStepper = false;
 
-        Pin _sharedFaultPin;
-
     public:
         static constexpr const char* _names = "XYZABC";
 
@@ -33,6 +31,7 @@ namespace Machine {
 
         Pin _sharedStepperDisable;
         Pin _sharedStepperReset;
+        Pin _sharedFaultPin;
 
         inline char axisName(int index) { return index < MAX_N_AXIS ? _names[index] : '?'; }  // returns axis letter
 

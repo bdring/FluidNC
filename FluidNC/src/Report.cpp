@@ -121,6 +121,7 @@ std::map<Message, const char*> MessageText = {
     { Message::RestoreDefaults, "Restoring defaults" },
     { Message::SpindleRestore, "Restoring spindle" },
     { Message::SleepMode, "Sleeping" },
+    { Message::DriverFault, "Driver fault" },
     { Message::ConfigAlarmLock, "Configuration is invalid. Check boot messages for ERR's." },
     // Handled separately due to numeric argument
     // { Message::FileQuit, "Reset during file job at line: %d" },
