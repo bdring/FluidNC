@@ -409,7 +409,7 @@ static Error show_limits(const char* value, WebUI::AuthenticationLevel auth_leve
     log_to(out, "Send ! to exit");
     log_to(out, "Homing Axes : ", limit_set(Machine::Axes::homingMask));
     log_to(out, "Limit Axes : ", limit_set(Machine::Axes::limitMask));
-    log_to(out, "  PosLimitPins NegLimitPins Probe Fault");
+    log_to(out, "  PosLimitPins NegLimitPins Probe");
 
     const TickType_t interval = 500;
     TickType_t       limit    = xTaskGetTickCount();
