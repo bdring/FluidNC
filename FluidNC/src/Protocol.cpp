@@ -18,7 +18,6 @@
 #include "MotionControl.h"  // PARKING_MOTION_LINE_NUMBER
 #include "Settings.h"       // settings_execute_startup
 #include "Machine/LimitPin.h"
-#include "Machine/FaultPin.h"
 
 volatile ExecAlarm rtAlarm;  // Global realtime executor bitflag variable for setting various alarms.
 
@@ -253,11 +252,6 @@ static void check_startup_state() {
                 sys.state = State::Alarm;  // Ensure alarm state is active.
                 alarm_msg(ExecAlarm::HardLimit);
                 report_error_message(Message::CheckLimits);
-            }
-            if (config->_axes->_sharedFaultPin.defined() && config->_axes->_sharedFaultPin.read()) {
-                sys.state = State::Alarm;  // Ensure alarm state is active.
-                alarm_msg(ExecAlarm::FaultPin);
-                report_error_message(Message::DriverFault);
             }
         }
         if (config->_control->startup_check()) {
@@ -607,8 +601,7 @@ static void protocol_do_initiate_cycle() {
         sys.state         = pb->is_jog ? State::Jog : State::Cycle;
         Stepper::prep_buffer();  // Initialize step segment buffer before beginning cycle.
         Stepper::wake_up();
-    } else {  // Otherwise, do nothing. Set and resume IDLE state.
-
+    } else {                    // Otherwise, do nothing. Set and resume IDLE state.
         sys.suspend.value = 0;  // Break suspend state.
         sys.state         = State::Idle;
     }
@@ -1030,12 +1023,11 @@ static void protocol_do_limit(void* arg) {
     }
 }
 static void protocol_do_fault_pin(void* arg) {
-    Machine::FaultPin* faultPin = (Machine::FaultPin*)arg;
-    if (sys.state == State::Cycle || sys.state == State::Jog) {
-        if (rtAlarm == ExecAlarm::None) {
-            mc_reset();                     // Initiate system kill.
-            rtAlarm = ExecAlarm::FaultPin;  // Indicate fault pin critical event
+    if (rtAlarm == ExecAlarm::None) {
+        if (sys.state == State::Cycle || sys.state == State::Jog) {
+            mc_reset();  // Initiate system kill.
         }
+        rtAlarm = ExecAlarm::FaultPin;  // Indicate fault pin critical event
     }
 }
 ArgEvent feedOverrideEvent { protocol_do_feed_override };

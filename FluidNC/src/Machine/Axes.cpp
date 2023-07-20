@@ -37,12 +37,6 @@ namespace Machine {
             _sharedStepperReset.report("Shared stepper reset");
         }
 
-        if (_sharedFaultPin.defined()) {
-            _faultPin = new FaultPin(_sharedFaultPin);
-            _faultPin->init();
-        }
-
-
         // certain motors need features to be turned on. Check them here
         for (size_t axis = X_AXIS; axis < _numberAxis; axis++) {
             auto a = _axis[axis];
@@ -195,7 +189,6 @@ namespace Machine {
     void Axes::group(Configuration::HandlerBase& handler) {
         handler.item("shared_stepper_disable_pin", _sharedStepperDisable);
         handler.item("shared_stepper_reset_pin", _sharedStepperReset);
-        handler.item("shared_fault_pin", _sharedFaultPin);
 
         // Handle axis names xyzabc.  handler.section is inferred
         // from a template.

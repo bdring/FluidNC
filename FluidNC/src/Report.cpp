@@ -644,7 +644,7 @@ void report_realtime_status(Channel& channel) {
     msg << "|ISRs:" << Stepper::isr_count;
 #endif
 #ifdef DEBUG_REPORT_HEAP
-    msg << "|Heap:" << esp.getHeapSize();
+    msg << "|Heap:" << xPortGetFreeHeapSize();
 #endif
     msg << ">";
     // The destructor sends the line when msg goes out of scope

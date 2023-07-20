@@ -47,7 +47,7 @@ static bool auth_failed(Word* w, const char* value, WebUI::AuthenticationLevel a
             if (!value) {                              // User can read anything
                 return false;                          // No read is a User auth fail
             }
-            return permissions == WA;                  // User cannot write WA
+            return permissions == WA;  // User cannot write WA
         default:
             return true;
     }
@@ -136,7 +136,7 @@ void settings_restore(uint8_t restore_flag) {
         for (Setting* s : Setting::List) {
             if (!s->getDescription()) {
                 const char* name = s->getName();
-                if (restore_startup) {                                                      // all settings get restored
+                if (restore_startup) {  // all settings get restored
                     s->setDefault();
                 } else if ((strcmp(name, "Line0") != 0) && (strcmp(name, "Line1") != 0)) {  // non startup settings get restored
                     s->setDefault();
@@ -420,8 +420,7 @@ static Error show_limits(const char* value, WebUI::AuthenticationLevel auth_leve
             log_to(out,
                    ": ",
                    limit_set(Machine::Axes::posLimitMask)
-                       << " " << limit_set(Machine::Axes::negLimitMask) << (config->_probe->get_state() ? " P    " : "      ")
-                       << ((config->_axes->_faultPin && config->_axes->_faultPin->get()) ? " F" : ""));
+                       << " " << limit_set(Machine::Axes::negLimitMask) << (config->_probe->get_state() ? " P" : ""));
             limit = thisTime + interval;
         }
         vTaskDelay(1);
