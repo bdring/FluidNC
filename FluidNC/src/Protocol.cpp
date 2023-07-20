@@ -35,7 +35,7 @@ std::map<ExecAlarm, const char*> AlarmNames = {
     { ExecAlarm::SpindleControl, "Spindle Control" },
     { ExecAlarm::ControlPin, "Control Pin Initially On" },
     { ExecAlarm::HomingAmbiguousSwitch, "Ambiguous Switch" },
-    { ExecAlarm::FaultPin, "Fault Pin" },
+    { ExecAlarm::HardStop, "Hard Stop" },
 };
 
 const char* alarmString(ExecAlarm alarmNumber) {
@@ -385,7 +385,7 @@ static void protocol_do_alarm() {
     }
     sys.state = State::Alarm;  // Set system alarm state
     alarm_msg(rtAlarm);
-    if (rtAlarm == ExecAlarm::HardLimit || rtAlarm == ExecAlarm::SoftLimit || rtAlarm == ExecAlarm::FaultPin) {
+    if (rtAlarm == ExecAlarm::HardLimit || rtAlarm == ExecAlarm::SoftLimit || rtAlarm == ExecAlarm::HardStop) {
         report_error_message(Message::CriticalEvent);
         protocol_disable_steppers();
         rtReset = false;  // Disable any existing reset
@@ -1017,8 +1017,8 @@ static void protocol_do_limit(void* arg) {
     if (sys.state == State::Cycle || sys.state == State::Jog) {
         if (limit->isHard() && rtAlarm == ExecAlarm::None) {
             log_debug("Hard limits");
-            mc_reset();                      // Initiate system kill.
-            rtAlarm = ExecAlarm::HardLimit;  // Indicate hard limit critical event
+            mc_reset();  // Initiate system kill.
+            rtAlarm = ExecAlarm::HardLimit;
         }
     }
 }
@@ -1027,7 +1027,9 @@ static void protocol_do_fault_pin(void* arg) {
         if (sys.state == State::Cycle || sys.state == State::Jog) {
             mc_reset();  // Initiate system kill.
         }
-        rtAlarm = ExecAlarm::FaultPin;  // Indicate fault pin critical event
+        ControlPin* pin = (ControlPin*)arg;
+        log_info("Stopped by " << pin->_legend);
+        rtAlarm = ExecAlarm::HardStop;
     }
 }
 ArgEvent feedOverrideEvent { protocol_do_feed_override };

@@ -64,7 +64,7 @@ enum class ExecAlarm : uint8_t {
     SpindleControl        = 10,
     ControlPin            = 11,
     HomingAmbiguousSwitch = 12,
-    FaultPin              = 13,
+    HardStop              = 13,
 };
 
 extern volatile ExecAlarm rtAlarm;  // Global realtime executor variable for setting various alarms.

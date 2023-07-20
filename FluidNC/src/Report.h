@@ -37,7 +37,7 @@ enum class Message : uint8_t {
     SpindleRestore  = 10,
     SleepMode       = 11,
     ConfigAlarmLock = 12,
-    DriverFault     = 13,
+    HardStop        = 13,
     FileQuit        = 60,  // mc_reset was called during a file job
 };
 
