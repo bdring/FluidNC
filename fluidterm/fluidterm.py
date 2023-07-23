@@ -626,6 +626,10 @@ class Miniterm(object):
 
     def reader(self):
         """loop and copy serial->console"""
+        for _ in range(5):
+            time.sleep(.1)
+            self.console.write('.')
+        self.console.write('\n')
         try:
             while self.alive and self._reader_alive:
                 # read all that is there or wait for one byte
@@ -676,7 +680,7 @@ class Miniterm(object):
         # If you restart FluidNC with $bye or the reset switch, you
         # will have to trigger interactive mode manually
         time.sleep(2) # Time for FluidNC to be ready for input
-        self.enable_fluid_echo();
+        self.enable_fluid_echo()
 
         try:
             while self.alive:
