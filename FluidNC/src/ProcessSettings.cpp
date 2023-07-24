@@ -253,9 +253,8 @@ static Error toggle_check_mode(const char* value, WebUI::AuthenticationLevel aut
     // idle and ready, regardless of alarm locks. This is mainly to keep things
     // simple and consistent.
     if (sys.state == State::CheckMode) {
-        log_debug("Check mode");
-        mc_reset();
         report_feedback_message(Message::Disabled);
+        sys.abort = true;
     } else {
         if (sys.state != State::Idle) {
             return Error::IdleError;  // Requires no alarm mode.

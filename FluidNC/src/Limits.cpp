@@ -5,14 +5,14 @@
 #include "Limits.h"
 
 #include "Machine/MachineConfig.h"
-#include "MotionControl.h"  // mc_reset
+#include "MotionControl.h"  // mc_critical
 #include "System.h"         // sys.*
 #include "Protocol.h"       // protocol_execute_realtime
 #include "Platform.h"       // WEAK_LINK
 
 #include <freertos/task.h>
 #include <freertos/queue.h>
-#include <atomic>             // fence
+#include <atomic>  // fence
 
 xQueueHandle limit_sw_queue;  // used by limit switch debouncing
 
@@ -43,10 +43,10 @@ MotorMask limits_get_state() {
     return Machine::Axes::posLimitMask | Machine::Axes::negLimitMask;
 }
 
+// Called only from Kinematics canHome() methods, hence from states allowing homing
 bool ambiguousLimit() {
     if (Machine::Axes::posLimitMask & Machine::Axes::negLimitMask) {
-        mc_reset();  // Issue system reset and ensure spindle and coolant are shutdown.
-        rtAlarm = ExecAlarm::HardLimit;
+        mc_critical(ExecAlarm::HardLimit);
         return true;
     }
     return false;
@@ -85,7 +85,7 @@ void constrainToSoftLimits(float* cartesian) {
 
                 // if jog is positive and only the positive switch is active, then kill the move
                 // if jog is negative and only the negative switch is active, then kill the move
-                if (posLimited != negLimited) {                    // XOR, because ambiguous (both) is OK
+                if (posLimited != negLimited) {  // XOR, because ambiguous (both) is OK
                     if ((negLimited && (jog_dist < 0)) || (posLimited && (jog_dist > 0))) {
                         cartesian[axis] = current_position[axis];  // cancel the move on this axis
                         log_debug("Jog into active switch blocked on " << Machine::Axes::_names[axis]);
@@ -144,33 +144,9 @@ void limits_soft_check(float* cartesian) {
             } while (sys.state != State::Idle);
         }
         log_debug("Soft limits");
-        mc_reset();                      // Issue system reset and ensure spindle and coolant are shutdown.
-        rtAlarm = ExecAlarm::SoftLimit;  // Indicate soft limit critical event
-        protocol_execute_realtime();     // Execute to enter critical event loop and system abort
+        mc_critical(ExecAlarm::SoftLimit);
     }
 }
-
-#ifdef LATER  // We need to rethink debouncing
-void limitCheckTask(void* pvParameters) {
-    while (true) {
-        std::atomic_thread_fence(std::memory_order::memory_order_seq_cst);  // read fence for settings
-
-        int evt;
-        xQueueReceive(limit_sw_queue, &evt, portMAX_DELAY);            // block until receive queue
-        vTaskDelay(config->_softwareDebounceMs / portTICK_PERIOD_MS);  // delay a while
-        auto switch_state = limits_get_state();
-        if (switch_state) {
-            log_debug("Limit Switch State " << to_hex(switch_state));
-            mc_reset();                      // Initiate system kill.
-            rtAlarm = ExecAlarm::HardLimit;  // Indicate hard limit critical event
-        }
-        static UBaseType_t uxHighWaterMark = 0;
-#    ifdef DEBUG_TASK_STACK
-        reportTaskStackSize(uxHighWaterMark);
-#    endif
-    }
-}
-#endif
 
 float limitsMaxPosition(size_t axis) {
     auto  axisConfig = config->_axes->_axis[axis];

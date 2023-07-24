@@ -102,9 +102,9 @@ void mc_cancel_jog() {
 // unless invert_feed_rate is true. Then the feed_rate means that the motion should be completed in
 // (1 minute)/feed_rate time.
 bool mc_linear(float* target, plan_line_data_t* pl_data, float* position) {
-    if (!pl_data->is_jog) { // soft limits for jogs have already been dealt with
+    if (!pl_data->is_jog) {  // soft limits for jogs have already been dealt with
         limits_soft_check(target);
-    }    
+    }
     return config->_kinematics->cartesian_to_motors(target, pl_data, position);
 }
 
@@ -368,30 +368,6 @@ void mc_override_ctrl_update(Override override_state) {
     sys.override_ctrl = override_state;
 }
 
-// Method to ready the system to reset by setting the realtime reset command and killing any
-// active processes in the system. This also checks if a system reset is issued while in
-// motion state. If so, kills the steppers and sets the system alarm to flag position
-// lost, since there was an abrupt uncontrolled deceleration. Called at an interrupt level by
-// realtime abort command and hard limits. So, keep to a minimum.  Stuff that cannot be
-// done quickly is handled later when Protocol.cpp responds to rtReset.
-void mc_reset() {
-    // Only this function can set the system reset. Helps prevent multiple kill calls.
-    if (!rtReset) {
-        rtReset = true;
-
-        // Kill steppers only if in any motion state, i.e. cycle, actively holding, or homing.
-        // NOTE: If steppers are kept enabled via the step idle delay setting, this also keeps
-        // the steppers enabled by avoiding the go_idle call altogether, unless the motion state is
-        // violated, by which, all bets are off.
-        if (inMotionState() || sys.step_control.executeHold || sys.step_control.executeSysMotion) {
-            if (sys.state == State::Homing) {
-                if (rtAlarm == ExecAlarm::None) {
-                    rtAlarm = ExecAlarm::HomingFailReset;
-                }
-            } else {
-                rtAlarm = ExecAlarm::AbortCycle;
-            }
-            Stepper::stop_stepping();  // Stop stepping immediately, possibly losing position
-        }
-    }
+void mc_critical(ExecAlarm alarm) {
+    rtAlarm = alarm;
 }

@@ -2,7 +2,6 @@
 #include "src/Machine/Axes.h"
 #include "src/Machine/MachineConfig.h"  // config
 
-#include "src/MotionControl.h"  // mc_reset
 #include "src/Limits.h"
 #include "src/Protocol.h"  // protocol_send_event_from_ISR()
 

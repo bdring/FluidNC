@@ -1,10 +1,9 @@
 #include "Homing.h"
 
-#include "../MotionControl.h"  // mc_reset
-#include "../System.h"         // sys.*
-#include "../Stepper.h"        // st_wake
-#include "../Protocol.h"       // protocol_handle_events
-#include "../Limits.h"         // ambiguousLimit
+#include "../System.h"    // sys.*
+#include "../Stepper.h"   // st_wake
+#include "../Protocol.h"  // protocol_handle_events
+#include "../Limits.h"    // ambiguousLimit
 #include "../Machine/Axes.h"
 #include "../Machine/MachineConfig.h"  // config
 

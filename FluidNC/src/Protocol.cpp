@@ -43,8 +43,6 @@ const char* alarmString(ExecAlarm alarmNumber) {
     return it == AlarmNames.end() ? NULL : it->second;
 }
 
-volatile bool rtReset;
-
 static volatile bool rtSafetyDoor;
 
 volatile bool runLimitLoop;  // Interface to show_limits()
@@ -74,12 +72,8 @@ static SpindleStop spindle_stop_ovr;
 void protocol_reset() {
     probeState             = ProbeState::Off;
     soft_limit             = false;
-    rtReset                = false;
     rtSafetyDoor           = false;
     spindle_stop_ovr.value = 0;
-
-    // Do not clear rtAlarm because it might have been set during configuration
-    // rtAlarm = ExecAlarm::None;
 }
 
 static int32_t idleEndTime = 0;
@@ -380,25 +374,22 @@ static void protocol_do_alarm() {
     if (rtAlarm == ExecAlarm::None) {
         return;
     }
+    if (inMotionState() || sys.step_control.executeHold || sys.step_control.executeSysMotion) {
+        Stepper::stop_stepping();  // Stop stepping immediately, possibly losing position
+    }
     if (spindle->_off_on_alarm) {
         spindle->stop();
     }
-    sys.state = State::Alarm;  // Set system alarm state
     alarm_msg(rtAlarm);
     if (rtAlarm == ExecAlarm::HardLimit || rtAlarm == ExecAlarm::SoftLimit || rtAlarm == ExecAlarm::HardStop) {
+        rtAlarm   = ExecAlarm::None;
+        sys.state = State::Critical;  // Set system alarm state
         report_error_message(Message::CriticalEvent);
         protocol_disable_steppers();
-        rtReset = false;  // Disable any existing reset
-        do {
-            protocol_handle_events();
-            // Block everything except reset and status reports until user issues reset or power
-            // cycles. Hard limits typically occur while unattended or not paying attention. Gives
-            // the user and a GUI time to do what is needed before resetting, like killing the
-            // incoming stream. The same could be said about soft limits. While the position is not
-            // lost, continued streaming could cause a serious crash if by chance it gets executed.
-        } while (!rtReset);
+        return;
     }
-    rtAlarm = ExecAlarm::None;
+    rtAlarm   = ExecAlarm::None;
+    sys.state = State::Alarm;
 }
 
 static void protocol_start_holding() {
@@ -747,7 +738,7 @@ static void update_velocities() {
     plan_cycle_reinitialize();
 }
 
-// This is the final phase of the shutdown activity that is initiated by mc_reset().
+// This is the final phase of the shutdown activity that is initiated by mc_critical().
 // The stuff herein is not necessarily safe to do in an ISR.
 static void protocol_do_late_reset() {
     // Kill spindle and coolant.
@@ -766,18 +757,7 @@ static void protocol_do_late_reset() {
 }
 
 void protocol_exec_rt_system() {
-    protocol_do_alarm();  // If there is a hard or soft limit, this will block until rtReset is set
-
-    if (rtReset) {
-        rtReset = false;
-        if (sys.state == State::Homing) {
-            Machine::Homing::fail(ExecAlarm::HomingFailReset);
-        }
-        protocol_do_late_reset();
-        // Trigger system abort.
-        sys.abort = true;  // Only place this is set true.
-        return;            // Nothing else to do but exit.
-    }
+    protocol_do_alarm();
 
     if (rtSafetyDoor) {
         protocol_do_safety_door();
@@ -1017,21 +997,32 @@ static void protocol_do_limit(void* arg) {
     if (sys.state == State::Cycle || sys.state == State::Jog) {
         if (limit->isHard() && rtAlarm == ExecAlarm::None) {
             log_debug("Hard limits");
-            mc_reset();  // Initiate system kill.
-            rtAlarm = ExecAlarm::HardLimit;
+            mc_critical(ExecAlarm::HardLimit);
         }
     }
 }
 static void protocol_do_fault_pin(void* arg) {
     if (rtAlarm == ExecAlarm::None) {
         if (sys.state == State::Cycle || sys.state == State::Jog) {
-            mc_reset();  // Initiate system kill.
+            mc_critical(ExecAlarm::HardStop);  // Initiate system kill.
         }
         ControlPin* pin = (ControlPin*)arg;
         log_info("Stopped by " << pin->_legend);
-        rtAlarm = ExecAlarm::HardStop;
     }
 }
+void protocol_do_rt_reset() {
+    if (sys.state == State::Homing) {
+        Machine::Homing::fail(ExecAlarm::HomingFailReset);
+    } else if (sys.state == State::Cycle || sys.state == State::Jog || sys.step_control.executeHold || sys.step_control.executeSysMotion) {
+        Stepper::stop_stepping();  // Stop stepping immediately, possibly losing position
+        rtAlarm = ExecAlarm::AbortCycle;
+    } else if (sys.state == State::Critical) {
+        sys.state == State::Alarm;
+    }
+    protocol_do_late_reset();
+    sys.abort = true;  // Trigger system abort.
+}
+
 ArgEvent feedOverrideEvent { protocol_do_feed_override };
 ArgEvent rapidOverrideEvent { protocol_do_rapid_override };
 ArgEvent spindleOverrideEvent { protocol_do_spindle_override };
@@ -1049,8 +1040,7 @@ NoArgEvent motionCancelEvent { protocol_do_motion_cancel };
 NoArgEvent sleepEvent { protocol_do_sleep };
 NoArgEvent debugEvent { report_realtime_debug };
 
-// Only mc_reset() is permitted to set rtReset.
-NoArgEvent resetEvent { mc_reset };
+NoArgEvent rtResetEvent { protocol_do_rt_reset };
 
 // The problem is that report_realtime_status needs a channel argument
 // Event statusReportEvent { protocol_do_status_report(XXX) };

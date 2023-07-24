@@ -44,7 +44,6 @@ void protocol_buffer_synchronize();
 void protocol_disable_steppers();
 void protocol_cancel_disable_steppers();
 
-extern volatile bool rtReset;
 extern volatile bool rtCycleStop;
 
 extern volatile bool runLimitLoop;
@@ -96,7 +95,7 @@ extern NoArgEvent cycleStartEvent;
 extern NoArgEvent cycleStopEvent;
 extern NoArgEvent motionCancelEvent;
 extern NoArgEvent sleepEvent;
-extern NoArgEvent resetEvent;
+extern NoArgEvent rtResetEvent;
 extern NoArgEvent debugEvent;
 
 // extern NoArgEvent statusReportEvent;
