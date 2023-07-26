@@ -38,7 +38,13 @@ std::map<ExecAlarm, const char*> AlarmNames = {
     { ExecAlarm::SpindleControl, "Spindle Control" },
     { ExecAlarm::ControlPin, "Control Pin Initially On" },
     { ExecAlarm::HomingAmbiguousSwitch, "Ambiguous Switch" },
+    { ExecAlarm::HardStop, "Hard Stop" },
 };
+
+const char* alarmString(ExecAlarm alarmNumber) {
+    auto it = AlarmNames.find(alarmNumber);
+    return it == AlarmNames.end() ? NULL : it->second;
+}
 
 volatile bool rtReset;
 
@@ -230,6 +236,12 @@ void start_polling() {
     }
 }
 
+static void alarm_msg(ExecAlarm alarm_code) {
+    log_info_to(allChannels, "ALARM: " << alarmString(alarm_code));
+    log_to(allChannels, "ALARM:", static_cast<int>(alarm_code));
+    delay_ms(500);  // Force delay to ensure message clears serial write buffer.
+}
+
 static void check_startup_state() {
     // Check for and report alarm state after a reset, error, or an initial power up.
     // NOTE: Sleep mode disables the stepper drivers and position can't be guaranteed.
@@ -238,9 +250,10 @@ static void check_startup_state() {
         report_error_message(Message::ConfigAlarmLock);
     } else {
         // Perform some machine checks to make sure everything is good to go.
-        if (config->_start->_checkLimits && config->_axes->hasHardLimits()) {
-            if (limits_get_state()) {
+        if (config->_start->_checkLimits) {
+            if (config->_axes->hasHardLimits() && limits_get_state()) {
                 sys.state = State::Alarm;  // Ensure alarm state is active.
+                alarm_msg(ExecAlarm::HardLimit);
                 report_error_message(Message::CheckLimits);
             }
         }
@@ -363,11 +376,6 @@ void protocol_execute_realtime() {
     }
 }
 
-static void alarm_msg(ExecAlarm alarm_code) {
-    log_to(allChannels, "ALARM:", static_cast<int>(alarm_code));
-    delay_ms(500);  // Force delay to ensure message clears serial write buffer.
-}
-
 // Executes run-time commands, when required. This function is the primary state
 // machine that controls the various real-time features.
 // NOTE: Do not alter this unless you know exactly what you are doing!
@@ -380,7 +388,7 @@ static void protocol_do_alarm() {
     }
     sys.state = State::Alarm;  // Set system alarm state
     alarm_msg(rtAlarm);
-    if (rtAlarm == ExecAlarm::HardLimit) {
+    if (rtAlarm == ExecAlarm::HardLimit || rtAlarm == ExecAlarm::HardStop) {
         report_error_message(Message::CriticalEvent);
         protocol_disable_steppers();
         rtReset = false;  // Disable any existing reset
@@ -603,7 +611,6 @@ static void protocol_do_initiate_cycle() {
         Stepper::prep_buffer();  // Initialize step segment buffer before beginning cycle.
         Stepper::wake_up();
     } else {                     // Otherwise, do nothing. Set and resume IDLE state.
-
         sys.suspend.value = 0;   // Break suspend state.
         sys.state         = State::Idle;
     }
@@ -714,6 +721,7 @@ void protocol_do_cycle_stop() {
             // Fall through
         case State::ConfigAlarm:
         case State::Alarm:
+            break;
         case State::CheckMode:
         case State::Idle:
         case State::Cycle:
@@ -1018,10 +1026,19 @@ static void protocol_do_limit(void* arg) {
     if (sys.state == State::Cycle || sys.state == State::Jog) {
         if (limit->isHard() && rtAlarm == ExecAlarm::None) {
             log_debug("Hard limits");
-            mc_reset();                      // Initiate system kill.
-            rtAlarm = ExecAlarm::HardLimit;  // Indicate hard limit critical event
+            mc_reset();  // Initiate system kill.
+            rtAlarm = ExecAlarm::HardLimit;
         }
-        return;
+    }
+}
+static void protocol_do_fault_pin(void* arg) {
+    if (rtAlarm == ExecAlarm::None) {
+        if (sys.state == State::Cycle || sys.state == State::Jog) {
+            mc_reset();  // Initiate system kill.
+        }
+        ControlPin* pin = (ControlPin*)arg;
+        log_info("Stopped by " << pin->_legend);
+        rtAlarm = ExecAlarm::HardStop;
     }
 }
 ArgEvent feedOverrideEvent { protocol_do_feed_override };
@@ -1029,6 +1046,7 @@ ArgEvent rapidOverrideEvent { protocol_do_rapid_override };
 ArgEvent spindleOverrideEvent { protocol_do_spindle_override };
 ArgEvent accessoryOverrideEvent { protocol_do_accessory_override };
 ArgEvent limitEvent { protocol_do_limit };
+ArgEvent faultPinEvent { protocol_do_fault_pin };
 
 ArgEvent reportStatusEvent { (void (*)(void*))report_realtime_status };
 

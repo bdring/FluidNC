@@ -50,7 +50,7 @@ static bool auth_failed(Word* w, const char* value, WebUI::AuthenticationLevel a
             if (!value) {                              // User can read anything
                 return false;                          // No read is a User auth fail
             }
-            return permissions == WA;                  // User cannot write WA
+            return permissions == WA;  // User cannot write WA
         default:
             return true;
     }
@@ -139,7 +139,7 @@ void settings_restore(uint8_t restore_flag) {
         for (Setting* s : Setting::List) {
             if (!s->getDescription()) {
                 const char* name = s->getName();
-                if (restore_startup) {                                                      // all settings get restored
+                if (restore_startup) {  // all settings get restored
                     s->setDefault();
                 } else if ((strcmp(name, "Line0") != 0) && (strcmp(name, "Line1") != 0)) {  // non startup settings get restored
                     s->setDefault();
@@ -497,11 +497,6 @@ static Error doJog(const char* value, WebUI::AuthenticationLevel auth_level, Cha
     strcpy(jogLine, "$J=");
     strcat(jogLine, value);
     return gc_execute_line(jogLine);
-}
-
-static const char* alarmString(ExecAlarm alarmNumber) {
-    auto it = AlarmNames.find(alarmNumber);
-    return it == AlarmNames.end() ? NULL : it->second;
 }
 
 static Error listAlarms(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {

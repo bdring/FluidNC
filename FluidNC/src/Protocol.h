@@ -64,12 +64,15 @@ enum class ExecAlarm : uint8_t {
     SpindleControl        = 10,
     ControlPin            = 11,
     HomingAmbiguousSwitch = 12,
+    HardStop              = 13,
 };
 
 extern volatile ExecAlarm rtAlarm;  // Global realtime executor variable for setting various alarms.
 
 #include <map>
 extern std::map<ExecAlarm, const char*> AlarmNames;
+
+const char* alarmString(ExecAlarm alarmNumber);
 
 #include "Event.h"
 enum AccessoryOverride {
@@ -83,6 +86,7 @@ extern ArgEvent rapidOverrideEvent;
 extern ArgEvent spindleOverrideEvent;
 extern ArgEvent accessoryOverrideEvent;
 extern ArgEvent limitEvent;
+extern ArgEvent faultPinEvent;
 
 extern ArgEvent reportStatusEvent;
 
