@@ -27,43 +27,43 @@ else:
 
     # Check to see if the head commit exactly matches a tag.
     # If so, the revision is "release", otherwise it is BRANCH-COMMIT
-    try:
-        subprocess.check_call(["git", "describe", "--tags", "--exact"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        rev = ''
-        branchname = ''
-        revision = ''
-        repo = ''
+    # try:
+subprocess.check_call(["git", "describe", "--tags", "--exact"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+rev = ''
+branchname = ''
+revision = ''
+repo = ''
 
 
-    except:
-        branchname = (
-            subprocess.check_output(["git", "rev-parse", "--abbrev-ref", "HEAD"])
-            .strip()
-            .decode("utf-8")
-        )
-        
-        
-        revision = (
-            subprocess.check_output(["git", "rev-parse", "--short", "HEAD"])
-            .strip()
-            .decode("utf-8")
-        )
-        modified = (
-            subprocess.check_output(["git", "status", "-uno", "-s"])
-            .strip()
-            .decode("utf-8")
-        )
-        repo = (
-            subprocess.check_output(["git", "config", "--get", "remote.origin.url"])
-            .strip()
-            .decode("utf-8")
-        )
-        if modified:
-            dirty = "-avataar120-Beta"
-        else:
-            dirty = "-avataar120-Release"
+    # except:
+branchname = (
+    subprocess.check_output(["git", "rev-parse", "--abbrev-ref", "HEAD"])
+    .strip()
+    .decode("utf-8")
+)
 
-        rev = " (%s-%s%s)" % (branchname, revision, dirty)
+
+revision = (
+    subprocess.check_output(["git", "rev-parse", "--short", "HEAD"])
+    .strip()
+    .decode("utf-8")
+)
+modified = (
+    subprocess.check_output(["git", "status", "-uno", "-s"])
+    .strip()
+    .decode("utf-8")
+)
+repo = (
+    subprocess.check_output(["git", "config", "--get", "remote.origin.url"])
+    .strip()
+    .decode("utf-8")
+)
+if modified:
+    dirty = "-avataar120-Beta"
+else:
+    dirty = "-avataar120-Release"
+
+rev = " (%s-%s%s)" % (branchname, revision, dirty)
 
 grbl_version = tag.rpartition('.')[0]
 git_info = '%s%s' % (tag, rev)
