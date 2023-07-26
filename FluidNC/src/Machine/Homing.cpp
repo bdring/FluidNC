@@ -351,7 +351,7 @@ namespace Machine {
 
     void Homing::fail(ExecAlarm alarm) {
         Stepper::reset();  // Stop moving
-        rtAlarm = alarm;
+        send_alarm(alarm);
         config->_axes->set_homing_mode(_cycleAxes, false);  // tell motors homing is done...failed
         config->_axes->set_disable(config->_stepping->_idleMsecs != 255);
     }

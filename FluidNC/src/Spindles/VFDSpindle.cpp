@@ -244,8 +244,8 @@ namespace Spindles {
                     pollidx      = -1;
                 }
                 if (next_cmd.critical) {
-                    log_error("Critical VFD RS485 Unresponsive");
                     mc_critical(ExecAlarm::SpindleControl);
+                    log_error("Critical VFD RS485 Unresponsive");
                 }
             }
         }
@@ -364,8 +364,8 @@ namespace Spindles {
 #endif
 
             if (unchanged == limit) {
-                log_error(name() << " spindle did not reach device units " << dev_speed << ". Reported value is " << _sync_dev_speed);
                 mc_critical(ExecAlarm::SpindleControl);
+                log_error(name() << " spindle did not reach device units " << dev_speed << ". Reported value is " << _sync_dev_speed);
             }
 
             _syncing = false;
@@ -415,9 +415,9 @@ namespace Spindles {
             action.action   = actionSetSpeed;
             action.arg      = dev_speed;
             action.critical = (dev_speed == 0);
-            if (xQueueSendFromISR(vfd_cmd_queue, &action, 0) != pdTRUE) {
-                log_info("VFD Queue Full");
-            }
+            // Ignore errors because reporting is not safe from an ISR.
+            // Perhaps set a flag instead?
+            xQueueSendFromISR(vfd_cmd_queue, &action, 0);
         }
     }
 

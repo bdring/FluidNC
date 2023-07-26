@@ -267,12 +267,12 @@ static Error toggle_check_mode(const char* value, WebUI::AuthenticationLevel aut
 static Error isStuck() {
     // Block if a control pin is stuck on
     if (config->_control->safety_door_ajar()) {
-        rtAlarm = ExecAlarm::ControlPin;
+        send_alarm(ExecAlarm::ControlPin);
         return Error::CheckDoor;
     }
     if (config->_control->stuck()) {
         log_info("Control pins:" << config->_control->report_status());
-        rtAlarm = ExecAlarm::ControlPin;
+        send_alarm(ExecAlarm::ControlPin);
         return Error::CheckControlPins;
     }
     return Error::Ok;
@@ -495,8 +495,8 @@ static Error doJog(const char* value, WebUI::AuthenticationLevel auth_level, Cha
 static Error listAlarms(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
     if (sys.state == State::ConfigAlarm) {
         log_to(out, "Configuration alarm is active. Check the boot messages for 'ERR'.");
-    } else if (rtAlarm != ExecAlarm::None) {
-        log_to(out, "Active alarm: ", int(rtAlarm) << " (" << alarmString(rtAlarm));
+    } else if (sys.state == State::Alarm) {
+        log_to(out, "Active alarm: ", int(lastAlarm) << " (" << alarmString(lastAlarm));
     }
     if (value) {
         char*   endptr      = NULL;

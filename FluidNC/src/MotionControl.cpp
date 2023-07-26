@@ -291,7 +291,7 @@ GCUpdatePos mc_probe_cycle(float* target, plan_line_data_t* pl_data, bool away, 
     // After syncing, check if probe is already triggered. If so, halt and issue alarm.
     // NOTE: This probe initialization error applies to all probing cycles.
     if (config->_probe->tripped()) {
-        rtAlarm = ExecAlarm::ProbeFailInitial;
+        send_alarm(ExecAlarm::ProbeFailInitial);
         protocol_execute_realtime();
         config->_stepping->endLowLatency();
         return GCUpdatePos::None;  // Nothing else to do but bail.
@@ -318,7 +318,7 @@ GCUpdatePos mc_probe_cycle(float* target, plan_line_data_t* pl_data, bool away, 
         if (no_error) {
             copyAxes(probe_steps, get_motor_steps());
         } else {
-            rtAlarm = ExecAlarm::ProbeFailContact;
+            send_alarm(ExecAlarm::ProbeFailContact);
         }
     } else {
         probe_succeeded = true;  // Indicate to system the probing cycle completed successfully.
@@ -368,6 +368,15 @@ void mc_override_ctrl_update(Override override_state) {
     sys.override_ctrl = override_state;
 }
 
+// Method to ready the system to reset by setting the realtime reset command and killing any
+// active processes in the system. This also checks if a system reset is issued while in
+// motion state. If so, kills the steppers and sets the system alarm to flag position
+// lost, since there was an abrupt uncontrolled deceleration. Called at an interrupt level by
+// realtime abort command and hard limits. So, keep to a minimum.
 void mc_critical(ExecAlarm alarm) {
-    rtAlarm = alarm;
+    if (inMotionState() || sys.step_control.executeHold || sys.step_control.executeSysMotion) {
+        Stepper::reset();  // Stop stepping immediately, possibly losing position
+        //        Stepper::stop_stepping();  // Stop stepping immediately, possibly losing position
+    }
+    send_alarm(alarm);
 }

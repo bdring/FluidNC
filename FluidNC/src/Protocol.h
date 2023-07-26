@@ -66,7 +66,7 @@ enum class ExecAlarm : uint8_t {
     HardStop              = 13,
 };
 
-extern volatile ExecAlarm rtAlarm;  // Global realtime executor variable for setting various alarms.
+extern volatile ExecAlarm lastAlarm;
 
 #include <map>
 extern std::map<ExecAlarm, const char*> AlarmNames;
@@ -111,6 +111,9 @@ struct EventItem {
 
 void protocol_send_event(Event*, void* arg = 0);
 void protocol_handle_events();
+
+void send_alarm(ExecAlarm alarm);
+void send_alarm_from_ISR(ExecAlarm alarm);
 
 inline void protocol_send_event(Event* evt, int arg) {
     protocol_send_event(evt, (void*)arg);

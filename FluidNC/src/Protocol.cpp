@@ -19,7 +19,7 @@
 #include "Settings.h"       // settings_execute_startup
 #include "Machine/LimitPin.h"
 
-volatile ExecAlarm rtAlarm;  // Global realtime executor bitflag variable for setting various alarms.
+volatile ExecAlarm lastAlarm;  // The most recent alarm code
 
 std::map<ExecAlarm, const char*> AlarmNames = {
     { ExecAlarm::None, "None" },
@@ -249,7 +249,7 @@ static void check_startup_state() {
             }
         }
         if (config->_control->startup_check()) {
-            rtAlarm = ExecAlarm::ControlPin;
+            send_alarm(ExecAlarm::ControlPin);
         } else if (sys.state == State::Alarm || sys.state == State::Sleep) {
             report_feedback_message(Message::AlarmLock);
             sys.state = State::Alarm;  // Ensure alarm state is set.
@@ -370,25 +370,18 @@ void protocol_execute_realtime() {
 // Executes run-time commands, when required. This function is the primary state
 // machine that controls the various real-time features.
 // NOTE: Do not alter this unless you know exactly what you are doing!
-static void protocol_do_alarm() {
-    if (rtAlarm == ExecAlarm::None) {
-        return;
-    }
-    if (inMotionState() || sys.step_control.executeHold || sys.step_control.executeSysMotion) {
-        Stepper::stop_stepping();  // Stop stepping immediately, possibly losing position
-    }
+static void protocol_do_alarm(void* alarmVoid) {
+    lastAlarm = (ExecAlarm)((int)alarmVoid);
     if (spindle->_off_on_alarm) {
         spindle->stop();
     }
-    alarm_msg(rtAlarm);
-    if (rtAlarm == ExecAlarm::HardLimit || rtAlarm == ExecAlarm::SoftLimit || rtAlarm == ExecAlarm::HardStop) {
-        rtAlarm   = ExecAlarm::None;
+    alarm_msg(lastAlarm);
+    if (lastAlarm == ExecAlarm::HardLimit || lastAlarm == ExecAlarm::SoftLimit || lastAlarm == ExecAlarm::HardStop) {
         sys.state = State::Critical;  // Set system alarm state
         report_error_message(Message::CriticalEvent);
         protocol_disable_steppers();
         return;
     }
-    rtAlarm   = ExecAlarm::None;
     sys.state = State::Alarm;
 }
 
@@ -654,7 +647,7 @@ void protocol_disable_steppers() {
         config->_axes->set_disable(false);
         return;
     }
-    if (sys.state == State::Sleep || rtAlarm != ExecAlarm::None) {
+    if (sys.state == State::Sleep || sys.state == State::Alarm) {
         // Disable steppers immediately in sleep or alarm state
         config->_axes->set_disable(true);
         return;
@@ -738,7 +731,7 @@ static void update_velocities() {
     plan_cycle_reinitialize();
 }
 
-// This is the final phase of the shutdown activity that is initiated by mc_critical().
+// This is the final phase of the shutdown activity for a reset
 // The stuff herein is not necessarily safe to do in an ISR.
 static void protocol_do_late_reset() {
     // Kill spindle and coolant.
@@ -757,8 +750,6 @@ static void protocol_do_late_reset() {
 }
 
 void protocol_exec_rt_system() {
-    protocol_do_alarm();
-
     if (rtSafetyDoor) {
         protocol_do_safety_door();
     }
@@ -993,29 +984,25 @@ static void protocol_do_limit(void* arg) {
         Machine::Homing::limitReached();
         return;
     }
-    log_debug("Limit switch tripped for " << config->_axes->axisName(limit->_axis) << " motor " << limit->_motorNum);
-    if (sys.state == State::Cycle || sys.state == State::Jog) {
-        if (limit->isHard() && rtAlarm == ExecAlarm::None) {
-            log_debug("Hard limits");
-            mc_critical(ExecAlarm::HardLimit);
-        }
+    if ((sys.state == State::Cycle || sys.state == State::Jog) && limit->isHard()) {
+        mc_critical(ExecAlarm::HardLimit);
     }
+    log_debug("Limit switch tripped for " << config->_axes->axisName(limit->_axis) << " motor " << limit->_motorNum);
 }
 static void protocol_do_fault_pin(void* arg) {
-    if (rtAlarm == ExecAlarm::None) {
-        if (sys.state == State::Cycle || sys.state == State::Jog) {
-            mc_critical(ExecAlarm::HardStop);  // Initiate system kill.
-        }
-        ControlPin* pin = (ControlPin*)arg;
-        log_info("Stopped by " << pin->_legend);
+    if (sys.state == State::Cycle || sys.state == State::Jog) {
+        mc_critical(ExecAlarm::HardStop);  // Initiate system kill.
     }
+    ControlPin* pin = (ControlPin*)arg;
+    log_info("Stopped by " << pin->_legend);
 }
 void protocol_do_rt_reset() {
     if (sys.state == State::Homing) {
         Machine::Homing::fail(ExecAlarm::HomingFailReset);
     } else if (sys.state == State::Cycle || sys.state == State::Jog || sys.step_control.executeHold || sys.step_control.executeSysMotion) {
         Stepper::stop_stepping();  // Stop stepping immediately, possibly losing position
-        rtAlarm = ExecAlarm::AbortCycle;
+        // Probably unnecessary because system will restart soon
+        // send_alarm(ExecAlarm::AbortCycle);
     } else if (sys.state == State::Critical) {
         sys.state == State::Alarm;
     }
@@ -1044,6 +1031,7 @@ NoArgEvent rtResetEvent { protocol_do_rt_reset };
 
 // The problem is that report_realtime_status needs a channel argument
 // Event statusReportEvent { protocol_do_status_report(XXX) };
+ArgEvent alarmEvent { (void (*)(void*))protocol_do_alarm };
 
 xQueueHandle event_queue;
 
@@ -1066,4 +1054,10 @@ void protocol_handle_events() {
         // log_debug("event");
         item.event->run(item.arg);
     }
+}
+void send_alarm(ExecAlarm alarm) {
+    protocol_send_event(&alarmEvent, (void*)alarm);
+}
+void IRAM_ATTR send_alarm_from_ISR(ExecAlarm alarm) {
+    protocol_send_event_from_ISR(&alarmEvent, (void*)alarm);
 }
