@@ -116,35 +116,37 @@ void constrainToSoftLimits(float* cartesian) {
 // Performs a soft limit check. Called from mcline() only. Assumes the machine has been homed,
 // the workspace volume is in all negative space, and the system is in normal operation.
 // NOTE: Used by jogging to limit travel within soft-limit volume.
-void limits_soft_check(float* cartesian) {
-    bool limit_error = false;
+void limit_error(size_t axis, float coordinate) {
+    log_info("Soft limit on " << Machine::Axes::_names[axis] << " target:" << coordinate);
 
+    soft_limit = true;
+    // Force feed hold if cycle is active. All buffered blocks are guaranteed to be within
+    // workspace volume so just come to a controlled stop so position is not lost. When complete
+    // enter alarm mode.
+    protocol_buffer_synchronize();
+    if (sys.state == State::Cycle) {
+        protocol_send_event(&feedHoldEvent);
+        do {
+            protocol_execute_realtime();
+            if (sys.abort) {
+                return;
+            }
+        } while (sys.state != State::Idle);
+    }
+    mc_critical(ExecAlarm::SoftLimit);
+    log_debug("Soft limits");
+}
+
+void limits_soft_check(float* cartesian) {
     auto axes   = config->_axes;
     auto n_axis = config->_axes->_numberAxis;
 
     for (int axis = 0; axis < n_axis; axis++) {
-        if (axes->_axis[axis]->_softLimits && (cartesian[axis] < limitsMinPosition(axis) || cartesian[axis] > limitsMaxPosition(axis))) {
-            log_info("Soft limit on " << Machine::Axes::_names[axis] << " target:" << cartesian[axis]);
-            limit_error = true;
+        float coordinate = cartesian[axis];
+        if (axes->_axis[axis]->_softLimits && (coordinate < limitsMinPosition(axis) || coordinate > limitsMaxPosition(axis))) {
+            limit_error(axis, coordinate);
+            return;
         }
-    }
-
-    if (limit_error) {
-        soft_limit = true;
-        // Force feed hold if cycle is active. All buffered blocks are guaranteed to be within
-        // workspace volume so just come to a controlled stop so position is not lost. When complete
-        // enter alarm mode.
-        if (sys.state == State::Cycle) {
-            protocol_send_event(&feedHoldEvent);
-            do {
-                protocol_execute_realtime();
-                if (sys.abort) {
-                    return;
-                }
-            } while (sys.state != State::Idle);
-        }
-        log_debug("Soft limits");
-        mc_critical(ExecAlarm::SoftLimit);
     }
 }
 

@@ -16,6 +16,8 @@ void limits_init();
 // Returns limit state
 MotorMask limits_get_state();
 
+void limit_error(size_t axis, float cordinate);
+
 // Check for soft limit violations
 void limits_soft_check(float* cartesian);
 

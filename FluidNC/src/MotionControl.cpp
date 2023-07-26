@@ -101,11 +101,173 @@ void mc_cancel_jog() {
 // Execute linear motion in absolute millimeter coordinates. Feed rate given in millimeters/second
 // unless invert_feed_rate is true. Then the feed_rate means that the motion should be completed in
 // (1 minute)/feed_rate time.
+
+// mc_linear_no_check() is used by mc_arc() which pre-checks the arc limits using
+// a fast algorithm, so checking each segment is unnecessary.
+static bool mc_linear_no_check(float* target, plan_line_data_t* pl_data, float* position) {
+    return config->_kinematics->cartesian_to_motors(target, pl_data, position);
+}
 bool mc_linear(float* target, plan_line_data_t* pl_data, float* position) {
     if (!pl_data->is_jog) {  // soft limits for jogs have already been dealt with
         limits_soft_check(target);
     }
-    return config->_kinematics->cartesian_to_motors(target, pl_data, position);
+    return mc_linear_no_check(target, pl_data, position);
+}
+
+// Check that the arc does not exceed the soft limits using a fast
+// algorithm that requires no transcendental functions.
+// caxes[] depends on the plane selection via G17, G18, and G19.  caxes[0] is the first
+// circle plane axis, caxes[1] is the second circle plane axis, and caxes[2] is the
+// orthogonal plane.  So for G17 mode, caxes[] is { 0, 1, 2} for { X, Y, Z}.  G18 is {2, 0, 1} i.e. {Z, X, Y}, and G19 is {1, 2, 0} i.e. {Y, Z, X}
+void check_arc_limits(float* target, float* position, float center[3], float radius, size_t caxes[3], bool is_clockwise_arc) {
+    auto axes = config->_axes;
+
+    // Handle the orthognal axis first to get it out of the way.
+    size_t the_axis = caxes[2];
+    if (axes->_axis[the_axis]->_softLimits) {
+        float amin = std::min(position[the_axis], target[the_axis]);
+        if (amin < limitsMinPosition(the_axis)) {
+            limit_error(the_axis, amin);
+            return;
+        }
+        float amax = std::max(position[the_axis], target[the_axis]);
+        if (amax > limitsMaxPosition(the_axis)) {
+            limit_error(the_axis, amax);
+            return;
+        }
+    }
+
+    bool limited[2] = { axes->_axis[caxes[0]]->_softLimits, axes->_axis[caxes[1]]->_softLimits };
+
+    // If neither axis of the circular plane has limits enabled, skip the computation
+    if (!(limited[0] || limited[1])) {
+        return;
+    }
+
+    // The origin for this calculation's coordinate system is at the center of the arc.
+    // The 0 and 1 entries are for the circle plane
+    // and the 2 entry is the orthogonal (linear) direction
+
+    float s[2], e[2];  // Start and end of arc in the circle plane, relative to center
+
+    // Depending on the arc direction, set the arc start and end points relative
+    // to the arc center.  Afterwards, end is always counterclockwise relative to
+    // start, thus simplifying the following decision tree.
+    if (is_clockwise_arc) {
+        s[0] = target[caxes[0]] - center[0];
+        s[1] = target[caxes[1]] - center[1];
+        e[0] = position[caxes[0]] - center[0];
+        e[1] = position[caxes[1]] - center[1];
+    } else {
+        s[0] = position[caxes[0]] - center[0];
+        s[1] = position[caxes[1]] - center[1];
+        e[0] = target[caxes[0]] - center[0];
+        e[1] = target[caxes[1]] - center[1];
+    }
+
+    // Axis crossings - plus and minus caxes[0] and caxes[1]
+    bool p[2] = { false, false };
+    bool m[2] = { false, false };
+
+    // The following decision tree determines whether the arc crosses
+    // the horizontal and vertical axes of the circular plane in the
+    // positive and negative half planes.  There are ways to express
+    // it in fewer lines of code by converting to alternate
+    // representations like angles, but this way is computationally
+    // efficient since it avoids any use of transcendental functions.
+    // Every path through this decision tree is either 4 or 5 simple
+    // comparisons.
+    if (e[1] >= 0) {                     // End in upper half plane
+        if (e[0] > 0) {                  // End in quadrant 0 - X+ Y+
+            if (s[1] >= 0) {             // Start in upper half plane
+                if (s[0] > 0) {          // Start in quadrant 0 - X+ Y+
+                    if (s[0] <= e[0]) {  // wraparound
+                        p[0] = p[1] = m[0] = m[1] = true;
+                    }
+                } else {  // Start in quadrant 1 - X- Y+
+                    m[0] = m[1] = p[0] = true;
+                }
+            } else {             // Start in lower half plane
+                if (s[0] > 0) {  // Start in quadrant 3 - X+ Y-
+                    p[0] = true;
+                } else {  // Start in quadrant 2 - X- Y-
+                    m[1] = p[0] = true;
+                }
+            }
+        } else {                 // End in quadrant 1 - X- Y+
+            if (s[1] >= 0) {     // Start in upper half plane
+                if (s[0] > 0) {  // Start in quadrant 0 - X+ Y+
+                    p[1] = true;
+                } else {                 // Start in quadrant 1 - X- Y+
+                    if (s[0] <= e[0]) {  // wraparound
+                        p[0] = p[1] = m[0] = m[1] = true;
+                    }
+                }
+            } else {             // Start in lower half plane
+                if (s[0] > 0) {  // Start in quadrant 3 - X+ Y-
+                    p[0] = p[1] = true;
+                } else {  // Start in quadrant 2 - X- Y-
+                    m[1] = p[0] = p[1] = true;
+                }
+            }
+        }
+    } else {                     // e[1] < 0 - end in lower half plane
+        if (e[0] > 0) {          // End in quadrant 3 - X+ Y+
+            if (s[1] >= 0) {     // Start in upper half plane
+                if (s[0] > 0) {  // Start in quadrant 0 - X+ Y+
+                    p[1] = m[0] = m[1] = true;
+                } else {  // Start in quadrant 1 - X- Y+
+                    m[0] = m[1] = true;
+                }
+            } else {                     // Start in lower half plane
+                if (s[0] > 0) {          // Start in quadrant 3 - X+ Y-
+                    if (s[0] >= e[0]) {  // wraparound
+                        p[0] = p[1] = m[0] = m[1] = true;
+                    }
+                } else {  // Start in quadrant 2 - X- Y-
+                    m[1] = true;
+                }
+            }
+        } else {                 // End in quadrant 2 - X- Y+
+            if (s[1] >= 0) {     // Start in upper half plane
+                if (s[0] > 0) {  // Start in quadrant 0 - X+ Y+
+                    p[1] = m[0] = true;
+                } else {  // Start in quadrant 1 - X- Y+
+                    m[0] = true;
+                }
+            } else {             // Start in lower half plane
+                if (s[0] > 0) {  // Start in quadrant 3 - X+ Y-
+                    p[0] = p[1] = m[0] = true;
+                } else {                 // Start in quadrant 2 - X- Y-
+                    if (s[0] >= e[0]) {  // wraparound
+                        p[0] = p[1] = m[0] = m[1] = true;
+                    }
+                }
+            }
+        }
+    }
+
+    // Now check limits based on arc endpoints and axis crossings
+    for (size_t a = 0; a < 2; ++a) {
+        the_axis = caxes[a];
+        if (limited[a]) {
+            // If we crossed the axis in the positive half plane, the
+            // maximum extent along that axis is at center + radius.
+            // Otherwise it is the maximum coordinate of the start and
+            // end positions.  Similarly for the negative half plane
+            // and the minimum extent.
+            float amin = m[a] ? center[a] - radius : std::min(target[the_axis], position[the_axis]);
+            if (amin < limitsMinPosition(the_axis)) {
+                limit_error(the_axis, amin);
+                return;
+            }
+            float amax = p[a] ? center[a] + radius : std::max(target[the_axis], position[the_axis]);
+            if (amax > limitsMaxPosition(the_axis)) {
+                limit_error(the_axis, amax);
+                return;
+            }
+        }
+    }
 }
 
 // Execute an arc in offset mode format. position == current xyz, target == target xyz,
@@ -125,12 +287,15 @@ void mc_arc(float*            target,
             size_t            axis_linear,
             bool              is_clockwise_arc,
             int               pword_rotations) {
-    float center_axis0 = position[axis_0] + offset[axis_0];
-    float center_axis1 = position[axis_1] + offset[axis_1];
-    float r_axis0      = -offset[axis_0];  // Radius vector from center to current location
-    float r_axis1      = -offset[axis_1];
-    float rt_axis0     = target[axis_0] - center_axis0;
-    float rt_axis1     = target[axis_1] - center_axis1;
+    float center[3] = { position[axis_0] + offset[axis_0], position[axis_1] + offset[axis_1], 0 };
+
+    // The first two axes are the circle plane and the third is the orthogonal plane
+    size_t caxes[3] = { axis_0, axis_1, axis_linear };
+    check_arc_limits(target, position, center, radius, caxes, is_clockwise_arc);
+
+    // Radius vector from center to current location
+    float radii[2] = { -offset[axis_0], -offset[axis_1] };
+    float rt[2]    = { target[axis_0] - center[0], target[axis_1] - center[1] };
 
     auto n_axis = config->_axes->_numberAxis;
 
@@ -140,7 +305,7 @@ void mc_arc(float*            target,
     }
 
     // CCW angle between position and target from circle center. Only one atan2() trig computation required.
-    float angular_travel = atan2f(r_axis0 * rt_axis1 - r_axis1 * rt_axis0, r_axis0 * rt_axis0 + r_axis1 * rt_axis1);
+    float angular_travel = atan2f(radii[0] * rt[1] - radii[1] * rt[0], radii[0] * rt[0] + radii[1] * rt[1]);
     if (is_clockwise_arc) {  // Correct atan2 output per direction
         if (angular_travel >= -ARC_ANGULAR_TRAVEL_EPSILON) {
             angular_travel -= 2 * float(M_PI);
@@ -211,35 +376,34 @@ void mc_arc(float*            target,
         cos_T *= 0.5;
         float    sin_Ti;
         float    cos_Ti;
-        float    r_axisi;
         uint16_t i;
         size_t   count             = 0;
         float    original_feedrate = pl_data->feed_rate;  // Kinematics may alter the feedrate, so save an original copy
         for (i = 1; i < segments; i++) {                  // Increment (segments-1).
             if (count < N_ARC_CORRECTION) {
                 // Apply vector rotation matrix. ~40 usec
-                r_axisi = r_axis0 * sin_T + r_axis1 * cos_T;
-                r_axis0 = r_axis0 * cos_T - r_axis1 * sin_T;
-                r_axis1 = r_axisi;
+                float ri = radii[0] * sin_T + radii[1] * cos_T;
+                radii[0] = radii[0] * cos_T - radii[1] * sin_T;
+                radii[1] = ri;
                 count++;
             } else {
                 // Arc correction to radius vector. Computed only every N_ARC_CORRECTION increments. ~375 usec
                 // Compute exact location by applying transformation matrix from initial radius vector(=-offset).
-                cos_Ti  = cosf(i * theta_per_segment);
-                sin_Ti  = sinf(i * theta_per_segment);
-                r_axis0 = -offset[axis_0] * cos_Ti + offset[axis_1] * sin_Ti;
-                r_axis1 = -offset[axis_0] * sin_Ti - offset[axis_1] * cos_Ti;
-                count   = 0;
+                cos_Ti   = cosf(i * theta_per_segment);
+                sin_Ti   = sinf(i * theta_per_segment);
+                radii[0] = -offset[axis_0] * cos_Ti + offset[axis_1] * sin_Ti;
+                radii[1] = -offset[axis_0] * sin_Ti - offset[axis_1] * cos_Ti;
+                count    = 0;
             }
             // Update arc_target location
-            position[axis_0] = center_axis0 + r_axis0;
-            position[axis_1] = center_axis1 + r_axis1;
+            position[axis_0] = center[0] + radii[0];
+            position[axis_1] = center[1] + radii[1];
             position[axis_linear] += linear_per_segment[axis_linear];
             for (size_t i = A_AXIS; i < n_axis; i++) {
                 position[i] += linear_per_segment[i];
             }
             pl_data->feed_rate = original_feedrate;  // This restores the feedrate kinematics may have altered
-            mc_linear(position, pl_data, previous_position);
+            mc_linear_no_check(position, pl_data, previous_position);
             previous_position[axis_0]      = position[axis_0];
             previous_position[axis_1]      = position[axis_1];
             previous_position[axis_linear] = position[axis_linear];
@@ -250,7 +414,7 @@ void mc_arc(float*            target,
         }
     }
     // Ensure last segment arrives at target location.
-    mc_linear(target, pl_data, previous_position);
+    mc_linear_no_check(target, pl_data, previous_position);
 }
 
 // Execute dwell in seconds.
