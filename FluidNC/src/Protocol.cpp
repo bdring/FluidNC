@@ -36,6 +36,7 @@ std::map<ExecAlarm, const char*> AlarmNames = {
     { ExecAlarm::ControlPin, "Control Pin Initially On" },
     { ExecAlarm::HomingAmbiguousSwitch, "Ambiguous Switch" },
     { ExecAlarm::HardStop, "Hard Stop" },
+    { ExecAlarm::Unhomed, "Unhomed" },
 };
 
 const char* alarmString(ExecAlarm alarmNumber) {

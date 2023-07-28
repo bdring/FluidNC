@@ -8,6 +8,21 @@
 #include "Cartesian.h"
 
 namespace Kinematics {
+    void Kinematics::constrain_line(float* target, float* position) {
+        Assert(_system != nullptr, "No kinematic system");
+        return _system->constrain_line(target, position);
+    }
+
+    bool Kinematics::invalid_line(float* target) {
+        Assert(_system != nullptr, "No kinematic system");
+        return _system->invalid_line(target);
+    }
+
+    bool Kinematics::invalid_arc(float* target, float* position, float center[3], float radius, size_t caxes[3], bool is_clockwise_arc) {
+        Assert(_system != nullptr, "No kinematic system");
+        return _system->invalid_arc(target, position, center, radius, caxes, is_clockwise_arc);
+    }
+
     bool Kinematics::cartesian_to_motors(float* target, plan_line_data_t* pl_data, float* position) {
         Assert(_system != nullptr, "No kinematic system");
         return _system->cartesian_to_motors(target, pl_data, position);

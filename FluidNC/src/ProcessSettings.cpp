@@ -286,6 +286,7 @@ static Error disable_alarm_lock(const char* value, WebUI::AuthenticationLevel au
         if (err != Error::Ok) {
             return err;
         }
+        Homing::set_all_axes_homed();
         report_feedback_message(Message::AlarmUnlock);
         sys.state = State::Idle;
 

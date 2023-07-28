@@ -64,6 +64,7 @@ enum class ExecAlarm : uint8_t {
     ControlPin            = 11,
     HomingAmbiguousSwitch = 12,
     HardStop              = 13,
+    Unhomed               = 14,
 };
 
 extern volatile ExecAlarm lastAlarm;
@@ -97,6 +98,7 @@ extern NoArgEvent motionCancelEvent;
 extern NoArgEvent sleepEvent;
 extern NoArgEvent rtResetEvent;
 extern NoArgEvent debugEvent;
+extern NoArgEvent unhomedEvent;
 
 // extern NoArgEvent statusReportEvent;
 

@@ -109,165 +109,11 @@ static bool mc_linear_no_check(float* target, plan_line_data_t* pl_data, float* 
 }
 bool mc_linear(float* target, plan_line_data_t* pl_data, float* position) {
     if (!pl_data->is_jog) {  // soft limits for jogs have already been dealt with
-        limits_soft_check(target);
+        if (config->_kinematics->invalid_line(target)) {
+            return false;
+        }
     }
     return mc_linear_no_check(target, pl_data, position);
-}
-
-// Check that the arc does not exceed the soft limits using a fast
-// algorithm that requires no transcendental functions.
-// caxes[] depends on the plane selection via G17, G18, and G19.  caxes[0] is the first
-// circle plane axis, caxes[1] is the second circle plane axis, and caxes[2] is the
-// orthogonal plane.  So for G17 mode, caxes[] is { 0, 1, 2} for { X, Y, Z}.  G18 is {2, 0, 1} i.e. {Z, X, Y}, and G19 is {1, 2, 0} i.e. {Y, Z, X}
-void check_arc_limits(float* target, float* position, float center[3], float radius, size_t caxes[3], bool is_clockwise_arc) {
-    auto axes = config->_axes;
-
-    // Handle the orthognal axis first to get it out of the way.
-    size_t the_axis = caxes[2];
-    if (axes->_axis[the_axis]->_softLimits) {
-        float amin = std::min(position[the_axis], target[the_axis]);
-        if (amin < limitsMinPosition(the_axis)) {
-            limit_error(the_axis, amin);
-            return;
-        }
-        float amax = std::max(position[the_axis], target[the_axis]);
-        if (amax > limitsMaxPosition(the_axis)) {
-            limit_error(the_axis, amax);
-            return;
-        }
-    }
-
-    bool limited[2] = { axes->_axis[caxes[0]]->_softLimits, axes->_axis[caxes[1]]->_softLimits };
-
-    // If neither axis of the circular plane has limits enabled, skip the computation
-    if (!(limited[0] || limited[1])) {
-        return;
-    }
-
-    // The origin for this calculation's coordinate system is at the center of the arc.
-    // The 0 and 1 entries are for the circle plane
-    // and the 2 entry is the orthogonal (linear) direction
-
-    float s[2], e[2];  // Start and end of arc in the circle plane, relative to center
-
-    // Depending on the arc direction, set the arc start and end points relative
-    // to the arc center.  Afterwards, end is always counterclockwise relative to
-    // start, thus simplifying the following decision tree.
-    if (is_clockwise_arc) {
-        s[0] = target[caxes[0]] - center[0];
-        s[1] = target[caxes[1]] - center[1];
-        e[0] = position[caxes[0]] - center[0];
-        e[1] = position[caxes[1]] - center[1];
-    } else {
-        s[0] = position[caxes[0]] - center[0];
-        s[1] = position[caxes[1]] - center[1];
-        e[0] = target[caxes[0]] - center[0];
-        e[1] = target[caxes[1]] - center[1];
-    }
-
-    // Axis crossings - plus and minus caxes[0] and caxes[1]
-    bool p[2] = { false, false };
-    bool m[2] = { false, false };
-
-    // The following decision tree determines whether the arc crosses
-    // the horizontal and vertical axes of the circular plane in the
-    // positive and negative half planes.  There are ways to express
-    // it in fewer lines of code by converting to alternate
-    // representations like angles, but this way is computationally
-    // efficient since it avoids any use of transcendental functions.
-    // Every path through this decision tree is either 4 or 5 simple
-    // comparisons.
-    if (e[1] >= 0) {                     // End in upper half plane
-        if (e[0] > 0) {                  // End in quadrant 0 - X+ Y+
-            if (s[1] >= 0) {             // Start in upper half plane
-                if (s[0] > 0) {          // Start in quadrant 0 - X+ Y+
-                    if (s[0] <= e[0]) {  // wraparound
-                        p[0] = p[1] = m[0] = m[1] = true;
-                    }
-                } else {  // Start in quadrant 1 - X- Y+
-                    m[0] = m[1] = p[0] = true;
-                }
-            } else {             // Start in lower half plane
-                if (s[0] > 0) {  // Start in quadrant 3 - X+ Y-
-                    p[0] = true;
-                } else {  // Start in quadrant 2 - X- Y-
-                    m[1] = p[0] = true;
-                }
-            }
-        } else {                 // End in quadrant 1 - X- Y+
-            if (s[1] >= 0) {     // Start in upper half plane
-                if (s[0] > 0) {  // Start in quadrant 0 - X+ Y+
-                    p[1] = true;
-                } else {                 // Start in quadrant 1 - X- Y+
-                    if (s[0] <= e[0]) {  // wraparound
-                        p[0] = p[1] = m[0] = m[1] = true;
-                    }
-                }
-            } else {             // Start in lower half plane
-                if (s[0] > 0) {  // Start in quadrant 3 - X+ Y-
-                    p[0] = p[1] = true;
-                } else {  // Start in quadrant 2 - X- Y-
-                    m[1] = p[0] = p[1] = true;
-                }
-            }
-        }
-    } else {                     // e[1] < 0 - end in lower half plane
-        if (e[0] > 0) {          // End in quadrant 3 - X+ Y+
-            if (s[1] >= 0) {     // Start in upper half plane
-                if (s[0] > 0) {  // Start in quadrant 0 - X+ Y+
-                    p[1] = m[0] = m[1] = true;
-                } else {  // Start in quadrant 1 - X- Y+
-                    m[0] = m[1] = true;
-                }
-            } else {                     // Start in lower half plane
-                if (s[0] > 0) {          // Start in quadrant 3 - X+ Y-
-                    if (s[0] >= e[0]) {  // wraparound
-                        p[0] = p[1] = m[0] = m[1] = true;
-                    }
-                } else {  // Start in quadrant 2 - X- Y-
-                    m[1] = true;
-                }
-            }
-        } else {                 // End in quadrant 2 - X- Y+
-            if (s[1] >= 0) {     // Start in upper half plane
-                if (s[0] > 0) {  // Start in quadrant 0 - X+ Y+
-                    p[1] = m[0] = true;
-                } else {  // Start in quadrant 1 - X- Y+
-                    m[0] = true;
-                }
-            } else {             // Start in lower half plane
-                if (s[0] > 0) {  // Start in quadrant 3 - X+ Y-
-                    p[0] = p[1] = m[0] = true;
-                } else {                 // Start in quadrant 2 - X- Y-
-                    if (s[0] >= e[0]) {  // wraparound
-                        p[0] = p[1] = m[0] = m[1] = true;
-                    }
-                }
-            }
-        }
-    }
-
-    // Now check limits based on arc endpoints and axis crossings
-    for (size_t a = 0; a < 2; ++a) {
-        the_axis = caxes[a];
-        if (limited[a]) {
-            // If we crossed the axis in the positive half plane, the
-            // maximum extent along that axis is at center + radius.
-            // Otherwise it is the maximum coordinate of the start and
-            // end positions.  Similarly for the negative half plane
-            // and the minimum extent.
-            float amin = m[a] ? center[a] - radius : std::min(target[the_axis], position[the_axis]);
-            if (amin < limitsMinPosition(the_axis)) {
-                limit_error(the_axis, amin);
-                return;
-            }
-            float amax = p[a] ? center[a] + radius : std::max(target[the_axis], position[the_axis]);
-            if (amax > limitsMaxPosition(the_axis)) {
-                limit_error(the_axis, amax);
-                return;
-            }
-        }
-    }
 }
 
 // Execute an arc in offset mode format. position == current xyz, target == target xyz,
@@ -291,7 +137,9 @@ void mc_arc(float*            target,
 
     // The first two axes are the circle plane and the third is the orthogonal plane
     size_t caxes[3] = { axis_0, axis_1, axis_linear };
-    check_arc_limits(target, position, center, radius, caxes, is_clockwise_arc);
+    if (config->_kinematics->invalid_arc(target, position, center, radius, caxes, is_clockwise_arc)) {
+        return;
+    }
 
     // Radius vector from center to current location
     float radii[2] = { -offset[axis_0], -offset[axis_1] };

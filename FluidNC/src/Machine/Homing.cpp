@@ -40,6 +40,16 @@ namespace Machine {
     std::queue<int> Homing::_remainingCycles;
     uint32_t        Homing::_settling_ms;
 
+    AxisMask Homing::_unhomed_axes;  // Bitmap of axes whose position is unknown
+
+    bool Homing::axis_is_homed(size_t axis) { return bitnum_is_false(_unhomed_axes, axis); }
+    void Homing::set_axis_homed(size_t axis) { clear_bitnum(_unhomed_axes, axis); }
+    void Homing::set_axis_unhomed(size_t axis) { set_bitnum(_unhomed_axes, axis); }
+    void Homing::set_all_axes_unhomed() { _unhomed_axes = Machine::Axes::homingMask; }
+    void Homing::set_all_axes_homed() { _unhomed_axes = 0; }
+
+    AxisMask Homing::unhomed_axes() { return _unhomed_axes; }
+
     const char* Homing::_phaseNames[] = {
         "None", "PrePulloff", "FastApproach", "Pulloff0", "SlowApproach", "Pulloff1", "Pulloff2", "CycleDone",
     };
@@ -319,9 +329,9 @@ namespace Machine {
 
         config->_stepping->endLowLatency();
 
-        if (!sys.abort) {             // Execute startup scripts after successful homing.
-            sys.state = State::Idle;  // Set to IDLE when complete.
-            Stepper::go_idle();       // Set steppers to the settings idle state before returning.
+        if (!sys.abort) {
+            sys.state = unhomed_axes() ? State::Alarm : State::Idle;
+            Stepper::go_idle();  // Set steppers to the settings idle state before returning.
         }
     }
 
@@ -389,6 +399,7 @@ namespace Machine {
         // Replace coordinates homed axes with the homing values.
         for (size_t axis = 0; axis < n_axis; axis++) {
             if (bitnum_is_true(_cycleAxes, axis)) {
+                set_axis_homed(axis);
                 mpos[axis] = axes->_axis[axis]->_homing->_mpos;
             }
         }

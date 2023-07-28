@@ -127,9 +127,11 @@ void setup() {
             // NOTE: The startup script will run after successful completion of the homing cycle, but
             // not after disabling the alarm locks. Prevents motion startup blocks from crashing into
             // things uncontrollably. Very bad.
+            Homing::set_all_axes_homed();
             if (config->_start->_mustHome && Machine::Axes::homingMask) {
+                Homing::set_all_axes_unhomed();
                 // If there is an axis with homing configured, enter Alarm state on startup
-                sys.state = State::Alarm;
+                send_alarm(ExecAlarm::Unhomed);
             }
             for (auto s : config->_spindles) {
                 s->init();

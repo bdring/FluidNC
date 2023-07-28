@@ -54,65 +54,6 @@ bool ambiguousLimit() {
 
 bool soft_limit = false;
 
-// Constrain the coordinates to stay within the soft limit envelope
-void constrainToSoftLimits(float* cartesian) {
-    auto axes   = config->_axes;
-    auto n_axis = config->_axes->_numberAxis;
-
-    float*    current_position = get_mpos();
-    MotorMask lim_pin_state    = limits_get_state();
-
-    for (int axis = 0; axis < n_axis; axis++) {
-        auto axisSetting = axes->_axis[axis];
-        // If the axis is moving from the current location and soft limits are on.
-        if (axisSetting->_softLimits && cartesian[axis] != current_position[axis]) {
-            // When outside the axis range, only small nudges to clear switches are allowed
-            bool move_positive = cartesian[axis] > current_position[axis];
-            if ((!move_positive && (current_position[axis] < limitsMinPosition(axis))) ||
-                (move_positive && (current_position[axis] > limitsMaxPosition(axis)))) {
-                // only allow a nudge if a switch is active
-                if (bitnum_is_false(lim_pin_state, Machine::Axes::motor_bit(axis, 0)) &&
-                    bitnum_is_false(lim_pin_state, Machine::Axes::motor_bit(axis, 1))) {
-                    cartesian[axis] = current_position[axis];  // cancel the move on this axis
-                    log_debug("Soft limit violation on " << Machine::Axes::_names[axis]);
-                    continue;
-                }
-                float jog_dist = cartesian[axis] - current_position[axis];
-
-                MotorMask axisMotors = Machine::Axes::axes_to_motors(1 << axis);
-                bool      posLimited = bits_are_true(Machine::Axes::posLimitMask, axisMotors);
-                bool      negLimited = bits_are_true(Machine::Axes::negLimitMask, axisMotors);
-
-                // if jog is positive and only the positive switch is active, then kill the move
-                // if jog is negative and only the negative switch is active, then kill the move
-                if (posLimited != negLimited) {  // XOR, because ambiguous (both) is OK
-                    if ((negLimited && (jog_dist < 0)) || (posLimited && (jog_dist > 0))) {
-                        cartesian[axis] = current_position[axis];  // cancel the move on this axis
-                        log_debug("Jog into active switch blocked on " << Machine::Axes::_names[axis]);
-                        continue;
-                    }
-                }
-
-                auto nudge_max = axisSetting->_motors[0]->_pulloff;
-                if (abs(jog_dist) > nudge_max) {
-                    cartesian[axis] = (jog_dist >= 0) ? current_position[axis] + nudge_max : current_position[axis] + nudge_max;
-                    log_debug("Jog amount limited when outside soft limits")
-                }
-                continue;
-            }
-
-            if (cartesian[axis] < limitsMinPosition(axis)) {
-                cartesian[axis] = limitsMinPosition(axis);
-            } else if (cartesian[axis] > limitsMaxPosition(axis)) {
-                cartesian[axis] = limitsMaxPosition(axis);
-            } else {
-                continue;
-            }
-            log_debug("Jog constrained to axis range");
-        }
-    }
-}
-
 // Performs a soft limit check. Called from mcline() only. Assumes the machine has been homed,
 // the workspace volume is in all negative space, and the system is in normal operation.
 // NOTE: Used by jogging to limit travel within soft-limit volume.
@@ -134,20 +75,6 @@ void limit_error(size_t axis, float coordinate) {
         } while (sys.state != State::Idle);
     }
     mc_critical(ExecAlarm::SoftLimit);
-    log_debug("Soft limits");
-}
-
-void limits_soft_check(float* cartesian) {
-    auto axes   = config->_axes;
-    auto n_axis = config->_axes->_numberAxis;
-
-    for (int axis = 0; axis < n_axis; axis++) {
-        float coordinate = cartesian[axis];
-        if (axes->_axis[axis]->_softLimits && (coordinate < limitsMinPosition(axis) || coordinate > limitsMaxPosition(axis))) {
-            limit_error(axis, coordinate);
-            return;
-        }
-    }
 }
 
 float limitsMaxPosition(size_t axis) {

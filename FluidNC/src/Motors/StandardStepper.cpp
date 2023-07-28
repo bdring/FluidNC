@@ -84,7 +84,9 @@ namespace MotorDrivers {
             _step_pin.setAttr(Pin::Attr::Output);
         }
 
-        _disable_pin.setAttr(Pin::Attr::Output);
+        if (_disable_pin.defined()) {
+            _disable_pin.setAttr(Pin::Attr::Output);
+        }
     }
 
     void StandardStepper::config_message() {
