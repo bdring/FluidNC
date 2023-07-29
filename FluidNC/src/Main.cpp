@@ -29,7 +29,7 @@ extern void make_user_commands();
 
 void setup() {
     //Improve startup stability
-    delay_ms(2000);
+    //delay_ms(2000);
 
     disableCore0WDT();
     try {
