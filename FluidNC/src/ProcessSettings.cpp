@@ -329,7 +329,7 @@ static Error home(AxisMask axisMask) {
         protocol_execute_realtime();
     } while (sys.state == State::Homing);
 
-    settings_execute_startup();
+    config->_macros->run_macro(Macros::_post_homing_line);
 
     return Error::Ok;
 }
@@ -988,6 +988,9 @@ Error settings_execute_line(char* line, Channel& out, WebUI::AuthenticationLevel
 }
 
 void settings_execute_startup() {
+    if (sys.state != State::Idle) {
+        return;
+    }
     Error status_code;
     for (int i = 0; i < config->_macros->n_startup_lines; i++) {
         auto str = config->_macros->startup_line(i);
@@ -997,7 +1000,7 @@ void settings_execute_startup() {
             char gcline[256];
             strncpy(gcline, str.c_str(), 255);
             status_code = gc_execute_line(gcline);
-            // Uart0 << ">" << gcline << ":";
+            // Uart0 << ">" << gcline << "\n";
             if (status_code != Error::Ok) {
                 log_error("Startup line: " << errorString(status_code));
             }

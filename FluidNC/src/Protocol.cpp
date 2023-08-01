@@ -37,6 +37,7 @@ std::map<ExecAlarm, const char*> AlarmNames = {
     { ExecAlarm::HomingAmbiguousSwitch, "Ambiguous Switch" },
     { ExecAlarm::HardStop, "Hard Stop" },
     { ExecAlarm::Unhomed, "Unhomed" },
+    { ExecAlarm::Init, "Init" },
 };
 
 const char* alarmString(ExecAlarm alarmNumber) {
@@ -234,39 +235,12 @@ static void alarm_msg(ExecAlarm alarm_code) {
     delay_ms(500);  // Force delay to ensure message clears serial write buffer.
 }
 
-static void check_startup_state() {
-    // Check for and report alarm state after a reset, error, or an initial power up.
-    // NOTE: Sleep mode disables the stepper drivers and position can't be guaranteed.
-    // Re-initialize the sleep state as an ALARM mode to ensure user homes or acknowledges.
-    if (sys.state == State::ConfigAlarm) {
-        report_error_message(Message::ConfigAlarmLock);
-    } else {
-        // Perform some machine checks to make sure everything is good to go.
-        if (config->_start->_checkLimits) {
-            if (config->_axes->hasHardLimits() && limits_get_state()) {
-                sys.state = State::Alarm;  // Ensure alarm state is active.
-                alarm_msg(ExecAlarm::HardLimit);
-                report_error_message(Message::CheckLimits);
-            }
-        }
-        if (config->_control->startup_check()) {
-            send_alarm(ExecAlarm::ControlPin);
-        } else if (sys.state == State::Alarm || sys.state == State::Sleep) {
-            report_feedback_message(Message::AlarmLock);
-            sys.state = State::Alarm;  // Ensure alarm state is set.
-        } else {
-            // All systems go!
-            sys.state = State::Idle;
-            settings_execute_startup();  // Execute startup script.
-        }
-    }
-}
+static void check_startup_state() {}
 
 const uint32_t heapWarnThreshold = 15000;
 
 uint32_t heapLowWater = UINT_MAX;
 void     protocol_main_loop() {
-    check_startup_state();
     start_polling();
 
     // ---------------------------------------------------------------------------------
@@ -368,9 +342,71 @@ void protocol_execute_realtime() {
     }
 }
 
-// Executes run-time commands, when required. This function is the primary state
-// machine that controls the various real-time features.
-// NOTE: Do not alter this unless you know exactly what you are doing!
+static void protocol_run_startup_lines() {
+    settings_execute_startup();  // Execute startup script.
+}
+
+static void protocol_do_restart() {
+    // Reset primary systems.
+    system_reset();
+    protocol_reset();
+    gc_init();  // Set g-code parser to default state
+    // Spindle should be set either by the configuration
+    // or by the post-configuration fixup, but we test
+    // it anyway just for safety.  We want to avoid any
+    // possibility of crashing at this point.
+
+    plan_reset();  // Clear block buffer and planner variables
+
+    if (sys.state != State::ConfigAlarm) {
+        if (spindle) {
+            spindle->stop();
+            report_ovr_counter = 0;  // Set to report change immediately
+        }
+        Stepper::reset();  // Clear stepper subsystem variables
+    }
+
+    // Sync cleared gcode and planner positions to current system position.
+    plan_sync_position();
+    gc_sync_position();
+    allChannels.flushRx();
+    report_init_message(allChannels);
+    mc_init();
+    sys.state = State::Idle;
+
+    // Check for and report alarm state after a reset, error, or an initial power up.
+    // NOTE: Sleep mode disables the stepper drivers and position can't be guaranteed.
+    // Re-initialize the sleep state as an ALARM mode to ensure user homes or acknowledges.
+    if (sys.state == State::ConfigAlarm) {
+        report_error_message(Message::ConfigAlarmLock);
+        return;
+    }
+
+    // Perform some machine checks to make sure everything is good to go.
+    if (config->_start->_checkLimits && config->_axes->hasHardLimits() && limits_get_state()) {
+        mc_critical(ExecAlarm::HardLimit);
+    } else if (config->_control->startup_check()) {
+        send_alarm(ExecAlarm::ControlPin);
+    }
+}
+
+static void protocol_do_start() {
+    protocol_send_event(&restartEvent);
+    sys.state = State::Critical;
+    if (FORCE_INITIALIZATION_ALARM) {
+        // Force ALARM state upon a power-cycle or hard reset.
+        send_alarm(ExecAlarm::Init);
+        return;
+    }
+    Homing::set_all_axes_homed();
+    if (config->_start->_mustHome && Machine::Axes::homingMask) {
+        Homing::set_all_axes_unhomed();
+        // If there is an axis with homing configured, enter Alarm state on startup
+        send_alarm(ExecAlarm::Unhomed);
+    }
+    protocol_send_event(&runStartupLinesEvent);
+}
+
 static void protocol_do_alarm(void* alarmVoid) {
     lastAlarm = (ExecAlarm)((int)alarmVoid);
     if (spindle->_off_on_alarm) {
@@ -1008,7 +1044,7 @@ void protocol_do_rt_reset() {
         sys.state == State::Alarm;
     }
     protocol_do_late_reset();
-    sys.abort = true;  // Trigger system abort.
+    protocol_send_event(&restartEvent);
 }
 
 ArgEvent feedOverrideEvent { protocol_do_feed_override };
@@ -1027,6 +1063,9 @@ NoArgEvent cycleStopEvent { protocol_do_cycle_stop };
 NoArgEvent motionCancelEvent { protocol_do_motion_cancel };
 NoArgEvent sleepEvent { protocol_do_sleep };
 NoArgEvent debugEvent { report_realtime_debug };
+NoArgEvent startEvent { protocol_do_start };
+NoArgEvent restartEvent { protocol_do_restart };
+NoArgEvent runStartupLinesEvent { protocol_run_startup_lines };
 
 NoArgEvent rtResetEvent { protocol_do_rt_reset };
 

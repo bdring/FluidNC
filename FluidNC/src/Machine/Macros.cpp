@@ -7,13 +7,18 @@
 #include "src/Machine/MachineConfig.h"  // config
 
 void MacroEvent::run(void* arg) {
+    int n = int(arg);
     if (sys.state != State::Idle) {
         log_error("Macro can only be used in idle state");
         return;
     }
-    log_debug("Macro " << _num);
-    config->_macros->run_macro(_num);
+    log_debug("Macro " << n);
+    config->_macros->run_macro(n);
 }
+
+std::string Macros::_startup_line[n_startup_lines];
+std::string Macros::_macro[n_macros];
+std::string Macros::_post_homing_line;
 
 MacroEvent macro0Event { 0 };
 MacroEvent macro1Event { 1 };
@@ -47,18 +52,18 @@ Cmd findOverride(std::string name) {
     return it == overrideCodes.end() ? Cmd::None : it->second;
 }
 
-bool Macros::run_macro(size_t index) {
-    if (index >= n_macros) {
-        return false;
-    }
-    auto macro = _macro[index];
-    if (macro == "") {
+bool Macros::run_macro(size_t n) {
+    return run_macro(_macro[n]);
+}
+
+bool Macros::run_macro(const std::string& s) {
+    if (s == "") {
         return true;
     }
 
     char c;
-    for (int i = 0; i < macro.length(); i++) {
-        c = macro[i];
+    for (int i = 0; i < s.length(); i++) {
+        c = s[i];
         switch (c) {
             case '&':
                 // & is a proxy for newlines in macros, because you cannot
@@ -66,13 +71,13 @@ bool Macros::run_macro(size_t index) {
                 WebUI::inputBuffer.push('\n');
                 break;
             case '#':
-                if ((i + 3) > macro.length()) {
+                if ((i + 3) > s.length()) {
                     log_error("Missing characters after # realtime escape in macro");
                     return false;
                 }
                 {
-                    std::string s(macro.c_str() + i + 1, 2);
-                    Cmd         cmd = findOverride(s);
+                    std::string s1(s.c_str() + i + 1, 2);
+                    Cmd         cmd = findOverride(s1);
                     if (cmd == Cmd::None) {
                         log_error("Bad #xx realtime escape in macro");
                         return false;

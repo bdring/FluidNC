@@ -59,7 +59,7 @@ namespace Machine {
         float target[config->_axes->_numberAxis];
         axisVector(_phaseAxes, _phaseMotors, _phase, target, rate, _settling_ms);
 
-        plan_line_data_t plan_data;
+        plan_line_data_t plan_data      = {};
         plan_data.spindle_speed         = 0;
         plan_data.motion                = {};
         plan_data.motion.systemMotion   = 1;

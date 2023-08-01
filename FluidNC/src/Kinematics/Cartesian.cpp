@@ -23,9 +23,11 @@ namespace Kinematics {
     // caxes[] depends on the plane selection via G17, G18, and G19.  caxes[0] is the first
     // circle plane axis, caxes[1] is the second circle plane axis, and caxes[2] is the
     // orthogonal plane.  So for G17 mode, caxes[] is { 0, 1, 2} for { X, Y, Z}.  G18 is {2, 0, 1} i.e. {Z, X, Y}, and G19 is {1, 2, 0} i.e. {Y, Z, X}
-    bool Cartesian::invalid_arc(float* target, float* position, float center[3], float radius, size_t caxes[3], bool is_clockwise_arc) {
-        auto axes = config->_axes;
+    bool Cartesian::invalid_arc(
+        float* target, plan_line_data_t* pl_data, float* position, float center[3], float radius, size_t caxes[3], bool is_clockwise_arc) {
+        pl_data->limits_checked = true;
 
+        auto axes = config->_axes;
         // Handle the orthognal axis first to get it out of the way.
         size_t the_axis = caxes[2];
         if (axes->_axis[the_axis]->_softLimits) {
@@ -174,7 +176,7 @@ namespace Kinematics {
         return false;
     }
 
-    void Cartesian::constrain_line(float* target, float* position) {
+    void Cartesian::constrain_jog(float* target, plan_line_data_t* pl_data, float* position) {
         auto axes   = config->_axes;
         auto n_axis = config->_axes->_numberAxis;
 
@@ -230,6 +232,7 @@ namespace Kinematics {
                 log_debug("Jog constrained to axis range");
             }
         }
+        pl_data->limits_checked = true;
     }
 
     bool Cartesian::invalid_line(float* cartesian) {

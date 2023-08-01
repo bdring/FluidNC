@@ -108,7 +108,7 @@ static bool mc_linear_no_check(float* target, plan_line_data_t* pl_data, float* 
     return config->_kinematics->cartesian_to_motors(target, pl_data, position);
 }
 bool mc_linear(float* target, plan_line_data_t* pl_data, float* position) {
-    if (!pl_data->is_jog) {  // soft limits for jogs have already been dealt with
+    if (!pl_data->is_jog && !pl_data->limits_checked) {  // soft limits for jogs have already been dealt with
         if (config->_kinematics->invalid_line(target)) {
             return false;
         }
@@ -137,7 +137,7 @@ void mc_arc(float*            target,
 
     // The first two axes are the circle plane and the third is the orthogonal plane
     size_t caxes[3] = { axis_0, axis_1, axis_linear };
-    if (config->_kinematics->invalid_arc(target, position, center, radius, caxes, is_clockwise_arc)) {
+    if (config->_kinematics->invalid_arc(target, pl_data, position, center, radius, caxes, is_clockwise_arc)) {
         return;
     }
 
@@ -251,7 +251,7 @@ void mc_arc(float*            target,
                 position[i] += linear_per_segment[i];
             }
             pl_data->feed_rate = original_feedrate;  // This restores the feedrate kinematics may have altered
-            mc_linear_no_check(position, pl_data, previous_position);
+            mc_linear(position, pl_data, previous_position);
             previous_position[axis_0]      = position[axis_0];
             previous_position[axis_1]      = position[axis_1];
             previous_position[axis_linear] = position[axis_linear];
@@ -262,7 +262,7 @@ void mc_arc(float*            target,
         }
     }
     // Ensure last segment arrives at target location.
-    mc_linear_no_check(target, pl_data, previous_position);
+    mc_linear(target, pl_data, previous_position);
 }
 
 // Execute dwell in seconds.

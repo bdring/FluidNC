@@ -23,9 +23,15 @@ namespace Kinematics {
 
         // Kinematic Interface
 
-        virtual void constrain_line(float* cartesian, float* position) override;
+        virtual void constrain_jog(float* cartesian, plan_line_data_t* pl_data, float* position) override;
         virtual bool invalid_line(float* cartesian) override;
-        virtual bool invalid_arc(float* target, float* position, float center[3], float radius, size_t caxes[3], bool is_clockwise_arc) override;
+        virtual bool invalid_arc(float*            target,
+                                 plan_line_data_t* pl_data,
+                                 float*            position,
+                                 float             center[3],
+                                 float             radius,
+                                 size_t            caxes[3],
+                                 bool              is_clockwise_arc) override;
 
         virtual bool cartesian_to_motors(float* target, plan_line_data_t* pl_data, float* position) override;
         virtual void init() override;
