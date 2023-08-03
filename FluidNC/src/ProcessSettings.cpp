@@ -440,9 +440,9 @@ static Error get_report_build_info(const char* value, WebUI::AuthenticationLevel
     }
     return Error::InvalidStatement;
 }
-static Error report_startup_lines(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+static Error show_startup_lines(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
     for (int i = 0; i < config->_macros->n_startup_lines; i++) {
-        log_to(out, "$N", i << "=" << config->_macros->startup_line(i));
+        log_to(out, "$N", i << "=" << config->_macros->_startup_line[i]);
     }
     return Error::Ok;
 }
@@ -798,7 +798,7 @@ void make_user_commands() {
 
     new UserCommand("SLP", "System/Sleep", go_to_sleep, notIdleOrAlarm);
     new UserCommand("I", "Build/Info", get_report_build_info, notIdleOrAlarm);
-    new UserCommand("N", "GCode/StartupLines", report_startup_lines, notIdleOrAlarm);
+    new UserCommand("N", "GCode/StartupLines", show_startup_lines, notIdleOrAlarm);
     new UserCommand("RST", "Settings/Restore", restore_settings, notIdleOrAlarm, WA);
 
     new UserCommand("Heap", "Heap/Show", showHeap, anyState);
@@ -993,8 +993,10 @@ void settings_execute_startup() {
     }
     Error status_code;
     for (int i = 0; i < config->_macros->n_startup_lines; i++) {
-        auto str = config->_macros->startup_line(i);
+        auto str = config->_macros->_startup_line[i];
         if (str.length()) {
+            config->_macros->run_macro(str);
+#if 0
             // We have to copy this to a mutable array because
             // gc_execute_line modifies the line while parsing.
             char gcline[256];
@@ -1004,6 +1006,7 @@ void settings_execute_startup() {
             if (status_code != Error::Ok) {
                 log_error("Startup line: " << errorString(status_code));
             }
+#endif
         }
     }
 }

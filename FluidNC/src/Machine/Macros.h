@@ -30,30 +30,16 @@ namespace Machine {
         static const int n_macros        = 4;
 
     private:
-        static std::string _startup_line[n_startup_lines];
         static std::string _macro[n_macros];
 
     public:
+        static std::string _startup_line[n_startup_lines];
         static std::string _post_homing_line;
 
         Macros() = default;
 
         bool run_macro(size_t index);
         bool run_macro(const std::string& s);
-
-        std::string startup_line(size_t index) {
-            if (index >= n_startup_lines) {
-                return "";
-            }
-            auto s = _startup_line[index];
-            if (s == "") {
-                return s;
-            }
-            // & is a proxy for newlines in startup lines, because you cannot
-            // enter a newline directly in a config file string value.
-            std::replace(s.begin(), s.end(), '&', '\n');
-            return s + "\n";
-        }
 
         // Configuration helpers:
 

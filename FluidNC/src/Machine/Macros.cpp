@@ -61,6 +61,7 @@ bool Macros::run_macro(const std::string& s) {
         return true;
     }
 
+    log_info("Running macro: " << s);
     char c;
     for (int i = 0; i < s.length(); i++) {
         c = s[i];
