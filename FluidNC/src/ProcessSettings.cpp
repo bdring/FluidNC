@@ -290,7 +290,7 @@ static Error disable_alarm_lock(const char* value, WebUI::AuthenticationLevel au
         report_feedback_message(Message::AlarmUnlock);
         sys.state = State::Idle;
 
-        // Don't run startup script. Prevents stored moves in startup from causing accidents.
+        config->_macros->run_macro(Macros::_after_unlock_line);
     }  // Otherwise, no effect.
     return Error::Ok;
 }
@@ -329,7 +329,7 @@ static Error home(AxisMask axisMask) {
         protocol_execute_realtime();
     } while (sys.state == State::Homing);
 
-    config->_macros->run_macro(Macros::_post_homing_line);
+    config->_macros->run_macro(Macros::_after_homing_line);
 
     return Error::Ok;
 }

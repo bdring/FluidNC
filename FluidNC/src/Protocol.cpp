@@ -386,6 +386,10 @@ static void protocol_do_restart() {
         mc_critical(ExecAlarm::HardLimit);
     } else if (config->_control->startup_check()) {
         send_alarm(ExecAlarm::ControlPin);
+    } else {
+        if (sys.state == State::Idle) {
+            config->_macros->run_macro(Macros::_after_reset_line);
+        }
     }
 }
 

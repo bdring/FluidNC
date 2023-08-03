@@ -18,7 +18,9 @@ void MacroEvent::run(void* arg) {
 
 std::string Macros::_startup_line[n_startup_lines];
 std::string Macros::_macro[n_macros];
-std::string Macros::_post_homing_line;
+std::string Macros::_after_homing_line;
+std::string Macros::_after_reset_line;
+std::string Macros::_after_unlock_line;
 
 MacroEvent macro0Event { 0 };
 MacroEvent macro1Event { 1 };

@@ -34,7 +34,9 @@ namespace Machine {
 
     public:
         static std::string _startup_line[n_startup_lines];
-        static std::string _post_homing_line;
+        static std::string _after_homing_line;
+        static std::string _after_reset_line;
+        static std::string _after_unlock_line;
 
         Macros() = default;
 
@@ -52,7 +54,9 @@ namespace Machine {
             handler.item("macro1", _macro[1]);
             handler.item("macro2", _macro[2]);
             handler.item("macro3", _macro[3]);
-            handler.item("post_homing", _post_homing_line);
+            handler.item("after_homing", _after_homing_line);
+            handler.item("after_reset", _after_reset_line);
+            handler.item("after_unlock", _after_unlock_line);
         }
 
         ~Macros() {}
