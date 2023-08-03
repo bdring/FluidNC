@@ -372,7 +372,6 @@ static void protocol_do_restart() {
     allChannels.flushRx();
     report_init_message(allChannels);
     mc_init();
-    sys.state = State::Idle;
 
     // Check for and report alarm state after a reset, error, or an initial power up.
     // NOTE: Sleep mode disables the stepper drivers and position can't be guaranteed.
@@ -403,6 +402,8 @@ static void protocol_do_start() {
         Homing::set_all_axes_unhomed();
         // If there is an axis with homing configured, enter Alarm state on startup
         send_alarm(ExecAlarm::Unhomed);
+    } else {
+        sys.state = State::Idle;
     }
     protocol_send_event(&runStartupLinesEvent);
 }
@@ -1038,10 +1039,11 @@ void protocol_do_rt_reset() {
         Machine::Homing::fail(ExecAlarm::HomingFailReset);
     } else if (sys.state == State::Cycle || sys.state == State::Jog || sys.step_control.executeHold || sys.step_control.executeSysMotion) {
         Stepper::stop_stepping();  // Stop stepping immediately, possibly losing position
-        // Probably unnecessary because system will restart soon
-        // send_alarm(ExecAlarm::AbortCycle);
+        protocol_do_alarm((void*)ExecAlarm::AbortCycle);
     } else if (sys.state == State::Critical) {
-        sys.state == State::Alarm;
+        sys.state = State::Alarm;
+    } else {
+        sys.state = State::Idle;
     }
     protocol_do_late_reset();
     protocol_send_event(&restartEvent);
@@ -1091,7 +1093,6 @@ void protocol_send_event(Event* evt, void* arg) {
 void protocol_handle_events() {
     EventItem item;
     while (xQueueReceive(event_queue, &item, 0)) {
-        // log_debug("event");
         item.event->run(item.arg);
     }
 }
