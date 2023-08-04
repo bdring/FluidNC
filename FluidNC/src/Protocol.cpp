@@ -418,10 +418,16 @@ static void protocol_do_alarm(void* alarmVoid) {
         spindle->stop();
     }
     alarm_msg(lastAlarm);
-    if (lastAlarm == ExecAlarm::HardLimit || lastAlarm == ExecAlarm::SoftLimit || lastAlarm == ExecAlarm::HardStop) {
+    if (lastAlarm == ExecAlarm::HardLimit || lastAlarm == ExecAlarm::HardStop) {
         sys.state = State::Critical;  // Set system alarm state
         report_error_message(Message::CriticalEvent);
         protocol_disable_steppers();
+        Homing::set_all_axes_unhomed();
+        return;
+    }
+    if (lastAlarm == ExecAlarm::SoftLimit) {
+        sys.state = State::Critical;  // Set system alarm state
+        report_error_message(Message::CriticalEvent);
         return;
     }
     sys.state = State::Alarm;
@@ -1045,8 +1051,12 @@ void protocol_do_rt_reset() {
         Stepper::stop_stepping();  // Stop stepping immediately, possibly losing position
         protocol_do_alarm((void*)ExecAlarm::AbortCycle);
     } else if (sys.state == State::Critical) {
-        sys.state = State::Alarm;
-    } else {
+        if (Homing::unhomed_axes()) {
+            protocol_do_alarm((void*)ExecAlarm::Unhomed);
+        } else {
+            sys.state = State::Idle;
+        }
+    } else if (sys.state != State::Alarm) {
         sys.state = State::Idle;
     }
     protocol_do_late_reset();
