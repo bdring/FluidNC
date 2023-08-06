@@ -289,9 +289,9 @@ static Error disable_alarm_lock(const char* value, WebUI::AuthenticationLevel au
         Homing::set_all_axes_homed();
         report_feedback_message(Message::AlarmUnlock);
         sys.state = State::Idle;
-
-        config->_macros->_after_unlock.run();
-    }  // Otherwise, no effect.
+    }
+    // Run the after_unlock macro even if no unlock was necessary
+    config->_macros->_after_unlock.run();
     return Error::Ok;
 }
 static Error report_ngc(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
