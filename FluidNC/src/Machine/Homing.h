@@ -11,6 +11,8 @@
 
 namespace Machine {
     class Homing : public Configuration::Configurable {
+        static AxisMask _unhomed_axes;
+
     public:
         static enum Phase {
             None         = 0,
@@ -22,6 +24,14 @@ namespace Machine {
             Pulloff2     = 6,
             CycleDone    = 7,
         } _phase;
+
+        static AxisMask unhomed_axes();
+
+        static void set_axis_homed(size_t axis);
+        static void set_axis_unhomed(size_t axis);
+        static bool axis_is_homed(size_t axis);
+        static void set_all_axes_homed();
+        static void set_all_axes_unhomed();
 
         Homing() = default;
 
@@ -44,7 +54,7 @@ namespace Machine {
 
         // The homing cycles are 1,2,3 etc.  0 means not homed as part of home-all,
         // but you can still home it manually with e.g. $HA
-        int      _cycle             = -1;    // what auto-homing cycle does this axis home on?
+        int      _cycle             = 0;     // what auto-homing cycle does this axis home on?
         bool     _allow_single_axis = true;  // Allow use of $H<axis> command on this axis
         bool     _positiveDirection = true;
         float    _mpos              = 0.0f;    // After homing this will be the mpos of the switch location
