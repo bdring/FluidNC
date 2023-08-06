@@ -388,7 +388,7 @@ static void protocol_do_restart() {
         send_alarm(ExecAlarm::ControlPin);
     } else {
         if (sys.state == State::Idle) {
-            config->_macros->run_macro(Macros::_after_reset_line);
+            config->_macros->_after_reset.run();
         }
     }
 }

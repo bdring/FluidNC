@@ -290,7 +290,7 @@ static Error disable_alarm_lock(const char* value, WebUI::AuthenticationLevel au
         report_feedback_message(Message::AlarmUnlock);
         sys.state = State::Idle;
 
-        config->_macros->run_macro(Macros::_after_unlock_line);
+        config->_macros->_after_unlock.run();
     }  // Otherwise, no effect.
     return Error::Ok;
 }
@@ -329,7 +329,7 @@ static Error home(AxisMask axisMask) {
         protocol_execute_realtime();
     } while (sys.state == State::Homing);
 
-    config->_macros->run_macro(Macros::_after_homing_line);
+    config->_macros->_after_homing.run();
 
     return Error::Ok;
 }
@@ -442,7 +442,7 @@ static Error get_report_build_info(const char* value, WebUI::AuthenticationLevel
 }
 static Error show_startup_lines(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
     for (int i = 0; i < config->_macros->n_startup_lines; i++) {
-        log_to(out, "$N", i << "=" << config->_macros->_startup_line[i]);
+        log_to(out, "$N", i << "=" << config->_macros->_startup_line[i]._gcode);
     }
     return Error::Ok;
 }
@@ -597,9 +597,9 @@ static Error motors_init(const char* value, WebUI::AuthenticationLevel auth_leve
 
 static Error macros_run(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
     if (value) {
-        log_info("Running macro " << *value);
+        log_info("Running macro" << *value);
         size_t macro_num = (*value) - '0';
-        config->_macros->run_macro(macro_num);
+        config->_macros->_macro[macro_num].run();
         return Error::Ok;
     }
     log_error("$Macros/Run requires a macro number argument");
@@ -993,21 +993,7 @@ void settings_execute_startup() {
     }
     Error status_code;
     for (int i = 0; i < config->_macros->n_startup_lines; i++) {
-        auto str = config->_macros->_startup_line[i];
-        if (str.length()) {
-            config->_macros->run_macro(str);
-#if 0
-            // We have to copy this to a mutable array because
-            // gc_execute_line modifies the line while parsing.
-            char gcline[256];
-            strncpy(gcline, str.c_str(), 255);
-            status_code = gc_execute_line(gcline);
-            // Uart0 << ">" << gcline << "\n";
-            if (status_code != Error::Ok) {
-                log_error("Startup line: " << errorString(status_code));
-            }
-#endif
-        }
+        config->_macros->_startup_line[i].run();
     }
 }
 

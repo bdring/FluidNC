@@ -12,15 +12,14 @@ void MacroEvent::run(void* arg) {
         log_error("Macro can only be used in idle state");
         return;
     }
-    log_debug("Macro " << n);
-    config->_macros->run_macro(n);
+    config->_macros->_macro[n].run();
 }
 
-std::string Macros::_startup_line[n_startup_lines];
-std::string Macros::_macro[n_macros];
-std::string Macros::_after_homing_line;
-std::string Macros::_after_reset_line;
-std::string Macros::_after_unlock_line;
+Macro Macros::_startup_line[n_startup_lines] = { { "startup_line0" }, { "startup_line1" } };
+Macro Macros::_macro[n_macros]               = { { "macro0" }, { "macro1" }, { "macro2" }, { "macro3" } };
+Macro Macros::_after_homing                  = { "after_homing" };
+Macro Macros::_after_reset                   = { "after_reset" };
+Macro Macros::_after_unlock                  = { "after_unlock" };
 
 MacroEvent macro0Event { 0 };
 MacroEvent macro1Event { 1 };
@@ -54,19 +53,16 @@ Cmd findOverride(std::string name) {
     return it == overrideCodes.end() ? Cmd::None : it->second;
 }
 
-bool Macros::run_macro(size_t n) {
-    return run_macro(_macro[n]);
-}
-
-bool Macros::run_macro(const std::string& s) {
-    if (s == "") {
+bool Macro::run() {
+    const std::string& s = _gcode;
+    if (_gcode == "") {
         return true;
     }
 
-    log_info("Running macro: " << s);
+    log_info("Running macro " << _name << ": " << _gcode);
     char c;
-    for (int i = 0; i < s.length(); i++) {
-        c = s[i];
+    for (int i = 0; i < _gcode.length(); i++) {
+        c = _gcode[i];
         switch (c) {
             case '&':
                 // & is a proxy for newlines in macros, because you cannot
@@ -74,12 +70,12 @@ bool Macros::run_macro(const std::string& s) {
                 WebUI::inputBuffer.push('\n');
                 break;
             case '#':
-                if ((i + 3) > s.length()) {
+                if ((i + 3) > _gcode.length()) {
                     log_error("Missing characters after # realtime escape in macro");
                     return false;
                 }
                 {
-                    std::string s1(s.c_str() + i + 1, 2);
+                    std::string s1(_gcode.c_str() + i + 1, 2);
                     Cmd         cmd = findOverride(s1);
                     if (cmd == Cmd::None) {
                         log_error("Bad #xx realtime escape in macro");
