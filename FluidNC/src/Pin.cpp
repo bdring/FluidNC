@@ -32,7 +32,7 @@ const char* Pin::parse(std::string_view pin_str, Pins::PinDetail*& pinImplementa
 
     if (pin_str.empty()) {
         // Re-use undefined pins happens in 'create':
-        pinImplementation = new Pins::VoidPinDetail();
+        pinImplementation = undefinedPin;
         return nullptr;
     }
 
