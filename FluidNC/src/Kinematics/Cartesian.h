@@ -42,6 +42,7 @@ namespace Kinematics {
         bool canHome(AxisMask axisMask) override;
         void releaseMotors(AxisMask axisMask, MotorMask motors) override;
         bool limitReached(AxisMask& axisMask, MotorMask& motors, MotorMask limited) override;
+        virtual bool kinematics_homing(AxisMask& axisMask) override;
 
         // Configuration handlers:
         void afterParse() override {}

@@ -262,6 +262,7 @@ namespace Kinematics {
     bool Cartesian::transform_cartesian_to_motors(float* motors, float* cartesian) {
         // Motor space is cartesian space, so we do no transform.
         copyAxes(motors, cartesian);
+        return true;
     }
 
     bool Cartesian::canHome(AxisMask axisMask) {
@@ -302,6 +303,10 @@ namespace Kinematics {
                 }
             }
         }
+    }
+
+    bool Cartesian::kinematics_homing(AxisMask& axisMask) {
+        return false;  // kinematics does not do the homing for catesian systems
     }
 
     // Configuration registration

@@ -65,10 +65,10 @@ namespace Kinematics {
     public:
         KinematicSystem() = default;
 
-        KinematicSystem(const KinematicSystem&) = delete;
-        KinematicSystem(KinematicSystem&&)      = delete;
+        KinematicSystem(const KinematicSystem&)            = delete;
+        KinematicSystem(KinematicSystem&&)                 = delete;
         KinematicSystem& operator=(const KinematicSystem&) = delete;
-        KinematicSystem& operator=(KinematicSystem&&) = delete;
+        KinematicSystem& operator=(KinematicSystem&&)      = delete;
 
         // Kinematic system interface.
         virtual bool cartesian_to_motors(float* target, plan_line_data_t* pl_data, float* position) = 0;
@@ -90,7 +90,7 @@ namespace Kinematics {
         virtual void releaseMotors(AxisMask axisMask, MotorMask motors) {}
         virtual bool limitReached(AxisMask& axisMask, MotorMask& motors, MotorMask limited) { return false; }
 
-        bool kinematics_homing(AxisMask& axisMask);
+        virtual bool kinematics_homing(AxisMask& axisMask) { return false; }
 
         // Configuration interface.
         void afterParse() override {}
