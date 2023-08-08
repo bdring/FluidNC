@@ -46,7 +46,7 @@ namespace Kinematics {
 
         bool cartesian_to_motors(float* target, plan_line_data_t* pl_data, float* position);
         void motors_to_cartesian(float* cartesian, float* motors, int n_axis);
-        void transform_cartesian_to_motors(float* motors, float* cartesian);
+        bool transform_cartesian_to_motors(float* motors, float* cartesian);
 
         void constrain_jog(float* target, plan_line_data_t* pl_data, float* position);
         bool invalid_line(float* target);
@@ -84,11 +84,13 @@ namespace Kinematics {
 
         virtual void motors_to_cartesian(float* cartesian, float* motors, int n_axis) = 0;
 
-        virtual void transform_cartesian_to_motors(float* motors, float* cartesian) = 0;
+        virtual bool transform_cartesian_to_motors(float* motors, float* cartesian) = 0;
 
         virtual bool canHome(AxisMask axisMask) { return false; }
         virtual void releaseMotors(AxisMask axisMask, MotorMask motors) {}
         virtual bool limitReached(AxisMask& axisMask, MotorMask& motors, MotorMask limited) { return false; }
+
+        bool kinematics_homing(AxisMask& axisMask);
 
         // Configuration interface.
         void afterParse() override {}

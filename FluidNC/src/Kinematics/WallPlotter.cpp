@@ -47,8 +47,9 @@ namespace Kinematics {
         return false;
     }
 
-    void WallPlotter::transform_cartesian_to_motors(float* cartesian, float* motors) {
+    bool WallPlotter::transform_cartesian_to_motors(float* cartesian, float* motors) {
         log_error("WallPlotter::transform_cartesian_to_motors is broken");
+        return true;
     }
 
     /*

@@ -259,7 +259,7 @@ namespace Kinematics {
         copyAxes(cartesian, motors);
     }
 
-    void Cartesian::transform_cartesian_to_motors(float* motors, float* cartesian) {
+    bool Cartesian::transform_cartesian_to_motors(float* motors, float* cartesian) {
         // Motor space is cartesian space, so we do no transform.
         copyAxes(motors, cartesian);
     }

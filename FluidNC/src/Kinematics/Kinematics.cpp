@@ -49,7 +49,7 @@ namespace Kinematics {
         return _system->limitReached(axisMask, motors, limited);
     }
 
-    void Kinematics::transform_cartesian_to_motors(float* motors, float* cartesian) {
+    bool Kinematics::transform_cartesian_to_motors(float* motors, float* cartesian) {
         Assert(_system != nullptr, "No kinematics system.");
         return _system->transform_cartesian_to_motors(motors, cartesian);
     }
