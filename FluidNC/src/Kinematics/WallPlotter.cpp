@@ -230,9 +230,9 @@ namespace Kinematics {
         right_length   = hypot_f(right_dx, right_dy);
     }
 
-    bool WallPlotter::kinematics_homing(AxisMask& axisMask) {
-        return false;  // kinematics does not do the homing for catesian systems
-    }
+    // bool WallPlotter::kinematics_homing(AxisMask& axisMask) {
+    //     return false;  // kinematics does not do the homing for catesian systems
+    // }
 
     // Configuration registration
     namespace {

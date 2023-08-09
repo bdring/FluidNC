@@ -295,22 +295,22 @@ namespace Kinematics {
 */
  
 
-    bool ParallelDelta::kinematics_homing(AxisMask& axisMask) {
-        auto axes   = config->_axes;
-        auto n_axis = axes->_numberAxis;
+    // bool ParallelDelta::kinematics_homing(AxisMask& axisMask) {
+    //     auto axes   = config->_axes;
+    //     auto n_axis = axes->_numberAxis;
 
-        log_debug("kinematics_homing");
-        config->_axes->set_disable(false);
+    //     log_debug("kinematics_homing");
+    //     config->_axes->set_disable(false);
 
-        // TODO deal with non kinematic axes above Z
-        for (int axis = 0; axis < 3; axis++) {
-            //set_motor_steps(axis, mpos_to_steps(axes->_axis[axis]->_homing->_mpos, axis));
-            int32_t steps = mpos_to_steps(_homing_mpos, axis);
-            set_motor_steps(axis, steps);
-        }
-        protocol_disable_steppers();
-        return true;  // signal main code that this handled all homing
-    }
+    //     // TODO deal with non kinematic axes above Z
+    //     for (int axis = 0; axis < 3; axis++) {
+    //         //set_motor_steps(axis, mpos_to_steps(axes->_axis[axis]->_homing->_mpos, axis));
+    //         int32_t steps = mpos_to_steps(_homing_mpos, axis);
+    //         set_motor_steps(axis, steps);
+    //     }
+    //     protocol_disable_steppers();
+    //     return true;  // signal main code that this handled all homing
+    // }
 
     // helper functions, calculates angle theta1 (for YZ-pane)
     bool ParallelDelta::delta_calcAngleYZ(float x0, float y0, float z0, float& theta) {

@@ -89,8 +89,7 @@ namespace Kinematics {
         virtual bool canHome(AxisMask axisMask) { return false; }
         virtual void releaseMotors(AxisMask axisMask, MotorMask motors) {}
         virtual bool limitReached(AxisMask& axisMask, MotorMask& motors, MotorMask limited) { return false; }
-
-        virtual bool kinematics_homing(AxisMask& axisMask) { return false; }
+        //virtual bool kinematics_homing(AxisMask& axisMask) { return false; }
 
         // Configuration interface.
         void afterParse() override {}

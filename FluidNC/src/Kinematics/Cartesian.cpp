@@ -305,9 +305,9 @@ namespace Kinematics {
         }
     }
 
-    bool Cartesian::kinematics_homing(AxisMask& axisMask) {
-        return false;  // kinematics does not do the homing for catesian systems
-    }
+    // bool Cartesian::kinematics_homing(AxisMask& axisMask) {
+    //     return false;  // kinematics does not do the homing for catesian systems
+    // }
 
     // Configuration registration
     namespace {
