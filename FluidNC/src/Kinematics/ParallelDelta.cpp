@@ -81,7 +81,19 @@ namespace Kinematics {
 
     void ParallelDelta::init() {
         // print a startup message to show the kinematics are enabled. Print the offset for reference
-        log_info("Kinematic system: " << name());        
+        log_info("Kinematic system:" << name() << " soft_limits:" << _softLimits);
+
+        auto axes   = config->_axes;
+        auto n_axis = config->_axes->_numberAxis;
+
+        // warn about axissofy limits
+        for (int axis = 0; axis < n_axis; axis++) {
+            if (axes->_axis[axis]->_softLimits) {
+                log_warn(" All soft_limits configured in axes should be false");
+                break;
+            }
+        }
+
         init_position();
     }
 
@@ -94,67 +106,47 @@ namespace Kinematics {
         log_info("  Z Offset:" << cartesian[Z_AXIS]);
     }
 
-   
+    bool ParallelDelta::invalid_line(float* cartesian) {
+        if (!_softLimits)
+            return false;
 
+        float motors[MAX_N_AXIS] = { 0.0, 0.0, 0.0 };
+
+        if (!transform_cartesian_to_motors(motors, cartesian)) {
+            limit_error();
+            return true;
+        }
+
+        return false;
+    }
+
+    // TO DO. This is not supported yet. Other levels of protection will prevent "damage"
+    bool ParallelDelta::invalid_arc(
+        float* target, plan_line_data_t* pl_data, float* position, float center[3], float radius, size_t caxes[3], bool is_clockwise_arc) {
+        return false;
+    }
 
     // copied from Cartensian. Needs to be optimized for parallel delta.
     void ParallelDelta::constrain_jog(float* target, plan_line_data_t* pl_data, float* position) {
-        auto axes   = config->_axes;
-        auto n_axis = config->_axes->_numberAxis;
+        // log_debug("Jog Test: from(" << position[X_AXIS] << ")"
+        //                             << " to(" << target[X_AXIS] << ")");
+        if (!_softLimits)
+            return;
 
-        float*    current_position = get_mpos();
-        MotorMask lim_pin_state    = limits_get_state();
+        float motors[MAX_N_AXIS] = { 0.0, 0.0, 0.0 };
 
-        for (int axis = 0; axis < n_axis; axis++) {
-            auto axisSetting = axes->_axis[axis];
-            // If the axis is moving from the current location and soft limits are on.
-            if (axisSetting->_softLimits && target[axis] != current_position[axis]) {
-                // When outside the axis range, only small nudges to clear switches are allowed
-                bool move_positive = target[axis] > current_position[axis];
-                if ((!move_positive && (current_position[axis] < limitsMinPosition(axis))) ||
-                    (move_positive && (current_position[axis] > limitsMaxPosition(axis)))) {
-                    // only allow a nudge if a switch is active
-                    if (bitnum_is_false(lim_pin_state, Machine::Axes::motor_bit(axis, 0)) &&
-                        bitnum_is_false(lim_pin_state, Machine::Axes::motor_bit(axis, 1))) {
-                        target[axis] = current_position[axis];  // cancel the move on this axis
-                        log_debug("Soft limit violation on " << Machine::Axes::_names[axis]);
-                        continue;
-                    }
-                    float jog_dist = target[axis] - current_position[axis];
-
-                    MotorMask axisMotors = Machine::Axes::axes_to_motors(1 << axis);
-                    bool      posLimited = bits_are_true(Machine::Axes::posLimitMask, axisMotors);
-                    bool      negLimited = bits_are_true(Machine::Axes::negLimitMask, axisMotors);
-
-                    // if jog is positive and only the positive switch is active, then kill the move
-                    // if jog is negative and only the negative switch is active, then kill the move
-                    if (posLimited != negLimited) {                 // XOR, because ambiguous (both) is OK
-                        if ((negLimited && (jog_dist < 0)) || (posLimited && (jog_dist > 0))) {
-                            target[axis] = current_position[axis];  // cancel the move on this axis
-                            log_debug("Jog into active switch blocked on " << Machine::Axes::_names[axis]);
-                            continue;
-                        }
-                    }
-
-                    auto nudge_max = axisSetting->_motors[0]->_pulloff;
-                    if (abs(jog_dist) > nudge_max) {
-                        target[axis] = (jog_dist >= 0) ? current_position[axis] + nudge_max : current_position[axis] + nudge_max;
-                        log_debug("Jog amount limited when outside soft limits")
-                    }
-                    continue;
-                }
-
-                if (target[axis] < limitsMinPosition(axis)) {
-                    target[axis] = limitsMinPosition(axis);
-                } else if (target[axis] > limitsMaxPosition(axis)) {
-                    target[axis] = limitsMaxPosition(axis);
-                } else {
-                    continue;
-                }
-                log_debug("Jog constrained to axis range");
-            }
+        // Temp fix
+        // If the target is reachable do nothing
+        if (transform_cartesian_to_motors(motors, target)) {
+            return;
+        } else {
+            log_warn("Kinematics soft limit jog rejection");
+            copyAxes(target, position);
         }
-        pl_data->limits_checked = true;
+
+        // TO DO better idea
+        // loop back from the target in increments of  kinematic_segment_len_mm unitl the position is valid.
+        // constrain to that target.
     }
 
     bool ParallelDelta::cartesian_to_motors(float* target, plan_line_data_t* pl_data, float* position) {
@@ -288,18 +280,11 @@ namespace Kinematics {
         cartesian[X_AXIS] = (a1 * cartesian[Z_AXIS] + b1) / dnm;
         cartesian[Y_AXIS] = (a2 * cartesian[Z_AXIS] + b2) / dnm;
     }
-/*
-    bool ParallelDelta::canHome(AxisMask& axisMask) {
-        return true;  // signal main code that this handled all homing
-    }
-*/
- 
 
     bool ParallelDelta::kinematics_homing(AxisMask& axisMask) {
         auto axes   = config->_axes;
         auto n_axis = axes->_numberAxis;
 
-        log_debug("kinematics_homing");
         config->_axes->set_disable(false);
 
         // TODO deal with non kinematic axes above Z
@@ -322,7 +307,7 @@ namespace Kinematics {
         // discriminant
         float d = -(a + b * y1) * (a + b * y1) + rf * (b * b * rf + rf);
         if (d < 0) {
-            log_warn("Kinematics: Target unreachable");
+            //log_warn("Kinematics: Target unreachable");
             return false;
         }                                                 // non-existing point
         float yj = (y1 - a * b - sqrt(d)) / (b * b + 1);  // choosing outer point
@@ -332,18 +317,6 @@ namespace Kinematics {
 
         return true;
     }
-
-    // checks to see if the target is reachable
-    // bool ParallelDelta::soft_limit_error_exists(float* cartesian) {
-    //     float motors[MAX_N_AXIS];
-    //     bool  calc_ok     = true;
-    //     bool  limit_error = false;
-
-    //     if (!_softLimits)
-    //         limit_error = false;
-
-    //     return !transform_cartesian_to_motors(motors, cartesian);
-    // }
 
     void ParallelDelta::releaseMotors(AxisMask axisMask, MotorMask motors) {}
 

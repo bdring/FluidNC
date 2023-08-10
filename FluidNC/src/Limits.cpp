@@ -60,6 +60,11 @@ bool soft_limit = false;
 void limit_error(size_t axis, float coordinate) {
     log_info("Soft limit on " << Machine::Axes::_names[axis] << " target:" << coordinate);
 
+    limit_error();
+}
+
+void limit_error() {
+
     soft_limit = true;
     // Force feed hold if cycle is active. All buffered blocks are guaranteed to be within
     // workspace volume so just come to a controlled stop so position is not lost. When complete
@@ -74,6 +79,7 @@ void limit_error(size_t axis, float coordinate) {
             }
         } while (sys.state != State::Idle);
     }
+
     mc_critical(ExecAlarm::SoftLimit);
 }
 

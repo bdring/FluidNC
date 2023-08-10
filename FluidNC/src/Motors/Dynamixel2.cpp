@@ -110,7 +110,6 @@ namespace MotorDrivers {
 
     // sets the PWM to zero. This allows most servos to be manually moved
     void IRAM_ATTR Dynamixel2::set_disable(bool disable) {
-        log_info("dyn disable:"<<disable)
         if (_disabled == disable) {
             return;
         }

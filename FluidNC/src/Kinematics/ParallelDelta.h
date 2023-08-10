@@ -19,9 +19,6 @@
 #    define M_PI 3.14159265358979323846
 #endif
 
-#define ARM_INTERNAL_ANGLE 0.05  // radians 2.866°  // due to mounting angle
-#define DXL_CENTER 2015          // (DXL_COUNTS / 2) - (ARM_INTERNAL_ANGLE * DXL_COUNT_PER_RADIAN)
-
 namespace Kinematics {
     // enum class KinematicError : uint8_t {
     //     NONE               = 0,
@@ -46,11 +43,8 @@ namespace Kinematics {
         void motors_to_cartesian(float* cartesian, float* motors, int n_axis) override;
         bool transform_cartesian_to_motors(float* motors, float* cartesian) override;
         //bool soft_limit_error_exists(float* cartesian) override;
-        bool kinematics_homing(AxisMask& axisMask) override;
+        bool         kinematics_homing(AxisMask& axisMask) override;
         virtual void constrain_jog(float* cartesian, plan_line_data_t* pl_data, float* position) override;
-        void         releaseMotors(AxisMask axisMask, MotorMask motors) override;
-
-        /*
         virtual bool invalid_line(float* cartesian) override;
         virtual bool invalid_arc(float*            target,
                                  plan_line_data_t* pl_data,
@@ -60,7 +54,7 @@ namespace Kinematics {
                                  size_t            caxes[3],
                                  bool              is_clockwise_arc) override;
 
-         */
+        void releaseMotors(AxisMask axisMask, MotorMask motors) override;
 
         // Configuration handlers:
         //void         validate() const override {}

@@ -28,7 +28,7 @@ kinematics:
     max_z_mm: -90.0
 
 start:
-  must_home: false
+  must_home: true
   deactivate_parking: false
   check_limits: false
 
