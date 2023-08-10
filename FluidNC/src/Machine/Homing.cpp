@@ -432,9 +432,9 @@ namespace Machine {
     // cycle.  The protocol loop will then respond to events and advance
     // the homing state machine through its phases.
     void Homing::run_cycles(AxisMask axisMask) {
-        // if (config->_kinematics->kinematics_homing(axisMask)) {
-        //     return;
-        // }
+        if (config->_kinematics->kinematics_homing(axisMask)) {
+            return;
+        }
 
         if (!config->_kinematics->canHome(axisMask)) {
             sys.state = State::Alarm;
@@ -445,6 +445,7 @@ namespace Machine {
         auto n_axis = config->_axes->_numberAxis;
         for (int axis = X_AXIS; axis < n_axis; axis++) {
             if (config->_axes->_axis[axis]->_homing->_cycle == set_mpos_only) {
+                log_info("set_mpos_only");
                 if (axisMask == 0 || axisMask & 1 << axis) {
                     float* mpos = get_mpos();
                     mpos[axis]  = config->_axes->_axis[axis]->_homing->_mpos;

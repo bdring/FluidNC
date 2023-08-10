@@ -39,6 +39,11 @@ namespace Kinematics {
         return _system->canHome(axisMask);
     }
 
+    bool Kinematics::kinematics_homing(AxisMask axisMask) {
+        Assert(_system != nullptr, "No kinematic system");
+        return _system->kinematics_homing(axisMask);
+    }
+
     void Kinematics::releaseMotors(AxisMask axisMask, MotorMask motors) {
         Assert(_system != nullptr, "No kinematic system");
         _system->releaseMotors(axisMask, motors);

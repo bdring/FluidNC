@@ -54,6 +54,7 @@ namespace Kinematics {
             float* target, plan_line_data_t* pl_data, float* position, float center[3], float radius, size_t caxes[3], bool is_clockwise_arc);
 
         bool canHome(AxisMask axisMask);
+        bool kinematics_homing(AxisMask axisMask);
         void releaseMotors(AxisMask axisMask, MotorMask motors);
         bool limitReached(AxisMask& axisMask, MotorMask& motors, MotorMask limited);
 
@@ -89,7 +90,7 @@ namespace Kinematics {
         virtual bool canHome(AxisMask axisMask) { return false; }
         virtual void releaseMotors(AxisMask axisMask, MotorMask motors) {}
         virtual bool limitReached(AxisMask& axisMask, MotorMask& motors, MotorMask limited) { return false; }
-        //virtual bool kinematics_homing(AxisMask& axisMask) { return false; }
+        virtual bool kinematics_homing(AxisMask& axisMask) { return false; }
 
         // Configuration interface.
         void afterParse() override {}
