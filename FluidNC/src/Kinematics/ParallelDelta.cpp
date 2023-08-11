@@ -77,6 +77,7 @@ namespace Kinematics {
         handler.item("homing_mpos_radians", _homing_mpos);
         handler.item("soft_limits", _softLimits);
         handler.item("max_z_mm", _max_z, -10000.0, 0.0);  //
+        handler.item("use_servos", _use_servos);
     }
 
     void ParallelDelta::init() {
@@ -282,6 +283,11 @@ namespace Kinematics {
     }
 
     bool ParallelDelta::kinematics_homing(AxisMask& axisMask) {
+
+        // only servos use custom homing. Steppers use limit switches
+        if (!_use_servos)
+            false;
+
         auto axes   = config->_axes;
         auto n_axis = axes->_numberAxis;
 

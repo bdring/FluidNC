@@ -20,12 +20,7 @@
 #endif
 
 namespace Kinematics {
-    // enum class KinematicError : uint8_t {
-    //     NONE               = 0,
-    //     OUT_OF_RANGE       = 1,
-    //     ANGLE_TOO_NEGATIVE = 2,
-    //     ANGLE_TOO_POSITIVE = 3,
-    // };
+
     class ParallelDelta : public Cartesian {
     public:
         ParallelDelta() = default;
@@ -78,6 +73,7 @@ namespace Kinematics {
         bool  _softLimits               = false;
         float _homing_mpos              = 0.0;
         float _max_z                    = 0.0;
+        bool  _use_servos               = true;  // servo use a special homing
 
         bool  delta_calcAngleYZ(float x0, float y0, float z0, float& theta);
         float three_axis_dist(float* point1, float* point2);
