@@ -1,9 +1,9 @@
 #include "Homing.h"
 
-#include "../System.h"    // sys.*
-#include "../Stepper.h"   // st_wake
-#include "../Protocol.h"  // protocol_handle_events
-#include "../Limits.h"    // ambiguousLimit
+#include "../System.h"                 // sys.*
+#include "../Stepper.h"                // st_wake
+#include "../Protocol.h"               // protocol_handle_events
+#include "../Limits.h"                 // ambiguousLimit
 #include "../Machine/Axes.h"
 #include "../Machine/MachineConfig.h"  // config
 
@@ -42,13 +42,25 @@ namespace Machine {
 
     AxisMask Homing::_unhomed_axes;  // Bitmap of axes whose position is unknown
 
-    bool Homing::axis_is_homed(size_t axis) { return bitnum_is_false(_unhomed_axes, axis); }
-    void Homing::set_axis_homed(size_t axis) { clear_bitnum(_unhomed_axes, axis); }
-    void Homing::set_axis_unhomed(size_t axis) { set_bitnum(_unhomed_axes, axis); }
-    void Homing::set_all_axes_unhomed() { _unhomed_axes = Machine::Axes::homingMask; }
-    void Homing::set_all_axes_homed() { _unhomed_axes = 0; }
+    bool Homing::axis_is_homed(size_t axis) {
+        return bitnum_is_false(_unhomed_axes, axis);
+    }
+    void Homing::set_axis_homed(size_t axis) {
+        clear_bitnum(_unhomed_axes, axis);
+    }
+    void Homing::set_axis_unhomed(size_t axis) {
+        set_bitnum(_unhomed_axes, axis);
+    }
+    void Homing::set_all_axes_unhomed() {
+        _unhomed_axes = Machine::Axes::homingMask;
+    }
+    void Homing::set_all_axes_homed() {
+        _unhomed_axes = 0;
+    }
 
-    AxisMask Homing::unhomed_axes() { return _unhomed_axes; }
+    AxisMask Homing::unhomed_axes() {
+        return _unhomed_axes;
+    }
 
     const char* Homing::_phaseNames[] = {
         "None", "PrePulloff", "FastApproach", "Pulloff0", "SlowApproach", "Pulloff1", "Pulloff2", "CycleDone",
@@ -76,7 +88,9 @@ namespace Machine {
         protocol_send_event(&cycleStartEvent);
     }
 
-    static MotorMask limited() { return Machine::Axes::posLimitMask | Machine::Axes::negLimitMask; }
+    static MotorMask limited() {
+        return Machine::Axes::posLimitMask | Machine::Axes::negLimitMask;
+    }
 
     void Homing::cycleStop() {
         log_debug("CycleStop " << phaseName(_phase));
@@ -360,7 +374,7 @@ namespace Machine {
     }
 
     void Homing::fail(ExecAlarm alarm) {
-        Stepper::reset();  // Stop moving
+        Stepper::reset();                                   // Stop moving
         send_alarm(alarm);
         config->_axes->set_homing_mode(_cycleAxes, false);  // tell motors homing is done...failed
         config->_axes->set_disable(config->_stepping->_idleMsecs != 255);
@@ -432,6 +446,7 @@ namespace Machine {
     // cycle.  The protocol loop will then respond to events and advance
     // the homing state machine through its phases.
     void Homing::run_cycles(AxisMask axisMask) {
+        // Check to see if the Kinematics takes care of homing.
         if (config->_kinematics->kinematics_homing(axisMask)) {
             return;
         }
