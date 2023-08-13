@@ -17,11 +17,11 @@
 
   To make the moves straight and smooth on a delta, the cartesian moves
   are broken into small segments where the non linearity will not be noticed.
-  This is similar to how Grgl draws arcs.
+  This is similar to how Grbl draws arcs.
 
-  If you request MPos status it will tell you the position in
-  arm angles. The MPos will report in cartesian values using forward kinematics. 
-  The arm 0 values (angle) are the arms at horizontal.
+  For mpos reporting, the motor position in steps is proportional to arm angles 
+  in radians, which is then converted to cartesian via the forward kinematics 
+  transform. Arm angle 0 means horizontal.
 
   Positive angles are below horizontal.
 
@@ -127,7 +127,7 @@ namespace Kinematics {
         return false;
     }
 
-    // copied from Cartensian. Needs to be optimized for parallel delta.
+    // copied from Cartesian . Needs to be optimized for parallel delta.
     void ParallelDelta::constrain_jog(float* target, plan_line_data_t* pl_data, float* position) {
         // log_debug("Jog Test: from(" << position[X_AXIS] << ")"
         //                             << " to(" << target[X_AXIS] << ")");
@@ -283,7 +283,6 @@ namespace Kinematics {
     }
 
     bool ParallelDelta::kinematics_homing(AxisMask& axisMask) {
-
         // only servos use custom homing. Steppers use limit switches
         if (!_use_servos)
             false;
