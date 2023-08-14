@@ -132,7 +132,7 @@ namespace Kinematics {
     /*
       Kinematic equations
     */
-    void CoreXY::transform_cartesian_to_motors(float* motors, float* cartesian) {
+    bool CoreXY::transform_cartesian_to_motors(float* motors, float* cartesian) {
         motors[X_AXIS] = (_x_scaler * cartesian[X_AXIS]) + cartesian[Y_AXIS];
         motors[Y_AXIS] = (_x_scaler * cartesian[X_AXIS]) - cartesian[Y_AXIS];
 
@@ -140,6 +140,7 @@ namespace Kinematics {
         for (size_t axis = Z_AXIS; axis < n_axis; axis++) {
             motors[axis] = cartesian[axis];
         }
+        return true;
     }
 
     // Configuration registration

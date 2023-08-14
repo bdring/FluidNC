@@ -90,16 +90,16 @@ namespace MotorDrivers {
         if (len == PING_RSP_LEN) {
             uint16_t    model_num = _rx_message[10] << 8 | _rx_message[9];
             uint8_t     fw_rev    = _rx_message[11];
-            std::string msg("Axis ping reply ");
+            std::string msg(" ");
             msg += axisName().c_str();
             if (model_num == 1060) {
-                msg += " Model XL430-W250";
+                msg += "reply: Model XL430-W250";
             } else {
                 msg += " M/N " + std::to_string(model_num);
             }
             log_info(msg << " F/W Rev " << to_hex(fw_rev));
         } else {
-            log_warn(" Ping failed");
+            log_warn(axisName() << " Ping failed");
             return false;
         }
 
@@ -158,7 +158,9 @@ namespace MotorDrivers {
         }
         finish_message();
     }
-    void Dynamixel2::update() { update_all(); }
+    void Dynamixel2::update() {
+        update_all();
+    }
 
     void Dynamixel2::set_location() {}
 
@@ -177,7 +179,9 @@ namespace MotorDrivers {
         return false;    // Cannot do conventional homing
     }
 
-    void Dynamixel2::add_uint8(uint8_t n) { _tx_message[_msg_index++] = n & 0xff; }
+    void Dynamixel2::add_uint8(uint8_t n) {
+        _tx_message[_msg_index++] = n & 0xff;
+    }
     void Dynamixel2::add_uint16(uint16_t n) {
         add_uint8(n);
         add_uint8(n >> 8);
