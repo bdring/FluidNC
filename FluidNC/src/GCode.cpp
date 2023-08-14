@@ -172,7 +172,7 @@ Error gc_execute_line(char* line) {
     bool syncLaser     = false;
     bool disableLaser  = false;
     bool laserIsMotion = false;
-    bool forceG21      = false;  // Used for G38.6-9
+    bool nonmodalG38   = false;  // Used for G38.6-9
 
     auto    n_axis = config->_axes->_numberAxis;
     float   coord_data[MAX_N_AXIS];  // Used by WCO-related commands
@@ -322,8 +322,8 @@ Error gc_execute_line(char* line) {
 
                         axis_command = AxisCommand::MotionMode;
                         if (mantissa >= 60) {
-                            forceG21 = true;
-                            mantissa -= 60;
+                            nonmodalG38 = true;
+                            mantissa -= 40;
                         }
                         switch (mantissa) {
                             case 20:
@@ -799,7 +799,7 @@ Error gc_execute_line(char* line) {
         if (bitnum_is_false(value_words, GCodeWord::F)) {
             FAIL(Error::GcodeUndefinedFeedRate);
         }
-        if (!forceG21 && gc_block.modal.units == Units::Inches) {
+        if (!nonmodalG38 && gc_block.modal.units == Units::Inches) {
             gc_block.values.f *= MM_PER_INCH;
         }
     } else {
@@ -827,7 +827,7 @@ Error gc_execute_line(char* line) {
             // - In units per mm mode: If F word passed, ensure value is in mm/min, otherwise push last state value.
             if (gc_state.modal.feed_rate == FeedRate::UnitsPerMin) {  // Last state is also G94
                 if (bitnum_is_true(value_words, GCodeWord::F)) {
-                    if (!forceG21 && gc_block.modal.units == Units::Inches) {
+                    if (!nonmodalG38 && gc_block.modal.units == Units::Inches) {
                         gc_block.values.f *= MM_PER_INCH;
                     }
                 } else {
@@ -900,7 +900,7 @@ Error gc_execute_line(char* line) {
 
     // [12. Set length units ]: N/A
     // Pre-convert XYZ coordinate values to millimeters, if applicable.
-    if (!forceG21 && gc_block.modal.units == Units::Inches) {
+    if (!nonmodalG38 && gc_block.modal.units == Units::Inches) {
         for (size_t idx = 0; idx < n_axis; idx++) {  // Axes indices are consistent, so loop may be used.
             if ((idx < A_AXIS || idx > C_AXIS) && bitnum_is_true(axis_words, idx)) {
                 gc_block.values.xyz[idx] *= MM_PER_INCH;
@@ -1039,7 +1039,7 @@ Error gc_execute_line(char* line) {
                             // NOTE: G53 is never active with G28/30 since they are in the same modal group.
                             if (gc_block.non_modal_command != NonModal::AbsoluteOverride) {
                                 // Apply coordinate offsets based on distance mode.
-                                if (gc_block.modal.distance == Distance::Absolute) {
+                                if (!nonmodalG38 && gc_block.modal.distance == Distance::Absolute) {
                                     gc_block.values.xyz[idx] += block_coord_system[idx] + gc_state.coord_offset[idx];
                                     if (idx == TOOL_LENGTH_OFFSET_AXIS) {
                                         gc_block.values.xyz[idx] += gc_state.tool_length_offset;
@@ -1157,7 +1157,7 @@ Error gc_execute_line(char* line) {
                             FAIL(Error::GcodeInvalidTarget);  // [Invalid target]
                         }
                         // Convert radius value to proper units.
-                        if (!forceG21 && gc_block.modal.units == Units::Inches) {
+                        if (!nonmodalG38 && gc_block.modal.units == Units::Inches) {
                             gc_block.values.r *= MM_PER_INCH;
                         }
                         /*  We need to calculate the center of the circle that has the designated radius and passes
@@ -1251,7 +1251,7 @@ Error gc_execute_line(char* line) {
                         }
                         clear_bits(value_words, (bitnum_to_mask(GCodeWord::I) | bitnum_to_mask(GCodeWord::J) | bitnum_to_mask(GCodeWord::K)));
                         // Convert IJK values to proper units.
-                        if (!forceG21 && gc_block.modal.units == Units::Inches) {
+                        if (!nonmodalG38 && gc_block.modal.units == Units::Inches) {
                             for (size_t idx = 0; idx < n_axis; idx++) {  // Axes indices are consistent, so loop may be used to save flash space.
                                 if (ijk_words & bitnum_to_mask(idx)) {
                                     gc_block.values.ijk[idx] *= MM_PER_INCH;
