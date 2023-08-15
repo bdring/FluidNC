@@ -29,28 +29,6 @@ namespace MotorDrivers {
         static uint8_t _msg_index;
         static uint8_t _rx_message[50];  // received from dynamixel
 
-        static void start_message(uint8_t id, uint8_t instr);
-        static void finish_message();
-        static void add_uint8(uint8_t n);
-        static void add_uint16(uint16_t n);
-        static void add_uint32(uint32_t n);
-
-        void start_write(uint16_t address);
-        void finish_write();
-        void show_status();
-
-        bool     test();
-        uint32_t dxl_read_position();
-        void     dxl_read(uint16_t address, uint16_t data_len);
-
-        void dxl_goal_position(int32_t position);  // set one motor
-        void set_operating_mode(uint8_t mode);
-        void LED_on(bool on);
-
-        size_t dxl_get_response(uint16_t length);
-
-        static uint16_t dxl_update_crc(uint16_t crc_accum, uint8_t* data_blk_ptr, uint8_t data_blk_size);
-
         static TimerHandle_t _timer;
 
         static std::vector<DCservo*> _instances;
