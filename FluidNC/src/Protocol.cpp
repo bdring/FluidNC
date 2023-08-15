@@ -1038,7 +1038,7 @@ static void protocol_do_limit(void* arg) {
     if ((sys.state == State::Cycle || sys.state == State::Jog) && limit->isHard()) {
         mc_critical(ExecAlarm::HardLimit);
     }
-    log_("Limit switch tripped for " << config->_axes->axisName(limit->_axis) << " motor " << limit->_motorNum);
+    log_info("Limit switch tripped for " << config->_axes->axisName(limit->_axis) << " motor " << limit->_motorNum);
 }
 static void protocol_do_fault_pin(void* arg) {
     if (sys.state == State::Cycle || sys.state == State::Jog) {

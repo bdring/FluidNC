@@ -28,10 +28,11 @@
 extern void make_user_commands();
 
 void setup() {
-    //Improve startup stability
-    //delay_ms(2000);
-
     disableCore0WDT();
+
+    //Improve startup stability
+    delay_ms(2000);
+
     try {
         timing_init();
         uartInit();       // Setup serial port
