@@ -47,8 +47,9 @@ namespace Kinematics {
         return false;
     }
 
-    void WallPlotter::transform_cartesian_to_motors(float* cartesian, float* motors) {
+    bool WallPlotter::transform_cartesian_to_motors(float* cartesian, float* motors) {
         log_error("WallPlotter::transform_cartesian_to_motors is broken");
+        return true;
     }
 
     /*
@@ -227,6 +228,10 @@ namespace Kinematics {
         float right_dy = _right_anchor_y - y;
         float right_dx = _right_anchor_x - x;
         right_length   = hypot_f(right_dx, right_dy);
+    }
+
+    bool WallPlotter::kinematics_homing(AxisMask& axisMask) {
+        return false;  // kinematics does not do the homing for catesian systems
     }
 
     // Configuration registration

@@ -56,7 +56,7 @@ GCUpdatePos mc_probe_cycle(float* target, plan_line_data_t* pl_data, bool away, 
 void mc_override_ctrl_update(Override override_state);
 
 // Performs system reset. If in motion state, kills all motion and sets system alarm.
-void mc_reset();
+void mc_critical(ExecAlarm alarm);
 
 void mc_cancel_jog();
 

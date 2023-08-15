@@ -20,4 +20,5 @@ enum class State : uint8_t {
     SafetyDoor,   // Safety door is ajar. Feed holds and de-energizes system.
     Sleep,        // Sleep state.
     ConfigAlarm,  // You can't do anything but fix your config file.
+    Critical,     // You can't do anything but reset with CTRL-x or the reset button
 };

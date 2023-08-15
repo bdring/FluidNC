@@ -87,7 +87,7 @@ void execute_realtime_command(Cmd command, Channel& channel) {
     switch (command) {
         case Cmd::Reset:
             log_debug("Cmd::Reset");
-            protocol_send_event(&resetEvent);
+            protocol_send_event(&rtResetEvent);
             break;
         case Cmd::StatusReport:
             report_realtime_status(channel);  // direct call instead of setting flag

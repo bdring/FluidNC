@@ -256,9 +256,8 @@ static Error toggle_check_mode(const char* value, WebUI::AuthenticationLevel aut
     // idle and ready, regardless of alarm locks. This is mainly to keep things
     // simple and consistent.
     if (sys.state == State::CheckMode) {
-        log_debug("Check mode");
-        mc_reset();
         report_feedback_message(Message::Disabled);
+        sys.abort = true;
     } else {
         if (sys.state != State::Idle) {
             return Error::IdleError;  // Requires no alarm mode.
@@ -271,12 +270,12 @@ static Error toggle_check_mode(const char* value, WebUI::AuthenticationLevel aut
 static Error isStuck() {
     // Block if a control pin is stuck on
     if (config->_control->safety_door_ajar()) {
-        rtAlarm = ExecAlarm::ControlPin;
+        send_alarm(ExecAlarm::ControlPin);
         return Error::CheckDoor;
     }
     if (config->_control->stuck()) {
         log_info("Control pins:" << config->_control->report_status());
-        rtAlarm = ExecAlarm::ControlPin;
+        send_alarm(ExecAlarm::ControlPin);
         return Error::CheckControlPins;
     }
     return Error::Ok;
@@ -290,11 +289,12 @@ static Error disable_alarm_lock(const char* value, WebUI::AuthenticationLevel au
         if (err != Error::Ok) {
             return err;
         }
+        Homing::set_all_axes_homed();
         report_feedback_message(Message::AlarmUnlock);
         sys.state = State::Idle;
-
-        // Don't run startup script. Prevents stored moves in startup from causing accidents.
-    }  // Otherwise, no effect.
+    }
+    // Run the after_unlock macro even if no unlock was necessary
+    config->_macros->_after_unlock.run();
     return Error::Ok;
 }
 static Error report_ngc(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
@@ -332,7 +332,7 @@ static Error home(AxisMask axisMask) {
         protocol_execute_realtime();
     } while (sys.state == State::Homing);
 
-    settings_execute_startup();
+    config->_macros->_after_homing.run();
 
     return Error::Ok;
 }
@@ -446,9 +446,9 @@ static Error get_report_build_info(const char* value, WebUI::AuthenticationLevel
     }
     return Error::InvalidStatement;
 }
-static Error report_startup_lines(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+static Error show_startup_lines(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
     for (int i = 0; i < config->_macros->n_startup_lines; i++) {
-        log_to(out, "$N", i << "=" << config->_macros->startup_line(i));
+        log_to(out, "$N", i << "=" << config->_macros->_startup_line[i]._gcode);
     }
     return Error::Ok;
 }
@@ -502,8 +502,8 @@ static Error doJog(const char* value, WebUI::AuthenticationLevel auth_level, Cha
 static Error listAlarms(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
     if (sys.state == State::ConfigAlarm) {
         log_to(out, "Configuration alarm is active. Check the boot messages for 'ERR'.");
-    } else if (rtAlarm != ExecAlarm::None) {
-        log_to(out, "Active alarm: ", int(rtAlarm) << " (" << alarmString(rtAlarm));
+    } else if (sys.state == State::Alarm) {
+        log_to(out, "Active alarm: ", int(lastAlarm) << " (" << alarmString(lastAlarm));
     }
     if (value) {
         char*   endptr      = NULL;
@@ -706,9 +706,9 @@ static Error motors_init(const char* value, WebUI::AuthenticationLevel auth_leve
 
 static Error macros_run(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
     if (value) {
-        log_info("Running macro " << *value);
+        log_info("Running macro" << *value);
         size_t macro_num = (*value) - '0';
-        config->_macros->run_macro(macro_num);
+        config->_macros->_macro[macro_num].run();
         return Error::Ok;
     }
     log_error("$Macros/Run requires a macro number argument");
@@ -908,7 +908,7 @@ void make_user_commands() {
 
     new UserCommand("SLP", "System/Sleep", go_to_sleep, notIdleOrAlarm);
     new UserCommand("I", "Build/Info", get_report_build_info, notIdleOrAlarm);
-    new UserCommand("N", "GCode/StartupLines", report_startup_lines, notIdleOrAlarm);
+    new UserCommand("N", "GCode/StartupLines", show_startup_lines, notIdleOrAlarm);
     new UserCommand("RST", "Settings/Restore", restore_settings, notIdleOrAlarm, WA);
 
     new UserCommand("Heap", "Heap/Show", showHeap, anyState);
@@ -1100,20 +1100,12 @@ Error settings_execute_line(char* line, Channel& out, WebUI::AuthenticationLevel
 }
 
 void settings_execute_startup() {
+    if (sys.state != State::Idle) {
+        return;
+    }
     Error status_code;
     for (int i = 0; i < config->_macros->n_startup_lines; i++) {
-        auto str = config->_macros->startup_line(i);
-        if (str.length()) {
-            // We have to copy this to a mutable array because
-            // gc_execute_line modifies the line while parsing.
-            char gcline[256];
-            strncpy(gcline, str.c_str(), 255);
-            status_code = gc_execute_line(gcline);
-            // Uart0 << ">" << gcline << ":";
-            if (status_code != Error::Ok) {
-                log_error("Startup line: " << errorString(status_code));
-            }
-        }
+        config->_macros->_startup_line[i].run();
     }
 }
 

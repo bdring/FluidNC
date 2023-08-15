@@ -64,6 +64,7 @@ void Parking::setup() {
     plan_data.motion.systemMotion   = 1;
     plan_data.motion.noFeedOverride = 1;
     plan_data.line_number           = PARKING_MOTION_LINE_NUMBER;
+    plan_data.is_jog                = false;
     block                           = plan_get_current_block();
 
     if (block) {

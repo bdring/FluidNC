@@ -470,6 +470,7 @@ const char* state_name() {
             return "Jog";
         case State::Homing:
             return "Home";
+        case State::Critical:
         case State::ConfigAlarm:
         case State::Alarm:
             return "Alarm";
