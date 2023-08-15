@@ -240,6 +240,8 @@ static void check_startup_state() {}
 const uint32_t heapWarnThreshold = 15000;
 
 uint32_t heapLowWater = UINT_MAX;
+uint32_t heapLowWaterReported = UINT_MAX;
+int32_t heapLowWaterReportTime = 0;
 void     protocol_main_loop() {
     start_polling();
 
@@ -290,8 +292,20 @@ void     protocol_main_loop() {
         uint32_t newHeapSize = xPortGetFreeHeapSize();
         if (newHeapSize < heapLowWater) {
             heapLowWater = newHeapSize;
-            if (heapLowWater < heapWarnThreshold) {
+        }
+        // Consider reporting when the minimum has not yet been reported and it is low enough.
+        if (heapLowWater < heapLowWaterReported && heapLowWater < heapWarnThreshold) {
+            // typecast to uint32_t handles roll-over for this case
+            uint32_t ticksSinceReported = (getCpuTicks() - heapLowWaterReportTime);
+            uint32_t tickLimit = usToCpuTicks(200000);
+            // Report only if it has been a while since the last report or if the memory has 
+            // dropped significantly (2k bytes) since the last report.
+            // This prevents a cycle where the reporting itself consumes some heap and triggers another 
+            // report, but the true minimum is reported eventually, and large drops are reported immediately.
+            if ((heapLowWater < heapLowWaterReported - 2048) || (ticksSinceReported > tickLimit)) {
                 log_warn("Low memory: " << heapLowWater << " bytes");
+                heapLowWaterReported = heapLowWater;
+                heapLowWaterReportTime = getCpuTicks();
             }
         }
     }
