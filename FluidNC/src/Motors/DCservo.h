@@ -14,6 +14,8 @@
 
 #include <cstdint>
 
+#include "../Maslow/Maslow.h"
+
 namespace MotorDrivers {
     class DCservo : public Servo {
     protected:

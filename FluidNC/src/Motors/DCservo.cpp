@@ -84,9 +84,7 @@ namespace MotorDrivers {
         }
     }
     void DCservo::update() { 
-
-        log_info("DCservo::update()");
-
+        Maslow.recomputePID(4);
      }
 
     void DCservo::set_location() {}
