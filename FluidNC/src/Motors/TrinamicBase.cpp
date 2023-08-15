@@ -106,7 +106,7 @@ namespace MotorDrivers {
 
     bool TrinamicBase::checkVersion(uint8_t expected, uint8_t got) {
         if (expected != got) {
-            log_error(axisName() << " TMC driver not detected - expected 0x" << to_hex(expected) << " got 0x" << to_hex(got));
+            log_error(axisName() << " TMC driver not detected - expected " << to_hex(expected) << " got " << to_hex(got));
             return false;
         }
         log_info(axisName() << " driver test passed");
