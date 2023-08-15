@@ -1,0 +1,47 @@
+board: Maslow
+name: Maslow S3 Board
+
+spi:
+  miso_pin: gpio.13
+  mosi_pin: gpio.11
+  sck_pin: gpio.12
+
+sdcard:
+  card_detect_pin: NO_PIN
+  cs_pin: gpio.10
+
+stepping:
+  engine: RMT
+  idle_ms: 240
+
+axes:
+  shared_stepper_disable_pin: gpio.17
+
+  x: 
+    max_rate_mm_per_min: 2000.000000
+    acceleration_mm_per_sec2: 50.000000
+    homing: 
+      cycle: -1
+    
+    motor0:
+      dc_servo:
+
+  y: 
+    max_rate_mm_per_min: 2000.000000
+    acceleration_mm_per_sec2: 50.000000
+    homing: 
+      cycle: -1
+
+  z:
+    steps_per_mm: 2000
+    max_rate_mm_per_min: 100
+    acceleration_mm_per_sec2: 10
+    max_travel_mm: 100
+
+    homing: 
+      cycle: -1
+    
+    motor0:
+      standard_stepper:
+        step_pin: gpio.15
+        direction_pin: gpio.16
