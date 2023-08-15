@@ -13,9 +13,10 @@ EnumItem axisType[] = { { 0, "X" }, { 1, "Y" }, { 2, "Z" }, { 3, "A" }, { 4, "B"
 namespace Machine {
     MotorMask Axes::posLimitMask = 0;
     MotorMask Axes::negLimitMask = 0;
-    MotorMask Axes::homingMask   = 0;
     MotorMask Axes::limitMask    = 0;
     MotorMask Axes::motorMask    = 0;
+
+    AxisMask Axes::homingMask = 0;
 
     Axes::Axes() : _axis() {
         for (int i = 0; i < MAX_N_AXIS; ++i) {

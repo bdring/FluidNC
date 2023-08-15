@@ -101,11 +101,19 @@ void mc_cancel_jog() {
 // Execute linear motion in absolute millimeter coordinates. Feed rate given in millimeters/second
 // unless invert_feed_rate is true. Then the feed_rate means that the motion should be completed in
 // (1 minute)/feed_rate time.
-bool mc_linear(float* target, plan_line_data_t* pl_data, float* position) {
-    if (!pl_data->is_jog) { // soft limits for jogs have already been dealt with
-        limits_soft_check(target);
-    }    
+
+// mc_linear_no_check() is used by mc_arc() which pre-checks the arc limits using
+// a fast algorithm, so checking each segment is unnecessary.
+static bool mc_linear_no_check(float* target, plan_line_data_t* pl_data, float* position) {
     return config->_kinematics->cartesian_to_motors(target, pl_data, position);
+}
+bool mc_linear(float* target, plan_line_data_t* pl_data, float* position) {
+    if (!pl_data->is_jog && !pl_data->limits_checked) {  // soft limits for jogs have already been dealt with
+        if (config->_kinematics->invalid_line(target)) {
+            return false;
+        }
+    }
+    return mc_linear_no_check(target, pl_data, position);
 }
 
 // Execute an arc in offset mode format. position == current xyz, target == target xyz,
@@ -125,12 +133,17 @@ void mc_arc(float*            target,
             size_t            axis_linear,
             bool              is_clockwise_arc,
             int               pword_rotations) {
-    float center_axis0 = position[axis_0] + offset[axis_0];
-    float center_axis1 = position[axis_1] + offset[axis_1];
-    float r_axis0      = -offset[axis_0];  // Radius vector from center to current location
-    float r_axis1      = -offset[axis_1];
-    float rt_axis0     = target[axis_0] - center_axis0;
-    float rt_axis1     = target[axis_1] - center_axis1;
+    float center[3] = { position[axis_0] + offset[axis_0], position[axis_1] + offset[axis_1], 0 };
+
+    // The first two axes are the circle plane and the third is the orthogonal plane
+    size_t caxes[3] = { axis_0, axis_1, axis_linear };
+    if (config->_kinematics->invalid_arc(target, pl_data, position, center, radius, caxes, is_clockwise_arc)) {
+        return;
+    }
+
+    // Radius vector from center to current location
+    float radii[2] = { -offset[axis_0], -offset[axis_1] };
+    float rt[2]    = { target[axis_0] - center[0], target[axis_1] - center[1] };
 
     auto n_axis = config->_axes->_numberAxis;
 
@@ -140,7 +153,7 @@ void mc_arc(float*            target,
     }
 
     // CCW angle between position and target from circle center. Only one atan2() trig computation required.
-    float angular_travel = atan2f(r_axis0 * rt_axis1 - r_axis1 * rt_axis0, r_axis0 * rt_axis0 + r_axis1 * rt_axis1);
+    float angular_travel = atan2f(radii[0] * rt[1] - radii[1] * rt[0], radii[0] * rt[0] + radii[1] * rt[1]);
     if (is_clockwise_arc) {  // Correct atan2 output per direction
         if (angular_travel >= -ARC_ANGULAR_TRAVEL_EPSILON) {
             angular_travel -= 2 * float(M_PI);
@@ -211,29 +224,28 @@ void mc_arc(float*            target,
         cos_T *= 0.5;
         float    sin_Ti;
         float    cos_Ti;
-        float    r_axisi;
         uint16_t i;
         size_t   count             = 0;
         float    original_feedrate = pl_data->feed_rate;  // Kinematics may alter the feedrate, so save an original copy
         for (i = 1; i < segments; i++) {                  // Increment (segments-1).
             if (count < N_ARC_CORRECTION) {
                 // Apply vector rotation matrix. ~40 usec
-                r_axisi = r_axis0 * sin_T + r_axis1 * cos_T;
-                r_axis0 = r_axis0 * cos_T - r_axis1 * sin_T;
-                r_axis1 = r_axisi;
+                float ri = radii[0] * sin_T + radii[1] * cos_T;
+                radii[0] = radii[0] * cos_T - radii[1] * sin_T;
+                radii[1] = ri;
                 count++;
             } else {
                 // Arc correction to radius vector. Computed only every N_ARC_CORRECTION increments. ~375 usec
                 // Compute exact location by applying transformation matrix from initial radius vector(=-offset).
-                cos_Ti  = cosf(i * theta_per_segment);
-                sin_Ti  = sinf(i * theta_per_segment);
-                r_axis0 = -offset[axis_0] * cos_Ti + offset[axis_1] * sin_Ti;
-                r_axis1 = -offset[axis_0] * sin_Ti - offset[axis_1] * cos_Ti;
-                count   = 0;
+                cos_Ti   = cosf(i * theta_per_segment);
+                sin_Ti   = sinf(i * theta_per_segment);
+                radii[0] = -offset[axis_0] * cos_Ti + offset[axis_1] * sin_Ti;
+                radii[1] = -offset[axis_0] * sin_Ti - offset[axis_1] * cos_Ti;
+                count    = 0;
             }
             // Update arc_target location
-            position[axis_0] = center_axis0 + r_axis0;
-            position[axis_1] = center_axis1 + r_axis1;
+            position[axis_0] = center[0] + radii[0];
+            position[axis_1] = center[1] + radii[1];
             position[axis_linear] += linear_per_segment[axis_linear];
             for (size_t i = A_AXIS; i < n_axis; i++) {
                 position[i] += linear_per_segment[i];
@@ -291,7 +303,7 @@ GCUpdatePos mc_probe_cycle(float* target, plan_line_data_t* pl_data, bool away, 
     // After syncing, check if probe is already triggered. If so, halt and issue alarm.
     // NOTE: This probe initialization error applies to all probing cycles.
     if (config->_probe->tripped()) {
-        rtAlarm = ExecAlarm::ProbeFailInitial;
+        send_alarm(ExecAlarm::ProbeFailInitial);
         protocol_execute_realtime();
         config->_stepping->endLowLatency();
         return GCUpdatePos::None;  // Nothing else to do but bail.
@@ -318,7 +330,7 @@ GCUpdatePos mc_probe_cycle(float* target, plan_line_data_t* pl_data, bool away, 
         if (no_error) {
             copyAxes(probe_steps, get_motor_steps());
         } else {
-            rtAlarm = ExecAlarm::ProbeFailContact;
+            send_alarm(ExecAlarm::ProbeFailContact);
         }
     } else {
         probe_succeeded = true;  // Indicate to system the probing cycle completed successfully.
@@ -372,26 +384,11 @@ void mc_override_ctrl_update(Override override_state) {
 // active processes in the system. This also checks if a system reset is issued while in
 // motion state. If so, kills the steppers and sets the system alarm to flag position
 // lost, since there was an abrupt uncontrolled deceleration. Called at an interrupt level by
-// realtime abort command and hard limits. So, keep to a minimum.  Stuff that cannot be
-// done quickly is handled later when Protocol.cpp responds to rtReset.
-void mc_reset() {
-    // Only this function can set the system reset. Helps prevent multiple kill calls.
-    if (!rtReset) {
-        rtReset = true;
-
-        // Kill steppers only if in any motion state, i.e. cycle, actively holding, or homing.
-        // NOTE: If steppers are kept enabled via the step idle delay setting, this also keeps
-        // the steppers enabled by avoiding the go_idle call altogether, unless the motion state is
-        // violated, by which, all bets are off.
-        if (inMotionState() || sys.step_control.executeHold || sys.step_control.executeSysMotion) {
-            if (sys.state == State::Homing) {
-                if (rtAlarm == ExecAlarm::None) {
-                    rtAlarm = ExecAlarm::HomingFailReset;
-                }
-            } else {
-                rtAlarm = ExecAlarm::AbortCycle;
-            }
-            Stepper::stop_stepping();  // Stop stepping immediately, possibly losing position
-        }
+// realtime abort command and hard limits. So, keep to a minimum.
+void mc_critical(ExecAlarm alarm) {
+    if (inMotionState() || sys.step_control.executeHold || sys.step_control.executeSysMotion) {
+        Stepper::reset();  // Stop stepping immediately, possibly losing position
+        //        Stepper::stop_stepping();  // Stop stepping immediately, possibly losing position
     }
+    send_alarm(alarm);
 }

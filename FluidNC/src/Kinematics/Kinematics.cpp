@@ -8,6 +8,22 @@
 #include "Cartesian.h"
 
 namespace Kinematics {
+    void Kinematics::constrain_jog(float* target, plan_line_data_t* pl_data, float* position) {
+        Assert(_system != nullptr, "No kinematic system");
+        return _system->constrain_jog(target, pl_data, position);
+    }
+
+    bool Kinematics::invalid_line(float* target) {
+        Assert(_system != nullptr, "No kinematic system");
+        return _system->invalid_line(target);
+    }
+
+    bool Kinematics::invalid_arc(
+        float* target, plan_line_data_t* pl_data, float* position, float center[3], float radius, size_t caxes[3], bool is_clockwise_arc) {
+        Assert(_system != nullptr, "No kinematic system");
+        return _system->invalid_arc(target, pl_data, position, center, radius, caxes, is_clockwise_arc);
+    }
+
     bool Kinematics::cartesian_to_motors(float* target, plan_line_data_t* pl_data, float* position) {
         Assert(_system != nullptr, "No kinematic system");
         return _system->cartesian_to_motors(target, pl_data, position);
@@ -23,6 +39,11 @@ namespace Kinematics {
         return _system->canHome(axisMask);
     }
 
+    bool Kinematics::kinematics_homing(AxisMask axisMask) {
+        Assert(_system != nullptr, "No kinematic system");
+        return _system->kinematics_homing(axisMask);
+    }
+
     void Kinematics::releaseMotors(AxisMask axisMask, MotorMask motors) {
         Assert(_system != nullptr, "No kinematic system");
         _system->releaseMotors(axisMask, motors);
@@ -33,7 +54,7 @@ namespace Kinematics {
         return _system->limitReached(axisMask, motors, limited);
     }
 
-    void Kinematics::transform_cartesian_to_motors(float* motors, float* cartesian) {
+    bool Kinematics::transform_cartesian_to_motors(float* motors, float* cartesian) {
         Assert(_system != nullptr, "No kinematics system.");
         return _system->transform_cartesian_to_motors(motors, cartesian);
     }

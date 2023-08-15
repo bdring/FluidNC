@@ -44,7 +44,6 @@ void protocol_buffer_synchronize();
 void protocol_disable_steppers();
 void protocol_cancel_disable_steppers();
 
-extern volatile bool rtReset;
 extern volatile bool rtCycleStop;
 
 extern volatile bool runLimitLoop;
@@ -65,9 +64,11 @@ enum class ExecAlarm : uint8_t {
     ControlPin            = 11,
     HomingAmbiguousSwitch = 12,
     HardStop              = 13,
+    Unhomed               = 14,
+    Init                  = 15,
 };
 
-extern volatile ExecAlarm rtAlarm;  // Global realtime executor variable for setting various alarms.
+extern volatile ExecAlarm lastAlarm;
 
 #include <map>
 extern std::map<ExecAlarm, const char*> AlarmNames;
@@ -96,8 +97,13 @@ extern NoArgEvent cycleStartEvent;
 extern NoArgEvent cycleStopEvent;
 extern NoArgEvent motionCancelEvent;
 extern NoArgEvent sleepEvent;
-extern NoArgEvent resetEvent;
+extern NoArgEvent rtResetEvent;
 extern NoArgEvent debugEvent;
+extern NoArgEvent unhomedEvent;
+extern NoArgEvent startEvent;
+extern NoArgEvent restartEvent;
+
+extern NoArgEvent runStartupLinesEvent;
 
 // extern NoArgEvent statusReportEvent;
 
@@ -112,6 +118,9 @@ struct EventItem {
 
 void protocol_send_event(Event*, void* arg = 0);
 void protocol_handle_events();
+
+void send_alarm(ExecAlarm alarm);
+void send_alarm_from_ISR(ExecAlarm alarm);
 
 inline void protocol_send_event(Event* evt, int arg) {
     protocol_send_event(evt, (void*)arg);
