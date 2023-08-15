@@ -97,7 +97,7 @@ namespace MotorDrivers {
             } else {
                 msg += " M/N " + std::to_string(model_num);
             }
-            log_info(msg << " F/W Rev " << to_hex(fw_rev));
+            log_info(msg << " F/W Rev 0x" << to_hex(fw_rev));
         } else {
             log_warn(axisName() << " Ping failed");
             return false;
