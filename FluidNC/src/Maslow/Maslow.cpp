@@ -161,7 +161,7 @@ void Maslow_::recomputePID(int encoderNumber2Compute){
     }
 
     if(random(50) == 0){
-        //log_info("TL Error: " + String(axisTL.getError()) + " TR Error: " + String(axisTR.getError()));
+        log_info("TL Error: " << axisTL.getError() << " TR Error: " << axisTR.getError());
     }
 
     //Stop everything but keep track of the encoder positions if we are idle or alarm. Unless doing calibration.
