@@ -128,7 +128,7 @@ void Maslow_::home(int axis) {
   }
 
   if(axisBLHomed && axisBRHomed && axisTRHomed && axisTLHomed) {
-    //log_info("All axis ready.\n");
+    log_info("All axis ready.\n");
   }
 }
 
