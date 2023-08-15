@@ -35,48 +35,6 @@ namespace MotorDrivers {
 
         int _axis_index;
 
-        static Uart* _uart;
-
-        int _uart_num = -1;
-
-        static bool _uart_started;
-
-        static const int DXL_RESPONSE_WAIT_TICKS = 20;  // how long to wait for a response
-
-        // protocol 2 byte positions
-        static const int DXL_MSG_HDR1  = 0;
-        static const int DXL_MSG_HDR2  = 1;
-        static const int DXL_MSG_HDR3  = 2;
-        static const int DXL_MSG_RSRV  = 3;  // reserved byte
-        static const int DXL_MSG_ID    = 4;
-        static const int DXL_MSG_LEN_L = 5;
-        static const int DXL_MSG_LEN_H = 6;
-        static const int DXL_MSG_INSTR = 7;
-        static const int DXL_MSG_START = 8;
-
-        static const int DXL_BROADCAST_ID = 0xFE;
-
-        // protocol 2 instruction numbers
-        static const int  DXL_INSTR_PING = 0x01;
-        static const char DXL_REBOOT     = char(0x08);
-        static const int  PING_RSP_LEN   = 14;
-        static const char DXL_READ       = char(0x02);
-        static const char DXL_WRITE      = char(0x03);
-        static const char DXL_SYNC_WRITE = char(0x83);
-
-        // protocol 2 register locations
-        static const int DXL_OPERATING_MODE   = 11;
-        static const int DXL_ADDR_TORQUE_EN   = 64;
-        static const int DXL_ADDR_LED_ON      = 65;
-        static const int DXL_GOAL_POSITION    = 116;  // 0x74
-        static const int DXL_PRESENT_POSITION = 132;  // 0x84
-
-        // control modes
-        static const int DXL_CONTROL_MODE_POSITION = 3;
-
-        uint32_t _countMin = 1024;
-        uint32_t _countMax = 3072;
-
         bool        _disabled;
         static bool _has_errors;
 
@@ -96,15 +54,10 @@ namespace MotorDrivers {
 
         // Configuration handlers:
         void validate() override {
-            Assert(_uart_num != -1, "Dynamixel: Missing uart_num configuration");
-            Assert(_id != 255, "Dynamixel: ID must be configured.");
         }
 
         void group(Configuration::HandlerBase& handler) override {
-            handler.item("uart_num", _uart_num);
             handler.item("id", _id);
-            handler.item("count_min", _countMin);
-            handler.item("count_max", _countMax);
             handler.item("timer_ms", _timer_ms);
 
             Servo::group(handler);

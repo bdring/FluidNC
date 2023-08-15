@@ -24,37 +24,20 @@
 #include <cmath>
 
 namespace MotorDrivers {
-    Uart*                    DCservo::_uart  = nullptr;
     TimerHandle_t            DCservo::_timer = nullptr;
     std::vector<DCservo*> DCservo::_instances;
     bool                     DCservo::_has_errors = false;
 
-    int DCservo::_timer_ms = 75;
+    int DCservo::_timer_ms = 10;
 
     uint8_t DCservo::_tx_message[100];  // send to dynamixel
     uint8_t DCservo::_rx_message[50];   // received from dynamixel
     uint8_t DCservo::_msg_index = 0;    // Current length of message being constructed
 
-    bool DCservo::_uart_started = false;
 
     void DCservo::init() {
-        _axis_index = axis_index();
 
-        if (!_uart_started) {
-            _uart = config->_uarts[_uart_num];
-            if (_uart->_rts_pin.undefined()) {
-                log_error("Dynamixel: UART RTS pin must be configured.");
-                _has_errors = true;
-                return;
-            }
-            if (_uart->setHalfDuplex()) {
-                log_error("Dynamixel: UART set half duplex failed");
-                _has_errors = true;
-                return;
-            }
-            _uart_started = true;
-            schedule_update(this, _timer_ms);
-        }
+        schedule_update(this, _timer_ms);
 
         config_message();  // print the config
 
@@ -63,22 +46,14 @@ namespace MotorDrivers {
     }
 
     void DCservo::config_motor() {
-        if (!test()) {  // ping the motor
-            _has_errors = true;
-            return;
-        }
-
-        set_disable(true);                              // turn off torque so we can set EEPROM registers
 
     }
 
     void DCservo::config_message() {
-        log_info("    " << name() << " UART" << _uart_num << " id:" << _id << " Count(" << _countMin << "," << _countMax << ")");
+        log_info("Config messages ran");
+        //log_info("    " << name() << " UART" << _uart_num << " id:" << _id << " Count(" << _countMin << "," << _countMax << ")");
     }
 
-    // bool DCservo::test() {
-    //     return true;
-    // }
 
     // This motor will not do a standard home to a limit switch (maybe future)
     // If it is in the homing mask it will a quick move to $<axis>/Home/Mpos
@@ -108,7 +83,11 @@ namespace MotorDrivers {
             return;
         }
     }
-    void DCservo::update() { update_all(); }
+    void DCservo::update() { 
+
+        log_info("DCservo::update()");
+
+     }
 
     void DCservo::set_location() {}
 
