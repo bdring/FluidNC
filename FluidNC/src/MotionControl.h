@@ -19,12 +19,6 @@ extern bool probe_succeeded;  // Tracks if last probing cycle was successful.
 // System motion commands must have a line number of zero.
 const int PARKING_MOTION_LINE_NUMBER = 0;
 
-// Execute linear motion in absolute millimeter coordinates. Feed rate given in millimeters/second
-// unless invert_feed_rate is true. Then the feed_rate means that the motion should be completed in
-// (1 minute)/feed_rate time.
-bool cartesian_to_motors(float* target, plan_line_data_t* pl_data, float* position);
-void motors_to_cartesian(float* cartesian, float* motors, int n_axis);
-
 // Execute a linear motion in cartesian space.
 bool mc_linear(float* target, plan_line_data_t* pl_data, float* position);
 

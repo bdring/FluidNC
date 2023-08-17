@@ -156,8 +156,9 @@ void send_line(Channel& channel, const std::string& line) {
 
 void output_loop(void* unused) {
     while (true) {
+        // Block until a message is received
         LogMessage message;
-        if (xQueueReceive(message_queue, &message, 0)) {
+        if (xQueueReceive(message_queue, &message, portMAX_DELAY)) {
             if (message.isString) {
                 std::string* s = static_cast<std::string*>(message.line);
                 message.channel->println(s->c_str());
@@ -167,7 +168,6 @@ void output_loop(void* unused) {
                 message.channel->println(cp);
             }
         }
-        vTaskDelay(0);
     }
 }
 
@@ -222,7 +222,7 @@ void start_polling() {
                                 16000,
                                 // 8192,              // size of task stack
                                 0,                 // parameters
-                                1,                 // priority
+                                2,                 // priority
                                 &outputTask,       // task handle
                                 SUPPORT_TASK_CORE  // core
         );
@@ -239,9 +239,9 @@ static void check_startup_state() {}
 
 const uint32_t heapWarnThreshold = 15000;
 
-uint32_t heapLowWater = UINT_MAX;
-uint32_t heapLowWaterReported = UINT_MAX;
-int32_t heapLowWaterReportTime = 0;
+uint32_t heapLowWater           = UINT_MAX;
+uint32_t heapLowWaterReported   = UINT_MAX;
+int32_t  heapLowWaterReportTime = 0;
 void     protocol_main_loop() {
     start_polling();
 
@@ -259,7 +259,10 @@ void     protocol_main_loop() {
             Error status_code = execute_line(activeLine, *activeChannel, WebUI::AuthenticationLevel::LEVEL_GUEST);
 
             // Tell the channel that the line has been processed.
-            activeChannel->ack(status_code);
+            // If the line was aborted, the channel could be invalid
+            if (!sys.abort) {
+                activeChannel->ack(status_code);
+            }
 
             // Tell the input polling task that the line has been processed,
             // so it can give us another one when available
@@ -270,8 +273,7 @@ void     protocol_main_loop() {
         protocol_auto_cycle_start();
         protocol_execute_realtime();  // Runtime command check point.
         if (sys.abort) {
-            stop_polling();
-            return;  // Bail to main() program loop to reset system.
+            sys.abort = false;
         }
 
         // check to see if we should disable the stepper drivers
@@ -297,14 +299,14 @@ void     protocol_main_loop() {
         if (heapLowWater < heapLowWaterReported && heapLowWater < heapWarnThreshold) {
             // typecast to uint32_t handles roll-over for this case
             uint32_t ticksSinceReported = (getCpuTicks() - heapLowWaterReportTime);
-            uint32_t tickLimit = usToCpuTicks(200000);
-            // Report only if it has been a while since the last report or if the memory has 
+            uint32_t tickLimit          = usToCpuTicks(200000);
+            // Report only if it has been a while since the last report or if the memory has
             // dropped significantly (2k bytes) since the last report.
-            // This prevents a cycle where the reporting itself consumes some heap and triggers another 
+            // This prevents a cycle where the reporting itself consumes some heap and triggers another
             // report, but the true minimum is reported eventually, and large drops are reported immediately.
             if ((heapLowWater < heapLowWaterReported - 2048) || (ticksSinceReported > tickLimit)) {
                 log_warn("Low memory: " << heapLowWater << " bytes");
-                heapLowWaterReported = heapLowWater;
+                heapLowWaterReported   = heapLowWater;
                 heapLowWaterReportTime = getCpuTicks();
             }
         }
@@ -809,6 +811,7 @@ static void protocol_do_late_reset() {
 
     // do we need to stop a running file job?
     allChannels.stopJob();
+    sys.abort = true;
 }
 
 void protocol_exec_rt_system() {

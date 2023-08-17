@@ -243,7 +243,7 @@ namespace Spindles {
                     auto huanyang           = static_cast<Huanyang*>(vfd);
                     huanyang->_minFrequency = value;
 
-                    log_info(huanyang->name() << " PD005,PD011 Freq range (" << (huanyang->_minFrequency / 100) << ","
+                    log_info(huanyang->name() << " PD0011, PD005 Freq range (" << (huanyang->_minFrequency / 100) << ","
                                               << (huanyang->_maxFrequency / 100) << ") Hz"
                                               << " (" << (huanyang->_minFrequency / 100 * 60) << "," << (huanyang->_maxFrequency / 100 * 60)
                                               << ") RPM");
