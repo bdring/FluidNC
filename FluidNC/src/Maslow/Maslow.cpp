@@ -171,18 +171,20 @@ void Maslow_::recomputePID(){
         log_info("TL Error: " << axisTL.getError() << " TR Error: " << axisTR.getError());
     }
 
-    //Stop everything but keep track of the encoder positions if we are idle or alarm. Unless doing calibration.
+    //We always update the encoder positions
+    axisBL.updateEncoderPosition();
+    axisBR.updateEncoderPosition();
+    axisTR.updateEncoderPosition();
+    axisTL.updateEncoderPosition();
+
+    //Stop the motors if we are idle or alarm. Unless doing calibration. Calibration can happen during idle or alarm
     if((sys.state() == State::Idle || sys.state() == State::Alarm) && !calibrationInProgress){
         axisBL.stop();
-        axisBL.updateEncoderPosition();
         axisBR.stop();
-        axisBR.updateEncoderPosition();
         axisTR.stop();
-        axisTR.updateEncoderPosition();
         axisTL.stop();
-        axisTL.updateEncoderPosition();
     }
-    else{  //Position the axis
+    else{  //Normal operation...drive the motors to the target positions
         axisBL.recomputePID();
         axisBR.recomputePID();
         axisTR.recomputePID();
@@ -686,7 +688,12 @@ void Maslow_::lowerBeltsGoSlack(){
     
     while(millis()- startTime < 600){
         
-        //The other axis hold position
+        //Hold position
+        axisBL.updateEncoderPosition();
+        axisBR.updateEncoderPosition();
+        axisTR.updateEncoderPosition();
+        axisTL.updateEncoderPosition();
+
         axisBL.recomputePID();
         axisBR.recomputePID();
         axisTR.recomputePID();
@@ -710,6 +717,11 @@ void Maslow_::lowerBeltsGoSlack(){
 
     while(millis()- startTime < 600){
         
+        axisBL.updateEncoderPosition();
+        axisBR.updateEncoderPosition();
+        axisTR.updateEncoderPosition();
+        axisTL.updateEncoderPosition();
+
         axisBL.recomputePID();
         axisBR.recomputePID();
         axisTR.recomputePID();
@@ -1041,6 +1053,10 @@ void Maslow_::moveWithSlack(float x, float y, bool leftBelt, bool rightBelt){
             TRDist = TRDist - stepSize;
             axisTR.setTarget((axisTR.getTarget() - (stepSize*TRDir)));
         }
+
+        axisTR.updateEncoderPosition();
+        axisTL.updateEncoderPosition();
+
         axisTR.recomputePID();
         axisTL.recomputePID();
 

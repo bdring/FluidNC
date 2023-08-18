@@ -137,8 +137,6 @@ void MotorUnit::updateEncoderPosition(){
  */
 double MotorUnit::recomputePID(){
     
-    updateEncoderPosition();
-    
     double commandPWM = positionPID.getOutput(getPosition(),setpoint);
 
     motor.runAtPWM(commandPWM);
