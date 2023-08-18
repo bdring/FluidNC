@@ -34,6 +34,8 @@
 #define brIn2Channel 7
 #define brADCPin 7
 
+int lowerBeltsExtra = 0;
+
 void Maslow_::begin(void (*sys_rt)()) {
   initialized = 1;
 
@@ -96,40 +98,45 @@ void Maslow_::readEncoders() {
 }
 
 void Maslow_::home(int axis) {
-  //log_info("Maslow home ran");
-  //log_info(initialized);
 
-  switch(axis) {
-    case 0:
-      //log_info("Bottom left");
-      axisBLHomed = axisBL.retract(computeBL(0, 300, 0));
-      break;
-    case 1:
-      //log_info("Top left");
-      axisTLHomed = axisTL.retract(computeTL(0, 0, 0));
-      break;
-    case 2:
-      //log_info("Top right");
-      axisTRHomed = axisTR.retract(computeTR(0, 0, 0));
-      break;
-    case 4:
-      //log_info("Bottom right");
-      if(axisBLHomed && axisBRHomed && axisTRHomed && axisTLHomed) {
-        //log_info("Running calibration");
-        runCalibration();
-      }
-      else {
-        axisBRHomed = axisBR.retract(computeBR(0, 300, 0));
-      }
-      break;
-    default:
-      //log_info("Unrecognized axis");
-      break;
-  }
+    switch(axis) {
+        case 0:
+            axisBLHomed = axisBL.retract(computeBL(0, 300, 0));
+            break;
+        case 1:
+            if(axisBLHomed && axisBRHomed && axisTRHomed && axisTLHomed) {
+                lowerBeltsExtra = lowerBeltsExtra - 1;
+                log_info("Extra: " << lowerBeltsExtra);
+            }
+            else{  
+                axisTLHomed = axisTL.retract(computeTL(0, 0, 0));
+            }
+            break;
+        case 2:
+            if(axisBLHomed && axisBRHomed && axisTRHomed && axisTLHomed) {
+                lowerBeltsExtra = lowerBeltsExtra + 1;
+                log_info("Extra: " << lowerBeltsExtra);
+            }
+            else{ 
+                axisTRHomed = axisTR.retract(computeTR(0, 0, 0));
+            }
+            break;
+        case 4:
+            if(axisBLHomed && axisBRHomed && axisTRHomed && axisTLHomed) {
+                runCalibration();
+            }
+            else {
+                axisBRHomed = axisBR.retract(computeBR(0, 300, 0));
+            }
+            break;
+        default:
+            log_info("Unrecognized axis");
+            break;
+    }
 
-  if(axisBLHomed && axisBRHomed && axisTRHomed && axisTLHomed) {
-    log_info("All axis ready.\n");
-  }
+    if(axisBLHomed && axisBRHomed && axisTRHomed && axisTLHomed) {
+        log_info("All axis ready.\n");
+    }
 }
 
 //Updates where the center x and y positions are
@@ -143,7 +150,7 @@ void Maslow_::updateCenterXY(){
 }
 
 //Called from protocol.cpp
-void Maslow_::recomputePID(int encoderNumber2Compute){
+void Maslow_::recomputePID(){
 
     if(!initialized){ //If we haven't initialized we don't want to try to compute things because the PID controllers cause the processor to crash
         return;
@@ -166,56 +173,20 @@ void Maslow_::recomputePID(int encoderNumber2Compute){
 
     //Stop everything but keep track of the encoder positions if we are idle or alarm. Unless doing calibration.
     if((sys.state() == State::Idle || sys.state() == State::Alarm) && !calibrationInProgress){
-        switch(encoderNumber2Compute){
-            case 0:
-                axisBL.stop();
-                axisBL.updateEncoderPosition();
-                break;
-            case 1:
-                axisBR.stop();
-                axisBR.updateEncoderPosition();
-                break;
-            case 2:
-                axisTR.stop();
-                axisTR.updateEncoderPosition();
-                break;
-            case 3:
-                axisTL.stop();
-                axisTL.updateEncoderPosition();
-                break;
-            case 4:
-                axisBL.stop();
-                axisBL.updateEncoderPosition();
-                axisBR.stop();
-                axisBR.updateEncoderPosition();
-                axisTR.stop();
-                axisTR.updateEncoderPosition();
-                axisTL.stop();
-                axisTL.updateEncoderPosition();
-                break;
-        }
+        axisBL.stop();
+        axisBL.updateEncoderPosition();
+        axisBR.stop();
+        axisBR.updateEncoderPosition();
+        axisTR.stop();
+        axisTR.updateEncoderPosition();
+        axisTL.stop();
+        axisTL.updateEncoderPosition();
     }
     else{  //Position the axis
-        switch(encoderNumber2Compute){
-            case 0:
-                axisBL.recomputePID();
-                break;
-            case 1:
-                axisBR.recomputePID();
-                break;
-            case 2:
-                axisTR.recomputePID();
-                break;
-            case 3:
-                axisTL.recomputePID();
-                break;
-            case 4:
-                axisBL.recomputePID();
-                axisBR.recomputePID();
-                axisTR.recomputePID();
-                axisTL.recomputePID();
-                break;
-        }
+        axisBL.recomputePID();
+        axisBR.recomputePID();
+        axisTR.recomputePID();
+        axisTL.recomputePID();
     }
 
     // int tlAngle = axisTL.readAngle();
@@ -313,7 +284,7 @@ float Maslow_::computeBL(float x, float y, float z){
     //     grbl_sendf( "BL Slack By: %f\n", extraSlack);
     // }
 
-    return length;
+    return length + lowerBeltsExtra;
 }
 
 //Bottom right belt
@@ -333,7 +304,7 @@ float Maslow_::computeBR(float x, float y, float z){
     //     grbl_sendf( "BR Slack By: %f\n", extraSlack);
     // }
 
-    return length;
+    return length + lowerBeltsExtra;
 }
 
 //Top right belt
@@ -895,7 +866,7 @@ void Maslow_::takeMeasurement(float lengths[]){
         unsigned long elapsedTime = millis()-time;
         while(elapsedTime < 25){
             elapsedTime = millis()-time;
-            recomputePID(4);  //This recomputes the PID four all four servos
+            recomputePID();  //This recomputes the PID four all four servos
             (*_sys_rt)();
         }
     }
@@ -953,7 +924,7 @@ void Maslow_::retractBR(){
         unsigned long elapsedTime = millis()-time;
         while(elapsedTime < 25){
             elapsedTime = millis()-time;
-            recomputePID(4);  //This recomputes the PID four all four servos
+            recomputePID();  //This recomputes the PID four all four servos
             (*_sys_rt)();
         }
     }
@@ -998,7 +969,7 @@ void Maslow_::retractBL(){
         unsigned long elapsedTime = millis()-time;
         while(elapsedTime < 25){
             elapsedTime = millis()-time;
-            recomputePID(4);  //This recomputes the PID four all four servos
+            recomputePID();  //This recomputes the PID four all four servos
             (*_sys_rt)();
         }
     }
@@ -1123,7 +1094,7 @@ void Maslow_::takeUpInternalSlack(){
             brDone = true;
         }
 
-        recomputePID(4);
+        recomputePID();
         (*_sys_rt)();
 
         // Delay without blocking
