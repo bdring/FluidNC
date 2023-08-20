@@ -56,16 +56,16 @@ void Maslow_::begin(void (*sys_rt)()) {
   axisTRHomed = false;
   axisTLHomed = false;
 
-  tlX = -1.2775505926851451;
-  tlY =  2125.411304076909;
+  tlX = -0.5376177353;
+  tlY =  2138.238375;
   tlZ = 116 + 38;
-  trX = 3036.051941957454; 
-  trY = 2127.91394620096;
+  trX = 3027.569248; 
+  trY = 2141.112163;
   trZ = 69 + 38;
   blX = 0;
   blY = 0;
   blZ = 47 + 38;
-  brX = 3041.4964766419607;
+  brX = 3033.46489;
   brY = 0;
   brZ = 89 + 38;
 
@@ -103,12 +103,12 @@ void Maslow_::readEncoders() {
 void Maslow_::home(int axis) {
 
     switch(axis) {
-        case 0:
+        case 0: //Bottom left
             extendingOrRetracting = true;
             axisBLHomed = axisBL.retract(computeBL(0, 300, 0));
             extendingOrRetracting = false;
             break;
-        case 1:
+        case 1: //Top Left
             if(axisBLHomed && axisBRHomed && axisTRHomed && axisTLHomed) {
                 lowerBeltsExtra = lowerBeltsExtra - 1;
                 log_info("Extra: " << lowerBeltsExtra);
@@ -119,7 +119,7 @@ void Maslow_::home(int axis) {
                 extendingOrRetracting = false;
             }
             break;
-        case 2:
+        case 2: //Top right
             if(axisBLHomed && axisBRHomed && axisTRHomed && axisTLHomed) {
                 lowerBeltsExtra = lowerBeltsExtra + 1;
                 log_info("Extra: " << lowerBeltsExtra);
@@ -130,7 +130,7 @@ void Maslow_::home(int axis) {
                 extendingOrRetracting = false;
             }
             break;
-        case 4:
+        case 4: //Bottom right
             if(axisBLHomed && axisBRHomed && axisTRHomed && axisTLHomed) {
                 runCalibration();
             }
