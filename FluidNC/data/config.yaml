@@ -19,7 +19,7 @@ axes:
 
   x: 
     max_rate_mm_per_min: 2000.000000
-    acceleration_mm_per_sec2: 50.000000
+    acceleration_mm_per_sec2: 25.000000
     homing: 
       cycle: -1
     
@@ -28,7 +28,7 @@ axes:
 
   y: 
     max_rate_mm_per_min: 2000.000000
-    acceleration_mm_per_sec2: 50.000000
+    acceleration_mm_per_sec2: 25.000000
     homing: 
       cycle: -1
 

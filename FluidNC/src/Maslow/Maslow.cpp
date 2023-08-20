@@ -78,6 +78,9 @@ void Maslow_::begin(void (*sys_rt)()) {
   _beltEndExtension = 30; //Based on the CAD model these should add to 153.4
   _armLength = 123.4;
 
+  extendingOrRetracting = false;
+  calibrationInProgress = false;
+
   _sys_rt = sys_rt;
 
 }
@@ -101,15 +104,19 @@ void Maslow_::home(int axis) {
 
     switch(axis) {
         case 0:
+            extendingOrRetracting = true;
             axisBLHomed = axisBL.retract(computeBL(0, 300, 0));
+            extendingOrRetracting = false;
             break;
         case 1:
             if(axisBLHomed && axisBRHomed && axisTRHomed && axisTLHomed) {
                 lowerBeltsExtra = lowerBeltsExtra - 1;
                 log_info("Extra: " << lowerBeltsExtra);
             }
-            else{  
+            else{
+                extendingOrRetracting = true;
                 axisTLHomed = axisTL.retract(computeTL(0, 0, 0));
+                extendingOrRetracting = false;
             }
             break;
         case 2:
@@ -117,8 +124,10 @@ void Maslow_::home(int axis) {
                 lowerBeltsExtra = lowerBeltsExtra + 1;
                 log_info("Extra: " << lowerBeltsExtra);
             }
-            else{ 
+            else{
+                extendingOrRetracting = true;
                 axisTRHomed = axisTR.retract(computeTR(0, 0, 0));
+                extendingOrRetracting = false;
             }
             break;
         case 4:
@@ -126,7 +135,9 @@ void Maslow_::home(int axis) {
                 runCalibration();
             }
             else {
+                extendingOrRetracting = true;
                 axisBRHomed = axisBR.retract(computeBR(0, 300, 0));
+                extendingOrRetracting = false;
             }
             break;
         default:
@@ -176,6 +187,11 @@ void Maslow_::recomputePID(){
     axisBR.updateEncoderPosition();
     axisTR.updateEncoderPosition();
     axisTL.updateEncoderPosition();
+    
+    //If the belt is extending or retracting from the zero point we don't do anything here
+    if(extendingOrRetracting){
+        return;
+    }
 
     //Stop the motors if we are idle or alarm. Unless doing calibration. Calibration can happen during idle or alarm
     if((sys.state() == State::Idle || sys.state() == State::Alarm) && !calibrationInProgress){

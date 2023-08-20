@@ -56,6 +56,7 @@ class Maslow_ {
     bool axisTRHomed;
     bool axisTLHomed;
     bool calibrationInProgress;  //Used to turn off regular movements during calibration
+    bool extendingOrRetracting;  //Used to turn off stopping the motors when extending the belts from zero
 
   private:
     float tlX;
