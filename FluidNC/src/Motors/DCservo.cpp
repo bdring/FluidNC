@@ -28,7 +28,7 @@ namespace MotorDrivers {
     std::vector<DCservo*> DCservo::_instances;
     bool                     DCservo::_has_errors = false;
 
-    int DCservo::_timer_ms = 10;
+    int DCservo::_timer_ms = 1;
 
     uint8_t DCservo::_tx_message[100];  // send to dynamixel
     uint8_t DCservo::_rx_message[50];   // received from dynamixel

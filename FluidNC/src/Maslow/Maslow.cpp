@@ -169,14 +169,16 @@ void Maslow_::recomputePID(){
 
     int timeSinceLastCall = millis() - lastCallToPID;
     
-    if(timeSinceLastCall > 50){
-        //log_info( "PID not being called often enough. Time since last call: " + String(timeSinceLastCall));
+    if(timeSinceLastCall > 11){
+        log_info( "PID not being called often enough. Time since last call: " << timeSinceLastCall);
     }
     
     //We want to update the encoders at most ever 10ms to avoid it hogging the processor time
     if(timeSinceLastCall < 10){
       return;
     }
+
+    lastCallToPID = millis();
 
     if(random(50) == 0){
         log_info("TL Error: " << axisTL.getError() << " TR Error: " << axisTR.getError());
@@ -195,6 +197,10 @@ void Maslow_::recomputePID(){
 
     //Stop the motors if we are idle or alarm. Unless doing calibration. Calibration can happen during idle or alarm
     if((sys.state() == State::Idle || sys.state() == State::Alarm) && !calibrationInProgress){
+        if(random(50) == 0){
+            log_info("Stopping motors");
+            log_info("Calibration in progress: " << calibrationInProgress);
+        }
         axisBL.stop();
         axisBR.stop();
         axisTR.stop();
@@ -256,8 +262,6 @@ void Maslow_::recomputePID(){
     // if(random(250) == 0){
     //     grbl_sendf( "Angles: TL %i, TR: %i, BL: %i, BR: %i\n", axisTL.readAngle(), axisTR.readAngle(), axisBL.readAngle(), axisBR.readAngle());
     // }
-
-    lastCallToPID = millis();
 }
 
 
@@ -424,7 +428,8 @@ void Maslow_::runCalibration(){
 
     //-----------------------------First column------------------------------
 
-    //First measurement where we started
+    //First measurement
+    moveWithSlack(-800, 400, true, true);
     retractBL(); //Retract the bottom left belt first to tension the system
     retractBL();
     takeMeasurementAvgWithCheck(allLengths1);
@@ -686,7 +691,7 @@ void Maslow_::runCalibration(){
     //log_info( "Lower belt length mismatch: " + String(blError) + ", " +String(brError));
     
     calibrationInProgress = false;
-    //log_info( "Calibration finished");
+    log_info( "Calibration finished");
     
 }
 
@@ -1014,7 +1019,9 @@ void Maslow_::retractBL(){
 //Reposition the sled without knowing the machine dimensions
 void Maslow_::moveWithSlack(float x, float y, bool leftBelt, bool rightBelt){
     
-    //log_info( "Moving to with slack");
+    log_info( "Moving to with slack");
+
+    extendingOrRetracting = true;
     
     //The distance we need to move is the current position minus the target position
     double TLDist = axisTL.getPosition() - computeTL(x,y,0);
@@ -1100,6 +1107,8 @@ void Maslow_::moveWithSlack(float x, float y, bool leftBelt, bool rightBelt){
     
     //Take up the internal slack to remove any slop between the spool and roller
     takeUpInternalSlack();
+
+    extendingOrRetracting = false;
 }
 
 //This function removes any slack in the belt between the spool and the roller. 
