@@ -34,7 +34,8 @@
 #define brIn2Channel 7
 #define brADCPin 7
 
-int lowerBeltsExtra = 0;
+int lowerBeltsExtra = 4;
+int callsSinceDelay = 0;
 
 void Maslow_::begin(void (*sys_rt)()) {
   initialized = 1;
@@ -169,19 +170,36 @@ void Maslow_::recomputePID(){
 
     int timeSinceLastCall = millis() - lastCallToPID;
     
-    if(timeSinceLastCall > 11){
-        log_info( "PID not being called often enough. Time since last call: " << timeSinceLastCall);
+    if(timeSinceLastCall > 50){
+        log_info( "PID not being called often enough. Time since last call: " << timeSinceLastCall << " times: " << callsSinceDelay);
+        callsSinceDelay = 0;
+    }
+    else{
+        callsSinceDelay++;
     }
     
     //We want to update the encoders at most ever 10ms to avoid it hogging the processor time
-    if(timeSinceLastCall < 10){
-      return;
-    }
+    // if(timeSinceLastCall < 10){
+    //   return;
+    // }
 
     lastCallToPID = millis();
 
-    if(random(50) == 0){
-        log_info("TL Error: " << axisTL.getError() << " TR Error: " << axisTR.getError());
+    float axisTLError = axisTL.getError();
+    if(abs(axisTLError) > 0.5 && axisTLError < 10){
+        log_info("TL Error: " << axisTLError);
+    }
+    float axisTRError = axisTR.getError();
+    if(abs(axisTRError) > 0.5 && axisTRError < 10){
+        log_info("TR Error: " << axisTRError);
+    }
+    float axisBLError = axisBL.getError();
+    if(abs(axisBLError) > 0.5 && axisBLError < 10){
+        log_info("TL Error: " << axisBLError);
+    }
+    float axisBRError = axisBR.getError();
+    if(abs(axisBRError) > 0.5 && axisBRError < 10){
+        log_info("TL Error: " << axisBRError);
     }
 
     //We always update the encoder positions
@@ -199,7 +217,7 @@ void Maslow_::recomputePID(){
     if((sys.state() == State::Idle || sys.state() == State::Alarm) && !calibrationInProgress){
         if(random(50) == 0){
             log_info("Stopping motors");
-            log_info("Calibration in progress: " << calibrationInProgress);
+            //log_info("Calibration in progress: " << calibrationInProgress);
         }
         axisBL.stop();
         axisBR.stop();
@@ -211,6 +229,12 @@ void Maslow_::recomputePID(){
         axisBR.recomputePID();
         axisTR.recomputePID();
         axisTL.recomputePID();
+    }
+
+
+    int looptime = millis() - lastCallToPID;
+    if(looptime > 5){
+        log_info("Loop time: " << looptime);
     }
 
     // int tlAngle = axisTL.readAngle();
