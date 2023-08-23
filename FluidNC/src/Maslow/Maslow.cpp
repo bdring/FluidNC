@@ -34,7 +34,7 @@
 #define brIn2Channel 7
 #define brADCPin 7
 
-int lowerBeltsExtra = 4;
+int lowerBeltsExtra = 0;
 int callsSinceDelay = 0;
 
 void Maslow_::begin(void (*sys_rt)()) {
@@ -185,21 +185,23 @@ void Maslow_::recomputePID(){
 
     lastCallToPID = millis();
 
-    float axisTLError = axisTL.getError();
-    if(abs(axisTLError) > 0.5 && axisTLError < 10){
-        log_info("TL Error: " << axisTLError);
-    }
-    float axisTRError = axisTR.getError();
-    if(abs(axisTRError) > 0.5 && axisTRError < 10){
-        log_info("TR Error: " << axisTRError);
-    }
-    float axisBLError = axisBL.getError();
-    if(abs(axisBLError) > 0.5 && axisBLError < 10){
-        log_info("TL Error: " << axisBLError);
-    }
-    float axisBRError = axisBR.getError();
-    if(abs(axisBRError) > 0.5 && axisBRError < 10){
-        log_info("TL Error: " << axisBRError);
+    if(sys.state() != State::Idle && sys.state() != State::Alarm){
+        float axisTLError = axisTL.getError();
+        if(abs(axisTLError) > 0.5 && axisTLError < 10){
+            log_info("TL Error: " << axisTLError);
+        }
+        float axisTRError = axisTR.getError();
+        if(abs(axisTRError) > 0.5 && axisTRError < 10){
+            log_info("TR Error: " << axisTRError);
+        }
+        float axisBLError = axisBL.getError();
+        if(abs(axisBLError) > 0.5 && axisBLError < 10){
+            log_info("TL Error: " << axisBLError);
+        }
+        float axisBRError = axisBR.getError();
+        if(abs(axisBRError) > 0.5 && axisBRError < 10){
+            log_info("TL Error: " << axisBRError);
+        }
     }
 
     //We always update the encoder positions
@@ -215,10 +217,10 @@ void Maslow_::recomputePID(){
 
     //Stop the motors if we are idle or alarm. Unless doing calibration. Calibration can happen during idle or alarm
     if((sys.state() == State::Idle || sys.state() == State::Alarm) && !calibrationInProgress){
-        if(random(50) == 0){
-            log_info("Stopping motors");
-            //log_info("Calibration in progress: " << calibrationInProgress);
-        }
+        // if(random(50) == 0){
+        //     log_info("Stopping motors");
+        //     //log_info("Calibration in progress: " << calibrationInProgress);
+        // }
         axisBL.stop();
         axisBR.stop();
         axisTR.stop();
@@ -231,11 +233,15 @@ void Maslow_::recomputePID(){
         axisTL.recomputePID();
     }
 
-
-    int looptime = millis() - lastCallToPID;
-    if(looptime > 5){
-        log_info("Loop time: " << looptime);
+    if(random(100) == 0){
+        log_info("Currents:" << axisBL.getCurrent() << " , " << axisBR.getCurrent());
     }
+
+
+    // int looptime = millis() - lastCallToPID;
+    // if(looptime > 5){
+    //     log_info("Loop time: " << looptime);
+    // }
 
     // int tlAngle = axisTL.readAngle();
     // if(tlAngle == 0 || tlAngle == 16383){
