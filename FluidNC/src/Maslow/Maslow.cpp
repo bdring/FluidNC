@@ -34,6 +34,8 @@
 #define brIn2Channel 7
 #define brADCPin 7
 
+#define coolingFanPin 47
+
 void Maslow_::begin(void (*sys_rt)()) {
   initialized = 1;
 
@@ -77,6 +79,8 @@ void Maslow_::begin(void (*sys_rt)()) {
   _armLength = 123.4;
 
   _sys_rt = sys_rt;
+
+  pinMode(coolingFanPin, OUTPUT);   
 
 }
 
@@ -194,6 +198,7 @@ void Maslow_::recomputePID(int encoderNumber2Compute){
                 axisTL.updateEncoderPosition();
                 break;
         }
+        digitalWrite(coolingFanPin, LOW); //Turn off the cooling fan
     }
     else{  //Position the axis
         switch(encoderNumber2Compute){
@@ -216,6 +221,7 @@ void Maslow_::recomputePID(int encoderNumber2Compute){
                 axisTL.recomputePID();
                 break;
         }
+        digitalWrite(coolingFanPin, HIGH); //Turn on the cooling fan
     }
 
     // int tlAngle = axisTL.readAngle();
