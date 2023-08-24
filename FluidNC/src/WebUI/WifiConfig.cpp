@@ -8,17 +8,17 @@
 #include <sstream>
 #include <iomanip>
 
-WebUI::WiFiConfig wifi_config  __attribute__((init_priority(109))) ;
+WebUI::WiFiConfig wifi_config __attribute__((init_priority(109)));
 
 #ifdef ENABLE_WIFI
 #    include "../Config.h"
 #    include "../Main.h"
-#    include "Commands.h"      // COMMANDS
+#    include "Commands.h"  // COMMANDS
 #    include "WifiServices.h"  // wifi_services.start() etc.
-#    include "WebSettings.h"   // split_params(), get_params()
+#    include "WebSettings.h"  // split_params(), get_params()
 
-#    include "WebServer.h"             // webServer.port()
-#    include "TelnetServer.h"          // telnetServer
+#    include "WebServer.h"  // webServer.port()
+#    include "TelnetServer.h"  // telnetServer
 #    include "NotificationsService.h"  // notificationsservice
 
 #    include <WiFi.h>
@@ -114,6 +114,7 @@ namespace WebUI {
     IPaddrSetting* wifi_sta_ip;
     IPaddrSetting* wifi_sta_gateway;
     IPaddrSetting* wifi_sta_netmask;
+    EnumSetting*   wifi_sta_ssdp;
 
     StringSetting* wifi_ap_ssid;
     StringSetting* wifi_ap_password;
@@ -137,6 +138,11 @@ namespace WebUI {
         { "WPA2-PSK", WIFI_AUTH_WPA2_PSK },
         { "WPA-WPA2-PSK", WIFI_AUTH_WPA_WPA2_PSK },
         { "WPA2-ENTERPRISE", WIFI_AUTH_WPA2_ENTERPRISE },
+    };
+
+    enum_opt_t staSsdpModeOptions = {
+        { "SSDP and mDNS Disabled", SSDP_DISABLED },
+        { "SSDP and mDNS Enabled", SSDP_ENABLED },
     };
 
     static void print_mac(Channel& out, const char* prefix, const char* mac) { log_to(out, prefix, " (" << mac << ")"); }
@@ -339,6 +345,7 @@ namespace WebUI {
                                              (bool (*)(char*))WiFiConfig::isPasswordValid);
         wifi_ap_ssid = new StringSetting("AP SSID", WEBSET, WA, "ESP105", "AP/SSID", DEFAULT_AP_SSID, MIN_SSID_LENGTH, MAX_SSID_LENGTH, NULL);
         wifi_ap_country  = new EnumSetting("AP regulatory domain", WEBSET, WA, NULL, "AP/Country", WiFiCountry01, &wifiContryOptions, NULL);
+        wifi_sta_ssdp    = new EnumSetting("SSDP and mDNS", WEBSET, WA, NULL, "Sta/SSDP", DEFAULT_STA_SSDP_MODE, &staSsdpModeOptions, NULL);
         wifi_sta_netmask = new IPaddrSetting("Station Static Mask", WEBSET, WA, NULL, "Sta/Netmask", DEFAULT_STA_MK, NULL);
         wifi_sta_gateway = new IPaddrSetting("Station Static Gateway", WEBSET, WA, NULL, "Sta/Gateway", DEFAULT_STA_GW, NULL);
         wifi_sta_ip      = new IPaddrSetting("Station Static IP", WEBSET, WA, NULL, "Sta/IP", DEFAULT_STA_IP, NULL);
