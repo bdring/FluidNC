@@ -55,7 +55,7 @@ void CoolantControl::write(CoolantState state) {
     }
 }
 
-// Directly called by coolant_init(), coolant_set_state(), and mc_reset(), which can be at
+// Directly called by coolant_init(), coolant_set_state(), which can be at
 // an interrupt-level. No report flag set, but only called by routines that don't need it.
 void CoolantControl::stop() {
     CoolantState disable = {};

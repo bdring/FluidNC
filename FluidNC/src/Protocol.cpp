@@ -22,7 +22,7 @@
 #include "Logging.h"
 #include "Machine/LimitPin.h"
 
-volatile ExecAlarm rtAlarm;  // Global realtime executor bitflag variable for setting various alarms.
+volatile ExecAlarm lastAlarm;  // The most recent alarm code
 
 std::map<ExecAlarm, const char*> AlarmNames = {
     { ExecAlarm::None, "None" },
@@ -39,14 +39,14 @@ std::map<ExecAlarm, const char*> AlarmNames = {
     { ExecAlarm::ControlPin, "Control Pin Initially On" },
     { ExecAlarm::HomingAmbiguousSwitch, "Ambiguous Switch" },
     { ExecAlarm::HardStop, "Hard Stop" },
+    { ExecAlarm::Unhomed, "Unhomed" },
+    { ExecAlarm::Init, "Init" },
 };
 
 const char* alarmString(ExecAlarm alarmNumber) {
     auto it = AlarmNames.find(alarmNumber);
     return it == AlarmNames.end() ? NULL : it->second;
 }
-
-volatile bool rtReset;
 
 static volatile bool rtSafetyDoor;
 
@@ -77,12 +77,8 @@ static SpindleStop spindle_stop_ovr;
 void protocol_reset() {
     probeState             = ProbeState::Off;
     soft_limit             = false;
-    rtReset                = false;
     rtSafetyDoor           = false;
     spindle_stop_ovr.value = 0;
-
-    // Do not clear rtAlarm because it might have been set during configuration
-    // rtAlarm = ExecAlarm::None;
 }
 
 static int32_t idleEndTime = 0;
@@ -242,39 +238,12 @@ static void alarm_msg(ExecAlarm alarm_code) {
     delay_ms(500);  // Force delay to ensure message clears serial write buffer.
 }
 
-static void check_startup_state() {
-    // Check for and report alarm state after a reset, error, or an initial power up.
-    // NOTE: Sleep mode disables the stepper drivers and position can't be guaranteed.
-    // Re-initialize the sleep state as an ALARM mode to ensure user homes or acknowledges.
-    if (sys.state == State::ConfigAlarm) {
-        report_error_message(Message::ConfigAlarmLock);
-    } else {
-        // Perform some machine checks to make sure everything is good to go.
-        if (config->_start->_checkLimits) {
-            if (config->_axes->hasHardLimits() && limits_get_state()) {
-                sys.state = State::Alarm;  // Ensure alarm state is active.
-                alarm_msg(ExecAlarm::HardLimit);
-                report_error_message(Message::CheckLimits);
-            }
-        }
-        if (config->_control->startup_check()) {
-            rtAlarm = ExecAlarm::ControlPin;
-        } else if (sys.state == State::Alarm || sys.state == State::Sleep) {
-            report_feedback_message(Message::AlarmLock);
-            sys.state = State::Alarm;  // Ensure alarm state is set.
-        } else {
-            // All systems go!
-            sys.state = State::Idle;
-            settings_execute_startup();  // Execute startup script.
-        }
-    }
-}
+static void check_startup_state() {}
 
 const uint32_t heapWarnThreshold = 15000;
 
 uint32_t heapLowWater = UINT_MAX;
 void     protocol_main_loop() {
-    check_startup_state();
     start_polling();
 
     // ---------------------------------------------------------------------------------
@@ -376,38 +345,95 @@ void protocol_execute_realtime() {
     }
 }
 
-// Executes run-time commands, when required. This function is the primary state
-// machine that controls the various real-time features.
-// NOTE: Do not alter this unless you know exactly what you are doing!
-static void protocol_do_alarm() {
-    if (rtAlarm == ExecAlarm::None) {
+static void protocol_run_startup_lines() {
+    settings_execute_startup();  // Execute startup script.
+}
+
+static void protocol_do_restart() {
+    // Reset primary systems.
+    system_reset();
+    protocol_reset();
+    gc_init();  // Set g-code parser to default state
+    // Spindle should be set either by the configuration
+    // or by the post-configuration fixup, but we test
+    // it anyway just for safety.  We want to avoid any
+    // possibility of crashing at this point.
+
+    plan_reset();  // Clear block buffer and planner variables
+
+    if (sys.state != State::ConfigAlarm) {
+        if (spindle) {
+            spindle->stop();
+            report_ovr_counter = 0;  // Set to report change immediately
+        }
+        Stepper::reset();            // Clear stepper subsystem variables
+    }
+
+    // Sync cleared gcode and planner positions to current system position.
+    plan_sync_position();
+    gc_sync_position();
+    allChannels.flushRx();
+    report_init_message(allChannels);
+    mc_init();
+
+    // Check for and report alarm state after a reset, error, or an initial power up.
+    // NOTE: Sleep mode disables the stepper drivers and position can't be guaranteed.
+    // Re-initialize the sleep state as an ALARM mode to ensure user homes or acknowledges.
+    if (sys.state == State::ConfigAlarm) {
+        report_error_message(Message::ConfigAlarmLock);
         return;
     }
+
+    // Perform some machine checks to make sure everything is good to go.
+    if (config->_start->_checkLimits && config->_axes->hasHardLimits() && limits_get_state()) {
+        mc_critical(ExecAlarm::HardLimit);
+    } else if (config->_control->startup_check()) {
+        send_alarm(ExecAlarm::ControlPin);
+    } else {
+        if (sys.state == State::Idle) {
+            config->_macros->_after_reset.run();
+        }
+    }
+}
+
+static void protocol_do_start() {
+    protocol_send_event(&restartEvent);
+    sys.state = State::Critical;
+    if (FORCE_INITIALIZATION_ALARM) {
+        // Force ALARM state upon a power-cycle or hard reset.
+        send_alarm(ExecAlarm::Init);
+        return;
+    }
+    Homing::set_all_axes_homed();
+    if (config->_start->_mustHome && Machine::Axes::homingMask) {
+        Homing::set_all_axes_unhomed();
+        // If there is an axis with homing configured, enter Alarm state on startup
+        send_alarm(ExecAlarm::Unhomed);
+    } else {
+        sys.state = State::Idle;
+    }
+    protocol_send_event(&runStartupLinesEvent);
+}
+
+static void protocol_do_alarm(void* alarmVoid) {
+    lastAlarm = (ExecAlarm)((int)alarmVoid);
     if (spindle->_off_on_alarm) {
         spindle->stop();
     }
-    sys.state = State::Alarm;  // Set system alarm state
-    alarm_msg(rtAlarm);
-    if (rtAlarm == ExecAlarm::HardLimit || rtAlarm == ExecAlarm::HardStop) {
+    alarm_msg(lastAlarm);
+    if (lastAlarm == ExecAlarm::HardLimit || lastAlarm == ExecAlarm::HardStop) {
+        sys.state = State::Critical;  // Set system alarm state
         report_error_message(Message::CriticalEvent);
         protocol_disable_steppers();
-        rtReset = false;  // Disable any existing reset
-        do {
-            protocol_handle_events();
-            // Block everything except reset and status reports until user issues reset or power
-            // cycles. Hard limits typically occur while unattended or not paying attention. Gives
-            // the user and a GUI time to do what is needed before resetting, like killing the
-            // incoming stream. The same could be said about soft limits. While the position is not
-            // lost, continued streaming could cause a serious crash if by chance it gets executed.
-        } while (!rtReset);
+        Homing::set_all_axes_unhomed();
+        return;
     }
-
-    if (rtAlarm == ExecAlarm::SoftLimit) {
+    if (lastAlarm == ExecAlarm::SoftLimit) {
+        sys.state = State::Critical;  // Set system alarm state
         report_error_message(Message::CriticalEvent);
-        protocol_disable_steppers();
-        rtReset = false;  // Disable any existing reset
+        return;
     }
-    rtAlarm = ExecAlarm::None;
+    sys.state = State::Alarm;
 }
 
 static void protocol_start_holding() {
@@ -672,7 +698,7 @@ void protocol_disable_steppers() {
         config->_axes->set_disable(false);
         return;
     }
-    if (sys.state == State::Sleep || rtAlarm != ExecAlarm::None) {
+    if (sys.state == State::Sleep || sys.state == State::Alarm) {
         // Disable steppers immediately in sleep or alarm state
         config->_axes->set_disable(true);
         return;
@@ -756,7 +782,7 @@ static void update_velocities() {
     plan_cycle_reinitialize();
 }
 
-// This is the final phase of the shutdown activity that is initiated by mc_reset().
+// This is the final phase of the shutdown activity for a reset
 // The stuff herein is not necessarily safe to do in an ISR.
 static void protocol_do_late_reset() {
     // Kill spindle and coolant.
@@ -775,19 +801,6 @@ static void protocol_do_late_reset() {
 }
 
 void protocol_exec_rt_system() {
-    protocol_do_alarm();  // If there is a hard or soft limit, this will block until rtReset is set
-
-    if (rtReset) {
-        rtReset = false;
-        if (sys.state == State::Homing) {
-            Machine::Homing::fail(ExecAlarm::HomingFailReset);
-        }
-        protocol_do_late_reset();
-        // Trigger system abort.
-        sys.abort = true;  // Only place this is set true.
-        return;            // Nothing else to do but exit.
-    }
-
     if (rtSafetyDoor) {
         protocol_do_safety_door();
     }
@@ -1022,25 +1035,37 @@ static void protocol_do_limit(void* arg) {
         Machine::Homing::limitReached();
         return;
     }
-    log_info("Limit switch tripped for " << config->_axes->axisName(limit->_axis) << " motor " << limit->_motorNum);
-    if (sys.state == State::Cycle || sys.state == State::Jog) {
-        if (limit->isHard() && rtAlarm == ExecAlarm::None) {
-            log_debug("Hard limits");
-            mc_reset();  // Initiate system kill.
-            rtAlarm = ExecAlarm::HardLimit;
-        }
+    if ((sys.state == State::Cycle || sys.state == State::Jog) && limit->isHard()) {
+        mc_critical(ExecAlarm::HardLimit);
     }
+    log_info("Limit switch tripped for " << config->_axes->axisName(limit->_axis) << " motor " << limit->_motorNum);
 }
 static void protocol_do_fault_pin(void* arg) {
-    if (rtAlarm == ExecAlarm::None) {
-        if (sys.state == State::Cycle || sys.state == State::Jog) {
-            mc_reset();  // Initiate system kill.
-        }
-        ControlPin* pin = (ControlPin*)arg;
-        log_info("Stopped by " << pin->_legend);
-        rtAlarm = ExecAlarm::HardStop;
+    if (sys.state == State::Cycle || sys.state == State::Jog) {
+        mc_critical(ExecAlarm::HardStop);  // Initiate system kill.
     }
+    ControlPin* pin = (ControlPin*)arg;
+    log_info("Stopped by " << pin->_legend);
 }
+void protocol_do_rt_reset() {
+    if (sys.state == State::Homing) {
+        Machine::Homing::fail(ExecAlarm::HomingFailReset);
+    } else if (sys.state == State::Cycle || sys.state == State::Jog || sys.step_control.executeHold || sys.step_control.executeSysMotion) {
+        Stepper::stop_stepping();  // Stop stepping immediately, possibly losing position
+        protocol_do_alarm((void*)ExecAlarm::AbortCycle);
+    } else if (sys.state == State::Critical) {
+        if (Homing::unhomed_axes()) {
+            protocol_do_alarm((void*)ExecAlarm::Unhomed);
+        } else {
+            sys.state = State::Idle;
+        }
+    } else if (sys.state != State::Alarm) {
+        sys.state = State::Idle;
+    }
+    protocol_do_late_reset();
+    protocol_send_event(&restartEvent);
+}
+
 ArgEvent feedOverrideEvent { protocol_do_feed_override };
 ArgEvent rapidOverrideEvent { protocol_do_rapid_override };
 ArgEvent spindleOverrideEvent { protocol_do_spindle_override };
@@ -1057,12 +1082,15 @@ NoArgEvent cycleStopEvent { protocol_do_cycle_stop };
 NoArgEvent motionCancelEvent { protocol_do_motion_cancel };
 NoArgEvent sleepEvent { protocol_do_sleep };
 NoArgEvent debugEvent { report_realtime_debug };
+NoArgEvent startEvent { protocol_do_start };
+NoArgEvent restartEvent { protocol_do_restart };
+NoArgEvent runStartupLinesEvent { protocol_run_startup_lines };
 
-// Only mc_reset() is permitted to set rtReset.
-NoArgEvent resetEvent { mc_reset };
+NoArgEvent rtResetEvent { protocol_do_rt_reset };
 
 // The problem is that report_realtime_status needs a channel argument
 // Event statusReportEvent { protocol_do_status_report(XXX) };
+ArgEvent alarmEvent { (void (*)(void*))protocol_do_alarm };
 
 xQueueHandle event_queue;
 
@@ -1082,7 +1110,12 @@ void protocol_send_event(Event* evt, void* arg) {
 void protocol_handle_events() {
     EventItem item;
     while (xQueueReceive(event_queue, &item, 0)) {
-        // log_debug("event");
         item.event->run(item.arg);
     }
+}
+void send_alarm(ExecAlarm alarm) {
+    protocol_send_event(&alarmEvent, (void*)alarm);
+}
+void IRAM_ATTR send_alarm_from_ISR(ExecAlarm alarm) {
+    protocol_send_event_from_ISR(&alarmEvent, (void*)alarm);
 }

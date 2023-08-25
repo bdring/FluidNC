@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "System.h"  // AxisMask
+#include "System.h"
 
 #include <cstdint>
 
@@ -16,11 +16,8 @@ void limits_init();
 // Returns limit state
 MotorMask limits_get_state();
 
-// Check for soft limit violations
-void limits_soft_check(float* cartesian);
-
-// Constrain the coordinates to stay within the soft limit envelope
-void constrainToSoftLimits(float* cartesian);
+void limit_error();
+void limit_error(size_t axis, float cordinate);
 
 float limitsMaxPosition(size_t axis);
 float limitsMinPosition(size_t axis);

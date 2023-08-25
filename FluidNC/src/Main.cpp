@@ -28,10 +28,11 @@
 extern void make_user_commands();
 
 void setup() {
-    //Improve startup stability
-    //delay_ms(2000);
-
     disableCore0WDT();
+
+    //Improve startup stability
+    delay_ms(2000);
+
     try {
         timing_init();
         uartInit();       // Setup serial port
@@ -110,36 +111,12 @@ void setup() {
             config->_control->init();
 
             config->_kinematics->init();
+
+            limits_init();
         }
 
         // Initialize system state.
         if (sys.state != State::ConfigAlarm) {
-            if (FORCE_INITIALIZATION_ALARM) {
-                // Force ALARM state upon a power-cycle or hard reset.
-                sys.state = State::Alarm;
-            } else {
-                sys.state = State::Idle;
-            }
-
-            esp_reset_reason_t reason = esp_reset_reason();
-            if (reason == ESP_RST_POWERON) {
-                log_debug("PowerOn reset : Launch reboot to get good limit status after poweron");
-                ESP.restart();
-            }
-
-            limits_init();
-
-            // Check for power-up and set system alarm if homing is enabled to force homing cycle
-            // by setting alarm state. Alarm locks out all g-code commands, including the
-            // startup scripts, but allows access to settings and internal commands. Only a homing
-            // cycle '$H' or kill alarm locks '$X' will disable the alarm.
-            // NOTE: The startup script will run after successful completion of the homing cycle, but
-            // not after disabling the alarm locks. Prevents motion startup blocks from crashing into
-            // things uncontrollably. Very bad.
-            if (config->_start->_mustHome && Machine::Axes::homingMask) {
-                // If there is an axis with homing configured, enter Alarm state on startup
-                sys.state = State::Alarm;
-            }
             for (auto s : config->_spindles) {
                 s->init();
             }
@@ -147,6 +124,12 @@ void setup() {
 
             config->_coolant->init();
             config->_probe->init();
+        }
+
+        esp_reset_reason_t reason = esp_reset_reason();
+        if (reason == ESP_RST_POWERON) {
+            log_debug("PowerOn reset : Launch reboot to get good limit status after poweron");
+            ESP.restart();
         }
 
     } catch (const AssertionFailed& ex) {
@@ -161,40 +144,12 @@ void setup() {
     }
 
     allChannels.deregistration(&startupLog);
-}
-
-static void reset_variables() {
-    // Reset primary systems.
-    system_reset();
-    protocol_reset();
-    gc_init();  // Set g-code parser to default state
-    // Spindle should be set either by the configuration
-    // or by the post-configuration fixup, but we test
-    // it anyway just for safety.  We want to avoid any
-    // possibility of crashing at this point.
-
-    plan_reset();  // Clear block buffer and planner variables
-
-    if (sys.state != State::ConfigAlarm) {
-        if (spindle) {
-            spindle->stop();
-            report_ovr_counter = 0;  // Set to report change immediately
-        }
-        Stepper::reset();            // Clear stepper subsystem variables
-    }
-
-    // Sync cleared gcode and planner positions to current system position.
-    plan_sync_position();
-    gc_sync_position();
-    allChannels.flushRx();
-    report_init_message(allChannels);
-    mc_init();
+    protocol_send_event(&startEvent);
 }
 
 void loop() {
     static int tries = 0;
     try {
-        reset_variables();
         // Start the main loop. Processes program inputs and executes them.
         // This can exit on a system abort condition, in which case run_once()
         // is re-executed by an enclosing loop.  It can also exit via a

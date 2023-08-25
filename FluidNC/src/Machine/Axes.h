@@ -24,9 +24,10 @@ namespace Machine {
         // Bitmasks to collect information about axes that have limits and homing
         static MotorMask posLimitMask;
         static MotorMask negLimitMask;
-        static MotorMask homingMask;
         static MotorMask limitMask;
         static MotorMask motorMask;
+
+        static AxisMask homingMask;
 
         Pin _sharedStepperDisable;
         Pin _sharedStepperReset;
@@ -72,7 +73,8 @@ namespace Machine {
         void config_motors();
 
         std::string maskToNames(AxisMask mask);
-        bool        namesToMask(const char* names, AxisMask& mask);
+
+        bool namesToMask(const char* names, AxisMask& mask);
 
         std::string motorMaskToNames(MotorMask mask);
 

@@ -1,0 +1,107 @@
+# This config defines an arm motion range from 30 deg up to 90 deg down
+# 30 deg is pi/6 or 0.524 Radians
+# 90 deg is pi/2 or 1.571 radians
+# Max travel = 2.094
+# 2048 is the 0 point on the dynamixel in this design and the total is 4096
+# Up is 2048-341 = 1707
+# Down is 2048 + 1024 = 3072 
+
+board: Tap Delta
+name: Tapster3 +30-90
+meta: B. Dring for Tapster
+stepping:
+  engine: RMT
+  idle_ms: 2000
+  pulse_us: 4
+  dir_delay_us: 1
+  disable_delay_us: 0
+  
+kinematics:
+  parallel_delta:
+    crank_mm: 70.000
+    base_triangle_mm: 179.437
+    linkage_mm: 133.50
+    end_effector_triangle_mm: 86.603
+    kinematic_segment_len_mm: 0.500
+    homing_mpos_radians: 0.0
+    soft_limits: true
+    max_z_mm: -90.0
+
+start:
+  must_home: true
+  deactivate_parking: false
+  check_limits: false
+
+uart1:
+  txd_pin: gpio.4
+  rxd_pin: gpio.13
+  rts_pin: gpio.17
+  baud: 1000000
+  mode: 8N1
+
+axes:
+  shared_stepper_disable_pin: NO_PIN
+  x:
+    steps_per_mm: 100.000
+    max_rate_mm_per_min: 8000
+    acceleration_mm_per_sec2: 300.000
+    max_travel_mm: 2.094
+    soft_limits: false
+    homing:
+      cycle: -1
+      positive_direction: false
+      mpos_mm: -0.524
+
+    motor0:
+      dynamixel2:
+        uart_num: 1
+        id: 1
+        count_min: 1707
+        count_max: 3072
+        timer_ms: 30
+
+  y:
+    steps_per_mm: 100.000
+    max_rate_mm_per_min: 8000
+    acceleration_mm_per_sec2: 300.000
+    max_travel_mm: 2.094
+    soft_limits: false
+    homing:
+      cycle: -1
+      positive_direction: false
+      mpos_mm:  -0.524
+
+    motor0:
+      dynamixel2:
+        uart_num: 1
+        id: 2
+        count_min: 1707
+        count_max: 3072
+        timer_ms: 30
+  z:
+    steps_per_mm: 100.000
+    max_rate_mm_per_min: 8000
+    acceleration_mm_per_sec2: 300.000
+    max_travel_mm: 2.094
+    soft_limits: false
+    homing:
+      cycle: -1
+      positive_direction: false
+      mpos_mm:  -0.524
+      
+    motor0:
+      dynamixel2:
+        uart_num: 1
+        id: 3
+        count_min: 1707
+        count_max: 3072
+        timer_ms: 30
+
+spi:
+  miso_pin: gpio.19
+  mosi_pin: gpio.23
+  sck_pin: gpio.18
+
+sdcard:
+  card_detect_pin: NO_PIN
+  cs_pin: gpio.5

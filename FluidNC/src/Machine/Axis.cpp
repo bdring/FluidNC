@@ -45,7 +45,7 @@ namespace Machine {
                 m->init();
             }
         }
-        if (_homing) {
+        if (_homing->_cycle) {
             _homing->init();
             set_bitnum(Axes::homingMask, _axis);
         }
