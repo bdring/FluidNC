@@ -34,6 +34,8 @@
 #define brIn2Channel 7
 #define brADCPin 7
 
+#define coolingFanPin 47
+
 int lowerBeltsExtra = 0;
 int callsSinceDelay = 0;
 
@@ -83,6 +85,8 @@ void Maslow_::begin(void (*sys_rt)()) {
   calibrationInProgress = false;
 
   _sys_rt = sys_rt;
+
+  pinMode(coolingFanPin, OUTPUT);   
 
 }
 
@@ -225,12 +229,14 @@ void Maslow_::recomputePID(){
         axisBR.stop();
         axisTR.stop();
         axisTL.stop();
+        digitalWrite(coolingFanPin, LOW); //Turn off the cooling fan
     }
     else{  //Normal operation...drive the motors to the target positions
         axisBL.recomputePID();
         axisBR.recomputePID();
         axisTR.recomputePID();
         axisTL.recomputePID();
+        digitalWrite(coolingFanPin, HIGH); //Turn on the cooling fan
     }
 
     if(random(100) == 0){
