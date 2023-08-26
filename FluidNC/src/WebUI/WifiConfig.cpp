@@ -141,8 +141,8 @@ namespace WebUI {
     };
 
     enum_opt_t staSsdpModeOptions = {
-        { "SSDP and mDNS Disabled", SSDP_DISABLED },
-        { "SSDP and mDNS Enabled", SSDP_ENABLED },
+        { "Enable", SSDP_ENABLED },
+        { "Disabled", SSDP_DISABLED },
     };
 
     static void print_mac(Channel& out, const char* prefix, const char* mac) { log_to(out, prefix, " (" << mac << ")"); }
