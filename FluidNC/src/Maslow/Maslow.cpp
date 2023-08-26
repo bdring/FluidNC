@@ -36,6 +36,9 @@
 
 #define coolingFanPin 47
 
+int lowerBeltsExtra = 0;
+int callsSinceDelay = 0;
+
 void Maslow_::begin(void (*sys_rt)()) {
   initialized = 1;
 
@@ -56,16 +59,16 @@ void Maslow_::begin(void (*sys_rt)()) {
   axisTRHomed = false;
   axisTLHomed = false;
 
-  tlX = -1.2775505926851451;
-  tlY =  2125.411304076909;
+  tlX = -0.5376177353;
+  tlY =  2138.238375;
   tlZ = 116 + 38;
-  trX = 3036.051941957454; 
-  trY = 2127.91394620096;
+  trX = 3027.569248; 
+  trY = 2141.112163;
   trZ = 69 + 38;
   blX = 0;
   blY = 0;
   blZ = 47 + 38;
-  brX = 3041.4964766419607;
+  brX = 3033.46489;
   brY = 0;
   brZ = 89 + 38;
 
@@ -77,6 +80,9 @@ void Maslow_::begin(void (*sys_rt)()) {
   
   _beltEndExtension = 30; //Based on the CAD model these should add to 153.4
   _armLength = 123.4;
+
+  extendingOrRetracting = false;
+  calibrationInProgress = false;
 
   _sys_rt = sys_rt;
 
@@ -100,40 +106,53 @@ void Maslow_::readEncoders() {
 }
 
 void Maslow_::home(int axis) {
-  //log_info("Maslow home ran");
-  //log_info(initialized);
 
-  switch(axis) {
-    case 0:
-      //log_info("Bottom left");
-      axisBLHomed = axisBL.retract(computeBL(0, 300, 0));
-      break;
-    case 1:
-      //log_info("Top left");
-      axisTLHomed = axisTL.retract(computeTL(0, 0, 0));
-      break;
-    case 2:
-      //log_info("Top right");
-      axisTRHomed = axisTR.retract(computeTR(0, 0, 0));
-      break;
-    case 4:
-      //log_info("Bottom right");
-      if(axisBLHomed && axisBRHomed && axisTRHomed && axisTLHomed) {
-        //log_info("Running calibration");
-        runCalibration();
-      }
-      else {
-        axisBRHomed = axisBR.retract(computeBR(0, 300, 0));
-      }
-      break;
-    default:
-      //log_info("Unrecognized axis");
-      break;
-  }
+    switch(axis) {
+        case 0: //Bottom left
+            extendingOrRetracting = true;
+            axisBLHomed = axisBL.retract(computeBL(0, 300, 0));
+            extendingOrRetracting = false;
+            break;
+        case 1: //Top Left
+            if(axisBLHomed && axisBRHomed && axisTRHomed && axisTLHomed) {
+                lowerBeltsExtra = lowerBeltsExtra - 1;
+                log_info("Extra: " << lowerBeltsExtra);
+            }
+            else{
+                extendingOrRetracting = true;
+                axisTLHomed = axisTL.retract(computeTL(0, 0, 0));
+                extendingOrRetracting = false;
+            }
+            break;
+        case 2: //Top right
+            if(axisBLHomed && axisBRHomed && axisTRHomed && axisTLHomed) {
+                lowerBeltsExtra = lowerBeltsExtra + 1;
+                log_info("Extra: " << lowerBeltsExtra);
+            }
+            else{
+                extendingOrRetracting = true;
+                axisTRHomed = axisTR.retract(computeTR(0, 0, 0));
+                extendingOrRetracting = false;
+            }
+            break;
+        case 4: //Bottom right
+            if(axisBLHomed && axisBRHomed && axisTRHomed && axisTLHomed) {
+                runCalibration();
+            }
+            else {
+                extendingOrRetracting = true;
+                axisBRHomed = axisBR.retract(computeBR(0, 300, 0));
+                extendingOrRetracting = false;
+            }
+            break;
+        default:
+            log_info("Unrecognized axis");
+            break;
+    }
 
-  if(axisBLHomed && axisBRHomed && axisTRHomed && axisTLHomed) {
-    log_info("All axis ready.\n");
-  }
+    if(axisBLHomed && axisBRHomed && axisTRHomed && axisTLHomed) {
+        log_info("All axis ready.\n");
+    }
 }
 
 //Updates where the center x and y positions are
@@ -147,7 +166,7 @@ void Maslow_::updateCenterXY(){
 }
 
 //Called from protocol.cpp
-void Maslow_::recomputePID(int encoderNumber2Compute){
+void Maslow_::recomputePID(){
 
     if(!initialized){ //If we haven't initialized we don't want to try to compute things because the PID controllers cause the processor to crash
         return;
@@ -156,73 +175,79 @@ void Maslow_::recomputePID(int encoderNumber2Compute){
     int timeSinceLastCall = millis() - lastCallToPID;
     
     if(timeSinceLastCall > 50){
-        //log_info( "PID not being called often enough. Time since last call: " + String(timeSinceLastCall));
+        log_info( "PID not being called often enough. Time since last call: " << timeSinceLastCall << " times: " << callsSinceDelay);
+        callsSinceDelay = 0;
+    }
+    else{
+        callsSinceDelay++;
     }
     
     //We want to update the encoders at most ever 10ms to avoid it hogging the processor time
-    if(timeSinceLastCall < 10){
-      return;
-    }
+    // if(timeSinceLastCall < 10){
+    //   return;
+    // }
 
-    if(random(50) == 0){
-        log_info("TL Error: " << axisTL.getError() << " TR Error: " << axisTR.getError());
-    }
+    lastCallToPID = millis();
 
-    //Stop everything but keep track of the encoder positions if we are idle or alarm. Unless doing calibration.
-    if((sys.state() == State::Idle || sys.state() == State::Alarm) && !calibrationInProgress){
-        switch(encoderNumber2Compute){
-            case 0:
-                axisBL.stop();
-                axisBL.updateEncoderPosition();
-                break;
-            case 1:
-                axisBR.stop();
-                axisBR.updateEncoderPosition();
-                break;
-            case 2:
-                axisTR.stop();
-                axisTR.updateEncoderPosition();
-                break;
-            case 3:
-                axisTL.stop();
-                axisTL.updateEncoderPosition();
-                break;
-            case 4:
-                axisBL.stop();
-                axisBL.updateEncoderPosition();
-                axisBR.stop();
-                axisBR.updateEncoderPosition();
-                axisTR.stop();
-                axisTR.updateEncoderPosition();
-                axisTL.stop();
-                axisTL.updateEncoderPosition();
-                break;
+    if(sys.state() != State::Idle && sys.state() != State::Alarm){
+        float axisTLError = axisTL.getError();
+        if(abs(axisTLError) > 0.5 && axisTLError < 10){
+            log_info("TL Error: " << axisTLError);
         }
+        float axisTRError = axisTR.getError();
+        if(abs(axisTRError) > 0.5 && axisTRError < 10){
+            log_info("TR Error: " << axisTRError);
+        }
+        float axisBLError = axisBL.getError();
+        if(abs(axisBLError) > 0.5 && axisBLError < 10){
+            log_info("TL Error: " << axisBLError);
+        }
+        float axisBRError = axisBR.getError();
+        if(abs(axisBRError) > 0.5 && axisBRError < 10){
+            log_info("TL Error: " << axisBRError);
+        }
+    }
+
+    //We always update the encoder positions
+    axisBL.updateEncoderPosition();
+    axisBR.updateEncoderPosition();
+    axisTR.updateEncoderPosition();
+    axisTL.updateEncoderPosition();
+    
+    //If the belt is extending or retracting from the zero point we don't do anything here
+    if(extendingOrRetracting){
+        return;
+    }
+
+    //Stop the motors if we are idle or alarm. Unless doing calibration. Calibration can happen during idle or alarm
+    if((sys.state() == State::Idle || sys.state() == State::Alarm) && !calibrationInProgress){
+        // if(random(50) == 0){
+        //     log_info("Stopping motors");
+        //     //log_info("Calibration in progress: " << calibrationInProgress);
+        // }
+        axisBL.stop();
+        axisBR.stop();
+        axisTR.stop();
+        axisTL.stop();
         digitalWrite(coolingFanPin, LOW); //Turn off the cooling fan
     }
-    else{  //Position the axis
-        switch(encoderNumber2Compute){
-            case 0:
-                axisBL.recomputePID();
-                break;
-            case 1:
-                axisBR.recomputePID();
-                break;
-            case 2:
-                axisTR.recomputePID();
-                break;
-            case 3:
-                axisTL.recomputePID();
-                break;
-            case 4:
-                axisBL.recomputePID();
-                axisBR.recomputePID();
-                axisTR.recomputePID();
-                axisTL.recomputePID();
-                break;
-        }
+    else{  //Normal operation...drive the motors to the target positions
+        axisBL.recomputePID();
+        axisBR.recomputePID();
+        axisTR.recomputePID();
+        axisTL.recomputePID();
         digitalWrite(coolingFanPin, HIGH); //Turn on the cooling fan
     }
+
+    if(random(100) == 0){
+        log_info("Currents:" << axisBL.getCurrent() << " , " << axisBR.getCurrent());
+    }
+
+
+    // int looptime = millis() - lastCallToPID;
+    // if(looptime > 5){
+    //     log_info("Loop time: " << looptime);
+    // }
 
     // int tlAngle = axisTL.readAngle();
     // if(tlAngle == 0 || tlAngle == 16383){
@@ -273,8 +298,6 @@ void Maslow_::recomputePID(int encoderNumber2Compute){
     // if(random(250) == 0){
     //     grbl_sendf( "Angles: TL %i, TR: %i, BL: %i, BR: %i\n", axisTL.readAngle(), axisTR.readAngle(), axisBL.readAngle(), axisBR.readAngle());
     // }
-
-    lastCallToPID = millis();
 }
 
 
@@ -319,7 +342,7 @@ float Maslow_::computeBL(float x, float y, float z){
     //     grbl_sendf( "BL Slack By: %f\n", extraSlack);
     // }
 
-    return length;
+    return length + lowerBeltsExtra;
 }
 
 //Bottom right belt
@@ -339,7 +362,7 @@ float Maslow_::computeBR(float x, float y, float z){
     //     grbl_sendf( "BR Slack By: %f\n", extraSlack);
     // }
 
-    return length;
+    return length + lowerBeltsExtra;
 }
 
 //Top right belt
@@ -410,232 +433,233 @@ void Maslow_::runCalibration(){
     axisTL.setTarget(axisTL.getPosition());
     
 
-//     float allLengths1[5][4] = {0};
-//     float allLengths2[5][4] = {0};
-//     float allLengths3[5][4] = {0};
-//     float allLengths4[5][4] = {0};
-//     float allLengths5[5][4] = {0};
-//     float allLengths6[5][4] = {0};
-//     float allLengths7[5][4] = {0};
-//     float allLengths8[5][4] = {0};
-//     float allLengths9[5][4] = {0};
-//     float allLengths10[5][4] = {0};
-//     float allLengths11[5][4] = {0};
-//     float allLengths12[5][4] = {0};
-//     float allLengths13[5][4] = {0};
-//     float allLengths14[5][4] = {0};
-//     float allLengths15[5][4] = {0};
-//     float allLengths16[5][4] = {0};
-//     float allLengths17[5][4] = {0};
-//     float allLengths18[5][4] = {0};
-//     float allLengths19[5][4] = {0};
-//     float allLengths20[5][4] = {0};
-//     float allLengths21[5][4] = {0};
-//     float allLengths22[5][4] = {0};
-//     float allLengths23[5][4] = {0};
-//     float allLengths24[5][4] = {0};
-//     float allLengths25[5][4] = {0};
+    float allLengths1[5][4] = {0};
+    float allLengths2[5][4] = {0};
+    float allLengths3[5][4] = {0};
+    float allLengths4[5][4] = {0};
+    float allLengths5[5][4] = {0};
+    float allLengths6[5][4] = {0};
+    float allLengths7[5][4] = {0};
+    float allLengths8[5][4] = {0};
+    float allLengths9[5][4] = {0};
+    float allLengths10[5][4] = {0};
+    float allLengths11[5][4] = {0};
+    float allLengths12[5][4] = {0};
+    float allLengths13[5][4] = {0};
+    float allLengths14[5][4] = {0};
+    float allLengths15[5][4] = {0};
+    float allLengths16[5][4] = {0};
+    float allLengths17[5][4] = {0};
+    float allLengths18[5][4] = {0};
+    float allLengths19[5][4] = {0};
+    float allLengths20[5][4] = {0};
+    float allLengths21[5][4] = {0};
+    float allLengths22[5][4] = {0};
+    float allLengths23[5][4] = {0};
+    float allLengths24[5][4] = {0};
+    float allLengths25[5][4] = {0};
 
-//     //---------------------------------------------------Take measurements----------------------------
+    //---------------------------------------------------Take measurements----------------------------
     
 
-//     //-----------------------------First column------------------------------
+    //-----------------------------First column------------------------------
 
-//     //First measurement where we started
-//     retractBL(); //Retract the bottom left belt first to tension the system
-//     retractBL();
-//     takeMeasurementAvgWithCheck(allLengths1);
+    //First measurement
+    moveWithSlack(-800, 400, true, true);
+    retractBL(); //Retract the bottom left belt first to tension the system
+    retractBL();
+    takeMeasurementAvgWithCheck(allLengths1);
     
-//     //Second measurmement
-//     moveWithSlack(-800, 200, false, false);
-//     retractBL();
-//     retractBL();
-//     takeMeasurementAvgWithCheck(allLengths2);
+    //Second measurmement
+    moveWithSlack(-800, 200, false, false);
+    retractBL();
+    retractBL();
+    takeMeasurementAvgWithCheck(allLengths2);
 
-//     //Third measurmement
-//     moveWithSlack(-800, 0, false, false);
-//     retractBL();
-//     retractBL();
-//     takeMeasurementAvgWithCheck(allLengths3);
+    //Third measurmement
+    moveWithSlack(-800, 0, false, false);
+    retractBL();
+    retractBL();
+    takeMeasurementAvgWithCheck(allLengths3);
 
-//     //Fourth measurement
-//     moveWithSlack(-800, -200, false, false);
-//     retractBL();
-//     retractBL();
-//     takeMeasurementAvgWithCheck(allLengths4);
+    //Fourth measurement
+    moveWithSlack(-800, -200, false, false);
+    retractBL();
+    retractBL();
+    takeMeasurementAvgWithCheck(allLengths4);
     
-//     //Fifth measurement
-//     moveWithSlack(-800, -400, false, false);
-//     retractBL();
-//     retractBL();
-//     takeMeasurementAvgWithCheck(allLengths5);
+    //Fifth measurement
+    moveWithSlack(-800, -400, false, false);
+    retractBL();
+    retractBL();
+    takeMeasurementAvgWithCheck(allLengths5);
     
 
-//     //------------------------------Second column--------------------------------
+    //------------------------------Second column--------------------------------
 
-//     //First measurement
-//     lowerBeltsGoSlack();
-//     lowerBeltsGoSlack();
-//     moveWithSlack(-400, 400, true, true);
-//     retractBL();
-//     retractBL();
-//     takeMeasurementAvgWithCheck(allLengths6);
+    //First measurement
+    lowerBeltsGoSlack();
+    lowerBeltsGoSlack();
+    moveWithSlack(-400, 400, true, true);
+    retractBL();
+    retractBL();
+    takeMeasurementAvgWithCheck(allLengths6);
     
-//     //Second measurement
-//     moveWithSlack(-400, 200, false, false);
-//     retractBL();
-//     retractBL();
-//     takeMeasurementAvgWithCheck(allLengths7);
+    //Second measurement
+    moveWithSlack(-400, 200, false, false);
+    retractBL();
+    retractBL();
+    takeMeasurementAvgWithCheck(allLengths7);
 
-//     //Third measurement
-//     moveWithSlack(-400, 0, false, false);
-//     retractBL();
-//     retractBL();
-//     takeMeasurementAvgWithCheck(allLengths8);
+    //Third measurement
+    moveWithSlack(-400, 0, false, false);
+    retractBL();
+    retractBL();
+    takeMeasurementAvgWithCheck(allLengths8);
 
-//     //Forth measurement
-//     moveWithSlack(-400, -200, false, false);
-//     retractBL();
-//     retractBL();
-//     takeMeasurementAvgWithCheck(allLengths9);
+    //Forth measurement
+    moveWithSlack(-400, -200, false, false);
+    retractBL();
+    retractBL();
+    takeMeasurementAvgWithCheck(allLengths9);
     
-//     //Fifth measurement
-//     moveWithSlack(-400, -400, false, false);
-//     retractBL();
-//     retractBL();
-//     takeMeasurementAvgWithCheck(allLengths10);
+    //Fifth measurement
+    moveWithSlack(-400, -400, false, false);
+    retractBL();
+    retractBL();
+    takeMeasurementAvgWithCheck(allLengths10);
 
-//     //------------------------------Third column--------------------------------
+    //------------------------------Third column--------------------------------
 
-//     //First measurement
-//     lowerBeltsGoSlack();
-//     lowerBeltsGoSlack();
-//     moveWithSlack(0, 400, true, true);
-//     takeMeasurementAvgWithCheck(allLengths11);
+    //First measurement
+    lowerBeltsGoSlack();
+    lowerBeltsGoSlack();
+    moveWithSlack(0, 400, true, true);
+    takeMeasurementAvgWithCheck(allLengths11);
     
-//     //Second measurement
-//     moveWithSlack(0, 200, false, false);
-//     takeMeasurementAvgWithCheck(allLengths12);
+    //Second measurement
+    moveWithSlack(0, 200, false, false);
+    takeMeasurementAvgWithCheck(allLengths12);
 
-//     //Third measurement
-//     moveWithSlack(0, 0, false, false);
-//     takeMeasurementAvgWithCheck(allLengths13);
+    //Third measurement
+    moveWithSlack(0, 0, false, false);
+    takeMeasurementAvgWithCheck(allLengths13);
 
-//     //Forth measurement
-//     moveWithSlack(0, -200, false, false);
-//     takeMeasurementAvgWithCheck(allLengths14);
+    //Forth measurement
+    moveWithSlack(0, -200, false, false);
+    takeMeasurementAvgWithCheck(allLengths14);
     
-//     //Fifth measurement
-//     moveWithSlack(0, -400, false, false);
-//     takeMeasurementAvgWithCheck(allLengths15);
+    //Fifth measurement
+    moveWithSlack(0, -400, false, false);
+    takeMeasurementAvgWithCheck(allLengths15);
 
-// //----------------------Forth column---------------------------------
+//----------------------Forth column---------------------------------
     
-//     //First measurement
-//     lowerBeltsGoSlack();
-//     lowerBeltsGoSlack();
-//     moveWithSlack(400, 400, true, true);
-//     retractBR();
-//     retractBR();
-//     takeMeasurementAvgWithCheck(allLengths16);
+    //First measurement
+    lowerBeltsGoSlack();
+    lowerBeltsGoSlack();
+    moveWithSlack(400, 400, true, true);
+    retractBR();
+    retractBR();
+    takeMeasurementAvgWithCheck(allLengths16);
     
-//     //Second measurement
-//     moveWithSlack(400, 200, false, false);
-//     retractBR();
-//     retractBR();
-//     takeMeasurementAvgWithCheck(allLengths17);
+    //Second measurement
+    moveWithSlack(400, 200, false, false);
+    retractBR();
+    retractBR();
+    takeMeasurementAvgWithCheck(allLengths17);
 
-//     //Thrid measurement
-//     moveWithSlack(400, 0, false, false);
-//     retractBR();
-//     retractBR();
-//     takeMeasurementAvgWithCheck(allLengths18);
+    //Thrid measurement
+    moveWithSlack(400, 0, false, false);
+    retractBR();
+    retractBR();
+    takeMeasurementAvgWithCheck(allLengths18);
 
-//     //Fourth measurement
-//     moveWithSlack(400, -200, false, false);
-//     retractBR();
-//     retractBR();
-//     takeMeasurementAvgWithCheck(allLengths19);
+    //Fourth measurement
+    moveWithSlack(400, -200, false, false);
+    retractBR();
+    retractBR();
+    takeMeasurementAvgWithCheck(allLengths19);
     
-//     //Fifth measurement
-//     moveWithSlack(400, -400, false, false);
-//     retractBR();
-//     retractBR();
-//     takeMeasurementAvgWithCheck(allLengths20);
+    //Fifth measurement
+    moveWithSlack(400, -400, false, false);
+    retractBR();
+    retractBR();
+    takeMeasurementAvgWithCheck(allLengths20);
 
-//     //----------------------Fifth column---------------------------------
+    //----------------------Fifth column---------------------------------
     
-//     //First measurement
-//     lowerBeltsGoSlack();
-//     lowerBeltsGoSlack();
-//     moveWithSlack(800, 400, true, true);
-//     retractBR();
-//     retractBR();
-//     takeMeasurementAvgWithCheck(allLengths21);
+    //First measurement
+    lowerBeltsGoSlack();
+    lowerBeltsGoSlack();
+    moveWithSlack(800, 400, true, true);
+    retractBR();
+    retractBR();
+    takeMeasurementAvgWithCheck(allLengths21);
     
-//     //Second measurement
-//     moveWithSlack(800, 200, false, false);
-//     retractBR();
-//     retractBR();
-//     takeMeasurementAvgWithCheck(allLengths22);
+    //Second measurement
+    moveWithSlack(800, 200, false, false);
+    retractBR();
+    retractBR();
+    takeMeasurementAvgWithCheck(allLengths22);
 
-//     //Thrid measurement
-//     moveWithSlack(800, 0, false, false);
-//     retractBR();
-//     retractBR();
-//     takeMeasurementAvgWithCheck(allLengths23);
+    //Thrid measurement
+    moveWithSlack(800, 0, false, false);
+    retractBR();
+    retractBR();
+    takeMeasurementAvgWithCheck(allLengths23);
 
-//     //Fourth measurement
-//     moveWithSlack(800, -200, false, false);
-//     retractBR();
-//     retractBR();
-//     takeMeasurementAvgWithCheck(allLengths24);
+    //Fourth measurement
+    moveWithSlack(800, -200, false, false);
+    retractBR();
+    retractBR();
+    takeMeasurementAvgWithCheck(allLengths24);
     
-//     //Fifth measurement
-//     moveWithSlack(800, -400, false, false);
-//     retractBR();
-//     retractBR();
-//     takeMeasurementAvgWithCheck(allLengths25);
+    //Fifth measurement
+    moveWithSlack(800, -400, false, false);
+    retractBR();
+    retractBR();
+    takeMeasurementAvgWithCheck(allLengths25);
 
 
-//     //----------------------End of measurements---------------------------
+    //----------------------End of measurements---------------------------
 
-//     //Print out the resulting measurements, sometimes this crashes everything :/
-//     //log_info("Printing all measurements: ");
-//     printMeasurementSet(allLengths1);
-//     printMeasurementSet(allLengths2);
-//     printMeasurementSet(allLengths3);
-//     printMeasurementSet(allLengths4);
-//     printMeasurementSet(allLengths5);
-//     printMeasurementSet(allLengths6);
-//     printMeasurementSet(allLengths7);
-//     printMeasurementSet(allLengths8);
-//     printMeasurementSet(allLengths9);
-//     printMeasurementSet(allLengths10);
-//     printMeasurementSet(allLengths11);
-//     printMeasurementSet(allLengths12);
-//     printMeasurementSet(allLengths13);
-//     printMeasurementSet(allLengths14);
-//     printMeasurementSet(allLengths15);
-//     printMeasurementSet(allLengths16);
-//     printMeasurementSet(allLengths17);
-//     printMeasurementSet(allLengths18);
-//     printMeasurementSet(allLengths19);
-//     printMeasurementSet(allLengths20);
-//     printMeasurementSet(allLengths21);
-//     printMeasurementSet(allLengths23);
-//     printMeasurementSet(allLengths24);
-//     printMeasurementSet(allLengths25);
+    //Print out the resulting measurements, sometimes this crashes everything :/
+    //log_info("Printing all measurements: ");
+    printMeasurementSet(allLengths1);
+    printMeasurementSet(allLengths2);
+    printMeasurementSet(allLengths3);
+    printMeasurementSet(allLengths4);
+    printMeasurementSet(allLengths5);
+    printMeasurementSet(allLengths6);
+    printMeasurementSet(allLengths7);
+    printMeasurementSet(allLengths8);
+    printMeasurementSet(allLengths9);
+    printMeasurementSet(allLengths10);
+    printMeasurementSet(allLengths11);
+    printMeasurementSet(allLengths12);
+    printMeasurementSet(allLengths13);
+    printMeasurementSet(allLengths14);
+    printMeasurementSet(allLengths15);
+    printMeasurementSet(allLengths16);
+    printMeasurementSet(allLengths17);
+    printMeasurementSet(allLengths18);
+    printMeasurementSet(allLengths19);
+    printMeasurementSet(allLengths20);
+    printMeasurementSet(allLengths21);
+    printMeasurementSet(allLengths23);
+    printMeasurementSet(allLengths24);
+    printMeasurementSet(allLengths25);
     
     
-//     lowerBeltsGoSlack();
-//     lowerBeltsGoSlack();
-//     moveWithSlack(0, 0, true, true);  //Go back to the center. This will pull the lower belts tight too
+    lowerBeltsGoSlack();
+    lowerBeltsGoSlack();
+    moveWithSlack(0, 0, true, true);  //Go back to the center. This will pull the lower belts tight too
     
-//     axisBL.stop();
-//     axisBR.stop();
-//     axisTR.stop();
-//     axisTL.stop();
+    axisBL.stop();
+    axisBR.stop();
+    axisTR.stop();
+    axisTL.stop();
     
     //----------------------------------------------------------Do the computation
     
@@ -703,7 +727,7 @@ void Maslow_::runCalibration(){
     //log_info( "Lower belt length mismatch: " + String(blError) + ", " +String(brError));
     
     calibrationInProgress = false;
-    //log_info( "Calibration finished");
+    log_info( "Calibration finished");
     
 }
 
@@ -721,7 +745,12 @@ void Maslow_::lowerBeltsGoSlack(){
     
     while(millis()- startTime < 600){
         
-        //The other axis hold position
+        //Hold position
+        axisBL.updateEncoderPosition();
+        axisBR.updateEncoderPosition();
+        axisTR.updateEncoderPosition();
+        axisTL.updateEncoderPosition();
+
         axisBL.recomputePID();
         axisBR.recomputePID();
         axisTR.recomputePID();
@@ -745,6 +774,11 @@ void Maslow_::lowerBeltsGoSlack(){
 
     while(millis()- startTime < 600){
         
+        axisBL.updateEncoderPosition();
+        axisBR.updateEncoderPosition();
+        axisTR.updateEncoderPosition();
+        axisTL.updateEncoderPosition();
+
         axisBL.recomputePID();
         axisBR.recomputePID();
         axisTR.recomputePID();
@@ -901,7 +935,7 @@ void Maslow_::takeMeasurement(float lengths[]){
         unsigned long elapsedTime = millis()-time;
         while(elapsedTime < 25){
             elapsedTime = millis()-time;
-            recomputePID(4);  //This recomputes the PID four all four servos
+            recomputePID();  //This recomputes the PID four all four servos
             (*_sys_rt)();
         }
     }
@@ -959,7 +993,7 @@ void Maslow_::retractBR(){
         unsigned long elapsedTime = millis()-time;
         while(elapsedTime < 25){
             elapsedTime = millis()-time;
-            recomputePID(4);  //This recomputes the PID four all four servos
+            recomputePID();  //This recomputes the PID four all four servos
             (*_sys_rt)();
         }
     }
@@ -1004,7 +1038,7 @@ void Maslow_::retractBL(){
         unsigned long elapsedTime = millis()-time;
         while(elapsedTime < 25){
             elapsedTime = millis()-time;
-            recomputePID(4);  //This recomputes the PID four all four servos
+            recomputePID();  //This recomputes the PID four all four servos
             (*_sys_rt)();
         }
     }
@@ -1021,7 +1055,9 @@ void Maslow_::retractBL(){
 //Reposition the sled without knowing the machine dimensions
 void Maslow_::moveWithSlack(float x, float y, bool leftBelt, bool rightBelt){
     
-    //log_info( "Moving to with slack");
+    log_info( "Moving to with slack");
+
+    extendingOrRetracting = true;
     
     //The distance we need to move is the current position minus the target position
     double TLDist = axisTL.getPosition() - computeTL(x,y,0);
@@ -1076,6 +1112,10 @@ void Maslow_::moveWithSlack(float x, float y, bool leftBelt, bool rightBelt){
             TRDist = TRDist - stepSize;
             axisTR.setTarget((axisTR.getTarget() - (stepSize*TRDir)));
         }
+
+        axisTR.updateEncoderPosition();
+        axisTL.updateEncoderPosition();
+
         axisTR.recomputePID();
         axisTL.recomputePID();
 
@@ -1103,6 +1143,8 @@ void Maslow_::moveWithSlack(float x, float y, bool leftBelt, bool rightBelt){
     
     //Take up the internal slack to remove any slop between the spool and roller
     takeUpInternalSlack();
+
+    extendingOrRetracting = false;
 }
 
 //This function removes any slack in the belt between the spool and the roller. 
@@ -1129,7 +1171,7 @@ void Maslow_::takeUpInternalSlack(){
             brDone = true;
         }
 
-        recomputePID(4);
+        recomputePID();
         (*_sys_rt)();
 
         // Delay without blocking

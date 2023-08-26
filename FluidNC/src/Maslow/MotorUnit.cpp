@@ -128,7 +128,7 @@ void MotorUnit::updateEncoderPosition(){
         mostRecentCumulativeEncoderReading = encoder.getCumulativePosition(); //This updates and returns the encoder value
     }
     else{
-        //log_info("Encoder read failure on " + String(_encoderAddress));
+        log_info("Encoder read failure on " << _encoderAddress);
     }
 }
 
@@ -136,8 +136,6 @@ void MotorUnit::updateEncoderPosition(){
  *  @brief  Recomputes the PID and drives the output
  */
 double MotorUnit::recomputePID(){
-    
-    updateEncoderPosition();
     
     double commandPWM = positionPID.getOutput(getPosition(),setpoint);
 

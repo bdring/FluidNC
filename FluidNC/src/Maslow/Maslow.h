@@ -19,7 +19,7 @@ class Maslow_ {
     void readEncoders();
     void home(int axis);
     void updateCenterXY();
-    void recomputePID(int encoderNumber2Compute);
+    void recomputePID();
     void computeTensions(float x, float y);
     float computeBL(float x, float y, float z);
     float computeBR(float x, float y, float z);
@@ -56,6 +56,7 @@ class Maslow_ {
     bool axisTRHomed;
     bool axisTLHomed;
     bool calibrationInProgress;  //Used to turn off regular movements during calibration
+    bool extendingOrRetracting;  //Used to turn off stopping the motors when extending the belts from zero
 
   private:
     float tlX;
