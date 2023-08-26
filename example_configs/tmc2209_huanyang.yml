@@ -84,7 +84,7 @@ axes:
       limit_pos_pin: gpio.34
       limit_all_pin: NO_PIN
       hard_limits: false
-      pulloff_mm:1.00
+      pulloff_mm: 1.00
       tmc_2209:
         step_pin: gpio.33
         direction_pin: gpio.32
@@ -112,7 +112,7 @@ axes:
       limit_pos_pin: gpio.39
       limit_all_pin: NO_PIN
       hard_limits: false
-      pulloff_mm:1.00
+      pulloff_mm: 1.00
       tmc_2209:
         step_pin: gpio.2
         direction_pin: gpio.14
@@ -141,7 +141,7 @@ axes:
       limit_pos_pin: gpio.36
       limit_all_pin: NO_PIN
       hard_limits: false
-      pulloff_mm:1.00
+      pulloff_mm: 1.00
       tmc_2209:
         step_pin: gpio.16
         direction_pin: gpio.15
@@ -162,14 +162,15 @@ sdcard:
 probe:
     pin: NO_PIN
 
+uart1:
+  txd_pin: gpio.4
+  rxd_pin: gpio.13
+  rts_pin: gpio.17
+  baud: 9600
+  mode: 8N1
   
 Huanyang:
-  uart:
-    txd_pin: gpio.4
-    rxd_pin: gpio.13
-    rts_pin: gpio.17
-    baud: 9600
-    mode: 8N1
+  uart_num: 1
   modbus_id: 1
   tool_num: 0
   speed_map: 0=0% 1000=0% 24000=100%
