@@ -36,7 +36,9 @@
 
 #define coolingFanPin 47
 
-int lowerBeltsExtra = 0;
+#define SERVOFAULT 40
+
+int lowerBeltsExtra = 2;
 int callsSinceDelay = 0;
 
 void Maslow_::begin(void (*sys_rt)()) {
@@ -61,16 +63,16 @@ void Maslow_::begin(void (*sys_rt)()) {
 
   tlX = -0.5376177353;
   tlY =  2138.238375;
-  tlZ = 116 + 38;
+  tlZ = 116 + 38 + 11;
   trX = 3027.569248; 
   trY = 2141.112163;
-  trZ = 69 + 38;
+  trZ = 69 + 38 + 11;
   blX = 0;
   blY = 0;
-  blZ = 47 + 38;
+  blZ = 47 + 38 + 11;
   brX = 3033.46489;
   brY = 0;
-  brZ = 89 + 38;
+  brZ = 89 + 38 + 11;
 
   tlTension = 0;
   trTension = 0;
@@ -86,7 +88,9 @@ void Maslow_::begin(void (*sys_rt)()) {
 
   _sys_rt = sys_rt;
 
-  pinMode(coolingFanPin, OUTPUT);   
+  pinMode(coolingFanPin, OUTPUT);
+
+  pinMode(SERVOFAULT, INPUT);
 
 }
 
@@ -243,6 +247,10 @@ void Maslow_::recomputePID(){
         log_info("Currents:" << axisBL.getCurrent() << " , " << axisBR.getCurrent());
     }
 
+    if(digitalRead(SERVOFAULT) == 1){
+        log_info("Servo fault!");
+    }
+
 
     // int looptime = millis() - lastCallToPID;
     // if(looptime > 5){
@@ -388,6 +396,10 @@ float Maslow_::computeTL(float x, float y, float z){
 }
 
 void Maslow_::setTargets(float xTarget, float yTarget, float zTarget){
+
+    //Scaling to correct size
+    xTarget = xTarget*1.01010101010101;
+    yTarget = yTarget*0.997782705652873;
     
     if(!calibrationInProgress){
 

@@ -33,8 +33,8 @@ axes:
       cycle: -1
 
   z:
-    steps_per_mm: 2000
-    max_rate_mm_per_min: 100
+    steps_per_mm: 1600
+    max_rate_mm_per_min: 75
     acceleration_mm_per_sec2: 10
     max_travel_mm: 100
 
