@@ -60,10 +60,10 @@ namespace Kinematics {
     const float tan30  = 1.0 / sqrt3;
 
     // the geometry of the delta
-    float rf;                                           // radius of the fixed side (length of motor cranks)
-    float re;                                           // radius of end effector side (length of linkages)
-    float f;                                            // sized of fixed side triangel
-    float e;                                            // size of end effector side triangle
+    float rf;  // radius of the fixed side (length of motor cranks)
+    float re;  // radius of end effector side (length of linkages)
+    float f;   // sized of fixed side triangel
+    float e;   // size of end effector side triangle
 
     static float last_angle[MAX_N_AXIS]     = { 0.0 };  // A place to save the previous motor angles for distance/feed rate calcs
     static float last_cartesian[MAX_N_AXIS] = { 0.0 };  // A place to save the previous motor angles for distance/feed rate calcs
@@ -196,6 +196,9 @@ namespace Kinematics {
         float segment_dist = dist / ((float)segment_count);  // distance of each segment...will be used for feedrate conversion
 
         for (uint32_t segment = 1; segment <= segment_count; segment++) {
+            if (sys.abort) {
+                return true;
+            }
             //log_debug("Segment:" << segment << " of " << segment_count);
             // determine this segment's target
             seg_target[X_AXIS] = position[X_AXIS] + (dx / float(segment_count) * segment);

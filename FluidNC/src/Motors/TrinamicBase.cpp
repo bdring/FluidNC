@@ -106,7 +106,7 @@ namespace MotorDrivers {
 
     bool TrinamicBase::checkVersion(uint8_t expected, uint8_t got) {
         if (expected != got) {
-            log_error(axisName() << " TMC driver not detected - expected 0x" << to_hex(expected) << " got 0x" << to_hex(got));
+            log_error(axisName() << " TMC driver not detected - expected " << to_hex(expected) << " got " << to_hex(got));
             return false;
         }
         log_info(axisName() << " driver test passed");
@@ -146,7 +146,7 @@ namespace MotorDrivers {
         // Display the stepper library version message once, before the first
         // TMC config message.
         if (_instances.empty()) {
-            log_debug("TMCStepper Library Ver. 0x" << to_hex(TMCSTEPPER_VERSION));
+            log_debug("TMCStepper Library Ver. " << to_hex(TMCSTEPPER_VERSION));
             auto timer = xTimerCreate("Stallguard", 200, true, nullptr, read_sg);
             // Timer failure is not fatal because you can still use the system
             if (!timer) {

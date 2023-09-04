@@ -9,14 +9,14 @@
 #ifdef ENABLE_WIFI
 
 namespace WebUI {
-    TelnetServer telnetServer  __attribute__((init_priority(107))) ;
+    TelnetServer telnetServer __attribute__((init_priority(107)));
 }
 
 #    include "WifiServices.h"
 
 #    include "WifiConfig.h"
 #    include "../Report.h"  // report_init_message()
-#    include "Commands.h"   // COMMANDS
+#    include "Commands.h"  // COMMANDS
 
 #    include <WiFi.h>
 
@@ -50,7 +50,9 @@ namespace WebUI {
         _setupdone = true;
 
         //add mDNS
-        MDNS.addService("telnet", "tcp", _port);
+        if (WebUI::wifi_sta_ssdp->get() == SSDP_ENABLED) {
+            MDNS.addService("telnet", "tcp", _port);
+        }
 
         return no_error;
     }
