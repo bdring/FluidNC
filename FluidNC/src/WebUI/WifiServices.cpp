@@ -82,7 +82,7 @@ namespace WebUI {
             });
         ArduinoOTA.begin();
         //no need in AP mode
-        if (WiFi.getMode() == WIFI_STA && WebUI::wifi_sta_ssdp->get() == SSDP_ENABLED) {
+        if (WiFi.getMode() == WIFI_STA) {
             //start mDns
             const char* h = wifi_hostname->get();
             if (!MDNS.begin(h)) {
