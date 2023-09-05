@@ -41,9 +41,6 @@ namespace WebUI {
     static const int DHCP_MODE   = 0;
     static const int STATIC_MODE = 1;
 
-    static const int SSDP_DISABLED = 0;
-    static const int SSDP_ENABLED  = 1;
-
     //defaults values
     static const char* DEFAULT_HOSTNAME   = "fluidnc";
     static const char* DEFAULT_STA_SSID   = "";
@@ -59,7 +56,6 @@ namespace WebUI {
 
     static const int   DEFAULT_STA_MIN_SECURITY = WIFI_AUTH_WPA2_PSK;
     static const int   DEFAULT_STA_IP_MODE      = DHCP_MODE;
-    static const int   DEFAULT_STA_SSDP_MODE    = SSDP_ENABLED;
     static const char* HIDDEN_PASSWORD          = "********";
 
     //boundaries
@@ -128,7 +124,6 @@ namespace WebUI {
     extern IPaddrSetting* wifi_sta_ip;
     extern IPaddrSetting* wifi_sta_gateway;
     extern IPaddrSetting* wifi_sta_netmask;
-    extern EnumSetting*   wifi_sta_ssdp;
 
     extern StringSetting* wifi_ap_ssid;
     extern StringSetting* wifi_ap_password;
