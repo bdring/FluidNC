@@ -127,7 +127,8 @@ void MotorUnit::updateEncoderPosition(){
     if(encoder.isConnected()){
         mostRecentCumulativeEncoderReading = encoder.getCumulativePosition(); //This updates and returns the encoder value
     }
-    else{
+    else if(!encoderReadFailurePrint){
+        encoderReadFailurePrint = true;
         log_info("Encoder read failure on " << _encoderAddress);
     }
 }

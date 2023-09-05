@@ -44,6 +44,7 @@ class MotorUnit {
     int _stallCount = 0;
     int _numPosErrors = 0; //Keeps track of the number of position errors in a row to detect a stall
     double mostRecentCumulativeEncoderReading = 0;
+    bool encoderReadFailurePrint = false;
 
 };
 
