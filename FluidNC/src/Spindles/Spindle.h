@@ -67,7 +67,7 @@ namespace Spindles {
 
         std::vector<Configuration::speedEntry> _speeds;
 
-        bool _off_on_alarm = false;
+        bool _off_on_alarm = true;
 
         // Name is required for the configuration factory to work.
         virtual const char* name() const = 0;
