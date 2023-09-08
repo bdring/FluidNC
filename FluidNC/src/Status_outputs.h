@@ -47,7 +47,7 @@ public:
     // Configuration handlers:
     void validate() override {}
 
-    void afterParse() override;
+    void afterParse() override {};
 
     void group(Configuration::HandlerBase& handler) override {
         handler.item("idle_pin", _Idle_pin);

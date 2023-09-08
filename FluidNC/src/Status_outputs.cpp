@@ -10,8 +10,6 @@
 
 #include "Machine/MachineConfig.h"
 
-void Status_Outputs::afterParse() {}
-
 void Status_Outputs::init() {
     if (_error) {
         return;
@@ -33,9 +31,9 @@ void Status_Outputs::init() {
         _Alarm_pin.setAttr(Pin::Attr::Output);
     }
 
-    log_info("Status outputs: "
-             << " Idle:" << _Idle_pin.name() << " Cycle:" << _Run_pin.name() << " Hold:" << _Hold_pin.name()
-             << " Alarm:" << _Alarm_pin.name());
+    // log_info("Status outputs: "
+    //          << " Idle:" << _Idle_pin.name() << " Cycle:" << _Run_pin.name() << " Hold:" << _Hold_pin.name()
+    //          << " Alarm:" << _Alarm_pin.name());
 
     allChannels.registration(this);
     setReportInterval(500);
