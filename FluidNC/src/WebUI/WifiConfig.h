@@ -141,5 +141,6 @@ namespace WebUI {
     extern StringSetting* CMD_StartJob;
     extern IntSetting*    CMD_StartWithM100;
     extern IntSetting*    CMD_StartWithM345;
+    extern IntSetting*    CMD_ResetOnMachinePoweredOn;
 }
 #endif

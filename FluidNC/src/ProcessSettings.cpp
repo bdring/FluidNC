@@ -578,6 +578,10 @@ int GetStartURLWithM100() {
     return WebUI::CMD_StartWithM100->get();
 }
 
+int GetResetWhenPowerOn() {
+    return WebUI::CMD_ResetOnMachinePoweredOn->get();
+}
+
 void ReconnectWifi() {
     log_debug("Try to reconnext to Wifi");
     WebUI::WiFiConfig::end();
@@ -633,7 +637,7 @@ urlFeedback CallURL(String cmd) {
                 http.begin(client, url.c_str());  //Specify the URL and certificate
                 int httpCode = http.GET();        //Make the request
 
-                if (httpCode > 0) {               //Check for the returning code
+                if (httpCode > 0) {  //Check for the returning code
                     log_info("URL call successful");
                     http.end();
                     client.stop();

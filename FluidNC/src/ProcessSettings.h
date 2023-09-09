@@ -13,3 +13,4 @@ String      GetCMDEndPrg();
 String      GetCMDStartPrg();
 int         GetStartURLWithM345();
 int         GetStartURLWithM100();
+int         GetResetWhenPowerOn();

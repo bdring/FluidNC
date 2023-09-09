@@ -8,14 +8,14 @@
 #include <sstream>
 #include <iomanip>
 
-WebUI::WiFiConfig wifi_config  __attribute__((init_priority(109))) ;
+WebUI::WiFiConfig wifi_config __attribute__((init_priority(109)));
 
 #ifdef ENABLE_WIFI
 #    include "../Config.h"
 #    include "../Main.h"
-#    include "Commands.h"              // COMMANDS
-#    include "WifiServices.h"          // wifi_services.start() etc.
-#    include "WebSettings.h"           // split_params(), get_params()
+#    include "Commands.h"      // COMMANDS
+#    include "WifiServices.h"  // wifi_services.start() etc.
+#    include "WebSettings.h"   // split_params(), get_params()
 
 #    include "WebServer.h"             // webServer.port()
 #    include "TelnetServer.h"          // telnetServer
@@ -129,6 +129,7 @@ namespace WebUI {
     StringSetting* CMD_StartJob;
     IntSetting*    CMD_StartWithM100;
     IntSetting*    CMD_StartWithM345;
+    IntSetting*    CMD_ResetOnMachinePoweredOn;
 
     enum_opt_t staModeOptions = {
         { "DHCP", DHCP_MODE },
@@ -327,6 +328,8 @@ namespace WebUI {
         CMD_StartJob      = new StringSetting("CMD Start Job", WEBSET, WA, "NULL", "CMDStartJob", DEFAULT_CMDSTARTJOB, 0, 255, NULL);
         CMD_StartWithM100 = new IntSetting("Call start URL with M100", WEBSET, WA, "NULL", "CMDStartURLwithM100", 0, 0, 1, NULL);
         CMD_StartWithM345 = new IntSetting("Call start URL with M3 / M4 / M5", WEBSET, WA, "NULL", "CMDStartURLwithM345", 1, 0, 1, NULL);
+        CMD_ResetOnMachinePoweredOn =
+            new IntSetting("Reset when the machine is powered ON", WEBSET, WA, "NULL", "ResetOnPowerON", 1, 0, 1, NULL);
 
         wifi_hostname = new StringSetting("Hostname",
                                           WEBSET,
@@ -835,7 +838,7 @@ namespace WebUI {
             case -2:                      // Scan not triggered
                 WiFi.scanNetworks(true);  // Begin async scan
                 break;
-            case -1:                      // Scan in progress
+            case -1:  // Scan in progress
                 break;
             default:
                 for (int i = 0; i < n; ++i) {
