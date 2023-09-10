@@ -47,11 +47,10 @@ public:
     void afterParse() override {};
 
     void group(Configuration::HandlerBase& handler) override {
-        handler.item("interval_ms", _interval_ms, 100, 5000);
+        handler.item("report_interval_ms", _interval_ms, 100, 5000);
         handler.item("idle_pin", _Idle_pin);
         handler.item("run_pin", _Run_pin);
         handler.item("hold_pin", _Hold_pin);
         handler.item("alarm_pin", _Alarm_pin);
-
     }
 };
