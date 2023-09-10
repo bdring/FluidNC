@@ -1,9 +1,7 @@
 #pragma once
 
 #include "Config.h"
-
 #include "Configuration/Configurable.h"
-
 #include "Channel.h"
 
 typedef const uint8_t* font_t;
@@ -21,8 +19,6 @@ private:
 
     void parse_report();
     void parse_status_report();
-
-    bool _error = false;
 
 public:
     Status_Outputs() : Channel("status_outputs") {}
@@ -46,7 +42,6 @@ public:
 
     // Configuration handlers:
     void validate() override {}
-
     void afterParse() override {};
 
     void group(Configuration::HandlerBase& handler) override {

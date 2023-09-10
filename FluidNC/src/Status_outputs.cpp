@@ -7,14 +7,9 @@
     This can be used for Tower lights,etc.
 */
 #include "Status_outputs.h"
-
 #include "Machine/MachineConfig.h"
 
 void Status_Outputs::init() {
-    if (_error) {
-        return;
-    }
-
     if (_Idle_pin.defined()) {
         _Idle_pin.setAttr(Pin::Attr::Output);
     }
