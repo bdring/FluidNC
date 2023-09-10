@@ -26,12 +26,12 @@ void Status_Outputs::init() {
         _Alarm_pin.setAttr(Pin::Attr::Output);
     }
 
-    // log_info("Status outputs: "
-    //          << " Idle:" << _Idle_pin.name() << " Cycle:" << _Run_pin.name() << " Hold:" << _Hold_pin.name()
-    //          << " Alarm:" << _Alarm_pin.name());
+    log_info("Status outputs"
+             << " Interval:" << _interval_ms << " Idle:" << _Idle_pin.name() << " Cycle:" << _Run_pin.name() << " Hold:" << _Hold_pin.name()
+             << " Alarm:" << _Alarm_pin.name());
 
     allChannels.registration(this);
-    setReportInterval(500);
+    setReportInterval(_interval_ms);
 }
 
 void Status_Outputs::parse_report() {
@@ -69,8 +69,6 @@ void Status_Outputs::parse_status_report() {
     size_t pos     = 0;
     auto   nextpos = _report.find_first_of("|", pos);
     _state         = _report.substr(pos + 1, nextpos - pos - 1);
-
-    log_info("State:" << _state);
 
     _Idle_pin.write(_state == "Idle");
     _Run_pin.write(_state == "Run");
