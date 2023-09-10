@@ -17,6 +17,8 @@ private:
     std::string _report;
     std::string _state;
 
+    int _interval_ms = 500;
+
     void parse_report();
     void parse_status_report();
 
@@ -45,9 +47,11 @@ public:
     void afterParse() override {};
 
     void group(Configuration::HandlerBase& handler) override {
+        handler.item("interval_ms", _interval_ms, 100, 5000);
         handler.item("idle_pin", _Idle_pin);
         handler.item("run_pin", _Run_pin);
         handler.item("hold_pin", _Hold_pin);
         handler.item("alarm_pin", _Alarm_pin);
+
     }
 };
