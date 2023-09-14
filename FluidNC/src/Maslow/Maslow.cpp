@@ -38,7 +38,7 @@
 
 #define SERVOFAULT 40
 
-int lowerBeltsExtra = 2;
+int lowerBeltsExtra = 4;
 int callsSinceDelay = 0;
 
 void Maslow_::begin(void (*sys_rt)()) {
@@ -61,18 +61,18 @@ void Maslow_::begin(void (*sys_rt)()) {
   axisTRHomed = false;
   axisTLHomed = false;
 
-  tlX = 10.213499686251293;
-  tlY =  2059.954720523096;
-  tlZ = 116 + 38;
-  trX = 2938.723089485779; 
-  trY = 2060.0033191910775;
-  trZ = 69 + 38;
+  tlX = -1.3429768202696968;
+  tlY =  2064.1646310196916;
+  tlZ = 116 + 38 + 20;
+  trX = 2948.3849887926963; 
+  trY = 2064.2064050836025;
+  trZ = 69 + 38 + 20;
   blX = 0;
   blY = 0;
-  blZ = 47 + 38;
-  brX = 2960.253525746797;
+  blZ = 47 + 38 + 20;
+  brX = 2957.3642166175055;
   brY = 0;
-  brZ = 89 + 38;
+  brZ = 89 + 38 + 20;
 
   tlTension = 0;
   trTension = 0;
@@ -193,24 +193,24 @@ void Maslow_::recomputePID(){
 
     lastCallToPID = millis();
 
-    if(sys.state() != State::Idle && sys.state() != State::Alarm){
-        float axisTLError = axisTL.getError();
-        if(abs(axisTLError) > 0.5 && axisTLError < 10){
-            log_info("TL Error: " << axisTLError);
-        }
-        float axisTRError = axisTR.getError();
-        if(abs(axisTRError) > 0.5 && axisTRError < 10){
-            log_info("TR Error: " << axisTRError);
-        }
-        float axisBLError = axisBL.getError();
-        if(abs(axisBLError) > 0.5 && axisBLError < 10){
-            log_info("TL Error: " << axisBLError);
-        }
-        float axisBRError = axisBR.getError();
-        if(abs(axisBRError) > 0.5 && axisBRError < 10){
-            log_info("TL Error: " << axisBRError);
-        }
-    }
+    // if(sys.state() != State::Idle && sys.state() != State::Alarm){
+    //     float axisTLError = axisTL.getError();
+    //     if(abs(axisTLError) > 0.5 && axisTLError < 10){
+    //         log_info("TL Error: " << axisTLError);
+    //     }
+    //     float axisTRError = axisTR.getError();
+    //     if(abs(axisTRError) > 0.5 && axisTRError < 10){
+    //         log_info("TR Error: " << axisTRError);
+    //     }
+    //     float axisBLError = axisBL.getError();
+    //     if(abs(axisBLError) > 0.5 && axisBLError < 10){
+    //         log_info("TL Error: " << axisBLError);
+    //     }
+    //     float axisBRError = axisBR.getError();
+    //     if(abs(axisBRError) > 0.5 && axisBRError < 10){
+    //         log_info("TL Error: " << axisBRError);
+    //     }
+    // }
 
     //We always update the encoder positions
     axisBL.updateEncoderPosition();
@@ -243,7 +243,7 @@ void Maslow_::recomputePID(){
         digitalWrite(coolingFanPin, HIGH); //Turn on the cooling fan
     }
 
-    if(random(100) == 0){
+    if(random(500) == 0){
         log_info("Currents:" << axisBL.getCurrent() << " , " << axisBR.getCurrent());
     }
 
