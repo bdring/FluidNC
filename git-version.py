@@ -12,6 +12,7 @@ except:
 if gitFail:
     tag = "v3.0.x"
     rev = " (noGit)"
+    url = " (noGit)"
 else:
     try:
         
@@ -93,6 +94,7 @@ else:
 
 grbl_version = tag.rpartition('.')[0]
 git_info = '%s%s' % (tag, rev)
+git_url = url
 
 provisional = "FluidNC/src/version.cxx"
 final = "FluidNC/src/version.cpp"
