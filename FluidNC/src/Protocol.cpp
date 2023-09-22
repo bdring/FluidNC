@@ -243,24 +243,55 @@ static void check_startup_state() {}
 
 const uint32_t heapWarnThreshold = 15000;
 
+bool GetPowerLineValue() {
+    static int n = 99;
+
+    for (auto pin : config->_control->_pins)
+        if (pin->_legend == "power_pin")
+            return !(pin->get());
+
+    return 1;
+}
+
+void Check_Power_Presence_And_Reset() {
+    static int v_old        = 1;
+    static int Autorisation = 0;
+    static int n            = 0;
+
+    int v = GetPowerLineValue();
+
+    if ((v == 1) && (v_old == 0)) {
+        Autorisation = 1;
+    }
+    v_old = v;
+
+    if (Autorisation) {
+        n++;
+        if (n > 20) {
+            Autorisation = 0;
+            n            = 0;
+            if (v == 1) {
+                log_info("POWER ON DETECTED");
+                if (GetResetWhenPowerOn()) {
+                    log_info("BOARD RESET - see $ResetOnPowerON if you want to disable this feature");
+                    delay_ms(2000);
+                    ESP.restart();
+                }
+            }
+        }
+    }
+}
+
 uint32_t heapLowWater = UINT_MAX;
 void     protocol_main_loop() {
     start_polling();
-    pinMode(2, INPUT_PULLDOWN);
-    static int v_old = 1;
 
     // ---------------------------------------------------------------------------------
     // Primary loop! Upon a system abort, this exits back to main() to reset the system.
     // This is also where the system idles while waiting for something to do.
     // ---------------------------------------------------------------------------------
     for (;; vTaskDelay(0)) {
-        int v = digitalRead(2);
-
-        if ((v == 1) && (v_old == 0) && (GetResetWhenPowerOn())) {
-            log_info("RESET");
-            ESP.restart();
-        }
-        v_old = v;
+        Check_Power_Presence_And_Reset();
 
         if (activeChannel) {
             // The input polling task has collected a line of input
@@ -358,6 +389,10 @@ void protocol_execute_realtime() {
 
 static void protocol_run_startup_lines() {
     settings_execute_startup();  // Execute startup script.
+}
+
+static void protocol_do_power_detection() {
+    log_info("No power detected");
 }
 
 static void protocol_do_restart() {
@@ -1096,6 +1131,7 @@ NoArgEvent debugEvent { report_realtime_debug };
 NoArgEvent startEvent { protocol_do_start };
 NoArgEvent restartEvent { protocol_do_restart };
 NoArgEvent runStartupLinesEvent { protocol_run_startup_lines };
+NoArgEvent PowerDetectionEvent { protocol_do_power_detection };
 
 NoArgEvent rtResetEvent { protocol_do_rt_reset };
 

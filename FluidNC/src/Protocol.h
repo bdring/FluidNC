@@ -102,6 +102,7 @@ extern NoArgEvent debugEvent;
 extern NoArgEvent unhomedEvent;
 extern NoArgEvent startEvent;
 extern NoArgEvent restartEvent;
+extern NoArgEvent PowerDetectionEvent;
 
 extern NoArgEvent runStartupLinesEvent;
 

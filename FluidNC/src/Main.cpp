@@ -129,7 +129,7 @@ void setup() {
         esp_reset_reason_t reason = esp_reset_reason();
         if (reason == ESP_RST_POWERON) {
             log_debug("PowerOn reset : Launch reboot to get good limit status after poweron");
-            ESP.restart();
+            //ESP.restart();
         }
 
     } catch (const AssertionFailed& ex) {
