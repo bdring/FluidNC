@@ -244,8 +244,6 @@ static void check_startup_state() {}
 const uint32_t heapWarnThreshold = 15000;
 
 bool GetPowerLineValue() {
-    static int n = 99;
-
     for (auto pin : config->_control->_pins)
         if (pin->_legend == "power_pin")
             return !(pin->get());
@@ -267,7 +265,8 @@ void Check_Power_Presence_And_Reset() {
 
     if (Autorisation) {
         n++;
-        if (n > 20) {
+        delay_ms(1);
+        if (n > 100) {
             Autorisation = 0;
             n            = 0;
             if (v == 1) {

@@ -44,6 +44,8 @@ void protocol_buffer_synchronize();
 void protocol_disable_steppers();
 void protocol_cancel_disable_steppers();
 
+bool GetPowerLineValue();
+
 extern volatile bool rtCycleStop;
 
 extern volatile bool runLimitLoop;
