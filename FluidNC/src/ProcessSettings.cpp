@@ -302,80 +302,92 @@ static Error report_ngc(const char* value, WebUI::AuthenticationLevel auth_level
     return Error::Ok;
 }
 static Error home(AxisMask axisMask) {
-    if (axisMask != Machine::Homing::AllCycles) {  // if not AllCycles we need to make sure the cycle is not prohibited
-        // if there is a cycle it is the axis from $H<axis>
-        auto n_axis = config->_axes->_numberAxis;
-        for (int axis = 0; axis < n_axis; axis++) {
-            if (bitnum_is_true(axisMask, axis)) {
-                auto axisConfig     = config->_axes->_axis[axis];
-                auto homing_allowed = axisConfig->_homing->_allow_single_axis;
-                if (!homing_allowed)
-                    return Error::SingleAxisHoming;
+    if (GetPowerLineValue()) {
+        if (axisMask != Machine::Homing::AllCycles) {  // if not AllCycles we need to make sure the cycle is not prohibited
+            // if there is a cycle it is the axis from $H<axis>
+            auto n_axis = config->_axes->_numberAxis;
+            for (int axis = 0; axis < n_axis; axis++) {
+                if (bitnum_is_true(axisMask, axis)) {
+                    auto axisConfig     = config->_axes->_axis[axis];
+                    auto homing_allowed = axisConfig->_homing->_allow_single_axis;
+                    if (!homing_allowed)
+                        return Error::SingleAxisHoming;
+                }
             }
         }
+
+        if (sys.state == State::ConfigAlarm) {
+            return Error::ConfigurationInvalid;
+        }
+        if (!Machine::Axes::homingMask) {
+            return Error::SettingDisabled;
+        }
+
+        if (config->_control->safety_door_ajar()) {
+            return Error::CheckDoor;  // Block if safety door is ajar.
+        }
+
+        Machine::Homing::run_cycles(axisMask);
+
+        do {
+            protocol_execute_realtime();
+        } while (sys.state == State::Homing);
+
+        config->_macros->_after_homing.run();
+
+        return Error::Ok;
+
+    } else {
+        log_info("HOME is not possible when machine is not powered on");
+        return Error::Ok;
     }
-
-    if (sys.state == State::ConfigAlarm) {
-        return Error::ConfigurationInvalid;
-    }
-    if (!Machine::Axes::homingMask) {
-        return Error::SettingDisabled;
-    }
-
-    if (config->_control->safety_door_ajar()) {
-        return Error::CheckDoor;  // Block if safety door is ajar.
-    }
-
-    Machine::Homing::run_cycles(axisMask);
-
-    do {
-        protocol_execute_realtime();
-    } while (sys.state == State::Homing);
-
-    config->_macros->_after_homing.run();
-
-    return Error::Ok;
 }
 static Error home_all(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
     AxisMask requestedAxes = Machine::Homing::AllCycles;
     auto     retval        = Error::Ok;
 
-    // value can be a list of cycle numbers like "21", which will run homing cycle 2 then cycle 1,
-    // or a list of axis names like "XZ", which will home the X and Z axes simultaneously
-    if (value) {
-        int ndigits = 0;
-        for (int i = 0; i < strlen(value); i++) {
-            char cycleName = value[i];
-            if (isdigit(cycleName)) {
-                if (!Machine::Homing::axis_mask_from_cycle(cycleName - '0')) {
-                    log_error("No axes for homing cycle " << cycleName);
-                    return Error::InvalidValue;
-                }
-                ++ndigits;
-            }
-        }
-        if (ndigits) {
-            if (ndigits != strlen(value)) {
-                log_error("Invalid homing cycle list");
-                return Error::InvalidValue;
-            } else {
-                for (int i = 0; i < strlen(value); i++) {
-                    char cycleName = value[i];
-                    requestedAxes  = Machine::Homing::axis_mask_from_cycle(cycleName - '0');
-                    retval         = home(requestedAxes);
-                    if (retval != Error::Ok) {
-                        return retval;
+    if (GetPowerLineValue()) {
+        // value can be a list of cycle numbers like "21", which will run homing cycle 2 then cycle 1,
+        // or a list of axis names like "XZ", which will home the X and Z axes simultaneously
+        if (value) {
+            int ndigits = 0;
+            for (int i = 0; i < strlen(value); i++) {
+                char cycleName = value[i];
+                if (isdigit(cycleName)) {
+                    if (!Machine::Homing::axis_mask_from_cycle(cycleName - '0')) {
+                        log_error("No axes for homing cycle " << cycleName);
+                        return Error::InvalidValue;
                     }
+                    ++ndigits;
                 }
-                return retval;
+            }
+            if (ndigits) {
+                if (ndigits != strlen(value)) {
+                    log_error("Invalid homing cycle list");
+                    return Error::InvalidValue;
+                } else {
+                    for (int i = 0; i < strlen(value); i++) {
+                        char cycleName = value[i];
+                        requestedAxes  = Machine::Homing::axis_mask_from_cycle(cycleName - '0');
+                        retval         = home(requestedAxes);
+                        if (retval != Error::Ok) {
+                            return retval;
+                        }
+                    }
+                    return retval;
+                }
+            }
+            if (!config->_axes->namesToMask(value, requestedAxes)) {
+                return Error::InvalidValue;
             }
         }
-        if (!config->_axes->namesToMask(value, requestedAxes)) {
-            return Error::InvalidValue;
-        }
-    }
 
-    return home(requestedAxes);
+        return home(requestedAxes);
+
+    } else {
+        log_info("HOME is not possible when machine is not powered on");
+        return Error::Ok;
+    }
 }
 
 static Error home_x(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
@@ -578,6 +590,10 @@ int GetStartURLWithM100() {
     return WebUI::CMD_StartWithM100->get();
 }
 
+int GetResetWhenPowerOn() {
+    return WebUI::CMD_ResetOnMachinePoweredOn->get();
+}
+
 void ReconnectWifi() {
     log_debug("Try to reconnext to Wifi");
     WebUI::WiFiConfig::end();
@@ -633,7 +649,7 @@ urlFeedback CallURL(String cmd) {
                 http.begin(client, url.c_str());  //Specify the URL and certificate
                 int httpCode = http.GET();        //Make the request
 
-                if (httpCode > 0) {               //Check for the returning code
+                if (httpCode > 0) {  //Check for the returning code
                     log_info("URL call successful");
                     http.end();
                     client.stop();

@@ -110,7 +110,7 @@ static std::string report_util_axis_values(const float* axis_value) {
 }
 
 std::map<Message, const char*> MessageText = {
-    { Message::CriticalEvent, "Reset to continue" },
+    { Message::CriticalEvent, "Fix the errors - then reset the board with $reset" },
     { Message::AlarmLock, "'$H'|'$X' to unlock" },
     { Message::AlarmUnlock, "Caution: Unlocked" },
     { Message::Enabled, "Enabled" },

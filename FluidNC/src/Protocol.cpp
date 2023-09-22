@@ -21,6 +21,7 @@
 #include "WebUI\Commands.h"
 #include "Logging.h"
 #include "Machine/LimitPin.h"
+#include "ProcessSettings.h"
 
 volatile ExecAlarm lastAlarm;  // The most recent alarm code
 
@@ -220,8 +221,8 @@ void start_polling() {
                                 &pollingTask,      // task handle
                                 SUPPORT_TASK_CORE  // core
         );
-        xTaskCreatePinnedToCore(output_loop,       // task
-                                "output",          // name for task
+        xTaskCreatePinnedToCore(output_loop,  // task
+                                "output",     // name for task
                                 16000,
                                 // 8192,              // size of task stack
                                 0,                 // parameters
@@ -242,6 +243,44 @@ static void check_startup_state() {}
 
 const uint32_t heapWarnThreshold = 15000;
 
+bool GetPowerLineValue() {
+    for (auto pin : config->_control->_pins)
+        if (pin->_legend == "power_pin")
+            return !(pin->get());
+
+    return 1;
+}
+
+void Check_Power_Presence_And_Reset() {
+    static int v_old        = 1;
+    static int Autorisation = 0;
+    static int n            = 0;
+
+    int v = GetPowerLineValue();
+
+    if ((v == 1) && (v_old == 0)) {
+        Autorisation = 1;
+    }
+    v_old = v;
+
+    if (Autorisation) {
+        n++;
+        delay_ms(1);
+        if (n > 100) {
+            Autorisation = 0;
+            n            = 0;
+            if (v == 1) {
+                log_info("POWER ON DETECTED");
+                if (GetResetWhenPowerOn()) {
+                    log_info("BOARD RESET - see $ResetOnPowerON if you want to disable this feature");
+                    delay_ms(2000);
+                    ESP.restart();
+                }
+            }
+        }
+    }
+}
+
 uint32_t heapLowWater = UINT_MAX;
 void     protocol_main_loop() {
     start_polling();
@@ -251,6 +290,8 @@ void     protocol_main_loop() {
     // This is also where the system idles while waiting for something to do.
     // ---------------------------------------------------------------------------------
     for (;; vTaskDelay(0)) {
+        Check_Power_Presence_And_Reset();
+
         if (activeChannel) {
             // The input polling task has collected a line of input
 #ifdef DEBUG_REPORT_ECHO_RAW_LINE_RECEIVED
@@ -309,7 +350,7 @@ void protocol_buffer_synchronize() {
         protocol_auto_cycle_start();
         protocol_execute_realtime();  // Check and execute run-time commands
         if (sys.abort) {
-            return;                   // Check for system abort
+            return;  // Check for system abort
         }
     } while (plan_get_current_block() || (sys.state == State::Cycle));
 }
@@ -349,6 +390,10 @@ static void protocol_run_startup_lines() {
     settings_execute_startup();  // Execute startup script.
 }
 
+static void protocol_do_power_detection() {
+    log_info("No power detected");
+}
+
 static void protocol_do_restart() {
     // Reset primary systems.
     system_reset();
@@ -366,7 +411,7 @@ static void protocol_do_restart() {
             spindle->stop();
             report_ovr_counter = 0;  // Set to report change immediately
         }
-        Stepper::reset();            // Clear stepper subsystem variables
+        Stepper::reset();  // Clear stepper subsystem variables
     }
 
     // Sync cleared gcode and planner positions to current system position.
@@ -439,7 +484,7 @@ static void protocol_do_alarm(void* alarmVoid) {
 static void protocol_start_holding() {
     if (!(sys.suspend.bit.motionCancel || sys.suspend.bit.jogCancel)) {  // Block, if already holding.
         sys.step_control = {};
-        if (!Stepper::update_plan_block_parameters()) {                  // Notify stepper module to recompute for hold deceleration.
+        if (!Stepper::update_plan_block_parameters()) {  // Notify stepper module to recompute for hold deceleration.
             sys.step_control.endMotion = true;
         }
         sys.step_control.executeHold = true;  // Initiate suspend state with active flag.
@@ -632,12 +677,12 @@ static void protocol_do_initiate_cycle() {
     sys.step_control = {};  // Restore step control to normal operation
     plan_block_t* pb;
     if ((pb = plan_get_current_block()) && !sys.suspend.bit.motionCancel) {
-        sys.suspend.value = 0;   // Break suspend state.
+        sys.suspend.value = 0;  // Break suspend state.
         sys.state         = pb->is_jog ? State::Jog : State::Cycle;
         Stepper::prep_buffer();  // Initialize step segment buffer before beginning cycle.
         Stepper::wake_up();
-    } else {                     // Otherwise, do nothing. Set and resume IDLE state.
-        sys.suspend.value = 0;   // Break suspend state.
+    } else {                    // Otherwise, do nothing. Set and resume IDLE state.
+        sys.suspend.value = 0;  // Break suspend state.
         sys.state         = State::Idle;
     }
 }
@@ -833,11 +878,11 @@ static void protocol_manage_spindle() {
         if (spindle_stop_ovr.bit.initiate) {
             if (gc_state.modal.spindle != SpindleState::Disable) {
                 spindle->spinDown();
-                report_ovr_counter           = 0;     // Set to report change immediately
+                report_ovr_counter           = 0;  // Set to report change immediately
                 spindle_stop_ovr.value       = 0;
                 spindle_stop_ovr.bit.enabled = true;  // Set stop override state to enabled, if de-energized.
             } else {
-                spindle_stop_ovr.value = 0;           // Clear stop override state
+                spindle_stop_ovr.value = 0;  // Clear stop override state
             }
             // Handles restoring of spindle state
         } else if (spindle_stop_ovr.bit.restore || spindle_stop_ovr.bit.restoreCycle) {
@@ -854,7 +899,7 @@ static void protocol_manage_spindle() {
             if (spindle_stop_ovr.bit.restoreCycle) {
                 protocol_send_event(&cycleStartEvent);  // Resume program.
             }
-            spindle_stop_ovr.value = 0;                 // Clear stop override state
+            spindle_stop_ovr.value = 0;  // Clear stop override state
         }
     } else {
         // Handles spindle state during hold. NOTE: Spindle speed overrides may be altered during hold state.
@@ -910,12 +955,12 @@ static void protocol_exec_rt_suspend() {
                         // Spindle and coolant should already be stopped, but do it again just to be sure.
                         spindle->spinDown();
                         config->_coolant->off();
-                        report_ovr_counter = 0;         // Set to report change immediately
-                        Stepper::go_idle();             // Stop stepping and maybe disable steppers
+                        report_ovr_counter = 0;  // Set to report change immediately
+                        Stepper::go_idle();      // Stop stepping and maybe disable steppers
                         while (!(sys.abort)) {
                             protocol_exec_rt_system();  // Do nothing until reset.
                         }
-                        return;                         // Abort received. Return to re-initialize.
+                        return;  // Abort received. Return to re-initialize.
                     }
                     // Allows resuming from parking/safety door. Polls to see if safety door is closed and ready to resume.
                     if (sys.state == State::SafetyDoor && !config->_control->safety_door_ajar()) {
@@ -1085,6 +1130,7 @@ NoArgEvent debugEvent { report_realtime_debug };
 NoArgEvent startEvent { protocol_do_start };
 NoArgEvent restartEvent { protocol_do_restart };
 NoArgEvent runStartupLinesEvent { protocol_run_startup_lines };
+NoArgEvent PowerDetectionEvent { protocol_do_power_detection };
 
 NoArgEvent rtResetEvent { protocol_do_rt_reset };
 

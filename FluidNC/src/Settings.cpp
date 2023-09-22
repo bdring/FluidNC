@@ -63,7 +63,8 @@ Setting::Setting(
 
 Error Setting::check(char* s) {
     if (notIdleOrAlarm()) {
-        return Error::IdleError;
+        //Avataar : allow to modify settings in anyState
+        //return Error::IdleError;
     }
     if (!_checker) {
         return Error::Ok;

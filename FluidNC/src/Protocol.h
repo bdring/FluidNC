@@ -44,6 +44,8 @@ void protocol_buffer_synchronize();
 void protocol_disable_steppers();
 void protocol_cancel_disable_steppers();
 
+bool GetPowerLineValue();
+
 extern volatile bool rtCycleStop;
 
 extern volatile bool runLimitLoop;
@@ -102,6 +104,7 @@ extern NoArgEvent debugEvent;
 extern NoArgEvent unhomedEvent;
 extern NoArgEvent startEvent;
 extern NoArgEvent restartEvent;
+extern NoArgEvent PowerDetectionEvent;
 
 extern NoArgEvent runStartupLinesEvent;
 
