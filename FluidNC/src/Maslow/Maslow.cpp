@@ -102,7 +102,6 @@ void printToWeb (double precision){
 }
 
 void Maslow_::readEncoders() {
-  Serial.println("Reading Encoders");
   axisTL.readEncoder();
   axisTR.readEncoder();
   axisBL.readEncoder();
@@ -178,18 +177,15 @@ void Maslow_::recomputePID(){
 
     int timeSinceLastCall = millis() - lastCallToPID;
     
-    if(timeSinceLastCall > 50){
-        log_info( "PID not being called often enough. Time since last call: " << timeSinceLastCall << " times: " << callsSinceDelay);
+    if(timeSinceLastCall > 20){
+        int elapsedTimeLastMiss = millis() - lastMiss;
+        log_info( "PID not being called often enough. Time since last call: " << timeSinceLastCall << " # since last miss:: " << callsSinceDelay << " ms ago: " << elapsedTimeLastMiss);
         callsSinceDelay = 0;
+        lastMiss = millis();
     }
     else{
         callsSinceDelay++;
     }
-    
-    //We want to update the encoders at most ever 10ms to avoid it hogging the processor time
-    // if(timeSinceLastCall < 10){
-    //   return;
-    // }
 
     lastCallToPID = millis();
 
@@ -213,10 +209,11 @@ void Maslow_::recomputePID(){
     // }
 
     //We always update the encoder positions
-    axisBL.updateEncoderPosition();
-    axisBR.updateEncoderPosition();
     axisTR.updateEncoderPosition();
     axisTL.updateEncoderPosition();
+    axisBL.updateEncoderPosition();
+    axisBR.updateEncoderPosition();
+
     
     //If the belt is extending or retracting from the zero point we don't do anything here
     if(extendingOrRetracting){
@@ -225,10 +222,6 @@ void Maslow_::recomputePID(){
 
     //Stop the motors if we are idle or alarm. Unless doing calibration. Calibration can happen during idle or alarm
     if((sys.state() == State::Idle || sys.state() == State::Alarm) && !calibrationInProgress){
-        // if(random(50) == 0){
-        //     log_info("Stopping motors");
-        //     //log_info("Calibration in progress: " << calibrationInProgress);
-        // }
         axisBL.stop();
         axisBR.stop();
         axisTR.stop();
@@ -243,69 +236,9 @@ void Maslow_::recomputePID(){
         digitalWrite(coolingFanPin, HIGH); //Turn on the cooling fan
     }
 
-    if(random(500) == 0){
-        log_info("Currents:" << axisBL.getCurrent() << " , " << axisBR.getCurrent());
-    }
-
     if(digitalRead(SERVOFAULT) == 1){
         log_info("Servo fault!");
     }
-
-
-    // int looptime = millis() - lastCallToPID;
-    // if(looptime > 5){
-    //     log_info("Loop time: " << looptime);
-    // }
-
-    // int tlAngle = axisTL.readAngle();
-    // if(tlAngle == 0 || tlAngle == 16383){
-    //     tlEncoderErrorCount++;
-    // }
-    // else{
-    //     tlEncoderErrorCount = 0;
-    // }
-    // if(tlEncoderErrorCount > 10 && tlEncoderErrorCount < 100){
-    //     //log_info( "Count %i\n", tlEncoderErrorCount);
-    //     //log_info( "Encoder connection issue on TL\n");
-    // }
-    
-
-    // int trAngle = axisTR.readAngle();
-    // if(trAngle == 0 || trAngle == 16383){
-    //     trEncoderErrorCount++;
-    // }
-    // else{
-    //     trEncoderErrorCount = 0;
-    // }
-    // if(trEncoderErrorCount > 10 && trEncoderErrorCount < 100){
-    //     //log_info( "Encoder connection issue on TR\n");
-    // }
-
-    // int blAngle = axisBL.readAngle();
-    // if(blAngle == 0 || blAngle == 16383){
-    //     blEncoderErrorCount++;
-    // }
-    // else{
-    //     blEncoderErrorCount = 0;
-    // }
-    // if(blEncoderErrorCount > 10 && blEncoderErrorCount < 100){
-    //     //log_info( "Encoder connection issue on BL\n");
-    // }
-
-    // int brAngle = axisBR.readAngle();
-    // if(brAngle == 0 || brAngle == 16383){
-    //     brEncoderErrorCount++;
-    // }
-    // else{
-    //     brEncoderErrorCount = 0;
-    // }
-    // if(brEncoderErrorCount > 10 && brEncoderErrorCount < 100){
-    //     //log_info( "Encoder connection issue on BR\n");
-    // }
-
-    // if(random(250) == 0){
-    //     grbl_sendf( "Angles: TL %i, TR: %i, BL: %i, BR: %i\n", axisTL.readAngle(), axisTR.readAngle(), axisBL.readAngle(), axisBR.readAngle());
-    // }
 }
 
 

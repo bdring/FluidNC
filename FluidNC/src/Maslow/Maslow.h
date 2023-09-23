@@ -82,6 +82,7 @@ class Maslow_ {
 
     //Used to keep track of how often the PID controller is updated
     unsigned long lastCallToPID = millis();
+    unsigned long lastMiss = millis();
 
     //Stores a reference to the global system runtime function to be called when blocking operations are needed
     void (*_sys_rt)() = nullptr;

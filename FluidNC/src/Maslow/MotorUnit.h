@@ -7,6 +7,7 @@
 #include "MiniPID.h"     //https://github.com/tekdemo/MiniPID
 #include "DCMotor.h"
 #include "memory"
+#include "SparkFun_I2C_Mux_Arduino_Library.h"
 
 class MotorUnit {
   public:
@@ -43,8 +44,11 @@ class MotorUnit {
     int _stallCurrent = 27;   //The current threshold needed to count
     int _stallCount = 0;
     int _numPosErrors = 0; //Keeps track of the number of position errors in a row to detect a stall
+    double _lastPosition = 0.0;
     double mostRecentCumulativeEncoderReading = 0;
-    bool encoderReadFailurePrint = false;
+    double encoderReadFailurePrintTime = millis();
+    unsigned long lastCallGetPos = millis();
+    QWIICMUX I2CMux;
 
 };
 

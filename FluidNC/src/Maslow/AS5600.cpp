@@ -8,6 +8,7 @@
 
 
 #include "AS5600.h"
+#include "../Report.h"
 
 
 //  CONFIGURATION REGISTERS
