@@ -42,6 +42,7 @@ namespace Machine {
         static Macro _after_homing;
         static Macro _after_reset;
         static Macro _after_unlock;
+        static Macro _on_idle;
 
         Macros() = default;
 
@@ -59,6 +60,7 @@ namespace Machine {
             handler.item(_after_homing._name.c_str(), _after_homing._gcode);
             handler.item(_after_reset._name.c_str(), _after_reset._gcode);
             handler.item(_after_unlock._name.c_str(), _after_unlock._gcode);
+            handler.item(_on_idle._name.c_str(), _on_idle._gcode);
         }
 
         ~Macros() {}

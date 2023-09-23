@@ -779,8 +779,12 @@ void protocol_do_cycle_stop() {
                 sys.suspend.bit.holdComplete = true;
                 sys.state                    = State::SafetyDoor;
             } else {
+                State prev_state  = sys.state;
                 sys.suspend.value = 0;
                 sys.state         = State::Idle;
+                if (prev_state == State::Cycle) {
+                    config->_macros->_on_idle.run();
+                }
             }
             break;
         case State::Homing:

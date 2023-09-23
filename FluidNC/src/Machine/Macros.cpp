@@ -20,6 +20,7 @@ Macro Macros::_macro[n_macros]               = { { "macro0" }, { "macro1" }, { "
 Macro Macros::_after_homing                  = { "after_homing" };
 Macro Macros::_after_reset                   = { "after_reset" };
 Macro Macros::_after_unlock                  = { "after_unlock" };
+Macro Macros::_on_idle                       = { "on_idle" };
 
 MacroEvent macro0Event { 0 };
 MacroEvent macro1Event { 1 };
