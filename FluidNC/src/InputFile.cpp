@@ -88,6 +88,7 @@ void InputFile::stopJob() {
     //Report print stopped
     _notifyf("File print canceled", "Reset during file job at line: %d", getLineNumber());
     log_info("Reset during file job at line: " << getLineNumber());
+    _progress = "";
     allChannels.kill(this);
 }
 

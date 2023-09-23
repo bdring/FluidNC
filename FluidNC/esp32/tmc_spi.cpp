@@ -43,7 +43,7 @@
 // This is executed in the object context so it has access to class
 // data such as the CS pin that switchCSpin() uses
 void TMC2130Stepper::write(uint8_t reg, uint32_t data) {
-    log_verbose("TMC reg 0x" << to_hex(reg) << " write 0x" << to_hex(data));
+    log_verbose("TMC reg " << to_hex(reg) << " write " << to_hex(data));
     tmc_spi_bus_setup();
 
     switchCSpin(0);
@@ -88,7 +88,7 @@ uint32_t TMC2130Stepper::read(uint8_t reg) {
     data += (uint32_t)in[dummy_in_bytes + 4];
     switchCSpin(1);
 
-    log_verbose("TMC reg 0x" << to_hex(reg) << " read 0x" << to_hex(data) << " status 0x" << to_hex(status));
+    log_verbose("TMC reg " << to_hex(reg) << " read " << to_hex(data) << " status " << to_hex(status));
 
     return data;
 }

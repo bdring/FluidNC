@@ -148,6 +148,7 @@ void setup() {
 }
 
 void loop() {
+    vTaskPrioritySet(NULL, 2);
     static int tries = 0;
     try {
         // Start the main loop. Processes program inputs and executes them.

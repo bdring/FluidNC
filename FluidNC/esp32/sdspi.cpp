@@ -12,7 +12,7 @@
 #define CHECK_EXECUTE_RESULT(err, str)                                                                                                     \
     do {                                                                                                                                   \
         if ((err) != ESP_OK) {                                                                                                             \
-            log_error(str << " code 0x" << to_hex(err));                                                                                   \
+            log_error(str << " code " << to_hex(err));                                                                                   \
             goto cleanup;                                                                                                                  \
         }                                                                                                                                  \
     } while (0)
