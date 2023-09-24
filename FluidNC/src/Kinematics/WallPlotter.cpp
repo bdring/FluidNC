@@ -99,6 +99,9 @@ namespace Kinematics {
 
         // Calculate desired cartesian feedrate distance ratio. Same for each seg.
         for (uint32_t segment = 1; segment <= segment_count; segment++) {
+            if (sys.abort) {
+                return true;
+            }
             // calculate the cartesian end point of the next segment
             for (size_t axis = X_AXIS; axis < n_axis; axis++) {
                 cartesian_segment_end[axis] += cartesian_segment_components[axis];

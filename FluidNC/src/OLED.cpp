@@ -67,7 +67,7 @@ void OLED::init() {
     if (_error) {
         return;
     }
-    log_info("OLED I2C address:" << to_hex(_address) << " width: " << _width << " height: " << _height);
+    log_info("OLED I2C address: " << to_hex(_address) << " width: " << _width << " height: " << _height);
     _oled = new SSD1306_I2C(_address, _geometry, config->_i2c[_i2c_num], 400000);
     _oled->init();
 
