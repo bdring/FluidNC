@@ -138,7 +138,7 @@ void Maslow_::home(int axis) {
             }
             break;
         case 4: //Bottom right
-            if(axisBLHomed && axisBRHomed && axisTRHomed && axisTLHomed) {
+            if(true){ //axisBLHomed && axisBRHomed && axisTRHomed && axisTLHomed) {
                 runCalibration();
             }
             else {
@@ -377,6 +377,10 @@ void Maslow_::takeColumnOfMeasurements(float x, float measurments[][4]){
     float measurement9[4] = {0};
     float measurement10[4] = {0};
 
+    while(true){
+        retractBL();
+    }
+
     //Move to where we need to begin
     log_info("Moving with slack to starting point");
     moveWithSlack(x, 550, true, true);
@@ -447,7 +451,7 @@ void Maslow_::takeColumnOfMeasurements(float x, float measurments[][4]){
 //Runs the calibration sequence to determine the machine's dimensions
 void Maslow_::runCalibration(){
     
-    log_info( "Beginning calibration");
+    log_info("\n\nBeginning calibration\n\n");
     
     calibrationInProgress = true;
     
@@ -730,6 +734,8 @@ float Maslow_::takeMeasurementAvg(float allLengths[4]) {
 void Maslow_::takeMeasurement(float lengths[]){
     log_info( "Taking a measurement.");
 
+    extendingOrRetracting = true;
+
     axisBL.stop();
     axisBR.stop();
 
@@ -739,7 +745,7 @@ void Maslow_::takeMeasurement(float lengths[]){
     float BLDist = .01;
     float BRDist = .01;
 
-    double maxSpeed = 0.3;
+    double maxSpeed = 0.005;
     
     while(!axisBLDone || !axisBRDone){  //As long as one axis is still pulling
         
@@ -750,7 +756,7 @@ void Maslow_::takeMeasurement(float lengths[]){
         }
         else{                                                       //If not
             axisBL.setTarget(axisBL.getPosition() - BLDist);                  //Pull in a little more
-            BLDist = min(maxSpeed, BLDist + .01);                                     //Slowly ramp up the speed
+            BLDist = min(maxSpeed, BLDist + .001);                                     //Slowly ramp up the speed
         }
         
         if(axisBR.getCurrent() > currentThreshold || axisBRDone){
@@ -761,15 +767,19 @@ void Maslow_::takeMeasurement(float lengths[]){
         }
         else{
             axisBR.setTarget(axisBR.getPosition() - BRDist);
-            BRDist = min(maxSpeed, BRDist + .01);
+            BRDist = min(maxSpeed, BRDist + .001);
         }
+
+        axisBL.recomputePID();
+        axisBR.recomputePID();
+        axisTR.recomputePID();
+        axisTL.recomputePID();
         
         // Delay without blocking
         unsigned long time = millis();
         unsigned long elapsedTime = millis()-time;
-        while(elapsedTime < 25){
+        while(elapsedTime < 10){
             elapsedTime = millis()-time;
-            recomputePID();  //This recomputes the PID four all four servos
             (*_sys_rt)();
         }
     }
@@ -793,6 +803,8 @@ void Maslow_::takeMeasurement(float lengths[]){
     log_info("{bl:" << lengths[0] << ", br:" << lengths[1] << ",   tr:" << lengths[2] << ",  tl:" <<lengths[3] << "}");
     //log_info( "Measured:\n%f, %f \n%f %f \n",lengths[3], lengths[2], lengths[0], lengths[1]);
     
+    extendingOrRetracting = false;
+
     return;
 }
 
@@ -844,13 +856,14 @@ void Maslow_::retractBR(){
 void Maslow_::retractBL(){
 
     log_info("Retracting BL")
+    extendingOrRetracting = true;
 
     axisBL.stop();
     axisBR.stop();
 
     bool axisBLDone = false;
 
-    float BLDist = .01;
+    float BLDist = .003;
     
     while(!axisBLDone){  //As long as one axis is still pulling
         
@@ -864,15 +877,20 @@ void Maslow_::retractBL(){
         }
         else{
             axisBL.setTarget(axisBL.getPosition() - BLDist);
-            BLDist = min(0.2, BLDist + .01);
+            BLDist = min(0.01, BLDist + .002); //Constrain the amount to move to .01
         }
+
+        axisBL.recomputePID();
+        axisBR.recomputePID();
+        axisTR.recomputePID();
+        axisTL.recomputePID();
         
         // Delay without blocking
         unsigned long time = millis();
         unsigned long elapsedTime = millis()-time;
-        while(elapsedTime < 25){
+        while(elapsedTime < 10){
             elapsedTime = millis()-time;
-            recomputePID();  //This recomputes the PID four all four servos
+            recomputePID(); //Because of the flag this will only update the encoder positions
             (*_sys_rt)();
         }
     }
@@ -882,6 +900,8 @@ void Maslow_::retractBL(){
     axisBR.stop();
     axisTR.stop();
     axisTL.stop();
+
+    extendingOrRetracting = false;
 
     return;
 }

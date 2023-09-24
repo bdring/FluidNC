@@ -41,11 +41,11 @@ void MotorUnit::zero(){
  *  @brief  Sets the target location
  */
 void MotorUnit::setTarget(double newTarget){
-    if(abs(newTarget - setpoint) > 1){
-        log_info("Step change in target detected on " << _encoderAddress);
-        log_info("Old target: " << setpoint);
-        log_info("New target: " << newTarget);
-    }
+    // if(abs(newTarget - setpoint) > 1){
+    //     log_info("Step change in target detected on " << _encoderAddress);
+    //     log_info("Old target: " << setpoint);
+    //     log_info("New target: " << newTarget);
+    // }
     setpoint = newTarget;
 }
 
