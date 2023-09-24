@@ -38,7 +38,7 @@
 
 #define SERVOFAULT 40
 
-int lowerBeltsExtra = 4;
+int lowerBeltsExtra = 2;
 int callsSinceDelay = 0;
 
 void Maslow_::begin(void (*sys_rt)()) {
