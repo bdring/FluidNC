@@ -138,7 +138,7 @@ void Maslow_::home(int axis) {
             }
             break;
         case 4: //Bottom right
-            if(true){ //axisBLHomed && axisBRHomed && axisTRHomed && axisTLHomed) {
+            if(axisBLHomed && axisBRHomed && axisTRHomed && axisTLHomed) {
                 runCalibration();
             }
             else {
@@ -376,10 +376,6 @@ void Maslow_::takeColumnOfMeasurements(float x, float measurments[][4]){
     float measurement8[4] = {0};
     float measurement9[4] = {0};
     float measurement10[4] = {0};
-
-    while(true){
-        retractBL();
-    }
 
     //Move to where we need to begin
     log_info("Moving with slack to starting point");
@@ -760,9 +756,6 @@ void Maslow_::takeMeasurement(float lengths[]){
         }
         
         if(axisBR.getCurrent() > currentThreshold || axisBRDone){
-            if(axisBRDone == false){
-                log_info( "BR Trip Current: " << axisBR.getCurrent());
-            }
             axisBRDone = true;
         }
         else{
@@ -811,12 +804,14 @@ void Maslow_::takeMeasurement(float lengths[]){
 //Retract the lower right belt
 void Maslow_::retractBR(){
 
+    extendingOrRetracting = true;
+
     axisBL.stop();
     axisBR.stop();
 
     bool axisBRDone = false;
 
-    float BRDist = .01;
+    float BRDist = .001;
     
     while(!axisBRDone){  //As long as one axis is still pulling
         
@@ -830,15 +825,19 @@ void Maslow_::retractBR(){
         }
         else{
             axisBR.setTarget(axisBR.getPosition() - BRDist);
-            BRDist = min(0.2, BRDist + .01);
+            BRDist = min(0.005, BRDist + .001);
         }
+
+        axisBL.recomputePID();
+        axisBR.recomputePID();
+        axisTR.recomputePID();
+        axisTL.recomputePID();
         
         // Delay without blocking
         unsigned long time = millis();
         unsigned long elapsedTime = millis()-time;
-        while(elapsedTime < 25){
+        while(elapsedTime < 10){
             elapsedTime = millis()-time;
-            recomputePID();  //This recomputes the PID four all four servos
             (*_sys_rt)();
         }
     }
@@ -848,6 +847,9 @@ void Maslow_::retractBR(){
     axisBR.stop();
     axisTR.stop();
     axisTL.stop();
+
+
+    extendingOrRetracting = false;
 
     return;
 }
@@ -863,7 +865,7 @@ void Maslow_::retractBL(){
 
     bool axisBLDone = false;
 
-    float BLDist = .003;
+    float BLDist = .001;
     
     while(!axisBLDone){  //As long as one axis is still pulling
         
@@ -877,7 +879,7 @@ void Maslow_::retractBL(){
         }
         else{
             axisBL.setTarget(axisBL.getPosition() - BLDist);
-            BLDist = min(0.01, BLDist + .002); //Constrain the amount to move to .01
+            BLDist = min(0.005, BLDist + .001); //Constrain the amount to move to .01
         }
 
         axisBL.recomputePID();
@@ -890,7 +892,6 @@ void Maslow_::retractBL(){
         unsigned long elapsedTime = millis()-time;
         while(elapsedTime < 10){
             elapsedTime = millis()-time;
-            recomputePID(); //Because of the flag this will only update the encoder positions
             (*_sys_rt)();
         }
     }
@@ -908,8 +909,6 @@ void Maslow_::retractBL(){
 
 //Reposition the sled without knowing the machine dimensions
 void Maslow_::moveWithSlack(float x, float y, bool leftBelt, bool rightBelt){
-    
-    log_info( "Moving to with slack");
 
     extendingOrRetracting = true;
     
@@ -950,7 +949,6 @@ void Maslow_::moveWithSlack(float x, float y, bool leftBelt, bool rightBelt){
             axisBL.comply(&timeLastMoved1, &lastPosition1, &amtToMove1, 3);
         }
         else{
-            axisBL.updateEncoderPosition();
             axisBL.stop();
         }
 
@@ -958,7 +956,6 @@ void Maslow_::moveWithSlack(float x, float y, bool leftBelt, bool rightBelt){
             axisBR.comply(&timeLastMoved2, &lastPosition2, &amtToMove2, 3);
         }
         else{
-            axisBR.updateEncoderPosition();
             axisBR.stop();
         }
         
@@ -976,9 +973,7 @@ void Maslow_::moveWithSlack(float x, float y, bool leftBelt, bool rightBelt){
             axisTR.setTarget(TRTarget);
         }
 
-        axisTR.updateEncoderPosition();
-        axisTL.updateEncoderPosition();
-
+        //Makes the top axis actually move
         axisTR.recomputePID();
         axisTL.recomputePID();
 
@@ -991,7 +986,6 @@ void Maslow_::moveWithSlack(float x, float y, bool leftBelt, bool rightBelt){
             elapsedTime = millis()-time;
         }
     }
-    log_info("End of move with slack loop");
     
     axisBL.setTarget(axisBL.getPosition());
     axisBR.setTarget(axisBR.getPosition());
@@ -1002,15 +996,11 @@ void Maslow_::moveWithSlack(float x, float y, bool leftBelt, bool rightBelt){
     axisBR.stop();
     axisTR.stop();
     axisTL.stop();
-
-    log_info("After stops");
     
     //Take up the internal slack to remove any slop between the spool and roller
     takeUpInternalSlack();
 
     extendingOrRetracting = false;
-
-    log_info("Very end of move with slack");
 }
 
 //This function removes any slack in the belt between the spool and the roller. 

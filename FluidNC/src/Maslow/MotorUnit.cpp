@@ -157,7 +157,6 @@ void MotorUnit::decompressBelt(){
     while(elapsedTime < 500){
         elapsedTime = millis()-time;
         motor.fullOut();
-        updateEncoderPosition();
     }
 }
 
@@ -238,7 +237,6 @@ bool MotorUnit::retract(double targetLength){
         }
         motor.backward(speed);
 
-        updateEncoderPosition();
         //When taught
         int currentMeasurement = motor.readCurrent();
 
