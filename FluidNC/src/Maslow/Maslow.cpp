@@ -346,10 +346,16 @@ void Maslow_::setTargets(float xTarget, float yTarget, float zTarget){
 
 void Maslow_::printMeasurementSet(float allLengths[][4]){
 
-    //log_info("{bl:" + String(allLengths[0][0]) + ",   br:" + String(allLengths[0][1]) + ",   tr:" + String(allLengths[0][2]) + ",   tl:" + String(allLengths[0][3]) + "}");
-    //log_info("{bl:" + String(allLengths[1][0]) + ",   br:" + String(allLengths[1][1]) + ",   tr:" + String(allLengths[1][2]) + ",   tl:" + String(allLengths[1][3]) + "}");
-    //log_info("{bl:" + String(allLengths[2][0]) + ",   br:" + String(allLengths[2][1]) + ",   tr:" + String(allLengths[2][2]) + ",   tl:" + String(allLengths[2][3]) + "}");
-    //log_info("{bl:" + String(allLengths[3][0]) + ",   br:" + String(allLengths[3][1]) + ",   tr:" + String(allLengths[3][2]) + ",   tl:" + String(allLengths[3][3]) + "}");
+    log_info("{bl:" << allLengths[0][0] << ",   br:" << allLengths[0][1] << ",   tr:" << allLengths[0][2] << ",   tl:" << allLengths[0][3] << "}");
+    log_info("{bl:" << allLengths[1][0] << ",   br:" << allLengths[1][1] << ",   tr:" << allLengths[1][2] << ",   tl:" << allLengths[1][3] << "}");
+    log_info("{bl:" << allLengths[2][0] << ",   br:" << allLengths[2][1] << ",   tr:" << allLengths[2][2] << ",   tl:" << allLengths[2][3] << "}");
+    log_info("{bl:" << allLengths[3][0] << ",   br:" << allLengths[3][1] << ",   tr:" << allLengths[3][2] << ",   tl:" << allLengths[3][3] << "}");
+    log_info("{bl:" << allLengths[4][0] << ",   br:" << allLengths[4][1] << ",   tr:" << allLengths[4][2] << ",   tl:" << allLengths[4][3] << "}");
+    log_info("{bl:" << allLengths[5][0] << ",   br:" << allLengths[5][1] << ",   tr:" << allLengths[5][2] << ",   tl:" << allLengths[5][3] << "}");
+    log_info("{bl:" << allLengths[6][0] << ",   br:" << allLengths[6][1] << ",   tr:" << allLengths[6][2] << ",   tl:" << allLengths[6][3] << "}");
+    log_info("{bl:" << allLengths[7][0] << ",   br:" << allLengths[7][1] << ",   tr:" << allLengths[7][2] << ",   tl:" << allLengths[7][3] << "}");
+    log_info("{bl:" << allLengths[8][0] << ",   br:" << allLengths[8][1] << ",   tr:" << allLengths[8][2] << ",   tl:" << allLengths[8][3] << "}");
+    log_info("{bl:" << allLengths[9][0] << ",   br:" << allLengths[9][1] << ",   tr:" << allLengths[9][2] << ",   tl:" << allLengths[9][3] << "}");
 
     (*_sys_rt)();
         
