@@ -590,12 +590,6 @@ void Maslow_::lowerBeltsGoSlack(){
     axisBR.setTarget(axisBR.getPosition() + 2);
     
     while(millis()- startTime < 600){
-        
-        //Hold position
-        axisBL.updateEncoderPosition();
-        axisBR.updateEncoderPosition();
-        axisTR.updateEncoderPosition();
-        axisTL.updateEncoderPosition();
 
         axisBL.recomputePID();
         axisBR.recomputePID();
@@ -619,11 +613,6 @@ void Maslow_::lowerBeltsGoSlack(){
     axisBR.setTarget(axisBR.getPosition());
 
     while(millis()- startTime < 600){
-        
-        axisBL.updateEncoderPosition();
-        axisBR.updateEncoderPosition();
-        axisTR.updateEncoderPosition();
-        axisTL.updateEncoderPosition();
 
         axisBL.recomputePID();
         axisBR.recomputePID();
@@ -694,22 +683,6 @@ float Maslow_::takeMeasurementAvg(float allLengths[4]) {
     takeMeasurement(lengths4);
     takeMeasurement(lengths5);
 
-    // allLengths[0][0] = lengths1[0];
-    // allLengths[0][1] = lengths1[1];
-    // allLengths[0][2] = lengths1[2];
-    // allLengths[0][3] = lengths1[3];
-    // allLengths[1][0] = lengths2[0];
-    // allLengths[1][1] = lengths2[1];
-    // allLengths[1][2] = lengths2[2];
-    // allLengths[1][3] = lengths2[3];
-    // allLengths[2][0] = lengths3[0];
-    // allLengths[2][1] = lengths3[1];
-    // allLengths[2][2] = lengths3[2];
-    // allLengths[2][3] = lengths3[3];
-    // allLengths[3][0] = lengths4[0];
-    // allLengths[3][1] = lengths4[1];
-    // allLengths[3][2] = lengths4[2];
-    // allLengths[3][3] = lengths4[3];
     allLengths[0] = lengths5[0];
     allLengths[1] = lengths5[1];
     allLengths[2] = lengths5[2];
@@ -740,6 +713,8 @@ void Maslow_::takeMeasurement(float lengths[]){
 
     axisBL.stop();
     axisBR.stop();
+    axisBL.setTarget(axisBL.getPosition());
+    axisBR.setTarget(axisBR.getPosition());
 
     bool axisBLDone = false;
     bool axisBRDone = false;
@@ -747,7 +722,7 @@ void Maslow_::takeMeasurement(float lengths[]){
     float BLDist = .01;
     float BRDist = .01;
 
-    double maxSpeed = 0.005;
+    double maxSpeed = 0.01;
     
     while(!axisBLDone || !axisBRDone){  //As long as one axis is still pulling
         
@@ -814,6 +789,7 @@ void Maslow_::retractBR(){
 
     axisBL.stop();
     axisBR.stop();
+    axisBR.setTarget(axisBR.getPosition());
 
     bool axisBRDone = false;
 
@@ -831,7 +807,7 @@ void Maslow_::retractBR(){
         }
         else{
             axisBR.setTarget(axisBR.getPosition() - BRDist);
-            BRDist = min(0.005, BRDist + .001);
+            BRDist = min(0.01, BRDist + .001);
         }
 
         axisBL.recomputePID();
@@ -868,6 +844,7 @@ void Maslow_::retractBL(){
 
     axisBL.stop();
     axisBR.stop();
+    axisBL.setTarget(axisBL.getPosition());
 
     bool axisBLDone = false;
 
@@ -885,7 +862,7 @@ void Maslow_::retractBL(){
         }
         else{
             axisBL.setTarget(axisBL.getPosition() - BLDist);
-            BLDist = min(0.005, BLDist + .001); //Constrain the amount to move to .01
+            BLDist = min(0.01, BLDist + .001); //Constrain the amount to move to .01
         }
 
         axisBL.recomputePID();
@@ -926,7 +903,7 @@ void Maslow_::moveWithSlack(float x, float y, bool leftBelt, bool rightBelt){
     double TLDir  = constrain(TLDist, -1, 1);
     double TRDir  = constrain(TRDist, -1, 1);
     
-    double stepSize = .15;
+    double stepSize = .25;
     
     //Only use positive dist for incrementing counter (float int conversion issue?)
     TLDist = abs(TLDist);
@@ -1034,7 +1011,6 @@ void Maslow_::takeUpInternalSlack(){
             brDone = true;
         }
 
-        recomputePID(); //This one is only going to update the encoder positions because of the extendingOrRetracting flag
         axisBL.recomputePID();
         axisBR.recomputePID();
         axisTR.recomputePID();

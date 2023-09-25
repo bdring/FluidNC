@@ -129,10 +129,6 @@ void MotorUnit::updateEncoderPosition(){
         encoderReadFailurePrintTime = millis();
         log_info("Encoder read failure on " << _encoderAddress);
     }
-
-    // if(random(5) == 0 && _encoderAddress == 3){
-    //     log_info("Angle: " << encoder.rawAngle() << " Is connected?: " << encoder.isConnected());
-    // }
 }
 
 /*!
