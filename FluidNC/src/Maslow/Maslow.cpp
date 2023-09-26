@@ -372,7 +372,6 @@ void Maslow_::printMeasurementSet(float allLengths[][4]){
 
 //Takes one column of 10 measurements
 void Maslow_::takeColumnOfMeasurements(float x, float measurments[][4]){
-    log_info("Beginning take column of measurements");
 
     float measurement1[4] = {0};
     float measurement2[4] = {0};
@@ -386,14 +385,12 @@ void Maslow_::takeColumnOfMeasurements(float x, float measurments[][4]){
     float measurement10[4] = {0};
 
     //Move to where we need to begin
-    log_info("Moving with slack to starting point");
     moveWithSlack(x, 550, true, true);
 
     //First measurmement
-    log_info("Retracting one side");
     if(x < 0) { retractBL(); retractBL(); } //If we are on the left side of the sheet tension the left belt first
     if(x > 0) { retractBR(); retractBR(); } //If we are on the right side of the sheet tension the right belt first
-    log_info("Taking a measurement");
+    
     takeMeasurementAvgWithCheck(measurments[0]);
     
     //Second measurmement
@@ -478,7 +475,6 @@ void Maslow_::runCalibration(){
     float column10[10][4] = {0};
     float column11[10][4] = {0};
 
-    log_info("Before take column of measurements");
     takeColumnOfMeasurements(-800, column1);
     takeColumnOfMeasurements(-640, column2);
     takeColumnOfMeasurements(-480, column3);
@@ -651,7 +647,6 @@ float Maslow_::printMeasurementMetrics(double avg, double m1, double m2, double 
 
 //Checks to make sure the deviation within the measurement avg looks good before moving on
 void Maslow_::takeMeasurementAvgWithCheck(float allLengths[4]){
-    log_info( "Beginning takeMeasurementAvg");
     float threshold = 0.5;
     while(true){
         float repeatability = takeMeasurementAvg(allLengths);
@@ -666,7 +661,6 @@ void Maslow_::takeMeasurementAvgWithCheck(float allLengths[4]){
 
 // Takes 5 measurements and returns how consistent they are
 float Maslow_::takeMeasurementAvg(float allLengths[4]) {
-    log_info("Beginning to take averaged measurement.");
 
     // Where our five measurements will be stored
     float lengths1[4];
@@ -800,9 +794,6 @@ void Maslow_::retractBR(){
         //If any of the current values are over the threshold then stop and exit, otherwise pull each axis a little bit tighter by incrementing the target position
         
         if(axisBR.getCurrent() > currentThreshold || axisBRDone){
-            if(axisBRDone == false){
-                log_info( "BR Trip Current: " << axisBR.getCurrent());
-            }
             axisBRDone = true;
         }
         else{
@@ -839,7 +830,6 @@ void Maslow_::retractBR(){
 //Retract the lower left belt
 void Maslow_::retractBL(){
 
-    log_info("Retracting BL")
     extendingOrRetracting = true;
 
     axisBL.stop();
@@ -855,18 +845,11 @@ void Maslow_::retractBL(){
         //If any of the current values are over the threshold then stop and exit, otherwise pull each axis a little bit tighter by incrementing the target position
         
         if(axisBL.getCurrent() > currentThreshold || axisBLDone){
-            if(axisBLDone == false){
-                log_info( "BL Trip Current: " << axisBL.getCurrent());
-            }
             axisBLDone = true;
         }
         else{
             axisBL.setTarget(axisBL.getPosition() - BLDist);
             BLDist = min(MEASUREMENTSPEED, BLDist + .001); //Constrain the amount to move to .01
-        }
-        if(random(20) == 0){
-            log_info("BL Target: " << axisBL.getTarget() << " BL Position: " << axisBL.getPosition() << " BL Dist: " << BLDist);
-            log_info("BL PWM: " << axisBL.getCommandPWM() << " BL Error: " << axisBL.getError());
         }
 
         //These are needed because the flag will prevent regular PID recomputation
@@ -995,7 +978,6 @@ void Maslow_::moveWithSlack(float x, float y, bool leftBelt, bool rightBelt){
 //If there is slack there then when the motor turns the belt won't move which triggers the
 //current threshold on pull tight too early. It only does this for the bottom axis.
 void Maslow_::takeUpInternalSlack(){
-    log_info("Take up internal slack");
 
     //Set the target to be .5mm in
     axisBL.setTarget(axisBL.getPosition() - 0.5);
@@ -1035,7 +1017,6 @@ void Maslow_::takeUpInternalSlack(){
     axisBR.stop();
     axisTR.stop();
     axisTL.stop();
-    log_info("Finish taking up internal slack");
 }
 
 float Maslow_::computeVertical(float firstUpper, float firstLower, float secondUpper, float secondLower){
