@@ -38,6 +38,8 @@
 
 #define SERVOFAULT 40
 
+#define MEASUREMENTSPEED 1.0 //The max speed at which we move the motors when taking measurements
+
 int lowerBeltsExtra = 2;
 int callsSinceDelay = 0;
 
@@ -721,8 +723,6 @@ void Maslow_::takeMeasurement(float lengths[]){
 
     float BLDist = .01;
     float BRDist = .01;
-
-    double maxSpeed = 0.01;
     
     while(!axisBLDone || !axisBRDone){  //As long as one axis is still pulling
         
@@ -733,7 +733,7 @@ void Maslow_::takeMeasurement(float lengths[]){
         }
         else{                                                       //If not
             axisBL.setTarget(axisBL.getPosition() - BLDist);                  //Pull in a little more
-            BLDist = min(maxSpeed, BLDist + .001);                                     //Slowly ramp up the speed
+            BLDist = min(MEASUREMENTSPEED, BLDist + .001);                                     //Slowly ramp up the speed
         }
         
         if(axisBR.getCurrent() > currentThreshold || axisBRDone){
@@ -741,7 +741,7 @@ void Maslow_::takeMeasurement(float lengths[]){
         }
         else{
             axisBR.setTarget(axisBR.getPosition() - BRDist);
-            BRDist = min(maxSpeed, BRDist + .001);
+            BRDist = min(MEASUREMENTSPEED, BRDist + .001);
         }
 
         axisBL.recomputePID();
@@ -807,7 +807,7 @@ void Maslow_::retractBR(){
         }
         else{
             axisBR.setTarget(axisBR.getPosition() - BRDist);
-            BRDist = min(0.01, BRDist + .001);
+            BRDist = min(MEASUREMENTSPEED, BRDist + .001);
         }
 
         axisBL.recomputePID();
@@ -862,9 +862,14 @@ void Maslow_::retractBL(){
         }
         else{
             axisBL.setTarget(axisBL.getPosition() - BLDist);
-            BLDist = min(0.01, BLDist + .001); //Constrain the amount to move to .01
+            BLDist = min(MEASUREMENTSPEED, BLDist + .001); //Constrain the amount to move to .01
+        }
+        if(random(20) == 0){
+            log_info("BL Target: " << axisBL.getTarget() << " BL Position: " << axisBL.getPosition() << " BL Dist: " << BLDist);
+            log_info("BL PWM: " << axisBL.getCommandPWM() << " BL Error: " << axisBL.getError());
         }
 
+        //These are needed because the flag will prevent regular PID recomputation
         axisBL.recomputePID();
         axisBR.recomputePID();
         axisTR.recomputePID();

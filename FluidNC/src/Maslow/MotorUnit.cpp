@@ -3,7 +3,7 @@
 
 
 #define P 300 //260
-#define I 35
+#define I 0
 #define D 0
 
 #define TCAADDR 0x70
@@ -78,10 +78,8 @@ double MotorUnit::getPosition(){
     //     int timeElapsed = millis() - lastCallGetPos;
     //     log_info("Time since last call: " << timeElapsed);
     // }
-
-    lastCallGetPos = millis();
-
-    _lastPosition = positionNow;
+    // lastCallGetPos = millis();
+    // _lastPosition = positionNow;
 
     return positionNow;
 }
@@ -136,12 +134,19 @@ void MotorUnit::updateEncoderPosition(){
  */
 double MotorUnit::recomputePID(){
     
-    double commandPWM = positionPID.getOutput(getPosition(),setpoint);
+    _commandPWM = positionPID.getOutput(getPosition(),setpoint);
 
-    motor.runAtPWM(commandPWM);
+    motor.runAtPWM(_commandPWM);
 
-    return commandPWM;
+    return _commandPWM;
 
+}
+
+/*
+*  @brief  Gets the last command PWM
+*/
+double MotorUnit::getCommandPWM(){
+    return _commandPWM;
 }
 
 /*!
