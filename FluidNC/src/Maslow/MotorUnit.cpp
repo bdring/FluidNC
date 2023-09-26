@@ -3,7 +3,7 @@
 
 
 #define P 300 //260
-#define I 35
+#define I 0
 #define D 0
 
 #define TCAADDR 0x70
@@ -15,7 +15,6 @@ void MotorUnit::begin(int forwardPin,
                int encoderAddress,
                int channel1,
                int channel2){
-    Serial.println("Beginning motor unit");
 
     _encoderAddress = encoderAddress;
 
@@ -42,6 +41,11 @@ void MotorUnit::zero(){
  *  @brief  Sets the target location
  */
 void MotorUnit::setTarget(double newTarget){
+    // if(abs(newTarget - setpoint) > 1){
+    //     log_info("Step change in target detected on " << _encoderAddress);
+    //     log_info("Old target: " << setpoint);
+    //     log_info("New target: " << newTarget);
+    // }
     setpoint = newTarget;
 }
 
@@ -68,16 +72,14 @@ int MotorUnit::setPosition(double newPosition){
  */
 double MotorUnit::getPosition(){
     double positionNow = (mostRecentCumulativeEncoderReading/4096.0)*_mmPerRevolution*-1;
-    if(abs(positionNow - _lastPosition) > 1){
-        log_info("Position jump detected on "  << _encoderAddress << " of " << positionNow - _lastPosition);
-        int timeElapsed = millis() - lastCallGetPos;
-        log_info("Time since last call: " << timeElapsed);
 
-    }
-
-    lastCallGetPos = millis();
-
-    _lastPosition = positionNow;
+    // if(abs(positionNow - _lastPosition) > 1){
+    //     log_info("Position jump detected on "  << _encoderAddress << " of " << positionNow - _lastPosition);
+    //     int timeElapsed = millis() - lastCallGetPos;
+    //     log_info("Time since last call: " << timeElapsed);
+    // }
+    // lastCallGetPos = millis();
+    // _lastPosition = positionNow;
 
     return positionNow;
 }
@@ -125,10 +127,6 @@ void MotorUnit::updateEncoderPosition(){
         encoderReadFailurePrintTime = millis();
         log_info("Encoder read failure on " << _encoderAddress);
     }
-
-    // if(random(5) == 0 && _encoderAddress == 3){
-    //     log_info("Angle: " << encoder.rawAngle() << " Is connected?: " << encoder.isConnected());
-    // }
 }
 
 /*!
@@ -136,12 +134,19 @@ void MotorUnit::updateEncoderPosition(){
  */
 double MotorUnit::recomputePID(){
     
-    double commandPWM = positionPID.getOutput(getPosition(),setpoint);
+    _commandPWM = positionPID.getOutput(getPosition(),setpoint);
 
-    motor.runAtPWM(commandPWM);
+    motor.runAtPWM(_commandPWM);
 
-    return commandPWM;
+    return _commandPWM;
 
+}
+
+/*
+*  @brief  Gets the last command PWM
+*/
+double MotorUnit::getCommandPWM(){
+    return _commandPWM;
 }
 
 /*!
@@ -153,7 +158,6 @@ void MotorUnit::decompressBelt(){
     while(elapsedTime < 500){
         elapsedTime = millis()-time;
         motor.fullOut();
-        updateEncoderPosition();
     }
 }
 
@@ -168,11 +172,6 @@ bool MotorUnit::comply(unsigned long *timeLastMoved, double *lastPosition, doubl
     //If we've moved any, then drive the motor outwards to extend the belt
     float positionNow = getPosition();
     float distMoved = positionNow - *lastPosition;
-
-    Serial.print("Dist moved: ");
-    Serial.print(distMoved);
-    Serial.print("  Target: ");
-    Serial.println(getTarget());
 
     //If the belt is moving out, let's keep it moving out
     if( distMoved > .001){
@@ -216,8 +215,8 @@ bool MotorUnit::comply(unsigned long *timeLastMoved, double *lastPosition, doubl
  */
 bool MotorUnit::retract(double targetLength){
     
-    Serial.println("Retracting");
-    log_info("Retracting called within MotorUnit!");
+    log_info("Retracting");
+
     int absoluteCurrentThreshold = 1900;
     int incrementalThreshold = 75;
     int incrementalThresholdHits = 0;
@@ -239,25 +238,13 @@ bool MotorUnit::retract(double targetLength){
         }
         motor.backward(speed);
 
-        updateEncoderPosition();
         //When taught
         int currentMeasurement = motor.readCurrent();
-
-        Serial.print("Current: ");
-        Serial.print(currentMeasurement);
-        Serial.print("  Baseline: ");
-        Serial.print(baseline);
-        Serial.print("  Difference: ");
-        Serial.print(currentMeasurement - baseline);
-        Serial.print("  Hits: ");
-        Serial.println(incrementalThresholdHits);
 
         //_webPrint(0xFF,"Current: %i, Baseline: %f, difference: %f \n", currentMeasurement, baseline, currentMeasurement - baseline);
         baseline = alpha * float(currentMeasurement) + (1-alpha) * baseline;
 
         if(currentMeasurement - baseline > incrementalThreshold){
-            Serial.println("Dynamic thershold hit");
-            //_webPrint(0xFF,"Dynamic threshold hit\n");
             incrementalThresholdHits = incrementalThresholdHits + 1;
         }
         else{
@@ -277,19 +264,14 @@ bool MotorUnit::retract(double targetLength){
             //If we hit the current limit immediately because there wasn't any slack we will extend
             elapsedTime = millis()-time;
             if(elapsedTime < 1500){
-
-                Serial.println("Immediate hit detected");
                 
                 //Extend some belt to get things started
                 decompressBelt();
-
-                Serial.println("After decompress belt");
                 
                 unsigned long timeLastMoved = millis();
                 double lastPosition = getPosition();
                 double amtToMove = 0.1;
                 
-                Serial.println("Got to the comply part");
                 while(getPosition() < targetLength){
                     //Check for timeout
                     if(!comply(&timeLastMoved, &lastPosition, &amtToMove, 500)){//Comply updates the encoder position and does the actual moving
@@ -308,7 +290,6 @@ bool MotorUnit::retract(double targetLength){
                         elapsedTime = millis()-time;
                     }
                 }
-                Serial.println("After the comply part");
                 
                 //Position hold for 2 seconds to make sure we are in the right place
                 setTarget(targetLength);

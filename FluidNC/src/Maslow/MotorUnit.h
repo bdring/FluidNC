@@ -31,6 +31,7 @@ class MotorUnit {
     void decompressBelt();
     bool comply(unsigned long *timeLastMoved, double *lastPosition, double *amtToMove, double maxSpeed);
     bool retract(double targetLength);
+    double getCommandPWM();
 
 
   private:
@@ -45,6 +46,7 @@ class MotorUnit {
     int _stallCount = 0;
     int _numPosErrors = 0; //Keeps track of the number of position errors in a row to detect a stall
     double _lastPosition = 0.0;
+    double _commandPWM = 0; //The last PWM duty cycle sent to the motor
     double mostRecentCumulativeEncoderReading = 0;
     double encoderReadFailurePrintTime = millis();
     unsigned long lastCallGetPos = millis();
