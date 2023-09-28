@@ -456,20 +456,21 @@ int32_t AS5600::getCumulativePosition()
 {
   int16_t value = readReg2(AS5600_RAW_ANGLE) & 0x0FFF;
 
-  //A transition from the highest 1/4th to the loweset 1/4th
-  if ((value < 1024) && (_lastPosition > 3072)){
-      _position += abs(4096 - abs(value - _lastPosition));
+  //  whole rotation CW?
+  //  less than half a circle
+  if ((_lastPosition > 2048) && ( value < (_lastPosition - 2048)))
+  {
+    _position = _position + 4096 - _lastPosition + value;
   }
-  //A transition from the lowest 1/4th to the highest 1/4th
-  else if ((_lastPosition < 1024) && (value > 3072)){
-      _position -= abs(4096 - abs(value - _lastPosition));
+  //  whole rotation CCW?
+  //  less than half a circle
+  else if ((value > 2048) && ( _lastPosition < (value - 2048)))
+  {
+    _position = _position - 4096 - _lastPosition + value;
   }
-  //We've just moved a bit up
-  else {
-      _position += (value - _lastPosition);
-  }
-
+  else _position = _position - _lastPosition + value;
   _lastPosition = value;
+
   return _position;
 }
 
