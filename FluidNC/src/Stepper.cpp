@@ -67,9 +67,9 @@ typedef struct {
 
     uint32_t counter[MAX_N_AXIS];  // Counter variables for the bresenham line tracer
 
-    uint8_t  step_bits;     // Stores out_bits output to complete the step pulse delay
-    uint8_t  execute_step;  // Flags step execution for each interrupt.
-    uint8_t  step_outbits;  // The next stepping-bits to be output
+    uint8_t  step_bits;            // Stores out_bits output to complete the step pulse delay
+    uint8_t  execute_step;         // Flags step execution for each interrupt.
+    uint8_t  step_outbits;         // The next stepping-bits to be output
     uint8_t  dir_outbits;
     uint32_t steps[MAX_N_AXIS];
 
@@ -115,7 +115,7 @@ typedef struct {
     float accelerate_until;  // Acceleration ramp end measured from end of block (mm)
     float decelerate_after;  // Deceleration ramp start measured from end of block (mm)
 
-    float        inv_rate;  // Used by PWM laser mode to speed up segment calculations.
+    float        inv_rate;   // Used by PWM laser mode to speed up segment calculations.
     SpindleSpeed current_spindle_speed;
 
 } st_prep_t;
@@ -316,7 +316,7 @@ void Stepper::reset() {
     st.exec_segment     = NULL;
     pl_block            = NULL;  // Planner block pointer used by segment buffer
     segment_buffer_tail = 0;
-    segment_buffer_head = 0;  // empty = tail
+    segment_buffer_head = 0;     // empty = tail
     segment_next_head   = 1;
     st.step_outbits     = 0;
     st.dir_outbits      = 0;  // Initialize direction bits to default.
@@ -325,7 +325,7 @@ void Stepper::reset() {
 
 // Called by planner_recalculate() when the executing block is updated by the new plan.
 bool Stepper::update_plan_block_parameters() {
-    if (pl_block != NULL) {  // Ignore if at start of a new block.
+    if (pl_block != NULL) {                                                           // Ignore if at start of a new block.
         prep.recalculate_flag.recalculate = 1;
         pl_block->entry_speed_sqr         = prep.current_speed * prep.current_speed;  // Update entry speed.
         pl_block                          = NULL;  // Flag prep_segment() to load and check active velocity profile.
@@ -454,8 +454,11 @@ void Stepper::prep_buffer() {
                     if (pl_block->spindle == SpindleState::Ccw) {
                         // Pre-compute inverse programmed rate to speed up PWM updating per step segment.
                         prep.inv_rate                       = 1.0f / pl_block->programmed_rate;
-                        st_prep_block->is_pwm_rate_adjusted = true;
                     }
+                    else {
+                        prep.inv_rate                       = 1.0f; // speed does not
+                    }
+                    st_prep_block->is_pwm_rate_adjusted = true; // shuts off after feed rate moves.
                 }
             }
             /* ---------------------------------------------------------------------------------
@@ -464,7 +467,7 @@ void Stepper::prep_buffer() {
              planner has updated it. For a commanded forced-deceleration, such as from a feed
              hold, override the planner velocities and decelerate to the target exit speed.
             */
-            prep.mm_complete  = 0.0;  // Default velocity profile complete at 0.0mm from end of block.
+            prep.mm_complete  = 0.0;             // Default velocity profile complete at 0.0mm from end of block.
             float inv_2_accel = 0.5f / pl_block->acceleration;
             if (sys.step_control.executeHold) {  // [Forced Deceleration to Zero Velocity]
                 // Compute velocity profile parameters for a feed hold in-progress. This profile overrides
@@ -497,7 +500,7 @@ void Stepper::prep_buffer() {
                 float intersect_distance = 0.5f * (pl_block->millimeters + inv_2_accel * (pl_block->entry_speed_sqr - exit_speed_sqr));
                 if (pl_block->entry_speed_sqr > nominal_speed_sqr) {  // Only occurs during override reductions.
                     prep.accelerate_until = pl_block->millimeters - inv_2_accel * (pl_block->entry_speed_sqr - nominal_speed_sqr);
-                    if (prep.accelerate_until <= 0.0) {  // Deceleration-only.
+                    if (prep.accelerate_until <= 0.0) {               // Deceleration-only.
                         prep.ramp_type = RAMP_DECEL;
                         // prep.decelerate_after = pl_block->millimeters;
                         // prep.maximum_speed = prep.current_speed;
@@ -622,7 +625,7 @@ void Stepper::prep_buffer() {
                         time_var       = (mm_remaining - prep.decelerate_after) / prep.maximum_speed;
                         mm_remaining   = prep.decelerate_after;  // NOTE: 0.0 at EOB
                         prep.ramp_type = RAMP_DECEL;
-                    } else {  // Cruising only.
+                    } else {                                     // Cruising only.
                         mm_remaining = mm_var;
                     }
                     break;
@@ -644,9 +647,9 @@ void Stepper::prep_buffer() {
                     prep.current_speed = prep.exit_speed;
             }
 
-            dt += time_var;  // Add computed ramp time to total segment time.
+            dt += time_var;                       // Add computed ramp time to total segment time.
             if (dt < dt_max) {
-                time_var = dt_max - dt;  // **Incomplete** At ramp junction.
+                time_var = dt_max - dt;           // **Incomplete** At ramp junction.
             } else {
                 if (mm_remaining > minimum_mm) {  // Check for very slow segments with zero steps.
                     // Increase segment time to ensure at least one step in segment. Override and loop
