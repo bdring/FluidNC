@@ -58,6 +58,7 @@ class Maslow_ {
     bool axisTLHomed;
     bool calibrationInProgress;  //Used to turn off regular movements during calibration
     bool extendingOrRetracting;  //Used to turn off stopping the motors when extending the belts from zero
+    bool readingFromSD = false;          //Used to turn off reading from the encoders when reading from the SD card
 
   private:
     float tlX;

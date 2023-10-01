@@ -4,6 +4,7 @@
 #include "FileStream.h"
 #include "Machine/MachineConfig.h"  // config->
 #include "Driver/localfs.h"
+#include "./Maslow/Maslow.h"
 
 std::string FileStream::path() {
     return _fpath.c_str();
@@ -18,8 +19,10 @@ int FileStream::available() {
 }
 
 int FileStream::read() {
+    Maslow.readingFromSD = true;
     char   data;
     size_t res = fread(&data, 1, 1, _fd);
+    Maslow.readingFromSD = false;
     return res == 1 ? data : -1;
 }
 
@@ -30,15 +33,24 @@ int FileStream::peek() {
 void FileStream::flush() {}
 
 size_t FileStream::read(char* buffer, size_t length) {
-    return fread(buffer, 1, length, _fd);
+    Maslow.readingFromSD = true;
+    size_t res = fread(buffer, 1, length, _fd);
+    Maslow.readingFromSD = false;
+    return res;
 }
 
 size_t FileStream::write(uint8_t c) {
-    return FileStream::write(&c, 1);
+    Maslow.readingFromSD = true;
+    size_t res = FileStream::write(&c, 1);
+    Maslow.readingFromSD = false;
+    return res;
 }
 
 size_t FileStream::write(const uint8_t* buffer, size_t length) {
-    return fwrite(buffer, 1, length, _fd);
+    Maslow.readingFromSD = true;
+    size_t res = fwrite(buffer, 1, length, _fd);
+    Maslow.readingFromSD = false;
+    return res;
 }
 
 size_t FileStream::size() {

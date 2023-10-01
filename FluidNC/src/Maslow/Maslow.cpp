@@ -175,12 +175,19 @@ void Maslow_::recomputePID(){
     if(!initialized){ //If we haven't initialized we don't want to try to compute things because the PID controllers cause the processor to crash
         return;
     }
+    if(readingFromSD){
+        return;
+    }
 
     int timeSinceLastCall = millis() - lastCallToPID;
+
+    if(timeSinceLastCall < 10){
+        return;
+    }
     
     if(timeSinceLastCall > 20){
         int elapsedTimeLastMiss = millis() - lastMiss;
-        log_info( "PID not being called often enough. Time since last call: " << timeSinceLastCall << " # since last miss:: " << callsSinceDelay << " ms ago: " << elapsedTimeLastMiss);
+        log_info( "PID not being called often enough. Ms since last call: " << timeSinceLastCall << " # since last miss: " << callsSinceDelay << " Ms since last miss: " << elapsedTimeLastMiss);
         callsSinceDelay = 0;
         lastMiss = millis();
     }
@@ -230,6 +237,9 @@ void Maslow_::recomputePID(){
         digitalWrite(coolingFanPin, LOW); //Turn off the cooling fan
     }
     else{  //Normal operation...drive the motors to the target positions
+        if(random(50) == 0){
+            log_info("Recomputing PID called");
+        }
         axisBL.recomputePID();
         axisBR.recomputePID();
         axisTR.recomputePID();

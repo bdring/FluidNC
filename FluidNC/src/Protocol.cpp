@@ -829,6 +829,8 @@ void protocol_exec_rt_system() {
         protocol_do_safety_door();
     }
 
+    Maslow.recomputePID();
+
     protocol_handle_events();
 
     // Reload step segment buffer
