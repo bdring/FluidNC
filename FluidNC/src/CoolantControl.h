@@ -13,6 +13,8 @@ class CoolantControl : public Configuration::Configurable {
 
     uint32_t _delay_ms = 0;
 
+    CoolantState _previous_state = {};
+
     void write(CoolantState state);
 
 public:

@@ -705,7 +705,7 @@ static Error showChannelInfo(const char* value, WebUI::AuthenticationLevel auth_
 }
 
 static Error showStartupLog(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
-    startupLog.dump(out);
+    StartupLog::dump(out);
     return Error::Ok;
 }
 
