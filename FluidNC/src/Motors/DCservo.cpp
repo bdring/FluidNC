@@ -84,7 +84,7 @@ namespace MotorDrivers {
         }
     }
     void DCservo::update() { 
-        //Maslow.recomputePID();  //Recompute PID is getting called every 10ms no matter what happens elsewhere in the program
+        Maslow.recomputePID();  //Recompute PID is getting called every 10ms no matter what happens elsewhere in the program
      }
 
     void DCservo::set_location() {}

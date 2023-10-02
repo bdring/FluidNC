@@ -179,11 +179,7 @@ void Maslow_::recomputePID(){
         return;
     }
 
-    int timeSinceLastCall = millis() - lastCallToPID;
-
-    if(timeSinceLastCall < 10){
-        return;
-    }
+    int timeSinceLastCall = millis() - lastCallToPID;s
     
     if(timeSinceLastCall > 20){
         int elapsedTimeLastMiss = millis() - lastMiss;
