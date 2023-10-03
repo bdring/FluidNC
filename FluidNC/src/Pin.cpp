@@ -12,7 +12,6 @@
 #include "Pins/I2SOPinDetail.h"
 #include "Pins/ErrorPinDetail.h"
 #include "string_util.h"
-#include <stdio.h>  // snprintf()
 
 Pins::PinDetail* Pin::undefinedPin = new Pins::VoidPinDetail();
 Pins::PinDetail* Pin::errorPin     = new Pins::ErrorPinDetail("unknown");
@@ -113,9 +112,7 @@ Pin Pin::create(std::string_view str) {
         }
     } catch (const AssertionFailed& ex) {  // We shouldn't get here under normal circumstances.
         log_error("ERR: " << str << " - " << ex.what());
-        char buf[255];
-        snprintf(buf, 255, "ERR: %s - %s", str, ex.what());
-        Assert(false, buf);
+        Assert(false, "");
         // return Pin(new Pins::ErrorPinDetail(str.str()));
     }
 }

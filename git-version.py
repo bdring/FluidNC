@@ -12,6 +12,7 @@ except:
 if gitFail:
     tag = "v3.0.x"
     rev = " (noGit)"
+    url = " (noGit)"
 else:
     try:
         
@@ -91,8 +92,16 @@ else:
 
         rev = " (%s-%s%s)" % (branchname, revision, dirty)
 
-grbl_version = tag.rpartition('.')[0]
+        url = (
+            subprocess.check_output(["git", "config", "--get", "remote.origin.url"])
+                .strip()
+                .decode("utf-8")
+            )
+
+grbl_version = tag.replace('v','').rpartition('.')[0]
+
 git_info = '%s%s' % (tag, rev)
+git_url = url
 
 provisional = "FluidNC/src/version.cxx"
 final = "FluidNC/src/version.cpp"
@@ -104,6 +113,7 @@ with open(provisional, "w") as fp:
     fp.write('const char* revision = \"' + revision + '\";\n')
     #fp.write('const char* modified = \"' + modified + '\";\n')
     fp.write('const char* repo = \"' + repo + '\";\n')
+    fp.write('const char* git_url      = \"' + git_url + '\";\n')
 
 if not os.path.exists(final):
     # No version.cpp so rename version.cxx to version.cpp

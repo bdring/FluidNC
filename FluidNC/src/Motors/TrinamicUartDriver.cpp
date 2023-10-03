@@ -21,10 +21,7 @@ namespace MotorDrivers {
 
     void TrinamicUartDriver::init() {
         _uart = config->_uarts[_uart_num];
-        if (!_uart) {
-            log_error("TMC Driver missing uart" << _uart_num << " section");
-            return;
-        }
+        Assert(_uart, "TMC Driver missing uart%d section", _uart_num);
 
         _cs_pin.setAttr(Pin::Attr::Output);
     }

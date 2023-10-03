@@ -8,7 +8,7 @@
 #include <sstream>
 #include <iomanip>
 
-WebUI::WiFiConfig wifi_config __attribute__((init_priority(109)));
+WebUI::WiFiConfig wifi_config  __attribute__((init_priority(109))) ;
 
 #ifdef ENABLE_WIFI
 #    include "../Config.h"
@@ -114,7 +114,6 @@ namespace WebUI {
     IPaddrSetting* wifi_sta_ip;
     IPaddrSetting* wifi_sta_gateway;
     IPaddrSetting* wifi_sta_netmask;
-    EnumSetting*   wifi_sta_ssdp;
 
     StringSetting* wifi_ap_ssid;
     StringSetting* wifi_ap_password;
@@ -146,14 +145,7 @@ namespace WebUI {
         { "WPA2-ENTERPRISE", WIFI_AUTH_WPA2_ENTERPRISE },
     };
 
-    enum_opt_t staSsdpModeOptions = {
-        { "Enable", SSDP_ENABLED },
-        { "Disabled", SSDP_DISABLED },
-    };
-
-    static void print_mac(Channel& out, const char* prefix, const char* mac) {
-        log_to(out, prefix, " (" << mac << ")");
-    }
+    static void print_mac(Channel& out, const char* prefix, const char* mac) { log_to(out, prefix, " (" << mac << ")"); }
 
     static Error showIP(char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP111
         log_to(out, parameter, IP_string(WiFi.getMode() == WIFI_STA ? WiFi.localIP() : WiFi.softAPIP()));
@@ -360,9 +352,7 @@ namespace WebUI {
                                              MAX_PASSWORD_LENGTH,
                                              (bool (*)(char*))WiFiConfig::isPasswordValid);
         wifi_ap_ssid = new StringSetting("AP SSID", WEBSET, WA, "ESP105", "AP/SSID", DEFAULT_AP_SSID, MIN_SSID_LENGTH, MAX_SSID_LENGTH, NULL);
-        wifi_ap_country = new EnumSetting("AP regulatory domain", WEBSET, WA, NULL, "AP/Country", WiFiCountry01, &wifiContryOptions, NULL);
-        wifi_sta_ssdp =
-            new EnumSetting("SSDP and mDNS enable", WEBSET, WA, NULL, "Sta/SSDP/Enable", DEFAULT_STA_SSDP_MODE, &onoffOptions, NULL);
+        wifi_ap_country  = new EnumSetting("AP regulatory domain", WEBSET, WA, NULL, "AP/Country", WiFiCountry01, &wifiContryOptions, NULL);
         wifi_sta_netmask = new IPaddrSetting("Station Static Mask", WEBSET, WA, NULL, "Sta/Netmask", DEFAULT_STA_MK, NULL);
         wifi_sta_gateway = new IPaddrSetting("Station Static Gateway", WEBSET, WA, NULL, "Sta/Gateway", DEFAULT_STA_GW, NULL);
         wifi_sta_ip      = new IPaddrSetting("Station Static IP", WEBSET, WA, NULL, "Sta/IP", DEFAULT_STA_IP, NULL);
@@ -801,9 +791,7 @@ namespace WebUI {
     /**
      * End WiFi
      */
-    void WiFiConfig::end() {
-        StopWiFi();
-    }
+    void WiFiConfig::end() { StopWiFi(); }
 
     /**
      * Reset ESP
@@ -823,16 +811,12 @@ namespace WebUI {
         }
         log_info("WiFi reset done");
     }
-    bool WiFiConfig::isOn() {
-        return !(WiFi.getMode() == WIFI_MODE_NULL);
-    }
+    bool WiFiConfig::isOn() { return !(WiFi.getMode() == WIFI_MODE_NULL); }
 
     /**
      * Handle not critical actions that must be done in sync environment
      */
-    void WiFiConfig::handle() {
-        wifi_services.handle();
-    }
+    void WiFiConfig::handle() { wifi_services.handle(); }
 
     // Used by js/scanwifidlg.js
     Error WiFiConfig::listAPs(char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP410
@@ -871,8 +855,6 @@ namespace WebUI {
         return Error::Ok;
     }
 
-    WiFiConfig::~WiFiConfig() {
-        end();
-    }
+    WiFiConfig::~WiFiConfig() { end(); }
 }
 #endif

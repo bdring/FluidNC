@@ -29,6 +29,8 @@ namespace Pins {
                        PinCapabilities::UART;
 
             case 5:
+            case 9:
+            case 10:
             case 16:
             case 17:
             case 18:
@@ -62,8 +64,6 @@ namespace Pins {
             case 6:  // SPI flash integrated
             case 7:
             case 8:
-            case 9:
-            case 10:
             case 11:
                 return PinCapabilities::Reserved;
 
