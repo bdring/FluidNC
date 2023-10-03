@@ -597,9 +597,10 @@ int GetResetWhenPowerOn() {
 void ReconnectWifi() {
     log_debug("Try to reconnext to Wifi");
     WebUI::WiFiConfig::end();
+    WebUI::WiFiConfig::reset();
     delay(1000);
     WebUI::WiFiConfig::begin();
-    delay(5000);
+    delay(1000);
 }
 
 void CallURLWithRetryStrategy(String cmd) {
@@ -612,7 +613,7 @@ void CallURLWithRetryStrategy(String cmd) {
         if (!(WiFi.status() == WL_CONNECTED) || (NbRetry % 3 == 0))
             ReconnectWifi();
 
-        delay(2000);
+        delay(500);
     }
 }
 
