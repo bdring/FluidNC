@@ -10,8 +10,11 @@
 #include "Pins/GPIOPinDetail.h"
 #include "Pins/VoidPinDetail.h"
 #include "Pins/I2SOPinDetail.h"
+#include "Pins/UARTPinDetail.h"
 #include "Pins/ErrorPinDetail.h"
 #include "string_util.h"
+#include "Machine/MachineConfig.h"  // config
+#include <string_view>
 
 Pins::PinDetail* Pin::undefinedPin = new Pins::VoidPinDetail();
 Pins::PinDetail* Pin::errorPin     = new Pins::ErrorPinDetail("unknown");
@@ -73,8 +76,28 @@ const char* Pin::parse(std::string_view pin_str, Pins::PinDetail*& pinImplementa
         pinImplementation = new Pins::GPIOPinDetail(static_cast<pinnum_t>(pin_number), parser);
     }
     if (string_util::equal_ignore_case(prefix, "i2so")) {
+        if (config->_i2so == nullptr) {
+            return "i2so: section must be defined before using i2so pins";
+        }
         pinImplementation = new Pins::I2SOPinDetail(static_cast<pinnum_t>(pin_number), parser);
     }
+
+    if (prefix.length() == 13) {
+        if (prefix.substr(0, 12) == "uart_channel") {
+            log_info("More:" << prefix[12]);
+            if (prefix[12] >= '0' && prefix[12] <= '2') {  // TODO use MAX_N_UARTS
+                // check to see if the channel exits
+                auto deviceId = prefix[12] - '0';
+                if (config->_uart_channels[deviceId] == nullptr) {
+                    return " uart channel number not found";
+                }
+                pinImplementation = new Pins::UARTIODetail(deviceId, pinnum_t(pin_number), parser);
+            } else {
+                return "Incorrect pin extender specification. Expected 'pinext[0-2].[port number]'.";
+            }
+            }
+    }
+
     if (string_util::equal_ignore_case(prefix, "no_pin")) {
         pinImplementation = undefinedPin;
     }

@@ -20,6 +20,7 @@ void UartChannel::init() {
 void UartChannel::init(Uart* uart) {
     _uart = uart;
     allChannels.registration(this);
+    log_info("uart_channel" << _uart_num << " created");
 }
 
 size_t UartChannel::write(uint8_t c) {

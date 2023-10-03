@@ -12,7 +12,8 @@ private:
     Lineedit* _lineedit;
     Uart*     _uart;
 
-    int _uart_num = 0;
+    int  _uart_num = 0;
+    bool _has_pins = false;  // the device is a pin extender
 
 public:
     UartChannel(bool addCR = false);
@@ -39,7 +40,10 @@ public:
     Channel* pollLine(char* line) override;
 
     // Configuration methods
-    void group(Configuration::HandlerBase& handler) override { handler.item("uart_num", _uart_num); }
+    void group(Configuration::HandlerBase& handler) override { 
+        handler.item("uart_num", _uart_num);
+        handler.item("has_pins", _has_pins);
+    }
 };
 
 extern UartChannel Uart0;
