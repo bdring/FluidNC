@@ -87,9 +87,7 @@ namespace WebUI {
                                                    &onoffOptions,
                                                    NULL);
     }
-    Web_Server::~Web_Server() {
-        end();
-    }
+    Web_Server::~Web_Server() { end(); }
 
     bool Web_Server::begin() {
         bool no_error = true;
@@ -161,7 +159,7 @@ namespace WebUI {
         }
 
         //SSDP service presentation
-        if (WiFi.getMode() == WIFI_STA && WebUI::wifi_sta_ssdp->get() == SSDP_ENABLED) {
+        if (WiFi.getMode() == WIFI_STA && WebUI::wifi_sta_ssdp->get()) {
             _webserver->on("/description.xml", HTTP_GET, handle_SSDP);
             //Add specific for SSDP
             SSDP.setSchemaURL("description.xml");
@@ -187,7 +185,7 @@ namespace WebUI {
         _webserver->begin();
 
         //add mDNS
-        if (WiFi.getMode() == WIFI_STA && WebUI::wifi_sta_ssdp->get() == SSDP_ENABLED) {
+        if (WiFi.getMode() == WIFI_STA && WebUI::wifi_sta_ssdp->get()) {
             MDNS.addService("http", "tcp", _port);
         }
 
@@ -318,9 +316,7 @@ namespace WebUI {
         "interval=setInterval(function(){\ni=i+1; \nvar x = document.getElementById(\"prg\"); \nx.value=i; \nif (i>5) "
         "\n{\nclearInterval(interval);\nwindow.location.href='/';\n}\n},1000);\n</script>\n</CENTER>\n</BODY>\n</HTML>\n\n";
 
-    void Web_Server::sendCaptivePortal() {
-        sendWithOurAddress(PAGE_CAPTIVE, 200);
-    }
+    void Web_Server::sendCaptivePortal() { sendWithOurAddress(PAGE_CAPTIVE, 200); }
 
     //Default 404 page that is sent when a request cannot be satisfied
     const char PAGE_404[] =
@@ -330,9 +326,7 @@ namespace WebUI {
         "interval=setInterval(function(){\ni=i+1; \nvar x = document.getElementById(\"prg\"); \nx.value=i; \nif (i>5) "
         "\n{\nclearInterval(interval);\nwindow.location.href='/';\n}\n},1000);\n</script>\n</CENTER>\n</BODY>\n</HTML>\n\n";
 
-    void Web_Server::send404Page() {
-        sendWithOurAddress(PAGE_404, 404);
-    }
+    void Web_Server::send404Page() { sendWithOurAddress(PAGE_404, 404); }
 
     void Web_Server::handle_root() {
         if (!(_webserver->hasArg("forcefallback") && _webserver->arg("forcefallback") == "yes")) {
@@ -758,16 +752,10 @@ namespace WebUI {
         sendJSON(code, s);
     }
 
-    void Web_Server::sendAuthFailed() {
-        sendStatus(401, "Authentication failed");
-    }
+    void Web_Server::sendAuthFailed() { sendStatus(401, "Authentication failed"); }
 
-    void Web_Server::LocalFSFileupload() {
-        fileUpload(localfsName);
-    }
-    void Web_Server::SDFileUpload() {
-        fileUpload(sdName);
-    }
+    void Web_Server::LocalFSFileupload() { fileUpload(localfsName); }
+    void Web_Server::SDFileUpload() { fileUpload(sdName); }
 
     //Web Update handler
     void Web_Server::handleUpdate() {
@@ -1012,12 +1000,8 @@ namespace WebUI {
         sendJSON(200, s);
     }
 
-    void Web_Server::handle_direct_SDFileList() {
-        handleFileOps(sdName);
-    }
-    void Web_Server::handleFileList() {
-        handleFileOps(localfsName);
-    }
+    void Web_Server::handle_direct_SDFileList() { handleFileOps(sdName); }
+    void Web_Server::handleFileList() { handleFileOps(localfsName); }
 
     // File upload
     void Web_Server::uploadStart(const char* filename, size_t filesize, const char* fs) {

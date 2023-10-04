@@ -10,13 +10,9 @@ namespace WebUI {
     WiFiServices wifi_services;
 
     WiFiServices::WiFiServices() {}
-    WiFiServices::~WiFiServices() {
-        end();
-    }
+    WiFiServices::~WiFiServices() { end(); }
 
-    bool WiFiServices::begin() {
-        return false;
-    }
+    bool WiFiServices::begin() { return false; }
     void WiFiServices::end() {}
     void WiFiServices::handle() {}
 }
@@ -37,9 +33,7 @@ namespace WebUI {
     WiFiServices wifi_services;
 
     WiFiServices::WiFiServices() {}
-    WiFiServices::~WiFiServices() {
-        end();
-    }
+    WiFiServices::~WiFiServices() { end(); }
 
     bool WiFiServices::begin() {
         bool no_error = true;
@@ -88,49 +82,49 @@ namespace WebUI {
             });
         ArduinoOTA.begin();
         //no need in AP mode
-        if (WiFi.getMode() == WIFI_STA && WebUI::wifi_sta_ssdp->get() == SSDP_ENABLED)
+        if (WiFi.getMode() == WIFI_STA && WebUI::wifi_sta_ssdp->get()) {
             //start mDns
             const char* h = wifi_hostname->get();
-        if (!MDNS.begin(h)) {
-            log_info("Cannot start mDNS");
-            no_error = false;
-        } else {
-            log_info("Start mDNS with hostname:http://" << h << ".local/");
+            if (!MDNS.begin(h)) {
+                log_info("Cannot start mDNS");
+                no_error = false;
+            } else {
+                log_info("Start mDNS with hostname:http://" << h << ".local/");
+            }
         }
+        webServer.begin();
+        telnetServer.begin();
+        notificationsService.begin();
+
+        //be sure we are not is mixed mode in setup
+        WiFi.scanNetworks(true);
+        return no_error;
     }
-    webServer.begin();
-    telnetServer.begin();
-    notificationsService.begin();
+    void WiFiServices::end() {
+        notificationsService.end();
+        telnetServer.end();
+        webServer.end();
 
-    //be sure we are not is mixed mode in setup
-    WiFi.scanNetworks(true);
-    return no_error;
-}
-void WiFiServices::end() {
-    notificationsService.end();
-    telnetServer.end();
-    webServer.end();
+        //stop OTA
+        ArduinoOTA.end();
 
-    //stop OTA
-    ArduinoOTA.end();
+        //Stop mDNS
+        MDNS.end();
+    }
 
-    //Stop mDNS
-    MDNS.end();
-}
-
-void WiFiServices::handle() {
-    //to avoid mixed mode due to scan network
-    if (WiFi.getMode() == WIFI_AP_STA) {
-        // In principle it should be sufficient to check for != WIFI_SCAN_RUNNING,
-        // but that does not work well.  Doing so makes scans in AP mode unreliable.
-        // Sometimes the first try works, but subsequent scans fail.
-        if (WiFi.scanComplete() >= 0) {
-            WiFi.enableSTA(false);
+    void WiFiServices::handle() {
+        //to avoid mixed mode due to scan network
+        if (WiFi.getMode() == WIFI_AP_STA) {
+            // In principle it should be sufficient to check for != WIFI_SCAN_RUNNING,
+            // but that does not work well.  Doing so makes scans in AP mode unreliable.
+            // Sometimes the first try works, but subsequent scans fail.
+            if (WiFi.scanComplete() >= 0) {
+                WiFi.enableSTA(false);
+            }
         }
+        ArduinoOTA.handle();
+        webServer.handle();
+        telnetServer.handle();
     }
-    ArduinoOTA.handle();
-    webServer.handle();
-    telnetServer.handle();
-}
 }
 #endif
