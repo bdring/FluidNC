@@ -50,7 +50,7 @@ namespace WebUI {
         _setupdone = true;
 
         //add mDNS
-        if (WebUI::wifi_sta_ssdp->get() == SSDP_ENABLED) {
+        if (WebUI::wifi_sta_ssdp->get()) {
             MDNS.addService("telnet", "tcp", _port);
         }
 
@@ -92,9 +92,7 @@ namespace WebUI {
             allChannels.registration(tnc);
         }
     }
-    TelnetServer::~TelnetServer() {
-        end();
-    }
+    TelnetServer::~TelnetServer() { end(); }
 }
 
 #endif
