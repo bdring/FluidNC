@@ -200,6 +200,13 @@ static void show_settings(Channel& out, type_t type) {
     }
 }
 static Error report_normal_settings(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+    float                f = config->_axes->_axis[0]->_maxRate;
+    std::__cxx11::string s = std::to_string(f);
+    char                 c[55];
+    strcpy(c, s.c_str());
+    Xspeed->setStringValue("100.00");
+    Yspeed->setStringValue("101.00");
+
     show_settings(out, GRBL);  // GRBL non-axis settings
     return Error::Ok;
 }
@@ -844,6 +851,13 @@ static Error fakeLaserMode(const char* value, WebUI::AuthenticationLevel auth_le
     return Error::Ok;
 }
 
+static Error xMaxRate(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+    if (!value) {
+        log_to(out, "$110=", config->_axes->_axis[0]->_maxRate);
+    }
+    return Error::Ok;
+}
+
 static Error showChannelInfo(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
     allChannels.listChannels(out);
     return Error::Ok;
@@ -955,6 +969,7 @@ void make_user_commands() {
 
     new UserCommand("30", "FakeMaxSpindleSpeed", fakeMaxSpindleSpeed, notIdleOrAlarm);
     new UserCommand("32", "FakeLaserMode", fakeLaserMode, notIdleOrAlarm);
+    new UserCommand("110", "X max rate mm/s", xMaxRate, notIdleOrAlarm);
 
     new UserCommand("RESET", "Reset ESP32", resetESP32, anyState);
 };
