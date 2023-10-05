@@ -47,6 +47,8 @@ void Maslow_::begin(void (*sys_rt)()) {
   initialized = 1;
 
   Serial.begin(115200);
+  Wire.begin(5,4, 200000);
+  I2CMux.begin(TCAADDR, Wire);
 
   axisTL.begin(tlIn1Pin, tlIn2Pin, tlADCPin, TLEncoderLine, tlIn1Channel, tlIn2Channel);
   axisTR.begin(trIn1Pin, trIn2Pin, trADCPin, TREncoderLine, trIn1Channel, trIn2Channel);
@@ -102,12 +104,12 @@ void printToWeb (double precision){
     log_info( "Calibration Precision: " << precision << "mm");
 }
 
-void Maslow_::readEncoders() {
-  axisTL.readEncoder();
-  axisTR.readEncoder();
-  axisBL.readEncoder();
-  axisBR.readEncoder();
-}
+// void Maslow_::readEncoders() {
+//   axisTL.readEncoder();
+//   axisTR.readEncoder();
+//   axisBL.readEncoder();
+//   axisBR.readEncoder();
+// }
 
 void Maslow_::home(int axis) {
 
@@ -179,7 +181,7 @@ void Maslow_::recomputePID(){
         return;
     }
 
-    int timeSinceLastCall = millis() - lastCallToPID;s
+    int timeSinceLastCall = millis() - lastCallToPID;
     
     if(timeSinceLastCall > 20){
         int elapsedTimeLastMiss = millis() - lastMiss;
