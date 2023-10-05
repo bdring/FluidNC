@@ -2,7 +2,7 @@
 // Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
 
 #ifdef ESP32
-#    include "UARTPinDetail.h"
+#    include "UARTIODetail.h"
 #    include "PinDetail.h"
 
 #    include "../I2SOut.h"
@@ -42,10 +42,11 @@ namespace Pins {
     // delivery to the serial shift register chain via DMA and a FIFO
 
     PinCapabilities UARTIODetail::capabilities() const {
-        return PinCapabilities::Output | PinCapabilities::UARTIO;
+        return PinCapabilities::Output | PinCapabilities::UARTIO | PinCapabilities::PWM | PinCapabilities::Input;
     }
 
     void IRAM_ATTR UARTIODetail::write(int high) {
+        log_info("uart pin write");
         if (high != _lastWrittenValue) {
             _lastWrittenValue = high;
             if (!_attributes.has(PinAttributes::Output)) {
@@ -58,6 +59,7 @@ namespace Pins {
     }
 
     int UARTIODetail::read() {
+        log_info("Uart Read");
         return 0;
     }
 

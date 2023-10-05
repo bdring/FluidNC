@@ -31,8 +31,15 @@ spi:
 sdcard:
   cs_pin: gpio.5
   card_detect_pin: NO_PIN
+  
+probe:
+  pin: uart_channel0.3
+  
+user_outputs:
+  analog0_pin: uart_channel0.2
 
 coolant:
-  mist_pin: uart_channel0.1
+  mist_pin: uart_channel0.0
+  flood_pin: uart_channel0.1
 
 
