@@ -7,15 +7,7 @@ StringSetting* build_info;
 
 StringSetting* start_message;
 
-IntSetting*    status_mask;
-StringSetting* Xspeed;
-StringSetting* Yspeed;
-StringSetting* Xaccel;
-StringSetting* Yaccel;
-StringSetting* X120;
-StringSetting* Y121;
-StringSetting* X130;
-StringSetting* Y131;
+IntSetting* status_mask;
 
 IntSetting* sd_fallback_cs;
 
@@ -64,13 +56,6 @@ void make_settings() {
     config_filename = new StringSetting("Name of Configuration File", EXTENDED, WG, NULL, "Config/Filename", "config.yaml", 1, 50, NULL);
 
     // GRBL Numbered Settings
-    Y131 = new StringSetting("max speed", GRBL, WG, "131", "MAx Speed", "131.00", 1, 50, NULL);
-    X130 = new StringSetting("max speed", GRBL, WG, "130", "MAx Speed", "130.00", 1, 50, NULL);
-    Y121 = new StringSetting("max speed", GRBL, WG, "121", "MAx Speed", "121.00", 1, 50, NULL);
-    X120 = new StringSetting("max speed", GRBL, WG, "120", "MAx Speed", "120.00", 1, 50, NULL);
-
-    Yspeed      = new StringSetting("max speed", GRBL, WG, "101", "MAx Speed", "101.00", 1, 50, NULL);
-    Xspeed      = new StringSetting("max speed", GRBL, WG, "100", "MAx Speed", "100.00", 1, 50, NULL);
     status_mask = new IntSetting("What to include in status report", GRBL, WG, "10", "Report/Status", 1, 0, 3, NULL);
 
     sd_fallback_cs = new IntSetting("SD CS pin if not configured", EXTENDED, WG, NULL, "SD/FallbackCS", -1, -1, 40, NULL);
