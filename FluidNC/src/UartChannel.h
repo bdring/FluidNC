@@ -12,14 +12,15 @@ private:
     Lineedit* _lineedit;
     Uart*     _uart;
 
-    int  _uart_num = 0;
-    bool _controller = false;  // the device is a pin extender
+    int  _uart_num           = 0;
+    int  _report_interval_ms = 0;
+    bool _controller         = false;  // the device is a pin extender
 
 public:
     UartChannel(bool addCR = false);
 
     void init();
-    void init(Uart* uart);    
+    void init(Uart* uart);
 
     // Print methods (Stream inherits from Print)
     size_t write(uint8_t c) override;
@@ -28,7 +29,7 @@ public:
     // Stream methods (Channel inherits from Stream)
     int peek(void) override;
     int available(void) override;
-    int read() override;    
+    int read() override;
 
     // Channel methods
     int      rx_buffer_available() override;
@@ -38,10 +39,11 @@ public:
     bool     realtimeOkay(char c) override;
     bool     lineComplete(char* line, char c) override;
     Channel* pollLine(char* line) override;
-    bool     isController(){return _controller;}
+    bool     isController() { return _controller; }
 
     // Configuration methods
-    void group(Configuration::HandlerBase& handler) override { 
+    void group(Configuration::HandlerBase& handler) override {
+        handler.item("report_interval_ms", _report_interval_ms);
         handler.item("uart_num", _uart_num);
         handler.item("controller", _controller);
     }

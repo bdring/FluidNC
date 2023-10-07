@@ -45,6 +45,8 @@ private:
 
     uint8_t _i2c_num = 0;
 
+    int _report_interval_ms = 500;
+
     void parse_report();
     void parse_status_report();
     void parse_gcode_report();
@@ -115,6 +117,7 @@ public:
     void afterParse() override;
 
     void group(Configuration::HandlerBase& handler) override {
+        handler.item("report_interval_ms", _report_interval_ms, 100, 5000);
         handler.item("i2c_num", _i2c_num);
         handler.item("i2c_address", _address);
         handler.item("width", _width);
