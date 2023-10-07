@@ -125,7 +125,7 @@ void MotorUnit::updateEncoderPosition(){
         encoderReadFailurePrintTime = millis();
         log_info("Encoder read failure on " << _encoderAddress);
     }
-    protocol_execute_realtime(); //execute everything from FluidNC between encoder reads
+    //protocol_execute_realtime(); //execute everything from FluidNC between encoder reads
 }
 
 /*!

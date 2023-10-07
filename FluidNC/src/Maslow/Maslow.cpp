@@ -46,7 +46,7 @@ int callsSinceDelay = 0;
 void Maslow_::begin(void (*sys_rt)()) {
   initialized = 1;
 
-  Serial.begin(115200);
+  //Serial.begin(115200);
   Wire.begin(5,4, 200000);
   I2CMux.begin(TCAADDR, Wire);
 
@@ -185,7 +185,7 @@ void Maslow_::recomputePID(){
     
     if(timeSinceLastCall > 20){
         int elapsedTimeLastMiss = millis() - lastMiss;
-        log_info( "PID not being called often enough. Ms since last call: " << timeSinceLastCall << " # since last miss: " << callsSinceDelay << " Ms since last miss: " << elapsedTimeLastMiss);
+        //log_info( "PID not being called often enough. Ms since last call: " << timeSinceLastCall << " # since last miss: " << callsSinceDelay << " Ms since last miss: " << elapsedTimeLastMiss);
         callsSinceDelay = 0;
         lastMiss = millis();
     }
@@ -236,7 +236,7 @@ void Maslow_::recomputePID(){
     }
     else{  //Normal operation...drive the motors to the target positions
         if(random(50) == 0){
-            log_info("Recomputing PID called");
+            //log_info("Recomputing PID called");
         }
         axisBL.recomputePID();
         axisBR.recomputePID();

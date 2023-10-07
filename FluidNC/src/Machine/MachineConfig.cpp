@@ -155,19 +155,19 @@ namespace Machine {
         bool configOkay;
         // If the system crashes we skip the config file and use the default
         // builtin config.  This helps prevent reset loops on bad config files.
-        esp_reset_reason_t reason = esp_reset_reason();
-        if (reason == ESP_RST_PANIC) {
-            log_error("Skipping configuration file due to panic");
-            configOkay = false;
-        } else {
-            configOkay = load(config_filename->get());
-        }
+        //esp_reset_reason_t reason = esp_reset_reason();
+        // if (reason == ESP_RST_PANIC) {
+        //     log_error("Skipping configuration file due to panic");
+        //     configOkay = false;
+        // } else {
+        //     configOkay = load(config_filename->get());
+        // }
 
-        if (!configOkay) {
-            log_info("Using default configuration");
-            configOkay = load(new StringRange(defaultConfig));
-        }
-
+        // if (!configOkay) {
+        //     log_info("Using default configuration");
+        //     configOkay = load(new StringRange(defaultConfig));
+        // }
+        configOkay = load(config_filename->get());
         return configOkay;
     }
 
