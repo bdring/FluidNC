@@ -198,13 +198,6 @@ static void show_settings(Channel& out, type_t type) {
     }
 }
 static Error report_normal_settings(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
-    float                f = config->_axes->_axis[0]->_maxRate;
-    std::__cxx11::string s = std::to_string(f);
-    char                 c[55];
-    strcpy(c, s.c_str());
-    Xspeed->setStringValue("100.00");
-    Yspeed->setStringValue("101.00");
-
     show_settings(out, GRBL);  // GRBL non-axis settings
     return Error::Ok;
 }
