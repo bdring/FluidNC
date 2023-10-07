@@ -199,8 +199,88 @@ static void show_settings(Channel& out, type_t type) {
         }
     }
 }
+
+static int findAxisIndexFromLetter(char name) {
+    int n_axis = config->_axes->_numberAxis;
+
+    for (int axis = 0; axis < n_axis; axis++) {
+        if (config->_axes->axisName(axis) == name)
+            return axis;
+    }
+
+    return -1;
+}
+
+static bool has_laser() {
+    if (config->_spindles.size())
+        for (auto s : config->_spindles)
+            if (!strcmp(s->name(), "Laser"))
+                return true;
+
+    return false;
+}
+
+static float laser_max_speed() {
+    if (config->_spindles.size())
+        for (auto s : config->_spindles)
+            if (!strcmp(s->name(), "Laser"))
+                return s->maxSpeed();
+
+    return 0;
+}
+
 static Error report_normal_settings(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+    log_to(out, "$0=", config->_stepping->_pulseUsecs);
+    log_to(out, "$1=", config->_stepping->_idleMsecs);
+    log_to(out, "$2=0");
+    log_to(out, "$3=0");
+    log_to(out, "$4=0");
+    log_to(out, "$5=0");
+    log_to(out, "$6=0");
     show_settings(out, GRBL);  // GRBL non-axis settings
+
+    log_to(out, "$11=", config->_junctionDeviation);
+    log_to(out, "$12=", config->_arcTolerance);
+    log_to(out, "$13=", (config->_reportInches ? 1 : 0));
+
+    log_to(out, "$20=0");
+    log_to(out, "$21=0");
+    log_to(out, "$22=1");
+    log_to(out, "$23=0");
+    log_to(out, "$24=200");
+    log_to(out, "$25=2000");
+    log_to(out, "$26=250");
+    log_to(out, "$27=5");
+    log_to(out, "$30=", laser_max_speed());
+    log_to(out, "$31=0");
+    log_to(out, "$32=", (has_laser() ? 1 : 0));
+
+    if (config->_axes->_numberAxis >= 3) {
+        log_to(out, "$100=", config->_axes->_axis[findAxisIndexFromLetter('X')]->_stepsPerMm);
+        log_to(out, "$101=", config->_axes->_axis[findAxisIndexFromLetter('Y')]->_stepsPerMm);
+        log_to(out, "$102=", config->_axes->_axis[findAxisIndexFromLetter('Z')]->_stepsPerMm);
+        log_to(out, "$103=", "100.000");
+        log_to(out, "$104=", "100.000");
+
+        log_to(out, "$110=", config->_axes->_axis[findAxisIndexFromLetter('X')]->_maxRate);
+        log_to(out, "$111=", config->_axes->_axis[findAxisIndexFromLetter('Y')]->_maxRate);
+        log_to(out, "$112=", config->_axes->_axis[findAxisIndexFromLetter('Z')]->_maxRate);
+        log_to(out, "$113=", "1000.000");
+        log_to(out, "$114=", "1000.000");
+
+        log_to(out, "$120=", config->_axes->_axis[findAxisIndexFromLetter('X')]->_acceleration);
+        log_to(out, "$121=", config->_axes->_axis[findAxisIndexFromLetter('Y')]->_acceleration);
+        log_to(out, "$122=", config->_axes->_axis[findAxisIndexFromLetter('Z')]->_acceleration);
+        log_to(out, "$123=", "200.000");
+        log_to(out, "$124=", "200.000");
+
+        log_to(out, "$130=", config->_axes->_axis[findAxisIndexFromLetter('X')]->_maxTravel);
+        log_to(out, "$131=", config->_axes->_axis[findAxisIndexFromLetter('Y')]->_maxTravel);
+        log_to(out, "$132=", config->_axes->_axis[findAxisIndexFromLetter('Z')]->_maxTravel);
+        log_to(out, "$133=", "300.000");
+        log_to(out, "$134=", "300.000");
+    }
+
     return Error::Ok;
 }
 static Error list_grbl_names(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
@@ -844,13 +924,6 @@ static Error fakeLaserMode(const char* value, WebUI::AuthenticationLevel auth_le
     return Error::Ok;
 }
 
-static Error xMaxRate(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
-    if (!value) {
-        log_to(out, "$110=", config->_axes->_axis[0]->_maxRate);
-    }
-    return Error::Ok;
-}
-
 static Error showChannelInfo(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
     allChannels.listChannels(out);
     return Error::Ok;
@@ -962,7 +1035,6 @@ void make_user_commands() {
 
     new UserCommand("30", "FakeMaxSpindleSpeed", fakeMaxSpindleSpeed, notIdleOrAlarm);
     new UserCommand("32", "FakeLaserMode", fakeLaserMode, notIdleOrAlarm);
-    new UserCommand("110", "X max rate mm/s", xMaxRate, notIdleOrAlarm);
 
     new UserCommand("RESET", "Reset ESP32", resetESP32, anyState);
 };
