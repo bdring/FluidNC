@@ -691,22 +691,14 @@ static Error dump_config(const char* value, WebUI::AuthenticationLevel auth_leve
 
 static Error fakeMaxSpindleSpeed(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
     if (!value) {
-        if (spindle != nullptr) {
-            log_to(out, "$30=0");
-        } else {
-            log_to(out, "$30=", spindle->maxSpeed());
-        }
+        log_to(out, "$30=", spindle->maxSpeed());
     }
     return Error::Ok;
 }
 
 static Error fakeLaserMode(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
     if (!value) {
-        if (spindle != nullptr) {
-            log_to(out, "$32=0");
-        } else {
-            log_to(out, "$32=", (spindle->isRateAdjusted() ? "1" : "0"));
-        }
+        log_to(out, "$32=", (spindle->isRateAdjusted() ? "1" : "0"));
     }
     return Error::Ok;
 }
