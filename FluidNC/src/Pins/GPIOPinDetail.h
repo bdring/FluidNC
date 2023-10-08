@@ -17,6 +17,8 @@ namespace Pins {
 
         bool _lastWrittenValue = false;
 
+        static void gpioAction(int, void*, bool);
+
     public:
         static const int nGPIOPins = 40;
 
@@ -30,9 +32,7 @@ namespace Pins {
         void          setAttr(PinAttributes value) override;
         PinAttributes getAttr() const override;
 
-        // ISR's:
-        void attachInterrupt(void (*callback)(void*), void* arg, int mode) override;
-        void detachInterrupt() override;
+        void registerEvent(EventPin* obj) override;
 
         std::string toString() override;
 

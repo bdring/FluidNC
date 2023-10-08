@@ -10,6 +10,7 @@
 #include "Pins/GPIOPinDetail.h"
 #include "Pins/VoidPinDetail.h"
 #include "Pins/I2SOPinDetail.h"
+#include "Pins/ChannelPinDetail.h"
 #include "Pins/UARTIODetail.h"
 #include "Pins/ErrorPinDetail.h"
 #include "string_util.h"
@@ -82,6 +83,20 @@ const char* Pin::parse(std::string_view pin_str, Pins::PinDetail*& pinImplementa
         pinImplementation = new Pins::I2SOPinDetail(static_cast<pinnum_t>(pin_number), parser);
     }
 
+    if (string_util::equal_ignore_case(prefix, "uart_channel0")) {
+        pinImplementation = new Pins::ChannelPinDetail(config->_uart_channels[0], pin_number, parser);
+        return nullptr;
+    }
+    if (string_util::equal_ignore_case(prefix, "uart_channel1")) {
+        pinImplementation = new Pins::ChannelPinDetail(config->_uart_channels[1], pin_number, parser);
+        return nullptr;
+    }
+    if (string_util::equal_ignore_case(prefix, "uart_channel2")) {
+        pinImplementation = new Pins::ChannelPinDetail(config->_uart_channels[2], pin_number, parser);
+        return nullptr;
+    }
+
+#if 0
     if (prefix.length() == 13) {
         if (prefix.substr(0, 12) == "uart_channel") {
             if (prefix[12] >= '0' && prefix[12] <= '2') {  // TODO use MAX_N_UARTS
@@ -91,31 +106,34 @@ const char* Pin::parse(std::string_view pin_str, Pins::PinDetail*& pinImplementa
                 //    return " uart channel is not a controller";
                 //}
                 pinImplementation = new Pins::UARTIODetail(deviceId, pinnum_t(pin_number), parser);
-            } else {
-                return "Incorrect pin extender specification. Expected 'pinext[0-2].[port number]'.";
+                return nullptr;
             }
+            return "Incorrect pin extender specification. Expected 'pinext[0-2].[port number]'.";
         }
     }
+#endif
 
     if (string_util::equal_ignore_case(prefix, "no_pin")) {
         pinImplementation = undefinedPin;
+        return nullptr;
     }
 
     if (string_util::equal_ignore_case(prefix, "void")) {
         // Note: having multiple void pins has its uses for debugging.
         pinImplementation = new Pins::VoidPinDetail();
+        return nullptr;
     }
 
     if (pinImplementation == nullptr) {
         log_error("Unknown prefix:" << prefix);
         return "Unknown pin prefix";
-    } else {
-#ifdef DEBUG_PIN_DUMP
-        pinImplementation = new Pins::DebugPinDetail(pinImplementation);
-#endif
-
-        return nullptr;
     }
+#ifdef DEBUG_PIN_DUMP
+    pinImplementation = new Pins::DebugPinDetail(pinImplementation);
+    return nullptr;
+#else
+    return "Unknown pin prefix";
+#endif
 }
 
 Pin Pin::create(std::string_view str) {

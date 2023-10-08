@@ -174,11 +174,19 @@ namespace WebUI {
             // because we need to know whether to add a newline.  We should not add newline
             // on a realtime sequence, but we must add one (if not already present)
             // on a text command.
-            if (cmd.length() == 3 && cmd[0] == 0xc2 && is_realtime_command(cmd[1]) && cmd[2] == '\0') {
-                // Handles old WebUIs that send a null after high-bit-set realtime chars
-                wsChannel->pushRT(cmd[1]);
-            } else if (cmd.length() == 2 && cmd[0] == 0xc2 && is_realtime_command(cmd[1])) {
-                // Handles old WebUIs that send a null after high-bit-set realtime chars
+            if (cmd.length() > 0 && cmd[0] == 0xc2) {
+                if (cmd.length() == 3 && is_extended_realtime_command(cmd[1])) {
+                    wsChannel->pushRT(cmd[1]);
+                    wsChannel->pushRT(cmd[2]);
+                } else if (cmd.length() == 3 && is_realtime_command(cmd[1]) && cmd[2] == '\0') {
+                    // Handles old WebUIs that send a null after high-bit-set realtime chars
+                    wsChannel->pushRT(cmd[1]);
+                } else if (cmd.length() == 2 && is_realtime_command(cmd[1])) {
+                    // Handles old WebUIs that send a null after high-bit-set realtime chars
+                    wsChannel->pushRT(cmd[1]);
+                }
+            } else if (cmd.length() == 2 && is_extended_realtime_command(cmd[0])) {
+                wsChannel->pushRT(cmd[0]);
                 wsChannel->pushRT(cmd[1]);
             } else if (cmd.length() == 1 && is_realtime_command(cmd[0])) {
                 wsChannel->pushRT(cmd[0]);

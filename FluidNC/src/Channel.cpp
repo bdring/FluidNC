@@ -4,7 +4,7 @@
 #include "Channel.h"
 #include "Report.h"                 // report_gcode_modes
 #include "Machine/MachineConfig.h"  // config
-#include "Serial.h"                 // execute_realtime_command
+#include "RealtimeCmd.h"            // execute_realtime_command
 #include "Limits.h"
 
 void Channel::flushRx() {
@@ -140,9 +140,33 @@ Channel* Channel::pollLine(char* line) {
         if (ch < 0) {
             break;
         }
-        if (realtimeOkay(ch) && is_realtime_command(ch)) {
-            execute_realtime_command(static_cast<Cmd>(ch), *this);
+        if (_last_rt_cmd == Cmd::PinLow) {
+            try {
+                auto event_pin  = _events.at(ch);
+                _pin_values[ch] = false;
+                event_pin->trigger(false);
+            } catch (std::exception& ex) {}
+            _last_rt_cmd = Cmd::None;
             continue;
+        }
+        if (_last_rt_cmd == Cmd::PinHigh) {
+            try {
+                auto event_pin  = _events.at(ch);
+                _pin_values[ch] = true;
+                event_pin->trigger(true);
+            } catch (std::exception& ex) {}
+            _last_rt_cmd = Cmd::None;
+            continue;
+        }
+        if (realtimeOkay(ch)) {
+            if (is_extended_realtime_command(ch)) {
+                _last_rt_cmd = static_cast<Cmd>(ch);
+                continue;
+            }
+            if (is_realtime_command(ch)) {
+                execute_realtime_command(static_cast<Cmd>(ch), *this);
+                continue;
+            }
         }
         if (!line) {
             // If we are not able to handle a line we save the character
@@ -156,6 +180,28 @@ Channel* Channel::pollLine(char* line) {
     }
     autoReport();
     return nullptr;
+}
+
+void Channel::setAttr(int index, Pins::PinAttributes attr) {
+    // XXX send INI message
+    _pin_attributes[index] = attr;
+}
+Pins::PinAttributes Channel::getAttr(int index) const {
+    try {
+        return _pin_attributes.at(index);
+    } catch (std::exception& ex) { return Pins::PinAttributes::None; }
+}
+
+void Channel::out(int index, int value) {
+    _pin_values[index] = value;
+    // XXX send SET message
+}
+int Channel::in(int index) {
+    return _pin_values[index];
+}
+
+void Channel::registerEvent(uint8_t code, EventPin* obj) {
+    _events[code] = obj;
 }
 
 void Channel::ack(Error status) {

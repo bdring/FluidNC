@@ -3,8 +3,6 @@
 
 #pragma once
 
-class Pin;  // Forward declaration
-
 namespace Pins {
     // Pin options are passed as PinOption object. This is a simple C++ forward iterator,
     // which will implicitly convert pin options to lower case, so you can simply do

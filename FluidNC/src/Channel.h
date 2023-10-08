@@ -16,9 +16,14 @@
 
 #pragma once
 
-#include "Error.h"  // Error
-#include "GCode.h"  // gc_modal_t
-#include "Types.h"  // State
+#include "Error.h"        // Error
+#include "GCode.h"        // gc_modal_t
+#include "Types.h"        // State
+#include "RealtimeCmd.h"  // Cmd
+
+#include "Pins/PinAttributes.h"
+#include "Machine/EventPin.h"
+
 #include <Stream.h>
 #include <freertos/FreeRTOS.h>  // TickType_T
 #include <queue>
@@ -49,6 +54,12 @@ protected:
 
     bool       _reportWco = true;
     CoordIndex _reportNgc = CoordIndex::End;
+
+    Cmd _last_rt_cmd;
+
+    std::map<int, EventPin*>           _events;
+    std::map<int, int>                 _pin_values;
+    std::map<int, Pins::PinAttributes> _pin_attributes;
 
 public:
     Channel(const char* name, bool addCR = false) : _name(name), _linelen(0), _addCR(addCR) {}
@@ -108,4 +119,12 @@ public:
     uint32_t     getReportInterval() { return _reportInterval; }
     virtual void autoReport();
     void         autoReportGCodeState();
+
+    // Pin extender functions
+    virtual void                out(int index, int value);
+    virtual int                 in(int index);
+    virtual void                setAttr(int index, Pins::PinAttributes value);
+    virtual Pins::PinAttributes getAttr(int index) const;
+
+    virtual void registerEvent(uint8_t code, EventPin* obj);
 };
