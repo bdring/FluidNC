@@ -258,14 +258,16 @@ static Error report_normal_settings(const char* value, WebUI::AuthenticationLeve
     char axes[7] = "XYZABC";
 
     for (int i = 0; i < 6; i++) {
-        char a = axes[i];
+        char axis_name = axes[i];
 
-        if (findAxisIndexFromLetter(a) != -1) {
+        if (findAxisIndexFromLetter(axis_name) != -1) {
+            auto axis = config->_axes->_axis[findAxisIndexFromLetter(axis_name)];
+
             LogStream ss("");
-            ss << "$10" << i << "=" << config->_axes->_axis[findAxisIndexFromLetter(a)]->_stepsPerMm << "\n";
-            ss << "$11" << i << "=" << config->_axes->_axis[findAxisIndexFromLetter(a)]->_maxRate << "\n";
-            ss << "$12" << i << "=" << config->_axes->_axis[findAxisIndexFromLetter(a)]->_acceleration << "\n";
-            ss << "$13" << i << "=" << config->_axes->_axis[findAxisIndexFromLetter(a)]->_maxTravel << "\n";
+            ss << "$10" << i << "=" << axis->_stepsPerMm << "\n";
+            ss << "$11" << i << "=" << axis->_maxRate << "\n";
+            ss << "$12" << i << "=" << axis->_acceleration << "\n";
+            ss << "$13" << i << "=" << axis->_maxTravel << "\n";
         }
     }
 
