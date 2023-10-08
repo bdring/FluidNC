@@ -255,34 +255,23 @@ static Error report_normal_settings(const char* value, WebUI::AuthenticationLeve
     log_to(out, "$31=0");
     log_to(out, "$32=", (has_laser() ? 1 : 0));
 
-    if (config->_axes->_numberAxis >= 3) {
-        log_to(out, "$100=", config->_axes->_axis[findAxisIndexFromLetter('X')]->_stepsPerMm);
-        log_to(out, "$101=", config->_axes->_axis[findAxisIndexFromLetter('Y')]->_stepsPerMm);
-        log_to(out, "$102=", config->_axes->_axis[findAxisIndexFromLetter('Z')]->_stepsPerMm);
-        log_to(out, "$103=", "100.000");
-        log_to(out, "$104=", "100.000");
+    char axes[7] = "XYZABC";
 
-        log_to(out, "$110=", config->_axes->_axis[findAxisIndexFromLetter('X')]->_maxRate);
-        log_to(out, "$111=", config->_axes->_axis[findAxisIndexFromLetter('Y')]->_maxRate);
-        log_to(out, "$112=", config->_axes->_axis[findAxisIndexFromLetter('Z')]->_maxRate);
-        log_to(out, "$113=", "1000.000");
-        log_to(out, "$114=", "1000.000");
+    for (int i = 0; i < 6; i++) {
+        char a = axes[i];
 
-        log_to(out, "$120=", config->_axes->_axis[findAxisIndexFromLetter('X')]->_acceleration);
-        log_to(out, "$121=", config->_axes->_axis[findAxisIndexFromLetter('Y')]->_acceleration);
-        log_to(out, "$122=", config->_axes->_axis[findAxisIndexFromLetter('Z')]->_acceleration);
-        log_to(out, "$123=", "200.000");
-        log_to(out, "$124=", "200.000");
-
-        log_to(out, "$130=", config->_axes->_axis[findAxisIndexFromLetter('X')]->_maxTravel);
-        log_to(out, "$131=", config->_axes->_axis[findAxisIndexFromLetter('Y')]->_maxTravel);
-        log_to(out, "$132=", config->_axes->_axis[findAxisIndexFromLetter('Z')]->_maxTravel);
-        log_to(out, "$133=", "300.000");
-        log_to(out, "$134=", "300.000");
+        if (findAxisIndexFromLetter(a) != -1) {
+            LogStream ss("");
+            ss << "$10" << i << "=" << config->_axes->_axis[findAxisIndexFromLetter(a)]->_stepsPerMm << "\n";
+            ss << "$11" << i << "=" << config->_axes->_axis[findAxisIndexFromLetter(a)]->_maxRate << "\n";
+            ss << "$12" << i << "=" << config->_axes->_axis[findAxisIndexFromLetter(a)]->_acceleration << "\n";
+            ss << "$13" << i << "=" << config->_axes->_axis[findAxisIndexFromLetter(a)]->_maxTravel << "\n";
+        }
     }
 
     return Error::Ok;
 }
+
 static Error list_grbl_names(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
     for (Setting* setting : Setting::List) {
         const char* gn = setting->getGrblName();
