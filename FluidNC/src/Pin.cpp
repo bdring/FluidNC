@@ -11,7 +11,6 @@
 #include "Pins/VoidPinDetail.h"
 #include "Pins/I2SOPinDetail.h"
 #include "Pins/ChannelPinDetail.h"
-#include "Pins/UARTIODetail.h"
 #include "Pins/ErrorPinDetail.h"
 #include "string_util.h"
 #include "Machine/MachineConfig.h"  // config
@@ -95,23 +94,6 @@ const char* Pin::parse(std::string_view pin_str, Pins::PinDetail*& pinImplementa
         pinImplementation = new Pins::ChannelPinDetail(config->_uart_channels[2], pin_number, parser);
         return nullptr;
     }
-
-#if 0
-    if (prefix.length() == 13) {
-        if (prefix.substr(0, 12) == "uart_channel") {
-            if (prefix[12] >= '0' && prefix[12] <= '2') {  // TODO use MAX_N_UARTS
-                auto deviceId = prefix[12] - '0';
-                // check to see if the channel exists
-                //if (config->_uart_channels[deviceId] == nullptr) {
-                //    return " uart channel is not a controller";
-                //}
-                pinImplementation = new Pins::UARTIODetail(deviceId, pinnum_t(pin_number), parser);
-                return nullptr;
-            }
-            return "Incorrect pin extender specification. Expected 'pinext[0-2].[port number]'.";
-        }
-    }
-#endif
 
     if (string_util::equal_ignore_case(prefix, "no_pin")) {
         pinImplementation = undefinedPin;

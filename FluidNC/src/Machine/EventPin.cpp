@@ -1,8 +1,6 @@
 #include "EventPin.h"
 
-#include "src/Report.h"    // addPinReport
-#include "src/Protocol.h"  // event_queue
-#include "src/System.h"    // sys
+#include "src/Protocol.h"  // protocol_send_event
 
 EventPin::EventPin(Event* event, const char* legend) : _event(event), _legend(legend) {}
 
