@@ -37,7 +37,7 @@ namespace MotorDrivers {
 
     void DCservo::init() {
 
-        schedule_update(this, _timer_ms);
+        //schedule_update(this, _timer_ms);
 
         config_message();  // print the config
 

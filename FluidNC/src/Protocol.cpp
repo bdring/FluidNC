@@ -829,7 +829,7 @@ void protocol_exec_rt_system() {
         protocol_do_safety_door();
     }
 
-    //Maslow.recomputePID(); //This one works as an alternative to having recomputePID called in DCServo.cpp
+    Maslow.recomputePID(); //This one works as an alternative to having recomputePID called in DCServo.cpp
 
     protocol_handle_events();
 
