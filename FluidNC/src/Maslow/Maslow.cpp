@@ -40,7 +40,7 @@
 
 #define MEASUREMENTSPEED 1.0 //The max speed at which we move the motors when taking measurements
 
-int lowerBeltsExtra = 2;
+int lowerBeltsExtra = 4;
 int callsSinceDelay = 0;
 
 void Maslow_::begin(void (*sys_rt)()) {
@@ -179,7 +179,7 @@ void Maslow_::recomputePID(){
         return;
     }
 
-    int timeSinceLastCall = millis() - lastCallToPID;s
+    int timeSinceLastCall = millis() - lastCallToPID;
     
     if(timeSinceLastCall > 20){
         int elapsedTimeLastMiss = millis() - lastMiss;
