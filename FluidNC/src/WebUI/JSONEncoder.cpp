@@ -149,6 +149,16 @@ namespace WebUI {
         add(']');
     }
 
+    // Begins the creation of a member whose value is an object.
+    // Call end_object() to close the member
+    void JSONencoder::begin_member_object(const char* tag) {
+        comma_line();
+        quoted(tag);
+        add(':');
+        add('{');
+        inc_level();
+    }
+
     // Starts an object with {.
     // If you need a named object you must call begin_member() first.
     void JSONencoder::begin_object() {
