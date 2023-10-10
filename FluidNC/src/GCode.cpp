@@ -1620,6 +1620,9 @@ Error gc_execute_line(char* line) {
             // As far as the parser is concerned, the position is now == target. In reality the
             // motion control system might still be processing the action and the real tool position
             // in any intermediate location.
+            if (sys.abort) {
+                return Error::Reset;
+            }
             if (gc_update_pos == GCUpdatePos::Target) {
                 copyAxes(gc_state.position, gc_block.values.xyz);
             } else if (gc_update_pos == GCUpdatePos::System) {
