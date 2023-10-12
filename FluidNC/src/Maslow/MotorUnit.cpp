@@ -121,7 +121,7 @@ void MotorUnit::updateEncoderPosition(){
     if(encoder.isConnected()){
         mostRecentCumulativeEncoderReading = encoder.getCumulativePosition(); //This updates and returns the encoder value
     }
-    else if(millis() - encoderReadFailurePrintTime > 1000){
+    else if(millis() - encoderReadFailurePrintTime > 5000){
         encoderReadFailurePrintTime = millis();
         log_info("Encoder read failure on " << _encoderAddress);
     }

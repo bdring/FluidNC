@@ -335,7 +335,7 @@ static Error home(AxisMask axisMask) {
 static Error home_all(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
     AxisMask requestedAxes = Machine::Homing::AllCycles;
     auto     retval        = Error::Ok;
-
+    
     // value can be a list of cycle numbers like "21", which will run homing cycle 2 then cycle 1,
     // or a list of axis names like "XZ", which will home the X and Z axes simultaneously
     if (value) {
