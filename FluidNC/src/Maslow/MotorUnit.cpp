@@ -168,6 +168,7 @@ bool MotorUnit::comply(unsigned long *timeLastMoved, double *lastPosition, doubl
     //Update position and PID loop
     recomputePID();
     updateEncoderPosition();
+
     //If we've moved any, then drive the motor outwards to extend the belt
     float positionNow = getPosition();
     float distMoved = positionNow - *lastPosition;
@@ -305,8 +306,6 @@ bool MotorUnit::retract(double targetLength){
 
                 log_info("Belt positon after extend: ");
                 log_info(getPosition());
-                log_info("Expected measured: ");
-                log_info(getPosition() + 153.4);
                 return true;
             }
             else{
