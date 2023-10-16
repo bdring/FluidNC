@@ -65,6 +65,10 @@ namespace Machine {
         }
 
         _sharedStepperDisable.synchronousWrite(disable);
+
+        if (!disable) { // wait for the enable delay
+            delay_us(config->_stepping->_disableDelayUsecs);
+        } 
     }
 
     // Put the motors in the given axes into homing mode, returning a
