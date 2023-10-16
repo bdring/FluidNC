@@ -1,12 +1,12 @@
 #include "MotorUnit.h"
 #include "../Report.h"
-
+#include "Maslow.h"
 
 #define P 300 //260
 #define I 0
 #define D 0
 
-#define TCAADDR 0x70
+
 
 
 void MotorUnit::begin(int forwardPin,
@@ -18,9 +18,7 @@ void MotorUnit::begin(int forwardPin,
 
     _encoderAddress = encoderAddress;
 
-    Wire.begin(5,4, 200000);
-    I2CMux.begin(TCAADDR, Wire);
-    I2CMux.setPort(_encoderAddress);
+    Maslow.I2CMux.setPort(_encoderAddress);
     encoder.begin();
     zero();
 
@@ -33,7 +31,7 @@ void MotorUnit::begin(int forwardPin,
 }
 
 void MotorUnit::zero(){
-    I2CMux.setPort(_encoderAddress);
+    Maslow.I2CMux.setPort(_encoderAddress);
     encoder.resetCumulativePosition();
 }
 
@@ -61,7 +59,7 @@ double MotorUnit::getTarget(){
  */
 int MotorUnit::setPosition(double newPosition){
     int angleTotal = (newPosition*4096)/_mmPerRevolution;
-    I2CMux.setPort(_encoderAddress);
+    Maslow.I2CMux.setPort(_encoderAddress);
     encoder.resetCumulativePosition(angleTotal);
 
     return true;
@@ -118,15 +116,16 @@ void MotorUnit::stop(){
  */
 void MotorUnit::updateEncoderPosition(){
 
-    I2CMux.setPort(_encoderAddress);
+    if( !Maslow.I2CMux.setPort(_encoderAddress) ) return;
 
     if(encoder.isConnected()){
         mostRecentCumulativeEncoderReading = encoder.getCumulativePosition(); //This updates and returns the encoder value
     }
-    else if(millis() - encoderReadFailurePrintTime > 1000){
+    else if(millis() - encoderReadFailurePrintTime > 5000){
         encoderReadFailurePrintTime = millis();
         log_info("Encoder read failure on " << _encoderAddress);
     }
+    //protocol_execute_realtime(); //execute everything from FluidNC between encoder reads
 }
 
 /*!
@@ -169,7 +168,7 @@ bool MotorUnit::comply(unsigned long *timeLastMoved, double *lastPosition, doubl
     //Update position and PID loop
     recomputePID();
     updateEncoderPosition();
-    
+
     //If we've moved any, then drive the motor outwards to extend the belt
     float positionNow = getPosition();
     float distMoved = positionNow - *lastPosition;
@@ -290,6 +289,7 @@ bool MotorUnit::retract(double targetLength){
                     while(elapsedTime < 50){
                         elapsedTime = millis()-time;
                     }
+                    
                 }
                 
                 //Position hold for 2 seconds to make sure we are in the right place

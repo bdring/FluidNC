@@ -17,7 +17,7 @@ class MotorUnit {
                int encoderAddress,
                int channel1,
                int channel2);
-    void readEncoder();
+    //void readEncoder();
     void zero();
     void setTarget(double newTarget);
     double getTarget();
@@ -50,7 +50,7 @@ class MotorUnit {
     double mostRecentCumulativeEncoderReading = 0;
     double encoderReadFailurePrintTime = millis();
     unsigned long lastCallGetPos = millis();
-    QWIICMUX I2CMux;
+    
 
 };
 

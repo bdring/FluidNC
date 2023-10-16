@@ -4,6 +4,10 @@
 #include "calibration.h"
 #include "../System.h"         // sys.*
 
+#define TCAADDR 0x70
+
+
+
 class Maslow_ {
   private:
     Maslow_() = default; // Make constructor private
@@ -16,7 +20,7 @@ class Maslow_ {
 
   public:
     void begin(void (*sys_rt)());
-    void readEncoders();
+    //void readEncoders();
     void home(int axis);
     void updateCenterXY();
     void recomputePID();
@@ -41,7 +45,7 @@ class Maslow_ {
     void computeFrameDimensions(float lengthsSet1[], float lengthsSet2[], float machineDimensions[]);
     void retractBR();
     void retractBL();
-  
+    
 
 
 
@@ -58,7 +62,9 @@ class Maslow_ {
     bool axisTLHomed;
     bool calibrationInProgress;  //Used to turn off regular movements during calibration
     bool extendingOrRetracting;  //Used to turn off stopping the motors when extending the belts from zero
-    bool readingFromSD = false;          //Used to turn off reading from the encoders when reading from the SD card
+    bool readingFromSD = false;          //Used to turn off reading from the encoders when reading from the 
+    bool using_default_config = false; 
+    QWIICMUX I2CMux;
 
   private:
     float tlX;
@@ -91,6 +97,7 @@ class Maslow_ {
 
     //How hard to pull the belts when taking a measurement
     int currentThreshold;
+    
 };
 
 extern Maslow_ &Maslow;

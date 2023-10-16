@@ -15,12 +15,14 @@
 #include "../SettingsDefinitions.h"  // config_filename
 #include "../FileStream.h"
 
+
 #include "../Configuration/Parser.h"
 #include "../Configuration/ParserHandler.h"
 #include "../Configuration/Validator.h"
 #include "../Configuration/AfterParse.h"
 #include "../Configuration/ParseException.h"
 #include "../Config.h"  // ENABLE_*
+#include "../Maslow/Maslow.h" //using_default_config
 
 #include <cstdio>
 #include <cstring>
@@ -153,8 +155,8 @@ namespace Machine {
 
     bool MachineConfig::load() {
         bool configOkay;
-        // If the system crashes we skip the config file and use the default
-        // builtin config.  This helps prevent reset loops on bad config files.
+        //If the system crashes we skip the config file and use the default
+        //builtin config.  This helps prevent reset loops on bad config files.
         esp_reset_reason_t reason = esp_reset_reason();
         if (reason == ESP_RST_PANIC) {
             log_error("Skipping configuration file due to panic");
@@ -166,8 +168,9 @@ namespace Machine {
         if (!configOkay) {
             log_info("Using default configuration");
             configOkay = load(new StringRange(defaultConfig));
+            Maslow.using_default_config = true;
         }
-
+        //configOkay = load(config_filename->get());
         return configOkay;
     }
 

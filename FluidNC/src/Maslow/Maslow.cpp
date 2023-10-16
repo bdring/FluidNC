@@ -46,7 +46,9 @@ int callsSinceDelay = 0;
 void Maslow_::begin(void (*sys_rt)()) {
   initialized = 1;
 
-  Serial.begin(115200);
+  //Serial.begin(115200);
+  Wire.begin(5,4, 200000);
+  I2CMux.begin(TCAADDR, Wire);
 
   axisTL.begin(tlIn1Pin, tlIn2Pin, tlADCPin, TLEncoderLine, tlIn1Channel, tlIn2Channel);
   axisTR.begin(trIn1Pin, trIn2Pin, trADCPin, TREncoderLine, trIn1Channel, trIn2Channel);
@@ -63,18 +65,32 @@ void Maslow_::begin(void (*sys_rt)()) {
   axisTRHomed = false;
   axisTLHomed = false;
 
-  tlX =-3.127880538461895;
-  tlY = 2063.1006937512166;
-  tlZ = 116 + 38;
-  trX = 2944.4878198392585; 
-  trY = 2069.656171241167;
-  trZ = 69 + 38;
+//   tlX =-3.127880538461895;
+//   tlY = 2063.1006937512166;
+//   tlZ = 116 + 38;
+//   trX = 2944.4878198392585; 
+//   trY = 2069.656171241167;
+//   trZ = 69 + 38;
+//   blX = 0;
+//   blY = 0;
+//   blZ = 47 + 38;
+//   brX = 2959.4124827780993;
+//   brY = 0;
+//   brZ = 89 + 38;
+
+  tlX = 5.5;
+  tlY = 2150;
+  tlZ = 0;
+  trX = 3135; 
+  trY = 2150;
+  trZ = 0;
   blX = 0;
   blY = 0;
-  blZ = 47 + 38;
-  brX = 2959.4124827780993;
+  blZ = 0;
+  brX = 3095;
   brY = 0;
-  brZ = 89 + 38;
+  brZ = 0;
+
 
   tlTension = 0;
   trTension = 0;
@@ -102,15 +118,15 @@ void printToWeb (double precision){
     log_info( "Calibration Precision: " << precision << "mm");
 }
 
-void Maslow_::readEncoders() {
-  axisTL.readEncoder();
-  axisTR.readEncoder();
-  axisBL.readEncoder();
-  axisBR.readEncoder();
-}
+// void Maslow_::readEncoders() {
+//   axisTL.readEncoder();
+//   axisTR.readEncoder();
+//   axisBL.readEncoder();
+//   axisBR.readEncoder();
+// }
 
 void Maslow_::home(int axis) {
-
+    log_info(axis);
     switch(axis) {
         case 0: //Bottom left
             extendingOrRetracting = true;
@@ -151,6 +167,7 @@ void Maslow_::home(int axis) {
             break;
         default:
             log_info("Unrecognized axis");
+            log_info(axis);
             break;
     }
 
@@ -183,7 +200,7 @@ void Maslow_::recomputePID(){
     
     if(timeSinceLastCall > 20){
         int elapsedTimeLastMiss = millis() - lastMiss;
-        log_info( "PID not being called often enough. Ms since last call: " << timeSinceLastCall << " # since last miss: " << callsSinceDelay << " Ms since last miss: " << elapsedTimeLastMiss);
+        //log_info( "PID not being called often enough. Ms since last call: " << timeSinceLastCall << " # since last miss: " << callsSinceDelay << " Ms since last miss: " << elapsedTimeLastMiss);
         callsSinceDelay = 0;
         lastMiss = millis();
     }
@@ -234,7 +251,7 @@ void Maslow_::recomputePID(){
     }
     else{  //Normal operation...drive the motors to the target positions
         if(random(50) == 0){
-            log_info("Recomputing PID called");
+            //log_info("Recomputing PID called");
         }
         axisBL.recomputePID();
         axisBR.recomputePID();
@@ -599,6 +616,10 @@ void Maslow_::lowerBeltsGoSlack(){
         axisBR.recomputePID();
         axisTR.recomputePID();
         axisTL.recomputePID();
+        axisTR.updateEncoderPosition();
+        axisTL.updateEncoderPosition();
+        axisBR.updateEncoderPosition();
+        axisBL.updateEncoderPosition();
 
         (*_sys_rt)();
         
@@ -622,6 +643,10 @@ void Maslow_::lowerBeltsGoSlack(){
         axisBR.recomputePID();
         axisTR.recomputePID();
         axisTL.recomputePID();
+        axisTR.updateEncoderPosition();
+        axisTL.updateEncoderPosition();
+        axisBR.updateEncoderPosition();
+        axisBL.updateEncoderPosition();
 
         (*_sys_rt)();
 
@@ -748,6 +773,10 @@ void Maslow_::takeMeasurement(float lengths[]){
         axisBR.recomputePID();
         axisTR.recomputePID();
         axisTL.recomputePID();
+        axisTR.updateEncoderPosition();
+        axisTL.updateEncoderPosition();
+        axisBR.updateEncoderPosition();
+        axisBL.updateEncoderPosition();
         
         // Delay without blocking
         unsigned long time = millis();
@@ -811,6 +840,10 @@ void Maslow_::retractBR(){
         axisBR.recomputePID();
         axisTR.recomputePID();
         axisTL.recomputePID();
+        axisTR.updateEncoderPosition();
+        axisTL.updateEncoderPosition();
+        axisBR.updateEncoderPosition();
+        axisBL.updateEncoderPosition();
         
         // Delay without blocking
         unsigned long time = millis();
@@ -863,6 +896,10 @@ void Maslow_::retractBL(){
         axisBR.recomputePID();
         axisTR.recomputePID();
         axisTL.recomputePID();
+        axisTR.updateEncoderPosition();
+        axisTL.updateEncoderPosition();
+        axisBR.updateEncoderPosition();
+        axisBL.updateEncoderPosition();
         
         // Delay without blocking
         unsigned long time = millis();
@@ -953,7 +990,10 @@ void Maslow_::moveWithSlack(float x, float y, bool leftBelt, bool rightBelt){
         //Makes the top axis actually move
         axisTR.recomputePID();
         axisTL.recomputePID();
-
+        axisTR.updateEncoderPosition();
+        axisTL.updateEncoderPosition();
+        axisBR.updateEncoderPosition();
+        axisBL.updateEncoderPosition();
         (*_sys_rt)();
         
         // Delay without blocking
@@ -1008,6 +1048,10 @@ void Maslow_::takeUpInternalSlack(){
         axisBR.recomputePID();
         axisTR.recomputePID();
         axisTL.recomputePID();
+        axisTR.updateEncoderPosition();
+        axisTL.updateEncoderPosition();
+        axisBR.updateEncoderPosition();
+        axisBL.updateEncoderPosition();
 
         (*_sys_rt)(); //This keeps the wifi on and whatnot
 
