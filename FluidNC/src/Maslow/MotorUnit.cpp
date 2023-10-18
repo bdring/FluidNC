@@ -39,11 +39,6 @@ void MotorUnit::zero(){
  *  @brief  Sets the target location
  */
 void MotorUnit::setTarget(double newTarget){
-    // if(abs(newTarget - setpoint) > 1){
-    //     log_info("Step change in target detected on " << _encoderAddress);
-    //     log_info("Old target: " << setpoint);
-    //     log_info("New target: " << newTarget);
-    // }
     setpoint = newTarget;
 }
 
@@ -55,30 +50,10 @@ double MotorUnit::getTarget(){
 }
 
 /*!
- *  @brief  Sets the position of the cable
- */
-int MotorUnit::setPosition(double newPosition){
-    int angleTotal = (newPosition*4096)/_mmPerRevolution;
-    Maslow.I2CMux.setPort(_encoderAddress);
-    encoder.resetCumulativePosition(angleTotal);
-
-    return true;
-}
-
-/*!
  *  @brief  Reads the current position of the axis
  */
 double MotorUnit::getPosition(){
     double positionNow = (mostRecentCumulativeEncoderReading/4096.0)*_mmPerRevolution*-1;
-
-    // if(abs(positionNow - _lastPosition) > 1){
-    //     log_info("Position jump detected on "  << _encoderAddress << " of " << positionNow - _lastPosition);
-    //     int timeElapsed = millis() - lastCallGetPos;
-    //     log_info("Time since last call: " << timeElapsed);
-    // }
-    // lastCallGetPos = millis();
-    // _lastPosition = positionNow;
-
     return positionNow;
 }
 
@@ -90,17 +65,6 @@ double MotorUnit::getCurrent(){
 }
 
 /*!
- *  @brief  Computes and returns the error in the axis positioning
- */
-double MotorUnit::getError(){
-    
-    double errorDist = setpoint - getPosition();
-    
-    return errorDist;
-    
-}
-
-/*!
  *  @brief  Stops the motor
  */
 void MotorUnit::stop(){
@@ -109,23 +73,22 @@ void MotorUnit::stop(){
 
 //---------------------Functions related to maintaining the PID controllers-----------------------------------------
 
-
-
 /*!
  *  @brief  Reads the encoder value and updates it's position and measures the velocity since the last call
  */
-void MotorUnit::updateEncoderPosition(){
+bool MotorUnit::updateEncoderPosition(){
 
-    if( !Maslow.I2CMux.setPort(_encoderAddress) ) return;
+    if( !Maslow.I2CMux.setPort(_encoderAddress) ) return false;
 
     if(encoder.isConnected()){
         mostRecentCumulativeEncoderReading = encoder.getCumulativePosition(); //This updates and returns the encoder value
+        return true;
     }
     else if(millis() - encoderReadFailurePrintTime > 5000){
         encoderReadFailurePrintTime = millis();
         log_info("Encoder read failure on " << _encoderAddress);
     }
-    //protocol_execute_realtime(); //execute everything from FluidNC between encoder reads
+    return false;
 }
 
 /*!
@@ -139,13 +102,6 @@ double MotorUnit::recomputePID(){
 
     return _commandPWM;
 
-}
-
-/*
-*  @brief  Gets the last command PWM
-*/
-double MotorUnit::getCommandPWM(){
-    return _commandPWM;
 }
 
 /*!
@@ -314,3 +270,34 @@ bool MotorUnit::retract(double targetLength){
         }
     }
 }
+
+
+/*!
+ *  @brief  Sets the position of the cable //UNUSED
+ */
+// int MotorUnit::setPosition(double newPosition){
+
+//     int angleTotal = (newPosition*4096)/_mmPerRevolution;
+//     Maslow.I2CMux.setPort(_encoderAddress);
+//     encoder.resetCumulativePosition(angleTotal);
+
+//     return true;
+// }
+
+// /*
+// *  @brief  Gets the last command PWM // UNUSED
+// */
+// double MotorUnit::getCommandPWM(){
+//     return _commandPWM;
+// }
+
+/*!
+ *  @brief  Computes and returns the error in the axis positioning //UNUSED
+ */
+// double MotorUnit::getError(){
+    
+//     double errorDist = setpoint - getPosition();
+    
+//     return errorDist;
+    
+// }

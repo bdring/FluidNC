@@ -118,13 +118,6 @@ void printToWeb (double precision){
     log_info( "Calibration Precision: " << precision << "mm");
 }
 
-// void Maslow_::readEncoders() {
-//   axisTL.readEncoder();
-//   axisTR.readEncoder();
-//   axisBL.readEncoder();
-//   axisBR.readEncoder();
-// }
-
 void Maslow_::home(int axis) {
     log_info(axis);
     switch(axis) {
@@ -176,16 +169,26 @@ void Maslow_::home(int axis) {
     }
 }
 
-//Updates where the center x and y positions are
-void Maslow_::updateCenterXY(){
-    
-    double A = (trY - blY)/(trX-blX);
-    double B = (brY-tlY)/(brX-tlX);
-    centerX = (brY-(B*brX)+(A*trX)-trY)/(A-B);
-    centerY = A*(centerX - trX) + trY;
-    
+
+void Maslow_::update(){
+    Maslow.updateEncoderPositions();
+    if(!Maslow.using_default_config && ( sys.state() == State::Jog || sys.state() == State::Cycle ) ){
+        Maslow.setTargets(steps_to_mpos(get_axis_motor_steps(0),0), steps_to_mpos(get_axis_motor_steps(1),1), steps_to_mpos(get_axis_motor_steps(2),2));
+        Maslow.recomputePID();
+    }
+    //else Maslow.stopMotors();
 }
 
+bool Maslow_::updateEncoderPositions(){
+    bool success = true;
+    if(!readingFromSD){
+        if(!axisBL.updateEncoderPosition()) success = false;
+        if(!axisBR.updateEncoderPosition()) success = false;
+        if(!axisTR.updateEncoderPosition()) success = false;
+        if(!axisTL.updateEncoderPosition()) success = false;
+    }
+    return success;
+}
 //Called from protocol.cpp
 void Maslow_::recomputePID(){
 
@@ -210,32 +213,6 @@ void Maslow_::recomputePID(){
 
     lastCallToPID = millis();
 
-    // if(sys.state() != State::Idle && sys.state() != State::Alarm){
-    //     float axisTLError = axisTL.getError();
-    //     if(abs(axisTLError) > 0.5 && axisTLError < 10){
-    //         log_info("TL Error: " << axisTLError);
-    //     }
-    //     float axisTRError = axisTR.getError();
-    //     if(abs(axisTRError) > 0.5 && axisTRError < 10){
-    //         log_info("TR Error: " << axisTRError);
-    //     }
-    //     float axisBLError = axisBL.getError();
-    //     if(abs(axisBLError) > 0.5 && axisBLError < 10){
-    //         log_info("TL Error: " << axisBLError);
-    //     }
-    //     float axisBRError = axisBR.getError();
-    //     if(abs(axisBRError) > 0.5 && axisBRError < 10){
-    //         log_info("TL Error: " << axisBRError);
-    //     }
-    // }
-
-    //We always update the encoder positions
-    axisTR.updateEncoderPosition();
-    axisTL.updateEncoderPosition();
-    axisBL.updateEncoderPosition();
-    axisBR.updateEncoderPosition();
-
-    
     //If the belt is extending or retracting from the zero point we don't do anything here
     if(extendingOrRetracting){
         return;
@@ -264,8 +241,6 @@ void Maslow_::recomputePID(){
         log_info("Servo fault!");
     }
 }
-
-
 
 //Computes the tensions in the upper two belts
 void Maslow_::computeTensions(float x, float y){
@@ -598,62 +573,6 @@ void Maslow_::runCalibration(){
     
 }
 
-void Maslow_::printMeasurements(float lengths[]){
-    //log_info( "{bl:" + String(lengths[0]) + ",   br:" + String(lengths[1]) + ",   tr:" + String(lengths[2]) + ",   tl:" + String(lengths[3]) + "}");
-}
-
-void Maslow_::lowerBeltsGoSlack(){
-    //log_info( "Lower belts going slack");
-    
-    unsigned long startTime = millis();
-
-    axisBL.setTarget(axisBL.getPosition() + 2);
-    axisBR.setTarget(axisBR.getPosition() + 2);
-    
-    while(millis()- startTime < 600){
-
-        axisBL.recomputePID();
-        axisBR.recomputePID();
-        axisTR.recomputePID();
-        axisTL.recomputePID();
-        axisTR.updateEncoderPosition();
-        axisTL.updateEncoderPosition();
-        axisBR.updateEncoderPosition();
-        axisBL.updateEncoderPosition();
-
-        (*_sys_rt)();
-        
-        // Delay without blocking
-        unsigned long time = millis();
-        unsigned long elapsedTime = millis()-time;
-        while(elapsedTime < 10){
-            elapsedTime = millis()-time;
-        }
-    }
-
-    //Then stop them before moving on
-    startTime = millis();
-
-    axisBL.setTarget(axisBL.getPosition());
-    axisBR.setTarget(axisBR.getPosition());
-
-    while(millis()- startTime < 600){
-
-        axisBL.recomputePID();
-        axisBR.recomputePID();
-        axisTR.recomputePID();
-        axisTL.recomputePID();
-        axisTR.updateEncoderPosition();
-        axisTL.updateEncoderPosition();
-        axisBR.updateEncoderPosition();
-        axisBL.updateEncoderPosition();
-
-        (*_sys_rt)();
-
-    }
-
-    //grbl_sendf( "Going slack completed\n");
-}
 
 float Maslow_::printMeasurementMetrics(double avg, double m1, double m2, double m3, double m4, double m5){
     
@@ -1069,28 +988,14 @@ void Maslow_::takeUpInternalSlack(){
     axisTL.stop();
 }
 
-float Maslow_::computeVertical(float firstUpper, float firstLower, float secondUpper, float secondLower){
-    //Derivation at https://math.stackexchange.com/questions/4090346/solving-for-triangle-side-length-with-limited-information
+//Updates where the center x and y positions are
+void Maslow_::updateCenterXY(){
     
-    float b = secondUpper;   //upper, second
-    float c = secondLower; //lower, second
-    float d = firstUpper; //upper, first
-    float e = firstLower;  //lower, first
-
-    float aSquared = (((b*b)-(c*c))*((b*b)-(c*c))-((d*d)-(e*e))*((d*d)-(e*e)))/(2*(b*b+c*c-d*d-e*e));
-
-    float a = sqrt(aSquared);
+    double A = (trY - blY)/(trX-blX);
+    double B = (brY-tlY)/(brX-tlX);
+    centerX = (brY-(B*brX)+(A*trX)-trY)/(A-B);
+    centerY = A*(centerX - trX) + trY;
     
-    return a;
-}
-
-void Maslow_::computeFrameDimensions(float lengthsSet1[], float lengthsSet2[], float machineDimensions[]){
-    //Call compute verticals from each side
-    
-    float leftHeight = computeVertical(lengthsSet1[3],lengthsSet1[0], lengthsSet2[3], lengthsSet2[0]);
-    float rightHeight = computeVertical(lengthsSet1[2],lengthsSet1[1], lengthsSet2[2], lengthsSet2[1]);
-    
-    //log_info( "Computed vertical measurements:\n%f \n%f \n%f \n",leftHeight, rightHeight, (leftHeight+rightHeight)/2.0);
 }
 
 Maslow_ &Maslow_::getInstance() {
@@ -1098,4 +1003,96 @@ Maslow_ &Maslow_::getInstance() {
   return instance;
 }
 
+
+
+
 Maslow_ &Maslow = Maslow.getInstance();
+
+
+// void Maslow_::readEncoders() {
+//   axisTL.readEncoder();
+//   axisTR.readEncoder();
+//   axisBL.readEncoder();
+//   axisBR.readEncoder();
+// }
+
+// float Maslow_::computeVertical(float firstUpper, float firstLower, float secondUpper, float secondLower){
+//     //Derivation at https://math.stackexchange.com/questions/4090346/solving-for-triangle-side-length-with-limited-information
+    
+//     float b = secondUpper;   //upper, second
+//     float c = secondLower; //lower, second
+//     float d = firstUpper; //upper, first
+//     float e = firstLower;  //lower, first
+
+//     float aSquared = (((b*b)-(c*c))*((b*b)-(c*c))-((d*d)-(e*e))*((d*d)-(e*e)))/(2*(b*b+c*c-d*d-e*e));
+
+//     float a = sqrt(aSquared);
+    
+//     return a;
+// }
+
+// void Maslow_::computeFrameDimensions(float lengthsSet1[], float lengthsSet2[], float machineDimensions[]){
+//     //Call compute verticals from each side
+    
+//     float leftHeight = computeVertical(lengthsSet1[3],lengthsSet1[0], lengthsSet2[3], lengthsSet2[0]);
+//     float rightHeight = computeVertical(lengthsSet1[2],lengthsSet1[1], lengthsSet2[2], lengthsSet2[1]);
+    
+//     //log_info( "Computed vertical measurements:\n%f \n%f \n%f \n",leftHeight, rightHeight, (leftHeight+rightHeight)/2.0);
+// }
+
+// void Maslow_::lowerBeltsGoSlack(){
+//     //log_info( "Lower belts going slack");
+    
+//     unsigned long startTime = millis();
+
+//     axisBL.setTarget(axisBL.getPosition() + 2);
+//     axisBR.setTarget(axisBR.getPosition() + 2);
+    
+//     while(millis()- startTime < 600){
+
+//         axisBL.recomputePID();
+//         axisBR.recomputePID();
+//         axisTR.recomputePID();
+//         axisTL.recomputePID();
+//         axisTR.updateEncoderPosition();
+//         axisTL.updateEncoderPosition();
+//         axisBR.updateEncoderPosition();
+//         axisBL.updateEncoderPosition();
+
+//         (*_sys_rt)();
+        
+//         // Delay without blocking
+//         unsigned long time = millis();
+//         unsigned long elapsedTime = millis()-time;
+//         while(elapsedTime < 10){
+//             elapsedTime = millis()-time;
+//         }
+//     }
+
+//     //Then stop them before moving on
+//     startTime = millis();
+
+//     axisBL.setTarget(axisBL.getPosition());
+//     axisBR.setTarget(axisBR.getPosition());
+
+//     while(millis()- startTime < 600){
+
+//         axisBL.recomputePID();
+//         axisBR.recomputePID();
+//         axisTR.recomputePID();
+//         axisTL.recomputePID();
+//         axisTR.updateEncoderPosition();
+//         axisTL.updateEncoderPosition();
+//         axisBR.updateEncoderPosition();
+//         axisBL.updateEncoderPosition();
+
+//         (*_sys_rt)();
+
+//     }
+
+//     //grbl_sendf( "Going slack completed\n");
+// }
+
+// void Maslow_::printMeasurements(float lengths[]){
+//     //log_info( "{bl:" + String(lengths[0]) + ",   br:" + String(lengths[1]) + ",   tr:" + String(lengths[2]) + ",   tl:" + String(lengths[3]) + "}");
+// }

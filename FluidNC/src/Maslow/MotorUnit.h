@@ -21,17 +21,17 @@ class MotorUnit {
     void zero();
     void setTarget(double newTarget);
     double getTarget();
-    int setPosition(double newPosition);
     double getPosition();
     double getCurrent();
-    double getError();
     void stop();
-    void updateEncoderPosition();
+    bool updateEncoderPosition();
     double recomputePID();
     void decompressBelt();
     bool comply(unsigned long *timeLastMoved, double *lastPosition, double *amtToMove, double maxSpeed);
     bool retract(double targetLength);
-    double getCommandPWM();
+    //double getCommandPWM();
+    //double getError();
+    //int setPosition(double newPosition);
 
 
   private:
