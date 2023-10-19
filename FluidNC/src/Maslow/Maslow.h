@@ -47,11 +47,6 @@ class Maslow_ {
     void takeUpInternalSlack();
     void retractBR();
     void retractBL();
-    //void readEncoders();
-    //float computeVertical(float firstUpper, float firstLower, float secondUpper, float secondLower);
-    //void computeFrameDimensions(float lengthsSet1[], float lengthsSet2[], float machineDimensions[]);
-    //void printMeasurements(float lengths[]);
-    //void lowerBeltsGoSlack();
     
     
     MotorUnit axisTL;

@@ -17,7 +17,6 @@ class MotorUnit {
                int encoderAddress,
                int channel1,
                int channel2);
-    //void readEncoder();
     void zero();
     void setTarget(double newTarget);
     double getTarget();
@@ -29,9 +28,6 @@ class MotorUnit {
     void decompressBelt();
     bool comply(unsigned long *timeLastMoved, double *lastPosition, double *amtToMove, double maxSpeed);
     bool retract(double targetLength);
-    //double getCommandPWM();
-    //double getError();
-    //int setPosition(double newPosition);
 
 
   private:

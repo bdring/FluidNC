@@ -270,34 +270,3 @@ bool MotorUnit::retract(double targetLength){
         }
     }
 }
-
-
-/*!
- *  @brief  Sets the position of the cable //UNUSED
- */
-// int MotorUnit::setPosition(double newPosition){
-
-//     int angleTotal = (newPosition*4096)/_mmPerRevolution;
-//     Maslow.I2CMux.setPort(_encoderAddress);
-//     encoder.resetCumulativePosition(angleTotal);
-
-//     return true;
-// }
-
-// /*
-// *  @brief  Gets the last command PWM // UNUSED
-// */
-// double MotorUnit::getCommandPWM(){
-//     return _commandPWM;
-// }
-
-/*!
- *  @brief  Computes and returns the error in the axis positioning //UNUSED
- */
-// double MotorUnit::getError(){
-    
-//     double errorDist = setpoint - getPosition();
-    
-//     return errorDist;
-    
-// }
