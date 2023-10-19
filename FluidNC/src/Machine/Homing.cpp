@@ -427,7 +427,7 @@ namespace Machine {
     // cycle.  The protocol loop will then respond to events and advance
     // the homing state machine through its phases.
     void Homing::run_cycles(AxisMask axisMask) {
-        Maslow.home(axisMask);
+        //Maslow.home(axisMask);
         if (!config->_kinematics->canHome(axisMask)) {
             sys.set_state(State::Alarm);
             return;

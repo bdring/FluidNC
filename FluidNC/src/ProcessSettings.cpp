@@ -23,6 +23,7 @@
 #include "xmodem.h"               // xmodemReceive(), xmodemTransmit()
 #include "StartupLog.h"           // startupLog
 #include "Driver/fluidnc_gpio.h"  // gpio_dump()
+#include "Maslow/Maslow.h"
 
 #include "FluidPath.h"
 
@@ -818,7 +819,33 @@ static Error showHeap(const char* value, WebUI::AuthenticationLevel auth_level, 
     log_info("Heap free: " << xPortGetFreeHeapSize() << " min: " << heapLowWater);
     return Error::Ok;
 }
-
+//Maslow-specific user functions
+static Error maslow_retract_TL(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+    sys.set_state(State::Homing);
+    Maslow.retractTL();
+    return Error::Ok;
+}
+static Error maslow_retract_TR(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+    sys.set_state(State::Homing);
+    Maslow.retractTR();
+    return Error::Ok;
+}
+static Error maslow_retract_BR(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+    sys.set_state(State::Homing);
+    Maslow.retractBR();
+    return Error::Ok;
+}
+static Error maslow_retract_BL(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+    sys.set_state(State::Homing);
+    Maslow.retractBL();
+    return Error::Ok;
+}
+static Error maslow_retract_ALL(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+    sys.set_state(State::Homing);
+    log_info("Retracting all belts");
+    Maslow.retractALL();
+    return Error::Ok;
+}
 // Commands use the same syntax as Settings, but instead of setting or
 // displaying a persistent value, a command causes some action to occur.
 // That action could be anything, from displaying a run-time parameter
@@ -880,6 +907,13 @@ void make_user_commands() {
 
     new UserCommand("30", "FakeMaxSpindleSpeed", fakeMaxSpindleSpeed, notIdleOrAlarm);
     new UserCommand("32", "FakeLaserMode", fakeLaserMode, notIdleOrAlarm);
+    //Maslow-specific commands
+    new UserCommand("TL", "TopLeftRetract", maslow_retract_TL, notIdleOrAlarm);
+    new UserCommand("TR", "TopRightRetract", maslow_retract_TR, notIdleOrAlarm);
+    new UserCommand("BR", "BottomRightRetract", maslow_retract_BR, notIdleOrAlarm);
+    new UserCommand("BL", "BottomLeftRetract", maslow_retract_BL, notIdleOrAlarm);
+    new UserCommand("ALL", "retractALL", maslow_retract_ALL, notIdleOrAlarm);
+
 };
 
 // normalize_key puts a key string into canonical form -

@@ -27,7 +27,7 @@ class MotorUnit {
     double recomputePID();
     void decompressBelt();
     bool comply(unsigned long *timeLastMoved, double *lastPosition, double *amtToMove, double maxSpeed);
-    bool retract(double targetLength);
+    bool retract();
 
 
   private:
@@ -46,6 +46,12 @@ class MotorUnit {
     double mostRecentCumulativeEncoderReading = 0;
     double encoderReadFailurePrintTime = millis();
     unsigned long lastCallGetPos = millis();
+
+    int absoluteCurrentThreshold = 1900;
+    int incrementalThreshold = 75;
+    int incrementalThresholdHits = 0;
+    float alpha = .2;
+    
     
 
 };

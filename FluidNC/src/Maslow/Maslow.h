@@ -45,8 +45,19 @@ class Maslow_ {
     void takeMeasurement(float lengths[]);
     void moveWithSlack(float x, float y, bool leftBelt, bool rightBelt);
     void takeUpInternalSlack();
-    void retractBR();
+    void retractBR_CAL();
+    void retractBL_CAL();
+    void stopMotors();
+
+    void retractTL();
+    void retractTR();
     void retractBL();
+    void retractBR();
+    void retractALL();
+    bool retractingTL = false;
+    bool retractingTR = false;
+    bool retractingBL = false;
+    bool retractingBR = false; 
     
     
     MotorUnit axisTL;
@@ -90,6 +101,7 @@ class Maslow_ {
     //Used to keep track of how often the PID controller is updated
     unsigned long lastCallToPID = millis();
     unsigned long lastMiss = millis();
+    unsigned long lastCallToUpdate = millis();
 
     //Stores a reference to the global system runtime function to be called when blocking operations are needed
     void (*_sys_rt)() = nullptr;

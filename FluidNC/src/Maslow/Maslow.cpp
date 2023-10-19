@@ -114,68 +114,124 @@ void Maslow_::begin(void (*sys_rt)()) {
 
 }
 
-// void printToWeb (double precision){
-//     log_info( "Calibration Precision: " << precision << "mm");
-// }
 
 void Maslow_::home(int axis) {
-    log_info(axis);
-    switch(axis) {
-        case 0: //Bottom left
-            extendingOrRetracting = true;
-            axisBLHomed = axisBL.retract(computeBL(0, 300, 0));
-            extendingOrRetracting = false;
-            break;
-        case 1: //Top Left
-            if(axisBLHomed && axisBRHomed && axisTRHomed && axisTLHomed) {
-                lowerBeltsExtra = lowerBeltsExtra - 1;
-                log_info("Extra: " << lowerBeltsExtra);
-            }
-            else{
-                extendingOrRetracting = true;
-                axisTLHomed = axisTL.retract(computeTL(0, 0, 0));
-                extendingOrRetracting = false;
-            }
-            break;
-        case 2: //Top right
-            if(axisBLHomed && axisBRHomed && axisTRHomed && axisTLHomed) {
-                lowerBeltsExtra = lowerBeltsExtra + 1;
-                log_info("Extra: " << lowerBeltsExtra);
-            }
-            else{
-                extendingOrRetracting = true;
-                axisTRHomed = axisTR.retract(computeTR(0, 0, 0));
-                extendingOrRetracting = false;
-            }
-            break;
-        case 4: //Bottom right
-            if(axisBLHomed && axisBRHomed && axisTRHomed && axisTLHomed) {
-                runCalibration();
-            }
-            else {
-                extendingOrRetracting = true;
-                axisBRHomed = axisBR.retract(computeBR(0, 300, 0));
-                extendingOrRetracting = false;
-            }
-            break;
-        default:
-            log_info("Unrecognized axis");
-            log_info(axis);
-            break;
-    }
+    // log_info(axis);
+    // switch(axis) {
+    //     case 0: //Bottom left
+    //         extendingOrRetracting = true;
+    //         axisBLHomed = axisBL.retract(computeBL(0, 300, 0));
+    //         extendingOrRetracting = false;
+    //         break;
+    //     case 1: //Top Left
+    //         if(axisBLHomed && axisBRHomed && axisTRHomed && axisTLHomed) {
+    //             lowerBeltsExtra = lowerBeltsExtra - 1;
+    //             log_info("Extra: " << lowerBeltsExtra);
+    //         }
+    //         else{
+    //             extendingOrRetracting = true;
+    //             axisTLHomed = axisTL.retract(computeTL(0, 0, 0));
+    //             extendingOrRetracting = false;
+    //         }
+    //         break;
+    //     case 2: //Top right
+    //         if(axisBLHomed && axisBRHomed && axisTRHomed && axisTLHomed) {
+    //             lowerBeltsExtra = lowerBeltsExtra + 1;
+    //             log_info("Extra: " << lowerBeltsExtra);
+    //         }
+    //         else{
+    //             extendingOrRetracting = true;
+    //             axisTRHomed = axisTR.retract(computeTR(0, 0, 0));
+    //             extendingOrRetracting = false;
+    //         }
+    //         break;
+    //     case 4: //Bottom right
+    //         if(axisBLHomed && axisBRHomed && axisTRHomed && axisTLHomed) {
+    //             runCalibration();
+    //         }
+    //         else {
+    //             extendingOrRetracting = true;
+    //             axisBRHomed = axisBR.retract(computeBR(0, 300, 0));
+    //             extendingOrRetracting = false;
+    //         }
+    //         break;
+    //     default:
+    //         log_info("Unrecognized axis");
+    //         log_info(axis);
+    //         break;
+    // }
 
-    if(axisBLHomed && axisBRHomed && axisTRHomed && axisTLHomed) {
-        log_info("All axis ready.");
+    // if(axisBLHomed && axisBRHomed && axisTRHomed && axisTLHomed) {
+    //     log_info("All axis ready.");
+    // }
+}
+// Maslow main loop
+void Maslow_::update(){
+    //Make sure we're running maslow config file
+    if(!Maslow.using_default_config){
+
+        Maslow.updateEncoderPositions();
+
+        if( sys.state() == State::Jog || sys.state() == State::Cycle  ){
+            Maslow.setTargets(steps_to_mpos(get_axis_motor_steps(0),0), steps_to_mpos(get_axis_motor_steps(1),1), steps_to_mpos(get_axis_motor_steps(2),2));
+            Maslow.recomputePID();
+        }
+        else if(sys.state() == State::Homing){
+
+            //run all the retract functions untill we hit the current limit
+            if(retractingTL){
+                if( axisTL.retract() ) retractingTL = false;
+            }
+            if(retractingTR){
+                if( axisTR.retract() ) retractingTR = false;
+            }
+            if(retractingBL){
+                if( axisBL.retract() ) retractingBL = false;
+            }
+            if(retractingBR){
+                if( axisBR.retract() ) retractingBR = false;
+            }
+
+            //if we are done with all the homing moves, switch system state back to alarm ( or Idle? )
+            if(!retractingTL && !retractingBL && !retractingBR && !retractingTR ){
+                sys.set_state(State::Alarm);
+            }
+            
+        }
+        else Maslow.stopMotors();
+
+        //if the update function is not being called enough, stop motors to prevent damage
+        if(millis() - lastCallToUpdate > 500){
+            Maslow.stopMotors();
+        }
+
     }
+    lastCallToUpdate = millis();
 }
 
-void Maslow_::update(){
-    Maslow.updateEncoderPositions();
-    if(!Maslow.using_default_config && ( sys.state() == State::Jog || sys.state() == State::Cycle ) ){
-        Maslow.setTargets(steps_to_mpos(get_axis_motor_steps(0),0), steps_to_mpos(get_axis_motor_steps(1),1), steps_to_mpos(get_axis_motor_steps(2),2));
-        Maslow.recomputePID();
-    }
-    //else Maslow.stopMotors();
+//non-blocking retracting functions
+void Maslow_::retractTL(){
+    retractingTL = true;
+    log_info("Retracting Top Left");
+}
+void Maslow_::retractTR(){
+    retractingTR = true;
+    log_info("Retracting Top Right");
+}
+void Maslow_::retractBL(){
+    retractingBL = true;
+    log_info("Retracting Bottom Left");
+}
+void Maslow_::retractBR(){
+    retractingBR = true;
+    log_info("Retracting Bottom Right");
+}
+void Maslow_::retractALL(){
+    retractingTL = true;
+    retractingTR = true;
+    retractingBL = true;
+    retractingBR = true;
+    log_info("Retracting All");
 }
 //updating encoder positions for all 4 arms
 bool Maslow_::updateEncoderPositions(){
@@ -240,7 +296,13 @@ void Maslow_::recomputePID(){
         log_info("Servo fault!");
     }
 }
-
+//Stop all the motors
+void Maslow_::stopMotors(){
+    axisBL.stop();
+    axisBR.stop();
+    axisTR.stop();
+    axisTL.stop();
+}
 //Computes the tensions in the upper two belts
 void Maslow_::computeTensions(float x, float y){
     //This should be a lot smarter and compute the vector tensions to see if the lower belts are contributing positively
@@ -369,80 +431,80 @@ void Maslow_::printMeasurementSet(float allLengths[][4]){
 
 //Takes one column of 10 measurements
 void Maslow_::takeColumnOfMeasurements(float x, float measurments[][4]){
+// IS NOT WORKING, DONT UNCOMMENT
+    // float measurement1[4] = {0};
+    // float measurement2[4] = {0};
+    // float measurement3[4] = {0};
+    // float measurement4[4] = {0};
+    // float measurement5[4] = {0};
+    // float measurement6[4] = {0};
+    // float measurement7[4] = {0};
+    // float measurement8[4] = {0};
+    // float measurement9[4] = {0};
+    // float measurement10[4] = {0};
 
-    float measurement1[4] = {0};
-    float measurement2[4] = {0};
-    float measurement3[4] = {0};
-    float measurement4[4] = {0};
-    float measurement5[4] = {0};
-    float measurement6[4] = {0};
-    float measurement7[4] = {0};
-    float measurement8[4] = {0};
-    float measurement9[4] = {0};
-    float measurement10[4] = {0};
+    // //Move to where we need to begin
+    // moveWithSlack(x, 550, true, true);
 
-    //Move to where we need to begin
-    moveWithSlack(x, 550, true, true);
-
-    //First measurmement
-    if(x < 0) { retractBL(); retractBL(); } //If we are on the left side of the sheet tension the left belt first
-    if(x > 0) { retractBR(); retractBR(); } //If we are on the right side of the sheet tension the right belt first
+    // //First measurmement
+    // if(x < 0) { retractBL(); retractBL(); } //If we are on the left side of the sheet tension the left belt first
+    // if(x > 0) { retractBR(); retractBR(); } //If we are on the right side of the sheet tension the right belt first
     
-    takeMeasurementAvgWithCheck(measurments[0]);
+    // takeMeasurementAvgWithCheck(measurments[0]);
     
-    //Second measurmement
-    moveWithSlack(x, 425, false, false);
-    if(x < 0) { retractBL(); retractBL(); }
-    if(x > 0) { retractBR(); retractBR(); }
-    takeMeasurementAvgWithCheck(measurments[1]);
+    // //Second measurmement
+    // moveWithSlack(x, 425, false, false);
+    // if(x < 0) { retractBL(); retractBL(); }
+    // if(x > 0) { retractBR(); retractBR(); }
+    // takeMeasurementAvgWithCheck(measurments[1]);
 
-    //Third measurmement
-    moveWithSlack(x, 300, false, false);
-    if(x < 0) { retractBL(); retractBL(); }
-    if(x > 0) { retractBR(); retractBR(); }
-    takeMeasurementAvgWithCheck(measurments[2]);
+    // //Third measurmement
+    // moveWithSlack(x, 300, false, false);
+    // if(x < 0) { retractBL(); retractBL(); }
+    // if(x > 0) { retractBR(); retractBR(); }
+    // takeMeasurementAvgWithCheck(measurments[2]);
 
-    //Fourth measurement
-    moveWithSlack(x, 200, false, true);
-    if(x < 0) { retractBL(); retractBL(); }
-    if(x > 0) { retractBR(); retractBR(); }
-    takeMeasurementAvgWithCheck(measurments[3]);
+    // //Fourth measurement
+    // moveWithSlack(x, 200, false, true);
+    // if(x < 0) { retractBL(); retractBL(); }
+    // if(x > 0) { retractBR(); retractBR(); }
+    // takeMeasurementAvgWithCheck(measurments[3]);
     
-    //Fifth measurement
-    moveWithSlack(x, 100, false, true);
-    if(x < 0) { retractBL(); retractBL(); }
-    if(x > 0) { retractBR(); retractBR(); }
-    takeMeasurementAvgWithCheck(measurments[4]);
+    // //Fifth measurement
+    // moveWithSlack(x, 100, false, true);
+    // if(x < 0) { retractBL(); retractBL(); }
+    // if(x > 0) { retractBR(); retractBR(); }
+    // takeMeasurementAvgWithCheck(measurments[4]);
 
-    //Sixth measurmement
-    moveWithSlack(x, 0, false, false);
-    if(x < 0) { retractBL(); retractBL(); }
-    if(x > 0) { retractBR(); retractBR(); }
-    takeMeasurementAvgWithCheck(measurments[5]);
+    // //Sixth measurmement
+    // moveWithSlack(x, 0, false, false);
+    // if(x < 0) { retractBL(); retractBL(); }
+    // if(x > 0) { retractBR(); retractBR(); }
+    // takeMeasurementAvgWithCheck(measurments[5]);
 
-    //Sevent measurmement
-    moveWithSlack(x, -100, false, false);
-    if(x < 0) { retractBL(); retractBL(); }
-    if(x > 0) { retractBR(); retractBR(); }
-    takeMeasurementAvgWithCheck(measurments[6]);
+    // //Sevent measurmement
+    // moveWithSlack(x, -100, false, false);
+    // if(x < 0) { retractBL(); retractBL(); }
+    // if(x > 0) { retractBR(); retractBR(); }
+    // takeMeasurementAvgWithCheck(measurments[6]);
 
-    //Eigth measurement
-    moveWithSlack(x, -200, false, true);
-    if(x < 0) { retractBL(); retractBL(); }
-    if(x > 0) { retractBR(); retractBR(); }
-    takeMeasurementAvgWithCheck(measurments[7]);
+    // //Eigth measurement
+    // moveWithSlack(x, -200, false, true);
+    // if(x < 0) { retractBL(); retractBL(); }
+    // if(x > 0) { retractBR(); retractBR(); }
+    // takeMeasurementAvgWithCheck(measurments[7]);
     
-    //Ninth measurement
-    moveWithSlack(x, -300, false, true);
-    if(x < 0) { retractBL(); retractBL(); }
-    if(x > 0) { retractBR(); retractBR(); }
-    takeMeasurementAvgWithCheck(measurments[8]);
+    // //Ninth measurement
+    // moveWithSlack(x, -300, false, true);
+    // if(x < 0) { retractBL(); retractBL(); }
+    // if(x > 0) { retractBR(); retractBR(); }
+    // takeMeasurementAvgWithCheck(measurments[8]);
 
-    //Tenth measurement
-    moveWithSlack(x, -400, false, true);
-    if(x < 0) { retractBL(); retractBL(); }
-    if(x > 0) { retractBR(); retractBR(); }
-    takeMeasurementAvgWithCheck(measurments[9]);
+    // //Tenth measurement
+    // moveWithSlack(x, -400, false, true);
+    // if(x < 0) { retractBL(); retractBL(); }
+    // if(x > 0) { retractBR(); retractBR(); }
+    // takeMeasurementAvgWithCheck(measurments[9]);
     
 }
 
@@ -730,7 +792,7 @@ void Maslow_::takeMeasurement(float lengths[]){
 }
 
 //Retract the lower right belt
-void Maslow_::retractBR(){
+void Maslow_::retractBR_CAL(){
 
     extendingOrRetracting = true;
 
@@ -785,7 +847,7 @@ void Maslow_::retractBR(){
 }
 
 //Retract the lower left belt
-void Maslow_::retractBL(){
+void Maslow_::retractBL_CAL(){
 
     extendingOrRetracting = true;
 
