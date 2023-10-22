@@ -7,6 +7,12 @@
 #define BLEncoderLine 1
 #define BREncoderLine 3
 
+//These are the values for the new board with etherent cables
+//#define TLEncoderLine 2
+//#define TREncoderLine 1
+//#define BLEncoderLine 3
+//#define BREncoderLine 0
+
 #define motorPWMFreq 2000
 #define motorPWMRes 10
 
