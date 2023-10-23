@@ -122,6 +122,7 @@ void MotorUnit::reset(){
     incrementalThresholdHits = 0;
     amtToMove = 0.1;
     lastPosition = getPosition();
+    beltSpeedTimer = millis();
 }
 /*!
  *  @brief  Sets the motor to comply with how it is being pulled, non-blocking. 
@@ -202,7 +203,7 @@ bool MotorUnit::retract(){
         //EXPERIMENTAL, added because my BR current sensor is faulty, but might be an OK precaution
         //monitor the position change speed  
         bool beltStalled = false;
-        if(retract_speed > 350 && (beltSpeedCounter++ % 10 == 0) ){ // skip the start, might create problems if the belt is slackking a lot
+        if(retract_speed > 450 && (beltSpeedCounter++ % 10 == 0) ){ // skip the start, might create problems if the belt is slackking a lot
             beltSpeed = (getPosition() - lastPosition)*100 / (millis() - beltSpeedTimer);
             beltSpeedTimer = millis();
             lastPosition = getPosition();
