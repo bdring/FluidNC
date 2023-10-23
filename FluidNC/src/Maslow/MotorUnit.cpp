@@ -124,9 +124,8 @@ void MotorUnit::reset(){
     lastPosition = getPosition();
 }
 /*!
- *  @brief  Sets the motor to comply with how it is being pulled
+ *  @brief  Sets the motor to comply with how it is being pulled, non-blocking. 
  */
-//We need to reset variables somewhere
 bool MotorUnit::comply( double maxSpeed){
 
     //Call it every 50 ms
@@ -135,7 +134,6 @@ bool MotorUnit::comply( double maxSpeed){
     }
     //Update position and PID loop
     recomputePID();
-    //updateEncoderPosition(); - is called in Maslow.update() now
 
     //If we've moved any, then drive the motor outwards to extend the belt
     float positionNow = getPosition();
@@ -201,13 +199,27 @@ bool MotorUnit::retract(){
         else{
             incrementalThresholdHits = 0;
         }
+        //EXPERIMENTAL, added because my BR current sensor is faulty, but might be an OK precaution
+        //monitor the position change speed  
+        bool beltStalled = false;
+        if(retract_speed > 350 && (beltSpeedCounter++ % 10 == 0) ){ // skip the start, might create problems if the belt is slackking a lot
+            beltSpeed = (getPosition() - lastPosition)*100 / (millis() - beltSpeedTimer);
+            beltSpeedTimer = millis();
+            lastPosition = getPosition();
+            if(abs(beltSpeed) < 0.01){
+                beltStalled = true;
+            }
+        }
+        
         //log speed and current:
-        if(currentMeasurement > absoluteCurrentThreshold || incrementalThresholdHits > 2){  //changed from 4 to 2 to prevent overtighting
+        if(currentMeasurement > absoluteCurrentThreshold || incrementalThresholdHits > 2 || beltStalled){  //changed from 4 to 2 to prevent overtighting
             //stop motor, reset variables
             motor.stop();
             retract_speed = 0;
             retract_baseline = 700;
-            //Print how much the length of the belt changed compared to memory
+            //Print how much the length of the belt changed compared to memory, log belt speed and current 
+            log_info("Belt speed: " << beltSpeed << " mm/ms");
+            log_info("Motor current: " << currentMeasurement);
             log_info("Belt positon after retract: ");
             log_info(getPosition());
             zero();
@@ -218,32 +230,18 @@ bool MotorUnit::retract(){
         }
             
 }
-// extends the belt to the target length until it hits the target length or the timeout is reached
+// extends the belt to the target length until it hits the target length, returns true when target length is reached
 bool MotorUnit::extend(double targetLength) {
-
-            //Extend some belt to get things started - moved to M.update()
-            //decompressBelt();
 
             unsigned long timeLastMoved = millis();
 
             if  (getPosition() < targetLength) {
-                //Check for timeout
-                if (!comply(500)) {  //Comply updates the encoder position and does the actual moving
-
-                    //Stop and return
-                    setTarget(getPosition());
-                    motor.stop();
-
-                    return false; //TIMEOUT
-                }
-
-                // Delay without blocking
-                unsigned long time        = millis();
-                unsigned long elapsedTime = millis() - time;
-                while (elapsedTime < 50) {
-                    elapsedTime = millis() - time;
-                }
+                comply(500); //Comply does the actual moving
+                return false;
             }
+            //If reached target position, Stop and return
+            setTarget(getPosition());
+            motor.stop();
 
             //Position hold for 2 seconds to make sure we are in the right place - do we need this?
             // setTarget(targetLength);
@@ -254,9 +252,6 @@ bool MotorUnit::extend(double targetLength) {
             //     recomputePID();
             //     updateEncoderPosition();
             // }
-
-            motor.stop();
-
             log_info("Belt positon after extend: ");
             log_info(getPosition());
             return true;

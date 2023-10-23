@@ -854,7 +854,7 @@ static Error maslow_extend_ALL(const char* value, WebUI::AuthenticationLevel aut
 }
 static Error maslow_stop(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
     sys.set_state(State::Alarm);
-    Maslow.stopMotors();
+    Maslow.stop();
     return Error::Ok;
 }
 static Error maslow_set_comply(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {

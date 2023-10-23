@@ -56,10 +56,17 @@ class Maslow_ {
     void retractALL();
     void extendALL();
     void comply();
+    void stop();
     bool retractingTL = false;
     bool retractingTR = false;
     bool retractingBL = false;
-    bool retractingBR = false; 
+    bool retractingBR = false;
+    
+    bool extendedTL   = false;
+    bool extendedTR   = false;
+    bool extendedBL   = false;
+    bool extendedBR   = false;
+
     bool extendingALL = false;
     bool complyALL = false;
     

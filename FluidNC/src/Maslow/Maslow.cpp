@@ -111,6 +111,7 @@ void Maslow_::begin(void (*sys_rt)()) {
   pinMode(SERVOFAULT, INPUT);
 
   currentThreshold = 1500;
+  lastCallToUpdate = millis();
 }
 
 
@@ -172,21 +173,18 @@ void Maslow_::update(){
         Maslow.updateEncoderPositions(); //We always update encoder positions in any state
 
         //Maslow State Machine
+
+        //Jog or G-code execution. Maybe need to add more modes here like Hold? 
         if( sys.state() == State::Jog || sys.state() == State::Cycle  ){
 
             Maslow.setTargets(steps_to_mpos(get_axis_motor_steps(0),0), steps_to_mpos(get_axis_motor_steps(1),1), steps_to_mpos(get_axis_motor_steps(2),2));
             Maslow.recomputePID();
         }
 
+        //Homing routines
         else if(sys.state() == State::Homing){
 
             //run all the retract functions untill we hit the current limit
-            if(retractingBR){
-                if( axisBR.retract() ) retractingBR = false;
-                if(random(40) == 10){
-                    log_info(axisBR.getCurrent());
-                }
-            }
             if(retractingTL){
                 if( axisTL.retract() ) retractingTL = false;
             }
@@ -196,21 +194,29 @@ void Maslow_::update(){
             if(retractingBL){
                 if( axisBL.retract() ) retractingBL = false;
             }
+            if(retractingBR){
+                if( axisBR.retract() ) retractingBR = false;
+            }
 
             //Extending routines
             if (extendingALL) {
+
                 //decompress belts for the first half second
                 if (millis() - extendCallTimer < 500) {
                     if( millis() - extendCallTimer >0) axisBR.decompressBelt();
-                    if (millis() - extendCallTimer > 100) axisBL.decompressBelt();
-                    if (millis() - extendCallTimer > 150) axisTR.decompressBelt();
-                    if (millis() - extendCallTimer > 200) axisTL.decompressBelt();
+                    if (millis() - extendCallTimer > 50) axisBL.decompressBelt();
+                    if (millis() - extendCallTimer > 100) axisTR.decompressBelt();
+                    if (millis() - extendCallTimer > 150) axisTL.decompressBelt();
                 } 
                 //then make all the belts comply until they are extended fully, or user terminates it
                 else {
-                    if(axisTL.extend(computeTL(0, 0, 0)) && axisTR.extend(computeTR(0, 0, 0)) && axisBL.extend(computeBL(0, 300, 0)) && axisBR.extend(computeBR(0, 300, 0))){
+                    if(!extendedTL) extendedTL = axisTL.extend(computeTL(0, 0, 0));
+                    if(!extendedTR) extendedTR = axisTR.extend(computeTR(0, 0, 0));
+                    if(!extendedBL) extendedBL = axisBL.extend(computeBL(0, 300, 0));
+                    if(!extendedBR) extendedBR = axisBR.extend(computeBR(0, 300, 0));
+                    if(extendedTL && extendedTR && extendedBL && extendedBR){
                         extendingALL = false;
-                        log_info("All belts extended");
+                        log_info("All belts extended to center position");
                     }
                 }
             }
@@ -235,16 +241,16 @@ void Maslow_::update(){
             }
             
         }
-        else Maslow.stopMotors();
-        // static int n = 0;
-        // long tp = millis() - lastCallToUpdate;
-        // String s = String(tp);
-        // if(n++ % 250 == 0) log_info(s.c_str());
 
-        //if the update function is not being called enough, stop motors to prevent damage
-        // if(millis() - lastCallToUpdate > 500){
-        //     Maslow.stopMotors();
-        // }
+        //In any other state, keep motors off
+        else Maslow.stopMotors();
+
+        //if the update function is not being called enough, stop everything to prevent damage
+        if(millis() - lastCallToUpdate > 500){
+            Maslow.stop();
+            sys.set_state(State::Alarm);
+            log_info("Emergency stop. Update function not being called enough.");
+        }
 
     }
     lastCallToUpdate = millis();
@@ -253,21 +259,29 @@ void Maslow_::update(){
 //non-blocking homing functions
 void Maslow_::retractTL(){
     retractingTL = true;
+    complyALL = false;
+    extendingALL = false;
     axisTL.reset();
     log_info("Retracting Top Left");
 }
 void Maslow_::retractTR(){
     retractingTR = true;
+    complyALL = false;
+    extendingALL = false;
     axisTR.reset();
     log_info("Retracting Top Right");
 }
 void Maslow_::retractBL(){
     retractingBL = true;
+    complyALL = false;
+    extendingALL = false;
     axisBL.reset();
     log_info("Retracting Bottom Left");
 }
 void Maslow_::retractBR(){
     retractingBR = true;
+    complyALL = false;
+    extendingALL = false;
     axisBR.reset();
     log_info("Retracting Bottom Right");
 }
@@ -296,6 +310,10 @@ void Maslow_::extendALL(){
     axisTR.reset();
     axisBL.reset();
     axisBR.reset();
+    extendedTL = false;
+    extendedTR = false;
+    extendedBL = false;
+    extendedBR = false;
     log_info("Extending All");
 }
 void Maslow_::comply(){
@@ -323,7 +341,7 @@ bool Maslow_::updateEncoderPositions(){
     }
     return success;
 }
-//Called from protocol.cpp
+//Called from update()
 void Maslow_::recomputePID(){
 
     if(!initialized){ //If we haven't initialized we don't want to try to compute things because the PID controllers cause the processor to crash
@@ -375,6 +393,22 @@ void Maslow_::recomputePID(){
         log_info("Servo fault!");
     }
 }
+
+// Stop all motors and reset all state veriables
+void Maslow_::stop(){
+    stopMotors();
+    retractingTL = false;
+    retractingTR = false;
+    retractingBL = false;
+    retractingBR = false;
+    extendingALL = false;
+    complyALL = false;
+    axisTL.reset();
+    axisTR.reset();
+    axisBL.reset();
+    axisBR.reset();
+}
+
 //Stop all the motors
 void Maslow_::stopMotors(){
     axisBL.stop();
@@ -382,6 +416,8 @@ void Maslow_::stopMotors(){
     axisTR.stop();
     axisTL.stop();
 }
+
+
 //Computes the tensions in the upper two belts
 void Maslow_::computeTensions(float x, float y){
     //This should be a lot smarter and compute the vector tensions to see if the lower belts are contributing positively
@@ -510,7 +546,6 @@ void Maslow_::printMeasurementSet(float allLengths[][4]){
 
 //Takes one column of 10 measurements
 void Maslow_::takeColumnOfMeasurements(float x, float measurments[][4]){
-//IS NOT WORKING, DONT UNCOMMENT
     float measurement1[4] = {0};
     float measurement2[4] = {0};
     float measurement3[4] = {0};
@@ -587,7 +622,7 @@ void Maslow_::takeColumnOfMeasurements(float x, float measurments[][4]){
     
 }
 
-//Runs the calibration sequence to determine the machine's dimensions
+//Runs the calibration sequence to determine the machine's dimensions // DONT RUN, DOESN'T WORK
 void Maslow_::runCalibration(){
     
     log_info("\n\nBeginning calibration\n\n");

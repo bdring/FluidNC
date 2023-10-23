@@ -63,6 +63,10 @@ class MotorUnit {
     double  lastPosition  = getPosition();
     double  amtToMove     = 0.1;
 
+    double beltSpeed = 0;
+    unsigned long beltSpeedTimer = millis();
+    int beltSpeedCounter = 0;
+
 };
 
 #endif
