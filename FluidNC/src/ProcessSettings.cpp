@@ -929,10 +929,10 @@ void make_user_commands() {
     new UserCommand("TR", "TopRightRetract", maslow_retract_TR, anyState);
     new UserCommand("BR", "BottomRightRetract", maslow_retract_BR, anyState);
     new UserCommand("BL", "BottomLeftRetract", maslow_retract_BL, anyState);
-    new UserCommand("ALL", "retractALL", maslow_retract_ALL, notIdleOrAlarm);
-    new UserCommand("EXT", "extendALL", maslow_extend_ALL, notIdleOrAlarm);
-    new UserCommand("CMP", "comply", maslow_set_comply, notIdleOrAlarm);
-    new UserCommand("ST", "STOP", maslow_stop, anyState); // experimental
+    new UserCommand("ALL", "retractALL", maslow_retract_ALL, anyState);
+    new UserCommand("EXT", "extendALL", maslow_extend_ALL, anyState);
+    new UserCommand("CMP", "comply", maslow_set_comply, anyState);
+    new UserCommand("STP", "STOP", maslow_stop, anyState); // experimental
 
 };
 

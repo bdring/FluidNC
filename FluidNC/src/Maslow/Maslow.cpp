@@ -181,6 +181,12 @@ void Maslow_::update(){
         else if(sys.state() == State::Homing){
 
             //run all the retract functions untill we hit the current limit
+            if(retractingBR){
+                if( axisBR.retract() ) retractingBR = false;
+                if(random(40) == 10){
+                    log_info(axisBR.getCurrent());
+                }
+            }
             if(retractingTL){
                 if( axisTL.retract() ) retractingTL = false;
             }
@@ -190,17 +196,15 @@ void Maslow_::update(){
             if(retractingBL){
                 if( axisBL.retract() ) retractingBL = false;
             }
-            if(retractingBR){
-                if( axisBR.retract() ) retractingBR = false;
-            }
+
             //Extending routines
             if (extendingALL) {
                 //decompress belts for the first half second
                 if (millis() - extendCallTimer < 500) {
-                    axisBR.decompressBelt();
-                    axisBL.decompressBelt();
-                    axisTR.decompressBelt();
-                    axisTL.decompressBelt();
+                    if( millis() - extendCallTimer >0) axisBR.decompressBelt();
+                    if (millis() - extendCallTimer > 100) axisBL.decompressBelt();
+                    if (millis() - extendCallTimer > 150) axisTR.decompressBelt();
+                    if (millis() - extendCallTimer > 200) axisTL.decompressBelt();
                 } 
                 //then make all the belts comply until they are extended fully, or user terminates it
                 else {
@@ -214,10 +218,10 @@ void Maslow_::update(){
             if(complyALL){
                 //decompress belts for the first half second
                 if (millis() - complyCallTimer < 500) {
-                    axisBR.decompressBelt();
-                    axisBL.decompressBelt();
-                    axisTR.decompressBelt();
-                    axisTL.decompressBelt();
+                    if( millis() - complyCallTimer >0) axisBR.decompressBelt();
+                    if (millis() - complyCallTimer > 100) axisBL.decompressBelt();
+                    if (millis() - complyCallTimer > 150) axisTR.decompressBelt();
+                    if (millis() - complyCallTimer > 200) axisTL.decompressBelt();
                 } else {
                     axisTL.comply(500);  //call to recomputePID() inside here
                     axisTR.comply(500);
