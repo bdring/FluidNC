@@ -19,20 +19,24 @@ class Maslow_ {
     Maslow_ &operator=(const Maslow_ &) = delete;
 
   public:
+    //main utility functions
     void begin(void (*sys_rt)());
-    //void readEncoders();
     void home(int axis);
-    void updateCenterXY();
+    void update();
+    bool updateEncoderPositions();
+    void setTargets(float xTarget, float yTarget, float zTarget);
     void recomputePID();
+
+    //math 
+    void updateCenterXY();
     void computeTensions(float x, float y);
     float computeBL(float x, float y, float z);
     float computeBR(float x, float y, float z);
     float computeTR(float x, float y, float z);
     float computeTL(float x, float y, float z);
-    void setTargets(float xTarget, float yTarget, float zTarget);
+
+    //calibration functions 
     void runCalibration();
-    void printMeasurements(float lengths[]);
-    void lowerBeltsGoSlack();
     void printMeasurementSet(float allLengths[][4]);
     void takeColumnOfMeasurements(float x, float measurments[][4]);
     float printMeasurementMetrics(double avg, double m1, double m2, double m3, double m4, double m5);
@@ -41,15 +45,32 @@ class Maslow_ {
     void takeMeasurement(float lengths[]);
     void moveWithSlack(float x, float y, bool leftBelt, bool rightBelt);
     void takeUpInternalSlack();
-    float computeVertical(float firstUpper, float firstLower, float secondUpper, float secondLower);
-    void computeFrameDimensions(float lengthsSet1[], float lengthsSet2[], float machineDimensions[]);
-    void retractBR();
+    void retractBR_CAL();
+    void retractBL_CAL();
+    void stopMotors();
+
+    void retractTL();
+    void retractTR();
     void retractBL();
+    void retractBR();
+    void retractALL();
+    void extendALL();
+    void comply();
+    void stop();
+    bool retractingTL = false;
+    bool retractingTR = false;
+    bool retractingBL = false;
+    bool retractingBR = false;
     
+    bool extendedTL   = false;
+    bool extendedTR   = false;
+    bool extendedBL   = false;
+    bool extendedBR   = false;
 
-
-
-
+    bool extendingALL = false;
+    bool complyALL = false;
+    
+    
     MotorUnit axisTL;
     MotorUnit axisTR;
     MotorUnit axisBL;
@@ -91,6 +112,9 @@ class Maslow_ {
     //Used to keep track of how often the PID controller is updated
     unsigned long lastCallToPID = millis();
     unsigned long lastMiss = millis();
+    unsigned long lastCallToUpdate = millis();
+    unsigned long extendCallTimer = millis();
+    unsigned long complyCallTimer = millis();
 
     //Stores a reference to the global system runtime function to be called when blocking operations are needed
     void (*_sys_rt)() = nullptr;

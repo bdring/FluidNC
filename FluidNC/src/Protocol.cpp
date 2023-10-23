@@ -835,10 +835,7 @@ void protocol_exec_rt_system() {
 
     
     //do all the Maslow stuff here
-    if(!Maslow.using_default_config && ( sys.state() == State::Jog || sys.state() == State::Cycle ) ){
-        Maslow.setTargets(steps_to_mpos(get_axis_motor_steps(0),0), steps_to_mpos(get_axis_motor_steps(1),1), steps_to_mpos(get_axis_motor_steps(2),2));
-        Maslow.recomputePID();
-    }
+    Maslow.update();
     // Reload step segment buffer
     switch (sys.state()) {
         case State::ConfigAlarm:
