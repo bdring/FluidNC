@@ -26,8 +26,11 @@ class MotorUnit {
     bool updateEncoderPosition();
     double recomputePID();
     void decompressBelt();
-    bool comply(unsigned long *timeLastMoved, double *lastPosition, double *amtToMove, double maxSpeed);
+    bool comply(double maxSpeed);
     bool retract();
+    bool extend(double targetLength);
+
+    void reset(); //resetting variables here, because of non-blocking, maybe there's a better way to do this
 
 
   private:
@@ -47,12 +50,18 @@ class MotorUnit {
     double encoderReadFailurePrintTime = millis();
     unsigned long lastCallGetPos = millis();
 
+    //retract variables
     int absoluteCurrentThreshold = 1900;
     int incrementalThreshold = 75;
     int incrementalThresholdHits = 0;
     float alpha = .2;
-    
-    
+    uint16_t retract_speed = 0;
+    float retract_baseline = 700;
+
+    //comply variables
+    unsigned long lastCallToComply = millis();
+    double  lastPosition  = getPosition();
+    double  amtToMove     = 0.1;
 
 };
 

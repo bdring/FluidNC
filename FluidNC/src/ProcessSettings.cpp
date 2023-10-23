@@ -846,6 +846,23 @@ static Error maslow_retract_ALL(const char* value, WebUI::AuthenticationLevel au
     Maslow.retractALL();
     return Error::Ok;
 }
+static Error maslow_extend_ALL(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+    sys.set_state(State::Homing);
+    log_info("Extending all belts");
+    Maslow.extendALL();
+    return Error::Ok;
+}
+static Error maslow_stop(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+    sys.set_state(State::Alarm);
+    Maslow.stopMotors();
+    return Error::Ok;
+}
+static Error maslow_set_comply(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+    sys.set_state(State::Homing);
+    log_info("Set to comply");
+    Maslow.comply();
+    return Error::Ok;
+}
 // Commands use the same syntax as Settings, but instead of setting or
 // displaying a persistent value, a command causes some action to occur.
 // That action could be anything, from displaying a run-time parameter
@@ -908,11 +925,14 @@ void make_user_commands() {
     new UserCommand("30", "FakeMaxSpindleSpeed", fakeMaxSpindleSpeed, notIdleOrAlarm);
     new UserCommand("32", "FakeLaserMode", fakeLaserMode, notIdleOrAlarm);
     //Maslow-specific commands
-    new UserCommand("TL", "TopLeftRetract", maslow_retract_TL, notIdleOrAlarm);
-    new UserCommand("TR", "TopRightRetract", maslow_retract_TR, notIdleOrAlarm);
-    new UserCommand("BR", "BottomRightRetract", maslow_retract_BR, notIdleOrAlarm);
-    new UserCommand("BL", "BottomLeftRetract", maslow_retract_BL, notIdleOrAlarm);
+    new UserCommand("TL", "TopLeftRetract", maslow_retract_TL, anyState);
+    new UserCommand("TR", "TopRightRetract", maslow_retract_TR, anyState);
+    new UserCommand("BR", "BottomRightRetract", maslow_retract_BR, anyState);
+    new UserCommand("BL", "BottomLeftRetract", maslow_retract_BL, anyState);
     new UserCommand("ALL", "retractALL", maslow_retract_ALL, notIdleOrAlarm);
+    new UserCommand("EXT", "extendALL", maslow_extend_ALL, notIdleOrAlarm);
+    new UserCommand("CMP", "comply", maslow_set_comply, notIdleOrAlarm);
+    new UserCommand("ST", "STOP", maslow_stop, anyState); // experimental
 
 };
 

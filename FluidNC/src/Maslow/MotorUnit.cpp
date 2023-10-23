@@ -105,103 +105,108 @@ double MotorUnit::recomputePID(){
 }
 
 /*!
- *  @brief  Runs the motor to extend for a little bit to put some slack into the coiled belt. Used to make it easier to extend.
+ *  @brief  Runs the motor to extend for a little bit to put some slack into the coiled belt. Used to make it easier to extend. Now non-blocking. 
  */
 void MotorUnit::decompressBelt(){
-    unsigned long time = millis();
-    unsigned long elapsedTime = millis()-time;
-    while(elapsedTime < 500){
-        elapsedTime = millis()-time;
+    // unsigned long time = millis();
+    // unsigned long elapsedTime = millis()-time;
+    // while(elapsedTime < 500){
+    //     elapsedTime = millis()-time;
         motor.fullOut();
-    }
+//    }
 }
 
+void MotorUnit::reset(){
+    retract_speed = 0;
+    retract_baseline = 700;
+    incrementalThresholdHits = 0;
+    amtToMove = 0.1;
+    lastPosition = getPosition();
+}
 /*!
  *  @brief  Sets the motor to comply with how it is being pulled
  */
-bool MotorUnit::comply(unsigned long *timeLastMoved, double *lastPosition, double *amtToMove, double maxSpeed){
-    
+//We need to reset variables somewhere
+bool MotorUnit::comply( double maxSpeed){
+
+    //Call it every 50 ms
+    if(millis() - lastCallToComply < 50){
+        return true;
+    }
     //Update position and PID loop
     recomputePID();
-    updateEncoderPosition();
+    //updateEncoderPosition(); - is called in Maslow.update() now
 
     //If we've moved any, then drive the motor outwards to extend the belt
     float positionNow = getPosition();
-    float distMoved = positionNow - *lastPosition;
+    float distMoved = positionNow - lastPosition;
 
     //If the belt is moving out, let's keep it moving out
     if( distMoved > .001){
         //Increment the target
-        setTarget(positionNow + *amtToMove);
+        setTarget(positionNow + amtToMove);
         
-        *amtToMove = *amtToMove + 1;
+        amtToMove = amtToMove + 1;
         
-        *amtToMove = min(*amtToMove, maxSpeed);
+        amtToMove = min(amtToMove, maxSpeed);
         
         //Reset the last moved counter
-        *timeLastMoved = millis();
+        //*timeLastMoved = millis();
     
     //If the belt is moving in we need to stop it from moving in
     }else if(distMoved < -.04){
-        *amtToMove = 0;
+        amtToMove = 0;
         setTarget(positionNow + .1);
         stop();
     }
     //Finally if the belt is not moving we want to spool things down
     else{
-        *amtToMove = *amtToMove / 2;
+        amtToMove = amtToMove / 2;
         setTarget(positionNow);
         stop();
     }
     
 
-    *lastPosition = positionNow;
+    lastPosition = positionNow;
 
     //Return indicates if we have moved within the timeout threshold
-    if(millis()-*timeLastMoved > 5000){
-        return false;
-    }
-    else{
+    // if(millis()-*timeLastMoved > 5000){
+    //     return false;
+    // }
+    //else{
+        lastCallToComply = millis();
         return true;
-    }
+    //}
 }
 
 /*!
- *  @brief  Fully retracts this axis and zeros it out or if it is already retracted extends it to the targetLength
+ *  @brief  Fully retracts this axis and zeros it, non-blocking, returns true when done
  */
 bool MotorUnit::retract(){
-    
-    static uint16_t speed = 0;
-    static float baseline = 700;
-    //Keep track of the elapsed time
-    static unsigned long time = millis();
-    static unsigned long elapsedTime = 0;
-    
-        //Pull until taught
+
         //Gradually increase the pulling speed
-        if(random(0,4) == 2){ //This is a hack to make it speed up more slowly because we can't add less than 1 to an int
-            speed = min(speed + 1, 1023);
+        if(random(0,2) == 1){ //This is a hack to make it speed up more slowly because we can't add less than 1 to an int
+            retract_speed = min(retract_speed + 1, 1023);
         }
-        motor.backward(speed);
+        motor.backward(retract_speed);
 
         //When taught
         int currentMeasurement = motor.readCurrent();
 
-        //_webPrint(0xFF,"Current: %i, Baseline: %f, difference: %f \n", currentMeasurement, baseline, currentMeasurement - baseline);
-        baseline = alpha * float(currentMeasurement) + (1-alpha) * baseline;
+        retract_baseline = alpha * float(currentMeasurement) + (1-alpha) * retract_baseline;
 
-        if(currentMeasurement - baseline > incrementalThreshold){
+        if(currentMeasurement - retract_baseline > incrementalThreshold){
             incrementalThresholdHits = incrementalThresholdHits + 1;
         }
         else{
             incrementalThresholdHits = 0;
         }
-
-        if(currentMeasurement > absoluteCurrentThreshold || incrementalThresholdHits > 4){
+        //log speed and current:
+        if(currentMeasurement > absoluteCurrentThreshold || incrementalThresholdHits > 2){  //changed from 4 to 2 to prevent overtighting
             //stop motor, reset variables
             motor.stop();
-            speed = 0;
-            baseline = 700;
+            retract_speed = 0;
+            retract_baseline = 700;
             //Print how much the length of the belt changed compared to memory
             log_info("Belt positon after retract: ");
             log_info(getPosition());
@@ -211,51 +216,48 @@ bool MotorUnit::retract(){
         else{
             return false;
         }
-            // //If we hit the current limit immediately because there wasn't any slack we will extend
-            // elapsedTime = millis()-time;
-            // if(elapsedTime < 1500){
-                
-            //     //Extend some belt to get things started
-            //     decompressBelt();
-                
-            //     unsigned long timeLastMoved = millis();
-            //     double lastPosition = getPosition();
-            //     double amtToMove = 0.1;
-                
-            //     while(getPosition() < targetLength){
-            //         //Check for timeout
-            //         if(!comply(&timeLastMoved, &lastPosition, &amtToMove, 500)){//Comply updates the encoder position and does the actual moving
-                        
-            //             //Stop and return
-            //             setTarget(getPosition());
-            //             motor.stop();
-                        
-            //             return false;
-            //         }
-                    
-            //         // Delay without blocking
-            //         unsigned long time = millis();
-            //         unsigned long elapsedTime = millis()-time;
-            //         while(elapsedTime < 50){
-            //             elapsedTime = millis()-time;
-            //         }
-                    
-            //     }
-                
-            //     //Position hold for 2 seconds to make sure we are in the right place
-            //     setTarget(targetLength);
-            //     time = millis();
-            //     elapsedTime = millis()-time;
-            //     while(elapsedTime < 500){
-            //         elapsedTime = millis()-time;
-            //         recomputePID();
-            //         updateEncoderPosition();
-            //     }
-                
-            //     motor.stop();
+            
+}
+// extends the belt to the target length until it hits the target length or the timeout is reached
+bool MotorUnit::extend(double targetLength) {
 
-            //     log_info("Belt positon after extend: ");
-            //     log_info(getPosition());
-            //     return true;
-            // }  
+            //Extend some belt to get things started - moved to M.update()
+            //decompressBelt();
+
+            unsigned long timeLastMoved = millis();
+
+            if  (getPosition() < targetLength) {
+                //Check for timeout
+                if (!comply(500)) {  //Comply updates the encoder position and does the actual moving
+
+                    //Stop and return
+                    setTarget(getPosition());
+                    motor.stop();
+
+                    return false; //TIMEOUT
+                }
+
+                // Delay without blocking
+                unsigned long time        = millis();
+                unsigned long elapsedTime = millis() - time;
+                while (elapsedTime < 50) {
+                    elapsedTime = millis() - time;
+                }
+            }
+
+            //Position hold for 2 seconds to make sure we are in the right place - do we need this?
+            // setTarget(targetLength);
+            // time        = millis();
+            // elapsedTime = millis() - time;
+            // while (elapsedTime < 500) {
+            //     elapsedTime = millis() - time;
+            //     recomputePID();
+            //     updateEncoderPosition();
+            // }
+
+            motor.stop();
+
+            log_info("Belt positon after extend: ");
+            log_info(getPosition());
+            return true;
 }

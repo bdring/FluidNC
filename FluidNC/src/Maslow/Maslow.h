@@ -54,10 +54,14 @@ class Maslow_ {
     void retractBL();
     void retractBR();
     void retractALL();
+    void extendALL();
+    void comply();
     bool retractingTL = false;
     bool retractingTR = false;
     bool retractingBL = false;
     bool retractingBR = false; 
+    bool extendingALL = false;
+    bool complyALL = false;
     
     
     MotorUnit axisTL;
@@ -102,6 +106,8 @@ class Maslow_ {
     unsigned long lastCallToPID = millis();
     unsigned long lastMiss = millis();
     unsigned long lastCallToUpdate = millis();
+    unsigned long extendCallTimer = millis();
+    unsigned long complyCallTimer = millis();
 
     //Stores a reference to the global system runtime function to be called when blocking operations are needed
     void (*_sys_rt)() = nullptr;
