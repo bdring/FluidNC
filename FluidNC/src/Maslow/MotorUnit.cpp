@@ -80,13 +80,14 @@ bool MotorUnit::updateEncoderPosition(){
 
     if( !Maslow.I2CMux.setPort(_encoderAddress) ) return false;
 
-    if(encoder.isConnected()){
+    if(encoder.isConnected()){ //this func has 50ms timeout (or worse?, hard to tell)
         mostRecentCumulativeEncoderReading = encoder.getCumulativePosition(); //This updates and returns the encoder value
         return true;
     }
     else if(millis() - encoderReadFailurePrintTime > 5000){
         encoderReadFailurePrintTime = millis();
         log_info("Encoder read failure on " << _encoderAddress);
+        Maslow.panic();
     }
     return false;
 }
@@ -129,8 +130,8 @@ void MotorUnit::reset(){
  */
 bool MotorUnit::comply( double maxSpeed){
 
-    //Call it every 50 ms
-    if(millis() - lastCallToComply < 50){
+    //Call it every 25 ms
+    if(millis() - lastCallToComply < 25){
         return true;
     }
     //Update position and PID loop
@@ -182,12 +183,14 @@ bool MotorUnit::comply( double maxSpeed){
  *  @brief  Fully retracts this axis and zeros it, non-blocking, returns true when done
  */
 bool MotorUnit::retract(){
-
-        //Gradually increase the pulling speed
-        if(random(0,2) == 1){ //This is a hack to make it speed up more slowly because we can't add less than 1 to an int
-            retract_speed = min(retract_speed + 1, 1023);
-        }
-        motor.backward(retract_speed);
+    //call every 5ms, don't know if it's the best way really 
+    if(millis() - lastCallToRetract < 5){
+        return false;
+    }
+    lastCallToRetract = millis();
+    //Gradually increase the pulling speed
+    if(random(0,2) == 1) retract_speed = min(retract_speed +1 , 1023);
+    motor.backward(retract_speed);
 
         //When taught
         int currentMeasurement = motor.readCurrent();
@@ -203,8 +206,8 @@ bool MotorUnit::retract(){
         //EXPERIMENTAL, added because my BR current sensor is faulty, but might be an OK precaution
         //monitor the position change speed  
         bool beltStalled = false;
-        if(retract_speed > 450 && (beltSpeedCounter++ % 10 == 0) ){ // skip the start, might create problems if the belt is slackking a lot
-            beltSpeed = (getPosition() - lastPosition)*100 / (millis() - beltSpeedTimer);
+        if(retract_speed > 450 && (beltSpeedCounter++ % 5 == 0) ){ // skip the start, might create problems if the belt is slackking a lot
+            beltSpeed = (getPosition() - lastPosition)*200 / (millis() - beltSpeedTimer);
             beltSpeedTimer = millis();
             lastPosition = getPosition();
             if(abs(beltSpeed) < 0.01){
@@ -216,14 +219,16 @@ bool MotorUnit::retract(){
         if(currentMeasurement > absoluteCurrentThreshold || incrementalThresholdHits > 2 || beltStalled){  //changed from 4 to 2 to prevent overtighting
             //stop motor, reset variables
             motor.stop();
-            retract_speed = 0;
-            retract_baseline = 700;
+            
             //Print how much the length of the belt changed compared to memory, log belt speed and current 
+            log_info("retract_speed " << retract_speed);
             log_info("Belt speed: " << beltSpeed << " mm/ms");
             log_info("Motor current: " << currentMeasurement);
             log_info("Belt positon after retract: ");
             log_info(getPosition());
             zero();
+            retract_speed = 0;
+            retract_baseline = 700;
             return true;
         }
         else{

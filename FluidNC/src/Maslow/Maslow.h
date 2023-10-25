@@ -21,7 +21,7 @@ class Maslow_ {
   public:
     //main utility functions
     void begin(void (*sys_rt)());
-    void home(int axis);
+    void home();
     void update();
     bool updateEncoderPositions();
     void setTargets(float xTarget, float yTarget, float zTarget);
@@ -47,6 +47,7 @@ class Maslow_ {
     void takeUpInternalSlack();
     void retractBR_CAL();
     void retractBL_CAL();
+
     void stopMotors();
 
     void retractTL();
@@ -57,6 +58,7 @@ class Maslow_ {
     void extendALL();
     void comply();
     void stop();
+    void panic();
     bool retractingTL = false;
     bool retractingTR = false;
     bool retractingBL = false;

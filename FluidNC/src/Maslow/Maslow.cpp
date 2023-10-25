@@ -39,6 +39,7 @@
 #define SERVOFAULT 40
 
 #define MEASUREMENTSPEED 1.0 //The max speed at which we move the motors when taking measurements
+int ENCODER_READ_FREQUENCY_HZ = 100;
 
 int lowerBeltsExtra = 4;
 int callsSinceDelay = 0;
@@ -112,58 +113,81 @@ void Maslow_::begin(void (*sys_rt)()) {
 
   currentThreshold = 1500;
   lastCallToUpdate = millis();
+  log_info("Starting Maslow");
 }
 
+void Maslow_::home() {
+  //run all the retract functions untill we hit the current limit
+  if (retractingTL) {
+      if (axisTL.retract())
+          retractingTL = false;
+  }
+  if (retractingTR) {
+      if (axisTR.retract())
+          retractingTR = false;
+  }
+  if (retractingBL) {
+      if (axisBL.retract())
+          retractingBL = false;
+  }
+  if (retractingBR) {
+      if (axisBR.retract())
+          retractingBR = false;
+  }
 
-void Maslow_::home(int axis) {
-    // log_info(axis);
-    // switch(axis) {
-    //     case 0: //Bottom left
-    //         extendingOrRetracting = true;
-    //         axisBLHomed = axisBL.retract(computeBL(0, 300, 0));
-    //         extendingOrRetracting = false;
-    //         break;
-    //     case 1: //Top Left
-    //         if(axisBLHomed && axisBRHomed && axisTRHomed && axisTLHomed) {
-    //             lowerBeltsExtra = lowerBeltsExtra - 1;
-    //             log_info("Extra: " << lowerBeltsExtra);
-    //         }
-    //         else{
-    //             extendingOrRetracting = true;
-    //             axisTLHomed = axisTL.retract(computeTL(0, 0, 0));
-    //             extendingOrRetracting = false;
-    //         }
-    //         break;
-    //     case 2: //Top right
-    //         if(axisBLHomed && axisBRHomed && axisTRHomed && axisTLHomed) {
-    //             lowerBeltsExtra = lowerBeltsExtra + 1;
-    //             log_info("Extra: " << lowerBeltsExtra);
-    //         }
-    //         else{
-    //             extendingOrRetracting = true;
-    //             axisTRHomed = axisTR.retract(computeTR(0, 0, 0));
-    //             extendingOrRetracting = false;
-    //         }
-    //         break;
-    //     case 4: //Bottom right
-    //         if(axisBLHomed && axisBRHomed && axisTRHomed && axisTLHomed) {
-    //             runCalibration();
-    //         }
-    //         else {
-    //             extendingOrRetracting = true;
-    //             axisBRHomed = axisBR.retract(computeBR(0, 300, 0));
-    //             extendingOrRetracting = false;
-    //         }
-    //         break;
-    //     default:
-    //         log_info("Unrecognized axis");
-    //         log_info(axis);
-    //         break;
-    // }
+  // $EXT - extend mode
+  if (extendingALL) {
+      //decompress belts for the first half second
+      if (millis() - extendCallTimer < 500) {
+          if (millis() - extendCallTimer > 0)
+              axisBR.decompressBelt();
+          if (millis() - extendCallTimer > 50)
+              axisBL.decompressBelt();
+          if (millis() - extendCallTimer > 100)
+              axisTR.decompressBelt();
+          if (millis() - extendCallTimer > 150)
+              axisTL.decompressBelt();
+      }
+      //then make all the belts comply until they are extended fully, or user terminates it
+      else {
+          if (!extendedTL)
+              extendedTL = axisTL.extend(computeTL(0, 0, 0));
+          if (!extendedTR)
+              extendedTR = axisTR.extend(computeTR(0, 0, 0));
+          if (!extendedBL)
+              extendedBL = axisBL.extend(computeBL(0, 300, 0));
+          if (!extendedBR)
+              extendedBR = axisBR.extend(computeBR(0, 300, 0));
+          if (extendedTL && extendedTR && extendedBL && extendedBR) {
+              extendingALL = false;
+              log_info("All belts extended to center position");
+          }
+      }
+  }
+  // $CMP - comply mode
+  if (complyALL) {
+      //decompress belts for the first half second
+      if (millis() - complyCallTimer < 500) {
+          if (millis() - complyCallTimer > 0)
+              axisBR.decompressBelt();
+          if (millis() - complyCallTimer > 100)
+              axisBL.decompressBelt();
+          if (millis() - complyCallTimer > 150)
+              axisTR.decompressBelt();
+          if (millis() - complyCallTimer > 200)
+              axisTL.decompressBelt();
+      } else {
+          axisTL.comply(500);  //call to recomputePID() inside here
+          axisTR.comply(500);
+          axisBL.comply(500);
+          axisBR.comply(500);
+      }
+  }
 
-    // if(axisBLHomed && axisBRHomed && axisTRHomed && axisTLHomed) {
-    //     log_info("All axis ready.");
-    // }
+  //if we are done with all the homing moves, switch system state back to alarm ( or Idle? )
+  if (!retractingTL && !retractingBL && !retractingBR && !retractingTR && !extendingALL && !complyALL) {
+      sys.set_state(State::Alarm);
+  }
 }
 // Maslow main loop
 void Maslow_::update(){
@@ -179,66 +203,13 @@ void Maslow_::update(){
 
             Maslow.setTargets(steps_to_mpos(get_axis_motor_steps(0),0), steps_to_mpos(get_axis_motor_steps(1),1), steps_to_mpos(get_axis_motor_steps(2),2));
             Maslow.recomputePID();
+
         }
 
         //Homing routines
         else if(sys.state() == State::Homing){
 
-            //run all the retract functions untill we hit the current limit
-            if(retractingTL){
-                if( axisTL.retract() ) retractingTL = false;
-            }
-            if(retractingTR){
-                if( axisTR.retract() ) retractingTR = false;
-            }
-            if(retractingBL){
-                if( axisBL.retract() ) retractingBL = false;
-            }
-            if(retractingBR){
-                if( axisBR.retract() ) retractingBR = false;
-            }
-
-            //Extending routines
-            if (extendingALL) {
-
-                //decompress belts for the first half second
-                if (millis() - extendCallTimer < 500) {
-                    if( millis() - extendCallTimer >0) axisBR.decompressBelt();
-                    if (millis() - extendCallTimer > 50) axisBL.decompressBelt();
-                    if (millis() - extendCallTimer > 100) axisTR.decompressBelt();
-                    if (millis() - extendCallTimer > 150) axisTL.decompressBelt();
-                } 
-                //then make all the belts comply until they are extended fully, or user terminates it
-                else {
-                    if(!extendedTL) extendedTL = axisTL.extend(computeTL(0, 0, 0));
-                    if(!extendedTR) extendedTR = axisTR.extend(computeTR(0, 0, 0));
-                    if(!extendedBL) extendedBL = axisBL.extend(computeBL(0, 300, 0));
-                    if(!extendedBR) extendedBR = axisBR.extend(computeBR(0, 300, 0));
-                    if(extendedTL && extendedTR && extendedBL && extendedBR){
-                        extendingALL = false;
-                        log_info("All belts extended to center position");
-                    }
-                }
-            }
-
-            if(complyALL){
-                //decompress belts for the first half second
-                if (millis() - complyCallTimer < 500) {
-                    if( millis() - complyCallTimer >0) axisBR.decompressBelt();
-                    if (millis() - complyCallTimer > 100) axisBL.decompressBelt();
-                    if (millis() - complyCallTimer > 150) axisTR.decompressBelt();
-                    if (millis() - complyCallTimer > 200) axisTL.decompressBelt();
-                } else {
-                    axisTL.comply(500);  //call to recomputePID() inside here
-                    axisTR.comply(500);
-                    axisBL.comply(500);
-                    axisBR.comply(500);
-                }
-            }
-            //if we are done with all the homing moves, switch system state back to alarm ( or Idle? )
-            if(!retractingTL && !retractingBL && !retractingBR && !retractingTR && !extendingALL && !complyALL ){
-                sys.set_state(State::Alarm);
-            }
+            home();
             
         }
 
@@ -247,9 +218,10 @@ void Maslow_::update(){
 
         //if the update function is not being called enough, stop everything to prevent damage
         if(millis() - lastCallToUpdate > 500){
-            Maslow.stop();
-            sys.set_state(State::Alarm);
-            log_info("Emergency stop. Update function not being called enough.");
+            Maslow.panic();
+            // print warnign and time since last call
+            int elapsedTime = millis()-lastCallToUpdate; 
+            log_info("Emergency stop. Update function not being called enough."  << elapsedTime << "ms since last call" );
         }
 
     }
@@ -258,6 +230,7 @@ void Maslow_::update(){
 
 //non-blocking homing functions
 void Maslow_::retractTL(){
+    //We allow other bells retracting to continue 
     retractingTL = true;
     complyALL = false;
     extendingALL = false;
@@ -330,17 +303,100 @@ void Maslow_::comply(){
     axisBR.reset();
     log_info("Complying All");
 }
-//updating encoder positions for all 4 arms
+
+//updating encoder positions for all 4 arms, cycling through them each call, at ENCODER_READ_FREQUENCY_HZ frequency
 bool Maslow_::updateEncoderPositions(){
     bool success = true;
-    if(!readingFromSD){
-        if(!axisBL.updateEncoderPosition()) success = false;
-        if(!axisBR.updateEncoderPosition()) success = false;
-        if(!axisTR.updateEncoderPosition()) success = false;
-        if(!axisTL.updateEncoderPosition()) success = false;
+    static unsigned long lastCallToEncoderRead = millis();
+
+    static int encoderFailCounter[4] = {0,0,0,0}; 
+    static unsigned long encoderFailTimer = millis();
+
+    if(!readingFromSD  && (millis() - lastCallToEncoderRead > 1000/(ENCODER_READ_FREQUENCY_HZ) ) ) {
+        static int encoderToRead = 0;
+        switch(encoderToRead){
+            case 0:
+                if(!axisTL.updateEncoderPosition()){
+                    encoderFailCounter[0]++;
+                }
+                break;
+            case 1:
+                if(!axisTR.updateEncoderPosition()){
+                    encoderFailCounter[1]++;
+                }
+                break;
+            case 2:
+                if(!axisBL.updateEncoderPosition()){
+                    encoderFailCounter[2]++;
+                }
+                break;
+            case 3:
+                if(!axisBR.updateEncoderPosition()){
+                    encoderFailCounter[3]++;
+                }
+                break;
+        }
+        encoderToRead++;
+        if(encoderToRead > 3) {
+            encoderToRead = 0;
+            lastCallToEncoderRead = millis();
+        }
     }
+
+    // if more than 10% of readings fail, warn user, if more than 50% fail, stop the machine and raise alarm
+    if(millis() - encoderFailTimer > 1000){
+        for(int i = 0; i < 4; i++){
+            //turn i into proper label
+            String label;
+            switch(i){
+                case 0:
+                    label = "Top Left";
+                    break;
+                case 1:
+                    label = "Top Right";
+                    break;
+                case 2:
+                    label = "Bottom Left";
+                    break;
+                case 3:
+                    label = "Bottom Right";
+                    break;
+            }
+            if(encoderFailCounter[i] > 0.5*ENCODER_READ_FREQUENCY_HZ){
+                // log error statement with appropriate label
+                log_error("Failure on " << label.c_str() << " encoder, failed to read " << encoderFailCounter[i] << " times in the last second");
+                Maslow.panic();
+            }
+            else if(encoderFailCounter[i] > 0.1*ENCODER_READ_FREQUENCY_HZ){
+                log_info("Bad connection on " << label.c_str() << " encoder, failed to read " << encoderFailCounter[i] << " times in the last second");
+            }
+            encoderFailCounter[i] = 0;
+            encoderFailTimer = millis();
+        }
+    }
+    //DEBUG: keep track of encoder positions and print encoder positions if they changed since the last call:
+    // static float lastEncoderPositions[4] = {0};
+    // float encoderPositions[4] = {0};
+    // encoderPositions[0] = axisTL.getPosition();
+    // encoderPositions[1] = axisTR.getPosition();
+    // encoderPositions[2] = axisBL.getPosition();
+    // encoderPositions[3] = axisBR.getPosition();
+    // bool encoderPositionsChanged = false;
+    // for(int i = 0; i < 4; i++){
+    //     if(abs( encoderPositions[i] - lastEncoderPositions[i]) > 1){
+    //         encoderPositionsChanged = true;
+    //         lastEncoderPositions[i] = encoderPositions[i];
+    //     }
+    // }
+    // if(encoderPositionsChanged){
+    //     log_info("Encoder Positions: " << encoderPositions[0] << " " << encoderPositions[1] << " " << encoderPositions[2] << " " << encoderPositions[3]);
+    // }
+    
     return success;
 }
+
+
+
 //Called from update()
 void Maslow_::recomputePID(){
 
@@ -417,7 +473,10 @@ void Maslow_::stopMotors(){
     axisTL.stop();
 }
 
-
+void Maslow_::panic(){
+    stop();
+    sys.set_state(State::Alarm);
+}
 //Computes the tensions in the upper two belts
 void Maslow_::computeTensions(float x, float y){
     //This should be a lot smarter and compute the vector tensions to see if the lower belts are contributing positively
