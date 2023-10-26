@@ -32,6 +32,9 @@ class MotorUnit {
 
     void reset(); //resetting variables here, because of non-blocking, maybe there's a better way to do this
 
+    double getMotorCurrent(); //averaged value of the last 10 measurements
+    double getBeltSpeed();
+    void updateMotorCurrent();
 
   private:
     int _encoderAddress;
@@ -48,7 +51,13 @@ class MotorUnit {
     double _commandPWM = 0; //The last PWM duty cycle sent to the motor
     double mostRecentCumulativeEncoderReading = 0;
     double encoderReadFailurePrintTime = millis();
-    unsigned long lastCallGetPos = millis();
+    //unsigned long lastCallGetPos = millis();
+
+    //variables to keep track of the motor current and belt speed
+    double beltSpeed = 0;
+    unsigned long beltSpeedTimer = millis();
+    double motorCurrentBuffer[10];
+    unsigned long motorCurrentTimer = millis();
 
     //retract variables
     int absoluteCurrentThreshold = 1900;
@@ -64,8 +73,8 @@ class MotorUnit {
     double  lastPosition  = getPosition();
     double  amtToMove     = 0.1;
 
-    double beltSpeed = 0;
-    unsigned long beltSpeedTimer = millis();
+
+    
     int beltSpeedCounter = 0;
 
 };

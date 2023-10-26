@@ -863,6 +863,11 @@ static Error maslow_set_comply(const char* value, WebUI::AuthenticationLevel aut
     Maslow.comply();
     return Error::Ok;
 }
+static Error maslow_start_calibration(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+    sys.set_state(State::Homing);
+    Maslow.runCalibration();
+    return Error::Ok;
+}
 // Commands use the same syntax as Settings, but instead of setting or
 // displaying a persistent value, a command causes some action to occur.
 // That action could be anything, from displaying a run-time parameter
@@ -932,6 +937,7 @@ void make_user_commands() {
     new UserCommand("ALL", "retractALL", maslow_retract_ALL, anyState);
     new UserCommand("EXT", "extendALL", maslow_extend_ALL, anyState);
     new UserCommand("CMP", "comply", maslow_set_comply, anyState);
+    new UserCommand("CAL", "calibration", maslow_start_calibration, anyState);
     new UserCommand("STP", "STOP", maslow_stop, anyState); // experimental
 
 };

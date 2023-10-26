@@ -113,26 +113,38 @@ void Maslow_::begin(void (*sys_rt)()) {
 
   currentThreshold = 1500;
   lastCallToUpdate = millis();
-  log_info("Starting Maslow");
+  log_info("Starting Maslow v 1.00");
+}
+
+bool Maslow_::all_axis_homed(){
+    return axis_homed[0] && axis_homed[1] && axis_homed[2] && axis_homed[3];
 }
 
 void Maslow_::home() {
   //run all the retract functions untill we hit the current limit
   if (retractingTL) {
-      if (axisTL.retract())
+      if (axisTL.retract()){
           retractingTL = false;
+          axis_homed[0] = true;
+      }
   }
   if (retractingTR) {
-      if (axisTR.retract())
+      if (axisTR.retract()){
           retractingTR = false;
+          axis_homed[1] = true;
+      }
   }
   if (retractingBL) {
-      if (axisBL.retract())
+      if (axisBL.retract()){
           retractingBL = false;
+          axis_homed[2] = true;
+      }
   }
   if (retractingBR) {
-      if (axisBR.retract())
+      if (axisBR.retract()){
           retractingBR = false;
+          axis_homed[3] = true;
+      }
   }
 
   // $EXT - extend mode
@@ -186,7 +198,7 @@ void Maslow_::home() {
 
   //if we are done with all the homing moves, switch system state back to alarm ( or Idle? )
   if (!retractingTL && !retractingBL && !retractingBR && !retractingTR && !extendingALL && !complyALL) {
-      sys.set_state(State::Alarm);
+      sys.set_state(State::Idle);
   }
 }
 // Maslow main loop
@@ -194,7 +206,13 @@ void Maslow_::update(){
     //Make sure we're running maslow config file
     if(!Maslow.using_default_config){
 
-        Maslow.updateEncoderPositions(); //We always update encoder positions in any state
+        Maslow.updateEncoderPositions(); //We always update encoder positions in any state, belt speeds are updated there too
+        
+        //update motor currents like this for now
+        axisTL.updateMotorCurrent();
+        axisTR.updateMotorCurrent();
+        axisBL.updateMotorCurrent();
+        axisBR.updateMotorCurrent();
 
         //Maslow State Machine
 
@@ -203,7 +221,6 @@ void Maslow_::update(){
 
             Maslow.setTargets(steps_to_mpos(get_axis_motor_steps(0),0), steps_to_mpos(get_axis_motor_steps(1),1), steps_to_mpos(get_axis_motor_steps(2),2));
             Maslow.recomputePID();
-
         }
 
         //Homing routines
@@ -221,7 +238,7 @@ void Maslow_::update(){
             Maslow.panic();
             // print warnign and time since last call
             int elapsedTime = millis()-lastCallToUpdate; 
-            log_info("Emergency stop. Update function not being called enough."  << elapsedTime << "ms since last call" );
+            log_error("Emergency stop. Update function not being called enough."  << elapsedTime << "ms since last call" );
         }
 
     }
@@ -347,21 +364,7 @@ bool Maslow_::updateEncoderPositions(){
     if(millis() - encoderFailTimer > 1000){
         for(int i = 0; i < 4; i++){
             //turn i into proper label
-            String label;
-            switch(i){
-                case 0:
-                    label = "Top Left";
-                    break;
-                case 1:
-                    label = "Top Right";
-                    break;
-                case 2:
-                    label = "Bottom Left";
-                    break;
-                case 3:
-                    label = "Bottom Right";
-                    break;
-            }
+            String label = axis_id_to_label(i);
             if(encoderFailCounter[i] > 0.5*ENCODER_READ_FREQUENCY_HZ){
                 // log error statement with appropriate label
                 log_error("Failure on " << label.c_str() << " encoder, failed to read " << encoderFailCounter[i] << " times in the last second");
@@ -395,57 +398,47 @@ bool Maslow_::updateEncoderPositions(){
     return success;
 }
 
-
+String Maslow_::axis_id_to_label(int axis_id){
+    String label;
+    switch(axis_id){
+        case 0:
+            label = "Top Left";
+            break;
+        case 1:
+            label = "Top Right";
+            break;
+        case 2:
+            label = "Bottom Left";
+            break;
+        case 3:
+            label = "Bottom Right";
+            break;
+    }
+    return label;
+}
 
 //Called from update()
 void Maslow_::recomputePID(){
-
-    if(!initialized){ //If we haven't initialized we don't want to try to compute things because the PID controllers cause the processor to crash
-        return;
-    }
-    if(readingFromSD){
-        return;
-    }
-
-    int timeSinceLastCall = millis() - lastCallToPID;
+    //limit frequency to 500 Hz , maybe better update only if the encoder positions where updated
+    // if(millis() - lastCallToPID < 2){
+    //     return;
+    // }
+    // lastCallToPID = millis();
     
-    if(timeSinceLastCall > 20){
-        int elapsedTimeLastMiss = millis() - lastMiss;
-        //log_info( "PID not being called often enough. Ms since last call: " << timeSinceLastCall << " # since last miss: " << callsSinceDelay << " Ms since last miss: " << elapsedTimeLastMiss);
-        callsSinceDelay = 0;
-        lastMiss = millis();
-    }
-    else{
-        callsSinceDelay++;
-    }
+    //We need to keep track of average belt speeds and motor currents for every axis
+    //If the current exceeds some absolute value, we need to call panic() and stop the machine
+    //If the motor torque is high, but the belt is not moving 
+    //  if motor is moving IN, this means the axis is OVERTIGHT, we should warn the user and lower torque to the motor
+    //  if the motor is moving OUT, that means the axis has SLACK, so we should warn the user and stop the motor, until the belt starts moving again
+    
+   
+    axisBL.recomputePID();
+    axisBR.recomputePID();
+    axisTR.recomputePID();
+    axisTL.recomputePID();
+    digitalWrite(coolingFanPin, HIGH);  //keep the cooling fan on
 
-    lastCallToPID = millis();
-
-    //If the belt is extending or retracting from the zero point we don't do anything here
-    if(extendingOrRetracting){
-        return;
-    }
-
-    //Stop the motors if we are idle or alarm. Unless doing calibration. Calibration can happen during idle or alarm
-    if((sys.state() == State::Idle || sys.state() == State::Alarm) && !calibrationInProgress){
-        axisBL.stop();
-        axisBR.stop();
-        axisTR.stop();
-        axisTL.stop();
-        digitalWrite(coolingFanPin, LOW); //Turn off the cooling fan
-    }
-    else{  //Normal operation...drive the motors to the target positions
-        if(random(50) == 0){
-            //log_info("Recomputing PID called");
-        }
-        axisBL.recomputePID();
-        axisBR.recomputePID();
-        axisTR.recomputePID();
-        axisTL.recomputePID();
-        digitalWrite(coolingFanPin, HIGH); //Turn on the cooling fan
-    }
-
-    if(digitalRead(SERVOFAULT) == 1){
+    if (digitalRead(SERVOFAULT) == 1) { //no idea what this does, so I'm keeping it
         log_info("Servo fault!");
     }
 }
@@ -471,6 +464,7 @@ void Maslow_::stopMotors(){
     axisBR.stop();
     axisTR.stop();
     axisTL.stop();
+    digitalWrite(coolingFanPin, LOW); //Turn off the cooling fan
 }
 
 void Maslow_::panic(){
@@ -683,7 +677,13 @@ void Maslow_::takeColumnOfMeasurements(float x, float measurments[][4]){
 
 //Runs the calibration sequence to determine the machine's dimensions // DONT RUN, DOESN'T WORK
 void Maslow_::runCalibration(){
-    
+
+    if(!all_axis_homed()){
+        log_error("Cannot run calibration until all axis are homed");
+        sys.set_state(State::Idle);
+        return;
+    }
+
     log_info("\n\nBeginning calibration\n\n");
     
     calibrationInProgress = true;

@@ -82,6 +82,12 @@ bool MotorUnit::updateEncoderPosition(){
 
     if(encoder.isConnected()){ //this func has 50ms timeout (or worse?, hard to tell)
         mostRecentCumulativeEncoderReading = encoder.getCumulativePosition(); //This updates and returns the encoder value
+        //update belt speed every 50ms or so:
+        if(millis() - beltSpeedTimer > 50){
+            beltSpeed = (getPosition() - lastPosition)  /  ( (millis() - beltSpeedTimer)/1000.0 ); // mm/s
+            beltSpeedTimer = millis();
+            lastPosition = getPosition();
+        }
         return true;
     }
     else if(millis() - encoderReadFailurePrintTime > 5000){
@@ -92,6 +98,28 @@ bool MotorUnit::updateEncoderPosition(){
     return false;
 }
 
+double MotorUnit::getBeltSpeed(){
+    return beltSpeed;
+}
+double MotorUnit::getMotorCurrent(){
+    //return average motor current of the last 10 readings:
+    double sum = 0;
+    for(int i = 0; i < 10; i++){
+        sum += motorCurrentBuffer[i];
+    }
+    return sum/10.0;
+}
+
+// update the motor current buffer every >5 ms
+void MotorUnit::updateMotorCurrent(){
+    if(millis() - motorCurrentTimer > 5){
+        motorCurrentTimer = millis();
+        for(int i = 0; i < 9; i++){
+            motorCurrentBuffer[i] = motorCurrentBuffer[i+1];
+        }
+        motorCurrentBuffer[9] = motor.readCurrent();
+    }
+}
 /*!
  *  @brief  Recomputes the PID and drives the output
  */
@@ -131,7 +159,7 @@ void MotorUnit::reset(){
 bool MotorUnit::comply( double maxSpeed){
 
     //Call it every 25 ms
-    if(millis() - lastCallToComply < 25){
+    if(millis() - lastCallToComply < 50){
         return true;
     }
     //Update position and PID loop
@@ -206,16 +234,19 @@ bool MotorUnit::retract(){
         //EXPERIMENTAL, added because my BR current sensor is faulty, but might be an OK precaution
         //monitor the position change speed  
         bool beltStalled = false;
-        if(retract_speed > 450 && (beltSpeedCounter++ % 5 == 0) ){ // skip the start, might create problems if the belt is slackking a lot
-            beltSpeed = (getPosition() - lastPosition)*200 / (millis() - beltSpeedTimer);
-            beltSpeedTimer = millis();
-            lastPosition = getPosition();
-            if(abs(beltSpeed) < 0.01){
+        if(retract_speed > 450 ){ // skip the start, might create problems if the belt is slackking a lot, but you can always run it many times
+            if(abs(beltSpeed) < 1){
                 beltStalled = true;
             }
         }
-        
-        //log speed and current:
+        //log speed, belt speed and average current in one compact line
+        static unsigned long t = millis();
+        unsigned long tpast = millis() - t;
+        unsigned long timestamp = 0;
+        if(tpast > 50){
+            log_info(",time,"<< int(timestamp+tpast) <<",motor pow, " << retract_speed << ", beltSpeed, " << beltSpeed << ", current, " << currentMeasurement << ", avgCurrent, " << getMotorCurrent()<<",");
+            t = millis();
+        }
         if(currentMeasurement > absoluteCurrentThreshold || incrementalThresholdHits > 2 || beltStalled){  //changed from 4 to 2 to prevent overtighting
             //stop motor, reset variables
             motor.stop();
