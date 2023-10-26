@@ -201,6 +201,33 @@ void Maslow_::home() {
       sys.set_state(State::Idle);
   }
 }
+//This is the function that should prevent machine from damaging itself
+void Maslow_::safety_control() {
+  //We need to keep track of average belt speeds and motor currents for every axis
+
+  MotorUnit* axis[4] = { &axisTL, &axisTR, &axisBL, &axisBR };
+  for (int i = 0; i < 4; i++) {
+      //If the current exceeds some absolute value, we need to call panic() and stop the machine
+      if (axis[i]->getMotorCurrent() > currentThreshold) {
+          log_error("Motor current on " << axis_id_to_label(i).c_str() << " axis exceeded threshold of " << currentThreshold
+                                        << "mA, current is " << int(axis[i]->getMotorCurrent()) << "mA");
+          Maslow.panic();
+      }
+
+      //If the motor torque is high, but the belt is not moving
+      //  if motor is moving IN, this means the axis is STALL, we should warn the user and lower torque to the motor
+      //  if the motor is moving OUT, that means the axis has SLACK, so we should warn the user and stop the motor, until the belt starts moving again
+      // don't spam log, no more than once every 5 seconds
+      static bool tick[4] = {false, false, false, false};
+
+      if (axis[i]->getMotorCurrent() > currentThreshold-500 && abs (axis[i]->getBeltSpeed() ) < 0.1) {
+            log_info("STALL:" << axis_id_to_label(i).c_str() << " motor current is " << int(axis[i]->getMotorCurrent()) << "mA, but the belt is not moving");
+        }
+      if(axis[i]->getMotorPower() > 750 && abs (axis[i]->getBeltSpeed() ) < 0.1){
+            log_info("SLACK:" << axis_id_to_label(i).c_str() << " motor power is " << int(axis[i]->getMotorPower()) << "mW, but the belt is not moving");
+      }
+}
+}
 // Maslow main loop
 void Maslow_::update(){
     //Make sure we're running maslow config file
@@ -208,11 +235,13 @@ void Maslow_::update(){
 
         Maslow.updateEncoderPositions(); //We always update encoder positions in any state, belt speeds are updated there too
         
-        //update motor currents like this for now
-        axisTL.updateMotorCurrent();
-        axisTR.updateMotorCurrent();
-        axisBL.updateMotorCurrent();
-        axisBR.updateMotorCurrent();
+        //update motor currents and belt speeds like this for now
+        axisTL.update();
+        axisTR.update();
+        axisBL.update();
+        axisBR.update();
+
+        //safety_control();
 
         //Maslow State Machine
 
@@ -424,13 +453,10 @@ void Maslow_::recomputePID(){
     //     return;
     // }
     // lastCallToPID = millis();
-    
-    //We need to keep track of average belt speeds and motor currents for every axis
-    //If the current exceeds some absolute value, we need to call panic() and stop the machine
-    //If the motor torque is high, but the belt is not moving 
-    //  if motor is moving IN, this means the axis is OVERTIGHT, we should warn the user and lower torque to the motor
-    //  if the motor is moving OUT, that means the axis has SLACK, so we should warn the user and stop the motor, until the belt starts moving again
-    
+    // if(readingFromSD){
+    //     return;
+    // }
+
    
     axisBL.recomputePID();
     axisBR.recomputePID();

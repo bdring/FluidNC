@@ -34,7 +34,8 @@ class MotorUnit {
 
     double getMotorCurrent(); //averaged value of the last 10 measurements
     double getBeltSpeed();
-    void updateMotorCurrent();
+    double getMotorPower();
+    void update();
 
   private:
     int _encoderAddress;

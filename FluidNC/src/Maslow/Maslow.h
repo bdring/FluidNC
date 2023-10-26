@@ -61,6 +61,7 @@ class Maslow_ {
     void panic();
     String axis_id_to_label(int axis_id);
     bool all_axis_homed();
+    void safety_control();
     bool axis_homed[4] = {false, false, false, false};
     bool retractingTL = false;
     bool retractingTR = false;
