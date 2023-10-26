@@ -60,6 +60,7 @@ class MotorUnit {
 
     //comply variables
     unsigned long lastCallToComply = millis();
+    unsigned long lastCallToRetract = millis();
     double  lastPosition  = getPosition();
     double  amtToMove     = 0.1;
 
