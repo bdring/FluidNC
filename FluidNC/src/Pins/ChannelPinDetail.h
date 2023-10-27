@@ -6,6 +6,7 @@
 #include "PinDetail.h"
 #include "PinOptionsParser.h"
 #include "src/Channel.h"
+#include "../Logging.h"
 
 namespace Pins {
     class ChannelPinDetail : public PinDetail {

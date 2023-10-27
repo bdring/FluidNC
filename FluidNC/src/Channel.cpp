@@ -184,7 +184,7 @@ Channel* Channel::pollLine(char* line) {
 
 void Channel::setAttr(int index, Pins::PinAttributes attr) {
     // XXX send INI message
-    _pin_attributes[index] = attr;
+    _pin_attributes[index] = _pin_attributes[index] | attr;
 }
 Pins::PinAttributes Channel::getAttr(int index) const {
     try {
@@ -193,8 +193,19 @@ Pins::PinAttributes Channel::getAttr(int index) const {
 }
 
 void Channel::out(int index, int value) {
+    if (value == _pin_values[index]) {
+        return;
+    }
     _pin_values[index] = value;
-    // XXX send SET message
+    std::string s = "[MSG:SET: io.";
+    s += std::to_string(index);
+    s += "=";
+    s += std::to_string(value);
+    s += "]";
+
+    println(s.c_str());  // send it out
+
+    log_info(s.c_str());
 }
 int Channel::in(int index) {
     return _pin_values[index];

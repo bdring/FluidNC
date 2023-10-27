@@ -1,5 +1,5 @@
-name: "ESP32 Dev Controller V4"
-board: "ESP32 Dev Controller V4"
+name: "UART I/O test config"
+board: "6 Pack Controller"
 
 stepping:
   engine: RMT
@@ -8,16 +8,18 @@ stepping:
   pulse_us: 2
   disable_delay_us: 0
 
-      
+
 uart1:
-  txd_pin: gpio.26
-  rxd_pin: gpio.4
+  txd_pin: gpio.4
+  rxd_pin: gpio.26
   baud: 115200
   mode: 8N1
-  
+
 uart_channel1:
-   uart_num: 1
-   
+  report_interval_ms: 75
+  uart_num: 1
+  controller: true
+
 i2so:
   bck_pin: gpio.22
   data_pin: gpio.21
@@ -31,15 +33,13 @@ spi:
 sdcard:
   cs_pin: gpio.5
   card_detect_pin: NO_PIN
-  
+
 probe:
-  pin: uart_channel0.3
-  
+  pin: uart_channel1.0:pu:low
+
 user_outputs:
-  analog0_pin: uart_channel0.2
+  analog0_pin: uart_channel1.2
 
 coolant:
-  mist_pin: uart_channel0.0
-  flood_pin: uart_channel0.1
-
-
+  mist_pin: uart_channel1.15:low
+  flood_pin: uart_channel1.14
