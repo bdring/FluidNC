@@ -205,7 +205,7 @@ void Channel::out(int index, int value) {
 
     println(s.c_str());  // send it out
 
-    log_info(s.c_str());
+    //log_info(s.c_str());
 }
 int Channel::in(int index) {
     return _pin_values[index];
