@@ -329,6 +329,7 @@ namespace WebUI {
     void Web_Server::send404Page() { sendWithOurAddress(PAGE_404, 404); }
 
     void Web_Server::handle_root() {
+        log_info("WebUI: Request from " << _webserver->client().remoteIP());
         if (!(_webserver->hasArg("forcefallback") && _webserver->arg("forcefallback") == "yes")) {
             if (myStreamFile("index.html")) {
                 return;
