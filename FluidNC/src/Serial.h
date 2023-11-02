@@ -40,6 +40,7 @@ public:
     void registration(Channel* channel);
     void deregistration(Channel* channel);
     void init();
+    void ready();
 
     size_t write(uint8_t data) override;
     size_t write(const uint8_t* buffer, size_t length) override;

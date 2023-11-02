@@ -14,7 +14,6 @@ private:
 
     int  _uart_num           = 0;
     int  _report_interval_ms = 0;
-    bool _controller         = false;  // the device is a pin extender
 
 public:
     UartChannel(bool addCR = false);
@@ -38,8 +37,7 @@ public:
     size_t   timedReadBytes(uint8_t* buffer, size_t length, TickType_t timeout) { return timedReadBytes((char*)buffer, length, timeout); };
     bool     realtimeOkay(char c) override;
     bool     lineComplete(char* line, char c) override;
-    Channel* pollLine(char* line) override;
-    bool     isController() { return _controller; }
+    Channel* pollLine(char* line) override;    
 
     // Configuration methods
     void group(Configuration::HandlerBase& handler) override {

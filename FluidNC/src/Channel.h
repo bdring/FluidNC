@@ -29,6 +29,7 @@
 #include <queue>
 
 class Channel : public Stream {
+private:
 public:
     static const int maxLine = 255;
 
@@ -36,8 +37,9 @@ protected:
     const char* _name;
     char        _line[maxLine];
     size_t      _linelen;
-    bool        _addCR     = false;
-    char        _lastWasCR = false;
+    bool        _addCR      = false;
+    char        _lastWasCR  = false;
+    bool        _controller = false;  // the device is a pin extender
 
     std::queue<uint8_t> _queue;
 
@@ -111,9 +113,10 @@ public:
     void notifyWco() { _reportWco = true; }
     void notifyNgc(CoordIndex coord) { _reportNgc = coord; }
 
-    int peek() override { return -1; }
-    int read() override { return -1; }
-    int available() override { return _queue.size(); }
+    int  peek() override { return -1; }
+    int  read() override { return -1; }
+    int  available() override { return _queue.size(); }
+    bool isController() { return _controller; }
 
     uint32_t     setReportInterval(uint32_t ms);
     uint32_t     getReportInterval() { return _reportInterval; }

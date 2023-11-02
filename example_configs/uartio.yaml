@@ -35,10 +35,14 @@ sdcard:
   card_detect_pin: NO_PIN
 
 probe:
-  pin: uart_channel1.0:pu:low
+  pin: NO_PIN
+
+control:
+  feed_hold_pin: uart_channel1.1:pu
+  cycle_start_pin: uart_channel1.2:pu
 
 user_outputs:
-  analog0_pin: uart_channel1.2
+  analog0_pin: NO_PIN
 
 coolant:
   mist_pin: uart_channel1.15:low

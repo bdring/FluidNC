@@ -88,6 +88,14 @@ void AllChannels::init() {
     registration(&startupLog);          // Early startup messages for $SS
 }
 
+void AllChannels::ready() {
+    for (auto channel : _channelq) {
+        if (channel->isController()) {
+            channel->println("[MSG:GET: io.*]");
+        }        
+    }
+}
+
 void AllChannels::kill(Channel* channel) {
     xQueueSend(_killQueue, &channel, 0);
 }

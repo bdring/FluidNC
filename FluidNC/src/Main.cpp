@@ -141,6 +141,7 @@ void setup() {
 
     allChannels.deregistration(&startupLog);
     protocol_send_event(&startEvent);
+    allChannels.ready();
 }
 
 void loop() {

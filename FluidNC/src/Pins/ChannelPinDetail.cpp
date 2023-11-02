@@ -6,7 +6,6 @@
 namespace Pins {
     ChannelPinDetail::ChannelPinDetail(Channel* channel, int number, const PinOptionsParser& options) :
         PinDetail(number), _channel(channel) {
-        log_debug("channel pin:" << number);
         for (auto opt : options) {
             if (opt.is("pu")) {
                 _channel->setAttr(_index, PinAttributes::PullUp);
@@ -54,7 +53,6 @@ namespace Pins {
         }
 
         s += "]";
-        //log_info(s);
         _channel->println(s.c_str());
     }
     PinAttributes ChannelPinDetail::getAttr() const {
