@@ -52,6 +52,7 @@ private:
     void parse_IP();
     void parse_AP();
     void parse_BT();
+    void parse_WebUI();
 
     void parse_axes(std::string s, float* axes);
     void parse_numbers(std::string s, float* nums, int maxnums);
