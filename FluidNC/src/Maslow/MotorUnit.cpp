@@ -69,6 +69,7 @@ double MotorUnit::getCurrent(){
  */
 void MotorUnit::stop(){
     motor.stop();
+    _commandPWM = 0;
 }
 
 //---------------------Functions related to maintaining the PID controllers-----------------------------------------
@@ -107,15 +108,20 @@ double MotorUnit::getMotorCurrent(){
     return sum/10.0;
 }
 
+//check if we are at the target position within certain precision:
+bool MotorUnit::onTarget(double precision){
+    if( abs( getTarget() - getPosition() ) < precision) return true;
+    else return false;
+}
 // update the motor current buffer every >5 ms
 void MotorUnit::update(){
     //updating belt speed and motor cutrrent
 
     //update belt speed every 50ms or so:
     if (millis() - beltSpeedTimer > 50) {
-        beltSpeed = (getPosition() - lastPosition)  /  ( (millis() - beltSpeedTimer)/1000.0 ); // mm/s
+        beltSpeed = (getPosition() - beltSpeedLastPosition)  /  ( (millis() - beltSpeedTimer)/1000.0 ); // mm/s
         beltSpeedTimer = millis();
-        lastPosition   = getPosition();
+        beltSpeedLastPosition   = getPosition();
     }
 
     if(millis() - motorCurrentTimer > 5){

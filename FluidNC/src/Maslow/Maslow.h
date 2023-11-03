@@ -36,6 +36,7 @@ class Maslow_ {
     float computeTL(float x, float y, float z);
 
     //calibration functions 
+    void runCalibration_(); // temporary
     void runCalibration();
     void printMeasurementSet(float allLengths[][4]);
     void takeColumnOfMeasurements(float x, float measurments[][4]);
@@ -59,9 +60,13 @@ class Maslow_ {
     void comply();
     void stop();
     void panic();
+    void setSafety(bool state);
     String axis_id_to_label(int axis_id);
     bool all_axis_homed();
     void safety_control();
+    void set_frame_width(double width);
+    void set_frame_height(double height);
+    void update_frame_xyz();
     bool axis_homed[4] = {false, false, false, false};
     bool retractingTL = false;
     bool retractingTR = false;
@@ -75,6 +80,8 @@ class Maslow_ {
 
     bool extendingALL = false;
     bool complyALL = false;
+
+    bool safetyOn = true;
     
     
     MotorUnit axisTL;
@@ -93,7 +100,29 @@ class Maslow_ {
     bool using_default_config = false; 
     QWIICMUX I2CMux;
 
+    //calibration stuff
+    float frame_width = 3500;
+    float frame_height = 2500;
+
+    int frame_dimention_MIN = 1000;
+    int frame_dimention_MAX = 5000;
+
+    double CALIBRATION_GRID_OFFSET = 500; // distance from the corner in x and y directions
+    double calibrationGrid[100][2] = {0};
+
+    void generate_calibration_grid();
+    bool move_with_slack(double fromX, double fromY, double toX, double toY);
+    int get_direction(double x, double y, double targetX, double targetY);
+    bool take_measurement_avg_with_check();
+    void test_();
+    bool test = false;
+    // void update_maslow_XY();
+
+    // //keep track of where Maslow actually is, lower left corner is 0,0
+    // double x;
+    // double y;
   private:
+
     float tlX;
     float tlY;
     float tlZ;

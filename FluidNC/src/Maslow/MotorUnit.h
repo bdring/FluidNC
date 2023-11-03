@@ -36,6 +36,7 @@ class MotorUnit {
     double getBeltSpeed();
     double getMotorPower();
     void update();
+    bool onTarget(double precision);
 
   private:
     int _encoderAddress;
@@ -57,6 +58,7 @@ class MotorUnit {
     //variables to keep track of the motor current and belt speed
     double beltSpeed = 0;
     unsigned long beltSpeedTimer = millis();
+    double beltSpeedLastPosition = 0;
     double motorCurrentBuffer[10];
     unsigned long motorCurrentTimer = millis();
 
