@@ -50,15 +50,15 @@ Cmd findOverride(std::string name) {
     return it == overrideCodes.end() ? Cmd::None : it->second;
 }
 
-bool Macro::run() {
-    if (sys.state != State::Idle) {
-        log_error("Macro can only be used in idle state");
+bool Macro::run() {  // return true if the macro was run
+    const std::string& s = _gcode;
+    if (_gcode == "") {
         return false;
     }
 
-    const std::string& s = _gcode;
-    if (_gcode == "") {
-        return true;
+    if (sys.state != State::Idle) {
+        log_error("Macro can only be used in idle state");
+        return false;
     }
 
     log_info("Running macro " << _name << ": " << _gcode);
