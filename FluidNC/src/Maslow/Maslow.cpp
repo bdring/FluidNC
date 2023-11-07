@@ -231,14 +231,14 @@ bool Maslow_::take_measurement_avg_with_check(int waypoint) {
           if (!BL_tight) {
               if (axisBL.pull_tight()) {
                   BL_tight = true;
-                  log_info("Pulled BL tight");
+                  //log_info("Pulled BL tight");
               }
               return false;
           }
           if (!BR_tight) {
               if (axisBR.pull_tight()) {
                   BR_tight = true;
-                    log_info("Pulled BR tight");
+                    //log_info("Pulled BR tight");
               }
               return false;
           }
@@ -248,14 +248,14 @@ bool Maslow_::take_measurement_avg_with_check(int waypoint) {
           if (!BR_tight) {
               if (axisBR.pull_tight()) {
                   BR_tight = true;
-                    log_info("Pulled BR tight");
+                    //log_info("Pulled BR tight");
               }
               return false;
           }
           if (!BL_tight) {
               if (axisBL.pull_tight()) {
                   BL_tight = true;
-                    log_info("Pulled BL tight");
+                    //log_info("Pulled BL tight");
               }
               return false;
           }
@@ -305,7 +305,7 @@ void Maslow_::calibration_loop(){
                     sys.set_state(State::Idle);
                 }
                 else{
-                    log_info("Moving from: " << calibrationGrid[0][0] << " " << calibrationGrid[0][1] << " to: " << calibrationGrid[1][0] << " " << calibrationGrid[1][1] << " direction: " << get_direction(0,0, calibrationGrid[0][0], calibrationGrid[0][1]));
+                    log_info("Moving from: " << calibrationGrid[waypoint-1][0] << " " << calibrationGrid[waypoint-1][1] << " to: " << calibrationGrid[waypoint][0] << " " << calibrationGrid[waypoint][1] << " direction: " << get_direction(calibrationGrid[waypoint-1][0], calibrationGrid[waypoint-1][1], calibrationGrid[waypoint][0], calibrationGrid[waypoint][1]));
                     setTargets(calibrationGrid[waypoint][0], calibrationGrid[waypoint][1], 0);
                 }
             }
