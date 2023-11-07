@@ -165,6 +165,31 @@ void MotorUnit::reset(){
     lastPosition = getPosition();
     beltSpeedTimer = millis();
 }
+
+//pulls belt tight 
+bool MotorUnit::pull_tight(){
+    //call every 5ms, don't know if it's the best way really 
+    if(millis() - lastCallToRetract < 5){
+        return false;
+    }
+    lastCallToRetract = millis();
+    //Gradually increase the pulling speed
+    retract_speed = min(retract_speed +1 , 1023);
+    motor.backward(retract_speed);
+
+    //When taught
+     int currentMeasurement = getCurrent();
+     if(retract_speed > 100 && currentMeasurement > absoluteCurrentThreshold){
+        //stop motor, reset variables
+        // log_info("retract_speed " << retract_speed);
+        // log_info("Motor current: " << currentMeasurement);
+        // log_info("current threshold: " << absoluteCurrentThreshold);
+        motor.stop();
+        retract_speed = 0;   
+        return true;
+}
+return false;
+}
 /*!
  *  @brief  Sets the motor to comply with how it is being pulled, non-blocking. 
  */

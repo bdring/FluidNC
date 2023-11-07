@@ -5,7 +5,7 @@
 #include "../System.h"         // sys.*
 
 #define TCAADDR 0x70
-
+#define CALIBRATION_GRID_SIZE  100
 
 
 class Maslow_ {
@@ -107,20 +107,30 @@ class Maslow_ {
     int frame_dimention_MIN = 1000;
     int frame_dimention_MAX = 5000;
 
-    double CALIBRATION_GRID_OFFSET = 500; // distance from the corner in x and y directions
+    double CALIBRATION_GRID_OFFSET = 750; // distance from the corner in x and y directions
     double calibrationGrid[100][2] = {0};
 
     void generate_calibration_grid();
     bool move_with_slack(double fromX, double fromY, double toX, double toY);
     int get_direction(double x, double y, double targetX, double targetY);
-    bool take_measurement_avg_with_check();
+    bool take_measurement_avg_with_check(int waypoint);
     void test_();
+    void calibration_loop();
+    void print_calibration_data();
+    void reset_all_axis();
     bool test = false;
-    // void update_maslow_XY();
-
+    bool orientation;
+    double calibration_data[4][CALIBRATION_GRID_SIZE] = {0}; 
     // //keep track of where Maslow actually is, lower left corner is 0,0
-    // double x;
-    // double y;
+    double x;
+    double y;
+
+    //hold
+    void hold(unsigned long time);
+    unsigned long holdTimer = millis();
+    bool holding = false;
+    unsigned long holdTime = 0;
+
   private:
 
     float tlX;

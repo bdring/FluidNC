@@ -29,6 +29,7 @@ class MotorUnit {
     bool comply(double maxSpeed);
     bool retract();
     bool extend(double targetLength);
+    bool pull_tight();
 
     void reset(); //resetting variables here, because of non-blocking, maybe there's a better way to do this
 
@@ -63,8 +64,8 @@ class MotorUnit {
     unsigned long motorCurrentTimer = millis();
 
     //retract variables
-    int absoluteCurrentThreshold = 1900;
-    int incrementalThreshold = 75;
+    int absoluteCurrentThreshold = 2200;
+    int incrementalThreshold = 125;
     int incrementalThresholdHits = 0;
     float alpha = .2;
     uint16_t retract_speed = 0;
