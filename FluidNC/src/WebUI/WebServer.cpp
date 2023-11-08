@@ -58,7 +58,7 @@ namespace WebUI {
 
     static const char LOCATION_HEADER[] = "Location";
 
-    Web_Server webServer __attribute__((init_priority(108))) ;
+    Web_Server webServer __attribute__((init_priority(108)));
     bool       Web_Server::_setupdone = false;
     uint16_t   Web_Server::_port      = 0;
 
@@ -159,7 +159,7 @@ namespace WebUI {
         }
 
         //SSDP service presentation
-        if (WiFi.getMode() == WIFI_STA) {
+        if (WiFi.getMode() == WIFI_STA && WebUI::wifi_sta_ssdp->get()) {
             _webserver->on("/description.xml", HTTP_GET, handle_SSDP);
             //Add specific for SSDP
             SSDP.setSchemaURL("description.xml");
@@ -185,7 +185,7 @@ namespace WebUI {
         _webserver->begin();
 
         //add mDNS
-        if (WiFi.getMode() == WIFI_STA) {
+        if (WiFi.getMode() == WIFI_STA && WebUI::wifi_sta_ssdp->get()) {
             MDNS.addService("http", "tcp", _port);
         }
 
@@ -329,6 +329,7 @@ namespace WebUI {
     void Web_Server::send404Page() { sendWithOurAddress(PAGE_404, 404); }
 
     void Web_Server::handle_root() {
+        log_info("WebUI: Request from " << _webserver->client().remoteIP());
         if (!(_webserver->hasArg("forcefallback") && _webserver->arg("forcefallback") == "yes")) {
             if (myStreamFile("index.html")) {
                 return;

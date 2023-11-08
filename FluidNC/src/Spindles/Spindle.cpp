@@ -103,6 +103,14 @@ namespace Spindles {
         _speeds.push_back({ max, 100.0f });
     }
 
+    uint32_t Spindle::maxSpeed() {
+        if (_speeds.size() == 0) {
+            return 0;
+        } else {
+            return _speeds[_speeds.size() - 1].speed;
+        }
+    }
+
     uint32_t IRAM_ATTR Spindle::mapSpeed(SpindleSpeed speed) {
         if (_speeds.size() == 0) {
             return 0;
