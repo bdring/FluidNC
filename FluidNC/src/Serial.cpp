@@ -91,7 +91,9 @@ void AllChannels::init() {
 void AllChannels::ready() {
     for (auto channel : _channelq) {
         if (channel->isController()) {
-            channel->println("[MSG:GET: io.*]");
+            if (!channel->sendCtrlCmd("[MSG:GET: io.*]", true)){
+                // do something about the NAK
+            }
         }        
     }
 }

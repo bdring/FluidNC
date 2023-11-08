@@ -117,6 +117,7 @@ public:
     int  read() override { return -1; }
     int  available() override { return _queue.size(); }
     bool isController() { return _controller; }
+    bool sendCtrlCmd(std::string s, bool need_Ack);
 
     uint32_t     setReportInterval(uint32_t ms);
     uint32_t     getReportInterval() { return _reportInterval; }

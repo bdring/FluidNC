@@ -203,7 +203,9 @@ void Channel::out(int index, int value) {
     s += std::to_string(value);
     s += "]";
 
-    println(s.c_str());  // send it out
+    if (!sendCtrlCmd(s.c_str(), true)) {// send it out
+        // do something about the NAK
+    }  
 
     //log_info(s.c_str());
 }
@@ -229,4 +231,14 @@ void Channel::ack(Error status) {
     } else {
         msg << static_cast<int>(status);
     }
+}
+
+// send a command and optionally wait for an ACK
+bool Channel::sendCtrlCmd(std::string cmd, bool need_Ack) { // return false is command was NAK'd
+    println(cmd.c_str());
+    if (need_Ack) {
+        // need some code here
+        return true;
+    }
+    return true;
 }

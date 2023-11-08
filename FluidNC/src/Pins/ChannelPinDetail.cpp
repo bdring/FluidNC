@@ -53,7 +53,11 @@ namespace Pins {
         }
 
         s += "]";
-        _channel->println(s.c_str());
+
+        if (!_channel->sendCtrlCmd(s, true)) {
+            // do something about the NAK
+        }
+        //_channel->println(s.c_str());
     }
     PinAttributes ChannelPinDetail::getAttr() const {
         return _channel->getAttr(_index);
