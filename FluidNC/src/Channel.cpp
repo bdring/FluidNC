@@ -158,6 +158,17 @@ Channel* Channel::pollLine(char* line) {
             _last_rt_cmd = Cmd::None;
             continue;
         }
+        if (_last_rt_cmd == Cmd::ACK) {
+            log_info("ACK'd");
+            _last_rt_cmd = Cmd::None;
+            continue;
+        }
+        if (_last_rt_cmd == Cmd::NAK) {
+            log_info("NAK'd");
+            _last_rt_cmd = Cmd::None;
+            continue;
+        }
+
         if (realtimeOkay(ch)) {
             if (is_extended_realtime_command(ch)) {
                 _last_rt_cmd = static_cast<Cmd>(ch);
@@ -183,7 +194,6 @@ Channel* Channel::pollLine(char* line) {
 }
 
 void Channel::setAttr(int index, Pins::PinAttributes attr) {
-    // XXX send INI message
     _pin_attributes[index] = _pin_attributes[index] | attr;
 }
 Pins::PinAttributes Channel::getAttr(int index) const {

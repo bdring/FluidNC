@@ -122,5 +122,5 @@ bool is_realtime_command(uint8_t data) {
 
 bool is_extended_realtime_command(uint8_t data) {
     auto cmd = static_cast<Cmd>(data);
-    return cmd == Cmd::PinLow || cmd == Cmd::PinHigh;
+    return cmd == Cmd::PinLow || cmd == Cmd::PinHigh  || cmd == Cmd::ACK || cmd == Cmd::NAK;
 }
