@@ -179,7 +179,7 @@ bool MotorUnit::pull_tight(){
 
     //When taught
      int currentMeasurement = getCurrent();
-     if(retract_speed > 100 && currentMeasurement > absoluteCurrentThreshold){
+     if(retract_speed > 50 && currentMeasurement > absoluteCurrentThreshold){ //giving a little offset, because motors get to 3000 at speed ~10 here
         //stop motor, reset variables
         // log_info("retract_speed " << retract_speed);
         // log_info("Motor current: " << currentMeasurement);
@@ -214,9 +214,6 @@ bool MotorUnit::comply( double maxSpeed){
         amtToMove = amtToMove + 1;
         
         amtToMove = min(amtToMove, maxSpeed);
-        
-        //Reset the last moved counter
-        //*timeLastMoved = millis();
     
     //If the belt is moving in we need to stop it from moving in
     }else if(distMoved < -.04){
@@ -234,14 +231,8 @@ bool MotorUnit::comply( double maxSpeed){
 
     lastPosition = positionNow;
 
-    //Return indicates if we have moved within the timeout threshold
-    // if(millis()-*timeLastMoved > 5000){
-    //     return false;
-    // }
-    //else{
         lastCallToComply = millis();
         return true;
-    //}
 }
 
 /*!
@@ -276,14 +267,6 @@ bool MotorUnit::retract(){
                 beltStalled = true;
             }
         }
-        //log speed, belt speed and average current in one compact line
-        // static unsigned long t = millis();
-        // unsigned long tpast = millis() - t;
-        // unsigned long timestamp = 0;
-        // if(tpast > 50){
-        //     log_info(",time,"<< int(timestamp+tpast) <<",motor pow, " << retract_speed << ", beltSpeed, " << beltSpeed << ", current, " << currentMeasurement << ", avgCurrent, " << getMotorCurrent()<<",");
-        //     t = millis();
-        // }
         if(currentMeasurement > absoluteCurrentThreshold || incrementalThresholdHits > 2 || beltStalled){  //changed from 4 to 2 to prevent overtighting
             //stop motor, reset variables
             motor.stop();
@@ -317,15 +300,6 @@ bool MotorUnit::extend(double targetLength) {
             setTarget(getPosition());
             motor.stop();
 
-            //Position hold for 2 seconds to make sure we are in the right place - do we need this?
-            // setTarget(targetLength);
-            // time        = millis();
-            // elapsedTime = millis() - time;
-            // while (elapsedTime < 500) {
-            //     elapsedTime = millis() - time;
-            //     recomputePID();
-            //     updateEncoderPosition();
-            // }
             log_info("Belt positon after extend: ");
             log_info(getPosition());
             return true;

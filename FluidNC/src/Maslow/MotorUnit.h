@@ -64,7 +64,7 @@ class MotorUnit {
     unsigned long motorCurrentTimer = millis();
 
     //retract variables
-    int absoluteCurrentThreshold = 2200;
+    int absoluteCurrentThreshold = 1900;
     int incrementalThreshold = 125;
     int incrementalThresholdHits = 0;
     float alpha = .2;
