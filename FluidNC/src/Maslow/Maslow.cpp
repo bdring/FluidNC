@@ -297,7 +297,7 @@ bool Maslow_::take_measurement_avg_with_check(int waypoint) {
   }
 
   if (take_measurement(waypoint)) {
-      log_info("Took measurement at run " << run);
+      //log_info("Took measurement at run " << run);
       if (run < 3) {
           //decompress lower belts for 500 ms before taking the next measurement
           decompressTimer = millis();
@@ -331,8 +331,8 @@ bool Maslow_::take_measurement_avg_with_check(int waypoint) {
           for (int i = 0; i < 4; i++) {
               maxDeviationAbs = max(maxDeviationAbs, maxDeviation[i]);
           }
-          if (maxDeviationAbs > 1) {
-              log_error("Measurement error, measurements are not within 1mm of each other, trying again");
+          if (maxDeviationAbs > 1.5) {
+              log_error("Measurement error, measurements are not within 1.5 mm of each other, trying again");
               //print all the measurements in readable form:
               for (int i = 0; i < 4; i++) {
                     for (int j = 0; j < 4; j++) {
@@ -342,7 +342,7 @@ bool Maslow_::take_measurement_avg_with_check(int waypoint) {
               }
               //reset the run counter to run the measurements again
               if (criticalCounter++ > 2) {
-                    log_error("Critical error, measurements are not within 1mm of each other 3 times in a row, stopping calibration");
+                    log_error("Critical error, measurements are not within 1.5mm of each other 3 times in a row, stopping calibration");
                     calibrationInProgress = false;
                     waypoint              = 0;
                     criticalCounter       = 0;
@@ -407,27 +407,29 @@ void Maslow_::calibration_loop(){
 
         //travel to the start point
         else if(waypoint == 0){
-            //pull bottom belts tight first
-            static bool BL_pulled = false;
-            static bool BR_pulled = false;
+
+            //pull bottom belts tight first, NOT
+            // static bool BL_pulled = false;
+            // static bool BR_pulled = false;
             
-            if(!BL_pulled){
-                if(axisBL.pull_tight()){
-                    BL_pulled = true;
-                    log_info("Pulled BL tight");
-                }
-                else return;
-            }
-            if(!BR_pulled){
-                if(axisBR.pull_tight()){
-                    BR_pulled = true;
-                    log_info("Pulled BR tight");
-                    log_info("Moving to the start point");
-                }
-                else return;
-            }
+            // if(!BL_pulled){
+            //     if(axisBL.pull_tight()){
+            //         BL_pulled = true;
+            //         log_info("Pulled BL tight");
+            //     }
+            //     else return;
+            // }
+            // if(!BR_pulled){
+            //     if(axisBR.pull_tight()){
+            //         BR_pulled = true;
+            //         log_info("Pulled BR tight");
+            //         log_info("Moving to the start point");
+            //     }
+            //     else return;
+            // }
+
             //move to the start point
-            setTargets(calibrationGrid[0][0], calibrationGrid[0][1], 0);
+            
             if(move_with_slack(centerX,centerY, calibrationGrid[0][0], calibrationGrid[0][1])){
                 measurementInProgress = true;
                 log_info("arrived at the start point");
@@ -455,7 +457,7 @@ void Maslow_::hold(unsigned long time){
     holdTime = time;
     holding = true;
     holdTimer = millis();
-    log_info("Holding for " << int(time) << "ms");
+    //log_info("Holding for " << int(time) << "ms");
 }
 void Maslow_::generate_calibration_grid() {
   //generate calibration grid 10x10 between top left and bottom right corners with offset of CALIBRATION_GRID_OFFSET
@@ -486,7 +488,7 @@ void Maslow_::reset_all_axis(){
 }
 // move pulling just two belts depending on the direction of the movement
 bool Maslow_::move_with_slack(double fromX, double fromY, double toX, double toY) {
- 
+  setTargets(toX,toY, 0);
   int direction  = get_direction(fromX, fromY, toX, toY);
   int comply_spd = 1500;
   
@@ -633,7 +635,7 @@ void Maslow_::update(){
         //quick solution for delay without blocking
         if(holding && millis() - holdTimer > holdTime){
             holding = false;
-            log_info("Done holding" << int( millis() - holdTimer) << "ms");
+            //log_info("Done holding" << int( millis() - holdTimer) << "ms");
         }
         else if (holding) return;
 
