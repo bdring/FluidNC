@@ -3,10 +3,10 @@
 #include "../Report.h"
 
 // Maslow specific defines
-#define TLEncoderLine 0
-#define TREncoderLine 2
-#define BLEncoderLine 1
-#define BREncoderLine 3
+#define TLEncoderLine 2
+#define TREncoderLine 1
+#define BLEncoderLine 3
+#define BREncoderLine 0
 
 #define motorPWMFreq 2000
 #define motorPWMRes 10
@@ -78,31 +78,31 @@ void Maslow_::begin(void (*sys_rt)()) {
   axisTRHomed = false;
   axisTLHomed = false;
 
-//   tlX =-3.127880538461895;
-//   tlY = 2063.1006937512166;
-//   tlZ = 116 + 38;
-//   trX = 2944.4878198392585; 
-//   trY = 2069.656171241167;
-//   trZ = 69 + 38;
-//   blX = 0;
-//   blY = 0;
-//   blZ = 47 + 38;
-//   brX = 2959.4124827780993;
-//   brY = 0;
-//   brZ = 89 + 38;
-
-  tlX = 5.5;
-  tlY = 2150;
-  tlZ = 0;
-  trX = 3135; 
-  trY = 2150;
-  trZ = 0;
+  tlX =-3.127880538461895;
+  tlY = 2063.1006937512166;
+  tlZ = 116 + 38;
+  trX = 2944.4878198392585; 
+  trY = 2069.656171241167;
+  trZ = 69 + 38;
   blX = 0;
   blY = 0;
-  blZ = 0;
-  brX = 3095;
+  blZ = 47 + 38;
+  brX = 2959.4124827780993;
   brY = 0;
-  brZ = 0;
+  brZ = 89 + 38;
+
+//   tlX = 5.5;
+//   tlY = 2150;
+//   tlZ = 0;
+//   trX = 3135; 
+//   trY = 2150;
+//   trZ = 0;
+//   blX = 0;
+//   blY = 0;
+//   blZ = 0;
+//   brX = 3095;
+//   brY = 0;
+//   brZ = 0;
 
 
   tlTension = 0;
