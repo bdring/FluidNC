@@ -574,8 +574,8 @@ void Maslow_::safety_control() {
   MotorUnit* axis[4] = { &axisTL, &axisTR, &axisBL, &axisBR };
   for (int i = 0; i < 4; i++) {
       //If the current exceeds some absolute value, we need to call panic() and stop the machine
-      if (axis[i]->getMotorCurrent() > currentThreshold+2200  && !tick[i]) {
-          log_error("Motor current on " << axis_id_to_label(i).c_str() << " axis exceeded threshold of " << currentThreshold+2200
+      if (axis[i]->getMotorCurrent() > currentThreshold+220000  && !tick[i]) {
+          log_error("Motor current on " << axis_id_to_label(i).c_str() << " axis exceeded threshold of " << currentThreshold+220000
                                         << "mA, current is " << int(axis[i]->getMotorCurrent()) << "mA");
           Maslow.panic();
           tick[i] = true;
