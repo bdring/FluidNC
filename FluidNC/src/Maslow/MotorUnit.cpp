@@ -205,10 +205,6 @@ bool MotorUnit::comply( double maxSpeed){
     float positionNow = getPosition();
     float distMoved = positionNow - lastPosition;
 
-    if(_encoderAddress == 0 && random(10) == 0){
-        log_info("BR complying. Dist moved: " << distMoved << "amtToMove: " << amtToMove);
-    }
-
     //If the belt is moving out, let's keep it moving out
     if( distMoved > .001){
         //Increment the target

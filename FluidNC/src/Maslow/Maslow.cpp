@@ -514,7 +514,7 @@ bool Maslow_::move_with_slack(double fromX, double fromY, double toX, double toY
         axisTR.recomputePID();
         axisBL.comply(comply_spd);
         axisBR.comply(comply_spd);
-        if( axisTL.onTarget(0.1) && axisTR.onTarget(0.1) ) {
+        if( axisTL.onTarget(0.5) && axisTR.onTarget(0.5) ) {
             log_info("Moving with slack hit target and finsihed up");
             stopMotors();
             reset_all_axis();
@@ -655,7 +655,6 @@ void Maslow_::update(){
         //quick solution for delay without blocking
         if(holding && millis() - holdTimer > holdTime){
             holding = false;
-            //log_info("Done holding" << int( millis() - holdTimer) << "ms");
         }
         else if (holding) return;
 
@@ -678,12 +677,20 @@ void Maslow_::update(){
             home();
 
         }
+        else { //In any other state, keep motors off
+        
+        
+        digitalWrite(coolingFanPin, HIGH);
+        //We need to fix the cooling fan turning on at the right times. I think that we want it on any time any motor is moving
+        // if(sys.state() != State::Idle){
+        //     digitalWrite(coolingFanPin, HIGH);  //keep the cooling fan on
+        // }
+        // else {
+        //     digitalWrite(coolingFanPin, LOW);  //Turn the cooling fan off
+        // }
 
-        //In any other state, keep motors off
-        else {
-            
         if(!test) Maslow.stopMotors();
-
+ 
         }
 
         //if the update function is not being called enough, stop everything to prevent damage
@@ -914,7 +921,7 @@ void Maslow_::recomputePID(){
     axisTL.recomputePID();
     digitalWrite(coolingFanPin, HIGH);  //keep the cooling fan on
 
-    if (digitalRead(SERVOFAULT) == 1) { //no idea what this does, so I'm keeping it
+    if (digitalRead(SERVOFAULT) == 1) { //The servo drives have a fault pin that goes high when there is a fault (ie one over heats). We should probably call panic here. Also this should probably be read in the main loop
         log_info("Servo fault!");
     }
 }
