@@ -24,7 +24,7 @@ class Maslow_ {
     void home();
     void update();
     bool updateEncoderPositions();
-    void setTargets(float xTarget, float yTarget, float zTarget);
+    void setTargets(float xTarget, float yTarget, float zTarget, bool tl = true, bool tr = true, bool bl = true, bool br = true);
     double getTargetX();
     double getTargetY();
     double getTargetZ();

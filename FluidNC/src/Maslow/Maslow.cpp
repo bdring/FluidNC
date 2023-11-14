@@ -490,7 +490,6 @@ void Maslow_::reset_all_axis(){
 }
 // move pulling just two belts depending on the direction of the movement
 bool Maslow_::move_with_slack(double fromX, double fromY, double toX, double toY) {
-  //setTargets(toX,toY, 0); //OK so we are going full speed to the target position which seems like it could be causing issues
   
   //How big of steps do we want to take with each loop?
   double stepSize = 0.01;
@@ -502,10 +501,8 @@ bool Maslow_::move_with_slack(double fromX, double fromY, double toX, double toY
   int xDirection = currentXTarget - toX > 0 ? -1 : 1;
   int yDirection = currentYTarget - toY > 0 ? -1 : 1;
 
-  setTargets(currentXTarget + xDirection * stepSize, currentYTarget + yDirection * stepSize, 0);
+  setTargets(currentXTarget + xDirection * stepSize, currentYTarget + yDirection * stepSize, 0, true, true, false, false);
 
-//   log_info("xDirection " << xDirection << " yDirection " << yDirection); //We are hoping for xDirection -1 yDirection 1
-  //log_info("currentXTarget " << currentXTarget << " currentYTarget " << currentYTarget);
 
   //Move set the belt's target lengths to be closer to where we want to be
   int direction  = get_direction(fromX, fromY, toX, toY);
@@ -1069,7 +1066,7 @@ float Maslow_::computeTL(float x, float y, float z){
 * This computes the target lengths of the belts based on the target x and y coordinates
 * and sends that information to each arm.
 */
-void Maslow_::setTargets(float xTarget, float yTarget, float zTarget){
+void Maslow_::setTargets(float xTarget, float yTarget, float zTarget, bool tl, bool tr, bool bl, bool br){
 
         //Store the target x and y coordinates for the getTargetN() functions
         targetX = xTarget;
@@ -1078,10 +1075,18 @@ void Maslow_::setTargets(float xTarget, float yTarget, float zTarget){
 
         computeTensions(xTarget, yTarget);
 
-        axisBL.setTarget(computeBL(xTarget, yTarget, zTarget));
-        axisBR.setTarget(computeBR(xTarget, yTarget, zTarget));
-        axisTR.setTarget(computeTR(xTarget, yTarget, zTarget));
-        axisTL.setTarget(computeTL(xTarget, yTarget, zTarget));
+        if(tl){
+            axisTL.setTarget(computeTL(xTarget, yTarget, zTarget));
+        }
+        if(tr){
+            axisTR.setTarget(computeTR(xTarget, yTarget, zTarget));
+        }
+        if(bl){
+            axisBL.setTarget(computeBL(xTarget, yTarget, zTarget));
+        }
+        if(br){
+            axisBR.setTarget(computeBR(xTarget, yTarget, zTarget));
+        }
 }
 
 /*
