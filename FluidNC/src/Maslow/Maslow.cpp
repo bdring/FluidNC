@@ -285,16 +285,18 @@ bool Maslow_::take_measurement_avg_with_check(int waypoint) {
   static double        sum                = 0;
   static unsigned long decompressTimer    = millis();
 
-  if (millis() - decompressTimer < 500) {
-      axisBL.decompressBelt();
-      axisBR.decompressBelt();
-      return false;
-  }
+//Decompress belts for 500ms...this happens by returnign right away before running any of the rest of the code
+//   if (millis() - decompressTimer < 500) {
+//       axisBL.decompressBelt();
+//       axisBR.decompressBelt();
+//       return false;
+//   }
 
-  //we need to stop motors after decompression was finished once
-  else if (millis() - decompressTimer < 550) {
-      stopMotors();
-  }
+//Stop for 50ms
+//   //we need to stop motors after decompression was finished once
+//   else if (millis() - decompressTimer < 550) {
+//       stopMotors();
+//   }
 
   if (take_measurement(waypoint)) {
       //log_info("Took measurement at run " << run);
@@ -488,7 +490,24 @@ void Maslow_::reset_all_axis(){
 }
 // move pulling just two belts depending on the direction of the movement
 bool Maslow_::move_with_slack(double fromX, double fromY, double toX, double toY) {
-  setTargets(toX,toY, 0);
+  //setTargets(toX,toY, 0); //OK so we are going full speed to the target position which seems like it could be causing issues
+  
+  //How big of steps do we want to take with each loop?
+  double stepSize = 0.01;
+
+  double currentXTarget = getTargetX();
+  double currentYTarget = getTargetY();
+
+  //Compute the direction in X and Y
+  int xDirection = currentXTarget - toX > 0 ? -1 : 1;
+  int yDirection = currentYTarget - toY > 0 ? -1 : 1;
+
+  setTargets(currentXTarget + xDirection * stepSize, currentYTarget + yDirection * stepSize, 0);
+
+//   log_info("xDirection " << xDirection << " yDirection " << yDirection); //We are hoping for xDirection -1 yDirection 1
+  //log_info("currentXTarget " << currentXTarget << " currentYTarget " << currentYTarget);
+
+  //Move set the belt's target lengths to be closer to where we want to be
   int direction  = get_direction(fromX, fromY, toX, toY);
   int comply_spd = 1500;
   
@@ -498,7 +517,8 @@ bool Maslow_::move_with_slack(double fromX, double fromY, double toX, double toY
         axisTR.recomputePID();
         axisBL.comply(comply_spd);
         axisBR.comply(comply_spd);
-        if( axisTL.onTarget(0.5) && axisTR.onTarget(0.5) ) {
+        if( axisTL.onTarget(0.1) && axisTR.onTarget(0.1) ) {
+            log_info("Moving with slack hit target and finsihed up");
             stopMotors();
             reset_all_axis();
             return true;
@@ -510,6 +530,7 @@ bool Maslow_::move_with_slack(double fromX, double fromY, double toX, double toY
             axisBL.recomputePID();
             axisBR.recomputePID();
             if( axisBL.onTarget(0.5) && axisBR.onTarget(0.5) ) {
+                log_info("Moving with slack hit target and finsihed down");
                 stopMotors();
                 reset_all_axis();
                 return true;
@@ -521,6 +542,7 @@ bool Maslow_::move_with_slack(double fromX, double fromY, double toX, double toY
             axisBL.recomputePID();
             axisBR.comply(comply_spd);
             if( axisTL.onTarget(0.5) && axisBL.onTarget(0.5) ) {
+                log_info("Moving with slack hit target and finsihed left");
                 stopMotors();
                 reset_all_axis();
                 return true;
@@ -532,6 +554,7 @@ bool Maslow_::move_with_slack(double fromX, double fromY, double toX, double toY
             axisBL.comply(comply_spd);
             axisBR.recomputePID();
             if( axisTR.onTarget(0.5) && axisBR.onTarget(0.5) ) {
+                log_info("Moving with slack hit target and finsihed right");
                 stopMotors();
                 reset_all_axis();
                 return true;                
@@ -1042,13 +1065,16 @@ float Maslow_::computeTL(float x, float y, float z){
     return sqrt(a*a+b*b+c*c) - (_beltEndExtension+_armLength);
 }
 
+/*
+* This computes the target lengths of the belts based on the target x and y coordinates
+* and sends that information to each arm.
+*/
 void Maslow_::setTargets(float xTarget, float yTarget, float zTarget){
 
-    //Scaling to correct size
-    //xTarget = xTarget;
-    //yTarget = yTarget;
-    
-//    if(!calibrationInProgress){
+        //Store the target x and y coordinates for the getTargetN() functions
+        targetX = xTarget;
+        targetY = yTarget;
+        targetZ = zTarget;
 
         computeTensions(xTarget, yTarget);
 
@@ -1056,8 +1082,29 @@ void Maslow_::setTargets(float xTarget, float yTarget, float zTarget){
         axisBR.setTarget(computeBR(xTarget, yTarget, zTarget));
         axisTR.setTarget(computeTR(xTarget, yTarget, zTarget));
         axisTL.setTarget(computeTL(xTarget, yTarget, zTarget));
-//    }
 }
+
+/*
+* Get's the most recently set target position in X
+*/
+double Maslow_::getTargetX(){
+    return targetX;
+}
+
+/*
+* Get's the most recently set target position in Y
+*/
+double Maslow_::getTargetY(){
+    return targetY;
+}
+
+/*
+* Get's the most recently set target position in Z
+*/
+double Maslow_::getTargetZ(){
+    return targetZ;
+}
+
 
 //Updates where the center x and y positions are
 void Maslow_::updateCenterXY(){

@@ -25,6 +25,9 @@ class Maslow_ {
     void update();
     bool updateEncoderPositions();
     void setTargets(float xTarget, float yTarget, float zTarget);
+    double getTargetX();
+    double getTargetY();
+    double getTargetZ();
     void recomputePID();
 
     //math 
@@ -82,6 +85,10 @@ class Maslow_ {
     bool complyALL = false;
 
     bool safetyOn = true;
+
+    double targetX = 0;
+    double targetY = 0;
+    double targetZ = 0;
     
     
     MotorUnit axisTL;
