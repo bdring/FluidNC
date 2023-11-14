@@ -503,8 +503,6 @@ bool Maslow_::move_with_slack(double fromX, double fromY, double toX, double toY
 
   setTargets(currentXTarget + xDirection * stepSize, currentYTarget + yDirection * stepSize, 0, true, true, false, false);
 
-
-  //Move set the belt's target lengths to be closer to where we want to be
   int direction  = get_direction(fromX, fromY, toX, toY);
   int comply_spd = 1500;
   
@@ -515,7 +513,6 @@ bool Maslow_::move_with_slack(double fromX, double fromY, double toX, double toY
         axisBL.comply(comply_spd);
         axisBR.comply(comply_spd);
         if( axisTL.onTarget(0.5) && axisTR.onTarget(0.5) ) {
-            log_info("Moving with slack hit target and finsihed up");
             stopMotors();
             reset_all_axis();
             return true;
@@ -527,7 +524,6 @@ bool Maslow_::move_with_slack(double fromX, double fromY, double toX, double toY
             axisBL.recomputePID();
             axisBR.recomputePID();
             if( axisBL.onTarget(0.5) && axisBR.onTarget(0.5) ) {
-                log_info("Moving with slack hit target and finsihed down");
                 stopMotors();
                 reset_all_axis();
                 return true;
@@ -539,7 +535,6 @@ bool Maslow_::move_with_slack(double fromX, double fromY, double toX, double toY
             axisBL.recomputePID();
             axisBR.comply(comply_spd);
             if( axisTL.onTarget(0.5) && axisBL.onTarget(0.5) ) {
-                log_info("Moving with slack hit target and finsihed left");
                 stopMotors();
                 reset_all_axis();
                 return true;
@@ -551,7 +546,6 @@ bool Maslow_::move_with_slack(double fromX, double fromY, double toX, double toY
             axisBL.comply(comply_spd);
             axisBR.recomputePID();
             if( axisTR.onTarget(0.5) && axisBR.onTarget(0.5) ) {
-                log_info("Moving with slack hit target and finsihed right");
                 stopMotors();
                 reset_all_axis();
                 return true;                
