@@ -44,6 +44,10 @@
 
 #define SERVOFAULT 40
 
+#define ETHERNETLEDPIN 39
+#define WIFILED 35
+#define REDLED 14
+
 #define MEASUREMENTSPEED 1.0 //The max speed at which we move the motors when taking measurements
 int ENCODER_READ_FREQUENCY_HZ = 100;
 
@@ -114,6 +118,11 @@ void Maslow_::begin(void (*sys_rt)()) {
   _sys_rt = sys_rt;
 
   pinMode(coolingFanPin, OUTPUT);
+  pinMode(ETHERNETLEDPIN, OUTPUT);
+  pinMode(WIFILED, OUTPUT);
+  pinMode(REDLED, OUTPUT);
+
+  digitalWrite(ETHERNETLEDPIN, LOW);
 
   pinMode(SERVOFAULT, INPUT);
 
@@ -197,6 +206,31 @@ void Maslow_::home() {
 }
 // Maslow main loop
 void Maslow_::update(){
+
+    if(random(1000) == 0){
+        digitalWrite(ETHERNETLEDPIN, LOW);
+    }
+    
+    if(random(1000) == 0){
+        digitalWrite(ETHERNETLEDPIN, HIGH);
+    }
+
+    if(random(1000) == 0){
+        digitalWrite(WIFILED, LOW);
+    }
+
+    if(random(1000) == 0){
+        digitalWrite(WIFILED, HIGH);
+    }
+
+    if(random(1000) == 0){
+        digitalWrite(REDLED, LOW);
+    }
+
+    if(random(1000) == 0){
+        digitalWrite(REDLED, HIGH);
+    }
+
     //Make sure we're running maslow config file
     if(!Maslow.using_default_config){
 
