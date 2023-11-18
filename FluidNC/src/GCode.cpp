@@ -257,7 +257,7 @@ Error gc_execute_line(char* line) {
                         // Check for G10/28/30/92 being called with G0/1/2/3/38 on same block.
                         // * G43.1 is also an axis command but is not explicitly defined this way.
                         switch (mantissa) {
-                            case 0:                                         // Ignore G28.1, G30.1, and G92.1
+                            case 0:  // Ignore G28.1, G30.1, and G92.1
                                 if (axis_command != AxisCommand::None) {
                                     FAIL(Error::GcodeAxisCommandConflict);  // [Axis word/command conflict]
                                 }
@@ -343,7 +343,7 @@ Error gc_execute_line(char* line) {
                                 break;
                             default:
                                 FAIL(Error::GcodeUnsupportedCommand);
-                                break;    // [Unsupported G38.x command]
+                                break;  // [Unsupported G38.x command]
                         }
                         mantissa    = 0;  // Set to zero to indicate valid non-integer G command.
                         mg_word_bit = ModalGroup::MG1;
@@ -430,14 +430,14 @@ Error gc_execute_line(char* line) {
                         }
                         // [Axis word/command conflict] }
                         axis_command = AxisCommand::ToolLengthOffset;
-                        if (int_value == 49) {        // G49
+                        if (int_value == 49) {  // G49
                             gc_block.modal.tool_length = ToolLengthOffset::Cancel;
                         } else if (mantissa == 10) {  // G43.1
                             gc_block.modal.tool_length = ToolLengthOffset::EnableDynamic;
                         } else {
                             FAIL(Error::GcodeUnsupportedCommand);  // [Unsupported G43.x command]
                         }
-                        mantissa    = 0;                           // Set to zero to indicate valid non-integer G command.
+                        mantissa    = 0;  // Set to zero to indicate valid non-integer G command.
                         mg_word_bit = ModalGroup::MG8;
                         break;
                     case 54:
@@ -977,7 +977,7 @@ Error gc_execute_line(char* line) {
             // [G10 L20 Errors]: P must be 0 to nCoordSys(max 9). Axis words missing.
             if (!axis_words) {
                 FAIL(Error::GcodeNoAxisWords)
-            };                                       // [No axis words]
+            };  // [No axis words]
             if (bits_are_false(value_words, (bitnum_to_mask(GCodeWord::P) | bitnum_to_mask(GCodeWord::L)))) {
                 FAIL(Error::GcodeValueWordMissing);  // [P/L word missing]
             }
@@ -1051,7 +1051,7 @@ Error gc_execute_line(char* line) {
             // NOTE: Tool offsets may be appended to these conversions when/if this feature is added.
             if (axis_command != AxisCommand::ToolLengthOffset) {  // TLO block any axis command.
                 if (axis_words) {
-                    for (size_t idx = 0; idx < n_axis; idx++) {   // Axes indices are consistent, so loop may be used to save flash space.
+                    for (size_t idx = 0; idx < n_axis; idx++) {  // Axes indices are consistent, so loop may be used to save flash space.
                         if (bitnum_is_false(axis_words, idx)) {
                             gc_block.values.xyz[idx] = gc_state.position[idx];  // No axis word in block. Keep same axis position.
                         } else {
@@ -1265,7 +1265,7 @@ Error gc_execute_line(char* line) {
                         // Complete the operation by calculating the actual center of the arc
                         gc_block.values.ijk[axis_0] = 0.5f * (x - (y * h_x2_div_d));
                         gc_block.values.ijk[axis_1] = 0.5f * (y + (x * h_x2_div_d));
-                    } else {                                     // Arc Center Format Offset Mode
+                    } else {  // Arc Center Format Offset Mode
                         if (!(ijk_words & (bitnum_to_mask(axis_0) | bitnum_to_mask(axis_1)))) {
                             FAIL(Error::GcodeNoOffsetsInPlane);  // [No offsets in plane]
                         }
@@ -1314,7 +1314,7 @@ Error gc_execute_line(char* line) {
                             FAIL(Error::GcodeUnusedWords);    // we have more axis words than allowed.
                         }
                     } else {
-                        gc_block.values.p = __FLT_MAX__;      // This is a hack to signal the probe cycle that not to auto offset.
+                        gc_block.values.p = __FLT_MAX__;  // This is a hack to signal the probe cycle that not to auto offset.
                     }
                     clear_bitnum(value_words, GCodeWord::P);  // allow P to be used
 
@@ -1552,7 +1552,7 @@ Error gc_execute_line(char* line) {
     // NOTE: If G43 were supported, its operation wouldn't be any different from G43.1 in terms
     // of execution. The error-checking step would simply load the offset value into the correct
     // axis of the block XYZ value array.
-    if (axis_command == AxisCommand::ToolLengthOffset) {               // Indicates a change.
+    if (axis_command == AxisCommand::ToolLengthOffset) {  // Indicates a change.
         gc_state.modal.tool_length = gc_block.modal.tool_length;
         if (gc_state.modal.tool_length == ToolLengthOffset::Cancel) {  // G49
             gc_block.values.xyz[TOOL_LENGTH_OFFSET_AXIS] = 0.0;
@@ -1762,6 +1762,10 @@ void WEAK_LINK user_m30() {
 
     if (s != "")
         CallURLWithRetryStrategy(s);
+
+    nb_work_done++;
+    String l = "Work done : " + String(nb_work_done) + "      ($RW to raz)";
+    log_info(l.c_str());
 }
 
 void WEAK_LINK user_m100() {

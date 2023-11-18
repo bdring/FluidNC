@@ -7,6 +7,7 @@
 
 #include "Config.h"
 #include "Error.h"
+#include "ProcessSettings.h"
 #include "SpindleDatatypes.h"
 
 #include <cstdint>
@@ -271,12 +272,12 @@ struct gc_values_t {
 struct parser_state_t {
     gc_modal_t modal;
 
-    float    spindle_speed;          // RPM
-    float    feed_rate;              // Millimeters/min
-    uint32_t tool;                   // Tracks tool number. NOT USED.
-    int32_t  line_number;            // Last line number sent
+    float    spindle_speed;  // RPM
+    float    feed_rate;      // Millimeters/min
+    uint32_t tool;           // Tracks tool number. NOT USED.
+    int32_t  line_number;    // Last line number sent
 
-    float position[MAX_N_AXIS];      // Where the interpreter considers the tool to be at this point in the code
+    float position[MAX_N_AXIS];  // Where the interpreter considers the tool to be at this point in the code
 
     float coord_system[MAX_N_AXIS];  // Current work coordinate system (G54+). Stores offset from absolute machine
     // position in mm. Loaded from non-volatile storage when called.

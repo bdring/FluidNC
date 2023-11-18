@@ -14,3 +14,4 @@ String      GetCMDStartPrg();
 int         GetStartURLWithM345();
 int         GetStartURLWithM100();
 int         GetResetWhenPowerOn();
+extern int  nb_work_done;

@@ -34,6 +34,8 @@
 #include <map>
 #include <filesystem>
 
+int nb_work_done = 0;
+
 // WG Readable and writable as guest
 // WU Readable and writable as user and admin
 // WA Readable as user and admin, writable as admin
@@ -720,6 +722,14 @@ static Error motors_init(const char* value, WebUI::AuthenticationLevel auth_leve
     return Error::Ok;
 }
 
+static Error raz_work_done(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+    nb_work_done = 0;
+
+    log_info("Raz done - work done : 0");
+
+    return Error::Ok;
+}
+
 static Error macros_run(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
     if (value) {
         log_info("Running macro" << *value);
@@ -911,6 +921,7 @@ void make_user_commands() {
     new UserCommand("MD", "Motor/Disable", motor_disable, notIdleOrAlarm);
     new UserCommand("ME", "Motor/Enable", motor_enable, notIdleOrAlarm);
     new UserCommand("MI", "Motors/Init", motors_init, notIdleOrAlarm);
+    new UserCommand("RW", "Raz number of work done", raz_work_done, anyState);
 
     new UserCommand("RM", "Macros/Run", macros_run, notIdleOrAlarm);
 
