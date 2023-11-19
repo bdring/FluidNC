@@ -6,17 +6,6 @@
 #include "System.h"
 #include "Machine/Macros.h"  // macroNEvent
 
-void execute_extended_realtime_command(Cmd command, uint8_t arg, Channel& channel) {
-    switch (command) {
-        case Cmd::PinLow:
-            //protocol_send_event(&pinLowEvent, arg);
-            break;
-        case Cmd::PinHigh:
-            //protocol_send_event(&pinHighEvent, arg);
-            break;
-    }
-}
-
 // Act upon a realtime character
 void execute_realtime_command(Cmd command, Channel& channel) {
     switch (command) {
@@ -108,6 +97,12 @@ void execute_realtime_command(Cmd command, Channel& channel) {
         case Cmd::Macro3:
             protocol_send_event(&macro3Event);
             break;
+        case Cmd::ACK:
+            channel._ackwait = false;
+            break;
+        case Cmd::NAK:
+            channel._ackwait = false;
+            break;
     }
 }
 
@@ -119,7 +114,6 @@ bool is_realtime_command(uint8_t data) {
     auto cmd = static_cast<Cmd>(data);
     return cmd == Cmd::Reset || cmd == Cmd::StatusReport || cmd == Cmd::CycleStart || cmd == Cmd::FeedHold;
 }
-
 bool is_extended_realtime_command(uint8_t data) {
     auto cmd = static_cast<Cmd>(data);
     return cmd == Cmd::PinLow || cmd == Cmd::PinHigh  || cmd == Cmd::ACK || cmd == Cmd::NAK;

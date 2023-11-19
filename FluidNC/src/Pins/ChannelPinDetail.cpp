@@ -8,11 +8,11 @@ namespace Pins {
         PinDetail(number), _channel(channel) {
         for (auto opt : options) {
             if (opt.is("pu")) {
-                _channel->setAttr(_index, PinAttributes::PullUp);
+                setAttr(PinAttributes::PullUp);
             } else if (opt.is("pd")) {
-                _channel->setAttr(_index, PinAttributes::PullDown);
+                setAttr(PinAttributes::PullDown);
             } else if (opt.is("low")) {
-                _channel->setAttr(_index, PinAttributes::ActiveLow);
+                setAttr(PinAttributes::ActiveLow);
             } else if (opt.is("high")) {
                 // Default: Active HIGH.
             }
@@ -24,61 +24,58 @@ namespace Pins {
     }
 
     void ChannelPinDetail::write(int high) {
-        _channel->out(_index, high);
-    }
-    int ChannelPinDetail::read() {
-        return _channel->in(_index);
-    }
-    void ChannelPinDetail::setAttr(PinAttributes value) {
-        _channel->setAttr(_index, value);
-        std::string s = "[MSG:INI: io.";
+        if (high == _value) {
+            return;
+        }
+        std::string s = "SET: io.";
         s += std::to_string(_index);
         s += "=";
-        if (value.has(PinAttributes::Input)) {
+        s += std::to_string(high);
+        _channel->out(s);
+    }
+    int  ChannelPinDetail::read() { return _value; }
+    void ChannelPinDetail::setAttr(PinAttributes attr) {
+        _attributes = _attributes | attr;
+
+        std::string s = "INI: io.";
+        s += std::to_string(_index);
+        s += "=";
+        if (_attributes.has(Pins::PinAttributes::Input)) {
             s += "inp";
-        } else if (_channel->getAttr(_index) & PinAttributes::Output) {
+        } else if (_attributes.has(Pins::PinAttributes::Output)) {
             s += "out";
         } else {
             return;
         }
 
-        if (_channel->getAttr(_index) & PinAttributes::PullUp) {
+        if (_attributes.has(Pins::PinAttributes::PullUp)) {
             s += ":pu";
         }
-        if (_channel->getAttr(_index) & PinAttributes::PullDown) {
-            s += ":pu";
+        if (_attributes.has(Pins::PinAttributes::PullDown)) {
+            s += ":pd";
         }
-        if (_channel->getAttr(_index) & PinAttributes::ActiveLow) {
+        if (_attributes.has(Pins::PinAttributes::ActiveLow)) {
             s += ":low";
         }
 
-        s += "]";
-
-        if (!_channel->sendCtrlCmd(s, true)) {
-            // do something about the NAK
-        }
-        //_channel->println(s.c_str());
+        _channel->setAttr(_index, _attributes.has(Pins::PinAttributes::Input) ? &this->_value : nullptr, s);
     }
-    PinAttributes ChannelPinDetail::getAttr() const {
-        return _channel->getAttr(_index);
-    }
-    std::string ChannelPinDetail::toString() {
+    PinAttributes ChannelPinDetail::getAttr() const { return _attributes; }
+    std::string   ChannelPinDetail::toString() {
         std::string s = _channel->name();
         s += ".";
         s += std::to_string(_index);
-        if (_channel->getAttr(_index) & PinAttributes::ActiveLow) {
+        if (_attributes.has(PinAttributes::ActiveLow)) {
             s += ":low";
         }
-        if (_channel->getAttr(_index) & PinAttributes::PullUp) {
+        if (_attributes.has(PinAttributes::PullUp)) {
             s += ":pu";
         }
-        if (_channel->getAttr(_index) & PinAttributes::PullDown) {
+        if (_attributes.has(PinAttributes::PullDown)) {
             s += ":pd";
         }
         return s;
     }
 
-    void ChannelPinDetail::registerEvent(EventPin* obj) {
-        _channel->registerEvent(_index, obj);
-    }
+    void ChannelPinDetail::registerEvent(EventPin* obj) { _channel->registerEvent(_index, obj); }
 }

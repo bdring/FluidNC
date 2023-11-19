@@ -70,7 +70,6 @@ void HashFS::rehash_file(const std::filesystem::path& path) {
             delete_file(path);
         } else {
             localFsHashes[path.filename()] = hash;
-            log_debug(path.filename() << " hash " << hash);
         }
     }
 }

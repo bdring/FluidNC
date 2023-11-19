@@ -90,11 +90,7 @@ void AllChannels::init() {
 
 void AllChannels::ready() {
     for (auto channel : _channelq) {
-        if (channel->isController()) {
-            if (!channel->sendCtrlCmd("[MSG:GET: io.*]", true)){
-                // do something about the NAK
-            }
-        }        
+        channel->ready();
     }
 }
 
@@ -175,6 +171,17 @@ size_t AllChannels::write(const uint8_t* buffer, size_t length) {
     }
     _mutex_general.unlock();
     return length;
+}
+Channel* AllChannels::find(const std::string& name) {
+    _mutex_general.lock();
+    for (auto channel : _channelq) {
+        if (channel->name() == name) {
+            _mutex_general.unlock();
+            return channel;
+        }
+    }
+    _mutex_general.unlock();
+    return nullptr;
 }
 Channel* AllChannels::pollLine(char* line) {
     Channel* deadChannel;

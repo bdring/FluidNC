@@ -58,7 +58,7 @@ namespace WebUI {
 
     static const char LOCATION_HEADER[] = "Location";
 
-    Web_Server webServer __attribute__((init_priority(108))) ;
+    Web_Server webServer __attribute__((init_priority(108)));
     bool       Web_Server::_setupdone = false;
     uint16_t   Web_Server::_port      = 0;
 
@@ -438,8 +438,11 @@ namespace WebUI {
         }
         //if it is internal command [ESPXXX]<parameter>
         // cmd.trim();
-        int ESPpos = cmd.find("[ESP");
-        if (ESPpos != std::string::npos) {
+        auto isCommand = cmd.length() && cmd[0] == '$';
+        if (!isCommand) {
+            isCommand = cmd.find("[ESP") != std::string::npos;
+        }
+        if (isCommand) {
             char line[256];
             strncpy(line, cmd.c_str(), 255);
             webClient.attachWS(_webserver, silent);

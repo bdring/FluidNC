@@ -164,28 +164,33 @@ namespace WebUI {
         }
     }
 
-    bool WSChannels::runGCode(int pageid, std::string cmd) {
+    bool WSChannels::runGCode(int pageid, std::string& cmd) {
         bool has_error = false;
 
         WSChannel* wsChannel = getWSChannel(pageid);
         if (wsChannel) {
+            if (cmd.length() > 0 && ((cmd[0] & 0xe0) == 0xc0)) {
+                // In UTF-8, 0x80-0xff is encoded as follows:
+                //  0b1NMMMMMM -> 0b1100001N 0b10MMMMMM
+                // The GRBL protocol is 8-bit only, so we handle only the
+                // UTF-8 encodings for 0x80-0xff, ignoring encodings for
+                // numbers that will not fit in 8 bits.
+                uint8_t hibits = cmd[0] & 0x1f;
+                if (hibits < 4) {
+                    // Decode from UTF-8 to 8-bit binary
+                    cmd.erase(0, 1);
+                    cmd[0] = (hibits << 6) | (cmd[0] & 0x3f);
+                }
+                // If hibits >= 4, we pass the byte through un-decoded.
+                // This probably will not happen, since URLs are supposed to
+                // be in UTF-8, but we consider it anyway in case of buggy clients.
+            }
             // It is very tempting to let wsChannel->push() handle the realtime
             // character sequences so we don't have to do it here.  That does not work
             // because we need to know whether to add a newline.  We should not add newline
             // on a realtime sequence, but we must add one (if not already present)
             // on a text command.
-            if (cmd.length() > 0 && cmd[0] == 0xc2) {
-                if (cmd.length() == 3 && is_extended_realtime_command(cmd[1])) {
-                    wsChannel->pushRT(cmd[1]);
-                    wsChannel->pushRT(cmd[2]);
-                } else if (cmd.length() == 3 && is_realtime_command(cmd[1]) && cmd[2] == '\0') {
-                    // Handles old WebUIs that send a null after high-bit-set realtime chars
-                    wsChannel->pushRT(cmd[1]);
-                } else if (cmd.length() == 2 && is_realtime_command(cmd[1])) {
-                    // Handles old WebUIs that send a null after high-bit-set realtime chars
-                    wsChannel->pushRT(cmd[1]);
-                }
-            } else if (cmd.length() == 2 && is_extended_realtime_command(cmd[0])) {
+            if (cmd.length() == 2 && is_extended_realtime_command(cmd[0])) {
                 wsChannel->pushRT(cmd[0]);
                 wsChannel->pushRT(cmd[1]);
             } else if (cmd.length() == 1 && is_realtime_command(cmd[0])) {

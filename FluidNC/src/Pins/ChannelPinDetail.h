@@ -11,7 +11,9 @@
 namespace Pins {
     class ChannelPinDetail : public PinDetail {
     private:
-        Channel* _channel;
+        Channel*      _channel;
+        PinAttributes _attributes;
+        bool          _value;
 
     public:
         ChannelPinDetail(Channel* channel, int number, const PinOptionsParser& options);

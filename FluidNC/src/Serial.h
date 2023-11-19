@@ -53,6 +53,7 @@ public:
     void listChannels(Channel& out);
 
     Channel* pollLine(char* line) override;
+    Channel* find(const std::string& name);
 
     void stopJob() override;
 };

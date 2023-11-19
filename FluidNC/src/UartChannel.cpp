@@ -5,7 +5,7 @@
 #include "Machine/MachineConfig.h"  // config
 #include "Serial.h"                 // allChannels
 
-UartChannel::UartChannel(bool addCR) : Channel("uart", addCR) {
+UartChannel::UartChannel(int num, bool addCR) : Channel("uart_channel", num, addCR) {
     _lineedit = new Lineedit(this, _line, Channel::maxLine - 1);
 }
 
@@ -22,6 +22,7 @@ void UartChannel::init(Uart* uart) {
     _uart = uart;
     allChannels.registration(this);
     log_info("uart_channel" << _uart_num << " created");
+    log_msg_to(*this, "RST");
 }
 
 size_t UartChannel::write(uint8_t c) {
@@ -117,7 +118,7 @@ size_t UartChannel::timedReadBytes(char* buffer, size_t length, TickType_t timeo
     return length - remlen;
 }
 
-UartChannel Uart0(true);  // Primary serial channel with LF to CRLF conversion
+UartChannel Uart0(0, true);  // Primary serial channel with LF to CRLF conversion
 
 void uartInit() {
     auto uart0 = new Uart(0);

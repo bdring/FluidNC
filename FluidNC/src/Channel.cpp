@@ -101,17 +101,19 @@ void Channel::autoReportGCodeState() {
 }
 void Channel::autoReport() {
     if (_reportInterval) {
-        auto limitState = limits_get_state();
         auto probeState = config->_probe->get_state();
-        if (_reportWco || sys.state != _lastState || limitState != _lastLimits || probeState != _lastProbe ||
+        if (probeState != _lastProbe) {
+            report_recompute_pin_string();
+        }
+        if (_reportWco || sys.state != _lastState || probeState != _lastProbe || _lastPinString != report_pin_string ||
             (motionState() && (int32_t(xTaskGetTickCount()) - _nextReportTime) >= 0)) {
             if (_reportWco) {
                 report_wco_counter = 0;
             }
-            _reportWco  = false;
-            _lastState  = sys.state;
-            _lastLimits = limitState;
-            _lastProbe  = probeState;
+            _reportWco     = false;
+            _lastState     = sys.state;
+            _lastProbe     = probeState;
+            _lastPinString = report_pin_string;
 
             _nextReportTime = xTaskGetTickCount() + _reportInterval;
             report_realtime_status(*this);
@@ -140,20 +142,12 @@ Channel* Channel::pollLine(char* line) {
         if (ch < 0) {
             break;
         }
-        if (_last_rt_cmd == Cmd::PinLow) {
+        if (_last_rt_cmd == Cmd::PinLow || _last_rt_cmd == Cmd::PinHigh) {
+            bool isHigh = _last_rt_cmd == Cmd::PinHigh;
             try {
-                auto event_pin  = _events.at(ch);
-                _pin_values[ch] = false;
-                event_pin->trigger(false);
-            } catch (std::exception& ex) {}
-            _last_rt_cmd = Cmd::None;
-            continue;
-        }
-        if (_last_rt_cmd == Cmd::PinHigh) {
-            try {
-                auto event_pin  = _events.at(ch);
-                _pin_values[ch] = true;
-                event_pin->trigger(true);
+                auto event_pin   = _events.at(ch);
+                *_pin_values[ch] = isHigh;
+                event_pin->trigger(isHigh);
             } catch (std::exception& ex) {}
             _last_rt_cmd = Cmd::None;
             continue;
@@ -170,12 +164,13 @@ Channel* Channel::pollLine(char* line) {
         }
 
         if (realtimeOkay(ch)) {
-            if (is_extended_realtime_command(ch)) {
-                _last_rt_cmd = static_cast<Cmd>(ch);
-                continue;
-            }
             if (is_realtime_command(ch)) {
-                execute_realtime_command(static_cast<Cmd>(ch), *this);
+                auto cmd = static_cast<Cmd>(ch);
+                if (cmd == Cmd::PinLow || cmd == Cmd::PinHigh) {
+                    _last_rt_cmd = cmd;
+                } else {
+                    execute_realtime_command(cmd, *this);
+                }
                 continue;
             }
         }
@@ -193,34 +188,29 @@ Channel* Channel::pollLine(char* line) {
     return nullptr;
 }
 
-void Channel::setAttr(int index, Pins::PinAttributes attr) {
-    _pin_attributes[index] = _pin_attributes[index] | attr;
-}
-Pins::PinAttributes Channel::getAttr(int index) const {
-    try {
-        return _pin_attributes.at(index);
-    } catch (std::exception& ex) { return Pins::PinAttributes::None; }
-}
-
-void Channel::out(int index, int value) {
-    if (value == _pin_values[index]) {
-        return;
+void Channel::setAttr(int index, bool* value, const std::string& attrString) {
+    if (value) {
+        _pin_values[index] = value;
     }
-    _pin_values[index] = value;
-    std::string s = "[MSG:SET: io.";
-    s += std::to_string(index);
-    s += "=";
-    s += std::to_string(value);
-    s += "]";
-
-    if (!sendCtrlCmd(s.c_str(), true)) {// send it out
-        // do something about the NAK
-    }  
-
-    //log_info(s.c_str());
+    while (_ackwait) {
+        pollLine(NULL);
+        delay_ms(10);
+    }
+    log_msg_to(*this, attrString);
+    _ackwait = true;
+    log_debug(attrString);
 }
-int Channel::in(int index) {
-    return _pin_values[index];
+
+void Channel::out(const std::string& s) {
+    log_msg_to(*this, s);
+    // _channel->_ackwait = true;
+    log_debug(s);
+}
+
+void Channel::ready() {
+    if (!_pin_values.empty()) {
+        out("GET: io.*");
+    }
 }
 
 void Channel::registerEvent(uint8_t code, EventPin* obj) {
@@ -241,14 +231,4 @@ void Channel::ack(Error status) {
     } else {
         msg << static_cast<int>(status);
     }
-}
-
-// send a command and optionally wait for an ACK
-bool Channel::sendCtrlCmd(std::string cmd, bool need_Ack) { // return false is command was NAK'd
-    println(cmd.c_str());
-    if (need_Ack) {
-        // need some code here
-        return true;
-    }
-    return true;
 }

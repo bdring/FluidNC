@@ -44,12 +44,11 @@ enum class Cmd : uint8_t {
     SpindleOvrStop        = 0x9E,
     CoolantFloodOvrToggle = 0xA0,
     CoolantMistOvrToggle  = 0xA1,
-
     // UART Extender
     PinLow  = 0xB0,  // Start of two-character sequence; second is event number
     PinHigh = 0xB1,  // Start of two-character sequence; second is event number
-    NAK     = 0xB2,
-    ACK     = 0xB3,
+    NAK     = 0xB2,  // IO Expander rejected command
+    ACK     = 0xB3,  // IO Expander accepted command
 };
 
 class Channel;
@@ -57,4 +56,3 @@ class Channel;
 bool is_realtime_command(uint8_t data);
 bool is_extended_realtime_command(uint8_t data);
 void execute_realtime_command(Cmd command, Channel& channel);
-// void execute_extended_realtime_command(Cmd command, uint8_t arg, Channel& channel);

@@ -54,7 +54,6 @@ namespace Machine {
     }
 
     void LimitPin::update(bool value) {
-        log_debug(_legend << " " << value);
         if (value) {
             if (Homing::approach() || (sys.state != State::Homing && _pHardLimits)) {
                 _pLimited = value;

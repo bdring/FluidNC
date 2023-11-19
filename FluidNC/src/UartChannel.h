@@ -12,11 +12,11 @@ private:
     Lineedit* _lineedit;
     Uart*     _uart;
 
-    int  _uart_num           = 0;
-    int  _report_interval_ms = 0;
+    int _uart_num           = 0;
+    int _report_interval_ms = 0;
 
 public:
-    UartChannel(bool addCR = false);
+    UartChannel(int num, bool addCR = false);
 
     void init();
     void init(Uart* uart);
@@ -37,13 +37,12 @@ public:
     size_t   timedReadBytes(uint8_t* buffer, size_t length, TickType_t timeout) { return timedReadBytes((char*)buffer, length, timeout); };
     bool     realtimeOkay(char c) override;
     bool     lineComplete(char* line, char c) override;
-    Channel* pollLine(char* line) override;    
+    Channel* pollLine(char* line) override;
 
     // Configuration methods
     void group(Configuration::HandlerBase& handler) override {
         handler.item("report_interval_ms", _report_interval_ms);
         handler.item("uart_num", _uart_num);
-        handler.item("controller", _controller);
     }
 };
 

@@ -34,43 +34,48 @@ public:
     static const int maxLine = 255;
 
 protected:
-    const char* _name;
+    std::string _name;
     char        _line[maxLine];
     size_t      _linelen;
-    bool        _addCR      = false;
-    char        _lastWasCR  = false;
-    bool        _controller = false;  // the device is a pin extender
+    bool        _addCR     = false;
+    char        _lastWasCR = false;
 
     std::queue<uint8_t> _queue;
 
     uint32_t _reportInterval = 0;
     int32_t  _nextReportTime = 0;
 
-    gc_modal_t _lastModal;
-    uint8_t    _lastTool;
-    float      _lastSpindleSpeed;
-    float      _lastFeedRate;
-    State      _lastState;
-    MotorMask  _lastLimits;
-    bool       _lastProbe;
+    gc_modal_t  _lastModal;
+    uint8_t     _lastTool;
+    float       _lastSpindleSpeed;
+    float       _lastFeedRate;
+    State       _lastState;
+    MotorMask   _lastLimits;
+    bool        _lastProbe;
+    std::string _lastPinString;
 
     bool       _reportWco = true;
     CoordIndex _reportNgc = CoordIndex::End;
 
     Cmd _last_rt_cmd;
 
-    std::map<int, EventPin*>           _events;
-    std::map<int, int>                 _pin_values;
-    std::map<int, Pins::PinAttributes> _pin_attributes;
+    std::map<int, EventPin*> _events;
+    std::map<int, bool*>     _pin_values;
 
 public:
     Channel(const char* name, bool addCR = false) : _name(name), _linelen(0), _addCR(addCR) {}
+    Channel(const char* name, int num, bool addCR = false) {
+        _name = name;
+        _name += std::to_string(num), _linelen = 0, _addCR = addCR;
+    }
     virtual ~Channel() = default;
 
-    virtual void     handle() {};
-    virtual Channel* pollLine(char* line);
-    virtual void     ack(Error status);
-    const char*      name() { return _name; }
+    bool _ackwait = false;
+
+    virtual void       handle() {};
+    virtual Channel*   pollLine(char* line);
+    virtual void       ack(Error status);
+    const std::string& name() { return _name; }
 
     // rx_buffer_available() is the number of bytes that can be sent without overflowing
     // a reception buffer, even if the system is busy.  Channels that can handle external
@@ -113,11 +118,9 @@ public:
     void notifyWco() { _reportWco = true; }
     void notifyNgc(CoordIndex coord) { _reportNgc = coord; }
 
-    int  peek() override { return -1; }
-    int  read() override { return -1; }
-    int  available() override { return _queue.size(); }
-    bool isController() { return _controller; }
-    bool sendCtrlCmd(std::string s, bool need_Ack);
+    int peek() override { return -1; }
+    int read() override { return -1; }
+    int available() override { return _queue.size(); }
 
     uint32_t     setReportInterval(uint32_t ms);
     uint32_t     getReportInterval() { return _reportInterval; }
@@ -125,10 +128,8 @@ public:
     void         autoReportGCodeState();
 
     // Pin extender functions
-    virtual void                out(int index, int value);
-    virtual int                 in(int index);
-    virtual void                setAttr(int index, Pins::PinAttributes value);
-    virtual Pins::PinAttributes getAttr(int index) const;
-
-    virtual void registerEvent(uint8_t code, EventPin* obj);
+    void out(const std::string& s);
+    void setAttr(int index, bool* valuep, const std::string& s);
+    void ready();
+    void registerEvent(uint8_t code, EventPin* obj);
 };

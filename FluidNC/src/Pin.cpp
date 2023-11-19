@@ -77,9 +77,6 @@ const char* Pin::parse(std::string_view pin_str, Pins::PinDetail*& pinImplementa
         return nullptr;
     }
     if (string_util::equal_ignore_case(prefix, "i2so")) {
-        if (config->_i2so == nullptr) {
-            return "i2so: section must be defined before using i2so pins";
-        }
         pinImplementation = new Pins::I2SOPinDetail(static_cast<pinnum_t>(pin_number), parser);
         return nullptr;
     }
