@@ -342,8 +342,8 @@ bool Maslow_::take_measurement_avg_with_check(int waypoint) {
                     }
               }
               //reset the run counter to run the measurements again
-              if (criticalCounter++ > 2) {
-                    log_error("Critical error, measurements are not within 1.5mm of each other 3 times in a row, stopping calibration");
+              if (criticalCounter++ > 8) {
+                    log_error("Critical error, measurements are not within 1.5mm of each other 8 times in a row, stopping calibration");
                     calibrationInProgress = false;
                     waypoint              = 0;
                     criticalCounter       = 0;
@@ -496,6 +496,15 @@ void Maslow_::reset_all_axis(){
     axisBL.reset();
     axisBR.reset();
 }
+
+//Checks to see how close we are to the targetX and targetY position. If we are within the tolerance, we are on target and return true;
+bool Maslow_::onTarget(double targetX, double targetY, double currentX, double currentY, double tolerance) {
+  if (abs(targetX - currentX) < tolerance && abs(targetY - currentY) < tolerance) {
+    return true;
+  }
+  return false;
+}
+
 // move pulling just two belts depending on the direction of the movement
 bool Maslow_::move_with_slack(double fromX, double fromY, double toX, double toY) {
   
@@ -520,7 +529,7 @@ bool Maslow_::move_with_slack(double fromX, double fromY, double toX, double toY
         axisTR.recomputePID();
         axisBL.comply(comply_spd);
         axisBR.comply(comply_spd);
-        if( axisTL.onTarget(0.5) && axisTR.onTarget(0.5) ) {
+        if( onTarget(toX, toY, getTargetX(), getTargetY(), 0.5) ) {
             stopMotors();
             reset_all_axis();
             return true;

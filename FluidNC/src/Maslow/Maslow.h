@@ -117,6 +117,7 @@ class Maslow_ {
     double calibrationGrid[100][2] = {0};
 
     void generate_calibration_grid();
+    bool onTarget(double targetX, double targetY, double currentX, double currentY, double tolerance);
     bool move_with_slack(double fromX, double fromY, double toX, double toY);
     int get_direction(double x, double y, double targetX, double targetY);
     bool take_measurement_avg_with_check(int waypoint);
