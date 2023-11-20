@@ -299,7 +299,6 @@ bool Maslow_::take_measurement_avg_with_check(int waypoint) {
 //   }
 
   if (take_measurement(waypoint)) {
-      //log_info("Took measurement at run " << run);
       if (run < 3) {
           //decompress lower belts for 500 ms before taking the next measurement
           decompressTimer = millis();
@@ -402,7 +401,7 @@ void Maslow_::calibration_loop(){
                 }
                 else{
                     log_info("Moving from: " << calibrationGrid[waypoint-1][0] << " " << calibrationGrid[waypoint-1][1] << " to: " << calibrationGrid[waypoint][0] << " " << calibrationGrid[waypoint][1] << " direction: " << get_direction(calibrationGrid[waypoint-1][0], calibrationGrid[waypoint-1][1], calibrationGrid[waypoint][0], calibrationGrid[waypoint][1]));
-                    setTargets(calibrationGrid[waypoint][0], calibrationGrid[waypoint][1], 0);
+                    move_with_slack(getTargetX(), getTargetY(), calibrationGrid[waypoint][0], calibrationGrid[waypoint][1]);
                 }
             }
         }
