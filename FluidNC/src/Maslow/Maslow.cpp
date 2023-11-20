@@ -392,7 +392,7 @@ void Maslow_::calibration_loop(){
                 measurementInProgress = false;
                 waypoint++;
 
-                if(waypoint > 99){
+                if(waypoint > 98 ){
                     calibrationInProgress = false;
                     waypoint = 0;
                     log_info("Calibration complete");
@@ -460,23 +460,32 @@ void Maslow_::hold(unsigned long time){
     holdTimer = millis();
     //log_info("Holding for " << int(time) << "ms");
 }
+
 void Maslow_::generate_calibration_grid() {
-  //generate calibration grid 10x10 between top left and bottom right corners with offset of CALIBRATION_GRID_OFFSET
-  double xStep     = (brX - tlX - 2 * CALIBRATION_GRID_OFFSET) / 10;
-  double yStep     = (tlY - brY - 2 * CALIBRATION_GRID_OFFSET) / 10;
-  bool   moveRight = true;  // flag to alternate direction
-  for (int i = 0; i < 100; i++) {
-      int row = i / 10;
-      int col = i % 10;
-      if (moveRight) {
-            calibrationGrid[i][0] =  (CALIBRATION_GRID_OFFSET + col * xStep ) - centerX;  // x coord
-      } else {
-            calibrationGrid[i][0] =  (CALIBRATION_GRID_OFFSET + ((9 - col) * xStep)) - centerX;  // x coord
+  log_info("Generating calibration grid");
+
+  int gridSizeX = 10;
+  int gridSizeY = 9;
+  int xSpacing = 175;
+  int ySpacing = 100;
+  int pointCount = 0;
+
+  for(int i = -gridSizeX/2; i <= gridSizeX/2; i++) {
+    if(i % 2 == 0) {
+      for(int j = -gridSizeY/2; j <= gridSizeY/2; j++) {
+        log_info("Point: " << pointCount << "(" << i * xSpacing << ", " << j * ySpacing << ")");
+        calibrationGrid[pointCount][0] = i * xSpacing;
+        calibrationGrid[pointCount][1] = j * ySpacing;
+        pointCount++;
       }
-      calibrationGrid[i][1] =  (CALIBRATION_GRID_OFFSET + ((9 - row) * yStep) ) - centerY ;  // y coord
-      if (col == 9) {                                                       // reached end of row
-            moveRight = !moveRight;                                         // alternate direction
+    } else {
+      for(int j = gridSizeY/2; j >= -gridSizeY/2; j--) {
+        log_info("Point: " << pointCount << "(" << i * xSpacing << ", " << j * ySpacing << ")"); 
+        calibrationGrid[pointCount][0] = i * xSpacing;
+        calibrationGrid[pointCount][1] = j * ySpacing;
+        pointCount++;
       }
+    }
   }
 }
 

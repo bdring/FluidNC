@@ -114,7 +114,6 @@ class Maslow_ {
     int frame_dimention_MIN = 1000;
     int frame_dimention_MAX = 5000;
 
-    double CALIBRATION_GRID_OFFSET = 750; // distance from the corner in x and y directions
     double calibrationGrid[100][2] = {0};
 
     void generate_calibration_grid();
