@@ -391,21 +391,21 @@ void Maslow_::calibration_loop(){
 
      static int waypoint = 0; 
         static bool measurementInProgress = false;
-        //taking measurment once we've reached the point
+        //Taking measurment once we've reached the point
         if(measurementInProgress){
-            if(take_measurement_avg_with_check(waypoint)){
+            if(take_measurement_avg_with_check(waypoint)){ //Takes a measurement and returns true if it's done
                 
                 measurementInProgress = false;
-                waypoint++;
+                waypoint++;                                 //Increment the waypoint counter
 
-                if(waypoint > 98 ){
+                if(waypoint > 98 ){ //If we have reached the end of the calibration process
                     calibrationInProgress = false;
                     waypoint = 0;
                     log_info("Calibration complete");
                     print_calibration_data();
                     sys.set_state(State::Idle);
                 }
-                else{
+                else{ //Otherwise move to the next point
                     log_info("Moving from: " << calibrationGrid[waypoint-1][0] << " " << calibrationGrid[waypoint-1][1] << " to: " << calibrationGrid[waypoint][0] << " " << calibrationGrid[waypoint][1] << " direction: " << get_direction(calibrationGrid[waypoint-1][0], calibrationGrid[waypoint-1][1], calibrationGrid[waypoint][0], calibrationGrid[waypoint][1]));
                     move_with_slack(getTargetX(), getTargetY(), calibrationGrid[waypoint][0], calibrationGrid[waypoint][1]);
                 }
@@ -511,24 +511,32 @@ bool Maslow_::onTarget(double targetX, double targetY, double currentX, double c
   return false;
 }
 
-//Move pulling just two belts depending on the direction of the movement. Returns true when the target is reached, false if it is still moving to the target.
+// move pulling just two belts depending on the direction of the movement
 bool Maslow_::move_with_slack(double fromX, double fromY, double toX, double toY) {
   
-  //Introduce some slack to the lower belts before moving to a new location
-
+  //This is where we want to introduce some slack so the system
   static unsigned long decompressTimer    = millis();
+  static bool          decompress         = true;
 
-  //Decompress belts for 500ms...this happens by returnign right away before running any of the rest of the code
+//We conly want to decompress at the beginning of each move
+if(decompress){
+    decompressTimer = millis();
+    decompress = false;
+}
+
+//Decompress belts for 500ms...this happens by returning right away before running any of the rest of the code
   if (millis() - decompressTimer < 500) {
-    axisBL.decompressBelt();
-    axisBR.decompressBelt();
-    return false;
+      axisTL.recomputePID();
+      axisTR.recomputePID();
+      axisBL.decompressBelt();
+      axisBR.decompressBelt();
+      return false;
   }
 
   //Stop for 50ms
   //we need to stop motors after decompression was finished once
   else if (millis() - decompressTimer < 550) {
-    stopMotors();
+      stopMotors();
   }
 
   //How big of steps do we want to take with each loop?
@@ -555,6 +563,7 @@ bool Maslow_::move_with_slack(double fromX, double fromY, double toX, double toY
         if( onTarget(toX, toY, getTargetX(), getTargetY(), 0.5) ) {
             stopMotors();
             reset_all_axis();
+            decompress = true; //Reset for the next pass
             return true;
         }
         break;
@@ -566,6 +575,7 @@ bool Maslow_::move_with_slack(double fromX, double fromY, double toX, double toY
             if( axisBL.onTarget(0.5) && axisBR.onTarget(0.5) ) {
                 stopMotors();
                 reset_all_axis();
+                decompress = true; //Reset for the next pass
                 return true;
             }
             break;
@@ -577,6 +587,7 @@ bool Maslow_::move_with_slack(double fromX, double fromY, double toX, double toY
             if( axisTL.onTarget(0.5) && axisBL.onTarget(0.5) ) {
                 stopMotors();
                 reset_all_axis();
+                decompress = true; //Reset for the next pass
                 return true;
             }
             break;
@@ -588,6 +599,7 @@ bool Maslow_::move_with_slack(double fromX, double fromY, double toX, double toY
             if( axisTR.onTarget(0.5) && axisBR.onTarget(0.5) ) {
                 stopMotors();
                 reset_all_axis();
+                decompress = true; //Reset for the next pass
                 return true;                
             }
             break;
