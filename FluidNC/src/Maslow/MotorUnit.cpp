@@ -194,7 +194,6 @@ return false;
  *  @brief  Sets the motor to comply with how it is being pulled, non-blocking. 
  */
 bool MotorUnit::comply( double maxSpeed){
-
     //Call it every 25 ms
     if(millis() - lastCallToComply < 25){
         return true;
@@ -231,8 +230,8 @@ bool MotorUnit::comply( double maxSpeed){
 
     lastPosition = positionNow;
 
-        lastCallToComply = millis();
-        return true;
+    lastCallToComply = millis();
+    return true;
 }
 
 /*!

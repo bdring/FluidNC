@@ -24,7 +24,10 @@ class Maslow_ {
     void home();
     void update();
     bool updateEncoderPositions();
-    void setTargets(float xTarget, float yTarget, float zTarget);
+    void setTargets(float xTarget, float yTarget, float zTarget, bool tl = true, bool tr = true, bool bl = true, bool br = true);
+    double getTargetX();
+    double getTargetY();
+    double getTargetZ();
     void recomputePID();
 
     //math 
@@ -82,6 +85,10 @@ class Maslow_ {
     bool complyALL = false;
 
     bool safetyOn = true;
+
+    double targetX = 0;
+    double targetY = 0;
+    double targetZ = 0;
     
     
     MotorUnit axisTL;
@@ -107,10 +114,10 @@ class Maslow_ {
     int frame_dimention_MIN = 1000;
     int frame_dimention_MAX = 5000;
 
-    double CALIBRATION_GRID_OFFSET = 750; // distance from the corner in x and y directions
     double calibrationGrid[100][2] = {0};
 
     void generate_calibration_grid();
+    bool onTarget(double targetX, double targetY, double currentX, double currentY, double tolerance);
     bool move_with_slack(double fromX, double fromY, double toX, double toY);
     int get_direction(double x, double y, double targetX, double targetY);
     bool take_measurement_avg_with_check(int waypoint);
