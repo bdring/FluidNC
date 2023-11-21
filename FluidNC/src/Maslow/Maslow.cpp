@@ -528,7 +528,7 @@ if(decompress){
   if (millis() - decompressTimer < 500) {
       axisTL.recomputePID();
       axisTR.recomputePID();
-      axisBL.decompressBelt();
+      axisBL.decompressBelt(); //It would be better here if we only decompressed belts which are going to need to extend during this next move
       axisBR.decompressBelt();
       return false;
   }
