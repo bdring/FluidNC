@@ -101,6 +101,7 @@ namespace WebUI {
 
         //create instance
         _webserver = new WebServer(_port);
+        _webserver->enableCORS(true);
 #    ifdef ENABLE_AUTHENTICATION
         //here the list of headers to be recorded
         const char* headerkeys[]   = { "Cookie" };
