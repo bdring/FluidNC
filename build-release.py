@@ -11,12 +11,20 @@ verbose = '-v' in sys.argv
 
 environ = dict(os.environ)
 
+platformio = r"C:\Users\User\.platformio\penv\Scripts\platformio.exe"
+version = "21-nov-23"
+os.chdir(os.path.dirname(os.path.realpath(r"C:\Users\User\Documents\GitHub\FluidNC\.pio")))
+#change path to the project folder (the folder with platformio.ini)
+tag = "maslow4-"+version
+sharedPath = 'install_scripts'
+
+
 def buildEmbeddedPage():
     print('Building embedded web page')
     return subprocess.run(["python", "build.py"], cwd="embedded").returncode
 
-def buildEnv(pioEnv, verbose=True, extraArgs=None):
-    cmd = ['platformio','run', '--disable-auto-clean', '-e', pioEnv]
+def buildEnv(pioEnv, verbose=False, extraArgs=None):
+    cmd = [platformio,'run', '--disable-auto-clean', '-e', pioEnv]
     if extraArgs:
         cmd.append(extraArgs)
     displayName = pioEnv
@@ -34,7 +42,7 @@ def buildEnv(pioEnv, verbose=True, extraArgs=None):
     return app.returncode
 
 def buildFs(pioEnv, verbose=verbose, extraArgs=None):
-    cmd = ['platformio','run', '--disable-auto-clean', '-e', pioEnv, '-t', 'buildfs']
+    cmd = [ platformio ,'run', '--disable-auto-clean', '-e', pioEnv, '-t', 'buildfs']
     if extraArgs:
         cmd.append(extraArgs)
     print('Building file system for ' + pioEnv)
@@ -50,13 +58,13 @@ def buildFs(pioEnv, verbose=verbose, extraArgs=None):
     print()
     return app.returncode
 
-tag = (
-    subprocess.check_output(["git", "describe", "--tags", "--abbrev=0"])
-    .strip()
-    .decode("utf-8")
-)
+# tag = (
+#     subprocess.check_output(["git", "describe", "--tags", "--abbrev=0"])
+#     .strip()
+#     .decode("utf-8")
+# )
 
-sharedPath = 'install_scripts'
+
 
 def copyToZip(zipObj, platform, fileName, destPath, mode=0o100755):
     sourcePath = os.path.join(sharedPath, platform, fileName)
@@ -68,6 +76,7 @@ def copyToZip(zipObj, platform, fileName, destPath, mode=0o100755):
 
 
 relPath = os.path.join('release')
+print("Creating release directory ", relPath)
 if not os.path.exists(relPath):
     os.makedirs(relPath)
 
@@ -75,10 +84,10 @@ if not os.path.exists(relPath):
 # if buildEmbeddedPage() != 0:
 #    sys.exit(1)
 
-if buildFs('wifi', verbose=verbose) != 0:
+if buildFs('wifi_s3', verbose=verbose) != 0:
     sys.exit(1)
 
-for envName in ['wifi','bt']:
+for envName in ['wifi_s3']:
     if buildEnv(envName, verbose=verbose) != 0:
         sys.exit(1)
     shutil.copy(os.path.join('.pio', 'build', envName, 'firmware.elf'), os.path.join(relPath, envName + '-' + 'firmware.elf'))
@@ -104,7 +113,7 @@ for platform in ['win64', 'posix']:
 
     zipDirName = os.path.join('fluidnc-' + tag + '-' + platform)
     zipFileName = os.path.join(relPath, zipDirName + '.zip')
-
+    print("Creating zip file ", zipFileName)
     with ZipFile(zipFileName, 'w') as zipObj:
         name = 'HOWTO-INSTALL.txt'
         zipObj.write(os.path.join(sharedPath, platform, name), os.path.join(zipDirName, name))
@@ -119,7 +128,7 @@ for platform in ['win64', 'posix']:
             zipObj.write(os.path.join(sharedPath, 'common', secFuses), os.path.join(zipDirName, 'common', secFuses))
 
         # Put FluidNC binaries, partition maps, and installers in the archive
-        for envName in ['wifi','bt']:
+        for envName in ['wifi_s3']:
 
             # Put bootloader binaries in the archive
             bootloader = 'bootloader.bin'
@@ -127,7 +136,7 @@ for platform in ['win64', 'posix']:
 
             # Put littlefs.bin and index.html.gz in the archive
             # bt does not need a littlefs.bin because there is no use for index.html.gz
-            if envName == 'wifi':
+            if envName == 'wifi_s3':
                 name = 'littlefs.bin'
                 zipObj.write(os.path.join(pioPath, envName, name), os.path.join(zipDirName, envName, name))
                 name = 'index.html.gz'
@@ -140,7 +149,7 @@ for platform in ['win64', 'posix']:
             # E.g. posix/install-wifi.sh -> install-wifi.sh
             copyToZip(zipObj, platform, 'install-' + envName + scriptExtension[platform], zipDirName)
 
-        for script in ['install-fs', 'fluidterm', 'checksecurity', 'erase', 'tools']:
+        for script in ['full-install','install-fs', 'fluidterm', 'checksecurity', 'erase', 'tools']:
             # E.g. posix/fluidterm.sh -> fluidterm.sh
             copyToZip(zipObj, platform, script + scriptExtension[platform], zipDirName)
 
@@ -153,7 +162,7 @@ for platform in ['win64', 'posix']:
             obj = 'fluidterm' + exeExtension[platform]
             zipObj.write(os.path.join('fluidterm', obj), os.path.join(zipDirName, platform, obj))
 
-        EsptoolVersion = 'v3.1'
+        EsptoolVersion = 'v4.6'
 
         # Put esptool and related tools in the archive
         if withEsptoolBinary[platform]:
