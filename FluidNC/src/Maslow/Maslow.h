@@ -5,7 +5,7 @@
 #include "../System.h"         // sys.*
 
 #define TCAADDR 0x70
-
+#define CALIBRATION_GRID_SIZE  100
 
 
 class Maslow_ {
@@ -24,7 +24,10 @@ class Maslow_ {
     void home();
     void update();
     bool updateEncoderPositions();
-    void setTargets(float xTarget, float yTarget, float zTarget);
+    void setTargets(float xTarget, float yTarget, float zTarget, bool tl = true, bool tr = true, bool bl = true, bool br = true);
+    double getTargetX();
+    double getTargetY();
+    double getTargetZ();
     void recomputePID();
 
     //math 
@@ -36,6 +39,7 @@ class Maslow_ {
     float computeTL(float x, float y, float z);
 
     //calibration functions 
+    void runCalibration_(); // temporary
     void runCalibration();
     void printMeasurementSet(float allLengths[][4]);
     void takeColumnOfMeasurements(float x, float measurments[][4]);
@@ -59,6 +63,14 @@ class Maslow_ {
     void comply();
     void stop();
     void panic();
+    void setSafety(bool state);
+    String axis_id_to_label(int axis_id);
+    bool all_axis_homed();
+    void safety_control();
+    void set_frame_width(double width);
+    void set_frame_height(double height);
+    void update_frame_xyz();
+    bool axis_homed[4] = {false, false, false, false};
     bool retractingTL = false;
     bool retractingTR = false;
     bool retractingBL = false;
@@ -71,6 +83,12 @@ class Maslow_ {
 
     bool extendingALL = false;
     bool complyALL = false;
+
+    bool safetyOn = true;
+
+    double targetX = 0;
+    double targetY = 0;
+    double targetZ = 0;
     
     
     MotorUnit axisTL;
@@ -89,7 +107,40 @@ class Maslow_ {
     bool using_default_config = false; 
     QWIICMUX I2CMux;
 
+    //calibration stuff
+    float frame_width = 3500;
+    float frame_height = 2500;
+
+    int frame_dimention_MIN = 1000;
+    int frame_dimention_MAX = 5000;
+
+    double calibrationGrid[100][2] = {0};
+
+    void generate_calibration_grid();
+    bool onTarget(double targetX, double targetY, double currentX, double currentY, double tolerance);
+    bool move_with_slack(double fromX, double fromY, double toX, double toY);
+    int get_direction(double x, double y, double targetX, double targetY);
+    bool take_measurement_avg_with_check(int waypoint);
+    bool take_measurement(int waypoint);
+    void test_();
+    void calibration_loop();
+    void print_calibration_data();
+    void reset_all_axis();
+    bool test = false;
+    bool orientation;
+    double calibration_data[4][CALIBRATION_GRID_SIZE] = {0}; 
+    // //keep track of where Maslow actually is, lower left corner is 0,0
+    double x;
+    double y;
+
+    //hold
+    void hold(unsigned long time);
+    unsigned long holdTimer = millis();
+    bool holding = false;
+    unsigned long holdTime = 0;
+
   private:
+
     float tlX;
     float tlY;
     float tlZ;

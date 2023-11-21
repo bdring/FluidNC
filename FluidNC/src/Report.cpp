@@ -535,6 +535,9 @@ void report_realtime_debug() {}
 // requires as it minimizes the computational overhead to keep running smoothly,
 // especially during g-code programs with fast, short line segments and high frequency reports (5-20Hz).
 void report_realtime_status(Channel& channel) {
+    if(sys.state() == State::Homing) {
+        return;
+    }
     LogStream msg(channel, "<");
     msg << state_name();
 

@@ -819,48 +819,160 @@ static Error showHeap(const char* value, WebUI::AuthenticationLevel auth_level, 
     log_info("Heap free: " << xPortGetFreeHeapSize() << " min: " << heapLowWater);
     return Error::Ok;
 }
-//Maslow-specific user functions
+
+
+/*
+
+                
+              //////////  Maslow-specific user cmd functions  //////////////
+
+
+*/
 static Error maslow_retract_TL(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+    if(Maslow.using_default_config) {
+        return Error::ConfigurationInvalid;
+    }
     sys.set_state(State::Homing);
     Maslow.retractTL();
     return Error::Ok;
 }
 static Error maslow_retract_TR(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+    if(Maslow.using_default_config) {
+        return Error::ConfigurationInvalid;
+    }
     sys.set_state(State::Homing);
     Maslow.retractTR();
     return Error::Ok;
 }
 static Error maslow_retract_BR(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+    if(Maslow.using_default_config) {
+        return Error::ConfigurationInvalid;
+    }
     sys.set_state(State::Homing);
     Maslow.retractBR();
     return Error::Ok;
 }
 static Error maslow_retract_BL(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+    if(Maslow.using_default_config) {
+        return Error::ConfigurationInvalid;
+    }
     sys.set_state(State::Homing);
     Maslow.retractBL();
     return Error::Ok;
 }
 static Error maslow_retract_ALL(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+    if(Maslow.using_default_config) {
+        return Error::ConfigurationInvalid;
+    }
     sys.set_state(State::Homing);
     log_info("Retracting all belts");
     Maslow.retractALL();
     return Error::Ok;
 }
 static Error maslow_extend_ALL(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+    if(Maslow.using_default_config) {
+        return Error::ConfigurationInvalid;
+    }
     sys.set_state(State::Homing);
     log_info("Extending all belts");
     Maslow.extendALL();
     return Error::Ok;
 }
 static Error maslow_stop(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+    if(Maslow.using_default_config) {
+        return Error::ConfigurationInvalid;
+    }
     sys.set_state(State::Alarm);
     Maslow.stop();
     return Error::Ok;
 }
 static Error maslow_set_comply(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+    if(Maslow.using_default_config) {
+        return Error::ConfigurationInvalid;
+    }
     sys.set_state(State::Homing);
     log_info("Set to comply");
     Maslow.comply();
+    return Error::Ok;
+}
+static Error maslow_start_calibration(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+    if(Maslow.using_default_config) {
+        return Error::ConfigurationInvalid;
+    }
+    sys.set_state(State::Homing);
+    Maslow.runCalibration();
+    return Error::Ok;
+}
+static Error maslow_set_width(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+    if(Maslow.using_default_config) {
+        return Error::ConfigurationInvalid;
+    }
+    if (!value) {
+        double width = Maslow.frame_width;
+        log_info("Maslow frame width is " << width);
+        return Error::Ok;
+    }
+    char*    endptr;
+    uint32_t intValue = strtol(value, &endptr, 10);
+
+    if (endptr == value || *endptr != '\0') {
+        return Error::BadNumberFormat;
+    }
+
+    if( intValue < Maslow.frame_dimention_MIN || intValue > Maslow.frame_dimention_MAX ){
+        log_error("Maslow frame width must be between " << Maslow.frame_dimention_MIN << " and " << Maslow.frame_dimention_MAX);
+        return Error::BadNumberFormat;
+    }
+    Maslow.set_frame_width(intValue);
+    log_info("Maslow frame width set to " << intValue);
+    return Error::Ok;
+}
+
+static Error maslow_set_height(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+    if(Maslow.using_default_config) {
+        return Error::ConfigurationInvalid;
+    }
+    if (!value) {
+        double height = Maslow.frame_height;
+        log_info("Maslow frame height is " << height);
+        return Error::Ok;
+    }
+    char*    endptr;
+    uint32_t intValue = strtol(value, &endptr, 10);
+
+    if (endptr == value || *endptr != '\0') {
+        return Error::BadNumberFormat;
+    }
+
+    if( intValue < Maslow.frame_dimention_MIN || intValue > Maslow.frame_dimention_MAX ){
+        log_error("Maslow frame height must be between " << Maslow.frame_dimention_MIN << " and " << Maslow.frame_dimention_MAX);
+        return Error::BadNumberFormat;
+    }
+    Maslow.set_frame_height(intValue);
+    log_info("Maslow frame height set to " << intValue);
+    return Error::Ok;
+}
+static Error maslow_safety_off(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+    if(Maslow.using_default_config) {
+        return Error::ConfigurationInvalid;
+    }
+    Maslow.setSafety(false);
+    return Error::Ok;
+}
+
+static Error maslow_safety_on(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+    if(Maslow.using_default_config) {
+        return Error::ConfigurationInvalid;
+    }
+    Maslow.setSafety(true);
+    return Error::Ok;
+}
+
+static Error maslow_test(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+    if(Maslow.using_default_config) {
+        return Error::ConfigurationInvalid;
+    }
+    Maslow.test_();
     return Error::Ok;
 }
 // Commands use the same syntax as Settings, but instead of setting or
@@ -925,15 +1037,20 @@ void make_user_commands() {
     new UserCommand("30", "FakeMaxSpindleSpeed", fakeMaxSpindleSpeed, notIdleOrAlarm);
     new UserCommand("32", "FakeLaserMode", fakeLaserMode, notIdleOrAlarm);
     //Maslow-specific commands
-    new UserCommand("TL", "TopLeftRetract", maslow_retract_TL, anyState);
-    new UserCommand("TR", "TopRightRetract", maslow_retract_TR, anyState);
-    new UserCommand("BR", "BottomRightRetract", maslow_retract_BR, anyState);
-    new UserCommand("BL", "BottomLeftRetract", maslow_retract_BL, anyState);
-    new UserCommand("ALL", "retractALL", maslow_retract_ALL, anyState);
-    new UserCommand("EXT", "extendALL", maslow_extend_ALL, anyState);
-    new UserCommand("CMP", "comply", maslow_set_comply, anyState);
-    new UserCommand("STP", "STOP", maslow_stop, anyState); // experimental
-
+    new UserCommand("TL", "Maslow/retractTL", maslow_retract_TL, anyState);
+    new UserCommand("TR", "Maslow/retractTR", maslow_retract_TR, anyState);
+    new UserCommand("BR", "Maslow/retractBR", maslow_retract_BR, anyState);
+    new UserCommand("BL", "Maslow/retractBL", maslow_retract_BL, anyState);
+    new UserCommand("ALL", "Maslow/retract", maslow_retract_ALL, anyState);
+    new UserCommand("EXT", "Maslow/extend", maslow_extend_ALL, anyState);
+    new UserCommand("CMP", "Maslow/comply", maslow_set_comply, anyState);
+    new UserCommand("CAL", "Maslow/calibrate", maslow_start_calibration, anyState);
+    new UserCommand("STP", "Maslow/stop", maslow_stop, anyState); // experimental
+    new UserCommand("WDT", "Maslow/width", maslow_set_width, anyState);
+    new UserCommand("HGT", "Maslow/height", maslow_set_height, anyState);
+    new UserCommand("SFON", "Maslow/safetyON", maslow_safety_on, anyState);
+    new UserCommand("SFOFF", "Maslow/safetyOFF", maslow_safety_off, anyState);
+    new UserCommand("TEST", "Maslow/test", maslow_test, anyState);
 };
 
 // normalize_key puts a key string into canonical form -

@@ -1,11 +1,12 @@
+
 #include "Maslow.h"
 #include "../Report.h"
 
 // Maslow specific defines
-#define TLEncoderLine 0
-#define TREncoderLine 2
-#define BLEncoderLine 1
-#define BREncoderLine 3
+#define TLEncoderLine 2
+#define TREncoderLine 1
+#define BLEncoderLine 3
+#define BREncoderLine 0
 
 //These are the values for the new board with etherent cables
 //#define TLEncoderLine 2
@@ -50,6 +51,17 @@ int ENCODER_READ_FREQUENCY_HZ = 100;
 int lowerBeltsExtra = 4;
 int callsSinceDelay = 0;
 
+#define UP 1
+#define DOWN 2
+#define LEFT 3
+#define RIGHT 4
+
+#define HORIZONTAL 0
+#define VERTICAL 1
+
+
+
+
 void Maslow_::begin(void (*sys_rt)()) {
   initialized = 1;
 
@@ -72,31 +84,31 @@ void Maslow_::begin(void (*sys_rt)()) {
   axisTRHomed = false;
   axisTLHomed = false;
 
-//   tlX =-3.127880538461895;
-//   tlY = 2063.1006937512166;
-//   tlZ = 116 + 38;
-//   trX = 2944.4878198392585; 
-//   trY = 2069.656171241167;
-//   trZ = 69 + 38;
-//   blX = 0;
-//   blY = 0;
-//   blZ = 47 + 38;
-//   brX = 2959.4124827780993;
-//   brY = 0;
-//   brZ = 89 + 38;
-
-  tlX = 5.5;
-  tlY = 2150;
-  tlZ = 0;
-  trX = 3135; 
-  trY = 2150;
-  trZ = 0;
+  tlX =-3.127880538461895;
+  tlY = 2063.1006937512166;
+  tlZ = 116 + 38;
+  trX = 2944.4878198392585; 
+  trY = 2069.656171241167;
+  trZ = 69 + 38;
   blX = 0;
   blY = 0;
-  blZ = 0;
-  brX = 3095;
+  blZ = 47 + 38;
+  brX = 2959.4124827780993;
   brY = 0;
-  brZ = 0;
+  brZ = 89 + 38;
+
+//   tlX = 5.5;
+//   tlY = 2150;
+//   tlZ = 0;
+//   trX = 3135; 
+//   trY = 2150;
+//   trZ = 0;
+//   blX = 0;
+//   blY = 0;
+//   blZ = 0;
+//   brX = 3095;
+//   brY = 0;
+//   brZ = 0;
 
 
   tlTension = 0;
@@ -117,41 +129,54 @@ void Maslow_::begin(void (*sys_rt)()) {
 
   pinMode(SERVOFAULT, INPUT);
 
-  currentThreshold = 1500;
+  currentThreshold = 1700;
   lastCallToUpdate = millis();
-  log_info("Starting Maslow");
+  orientation = VERTICAL;
+  log_info("Starting Maslow v 1.00");
+}
+
+bool Maslow_::all_axis_homed(){
+    return axis_homed[0] && axis_homed[1] && axis_homed[2] && axis_homed[3];
 }
 
 void Maslow_::home() {
   //run all the retract functions untill we hit the current limit
   if (retractingTL) {
-      if (axisTL.retract())
+      if (axisTL.retract()){
           retractingTL = false;
+          axis_homed[0] = true;
+      }
   }
   if (retractingTR) {
-      if (axisTR.retract())
+      if (axisTR.retract()){
           retractingTR = false;
+          axis_homed[1] = true;
+      }
   }
   if (retractingBL) {
-      if (axisBL.retract())
+      if (axisBL.retract()){
           retractingBL = false;
+          axis_homed[2] = true;
+      }
   }
   if (retractingBR) {
-      if (axisBR.retract())
+      if (axisBR.retract()){
           retractingBR = false;
+          axis_homed[3] = true;
+      }
   }
 
   // $EXT - extend mode
   if (extendingALL) {
       //decompress belts for the first half second
-      if (millis() - extendCallTimer < 500) {
+      if (millis() - extendCallTimer < 700) {
           if (millis() - extendCallTimer > 0)
               axisBR.decompressBelt();
-          if (millis() - extendCallTimer > 50)
-              axisBL.decompressBelt();
-          if (millis() - extendCallTimer > 100)
-              axisTR.decompressBelt();
           if (millis() - extendCallTimer > 150)
+              axisBL.decompressBelt();
+          if (millis() - extendCallTimer > 250)
+              axisTR.decompressBelt();
+          if (millis() - extendCallTimer > 350)
               axisTL.decompressBelt();
       }
       //then make all the belts comply until they are extended fully, or user terminates it
@@ -173,34 +198,488 @@ void Maslow_::home() {
   // $CMP - comply mode
   if (complyALL) {
       //decompress belts for the first half second
-      if (millis() - complyCallTimer < 500) {
+      if (millis() - complyCallTimer < 700) {
           if (millis() - complyCallTimer > 0)
               axisBR.decompressBelt();
-          if (millis() - complyCallTimer > 100)
-              axisBL.decompressBelt();
           if (millis() - complyCallTimer > 150)
+              axisBL.decompressBelt();
+          if (millis() - complyCallTimer > 250)
               axisTR.decompressBelt();
-          if (millis() - complyCallTimer > 200)
+          if (millis() - complyCallTimer > 350)
               axisTL.decompressBelt();
       } else {
-          axisTL.comply(500);  //call to recomputePID() inside here
-          axisTR.comply(500);
-          axisBL.comply(500);
-          axisBR.comply(500);
+          axisTL.comply(1000);  //call to recomputePID() inside here
+          axisTR.comply(1000);
+          axisBL.comply(1000);
+          axisBR.comply(1000);
       }
   }
-
-  //if we are done with all the homing moves, switch system state back to alarm ( or Idle? )
-  if (!retractingTL && !retractingBL && !retractingBR && !retractingTR && !extendingALL && !complyALL) {
-      sys.set_state(State::Alarm);
+  
+  // $CAL - calibration mode
+  if(calibrationInProgress){
+        calibration_loop();
   }
+
+  //if we are done with all the homing moves, switch system state back to Idle?
+  if (!retractingTL && !retractingBL && !retractingBR && !retractingTR && !extendingALL && !complyALL && !calibrationInProgress) {
+      sys.set_state(State::Idle);
+  }
+}
+
+bool Maslow_::take_measurement(int waypoint){
+ if (orientation == VERTICAL) {
+      //first we pull two bottom belts tight one after another, if x<0 we pull left belt first, if x>0 we pull right belt first
+      static bool BL_tight = false;
+      static bool BR_tight = false;
+      axisTL.recomputePID();
+      axisTR.recomputePID();  
+      if (x < 0) {
+          if (!BL_tight) {
+              if (axisBL.pull_tight()) {
+                  BL_tight = true;
+                  //log_info("Pulled BL tight");
+              }
+              return false;
+          }
+          if (!BR_tight) {
+              if (axisBR.pull_tight()) {
+                  BR_tight = true;
+                    //log_info("Pulled BR tight");
+              }
+              return false;
+          }
+      } 
+      
+      else {
+          if (!BR_tight) {
+              if (axisBR.pull_tight()) {
+                  BR_tight = true;
+                    //log_info("Pulled BR tight");
+              }
+              return false;
+          }
+          if (!BL_tight) {
+
+              if (axisBL.pull_tight()) {
+                  BL_tight = true;
+                    //log_info("Pulled BL tight");
+              }
+              return false;
+          }
+      }
+
+      //once both belts are pulled, take a measurement
+      if (BR_tight && BL_tight) {
+          //take measurement and record it to the calibration data array
+          calibration_data[0][waypoint] = axisTL.getPosition();
+          calibration_data[1][waypoint] = axisTR.getPosition();
+          calibration_data[2][waypoint] = axisBL.getPosition();
+          calibration_data[3][waypoint] = axisBR.getPosition();
+          BR_tight = false;
+          BL_tight = false;
+          return true;
+      }
+      return false;
+  }
+  return false;
+}
+bool Maslow_::take_measurement_avg_with_check(int waypoint) {
+  //take 5 measurements in a row, (ignoring the first one), if they are all within 1mm of each other, take the average and record it to the calibration data array
+  static int           run                = 0;
+  static double        measurements[4][4] = { 0 };
+  static double        avg                = 0;
+  static double        sum                = 0;
+  static unsigned long decompressTimer    = millis();
+
+//Decompress belts for 500ms...this happens by returnign right away before running any of the rest of the code
+//   if (millis() - decompressTimer < 500) {
+//       axisBL.decompressBelt();
+//       axisBR.decompressBelt();
+//       return false;
+//   }
+
+//Stop for 50ms
+//   //we need to stop motors after decompression was finished once
+//   else if (millis() - decompressTimer < 550) {
+//       stopMotors();
+//   }
+
+  if (take_measurement(waypoint)) {
+      if (run < 3) {
+          //decompress lower belts for 500 ms before taking the next measurement
+          decompressTimer = millis();
+          run++;
+          return false;  //discard the first three measurements
+      }
+
+      measurements[0][run - 3] = calibration_data[0][waypoint];  //-3 cuz discarding the first 3 measurements
+      measurements[1][run - 3] = calibration_data[1][waypoint];
+      measurements[2][run - 3] = calibration_data[2][waypoint];
+      measurements[3][run - 3] = calibration_data[3][waypoint];
+
+      run++;
+
+      static int criticalCounter = 0;
+      if (run > 6) {
+          run = 0;
+
+          //check if all measurements are within 1mm of each other
+          static double maxDeviation[4] = { 0 };
+          static double maxDeviationAbs = 0;
+          for (int i = 0; i < 4; i++) {
+              for (int j = 0; j < 3; j++) {
+                    //find max deviation between measurements
+                    maxDeviation[i] = max(maxDeviation[i], abs(measurements[i][j] - measurements[i][j + 1]));
+              }
+          }
+          //log max deviations at every axis:
+          //log_info("Max deviation at BL: " << maxDeviation[2] << " BR: " << maxDeviation[3] << " TR: " << maxDeviation[1] << " TL: " << maxDeviation[0]);
+          //find max deviation between all measurements
+          for (int i = 0; i < 4; i++) {
+              maxDeviationAbs = max(maxDeviationAbs, maxDeviation[i]);
+          }
+          if (maxDeviationAbs > 1.5) {
+              log_error("Measurement error, measurements are not within 1.5 mm of each other, trying again");
+              //print all the measurements in readable form:
+              for (int i = 0; i < 4; i++) {
+                    for (int j = 0; j < 4; j++) {
+                        //use axis id to label:
+                        log_info(axis_id_to_label(i).c_str() << " " << measurements[i][j]);
+                    }
+              }
+              //reset the run counter to run the measurements again
+              if (criticalCounter++ > 8) {
+                    log_error("Critical error, measurements are not within 1.5mm of each other 8 times in a row, stopping calibration");
+                    calibrationInProgress = false;
+                    waypoint              = 0;
+                    criticalCounter       = 0;
+                    return false;
+              }
+
+              decompressTimer = millis();
+              return false;
+          }
+          //if they are, take the average and record it to the calibration data array
+          for (int i = 0; i < 4; i++) {
+              for (int j = 0; j < 4; j++) {
+                    sum += measurements[i][j];
+              }
+              avg                           = sum / 4;
+              calibration_data[i][waypoint] = avg;
+              sum                           = 0;
+              criticalCounter               = 0;
+          }
+          log_info("Took measurement at waypoint " << waypoint);
+          return true;
+      }
+
+      //decompress lower belts for 500 ms before taking the next measurement
+      decompressTimer = millis();
+  }
+
+  return false;
+}
+
+//function for outputting calibration data in the log line by line like this: {bl:2376.69,   br:923.40,   tr:1733.87,   tl:2801.87},
+void Maslow_::print_calibration_data(){
+    for(int i = 0; i < CALIBRATION_GRID_SIZE; i++){
+        log_info("{bl:" << calibration_data[2][i] << ",   br:" << calibration_data[3][i] << ",   tr:" << calibration_data[1][i] << ",   tl:" << calibration_data[0][i] << "},");
+    }
+}
+
+void Maslow_::calibration_loop(){
+
+     static int waypoint = 0; 
+        static bool measurementInProgress = false;
+        //taking measurment once we've reached the point
+        if(measurementInProgress){
+            if(take_measurement_avg_with_check(waypoint)){
+                
+                measurementInProgress = false;
+                waypoint++;
+
+                if(waypoint > 98 ){
+                    calibrationInProgress = false;
+                    waypoint = 0;
+                    log_info("Calibration complete");
+                    print_calibration_data();
+                    sys.set_state(State::Idle);
+                }
+                else{
+                    log_info("Moving from: " << calibrationGrid[waypoint-1][0] << " " << calibrationGrid[waypoint-1][1] << " to: " << calibrationGrid[waypoint][0] << " " << calibrationGrid[waypoint][1] << " direction: " << get_direction(calibrationGrid[waypoint-1][0], calibrationGrid[waypoint-1][1], calibrationGrid[waypoint][0], calibrationGrid[waypoint][1]));
+                    move_with_slack(getTargetX(), getTargetY(), calibrationGrid[waypoint][0], calibrationGrid[waypoint][1]);
+                }
+            }
+        }
+
+        //travel to the start point
+        else if(waypoint == 0){
+
+            //pull bottom belts tight first, NOT
+            // static bool BL_pulled = false;
+            // static bool BR_pulled = false;
+            
+            // if(!BL_pulled){
+            //     if(axisBL.pull_tight()){
+            //         BL_pulled = true;
+            //         log_info("Pulled BL tight");
+            //     }
+            //     else return;
+            // }
+            // if(!BR_pulled){
+            //     if(axisBR.pull_tight()){
+            //         BR_pulled = true;
+            //         log_info("Pulled BR tight");
+            //         log_info("Moving to the start point");
+            //     }
+            //     else return;
+            // }
+
+            //move to the start point
+            
+            if(move_with_slack(centerX,centerY, calibrationGrid[0][0], calibrationGrid[0][1])){
+                measurementInProgress = true;
+                log_info("arrived at the start point");
+                x = calibrationGrid[0][0];
+                y = calibrationGrid[0][1];
+                hold(100);
+            }
+
+        }
+
+        //perform the calibrartion steps in the grid
+        else{
+            
+            if(move_with_slack(calibrationGrid[waypoint-1][0], calibrationGrid[waypoint-1][1], calibrationGrid[waypoint][0], calibrationGrid[waypoint][1])){
+                measurementInProgress = true;
+                x = calibrationGrid[waypoint][0];
+                y = calibrationGrid[waypoint][1];
+                hold(100);
+            }
+
+        }
+}
+
+void Maslow_::hold(unsigned long time){
+    holdTime = time;
+    holding = true;
+    holdTimer = millis();
+    //log_info("Holding for " << int(time) << "ms");
+}
+
+void Maslow_::generate_calibration_grid() {
+  log_info("Generating calibration grid");
+
+  int gridSizeX = 10;
+  int gridSizeY = 9;
+  int xSpacing = 175;
+  int ySpacing = 100;
+  int pointCount = 0;
+
+  for(int i = -gridSizeX/2; i <= gridSizeX/2; i++) {
+    if(i % 2 == 0) {
+      for(int j = -gridSizeY/2; j <= gridSizeY/2; j++) {
+        log_info("Point: " << pointCount << "(" << i * xSpacing << ", " << j * ySpacing << ")");
+        calibrationGrid[pointCount][0] = i * xSpacing;
+        calibrationGrid[pointCount][1] = j * ySpacing;
+        pointCount++;
+      }
+    } else {
+      for(int j = gridSizeY/2; j >= -gridSizeY/2; j--) {
+        log_info("Point: " << pointCount << "(" << i * xSpacing << ", " << j * ySpacing << ")"); 
+        calibrationGrid[pointCount][0] = i * xSpacing;
+        calibrationGrid[pointCount][1] = j * ySpacing;
+        pointCount++;
+      }
+    }
+  }
+}
+
+
+void Maslow_::reset_all_axis(){
+    axisTL.reset();
+    axisTR.reset();
+    axisBL.reset();
+    axisBR.reset();
+}
+
+//Checks to see how close we are to the targetX and targetY position. If we are within the tolerance, we are on target and return true;
+bool Maslow_::onTarget(double targetX, double targetY, double currentX, double currentY, double tolerance) {
+  if (abs(targetX - currentX) < tolerance && abs(targetY - currentY) < tolerance) {
+    return true;
+  }
+  return false;
+}
+
+// move pulling just two belts depending on the direction of the movement
+bool Maslow_::move_with_slack(double fromX, double fromY, double toX, double toY) {
+  
+  //This is where we want to introduce some slack so the system
+
+  //How big of steps do we want to take with each loop?
+  double stepSize = 0.01;
+
+  double currentXTarget = getTargetX();
+  double currentYTarget = getTargetY();
+
+  //Compute the direction in X and Y
+  int xDirection = currentXTarget - toX > 0 ? -1 : 1;
+  int yDirection = currentYTarget - toY > 0 ? -1 : 1;
+
+  setTargets(currentXTarget + xDirection * stepSize, currentYTarget + yDirection * stepSize, 0, true, true, false, false);
+
+  int direction  = get_direction(fromX, fromY, toX, toY);
+  int comply_spd = 1500;
+  
+  switch (direction) {
+    case UP:
+        axisTL.recomputePID();
+        axisTR.recomputePID();
+        axisBL.comply(comply_spd);
+        axisBR.comply(comply_spd);
+        if( onTarget(toX, toY, getTargetX(), getTargetY(), 0.5) ) {
+            stopMotors();
+            reset_all_axis();
+            return true;
+        }
+        break;
+      case DOWN:
+            axisTL.comply(comply_spd);
+            axisTR.comply(comply_spd);
+            axisBL.recomputePID();
+            axisBR.recomputePID();
+            if( axisBL.onTarget(0.5) && axisBR.onTarget(0.5) ) {
+                stopMotors();
+                reset_all_axis();
+                return true;
+            }
+            break;
+      case LEFT:
+            axisTL.recomputePID();
+            axisTR.comply(comply_spd);
+            axisBL.recomputePID();
+            axisBR.comply(comply_spd);
+            if( axisTL.onTarget(0.5) && axisBL.onTarget(0.5) ) {
+                stopMotors();
+                reset_all_axis();
+                return true;
+            }
+            break;
+      case RIGHT:
+            axisTL.comply(comply_spd);
+            axisTR.recomputePID();
+            axisBL.comply(comply_spd);
+            axisBR.recomputePID();
+            if( axisTR.onTarget(0.5) && axisBR.onTarget(0.5) ) {
+                stopMotors();
+                reset_all_axis();
+                return true;                
+            }
+            break;
+  }
+  return false;
+}
+
+//direction from maslow current coordinates to the target coordinates
+int Maslow_::get_direction(double x, double y, double targetX, double targetY){
+    
+    int direction = 0;
+
+    if(orientation == VERTICAL) return UP;
+
+    if( targetX-x > 1) {
+        direction = RIGHT;
+    }
+    else if( targetX-x < -1) {
+        direction = LEFT;
+    }
+    else if( targetY-y > 1) {
+        direction = UP;
+    }
+    else if( targetY-y < -1) {
+        direction = DOWN;
+    }
+
+    return direction;
+} 
+
+//This is the function that should prevent machine from damaging itself
+void Maslow_::safety_control() {
+
+  //We need to keep track of average belt speeds and motor currents for every axis
+    static bool tick[4] = {false, false, false, false};
+    static unsigned long spamTimer = millis();
+
+  MotorUnit* axis[4] = { &axisTL, &axisTR, &axisBL, &axisBR };
+  for (int i = 0; i < 4; i++) {
+      //If the current exceeds some absolute value, we need to call panic() and stop the machine
+      if (axis[i]->getMotorCurrent() > currentThreshold+220000  && !tick[i]) {
+          log_error("Motor current on " << axis_id_to_label(i).c_str() << " axis exceeded threshold of " << currentThreshold+220000
+                                        << "mA, current is " << int(axis[i]->getMotorCurrent()) << "mA");
+          Maslow.panic();
+          tick[i] = true;
+      }
+
+      //If the motor torque is high, but the belt is not moving
+      //  if motor is moving IN, this means the axis is STALL, we should warn the user and lower torque to the motor
+      //  if the motor is moving OUT, that means the axis has SLACK, so we should warn the user and stop the motor, until the belt starts moving again
+      // don't spam log, no more than once every 5 seconds
+      
+      static int axisStallCounter[4] = {0,0,0,0};
+      static int axisSlackCounter[4] = {0,0,0,0};
+
+      if (axis[i]->getMotorCurrent() > currentThreshold && abs (axis[i]->getBeltSpeed() ) < 0.1 && !tick[i] ) {
+            axisStallCounter[i]++;
+            if(axisStallCounter[i] > 2){
+                //log_info("STALL:" << axis_id_to_label(i).c_str() << " motor current is " << int(axis[i]->getMotorCurrent()) << "mA, but the belt is not moving");
+                tick[i] = true;
+                axisStallCounter[i] = 0;
+            }
+        }
+        else axisStallCounter[i] = 0;
+
+      if(axis[i]->getMotorPower() > 750 && abs (axis[i]->getBeltSpeed() ) < 0.1 && !tick[i]){
+            axisSlackCounter[i]++;
+            if(axisSlackCounter[i] > 20){
+                //log_info("SLACK:" << axis_id_to_label(i).c_str() << " motor power is " << int(axis[i]->getMotorPower()) << "mW, but the belt is not moving");
+                tick[i] = true;
+                axisSlackCounter[i] = 0;
+                //Maslow.panic();
+            }
+      }
+        else axisSlackCounter[i] = 0;
+      
+}
+
+if(millis() - spamTimer > 5000){
+    for(int i = 0; i < 4; i++){
+        tick[i] = false;
+    }
+    spamTimer = millis();
+}
 }
 // Maslow main loop
 void Maslow_::update(){
     //Make sure we're running maslow config file
     if(!Maslow.using_default_config){
 
-        Maslow.updateEncoderPositions(); //We always update encoder positions in any state
+        Maslow.updateEncoderPositions(); //We always update encoder positions in any state, belt speeds are updated there too
+        //update motor currents and belt speeds like this for now
+        axisTL.update();
+        axisTR.update();
+        axisBL.update();
+        axisBR.update();
+        if(safetyOn) safety_control();
+
+        //quick solution for delay without blocking
+        if(holding && millis() - holdTimer > holdTime){
+            holding = false;
+        }
+        else if (holding) return;
+
+        if(test){
+            if(take_measurement_avg_with_check(0)) test = false;
+        }
 
         //Maslow State Machine
 
@@ -209,29 +688,54 @@ void Maslow_::update(){
 
             Maslow.setTargets(steps_to_mpos(get_axis_motor_steps(0),0), steps_to_mpos(get_axis_motor_steps(1),1), steps_to_mpos(get_axis_motor_steps(2),2));
             Maslow.recomputePID();
-
         }
-
+        
         //Homing routines
         else if(sys.state() == State::Homing){
 
             home();
-            
-        }
 
-        //In any other state, keep motors off
-        else Maslow.stopMotors();
+        }
+        else { //In any other state, keep motors off
+        
+        
+        digitalWrite(coolingFanPin, HIGH);
+        //We need to fix the cooling fan turning on at the right times. I think that we want it on any time any motor is moving
+        // if(sys.state() != State::Idle){
+        //     digitalWrite(coolingFanPin, HIGH);  //keep the cooling fan on
+        // }
+        // else {
+        //     digitalWrite(coolingFanPin, LOW);  //Turn the cooling fan off
+        // }
+
+        if(!test) Maslow.stopMotors();
+ 
+        }
 
         //if the update function is not being called enough, stop everything to prevent damage
         if(millis() - lastCallToUpdate > 500){
             Maslow.panic();
             // print warnign and time since last call
             int elapsedTime = millis()-lastCallToUpdate; 
-            log_info("Emergency stop. Update function not being called enough."  << elapsedTime << "ms since last call" );
+            log_error("Emergency stop. Update function not being called enough."  << elapsedTime << "ms since last call" );
         }
 
     }
     lastCallToUpdate = millis();
+}
+
+void Maslow_::test_(){
+            //     generate_calibration_grid();
+            // for(int i = 0; i < CALIBRATION_GRID_SIZE; i++){
+            //     log_info("x: " << calibrationGrid[i][0] << " y: " << calibrationGrid[i][1]);
+            // }
+            axisTL.setTarget( axisTL.getPosition() ) ;
+            axisTR.setTarget( axisTR.getPosition() ) ;
+            axisBL.setTarget( axisBL.getPosition() ) ;
+            axisBR.setTarget( axisBR.getPosition() ) ;
+            x = 0;
+            y = 0;
+    test = true;
 }
 
 //non-blocking homing functions
@@ -278,23 +782,40 @@ void Maslow_::retractALL(){
     log_info("Retracting All");
 }
 void Maslow_::extendALL(){
-    extendCallTimer = millis();
-    retractingTL = false;
-    retractingTR = false;
-    retractingBL = false;
-    retractingBR = false;
-    complyALL = false;
+    // ADD also shouldn't extend before we get the parameters from the user
+
+    if(!all_axis_homed()){
+        log_error("Cannot extend all until all axis are homed"); //I keep getting everything set up for calibration and then this trips me up
+        sys.set_state(State::Idle);
+        return;
+    }
+
+    stop();
     extendingALL = true;
-    axisTL.reset();
-    axisTR.reset();
-    axisBL.reset();
-    axisBR.reset();
-    extendedTL = false;
-    extendedTR = false;
-    extendedBL = false;
-    extendedBR = false;
     log_info("Extending All");
 }
+
+void Maslow_::runCalibration(){
+
+    stop();
+    //if not all axis are homed, we can't run calibration, OR if the user hasnt entered width and height? 
+    if(!all_axis_homed()){
+        log_error("Cannot run calibration until all axis are homed");
+        sys.set_state(State::Idle);
+        return;
+    }
+
+    if(frame_width < frame_dimention_MIN || frame_width > frame_dimention_MAX || frame_height < frame_dimention_MIN || frame_height > frame_dimention_MAX){
+        log_error("Cannot run calibration until frame width and height are set");
+        sys.set_state(State::Idle);
+        return;
+    }
+    sys.set_state(State::Homing);
+    //generate calibration map 
+    generate_calibration_grid();
+    calibrationInProgress = true;
+}
+
 void Maslow_::comply(){
     complyCallTimer = millis();
     retractingTL = false;
@@ -309,7 +830,9 @@ void Maslow_::comply(){
     axisBR.reset();
     log_info("Complying All");
 }
-
+void Maslow_::setSafety(bool state){
+    safetyOn = state;
+}
 //updating encoder positions for all 4 arms, cycling through them each call, at ENCODER_READ_FREQUENCY_HZ frequency
 bool Maslow_::updateEncoderPositions(){
     bool success = true;
@@ -353,21 +876,7 @@ bool Maslow_::updateEncoderPositions(){
     if(millis() - encoderFailTimer > 1000){
         for(int i = 0; i < 4; i++){
             //turn i into proper label
-            String label;
-            switch(i){
-                case 0:
-                    label = "Top Left";
-                    break;
-                case 1:
-                    label = "Top Right";
-                    break;
-                case 2:
-                    label = "Bottom Left";
-                    break;
-                case 3:
-                    label = "Bottom Right";
-                    break;
-            }
+            String label = axis_id_to_label(i);
             if(encoderFailCounter[i] > 0.5*ENCODER_READ_FREQUENCY_HZ){
                 // log error statement with appropriate label
                 log_error("Failure on " << label.c_str() << " encoder, failed to read " << encoderFailCounter[i] << " times in the last second");
@@ -401,62 +910,49 @@ bool Maslow_::updateEncoderPositions(){
     return success;
 }
 
-
+String Maslow_::axis_id_to_label(int axis_id){
+    String label;
+    switch(axis_id){
+        case 0:
+            label = "Top Left";
+            break;
+        case 1:
+            label = "Top Right";
+            break;
+        case 2:
+            label = "Bottom Left";
+            break;
+        case 3:
+            label = "Bottom Right";
+            break;
+    }
+    return label;
+}
 
 //Called from update()
 void Maslow_::recomputePID(){
+    //limit frequency to 500 Hz , maybe better update only if the encoder positions where updated
+    // if(millis() - lastCallToPID < 2){
+    //     return;
+    // }
+    // lastCallToPID = millis();
+    // if(readingFromSD){
+    //     return;
+    // }
 
-    if(!initialized){ //If we haven't initialized we don't want to try to compute things because the PID controllers cause the processor to crash
-        return;
-    }
-    if(readingFromSD){
-        return;
-    }
+   
+    axisBL.recomputePID();
+    axisBR.recomputePID();
+    axisTR.recomputePID();
+    axisTL.recomputePID();
+    digitalWrite(coolingFanPin, HIGH);  //keep the cooling fan on
 
-    int timeSinceLastCall = millis() - lastCallToPID;
-    
-    if(timeSinceLastCall > 20){
-        int elapsedTimeLastMiss = millis() - lastMiss;
-        //log_info( "PID not being called often enough. Ms since last call: " << timeSinceLastCall << " # since last miss: " << callsSinceDelay << " Ms since last miss: " << elapsedTimeLastMiss);
-        callsSinceDelay = 0;
-        lastMiss = millis();
-    }
-    else{
-        callsSinceDelay++;
-    }
-
-    lastCallToPID = millis();
-
-    //If the belt is extending or retracting from the zero point we don't do anything here
-    if(extendingOrRetracting){
-        return;
-    }
-
-    //Stop the motors if we are idle or alarm. Unless doing calibration. Calibration can happen during idle or alarm
-    if((sys.state() == State::Idle || sys.state() == State::Alarm) && !calibrationInProgress){
-        axisBL.stop();
-        axisBR.stop();
-        axisTR.stop();
-        axisTL.stop();
-        digitalWrite(coolingFanPin, LOW); //Turn off the cooling fan
-    }
-    else{  //Normal operation...drive the motors to the target positions
-        if(random(50) == 0){
-            //log_info("Recomputing PID called");
-        }
-        axisBL.recomputePID();
-        axisBR.recomputePID();
-        axisTR.recomputePID();
-        axisTL.recomputePID();
-        digitalWrite(coolingFanPin, HIGH); //Turn on the cooling fan
-    }
-
-    if(digitalRead(SERVOFAULT) == 1){
+    if (digitalRead(SERVOFAULT) == 1) { //The servo drives have a fault pin that goes high when there is a fault (ie one over heats). We should probably call panic here. Also this should probably be read in the main loop
         log_info("Servo fault!");
     }
 }
 
-// Stop all motors and reset all state veriables
+// Stop all motors and reset all state variables
 void Maslow_::stop(){
     stopMotors();
     retractingTL = false;
@@ -465,6 +961,8 @@ void Maslow_::stop(){
     retractingBR = false;
     extendingALL = false;
     complyALL = false;
+    calibrationInProgress = false;
+    test = false; 
     axisTL.reset();
     axisTR.reset();
     axisBL.reset();
@@ -477,12 +975,45 @@ void Maslow_::stopMotors(){
     axisBR.stop();
     axisTR.stop();
     axisTL.stop();
+    //digitalWrite(coolingFanPin, LOW); //Turn off the cooling fan
 }
 
 void Maslow_::panic(){
+    log_error("PANIC! Stopping all motors");
     stop();
     sys.set_state(State::Alarm);
 }
+
+void Maslow_::set_frame_width(double width){
+    frame_width = width;
+    update_frame_xyz();
+    updateCenterXY();
+}
+void Maslow_::set_frame_height(double height){
+    frame_height = height;
+    update_frame_xyz();
+    updateCenterXY();
+}
+// update coordinates of the corners based on the frame width and height
+void Maslow_::update_frame_xyz(){
+    blX = 0;
+    blY = 0;
+    blZ = 0;
+
+    brY = 0;
+    brX = frame_width;
+    brZ = 0;
+
+    tlX = 0;
+    tlY = frame_height;
+    tlZ = 0;
+
+    trX = frame_width;
+    trY = frame_height;
+    trZ = 0;
+
+}
+
 //Computes the tensions in the upper two belts
 void Maslow_::computeTensions(float x, float y){
     //This should be a lot smarter and compute the vector tensions to see if the lower belts are contributing positively
@@ -517,11 +1048,7 @@ float Maslow_::computeBL(float x, float y, float z){
 
     //Add some extra slack if this belt isn't needed because the upper belt is already very taught
     //Max tension is around -1.81 at the very top and -.94 at the bottom
-    float extraSlack = min(max(-34.48*trTension - 32.41, 0.0), 8.0); //limit of 0-2mm of extension
-
-    // if(random(4000) == 10){
-    //     grbl_sendf( "BL Slack By: %f\n", extraSlack);
-    // }
+    //float extraSlack = min(max(-34.48*trTension - 32.41, 0.0), 8.0); //limit of 0-2mm of extension
 
     return length + lowerBeltsExtra;
 }
@@ -537,7 +1064,7 @@ float Maslow_::computeBR(float x, float y, float z){
 
     float length = sqrt(a*a+b*b+c*c) - (_beltEndExtension+_armLength);
 
-    float extraSlack = min(max(-34.48*tlTension - 32.41, 0.0), 8.0); //limit of 0-2mm of extension
+    //float extraSlack = min(max(-34.48*tlTension - 32.41, 0.0), 8.0); //limit of 0-2mm of extension
 
     // if(random(4000) == 10){
     //     grbl_sendf( "BR Slack By: %f\n", extraSlack);
@@ -568,22 +1095,78 @@ float Maslow_::computeTL(float x, float y, float z){
     return sqrt(a*a+b*b+c*c) - (_beltEndExtension+_armLength);
 }
 
-void Maslow_::setTargets(float xTarget, float yTarget, float zTarget){
+/*
+* This computes the target lengths of the belts based on the target x and y coordinates
+* and sends that information to each arm.
+*/
+void Maslow_::setTargets(float xTarget, float yTarget, float zTarget, bool tl, bool tr, bool bl, bool br){
 
-    //Scaling to correct size
-    xTarget = xTarget;
-    yTarget = yTarget;
-    
-    if(!calibrationInProgress){
+        //Store the target x and y coordinates for the getTargetN() functions
+        targetX = xTarget;
+        targetY = yTarget;
+        targetZ = zTarget;
 
         computeTensions(xTarget, yTarget);
 
-        axisBL.setTarget(computeBL(xTarget, yTarget, zTarget));
-        axisBR.setTarget(computeBR(xTarget, yTarget, zTarget));
-        axisTR.setTarget(computeTR(xTarget, yTarget, zTarget));
-        axisTL.setTarget(computeTL(xTarget, yTarget, zTarget));
-    }
+        if(tl){
+            axisTL.setTarget(computeTL(xTarget, yTarget, zTarget));
+        }
+        if(tr){
+            axisTR.setTarget(computeTR(xTarget, yTarget, zTarget));
+        }
+        if(bl){
+            axisBL.setTarget(computeBL(xTarget, yTarget, zTarget));
+        }
+        if(br){
+            axisBR.setTarget(computeBR(xTarget, yTarget, zTarget));
+        }
 }
+
+/*
+* Get's the most recently set target position in X
+*/
+double Maslow_::getTargetX(){
+    return targetX;
+}
+
+/*
+* Get's the most recently set target position in Y
+*/
+double Maslow_::getTargetY(){
+    return targetY;
+}
+
+/*
+* Get's the most recently set target position in Z
+*/
+double Maslow_::getTargetZ(){
+    return targetZ;
+}
+
+
+//Updates where the center x and y positions are
+void Maslow_::updateCenterXY(){
+    
+    double A = (trY - blY)/(trX-blX);
+    double B = (brY-tlY)/(brX-tlX);
+    centerX = (brY-(B*brX)+(A*trX)-trY)/(A-B);
+    centerY = A*(centerX - trX) + trY;
+    
+}
+
+Maslow_ &Maslow_::getInstance() {
+  static Maslow_ instance;
+  return instance;
+}
+
+
+Maslow_ &Maslow = Maslow.getInstance();
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////// OLD SHIT  /////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
 
 void Maslow_::printMeasurementSet(float allLengths[][4]){
 
@@ -688,8 +1271,14 @@ void Maslow_::takeColumnOfMeasurements(float x, float measurments[][4]){
 }
 
 //Runs the calibration sequence to determine the machine's dimensions // DONT RUN, DOESN'T WORK
-void Maslow_::runCalibration(){
-    
+void Maslow_::runCalibration_(){
+
+    if(!all_axis_homed()){
+        log_error("Cannot run calibration until all axis are homed");
+        sys.set_state(State::Idle);
+        return;
+    }
+
     log_info("\n\nBeginning calibration\n\n");
     
     calibrationInProgress = true;
@@ -1228,20 +1817,3 @@ void Maslow_::takeUpInternalSlack(){
     axisTL.stop();
 }
 
-//Updates where the center x and y positions are
-void Maslow_::updateCenterXY(){
-    
-    double A = (trY - blY)/(trX-blX);
-    double B = (brY-tlY)/(brX-tlX);
-    centerX = (brY-(B*brX)+(A*trX)-trY)/(A-B);
-    centerY = A*(centerX - trX) + trY;
-    
-}
-
-Maslow_ &Maslow_::getInstance() {
-  static Maslow_ instance;
-  return instance;
-}
-
-
-Maslow_ &Maslow = Maslow.getInstance();

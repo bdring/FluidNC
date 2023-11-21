@@ -49,7 +49,7 @@ extern bool atMsgLevel(MsgLevel level);
 
 // Note: these '{'..'}' scopes are here for a reason: the destructor should flush.
 
-// #define log_bare(prefix, x) { LogStream ss(prefix); ss << x; }
+//#define log_bare(prefix, x) { LogStream ss(prefix); ss << x; }
 #define log_msg(x) { LogStream ss("[MSG: "); ss << x; }
 #define log_verbose(x) if (atMsgLevel(MsgLevelVerbose)) { LogStream ss("[MSG:VRB: "); ss << x; }
 #define log_debug(x) if (atMsgLevel(MsgLevelDebug)) { LogStream ss("[MSG:DBG: "); ss << x; }
