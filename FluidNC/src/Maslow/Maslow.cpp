@@ -123,7 +123,7 @@ void Maslow_::begin(void (*sys_rt)()) {
 
   pinMode(SERVOFAULT, INPUT);
 
-  currentThreshold = 1500;
+  currentThreshold = 1700;
   lastCallToUpdate = millis();
   orientation = VERTICAL;
   log_info("Starting Maslow v 1.00");
@@ -508,6 +508,8 @@ bool Maslow_::onTarget(double targetX, double targetY, double currentX, double c
 // move pulling just two belts depending on the direction of the movement
 bool Maslow_::move_with_slack(double fromX, double fromY, double toX, double toY) {
   
+  //This is where we want to introduce some slack so the system
+
   //How big of steps do we want to take with each loop?
   double stepSize = 0.01;
 
@@ -775,6 +777,13 @@ void Maslow_::retractALL(){
 }
 void Maslow_::extendALL(){
     // ADD also shouldn't extend before we get the parameters from the user
+
+    if(!all_axis_homed()){
+        log_error("Cannot extend all until all axis are homed"); //I keep getting everything set up for calibration and then this trips me up
+        sys.set_state(State::Idle);
+        return;
+    }
+
     stop();
     extendingALL = true;
     log_info("Extending All");
@@ -1033,7 +1042,7 @@ float Maslow_::computeBL(float x, float y, float z){
 
     //Add some extra slack if this belt isn't needed because the upper belt is already very taught
     //Max tension is around -1.81 at the very top and -.94 at the bottom
-    float extraSlack = min(max(-34.48*trTension - 32.41, 0.0), 8.0); //limit of 0-2mm of extension
+    //float extraSlack = min(max(-34.48*trTension - 32.41, 0.0), 8.0); //limit of 0-2mm of extension
 
     return length + lowerBeltsExtra;
 }
@@ -1049,7 +1058,7 @@ float Maslow_::computeBR(float x, float y, float z){
 
     float length = sqrt(a*a+b*b+c*c) - (_beltEndExtension+_armLength);
 
-    float extraSlack = min(max(-34.48*tlTension - 32.41, 0.0), 8.0); //limit of 0-2mm of extension
+    //float extraSlack = min(max(-34.48*tlTension - 32.41, 0.0), 8.0); //limit of 0-2mm of extension
 
     // if(random(4000) == 10){
     //     grbl_sendf( "BR Slack By: %f\n", extraSlack);
