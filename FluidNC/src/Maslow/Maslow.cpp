@@ -511,10 +511,25 @@ bool Maslow_::onTarget(double targetX, double targetY, double currentX, double c
   return false;
 }
 
-// move pulling just two belts depending on the direction of the movement
+//Move pulling just two belts depending on the direction of the movement. Returns true when the target is reached, false if it is still moving to the target.
 bool Maslow_::move_with_slack(double fromX, double fromY, double toX, double toY) {
   
-  //This is where we want to introduce some slack so the system
+  //Introduce some slack to the lower belts before moving to a new location
+
+  static unsigned long decompressTimer    = millis();
+
+  //Decompress belts for 500ms...this happens by returnign right away before running any of the rest of the code
+  if (millis() - decompressTimer < 500) {
+    axisBL.decompressBelt();
+    axisBR.decompressBelt();
+    return false;
+  }
+
+  //Stop for 50ms
+  //we need to stop motors after decompression was finished once
+  else if (millis() - decompressTimer < 550) {
+    stopMotors();
+  }
 
   //How big of steps do we want to take with each loop?
   double stepSize = 0.01;
