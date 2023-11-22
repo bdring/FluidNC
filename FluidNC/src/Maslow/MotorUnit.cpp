@@ -284,7 +284,6 @@ bool MotorUnit::retract(){
         else{
             return false;
         }
-            
 }
 // extends the belt to the target length until it hits the target length, returns true when target length is reached
 bool MotorUnit::extend(double targetLength) {

@@ -129,7 +129,7 @@ void Maslow_::begin(void (*sys_rt)()) {
 
   pinMode(SERVOFAULT, INPUT);
 
-  currentThreshold = 1700;
+  currentThreshold = 1500;
   lastCallToUpdate = millis();
   orientation = VERTICAL;
   log_info("Starting Maslow v 1.00");
