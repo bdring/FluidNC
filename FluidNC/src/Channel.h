@@ -20,6 +20,7 @@
 #include "GCode.h"        // gc_modal_t
 #include "Types.h"        // State
 #include "RealtimeCmd.h"  // Cmd
+#include "UTF8.h"
 
 #include "Pins/PinAttributes.h"
 #include "Machine/EventPin.h"
@@ -30,6 +31,16 @@
 
 class Channel : public Stream {
 private:
+    void pin_event(uint32_t pinnum, bool active);
+
+    const int PinLowFirst  = 0x100;
+    const int PinLowLast   = 0x13f;
+    const int PinHighFirst = 0x140;
+    const int PinHighLast  = 0x17f;
+
+    const int PinACK = 0xB2;
+    const int PinNAK = 0xB3;
+
 public:
     static const int maxLine = 255;
 
@@ -61,6 +72,8 @@ protected:
 
     std::map<int, EventPin*> _events;
     std::map<int, bool*>     _pin_values;
+
+    UTF8 _utf8;
 
 public:
     Channel(const char* name, bool addCR = false) : _name(name), _linelen(0), _addCR(addCR) {}

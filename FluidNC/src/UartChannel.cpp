@@ -23,6 +23,8 @@ void UartChannel::init(Uart* uart) {
     allChannels.registration(this);
     log_info("uart_channel" << _uart_num << " created");
     log_msg_to(*this, "RST");
+    // Give the extender a little time to process the command
+    delay(100);
 }
 
 size_t UartChannel::write(uint8_t c) {

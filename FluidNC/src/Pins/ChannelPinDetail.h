@@ -13,7 +13,7 @@ namespace Pins {
     private:
         Channel*      _channel;
         PinAttributes _attributes;
-        bool          _value;
+        bool          _value = false;
 
     public:
         ChannelPinDetail(Channel* channel, int number, const PinOptionsParser& options);

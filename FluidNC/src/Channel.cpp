@@ -126,6 +126,14 @@ void Channel::autoReport() {
     }
 }
 
+void Channel::pin_event(uint32_t pinnum, bool active) {
+    try {
+        auto event_pin       = _events.at(pinnum);
+        *_pin_values[pinnum] = active;
+        event_pin->trigger(active);
+    } catch (std::exception& ex) {}
+}
+
 Channel* Channel::pollLine(char* line) {
     handle();
     while (1) {
@@ -142,45 +150,48 @@ Channel* Channel::pollLine(char* line) {
         if (ch < 0) {
             break;
         }
-        if (_last_rt_cmd == Cmd::PinLow || _last_rt_cmd == Cmd::PinHigh) {
-            bool isHigh = _last_rt_cmd == Cmd::PinHigh;
-            try {
-                auto event_pin   = _events.at(ch);
-                *_pin_values[ch] = isHigh;
-                event_pin->trigger(isHigh);
-            } catch (std::exception& ex) {}
-            _last_rt_cmd = Cmd::None;
+        uint32_t cmd;
+
+        int res = _utf8.decode(ch, cmd);
+        if (res == -1) {
+            log_debug("UTF8 decoding error");
             continue;
         }
-        if (_last_rt_cmd == Cmd::ACK) {
-            log_info("ACK'd");
-            _last_rt_cmd = Cmd::None;
+        if (res == 0) {
             continue;
         }
-        if (_last_rt_cmd == Cmd::NAK) {
-            log_info("NAK'd");
-            _last_rt_cmd = Cmd::None;
+        // Otherwise res==1 and we have decoded a sequence so proceed
+
+        if (cmd == PinACK) {
+            _ackwait = false;
+            continue;
+        }
+        if (cmd == PinNAK) {
+            _ackwait = false;
             continue;
         }
 
-        if (realtimeOkay(ch)) {
-            if (is_realtime_command(ch)) {
-                auto cmd = static_cast<Cmd>(ch);
-                if (cmd == Cmd::PinLow || cmd == Cmd::PinHigh) {
-                    _last_rt_cmd = cmd;
-                } else {
-                    execute_realtime_command(cmd, *this);
-                }
-                continue;
-            }
+        if (cmd >= PinLowFirst && cmd < PinLowLast) {
+            pin_event(cmd - PinLowFirst, false);
+            continue;
         }
+        if (cmd >= PinHighFirst && cmd < PinHighLast) {
+            pin_event(cmd - PinHighFirst, true);
+            continue;
+        }
+
+        if (realtimeOkay(cmd) && is_realtime_command(cmd)) {
+            execute_realtime_command(static_cast<Cmd>(cmd), *this);
+            continue;
+        }
+
         if (!line) {
             // If we are not able to handle a line we save the character
             // until later
-            _queue.push(uint8_t(ch));
+            _queue.push(uint8_t(cmd));
             continue;
         }
-        if (line && lineComplete(line, ch)) {
+        if (lineComplete(line, cmd)) {
             return this;
         }
     }
@@ -192,9 +203,10 @@ void Channel::setAttr(int index, bool* value, const std::string& attrString) {
     if (value) {
         _pin_values[index] = value;
     }
-    while (_ackwait) {
+    int count = 0;
+    while (_ackwait && ++count < 2000) {
         pollLine(NULL);
-        delay_ms(10);
+        delay_ms(1);
     }
     log_msg_to(*this, attrString);
     _ackwait = true;
@@ -208,9 +220,13 @@ void Channel::out(const std::string& s) {
 }
 
 void Channel::ready() {
+#if 0
+    // At the moment this is unnecessary because initializing
+    // an input pin triggers an initial value event
     if (!_pin_values.empty()) {
         out("GET: io.*");
     }
+#endif
 }
 
 void Channel::registerEvent(uint8_t code, EventPin* obj) {
