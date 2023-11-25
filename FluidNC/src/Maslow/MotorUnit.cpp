@@ -281,17 +281,6 @@ bool MotorUnit::retract(){
             log_info("Belt positon after retract: ");
             log_info(getPosition());
 
-            if(_encoderAddress == 1){
-                if(currentMeasurement > absoluteCurrentThreshold){
-                    log_info("TR absolute current threshold hit at " << currentMeasurement);
-                }
-                if(incrementalThresholdHits > 2){
-                    log_info("TR incremental current threshold hit at " << currentMeasurement);
-                }
-                if(beltStalled){
-                    log_info("TR belt stalled at " << currentMeasurement);
-                }
-            }
             zero();
             retract_speed = 0;
             retract_baseline = 700;
