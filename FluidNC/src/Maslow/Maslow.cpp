@@ -274,10 +274,10 @@ bool Maslow_::take_measurement(int waypoint){
       //once both belts are pulled, take a measurement
       if (BR_tight && BL_tight) {
           //take measurement and record it to the calibration data array
-          calibration_data[0][waypoint] = axisTL.getPosition();
-          calibration_data[1][waypoint] = axisTR.getPosition();
-          calibration_data[2][waypoint] = axisBL.getPosition();
-          calibration_data[3][waypoint] = axisBR.getPosition();
+          calibration_data[0][waypoint] = axisTL.getPosition()+_beltEndExtension+_armLength;
+          calibration_data[1][waypoint] = axisTR.getPosition()+_beltEndExtension+_armLength;
+          calibration_data[2][waypoint] = axisBL.getPosition()+_beltEndExtension+_armLength;
+          calibration_data[3][waypoint] = axisBR.getPosition()+_beltEndExtension+_armLength;
           BR_tight = false;
           BL_tight = false;
           return true;
