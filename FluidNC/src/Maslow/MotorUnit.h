@@ -63,8 +63,8 @@ class MotorUnit {
     double motorCurrentBuffer[10];
     unsigned long motorCurrentTimer = millis();
 
-    //retract variables
-    int absoluteCurrentThreshold = 1500;
+    //These are used when retracting the belts for storage
+    int absoluteCurrentThreshold = 2200;
     int incrementalThreshold = 125;
     int incrementalThresholdHits = 0;
     float alpha = .2;

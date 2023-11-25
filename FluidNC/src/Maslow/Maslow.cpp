@@ -233,6 +233,8 @@ bool Maslow_::take_measurement(int waypoint){
       static bool BR_tight = false;
       axisTL.recomputePID();
       axisTR.recomputePID();  
+
+      //On the left side of the sheet we want to pull the left belt tight first
       if (x < 0) {
           if (!BL_tight) {
               if (axisBL.pull_tight()) {
@@ -250,6 +252,7 @@ bool Maslow_::take_measurement(int waypoint){
           }
       } 
       
+      //On the right side of the sheet we want to pull the right belt tight first
       else {
           if (!BR_tight) {
               if (axisBR.pull_tight()) {
