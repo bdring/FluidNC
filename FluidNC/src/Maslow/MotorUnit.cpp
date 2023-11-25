@@ -170,7 +170,7 @@ void MotorUnit::reset(){
 bool MotorUnit::pull_tight(){
 
     int maxSpeed = 800;
-    int measurementThreshold = 1000;
+    int measurementThreshold = 1300;
 
     //call every 5ms, don't know if it's the best way really 
     if(millis() - lastCallToRetract < 5){
