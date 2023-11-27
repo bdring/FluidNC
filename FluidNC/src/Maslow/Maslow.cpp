@@ -48,7 +48,7 @@
 #define MEASUREMENTSPEED 1.0 //The max speed at which we move the motors when taking measurements
 int ENCODER_READ_FREQUENCY_HZ = 100;
 
-int lowerBeltsExtra = 4;
+int lowerBeltsExtra = 0;
 int callsSinceDelay = 0;
 
 #define UP 1
@@ -84,16 +84,16 @@ void Maslow_::begin(void (*sys_rt)()) {
   axisTRHomed = false;
   axisTLHomed = false;
 
-  tlX =-3.127880538461895;
-  tlY = 2063.1006937512166;
+  tlX = 29.747433451550485;
+  tlY = 2068.582533945923;
   tlZ = 116 + 38;
-  trX = 2944.4878198392585; 
-  trY = 2069.656171241167;
+  trX = 2974.1176084487693; 
+  trY = 2068.512981755607;
   trZ = 69 + 38;
   blX = 0;
   blY = 0;
   blZ = 47 + 38;
-  brX = 2959.4124827780993;
+  brX = 2958.908589577277;
   brY = 0;
   brZ = 89 + 38;
 
