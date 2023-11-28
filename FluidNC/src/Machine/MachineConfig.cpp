@@ -80,6 +80,10 @@ namespace Machine {
         handler.item("enable_parking_override_control", _enableParkingOverrideControl);
         handler.item("use_line_numbers", _useLineNumbers);
         handler.item("planner_blocks", _planner_blocks, 10, 120);
+
+        handler.item("Maslow_frame_width", Maslow.frame_width, 1000, 5000);
+        handler.item("Maslow_frame_height", Maslow.frame_height, 1000, 5000);
+        handler.item("Maslow_vertical", Maslow.orientation);
     }
 
     void MachineConfig::afterParse() {
