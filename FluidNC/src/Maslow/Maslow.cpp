@@ -718,28 +718,26 @@ void Maslow_::update(){
 
             Maslow.setTargets(steps_to_mpos(get_axis_motor_steps(0),0), steps_to_mpos(get_axis_motor_steps(1),1), steps_to_mpos(get_axis_motor_steps(2),2));
             Maslow.recomputePID();
-        }
-        
-        //Homing routines
-        else if(sys.state() == State::Homing){
+        } else if(sys.state() == State::Homing){ //Homing routines
 
             home();
 
-        }
-        else { //In any other state, keep motors off
-        
-        
-        digitalWrite(coolingFanPin, HIGH);
-        //We need to fix the cooling fan turning on at the right times. I think that we want it on any time any motor is moving
-        // if(sys.state() != State::Idle){
-        //     digitalWrite(coolingFanPin, HIGH);  //keep the cooling fan on
-        // }
-        // else {
-        //     digitalWrite(coolingFanPin, LOW);  //Turn the cooling fan off
-        // }
+        } else { //In any other state, keep motors off
 
-        if(!test) Maslow.stopMotors();
+            if(!test) Maslow.stopMotors();
  
+        }
+        
+        //If we are in any state other than idle or alarm turn the cooling fan on 
+        if(sys.state() != State::Idle && sys.state() != State::Alarm){
+            digitalWrite(coolingFanPin, HIGH);  //keep the cooling fan on
+        }
+        //If we are doing calibration turn the cooling fan on
+        else if(calibrationInProgress || extendingALL || retractingTL || retractingTR || retractingBL || retractingBR){
+            digitalWrite(coolingFanPin, HIGH);  //keep the cooling fan on
+        }
+        else {
+            digitalWrite(coolingFanPin, LOW);  //Turn the cooling fan off
         }
 
         //if the update function is not being called enough, stop everything to prevent damage
@@ -975,7 +973,6 @@ void Maslow_::recomputePID(){
     axisBR.recomputePID();
     axisTR.recomputePID();
     axisTL.recomputePID();
-    digitalWrite(coolingFanPin, HIGH);  //keep the cooling fan on
 
     if (digitalRead(SERVOFAULT) == 1) { //The servo drives have a fault pin that goes high when there is a fault (ie one over heats). We should probably call panic here. Also this should probably be read in the main loop
         log_info("Servo fault!");
@@ -1005,7 +1002,6 @@ void Maslow_::stopMotors(){
     axisBR.stop();
     axisTR.stop();
     axisTL.stop();
-    //digitalWrite(coolingFanPin, LOW); //Turn off the cooling fan
 }
 
 void Maslow_::panic(){
