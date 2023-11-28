@@ -64,7 +64,6 @@ axes:
         use_enable: true
         direction_pin: gpio.16
         step_pin: gpio.15
-        disable_pin: gpio.17
     
     motor1:
       tmc_2209:
@@ -83,5 +82,5 @@ axes:
         run_mode: StealthChop
         homing_mode: StealthChop
         use_enable: true
-        direction_pin: gpio.35
+        direction_pin: gpio.38
         step_pin: gpio.46
