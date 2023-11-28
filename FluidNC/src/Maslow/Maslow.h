@@ -120,8 +120,8 @@ class Maslow_ {
     bool onTarget(double targetX, double targetY, double currentX, double currentY, double tolerance);
     bool move_with_slack(double fromX, double fromY, double toX, double toY);
     int get_direction(double x, double y, double targetX, double targetY);
-    bool take_measurement_avg_with_check(int waypoint);
-    bool take_measurement(int waypoint);
+    bool take_measurement_avg_with_check(int waypoint, int dir);
+    bool take_measurement(int waypoint,int dir);
     void test_();
     void calibration_loop();
     void print_calibration_data();
