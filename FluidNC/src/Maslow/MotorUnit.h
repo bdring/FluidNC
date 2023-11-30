@@ -22,6 +22,7 @@ class MotorUnit {
     double getTarget();
     double getPosition();
     double getCurrent();
+    double getPositionError();
     void stop();
     bool updateEncoderPosition();
     double recomputePID();

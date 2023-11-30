@@ -58,6 +58,13 @@ double MotorUnit::getPosition(){
 }
 
 /*!
+ *  @brief  Gets the current error in the axis position
+ */
+double MotorUnit::getPositionError(){
+    return getPosition() - setpoint;
+}
+
+/*!
  *  @brief  Gets the current motor power draw
  */
 double MotorUnit::getCurrent(){
