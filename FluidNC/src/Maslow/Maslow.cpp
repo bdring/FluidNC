@@ -706,27 +706,27 @@ void Maslow_::safety_control() {
 // Maslow main loop
 void Maslow_::update(){
 
-    if(random(1000) == 0){
+    if(random(10000) == 0){
         digitalWrite(ETHERNETLEDPIN, LOW);
     }
     
-    if(random(1000) == 0){
+    if(random(10000) == 0){
         digitalWrite(ETHERNETLEDPIN, HIGH);
     }
 
-    if(random(1000) == 0){
+    if(random(10000) == 0){
         digitalWrite(WIFILED, LOW);
     }
 
-    if(random(1000) == 0){
+    if(random(10000) == 0){
         digitalWrite(WIFILED, HIGH);
     }
 
-    if(random(1000) == 0){
+    if(random(10000) == 0){
         digitalWrite(REDLED, LOW);
     }
 
-    if(random(1000) == 0){
+    if(random(10000) == 0){
         digitalWrite(REDLED, HIGH);
     }
 
@@ -757,7 +757,11 @@ void Maslow_::update(){
         if( sys.state() == State::Jog || sys.state() == State::Cycle  ){
 
             Maslow.setTargets(steps_to_mpos(get_axis_motor_steps(0),0), steps_to_mpos(get_axis_motor_steps(1),1), steps_to_mpos(get_axis_motor_steps(2),2));
-            Maslow.recomputePID();
+
+            //This allows the z-axis to be moved without the motors being enabled before calibration is run
+            if(all_axis_homed()){
+                Maslow.recomputePID();
+            }
         } else if(sys.state() == State::Homing){ //Homing routines
 
             home();
