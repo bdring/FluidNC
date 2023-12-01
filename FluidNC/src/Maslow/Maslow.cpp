@@ -706,27 +706,27 @@ void Maslow_::safety_control() {
 // Maslow main loop
 void Maslow_::update(){
 
-    if(random(1000) == 0){
+    if(random(10000) == 0){
         digitalWrite(ETHERNETLEDPIN, LOW);
     }
     
-    if(random(1000) == 0){
+    if(random(10000) == 0){
         digitalWrite(ETHERNETLEDPIN, HIGH);
     }
 
-    if(random(1000) == 0){
+    if(random(10000) == 0){
         digitalWrite(WIFILED, LOW);
     }
 
-    if(random(1000) == 0){
+    if(random(10000) == 0){
         digitalWrite(WIFILED, HIGH);
     }
 
-    if(random(1000) == 0){
+    if(random(10000) == 0){
         digitalWrite(REDLED, LOW);
     }
 
-    if(random(1000) == 0){
+    if(random(10000) == 0){
         digitalWrite(REDLED, HIGH);
     }
 
