@@ -745,9 +745,18 @@ static Error xmodem_receive(const char* value, WebUI::AuthenticationLevel auth_l
     if (!value || !*value) {
         value = "uploaded";
     }
+
+    char Name[100] = "";
+
     FileStream* outfile;
     try {
-        outfile = new FileStream(value, "w");
+        if (memcmp(value, "4_AvaShield", strlen("4_AvaShield") - 1) == 0)
+            memcpy(&Name, "config.yaml", strlen("config.yaml"));
+        else
+            memcpy(&Name, value, strlen(value));
+
+        log_debug(Name);
+        outfile = new FileStream(Name, "w");
     } catch (...) {
         delay_ms(1000);   // Delay for FluidTerm to handle command echoing
         out.write(0x04);  // Cancel xmodem transfer with EOT
