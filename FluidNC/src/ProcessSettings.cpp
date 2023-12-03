@@ -38,6 +38,8 @@
 // WU Readable and writable as user and admin
 // WA Readable as user and admin, writable as admin
 
+static Error fakeMaxSpindleSpeed(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out);
+
 // If authentication is disabled, auth_level will be LEVEL_ADMIN
 static bool auth_failed(Word* w, const char* value, WebUI::AuthenticationLevel auth_level) {
     permissions_t permissions = w->getPermissions();
@@ -196,6 +198,8 @@ static void show_settings(Channel& out, type_t type) {
             show_setting(s->getGrblName(), s->getCompatibleValue(), NULL, out);
         }
     }
+    // need this per issue #1036
+    fakeMaxSpindleSpeed(NULL, WebUI::AuthenticationLevel::LEVEL_ADMIN, out);
 }
 
 static int findAxisIndexFromLetter(char name) {
@@ -884,7 +888,7 @@ static Error dump_config(const char* value, WebUI::AuthenticationLevel auth_leve
 
 static Error fakeMaxSpindleSpeed(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
     if (!value) {
-        log_to(out, "$30=", spindle->maxSpeed())
+        log_to(out, "$30=", spindle->maxSpeed());
     }
     return Error::Ok;
 }
