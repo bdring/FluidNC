@@ -35,7 +35,6 @@ else:
         rev = ''
         branchname = ''
         revision = ''
-        repo = ''
 
         branchname = (
             subprocess.check_output(["git", "rev-parse", "--abbrev-ref", "HEAD"])
@@ -52,11 +51,7 @@ else:
             .strip()
             .decode("utf-8")
         )
-        repo = (
-            subprocess.check_output(["git", "config", "--get", "remote.origin.url"])
-            .strip()
-            .decode("utf-8")
-        )
+
         if modified:
             dirty = "-avataar120-Beta"
         else:
@@ -82,11 +77,7 @@ else:
             .strip()
             .decode("utf-8")
         )
-        repo = (
-            subprocess.check_output(["git", "config", "--get", "remote.origin.url"])
-            .strip()
-            .decode("utf-8")
-        )
+
         if modified:
             dirty = "-avataar120-Beta"
         else:
@@ -113,8 +104,6 @@ with open(provisional, "w") as fp:
     fp.write('const char* tag = \"' + tag + '\";\n')
     fp.write('const char* branchname = \"' + branchname + '\";\n')
     fp.write('const char* revision = \"' + revision + '\";\n')
-    #fp.write('const char* modified = \"' + modified + '\";\n')
-    fp.write('const char* repo = \"' + repo + '\";\n')
     fp.write('const char* git_url      = \"' + git_url + '\";\n')
 
 if not os.path.exists(final):
