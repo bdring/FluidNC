@@ -4,6 +4,8 @@ import filecmp, tempfile, shutil, os
 # Thank you https://docs.platformio.org/en/latest/projectconf/section_env_build.html !
 
 gitFail = False
+url = ""
+
 try:
     subprocess.check_call(["git", "status"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 except:
