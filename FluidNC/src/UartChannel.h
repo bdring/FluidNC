@@ -12,7 +12,8 @@ private:
     Lineedit* _lineedit;
     Uart*     _uart;
 
-    int _uart_num = 0;
+    int _uart_num           = 0;
+    int _report_interval_ms = 0;
 
 public:
     UartChannel(bool addCR = false);
@@ -39,7 +40,10 @@ public:
     Channel* pollLine(char* line) override;
 
     // Configuration methods
-    void group(Configuration::HandlerBase& handler) override { handler.item("uart_num", _uart_num); }
+    void group(Configuration::HandlerBase& handler) override {
+        handler.item("uart_num", _uart_num);
+        handler.item("report_interval_ms", _report_interval_ms);
+    }
 };
 
 extern UartChannel Uart0;

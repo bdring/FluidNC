@@ -16,6 +16,7 @@ void UartChannel::init() {
     } else {
         log_error("UartChannel: missing uart" << _uart_num);
     }
+    setReportInterval(_report_interval_ms);
 }
 void UartChannel::init(Uart* uart) {
     _uart = uart;
