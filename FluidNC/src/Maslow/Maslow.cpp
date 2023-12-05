@@ -440,8 +440,8 @@ bool Maslow_::take_measurement_avg_with_check(int waypoint, int dir) {
           for (int i = 0; i < 4; i++) {
               maxDeviationAbs = max(maxDeviationAbs, maxDeviation[i]);
           }
-          if (maxDeviationAbs > 1.5) {
-              log_error("Measurement error, measurements are not within 1.5 mm of each other, trying again");
+          if (maxDeviationAbs > 2.5) {
+              log_error("Measurement error, measurements are not within 2.5 mm of each other, trying again");
               //print all the measurements in readable form:
               for (int i = 0; i < 4; i++) {
                     for (int j = 0; j < 4; j++) {
@@ -510,9 +510,9 @@ void Maslow_::calibration_loop(){
                 }
                 else{ //Otherwise move to the next point
                     log_info("Moving from: " << calibrationGrid[waypoint-1][0] << " " << calibrationGrid[waypoint-1][1] << " to: " << calibrationGrid[waypoint][0] << " " << calibrationGrid[waypoint][1] << " direction: " << get_direction(calibrationGrid[waypoint-1][0], calibrationGrid[waypoint-1][1], calibrationGrid[waypoint][0], calibrationGrid[waypoint][1]));
-                    direction = get_direction(calibrationGrid[waypoint-1][0], calibrationGrid[waypoint-1][1], calibrationGrid[waypoint][0], calibrationGrid[waypoint][1]);
-                    log_info("Direction: " << direction);
-                    move_with_slack(getTargetX(), getTargetY(), calibrationGrid[waypoint][0], calibrationGrid[waypoint][1]);
+                    //direction = get_direction(calibrationGrid[waypoint-1][0], calibrationGrid[waypoint-1][1], calibrationGrid[waypoint][0], calibrationGrid[waypoint][1]);
+                    //log_info("Direction: " << direction);
+                    //move_with_slack(getTargetX(), getTargetY(), calibrationGrid[waypoint][0], calibrationGrid[waypoint][1]);
                 }
             }
         }
@@ -550,7 +550,7 @@ void Maslow_::hold(unsigned long time){
     holdTime = time;
     holding = true;
     holdTimer = millis();
-    //log_info("Holding for " << int(time) << "ms");
+    log_info("Holding for " << int(time) << "ms");
 }
 
 void Maslow_::generate_calibration_grid() {
@@ -613,13 +613,14 @@ int direction  = get_direction(fromX, fromY, toX, toY);
 if(decompress){
     decompressTimer = millis();
     decompress = false;
+    log_info("Decompressing belts");
 }
 
 //Decompress belts for 500ms...this happens by returning right away before running any of the rest of the code
   if (millis() - decompressTimer < 500) {
       switch (direction) {
           case UP:
-              axisTL.recomputePID();
+                axisTL.recomputePID();
                 axisTR.recomputePID();
                 axisBL.decompressBelt();
                 axisBR.decompressBelt();
@@ -650,6 +651,7 @@ if(decompress){
   //we need to stop motors after decompression was finished once
   else if (millis() - decompressTimer < 550) {
       stopMotors();
+      return false;
   }
 
   //How big of steps do we want to take with each loop?
@@ -659,12 +661,22 @@ if(decompress){
   double currentYTarget = getTargetY();
 
   //Compute the direction in X and Y
+//   int xDirection, yDirection;
+//   int distX = currentXTarget - toX;
+//   int distY = currentYTarget - toY;
+
+//   if(distX > 0 )  xDirection = -1;
+//   else if(distX < 0) xDirection = 1;
+//   else xDirection = 0;
+
+//   if(distY > 0 )  yDirection = -1;
+//   else if(distY < 0) yDirection = 1;
+//   else yDirection = 0;
+
   int xDirection = currentXTarget - toX > 0 ? -1 : 1;
   int yDirection = currentYTarget - toY > 0 ? -1 : 1;
-
   
-
-  int comply_spd = 1500;
+  int comply_spd = 500;
   
   switch (direction) {
     case UP:
@@ -805,7 +817,7 @@ if(millis() - spamTimer > 5000){
 void Maslow_::update(){
     //Make sure we're running maslow config file
     if(!Maslow.using_default_config){
-
+        lastCallToUpdate = millis();
         Maslow.updateEncoderPositions(); //We always update encoder positions in any state, belt speeds are updated there too
         //update motor currents and belt speeds like this for now
         axisTL.update();
@@ -828,34 +840,52 @@ void Maslow_::update(){
                 log_info("moved up 200");
                 //log direction
                 log_info("Direction: " << get_direction(x,y,x,y+200));
+                hold(200);
                 
             }
+            else if( step == 1 && take_measurement(0, get_direction(x,y,x,y+200)) ){
+                step++;
+                log_info("took measurement");
+                hold(200);
+            }
             //move right 200
-            else if(step == 1 && move_with_slack(x,y+200,x+200,y+200)) {
+            else if(step == 2 && move_with_slack(x,y+200,x+200,y+200)) {
                 step++;
                 log_info("moved right 200");
                 //log direction
                 log_info("Direction: " << get_direction(x,y+200,x+200,y+200));
+                hold(200);
+            }
+            else if( step == 3 && take_measurement(0, get_direction(x,y+200,x+200,y+200)) ){
+                step++;
+                log_info("took measurement");
+                hold(200);
             }
             //move down 200
-            else if(step == 2 && move_with_slack(x+200,y+200,x+200,y)) {
+            else if(step == 4 && move_with_slack(x+200,y+200,x+200,y)) {
                 step++;
                 log_info("moved down 200");
                 //log direction
                 log_info("Direction: " << get_direction(x+200,y+200,x+200,y));
+                hold(200);
+            }
+            else if( step == 5 && take_measurement(0, get_direction(x+200,y+200,x+200,y)) ){
+                step++;
+                log_info("took measurement");
+                hold(200);
             }
             //move left 200
-            else if(step == 3 && move_with_slack(x+200,y,x,y)) {
+            else if(step == 6 && move_with_slack(x+200,y,x,y)) {
                 step++;
                 log_info("moved left 200");
                 //log direction
                 log_info("Direction: " << get_direction(x+200,y,x,y));
+                hold(200);
             }
-
-            if(step == 4 /* &&  take_measurement_avg_with_check(0,3) */) {
-                    test = false;
-                    step = 0;
-                    log_info("Test complete");
+            else if( step == 7 && take_measurement(0, get_direction(x+200,y,x,y)) ){
+                test = false;
+                step = 0;
+                log_info("took measurement");
             }
         }
 
@@ -899,7 +929,7 @@ void Maslow_::update(){
         }
 
     }
-    lastCallToUpdate = millis();
+    
 }
 
 void Maslow_::test_(){

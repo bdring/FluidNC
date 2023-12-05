@@ -167,33 +167,33 @@ void MotorUnit::reset(){
 }
 
 //pulls belt tight 
-bool MotorUnit::pull_tight(){
+// bool MotorUnit::pull_tight(){
 
-    int maxSpeed = 800;
-    int measurementThreshold = 1300;
+//     int maxSpeed = 800;
+//     int measurementThreshold = 1600;
 
-    //call every 5ms, don't know if it's the best way really 
-    if(millis() - lastCallToRetract < 5){
-        return false;
-    }
-    lastCallToRetract = millis();
-    //Gradually increase the pulling speed
-    retract_speed = min(retract_speed +1 , maxSpeed);
-    motor.backward(retract_speed);
+//     //call every 5ms, don't know if it's the best way really 
+//     if(millis() - lastCallToRetract < 5){
+//         return false;
+//     }
+//     lastCallToRetract = millis();
+//     //Gradually increase the pulling speed
+//     retract_speed = min(retract_speed +1 , maxSpeed);
+//     motor.backward(retract_speed);
 
-    //When taught
-     int currentMeasurement = getCurrent();
-     if(retract_speed > 50 && currentMeasurement > measurementThreshold){ //giving a little offset, because motors get to 3000 at speed ~10 here
-        //stop motor, reset variables
-        // log_info("retract_speed " << retract_speed);
-        // log_info("Motor current: " << currentMeasurement);
-        // log_info("current threshold: " << absoluteCurrentThreshold);
-        motor.stop();
-        retract_speed = 0;   
-        return true;
-}
-return false;
-}
+//     //When taught
+//      int currentMeasurement = getCurrent();
+//      if(retract_speed > 50 && currentMeasurement > measurementThreshold){ //giving a little offset, because motors get to 3000 at speed ~10 here
+//         //stop motor, reset variables
+//         log_info("retract_speed " << retract_speed);
+//         log_info("Motor current: " << currentMeasurement);
+//         log_info("current threshold: " << measurementThreshold);
+//         motor.stop();
+//         retract_speed = 0;   
+//         return true;
+// }
+// return false;
+// }
 /*!
  *  @brief  Sets the motor to comply with how it is being pulled, non-blocking. 
  */
@@ -203,7 +203,7 @@ bool MotorUnit::comply( double maxSpeed){
         return true;
     }
     //Update position and PID loop
-    recomputePID();
+    //recomputePID();
 
     //If we've moved any, then drive the motor outwards to extend the belt
     float positionNow = getPosition();
@@ -212,23 +212,27 @@ bool MotorUnit::comply( double maxSpeed){
     //If the belt is moving out, let's keep it moving out
     if( distMoved > .001){
         //Increment the target
-        setTarget(positionNow + amtToMove);
+        //setTarget(positionNow + amtToMove);
         
-        amtToMove = amtToMove + 1;
+        motor.forward(amtToMove);
+
+        if(amtToMove == 0) amtToMove = 100;
+        amtToMove = amtToMove+=50;
         
-        amtToMove = min(amtToMove, maxSpeed);
-    
-    //If the belt is moving in we need to stop it from moving in
-    }else if(distMoved < -.04){
-        amtToMove = 0;
-        setTarget(positionNow + .1);
-        stop();
+        amtToMove = min(amtToMove, 1000.0);
     }
+    //If the belt is moving in we need to stop it from moving in
+    // }else if(distMoved < -.04){
+    //     amtToMove = 0;
+    //     //setTarget(positionNow + .1);
+    //     //stop();
+    // }
     //Finally if the belt is not moving we want to spool things down
     else{
-        amtToMove = amtToMove / 2;
-        setTarget(positionNow);
-        stop();
+        amtToMove = amtToMove / 1.4;
+        motor.forward(amtToMove);
+        //setTarget(positionNow);
+        //stop();
     }
     
 
@@ -242,12 +246,22 @@ bool MotorUnit::comply( double maxSpeed){
  *  @brief  Fully retracts this axis and zeros it, non-blocking, returns true when done
  */
 bool MotorUnit::retract(){
+    if(pull_tight()){
+        zero();
+        return true;
+    }
+    return false;
+}
+
+bool MotorUnit::pull_tight(){
     //call every 5ms, don't know if it's the best way really 
     if(millis() - lastCallToRetract < 5){
         return false;
     }
+    
     lastCallToRetract = millis();
     //Gradually increase the pulling speed
+    //if(retract_speed == 0) log_info("pwm0: " << _commandPWM);
     if(random(0,2) == 1) retract_speed = min(retract_speed +1 , 1023);
     motor.backward(retract_speed);
 
@@ -264,31 +278,35 @@ bool MotorUnit::retract(){
         }
         //EXPERIMENTAL, added because my BR current sensor is faulty, but might be an OK precaution
         //monitor the position change speed  
-        bool beltStalled = false;
-        if(retract_speed > 450 ){ // skip the start, might create problems if the belt is slackking a lot, but you can always run it many times
-            if(abs(beltSpeed) < 1){
-                beltStalled = true;
+         bool beltStalled = false;
+        // if(retract_speed > 450 ){ // skip the start, might create problems if the belt is slackking a lot, but you can always run it many times
+        //     if(abs(beltSpeed) < 0.1){
+        //         beltStalled = true;
+        //     }
+        // }
+        if (retract_speed > 75) {
+            if (currentMeasurement > absoluteCurrentThreshold || incrementalThresholdHits > 2 ||
+                beltStalled) {  //changed from 4 to 2 to prevent overtighting
+                //stop motor, reset variables
+                motor.stop();
+
+                //Print how much the length of the belt changed compared to memory, log belt speed and current
+                log_info("retract_speed " << retract_speed);
+                log_info("Belt speed: " << beltSpeed << " mm/ms");
+                log_info("Motor current: " << currentMeasurement);
+                //log_info("Belt positon after retract: ");
+                //log_info(getPosition());
+
+                retract_speed    = 0;
+                retract_baseline = 700;
+                return true;
+            } else {
+                if (_encoderAddress == 2 && retract_speed < 50)
+                    log_info("Motor current: " << currentMeasurement);
+                return false;
             }
         }
-        if(currentMeasurement > absoluteCurrentThreshold || incrementalThresholdHits > 2 || beltStalled){  //changed from 4 to 2 to prevent overtighting
-            //stop motor, reset variables
-            motor.stop();
-            
-            //Print how much the length of the belt changed compared to memory, log belt speed and current 
-            log_info("retract_speed " << retract_speed);
-            log_info("Belt speed: " << beltSpeed << " mm/ms");
-            log_info("Motor current: " << currentMeasurement);
-            log_info("Belt positon after retract: ");
-            log_info(getPosition());
-
-            zero();
-            retract_speed = 0;
-            retract_baseline = 700;
-            return true;
-        }
-        else{
-            return false;
-        }
+        return false;
 }
 // extends the belt to the target length until it hits the target length, returns true when target length is reached
 bool MotorUnit::extend(double targetLength) {
