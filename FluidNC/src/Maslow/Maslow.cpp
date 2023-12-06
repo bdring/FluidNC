@@ -132,6 +132,7 @@ void Maslow_::begin(void (*sys_rt)()) {
   currentThreshold = 1500;
   lastCallToUpdate = millis();
   orientation = HORIZONTAL;
+  generate_calibration_grid();
   log_info("Starting Maslow v 1.00");
 }
 
@@ -182,13 +183,13 @@ void Maslow_::home() {
       //then make all the belts comply until they are extended fully, or user terminates it
       else {
           if (!extendedTL)
-              extendedTL = axisTL.extend(computeTL(0, 0, 0));
+              extendedTL = axisTL.extend(computeTL(0,0, 0));
           if (!extendedTR)
-              extendedTR = axisTR.extend(computeTR(0, 0, 0));
+              extendedTR = axisTR.extend(computeTR(0,0, 0));
           if (!extendedBL)
-              extendedBL = axisBL.extend(computeBL(0, 300, 0));
+              extendedBL = axisBL.extend(computeBL(0,300, 0));
           if (!extendedBR)
-              extendedBR = axisBR.extend(computeBR(0, 300, 0));
+              extendedBR = axisBR.extend(computeBR(0,300, 0));
           if (extendedTL && extendedTR && extendedBL && extendedBR) {
               extendingALL = false;
               log_info("All belts extended to center position");
@@ -226,7 +227,7 @@ void Maslow_::home() {
   }
 }
 
-bool Maslow_::take_measurement(int waypoint, int dir){
+bool Maslow_::take_measurement(int waypoint, int dir, int run){
 
  if (orientation == VERTICAL) {
       //first we pull two bottom belts tight one after another, if x<0 we pull left belt first, if x>0 we pull right belt first
@@ -356,6 +357,7 @@ bool Maslow_::take_measurement(int waypoint, int dir){
             log_info("Pulled 1 tight on " << axisLabel.c_str());
         
         }
+        if(run == 0) pullAxis2->comply(1000);
         return false;
     }
     if (!pull2_tight) {
@@ -406,7 +408,7 @@ bool Maslow_::take_measurement_avg_with_check(int waypoint, int dir) {
 //       stopMotors();
 //   }
 
-  if (take_measurement(waypoint,dir)) {
+  if (take_measurement(waypoint,dir,run)) {
       if (run < 3) {
           //decompress lower belts for 500 ms before taking the next measurement
           decompressTimer = millis();
@@ -426,8 +428,8 @@ bool Maslow_::take_measurement_avg_with_check(int waypoint, int dir) {
           run = 0;
 
           //check if all measurements are within 1mm of each other
-          static double maxDeviation[4] = { 0 };
-          static double maxDeviationAbs = 0;
+          double maxDeviation[4] = { 0 };
+          double maxDeviationAbs = 0;
           for (int i = 0; i < 4; i++) {
               for (int j = 0; j < 3; j++) {
                     //find max deviation between measurements
@@ -437,11 +439,14 @@ bool Maslow_::take_measurement_avg_with_check(int waypoint, int dir) {
           //log max deviations at every axis:
           //log_info("Max deviation at BL: " << maxDeviation[2] << " BR: " << maxDeviation[3] << " TR: " << maxDeviation[1] << " TL: " << maxDeviation[0]);
           //find max deviation between all measurements
+
           for (int i = 0; i < 4; i++) {
               maxDeviationAbs = max(maxDeviationAbs, maxDeviation[i]);
           }
           if (maxDeviationAbs > 2.5) {
               log_error("Measurement error, measurements are not within 2.5 mm of each other, trying again");
+              log_info("Max deviation: " << maxDeviationAbs);
+              
               //print all the measurements in readable form:
               for (int i = 0; i < 4; i++) {
                     for (int j = 0; j < 4; j++) {
@@ -521,13 +526,13 @@ void Maslow_::calibration_loop(){
         else if(waypoint == 0){
             //move to the start point
             
-            if(move_with_slack(centerX,centerY, calibrationGrid[0][0], calibrationGrid[0][1])){
+            if(move_with_slack(centerX, centerY, calibrationGrid[0][0], calibrationGrid[0][1])){
                 measurementInProgress = true;
                 direction = get_direction(centerX, centerY, calibrationGrid[0][0], calibrationGrid[0][1]);
                 log_info("arrived at the start point");
                 x = calibrationGrid[0][0];
                 y = calibrationGrid[0][1];
-                hold(100);
+                hold(250);
             }
 
         }
@@ -540,7 +545,7 @@ void Maslow_::calibration_loop(){
                 direction = get_direction(calibrationGrid[waypoint-1][0], calibrationGrid[waypoint-1][1], calibrationGrid[waypoint][0], calibrationGrid[waypoint][1]);
                 x = calibrationGrid[waypoint][0];
                 y = calibrationGrid[waypoint][1];
-                hold(100);
+                hold(250);
             }
 
         }
@@ -559,7 +564,7 @@ void Maslow_::generate_calibration_grid() {
   int gridSizeX = 10;
   int gridSizeY = 9;
   int xSpacing = 175;
-  int ySpacing = 100;
+  int ySpacing = 75;
   int pointCount = 0;
 
   for(int i = -gridSizeX/2; i <= gridSizeX/2; i++) {
@@ -843,7 +848,7 @@ void Maslow_::update(){
                 hold(200);
                 
             }
-            else if( step == 1 && take_measurement(0, get_direction(x,y,x,y+200)) ){
+            else if( step == 1 && take_measurement(0, get_direction(x,y,x,y+200),0) ){
                 step++;
                 log_info("took measurement");
                 hold(200);
@@ -856,7 +861,7 @@ void Maslow_::update(){
                 log_info("Direction: " << get_direction(x,y+200,x+200,y+200));
                 hold(200);
             }
-            else if( step == 3 && take_measurement(0, get_direction(x,y+200,x+200,y+200)) ){
+            else if( step == 3 && take_measurement(0, get_direction(x,y+200,x+200,y+200),0) ){
                 step++;
                 log_info("took measurement");
                 hold(200);
@@ -869,7 +874,7 @@ void Maslow_::update(){
                 log_info("Direction: " << get_direction(x+200,y+200,x+200,y));
                 hold(200);
             }
-            else if( step == 5 && take_measurement(0, get_direction(x+200,y+200,x+200,y)) ){
+            else if( step == 5 && take_measurement(0, get_direction(x+200,y+200,x+200,y),0) ){
                 step++;
                 log_info("took measurement");
                 hold(200);
@@ -882,7 +887,7 @@ void Maslow_::update(){
                 log_info("Direction: " << get_direction(x+200,y,x,y));
                 hold(200);
             }
-            else if( step == 7 && take_measurement(0, get_direction(x+200,y,x,y)) ){
+            else if( step == 7 && take_measurement(0, get_direction(x+200,y,x,y),0) ){
                 test = false;
                 step = 0;
                 log_info("took measurement");
@@ -1000,6 +1005,7 @@ void Maslow_::extendALL(){
 
     stop();
     extendingALL = true;
+    extendCallTimer = millis();
     log_info("Extending All");
 }
 

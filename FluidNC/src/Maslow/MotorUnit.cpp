@@ -291,9 +291,9 @@ bool MotorUnit::pull_tight(){
                 motor.stop();
 
                 //Print how much the length of the belt changed compared to memory, log belt speed and current
-                log_info("retract_speed " << retract_speed);
-                log_info("Belt speed: " << beltSpeed << " mm/ms");
-                log_info("Motor current: " << currentMeasurement);
+                //log_info("retract_speed " << retract_speed);
+                //log_info("Belt speed: " << beltSpeed << " mm/ms");
+                //log_info("Motor current: " << currentMeasurement);
                 //log_info("Belt positon after retract: ");
                 //log_info(getPosition());
 
