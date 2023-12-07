@@ -354,7 +354,7 @@ bool Maslow_::take_measurement(int waypoint, int dir, int run){
             if(pullAxis1 == &axisTR) axisLabel = "TR";
             if(pullAxis1 == &axisBL) axisLabel = "BL";
             if(pullAxis1 == &axisBR) axisLabel = "BR";
-            log_info("Pulled 1 tight on " << axisLabel.c_str());
+            //log_info("Pulled 1 tight on " << axisLabel.c_str());
         
         }
         if(run == 0) pullAxis2->comply(1000);
@@ -368,7 +368,7 @@ bool Maslow_::take_measurement(int waypoint, int dir, int run){
             if(pullAxis2 == &axisTR) axisLabel = "TR";
             if(pullAxis2 == &axisBL) axisLabel = "BL";
             if(pullAxis2 == &axisBR) axisLabel = "BR";
-            log_info("Pulled 2 tight on " << axisLabel.c_str());
+            //log_info("Pulled 2 tight on " << axisLabel.c_str());
         }
         return false;
     }
@@ -476,7 +476,8 @@ bool Maslow_::take_measurement_avg_with_check(int waypoint, int dir) {
               sum                           = 0;
               criticalCounter               = 0;
           }
-          log_info("Took measurement at waypoint " << waypoint);
+          //log_info("Took measurement at waypoint " << waypoint);
+           log_info("{bl:" << calibration_data[2][waypoint] << ",   br:" << calibration_data[3][waypoint] << ",   tr:" << calibration_data[1][waypoint] << ",   tl:" << calibration_data[0][waypoint] << "},");
           return true;
       }
 
@@ -506,7 +507,7 @@ void Maslow_::calibration_loop(){
                 measurementInProgress = false;
                 waypoint++;                                 //Increment the waypoint counter
 
-                if(waypoint > 98 ){ //If we have reached the end of the calibration process
+                if(waypoint > CALIBRATION_GRID_SIZE-2 ){ //If we have reached the end of the calibration process
                     calibrationInProgress = false;
                     waypoint = 0;
                     log_info("Calibration complete");
@@ -555,14 +556,13 @@ void Maslow_::hold(unsigned long time){
     holdTime = time;
     holding = true;
     holdTimer = millis();
-    log_info("Holding for " << int(time) << "ms");
 }
 
 void Maslow_::generate_calibration_grid() {
-  log_info("Generating calibration grid");
+  //log_info("Generating calibration grid");
 
-  int gridSizeX = 10;
-  int gridSizeY = 9;
+  int gridSizeX = 6;
+  int gridSizeY = 4;
   int xSpacing = 175;
   int ySpacing = 75;
   int pointCount = 0;
@@ -584,9 +584,9 @@ void Maslow_::generate_calibration_grid() {
       }
     }
   }
-  log_info("Moving to start point");
-  int direction = get_direction(centerX, centerY, calibrationGrid[0][0], calibrationGrid[0][1]);
-  log_info("Direction: " << direction);
+  //log_info("Moving to start point");
+  //int direction = get_direction(centerX, centerY, calibrationGrid[0][0], calibrationGrid[0][1]);
+  //log_info("Direction: " << direction);
 }
 
 
@@ -618,7 +618,6 @@ int direction  = get_direction(fromX, fromY, toX, toY);
 if(decompress){
     decompressTimer = millis();
     decompress = false;
-    log_info("Decompressing belts");
 }
 
 //Decompress belts for 500ms...this happens by returning right away before running any of the rest of the code
@@ -681,7 +680,7 @@ if(decompress){
   int xDirection = currentXTarget - toX > 0 ? -1 : 1;
   int yDirection = currentYTarget - toY > 0 ? -1 : 1;
   
-  int comply_spd = 500;
+  int comply_spd = 500; //doesn't actually do anything now
   
   switch (direction) {
     case UP:
@@ -690,7 +689,7 @@ if(decompress){
         axisTR.recomputePID();
         axisBL.comply(comply_spd);
         axisBR.comply(comply_spd);
-        if( onTarget(toX, toY, getTargetX(), getTargetY(), 0.5) ) {
+        if( onTarget(toX, toY, getTargetX(), getTargetY(), 0.25) ) {
             stopMotors();
             reset_all_axis();
             decompress = true; //Reset for the next pass
@@ -703,7 +702,7 @@ if(decompress){
             axisTR.comply(comply_spd);
             axisBL.recomputePID();
             axisBR.recomputePID();
-            if( onTarget(toX, toY, getTargetX(), getTargetY(), 0.5) )  {
+            if( onTarget(toX, toY, getTargetX(), getTargetY(), 0.25) )  {
                 stopMotors();
                 reset_all_axis();
                 decompress = true; //Reset for the next pass
@@ -716,7 +715,7 @@ if(decompress){
             axisTR.comply(comply_spd);
             axisBL.recomputePID();
             axisBR.comply(comply_spd);
-            if( onTarget(toX, toY, getTargetX(), getTargetY(), 0.5) ) {
+            if( onTarget(toX, toY, getTargetX(), getTargetY(), 0.25) ) {
                 stopMotors();
                 reset_all_axis();
                 decompress = true; //Reset for the next pass
@@ -729,7 +728,7 @@ if(decompress){
             axisTR.recomputePID();
             axisBL.comply(comply_spd);
             axisBR.recomputePID();
-            if( onTarget(toX, toY, getTargetX(), getTargetY(), 0.5) ) {
+            if( onTarget(toX, toY, getTargetX(), getTargetY(), 0.25) ) {
                 stopMotors();
                 reset_all_axis();
                 decompress = true; //Reset for the next pass
@@ -769,15 +768,23 @@ void Maslow_::safety_control() {
   //We need to keep track of average belt speeds and motor currents for every axis
     static bool tick[4] = {false, false, false, false};
     static unsigned long spamTimer = millis();
-
+    static int tresholdHitsBeforePanic = 3;
+    static int panicCounter[4] = {0}; 
+  
   MotorUnit* axis[4] = { &axisTL, &axisTR, &axisBL, &axisBR };
   for (int i = 0; i < 4; i++) {
       //If the current exceeds some absolute value, we need to call panic() and stop the machine
       if (axis[i]->getMotorCurrent() > currentThreshold+2500  && !tick[i]) {
+        panicCounter[i]++;
+        if(panicCounter[i] > tresholdHitsBeforePanic){
           log_error("Motor current on " << axis_id_to_label(i).c_str() << " axis exceeded threshold of " << currentThreshold+2500
                                         << "mA, current is " << int(axis[i]->getMotorCurrent()) << "mA");
           Maslow.panic();
           tick[i] = true;
+        }
+      }
+      else {
+        panicCounter[i] = 0;
       }
 
       //If the motor torque is high, but the belt is not moving

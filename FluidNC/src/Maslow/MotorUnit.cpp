@@ -219,7 +219,7 @@ bool MotorUnit::comply( double maxSpeed){
         if(amtToMove == 0) amtToMove = 100;
         amtToMove = amtToMove+=50;
         
-        amtToMove = min(amtToMove, 1000.0);
+        amtToMove = min(amtToMove, 1023.0);
     }
     //If the belt is moving in we need to stop it from moving in
     // }else if(distMoved < -.04){
@@ -229,7 +229,7 @@ bool MotorUnit::comply( double maxSpeed){
     // }
     //Finally if the belt is not moving we want to spool things down
     else{
-        amtToMove = amtToMove / 1.4;
+        amtToMove = amtToMove / 1.25;
         motor.forward(amtToMove);
         //setTarget(positionNow);
         //stop();

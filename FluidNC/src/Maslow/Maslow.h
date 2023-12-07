@@ -5,7 +5,7 @@
 #include "../System.h"         // sys.*
 
 #define TCAADDR 0x70
-#define CALIBRATION_GRID_SIZE  100
+#define CALIBRATION_GRID_SIZE  35
 
 
 class Maslow_ {
@@ -113,8 +113,8 @@ class Maslow_ {
 
     int frame_dimention_MIN = 1000;
     int frame_dimention_MAX = 5000;
-
-    double calibrationGrid[100][2] = {0};
+    
+    double calibrationGrid[CALIBRATION_GRID_SIZE][2] = {0};
 
     void generate_calibration_grid();
     bool onTarget(double targetX, double targetY, double currentX, double currentY, double tolerance);
