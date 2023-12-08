@@ -81,7 +81,7 @@ void OLED::init() {
     _oled->display();
 
     allChannels.registration(this);
-    setReportInterval(500);
+    setReportInterval(_report_interval_ms);
 }
 
 Channel* OLED::pollLine(char* line) {

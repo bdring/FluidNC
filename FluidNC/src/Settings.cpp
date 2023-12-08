@@ -262,10 +262,10 @@ static bool isPassword(bool (*_checker)(char*)) {
 
 const char* StringSetting::getDefaultString() {
     // If the string is a password do not display it
-    return (_checker && isPassword(_checker)) ? "******" : _defaultValue.c_str();
+    return (_checker && isPassword(_checker)) ? "********" : _defaultValue.c_str();
 }
 const char* StringSetting::getStringValue() {
-    return (_checker && isPassword(_checker)) ? "******" : get();
+    return (_checker && isPassword(_checker)) ? "********" : get();
 }
 
 void StringSetting::addWebui(WebUI::JSONencoder* j) {
