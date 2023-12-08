@@ -519,6 +519,7 @@ void Maslow_::calibration_loop(){
                     //direction = get_direction(calibrationGrid[waypoint-1][0], calibrationGrid[waypoint-1][1], calibrationGrid[waypoint][0], calibrationGrid[waypoint][1]);
                     //log_info("Direction: " << direction);
                     //move_with_slack(getTargetX(), getTargetY(), calibrationGrid[waypoint][0], calibrationGrid[waypoint][1]);
+                    hold(250);
                 }
             }
         }
@@ -617,43 +618,57 @@ int direction  = get_direction(fromX, fromY, toX, toY);
 //We conly want to decompress at the beginning of each move
 if(decompress){
     decompressTimer = millis();
+    log_info("decompressing at " << int(millis()));
     decompress = false;
 }
 
 //Decompress belts for 500ms...this happens by returning right away before running any of the rest of the code
-  if (millis() - decompressTimer < 500) {
-      switch (direction) {
-          case UP:
+  if (millis() - decompressTimer < 750) {
+    if( orientation == VERTICAL){
                 axisTL.recomputePID();
                 axisTR.recomputePID();
                 axisBL.decompressBelt();
                 axisBR.decompressBelt();
-                break;
-            case DOWN:
+            }
+            else{
                 axisTL.decompressBelt();
                 axisTR.decompressBelt();
-                axisBL.recomputePID();
-                axisBR.recomputePID();
-                break;
-            case LEFT:
-                axisTL.recomputePID();
-                axisTR.decompressBelt();
-                axisBL.recomputePID();
-                axisBR.decompressBelt();
-                break;
-            case RIGHT:
-                axisTL.decompressBelt();
-                axisTR.recomputePID();
                 axisBL.decompressBelt();
-                axisBR.recomputePID();
-                break;
-      }
+                axisBR.decompressBelt();
+            }
+                
+    //   switch (direction) {
+    //       case UP:
+    //             axisTL.recomputePID();
+    //             axisTR.recomputePID();
+    //             axisBL.decompressBelt();
+    //             axisBR.decompressBelt();
+    //             break;
+    //         case DOWN:
+    //             axisTL.decompressBelt();
+    //             axisTR.decompressBelt();
+    //             axisBL.recomputePID();
+    //             axisBR.recomputePID();
+    //             break;
+    //         case LEFT:
+    //             axisTL.recomputePID();
+    //             axisTR.decompressBelt();
+    //             axisBL.recomputePID();
+    //             axisBR.decompressBelt();
+    //             break;
+    //         case RIGHT:
+    //             axisTL.decompressBelt();
+    //             axisTR.recomputePID();
+    //             axisBL.decompressBelt();
+    //             axisBR.recomputePID();
+    //             break;
+     // }
       return false;
   }
 
   //Stop for 50ms
   //we need to stop motors after decompression was finished once
-  else if (millis() - decompressTimer < 550) {
+  else if (millis() - decompressTimer < 1000) {
       stopMotors();
       return false;
   }
@@ -768,7 +783,7 @@ void Maslow_::safety_control() {
   //We need to keep track of average belt speeds and motor currents for every axis
     static bool tick[4] = {false, false, false, false};
     static unsigned long spamTimer = millis();
-    static int tresholdHitsBeforePanic = 3;
+    static int tresholdHitsBeforePanic = 10;
     static int panicCounter[4] = {0}; 
   
   MotorUnit* axis[4] = { &axisTL, &axisTR, &axisBL, &axisBR };
@@ -792,26 +807,27 @@ void Maslow_::safety_control() {
       //  if the motor is moving OUT, that means the axis has SLACK, so we should warn the user and stop the motor, until the belt starts moving again
       // don't spam log, no more than once every 5 seconds
       
-      static int axisStallCounter[4] = {0,0,0,0};
+      //static int axisStallCounter[4] = {0,0,0,0};
       static int axisSlackCounter[4] = {0,0,0,0};
 
-      if (axis[i]->getMotorCurrent() > currentThreshold && abs (axis[i]->getBeltSpeed() ) < 0.1 && !tick[i] ) {
-            axisStallCounter[i]++;
-            if(axisStallCounter[i] > 2){
-                //log_info("STALL:" << axis_id_to_label(i).c_str() << " motor current is " << int(axis[i]->getMotorCurrent()) << "mA, but the belt is not moving");
-                tick[i] = true;
-                axisStallCounter[i] = 0;
-            }
-        }
-        else axisStallCounter[i] = 0;
+    //   if (axis[i]->getMotorCurrent() > currentThreshold && abs (axis[i]->getBeltSpeed() ) < 0.1 && !tick[i] ) {
+    //         axisStallCounter[i]++;
+    //         if(axisStallCounter[i] > 2){
+    //             //log_info("STALL:" << axis_id_to_label(i).c_str() << " motor current is " << int(axis[i]->getMotorCurrent()) << "mA, but the belt is not moving");
+    //             tick[i] = true;
+    //             axisStallCounter[i] = 0;
+    //         }
+    //     }
+    //     else axisStallCounter[i] = 0;
 
       if(axis[i]->getMotorPower() > 750 && abs (axis[i]->getBeltSpeed() ) < 0.1 && !tick[i]){
             axisSlackCounter[i]++;
-            if(axisSlackCounter[i] > 50){
+            if(axisSlackCounter[i] > 100){
                 log_info("SLACK:" << axis_id_to_label(i).c_str() << " motor power is " << int(axis[i]->getMotorPower()) << ", but the belt is not moving");
+                log_info("Pull on " << axis_id_to_label(i).c_str() << " and restart!");
                 tick[i] = true;
                 axisSlackCounter[i] = 0;
-                //Maslow.panic();
+                Maslow.panic();
             }
       }
         else axisSlackCounter[i] = 0;
