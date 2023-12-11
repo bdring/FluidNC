@@ -27,6 +27,7 @@ namespace Pins {
         if (high == _value) {
             return;
         }
+        _value        = high;
         std::string s = "SET: io.";
         s += std::to_string(_index);
         s += "=";
