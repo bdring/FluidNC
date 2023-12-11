@@ -6,6 +6,7 @@
 #include "Machine/MachineConfig.h"  // config
 #include "RealtimeCmd.h"            // execute_realtime_command
 #include "Limits.h"
+#include "Logging.h"
 
 void Channel::flushRx() {
     _linelen   = 0;
@@ -163,10 +164,12 @@ Channel* Channel::pollLine(char* line) {
         // Otherwise res==1 and we have decoded a sequence so proceed
 
         if (cmd == PinACK) {
+            log_debug("ACK");
             _ackwait = false;
             continue;
         }
         if (cmd == PinNAK) {
+            log_debug("NAK");
             _ackwait = false;
             continue;
         }
