@@ -144,6 +144,16 @@ double MotorUnit::recomputePID(){
     return _commandPWM;
 
 }
+double MotorUnit::recomputePID(double maxSpeed){
+    
+    _commandPWM = positionPID.getOutput(getPosition(),setpoint);
+    if( _commandPWM < -maxSpeed) _commandPWM = -maxSpeed;
+    else if(_commandPWM > maxSpeed) _commandPWM = maxSpeed; 
+    motor.runAtPWM(_commandPWM);
+
+    return _commandPWM;
+
+}
 
 /*!
  *  @brief  Runs the motor to extend for a little bit to put some slack into the coiled belt. Used to make it easier to extend. Now non-blocking. 
@@ -164,13 +174,11 @@ void MotorUnit::reset(){
 /*!
  *  @brief  Sets the motor to comply with how it is being pulled, non-blocking. 
  */
-bool MotorUnit::comply( double maxSpeed){
+bool MotorUnit::comply(){
     //Call it every 25 ms
     if(millis() - lastCallToComply < 25){
         return true;
     }
-    //Update position and PID loop
-    //recomputePID();
 
     //If we've moved any, then drive the motor outwards to extend the belt
     float positionNow = getPosition();
@@ -178,9 +186,7 @@ bool MotorUnit::comply( double maxSpeed){
 
     //If the belt is moving out, let's keep it moving out
     if( distMoved > .001){
-        //Increment the target
-        //setTarget(positionNow + amtToMove);
-        
+       
         motor.forward(amtToMove);
 
         if(amtToMove < 100) amtToMove = 100;
@@ -188,18 +194,11 @@ bool MotorUnit::comply( double maxSpeed){
         
         amtToMove = min(amtToMove, 1023.0);
     }
-    //If the belt is moving in we need to stop it from moving in
-    // }else if(distMoved < -.04){
-    //     amtToMove = 0;
-    //     //setTarget(positionNow + .1);
-    //     //stop();
-    // }
+
     //Finally if the belt is not moving we want to spool things down
     else{
         amtToMove = amtToMove / 1.25;
         motor.forward(amtToMove);
-        //setTarget(positionNow);
-        //stop();
     }
     
 
@@ -272,7 +271,7 @@ bool MotorUnit::extend(double targetLength) {
             unsigned long timeLastMoved = millis();
 
             if  (getPosition() < targetLength) {
-                comply(500); //Comply does the actual moving
+                comply(); //Comply does the actual moving
                 return false;
             }
             //If reached target position, Stop and return
