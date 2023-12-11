@@ -21,7 +21,11 @@ void UartChannel::init() {
 void UartChannel::init(Uart* uart) {
     _uart = uart;
     allChannels.registration(this);
-    log_info("uart_channel" << _uart_num << " created");
+    if (_report_interval_ms) {
+        log_info("uart_channel" << _uart_num << " created at report interval: " << _report_interval_ms);
+    } else {
+        log_info("uart_channel" << _uart_num << " created");
+    }
     log_msg_to(*this, "RST");
     // Give the extender a little time to process the command
     delay(100);
