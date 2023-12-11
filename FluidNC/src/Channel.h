@@ -75,6 +75,11 @@ protected:
 
     UTF8 _utf8;
 
+    // Set this to false to suppress messages sent to AllChannels
+    // It is useful for IO Expanders that do not want to be spammed
+    // with chitchat
+    bool _all_messages = true;
+
 public:
     Channel(const char* name, bool addCR = false) : _name(name), _linelen(0), _addCR(addCR) {}
     Channel(const char* name, int num, bool addCR = false) {
@@ -134,6 +139,8 @@ public:
     int peek() override { return -1; }
     int read() override { return -1; }
     int available() override { return _queue.size(); }
+
+    bool all_messages() { return _all_messages; }
 
     uint32_t     setReportInterval(uint32_t ms);
     uint32_t     getReportInterval() { return _reportInterval; }
