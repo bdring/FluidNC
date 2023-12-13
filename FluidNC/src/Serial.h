@@ -45,6 +45,8 @@ public:
     size_t write(uint8_t data) override;
     size_t write(const uint8_t* buffer, size_t length) override;
 
+    void print_msg(MsgLevel level, const char* msg) override;
+
     void flushRx();
 
     void notifyWco();

@@ -44,6 +44,8 @@ private:
 public:
     static const int maxLine = 255;
 
+    int _message_level = MsgLevelVerbose;
+
 protected:
     std::string _name;
     char        _line[maxLine];
@@ -74,11 +76,6 @@ protected:
     std::map<int, bool*>     _pin_values;
 
     UTF8 _utf8;
-
-    // Set this to false to suppress messages sent to AllChannels
-    // It is useful for IO Expanders that do not want to be spammed
-    // with chitchat
-    bool _all_messages = true;
 
 public:
     Channel(const char* name, bool addCR = false) : _name(name), _linelen(0), _addCR(addCR) {}
@@ -140,7 +137,7 @@ public:
     int read() override { return -1; }
     int available() override { return _queue.size(); }
 
-    bool all_messages() { return _all_messages; }
+    virtual void print_msg(MsgLevel level, const char* msg);
 
     uint32_t     setReportInterval(uint32_t ms);
     uint32_t     getReportInterval() { return _reportInterval; }

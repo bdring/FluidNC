@@ -251,3 +251,9 @@ void Channel::ack(Error status) {
         msg << static_cast<int>(status);
     }
 }
+
+void Channel::print_msg(MsgLevel level, const char* msg) {
+    if (_message_level >= level) {
+        println(msg);
+    }
+}
