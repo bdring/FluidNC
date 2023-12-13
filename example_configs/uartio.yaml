@@ -12,13 +12,14 @@ stepping:
 uart1:
   txd_pin: gpio.4
   rxd_pin: gpio.26
-  baud: 115200
+  baud: 921600
   mode: 8N1
 
 uart_channel1:
   report_interval_ms: 75
   uart_num: 1
-  controller: true
+  all_messages: false
+
 
 i2so:
   bck_pin: gpio.22
@@ -37,13 +38,16 @@ sdcard:
 probe:
   pin: NO_PIN
 
-control:
-  feed_hold_pin: uart_channel1.1:pu
-  cycle_start_pin: uart_channel1.2:pu
-
 user_outputs:
-  analog0_pin: NO_PIN
+  digital0_pin: uart_channel1.0
+  digital1_pin: uart_channel1.1
+  digital2_pin: uart_channel1.2
+  digital3_pin: uart_channel1.3
+  digital4_pin: uart_channel1.4
+  digital5_pin: uart_channel1.5
+  digital6_pin: uart_channel1.6
+  digital7_pin: uart_channel1.7
 
 coolant:
-  mist_pin: uart_channel1.15:low
-  flood_pin: uart_channel1.14
+  mist_pin: uart_channel1.8
+  flood_pin: uart_channel1.9
