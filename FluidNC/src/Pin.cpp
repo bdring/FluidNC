@@ -15,6 +15,7 @@
 #include "string_util.h"
 #include "Machine/MachineConfig.h"  // config
 #include <string_view>
+#include <charconv>
 
 Pins::PinDetail* Pin::undefinedPin = new Pins::VoidPinDetail();
 Pins::PinDetail* Pin::errorPin     = new Pins::ErrorPinDetail("unknown");
@@ -81,16 +82,18 @@ const char* Pin::parse(std::string_view pin_str, Pins::PinDetail*& pinImplementa
         return nullptr;
     }
 
-    if (string_util::equal_ignore_case(prefix, "uart_channel0")) {
-        pinImplementation = new Pins::ChannelPinDetail(config->_uart_channels[0], pin_number, parser);
-        return nullptr;
-    }
-    if (string_util::equal_ignore_case(prefix, "uart_channel1")) {
-        pinImplementation = new Pins::ChannelPinDetail(config->_uart_channels[1], pin_number, parser);
-        return nullptr;
-    }
-    if (string_util::equal_ignore_case(prefix, "uart_channel2")) {
-        pinImplementation = new Pins::ChannelPinDetail(config->_uart_channels[2], pin_number, parser);
+    if (string_util::starts_with_ignore_case(prefix, "uart_channel")) {
+        auto num_str     = prefix.substr(strlen("uart_channel"));
+        int  channel_num = -1;
+        std::from_chars(num_str.data(), num_str.data() + num_str.size(), channel_num);
+        if (channel_num == -1 || channel_num > 2) {
+            return "Bad uart_channel number";
+        }
+        if (config->_uart_channels[channel_num] == nullptr) {
+            return "uart_channel is not configured";
+        }
+
+        pinImplementation = new Pins::ChannelPinDetail(config->_uart_channels[channel_num], pin_number, parser);
         return nullptr;
     }
 
