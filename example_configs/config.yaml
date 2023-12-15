@@ -15,7 +15,7 @@ axes:
     steps_per_mm: 800
     max_rate_mm_per_min: 2000
     acceleration_mm_per_sec2: 25
-    max_travel_mm: 1000
+    max_travel_mm: 750
     homing:
       cycle: 2
       mpos_mm: 10
@@ -33,7 +33,7 @@ axes:
     steps_per_mm: 800
     max_rate_mm_per_min: 2000
     acceleration_mm_per_sec2: 25
-    max_travel_mm: 1000
+    max_travel_mm: 750
     homing:
       cycle: 2
       mpos_mm: 10
@@ -51,7 +51,7 @@ axes:
     steps_per_mm: 800
     max_rate_mm_per_min: 2000
     acceleration_mm_per_sec2: 25
-    max_travel_mm: 1000
+    max_travel_mm: 160
     homing:
       cycle: 1
       mpos_mm: 10
