@@ -7,6 +7,14 @@
 #define TCAADDR 0x70
 #define CALIBRATION_GRID_SIZE  35
 
+#define UP 1
+#define DOWN 2
+#define LEFT 3
+#define RIGHT 4
+
+#define HORIZONTAL 0
+#define VERTICAL 1
+
 
 class Maslow_ {
   private:
@@ -32,25 +40,14 @@ class Maslow_ {
 
     //math 
     void updateCenterXY();
-    void computeTensions(float x, float y);
+    //void computeTensions(float x, float y);
     float computeBL(float x, float y, float z);
     float computeBR(float x, float y, float z);
     float computeTR(float x, float y, float z);
     float computeTL(float x, float y, float z);
 
     //calibration functions 
-    void runCalibration_(); // temporary
     void runCalibration();
-    void printMeasurementSet(float allLengths[][4]);
-    void takeColumnOfMeasurements(float x, float measurments[][4]);
-    float printMeasurementMetrics(double avg, double m1, double m2, double m3, double m4, double m5);
-    void takeMeasurementAvgWithCheck(float allLengths[4]);
-    float takeMeasurementAvg(float allLengths[4]);
-    void takeMeasurement(float lengths[]);
-    void moveWithSlack(float x, float y, bool leftBelt, bool rightBelt);
-    void takeUpInternalSlack();
-    void retractBR_CAL();
-    void retractBL_CAL();
 
     void stopMotors();
 
@@ -117,7 +114,7 @@ class Maslow_ {
     double calibrationGrid[CALIBRATION_GRID_SIZE][2] = {0};
 
     void generate_calibration_grid();
-    bool onTarget(double targetX, double targetY, double currentX, double currentY, double tolerance);
+    //bool onTarget(double targetX, double targetY, double currentX, double currentY, double tolerance);
     bool move_with_slack(double fromX, double fromY, double toX, double toY);
     int get_direction(double x, double y, double targetX, double targetY);
     bool take_measurement_avg_with_check(int waypoint, int dir);
@@ -156,8 +153,8 @@ class Maslow_ {
     float centerX;
     float centerY;
 
-    float tlTension;
-    float trTension;
+    //float tlTension;
+    //float trTension;
 
     float _beltEndExtension;
     float _armLength;
