@@ -608,13 +608,15 @@ void CallURLWithRetryStrategy(String cmd) {
     const char NB_RTETRY_MAX = 9;
     char       NbRetry       = NB_RTETRY_MAX;
 
-    while ((NbRetry--) && (CallURL(cmd) == NOT_SUCCESSFUL)) {
-        log_info("Retry URL call : " + std::to_string(NB_RTETRY_MAX - NbRetry) + "/" + std::to_string(NB_RTETRY_MAX));
+    if (WiFi.getMode() != WIFI_MODE_NULL) {
+        while ((NbRetry--) && (CallURL(cmd) == NOT_SUCCESSFUL)) {
+            log_info("Retry URL call : " + std::to_string(NB_RTETRY_MAX - NbRetry) + "/" + std::to_string(NB_RTETRY_MAX));
 
-        if (!(WiFi.status() == WL_CONNECTED) || (NbRetry % 3 == 0))
-            ReconnectWifi();
+            if (!(WiFi.status() == WL_CONNECTED) || (NbRetry % 3 == 0))
+                ReconnectWifi();
 
-        delay(2000);
+            delay(2000);
+        }
     }
 }
 
