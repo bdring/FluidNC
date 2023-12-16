@@ -333,7 +333,9 @@ static Error home(AxisMask axisMask) {
         protocol_execute_realtime();
     } while (sys.state == State::Homing);
 
-    config->_macros->_after_homing.run();
+    if (!Homing::unhomed_axes()) {
+        config->_macros->_after_homing.run();
+    }
 
     return Error::Ok;
 }
