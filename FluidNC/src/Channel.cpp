@@ -169,6 +169,7 @@ Channel* Channel::pollLine(char* line) {
             continue;
         }
         if (cmd == PinNAK) {
+            log_warn("Channel device rejected config");
             log_debug("NAK");
             _ackwait = false;
             continue;
@@ -207,9 +208,12 @@ void Channel::setAttr(int index, bool* value, const std::string& attrString) {
         _pin_values[index] = value;
     }
     int count = 0;
-    while (_ackwait && ++count < 2000) {
+    while (_ackwait && ++count < timeout) {
         pollLine(NULL);
         delay_ms(1);
+    }
+    if (count == timeout) {
+        log_warn("Device not responding");
     }
     log_msg_to(*this, attrString);
     _ackwait = true;

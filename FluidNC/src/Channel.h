@@ -41,6 +41,8 @@ private:
     const int PinACK = 0xB2;
     const int PinNAK = 0xB3;
 
+    const int timeout = 2000;
+
 public:
     static const int maxLine = 255;
 
