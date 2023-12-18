@@ -200,14 +200,14 @@ bool MotorUnit::pull_tight(){
 
 // extends the belt to the target length until it hits the target length, returns true when target length is reached
 bool MotorUnit::extend(double targetLength) {
-            unsigned long timeLastMoved = millis();
+            //unsigned long timeLastMoved = millis();
 
             if  (getPosition() < targetLength) {
                 comply(); //Comply does the actual moving
                 return false;
             }
             //If reached target position, Stop and return
-            setTarget(getPosition());
+            setTarget(getPosition()); // good candidate for a bug that fucked up the coordinate system, NOT
             motor.stop();
 
             log_info("Belt positon after extend: ");

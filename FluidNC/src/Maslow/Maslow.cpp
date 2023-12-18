@@ -39,14 +39,7 @@
 
 #define SERVOFAULT 40
 
-//#define MEASUREMENTSPEED 1.0 //The max speed at which we move the motors when taking measurements
-int ENCODER_READ_FREQUENCY_HZ = 100;
-
-//int lowerBeltsExtra = 0;
-//int callsSinceDelay = 0;
-
-
-
+int ENCODER_READ_FREQUENCY_HZ = 100; //max frequency for pollingn the encoders
 
 //------------------------------------------------------
 //------------------------------------------------------ Main function loops
@@ -102,27 +95,15 @@ trY = 2110.326736121985;
  brX = 3088.4898198722663;
  blY =  0;
 
-  //tlTension = 0;
-  //trTension = 0;
   
   //Recompute the center XY
   updateCenterXY();
-  
-  _beltEndExtension = 30; //Based on the CAD model these should add to 153.4
-  _armLength = 123.4;
-
-  extendingOrRetracting = false;
-  calibrationInProgress = false;
-
-  //_sys_rt = sys_rt;
 
   pinMode(coolingFanPin, OUTPUT);
-
   pinMode(SERVOFAULT, INPUT);
 
   currentThreshold = 1500;
   lastCallToUpdate = millis();
-  orientation = HORIZONTAL;
   generate_calibration_grid();
   log_info("Starting Maslow v 1.00");
 }
@@ -132,12 +113,14 @@ void Maslow_::update(){
     //Make sure we're running maslow config file
     if(!Maslow.using_default_config){
         lastCallToUpdate = millis();
+
         Maslow.updateEncoderPositions(); //We always update encoder positions in any state,
-        //update motor currents and belt speeds like this for now
-        axisTL.update();
+        
+        axisTL.update(); //update motor currents and belt speeds like this for now
         axisTR.update();
         axisBL.update();
         axisBR.update();
+
         if(safetyOn) safety_control();
 
         //quick solution for delay without blocking
@@ -162,9 +145,9 @@ void Maslow_::update(){
             }
         }
 
-        //Maslow State Machine
+        //------------------------ Maslow State Machine
 
-        //Jog or G-code execution. Maybe need to add more modes here like Hold? 
+        //-------Jog or G-code execution. Maybe need to add more modes here like Hold? 
         //Jog doesn't work for lack of feedback, HOLD doesn't get automatically called after jog, so IDK what (TODO)
         if( sys.state() == State::Jog || sys.state() == State::Cycle  ){
 
@@ -172,7 +155,7 @@ void Maslow_::update(){
             Maslow.recomputePID();
         }
         
-        //Homing routines
+        //--------Homing routines
         else if(sys.state() == State::Homing){
             home();
         }
@@ -182,10 +165,11 @@ void Maslow_::update(){
  
         }
 
+        //------------------------ End of Maslow State Machine
+
         //if the update function is not being called enough, stop everything to prevent damage
         if(millis() - lastCallToUpdate > 500){
             Maslow.panic();
-            // print warnign and time since last call
             int elapsedTime = millis()-lastCallToUpdate; 
             log_error("Emergency stop. Update function not being called enough."  << elapsedTime << "ms since last call" );
         }
@@ -295,7 +279,7 @@ void Maslow_::calibration_loop(){
                 measurementInProgress = false;
                 waypoint++;                                 //Increment the waypoint counter
 
-                if(waypoint > CALIBRATION_GRID_SIZE-2 ){ //If we have reached the end of the calibration process
+                if(waypoint > CALIBRATION_GRID_SIZE-1 ){ //If we have reached the end of the calibration process
                     calibrationInProgress = false;
                     waypoint = 0;
                     log_info("Calibration complete");
@@ -304,9 +288,6 @@ void Maslow_::calibration_loop(){
                 }
                 else{ //Otherwise move to the next point
                     log_info("Moving from: " << calibrationGrid[waypoint-1][0] << " " << calibrationGrid[waypoint-1][1] << " to: " << calibrationGrid[waypoint][0] << " " << calibrationGrid[waypoint][1] << " direction: " << get_direction(calibrationGrid[waypoint-1][0], calibrationGrid[waypoint-1][1], calibrationGrid[waypoint][0], calibrationGrid[waypoint][1]));
-                    //direction = get_direction(calibrationGrid[waypoint-1][0], calibrationGrid[waypoint-1][1], calibrationGrid[waypoint][0], calibrationGrid[waypoint][1]);
-                    //log_info("Direction: " << direction);
-                    //move_with_slack(getTargetX(), getTargetY(), calibrationGrid[waypoint][0], calibrationGrid[waypoint][1]);
                     hold(250);
                 }
             }
@@ -414,8 +395,6 @@ void Maslow_::setTargets(float xTarget, float yTarget, float zTarget, bool tl, b
         targetX = xTarget;
         targetY = yTarget;
         targetZ = zTarget;
-
-        //computeTensions(xTarget, yTarget);
 
         if(tl){
             axisTL.setTarget(computeTL(xTarget, yTarget, zTarget));
@@ -947,23 +926,23 @@ int Maslow_::get_direction(double x, double y, double targetX, double targetY){
 // Generate calibration points based on dimentions (TODO)
 void Maslow_::generate_calibration_grid() {
 
-  int gridSizeX = 6;
-  int gridSizeY = 4;
-  int xSpacing = 175;
-  int ySpacing = 75;
-  int pointCount = 0;
+    int gridSizeX = int(sqrt(CALIBRATION_GRID_SIZE));
+    int gridSizeY = int(sqrt(CALIBRATION_GRID_SIZE));
+    int xSpacing =  (frame_width - 2*calibration_grid_offset) / gridSizeX;
+    int ySpacing =  (frame_height - 2*calibration_grid_offset) / gridSizeY;
+    int pointCount = 0;
 
   for(int i = -gridSizeX/2; i <= gridSizeX/2; i++) {
     if(i % 2 == 0) {
       for(int j = -gridSizeY/2; j <= gridSizeY/2; j++) {
-        //log_info("Point: " << pointCount << "(" << i * xSpacing << ", " << j * ySpacing << ")");
+        log_info("Point: " << pointCount << "(" << i * xSpacing << ", " << j * ySpacing << ")");
         calibrationGrid[pointCount][0] = i * xSpacing;
         calibrationGrid[pointCount][1] = j * ySpacing;
         pointCount++;
       }
     } else {
       for(int j = gridSizeY/2; j >= -gridSizeY/2; j--) {
-        //log_info("Point: " << pointCount << "(" << i * xSpacing << ", " << j * ySpacing << ")"); 
+        log_info("Point: " << pointCount << "(" << i * xSpacing << ", " << j * ySpacing << ")"); 
         calibrationGrid[pointCount][0] = i * xSpacing;
         calibrationGrid[pointCount][1] = j * ySpacing;
         pointCount++;
@@ -1196,24 +1175,6 @@ void Maslow_::update_frame_xyz(){
 
 }
 
-// //Computes the tensions in the upper two belts, why do we need this, remove? (TODO)
-// void Maslow_::computeTensions(float x, float y){
-//     //This should be a lot smarter and compute the vector tensions to see if the lower belts are contributing positively
-
-//     //These internal version move the center to (0,0)
-
-//     float tlXi = tlX - trX / 2.0;
-//     float tlYi = tlY / 2.0;
-//     float trXi = trX / 2.0;
-
-//     float A = atan((y-tlYi)/(trXi - x));
-//     float B = atan((y-tlYi)/(x-tlXi));
-
-//     trTension = 1 / (cos(A) * sin(B) / cos(B) + sin(A));
-//     tlTension = 1 / (cos(B) * sin(A) / cos(A) + sin(B));
-
-// }
-
 // Get's the most recently set target position in X
 double Maslow_::getTargetX(){
     return targetX;
@@ -1238,15 +1199,6 @@ void Maslow_::updateCenterXY(){
     centerY = A*(centerX - trX) + trY;
     
 }
-
-// //Checks to see how close we are to the targetX and targetY position. If we are within the tolerance, we are on target and return true;
-// bool Maslow_::onTarget(double targetX, double targetY, double currentX, double currentY, double tolerance) {
-
-//   if (abs(targetX - currentX) < tolerance && abs(targetY - currentY) < tolerance) {
-//     return true;
-//   }
-//   return false;
-// }
 
 Maslow_ &Maslow_::getInstance() {
   static Maslow_ instance;
