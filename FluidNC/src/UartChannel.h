@@ -43,6 +43,7 @@ public:
     void group(Configuration::HandlerBase& handler) override {
         handler.item("uart_num", _uart_num);
         handler.item("report_interval_ms", _report_interval_ms, 0, 5000);
+        handler.item("all_messages", _all_messages);
     }
 };
 
