@@ -36,20 +36,6 @@ void MotorUnit::begin(int forwardPin,
 // update the motor current buffer and belts speed every >5 ms
 void MotorUnit::update(){
     //updating belt speed and motor cutrrent
-
-/*!
- *  @brief  Gets the current error in the axis position
- */
-double MotorUnit::getPositionError(){
-    return getPosition() - setpoint;
-}
-
-/*!
- *  @brief  Gets the current motor power draw
- */
-double MotorUnit::getCurrent(){
-    return motor.readCurrent();
-}
     //update belt speed every 50ms or so:
     if (millis() - beltSpeedTimer > 50) {
         beltSpeed = (getPosition() - beltSpeedLastPosition)  /  ( (millis() - beltSpeedTimer)/1000.0 ); // mm/s
@@ -66,6 +52,7 @@ double MotorUnit::getCurrent(){
     }
 }
 
+
 // Reads the encoder value and updates it's position
 bool MotorUnit::updateEncoderPosition(){
 
@@ -81,6 +68,13 @@ bool MotorUnit::updateEncoderPosition(){
         Maslow.panic();
     }
     return false;
+}
+
+/*!
+ *  @brief  Gets the current error in the axis position
+ */
+double MotorUnit::getPositionError(){
+    return getPosition() - setpoint;
 }
 
 // Recomputes the PID and drives the output
