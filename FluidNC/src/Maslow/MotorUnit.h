@@ -26,8 +26,9 @@ class MotorUnit {
     void stop();
     bool updateEncoderPosition();
     double recomputePID();
+    double recomputePID(double maxSpeed);
     void decompressBelt();
-    bool comply(double maxSpeed);
+    bool comply();
     bool retract();
     bool extend(double targetLength);
     bool pull_tight();

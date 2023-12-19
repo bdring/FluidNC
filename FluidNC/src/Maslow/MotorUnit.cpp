@@ -2,11 +2,14 @@
 #include "../Report.h"
 #include "Maslow.h"
 
+// PID controller tuning
 #define P 300 //260
 #define I 0
 #define D 0
 
-
+//------------------------------------------------------
+//------------------------------------------------------ Core utility functions
+//------------------------------------------------------
 
 
 void MotorUnit::begin(int forwardPin,
@@ -30,32 +33,9 @@ void MotorUnit::begin(int forwardPin,
     
 }
 
-void MotorUnit::zero(){
-    Maslow.I2CMux.setPort(_encoderAddress);
-    encoder.resetCumulativePosition();
-}
-
-/*!
- *  @brief  Sets the target location
- */
-void MotorUnit::setTarget(double newTarget){
-    setpoint = newTarget;
-}
-
-/*!
- *  @brief  Gets the target location
- */
-double MotorUnit::getTarget(){
-    return setpoint;
-}
-
-/*!
- *  @brief  Reads the current position of the axis
- */
-double MotorUnit::getPosition(){
-    double positionNow = (mostRecentCumulativeEncoderReading/4096.0)*_mmPerRevolution*-1;
-    return positionNow;
-}
+// update the motor current buffer and belts speed every >5 ms
+void MotorUnit::update(){
+    //updating belt speed and motor cutrrent
 
 /*!
  *  @brief  Gets the current error in the axis position
@@ -70,20 +50,23 @@ double MotorUnit::getPositionError(){
 double MotorUnit::getCurrent(){
     return motor.readCurrent();
 }
+    //update belt speed every 50ms or so:
+    if (millis() - beltSpeedTimer > 50) {
+        beltSpeed = (getPosition() - beltSpeedLastPosition)  /  ( (millis() - beltSpeedTimer)/1000.0 ); // mm/s
+        beltSpeedTimer = millis();
+        beltSpeedLastPosition   = getPosition();
+    }
 
-/*!
- *  @brief  Stops the motor
- */
-void MotorUnit::stop(){
-    motor.stop();
-    _commandPWM = 0;
+    if(millis() - motorCurrentTimer > 5){
+        motorCurrentTimer = millis();
+        for(int i = 0; i < 9; i++){
+            motorCurrentBuffer[i] = motorCurrentBuffer[i+1];
+        }
+        motorCurrentBuffer[9] = motor.readCurrent();
+    }
 }
 
-//---------------------Functions related to maintaining the PID controllers-----------------------------------------
-
-/*!
- *  @brief  Reads the encoder value and updates it's position and measures the velocity since the last call
- */
+// Reads the encoder value and updates it's position
 bool MotorUnit::updateEncoderPosition(){
 
     if( !Maslow.I2CMux.setPort(_encoderAddress) ) return false;
@@ -100,48 +83,7 @@ bool MotorUnit::updateEncoderPosition(){
     return false;
 }
 
-double MotorUnit::getMotorPower(){
-    return _commandPWM;
-}
-double MotorUnit::getBeltSpeed(){
-    return beltSpeed;
-}
-double MotorUnit::getMotorCurrent(){
-    //return average motor current of the last 10 readings:
-    double sum = 0;
-    for(int i = 0; i < 10; i++){
-        sum += motorCurrentBuffer[i];
-    }
-    return sum/10.0;
-}
-
-//check if we are at the target position within certain precision:
-bool MotorUnit::onTarget(double precision){
-    if( abs( getTarget() - getPosition() ) < precision) return true;
-    else return false;
-}
-// update the motor current buffer every >5 ms
-void MotorUnit::update(){
-    //updating belt speed and motor cutrrent
-
-    //update belt speed every 50ms or so:
-    if (millis() - beltSpeedTimer > 50) {
-        beltSpeed = (getPosition() - beltSpeedLastPosition)  /  ( (millis() - beltSpeedTimer)/1000.0 ); // mm/s
-        beltSpeedTimer = millis();
-        beltSpeedLastPosition   = getPosition();
-    }
-
-    if(millis() - motorCurrentTimer > 5){
-        motorCurrentTimer = millis();
-        for(int i = 0; i < 9; i++){
-            motorCurrentBuffer[i] = motorCurrentBuffer[i+1];
-        }
-        motorCurrentBuffer[9] = motor.readCurrent();
-    }
-}
-/*!
- *  @brief  Recomputes the PID and drives the output
- */
+// Recomputes the PID and drives the output
 double MotorUnit::recomputePID(){
     
     _commandPWM = positionPID.getOutput(getPosition(),setpoint);
@@ -152,65 +94,37 @@ double MotorUnit::recomputePID(){
 
 }
 
-/*!
- *  @brief  Runs the motor to extend for a little bit to put some slack into the coiled belt. Used to make it easier to extend. Now non-blocking. 
- */
-void MotorUnit::decompressBelt(){
-    // unsigned long time = millis();
-    // unsigned long elapsedTime = millis()-time;
-    // while(elapsedTime < 500){
-    //     elapsedTime = millis()-time;
-        motor.fullOut();
-//    }
+// Recomputes the PID and drives the output at speed constrained by maxSpeed
+double MotorUnit::recomputePID(double maxSpeed){
+    //if pulling belt, do regular PID:
+    //if(setpoint - getPosition() < 1.5){
+    _commandPWM = positionPID.getOutput(getPosition(),setpoint);
+    if( _commandPWM < -maxSpeed) _commandPWM = -maxSpeed;
+    else if(_commandPWM > maxSpeed) _commandPWM = maxSpeed; 
+
+
+    motor.runAtPWM(_commandPWM);
+    //}
+    //if releasing belt, just comply till get to point one way or another
+    // else{
+    //     comply();
+    // }
+    return _commandPWM;
+
 }
 
-void MotorUnit::reset(){
-    retract_speed = 0;
-    retract_baseline = 700;
-    incrementalThresholdHits = 0;
-    amtToMove = 0.1;
-    lastPosition = getPosition();
-    beltSpeedTimer = millis();
-}
 
-//pulls belt tight 
-bool MotorUnit::pull_tight(){
+//------------------------------------------------------
+//------------------------------------------------------ Homing/calibration functions
+//------------------------------------------------------
 
-    int maxSpeed = 800;
-    int measurementThreshold = 1300;
 
-    //call every 5ms, don't know if it's the best way really 
-    if(millis() - lastCallToRetract < 5){
-        return false;
-    }
-    lastCallToRetract = millis();
-    //Gradually increase the pulling speed
-    retract_speed = min(retract_speed +1 , maxSpeed);
-    motor.backward(retract_speed);
-
-    //When taught
-     int currentMeasurement = getCurrent();
-     if(retract_speed > 50 && currentMeasurement > measurementThreshold){ //giving a little offset, because motors get to 3000 at speed ~10 here
-        //stop motor, reset variables
-        // log_info("retract_speed " << retract_speed);
-        // log_info("Motor current: " << currentMeasurement);
-        // log_info("current threshold: " << absoluteCurrentThreshold);
-        motor.stop();
-        retract_speed = 0;   
-        return true;
-}
-return false;
-}
-/*!
- *  @brief  Sets the motor to comply with how it is being pulled, non-blocking. 
- */
-bool MotorUnit::comply( double maxSpeed){
+// Sets the motor to comply with how it is being pulled, non-blocking. 
+bool MotorUnit::comply(){
     //Call it every 25 ms
     if(millis() - lastCallToComply < 25){
         return true;
     }
-    //Update position and PID loop
-    recomputePID();
 
     //If we've moved any, then drive the motor outwards to extend the belt
     float positionNow = getPosition();
@@ -218,24 +132,19 @@ bool MotorUnit::comply( double maxSpeed){
 
     //If the belt is moving out, let's keep it moving out
     if( distMoved > .001){
-        //Increment the target
-        setTarget(positionNow + amtToMove);
+       
+        motor.forward(amtToMove);
+
+        if(amtToMove < 100) amtToMove = 100;
+        amtToMove = amtToMove*1.75;
         
-        amtToMove = amtToMove + 1;
-        
-        amtToMove = min(amtToMove, maxSpeed);
-    
-    //If the belt is moving in we need to stop it from moving in
-    }else if(distMoved < -.04){
-        amtToMove = 0;
-        setTarget(positionNow + .1);
-        stop();
+        amtToMove = min(amtToMove, 1023.0);
     }
+
     //Finally if the belt is not moving we want to spool things down
     else{
-        amtToMove = amtToMove / 2;
-        setTarget(positionNow);
-        stop();
+        amtToMove = amtToMove / 1.25;
+        motor.forward(amtToMove);
     }
     
 
@@ -245,14 +154,22 @@ bool MotorUnit::comply( double maxSpeed){
     return true;
 }
 
-/*!
- *  @brief  Fully retracts this axis and zeros it, non-blocking, returns true when done
- */
+// Pulls_tight and zeros axis; returns true when done
 bool MotorUnit::retract(){
-    //call every 5ms, don't know if it's the best way really 
+    if(pull_tight()){
+        zero();
+        return true;
+    }
+    return false;
+}
+
+// Pulls the belt until we hit a current treshold; returns true when done
+bool MotorUnit::pull_tight(){
+    //call every 5ms
     if(millis() - lastCallToRetract < 5){
         return false;
     }
+    
     lastCallToRetract = millis();
     //Gradually increase the pulling speed
     if(random(0,2) == 1) retract_speed = min(retract_speed +1 , 1023);
@@ -271,46 +188,124 @@ bool MotorUnit::retract(){
         }
         //EXPERIMENTAL, added because my BR current sensor is faulty, but might be an OK precaution
         //monitor the position change speed  
-        bool beltStalled = false;
-        if(retract_speed > 450 ){ // skip the start, might create problems if the belt is slackking a lot, but you can always run it many times
-            if(abs(beltSpeed) < 1){
-                beltStalled = true;
+         bool beltStalled = false;
+        // if(retract_speed > 450 ){ // skip the start, might create problems if the belt is slackking a lot, but you can always run it many times
+        //     if(abs(beltSpeed) < 0.1){
+        //         beltStalled = true;
+        //     }
+        // }
+        if (retract_speed > 75) {
+            if (currentMeasurement > absoluteCurrentThreshold || incrementalThresholdHits > 2 ||
+                beltStalled) {  //changed from 4 to 2 to prevent overtighting
+                //stop motor, reset variables
+                motor.stop();
+                retract_speed    = 0;
+                retract_baseline = 700;
+                return true;
+            } else {
+                if (_encoderAddress == 2 && retract_speed < 50)
+                    log_info("Motor current: " << currentMeasurement);
+                return false;
             }
         }
-        if(currentMeasurement > absoluteCurrentThreshold || incrementalThresholdHits > 2 || beltStalled){  //changed from 4 to 2 to prevent overtighting
-            //stop motor, reset variables
-            motor.stop();
-            
-            //Print how much the length of the belt changed compared to memory, log belt speed and current 
-            log_info("retract_speed " << retract_speed);
-            log_info("Belt speed: " << beltSpeed << " mm/ms");
-            log_info("Motor current: " << currentMeasurement);
-            log_info("Belt positon after retract: ");
-            log_info(getPosition());
-
-            zero();
-            retract_speed = 0;
-            retract_baseline = 700;
-            return true;
-        }
-        else{
-            return false;
-        }
+        return false;
 }
+
 // extends the belt to the target length until it hits the target length, returns true when target length is reached
 bool MotorUnit::extend(double targetLength) {
-
-            unsigned long timeLastMoved = millis();
+            //unsigned long timeLastMoved = millis();
 
             if  (getPosition() < targetLength) {
-                comply(500); //Comply does the actual moving
+                comply(); //Comply does the actual moving
                 return false;
             }
             //If reached target position, Stop and return
-            setTarget(getPosition());
+            setTarget(getPosition()); // good candidate for a bug that fucked up the coordinate system, NOT
             motor.stop();
 
             log_info("Belt positon after extend: ");
             log_info(getPosition());
             return true;
 }
+
+
+//------------------------------------------------------
+//------------------------------------------------------ Utility functions
+//------------------------------------------------------
+
+
+// Sets the target location in mm
+void MotorUnit::setTarget(double newTarget){
+    setpoint = newTarget;
+}
+
+// Gets the target location in mm
+double MotorUnit::getTarget(){
+    return setpoint;
+}
+
+// Returns the current position of the axis in mm
+double MotorUnit::getPosition(){
+    double positionNow = (mostRecentCumulativeEncoderReading/4096.0)*_mmPerRevolution*-1;
+    return positionNow;
+}
+
+// Returns the current motor power draw
+double MotorUnit::getCurrent(){
+    return motor.readCurrent();
+}
+
+// Stops the motor
+void MotorUnit::stop(){
+    motor.stop();
+    _commandPWM = 0;
+}
+
+// Returns the PWM values set to the motor 
+double MotorUnit::getMotorPower(){
+    return _commandPWM;
+}
+
+// Returns current belts speed, remove? (TODO)
+double MotorUnit::getBeltSpeed(){
+    return beltSpeed;
+}
+
+// Returns average motor current over last 10 reads
+double MotorUnit::getMotorCurrent(){
+    //return average motor current of the last 10 readings:
+    double sum = 0;
+    for(int i = 0; i < 10; i++){
+        sum += motorCurrentBuffer[i];
+    }
+    return sum/10.0;
+}
+
+// Checking if we are at the target position within certain precision:
+bool MotorUnit::onTarget(double precision){
+    if( abs( getTarget() - getPosition() ) < precision) return true;
+    else return false;
+}
+
+//Runs the motor to extend at full speed 
+void MotorUnit::decompressBelt(){
+        motor.fullOut();
+}
+
+// Reset all the axis variables
+void MotorUnit::reset(){
+    retract_speed = 0;
+    retract_baseline = 700;
+    incrementalThresholdHits = 0;
+    amtToMove = 0;
+    lastPosition = getPosition();
+    beltSpeedTimer = millis();
+}
+
+//sets the encoder position to 0
+void MotorUnit::zero(){
+    Maslow.I2CMux.setPort(_encoderAddress);
+    encoder.resetCumulativePosition();
+}
+
+

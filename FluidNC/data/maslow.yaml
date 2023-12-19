@@ -1,6 +1,11 @@
 board: Maslow
 name: Maslow S3 Board
 
+Maslow_frame_width: 3000.0
+Maslow_frame_height: 2000.0
+Maslow_vertical: 1
+
+
 spi:
   miso_pin: gpio.13
   mosi_pin: gpio.11

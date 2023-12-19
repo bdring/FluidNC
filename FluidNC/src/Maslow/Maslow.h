@@ -5,7 +5,15 @@
 #include "../System.h"         // sys.*
 
 #define TCAADDR 0x70
-#define CALIBRATION_GRID_SIZE  100
+#define CALIBRATION_GRID_SIZE  25   //use sqare numbers to not fuck shit up
+
+#define UP 1
+#define DOWN 2
+#define LEFT 3
+#define RIGHT 4
+
+#define HORIZONTAL 0
+#define VERTICAL 1
 
 
 class Maslow_ {
@@ -32,25 +40,13 @@ class Maslow_ {
 
     //math 
     void updateCenterXY();
-    void computeTensions(float x, float y);
     float computeBL(float x, float y, float z);
     float computeBR(float x, float y, float z);
     float computeTR(float x, float y, float z);
     float computeTL(float x, float y, float z);
 
     //calibration functions 
-    void runCalibration_(); // temporary
     void runCalibration();
-    void printMeasurementSet(float allLengths[][4]);
-    void takeColumnOfMeasurements(float x, float measurments[][4]);
-    float printMeasurementMetrics(double avg, double m1, double m2, double m3, double m4, double m5);
-    void takeMeasurementAvgWithCheck(float allLengths[4]);
-    float takeMeasurementAvg(float allLengths[4]);
-    void takeMeasurement(float lengths[]);
-    void moveWithSlack(float x, float y, bool leftBelt, bool rightBelt);
-    void takeUpInternalSlack();
-    void retractBR_CAL();
-    void retractBL_CAL();
 
     void stopMotors();
 
@@ -95,15 +91,14 @@ class Maslow_ {
     MotorUnit axisTR;
     MotorUnit axisBL;
     MotorUnit axisBR;
-    int initialized = 0;
+
 
     bool axisBLHomed;
     bool axisBRHomed;
     bool axisTRHomed;
     bool axisTLHomed;
     bool calibrationInProgress;  //Used to turn off regular movements during calibration
-    bool extendingOrRetracting;  //Used to turn off stopping the motors when extending the belts from zero
-    bool readingFromSD = false;          //Used to turn off reading from the encoders when reading from the 
+    bool readingFromSD = false;          //Used to turn off reading from the encoders when reading from the - i dont think we need this anymore TODO
     bool using_default_config = false; 
     QWIICMUX I2CMux;
 
@@ -113,15 +108,15 @@ class Maslow_ {
 
     int frame_dimention_MIN = 1000;
     int frame_dimention_MAX = 5000;
-
-    double calibrationGrid[100][2] = {0};
+    
+    double calibrationGrid[CALIBRATION_GRID_SIZE][2] = {0};
+    float calibration_grid_offset = 750; // mm offset from the edge of the frame
 
     void generate_calibration_grid();
-    bool onTarget(double targetX, double targetY, double currentX, double currentY, double tolerance);
     bool move_with_slack(double fromX, double fromY, double toX, double toY);
     int get_direction(double x, double y, double targetX, double targetY);
-    bool take_measurement_avg_with_check(int waypoint);
-    bool take_measurement(int waypoint);
+    bool take_measurement_avg_with_check(int waypoint, int dir);
+    bool take_measurement(int waypoint,int dir, int run);
     void test_();
     void calibration_loop();
     void print_calibration_data();
@@ -156,11 +151,8 @@ class Maslow_ {
     float centerX;
     float centerY;
 
-    float tlTension;
-    float trTension;
-
-    float _beltEndExtension;
-    float _armLength;
+    float  _beltEndExtension = 30; //Based on the CAD model these should add to 153.4
+    float _armLength = 123.4;
 
     //Used to keep track of how often the PID controller is updated
     unsigned long lastCallToPID = millis();
