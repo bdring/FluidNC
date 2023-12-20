@@ -130,7 +130,7 @@ bool MotorUnit::comply(){
         motor.forward(amtToMove);
 
         if(amtToMove < 100) amtToMove = 100;
-        amtToMove = amtToMove*1.75;
+        amtToMove = amtToMove*1.55;
         
         amtToMove = min(amtToMove, 1023.0);
     }
