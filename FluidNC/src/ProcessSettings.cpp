@@ -975,6 +975,14 @@ static Error maslow_test(const char* value, WebUI::AuthenticationLevel auth_leve
     Maslow.test_();
     return Error::Ok;
 }
+static Error maslow_takeSlack(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+    if(Maslow.using_default_config) {
+        return Error::ConfigurationInvalid;
+    }
+    sys.set_state(State::Homing);
+    Maslow.take_slack();
+    return Error::Ok;
+}
 // Commands use the same syntax as Settings, but instead of setting or
 // displaying a persistent value, a command causes some action to occur.
 // That action could be anything, from displaying a run-time parameter
@@ -1051,6 +1059,8 @@ void make_user_commands() {
     new UserCommand("SFON", "Maslow/safetyON", maslow_safety_on, anyState);
     new UserCommand("SFOFF", "Maslow/safetyOFF", maslow_safety_off, anyState);
     new UserCommand("TEST", "Maslow/test", maslow_test, anyState);
+    new UserCommand("TKSLK", "Maslow/takeSlack", maslow_takeSlack, anyState);
+
 };
 
 // normalize_key puts a key string into canonical form -

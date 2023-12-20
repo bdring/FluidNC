@@ -132,17 +132,7 @@ void Maslow_::update(){
 
         //temp test function
         if(test){
-            if(take_measurement_avg_with_check(0,UP)){
-                //print the measurements and expected measurements for center point:
-                double off = _beltEndExtension+_armLength;
-                log_info("Center point measurements : TL: " << calibration_data[0][0]-off << " TR: " << calibration_data[1][0]-off << " BL: " << calibration_data[2][0]-off << " BR: " << calibration_data[3][0]-off );
-                
-                log_info("Center point expected (0,0,0): TL: " << computeTL(0,0,0) << " TR: " << computeTR(0,0,0) << " BL: " << computeBL(0,0,0) << " BR: " << computeBR(0,0,0));
-                //log deviation of the measurements from the expected values
-                log_info("Center point deviation: TL: " << calibration_data[0][0]-off - computeTL(0,0,0) << " TR: " << calibration_data[1][0]-off - computeTR(0,0,0) << " BL: " << calibration_data[2][0]-off - computeBL(0,0,0) << " BR: " << calibration_data[3][0]-off - computeBR(0,0,0));
-                test = false;
-                log_info("Test complete");
-            }
+            test = false;
         }
 
         //------------------------ Maslow State Machine
@@ -259,9 +249,27 @@ void Maslow_::home() {
   if(calibrationInProgress){
         calibration_loop();
   }
-
+    // TODO warning, this will not work properly (fuck shit up) outside center position 
+  if(takeSlack){
+                if(take_measurement_avg_with_check(0,UP)){
+                //print the measurements and expected measurements for center point:
+                double off = _beltEndExtension+_armLength;
+                log_info("Pulled belts tight");
+                log_info("Center point measurements : TL: " << calibration_data[0][0]-off << " TR: " << calibration_data[1][0]-off << " BL: " << calibration_data[2][0]-off << " BR: " << calibration_data[3][0]-off );
+                log_info("Center point expected (0,0,0): TL: " << computeTL(0,0,0) << " TR: " << computeTR(0,0,0) << " BL: " << computeBL(0,0,0) << " BR: " << computeBR(0,0,0));
+                float diffTL = calibration_data[0][0]-off - computeTL(0,0,0);
+                float diffTR = calibration_data[1][0]-off - computeTR(0,0,0);
+                float diffBL = calibration_data[2][0]-off - computeBL(0,0,0);
+                float diffBR = calibration_data[3][0]-off - computeBR(0,0,0);
+                log_info("Center point deviation: TL: " << diffTL << " TR: " << diffTR << " BL: " << diffBL << " BR: " << diffBR );
+                if(abs(diffTL) > 5 || abs(diffTR) > 5 || abs(diffBL) > 5 || abs(diffBR) > 5){
+                    log_error("Center point deviation over 5mmm, your coordinate system is not accurate, maybe try running calibration again?");
+                }
+                takeSlack = false;
+            }
+  }
   //if we are done with all the homing moves, switch system state back to Idle?
-  if (!retractingTL && !retractingBL && !retractingBR && !retractingTR && !extendingALL && !complyALL && !calibrationInProgress) {
+  if (!retractingTL && !retractingBL && !retractingBR && !retractingTR && !extendingALL && !complyALL && !calibrationInProgress && !takeSlack ) {
       sys.set_state(State::Idle);
   }
 }
@@ -1052,10 +1060,6 @@ void Maslow_::setSafety(bool state){
     safetyOn = state;
 }
 void Maslow_::test_(){
-
-
-            x = 0;
-            y = 0;
     test = true;
 }
 void Maslow_::set_frame_width(double width){
@@ -1068,7 +1072,23 @@ void Maslow_::set_frame_height(double height){
     update_frame_xyz();
     updateCenterXY();
 }
+void Maslow_::take_slack(){
+    retractingTL = false;
+    retractingTR = false;
+    retractingBL = false;
+    retractingBR = false;
+    extendingALL = false;
+    complyALL = false;
+    axisTL.reset();
+    axisTR.reset();
+    axisBL.reset();
+    axisBR.reset();
+    log_info("pulling belts tight");
 
+    x = 0;
+    y = 0;
+    takeSlack = true;
+}
 
 //------------------------------------------------------
 //------------------------------------------------------ Utility functions
@@ -1133,6 +1153,7 @@ void Maslow_::stop(){
     complyALL = false;
     calibrationInProgress = false;
     test = false; 
+    takeSlack = false;
     axisTL.reset();
     axisTR.reset();
     axisBL.reset();

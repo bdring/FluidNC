@@ -56,6 +56,7 @@ class Maslow_ {
     void retractBR();
     void retractALL();
     void extendALL();
+    void take_slack();
     void comply();
     void stop();
     void panic();
@@ -79,6 +80,7 @@ class Maslow_ {
 
     bool extendingALL = false;
     bool complyALL = false;
+    bool takeSlack = false;
 
     bool safetyOn = true;
 
