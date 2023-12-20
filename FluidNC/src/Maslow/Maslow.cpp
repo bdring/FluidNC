@@ -39,7 +39,12 @@
 
 #define SERVOFAULT 40
 
+#define ETHERNETLEDPIN 39
+#define WIFILED 35
+#define REDLED 14
+
 int ENCODER_READ_FREQUENCY_HZ = 100; //max frequency for pollingn the encoders
+
 
 //------------------------------------------------------
 //------------------------------------------------------ Main function loops
@@ -60,16 +65,16 @@ void Maslow_::begin(void (*sys_rt)()) {
   axisTRHomed = false;
   axisTLHomed = false;
 
-  tlX = 29.747433451550485;
-  tlY = 2068.582533945923;
+  tlX = 25.4253399079432;
+  tlY = 2062.799317466706;
   tlZ = 116 + 38;
-  trX = 2974.1176084487693; 
-  trY = 2068.512981755607;
+  trX = 2976.989226934371; 
+  trY = 2065.5158023062427;
   trZ = 69 + 38;
   blX = 0;
   blY = 0;
   blZ = 47 + 38;
-  brX = 2958.908589577277;
+  brX = 2960.520761172446;
   brY = 0;
   brZ = 89 + 38;
 //Roman frame, approx
@@ -100,6 +105,12 @@ trY = 2110.326736121985;
   updateCenterXY();
 
   pinMode(coolingFanPin, OUTPUT);
+  pinMode(ETHERNETLEDPIN, OUTPUT);
+  pinMode(WIFILED, OUTPUT);
+  pinMode(REDLED, OUTPUT);
+
+  digitalWrite(ETHERNETLEDPIN, LOW);
+
   pinMode(SERVOFAULT, INPUT);
 
   currentThreshold = 1500;
@@ -110,6 +121,31 @@ trY = 2110.326736121985;
 
 // Maslow main loop, everything is processed here
 void Maslow_::update(){
+  
+    if(random(10000) == 0){
+        digitalWrite(ETHERNETLEDPIN, LOW);
+    }
+    
+    if(random(10000) == 0){
+        digitalWrite(ETHERNETLEDPIN, HIGH);
+    }
+
+    if(random(10000) == 0){
+        digitalWrite(WIFILED, LOW);
+    }
+
+    if(random(10000) == 0){
+        digitalWrite(WIFILED, HIGH);
+    }
+
+    if(random(10000) == 0){
+        digitalWrite(REDLED, LOW);
+    }
+
+    if(random(10000) == 0){
+        digitalWrite(REDLED, HIGH);
+    }
+  
     //Make sure we're running maslow config file
     if(!Maslow.using_default_config){
         lastCallToUpdate = millis();
@@ -142,17 +178,31 @@ void Maslow_::update(){
         if( sys.state() == State::Jog || sys.state() == State::Cycle  ){
 
             Maslow.setTargets(steps_to_mpos(get_axis_motor_steps(0),0), steps_to_mpos(get_axis_motor_steps(1),1), steps_to_mpos(get_axis_motor_steps(2),2));
-            Maslow.recomputePID();
+            
+            //This allows the z-axis to be moved without the motors being enabled before calibration is run
+            if(all_axis_homed()){
+                Maslow.recomputePID();
+            }
         }
         
         //--------Homing routines
         else if(sys.state() == State::Homing){
             home();
         }
-        else { //In any other state, keep motors off  
-            digitalWrite(coolingFanPin, HIGH);
+        else { //In any other state, keep motors off
             if(!test) Maslow.stopMotors();
- 
+        }
+      
+        //If we are in any state other than idle or alarm turn the cooling fan on 
+        if(sys.state() != State::Idle && sys.state() != State::Alarm){
+            digitalWrite(coolingFanPin, HIGH);  //keep the cooling fan on
+        }
+        //If we are doing calibration turn the cooling fan on
+        else if(calibrationInProgress || extendingALL || retractingTL || retractingTR || retractingBL || retractingBR){
+            digitalWrite(coolingFanPin, HIGH);  //keep the cooling fan on
+        }
+        else {
+            digitalWrite(coolingFanPin, LOW);  //Turn the cooling fan off
         }
 
         //------------------------ End of Maslow State Machine
@@ -477,15 +527,21 @@ void Maslow_::safety_control() {
             }
       }
         else axisSlackCounter[i] = 0;
-      
-}
 
-if(millis() - spamTimer > 5000){
-    for(int i = 0; i < 4; i++){
-        tick[i] = false;
+        //If the motor has a position error greater than 1mm and we are running a file or jogging
+        if( (abs(axis[i]->getPositionError()) > 1) && (sys.state() == State::Jog || sys.state() == State::Cycle) && !tick[i]){
+            log_error("Position error on " << axis_id_to_label(i).c_str() << " axis exceeded 1mm, error is " << axis[i]->getPositionError() << "mm");
+            tick[i] = true;
+        }
+      
     }
-    spamTimer = millis();
-}
+
+    if(millis() - spamTimer > 5000){
+        for(int i = 0; i < 4; i++){
+            tick[i] = false;
+        }
+        spamTimer = millis();
+    }
 }
 
 // Compute target belt lengths based on X-Y-Z coordinates
@@ -531,7 +587,6 @@ float Maslow_::computeTL(float x, float y, float z){
     float c = 0.0 - (z + tlZ);
     return sqrt(a*a+b*b+c*c) - (_beltEndExtension+_armLength);
 }
-
 
 //------------------------------------------------------
 //------------------------------------------------------ Homing and calibration functions
@@ -1135,6 +1190,7 @@ String Maslow_::axis_id_to_label(int axis_id){
     return label;
 }
 
+
 // function for outputting calibration data in the log line by line like this: {bl:2376.69,   br:923.40,   tr:1733.87,   tl:2801.87},
 void Maslow_::print_calibration_data(){
     for(int i = 0; i < CALIBRATION_GRID_SIZE; i++){
@@ -1166,7 +1222,6 @@ void Maslow_::stopMotors(){
     axisBR.stop();
     axisTR.stop();
     axisTL.stop();
-    //digitalWrite(coolingFanPin, LOW); //Turn off the cooling fan
 }
 
 // Panic function, stops all motors and sets state to alarm
