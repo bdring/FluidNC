@@ -5,44 +5,76 @@
 
 #include "I2SOut.h"
 
-#include "Config.h"
-#include "Pin.h"
-#include "Settings.h"
-#include "SettingsDefinitions.h"
-#include "Machine/MachineConfig.h"
-#include "Stepper.h"
+#include <sdkconfig.h>
 
-#include <esp_attr.h>  // IRAM_ATTR
+#ifndef CONFIG_IDF_TARGET_ESP32
+// The newer ESP32 variants have quite different I2S hardware engines
+// then the old ESP32 hardware.  For now we stub out I2S support for new ESP32s
 
-#include <freertos/FreeRTOS.h>
-#include <driver/periph_ctrl.h>
-#include <rom/lldesc.h>
-#include <soc/i2s_struct.h>
-#include <freertos/queue.h>
-#include <soc/gpio_periph.h>
-#include "Driver/fluidnc_gpio.h"
+uint8_t i2s_out_read(pinnum_t pin) {
+    return 0;
+}
+void i2s_out_write(pinnum_t pin, uint8_t val) {}
+void i2s_out_push_sample(uint32_t usec) {}
+void i2s_out_push() {}
+void i2s_out_delay() {}
+int  i2s_out_set_passthrough() {
+    return 0;
+}
+i2s_out_pulser_status_t i2s_out_get_pulser_status() {
+    return PASSTHROUGH;
+}
+int i2s_out_set_stepping() {
+    return 0;
+}
+int i2s_out_set_pulse_period(uint32_t period) {
+    return 0;
+}
+int i2s_out_reset() {
+    return 0;
+}
+int i2s_out_init() {
+    return -1;
+}
+#else
+#    include "Config.h"
+#    include "Pin.h"
+#    include "Settings.h"
+#    include "SettingsDefinitions.h"
+#    include "Machine/MachineConfig.h"
+#    include "Stepper.h"
+
+#    include <esp_attr.h>  // IRAM_ATTR
+
+#    include <freertos/FreeRTOS.h>
+#    include <driver/periph_ctrl.h>
+#    include <rom/lldesc.h>
+#    include <soc/i2s_struct.h>
+#    include <freertos/queue.h>
+#    include <soc/gpio_periph.h>
+#    include "Driver/fluidnc_gpio.h"
 
 // The <atomic> library routines are not in IRAM so they can crash when called from FLASH
 // The GCC intrinsic versions which are prefixed with __ are compiled inline
-#define USE_INLINE_ATOMIC
+#    define USE_INLINE_ATOMIC
 
-#ifdef USE_INLINE_ATOMIC
-#    define MEMORY_MODEL_FETCH __ATOMIC_RELAXED
-#    define MEMORY_MODEL_STORE __ATOMIC_RELAXED
-#    define ATOMIC_LOAD(var) __atomic_load_n(var, MEMORY_MODEL_FETCH)
-#    define ATOMIC_STORE(var, val) __atomic_store_n(var, val, MEMORY_MODEL_STORE)
-#    define ATOMIC_FETCH_AND(var, val) __atomic_fetch_and(var, val, MEMORY_MODEL_FETCH)
-#    define ATOMIC_FETCH_OR(var, val) __atomic_fetch_or(var, val, MEMORY_MODEL_FETCH)
+#    ifdef USE_INLINE_ATOMIC
+#        define MEMORY_MODEL_FETCH __ATOMIC_RELAXED
+#        define MEMORY_MODEL_STORE __ATOMIC_RELAXED
+#        define ATOMIC_LOAD(var) __atomic_load_n(var, MEMORY_MODEL_FETCH)
+#        define ATOMIC_STORE(var, val) __atomic_store_n(var, val, MEMORY_MODEL_STORE)
+#        define ATOMIC_FETCH_AND(var, val) __atomic_fetch_and(var, val, MEMORY_MODEL_FETCH)
+#        define ATOMIC_FETCH_OR(var, val) __atomic_fetch_or(var, val, MEMORY_MODEL_FETCH)
 static uint32_t i2s_out_port_data = 0;
-#else
-#    include <atomic>
-#    define ATOMIC_LOAD(var) atomic_load(var)
-#    define ATOMIC_STORE(var, val) atomic_store(var, val)
-#    define ATOMIC_FETCH_AND(var, val) atomic_fetch_and(var, val)
-#    define ATOMIC_FETCH_OR(var, val) atomic_fetch_or(var, val)
+#    else
+#        include <atomic>
+#        define ATOMIC_LOAD(var) atomic_load(var)
+#        define ATOMIC_STORE(var, val) atomic_store(var, val)
+#        define ATOMIC_FETCH_AND(var, val) atomic_fetch_and(var, val)
+#        define ATOMIC_FETCH_OR(var, val) atomic_fetch_or(var, val)
 static std::atomic<std::uint32_t> i2s_out_port_data = ATOMIC_VAR_INIT(0);
 
-#endif
+#    endif
 
 //
 // Configrations for DMA connected I2S
@@ -77,24 +109,24 @@ static intr_handle_t i2s_out_isr_handle;
 
 // inner lock
 static portMUX_TYPE i2s_out_spinlock = portMUX_INITIALIZER_UNLOCKED;
-#define I2S_OUT_ENTER_CRITICAL()                                                                                                           \
-    do {                                                                                                                                   \
-        if (xPortInIsrContext()) {                                                                                                         \
-            portENTER_CRITICAL_ISR(&i2s_out_spinlock);                                                                                     \
-        } else {                                                                                                                           \
-            portENTER_CRITICAL(&i2s_out_spinlock);                                                                                         \
-        }                                                                                                                                  \
-    } while (0)
-#define I2S_OUT_EXIT_CRITICAL()                                                                                                            \
-    do {                                                                                                                                   \
-        if (xPortInIsrContext()) {                                                                                                         \
-            portEXIT_CRITICAL_ISR(&i2s_out_spinlock);                                                                                      \
-        } else {                                                                                                                           \
-            portEXIT_CRITICAL(&i2s_out_spinlock);                                                                                          \
-        }                                                                                                                                  \
-    } while (0)
-#define I2S_OUT_ENTER_CRITICAL_ISR() portENTER_CRITICAL_ISR(&i2s_out_spinlock)
-#define I2S_OUT_EXIT_CRITICAL_ISR() portEXIT_CRITICAL_ISR(&i2s_out_spinlock)
+#    define I2S_OUT_ENTER_CRITICAL()                                                                                                       \
+        do {                                                                                                                               \
+            if (xPortInIsrContext()) {                                                                                                     \
+                portENTER_CRITICAL_ISR(&i2s_out_spinlock);                                                                                 \
+            } else {                                                                                                                       \
+                portENTER_CRITICAL(&i2s_out_spinlock);                                                                                     \
+            }                                                                                                                              \
+        } while (0)
+#    define I2S_OUT_EXIT_CRITICAL()                                                                                                        \
+        do {                                                                                                                               \
+            if (xPortInIsrContext()) {                                                                                                     \
+                portEXIT_CRITICAL_ISR(&i2s_out_spinlock);                                                                                  \
+            } else {                                                                                                                       \
+                portEXIT_CRITICAL(&i2s_out_spinlock);                                                                                      \
+            }                                                                                                                              \
+        } while (0)
+#    define I2S_OUT_ENTER_CRITICAL_ISR() portENTER_CRITICAL_ISR(&i2s_out_spinlock)
+#    define I2S_OUT_EXIT_CRITICAL_ISR() portEXIT_CRITICAL_ISR(&i2s_out_spinlock)
 
 static int i2s_out_initialized = 0;
 
@@ -109,30 +141,30 @@ static volatile i2s_out_pulser_status_t i2s_out_pulser_status = PASSTHROUGH;
 
 // outer lock
 static portMUX_TYPE i2s_out_pulser_spinlock = portMUX_INITIALIZER_UNLOCKED;
-#define I2S_OUT_PULSER_ENTER_CRITICAL()                                                                                                    \
-    do {                                                                                                                                   \
-        if (xPortInIsrContext()) {                                                                                                         \
-            portENTER_CRITICAL_ISR(&i2s_out_pulser_spinlock);                                                                              \
-        } else {                                                                                                                           \
-            portENTER_CRITICAL(&i2s_out_pulser_spinlock);                                                                                  \
-        }                                                                                                                                  \
-    } while (0)
-#define I2S_OUT_PULSER_EXIT_CRITICAL()                                                                                                     \
-    do {                                                                                                                                   \
-        if (xPortInIsrContext()) {                                                                                                         \
-            portEXIT_CRITICAL_ISR(&i2s_out_pulser_spinlock);                                                                               \
-        } else {                                                                                                                           \
-            portEXIT_CRITICAL(&i2s_out_pulser_spinlock);                                                                                   \
-        }                                                                                                                                  \
-    } while (0)
-#define I2S_OUT_PULSER_ENTER_CRITICAL_ISR() portENTER_CRITICAL_ISR(&i2s_out_pulser_spinlock)
-#define I2S_OUT_PULSER_EXIT_CRITICAL_ISR() portEXIT_CRITICAL_ISR(&i2s_out_pulser_spinlock)
+#    define I2S_OUT_PULSER_ENTER_CRITICAL()                                                                                                \
+        do {                                                                                                                               \
+            if (xPortInIsrContext()) {                                                                                                     \
+                portENTER_CRITICAL_ISR(&i2s_out_pulser_spinlock);                                                                          \
+            } else {                                                                                                                       \
+                portENTER_CRITICAL(&i2s_out_pulser_spinlock);                                                                              \
+            }                                                                                                                              \
+        } while (0)
+#    define I2S_OUT_PULSER_EXIT_CRITICAL()                                                                                                 \
+        do {                                                                                                                               \
+            if (xPortInIsrContext()) {                                                                                                     \
+                portEXIT_CRITICAL_ISR(&i2s_out_pulser_spinlock);                                                                           \
+            } else {                                                                                                                       \
+                portEXIT_CRITICAL(&i2s_out_pulser_spinlock);                                                                               \
+            }                                                                                                                              \
+        } while (0)
+#    define I2S_OUT_PULSER_ENTER_CRITICAL_ISR() portENTER_CRITICAL_ISR(&i2s_out_pulser_spinlock)
+#    define I2S_OUT_PULSER_EXIT_CRITICAL_ISR() portEXIT_CRITICAL_ISR(&i2s_out_pulser_spinlock)
 
-#if I2S_OUT_NUM_BITS == 16
-#    define DATA_SHIFT 16
-#else
-#    define DATA_SHIFT 0
-#endif
+#    if I2S_OUT_NUM_BITS == 16
+#        define DATA_SHIFT 16
+#    else
+#        define DATA_SHIFT 0
+#    endif
 
 //
 // Internal functions
@@ -418,14 +450,14 @@ static void IRAM_ATTR i2s_out_intr_handler(void* arg) {
                 port_data = ATOMIC_LOAD(&i2s_out_port_data);
             }
             I2S_OUT_PULSER_EXIT_CRITICAL_ISR();
-#ifdef CONFIG_IDF_TARGET_ESP32
+#    ifdef CONFIG_IDF_TARGET_ESP32
             // lldesc_t.buf is const for S2.  Perhaps we can get by
             // without replacing the data in the buffer since we are
             // already in an error situation.
             for (int i = 0; i < DMA_SAMPLE_COUNT; i++) {
                 front_desc->buf[i] = port_data;
             }
-#endif
+#    endif
             front_desc->length = I2S_OUT_DMABUF_LEN;
         }
 
@@ -493,9 +525,9 @@ static void i2sOutTask(void* parameter) {
         I2S_OUT_PULSER_EXIT_CRITICAL();  // Unlock pulser status
 
         static UBaseType_t uxHighWaterMark = 0;
-#ifdef DEBUG_TASK_STACK
+#    ifdef DEBUG_TASK_STACK
         reportTaskStackSize(uxHighWaterMark);
-#endif
+#    endif
     }
 }
 
@@ -753,12 +785,12 @@ int i2s_out_init(i2s_out_init_t& init_param) {
     I2S0.lc_conf.out_eof_mode       = 1;  // I2S_OUT_EOF_INT generated when DMA has popped all data from the FIFO;
     I2S0.conf2.lcd_en               = 0;
     I2S0.conf2.camera_en            = 0;
-#ifdef SOC_I2S_SUPPORTS_PDM_TX
+#    ifdef SOC_I2S_SUPPORTS_PDM_TX
     // i2s_ll_tx_enable_pdm(dev, false);
     // i2s_ll_tx_enable_pdm(dev2, false);
     I2S0.pdm_conf.pcm2pdm_conv_en = 0;
     I2S0.pdm_conf.pdm2pcm_conv_en = 0;
-#endif
+#    endif
 
     I2S0.fifo_conf.dscr_en = 0;
 
@@ -772,19 +804,19 @@ int i2s_out_init(i2s_out_init_t& init_param) {
         I2S0.conf_single_data      = init_param.init_val;
     }
 
-#if I2S_OUT_NUM_BITS == 16
+#    if I2S_OUT_NUM_BITS == 16
     I2S0.fifo_conf.tx_fifo_mod        = 0;   // 0: 16-bit dual channel data, 3: 32-bit single channel data
     I2S0.fifo_conf.rx_fifo_mod        = 0;   // 0: 16-bit dual channel data, 3: 32-bit single channel data
     I2S0.sample_rate_conf.tx_bits_mod = 16;  // default is 16-bits
     I2S0.sample_rate_conf.rx_bits_mod = 16;  // default is 16-bits
-#else
+#    else
     I2S0.fifo_conf.tx_fifo_mod = 3;  // 0: 16-bit dual channel data, 3: 32-bit single channel data
     I2S0.fifo_conf.rx_fifo_mod = 3;  // 0: 16-bit dual channel data, 3: 32-bit single channel data
     // Data width is 32-bit. Forgetting this setting will result in a 16-bit transfer.
     I2S0.sample_rate_conf.tx_bits_mod = 32;
     I2S0.sample_rate_conf.rx_bits_mod = 32;
-#endif
-    I2S0.conf.tx_mono = 0;  // Set this bit to enable transmitter’s mono mode in PCM standard mode.
+#    endif
+    I2S0.conf.tx_mono                 = 0;   // Set this bit to enable transmitter’s mono mode in PCM standard mode.
 
     I2S0.conf_chan.rx_chan_mod = 1;  // 1: right+right
     I2S0.conf.rx_mono          = 0;
@@ -798,14 +830,14 @@ int i2s_out_init(i2s_out_init_t& init_param) {
 
     I2S0.conf.tx_slave_mod              = 0;  // Master
     I2S0.fifo_conf.tx_fifo_mod_force_en = 1;  //The bit should always be set to 1.
-#ifdef SOC_I2S_SUPPORTS_PDM_RX
+#    ifdef SOC_I2S_SUPPORTS_PDM_RX
     //i2s_ll_rx_enable_pdm(dev, false);
     I2S0.pdm_conf.rx_pdm_en = 0;  // Set this bit to enable receiver’s PDM mode.
-#endif
-#ifdef SOC_I2S_SUPPORTS_PDM_TX
+#    endif
+#    ifdef SOC_I2S_SUPPORTS_PDM_TX
     //i2s_ll_tx_enable_pdm(dev, false);
     I2S0.pdm_conf.tx_pdm_en = 0;  // Set this bit to enable transmitter’s PDM mode.
-#endif
+#    endif
 
     // I2S_COMM_FORMAT_I2S_LSB
     I2S0.conf.tx_short_sync = 0;  // Set this bit to enable transmitter in PCM standard mode.
@@ -818,20 +850,20 @@ int i2s_out_init(i2s_out_init_t& init_param) {
     //
 
     // set clock (fi2s) 160MHz / 5
-#ifdef CONFIG_IDF_TARGET_ESP32
+#    ifdef CONFIG_IDF_TARGET_ESP32
     // i2s_ll_rx_clk_set_src(dev, I2S_CLK_D2CLK);
     I2S0.clkm_conf.clka_en = 0;  // Use 160 MHz PLL_D2_CLK as reference
-#endif
+#    endif
         // N + b/a = 0
-#if I2S_OUT_NUM_BITS == 16
+#    if I2S_OUT_NUM_BITS == 16
     // N = 10
     I2S0.clkm_conf.clkm_div_num = 10;  // minimum value of 2, reset value of 4, max 256 (I²S clock divider’s integral value)
-#else
+#    else
     // N = 5
     // 5 could be changed to 2 to make I2SO pulse at 312.5 kHZ instead of 125 kHz, but doing so would
     // require some changes to deal with pulse lengths that are not an integral number of microseconds.
     I2S0.clkm_conf.clkm_div_num = 5;  // minimum value of 2, reset value of 4, max 256 (I²S clock divider’s integral value)
-#endif
+#    endif
     // b/a = 0
     I2S0.clkm_conf.clkm_div_b = 0;  // 0 at reset
     I2S0.clkm_conf.clkm_div_a = 0;  // 0 at reset, what about divide by 0? (not an issue)
@@ -855,7 +887,7 @@ int i2s_out_init(i2s_out_init_t& init_param) {
                             "I2SOutTask",
                             4096,
                             NULL,
-                            1,
+                            3,
                             nullptr,
                             CONFIG_ARDUINO_RUNNING_CORE  // must run the task on same core
     );
@@ -876,9 +908,9 @@ int i2s_out_init(i2s_out_init_t& init_param) {
     return 0;
 }
 
-#ifndef I2S_OUT_INIT_VAL
-#    define I2S_OUT_INIT_VAL 0
-#endif
+#    ifndef I2S_OUT_INIT_VAL
+#        define I2S_OUT_INIT_VAL 0
+#    endif
 /*
   Initialize I2S out by default parameters.
 
@@ -915,3 +947,4 @@ int i2s_out_init() {
         return i2s_out_init(default_param);
     }
 }
+#endif

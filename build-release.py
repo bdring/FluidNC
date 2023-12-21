@@ -6,6 +6,7 @@ from shutil import copy
 from zipfile import ZipFile, ZipInfo
 import subprocess, os, sys, shutil
 import urllib.request
+import io, hashlib
 
 verbose = '-v' in sys.argv
 
@@ -24,7 +25,7 @@ def buildEnv(pioEnv, verbose=True, extraArgs=None):
     if verbose:
         app = subprocess.Popen(cmd, env=environ)
     else:
-        app = subprocess.Popen(cmd, env=environ, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, bufsize=1)
+        app = subprocess.Popen(cmd, env=environ, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
         for line in app.stdout:
             line = line.decode('utf8')
             if "Took" in line or 'Uploading' in line or ("error" in line.lower() and "Compiling" not in line):
@@ -41,7 +42,7 @@ def buildFs(pioEnv, verbose=verbose, extraArgs=None):
     if verbose:
         app = subprocess.Popen(cmd, env=environ)
     else:
-        app = subprocess.Popen(cmd, env=environ, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, bufsize=1)
+        app = subprocess.Popen(cmd, env=environ, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
         for line in app.stdout:
             line = line.decode('utf8')
             if "Took" in line or 'Uploading' in line or ("error" in line.lower() and "Compiling" not in line):
@@ -71,17 +72,165 @@ relPath = os.path.join('release')
 if not os.path.exists(relPath):
     os.makedirs(relPath)
 
+manifestRelPath = os.path.join(relPath, 'current')
+if os.path.exists(manifestRelPath):
+    shutil.rmtree(manifestRelPath)
+
+os.makedirs(manifestRelPath)
+
+# Copy the web application to the release directory
+dataRelPath = os.path.join(manifestRelPath, 'data')
+os.makedirs(dataRelPath)
+shutil.copy(os.path.join("FluidNC", "data", "index.html.gz"), dataRelPath)
+
+manifest = {
+        "name": "FluidNC",
+        "version": tag,
+        "source_url": "https://github.com/bdring/FluidNC/tree/" + tag,
+        "release_url": "https://github.com/bdring/FluidNC/releases/tag/" + tag,
+        "funding_url": "https://www.paypal.com/donate/?hosted_button_id=8DYLB6ZYYDG7Y",
+        "images": {},
+        "installable": {
+            "name": "installable",
+            "description": "Things you can install",
+            "choice-name": "Processor type",
+            "choices": []
+        },
+}
+
 # We avoid doing this every time, instead checking in a new NoFile.h as necessary
 # if buildEmbeddedPage() != 0:
 #    sys.exit(1)
 
-if buildFs('wifi', verbose=verbose) != 0:
-    sys.exit(1)
+# if buildFs('wifi', verbose=verbose) != 0:
+#     sys.exit(1)
 
-for envName in ['wifi','bt']:
-    if buildEnv(envName, verbose=verbose) != 0:
+def addImage(name, offset, filename, srcpath, dstpath):
+    fulldstpath = os.path.join(manifestRelPath,os.path.normpath(dstpath))
+
+    os.makedirs(fulldstpath, exist_ok=True)
+
+    fulldstfile = os.path.join(fulldstpath, filename)
+
+    shutil.copy(os.path.join(srcpath, filename), fulldstfile)
+
+    print("image ", name)
+
+    with open(fulldstfile, "rb") as f:
+        data = f.read()
+    image = {
+        # "name": name,
+        "size": os.path.getsize(fulldstfile),
+        "offset": offset,
+        "path": dstpath + '/' + filename,
+        "signature": {
+            "algorithm": "SHA2-256",
+            "value": hashlib.sha256(data).hexdigest()
+        }
+    }
+    if manifest['images'].get(name) != None:
+        print("Duplicate image name", name)
         sys.exit(1)
-    shutil.copy(os.path.join('.pio', 'build', envName, 'firmware.elf'), os.path.join(relPath, envName + '-' + 'firmware.elf'))
+    manifest['images'][name] = image
+    # manifest['images'].append(image)
+
+flashsize = "4m"
+
+mcu = "esp32"
+for mcu in ['esp32']:
+    for envName in ['wifi','bt', 'noradio']:
+        if buildEnv(envName, verbose=verbose) != 0:
+            sys.exit(1)
+        buildDir = os.path.join('.pio', 'build', envName)
+        shutil.copy(os.path.join(buildDir, 'firmware.elf'), os.path.join(relPath, envName + '-' + 'firmware.elf'))
+
+        addImage(mcu + '-' + envName + '-firmware', '0x10000', 'firmware.bin', buildDir, mcu + '/' + envName)
+
+        if envName == 'wifi':
+            if buildFs('wifi', verbose=verbose) != 0:
+                sys.exit(1)
+
+            # bootapp is a data partition that the bootloader and OTA use to determine which
+            # image to run.  Its initial value is in a file "boot_app0.bin" in the platformio
+            # framework package.  We copy it to the build directory so addImage can find it
+            bootappsrc = os.path.join(os.path.expanduser('~'),'.platformio','packages','framework-arduinoespressif32','tools','partitions', 'boot_app0.bin')
+            shutil.copy(bootappsrc, buildDir)
+
+            addImage(mcu + '-' + envName + '-' + flashsize + '-filesystem', '0x3d0000', 'littlefs.bin', buildDir, mcu + '/' + envName + '/' + flashsize)
+            addImage(mcu + '-' + flashsize + '-partitions', '0x8000', 'partitions.bin', buildDir, mcu + '/' + flashsize)
+            addImage(mcu + '-bootloader', '0x1000', 'bootloader.bin', buildDir, mcu)
+            addImage(mcu + '-bootapp', '0xe000', 'boot_app0.bin', buildDir, mcu)
+
+def addSection(node, name, description, choice):
+    section = {
+        "name": name,
+        "description": description,
+    }
+    if choice != None:
+        section['choice-name'] = choice
+        section['choices'] = []
+    node.append(section)
+
+def addMCU(name, description, choice=None):
+    addSection(manifest['installable']['choices'], name, description, choice)
+
+def addVariant(variant, description, choice=None):
+    node1 = manifest['installable']['choices']
+    node1len = len(node1)
+    addSection(node1[node1len-1]['choices'], variant, description, choice)
+
+def addInstallable(install_type, erase, images):
+    for image in images:
+        if manifest['images'].get(image) == None:
+            # imagefiles = [obj for obj in manifest['images'] if obj['name'] == image]
+            # if len(imagefiles) == 0:
+            print("Missing image", image)
+            sys.exit(1)
+        # if len(imagefiles) > 1:
+        #    print("Duplicate image", image)
+        #    sys.exit(2)
+                      
+    node1 = manifest['installable']['choices']
+    node1len = len(node1)
+    node2 = node1[node1len-1]['choices']
+    node2len = len(node2)
+    installable = {
+        "name": install_type["name"],
+        "description": install_type["description"],
+        "erase": erase,
+        "images": images
+    }
+    node2[node2len-1]['choices'].append(installable)
+
+fresh_install = { "name": "fresh-install", "description": "Complete FluidNC installation, erasing all previous data"}
+firmware_update = { "name": "firmware-update", "description": "Update FluidNC to latest firmware version, preserving previous filesystem data."}
+filesystem_update = { "name": "filesystem-update", "description": "Update FluidNC filesystem only, erasing previous filesystem data."}
+
+def makeManifest():
+    addMCU("esp32", "ESP32-WROOM", "Firmware variant")
+
+    addVariant("wifi", "Supports WiFi and WebUI", "Installation type")
+    addInstallable(fresh_install, True, ["esp32-4m-partitions", "esp32-bootloader", "esp32-bootapp", "esp32-wifi-firmware", "esp32-wifi-4m-filesystem"])
+    addInstallable(firmware_update, False, ["esp32-wifi-firmware"])
+    addInstallable(filesystem_update, False, ["esp32-wifi-4m-filesystem"])
+
+    addVariant("bt", "Supports Bluetooth serial", "Installation type")
+    addInstallable(fresh_install, True, ["esp32-4m-partitions", "esp32-bootloader", "esp32-bootapp", "esp32-bt-firmware"])
+    addInstallable(firmware_update, False, ["esp32-bt-firmware"])
+
+    addVariant("noradio", "Supports neither WiFi nor Bluetooth", "Installation type")
+    addInstallable(fresh_install, True, ["esp32-4m-partitions", "esp32-bootloader", "esp32-bootapp", "esp32-noradio-firmware"])
+    addInstallable(firmware_update, False, ["esp32-noradio-firmware"])
+
+makeManifest()
+
+import json
+def printManifest():
+    print(json.dumps(manifest, indent=2))
+
+with open(os.path.join(manifestRelPath, "manifest.json"), "w") as manifest_file:
+    json.dump(manifest, manifest_file, indent=2)
+                 
 
 for platform in ['win64', 'posix']:
     print("Creating zip file for ", platform)
@@ -111,11 +260,9 @@ for platform in ['win64', 'posix']:
 
         pioPath = os.path.join('.pio', 'build')
 
-        # Put bootloader binaries in the archive
-        tools = os.path.join(os.path.expanduser('~'),'.platformio','packages','framework-arduinoespressif32','tools')
-        bootloader = 'bootloader_dio_80m.bin'
-        zipObj.write(os.path.join(tools, 'sdk', 'esp32', 'bin', bootloader), os.path.join(zipDirName, 'common', bootloader))
+        # Put boot_app binary in the archive
         bootapp = 'boot_app0.bin';
+        tools = os.path.join(os.path.expanduser('~'),'.platformio','packages','framework-arduinoespressif32','tools')
         zipObj.write(os.path.join(tools, "partitions", bootapp), os.path.join(zipDirName, 'common', bootapp))
         for secFuses in ['SecurityFusesOK.bin', 'SecurityFusesOK0.bin']:
             zipObj.write(os.path.join(sharedPath, 'common', secFuses), os.path.join(zipDirName, 'common', secFuses))
@@ -123,10 +270,14 @@ for platform in ['win64', 'posix']:
         # Put FluidNC binaries, partition maps, and installers in the archive
         for envName in ['wifi','bt']:
 
-            # Put spiffs.bin and index.html.gz in the archive
-            # bt does not need a spiffs.bin because there is no use for index.html.gz
+            # Put bootloader binaries in the archive
+            bootloader = 'bootloader.bin'
+            zipObj.write(os.path.join(pioPath, envName, bootloader), os.path.join(zipDirName, envName, bootloader))
+
+            # Put littlefs.bin and index.html.gz in the archive
+            # bt does not need a littlefs.bin because there is no use for index.html.gz
             if envName == 'wifi':
-                name = 'spiffs.bin'
+                name = 'littlefs.bin'
                 zipObj.write(os.path.join(pioPath, envName, name), os.path.join(zipDirName, envName, name))
                 name = 'index.html.gz'
                 zipObj.write(os.path.join('FluidNC', 'data', name), os.path.join(zipDirName, envName, name))

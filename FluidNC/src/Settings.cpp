@@ -12,6 +12,9 @@
 #include <vector>
 #include <nvs.h>
 
+std::vector<Setting*> Setting::List __attribute__((init_priority(101))) = {};
+std::vector<Command*> Command::List __attribute__((init_priority(102))) = {};
+
 bool anyState() {
     return false;
 }
@@ -28,24 +31,18 @@ bool cycleOrHold() {
 Word::Word(type_t type, permissions_t permissions, const char* description, const char* grblName, const char* fullName) :
     _description(description), _grblName(grblName), _fullName(fullName), _type(type), _permissions(permissions) {}
 
-Command* Command::List = NULL;
-
 Command::Command(
     const char* description, type_t type, permissions_t permissions, const char* grblName, const char* fullName, bool (*cmdChecker)()) :
     Word(type, permissions, description, grblName, fullName),
     _cmdChecker(cmdChecker) {
-    link = List;
-    List = this;
+    List.insert(List.begin(), this);
 }
-
-Setting* Setting::List = NULL;
 
 Setting::Setting(
     const char* description, type_t type, permissions_t permissions, const char* grblName, const char* fullName, bool (*checker)(char*)) :
     Word(type, permissions, description, grblName, fullName),
     _checker(checker) {
-    link = List;
-    List = this;
+    List.insert(List.begin(), this);
 
     // NVS keys are limited to 15 characters, so if the setting name is longer
     // than that, we derive a 15-character name from a hash function
@@ -220,7 +217,7 @@ void StringSetting::load() {
         _currentValue = _defaultValue;
         return;
     }
-    _storedValue  = String(buf);
+    _storedValue  = buf;
     _currentValue = _storedValue;
 }
 
@@ -265,10 +262,10 @@ static bool isPassword(bool (*_checker)(char*)) {
 
 const char* StringSetting::getDefaultString() {
     // If the string is a password do not display it
-    return (_checker && isPassword(_checker)) ? "******" : _defaultValue.c_str();
+    return (_checker && isPassword(_checker)) ? "********" : _defaultValue.c_str();
 }
 const char* StringSetting::getStringValue() {
-    return (_checker && isPassword(_checker)) ? "******" : get();
+    return (_checker && isPassword(_checker)) ? "********" : get();
 }
 
 void StringSetting::addWebui(WebUI::JSONencoder* j) {
@@ -376,7 +373,7 @@ const char* EnumSetting::getStringValue() {
 }
 
 void EnumSetting::showList() {
-    String optList = "";
+    std::string optList = "";
     for (enum_opt_t::iterator it = _options->begin(); it != _options->end(); it++) {
         optList = optList + " " + it->first;
     }
@@ -387,7 +384,7 @@ void EnumSetting::addWebui(WebUI::JSONencoder* j) {
     if (!getDescription()) {
         return;
     }
-    j->begin_webui(getName(), getName(), "B", String(get()).c_str());
+    j->begin_webui(getName(), getName(), "B", get());
     j->begin_array("O");
     for (enum_opt_t::iterator it = _options->begin(); it != _options->end(); it++) {
         j->begin_object();
@@ -505,14 +502,14 @@ Error IPaddrSetting::setStringValue(char* s) {
 }
 
 const char* IPaddrSetting::getDefaultString() {
-    static String s;
-    s = IPAddress(_defaultValue).toString();
-    return s.c_str();
+    static char ipstr[50];
+    strncpy(ipstr, IP_string(IPAddress(_defaultValue)).c_str(), 50);
+    return ipstr;
 }
 const char* IPaddrSetting::getStringValue() {
-    static String s;
-    s = IPAddress(get()).toString();
-    return s.c_str();
+    static char ipstr[50];
+    strncpy(ipstr, IP_string(IPAddress(get())).c_str(), 50);
+    return ipstr;
 }
 
 void IPaddrSetting::addWebui(WebUI::JSONencoder* j) {

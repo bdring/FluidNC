@@ -24,11 +24,6 @@ enum SettingsRestore {
 // Restore subsets of settings to default values
 void settings_restore(uint8_t restore_flag);
 
-// Command::List is a linked list of all settings,
-// so common code can enumerate them.
-class Command;
-// extern Command *CommandsList;
-
 // This abstract class defines the generic interface that
 // is used to set and get values for all settings independent
 // of their underlying data type.  The values are always
@@ -78,12 +73,12 @@ public:
 
 class Command : public Word {
 protected:
-    Command* link;  // linked list of setting objects
     bool (*_cmdChecker)();
 
 public:
-    static Command* List;
-    Command*        next() { return link; }
+    // Command::List is a vector of all commands,
+    // so common code can enumerate them.
+    static std::vector<Command*> List;
 
     ~Command() {}
     Command(const char* description, type_t type, permissions_t permissions, const char* grblName, const char* fullName, bool (*cmdChecker)());
@@ -99,8 +94,7 @@ class Setting : public Word {
 private:
 protected:
     // group_t _group;
-    axis_t   _axis = NO_AXIS;
-    Setting* link;  // linked list of setting objects
+    axis_t _axis = NO_AXIS;
 
     bool (*_checker)(char*);
     const char* _keyName;
@@ -108,8 +102,10 @@ protected:
 public:
     static nvs_handle _handle;
     static void       init();
-    static Setting*   List;
-    Setting*          next() { return link; }
+
+    // Setting::List is a vector of all settings,
+    // so common code can enumerate them.
+    static std::vector<Setting*> List;
 
     Error check(char* s);
 
@@ -154,8 +150,7 @@ public:
     virtual void addWebui(WebUI::JSONencoder*) {};
 
     virtual Error       setStringValue(char* value) = 0;
-    Error               setStringValue(String s) { return setStringValue(s.c_str()); }
-    virtual const char* getStringValue() = 0;
+    virtual const char* getStringValue()            = 0;
     virtual const char* getCompatibleValue() { return getStringValue(); }
     virtual const char* getDefaultString() = 0;
 };
@@ -229,12 +224,12 @@ extern Coordinates* coords[CoordIndex::End];
 
 class StringSetting : public Setting {
 private:
-    String _defaultValue;
-    String _currentValue;
-    String _storedValue;
-    int    _minLength;
-    int    _maxLength;
-    void   _setStoredValue(const char* s);
+    std::string _defaultValue;
+    std::string _currentValue;
+    std::string _storedValue;
+    int         _minLength;
+    int         _maxLength;
+    void        _setStoredValue(const char* s);
 
 public:
     StringSetting(const char*   description,

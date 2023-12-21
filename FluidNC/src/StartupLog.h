@@ -6,19 +6,16 @@
 #include "Config.h"
 
 #include "Channel.h"
-#include <queue>
 
 class StartupLog : public Channel {
-private:
-    std::string _messages;
-
 public:
-    StartupLog(const char* name) : Channel(name) {}
+    StartupLog() : Channel("Startup Log") {}
     virtual ~StartupLog();
 
-    size_t      write(uint8_t data) override;
-    std::string messages();
-    void        dump(Channel& channel);
+    size_t write(uint8_t data) override;
+
+    static void init();
+    static void dump(Channel& channel);
 };
 
 extern StartupLog startupLog;

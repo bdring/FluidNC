@@ -6,7 +6,7 @@
 #include "../Assert.h"
 
 namespace Pins {
-    ErrorPinDetail::ErrorPinDetail(const String& descr) : PinDetail(0), _description(descr) {}
+    ErrorPinDetail::ErrorPinDetail(std::string_view descr) : PinDetail(0), _description(descr) {}
 
     PinCapabilities ErrorPinDetail::capabilities() const { return PinCapabilities::Error; }
 
@@ -33,5 +33,8 @@ namespace Pins {
 
     PinAttributes ErrorPinDetail::getAttr() const { return PinAttributes::None; }
 
-    String ErrorPinDetail::toString() { return "ERROR_PIN (for " + _description + ")"; }
+    std::string ErrorPinDetail::toString() {
+        std::string s("ERROR_PIN (for ");
+        return s + _description + ")";
+    }
 }

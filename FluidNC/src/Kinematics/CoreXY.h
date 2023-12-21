@@ -36,11 +36,11 @@ namespace Kinematics {
         bool limitReached(AxisMask& axisMask, MotorMask& motors, MotorMask limited);
 
         // Configuration handlers:
-        void         validate() const override {}
+        void         validate() override {}
         virtual void group(Configuration::HandlerBase& handler) override;
         void         afterParse() override {}
 
-        void transform_cartesian_to_motors(float* motors, float* cartesian) override;
+        bool transform_cartesian_to_motors(float* motors, float* cartesian) override;
 
         // Name of the configurable. Must match the name registered in the cpp file.
         virtual const char* name() const override { return "CoreXY"; }

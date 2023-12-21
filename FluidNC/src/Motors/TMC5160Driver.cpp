@@ -21,7 +21,7 @@ namespace MotorDrivers {
         if (_cs_pin.capabilities().has(Pin::Capabilities::I2S)) {
             tmc5160->setSPISpeed(_spi_freq);
         }
-        TrinamicSpiDriver::finalInit();
+        registration();
     }
 
     void TMC5160Driver::config_motor() {
@@ -29,9 +29,7 @@ namespace MotorDrivers {
         TrinamicBase::config_motor();
     }
 
-    bool TMC5160Driver::test() {
-        return checkVersion(0x30, tmc5160->version());
-    }
+    bool TMC5160Driver::test() { return checkVersion(0x30, tmc5160->version()); }
 
     void TMC5160Driver::set_registers(bool isHoming) {
         if (_has_errors) {
@@ -82,13 +80,13 @@ namespace MotorDrivers {
                 }
         }
         // dump the registers. This is helpful for people migrating to the Pro version
-        log_debug("CHOPCONF: 0x" << String(tmc5160->CHOPCONF(), HEX));
-        log_debug("COOLCONF: 0x" << String(tmc5160->COOLCONF(), HEX));
-        log_debug("THIGH: 0x" << String(tmc5160->THIGH(), HEX));
-        log_debug("TCOOLTHRS: 0x" << String(tmc5160->TCOOLTHRS(), HEX));
-        log_debug("GCONF: 0x" << String(tmc5160->GCONF(), HEX));
-        log_debug("PWMCONF: 0x" << String(tmc5160->PWMCONF(), HEX));
-        log_debug("IHOLD_IRUN: 0x" << String(tmc5160->IHOLD_IRUN(), HEX));
+        log_verbose("CHOPCONF: " << to_hex(tmc5160->CHOPCONF()));
+        log_verbose("COOLCONF: " << to_hex(tmc5160->COOLCONF()));
+        log_verbose("THIGH: " << to_hex(tmc5160->THIGH()));
+        log_verbose("TCOOLTHRS: " << to_hex(tmc5160->TCOOLTHRS()));
+        log_verbose("GCONF: " << to_hex(tmc5160->GCONF()));
+        log_verbose("PWMCONF: " << to_hex(tmc5160->PWMCONF()));
+        log_verbose("IHOLD_IRUN: " << to_hex(tmc5160->IHOLD_IRUN()));
     }
 
     // Report diagnostic and tuning info

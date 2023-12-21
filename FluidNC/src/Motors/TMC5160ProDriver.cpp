@@ -18,7 +18,7 @@ namespace MotorDrivers {
         if (_cs_pin.capabilities().has(Pin::Capabilities::I2S)) {
             tmc5160->setSPISpeed(_spi_freq);
         }
-        TrinamicSpiDriver::finalInit();
+        registration();
     }
 
     void TMC5160ProDriver::config_motor() {
@@ -26,9 +26,7 @@ namespace MotorDrivers {
         TrinamicBase::config_motor();
     }
 
-    bool TMC5160ProDriver::test() {
-        return checkVersion(0x30, tmc5160->version());
-    }
+    bool TMC5160ProDriver::test() { return checkVersion(0x30, tmc5160->version()); }
 
     void TMC5160ProDriver::set_registers(bool isHoming) {
         if (_has_errors) {

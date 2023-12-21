@@ -10,11 +10,14 @@
 #    include "Commands.h"   // COMMANDS
 #    include "WebSettings.h"
 
+#    include "esp_bt.h"
+#    include "esp_bt_main.h"
+
 #    include <cstdint>
 
 // SerialBT sends the data over Bluetooth
 namespace WebUI {
-    BTConfig        bt_config;
+    BTConfig        bt_config __attribute__((init_priority(105))) ;
     BluetoothSerial SerialBT;
     BTChannel       btChannel;
 }
@@ -148,6 +151,13 @@ namespace WebUI {
         return Channel::pollLine(line);
     }
 
+    void BTConfig::releaseMem() {
+        log_debug("Releasing Bluetooth memory");
+        esp_bt_mem_release(ESP_BT_MODE_CLASSIC_BT);
+        esp_bt_mem_release(ESP_BT_MODE_BLE);
+        log_debug("Heap: " << xPortGetFreeHeapSize());
+    }
+
     /**
      * begin WiFi setup
      */
@@ -158,25 +168,23 @@ namespace WebUI {
         //stop active services
         end();
 
-        if (!bt_enable->get()) {
-            log_info("Bluetooth not enabled");
-            return false;
-        }
-
+        log_debug("Heap: " << xPortGetFreeHeapSize());
         _btname = bt_name->getStringValue();
-
-        if (_btname.length()) {
-            if (!SerialBT.begin(_btname)) {
+        if (bt_enable->get() && _btname.length()) {
+            esp_bt_mem_release(ESP_BT_MODE_BLE);
+            log_debug("Heap: " << xPortGetFreeHeapSize());
+            if (!SerialBT.begin(_btname.c_str())) {
                 log_error("Bluetooth failed to start");
                 return false;
             }
+
             SerialBT.register_callback(&my_spp_cb);
             log_info("BT Started with " << _btname);
             allChannels.registration(&btChannel);
             return true;
         }
+        releaseMem();
         log_info("BT is not enabled");
-        end();
         return false;
     }
 

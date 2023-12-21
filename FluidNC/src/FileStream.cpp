@@ -3,13 +3,12 @@
 
 #include "FileStream.h"
 #include "Machine/MachineConfig.h"  // config->
-#include "Driver/localfs.h"
 
-String FileStream::path() {
+std::string FileStream::path() {
     return _fpath.c_str();
 }
 
-String FileStream::name() {
+std::string FileStream::name() {
     return path();
 }
 

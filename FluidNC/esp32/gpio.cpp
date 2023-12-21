@@ -38,26 +38,11 @@ void gpio_mode(pinnum_t pin, bool input, bool output, bool pullup, bool pulldown
     if (opendrain) {
         conf.mode = (gpio_mode_t)((int)conf.mode | GPIO_MODE_DEF_OD);
     }
-    log_debug("gpio conf " << conf.pull_up_en << " " << pin);
     gpio_config(&conf);
 }
-void IRAM_ATTR gpio_set_interrupt_type(pinnum_t pin, int mode) {
-    gpio_int_type_t type = GPIO_INTR_DISABLE;
-    // Do not use switch here because it is not IRAM_ATTR safe
-    if (mode == Pin::RISING_EDGE) {
-        type = GPIO_INTR_POSEDGE;
-    } else if (mode == Pin::FALLING_EDGE) {
-        type = GPIO_INTR_NEGEDGE;
-    } else if (mode == Pin::EITHER_EDGE) {
-        type = GPIO_INTR_ANYEDGE;
-    }
-    gpio_set_intr_type((gpio_num_t)pin, type);
-}
-
+#if 0
 void gpio_add_interrupt(pinnum_t pin, int mode, void (*callback)(void*), void* arg) {
     gpio_install_isr_service(ESP_INTR_FLAG_IRAM);  // Will return an err if already called
-
-    gpio_set_interrupt_type(pin, mode);
 
     gpio_num_t gpio = (gpio_num_t)pin;
     gpio_isr_handler_add(gpio, callback, arg);
@@ -82,6 +67,100 @@ void gpio_route(pinnum_t pin, uint32_t signal) {
     gpio_set_direction(gpio, (gpio_mode_t)GPIO_MODE_DEF_OUTPUT);
     gpio_matrix_out(gpio, signal, 0, 0);
 }
+#endif
+
+typedef uint64_t gpio_mask_t;
+
+// Can be used to display gpio_mask_t data for debugging
+static const char* g_to_hex(gpio_mask_t n) {
+    static char hexstr[24];
+    snprintf(hexstr, 22, "0x%llx", n);
+    return hexstr;
+}
+
+static gpio_mask_t gpios_inverted = 0;  // GPIOs that are active low
+static gpio_mask_t gpios_interest = 0;  // GPIOs with an action
+static gpio_mask_t gpios_current  = 0;  // The last GPIO action events that were sent
+
+static int32_t gpio_next_event_ticks[GPIO_NUM_MAX + 1] = { 0 };
+static int32_t gpio_deltat_ticks[GPIO_NUM_MAX + 1]     = { 0 };
+
+// Do not send events for changes that occur too soon
+static void gpio_set_rate_limit(int gpio_num, uint32_t ms) {
+    gpio_deltat_ticks[gpio_num] = ms * portTICK_PERIOD_MS;
+}
+
+static inline gpio_mask_t get_gpios() {
+    return ((((uint64_t)REG_READ(GPIO_IN1_REG)) << 32) | REG_READ(GPIO_IN_REG)) ^ gpios_inverted;
+}
+static gpio_mask_t gpio_mask(int gpio_num) {
+    return 1ULL << gpio_num;
+}
+static inline bool gpio_is_active(int gpio_num) {
+    return get_gpios() & gpio_mask(gpio_num);
+}
+static void gpios_update(gpio_mask_t& gpios, int gpio_num, bool active) {
+    if (active) {
+        gpios |= gpio_mask(gpio_num);
+    } else {
+        gpios &= ~gpio_mask(gpio_num);
+    }
+}
+
+static gpio_dispatch_t gpioActions[GPIO_NUM_MAX + 1] = { nullptr };
+static void*           gpioArgs[GPIO_NUM_MAX + 1];
+
+void gpio_set_action(int gpio_num, gpio_dispatch_t action, void* arg, bool invert) {
+    gpioActions[gpio_num] = action;
+    gpioArgs[gpio_num]    = arg;
+    gpio_mask_t mask      = gpio_mask(gpio_num);
+    gpios_update(gpios_interest, gpio_num, true);
+    gpios_update(gpios_inverted, gpio_num, invert);
+    gpio_set_rate_limit(gpio_num, 5);
+    bool active = gpio_is_active(gpio_num);
+
+    // Set current to the opposite of the current state so the first poll will send the current state
+    gpios_update(gpios_current, gpio_num, !active);
+}
+void gpio_clear_action(int gpio_num) {
+    gpioActions[gpio_num] = nullptr;
+    gpioArgs[gpio_num]    = nullptr;
+    gpios_update(gpios_interest, gpio_num, false);
+}
+
+static void gpio_send_action(int gpio_num, bool active) {
+    auto    end_ticks  = gpio_next_event_ticks[gpio_num];
+    int32_t this_ticks = int32_t(xTaskGetTickCount());
+    if (end_ticks == 0 || ((this_ticks - end_ticks) > 0)) {
+        end_ticks = this_ticks + gpio_deltat_ticks[gpio_num];
+        if (end_ticks == 0) {
+            end_ticks = 1;
+        }
+        gpio_next_event_ticks[gpio_num] = end_ticks;
+
+        gpio_dispatch_t action = gpioActions[gpio_num];
+        if (action) {
+            action(gpio_num, gpioArgs[gpio_num], active);
+        }
+        gpios_update(gpios_current, gpio_num, active);
+    }
+}
+
+void poll_gpios() {
+    gpio_mask_t gpios_active  = get_gpios();
+    gpio_mask_t gpios_changed = (gpios_active ^ gpios_current) & gpios_interest;
+    if (gpios_changed) {
+        int zeros;
+        while ((zeros = __builtin_clzll(gpios_changed)) != 64) {
+            int gpio_num = 63 - zeros;
+            gpio_send_action(gpio_num, gpios_active & gpio_mask(gpio_num));
+            // Remove bit from mask so clzll will find the next one
+            gpios_update(gpios_changed, gpio_num, false);
+        }
+    }
+}
+
+// Support functions for gpio_dump
 static bool exists(gpio_num_t gpio) {
     if (gpio == 20) {
         // GPIO20 is listed in GPIO_PIN_MUX_REG[] but it is only
@@ -379,7 +458,7 @@ struct gpio_matrix_t {
                     { 228, "", "ig_in_func228", false },
                     { -1, "", "", false } };
 
-const char* out_sel_name(int function) {
+static const char* out_sel_name(int function) {
     gpio_matrix_t* p;
     for (p = gpio_matrix; p->num != -1; ++p) {
         if (p->num == function) {
@@ -389,7 +468,7 @@ const char* out_sel_name(int function) {
     return "";
 }
 
-void show_matrix(Print& out) {
+static void show_matrix(Print& out) {
     gpio_matrix_t* p;
     for (p = gpio_matrix; p->num != -1; ++p) {
         uint32_t in_sel = gpio_in_sel(p->num);
@@ -432,64 +511,4 @@ void gpio_dump(Print& out) {
     }
     out << "Input Matrix\n";
     show_matrix(out);
-}
-
-typedef uint64_t   gpio_mask_t;
-static gpio_mask_t gpio_inverts  = 0;
-static gpio_mask_t gpio_interest = 0;
-static gpio_mask_t gpio_current  = 0;
-void IRAM_ATTR     check_switches() {
-    gpio_mask_t gpio_this = (((uint64_t)REG_READ(GPIO_IN_REG)) << 32) | REG_READ(GPIO_IN1_REG);
-    if (gpio_this != gpio_current) {
-        gpio_mask_t gpio_changes = (gpio_this ^ gpio_current) & gpio_interest;
-        int         bitno;
-        while (bitno = __builtin_ffsll(gpio_changes)) {
-            --bitno;
-            bool isActive = (gpio_this ^ gpio_inverts) & (1ULL << bitno);
-            //            protocol_send_event_from_ISR(&pin_changes, (void*)(isActive ? bitno : -bitno));
-            protocol_send_event_from_ISR(&motionCancelEvent, (void*)(isActive ? bitno : -bitno));
-        }
-        gpio_current = gpio_this;
-    }
-    ++gpio_interest;
-}
-static gpio_dispatch_t gpioActions[GPIO_NUM_MAX + 1];
-static void*           gpioArgs[GPIO_NUM_MAX + 1];
-void                   gpio_set_action(int gpio_num, gpio_dispatch_t action, void* arg, bool invert) {
-    gpioActions[gpio_num] = action;
-    gpioArgs[gpio_num]    = arg;
-    gpio_mask_t mask      = 1ULL << gpio_num;
-    gpio_interest |= mask;
-    if (invert) {
-        gpio_inverts |= mask;
-    } else {
-        gpio_inverts &= ~mask;
-    }
-}
-void gpio_clear_action(int gpio_num) {
-    gpioActions[gpio_num] = nullptr;
-    gpioArgs[gpio_num]    = nullptr;
-    gpio_mask_t mask      = 1ULL << gpio_num;
-    gpio_interest &= ~mask;
-}
-void poll_gpios() {
-    gpio_mask_t gpio_this = (((uint64_t)REG_READ(GPIO_IN1_REG)) << 32) | REG_READ(GPIO_IN_REG);
-
-    gpio_mask_t gpio_changes = (gpio_this ^ gpio_current) & gpio_interest;
-    if (gpio_changes) {
-        gpio_mask_t gpio_active = gpio_this ^ gpio_inverts;
-        int         zeros;
-        while ((zeros = __builtin_clzll(gpio_changes)) != 64) {
-            int         gpio_num = 63 - zeros;
-            gpio_mask_t mask     = 1ULL << gpio_num;
-            bool        isActive = gpio_active & mask;
-            // Uart0 << gpio_num << " " << isActive << "\n";
-            gpio_dispatch_t action = gpioActions[gpio_num];
-            if (action) {
-                action(gpio_num, gpioArgs[gpio_num], isActive);
-            }
-            gpio_changes &= ~mask;
-        }
-    }
-    gpio_current = gpio_this;
 }

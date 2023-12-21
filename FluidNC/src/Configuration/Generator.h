@@ -4,6 +4,7 @@
 #pragma once
 
 #include <vector>
+#include <sstream>
 
 #include "../Pin.h"
 #include "../Report.h"    // report_gcode_modes()
@@ -53,21 +54,18 @@ namespace Configuration {
         void item(const char* name, float& value, float minValue, float maxValue) override { send_item(name, std::to_string(value)); }
 
         void item(const char* name, std::vector<speedEntry>& value) {
-            std::string s;
             if (value.size() == 0) {
-                s += "None";
+                send_item(name, "None");
             } else {
+                std::ostringstream s;
+                s.precision(2);
                 const char* separator = "";
                 for (speedEntry n : value) {
-                    s += separator;
+                    s << separator << n.speed << "=" << std::fixed << n.percent << "%";
                     separator = " ";
-                    s += std::to_string(n.speed);
-                    s += '=';
-                    s += std::to_string(n.percent);
-                    s += '%';
                 }
+                send_item(name, s.str());
             }
-            send_item(name, s);
         }
 
         void item(const char* name, UartData& wordLength, UartParity& parity, UartStop& stopBits) override {
@@ -98,13 +96,13 @@ namespace Configuration {
             send_item(name, s);
         }
 
-        void item(const char* name, String& value, int minLength, int maxLength) override { send_item(name, value.c_str()); }
+        void item(const char* name, std::string& value, int minLength, int maxLength) override { send_item(name, value); }
 
         void item(const char* name, bool& value) override { send_item(name, value ? "true" : "false"); }
 
-        void item(const char* name, Pin& value) override { send_item(name, value.name().c_str()); }
+        void item(const char* name, Pin& value) override { send_item(name, value.name()); }
 
-        void item(const char* name, IPAddress& value) override { send_item(name, value.toString().c_str()); }
+        void item(const char* name, IPAddress& value) override { send_item(name, IP_string(value)); }
         void item(const char* name, int& value, EnumItem* e) override {
             const char* str = "unknown";
             for (; e->name; ++e) {

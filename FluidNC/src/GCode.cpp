@@ -172,6 +172,7 @@ Error gc_execute_line(char* line) {
     bool syncLaser     = false;
     bool disableLaser  = false;
     bool laserIsMotion = false;
+    bool nonmodalG38   = false;  // Used for G38.6-9
 
     auto    n_axis = config->_axes->_numberAxis;
     float   coord_data[MAX_N_AXIS];  // Used by WCO-related commands
@@ -320,6 +321,10 @@ Error gc_execute_line(char* line) {
                         probeExplicit = true;
 
                         axis_command = AxisCommand::MotionMode;
+                        if (mantissa >= 60) {
+                            nonmodalG38 = true;
+                            mantissa -= 40;
+                        }
                         switch (mantissa) {
                             case 20:
                                 gc_block.modal.motion = Motion::ProbeToward;
@@ -794,7 +799,7 @@ Error gc_execute_line(char* line) {
         if (bitnum_is_false(value_words, GCodeWord::F)) {
             FAIL(Error::GcodeUndefinedFeedRate);
         }
-        if (gc_block.modal.units == Units::Inches) {
+        if (!nonmodalG38 && gc_block.modal.units == Units::Inches) {
             gc_block.values.f *= MM_PER_INCH;
         }
     } else {
@@ -822,7 +827,7 @@ Error gc_execute_line(char* line) {
             // - In units per mm mode: If F word passed, ensure value is in mm/min, otherwise push last state value.
             if (gc_state.modal.feed_rate == FeedRate::UnitsPerMin) {  // Last state is also G94
                 if (bitnum_is_true(value_words, GCodeWord::F)) {
-                    if (gc_block.modal.units == Units::Inches) {
+                    if (!nonmodalG38 && gc_block.modal.units == Units::Inches) {
                         gc_block.values.f *= MM_PER_INCH;
                     }
                 } else {
@@ -895,7 +900,7 @@ Error gc_execute_line(char* line) {
 
     // [12. Set length units ]: N/A
     // Pre-convert XYZ coordinate values to millimeters, if applicable.
-    if (gc_block.modal.units == Units::Inches) {
+    if (!nonmodalG38 && gc_block.modal.units == Units::Inches) {
         for (size_t idx = 0; idx < n_axis; idx++) {  // Axes indices are consistent, so loop may be used.
             if ((idx < A_AXIS || idx > C_AXIS) && bitnum_is_true(axis_words, idx)) {
                 gc_block.values.xyz[idx] *= MM_PER_INCH;
@@ -1034,7 +1039,7 @@ Error gc_execute_line(char* line) {
                             // NOTE: G53 is never active with G28/30 since they are in the same modal group.
                             if (gc_block.non_modal_command != NonModal::AbsoluteOverride) {
                                 // Apply coordinate offsets based on distance mode.
-                                if (gc_block.modal.distance == Distance::Absolute) {
+                                if (!nonmodalG38 && gc_block.modal.distance == Distance::Absolute) {
                                     gc_block.values.xyz[idx] += block_coord_system[idx] + gc_state.coord_offset[idx];
                                     if (idx == TOOL_LENGTH_OFFSET_AXIS) {
                                         gc_block.values.xyz[idx] += gc_state.tool_length_offset;
@@ -1152,7 +1157,7 @@ Error gc_execute_line(char* line) {
                             FAIL(Error::GcodeInvalidTarget);  // [Invalid target]
                         }
                         // Convert radius value to proper units.
-                        if (gc_block.modal.units == Units::Inches) {
+                        if (!nonmodalG38 && gc_block.modal.units == Units::Inches) {
                             gc_block.values.r *= MM_PER_INCH;
                         }
                         /*  We need to calculate the center of the circle that has the designated radius and passes
@@ -1246,7 +1251,7 @@ Error gc_execute_line(char* line) {
                         }
                         clear_bits(value_words, (bitnum_to_mask(GCodeWord::I) | bitnum_to_mask(GCodeWord::J) | bitnum_to_mask(GCodeWord::K)));
                         // Convert IJK values to proper units.
-                        if (gc_block.modal.units == Units::Inches) {
+                        if (!nonmodalG38 && gc_block.modal.units == Units::Inches) {
                             for (size_t idx = 0; idx < n_axis; idx++) {  // Axes indices are consistent, so loop may be used to save flash space.
                                 if (ijk_words & bitnum_to_mask(idx)) {
                                     gc_block.values.ijk[idx] *= MM_PER_INCH;
@@ -1366,16 +1371,11 @@ Error gc_execute_line(char* line) {
         if (!blockIsFeedrateMotion) {
             // If the new mode is not a feedrate move (G1/2/3) we want the laser off
             disableLaser = true;
-            // If we are changing from a feedrate move to a non-feedrate move,
-            // we must sync the planner and then update the laser state
-            if (stateIsFeedrateMotion) {
-                syncLaser = true;
-            }
         }
         // Any motion mode with axis words is allowed to be passed from a spindle speed update.
         // NOTE: G1 and G0 without axis words sets axis_command to none. G28/30 are intentionally omitted.
         // TODO: Check sync conditions for M3 enabled motions that don't enter the planner. (zero length).
-        if (blockIsFeedrateMotion && axis_words && (axis_command == AxisCommand::MotionMode)) {
+        if (axis_words && (axis_command == AxisCommand::MotionMode)) {
             laserIsMotion = true;
         } else {
             // M3 constant power laser requires planner syncs to update the laser when changing between
@@ -1410,14 +1410,10 @@ Error gc_execute_line(char* line) {
     pl_data->feed_rate = gc_state.feed_rate;  // Record data for planner use.
     // [4. Set spindle speed ]:
     if ((gc_state.spindle_speed != gc_block.values.s) || syncLaser) {
-        if (gc_state.modal.spindle != SpindleState::Disable) {
-            if (!laserIsMotion) {
-                if (sys.state != State::CheckMode) {
-                    protocol_buffer_synchronize();
-                    spindle->setState(gc_state.modal.spindle, disableLaser ? 0 : (uint32_t)gc_block.values.s);
-                    report_ovr_counter = 0;  // Set to report change immediately
-                }
-            }
+        if (gc_state.modal.spindle != SpindleState::Disable && !laserIsMotion && sys.state != State::CheckMode) {
+            protocol_buffer_synchronize();
+            spindle->setState(gc_state.modal.spindle, disableLaser ? 0 : (uint32_t)gc_block.values.s);
+            report_ovr_counter = 0;  // Set to report change immediately
         }
         gc_state.spindle_speed = gc_block.values.s;  // Update spindle speed state.
     }
@@ -1624,6 +1620,9 @@ Error gc_execute_line(char* line) {
             // As far as the parser is concerned, the position is now == target. In reality the
             // motion control system might still be processing the action and the real tool position
             // in any intermediate location.
+            if (sys.abort) {
+                return Error::Reset;
+            }
             if (gc_update_pos == GCUpdatePos::Target) {
                 copyAxes(gc_state.position, gc_block.values.xyz);
             } else if (gc_update_pos == GCUpdatePos::System) {

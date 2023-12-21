@@ -109,13 +109,13 @@ namespace Configuration {
         }
     }
 
-    void RuntimeSetting::item(const char* name, String& value, int minLength, int maxLength) {
+    void RuntimeSetting::item(const char* name, std::string& value, int minLength, int maxLength) {
         if (is(name)) {
             isHandled_ = true;
             if (newValue_ == nullptr) {
                 log_to(out_, "", setting_prefix() << value);
             } else {
-                value = String(newValue_);
+                value = newValue_;
             }
         }
     }
@@ -167,33 +167,38 @@ namespace Configuration {
                 if (value.size() == 0) {
                     log_to(out_, "None");
                 } else {
+                    LogStream msg(out_, "");
+                    msg << setting_prefix();
+                    const char* separator = "";
                     for (speedEntry n : value) {
-                        log_to(out_, "", n.speed << "=" << n.percent << "%")
+                        msg << separator << n.speed << "=" << setprecision(2) << n.percent << "%";
+                        separator = " ";
                     }
+                    // The destructor sends the line when msg goes out of scope
                 }
             } else {
                 // It is distasteful to have this code that essentially duplicates
-                // Parser.cpp speedEntryValue(), albeit using String instead of
-                // StringRange.  It would be better to have a single String version,
+                // Parser.cpp speedEntryValue(), albeit using std::string instead of
+                // StringRange.  It might be better to have a single std::string version,
                 // then pass it StringRange.str()
-                auto                    newStr = String(newValue_);
+                std::string             newStr(newValue_);
                 std::vector<speedEntry> smValue;
-                while (newStr.trim(), newStr.length()) {
-                    speedEntry entry;
-                    String     entryStr;
-                    auto       i = newStr.indexOf(' ');
-                    if (i >= 0) {
-                        entryStr = newStr.substring(0, i);
-                        newStr   = newStr.substring(i + 1);
+                while (newStr.length()) {
+                    speedEntry  entry;
+                    std::string entryStr;
+                    auto        i = newStr.find(' ');
+                    if (i != std::string::npos) {
+                        entryStr = newStr.substr(0, i);
+                        newStr   = newStr.substr(i + 1);
                     } else {
                         entryStr = newStr;
                         newStr   = "";
                     }
-                    String speed;
-                    i = entryStr.indexOf('=');
-                    Assert(i > 0, "Bad speed map entry");
-                    entry.speed   = entryStr.substring(0, i).toInt();
-                    entry.percent = entryStr.substring(i + 1).toFloat();
+                    std::string speed;
+                    i = entryStr.find('=');
+                    Assert(i != std::string::npos, "Bad speed map entry");
+                    entry.speed   = ::atoi(entryStr.substr(0, i).c_str());
+                    entry.percent = ::atof(entryStr.substr(i + 1).c_str());
                     smValue.push_back(entry);
                 }
                 value = smValue;
@@ -205,7 +210,7 @@ namespace Configuration {
         if (is(name)) {
             isHandled_ = true;
             if (newValue_ == nullptr) {
-                log_to(out_, "", setting_prefix() << value.toString());
+                log_to(out_, "", setting_prefix() << IP_string(value));
             } else {
                 IPAddress ip;
                 if (!ip.fromString(newValue_)) {

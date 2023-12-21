@@ -25,6 +25,7 @@
 #include "Driver/fluidnc_gpio.h"  // gpio_dump()
 
 #include "FluidPath.h"
+#include "HashFS.h"
 
 #include <cstring>
 #include <map>
@@ -33,6 +34,8 @@
 // WG Readable and writable as guest
 // WU Readable and writable as user and admin
 // WA Readable as user and admin, writable as admin
+
+static Error fakeMaxSpindleSpeed(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out);
 
 // If authentication is disabled, auth_level will be LEVEL_ADMIN
 static bool auth_failed(Word* w, const char* value, WebUI::AuthenticationLevel auth_level) {
@@ -132,7 +135,7 @@ void settings_restore(uint8_t restore_flag) {
 
     if (restore_flag & SettingsRestore::Defaults) {
         bool restore_startup = restore_flag & SettingsRestore::StartupLines;
-        for (Setting* s = Setting::List; s; s = s->next()) {
+        for (Setting* s : Setting::List) {
             if (!s->getDescription()) {
                 const char* name = s->getName();
                 if (restore_startup) {  // all settings get restored
@@ -156,7 +159,7 @@ void settings_restore(uint8_t restore_flag) {
 
 // Get settings values from non volatile storage into memory
 static void load_settings() {
-    for (Setting* s = Setting::List; s; s = s->next()) {
+    for (Setting* s : Setting::List) {
         s->load();
     }
 }
@@ -185,20 +188,22 @@ static Error report_gcode(const char* value, WebUI::AuthenticationLevel auth_lev
 }
 
 static void show_settings(Channel& out, type_t type) {
-    for (Setting* s = Setting::List; s; s = s->next()) {
+    for (Setting* s : Setting::List) {
         if (s->getType() == type && s->getGrblName()) {
             // The following test could be expressed more succinctly with XOR,
             // but is arguably clearer when written out
             show_setting(s->getGrblName(), s->getCompatibleValue(), NULL, out);
         }
     }
+    // need this per issue #1036
+    fakeMaxSpindleSpeed(NULL, WebUI::AuthenticationLevel::LEVEL_ADMIN, out);
 }
 static Error report_normal_settings(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
     show_settings(out, GRBL);  // GRBL non-axis settings
     return Error::Ok;
 }
 static Error list_grbl_names(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
-    for (Setting* setting = Setting::List; setting; setting = setting->next()) {
+    for (Setting* setting : Setting::List) {
         const char* gn = setting->getGrblName();
         if (gn) {
             log_to(out, "$", gn << " => $" << setting->getName());
@@ -207,7 +212,7 @@ static Error list_grbl_names(const char* value, WebUI::AuthenticationLevel auth_
     return Error::Ok;
 }
 static Error list_settings(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
-    for (Setting* s = Setting::List; s; s = s->next()) {
+    for (Setting* s : Setting::List) {
         const char* displayValue = auth_failed(s, value, auth_level) ? "<Authentication required>" : s->getStringValue();
         if (s->getType() != PIN) {
             show_setting(s->getName(), displayValue, NULL, out);
@@ -216,7 +221,7 @@ static Error list_settings(const char* value, WebUI::AuthenticationLevel auth_le
     return Error::Ok;
 }
 static Error list_changed_settings(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
-    for (Setting* s = Setting::List; s; s = s->next()) {
+    for (Setting* s : Setting::List) {
         const char* value = s->getStringValue();
         if (!auth_failed(s, value, auth_level) && strcmp(value, s->getDefaultString())) {
             if (s->getType() != PIN) {
@@ -228,7 +233,7 @@ static Error list_changed_settings(const char* value, WebUI::AuthenticationLevel
     return Error::Ok;
 }
 static Error list_commands(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
-    for (Command* cp = Command::List; cp; cp = cp->next()) {
+    for (Command* cp : Command::List) {
         const char* name    = cp->getName();
         const char* oldName = cp->getGrblName();
         LogStream   s(out, "$");
@@ -252,9 +257,8 @@ static Error toggle_check_mode(const char* value, WebUI::AuthenticationLevel aut
     // idle and ready, regardless of alarm locks. This is mainly to keep things
     // simple and consistent.
     if (sys.state == State::CheckMode) {
-        log_debug("Check mode");
-        mc_reset();
         report_feedback_message(Message::Disabled);
+        sys.abort = true;
     } else {
         if (sys.state != State::Idle) {
             return Error::IdleError;  // Requires no alarm mode.
@@ -267,12 +271,12 @@ static Error toggle_check_mode(const char* value, WebUI::AuthenticationLevel aut
 static Error isStuck() {
     // Block if a control pin is stuck on
     if (config->_control->safety_door_ajar()) {
-        rtAlarm = ExecAlarm::ControlPin;
+        send_alarm(ExecAlarm::ControlPin);
         return Error::CheckDoor;
     }
     if (config->_control->stuck()) {
         log_info("Control pins:" << config->_control->report_status());
-        rtAlarm = ExecAlarm::ControlPin;
+        send_alarm(ExecAlarm::ControlPin);
         return Error::CheckControlPins;
     }
     return Error::Ok;
@@ -286,11 +290,12 @@ static Error disable_alarm_lock(const char* value, WebUI::AuthenticationLevel au
         if (err != Error::Ok) {
             return err;
         }
+        Homing::set_all_axes_homed();
         report_feedback_message(Message::AlarmUnlock);
         sys.state = State::Idle;
-
-        // Don't run startup script. Prevents stored moves in startup from causing accidents.
-    }  // Otherwise, no effect.
+    }
+    // Run the after_unlock macro even if no unlock was necessary
+    config->_macros->_after_unlock.run();
     return Error::Ok;
 }
 static Error report_ngc(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
@@ -328,7 +333,7 @@ static Error home(AxisMask axisMask) {
         protocol_execute_realtime();
     } while (sys.state == State::Homing);
 
-    settings_execute_startup();
+    config->_macros->_after_homing.run();
 
     return Error::Ok;
 }
@@ -439,9 +444,9 @@ static Error get_report_build_info(const char* value, WebUI::AuthenticationLevel
     }
     return Error::InvalidStatement;
 }
-static Error report_startup_lines(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+static Error show_startup_lines(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
     for (int i = 0; i < config->_macros->n_startup_lines; i++) {
-        log_to(out, "$N", i << "=" << config->_macros->startup_line(i));
+        log_to(out, "$N", i << "=" << config->_macros->_startup_line[i]._gcode);
     }
     return Error::Ok;
 }
@@ -492,16 +497,11 @@ static Error doJog(const char* value, WebUI::AuthenticationLevel auth_level, Cha
     return gc_execute_line(jogLine);
 }
 
-static const char* alarmString(ExecAlarm alarmNumber) {
-    auto it = AlarmNames.find(alarmNumber);
-    return it == AlarmNames.end() ? NULL : it->second;
-}
-
 static Error listAlarms(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
     if (sys.state == State::ConfigAlarm) {
         log_to(out, "Configuration alarm is active. Check the boot messages for 'ERR'.");
-    } else if (rtAlarm != ExecAlarm::None) {
-        log_to(out, "Active alarm: ", int(rtAlarm) << " (" << alarmString(rtAlarm));
+    } else if (sys.state == State::Alarm) {
+        log_to(out, "Active alarm: ", int(lastAlarm) << " (" << alarmString(lastAlarm));
     }
     if (value) {
         char*   endptr      = NULL;
@@ -580,7 +580,7 @@ static Error motor_control(const char* value, bool disable) {
         char axisName = axes->axisName(i);
 
         if (strchr(value, axisName) || strchr(value, tolower(axisName))) {
-            log_info((disable ? "Dis" : "En") << "abling " << String(axisName) << " motors");
+            log_info((disable ? "Dis" : "En") << "abling " << axisName << " motors");
             axes->set_disable(i, disable);
         }
     }
@@ -601,9 +601,9 @@ static Error motors_init(const char* value, WebUI::AuthenticationLevel auth_leve
 
 static Error macros_run(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
     if (value) {
-        log_info("Running macro " << *value);
+        log_info("Running macro" << *value);
         size_t macro_num = (*value) - '0';
-        config->_macros->run_macro(macro_num);
+        config->_macros->_macro[macro_num].run();
         return Error::Ok;
     }
     log_error("$Macros/Run requires a macro number argument");
@@ -634,7 +634,10 @@ static Error xmodem_receive(const char* value, WebUI::AuthenticationLevel auth_l
     } else {
         log_info("Reception failed or was canceled");
     }
+    std::filesystem::path fname = outfile->fpath();
     delete outfile;
+    HashFS::rehash_file(fname);
+
     return size < 0 ? Error::UploadFailed : Error::Ok;
 }
 
@@ -688,7 +691,7 @@ static Error dump_config(const char* value, WebUI::AuthenticationLevel auth_leve
 
 static Error fakeMaxSpindleSpeed(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
     if (!value) {
-        log_to(out, "$30=", spindle->maxSpeed())
+        log_to(out, "$30=", spindle->maxSpeed());
     }
     return Error::Ok;
 }
@@ -706,7 +709,7 @@ static Error showChannelInfo(const char* value, WebUI::AuthenticationLevel auth_
 }
 
 static Error showStartupLog(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
-    startupLog.dump(out);
+    StartupLog::dump(out);
     return Error::Ok;
 }
 
@@ -748,6 +751,11 @@ static Error setReportInterval(const char* value, WebUI::AuthenticationLevel aut
     return Error::Ok;
 }
 
+static Error showHeap(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+    log_info("Heap free: " << xPortGetFreeHeapSize() << " min: " << heapLowWater);
+    return Error::Ok;
+}
+
 // Commands use the same syntax as Settings, but instead of setting or
 // displaying a persistent value, a command causes some action to occur.
 // That action could be anything, from displaying a run-time parameter
@@ -758,7 +766,7 @@ void make_user_commands() {
 
     new UserCommand("CI", "Channel/Info", showChannelInfo, anyState);
     new UserCommand("XR", "Xmodem/Receive", xmodem_receive, notIdleOrAlarm);
-    new UserCommand("XS", "Xmodem/Send", xmodem_send, notIdleOrJog);
+    new UserCommand("XS", "Xmodem/Send", xmodem_send, notIdleOrAlarm);
     new UserCommand("CD", "Config/Dump", dump_config, anyState);
     new UserCommand("", "Help", show_help, anyState);
     new UserCommand("T", "State", showState, anyState);
@@ -794,9 +802,10 @@ void make_user_commands() {
 
     new UserCommand("SLP", "System/Sleep", go_to_sleep, notIdleOrAlarm);
     new UserCommand("I", "Build/Info", get_report_build_info, notIdleOrAlarm);
-    new UserCommand("N", "GCode/StartupLines", report_startup_lines, notIdleOrAlarm);
+    new UserCommand("N", "GCode/StartupLines", show_startup_lines, notIdleOrAlarm);
     new UserCommand("RST", "Settings/Restore", restore_settings, notIdleOrAlarm, WA);
 
+    new UserCommand("Heap", "Heap/Show", showHeap, anyState);
     new UserCommand("SS", "Startup/Show", showStartupLog, anyState);
 
     new UserCommand("RI", "Report/Interval", setReportInterval, anyState);
@@ -880,7 +889,7 @@ Error do_command_or_setting(const char* key, char* value, WebUI::AuthenticationL
 
     // Next search the settings list by text name. If found, set a new
     // value if one is given, otherwise display the current value
-    for (Setting* s = Setting::List; s; s = s->next()) {
+    for (Setting* s : Setting::List) {
         if (strcasecmp(s->getName(), key) == 0) {
             if (auth_failed(s, value, auth_level)) {
                 return Error::AuthenticationFailed;
@@ -896,7 +905,7 @@ Error do_command_or_setting(const char* key, char* value, WebUI::AuthenticationL
 
     // Then search the setting list by compatible name.  If found, set a new
     // value if one is given, otherwise display the current value in compatible mode
-    for (Setting* s = Setting::List; s; s = s->next()) {
+    for (Setting* s : Setting::List) {
         if (s->getGrblName() && strcasecmp(s->getGrblName(), key) == 0) {
             if (auth_failed(s, value, auth_level)) {
                 return Error::AuthenticationFailed;
@@ -912,7 +921,7 @@ Error do_command_or_setting(const char* key, char* value, WebUI::AuthenticationL
     // If we did not find a setting, look for a command.  Commands
     // handle values internally; you cannot determine whether to set
     // or display solely based on the presence of a value.
-    for (Command* cp = Command::List; cp; cp = cp->next()) {
+    for (Command* cp : Command::List) {
         if ((strcasecmp(cp->getName(), key) == 0) || (cp->getGrblName() && strcasecmp(cp->getGrblName(), key) == 0)) {
             if (auth_failed(cp, value, auth_level)) {
                 return Error::AuthenticationFailed;
@@ -927,16 +936,16 @@ Error do_command_or_setting(const char* key, char* value, WebUI::AuthenticationL
     // text form of the name, not to the nnn and ESPnnn forms.
     Error retval = Error::InvalidStatement;
     if (!value) {
-        auto lcKey = String(key);
-        lcKey.toLowerCase();
         bool found = false;
-        for (Setting* s = Setting::List; s; s = s->next()) {
-            auto lcTest = String(s->getName());
-            lcTest.toLowerCase();
-
-            if (regexMatch(lcKey.c_str(), lcTest.c_str())) {
+        for (Setting* s : Setting::List) {
+            auto test = s->getName();
+            // The C++ standard regular expression library supports many more
+            // regular expression forms than the simple one in Regex.cpp, but
+            // consumes a lot of FLASH.  The extra capability is rarely useful
+            // especially now that there are only a few NVS settings.
+            if (regexMatch(key, test, false)) {
                 const char* displayValue = auth_failed(s, value, auth_level) ? "<Authentication required>" : s->getStringValue();
-                show_setting(s->getName(), displayValue, NULL, out);
+                show_setting(test, displayValue, NULL, out);
                 found = true;
             }
         }
@@ -983,20 +992,12 @@ Error settings_execute_line(char* line, Channel& out, WebUI::AuthenticationLevel
 }
 
 void settings_execute_startup() {
+    if (sys.state != State::Idle) {
+        return;
+    }
     Error status_code;
     for (int i = 0; i < config->_macros->n_startup_lines; i++) {
-        String str = config->_macros->startup_line(i);
-        if (str.length()) {
-            // We have to copy this to a mutable array because
-            // gc_execute_line modifies the line while parsing.
-            char gcline[256];
-            strncpy(gcline, str.c_str(), 255);
-            status_code = gc_execute_line(gcline);
-            // Uart0 << ">" << gcline << ":";
-            if (status_code != Error::Ok) {
-                log_error("Startup line: " << errorString(status_code));
-            }
-        }
+        config->_macros->_startup_line[i].run();
     }
 }
 

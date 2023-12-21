@@ -12,6 +12,7 @@
 #include "../Stepping.h"  // config->_stepping->_engine
 
 #include <esp32-hal-gpio.h>  // gpio
+#include <sdkconfig.h>       // CONFIG_IDF_TARGET_*
 
 using namespace Machine;
 
@@ -42,7 +43,7 @@ namespace MotorDrivers {
                                        .idle_level           = invert_step ? RMT_IDLE_LEVEL_HIGH : RMT_IDLE_LEVEL_LOW,
                                        .carrier_duty_percent = 50,
 #if SOC_RMT_SUPPORT_TX_LOOP_COUNT
-                                       .loop_count = DONT_KNOW_YET_SINCE_ESP32_DOES_NOT_HAVE_IT,
+                                       .loop_count = 1,
 #endif
                                        .carrier_en     = false,
                                        .loop_en        = false,
@@ -83,7 +84,9 @@ namespace MotorDrivers {
             _step_pin.setAttr(Pin::Attr::Output);
         }
 
-        _disable_pin.setAttr(Pin::Attr::Output);
+        if (_disable_pin.defined()) {
+            _disable_pin.setAttr(Pin::Attr::Output);
+        }
     }
 
     void StandardStepper::config_message() {
@@ -92,9 +95,16 @@ namespace MotorDrivers {
 
     void IRAM_ATTR StandardStepper::step() {
         if (config->_stepping->_engine == Stepping::RMT && _rmt_chan_num != RMT_CHANNEL_MAX) {
+#ifdef CONFIG_IDF_TARGET_ESP32
             RMT.conf_ch[_rmt_chan_num].conf1.mem_rd_rst = 1;
             RMT.conf_ch[_rmt_chan_num].conf1.mem_rd_rst = 0;
             RMT.conf_ch[_rmt_chan_num].conf1.tx_start   = 1;
+#endif
+#ifdef CONFIG_IDF_TARGET_ESP32S3
+            RMT.chnconf0[_rmt_chan_num].mem_rd_rst_n = 1;
+            RMT.chnconf0[_rmt_chan_num].mem_rd_rst_n = 0;
+            RMT.chnconf0[_rmt_chan_num].tx_start_n   = 1;
+#endif
         } else {
             _step_pin.on();
         }
@@ -115,19 +125,19 @@ namespace MotorDrivers {
         MotorFactory::InstanceBuilder<StandardStepper> registration("standard_stepper");
     }
 
-    void StandardStepper::validate() const {
+    void StandardStepper::validate() {
         Assert(_step_pin.defined(), "Step pin must be configured.");
         bool isI2SO = config->_stepping->_engine == Stepping::I2S_STREAM || config->_stepping->_engine == Stepping::I2S_STATIC;
         if (isI2SO) {
-            Assert(_step_pin.name().startsWith("I2SO"), "Step pin must be an I2SO pin");
+            Assert(_step_pin.name().rfind("I2SO", 0) == 0, "Step pin must be an I2SO pin");
             if (_dir_pin.defined()) {
-                Assert((_dir_pin.name().startsWith("I2SO")), "Direction pin must be an I2SO pin");
+                Assert(_dir_pin.name().rfind("I2SO", 0) == 0, "Direction pin must be an I2SO pin");
             }
 
         } else {
-            Assert(_step_pin.name().startsWith("gpio"), "Step pin must be a GPIO pin");
+            Assert(_step_pin.name().rfind("gpio", 0) == 0, "Step pin must be a GPIO pin");
             if (_dir_pin.defined()) {
-                Assert((_dir_pin.name().startsWith("gpio")), "Direction pin must be a GPIO pin");
+                Assert(_dir_pin.name().rfind("gpio", 0) == 0, "Direction pin must be a GPIO pin");
             }
         }
     }

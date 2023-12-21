@@ -33,7 +33,7 @@ namespace Spindles {
         void setState(SpindleState state, SpindleSpeed speed) override;
         void config_message() override;
         // Configuration handlers:
-        void validate() const override { Spindle::validate(); }
+        void validate() override { Spindle::validate(); }
 
         void group(Configuration::HandlerBase& handler) override {
             // The APB clock frequency is 80MHz and the maximum divisor

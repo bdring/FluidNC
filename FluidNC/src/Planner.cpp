@@ -306,8 +306,16 @@ bool plan_buffer_line(float* target, plan_line_data_t* pl_data) {
     int32_t target_steps[MAX_N_AXIS], position_steps[MAX_N_AXIS];
     float   unit_vec[MAX_N_AXIS], delta_mm;
     // Copy position data based on type of motion being planned.
-    copyAxes(position_steps, block->motion.systemMotion ? get_motor_steps() : pl.position);
-
+    if (block->motion.systemMotion) {
+        copyAxes(position_steps, get_motor_steps());
+    } else {
+        if (!block->is_jog && Homing::unhomed_axes()) {
+            log_info("Unhomed axes: " << config->_axes->maskToNames(Homing::unhomed_axes()));
+            send_alarm(ExecAlarm::Unhomed);
+            return false;
+        }
+        copyAxes(position_steps, pl.position);
+    }
     auto n_axis = config->_axes->_numberAxis;
     for (size_t idx = 0; idx < n_axis; idx++) {
         // Calculate target position in absolute steps, number of steps for each axis, and determine max step events.

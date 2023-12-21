@@ -21,8 +21,10 @@ int32_t  probe_steps[MAX_N_AXIS];  // Last probe position in steps.
 void system_reset() {
     // Reset system variables.
     State prior_state = sys.state;
+    bool  prior_abort = sys.abort;
     memset(&sys, 0, sizeof(system_t));  // Clear system struct variable.
     sys.state             = prior_state;
+    sys.abort             = prior_abort;
     sys.f_override        = FeedOverride::Default;          // Set to 100%
     sys.r_override        = RapidOverride::Default;         // Set to 100%
     sys.spindle_speed_ovr = SpindleSpeedOverride::Default;  // Set to 100%

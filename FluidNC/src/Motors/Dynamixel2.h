@@ -21,37 +21,45 @@ namespace MotorDrivers {
 
         void set_location();
 
-        uint8_t        _id;
-        uint8_t        _dxl_tx_message[50];  // outgoing to dynamixel
-        static uint8_t _dxl_rx_message[50];  // received from dynamixel
+        uint8_t _id;
+
+        static int _timer_ms;
+
+        static uint8_t _tx_message[100];  // outgoing to dynamixel
+        static uint8_t _msg_index;
+        static uint8_t _rx_message[50];  // received from dynamixel
+
+        static void start_message(uint8_t id, uint8_t instr);
+        static void finish_message();
+        static void add_uint8(uint8_t n);
+        static void add_uint16(uint16_t n);
+        static void add_uint32(uint32_t n);
+
+        void start_write(uint16_t address);
+        void finish_write();
+        void show_status();
 
         bool     test();
         uint32_t dxl_read_position();
         void     dxl_read(uint16_t address, uint16_t data_len);
-        void     dxl_write(uint16_t address, uint8_t paramCount, ...);
-        void     dxl_goal_position(int32_t position);  // set one motor
-        void     set_operating_mode(uint8_t mode);
-        void     LED_on(bool on);
 
-        static void     dxl_finish_message(uint8_t id, uint8_t* msg, uint16_t msg_len);
-        static uint16_t dxl_get_response(uint16_t length);
+        void dxl_goal_position(int32_t position);  // set one motor
+        void set_operating_mode(uint8_t mode);
+        void LED_on(bool on);
+
+        size_t dxl_get_response(uint16_t length);
+
         static uint16_t dxl_update_crc(uint16_t crc_accum, uint8_t* data_blk_ptr, uint8_t data_blk_size);
 
-        // static things for the bulk position command (set all axes at one time)
-        static void    init_bulk_message();
-        void           add_to_bulk_message();
-        static void    send_bulk_message();
-        static uint8_t bulk_message[100];
-        static uint8_t bulk_message_index;
+        static TimerHandle_t _timer;
+
+        static std::vector<Dynamixel2*> _instances;
 
         int _axis_index;
 
         static Uart* _uart;
 
         int _uart_num = -1;
-
-        static uint8_t _first_id;
-        static uint8_t _last_id;
 
         static bool _uart_started;
 
@@ -91,22 +99,25 @@ namespace MotorDrivers {
         uint32_t _countMin = 1024;
         uint32_t _countMax = 3072;
 
-        bool _disabled;
-        bool _has_errors;
+        bool        _disabled;
+        static bool _has_errors;
 
     public:
-        Dynamixel2() : _id(255), _disabled(true), _has_errors(true) {}
+        Dynamixel2() : _id(255), _disabled(true) {}
 
         // Overrides for inherited methods
-        void init() override;
-        void read_settings() override;
-        bool set_homing_mode(bool isHoming) override;
-        void set_disable(bool disable) override;
-        void update() override;
-        void config_motor() override;
+        void        init() override;
+        void        read_settings() override;
+        bool        set_homing_mode(bool isHoming) override;
+        void        set_disable(bool disable) override;
+        void        update() override;
+        static void update_all();
+        void        config_motor() override;
+
+        const char* name() override { return "dynamixel2"; }
 
         // Configuration handlers:
-        void validate() const override {
+        void validate() override {
             Assert(_uart_num != -1, "Dynamixel: Missing uart_num configuration");
             Assert(_id != 255, "Dynamixel: ID must be configured.");
         }
@@ -114,10 +125,11 @@ namespace MotorDrivers {
         void group(Configuration::HandlerBase& handler) override {
             handler.item("uart_num", _uart_num);
             handler.item("id", _id);
-
             handler.item("count_min", _countMin);
             handler.item("count_max", _countMax);
             handler.item("timer_ms", _timer_ms);
+
+            Servo::group(handler);
         }
 
         // Name of the configurable. Must match the name registered in the cpp file.

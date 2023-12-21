@@ -20,12 +20,15 @@
 #include "../Stepper.h"
 #include "../Config.h"
 #include "../OLED.h"
+#include "../Status_outputs.h"
 #include "Axes.h"
 #include "SPIBus.h"
 #include "I2CBus.h"
 #include "I2SOBus.h"
 #include "UserOutputs.h"
 #include "Macros.h"
+
+#include <string_view>
 
 namespace Machine {
     using ::Kinematics::Kinematics;
@@ -72,6 +75,7 @@ namespace Machine {
         Start*                _start          = nullptr;
         Parking*              _parking        = nullptr;
         OLED*                 _oled           = nullptr;
+        Status_Outputs*       _stat_out       = nullptr;
         Spindles::SpindleList _spindles;
 
         UartChannel* _uart_channels[MAX_N_UARTS] = { nullptr };
@@ -93,9 +97,9 @@ namespace Machine {
         // Tracks and reports gcode line numbers. Disabled by default.
         bool _useLineNumbers = false;
 
-        String _board = "None";
-        String _name  = "None";
-        String _meta  = "";
+        std::string _board = "None";
+        std::string _name  = "None";
+        std::string _meta  = "";
 #if 1
         static MachineConfig*& instance() {
             static MachineConfig* instance = nullptr;
@@ -107,8 +111,8 @@ namespace Machine {
         void group(Configuration::HandlerBase& handler) override;
 
         static bool load();
-        static bool load(const char* file);
-        static bool load(StringRange* input);
+        static bool load_file(std::string_view file);
+        static bool load_yaml(std::string_view yaml_string);
 
         ~MachineConfig();
     };

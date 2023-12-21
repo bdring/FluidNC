@@ -12,7 +12,7 @@
 #define CHECK_EXECUTE_RESULT(err, str)                                                                                                     \
     do {                                                                                                                                   \
         if ((err) != ESP_OK) {                                                                                                             \
-            log_error(str << " code 0x" << String(err, 16));                                                                               \
+            log_error(str << " code " << to_hex(err));                                                                                   \
             goto cleanup;                                                                                                                  \
         }                                                                                                                                  \
     } while (0)
@@ -78,10 +78,7 @@ bool sd_init_slot(uint32_t freq_hz, int cs_pin, int cd_pin, int wp_pin) {
 
     sdspi_device_config_t slot_config;
 
-    // If freq_hz is 0, use the system default
-    if (freq_hz) {
-        host_config.max_freq_khz = freq_hz / 1000;
-    }
+    host_config.max_freq_khz = freq_hz / 1000;
 
     err = host_config.init();
     CHECK_EXECUTE_RESULT(err, "host init failed");
@@ -104,7 +101,6 @@ bool sd_init_slot(uint32_t freq_hz, int cs_pin, int cd_pin, int wp_pin) {
     // If you do it only once below, the attempt to change it seems to
     // be ignored, and you get 20 MHz regardless of what you ask for.
     if (freq_hz) {
-        printf("hz = %d\n", freq_hz);
         err = sdspi_host_set_card_clk(host_config.slot, freq_hz / 1000);
         CHECK_EXECUTE_RESULT(err, "set slot clock speed failed");
     }

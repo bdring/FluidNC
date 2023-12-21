@@ -31,7 +31,7 @@ namespace Spindles {
 
         bool     _defaultedSpeeds;
         uint32_t offSpeed() { return _speeds[0].offset; }
-        uint32_t maxSpeed() { return _speeds[_speeds.size() - 1].speed; }
+        uint32_t maxSpeed();
         uint32_t mapSpeed(SpindleSpeed speed);
         void     setupSpeeds(uint32_t max_dev_speed);
         void     shelfSpeeds(SpindleSpeed min, SpindleSpeed max);
@@ -73,7 +73,7 @@ namespace Spindles {
         virtual const char* name() const = 0;
 
         // Configuration handlers:
-        void validate() const override {
+        void validate() override {
             // TODO: Validate spinup/spindown delay?
         }
 

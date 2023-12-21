@@ -6,14 +6,14 @@
 
 #include "../Report.h"
 
-#include <cstdlib>
+#include <ctype.h>
 #include <atomic>
 
 namespace Configuration {
     Completer::Completer(const char* key, int reqMatch, char* matchedStr) :
         _key(key), _reqMatch(reqMatch), _matchedStr(matchedStr), _currentPath("/"), _numMatches(0) {}
 
-    void Completer::addCandidate(String fullName) {
+    void Completer::addCandidate(std::string fullName) {
         if (_matchedStr && _numMatches == _reqMatch) {
             strcpy(_matchedStr, fullName.c_str());
         }
@@ -24,13 +24,13 @@ namespace Configuration {
         auto previous = _currentPath;
         _currentPath += name;
         _currentPath += "/";
-        if (_key.startsWith(_currentPath)) {
+        if (_key.rfind(_currentPath, 0) == 0) {
             // If _currentPath is an initial substring of _key, this section
             // is part of a path leading to the key, so we have to check
             // this section's children
             // Example: _key = /axes/x/motor0/cy _currentPath=/axes/x/motor0
             value->group(*this);
-        } else if (_currentPath.startsWith(_key)) {
+        } else if (_currentPath.rfind(_key, 0) == 0) {
             // If _key is an initial substring of _currentPath, this section
             // is a candidate.  Example:  _key = /axes/x/h _currentPath=/axes/x/homing
             addCandidate(_currentPath);
@@ -39,8 +39,8 @@ namespace Configuration {
     }
 
     void Completer::item(const char* name) {
-        String fullItemName = _currentPath + name;
-        if (fullItemName.startsWith(_key)) {
+        std::string fullItemName = _currentPath + name;
+        if (fullItemName.rfind(_key, 0) == 0) {
             addCandidate(fullItemName);
         }
     }
@@ -50,6 +50,14 @@ namespace Configuration {
 
 #include "../Settings.h"
 
+static bool isInitialSubstringCI(const char* key, const char* test) {
+    while (*key && *test) {
+        if (tolower(*key++) != tolower(*test++)) {
+            return false;
+        }
+    }
+    return *key == '\0';
+}
 // This provides the interface to the completion routines in lineedit.cpp
 // The argument signature is idiosyncratic, based on the needs of the
 // Forth implementation for which the completion code was first developed.
@@ -73,13 +81,8 @@ int num_initial_matches(char* key, int keylen, int matchnum, char* matchname) {
         nfound = completer._numMatches;
     } else {
         // Match NVS settings
-        auto lcKey = String(key);
-        lcKey.toLowerCase();
-        for (Setting* s = Setting::List; s; s = s->next()) {
-            auto lcTest = String(s->getName());
-            lcTest.toLowerCase();
-
-            if (*key == '\0' || lcTest.startsWith(lcKey)) {
+        for (Setting* s : Setting::List) {
+            if (isInitialSubstringCI(key, s->getName())) {
                 if (matchname && nfound == matchnum) {
                     strcpy(matchname, s->getName());
                 }

@@ -60,7 +60,8 @@
 #include <algorithm>
 #include <freertos/task.h>  // portMUX_TYPE, TaskHandle_T
 
-std::mutex AllChannels::_mutex;
+std::mutex AllChannels::_mutex_general;
+std::mutex AllChannels::_mutex_pollLine;
 
 static TaskHandle_t channelCheckTaskHandle = 0;
 
@@ -87,7 +88,7 @@ void execute_realtime_command(Cmd command, Channel& channel) {
     switch (command) {
         case Cmd::Reset:
             log_debug("Cmd::Reset");
-            protocol_send_event(&resetEvent);
+            protocol_send_event(&rtResetEvent);
             break;
         case Cmd::StatusReport:
             report_realtime_status(channel);  // direct call instead of setting flag
@@ -195,73 +196,77 @@ void AllChannels::kill(Channel* channel) {
 }
 
 void AllChannels::registration(Channel* channel) {
-    _mutex.lock();
+    _mutex_general.lock();
+    _mutex_pollLine.lock();
     _channelq.push_back(channel);
-    _mutex.unlock();
+    _mutex_pollLine.unlock();
+    _mutex_general.unlock();
 }
 void AllChannels::deregistration(Channel* channel) {
-    _mutex.lock();
+    _mutex_general.lock();
+    _mutex_pollLine.lock();
     if (channel == _lastChannel) {
         _lastChannel = nullptr;
     }
     _channelq.erase(std::remove(_channelq.begin(), _channelq.end(), channel), _channelq.end());
-    _mutex.unlock();
+    _mutex_pollLine.unlock();
+    _mutex_general.unlock();
 }
 
 void AllChannels::listChannels(Channel& out) {
-    _mutex.lock();
+    _mutex_general.lock();
     std::string retval;
     for (auto channel : _channelq) {
         log_to(out, channel->name());
     }
-    _mutex.unlock();
+    _mutex_general.unlock();
 }
 
 void AllChannels::flushRx() {
-    _mutex.lock();
+    _mutex_general.lock();
     for (auto channel : _channelq) {
         channel->flushRx();
     }
-    _mutex.unlock();
+    _mutex_general.unlock();
 }
 
 size_t AllChannels::write(uint8_t data) {
-    _mutex.lock();
+    _mutex_general.lock();
     for (auto channel : _channelq) {
         channel->write(data);
     }
-    _mutex.unlock();
+    _mutex_general.unlock();
     return 1;
 }
 void AllChannels::notifyWco(void) {
-    _mutex.lock();
+    _mutex_general.lock();
     for (auto channel : _channelq) {
         channel->notifyWco();
     }
-    _mutex.unlock();
+    _mutex_general.unlock();
 }
 void AllChannels::notifyNgc(CoordIndex coord) {
-    _mutex.lock();
+    _mutex_general.lock();
     for (auto channel : _channelq) {
         channel->notifyNgc(coord);
     }
-    _mutex.unlock();
+    _mutex_general.unlock();
 }
 
 void AllChannels::stopJob() {
-    _mutex.lock();
+    _mutex_general.lock();
     for (auto channel : _channelq) {
         channel->stopJob();
     }
-    _mutex.unlock();
+    _mutex_general.unlock();
 }
 
 size_t AllChannels::write(const uint8_t* buffer, size_t length) {
-    _mutex.lock();
+    _mutex_general.lock();
     for (auto channel : _channelq) {
         channel->write(buffer, length);
     }
-    _mutex.unlock();
+    _mutex_general.unlock();
     return length;
 }
 Channel* AllChannels::pollLine(char* line) {
@@ -274,17 +279,17 @@ Channel* AllChannels::pollLine(char* line) {
     // To avoid starving other channels when one has a lot
     // of traffic, we poll the other channels before the last
     // one that returned a line.
-    _mutex.lock();
+    _mutex_pollLine.lock();
 
     for (auto channel : _channelq) {
         // Skip the last channel in the loop
         if (channel != _lastChannel && channel->pollLine(line)) {
             _lastChannel = channel;
-            _mutex.unlock();
+            _mutex_pollLine.unlock();
             return _lastChannel;
         }
     }
-    _mutex.unlock();
+    _mutex_pollLine.unlock();
     // If no other channel returned a line, try the last one
     if (_lastChannel && _lastChannel->pollLine(line)) {
         return _lastChannel;

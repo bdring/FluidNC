@@ -45,7 +45,7 @@ namespace Machine {
                 m->init();
             }
         }
-        if (_homing) {
+        if (_homing && _homing->_cycle != Machine::Homing::set_mpos_only) {
             _homing->init();
             set_bitnum(Axes::homingMask, _axis);
         }

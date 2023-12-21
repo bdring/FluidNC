@@ -75,9 +75,23 @@ uint32_t Channel::setReportInterval(uint32_t ms) {
     _lastTool       = 255;  // Force GCodeState report
     return actual;
 }
+static bool motionState() {
+    return sys.state == State::Cycle || sys.state == State::Homing || sys.state == State::Jog;
+}
+
 void Channel::autoReportGCodeState() {
+    // When moving, we suppress $G reports in which the only change is the motion mode
+    // (e.g. G0/G1/G2/G3 changes) because rapid-fire motion mode changes are fairly common.
+    // We would rather not issue a $G report after every GCode line.
+    // Similarly, F and S values can change rapidly, especially in laser programs.
+    // F and S values are also reported in ? status reports, so they will show up
+    // at the chosen periodic rate there.
+    if (motionState()) {
+        // Force the compare to succeed if the only change is the motion mode
+        _lastModal.motion = gc_state.modal.motion;
+    }
     if (memcmp(&_lastModal, &gc_state.modal, sizeof(_lastModal)) || _lastTool != gc_state.tool ||
-        _lastSpindleSpeed != gc_state.spindle_speed || _lastFeedRate != gc_state.feed_rate) {
+        (!motionState() && (_lastSpindleSpeed != gc_state.spindle_speed || _lastFeedRate != gc_state.feed_rate))) {
         report_gcode_modes(*this);
         memcpy(&_lastModal, &gc_state.modal, sizeof(_lastModal));
         _lastTool         = gc_state.tool;
@@ -85,21 +99,20 @@ void Channel::autoReportGCodeState() {
         _lastFeedRate     = gc_state.feed_rate;
     }
 }
-static bool motionState() {
-    return sys.state == State::Cycle || sys.state == State::Homing || sys.state == State::Jog;
-}
-
 void Channel::autoReport() {
     if (_reportInterval) {
         auto limitState = limits_get_state();
-        if (_reportWco || sys.state != _lastState || limitState != _lastLimits ||
+        auto probeState = config->_probe->get_state();
+        if (_reportWco || sys.state != _lastState || limitState != _lastLimits || probeState != _lastProbe ||
             (motionState() && (int32_t(xTaskGetTickCount()) - _nextReportTime) >= 0)) {
             if (_reportWco) {
                 report_wco_counter = 0;
             }
-            _reportWco      = false;
-            _lastState      = sys.state;
-            _lastLimits     = limitState;
+            _reportWco  = false;
+            _lastState  = sys.state;
+            _lastLimits = limitState;
+            _lastProbe  = probeState;
+
             _nextReportTime = xTaskGetTickCount() + _reportInterval;
             report_realtime_status(*this);
         }

@@ -2,14 +2,13 @@
 #include "src/Machine/Axes.h"
 #include "src/Machine/MachineConfig.h"  // config
 
-#include "src/MotionControl.h"  // mc_reset
 #include "src/Limits.h"
 #include "src/Protocol.h"  // protocol_send_event_from_ISR()
 
 namespace Machine {
     LimitPin::LimitPin(Pin& pin, int axis, int motor, int direction, bool& pHardLimits, bool& pLimited) :
         EventPin(&limitEvent, "Limit", &pin), _axis(axis), _motorNum(motor), _value(false), _pHardLimits(pHardLimits), _pLimited(pLimited) {
-        String sDir;
+        const char* sDir;
         // Select one or two bitmask variables to receive the switch data
         switch (direction) {
             case 1:
@@ -38,7 +37,9 @@ namespace Machine {
         // The bitmap looks like CBAZYX..cbazyx where motor0 motors are in the lower bits
         _bitmask = 1 << Axes::motor_bit(axis, motor);
         _legend  = config->_axes->motorMaskToNames(_bitmask);
-        _legend += " " + sDir + " Limit";
+        _legend += " ";
+        _legend += sDir;
+        _legend += " Limit";
     }
 
     void LimitPin::init() {

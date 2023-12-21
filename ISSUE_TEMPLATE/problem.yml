@@ -7,7 +7,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        Please fill in the forms below.  The better the information you provide, the better we can help you.
+        Please read http://wiki.fluidnc.com/en/support/requesting_help, then fill in the forms below.  The better the information you provide, the better we can help you.
         Information that you might think is irrelevant is often the key to solving the problem.
   - type: textarea
     id: controller-board

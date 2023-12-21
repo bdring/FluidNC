@@ -42,11 +42,9 @@ namespace WebUI {
             return false;
         }
 
-        String h = wifi_hostname->get();
-
         ArduinoOTA
             .onStart([]() {
-                String type;
+                const char* type;
                 if (ArduinoOTA.getCommand() == U_FLASH) {
                     type = "sketch";
                 } else {
@@ -84,9 +82,10 @@ namespace WebUI {
             });
         ArduinoOTA.begin();
         //no need in AP mode
-        if (WiFi.getMode() == WIFI_STA) {
+        if (WiFi.getMode() == WIFI_STA && WebUI::wifi_sta_ssdp->get()) {
             //start mDns
-            if (!MDNS.begin(h.c_str())) {
+            const char* h = wifi_hostname->get();
+            if (!MDNS.begin(h)) {
                 log_info("Cannot start mDNS");
                 no_error = false;
             } else {

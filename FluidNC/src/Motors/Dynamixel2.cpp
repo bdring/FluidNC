@@ -24,19 +24,20 @@
 #include <cmath>
 
 namespace MotorDrivers {
-    Uart*   MotorDrivers::Dynamixel2::_uart     = nullptr;
-    uint8_t MotorDrivers::Dynamixel2::_first_id = 0;
-    uint8_t MotorDrivers::Dynamixel2::_last_id  = 0;
+    Uart*                    Dynamixel2::_uart  = nullptr;
+    TimerHandle_t            Dynamixel2::_timer = nullptr;
+    std::vector<Dynamixel2*> Dynamixel2::_instances;
+    bool                     Dynamixel2::_has_errors = false;
 
-    uint8_t MotorDrivers::Dynamixel2::bulk_message[100];
-    uint8_t MotorDrivers::Dynamixel2::bulk_message_index;
+    int Dynamixel2::_timer_ms = 75;
 
-    uint8_t MotorDrivers::Dynamixel2::_dxl_rx_message[50] = {};  // received from dynamixel
+    uint8_t Dynamixel2::_tx_message[100];  // send to dynamixel
+    uint8_t Dynamixel2::_rx_message[50];   // received from dynamixel
+    uint8_t Dynamixel2::_msg_index = 0;    // Current length of message being constructed
 
-    bool MotorDrivers::Dynamixel2::_uart_started = false;
+    bool Dynamixel2::_uart_started = false;
 
     void Dynamixel2::init() {
-        _has_errors = false;  // Initially assume okay
         _axis_index = axis_index();
 
         if (!_uart_started) {
@@ -52,17 +53,13 @@ namespace MotorDrivers {
                 return;
             }
             _uart_started = true;
+            schedule_update(this, _timer_ms);
         }
-
-        // for bulk updating
-        if (_first_id == 0) {
-            _first_id = _id;
-        }
-        _last_id = _id;
 
         config_message();  // print the config
 
-        startUpdateTask(_timer_ms);
+        // for bulk updating
+        _instances.push_back(this);
     }
 
     void Dynamixel2::config_motor() {
@@ -85,22 +82,24 @@ namespace MotorDrivers {
     }
 
     bool Dynamixel2::test() {
-        uint16_t len = 3;
+        start_message(_id, DXL_INSTR_PING);
+        finish_message();
 
-        _dxl_tx_message[DXL_MSG_INSTR] = DXL_INSTR_PING;
-
-        dxl_finish_message(_id, _dxl_tx_message, len);
-        len = dxl_get_response(PING_RSP_LEN);  // wait for and get response
+        uint16_t len = dxl_get_response(PING_RSP_LEN);  // wait for and get response
 
         if (len == PING_RSP_LEN) {
-            uint16_t model_num = _dxl_rx_message[10] << 8 | _dxl_rx_message[9];
+            uint16_t    model_num = _rx_message[10] << 8 | _rx_message[9];
+            uint8_t     fw_rev    = _rx_message[11];
+            std::string msg(" ");
+            msg += axisName().c_str();
             if (model_num == 1060) {
-                log_info("Axis ping reply " << axisName() << " Model XL430-W250 F/W Rev " << String(_dxl_rx_message[11], HEX));
+                msg += "reply: Model XL430-W250";
             } else {
-                log_info("Axis ping reply " << axisName() << " M/N " << model_num << " F/W Rev " << String(_dxl_rx_message[11], HEX));
+                msg += " M/N " + std::to_string(model_num);
             }
+            log_info(msg << " F/W Rev " << to_hex(fw_rev));
         } else {
-            log_warn(" Ping failed");
+            log_warn(axisName() << " Ping failed");
             return false;
         }
 
@@ -111,47 +110,56 @@ namespace MotorDrivers {
 
     // sets the PWM to zero. This allows most servos to be manually moved
     void IRAM_ATTR Dynamixel2::set_disable(bool disable) {
-        uint8_t param_count = 1;
-
         if (_disabled == disable) {
             return;
         }
 
         _disabled = disable;
 
-        dxl_write(DXL_ADDR_TORQUE_EN, param_count, !_disabled);
+        start_write(DXL_ADDR_TORQUE_EN);
+        add_uint8(!disable);
+        finish_write();
     }
 
     void Dynamixel2::set_operating_mode(uint8_t mode) {
-        uint8_t param_count = 1;
-        dxl_write(DXL_OPERATING_MODE, param_count, mode);
+        start_write(DXL_OPERATING_MODE);
+        add_uint8(mode);
+        finish_write();
     }
 
-    void Dynamixel2::update() {
+    // This is static; it updates the positions of all the Dynamixels on the UART bus
+    void Dynamixel2::update_all() {
         if (_has_errors) {
             return;
         }
 
-        if (_disabled) {
-            // TO DO need to properly time this. Currently it would read too fast.
-            // Needs delay between reads or bulk read.
-            //dxl_read_position();
-        } else {
-            if (_id == _last_id) {  // from a LIFO List
-                // initialize message
-                bulk_message_index = DXL_MSG_INSTR;
+        start_message(DXL_BROADCAST_ID, DXL_SYNC_WRITE);
+        add_uint16(DXL_GOAL_POSITION);
+        add_uint16(4);  // data length
 
-                bulk_message[bulk_message_index]   = DXL_SYNC_WRITE;
-                bulk_message[++bulk_message_index] = DXL_GOAL_POSITION & 0xFF;           // low order address
-                bulk_message[++bulk_message_index] = (DXL_GOAL_POSITION & 0xFF00) >> 8;  // high order address
-                bulk_message[++bulk_message_index] = 4;                                  // low order data length
-                bulk_message[++bulk_message_index] = 0;                                  // high order data length
-            }
-            add_to_bulk_message();
-            if (_id == _first_id) {
-                send_bulk_message();
-            }
+        float* mpos = get_mpos();
+        float  motors[MAX_N_AXIS];
+        config->_kinematics->transform_cartesian_to_motors(motors, mpos);
+
+        for (const auto& instance : _instances) {
+            float    dxl_count_min, dxl_count_max;
+            uint32_t dxl_position;
+
+            dxl_count_min = float(instance->_countMin);
+            dxl_count_max = float(instance->_countMax);
+
+            // map the mm range to the servo range
+            auto axis_index = instance->_axis_index;
+            dxl_position    = static_cast<uint32_t>(mapConstrain(
+                motors[axis_index], limitsMinPosition(axis_index), limitsMaxPosition(axis_index), dxl_count_min, dxl_count_max));
+
+            add_uint8(instance->_id);  // ID of the servo
+            add_uint32(dxl_position);
         }
+        finish_message();
+    }
+    void Dynamixel2::update() {
+        update_all();
     }
 
     void Dynamixel2::set_location() {}
@@ -171,15 +179,50 @@ namespace MotorDrivers {
         return false;    // Cannot do conventional homing
     }
 
-    void Dynamixel2::dxl_goal_position(int32_t position) {
-        uint8_t param_count = 4;
+    void Dynamixel2::add_uint8(uint8_t n) {
+        _tx_message[_msg_index++] = n & 0xff;
+    }
+    void Dynamixel2::add_uint16(uint16_t n) {
+        add_uint8(n);
+        add_uint8(n >> 8);
+    }
+    void Dynamixel2::add_uint32(uint32_t n) {
+        add_uint16(n);
+        add_uint16(n >> 16);
+    }
 
-        dxl_write(DXL_GOAL_POSITION,
-                  param_count,
-                  (position & 0xFF),
-                  (position & 0xFF00) >> 8,
-                  (position & 0xFF0000) >> 16,
-                  (position & 0xFF000000) >> 24);
+    void Dynamixel2::start_message(uint8_t id, uint8_t instr) {
+        _msg_index = 0;
+        add_uint8(0xFF);   // HDR1
+        add_uint8(0xFF);   // HDR2
+        add_uint8(0xFD);   // HDR3
+        add_uint8(0x00);   // reserved
+        add_uint8(id);     // ID
+        _msg_index += 2;   // Length goes here, filled in later
+        add_uint8(instr);  // ID
+    }
+    void Dynamixel2::finish_message() {
+        // length is the number of bytes after the INSTR, including the CRC
+        uint16_t msg_len = _msg_index - DXL_MSG_INSTR + 2;
+
+        _tx_message[DXL_MSG_LEN_L] = msg_len & 0xff;
+        _tx_message[DXL_MSG_LEN_H] = (msg_len >> 8) * 0xff;
+
+        uint16_t crc = 0;
+        crc          = dxl_update_crc(crc, _tx_message, _msg_index);
+
+        add_uint16(crc);
+
+        _uart->flushRx();
+        _uart->write(_tx_message, _msg_index);
+
+        //hex_msg(_tx_message, "0x", _msg_index);
+    }
+
+    void Dynamixel2::dxl_goal_position(int32_t position) {
+        start_write(DXL_GOAL_POSITION);
+        add_uint32(position);
+        finish_write();
     }
 
     uint32_t Dynamixel2::dxl_read_position() {
@@ -190,8 +233,7 @@ namespace MotorDrivers {
         data_len = dxl_get_response(15);
 
         if (data_len == 15) {
-            uint32_t dxl_position = _dxl_rx_message[9] | (_dxl_rx_message[10] << 8) | (_dxl_rx_message[11] << 16) |
-                                    (_dxl_rx_message[12] << 24);
+            uint32_t dxl_position = _rx_message[9] | (_rx_message[10] << 8) | (_rx_message[11] << 16) | (_rx_message[12] << 24);
 
             auto axis = config->_axes->_axis[_axis_index];
 
@@ -211,152 +253,72 @@ namespace MotorDrivers {
     }
 
     void Dynamixel2::dxl_read(uint16_t address, uint16_t data_len) {
-        uint8_t msg_len = 3 + 4;
-
-        _dxl_tx_message[DXL_MSG_INSTR]     = DXL_READ;
-        _dxl_tx_message[DXL_MSG_START]     = (address & 0xFF);            // low-order address value
-        _dxl_tx_message[DXL_MSG_START + 1] = ((address & 0xFF00) >> 8);   // High-order address value
-        _dxl_tx_message[DXL_MSG_START + 2] = (data_len & 0xFF);           // low-order data length value
-        _dxl_tx_message[DXL_MSG_START + 3] = ((data_len & 0xFF00) >> 8);  // high-order address value
-
-        dxl_finish_message(_id, _dxl_tx_message, msg_len);
+        start_message(_id, DXL_READ);
+        add_uint16(address);
+        add_uint16(data_len);
+        finish_message();
     }
 
+    void Dynamixel2::start_write(uint16_t address) {
+        start_message(_id, DXL_WRITE);
+        add_uint16(address);
+    }
+    void Dynamixel2::finish_write() {
+        finish_message();
+        show_status();
+    }
     void Dynamixel2::LED_on(bool on) {
-        uint8_t param_count = 1;
-
-        if (on)
-            dxl_write(DXL_ADDR_LED_ON, param_count, 1);
-        else
-            dxl_write(DXL_ADDR_LED_ON, param_count, 0);
+        start_write(DXL_ADDR_LED_ON);
+        add_uint8(on);
+        finish_write();
     }
 
     // wait for and get the servo response
-    uint16_t Dynamixel2::dxl_get_response(uint16_t length) {
-        length = _uart->timedReadBytes((char*)_dxl_rx_message, length, DXL_RESPONSE_WAIT_TICKS);
-        return length;
+    size_t Dynamixel2::dxl_get_response(uint16_t length) {
+        return _uart->timedReadBytes((char*)_rx_message, length, DXL_RESPONSE_WAIT_TICKS);
     }
 
-    void Dynamixel2::dxl_write(uint16_t address, uint8_t paramCount, ...) {
-        _dxl_tx_message[DXL_MSG_INSTR]     = DXL_WRITE;
-        _dxl_tx_message[DXL_MSG_START]     = (address & 0xFF);           // low-order address value
-        _dxl_tx_message[DXL_MSG_START + 1] = ((address & 0xFF00) >> 8);  // High-order address value
-
-        uint8_t msg_offset = 1;  // this is the offset from DXL_MSG_START in the message
-
-        va_list valist;
-
-        /* Initializing arguments  */
-        va_start(valist, paramCount);
-
-        for (int x = 0; x < paramCount; x++) {
-            msg_offset++;
-            _dxl_tx_message[DXL_MSG_START + msg_offset] = (uint8_t)va_arg(valist, int);
-        }
-        va_end(valist);  // Cleans up the list
-
-        dxl_finish_message(_id, _dxl_tx_message, msg_offset + 4);
-
-        uint16_t len = 11;  // response length
-        len          = dxl_get_response(len);
-
-        if (len == 11) {
-            uint8_t err = _dxl_rx_message[8];
-            switch (err) {
-                case 1:
-                    log_error(name() << " ID " << _id << " Write fail error");
-                    break;
-                case 2:
-                    log_error(name() << " ID " << _id << " Write instruction error");
-                    break;
-                case 3:
-                    log_error(name() << " ID " << _id << " CRC Error");
-                    break;
-                case 4:
-                    log_error(name() << " ID " << _id << " Write data range error");
-                    break;
-                case 5:
-                    log_error(name() << " ID " << _id << " Write data length error");
-                    break;
-                case 6:
-                    log_error(name() << " ID " << _id << " Write data limit error");
-                    break;
-                case 7:
-                    log_error(name() << " ID " << _id << " Write access error addr:" << address);
-                    break;
-                default:
-                    break;
-            }
-        } else {
-            // timeout
+    void Dynamixel2::show_status() {
+        size_t len = dxl_get_response(11);
+        if (len != 11) {
             log_error(name() << " ID " << _id << " Timeout");
+            return;
         }
-    }
+        uint8_t err = _rx_message[DXL_MSG_START];
+        if (!err) {
+            return;
+        }
 
-    void Dynamixel2::add_to_bulk_message() {
-        float    dxl_count_min, dxl_count_max;
-        uint32_t dxl_position;
+        std::string msg(name());
+        msg += " ID " + _rx_message[DXL_MSG_ID];
 
-        float* mpos = get_mpos();
-        float  motors[MAX_N_AXIS];
-
-        dxl_count_min = float(_countMin);
-        dxl_count_max = float(_countMax);
-
-        config->_kinematics->transform_cartesian_to_motors(motors, mpos);
-
-        // map the mm range to the servo range
-        dxl_position = static_cast<uint32_t>(mapConstrain(
-            motors[_axis_index], limitsMinPosition(_axis_index), limitsMaxPosition(_axis_index), dxl_count_min, dxl_count_max));
-
-        bulk_message[++bulk_message_index] = _id;                                // ID of the servo
-        bulk_message[++bulk_message_index] = dxl_position & 0xFF;                // data
-        bulk_message[++bulk_message_index] = (dxl_position & 0xFF00) >> 8;       // data
-        bulk_message[++bulk_message_index] = (dxl_position & 0xFF0000) >> 16;    // data
-        bulk_message[++bulk_message_index] = (dxl_position & 0xFF000000) >> 24;  // data
-    }
-
-    void Dynamixel2::send_bulk_message() {
-        //static uint64_t ping = esp_timer_get_time() / 1000;
-        //log_debug("Ping:" << esp_timer_get_time() / 1000 - ping);
-        //ping = esp_timer_get_time() / 1000;
-        dxl_finish_message(DXL_BROADCAST_ID, bulk_message, bulk_message_index - DXL_MSG_INSTR + 3);
-    }
-
-    /*
-    Static
-
-    This is a helper function to complete and send the message
-    The body of the message should be in msg, at the correct location
-    before calling this function.
-    This function will add the header, length bytes and CRC
-    It will then send the message
-*/
-    void Dynamixel2::dxl_finish_message(uint8_t id, uint8_t* msg, uint16_t msg_len) {
-        uint16_t crc = 0;
-        // header
-        msg[DXL_MSG_HDR1] = char(0xFF);
-        msg[DXL_MSG_HDR2] = char(0xFF);
-        msg[DXL_MSG_HDR3] = char(0xFD);
-        //
-        // reserved
-        msg[DXL_MSG_RSRV] = 0x00;
-        msg[DXL_MSG_ID]   = id;
-        // length
-        msg[DXL_MSG_LEN_L] = msg_len & 0xFF;
-        msg[DXL_MSG_LEN_H] = (msg_len & 0xFF00) >> 8;
-
-        // the message should already be here
-
-        crc = dxl_update_crc(crc, msg, 5 + msg_len);
-
-        msg[msg_len + 5] = crc & 0xFF;  // CRC_L
-        msg[msg_len + 6] = (crc & 0xFF00) >> 8;
-
-        _uart->flushRx();
-        _uart->write(msg, msg_len + 7);
-
-        //hex_msg(msg, "0x", msg_len + 7);
+        switch (err) {
+            case 1:
+                msg += " Write fail error";
+                break;
+            case 2:
+                msg += " Write instruction error";
+                break;
+            case 3:
+                msg += " CRC Error";
+                break;
+            case 4:
+                msg += " Write data range error";
+                break;
+            case 5:
+                msg += " Write data length error";
+                break;
+            case 6:
+                msg += " Write data limit error";
+                break;
+            case 7:
+                msg += " Write access error addr:" + std::to_string(_rx_message[DXL_MSG_INSTR]);
+                break;
+            default:
+                msg += " Unknown error code:" + std::to_string(err);
+                break;
+        }
+        log_error(msg);
     }
 
     // from http://emanual.robotis.com/docs/en/dxl/crc/

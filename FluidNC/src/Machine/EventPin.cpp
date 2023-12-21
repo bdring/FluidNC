@@ -12,7 +12,6 @@ namespace Machine {
 
     void EventPin::gpioAction(int gpio_num, void* arg, bool active) {
         EventPin* obj = static_cast<EventPin*>(arg);
-        //        protocol_send_event(obj, obj);
         obj->update(active);
         if (active) {
             protocol_send_event(obj->_event, obj);

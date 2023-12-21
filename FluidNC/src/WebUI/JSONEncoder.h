@@ -19,7 +19,11 @@ namespace WebUI {
         void quoted(const char* s);
         void inc_level();
         void dec_level();
+        void indent();
         void line();
+
+        // begin_member() starts the creation of a member.
+        void begin_member(const char* tag);
 
         std::string linebuf;
 
@@ -42,7 +46,6 @@ namespace WebUI {
 
         // member() creates a "tag":"value" element
         void member(const char* tag, const char* value);
-        void member(const char* tag, String value);
         void member(const char* tag, const std::string& value);
         void member(const char* tag, int value);
 
@@ -58,10 +61,9 @@ namespace WebUI {
         // end_object() closes the object with }
         void end_object();
 
-        // begin_member() starts the creation of a member.
-        // The only case where you need to use it directly
-        // is when you want a member whose value is an object.
-        void begin_member(const char* tag);
+        // Begins the creation of a member whose value is an object.
+        // Call end_object() to close the member
+        void begin_member_object(const char* tag);
 
         // The begin_webui() methods are specific to Esp3D_WebUI
         // WebUI sends JSON objects to the UI to generate configuration
@@ -84,6 +86,9 @@ namespace WebUI {
         //  S => 0 .. 255
         //  A => 7 .. 15  (0.0.0.0 .. 255.255.255.255)
         //  I => 0 .. 2^31-1
+        void begin_webui(const char* brief, const char* full, const char* type, const std::string val) {
+            begin_webui(brief, full, type, val.c_str());
+        }
         void begin_webui(const char* brief, const char* full, const char* type, const char* val);
         void begin_webui(const char* brief, const char* full, const char* type, const int val);
         void begin_webui(const char* brief, const char* full, const char* type, const char* val, int min, int max);

@@ -25,13 +25,15 @@ namespace Pins {
     class PinOption {
         friend class PinOptionsParser;
 
-        char*       _start;
+        const char* _start;
         const char* _end;
 
         const char* _key;
+        const char* _keyend;
         const char* _value;
+        const char* _valueend;
 
-        PinOption(char* start, const char* end);
+        PinOption(const char* start, const char* end);
 
         void tokenize();
 
@@ -39,28 +41,27 @@ namespace Pins {
         inline const char* operator()() const { return _key; }
         bool               is(const char* option) const;
 
-        int                iValue() const;
-        double             dValue() const;
-        inline const char* value() const { return _value; }
+        int    iValue() const;
+        double dValue() const;
+
+        const char* value() const;
 
         // Iterator support:
         inline PinOption const* operator->() const { return this; }
         inline PinOption        operator*() const { return *this; }
         PinOption&              operator++();
 
-        bool operator==(const PinOption& o) const { return _key == o._key; }
-        bool operator!=(const PinOption& o) const { return _key != o._key; }
+        bool operator==(const PinOption& o) const { return _key == o._key && _keyend == o._keyend; }
+        bool operator!=(const PinOption& o) const { return _key != o._key || _keyend != o._keyend; }
     };
 
-    // Options parser. This basically parses the options passed to the Pin class. Destroys
-    // the original options, and passes the options as lower case items to the enumerator.
-    // For the lazy people that want safe, reliable, easy parsing :-)
+    // This parses the options passed to the Pin class.
     class PinOptionsParser {
-        char* _buffer;
-        char* _bufferEnd;
+        const char* _buffer;
+        const char* _bufferEnd;
 
     public:
-        PinOptionsParser(char* buffer, char* endBuffer);
+        PinOptionsParser(const char* buffer, const char* endBuffer);
 
         inline PinOption begin() const { return PinOption(_buffer, _bufferEnd); }
         inline PinOption end() const { return PinOption(_bufferEnd, _bufferEnd); }

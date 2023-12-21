@@ -121,6 +121,7 @@ std::map<Message, const char*> MessageText = {
     { Message::RestoreDefaults, "Restoring defaults" },
     { Message::SpindleRestore, "Restoring spindle" },
     { Message::SleepMode, "Sleeping" },
+    { Message::HardStop, "Hard stop" },
     { Message::ConfigAlarmLock, "Configuration is invalid. Check boot messages for ERR's." },
     // Handled separately due to numeric argument
     // { Message::FileQuit, "Reset during file job at line: %d" },
@@ -135,6 +136,12 @@ void report_feedback_message(Message message) {  // ok to send to all channels
     auto it = MessageText.find(message);
     if (it != MessageText.end()) {
         log_info(it->second);
+    }
+}
+void report_error_message(Message message) {  // ok to send to all channels
+    auto it = MessageText.find(message);
+    if (it != MessageText.end()) {
+        log_error(it->second);
     }
 }
 
@@ -223,9 +230,9 @@ void report_ngc_coord(CoordIndex coord, Channel& channel) {
         return;
     }
     // Persistent offsets G54 - G59, G28, and G30
-    String name = coords[coord]->getName();
+    std::string name(coords[coord]->getName());
     name += ":";
-    log_to(channel, "[", name.c_str() << report_util_axis_values(coords[coord]->get()));
+    log_to(channel, "[", name << report_util_axis_values(coords[coord]->get()));
 }
 void report_ngc_parameters(Channel& channel) {
     for (auto coord = CoordIndex::Begin; coord < CoordIndex::End; ++coord) {
@@ -463,6 +470,7 @@ const char* state_name() {
             return "Jog";
         case State::Homing:
             return "Home";
+        case State::Critical:
         case State::ConfigAlarm:
         case State::Alarm:
             return "Alarm";
@@ -637,11 +645,10 @@ void report_realtime_status(Channel& channel) {
     msg << "|ISRs:" << Stepper::isr_count;
 #endif
 #ifdef DEBUG_REPORT_HEAP
-    msg << "|Heap:" << esp.getHeapSize();
+    msg << "|Heap:" << xPortGetFreeHeapSize();
 #endif
     msg << ">";
-    // The DebugStream destructor sends the line
-    // when msg goes out of scope
+    // The destructor sends the line when msg goes out of scope
 }
 
 void hex_msg(uint8_t* buf, const char* prefix, int len) {
@@ -667,4 +674,3 @@ void reportTaskStackSize(UBaseType_t& saved) {
 }
 
 void WEAK_LINK display_init() {}
-void WEAK_LINK display(const char* tag, String s) {}

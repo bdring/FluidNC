@@ -22,12 +22,14 @@ namespace MotorDrivers {
 
         tmc2208 = new TMC2209Stepper(_uart, _r_sense, _addr);
 
-        TrinamicUartDriver::finalInit();
+        registration();
     }
 
     void TMC2208Driver::config_motor() {
+        _cs_pin.synchronousWrite(true);
         tmc2208->begin();
         TrinamicBase::config_motor();
+        _cs_pin.synchronousWrite(false);
     }
 
     void TMC2208Driver::set_registers(bool isHoming) {
@@ -41,6 +43,10 @@ namespace MotorDrivers {
         // but the TMCStepper library expresses run current as (uint16_t) mA
         // and hold current as (float) fraction of run current.
         uint16_t run_i = (uint16_t)(_run_current * 1000.0);
+
+        _cs_pin.synchronousWrite(true);
+
+        tmc2208->I_scale_analog(false);  // do not scale via pot
         tmc2208->rms_current(run_i, TrinamicBase::holdPercent());
 
         // The TMCStepper library uses the value 0 to mean 1x microstepping
@@ -50,20 +56,26 @@ namespace MotorDrivers {
         // This driver does not support multiple modes
         tmc2208->en_spreadCycle(false);
         tmc2208->pwm_autoscale(true);
+
+        _cs_pin.synchronousWrite(false);
     }
 
     void TMC2208Driver::debug_message() {}
 
     void TMC2208Driver::set_disable(bool disable) {
+        _cs_pin.synchronousWrite(true);
         if (TrinamicUartDriver::startDisable(disable)) {
             if (_use_enable) {
                 tmc2208->toff(TrinamicUartDriver::toffValue());
             }
         }
+        _cs_pin.synchronousWrite(false);
     }
 
     bool TMC2208Driver::test() {
+        _cs_pin.synchronousWrite(true);
         if (!checkVersion(0x20, tmc2208->version())) {
+            _cs_pin.synchronousWrite(false);
             return false;
         }
         uint8_t ifcnt_before = tmc2208->IFCNT();
@@ -72,8 +84,10 @@ namespace MotorDrivers {
         bool    okay        = ((ifcnt_before + 1) & 0xff) == ifcnt_after;
         if (!okay) {
             TrinamicBase::reportCommsFailure();
+            _cs_pin.synchronousWrite(false);
             return false;
         }
+        _cs_pin.synchronousWrite(false);
         return true;
     }
 

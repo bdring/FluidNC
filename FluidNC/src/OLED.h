@@ -32,8 +32,8 @@ public:
 private:
     std::string _report;
 
-    String _radio_info;
-    String _radio_addr;
+    std::string _radio_info;
+    std::string _radio_addr;
 
     std::string _state;
     std::string _filename;
@@ -42,6 +42,7 @@ private:
     std::string _ticker;
 
     int _radio_delay = 0;
+    int _report_interval_ms = 500;
 
     uint8_t _i2c_num = 0;
 
@@ -52,9 +53,10 @@ private:
     void parse_IP();
     void parse_AP();
     void parse_BT();
+    void parse_WebUI();
 
-    float* parse_axes(std::string s);
-    void   parse_numbers(std::string s, float* nums, int maxnums);
+    void parse_axes(std::string s, float* axes);
+    void parse_numbers(std::string s, float* nums, int maxnums);
 
     void show_limits(bool probe, const bool* limits);
     void show_state();
@@ -63,17 +65,10 @@ private:
     void show_radio_info();
     void draw_checkbox(int16_t x, int16_t y, int16_t width, int16_t height, bool checked);
 
-    void wrapped_draw_string(int16_t y, const String& s, font_t font);
+    void wrapped_draw_string(int16_t y, const std::string& s, font_t font);
 
-    void show(Layout& layout, const String& msg);
-    void show(Layout& layout, const char* msg) {
-        String s(msg);
-        show(layout, s);
-    }
-    void show(Layout& layout, const std::string& msg) {
-        String s(msg.c_str());
-        show(layout, s);
-    }
+    void show(Layout& layout, const std::string& msg) { show(layout, msg.c_str()); }
+    void show(Layout& layout, const char* msg);
 
     uint8_t font_width(font_t font);
     uint8_t font_height(font_t font);
@@ -117,11 +112,12 @@ public:
     size_t timedReadBytes(char* buffer, size_t length, TickType_t timeout) override { return 0; }
 
     // Configuration handlers:
-    void validate() const override {}
+    void validate() override {}
 
     void afterParse() override;
 
     void group(Configuration::HandlerBase& handler) override {
+        handler.item("report_interval_ms", _report_interval_ms, 100, 5000);
         handler.item("i2c_num", _i2c_num);
         handler.item("i2c_address", _address);
         handler.item("width", _width);

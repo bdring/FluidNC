@@ -15,7 +15,7 @@
 #include "NotificationsService.h"
 
 namespace WebUI {
-    NotificationsService notificationsService;
+    NotificationsService notificationsService __attribute__((init_priority(106))) ;
 }
 
 #ifdef ENABLE_WIFI
@@ -134,23 +134,29 @@ namespace WebUI {
 
     bool Wait4Answer(WiFiClientSecure& client, const char* linetrigger, const char* expected_answer, uint32_t timeout) {
         if (client.connected()) {
-            String   answer;
-            uint32_t start_time = millis();
+            std::string answer;
+            uint32_t    start_time = millis();
             while (client.connected() && ((millis() - start_time) < timeout)) {
-                answer = client.readStringUntil('\n');
-                if ((answer.indexOf(linetrigger) != -1) || (strlen(linetrigger) == 0)) {
+                answer = std::string(client.readStringUntil('\n').c_str());
+                if ((answer.find(linetrigger) != std::string::npos) || (strlen(linetrigger) == 0)) {
                     break;
                 }
                 delay_ms(10);
+                log_verbose("Received: '" << answer << "' (waiting 4 '" << expected_answer << "')");
             }
             if (strlen(expected_answer) == 0) {
                 return true;
             }
-            if (answer.indexOf(expected_answer) == -1) {
-                return false;
-            } else {
-                return true;
+
+            bool result = answer.find(expected_answer) != std::string::npos;
+            if (!result) {
+                if (answer.length()) {
+                    log_debug("Received: '" << answer << "' (expected: '" << expected_answer << "')");
+                } else {
+                    log_debug("No answer (expected: " << expected_answer << ")");
+                }
             }
+            return result;
         }
         return false;
     }
@@ -225,11 +231,26 @@ namespace WebUI {
         Notificationclient.stop();
         return res;
     }
+    
     bool NotificationsService::sendEmailMSG(const char* title, const char* message) {
         WiFiClientSecure Notificationclient;
+        // Switch off secure mode because the connect command always fails in secure mode:(
+        Notificationclient.setInsecure();
+
         if (!Notificationclient.connect(_serveraddress.c_str(), _port)) {
+            //Read & log error message (in debug mode)
+            if (atMsgLevel(MsgLevelDebug)) {
+                char errMsg[150];
+                const int lastError = Notificationclient.lastError(errMsg, sizeof(errMsg));
+                if (0 == lastError) {
+                    errMsg[0] = 0;
+                }
+                log_debug("Cannot connect to " << _serveraddress.c_str() << ":" << _port << ", err: " << lastError << " - " << errMsg);
+            }
             return false;
         }
+        log_verbose("Connected to " << _serveraddress.c_str() << ":" << _port);
+
         //Check answer of connection
         if (!Wait4Answer(Notificationclient, "220", "220", EMAILTIMEOUT)) {
             return false;
@@ -316,36 +337,38 @@ namespace WebUI {
     }
     //Email#serveraddress:port
     bool NotificationsService::getPortFromSettings() {
-        String tmp = notification_ts->get();
-        int    pos = tmp.lastIndexOf(':');
-        if (pos == -1) {
+        std::string tmp(notification_ts->get());
+        size_t      pos = tmp.rfind(':');
+        if (pos == std::string::npos) {
             return false;
         }
 
-        _port = tmp.substring(pos + 1).toInt();
-        return _port > 0;
+        try {
+            _port = stoi(tmp.substr(pos + 1));
+        } catch (...) { return false; }
+        return true;
     }
     //Email#serveraddress:port
     bool NotificationsService::getServerAddressFromSettings() {
-        String tmp  = notification_ts->get();
-        int    pos1 = tmp.indexOf('#');
-        int    pos2 = tmp.lastIndexOf(':');
-        if ((pos1 == -1) || (pos2 == -1)) {
+        std::string tmp(notification_ts->get());
+        int         pos1 = tmp.find('#');
+        int         pos2 = tmp.rfind(':');
+        if ((pos1 == std::string::npos) || (pos2 == std::string::npos)) {
             return false;
         }
 
         //TODO add a check for valid email ?
-        _serveraddress = tmp.substring(pos1 + 1, pos2).c_str();
+        _serveraddress = tmp.substr(pos1 + 1, pos2 - pos1 - 1);
         return true;
     }
     //Email#serveraddress:port
     bool NotificationsService::getEmailFromSettings() {
-        String tmp = notification_ts->get();
-        int    pos = tmp.indexOf('#');
-        if (pos == -1) {
+        std::string tmp(notification_ts->get());
+        int         pos = tmp.find('#');
+        if (pos == std::string::npos) {
             return false;
         }
-        _settings = tmp.substring(0, pos).c_str();
+        _settings = tmp.substr(0, pos);
         //TODO add a check for valid email ?
         return true;
     }

@@ -13,6 +13,7 @@ namespace WebUI {
         static bool begin() { return false; };
         static void end() {};
         static void handle() {}
+        static void releaseMem() {}
         static bool isOn() { return false; }
     };
     extern BTConfig bt_config;
@@ -23,7 +24,6 @@ namespace WebUI {
 #    include "../Settings.h"  // ENABLE_*
 #    include "../lineedit.h"
 
-#    include <WString.h>
 #    include <BluetoothSerial.h>
 
 const char* const DEFAULT_BT_NAME = "FluidNC";
@@ -62,9 +62,9 @@ namespace WebUI {
     private:
         static BTConfig* instance;  // BT Callback does not support passing parameters. Sigh.
 
-        String _btclient = "";
-        String _btname;
-        char   _deviceAddrBuffer[18];
+        std::string _btclient = "";
+        std::string _btname;
+        char        _deviceAddrBuffer[18];
 
         static void my_spp_cb(esp_spp_cb_event_t event, esp_spp_cb_param_t* param);
 
@@ -77,15 +77,16 @@ namespace WebUI {
 
         std::string info();
 
-        static bool   isBTnameValid(const char* hostname);
-        const String& BTname() const { return _btname; }
-        const String& client_name() const { return _btclient; }
-        const char*   device_address();
-        bool          begin();
-        void          end();
-        void          handle();
-        void          reset_settings();
-        bool          isOn() const;
+        static bool        isBTnameValid(const char* hostname);
+        const std::string& BTname() const { return _btname; }
+        const std::string& client_name() const { return _btclient; }
+        const char*        device_address();
+        bool               begin();
+        void               end();
+        void               handle();
+        void               reset_settings();
+        bool               isOn() const;
+        void               releaseMem();
 
         ~BTConfig();
     };
