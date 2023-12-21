@@ -70,6 +70,8 @@ namespace Pins {
             case 34:  // Input only pins
             case 35:
             case 36:
+            case 37:
+            case 38:
             case 39:
                 return PinCapabilities::Native | PinCapabilities::Input | PinCapabilities::ADC | PinCapabilities::ISR | PinCapabilities::UART;
                 break;
