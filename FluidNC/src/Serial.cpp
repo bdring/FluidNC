@@ -287,7 +287,7 @@ Channel* AllChannels::pollLine(char* line) {
 
     for (auto channel : _channelq) {
         // Skip the last channel in the loop
-        if (channel != _lastChannel && channel->pollLine(line)) {
+        if (channel != _lastChannel && channel && channel->pollLine(line)) {
             _lastChannel = channel;
             _mutex_pollLine.unlock();
             return _lastChannel;
