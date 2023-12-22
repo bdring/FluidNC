@@ -45,7 +45,6 @@ static Error hashFile(const std::filesystem::path& ipath, std::string& str) {  /
 
 void HashFS::delete_file(const std::filesystem::path& path) {
     localFsHashes.erase(path.filename());
-    log_debug("Deleting hash for " << path.filename());
 }
 
 bool HashFS::file_is_hashed(const std::filesystem::path& path) {
@@ -70,7 +69,6 @@ void HashFS::rehash_file(const std::filesystem::path& path) {
             delete_file(path);
         } else {
             localFsHashes[path.filename()] = hash;
-            log_debug(path.filename() << " hash " << hash);
         }
     }
 }
