@@ -917,11 +917,9 @@ namespace WebUI {
             std::string action(_webserver->arg("action").c_str());
             std::string filename = std::string(_webserver->arg("filename").c_str());
             if (action == "delete") {
-                log_debug("Deleting " << fpath << " / " << filename);
                 if (stdfs::remove(fpath / filename, ec)) {
                     sstatus = filename + " deleted";
                     HashFS::delete_file(fpath / filename);
-
                 } else {
                     sstatus = "Cannot delete ";
                     sstatus += filename + " " + ec.message();
@@ -932,6 +930,7 @@ namespace WebUI {
                 int count = stdfs::remove_all(dirpath, ec);
                 if (count > 0) {
                     sstatus = filename + " deleted";
+                    HashFS::report_change();
                 } else {
                     log_debug("remove_all returned " << count);
                     sstatus = "Cannot delete ";
@@ -940,6 +939,7 @@ namespace WebUI {
             } else if (action == "createdir") {
                 if (stdfs::create_directory(fpath / filename, ec)) {
                     sstatus = filename + " created";
+                    HashFS::report_change();
                 } else {
                     sstatus = "Cannot create ";
                     sstatus += filename + " " + ec.message();
@@ -955,6 +955,7 @@ namespace WebUI {
                         sstatus += filename + " " + ec.message();
                     } else {
                         sstatus = filename + " renamed to " + newname;
+                        HashFS::rename_file(fpath / filename, fpath / newname);
                     }
                 }
             }

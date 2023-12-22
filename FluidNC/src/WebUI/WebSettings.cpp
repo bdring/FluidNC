@@ -351,6 +351,11 @@ namespace WebUI {
     static Error deleteObject(const char* fs, char* name, Channel& out) {
         std::error_code ec;
 
+        if (!name || !*name || (strcmp(name, "/") == 0)) {
+            // Disallow deleting everything
+            log_error_to(out, "Will not delete everything");
+            return Error::InvalidValue;
+        }
         FluidPath fpath { name, fs, ec };
         if (ec) {
             log_to(out, "No SD");
@@ -435,6 +440,9 @@ namespace WebUI {
     }
 
     static Error renameObject(const char* fs, char* parameter, AuthenticationLevel auth_level, Channel& out) {
+        if (!parameter || *parameter == '\0') {
+            return Error::InvalidValue;
+        }
         auto opath = strchr(parameter, '>');
         if (*opath == '\0') {
             return Error::InvalidValue;
@@ -445,6 +453,7 @@ namespace WebUI {
             FluidPath inPath { ipath, fs };
             FluidPath outPath { opath, fs };
             std::filesystem::rename(inPath, outPath);
+            HashFS::rename_file(inPath, outPath, true);
         } catch (const Error err) {
             log_error_to(out, "Cannot rename " << ipath << " to " << opath);
             return Error::FsFailedRenameFile;
