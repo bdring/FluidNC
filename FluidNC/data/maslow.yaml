@@ -4,6 +4,24 @@ name: Maslow S3 Board
 Maslow_frame_width: 3000.0
 Maslow_frame_height: 2000.0
 Maslow_vertical: 1
+Maslow_caibration_offset: 750.0
+
+
+Maslow_blX: 0.0
+Maslow_blY: 0.0
+
+Maslow_tlX: 5.5
+Maslow_tlY: 2150.0
+
+Maslow_trX: 3135.0
+Maslow_trY: 2150.0
+
+Maslow_brX: 3095.0
+Maslow_brY: 0.0
+
+
+
+
 
 
 spi:

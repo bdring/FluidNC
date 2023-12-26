@@ -65,18 +65,18 @@ void Maslow_::begin(void (*sys_rt)()) {
   axisTRHomed = false;
   axisTLHomed = false;
 
-  tlX = 25.4253399079432;
-  tlY = 2062.799317466706;
-  tlZ = 116 + 38;
-  trX = 2976.989226934371; 
-  trY = 2065.5158023062427;
-  trZ = 69 + 38;
-  blX = 0;
-  blY = 0;
-  blZ = 47 + 38;
-  brX = 2960.520761172446;
-  brY = 0;
-  brZ = 89 + 38;
+//   tlX = 25.4253399079432;
+//   tlY = 2062.799317466706;
+//   tlZ = 116 + 38;
+//   trX = 2976.989226934371; 
+//   trY = 2065.5158023062427;
+//   trZ = 69 + 38;
+//   blX = 0;
+//   blY = 0;
+//   blZ = 47 + 38;
+//   brX = 2960.520761172446;
+//   brY = 0;
+//   brZ = 89 + 38;
 //Roman frame, approx
 //   tlX = 5.5;
 //   tlY = 2150;
@@ -91,14 +91,14 @@ void Maslow_::begin(void (*sys_rt)()) {
 //   brY = 0;
 //   brZ = 0;
 //Roman frame, after calibration on 25 points
-tlX = 54.2907358762372;
-tlY = 2153.828537541466; 
-trX = 3097.9245785193057;
-trY = 2110.326736121985;
- blX = 0;
- blY =  0; 
- brX = 3088.4898198722663;
- blY =  0;
+// tlX = 54.2907358762372;
+// tlY = 2153.828537541466; 
+// trX = 3097.9245785193057;
+// trY = 2110.326736121985;
+//  blX = 0;
+//  blY =  0; 
+//  brX = 3088.4898198722663;
+//  blY =  0;
 
   
   //Recompute the center XY
@@ -518,8 +518,9 @@ void Maslow_::safety_control() {
 
       if(axis[i]->getMotorPower() > 450 && abs (axis[i]->getBeltSpeed() ) < 0.1 && !tick[i]){
             axisSlackCounter[i]++;
-            if(axisSlackCounter[i] > 200){
-                log_info("SLACK:" << axis_id_to_label(i).c_str() << " motor power is " << int(axis[i]->getMotorPower()) << ", but the belt is not moving");
+            if(axisSlackCounter[i] > 3000){
+                log_info("SLACK:" << axis_id_to_label(i).c_str() << " motor power is " << int(axis[i]->getMotorPower()) << ", but the belt speed is" <<axis[i]->getBeltSpeed());
+                log_info(axisSlackCounter[i]);
                 log_info("Pull on " << axis_id_to_label(i).c_str() << " and restart!");
                 tick[i] = true;
                 axisSlackCounter[i] = 0;

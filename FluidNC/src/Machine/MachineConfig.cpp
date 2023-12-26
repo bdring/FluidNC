@@ -85,6 +85,21 @@ namespace Machine {
         handler.item("Maslow_frame_height", Maslow.frame_height, 1000, 5000);
         handler.item("Maslow_calibration_offset", Maslow.calibration_grid_offset, 100, 2000);
         handler.item("Maslow_vertical", Maslow.orientation);
+
+        handler.item("Maslow_brX", Maslow.brX);
+        handler.item("Maslow_brY", Maslow.brY);
+        
+        handler.item("Maslow_tlX", Maslow.tlX);
+        handler.item("Maslow_tlY", Maslow.tlY);
+
+        handler.item("Maslow_trX", Maslow.trX);
+        handler.item("Maslow_trY", Maslow.trY);
+
+        handler.item("Maslow_blX", Maslow.blX);
+        handler.item("Maslow_blY", Maslow.blY);
+
+        
+        
     }
 
     void MachineConfig::afterParse() {

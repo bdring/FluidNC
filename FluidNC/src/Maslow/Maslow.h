@@ -112,7 +112,7 @@ class Maslow_ {
     int frame_dimention_MAX = 5000;
     
     double calibrationGrid[CALIBRATION_GRID_SIZE][2] = {0};
-    float calibration_grid_offset = 750; // mm offset from the edge of the frame
+    float calibration_grid_offset = 900; // mm offset from the edge of the frame
 
     void generate_calibration_grid();
     bool move_with_slack(double fromX, double fromY, double toX, double toY);
@@ -136,8 +136,6 @@ class Maslow_ {
     bool holding = false;
     unsigned long holdTime = 0;
 
-  private:
-
     float tlX;
     float tlY;
     float tlZ;
@@ -150,6 +148,10 @@ class Maslow_ {
     float brX;
     float brY;
     float brZ;
+
+  private:
+
+
     float centerX;
     float centerY;
 

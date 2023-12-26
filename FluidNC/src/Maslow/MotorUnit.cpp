@@ -128,6 +128,7 @@ bool MotorUnit::comply(){
     if( distMoved > .001){
        
         motor.forward(amtToMove);
+        
 
         if(amtToMove < 100) amtToMove = 100;
         amtToMove = amtToMove*1.55;
@@ -141,7 +142,7 @@ bool MotorUnit::comply(){
         motor.forward(amtToMove);
     }
     
-
+    _commandPWM = amtToMove; //update actual motor power, so the get motor power isn't lying to us
     lastPosition = positionNow;
 
     lastCallToComply = millis();
@@ -168,7 +169,7 @@ bool MotorUnit::pull_tight(){
     //Gradually increase the pulling speed
     if(random(0,2) == 1) retract_speed = min(retract_speed +1 , 1023);
     motor.backward(retract_speed);
-
+    _commandPWM = -retract_speed;
         //When taught
         int currentMeasurement = motor.readCurrent();
 
@@ -192,7 +193,7 @@ bool MotorUnit::pull_tight(){
             if (currentMeasurement > absoluteCurrentThreshold || incrementalThresholdHits > 2 ||
                 beltStalled) {  //changed from 4 to 2 to prevent overtighting
                 //stop motor, reset variables
-                motor.stop();
+                stop();
                 retract_speed    = 0;
                 retract_baseline = 700;
                 return true;
@@ -215,7 +216,7 @@ bool MotorUnit::extend(double targetLength) {
             }
             //If reached target position, Stop and return
             setTarget(getPosition()); // good candidate for a bug that fucked up the coordinate system, NOT
-            motor.stop();
+            stop();
 
             log_info("Belt positon after extend: ");
             log_info(getPosition());
@@ -284,6 +285,7 @@ bool MotorUnit::onTarget(double precision){
 //Runs the motor to extend at full speed 
 void MotorUnit::decompressBelt(){
         motor.fullOut();
+        _commandPWM = 1023;
 }
 
 // Reset all the axis variables
