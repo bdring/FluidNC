@@ -233,7 +233,9 @@ void AllChannels::flushRx() {
 size_t AllChannels::write(uint8_t data) {
     _mutex_general.lock();
     for (auto channel : _channelq) {
-        channel->write(data);
+        if (channel->all_messages()) {
+            channel->write(data);
+        }
     }
     _mutex_general.unlock();
     return 1;
@@ -264,7 +266,9 @@ void AllChannels::stopJob() {
 size_t AllChannels::write(const uint8_t* buffer, size_t length) {
     _mutex_general.lock();
     for (auto channel : _channelq) {
-        channel->write(buffer, length);
+        if (channel->all_messages()) {
+            channel->write(buffer, length);
+        }
     }
     _mutex_general.unlock();
     return length;
@@ -283,7 +287,7 @@ Channel* AllChannels::pollLine(char* line) {
 
     for (auto channel : _channelq) {
         // Skip the last channel in the loop
-        if (channel != _lastChannel && channel->pollLine(line)) {
+        if (channel != _lastChannel && channel && channel->pollLine(line)) {
             _lastChannel = channel;
             _mutex_pollLine.unlock();
             return _lastChannel;

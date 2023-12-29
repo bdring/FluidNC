@@ -20,10 +20,11 @@
 */
 #include "VFDSpindle.h"
 
-#include "../Machine/MachineConfig.h"
-#include "../MotionControl.h"  // mc_critical
-#include "../Protocol.h"       // rtAlarm
-#include "../Report.h"         // hex message
+#include "src/Machine/MachineConfig.h"
+#include "src/MotionControl.h"  // mc_critical
+#include "src/Protocol.h"       // rtAlarm
+#include "src/Report.h"         // hex message
+#include "src/Configuration/HandlerType.h"
 
 #include <freertos/task.h>
 #include <freertos/queue.h>
@@ -473,5 +474,25 @@ namespace Spindles {
         }
 
         return crc;
+    }
+    void VFD::validate() {
+        Spindle::validate();
+        Assert(_uart != nullptr || _uart_num != -1, "VFD: missing UART configuration");
+    }
+
+    void VFD::group(Configuration::HandlerBase& handler) {
+        if (handler.handlerType() == Configuration::HandlerType::Generator) {
+            if (_uart_num == -1) {
+                handler.section("uart", _uart, 1);
+            } else {
+                handler.item("uart_num", _uart_num);
+            }
+        } else {
+            handler.section("uart", _uart, 1);
+            handler.item("uart_num", _uart_num);
+        }
+        handler.item("modbus_id", _modbus_id, 0, 247);  // per https://modbus.org/docs/PI_MBUS_300.pdf
+
+        Spindle::group(handler);
     }
 }

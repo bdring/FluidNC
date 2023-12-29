@@ -38,6 +38,8 @@ void setup() {
         uartInit();       // Setup serial port
         Uart0.println();  // create some white space after ESP32 boot info
 
+        StartupLog::init();
+
         // Setup input polling loop after loading the configuration,
         // because the polling may depend on the config
         allChannels.init();
@@ -51,7 +53,7 @@ void setup() {
         // Load settings from non-volatile storage
         settings_init();  // requires config
 
-        log_info("FluidNC " << git_info);
+        log_info("FluidNC " << git_info << " " << git_url);
         log_info("Compiled with ESP32 SDK:" << esp_get_idf_version());
 
         if (localfs_mount()) {
@@ -100,6 +102,10 @@ void setup() {
                 config->_oled->init();
             }
 
+            if (config->_stat_out) {
+                config->_stat_out->init();
+            }
+
             config->_stepping->init();  // Configure stepper interrupt timers
 
             plan_init();
@@ -128,7 +134,7 @@ void setup() {
 
         esp_reset_reason_t reason = esp_reset_reason();
         if (reason == ESP_RST_POWERON) {
-            log_debug("PowerOn reset : Launch reboot to get good limit status after poweron");
+            //log_debug("PowerOn reset : Launch reboot to get good limit status after poweron");
             //ESP.restart();
         }
 

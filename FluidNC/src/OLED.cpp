@@ -81,7 +81,7 @@ void OLED::init() {
     _oled->display();
 
     allChannels.registration(this);
-    setReportInterval(500);
+    setReportInterval(_report_interval_ms);
 }
 
 Channel* OLED::pollLine(char* line) {
@@ -439,6 +439,18 @@ void OLED::parse_BT() {
     delay_ms(_radio_delay);
 }
 
+void OLED::parse_WebUI() {
+    size_t      start  = strlen("[MSG:INFO: WebUI: Request from ");
+    std::string ipaddr = _report.substr(start, _report.size() - start - 1);
+
+    _oled->clear();
+    auto fh = font_height(ArialMT_Plain_10);
+    wrapped_draw_string(0, "WebUI from", ArialMT_Plain_10);
+    wrapped_draw_string(fh * 2, ipaddr, ArialMT_Plain_10);
+    _oled->display();
+    delay_ms(_radio_delay);
+}
+
 void OLED::parse_report() {
     if (_report.length() == 0) {
         return;
@@ -465,6 +477,10 @@ void OLED::parse_report() {
     }
     if (_report.rfind("[MSG:INFO: BT Started with ", 0) == 0) {
         parse_BT();
+        return;
+    }
+    if (_report.rfind("[MSG:INFO: WebUI: Request from ", 0) == 0) {
+        parse_WebUI();
         return;
     }
 }

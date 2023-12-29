@@ -103,9 +103,9 @@ namespace WebUI {
     // Private function to implement pretty-printing
     void JSONencoder::line() {
         if (_channel) {
-            // Always pretty print to a channel, because channels
-            // cannot necessary handle really long lines.
-            add('\n');
+            // log_to() always adds a newline
+            // We want that for channels because they might not
+            // be able to handle really long lines.
             log_to(*_channel, *_str);
             *_str = "";
             indent();
@@ -147,6 +147,16 @@ namespace WebUI {
         dec_level();
         line();
         add(']');
+    }
+
+    // Begins the creation of a member whose value is an object.
+    // Call end_object() to close the member
+    void JSONencoder::begin_member_object(const char* tag) {
+        comma_line();
+        quoted(tag);
+        add(':');
+        add('{');
+        inc_level();
     }
 
     // Starts an object with {.

@@ -35,7 +35,7 @@ namespace Machine {
     class Macros : public Configuration::Configurable {
     public:
         static const int n_startup_lines = 2;
-        static const int n_macros        = 5;
+        static const int n_macros        = 4;
 
         static Macro _macro[n_macros];
         static Macro _startup_line[n_startup_lines];

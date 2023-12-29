@@ -40,6 +40,8 @@ int nb_work_done = 0;
 // WU Readable and writable as user and admin
 // WA Readable as user and admin, writable as admin
 
+static Error fakeMaxSpindleSpeed(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out);
+
 // If authentication is disabled, auth_level will be LEVEL_ADMIN
 static bool auth_failed(Word* w, const char* value, WebUI::AuthenticationLevel auth_level) {
     permissions_t permissions = w->getPermissions();
@@ -198,11 +200,84 @@ static void show_settings(Channel& out, type_t type) {
             show_setting(s->getGrblName(), s->getCompatibleValue(), NULL, out);
         }
     }
+    // need this per issue #1036
+    fakeMaxSpindleSpeed(NULL, WebUI::AuthenticationLevel::LEVEL_ADMIN, out);
 }
+
+static int findAxisIndexFromLetter(char name) {
+    int n_axis = config->_axes->_numberAxis;
+
+    for (int axis = 0; axis < n_axis; axis++) {
+        if (config->_axes->axisName(axis) == name)
+            return axis;
+    }
+
+    return -1;
+}
+
+static bool has_laser() {
+    if (config->_spindles.size())
+        for (auto s : config->_spindles)
+            if (!strcmp(s->name(), "Laser"))
+                return true;
+
+    return false;
+}
+
+static float laser_max_speed() {
+    if (config->_spindles.size())
+        for (auto s : config->_spindles)
+            if (!strcmp(s->name(), "Laser"))
+                return s->maxSpeed();
+
+    return 0;
+}
+
 static Error report_normal_settings(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+    log_to(out, "$0=", config->_stepping->_pulseUsecs);
+    log_to(out, "$1=", config->_stepping->_idleMsecs);
+    log_to(out, "$2=0");
+    log_to(out, "$3=0");
+    log_to(out, "$4=0");
+    log_to(out, "$5=0");
+    log_to(out, "$6=0");
     show_settings(out, GRBL);  // GRBL non-axis settings
+
+    log_to(out, "$11=", config->_junctionDeviation);
+    log_to(out, "$12=", config->_arcTolerance);
+    log_to(out, "$13=", (config->_reportInches ? 1 : 0));
+
+    log_to(out, "$20=0");
+    log_to(out, "$21=0");
+    log_to(out, "$22=1");
+    log_to(out, "$23=0");
+    log_to(out, "$24=200");
+    log_to(out, "$25=2000");
+    log_to(out, "$26=250");
+    log_to(out, "$27=5");
+    log_to(out, "$30=", laser_max_speed());
+    log_to(out, "$31=0");
+    log_to(out, "$32=", (has_laser() ? 1 : 0));
+
+    char axes[7] = "XYZABC";
+
+    for (int i = 0; i < 6; i++) {
+        char axis_name = axes[i];
+
+        if (findAxisIndexFromLetter(axis_name) != -1) {
+            auto axis = config->_axes->_axis[findAxisIndexFromLetter(axis_name)];
+
+            LogStream ss("");
+            ss << "$10" << i << "=" << axis->_stepsPerMm << "\n";
+            ss << "$11" << i << "=" << axis->_maxRate << "\n";
+            ss << "$12" << i << "=" << axis->_acceleration << "\n";
+            ss << "$13" << i << "=" << axis->_maxTravel << "\n";
+        }
+    }
+
     return Error::Ok;
 }
+
 static Error list_grbl_names(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
     for (Setting* setting : Setting::List) {
         const char* gn = setting->getGrblName();
@@ -335,7 +410,9 @@ static Error home(AxisMask axisMask) {
             protocol_execute_realtime();
         } while (sys.state == State::Homing);
 
-        config->_macros->_after_homing.run();
+        if (!Homing::unhomed_axes()) {
+            config->_macros->_after_homing.run();
+        }
 
         return Error::Ok;
 
@@ -599,9 +676,10 @@ int GetResetWhenPowerOn() {
 void ReconnectWifi() {
     log_debug("Try to reconnext to Wifi");
     WebUI::WiFiConfig::end();
+    WebUI::WiFiConfig::reset();
     delay(1000);
     WebUI::WiFiConfig::begin();
-    delay(5000);
+    delay(1000);
 }
 
 void CallURLWithRetryStrategy(String cmd) {
@@ -615,554 +693,553 @@ void CallURLWithRetryStrategy(String cmd) {
             if (!(WiFi.status() == WL_CONNECTED) || (NbRetry % 3 == 0))
                 ReconnectWifi();
 
-            delay(2000);
+            delay(500);
         }
     }
-}
 
-urlFeedback CallURL(String cmd) {
-    HTTPClient       http;
-    WiFiClientSecure client;
+    urlFeedback CallURL(String cmd) {
+        HTTPClient       http;
+        WiFiClientSecure client;
 
-    String url, urlDebug;
-    String host = WebUI::URL_ToCall->get();
+        String url, urlDebug;
+        String host = WebUI::URL_ToCall->get();
 
-    client.setInsecure();
-    client.connect(host.c_str(), 443);
-    //if (!client.connect(host.c_str(), 443))
-    //    log_info("Connection to server failed! - Wifi status : " + std::to_string(WiFi.status()) + " - Wifi Mode : " +std::to_string(WiFi.getMode()) )
+        client.setInsecure();
+        client.connect(host.c_str(), 443);
+        //if (!client.connect(host.c_str(), 443))
+        //    log_info("Connection to server failed! - Wifi status : " + std::to_string(WiFi.status()) + " - Wifi Mode : " +std::to_string(WiFi.getMode()) )
 
-    {
-        //log_info("Connection succesfully to server !");
+        {
+            //log_info("Connection succesfully to server !");
 
-        log_debug("Start calling URL");
-        url = host;
-        if (cmd != "") {
-            url += "?";
-            url += cmd;
-        }
+            log_debug("Start calling URL");
+            url = host;
+            if (cmd != "") {
+                url += "?";
+                url += cmd;
+            }
 
-        urlDebug = "URL to call  : " + url;
-        host     = "Host : '" + host + "'";
+            urlDebug = "URL to call  : " + url;
+            host     = "Host : '" + host + "'";
 
-        log_debug(urlDebug.c_str());
-        log_debug(host.c_str());
+            log_debug(urlDebug.c_str());
+            log_debug(host.c_str());
 
-        if (((WiFi.status() == WL_CONNECTED)) && ((WiFi.getMode() == WIFI_MODE_STA) || (WiFi.getMode() == WIFI_MODE_APSTA))) {
-            if (host != "") {
-                http.begin(client, url.c_str());  //Specify the URL and certificate
-                int httpCode = http.GET();        //Make the request
+            if (((WiFi.status() == WL_CONNECTED)) && ((WiFi.getMode() == WIFI_MODE_STA) || (WiFi.getMode() == WIFI_MODE_APSTA))) {
+                if (host != "") {
+                    http.begin(client, url.c_str());  //Specify the URL and certificate
+                    int httpCode = http.GET();        //Make the request
 
-                if (httpCode > 0) {  //Check for the returning code
-                    log_info("URL call successful");
-                    http.end();
-                    client.stop();
-                    return URL_CALL_OK;
+                    if (httpCode > 0) {  //Check for the returning code
+                        log_info("URL call successful");
+                        http.end();
+                        client.stop();
+                        return URL_CALL_OK;
+
+                    } else {
+                        log_info("Failed to call URL");
+                        http.end();
+                        client.stop();
+                        return NOT_SUCCESSFUL;
+                    }
 
                 } else {
-                    log_info("Failed to call URL");
-                    http.end();
+                    log_debug("No URL to call");
                     client.stop();
-                    return NOT_SUCCESSFUL;
+                    return NO_URL;
                 }
-
             } else {
-                log_debug("No URL to call");
+                log_debug("Wifi is not connected in STA Mode");
                 client.stop();
-                return NO_URL;
+                return NO_GOOD_MODE;
             }
-        } else {
-            log_debug("Wifi is not connected in STA Mode");
-            client.stop();
-            return NO_GOOD_MODE;
         }
     }
-}
 
-static Error motor_control(const char* value, bool disable) {
-    if (sys.state == State::ConfigAlarm) {
-        return Error::ConfigurationInvalid;
-    }
+    static Error motor_control(const char* value, bool disable) {
+        if (sys.state == State::ConfigAlarm) {
+            return Error::ConfigurationInvalid;
+        }
 
-    while (value && isspace(*value)) {
-        ++value;
-    }
-    if (!value || *value == '\0') {
-        log_info((disable ? "Dis" : "En") << "abling all motors");
-        config->_axes->set_disable(disable);
+        while (value && isspace(*value)) {
+            ++value;
+        }
+        if (!value || *value == '\0') {
+            log_info((disable ? "Dis" : "En") << "abling all motors");
+            config->_axes->set_disable(disable);
+            return Error::Ok;
+        }
+
+        auto axes = config->_axes;
+
+        if (axes->_sharedStepperDisable.defined()) {
+            log_error("Cannot " << (disable ? "dis" : "en") << "able individual axes with a shared disable pin");
+            return Error::InvalidStatement;
+        }
+
+        for (int i = 0; i < config->_axes->_numberAxis; i++) {
+            char axisName = axes->axisName(i);
+
+            if (strchr(value, axisName) || strchr(value, tolower(axisName))) {
+                log_info((disable ? "Dis" : "En") << "abling " << axisName << " motors");
+                axes->set_disable(i, disable);
+            }
+        }
         return Error::Ok;
     }
 
-    auto axes = config->_axes;
+    static Error motor_disable(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+        return motor_control(value, true);
+    }
 
-    if (axes->_sharedStepperDisable.defined()) {
-        log_error("Cannot " << (disable ? "dis" : "en") << "able individual axes with a shared disable pin");
+    static Error motor_enable(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+        return motor_control(value, false);
+    }
+
+    static Error motors_init(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+        config->_axes->config_motors();
+        return Error::Ok;
+    }
+
+    static Error raz_work_done(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+        nb_work_done = 0;
+
+        log_info("Raz done - work done : 0");
+
+        return Error::Ok;
+    }
+
+    static Error macros_run(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+        if (value) {
+            log_info("Running macro" << *value);
+            size_t macro_num = (*value) - '0';
+            config->_macros->_macro[macro_num].run();
+            return Error::Ok;
+        }
+        log_error("$Macros/Run requires a macro number argument");
         return Error::InvalidStatement;
     }
 
-    for (int i = 0; i < config->_axes->_numberAxis; i++) {
-        char axisName = axes->axisName(i);
-
-        if (strchr(value, axisName) || strchr(value, tolower(axisName))) {
-            log_info((disable ? "Dis" : "En") << "abling " << axisName << " motors");
-            axes->set_disable(i, disable);
+    static Error xmodem_receive(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+        if (!value || !*value) {
+            value = "uploaded";
         }
-    }
-    return Error::Ok;
-}
 
-static Error motor_disable(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
-    return motor_control(value, true);
-}
+        char Name[100] = "";
 
-static Error motor_enable(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
-    return motor_control(value, false);
-}
-
-static Error motors_init(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
-    config->_axes->config_motors();
-    return Error::Ok;
-}
-
-static Error raz_work_done(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
-    nb_work_done = 0;
-
-    log_info("Raz done - work done : 0");
-
-    return Error::Ok;
-}
-
-static Error macros_run(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
-    if (value) {
-        log_info("Running macro" << *value);
-        size_t macro_num = (*value) - '0';
-        config->_macros->_macro[macro_num].run();
-        return Error::Ok;
-    }
-    log_error("$Macros/Run requires a macro number argument");
-    return Error::InvalidStatement;
-}
-
-static Error xmodem_receive(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
-    if (!value || !*value) {
-        value = "uploaded";
-    }
-
-    char Name[100] = "";
-
-    FileStream* outfile;
-    try {
-        if (memcmp(value, "4_AvaShield", strlen("4_AvaShield") - 1) == 0)
-            memcpy(&Name, "config.yaml", strlen("config.yaml"));
-        else
-            memcpy(&Name, value, strlen(value));
-
-        log_debug(Name);
-        outfile = new FileStream(Name, "w");
-    } catch (...) {
-        delay_ms(1000);   // Delay for FluidTerm to handle command echoing
-        out.write(0x04);  // Cancel xmodem transfer with EOT
-        log_info("Cannot open " << value);
-        return Error::UploadFailed;
-    }
-    pollingPaused = true;
-    bool oldCr    = out.setCr(false);
-    delay_ms(1000);
-    int size = xmodemReceive(&out, outfile);
-    out.setCr(oldCr);
-    pollingPaused = false;
-    if (size >= 0) {
-        log_info("Received " << size << " bytes to file " << outfile->path());
-    } else {
-        log_info("Reception failed or was canceled");
-    }
-    std::filesystem::path fname = outfile->fpath();
-    delete outfile;
-    HashFS::rehash_file(fname);
-
-    return size < 0 ? Error::UploadFailed : Error::Ok;
-}
-
-static Error xmodem_send(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
-    if (!value || !*value) {
-        value = "config.yaml";
-    }
-    FileStream* infile;
-    try {
-        infile = new FileStream(value, "r");
-    } catch (...) {
-        log_info("Cannot open " << value);
-        return Error::DownloadFailed;
-    }
-    bool oldCr = out.setCr(false);
-    log_info("Sending " << value << " via XModem");
-    int size = xmodemTransmit(&out, infile);
-    out.setCr(oldCr);
-    delete infile;
-    if (size >= 0) {
-        log_info("Sent " << size << " bytes");
-    } else {
-        log_info("Sending failed or was canceled");
-    }
-    return size < 0 ? Error::DownloadFailed : Error::Ok;
-}
-
-static Error dump_config(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
-    Channel* ss;
-    if (value) {
-        // Use a file on the local file system unless there is an explicit prefix like /sd/
-        std::error_code ec;
-
+        FileStream* outfile;
         try {
-            //            ss = new FileStream(std::string(value), "", "w");
-            ss = new FileStream(value, "w", "");
-        } catch (Error err) { return err; }
-    } else {
-        ss = &out;
-    }
-    try {
-        Configuration::Generator generator(*ss);
-        config->group(generator);
-    } catch (std::exception& ex) { log_info("Config dump error: " << ex.what()); }
-    if (value) {
-        drain_messages();
-        delete ss;
-    }
-    return Error::Ok;
-}
+            if (memcmp(value, "4_AvaShield", strlen("4_AvaShield") - 1) == 0)
+                memcpy(&Name, "config.yaml", strlen("config.yaml"));
+            else
+                memcpy(&Name, value, strlen(value));
 
-static Error fakeMaxSpindleSpeed(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
-    if (!value) {
-        log_to(out, "$30=", spindle->maxSpeed())
-    }
-    return Error::Ok;
-}
-
-static Error fakeLaserMode(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
-    if (!value) {
-        log_to(out, "$32=", (spindle->isRateAdjusted() ? "1" : "0"));
-    }
-    return Error::Ok;
-}
-
-static Error showChannelInfo(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
-    allChannels.listChannels(out);
-    return Error::Ok;
-}
-
-static Error showStartupLog(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
-    startupLog.dump(out);
-    return Error::Ok;
-}
-
-static Error showGPIOs(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
-    gpio_dump(out);
-    return Error::Ok;
-}
-
-static Error setReportInterval(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
-    if (!value) {
-        uint32_t actual = out.getReportInterval();
-        if (actual) {
-            log_info("Channel auto report interval is " << actual << " ms");
+            log_debug(Name);
+            outfile = new FileStream(Name, "w");
+        } catch (...) {
+            delay_ms(1000);   // Delay for FluidTerm to handle command echoing
+            out.write(0x04);  // Cancel xmodem transfer with EOT
+            log_info("Cannot open " << value);
+            return Error::UploadFailed;
+        }
+        pollingPaused = true;
+        bool oldCr    = out.setCr(false);
+        delay_ms(1000);
+        int size = xmodemReceive(&out, outfile);
+        out.setCr(oldCr);
+        pollingPaused = false;
+        if (size >= 0) {
+            log_info("Received " << size << " bytes to file " << outfile->path());
         } else {
-            log_info("Channel auto reporting is off");
+            log_info("Reception failed or was canceled");
+        }
+        std::filesystem::path fname = outfile->fpath();
+        delete outfile;
+        HashFS::rehash_file(fname);
+
+        return size < 0 ? Error::UploadFailed : Error::Ok;
+    }
+
+    static Error xmodem_send(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+        if (!value || !*value) {
+            value = "config.yaml";
+        }
+        FileStream* infile;
+        try {
+            infile = new FileStream(value, "r");
+        } catch (...) {
+            log_info("Cannot open " << value);
+            return Error::DownloadFailed;
+        }
+        bool oldCr = out.setCr(false);
+        log_info("Sending " << value << " via XModem");
+        int size = xmodemTransmit(&out, infile);
+        out.setCr(oldCr);
+        delete infile;
+        if (size >= 0) {
+            log_info("Sent " << size << " bytes");
+        } else {
+            log_info("Sending failed or was canceled");
+        }
+        return size < 0 ? Error::DownloadFailed : Error::Ok;
+    }
+
+    static Error dump_config(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+        Channel* ss;
+        if (value) {
+            // Use a file on the local file system unless there is an explicit prefix like /sd/
+            std::error_code ec;
+
+            try {
+                //            ss = new FileStream(std::string(value), "", "w");
+                ss = new FileStream(value, "w", "");
+            } catch (Error err) { return err; }
+        } else {
+            ss = &out;
+        }
+        try {
+            Configuration::Generator generator(*ss);
+            config->group(generator);
+        } catch (std::exception& ex) { log_info("Config dump error: " << ex.what()); }
+        if (value) {
+            drain_messages();
+            delete ss;
         }
         return Error::Ok;
     }
-    char*    endptr;
-    uint32_t intValue = strtol(value, &endptr, 10);
 
-    if (endptr == value || *endptr != '\0') {
-        return Error::BadNumberFormat;
+    static Error fakeMaxSpindleSpeed(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+        if (!value) {
+            log_to(out, "$30=", spindle->maxSpeed());
+        }
+        return Error::Ok;
     }
 
-    uint32_t actual = out.setReportInterval(intValue);
+    static Error fakeLaserMode(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+        if (!value) {
+            log_to(out, "$32=", (spindle->isRateAdjusted() ? "1" : "0"));
+        }
+        return Error::Ok;
+    }
+
+    static Error showChannelInfo(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+        allChannels.listChannels(out);
+        return Error::Ok;
+    }
+
+    static Error showStartupLog(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+        StartupLog::dump(out);
+        return Error::Ok;
+    }
+
+    static Error showGPIOs(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+        gpio_dump(out);
+        return Error::Ok;
+    }
+
+    static Error setReportInterval(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+        if (!value) {
+            uint32_t actual = out.getReportInterval();
+            if (actual) {
+                log_info("Channel auto report interval is " << actual << " ms");
+            } else {
+                log_info("Channel auto reporting is off");
+            }
+            return Error::Ok;
+        }
+        char*    endptr;
+        uint32_t intValue = strtol(value, &endptr, 10);
+
+        if (endptr == value || *endptr != '\0') {
+            return Error::BadNumberFormat;
+        }
+
+        uint32_t actual = out.setReportInterval(intValue);
 #if 1
-    if (actual) {
-        log_info("Channel auto report interval set to " << actual << " ms");
-    } else {
-        log_info("Channel auto reporting turned off");
-    }
+        if (actual) {
+            log_info("Channel auto report interval set to " << actual << " ms");
+        } else {
+            log_info("Channel auto reporting turned off");
+        }
 #endif
 
-    // Send a full status report immediately so the client has all the data
-    report_wco_counter = 0;
-    report_ovr_counter = 0;
+        // Send a full status report immediately so the client has all the data
+        report_wco_counter = 0;
+        report_ovr_counter = 0;
 
-    return Error::Ok;
-}
-
-static Error showHeap(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
-    log_info("Heap free: " << xPortGetFreeHeapSize() << " min: " << heapLowWater);
-    return Error::Ok;
-}
-
-// Commands use the same syntax as Settings, but instead of setting or
-// displaying a persistent value, a command causes some action to occur.
-// That action could be anything, from displaying a run-time parameter
-// to performing some system state change.  Each command is responsible
-// for decoding its own value string, if it needs one.
-void make_user_commands() {
-    new UserCommand("GD", "GPIO/Dump", showGPIOs, anyState);
-
-    new UserCommand("CI", "Channel/Info", showChannelInfo, anyState);
-    new UserCommand("XR", "Xmodem/Receive", xmodem_receive, notIdleOrAlarm);
-    new UserCommand("XS", "Xmodem/Send", xmodem_send, notIdleOrAlarm);
-    new UserCommand("CD", "Config/Dump", dump_config, anyState);
-    new UserCommand("", "Help", show_help, anyState);
-    new UserCommand("T", "State", showState, anyState);
-    new UserCommand("J", "Jog", doJog, notIdleOrJog);
-
-    new UserCommand("$", "GrblSettings/List", report_normal_settings, cycleOrHold);
-    new UserCommand("L", "GrblNames/List", list_grbl_names, cycleOrHold);
-    new UserCommand("Limits", "Limits/Show", show_limits, cycleOrHold);
-    new UserCommand("S", "Settings/List", list_settings, cycleOrHold);
-    new UserCommand("SC", "Settings/ListChanged", list_changed_settings, cycleOrHold);
-    new UserCommand("CMD", "Commands/List", list_commands, cycleOrHold);
-    new UserCommand("A", "Alarms/List", listAlarms, anyState);
-    new UserCommand("E", "Errors/List", listErrors, anyState);
-    new UserCommand("G", "GCode/Modes", report_gcode, anyState);
-    new UserCommand("C", "GCode/Check", toggle_check_mode, anyState);
-    new UserCommand("X", "Alarm/Disable", disable_alarm_lock, anyState);
-    new UserCommand("NVX", "Settings/Erase", Setting::eraseNVS, notIdleOrAlarm, WA);
-    new UserCommand("V", "Settings/Stats", Setting::report_nvs_stats, notIdleOrAlarm);
-    new UserCommand("#", "GCode/Offsets", report_ngc, notIdleOrAlarm);
-    new UserCommand("H", "Home", home_all, notIdleOrAlarm);
-    new UserCommand("MD", "Motor/Disable", motor_disable, notIdleOrAlarm);
-    new UserCommand("ME", "Motor/Enable", motor_enable, notIdleOrAlarm);
-    new UserCommand("MI", "Motors/Init", motors_init, notIdleOrAlarm);
-    new UserCommand("RW", "Raz number of work done", raz_work_done, anyState);
-
-    new UserCommand("RM", "Macros/Run", macros_run, notIdleOrAlarm);
-
-    new UserCommand("HX", "Home/X", home_x, notIdleOrAlarm);
-    new UserCommand("HY", "Home/Y", home_y, notIdleOrAlarm);
-    new UserCommand("HXY", "Home/XY", home_xy, notIdleOrAlarm);
-    new UserCommand("HZ", "Home/Z", home_z, notIdleOrAlarm);
-    new UserCommand("HA", "Home/A", home_a, notIdleOrAlarm);
-    new UserCommand("HB", "Home/B", home_b, notIdleOrAlarm);
-    new UserCommand("HC", "Home/C", home_c, notIdleOrAlarm);
-
-    new UserCommand("SLP", "System/Sleep", go_to_sleep, notIdleOrAlarm);
-    new UserCommand("I", "Build/Info", get_report_build_info, notIdleOrAlarm);
-    new UserCommand("N", "GCode/StartupLines", show_startup_lines, notIdleOrAlarm);
-    new UserCommand("RST", "Settings/Restore", restore_settings, notIdleOrAlarm, WA);
-
-    new UserCommand("Heap", "Heap/Show", showHeap, anyState);
-    new UserCommand("SS", "Startup/Show", showStartupLog, anyState);
-
-    new UserCommand("RI", "Report/Interval", setReportInterval, anyState);
-
-    new UserCommand("30", "FakeMaxSpindleSpeed", fakeMaxSpindleSpeed, notIdleOrAlarm);
-    new UserCommand("32", "FakeLaserMode", fakeLaserMode, notIdleOrAlarm);
-
-    new UserCommand("RESET", "Reset ESP32", resetESP32, anyState);
-};
-
-// normalize_key puts a key string into canonical form -
-// without whitespace.
-// start points to a null-terminated string.
-// Returns the first substring that does not contain whitespace.
-// Case is unchanged because comparisons are case-insensitive.
-char* normalize_key(char* start) {
-    char c;
-
-    // In the usual case, this loop will exit on the very first test,
-    // because the first character is likely to be non-white.
-    // Null ('\0') is not considered to be a space character.
-    while (isspace(c = *start) && c != '\0') {
-        ++start;
+        return Error::Ok;
     }
 
-    // start now points to either a printable character or end of string
-    if (c == '\0') {
+    static Error showHeap(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+        log_info("Heap free: " << xPortGetFreeHeapSize() << " min: " << heapLowWater);
+        return Error::Ok;
+    }
+
+    // Commands use the same syntax as Settings, but instead of setting or
+    // displaying a persistent value, a command causes some action to occur.
+    // That action could be anything, from displaying a run-time parameter
+    // to performing some system state change.  Each command is responsible
+    // for decoding its own value string, if it needs one.
+    void make_user_commands() {
+        new UserCommand("GD", "GPIO/Dump", showGPIOs, anyState);
+
+        new UserCommand("CI", "Channel/Info", showChannelInfo, anyState);
+        new UserCommand("XR", "Xmodem/Receive", xmodem_receive, anyState);
+        new UserCommand("XS", "Xmodem/Send", xmodem_send, anyState);
+        new UserCommand("CD", "Config/Dump", dump_config, anyState);
+        new UserCommand("", "Help", show_help, anyState);
+        new UserCommand("T", "State", showState, anyState);
+        new UserCommand("J", "Jog", doJog, notIdleOrJog);
+
+        new UserCommand("$", "GrblSettings/List", report_normal_settings, cycleOrHold);
+        new UserCommand("L", "GrblNames/List", list_grbl_names, cycleOrHold);
+        new UserCommand("Limits", "Limits/Show", show_limits, cycleOrHold);
+        new UserCommand("S", "Settings/List", list_settings, cycleOrHold);
+        new UserCommand("SC", "Settings/ListChanged", list_changed_settings, cycleOrHold);
+        new UserCommand("CMD", "Commands/List", list_commands, cycleOrHold);
+        new UserCommand("A", "Alarms/List", listAlarms, anyState);
+        new UserCommand("E", "Errors/List", listErrors, anyState);
+        new UserCommand("G", "GCode/Modes", report_gcode, anyState);
+        new UserCommand("C", "GCode/Check", toggle_check_mode, anyState);
+        new UserCommand("X", "Alarm/Disable", disable_alarm_lock, anyState);
+        new UserCommand("NVX", "Settings/Erase", Setting::eraseNVS, notIdleOrAlarm, WA);
+        new UserCommand("V", "Settings/Stats", Setting::report_nvs_stats, notIdleOrAlarm);
+        new UserCommand("#", "GCode/Offsets", report_ngc, notIdleOrAlarm);
+        new UserCommand("H", "Home", home_all, notIdleOrAlarm);
+        new UserCommand("MD", "Motor/Disable", motor_disable, notIdleOrAlarm);
+        new UserCommand("ME", "Motor/Enable", motor_enable, notIdleOrAlarm);
+        new UserCommand("MI", "Motors/Init", motors_init, notIdleOrAlarm);
+        new UserCommand("RW", "Raz number of work done", raz_work_done, anyState);
+
+        new UserCommand("RM", "Macros/Run", macros_run, notIdleOrAlarm);
+
+        new UserCommand("HX", "Home/X", home_x, notIdleOrAlarm);
+        new UserCommand("HY", "Home/Y", home_y, notIdleOrAlarm);
+        new UserCommand("HXY", "Home/XY", home_xy, notIdleOrAlarm);
+        new UserCommand("HZ", "Home/Z", home_z, notIdleOrAlarm);
+        new UserCommand("HA", "Home/A", home_a, notIdleOrAlarm);
+        new UserCommand("HB", "Home/B", home_b, notIdleOrAlarm);
+        new UserCommand("HC", "Home/C", home_c, notIdleOrAlarm);
+
+        new UserCommand("SLP", "System/Sleep", go_to_sleep, notIdleOrAlarm);
+        new UserCommand("I", "Build/Info", get_report_build_info, notIdleOrAlarm);
+        new UserCommand("N", "GCode/StartupLines", show_startup_lines, notIdleOrAlarm);
+        new UserCommand("RST", "Settings/Restore", restore_settings, notIdleOrAlarm, WA);
+
+        new UserCommand("Heap", "Heap/Show", showHeap, anyState);
+        new UserCommand("SS", "Startup/Show", showStartupLog, anyState);
+
+        new UserCommand("RI", "Report/Interval", setReportInterval, anyState);
+
+        new UserCommand("30", "FakeMaxSpindleSpeed", fakeMaxSpindleSpeed, notIdleOrAlarm);
+        new UserCommand("32", "FakeLaserMode", fakeLaserMode, notIdleOrAlarm);
+
+        new UserCommand("RESET", "Reset ESP32", resetESP32, anyState);
+    };
+
+    // normalize_key puts a key string into canonical form -
+    // without whitespace.
+    // start points to a null-terminated string.
+    // Returns the first substring that does not contain whitespace.
+    // Case is unchanged because comparisons are case-insensitive.
+    char* normalize_key(char* start) {
+        char c;
+
+        // In the usual case, this loop will exit on the very first test,
+        // because the first character is likely to be non-white.
+        // Null ('\0') is not considered to be a space character.
+        while (isspace(c = *start) && c != '\0') {
+            ++start;
+        }
+
+        // start now points to either a printable character or end of string
+        if (c == '\0') {
+            return start;
+        }
+
+        // Having found the beginning of the printable string,
+        // we now scan forward until we find a space character.
+        char* end;
+        for (end = start; (c = *end) != '\0' && !isspace(c); end++) {}
+
+        // end now points to either a whitespace character or end of string
+        // In either case it is okay to place a null there
+        *end = '\0';
+
         return start;
     }
 
-    // Having found the beginning of the printable string,
-    // we now scan forward until we find a space character.
-    char* end;
-    for (end = start; (c = *end) != '\0' && !isspace(c); end++) {}
+    // This is the handler for all forms of settings commands,
+    // $..= and [..], with and without a value.
+    Error do_command_or_setting(const char* key, char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+        // If value is NULL, it means that there was no value string, i.e.
+        // $key without =, or [key] with nothing following.
+        // If value is not NULL, but the string is empty, that is the form
+        // $key= with nothing following the = .  It is important to distinguish
+        // those cases so that you can say "$N0=" to clear a startup line.
 
-    // end now points to either a whitespace character or end of string
-    // In either case it is okay to place a null there
-    *end = '\0';
+        // First search the yaml settings by name. If found, set a new
+        // value if one is given, otherwise display the current value
+        try {
+            Configuration::RuntimeSetting rts(key, value, out);
+            config->group(rts);
 
-    return start;
-}
+            if (rts.isHandled_) {
+                if (value) {
+                    // Validate only if something changed, not for display
+                    try {
+                        Configuration::Validator validator;
+                        config->validate();
+                        config->group(validator);
+                    } catch (std::exception& ex) {
+                        log_error("Validation error: " << ex.what());
+                        return Error::ConfigurationInvalid;
+                    }
 
-// This is the handler for all forms of settings commands,
-// $..= and [..], with and without a value.
-Error do_command_or_setting(const char* key, char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
-    // If value is NULL, it means that there was no value string, i.e.
-    // $key without =, or [key] with nothing following.
-    // If value is not NULL, but the string is empty, that is the form
-    // $key= with nothing following the = .  It is important to distinguish
-    // those cases so that you can say "$N0=" to clear a startup line.
-
-    // First search the yaml settings by name. If found, set a new
-    // value if one is given, otherwise display the current value
-    try {
-        Configuration::RuntimeSetting rts(key, value, out);
-        config->group(rts);
-
-        if (rts.isHandled_) {
-            if (value) {
-                // Validate only if something changed, not for display
-                try {
-                    Configuration::Validator validator;
-                    config->validate();
-                    config->group(validator);
-                } catch (std::exception& ex) {
-                    log_error("Validation error: " << ex.what());
-                    return Error::ConfigurationInvalid;
+                    Configuration::AfterParse afterParseHandler;
+                    config->afterParse();
+                    config->group(afterParseHandler);
                 }
-
-                Configuration::AfterParse afterParseHandler;
-                config->afterParse();
-                config->group(afterParseHandler);
-            }
-            return Error::Ok;
-        }
-    } catch (const Configuration::ParseException& ex) {
-        log_error("Configuration parse error at line " << ex.LineNumber() << ": " << ex.What());
-        return Error::ConfigurationInvalid;
-    } catch (const AssertionFailed& ex) {
-        log_error("Configuration change failed: " << ex.what());
-        return Error::ConfigurationInvalid;
-    }
-
-    // Next search the settings list by text name. If found, set a new
-    // value if one is given, otherwise display the current value
-    for (Setting* s : Setting::List) {
-        if (strcasecmp(s->getName(), key) == 0) {
-            if (auth_failed(s, value, auth_level)) {
-                return Error::AuthenticationFailed;
-            }
-            if (value) {
-                return s->setStringValue(uriDecode(value));
-            } else {
-                show_setting(s->getName(), s->getStringValue(), NULL, out);
                 return Error::Ok;
             }
+        } catch (const Configuration::ParseException& ex) {
+            log_error("Configuration parse error at line " << ex.LineNumber() << ": " << ex.What());
+            return Error::ConfigurationInvalid;
+        } catch (const AssertionFailed& ex) {
+            log_error("Configuration change failed: " << ex.what());
+            return Error::ConfigurationInvalid;
         }
-    }
 
-    // Then search the setting list by compatible name.  If found, set a new
-    // value if one is given, otherwise display the current value in compatible mode
-    for (Setting* s : Setting::List) {
-        if (s->getGrblName() && strcasecmp(s->getGrblName(), key) == 0) {
-            if (auth_failed(s, value, auth_level)) {
-                return Error::AuthenticationFailed;
-            }
-            if (value) {
-                return s->setStringValue(uriDecode(value));
-            } else {
-                show_setting(s->getGrblName(), s->getCompatibleValue(), NULL, out);
-                return Error::Ok;
-            }
-        }
-    }
-    // If we did not find a setting, look for a command.  Commands
-    // handle values internally; you cannot determine whether to set
-    // or display solely based on the presence of a value.
-    for (Command* cp : Command::List) {
-        if ((strcasecmp(cp->getName(), key) == 0) || (cp->getGrblName() && strcasecmp(cp->getGrblName(), key) == 0)) {
-            if (auth_failed(cp, value, auth_level)) {
-                return Error::AuthenticationFailed;
-            }
-            return cp->action(value, auth_level, out);
-        }
-    }
-
-    // If we did not find an exact match and there is no value,
-    // indicating a display operation, we allow partial matches
-    // and display every possibility.  This only applies to the
-    // text form of the name, not to the nnn and ESPnnn forms.
-    Error retval = Error::InvalidStatement;
-    if (!value) {
-        bool found = false;
+        // Next search the settings list by text name. If found, set a new
+        // value if one is given, otherwise display the current value
         for (Setting* s : Setting::List) {
-            auto test = s->getName();
-            // The C++ standard regular expression library supports many more
-            // regular expression forms than the simple one in Regex.cpp, but
-            // consumes a lot of FLASH.  The extra capability is rarely useful
-            // especially now that there are only a few NVS settings.
-            if (regexMatch(key, test, false)) {
-                const char* displayValue = auth_failed(s, value, auth_level) ? "<Authentication required>" : s->getStringValue();
-                show_setting(test, displayValue, NULL, out);
-                found = true;
+            if (strcasecmp(s->getName(), key) == 0) {
+                if (auth_failed(s, value, auth_level)) {
+                    return Error::AuthenticationFailed;
+                }
+                if (value) {
+                    return s->setStringValue(uriDecode(value));
+                } else {
+                    show_setting(s->getName(), s->getStringValue(), NULL, out);
+                    return Error::Ok;
+                }
             }
         }
-        if (found) {
+
+        // Then search the setting list by compatible name.  If found, set a new
+        // value if one is given, otherwise display the current value in compatible mode
+        for (Setting* s : Setting::List) {
+            if (s->getGrblName() && strcasecmp(s->getGrblName(), key) == 0) {
+                if (auth_failed(s, value, auth_level)) {
+                    return Error::AuthenticationFailed;
+                }
+                if (value) {
+                    return s->setStringValue(uriDecode(value));
+                } else {
+                    show_setting(s->getGrblName(), s->getCompatibleValue(), NULL, out);
+                    return Error::Ok;
+                }
+            }
+        }
+        // If we did not find a setting, look for a command.  Commands
+        // handle values internally; you cannot determine whether to set
+        // or display solely based on the presence of a value.
+        for (Command* cp : Command::List) {
+            if ((strcasecmp(cp->getName(), key) == 0) || (cp->getGrblName() && strcasecmp(cp->getGrblName(), key) == 0)) {
+                if (auth_failed(cp, value, auth_level)) {
+                    return Error::AuthenticationFailed;
+                }
+                return cp->action(value, auth_level, out);
+            }
+        }
+
+        // If we did not find an exact match and there is no value,
+        // indicating a display operation, we allow partial matches
+        // and display every possibility.  This only applies to the
+        // text form of the name, not to the nnn and ESPnnn forms.
+        Error retval = Error::InvalidStatement;
+        if (!value) {
+            bool found = false;
+            for (Setting* s : Setting::List) {
+                auto test = s->getName();
+                // The C++ standard regular expression library supports many more
+                // regular expression forms than the simple one in Regex.cpp, but
+                // consumes a lot of FLASH.  The extra capability is rarely useful
+                // especially now that there are only a few NVS settings.
+                if (regexMatch(key, test, false)) {
+                    const char* displayValue = auth_failed(s, value, auth_level) ? "<Authentication required>" : s->getStringValue();
+                    show_setting(test, displayValue, NULL, out);
+                    found = true;
+                }
+            }
+            if (found) {
+                return Error::Ok;
+            }
+        }
+        return Error::InvalidStatement;
+    }
+
+    Error settings_execute_line(char* line, Channel& out, WebUI::AuthenticationLevel auth_level) {
+        remove_password(line, auth_level);
+
+        char* value;
+        if (*line++ == '[') {  // [ESPxxx] form
+            value = strchr(line, ']');
+            if (!value) {
+                // Missing ] is an error in this form
+                return Error::InvalidStatement;
+            }
+            // ']' was found; replace it with null and set value to the rest of the line.
+            *value++ = '\0';
+            // If the rest of the line is empty, replace value with NULL.
+            if (*value == '\0') {
+                value = NULL;
+            }
+        } else {
+            // $xxx form
+            value = strchr(line, '=');
+            if (value) {
+                // $xxx=yyy form.
+                *value++ = '\0';
+            }
+        }
+
+        char* key = normalize_key(line);
+
+        // At this point there are three possibilities for value
+        // NULL - $xxx without =
+        // NULL - [ESPxxx] with nothing after ]
+        // empty string - $xxx= with nothing after
+        // non-empty string - [ESPxxx]yyy or $xxx=yyy
+        return do_command_or_setting(key, value, auth_level, out);
+    }
+
+    void settings_execute_startup() {
+        if (sys.state != State::Idle) {
+            return;
+        }
+        Error status_code;
+        for (int i = 0; i < config->_macros->n_startup_lines; i++) {
+            config->_macros->_startup_line[i].run();
+        }
+    }
+
+    Error execute_line(char* line, Channel& channel, WebUI::AuthenticationLevel auth_level) {
+        // Empty or comment line. For syncing purposes.
+        if (line[0] == 0) {
             return Error::Ok;
         }
-    }
-    return Error::InvalidStatement;
-}
-
-Error settings_execute_line(char* line, Channel& out, WebUI::AuthenticationLevel auth_level) {
-    remove_password(line, auth_level);
-
-    char* value;
-    if (*line++ == '[') {  // [ESPxxx] form
-        value = strchr(line, ']');
-        if (!value) {
-            // Missing ] is an error in this form
-            return Error::InvalidStatement;
+        // User '$' or WebUI '[ESPxxx]' command
+        if (line[0] == '$' || line[0] == '[') {
+            return settings_execute_line(line, channel, auth_level);
         }
-        // ']' was found; replace it with null and set value to the rest of the line.
-        *value++ = '\0';
-        // If the rest of the line is empty, replace value with NULL.
-        if (*value == '\0') {
-            value = NULL;
+        // Everything else is gcode. Block if in alarm or jog mode.
+        if (sys.state == State::Alarm || sys.state == State::ConfigAlarm || sys.state == State::Jog) {
+            return Error::SystemGcLock;
         }
-    } else {
-        // $xxx form
-        value = strchr(line, '=');
-        if (value) {
-            // $xxx=yyy form.
-            *value++ = '\0';
+        Error result = gc_execute_line(line);
+        if (result != Error::Ok) {
+            log_debug_to(channel, "Bad GCode: " << line);
         }
+        return result;
     }
-
-    char* key = normalize_key(line);
-
-    // At this point there are three possibilities for value
-    // NULL - $xxx without =
-    // NULL - [ESPxxx] with nothing after ]
-    // empty string - $xxx= with nothing after
-    // non-empty string - [ESPxxx]yyy or $xxx=yyy
-    return do_command_or_setting(key, value, auth_level, out);
-}
-
-void settings_execute_startup() {
-    if (sys.state != State::Idle) {
-        return;
-    }
-    Error status_code;
-    for (int i = 0; i < config->_macros->n_startup_lines; i++) {
-        config->_macros->_startup_line[i].run();
-    }
-}
-
-Error execute_line(char* line, Channel& channel, WebUI::AuthenticationLevel auth_level) {
-    // Empty or comment line. For syncing purposes.
-    if (line[0] == 0) {
-        return Error::Ok;
-    }
-    // User '$' or WebUI '[ESPxxx]' command
-    if (line[0] == '$' || line[0] == '[') {
-        return settings_execute_line(line, channel, auth_level);
-    }
-    // Everything else is gcode. Block if in alarm or jog mode.
-    if (sys.state == State::Alarm || sys.state == State::ConfigAlarm || sys.state == State::Jog) {
-        return Error::SystemGcLock;
-    }
-    Error result = gc_execute_line(line);
-    if (result != Error::Ok) {
-        log_debug_to(channel, "Bad GCode: " << line);
-    }
-    return result;
-}

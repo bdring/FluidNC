@@ -16,7 +16,7 @@ namespace WebUI {
 
 #    include "WifiConfig.h"
 #    include "../Report.h"  // report_init_message()
-#    include "Commands.h"  // COMMANDS
+#    include "Commands.h"   // COMMANDS
 
 #    include <WiFi.h>
 
@@ -50,7 +50,7 @@ namespace WebUI {
         _setupdone = true;
 
         //add mDNS
-        if (WebUI::wifi_sta_ssdp->get() == SSDP_ENABLED) {
+        if (WebUI::wifi_sta_ssdp->get()) {
             MDNS.addService("telnet", "tcp", _port);
         }
 
