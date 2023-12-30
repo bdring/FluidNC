@@ -1006,7 +1006,7 @@ void make_user_commands() {
     new UserCommand("NVX", "Settings/Erase", Setting::eraseNVS, notIdleOrAlarm, WA);
     new UserCommand("V", "Settings/Stats", Setting::report_nvs_stats, notIdleOrAlarm);
     new UserCommand("#", "GCode/Offsets", report_ngc, notIdleOrAlarm);
-    new UserCommand("H", "Home", home_all, notIdleOrAlarm);
+    new UserCommand("H", "Home", home_all, anyState);
     new UserCommand("MD", "Motor/Disable", motor_disable, notIdleOrAlarm);
     new UserCommand("ME", "Motor/Enable", motor_enable, notIdleOrAlarm);
     new UserCommand("MI", "Motors/Init", motors_init, notIdleOrAlarm);
@@ -1014,13 +1014,13 @@ void make_user_commands() {
 
     new UserCommand("RM", "Macros/Run", macros_run, notIdleOrAlarm);
 
-    new UserCommand("HX", "Home/X", home_x, notIdleOrAlarm);
-    new UserCommand("HY", "Home/Y", home_y, notIdleOrAlarm);
-    new UserCommand("HXY", "Home/XY", home_xy, notIdleOrAlarm);
-    new UserCommand("HZ", "Home/Z", home_z, notIdleOrAlarm);
-    new UserCommand("HA", "Home/A", home_a, notIdleOrAlarm);
-    new UserCommand("HB", "Home/B", home_b, notIdleOrAlarm);
-    new UserCommand("HC", "Home/C", home_c, notIdleOrAlarm);
+    new UserCommand("HX", "Home/X", home_x, anyState);
+    new UserCommand("HY", "Home/Y", home_y, anyState);
+    new UserCommand("HXY", "Home/XY", home_xy, anyState);
+    new UserCommand("HZ", "Home/Z", home_z, anyState);
+    new UserCommand("HA", "Home/A", home_a, anyState);
+    new UserCommand("HB", "Home/B", home_b, anyState);
+    new UserCommand("HC", "Home/C", home_c, anyState);
 
     new UserCommand("SLP", "System/Sleep", go_to_sleep, notIdleOrAlarm);
     new UserCommand("I", "Build/Info", get_report_build_info, notIdleOrAlarm);
