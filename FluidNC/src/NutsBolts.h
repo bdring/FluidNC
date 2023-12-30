@@ -59,7 +59,7 @@ bool read_float(const char* line, size_t* char_counter, float* float_ptr);
 void delay_us(int32_t microseconds);
 
 // Delay while checking for realtime characters and other events
-bool delay_msec(uint32_t milliseconds, DwellMode mode);
+bool delay_msec(uint32_t milliseconds, DwellMode mode = DwellMode::Dwell);
 
 // Delay without checking for realtime events.  Use only for short delays
 void delay_ms(uint16_t ms);
