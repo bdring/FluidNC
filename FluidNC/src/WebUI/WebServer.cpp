@@ -444,27 +444,26 @@ namespace WebUI {
             char line[256];
             strncpy(line, cmd.c_str(), 255);
             webClient.attachWS(_webserver, silent);
-            Error       err = settings_execute_line(line, webClient, auth_level);
-            std::string answer;
-            if (err == Error::Ok) {
-                answer = "ok\n";
-            } else {
-                const char* msg = errorString(err);
-                answer          = "Error: ";
+            Error err = settings_execute_line(line, webClient, auth_level);
+            if (err != Error::Ok) {
+                std::string answer = "Error: ";
+                const char* msg    = errorString(err);
                 if (msg) {
                     answer += msg;
                 } else {
                     answer += std::to_string(static_cast<int>(err));
                 }
                 answer += "\n";
-            }
-
-            // Give the output task a chance to dequeue and forward a message
-            // to webClient, if there is one.
-            vTaskDelay(10);
-
-            if (!webClient.anyOutput()) {
-                _webserver->send(err != Error::Ok ? 500 : 200, "text/plain", answer.c_str());
+                _webserver->send(500, "text/plain", answer.c_str());
+            } else {
+                // Give the output task a chance to dequeue and forward a message
+                // to webClient, if there is one.
+                for (int i = 0; i < 100 && !webClient.anyOutput(); i++) {
+                    vTaskDelay(10);
+                }
+                if (!webClient.anyOutput()) {
+                    _webserver->send(500, "text/plain", "No response");
+                }
             }
             webClient.detachWS();
         } else {  //execute GCODE
