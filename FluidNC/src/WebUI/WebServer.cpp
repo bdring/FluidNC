@@ -159,7 +159,7 @@ namespace WebUI {
         }
 
         //SSDP service presentation
-        if (WiFi.getMode() == WIFI_STA) {
+        if (WiFi.getMode() == WIFI_STA && WebUI::wifi_sta_ssdp->get()) {
             _webserver->on("/description.xml", HTTP_GET, handle_SSDP);
             //Add specific for SSDP
             SSDP.setSchemaURL("description.xml");
@@ -185,7 +185,7 @@ namespace WebUI {
         _webserver->begin();
 
         //add mDNS
-        if (WiFi.getMode() == WIFI_STA) {
+        if (WiFi.getMode() == WIFI_STA && WebUI::wifi_sta_ssdp->get()) {
             MDNS.addService("http", "tcp", _port);
         }
 
@@ -329,6 +329,7 @@ namespace WebUI {
     void Web_Server::send404Page() { sendWithOurAddress(PAGE_404, 404); }
 
     void Web_Server::handle_root() {
+        log_info("WebUI: Request from " << _webserver->client().remoteIP());
         if (!(_webserver->hasArg("forcefallback") && _webserver->arg("forcefallback") == "yes")) {
             if (myStreamFile("index.html")) {
                 return;
@@ -446,27 +447,26 @@ namespace WebUI {
             char line[256];
             strncpy(line, cmd.c_str(), 255);
             webClient.attachWS(_webserver, silent);
-            Error       err = settings_execute_line(line, webClient, auth_level);
-            std::string answer;
-            if (err == Error::Ok) {
-                answer = "ok\n";
-            } else {
-                const char* msg = errorString(err);
-                answer          = "Error: ";
+            Error err = settings_execute_line(line, webClient, auth_level);
+            if (err != Error::Ok) {
+                std::string answer = "Error: ";
+                const char* msg    = errorString(err);
                 if (msg) {
                     answer += msg;
                 } else {
                     answer += std::to_string(static_cast<int>(err));
                 }
                 answer += "\n";
-            }
-
-            // Give the output task a chance to dequeue and forward a message
-            // to webClient, if there is one.
-            vTaskDelay(10);
-
-            if (!webClient.anyOutput()) {
-                _webserver->send(err != Error::Ok ? 500 : 200, "text/plain", answer.c_str());
+                _webserver->send(500, "text/plain", answer.c_str());
+            } else {
+                // Give the output task a chance to dequeue and forward a message
+                // to webClient, if there is one.
+                for (int i = 0; i < 100 && !webClient.anyOutput(); i++) {
+                    vTaskDelay(10);
+                }
+                if (!webClient.anyOutput()) {
+                    _webserver->send(500, "text/plain", "No response");
+                }
             }
             webClient.detachWS();
         } else {  //execute GCODE
@@ -919,11 +919,9 @@ namespace WebUI {
             std::string action(_webserver->arg("action").c_str());
             std::string filename = std::string(_webserver->arg("filename").c_str());
             if (action == "delete") {
-                log_debug("Deleting " << fpath << " / " << filename);
                 if (stdfs::remove(fpath / filename, ec)) {
                     sstatus = filename + " deleted";
                     HashFS::delete_file(fpath / filename);
-
                 } else {
                     sstatus = "Cannot delete ";
                     sstatus += filename + " " + ec.message();
@@ -934,6 +932,7 @@ namespace WebUI {
                 int count = stdfs::remove_all(dirpath, ec);
                 if (count > 0) {
                     sstatus = filename + " deleted";
+                    HashFS::report_change();
                 } else {
                     log_debug("remove_all returned " << count);
                     sstatus = "Cannot delete ";
@@ -942,6 +941,7 @@ namespace WebUI {
             } else if (action == "createdir") {
                 if (stdfs::create_directory(fpath / filename, ec)) {
                     sstatus = filename + " created";
+                    HashFS::report_change();
                 } else {
                     sstatus = "Cannot create ";
                     sstatus += filename + " " + ec.message();
@@ -957,6 +957,7 @@ namespace WebUI {
                         sstatus += filename + " " + ec.message();
                     } else {
                         sstatus = filename + " renamed to " + newname;
+                        HashFS::rename_file(fpath / filename, fpath / newname);
                     }
                 }
             }
