@@ -43,9 +43,15 @@ static Error hashFile(const std::filesystem::path& ipath, std::string& str) {  /
     return Error::Ok;
 }
 
-void HashFS::delete_file(const std::filesystem::path& path) {
+void HashFS::report_change() {
+    log_msg("Files changed");
+}
+
+void HashFS::delete_file(const std::filesystem::path& path, bool report) {
     localFsHashes.erase(path.filename());
-    log_debug("Deleting hash for " << path.filename());
+    if (report) {
+        report_change();
+    }
 }
 
 bool HashFS::file_is_hashed(const std::filesystem::path& path) {
@@ -63,16 +69,22 @@ bool HashFS::file_is_hashed(const std::filesystem::path& path) {
     return fsname == "littlefs" || fsname == "spiffs" || fsname == "localfs";
 }
 
-void HashFS::rehash_file(const std::filesystem::path& path) {
+void HashFS::rehash_file(const std::filesystem::path& path, bool report) {
     if (file_is_hashed(path)) {
         std::string hash;
         if (hashFile(path, hash) != Error::Ok) {
-            delete_file(path);
+            delete_file(path, false);
         } else {
             localFsHashes[path.filename()] = hash;
-            log_debug(path.filename() << " hash " << hash);
         }
     }
+    if (report) {
+        report_change();
+    }
+}
+void HashFS::rename_file(const std::filesystem::path& ipath, const std::filesystem::path& opath, bool report) {
+    delete_file(ipath, false);
+    rehash_file(opath, report);
 }
 
 void HashFS::hash_all() {
@@ -91,7 +103,7 @@ void HashFS::hash_all() {
     }
     for (auto const& dir_entry : iter) {
         if (!dir_entry.is_directory()) {
-            rehash_file(dir_entry);
+            rehash_file(dir_entry, false);
         }
     }
 }
