@@ -117,6 +117,7 @@ void Maslow_::begin(void (*sys_rt)()) {
   lastCallToUpdate = millis();
   generate_calibration_grid();
   log_info("Starting Maslow v 1.00");
+
 }
 
 // Maslow main loop, everything is processed here
@@ -1000,11 +1001,12 @@ int Maslow_::get_direction(double x, double y, double targetX, double targetY){
 // Generate calibration points based on dimentions
 void Maslow_::generate_calibration_grid() {
 
-    int gridSizeX = int(sqrt(CALIBRATION_GRID_SIZE));
-    int gridSizeY = int(sqrt(CALIBRATION_GRID_SIZE));
-    int xSpacing =  ( (trX - blX) - 2*calibration_grid_offset) / gridSizeX;
-    int ySpacing =  ( (trY - blY) - 2*calibration_grid_offset) / gridSizeY;
+    int gridSizeX = 6; //int(sqrt(CALIBRATION_GRID_SIZE));
+    int gridSizeY = 4; //int(sqrt(CALIBRATION_GRID_SIZE));
+    int xSpacing =  ( trX - 2*calibration_grid_offset) / gridSizeX;
+    int ySpacing =  ( trY - 2*calibration_grid_offset) / gridSizeY;
     int pointCount = 0;
+    log_info("gridSizeX " << gridSizeX << " gridSizeY "<< gridSizeY << " xSpacing " << xSpacing << " ySpacing " << ySpacing);
 
   for(int i = -gridSizeX/2; i <= gridSizeX/2; i++) {
     if(i % 2 == 0) {
