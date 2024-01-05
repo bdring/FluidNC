@@ -346,6 +346,10 @@ void Maslow_::calibration_loop(){
                 }
                 else{ //Otherwise move to the next point
                     log_info("Moving from: " << calibrationGrid[waypoint-1][0] << " " << calibrationGrid[waypoint-1][1] << " to: " << calibrationGrid[waypoint][0] << " " << calibrationGrid[waypoint][1] << " direction: " << get_direction(calibrationGrid[waypoint-1][0], calibrationGrid[waypoint-1][1], calibrationGrid[waypoint][0], calibrationGrid[waypoint][1]));
+                    // print all the axis positions and targets
+                    log_info("Cuurent pos: TL: " << axisTL.getPosition() << " TR: " << axisTR.getPosition() << " BL: " << axisBL.getPosition() << " BR: " << axisBR.getPosition());
+                    log_info("Current target: TL: " << axisTL.getTarget() << " TR: " << axisTR.getTarget() << " BL: " << axisBL.getTarget() << " BR: " << axisBR.getTarget());
+                    log_info("Computed target: TL: " << computeTL(calibrationGrid[waypoint][0], calibrationGrid[waypoint][1], 0) << " TR: " << computeTR(calibrationGrid[waypoint][0], calibrationGrid[waypoint][1], 0) << " BL: " << computeBL(calibrationGrid[waypoint][0], calibrationGrid[waypoint][1], 0) << " BR: " << computeBR(calibrationGrid[waypoint][0], calibrationGrid[waypoint][1], 0));
                     hold(250);
                 }
             }
@@ -852,6 +856,7 @@ bool Maslow_::move_with_slack(double fromX, double fromY, double toX, double toY
   //This is where we want to introduce some slack so the system
   static unsigned long decompressTimer    = millis();
   static bool          decompress         = true;
+  static bool fl = false; // TEMP
 
 int direction  = get_direction(fromX, fromY, toX, toY);
 
@@ -882,8 +887,9 @@ if(decompress){
 
   //Stop for 50ms
   //we need to stop motors after decompression was finished once
-  else if (millis() - decompressTimer < 1000) {
+  else if (millis() - decompressTimer < 800) {
       stopMotors();
+      fl = true; // TEMP
       return false;
   }
 
@@ -902,6 +908,10 @@ if(decompress){
   switch (direction) {
     case UP:
         setTargets(toX,toY, 0, true, true, false, false);
+        if(fl){
+            fl = false;
+            log_info("Set targets: TL: " << axisTL.getTarget() << " TR: " << axisTR.getTarget() << " BL: " << axisBL.getTarget() << " BR: " << axisBR.getTarget());
+        }
         axisTL.recomputePID(500);
         axisTR.recomputePID(500);
         axisBL.comply();
@@ -987,13 +997,13 @@ int Maslow_::get_direction(double x, double y, double targetX, double targetY){
     return direction;
 } 
 
-// Generate calibration points based on dimentions (TODO)
+// Generate calibration points based on dimentions
 void Maslow_::generate_calibration_grid() {
 
     int gridSizeX = int(sqrt(CALIBRATION_GRID_SIZE));
     int gridSizeY = int(sqrt(CALIBRATION_GRID_SIZE));
-    int xSpacing =  (frame_width - 2*calibration_grid_offset) / gridSizeX;
-    int ySpacing =  (frame_height - 2*calibration_grid_offset) / gridSizeY;
+    int xSpacing =  ( (trX - blX) - 2*calibration_grid_offset) / gridSizeX;
+    int ySpacing =  ( (trY - blY) - 2*calibration_grid_offset) / gridSizeY;
     int pointCount = 0;
 
   for(int i = -gridSizeX/2; i <= gridSizeX/2; i++) {

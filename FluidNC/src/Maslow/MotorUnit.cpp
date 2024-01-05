@@ -294,8 +294,8 @@ void MotorUnit::reset(){
     retract_baseline = 700;
     incrementalThresholdHits = 0;
     amtToMove = 0;
-    lastPosition = getPosition();
-    beltSpeedTimer = millis();
+    //lastPosition = getPosition();
+    //beltSpeedTimer = millis();
 }
 
 //sets the encoder position to 0
