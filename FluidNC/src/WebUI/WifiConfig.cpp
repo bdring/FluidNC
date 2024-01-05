@@ -172,6 +172,161 @@ namespace WebUI {
         return err;
     }
 
+    void addIdValueObject(JSONencoder& j, const char* id, const char* value) {
+        j.begin_object();
+        j.member("id", id);
+        j.member("value", value);
+        j.end_object();
+    }
+    
+    void addIdValueObject(JSONencoder& j, const char* id, const std::string& value) {
+        j.begin_object();
+        j.member("id", id);
+        j.member("value", value);
+        j.end_object();
+    }
+
+    void addIdValueObject(JSONencoder& j, const char* id, int value) {
+        j.begin_object();
+        j.member("id", id);
+        j.member("value", std::to_string(value));
+        j.end_object();
+    }
+ 
+    void WiFiConfig::addWifiStatsToArray(JSONencoder& j) {
+       
+        addIdValueObject(j, "Sleep mode", WiFi.getSleep() ? "Modem" : "None");
+        int mode = WiFi.getMode();
+        if (mode != WIFI_MODE_NULL) {
+            //Is OTA available ?
+            size_t flashsize = 0;
+            if (esp_ota_get_running_partition()) {
+                const esp_partition_t* partition = esp_ota_get_next_update_partition(NULL);
+                if (partition) {
+                    flashsize = partition->size;
+                }
+            }
+            addIdValueObject(j, "Available Size for update", formatBytes(flashsize));
+            addIdValueObject(j, "Available Size for LocalFS", formatBytes(localfs_size()));
+            addIdValueObject(j, "Web port", webServer.port());
+            addIdValueObject(j, "Data port", telnetServer.port());
+            addIdValueObject(j, "Hostname", wifi_config.Hostname());
+        }
+
+        switch (mode) {
+            case WIFI_STA:
+
+                addIdValueObject(j, "Current WiFi Mode", std::string("STA (") + WiFi.macAddress().c_str() + ")");
+
+                if (WiFi.isConnected()) {  //in theory no need but ...
+                    addIdValueObject(j, "Connected to", WiFi.SSID().c_str());
+                    addIdValueObject(j, "Signal", std::string("") + std::to_string(wifi_config.getSignal(WiFi.RSSI())) + "%");
+
+                    uint8_t PhyMode;
+                    esp_wifi_get_protocol(WIFI_IF_STA, &PhyMode);
+                    const char* modeName;
+                    switch (PhyMode) {
+                        case WIFI_PROTOCOL_11B | WIFI_PROTOCOL_11G | WIFI_PROTOCOL_11N:
+                            modeName = "11n";
+                            break;
+                        case WIFI_PROTOCOL_11B | WIFI_PROTOCOL_11G:
+                            modeName = "11g";
+                            break;
+                        case WIFI_PROTOCOL_11B:
+                            modeName = "11b";
+                            break;
+                        default:
+                            modeName = "???";
+                    }
+
+                    addIdValueObject(j, "Phy Mode: ", modeName);
+                    addIdValueObject(j, "Channel: ", WiFi.channel());
+
+                    tcpip_adapter_dhcp_status_t dhcp_status;
+                    tcpip_adapter_dhcpc_get_status(TCPIP_ADAPTER_IF_STA, &dhcp_status);
+                    addIdValueObject(j, "IP Mode: ", (dhcp_status == TCPIP_ADAPTER_DHCP_STARTED ? "DHCP" : "Static"));
+                    addIdValueObject(j, "IP: ", IP_string(WiFi.localIP()));
+                    addIdValueObject(j, "Gateway: ", IP_string(WiFi.gatewayIP()));
+                    addIdValueObject(j, "Mask: ", IP_string(WiFi.subnetMask()));
+                    addIdValueObject(j, "DNS: ", IP_string(WiFi.dnsIP()));
+
+                }  //this is web command so connection => no command
+                addIdValueObject(j, "Disabled Mode", std::string("AP (") + WiFi.softAPmacAddress().c_str() + ")");
+                break;
+            case WIFI_AP:
+                addIdValueObject(j, "Current WiFi Mode", std::string("AP (") + WiFi.softAPmacAddress().c_str() + ")");
+                wifi_config_t  conf;
+                wifi_country_t country;
+                esp_wifi_get_config(WIFI_IF_AP, &conf);
+                esp_wifi_get_country(&country);
+                addIdValueObject(j, "SSID: ", (const char*)conf.ap.ssid);
+                addIdValueObject(j, "Visible: ", (conf.ap.ssid_hidden == 0 ? "Yes" : "No"));
+                addIdValueObject(j,
+                                 "Radio country set: ",
+                                 std::string("") + country.cc + " (channels " + std::to_string(country.schan) + "-"
+                                                                + std::to_string((country.schan + country.nchan - 1))
+                                            + ", max power " + std::to_string(country.max_tx_power) + "dBm)");
+
+                const char* mode;
+                switch (conf.ap.authmode) {
+                    case WIFI_AUTH_OPEN:
+                        mode = "None";
+                        break;
+                    case WIFI_AUTH_WEP:
+                        mode = "WEP";
+                        break;
+                    case WIFI_AUTH_WPA_PSK:
+                        mode = "WPA-PSK";
+                        break;
+                    case WIFI_AUTH_WPA2_PSK:
+                        mode = "WPA2-PSK";
+                        break;
+                    case WIFI_AUTH_WPA_WPA2_PSK:
+                        mode = "WPA-WPA2-PSK";
+                        break;
+                    default:
+                        mode = "WPA/WPA2";
+                }
+
+                addIdValueObject(j, "Authentication", mode);
+                addIdValueObject(j, "Max Connections", conf.ap.max_connection);
+
+                tcpip_adapter_dhcp_status_t dhcp_status;
+                tcpip_adapter_dhcps_get_status(TCPIP_ADAPTER_IF_AP, &dhcp_status);
+                addIdValueObject(j, "DHCP Server", (dhcp_status == TCPIP_ADAPTER_DHCP_STARTED ? "Started" : "Stopped"));
+
+                addIdValueObject(j, "IP", IP_string(WiFi.softAPIP()));
+
+                tcpip_adapter_ip_info_t ip_AP;
+                tcpip_adapter_get_ip_info(TCPIP_ADAPTER_IF_AP, &ip_AP);
+                addIdValueObject(j, "Gateway", IP_string(IPAddress(ip_AP.gw.addr)));
+                addIdValueObject(j, "Mask", IP_string(IPAddress(ip_AP.netmask.addr)));
+
+                wifi_sta_list_t          station;
+                tcpip_adapter_sta_list_t tcpip_sta_list;
+                esp_wifi_ap_get_sta_list(&station);
+                tcpip_adapter_get_sta_list(&station, &tcpip_sta_list);
+                addIdValueObject(j, "Connected channels", station.num);
+
+                for (int i = 0; i < station.num; i++) {
+                    addIdValueObject(j,
+                                     "",
+                                     std::string("") + wifi_config.mac2str(tcpip_sta_list.sta[i].mac)
+                                         + " " + IP_string(IPAddress(tcpip_sta_list.sta[i].ip.addr)));
+                }
+                addIdValueObject(j, "Disabled Mode", std::string("STA (") + WiFi.macAddress().c_str() + ")");
+                break;
+            case WIFI_AP_STA:  //we should not be in this state but just in case ....
+                addIdValueObject(j, "Mixed", std::string("STA (") + WiFi.macAddress().c_str() + ")");
+                addIdValueObject(j, "Mixed", std::string("AP (") + WiFi.softAPmacAddress().c_str() + ")");
+                break;
+            default:  //we should not be there if no wifi ....
+
+                addIdValueObject(j, "Current WiFi Mode", "Off");
+                break;
+        }
+    }
+
     void WiFiConfig::showWifiStats(Channel& out) {
         log_to(out, "Sleep mode: ", (WiFi.getSleep() ? "Modem" : "None"));
         int mode = WiFi.getMode();
@@ -811,6 +966,15 @@ namespace WebUI {
     Error WiFiConfig::listAPs(char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP410
         JSONencoder j(true, &out);
         j.begin();
+
+        if (parameter != NULL && (strstr(parameter, "json=yes")) != NULL) {
+            j.member("cmd", "410");
+            j.member("status", "ok");
+            j.begin_array("data");
+        } else {
+            j.begin_array("AP_LIST");
+        }
+
         j.begin_array("AP_LIST");
         // An initial async scanNetworks was issued at startup, so there
         // is a good chance that scan information is already available.

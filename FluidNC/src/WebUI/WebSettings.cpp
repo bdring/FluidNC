@@ -107,7 +107,50 @@ Error WebCommand::action(char* value, WebUI::AuthenticationLevel auth_level, Cha
 
 namespace WebUI {
     // Used by js/connectdlg.js
+
+    static Error showFwInfoJSON(char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP800
+        if (strstr(parameter, "json=yes") != NULL) {
+            JSONencoder j(true, &out);
+            j.begin();
+            j.member("cmd", "800");
+            j.member("status", "ok");
+            j.begin_member_object("data");
+            j.member("FWVersion", git_info);
+            j.member("FWTarget", "FluidNC");
+            j.member("FWTargetId", "60");
+
+            j.member("Setup", "Disabled");
+            j.member("SDConnection", "direct");
+            j.member("SerialProtocol", "Socket");
+#ifdef ENABLE_AUTHENTICATION
+            j.member("Authentication", "Enabled");
+#else
+            j.member("Authentication", "Disabled");
+#endif
+            j.member("WebCommunication", "Synchronous");
+            j.member("WebSocketIP", "localhost");
+
+            j.member("WebSocketPort", "82");
+            j.member("HostName", "fluidnc");
+            j.member("WiFiMode", "AP");
+            j.member("FlashFileSystem", "LittleFS");
+            j.member("HostPath", "/");
+            j.member("Time", "none");
+            j.member("Axisletters", config->_axes->_names);
+            j.end_object();
+            j.end();
+            return Error::Ok;
+        }
+
+        return Error::InvalidStatement;
+    }
+
     static Error showFwInfo(char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP800
+        if (parameter != NULL) {
+            if (COMMANDS::has_tag(parameter, "json"))
+                return showFwInfoJSON(parameter, auth_level, out);
+        }
+
         LogStream s(out, "FW version: FluidNC ");
         s << git_info;
         // TODO: change grbl-embedded to FluidNC after fixing WebUI
@@ -191,7 +234,83 @@ namespace WebUI {
     }
 
     // Used by js/statusdlg.js
+
+    static Error showSysStatsJSON(char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP420
+
+        JSONencoder j(true, &out);
+        j.begin();
+        j.member("cmd", "420");
+        j.member("status", "ok");
+        j.begin_array("data");
+
+        j.begin_object();
+        j.member("id", "Chip ID");
+        j.member("value", (uint16_t)(ESP.getEfuseMac() >> 32));
+        j.end_object();
+
+        j.begin_object();
+        j.member("id", "CPU Cores");
+        j.member("value", ESP.getChipCores());
+        j.end_object();
+
+        std::ostringstream msg;
+        msg << ESP.getCpuFreqMHz() << "Mhz";
+        j.begin_object();
+        j.member("id", "CPU Frequency");
+        j.member("value", msg.str());
+        j.end_object();
+
+        std::ostringstream msg2;
+        msg2 << std::fixed << std::setprecision(1) << temperatureRead() << "°C";
+        j.begin_object();
+        j.member("id", "CPU Temperature");
+        j.member("value", msg2.str());
+        j.end_object();
+
+        j.begin_object();
+        j.member("id", "Free memory");
+        j.member("value", formatBytes(ESP.getFreeHeap()));
+        j.end_object();
+
+        j.begin_object();
+        j.member("id", "SDK");
+        j.member("value", ESP.getSdkVersion());
+        j.end_object();
+
+        j.begin_object();
+        j.member("id", "Flash Size");
+        j.member("value", formatBytes(ESP.getFlashChipSize()));
+        j.end_object();
+
+ #ifdef ENABLE_WIFI
+        WiFiConfig::addWifiStatsToArray(j);
+ #else
+        j.begin_object();
+        j.member("id", "Current WiFi Mode");
+        j.member("value", "Off");
+        j.end_object();
+ #endif
+        // TODO: Mike M - not sure if this is necessary for WebUI since BT is always disabled?
+        /*  std::string info = bt_config.info();
+        if (info.length()) {
+            log_to(out, info);
+        }*/
+
+        j.begin_object();
+        j.member("id", "FW version");
+        j.member("value", "FluidNC " + std::string(git_info));
+        j.end_object();
+
+        j.end_array();
+        j.end();
+        return Error::Ok;
+    }
+
     static Error showSysStats(char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP420
+        bool isJSON = COMMANDS::has_tag(parameter, "json");
+        if (isJSON)
+            return showSysStatsJSON(parameter, auth_level, out);
+
         log_to(out, "Chip ID: ", (uint16_t)(ESP.getEfuseMac() >> 32));
         log_to(out, "CPU Cores: ", ESP.getChipCores());
         log_to(out, "CPU Frequency: ", ESP.getCpuFreqMHz() << "Mhz");
@@ -221,34 +340,59 @@ namespace WebUI {
         // Setting objects know their own type.  We do not use
         // split_params because if fails if the value string
         // contains '='
-        if (strncmp(parameter, "P=", strlen("P="))) {
-            return Error::InvalidValue;
-        }
-        char* spos = &parameter[2];
-        char* scan;
-        for (scan = spos; *scan != ' ' && *scan != '\0'; ++scan) {}
-        if (*scan == '\0') {
-            return Error::InvalidValue;
-        }
-        // *scan is ' ' so we have found the end of the spos string
-        *scan++ = '\0';
+        bool   isJSON = COMMANDS::has_tag(parameter, "json");
+        String s1     = COMMANDS::get_param(parameter, "P=");
+        String s2     = COMMANDS::get_param(parameter, "T=");
+        String s3     = COMMANDS::get_param(parameter, "V=");
 
-        if (strncmp(scan, "T=", strlen("T="))) {
+        if (s1.length() == 0 || s2.length() == 0 || s3.length() == 0) {
+            if (isJSON) {
+                COMMANDS::send_json_command_response(out, 401, false, errorString(Error::InvalidValue));
+            }
             return Error::InvalidValue;
         }
-        // Find the end of the T=type string
-        for (scan += strlen("T="); *scan != ' ' && *scan != '\0'; ++scan) {}
-        if (strncmp(scan, " V=", strlen(" V="))) {
-            return Error::InvalidValue;
-        }
-        char* sval = scan + strlen(" V=");
 
-        Error ret = do_command_or_setting(spos, sval, auth_level, out);
+        Error ret = do_command_or_setting(s1.c_str(), strdup(s3.c_str()), auth_level, out);
+        if (isJSON) {
+            COMMANDS::send_json_command_response(out, 401, ret == Error::Ok, errorString(ret));
+        }
+
         return ret;
     }
 
     // Used by js/setting.js
+    static Error listSettingsJSON(char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP400
+
+        JSONencoder j(true, &out);
+        j.begin();
+        j.member("cmd", "400");
+        j.member("status", "ok");
+        j.begin_array("data");
+
+        // NVS settings
+        j.setCategory("Flash/Settings");
+        for (Setting* js : Setting::List) {
+            js->addWebui(&j);
+        }
+
+        // Configuration tree
+        j.setCategory("Running/Config");
+        Configuration::JsonGenerator gen(j);
+        config->group(gen);
+
+        j.end_array();
+        j.end();
+
+        return Error::Ok;
+    }
+
     static Error listSettings(char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP400
+        if (parameter != NULL) {
+            if (strstr(parameter, "json=yes") != NULL) {
+                return listSettingsJSON(parameter, auth_level, out);
+            }
+        }
+
         JSONencoder j(true, &out);
         j.begin();
         j.begin_array("EEPROM");
@@ -315,7 +459,7 @@ namespace WebUI {
     static Error showSDFile(char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP221
         return showFile("sd", parameter, auth_level, out);
     }
-    static Error showLocalFile(char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP701
+    static Error showLocalFile(char* parameter, AuthenticationLevel auth_level, Channel& out) {
         return showFile("", parameter, auth_level, out);
     }
 
@@ -725,7 +869,7 @@ namespace WebUI {
 
         new WebCommand(NULL, WEBCMD, WU, "ESP720", "LocalFS/Size", localFSSize);
         new WebCommand("FORMAT", WEBCMD, WA, "ESP710", "LocalFS/Format", formatLocalFS);
-        new WebCommand("path", WEBCMD, WU, "ESP701", "LocalFS/Show", showLocalFile);
+        new WebCommand("path", WEBCMD, WU, NULL, "LocalFS/Show", showLocalFile);
         new WebCommand("path", WEBCMD, WU, "ESP700", "LocalFS/Run", runLocalFile);
         new WebCommand("path", WEBCMD, WU, NULL, "LocalFS/List", listLocalFiles);
         new WebCommand("path", WEBCMD, WU, NULL, "LocalFS/ListJSON", listLocalFilesJSON);

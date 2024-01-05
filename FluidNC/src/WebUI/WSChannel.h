@@ -92,6 +92,7 @@ namespace WebUI {
         static bool sendError(int pageid, std::string error);
         static void sendPing();
         static void handleEvent(WebSocketsServer* server, uint8_t num, uint8_t type, uint8_t* payload, size_t length);
+        static void handlev3Event(WebSocketsServer* server, uint8_t num, uint8_t type, uint8_t* payload, size_t length);
     };
 }
 

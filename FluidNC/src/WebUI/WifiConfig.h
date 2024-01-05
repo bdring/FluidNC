@@ -101,7 +101,7 @@ namespace WebUI {
 
         static Error listAPs(char* parameter, AuthenticationLevel auth_level, Channel& out);
         static void  showWifiStats(Channel& out);
-
+        static void  addWifiStatsToArray(JSONencoder& j);
         ~WiFiConfig();
 
     private:

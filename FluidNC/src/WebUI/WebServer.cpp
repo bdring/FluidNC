@@ -65,6 +65,7 @@ namespace WebUI {
     UploadStatus      Web_Server::_upload_status = UploadStatus::NONE;
     WebServer*        Web_Server::_webserver     = NULL;
     WebSocketsServer* Web_Server::_socket_server = NULL;
+    WebSocketsServer* Web_Server::_socket_serverv3 = NULL;
 #    ifdef ENABLE_AUTHENTICATION
     AuthenticationIP* Web_Server::_head  = NULL;
     uint8_t           Web_Server::_nb_ip = 0;
@@ -116,6 +117,10 @@ namespace WebUI {
         _socket_server = new WebSocketsServer(_port + 1);
         _socket_server->begin();
         _socket_server->onEvent(handle_Websocket_Event);
+
+        _socket_serverv3 = new WebSocketsServer(_port + 2, "", "webui-v3");
+        _socket_serverv3->begin();
+        _socket_serverv3->onEvent(handle_Websocketv3_Event);
 
         //events functions
         //_web_events->onConnect(handle_onevent_connect);
@@ -206,6 +211,11 @@ namespace WebUI {
         if (_socket_server) {
             delete _socket_server;
             _socket_server = NULL;
+        }
+
+        if (_socket_serverv3) {
+            delete _socket_serverv3;
+            _socket_serverv3 = NULL;
         }
 
         if (_webserver) {
@@ -433,6 +443,8 @@ namespace WebUI {
             cmd = std::string(_webserver->arg("plain").c_str());
         } else if (_webserver->hasArg("commandText")) {
             cmd = std::string(_webserver->arg("commandText").c_str());
+        } else if (_webserver->hasArg("cmd")) {
+            cmd = std::string(_webserver->arg("cmd").c_str());
         } else {
             _webserver->send(200, "text/plain", "Invalid command");
             return;
@@ -677,6 +689,14 @@ namespace WebUI {
             while ((millis() - start_time) < timeout) {
                 _socket_server->loop();
                 delay(10);
+            }
+
+            if (_socket_serverv3) {
+                start_time = millis();
+                while ((millis() - start_time) < timeout) {
+                    _socket_serverv3->loop();
+                    delay(10);
+                }
             }
         }
     }
@@ -1134,6 +1154,9 @@ namespace WebUI {
         if (_socket_server && _setupdone) {
             _socket_server->loop();
         }
+        if (_socket_serverv3 && _setupdone) {
+            _socket_serverv3->loop();
+        }
         if ((millis() - start_time) > 10000 && _socket_server) {
             WSChannels::sendPing();
             start_time = millis();
@@ -1142,6 +1165,10 @@ namespace WebUI {
 
     void Web_Server::handle_Websocket_Event(uint8_t num, uint8_t type, uint8_t* payload, size_t length) {
         WSChannels::handleEvent(_socket_server, num, type, payload, length);
+    }
+
+    void Web_Server::handle_Websocketv3_Event(uint8_t num, uint8_t type, uint8_t* payload, size_t length) {
+        WSChannels::handlev3Event(_socket_serverv3, num, type, payload, length);
     }
 
     //Convert file extension to content type
