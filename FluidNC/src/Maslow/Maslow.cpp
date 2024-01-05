@@ -907,7 +907,7 @@ if(decompress){
 
   switch (direction) {
     case UP:
-        setTargets(toX,toY, 0, true, true, false, false);
+        setTargets(toX,toY, 0);
         if(fl){
             fl = false;
             log_info("Set targets: TL: " << axisTL.getTarget() << " TR: " << axisTR.getTarget() << " BL: " << axisBL.getTarget() << " BR: " << axisBR.getTarget());
@@ -926,7 +926,7 @@ if(decompress){
         //}
         break;
       case DOWN:
-            setTargets(toX,toY, 0, false, false, true, true);
+            setTargets(toX,toY, 0);
             axisTL.comply();
             axisTR.comply();
             axisBL.recomputePID(500);
@@ -941,7 +941,7 @@ if(decompress){
             //}
             break;
       case LEFT:
-            setTargets(toX,toY, 0, true, false, true, false);
+            setTargets(toX,toY, 0);
             axisTL.recomputePID(500);
             axisTR.comply();
             axisBL.recomputePID(500);
@@ -956,7 +956,7 @@ if(decompress){
             //}
             break;
       case RIGHT:
-            setTargets(toX,toY, 0, false, true, false, true);
+            setTargets(toX,toY, 0);
             axisTL.comply();
             axisTR.recomputePID(500);
             axisBL.comply();
