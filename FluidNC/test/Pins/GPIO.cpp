@@ -114,16 +114,6 @@ namespace Pins {
         gpio16.setAttr(Pin::Attr::Input | Pin::Attr::ISR);
         gpio17.setAttr(Pin::Attr::Output);
 
-        int hitCount = 0;
-        int expected = 0;
-        gpio16.attachInterrupt(
-            [](void* arg) {
-                int* hc = static_cast<int*>(arg);
-                ++(*hc);
-            },
-            mode,
-            &hitCount);
-
         // Two ways to set I/O:
         // 1. using on/off
         // 2. external source (e.g. set softwareio pin value)
@@ -298,10 +288,6 @@ namespace Pins {
 
             gpio16.setAttr(Pin::Attr::Input | Pin::Attr::ISR);
             gpio17.setAttr(Pin::Attr::Output);
-
-            hitCount     = 0;
-            int expected = 0;
-            gpio16.attachInterrupt<GPIOISR, &GPIOISR::HandleISR>(this, mode);
 
             // Two ways to set I/O:
             // 1. using on/off

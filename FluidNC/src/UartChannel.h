@@ -16,7 +16,7 @@ private:
     int _report_interval_ms = 0;
 
 public:
-    UartChannel(bool addCR = false);
+    UartChannel(int num, bool addCR = false);
 
     void init();
     void init(Uart* uart);
@@ -41,9 +41,9 @@ public:
 
     // Configuration methods
     void group(Configuration::HandlerBase& handler) override {
+        handler.item("report_interval_ms", _report_interval_ms);
         handler.item("uart_num", _uart_num);
-        handler.item("report_interval_ms", _report_interval_ms, 0, 5000);
-        handler.item("all_messages", _all_messages);
+        handler.item("message_level", _message_level, messageLevels2);
     }
 };
 

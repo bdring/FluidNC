@@ -98,3 +98,6 @@ extern const char* git_url;
 void display_init();
 
 extern bool readyNext;
+
+extern std::string report_pin_string;
+void               report_recompute_pin_string();

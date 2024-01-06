@@ -41,7 +41,7 @@ private:
     float       _percent;
     std::string _ticker;
 
-    int _radio_delay = 0;
+    int _radio_delay        = 0;
     int _report_interval_ms = 500;
 
     uint8_t _i2c_num = 0;

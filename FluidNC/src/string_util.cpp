@@ -13,6 +13,10 @@ namespace string_util {
         return std::equal(a.begin(), a.end(), b.begin(), b.end(), [](auto a, auto b) { return tolower(a) == tolower(b); });
     }
 
+    bool starts_with_ignore_case(std::string_view a, std::string_view b) {
+        return std::equal(a.begin(), a.begin() + b.size(), b.begin(), b.end(), [](auto a, auto b) { return tolower(a) == tolower(b); });
+    }
+
     const std::string_view trim(std::string_view s) {
         auto start = s.find_first_not_of(" \t\n\r\f\v");
         if (start == std::string_view::npos) {

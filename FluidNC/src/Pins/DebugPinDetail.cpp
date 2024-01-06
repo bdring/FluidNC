@@ -67,40 +67,4 @@ namespace Pins {
         }
         handler->callback(handler->argument);
     }
-
-    // ISR's:
-    void DebugPinDetail::attachInterrupt(void (*callback)(void*), void* arg, int mode) {
-        _isrHandler._myPin   = this;
-        _isrHandler.argument = arg;
-        _isrHandler.callback = callback;
-
-        if (shouldEvent()) {
-            log_msg_to(Uart0, "Attaching interrupt to pin " << toString() << ", mode " << mode);
-        }
-        _implementation->attachInterrupt(_isrHandler.handle, &_isrHandler, mode);
-    }
-    void DebugPinDetail::detachInterrupt() { _implementation->detachInterrupt(); }
-
-    bool DebugPinDetail::shouldEvent() {
-        // This method basically ensures we don't flood users:
-        auto time = millis();
-
-        if ((time - _lastEvent) > 1000) {
-            _lastEvent  = time;
-            _eventCount = 1;
-            return true;
-        } else if (_eventCount < 10) {
-            _lastEvent = time;
-            ++_eventCount;
-            return true;
-        } else if (_eventCount == 10) {
-            _lastEvent = time;
-            ++_eventCount;
-            log_msg_to(Uart0, "Suppressing events...");
-            return false;
-        } else {
-            _lastEvent = time;
-            return false;
-        }
-    }
 }

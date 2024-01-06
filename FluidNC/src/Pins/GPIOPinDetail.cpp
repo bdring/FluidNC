@@ -7,8 +7,9 @@
 #include <stdexcept>
 
 #include "GPIOPinDetail.h"
-#include "../Assert.h"
-#include "../Config.h"
+#include "src/Assert.h"
+#include "src/Config.h"
+#include "src/Machine/EventPin.h"
 
 namespace Pins {
     std::vector<bool> GPIOPinDetail::_claimed(nGPIOPins, false);
@@ -169,14 +170,15 @@ namespace Pins {
                   false);  // We do not have an OpenDrain attribute yet
     }
 
-    void GPIOPinDetail::attachInterrupt(void (*callback)(void*), void* arg, int mode) {
-        Assert(_attributes.has(PinAttributes::ISR), "Pin %s does not support interrupts", toString().c_str());
-        ::attachInterruptArg(_index, callback, arg, mode);
+    // This is a callback from the low-level GPIO driver that is invoked after
+    // registerEvent() has been called and the pin becomes active.
+    void GPIOPinDetail::gpioAction(int gpio_num, void* arg, bool active) {
+        EventPin* obj = static_cast<EventPin*>(arg);
+        obj->trigger(active);
     }
 
-    void GPIOPinDetail::detachInterrupt() {
-        Assert(_attributes.has(PinAttributes::ISR), "Pin %s does not support interrupts");
-        ::detachInterrupt(_index);
+    void GPIOPinDetail::registerEvent(EventPin* obj) {
+        gpio_set_action(_index, gpioAction, (void*)obj, _attributes.has(Pin::Attr::ActiveLow));
     }
 
     std::string GPIOPinDetail::toString() {

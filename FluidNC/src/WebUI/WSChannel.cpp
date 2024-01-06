@@ -79,8 +79,6 @@ namespace WebUI {
         return size;
     }
 
-    void WSChannel::pushRT(char ch) { _rtchar = ch; }
-
     bool WSChannel::push(const uint8_t* data, size_t length) {
         if (_dead) {
             return false;
@@ -92,7 +90,7 @@ namespace WebUI {
         return true;
     }
 
-    bool WSChannel::push(std::string& s) { return push((uint8_t*)s.c_str(), s.length()); }
+    bool WSChannel::push(const std::string& s) { return push((uint8_t*)s.c_str(), s.length()); }
 
     bool WSChannel::sendTXT(std::string& s) {
         if (_dead) {
@@ -164,34 +162,18 @@ namespace WebUI {
         }
     }
 
-    bool WSChannels::runGCode(int pageid, std::string cmd) {
-        bool has_error = false;
-
+    bool WSChannels::runGCode(int pageid, std::string& cmd) {
         WSChannel* wsChannel = getWSChannel(pageid);
         if (wsChannel) {
-            // It is very tempting to let wsChannel->push() handle the realtime
-            // character sequences so we don't have to do it here.  That does not work
-            // because we need to know whether to add a newline.  We should not add newline
-            // on a realtime sequence, but we must add one (if not already present)
-            // on a text command.
-            if (cmd.length() == 3 && cmd[0] == 0xc2 && is_realtime_command(cmd[1]) && cmd[2] == '\0') {
-                // Handles old WebUIs that send a null after high-bit-set realtime chars
-                wsChannel->pushRT(cmd[1]);
-            } else if (cmd.length() == 2 && cmd[0] == 0xc2 && is_realtime_command(cmd[1])) {
-                // Handles old WebUIs that send a null after high-bit-set realtime chars
-                wsChannel->pushRT(cmd[1]);
-            } else if (cmd.length() == 1 && is_realtime_command(cmd[0])) {
-                wsChannel->pushRT(cmd[0]);
-            } else {
-                if (cmd.length() && cmd[cmd.length() - 1] != '\n') {
-                    cmd += '\n';
+            if (cmd.length()) {
+                bool has_error = wsChannel->push(cmd);
+                if (!has_error && !is_realtime_command(cmd[0]) && cmd[cmd.length() - 1] != '\n') {
+                    has_error = !wsChannel->push("\n");
                 }
-                has_error = !wsChannel->push(cmd);
+                return has_error;
             }
-        } else {
-            has_error = true;
         }
-        return has_error;
+        return true;
     }
 
     bool WSChannels::sendError(int pageid, std::string err) {

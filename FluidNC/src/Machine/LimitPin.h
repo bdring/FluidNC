@@ -25,6 +25,8 @@ namespace Machine {
         volatile uint32_t* _posLimits = nullptr;
         volatile uint32_t* _negLimits = nullptr;
 
+        Pin* _pin;
+
     public:
         LimitPin(Pin& pin, int axis, int motorNum, int direction, bool& phardLimits, bool& pLimited);
 
@@ -35,6 +37,8 @@ namespace Machine {
         void setExtraMotorLimit(int axis, int motorNum);
 
         bool isHard() { return _pHardLimits; }
+
+        bool get() { return _pin->read(); }
 
         int _axis;
         int _motorNum;

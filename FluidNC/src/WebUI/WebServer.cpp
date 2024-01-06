@@ -439,8 +439,11 @@ namespace WebUI {
         }
         //if it is internal command [ESPXXX]<parameter>
         // cmd.trim();
-        int ESPpos = cmd.find("[ESP");
-        if (ESPpos != std::string::npos) {
+        auto isCommand = cmd.length() && cmd[0] == '$';
+        if (!isCommand) {
+            isCommand = cmd.find("[ESP") != std::string::npos;
+        }
+        if (isCommand) {
             char line[256];
             strncpy(line, cmd.c_str(), 255);
             webClient.attachWS(_webserver, silent);

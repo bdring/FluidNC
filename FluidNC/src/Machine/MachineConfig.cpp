@@ -42,8 +42,8 @@ namespace Machine {
         handler.section("uart1", _uarts[1], 1);
         handler.section("uart2", _uarts[2], 2);
 
-        handler.section("uart_channel1", _uart_channels[1]);
-        handler.section("uart_channel2", _uart_channels[2]);
+        handler.section("uart_channel1", _uart_channels[1], 1);
+        handler.section("uart_channel2", _uart_channels[2], 2);
 
         handler.section("i2so", _i2so);
 

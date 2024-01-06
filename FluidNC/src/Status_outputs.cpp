@@ -31,7 +31,7 @@ void Status_Outputs::init() {
              << " Hold:" << _Hold_pin.name() << " Alarm:" << _Alarm_pin.name());
 
     allChannels.registration(this);
-     setReportInterval(_report_interval_ms);
+    setReportInterval(_report_interval_ms);
 }
 
 void Status_Outputs::parse_report() {
