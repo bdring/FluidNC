@@ -59,6 +59,10 @@ namespace WebUI {
         }
     }
 
+    void WebClient::out(const std::string& s, const char* tag) { write((uint8_t*)s.c_str(), s.size()); }
+
+    void WebClient::out_acked(const std::string& s, const char* tag) { out(s, tag); }
+
     WebClient::~WebClient() {
         flush();
         _webserver->sendContent("");  //close connection

@@ -15,6 +15,8 @@ private:
     int _uart_num           = 0;
     int _report_interval_ms = 0;
 
+    const int _ack_timeout = 2000;
+
 public:
     UartChannel(int num, bool addCR = false);
 
@@ -38,6 +40,9 @@ public:
     bool     realtimeOkay(char c) override;
     bool     lineComplete(char* line, char c) override;
     Channel* pollLine(char* line) override;
+
+    void out(const std::string& s, const char* tag) override;
+    void out_acked(const std::string& s, const char* tag) override;
 
     // Configuration methods
     void group(Configuration::HandlerBase& handler) override {

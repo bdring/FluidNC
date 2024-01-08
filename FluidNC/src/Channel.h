@@ -77,7 +77,8 @@ protected:
     std::map<int, EventPin*> _events;
     std::map<int, bool*>     _pin_values;
 
-    UTF8 _utf8;
+    UTF8        _utf8;
+    std::string _gcode_extensions = ".g|.gc|.gco|.gcode|.nc|.ngc|.ncc|.txt|.cnc|.tap";
 
 public:
     Channel(const char* name, bool addCR = false) : _name(name), _linelen(0), _addCR(addCR) {}
@@ -124,6 +125,8 @@ public:
 
     virtual void stopJob() {}
 
+    virtual bool is_visible(const std::string& stem, const std::string& extension);
+
     size_t timedReadBytes(uint8_t* buffer, size_t length, TickType_t timeout) { return timedReadBytes((char*)buffer, length, timeout); }
 
     bool setCr(bool on) {
@@ -147,8 +150,11 @@ public:
     void         autoReportGCodeState();
 
     // Pin extender functions
-    void out(const std::string& s);
-    void setAttr(int index, bool* valuep, const std::string& s);
+    virtual void out(const std::string& s, const char* tag);
+    virtual void out_acked(const std::string& s, const char* tag);
+
+    void setAttr(int index, bool* valuep, const std::string& s, const char* tag);
+
     void ready();
     void registerEvent(uint8_t code, EventPin* obj);
 };

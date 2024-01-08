@@ -24,6 +24,9 @@ namespace WebUI {
 
         bool anyOutput() { return _header_sent; }
 
+        void out(const std::string& s, const char* tag) override;
+        void out_acked(const std::string& s, const char* tag) override;
+
     private:
         bool                _header_sent = false;
         bool                _silent      = false;

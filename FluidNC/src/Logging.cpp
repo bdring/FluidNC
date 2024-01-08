@@ -6,10 +6,9 @@
 #include "Serial.h"
 #include "SettingsDefinitions.h"
 
-EnumItem messageLevels2[] = {
-    { MsgLevelNone, "None" }, { MsgLevelError, "Error" }, { MsgLevelWarning, "Warn" },
-    { MsgLevelInfo, "Info" }, { MsgLevelDebug, "Debug" }, { MsgLevelVerbose, "Verbose" },
-};
+EnumItem messageLevels2[] = { { MsgLevelNone, "None" }, { MsgLevelError, "Error" }, { MsgLevelWarning, "Warn" },
+                              { MsgLevelInfo, "Info" }, { MsgLevelDebug, "Debug" }, { MsgLevelVerbose, "Verbose" },
+                              EnumItem(MsgLevelNone) };
 
 bool atMsgLevel(MsgLevel level) {
     return message_level == nullptr || message_level->get() >= level;

@@ -330,7 +330,7 @@ namespace WebUI {
         return showFile("", parameter, auth_level, out);
     }
 
-    static Error showFileSome(const char* fs, char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP221
+    static Error fileShowSome(char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP221
         if (notIdleOrAlarm()) {
             return Error::IdleError;
         }
@@ -338,6 +338,7 @@ namespace WebUI {
             log_error_to(out, "Missing argument");
             return Error::InvalidValue;
         }
+
         int   firstline = 0;
         int   lastline  = 0;
         char* filename;
@@ -354,7 +355,8 @@ namespace WebUI {
             log_error_to(out, "Missing line count");
             return Error::InvalidValue;
         }
-        char* second;
+        JSONencoder j(false, &out);
+        char*       second;
         split(parameter, &second, ':');
         if (*second) {
             firstline = atoi(parameter);
@@ -363,40 +365,39 @@ namespace WebUI {
             firstline = 0;
             lastline  = atoi(parameter);
         }
+        const char* error = "";
+        j.begin();
+        j.begin_array("file_lines");
+
         InputFile* theFile;
         Error      err;
-        if ((err = openFile(fs, filename, auth_level, out, theFile)) != Error::Ok) {
-            log_error_to(out, "Cannot open file " << filename);
-            return err;
-        }
-        char  fileLine[255];
-        Error res;
-        for (int linenum = 0; (res = theFile->readLine(fileLine, 255)) == Error::Ok; ++linenum) {
-            if (linenum >= lastline) {
-                break;
+        if ((err = openFile(sdName, filename, auth_level, out, theFile)) != Error::Ok) {
+            error = "Cannot open file";
+        } else {
+            char  fileLine[255];
+            Error res;
+            for (int linenum = 0; linenum < lastline && (res = theFile->readLine(fileLine, 255)) == Error::Ok; ++linenum) {
+                if (linenum >= firstline) {
+                    j.string(fileLine);
+                }
             }
-            if (linenum >= firstline) {
-                // We cannot use the 2-argument form of log_to() here because
-                // fileLine can be overwritten by readLine before the output
-                // task has a chance to forward the line to the output channel.
-                // The 3-argument form works because it copies the line to a
-                // temporary string.
-                log_to(out, "", fileLine);
+            delete theFile;
+            if (res != Error::Eof && res != Error::Ok) {
+                error = errorString(res);
             }
         }
-        if (res != Error::Eof && res != Error::Ok) {
-            log_to(out, errorString(res));
+        j.end_array();
+        if (*error) {
+            j.member("error", error);
+        } else {
+            j.member("path", filename);
+            j.member("firstline", firstline);
         }
-        delete theFile;
+
+        j.end();
         return Error::Ok;
     }
 
-    static Error showSDSome(char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP221
-        return showFileSome("sd", parameter, auth_level, out);
-    }
-    static Error showLocalSome(char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP701
-        return showFileSome("", parameter, auth_level, out);
-    }
     static Error runFile(const char* fs, char* parameter, AuthenticationLevel auth_level, Channel& out) {
         Error err;
         if (sys.state == State::Alarm || sys.state == State::ConfigAlarm) {
@@ -570,6 +571,65 @@ namespace WebUI {
 
     static Error listLocalFilesJSON(char* parameter, AuthenticationLevel auth_level, Channel& out) {  // No ESP command
         return listFilesystemJSON(localfsName, parameter, auth_level, out);
+    }
+
+    static Error listGCodeFiles(char* parameter, AuthenticationLevel auth_level, Channel& out) {  // No ESP command
+        const char* error = "";
+
+        JSONencoder j(false, &out);
+        j.begin();
+
+        std::error_code ec;
+
+        FluidPath fpath { parameter, sdName, ec };
+        if (ec) {
+            error = "No volume";
+        }
+
+        j.begin_array("files");
+        if (!*error) {  // Array is empty for failure to open the volume
+            auto iter = stdfs::directory_iterator { fpath, ec };
+            if (ec) {
+                // Array is empty for failure to open the path
+                error = "Bad path";
+            } else {
+                for (auto const& dir_entry : iter) {
+                    auto fn = dir_entry.path().filename();
+                    if (out.is_visible(fn.stem(), fn.extension())) {
+                        j.begin_object();
+                        j.member("name", dir_entry.path().filename());
+                        j.member("size", dir_entry.is_directory() ? -1 : dir_entry.file_size());
+                        j.end_object();
+                    }
+                }
+            }
+        }
+        j.end_array();
+
+        j.member("path", parameter);
+        if (*error) {
+            j.member("error", error);
+        }
+
+#if 0
+        // Don't include summary information because it can take a long
+        // time to calculate for large volumes
+        auto space = stdfs::space(fpath, ec);
+        if (!ec) {
+            auto totalBytes = space.capacity;
+            auto freeBytes  = space.available;
+            auto usedBytes  = totalBytes - freeBytes;
+
+            j.member("total", formatBytes(totalBytes));
+            j.member("used", formatBytes(usedBytes + 1));
+
+            uint32_t percent = totalBytes ? (usedBytes * 100) / totalBytes : 100;
+
+            j.member("occupation", percent);
+        }
+#endif
+        j.end();
+        return Error::Ok;
     }
 
     static Error renameObject(const char* fs, char* parameter, AuthenticationLevel auth_level, Channel& out) {
@@ -823,7 +883,7 @@ namespace WebUI {
         new WebCommand("path", WEBCMD, WU, NULL, "LocalFS/Migrate", migrateLocalFS);
         new WebCommand(NULL, WEBCMD, WU, NULL, "LocalFS/Hashes", showLocalFSHashes);
 
-        new WebCommand("path", WEBCMD, WU, "ESP221", "SD/ShowSome", showSDSome);
+        new WebCommand("path", WEBCMD, WU, "ESP221", "File/ShowSome", fileShowSome);
         new WebCommand("path", WEBCMD, WU, "ESP221", "SD/Show", showSDFile);
         new WebCommand("path", WEBCMD, WU, "ESP220", "SD/Run", runSDFile);
         new WebCommand("file_or_directory_path", WEBCMD, WU, "ESP215", "SD/Delete", deleteSDObject);
@@ -831,6 +891,8 @@ namespace WebUI {
         new WebCommand(NULL, WEBCMD, WU, "ESP210", "SD/List", listSDFiles);
         new WebCommand("path", WEBCMD, WU, NULL, "SD/ListJSON", listSDFilesJSON);
         new WebCommand(NULL, WEBCMD, WU, "ESP200", "SD/Status", showSDStatus);
+
+        new WebCommand("path", WEBCMD, WU, NULL, "Files/ListGCode", listGCodeFiles);
 
         new WebCommand("ON|OFF", WEBCMD, WA, "ESP115", "Radio/State", setRadioState);
 

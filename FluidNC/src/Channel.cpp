@@ -7,6 +7,7 @@
 #include "RealtimeCmd.h"            // execute_realtime_command
 #include "Limits.h"
 #include "Logging.h"
+#include <string_view>
 
 void Channel::flushRx() {
     _linelen   = 0;
@@ -203,27 +204,20 @@ Channel* Channel::pollLine(char* line) {
     return nullptr;
 }
 
-void Channel::setAttr(int index, bool* value, const std::string& attrString) {
+void Channel::setAttr(int index, bool* value, const std::string& attrString, const char* tag) {
     if (value) {
         _pin_values[index] = value;
     }
-    int count = 0;
-    while (_ackwait && ++count < timeout) {
-        pollLine(NULL);
-        delay_ms(1);
-    }
-    if (count == timeout) {
-        log_error("Device not responding");
-    }
-    log_msg_to(*this, attrString);
-    _ackwait = true;
-    log_debug(attrString);
+    out_acked(attrString, tag);
 }
 
-void Channel::out(const std::string& s) {
-    log_msg_to(*this, s);
-    // _channel->_ackwait = true;
+void Channel::out(const std::string& s, const char* tag) {
+    log_to(*this, s);
     log_debug(s);
+}
+
+void Channel::out_acked(const std::string& s, const char* tag) {
+    out(s, tag);
 }
 
 void Channel::ready() {
@@ -260,4 +254,29 @@ void Channel::print_msg(MsgLevel level, const char* msg) {
     if (_message_level >= level) {
         println(msg);
     }
+}
+
+bool Channel::is_visible(const std::string& stem, const std::string& extension) {
+    if (stem.length() && stem[0] == '.') {
+        // Exclude hidden files and directories
+        return false;
+    }
+    if (stem == "System Volume Information") {
+        // Exclude a common SD card metadata subdirectory
+        return false;
+    }
+    std::string_view extensions(_gcode_extensions);
+    int              pos = 0;
+    while (extensions.length()) {
+        auto             next_pos       = extensions.find_first_of('|', pos);
+        std::string_view next_extension = extensions.substr(0, next_pos);
+        if (extension == next_extension) {
+            return true;
+        }
+        if (next_pos == extensions.npos) {
+            break;
+        }
+        extensions.remove_prefix(next_pos + 1);
+    }
+    return false;
 }
