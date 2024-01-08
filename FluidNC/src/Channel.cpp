@@ -256,7 +256,7 @@ void Channel::print_msg(MsgLevel level, const char* msg) {
     }
 }
 
-bool Channel::is_visible(const std::string& stem, const std::string& extension) {
+bool Channel::is_visible(const std::string& stem, const std::string& extension, bool isdir) {
     if (stem.length() && stem[0] == '.') {
         // Exclude hidden files and directories
         return false;
@@ -265,10 +265,13 @@ bool Channel::is_visible(const std::string& stem, const std::string& extension) 
         // Exclude a common SD card metadata subdirectory
         return false;
     }
+    if (isdir) {
+        return true;
+    }
     std::string_view extensions(_gcode_extensions);
     int              pos = 0;
     while (extensions.length()) {
-        auto             next_pos       = extensions.find_first_of('|', pos);
+        auto             next_pos       = extensions.find_first_of(' ', pos);
         std::string_view next_extension = extensions.substr(0, next_pos);
         if (extension == next_extension) {
             return true;

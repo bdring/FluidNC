@@ -78,7 +78,7 @@ protected:
     std::map<int, bool*>     _pin_values;
 
     UTF8        _utf8;
-    std::string _gcode_extensions = ".g|.gc|.gco|.gcode|.nc|.ngc|.ncc|.txt|.cnc|.tap";
+    std::string _gcode_extensions = ".g .gc .gco .gcode .nc .ngc .ncc .txt .cnc .tap";
 
 public:
     Channel(const char* name, bool addCR = false) : _name(name), _linelen(0), _addCR(addCR) {}
@@ -125,7 +125,7 @@ public:
 
     virtual void stopJob() {}
 
-    virtual bool is_visible(const std::string& stem, const std::string& extension);
+    virtual bool is_visible(const std::string& stem, const std::string& extension, bool isdir);
 
     size_t timedReadBytes(uint8_t* buffer, size_t length, TickType_t timeout) { return timedReadBytes((char*)buffer, length, timeout); }
 

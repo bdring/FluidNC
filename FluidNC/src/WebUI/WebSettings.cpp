@@ -594,11 +594,12 @@ namespace WebUI {
                 error = "Bad path";
             } else {
                 for (auto const& dir_entry : iter) {
-                    auto fn = dir_entry.path().filename();
-                    if (out.is_visible(fn.stem(), fn.extension())) {
+                    auto fn     = dir_entry.path().filename();
+                    auto is_dir = dir_entry.is_directory();
+                    if (out.is_visible(fn.stem(), fn.extension(), is_dir)) {
                         j.begin_object();
                         j.member("name", dir_entry.path().filename());
-                        j.member("size", dir_entry.is_directory() ? -1 : dir_entry.file_size());
+                        j.member("size", is_dir ? -1 : dir_entry.file_size());
                         j.end_object();
                     }
                 }
