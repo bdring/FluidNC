@@ -38,6 +38,23 @@ namespace Machine {
         handler.item("name", _name);
         handler.item("meta", _meta);
 
+        handler.item("Maslow_frame_width", Maslow.frame_width, 1000, 5000);
+        handler.item("Maslow_frame_height", Maslow.frame_height, 1000, 5000);
+        handler.item("Maslow_calibration_offset", Maslow.calibration_grid_offset, 100, 1500);
+        handler.item("Maslow_vertical", Maslow.orientation);
+
+        handler.item("Maslow_brX", Maslow.brX);
+        handler.item("Maslow_brY", Maslow.brY);
+        
+        handler.item("Maslow_tlX", Maslow.tlX);
+        handler.item("Maslow_tlY", Maslow.tlY);
+
+        handler.item("Maslow_trX", Maslow.trX);
+        handler.item("Maslow_trY", Maslow.trY);
+
+        handler.item("Maslow_blX", Maslow.blX);
+        handler.item("Maslow_blY", Maslow.blY);
+
         handler.section("stepping", _stepping);
 
         handler.section("uart1", _uarts[1], 1);
@@ -81,22 +98,7 @@ namespace Machine {
         handler.item("use_line_numbers", _useLineNumbers);
         handler.item("planner_blocks", _planner_blocks, 10, 120);
 
-        handler.item("Maslow_frame_width", Maslow.frame_width, 1000, 5000);
-        handler.item("Maslow_frame_height", Maslow.frame_height, 1000, 5000);
-        handler.item("Maslow_calibration_offset", Maslow.calibration_grid_offset, 100, 1500);
-        handler.item("Maslow_vertical", Maslow.orientation);
 
-        handler.item("Maslow_brX", Maslow.brX);
-        handler.item("Maslow_brY", Maslow.brY);
-        
-        handler.item("Maslow_tlX", Maslow.tlX);
-        handler.item("Maslow_tlY", Maslow.tlY);
-
-        handler.item("Maslow_trX", Maslow.trX);
-        handler.item("Maslow_trY", Maslow.trY);
-
-        handler.item("Maslow_blX", Maslow.blX);
-        handler.item("Maslow_blY", Maslow.blY);
 
         
         

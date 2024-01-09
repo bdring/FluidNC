@@ -117,6 +117,9 @@ void Maslow_::begin(void (*sys_rt)()) {
   lastCallToUpdate = millis();
   generate_calibration_grid();
   log_info("Starting Maslow v 1.00");
+  //TEMP
+  orientation = HORIZONTAL;
+  calibration_grid_offset = 600;
 
 }
 
@@ -520,7 +523,7 @@ void Maslow_::safety_control() {
       
       static int axisSlackCounter[4] = {0,0,0,0};
 
-
+      axisSlackCounter[i] = 0; //TEMP
       if(axis[i]->getMotorPower() > 450 && abs (axis[i]->getBeltSpeed() ) < 0.1 && !tick[i]){
             axisSlackCounter[i]++;
             if(axisSlackCounter[i] > 3000){
