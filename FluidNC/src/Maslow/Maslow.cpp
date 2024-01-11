@@ -1001,7 +1001,7 @@ int Maslow_::get_direction(double x, double y, double targetX, double targetY){
     return direction;
 } 
 
-// Generate calibration points based on dimentions
+// Generate calibration points based on dimentions    
 void Maslow_::generate_calibration_grid() {
 
     int gridSizeX = 6; //int(sqrt(CALIBRATION_GRID_SIZE));
