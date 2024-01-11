@@ -119,7 +119,7 @@ void Maslow_::begin(void (*sys_rt)()) {
   log_info("Starting Maslow v 1.00");
   //TEMP
   orientation = HORIZONTAL;
-  calibration_grid_offset = 600;
+  calibration_grid_offset = 950;
 
 }
 
@@ -1011,16 +1011,16 @@ void Maslow_::generate_calibration_grid() {
     int pointCount = 0;
     log_info("gridSizeX " << gridSizeX << " gridSizeY "<< gridSizeY << " xSpacing " << xSpacing << " ySpacing " << ySpacing);
 
-  for(int i = -gridSizeX/2; i <= gridSizeX/2; i++) {
+  for(int i = -gridSizeX/2; i < gridSizeX/2; i++) {
     if(i % 2 == 0) {
-      for(int j = -gridSizeY/2; j <= gridSizeY/2; j++) {
+      for(int j = -gridSizeY/2; j < gridSizeY/2; j++) {
         log_info("Point: " << pointCount << "(" << i * xSpacing << ", " << j * ySpacing << ")");
         calibrationGrid[pointCount][0] = i * xSpacing;
         calibrationGrid[pointCount][1] = j * ySpacing;
         pointCount++;
       }
     } else {
-      for(int j = gridSizeY/2; j >= -gridSizeY/2; j--) {
+      for(int j = gridSizeY/2; j > -gridSizeY/2; j--) {
         log_info("Point: " << pointCount << "(" << i * xSpacing << ", " << j * ySpacing << ")"); 
         calibrationGrid[pointCount][0] = i * xSpacing;
         calibrationGrid[pointCount][1] = j * ySpacing;
@@ -1103,11 +1103,11 @@ void Maslow_::runCalibration(){
         return;
     }
 
-    if(frame_width < frame_dimention_MIN || frame_width > frame_dimention_MAX || frame_height < frame_dimention_MIN || frame_height > frame_dimention_MAX){
-        log_error("Cannot run calibration until frame width and height are set");
-        sys.set_state(State::Idle);
-        return;
-    }
+    // if(frame_width < frame_dimention_MIN || frame_width > frame_dimention_MAX || frame_height < frame_dimention_MIN || frame_height > frame_dimention_MAX){
+    //     log_error("Cannot run calibration until frame width and height are set");
+    //     sys.set_state(State::Idle);
+    //     return;
+    // }
     sys.set_state(State::Homing);
     //generate calibration map 
     generate_calibration_grid();
@@ -1134,13 +1134,14 @@ void Maslow_::test_(){
     test = true;
 }
 void Maslow_::set_frame_width(double width){
-    frame_width = width;
-    update_frame_xyz();
+    trX = width;
+    brX = width;
     updateCenterXY();
 }
 void Maslow_::set_frame_height(double height){
-    frame_height = height;
-    update_frame_xyz();
+
+    tlY = height;
+    trY = height;
     updateCenterXY();
 }
 void Maslow_::take_slack(){
@@ -1226,11 +1227,16 @@ void Maslow_::stop(){
     calibrationInProgress = false;
     test = false; 
     takeSlack = false;
+    log_info("Cuurent pos: TL: " << axisTL.getPosition() << " TR: " << axisTR.getPosition() << " BL: " << axisBL.getPosition() << " BR: " << axisBR.getPosition());
+    log_info("Current target: TL: " << axisTL.getTarget() << " TR: " << axisTR.getTarget() << " BL: " << axisBL.getTarget() << " BR: " << axisBR.getTarget());
     axisTL.reset();
     axisTR.reset();
     axisBL.reset();
     axisBR.reset();
+    log_info("-----------------------------------------------");
+    log_info(calibration_grid_offset);
 }
+
 
 // Stop all the motors
 void Maslow_::stopMotors(){
@@ -1245,26 +1251,6 @@ void Maslow_::panic(){
     log_error("PANIC! Stopping all motors");
     stop();
     sys.set_state(State::Alarm);
-}
-
-// update coordinates of the corners based on the frame width and height, should be called every time frame width or height is changed (TODO)
-void Maslow_::update_frame_xyz(){
-    blX = 0;
-    blY = 0;
-    blZ = 0;
-
-    brY = 0;
-    brX = frame_width;
-    brZ = 0;
-
-    tlX = 0;
-    tlY = frame_height;
-    tlZ = 0;
-
-    trX = frame_width;
-    trY = frame_height;
-    trZ = 0;
-
 }
 
 // Get's the most recently set target position in X

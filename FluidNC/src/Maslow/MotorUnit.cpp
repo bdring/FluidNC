@@ -88,25 +88,6 @@ double MotorUnit::recomputePID(){
 
 }
 
-// Recomputes the PID and drives the output at speed constrained by maxSpeed
-double MotorUnit::recomputePID(double maxSpeed){
-    //if pulling belt, do regular PID:
-    //if(setpoint - getPosition() < 1.5){
-    _commandPWM = positionPID.getOutput(getPosition(),setpoint);
-    if( _commandPWM < -maxSpeed) _commandPWM = -maxSpeed;
-    else if(_commandPWM > maxSpeed) _commandPWM = maxSpeed; 
-
-
-    motor.runAtPWM(_commandPWM);
-    //}
-    //if releasing belt, just comply till get to point one way or another
-    // else{
-    //     comply();
-    // }
-    return _commandPWM;
-
-}
-
 
 //------------------------------------------------------
 //------------------------------------------------------ Homing/calibration functions
@@ -223,6 +204,26 @@ bool MotorUnit::extend(double targetLength) {
             return true;
 }
 
+// Recomputes the PID and drives the output at speed constrained by maxSpeed
+double MotorUnit::recomputePID(double maxSpeed){
+    //if pulling belt, do regular PID:
+    if(setpoint - getPosition() < 0.25){
+
+    _commandPWM = positionPID.getOutput(getPosition(),setpoint);
+    if( _commandPWM < -maxSpeed) _commandPWM = -maxSpeed;
+    else if(_commandPWM > maxSpeed) _commandPWM = maxSpeed; 
+
+
+    motor.runAtPWM(_commandPWM);
+    
+    }
+    //if releasing belt, just comply till get to point one way or another
+    else{
+        comply();
+    }
+    return _commandPWM;
+
+}
 
 //------------------------------------------------------
 //------------------------------------------------------ Utility functions

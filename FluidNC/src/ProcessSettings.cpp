@@ -908,8 +908,8 @@ static Error maslow_set_width(const char* value, WebUI::AuthenticationLevel auth
         return Error::ConfigurationInvalid;
     }
     if (!value) {
-        double width = Maslow.frame_width;
-        log_info("Maslow frame width is " << width);
+        //double width = Maslow.frame_width;
+        //log_info("Maslow frame width is " << width);
         return Error::Ok;
     }
     char*    endptr;
@@ -933,8 +933,8 @@ static Error maslow_set_height(const char* value, WebUI::AuthenticationLevel aut
         return Error::ConfigurationInvalid;
     }
     if (!value) {
-        double height = Maslow.frame_height;
-        log_info("Maslow frame height is " << height);
+        //double height = Maslow.frame_height;
+        //log_info("Maslow frame height is " << height);
         return Error::Ok;
     }
     char*    endptr;

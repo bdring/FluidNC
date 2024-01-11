@@ -38,10 +38,9 @@ namespace Machine {
         handler.item("name", _name);
         handler.item("meta", _meta);
 
-        handler.item("Maslow_frame_width", Maslow.frame_width, 1000, 5000);
-        handler.item("Maslow_frame_height", Maslow.frame_height, 1000, 5000);
-        handler.item("Maslow_calibration_offset", Maslow.calibration_grid_offset, 100, 1500);
         handler.item("Maslow_vertical", Maslow.orientation);
+        handler.item("Maslow_calibration_offset", Maslow.calibration_grid_offset, 100, 1500);
+        
 
         handler.item("Maslow_brX", Maslow.brX);
         handler.item("Maslow_brY", Maslow.brY);

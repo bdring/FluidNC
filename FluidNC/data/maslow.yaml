@@ -1,11 +1,8 @@
 board: Maslow
 name: Maslow S3 Board
 
-Maslow_frame_width: 3000.0
-Maslow_frame_height: 2000.0
 Maslow_vertical: false
-Maslow_calibration_offset: 600
-
+Maslow_calibration_offset: 1000
 
 Maslow_blX: 0.0
 Maslow_blY: 0.0
@@ -18,11 +15,6 @@ Maslow_trY: 2150.0
 
 Maslow_brX: 3095.0
 Maslow_brY: 0.0
-
-
-
-
-
 
 spi:
   miso_pin: gpio.13
