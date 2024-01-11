@@ -1222,9 +1222,13 @@ String Maslow_::axis_id_to_label(int axis_id){
 
 // function for outputting calibration data in the log line by line like this: {bl:2376.69,   br:923.40,   tr:1733.87,   tl:2801.87},
 void Maslow_::print_calibration_data(){
-    for(int i = 0; i < CALIBRATION_GRID_SIZE; i++){
-        log_info("{bl:" << calibration_data[2][i] << ",   br:" << calibration_data[3][i] << ",   tr:" << calibration_data[1][i] << ",   tl:" << calibration_data[0][i] << "},");
+    String data = "CLBM:[";
+    for(int i = 0; i < pointCount; i++){
+        data+= "{bl:" + String(calibration_data[2][i]) + ",   br:" + String(calibration_data[3][i]) + ",   tr:" + String(calibration_data[1][i]) + ",   tl:" + String(calibration_data[0][i]) + "},";
+        //log_info("{bl:" << calibration_data[2][i] << ",   br:" << calibration_data[3][i] << ",   tr:" << calibration_data[1][i] << ",   tl:" << calibration_data[0][i] << "},");
     }
+    data+="]";
+    log_info(data.c_str()); //will it print really large numbers?
 }
 
 // Stop all motors and reset all state variables
