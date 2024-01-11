@@ -106,13 +106,13 @@ bool MotorUnit::comply(){
     float distMoved = positionNow - lastPosition;
 
     //If the belt is moving out, let's keep it moving out
-    if( distMoved > .001){
+    if( distMoved > .1){ //EXPERIMENTAL
        
         motor.forward(amtToMove);
         
 
         if(amtToMove < 100) amtToMove = 100;
-        amtToMove = amtToMove*1.55;
+        amtToMove = amtToMove*1.4;
         
         amtToMove = min(amtToMove, 1023.0);
     }

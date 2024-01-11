@@ -342,7 +342,7 @@ void Maslow_::calibration_loop(){
                 measurementInProgress = false;
                 waypoint++;                                 //Increment the waypoint counter
 
-                if(waypoint > CALIBRATION_GRID_SIZE-1 ){ //If we have reached the end of the calibration process
+                if(waypoint > pointCount-1 ){ //If we have reached the end of the calibration process
                     calibrationInProgress = false;
                     waypoint = 0;
                     log_info("Calibration complete");
@@ -1019,7 +1019,7 @@ void Maslow_::generate_calibration_grid() {
     int gridSizeY  = int(sqrt(CALIBRATION_GRID_SIZE));
     int xSpacing   = (trX - 2 * calibration_grid_offset) / gridSizeX;
     int ySpacing   = (trY - 2 * calibration_grid_offset) / gridSizeY;
-    int pointCount = 0;
+    pointCount = 0;
     log_info("gridSizeX " << gridSizeX << " gridSizeY " << gridSizeY << " xSpacing " << xSpacing << " ySpacing " << ySpacing);
 
     for (int i = -gridSizeX / 2; i <= gridSizeX / 2; i++) {
@@ -1032,7 +1032,7 @@ void Maslow_::generate_calibration_grid() {
                 pointCount++;
             }
         } else {
-                for (int j = -gridSizeY / 2; j < gridSizeY / 2; j++) {
+                for (int j = -gridSizeY / 2; j <= gridSizeY / 2; j++) {
                 log_info("Point: " << pointCount << "(" << i * xSpacing << ", " << j * ySpacing << ")");
                 calibrationGrid[pointCount][0] = i * xSpacing;
                 calibrationGrid[pointCount][1] = j * ySpacing;

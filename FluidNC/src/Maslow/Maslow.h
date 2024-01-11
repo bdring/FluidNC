@@ -124,6 +124,7 @@ class Maslow_ {
     bool test = false;
     bool orientation;
     double calibration_data[4][CALIBRATION_GRID_SIZE] = {0}; 
+    int pointCount = 0; //number of actual points in the grid,  < GRID_SIZE
     // //keep track of where Maslow actually is, lower left corner is 0,0
     double x;
     double y;
