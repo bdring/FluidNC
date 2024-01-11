@@ -118,8 +118,9 @@ void Maslow_::begin(void (*sys_rt)()) {
   generate_calibration_grid();
   log_info("Starting Maslow v 1.00");
   //TEMP
-  orientation = HORIZONTAL;
-  calibration_grid_offset = 950;
+  //orientation = HORIZONTAL;
+  //calibration_grid_offset = 950;
+  
 
 }
 
@@ -360,23 +361,34 @@ void Maslow_::calibration_loop(){
         }
 
         //travel to the start point
-        else if(waypoint == 0){
+        else if (waypoint == 0) {
             //move to the start point
-            
-            if(move_with_slack(centerX, centerY, calibrationGrid[0][0], calibrationGrid[0][1])){
-                measurementInProgress = true;
-                direction = get_direction(centerX, centerY, calibrationGrid[0][0], calibrationGrid[0][1]);
-                log_info("arrived at the start point");
-                x = calibrationGrid[0][0];
-                y = calibrationGrid[0][1];
-                hold(250);
+            static bool two_step_move_flag = false;
+
+            //first perform a Y move
+            if (!two_step_move_flag) {
+                if (move_with_slack(0, 0, 0, calibrationGrid[0][1])){
+                    two_step_move_flag = true;
+                    log_info ("mov from: " << 0 << ", " << calibrationGrid[0][1]<< " to " <<calibrationGrid[0][0]<< ", " << calibrationGrid[0][1]);
+                }
+            }
+            //then perform an X move
+            else {
+                if (move_with_slack(0, calibrationGrid[0][1], calibrationGrid[0][0], calibrationGrid[0][1])) {
+                    measurementInProgress = true;
+                    direction             = get_direction(0, calibrationGrid[0][1], calibrationGrid[0][0], calibrationGrid[0][1]);
+                    log_info("arrived at the start point");
+                    x = calibrationGrid[0][0];
+                    y = calibrationGrid[0][1];
+                    two_step_move_flag = false; // reset if we ever want to rerun the calibratrion
+                    hold(250);
+                }
             }
 
         }
 
         //perform the calibrartion steps in the grid
-        else{
-            
+        else {
             if(move_with_slack(calibrationGrid[waypoint-1][0], calibrationGrid[waypoint-1][1], calibrationGrid[waypoint][0], calibrationGrid[waypoint][1])){
                 measurementInProgress = true;
                 direction = get_direction(calibrationGrid[waypoint-1][0], calibrationGrid[waypoint-1][1], calibrationGrid[waypoint][0], calibrationGrid[waypoint][1]);
@@ -384,7 +396,6 @@ void Maslow_::calibration_loop(){
                 y = calibrationGrid[waypoint][1];
                 hold(250);
             }
-
         }
 }
 
@@ -1001,36 +1012,35 @@ int Maslow_::get_direction(double x, double y, double targetX, double targetY){
     return direction;
 } 
 
-// Generate calibration points based on dimentions    
+// Generate calibration points based on dimentions
 void Maslow_::generate_calibration_grid() {
 
-    int gridSizeX = 6; //int(sqrt(CALIBRATION_GRID_SIZE));
-    int gridSizeY = 4; //int(sqrt(CALIBRATION_GRID_SIZE));
-    int xSpacing =  ( trX - 2*calibration_grid_offset) / gridSizeX;
-    int ySpacing =  ( trY - 2*calibration_grid_offset) / gridSizeY;
+    int gridSizeX  = int(sqrt(CALIBRATION_GRID_SIZE));  //25 --> 5
+    int gridSizeY  = int(sqrt(CALIBRATION_GRID_SIZE));
+    int xSpacing   = (trX - 2 * calibration_grid_offset) / gridSizeX;
+    int ySpacing   = (trY - 2 * calibration_grid_offset) / gridSizeY;
     int pointCount = 0;
-    log_info("gridSizeX " << gridSizeX << " gridSizeY "<< gridSizeY << " xSpacing " << xSpacing << " ySpacing " << ySpacing);
+    log_info("gridSizeX " << gridSizeX << " gridSizeY " << gridSizeY << " xSpacing " << xSpacing << " ySpacing " << ySpacing);
 
-  for(int i = -gridSizeX/2; i < gridSizeX/2; i++) {
-    if(i % 2 == 0) {
-      for(int j = -gridSizeY/2; j < gridSizeY/2; j++) {
-        log_info("Point: " << pointCount << "(" << i * xSpacing << ", " << j * ySpacing << ")");
-        calibrationGrid[pointCount][0] = i * xSpacing;
-        calibrationGrid[pointCount][1] = j * ySpacing;
-        pointCount++;
-      }
-    } else {
-      for(int j = gridSizeY/2; j > -gridSizeY/2; j--) {
-        log_info("Point: " << pointCount << "(" << i * xSpacing << ", " << j * ySpacing << ")"); 
-        calibrationGrid[pointCount][0] = i * xSpacing;
-        calibrationGrid[pointCount][1] = j * ySpacing;
-        pointCount++;
-      }
+    for (int i = -gridSizeX / 2; i <= gridSizeX / 2; i++) {
+        if (i % 2 == 0) {
+            for (int j = gridSizeY / 2; j >= -gridSizeY / 2; j--) {
+            
+                log_info("Point: " << pointCount << "(" << i * xSpacing << ", " << j * ySpacing << ")");
+                calibrationGrid[pointCount][0] = i * xSpacing;
+                calibrationGrid[pointCount][1] = j * ySpacing;
+                pointCount++;
+            }
+        } else {
+                for (int j = -gridSizeY / 2; j < gridSizeY / 2; j++) {
+                log_info("Point: " << pointCount << "(" << i * xSpacing << ", " << j * ySpacing << ")");
+                calibrationGrid[pointCount][0] = i * xSpacing;
+                calibrationGrid[pointCount][1] = j * ySpacing;
+                pointCount++;
+            }
+        }
     }
-  }
-
 }
-
 
 //------------------------------------------------------
 //------------------------------------------------------ User commands
@@ -1094,7 +1104,7 @@ void Maslow_::extendALL(){
     log_info("Extending All");
 }
 void Maslow_::runCalibration(){
-
+    generate_calibration_grid();
     stop();
     //if not all axis are homed, we can't run calibration, OR if the user hasnt entered width and height? 
     if(!all_axis_homed()){
@@ -1110,7 +1120,9 @@ void Maslow_::runCalibration(){
     // }
     sys.set_state(State::Homing);
     //generate calibration map 
-    generate_calibration_grid();
+    //generate_calibration_grid();
+    log_info ( "going from" << 0 << ", "<< 0 << " to " << 0 << ", " << calibrationGrid[0][1]);
+    log_info( "direction " << get_direction(0,0,0, calibrationGrid[0][1]) );
     calibrationInProgress = true;
 }
 void Maslow_::comply(){
