@@ -267,7 +267,7 @@ static Error report_normal_settings(const char* value, WebUI::AuthenticationLeve
         if (findAxisIndexFromLetter(axis_name) != -1) {
             auto axis = config->_axes->_axis[findAxisIndexFromLetter(axis_name)];
 
-            LogStream ss("");
+            LogStream ss(MsgLevelNone, "");
             ss << "$10" << i << "=" << axis->_stepsPerMm << "\n";
             ss << "$11" << i << "=" << axis->_maxRate << "\n";
             ss << "$12" << i << "=" << axis->_acceleration << "\n";
