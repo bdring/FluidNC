@@ -98,6 +98,7 @@ xQueueHandle message_queue;
 struct LogMessage {
     Channel* channel;
     void*    line;
+    MsgLevel level;
     bool     isString;
 };
 
@@ -112,12 +113,12 @@ void drain_messages() {
 // memory does not need to be reclaimed later.
 // This is the most efficient form, but it only works
 // with fixed messages.
-void send_line(Channel& channel, const char* line) {
+void send_line(Channel& channel, MsgLevel level, const char* line) {
     if (outputTask) {
-        LogMessage msg { &channel, (void*)line, false };
+        LogMessage msg { &channel, (void*)line, level, false };
         while (!xQueueSend(message_queue, &msg, 10)) {}
     } else {
-        channel.println(line);
+        channel.print_msg(level, line);
     }
 }
 
@@ -129,12 +130,12 @@ void send_line(Channel& channel, const char* line) {
 // the pointer to reclaim the memory.
 // This form has intermediate efficiency, as the string
 // is allocated once and freed once.
-void send_line(Channel& channel, const std::string* line) {
+void send_line(Channel& channel, MsgLevel level, const std::string* line) {
     if (outputTask) {
-        LogMessage msg { &channel, (void*)line, true };
+        LogMessage msg { &channel, (void*)line, level, true };
         while (!xQueueSend(message_queue, &msg, 10)) {}
     } else {
-        channel.println(line->c_str());
+        channel.print_msg(level, line->c_str());
         delete line;
     }
 }
@@ -150,11 +151,11 @@ void send_line(Channel& channel, const std::string* line) {
 // This is the least efficient form, requiring two strings
 // to be allocated and freed, with an intermediate copy.
 // It is used only rarely.
-void send_line(Channel& channel, const std::string& line) {
+void send_line(Channel& channel, MsgLevel level, const std::string& line) {
     if (outputTask) {
-        send_line(channel, new std::string(line));
+        send_line(channel, level, new std::string(line));
     } else {
-        channel.println(line.c_str());
+        channel.print_msg(level, line.c_str());
     }
 }
 
@@ -165,11 +166,11 @@ void output_loop(void* unused) {
         if (xQueueReceive(message_queue, &message, portMAX_DELAY)) {
             if (message.isString) {
                 std::string* s = static_cast<std::string*>(message.line);
-                message.channel->println(s->c_str());
+                message.channel->print_msg(message.level, s->c_str());
                 delete s;
             } else {
                 const char* cp = static_cast<const char*>(message.line);
-                message.channel->println(cp);
+                message.channel->print_msg(message.level, cp);
             }
         }
     }

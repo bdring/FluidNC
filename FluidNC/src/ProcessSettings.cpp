@@ -267,7 +267,7 @@ static Error report_normal_settings(const char* value, WebUI::AuthenticationLeve
         if (findAxisIndexFromLetter(axis_name) != -1) {
             auto axis = config->_axes->_axis[findAxisIndexFromLetter(axis_name)];
 
-            LogStream ss("");
+            LogStream ss(MsgLevelNone, "");
             ss << "$10" << i << "=" << axis->_stepsPerMm << "\n";
             ss << "$11" << i << "=" << axis->_maxRate << "\n";
             ss << "$12" << i << "=" << axis->_acceleration << "\n";
@@ -376,6 +376,81 @@ static Error disable_alarm_lock(const char* value, WebUI::AuthenticationLevel au
 }
 static Error report_ngc(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
     report_ngc_parameters(out);
+    return Error::Ok;
+}
+static Error msg_to_uart0(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+    if (value) {
+        Channel* dest = allChannels.find("uart_channel0");
+        if (dest) {
+            log_msg_to(*dest, value);
+        }
+    }
+    return Error::Ok;
+}
+static Error msg_to_uart1(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+    if (value && config->_uart_channels[1]) {
+        log_msg_to(*(config->_uart_channels[1]), value);
+    }
+    return Error::Ok;
+}
+static Error cmd_log_msg(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+    if (value) {
+        if (*value == '*') {
+            log_msg(value + 1);
+        } else {
+            log_msg_to(out, value);
+        }
+    }
+    return Error::Ok;
+}
+static Error cmd_log_error(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+    if (value) {
+        if (*value == '*') {
+            log_error(value + 1);
+        } else {
+            log_error_to(out, value);
+        }
+    }
+    return Error::Ok;
+}
+static Error cmd_log_warn(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+    if (value) {
+        if (*value == '*') {
+            log_warn(value + 1);
+        } else {
+            log_warn_to(out, value);
+        }
+    }
+    return Error::Ok;
+}
+static Error cmd_log_info(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+    if (value) {
+        if (*value == '*') {
+            log_info(value + 1);
+        } else {
+            log_info_to(out, value);
+        }
+    }
+    return Error::Ok;
+}
+static Error cmd_log_debug(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+    if (value) {
+        if (*value == '*') {
+            log_debug(value + 1);
+        } else {
+            log_debug_to(out, value);
+        }
+    }
+    return Error::Ok;
+}
+static Error cmd_log_verbose(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+    if (value) {
+        if (*value == '*') {
+            log_verbose(value + 1);
+        } else {
+            log_verbose_to(out, value);
+        }
+    }
     return Error::Ok;
 }
 static Error home(AxisMask axisMask) {
@@ -1021,6 +1096,15 @@ void make_user_commands() {
     new UserCommand("HA", "Home/A", home_a, anyState);
     new UserCommand("HB", "Home/B", home_b, anyState);
     new UserCommand("HC", "Home/C", home_c, anyState);
+
+    new UserCommand("MU0", "Msg/Uart0", msg_to_uart0, anyState);
+    new UserCommand("MU1", "Msg/Uart1", msg_to_uart1, anyState);
+    new UserCommand("LM", "Log/Msg", cmd_log_msg, anyState);
+    new UserCommand("LE", "Log/Error", cmd_log_error, anyState);
+    new UserCommand("LW", "Log/Warn", cmd_log_warn, anyState);
+    new UserCommand("LI", "Log/Info", cmd_log_info, anyState);
+    new UserCommand("LD", "Log/Debug", cmd_log_debug, anyState);
+    new UserCommand("LV  ", "Log/Verbose", cmd_log_verbose, anyState);
 
     new UserCommand("SLP", "System/Sleep", go_to_sleep, notIdleOrAlarm);
     new UserCommand("I", "Build/Info", get_report_build_info, notIdleOrAlarm);

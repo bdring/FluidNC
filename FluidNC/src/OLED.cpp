@@ -405,7 +405,7 @@ void OLED::parse_IP() {
     wrapped_draw_string(0, _radio_info, ArialMT_Plain_10);
     wrapped_draw_string(fh * 2, _radio_addr, ArialMT_Plain_10);
     _oled->display();
-    delay_ms(_radio_delay);
+    delay_msec(_radio_delay);
 }
 
 // [MSG:INFO: AP SSID foo IP 192.168.68.134 mask foo channel foo]
@@ -424,7 +424,7 @@ void OLED::parse_AP() {
     wrapped_draw_string(0, _radio_info, ArialMT_Plain_10);
     wrapped_draw_string(fh * 2, _radio_addr, ArialMT_Plain_10);
     _oled->display();
-    delay_ms(_radio_delay);
+    delay_msec(_radio_delay);
 }
 
 void OLED::parse_BT() {
@@ -436,7 +436,7 @@ void OLED::parse_BT() {
     _oled->clear();
     wrapped_draw_string(0, _radio_info, ArialMT_Plain_10);
     _oled->display();
-    delay_ms(_radio_delay);
+    delay_msec(_radio_delay);
 }
 
 void OLED::parse_WebUI() {
@@ -448,7 +448,6 @@ void OLED::parse_WebUI() {
     wrapped_draw_string(0, "WebUI from", ArialMT_Plain_10);
     wrapped_draw_string(fh * 2, ipaddr, ArialMT_Plain_10);
     _oled->display();
-    delay_ms(_radio_delay);
 }
 
 void OLED::parse_report() {
