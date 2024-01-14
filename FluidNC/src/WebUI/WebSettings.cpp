@@ -312,6 +312,17 @@ namespace WebUI {
         return Error::Ok;
     }
 
+    static bool split(char* input, char** next, char delim) {
+        char* pos = strchr(input, delim);
+        if (pos) {
+            *pos  = '\0';
+            *next = pos + 1;
+            return true;
+        }
+        *next = input + strlen(input);  // End of string
+        return false;
+    }
+
     static Error showSDFile(char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP221
         return showFile("sd", parameter, auth_level, out);
     }
@@ -319,6 +330,73 @@ namespace WebUI {
         return showFile("", parameter, auth_level, out);
     }
 
+    static Error showFileSome(const char* fs, char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP221
+        if (notIdleOrAlarm()) {
+            return Error::IdleError;
+        }
+        if (!parameter || !*parameter) {
+            log_error_to(out, "Missing argument");
+            return Error::InvalidValue;
+        }
+        int   firstline = 0;
+        int   lastline  = 0;
+        char* filename;
+        split(parameter, &filename, ',');
+        if (*filename == '\0') {
+            log_error_to(out, "Missing filename");
+            return Error::InvalidValue;
+        }
+
+        // Parameter is the list of lines to display
+        // N means the first N lines
+        // N:M means lines N through M inclusive
+        if (!*parameter) {
+            log_error_to(out, "Missing line count");
+            return Error::InvalidValue;
+        }
+        char* second;
+        split(parameter, &second, ':');
+        if (*second) {
+            firstline = atoi(parameter);
+            lastline  = atoi(second);
+        } else {
+            firstline = 0;
+            lastline  = atoi(parameter);
+        }
+        InputFile* theFile;
+        Error      err;
+        if ((err = openFile(fs, filename, auth_level, out, theFile)) != Error::Ok) {
+            log_error_to(out, "Cannot open file " << filename);
+            return err;
+        }
+        char  fileLine[255];
+        Error res;
+        for (int linenum = 0; (res = theFile->readLine(fileLine, 255)) == Error::Ok; ++linenum) {
+            if (linenum >= lastline) {
+                break;
+            }
+            if (linenum >= firstline) {
+                // We cannot use the 2-argument form of log_to() here because
+                // fileLine can be overwritten by readLine before the output
+                // task has a chance to forward the line to the output channel.
+                // The 3-argument form works because it copies the line to a
+                // temporary string.
+                log_to(out, "", fileLine);
+            }
+        }
+        if (res != Error::Eof && res != Error::Ok) {
+            log_to(out, errorString(res));
+        }
+        delete theFile;
+        return Error::Ok;
+    }
+
+    static Error showSDSome(char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP221
+        return showFileSome("sd", parameter, auth_level, out);
+    }
+    static Error showLocalSome(char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP701
+        return showFileSome("", parameter, auth_level, out);
+    }
     static Error runFile(const char* fs, char* parameter, AuthenticationLevel auth_level, Channel& out) {
         Error err;
         if (sys.state == State::Alarm || sys.state == State::ConfigAlarm) {
@@ -351,6 +429,11 @@ namespace WebUI {
     static Error deleteObject(const char* fs, char* name, Channel& out) {
         std::error_code ec;
 
+        if (!name || !*name || (strcmp(name, "/") == 0)) {
+            // Disallow deleting everything
+            log_error_to(out, "Will not delete everything");
+            return Error::InvalidValue;
+        }
         FluidPath fpath { name, fs, ec };
         if (ec) {
             log_to(out, "No SD");
@@ -490,6 +573,9 @@ namespace WebUI {
     }
 
     static Error renameObject(const char* fs, char* parameter, AuthenticationLevel auth_level, Channel& out) {
+        if (!parameter || *parameter == '\0') {
+            return Error::InvalidValue;
+        }
         auto opath = strchr(parameter, '>');
         if (*opath == '\0') {
             return Error::InvalidValue;
@@ -500,6 +586,7 @@ namespace WebUI {
             FluidPath inPath { ipath, fs };
             FluidPath outPath { opath, fs };
             std::filesystem::rename(inPath, outPath);
+            HashFS::rename_file(inPath, outPath, true);
         } catch (const Error err) {
             log_error_to(out, "Cannot rename " << ipath << " to " << opath);
             return Error::FsFailedRenameFile;
@@ -525,7 +612,7 @@ namespace WebUI {
             }
             filepath = outFile.fpath();
         } catch (const Error err) {
-            log_error("Cannot create file " << opath);
+            log_error_to(out, "Cannot create file " << opath);
             return Error::FsFailedCreateFile;
         }
         // Rehash after outFile goes out of scope
@@ -565,7 +652,7 @@ namespace WebUI {
         Error err = Error::Ok;
         for (auto const& dir_entry : iter) {
             if (dir_entry.is_directory()) {
-                log_error("Not handling localfs subdirectories");
+                log_error_to(out, "Not handling localfs subdirectories");
             } else {
                 std::string opath(oDir);
                 opath += "/";
@@ -598,7 +685,7 @@ namespace WebUI {
     static Error migrateLocalFS(char* parameter, AuthenticationLevel auth_level, Channel& out) {  // No ESP command
         const char* newfs = parameter && *parameter ? parameter : "littlefs";
         if (strcmp(newfs, localfsName) == 0) {
-            log_error("localfs format is already " << newfs);
+            log_error_to(out, "localfs format is already " << newfs);
             return Error::InvalidValue;
         }
         log_info("Backing up local filesystem contents to SD");
@@ -736,6 +823,7 @@ namespace WebUI {
         new WebCommand("path", WEBCMD, WU, NULL, "LocalFS/Migrate", migrateLocalFS);
         new WebCommand(NULL, WEBCMD, WU, NULL, "LocalFS/Hashes", showLocalFSHashes);
 
+        new WebCommand("path", WEBCMD, WU, "ESP221", "SD/ShowSome", showSDSome);
         new WebCommand("path", WEBCMD, WU, "ESP221", "SD/Show", showSDFile);
         new WebCommand("path", WEBCMD, WU, "ESP220", "SD/Run", runSDFile);
         new WebCommand("file_or_directory_path", WEBCMD, WU, "ESP215", "SD/Delete", deleteSDObject);

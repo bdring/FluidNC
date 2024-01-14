@@ -7,7 +7,8 @@
 
 namespace Machine {
     LimitPin::LimitPin(Pin& pin, int axis, int motor, int direction, bool& pHardLimits, bool& pLimited) :
-        EventPin(&limitEvent, "Limit", &pin), _axis(axis), _motorNum(motor), _value(false), _pHardLimits(pHardLimits), _pLimited(pLimited) {
+        EventPin(&limitEvent, "Limit"), _axis(axis), _motorNum(motor), _value(false), _pHardLimits(pHardLimits), _pLimited(pLimited),
+        _pin(&pin) {
         const char* sDir;
         // Select one or two bitmask variables to receive the switch data
         switch (direction) {
@@ -43,15 +44,16 @@ namespace Machine {
     }
 
     void LimitPin::init() {
-        EventPin::init();
         if (_pin->undefined()) {
             return;
         }
+        _pin->report(_legend);
+        _pin->setAttr(Pin::Attr::Input);
+        _pin->registerEvent(static_cast<EventPin*>(this));
         update(get());
     }
 
     void LimitPin::update(bool value) {
-        log_debug(_legend << " " << value);
         if (value) {
             if (Homing::approach() || (sys.state != State::Homing && _pHardLimits)) {
                 _pLimited = value;

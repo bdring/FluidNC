@@ -627,11 +627,12 @@ namespace WebUI {
             log_info("STA SSID is not set");
             return false;
         }
+        //Hostname needs to be set before mode to take effect
+        WiFi.setHostname(wifi_hostname->get());
         WiFi.mode(WIFI_STA);
         WiFi.setMinSecurity(static_cast<wifi_auth_mode_t>(wifi_sta_min_security->get()));
         WiFi.setScanMethod(wifi_fast_scan->get() ? WIFI_FAST_SCAN : WIFI_ALL_CHANNEL_SCAN);
         //Get parameters for STA
-        WiFi.setHostname(wifi_hostname->get());
         //password
         const char* password = wifi_sta_password->get();
         int8_t      IP_mode  = wifi_sta_mode->get();

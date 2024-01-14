@@ -72,6 +72,7 @@ static uint8_t calc_pwm_precision(uint32_t frequency) {
 }
 
 PwmPin::PwmPin(Pin& pin, uint32_t frequency) : _frequency(frequency) {
+    log_info("....PwnPin Create");
     uint8_t bits       = calc_pwm_precision(frequency);
     _period            = (1 << bits) - 1;
     _channel           = allocateChannel();
