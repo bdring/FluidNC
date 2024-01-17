@@ -46,6 +46,10 @@ int UTF8::decode(uint8_t ch, uint32_t& value) {
     }
 #endif
 
+    if (ch >= 0xf8) {
+        // Invalid start byte
+        return -1;
+    }
     if (ch >= 0xf0) {
         _state = 3;  // Start of 4-byte sequence
         _num   = ch & 0x07;

@@ -7,6 +7,7 @@
 
 UartChannel::UartChannel(int num, bool addCR) : Channel("uart_channel", num, addCR) {
     _lineedit = new Lineedit(this, _line, Channel::maxLine - 1);
+    _active   = false;
 }
 
 void UartChannel::init() {
@@ -28,7 +29,7 @@ void UartChannel::init(Uart* uart) {
     }
     log_msg_to(*this, "RST");
     // Give the extender a little time to process the command
-    delay(100);
+    //    delay(100);
 }
 
 size_t UartChannel::write(uint8_t c) {

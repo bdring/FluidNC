@@ -156,7 +156,9 @@ Channel* Channel::pollLine(char* line) {
 
         int res = _utf8.decode(ch, cmd);
         if (res == -1) {
+            // This can be caused by line noise on an unpowered pendant
             log_debug("UTF8 decoding error");
+            _active = false;
             continue;
         }
         if (res == 0) {
@@ -164,6 +166,7 @@ Channel* Channel::pollLine(char* line) {
         }
         // Otherwise res==1 and we have decoded a sequence so proceed
 
+        _active = true;
         if (cmd == PinACK) {
             log_debug("ACK");
             _ackwait = false;
@@ -200,7 +203,9 @@ Channel* Channel::pollLine(char* line) {
             return this;
         }
     }
-    autoReport();
+    if (_active) {
+        autoReport();
+    }
     return nullptr;
 }
 

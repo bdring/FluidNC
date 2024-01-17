@@ -80,6 +80,9 @@ protected:
     UTF8        _utf8;
     std::string _gcode_extensions = ".g .gc .gco .gcode .nc .ngc .ncc .txt .cnc .tap";
 
+protected:
+    bool _active = true;
+
 public:
     Channel(const char* name, bool addCR = false) : _name(name), _linelen(0), _addCR(addCR) {}
     Channel(const char* name, int num, bool addCR = false) {
