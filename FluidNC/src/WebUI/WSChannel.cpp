@@ -99,7 +99,7 @@ namespace WebUI {
         if (!_server->sendTXT(_clientNum, s.c_str())) {
             _dead = true;
             log_debug("WebSocket is unresponsive; closing");
-            WSChannels::removeChannel(this);
+            //            WSChannels::removeChannel(this);
             return false;
         }
         return true;
@@ -166,11 +166,11 @@ namespace WebUI {
         WSChannel* wsChannel = getWSChannel(pageid);
         if (wsChannel) {
             if (cmd.length()) {
-                bool has_error = wsChannel->push(cmd);
-                if (!has_error && !is_realtime_command(cmd[0]) && cmd[cmd.length() - 1] != '\n') {
-                    has_error = !wsChannel->push("\n");
+                wsChannel->push(cmd);
+                if (!is_realtime_command(cmd[0]) && cmd[cmd.length() - 1] != '\n') {
+                    wsChannel->push("\n");
                 }
-                return has_error;
+                return true;
             }
         }
         return true;

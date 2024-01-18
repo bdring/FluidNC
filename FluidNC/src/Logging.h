@@ -36,9 +36,9 @@ extern EnumItem messageLevels2[];
 
 class LogStream : public Print {
 public:
-    LogStream(Channel& channel, const char* name);
-    LogStream(Channel& channel, MsgLevel level, const char* name);
-    LogStream(MsgLevel level, const char* name);
+    LogStream(Channel& channel, const char* name, bool synchronous = false);
+    LogStream(Channel& channel, MsgLevel level, const char* name, bool synchronous = false);
+    LogStream(MsgLevel level, const char* name, bool synchronous = false);
     size_t write(uint8_t c) override;
     ~LogStream();
 
@@ -46,6 +46,7 @@ private:
     Channel&     _channel;
     std::string* _line;
     MsgLevel     _level;
+    bool         _synchronous;
 };
 
 extern bool atMsgLevel(MsgLevel level);
@@ -83,3 +84,8 @@ extern bool atMsgLevel(MsgLevel level);
 
 #define log_to2(out, prefix) send_line(out, MsgLevelNone, prefix)
 #define log_to3(out, prefix, x) { LogStream ss(out, MsgLevelNone, prefix); ss << x; }
+
+#define sync_log_to(...) GET_MACRO(__VA_ARGS__, sync_log_to3, sync_log_to2)(__VA_ARGS__)
+
+#define sync_log_to2(out, prefix) out.print_msg(MsgLevelNone, prefix);
+#define sync_log_to3(out, prefix, x) { LogStream ss(out, MsgLevelNone, prefix, true); ss << x; }

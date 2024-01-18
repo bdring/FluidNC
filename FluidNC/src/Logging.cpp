@@ -14,13 +14,14 @@ bool atMsgLevel(MsgLevel level) {
     return message_level == nullptr || message_level->get() >= level;
 }
 
-LogStream::LogStream(Channel& channel, MsgLevel level, const char* name) : _channel(channel), _level(level) {
+LogStream::LogStream(Channel& channel, MsgLevel level, const char* name, bool synchronous) :
+    _channel(channel), _level(level), _synchronous(synchronous) {
     _line = new std::string();
     print(name);
 }
 
-LogStream::LogStream(Channel& channel, const char* name) : LogStream(channel, MsgLevelNone, name) {}
-LogStream::LogStream(MsgLevel level, const char* name) : LogStream(allChannels, level, name) {}
+LogStream::LogStream(Channel& channel, const char* name, bool synchronous) : LogStream(channel, MsgLevelNone, name, synchronous) {}
+LogStream::LogStream(MsgLevel level, const char* name, bool synchronous) : LogStream(allChannels, level, name, synchronous) {}
 
 size_t LogStream::write(uint8_t c) {
     *_line += (char)c;
@@ -31,5 +32,9 @@ LogStream::~LogStream() {
     if ((*_line).length() && (*_line)[0] == '[') {
         *_line += ']';
     }
-    send_line(_channel, _level, _line);
+    if (_synchronous) {
+        _channel.print_msg(_level, _line->c_str());
+    } else {
+        send_line(_channel, _level, _line);
+    }
 }

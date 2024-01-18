@@ -147,12 +147,15 @@ public:
 
     virtual void print_msg(MsgLevel level, const char* msg);
 
+    void print_msg(MsgLevel level, const std::string& msg) { print_msg(level, msg.c_str()); }
+
     uint32_t     setReportInterval(uint32_t ms);
     uint32_t     getReportInterval() { return _reportInterval; }
     virtual void autoReport();
     void         autoReportGCodeState();
 
     // Pin extender functions
+    virtual void out(const char* s, const char* tag);
     virtual void out(const std::string& s, const char* tag);
     virtual void out_acked(const std::string& s, const char* tag);
 

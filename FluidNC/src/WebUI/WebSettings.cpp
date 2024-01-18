@@ -108,7 +108,7 @@ Error WebCommand::action(char* value, WebUI::AuthenticationLevel auth_level, Cha
 namespace WebUI {
     // Used by js/connectdlg.js
     static Error showFwInfo(char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP800
-        LogStream s(out, "FW version: FluidNC ");
+        LogStream s(out, "FW version: FluidNC ", true);                                       // Synchronous
         s << git_info;
         // TODO: change grbl-embedded to FluidNC after fixing WebUI
         s << " # FW target:grbl-embedded  # FW HW:";
@@ -141,14 +141,14 @@ namespace WebUI {
 
         auto space = stdfs::space(FluidPath { "", localfsName, ec }, ec);
         if (ec) {
-            log_to(out, "Error ", ec.message());
+            sync_log_to(out, "Error ", ec.message());
             return Error::FsFailedMount;
         }
         auto totalBytes = space.capacity;
         auto freeBytes  = space.available;
         auto usedBytes  = totalBytes - freeBytes;
 
-        log_to(out, parameter, "LocalFS  Total:" << formatBytes(localfs_size()) << " Used:" << formatBytes(usedBytes));
+        sync_log_to(out, parameter, "LocalFS  Total:" << formatBytes(localfs_size()) << " Used:" << formatBytes(usedBytes));
         return Error::Ok;
     }
 
@@ -167,7 +167,7 @@ namespace WebUI {
             return Error::Ok;
         }
         if (user_password->setStringValue(parameter) != Error::Ok) {
-            log_to(out, "Invalid Password");
+            sync_log_to(out, "Invalid Password");
             return Error::InvalidValue;
         }
         return Error::Ok;
@@ -184,7 +184,7 @@ namespace WebUI {
     static Error setSystemMode(char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP444
         parameter = trim(parameter);
         if (strcasecmp(parameter, "RESTART") != 0) {
-            log_to(out, "Parameter must be RESTART");
+            sync_log_to(out, "Parameter must be RESTART");
             return Error::InvalidValue;
         }
         return restart(parameter, auth_level, out);
@@ -192,7 +192,7 @@ namespace WebUI {
 
     // Used by js/statusdlg.js
     static Error showSysStats(char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP420
-        log_to(out, "Chip ID: ", (uint16_t)(ESP.getEfuseMac() >> 32));
+        sync_log_to(out, "Chip ID: ", (uint16_t)(ESP.getEfuseMac() >> 32));
         log_to(out, "CPU Cores: ", ESP.getChipCores());
         log_to(out, "CPU Frequency: ", ESP.getCpuFreqMHz() << "Mhz");
         std::ostringstream msg;
@@ -200,18 +200,18 @@ namespace WebUI {
         log_to(out, "CPU Temperature: ", msg.str());
         log_to(out, "Free memory: ", formatBytes(ESP.getFreeHeap()));
         log_to(out, "SDK: ", ESP.getSdkVersion());
-        log_to(out, "Flash Size: ", formatBytes(ESP.getFlashChipSize()));
+        sync_log_to(out, "Flash Size: ", formatBytes(ESP.getFlashChipSize()));
 
         // Round baudRate to nearest 100 because ESP32 can say e.g. 115201
-        //        log_to(out, "Baud rate: ", ((Uart0.baud / 100) * 100));
+        //        sync_log_to(out, "Baud rate: ", ((Uart0.baud / 100) * 100));
 
         WiFiConfig::showWifiStats(out);
 
         std::string info = bt_config.info();
         if (info.length()) {
-            log_to(out, info);
+            sync_log_to(out, info);
         }
-        log_to(out, "FW version: FluidNC ", git_info);
+        sync_log_to(out, "FW version: FluidNC ", git_info);
         return Error::Ok;
     }
 
@@ -523,7 +523,7 @@ namespace WebUI {
 
         FluidPath fpath { value, fs, ec };
         if (ec) {
-            log_to(out, "No SD card");
+            sync_log_to(out, "No SD card");
             return Error::FsFailedMount;
         }
 
@@ -532,7 +532,7 @@ namespace WebUI {
 
         auto iter = stdfs::directory_iterator { fpath, ec };
         if (ec) {
-            log_to(out, "Error: ", ec.message());
+            sync_log_to(out, "Error: ", ec.message());
             return Error::FsFailedMount;
         }
         j.begin_array("files");
@@ -546,7 +546,7 @@ namespace WebUI {
 
         auto space = stdfs::space(fpath, ec);
         if (ec) {
-            log_to(out, "Error ", ec.value() << " " << ec.message());
+            sync_log_to(out, "Error ", ec.value() << " " << ec.message());
             return Error::FsFailedMount;
         }
 
@@ -768,10 +768,10 @@ namespace WebUI {
 
         FluidPath path { "", "/sd", ec };
         if (ec) {
-            log_to(out, "No SD card");
+            sync_log_to(out, "No SD card");
             return Error::FsFailedMount;
         }
-        log_to(out, "SD card detected");
+        sync_log_to(out, "SD card detected");
         return Error::Ok;
     }
 
@@ -780,7 +780,7 @@ namespace WebUI {
         if (*parameter == '\0') {
             // Display the radio state
             bool on = wifi_config.isOn() || bt_config.isOn();
-            log_to(out, on ? "ON" : "OFF");
+            sync_log_to(out, on ? "ON" : "OFF");
             return Error::Ok;
         }
         int8_t on = -1;
@@ -790,7 +790,7 @@ namespace WebUI {
             on = 0;
         }
         if (on == -1) {
-            log_to(out, "only ON or OFF mode supported!");
+            sync_log_to(out, "only ON or OFF mode supported!");
             return Error::InvalidValue;
         }
 
@@ -807,22 +807,22 @@ namespace WebUI {
     }
 
     static Error showWebHelp(char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP0
-        log_to(out, "Persistent web settings - $name to show, $name=value to set");
-        log_to(out, "ESPname FullName         Description");
-        log_to(out, "------- --------         -----------");
+        sync_log_to(out, "Persistent web settings - $name to show, $name=value to set");
+        sync_log_to(out, "ESPname FullName         Description");
+        sync_log_to(out, "------- --------         -----------");
         ;
         for (Setting* setting : Setting::List) {
             if (setting->getType() == WEBSET) {
-                log_to(out,
-                       "",
-                       LeftJustify(setting->getGrblName() ? setting->getGrblName() : "", 8)
-                           << LeftJustify(setting->getName(), 25 - 8) << setting->getDescription());
+                sync_log_to(out,
+                            "",
+                            LeftJustify(setting->getGrblName() ? setting->getGrblName() : "", 8)
+                                << LeftJustify(setting->getName(), 25 - 8) << setting->getDescription());
             }
         }
-        log_to(out, "");
-        log_to(out, "Other web commands: $name to show, $name=value to set");
-        log_to(out, "ESPname FullName         Values");
-        log_to(out, "------- --------         ------");
+        sync_log_to(out, "");
+        sync_log_to(out, "Other web commands: $name to show, $name=value to set");
+        sync_log_to(out, "ESPname FullName         Values");
+        sync_log_to(out, "------- --------         ------");
 
         for (Command* cp : Command::List) {
             if (cp->getType() == WEBCMD) {

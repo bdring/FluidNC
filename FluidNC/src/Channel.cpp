@@ -216,9 +216,12 @@ void Channel::setAttr(int index, bool* value, const std::string& attrString, con
     out_acked(attrString, tag);
 }
 
+void Channel::out(const char* s, const char* tag) {
+    log_to(*this, s);
+}
+
 void Channel::out(const std::string& s, const char* tag) {
     log_to(*this, s);
-    log_debug(s);
 }
 
 void Channel::out_acked(const std::string& s, const char* tag) {

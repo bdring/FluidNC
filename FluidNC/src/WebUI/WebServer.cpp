@@ -439,9 +439,11 @@ namespace WebUI {
         }
         //if it is internal command [ESPXXX]<parameter>
         // cmd.trim();
-        auto isCommand = cmd.length() && cmd[0] == '$';
+        auto isCommand = cmd.find("[ESP") != std::string::npos;
         if (!isCommand) {
-            isCommand = cmd.find("[ESP") != std::string::npos;
+            if (cmd.length() > 1 && cmd[0] == '$' && cmd[1] != 'H') {
+                isCommand = true;
+            }
         }
         if (isCommand) {
             char line[256];
@@ -459,11 +461,13 @@ namespace WebUI {
                 answer += "\n";
                 _webserver->send(500, "text/plain", answer.c_str());
             } else {
+#    if 0
                 // Give the output task a chance to dequeue and forward a message
                 // to webClient, if there is one.
                 for (int i = 0; i < 100 && !webClient.anyOutput(); i++) {
                     vTaskDelay(10);
                 }
+#    endif
                 if (!webClient.anyOutput()) {
                     _webserver->send(500, "text/plain", "No response");
                 }
