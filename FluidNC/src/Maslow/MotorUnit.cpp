@@ -206,7 +206,9 @@ bool MotorUnit::extend(double targetLength) {
 
 // Recomputes the PID and drives the output at speed constrained by maxSpeed
 double MotorUnit::recomputePID(double maxSpeed){
-    //if pulling belt, do regular PID:
+    //in horizontal comply if belt needs to be extended
+    if(Maslow.orientation  == HORIZONTAL){
+
     if(setpoint - getPosition() < 0.25){
 
     _commandPWM = positionPID.getOutput(getPosition(),setpoint);
@@ -221,8 +223,18 @@ double MotorUnit::recomputePID(double maxSpeed){
     else{
         comply();
     }
-    return _commandPWM;
+    }
+    //in vertical just run it regularly
+    else {
+        _commandPWM = positionPID.getOutput(getPosition(), setpoint);
+        if (_commandPWM < -maxSpeed)
+            _commandPWM = -maxSpeed;
+        else if (_commandPWM > maxSpeed)
+            _commandPWM = maxSpeed;
 
+        motor.runAtPWM(_commandPWM);
+    }
+    return _commandPWM;
 }
 
 //------------------------------------------------------
