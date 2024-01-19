@@ -84,8 +84,8 @@ namespace WebUI {
             return false;
         }
         char c;
-        while ((c = *data++) != '\0') {
-            _queue.push(c);
+        while (length--) {
+            _queue.push(*data++);
         }
         return true;
     }

@@ -139,11 +139,11 @@ void Channel::pin_event(uint32_t pinnum, bool active) {
 Channel* Channel::pollLine(char* line) {
     handle();
     while (1) {
-        int ch;
-        if (line && _queue.size()) {
+        int ch = -1;
+        if (_queue.size()) {
             ch = _queue.front();
             _queue.pop();
-        } else {
+        } else if (line) {
             ch = read();
         }
 
