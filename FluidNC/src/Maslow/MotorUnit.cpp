@@ -88,25 +88,6 @@ double MotorUnit::recomputePID(){
 
 }
 
-// Recomputes the PID and drives the output at speed constrained by maxSpeed
-double MotorUnit::recomputePID(double maxSpeed){
-    //if pulling belt, do regular PID:
-    //if(setpoint - getPosition() < 1.5){
-    _commandPWM = positionPID.getOutput(getPosition(),setpoint);
-    if( _commandPWM < -maxSpeed) _commandPWM = -maxSpeed;
-    else if(_commandPWM > maxSpeed) _commandPWM = maxSpeed; 
-
-
-    motor.runAtPWM(_commandPWM);
-    //}
-    //if releasing belt, just comply till get to point one way or another
-    // else{
-    //     comply();
-    // }
-    return _commandPWM;
-
-}
-
 
 //------------------------------------------------------
 //------------------------------------------------------ Homing/calibration functions
@@ -125,12 +106,13 @@ bool MotorUnit::comply(){
     float distMoved = positionNow - lastPosition;
 
     //If the belt is moving out, let's keep it moving out
-    if( distMoved > .001){
+    if( distMoved > .1){ //EXPERIMENTAL
        
         motor.forward(amtToMove);
+        
 
         if(amtToMove < 100) amtToMove = 100;
-        amtToMove = amtToMove*1.55;
+        amtToMove = amtToMove*1.4;
         
         amtToMove = min(amtToMove, 1023.0);
     }
@@ -141,7 +123,7 @@ bool MotorUnit::comply(){
         motor.forward(amtToMove);
     }
     
-
+    _commandPWM = amtToMove; //update actual motor power, so the get motor power isn't lying to us
     lastPosition = positionNow;
 
     lastCallToComply = millis();
@@ -168,7 +150,7 @@ bool MotorUnit::pull_tight(){
     //Gradually increase the pulling speed
     if(random(0,2) == 1) retract_speed = min(retract_speed +1 , 1023);
     motor.backward(retract_speed);
-
+    _commandPWM = -retract_speed;
         //When taught
         int currentMeasurement = motor.readCurrent();
 
@@ -192,7 +174,7 @@ bool MotorUnit::pull_tight(){
             if (currentMeasurement > absoluteCurrentThreshold || incrementalThresholdHits > 2 ||
                 beltStalled) {  //changed from 4 to 2 to prevent overtighting
                 //stop motor, reset variables
-                motor.stop();
+                stop();
                 retract_speed    = 0;
                 retract_baseline = 700;
                 return true;
@@ -215,13 +197,45 @@ bool MotorUnit::extend(double targetLength) {
             }
             //If reached target position, Stop and return
             setTarget(getPosition()); // good candidate for a bug that fucked up the coordinate system, NOT
-            motor.stop();
+            stop();
 
             log_info("Belt positon after extend: ");
             log_info(getPosition());
             return true;
 }
 
+// Recomputes the PID and drives the output at speed constrained by maxSpeed
+double MotorUnit::recomputePID(double maxSpeed){
+    //in horizontal comply if belt needs to be extended
+    if(Maslow.orientation  == HORIZONTAL){
+
+    if(setpoint - getPosition() < 0.25){
+
+    _commandPWM = positionPID.getOutput(getPosition(),setpoint);
+    if( _commandPWM < -maxSpeed) _commandPWM = -maxSpeed;
+    else if(_commandPWM > maxSpeed) _commandPWM = maxSpeed; 
+
+
+    motor.runAtPWM(_commandPWM);
+    
+    }
+    //if releasing belt, just comply till get to point one way or another
+    else{
+        comply();
+    }
+    }
+    //in vertical just run it regularly
+    else {
+        _commandPWM = positionPID.getOutput(getPosition(), setpoint);
+        if (_commandPWM < -maxSpeed)
+            _commandPWM = -maxSpeed;
+        else if (_commandPWM > maxSpeed)
+            _commandPWM = maxSpeed;
+
+        motor.runAtPWM(_commandPWM);
+    }
+    return _commandPWM;
+}
 
 //------------------------------------------------------
 //------------------------------------------------------ Utility functions
@@ -284,6 +298,7 @@ bool MotorUnit::onTarget(double precision){
 //Runs the motor to extend at full speed 
 void MotorUnit::decompressBelt(){
         motor.fullOut();
+        _commandPWM = 1023;
 }
 
 // Reset all the axis variables

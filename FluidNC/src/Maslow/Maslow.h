@@ -105,14 +105,12 @@ class Maslow_ {
     QWIICMUX I2CMux;
 
     //calibration stuff
-    float frame_width = 3500;
-    float frame_height = 2500;
 
     int frame_dimention_MIN = 1000;
     int frame_dimention_MAX = 5000;
     
     double calibrationGrid[CALIBRATION_GRID_SIZE][2] = {0};
-    float calibration_grid_offset = 750; // mm offset from the edge of the frame
+    float calibration_grid_offset = 620; // mm offset from the edge of the frame
 
     void generate_calibration_grid();
     bool move_with_slack(double fromX, double fromY, double toX, double toY);
@@ -126,6 +124,7 @@ class Maslow_ {
     bool test = false;
     bool orientation;
     double calibration_data[4][CALIBRATION_GRID_SIZE] = {0}; 
+    int pointCount = 0; //number of actual points in the grid,  < GRID_SIZE
     // //keep track of where Maslow actually is, lower left corner is 0,0
     double x;
     double y;
@@ -135,8 +134,6 @@ class Maslow_ {
     unsigned long holdTimer = millis();
     bool holding = false;
     unsigned long holdTime = 0;
-
-  private:
 
     float tlX;
     float tlY;
@@ -150,6 +147,10 @@ class Maslow_ {
     float brX;
     float brY;
     float brZ;
+
+  private:
+
+
     float centerX;
     float centerY;
 

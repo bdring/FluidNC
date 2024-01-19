@@ -65,18 +65,18 @@ void Maslow_::begin(void (*sys_rt)()) {
   axisTRHomed = false;
   axisTLHomed = false;
 
-  tlX = 25.4253399079432;
-  tlY = 2062.799317466706;
-  tlZ = 116 + 38;
-  trX = 2976.989226934371; 
-  trY = 2065.5158023062427;
-  trZ = 69 + 38;
-  blX = 0;
-  blY = 0;
-  blZ = 47 + 38;
-  brX = 2960.520761172446;
-  brY = 0;
-  brZ = 89 + 38;
+//   tlX = 25.4253399079432;
+//   tlY = 2062.799317466706;
+//   tlZ = 116 + 38;
+//   trX = 2976.989226934371; 
+//   trY = 2065.5158023062427;
+//   trZ = 69 + 38;
+//   blX = 0;
+//   blY = 0;
+//   blZ = 47 + 38;
+//   brX = 2960.520761172446;
+//   brY = 0;
+//   brZ = 89 + 38;
 //Roman frame, approx
 //   tlX = 5.5;
 //   tlY = 2150;
@@ -91,14 +91,14 @@ void Maslow_::begin(void (*sys_rt)()) {
 //   brY = 0;
 //   brZ = 0;
 //Roman frame, after calibration on 25 points
-tlX = 54.2907358762372;
-tlY = 2153.828537541466; 
-trX = 3097.9245785193057;
-trY = 2110.326736121985;
- blX = 0;
- blY =  0; 
- brX = 3088.4898198722663;
- blY =  0;
+// tlX = 54.2907358762372;
+// tlY = 2153.828537541466; 
+// trX = 3097.9245785193057;
+// trY = 2110.326736121985;
+//  blX = 0;
+//  blY =  0; 
+//  brX = 3088.4898198722663;
+//  blY =  0;
 
   
   //Recompute the center XY
@@ -117,6 +117,11 @@ trY = 2110.326736121985;
   lastCallToUpdate = millis();
   generate_calibration_grid();
   log_info("Starting Maslow v 1.00");
+  //TEMP
+  //orientation = HORIZONTAL;
+  //calibration_grid_offset = 950;
+  
+
 }
 
 // Maslow main loop, everything is processed here
@@ -337,7 +342,7 @@ void Maslow_::calibration_loop(){
                 measurementInProgress = false;
                 waypoint++;                                 //Increment the waypoint counter
 
-                if(waypoint > CALIBRATION_GRID_SIZE-1 ){ //If we have reached the end of the calibration process
+                if(waypoint > pointCount-1 ){ //If we have reached the end of the calibration process
                     calibrationInProgress = false;
                     waypoint = 0;
                     log_info("Calibration complete");
@@ -346,29 +351,44 @@ void Maslow_::calibration_loop(){
                 }
                 else{ //Otherwise move to the next point
                     log_info("Moving from: " << calibrationGrid[waypoint-1][0] << " " << calibrationGrid[waypoint-1][1] << " to: " << calibrationGrid[waypoint][0] << " " << calibrationGrid[waypoint][1] << " direction: " << get_direction(calibrationGrid[waypoint-1][0], calibrationGrid[waypoint-1][1], calibrationGrid[waypoint][0], calibrationGrid[waypoint][1]));
+                    // print all the axis positions and targets
+                    log_info("Cuurent pos: TL: " << axisTL.getPosition() << " TR: " << axisTR.getPosition() << " BL: " << axisBL.getPosition() << " BR: " << axisBR.getPosition());
+                    log_info("Current target: TL: " << axisTL.getTarget() << " TR: " << axisTR.getTarget() << " BL: " << axisBL.getTarget() << " BR: " << axisBR.getTarget());
+                    log_info("Computed target: TL: " << computeTL(calibrationGrid[waypoint][0], calibrationGrid[waypoint][1], 0) << " TR: " << computeTR(calibrationGrid[waypoint][0], calibrationGrid[waypoint][1], 0) << " BL: " << computeBL(calibrationGrid[waypoint][0], calibrationGrid[waypoint][1], 0) << " BR: " << computeBR(calibrationGrid[waypoint][0], calibrationGrid[waypoint][1], 0));
                     hold(250);
                 }
             }
         }
 
         //travel to the start point
-        else if(waypoint == 0){
+        else if (waypoint == 0) {
             //move to the start point
-            
-            if(move_with_slack(centerX, centerY, calibrationGrid[0][0], calibrationGrid[0][1])){
-                measurementInProgress = true;
-                direction = get_direction(centerX, centerY, calibrationGrid[0][0], calibrationGrid[0][1]);
-                log_info("arrived at the start point");
-                x = calibrationGrid[0][0];
-                y = calibrationGrid[0][1];
-                hold(250);
+            static bool two_step_move_flag = false;
+
+            //first perform a Y move
+            if (!two_step_move_flag) {
+                if (move_with_slack(0, 0, 0, calibrationGrid[0][1])){
+                    two_step_move_flag = true;
+                    log_info ("mov from: " << 0 << ", " << calibrationGrid[0][1]<< " to " <<calibrationGrid[0][0]<< ", " << calibrationGrid[0][1]);
+                }
+            }
+            //then perform an X move
+            else {
+                if (move_with_slack(0, calibrationGrid[0][1], calibrationGrid[0][0], calibrationGrid[0][1])) {
+                    measurementInProgress = true;
+                    direction             = get_direction(0, calibrationGrid[0][1], calibrationGrid[0][0], calibrationGrid[0][1]);
+                    log_info("arrived at the start point");
+                    x = calibrationGrid[0][0];
+                    y = calibrationGrid[0][1];
+                    two_step_move_flag = false; // reset if we ever want to rerun the calibratrion
+                    hold(250);
+                }
             }
 
         }
 
         //perform the calibrartion steps in the grid
-        else{
-            
+        else {
             if(move_with_slack(calibrationGrid[waypoint-1][0], calibrationGrid[waypoint-1][1], calibrationGrid[waypoint][0], calibrationGrid[waypoint][1])){
                 measurementInProgress = true;
                 direction = get_direction(calibrationGrid[waypoint-1][0], calibrationGrid[waypoint-1][1], calibrationGrid[waypoint][0], calibrationGrid[waypoint][1]);
@@ -376,7 +396,6 @@ void Maslow_::calibration_loop(){
                 y = calibrationGrid[waypoint][1];
                 hold(250);
             }
-
         }
 }
 
@@ -515,11 +534,12 @@ void Maslow_::safety_control() {
       
       static int axisSlackCounter[4] = {0,0,0,0};
 
-
+      axisSlackCounter[i] = 0; //TEMP
       if(axis[i]->getMotorPower() > 450 && abs (axis[i]->getBeltSpeed() ) < 0.1 && !tick[i]){
             axisSlackCounter[i]++;
-            if(axisSlackCounter[i] > 200){
-                log_info("SLACK:" << axis_id_to_label(i).c_str() << " motor power is " << int(axis[i]->getMotorPower()) << ", but the belt is not moving");
+            if(axisSlackCounter[i] > 3000){
+                log_info("SLACK:" << axis_id_to_label(i).c_str() << " motor power is " << int(axis[i]->getMotorPower()) << ", but the belt speed is" <<axis[i]->getBeltSpeed());
+                log_info(axisSlackCounter[i]);
                 log_info("Pull on " << axis_id_to_label(i).c_str() << " and restart!");
                 tick[i] = true;
                 axisSlackCounter[i] = 0;
@@ -851,6 +871,7 @@ bool Maslow_::move_with_slack(double fromX, double fromY, double toX, double toY
   //This is where we want to introduce some slack so the system
   static unsigned long decompressTimer    = millis();
   static bool          decompress         = true;
+  static bool fl = false; // TEMP
 
 int direction  = get_direction(fromX, fromY, toX, toY);
 
@@ -881,8 +902,9 @@ if(decompress){
 
   //Stop for 50ms
   //we need to stop motors after decompression was finished once
-  else if (millis() - decompressTimer < 1000) {
+  else if (millis() - decompressTimer < 800) {
       stopMotors();
+      fl = true; // TEMP
       return false;
   }
 
@@ -900,7 +922,11 @@ if(decompress){
 
   switch (direction) {
     case UP:
-        setTargets(toX,toY, 0, true, true, false, false);
+        setTargets(toX,toY, 0);
+        if(fl){
+            fl = false;
+            log_info("Set targets: TL: " << axisTL.getTarget() << " TR: " << axisTR.getTarget() << " BL: " << axisBL.getTarget() << " BR: " << axisBR.getTarget());
+        }
         axisTL.recomputePID(500);
         axisTR.recomputePID(500);
         axisBL.comply();
@@ -915,7 +941,7 @@ if(decompress){
         //}
         break;
       case DOWN:
-            setTargets(toX,toY, 0, false, false, true, true);
+            setTargets(toX,toY, 0);
             axisTL.comply();
             axisTR.comply();
             axisBL.recomputePID(500);
@@ -930,7 +956,7 @@ if(decompress){
             //}
             break;
       case LEFT:
-            setTargets(toX,toY, 0, true, false, true, false);
+            setTargets(toX,toY, 0);
             axisTL.recomputePID(500);
             axisTR.comply();
             axisBL.recomputePID(500);
@@ -945,7 +971,7 @@ if(decompress){
             //}
             break;
       case RIGHT:
-            setTargets(toX,toY, 0, false, true, false, true);
+            setTargets(toX,toY, 0);
             axisTL.comply();
             axisTR.recomputePID(500);
             axisBL.comply();
@@ -986,35 +1012,35 @@ int Maslow_::get_direction(double x, double y, double targetX, double targetY){
     return direction;
 } 
 
-// Generate calibration points based on dimentions (TODO)
+// Generate calibration points based on dimentions
 void Maslow_::generate_calibration_grid() {
 
-    int gridSizeX = int(sqrt(CALIBRATION_GRID_SIZE));
-    int gridSizeY = int(sqrt(CALIBRATION_GRID_SIZE));
-    int xSpacing =  (frame_width - 2*calibration_grid_offset) / gridSizeX;
-    int ySpacing =  (frame_height - 2*calibration_grid_offset) / gridSizeY;
-    int pointCount = 0;
+    int gridSizeX  = int(sqrt(CALIBRATION_GRID_SIZE));  //25 --> 5
+    int gridSizeY  = int(sqrt(CALIBRATION_GRID_SIZE));
+    int xSpacing   = (trX - 2 * calibration_grid_offset) / gridSizeX;
+    int ySpacing   = (trY - 2 * calibration_grid_offset) / gridSizeY;
+    pointCount = 0;
+    log_info("gridSizeX " << gridSizeX << " gridSizeY " << gridSizeY << " xSpacing " << xSpacing << " ySpacing " << ySpacing);
 
-  for(int i = -gridSizeX/2; i <= gridSizeX/2; i++) {
-    if(i % 2 == 0) {
-      for(int j = -gridSizeY/2; j <= gridSizeY/2; j++) {
-        log_info("Point: " << pointCount << "(" << i * xSpacing << ", " << j * ySpacing << ")");
-        calibrationGrid[pointCount][0] = i * xSpacing;
-        calibrationGrid[pointCount][1] = j * ySpacing;
-        pointCount++;
-      }
-    } else {
-      for(int j = gridSizeY/2; j >= -gridSizeY/2; j--) {
-        log_info("Point: " << pointCount << "(" << i * xSpacing << ", " << j * ySpacing << ")"); 
-        calibrationGrid[pointCount][0] = i * xSpacing;
-        calibrationGrid[pointCount][1] = j * ySpacing;
-        pointCount++;
-      }
+    for (int i = -gridSizeX / 2; i <= gridSizeX / 2; i++) {
+        if (i % 2 == 0) {
+            for (int j = gridSizeY / 2; j >= -gridSizeY / 2; j--) {
+            
+                log_info("Point: " << pointCount << "(" << i * xSpacing << ", " << j * ySpacing << ")");
+                calibrationGrid[pointCount][0] = i * xSpacing;
+                calibrationGrid[pointCount][1] = j * ySpacing;
+                pointCount++;
+            }
+        } else {
+                for (int j = -gridSizeY / 2; j <= gridSizeY / 2; j++) {
+                log_info("Point: " << pointCount << "(" << i * xSpacing << ", " << j * ySpacing << ")");
+                calibrationGrid[pointCount][0] = i * xSpacing;
+                calibrationGrid[pointCount][1] = j * ySpacing;
+                pointCount++;
+            }
+        }
     }
-  }
-
 }
-
 
 //------------------------------------------------------
 //------------------------------------------------------ User commands
@@ -1078,7 +1104,7 @@ void Maslow_::extendALL(){
     log_info("Extending All");
 }
 void Maslow_::runCalibration(){
-
+    generate_calibration_grid();
     stop();
     //if not all axis are homed, we can't run calibration, OR if the user hasnt entered width and height? 
     if(!all_axis_homed()){
@@ -1087,14 +1113,16 @@ void Maslow_::runCalibration(){
         return;
     }
 
-    if(frame_width < frame_dimention_MIN || frame_width > frame_dimention_MAX || frame_height < frame_dimention_MIN || frame_height > frame_dimention_MAX){
-        log_error("Cannot run calibration until frame width and height are set");
-        sys.set_state(State::Idle);
-        return;
-    }
+    // if(frame_width < frame_dimention_MIN || frame_width > frame_dimention_MAX || frame_height < frame_dimention_MIN || frame_height > frame_dimention_MAX){
+    //     log_error("Cannot run calibration until frame width and height are set");
+    //     sys.set_state(State::Idle);
+    //     return;
+    // }
     sys.set_state(State::Homing);
     //generate calibration map 
-    generate_calibration_grid();
+    //generate_calibration_grid();
+    log_info ( "going from" << 0 << ", "<< 0 << " to " << 0 << ", " << calibrationGrid[0][1]);
+    log_info( "direction " << get_direction(0,0,0, calibrationGrid[0][1]) );
     calibrationInProgress = true;
 }
 void Maslow_::comply(){
@@ -1118,13 +1146,14 @@ void Maslow_::test_(){
     test = true;
 }
 void Maslow_::set_frame_width(double width){
-    frame_width = width;
-    update_frame_xyz();
+    trX = width;
+    brX = width;
     updateCenterXY();
 }
 void Maslow_::set_frame_height(double height){
-    frame_height = height;
-    update_frame_xyz();
+
+    tlY = height;
+    trY = height;
     updateCenterXY();
 }
 void Maslow_::take_slack(){
@@ -1193,9 +1222,13 @@ String Maslow_::axis_id_to_label(int axis_id){
 
 // function for outputting calibration data in the log line by line like this: {bl:2376.69,   br:923.40,   tr:1733.87,   tl:2801.87},
 void Maslow_::print_calibration_data(){
-    for(int i = 0; i < CALIBRATION_GRID_SIZE; i++){
-        log_info("{bl:" << calibration_data[2][i] << ",   br:" << calibration_data[3][i] << ",   tr:" << calibration_data[1][i] << ",   tl:" << calibration_data[0][i] << "},");
+    String data = "CLBM:[";
+    for(int i = 0; i < pointCount; i++){
+        data+= "{bl:" + String(calibration_data[2][i]) + ",   br:" + String(calibration_data[3][i]) + ",   tr:" + String(calibration_data[1][i]) + ",   tl:" + String(calibration_data[0][i]) + "},";
+        //log_info("{bl:" << calibration_data[2][i] << ",   br:" << calibration_data[3][i] << ",   tr:" << calibration_data[1][i] << ",   tl:" << calibration_data[0][i] << "},");
     }
+    data+="]";
+    log_info(data.c_str()); //will it print really large numbers?
 }
 
 // Stop all motors and reset all state variables
@@ -1210,11 +1243,16 @@ void Maslow_::stop(){
     calibrationInProgress = false;
     test = false; 
     takeSlack = false;
+    log_info("Cuurent pos: TL: " << axisTL.getPosition() << " TR: " << axisTR.getPosition() << " BL: " << axisBL.getPosition() << " BR: " << axisBR.getPosition());
+    log_info("Current target: TL: " << axisTL.getTarget() << " TR: " << axisTR.getTarget() << " BL: " << axisBL.getTarget() << " BR: " << axisBR.getTarget());
     axisTL.reset();
     axisTR.reset();
     axisBL.reset();
     axisBR.reset();
+    log_info("-----------------------------------------------");
+    log_info(calibration_grid_offset);
 }
+
 
 // Stop all the motors
 void Maslow_::stopMotors(){
@@ -1229,26 +1267,6 @@ void Maslow_::panic(){
     log_error("PANIC! Stopping all motors");
     stop();
     sys.set_state(State::Alarm);
-}
-
-// update coordinates of the corners based on the frame width and height, should be called every time frame width or height is changed (TODO)
-void Maslow_::update_frame_xyz(){
-    blX = 0;
-    blY = 0;
-    blZ = 0;
-
-    brY = 0;
-    brX = frame_width;
-    brZ = 0;
-
-    tlX = 0;
-    tlY = frame_height;
-    tlZ = 0;
-
-    trX = frame_width;
-    trY = frame_height;
-    trZ = 0;
-
 }
 
 // Get's the most recently set target position in X

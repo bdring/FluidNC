@@ -908,8 +908,8 @@ static Error maslow_set_width(const char* value, WebUI::AuthenticationLevel auth
         return Error::ConfigurationInvalid;
     }
     if (!value) {
-        double width = Maslow.frame_width;
-        log_info("Maslow frame width is " << width);
+        //double width = Maslow.frame_width;
+        //log_info("Maslow frame width is " << width);
         return Error::Ok;
     }
     char*    endptr;
@@ -933,8 +933,8 @@ static Error maslow_set_height(const char* value, WebUI::AuthenticationLevel aut
         return Error::ConfigurationInvalid;
     }
     if (!value) {
-        double height = Maslow.frame_height;
-        log_info("Maslow frame height is " << height);
+        //double height = Maslow.frame_height;
+        //log_info("Maslow frame height is " << height);
         return Error::Ok;
     }
     char*    endptr;
@@ -1051,8 +1051,10 @@ void make_user_commands() {
     new UserCommand("BL", "Maslow/retractBL", maslow_retract_BL, anyState);
     new UserCommand("ALL", "Maslow/retract", maslow_retract_ALL, anyState);
     new UserCommand("EXT", "Maslow/extend", maslow_extend_ALL, anyState);
-    new UserCommand("CMP", "Maslow/comply", maslow_set_comply, anyState);
+    //new UserCommand("CMP", "Maslow/comply", maslow_set_comply, anyState);
     new UserCommand("CAL", "Maslow/calibrate", maslow_start_calibration, anyState);
+    new UserCommand("CMP", "Maslow/calibrate", maslow_start_calibration, anyState);
+
     new UserCommand("STP", "Maslow/stop", maslow_stop, anyState); // experimental
     new UserCommand("WDT", "Maslow/width", maslow_set_width, anyState);
     new UserCommand("HGT", "Maslow/height", maslow_set_height, anyState);
