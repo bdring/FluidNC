@@ -16,7 +16,7 @@ namespace WebUI {
     WSChannel::WSChannel(WebSocketsServer* server, uint8_t clientNum) : Channel("websocket"), _server(server), _clientNum(clientNum) {}
 
     int WSChannel::read() {
-        if (_dead) {
+        if (!_active) {
             return -1;
         }
         if (_rtchar == -1) {
@@ -33,7 +33,7 @@ namespace WebUI {
     size_t WSChannel::write(uint8_t c) { return write(&c, 1); }
 
     size_t WSChannel::write(const uint8_t* buffer, size_t size) {
-        if (buffer == NULL || _dead || !size) {
+        if (buffer == NULL || !_active || !size) {
             return 0;
         }
 
@@ -58,7 +58,7 @@ namespace WebUI {
         }
         int stat = _server->canSend(_clientNum);
         if (stat < 0) {
-            _dead = true;
+            _active = false;
             log_debug("WebSocket is dead; closing");
             return 0;
         }
@@ -69,7 +69,7 @@ namespace WebUI {
             return size;
         }
         if (!_server->sendBIN(_clientNum, out, outlen)) {
-            _dead = true;
+            _active = false;
             log_debug("WebSocket is unresponsive; closing");
         }
         if (_output_line.length()) {
@@ -80,7 +80,7 @@ namespace WebUI {
     }
 
     bool WSChannel::push(const uint8_t* data, size_t length) {
-        if (_dead) {
+        if (!_active) {
             return false;
         }
         char c;
@@ -93,20 +93,19 @@ namespace WebUI {
     bool WSChannel::push(const std::string& s) { return push((uint8_t*)s.c_str(), s.length()); }
 
     bool WSChannel::sendTXT(std::string& s) {
-        if (_dead) {
+        if (!_active) {
             return false;
         }
         if (!_server->sendTXT(_clientNum, s.c_str())) {
-            _dead = true;
+            _active = false;
             log_debug("WebSocket is unresponsive; closing");
-            //            WSChannels::removeChannel(this);
             return false;
         }
         return true;
     }
 
     void WSChannel::autoReport() {
-        if (_dead || !_server->canSend(_clientNum)) {
+        if (!_active || !_server->canSend(_clientNum)) {
             return;
         }
         Channel::autoReport();
