@@ -33,13 +33,12 @@ public:
     int read() override;
 
     // Channel methods
-    int      rx_buffer_available() override;
-    void     flushRx() override;
-    size_t   timedReadBytes(char* buffer, size_t length, TickType_t timeout);
-    size_t   timedReadBytes(uint8_t* buffer, size_t length, TickType_t timeout) { return timedReadBytes((char*)buffer, length, timeout); };
-    bool     realtimeOkay(char c) override;
-    bool     lineComplete(char* line, char c) override;
-    Channel* pollLine(char* line) override;
+    int    rx_buffer_available() override;
+    void   flushRx() override;
+    size_t timedReadBytes(char* buffer, size_t length, TickType_t timeout);
+    size_t timedReadBytes(uint8_t* buffer, size_t length, TickType_t timeout) { return timedReadBytes((char*)buffer, length, timeout); };
+    bool   realtimeOkay(char c) override;
+    bool   lineComplete(char* line, char c) override;
 
     void out(const std::string& s, const char* tag) override;
     void out_acked(const std::string& s, const char* tag) override;

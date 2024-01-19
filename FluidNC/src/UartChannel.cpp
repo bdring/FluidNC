@@ -91,15 +91,6 @@ bool UartChannel::lineComplete(char* line, char c) {
     return false;
 }
 
-Channel* UartChannel::pollLine(char* line) {
-    // UART0 is the only Uart instance that can be a channel input device
-    // Other UART users like RS485 use it as a dumb character device
-    if (_lineedit == nullptr) {
-        return nullptr;
-    }
-    return Channel::pollLine(line);
-}
-
 int UartChannel::read() {
     return _uart->read();
 }

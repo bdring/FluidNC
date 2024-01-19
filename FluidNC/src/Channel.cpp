@@ -143,7 +143,7 @@ Channel* Channel::pollLine(char* line) {
         if (_queue.size()) {
             ch = _queue.front();
             _queue.pop();
-        } else if (line) {
+        } else {
             ch = read();
         }
 
