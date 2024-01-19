@@ -38,6 +38,9 @@ void StartupLog::dump(Channel& out) {
         std::string line;
         while (i < _len) {
             char c = _messages[i++];
+            if (c == '\r') {
+                continue;
+            }
             if (c == '\n') {
                 break;
             }
