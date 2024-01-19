@@ -15,7 +15,7 @@
 #include "NotificationsService.h"
 
 namespace WebUI {
-    NotificationsService notificationsService __attribute__((init_priority(106))) ;
+    NotificationsService notificationsService __attribute__((init_priority(106)));
 }
 
 #ifdef ENABLE_WIFI
@@ -63,7 +63,7 @@ namespace WebUI {
 
     static Error showSetNotification(char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP610
         if (*parameter == '\0') {
-            log_to(out, "", notification_type->getStringValue() << " " << notification_ts->getStringValue());
+            log_stream(out, notification_type->getStringValue() << " " << notification_ts->getStringValue());
             return Error::Ok;
         }
         if (!split_params(parameter)) {
@@ -88,11 +88,11 @@ namespace WebUI {
 
     static Error sendMessage(char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP600
         if (*parameter == '\0') {
-            log_to(out, "Invalid message!");
+            log_string(out, "Invalid message!");
             return Error::InvalidValue;
         }
         if (!notificationsService.sendMSG("GRBL Notification", parameter)) {
-            log_to(out, "Cannot send message!");
+            log_string(out, "Cannot send message!");
             return Error::MessageFailed;
         }
         return Error::Ok;
@@ -231,7 +231,7 @@ namespace WebUI {
         Notificationclient.stop();
         return res;
     }
-    
+
     bool NotificationsService::sendEmailMSG(const char* title, const char* message) {
         WiFiClientSecure Notificationclient;
         // Switch off secure mode because the connect command always fails in secure mode:(
@@ -240,7 +240,7 @@ namespace WebUI {
         if (!Notificationclient.connect(_serveraddress.c_str(), _port)) {
             //Read & log error message (in debug mode)
             if (atMsgLevel(MsgLevelDebug)) {
-                char errMsg[150];
+                char      errMsg[150];
                 const int lastError = Notificationclient.lastError(errMsg, sizeof(errMsg));
                 if (0 == lastError) {
                     errMsg[0] = 0;

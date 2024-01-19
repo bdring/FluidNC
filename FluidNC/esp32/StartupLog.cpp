@@ -43,7 +43,7 @@ void StartupLog::dump(Channel& out) {
             }
             line += c;
         }
-        log_to(out, line);
+        log_stream(out, line);
     }
 }
 

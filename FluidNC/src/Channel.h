@@ -98,6 +98,10 @@ public:
     virtual void       ack(Error status);
     const std::string& name() { return _name; }
 
+    virtual void sendLine(MsgLevel level, const char* line);
+    virtual void sendLine(MsgLevel level, const std::string* line);
+    virtual void sendLine(MsgLevel level, const std::string& line);
+
     // rx_buffer_available() is the number of bytes that can be sent without overflowing
     // a reception buffer, even if the system is busy.  Channels that can handle external
     // input via an interrupt or other background mechanism should override it to return

@@ -22,6 +22,12 @@ namespace WebUI {
         size_t write(const uint8_t* buffer, size_t length) override;
         void   flush();
 
+        void sendLine(MsgLevel level, const char* line) override;
+        void sendLine(MsgLevel level, const std::string* line) override;
+        void sendLine(MsgLevel level, const std::string& line) override;
+
+        void sendError(int code, const std::string& line);
+
         bool anyOutput() { return _header_sent; }
 
         void out(const char* s, const char* tag) override;

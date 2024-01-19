@@ -217,11 +217,11 @@ void Channel::setAttr(int index, bool* value, const std::string& attrString, con
 }
 
 void Channel::out(const char* s, const char* tag) {
-    log_to(*this, s);
+    sendLine(MsgLevelNone, s);
 }
 
 void Channel::out(const std::string& s, const char* tag) {
-    log_to(*this, s);
+    sendLine(MsgLevelNone, s);
 }
 
 void Channel::out_acked(const std::string& s, const char* tag) {
@@ -244,7 +244,7 @@ void Channel::registerEvent(uint8_t code, EventPin* obj) {
 
 void Channel::ack(Error status) {
     if (status == Error::Ok) {
-        log_to(*this, "ok");
+        sendLine(MsgLevelNone, "ok");
         return;
     }
     // With verbose errors, the message text is displayed instead of the number.
@@ -261,6 +261,57 @@ void Channel::ack(Error status) {
 void Channel::print_msg(MsgLevel level, const char* msg) {
     if (_message_level >= level) {
         println(msg);
+    }
+}
+
+// This overload is used primarily with fixed string
+// values.  It sends a pointer to the string whose
+// memory does not need to be reclaimed later.
+// This is the most efficient form, but it only works
+// with fixed messages.
+void Channel::sendLine(MsgLevel level, const char* line) {
+    if (outputTask) {
+        LogMessage msg { this, (void*)line, level, false };
+        while (!xQueueSend(message_queue, &msg, 10)) {}
+    } else {
+        print_msg(level, line);
+    }
+}
+
+// This overload is used primarily with log_*() where
+// a std::string is dynamically allocated with "new",
+// and then extended to construct the message.  Its
+// pointer is sent to the output task, which sends
+// the message to the output channel and then "delete"s
+// the pointer to reclaim the memory.
+// This form has intermediate efficiency, as the string
+// is allocated once and freed once.
+void Channel::sendLine(MsgLevel level, const std::string* line) {
+    if (outputTask) {
+        LogMessage msg { this, (void*)line, level, true };
+        while (!xQueueSend(message_queue, &msg, 10)) {}
+    } else {
+        print_msg(level, line->c_str());
+        delete line;
+    }
+}
+
+// This overload is used for many miscellaneous messages
+// where the std::string is allocated in a code block and
+// then extended with various information.  This send_line()
+// copies that string to a newly allocated one and sends that
+// via the std::string* version of send_line().  The original
+// string is freed by the caller sometime after send_line()
+// returns, while the new string is freed by the output task
+// after the message is forwared to the output channel.
+// This is the least efficient form, requiring two strings
+// to be allocated and freed, with an intermediate copy.
+// It is used only rarely.
+void Channel::sendLine(MsgLevel level, const std::string& line) {
+    if (outputTask) {
+        sendLine(level, new std::string(line));
+    } else {
+        print_msg(level, line.c_str());
     }
 }
 

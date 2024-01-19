@@ -42,7 +42,7 @@ namespace WebUI {
         const uint8_t* out;
         size_t         outlen;
         if (_output_line.length() == 0 && complete_line) {
-            // Avoid the overhead of std::string if we the
+            // Avoid the overhead of std::string if the
             // input is a complete line and nothing is pending.
             out    = buffer;
             outlen = size;
@@ -106,10 +106,10 @@ namespace WebUI {
     }
 
     void WSChannel::autoReport() {
-        int stat = _server->canSend(_clientNum);
-        if (stat > 0) {
-            Channel::autoReport();
+        if (_dead || !_server->canSend(_clientNum)) {
+            return;
         }
+        Channel::autoReport();
     }
 
     WSChannel::~WSChannel() {}
@@ -170,7 +170,7 @@ namespace WebUI {
                 if (!is_realtime_command(cmd[0]) && cmd[cmd.length() - 1] != '\n') {
                     wsChannel->push("\n");
                 }
-                return true;
+                return false;
             }
         }
         return true;

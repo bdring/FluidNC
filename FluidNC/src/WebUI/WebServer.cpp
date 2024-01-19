@@ -441,7 +441,7 @@ namespace WebUI {
         // cmd.trim();
         auto isCommand = cmd.find("[ESP") != std::string::npos;
         if (!isCommand) {
-            if (cmd.length() > 1 && cmd[0] == '$' && cmd[1] != 'H') {
+            if (cmd.length() >= 2 && cmd[0] == '$' && cmd[1] == '/') {
                 isCommand = true;
             }
         }
@@ -459,18 +459,10 @@ namespace WebUI {
                     answer += std::to_string(static_cast<int>(err));
                 }
                 answer += "\n";
-                _webserver->send(500, "text/plain", answer.c_str());
+                webClient.sendError(500, answer);
             } else {
-#    if 0
-                // Give the output task a chance to dequeue and forward a message
-                // to webClient, if there is one.
-                for (int i = 0; i < 100 && !webClient.anyOutput(); i++) {
-                    vTaskDelay(10);
-                }
-#    endif
-                if (!webClient.anyOutput()) {
-                    _webserver->send(500, "text/plain", "No response");
-                }
+                // This will send a 200 if it hasn't already been sent
+                webClient.write(nullptr, 0);
             }
             webClient.detachWS();
         } else {  //execute GCODE
@@ -479,8 +471,7 @@ namespace WebUI {
                 return;
             }
             bool hasError = WSChannels::runGCode(getPageid(), cmd);
-
-            _webserver->send(200, "text/plain", hasError ? "Error" : "");
+            _webserver->send(hasError ? 500 : 200, "text/plain", hasError ? "WebSocket dead" : "");
         }
     }
 

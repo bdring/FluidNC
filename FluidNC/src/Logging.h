@@ -5,6 +5,8 @@
 
 #include <cstdint>
 #include "EnumItem.h"
+#include <freertos/FreeRTOS.h>
+#include <freertos/queue.h>
 
 class Channel;
 
@@ -16,6 +18,17 @@ enum MsgLevel {
     MsgLevelDebug   = 4,
     MsgLevelVerbose = 5,
 };
+
+struct LogMessage {
+    Channel* channel;
+    void*    line;
+    MsgLevel level;
+    bool     isString;
+};
+
+extern TaskHandle_t outputTask;
+
+extern xQueueHandle message_queue;
 
 extern EnumItem messageLevels2[];
 
@@ -36,9 +49,10 @@ extern EnumItem messageLevels2[];
 
 class LogStream : public Print {
 public:
-    LogStream(Channel& channel, const char* name, bool synchronous = false);
-    LogStream(Channel& channel, MsgLevel level, const char* name, bool synchronous = false);
-    LogStream(MsgLevel level, const char* name, bool synchronous = false);
+    LogStream(Channel& channel, MsgLevel level);
+    LogStream(Channel& channel, const char* name);
+    LogStream(Channel& channel, MsgLevel level, const char* name);
+    LogStream(MsgLevel level, const char* name);
     size_t write(uint8_t c) override;
     ~LogStream();
 
@@ -46,7 +60,6 @@ private:
     Channel&     _channel;
     std::string* _line;
     MsgLevel     _level;
-    bool         _synchronous;
 };
 
 extern bool atMsgLevel(MsgLevel level);
@@ -72,20 +85,6 @@ extern bool atMsgLevel(MsgLevel level);
 #define log_error_to(out, x) if (atMsgLevel(MsgLevelError)) { LogStream ss(out, MsgLevelError, "[MSG:ERR: "); ss << x; }
 #define log_fatal_to(out, x) { LogStream ss(out, MsgLevelNone, "[MSG:FATAL: "); ss << x;  Assert(false, "A fatal error occurred."); }
 
-// GET_MACRO is a preprocessor trick to let log_to() behave differently
-// with 2 arguments vs 3.  The 2 argument case is super efficient
-// while the 3 argument case is slightly less so, but you get to contruct
-// the message string with << stream operators, while 2 arguments can
-// only send a fixed string.  The fixed-string case is especially important
-// because it is how the "ok" ack - the most common message - is sent.
-
-#define GET_MACRO(_1,_2,_3, NAME, ...) NAME
-#define log_to(...) GET_MACRO(__VA_ARGS__, log_to3, log_to2)(__VA_ARGS__)
-
-#define log_to2(out, prefix) send_line(out, MsgLevelNone, prefix)
-#define log_to3(out, prefix, x) { LogStream ss(out, MsgLevelNone, prefix); ss << x; }
-
-#define sync_log_to(...) GET_MACRO(__VA_ARGS__, sync_log_to3, sync_log_to2)(__VA_ARGS__)
-
-#define sync_log_to2(out, prefix) out.print_msg(MsgLevelNone, prefix);
-#define sync_log_to3(out, prefix, x) { LogStream ss(out, MsgLevelNone, prefix, true); ss << x; }
+// #define log_to(out, prefix, x) { LogStream ss(out, MsgLevelNone, prefix); ss << x; }
+#define log_stream(out, x) { LogStream ss(out, MsgLevelNone); ss << x; }
+#define log_string(out, x) out.sendLine(MsgLevelNone, x)
