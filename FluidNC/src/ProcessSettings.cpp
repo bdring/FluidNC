@@ -234,30 +234,30 @@ static float laser_max_speed() {
 }
 
 static Error report_normal_settings(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
-    log_to(out, "$0=", config->_stepping->_pulseUsecs);
-    log_to(out, "$1=", config->_stepping->_idleMsecs);
-    log_to(out, "$2=0");
-    log_to(out, "$3=0");
-    log_to(out, "$4=0");
-    log_to(out, "$5=0");
-    log_to(out, "$6=0");
+    log_stream(out, "$0=" << config->_stepping->_pulseUsecs);
+    log_stream(out, "$1=" << config->_stepping->_idleMsecs);
+    log_stream(out, "$2=0");
+    log_stream(out, "$3=0");
+    log_stream(out, "$4=0");
+    log_stream(out, "$5=0");
+    log_stream(out, "$6=0");
     show_settings(out, GRBL);  // GRBL non-axis settings
 
-    log_to(out, "$11=", config->_junctionDeviation);
-    log_to(out, "$12=", config->_arcTolerance);
-    log_to(out, "$13=", (config->_reportInches ? 1 : 0));
+    log_stream(out, "$11=" << config->_junctionDeviation);
+    log_stream(out, "$12=" << config->_arcTolerance);
+    log_stream(out, "$13=" << (config->_reportInches ? 1 : 0));
 
-    log_to(out, "$20=0");
-    log_to(out, "$21=0");
-    log_to(out, "$22=1");
-    log_to(out, "$23=0");
-    log_to(out, "$24=200");
-    log_to(out, "$25=2000");
-    log_to(out, "$26=250");
-    log_to(out, "$27=5");
-    log_to(out, "$30=", laser_max_speed());
-    log_to(out, "$31=0");
-    log_to(out, "$32=", (has_laser() ? 1 : 0));
+    log_stream(out, "$20=0");
+    log_stream(out, "$21=0");
+    log_stream(out, "$22=1");
+    log_stream(out, "$23=0");
+    log_stream(out, "$24=200");
+    log_stream(out, "$25=2000");
+    log_stream(out, "$26=250");
+    log_stream(out, "$27=5");
+    log_stream(out, "$30=" << laser_max_speed());
+    log_stream(out, "$31=0");
+    log_stream(out, "$32=" << (has_laser() ? 1 : 0));
 
     char axes[7] = "XYZABC";
 
