@@ -624,11 +624,12 @@ namespace WebUI {
             log_info("STA SSID is not set");
             return false;
         }
+        //Get parameters for STA
+        WiFi.setHostname(wifi_hostname->get());
         WiFi.mode(WIFI_STA);
         WiFi.setMinSecurity(static_cast<wifi_auth_mode_t>(wifi_sta_min_security->get()));
         WiFi.setScanMethod(wifi_fast_scan->get() ? WIFI_FAST_SCAN : WIFI_ALL_CHANNEL_SCAN);
-        //Get parameters for STA
-        WiFi.setHostname(wifi_hostname->get());
+        
         //password
         const char* password = wifi_sta_password->get();
         int8_t      IP_mode  = wifi_sta_mode->get();
@@ -761,6 +762,10 @@ namespace WebUI {
                 }
                 // fall through to fallback to AP mode
             case WiFiAP:
+                wifi_services.end();
+                wifi_prov_mgr_reset_provisioning();
+                esp_wifi_stop();
+                esp_wifi_restore();
                 if (StartAP()) {
                     goto wifi_on;
                 }
