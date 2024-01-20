@@ -5,12 +5,16 @@
 #include "WebUI/Commands.h"     // WebUI::COMMANDS
 #include "System.h"             // sys
 #include "Protocol.h"           // protocol_buffer_synchronize
+#include "Machine/MachineConfig.h"
 
 #include <map>
 #include <limits>
 #include <cstring>
 #include <vector>
 #include <nvs.h>
+
+std::vector<Setting*> Setting::List __attribute__((init_priority(101))) = {};
+std::vector<Command*> Command::List __attribute__((init_priority(102))) = {};
 
 bool anyState() {
     return false;
@@ -28,24 +32,18 @@ bool cycleOrHold() {
 Word::Word(type_t type, permissions_t permissions, const char* description, const char* grblName, const char* fullName) :
     _description(description), _grblName(grblName), _fullName(fullName), _type(type), _permissions(permissions) {}
 
-Command* Command::List = NULL;
-
 Command::Command(
     const char* description, type_t type, permissions_t permissions, const char* grblName, const char* fullName, bool (*cmdChecker)()) :
     Word(type, permissions, description, grblName, fullName),
     _cmdChecker(cmdChecker) {
-    link = List;
-    List = this;
+    List.insert(List.begin(), this);
 }
-
-Setting* Setting::List = NULL;
 
 Setting::Setting(
     const char* description, type_t type, permissions_t permissions, const char* grblName, const char* fullName, bool (*checker)(char*)) :
     Word(type, permissions, description, grblName, fullName),
     _checker(checker) {
-    link = List;
-    List = this;
+    List.insert(List.begin(), this);
 
     // NVS keys are limited to 15 characters, so if the setting name is longer
     // than that, we derive a 15-character name from a hash function
@@ -265,10 +263,10 @@ static bool isPassword(bool (*_checker)(char*)) {
 
 const char* StringSetting::getDefaultString() {
     // If the string is a password do not display it
-    return (_checker && isPassword(_checker)) ? "******" : _defaultValue.c_str();
+    return (_checker && isPassword(_checker)) ? "********" : _defaultValue.c_str();
 }
 const char* StringSetting::getStringValue() {
-    return (_checker && isPassword(_checker)) ? "******" : get();
+    return (_checker && isPassword(_checker)) ? "********" : get();
 }
 
 void StringSetting::addWebui(WebUI::JSONencoder* j) {
@@ -520,4 +518,19 @@ void IPaddrSetting::addWebui(WebUI::JSONencoder* j) {
         j->begin_webui(getName(), getName(), "A", getStringValue());
         j->end_object();
     }
+}
+
+template <>
+const char* MachineConfigProxySetting<float>::getStringValue() {
+    auto got = _getter(*MachineConfig::instance());
+    _cachedValue.reserve(16);
+    std::snprintf(_cachedValue.data(), _cachedValue.capacity(), "%.3f", got);
+    return _cachedValue.c_str();
+}
+
+template <>
+const char* MachineConfigProxySetting<int32_t>::getStringValue() {
+    auto got     = _getter(*MachineConfig::instance());
+    _cachedValue = std::to_string(got);
+    return _cachedValue.c_str();
 }

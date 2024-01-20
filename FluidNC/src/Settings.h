@@ -5,8 +5,14 @@
 #include "Report.h"  // info_channel
 #include "GCode.h"   // CoordIndex
 
+#include <string_view>
 #include <map>
 #include <nvs.h>
+
+// forward declarations
+namespace Machine {
+    class MachineConfig;
+}
 
 // Initialize the configuration subsystem
 void settings_init();
@@ -23,11 +29,6 @@ enum SettingsRestore {
 
 // Restore subsets of settings to default values
 void settings_restore(uint8_t restore_flag);
-
-// Command::List is a linked list of all settings,
-// so common code can enumerate them.
-class Command;
-// extern Command *CommandsList;
 
 // This abstract class defines the generic interface that
 // is used to set and get values for all settings independent
@@ -78,12 +79,12 @@ public:
 
 class Command : public Word {
 protected:
-    Command* link;  // linked list of setting objects
     bool (*_cmdChecker)();
 
 public:
-    static Command* List;
-    Command*        next() { return link; }
+    // Command::List is a vector of all commands,
+    // so common code can enumerate them.
+    static std::vector<Command*> List;
 
     ~Command() {}
     Command(const char* description, type_t type, permissions_t permissions, const char* grblName, const char* fullName, bool (*cmdChecker)());
@@ -99,8 +100,7 @@ class Setting : public Word {
 private:
 protected:
     // group_t _group;
-    axis_t   _axis = NO_AXIS;
-    Setting* link;  // linked list of setting objects
+    axis_t _axis = NO_AXIS;
 
     bool (*_checker)(char*);
     const char* _keyName;
@@ -108,8 +108,10 @@ protected:
 public:
     static nvs_handle _handle;
     static void       init();
-    static Setting*   List;
-    Setting*          next() { return link; }
+
+    // Setting::List is a vector of all settings,
+    // so common code can enumerate them.
+    static std::vector<Setting*> List;
 
     Error check(char* s);
 
@@ -199,6 +201,21 @@ public:
     const char* getDefaultString();
 
     int32_t get() { return _currentValue; }
+};
+
+// See Settings.cpp for the int32_t and float specialization implementations
+template <typename T>
+class MachineConfigProxySetting : public Setting {
+    std::function<T(Machine::MachineConfig const&)> _getter;
+    std::string                                     _cachedValue;
+
+public:
+    MachineConfigProxySetting(const char* grblName, const char* fullName, std::function<T(Machine::MachineConfig const&)> getter) :
+        Setting(fullName, type_t::GRBL, permissions_t::WU, grblName, fullName, nullptr), _getter(getter), _cachedValue("") {}
+
+    const char* getStringValue() override;
+    Error       setStringValue(char* value) override { return Error::ReadOnlySetting; }
+    const char* getDefaultString() override { return ""; }
 };
 
 class Coordinates {

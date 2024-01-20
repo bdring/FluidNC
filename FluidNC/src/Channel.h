@@ -16,19 +16,40 @@
 
 #pragma once
 
-#include "Error.h"  // Error
-#include "GCode.h"  // gc_modal_t
-#include "Types.h"  // State
+#include "Error.h"        // Error
+#include "GCode.h"        // gc_modal_t
+#include "Types.h"        // State
+#include "RealtimeCmd.h"  // Cmd
+#include "UTF8.h"
+
+#include "Pins/PinAttributes.h"
+#include "Machine/EventPin.h"
+
 #include <Stream.h>
 #include <freertos/FreeRTOS.h>  // TickType_T
 #include <queue>
 
 class Channel : public Stream {
+private:
+    void pin_event(uint32_t pinnum, bool active);
+
+    const int PinLowFirst  = 0x100;
+    const int PinLowLast   = 0x13f;
+    const int PinHighFirst = 0x140;
+    const int PinHighLast  = 0x17f;
+
+    const int PinACK = 0xB2;
+    const int PinNAK = 0xB3;
+
+    const int timeout = 2000;
+
 public:
     static const int maxLine = 255;
 
+    int _message_level = MsgLevelVerbose;
+
 protected:
-    const char* _name;
+    std::string _name;
     char        _line[maxLine];
     size_t      _linelen;
     bool        _addCR     = false;
@@ -39,30 +60,47 @@ protected:
     uint32_t _reportInterval = 0;
     int32_t  _nextReportTime = 0;
 
-    gc_modal_t _lastModal;
-    uint8_t    _lastTool;
-    float      _lastSpindleSpeed;
-    float      _lastFeedRate;
-    State      _lastState;
-    MotorMask  _lastLimits;
+    gc_modal_t  _lastModal;
+    uint8_t     _lastTool;
+    float       _lastSpindleSpeed;
+    float       _lastFeedRate;
+    State       _lastState;
+    MotorMask   _lastLimits;
+    bool        _lastProbe;
+    std::string _lastPinString;
 
     bool       _reportWco = true;
     CoordIndex _reportNgc = CoordIndex::End;
 
+    Cmd _last_rt_cmd;
+
+    std::map<int, EventPin*> _events;
+    std::map<int, bool*>     _pin_values;
+
+    UTF8 _utf8;
+
 public:
     Channel(const char* name, bool addCR = false) : _name(name), _linelen(0), _addCR(addCR) {}
+    Channel(const char* name, int num, bool addCR = false) {
+        _name = name;
+        _name += std::to_string(num), _linelen = 0, _addCR = addCR;
+    }
     virtual ~Channel() = default;
 
-    virtual void     handle() {};
-    virtual Channel* pollLine(char* line);
-    virtual void     ack(Error status);
-    const char*      name() { return _name; }
+    bool _ackwait = false;
+
+    virtual void       handle() {};
+    virtual Channel*   pollLine(char* line);
+    virtual void       ack(Error status);
+    const std::string& name() { return _name; }
 
     // rx_buffer_available() is the number of bytes that can be sent without overflowing
     // a reception buffer, even if the system is busy.  Channels that can handle external
     // input via an interrupt or other background mechanism should override it to return
     // the remaining space that mechanism has available.
-    virtual int rx_buffer_available() { return 0; };
+    // The queue can handle more than 256 characters but we don't want it to get too
+    // large, so we report a limited size.
+    virtual int rx_buffer_available() { return std::max(0, 256 - int(_queue.size())); }
 
     // flushRx() discards any characters that have already been received.  It is used
     // after a reset, so that anything already sent will not be processed.
@@ -99,10 +137,18 @@ public:
 
     int peek() override { return -1; }
     int read() override { return -1; }
-    int available() override { return 0; }
+    int available() override { return _queue.size(); }
 
-    uint32_t setReportInterval(uint32_t ms);
-    uint32_t getReportInterval() { return _reportInterval; }
-    void     autoReport();
-    void     autoReportGCodeState();
+    virtual void print_msg(MsgLevel level, const char* msg);
+
+    uint32_t     setReportInterval(uint32_t ms);
+    uint32_t     getReportInterval() { return _reportInterval; }
+    virtual void autoReport();
+    void         autoReportGCodeState();
+
+    // Pin extender functions
+    void out(const std::string& s);
+    void setAttr(int index, bool* valuep, const std::string& s);
+    void ready();
+    void registerEvent(uint8_t code, EventPin* obj);
 };

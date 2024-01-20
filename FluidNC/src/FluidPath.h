@@ -3,6 +3,7 @@
 #include <Arduino.h>
 #include <filesystem>
 #include <string>
+#include "Driver/localfs.h"
 
 namespace stdfs = std::filesystem;
 

@@ -1,0 +1,53 @@
+name: "UART I/O test config"
+board: "6 Pack Controller"
+
+stepping:
+  engine: RMT
+  idle_ms: 250
+  dir_delay_us: 1
+  pulse_us: 2
+  disable_delay_us: 0
+
+
+uart1:
+  txd_pin: gpio.4
+  rxd_pin: gpio.26
+  baud: 921600
+  mode: 8N1
+
+uart_channel1:
+  report_interval_ms: 75
+  uart_num: 1
+  all_messages: false
+
+
+i2so:
+  bck_pin: gpio.22
+  data_pin: gpio.21
+  ws_pin: gpio.17
+
+spi:
+  miso_pin: gpio.19
+  mosi_pin: gpio.23
+  sck_pin: gpio.18
+
+sdcard:
+  cs_pin: gpio.5
+  card_detect_pin: NO_PIN
+
+probe:
+  pin: NO_PIN
+
+user_outputs:
+  digital0_pin: uart_channel1.0
+  digital1_pin: uart_channel1.1
+  digital2_pin: uart_channel1.2
+  digital3_pin: uart_channel1.3
+  digital4_pin: uart_channel1.4
+  digital5_pin: uart_channel1.5
+  digital6_pin: uart_channel1.6
+  digital7_pin: uart_channel1.7
+
+coolant:
+  mist_pin: uart_channel1.8
+  flood_pin: uart_channel1.9

@@ -9,6 +9,7 @@
 
 from __future__ import absolute_import
 
+import contextlib
 VERSION = 'v1.2.0'
 
 import codecs
@@ -62,7 +63,7 @@ def key_description(character):
 
 
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-class ConsoleBase(object):
+class ConsoleBase:
     """OS abstraction for console (input/output codec, no echo)"""
 
     def __init__(self):
@@ -81,12 +82,6 @@ class ConsoleBase(object):
     def getkey(self):
         """Read a single key from the console"""
         return None
-
-    def write_bytes(self, byte_string):
-        """Write bytes (already encoded)"""
-       
-        self.byte_output.write(byte_string)
-        self.byte_output.flush()
 
     def write_fluid(self, byte_string):
         """Write bytes (already encoded)"""
@@ -201,10 +196,8 @@ if os.name == 'nt':  # noqa
         def __del__(self):
             ctypes.windll.kernel32.SetConsoleOutputCP(self._saved_ocp)
             ctypes.windll.kernel32.SetConsoleCP(self._saved_icp)
-            try:
+            with contextlib.suppress(AttributeError):
                 ctypes.windll.kernel32.SetConsoleMode(ctypes.windll.kernel32.GetStdHandle(-11), self._saved_cm)
-            except AttributeError: # in case no _saved_cm
-                pass
 
         def getkey(self):
             while True:
@@ -212,7 +205,7 @@ if os.name == 'nt':  # noqa
                 if z == unichr(13):
                     return unichr(10)
                 elif z is unichr(0) or z is unichr(0xe0):
-                    try:
+                    with contextlib.suppress(KeyError):
                         code = msvcrt.getwch()
                         # The z value is somewhat context-dependent
                         # When running PowerShell in its own window,
@@ -221,12 +214,7 @@ if os.name == 'nt':  # noqa
                         # with the same code value in either case.
                         # The solution is to duplicate the navcodes values
                         # in fncodes.
-                        if z is unichr(0):
-                            return self.fncodes[code]
-                        else:
-                            return self.navcodes[code]
-                    except KeyError:
-                        pass
+                        return self.fncodes[code] if z is unichr(0) else self.navcodes[code]
                 else:
                     return z
 
@@ -237,7 +225,7 @@ if os.name == 'nt':  # noqa
             ctypes.windll.user32.PostMessageA(hwnd, 0x100, 0x0d, 0)
 
         def clear_screen(self):
-            os.system('cls');
+            os.system('cls')
 
 elif os.name == 'posix':
     import atexit
@@ -246,7 +234,7 @@ elif os.name == 'posix':
 
     class Console(ConsoleBase):
         def __init__(self):
-            super(Console, self).__init__()
+            super().__init__()
             self.fd = sys.stdin.fileno()
             self.old = termios.tcgetattr(self.fd)
             atexit.register(self.cleanup)
@@ -415,26 +403,25 @@ class FluidNC(Transform):
         self.buffy = self.buffy + text.replace('\r','')
         retval = ''
 
-        if ('\n' in self.buffy):         
-            rx_lines = self.buffy.split('\n')
-
-            if (self.buffy[-1] in '\n'): # is the last character is a new line
-                #everything in the split is ready to be parsed
-                for a_line in rx_lines:
-                    retval = retval + self.rx_color(a_line) + '\r\n'
-                self.buffy = '' ## clear the buffer
-                retval = retval[:-2] #remove extra line end
-            else:
-                #last in the split does not have a crlf
-                for a_line in rx_lines:
-                    if a_line == rx_lines[-1]: # if last in array
-                        self.buffy = rx_lines[-1]
-                    else:
-                        retval = retval + self.rx_color(a_line) + '\r\n'
-
-            return self.input_color + retval
-        else:
+        if '\n' not in self.buffy:
             return ''
+        rx_lines = self.buffy.split('\n')
+
+        if self.buffy[-1] in '\n': # is the last character is a new line
+            #everything in the split is ready to be parsed
+            for a_line in rx_lines:
+                retval = retval + self.rx_color(a_line) + '\r\n'
+            self.buffy = '' ## clear the buffer
+            retval = retval[:-2] #remove extra line end
+        else:
+            #last in the split does not have a crlf
+            for a_line in rx_lines:
+                if a_line == rx_lines[-1]: # if last in array
+                    self.buffy = rx_lines[-1]
+                else:
+                    retval = retval + self.rx_color(a_line) + '\r\n'
+
+        return self.input_color + retval
         
 
     def echo(self, text):
@@ -446,7 +433,7 @@ class FluidNC(Transform):
             
         if text[0] == '$': #colorize settings
             rx_lines = text.split('=')
-            if (len(rx_lines) == 2):
+            if len(rx_lines) == 2:
                 rx_lines[0] = self.cyan_color + rx_lines[0] + self.white_color + '='
                 rx_lines[1] = self.yellow_color + rx_lines[1] + self.input_color
                 return rx_lines[0] + rx_lines[1]
@@ -537,6 +524,8 @@ class Miniterm(object):
     """
 
     def __init__(self, serial_instance, echo=False, eol='lf', filters=()):
+        self.rx_transformations = None
+        self.tx_transformations = None
         self.console = Console()
         self.serial = serial_instance
         self.echo = False
@@ -545,7 +534,7 @@ class Miniterm(object):
         self.output_encoding = 'UTF-8'
         self.eol = eol
         self.filters = ['fluidNC']
-        self.update_transformations()
+
         self.exit_character = unichr(0x1d)  # GS/CTRL+]
         self.exit_character2 = unichr(0x11)  # GS/CTRL+Q
         self.menu_character = unichr(0x14)  # Menu: CTRL+T
@@ -581,6 +570,7 @@ class Miniterm(object):
         self.transmitter_thread.daemon = True
         self.transmitter_thread.start()
         self.console.setup()
+        self.update_transformations()
 
     def stop(self):
         """set flag to stop worker threads"""
@@ -622,16 +612,12 @@ class Miniterm(object):
             ('active' if self.serial.rts else 'inactive'),
             ('active' if self.serial.dtr else 'inactive'),
             ('active' if self.serial.break_condition else 'inactive')))
-        try:
+        with contextlib.suppress(serial.SerialException):
             sys.stderr.write('--- CTS: {:8}  DSR: {:8}  RI: {:8}  CD: {:8}\n'.format(
                 ('active' if self.serial.cts else 'inactive'),
                 ('active' if self.serial.dsr else 'inactive'),
                 ('active' if self.serial.ri else 'inactive'),
                 ('active' if self.serial.cd else 'inactive')))
-        except serial.SerialException:
-            # on RFC 2217 ports, it can happen if no modem state notification was
-            # yet received. ignore this error.
-            pass
         sys.stderr.write('--- software flow control: {}\n'.format('active' if self.serial.xonxoff else 'inactive'))
         sys.stderr.write('--- hardware flow control: {}\n'.format('active' if self.serial.rtscts else 'inactive'))
         sys.stderr.write('--- serial input encoding: {}\n'.format(self.input_encoding))
@@ -641,6 +627,10 @@ class Miniterm(object):
 
     def reader(self):
         """loop and copy serial->console"""
+        for _ in range(5):
+            time.sleep(.1)
+            self.console.write('.')
+        self.console.write('\n')
         try:
             while self.alive and self._reader_alive:
                 # read all that is there or wait for one byte
@@ -653,36 +643,26 @@ class Miniterm(object):
                 if data:
                     if self._xmodem_stream:
                         self.console.write_fluid(data)
-                        self.serial.timeout = 0.5;
+                        self.serial.timeout = 0.5
                         while True:
                             data1 = self.serial.read_until()
                             if len(data1):
                                 self.console.write_fluid(data1)
                             else:
                                 break
-                        while False: # self.serial.in_waiting:
-                            # Flush report message
-                            ch = self.serial.read(1)
-                            # ACK, NAK, CAN
-                            if ch[0] == 0x06 or ch[0] == 0x15 or ch[0] == 0x18:
-                                self._pushback = ch[0]
-                                break
-                            else:
-                                self.console.write_fluid(ch)
 
                         modem = XMODEM(self.getc, self.putc, mode='xmodem')
                         if not modem.send(self._xmodem_stream, callback=self.progress):
-                            self.console.write("XModem reception cancelled\n");
+                            self.console.write("XModem reception cancelled\n")
                         modem = None
                         self._xmodem_stream = None
+                    elif self.raw or collecting_input_line:
+                        self.console.write_fluid(data)
                     else:
-                        if self.raw or collecting_input_line:
-                            self.console.write_fluid(data)
-                        else:
-                            text = self.rx_decoder.decode(data)
-                            for transformation in self.rx_transformations:
-                                text = transformation.rx(text)
-                            self.console.write(text)
+                        text = self.rx_decoder.decode(data)
+                        for transformation in self.rx_transformations:
+                            text = transformation.rx(text)
+                        self.console.write(text)
         except serial.SerialException:
             self.alive = False
             self.console.cancel()
@@ -701,7 +681,7 @@ class Miniterm(object):
         # If you restart FluidNC with $bye or the reset switch, you
         # will have to trigger interactive mode manually
         time.sleep(2) # Time for FluidNC to be ready for input
-        self.enable_fluid_echo();
+        self.enable_fluid_echo()
 
         try:
             while self.alive:
@@ -718,7 +698,7 @@ class Miniterm(object):
                         self.upload_xmodem()
                     elif c == '\x12':   # CTRL+R -> reset FluidNC
                         self.reset_fluidnc()
-                    elif c == self.exit_character or c == self.exit_character2 or c == unichr(3):
+                    elif c in [self.exit_character, self.exit_character2, unichr(3)]:
                         self.stop()             # exit app
                         break
                     else:
@@ -733,11 +713,11 @@ class Miniterm(object):
         except:
             self.alive = False
             raise
-        self.disable_fluid_echo();
+        self.disable_fluid_echo()
 
     def handle_menu_key(self, c):
         """Implement a simple menu / settings"""
-        if c == self.menu_character or c == self.exit_character or c == self.exit_character2:
+        if c in [self.menu_character, self.exit_character, self.exit_character2]:
             # Menu/exit character again -> send itself
             self.serial.write(self.tx_encoder.encode(c))
             if self.echo:
@@ -747,35 +727,36 @@ class Miniterm(object):
         elif c == '\x15':                       # CTRL+U -> upload file
             self.upload_file()
         elif c in '\x08hH?':                    # CTRL+H, h, H, ? -> Show help
+
             sys.stderr.write(self.get_help_text())
-        elif c == '\x12':                       # CTRL+R -> Toggle RTS
+        elif c == '\x12':                   # CTRL+R -> Toggle RTS
             self.serial.rts = not self.serial.rts
-            sys.stderr.write('--- RTS {} ---\n'.format('active' if self.serial.rts else 'inactive'))
-        elif c == '\x04':                       # CTRL+D -> Toggle DTR
+            sys.stderr.write(
+                f"--- RTS {'active' if self.serial.rts else 'inactive'} ---\n"
+            )
+        elif c == '\x04':                   # CTRL+D -> Toggle DTR
             self.serial.dtr = not self.serial.dtr
-            sys.stderr.write('--- DTR {} ---\n'.format('active' if self.serial.dtr else 'inactive'))
-        elif c == '\x02':                       # CTRL+B -> toggle BREAK condition
+            sys.stderr.write(
+                f"--- DTR {'active' if self.serial.dtr else 'inactive'} ---\n"
+            )
+        elif c == '\x02':                   # CTRL+B -> toggle BREAK condition
             self.serial.break_condition = not self.serial.break_condition
-            sys.stderr.write('--- BREAK {} ---\n'.format('active' if self.serial.break_condition else 'inactive'))
-        elif c == '\x05':                       # CTRL+E -> toggle local echo
+            sys.stderr.write(
+                f"--- BREAK {'active' if self.serial.break_condition else 'inactive'} ---\n"
+            )
+        elif c == '\x05':                   # CTRL+E -> toggle local echo
             self.echo = not self.echo
-            sys.stderr.write('--- local echo {} ---\n'.format('active' if self.echo else 'inactive'))
+            sys.stderr.write(
+                f"--- local echo {'active' if self.echo else 'inactive'} ---\n"
+            )
         elif c == '\x06':                       # CTRL+F -> edit filters
             self.change_filter()
-        elif c == '\x0c':                       # CTRL+L -> EOL mode
-            modes = list(EOL_TRANSFORMATIONS)   # keys
-            eol = modes.index(self.eol) + 1
-            if eol >= len(modes):
-                eol = 0
-            self.eol = modes[eol]
-            sys.stderr.write('--- EOL: {} ---\n'.format(self.eol.upper()))
-            self.update_transformations()
+        elif c == '\x0c':                   # CTRL+L -> EOL mode
+            self.eol_mode()
         elif c == '\x01':                       # CTRL+A -> set encoding
             self.change_encoding()
         elif c == '\x09':                       # CTRL+I -> info
             self.dump_port_settings()
-        #~ elif c == '\x01':                       # CTRL+A -> cycle escape mode
-        #~ elif c == '\x0c':                       # CTRL+L -> cycle linefeed mode
         elif c in 'pP':                         # P -> change port
             self.change_port()
         elif c in 'zZ':                         # S -> suspend / open port temporarily
@@ -821,7 +802,16 @@ class Miniterm(object):
         elif c in 'qQ':
             self.stop()                         # Q -> exit app
         else:
-            sys.stderr.write('--- unknown menu character {} --\n'.format(key_description(c)))
+            sys.stderr.write(f'--- unknown menu character {key_description(c)} --\n')
+
+    def eol_mode(self):
+        modes = list(EOL_TRANSFORMATIONS)   # keys
+        eol = modes.index(self.eol) + 1
+        if eol >= len(modes):
+            eol = 0
+        self.eol = modes[eol]
+        sys.stderr.write(f'--- EOL: {self.eol.upper()} ---\n')
+        self.update_transformations()
             
     # Support functions for XModem file upload
     def getc(self, length, timeout=1):
@@ -899,20 +889,20 @@ class Miniterm(object):
             pathname = self.mac_file_dialog(initial)
             print(pathname)
             destname = self.mac_askstring(os.path.split(pathname)[1])
-            return (pathname, destname)
+            return pathname, destname
         else:
             try:
                 window = Tk()
             except:
                 pathname = raw_input("Local file to send: ")
                 destname = raw_input("File on FluidNC: ")
-                return (pathname, destname)
+                return pathname, destname
             else:
                 pathname = filedialog.askopenfilename(title="File to Upload", initialfile=initial, filetypes=[("FluidNC Config", "*.yaml *.flnc *.txt"), ("All files", "*")])
                 print("path",pathname)
                 destname = simpledialog.askstring("Uploader", "Destination Filename", initialvalue=os.path.split(pathname)[1])
                 window.destroy()
-                return (pathname, destname)
+                return pathname, destname
 
     def enable_fluid_echo(self):
         right_arrow = '\x1b[C'
@@ -940,11 +930,11 @@ class Miniterm(object):
                 try:
                     self._xmodem_stream = open(filename, 'rb')
                     #show what is happening in the console.
-                    self.console.write('--- Sending file {} as {} ---\n'.format(filename, destname))
+                    self.console.write(f'--- Sending file {filename} as {destname} ---\n')
                     #send the command to put FluidNC in receive mode
                     self.serial.write(self.tx_encoder.encode(f'$Xmodem/Receive={destname}\n'))
                 except IOError as e:
-                    sys.stderr.write('--- ERROR opening file {}: {} ---\n'.format(filename, e))
+                    sys.stderr.write(f'--- ERROR opening file {filename}: {e} ---\n')
         # self._uploading = False
 
     def upload_file(self, name="config.flnc"):
@@ -956,7 +946,7 @@ class Miniterm(object):
             if filename:
                 try:
                     with open(filename, 'rb') as f:
-                        sys.stderr.write('--- Sending file {} ---\n'.format(filename))
+                        sys.stderr.write(f'--- Sending file {filename} ---\n')
                         while True:
                             block = f.read(1024)
                             if not block:
@@ -965,9 +955,9 @@ class Miniterm(object):
                             # Wait for output buffer to drain.
                             self.serial.flush()
                             sys.stderr.write('.')   # Progress indicator.
-                    sys.stderr.write('\n--- File {} sent ---\n'.format(filename))
+                    sys.stderr.write(f'\n--- File {filename} sent ---\n')
                 except IOError as e:
-                    sys.stderr.write('--- ERROR opening file {}: {} ---\n'.format(filename, e))
+                    sys.stderr.write(f'--- ERROR opening file {filename}: {e} ---\n')
         # self._uploading = False
 
     def change_filter(self):
@@ -976,7 +966,9 @@ class Miniterm(object):
         sys.stderr.write('\n'.join(
             '---   {:<10} = {.__doc__}'.format(k, v)
             for k, v in sorted(TRANSFORMATIONS.items())))
-        sys.stderr.write('\n--- Enter new filter name(s) [{}]: '.format(' '.join(self.filters)))
+        sys.stderr.write(
+            f"\n--- Enter new filter name(s) [{' '.join(self.filters)}]: "
+        )
         with self.console:
             new_filters = sys.stdin.readline().lower().split()
         if new_filters:
@@ -987,23 +979,23 @@ class Miniterm(object):
             else:
                 self.filters = new_filters
                 self.update_transformations()
-        sys.stderr.write('--- filters: {}\n'.format(' '.join(self.filters)))
+        sys.stderr.write(f"--- filters: {' '.join(self.filters)}\n")
 
     def change_encoding(self):
         """change encoding on the serial port"""
-        sys.stderr.write('\n--- Enter new encoding name [{}]: '.format(self.input_encoding))
+        sys.stderr.write(f'\n--- Enter new encoding name [{self.input_encoding}]: ')
         with self.console:
             new_encoding = sys.stdin.readline().strip()
         if new_encoding:
             try:
                 codecs.lookup(new_encoding)
             except LookupError:
-                sys.stderr.write('--- invalid encoding name: {}\n'.format(new_encoding))
+                sys.stderr.write(f'--- invalid encoding name: {new_encoding}\n')
             else:
                 self.set_rx_encoding(new_encoding)
                 self.set_tx_encoding(new_encoding)
-        sys.stderr.write('--- serial input encoding: {}\n'.format(self.input_encoding))
-        sys.stderr.write('--- serial output encoding: {}\n'.format(self.output_encoding))
+        sys.stderr.write(f'--- serial input encoding: {self.input_encoding}\n')
+        sys.stderr.write(f'--- serial output encoding: {self.output_encoding}\n')
 
     def change_baudrate(self):
         """change the baudrate"""
@@ -1014,7 +1006,7 @@ class Miniterm(object):
             try:
                 self.serial.baudrate = int(sys.stdin.readline().strip())
             except ValueError as e:
-                sys.stderr.write('--- ERROR setting baudrate: {} ---\n'.format(e))
+                sys.stderr.write(f'--- ERROR setting baudrate: {e} ---\n')
                 self.serial.baudrate = backup
             else:
                 self.dump_port_settings()
@@ -1345,10 +1337,8 @@ def main(default_port=None, default_baudrate=115200, default_rts=None, default_d
             key_description('\x12')))
 
     miniterm.start()
-    try:
+    with contextlib.suppress(KeyboardInterrupt):
         miniterm.join(True)
-    except KeyboardInterrupt:
-        pass
     if not args.quiet:
         sys.stderr.write('\n--- exit ---\n')
     miniterm.join()

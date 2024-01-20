@@ -67,7 +67,7 @@ void OLED::init() {
     if (_error) {
         return;
     }
-    log_info("OLED I2C address:" << to_hex(_address) << " width: " << _width << " height: " << _height);
+    log_info("OLED I2C address: " << to_hex(_address) << " width: " << _width << " height: " << _height);
     _oled = new SSD1306_I2C(_address, _geometry, config->_i2c[_i2c_num], 400000);
     _oled->init();
 
@@ -81,7 +81,7 @@ void OLED::init() {
     _oled->display();
 
     allChannels.registration(this);
-    setReportInterval(500);
+    setReportInterval(_report_interval_ms);
 }
 
 Channel* OLED::pollLine(char* line) {
@@ -205,9 +205,7 @@ void OLED::parse_numbers(std::string s, float* nums, int maxnums) {
     } while (nextpos != std::string::npos);
 }
 
-float* OLED::parse_axes(std::string s) {
-    static float axes[MAX_N_AXIS];
-
+void OLED::parse_axes(std::string s, float* axes) {
     size_t pos     = 0;
     size_t nextpos = -1;
     size_t axis    = 0;
@@ -219,7 +217,6 @@ float* OLED::parse_axes(std::string s) {
         }
         pos = nextpos + 1;
     } while (nextpos != std::string::npos);
-    return axes;
 }
 
 void OLED::parse_status_report() {
@@ -234,9 +231,9 @@ void OLED::parse_status_report() {
     bool probe              = false;
     bool limits[MAX_N_AXIS] = { false };
 
-    float* axes;
-    bool   isMpos = false;
-    _filename     = "";
+    float axes[MAX_N_AXIS];
+    bool  isMpos = false;
+    _filename    = "";
 
     // ... handle it
     while (nextpos != std::string::npos) {
@@ -249,13 +246,13 @@ void OLED::parse_status_report() {
         auto value = field.substr(colon + 1);
         if (tag == "MPos") {
             // x,y,z,...
-            axes   = parse_axes(value);
+            parse_axes(value, axes);
             isMpos = true;
             continue;
         }
         if (tag == "WPos") {
             // x,y,z...
-            axes   = parse_axes(value);
+            parse_axes(value, axes);
             isMpos = false;
             continue;
         }
@@ -305,7 +302,10 @@ void OLED::parse_status_report() {
         }
         if (tag == "WCO") {
             // x,y,z,...
-            auto wcos = parse_axes(value);
+            // We do not use the WCO values because the DROs show whichever
+            // position is in the status report
+            // float wcos[MAX_N_AXIS];
+            // auto  wcos = parse_axes(value, wcos);
             continue;
         }
         if (tag == "Ov") {
@@ -405,7 +405,7 @@ void OLED::parse_IP() {
     wrapped_draw_string(0, _radio_info, ArialMT_Plain_10);
     wrapped_draw_string(fh * 2, _radio_addr, ArialMT_Plain_10);
     _oled->display();
-    delay_ms(_radio_delay);
+    delay_msec(_radio_delay);
 }
 
 // [MSG:INFO: AP SSID foo IP 192.168.68.134 mask foo channel foo]
@@ -424,7 +424,7 @@ void OLED::parse_AP() {
     wrapped_draw_string(0, _radio_info, ArialMT_Plain_10);
     wrapped_draw_string(fh * 2, _radio_addr, ArialMT_Plain_10);
     _oled->display();
-    delay_ms(_radio_delay);
+    delay_msec(_radio_delay);
 }
 
 void OLED::parse_BT() {
@@ -436,7 +436,18 @@ void OLED::parse_BT() {
     _oled->clear();
     wrapped_draw_string(0, _radio_info, ArialMT_Plain_10);
     _oled->display();
-    delay_ms(_radio_delay);
+    delay_msec(_radio_delay);
+}
+
+void OLED::parse_WebUI() {
+    size_t      start  = strlen("[MSG:INFO: WebUI: Request from ");
+    std::string ipaddr = _report.substr(start, _report.size() - start - 1);
+
+    _oled->clear();
+    auto fh = font_height(ArialMT_Plain_10);
+    wrapped_draw_string(0, "WebUI from", ArialMT_Plain_10);
+    wrapped_draw_string(fh * 2, ipaddr, ArialMT_Plain_10);
+    _oled->display();
 }
 
 void OLED::parse_report() {
@@ -465,6 +476,10 @@ void OLED::parse_report() {
     }
     if (_report.rfind("[MSG:INFO: BT Started with ", 0) == 0) {
         parse_BT();
+        return;
+    }
+    if (_report.rfind("[MSG:INFO: WebUI: Request from ", 0) == 0) {
+        parse_WebUI();
         return;
     }
 }

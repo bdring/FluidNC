@@ -25,13 +25,15 @@
 #    include <DNSServer.h>
 #    include "WebSettings.h"
 
+#    include "WSChannel.h"
+
 #    include "WebClient.h"
 
 #    include "src/Protocol.h"  // protocol_send_event
 #    include "src/FluidPath.h"
 #    include "src/WebUI/JSONEncoder.h"
-#    include "Driver/localfs.h"
 
+#    include "src/HashFS.h"
 #    include <list>
 
 namespace WebUI {
@@ -45,7 +47,6 @@ namespace WebUI {
 #    include "NoFile.h"
 
 namespace WebUI {
-
     // Error codes for upload
     const int ESP_ERROR_AUTHENTICATION   = 1;
     const int ESP_ERROR_FILE_CREATION    = 2;
@@ -57,10 +58,7 @@ namespace WebUI {
 
     static const char LOCATION_HEADER[] = "Location";
 
-    static std::map<uint8_t, WSChannel*> wsChannels;
-    static std::list<WSChannel*>         webWsChannels;
-
-    Web_Server webServer;
+    Web_Server webServer __attribute__((init_priority(108)));
     bool       Web_Server::_setupdone = false;
     uint16_t   Web_Server::_port      = 0;
 
@@ -91,27 +89,6 @@ namespace WebUI {
     }
     Web_Server::~Web_Server() { end(); }
 
-    WSChannel* Web_Server::lastWSChannel = nullptr;
-    WSChannel* Web_Server::getWSChannel() {
-        WSChannel* wsChannel = nullptr;
-        if (_webserver->hasArg("PAGEID")) {
-            int wsId  = _webserver->arg("PAGEID").toInt();
-            wsChannel = wsChannels.at(wsId);
-        } else {
-            // If there is no PAGEID URL argument, it is an old version of WebUI
-            // that does not supply PAGEID in all cases.  In that case, we use
-            // the most recently used websocket if it is still in the list.
-            for (auto it = wsChannels.begin(); it != wsChannels.end(); ++it) {
-                if (it->second == lastWSChannel) {
-                    wsChannel = lastWSChannel;
-                    break;
-                }
-            }
-        }
-        lastWSChannel = wsChannel;
-        return wsChannel;
-    }
-
     bool Web_Server::begin() {
         bool no_error = true;
         _setupdone    = false;
@@ -130,6 +107,12 @@ namespace WebUI {
         //ask server to track these headers
         _webserver->collectHeaders(headerkeys, headerkeyssize);
 #    endif
+
+        //here the list of headers to be recorded
+        const char* headerkeys[]   = { "If-None-Match" };
+        size_t      headerkeyssize = sizeof(headerkeys) / sizeof(char*);
+        _webserver->collectHeaders(headerkeys, headerkeyssize);
+
         _socket_server = new WebSocketsServer(_port + 1);
         _socket_server->begin();
         _socket_server->onEvent(handle_Websocket_Event);
@@ -176,7 +159,7 @@ namespace WebUI {
         }
 
         //SSDP service presentation
-        if (WiFi.getMode() == WIFI_STA) {
+        if (WiFi.getMode() == WIFI_STA && WebUI::wifi_sta_ssdp->get()) {
             _webserver->on("/description.xml", HTTP_GET, handle_SSDP);
             //Add specific for SSDP
             SSDP.setSchemaURL("description.xml");
@@ -202,9 +185,11 @@ namespace WebUI {
         _webserver->begin();
 
         //add mDNS
-        if (WiFi.getMode() == WIFI_STA) {
+        if (WiFi.getMode() == WIFI_STA && WebUI::wifi_sta_ssdp->get()) {
             MDNS.addService("http", "tcp", _port);
         }
+
+        HashFS::hash_all();
 
         _setupdone = true;
         return no_error;
@@ -240,6 +225,27 @@ namespace WebUI {
 
     // Send a file, either the specified path or path.gz
     bool Web_Server::myStreamFile(const char* path, bool download) {
+        std::error_code ec;
+        FluidPath       fpath { path, localfsName, ec };
+        if (ec) {
+            return false;
+        }
+
+        std::string hash;
+        // Check for brower cache match
+
+        hash = HashFS::hash(fpath);
+        if (!hash.length()) {
+            std::filesystem::path gzpath(fpath);
+            gzpath += ".gz";
+            hash = HashFS::hash(gzpath);
+        }
+
+        if (hash.length() && std::string(_webserver->header("If-None-Match").c_str()) == hash) {
+            log_debug(path << " is cached");
+            _webserver->send(304);
+            return true;
+        }
         // If you load or reload WebUI while a program is running, there is a high
         // risk of stalling the motion because serving a file from
         // the local FLASH filesystem takes away a lot of CPU cycles.  If we get
@@ -258,16 +264,21 @@ namespace WebUI {
             file = new FileStream(path, "r", "");
         } catch (const Error err) {
             try {
-                std::string spath(path);
-                file   = new FileStream(spath + ".gz", "r", "");
+                std::filesystem::path gzpath(fpath);
+                gzpath += ".gz";
+                file   = new FileStream(gzpath, "r", "");
                 isGzip = true;
-            } catch (const Error err) { return false; }
+            } catch (const Error err) {
+                log_debug(path << " not found");
+                return false;
+            }
         }
         if (download) {
             _webserver->sendHeader("Content-Disposition", "attachment");
         }
-
-        log_debug("path " << path << " CT " << getContentType(path));
+        if (hash.length()) {
+            _webserver->sendHeader("ETag", hash.c_str());
+        }
         _webserver->setContentLength(file->size());
         if (isGzip) {
             _webserver->sendHeader("Content-Encoding", "gzip");
@@ -283,7 +294,7 @@ namespace WebUI {
         delete file;
         return true;
     }
-    void Web_Server::sendWithOurAddress(const char* content) {
+    void Web_Server::sendWithOurAddress(const char* content, int code) {
         auto        ip    = WiFi.getMode() == WIFI_STA ? WiFi.localIP() : WiFi.softAPIP();
         std::string ipstr = IP_string(ip);
         if (_port != 80) {
@@ -294,7 +305,7 @@ namespace WebUI {
         std::string scontent(content);
         replace_string_in_place(scontent, "$WEB_ADDRESS$", ipstr);
         replace_string_in_place(scontent, "$QUERY$", _webserver->uri().c_str());
-        _webserver->send(200, "text/html", scontent.c_str());
+        _webserver->send(code, "text/html", scontent.c_str());
     }
 
     // Captive Portal Page for use in AP mode
@@ -305,7 +316,7 @@ namespace WebUI {
         "interval=setInterval(function(){\ni=i+1; \nvar x = document.getElementById(\"prg\"); \nx.value=i; \nif (i>5) "
         "\n{\nclearInterval(interval);\nwindow.location.href='/';\n}\n},1000);\n</script>\n</CENTER>\n</BODY>\n</HTML>\n\n";
 
-    void Web_Server::sendCaptivePortal() { sendWithOurAddress(PAGE_CAPTIVE); }
+    void Web_Server::sendCaptivePortal() { sendWithOurAddress(PAGE_CAPTIVE, 200); }
 
     //Default 404 page that is sent when a request cannot be satisfied
     const char PAGE_404[] =
@@ -315,11 +326,12 @@ namespace WebUI {
         "interval=setInterval(function(){\ni=i+1; \nvar x = document.getElementById(\"prg\"); \nx.value=i; \nif (i>5) "
         "\n{\nclearInterval(interval);\nwindow.location.href='/';\n}\n},1000);\n</script>\n</CENTER>\n</BODY>\n</HTML>\n\n";
 
-    void Web_Server::send404Page() { sendWithOurAddress(PAGE_404); }
+    void Web_Server::send404Page() { sendWithOurAddress(PAGE_404, 404); }
 
     void Web_Server::handle_root() {
+        log_info("WebUI: Request from " << _webserver->client().remoteIP());
         if (!(_webserver->hasArg("forcefallback") && _webserver->arg("forcefallback") == "yes")) {
-            if (myStreamFile("/index.html")) {
+            if (myStreamFile("index.html")) {
                 return;
             }
         }
@@ -358,7 +370,7 @@ namespace WebUI {
 
         // This lets the user customize the not-found page by
         // putting a "404.htm" file on the local filesystem
-        if (myStreamFile("/404.htm")) {
+        if (myStreamFile("404.htm")) {
             return;
         }
 
@@ -406,6 +418,14 @@ namespace WebUI {
         _webserver->send(200, "text/xml", sschema);
     }
 
+    // WebUI sends a PAGEID arg to identify the websocket it is using
+    int Web_Server::getPageid() {
+        if (_webserver->hasArg("PAGEID")) {
+            return _webserver->arg("PAGEID").toInt();
+        }
+        return -1;
+    }
+
     void Web_Server::_handle_web_command(bool silent) {
         AuthenticationLevel auth_level = is_authenticated();
         std::string         cmd;
@@ -419,32 +439,34 @@ namespace WebUI {
         }
         //if it is internal command [ESPXXX]<parameter>
         // cmd.trim();
-        int ESPpos = cmd.find("[ESP");
-        if (ESPpos != std::string::npos) {
+        auto isCommand = cmd.length() && cmd[0] == '$';
+        if (!isCommand) {
+            isCommand = cmd.find("[ESP") != std::string::npos;
+        }
+        if (isCommand) {
             char line[256];
             strncpy(line, cmd.c_str(), 255);
             webClient.attachWS(_webserver, silent);
-            Error       err = settings_execute_line(line, webClient, auth_level);
-            std::string answer;
-            if (err == Error::Ok) {
-                answer = "ok\n";
-            } else {
-                const char* msg = errorString(err);
-                answer          = "Error: ";
+            Error err = settings_execute_line(line, webClient, auth_level);
+            if (err != Error::Ok) {
+                std::string answer = "Error: ";
+                const char* msg    = errorString(err);
                 if (msg) {
                     answer += msg;
                 } else {
                     answer += std::to_string(static_cast<int>(err));
                 }
                 answer += "\n";
-            }
-
-            // Give the output task a chance to dequeue and forward a message
-            // to webClient, if there is one.
-            vTaskDelay(10);
-
-            if (!webClient.anyOutput()) {
-                _webserver->send(err != Error::Ok ? 500 : 200, "text/plain", answer.c_str());
+                _webserver->send(500, "text/plain", answer.c_str());
+            } else {
+                // Give the output task a chance to dequeue and forward a message
+                // to webClient, if there is one.
+                for (int i = 0; i < 100 && !webClient.anyOutput(); i++) {
+                    vTaskDelay(10);
+                }
+                if (!webClient.anyOutput()) {
+                    _webserver->send(500, "text/plain", "No response");
+                }
             }
             webClient.detachWS();
         } else {  //execute GCODE
@@ -452,31 +474,7 @@ namespace WebUI {
                 _webserver->send(401, "text/plain", "Authentication failed\n");
                 return;
             }
-            bool hasError = false;
-            try {
-                WSChannel* wsChannel = getWSChannel();
-                if (wsChannel) {
-                    // It is very tempting to let Serial_2_Socket.push() handle the realtime
-                    // character sequences so we don't have to do it here.  That does not work
-                    // because we need to know whether to add a newline.  We should not add one
-                    // on a realtime sequence, but we must add one (if not already present)
-                    // on a text command.
-                    if (cmd.length() == 3 && cmd[0] == 0xc2 && is_realtime_command(cmd[1]) && cmd[2] == '\0') {
-                        // Handles old WebUIs that send a null after high-bit-set realtime chars
-                        wsChannel->pushRT(cmd[1]);
-                    } else if (cmd.length() == 2 && cmd[0] == 0xc2 && is_realtime_command(cmd[1])) {
-                        // Handles old WebUIs that send a null after high-bit-set realtime chars
-                        wsChannel->pushRT(cmd[1]);
-                    } else if (cmd.length() == 1 && is_realtime_command(cmd[0])) {
-                        wsChannel->pushRT(cmd[0]);
-                    } else {
-                        if (cmd.length() && cmd[cmd.length() - 1] != '\n') {
-                            cmd += '\n';
-                        }
-                        hasError = !wsChannel->push(cmd);
-                    }
-                }
-            } catch (std::out_of_range& oor) { hasError = true; }
+            bool hasError = WSChannels::runGCode(getPageid(), cmd);
 
             _webserver->send(200, "text/plain", hasError ? "Error" : "");
         }
@@ -671,12 +669,8 @@ namespace WebUI {
             s += std::to_string(code) + ":";
             s += st;
 
-            try {
-                WSChannel* wsChannel = getWSChannel();
-                if (wsChannel) {
-                    wsChannel->sendTXT(s);
-                }
-            } catch (std::out_of_range& oor) {}
+            WSChannels::sendError(getPageid(), st);
+
             if (web_error != 0 && _webserver && _webserver->client().available() > 0) {
                 _webserver->send(web_error, "text/xml", st);
             }
@@ -925,25 +919,46 @@ namespace WebUI {
             std::string action(_webserver->arg("action").c_str());
             std::string filename = std::string(_webserver->arg("filename").c_str());
             if (action == "delete") {
-                if (stdfs::remove(fpath / filename.c_str(), ec)) {
+                if (stdfs::remove(fpath / filename, ec)) {
                     sstatus = filename + " deleted";
+                    HashFS::delete_file(fpath / filename);
                 } else {
                     sstatus = "Cannot delete ";
                     sstatus += filename + " " + ec.message();
                 }
             } else if (action == "deletedir") {
-                if (stdfs::remove_all(fpath / filename.c_str(), ec)) {
+                stdfs::path dirpath { fpath / filename };
+                log_debug("Deleting directory " << dirpath);
+                int count = stdfs::remove_all(dirpath, ec);
+                if (count > 0) {
                     sstatus = filename + " deleted";
+                    HashFS::report_change();
                 } else {
+                    log_debug("remove_all returned " << count);
                     sstatus = "Cannot delete ";
                     sstatus += filename + " " + ec.message();
                 }
             } else if (action == "createdir") {
                 if (stdfs::create_directory(fpath / filename, ec)) {
                     sstatus = filename + " created";
+                    HashFS::report_change();
                 } else {
                     sstatus = "Cannot create ";
                     sstatus += filename + " " + ec.message();
+                }
+            } else if (action == "rename") {
+                if (!_webserver->hasArg("newname")) {
+                    sstatus = "Missing new filename";
+                } else {
+                    std::string newname = std::string(_webserver->arg("newname").c_str());
+                    std::filesystem::rename(fpath / filename, fpath / newname, ec);
+                    if (ec) {
+                        sstatus = "Cannot rename ";
+                        sstatus += filename + " " + ec.message();
+                    } else {
+                        sstatus = filename + " renamed to " + newname;
+                        HashFS::rename_file(fpath / filename, fpath / newname);
+                    }
                 }
             }
         }
@@ -1053,15 +1068,20 @@ namespace WebUI {
             //            delete _uploadFile;
             // _uploadFile = nullptr;
 
-            auto fpath = _uploadFile->fpath();
+            std::string pathname = _uploadFile->fpath();
             delete _uploadFile;
             _uploadFile = nullptr;
+            log_debug("pathname " << pathname);
+
+            FluidPath filepath { pathname, "" };
+
+            HashFS::rehash_file(filepath);
 
             // Check size
             if (filesize) {
                 uint32_t actual_size;
                 try {
-                    actual_size = stdfs::file_size(fpath);
+                    actual_size = stdfs::file_size(filepath);
                 } catch (const Error err) { actual_size = 0; }
 
                 if (filesize != actual_size) {
@@ -1086,8 +1106,10 @@ namespace WebUI {
         _upload_status = UploadStatus::FAILED;
         log_info("Upload cancelled");
         if (_uploadFile) {
+            std::filesystem::path filepath = _uploadFile->fpath();
             delete _uploadFile;
             _uploadFile = nullptr;
+            HashFS::rehash_file(filepath);
         }
     }
     void Web_Server::uploadCheck() {
@@ -1095,10 +1117,11 @@ namespace WebUI {
         if (_upload_status == UploadStatus::FAILED) {
             cancelUpload();
             if (_uploadFile) {
-                auto fpath = _uploadFile->fpath();
+                std::filesystem::path filepath = _uploadFile->fpath();
                 delete _uploadFile;
                 _uploadFile = nullptr;
-                stdfs::remove(fpath, error_code);
+                stdfs::remove(filepath, error_code);
+                HashFS::rehash_file(filepath);
             }
         }
     }
@@ -1115,63 +1138,13 @@ namespace WebUI {
             _socket_server->loop();
         }
         if ((millis() - start_time) > 10000 && _socket_server) {
-            for (WSChannel* wsChannel : webWsChannels) {
-                std::string s("PING:");
-                s += wsChannel->id();
-                wsChannel->sendTXT(s);
-            }
-
+            WSChannels::sendPing();
             start_time = millis();
         }
     }
 
     void Web_Server::handle_Websocket_Event(uint8_t num, uint8_t type, uint8_t* payload, size_t length) {
-        char data[length + 1];
-        memcpy(data, (char*)payload, length);
-        data[length] = '\0';
-
-        switch (type) {
-            case WStype_DISCONNECTED:
-                log_debug("WebSocket disconnect " << num);
-                try {
-                    WSChannel* wsChannel = wsChannels.at(num);
-                    webWsChannels.remove(wsChannel);
-                    allChannels.kill(wsChannel);
-                    wsChannels.erase(num);
-                } catch (std::out_of_range& oor) {}
-                break;
-            case WStype_CONNECTED: {
-                IPAddress  ip        = _socket_server->remoteIP(num);
-                WSChannel* wsChannel = new WSChannel(_socket_server, num);
-                if (!wsChannel) {
-                    log_error("Creating WebSocket channel failed");
-                } else {
-                    lastWSChannel = wsChannel;
-                    log_debug("WebSocket " << num << " from " << ip << " uri " << data);
-                    allChannels.registration(wsChannel);
-                    wsChannels[num] = wsChannel;
-
-                    if (strcmp(data, "/") == 0) {
-                        std::string s("CURRENT_ID:");
-                        s += std::to_string(num);
-                        // send message to client
-                        webWsChannels.push_front(wsChannel);
-                        wsChannel->sendTXT(s);
-                        s = "ACTIVE_ID:";
-                        s += std::to_string(wsChannel->id());
-                        wsChannel->sendTXT(s);
-                    }
-                }
-            } break;
-            case WStype_TEXT:
-            case WStype_BIN:
-                try {
-                    wsChannels.at(num)->push(payload, length);
-                } catch (std::out_of_range& oor) {}
-                break;
-            default:
-                break;
-        }
+        WSChannels::handleEvent(_socket_server, num, type, payload, length);
     }
 
     //Convert file extension to content type

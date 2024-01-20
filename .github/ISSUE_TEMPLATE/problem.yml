@@ -5,7 +5,18 @@ labels: ["triage"]
 body:
 - type: markdown
   attributes:
-    value: Please fill in the forms below.  The better the information you provide, the better we can help you. Information that you might think is irrelevant is often the key to solving the problem.  **If we have to keep asking for information that you should have provided at the outset, we will become annoyed fairly quickly.**  The amount of information that we ask for might seem excessive; it is not.  We handle several issues a day.  We cannot solve problems efficiently if we have to keep going back and forth for the basic information that we need.
+    value: |
+      Please search for answers on the [wiki](http://wiki.fluidnc.com) first.
+      If you don't find an answer, read [this](http://wiki.fluidnc.com/en/support/requesting_help) to help you fill in the forms below.  The better the information you provide, the better we can help you. Information that you might think is irrelevant is often the key to solving the problem.  **If we have to keep asking for information that you should have provided at the outset, we will become annoyed fairly quickly.**  The amount of information that we ask for might seem excessive; it is not.  We handle several issues a day.  We cannot solve problems efficiently if we have to keep going back and forth for the basic information that we need.
+- type: textarea
+  id: wiki-search
+  attributes:
+    label: Wiki Search Terms
+    description: Tell us some of the wiki search terms that you tried.  This could help us improve the wiki.
+    placeholder: motor limit direction install configuration
+  validations:
+    required: true
+
 - type: textarea
   id: controller-board
   attributes:
@@ -61,7 +72,7 @@ body:
       Paste the startup messages here.  You can see them by sending "$ss" from FluidTerm, WebUI Console, or any sender's console.
       Look through the messages for any MSG:ERR or MSG:WARN lines.  They indicate problems in your config file.  You might be able
       to solve the problem yourself.  **Do not excerpt just the messages you think are revelant.
-      We need to see everything.**
+      We need to see everything.**  [More info about startup messages](http://wiki.fluidnc.com/en/support/requesting_help#fluidnc-startup-messages)
     placeholder: <Paste startup messages here>
     render: text
   validations:
@@ -80,6 +91,12 @@ body:
     placeholder: I did something, expected this, and that happened
   validations:
     required: true
+- type: textarea
+  id: gcode-file
+  attributes:
+    label: GCode File
+    description: If the problem occurs when running a GCode file, attach it here (with a .txt extension), or paste it if it is short.  If you can find a short file that exhibits the problem, it will be easier for us to debug.
+    placeholder: Paste or attach GCode here
 - type: textarea
   id: other-info
   attributes:

@@ -13,6 +13,7 @@ namespace WebUI {
         static bool begin() { return false; };
         static void end() {};
         static void handle() {}
+        static void releaseMem() {}
         static bool isOn() { return false; }
     };
     extern BTConfig bt_config;
@@ -85,6 +86,7 @@ namespace WebUI {
         void               handle();
         void               reset_settings();
         bool               isOn() const;
+        void               releaseMem();
 
         ~BTConfig();
     };

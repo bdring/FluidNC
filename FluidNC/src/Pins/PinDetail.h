@@ -6,6 +6,7 @@
 #include "PinCapabilities.h"
 #include "PinAttributes.h"
 #include "PinOptionsParser.h"
+#include "src/Machine/EventPin.h"
 
 #include <cstdint>
 #include <cstring>
@@ -37,9 +38,7 @@ namespace Pins {
         virtual void          setAttr(PinAttributes value) = 0;
         virtual PinAttributes getAttr() const              = 0;
 
-        // ISR's.
-        virtual void attachInterrupt(void (*callback)(void*), void* arg, int mode);
-        virtual void detachInterrupt();
+        virtual void registerEvent(EventPin* obj);
 
         virtual std::string toString() = 0;
 

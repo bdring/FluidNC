@@ -58,6 +58,8 @@ namespace Configuration {
         {
             _encoder.begin_object();
             _encoder.member("False", 0);
+            _encoder.end_object();
+            _encoder.begin_object();
             _encoder.member("True", 1);
             _encoder.end_object();
         }

@@ -6,9 +6,9 @@
 #include <Print.h>
 #include <IPAddress.h>
 #include <string>
+#include <string_view>
 
 #include "Pin.h"
-#include "StringRange.h"
 
 std::string IP_string(uint32_t ipaddr);
 
@@ -22,14 +22,14 @@ inline Print& operator<<(Print& lhs, const char* v) {
     return lhs;
 }
 
-inline Print& operator<<(Print& lhs, const StringRange& s) {
-    for (const char* p = s.begin(); p < s.end(); ++p) {
+inline Print& operator<<(Print& lhs, const std::string_view& v) {
+    for (const char* p = v.cbegin(); p < v.cend(); ++p) {
         lhs.print(*p);
     }
     return lhs;
 }
 
-inline Print& operator<<(Print& lhs, std::string v) {
+inline Print& operator<<(Print& lhs, const std::string& v) {
     lhs.print(v.c_str());
     return lhs;
 }

@@ -45,6 +45,10 @@
 EspClass esp;
 #endif
 
+volatile bool protocol_pin_changed = false;
+
+std::string report_pin_string;
+
 portMUX_TYPE mmux = portMUX_INITIALIZER_UNLOCKED;
 
 void _notify(const char* title, const char* msg) {
@@ -121,6 +125,7 @@ std::map<Message, const char*> MessageText = {
     { Message::RestoreDefaults, "Restoring defaults" },
     { Message::SpindleRestore, "Restoring spindle" },
     { Message::SleepMode, "Sleeping" },
+    { Message::HardStop, "Hard stop" },
     { Message::ConfigAlarmLock, "Configuration is invalid. Check boot messages for ERR's." },
     // Handled separately due to numeric argument
     // { Message::FileQuit, "Reset during file job at line: %d" },
@@ -469,6 +474,7 @@ const char* state_name() {
             return "Jog";
         case State::Homing:
             return "Home";
+        case State::Critical:
         case State::ConfigAlarm:
         case State::Alarm:
             return "Alarm";
@@ -489,15 +495,10 @@ const char* state_name() {
     return "";
 }
 
-static std::string pinString() {
-    std::string msg;
-    bool        prefixNeeded = true;
+void report_recompute_pin_string() {
+    report_pin_string = "";
     if (config->_probe->get_state()) {
-        if (prefixNeeded) {
-            prefixNeeded = false;
-            msg += "|Pn:";
-        }
-        msg += 'P';
+        report_pin_string += 'P';
     }
 
     MotorMask lim_pin_state = limits_get_state();
@@ -506,24 +507,15 @@ static std::string pinString() {
         for (size_t axis = 0; axis < n_axis; axis++) {
             if (bitnum_is_true(lim_pin_state, Machine::Axes::motor_bit(axis, 0)) ||
                 bitnum_is_true(lim_pin_state, Machine::Axes::motor_bit(axis, 1))) {
-                if (prefixNeeded) {
-                    prefixNeeded = false;
-                    msg += "|Pn:";
-                }
-                msg += config->_axes->axisName(axis);
+                report_pin_string += config->_axes->axisName(axis);
             }
         }
     }
 
     std::string ctrl_pin_report = config->_control->report_status();
     if (ctrl_pin_report.length()) {
-        if (prefixNeeded) {
-            prefixNeeded = false;
-            msg += "|Pn:";
-        }
-        msg += ctrl_pin_report;
+        report_pin_string += ctrl_pin_report;
     }
-    return msg;
 }
 
 // Define this to do something if a debug request comes in over serial
@@ -572,7 +564,9 @@ void report_realtime_status(Channel& channel) {
     }
     msg << "|FS:" << setprecision(0) << rate << "," << sys.spindle_speed;
 
-    msg << pinString();
+    if (report_pin_string.length()) {
+        msg << "|Pn:" << report_pin_string;
+    }
 
     if (report_wco_counter > 0) {
         report_wco_counter--;
@@ -643,11 +637,10 @@ void report_realtime_status(Channel& channel) {
     msg << "|ISRs:" << Stepper::isr_count;
 #endif
 #ifdef DEBUG_REPORT_HEAP
-    msg << "|Heap:" << esp.getHeapSize();
+    msg << "|Heap:" << xPortGetFreeHeapSize();
 #endif
     msg << ">";
-    // The DebugStream destructor sends the line
-    // when msg goes out of scope
+    // The destructor sends the line when msg goes out of scope
 }
 
 void hex_msg(uint8_t* buf, const char* prefix, int len) {

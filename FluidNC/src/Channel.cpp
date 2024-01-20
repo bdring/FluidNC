@@ -4,8 +4,9 @@
 #include "Channel.h"
 #include "Report.h"                 // report_gcode_modes
 #include "Machine/MachineConfig.h"  // config
-#include "Serial.h"                 // execute_realtime_command
+#include "RealtimeCmd.h"            // execute_realtime_command
 #include "Limits.h"
+#include "Logging.h"
 
 void Channel::flushRx() {
     _linelen   = 0;
@@ -75,9 +76,23 @@ uint32_t Channel::setReportInterval(uint32_t ms) {
     _lastTool       = 255;  // Force GCodeState report
     return actual;
 }
+static bool motionState() {
+    return sys.state == State::Cycle || sys.state == State::Homing || sys.state == State::Jog;
+}
+
 void Channel::autoReportGCodeState() {
+    // When moving, we suppress $G reports in which the only change is the motion mode
+    // (e.g. G0/G1/G2/G3 changes) because rapid-fire motion mode changes are fairly common.
+    // We would rather not issue a $G report after every GCode line.
+    // Similarly, F and S values can change rapidly, especially in laser programs.
+    // F and S values are also reported in ? status reports, so they will show up
+    // at the chosen periodic rate there.
+    if (motionState()) {
+        // Force the compare to succeed if the only change is the motion mode
+        _lastModal.motion = gc_state.modal.motion;
+    }
     if (memcmp(&_lastModal, &gc_state.modal, sizeof(_lastModal)) || _lastTool != gc_state.tool ||
-        _lastSpindleSpeed != gc_state.spindle_speed || _lastFeedRate != gc_state.feed_rate) {
+        (!motionState() && (_lastSpindleSpeed != gc_state.spindle_speed || _lastFeedRate != gc_state.feed_rate))) {
         report_gcode_modes(*this);
         memcpy(&_lastModal, &gc_state.modal, sizeof(_lastModal));
         _lastTool         = gc_state.tool;
@@ -85,21 +100,22 @@ void Channel::autoReportGCodeState() {
         _lastFeedRate     = gc_state.feed_rate;
     }
 }
-static bool motionState() {
-    return sys.state == State::Cycle || sys.state == State::Homing || sys.state == State::Jog;
-}
-
 void Channel::autoReport() {
     if (_reportInterval) {
-        auto limitState = limits_get_state();
-        if (_reportWco || sys.state != _lastState || limitState != _lastLimits ||
+        auto probeState = config->_probe->get_state();
+        if (probeState != _lastProbe) {
+            report_recompute_pin_string();
+        }
+        if (_reportWco || sys.state != _lastState || probeState != _lastProbe || _lastPinString != report_pin_string ||
             (motionState() && (int32_t(xTaskGetTickCount()) - _nextReportTime) >= 0)) {
             if (_reportWco) {
                 report_wco_counter = 0;
             }
-            _reportWco      = false;
-            _lastState      = sys.state;
-            _lastLimits     = limitState;
+            _reportWco     = false;
+            _lastState     = sys.state;
+            _lastProbe     = probeState;
+            _lastPinString = report_pin_string;
+
             _nextReportTime = xTaskGetTickCount() + _reportInterval;
             report_realtime_status(*this);
         }
@@ -109,6 +125,14 @@ void Channel::autoReport() {
         }
         autoReportGCodeState();
     }
+}
+
+void Channel::pin_event(uint32_t pinnum, bool active) {
+    try {
+        auto event_pin       = _events.at(pinnum);
+        *_pin_values[pinnum] = active;
+        event_pin->trigger(active);
+    } catch (std::exception& ex) {}
 }
 
 Channel* Channel::pollLine(char* line) {
@@ -127,22 +151,93 @@ Channel* Channel::pollLine(char* line) {
         if (ch < 0) {
             break;
         }
-        if (realtimeOkay(ch) && is_realtime_command(ch)) {
-            execute_realtime_command(static_cast<Cmd>(ch), *this);
+        uint32_t cmd;
+
+        int res = _utf8.decode(ch, cmd);
+        if (res == -1) {
+            log_debug("UTF8 decoding error");
             continue;
         }
+        if (res == 0) {
+            continue;
+        }
+        // Otherwise res==1 and we have decoded a sequence so proceed
+
+        if (cmd == PinACK) {
+            log_debug("ACK");
+            _ackwait = false;
+            continue;
+        }
+        if (cmd == PinNAK) {
+            log_error("Channel device rejected config");
+            log_debug("NAK");
+            _ackwait = false;
+            continue;
+        }
+
+        if (cmd >= PinLowFirst && cmd < PinLowLast) {
+            pin_event(cmd - PinLowFirst, false);
+            continue;
+        }
+        if (cmd >= PinHighFirst && cmd < PinHighLast) {
+            pin_event(cmd - PinHighFirst, true);
+            continue;
+        }
+
+        if (realtimeOkay(cmd) && is_realtime_command(cmd)) {
+            execute_realtime_command(static_cast<Cmd>(cmd), *this);
+            continue;
+        }
+
         if (!line) {
             // If we are not able to handle a line we save the character
             // until later
-            _queue.push(uint8_t(ch));
+            _queue.push(uint8_t(cmd));
             continue;
         }
-        if (line && lineComplete(line, ch)) {
+        if (lineComplete(line, cmd)) {
             return this;
         }
     }
     autoReport();
     return nullptr;
+}
+
+void Channel::setAttr(int index, bool* value, const std::string& attrString) {
+    if (value) {
+        _pin_values[index] = value;
+    }
+    int count = 0;
+    while (_ackwait && ++count < timeout) {
+        pollLine(NULL);
+        delay_ms(1);
+    }
+    if (count == timeout) {
+        log_error("Device not responding");
+    }
+    log_msg_to(*this, attrString);
+    _ackwait = true;
+    log_debug(attrString);
+}
+
+void Channel::out(const std::string& s) {
+    log_msg_to(*this, s);
+    // _channel->_ackwait = true;
+    log_debug(s);
+}
+
+void Channel::ready() {
+#if 0
+    // At the moment this is unnecessary because initializing
+    // an input pin triggers an initial value event
+    if (!_pin_values.empty()) {
+        out("GET: io.*");
+    }
+#endif
+}
+
+void Channel::registerEvent(uint8_t code, EventPin* obj) {
+    _events[code] = obj;
 }
 
 void Channel::ack(Error status) {
@@ -158,5 +253,11 @@ void Channel::ack(Error status) {
         msg << errorString(status);
     } else {
         msg << static_cast<int>(status);
+    }
+}
+
+void Channel::print_msg(MsgLevel level, const char* msg) {
+    if (_message_level >= level) {
+        println(msg);
     }
 }

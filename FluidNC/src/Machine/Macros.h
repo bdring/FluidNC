@@ -24,45 +24,41 @@ extern MacroEvent macro2Event;
 extern MacroEvent macro3Event;
 
 namespace Machine {
+    class Macro {
+    public:
+        std::string _gcode;
+        const char* _name;
+        Macro(const char* name);
+        bool run();
+    };
+
     class Macros : public Configuration::Configurable {
     public:
         static const int n_startup_lines = 2;
         static const int n_macros        = 4;
 
-    private:
-        std::string _startup_line[n_startup_lines];
-        std::string _macro[n_macros];
+        static Macro _macro[n_macros];
+        static Macro _startup_line[n_startup_lines];
+        static Macro _after_homing;
+        static Macro _after_reset;
+        static Macro _after_unlock;
 
-    public:
         Macros() = default;
-
-        bool run_macro(size_t index);
-
-        std::string startup_line(size_t index) {
-            if (index >= n_startup_lines) {
-                return "";
-            }
-            auto s = _startup_line[index];
-            if (s == "") {
-                return s;
-            }
-            // & is a proxy for newlines in startup lines, because you cannot
-            // enter a newline directly in a config file string value.
-            std::replace(s.begin(), s.end(), '&', '\n');
-            return s + "\n";
-        }
 
         // Configuration helpers:
 
         // TODO: We could validate the startup lines
 
         void group(Configuration::HandlerBase& handler) override {
-            handler.item("startup_line0", _startup_line[0]);
-            handler.item("startup_line1", _startup_line[1]);
-            handler.item("macro0", _macro[0]);
-            handler.item("macro1", _macro[1]);
-            handler.item("macro2", _macro[2]);
-            handler.item("macro3", _macro[3]);
+            handler.item(_startup_line[0]._name, _startup_line[0]._gcode);
+            handler.item(_startup_line[1]._name, _startup_line[1]._gcode);
+            handler.item(_macro[0]._name, _macro[0]._gcode);
+            handler.item(_macro[1]._name, _macro[1]._gcode);
+            handler.item(_macro[2]._name, _macro[2]._gcode);
+            handler.item(_macro[3]._name, _macro[3]._gcode);
+            handler.item(_after_homing._name, _after_homing._gcode);
+            handler.item(_after_reset._name, _after_reset._gcode);
+            handler.item(_after_unlock._name, _after_unlock._gcode);
         }
 
         ~Macros() {}

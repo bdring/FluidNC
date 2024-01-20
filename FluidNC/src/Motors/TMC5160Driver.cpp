@@ -80,13 +80,13 @@ namespace MotorDrivers {
                 }
         }
         // dump the registers. This is helpful for people migrating to the Pro version
-        log_debug("CHOPCONF: 0x" << to_hex(tmc5160->CHOPCONF()));
-        log_debug("COOLCONF: 0x" << to_hex(tmc5160->COOLCONF()));
-        log_debug("THIGH: 0x" << to_hex(tmc5160->THIGH()));
-        log_debug("TCOOLTHRS: 0x" << to_hex(tmc5160->TCOOLTHRS()));
-        log_debug("GCONF: 0x" << to_hex(tmc5160->GCONF()));
-        log_debug("PWMCONF: 0x" << to_hex(tmc5160->PWMCONF()));
-        log_debug("IHOLD_IRUN: 0x" << to_hex(tmc5160->IHOLD_IRUN()));
+        log_verbose("CHOPCONF: " << to_hex(tmc5160->CHOPCONF()));
+        log_verbose("COOLCONF: " << to_hex(tmc5160->COOLCONF()));
+        log_verbose("THIGH: " << to_hex(tmc5160->THIGH()));
+        log_verbose("TCOOLTHRS: " << to_hex(tmc5160->TCOOLTHRS()));
+        log_verbose("GCONF: " << to_hex(tmc5160->GCONF()));
+        log_verbose("PWMCONF: " << to_hex(tmc5160->PWMCONF()));
+        log_verbose("IHOLD_IRUN: " << to_hex(tmc5160->IHOLD_IRUN()));
     }
 
     // Report diagnostic and tuning info

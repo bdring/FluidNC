@@ -94,19 +94,8 @@ namespace Spindles {
         SpindleSpeed      _slop;
 
         // Configuration handlers:
-        void validate() override {
-            Spindle::validate();
-            Assert(_uart != nullptr || _uart_num != -1, "VFD: missing UART configuration");
-            Assert(!(_uart != nullptr && _uart_num != -1), "VFD: conflicting UART configuration");
-        }
-
-        void group(Configuration::HandlerBase& handler) override {
-            handler.section("uart", _uart, 1);
-            handler.item("uart_num", _uart_num);
-            handler.item("modbus_id", _modbus_id, 0, 247);  // per https://modbus.org/docs/PI_MBUS_300.pdf
-
-            Spindle::group(handler);
-        }
+        void validate() override;
+        void group(Configuration::HandlerBase& handler) override;
 
         virtual ~VFD() {}
     };

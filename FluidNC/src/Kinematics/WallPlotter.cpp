@@ -47,8 +47,9 @@ namespace Kinematics {
         return false;
     }
 
-    void WallPlotter::transform_cartesian_to_motors(float* cartesian, float* motors) {
+    bool WallPlotter::transform_cartesian_to_motors(float* cartesian, float* motors) {
         log_error("WallPlotter::transform_cartesian_to_motors is broken");
+        return true;
     }
 
     /*
@@ -98,6 +99,9 @@ namespace Kinematics {
 
         // Calculate desired cartesian feedrate distance ratio. Same for each seg.
         for (uint32_t segment = 1; segment <= segment_count; segment++) {
+            if (sys.abort) {
+                return true;
+            }
             // calculate the cartesian end point of the next segment
             for (size_t axis = X_AXIS; axis < n_axis; axis++) {
                 cartesian_segment_end[axis] += cartesian_segment_components[axis];
@@ -227,6 +231,10 @@ namespace Kinematics {
         float right_dy = _right_anchor_y - y;
         float right_dx = _right_anchor_x - x;
         right_length   = hypot_f(right_dx, right_dy);
+    }
+
+    bool WallPlotter::kinematics_homing(AxisMask& axisMask) {
+        return false;  // kinematics does not do the homing for catesian systems
     }
 
     // Configuration registration

@@ -61,6 +61,7 @@ enum class Error : uint8_t {
     FsFailedBusy                = 67,  // Filesystem is busy
     FsFailedDelDir              = 68,
     FsFailedDelFile             = 69,
+    FsFailedRenameFile          = 70,
     NumberRange                 = 80,  // Setting number range problem
     InvalidValue                = 81,  // Setting string problem
     FsFailedCreateFile          = 82,
@@ -71,6 +72,7 @@ enum class Error : uint8_t {
     AuthenticationFailed        = 110,
     Eol                         = 111,
     Eof                         = 112,  // Not necessarily an error
+    Reset                       = 113,
     AnotherInterfaceBusy        = 120,
     JogCancelled                = 130,
     BadPinSpecification         = 150,
@@ -78,6 +80,7 @@ enum class Error : uint8_t {
     ConfigurationInvalid        = 152,
     UploadFailed                = 160,
     DownloadFailed              = 161,
+    ReadOnlySetting             = 162,
 };
 
 const char* errorString(Error errorNumber);

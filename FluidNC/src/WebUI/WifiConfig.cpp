@@ -8,7 +8,7 @@
 #include <sstream>
 #include <iomanip>
 
-WebUI::WiFiConfig wifi_config;
+WebUI::WiFiConfig wifi_config __attribute__((init_priority(109)));
 
 #ifdef ENABLE_WIFI
 #    include "../Config.h"
@@ -114,6 +114,7 @@ namespace WebUI {
     IPaddrSetting* wifi_sta_ip;
     IPaddrSetting* wifi_sta_gateway;
     IPaddrSetting* wifi_sta_netmask;
+    EnumSetting*   wifi_sta_ssdp;
 
     StringSetting* wifi_ap_ssid;
     StringSetting* wifi_ap_password;
@@ -337,9 +338,10 @@ namespace WebUI {
                                              MIN_PASSWORD_LENGTH,
                                              MAX_PASSWORD_LENGTH,
                                              (bool (*)(char*))WiFiConfig::isPasswordValid);
-        wifi_ap_ssid     = new StringSetting(
-            "AP SSID", WEBSET, WA, "ESP105", "AP/SSID", DEFAULT_AP_SSID, MIN_SSID_LENGTH, MAX_SSID_LENGTH, (bool (*)(char*))WiFiConfig::isSSIDValid);
-        wifi_ap_country  = new EnumSetting("AP regulatory domain", WEBSET, WA, NULL, "AP/Country", WiFiCountry01, &wifiContryOptions, NULL);
+        wifi_ap_ssid = new StringSetting("AP SSID", WEBSET, WA, "ESP105", "AP/SSID", DEFAULT_AP_SSID, MIN_SSID_LENGTH, MAX_SSID_LENGTH, NULL);
+        wifi_ap_country = new EnumSetting("AP regulatory domain", WEBSET, WA, NULL, "AP/Country", WiFiCountry01, &wifiContryOptions, NULL);
+        wifi_sta_ssdp =
+            new EnumSetting("SSDP and mDNS enable", WEBSET, WA, NULL, "Sta/SSDP/Enable", DEFAULT_STA_SSDP_ENABLED, &onoffOptions, NULL);
         wifi_sta_netmask = new IPaddrSetting("Station Static Mask", WEBSET, WA, NULL, "Sta/Netmask", DEFAULT_STA_MK, NULL);
         wifi_sta_gateway = new IPaddrSetting("Station Static Gateway", WEBSET, WA, NULL, "Sta/Gateway", DEFAULT_STA_GW, NULL);
         wifi_sta_ip      = new IPaddrSetting("Station Static IP", WEBSET, WA, NULL, "Sta/IP", DEFAULT_STA_IP, NULL);
@@ -356,15 +358,8 @@ namespace WebUI {
                                               MIN_PASSWORD_LENGTH,
                                               MAX_PASSWORD_LENGTH,
                                               (bool (*)(char*))WiFiConfig::isPasswordValid);
-        wifi_sta_ssid     = new StringSetting("Station SSID",
-                                          WEBSET,
-                                          WA,
-                                          "ESP100",
-                                          "Sta/SSID",
-                                          DEFAULT_STA_SSID,
-                                          MIN_SSID_LENGTH,
-                                          MAX_SSID_LENGTH,
-                                          (bool (*)(char*))WiFiConfig::isSSIDValid);
+        wifi_sta_ssid =
+            new StringSetting("Station SSID", WEBSET, WA, "ESP100", "Sta/SSID", DEFAULT_STA_SSID, MIN_SSID_LENGTH, MAX_SSID_LENGTH, NULL);
 
         wifi_mode = new EnumSetting("WiFi mode", WEBSET, WA, "ESP116", "WiFi/Mode", WiFiFallback, &wifiModeOptions, NULL);
 
@@ -463,26 +458,6 @@ namespace WebUI {
                 return false;
             }
             if (c == ' ') {
-                return false;
-            }
-        }
-        return true;
-    }
-
-    /**
-     * Check if SSID string is valid
-     */
-
-    bool WiFiConfig::isSSIDValid(const char* ssid) {
-        //limited size
-        //char c;
-        // length is checked automatically by string setting
-        //only printable
-        if (!ssid) {
-            return true;
-        }
-        for (int i = 0; i < strlen(ssid); i++) {
-            if (!isPrintable(ssid[i])) {
                 return false;
             }
         }
@@ -617,18 +592,33 @@ namespace WebUI {
         if ((WiFi.getMode() == WIFI_AP) || (WiFi.getMode() == WIFI_AP_STA)) {
             WiFi.softAPdisconnect();
         }
+
         WiFi.enableAP(false);
+
+        // Set the number of receive and transmit buffers that the
+        // WiFi stack can use.  Making these numbers too large
+        // can eat up a lot of memory at 1.6K per buffer.  It
+        // can be especially bad when there are many dynamic buffers,
+        // If there are too few Rx buffers, file upload can fail,
+        // possibly due to IP packet fragments getting lost.  The limit
+        // for what works seems to be 4 static, 4 dynamic.
+        // allowing external network traffic to use a lot of the heap.
+        // The bawin parameters are for AMPDU aggregation.
+        // rx: static dynamic bawin  tx: static dynamic bawin cache
+        WiFi.setBuffers(4, 5, 0, 4, 0, 0, 4);
+
         //SSID
         const char* SSID = wifi_sta_ssid->get();
         if (strlen(SSID) == 0) {
             log_info("STA SSID is not set");
             return false;
         }
+        //Hostname needs to be set before mode to take effect
+        WiFi.setHostname(wifi_hostname->get());
         WiFi.mode(WIFI_STA);
         WiFi.setMinSecurity(static_cast<wifi_auth_mode_t>(wifi_sta_min_security->get()));
         WiFi.setScanMethod(wifi_fast_scan->get() ? WIFI_FAST_SCAN : WIFI_ALL_CHANNEL_SCAN);
         //Get parameters for STA
-        WiFi.setHostname(wifi_hostname->get());
         //password
         const char* password = wifi_sta_password->get();
         int8_t      IP_mode  = wifi_sta_mode->get();
@@ -800,7 +790,7 @@ namespace WebUI {
         bool error = false;
         // XXX this is probably wrong for YAML land.
         // We might want this function to go away.
-        for (Setting* s = Setting::List; s; s = s->next()) {
+        for (Setting* s : Setting::List) {
             if (s->getDescription()) {
                 s->setDefault();
             }

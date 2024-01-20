@@ -3,8 +3,9 @@
 
 #include "FluidPath.h"
 #include "Driver/sdspi.h"
-#include "Driver/localfs.h"
 #include "Config.h"
+#include "Error.h"
+#include "HashFS.h"
 
 int FluidPath::_refcnt = 0;
 

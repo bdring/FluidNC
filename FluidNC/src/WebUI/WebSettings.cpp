@@ -17,10 +17,10 @@
 #include "../Report.h"     // git_info
 #include "../InputFile.h"  // InputFile
 
-#include "Driver/localfs.h"  // localfs_format
-
 #include "Commands.h"  // COMMANDS::restart_MCU();
 #include "WifiConfig.h"
+
+#include "src/HashFS.h"
 
 #include <cstring>
 #include <sstream>
@@ -255,7 +255,7 @@ namespace WebUI {
 
         // NVS settings
         j.setCategory("nvs");
-        for (Setting* js = Setting::List; js; js = js->next()) {
+        for (Setting* js : Setting::List) {
             js->addWebui(&j);
         }
 
@@ -312,6 +312,17 @@ namespace WebUI {
         return Error::Ok;
     }
 
+    static bool split(char* input, char** next, char delim) {
+        char* pos = strchr(input, delim);
+        if (pos) {
+            *pos  = '\0';
+            *next = pos + 1;
+            return true;
+        }
+        *next = input + strlen(input);  // End of string
+        return false;
+    }
+
     static Error showSDFile(char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP221
         return showFile("sd", parameter, auth_level, out);
     }
@@ -319,6 +330,73 @@ namespace WebUI {
         return showFile("", parameter, auth_level, out);
     }
 
+    static Error showFileSome(const char* fs, char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP221
+        if (notIdleOrAlarm()) {
+            return Error::IdleError;
+        }
+        if (!parameter || !*parameter) {
+            log_error_to(out, "Missing argument");
+            return Error::InvalidValue;
+        }
+        int   firstline = 0;
+        int   lastline  = 0;
+        char* filename;
+        split(parameter, &filename, ',');
+        if (*filename == '\0') {
+            log_error_to(out, "Missing filename");
+            return Error::InvalidValue;
+        }
+
+        // Parameter is the list of lines to display
+        // N means the first N lines
+        // N:M means lines N through M inclusive
+        if (!*parameter) {
+            log_error_to(out, "Missing line count");
+            return Error::InvalidValue;
+        }
+        char* second;
+        split(parameter, &second, ':');
+        if (*second) {
+            firstline = atoi(parameter);
+            lastline  = atoi(second);
+        } else {
+            firstline = 0;
+            lastline  = atoi(parameter);
+        }
+        InputFile* theFile;
+        Error      err;
+        if ((err = openFile(fs, filename, auth_level, out, theFile)) != Error::Ok) {
+            log_error_to(out, "Cannot open file " << filename);
+            return err;
+        }
+        char  fileLine[255];
+        Error res;
+        for (int linenum = 0; (res = theFile->readLine(fileLine, 255)) == Error::Ok; ++linenum) {
+            if (linenum >= lastline) {
+                break;
+            }
+            if (linenum >= firstline) {
+                // We cannot use the 2-argument form of log_to() here because
+                // fileLine can be overwritten by readLine before the output
+                // task has a chance to forward the line to the output channel.
+                // The 3-argument form works because it copies the line to a
+                // temporary string.
+                log_to(out, "", fileLine);
+            }
+        }
+        if (res != Error::Eof && res != Error::Ok) {
+            log_to(out, errorString(res));
+        }
+        delete theFile;
+        return Error::Ok;
+    }
+
+    static Error showSDSome(char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP221
+        return showFileSome("sd", parameter, auth_level, out);
+    }
+    static Error showLocalSome(char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP701
+        return showFileSome("", parameter, auth_level, out);
+    }
     static Error runFile(const char* fs, char* parameter, AuthenticationLevel auth_level, Channel& out) {
         Error err;
         if (sys.state == State::Alarm || sys.state == State::ConfigAlarm) {
@@ -351,6 +429,11 @@ namespace WebUI {
     static Error deleteObject(const char* fs, char* name, Channel& out) {
         std::error_code ec;
 
+        if (!name || !*name || (strcmp(name, "/") == 0)) {
+            // Disallow deleting everything
+            log_error_to(out, "Will not delete everything");
+            return Error::InvalidValue;
+        }
         FluidPath fpath { name, fs, ec };
         if (ec) {
             log_to(out, "No SD");
@@ -374,6 +457,7 @@ namespace WebUI {
                 return Error::FsFailedDelFile;
             }
         }
+        HashFS::delete_file(fpath);
 
         return Error::Ok;
     }
@@ -433,7 +517,91 @@ namespace WebUI {
         return listFilesystem(localfsName, parameter, auth_level, out);
     }
 
+    static Error listFilesystemJSON(const char* fs, const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+        std::error_code ec;
+
+        FluidPath fpath { value, fs, ec };
+        if (ec) {
+            log_to(out, "No SD card");
+            return Error::FsFailedMount;
+        }
+
+        JSONencoder j(false, &out);
+        j.begin();
+
+        auto iter = stdfs::directory_iterator { fpath, ec };
+        if (ec) {
+            log_to(out, "Error: ", ec.message());
+            return Error::FsFailedMount;
+        }
+        j.begin_array("files");
+        for (auto const& dir_entry : iter) {
+            j.begin_object();
+            j.member("name", dir_entry.path().filename());
+            j.member("size", dir_entry.is_directory() ? -1 : dir_entry.file_size());
+            j.end_object();
+        }
+        j.end_array();
+
+        auto space = stdfs::space(fpath, ec);
+        if (ec) {
+            log_to(out, "Error ", ec.value() << " " << ec.message());
+            return Error::FsFailedMount;
+        }
+
+        auto totalBytes = space.capacity;
+        auto freeBytes  = space.available;
+        auto usedBytes  = totalBytes - freeBytes;
+
+        j.member("path", value);
+        j.member("total", formatBytes(totalBytes));
+        j.member("used", formatBytes(usedBytes + 1));
+
+        uint32_t percent = totalBytes ? (usedBytes * 100) / totalBytes : 100;
+
+        j.member("occupation", percent);
+        j.end();
+        return Error::Ok;
+    }
+
+    static Error listSDFilesJSON(char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP210
+        return listFilesystemJSON(sdName, parameter, auth_level, out);
+    }
+
+    static Error listLocalFilesJSON(char* parameter, AuthenticationLevel auth_level, Channel& out) {  // No ESP command
+        return listFilesystemJSON(localfsName, parameter, auth_level, out);
+    }
+
+    static Error renameObject(const char* fs, char* parameter, AuthenticationLevel auth_level, Channel& out) {
+        if (!parameter || *parameter == '\0') {
+            return Error::InvalidValue;
+        }
+        auto opath = strchr(parameter, '>');
+        if (*opath == '\0') {
+            return Error::InvalidValue;
+        }
+        const char* ipath = parameter;
+        *opath++          = '\0';
+        try {
+            FluidPath inPath { ipath, fs };
+            FluidPath outPath { opath, fs };
+            std::filesystem::rename(inPath, outPath);
+            HashFS::rename_file(inPath, outPath, true);
+        } catch (const Error err) {
+            log_error_to(out, "Cannot rename " << ipath << " to " << opath);
+            return Error::FsFailedRenameFile;
+        }
+        return Error::Ok;
+    }
+    static Error renameSDObject(char* parameter, AuthenticationLevel auth_level, Channel& out) {
+        return renameObject(sdName, parameter, auth_level, out);
+    }
+    static Error renameLocalObject(char* parameter, AuthenticationLevel auth_level, Channel& out) {
+        return renameObject(localfsName, parameter, auth_level, out);
+    }
+
     static Error copyFile(const char* ipath, const char* opath, Channel& out) {  // No ESP command
+        std::filesystem::path filepath;
         try {
             FileStream outFile { opath, "w" };
             FileStream inFile { ipath, "r" };
@@ -442,10 +610,13 @@ namespace WebUI {
             while ((len = inFile.read(buf, 512)) > 0) {
                 outFile.write(buf, len);
             }
+            filepath = outFile.fpath();
         } catch (const Error err) {
-            log_error("Cannot create file " << opath);
+            log_error_to(out, "Cannot create file " << opath);
             return Error::FsFailedCreateFile;
         }
+        // Rehash after outFile goes out of scope
+        HashFS::rehash_file(filepath);
         return Error::Ok;
     }
     static Error copyDir(const char* iDir, const char* oDir, Channel& out) {  // No ESP command
@@ -481,7 +652,7 @@ namespace WebUI {
         Error err = Error::Ok;
         for (auto const& dir_entry : iter) {
             if (dir_entry.is_directory()) {
-                log_error("Not handling localfs subdirectories");
+                log_error_to(out, "Not handling localfs subdirectories");
             } else {
                 std::string opath(oDir);
                 opath += "/";
@@ -498,6 +669,13 @@ namespace WebUI {
         }
         return err;
     }
+    static Error showLocalFSHashes(char* parameter, WebUI::AuthenticationLevel auth_level, Channel& out) {
+        for (const auto& [name, hash] : HashFS::localFsHashes) {
+            log_info_to(out, name << ": " << hash);
+        }
+        return Error::Ok;
+    }
+
     static Error backupLocalFS(char* parameter, AuthenticationLevel auth_level, Channel& out) {  // No ESP command
         return copyDir("/localfs", "/sd/localfs", out);
     }
@@ -507,7 +685,7 @@ namespace WebUI {
     static Error migrateLocalFS(char* parameter, AuthenticationLevel auth_level, Channel& out) {  // No ESP command
         const char* newfs = parameter && *parameter ? parameter : "littlefs";
         if (strcmp(newfs, localfsName) == 0) {
-            log_error("localfs format is already " << newfs);
+            log_error_to(out, "localfs format is already " << newfs);
             return Error::InvalidValue;
         }
         log_info("Backing up local filesystem contents to SD");
@@ -572,7 +750,7 @@ namespace WebUI {
         log_to(out, "ESPname FullName         Description");
         log_to(out, "------- --------         -----------");
         ;
-        for (Setting* setting = Setting::List; setting; setting = setting->next()) {
+        for (Setting* setting : Setting::List) {
             if (setting->getType() == WEBSET) {
                 log_to(out,
                        "",
@@ -585,7 +763,7 @@ namespace WebUI {
         log_to(out, "ESPname FullName         Values");
         log_to(out, "------- --------         ------");
 
-        for (Command* cp = Command::List; cp; cp = cp->next()) {
+        for (Command* cp : Command::List) {
             if (cp->getType() == WEBCMD) {
                 LogStream s(out, "");
                 s << LeftJustify(cp->getGrblName() ? cp->getGrblName() : "", 8) << LeftJustify(cp->getName(), 25 - 8);
@@ -637,18 +815,21 @@ namespace WebUI {
         new WebCommand("path", WEBCMD, WU, "ESP701", "LocalFS/Show", showLocalFile);
         new WebCommand("path", WEBCMD, WU, "ESP700", "LocalFS/Run", runLocalFile);
         new WebCommand("path", WEBCMD, WU, NULL, "LocalFS/List", listLocalFiles);
-#if 0
         new WebCommand("path", WEBCMD, WU, NULL, "LocalFS/ListJSON", listLocalFilesJSON);
-#endif
         new WebCommand("path", WEBCMD, WU, NULL, "LocalFS/Delete", deleteLocalFile);
+        new WebCommand("path", WEBCMD, WU, NULL, "LocalFS/Rename", renameLocalObject);
         new WebCommand("path", WEBCMD, WU, NULL, "LocalFS/Backup", backupLocalFS);
         new WebCommand("path", WEBCMD, WU, NULL, "LocalFS/Restore", restoreLocalFS);
         new WebCommand("path", WEBCMD, WU, NULL, "LocalFS/Migrate", migrateLocalFS);
+        new WebCommand(NULL, WEBCMD, WU, NULL, "LocalFS/Hashes", showLocalFSHashes);
 
+        new WebCommand("path", WEBCMD, WU, "ESP221", "SD/ShowSome", showSDSome);
         new WebCommand("path", WEBCMD, WU, "ESP221", "SD/Show", showSDFile);
         new WebCommand("path", WEBCMD, WU, "ESP220", "SD/Run", runSDFile);
         new WebCommand("file_or_directory_path", WEBCMD, WU, "ESP215", "SD/Delete", deleteSDObject);
+        new WebCommand("path", WEBCMD, WU, NULL, "SD/Rename", renameSDObject);
         new WebCommand(NULL, WEBCMD, WU, "ESP210", "SD/List", listSDFiles);
+        new WebCommand("path", WEBCMD, WU, NULL, "SD/ListJSON", listSDFilesJSON);
         new WebCommand(NULL, WEBCMD, WU, "ESP200", "SD/Status", showSDStatus);
 
         new WebCommand("ON|OFF", WEBCMD, WA, "ESP115", "Radio/State", setRadioState);

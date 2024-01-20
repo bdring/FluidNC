@@ -1,4 +1,5 @@
 // Copyright (c) 2021 -  Stefan de Bruijn
+// Copyright (c) 2023 -	Dylan Knutson <dymk@dymk.co>
 // Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
 
 #include "Pin.h"
@@ -9,94 +10,117 @@
 #include "Pins/GPIOPinDetail.h"
 #include "Pins/VoidPinDetail.h"
 #include "Pins/I2SOPinDetail.h"
+#include "Pins/ChannelPinDetail.h"
 #include "Pins/ErrorPinDetail.h"
-#include <stdio.h>  // snprintf()
+#include "string_util.h"
+#include "Machine/MachineConfig.h"  // config
+#include <string_view>
+#include <charconv>
 
 Pins::PinDetail* Pin::undefinedPin = new Pins::VoidPinDetail();
 Pins::PinDetail* Pin::errorPin     = new Pins::ErrorPinDetail("unknown");
 
-const char* Pin::parse(StringRange tmp, Pins::PinDetail*& pinImplementation) {
+static constexpr bool verbose_debugging = false;
+
+const char* Pin::parse(std::string_view pin_str, Pins::PinDetail*& pinImplementation) {
+    if (verbose_debugging) {
+        log_info("Parsing pin string: " << pin_str);
+    }
+
     // Initialize pinImplementation first! Callers might want to delete it, and we don't want a random pointer.
     pinImplementation = nullptr;
 
-    // Parse the definition: [GPIO].[pinNumber]:[attributes]
-
-    const char* end = tmp.end();
-
     // Skip whitespaces at the start
-    auto nameStart = tmp.begin();
-    for (; nameStart != end && ::isspace(*nameStart); ++nameStart) {}
+    pin_str = string_util::trim(pin_str);
 
-    if (nameStart == end) {
+    if (pin_str.empty()) {
         // Re-use undefined pins happens in 'create':
-        pinImplementation = new Pins::VoidPinDetail();
+        pinImplementation = undefinedPin;
         return nullptr;
     }
 
-    auto idx = nameStart;
-    for (; idx != end && *idx != '.' && *idx != ':'; ++idx) {}
+    auto             dot_idx = pin_str.find('.');
+    std::string_view prefix  = pin_str.substr(0, dot_idx);
+    if (dot_idx != std::string::npos) {
+        dot_idx += 1;
+    }
+    pin_str.remove_prefix(dot_idx);
 
-    StringRange prefix(tmp.begin(), idx);
-
-    if (idx != end) {  // skip '.'
-        ++idx;
+    if (verbose_debugging) {
+        log_info("Parsed pin prefix: " << prefix << ", rest: " << pin_str);
     }
 
-    int pinNumber = 0;
-    if (prefix != "") {
-        if (idx != end) {
-            for (int n = 0; idx != end && n <= 4 && *idx >= '0' && *idx <= '9'; ++idx, ++n) {
-                pinNumber = pinNumber * 10 + int(*idx - '0');
-            }
+    char*    pin_number_end = nullptr;
+    uint32_t pin_number     = std::strtoul(pin_str.cbegin(), &pin_number_end, 10);
+    pin_str.remove_prefix(pin_number_end - pin_str.cbegin());
+
+    if (verbose_debugging) {
+        log_info("Parsed pin number: " << pin_number << ", rest: " << pin_str);
+    }
+
+    if (!pin_str.empty() && pin_str[0] == ':') {
+        pin_str.remove_prefix(1);
+        if (pin_str.empty()) {
+            return "Pin attributes after ':' were expected.";
         }
     }
 
-    while (idx != end && ::isspace(*idx)) {
-        ++idx;
-    }
-
-    if (idx != end) {
-        if (*idx != ':') {
-            // Pin definition attributes or EOF expected.
-            return "Pin attributes (':') were expected.";
-        }
-        ++idx;
+    if (verbose_debugging) {
+        log_info("Remaining pin options: " << pin_str);
     }
 
     // Build an options parser:
-    Pins::PinOptionsParser parser(idx, end);
+    Pins::PinOptionsParser parser(pin_str.cbegin(), pin_str.cend());
 
     // Build this pin:
-    if (prefix == "gpio") {
-        pinImplementation = new Pins::GPIOPinDetail(pinnum_t(pinNumber), parser);
+    if (string_util::equal_ignore_case(prefix, "gpio")) {
+        pinImplementation = new Pins::GPIOPinDetail(static_cast<pinnum_t>(pin_number), parser);
+        return nullptr;
     }
-#ifdef ESP32
-    if (prefix == "i2so") {
-        pinImplementation = new Pins::I2SOPinDetail(pinnum_t(pinNumber), parser);
-    }
-#endif
-    if (prefix == "no_pin") {
-        pinImplementation = undefinedPin;
+    if (string_util::equal_ignore_case(prefix, "i2so")) {
+        pinImplementation = new Pins::I2SOPinDetail(static_cast<pinnum_t>(pin_number), parser);
+        return nullptr;
     }
 
-    if (prefix == "void") {
+    if (string_util::starts_with_ignore_case(prefix, "uart_channel")) {
+        auto num_str     = prefix.substr(strlen("uart_channel"));
+        int  channel_num = -1;
+        std::from_chars(num_str.data(), num_str.data() + num_str.size(), channel_num);
+        if (channel_num == -1 || channel_num > 2) {
+            return "Bad uart_channel number";
+        }
+        if (config->_uart_channels[channel_num] == nullptr) {
+            return "uart_channel is not configured";
+        }
+
+        pinImplementation = new Pins::ChannelPinDetail(config->_uart_channels[channel_num], pin_number, parser);
+        return nullptr;
+    }
+
+    if (string_util::equal_ignore_case(prefix, "no_pin")) {
+        pinImplementation = undefinedPin;
+        return nullptr;
+    }
+
+    if (string_util::equal_ignore_case(prefix, "void")) {
         // Note: having multiple void pins has its uses for debugging.
         pinImplementation = new Pins::VoidPinDetail();
+        return nullptr;
     }
 
     if (pinImplementation == nullptr) {
         log_error("Unknown prefix:" << prefix);
         return "Unknown pin prefix";
-    } else {
-#ifdef DEBUG_PIN_DUMP
-        pinImplementation = new Pins::DebugPinDetail(pinImplementation);
-#endif
-
-        return nullptr;
     }
+#ifdef DEBUG_PIN_DUMP
+    pinImplementation = new Pins::DebugPinDetail(pinImplementation);
+    return nullptr;
+#else
+    return "Unknown pin prefix";
+#endif
 }
 
-Pin Pin::create(const StringRange& str) {
+Pin Pin::create(std::string_view str) {
     Pins::PinDetail* pinImplementation = nullptr;
     try {
         const char* err = parse(str, pinImplementation);
@@ -105,23 +129,15 @@ Pin Pin::create(const StringRange& str) {
                 delete pinImplementation;
             }
 
-            log_error("Setting up pin:" << str.str() << " failed:" << err);
-            return Pin(new Pins::ErrorPinDetail(str.str().c_str()));
+            log_error("Setting up pin: " << str << " failed:" << err);
+            return Pin(new Pins::ErrorPinDetail(str));
         } else {
             return Pin(pinImplementation);
         }
     } catch (const AssertionFailed& ex) {  // We shouldn't get here under normal circumstances.
-
-        char buf[255];
-        snprintf(buf, 255, "ERR: %s - %s", str.str().c_str(), ex.what());
-
-        Assert(false, buf);
-
-        /*
-          log_error("ERR: " << str.str() << " - " << ex.what());
-
-        return Pin(new Pins::ErrorPinDetail(str.str()));
-        */
+        log_error("ERR: " << str << " - " << ex.what());
+        Assert(false, "");
+        // return Pin(new Pins::ErrorPinDetail(str.str()));
     }
 }
 

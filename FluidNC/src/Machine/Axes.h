@@ -24,18 +24,19 @@ namespace Machine {
         // Bitmasks to collect information about axes that have limits and homing
         static MotorMask posLimitMask;
         static MotorMask negLimitMask;
-        static MotorMask homingMask;
         static MotorMask limitMask;
         static MotorMask motorMask;
+
+        static AxisMask homingMask;
+
+        Pin _sharedStepperDisable;
+        Pin _sharedStepperReset;
 
         inline char axisName(int index) { return index < MAX_N_AXIS ? _names[index] : '?'; }  // returns axis letter
 
         static inline size_t    motor_bit(size_t axis, size_t motor) { return motor ? axis + 16 : axis; }
         static inline AxisMask  motors_to_axes(MotorMask motors) { return (motors & 0xffff) | (motors >> 16); }
         static inline MotorMask axes_to_motors(AxisMask axes) { return axes | (axes << 16); }
-
-        Pin _sharedStepperDisable;
-        Pin _sharedStepperReset;
 
         int   _numberAxis = 0;
         Axis* _axis[MAX_N_AXIS];
@@ -72,7 +73,8 @@ namespace Machine {
         void config_motors();
 
         std::string maskToNames(AxisMask mask);
-        bool        namesToMask(const char* names, AxisMask& mask);
+
+        bool namesToMask(const char* names, AxisMask& mask);
 
         std::string motorMaskToNames(MotorMask mask);
 

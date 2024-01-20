@@ -7,19 +7,13 @@
 namespace WebUI {
     // Constructor.  If _pretty is true, newlines are
     // inserted into the JSON string for easy reading.
-    JSONencoder::JSONencoder(bool pretty, Channel* channel) : pretty(pretty), level(0), _channel(channel), category("nvs") {
+    JSONencoder::JSONencoder(bool pretty, Channel* channel) : pretty(pretty), level(0), _str(&linebuf), _channel(channel), category("nvs") {
         count[level] = 0;
     }
 
     JSONencoder::JSONencoder(bool pretty, std::string* str) : pretty(pretty), level(0), _str(str), category("nvs") { count[level] = 0; }
 
-    void JSONencoder::add(char c) {
-        if (_str) {
-            (*_str) += c;
-        } else {
-            linebuf += c;
-        }
-    }
+    void JSONencoder::add(char c) { (*_str) += c; }
 
     // Private function to add commas between
     // elements as needed, omitting the comma
@@ -100,23 +94,25 @@ namespace WebUI {
     // Private function to increment the nesting level.
     void JSONencoder::dec_level() { --level; }
 
+    void JSONencoder::indent() {
+        for (int i = 0; i < 2 * level; i++) {
+            add(' ');
+        }
+    }
+
     // Private function to implement pretty-printing
     void JSONencoder::line() {
-        if (_str) {
+        if (_channel) {
+            // log_to() always adds a newline
+            // We want that for channels because they might not
+            // be able to handle really long lines.
+            log_to(*_channel, *_str);
+            *_str = "";
+            indent();
+        } else {
             if (pretty) {
                 add('\n');
-                linebuf = "";
-                for (int i = 0; i < 2 * level; i++) {
-                    add(' ');
-                }
-            }
-        } else {
-            // Always pretty print to a channel, because channels
-            // cannot necessary handle really long lines.
-            log_to(*_channel, linebuf);
-            linebuf = "";
-            for (int i = 0; i < 2 * level; i++) {
-                add(' ');
+                indent();
             }
         }
     }
@@ -151,6 +147,16 @@ namespace WebUI {
         dec_level();
         line();
         add(']');
+    }
+
+    // Begins the creation of a member whose value is an object.
+    // Call end_object() to close the member
+    void JSONencoder::begin_member_object(const char* tag) {
+        comma_line();
+        quoted(tag);
+        add(':');
+        add('{');
+        inc_level();
     }
 
     // Starts an object with {.

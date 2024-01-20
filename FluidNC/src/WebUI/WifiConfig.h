@@ -56,6 +56,7 @@ namespace WebUI {
 
     static const int   DEFAULT_STA_MIN_SECURITY = WIFI_AUTH_WPA2_PSK;
     static const int   DEFAULT_STA_IP_MODE      = DHCP_MODE;
+    static const int   DEFAULT_STA_SSDP_ENABLED = true;
     static const char* HIDDEN_PASSWORD          = "********";
 
     //boundaries
@@ -83,7 +84,6 @@ namespace WebUI {
 
         static bool isValidIP(const char* string);
         static bool isPasswordValid(const char* password);
-        static bool isSSIDValid(const char* ssid);
         static bool isHostnameValid(const char* hostname);
 
         static std::string Hostname() { return _hostname; }
@@ -125,6 +125,7 @@ namespace WebUI {
     extern IPaddrSetting* wifi_sta_ip;
     extern IPaddrSetting* wifi_sta_gateway;
     extern IPaddrSetting* wifi_sta_netmask;
+    extern EnumSetting*   wifi_sta_ssdp;
 
     extern StringSetting* wifi_ap_ssid;
     extern StringSetting* wifi_ap_password;

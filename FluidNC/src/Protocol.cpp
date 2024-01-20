@@ -19,7 +19,7 @@
 #include "Settings.h"       // settings_execute_startup
 #include "Machine/LimitPin.h"
 
-volatile ExecAlarm rtAlarm;  // Global realtime executor bitflag variable for setting various alarms.
+volatile ExecAlarm lastAlarm;  // The most recent alarm code
 
 std::map<ExecAlarm, const char*> AlarmNames = {
     { ExecAlarm::None, "None" },
@@ -35,9 +35,15 @@ std::map<ExecAlarm, const char*> AlarmNames = {
     { ExecAlarm::SpindleControl, "Spindle Control" },
     { ExecAlarm::ControlPin, "Control Pin Initially On" },
     { ExecAlarm::HomingAmbiguousSwitch, "Ambiguous Switch" },
+    { ExecAlarm::HardStop, "Hard Stop" },
+    { ExecAlarm::Unhomed, "Unhomed" },
+    { ExecAlarm::Init, "Init" },
 };
 
-volatile bool rtReset;
+const char* alarmString(ExecAlarm alarmNumber) {
+    auto it = AlarmNames.find(alarmNumber);
+    return it == AlarmNames.end() ? NULL : it->second;
+}
 
 static volatile bool rtSafetyDoor;
 
@@ -68,12 +74,8 @@ static SpindleStop spindle_stop_ovr;
 void protocol_reset() {
     probeState             = ProbeState::Off;
     soft_limit             = false;
-    rtReset                = false;
     rtSafetyDoor           = false;
     spindle_stop_ovr.value = 0;
-
-    // Do not clear rtAlarm because it might have been set during configuration
-    // rtAlarm = ExecAlarm::None;
 }
 
 static int32_t idleEndTime = 0;
@@ -92,6 +94,7 @@ xQueueHandle message_queue;
 struct LogMessage {
     Channel* channel;
     void*    line;
+    MsgLevel level;
     bool     isString;
 };
 
@@ -106,12 +109,12 @@ void drain_messages() {
 // memory does not need to be reclaimed later.
 // This is the most efficient form, but it only works
 // with fixed messages.
-void send_line(Channel& channel, const char* line) {
+void send_line(Channel& channel, MsgLevel level, const char* line) {
     if (outputTask) {
-        LogMessage msg { &channel, (void*)line, false };
+        LogMessage msg { &channel, (void*)line, level, false };
         while (!xQueueSend(message_queue, &msg, 10)) {}
     } else {
-        channel.println(line);
+        channel.print_msg(level, line);
     }
 }
 
@@ -123,12 +126,12 @@ void send_line(Channel& channel, const char* line) {
 // the pointer to reclaim the memory.
 // This form has intermediate efficiency, as the string
 // is allocated once and freed once.
-void send_line(Channel& channel, const std::string* line) {
+void send_line(Channel& channel, MsgLevel level, const std::string* line) {
     if (outputTask) {
-        LogMessage msg { &channel, (void*)line, true };
+        LogMessage msg { &channel, (void*)line, level, true };
         while (!xQueueSend(message_queue, &msg, 10)) {}
     } else {
-        channel.println(line->c_str());
+        channel.print_msg(level, line->c_str());
         delete line;
     }
 }
@@ -144,28 +147,28 @@ void send_line(Channel& channel, const std::string* line) {
 // This is the least efficient form, requiring two strings
 // to be allocated and freed, with an intermediate copy.
 // It is used only rarely.
-void send_line(Channel& channel, const std::string& line) {
+void send_line(Channel& channel, MsgLevel level, const std::string& line) {
     if (outputTask) {
-        send_line(channel, new std::string(line));
+        send_line(channel, level, new std::string(line));
     } else {
-        channel.println(line.c_str());
+        channel.print_msg(level, line.c_str());
     }
 }
 
 void output_loop(void* unused) {
     while (true) {
+        // Block until a message is received
         LogMessage message;
-        if (xQueueReceive(message_queue, &message, 0)) {
+        if (xQueueReceive(message_queue, &message, portMAX_DELAY)) {
             if (message.isString) {
                 std::string* s = static_cast<std::string*>(message.line);
-                message.channel->println(s->c_str());
+                message.channel->print_msg(message.level, s->c_str());
                 delete s;
             } else {
                 const char* cp = static_cast<const char*>(message.line);
-                message.channel->println(cp);
+                message.channel->print_msg(message.level, cp);
             }
         }
-        vTaskDelay(0);
     }
 }
 
@@ -220,49 +223,27 @@ void start_polling() {
                                 16000,
                                 // 8192,              // size of task stack
                                 0,                 // parameters
-                                1,                 // priority
+                                2,                 // priority
                                 &outputTask,       // task handle
                                 SUPPORT_TASK_CORE  // core
         );
     }
 }
 
-static void check_startup_state() {
-    // Check for and report alarm state after a reset, error, or an initial power up.
-    // NOTE: Sleep mode disables the stepper drivers and position can't be guaranteed.
-    // Re-initialize the sleep state as an ALARM mode to ensure user homes or acknowledges.
-    if (sys.state == State::ConfigAlarm) {
-        report_error_message(Message::ConfigAlarmLock);
-    } else {
-        // Perform some machine checks to make sure everything is good to go.
-        if (config->_start->_checkLimits && config->_axes->hasHardLimits()) {
-            if (limits_get_state()) {
-                sys.state = State::Alarm;  // Ensure alarm state is active.
-                report_error_message(Message::CheckLimits);
-            }
-        }
-        if (config->_control->startup_check()) {
-            rtAlarm = ExecAlarm::ControlPin;
-        }
-
-        if (sys.state == State::Alarm || sys.state == State::Sleep) {
-            report_feedback_message(Message::AlarmLock);
-            sys.state = State::Alarm;  // Ensure alarm state is set.
-        } else {
-            // Check if the safety door is open.
-            sys.state = State::Idle;
-            while (config->_control->safety_door_ajar()) {
-                request_safety_door();
-                protocol_execute_realtime();  // Enter safety door mode. Should return as IDLE state.
-            }
-            // All systems go!
-            settings_execute_startup();  // Execute startup script.
-        }
-    }
+static void alarm_msg(ExecAlarm alarm_code) {
+    log_info_to(allChannels, "ALARM: " << alarmString(alarm_code));
+    log_to(allChannels, "ALARM:", static_cast<int>(alarm_code));
+    delay_ms(500);  // Force delay to ensure message clears serial write buffer.
 }
 
-void protocol_main_loop() {
-    check_startup_state();
+static void check_startup_state() {}
+
+const uint32_t heapWarnThreshold = 15000;
+
+uint32_t heapLowWater           = UINT_MAX;
+uint32_t heapLowWaterReported   = UINT_MAX;
+int32_t  heapLowWaterReportTime = 0;
+void     protocol_main_loop() {
     start_polling();
 
     // ---------------------------------------------------------------------------------
@@ -279,7 +260,10 @@ void protocol_main_loop() {
             Error status_code = execute_line(activeLine, *activeChannel, WebUI::AuthenticationLevel::LEVEL_GUEST);
 
             // Tell the channel that the line has been processed.
-            activeChannel->ack(status_code);
+            // If the line was aborted, the channel could be invalid
+            if (!sys.abort) {
+                activeChannel->ack(status_code);
+            }
 
             // Tell the input polling task that the line has been processed,
             // so it can give us another one when available
@@ -290,8 +274,7 @@ void protocol_main_loop() {
         protocol_auto_cycle_start();
         protocol_execute_realtime();  // Runtime command check point.
         if (sys.abort) {
-            stop_polling();
-            return;  // Bail to main() program loop to reset system.
+            sys.abort = false;
         }
 
         // check to see if we should disable the stepper drivers
@@ -308,6 +291,25 @@ void protocol_main_loop() {
         if (idleEndTime && (getCpuTicks() - idleEndTime) > 0) {
             idleEndTime = 0;  //
             config->_axes->set_disable(true);
+        }
+        uint32_t newHeapSize = xPortGetFreeHeapSize();
+        if (newHeapSize < heapLowWater) {
+            heapLowWater = newHeapSize;
+        }
+        // Consider reporting when the minimum has not yet been reported and it is low enough.
+        if (heapLowWater < heapLowWaterReported && heapLowWater < heapWarnThreshold) {
+            // typecast to uint32_t handles roll-over for this case
+            uint32_t ticksSinceReported = (getCpuTicks() - heapLowWaterReportTime);
+            uint32_t tickLimit          = usToCpuTicks(200000);
+            // Report only if it has been a while since the last report or if the memory has
+            // dropped significantly (2k bytes) since the last report.
+            // This prevents a cycle where the reporting itself consumes some heap and triggers another
+            // report, but the true minimum is reported eventually, and large drops are reported immediately.
+            if ((heapLowWater < heapLowWaterReported - 2048) || (ticksSinceReported > tickLimit)) {
+                log_warn("Low memory: " << heapLowWater << " bytes");
+                heapLowWaterReported   = heapLowWater;
+                heapLowWaterReportTime = getCpuTicks();
+            }
         }
     }
     return; /* Never reached */
@@ -357,37 +359,95 @@ void protocol_execute_realtime() {
     }
 }
 
-static void alarm_msg(ExecAlarm alarm_code) {
-    log_to(allChannels, "ALARM:", static_cast<int>(alarm_code));
-    delay_ms(500);  // Force delay to ensure message clears serial write buffer.
+static void protocol_run_startup_lines() {
+    settings_execute_startup();  // Execute startup script.
 }
 
-// Executes run-time commands, when required. This function is the primary state
-// machine that controls the various real-time features.
-// NOTE: Do not alter this unless you know exactly what you are doing!
-static void protocol_do_alarm() {
-    if (rtAlarm == ExecAlarm::None) {
+static void protocol_do_restart() {
+    // Reset primary systems.
+    system_reset();
+    protocol_reset();
+    gc_init();  // Set g-code parser to default state
+    // Spindle should be set either by the configuration
+    // or by the post-configuration fixup, but we test
+    // it anyway just for safety.  We want to avoid any
+    // possibility of crashing at this point.
+
+    plan_reset();  // Clear block buffer and planner variables
+
+    if (sys.state != State::ConfigAlarm) {
+        if (spindle) {
+            spindle->stop();
+            report_ovr_counter = 0;  // Set to report change immediately
+        }
+        Stepper::reset();  // Clear stepper subsystem variables
+    }
+
+    // Sync cleared gcode and planner positions to current system position.
+    plan_sync_position();
+    gc_sync_position();
+    allChannels.flushRx();
+    report_init_message(allChannels);
+    mc_init();
+
+    // Check for and report alarm state after a reset, error, or an initial power up.
+    // NOTE: Sleep mode disables the stepper drivers and position can't be guaranteed.
+    // Re-initialize the sleep state as an ALARM mode to ensure user homes or acknowledges.
+    if (sys.state == State::ConfigAlarm) {
+        report_error_message(Message::ConfigAlarmLock);
         return;
     }
+
+    // Perform some machine checks to make sure everything is good to go.
+    if (config->_start->_checkLimits && config->_axes->hasHardLimits() && limits_get_state()) {
+        mc_critical(ExecAlarm::HardLimit);
+    } else if (config->_control->startup_check()) {
+        send_alarm(ExecAlarm::ControlPin);
+    } else {
+        if (sys.state == State::Idle) {
+            config->_macros->_after_reset.run();
+        }
+    }
+}
+
+static void protocol_do_start() {
+    protocol_send_event(&restartEvent);
+    sys.state = State::Critical;
+    if (FORCE_INITIALIZATION_ALARM) {
+        // Force ALARM state upon a power-cycle or hard reset.
+        send_alarm(ExecAlarm::Init);
+        return;
+    }
+    Homing::set_all_axes_homed();
+    if (config->_start->_mustHome && Machine::Axes::homingMask) {
+        Homing::set_all_axes_unhomed();
+        // If there is an axis with homing configured, enter Alarm state on startup
+        send_alarm(ExecAlarm::Unhomed);
+    } else {
+        sys.state = State::Idle;
+    }
+    protocol_send_event(&runStartupLinesEvent);
+}
+
+static void protocol_do_alarm(void* alarmVoid) {
+    lastAlarm = (ExecAlarm)((int)alarmVoid);
     if (spindle->_off_on_alarm) {
         spindle->stop();
     }
-    sys.state = State::Alarm;  // Set system alarm state
-    alarm_msg(rtAlarm);
-    if (rtAlarm == ExecAlarm::HardLimit || rtAlarm == ExecAlarm::SoftLimit) {
+    alarm_msg(lastAlarm);
+    if (lastAlarm == ExecAlarm::HardLimit || lastAlarm == ExecAlarm::HardStop) {
+        sys.state = State::Critical;  // Set system alarm state
         report_error_message(Message::CriticalEvent);
         protocol_disable_steppers();
-        rtReset = false;  // Disable any existing reset
-        do {
-            protocol_handle_events();
-            // Block everything except reset and status reports until user issues reset or power
-            // cycles. Hard limits typically occur while unattended or not paying attention. Gives
-            // the user and a GUI time to do what is needed before resetting, like killing the
-            // incoming stream. The same could be said about soft limits. While the position is not
-            // lost, continued streaming could cause a serious crash if by chance it gets executed.
-        } while (!rtReset);
+        Homing::set_all_axes_unhomed();
+        return;
     }
-    rtAlarm = ExecAlarm::None;
+    if (lastAlarm == ExecAlarm::SoftLimit) {
+        sys.state = State::Critical;  // Set system alarm state
+        report_error_message(Message::CriticalEvent);
+        return;
+    }
+    sys.state = State::Alarm;
 }
 
 static void protocol_start_holding() {
@@ -590,8 +650,7 @@ static void protocol_do_initiate_cycle() {
         sys.state         = pb->is_jog ? State::Jog : State::Cycle;
         Stepper::prep_buffer();  // Initialize step segment buffer before beginning cycle.
         Stepper::wake_up();
-    } else {  // Otherwise, do nothing. Set and resume IDLE state.
-
+    } else {                    // Otherwise, do nothing. Set and resume IDLE state.
         sys.suspend.value = 0;  // Break suspend state.
         sys.state         = State::Idle;
     }
@@ -653,7 +712,7 @@ void protocol_disable_steppers() {
         config->_axes->set_disable(false);
         return;
     }
-    if (sys.state == State::Sleep || rtAlarm != ExecAlarm::None) {
+    if (sys.state == State::Sleep || sys.state == State::Alarm) {
         // Disable steppers immediately in sleep or alarm state
         config->_axes->set_disable(true);
         return;
@@ -702,6 +761,7 @@ void protocol_do_cycle_stop() {
             // Fall through
         case State::ConfigAlarm:
         case State::Alarm:
+            break;
         case State::CheckMode:
         case State::Idle:
         case State::Cycle:
@@ -736,7 +796,7 @@ static void update_velocities() {
     plan_cycle_reinitialize();
 }
 
-// This is the final phase of the shutdown activity that is initiated by mc_reset().
+// This is the final phase of the shutdown activity for a reset
 // The stuff herein is not necessarily safe to do in an ISR.
 static void protocol_do_late_reset() {
     // Kill spindle and coolant.
@@ -752,22 +812,10 @@ static void protocol_do_late_reset() {
 
     // do we need to stop a running file job?
     allChannels.stopJob();
+    sys.abort = true;
 }
 
 void protocol_exec_rt_system() {
-    protocol_do_alarm();  // If there is a hard or soft limit, this will block until rtReset is set
-
-    if (rtReset) {
-        rtReset = false;
-        if (sys.state == State::Homing) {
-            Machine::Homing::fail(ExecAlarm::HomingFailReset);
-        }
-        protocol_do_late_reset();
-        // Trigger system abort.
-        sys.abort = true;  // Only place this is set true.
-        return;            // Nothing else to do but exit.
-    }
-
     if (rtSafetyDoor) {
         protocol_do_safety_door();
     }
@@ -1002,21 +1050,43 @@ static void protocol_do_limit(void* arg) {
         Machine::Homing::limitReached();
         return;
     }
-    log_debug("Limit switch tripped for " << config->_axes->axisName(limit->_axis) << " motor " << limit->_motorNum);
-    if (sys.state == State::Cycle || sys.state == State::Jog) {
-        if (limit->isHard() && rtAlarm == ExecAlarm::None) {
-            log_debug("Hard limits");
-            mc_reset();                      // Initiate system kill.
-            rtAlarm = ExecAlarm::HardLimit;  // Indicate hard limit critical event
-        }
-        return;
+    if ((sys.state == State::Cycle || sys.state == State::Jog) && limit->isHard()) {
+        mc_critical(ExecAlarm::HardLimit);
     }
+    log_debug("Limit switch tripped for " << config->_axes->axisName(limit->_axis) << " motor " << limit->_motorNum);
 }
+static void protocol_do_fault_pin(void* arg) {
+    if (sys.state == State::Cycle || sys.state == State::Jog) {
+        mc_critical(ExecAlarm::HardStop);  // Initiate system kill.
+    }
+    ControlPin* pin = (ControlPin*)arg;
+    log_info("Stopped by " << pin->_legend);
+}
+void protocol_do_rt_reset() {
+    if (sys.state == State::Homing) {
+        Machine::Homing::fail(ExecAlarm::HomingFailReset);
+    } else if (sys.state == State::Cycle || sys.state == State::Jog || sys.step_control.executeHold || sys.step_control.executeSysMotion) {
+        Stepper::stop_stepping();  // Stop stepping immediately, possibly losing position
+        protocol_do_alarm((void*)ExecAlarm::AbortCycle);
+    } else if (sys.state == State::Critical) {
+        if (Homing::unhomed_axes()) {
+            protocol_do_alarm((void*)ExecAlarm::Unhomed);
+        } else {
+            sys.state = State::Idle;
+        }
+    } else if (sys.state != State::Alarm) {
+        sys.state = State::Idle;
+    }
+    protocol_do_late_reset();
+    protocol_send_event(&restartEvent);
+}
+
 ArgEvent feedOverrideEvent { protocol_do_feed_override };
 ArgEvent rapidOverrideEvent { protocol_do_rapid_override };
 ArgEvent spindleOverrideEvent { protocol_do_spindle_override };
 ArgEvent accessoryOverrideEvent { protocol_do_accessory_override };
 ArgEvent limitEvent { protocol_do_limit };
+ArgEvent faultPinEvent { protocol_do_fault_pin };
 
 ArgEvent reportStatusEvent { (void (*)(void*))report_realtime_status };
 
@@ -1027,12 +1097,15 @@ NoArgEvent cycleStopEvent { protocol_do_cycle_stop };
 NoArgEvent motionCancelEvent { protocol_do_motion_cancel };
 NoArgEvent sleepEvent { protocol_do_sleep };
 NoArgEvent debugEvent { report_realtime_debug };
+NoArgEvent startEvent { protocol_do_start };
+NoArgEvent restartEvent { protocol_do_restart };
+NoArgEvent runStartupLinesEvent { protocol_run_startup_lines };
 
-// Only mc_reset() is permitted to set rtReset.
-NoArgEvent resetEvent { mc_reset };
+NoArgEvent rtResetEvent { protocol_do_rt_reset };
 
 // The problem is that report_realtime_status needs a channel argument
 // Event statusReportEvent { protocol_do_status_report(XXX) };
+ArgEvent alarmEvent { (void (*)(void*))protocol_do_alarm };
 
 xQueueHandle event_queue;
 
@@ -1052,7 +1125,12 @@ void protocol_send_event(Event* evt, void* arg) {
 void protocol_handle_events() {
     EventItem item;
     while (xQueueReceive(event_queue, &item, 0)) {
-        // log_debug("event");
         item.event->run(item.arg);
     }
+}
+void send_alarm(ExecAlarm alarm) {
+    protocol_send_event(&alarmEvent, (void*)alarm);
+}
+void IRAM_ATTR send_alarm_from_ISR(ExecAlarm alarm) {
+    protocol_send_event_from_ISR(&alarmEvent, (void*)alarm);
 }

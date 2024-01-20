@@ -6,31 +6,17 @@
 #include "Pins/PinDetail.h"
 #include "Pins/PinCapabilities.h"
 #include "Pins/PinAttributes.h"
-#include "StringRange.h"
+#include "src/Machine/EventPin.h"
 
 #include <esp_attr.h>  // IRAM_ATTR
 #include <cstdint>
 #include <string>
 #include <cstring>
 #include <utility>
+#include <string_view>
 #include "Assert.h"
 
 // #define DEBUG_PIN_DUMP  // Pin debugging. WILL spam you with a lot of data!
-
-// Yuck, yuck, yuck... apparently we can't create a template with an IRAM_ATTR, because GCC refuses to obide
-// by the attributes. In other words, _all_ templates are out when using an ISR! This define makes an anonymous
-// method in the class, which can be used to wrap a single function. It can then be used by running the attachInterrupt
-// with ISRHandler.
-//
-// Usage:
-// - In header file (private / protected members) or in cpp file in anonymous namespace (public members)
-//   CreateISRHandlerFor(LimitPin, handleISR);
-// - When attaching an ISR: _pin.attachInterrupt(ISRHandler, EITHER_EDGE, this);
-//
-// I'd rather not use any defines, but templates... but apparently there's no choice here. Let's just make it as safe
-// as possible...
-#define CreateISRHandlerFor(className, methodName)                                                                                         \
-    static void IRAM_ATTR ISRHandler(void* data) { static_cast<className*>(data)->methodName(); }
 
 // Pin class. A pin is basically a thing that can 'output', 'input' or do both. GPIO on an ESP32 comes to mind,
 // but there are way more possible pins. Think about I2S/I2C/SPI extenders, RS485 driven pin devices and even
@@ -77,7 +63,7 @@ class Pin {
     // Implementation details of this pin.
     Pins::PinDetail* _detail;
 
-    static const char* parse(StringRange str, Pins::PinDetail*& detail);
+    static const char* parse(std::string_view str, Pins::PinDetail*& detail);
 
     inline Pin(Pins::PinDetail* detail) : _detail(detail) {}
 
@@ -99,10 +85,7 @@ public:
     static const int ASSERTING   = 0x10;
     static const int DEASSERTING = 0x11;
 
-    // inline static Pins::PinDetail* create(const char* str) { return create(StringRange(str)); };
-
-    static Pin  create(const char* str) { return create(StringRange(str)); }  // ensure it's not ambiguous
-    static Pin  create(const StringRange& str);
+    static Pin  create(std::string_view str);
     static bool validate(const char* str);
 
     // We delete the copy constructor, and implement the move constructor. The move constructor is required to support
@@ -145,12 +128,7 @@ public:
 
     static Pin Error() { return Pin(errorPin); }
 
-    // ISR handlers. Map methods on 'this' types.
-
-    // Backward compatibility ISR handler:
-    void attachInterrupt(void (*callback)(void*), int mode, void* arg = nullptr) const { _detail->attachInterrupt(callback, arg, mode); }
-
-    void detachInterrupt() const { _detail->detachInterrupt(); }
+    void registerEvent(EventPin* obj) { _detail->registerEvent(obj); };
 
     // Other functions:
     Capabilities capabilities() const { return _detail->capabilities(); }
