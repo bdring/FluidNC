@@ -774,10 +774,10 @@ namespace WebUI {
                 // memset(current_conf.sta.password, 0, sizeof(current_conf.sta.password));
                 // esp_wifi_set_config((wifi_interface_t)ESP_IF_WIFI_STA, &current_conf);
                 WiFi.disconnect();
-                delay(1000);
+                delay(100);
                 WiFi.mode(WIFI_OFF);
                 esp_wifi_restore();
-                delay(1000);
+                delay(100);
                 if (StartAP()) {
                     goto wifi_on;
                 }
