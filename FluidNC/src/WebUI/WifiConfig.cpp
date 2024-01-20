@@ -773,8 +773,8 @@ namespace WebUI {
                 // memset(current_conf.sta.ssid, 0, sizeof(current_conf.sta.ssid));
                 // memset(current_conf.sta.password, 0, sizeof(current_conf.sta.password));
                 // esp_wifi_set_config((wifi_interface_t)ESP_IF_WIFI_STA, &current_conf);
-                WiFi.disconnect();
-                delay(100);
+                // WiFi.disconnect();
+                // delay(100);
                 WiFi.mode(WIFI_OFF);
                 esp_wifi_restore();
                 delay(100);
