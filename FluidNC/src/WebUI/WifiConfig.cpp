@@ -766,6 +766,11 @@ namespace WebUI {
                 wifi_prov_mgr_reset_provisioning();
                 esp_wifi_stop();
                 esp_wifi_restore();
+                wifi_config_t current_conf;
+                esp_wifi_get_config((wifi_interface_t)ESP_IF_WIFI_STA, &current_conf);
+                memset(current_conf.sta.ssid, 0, sizeof(current_conf.sta.ssid));
+                memset(current_conf.sta.password, 0, sizeof(current_conf.sta.password));
+                esp_wifi_set_config((wifi_interface_t)ESP_IF_WIFI_STA, &current_conf);
                 if (StartAP()) {
                     goto wifi_on;
                 }
