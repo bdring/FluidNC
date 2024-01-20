@@ -77,7 +77,11 @@ protected:
     std::map<int, EventPin*> _events;
     std::map<int, bool*>     _pin_values;
 
-    UTF8 _utf8;
+    UTF8        _utf8;
+    std::string _gcode_extensions = ".g .gc .gco .gcode .nc .ngc .ncc .txt .cnc .tap";
+
+protected:
+    bool _active = true;
 
 public:
     Channel(const char* name, bool addCR = false) : _name(name), _linelen(0), _addCR(addCR) {}
@@ -93,6 +97,10 @@ public:
     virtual Channel*   pollLine(char* line);
     virtual void       ack(Error status);
     const std::string& name() { return _name; }
+
+    virtual void sendLine(MsgLevel level, const char* line);
+    virtual void sendLine(MsgLevel level, const std::string* line);
+    virtual void sendLine(MsgLevel level, const std::string& line);
 
     // rx_buffer_available() is the number of bytes that can be sent without overflowing
     // a reception buffer, even if the system is busy.  Channels that can handle external
@@ -124,6 +132,8 @@ public:
 
     virtual void stopJob() {}
 
+    virtual bool is_visible(const std::string& stem, const std::string& extension, bool isdir);
+
     size_t timedReadBytes(uint8_t* buffer, size_t length, TickType_t timeout) { return timedReadBytes((char*)buffer, length, timeout); }
 
     bool setCr(bool on) {
@@ -141,14 +151,20 @@ public:
 
     virtual void print_msg(MsgLevel level, const char* msg);
 
+    void print_msg(MsgLevel level, const std::string& msg) { print_msg(level, msg.c_str()); }
+
     uint32_t     setReportInterval(uint32_t ms);
     uint32_t     getReportInterval() { return _reportInterval; }
     virtual void autoReport();
     void         autoReportGCodeState();
 
     // Pin extender functions
-    void out(const std::string& s);
-    void setAttr(int index, bool* valuep, const std::string& s);
+    virtual void out(const char* s, const char* tag);
+    virtual void out(const std::string& s, const char* tag);
+    virtual void out_acked(const std::string& s, const char* tag);
+
+    void setAttr(int index, bool* valuep, const std::string& s, const char* tag);
+
     void ready();
     void registerEvent(uint8_t code, EventPin* obj);
 };

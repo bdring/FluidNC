@@ -16,11 +16,12 @@ namespace WebUI {
         void add(char c);
         void comma_line();
         void comma();
-        void quoted(const char* s);
         void inc_level();
         void dec_level();
         void indent();
         void line();
+
+        void quoted(const char* s);
 
         // begin_member() starts the creation of a member.
         void begin_member(const char* tag);
@@ -31,6 +32,8 @@ namespace WebUI {
         Channel*     _channel = nullptr;
 
         std::string category;
+
+        void flush();
 
     public:
         // Constructor; set _pretty true for pretty printing
@@ -43,6 +46,8 @@ namespace WebUI {
         void setCategory(const char* cat) { category = cat; }
 
         void end();
+
+        void string(const char* s);
 
         // member() creates a "tag":"value" element
         void member(const char* tag, const char* value);

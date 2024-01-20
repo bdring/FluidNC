@@ -62,8 +62,6 @@ namespace WebUI {
         void autoReport() override;
 
     private:
-        bool _dead = false;
-
         WebSocketsServer* _server;
         uint8_t           _clientNum;
 
