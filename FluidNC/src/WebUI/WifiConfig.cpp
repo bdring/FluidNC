@@ -648,7 +648,6 @@ namespace WebUI {
             log_info("Starting client failed");
             return false;
         }
-        return false;
     }
 
     /**
