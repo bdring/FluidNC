@@ -648,6 +648,7 @@ namespace WebUI {
             log_info("Starting client failed");
             return false;
         }
+        return false;
     }
 
     /**
@@ -762,15 +763,21 @@ namespace WebUI {
                 }
                 // fall through to fallback to AP mode
             case WiFiAP:
-                wifi_services.end();
-                wifi_prov_mgr_reset_provisioning();
-                esp_wifi_stop();
+                // wifi_services.end();
+                // wifi_prov_mgr_reset_provisioning();
+                // esp_wifi_stop();
+                // esp_wifi_restore();
+                //esp_wifi_deauth_sta(0);
+                //wifi_config_t current_conf;
+                // esp_wifi_get_config((wifi_interface_t)ESP_IF_WIFI_STA, &current_conf);
+                // memset(current_conf.sta.ssid, 0, sizeof(current_conf.sta.ssid));
+                // memset(current_conf.sta.password, 0, sizeof(current_conf.sta.password));
+                // esp_wifi_set_config((wifi_interface_t)ESP_IF_WIFI_STA, &current_conf);
+                WiFi.disconnect();
+                delay(1000);
+                WiFi.mode(WIFI_OFF);
                 esp_wifi_restore();
-                wifi_config_t current_conf;
-                esp_wifi_get_config((wifi_interface_t)ESP_IF_WIFI_STA, &current_conf);
-                memset(current_conf.sta.ssid, 0, sizeof(current_conf.sta.ssid));
-                memset(current_conf.sta.password, 0, sizeof(current_conf.sta.password));
-                esp_wifi_set_config((wifi_interface_t)ESP_IF_WIFI_STA, &current_conf);
+                delay(1000);
                 if (StartAP()) {
                     goto wifi_on;
                 }
