@@ -9,8 +9,8 @@
 
 #include "../Uart.h"
 
-// #define DEBUG_VFD
-// #define DEBUG_VFD_ALL
+#define DEBUG_VFD
+#define DEBUG_VFD_ALL
 
 namespace Spindles {
     extern Uart _uart;
