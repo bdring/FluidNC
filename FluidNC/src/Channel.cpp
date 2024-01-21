@@ -197,7 +197,7 @@ Channel* Channel::pollLine(char* line) {
             // If we are not able to handle a line we save the character
             // until later
             _queue.push(uint8_t(cmd));
-            continue;
+            break;
         }
         if (lineComplete(line, cmd)) {
             return this;
