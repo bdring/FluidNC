@@ -723,7 +723,7 @@ namespace WebUI {
 
     void Web_Server::sendJSON(int code, const char* s) {
         _webserver->sendHeader("Cache-Control", "no-cache");
-        _webserver->sendHeader("Access-Control-Allow-Origin:", "*");
+        _webserver->sendHeader("Access-Control-Allow-Origin", "*");
         _webserver->send(200, "application/json", s);
     }
 
