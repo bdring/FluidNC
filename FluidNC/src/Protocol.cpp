@@ -196,7 +196,7 @@ void     protocol_main_loop() {
         if (activeChannel) {
             // The input polling task has collected a line of input
 #ifdef DEBUG_REPORT_ECHO_RAW_LINE_RECEIVED
-            report_echo_line_received(activeLine, allChannels);
+            report_echo_line_received(activeLine, *activeChannel);
 #endif
 
             Error status_code = execute_line(activeLine, *activeChannel, WebUI::AuthenticationLevel::LEVEL_GUEST);

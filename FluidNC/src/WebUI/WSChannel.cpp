@@ -79,19 +79,6 @@ namespace WebUI {
         return size;
     }
 
-    bool WSChannel::push(const uint8_t* data, size_t length) {
-        if (!_active) {
-            return false;
-        }
-        char c;
-        while (length--) {
-            _queue.push(*data++);
-        }
-        return true;
-    }
-
-    bool WSChannel::push(const std::string& s) { return push((uint8_t*)s.c_str(), s.length()); }
-
     bool WSChannel::sendTXT(std::string& s) {
         if (!_active) {
             return false;
@@ -165,14 +152,20 @@ namespace WebUI {
         WSChannel* wsChannel = getWSChannel(pageid);
         if (wsChannel) {
             if (cmd.length()) {
-                wsChannel->push(cmd);
-                if (!is_realtime_command(cmd[0]) && cmd[cmd.length() - 1] != '\n') {
-                    wsChannel->push("\n");
+                if (is_realtime_command(cmd[0])) {
+                    for (auto const& c : cmd) {
+                        wsChannel->handleRealtimeCharacter((uint8_t)c);
+                    }
+                } else {
+                    wsChannel->push(cmd);
+                    if (cmd.back() != '\n') {
+                        wsChannel->push('\n');
+                    }
                 }
-                return false;
             }
+            return false;
         }
-        return true;
+        return true;  // Error - no websocket
     }
 
     bool WSChannels::sendError(int pageid, std::string err) {

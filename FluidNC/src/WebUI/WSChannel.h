@@ -43,9 +43,6 @@ namespace WebUI {
         inline size_t write(unsigned int n) { return write((uint8_t)n); }
         inline size_t write(int n) { return write((uint8_t)n); }
 
-        bool push(const uint8_t* data, size_t length);
-        bool push(const std::string& s);
-
         void flush(void) override {}
 
         int id() { return _clientNum; }
