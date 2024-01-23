@@ -118,6 +118,7 @@ namespace WebUI {
             j.member("FWVersion", git_info);
             j.member("FWTarget", "FluidNC");
             j.member("FWTargetId", "60");
+            j.member("WebUpdate", "Enabled");
 
             j.member("Setup", "Disabled");
             j.member("SDConnection", "direct");
@@ -132,7 +133,7 @@ namespace WebUI {
 
             j.member("WebSocketPort", "82");
             j.member("HostName", "fluidnc");
-            j.member("WiFiMode", "AP");
+            j.member("WiFiMode", "STA");
             j.member("FlashFileSystem", "LittleFS");
             j.member("HostPath", "/");
             j.member("Time", "none");

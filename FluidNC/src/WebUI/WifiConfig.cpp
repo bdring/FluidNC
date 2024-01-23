@@ -263,7 +263,7 @@ namespace WebUI {
                 addIdValueObject(j, "Visible: ", (conf.ap.ssid_hidden == 0 ? "Yes" : "No"));
                 addIdValueObject(j,
                                  "Radio country set: ",
-                                 std::string("") + country.cc + " (channels " + std::to_string(country.schan) + "-"
+                                 std::string("") + country.cc[0] + country.cc[1] + " (channels " + std::to_string(country.schan) + "-"
                                                                 + std::to_string((country.schan + country.nchan - 1))
                                             + ", max power " + std::to_string(country.max_tx_power) + "dBm)");
 
