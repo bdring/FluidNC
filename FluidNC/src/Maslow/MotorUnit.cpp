@@ -64,7 +64,7 @@ bool MotorUnit::updateEncoderPosition(){
     }
     else if(millis() - encoderReadFailurePrintTime > 5000){
         encoderReadFailurePrintTime = millis();
-        log_info("Encoder read failure on " << _encoderAddress);
+        log_warn("Encoder read failure on " << _encoderAddress);
         Maslow.panic();
     }
     return false;
@@ -133,6 +133,7 @@ bool MotorUnit::comply(){
 // Pulls_tight and zeros axis; returns true when done
 bool MotorUnit::retract(){
     if(pull_tight()){
+        log_info(_encoderAddress << " pulled tight with offset " << getPosition());
         zero();
         return true;
     }
@@ -179,8 +180,6 @@ bool MotorUnit::pull_tight(){
                 retract_baseline = 700;
                 return true;
             } else {
-                if (_encoderAddress == 2 && retract_speed < 50)
-                    log_info("Motor current: " << currentMeasurement);
                 return false;
             }
         }
