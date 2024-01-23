@@ -11,17 +11,5 @@ namespace WebUI {
 
     InputBuffer::operator bool() const { return true; }
 
-    bool InputBuffer::push(const char* data) {
-        char c;
-        while ((c = *data++) != '\0') {
-            _queue.push(c);
-        }
-        return true;
-    }
-    bool InputBuffer::push(char data) {
-        char buf[2] = { data, '\0' };
-        return push(buf);
-    }
-
     InputBuffer::~InputBuffer() {}
 }

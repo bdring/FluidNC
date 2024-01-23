@@ -428,26 +428,10 @@ namespace WebUI {
 
     void Web_Server::_handle_web_command(bool silent) {
         AuthenticationLevel auth_level = is_authenticated();
-        std::string         cmd;
         if (_webserver->hasArg("plain")) {
-            cmd = std::string(_webserver->arg("plain").c_str());
-        } else if (_webserver->hasArg("commandText")) {
-            cmd = std::string(_webserver->arg("commandText").c_str());
-        } else {
-            _webserver->send(200, "text/plain", "Invalid command");
-            return;
-        }
-        //if it is internal command [ESPXXX]<parameter>
-        // cmd.trim();
-        auto isCommand = cmd.find("[ESP") != std::string::npos;
-        if (!isCommand) {
-            if (cmd.length() >= 2 && cmd[0] == '$' && cmd[1] == '/') {
-                isCommand = true;
-            }
-        }
-        if (isCommand) {
+            //            std::string cmd = std::string();
             char line[256];
-            strncpy(line, cmd.c_str(), 255);
+            strncpy(line, _webserver->arg("plain").c_str(), 255);
             webClient.attachWS(_webserver, silent);
             Error err = settings_execute_line(line, webClient, auth_level);
             if (err != Error::Ok) {
@@ -465,14 +449,21 @@ namespace WebUI {
                 webClient.write(nullptr, 0);
             }
             webClient.detachWS();
-        } else {  //execute GCODE
+            return;
+        }
+        if (_webserver->hasArg("commandText")) {
             if (auth_level == AuthenticationLevel::LEVEL_GUEST) {
                 _webserver->send(401, "text/plain", "Authentication failed\n");
                 return;
             }
+            std::string cmd = std::string(_webserver->arg("commandText").c_str());
+
             bool hasError = WSChannels::runGCode(getPageid(), cmd);
             _webserver->send(hasError ? 500 : 200, "text/plain", hasError ? "WebSocket dead" : "");
+            return;
         }
+        _webserver->send(500, "text/plain", "Invalid command");
+        return;
     }
 
     //login status check

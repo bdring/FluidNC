@@ -121,6 +121,8 @@ public:
     // be a realtime character.
     virtual bool realtimeOkay(char c) { return true; }
 
+    void handleRealtimeCharacter(uint8_t byte);
+
     // lineComplete() accumulates the character into the line, returning true if a line
     // end is seen.
     virtual bool lineComplete(char* line, char c);
@@ -157,6 +159,15 @@ public:
     uint32_t     getReportInterval() { return _reportInterval; }
     virtual void autoReport();
     void         autoReportGCodeState();
+
+    void push(uint8_t byte);
+    void push(uint8_t* data, size_t length) {
+        while (length--) {
+            push(*data++);
+        }
+    }
+
+    void push(const std::string& s) { push((uint8_t*)s.c_str(), s.length()); }
 
     // Pin extender functions
     virtual void out(const char* s, const char* tag);

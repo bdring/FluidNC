@@ -759,6 +759,10 @@ namespace WebUI {
             case WiFiFallback:
                 if (StartSTA()) {
                     goto wifi_on;
+                } else {  // STA failed, reset
+                    WiFi.mode(WIFI_OFF);
+                    esp_wifi_restore();
+                    delay(100);
                 }
                 // fall through to fallback to AP mode
             case WiFiAP:
