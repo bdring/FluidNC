@@ -85,13 +85,6 @@ const char* to_hex(uint32_t n);
 bool  char_is_numeric(char value);
 char* trim(char* value);
 
-template <class T>
-void swap(T& a, T& b) {
-    T c(a);
-    a = b;
-    b = c;
-}
-
 template <typename T>
 T myMap(T x, T in_min, T in_max, T out_min, T out_max) {  // DrawBot_Badge
     return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
