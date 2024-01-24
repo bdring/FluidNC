@@ -43,7 +43,7 @@
 #define WIFILED 35
 #define REDLED 14
 
-int ENCODER_READ_FREQUENCY_HZ = 100; //max frequency for pollingn the encoders
+int ENCODER_READ_FREQUENCY_HZ = 1000; //max frequency for polling the encoders
 
 
 //------------------------------------------------------
@@ -213,7 +213,7 @@ void Maslow_::update(){
         //------------------------ End of Maslow State Machine
 
         //if the update function is not being called enough, stop everything to prevent damage
-        if(millis() - lastCallToUpdate > 500){
+        if(millis() - lastCallToUpdate > 100){
             Maslow.panic();
             int elapsedTime = millis()-lastCallToUpdate; 
             log_error("Emergency stop. Update function not being called enough."  << elapsedTime << "ms since last call" );
@@ -414,6 +414,7 @@ bool Maslow_::updateEncoderPositions(){
     static unsigned long encoderFailTimer = millis();
 
     if(!readingFromSD  && (millis() - lastCallToEncoderRead > 1000/(ENCODER_READ_FREQUENCY_HZ) ) ) {
+        
         static int encoderToRead = 0;
         switch(encoderToRead){
             case 0:
@@ -444,18 +445,18 @@ bool Maslow_::updateEncoderPositions(){
         }
     }
 
-    // if more than 10% of readings fail, warn user, if more than 50% fail, stop the machine and raise alarm
+    // if more than 1% of readings fail, warn user, if more than 10% fail, stop the machine and raise alarm
     if(millis() - encoderFailTimer > 1000){
         for(int i = 0; i < 4; i++){
             //turn i into proper label
             String label = axis_id_to_label(i);
-            if(encoderFailCounter[i] > 0.5*ENCODER_READ_FREQUENCY_HZ){
+            if(encoderFailCounter[i] > 0.1*ENCODER_READ_FREQUENCY_HZ){
                 // log error statement with appropriate label
                 log_error("Failure on " << label.c_str() << " encoder, failed to read " << encoderFailCounter[i] << " times in the last second");
                 Maslow.panic();
             }
-            else if(encoderFailCounter[i] > 0.1*ENCODER_READ_FREQUENCY_HZ){
-                log_info("Bad connection on " << label.c_str() << " encoder, failed to read " << encoderFailCounter[i] << " times in the last second");
+            else if(encoderFailCounter[i] > 0){ //0.01*ENCODER_READ_FREQUENCY_HZ){
+                log_warn("Bad connection on " << label.c_str() << " encoder, failed to read " << encoderFailCounter[i] << " times in the last second");
             }
             encoderFailCounter[i] = 0;
             encoderFailTimer = millis();
@@ -553,7 +554,9 @@ void Maslow_::safety_control() {
             log_error("Position error on " << axis_id_to_label(i).c_str() << " axis exceeded 1mm, error is " << axis[i]->getPositionError() << "mm");
             tick[i] = true;
         }
-      
+        if( (abs(axis[i]->getPositionError()) > 15) && (sys.state() == State::Cycle)){
+            log_error("Position error on " << axis_id_to_label(i).c_str() << " axis exceeded 5mm whill running. Halting. Error is " << axis[i]->getPositionError() << "mm");
+        }
     }
 
     if(millis() - spamTimer > 5000){
