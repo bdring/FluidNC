@@ -4,16 +4,16 @@ name: Maslow S3 Board
 Maslow_vertical: false
 Maslow_calibration_offset: 1000
 
+Maslow_tlX: -68.53512663361595
+Maslow_tlY: 2054.468121261984
+
+Maslow_trX: 2888.7720761326755
+Maslow_trY: 2057.597109850826
+
 Maslow_blX: 0.0
 Maslow_blY: 0.0
 
-Maslow_tlX: 5.55
-Maslow_tlY: 2150.0
-
-Maslow_trX: 3135.0
-Maslow_trY: 2150.0
-
-Maslow_brX: 3095.0
+Maslow_brX: 2945.545348849235
 Maslow_brY: 0.0
 
 spi:
