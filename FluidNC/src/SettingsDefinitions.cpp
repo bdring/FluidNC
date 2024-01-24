@@ -43,6 +43,14 @@ void make_coordinate(CoordIndex index, const char* name) {
     }
 }
 
+#define FLOAT_PROXY(number, name, configvar)                                                                                               \
+    float_proxies.emplace_back(                                                                                                            \
+        std::make_unique<MachineConfigProxySetting<float>>(number, name, [](MachineConfig const& config) { return configvar; }));
+
+#define INT_PROXY(number, name, configvar)                                                                                                 \
+    int_proxies.emplace_back(                                                                                                              \
+        std::make_unique<MachineConfigProxySetting<int>>(number, name, [](MachineConfig const& config) { return configvar; }));
+
 void make_settings() {
     Setting::init();
 
@@ -78,41 +86,26 @@ void make_settings() {
     // which are derived from MachineConfig settings.
 
     // 130-132: Max travel (mm)
-    float_proxies.emplace_back(std::make_unique<MachineConfigProxySetting<float>>(
-        "130", "Grbl/MaxTravel/X", [](MachineConfig const& config) { return config._axes->_axis[0]->_maxTravel; }));
-    float_proxies.emplace_back(std::make_unique<MachineConfigProxySetting<float>>(
-        "131", "Grbl/MaxTravel/Y", [](MachineConfig const& config) { return config._axes->_axis[1]->_maxTravel; }));
-    float_proxies.emplace_back(std::make_unique<MachineConfigProxySetting<float>>(
-        "132", "Grbl/MaxTravel/Z", [](MachineConfig const& config) { return config._axes->_axis[2]->_maxTravel; }));
+    FLOAT_PROXY("130", "Grbl/MaxTravel/X", config._axes->_axis[0]->_maxTravel)
+    FLOAT_PROXY("131", "Grbl/MaxTravel/Y", config._axes->_axis[1]->_maxTravel)
+    FLOAT_PROXY("132", "Grbl/MaxTravel/Z", config._axes->_axis[2]->_maxTravel)
 
     // 120-122: Acceleration (mm/sec^2)
-    float_proxies.emplace_back(std::make_unique<MachineConfigProxySetting<float>>(
-        "120", "Grbl/Acceleration/X", [](MachineConfig const& config) { return config._axes->_axis[0]->_acceleration; }));
-    float_proxies.emplace_back(std::make_unique<MachineConfigProxySetting<float>>(
-        "121", "Grbl/Acceleration/Y", [](MachineConfig const& config) { return config._axes->_axis[1]->_acceleration; }));
-    float_proxies.emplace_back(std::make_unique<MachineConfigProxySetting<float>>(
-        "122", "Grbl/Acceleration/Z", [](MachineConfig const& config) { return config._axes->_axis[2]->_acceleration; }));
+    FLOAT_PROXY("120", "Grbl/Acceleration/X", config._axes->_axis[0]->_acceleration)
+    FLOAT_PROXY("121", "Grbl/Acceleration/Y", config._axes->_axis[1]->_acceleration)
+    FLOAT_PROXY("122", "Grbl/Acceleration/Z", config._axes->_axis[2]->_acceleration)
 
     // 110-112: Max rate (mm/min)
-    float_proxies.emplace_back(std::make_unique<MachineConfigProxySetting<float>>(
-        "110", "Grbl/MaxRate/X", [](MachineConfig const& config) { return config._axes->_axis[0]->_maxRate; }));
-    float_proxies.emplace_back(std::make_unique<MachineConfigProxySetting<float>>(
-        "111", "Grbl/MaxRate/Y", [](MachineConfig const& config) { return config._axes->_axis[1]->_maxRate; }));
-    float_proxies.emplace_back(std::make_unique<MachineConfigProxySetting<float>>(
-        "112", "Grbl/MaxRate/Z", [](MachineConfig const& config) { return config._axes->_axis[2]->_maxRate; }));
+    FLOAT_PROXY("110", "Grbl/MaxRate/X", config._axes->_axis[0]->_maxRate)
+    FLOAT_PROXY("111", "Grbl/MaxRate/Y", config._axes->_axis[1]->_maxRate)
+    FLOAT_PROXY("112", "Grbl/MaxRate/Z", config._axes->_axis[2]->_maxRate)
 
     // 100-102: Resolution (steps/mm)
-    float_proxies.emplace_back(std::make_unique<MachineConfigProxySetting<float>>(
-        "100", "Grbl/Resolution/X", [](MachineConfig const& config) { return config._axes->_axis[0]->_stepsPerMm; }));
-    float_proxies.emplace_back(std::make_unique<MachineConfigProxySetting<float>>(
-        "101", "Grbl/Resolution/Y", [](MachineConfig const& config) { return config._axes->_axis[1]->_stepsPerMm; }));
-    float_proxies.emplace_back(std::make_unique<MachineConfigProxySetting<float>>(
-        "102", "Grbl/Resolution/Z", [](MachineConfig const& config) { return config._axes->_axis[2]->_stepsPerMm; }));
+    FLOAT_PROXY("100", "Grbl/Resolution/X", config._axes->_axis[0]->_stepsPerMm)
+    FLOAT_PROXY("101", "Grbl/Resolution/Y", config._axes->_axis[1]->_stepsPerMm)
+    FLOAT_PROXY("102", "Grbl/Resolution/Z", config._axes->_axis[2]->_stepsPerMm)
 
-    int_proxies.emplace_back(std::make_unique<MachineConfigProxySetting<int32_t>>(
-        "20", "Grbl/SoftLimitsEnable", [](MachineConfig const& config) { return config._axes->_axis[0]->_softLimits ? 1 : 0; }));
-    int_proxies.emplace_back(std::make_unique<MachineConfigProxySetting<int32_t>>(
-        "21", "Grbl/HardLimitsEnable", [](MachineConfig const& config) { return config._axes->hasHardLimits() ? 1 : 0; }));
-    int_proxies.emplace_back(std::make_unique<MachineConfigProxySetting<int32_t>>(
-        "22", "Grbl/HomingCycleEnable", [](MachineConfig const& config) { return Axes::homingMask ? 1 : 0; }));
+    INT_PROXY("20", "Grbl/SoftLimitsEnable", config._axes->_axis[0]->_softLimits)
+    INT_PROXY("21", "Grbl/HardLimitsEnable", config._axes->hasHardLimits())
+    INT_PROXY("22", "Grbl/HomingCycleEnable", (bool)Axes::homingMask)
 }
