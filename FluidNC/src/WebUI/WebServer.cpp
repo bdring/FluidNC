@@ -428,24 +428,10 @@ namespace WebUI {
 
     void Web_Server::_handle_web_command(bool silent) {
         AuthenticationLevel auth_level = is_authenticated();
-        std::string         cmd;
         if (_webserver->hasArg("plain")) {
-            cmd = std::string(_webserver->arg("plain").c_str());
-        } else if (_webserver->hasArg("commandText")) {
-            cmd = std::string(_webserver->arg("commandText").c_str());
-        } else {
-            _webserver->send(200, "text/plain", "Invalid command");
-            return;
-        }
-        //if it is internal command [ESPXXX]<parameter>
-        // cmd.trim();
-        auto isCommand = cmd.length() && cmd[0] == '$';
-        if (!isCommand) {
-            isCommand = cmd.find("[ESP") != std::string::npos;
-        }
-        if (isCommand) {
+            //            std::string cmd = std::string();
             char line[256];
-            strncpy(line, cmd.c_str(), 255);
+            strncpy(line, _webserver->arg("plain").c_str(), 255);
             webClient.attachWS(_webserver, silent);
             Error err = settings_execute_line(line, webClient, auth_level);
             if (err != Error::Ok) {
@@ -457,27 +443,27 @@ namespace WebUI {
                     answer += std::to_string(static_cast<int>(err));
                 }
                 answer += "\n";
-                _webserver->send(500, "text/plain", answer.c_str());
+                webClient.sendError(500, answer);
             } else {
-                // Give the output task a chance to dequeue and forward a message
-                // to webClient, if there is one.
-                for (int i = 0; i < 100 && !webClient.anyOutput(); i++) {
-                    vTaskDelay(10);
-                }
-                if (!webClient.anyOutput()) {
-                    _webserver->send(500, "text/plain", "No response");
-                }
+                // This will send a 200 if it hasn't already been sent
+                webClient.write(nullptr, 0);
             }
             webClient.detachWS();
-        } else {  //execute GCODE
+            return;
+        }
+        if (_webserver->hasArg("commandText")) {
             if (auth_level == AuthenticationLevel::LEVEL_GUEST) {
                 _webserver->send(401, "text/plain", "Authentication failed\n");
                 return;
             }
-            bool hasError = WSChannels::runGCode(getPageid(), cmd);
+            std::string cmd = std::string(_webserver->arg("commandText").c_str());
 
-            _webserver->send(200, "text/plain", hasError ? "Error" : "");
+            bool hasError = WSChannels::runGCode(getPageid(), cmd);
+            _webserver->send(hasError ? 500 : 200, "text/plain", hasError ? "WebSocket dead" : "");
+            return;
         }
+        _webserver->send(500, "text/plain", "Invalid command");
+        return;
     }
 
     //login status check

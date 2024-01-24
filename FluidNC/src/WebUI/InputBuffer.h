@@ -12,8 +12,6 @@ namespace WebUI {
 
         size_t write(uint8_t c) override { return 0; }
         int    availableforwrite() { return 0; };
-        bool   push(const char* data);
-        bool   push(char data);
 
         operator bool() const;
 
