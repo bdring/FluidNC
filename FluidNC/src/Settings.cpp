@@ -5,6 +5,7 @@
 #include "WebUI/Commands.h"     // WebUI::COMMANDS
 #include "System.h"             // sys
 #include "Protocol.h"           // protocol_buffer_synchronize
+#include "Machine/MachineConfig.h"
 
 #include <map>
 #include <limits>
@@ -517,4 +518,19 @@ void IPaddrSetting::addWebui(WebUI::JSONencoder* j) {
         j->begin_webui(getName(), getName(), "A", getStringValue());
         j->end_object();
     }
+}
+
+template <>
+const char* MachineConfigProxySetting<float>::getStringValue() {
+    auto got = _getter(*MachineConfig::instance());
+    _cachedValue.reserve(16);
+    std::snprintf(_cachedValue.data(), _cachedValue.capacity(), "%.3f", got);
+    return _cachedValue.c_str();
+}
+
+template <>
+const char* MachineConfigProxySetting<int32_t>::getStringValue() {
+    auto got     = _getter(*MachineConfig::instance());
+    _cachedValue = std::to_string(got);
+    return _cachedValue.c_str();
 }
