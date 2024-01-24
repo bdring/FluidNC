@@ -34,6 +34,8 @@
 #include <map>
 #include <filesystem>
 
+#include <esp_wifi.h>
+
 int nb_work_done = 0;
 
 // WG Readable and writable as guest
@@ -749,11 +751,10 @@ int GetResetWhenPowerOn() {
 
 void ReconnectWifi() {
     log_debug("Try to reconnext to Wifi");
-    WebUI::WiFiConfig::end();
-    WebUI::WiFiConfig::reset();
-    delay(1000);
-    WebUI::WiFiConfig::begin();
-    delay(1000);
+    WiFi.mode(WIFI_OFF);
+    esp_wifi_restore();
+
+    delay(100);
 }
 
 void CallURLWithRetryStrategy(String cmd) {
