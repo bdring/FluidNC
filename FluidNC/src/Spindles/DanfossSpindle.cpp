@@ -31,7 +31,7 @@ namespace Spindles {
     VFD::response_parser DanfossVLT2800::initialization_sequence(int index, ModbusCommand& data) {
 
 #ifdef DEBUG_VFD
-        log_debug("Initializing DanfossVLT2800");
+        log_info("Initializing DanfossVLT2800");
 #endif
 
         // First step of initialization - Read out current status
@@ -57,26 +57,43 @@ namespace Spindles {
                 const uint8_t data_2 = response[4]; // Data (Coils 48-41)
 
 #ifdef DEBUG_VFD
+                const uint8_t data10 = data_1 >> 0 & 1;
+                const uint8_t data11 = data_1 >> 1 & 1;
+                const uint8_t data12 = data_1 >> 2 & 1;
+                const uint8_t data13 = data_1 >> 3 & 1;
+                const uint8_t data14 = data_1 >> 4 & 1;
+                const uint8_t data15 = data_1 >> 5 & 1;
+                const uint8_t data16 = data_1 >> 6 & 1;
+                const uint8_t data17 = data_1 >> 7 & 1;
+                
+                const uint8_t data20 = data_2 >> 0 & 1;
+                const uint8_t data21 = data_2 >> 1 & 1;
+                const uint8_t data22 = data_2 >> 2 & 1;
+                const uint8_t data23 = data_2 >> 3 & 1;
+                const uint8_t data24 = data_2 >> 4 & 1;
+                const uint8_t data25 = data_2 >> 5 & 1;
+                const uint8_t data26 = data_2 >> 6 & 1;
+                const uint8_t data27 = data_2 >> 7 & 1;
+
                 // Source: https://files.danfoss.com/download/Drives/MG10S202.pdf [Page 22]
-                log_debug("Control ready:" << (data_1 >> 0) & 1);
-                log_debug("Drive ready:" << (data_1 >> 1) & 1);
-                log_debug("Coasting stop:" << (data_1 >> 2) & 1);
-                log_debug("Trip status:" << (data_1 >> 3) & 1);
+                log_info("Control ready:" << data10);
+                log_info("Control ready:" << data11);
+                log_info("Drive ready:" << data12);
+                log_info("Coasting stop:" << data13);
+                log_info("Trip status:" << data14);
 
-                log_debug("not used:" << (data_1 >> 4) & 1);
-                log_debug("not used:" << (data_1 >> 5) & 1);
-                log_debug("Trip lock:" << (data_1 >> 6) & 1);
-                log_debug("No warning/warning:" << (data_1 >> 7) & 1);
+                log_info("Trip lock:" << data16);
+                log_info("No warning/warning:" << data17);
 
-                log_debug("Speed == ref:" << (data_2 >> 0) & 1);
-                log_debug("Local operation/serial communication control:" << (data_2 >> 1) & 1);
-                log_debug("Outside frequency range:" << (data_2 >> 2) & 1);
-                log_debug("Motor running:" << (data_2 >> 3) & 1);
+                log_info("Speed == ref:" << data20);
+                log_info("Local operation/serial communication control:" << data21);
+                log_info("Outside frequency range:" << data22);
+                log_info("Motor running:" << data23);
 
-                log_debug("Not used:" << (data_2 >> 4) & 1);
-                log_debug("Voltage warn:" << (data_2 >> 5) & 1);
-                log_debug("Current limit:" << (data_2 >> 6) & 1);
-                log_debug("Thermal warn:" << (data_2 >> 7) & 1);
+                log_info("Not used:" << data24);
+                log_info("Voltage warn:" << data25);
+                log_info("Current limit:" << data26);
+                log_info("Thermal warn:" <<data27);
 #endif
 
                 return true;
@@ -86,10 +103,10 @@ namespace Spindles {
         }
     }
 
-    void IRAM_ATTR DanfossVLT2800::set_speed_command(uint32_t speed, ModbusCommand& data) {
+    void IRAM_ATTR DanfossVLT2800::set_speed_command(uint32_t dev_speed, ModbusCommand& data) {
+        // TODO
 #ifdef DEBUG_VFD
-        log_debug("Trying to set VFD speed to " << speed);
-        log_debug("Ignoring set speed, hardcoding to 40% " << speed);
+        log_info("Trying to set VFD speed to " << dev_speed);
 #endif
 
         data.tx_length = 11; // including automatically set client_id, excluding crc
@@ -110,27 +127,46 @@ namespace Spindles {
 
         // Speed Command: 4000 HEX = 100% speed
         // 40% of 4000 HEX = 1999 HEX(reversed)
-        //TODO: replace this with actual input parameter
-        data.msg[9] = 0x99; 
-        data.msg[10] = 0x19;
+        data.msg[9] = dev_speed >> 8;
+        data.msg[10] = dev_speed & 0xFF;
     }
 
     void DanfossVLT2800::direction_command(SpindleState mode, ModbusCommand& data) {
 #ifdef DEBUG_VFD
-        log_debug("DanfossVLT2800::direction_command not implemented yet!");
+        log_info("DanfossVLT2800::direction_command not implemented yet!");
 #endif
+// TODO: this does not work as fluidNC adds CRC automatically to TX!!
+        data.tx_length = 0; // including automatically set client_id, excluding crc
+        data.rx_length = 0;  // excluding crc
     }
 
     VFD::response_parser DanfossVLT2800::get_current_speed(ModbusCommand& data) {
-#ifdef DEBUG_VFD
-        log_debug("DanfossVLT2800::get_current_speed not implemented yet!");
-#endif
-        return [](const uint8_t* response, Spindles::VFD* vfd) -> bool { return true; };;
+        data.tx_length = 6; // including automatically set client_id, excluding crc
+        data.rx_length = 3 + 2;  // excluding crc
+
+        // We write a full control word instead of setting individual coils
+        data.msg[1] = READ_HR;
+        data.msg[2] = 0x14;
+        data.msg[3] = 0x3b; // start register
+        data.msg[4] = 0x00;
+        data.msg[5] = 0x01; // no of points
+
+        return [](const uint8_t* response, Spindles::VFD* vfd) -> bool {
+            
+                // const uint8_t slave_addr = response[0] 
+                // const uint8_t function = response[1] 
+                // const uint8_t response_byte_count = response[2] 
+
+                uint16_t freq = (uint16_t(response[3]) << 8) | uint16_t(response[4]);
+                log_info("current frequency: " << freq);
+                vfd->_sync_dev_speed = freq;
+                return true;
+         };
     }
 
     VFD::response_parser DanfossVLT2800::get_current_direction(ModbusCommand& data) {
 #ifdef DEBUG_VFD
-        log_debug("DanfossVLT2800::get_current_direction not implemented yet!");
+        log_info("DanfossVLT2800::get_current_direction not implemented yet!");
 #endif
         return [](const uint8_t* response, Spindles::VFD* vfd) -> bool { return true; };;
     }

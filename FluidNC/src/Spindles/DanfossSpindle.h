@@ -19,7 +19,7 @@ namespace Spindles {
         response_parser get_current_direction(ModbusCommand& data) override;
         response_parser get_status_ok(ModbusCommand& data) override { return nullptr; }
 
-        bool safety_polling() const override { return false; }
+        bool safety_polling() const override { return true; }
 
         // Name of the configurable. Must match the name registered in the cpp file.
         const char* name() const override { return "DanfossVLT2800"; }
