@@ -6,10 +6,10 @@
 
 #include "../Config.h"  // ENABLE_*
 #include "../Settings.h"
+#include <string>
 
 namespace WebUI {
-    bool  split_params(char* parameter);
-    char* get_param(const char* key, bool allowSpaces);
+    bool get_param(const char* parameter, const char* key, std::string& s);
 
 #ifdef ENABLE_AUTHENTICATION
     extern StringSetting* user_password;

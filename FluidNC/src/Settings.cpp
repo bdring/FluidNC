@@ -38,8 +38,12 @@ Command::Command(
     List.insert(List.begin(), this);
 }
 
-Setting::Setting(
-    const char* description, type_t type, permissions_t permissions, const char* grblName, const char* fullName, bool (*checker)(char*)) :
+Setting::Setting(const char*   description,
+                 type_t        type,
+                 permissions_t permissions,
+                 const char*   grblName,
+                 const char*   fullName,
+                 bool (*checker)(const char*)) :
     Word(type, permissions, description, grblName, fullName),
     _checker(checker) {
     List.insert(List.begin(), this);
@@ -61,7 +65,7 @@ Setting::Setting(
     }
 }
 
-Error Setting::check(char* s) {
+Error Setting::check(const char* s) {
     if (notIdleOrAlarm()) {
         return Error::IdleError;
     }
@@ -89,7 +93,7 @@ IntSetting::IntSetting(const char*   description,
                        int32_t       defVal,
                        int32_t       minVal,
                        int32_t       maxVal,
-                       bool (*checker)(char*) = NULL,
+                       bool (*checker)(const char*) = NULL,
                        bool currentIsNvm) :
     Setting(description, type, permissions, grblName, name, checker),
     _defaultValue(defVal), _currentValue(defVal), _minValue(minVal), _maxValue(maxVal), _currentIsNvm(currentIsNvm) {
@@ -117,8 +121,8 @@ void IntSetting::setDefault() {
     }
 }
 
-Error IntSetting::setStringValue(char* s) {
-    s         = trim(s);
+Error IntSetting::setStringValue(const char* s) {
+    //    s         = trim(s);
     Error err = check(s);
     if (err != Error::Ok) {
         return err;
@@ -190,7 +194,7 @@ StringSetting::StringSetting(const char*   description,
                              const char*   defVal,
                              int           min,
                              int           max,
-                             bool (*checker)(char*)) :
+                             bool (*checker)(const char*)) :
     Setting(description, type, permissions, grblName, name, checker) {
     _defaultValue = defVal;
     _currentValue = defVal;
@@ -228,7 +232,7 @@ void StringSetting::setDefault() {
     }
 }
 
-Error StringSetting::setStringValue(char* s) {
+Error StringSetting::setStringValue(const char* s) {
     if (_minLength && _maxLength && (strlen(s) < size_t(_minLength) || strlen(s) > size_t(_maxLength))) {
         log_error("Setting length error");
         return Error::BadNumberFormat;
@@ -253,11 +257,11 @@ Error StringSetting::setStringValue(char* s) {
     return Error::Ok;
 }
 
-static bool isPassword(bool (*_checker)(char*)) {
-    if (_checker == (bool (*)(char*))WebUI::WiFiConfig::isPasswordValid) {
+static bool isPassword(bool (*_checker)(const char*)) {
+    if (_checker == (bool (*)(const char*))WebUI::WiFiConfig::isPasswordValid) {
         return true;
     }
-    return _checker == (bool (*)(char*))WebUI::COMMANDS::isLocalPasswordValid;
+    return _checker == (bool (*)(const char*))WebUI::COMMANDS::isLocalPasswordValid;
 }
 
 const char* StringSetting::getDefaultString() {
@@ -285,7 +289,7 @@ EnumSetting::EnumSetting(const char*   description,
                          const char*   name,
                          int8_t        defVal,
                          enum_opt_t*   opts,
-                         bool (*checker)(char*) = NULL) :
+                         bool (*checker)(const char*) = NULL) :
     Setting(description, type, permissions, grblName, name, checker),
     _defaultValue(defVal), _options(opts) {}
 
@@ -310,8 +314,8 @@ void EnumSetting::setDefault() {
 // either with the string name or the numeric value.
 // This is necessary for WebUI, which uses the number
 // for setting.
-Error EnumSetting::setStringValue(char* s) {
-    s         = trim(s);
+Error EnumSetting::setStringValue(const char* s) {
+    //    s         = trim(s);
     Error err = check(s);
     if (err != Error::Ok) {
         return err;
@@ -395,7 +399,7 @@ void EnumSetting::addWebui(WebUI::JSONencoder* j) {
     j->end_object();
 }
 
-Error UserCommand::action(char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+Error UserCommand::action(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
     if (_cmdChecker && _cmdChecker()) {
         return Error::IdleError;
     }
@@ -437,7 +441,7 @@ IPaddrSetting::IPaddrSetting(const char*   description,
                              const char*   grblName,
                              const char*   name,
                              uint32_t      defVal,
-                             bool (*checker)(char*) = NULL) :
+                             bool (*checker)(const char*) = NULL) :
     Setting(description, type, permissions, grblName, name, checker)  // There are no GRBL IP settings.
     ,
     _defaultValue(defVal), _currentValue(defVal) {}
@@ -448,7 +452,7 @@ IPaddrSetting::IPaddrSetting(const char*   description,
                              const char*   grblName,
                              const char*   name,
                              const char*   defVal,
-                             bool (*checker)(char*) = NULL) :
+                             bool (*checker)(const char*) = NULL) :
     Setting(description, type, permissions, grblName, name, checker) {
     IPAddress ipaddr;
     if (ipaddr.fromString(defVal)) {
@@ -476,8 +480,7 @@ void IPaddrSetting::setDefault() {
     }
 }
 
-Error IPaddrSetting::setStringValue(char* s) {
-    s         = trim(s);
+Error IPaddrSetting::setStringValue(const char* s) {
     Error err = check(s);
     if (err != Error::Ok) {
         return err;

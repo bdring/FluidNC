@@ -99,7 +99,7 @@ namespace WebUI {
         static void    reset_settings();
         static bool    isOn();
 
-        static Error listAPs(char* parameter, AuthenticationLevel auth_level, Channel& out);
+        static Error listAPs(const char* parameter, AuthenticationLevel auth_level, Channel& out);
         static void  showWifiStats(Channel& out);
         static void  addWifiStatsToArray(JSONencoder& j);
         ~WiFiConfig();

@@ -15,7 +15,7 @@ WebUI::WiFiConfig wifi_config __attribute__((init_priority(109)));
 #    include "../Main.h"
 #    include "Commands.h"      // COMMANDS
 #    include "WifiServices.h"  // wifi_services.start() etc.
-#    include "WebSettings.h"   // split_params(), get_params()
+#    include "WebSettings.h"   // get_param()
 
 #    include "WebServer.h"             // webServer.port()
 #    include "TelnetServer.h"          // telnetServer
@@ -142,12 +142,12 @@ namespace WebUI {
 
     static void print_mac(Channel& out, const char* prefix, const char* mac) { log_to(out, prefix, " (" << mac << ")"); }
 
-    static Error showIP(char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP111
+    static Error showIP(const char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP111
         log_to(out, parameter, IP_string(WiFi.getMode() == WIFI_STA ? WiFi.localIP() : WiFi.softAPIP()));
         return Error::Ok;
     }
 
-    static Error showSetStaParams(char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP103
+    static Error showSetStaParams(const char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP103
         if (*parameter == '\0') {
             log_to(out,
                    "",
@@ -155,12 +155,10 @@ namespace WebUI {
                          << " MSK:" << wifi_sta_netmask->getStringValue());
             return Error::Ok;
         }
-        if (!split_params(parameter)) {
+        std::string gateway, netmask, ip;
+        if (!(get_param(parameter, "GW", gateway) && get_param(parameter, "MSK", netmask) && get_param(parameter, "IP", ip))) {
             return Error::InvalidValue;
         }
-        char* gateway = get_param("GW", false);
-        char* netmask = get_param("MSK", false);
-        char* ip      = get_param("IP", false);
 
         Error err = wifi_sta_ip->setStringValue(ip);
         if (err == Error::Ok) {
@@ -178,7 +176,7 @@ namespace WebUI {
         j.member("value", value);
         j.end_object();
     }
-    
+
     void addIdValueObject(JSONencoder& j, const char* id, const std::string& value) {
         j.begin_object();
         j.member("id", id);
@@ -192,9 +190,8 @@ namespace WebUI {
         j.member("value", std::to_string(value));
         j.end_object();
     }
- 
+
     void WiFiConfig::addWifiStatsToArray(JSONencoder& j) {
-       
         addIdValueObject(j, "Sleep mode", WiFi.getSleep() ? "Modem" : "None");
         int mode = WiFi.getMode();
         if (mode != WIFI_MODE_NULL) {
@@ -263,9 +260,9 @@ namespace WebUI {
                 addIdValueObject(j, "Visible: ", (conf.ap.ssid_hidden == 0 ? "Yes" : "No"));
                 addIdValueObject(j,
                                  "Radio country set: ",
-                                 std::string("") + country.cc + " (channels " + std::to_string(country.schan) + "-"
-                                                                + std::to_string((country.schan + country.nchan - 1))
-                                            + ", max power " + std::to_string(country.max_tx_power) + "dBm)");
+                                 std::string("") + country.cc + " (channels " + std::to_string(country.schan) + "-" +
+                                     std::to_string((country.schan + country.nchan - 1)) + ", max power " +
+                                     std::to_string(country.max_tx_power) + "dBm)");
 
                 const char* mode;
                 switch (conf.ap.authmode) {
@@ -311,8 +308,8 @@ namespace WebUI {
                 for (int i = 0; i < station.num; i++) {
                     addIdValueObject(j,
                                      "",
-                                     std::string("") + wifi_config.mac2str(tcpip_sta_list.sta[i].mac)
-                                         + " " + IP_string(IPAddress(tcpip_sta_list.sta[i].ip.addr)));
+                                     std::string("") + wifi_config.mac2str(tcpip_sta_list.sta[i].mac) + " " +
+                                         IP_string(IPAddress(tcpip_sta_list.sta[i].ip.addr)));
                 }
                 addIdValueObject(j, "Disabled Mode", std::string("STA (") + WiFi.macAddress().c_str() + ")");
                 break;
@@ -479,7 +476,7 @@ namespace WebUI {
                                           DEFAULT_HOSTNAME,
                                           MIN_HOSTNAME_LENGTH,
                                           MAX_HOSTNAME_LENGTH,
-                                          (bool (*)(char*))WiFiConfig::isHostnameValid);
+                                          (bool (*)(const char*))WiFiConfig::isHostnameValid);
 
         wifi_ap_channel =
             new IntSetting("AP Channel", WEBSET, WA, "ESP108", "AP/Channel", DEFAULT_AP_CHANNEL, MIN_CHANNEL, MAX_CHANNEL, NULL);
@@ -492,7 +489,7 @@ namespace WebUI {
                                              DEFAULT_AP_PWD,
                                              MIN_PASSWORD_LENGTH,
                                              MAX_PASSWORD_LENGTH,
-                                             (bool (*)(char*))WiFiConfig::isPasswordValid);
+                                             (bool (*)(const char*))WiFiConfig::isPasswordValid);
         wifi_ap_ssid = new StringSetting("AP SSID", WEBSET, WA, "ESP105", "AP/SSID", DEFAULT_AP_SSID, MIN_SSID_LENGTH, MAX_SSID_LENGTH, NULL);
         wifi_ap_country = new EnumSetting("AP regulatory domain", WEBSET, WA, NULL, "AP/Country", WiFiCountry01, &wifiContryOptions, NULL);
         wifi_sta_ssdp =
@@ -512,7 +509,7 @@ namespace WebUI {
                                               DEFAULT_STA_PWD,
                                               MIN_PASSWORD_LENGTH,
                                               MAX_PASSWORD_LENGTH,
-                                              (bool (*)(char*))WiFiConfig::isPasswordValid);
+                                              (bool (*)(const char*))WiFiConfig::isPasswordValid);
         wifi_sta_ssid =
             new StringSetting("Station SSID", WEBSET, WA, "ESP100", "Sta/SSID", DEFAULT_STA_SSID, MIN_SSID_LENGTH, MAX_SSID_LENGTH, NULL);
 
@@ -963,7 +960,7 @@ namespace WebUI {
     void WiFiConfig::handle() { wifi_services.handle(); }
 
     // Used by js/scanwifidlg.js
-    Error WiFiConfig::listAPs(char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP410
+    Error WiFiConfig::listAPs(const char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP410
         JSONencoder j(true, &out);
         j.begin();
 
