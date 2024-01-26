@@ -125,27 +125,25 @@ namespace WebUI {
         new WebCommand(
             "TYPE=NONE|PUSHOVER|EMAIL|LINE T1=token1 T2=token2 TS=settings", WEBCMD, WA, "ESP610", "Notification/Setup", showSetNotification);
         notification_ts = new StringSetting(
-            "Notification Settings", WEBSET, WA, NULL, "Notification/TS", DEFAULT_TOKEN, 0, MAX_NOTIFICATION_SETTING_LENGTH, NULL);
-        notification_t2   = new StringSetting("Notification Token 2",
+            "Notification Settings", WEBSET, WA, NULL, "Notification/TS", DEFAULT_TOKEN, 0, MAX_NOTIFICATION_SETTING_LENGTH);
+        notification_t2 = new StringSetting("Notification Token 2",
                                             WEBSET,
                                             WA,
                                             NULL,
                                             "Notification/T2",
                                             DEFAULT_TOKEN,
                                             MIN_NOTIFICATION_TOKEN_LENGTH,
-                                            MAX_NOTIFICATION_TOKEN_LENGTH,
-                                            NULL);
-        notification_t1   = new StringSetting("Notification Token 1",
+                                            MAX_NOTIFICATION_TOKEN_LENGTH);
+        notification_t1 = new StringSetting("Notification Token 1",
                                             WEBSET,
                                             WA,
                                             NULL,
                                             "Notification/T1",
                                             DEFAULT_TOKEN,
                                             MIN_NOTIFICATION_TOKEN_LENGTH,
-                                            MAX_NOTIFICATION_TOKEN_LENGTH,
-                                            NULL);
-        notification_type = new EnumSetting(
-            "Notification type", WEBSET, WA, NULL, "Notification/Type", DEFAULT_NOTIFICATION_TYPE, &notificationOptions, NULL);
+                                            MAX_NOTIFICATION_TOKEN_LENGTH);
+        notification_type =
+            new EnumSetting("Notification type", WEBSET, WA, NULL, "Notification/Type", DEFAULT_NOTIFICATION_TYPE, &notificationOptions);
         new WebCommand("message", WEBCMD, WU, "ESP600", "Notification/Send", sendMessage);
     }
 

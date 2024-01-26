@@ -14,26 +14,6 @@
 namespace WebUI {
     bool COMMANDS::_restart_MCU = false;
 
-    bool COMMANDS::isLocalPasswordValid(char* password) {
-        if (!password) {
-            return true;
-        }
-        char c;
-        //limited size
-        if ((strlen(password) > MAX_LOCAL_PASSWORD_LENGTH) || (strlen(password) < MIN_LOCAL_PASSWORD_LENGTH)) {
-            return false;
-        }
-
-        //no space allowed
-        for (size_t i = 0; i < strlen(password); i++) {
-            c = password[i];
-            if (c == ' ') {
-                return false;
-            }
-        }
-        return true;
-    }
-
     void COMMANDS::send_json_command_response(Channel& out, uint cmdID, bool isok, std::string message) {
         JSONencoder j(true, &out);
         j.begin();

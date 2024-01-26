@@ -47,9 +47,8 @@ namespace WebUI {
         if (!start) {
             return false;
         }
-        s            = "";
-        size_t count = 0;
-        for (char* p = start; *p; ++p) {
+        s = "";
+        for (char* p = start + strlen(key); *p; ++p) {
             if (*p == ' ') {
                 break;  // Unescaped space
             }
@@ -59,7 +58,6 @@ namespace WebUI {
                 }
             }
             s += *p;
-            ++count;
         }
         return true;
     }
@@ -803,24 +801,8 @@ namespace WebUI {
     void make_authentication_settings() {
 #ifdef ENABLE_AUTHENTICATION
         new WebCommand("password", WEBCMD, WA, "ESP555", "WebUI/SetUserPassword", setUserPassword);
-        user_password  = new StringSetting("User password",
-                                          WEBSET,
-                                          WA,
-                                          NULL,
-                                          "WebUI/UserPassword",
-                                          DEFAULT_USER_PWD,
-                                          MIN_LOCAL_PASSWORD_LENGTH,
-                                          MAX_LOCAL_PASSWORD_LENGTH,
-                                          &COMMANDS::isLocalPasswordValid);
-        admin_password = new StringSetting("Admin password",
-                                           WEBSET,
-                                           WA,
-                                           NULL,
-                                           "WebUI/AdminPassword",
-                                           DEFAULT_ADMIN_PWD,
-                                           MIN_LOCAL_PASSWORD_LENGTH,
-                                           MAX_LOCAL_PASSWORD_LENGTH,
-                                           &COMMANDS::isLocalPasswordValid);
+        user_password  = new AuthPasswordSetting("User password", "WebUI/UserPassword", DEFAULT_USER_PWD);
+        admin_password = new AuthPasswordSetting("Admin password", "WebUI/AdminPassword", DEFAULT_ADMIN_PWD);
 #endif
     }
 

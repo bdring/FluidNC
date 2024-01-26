@@ -62,9 +62,9 @@ namespace WebUI {
     bool       Web_Server::_setupdone = false;
     uint16_t   Web_Server::_port      = 0;
 
-    UploadStatus      Web_Server::_upload_status = UploadStatus::NONE;
-    WebServer*        Web_Server::_webserver     = NULL;
-    WebSocketsServer* Web_Server::_socket_server = NULL;
+    UploadStatus      Web_Server::_upload_status   = UploadStatus::NONE;
+    WebServer*        Web_Server::_webserver       = NULL;
+    WebSocketsServer* Web_Server::_socket_server   = NULL;
     WebSocketsServer* Web_Server::_socket_serverv3 = NULL;
 #    ifdef ENABLE_AUTHENTICATION
     AuthenticationIP* Web_Server::_head  = NULL;
@@ -77,16 +77,15 @@ namespace WebUI {
     IntSetting*  http_port;
 
     Web_Server::Web_Server() {
-        http_port   = new IntSetting("HTTP Port", WEBSET, WA, "ESP121", "HTTP/Port", DEFAULT_HTTP_PORT, MIN_HTTP_PORT, MAX_HTTP_PORT, NULL);
-        http_enable = new EnumSetting("HTTP Enable", WEBSET, WA, "ESP120", "HTTP/Enable", DEFAULT_HTTP_STATE, &onoffOptions, NULL);
+        http_port   = new IntSetting("HTTP Port", WEBSET, WA, "ESP121", "HTTP/Port", DEFAULT_HTTP_PORT, MIN_HTTP_PORT, MAX_HTTP_PORT);
+        http_enable = new EnumSetting("HTTP Enable", WEBSET, WA, "ESP120", "HTTP/Enable", DEFAULT_HTTP_STATE, &onoffOptions);
         http_block_during_motion = new EnumSetting("Block serving HTTP content during motion",
                                                    WEBSET,
                                                    WA,
                                                    "",
                                                    "HTTP/BlockDuringMotion",
                                                    DEFAULT_HTTP_BLOCKED_DURING_MOTION,
-                                                   &onoffOptions,
-                                                   NULL);
+                                                   &onoffOptions);
     }
     Web_Server::~Web_Server() { end(); }
 
@@ -564,22 +563,16 @@ namespace WebUI {
                 char pwdbuf[MAX_LOCAL_PASSWORD_LENGTH + 1];
                 newpassword.toCharArray(pwdbuf, MAX_LOCAL_PASSWORD_LENGTH + 1);
 
-                if (COMMANDS::isLocalPasswordValid(pwdbuf)) {
-                    Error err;
+                Error err;
 
-                    if (sUser == DEFAULT_ADMIN_LOGIN) {
-                        err = admin_password->setStringValue(pwdbuf);
-                    } else {
-                        err = user_password->setStringValue(pwdbuf);
-                    }
-                    if (err != Error::Ok) {
-                        msg_alert_error = true;
-                        smsg            = "Error: Cannot apply changes";
-                        code            = 500;
-                    }
+                if (sUser == DEFAULT_ADMIN_LOGIN) {
+                    err = admin_password->setStringValue(pwdbuf);
                 } else {
+                    err = user_password->setStringValue(pwdbuf);
+                }
+                if (err != Error::Ok) {
                     msg_alert_error = true;
-                    smsg            = "Error: Incorrect password";
+                    smsg            = "Error: Password cannot contain spaces";
                     code            = 500;
                 }
             }

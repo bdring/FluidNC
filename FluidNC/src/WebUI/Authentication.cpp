@@ -1,15 +1,14 @@
 #include "Authentication.h"
 
 #include "../Config.h"  // ENABLE_*
-#include "../Settings.h"
 
 #include <cstring>
 
 namespace WebUI {
 #ifdef ENABLE_AUTHENTICATION
     // TODO Settings - need ADMIN_ONLY and if it is called without a parameter it sets the default
-    StringSetting* user_password;
-    StringSetting* admin_password;
+    AuthPasswordSetting* user_password;
+    AuthPassowrdSetting* admin_password;
 
     void remove_password(char* str, AuthenticationLevel& auth_level) {
         std::string paramStr(str);

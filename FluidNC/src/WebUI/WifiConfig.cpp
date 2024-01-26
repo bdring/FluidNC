@@ -116,15 +116,15 @@ namespace WebUI {
     IPaddrSetting* wifi_sta_netmask;
     EnumSetting*   wifi_sta_ssdp;
 
-    StringSetting* wifi_ap_ssid;
-    StringSetting* wifi_ap_password;
-    EnumSetting*   wifi_ap_country;
+    StringSetting*   wifi_ap_ssid;
+    PasswordSetting* wifi_ap_password;
+    EnumSetting*     wifi_ap_country;
 
     IPaddrSetting* wifi_ap_ip;
 
     IntSetting* wifi_ap_channel;
 
-    StringSetting* wifi_hostname;
+    HostnameSetting* wifi_hostname;
 
     enum_opt_t staModeOptions = {
         { "DHCP", DHCP_MODE },
@@ -468,52 +468,26 @@ namespace WebUI {
     WiFiConfig::WiFiConfig() {
         new WebCommand(NULL, WEBCMD, WU, "ESP410", "WiFi/ListAPs", listAPs);
 
-        wifi_hostname = new StringSetting("Hostname",
-                                          WEBSET,
-                                          WA,
-                                          "ESP112",
-                                          "Hostname",
-                                          DEFAULT_HOSTNAME,
-                                          MIN_HOSTNAME_LENGTH,
-                                          MAX_HOSTNAME_LENGTH,
-                                          (bool (*)(const char*))WiFiConfig::isHostnameValid);
+        wifi_hostname = new HostnameSetting("Hostname", "ESP112", "Hostname", DEFAULT_HOSTNAME);
 
-        wifi_ap_channel =
-            new IntSetting("AP Channel", WEBSET, WA, "ESP108", "AP/Channel", DEFAULT_AP_CHANNEL, MIN_CHANNEL, MAX_CHANNEL, NULL);
-        wifi_ap_ip       = new IPaddrSetting("AP Static IP", WEBSET, WA, "ESP107", "AP/IP", DEFAULT_AP_IP, NULL);
-        wifi_ap_password = new StringSetting("AP Password",
-                                             WEBSET,
-                                             WA,
-                                             "ESP106",
-                                             "AP/Password",
-                                             DEFAULT_AP_PWD,
-                                             MIN_PASSWORD_LENGTH,
-                                             MAX_PASSWORD_LENGTH,
-                                             (bool (*)(const char*))WiFiConfig::isPasswordValid);
-        wifi_ap_ssid = new StringSetting("AP SSID", WEBSET, WA, "ESP105", "AP/SSID", DEFAULT_AP_SSID, MIN_SSID_LENGTH, MAX_SSID_LENGTH, NULL);
-        wifi_ap_country = new EnumSetting("AP regulatory domain", WEBSET, WA, NULL, "AP/Country", WiFiCountry01, &wifiContryOptions, NULL);
-        wifi_sta_ssdp =
-            new EnumSetting("SSDP and mDNS enable", WEBSET, WA, NULL, "Sta/SSDP/Enable", DEFAULT_STA_SSDP_ENABLED, &onoffOptions, NULL);
-        wifi_sta_netmask = new IPaddrSetting("Station Static Mask", WEBSET, WA, NULL, "Sta/Netmask", DEFAULT_STA_MK, NULL);
-        wifi_sta_gateway = new IPaddrSetting("Station Static Gateway", WEBSET, WA, NULL, "Sta/Gateway", DEFAULT_STA_GW, NULL);
-        wifi_sta_ip      = new IPaddrSetting("Station Static IP", WEBSET, WA, NULL, "Sta/IP", DEFAULT_STA_IP, NULL);
-        wifi_sta_mode  = new EnumSetting("Station IP Mode", WEBSET, WA, "ESP102", "Sta/IPMode", DEFAULT_STA_IP_MODE, &staModeOptions, NULL);
-        wifi_fast_scan = new EnumSetting("WiFi Fast Scan", WEBSET, WA, NULL, "WiFi/FastScan", 0, &onoffOptions, NULL);
+        wifi_ap_channel  = new IntSetting("AP Channel", WEBSET, WA, "ESP108", "AP/Channel", DEFAULT_AP_CHANNEL, MIN_CHANNEL, MAX_CHANNEL);
+        wifi_ap_ip       = new IPaddrSetting("AP Static IP", WEBSET, WA, "ESP107", "AP/IP", DEFAULT_AP_IP);
+        wifi_ap_password = new PasswordSetting("AP Password", "ESP106", "AP/Password", DEFAULT_AP_PWD);
+        wifi_ap_ssid     = new StringSetting("AP SSID", WEBSET, WA, "ESP105", "AP/SSID", DEFAULT_AP_SSID, MIN_SSID_LENGTH, MAX_SSID_LENGTH);
+        wifi_ap_country  = new EnumSetting("AP regulatory domain", WEBSET, WA, NULL, "AP/Country", WiFiCountry01, &wifiContryOptions);
+        wifi_sta_ssdp = new EnumSetting("SSDP and mDNS enable", WEBSET, WA, NULL, "Sta/SSDP/Enable", DEFAULT_STA_SSDP_ENABLED, &onoffOptions);
+        wifi_sta_netmask = new IPaddrSetting("Station Static Mask", WEBSET, WA, NULL, "Sta/Netmask", DEFAULT_STA_MK);
+        wifi_sta_gateway = new IPaddrSetting("Station Static Gateway", WEBSET, WA, NULL, "Sta/Gateway", DEFAULT_STA_GW);
+        wifi_sta_ip      = new IPaddrSetting("Station Static IP", WEBSET, WA, NULL, "Sta/IP", DEFAULT_STA_IP);
+        wifi_sta_mode    = new EnumSetting("Station IP Mode", WEBSET, WA, "ESP102", "Sta/IPMode", DEFAULT_STA_IP_MODE, &staModeOptions);
+        wifi_fast_scan   = new EnumSetting("WiFi Fast Scan", WEBSET, WA, NULL, "WiFi/FastScan", 0, &onoffOptions);
         wifi_sta_min_security =
-            new EnumSetting("Station IP Mode", WEBSET, WA, NULL, "Sta/MinSecurity", DEFAULT_STA_MIN_SECURITY, &staSecurityOptions, NULL);
-        wifi_sta_password = new StringSetting("Station Password",
-                                              WEBSET,
-                                              WA,
-                                              "ESP101",
-                                              "Sta/Password",
-                                              DEFAULT_STA_PWD,
-                                              MIN_PASSWORD_LENGTH,
-                                              MAX_PASSWORD_LENGTH,
-                                              (bool (*)(const char*))WiFiConfig::isPasswordValid);
+            new EnumSetting("Station IP Mode", WEBSET, WA, NULL, "Sta/MinSecurity", DEFAULT_STA_MIN_SECURITY, &staSecurityOptions);
+        wifi_sta_password = new PasswordSetting("Station Password", "ESP101", "Sta/Password", DEFAULT_STA_PWD);
         wifi_sta_ssid =
-            new StringSetting("Station SSID", WEBSET, WA, "ESP100", "Sta/SSID", DEFAULT_STA_SSID, MIN_SSID_LENGTH, MAX_SSID_LENGTH, NULL);
+            new StringSetting("Station SSID", WEBSET, WA, "ESP100", "Sta/SSID", DEFAULT_STA_SSID, MIN_SSID_LENGTH, MAX_SSID_LENGTH);
 
-        wifi_mode = new EnumSetting("WiFi mode", WEBSET, WA, "ESP116", "WiFi/Mode", WiFiFallback, &wifiModeOptions, NULL);
+        wifi_mode = new EnumSetting("WiFi mode", WEBSET, WA, "ESP116", "WiFi/Mode", WiFiFallback, &wifiModeOptions);
 
         new WebCommand(NULL, WEBCMD, WG, "ESP111", "System/IP", showIP);
         new WebCommand("IP=ipaddress MSK=netmask GW=gateway", WEBCMD, WA, "ESP103", "Sta/Setup", showSetStaParams);
@@ -590,55 +564,6 @@ namespace WebUI {
             result += mac;
         }
         return result;
-    }
-
-    /**
-     * Check if Hostname string is valid
-     */
-
-    bool WiFiConfig::isHostnameValid(const char* hostname) {
-        //limited size
-        if (!hostname) {
-            return true;
-        }
-        char c;
-        // length is checked automatically by string setting
-        //only letter and digit
-        for (int i = 0; i < strlen(hostname); i++) {
-            c = hostname[i];
-            if (!(isdigit(c) || isalpha(c) || c == '-')) {
-                return false;
-            }
-            if (c == ' ') {
-                return false;
-            }
-        }
-        return true;
-    }
-
-    /**
-     * Check if password string is valid
-     */
-
-    bool WiFiConfig::isPasswordValid(const char* password) {
-        if (!password) {
-            return true;
-        }
-        if (strlen(password) == 0) {
-            return true;  //open network
-        }
-
-        // Limited size. Length is checked automatically by string setting
-
-        return true;
-    }
-
-    /**
-     * Check if IP string is valid
-     */
-    bool WiFiConfig::isValidIP(const char* string) {
-        IPAddress ip;
-        return ip.fromString(string);
     }
 
     /**

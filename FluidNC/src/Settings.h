@@ -7,6 +7,7 @@
 
 #include <map>
 #include <nvs.h>
+#include <string_view>
 
 // Initialize the configuration subsystem
 void settings_init();
@@ -94,9 +95,7 @@ class Setting : public Word {
 private:
 protected:
     // group_t _group;
-    axis_t _axis = NO_AXIS;
-
-    bool (*_checker)(const char*);
+    axis_t      _axis = NO_AXIS;
     const char* _keyName;
 
 public:
@@ -107,7 +106,7 @@ public:
     // so common code can enumerate them.
     static std::vector<Setting*> List;
 
-    Error check(const char* s);
+    Error check_state();
 
     static Error report_nvs_stats(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
         nvs_stats_t stats;
@@ -134,13 +133,7 @@ public:
     }
 
     ~Setting() {}
-    // Setting(const char *description, group_t group, const char * grblName, const char* fullName, bool (*checker)(const char *));
-    Setting(const char*   description,
-            type_t        type,
-            permissions_t permissions,
-            const char*   grblName,
-            const char*   fullName,
-            bool (*checker)(const char*));
+    Setting(const char* description, type_t type, permissions_t permissions, const char* grblName, const char* fullName);
     axis_t getAxis() { return _axis; }
     void   setAxis(axis_t axis) { _axis = axis; }
 
@@ -154,10 +147,8 @@ public:
     // Derived classes may override it to do something.
     virtual void addWebui(WebUI::JSONencoder*) {};
 
-    virtual Error setStringValue(const char* value) = 0;
-
-    Error               setStringValue(const std::string& s) { return setStringValue(s.c_str()); }
-    virtual const char* getStringValue() = 0;
+    virtual Error       setStringValue(std::string_view s) = 0;
+    virtual const char* getStringValue()                   = 0;
     virtual const char* getCompatibleValue() { return getStringValue(); }
     virtual const char* getDefaultString() = 0;
 };
@@ -180,8 +171,7 @@ public:
                int32_t       defVal,
                int32_t       minVal,
                int32_t       maxVal,
-               bool (*checker)(const char*),
-               bool currentIsNvm = false);
+               bool          currentIsNvm = false);
 
     IntSetting(type_t        type,
                permissions_t permissions,
@@ -190,14 +180,13 @@ public:
                int32_t       defVal,
                int32_t       minVal,
                int32_t       maxVal,
-               bool (*checker)(const char*) = NULL,
-               bool currentIsNvm            = false) :
-        IntSetting(NULL, type, permissions, grblName, name, defVal, minVal, maxVal, checker, currentIsNvm) {}
+               bool          currentIsNvm = false) :
+        IntSetting(NULL, type, permissions, grblName, name, defVal, minVal, maxVal, currentIsNvm) {}
 
     void        load();
     void        setDefault();
     void        addWebui(WebUI::JSONencoder*);
-    Error       setStringValue(const char* value);
+    Error       setStringValue(std::string_view s);
     const char* getStringValue();
     const char* getDefaultString();
 
@@ -246,27 +235,21 @@ public:
                   const char*   name,
                   const char*   defVal,
                   int           min,
-                  int           max,
-                  bool (*checker)(const char*));
+                  int           max);
 
-    StringSetting(type_t        type,
-                  permissions_t permissions,
-                  const char*   grblName,
-                  const char*   name,
-                  const char*   defVal,
-                  bool (*checker)(const char*) = NULL) :
-        StringSetting(NULL, type, permissions, grblName, name, defVal, 0, 0, checker) {};
+    StringSetting(type_t type, permissions_t permissions, const char* grblName, const char* name, const char* defVal) :
+        StringSetting(NULL, type, permissions, grblName, name, defVal, 0, 0) {};
 
     void        load();
     void        setDefault();
     void        addWebui(WebUI::JSONencoder*);
-    Error       setStringValue(const char* value);
-    Error       setStringValue(const std::string& s) { return setStringValue(s.c_str()); }
+    Error       setStringValue(std::string_view s);
     const char* getStringValue();
     const char* getDefaultString();
 
     const char* get() { return _currentValue.c_str(); }
 };
+
 struct cmp_str {
     bool operator()(char const* a, char const* b) const { return strcasecmp(a, b) < 0; }
 };
@@ -287,23 +270,15 @@ public:
                 const char*   grblName,
                 const char*   name,
                 int8_t        defVal,
-                enum_opt_t*   opts,
-                bool (*checker)(const char*));
+                enum_opt_t*   opts);
 
-    EnumSetting(type_t        type,
-                permissions_t permissions,
-                const char*   grblName,
-                const char*   name,
-                int8_t        defVal,
-                enum_opt_t*   opts,
-                bool (*checker)(const char*) = NULL) :
-        EnumSetting(NULL, type, permissions, grblName, name, defVal, opts, checker) {}
+    EnumSetting(type_t type, permissions_t permissions, const char* grblName, const char* name, int8_t defVal, enum_opt_t* opts) :
+        EnumSetting(NULL, type, permissions, grblName, name, defVal, opts) {}
 
     void        load();
     void        setDefault();
     void        addWebui(WebUI::JSONencoder*);
-    Error       setStringValue(const char* value);
-    Error       setStringValue(const std::string& s) { return setStringValue(s.c_str()); }
+    Error       setStringValue(std::string_view s);
     const char* getStringValue();
     const char* getDefaultString();
     void        showList();
@@ -323,26 +298,13 @@ private:
     uint32_t _storedValue;
 
 public:
-    IPaddrSetting(const char*   description,
-                  type_t        type,
-                  permissions_t permissions,
-                  const char*   grblName,
-                  const char*   name,
-                  uint32_t      defVal,
-                  bool (*checker)(const char*));
-    IPaddrSetting(const char*   description,
-                  type_t        type,
-                  permissions_t permissions,
-                  const char*   grblName,
-                  const char*   name,
-                  const char*   defVal,
-                  bool (*checker)(const char*));
+    IPaddrSetting(const char* description, type_t type, permissions_t permissions, const char* grblName, const char* name, uint32_t defVal);
+    IPaddrSetting(const char* description, type_t type, permissions_t permissions, const char* grblName, const char* name, const char* defVal);
 
     void        load();
     void        setDefault();
     void        addWebui(WebUI::JSONencoder*);
-    Error       setStringValue(const char* value);
-    Error       setStringValue(const std::string& s) { return setStringValue(s.c_str()); }
+    Error       setStringValue(std::string_view s);
     const char* getStringValue();
     const char* getDefaultString();
 

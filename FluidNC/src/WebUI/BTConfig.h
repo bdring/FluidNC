@@ -77,7 +77,6 @@ namespace WebUI {
 
         std::string info();
 
-        static bool        isBTnameValid(const char* hostname);
         const std::string& BTname() const { return _btname; }
         const std::string& client_name() const { return _btclient; }
         const char*        device_address();
@@ -89,6 +88,21 @@ namespace WebUI {
         void               releaseMem();
 
         ~BTConfig();
+    };
+
+    class BTNameSetting : public StringSetting {
+    public:
+        BTNameSetting(const char* description, const char* grblName, const char* name, const char* defVal) :
+            StringSetting(description, WEBSET, WA, grblName, name, defVal, MIN_BTNAME_LENGTH, MAX_BTNAME_LENGTH) {}
+        Error setStringValue(std::string_view s) {
+            // BT hostname may contain letters, numbers and _
+            for (auto const& c : s) {
+                if (!(isdigit(c) || isalpha(c) || c == '_')) {
+                    return Error::InvalidValue;
+                }
+            }
+            return StringSetting::setStringValue(s);
+        }
     };
 
     extern BTConfig bt_config;

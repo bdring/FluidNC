@@ -12,8 +12,8 @@ namespace WebUI {
     bool get_param(const char* parameter, const char* key, std::string& s);
 
 #ifdef ENABLE_AUTHENTICATION
-    extern StringSetting* user_password;
-    extern StringSetting* admin_password;
+    extern AuthPasswordSetting* user_password;
+    extern AuthPasswordSetting* admin_password;
 #endif
 
 }
