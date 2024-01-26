@@ -140,19 +140,18 @@ namespace WebUI {
         { "WPA2-ENTERPRISE", WIFI_AUTH_WPA2_ENTERPRISE },
     };
 
-    static void print_mac(Channel& out, const char* prefix, const char* mac) { log_to(out, prefix, " (" << mac << ")"); }
+    static void print_mac(Channel& out, const char* prefix, const char* mac) { log_stream(out, prefix << " (" << mac << ")"); }
 
     static Error showIP(const char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP111
-        log_to(out, parameter, IP_string(WiFi.getMode() == WIFI_STA ? WiFi.localIP() : WiFi.softAPIP()));
+        log_stream(out, parameter << IP_string(WiFi.getMode() == WIFI_STA ? WiFi.localIP() : WiFi.softAPIP()));
         return Error::Ok;
     }
 
     static Error showSetStaParams(const char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP103
         if (*parameter == '\0') {
-            log_to(out,
-                   "",
-                   "IP:" << wifi_sta_ip->getStringValue() << " GW:" << wifi_sta_gateway->getStringValue()
-                         << " MSK:" << wifi_sta_netmask->getStringValue());
+            log_stream(out,
+                       "IP:" << wifi_sta_ip->getStringValue() << " GW:" << wifi_sta_gateway->getStringValue()
+                             << " MSK:" << wifi_sta_netmask->getStringValue());
             return Error::Ok;
         }
         std::string gateway, netmask, ip;
@@ -325,7 +324,7 @@ namespace WebUI {
     }
 
     void WiFiConfig::showWifiStats(Channel& out) {
-        log_to(out, "Sleep mode: ", (WiFi.getSleep() ? "Modem" : "None"));
+        log_stream(out, "Sleep mode: " << (WiFi.getSleep() ? "Modem" : "None"));
         int mode = WiFi.getMode();
         if (mode != WIFI_MODE_NULL) {
             //Is OTA available ?
@@ -336,11 +335,11 @@ namespace WebUI {
                     flashsize = partition->size;
                 }
             }
-            log_to(out, "Available Size for update: ", formatBytes(flashsize));
-            log_to(out, "Available Size for LocalFS: ", formatBytes(localfs_size()));
-            log_to(out, "Web port: ", webServer.port());
-            log_to(out, "Data port: ", telnetServer.port());
-            log_to(out, "Hostname: ", wifi_config.Hostname());
+            log_stream(out, "Available Size for update: " << formatBytes(flashsize));
+            log_stream(out, "Available Size for LocalFS: " << formatBytes(localfs_size()));
+            log_stream(out, "Web port: " << webServer.port());
+            log_stream(out, "Data port: " << telnetServer.port());
+            log_stream(out, "Hostname: " << wifi_config.Hostname());
         }
 
         switch (mode) {
@@ -348,8 +347,8 @@ namespace WebUI {
                 print_mac(out, "Current WiFi Mode: STA", WiFi.macAddress().c_str());
 
                 if (WiFi.isConnected()) {  //in theory no need but ...
-                    log_to(out, "Connected to: ", WiFi.SSID().c_str());
-                    log_to(out, "Signal: ", wifi_config.getSignal(WiFi.RSSI()) << "%");
+                    log_stream(out, "Connected to: " << WiFi.SSID().c_str());
+                    log_stream(out, "Signal: " << wifi_config.getSignal(WiFi.RSSI()) << "%");
 
                     uint8_t PhyMode;
                     esp_wifi_get_protocol(WIFI_IF_STA, &PhyMode);
@@ -367,16 +366,16 @@ namespace WebUI {
                         default:
                             modeName = "???";
                     }
-                    log_to(out, "Phy Mode: ", modeName);
-                    log_to(out, "Channel: ", WiFi.channel());
+                    log_stream(out, "Phy Mode: " << modeName);
+                    log_stream(out, "Channel: " << WiFi.channel());
 
                     tcpip_adapter_dhcp_status_t dhcp_status;
                     tcpip_adapter_dhcpc_get_status(TCPIP_ADAPTER_IF_STA, &dhcp_status);
-                    log_to(out, "IP Mode: ", (dhcp_status == TCPIP_ADAPTER_DHCP_STARTED ? "DHCP" : "Static"));
-                    log_to(out, "IP: ", IP_string(WiFi.localIP()));
-                    log_to(out, "Gateway: ", IP_string(WiFi.gatewayIP()));
-                    log_to(out, "Mask: ", IP_string(WiFi.subnetMask()));
-                    log_to(out, "DNS: ", IP_string(WiFi.dnsIP()));
+                    log_stream(out, "IP Mode: " << (dhcp_status == TCPIP_ADAPTER_DHCP_STARTED ? "DHCP" : "Static"));
+                    log_stream(out, "IP: " << IP_string(WiFi.localIP()));
+                    log_stream(out, "Gateway: " << IP_string(WiFi.gatewayIP()));
+                    log_stream(out, "Mask: " << IP_string(WiFi.subnetMask()));
+                    log_stream(out, "DNS: " << IP_string(WiFi.dnsIP()));
 
                 }  //this is web command so connection => no command
                 print_mac(out, "Disabled Mode: AP", WiFi.softAPmacAddress().c_str());
@@ -388,12 +387,11 @@ namespace WebUI {
                 wifi_country_t country;
                 esp_wifi_get_config(WIFI_IF_AP, &conf);
                 esp_wifi_get_country(&country);
-                log_to(out, "SSID: ", (const char*)conf.ap.ssid);
-                log_to(out, "Visible: ", (conf.ap.ssid_hidden == 0 ? "Yes" : "No"));
-                log_to(out,
-                       "Radio country set: ",
-                       country.cc << " (channels " << country.schan << "-" << (country.schan + country.nchan - 1) << ", max power "
-                                  << country.max_tx_power << "dBm)");
+                log_stream(out, "SSID: " << (const char*)conf.ap.ssid);
+                log_stream(out, "Visible: " << (conf.ap.ssid_hidden == 0 ? "Yes" : "No"));
+                log_stream(out,
+                           "Radio country set: " << country.cc << " (channels " << country.schan << "-"
+                                                 << (country.schan + country.nchan - 1) << ", max power " << country.max_tx_power << "dBm)");
 
                 const char* mode;
                 switch (conf.ap.authmode) {
@@ -416,42 +414,41 @@ namespace WebUI {
                         mode = "WPA/WPA2";
                 }
 
-                log_to(out, "Authentication: ", mode);
-                log_to(out, "Max Connections: ", conf.ap.max_connection);
+                log_stream(out, "Authentication: " << mode);
+                log_stream(out, "Max Connections: " << conf.ap.max_connection);
 
                 tcpip_adapter_dhcp_status_t dhcp_status;
                 tcpip_adapter_dhcps_get_status(TCPIP_ADAPTER_IF_AP, &dhcp_status);
-                log_to(out, "DHCP Server: ", (dhcp_status == TCPIP_ADAPTER_DHCP_STARTED ? "Started" : "Stopped"));
+                log_stream(out, "DHCP Server: " << (dhcp_status == TCPIP_ADAPTER_DHCP_STARTED ? "Started" : "Stopped"));
 
-                log_to(out, "IP: ", IP_string(WiFi.softAPIP()));
+                log_stream(out, "IP: " << IP_string(WiFi.softAPIP()));
 
                 tcpip_adapter_ip_info_t ip_AP;
                 tcpip_adapter_get_ip_info(TCPIP_ADAPTER_IF_AP, &ip_AP);
-                log_to(out, "Gateway: ", IP_string(IPAddress(ip_AP.gw.addr)));
-                log_to(out, "Mask: ", IP_string(IPAddress(ip_AP.netmask.addr)));
+                log_stream(out, "Gateway: " << IP_string(IPAddress(ip_AP.gw.addr)));
+                log_stream(out, "Mask: " << IP_string(IPAddress(ip_AP.netmask.addr)));
 
                 wifi_sta_list_t          station;
                 tcpip_adapter_sta_list_t tcpip_sta_list;
                 esp_wifi_ap_get_sta_list(&station);
                 tcpip_adapter_get_sta_list(&station, &tcpip_sta_list);
-                log_to(out, "Connected channels: ", station.num);
+                log_stream(out, "Connected channels: " << station.num);
 
                 for (int i = 0; i < station.num; i++) {
-                    log_to(out,
-                           "",
-                           wifi_config.mac2str(tcpip_sta_list.sta[i].mac) << " " << IP_string(IPAddress(tcpip_sta_list.sta[i].ip.addr)));
+                    log_stream(
+                        out, wifi_config.mac2str(tcpip_sta_list.sta[i].mac) << " " << IP_string(IPAddress(tcpip_sta_list.sta[i].ip.addr)));
                 }
                 print_mac(out, "Disabled Mode: STA", WiFi.macAddress().c_str());
                 break;
             case WIFI_AP_STA:  //we should not be in this state but just in case ....
-                log_to(out, "");
+                log_string(out, "");
 
                 print_mac(out, "Mixed: STA", WiFi.macAddress().c_str());
                 print_mac(out, "Mixed: AP", WiFi.softAPmacAddress().c_str());
                 break;
             default:  //we should not be there if no wifi ....
 
-                log_to(out, "Current WiFi Mode: Off");
+                log_string(out, "Current WiFi Mode: Off");
                 break;
         }
 
@@ -690,11 +687,12 @@ namespace WebUI {
             log_info("STA SSID is not set");
             return false;
         }
+        //Hostname needs to be set before mode to take effect
+        WiFi.setHostname(wifi_hostname->get());
         WiFi.mode(WIFI_STA);
         WiFi.setMinSecurity(static_cast<wifi_auth_mode_t>(wifi_sta_min_security->get()));
         WiFi.setScanMethod(wifi_fast_scan->get() ? WIFI_FAST_SCAN : WIFI_ALL_CHANNEL_SCAN);
         //Get parameters for STA
-        WiFi.setHostname(wifi_hostname->get());
         //password
         const char* password = wifi_sta_password->get();
         int8_t      IP_mode  = wifi_sta_mode->get();
@@ -824,6 +822,10 @@ namespace WebUI {
             case WiFiFallback:
                 if (StartSTA()) {
                     goto wifi_on;
+                } else {  // STA failed, reset
+                    WiFi.mode(WIFI_OFF);
+                    esp_wifi_restore();
+                    delay(100);
                 }
                 // fall through to fallback to AP mode
             case WiFiAP:

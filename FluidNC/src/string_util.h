@@ -5,6 +5,7 @@
 namespace string_util {
     char                   tolower(char c);
     bool                   equal_ignore_case(std::string_view a, std::string_view b);
+    bool                   starts_with_ignore_case(std::string_view a, std::string_view b);
     const std::string_view trim(std::string_view s);
 
     bool is_int(std::string_view s, int32_t& value);

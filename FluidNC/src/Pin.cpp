@@ -10,8 +10,12 @@
 #include "Pins/GPIOPinDetail.h"
 #include "Pins/VoidPinDetail.h"
 #include "Pins/I2SOPinDetail.h"
+#include "Pins/ChannelPinDetail.h"
 #include "Pins/ErrorPinDetail.h"
 #include "string_util.h"
+#include "Machine/MachineConfig.h"  // config
+#include <string_view>
+#include <charconv>
 
 Pins::PinDetail* Pin::undefinedPin = new Pins::VoidPinDetail();
 Pins::PinDetail* Pin::errorPin     = new Pins::ErrorPinDetail("unknown");
@@ -71,29 +75,49 @@ const char* Pin::parse(std::string_view pin_str, Pins::PinDetail*& pinImplementa
     // Build this pin:
     if (string_util::equal_ignore_case(prefix, "gpio")) {
         pinImplementation = new Pins::GPIOPinDetail(static_cast<pinnum_t>(pin_number), parser);
+        return nullptr;
     }
     if (string_util::equal_ignore_case(prefix, "i2so")) {
         pinImplementation = new Pins::I2SOPinDetail(static_cast<pinnum_t>(pin_number), parser);
+        return nullptr;
     }
+
+    if (string_util::starts_with_ignore_case(prefix, "uart_channel")) {
+        auto num_str     = prefix.substr(strlen("uart_channel"));
+        int  channel_num = -1;
+        std::from_chars(num_str.data(), num_str.data() + num_str.size(), channel_num);
+        if (channel_num == -1 || channel_num > 2) {
+            return "Bad uart_channel number";
+        }
+        if (config->_uart_channels[channel_num] == nullptr) {
+            return "uart_channel is not configured";
+        }
+
+        pinImplementation = new Pins::ChannelPinDetail(config->_uart_channels[channel_num], pin_number, parser);
+        return nullptr;
+    }
+
     if (string_util::equal_ignore_case(prefix, "no_pin")) {
         pinImplementation = undefinedPin;
+        return nullptr;
     }
 
     if (string_util::equal_ignore_case(prefix, "void")) {
         // Note: having multiple void pins has its uses for debugging.
         pinImplementation = new Pins::VoidPinDetail();
+        return nullptr;
     }
 
     if (pinImplementation == nullptr) {
         log_error("Unknown prefix:" << prefix);
         return "Unknown pin prefix";
-    } else {
-#ifdef DEBUG_PIN_DUMP
-        pinImplementation = new Pins::DebugPinDetail(pinImplementation);
-#endif
-
-        return nullptr;
     }
+#ifdef DEBUG_PIN_DUMP
+    pinImplementation = new Pins::DebugPinDetail(pinImplementation);
+    return nullptr;
+#else
+    return "Unknown pin prefix";
+#endif
 }
 
 Pin Pin::create(std::string_view str) {

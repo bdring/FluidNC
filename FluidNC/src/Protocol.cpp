@@ -91,66 +91,9 @@ TaskHandle_t outputTask = nullptr;
 
 xQueueHandle message_queue;
 
-struct LogMessage {
-    Channel* channel;
-    void*    line;
-    bool     isString;
-};
-
 void drain_messages() {
     while (uxQueueMessagesWaiting(message_queue)) {
         vTaskDelay(1);  // Let the output task finish sending data
-    }
-}
-
-// This overload is used primarily with fixed string
-// values.  It sends a pointer to the string whose
-// memory does not need to be reclaimed later.
-// This is the most efficient form, but it only works
-// with fixed messages.
-void send_line(Channel& channel, const char* line) {
-    if (outputTask) {
-        LogMessage msg { &channel, (void*)line, false };
-        while (!xQueueSend(message_queue, &msg, 10)) {}
-    } else {
-        channel.println(line);
-    }
-}
-
-// This overload is used primarily with log_*() where
-// a std::string is dynamically allocated with "new",
-// and then extended to construct the message.  Its
-// pointer is sent to the output task, which sends
-// the message to the output channel and then "delete"s
-// the pointer to reclaim the memory.
-// This form has intermediate efficiency, as the string
-// is allocated once and freed once.
-void send_line(Channel& channel, const std::string* line) {
-    if (outputTask) {
-        LogMessage msg { &channel, (void*)line, true };
-        while (!xQueueSend(message_queue, &msg, 10)) {}
-    } else {
-        channel.println(line->c_str());
-        delete line;
-    }
-}
-
-// This overload is used for many miscellaneous messages
-// where the std::string is allocated in a code block and
-// then extended with various information.  This send_line()
-// copies that string to a newly allocated one and sends that
-// via the std::string* version of send_line().  The original
-// string is freed by the caller sometime after send_line()
-// returns, while the new string is freed by the output task
-// after the message is forwared to the output channel.
-// This is the least efficient form, requiring two strings
-// to be allocated and freed, with an intermediate copy.
-// It is used only rarely.
-void send_line(Channel& channel, const std::string& line) {
-    if (outputTask) {
-        send_line(channel, new std::string(line));
-    } else {
-        channel.println(line.c_str());
     }
 }
 
@@ -161,11 +104,11 @@ void output_loop(void* unused) {
         if (xQueueReceive(message_queue, &message, portMAX_DELAY)) {
             if (message.isString) {
                 std::string* s = static_cast<std::string*>(message.line);
-                message.channel->println(s->c_str());
+                message.channel->print_msg(message.level, s->c_str());
                 delete s;
             } else {
                 const char* cp = static_cast<const char*>(message.line);
-                message.channel->println(cp);
+                message.channel->print_msg(message.level, cp);
             }
         }
     }
@@ -231,7 +174,7 @@ void start_polling() {
 
 static void alarm_msg(ExecAlarm alarm_code) {
     log_info_to(allChannels, "ALARM: " << alarmString(alarm_code));
-    log_to(allChannels, "ALARM:", static_cast<int>(alarm_code));
+    log_stream(allChannels, "ALARM:" << static_cast<int>(alarm_code));
     delay_ms(500);  // Force delay to ensure message clears serial write buffer.
 }
 
@@ -253,7 +196,7 @@ void     protocol_main_loop() {
         if (activeChannel) {
             // The input polling task has collected a line of input
 #ifdef DEBUG_REPORT_ECHO_RAW_LINE_RECEIVED
-            report_echo_line_received(activeLine, allChannels);
+            report_echo_line_received(activeLine, *activeChannel);
 #endif
 
             Error status_code = execute_line(activeLine, *activeChannel, WebUI::AuthenticationLevel::LEVEL_GUEST);

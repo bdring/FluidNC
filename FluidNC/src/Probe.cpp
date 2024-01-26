@@ -11,6 +11,7 @@ void Probe::init() {
     static bool show_init_msg = true;  // used to show message only once.
 
     if (_probePin.defined()) {
+        _probePin.getNative(Pin::Capabilities::Input | Pin::Capabilities::Native);
         _probePin.setAttr(Pin::Attr::Input);
 
         if (show_init_msg) {
@@ -20,6 +21,7 @@ void Probe::init() {
     }
 
     if (_toolsetter_Pin.defined()) {
+        _toolsetter_Pin.getNative(Pin::Capabilities::Input | Pin::Capabilities::Native);
         _toolsetter_Pin.setAttr(Pin::Attr::Input);
 
         if (show_init_msg) {

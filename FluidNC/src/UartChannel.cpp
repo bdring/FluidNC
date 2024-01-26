@@ -5,8 +5,9 @@
 #include "Machine/MachineConfig.h"  // config
 #include "Serial.h"                 // allChannels
 
-UartChannel::UartChannel(bool addCR) : Channel("uart", addCR) {
+UartChannel::UartChannel(int num, bool addCR) : Channel("uart_channel", num, addCR) {
     _lineedit = new Lineedit(this, _line, Channel::maxLine - 1);
+    _active   = false;
 }
 
 void UartChannel::init() {
@@ -21,6 +22,14 @@ void UartChannel::init() {
 void UartChannel::init(Uart* uart) {
     _uart = uart;
     allChannels.registration(this);
+    if (_report_interval_ms) {
+        log_info("uart_channel" << _uart_num << " created at report interval: " << _report_interval_ms);
+    } else {
+        log_info("uart_channel" << _uart_num << " created");
+    }
+    log_msg_to(*this, "RST");
+    // Give the extender a little time to process the command
+    //    delay(100);
 }
 
 size_t UartChannel::write(uint8_t c) {
@@ -82,15 +91,6 @@ bool UartChannel::lineComplete(char* line, char c) {
     return false;
 }
 
-Channel* UartChannel::pollLine(char* line) {
-    // UART0 is the only Uart instance that can be a channel input device
-    // Other UART users like RS485 use it as a dumb character device
-    if (_lineedit == nullptr) {
-        return nullptr;
-    }
-    return Channel::pollLine(line);
-}
-
 int UartChannel::read() {
     return _uart->read();
 }
@@ -116,7 +116,26 @@ size_t UartChannel::timedReadBytes(char* buffer, size_t length, TickType_t timeo
     return length - remlen;
 }
 
-UartChannel Uart0(true);  // Primary serial channel with LF to CRLF conversion
+void UartChannel::out(const std::string& s, const char* tag) {
+    std::string t(tag);
+    log_msg_to(*this, t + s);
+    log_debug(s);
+}
+
+void UartChannel::out_acked(const std::string& s, const char* tag) {
+    int count = 0;
+    while (_ackwait && ++count < _ack_timeout) {
+        pollLine(NULL);
+        delay_ms(1);
+    }
+    if (count == _ack_timeout) {
+        log_error("Device not responding");
+    }
+    out(s, tag);
+    _ackwait = true;
+}
+
+UartChannel Uart0(0, true);  // Primary serial channel with LF to CRLF conversion
 
 void uartInit() {
     auto uart0 = new Uart(0);

@@ -80,6 +80,7 @@ enum class Error : uint8_t {
     ConfigurationInvalid        = 152,
     UploadFailed                = 160,
     DownloadFailed              = 161,
+    ReadOnlySetting             = 162,
 };
 
 const char* errorString(Error errorNumber);

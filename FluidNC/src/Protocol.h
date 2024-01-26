@@ -128,10 +128,6 @@ inline void protocol_send_event(Event* evt, int arg) {
 
 void protocol_send_event_from_ISR(Event* evt, void* arg = 0);
 
-void send_line(Channel& channel, const char* message);
-void send_line(Channel& channel, const std::string* message);
-void send_line(Channel& channel, const std::string& message);
-
 void drain_messages();
 
 extern uint32_t heapLowWater;

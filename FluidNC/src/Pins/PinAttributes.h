@@ -23,6 +23,9 @@ namespace Pins {
         constexpr PinAttributes(const uint32_t value) : _value(value) {}
 
     public:
+        // Having a default constructor lets us use PinAttributes with std::map
+        PinAttributes() { _value = Undefined; }
+
         PinAttributes(const PinAttributes&) = default;
         PinAttributes& operator=(const PinAttributes&) = default;
 

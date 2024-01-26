@@ -13,7 +13,20 @@ namespace WebUI {
 
     JSONencoder::JSONencoder(bool pretty, std::string* str) : pretty(pretty), level(0), _str(str), category("nvs") { count[level] = 0; }
 
-    void JSONencoder::add(char c) { (*_str) += c; }
+    void JSONencoder::flush() {
+        if (_channel && (*_str).length()) {
+            // Output to channels is encapsulated in [MSG:JSON:...]
+            (*_channel).out_acked(*_str, "JSON:");
+            //            *_str = "";
+            (*_str).clear();
+        }
+    }
+    void JSONencoder::add(char c) {
+        (*_str) += c;
+        if (_channel && (*_str).length() >= 100) {
+            flush();
+        }
+    }
 
     // Private function to add commas between
     // elements as needed, omitting the comma
@@ -100,16 +113,13 @@ namespace WebUI {
         }
     }
 
+    void JSONencoder::string(const char* s) {
+        comma_line();
+        quoted(s);
+    }
     // Private function to implement pretty-printing
     void JSONencoder::line() {
-        if (_channel) {
-            // log_to() always adds a newline
-            // We want that for channels because they might not
-            // be able to handle really long lines.
-            log_to(*_channel, *_str);
-            *_str = "";
-            indent();
-        } else {
+        if (!_channel) {
             if (pretty) {
                 add('\n');
                 indent();
@@ -125,6 +135,7 @@ namespace WebUI {
     void JSONencoder::end() {
         end_object();
         line();
+        flush();
     }
 
     // Starts a member element.

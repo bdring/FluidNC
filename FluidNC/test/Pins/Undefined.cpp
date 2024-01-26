@@ -21,9 +21,6 @@ namespace Pins {
             Assert(0 == result, "Result value incorrect");
         }
 
-        AssertThrow(unassigned.attachInterrupt([](void* arg) {}, EITHER_EDGE));
-        AssertThrow(unassigned.detachInterrupt());
-
         Assert(unassigned.capabilities().has(Pin::Capabilities::Void));
         auto name = unassigned.name();
         Assert(unassigned.name().equals("NO_PIN"));

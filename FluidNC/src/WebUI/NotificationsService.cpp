@@ -63,7 +63,7 @@ namespace WebUI {
 
     static Error showSetNotification(const char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP610
         if (*parameter == '\0') {
-            log_to(out, "", notification_type->getStringValue() << " " << notification_ts->getStringValue());
+            log_stream(out, notification_type->getStringValue() << " " << notification_ts->getStringValue());
             return Error::Ok;
         }
         std::string s;
@@ -105,11 +105,11 @@ namespace WebUI {
 
     static Error sendMessage(const char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP600
         if (*parameter == '\0') {
-            log_to(out, "Invalid message!");
+            log_string(out, "Invalid message!");
             return Error::InvalidValue;
         }
         if (!notificationsService.sendMSG("GRBL Notification", parameter)) {
-            log_to(out, "Cannot send message!");
+            log_string(out, "Cannot send message!");
             return Error::MessageFailed;
         }
         return Error::Ok;

@@ -38,10 +38,6 @@ namespace Pins {
         void          setAttr(PinAttributes value) override;
         PinAttributes getAttr() const override;
 
-        // ISR's:
-        void attachInterrupt(void (*callback)(void*), void* arg, int mode) override;
-        void detachInterrupt() override;
-
         std::string toString() override { return _implementation->toString(); }
 
         ~DebugPinDetail() override {}

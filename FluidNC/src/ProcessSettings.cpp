@@ -178,7 +178,7 @@ void settings_init() {
 }
 
 static Error show_help(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
-    log_to(out, "HLP:", "$$ $+ $# $S $L $G $I $N $x=val $Nx=line $J=line $SLP $C $X $H $F $E=err ~ ! ? ctrl-x");
+    log_string(out, "HLP:$$ $+ $# $S $L $G $I $N $x=val $Nx=line $J=line $SLP $C $X $H $F $E=err ~ ! ? ctrl-x");
     return Error::Ok;
 }
 
@@ -206,7 +206,7 @@ static Error list_grbl_names(const char* value, WebUI::AuthenticationLevel auth_
     for (Setting* setting : Setting::List) {
         const char* gn = setting->getGrblName();
         if (gn) {
-            log_to(out, "$", gn << " => $" << setting->getName());
+            log_stream(out, "$" << gn << " => $" << setting->getName());
         }
     }
     return Error::Ok;
@@ -229,7 +229,7 @@ static Error list_changed_settings(const char* value, WebUI::AuthenticationLevel
             }
         }
     }
-    log_to(out, "(Passwords not shown)");
+    log_string(out, "(Passwords not shown)");
     return Error::Ok;
 }
 static Error list_commands(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
@@ -300,6 +300,81 @@ static Error disable_alarm_lock(const char* value, WebUI::AuthenticationLevel au
 }
 static Error report_ngc(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
     report_ngc_parameters(out);
+    return Error::Ok;
+}
+static Error msg_to_uart0(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+    if (value) {
+        Channel* dest = allChannels.find("uart_channel0");
+        if (dest) {
+            log_msg_to(*dest, value);
+        }
+    }
+    return Error::Ok;
+}
+static Error msg_to_uart1(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+    if (value && config->_uart_channels[1]) {
+        log_msg_to(*(config->_uart_channels[1]), value);
+    }
+    return Error::Ok;
+}
+static Error cmd_log_msg(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+    if (value) {
+        if (*value == '*') {
+            log_msg(value + 1);
+        } else {
+            log_msg_to(out, value);
+        }
+    }
+    return Error::Ok;
+}
+static Error cmd_log_error(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+    if (value) {
+        if (*value == '*') {
+            log_error(value + 1);
+        } else {
+            log_error_to(out, value);
+        }
+    }
+    return Error::Ok;
+}
+static Error cmd_log_warn(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+    if (value) {
+        if (*value == '*') {
+            log_warn(value + 1);
+        } else {
+            log_warn_to(out, value);
+        }
+    }
+    return Error::Ok;
+}
+static Error cmd_log_info(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+    if (value) {
+        if (*value == '*') {
+            log_info(value + 1);
+        } else {
+            log_info_to(out, value);
+        }
+    }
+    return Error::Ok;
+}
+static Error cmd_log_debug(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+    if (value) {
+        if (*value == '*') {
+            log_debug(value + 1);
+        } else {
+            log_debug_to(out, value);
+        }
+    }
+    return Error::Ok;
+}
+static Error cmd_log_verbose(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+    if (value) {
+        if (*value == '*') {
+            log_verbose(value + 1);
+        } else {
+            log_verbose_to(out, value);
+        }
+    }
     return Error::Ok;
 }
 static Error home(AxisMask axisMask) {
@@ -412,10 +487,10 @@ static std::string limit_set(uint32_t mask) {
     return s;
 }
 static Error show_limits(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
-    log_to(out, "Send ! to exit");
-    log_to(out, "Homing Axes : ", limit_set(Machine::Axes::homingMask));
-    log_to(out, "Limit Axes : ", limit_set(Machine::Axes::limitMask));
-    log_to(out, "  PosLimitPins NegLimitPins Probe");
+    log_string(out, "Send ! to exit");
+    log_stream(out, "Homing Axes : " << limit_set(Machine::Axes::homingMask));
+    log_stream(out, "Limit Axes : " << limit_set(Machine::Axes::limitMask));
+    log_string(out, "  PosLimitPins NegLimitPins Probe");
 
     const TickType_t interval = 500;
     TickType_t       limit    = xTaskGetTickCount();
@@ -423,16 +498,15 @@ static Error show_limits(const char* value, WebUI::AuthenticationLevel auth_leve
     do {
         TickType_t thisTime = xTaskGetTickCount();
         if (((long)(thisTime - limit)) > 0) {
-            log_to(out,
-                   ": ",
-                   limit_set(Machine::Axes::posLimitMask)
-                       << " " << limit_set(Machine::Axes::negLimitMask) << (config->_probe->get_state() ? " P" : ""));
+            log_stream(out,
+                       ": " << limit_set(Machine::Axes::posLimitMask) << " " << limit_set(Machine::Axes::negLimitMask)
+                            << (config->_probe->get_state() ? " P" : ""));
             limit = thisTime + interval;
         }
         vTaskDelay(1);
         protocol_handle_events();
     } while (runLimitLoop);
-    log_to(out, "");
+    log_string(out, "");
     return Error::Ok;
 }
 static Error go_to_sleep(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
@@ -448,7 +522,7 @@ static Error get_report_build_info(const char* value, WebUI::AuthenticationLevel
 }
 static Error show_startup_lines(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
     for (int i = 0; i < config->_macros->n_startup_lines; i++) {
-        log_to(out, "$N", i << "=" << config->_macros->_startup_line[i]._gcode);
+        log_stream(out, "$N" << i << "=" << config->_macros->_startup_line[i]._gcode);
     }
     return Error::Ok;
 }
@@ -477,7 +551,7 @@ static Error showState(const char* value, WebUI::AuthenticationLevel auth_level,
     auto        it    = StateName.find(state);
     name              = it == StateName.end() ? "<invalid>" : it->second;
 
-    log_to(out, "State ", int(state) << " (" << name << ")");
+    log_stream(out, "State " << int(state) << " (" << name << ")");
     return Error::Ok;
 }
 
@@ -501,29 +575,29 @@ static Error doJog(const char* value, WebUI::AuthenticationLevel auth_level, Cha
 
 static Error listAlarms(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
     if (sys.state == State::ConfigAlarm) {
-        log_to(out, "Configuration alarm is active. Check the boot messages for 'ERR'.");
+        log_string(out, "Configuration alarm is active. Check the boot messages for 'ERR'.");
     } else if (sys.state == State::Alarm) {
-        log_to(out, "Active alarm: ", int(lastAlarm) << " (" << alarmString(lastAlarm));
+        log_stream(out, "Active alarm: " << int(lastAlarm) << " (" << alarmString(lastAlarm));
     }
     if (value) {
         char*   endptr      = NULL;
         uint8_t alarmNumber = uint8_t(strtol(value, &endptr, 10));
         if (*endptr) {
-            log_to(out, "Malformed alarm number: ", value);
+            log_stream(out, "Malformed alarm number: " << value);
             return Error::InvalidValue;
         }
         const char* alarmName = alarmString(static_cast<ExecAlarm>(alarmNumber));
         if (alarmName) {
-            log_to(out, "", alarmNumber << ": " << alarmName);
+            log_stream(out, alarmNumber << ": " << alarmName);
             return Error::Ok;
         } else {
-            log_to(out, "Unknown alarm number: ", alarmNumber);
+            log_stream(out, "Unknown alarm number: " << alarmNumber);
             return Error::InvalidValue;
         }
     }
 
     for (auto it = AlarmNames.begin(); it != AlarmNames.end(); it++) {
-        log_to(out, "", static_cast<int>(it->first) << ": " << it->second);
+        log_stream(out, static_cast<int>(it->first) << ": " << it->second);
     }
     return Error::Ok;
 }
@@ -538,21 +612,21 @@ static Error listErrors(const char* value, WebUI::AuthenticationLevel auth_level
         char* endptr      = NULL;
         int   errorNumber = strtol(value, &endptr, 10);
         if (*endptr) {
-            log_to(out, "Malformed error number: ", value);
+            log_stream(out, "Malformed error number: " << value);
             return Error::InvalidValue;
         }
         const char* errorName = errorString(static_cast<Error>(errorNumber));
         if (errorName) {
-            log_to(out, "", errorNumber << ": " << errorName);
+            log_stream(out, errorNumber << ": " << errorName);
             return Error::Ok;
         } else {
-            log_to(out, "Unknown error number: ", errorNumber);
+            log_stream(out, "Unknown error number: " << errorNumber);
             return Error::InvalidValue;
         }
     }
 
     for (auto it = ErrorNames.begin(); it != ErrorNames.end(); it++) {
-        log_to(out, "", static_cast<int>(it->first) << ": " << it->second);
+        log_stream(out, static_cast<int>(it->first) << ": " << it->second);
     }
     return Error::Ok;
 }
@@ -693,14 +767,14 @@ static Error dump_config(const char* value, WebUI::AuthenticationLevel auth_leve
 
 static Error fakeMaxSpindleSpeed(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
     if (!value) {
-        log_to(out, "$30=", spindle->maxSpeed());
+        log_stream(out, "$30=" << spindle->maxSpeed());
     }
     return Error::Ok;
 }
 
 static Error fakeLaserMode(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
     if (!value) {
-        log_to(out, "$32=", (spindle->isRateAdjusted() ? "1" : "0"));
+        log_stream(out, "$32=" << (spindle->isRateAdjusted() ? "1" : "0"));
     }
     return Error::Ok;
 }
@@ -724,9 +798,9 @@ static Error setReportInterval(const char* value, WebUI::AuthenticationLevel aut
     if (!value) {
         uint32_t actual = out.getReportInterval();
         if (actual) {
-            log_info("Channel auto report interval is " << actual << " ms");
+            log_info_to(out, out.name() << " auto report interval is " << actual << " ms");
         } else {
-            log_info("Channel auto reporting is off");
+            log_info_to(out, out.name() << " auto reporting is off");
         }
         return Error::Ok;
     }
@@ -738,13 +812,11 @@ static Error setReportInterval(const char* value, WebUI::AuthenticationLevel aut
     }
 
     uint32_t actual = out.setReportInterval(intValue);
-#if 1
     if (actual) {
-        log_info("Channel auto report interval set to " << actual << " ms");
+        log_info(out.name() << " auto report interval set to " << actual << " ms");
     } else {
-        log_info("Channel auto reporting turned off");
+        log_info(out.name() << " auto reporting turned off");
     }
-#endif
 
     // Send a full status report immediately so the client has all the data
     report_wco_counter = 0;
@@ -801,6 +873,15 @@ void make_user_commands() {
     new UserCommand("HA", "Home/A", home_a, notIdleOrAlarm);
     new UserCommand("HB", "Home/B", home_b, notIdleOrAlarm);
     new UserCommand("HC", "Home/C", home_c, notIdleOrAlarm);
+
+    new UserCommand("MU0", "Msg/Uart0", msg_to_uart0, anyState);
+    new UserCommand("MU1", "Msg/Uart1", msg_to_uart1, anyState);
+    new UserCommand("LM", "Log/Msg", cmd_log_msg, anyState);
+    new UserCommand("LE", "Log/Error", cmd_log_error, anyState);
+    new UserCommand("LW", "Log/Warn", cmd_log_warn, anyState);
+    new UserCommand("LI", "Log/Info", cmd_log_info, anyState);
+    new UserCommand("LD", "Log/Debug", cmd_log_debug, anyState);
+    new UserCommand("LV  ", "Log/Verbose", cmd_log_verbose, anyState);
 
     new UserCommand("SLP", "System/Sleep", go_to_sleep, notIdleOrAlarm);
     new UserCommand("I", "Build/Info", get_report_build_info, notIdleOrAlarm);

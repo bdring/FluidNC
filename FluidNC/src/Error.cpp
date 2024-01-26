@@ -75,4 +75,5 @@ std::map<Error, const char*> ErrorNames = {
     { Error::ConfigurationInvalid, "Configuration is invalid. Check boot messages for ERR's." },
     { Error::UploadFailed, "File Upload Failed" },
     { Error::DownloadFailed, "File Download Failed" },
+    { Error::ReadOnlySetting, "Read-only setting" },
 };

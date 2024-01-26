@@ -31,8 +31,7 @@ void setup() {
     disableCore0WDT();
     try {
         timing_init();
-        uartInit();       // Setup serial port
-        Uart0.println();  // create some white space after ESP32 boot info
+        uartInit();  // Setup serial port
 
         StartupLog::init();
 
@@ -139,6 +138,7 @@ void setup() {
         WebUI::wifi_config.begin();
     }
 
+    allChannels.ready();
     allChannels.deregistration(&startupLog);
     protocol_send_event(&startEvent);
 }

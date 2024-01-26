@@ -434,59 +434,58 @@ namespace WebUI {
         }
         return -1;
     }
-
-    void Web_Server::_handle_web_command(bool silent) {
-        AuthenticationLevel auth_level = is_authenticated();
-        std::string         cmd;
-        if (_webserver->hasArg("plain")) {
-            cmd = std::string(_webserver->arg("plain").c_str());
-        } else if (_webserver->hasArg("commandText")) {
-            cmd = std::string(_webserver->arg("commandText").c_str());
-        } else if (_webserver->hasArg("cmd")) {
-            cmd = std::string(_webserver->arg("cmd").c_str());
+    void Web_Server::synchronousCommand(const char* cmd) {
+        char line[256];
+        strncpy(line, cmd, 255);
+        webClient.attachWS(_webserver, silent);
+        Error err = settings_execute_line(line, webClient, auth_level);
+        if (err != Error::Ok) {
+            std::string answer = "Error: ";
+            const char* msg    = errorString(err);
+            if (msg) {
+                answer += msg;
+            } else {
+                answer += std::to_string(static_cast<int>(err));
+            }
+            answer += "\n";
+            webClient.sendError(500, answer);
         } else {
-            _webserver->send(200, "text/plain", "Invalid command");
+            // This will send a 200 if it hasn't already been sent
+            webClient.write(nullptr, 0);
+        }
+        webClient.detachWS();
+    }
+    void Web_Server::websocketCommand(const char* cmd, int pageid) {
+        if (auth_level == AuthenticationLevel::LEVEL_GUEST) {
+            _webserver->send(401, "text/plain", "Authentication failed\n");
             return;
         }
-        //if it is internal command [ESPXXX]<parameter>
-        // cmd.trim();
-        int ESPpos = cmd.find("[ESP");
-        if (ESPpos != std::string::npos) {
-            char line[256];
-            strncpy(line, cmd.c_str(), 255);
-            webClient.attachWS(_webserver, silent);
-            Error       err = settings_execute_line(line, webClient, auth_level);
-            std::string answer;
-            if (err == Error::Ok) {
-                answer = "ok\n";
+        std::string cmd = std::string(cmd);
+
+        bool hasError = WSChannels::runGCode(pageid, cmd);
+        _webserver->send(hasError ? 500 : 200, "text/plain", hasError ? "WebSocket dead" : "");
+    }
+    void Web_Server::_handle_web_command(bool silent) {
+        AuthenticationLevel auth_level = is_authenticated();
+        if (_webserver->hasArg("cmd")) {  // WebUI3
+            const char* cmd = _webserver->arg("plain").c_str()'
+            // [ESPXXX] commands expect data in the HTTP response
+            if (cmd.find("[ESP") != std::string::npos) {
+                synchronousCommand(cmd);
             } else {
-                const char* msg = errorString(err);
-                answer          = "Error: ";
-                if (msg) {
-                    answer += msg;
-                } else {
-                    answer += std::to_string(static_cast<int>(err));
-                }
-                answer += "\n";
+                websocketCommand(cmd, -1);  // WebUI3 does not support PAGEID
             }
-
-            // Give the output task a chance to dequeue and forward a message
-            // to webClient, if there is one.
-            vTaskDelay(10);
-
-            if (!webClient.anyOutput()) {
-                _webserver->send(err != Error::Ok ? 500 : 200, "text/plain", answer.c_str());
-            }
-            webClient.detachWS();
-        } else {  //execute GCODE
-            if (auth_level == AuthenticationLevel::LEVEL_GUEST) {
-                _webserver->send(401, "text/plain", "Authentication failed\n");
-                return;
-            }
-            bool hasError = WSChannels::runGCode(getPageid(), cmd);
-
-            _webserver->send(200, "text/plain", hasError ? "Error" : "");
+            return;
         }
+        if (_webserver->hasArg("plain")) {
+            synchronousCommand(_webserver->arg("plain").c_str());
+            return;
+        }
+        if (_webserver->hasArg("commandText")) {
+            websocketCommand(_webserver->arg("commandText").c_str(), getPageid());
+            return;
+        } 
+        _webserver->send(500, "text/plain", "Invalid command");
     }
 
     //login status check
@@ -930,11 +929,9 @@ namespace WebUI {
             std::string action(_webserver->arg("action").c_str());
             std::string filename = std::string(_webserver->arg("filename").c_str());
             if (action == "delete") {
-                log_debug("Deleting " << fpath << " / " << filename);
                 if (stdfs::remove(fpath / filename, ec)) {
                     sstatus = filename + " deleted";
                     HashFS::delete_file(fpath / filename);
-
                 } else {
                     sstatus = "Cannot delete ";
                     sstatus += filename + " " + ec.message();
@@ -945,6 +942,7 @@ namespace WebUI {
                 int count = stdfs::remove_all(dirpath, ec);
                 if (count > 0) {
                     sstatus = filename + " deleted";
+                    HashFS::report_change();
                 } else {
                     log_debug("remove_all returned " << count);
                     sstatus = "Cannot delete ";
@@ -953,6 +951,7 @@ namespace WebUI {
             } else if (action == "createdir") {
                 if (stdfs::create_directory(fpath / filename, ec)) {
                     sstatus = filename + " created";
+                    HashFS::report_change();
                 } else {
                     sstatus = "Cannot create ";
                     sstatus += filename + " " + ec.message();
@@ -968,6 +967,7 @@ namespace WebUI {
                         sstatus += filename + " " + ec.message();
                     } else {
                         sstatus = filename + " renamed to " + newname;
+                        HashFS::rename_file(fpath / filename, fpath / newname);
                     }
                 }
             }

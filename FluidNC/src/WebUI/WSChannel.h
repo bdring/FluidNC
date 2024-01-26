@@ -43,10 +43,6 @@ namespace WebUI {
         inline size_t write(unsigned int n) { return write((uint8_t)n); }
         inline size_t write(int n) { return write((uint8_t)n); }
 
-        bool push(const uint8_t* data, size_t length);
-        bool push(std::string& s);
-        void pushRT(char ch);
-
         void flush(void) override {}
 
         int id() { return _clientNum; }
@@ -63,8 +59,6 @@ namespace WebUI {
         void autoReport() override;
 
     private:
-        bool _dead = false;
-
         WebSocketsServer* _server;
         uint8_t           _clientNum;
 
@@ -88,7 +82,7 @@ namespace WebUI {
         static void removeChannel(WSChannel* channel);
         static void removeChannel(uint8_t num);
 
-        static bool runGCode(int pageid, std::string cmd);
+        static bool runGCode(int pageid, std::string& cmd);
         static bool sendError(int pageid, std::string error);
         static void sendPing();
         static void handleEvent(WebSocketsServer* server, uint8_t num, uint8_t type, uint8_t* payload, size_t length);
