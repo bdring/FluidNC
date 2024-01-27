@@ -29,9 +29,6 @@ namespace WebUI {
 const char* const DEFAULT_BT_NAME = "FluidNC";
 
 namespace WebUI {
-    extern EnumSetting*   bt_enable;
-    extern StringSetting* bt_name;
-
     extern BluetoothSerial SerialBT;
 
     class BTChannel : public Channel {
@@ -70,9 +67,6 @@ namespace WebUI {
 
         //boundaries
     public:
-        static const int MAX_BTNAME_LENGTH = 32;
-        static const int MIN_BTNAME_LENGTH = 1;
-
         BTConfig();
 
         std::string info();
@@ -91,6 +85,9 @@ namespace WebUI {
     };
 
     class BTNameSetting : public StringSetting {
+        static const int MAX_BTNAME_LENGTH = 32;
+        static const int MIN_BTNAME_LENGTH = 1;
+
     public:
         BTNameSetting(const char* description, const char* grblName, const char* name, const char* defVal) :
             StringSetting(description, WEBSET, WA, grblName, name, defVal, MIN_BTNAME_LENGTH, MAX_BTNAME_LENGTH) {}
@@ -108,7 +105,7 @@ namespace WebUI {
     extern BTConfig bt_config;
 
     extern EnumSetting*   bt_enable;
-    extern StringSetting* bt_name;
+    extern BTNameSetting* bt_name;
 }
 
 #endif
