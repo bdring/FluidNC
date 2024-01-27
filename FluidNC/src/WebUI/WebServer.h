@@ -105,6 +105,9 @@ namespace WebUI {
         static void uploadStop();
         static void uploadCheck();
 
+        static void synchronousCommand(const char* cmd, bool silent, AuthenticationLevel auth_level);
+        static void websocketCommand(const char* cmd, int pageid, AuthenticationLevel auth_level);
+
         static void sendFSError(Error err);
         static void sendJSON(int code, const char* s);
         static void sendJSON(int code, const std::string& s) { sendJSON(code, s.c_str()); }

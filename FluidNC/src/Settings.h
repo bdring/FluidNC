@@ -207,10 +207,10 @@ class MachineConfigProxySetting : public Setting {
 
 public:
     MachineConfigProxySetting(const char* grblName, const char* fullName, std::function<T(Machine::MachineConfig const&)> getter) :
-        Setting(fullName, type_t::GRBL, permissions_t::WU, grblName, fullName, nullptr), _getter(getter), _cachedValue("") {}
+        Setting(fullName, type_t::GRBL, permissions_t::WU, grblName, fullName), _getter(getter), _cachedValue("") {}
 
     const char* getStringValue() override;
-    Error       setStringValue(char* value) override { return Error::ReadOnlySetting; }
+    Error       setStringValue(std::string_view value) { return Error::ReadOnlySetting; }
     const char* getDefaultString() override { return ""; }
 };
 

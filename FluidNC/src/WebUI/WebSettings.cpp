@@ -25,6 +25,7 @@
 #include <cstring>
 #include <sstream>
 #include <iomanip>
+#include <charconv>
 
 namespace WebUI {
 
@@ -422,14 +423,14 @@ namespace WebUI {
         return Error::Ok;
     }
 
-    static bool split(char* input, char** next, char delim) {
-        char* pos = strchr(input, delim);
-        if (pos) {
-            *pos  = '\0';
-            *next = pos + 1;
+    static bool split(std::string_view input, std::string_view& next, char delim) {
+        auto pos = input.find_first_of(delim);
+        if (pos != std::string_view::npos) {
+            next  = input.substr(pos + 1);
+            input = input.substr(0, pos);
             return true;
         }
-        *next = input + strlen(input);  // End of string
+        next = "";
         return false;
     }
 
@@ -440,7 +441,7 @@ namespace WebUI {
         return showFile("", parameter, auth_level, out);
     }
 
-    static Error fileShowSome(char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP221
+    static Error fileShowSome(const char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP221
         if (notIdleOrAlarm()) {
             return Error::IdleError;
         }
@@ -449,39 +450,41 @@ namespace WebUI {
             return Error::InvalidValue;
         }
 
-        int   firstline = 0;
-        int   lastline  = 0;
-        char* filename;
-        split(parameter, &filename, ',');
-        if (*filename == '\0') {
-            log_error_to(out, "Missing filename");
+        std::string_view args(parameter);
+
+        int firstline = 0;
+        int lastline  = 0;
+
+        std::string_view filename;
+        split(args, filename, ',');
+        if (filename.empty() || args.empty()) {
+            log_error_to(out, "Invalid syntax");
             return Error::InvalidValue;
         }
 
-        // Parameter is the list of lines to display
+        // Args is the list of lines to display
         // N means the first N lines
         // N:M means lines N through M inclusive
-        if (!*parameter) {
-            log_error_to(out, "Missing line count");
-            return Error::InvalidValue;
-        }
+
         JSONencoder j(false, &out);
-        char*       second;
-        split(parameter, &second, ':');
-        if (*second) {
-            firstline = atoi(parameter);
-            lastline  = atoi(second);
-        } else {
+
+        std::string_view second;
+        split(args, second, ':');
+        if (second.empty()) {
             firstline = 0;
-            lastline  = atoi(parameter);
+            std::from_chars(args.data(), args.data() + args.length(), lastline);
+        } else {
+            std::from_chars(args.data(), args.data() + args.length(), firstline);
+            std::from_chars(second.data(), second.data() + second.length(), lastline);
         }
         const char* error = "";
         j.begin();
         j.begin_array("file_lines");
 
-        InputFile* theFile;
-        Error      err;
-        if ((err = openFile(sdName, filename, auth_level, out, theFile)) != Error::Ok) {
+        InputFile*  theFile;
+        Error       err;
+        std::string fn(filename);
+        if ((err = openFile(sdName, fn.c_str(), auth_level, out, theFile)) != Error::Ok) {
             error = "Cannot open file";
         } else {
             char  fileLine[255];
@@ -500,7 +503,7 @@ namespace WebUI {
         if (*error) {
             j.member("error", error);
         } else {
-            j.member("path", filename);
+            j.member("path", fn.c_str());
             j.member("firstline", firstline);
         }
 

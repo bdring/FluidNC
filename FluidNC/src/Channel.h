@@ -166,6 +166,11 @@ public:
             push(*data++);
         }
     }
+    void push(std::string_view data) {
+        for (auto const& c : data) {
+            push((uint8_t)c);
+        }
+    }
 
     void push(const std::string& s) { push((uint8_t*)s.c_str(), s.length()); }
 

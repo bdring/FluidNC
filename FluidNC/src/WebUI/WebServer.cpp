@@ -434,7 +434,7 @@ namespace WebUI {
         }
         return -1;
     }
-    void Web_Server::synchronousCommand(const char* cmd) {
+    void Web_Server::synchronousCommand(const char* cmd, bool silent, AuthenticationLevel auth_level) {
         char line[256];
         strncpy(line, cmd, 255);
         webClient.attachWS(_webserver, silent);
@@ -455,12 +455,11 @@ namespace WebUI {
         }
         webClient.detachWS();
     }
-    void Web_Server::websocketCommand(const char* cmd, int pageid) {
+    void Web_Server::websocketCommand(const char* cmd, int pageid, AuthenticationLevel auth_level) {
         if (auth_level == AuthenticationLevel::LEVEL_GUEST) {
             _webserver->send(401, "text/plain", "Authentication failed\n");
             return;
         }
-        std::string cmd = std::string(cmd);
 
         bool hasError = WSChannels::runGCode(pageid, cmd);
         _webserver->send(hasError ? 500 : 200, "text/plain", hasError ? "WebSocket dead" : "");
@@ -468,23 +467,24 @@ namespace WebUI {
     void Web_Server::_handle_web_command(bool silent) {
         AuthenticationLevel auth_level = is_authenticated();
         if (_webserver->hasArg("cmd")) {  // WebUI3
-            const char* cmd = _webserver->arg("plain").c_str()'
+
+            auto cmd = _webserver->arg("cmd");
             // [ESPXXX] commands expect data in the HTTP response
-            if (cmd.find("[ESP") != std::string::npos) {
-                synchronousCommand(cmd);
+            if (cmd.startsWith("[ESP")) {
+                synchronousCommand(cmd.c_str(), silent, auth_level);
             } else {
-                websocketCommand(cmd, -1);  // WebUI3 does not support PAGEID
+                websocketCommand(cmd.c_str(), -1, auth_level);  // WebUI3 does not support PAGEID
             }
             return;
         }
         if (_webserver->hasArg("plain")) {
-            synchronousCommand(_webserver->arg("plain").c_str());
+            synchronousCommand(_webserver->arg("plain").c_str(), silent, auth_level);
             return;
         }
         if (_webserver->hasArg("commandText")) {
-            websocketCommand(_webserver->arg("commandText").c_str(), getPageid());
+            websocketCommand(_webserver->arg("commandText").c_str(), getPageid(), auth_level);
             return;
-        } 
+        }
         _webserver->send(500, "text/plain", "Invalid command");
     }
 

@@ -148,7 +148,7 @@ namespace WebUI {
         }
     }
 
-    bool WSChannels::runGCode(int pageid, std::string& cmd) {
+    bool WSChannels::runGCode(int pageid, std::string_view cmd) {
         WSChannel* wsChannel = getWSChannel(pageid);
         if (wsChannel) {
             if (cmd.length()) {
@@ -228,7 +228,6 @@ namespace WebUI {
         }
     }
 
-
     void WSChannels::handlev3Event(WebSocketsServer* server, uint8_t num, uint8_t type, uint8_t* payload, size_t length) {
         switch (type) {
             case WStype_DISCONNECTED:
@@ -261,11 +260,10 @@ namespace WebUI {
                         server->broadcastTXT(s.c_str());
                     }
 
-                    // 
-                    for (uint8_t i=0; i<WEBSOCKETS_SERVER_CLIENT_MAX; i++)
-                        if(i!=num && server->clientIsConnected(i)) {
+                    for (uint8_t i = 0; i < WEBSOCKETS_SERVER_CLIENT_MAX; i++)
+                        if (i != num && server->clientIsConnected(i)) {
                             server->disconnect(i);
-                    }
+                        }
                 }
             } break;
             case WStype_TEXT:
