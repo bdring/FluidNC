@@ -352,21 +352,21 @@ namespace WebUI {
 
                     uint8_t PhyMode;
                     esp_wifi_get_protocol(WIFI_IF_STA, &PhyMode);
-                    const char* modeName;
+                    const char* phyModeName;
                     switch (PhyMode) {
                         case WIFI_PROTOCOL_11B | WIFI_PROTOCOL_11G | WIFI_PROTOCOL_11N:
-                            modeName = "11n";
+                            phyModeName = "11n";
                             break;
                         case WIFI_PROTOCOL_11B | WIFI_PROTOCOL_11G:
-                            modeName = "11g";
+                            phyModeName = "11g";
                             break;
                         case WIFI_PROTOCOL_11B:
-                            modeName = "11b";
+                            phyModeName = "11b";
                             break;
                         default:
-                            modeName = "???";
+                            phyModeName = "???";
                     }
-                    log_stream(out, "Phy Mode: " << modeName);
+                    log_stream(out, "Phy Mode: " << phyModeName);
                     log_stream(out, "Channel: " << WiFi.channel());
 
                     tcpip_adapter_dhcp_status_t dhcp_status;
@@ -390,7 +390,7 @@ namespace WebUI {
                 log_stream(out, "SSID: " << (const char*)conf.ap.ssid);
                 log_stream(out, "Visible: " << (conf.ap.ssid_hidden == 0 ? "Yes" : "No"));
                 log_stream(out,
-                           "Radio country set: " << country.cc << " (channels " << country.schan << "-"
+                           "Radio country set: " << country.cc[0] << country.cc[1] << " (channels " << country.schan << "-"
                                                  << (country.schan + country.nchan - 1) << ", max power " << country.max_tx_power << "dBm)");
 
                 const char* mode;
@@ -456,6 +456,19 @@ namespace WebUI {
         s << (notificationsService.started() ? "Enabled" : "Disabled");
         if (notificationsService.started()) {
             s << "(" << notificationsService.getTypeString() << ")";
+        }
+    }
+
+    const char* WiFiConfig::modeName() {
+        switch (WiFi.getMode()) {
+            case WIFI_MODE_NULL:
+                return "None";
+            case WIFI_STA:
+                return "STA";
+            case WIFI_AP:
+                return "AP";
+            default:
+                return "?";
         }
     }
 

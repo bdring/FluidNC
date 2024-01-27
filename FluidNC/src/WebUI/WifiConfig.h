@@ -25,6 +25,8 @@ namespace WebUI {
         static void handle() {}
         static bool isOn() { return false; }
         static void showWifiStats(Channel& out) {}
+
+        static const char* modeName() { return "None"; }
     };
     extern WiFiConfig wifi_config;
 }
@@ -91,6 +93,8 @@ namespace WebUI {
         static void    handle();
         static void    reset_settings();
         static bool    isOn();
+
+        static const char* modeName();
 
         static Error listAPs(const char* parameter, AuthenticationLevel auth_level, Channel& out);
         static void  showWifiStats(Channel& out);
