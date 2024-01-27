@@ -120,7 +120,7 @@ void AllChannels::listChannels(Channel& out) {
     _mutex_general.lock();
     std::string retval;
     for (auto channel : _channelq) {
-        log_to(out, channel->name());
+        log_stream(out, channel->name());
     }
     _mutex_general.unlock();
 }

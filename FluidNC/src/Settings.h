@@ -5,8 +5,14 @@
 #include "Report.h"  // info_channel
 #include "GCode.h"   // CoordIndex
 
+#include <string_view>
 #include <map>
 #include <nvs.h>
+
+// forward declarations
+namespace Machine {
+    class MachineConfig;
+}
 
 // Initialize the configuration subsystem
 void settings_init();
@@ -195,6 +201,21 @@ public:
     const char* getDefaultString();
 
     int32_t get() { return _currentValue; }
+};
+
+// See Settings.cpp for the int32_t and float specialization implementations
+template <typename T>
+class MachineConfigProxySetting : public Setting {
+    std::function<T(Machine::MachineConfig const&)> _getter;
+    std::string                                     _cachedValue;
+
+public:
+    MachineConfigProxySetting(const char* grblName, const char* fullName, std::function<T(Machine::MachineConfig const&)> getter) :
+        Setting(fullName, type_t::GRBL, permissions_t::WU, grblName, fullName, nullptr), _getter(getter), _cachedValue("") {}
+
+    const char* getStringValue() override;
+    Error       setStringValue(char* value) override { return Error::ReadOnlySetting; }
+    const char* getDefaultString() override { return ""; }
 };
 
 class Coordinates {
