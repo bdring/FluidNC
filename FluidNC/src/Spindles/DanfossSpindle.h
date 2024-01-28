@@ -24,8 +24,8 @@ namespace Spindles {
         };
 
     protected:
-        uint16_t _minFrequency = 0;     // frequency lower limit. Factor 10 of actual frequency
-        uint16_t _maxFrequency = 4000;  // max frequency the VFD will allow. Normally 400.0. Factor 10 of actual frequency
+        uint16_t _minFrequency = 0x0;     // motor off (0% speed)
+        uint16_t _maxFrequency = 0x4000;  // max speed the VFD will allow. 0x4000 = 100% for VLT2800
 
         void direction_command(SpindleState mode, ModbusCommand& data) override;
         void set_speed_command(uint32_t rpm, ModbusCommand& data) override;

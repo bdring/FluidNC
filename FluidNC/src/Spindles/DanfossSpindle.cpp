@@ -1,4 +1,4 @@
-// Copyright (c) 2024 -  Jan Speckamp
+// Copyright (c) 2024 -  Jan Speckamp, whosmatt, Jan 'jarainf' Rathner
 // Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
 
 /*
@@ -21,12 +21,13 @@ namespace Spindles {
     void DanfossVLT2800::init() {
         VFD::init();
         is_reversable = false;
+        setupSpeeds(_maxFrequency);
     }
 
     void IRAM_ATTR DanfossVLT2800::set_speed_command(uint32_t dev_speed, ModbusCommand& data) {
         // TODO
 #ifdef DEBUG_VFD
-        log_info("Trying to set VFD speed to " << dev_speed);
+        log_debug("Trying to set VFD speed to " << dev_speed);
 #endif
 
         data.tx_length = 11;  // including automatically set client_id, excluding crc
@@ -47,17 +48,17 @@ namespace Spindles {
 
         // Speed Command: 4000 HEX = 100% speed
         // 40% of 4000 HEX = 1999 HEX(reversed)
-        data.msg[9]  = dev_speed >> 8;
-        data.msg[10] = dev_speed & 0xFF;
+        data.msg[10]  = dev_speed >> 8;
+        data.msg[9] = dev_speed & 0xFF;
     }
 
     void DanfossVLT2800::direction_command(SpindleState mode, ModbusCommand& data) {
 #ifdef DEBUG_VFD
-        log_info("DanfossVLT2800::direction_command not implemented yet!");
+        log_debug("DanfossVLT2800::direction_command not implemented yet!");
 #endif
-        // TODO: this does not work as fluidNC adds CRC automatically to TX!!
-        data.tx_length = 0;  // including automatically set client_id, excluding crc
-        data.rx_length = 0;  // excluding crc
+        // fluidNC does not currently allow defining a VFDSpindle without direction command and data is always sent
+        // send valid request to avoid error
+        get_current_speed(data); 
     }
 
     VFD::response_parser DanfossVLT2800::get_current_speed(ModbusCommand& data) {
@@ -77,7 +78,6 @@ namespace Spindles {
             // const uint8_t response_byte_count = response[2]
 
             uint16_t freq = (uint16_t(response[3]) << 8) | uint16_t(response[4]);
-            log_info("current frequency: " << freq);
             vfd->_sync_dev_speed = freq;
             return true;
         };
@@ -122,23 +122,23 @@ namespace Spindles {
 
 #ifdef DEBUG_VFD
             // Source: https://files.danfoss.com/download/Drives/MG10S202.pdf [Page 22]
-            log_info("Control ready:" << status.control_ready);
-            log_info("Drive ready:" << status.drive_ready);
-            log_info("Coasting stop:" << status.warning);
-            log_info("Trip status:" << status.trip);
+            log_debug("Control ready:" << status.control_ready);
+            log_debug("Drive ready:" << status.drive_ready);
+            log_debug("Coasting stop:" << status.warning);
+            log_debug("Trip status:" << status.trip);
 
-            log_info("Trip lock:" << status.trip_lock);
-            log_info("No warning/warning:" << status.warning);
+            log_debug("Trip lock:" << status.trip_lock);
+            log_debug("No warning/warning:" << status.warning);
 
-            log_info("Speed == ref:" << status.speed_status);
-            log_info("Local operation/serial communication control:" << status.local_control);
-            log_info("Outside frequency range:" << status.freq_range_err);
-            log_info("Motor running:" << status.motor_running);
+            log_debug("Speed == ref:" << status.speed_status);
+            log_debug("Local operation/serial communication control:" << status.local_control);
+            log_debug("Outside frequency range:" << status.freq_range_err);
+            log_debug("Motor running:" << status.motor_running);
 
-            log_info("Not used:" << status.voltage_warn);
-            log_info("Voltage warn:" << status.voltage_warn);
-            log_info("Current limit:" << status.current_limit);
-            log_info("Thermal warn:" << status.thermal_warn);
+            log_debug("Not used:" << status.voltage_warn);
+            log_debug("Voltage warn:" << status.voltage_warn);
+            log_debug("Current limit:" << status.current_limit);
+            log_debug("Thermal warn:" << status.thermal_warn);
 #endif
 
             log_error("TODO: actually check status bits and output potential errors");
