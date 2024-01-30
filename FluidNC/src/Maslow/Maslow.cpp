@@ -79,14 +79,24 @@ void Maslow_::begin(void (*sys_rt)()) {
 
   currentThreshold = 1500;
   lastCallToUpdate = millis();
-  generate_calibration_grid();
-  log_info("Starting Maslow v 1.00");  
+  //generate_calibration_grid();
+  if (error) {log_error("Maslow failed to initialize - fix errors and restart");}
+  else log_info("Starting Maslow v 1.00");  
 
 }
 
 // Maslow main loop, everything is processed here
 void Maslow_::update(){
-  
+    if(error){
+        static unsigned long timer  = millis();
+        static bool st = true;
+        if(millis() - timer >300){
+            st = !st;
+            digitalWrite(REDLED, st);
+            timer = millis();
+        }
+        return;
+    }
     if(random(10000) == 0){
         digitalWrite(ETHERNETLEDPIN, LOW);
     }
@@ -101,14 +111,6 @@ void Maslow_::update(){
 
     if(random(10000) == 0){
         digitalWrite(WIFILED, HIGH);
-    }
-
-    if(random(10000) == 0){
-        digitalWrite(REDLED, LOW);
-    }
-
-    if(random(10000) == 0){
-        digitalWrite(REDLED, HIGH);
     }
   
     //Make sure we're running maslow config file
