@@ -980,8 +980,8 @@ int Maslow_::get_direction(double x, double y, double targetX, double targetY){
 // Generate calibration points based on dimentions
 void Maslow_::generate_calibration_grid() {
 
-    int gridSizeX  = int(sqrt(CALIBRATION_GRID_SIZE));  //25 --> 5
-    int gridSizeY  = int(sqrt(CALIBRATION_GRID_SIZE));
+    int gridSizeX  = CALIBRATION_GRID_X;  
+    int gridSizeY  = CALIBRATION_GRID_Y;
     int xSpacing   = (trX - 2 * calibration_grid_offset) / gridSizeX;
     int ySpacing   = (trY - 2 * calibration_grid_offset) / gridSizeY;
     pointCount = 0;

@@ -5,7 +5,11 @@
 #include "../System.h"         // sys.*
 
 #define TCAADDR 0x70
-#define CALIBRATION_GRID_SIZE  25   //use sqare numbers to not fuck shit up
+
+#define CALIBRATION_GRID_X 10  //turn into 11 x 9 
+#define CALIBRATION_GRID_Y 9
+
+#define CALIBRATION_GRID_SIZE  CALIBRATION_GRID_X*(CALIBRATION_GRID_Y+1)  
 
 #define UP 1
 #define DOWN 2
