@@ -1055,7 +1055,7 @@ void make_user_commands() {
     new UserCommand("CAL", "Maslow/calibrate", maslow_start_calibration, anyState);
     new UserCommand("CMP", "Maslow/calibrate", maslow_start_calibration, anyState);
 
-    new UserCommand("STP", "Maslow/stop", maslow_stop, anyState); // experimental
+    new UserCommand("STOP", "Maslow/stop", maslow_stop, anyState); // experimental
     new UserCommand("WDT", "Maslow/width", maslow_set_width, anyState);
     new UserCommand("HGT", "Maslow/height", maslow_set_height, anyState);
     new UserCommand("SFON", "Maslow/safetyON", maslow_safety_on, anyState);
