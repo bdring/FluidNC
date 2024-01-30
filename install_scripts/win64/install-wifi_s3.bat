@@ -15,7 +15,4 @@ set Partitions=0x8000 %BuildType%\partitions.bin
 echo %EsptoolPath% %BaseArgs% %SetupArgs% %Bootloader% %Bootapp% %Firmware% %Partitions%
 %EsptoolPath% %BaseArgs% %SetupArgs% %Bootloader% %Bootapp% %Firmware% %Partitions%
 
-echo Starting fluidterm
-win64\fluidterm.exe
-
-pause
+exit /b 0
