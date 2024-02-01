@@ -52,7 +52,7 @@ namespace Spindles {
         };
 
     protected:
-        // Unlike other VFDs, the VLT seems to take speed as int16_t, which it then scales to the min and max frequency.
+        // Unlike other VFDs, the VLT seems to take speed as int16_t, mapped to 0-200% of the configured maximum reference.
         uint16_t _minFrequency = 0x0;     // motor off (0% speed)
         uint16_t _maxFrequency = 0x4000;  // max speed the VFD will allow. 0x4000 = 100% for VLT2800
 
@@ -74,7 +74,13 @@ namespace Spindles {
         void init();
 
     private:
+        struct combinedSpindleState {
+            SpindleState state;
+            uint32_t     speed;
+        } cachedSpindleState;
+
+        void writeVFDState(combinedSpindleState spindle, ModbusCommand& data);
+
         void parse_spindle_status(uint16_t statusword, SpindleStatus& status);
     };
-
 }
