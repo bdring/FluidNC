@@ -186,9 +186,10 @@ void Maslow_::blinkIPAddress() {
     static size_t currentChar = 0;
     static int currentBlink = 0;
     static unsigned long lastBlinkTime = 0;
+    static bool inPause = false;
 
-    int shortMS = 300;
-    int longMS = 1000;
+    int shortMS = 400;
+    int longMS = 500;
     int pauseMS = 2000;
 
     std::string IP_String = WebUI::wifi_config.getIP();
@@ -197,22 +198,26 @@ void Maslow_::blinkIPAddress() {
         currentChar = 0;
         currentBlink = 0;
         lastBlinkTime = 0;
+        inPause = false;
         digitalWrite(WIFILED, LOW);
         return;
     }
 
     char c = IP_String[currentChar];
-
     if (isdigit(c)) {
         int blinkCount = c - '0';
         if (currentBlink < blinkCount * 2) {
             if (millis() - lastBlinkTime >= shortMS) {
-                log_info("Blinking Digit: " << c);
+                //log_info("Blinking Digit: " << c);
                 digitalWrite(WIFILED, currentBlink % 2 == 0 ? HIGH : LOW);
                 currentBlink++;
                 lastBlinkTime = millis();
             }
-        } else {
+        } else if (!inPause) {
+            inPause = true;
+            lastBlinkTime = millis();
+        } else if (millis() - lastBlinkTime >= pauseMS) {
+            inPause = false;
             currentChar++;
             currentBlink = 0;
         }
