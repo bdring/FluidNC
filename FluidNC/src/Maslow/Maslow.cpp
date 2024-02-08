@@ -1,6 +1,7 @@
 
 #include "Maslow.h"
 #include "../Report.h"
+#include "../WebUI/WifiConfig.h"
 
 // Maslow specific defines
 #define TLEncoderLine 2
@@ -105,13 +106,7 @@ void Maslow_::update(){
         digitalWrite(ETHERNETLEDPIN, HIGH);
     }
 
-    if(random(10000) == 0){
-        digitalWrite(WIFILED, LOW);
-    }
-
-    if(random(10000) == 0){
-        digitalWrite(WIFILED, HIGH);
-    }
+    blinkIPAddress();
   
     //Make sure we're running maslow config file
     if(!Maslow.using_default_config){
@@ -185,6 +180,51 @@ void Maslow_::update(){
 
     }
     
+}
+
+void Maslow_::blinkIPAddress() {
+    static size_t currentChar = 0;
+    static int currentBlink = 0;
+    static unsigned long lastBlinkTime = 0;
+
+    int shortMS = 300;
+    int longMS = 1000;
+    int pauseMS = 2000;
+
+    std::string IP_String = WebUI::wifi_config.getIP();
+
+    if (currentChar >= IP_String.length()) {
+        currentChar = 0;
+        currentBlink = 0;
+        lastBlinkTime = 0;
+        digitalWrite(WIFILED, LOW);
+        return;
+    }
+
+    char c = IP_String[currentChar];
+
+    if (isdigit(c)) {
+        int blinkCount = c - '0';
+        if (currentBlink < blinkCount * 2) {
+            if (millis() - lastBlinkTime >= shortMS) {
+                log_info("Blinking Digit: " << c);
+                digitalWrite(WIFILED, currentBlink % 2 == 0 ? HIGH : LOW);
+                currentBlink++;
+                lastBlinkTime = millis();
+            }
+        } else {
+            currentChar++;
+            currentBlink = 0;
+        }
+    } else if (c == '.') {
+        if (millis() - lastBlinkTime >= longMS) {
+            digitalWrite(WIFILED, LOW);
+            currentChar++;
+            currentBlink = 0;
+        } else {
+            digitalWrite(WIFILED, HIGH);
+        }
+    }
 }
 
 // -Maslow homing loop

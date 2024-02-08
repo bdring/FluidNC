@@ -424,6 +424,15 @@ namespace WebUI {
         return result;
     }
 
+    std::string WiFiConfig::getIP() {
+        std::string result;
+
+        if ((WiFi.getMode() == WIFI_MODE_STA) || (WiFi.getMode() == WIFI_MODE_APSTA)) {
+            result += IP_string(WiFi.localIP());
+        }
+        return result;
+    }
+
     std::string WiFiConfig::ap_info() {
         std::string result;
 
