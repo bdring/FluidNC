@@ -56,7 +56,7 @@ int ENCODER_READ_FREQUENCY_HZ = 1000; //max frequency for polling the encoders
 
 // Initialization function 
 void Maslow_::begin(void (*sys_rt)()) {
-  Wire.begin(5,4, 200000);
+  Wire.begin(5,4, 400000);
   I2CMux.begin(TCAADDR, Wire);
 
   axisTL.begin(tlIn1Pin, tlIn2Pin, tlADCPin, TLEncoderLine, tlIn1Channel, tlIn2Channel);
