@@ -79,6 +79,7 @@ namespace WebUI {
         static std::string webInfo();
 
         static std::string station_info();
+        static std::string getIP();
         static std::string ap_info();
 
         static bool isValidIP(const char* string);
