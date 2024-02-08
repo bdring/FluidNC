@@ -1,3 +1,7 @@
+// Copyright (c) 2024 Maslow CNC. All rights reserved.
+// Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file with
+// following exception: it may not be used for any reason by MakerMade or anyone with a business or personal connection to MakerMade
+
 /***************************************************
  *   This is a library to interact with A DC Motor
  *
