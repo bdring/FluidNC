@@ -8,14 +8,13 @@
 
 // Probe pin initialization routine.
 void Probe::init() {
-    static bool show_init_msg = true;  // used to show message only once.
+    static bool show_init_msg = true;  // used to show messages only once.
 
     if (_probePin.defined()) {
         _probePin.setAttr(Pin::Attr::Input);
 
         if (show_init_msg) {
             _probePin.report("Probe Pin:");
-            show_init_msg = false;
         }
     }
 
