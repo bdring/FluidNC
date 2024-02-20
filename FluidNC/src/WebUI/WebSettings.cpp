@@ -287,6 +287,11 @@ namespace WebUI {
     }
 
     static Error showFile(const char* fs, char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP221
+
+        if (fs == sdName && !config->_sdCard->is_configured(out)) {
+            return Error::InvalidStatement;
+        }
+
         if (notIdleOrAlarm()) {
             return Error::IdleError;
         }
@@ -400,6 +405,11 @@ namespace WebUI {
 
     static Error runFile(const char* fs, char* parameter, AuthenticationLevel auth_level, Channel& out) {
         Error err;
+
+        if (fs == sdName && !config->_sdCard->is_configured(out)) {
+            return Error::InvalidStatement;
+        }
+
         if (sys.state == State::Alarm || sys.state == State::ConfigAlarm) {
             log_string(out, "Alarm");
             return Error::IdleError;
@@ -429,6 +439,10 @@ namespace WebUI {
 
     static Error deleteObject(const char* fs, char* name, Channel& out) {
         std::error_code ec;
+
+        if (fs == sdName && !config->_sdCard->is_configured(out)) {
+            return Error::InvalidStatement;
+        }
 
         if (!name || !*name || (strcmp(name, "/") == 0)) {
             // Disallow deleting everything
@@ -473,6 +487,10 @@ namespace WebUI {
 
     static Error listFilesystem(const char* fs, const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
         std::error_code ec;
+
+        if (fs == sdName && !config->_sdCard->is_configured(out)) {
+            return Error::InvalidStatement;
+        }
 
         FluidPath fpath { value, fs, ec };
         if (ec) {
@@ -519,6 +537,10 @@ namespace WebUI {
 
     static Error listFilesystemJSON(const char* fs, const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
         std::error_code ec;
+
+        if (fs == sdName && !config->_sdCard->is_configured(out)) {
+            return Error::InvalidStatement;
+        }
 
         FluidPath fpath { value, fs, ec };
         if (ec) {
@@ -633,6 +655,10 @@ namespace WebUI {
     }
 
     static Error renameObject(const char* fs, char* parameter, AuthenticationLevel auth_level, Channel& out) {
+        if (fs == sdName && !config->_sdCard->is_configured(out)) {
+            return Error::InvalidStatement;
+        }
+
         if (!parameter || *parameter == '\0') {
             return Error::InvalidValue;
         }
@@ -764,6 +790,10 @@ namespace WebUI {
     // Used by js/files.js
     static Error showSDStatus(char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP200
         std::error_code ec;
+
+        if (!config->_sdCard->is_configured(out)) {
+            return Error::InvalidStatement;
+        }
 
         FluidPath path { "", "/sd", ec };
         if (ec) {

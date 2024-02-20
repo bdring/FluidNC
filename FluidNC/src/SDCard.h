@@ -46,12 +46,14 @@ private:
 
 public:
     SDCard();
-    SDCard(const SDCard&) = delete;
+    SDCard(const SDCard&)            = delete;
     SDCard& operator=(const SDCard&) = delete;
 
     void afterParse() override;
+    bool is_configured(Channel& out);
 
     const char* filename();
+    bool        config_ok = false;
 
     // Initializes pins.
     void init();

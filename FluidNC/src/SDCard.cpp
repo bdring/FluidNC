@@ -27,10 +27,12 @@ void SDCard::init() {
             init_message = false;
         }
         _cs.setAttr(Pin::Attr::Output);
-        csPin = _cs.getNative(Pin::Capabilities::Output | Pin::Capabilities::Native);
+        csPin     = _cs.getNative(Pin::Capabilities::Output | Pin::Capabilities::Native);
+        config_ok = true;
     } else if ((csFallback = sd_fallback_cs->get()) != -1) {
         csPin = static_cast<pinnum_t>(csFallback);
         log_info("Using fallback CS pin " << int(csPin));
+        config_ok = true;
     } else {
         log_debug("See http://wiki.fluidnc.com/en/config/sd_card#sdfallbackcs-access-sd-without-a-config-file");
         return;
@@ -49,6 +51,13 @@ void SDCard::afterParse() {
     // if (_cs.undefined()) {
     //     _cs = Pin::create("gpio.5");
     // }
+}
+
+bool SDCard::is_configured(Channel& out) {
+    if (!config_ok) {
+        log_warn_to(out, "SD card not configured");
+    }
+    return config_ok;
 }
 
 SDCard::~SDCard() {}
