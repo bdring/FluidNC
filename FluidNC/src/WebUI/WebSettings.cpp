@@ -121,7 +121,11 @@ namespace WebUI {
         // WebUI will switch to M20 for SD access, which is wrong for FluidNC
         s << "Direct SD";
 
-        s << "  # primary sd:/sd # secondary sd:none ";
+        s << "  # primary sd:";
+
+        (config->_sdCard->config_ok) ? s << "/sd" : s << "none";
+
+        s << " # secondary sd:none ";
 
         s << " # authentication:";
 #ifdef ENABLE_AUTHENTICATION
