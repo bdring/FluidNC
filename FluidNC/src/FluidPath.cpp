@@ -3,6 +3,7 @@
 
 #include "FluidPath.h"
 #include "Driver/sdspi.h"
+#include "Machine/MachineConfig.h"
 #include "Config.h"
 #include "Error.h"
 #include "HashFS.h"
@@ -12,6 +13,10 @@ int FluidPath::_refcnt = 0;
 FluidPath::FluidPath(const char* name, const char* fs, std::error_code* ecptr) : std::filesystem::path(canonicalPath(name, fs)) {
     auto mount = *(++begin());  // Use the path iterator to get the first component
     _isSD      = mount == "sd";
+
+    if (_isSD && !config->_sdCard->config_ok) {
+        throw stdfs::filesystem_error { "SD card is not configured", std::error_code() };
+    }
 
     if (_isSD) {
         if (_refcnt == 0) {

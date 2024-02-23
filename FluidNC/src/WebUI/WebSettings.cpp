@@ -492,43 +492,48 @@ namespace WebUI {
     static Error listFilesystem(const char* fs, const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
         std::error_code ec;
 
-        if (fs == sdName && !config->_sdCard->is_configured(out)) {
-            return Error::InvalidStatement;
-        }
+        // if (fs == sdName && !config->_sdCard->is_configured(out)) {
+        //
+        // }
 
-        FluidPath fpath { value, fs, ec };
-        if (ec) {
-            log_string(out, "No SD card");
-            return Error::FsFailedMount;
-        }
+        try {
+            //try {
+            FluidPath fpath { value, fs, ec };
 
-        auto iter = stdfs::recursive_directory_iterator { fpath, ec };
-        if (ec) {
-            log_stream(out, "Error: " << ec.message());
-            return Error::FsFailedMount;
-        }
-        for (auto const& dir_entry : iter) {
-            if (dir_entry.is_directory()) {
-                log_stream(out, "[DIR:" << std::string(iter.depth(), ' ').c_str() << dir_entry.path().filename());
-            } else {
-                log_stream(out,
-                           "[FILE: " << std::string(iter.depth(), ' ').c_str() << dir_entry.path().filename()
-                                     << "|SIZE:" << dir_entry.file_size());
+            if (ec) {
+                log_string(out, "No SD card");
+                return Error::FsFailedMount;
             }
-        }
-        auto space = stdfs::space(fpath, ec);
-        if (ec) {
-            log_stream(out, "Error " << ec.value() << " " << ec.message());
-            return Error::FsFailedMount;
-        }
 
-        auto totalBytes = space.capacity;
-        auto freeBytes  = space.available;
-        auto usedBytes  = totalBytes - freeBytes;
-        log_stream(out,
-                   "[" << fpath.c_str() << " Free:" << formatBytes(freeBytes) << " Used:" << formatBytes(usedBytes)
-                       << " Total:" << formatBytes(totalBytes));
-        return Error::Ok;
+            auto iter = stdfs::recursive_directory_iterator { fpath, ec };
+            if (ec) {
+                log_stream(out, "Error: " << ec.message());
+                return Error::FsFailedMount;
+            }
+            for (auto const& dir_entry : iter) {
+                if (dir_entry.is_directory()) {
+                    log_stream(out, "[DIR:" << std::string(iter.depth(), ' ').c_str() << dir_entry.path().filename());
+                } else {
+                    log_stream(out,
+                               "[FILE: " << std::string(iter.depth(), ' ').c_str() << dir_entry.path().filename()
+                                         << "|SIZE:" << dir_entry.file_size());
+                }
+            }
+            auto space = stdfs::space(fpath, ec);
+            if (ec) {
+                log_stream(out, "Error " << ec.value() << " " << ec.message());
+                return Error::FsFailedMount;
+            }
+
+            auto totalBytes = space.capacity;
+            auto freeBytes  = space.available;
+            auto usedBytes  = totalBytes - freeBytes;
+            log_stream(out,
+                       "[" << fpath.c_str() << " Free:" << formatBytes(freeBytes) << " Used:" << formatBytes(usedBytes)
+                           << " Total:" << formatBytes(totalBytes));
+            return Error::Ok;
+
+        } catch (...) { return Error::InvalidStatement; }
     }
 
     static Error listSDFiles(char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP210
