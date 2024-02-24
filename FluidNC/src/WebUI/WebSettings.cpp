@@ -410,10 +410,6 @@ namespace WebUI {
     static Error runFile(const char* fs, char* parameter, AuthenticationLevel auth_level, Channel& out) {
         Error err;
 
-        if (fs == sdName && !config->_sdCard->is_configured(out)) {
-            return Error::InvalidStatement;
-        }
-
         if (sys.state == State::Alarm || sys.state == State::ConfigAlarm) {
             log_string(out, "Alarm");
             return Error::IdleError;
