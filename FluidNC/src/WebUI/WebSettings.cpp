@@ -658,18 +658,28 @@ namespace WebUI {
             return Error::InvalidStatement;
         }
 
-        if (!parameter || *parameter == '\0') {
+        if (!parameter || *parameter == '\0' || !strchr(parameter, '>')) {
             return Error::InvalidValue;
         }
+
         auto opath = strchr(parameter, '>');
         if (*opath == '\0') {
             return Error::InvalidValue;
         }
         const char* ipath = parameter;
         *opath++          = '\0';
+
+        if (strlen(ipath) == 0 || strlen(opath) == 0) {
+            return Error::InvalidStatement;
+        }
+
         try {
             FluidPath inPath { ipath, fs };
             FluidPath outPath { opath, fs };
+
+            if (!std::filesystem::exists(inPath)) {
+                return Error::FsFileNotFound;
+            }
             std::filesystem::rename(inPath, outPath);
             HashFS::rename_file(inPath, outPath, true);
         } catch (const Error err) {
