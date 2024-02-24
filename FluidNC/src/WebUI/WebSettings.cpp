@@ -658,12 +658,8 @@ namespace WebUI {
             return Error::InvalidStatement;
         }
 
-        if (!parameter || *parameter == '\0' || !strchr(parameter, '>')) {
-            return Error::InvalidValue;
-        }
-
         auto opath = strchr(parameter, '>');
-        if (*opath == '\0') {
+        if (!opath || *opath == '\0') {
             return Error::InvalidValue;
         }
         const char* ipath = parameter;
