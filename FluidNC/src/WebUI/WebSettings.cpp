@@ -275,6 +275,10 @@ namespace WebUI {
     }
 
     static Error openFile(const char* fs, char* parameter, AuthenticationLevel auth_level, Channel& out, InputFile*& theFile) {
+        if (fs == sdName && !config->_sdCard->is_configured(out)) {
+            return Error::FsFailedMount;
+        }
+
         if (*parameter == '\0') {
             log_string(out, "Missing file name!");
             return Error::InvalidValue;
@@ -291,10 +295,6 @@ namespace WebUI {
     }
 
     static Error showFile(const char* fs, char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP221
-
-        if (fs == sdName && !config->_sdCard->is_configured(out)) {
-            return Error::InvalidStatement;
-        }
 
         if (notIdleOrAlarm()) {
             return Error::IdleError;
@@ -444,8 +444,11 @@ namespace WebUI {
     static Error deleteObject(const char* fs, char* name, Channel& out) {
         std::error_code ec;
 
-        if (fs == sdName && !config->_sdCard->is_configured(out)) {
-            return Error::InvalidStatement;
+        FluidPath fpath { name, fs, ec };
+
+        if (ec) {
+            log_string(out, ec.value() == -1 ? "SD is not configured" : "No SD card");
+            return Error::FsFailedMount;
         }
 
         if (!name || !*name || (strcmp(name, "/") == 0)) {
@@ -453,11 +456,7 @@ namespace WebUI {
             log_error_to(out, "Will not delete everything");
             return Error::InvalidValue;
         }
-        FluidPath fpath { name, fs, ec };
-        if (ec) {
-            log_string(out, "No SD");
-            return Error::FsFailedMount;
-        }
+
         auto isDir = stdfs::is_directory(fpath, ec);
         if (ec) {
             log_stream(out, "Delete failed: " << ec.message());
@@ -492,48 +491,40 @@ namespace WebUI {
     static Error listFilesystem(const char* fs, const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
         std::error_code ec;
 
-        // if (fs == sdName && !config->_sdCard->is_configured(out)) {
-        //
-        // }
+        FluidPath fpath { value, fs, ec };
 
-        try {
-            //try {
-            FluidPath fpath { value, fs, ec };
+        if (ec) {
+            log_string(out, ec.value() == -1 ? "SD is not configured" : "No SD card");
+            return Error::FsFailedMount;
+        }
 
-            if (ec) {
-                log_string(out, "No SD card");
-                return Error::FsFailedMount;
+        auto iter = stdfs::recursive_directory_iterator { fpath, ec };
+        if (ec) {
+            log_stream(out, "Error: " << ec.message());
+            return Error::FsFailedMount;
+        }
+        for (auto const& dir_entry : iter) {
+            if (dir_entry.is_directory()) {
+                log_stream(out, "[DIR:" << std::string(iter.depth(), ' ').c_str() << dir_entry.path().filename());
+            } else {
+                log_stream(out,
+                           "[FILE: " << std::string(iter.depth(), ' ').c_str() << dir_entry.path().filename()
+                                     << "|SIZE:" << dir_entry.file_size());
             }
+        }
+        auto space = stdfs::space(fpath, ec);
+        if (ec) {
+            log_stream(out, "Error " << ec.value() << " " << ec.message());
+            return Error::FsFailedMount;
+        }
 
-            auto iter = stdfs::recursive_directory_iterator { fpath, ec };
-            if (ec) {
-                log_stream(out, "Error: " << ec.message());
-                return Error::FsFailedMount;
-            }
-            for (auto const& dir_entry : iter) {
-                if (dir_entry.is_directory()) {
-                    log_stream(out, "[DIR:" << std::string(iter.depth(), ' ').c_str() << dir_entry.path().filename());
-                } else {
-                    log_stream(out,
-                               "[FILE: " << std::string(iter.depth(), ' ').c_str() << dir_entry.path().filename()
-                                         << "|SIZE:" << dir_entry.file_size());
-                }
-            }
-            auto space = stdfs::space(fpath, ec);
-            if (ec) {
-                log_stream(out, "Error " << ec.value() << " " << ec.message());
-                return Error::FsFailedMount;
-            }
-
-            auto totalBytes = space.capacity;
-            auto freeBytes  = space.available;
-            auto usedBytes  = totalBytes - freeBytes;
-            log_stream(out,
-                       "[" << fpath.c_str() << " Free:" << formatBytes(freeBytes) << " Used:" << formatBytes(usedBytes)
-                           << " Total:" << formatBytes(totalBytes));
-            return Error::Ok;
-
-        } catch (...) { return Error::InvalidStatement; }
+        auto totalBytes = space.capacity;
+        auto freeBytes  = space.available;
+        auto usedBytes  = totalBytes - freeBytes;
+        log_stream(out,
+                   "[" << fpath.c_str() << " Free:" << formatBytes(freeBytes) << " Used:" << formatBytes(usedBytes)
+                       << " Total:" << formatBytes(totalBytes));
+        return Error::Ok;
     }
 
     static Error listSDFiles(char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP210
@@ -547,13 +538,10 @@ namespace WebUI {
     static Error listFilesystemJSON(const char* fs, const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
         std::error_code ec;
 
-        if (fs == sdName && !config->_sdCard->is_configured(out)) {
-            return Error::InvalidStatement;
-        }
-
         FluidPath fpath { value, fs, ec };
+
         if (ec) {
-            log_string(out, "No SD card");
+            log_string(out, ec.value() == -1 ? "SD is not configured" : "No SD card");
             return Error::FsFailedMount;
         }
 
@@ -612,6 +600,12 @@ namespace WebUI {
         std::error_code ec;
 
         FluidPath fpath { parameter, sdName, ec };
+
+        if (ec == std::error_code(-1, std::system_category())) {
+            log_string(out, ec.value() == -1 ? "SD is not configured" : "No SD card");
+            return Error::FsFailedMount;
+        }
+
         if (ec) {
             error = "No volume";
         }
@@ -800,15 +794,13 @@ namespace WebUI {
     static Error showSDStatus(char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP200
         std::error_code ec;
 
-        if (!config->_sdCard->is_configured(out)) {
-            return Error::InvalidStatement;
-        }
-
         FluidPath path { "", "/sd", ec };
+
         if (ec) {
-            log_string(out, "No SD card");
+            log_string(out, ec.value() == -1 ? "SD is not configured" : "No SD card");
             return Error::FsFailedMount;
         }
+
         log_string(out, "SD card detected");
         return Error::Ok;
     }

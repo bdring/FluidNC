@@ -9,16 +9,20 @@
 #include "HashFS.h"
 
 int FluidPath::_refcnt = 0;
-
 FluidPath::FluidPath(const char* name, const char* fs, std::error_code* ecptr) : std::filesystem::path(canonicalPath(name, fs)) {
     auto mount = *(++begin());  // Use the path iterator to get the first component
     _isSD      = mount == "sd";
 
-    if (_isSD && !config->_sdCard->config_ok) {
-        throw stdfs::filesystem_error { "SD card is not configured", std::error_code() };
-    }
-
     if (_isSD) {
+        if (!config->_sdCard->config_ok) {
+            std::error_code ec = std::error_code(-1, std::system_category());
+            if (ecptr) {
+                *ecptr = ec;
+                return;
+            }
+            throw stdfs::filesystem_error { "SD card is not configured", ec };
+        }
+
         if (_refcnt == 0) {
             std::error_code ec = sd_mount();
             if (ec) {
