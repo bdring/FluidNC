@@ -44,15 +44,19 @@ namespace Machine {
 
         handler.item("Maslow_brX", Maslow.brX);
         handler.item("Maslow_brY", Maslow.brY);
+        handler.item("Maslow_brZ", Maslow.brZ);
         
         handler.item("Maslow_tlX", Maslow.tlX);
         handler.item("Maslow_tlY", Maslow.tlY);
+        handler.item("Maslow_tlZ", Maslow.tlZ);
 
         handler.item("Maslow_trX", Maslow.trX);
         handler.item("Maslow_trY", Maslow.trY);
+        handler.item("Maslow_trZ", Maslow.trZ);
 
         handler.item("Maslow_blX", Maslow.blX);
         handler.item("Maslow_blY", Maslow.blY);
+        handler.item("Maslow_blZ", Maslow.blZ);
 
         handler.section("stepping", _stepping);
 
