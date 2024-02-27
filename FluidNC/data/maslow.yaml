@@ -16,6 +16,11 @@ Maslow_blY: 0.0
 Maslow_brX: 2952
 Maslow_brY: 0.0
 
+Maslow_tlZ: 144 #116+28
+Maslow_trZ: 97 #69+28
+Maslow_blZ: 75 #47+28
+Maslow_brZ: 117 #89+28
+
 spi:
   miso_pin: gpio.13
   mosi_pin: gpio.11
