@@ -7,7 +7,7 @@
 #include "Maslow.h"
 
 // PID controller tuning
-#define P 300 //260
+#define P 300
 #define I 0
 #define D 0
 
