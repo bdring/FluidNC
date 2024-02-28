@@ -76,7 +76,6 @@ bool localfs_format(const char* fsname) {
                 return false;
             }
         }
-        log_debug("Trying LittleFS in spiffs partition");
         if (!littlefs_format(spiffsName)) {
             if (!littlefs_mount(spiffsName)) {
                 localfsName = littlefsName;
@@ -144,8 +143,6 @@ const char* canonicalPath(const char* filename, const char* defaultFs) {
     static char path[128];
     strncpy(path, filename, 128);
 
-    // log_debug("filename is " << filename << " deffs " << defaultFs);
-
     // Map file system names to canonical form.  The input name is case-independent,
     // while the canonical name is lower case.
     if (!(replacedFsName(path, "localfs", localfsName) || replacedFsName(path, spiffsName, localfsName) ||
@@ -166,6 +163,5 @@ const char* canonicalPath(const char* filename, const char* defaultFs) {
             insertFsName(path, defaultFs);
         }
     }
-    // log_debug("path is " << path);
     return path;
 }

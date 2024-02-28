@@ -19,7 +19,6 @@ bool spiffs_mount(const char* label, bool format) {
 
     esp_err_t err = esp_vfs_spiffs_register(&conf);
     if (err) {
-        log_debug("Spiffs mount failed: " << esp_err_to_name(err));
         return true;
     }
     return false;

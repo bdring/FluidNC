@@ -36,6 +36,8 @@ void SDCard::init() {
         return;
     }
 
+    config_ok = true;
+
     if (_cardDetect.defined()) {
         _cardDetect.setAttr(Pin::Attr::Input);
         auto cdPin = _cardDetect.getNative(Pin::Capabilities::Input | Pin::Capabilities::Native);
