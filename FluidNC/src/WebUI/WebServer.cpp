@@ -719,7 +719,7 @@ namespace WebUI {
 
     void Web_Server::sendAuth(const char* status, const char* level, const char* user) {
         std::string s;
-        JSONencoder j(false, &s);
+        JSONencoder j(&s);
         j.begin();
         j.member("status", status);
         if (*level != '\0') {
@@ -734,7 +734,7 @@ namespace WebUI {
 
     void Web_Server::sendStatus(int code, const char* status) {
         std::string s;
-        JSONencoder j(false, &s);
+        JSONencoder j(&s);
         j.begin();
         j.member("status", status);
         j.end();
@@ -955,7 +955,7 @@ namespace WebUI {
         }
 
         std::string        s;
-        WebUI::JSONencoder j(false, &s);
+        WebUI::JSONencoder j(&s);
         j.begin();
 
         if (list_files) {

@@ -811,7 +811,7 @@ namespace WebUI {
 
     // Used by js/scanwifidlg.js
     Error WiFiConfig::listAPs(char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP410
-        JSONencoder j(true, &out);
+        JSONencoder j(false, &out);
         j.begin();
         j.begin_array("AP_LIST");
         // An initial async scanNetworks was issued at startup, so there
