@@ -15,7 +15,7 @@ WebUI::WiFiConfig wifi_config __attribute__((init_priority(109)));
 #    include "../Main.h"
 #    include "Commands.h"      // COMMANDS
 #    include "WifiServices.h"  // wifi_services.start() etc.
-#    include "WebSettings.h"   // split_params(), get_params()
+#    include "WebSettings.h"   // get_param()
 
 #    include "WebServer.h"             // webServer.port()
 #    include "TelnetServer.h"          // telnetServer
@@ -116,15 +116,15 @@ namespace WebUI {
     IPaddrSetting* wifi_sta_netmask;
     EnumSetting*   wifi_sta_ssdp;
 
-    StringSetting* wifi_ap_ssid;
-    StringSetting* wifi_ap_password;
-    EnumSetting*   wifi_ap_country;
+    StringSetting*   wifi_ap_ssid;
+    PasswordSetting* wifi_ap_password;
+    EnumSetting*     wifi_ap_country;
 
     IPaddrSetting* wifi_ap_ip;
 
     IntSetting* wifi_ap_channel;
 
-    StringSetting* wifi_hostname;
+    HostnameSetting* wifi_hostname;
 
     enum_opt_t staModeOptions = {
         { "DHCP", DHCP_MODE },
@@ -142,24 +142,22 @@ namespace WebUI {
 
     static void print_mac(Channel& out, const char* prefix, const char* mac) { log_stream(out, prefix << " (" << mac << ")"); }
 
-    static Error showIP(char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP111
+    static Error showIP(const char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP111
         log_stream(out, parameter << IP_string(WiFi.getMode() == WIFI_STA ? WiFi.localIP() : WiFi.softAPIP()));
         return Error::Ok;
     }
 
-    static Error showSetStaParams(char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP103
+    static Error showSetStaParams(const char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP103
         if (*parameter == '\0') {
             log_stream(out,
                        "IP:" << wifi_sta_ip->getStringValue() << " GW:" << wifi_sta_gateway->getStringValue()
                              << " MSK:" << wifi_sta_netmask->getStringValue());
             return Error::Ok;
         }
-        if (!split_params(parameter)) {
+        std::string gateway, netmask, ip;
+        if (!(get_param(parameter, "GW", gateway) && get_param(parameter, "MSK", netmask) && get_param(parameter, "IP", ip))) {
             return Error::InvalidValue;
         }
-        char* gateway = get_param("GW", false);
-        char* netmask = get_param("MSK", false);
-        char* ip      = get_param("IP", false);
 
         Error err = wifi_sta_ip->setStringValue(ip);
         if (err == Error::Ok) {
@@ -169,6 +167,160 @@ namespace WebUI {
             err = wifi_sta_gateway->setStringValue(gateway);
         }
         return err;
+    }
+
+    void addIdValueObject(JSONencoder& j, const char* id, const char* value) {
+        j.begin_object();
+        j.member("id", id);
+        j.member("value", value);
+        j.end_object();
+    }
+
+    void addIdValueObject(JSONencoder& j, const char* id, const std::string& value) {
+        j.begin_object();
+        j.member("id", id);
+        j.member("value", value);
+        j.end_object();
+    }
+
+    void addIdValueObject(JSONencoder& j, const char* id, int value) {
+        j.begin_object();
+        j.member("id", id);
+        j.member("value", std::to_string(value));
+        j.end_object();
+    }
+
+    void WiFiConfig::addWifiStatsToArray(JSONencoder& j) {
+        addIdValueObject(j, "Sleep mode", WiFi.getSleep() ? "Modem" : "None");
+        int mode = WiFi.getMode();
+        if (mode != WIFI_MODE_NULL) {
+            //Is OTA available ?
+            size_t flashsize = 0;
+            if (esp_ota_get_running_partition()) {
+                const esp_partition_t* partition = esp_ota_get_next_update_partition(NULL);
+                if (partition) {
+                    flashsize = partition->size;
+                }
+            }
+            addIdValueObject(j, "Available Size for update", formatBytes(flashsize));
+            addIdValueObject(j, "Available Size for LocalFS", formatBytes(localfs_size()));
+            addIdValueObject(j, "Web port", webServer.port());
+            addIdValueObject(j, "Data port", telnetServer.port());
+            addIdValueObject(j, "Hostname", wifi_config.Hostname());
+        }
+
+        switch (mode) {
+            case WIFI_STA:
+
+                addIdValueObject(j, "Current WiFi Mode", std::string("STA (") + WiFi.macAddress().c_str() + ")");
+
+                if (WiFi.isConnected()) {  //in theory no need but ...
+                    addIdValueObject(j, "Connected to", WiFi.SSID().c_str());
+                    addIdValueObject(j, "Signal", std::string("") + std::to_string(wifi_config.getSignal(WiFi.RSSI())) + "%");
+
+                    uint8_t PhyMode;
+                    esp_wifi_get_protocol(WIFI_IF_STA, &PhyMode);
+                    const char* modeName;
+                    switch (PhyMode) {
+                        case WIFI_PROTOCOL_11B | WIFI_PROTOCOL_11G | WIFI_PROTOCOL_11N:
+                            modeName = "11n";
+                            break;
+                        case WIFI_PROTOCOL_11B | WIFI_PROTOCOL_11G:
+                            modeName = "11g";
+                            break;
+                        case WIFI_PROTOCOL_11B:
+                            modeName = "11b";
+                            break;
+                        default:
+                            modeName = "???";
+                    }
+
+                    addIdValueObject(j, "Phy Mode: ", modeName);
+                    addIdValueObject(j, "Channel: ", WiFi.channel());
+
+                    tcpip_adapter_dhcp_status_t dhcp_status;
+                    tcpip_adapter_dhcpc_get_status(TCPIP_ADAPTER_IF_STA, &dhcp_status);
+                    addIdValueObject(j, "IP Mode: ", (dhcp_status == TCPIP_ADAPTER_DHCP_STARTED ? "DHCP" : "Static"));
+                    addIdValueObject(j, "IP: ", IP_string(WiFi.localIP()));
+                    addIdValueObject(j, "Gateway: ", IP_string(WiFi.gatewayIP()));
+                    addIdValueObject(j, "Mask: ", IP_string(WiFi.subnetMask()));
+                    addIdValueObject(j, "DNS: ", IP_string(WiFi.dnsIP()));
+
+                }  //this is web command so connection => no command
+                addIdValueObject(j, "Disabled Mode", std::string("AP (") + WiFi.softAPmacAddress().c_str() + ")");
+                break;
+            case WIFI_AP:
+                addIdValueObject(j, "Current WiFi Mode", std::string("AP (") + WiFi.softAPmacAddress().c_str() + ")");
+                wifi_config_t  conf;
+                wifi_country_t country;
+                esp_wifi_get_config(WIFI_IF_AP, &conf);
+                esp_wifi_get_country(&country);
+                addIdValueObject(j, "SSID: ", (const char*)conf.ap.ssid);
+                addIdValueObject(j, "Visible: ", (conf.ap.ssid_hidden == 0 ? "Yes" : "No"));
+                addIdValueObject(j,
+                                 "Radio country set: ",
+                                 std::string("") + country.cc + " (channels " + std::to_string(country.schan) + "-" +
+                                     std::to_string((country.schan + country.nchan - 1)) + ", max power " +
+                                     std::to_string(country.max_tx_power) + "dBm)");
+
+                const char* mode;
+                switch (conf.ap.authmode) {
+                    case WIFI_AUTH_OPEN:
+                        mode = "None";
+                        break;
+                    case WIFI_AUTH_WEP:
+                        mode = "WEP";
+                        break;
+                    case WIFI_AUTH_WPA_PSK:
+                        mode = "WPA-PSK";
+                        break;
+                    case WIFI_AUTH_WPA2_PSK:
+                        mode = "WPA2-PSK";
+                        break;
+                    case WIFI_AUTH_WPA_WPA2_PSK:
+                        mode = "WPA-WPA2-PSK";
+                        break;
+                    default:
+                        mode = "WPA/WPA2";
+                }
+
+                addIdValueObject(j, "Authentication", mode);
+                addIdValueObject(j, "Max Connections", conf.ap.max_connection);
+
+                tcpip_adapter_dhcp_status_t dhcp_status;
+                tcpip_adapter_dhcps_get_status(TCPIP_ADAPTER_IF_AP, &dhcp_status);
+                addIdValueObject(j, "DHCP Server", (dhcp_status == TCPIP_ADAPTER_DHCP_STARTED ? "Started" : "Stopped"));
+
+                addIdValueObject(j, "IP", IP_string(WiFi.softAPIP()));
+
+                tcpip_adapter_ip_info_t ip_AP;
+                tcpip_adapter_get_ip_info(TCPIP_ADAPTER_IF_AP, &ip_AP);
+                addIdValueObject(j, "Gateway", IP_string(IPAddress(ip_AP.gw.addr)));
+                addIdValueObject(j, "Mask", IP_string(IPAddress(ip_AP.netmask.addr)));
+
+                wifi_sta_list_t          station;
+                tcpip_adapter_sta_list_t tcpip_sta_list;
+                esp_wifi_ap_get_sta_list(&station);
+                tcpip_adapter_get_sta_list(&station, &tcpip_sta_list);
+                addIdValueObject(j, "Connected channels", station.num);
+
+                for (int i = 0; i < station.num; i++) {
+                    addIdValueObject(j,
+                                     "",
+                                     std::string("") + wifi_config.mac2str(tcpip_sta_list.sta[i].mac) + " " +
+                                         IP_string(IPAddress(tcpip_sta_list.sta[i].ip.addr)));
+                }
+                addIdValueObject(j, "Disabled Mode", std::string("STA (") + WiFi.macAddress().c_str() + ")");
+                break;
+            case WIFI_AP_STA:  //we should not be in this state but just in case ....
+                addIdValueObject(j, "Mixed", std::string("STA (") + WiFi.macAddress().c_str() + ")");
+                addIdValueObject(j, "Mixed", std::string("AP (") + WiFi.softAPmacAddress().c_str() + ")");
+                break;
+            default:  //we should not be there if no wifi ....
+
+                addIdValueObject(j, "Current WiFi Mode", "Off");
+                break;
+        }
     }
 
     void WiFiConfig::showWifiStats(Channel& out) {
@@ -200,21 +352,21 @@ namespace WebUI {
 
                     uint8_t PhyMode;
                     esp_wifi_get_protocol(WIFI_IF_STA, &PhyMode);
-                    const char* modeName;
+                    const char* phyModeName;
                     switch (PhyMode) {
                         case WIFI_PROTOCOL_11B | WIFI_PROTOCOL_11G | WIFI_PROTOCOL_11N:
-                            modeName = "11n";
+                            phyModeName = "11n";
                             break;
                         case WIFI_PROTOCOL_11B | WIFI_PROTOCOL_11G:
-                            modeName = "11g";
+                            phyModeName = "11g";
                             break;
                         case WIFI_PROTOCOL_11B:
-                            modeName = "11b";
+                            phyModeName = "11b";
                             break;
                         default:
-                            modeName = "???";
+                            phyModeName = "???";
                     }
-                    log_stream(out, "Phy Mode: " << modeName);
+                    log_stream(out, "Phy Mode: " << phyModeName);
                     log_stream(out, "Channel: " << WiFi.channel());
 
                     tcpip_adapter_dhcp_status_t dhcp_status;
@@ -238,7 +390,7 @@ namespace WebUI {
                 log_stream(out, "SSID: " << (const char*)conf.ap.ssid);
                 log_stream(out, "Visible: " << (conf.ap.ssid_hidden == 0 ? "Yes" : "No"));
                 log_stream(out,
-                           "Radio country set: " << country.cc << " (channels " << country.schan << "-"
+                           "Radio country set: " << country.cc[0] << country.cc[1] << " (channels " << country.schan << "-"
                                                  << (country.schan + country.nchan - 1) << ", max power " << country.max_tx_power << "dBm)");
 
                 const char* mode;
@@ -307,58 +459,45 @@ namespace WebUI {
         }
     }
 
+    const char* WiFiConfig::modeName() {
+        switch (WiFi.getMode()) {
+            case WIFI_MODE_NULL:
+                return "None";
+            case WIFI_STA:
+                return "STA";
+            case WIFI_AP:
+                return "AP";
+            default:
+                return "?";
+        }
+    }
+
     std::string WiFiConfig::_hostname("");
     bool        WiFiConfig::_events_registered = false;
 
     WiFiConfig::WiFiConfig() {
         new WebCommand(NULL, WEBCMD, WU, "ESP410", "WiFi/ListAPs", listAPs);
 
-        wifi_hostname = new StringSetting("Hostname",
-                                          WEBSET,
-                                          WA,
-                                          "ESP112",
-                                          "Hostname",
-                                          DEFAULT_HOSTNAME,
-                                          MIN_HOSTNAME_LENGTH,
-                                          MAX_HOSTNAME_LENGTH,
-                                          (bool (*)(char*))WiFiConfig::isHostnameValid);
+        wifi_hostname = new HostnameSetting("Hostname", "ESP112", "Hostname", DEFAULT_HOSTNAME);
 
-        wifi_ap_channel =
-            new IntSetting("AP Channel", WEBSET, WA, "ESP108", "AP/Channel", DEFAULT_AP_CHANNEL, MIN_CHANNEL, MAX_CHANNEL, NULL);
-        wifi_ap_ip       = new IPaddrSetting("AP Static IP", WEBSET, WA, "ESP107", "AP/IP", DEFAULT_AP_IP, NULL);
-        wifi_ap_password = new StringSetting("AP Password",
-                                             WEBSET,
-                                             WA,
-                                             "ESP106",
-                                             "AP/Password",
-                                             DEFAULT_AP_PWD,
-                                             MIN_PASSWORD_LENGTH,
-                                             MAX_PASSWORD_LENGTH,
-                                             (bool (*)(char*))WiFiConfig::isPasswordValid);
-        wifi_ap_ssid = new StringSetting("AP SSID", WEBSET, WA, "ESP105", "AP/SSID", DEFAULT_AP_SSID, MIN_SSID_LENGTH, MAX_SSID_LENGTH, NULL);
-        wifi_ap_country = new EnumSetting("AP regulatory domain", WEBSET, WA, NULL, "AP/Country", WiFiCountry01, &wifiContryOptions, NULL);
-        wifi_sta_ssdp =
-            new EnumSetting("SSDP and mDNS enable", WEBSET, WA, NULL, "Sta/SSDP/Enable", DEFAULT_STA_SSDP_ENABLED, &onoffOptions, NULL);
-        wifi_sta_netmask = new IPaddrSetting("Station Static Mask", WEBSET, WA, NULL, "Sta/Netmask", DEFAULT_STA_MK, NULL);
-        wifi_sta_gateway = new IPaddrSetting("Station Static Gateway", WEBSET, WA, NULL, "Sta/Gateway", DEFAULT_STA_GW, NULL);
-        wifi_sta_ip      = new IPaddrSetting("Station Static IP", WEBSET, WA, NULL, "Sta/IP", DEFAULT_STA_IP, NULL);
-        wifi_sta_mode  = new EnumSetting("Station IP Mode", WEBSET, WA, "ESP102", "Sta/IPMode", DEFAULT_STA_IP_MODE, &staModeOptions, NULL);
-        wifi_fast_scan = new EnumSetting("WiFi Fast Scan", WEBSET, WA, NULL, "WiFi/FastScan", 0, &onoffOptions, NULL);
+        wifi_ap_channel  = new IntSetting("AP Channel", WEBSET, WA, "ESP108", "AP/Channel", DEFAULT_AP_CHANNEL, MIN_CHANNEL, MAX_CHANNEL);
+        wifi_ap_ip       = new IPaddrSetting("AP Static IP", WEBSET, WA, "ESP107", "AP/IP", DEFAULT_AP_IP);
+        wifi_ap_password = new PasswordSetting("AP Password", "ESP106", "AP/Password", DEFAULT_AP_PWD);
+        wifi_ap_ssid     = new StringSetting("AP SSID", WEBSET, WA, "ESP105", "AP/SSID", DEFAULT_AP_SSID, MIN_SSID_LENGTH, MAX_SSID_LENGTH);
+        wifi_ap_country  = new EnumSetting("AP regulatory domain", WEBSET, WA, NULL, "AP/Country", WiFiCountry01, &wifiContryOptions);
+        wifi_sta_ssdp = new EnumSetting("SSDP and mDNS enable", WEBSET, WA, NULL, "Sta/SSDP/Enable", DEFAULT_STA_SSDP_ENABLED, &onoffOptions);
+        wifi_sta_netmask = new IPaddrSetting("Station Static Mask", WEBSET, WA, NULL, "Sta/Netmask", DEFAULT_STA_MK);
+        wifi_sta_gateway = new IPaddrSetting("Station Static Gateway", WEBSET, WA, NULL, "Sta/Gateway", DEFAULT_STA_GW);
+        wifi_sta_ip      = new IPaddrSetting("Station Static IP", WEBSET, WA, NULL, "Sta/IP", DEFAULT_STA_IP);
+        wifi_sta_mode    = new EnumSetting("Station IP Mode", WEBSET, WA, "ESP102", "Sta/IPMode", DEFAULT_STA_IP_MODE, &staModeOptions);
+        wifi_fast_scan   = new EnumSetting("WiFi Fast Scan", WEBSET, WA, NULL, "WiFi/FastScan", 0, &onoffOptions);
         wifi_sta_min_security =
-            new EnumSetting("Station IP Mode", WEBSET, WA, NULL, "Sta/MinSecurity", DEFAULT_STA_MIN_SECURITY, &staSecurityOptions, NULL);
-        wifi_sta_password = new StringSetting("Station Password",
-                                              WEBSET,
-                                              WA,
-                                              "ESP101",
-                                              "Sta/Password",
-                                              DEFAULT_STA_PWD,
-                                              MIN_PASSWORD_LENGTH,
-                                              MAX_PASSWORD_LENGTH,
-                                              (bool (*)(char*))WiFiConfig::isPasswordValid);
+            new EnumSetting("Station IP Mode", WEBSET, WA, NULL, "Sta/MinSecurity", DEFAULT_STA_MIN_SECURITY, &staSecurityOptions);
+        wifi_sta_password = new PasswordSetting("Station Password", "ESP101", "Sta/Password", DEFAULT_STA_PWD);
         wifi_sta_ssid =
-            new StringSetting("Station SSID", WEBSET, WA, "ESP100", "Sta/SSID", DEFAULT_STA_SSID, MIN_SSID_LENGTH, MAX_SSID_LENGTH, NULL);
+            new StringSetting("Station SSID", WEBSET, WA, "ESP100", "Sta/SSID", DEFAULT_STA_SSID, MIN_SSID_LENGTH, MAX_SSID_LENGTH);
 
-        wifi_mode = new EnumSetting("WiFi mode", WEBSET, WA, "ESP116", "WiFi/Mode", WiFiFallback, &wifiModeOptions, NULL);
+        wifi_mode = new EnumSetting("WiFi mode", WEBSET, WA, "ESP116", "WiFi/Mode", WiFiFallback, &wifiModeOptions);
 
         new WebCommand(NULL, WEBCMD, WG, "ESP111", "System/IP", showIP);
         new WebCommand("IP=ipaddress MSK=netmask GW=gateway", WEBCMD, WA, "ESP103", "Sta/Setup", showSetStaParams);
@@ -435,55 +574,6 @@ namespace WebUI {
             result += mac;
         }
         return result;
-    }
-
-    /**
-     * Check if Hostname string is valid
-     */
-
-    bool WiFiConfig::isHostnameValid(const char* hostname) {
-        //limited size
-        if (!hostname) {
-            return true;
-        }
-        char c;
-        // length is checked automatically by string setting
-        //only letter and digit
-        for (int i = 0; i < strlen(hostname); i++) {
-            c = hostname[i];
-            if (!(isdigit(c) || isalpha(c) || c == '-')) {
-                return false;
-            }
-            if (c == ' ') {
-                return false;
-            }
-        }
-        return true;
-    }
-
-    /**
-     * Check if password string is valid
-     */
-
-    bool WiFiConfig::isPasswordValid(const char* password) {
-        if (!password) {
-            return true;
-        }
-        if (strlen(password) == 0) {
-            return true;  //open network
-        }
-
-        // Limited size. Length is checked automatically by string setting
-
-        return true;
-    }
-
-    /**
-     * Check if IP string is valid
-     */
-    bool WiFiConfig::isValidIP(const char* string) {
-        IPAddress ip;
-        return ip.fromString(string);
     }
 
     /**
@@ -810,9 +900,19 @@ namespace WebUI {
     void WiFiConfig::handle() { wifi_services.handle(); }
 
     // Used by js/scanwifidlg.js
-    Error WiFiConfig::listAPs(char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP410
+
+    Error WiFiConfig::listAPs(const char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP410
         JSONencoder j(false, &out);
         j.begin();
+
+        if (parameter != NULL && (strstr(parameter, "json=yes")) != NULL) {
+            j.member("cmd", "410");
+            j.member("status", "ok");
+            j.begin_array("data");
+        } else {
+            j.begin_array("AP_LIST");
+        }
+
         j.begin_array("AP_LIST");
         // An initial async scanNetworks was issued at startup, so there
         // is a good chance that scan information is already available.

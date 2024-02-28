@@ -148,7 +148,7 @@ namespace WebUI {
         }
     }
 
-    bool WSChannels::runGCode(int pageid, std::string& cmd) {
+    bool WSChannels::runGCode(int pageid, std::string_view cmd) {
         WSChannel* wsChannel = getWSChannel(pageid);
         if (wsChannel) {
             if (cmd.length()) {
@@ -218,6 +218,65 @@ namespace WebUI {
                 }
             } break;
             case WStype_TEXT:
+            case WStype_BIN:
+                try {
+                    _wsChannels.at(num)->push(payload, length);
+                } catch (std::out_of_range& oor) {}
+                break;
+            default:
+                break;
+        }
+    }
+
+    void WSChannels::handlev3Event(WebSocketsServer* server, uint8_t num, uint8_t type, uint8_t* payload, size_t length) {
+        switch (type) {
+            case WStype_DISCONNECTED:
+                log_debug("WebSocket disconnect " << num);
+                WSChannels::removeChannel(num);
+                break;
+            case WStype_CONNECTED: {
+                log_debug("WStype_Connected");
+                WSChannel* wsChannel = new WSChannel(server, num);
+                if (!wsChannel) {
+                    log_error("Creating WebSocket channel failed");
+                } else {
+                    std::string uri((char*)payload, length);
+
+                    IPAddress ip = server->remoteIP(num);
+                    log_debug("WebSocket " << num << " from " << ip << " uri " << uri);
+
+                    _lastWSChannel = wsChannel;
+                    allChannels.registration(wsChannel);
+                    _wsChannels[num] = wsChannel;
+
+                    if (uri == "/") {
+                        std::string s("currentID:");
+                        s += std::to_string(num);
+                        // send message to client
+                        _webWsChannels.push_front(wsChannel);
+                        wsChannel->sendTXT(s);
+                        s = "activeID:";
+                        s += std::to_string(wsChannel->id());
+                        server->broadcastTXT(s.c_str());
+                    }
+
+                    for (uint8_t i = 0; i < WEBSOCKETS_SERVER_CLIENT_MAX; i++)
+                        if (i != num && server->clientIsConnected(i)) {
+                            server->disconnect(i);
+                        }
+                }
+            } break;
+            case WStype_TEXT:
+                try {
+                    std::string msg = (const char*)payload;
+                    //log_debug("WSv3Channels::handleEvent WStype_TEXT:" << msg)
+                    if (msg.rfind("PING:", 0) == 0) {
+                        std::string response("PING:60000:60000");
+                        _wsChannels.at(num)->sendTXT(response);
+                    } else
+                        _wsChannels.at(num)->push(payload, length);
+                } catch (std::out_of_range& oor) {}
+                break;
             case WStype_BIN:
                 try {
                     _wsChannels.at(num)->push(payload, length);

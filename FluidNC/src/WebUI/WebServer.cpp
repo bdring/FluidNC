@@ -62,9 +62,10 @@ namespace WebUI {
     bool       Web_Server::_setupdone = false;
     uint16_t   Web_Server::_port      = 0;
 
-    UploadStatus      Web_Server::_upload_status = UploadStatus::NONE;
-    WebServer*        Web_Server::_webserver     = NULL;
-    WebSocketsServer* Web_Server::_socket_server = NULL;
+    UploadStatus      Web_Server::_upload_status   = UploadStatus::NONE;
+    WebServer*        Web_Server::_webserver       = NULL;
+    WebSocketsServer* Web_Server::_socket_server   = NULL;
+    WebSocketsServer* Web_Server::_socket_serverv3 = NULL;
 #    ifdef ENABLE_AUTHENTICATION
     AuthenticationIP* Web_Server::_head  = NULL;
     uint8_t           Web_Server::_nb_ip = 0;
@@ -76,16 +77,15 @@ namespace WebUI {
     IntSetting*  http_port;
 
     Web_Server::Web_Server() {
-        http_port   = new IntSetting("HTTP Port", WEBSET, WA, "ESP121", "HTTP/Port", DEFAULT_HTTP_PORT, MIN_HTTP_PORT, MAX_HTTP_PORT, NULL);
-        http_enable = new EnumSetting("HTTP Enable", WEBSET, WA, "ESP120", "HTTP/Enable", DEFAULT_HTTP_STATE, &onoffOptions, NULL);
+        http_port   = new IntSetting("HTTP Port", WEBSET, WA, "ESP121", "HTTP/Port", DEFAULT_HTTP_PORT, MIN_HTTP_PORT, MAX_HTTP_PORT);
+        http_enable = new EnumSetting("HTTP Enable", WEBSET, WA, "ESP120", "HTTP/Enable", DEFAULT_HTTP_STATE, &onoffOptions);
         http_block_during_motion = new EnumSetting("Block serving HTTP content during motion",
                                                    WEBSET,
                                                    WA,
                                                    "",
                                                    "HTTP/BlockDuringMotion",
                                                    DEFAULT_HTTP_BLOCKED_DURING_MOTION,
-                                                   &onoffOptions,
-                                                   NULL);
+                                                   &onoffOptions);
     }
     Web_Server::~Web_Server() { end(); }
 
@@ -116,6 +116,10 @@ namespace WebUI {
         _socket_server = new WebSocketsServer(_port + 1);
         _socket_server->begin();
         _socket_server->onEvent(handle_Websocket_Event);
+
+        _socket_serverv3 = new WebSocketsServer(_port + 2, "", "webui-v3");
+        _socket_serverv3->begin();
+        _socket_serverv3->onEvent(handle_Websocketv3_Event);
 
         //events functions
         //_web_events->onConnect(handle_onevent_connect);
@@ -206,6 +210,11 @@ namespace WebUI {
         if (_socket_server) {
             delete _socket_server;
             _socket_server = NULL;
+        }
+
+        if (_socket_serverv3) {
+            delete _socket_serverv3;
+            _socket_serverv3 = NULL;
         }
 
         if (_webserver) {
@@ -425,45 +434,58 @@ namespace WebUI {
         }
         return -1;
     }
+    void Web_Server::synchronousCommand(const char* cmd, bool silent, AuthenticationLevel auth_level) {
+        char line[256];
+        strncpy(line, cmd, 255);
+        webClient.attachWS(_webserver, silent);
+        Error err = settings_execute_line(line, webClient, auth_level);
+        if (err != Error::Ok) {
+            std::string answer = "Error: ";
+            const char* msg    = errorString(err);
+            if (msg) {
+                answer += msg;
+            } else {
+                answer += std::to_string(static_cast<int>(err));
+            }
+            answer += "\n";
+            webClient.sendError(500, answer);
+        } else {
+            // This will send a 200 if it hasn't already been sent
+            webClient.write(nullptr, 0);
+        }
+        webClient.detachWS();
+    }
+    void Web_Server::websocketCommand(const char* cmd, int pageid, AuthenticationLevel auth_level) {
+        if (auth_level == AuthenticationLevel::LEVEL_GUEST) {
+            _webserver->send(401, "text/plain", "Authentication failed\n");
+            return;
+        }
 
+        bool hasError = WSChannels::runGCode(pageid, cmd);
+        _webserver->send(hasError ? 500 : 200, "text/plain", hasError ? "WebSocket dead" : "");
+    }
     void Web_Server::_handle_web_command(bool silent) {
         AuthenticationLevel auth_level = is_authenticated();
-        if (_webserver->hasArg("plain")) {
-            //            std::string cmd = std::string();
-            char line[256];
-            strncpy(line, _webserver->arg("plain").c_str(), 255);
-            webClient.attachWS(_webserver, silent);
-            Error err = settings_execute_line(line, webClient, auth_level);
-            if (err != Error::Ok) {
-                std::string answer = "Error: ";
-                const char* msg    = errorString(err);
-                if (msg) {
-                    answer += msg;
-                } else {
-                    answer += std::to_string(static_cast<int>(err));
-                }
-                answer += "\n";
-                webClient.sendError(500, answer);
+        if (_webserver->hasArg("cmd")) {  // WebUI3
+
+            auto cmd = _webserver->arg("cmd");
+            // [ESPXXX] commands expect data in the HTTP response
+            if (cmd.startsWith("[ESP")) {
+                synchronousCommand(cmd.c_str(), silent, auth_level);
             } else {
-                // This will send a 200 if it hasn't already been sent
-                webClient.write(nullptr, 0);
+                websocketCommand(cmd.c_str(), -1, auth_level);  // WebUI3 does not support PAGEID
             }
-            webClient.detachWS();
+            return;
+        }
+        if (_webserver->hasArg("plain")) {
+            synchronousCommand(_webserver->arg("plain").c_str(), silent, auth_level);
             return;
         }
         if (_webserver->hasArg("commandText")) {
-            if (auth_level == AuthenticationLevel::LEVEL_GUEST) {
-                _webserver->send(401, "text/plain", "Authentication failed\n");
-                return;
-            }
-            std::string cmd = std::string(_webserver->arg("commandText").c_str());
-
-            bool hasError = WSChannels::runGCode(getPageid(), cmd);
-            _webserver->send(hasError ? 500 : 200, "text/plain", hasError ? "WebSocket dead" : "");
+            websocketCommand(_webserver->arg("commandText").c_str(), getPageid(), auth_level);
             return;
         }
         _webserver->send(500, "text/plain", "Invalid command");
-        return;
     }
 
     //login status check
@@ -540,22 +562,16 @@ namespace WebUI {
                 char pwdbuf[MAX_LOCAL_PASSWORD_LENGTH + 1];
                 newpassword.toCharArray(pwdbuf, MAX_LOCAL_PASSWORD_LENGTH + 1);
 
-                if (COMMANDS::isLocalPasswordValid(pwdbuf)) {
-                    Error err;
+                Error err;
 
-                    if (sUser == DEFAULT_ADMIN_LOGIN) {
-                        err = admin_password->setStringValue(pwdbuf);
-                    } else {
-                        err = user_password->setStringValue(pwdbuf);
-                    }
-                    if (err != Error::Ok) {
-                        msg_alert_error = true;
-                        smsg            = "Error: Cannot apply changes";
-                        code            = 500;
-                    }
+                if (sUser == DEFAULT_ADMIN_LOGIN) {
+                    err = admin_password->setStringValue(pwdbuf);
                 } else {
+                    err = user_password->setStringValue(pwdbuf);
+                }
+                if (err != Error::Ok) {
                     msg_alert_error = true;
-                    smsg            = "Error: Incorrect password";
+                    smsg            = "Error: Password cannot contain spaces";
                     code            = 500;
                 }
             }
@@ -665,6 +681,14 @@ namespace WebUI {
             while ((millis() - start_time) < timeout) {
                 _socket_server->loop();
                 delay(10);
+            }
+
+            if (_socket_serverv3) {
+                start_time = millis();
+                while ((millis() - start_time) < timeout) {
+                    _socket_serverv3->loop();
+                    delay(10);
+                }
             }
         }
     }
@@ -1123,6 +1147,9 @@ namespace WebUI {
         if (_socket_server && _setupdone) {
             _socket_server->loop();
         }
+        if (_socket_serverv3 && _setupdone) {
+            _socket_serverv3->loop();
+        }
         if ((millis() - start_time) > 10000 && _socket_server) {
             WSChannels::sendPing();
             start_time = millis();
@@ -1131,6 +1158,10 @@ namespace WebUI {
 
     void Web_Server::handle_Websocket_Event(uint8_t num, uint8_t type, uint8_t* payload, size_t length) {
         WSChannels::handleEvent(_socket_server, num, type, payload, length);
+    }
+
+    void Web_Server::handle_Websocketv3_Event(uint8_t num, uint8_t type, uint8_t* payload, size_t length) {
+        WSChannels::handlev3Event(_socket_serverv3, num, type, payload, length);
     }
 
     //Convert file extension to content type

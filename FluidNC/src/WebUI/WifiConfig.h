@@ -18,7 +18,6 @@ namespace WebUI {
         static std::string station_info() { return std::string(); }
         static std::string ap_info() { return std::string(); }
 
-        static bool isPasswordValid(const char* password) { return false; }
         static bool begin() { return false; }
         static void end() {}
         static void reset() {}
@@ -26,6 +25,8 @@ namespace WebUI {
         static void handle() {}
         static bool isOn() { return false; }
         static void showWifiStats(Channel& out) {}
+
+        static const char* modeName() { return "None"; }
     };
     extern WiFiConfig wifi_config;
 }
@@ -34,8 +35,6 @@ namespace WebUI {
 #    include "../Settings.h"
 
 namespace WebUI {
-    extern StringSetting* wifi_hostname;
-
     // TODO: Clean these constants up. Some of them don't belong here.
 
     static const int DHCP_MODE   = 0;
@@ -82,10 +81,6 @@ namespace WebUI {
         static std::string station_info();
         static std::string ap_info();
 
-        static bool isValidIP(const char* string);
-        static bool isPasswordValid(const char* password);
-        static bool isHostnameValid(const char* hostname);
-
         static std::string Hostname() { return _hostname; }
 
         static char*   mac2str(uint8_t mac[8]);
@@ -99,9 +94,11 @@ namespace WebUI {
         static void    reset_settings();
         static bool    isOn();
 
-        static Error listAPs(char* parameter, AuthenticationLevel auth_level, Channel& out);
-        static void  showWifiStats(Channel& out);
+        static const char* modeName();
 
+        static Error listAPs(const char* parameter, AuthenticationLevel auth_level, Channel& out);
+        static void  showWifiStats(Channel& out);
+        static void  addWifiStatsToArray(JSONencoder& j);
         ~WiFiConfig();
 
     private:
@@ -110,6 +107,46 @@ namespace WebUI {
         static bool _events_registered;
 
         static std::string _hostname;
+    };
+
+    class PasswordSetting : public StringSetting {
+    public:
+        PasswordSetting(const char* description, const char* grblName, const char* name, const char* defVal) :
+            StringSetting(description, WEBSET, WA, grblName, name, defVal, MIN_PASSWORD_LENGTH, MAX_PASSWORD_LENGTH) {}
+        const char* getDefaultString() { return "********"; }
+        const char* getStringValue() { return "********"; }
+    };
+
+    class AuthPasswordSetting : public StringSetting {
+    public:
+        AuthPasswordSetting(const char* description, const char* name, const char* defVal) :
+            StringSetting(description, WEBSET, WA, NULL, name, defVal, MIN_LOCAL_PASSWORD_LENGTH, MAX_LOCAL_PASSWORD_LENGTH) {}
+
+        const char* getDefaultString() { return "********"; }
+        const char* getStringValue() { return "********"; }
+        Error       setStringValue(std::string_view s) {
+            for (auto const& c : s) {  //no space allowed
+                if (c == ' ') {
+                    return Error::InvalidValue;
+                }
+            }
+            return StringSetting::setStringValue(s);
+        }
+    };
+
+    class HostnameSetting : public StringSetting {
+    public:
+        HostnameSetting(const char* description, const char* grblName, const char* name, const char* defVal) :
+            StringSetting(description, WEBSET, WA, grblName, name, defVal, MIN_HOSTNAME_LENGTH, MAX_HOSTNAME_LENGTH) {}
+        Error setStringValue(std::string_view s) {
+            // Hostname strings may contain only letters, digits and -
+            for (auto const& c : s) {
+                if (c == ' ' || !(isdigit(c) || isalpha(c) || c == '-')) {
+                    return Error::InvalidValue;
+                }
+            }
+            return StringSetting::setStringValue(s);
+        }
     };
 
     extern WiFiConfig wifi_config;
@@ -127,13 +164,13 @@ namespace WebUI {
     extern IPaddrSetting* wifi_sta_netmask;
     extern EnumSetting*   wifi_sta_ssdp;
 
-    extern StringSetting* wifi_ap_ssid;
-    extern StringSetting* wifi_ap_password;
+    extern StringSetting*   wifi_ap_ssid;
+    extern PasswordSetting* wifi_ap_password;
 
     extern IPaddrSetting* wifi_ap_ip;
 
     extern IntSetting* wifi_ap_channel;
 
-    extern StringSetting* wifi_hostname;
+    extern HostnameSetting* wifi_hostname;
 }
 #endif

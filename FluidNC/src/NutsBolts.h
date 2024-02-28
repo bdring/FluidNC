@@ -7,6 +7,7 @@
 // #define true 1
 
 #include <cstdint>
+#include <string_view>
 #include "Logging.h"
 #include "Driver/delay_usecs.h"
 
@@ -84,6 +85,7 @@ const char* to_hex(uint32_t n);
 
 bool  char_is_numeric(char value);
 char* trim(char* value);
+void  trim(std::string_view& sv);
 
 template <typename T>
 T myMap(T x, T in_min, T in_max, T out_min, T out_max) {  // DrawBot_Badge
