@@ -476,8 +476,8 @@ namespace WebUI {
         std::string_view second;
         split(args, second, ':');
         if (second.empty()) {
-            firstline = atoi(parameter);
-            lastline  = atoi(second);
+            firstline = 0;
+            std::from_chars(args.data(), args.data() + args.length(), lastline);
         } else {
             std::from_chars(args.data(), args.data() + args.length(), firstline);
             std::from_chars(second.data(), second.data() + second.length(), lastline);
