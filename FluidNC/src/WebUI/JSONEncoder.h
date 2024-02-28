@@ -10,7 +10,7 @@ namespace WebUI {
     private:
         static const int MAX_JSON_LEVEL = 16;
 
-        bool pretty;
+        bool _encapsulate = false;
         int  level;
         int  count[MAX_JSON_LEVEL];
         void add(char c);
@@ -36,9 +36,9 @@ namespace WebUI {
         void flush();
 
     public:
-        // Constructor; set _pretty true for pretty printing
-        JSONencoder(bool pretty, Channel* channel);
-        JSONencoder(bool pretty, std::string* str);
+        // Constructor; set _encapsulate true for [MSG:JSON: ,,,] encapsulation
+        JSONencoder(bool encapsulate, Channel* channel);
+        JSONencoder(std::string* str);
 
         // begin() starts the encoding process.
         void begin();

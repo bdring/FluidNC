@@ -5,19 +5,23 @@
 #include "../Protocol.h"  // send_line()
 
 namespace WebUI {
-    // Constructor.  If _pretty is true, newlines are
-    // inserted into the JSON string for easy reading.
-    JSONencoder::JSONencoder(bool pretty, Channel* channel) : pretty(pretty), level(0), _str(&linebuf), _channel(channel), category("nvs") {
+    // Constructor.  If _encapsulate is true, the output is
+    // encapsulated in [MSG:JSON: ...] lines
+    JSONencoder::JSONencoder(bool encapsulate, Channel* channel) :
+        _encapsulate(encapsulate), level(0), _str(&linebuf), _channel(channel), category("nvs") {
         count[level] = 0;
     }
 
-    JSONencoder::JSONencoder(bool pretty, std::string* str) : pretty(pretty), level(0), _str(str), category("nvs") { count[level] = 0; }
+    JSONencoder::JSONencoder(std::string* str) : level(0), _str(str), category("nvs") { count[level] = 0; }
 
     void JSONencoder::flush() {
         if (_channel && (*_str).length()) {
-            // Output to channels is encapsulated in [MSG:JSON:...]
-            (*_channel).out_acked(*_str, "JSON:");
-            //            *_str = "";
+            if (_encapsulate) {
+                // Output to channels is encapsulated in [MSG:JSON:...]
+                (*_channel).out(*_str, "JSON:");
+            } else {
+                log_stream(*_channel, *_str);
+            }
             (*_str).clear();
         }
     }
@@ -31,8 +35,6 @@ namespace WebUI {
     // Private function to add commas between
     // elements as needed, omitting the comma
     // before the first element in a list.
-    // If pretty-printing is enabled, a newline
-    // is added after the comma.
     void JSONencoder::comma_line() {
         if (count[level]) {
             add(',');
@@ -117,13 +119,32 @@ namespace WebUI {
         comma_line();
         quoted(s);
     }
-    // Private function to implement pretty-printing
+
+    // line() is called at places in the JSON stream where it would be
+    // reasonable to insert a newline without causing syntax problems.
+    // We want to limit the line length when the output is going to an
+    // unencapsulated serial channel, since some receivers might have line
+    // length limits.  For encapsulated serial channels, we want to
+    // pack as many characters as possible into the line to reduce the
+    // encapsulation overhead.  The decapsulation will splice together
+    // pieces so there is no problem if a token is split across two
+    // encapsulation packets.
     void JSONencoder::line() {
-        if (!_channel) {
-            if (pretty) {
-                add('\n');
+        if (_channel) {
+            if (_encapsulate) {
+                // In encapsulated mode, we just collect data until
+                // the line is almost full, then wrap it in [MSG:JSON:...]
+            } else {
+                // log_stream() always adds a newline
+                // We want that for channels because they might not
+                // be able to handle really long lines.
+                log_stream(*_channel, *_str);
+                (*_str).clear();
                 indent();
             }
+        } else {
+            add('\n');
+            indent();
         }
     }
 

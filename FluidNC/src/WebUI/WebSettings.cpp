@@ -249,7 +249,7 @@ namespace WebUI {
 
     // Used by js/setting.js
     static Error listSettings(char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP400
-        JSONencoder j(true, &out);
+        JSONencoder j(false, &out);
         j.begin();
         j.begin_array("EEPROM");
 
@@ -330,7 +330,8 @@ namespace WebUI {
         return showFile("", parameter, auth_level, out);
     }
 
-    static Error fileShowSome(char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP221
+    // This is used by pendants to get partial file contents for preview
+    static Error fileShowSome(char* parameter, AuthenticationLevel auth_level, Channel& out) {
         if (notIdleOrAlarm()) {
             return Error::IdleError;
         }
@@ -355,7 +356,7 @@ namespace WebUI {
             log_error_to(out, "Missing line count");
             return Error::InvalidValue;
         }
-        JSONencoder j(false, &out);
+        JSONencoder j(true, &out);  // Encapsulated JSON
         char*       second;
         split(parameter, &second, ':');
         if (*second) {
@@ -572,10 +573,11 @@ namespace WebUI {
         return listFilesystemJSON(localfsName, parameter, auth_level, out);
     }
 
+    // This is used by pendants to get lists of GCode files
     static Error listGCodeFiles(char* parameter, AuthenticationLevel auth_level, Channel& out) {  // No ESP command
         const char* error = "";
 
-        JSONencoder j(false, &out);
+        JSONencoder j(true, &out);  // Encapsulated JSON
         j.begin();
 
         std::error_code ec;
@@ -882,7 +884,7 @@ namespace WebUI {
         new WebCommand("path", WEBCMD, WU, NULL, "LocalFS/Migrate", migrateLocalFS);
         new WebCommand(NULL, WEBCMD, WU, NULL, "LocalFS/Hashes", showLocalFSHashes);
 
-        new WebCommand("path", WEBCMD, WU, "ESP221", "File/ShowSome", fileShowSome);
+        new WebCommand("path", WEBCMD, WU, NULL, "File/ShowSome", fileShowSome);
         new WebCommand("path", WEBCMD, WU, "ESP221", "SD/Show", showSDFile);
         new WebCommand("path", WEBCMD, WU, "ESP220", "SD/Run", runSDFile);
         new WebCommand("file_or_directory_path", WEBCMD, WU, "ESP215", "SD/Delete", deleteSDObject);
