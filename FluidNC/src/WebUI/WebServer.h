@@ -57,6 +57,7 @@ namespace WebUI {
         static bool              _setupdone;
         static WebServer*        _webserver;
         static WebSocketsServer* _socket_server;
+        static WebSocketsServer* _socket_serverv3;
         static uint16_t          _port;
         static UploadStatus      _upload_status;
         static FileStream*       _uploadFile;
@@ -81,6 +82,7 @@ namespace WebUI {
         static void handle_web_command() { _handle_web_command(false); }
         static void handle_web_command_silent() { _handle_web_command(true); }
         static void handle_Websocket_Event(uint8_t num, uint8_t type, uint8_t* payload, size_t length);
+        static void handle_Websocketv3_Event(uint8_t num, uint8_t type, uint8_t* payload, size_t length);
         static void handleReloadBlocked();
         static void handleFeedholdReload();
         static void LocalFSFileupload();
@@ -102,6 +104,9 @@ namespace WebUI {
         static void uploadEnd(size_t filesize);
         static void uploadStop();
         static void uploadCheck();
+
+        static void synchronousCommand(const char* cmd, bool silent, AuthenticationLevel auth_level);
+        static void websocketCommand(const char* cmd, int pageid, AuthenticationLevel auth_level);
 
         static void sendFSError(Error err);
         static void sendJSON(int code, const char* s);

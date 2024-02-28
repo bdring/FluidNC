@@ -17,7 +17,7 @@
 
 // SerialBT sends the data over Bluetooth
 namespace WebUI {
-    BTConfig        bt_config __attribute__((init_priority(105))) ;
+    BTConfig        bt_config __attribute__((init_priority(105)));
     BluetoothSerial SerialBT;
     BTChannel       btChannel;
 }
@@ -29,7 +29,7 @@ const uint8_t* esp_bt_dev_get_address(void);
 
 namespace WebUI {
     EnumSetting*   bt_enable;
-    StringSetting* bt_name;
+    BTNameSetting* bt_name;
 
     size_t BTChannel::write(uint8_t data) {
         static uint8_t lastchar = '\0';
@@ -43,17 +43,9 @@ namespace WebUI {
     BTConfig* BTConfig::instance = nullptr;
 
     BTConfig::BTConfig() {
-        bt_enable = new EnumSetting("Bluetooth Enable", WEBSET, WA, "ESP141", "Bluetooth/Enable", 1, &onoffOptions, NULL);
+        bt_enable = new EnumSetting("Bluetooth Enable", WEBSET, WA, "ESP141", "Bluetooth/Enable", 1, &onoffOptions);
 
-        bt_name = new StringSetting("Bluetooth name",
-                                    WEBSET,
-                                    WA,
-                                    "ESP140",
-                                    "Bluetooth/Name",
-                                    DEFAULT_BT_NAME,
-                                    WebUI::BTConfig::MIN_BTNAME_LENGTH,
-                                    WebUI::BTConfig::MAX_BTNAME_LENGTH,
-                                    (bool (*)(char*))BTConfig::isBTnameValid);
+        bt_name = new BTNameSetting("Bluetooth name", "ESP140", "Bluetooth/Name", DEFAULT_BT_NAME);
     }
 
     void BTConfig::my_spp_cb(esp_spp_cb_event_t event, esp_spp_cb_param_t* param) {
@@ -95,27 +87,6 @@ namespace WebUI {
         }
         return result;
     }
-    /**
-     * Check if BlueTooth string is valid
-     */
-
-    bool BTConfig::isBTnameValid(const char* hostname) {
-        //limited size
-        if (!hostname) {
-            return true;
-        }
-        char c;
-        // length is checked automatically by string setting
-        //only letter and digit
-        for (int i = 0; i < strlen(hostname); i++) {
-            c = hostname[i];
-            if (!(isdigit(c) || isalpha(c) || c == '_')) {
-                return false;
-            }
-        }
-        return true;
-    }
-
     const char* BTConfig::device_address() {
         const uint8_t* point = esp_bt_dev_get_address();
         char*          str   = _deviceAddrBuffer;
