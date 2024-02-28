@@ -330,8 +330,7 @@ namespace WebUI {
 
     // Used by js/setting.js
     static Error listSettingsJSON(const char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP400
-
-        JSONencoder j(true, &out);
+        JSONencoder j(false, &out);
         j.begin();
         j.member("cmd", "400");
         j.member("status", "ok");
@@ -361,7 +360,8 @@ namespace WebUI {
             }
         }
 
-        JSONencoder j(true, &out);
+        JSONencoder j(false, &out);
+
         j.begin();
         j.begin_array("EEPROM");
 
@@ -442,6 +442,7 @@ namespace WebUI {
         return showFile("", parameter, auth_level, out);
     }
 
+    // This is used by pendants to get partial file contents for preview
     static Error fileShowSome(const char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP221
         if (notIdleOrAlarm()) {
             return Error::IdleError;
@@ -466,12 +467,18 @@ namespace WebUI {
         // Args is the list of lines to display
         // N means the first N lines
         // N:M means lines N through M inclusive
-
-        JSONencoder j(false, &out);
+        if (!*parameter) {
+            log_error_to(out, "Missing line count");
+            return Error::InvalidValue;
+        }
+        JSONencoder j(true, &out);  // Encapsulated JSON
 
         std::string_view second;
         split(args, second, ':');
         if (second.empty()) {
+            firstline = atoi(parameter);
+            lastline  = atoi(second);
+        } else {
             firstline = 0;
             std::from_chars(args.data(), args.data() + args.length(), lastline);
         } else {
@@ -686,10 +693,11 @@ namespace WebUI {
         return listFilesystemJSON(localfsName, parameter, auth_level, out);
     }
 
+    // This is used by pendants to get lists of GCode files
     static Error listGCodeFiles(const char* parameter, AuthenticationLevel auth_level, Channel& out) {  // No ESP command
         const char* error = "";
 
-        JSONencoder j(false, &out);
+        JSONencoder j(true, &out);  // Encapsulated JSON
         j.begin();
 
         std::error_code ec;
@@ -979,7 +987,7 @@ namespace WebUI {
         new WebCommand("path", WEBCMD, WU, NULL, "LocalFS/Migrate", migrateLocalFS);
         new WebCommand(NULL, WEBCMD, WU, NULL, "LocalFS/Hashes", showLocalFSHashes);
 
-        new WebCommand("path", WEBCMD, WU, "ESP221", "File/ShowSome", fileShowSome);
+        new WebCommand("path", WEBCMD, WU, NULL, "File/ShowSome", fileShowSome);
         new WebCommand("path", WEBCMD, WU, "ESP221", "SD/Show", showSDFile);
         new WebCommand("path", WEBCMD, WU, "ESP220", "SD/Run", runSDFile);
         new WebCommand("file_or_directory_path", WEBCMD, WU, "ESP215", "SD/Delete", deleteSDObject);

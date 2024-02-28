@@ -153,13 +153,13 @@ void Channel::handleRealtimeCharacter(uint8_t ch) {
 
     _active = true;
     if (cmd == PinACK) {
-        log_debug("ACK");
+        // log_debug("ACK");
         _ackwait = false;
         return;
     }
     if (cmd == PinNAK) {
         log_error("Channel device rejected config");
-        log_debug("NAK");
+        // log_debug("NAK");
         _ackwait = false;
         return;
     }

@@ -900,8 +900,9 @@ namespace WebUI {
     void WiFiConfig::handle() { wifi_services.handle(); }
 
     // Used by js/scanwifidlg.js
+
     Error WiFiConfig::listAPs(const char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP410
-        JSONencoder j(true, &out);
+        JSONencoder j(false, &out);
         j.begin();
 
         if (parameter != NULL && (strstr(parameter, "json=yes")) != NULL) {

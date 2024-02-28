@@ -119,7 +119,6 @@ size_t UartChannel::timedReadBytes(char* buffer, size_t length, TickType_t timeo
 void UartChannel::out(const std::string& s, const char* tag) {
     std::string t(tag);
     log_msg_to(*this, t + s);
-    log_debug(s);
 }
 
 void UartChannel::out_acked(const std::string& s, const char* tag) {
