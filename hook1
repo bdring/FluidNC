@@ -1,0 +1,34 @@
+package com.example.webhooks
+
+import io.ktor.application.*
+import io.ktor.features.*
+import io.ktor.gson.*
+import io.ktor.request.*
+import io.ktor.response.*
+import io.ktor.routing.*
+
+fun main(args: Array<String>) {
+    io.ktor.server.netty.EngineMain.main(args)
+}
+
+@Suppress("unused") // Referenced in application.conf
+fun Application.module() {
+    install(ContentNegotiation) {
+        gson { }
+    }
+
+    routing {
+        post("/webhooks") {
+            val webhook = call.receive<Webhook>()
+
+            // Process the webhook here
+
+            call.respond(HttpStatusCode.OK)
+        }
+    }
+}
+
+data class Webhook(
+    val id: String,
+    val message: String
+)
