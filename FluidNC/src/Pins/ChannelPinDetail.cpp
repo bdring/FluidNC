@@ -28,17 +28,17 @@ namespace Pins {
             return;
         }
         _value        = high;
-        std::string s = "SET: io.";
+        std::string s = "io.";
         s += std::to_string(_index);
         s += "=";
         s += std::to_string(high);
-        _channel->out(s);
+        _channel->out(s, "SET:");
     }
     int  ChannelPinDetail::read() { return _value; }
     void ChannelPinDetail::setAttr(PinAttributes attr) {
         _attributes = _attributes | attr;
 
-        std::string s = "INI: io.";
+        std::string s = "io.";
         s += std::to_string(_index);
         s += "=";
         if (_attributes.has(Pins::PinAttributes::Input)) {
@@ -59,7 +59,7 @@ namespace Pins {
             s += ":low";
         }
 
-        _channel->setAttr(_index, _attributes.has(Pins::PinAttributes::Input) ? &this->_value : nullptr, s);
+        _channel->setAttr(_index, _attributes.has(Pins::PinAttributes::Input) ? &this->_value : nullptr, s, "INI:");
     }
     PinAttributes ChannelPinDetail::getAttr() const { return _attributes; }
     std::string   ChannelPinDetail::toString() {

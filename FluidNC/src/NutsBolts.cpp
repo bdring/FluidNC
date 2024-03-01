@@ -11,6 +11,7 @@
 #include <cmath>
 #include <sstream>
 #include <iomanip>
+#include <string_view>
 
 const int MAX_INT_DIGITS = 8;  // Maximum number of digits in int32 (and float)
 
@@ -186,6 +187,17 @@ float limit_rate_by_axis_maximum(float* unit_vec) {
 
 bool char_is_numeric(char value) {
     return value >= '0' && value <= '9';
+}
+
+void trim(std::string_view& sv) {
+    char* end;
+    // Trim leading space
+    while (sv.size() && ::isspace(sv.front())) {
+        sv.remove_prefix(1);
+    }
+    while (sv.size() && ::isspace(sv.back())) {
+        sv.remove_suffix(1);
+    }
 }
 
 char* trim(char* str) {

@@ -6,6 +6,7 @@
 #include <Esp.h>        // ESP.restart()
 
 #include "Authentication.h"  // MAX_LOCAL_PASSWORD_LENGTH
+#include "../Configuration/JsonGenerator.h"
 
 #include <esp_err.h>
 #include <cstring>
@@ -13,25 +14,16 @@
 namespace WebUI {
     bool COMMANDS::_restart_MCU = false;
 
-    bool COMMANDS::isLocalPasswordValid(char* password) {
-        if (!password) {
-            return true;
-        }
-        char c;
-        //limited size
-        if ((strlen(password) > MAX_LOCAL_PASSWORD_LENGTH) || (strlen(password) < MIN_LOCAL_PASSWORD_LENGTH)) {
-            return false;
-        }
-
-        //no space allowed
-        for (size_t i = 0; i < strlen(password); i++) {
-            c = password[i];
-            if (c == ' ') {
-                return false;
-            }
-        }
-        return true;
+    void COMMANDS::send_json_command_response(Channel& out, uint cmdID, bool isok, std::string message) {
+        JSONencoder j(true, &out);
+        j.begin();
+        j.member("cmd", String(cmdID).c_str());
+        j.member("status", isok ? "ok" : "error");
+        j.member("data", message);
+        j.end();
     }
+
+    bool COMMANDS::isJSON(const char* cmd_params) { return strstr(cmd_params, "json=yes") != NULL; }
 
     /**
      * Restart ESP

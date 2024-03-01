@@ -15,7 +15,7 @@
 #include "NotificationsService.h"
 
 namespace WebUI {
-    NotificationsService notificationsService __attribute__((init_priority(106))) ;
+    NotificationsService notificationsService __attribute__((init_priority(106)));
 }
 
 #ifdef ENABLE_WIFI
@@ -61,38 +61,55 @@ namespace WebUI {
     StringSetting* notification_t2;
     StringSetting* notification_ts;
 
-    static Error showSetNotification(char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP610
+    static Error showSetNotification(const char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP610
         if (*parameter == '\0') {
-            log_to(out, "", notification_type->getStringValue() << " " << notification_ts->getStringValue());
+            log_stream(out, notification_type->getStringValue() << " " << notification_ts->getStringValue());
             return Error::Ok;
         }
-        if (!split_params(parameter)) {
+        std::string s;
+
+        if (!get_param(parameter, "type=", s)) {
             return Error::InvalidValue;
         }
-        char* ts  = get_param("TS", false);
-        char* t2  = get_param("T2", false);
-        char* t1  = get_param("T1", false);
-        char* ty  = get_param("type", false);
-        Error err = notification_type->setStringValue(ty);
-        if (err == Error::Ok) {
-            err = notification_t1->setStringValue(t1);
+        Error err;
+        err = notification_type->setStringValue(s);
+        if (err != Error::Ok) {
+            return err;
         }
-        if (err == Error::Ok) {
-            err = notification_t2->setStringValue(t2);
+
+        if (!get_param(parameter, "T1=", s)) {
+            return Error::InvalidValue;
         }
-        if (err == Error::Ok) {
-            err = notification_ts->setStringValue(ts);
+        err = notification_t1->setStringValue(s);
+        if (err != Error::Ok) {
+            return err;
         }
-        return err;
+
+        if (!get_param(parameter, "T2=", s)) {
+            return Error::InvalidValue;
+        }
+        err = notification_t2->setStringValue(s);
+        if (err != Error::Ok) {
+            return err;
+        }
+
+        if (!get_param(parameter, "TS=", s)) {
+            return Error::InvalidValue;
+        }
+        err = notification_ts->setStringValue(s);
+        if (err != Error::Ok) {
+            return err;
+        }
+        return Error::Ok;
     }
 
-    static Error sendMessage(char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP600
+    static Error sendMessage(const char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP600
         if (*parameter == '\0') {
-            log_to(out, "Invalid message!");
+            log_string(out, "Invalid message!");
             return Error::InvalidValue;
         }
         if (!notificationsService.sendMSG("GRBL Notification", parameter)) {
-            log_to(out, "Cannot send message!");
+            log_string(out, "Cannot send message!");
             return Error::MessageFailed;
         }
         return Error::Ok;
@@ -108,27 +125,25 @@ namespace WebUI {
         new WebCommand(
             "TYPE=NONE|PUSHOVER|EMAIL|LINE T1=token1 T2=token2 TS=settings", WEBCMD, WA, "ESP610", "Notification/Setup", showSetNotification);
         notification_ts = new StringSetting(
-            "Notification Settings", WEBSET, WA, NULL, "Notification/TS", DEFAULT_TOKEN, 0, MAX_NOTIFICATION_SETTING_LENGTH, NULL);
-        notification_t2   = new StringSetting("Notification Token 2",
+            "Notification Settings", WEBSET, WA, NULL, "Notification/TS", DEFAULT_TOKEN, 0, MAX_NOTIFICATION_SETTING_LENGTH);
+        notification_t2 = new StringSetting("Notification Token 2",
                                             WEBSET,
                                             WA,
                                             NULL,
                                             "Notification/T2",
                                             DEFAULT_TOKEN,
                                             MIN_NOTIFICATION_TOKEN_LENGTH,
-                                            MAX_NOTIFICATION_TOKEN_LENGTH,
-                                            NULL);
-        notification_t1   = new StringSetting("Notification Token 1",
+                                            MAX_NOTIFICATION_TOKEN_LENGTH);
+        notification_t1 = new StringSetting("Notification Token 1",
                                             WEBSET,
                                             WA,
                                             NULL,
                                             "Notification/T1",
                                             DEFAULT_TOKEN,
                                             MIN_NOTIFICATION_TOKEN_LENGTH,
-                                            MAX_NOTIFICATION_TOKEN_LENGTH,
-                                            NULL);
-        notification_type = new EnumSetting(
-            "Notification type", WEBSET, WA, NULL, "Notification/Type", DEFAULT_NOTIFICATION_TYPE, &notificationOptions, NULL);
+                                            MAX_NOTIFICATION_TOKEN_LENGTH);
+        notification_type =
+            new EnumSetting("Notification type", WEBSET, WA, NULL, "Notification/Type", DEFAULT_NOTIFICATION_TYPE, &notificationOptions);
         new WebCommand("message", WEBCMD, WU, "ESP600", "Notification/Send", sendMessage);
     }
 
@@ -231,7 +246,7 @@ namespace WebUI {
         Notificationclient.stop();
         return res;
     }
-    
+
     bool NotificationsService::sendEmailMSG(const char* title, const char* message) {
         WiFiClientSecure Notificationclient;
         // Switch off secure mode because the connect command always fails in secure mode:(
@@ -240,7 +255,7 @@ namespace WebUI {
         if (!Notificationclient.connect(_serveraddress.c_str(), _port)) {
             //Read & log error message (in debug mode)
             if (atMsgLevel(MsgLevelDebug)) {
-                char errMsg[150];
+                char      errMsg[150];
                 const int lastError = Notificationclient.lastError(errMsg, sizeof(errMsg));
                 if (0 == lastError) {
                     errMsg[0] = 0;

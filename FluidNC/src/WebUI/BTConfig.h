@@ -29,9 +29,6 @@ namespace WebUI {
 const char* const DEFAULT_BT_NAME = "FluidNC";
 
 namespace WebUI {
-    extern EnumSetting*   bt_enable;
-    extern StringSetting* bt_name;
-
     extern BluetoothSerial SerialBT;
 
     class BTChannel : public Channel {
@@ -70,14 +67,10 @@ namespace WebUI {
 
         //boundaries
     public:
-        static const int MAX_BTNAME_LENGTH = 32;
-        static const int MIN_BTNAME_LENGTH = 1;
-
         BTConfig();
 
         std::string info();
 
-        static bool        isBTnameValid(const char* hostname);
         const std::string& BTname() const { return _btname; }
         const std::string& client_name() const { return _btclient; }
         const char*        device_address();
@@ -91,10 +84,28 @@ namespace WebUI {
         ~BTConfig();
     };
 
+    class BTNameSetting : public StringSetting {
+        static const int MAX_BTNAME_LENGTH = 32;
+        static const int MIN_BTNAME_LENGTH = 1;
+
+    public:
+        BTNameSetting(const char* description, const char* grblName, const char* name, const char* defVal) :
+            StringSetting(description, WEBSET, WA, grblName, name, defVal, MIN_BTNAME_LENGTH, MAX_BTNAME_LENGTH) {}
+        Error setStringValue(std::string_view s) {
+            // BT hostname may contain letters, numbers and _
+            for (auto const& c : s) {
+                if (!(isdigit(c) || isalpha(c) || c == '_')) {
+                    return Error::InvalidValue;
+                }
+            }
+            return StringSetting::setStringValue(s);
+        }
+    };
+
     extern BTConfig bt_config;
 
     extern EnumSetting*   bt_enable;
-    extern StringSetting* bt_name;
+    extern BTNameSetting* bt_name;
 }
 
 #endif

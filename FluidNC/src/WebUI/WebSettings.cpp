@@ -25,6 +25,7 @@
 #include <cstring>
 #include <sstream>
 #include <iomanip>
+#include <charconv>
 
 namespace WebUI {
 
@@ -42,59 +43,29 @@ namespace WebUI {
         char* value;
     } keyval_t;
 
-    static keyval_t params[10];
-    bool            split_params(char* parameter) {
-        int i = 0;
-        for (char* s = parameter; *s; s++) {
-            if (*s == '=') {
-                params[i].value = s + 1;
-                *s              = '\0';
-                // Search backward looking for the start of the key,
-                // either just after a space or at the beginning of the strin
-                if (s == parameter) {
-                    return false;
-                }
-                for (char* k = s - 1; k >= parameter; --k) {
-                    if (*k == '\0') {
-                        // If we find a NUL - i.e. the end of the previous key -
-                        // before finding a space, the string is malformed.
-                        return false;
-                    }
-                    if (*k == ' ') {
-                        *k              = '\0';
-                        params[i++].key = k + 1;
-                        break;
-                    }
-                    if (k == parameter) {
-                        params[i++].key = k;
-                    }
+    bool get_param(const char* parameter, const char* key, std::string& s) {
+        char* start = strstr(parameter, key);
+        if (!start) {
+            return false;
+        }
+        s = "";
+        for (char* p = start + strlen(key); *p; ++p) {
+            if (*p == ' ') {
+                break;  // Unescaped space
+            }
+            if (*p == '\\') {
+                if (*++p == '\0') {
+                    break;
                 }
             }
+            s += *p;
         }
-        params[i].key = NULL;
         return true;
     }
 
-    char  nullstr[1] = { '\0' };
-    char* get_param(const char* key, bool allowSpaces) {
-        for (keyval_t* p = params; p->key; p++) {
-            if (!strcasecmp(key, p->key)) {
-                if (!allowSpaces) {
-                    for (char* s = p->value; *s; s++) {
-                        if (*s == ' ') {
-                            *s = '\0';
-                            break;
-                        }
-                    }
-                }
-                return p->value;
-            }
-        }
-        return nullstr;
-    }
 }
 
-Error WebCommand::action(char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+Error WebCommand::action(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
     if (_cmdChecker && _cmdChecker()) {
         return Error::AnotherInterfaceBusy;
     }
@@ -107,7 +78,50 @@ Error WebCommand::action(char* value, WebUI::AuthenticationLevel auth_level, Cha
 
 namespace WebUI {
     // Used by js/connectdlg.js
-    static Error showFwInfo(char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP800
+
+    static Error showFwInfoJSON(const char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP800
+        if (strstr(parameter, "json=yes") != NULL) {
+            JSONencoder j(true, &out);
+            j.begin();
+            j.member("cmd", "800");
+            j.member("status", "ok");
+            j.begin_member_object("data");
+            j.member("FWVersion", git_info);
+            j.member("FWTarget", "FluidNC");
+            j.member("FWTargetId", "60");
+            j.member("WebUpdate", "Enabled");
+
+            j.member("Setup", "Disabled");
+            j.member("SDConnection", "direct");
+            j.member("SerialProtocol", "Socket");
+#ifdef ENABLE_AUTHENTICATION
+            j.member("Authentication", "Enabled");
+#else
+            j.member("Authentication", "Disabled");
+#endif
+            j.member("WebCommunication", "Synchronous");
+            j.member("WebSocketIP", "localhost");
+
+            j.member("WebSocketPort", "82");
+            j.member("HostName", "fluidnc");
+            j.member("WiFiMode", wifi_config.modeName());
+            j.member("FlashFileSystem", "LittleFS");
+            j.member("HostPath", "/");
+            j.member("Time", "none");
+            j.member("Axisletters", config->_axes->_names);
+            j.end_object();
+            j.end();
+            return Error::Ok;
+        }
+
+        return Error::InvalidStatement;
+    }
+
+    static Error showFwInfo(const char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP800
+        if (parameter != NULL && COMMANDS::isJSON(parameter)) {
+            return showFwInfoJSON(parameter, auth_level, out);
+        }
+
         LogStream s(out, "FW version: FluidNC ");
         s << git_info;
         // TODO: change grbl-embedded to FluidNC after fixing WebUI
@@ -136,23 +150,23 @@ namespace WebUI {
         return Error::Ok;
     }
 
-    static Error localFSSize(char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP720
+    static Error localFSSize(const char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP720
         std::error_code ec;
 
         auto space = stdfs::space(FluidPath { "", localfsName, ec }, ec);
         if (ec) {
-            log_to(out, "Error ", ec.message());
+            log_stream(out, "Error " << ec.message());
             return Error::FsFailedMount;
         }
         auto totalBytes = space.capacity;
         auto freeBytes  = space.available;
         auto usedBytes  = totalBytes - freeBytes;
 
-        log_to(out, parameter, "LocalFS  Total:" << formatBytes(localfs_size()) << " Used:" << formatBytes(usedBytes));
+        log_stream(out, parameter << "LocalFS  Total:" << formatBytes(localfs_size()) << " Used:" << formatBytes(usedBytes));
         return Error::Ok;
     }
 
-    static Error formatLocalFS(char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP710
+    static Error formatLocalFS(const char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP710
         if (localfs_format(parameter)) {
             return Error::FsFailedFormat;
         }
@@ -161,95 +175,193 @@ namespace WebUI {
     }
 
 #ifdef ENABLE_AUTHENTICATION
-    static Error setUserPassword(char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP555
+    static Error setUserPassword(const char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP555
         if (*parameter == '\0') {
             user_password->setDefault();
             return Error::Ok;
         }
         if (user_password->setStringValue(parameter) != Error::Ok) {
-            log_to(out, "Invalid Password");
+            log_string(out, "Invalid Password");
             return Error::InvalidValue;
         }
         return Error::Ok;
     }
 #endif
 
-    static Error restart(char* parameter, AuthenticationLevel auth_level, Channel& out) {
+    static Error restart(const char* parameter, AuthenticationLevel auth_level, Channel& out) {
         log_info("Restarting");
         COMMANDS::restart_MCU();
         return Error::Ok;
     }
 
     // used by js/restartdlg.js
-    static Error setSystemMode(char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP444
-        parameter = trim(parameter);
+    static Error setSystemMode(const char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP444
+        // parameter = trim(parameter);
         if (strcasecmp(parameter, "RESTART") != 0) {
-            log_to(out, "Parameter must be RESTART");
+            log_string(out, "Parameter must be RESTART");
             return Error::InvalidValue;
         }
         return restart(parameter, auth_level, out);
     }
 
     // Used by js/statusdlg.js
-    static Error showSysStats(char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP420
-        log_to(out, "Chip ID: ", (uint16_t)(ESP.getEfuseMac() >> 32));
-        log_to(out, "CPU Cores: ", ESP.getChipCores());
-        log_to(out, "CPU Frequency: ", ESP.getCpuFreqMHz() << "Mhz");
+    static Error showSysStatsJSON(const char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP420
+
+        JSONencoder j(true, &out);
+        j.begin();
+        j.member("cmd", "420");
+        j.member("status", "ok");
+        j.begin_array("data");
+
+        j.begin_object();
+        j.member("id", "Chip ID");
+        j.member("value", (uint16_t)(ESP.getEfuseMac() >> 32));
+        j.end_object();
+
+        j.begin_object();
+        j.member("id", "CPU Cores");
+        j.member("value", ESP.getChipCores());
+        j.end_object();
+
+        std::ostringstream msg;
+        msg << ESP.getCpuFreqMHz() << "Mhz";
+        j.begin_object();
+        j.member("id", "CPU Frequency");
+        j.member("value", msg.str());
+        j.end_object();
+
+        std::ostringstream msg2;
+        msg2 << std::fixed << std::setprecision(1) << temperatureRead() << "°C";
+        j.begin_object();
+        j.member("id", "CPU Temperature");
+        j.member("value", msg2.str());
+        j.end_object();
+
+        j.begin_object();
+        j.member("id", "Free memory");
+        j.member("value", formatBytes(ESP.getFreeHeap()));
+        j.end_object();
+
+        j.begin_object();
+        j.member("id", "SDK");
+        j.member("value", ESP.getSdkVersion());
+        j.end_object();
+
+        j.begin_object();
+        j.member("id", "Flash Size");
+        j.member("value", formatBytes(ESP.getFlashChipSize()));
+        j.end_object();
+
+#ifdef ENABLE_WIFI
+        WiFiConfig::addWifiStatsToArray(j);
+#else
+        j.begin_object();
+        j.member("id", "Current WiFi Mode");
+        j.member("value", "Off");
+        j.end_object();
+#endif
+        // TODO: Mike M - not sure if this is necessary for WebUI since BT is always disabled?
+        /*  std::string info = bt_config.info();
+        if (info.length()) {
+            log_to(out, info);
+        }*/
+
+        j.begin_object();
+        j.member("id", "FW version");
+        j.member("value", "FluidNC " + std::string(git_info));
+        j.end_object();
+
+        j.end_array();
+        j.end();
+        return Error::Ok;
+    }
+
+    static Error showSysStats(const char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP420
+        if (COMMANDS::isJSON(parameter)) {
+            return showSysStatsJSON(parameter, auth_level, out);
+        }
+
+        log_stream(out, "Chip ID: " << (uint16_t)(ESP.getEfuseMac() >> 32));
+        log_stream(out, "CPU Cores: " << ESP.getChipCores());
+        log_stream(out, "CPU Frequency: " << ESP.getCpuFreqMHz() << "Mhz");
+
         std::ostringstream msg;
         msg << std::fixed << std::setprecision(1) << temperatureRead() << "°C";
-        log_to(out, "CPU Temperature: ", msg.str());
-        log_to(out, "Free memory: ", formatBytes(ESP.getFreeHeap()));
-        log_to(out, "SDK: ", ESP.getSdkVersion());
-        log_to(out, "Flash Size: ", formatBytes(ESP.getFlashChipSize()));
+        log_stream(out, "CPU Temperature: " << msg.str());
+        log_stream(out, "Free memory: " << formatBytes(ESP.getFreeHeap()));
+        log_stream(out, "SDK: " << ESP.getSdkVersion());
+        log_stream(out, "Flash Size: " << formatBytes(ESP.getFlashChipSize()));
 
         // Round baudRate to nearest 100 because ESP32 can say e.g. 115201
-        //        log_to(out, "Baud rate: ", ((Uart0.baud / 100) * 100));
+        //        log_stream(out, "Baud rate: " << ((Uart0.baud / 100) * 100));
 
         WiFiConfig::showWifiStats(out);
 
         std::string info = bt_config.info();
         if (info.length()) {
-            log_to(out, info);
+            log_stream(out, info);
         }
-        log_to(out, "FW version: FluidNC ", git_info);
+        log_stream(out, "FW version: FluidNC " << git_info);
         return Error::Ok;
     }
 
-    static Error setWebSetting(char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP401
+    static Error setWebSetting(const char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP401
         // The string is of the form "P=name T=type V=value
         // We do not need the "T=" (type) parameter because the
         // Setting objects know their own type.  We do not use
         // split_params because if fails if the value string
         // contains '='
-        if (strncmp(parameter, "P=", strlen("P="))) {
+        std::string p, v;
+        bool        isJSON = COMMANDS::isJSON(parameter);
+        if (!(get_param(parameter, "P=", p) && get_param(parameter, "V=", v))) {
+            if (isJSON) {
+                COMMANDS::send_json_command_response(out, 401, false, errorString(Error::InvalidValue));
+            }
             return Error::InvalidValue;
         }
-        char* spos = &parameter[2];
-        char* scan;
-        for (scan = spos; *scan != ' ' && *scan != '\0'; ++scan) {}
-        if (*scan == '\0') {
-            return Error::InvalidValue;
-        }
-        // *scan is ' ' so we have found the end of the spos string
-        *scan++ = '\0';
 
-        if (strncmp(scan, "T=", strlen("T="))) {
-            return Error::InvalidValue;
+        Error ret = do_command_or_setting(p.c_str(), v.c_str(), auth_level, out);
+        if (isJSON) {
+            COMMANDS::send_json_command_response(out, 401, ret == Error::Ok, errorString(ret));
         }
-        // Find the end of the T=type string
-        for (scan += strlen("T="); *scan != ' ' && *scan != '\0'; ++scan) {}
-        if (strncmp(scan, " V=", strlen(" V="))) {
-            return Error::InvalidValue;
-        }
-        char* sval = scan + strlen(" V=");
 
-        Error ret = do_command_or_setting(spos, sval, auth_level, out);
         return ret;
     }
 
     // Used by js/setting.js
-    static Error listSettings(char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP400
-        JSONencoder j(true, &out);
+    static Error listSettingsJSON(const char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP400
+        JSONencoder j(false, &out);
+        j.begin();
+        j.member("cmd", "400");
+        j.member("status", "ok");
+        j.begin_array("data");
+
+        // NVS settings
+        j.setCategory("Flash/Settings");
+        for (Setting* js : Setting::List) {
+            js->addWebui(&j);
+        }
+
+        // Configuration tree
+        j.setCategory("Running/Config");
+        Configuration::JsonGenerator gen(j);
+        config->group(gen);
+
+        j.end_array();
+        j.end();
+
+        return Error::Ok;
+    }
+
+    static Error listSettings(const char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP400
+        if (parameter != NULL) {
+            if (strstr(parameter, "json=yes") != NULL) {
+                return listSettingsJSON(parameter, auth_level, out);
+            }
+        }
+
+        JSONencoder j(false, &out);
+
         j.begin();
         j.begin_array("EEPROM");
 
@@ -270,9 +382,9 @@ namespace WebUI {
         return Error::Ok;
     }
 
-    static Error openFile(const char* fs, char* parameter, AuthenticationLevel auth_level, Channel& out, InputFile*& theFile) {
+    static Error openFile(const char* fs, const char* parameter, AuthenticationLevel auth_level, Channel& out, InputFile*& theFile) {
         if (*parameter == '\0') {
-            log_to(out, "Missing file name!");
+            log_string(out, "Missing file name!");
             return Error::InvalidValue;
         }
         std::string path(parameter);
@@ -286,7 +398,7 @@ namespace WebUI {
         return Error::Ok;
     }
 
-    static Error showFile(const char* fs, char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP221
+    static Error showFile(const char* fs, const char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP221
         if (notIdleOrAlarm()) {
             return Error::IdleError;
         }
@@ -298,39 +410,40 @@ namespace WebUI {
         char  fileLine[255];
         Error res;
         while ((res = theFile->readLine(fileLine, 255)) == Error::Ok) {
-            // We cannot use the 2-argument form of log_to() here because
+            // We cannot use the 2-argument form of log_stream() here because
             // fileLine can be overwritten by readLine before the output
             // task has a chance to forward the line to the output channel.
             // The 3-argument form works because it copies the line to a
             // temporary string.
-            log_to(out, "", fileLine);
+            log_stream(out, fileLine);
         }
         if (res != Error::Eof) {
-            log_to(out, errorString(res));
+            log_string(out, errorString(res));
         }
         delete theFile;
         return Error::Ok;
     }
 
-    static bool split(char* input, char** next, char delim) {
-        char* pos = strchr(input, delim);
-        if (pos) {
-            *pos  = '\0';
-            *next = pos + 1;
+    static bool split(std::string_view input, std::string_view& next, char delim) {
+        auto pos = input.find_first_of(delim);
+        if (pos != std::string_view::npos) {
+            next  = input.substr(pos + 1);
+            input = input.substr(0, pos);
             return true;
         }
-        *next = input + strlen(input);  // End of string
+        next = "";
         return false;
     }
 
-    static Error showSDFile(char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP221
+    static Error showSDFile(const char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP221
         return showFile("sd", parameter, auth_level, out);
     }
-    static Error showLocalFile(char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP701
+    static Error showLocalFile(const char* parameter, AuthenticationLevel auth_level, Channel& out) {
         return showFile("", parameter, auth_level, out);
     }
 
-    static Error showFileSome(const char* fs, char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP221
+    // This is used by pendants to get partial file contents for preview
+    static Error fileShowSome(const char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP221
         if (notIdleOrAlarm()) {
             return Error::IdleError;
         }
@@ -338,73 +451,79 @@ namespace WebUI {
             log_error_to(out, "Missing argument");
             return Error::InvalidValue;
         }
-        int   firstline = 0;
-        int   lastline  = 0;
-        char* filename;
-        split(parameter, &filename, ',');
-        if (*filename == '\0') {
-            log_error_to(out, "Missing filename");
+
+        std::string_view args(parameter);
+
+        int firstline = 0;
+        int lastline  = 0;
+
+        std::string_view filename;
+        split(args, filename, ',');
+        if (filename.empty() || args.empty()) {
+            log_error_to(out, "Invalid syntax");
             return Error::InvalidValue;
         }
 
-        // Parameter is the list of lines to display
+        // Args is the list of lines to display
         // N means the first N lines
         // N:M means lines N through M inclusive
         if (!*parameter) {
             log_error_to(out, "Missing line count");
             return Error::InvalidValue;
         }
-        char* second;
-        split(parameter, &second, ':');
-        if (*second) {
-            firstline = atoi(parameter);
-            lastline  = atoi(second);
-        } else {
+        JSONencoder j(true, &out);  // Encapsulated JSON
+
+        std::string_view second;
+        split(args, second, ':');
+        if (second.empty()) {
             firstline = 0;
-            lastline  = atoi(parameter);
+            std::from_chars(args.data(), args.data() + args.length(), lastline);
+        } else {
+            std::from_chars(args.data(), args.data() + args.length(), firstline);
+            std::from_chars(second.data(), second.data() + second.length(), lastline);
         }
-        InputFile* theFile;
-        Error      err;
-        if ((err = openFile(fs, filename, auth_level, out, theFile)) != Error::Ok) {
-            log_error_to(out, "Cannot open file " << filename);
-            return err;
-        }
-        char  fileLine[255];
-        Error res;
-        for (int linenum = 0; (res = theFile->readLine(fileLine, 255)) == Error::Ok; ++linenum) {
-            if (linenum >= lastline) {
-                break;
+        const char* error = "";
+        j.begin();
+        j.begin_array("file_lines");
+
+        InputFile*  theFile;
+        Error       err;
+        std::string fn(filename);
+        if ((err = openFile(sdName, fn.c_str(), auth_level, out, theFile)) != Error::Ok) {
+            error = "Cannot open file";
+        } else {
+            char  fileLine[255];
+            Error res;
+            for (int linenum = 0; linenum < lastline && (res = theFile->readLine(fileLine, 255)) == Error::Ok; ++linenum) {
+                if (linenum >= firstline) {
+                    j.string(fileLine);
+                }
             }
-            if (linenum >= firstline) {
-                // We cannot use the 2-argument form of log_to() here because
-                // fileLine can be overwritten by readLine before the output
-                // task has a chance to forward the line to the output channel.
-                // The 3-argument form works because it copies the line to a
-                // temporary string.
-                log_to(out, "", fileLine);
+            delete theFile;
+            if (res != Error::Eof && res != Error::Ok) {
+                error = errorString(res);
             }
         }
-        if (res != Error::Eof && res != Error::Ok) {
-            log_to(out, errorString(res));
+        j.end_array();
+        if (*error) {
+            j.member("error", error);
+        } else {
+            j.member("path", fn.c_str());
+            j.member("firstline", firstline);
         }
-        delete theFile;
+
+        j.end();
         return Error::Ok;
     }
 
-    static Error showSDSome(char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP221
-        return showFileSome("sd", parameter, auth_level, out);
-    }
-    static Error showLocalSome(char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP701
-        return showFileSome("", parameter, auth_level, out);
-    }
-    static Error runFile(const char* fs, char* parameter, AuthenticationLevel auth_level, Channel& out) {
+    static Error runFile(const char* fs, const char* parameter, AuthenticationLevel auth_level, Channel& out) {
         Error err;
         if (sys.state == State::Alarm || sys.state == State::ConfigAlarm) {
-            log_to(out, "Alarm");
+            log_string(out, "Alarm");
             return Error::IdleError;
         }
         if (sys.state != State::Idle) {
-            log_to(out, "Busy");
+            log_string(out, "Busy");
             return Error::IdleError;
         }
         InputFile* theFile;
@@ -417,16 +536,16 @@ namespace WebUI {
         return Error::Ok;
     }
 
-    static Error runSDFile(char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP220
+    static Error runSDFile(const char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP220
         return runFile("sd", parameter, auth_level, out);
     }
 
     // Used by js/controls.js
-    static Error runLocalFile(char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP700
+    static Error runLocalFile(const char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP700
         return runFile("", parameter, auth_level, out);
     }
 
-    static Error deleteObject(const char* fs, char* name, Channel& out) {
+    static Error deleteObject(const char* fs, const char* name, Channel& out) {
         std::error_code ec;
 
         if (!name || !*name || (strcmp(name, "/") == 0)) {
@@ -436,24 +555,24 @@ namespace WebUI {
         }
         FluidPath fpath { name, fs, ec };
         if (ec) {
-            log_to(out, "No SD");
+            log_string(out, "No SD");
             return Error::FsFailedMount;
         }
         auto isDir = stdfs::is_directory(fpath, ec);
         if (ec) {
-            log_to(out, "Delete failed: ", ec.message());
+            log_stream(out, "Delete failed: " << ec.message());
             return Error::FsFileNotFound;
         }
         if (isDir) {
             stdfs::remove_all(fpath, ec);
             if (ec) {
-                log_to(out, "Delete Directory failed: ", ec.message());
+                log_stream(out, "Delete Directory failed: " << ec.message());
                 return Error::FsFailedDelDir;
             }
         } else {
             stdfs::remove(fpath, ec);
             if (ec) {
-                log_to(out, "Delete File failed: ", ec.message());
+                log_stream(out, "Delete File failed: " << ec.message());
                 return Error::FsFailedDelFile;
             }
         }
@@ -462,11 +581,11 @@ namespace WebUI {
         return Error::Ok;
     }
 
-    static Error deleteSDObject(char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP215
+    static Error deleteSDObject(const char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP215
         return deleteObject(sdName, parameter, out);
     }
 
-    static Error deleteLocalFile(char* parameter, AuthenticationLevel auth_level, Channel& out) {
+    static Error deleteLocalFile(const char* parameter, AuthenticationLevel auth_level, Channel& out) {
         return deleteObject(localfsName, parameter, out);
     }
 
@@ -475,45 +594,44 @@ namespace WebUI {
 
         FluidPath fpath { value, fs, ec };
         if (ec) {
-            log_to(out, "No SD card");
+            log_string(out, "No SD card");
             return Error::FsFailedMount;
         }
 
         auto iter = stdfs::recursive_directory_iterator { fpath, ec };
         if (ec) {
-            log_to(out, "Error: ", ec.message());
+            log_stream(out, "Error: " << ec.message());
             return Error::FsFailedMount;
         }
         for (auto const& dir_entry : iter) {
             if (dir_entry.is_directory()) {
-                log_to(out, "[DIR:", std::string(iter.depth(), ' ').c_str() << dir_entry.path().filename());
+                log_stream(out, "[DIR:" << std::string(iter.depth(), ' ').c_str() << dir_entry.path().filename());
             } else {
-                log_to(out,
-                       "[FILE: ",
-                       std::string(iter.depth(), ' ').c_str() << dir_entry.path().filename() << "|SIZE:" << dir_entry.file_size());
+                log_stream(out,
+                           "[FILE: " << std::string(iter.depth(), ' ').c_str() << dir_entry.path().filename()
+                                     << "|SIZE:" << dir_entry.file_size());
             }
         }
         auto space = stdfs::space(fpath, ec);
         if (ec) {
-            log_to(out, "Error ", ec.value() << " " << ec.message());
+            log_stream(out, "Error " << ec.value() << " " << ec.message());
             return Error::FsFailedMount;
         }
 
         auto totalBytes = space.capacity;
         auto freeBytes  = space.available;
         auto usedBytes  = totalBytes - freeBytes;
-        log_to(out,
-               "[",
-               fpath.c_str() << " Free:" << formatBytes(freeBytes) << " Used:" << formatBytes(usedBytes)
-                             << " Total:" << formatBytes(totalBytes));
+        log_stream(out,
+                   "[" << fpath.c_str() << " Free:" << formatBytes(freeBytes) << " Used:" << formatBytes(usedBytes)
+                       << " Total:" << formatBytes(totalBytes));
         return Error::Ok;
     }
 
-    static Error listSDFiles(char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP210
+    static Error listSDFiles(const char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP210
         return listFilesystem(sdName, parameter, auth_level, out);
     }
 
-    static Error listLocalFiles(char* parameter, AuthenticationLevel auth_level, Channel& out) {  // No ESP command
+    static Error listLocalFiles(const char* parameter, AuthenticationLevel auth_level, Channel& out) {  // No ESP command
         return listFilesystem(localfsName, parameter, auth_level, out);
     }
 
@@ -522,7 +640,7 @@ namespace WebUI {
 
         FluidPath fpath { value, fs, ec };
         if (ec) {
-            log_to(out, "No SD card");
+            log_string(out, "No SD card");
             return Error::FsFailedMount;
         }
 
@@ -531,7 +649,7 @@ namespace WebUI {
 
         auto iter = stdfs::directory_iterator { fpath, ec };
         if (ec) {
-            log_to(out, "Error: ", ec.message());
+            log_stream(out, "Error: " << ec.message());
             return Error::FsFailedMount;
         }
         j.begin_array("files");
@@ -545,7 +663,7 @@ namespace WebUI {
 
         auto space = stdfs::space(fpath, ec);
         if (ec) {
-            log_to(out, "Error ", ec.value() << " " << ec.message());
+            log_stream(out, "Error " << ec.value() << " " << ec.message());
             return Error::FsFailedMount;
         }
 
@@ -564,15 +682,76 @@ namespace WebUI {
         return Error::Ok;
     }
 
-    static Error listSDFilesJSON(char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP210
+    static Error listSDFilesJSON(const char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP210
         return listFilesystemJSON(sdName, parameter, auth_level, out);
     }
 
-    static Error listLocalFilesJSON(char* parameter, AuthenticationLevel auth_level, Channel& out) {  // No ESP command
+    static Error listLocalFilesJSON(const char* parameter, AuthenticationLevel auth_level, Channel& out) {  // No ESP command
         return listFilesystemJSON(localfsName, parameter, auth_level, out);
     }
 
-    static Error renameObject(const char* fs, char* parameter, AuthenticationLevel auth_level, Channel& out) {
+    // This is used by pendants to get lists of GCode files
+    static Error listGCodeFiles(const char* parameter, AuthenticationLevel auth_level, Channel& out) {  // No ESP command
+        const char* error = "";
+
+        JSONencoder j(true, &out);  // Encapsulated JSON
+        j.begin();
+
+        std::error_code ec;
+
+        FluidPath fpath { parameter, sdName, ec };
+        if (ec) {
+            error = "No volume";
+        }
+
+        j.begin_array("files");
+        if (!*error) {  // Array is empty for failure to open the volume
+            auto iter = stdfs::directory_iterator { fpath, ec };
+            if (ec) {
+                // Array is empty for failure to open the path
+                error = "Bad path";
+            } else {
+                for (auto const& dir_entry : iter) {
+                    auto fn     = dir_entry.path().filename();
+                    auto is_dir = dir_entry.is_directory();
+                    if (out.is_visible(fn.stem(), fn.extension(), is_dir)) {
+                        j.begin_object();
+                        j.member("name", dir_entry.path().filename());
+                        j.member("size", is_dir ? -1 : dir_entry.file_size());
+                        j.end_object();
+                    }
+                }
+            }
+        }
+        j.end_array();
+
+        j.member("path", parameter);
+        if (*error) {
+            j.member("error", error);
+        }
+
+#if 0
+        // Don't include summary information because it can take a long
+        // time to calculate for large volumes
+        auto space = stdfs::space(fpath, ec);
+        if (!ec) {
+            auto totalBytes = space.capacity;
+            auto freeBytes  = space.available;
+            auto usedBytes  = totalBytes - freeBytes;
+
+            j.member("total", formatBytes(totalBytes));
+            j.member("used", formatBytes(usedBytes + 1));
+
+            uint32_t percent = totalBytes ? (usedBytes * 100) / totalBytes : 100;
+
+            j.member("occupation", percent);
+        }
+#endif
+        j.end();
+        return Error::Ok;
+    }
+
+    static Error renameObject(const char* fs, const char* parameter, AuthenticationLevel auth_level, Channel& out) {
         if (!parameter || *parameter == '\0') {
             return Error::InvalidValue;
         }
@@ -593,10 +772,10 @@ namespace WebUI {
         }
         return Error::Ok;
     }
-    static Error renameSDObject(char* parameter, AuthenticationLevel auth_level, Channel& out) {
+    static Error renameSDObject(const char* parameter, AuthenticationLevel auth_level, Channel& out) {
         return renameObject(sdName, parameter, auth_level, out);
     }
-    static Error renameLocalObject(char* parameter, AuthenticationLevel auth_level, Channel& out) {
+    static Error renameLocalObject(const char* parameter, AuthenticationLevel auth_level, Channel& out) {
         return renameObject(localfsName, parameter, auth_level, out);
     }
 
@@ -669,20 +848,20 @@ namespace WebUI {
         }
         return err;
     }
-    static Error showLocalFSHashes(char* parameter, WebUI::AuthenticationLevel auth_level, Channel& out) {
+    static Error showLocalFSHashes(const char* parameter, WebUI::AuthenticationLevel auth_level, Channel& out) {
         for (const auto& [name, hash] : HashFS::localFsHashes) {
             log_info_to(out, name << ": " << hash);
         }
         return Error::Ok;
     }
 
-    static Error backupLocalFS(char* parameter, AuthenticationLevel auth_level, Channel& out) {  // No ESP command
+    static Error backupLocalFS(const char* parameter, AuthenticationLevel auth_level, Channel& out) {  // No ESP command
         return copyDir("/localfs", "/sd/localfs", out);
     }
-    static Error restoreLocalFS(char* parameter, AuthenticationLevel auth_level, Channel& out) {  // No ESP command
+    static Error restoreLocalFS(const char* parameter, AuthenticationLevel auth_level, Channel& out) {  // No ESP command
         return copyDir("/sd/localfs", "/localfs", out);
     }
-    static Error migrateLocalFS(char* parameter, AuthenticationLevel auth_level, Channel& out) {  // No ESP command
+    static Error migrateLocalFS(const char* parameter, AuthenticationLevel auth_level, Channel& out) {  // No ESP command
         const char* newfs = parameter && *parameter ? parameter : "littlefs";
         if (strcmp(newfs, localfsName) == 0) {
             log_error_to(out, "localfs format is already " << newfs);
@@ -702,24 +881,24 @@ namespace WebUI {
     }
 
     // Used by js/files.js
-    static Error showSDStatus(char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP200
+    static Error showSDStatus(const char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP200
         std::error_code ec;
 
         FluidPath path { "", "/sd", ec };
         if (ec) {
-            log_to(out, "No SD card");
+            log_string(out, "No SD card");
             return Error::FsFailedMount;
         }
-        log_to(out, "SD card detected");
+        log_string(out, "SD card detected");
         return Error::Ok;
     }
 
-    static Error setRadioState(char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP115
-        parameter = trim(parameter);
+    static Error setRadioState(const char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP115
+        // parameter = trim(parameter);
         if (*parameter == '\0') {
             // Display the radio state
             bool on = wifi_config.isOn() || bt_config.isOn();
-            log_to(out, on ? "ON" : "OFF");
+            log_string(out, on ? "ON" : "OFF");
             return Error::Ok;
         }
         int8_t on = -1;
@@ -729,7 +908,7 @@ namespace WebUI {
             on = 0;
         }
         if (on == -1) {
-            log_to(out, "only ON or OFF mode supported!");
+            log_string(out, "only ON or OFF mode supported!");
             return Error::InvalidValue;
         }
 
@@ -744,24 +923,22 @@ namespace WebUI {
         log_msg_to(out, "Radio is Off");
         return Error::Ok;
     }
+    static Error showWebHelp(const char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP0
+        log_string(out, "Persistent web settings - $name to show, $name=value to set");
+        log_string(out, "ESPname FullName         Description");
+        log_string(out, "------- --------         -----------");
 
-    static Error showWebHelp(char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP0
-        log_to(out, "Persistent web settings - $name to show, $name=value to set");
-        log_to(out, "ESPname FullName         Description");
-        log_to(out, "------- --------         -----------");
-        ;
         for (Setting* setting : Setting::List) {
             if (setting->getType() == WEBSET) {
-                log_to(out,
-                       "",
-                       LeftJustify(setting->getGrblName() ? setting->getGrblName() : "", 8)
-                           << LeftJustify(setting->getName(), 25 - 8) << setting->getDescription());
+                log_stream(out,
+                           LeftJustify(setting->getGrblName() ? setting->getGrblName() : "", 8)
+                               << LeftJustify(setting->getName(), 25 - 8) << setting->getDescription());
             }
         }
-        log_to(out, "");
-        log_to(out, "Other web commands: $name to show, $name=value to set");
-        log_to(out, "ESPname FullName         Values");
-        log_to(out, "------- --------         ------");
+        log_string(out, "");
+        log_string(out, "Other web commands: $name to show, $name=value to set");
+        log_string(out, "ESPname FullName         Values");
+        log_string(out, "------- --------         ------");
 
         for (Command* cp : Command::List) {
             if (cp->getType() == WEBCMD) {
@@ -778,24 +955,8 @@ namespace WebUI {
     void make_authentication_settings() {
 #ifdef ENABLE_AUTHENTICATION
         new WebCommand("password", WEBCMD, WA, "ESP555", "WebUI/SetUserPassword", setUserPassword);
-        user_password  = new StringSetting("User password",
-                                          WEBSET,
-                                          WA,
-                                          NULL,
-                                          "WebUI/UserPassword",
-                                          DEFAULT_USER_PWD,
-                                          MIN_LOCAL_PASSWORD_LENGTH,
-                                          MAX_LOCAL_PASSWORD_LENGTH,
-                                          &COMMANDS::isLocalPasswordValid);
-        admin_password = new StringSetting("Admin password",
-                                           WEBSET,
-                                           WA,
-                                           NULL,
-                                           "WebUI/AdminPassword",
-                                           DEFAULT_ADMIN_PWD,
-                                           MIN_LOCAL_PASSWORD_LENGTH,
-                                           MAX_LOCAL_PASSWORD_LENGTH,
-                                           &COMMANDS::isLocalPasswordValid);
+        user_password  = new AuthPasswordSetting("User password", "WebUI/UserPassword", DEFAULT_USER_PWD);
+        admin_password = new AuthPasswordSetting("Admin password", "WebUI/AdminPassword", DEFAULT_ADMIN_PWD);
 #endif
     }
 
@@ -812,7 +973,7 @@ namespace WebUI {
 
         new WebCommand(NULL, WEBCMD, WU, "ESP720", "LocalFS/Size", localFSSize);
         new WebCommand("FORMAT", WEBCMD, WA, "ESP710", "LocalFS/Format", formatLocalFS);
-        new WebCommand("path", WEBCMD, WU, "ESP701", "LocalFS/Show", showLocalFile);
+        new WebCommand("path", WEBCMD, WU, NULL, "LocalFS/Show", showLocalFile);
         new WebCommand("path", WEBCMD, WU, "ESP700", "LocalFS/Run", runLocalFile);
         new WebCommand("path", WEBCMD, WU, NULL, "LocalFS/List", listLocalFiles);
         new WebCommand("path", WEBCMD, WU, NULL, "LocalFS/ListJSON", listLocalFilesJSON);
@@ -823,7 +984,7 @@ namespace WebUI {
         new WebCommand("path", WEBCMD, WU, NULL, "LocalFS/Migrate", migrateLocalFS);
         new WebCommand(NULL, WEBCMD, WU, NULL, "LocalFS/Hashes", showLocalFSHashes);
 
-        new WebCommand("path", WEBCMD, WU, "ESP221", "SD/ShowSome", showSDSome);
+        new WebCommand("path", WEBCMD, WU, NULL, "File/ShowSome", fileShowSome);
         new WebCommand("path", WEBCMD, WU, "ESP221", "SD/Show", showSDFile);
         new WebCommand("path", WEBCMD, WU, "ESP220", "SD/Run", runSDFile);
         new WebCommand("file_or_directory_path", WEBCMD, WU, "ESP215", "SD/Delete", deleteSDObject);
@@ -831,6 +992,8 @@ namespace WebUI {
         new WebCommand(NULL, WEBCMD, WU, "ESP210", "SD/List", listSDFiles);
         new WebCommand("path", WEBCMD, WU, NULL, "SD/ListJSON", listSDFilesJSON);
         new WebCommand(NULL, WEBCMD, WU, "ESP200", "SD/Status", showSDStatus);
+
+        new WebCommand("path", WEBCMD, WU, NULL, "Files/ListGCode", listGCodeFiles);
 
         new WebCommand("ON|OFF", WEBCMD, WA, "ESP115", "Radio/State", setRadioState);
 
