@@ -1,3 +1,7 @@
+// Copyright (c) 2024 Maslow CNC. All rights reserved.
+// Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file with
+// following exception: it may not be used for any reason by MakerMade or anyone with a business or personal connection to MakerMade
+
 #ifndef MotorUnit_h
 #define MotorUnit_h
 
@@ -32,7 +36,7 @@ class MotorUnit {
     bool retract();
     bool extend(double targetLength);
     bool pull_tight();
-
+    bool motor_test();
     void reset(); //resetting variables here, because of non-blocking, maybe there's a better way to do this
 
     double getMotorCurrent(); //averaged value of the last 10 measurements
@@ -66,7 +70,7 @@ class MotorUnit {
     unsigned long motorCurrentTimer = millis();
 
     //These are used when retracting the belts for storage
-    int absoluteCurrentThreshold = 2200;
+    int absoluteCurrentThreshold = 1300;
     int incrementalThreshold = 125;
     int incrementalThresholdHits = 0;
     float alpha = .2;

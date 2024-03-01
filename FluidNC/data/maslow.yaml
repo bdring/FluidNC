@@ -1,10 +1,20 @@
 board: Maslow
 name: Maslow S3 Board
 
-Maslow_frame_width: 3000.0
-Maslow_frame_height: 2000.0
-Maslow_vertical: 1
+Maslow_vertical: true
+Maslow_calibration_offset: 500
 
+Maslow_tlX: -31
+Maslow_tlY: 2065.1
+
+Maslow_trX: 2923.2
+Maslow_trY: 2067.7
+
+Maslow_blX: 0.0
+Maslow_blY: 0.0
+
+Maslow_brX: 2952
+Maslow_brY: 0.0
 
 spi:
   miso_pin: gpio.13
@@ -27,8 +37,9 @@ uart1:
 
 axes:
   x: 
-    max_rate_mm_per_min: 2000.000000
-    acceleration_mm_per_sec2: 25.000000
+    max_rate_mm_per_min: 2000
+    acceleration_mm_per_sec2: 25
+    max_travel_mm: 2438.4
     homing: 
       cycle: -1
     
@@ -36,8 +47,9 @@ axes:
       dc_servo:
 
   y: 
-    max_rate_mm_per_min: 2000.000000
-    acceleration_mm_per_sec2: 25.000000
+    max_rate_mm_per_min: 2000
+    acceleration_mm_per_sec2: 25
+    max_travel_mm: 1219.2
     homing: 
       cycle: -1
 

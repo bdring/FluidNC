@@ -14,7 +14,3 @@ echo %EsptoolPath% %BaseArgs% %SetupArgs% %LocalFS%
 
 exit /b 0
 
-echo Starting fluidterm
-win64\fluidterm.exe
-
-pause

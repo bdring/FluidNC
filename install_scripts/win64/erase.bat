@@ -9,4 +9,4 @@ set SetupArgs=--before default_reset --after hard_reset write_flash -z --flash_m
 echo %EsptoolPath% %BaseArgs% erase_flash
 %EsptoolPath% %BaseArgs% erase_flash
 
-pause
+exit /b 0
