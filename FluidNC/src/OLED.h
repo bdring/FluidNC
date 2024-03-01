@@ -97,6 +97,8 @@ public:
     uint8_t _address = 0x3c;
     int     _width   = 64;
     int     _height  = 48;
+    int     _flip    = 1;
+    int     _mirror  = 0;
 
     // Channel method overrides
 
@@ -122,6 +124,8 @@ public:
         handler.item("i2c_address", _address);
         handler.item("width", _width);
         handler.item("height", _height);
+        handler.item("flip", _flip);
+        handler.item("mirror", _mirror);
         handler.item("radio_delay_ms", _radio_delay);
     }
 };

@@ -71,7 +71,12 @@ void OLED::init() {
     _oled = new SSD1306_I2C(_address, _geometry, config->_i2c[_i2c_num], 400000);
     _oled->init();
 
-    _oled->flipScreenVertically();
+    if (_flip) {
+        _oled->flipScreenVertically();
+    }
+    if (_mirror) {
+        _oled->mirrorScreen();
+    }
     _oled->setTextAlignment(TEXT_ALIGN_LEFT);
 
     _oled->clear();
