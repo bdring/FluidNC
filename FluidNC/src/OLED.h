@@ -97,8 +97,8 @@ public:
     uint8_t _address = 0x3c;
     int     _width   = 64;
     int     _height  = 48;
-    int     _flip    = 1;
-    int     _mirror  = 0;
+    bool     _flip    = true;
+    bool     _mirror  = false;
 
     // Channel method overrides
 
