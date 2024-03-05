@@ -122,16 +122,7 @@ void UartChannel::out(const std::string& s, const char* tag) {
 }
 
 void UartChannel::out_acked(const std::string& s, const char* tag) {
-    int count = 0;
-    while (_ackwait && ++count < _ack_timeout) {
-        pollLine(NULL);
-        delay_ms(1);
-    }
-    if (count == _ack_timeout) {
-        log_error("Device not responding");
-    }
     out(s, tag);
-    _ackwait = true;
 }
 
 UartChannel Uart0(0, true);  // Primary serial channel with LF to CRLF conversion

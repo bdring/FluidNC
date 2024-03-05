@@ -73,6 +73,11 @@ public:
     // Used by VFDSpindle and Dynamixel2
     bool setHalfDuplex();
 
+    void forceXon();
+    void forceXoff();
+
+    void setSwFlowControl(bool on, int rx_threshold, int tx_threshold);
+
     // Configuration handlers:
     void validate() override {
         Assert(!_txd_pin.undefined(), "UART: TXD is undefined");
@@ -88,7 +93,7 @@ public:
         handler.item("rts_pin", _rts_pin);
         handler.item("cts_pin", _cts_pin);
 
-        handler.item("baud", _baud, 2400, 4000000);
+        handler.item("baud", _baud, 2400, 10000000);
         handler.item("mode", _dataBits, _parity, _stopBits);
     }
 
