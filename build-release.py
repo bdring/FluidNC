@@ -11,9 +11,9 @@ verbose = '-v' in sys.argv
 
 environ = dict(os.environ)
 
-platformio = r"C:\Users\anna\.platformio\penv\Scripts\platformio.exe"
-version = "21-nov-23"
-os.chdir(os.path.dirname(os.path.realpath(r"C:\Users\anna\OneDrive\Documents\GitHub\FluidNC\.pio")))
+platformio = r"C:\Users\bar\.platformio\penv\Scripts\platformio.exe"
+version = "0.62.2"
+os.chdir(os.path.dirname(os.path.realpath(r"C:\Users\bar\OneDrive\Documents\GitHub\FluidNC\.pio")))
 #change path to the project folder (the folder with platformio.ini)
 tag = "maslow4-"+version
 sharedPath = 'install_scripts'
