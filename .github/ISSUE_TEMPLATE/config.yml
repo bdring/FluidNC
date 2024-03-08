@@ -1,8 +1,5 @@
-blank_issues_enabled: false
+blank_issues_enabled: true
 contact_links:
   - name: General Questions
-    url: http://wiki.fluidnc.com/
-    about: Please read our wiki which answers many questions
-  - name: Discord server
-    url: https://discord.com/invite/vGhne3QmFZ
-    about: Please ask and answer questions on our Discord server.
+    url: forums.maslowcnc.com
+    about: Please read our forum which answers many questions
