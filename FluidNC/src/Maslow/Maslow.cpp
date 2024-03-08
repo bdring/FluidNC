@@ -364,7 +364,7 @@ void Maslow_::calibration_loop(){
                 else{ //Otherwise move to the next point
                     log_info("Moving from: " << calibrationGrid[waypoint-1][0] << " " << calibrationGrid[waypoint-1][1] << " to: " << calibrationGrid[waypoint][0] << " " << calibrationGrid[waypoint][1] << " direction: " << get_direction(calibrationGrid[waypoint-1][0], calibrationGrid[waypoint-1][1], calibrationGrid[waypoint][0], calibrationGrid[waypoint][1]));
                     // print all the axis positions and targets
-                    log_info("Cuurent pos: TL: " << axisTL.getPosition() << " TR: " << axisTR.getPosition() << " BL: " << axisBL.getPosition() << " BR: " << axisBR.getPosition());
+                    log_info("Current pos: TL: " << axisTL.getPosition() << " TR: " << axisTR.getPosition() << " BL: " << axisBL.getPosition() << " BR: " << axisBR.getPosition());
                     log_info("Current target: TL: " << axisTL.getTarget() << " TR: " << axisTR.getTarget() << " BL: " << axisBL.getTarget() << " BR: " << axisBR.getTarget());
                     log_info("Computed target: TL: " << computeTL(calibrationGrid[waypoint][0], calibrationGrid[waypoint][1], 0) << " TR: " << computeTR(calibrationGrid[waypoint][0], calibrationGrid[waypoint][1], 0) << " BL: " << computeBL(calibrationGrid[waypoint][0], calibrationGrid[waypoint][1], 0) << " BR: " << computeBR(calibrationGrid[waypoint][0], calibrationGrid[waypoint][1], 0));
                     hold(250);
