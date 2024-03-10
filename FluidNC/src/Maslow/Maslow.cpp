@@ -238,24 +238,28 @@ void Maslow_::home() {
         if (axisTL.retract()) {
             retractingTL  = false;
             axis_homed[0] = true;
+            extendedTL    = false;
         }
     }
     if (retractingTR) {
         if (axisTR.retract()) {
             retractingTR  = false;
             axis_homed[1] = true;
+            extendedTR    = false;
         }
     }
     if (retractingBL) {
         if (axisBL.retract()) {
             retractingBL  = false;
             axis_homed[2] = true;
+            extendedBL    = false;
         }
     }
     if (retractingBR) {
         if (axisBR.retract()) {
             retractingBR  = false;
             axis_homed[3] = true;
+            extendedBR    = false;
         }
     }
 
