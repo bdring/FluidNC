@@ -9,6 +9,7 @@
 
 #include <driver/uart.h>
 #include <esp_ipc.h>
+#include "hal/uart_hal.h"
 
 Uart::Uart(int uart_num) : _uart_num(uart_num) {}
 
@@ -61,6 +62,12 @@ int Uart::read() {
     }
     uint8_t c;
     int     res = uart_read_bytes(uart_port_t(_uart_num), &c, 1, 0);
+    if (res == 1 && c == 0x11) {
+        printf("SW Flow control\n");
+        // 0x11 is XON.  If we receive that, it is a request to use software flow control
+        setSwFlowControl(true, -1, -1);
+        return -1;
+    }
     return res == 1 ? c : -1;
 }
 
@@ -84,6 +91,23 @@ size_t Uart::timedReadBytes(char* buffer, size_t len, TickType_t timeout) {
     return res < 0 ? 0 : res;
 }
 
+void Uart::forceXon() {
+    uart_ll_force_xon(uart_port_t(_uart_num));
+}
+
+void Uart::forceXoff() {
+    uart_ll_force_xoff(uart_port_t(_uart_num));
+}
+
+void Uart::setSwFlowControl(bool on, int xon_threshold, int xoff_threshold) {
+    if (xon_threshold <= 0) {
+        xon_threshold = 126;
+    }
+    if (xoff_threshold <= 0) {
+        xoff_threshold = 127;
+    }
+    uart_set_sw_flow_ctrl(uart_port_t(_uart_num), on, xon_threshold, xoff_threshold);
+}
 bool Uart::setHalfDuplex() {
     return uart_set_mode(uart_port_t(_uart_num), UART_MODE_RS485_HALF_DUPLEX) != ESP_OK;
 }
