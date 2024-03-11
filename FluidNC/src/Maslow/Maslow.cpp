@@ -133,21 +133,6 @@ void Maslow_::update() {
 
         //temp test function
         if (test) {
-            String testData =
-                "CLBM:[{bl:1480.58,   br:2546.36,   tr:2376.74,   tl:1218.11},{bl:1384.02,   br:2494.43,   tr:2424.53,   "
-                "tl:1309.08},{bl:1288.43,   br:2442.94,   tr:2478.35,   tl:1406.38},{bl:1197.18,   br:2398.21,   tr:2537.74,   "
-                "tl:1508.56},{bl:1110.11,   br:2353.60,   tr:2602.27,   tl:1614.72},{bl:1366.61,   br:2034.80,   tr:2328.34,   "
-                "tl:1817.17},{bl:1440.07,   br:2077.35,   tr:2255.92,   tl:1723.68},{bl:1516.04,   br:2130.95,   tr:2188.96,   "
-                "tl:1634.97},{bl:1596.10,   br:2188.72,   tr:2127.77,   tl:1552.18},{bl:1678.80,   br:2249.42,   tr:2073.29,   "
-                "tl:1476.12},{bl:1920.35,   br:1974.06,   tr:1778.18,   tl:1757.00},{bl:1806.39,   br:1903.97,   tr:1841.43,   "
-                "tl:1821.45},{bl:1738.96,   br:1838.32,   tr:1911.70,   tl:1892.51},{bl:1675.90,   br:1775.73,   tr:1987.95,   "
-                "tl:1969.64},{bl:1618.42,   br:1719.46,   tr:2069.57,   tl:2052.03},{bl:1877.70,   br:1424.41,   tr:1832.91,   "
-                "tl:2309.46},{bl:1883.65,   br:1492.07,   tr:1740.15,   tl:2236.51},{bl:1893.96,   br:1565.01,   tr:1652.62,   "
-                "tl:2168.85},{bl:1954.79,   br:1641.95,   tr:1571.16,   tl:2107.12},{bl:2018.87,   br:1722.76,   tr:1495.65,   "
-                "tl:2051.79},{bl:2222.19,   br:1511.25,   tr:1235.61,   tl:2355.04},{bl:2163.06,   br:1417.45,   tr:1325.59,   "
-                "tl:2403.43},{bl:2108.23,   br:1325.35,   tr:1421.79,   tl:2457.75},{bl:2015.18,   br:1237.83,   tr:1522.55,   "
-                "tl:2517.63},{bl:1926.10,   br:1154.71,   tr:1627.81,   tl:2582.68},]";
-            log_data(testData.c_str());
             test = false;
         }
 
@@ -161,7 +146,7 @@ void Maslow_::update() {
                               steps_to_mpos(get_axis_motor_steps(2), 2));
 
             //This allows the z-axis to be moved without the motors being enabled before calibration is run
-            if (all_axis_homed()) {
+            if (allAxisExtended()) {
                 Maslow.recomputePID();
             }
         }
@@ -253,24 +238,28 @@ void Maslow_::home() {
         if (axisTL.retract()) {
             retractingTL  = false;
             axis_homed[0] = true;
+            extendedTL    = false;
         }
     }
     if (retractingTR) {
         if (axisTR.retract()) {
             retractingTR  = false;
             axis_homed[1] = true;
+            extendedTR    = false;
         }
     }
     if (retractingBL) {
         if (axisBL.retract()) {
             retractingBL  = false;
             axis_homed[2] = true;
+            extendedBL    = false;
         }
     }
     if (retractingBR) {
         if (axisBR.retract()) {
             retractingBR  = false;
             axis_homed[3] = true;
+            extendedBR    = false;
         }
     }
 
@@ -1233,6 +1222,11 @@ void Maslow_::reset_all_axis() {
 // True if all axis were zeroed
 bool Maslow_::all_axis_homed() {
     return axis_homed[0] && axis_homed[1] && axis_homed[2] && axis_homed[3];
+}
+
+// True if all axis were extended
+bool Maslow_::allAxisExtended() {
+    return extendedTL && extendedTR && extendedBL && extendedBR;
 }
 
 // int to string name conversion for axis labels
