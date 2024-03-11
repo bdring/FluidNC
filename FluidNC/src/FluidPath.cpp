@@ -5,6 +5,8 @@
 #include "Driver/sdspi.h"
 #include "Config.h"
 #include "Error.h"
+#include "Machine/MachineConfig.h"
+#include "FluidError.hpp"
 #include "HashFS.h"
 
 int FluidPath::_refcnt = 0;
@@ -14,14 +16,22 @@ FluidPath::FluidPath(const char* name, const char* fs, std::error_code* ecptr) :
     _isSD      = mount == "sd";
 
     if (_isSD) {
+        if (!config->_sdCard->config_ok) {
+            std::error_code ec = FluidError::SDNotConfigured;
+            if (ecptr) {
+                *ecptr = ec;
+                return;
+            }
+            throw stdfs::filesystem_error { "SD card is inaccessible", name, ec };
+        }
         if (_refcnt == 0) {
-            std::error_code ec = sd_mount();
+            auto ec = sd_mount();
             if (ec) {
                 if (ecptr) {
                     *ecptr = ec;
                     return;
                 }
-                throw stdfs::filesystem_error { "SD card is inaccessible", ec };
+                throw stdfs::filesystem_error { "SD card is inaccessible", name, ec };
             }
         }
         ++_refcnt;

@@ -1,3 +1,6 @@
+// Copyright (c) 2022 Mitch Bradley
+// Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
+
 #include "vfs_api.h"
 #include "esp_vfs_fat.h"
 #include "diskio_impl.h"
@@ -5,6 +8,7 @@
 #include "ff.h"
 #include "sdmmc_cmd.h"
 #include "driver/sdspi_host.h"
+#include "esp_error.hpp"
 
 #include "Driver/sdspi.h"
 #include "src/Config.h"
@@ -12,7 +16,7 @@
 #define CHECK_EXECUTE_RESULT(err, str)                                                                                                     \
     do {                                                                                                                                   \
         if ((err) != ESP_OK) {                                                                                                             \
-            log_error(str << " code " << to_hex(err));                                                                                   \
+            log_error(str << " code " << to_hex(err));                                                                                     \
             goto cleanup;                                                                                                                  \
         }                                                                                                                                  \
     } while (0)
@@ -69,6 +73,8 @@ static void call_host_deinit(const sdmmc_host_t* host_config) {
 
 bool sd_init_slot(uint32_t freq_hz, int cs_pin, int cd_pin, int wp_pin) {
     esp_err_t err;
+
+    esp_log_level_set("sdmmc_sd", ESP_LOG_NONE);
 
     // Note: esp_vfs_fat_sdmmc/sdspi_mount is all-in-one convenience functions.
     // Please check its source code and implement error recovery when developing
@@ -139,11 +145,11 @@ std::error_code sd_mount(int max_files) {
     BYTE pdrv = FF_DRV_NOT_USED;
     if ((err = ff_diskio_get_drive(&pdrv)) != ESP_OK) {
         log_debug("ff_diskio_get_drive failed");
-        return std::error_code(err, std::system_category());
+        return esp_error::make_error_code(err);
     }
     if (pdrv == FF_DRV_NOT_USED) {
         log_debug("the maximum count of volumes is already mounted");
-        return std::error_code(ESP_FAIL, std::system_category());
+        return esp_error::make_error_code(ESP_FAIL);
     }
     // pdrv is now the index of the unused drive slot
 
@@ -151,7 +157,7 @@ std::error_code sd_mount(int max_files) {
     card = (sdmmc_card_t*)malloc(sizeof(sdmmc_card_t));
     if (card == NULL) {
         log_debug("could not allocate new sdmmc_card_t");
-        return std::error_code(ESP_ERR_NO_MEM, std::system_category());
+        return esp_error::make_error_code(ESP_ERR_NO_MEM);
     }
     // /mount_prepare_mem()
 
@@ -166,11 +172,10 @@ std::error_code sd_mount(int max_files) {
 cleanup:
     free(card);
     card = NULL;
-    return std::error_code(err, std::system_category());
+    return esp_error::make_error_code(err);
 }
 
 void sd_unmount() {
-    log_verbose("Unmount_sd");
     BYTE pdrv = ff_diskio_get_pdrv_card(card);
     if (pdrv == 0xff) {
         return;
@@ -190,7 +195,6 @@ void sd_unmount() {
 }
 
 void sd_deinit_slot() {
-    // log_debug("Deinit slot");
     sdspi_host_remove_device(host_config.slot);
     call_host_deinit(&host_config);
 
