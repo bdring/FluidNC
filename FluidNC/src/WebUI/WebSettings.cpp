@@ -135,7 +135,11 @@ namespace WebUI {
         // WebUI will switch to M20 for SD access, which is wrong for FluidNC
         s << "Direct SD";
 
-        s << "  # primary sd:/sd # secondary sd:none ";
+        s << "  # primary sd:";
+
+        (config->_sdCard->config_ok) ? s << "/sd" : s << "none";
+
+        s << " # secondary sd:none ";
 
         s << " # authentication:";
 #ifdef ENABLE_AUTHENTICATION
@@ -151,18 +155,17 @@ namespace WebUI {
     }
 
     static Error localFSSize(const char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP720
-        std::error_code ec;
+        try {
+            auto space      = stdfs::space(FluidPath { "", localfsName });
+            auto totalBytes = space.capacity;
+            auto freeBytes  = space.available;
+            auto usedBytes  = totalBytes - freeBytes;
 
-        auto space = stdfs::space(FluidPath { "", localfsName, ec }, ec);
-        if (ec) {
-            log_stream(out, "Error " << ec.message());
+            log_stream(out, parameter << "LocalFS  Total:" << formatBytes(localfs_size()) << " Used:" << formatBytes(usedBytes));
+        } catch (std::filesystem::filesystem_error const& ex) {
+            log_error_to(out, ex.what());
             return Error::FsFailedMount;
         }
-        auto totalBytes = space.capacity;
-        auto freeBytes  = space.available;
-        auto usedBytes  = totalBytes - freeBytes;
-
-        log_stream(out, parameter << "LocalFS  Total:" << formatBytes(localfs_size()) << " Used:" << formatBytes(usedBytes));
         return Error::Ok;
     }
 
@@ -553,30 +556,18 @@ namespace WebUI {
             log_error_to(out, "Will not delete everything");
             return Error::InvalidValue;
         }
-        FluidPath fpath { name, fs, ec };
-        if (ec) {
-            log_string(out, "No SD");
-            return Error::FsFailedMount;
-        }
-        auto isDir = stdfs::is_directory(fpath, ec);
-        if (ec) {
-            log_stream(out, "Delete failed: " << ec.message());
-            return Error::FsFileNotFound;
-        }
-        if (isDir) {
-            stdfs::remove_all(fpath, ec);
-            if (ec) {
-                log_stream(out, "Delete Directory failed: " << ec.message());
-                return Error::FsFailedDelDir;
+        try {
+            FluidPath fpath { name, fs };
+            if (stdfs::is_directory(fpath)) {
+                stdfs::remove_all(fpath);
+            } else {
+                stdfs::remove(fpath);
             }
-        } else {
-            stdfs::remove(fpath, ec);
-            if (ec) {
-                log_stream(out, "Delete File failed: " << ec.message());
-                return Error::FsFailedDelFile;
-            }
+            HashFS::delete_file(fpath);
+        } catch (std::filesystem::filesystem_error const& ex) {
+            log_error_to(out, ex.what());
+            return Error::FsFailedDelFile;
         }
-        HashFS::delete_file(fpath);
 
         return Error::Ok;
     }
@@ -590,40 +581,30 @@ namespace WebUI {
     }
 
     static Error listFilesystem(const char* fs, const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
-        std::error_code ec;
-
-        FluidPath fpath { value, fs, ec };
-        if (ec) {
-            log_string(out, "No SD card");
-            return Error::FsFailedMount;
-        }
-
-        auto iter = stdfs::recursive_directory_iterator { fpath, ec };
-        if (ec) {
-            log_stream(out, "Error: " << ec.message());
-            return Error::FsFailedMount;
-        }
-        for (auto const& dir_entry : iter) {
-            if (dir_entry.is_directory()) {
-                log_stream(out, "[DIR:" << std::string(iter.depth(), ' ').c_str() << dir_entry.path().filename());
-            } else {
-                log_stream(out,
-                           "[FILE: " << std::string(iter.depth(), ' ').c_str() << dir_entry.path().filename()
-                                     << "|SIZE:" << dir_entry.file_size());
+        try {
+            FluidPath fpath { value, fs };
+            auto      iter  = stdfs::recursive_directory_iterator { fpath };
+            auto      space = stdfs::space(fpath);
+            for (auto const& dir_entry : iter) {
+                if (dir_entry.is_directory()) {
+                    log_stream(out, "[DIR:" << std::string(iter.depth(), ' ').c_str() << dir_entry.path().filename());
+                } else {
+                    log_stream(out,
+                               "[FILE: " << std::string(iter.depth(), ' ').c_str() << dir_entry.path().filename()
+                                         << "|SIZE:" << dir_entry.file_size());
+                }
             }
-        }
-        auto space = stdfs::space(fpath, ec);
-        if (ec) {
-            log_stream(out, "Error " << ec.value() << " " << ec.message());
+            auto totalBytes = space.capacity;
+            auto freeBytes  = space.available;
+            auto usedBytes  = totalBytes - freeBytes;
+            log_stream(out,
+                       "[" << fpath.c_str() << " Free:" << formatBytes(freeBytes) << " Used:" << formatBytes(usedBytes)
+                           << " Total:" << formatBytes(totalBytes));
+        } catch (std::filesystem::filesystem_error const& ex) {
+            log_error_to(out, ex.what());
             return Error::FsFailedMount;
         }
 
-        auto totalBytes = space.capacity;
-        auto freeBytes  = space.available;
-        auto usedBytes  = totalBytes - freeBytes;
-        log_stream(out,
-                   "[" << fpath.c_str() << " Free:" << formatBytes(freeBytes) << " Used:" << formatBytes(usedBytes)
-                       << " Total:" << formatBytes(totalBytes));
         return Error::Ok;
     }
 
@@ -636,49 +617,39 @@ namespace WebUI {
     }
 
     static Error listFilesystemJSON(const char* fs, const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
-        std::error_code ec;
+        try {
+            FluidPath fpath { value, fs };
+            auto      space = stdfs::space(fpath);
+            auto      iter  = stdfs::directory_iterator { fpath };
 
-        FluidPath fpath { value, fs, ec };
-        if (ec) {
-            log_string(out, "No SD card");
+            JSONencoder j(false, &out);
+            j.begin();
+
+            j.begin_array("files");
+            for (auto const& dir_entry : iter) {
+                j.begin_object();
+                j.member("name", dir_entry.path().filename());
+                j.member("size", dir_entry.is_directory() ? -1 : dir_entry.file_size());
+                j.end_object();
+            }
+            j.end_array();
+
+            auto totalBytes = space.capacity;
+            auto freeBytes  = space.available;
+            auto usedBytes  = totalBytes - freeBytes;
+
+            j.member("path", value);
+            j.member("total", formatBytes(totalBytes));
+            j.member("used", formatBytes(usedBytes + 1));
+
+            uint32_t percent = totalBytes ? (usedBytes * 100) / totalBytes : 100;
+
+            j.member("occupation", percent);
+            j.end();
+        } catch (std::filesystem::filesystem_error const& ex) {
+            log_error_to(out, ex.what());
             return Error::FsFailedMount;
         }
-
-        JSONencoder j(false, &out);
-        j.begin();
-
-        auto iter = stdfs::directory_iterator { fpath, ec };
-        if (ec) {
-            log_stream(out, "Error: " << ec.message());
-            return Error::FsFailedMount;
-        }
-        j.begin_array("files");
-        for (auto const& dir_entry : iter) {
-            j.begin_object();
-            j.member("name", dir_entry.path().filename());
-            j.member("size", dir_entry.is_directory() ? -1 : dir_entry.file_size());
-            j.end_object();
-        }
-        j.end_array();
-
-        auto space = stdfs::space(fpath, ec);
-        if (ec) {
-            log_stream(out, "Error " << ec.value() << " " << ec.message());
-            return Error::FsFailedMount;
-        }
-
-        auto totalBytes = space.capacity;
-        auto freeBytes  = space.available;
-        auto usedBytes  = totalBytes - freeBytes;
-
-        j.member("path", value);
-        j.member("total", formatBytes(totalBytes));
-        j.member("used", formatBytes(usedBytes + 1));
-
-        uint32_t percent = totalBytes ? (usedBytes * 100) / totalBytes : 100;
-
-        j.member("occupation", percent);
-        j.end();
         return Error::Ok;
     }
 
@@ -766,8 +737,8 @@ namespace WebUI {
             FluidPath outPath { opath, fs };
             std::filesystem::rename(inPath, outPath);
             HashFS::rename_file(inPath, outPath, true);
-        } catch (const Error err) {
-            log_error_to(out, "Cannot rename " << ipath << " to " << opath);
+        } catch (std::filesystem::filesystem_error const& ex) {
+            log_error_to(out, ex.what());
             return Error::FsFailedRenameFile;
         }
         return Error::Ok;
@@ -882,11 +853,11 @@ namespace WebUI {
 
     // Used by js/files.js
     static Error showSDStatus(const char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP200
-        std::error_code ec;
-
-        FluidPath path { "", "/sd", ec };
-        if (ec) {
-            log_string(out, "No SD card");
+        try {
+            FluidPath path { "", "/sd" };
+        } catch (std::filesystem::filesystem_error const& ex) {
+            log_error_to(out, ex.what());
+            log_string(out, "No SD card detected");
             return Error::FsFailedMount;
         }
         log_string(out, "SD card detected");

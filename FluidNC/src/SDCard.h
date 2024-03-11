@@ -52,6 +52,7 @@ public:
     void afterParse() override;
 
     const char* filename();
+    bool        config_ok = false;
 
     // Initializes pins.
     void init();
