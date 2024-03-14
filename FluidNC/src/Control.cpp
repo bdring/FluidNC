@@ -69,3 +69,10 @@ bool Control::safety_door_ajar() {
     // never be changed for an undefined pin.
     return _pins[0]->get();
 }
+
+bool Control::estop_active() {
+    // If a safety door pin is not defined, this will return false
+    // because that is the default for the value field, which will
+    // never be changed for an undefined pin.
+    return _pins[9]->get();
+}
