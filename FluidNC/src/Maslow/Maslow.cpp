@@ -1170,7 +1170,10 @@ void Maslow_::setSafety(bool state) {
     safetyOn = state;
 }
 void Maslow_::test_() {
-    test = true;
+    axisTL.test();
+    axisTR.test();
+    axisBL.test();
+    axisBR.test();
 }
 void Maslow_::set_frame_width(double width) {
     trX = width;
