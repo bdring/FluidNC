@@ -291,6 +291,9 @@ static Error disable_alarm_lock(const char* value, WebUI::AuthenticationLevel au
             return err;
         }
         Homing::set_all_axes_homed();
+
+        config->_kinematics->releaseMotors(config->_axes->motorMask, config->_axes->hardLimitMask());
+
         report_feedback_message(Message::AlarmUnlock);
         sys.state = State::Idle;
     }
@@ -867,7 +870,7 @@ void make_user_commands() {
 
     new UserCommand("RM", "Macros/Run", macros_run, notIdleOrAlarm);
 
-    new UserCommand("HX", "Home/X", home_x, notIdleOrAlarm);
+    new UserCommand("HX", "Home/X", home_x, allowConfigStates);
     new UserCommand("HY", "Home/Y", home_y, notIdleOrAlarm);
     new UserCommand("HZ", "Home/Z", home_z, notIdleOrAlarm);
     new UserCommand("HA", "Home/A", home_a, notIdleOrAlarm);
