@@ -32,6 +32,7 @@ public:
     bool   extend(double targetLength);
     bool   pull_tight();
     bool   motor_test();
+    bool   test();
     void   reset();  //resetting variables here, because of non-blocking, maybe there's a better way to do this
 
     double getMotorCurrent();  //averaged value of the last 10 measurements

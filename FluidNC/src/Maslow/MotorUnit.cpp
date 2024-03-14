@@ -39,6 +39,26 @@ void MotorUnit::begin(int forwardPin, int backwardPin, int readbackPin, int enco
         log_info("Motor detected on " << Maslow.axis_id_to_label(_encoderAddress).c_str());
     }
 }
+
+//Test the motor unit by testing the motor and checking the encoder
+bool MotorUnit::test() {
+    if (!motor_test()) {
+        log_warn("Motor not found on " << Maslow.axis_id_to_label(_encoderAddress).c_str());
+        Maslow.error = true;
+    } else {
+        log_info("Motor detected on " << Maslow.axis_id_to_label(_encoderAddress).c_str());
+    }
+
+    if (!updateEncoderPosition()) {
+        log_warn("Encoder not found on " << Maslow.axis_id_to_label(_encoderAddress).c_str());
+        Maslow.error = true;
+    } else {
+        log_info("Encoder connected on " << Maslow.axis_id_to_label(_encoderAddress).c_str());
+    }
+
+    return !Maslow.error;
+}
+
 bool MotorUnit::motor_test() {
     //run motor for 100ms and check if the current gets above zero
     unsigned long time        = millis();
