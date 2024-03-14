@@ -210,11 +210,11 @@ bool MotorUnit::extend(double targetLength) {
         return false;
     }
     //If reached target position, Stop and return
-    setTarget(getPosition());  // good candidate for a bug that fucked up the coordinate system, NOT
+    setTarget(getPosition());
     stop();
 
-    log_info("Belt positon after extend: ");
-    log_info(getPosition());
+    //log_info("Belt positon after extend: ");
+    //log_info(getPosition());
     return true;
 }
 
