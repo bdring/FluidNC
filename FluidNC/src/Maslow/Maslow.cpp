@@ -900,8 +900,6 @@ bool Maslow_::move_with_slack(double fromX, double fromY, double toX, double toY
     //This is where we want to introduce some slack so the system
     static unsigned long decompressTimer = millis();
     static bool          decompress      = true;
-
-    bool printFlag = false;
    
     int direction = get_direction(fromX, fromY, toX, toY);
 
