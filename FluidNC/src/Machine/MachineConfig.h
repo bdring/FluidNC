@@ -42,7 +42,7 @@ namespace Machine {
         // to ensure they are not already active. If so, and hard
         // limits are enabled, Alarm state will be entered instead of
         // Idle and the user will be told to check the limits.
-        bool _checkLimits = false;
+        bool _checkLimits = true;
 
     public:
         Start() {}

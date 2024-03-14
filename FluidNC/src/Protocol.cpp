@@ -341,7 +341,7 @@ static void protocol_do_restart() {
     }
 
     // Perform some machine checks to make sure everything is good to go.
-    if (config->_start->_checkLimits && config->_axes->hasHardLimits() && limits_get_state()) {
+    if (limits_startup_check()) {
         mc_critical(ExecAlarm::HardLimit);
     } else if (config->_control->startup_check()) {
         send_alarm(ExecAlarm::ControlPin);

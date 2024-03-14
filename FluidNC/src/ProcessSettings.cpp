@@ -839,7 +839,7 @@ void make_user_commands() {
     new UserCommand("GD", "GPIO/Dump", showGPIOs, anyState);
 
     new UserCommand("CI", "Channel/Info", showChannelInfo, anyState);
-    new UserCommand("XR", "Xmodem/Receive", xmodem_receive, notIdleOrAlarm);
+    new UserCommand("XR", "Xmodem/Receive", xmodem_receive, allowConfigStates);
     new UserCommand("XS", "Xmodem/Send", xmodem_send, notIdleOrAlarm);
     new UserCommand("CD", "Config/Dump", dump_config, anyState);
     new UserCommand("", "Help", show_help, anyState);

@@ -46,6 +46,8 @@ namespace Machine {
         size_t findAxisIndex(const MotorDrivers::MotorDriver* const motor) const;
         size_t findAxisMotor(const MotorDrivers::MotorDriver* const motor) const;
 
+        MotorMask hardLimitMask();
+
         inline bool hasHardLimits() const {
             for (int axis = 0; axis < _numberAxis; ++axis) {
                 auto a = _axis[axis];

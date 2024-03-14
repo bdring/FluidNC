@@ -9,6 +9,7 @@
 #include "System.h"         // sys.*
 #include "Protocol.h"       // protocol_execute_realtime
 #include "Platform.h"       // WEAK_LINK
+#include "Machine/Axis.h"
 
 #include <freertos/task.h>
 #include <freertos/queue.h>
@@ -43,6 +44,21 @@ MotorMask limits_get_state() {
     return Machine::Axes::posLimitMask | Machine::Axes::negLimitMask;
 }
 
+bool limits_startup_check() {  // return true if there is a hard limit error.
+    MotorMask lim_pin_state = limits_get_state();
+    if (lim_pin_state) {
+        auto n_axis = config->_axes->_numberAxis;
+        for (size_t axis = 0; axis < n_axis; axis++) {
+            for (size_t motor = 0; motor < 2; motor++) {
+                if (bitnum_is_true(lim_pin_state, Machine::Axes::motor_bit(axis, motor))) {
+                    log_warn("Active limit switch on " << config->_axes->axisName(axis) << " axis motor" << motor);
+                }
+            }
+        }
+    }
+    return (config->_start->_checkLimits && (config->_axes->hardLimitMask() & lim_pin_state));
+}
+
 // Called only from Kinematics canHome() methods, hence from states allowing homing
 bool ambiguousLimit() {
     if (Machine::Axes::posLimitMask & Machine::Axes::negLimitMask) {
@@ -64,7 +80,6 @@ void limit_error(size_t axis, float coordinate) {
 }
 
 void limit_error() {
-
     soft_limit = true;
     // Force feed hold if cycle is active. All buffered blocks are guaranteed to be within
     // workspace volume so just come to a controlled stop so position is not lost. When complete
