@@ -997,8 +997,8 @@ void Maslow_::generate_calibration_grid() {
 
     pointCount = 0;
 
-    double trX_adjusted = trX - (2*calibration_grid_offset); // shrink the grid by calibration_grid_offset in X direction
-    double trY_adjusted = trY - (2*calibration_grid_offset); // shrink the grid by calibration_grid_offset in Y direction
+    double trX_adjusted = trX - (2*calibration_grid_offset_X); // shrink the grid by calibration_grid_offset in X direction
+    double trY_adjusted = trY - (2*calibration_grid_offset_Y); // shrink the grid by calibration_grid_offset in Y direction
 
     double deltaX = trX_adjusted / (calibrationGridSizeX - 1);
     double deltaY = trY_adjusted / (calibrationGridSizeY - 1);

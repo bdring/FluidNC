@@ -117,7 +117,8 @@ public:
     int frame_dimention_MAX = 5000;
 
     double calibrationGrid[CALIBRATION_GRID_SIZE_MAX][2] = { 0 };
-    float  calibration_grid_offset                   = 620;  // mm offset from the edge of the frame
+    float  calibration_grid_offset_X                 = 500;  // mm offset from the edge of the frame
+    float  calibration_grid_offset_Y                 = 500;  // mm offset from the edge of the frame
     bool   error                                     = false;
     void   generate_calibration_grid();
     bool   move_with_slack(double fromX, double fromY, double toX, double toY);
