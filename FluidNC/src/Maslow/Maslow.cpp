@@ -376,8 +376,6 @@ void Maslow_::calibration_loop() {
         if (!two_step_move_flag) {
             if (move_with_slack(0, 0, 0, calibrationGrid[0][1])) {
                 two_step_move_flag = true;
-                // log_info("mov from: " << 0 << ", " << calibrationGrid[0][1] << " to " << calibrationGrid[0][0] << ", "
-                //                       << calibrationGrid[0][1]);
             }
         }
         //then perform an X move
@@ -385,7 +383,6 @@ void Maslow_::calibration_loop() {
             if (move_with_slack(0, calibrationGrid[0][1], calibrationGrid[0][0], calibrationGrid[0][1])) {
                 measurementInProgress = true;
                 direction             = get_direction(0, calibrationGrid[0][1], calibrationGrid[0][0], calibrationGrid[0][1]);
-                //log_info("arrived at the start point");
                 x                  = calibrationGrid[0][0];
                 y                  = calibrationGrid[0][1];
                 two_step_move_flag = false;  // reset if we ever want to rerun the calibratrion
@@ -1014,11 +1011,11 @@ void Maslow_::generate_calibration_grid() {
 
                 log_info("Point: " << pointCount << " (" << targetX << ", " << targetY << ")");
 
-                pointCount++;
-
                 //Store the values
                 calibrationGrid[pointCount][0] = targetX;
                 calibrationGrid[pointCount][1] = targetY;
+
+                pointCount++;
             }
         } else { // For odd columns, go top to bottom
             for (int y = calibrationGridSizeY - 1; y >= 0; y--) {
@@ -1027,11 +1024,11 @@ void Maslow_::generate_calibration_grid() {
 
                 log_info("Point: " << pointCount << " (" << targetX << ", " << targetY << ")");
 
-                pointCount++;
-
                 // Store the values
                 calibrationGrid[pointCount][0] = targetX;
                 calibrationGrid[pointCount][1] = targetY;
+
+                pointCount++;
             }
         }
     }
@@ -1095,9 +1092,6 @@ void Maslow_::runCalibration() {
     generate_calibration_grid();
     stop();
 
-    // test = true;
-    // return;
-
     //if not all axis are homed, we can't run calibration, OR if the user hasnt entered width and height?
     if (!all_axis_homed()) {
         log_error("Cannot run calibration until all axis are retracted and extended");
@@ -1105,11 +1099,6 @@ void Maslow_::runCalibration() {
         return;
     }
 
-    // if(frame_width < frame_dimention_MIN || frame_width > frame_dimention_MAX || frame_height < frame_dimention_MIN || frame_height > frame_dimention_MAX){
-    //     log_error("Cannot run calibration until frame width and height are set");
-    //     sys.set_state(State::Idle);
-    //     return;
-    // }
     sys.set_state(State::Homing);
 
     calibrationInProgress = true;
