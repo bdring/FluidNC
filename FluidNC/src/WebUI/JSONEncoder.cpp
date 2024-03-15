@@ -3,6 +3,7 @@
 #include "JSONEncoder.h"
 #include "../Report.h"
 #include "../Protocol.h"  // send_line()
+#include "../UartChannel.h"
 
 namespace WebUI {
     // Constructor.  If _encapsulate is true, the output is
@@ -18,7 +19,7 @@ namespace WebUI {
         if (_channel && (*_str).length()) {
             if (_encapsulate) {
                 // Output to channels is encapsulated in [MSG:JSON:...]
-                (*_channel).out(*_str, "JSON:");
+                (*_channel).out_acked(*_str, "JSON:");
             } else {
                 log_stream(*_channel, *_str);
             }
