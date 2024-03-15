@@ -3,6 +3,8 @@ name: Maslow S3 Board
 
 Maslow_vertical: true
 Maslow_calibration_offset: 500
+Maslow_calibration_size_X: 2
+Maslow_calibration_size_Y: 2
 
 Maslow_tlX: -31
 Maslow_tlY: 2065.1

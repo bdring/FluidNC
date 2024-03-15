@@ -40,6 +40,8 @@ namespace Machine {
 
         handler.item("Maslow_vertical", Maslow.orientation);
         handler.item("Maslow_calibration_offset", Maslow.calibration_grid_offset, 100, 1500);
+        handler.item("Maslow_calibration_size_X", Maslow.calibrationGridSizeX, 1, 10);
+        handler.item("Maslow_calibration_size_Y", Maslow.calibrationGridSizeY, 1, 10);
         
         handler.item("Maslow_brX", Maslow.brX);
         handler.item("Maslow_brY", Maslow.brY);
