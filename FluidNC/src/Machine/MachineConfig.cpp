@@ -41,7 +41,6 @@ namespace Machine {
         handler.item("Maslow_vertical", Maslow.orientation);
         handler.item("Maslow_calibration_offset", Maslow.calibration_grid_offset, 100, 1500);
         
-
         handler.item("Maslow_brX", Maslow.brX);
         handler.item("Maslow_brY", Maslow.brY);
         
@@ -53,6 +52,8 @@ namespace Machine {
 
         handler.item("Maslow_blX", Maslow.blX);
         handler.item("Maslow_blY", Maslow.blY);
+
+        handler.item("Maslow_Retract_Current_Threshold", Maslow.retractCurrentThreshold, 0, 3500);
 
         handler.section("stepping", _stepping);
 

@@ -15,8 +15,10 @@
 //------------------------------------------------------ Core utility functions
 //------------------------------------------------------
 
-void MotorUnit::begin(int forwardPin, int backwardPin, int readbackPin, int encoderAddress, int channel1, int channel2) {
+void MotorUnit::begin(int forwardPin, int backwardPin, int readbackPin, int encoderAddress, int channel1, int channel2, int retractCurrentThreshold) {
     _encoderAddress = encoderAddress;
+
+    absoluteCurrentThreshold = retractCurrentThreshold;
 
     Maslow.I2CMux.setPort(_encoderAddress);
     if (!encoder.begin()) {

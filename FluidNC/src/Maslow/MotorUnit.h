@@ -15,7 +15,7 @@
 
 class MotorUnit {
 public:
-    void   begin(int forwardPin, int backwardPin, int readbackPin, int encoderAddress, int channel1, int channel2);
+    void   begin(int forwardPin, int backwardPin, int readbackPin, int encoderAddress, int channel1, int channel2, int retractCurrentThreshold);
     void   zero();
     void   setTarget(double newTarget);
     double getTarget();

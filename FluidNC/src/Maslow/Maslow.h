@@ -100,6 +100,7 @@ public:
     MotorUnit axisTR;
     MotorUnit axisBL;
     MotorUnit axisBR;
+    int retractCurrentThreshold = 1300;
 
     bool axisBLHomed;
     bool axisBRHomed;
