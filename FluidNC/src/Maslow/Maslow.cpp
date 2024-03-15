@@ -654,14 +654,14 @@ bool Maslow_::take_measurement(int waypoint, int dir, int run) {
         //On the left side of the sheet we want to pull the left belt tight first
         if (x < 0) {
             if (!BL_tight) {
-                if (axisBL.pull_tight()) {
+                if (axisBL.pull_tight(calibrationCurrentThreshold)) {
                     BL_tight = true;
                     //log_info("Pulled BL tight");
                 }
                 return false;
             }
             if (!BR_tight) {
-                if (axisBR.pull_tight()) {
+                if (axisBR.pull_tight(calibrationCurrentThreshold)) {
                     BR_tight = true;
                     //log_info("Pulled BR tight");
                 }
@@ -672,14 +672,14 @@ bool Maslow_::take_measurement(int waypoint, int dir, int run) {
         //On the right side of the sheet we want to pull the right belt tight first
         else {
             if (!BR_tight) {
-                if (axisBR.pull_tight()) {
+                if (axisBR.pull_tight(calibrationCurrentThreshold)) {
                     BR_tight = true;
                     //log_info("Pulled BR tight");
                 }
                 return false;
             }
             if (!BL_tight) {
-                if (axisBL.pull_tight()) {
+                if (axisBL.pull_tight(calibrationCurrentThreshold)) {
                     BL_tight = true;
                     //log_info("Pulled BL tight");
                 }
@@ -757,7 +757,7 @@ bool Maslow_::take_measurement(int waypoint, int dir, int run) {
         holdAxis1->recomputePID();
         holdAxis2->recomputePID();
         if (!pull1_tight) {
-            if (pullAxis1->pull_tight()) {
+            if (pullAxis1->pull_tight(calibrationCurrentThreshold)) {
                 pull1_tight      = true;
                 String axisLabel = "";
                 if (pullAxis1 == &axisTL)
@@ -775,7 +775,7 @@ bool Maslow_::take_measurement(int waypoint, int dir, int run) {
             return false;
         }
         if (!pull2_tight) {
-            if (pullAxis2->pull_tight()) {
+            if (pullAxis2->pull_tight(calibrationCurrentThreshold)) {
                 pull2_tight      = true;
                 String axisLabel = "";
                 if (pullAxis2 == &axisTL)

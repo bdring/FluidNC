@@ -169,7 +169,7 @@ bool MotorUnit::comply() {
 
 // Pulls_tight and zeros axis; returns true when done
 bool MotorUnit::retract() {
-    if (pull_tight()) {
+    if (pull_tight(absoluteCurrentThreshold)) {
         log_info(_encoderAddress << " pulled tight with offset " << getPosition());
         zero();
         return true;
@@ -178,7 +178,7 @@ bool MotorUnit::retract() {
 }
 
 // Pulls the belt until we hit a current treshold; returns true when done
-bool MotorUnit::pull_tight() {
+bool MotorUnit::pull_tight(int currentThreshold) {
     //call every 5ms
     if (millis() - lastCallToRetract < 5) {
         return false;
@@ -209,7 +209,7 @@ bool MotorUnit::pull_tight() {
     //     }
     // }
     if (retract_speed > 75) {
-        if (currentMeasurement > absoluteCurrentThreshold || incrementalThresholdHits > 2 ||
+        if (currentMeasurement > currentThreshold || incrementalThresholdHits > 2 ||
             beltStalled) {  //changed from 4 to 2 to prevent overtighting
             //stop motor, reset variables
             stop();
