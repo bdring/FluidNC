@@ -30,7 +30,7 @@ public:
     bool   comply();
     bool   retract();
     bool   extend(double targetLength);
-    bool   pull_tight();
+    bool   pull_tight(int currentThreshold);
     bool   motor_test();
     bool   test();
     void   reset();  //resetting variables here, because of non-blocking, maybe there's a better way to do this

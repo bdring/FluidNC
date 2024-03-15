@@ -98,6 +98,7 @@ public:
     MotorUnit axisBL;
     MotorUnit axisBR;
     int retractCurrentThreshold = 1300;
+    int calibrationCurrentThreshold = 1300;
 
     bool axisBLHomed;
     bool axisBRHomed;
@@ -117,7 +118,7 @@ public:
     float  calibration_grid_offset_X                 = 500;  // mm offset from the edge of the frame
     float  calibration_grid_offset_Y                 = 500;  // mm offset from the edge of the frame
     bool   error                                     = false;
-    void   generate_calibration_grid();
+    bool   generate_calibration_grid();
     bool   move_with_slack(double fromX, double fromY, double toX, double toY);
     int    get_direction(double x, double y, double targetX, double targetY);
     bool   take_measurement_avg_with_check(int waypoint, int dir);

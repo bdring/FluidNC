@@ -636,14 +636,14 @@ bool Maslow_::take_measurement(int waypoint, int dir, int run) {
         //On the left side of the sheet we want to pull the left belt tight first
         if (x < 0) {
             if (!BL_tight) {
-                if (axisBL.pull_tight()) {
+                if (axisBL.pull_tight(calibrationCurrentThreshold)) {
                     BL_tight = true;
                     //log_info("Pulled BL tight");
                 }
                 return false;
             }
             if (!BR_tight) {
-                if (axisBR.pull_tight()) {
+                if (axisBR.pull_tight(calibrationCurrentThreshold)) {
                     BR_tight = true;
                     //log_info("Pulled BR tight");
                 }
@@ -654,14 +654,14 @@ bool Maslow_::take_measurement(int waypoint, int dir, int run) {
         //On the right side of the sheet we want to pull the right belt tight first
         else {
             if (!BR_tight) {
-                if (axisBR.pull_tight()) {
+                if (axisBR.pull_tight(calibrationCurrentThreshold)) {
                     BR_tight = true;
                     //log_info("Pulled BR tight");
                 }
                 return false;
             }
             if (!BL_tight) {
-                if (axisBL.pull_tight()) {
+                if (axisBL.pull_tight(calibrationCurrentThreshold)) {
                     BL_tight = true;
                     //log_info("Pulled BL tight");
                 }
@@ -739,7 +739,7 @@ bool Maslow_::take_measurement(int waypoint, int dir, int run) {
         holdAxis1->recomputePID();
         holdAxis2->recomputePID();
         if (!pull1_tight) {
-            if (pullAxis1->pull_tight()) {
+            if (pullAxis1->pull_tight(calibrationCurrentThreshold)) {
                 pull1_tight      = true;
                 String axisLabel = "";
                 if (pullAxis1 == &axisTL)
@@ -757,7 +757,7 @@ bool Maslow_::take_measurement(int waypoint, int dir, int run) {
             return false;
         }
         if (!pull2_tight) {
-            if (pullAxis2->pull_tight()) {
+            if (pullAxis2->pull_tight(calibrationCurrentThreshold)) {
                 pull2_tight      = true;
                 String axisLabel = "";
                 if (pullAxis2 == &axisTL)
@@ -995,6 +995,17 @@ int Maslow_::get_direction(double x, double y, double targetX, double targetY) {
 
 void Maslow_::generate_calibration_grid() {
 
+    //Check to make sure that the offset is less than 1/2 of the frame width
+    if (calibration_grid_offset_X > trX / 2) {
+        log_error("Calibration grid offset is greater than half the frame width");
+        return false;
+    }
+    //Check to make sure that the offset is less than 1/2 of the frame height
+    if (calibration_grid_offset_Y > trY / 2) {
+        log_error("Calibration grid offset is greater than half the frame height");
+        return false;
+    }
+
     pointCount = 0;
 
     double trX_adjusted = trX - (2*calibration_grid_offset_X); // shrink the grid by calibration_grid_offset in X direction
@@ -1032,6 +1043,7 @@ void Maslow_::generate_calibration_grid() {
             }
         }
     }
+    return true;
 }
 
 //------------------------------------------------------
@@ -1079,7 +1091,7 @@ void Maslow_::extendALL() {
     // ADD also shouldn't extend before we get the parameters from the user
 
     if (!all_axis_homed()) {
-        log_error("Cannot extend all until all axis are homed");  //I keep getting everything set up for calibration and then this trips me up
+        log_error("Please press Retract All before using Extend All");  //I keep getting everything set up for calibration and then this trips me up
         sys.set_state(State::Idle);
         return;
     }
@@ -1089,7 +1101,9 @@ void Maslow_::extendALL() {
     //extendCallTimer = millis();
 }
 void Maslow_::runCalibration() {
-    generate_calibration_grid();
+    if(!generate_calibration_grid()){
+        return;
+    }
     stop();
 
     //if not all axis are homed, we can't run calibration, OR if the user hasnt entered width and height?
@@ -1139,6 +1153,12 @@ void Maslow_::set_frame_height(double height) {
     updateCenterXY();
 }
 void Maslow_::take_slack() {
+    //if not all axis are homed, we can't take the slack up
+    if (!all_axis_homed()) {
+        log_error("Cannot take slack until all axis are retracted and extended");
+        sys.set_state(State::Idle);
+        return;
+    }
     retractingTL = false;
     retractingTR = false;
     retractingBL = false;
