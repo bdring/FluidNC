@@ -54,6 +54,7 @@ namespace Machine {
         handler.item("Maslow_blY", Maslow.blY);
 
         handler.item("Maslow_Retract_Current_Threshold", Maslow.retractCurrentThreshold, 0, 3500);
+        handler.item("Maslow_Calibration_Current_Threshold", Maslow.calibrationCurrentThreshold, 0, 3500);
 
         handler.section("stepping", _stepping);
 
