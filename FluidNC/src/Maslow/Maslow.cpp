@@ -993,7 +993,7 @@ int Maslow_::get_direction(double x, double y, double targetX, double targetY) {
     return direction;
 }
 
-void Maslow_::generate_calibration_grid() {
+bool Maslow_::generate_calibration_grid() {
 
     //Check to make sure that the offset is less than 1/2 of the frame width
     if (calibration_grid_offset_X > trX / 2) {
