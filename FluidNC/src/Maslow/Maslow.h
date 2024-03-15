@@ -9,9 +9,6 @@
 
 #define TCAADDR 0x70
 
-#define CALIBRATION_GRID_X 10  //turn into 11 x 9
-#define CALIBRATION_GRID_Y 9
-
 #define CALIBRATION_GRID_SIZE_MAX 10*10
 
 #define UP 1

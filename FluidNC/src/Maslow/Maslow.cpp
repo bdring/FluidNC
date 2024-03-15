@@ -864,7 +864,7 @@ bool Maslow_::take_measurement_avg_with_check(int waypoint, int dir) {
                 sum                           = 0;
                 criticalCounter               = 0;
             }
-            log_info("Measured waypoint " << waypoint << " -> (" << x << ", " << y << ")");
+            log_info("Measured waypoint " << waypoint);
             return true;
         }
 
