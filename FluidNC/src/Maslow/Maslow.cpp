@@ -1086,7 +1086,7 @@ void Maslow_::extendALL() {
     // ADD also shouldn't extend before we get the parameters from the user
 
     if (!all_axis_homed()) {
-        log_error("Cannot extend all until all axis are homed");  //I keep getting everything set up for calibration and then this trips me up
+        log_error("Please press Retract All before using Extend All");  //I keep getting everything set up for calibration and then this trips me up
         sys.set_state(State::Idle);
         return;
     }
