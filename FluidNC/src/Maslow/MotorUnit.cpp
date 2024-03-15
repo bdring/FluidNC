@@ -68,7 +68,7 @@ bool MotorUnit::motor_test() {
     while (elapsedTime < 100) {
         elapsedTime = millis() - time;
         motor.forward(1023);
-        if (motor.readCurrent() > 0) {
+        if (motor.readCurrent() > 30) {
             motor.stop();
             return true;
         }
