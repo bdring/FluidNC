@@ -1167,6 +1167,12 @@ void Maslow_::set_frame_height(double height) {
     updateCenterXY();
 }
 void Maslow_::take_slack() {
+    //if not all axis are homed, we can't take the slack up
+    if (!all_axis_homed()) {
+        log_error("Cannot take slack until all axis are retracted and extended");
+        sys.set_state(State::Idle);
+        return;
+    }
     retractingTL = false;
     retractingTR = false;
     retractingBL = false;
