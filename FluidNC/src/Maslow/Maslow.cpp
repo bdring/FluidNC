@@ -1014,12 +1014,24 @@ int Maslow_::get_direction(double x, double y, double targetX, double targetY) {
 }
 
 // Generate calibration points based on dimentions
-void Maslow_::generate_calibration_grid() {
+bool Maslow_::generate_calibration_grid() {
     int gridSizeX = CALIBRATION_GRID_X;
     int gridSizeY = CALIBRATION_GRID_Y;
     int xSpacing  = (trX - 2 * calibration_grid_offset) / gridSizeX;
     int ySpacing  = (trY - 2 * calibration_grid_offset) / gridSizeY;
     pointCount    = 0;
+
+    //Check to make sure that the offset is less than 1/2 of the frame width
+    if (calibration_grid_offset > trX / 2) {
+        log_error("Calibration grid offset is greater than half the frame width");
+        return false;
+    }
+    //Check to make sure that the offset is less than 1/2 of the frame height
+    if (calibration_grid_offset > trY / 2) {
+        log_error("Calibration grid offset is greater than half the frame height");
+        return false;
+    }
+
     log_info("gridSizeX " << gridSizeX << " gridSizeY " << gridSizeY << " xSpacing " << xSpacing << " ySpacing " << ySpacing);
 
     for (int i = -gridSizeX / 2; i <= gridSizeX / 2; i++) {
@@ -1039,6 +1051,7 @@ void Maslow_::generate_calibration_grid() {
             }
         }
     }
+    return true;
 }
 
 //------------------------------------------------------
@@ -1096,11 +1109,11 @@ void Maslow_::extendALL() {
     //extendCallTimer = millis();
 }
 void Maslow_::runCalibration() {
-    generate_calibration_grid();
-    stop();
 
-    // test = true;
-    // return;
+    if(!generate_calibration_grid()){
+        return;
+    }
+    stop();
 
     //if not all axis are homed, we can't run calibration, OR if the user hasnt entered width and height?
     if (!all_axis_homed()) {

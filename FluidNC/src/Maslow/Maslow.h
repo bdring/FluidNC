@@ -120,7 +120,7 @@ public:
     double calibrationGrid[CALIBRATION_GRID_SIZE][2] = { 0 };
     float  calibration_grid_offset                   = 620;  // mm offset from the edge of the frame
     bool   error                                     = false;
-    void   generate_calibration_grid();
+    bool   generate_calibration_grid();
     bool   move_with_slack(double fromX, double fromY, double toX, double toY);
     int    get_direction(double x, double y, double targetX, double targetY);
     bool   take_measurement_avg_with_check(int waypoint, int dir);
