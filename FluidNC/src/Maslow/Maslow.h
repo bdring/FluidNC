@@ -9,10 +9,7 @@
 
 #define TCAADDR 0x70
 
-#define CALIBRATION_GRID_X 10  //turn into 11 x 9
-#define CALIBRATION_GRID_Y 9
-
-#define CALIBRATION_GRID_SIZE CALIBRATION_GRID_X*(CALIBRATION_GRID_Y + 1)
+#define CALIBRATION_GRID_SIZE_MAX 10*10
 
 #define UP 1
 #define DOWN 2
@@ -117,8 +114,9 @@ public:
     int frame_dimention_MIN = 1000;
     int frame_dimention_MAX = 5000;
 
-    double calibrationGrid[CALIBRATION_GRID_SIZE][2] = { 0 };
-    float  calibration_grid_offset                   = 620;  // mm offset from the edge of the frame
+    double calibrationGrid[CALIBRATION_GRID_SIZE_MAX][2] = { 0 };
+    float  calibration_grid_offset_X                 = 500;  // mm offset from the edge of the frame
+    float  calibration_grid_offset_Y                 = 500;  // mm offset from the edge of the frame
     bool   error                                     = false;
     bool   generate_calibration_grid();
     bool   move_with_slack(double fromX, double fromY, double toX, double toY);
@@ -131,8 +129,10 @@ public:
     void   reset_all_axis();
     bool   test = false;
     bool   orientation;
-    double calibration_data[4][CALIBRATION_GRID_SIZE] = { 0 };
-    int    pointCount                                 = 0;  //number of actual points in the grid,  < GRID_SIZE
+    double calibration_data[4][CALIBRATION_GRID_SIZE_MAX] = { 0 };
+    int    pointCount                                 = 0;  //number of actual points in the grid,  < GRID_SIZE_MAX
+    int    calibrationGridSizeX                       = 10;
+    int    calibrationGridSizeY                       = 9;
     // //keep track of where Maslow actually is, lower left corner is 0,0
     double x;
     double y;
