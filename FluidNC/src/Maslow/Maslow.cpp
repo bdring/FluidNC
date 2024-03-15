@@ -1203,16 +1203,16 @@ bool Maslow_::allAxisExtended() {
 String Maslow_::axis_id_to_label(int axis_id) {
     String label;
     switch (axis_id) {
-        case 0:
+        case 2:
             label = "Top Left";
             break;
         case 1:
             label = "Top Right";
             break;
-        case 2:
+        case 3:
             label = "Bottom Left";
             break;
-        case 3:
+        case 0:
             label = "Bottom Right";
             break;
     }
