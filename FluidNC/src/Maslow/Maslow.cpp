@@ -1020,6 +1020,18 @@ void Maslow_::generate_calibration_grid() {
     int xSpacing  = (trX - 2 * calibration_grid_offset) / gridSizeX;
     int ySpacing  = (trY - 2 * calibration_grid_offset) / gridSizeY;
     pointCount    = 0;
+
+    //Check to make sure that the offset is less than 1/2 of the frame width
+    if (calibration_grid_offset > trX / 2) {
+        log_error("Calibration grid offset is greater than half the frame width");
+        return;
+    }
+    //Check to make sure that the offset is less than 1/2 of the frame height
+    if (calibration_grid_offset > trY / 2) {
+        log_error("Calibration grid offset is greater than half the frame height");
+        return;
+    }
+
     log_info("gridSizeX " << gridSizeX << " gridSizeY " << gridSizeY << " xSpacing " << xSpacing << " ySpacing " << ySpacing);
 
     for (int i = -gridSizeX / 2; i <= gridSizeX / 2; i++) {
