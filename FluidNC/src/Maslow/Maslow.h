@@ -117,6 +117,7 @@ public:
     double calibrationGrid[CALIBRATION_GRID_SIZE_MAX][2] = { 0 };
     float  calibration_grid_offset_X                 = 500;  // mm offset from the edge of the frame
     float  calibration_grid_offset_Y                 = 500;  // mm offset from the edge of the frame
+    double calibrationDataWaiting                    = -1;   //-1 if data is not waiting, other wise the milis since the data was last sent
     bool   error                                     = false;
     bool   generate_calibration_grid();
     bool   move_with_slack(double fromX, double fromY, double toX, double toY);
@@ -126,6 +127,8 @@ public:
     void   test_();
     void   calibration_loop();
     void   print_calibration_data();
+    void   calibrationDataRecieved();
+    void   checkCalibrationData()
     void   reset_all_axis();
     bool   test = false;
     bool   orientation;

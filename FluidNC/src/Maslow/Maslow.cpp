@@ -170,6 +170,9 @@ void Maslow_::update() {
             digitalWrite(coolingFanPin, LOW);  //Turn the cooling fan off
         }
 
+        //Check to see if we need to resend the calibration data
+        checkCalibrationData();
+
         //------------------------ End of Maslow State Machine
 
         //if the update function is not being called enough, stop everything to prevent damage
@@ -360,6 +363,7 @@ void Maslow_::calibration_loop() {
                 waypoint              = 0;
                 log_info("Calibration complete");
                 print_calibration_data();
+                calibrationDataWaiting = millis();
                 sys.set_state(State::Idle);
             } else {
                 hold(250);
@@ -1224,6 +1228,17 @@ String Maslow_::axis_id_to_label(int axis_id) {
     return label;
 }
 
+//Checks to see if the calibration data needs to be sent again
+void Maslow_::checkCalibrationData() {
+    if (calibrationDataWaiting > 0) {
+        if (millis() - calibrationDataWaiting > 10000) {
+            log_error("Calibration data not acknowledged by computer, resending");
+            print_calibration_data();
+            calibrationDataWaiting = millis();
+        }
+    }
+}
+
 // function for outputting calibration data in the log line by line like this: {bl:2376.69,   br:923.40,   tr:1733.87,   tl:2801.87},
 void Maslow_::print_calibration_data() {
     String data = "CLBM:[";
@@ -1235,6 +1250,12 @@ void Maslow_::print_calibration_data() {
     }
     data += "]";
     log_data(data.c_str());  //will it print really large strings?
+}
+
+//Runs when the calibration data has been acknowledged as received by the computer and the calibration process is progressing
+void Maslow_::calibrationDataRecieved(){
+    log_info("Calibration data acknowledged received by computer");
+    calibrationDataWaiting = -1;
 }
 
 // Stop all motors and reset all state variables
