@@ -128,7 +128,7 @@ public:
     void   calibration_loop();
     void   print_calibration_data();
     void   calibrationDataRecieved();
-    void   checkCalibrationData()
+    void   checkCalibrationData();
     void   reset_all_axis();
     bool   test = false;
     bool   orientation;

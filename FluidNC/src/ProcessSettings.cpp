@@ -983,6 +983,15 @@ static Error maslow_takeSlack(const char* value, WebUI::AuthenticationLevel auth
     Maslow.take_slack();
     return Error::Ok;
 }
+
+static Error maslow_ack_cal(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+    if(Maslow.using_default_config) {
+        return Error::ConfigurationInvalid;
+    }
+    Maslow.calibrationDataRecieved();
+    return Error::Ok;
+}
+
 // Commands use the same syntax as Settings, but instead of setting or
 // displaying a persistent value, a command causes some action to occur.
 // That action could be anything, from displaying a run-time parameter
@@ -1062,6 +1071,7 @@ void make_user_commands() {
     new UserCommand("SFOFF", "Maslow/safetyOFF", maslow_safety_off, anyState);
     new UserCommand("TEST", "Maslow/test", maslow_test, anyState);
     new UserCommand("TKSLK", "Maslow/takeSlack", maslow_takeSlack, anyState);
+    new UserCommand("ACKCAL", "Maslow/ackCalibration", maslow_ack_cal, anyState);
 
 };
 
