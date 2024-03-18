@@ -341,7 +341,7 @@ static void protocol_do_restart() {
     }
 
     // Perform some machine checks to make sure everything is good to go.
-    if (config->_start->_checkLimits && config->_axes->hasHardLimits() && limits_get_state()) {
+    if (limits_startup_check()) {
         mc_critical(ExecAlarm::HardLimit);
     } else if (config->_control->startup_check()) {
         send_alarm(ExecAlarm::ControlPin);
@@ -992,13 +992,16 @@ static void protocol_do_limit(void* arg) {
         Machine::Homing::limitReached();
         return;
     }
-    if ((sys.state == State::Cycle || sys.state == State::Jog) && limit->isHard()) {
+    if ((sys.state == State::Cycle || sys.state == State::Jog || sys.state == State::Idle || sys.state == State::Hold ||
+         sys.state == State::SafetyDoor) &&
+        limit->isHard()) {
         mc_critical(ExecAlarm::HardLimit);
     }
     log_debug("Limit switch tripped for " << config->_axes->axisName(limit->_axis) << " motor " << limit->_motorNum);
 }
 static void protocol_do_fault_pin(void* arg) {
-    if (sys.state == State::Cycle || sys.state == State::Jog) {
+    if (sys.state == State::Cycle || sys.state == State::Jog || sys.state == State::Idle || sys.state == State::Hold ||
+        sys.state == State::SafetyDoor) {
         mc_critical(ExecAlarm::HardStop);  // Initiate system kill.
     }
     ControlPin* pin = (ControlPin*)arg;

@@ -117,6 +117,7 @@ std::map<State, const char*> StateName = {
     { State::SafetyDoor, "SafetyDoor" },
     { State::Sleep, "Sleep" },
     { State::ConfigAlarm, "ConfigAlarm" },
+    { State::Critical, "Critical" },
 };
 
 bool inMotionState() {

@@ -311,6 +311,7 @@ extern bool notIdleOrJog();
 extern bool notIdleOrAlarm();
 extern bool anyState();
 extern bool cycleOrHold();
+extern bool allowConfigStates();
 
 class IPaddrSetting : public Setting {
 private:

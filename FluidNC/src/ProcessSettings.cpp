@@ -291,6 +291,7 @@ static Error disable_alarm_lock(const char* value, WebUI::AuthenticationLevel au
             return err;
         }
         Homing::set_all_axes_homed();
+        config->_kinematics->releaseMotors(config->_axes->motorMask, config->_axes->hardLimitMask());
         report_feedback_message(Message::AlarmUnlock);
         sys.state = State::Idle;
     }
@@ -839,7 +840,7 @@ void make_user_commands() {
     new UserCommand("GD", "GPIO/Dump", showGPIOs, anyState);
 
     new UserCommand("CI", "Channel/Info", showChannelInfo, anyState);
-    new UserCommand("XR", "Xmodem/Receive", xmodem_receive, notIdleOrAlarm);
+    new UserCommand("XR", "Xmodem/Receive", xmodem_receive, allowConfigStates);
     new UserCommand("XS", "Xmodem/Send", xmodem_send, notIdleOrAlarm);
     new UserCommand("CD", "Config/Dump", dump_config, anyState);
     new UserCommand("", "Help", show_help, anyState);
@@ -860,19 +861,19 @@ void make_user_commands() {
     new UserCommand("NVX", "Settings/Erase", Setting::eraseNVS, notIdleOrAlarm, WA);
     new UserCommand("V", "Settings/Stats", Setting::report_nvs_stats, notIdleOrAlarm);
     new UserCommand("#", "GCode/Offsets", report_ngc, notIdleOrAlarm);
-    new UserCommand("H", "Home", home_all, notIdleOrAlarm);
     new UserCommand("MD", "Motor/Disable", motor_disable, notIdleOrAlarm);
     new UserCommand("ME", "Motor/Enable", motor_enable, notIdleOrAlarm);
     new UserCommand("MI", "Motors/Init", motors_init, notIdleOrAlarm);
 
     new UserCommand("RM", "Macros/Run", macros_run, notIdleOrAlarm);
 
-    new UserCommand("HX", "Home/X", home_x, notIdleOrAlarm);
-    new UserCommand("HY", "Home/Y", home_y, notIdleOrAlarm);
-    new UserCommand("HZ", "Home/Z", home_z, notIdleOrAlarm);
-    new UserCommand("HA", "Home/A", home_a, notIdleOrAlarm);
-    new UserCommand("HB", "Home/B", home_b, notIdleOrAlarm);
-    new UserCommand("HC", "Home/C", home_c, notIdleOrAlarm);
+    new UserCommand("H", "Home", home_all, allowConfigStates);
+    new UserCommand("HX", "Home/X", home_x, allowConfigStates);
+    new UserCommand("HY", "Home/Y", home_y, allowConfigStates);
+    new UserCommand("HZ", "Home/Z", home_z, allowConfigStates);
+    new UserCommand("HA", "Home/A", home_a, allowConfigStates);
+    new UserCommand("HB", "Home/B", home_b, allowConfigStates);
+    new UserCommand("HC", "Home/C", home_c, allowConfigStates);
 
     new UserCommand("MU0", "Msg/Uart0", msg_to_uart0, anyState);
     new UserCommand("MU1", "Msg/Uart1", msg_to_uart1, anyState);

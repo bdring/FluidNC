@@ -30,6 +30,10 @@ bool cycleOrHold() {
     return sys.state == State::Cycle || sys.state == State::Hold;
 }
 
+bool allowConfigStates() {
+    return sys.state != State::Idle && sys.state != State::Alarm && sys.state != State::ConfigAlarm && sys.state != State::Critical;
+}
+
 Word::Word(type_t type, permissions_t permissions, const char* description, const char* grblName, const char* fullName) :
     _description(description), _grblName(grblName), _fullName(fullName), _type(type), _permissions(permissions) {}
 
