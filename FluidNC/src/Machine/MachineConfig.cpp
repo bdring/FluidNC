@@ -39,9 +39,11 @@ namespace Machine {
         handler.item("meta", _meta);
 
         handler.item("Maslow_vertical", Maslow.orientation);
-        handler.item("Maslow_calibration_offset", Maslow.calibration_grid_offset, 100, 1500);
+        handler.item("Maslow_calibration_offset_X", Maslow.calibration_grid_offset_X, 100, 1500);
+        handler.item("Maslow_calibration_offset_Y", Maslow.calibration_grid_offset_Y, 100, 1500);
+        handler.item("Maslow_calibration_size_X", Maslow.calibrationGridSizeX, 1, 10);
+        handler.item("Maslow_calibration_size_Y", Maslow.calibrationGridSizeY, 1, 10);
         
-
         handler.item("Maslow_brX", Maslow.brX);
         handler.item("Maslow_brY", Maslow.brY);
         handler.item("Maslow_brZ", Maslow.brZ);
@@ -57,6 +59,9 @@ namespace Machine {
         handler.item("Maslow_blX", Maslow.blX);
         handler.item("Maslow_blY", Maslow.blY);
         handler.item("Maslow_blZ", Maslow.blZ);
+
+        handler.item("Maslow_Retract_Current_Threshold", Maslow.retractCurrentThreshold, 0, 3500);
+        handler.item("Maslow_Calibration_Current_Threshold", Maslow.calibrationCurrentThreshold, 0, 3500);
 
         handler.section("stepping", _stepping);
 

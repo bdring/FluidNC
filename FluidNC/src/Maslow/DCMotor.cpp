@@ -21,46 +21,37 @@
  *          max output and the other pin is at 0 the motor turns backward
  *  @param  readbackPin ESP32 adc_channel_t pin number for current read-back
  */
-DCMotor::DCMotor(){
+DCMotor::DCMotor() {}
 
-}
-
-void DCMotor::begin(
-                uint8_t forwardPin,
-                uint8_t backwardPin,
-                int readbackPin,
-                int channel1,
-                int channel2){
-
-    _forward = forwardPin;
-    _back = backwardPin;
+void DCMotor::begin(uint8_t forwardPin, uint8_t backwardPin, int readbackPin, int channel1, int channel2) {
+    _forward  = forwardPin;
+    _back     = backwardPin;
     _readback = readbackPin;
     _channel1 = channel1;
     _channel2 = channel2;
 
     //Setup the motor controllers
     ledcSetup(channel1, motorPWMFreq, motorPWMRes);  // configure PWM functionalities...this uses timer 0 (channel, freq, resolution)
-    ledcAttachPin(_forward, channel1);  // attach the channel to the GPIO to be controlled
-    ledcWrite(channel1, 0); //Turn the motor off
+    ledcAttachPin(_forward, channel1);               // attach the channel to the GPIO to be controlled
+    ledcWrite(channel1, 0);                          //Turn the motor off
 
     ledcSetup(channel2, motorPWMFreq, motorPWMRes);
     ledcAttachPin(_back, channel2);
     ledcWrite(channel2, 0);
-
 }
 
 /*!
  *  @brief  Run the motors forward at the given speed
  *  @param speed The speed the motor should spin (0-1023)
  */
-void DCMotor::forward(uint16_t speed){
+void DCMotor::forward(uint16_t speed) {
     runAtSpeed(FORWARD, speed);
 }
 
 /*!
  *  @brief  Run the motors forward at max speed
  */
-void DCMotor::fullOut(){
+void DCMotor::fullOut() {
     runAtSpeed(FORWARD, _maxSpeed);
 }
 
@@ -68,22 +59,22 @@ void DCMotor::fullOut(){
  *  @brief  Run the motors backward at the given speed
  *  @param speed The speed the motor should spin (0-1023)
  */
-void DCMotor::backward(uint16_t speed){
+void DCMotor::backward(uint16_t speed) {
     runAtSpeed(BACKWARD, speed);
 }
 
 /*!
  *  @brief  Run the motors backward at max speed
  */
-void DCMotor::fullIn(){
+void DCMotor::fullIn() {
     runAtSpeed(BACKWARD, _maxSpeed);
 }
 
 /*!
  *  @brief  Run the motors backward at half max speed
  */
-void DCMotor::halfIn(){
-    runAtPWM(_maxSpeed/-2);
+void DCMotor::halfIn() {
+    runAtPWM(_maxSpeed / -2);
 }
 
 /*!
@@ -91,17 +82,16 @@ void DCMotor::halfIn(){
  *  negative and forward for positive
  *  @param speed The speed the motor should spin (-1023 to 1023)
  */
-void DCMotor::runAtPWM(long signed_speed){
+void DCMotor::runAtPWM(long signed_speed) {
     //Motor driver accepts -maxPWMvalue to maxPWMvalue but doesn't begin moving until motorStartsToMovePWM so we scale
-    
-    int motorStartsToMovePWM = 75;
-    int maxPWMvalue = 1023;
-    long scaledSpeed = map(abs(signed_speed), 0, maxPWMvalue, motorStartsToMovePWM, _maxSpeed);
-    
-    
-    if(signed_speed < 0){
+
+    int  motorStartsToMovePWM = 75;
+    int  maxPWMvalue          = 1023;
+    long scaledSpeed          = map(abs(signed_speed), 0, maxPWMvalue, motorStartsToMovePWM, _maxSpeed);
+
+    if (signed_speed < 0) {
         runAtSpeed(BACKWARD, scaledSpeed);
-    }else{
+    } else {
         runAtSpeed(FORWARD, scaledSpeed);
     }
 }
@@ -112,12 +102,12 @@ void DCMotor::runAtPWM(long signed_speed){
  *  @param  direction Direction backward (0) or forward (1, or ~0)
  *  @param speed The pwm frequency sent to the motor (0-1023)
  */
-void DCMotor::runAtSpeed(uint8_t direction, uint16_t speed){
-    if(direction == 0){
+void DCMotor::runAtSpeed(uint8_t direction, uint16_t speed) {
+    if (direction == 0) {
         ledcWrite(_channel1, _maxSpeed);
         ledcWrite(_channel2, _maxSpeed - speed);
 
-    }else{
+    } else {
         ledcWrite(_channel2, _maxSpeed);
         ledcWrite(_channel1, _maxSpeed - speed);
     }
@@ -126,17 +116,17 @@ void DCMotor::runAtSpeed(uint8_t direction, uint16_t speed){
 /*!
  *  @brief  Stop the motors in a braking state
  */
-void DCMotor::stop(){
+void DCMotor::stop() {
     //These could be set to 1023 to allow coasting
-    ledcWrite(_channel1, 0); //Stop
+    ledcWrite(_channel1, 0);  //Stop
     ledcWrite(_channel2, 0);
 }
 
 /*!
  *  @brief  Stop the motors in a high-z state
  */
-void DCMotor::highZ(){
-    ledcWrite(_channel1, 0); //Stop
+void DCMotor::highZ() {
+    ledcWrite(_channel1, 0);  //Stop
     ledcWrite(_channel2, 0);
 }
 
@@ -149,6 +139,6 @@ void DCMotor::highZ(){
  *  NOTE: Converted to return percentage. Actual accuracy is not particularly important.
  *
  */
-double DCMotor::readCurrent(){
+double DCMotor::readCurrent() {
     return analogRead(_readback);
 }
