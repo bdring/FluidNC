@@ -884,20 +884,28 @@ bool Maslow_::take_measurement_avg_with_check(int waypoint, int dir) {
 // Move pulling just two belts depending in the direction of the movement
 bool Maslow_::move_with_slack(double fromX, double fromY, double toX, double toY) {
     //This is where we want to introduce some slack so the system
-    static unsigned long decompressTimer = millis();
+    static unsigned long moveBeginTimer = millis();
     static bool          decompress      = true;
    
     int direction = get_direction(fromX, fromY, toX, toY);
 
     //We only want to decompress at the beginning of each move
     if (decompress) {
-        decompressTimer = millis();
+        moveBeginTimer = millis();
         //log_info("decompressing at " << int(millis()));
         decompress = false;
     }
 
+    //If our move is taking too long, lets print out some debug information
+    if(millis() - moveBeginTimer > 60000){ 
+        log_warn("Move potentially stuck from: " << fromX << ", " << fromY << " to: " << toX << ", " << toY);
+        log_warn("Current target: " << targetX << ", " << targetY);
+        log_warn("Current direction: " << direction);
+        log_warn("Current pos errors" << axisTL.getPositionError() << ", " << axisTR.getPositionError() << ", " << axisBL.getPositionError() << ", " << axisBR.getPositionError());
+    }
+
     //Decompress belts for 500ms...this happens by returning right away before running any of the rest of the code
-    if (millis() - decompressTimer < 750) {
+    if (millis() - moveBeginTimer < 750) {
         if (orientation == VERTICAL) {
             axisTL.recomputePID();
             axisTR.recomputePID();
@@ -915,7 +923,7 @@ bool Maslow_::move_with_slack(double fromX, double fromY, double toX, double toY
 
     //Stop for 50ms
     //we need to stop motors after decompression was finished once
-    else if (millis() - decompressTimer < 800) {
+    else if (millis() - moveBeginTimer < 800) {
         stopMotors();
         return false;
     }
