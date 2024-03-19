@@ -5,7 +5,7 @@ Maslow_vertical: false
 
 Maslow_calibration_offset_X: 500
 Maslow_calibration_offset_Y: 500
-Maslow_calibration_size_X: 11
+Maslow_calibration_size_X: 10
 Maslow_calibration_size_Y: 9
 
 Maslow_tlX: -31
