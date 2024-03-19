@@ -20,8 +20,14 @@ Maslow_blY: 0.0
 Maslow_brX: 2952
 Maslow_brY: 0.0
 
+Maslow_tlZ: 144
+Maslow_trZ: 97
+Maslow_blZ: 75
+Maslow_brZ: 117
+
 Maslow_Retract_Current_Threshold: 1300
 Maslow_Calibration_Current_Threshold: 1300
+
 
 spi:
   miso_pin: gpio.13
