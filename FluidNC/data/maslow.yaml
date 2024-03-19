@@ -8,17 +8,17 @@ Maslow_calibration_offset_Y: 500
 Maslow_calibration_size_X: 10
 Maslow_calibration_size_Y: 9
 
-Maslow_tlX: -31
-Maslow_tlY: 2065.1
+Maslow_tlX: -27.6
+Maslow_tlY: 2064.9
 
-Maslow_trX: 2923.2
-Maslow_trY: 2067.7
+Maslow_trX: 2924.3
+Maslow_trY: 2066.5
 
-Maslow_blX: 0.0
-Maslow_blY: 0.0
+Maslow_blX: 0
+Maslow_blY: 0
 
-Maslow_brX: 2952
-Maslow_brY: 0.0
+Maslow_brX: 2953.2
+Maslow_brY: 0
 
 Maslow_Retract_Current_Threshold: 1300
 Maslow_Calibration_Current_Threshold: 1300
