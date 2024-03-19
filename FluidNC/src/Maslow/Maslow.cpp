@@ -93,8 +93,9 @@ void Maslow_::begin(void (*sys_rt)()) {
 void Maslow_::update() {
     if (error) {
         static unsigned long timer = millis();
-        static bool          st    = true;
+        static bool          st    = true; //This is used to blink the LED
         if (millis() - timer > 300) {
+            stopMotors();
             st = !st;
             digitalWrite(REDLED, st);
             timer = millis();
@@ -567,7 +568,7 @@ void Maslow_::safety_control() {
             tick[i] = true;
         }
         if ((abs(axis[i]->getPositionError()) > 15) && (sys.state() == State::Cycle)) {
-            log_error("Position error on " << axis_id_to_label(i).c_str() << " axis exceeded 5mm while running. Halting. Error is "
+            log_error("Position error on " << axis_id_to_label(i).c_str() << " axis exceeded 15mm while running. Halting. Error is "
                                            << axis[i]->getPositionError() << "mm");
         }
     }
