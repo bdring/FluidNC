@@ -93,8 +93,9 @@ void Maslow_::begin(void (*sys_rt)()) {
 void Maslow_::update() {
     if (error) {
         static unsigned long timer = millis();
-        static bool          st    = true;
+        static bool          st    = true; //This is used to blink the LED
         if (millis() - timer > 300) {
+            stopMotors();
             st = !st;
             digitalWrite(REDLED, st);
             timer = millis();
@@ -567,8 +568,9 @@ void Maslow_::safety_control() {
             tick[i] = true;
         }
         if ((abs(axis[i]->getPositionError()) > 15) && (sys.state() == State::Cycle)) {
-            log_error("Position error on " << axis_id_to_label(i).c_str() << " axis exceeded 5mm while running. Halting. Error is "
+            log_error("Position error on " << axis_id_to_label(i).c_str() << " axis exceeded 15mm while running. Halting. Error is "
                                            << axis[i]->getPositionError() << "mm");
+            Maslow.eStop();
         }
     }
 
@@ -1293,6 +1295,14 @@ void Maslow_::panic() {
     log_error("PANIC! Stopping all motors");
     stop();
     sys.set_state(State::Alarm);
+}
+
+//Emergecy Stop
+void Maslow_::eStop() {
+    log_error("Emergency stop! Stopping all motors");
+    log_warn("The machine will not respond until turned off and back on again");
+    stop();
+    error = true;
 }
 
 // Get's the most recently set target position in X
