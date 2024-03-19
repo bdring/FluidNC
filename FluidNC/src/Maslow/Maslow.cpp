@@ -1300,6 +1300,7 @@ void Maslow_::panic() {
 //Emergecy Stop
 void Maslow_::eStop() {
     log_error("Emergency stop! Stopping all motors");
+    log_warn("The machine will not respond until turned off and back on again");
     stop();
     error = true;
 }
