@@ -482,7 +482,14 @@ namespace WebUI {
             return;
         }
         if (_webserver->hasArg("commandText")) {
-            websocketCommand(_webserver->arg("commandText").c_str(), getPageid(), auth_level);
+            auto cmd = _webserver->arg("commandText");
+            if (cmd.startsWith("[ESP")) {
+                // [ESPXXX] commands expect data in the HTTP response
+                // Only the fallback web page uses commandText with [ESPxxx]
+                synchronousCommand(cmd.c_str(), silent, auth_level);
+            } else {
+                websocketCommand(_webserver->arg("commandText").c_str(), getPageid(), auth_level);
+            }
             return;
         }
         _webserver->send(500, "text/plain", "Invalid command");
