@@ -90,6 +90,7 @@ public:
 
     bool safetyOn = true;
 
+    //These are the current targets set by the setTargets function used for moving the machine during normal operations
     double targetX = 0;
     double targetY = 0;
     double targetZ = 0;
