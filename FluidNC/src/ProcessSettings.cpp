@@ -992,6 +992,12 @@ static Error maslow_ack_cal(const char* value, WebUI::AuthenticationLevel auth_l
     return Error::Ok;
 }
 
+static Error maslow_estop(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+    sys.set_state(State::Alarm);
+    Maslow.eStop();
+    return Error::Ok;
+}
+
 // Commands use the same syntax as Settings, but instead of setting or
 // displaying a persistent value, a command causes some action to occur.
 // That action could be anything, from displaying a run-time parameter
@@ -1072,6 +1078,7 @@ void make_user_commands() {
     new UserCommand("TEST", "Maslow/test", maslow_test, anyState);
     new UserCommand("TKSLK", "Maslow/takeSlack", maslow_takeSlack, anyState);
     new UserCommand("ACKCAL", "Maslow/ackCalibration", maslow_ack_cal, anyState);
+    new UserCommand("ESTOP", "Maslow/stop", maslow_estop, anyState);
 
 };
 

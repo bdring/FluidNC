@@ -570,6 +570,7 @@ void Maslow_::safety_control() {
         if ((abs(axis[i]->getPositionError()) > 15) && (sys.state() == State::Cycle)) {
             log_error("Position error on " << axis_id_to_label(i).c_str() << " axis exceeded 15mm while running. Halting. Error is "
                                            << axis[i]->getPositionError() << "mm");
+            Maslow.eStop();
         }
     }
 
@@ -1294,6 +1295,13 @@ void Maslow_::panic() {
     log_error("PANIC! Stopping all motors");
     stop();
     sys.set_state(State::Alarm);
+}
+
+//Emergecy Stop
+void Maslow_::eStop() {
+    log_error("Emergency stop! Stopping all motors");
+    stop();
+    error = true;
 }
 
 // Get's the most recently set target position in X
