@@ -13,6 +13,7 @@
 
 #include <esp32-hal-gpio.h>  // gpio
 #include <sdkconfig.h>       // CONFIG_IDF_TARGET_*
+#include <hal/rmt_ll.h>
 
 using namespace Machine;
 
@@ -38,10 +39,10 @@ namespace MotorDrivers {
                                    .mem_block_num = 2,
                                    .flags         = 0,
                                    .tx_config     = {
-                                       .carrier_freq_hz      = 0,
-                                       .carrier_level        = RMT_CARRIER_LEVEL_LOW,
-                                       .idle_level           = invert_step ? RMT_IDLE_LEVEL_HIGH : RMT_IDLE_LEVEL_LOW,
-                                       .carrier_duty_percent = 50,
+                                           .carrier_freq_hz      = 0,
+                                           .carrier_level        = RMT_CARRIER_LEVEL_LOW,
+                                           .idle_level           = invert_step ? RMT_IDLE_LEVEL_HIGH : RMT_IDLE_LEVEL_LOW,
+                                           .carrier_duty_percent = 50,
 #if SOC_RMT_SUPPORT_TX_LOOP_COUNT
                                        .loop_count = 1,
 #endif
@@ -93,16 +94,8 @@ namespace MotorDrivers {
 
     void IRAM_ATTR StandardStepper::step() {
         if (config->_stepping->_engine == Stepping::RMT && _rmt_chan_num != RMT_CHANNEL_MAX) {
-#ifdef CONFIG_IDF_TARGET_ESP32
-            RMT.conf_ch[_rmt_chan_num].conf1.mem_rd_rst = 1;
-            RMT.conf_ch[_rmt_chan_num].conf1.mem_rd_rst = 0;
-            RMT.conf_ch[_rmt_chan_num].conf1.tx_start   = 1;
-#endif
-#ifdef CONFIG_IDF_TARGET_ESP32S3
-            RMT.chnconf0[_rmt_chan_num].mem_rd_rst_n = 1;
-            RMT.chnconf0[_rmt_chan_num].mem_rd_rst_n = 0;
-            RMT.chnconf0[_rmt_chan_num].tx_start_n   = 1;
-#endif
+            rmt_ll_tx_reset_pointer(RMT_LL_HW_BASE, _rmt_chan_num);
+            rmt_ll_tx_start(RMT_LL_HW_BASE, _rmt_chan_num);
         } else {
             _step_pin.on();
         }

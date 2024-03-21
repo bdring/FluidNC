@@ -18,7 +18,7 @@ namespace Pins {
         bool _lastWrittenValue = false;
 
     public:
-        static const int nGPIOPins = 40;
+        static const int nGPIOPins = 49;
 
         GPIOPinDetail(pinnum_t index, PinOptionsParser options);
 
