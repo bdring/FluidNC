@@ -7,6 +7,8 @@
 #include "../WebUI/WifiConfig.h"
 
 // Maslow specific defines
+#define VERSION_NUMBER "0.65"
+
 #define TLEncoderLine 2
 #define TREncoderLine 1
 #define BLEncoderLine 3
@@ -1148,13 +1150,12 @@ void Maslow_::setSafety(bool state) {
     safetyOn = state;
 }
 void Maslow_::test_() {
+    log_info("Firmware Version: " << VERSION_NUMBER);
+
     axisTL.test();
     axisTR.test();
     axisBL.test();
     axisBR.test();
-
-    generate_calibration_grid();
-    log_info("Grid size: " << calibrationGridSizeX << "x" << calibrationGridSizeY);
 }
 void Maslow_::set_frame_width(double width) {
     trX = width;
