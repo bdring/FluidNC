@@ -88,7 +88,7 @@ void Maslow_::begin(void (*sys_rt)()) {
     if (error) {
         log_error("Maslow failed to initialize - fix errors and restart");
     } else
-        log_info("Starting Maslow v 1.00");
+        log_info("Starting Maslow Version " << VERSION_NUMBER);
 }
 
 // Maslow main loop, everything is processed here
