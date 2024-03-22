@@ -804,6 +804,8 @@ bool Maslow_::take_measurement_avg_with_check(int waypoint, int dir) {
     static double        sum                = 0;
     static unsigned long decompressTimer    = millis();
 
+    return true;
+
     if (take_measurement(waypoint, dir, run)) {
         if (run < 3) {
             //decompress lower belts for 500 ms before taking the next measurement
@@ -888,22 +890,24 @@ bool Maslow_::move_with_slack(double fromX, double fromY, double toX, double toY
     //This is where we want to introduce some slack so the system
     static unsigned long moveBeginTimer = millis();
     static bool          decompress      = true;
+    static float         stepSize       = 0.000005;
+    static int           stepcount      = 0;
    
-    int direction = get_direction(fromX, fromY, toX, toY);
+    static int direction = UP;
+
+    stepcount++;
+
+    if(random(100) == 0){
+        log_info("Current target: " << targetX << ", " << targetY);
+    }
 
     //We only want to decompress at the beginning of each move
     if (decompress) {
         moveBeginTimer = millis();
         //log_info("decompressing at " << int(millis()));
         decompress = false;
-    }
-
-    //If our move is taking too long, lets print out some debug information
-    if(millis() - moveBeginTimer > 60000){ 
-        log_warn("Move potentially stuck from: " << fromX << ", " << fromY << " to: " << toX << ", " << toY);
-        log_warn("Current target: " << targetX << ", " << targetY);
-        log_warn("Current direction: " << direction);
-        log_warn("Current pos errors" << axisTL.getPositionError() << ", " << axisTR.getPositionError() << ", " << axisBL.getPositionError() << ", " << axisBR.getPositionError());
+        stepcount = 0;
+        direction = get_direction(fromX, fromY, toX, toY);
     }
 
     //Decompress belts for 500ms...this happens by returning right away before running any of the rest of the code
@@ -933,54 +937,58 @@ bool Maslow_::move_with_slack(double fromX, double fromY, double toX, double toY
     //This system of setting the final target and then waiting until we get there doesn't feel good to me
     switch (direction) {
         case UP:
-            setTargets(toX, toY, 0);
+            setTargets(toX, getTargetY() + stepSize*stepcount, 0);
             axisTL.recomputePID(500);
             axisTR.recomputePID(500);
             axisBL.comply();
             axisBR.comply();
-            if (axisTL.onTarget(1) && axisTR.onTarget(1)) {
+            if (getTargetY() > toY) {
                 stopMotors();
                 reset_all_axis();
                 decompress = true;  //Reset for the next pass
+                log_info("Move completed");
                 return true;
             }
             break;
         case DOWN:
-            setTargets(toX, toY, 0);
+            setTargets(toX, getTargetY() - stepSize*stepcount, 0);
             axisTL.comply();
             axisTR.comply();
             axisBL.recomputePID(500);
             axisBR.recomputePID(500);
-            if (axisBL.onTarget(1) && axisBR.onTarget(1)) {
+            if (getTargetY() < toY) {
                 stopMotors();
                 reset_all_axis();
                 decompress = true;  //Reset for the next pass
+                log_info("Move completed");
                 return true;
             }
             break;
         case LEFT:
-            setTargets(toX, toY, 0);
+            setTargets(getTargetX() - stepSize*stepcount, toY, 0);
             axisTL.recomputePID(500);
             axisTR.comply();
             axisBL.recomputePID(500);
             axisBR.comply();
-            if (axisTL.onTarget(1) && axisBL.onTarget(1)) {
+            if (getTargetX() < toX){
                 stopMotors();
                 reset_all_axis();
                 decompress = true;  //Reset for the next pass
+                log_info("Move completed");
                 return true;
             }
             break;
         case RIGHT:
-            setTargets(toX, toY, 0);
+            setTargets(getTargetX() + stepSize*stepcount, toY, 0);
             axisTL.comply();
             axisTR.recomputePID(500);
             axisBL.comply();
             axisBR.recomputePID(500);
-            if (axisBR.onTarget(1) && axisTR.onTarget(1)) {
+            if (getTargetX() > toX){
                 stopMotors();
                 reset_all_axis();
                 decompress = true;  //Reset for the next pass
+                log_info("Move completed");
                 return true;
             }
             break;
