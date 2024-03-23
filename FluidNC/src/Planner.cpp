@@ -121,6 +121,10 @@ static uint8_t plan_prev_block_index(uint8_t block_index) {
 
 */
 static void planner_recalculate() {
+    if (block_buffer_head == block_buffer_tail) {
+        // Nothing to do; planner buffer is empty.
+        return;
+    }
     // Initialize block index to the last block in the planner buffer.
     uint8_t block_index = plan_prev_block_index(block_buffer_head);
     // Bail. Can't do anything with one only one plan-able block.
