@@ -632,8 +632,10 @@ float Maslow_::computeTL(float x, float y, float z) {
 //------------------------------------------------------ Homing and calibration functions
 //------------------------------------------------------
 
-// Takes one measurement; returns true when it's done
+// Takes one measurement; returns true when it's done. Waypoint # is used to st
 bool Maslow_::take_measurement(int waypoint, int dir, int run) {
+
+    //Shouldn't this be handled with the same code as below but with the direction set to UP?
     if (orientation == VERTICAL) {
         //first we pull two bottom belts tight one after another, if x<0 we pull left belt first, if x>0 we pull right belt first
         static bool BL_tight = false;
@@ -690,7 +692,7 @@ bool Maslow_::take_measurement(int waypoint, int dir, int run) {
         }
         return false;
     }
-    // in HoRIZONTAL orientation we pull on the belts depending on the direction of the last move
+    // in HoRIZONTAL orientation we pull on the belts depending on the direction of the last move. This is important because the other two belts are likely slack
     else if (orientation == HORIZONTAL) {
         static MotorUnit* pullAxis1;
         static MotorUnit* pullAxis2;
@@ -747,7 +749,7 @@ bool Maslow_::take_measurement(int waypoint, int dir, int run) {
         holdAxis1->recomputePID();
         holdAxis2->recomputePID();
         if (!pull1_tight) {
-            if (pullAxis1->pull_tight(calibrationCurrentThreshold)) {
+            if (false){ //pullAxis1->pull_tight(calibrationCurrentThreshold)) {
                 pull1_tight      = true;
                 String axisLabel = "";
                 if (pullAxis1 == &axisTL)
@@ -765,7 +767,7 @@ bool Maslow_::take_measurement(int waypoint, int dir, int run) {
             return false;
         }
         if (!pull2_tight) {
-            if (pullAxis2->pull_tight(calibrationCurrentThreshold)) {
+            if (false){  //pullAxis2->pull_tight(calibrationCurrentThreshold)) {
                 pull2_tight      = true;
                 String axisLabel = "";
                 if (pullAxis2 == &axisTL)
@@ -803,8 +805,6 @@ bool Maslow_::take_measurement_avg_with_check(int waypoint, int dir) {
     static double        avg                = 0;
     static double        sum                = 0;
     static unsigned long decompressTimer    = millis();
-
-    return true;
 
     if (take_measurement(waypoint, dir, run)) {
         if (run < 3) {
@@ -904,7 +904,7 @@ bool Maslow_::move_with_slack(double fromX, double fromY, double toX, double toY
     //We only want to decompress at the beginning of each move
     if (decompress) {
         moveBeginTimer = millis();
-        //log_info("decompressing at " << int(millis()));
+        log_info("Beginning move");
         decompress = false;
         stepcount = 0;
         direction = get_direction(fromX, fromY, toX, toY);
