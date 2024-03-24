@@ -114,6 +114,8 @@ void Maslow_::update() {
 
     blinkIPAddress();
 
+    heartBeat();
+
     //Make sure we're running maslow config file
     if (!Maslow.using_default_config) {
         lastCallToUpdate = millis();
@@ -234,6 +236,15 @@ void Maslow_::blinkIPAddress() {
         } else {
             digitalWrite(WIFILED, HIGH);
         }
+    }
+}
+
+void Maslow_::heartBeat(){
+    static unsigned long heartBeatTimer = millis();
+
+    if(millis() - heartBeatTimer > 1000){
+        heartBeatTimer = millis();
+        log_info("Heartbeat");
     }
 }
 
