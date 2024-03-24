@@ -27,9 +27,9 @@ void UartChannel::init(Uart* uart) {
     } else {
         log_info("uart_channel" << _uart_num << " created");
     }
+    // Let an expander or pendant know that FluidNC has restarted
+    // so it can reset any state that might now be invalid.
     log_msg_to(*this, "RST");
-    // Give the extender a little time to process the command
-    //    delay(100);
 }
 
 size_t UartChannel::write(uint8_t c) {
