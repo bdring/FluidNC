@@ -185,11 +185,6 @@ bool MotorUnit::pull_tight(int currentThreshold) {
     }
     lastCallToRetract = millis();
 
-    if(retract_speed == 0) {
-        log_info("Begining to retract " << Maslow.axis_id_to_label(_encoderAddress).c_str());
-
-    }
-
     //Gradually increase the pulling speed
     if (random(0, 2) == 1){
         retract_speed = min(retract_speed + 1, 1023);
@@ -239,38 +234,6 @@ bool MotorUnit::extend(double targetLength) {
     //log_info("Belt positon after extend: ");
     //log_info(getPosition());
     return true;
-}
-
-// Recomputes the PID and drives the output at speed constrained by maxSpeed...there are two seperate functions with the same name which needs to be fixed 
-double MotorUnit::recomputePID(double maxSpeed) {
-    //in horizontal comply if belt needs to be extended
-    if (Maslow.orientation == HORIZONTAL) {
-        if (setpoint - getPosition() < 0.25) {
-            _commandPWM = positionPID.getOutput(getPosition(), setpoint);
-            if (_commandPWM < -maxSpeed)
-                _commandPWM = -maxSpeed;
-            else if (_commandPWM > maxSpeed)
-                _commandPWM = maxSpeed;
-
-            motor.runAtPWM(_commandPWM);
-
-        }
-        //if releasing belt, just comply till get to point one way or another
-        else {
-            comply();
-        }
-    }
-    //in vertical just run it regularly
-    else {
-        _commandPWM = positionPID.getOutput(getPosition(), setpoint);
-        if (_commandPWM < -maxSpeed)
-            _commandPWM = -maxSpeed;
-        else if (_commandPWM > maxSpeed)
-            _commandPWM = maxSpeed;
-
-        motor.runAtPWM(_commandPWM);
-    }
-    return _commandPWM;
 }
 
 //------------------------------------------------------

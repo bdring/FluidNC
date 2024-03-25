@@ -876,16 +876,12 @@ bool Maslow_::move_with_slack(double fromX, double fromY, double toX, double toY
     //This is where we want to introduce some slack so the system
     static unsigned long moveBeginTimer = millis();
     static bool          decompress      = true;
-    static float         stepSize       = 0.000005;
+    static float         stepSize       = 0.000006;
     static int           stepcount      = 0;
    
     static int direction = UP;
 
     stepcount++;
-
-    if(random(100) == 0){
-        log_info("Current target: " << targetX << ", " << targetY);
-    }
 
     //We only want to decompress at the beginning of each move
     if (decompress) {
@@ -938,8 +934,8 @@ bool Maslow_::move_with_slack(double fromX, double fromY, double toX, double toY
     switch (direction) {
         case UP:
             setTargets(toX, getTargetY() + stepSize*stepcount, 0);
-            axisTL.recomputePID(1023);
-            axisTR.recomputePID(1023);
+            axisTL.recomputePID();
+            axisTR.recomputePID();
             axisBL.comply();
             axisBR.comply();
             if (getTargetY() > toY) {
@@ -954,8 +950,8 @@ bool Maslow_::move_with_slack(double fromX, double fromY, double toX, double toY
             setTargets(toX, getTargetY() - stepSize*stepcount, 0);
             axisTL.comply();
             axisTR.comply();
-            axisBL.recomputePID(1023);
-            axisBR.recomputePID(1023);
+            axisBL.recomputePID();
+            axisBR.recomputePID();
             if (getTargetY() < toY) {
                 stopMotors();
                 reset_all_axis();
@@ -966,9 +962,9 @@ bool Maslow_::move_with_slack(double fromX, double fromY, double toX, double toY
             break;
         case LEFT:
             setTargets(getTargetX() - stepSize*stepcount, toY, 0);
-            axisTL.recomputePID(1023);
+            axisTL.recomputePID();
             axisTR.comply();
-            axisBL.recomputePID(1023);
+            axisBL.recomputePID();
             axisBR.comply();
             if (getTargetX() < toX){
                 stopMotors();
@@ -981,9 +977,9 @@ bool Maslow_::move_with_slack(double fromX, double fromY, double toX, double toY
         case RIGHT:
             setTargets(getTargetX() + stepSize*stepcount, toY, 0);
             axisTL.comply();
-            axisTR.recomputePID(1023);
+            axisTR.recomputePID();
             axisBL.comply();
-            axisBR.recomputePID(1023);
+            axisBR.recomputePID();
             if (getTargetX() > toX){
                 stopMotors();
                 reset_all_axis();
@@ -1289,10 +1285,7 @@ void Maslow_::stop() {
     calibrationInProgress = false;
     test                  = false;
     takeSlack             = false;
-    // log_info("Current pos: TL: " << axisTL.getPosition() << " TR: " << axisTR.getPosition() << " BL: " << axisBL.getPosition()
-    //                              << " BR: " << axisBR.getPosition());
-    // log_info("Current target: TL: " << axisTL.getTarget() << " TR: " << axisTR.getTarget() << " BL: " << axisBL.getTarget()
-    //                                 << " BR: " << axisBR.getTarget());
+
     axisTL.reset();
     axisTR.reset();
     axisBL.reset();
