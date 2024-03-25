@@ -530,17 +530,16 @@ void Maslow_::safety_control() {
     //We need to keep track of average belt speeds and motor currents for every axis
     static bool          tick[4]                 = { false, false, false, false };
     static unsigned long spamTimer               = millis();
-    static int           tresholdHitsBeforePanic = 10;
+    static int           tresholdHitsBeforePanic = 15;
     static int           panicCounter[4]         = { 0 };
 
     MotorUnit* axis[4] = { &axisTL, &axisTR, &axisBL, &axisBR };
     for (int i = 0; i < 4; i++) {
         //If the current exceeds some absolute value, we need to call panic() and stop the machine
-        if (axis[i]->getMotorCurrent() > currentThreshold + 2500 && !tick[i]) {
+        if (axis[i]->getMotorCurrent() > 4000 && !tick[i]) {
             panicCounter[i]++;
             if (panicCounter[i] > tresholdHitsBeforePanic) {
-                log_error("Motor current on " << axis_id_to_label(i).c_str() << " axis exceeded threshold of " << currentThreshold + 2500
-                                              << "mA, current is " << int(axis[i]->getMotorCurrent()) << "mA");
+                log_error("Motor current on " << axis_id_to_label(i).c_str() << " axis exceeded threshold of " << 4000);
                 Maslow.panic();
                 tick[i] = true;
             }
@@ -905,10 +904,24 @@ bool Maslow_::move_with_slack(double fromX, double fromY, double toX, double toY
             axisBL.decompressBelt();
             axisBR.decompressBelt();
         } else {
-            axisTL.decompressBelt();
-            axisTR.decompressBelt();
-            axisBL.decompressBelt();
-            axisBR.decompressBelt();
+            switch (direction) {
+                case UP:
+                    axisBL.decompressBelt();
+                    axisBR.decompressBelt();
+                    break;
+                case DOWN:
+                    axisTL.decompressBelt();
+                    axisTR.decompressBelt();
+                    break;
+                case LEFT:
+                    axisTR.decompressBelt();
+                    axisBR.decompressBelt();
+                    break;
+                case RIGHT:
+                    axisTL.decompressBelt();
+                    axisBL.decompressBelt();
+                    break;
+            }
         }
 
         return false;
