@@ -938,8 +938,8 @@ bool Maslow_::move_with_slack(double fromX, double fromY, double toX, double toY
     switch (direction) {
         case UP:
             setTargets(toX, getTargetY() + stepSize*stepcount, 0);
-            axisTL.recomputePID(500);
-            axisTR.recomputePID(500);
+            axisTL.recomputePID(900);
+            axisTR.recomputePID(900);
             axisBL.comply();
             axisBR.comply();
             if (getTargetY() > toY) {
@@ -954,8 +954,8 @@ bool Maslow_::move_with_slack(double fromX, double fromY, double toX, double toY
             setTargets(toX, getTargetY() - stepSize*stepcount, 0);
             axisTL.comply();
             axisTR.comply();
-            axisBL.recomputePID(500);
-            axisBR.recomputePID(500);
+            axisBL.recomputePID(900);
+            axisBR.recomputePID(900);
             if (getTargetY() < toY) {
                 stopMotors();
                 reset_all_axis();
@@ -966,9 +966,9 @@ bool Maslow_::move_with_slack(double fromX, double fromY, double toX, double toY
             break;
         case LEFT:
             setTargets(getTargetX() - stepSize*stepcount, toY, 0);
-            axisTL.recomputePID(500);
+            axisTL.recomputePID(900);
             axisTR.comply();
-            axisBL.recomputePID(500);
+            axisBL.recomputePID(900);
             axisBR.comply();
             if (getTargetX() < toX){
                 stopMotors();
@@ -981,9 +981,9 @@ bool Maslow_::move_with_slack(double fromX, double fromY, double toX, double toY
         case RIGHT:
             setTargets(getTargetX() + stepSize*stepcount, toY, 0);
             axisTL.comply();
-            axisTR.recomputePID(500);
+            axisTR.recomputePID(900);
             axisBL.comply();
-            axisBR.recomputePID(500);
+            axisBR.recomputePID(900);
             if (getTargetX() > toX){
                 stopMotors();
                 reset_all_axis();
