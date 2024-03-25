@@ -118,7 +118,7 @@ double MotorUnit::getPositionError() {
     return getPosition() - setpoint;
 }
 
-// Recomputes the PID and drives the output
+// Recomputes the PID and drives the output...there are two seperate functions with the same name which needs to be fixed 
 double MotorUnit::recomputePID() {
     _commandPWM = positionPID.getOutput(getPosition(), setpoint);
 
@@ -179,17 +179,25 @@ bool MotorUnit::retract() {
 
 // Pulls the belt until we hit a current treshold; returns true when done
 bool MotorUnit::pull_tight(int currentThreshold) {
-    //call every 5ms
+    //call at most every 5ms
     if (millis() - lastCallToRetract < 5) {
         return false;
     }
-
     lastCallToRetract = millis();
+
+    if(retract_speed == 0) {
+        log_info("Begining to retract " << Maslow.axis_id_to_label(_encoderAddress).c_str());
+
+    }
+
     //Gradually increase the pulling speed
-    if (random(0, 2) == 1)
+    if (random(0, 2) == 1){
         retract_speed = min(retract_speed + 1, 1023);
+    }
+
     motor.backward(retract_speed);
-    _commandPWM = -retract_speed;
+    _commandPWM = -retract_speed; //This is only used for the getPWM function. There's got to be a tidier way to do this.
+
     //When taught
     int currentMeasurement = motor.readCurrent();
 
@@ -200,17 +208,10 @@ bool MotorUnit::pull_tight(int currentThreshold) {
     } else {
         incrementalThresholdHits = 0;
     }
-    //EXPERIMENTAL, added because my BR current sensor is faulty, but might be an OK precaution
-    //monitor the position change speed
-    bool beltStalled = false;
-    // if(retract_speed > 450 ){ // skip the start, might create problems if the belt is slackking a lot, but you can always run it many times
-    //     if(abs(beltSpeed) < 0.1){
-    //         beltStalled = true;
-    //     }
-    // }
-    if (retract_speed > 75) {
-        if (currentMeasurement > currentThreshold || incrementalThresholdHits > 2 ||
-            beltStalled) {  //changed from 4 to 2 to prevent overtighting
+
+
+    if (retract_speed > 75) { //75 is not the actual speed, it is the amount of time so we don't trigger immediately
+        if (currentMeasurement > currentThreshold || incrementalThresholdHits > 2) {
             //stop motor, reset variables
             stop();
             retract_speed    = 0;
@@ -240,7 +241,7 @@ bool MotorUnit::extend(double targetLength) {
     return true;
 }
 
-// Recomputes the PID and drives the output at speed constrained by maxSpeed
+// Recomputes the PID and drives the output at speed constrained by maxSpeed...there are two seperate functions with the same name which needs to be fixed 
 double MotorUnit::recomputePID(double maxSpeed) {
     //in horizontal comply if belt needs to be extended
     if (Maslow.orientation == HORIZONTAL) {

@@ -333,19 +333,15 @@ void Maslow_::home() {
     if (calibrationInProgress) {
         calibration_loop();
     }
-    // TODO warning, this will not work properly (fuck shit up) outside center position
+    // TODO warning, this will not work properly (potentially break things) outside center position
     if (takeSlack) {
         if (take_measurement_avg_with_check(0, UP)) {
-            //print the measurements and expected measurements for center point:
             double off = _beltEndExtension + _armLength;
-            // log_info("Center point measurements : TL: " << calibration_data[0][0] - off << " TR: " << calibration_data[1][0] - off << " BL: "
-            //                                             << calibration_data[2][0] - off << " BR: " << calibration_data[3][0] - off);
-            // log_info("Center point expected (0,0,0): TL: " << computeTL(0, 0, 0) << " TR: " << computeTR(0, 0, 0)
-            //                                                << " BL: " << computeBL(0, 0, 0) << " BR: " << computeBR(0, 0, 0));
-            float diffTL = calibration_data[0][0] - off - computeTL(0, 0, 0);
-            float diffTR = calibration_data[1][0] - off - computeTR(0, 0, 0);
-            float diffBL = calibration_data[2][0] - off - computeBL(0, 0, 0);
-            float diffBR = calibration_data[3][0] - off - computeBR(0, 0, 0);
+
+            // float diffTL = calibration_data[0][0] - off - computeTL(0, 0, 0);
+            // float diffTR = calibration_data[1][0] - off - computeTR(0, 0, 0);
+            // float diffBL = calibration_data[2][0] - off - computeBL(0, 0, 0);
+            // float diffBR = calibration_data[3][0] - off - computeBR(0, 0, 0);
             // log_info("Center point deviation: TL: " << diffTL << " TR: " << diffTR << " BL: " << diffBL << " BR: " << diffBR);
             // if (abs(diffTL) > 5 || abs(diffTR) > 5 || abs(diffBL) > 5 || abs(diffBR) > 5) {
             //     log_error("Center point deviation over 5mmm, your coordinate system is not accurate, maybe try running calibration again?");
@@ -760,36 +756,16 @@ bool Maslow_::take_measurement(int waypoint, int dir, int run) {
         holdAxis1->recomputePID();
         holdAxis2->recomputePID();
         if (!pull1_tight) {
-            if (false){ //pullAxis1->pull_tight(calibrationCurrentThreshold)) {
+            if (pullAxis1->pull_tight(calibrationCurrentThreshold)) {
                 pull1_tight      = true;
-                String axisLabel = "";
-                if (pullAxis1 == &axisTL)
-                    axisLabel = "TL";
-                if (pullAxis1 == &axisTR)
-                    axisLabel = "TR";
-                if (pullAxis1 == &axisBL)
-                    axisLabel = "BL";
-                if (pullAxis1 == &axisBR)
-                    axisLabel = "BR";
-                //log_info("Pulled 1 tight on " << axisLabel.c_str());
             }
             if (run == 0)
                 pullAxis2->comply();
             return false;
         }
         if (!pull2_tight) {
-            if (false){  //pullAxis2->pull_tight(calibrationCurrentThreshold)) {
+            if (pullAxis2->pull_tight(calibrationCurrentThreshold)) {
                 pull2_tight      = true;
-                String axisLabel = "";
-                if (pullAxis2 == &axisTL)
-                    axisLabel = "TL";
-                if (pullAxis2 == &axisTR)
-                    axisLabel = "TR";
-                if (pullAxis2 == &axisBL)
-                    axisLabel = "BL";
-                if (pullAxis2 == &axisBR)
-                    axisLabel = "BR";
-                //log_info("Pulled 2 tight on " << axisLabel.c_str());
             }
             return false;
         }
@@ -864,7 +840,7 @@ bool Maslow_::take_measurement_avg_with_check(int waypoint, int dir) {
                     }
                 }
                 //reset the run counter to run the measurements again
-                if (criticalCounter++ > 8) {
+                if (criticalCounter++ > 8) { //This appears not to be incremented anywhere
                     log_error("Critical error, measurements are not within 1.5mm of each other 8 times in a row, stopping calibration");
                     calibrationInProgress = false;
                     waypoint              = 0;
@@ -949,8 +925,8 @@ bool Maslow_::move_with_slack(double fromX, double fromY, double toX, double toY
     switch (direction) {
         case UP:
             setTargets(toX, getTargetY() + stepSize*stepcount, 0);
-            axisTL.recomputePID(900);
-            axisTR.recomputePID(900);
+            axisTL.recomputePID(1023);
+            axisTR.recomputePID(1023);
             axisBL.comply();
             axisBR.comply();
             if (getTargetY() > toY) {
@@ -965,8 +941,8 @@ bool Maslow_::move_with_slack(double fromX, double fromY, double toX, double toY
             setTargets(toX, getTargetY() - stepSize*stepcount, 0);
             axisTL.comply();
             axisTR.comply();
-            axisBL.recomputePID(900);
-            axisBR.recomputePID(900);
+            axisBL.recomputePID(1023);
+            axisBR.recomputePID(1023);
             if (getTargetY() < toY) {
                 stopMotors();
                 reset_all_axis();
@@ -977,9 +953,9 @@ bool Maslow_::move_with_slack(double fromX, double fromY, double toX, double toY
             break;
         case LEFT:
             setTargets(getTargetX() - stepSize*stepcount, toY, 0);
-            axisTL.recomputePID(900);
+            axisTL.recomputePID(1023);
             axisTR.comply();
-            axisBL.recomputePID(900);
+            axisBL.recomputePID(1023);
             axisBR.comply();
             if (getTargetX() < toX){
                 stopMotors();
@@ -992,9 +968,9 @@ bool Maslow_::move_with_slack(double fromX, double fromY, double toX, double toY
         case RIGHT:
             setTargets(getTargetX() + stepSize*stepcount, toY, 0);
             axisTL.comply();
-            axisTR.recomputePID(900);
+            axisTR.recomputePID(1023);
             axisBL.comply();
-            axisBR.recomputePID(900);
+            axisBR.recomputePID(1023);
             if (getTargetX() > toX){
                 stopMotors();
                 reset_all_axis();
