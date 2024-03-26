@@ -875,20 +875,16 @@ bool Maslow_::take_measurement_avg_with_check(int waypoint, int dir) {
 bool Maslow_::move_with_slack(double fromX, double fromY, double toX, double toY) {
     //This is where we want to introduce some slack so the system
     static unsigned long moveBeginTimer = millis();
-    static bool          decompress      = true;
-    static float         stepSize       = 0.000006;
-    static int           stepcount      = 0;
+    static bool          decompress     = true;
+    const float          stepSize       = 0.04;
    
     static int direction = UP;
-
-    stepcount++;
 
     //We only want to decompress at the beginning of each move
     if (decompress) {
         moveBeginTimer = millis();
         log_info("Beginning move");
         decompress = false;
-        stepcount = 0;
         direction = get_direction(fromX, fromY, toX, toY);
     }
 
@@ -933,7 +929,7 @@ bool Maslow_::move_with_slack(double fromX, double fromY, double toX, double toY
     //This system of setting the final target and then waiting until we get there doesn't feel good to me
     switch (direction) {
         case UP:
-            setTargets(toX, getTargetY() + stepSize*stepcount, 0);
+            setTargets(toX, getTargetY() + stepSize, 0);
             axisTL.recomputePID();
             axisTR.recomputePID();
             axisBL.comply();
@@ -947,7 +943,7 @@ bool Maslow_::move_with_slack(double fromX, double fromY, double toX, double toY
             }
             break;
         case DOWN:
-            setTargets(toX, getTargetY() - stepSize*stepcount, 0);
+            setTargets(toX, getTargetY() - stepSize, 0);
             axisTL.comply();
             axisTR.comply();
             axisBL.recomputePID();
@@ -961,7 +957,7 @@ bool Maslow_::move_with_slack(double fromX, double fromY, double toX, double toY
             }
             break;
         case LEFT:
-            setTargets(getTargetX() - stepSize*stepcount, toY, 0);
+            setTargets(getTargetX() - stepSize, toY, 0);
             axisTL.recomputePID();
             axisTR.comply();
             axisBL.recomputePID();
@@ -975,7 +971,7 @@ bool Maslow_::move_with_slack(double fromX, double fromY, double toX, double toY
             }
             break;
         case RIGHT:
-            setTargets(getTargetX() + stepSize*stepcount, toY, 0);
+            setTargets(getTargetX() + stepSize, toY, 0);
             axisTL.comply();
             axisTR.recomputePID();
             axisBL.comply();
