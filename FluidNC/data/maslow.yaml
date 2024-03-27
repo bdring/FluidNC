@@ -1,7 +1,7 @@
 board: Maslow
 name: Maslow S3 Board
 
-# is the maslow on a stand vertically (true) or on a flat surface (false)
+# Is the maslow on vertical (true) or horizontal (false)
 Maslow_vertical: false
 
 # Define the distance from the anchor points to the corners of the calibration grid in mm
