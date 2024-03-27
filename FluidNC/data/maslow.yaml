@@ -4,17 +4,20 @@ name: Maslow S3 Board
 # is the maslow on a stand vertically (true) or on a flat surface (false)
 Maslow_vertical: false
 
-# <Bar?>, not sure what these are?
+# Define the distance from the anchor points to the corners of the calibration grid in mm
 Maslow_calibration_offset_X: 500
 Maslow_calibration_offset_Y: 500
+
+# Defines the number of points in the calibration grid (X by Y), maximum is 10x10
 Maslow_calibration_size_X: 10
 Maslow_calibration_size_Y: 9
 
 #####################################################################
-# define the frame
+# Define the frame
 #
-# The bottom left is 0,0 and top right is Width by height
-# all values in millimeters!
+# By convention we have defined the bottom left to be (0,0) and the bottom right to be (__,0) but any values are valid.
+# Bottom, top, left, right are defined with relation to the power cord being down looking from the top of the machine.
+# All values in millimeters!
 
 # Top left corner of frame. nominally  0, height
 Maslow_tlX: -27.6
@@ -32,22 +35,22 @@ Maslow_blY: 0
 Maslow_brX: 2953.2
 Maslow_brY: 0
 
-# Z axis values (left and right steppers, bottom and top)
-# <Bar?> why are the sides different here? what are min/max for these?
+# Z axis values 
+# These define the height of the anchor points in relation to each of the arms. You do not need to change these typically
 Maslow_tlZ: 144
 Maslow_trZ: 97
 Maslow_blZ: 75
 Maslow_brZ: 117
 
-# how hard should Maslow pull on the belts to retract before considering them to be all the way in.
-# (<Bar?>, is this milliamps? does it matter? maybe a comment about range?)
+# Sets how hard should Maslow pull on the belts to retract before considering them to be all the way in.
+# Maximum value is 4,000. Arbitrary units.
 Maslow_Retract_Current_Threshold: 1300
-# <Bar?> what is this one for?
+# Sets how hard should Maslow pull on the belts during the calibration process.
 Maslow_Calibration_Current_Threshold: 1300
 
 
 ####################
-# below here should not need to change, these are related to how fluidcnc connects to the board.
+# Below here should not need to change, these are related to how fluidcnc connects to the board.
 
 spi:
   miso_pin: gpio.13
