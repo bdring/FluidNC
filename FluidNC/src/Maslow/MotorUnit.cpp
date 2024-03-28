@@ -333,8 +333,9 @@ bool MotorUnit::onTarget(double precision) {
 
 //Runs the motor to extend at full speed
 void MotorUnit::decompressBelt() {
-    motor.fullOut();
-    _commandPWM = 1023;
+    int decompressSpeed = 800;
+    motor.forward(decompressSpeed);
+    _commandPWM = decompressSpeed;
 }
 
 // Reset all the axis variables
