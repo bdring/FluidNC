@@ -446,7 +446,7 @@ namespace WebUI {
     }
 
     // This is used by pendants to get partial file contents for preview
-    static Error fileShowSome(const char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP221
+    static Error fileShowSome(const char* parameter, AuthenticationLevel auth_level, Channel& out) {
         if (notIdleOrAlarm()) {
             return Error::IdleError;
         }
@@ -517,6 +517,59 @@ namespace WebUI {
 
         j.end();
         return Error::Ok;
+    }
+
+    static Error fileSendJson(const char* parameter, AuthenticationLevel auth_level, Channel& out) {
+        if (notIdleOrAlarm()) {
+            return Error::IdleError;
+        }
+        if (!parameter || !*parameter) {
+            log_error_to(out, "Missing argument");
+            return Error::InvalidValue;
+        }
+
+        std::string fn(parameter);
+
+        if (fn.empty()) {
+            log_error_to(out, "Invalid syntax");
+            return Error::InvalidValue;
+        }
+
+        const char* status = "ok";
+
+        JSONencoder j(true, &out);  // Encapsulated JSON
+        j.begin();
+        j.member("cmd", "$File/SendJSON");
+        j.member("argument", parameter);
+
+        InputFile* theFile;
+        Error      err = Error::Ok;
+        if ((err = openFile(localfsName, fn.c_str(), auth_level, out, theFile)) != Error::Ok) {
+            err    = Error::FsFailedOpenFile;
+            status = "Cannot open file";
+        } else {
+            j.begin_member("result");
+
+            char  fileLine[101];
+            Error res;
+            int   len;
+
+            while ((len = theFile->read(fileLine, 100)) > 0) {
+                fileLine[len] = '\0';
+                // std::string s(fileLine);
+                //                replace_string_in_place(s, "\n", "");
+                j.verbatim(fileLine);
+            }
+            delete theFile;
+            if (len < 0) {
+                status = "File read failed";
+                err    = Error::FsFailedRead;
+            }
+        }
+        j.member("status", status);
+        j.end();
+
+        return err;
     }
 
     static Error runFile(const char* fs, const char* parameter, AuthenticationLevel auth_level, Channel& out) {
@@ -955,6 +1008,7 @@ namespace WebUI {
         new WebCommand("path", WEBCMD, WU, NULL, "LocalFS/Migrate", migrateLocalFS);
         new WebCommand(NULL, WEBCMD, WU, NULL, "LocalFS/Hashes", showLocalFSHashes);
 
+        new WebCommand("path", WEBCMD, WU, NULL, "File/SendJSON", fileSendJson);
         new WebCommand("path", WEBCMD, WU, NULL, "File/ShowSome", fileShowSome);
         new WebCommand("path", WEBCMD, WU, "ESP221", "SD/Show", showSDFile);
         new WebCommand("path", WEBCMD, WU, "ESP220", "SD/Run", runSDFile);

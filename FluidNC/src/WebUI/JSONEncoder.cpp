@@ -33,6 +33,14 @@ namespace WebUI {
         }
     }
 
+    void JSONencoder::verbatim(const std::string& s) {
+        for (auto const c : s) {
+            if (c != '\n') {
+                add(c);
+            }
+        }
+    }
+
     // Private function to add commas between
     // elements as needed, omitting the comma
     // before the first element in a list.
