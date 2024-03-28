@@ -911,14 +911,6 @@ bool Maslow_::move_with_slack(double fromX, double fromY, double toX, double toY
         decompress = false;
     }
 
-    //If our move is taking too long, lets print out some debug information
-    if(millis() - moveBeginTimer > 60000){ 
-        log_warn("Move potentially stuck from: " << fromX << ", " << fromY << " to: " << toX << ", " << toY);
-        log_warn("Current target: " << targetX << ", " << targetY);
-        log_warn("Current direction: " << direction);
-        log_warn("Current pos errors" << axisTL.getPositionError() << ", " << axisTR.getPositionError() << ", " << axisBL.getPositionError() << ", " << axisBR.getPositionError());
-    }
-
     //Decompress belts for 500ms...this happens by returning right away before running any of the rest of the code
     if (millis() - moveBeginTimer < 750) {
         if (orientation == VERTICAL) {
@@ -927,10 +919,24 @@ bool Maslow_::move_with_slack(double fromX, double fromY, double toX, double toY
             axisBL.decompressBelt();
             axisBR.decompressBelt();
         } else {
-            axisTL.decompressBelt();
-            axisTR.decompressBelt();
-            axisBL.decompressBelt();
-            axisBR.decompressBelt();
+            switch (direction) {
+                case UP:
+                    axisBL.decompressBelt();
+                    axisBR.decompressBelt();
+                    break;
+                case DOWN:
+                    axisTL.decompressBelt();
+                    axisTR.decompressBelt();
+                    break;
+                case LEFT:
+                    axisTR.decompressBelt();
+                    axisBR.decompressBelt();
+                    break;
+                case RIGHT:
+                    axisTL.decompressBelt();
+                    axisBL.decompressBelt();
+                    break;
+            }
         }
 
         return false;
