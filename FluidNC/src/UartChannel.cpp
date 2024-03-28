@@ -122,7 +122,7 @@ void UartChannel::out(const std::string& s, const char* tag) {
 }
 
 void UartChannel::out_acked(const std::string& s, const char* tag) {
-    out(s, tag);
+    log_stream(*this, "[" << tag << s);
 }
 
 UartChannel Uart0(0, true);  // Primary serial channel with LF to CRLF conversion

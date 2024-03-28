@@ -825,6 +825,14 @@ static Error setReportInterval(const char* value, WebUI::AuthenticationLevel aut
     return Error::Ok;
 }
 
+static Error sendAlarm(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+    int       intValue = value ? atoi(value) : 0;
+    ExecAlarm alarm    = static_cast<ExecAlarm>(intValue);
+    log_debug("Sending alarm " << intValue << " " << alarmString(alarm));
+    send_alarm(alarm);
+    return Error::Ok;
+}
+
 static Error showHeap(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
     log_info("Heap free: " << xPortGetFreeHeapSize() << " min: " << heapLowWater);
     return Error::Ok;
@@ -888,6 +896,7 @@ void make_user_commands() {
     new UserCommand("N", "GCode/StartupLines", show_startup_lines, notIdleOrAlarm);
     new UserCommand("RST", "Settings/Restore", restore_settings, notIdleOrAlarm, WA);
 
+    new UserCommand("SA", "Alarm/Send", sendAlarm, anyState);
     new UserCommand("Heap", "Heap/Show", showHeap, anyState);
     new UserCommand("SS", "Startup/Show", showStartupLog, anyState);
 
