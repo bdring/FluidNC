@@ -381,32 +381,7 @@ void Maslow_::calibration_loop() {
         }
     }
 
-    //travel to the start point
-    else if (waypoint == 0) {
-        //move to the start point
-        static bool two_step_move_flag = false;
-
-        //first perform a Y move
-        if (!two_step_move_flag) {
-            if (move_with_slack(0, 0, 0, calibrationGrid[0][1])) {
-                two_step_move_flag = true;
-            }
-        }
-        //then perform an X move
-        else {
-            if (move_with_slack(0, calibrationGrid[0][1], calibrationGrid[0][0], calibrationGrid[0][1])) {
-                measurementInProgress = true;
-                direction             = get_direction(0, calibrationGrid[0][1], calibrationGrid[0][0], calibrationGrid[0][1]);
-                x                  = calibrationGrid[0][0];
-                y                  = calibrationGrid[0][1];
-                two_step_move_flag = false;  // reset if we ever want to rerun the calibratrion
-                hold(250);
-            }
-        }
-
-    }
-
-    //perform the calibrartion steps in the grid
+    //Move to the next point in the grid
     else {
         if (move_with_slack(calibrationGrid[waypoint - 1][0],
                             calibrationGrid[waypoint - 1][1],
@@ -1036,13 +1011,22 @@ bool Maslow_::generate_calibration_grid() {
         return false;
     }
 
-    pointCount = 0;
-
     double trX_adjusted = trX - (2*calibration_grid_offset_X); // shrink the grid by calibration_grid_offset in X direction
     double trY_adjusted = trY - (2*calibration_grid_offset_Y); // shrink the grid by calibration_grid_offset in Y direction
 
     double deltaX = trX_adjusted / (calibrationGridSizeX - 1);
     double deltaY = trY_adjusted / (calibrationGridSizeY - 1);
+
+    pointCount = 2; //Offset by 2 to account for the points moving to the start
+
+    //Manually add the first two points used for taking up the slack while moving to the first true point
+    calibrationGrid[0][0] = 0;
+    calibrationGrid[0][1] = 0;
+    calibrationGrid[1][0] = 0;
+    calibrationGrid[1][1] = -trY_adjusted / 2;
+
+    log_info("Point: 0 (0, 0)");
+    log_info("Point: 1 (0, " << -trY_adjusted / 2 << ")");
 
     for (int x = 0; x < calibrationGridSizeX; x++) {
         if (x % 2 == 0) { // For even columns, go bottom to top
