@@ -7,7 +7,7 @@
 #include "../WebUI/WifiConfig.h"
 
 // Maslow specific defines
-#define VERSION_NUMBER "0.65"
+#define VERSION_NUMBER "0.66"
 
 #define TLEncoderLine 2
 #define TREncoderLine 1
@@ -515,7 +515,9 @@ void Maslow_::safety_control() {
             panicCounter[i]++;
             if (panicCounter[i] > tresholdHitsBeforePanic) {
                 log_error("Motor current on " << axis_id_to_label(i).c_str() << " axis exceeded threshold of " << 4000);
-                //Maslow.panic();
+                if(!calibrationInProgress){
+                    Maslow.panic();
+                }
                 tick[i] = true;
             }
         } else {
