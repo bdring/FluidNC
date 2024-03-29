@@ -1118,8 +1118,8 @@ void Maslow_::runCalibration() {
     stop();
 
     //if not all axis are homed, we can't run calibration, OR if the user hasnt entered width and height?
-    if (!all_axis_homed()) {
-        log_error("Cannot run calibration until all axis are retracted and extended");
+    if (!allAxisExtended()) {
+        log_error("Cannot run calibration until all axis are extended fully");
         sys.set_state(State::Idle);
         return;
     }
@@ -1164,8 +1164,8 @@ void Maslow_::set_frame_height(double height) {
 }
 void Maslow_::take_slack() {
     //if not all axis are homed, we can't take the slack up
-    if (!all_axis_homed()) {
-        log_error("Cannot take slack until all axis are retracted and extended");
+    if (!allAxisExtended()) {
+        log_error("Cannot take slack until all axis are extended fully");
         sys.set_state(State::Idle);
         return;
     }
