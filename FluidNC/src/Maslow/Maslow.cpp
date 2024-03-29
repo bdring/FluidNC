@@ -858,7 +858,6 @@ bool Maslow_::move_with_slack(double fromX, double fromY, double toX, double toY
     //We only want to decompress at the beginning of each move
     if (decompress) {
         moveBeginTimer = millis();
-        log_info("Beginning move");
         decompress = false;
         direction = get_direction(fromX, fromY, toX, toY);
     }
@@ -943,7 +942,6 @@ bool Maslow_::move_with_slack(double fromX, double fromY, double toX, double toY
                 stopMotors();
                 reset_all_axis();
                 decompress = true;  //Reset for the next pass
-                log_info("Move completed");
                 return true;
             }
             break;
@@ -953,7 +951,6 @@ bool Maslow_::move_with_slack(double fromX, double fromY, double toX, double toY
                 stopMotors();
                 reset_all_axis();
                 decompress = true;  //Reset for the next pass
-                log_info("Move completed");
                 return true;
             }
             break;
@@ -963,7 +960,6 @@ bool Maslow_::move_with_slack(double fromX, double fromY, double toX, double toY
                 stopMotors();
                 reset_all_axis();
                 decompress = true;  //Reset for the next pass
-                log_info("Move completed");
                 return true;
             }
             break;
@@ -973,7 +969,6 @@ bool Maslow_::move_with_slack(double fromX, double fromY, double toX, double toY
                 stopMotors();
                 reset_all_axis();
                 decompress = true;  //Reset for the next pass
-                log_info("Move completed");
                 return true;
             }
             break;

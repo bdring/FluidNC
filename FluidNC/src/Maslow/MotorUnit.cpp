@@ -118,7 +118,7 @@ double MotorUnit::getPositionError() {
     return getPosition() - setpoint;
 }
 
-// Recomputes the PID and drives the output...there are two seperate functions with the same name which needs to be fixed 
+// Recomputes the PID and drives the output
 double MotorUnit::recomputePID() {
     _commandPWM = positionPID.getOutput(getPosition(), setpoint);
 
