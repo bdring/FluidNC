@@ -540,7 +540,7 @@ void Maslow_::safety_control() {
             panicCounter[i]++;
             if (panicCounter[i] > tresholdHitsBeforePanic) {
                 log_error("Motor current on " << axis_id_to_label(i).c_str() << " axis exceeded threshold of " << 4000);
-                Maslow.panic();
+                //Maslow.panic();
                 tick[i] = true;
             }
         } else {
@@ -925,15 +925,45 @@ bool Maslow_::move_with_slack(double fromX, double fromY, double toX, double toY
         stopMotors();
         return false;
     }
+    if(orientation == VERTICAL){
+        axisTL.recomputePID();
+        axisTR.recomputePID();
+        axisBL.comply();
+        axisBR.comply();
+    }
+    else{
+        switch (direction) {
+            case UP:
+                axisTL.recomputePID();
+                axisTR.recomputePID();
+                axisBL.comply();
+                axisBR.comply();
+                break;
+            case DOWN:
+                axisTL.comply();
+                axisTR.comply();
+                axisBL.recomputePID();
+                axisBR.recomputePID();
+                break;
+            case LEFT:
+                axisTL.recomputePID();
+                axisTR.comply();
+                axisBL.recomputePID();
+                axisBR.comply();
+                break;
+            case RIGHT:
+                axisTL.comply();
+                axisTR.recomputePID();
+                axisBL.comply();
+                axisBR.recomputePID();
+                break;
+        }
+    }
 
     //This system of setting the final target and then waiting until we get there doesn't feel good to me
     switch (direction) {
         case UP:
             setTargets(toX, getTargetY() + stepSize, 0);
-            axisTL.recomputePID();
-            axisTR.recomputePID();
-            axisBL.comply();
-            axisBR.comply();
             if (getTargetY() > toY) {
                 stopMotors();
                 reset_all_axis();
@@ -944,10 +974,6 @@ bool Maslow_::move_with_slack(double fromX, double fromY, double toX, double toY
             break;
         case DOWN:
             setTargets(toX, getTargetY() - stepSize, 0);
-            axisTL.comply();
-            axisTR.comply();
-            axisBL.recomputePID();
-            axisBR.recomputePID();
             if (getTargetY() < toY) {
                 stopMotors();
                 reset_all_axis();
@@ -958,10 +984,6 @@ bool Maslow_::move_with_slack(double fromX, double fromY, double toX, double toY
             break;
         case LEFT:
             setTargets(getTargetX() - stepSize, toY, 0);
-            axisTL.recomputePID();
-            axisTR.comply();
-            axisBL.recomputePID();
-            axisBR.comply();
             if (getTargetX() < toX){
                 stopMotors();
                 reset_all_axis();
@@ -972,10 +994,6 @@ bool Maslow_::move_with_slack(double fromX, double fromY, double toX, double toY
             break;
         case RIGHT:
             setTargets(getTargetX() + stepSize, toY, 0);
-            axisTL.comply();
-            axisTR.recomputePID();
-            axisBL.comply();
-            axisBR.recomputePID();
             if (getTargetX() > toX){
                 stopMotors();
                 reset_all_axis();
@@ -991,10 +1009,6 @@ bool Maslow_::move_with_slack(double fromX, double fromY, double toX, double toY
 // Direction from maslow current coordinates to the target coordinates
 int Maslow_::get_direction(double x, double y, double targetX, double targetY) {
     int direction = UP;
-
-    if (orientation == VERTICAL){
-        return UP;
-    }
 
     if (targetX - x > 1) {
         direction = RIGHT;
