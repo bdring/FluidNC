@@ -9,7 +9,7 @@
 
 #define TCAADDR 0x70
 
-#define CALIBRATION_GRID_SIZE_MAX 10*10
+#define CALIBRATION_GRID_SIZE_MAX (10*10)+2
 
 #define UP 1
 #define DOWN 2
