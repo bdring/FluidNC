@@ -374,7 +374,7 @@ bool Maslow_::takeSlackFunc() {
         if (take_measurement_avg_with_check(0, UP)) {
 
             double offset = _beltEndExtension + _armLength;
-            double threshold = 10;
+            double threshold = 15;
 
             float diffTL = calibration_data[0][0] - offset - computeTL(0, 0, 0);
             float diffTR = calibration_data[1][0] - offset - computeTR(0, 0, 0);
