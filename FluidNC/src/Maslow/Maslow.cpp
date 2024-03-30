@@ -355,11 +355,6 @@ bool Maslow_::takeSlackFunc() {
     static float startingX    = 0;
     static float startingY    = 0;
 
-    if(random(1000) == 0){
-        log_info("State: " << takeSlackState);
-    }
-
-
     //Initialize
     if (takeSlackState == 0) {
         takeSlackState = 1;
@@ -371,7 +366,6 @@ bool Maslow_::takeSlackFunc() {
     if(takeSlackState == 1){
         if (move_with_slack(startingX, startingY, 0, 0)) {
             takeSlackState = 2;
-            return true;
         }
     }
 
