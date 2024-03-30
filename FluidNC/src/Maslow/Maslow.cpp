@@ -334,27 +334,80 @@ void Maslow_::home() {
     if (calibrationInProgress) {
         calibration_loop();
     }
-    // TODO warning, this will not work properly (potentially break things) outside center position
-    if (takeSlack) {
-        if (take_measurement_avg_with_check(0, UP)) {
-            double off = _beltEndExtension + _armLength;
-
-            // float diffTL = calibration_data[0][0] - off - computeTL(0, 0, 0);
-            // float diffTR = calibration_data[1][0] - off - computeTR(0, 0, 0);
-            // float diffBL = calibration_data[2][0] - off - computeBL(0, 0, 0);
-            // float diffBR = calibration_data[3][0] - off - computeBR(0, 0, 0);
-            // log_info("Center point deviation: TL: " << diffTL << " TR: " << diffTR << " BL: " << diffBL << " BR: " << diffBR);
-            // if (abs(diffTL) > 5 || abs(diffTR) > 5 || abs(diffBL) > 5 || abs(diffBR) > 5) {
-            //     log_error("Center point deviation over 5mmm, your coordinate system is not accurate, maybe try running calibration again?");
-            // }
+    // Runs the take slack sequence
+    if(takeSlack){
+        if (takeSlackFunc()) {
             takeSlack = false;
         }
     }
+
     //if we are done with all the homing moves, switch system state back to Idle?
     if (!retractingTL && !retractingBL && !retractingBR && !retractingTR && !extendingALL && !complyALL && !calibrationInProgress &&
         !takeSlack) {
         sys.set_state(State::Idle);
     }
+}
+
+//Moves to 0,0 takes a measurement
+bool Maslow_::takeSlackFunc() {
+    static int takeSlackState = 0; //0 -> Starting, 1-> Moving to (0,0), 2-> Taking a measurement
+    static unsigned long holdTimer = millis();
+    static float startingX    = 0;
+    static float startingY    = 0;
+
+    //Initialize
+    if (takeSlackState == 0) {
+        takeSlackState = 1;
+        startingX   = getTargetX();
+        startingY   = getTargetY();
+    }
+
+    //Move to (0,0)
+    if(takeSlackState == 1){
+        if (move_with_slack(startingX, startingY, 0, 0)) {
+            takeSlackState = 2;
+        }
+    }
+
+    //Take a measurement
+    if(takeSlackState == 2){
+        if (take_measurement_avg_with_check(0, UP)) {
+
+            double offset = _beltEndExtension + _armLength;
+            double threshold = 15;
+
+            float diffTL = calibration_data[0][0] - offset - computeTL(0, 0, 0);
+            float diffTR = calibration_data[1][0] - offset - computeTR(0, 0, 0);
+            float diffBL = calibration_data[2][0] - offset - computeBL(0, 0, 0);
+            float diffBR = calibration_data[3][0] - offset - computeBR(0, 0, 0);
+            log_info("Center point deviation: TL: " << diffTL << " TR: " << diffTR << " BL: " << diffBL << " BR: " << diffBR);
+            if (abs(diffTL) > threshold || abs(diffTR) > threshold || abs(diffBL) > threshold || abs(diffBR) > threshold) {
+                log_error("Center point deviation over " << threshold << "mmm, your coordinate system is not accurate, maybe try running calibration again?");
+                //Should we enter an alarm state here to prevent things from going wrong?
+                
+                //Reset
+                takeSlackState = 0;
+                return true; 
+            }
+            else{
+                log_info("Center point deviation within " << threshold << "mm, your coordinate system is accurate");
+                takeSlackState = 3;
+                holdTimer = millis();
+            }
+        }
+    }
+
+    //Position hold for 2 seconds
+    if(takeSlackState == 3){
+        if(millis() - holdTimer > 2000){
+            takeSlackState = 0;
+            return true;
+        }
+    }
+
+
+
+    return false;
 }
 
 // --Maslow calibration loop
