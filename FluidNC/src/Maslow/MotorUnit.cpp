@@ -24,6 +24,7 @@ void MotorUnit::begin(int forwardPin, int backwardPin, int readbackPin, int enco
     if (!encoder.begin()) {
         log_error("Encoder not found on " << Maslow.axis_id_to_label(_encoderAddress).c_str());
         Maslow.error = true;
+        Maslow.errorMessage = "Encoder not found on " + Maslow.axis_id_to_label(_encoderAddress);
     } else {
         log_info("Encoder connected on " << Maslow.axis_id_to_label(_encoderAddress).c_str());
     }
@@ -37,6 +38,7 @@ void MotorUnit::begin(int forwardPin, int backwardPin, int readbackPin, int enco
     if (!motor_test()) {
         log_error("Motor not found on " << Maslow.axis_id_to_label(_encoderAddress).c_str());
         Maslow.error = true;
+        Maslow.errorMessage = "Motor not found on " + Maslow.axis_id_to_label(_encoderAddress);
     } else {
         log_info("Motor detected on " << Maslow.axis_id_to_label(_encoderAddress).c_str());
     }
@@ -47,6 +49,7 @@ bool MotorUnit::test() {
     if (!motor_test()) {
         log_warn("Motor not found on " << Maslow.axis_id_to_label(_encoderAddress).c_str());
         Maslow.error = true;
+        Maslow.errorMessage = "Motor not found on " + Maslow.axis_id_to_label(_encoderAddress);
     } else {
         log_info("Motor detected on " << Maslow.axis_id_to_label(_encoderAddress).c_str());
     }
@@ -54,6 +57,7 @@ bool MotorUnit::test() {
     if (!updateEncoderPosition()) {
         log_warn("Encoder not found on " << Maslow.axis_id_to_label(_encoderAddress).c_str());
         Maslow.error = true;
+        Maslow.errorMessage = "Encoder not found on " + Maslow.axis_id_to_label(_encoderAddress);
     } else {
         log_info("Encoder connected on " << Maslow.axis_id_to_label(_encoderAddress).c_str());
     }

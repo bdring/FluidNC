@@ -122,6 +122,7 @@ public:
     float  calibration_grid_offset_Y                 = 500;  // mm offset from the edge of the frame
     double calibrationDataWaiting                    = -1;   //-1 if data is not waiting, other wise the milis since the data was last sent
     bool   error                                     = false;
+    String errorMessage;
     bool   generate_calibration_grid();
     bool   move_with_slack(double fromX, double fromY, double toX, double toY);
     int    get_direction(double x, double y, double targetX, double targetY);
