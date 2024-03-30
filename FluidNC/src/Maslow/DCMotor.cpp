@@ -135,8 +135,7 @@ void DCMotor::highZ() {
  *  multisampling to smooth signal
  *  NOTE: ESP32 adcs are non-linear and have deadzones at top and bottom.
  *        This value bottoms out above 0mA!
- *  @return Calibrated reading of current in mA.
- *  NOTE: Converted to return percentage. Actual accuracy is not particularly important.
+ *  @return Reading of current is in arbitrary units. 0 is no current, 4095 is max. TODO: Compute max in mA based on resistor choices.
  *
  */
 double DCMotor::readCurrent() {

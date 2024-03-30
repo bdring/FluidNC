@@ -25,7 +25,6 @@ public:
     void   stop();
     bool   updateEncoderPosition();
     double recomputePID();
-    double recomputePID(double maxSpeed);
     void   decompressBelt();
     bool   comply();
     bool   retract();

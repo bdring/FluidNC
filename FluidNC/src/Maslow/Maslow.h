@@ -9,7 +9,7 @@
 
 #define TCAADDR 0x70
 
-#define CALIBRATION_GRID_SIZE_MAX 10*10
+#define CALIBRATION_GRID_SIZE_MAX (10*10)+2
 
 #define UP 1
 #define DOWN 2
@@ -122,11 +122,13 @@ public:
     float  calibration_grid_offset_Y                 = 500;  // mm offset from the edge of the frame
     double calibrationDataWaiting                    = -1;   //-1 if data is not waiting, other wise the milis since the data was last sent
     bool   error                                     = false;
+    String errorMessage;
     bool   generate_calibration_grid();
     bool   move_with_slack(double fromX, double fromY, double toX, double toY);
     int    get_direction(double x, double y, double targetX, double targetY);
     bool   take_measurement_avg_with_check(int waypoint, int dir);
     bool   take_measurement(int waypoint, int dir, int run);
+    bool   takeSlackFunc();
     void   test_();
     void   calibration_loop();
     void   print_calibration_data();

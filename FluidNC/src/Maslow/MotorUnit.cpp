@@ -24,6 +24,7 @@ void MotorUnit::begin(int forwardPin, int backwardPin, int readbackPin, int enco
     if (!encoder.begin()) {
         log_error("Encoder not found on " << Maslow.axis_id_to_label(_encoderAddress).c_str());
         Maslow.error = true;
+        Maslow.errorMessage = "Encoder not found on " + Maslow.axis_id_to_label(_encoderAddress);
     } else {
         log_info("Encoder connected on " << Maslow.axis_id_to_label(_encoderAddress).c_str());
     }
@@ -37,6 +38,7 @@ void MotorUnit::begin(int forwardPin, int backwardPin, int readbackPin, int enco
     if (!motor_test()) {
         log_error("Motor not found on " << Maslow.axis_id_to_label(_encoderAddress).c_str());
         Maslow.error = true;
+        Maslow.errorMessage = "Motor not found on " + Maslow.axis_id_to_label(_encoderAddress);
     } else {
         log_info("Motor detected on " << Maslow.axis_id_to_label(_encoderAddress).c_str());
     }
@@ -47,6 +49,7 @@ bool MotorUnit::test() {
     if (!motor_test()) {
         log_warn("Motor not found on " << Maslow.axis_id_to_label(_encoderAddress).c_str());
         Maslow.error = true;
+        Maslow.errorMessage = "Motor not found on " + Maslow.axis_id_to_label(_encoderAddress);
     } else {
         log_info("Motor detected on " << Maslow.axis_id_to_label(_encoderAddress).c_str());
     }
@@ -54,6 +57,7 @@ bool MotorUnit::test() {
     if (!updateEncoderPosition()) {
         log_warn("Encoder not found on " << Maslow.axis_id_to_label(_encoderAddress).c_str());
         Maslow.error = true;
+        Maslow.errorMessage = "Encoder not found on " + Maslow.axis_id_to_label(_encoderAddress);
     } else {
         log_info("Encoder connected on " << Maslow.axis_id_to_label(_encoderAddress).c_str());
     }
@@ -179,17 +183,20 @@ bool MotorUnit::retract() {
 
 // Pulls the belt until we hit a current treshold; returns true when done
 bool MotorUnit::pull_tight(int currentThreshold) {
-    //call every 5ms
+    //call at most every 5ms
     if (millis() - lastCallToRetract < 5) {
         return false;
     }
-
     lastCallToRetract = millis();
+
     //Gradually increase the pulling speed
-    if (random(0, 2) == 1)
+    if (random(0, 2) == 1){
         retract_speed = min(retract_speed + 1, 1023);
+    }
+
     motor.backward(retract_speed);
-    _commandPWM = -retract_speed;
+    _commandPWM = -retract_speed; //This is only used for the getPWM function. There's got to be a tidier way to do this.
+
     //When taught
     int currentMeasurement = motor.readCurrent();
 
@@ -200,17 +207,10 @@ bool MotorUnit::pull_tight(int currentThreshold) {
     } else {
         incrementalThresholdHits = 0;
     }
-    //EXPERIMENTAL, added because my BR current sensor is faulty, but might be an OK precaution
-    //monitor the position change speed
-    bool beltStalled = false;
-    // if(retract_speed > 450 ){ // skip the start, might create problems if the belt is slackking a lot, but you can always run it many times
-    //     if(abs(beltSpeed) < 0.1){
-    //         beltStalled = true;
-    //     }
-    // }
-    if (retract_speed > 75) {
-        if (currentMeasurement > currentThreshold || incrementalThresholdHits > 2 ||
-            beltStalled) {  //changed from 4 to 2 to prevent overtighting
+
+
+    if (retract_speed > 75) { //75 is not the actual speed, it is the amount of time so we don't trigger immediately
+        if (currentMeasurement > currentThreshold || incrementalThresholdHits > 2) {
             //stop motor, reset variables
             stop();
             retract_speed    = 0;
@@ -238,38 +238,6 @@ bool MotorUnit::extend(double targetLength) {
     //log_info("Belt positon after extend: ");
     //log_info(getPosition());
     return true;
-}
-
-// Recomputes the PID and drives the output at speed constrained by maxSpeed
-double MotorUnit::recomputePID(double maxSpeed) {
-    //in horizontal comply if belt needs to be extended
-    if (Maslow.orientation == HORIZONTAL) {
-        if (setpoint - getPosition() < 0.25) {
-            _commandPWM = positionPID.getOutput(getPosition(), setpoint);
-            if (_commandPWM < -maxSpeed)
-                _commandPWM = -maxSpeed;
-            else if (_commandPWM > maxSpeed)
-                _commandPWM = maxSpeed;
-
-            motor.runAtPWM(_commandPWM);
-
-        }
-        //if releasing belt, just comply till get to point one way or another
-        else {
-            comply();
-        }
-    }
-    //in vertical just run it regularly
-    else {
-        _commandPWM = positionPID.getOutput(getPosition(), setpoint);
-        if (_commandPWM < -maxSpeed)
-            _commandPWM = -maxSpeed;
-        else if (_commandPWM > maxSpeed)
-            _commandPWM = maxSpeed;
-
-        motor.runAtPWM(_commandPWM);
-    }
-    return _commandPWM;
 }
 
 //------------------------------------------------------
@@ -333,8 +301,9 @@ bool MotorUnit::onTarget(double precision) {
 
 //Runs the motor to extend at full speed
 void MotorUnit::decompressBelt() {
-    motor.fullOut();
-    _commandPWM = 1023;
+    int decompressSpeed = 800;
+    motor.forward(decompressSpeed);
+    _commandPWM = decompressSpeed;
 }
 
 // Reset all the axis variables
