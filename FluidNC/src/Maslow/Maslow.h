@@ -128,6 +128,7 @@ public:
     int    get_direction(double x, double y, double targetX, double targetY);
     bool   take_measurement_avg_with_check(int waypoint, int dir);
     bool   take_measurement(int waypoint, int dir, int run);
+    bool   takeSlackFunc();
     void   test_();
     void   calibration_loop();
     void   print_calibration_data();
