@@ -101,6 +101,7 @@ void Maslow_::update() {
             st = !st;
             digitalWrite(REDLED, st);
             timer = millis();
+            log_error(errorMessage.c_str());
         }
         return;
     }
@@ -1304,6 +1305,8 @@ void Maslow_::eStop() {
     log_warn("The machine will not respond until turned off and back on again");
     stop();
     error = true;
+    errorMessage = "Emergency stop triggered.";
+    sys.set_state(State::Alarm);
 }
 
 // Get's the most recently set target position in X
