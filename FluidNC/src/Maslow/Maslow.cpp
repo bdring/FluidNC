@@ -383,6 +383,7 @@ bool Maslow_::takeSlackFunc() {
             log_info("Center point deviation: TL: " << diffTL << " TR: " << diffTR << " BL: " << diffBL << " BR: " << diffBR);
             if (abs(diffTL) > threshold || abs(diffTR) > threshold || abs(diffBL) > threshold || abs(diffBR) > threshold) {
                 log_error("Center point deviation over " << threshold << "mmm, your coordinate system is not accurate, maybe try running calibration again?");
+                //Should we enter an alarm state here to prevent things from going wrong?
                 
                 //Reset
                 takeSlackState = 0;
