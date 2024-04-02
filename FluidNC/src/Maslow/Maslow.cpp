@@ -313,20 +313,19 @@ void Maslow_::home() {
     // $CMP - comply mode
     if (complyALL) {
         //decompress belts for the first half second
-        if (millis() - complyCallTimer < 700) {
-            if (millis() - complyCallTimer > 0)
-                axisBR.decompressBelt();
-            if (millis() - complyCallTimer > 150)
-                axisBL.decompressBelt();
-            if (millis() - complyCallTimer > 250)
-                axisTR.decompressBelt();
-            if (millis() - complyCallTimer > 350)
-                axisTL.decompressBelt();
-        } else {
+        if (millis() - complyCallTimer < 100) {
+            axisBR.decompressBelt();
+            axisBL.decompressBelt();
+            axisTR.decompressBelt();
+            axisTL.decompressBelt();
+        } else if(millis() - complyCallTimer < 800){
             axisTL.comply();
             axisTR.comply();
             axisBL.comply();
             axisBR.comply();
+        }
+        else {
+            complyALL = false;
         }
     }
 
@@ -1190,7 +1189,7 @@ void Maslow_::comply() {
     retractingBR    = false;
     extendingALL    = false;
     complyALL       = true;
-    axisTL.reset();
+    axisTL.reset(); //This just resets the thresholds for pull tight
     axisTR.reset();
     axisBL.reset();
     axisBR.reset();
