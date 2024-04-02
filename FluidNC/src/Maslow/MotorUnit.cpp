@@ -46,6 +46,7 @@ void MotorUnit::begin(int forwardPin, int backwardPin, int readbackPin, int enco
 
 //Test the motor unit by testing the motor and checking the encoder
 bool MotorUnit::test() {
+    //Check if the motor / motor driver are connected
     if (!motor_test()) {
         log_warn("Motor not found on " << Maslow.axis_id_to_label(_encoderAddress).c_str());
         Maslow.error = true;
@@ -54,12 +55,20 @@ bool MotorUnit::test() {
         log_info("Motor detected on " << Maslow.axis_id_to_label(_encoderAddress).c_str());
     }
 
+    //Check if the encoder is connected
     if (!updateEncoderPosition()) {
         log_warn("Encoder not found on " << Maslow.axis_id_to_label(_encoderAddress).c_str());
         Maslow.error = true;
         Maslow.errorMessage = "Encoder not found on " + Maslow.axis_id_to_label(_encoderAddress);
     } else {
         log_info("Encoder connected on " << Maslow.axis_id_to_label(_encoderAddress).c_str());
+    }
+
+    //Check for the presence of the magnet
+    if (!encoder.detectMagnet()) {
+        log_warn("Magnet not detected on " << Maslow.axis_id_to_label(_encoderAddress).c_str());
+    } else {
+        log_info("Magnet detected on " << Maslow.axis_id_to_label(_encoderAddress).c_str());
     }
 
     return !Maslow.error;
