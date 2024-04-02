@@ -965,7 +965,6 @@ static Error maslow_BRI(const char* value, WebUI::AuthenticationLevel auth_level
         return Error::ConfigurationInvalid;
     }
     sys.set_state(State::Homing);
-    log_info("BRI seen here");
     Maslow.BRI();
     return Error::Ok;
 }
