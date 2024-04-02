@@ -341,9 +341,11 @@ void Maslow_::home() {
         }
     }
 
+    handleMotorOverides();
+
     //if we are done with all the homing moves, switch system state back to Idle?
     if (!retractingTL && !retractingBL && !retractingBR && !retractingTR && !extendingALL && !complyALL && !calibrationInProgress &&
-        !takeSlack) {
+        !takeSlack && !checkOverides()) {
         sys.set_state(State::Idle);
     }
 }
@@ -1195,6 +1197,124 @@ void Maslow_::comply() {
     axisBL.reset();
     axisBR.reset();
 }
+
+
+//These are used to force one motor to rotate
+void Maslow_::TLI(){
+    TLIOveride = true;
+    overideTimer = millis();
+}
+void Maslow_::TRI(){
+    TRIOveride = true;
+    overideTimer = millis();
+}
+void Maslow_::BLI(){
+    BLIOveride = true;
+    overideTimer = millis();
+}
+void Maslow_::BRI(){
+    BRIOveride = true;
+    log_info("BRI in Maslow seen");
+    overideTimer = millis();
+}
+void Maslow_::TLO(){
+    TLOOveride = true;
+    overideTimer = millis();
+}
+void Maslow_::TRO(){
+    TROOveride = true;
+    overideTimer = millis();
+}
+void Maslow_::BLO(){
+    BLOOveride = true;
+    overideTimer = millis();
+}
+void Maslow_::BRO(){
+    BROOveride = true;
+    overideTimer = millis();
+}
+void Maslow_::handleMotorOverides(){
+    if(TLIOveride){
+        log_info(int(millis() - overideTimer));
+        if(millis() - overideTimer < 200){
+            axisTL.fullIn();
+        }else{
+            TLIOveride = false;
+            axisTL.stop();
+        }
+    }
+    if(BRIOveride){
+        log_info(int(millis() - overideTimer));
+        if(millis() - overideTimer < 200){
+            axisBR.fullIn();
+        }else{
+            BRIOveride = false;
+            axisBR.stop();
+        }
+    }
+    if(TRIOveride){
+        log_info(int(millis() - overideTimer));
+        if(millis() - overideTimer < 200){
+            axisTR.fullIn();
+        }else{
+            TRIOveride = false;
+            axisTR.stop();
+        }
+    }
+    if(BLIOveride){
+        log_info(int(millis() - overideTimer));
+        if(millis() - overideTimer < 200){
+            axisBL.fullIn();
+        }else{
+            BLIOveride = false;
+            axisBL.stop();
+        }
+    }
+    if(TLOOveride){
+        log_info(int(millis() - overideTimer));
+        if(millis() - overideTimer < 200){
+            axisTL.fullOut();
+        }else{
+            TLOOveride = false;
+            axisTL.stop();
+        }
+    }
+    if(BROOveride){
+        log_info(int(millis() - overideTimer));
+        if(millis() - overideTimer < 200){
+            axisBR.fullOut();
+        }else{
+            BROOveride = false;
+            axisBR.stop();
+        }
+    }
+    if(TROOveride){
+        log_info(int(millis() - overideTimer));
+        if(millis() - overideTimer < 200){
+            axisTR.fullOut();
+        }else{
+            TROOveride = false;
+            axisTR.stop();
+        }
+    }
+    if(BLOOveride){
+        log_info(int(millis() - overideTimer));
+        if(millis() - overideTimer < 200){
+            axisBL.fullOut();
+        }else{
+            BLOOveride = false;
+            axisBL.stop();
+        }
+    }
+}
+
+bool Maslow_::checkOverides(){
+    if(TLIOveride || TRIOveride || BLIOveride || BRIOveride || TLOOveride || TROOveride || BLOOveride || BROOveride){
+        return true;
+    }
+    return false;
+}
+
 void Maslow_::setSafety(bool state) {
     safetyOn = state;
 }

@@ -315,6 +315,17 @@ void MotorUnit::decompressBelt() {
     _commandPWM = decompressSpeed;
 }
 
+//Runs the motor at full speed out
+void MotorUnit::fullOut() {
+    motor.fullOut();
+    _commandPWM = 1023;
+}
+//Runs the motor at full speed in
+void MotorUnit::fullIn() {
+    motor.fullIn();
+    _commandPWM = 1023;
+}
+
 // Reset all the axis variables
 void MotorUnit::reset() {
     retract_speed            = 0;
