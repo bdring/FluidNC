@@ -91,6 +91,18 @@ public:
 
     bool safetyOn = true;
 
+    //Used to override and drive the motors directly
+    void TLI();
+    void TRI();
+    void BLI();
+    void BRI();
+    void TLO();
+    void TRO();
+    void BLO();
+    void BRO();
+    void handleMotorOverides();
+    bool checkOverides();
+
     //These are the current targets set by the setTargets function used for moving the machine during normal operations
     double targetX = 0;
     double targetY = 0;
@@ -183,6 +195,18 @@ private:
 
     //How hard to pull the belts when taking a measurement
     int currentThreshold;
+
+    //Used to overide and drive motors directly...dangerous
+    bool TLIOveride = false;
+    bool TRIOveride = false;
+    bool BLIOveride = false;
+    bool BRIOveride = false;
+    bool TLOOveride = false;
+    bool TROOveride = false;
+    bool BLOOveride = false;
+    bool BROOveride = false;
+    unsigned long overideTimer = millis();
+
 };
 
 extern Maslow_& Maslow;
