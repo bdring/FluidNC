@@ -31,6 +31,8 @@ public:
     bool   extend(double targetLength);
     bool   pull_tight(int currentThreshold);
     bool   motor_test();
+    void   fullOut();
+    void   fullIn();
     bool   test();
     void   reset();  //resetting variables here, because of non-blocking, maybe there's a better way to do this
 
