@@ -1329,7 +1329,6 @@ void Maslow_::test_() {
     axisBL.test();
     axisBR.test();
 
-    generate_calibration_grid();
 }
 void Maslow_::set_frame_width(double width) {
     trX = width;
