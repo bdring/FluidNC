@@ -332,7 +332,7 @@ void MotorUnit::reset() {
     retract_baseline         = 700;
     incrementalThresholdHits = 0;
     amtToMove                = 0;
-    lastPosition             = getPosition(); //Is this safe? 
+    lastPosition             = getPosition();
     beltSpeedTimer           = millis();
 }
 
