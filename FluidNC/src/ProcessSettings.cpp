@@ -1133,9 +1133,8 @@ void make_user_commands() {
     new UserCommand("BL", "Maslow/retractBL", maslow_retract_BL, anyState);
     new UserCommand("ALL", "Maslow/retract", maslow_retract_ALL, anyState);
     new UserCommand("EXT", "Maslow/extend", maslow_extend_ALL, anyState);
-    //new UserCommand("CMP", "Maslow/comply", maslow_set_comply, anyState);
+    new UserCommand("CMP", "Maslow/comply", maslow_set_comply, anyState);
     new UserCommand("CAL", "Maslow/calibrate", maslow_start_calibration, anyState);
-    new UserCommand("CMP", "Maslow/calibrate", maslow_start_calibration, anyState);
 
     new UserCommand("TLI", "Maslow/calibrate", maslow_TLI, anyState);
     new UserCommand("TRI", "Maslow/calibrate", maslow_TRI, anyState);

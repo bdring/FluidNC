@@ -183,7 +183,7 @@ bool MotorUnit::comply() {
 // Pulls_tight and zeros axis; returns true when done
 bool MotorUnit::retract() {
     if (pull_tight(absoluteCurrentThreshold)) {
-        log_info(_encoderAddress << " pulled tight with offset " << getPosition());
+        log_info(Maslow.axis_id_to_label(_encoderAddress).c_str() << " pulled tight with offset " << getPosition());
         zero();
         return true;
     }

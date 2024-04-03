@@ -7,7 +7,7 @@
 #include "../WebUI/WifiConfig.h"
 
 // Maslow specific defines
-#define VERSION_NUMBER "0.66"
+#define VERSION_NUMBER "0.67"
 
 #define TLEncoderLine 2
 #define TREncoderLine 1
@@ -313,20 +313,19 @@ void Maslow_::home() {
     // $CMP - comply mode
     if (complyALL) {
         //decompress belts for the first half second
-        if (millis() - complyCallTimer < 700) {
-            if (millis() - complyCallTimer > 0)
-                axisBR.decompressBelt();
-            if (millis() - complyCallTimer > 150)
-                axisBL.decompressBelt();
-            if (millis() - complyCallTimer > 250)
-                axisTR.decompressBelt();
-            if (millis() - complyCallTimer > 350)
-                axisTL.decompressBelt();
-        } else {
+        if (millis() - complyCallTimer < 40) {
+            axisBR.decompressBelt();
+            axisBL.decompressBelt();
+            axisTR.decompressBelt();
+            axisTL.decompressBelt();
+        } else if(millis() - complyCallTimer < 800){
             axisTL.comply();
             axisTR.comply();
             axisBL.comply();
             axisBR.comply();
+        }
+        else {
+            complyALL = false;
         }
     }
 
@@ -472,22 +471,22 @@ bool Maslow_::updateEncoderPositions() {
         switch (encoderToRead) {
             case 0:
                 if (!axisTL.updateEncoderPosition()) {
-                    encoderFailCounter[0]++;
+                    encoderFailCounter[TLEncoderLine]++;
                 }
                 break;
             case 1:
                 if (!axisTR.updateEncoderPosition()) {
-                    encoderFailCounter[1]++;
+                    encoderFailCounter[TREncoderLine]++;
                 }
                 break;
             case 2:
                 if (!axisBL.updateEncoderPosition()) {
-                    encoderFailCounter[2]++;
+                    encoderFailCounter[BLEncoderLine]++;
                 }
                 break;
             case 3:
                 if (!axisBR.updateEncoderPosition()) {
-                    encoderFailCounter[3]++;
+                    encoderFailCounter[BREncoderLine]++;
                 }
                 break;
         }
@@ -1053,6 +1052,10 @@ int Maslow_::get_direction(double x, double y, double targetX, double targetY) {
 
 bool Maslow_::generate_calibration_grid() {
 
+    float calibration_grid_offset_X = (trX - calibration_grid_width_mm_X)/2;
+    float calibration_grid_offset_Y = (trY - calibration_grid_height_mm_Y)/2;
+
+
     //Check to make sure that the offset is less than 1/2 of the frame width
     if (calibration_grid_offset_X > trX / 2) {
         log_error("Calibration grid offset is greater than half the frame width");
@@ -1192,7 +1195,7 @@ void Maslow_::comply() {
     retractingBR    = false;
     extendingALL    = false;
     complyALL       = true;
-    axisTL.reset();
+    axisTL.reset(); //This just resets the thresholds for pull tight
     axisTR.reset();
     axisBL.reset();
     axisBR.reset();
@@ -1325,6 +1328,7 @@ void Maslow_::test_() {
     axisTR.test();
     axisBL.test();
     axisBR.test();
+
 }
 void Maslow_::set_frame_width(double width) {
     trX = width;
@@ -1392,17 +1396,17 @@ bool Maslow_::allAxisExtended() {
 String Maslow_::axis_id_to_label(int axis_id) {
     String label;
     switch (axis_id) {
-        case 2:
+        case TLEncoderLine:
             label = "Top Left";
             break;
-        case 1:
+        case TREncoderLine:
             label = "Top Right";
             break;
-        case 3:
-            label = "Bottom Left";
-            break;
-        case 0:
+        case BREncoderLine:
             label = "Bottom Right";
+            break;
+        case BLEncoderLine:
+            label = "Bottom Left";
             break;
     }
     return label;
