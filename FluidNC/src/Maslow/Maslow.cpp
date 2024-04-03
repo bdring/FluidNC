@@ -1052,6 +1052,10 @@ int Maslow_::get_direction(double x, double y, double targetX, double targetY) {
 
 bool Maslow_::generate_calibration_grid() {
 
+    float calibration_grid_offset_X = (trX - calibration_grid_width_mm_X)/2;
+    float calibration_grid_offset_Y = (trY - calibration_grid_height_mm_Y)/2;
+
+
     //Check to make sure that the offset is less than 1/2 of the frame width
     if (calibration_grid_offset_X > trX / 2) {
         log_error("Calibration grid offset is greater than half the frame width");
@@ -1324,6 +1328,8 @@ void Maslow_::test_() {
     axisTR.test();
     axisBL.test();
     axisBR.test();
+
+    generate_calibration_grid();
 }
 void Maslow_::set_frame_width(double width) {
     trX = width;

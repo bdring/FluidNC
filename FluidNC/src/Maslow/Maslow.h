@@ -130,8 +130,8 @@ public:
     int frame_dimention_MAX = 5000;
 
     double calibrationGrid[CALIBRATION_GRID_SIZE_MAX][2] = { 0 };
-    float  calibration_grid_offset_X                 = 500;  // mm offset from the edge of the frame
-    float  calibration_grid_offset_Y                 = 500;  // mm offset from the edge of the frame
+    float  calibration_grid_width_mm_X               = 2000;  // mm offset from the edge of the frame
+    float  calibration_grid_height_mm_Y              = 1000;  // mm offset from the edge of the frame
     double calibrationDataWaiting                    = -1;   //-1 if data is not waiting, other wise the milis since the data was last sent
     bool   error                                     = false;
     String errorMessage;
