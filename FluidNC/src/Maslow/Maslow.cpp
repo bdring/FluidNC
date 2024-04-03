@@ -471,22 +471,22 @@ bool Maslow_::updateEncoderPositions() {
         switch (encoderToRead) {
             case 0:
                 if (!axisTL.updateEncoderPosition()) {
-                    encoderFailCounter[0]++;
+                    encoderFailCounter[TLEncoderLine]++;
                 }
                 break;
             case 1:
                 if (!axisTR.updateEncoderPosition()) {
-                    encoderFailCounter[1]++;
+                    encoderFailCounter[TREncoderLine]++;
                 }
                 break;
             case 2:
                 if (!axisBL.updateEncoderPosition()) {
-                    encoderFailCounter[2]++;
+                    encoderFailCounter[BLEncoderLine]++;
                 }
                 break;
             case 3:
                 if (!axisBR.updateEncoderPosition()) {
-                    encoderFailCounter[3]++;
+                    encoderFailCounter[BREncoderLine]++;
                 }
                 break;
         }
@@ -1391,17 +1391,17 @@ bool Maslow_::allAxisExtended() {
 String Maslow_::axis_id_to_label(int axis_id) {
     String label;
     switch (axis_id) {
-        case 2:
+        case TLEncoderLine:
             label = "Top Left";
             break;
-        case 1:
+        case TREncoderLine:
             label = "Top Right";
             break;
-        case 3:
-            label = "Bottom Left";
-            break;
-        case 0:
+        case BREncoderLine:
             label = "Bottom Right";
+            break;
+        case BLEncoderLine:
+            label = "Bottom Left";
             break;
     }
     return label;
