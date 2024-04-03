@@ -313,7 +313,7 @@ void Maslow_::home() {
     // $CMP - comply mode
     if (complyALL) {
         //decompress belts for the first half second
-        if (millis() - complyCallTimer < 100) {
+        if (millis() - complyCallTimer < 40) {
             axisBR.decompressBelt();
             axisBL.decompressBelt();
             axisTR.decompressBelt();
