@@ -328,7 +328,7 @@ GCUpdatePos mc_probe_cycle(float* target, plan_line_data_t* pl_data, bool away, 
     // Set state variables and error out, if the probe failed and cycle with error is enabled.
     if (probeState == ProbeState::Active) {
         if (no_error) {
-            copyAxes(probe_steps, get_motor_steps());
+            get_motor_steps(probe_steps);
         } else {
             send_alarm(ExecAlarm::ProbeFailContact);
         }

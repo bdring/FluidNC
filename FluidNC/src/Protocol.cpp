@@ -986,6 +986,14 @@ static void protocol_do_accessory_override(void* type) {
     }
 }
 
+static void protocol_do_probe(void* arg) {
+    if (probeState == ProbeState::Active) {
+        probeState = ProbeState::Off;
+        get_motor_steps(probe_steps);
+        protocol_do_motion_cancel();
+    }
+}
+
 static void protocol_do_limit(void* arg) {
     Machine::LimitPin* limit = (Machine::LimitPin*)arg;
     if (sys.state == State::Homing) {
@@ -1032,7 +1040,7 @@ ArgEvent spindleOverrideEvent { protocol_do_spindle_override };
 ArgEvent accessoryOverrideEvent { protocol_do_accessory_override };
 ArgEvent limitEvent { protocol_do_limit };
 ArgEvent faultPinEvent { protocol_do_fault_pin };
-
+ArgEvent probeEvent { protocol_do_probe };
 ArgEvent reportStatusEvent { (void (*)(void*))report_realtime_status };
 
 NoArgEvent safetyDoorEvent { request_safety_door };

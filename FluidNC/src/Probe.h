@@ -6,8 +6,11 @@
 
 #include "Configuration/HandlerBase.h"
 #include "Configuration/Configurable.h"
+#include "Machine/ProbeEventPin.h"
 
 #include <cstdint>
+
+using namespace Machine;
 
 // Values that define the probing state machine.
 enum class ProbeState : uint8_t {
@@ -18,10 +21,10 @@ enum class ProbeState : uint8_t {
 class Probe : public Configuration::Configurable {
     // Inverts the probe pin state depending on user settings and probing cycle mode.
     bool _isProbeAway = false;
-
-    // Configurable
-    Pin _probePin;
-    Pin _toolsetter_Pin;
+    ProbeEventPin* _probeEventPin;
+    ProbeEventPin* _toolsetterEventPin;
+    bool _probe_is_native = false;
+    bool _toolsetter_is_native = false;
 
 public:
     // Configurable
@@ -32,7 +35,11 @@ public:
 
     Probe() = default;
 
-    bool exists() const { return _probePin.defined() || _toolsetter_Pin.defined(); }
+    // Configurable
+    Pin _probePin;
+    Pin _toolsetterPin;
+
+    bool exists() const { return _probePin.defined() || _toolsetterPin.defined(); }
     // Probe pin initialization routine.
     void init();
 

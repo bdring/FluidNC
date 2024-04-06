@@ -3,32 +3,35 @@
 // Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
 
 #include "Probe.h"
-
 #include "Pin.h"
 
 // Probe pin initialization routine.
 void Probe::init() {
-    static bool show_init_msg = true;  // used to show message only once.
-
     if (_probePin.defined()) {
-        _probePin.getNative(Pin::Capabilities::Input | Pin::Capabilities::Native);
-        _probePin.setAttr(Pin::Attr::Input);
+        try {
+            _probePin.getNative(Pin::Capabilities::Input | Pin::Capabilities::Native);
+            _probe_is_native = true;
+        } catch (...) { _probe_is_native = false; }
 
-        if (show_init_msg) {
-            _probePin.report("Probe Pin:");
-            show_init_msg = false;
-        }
+        _probeEventPin = new ProbeEventPin("Probe", _probePin);
+        _probeEventPin->init();
     }
 
-    if (_toolsetter_Pin.defined()) {
-        _toolsetter_Pin.getNative(Pin::Capabilities::Input | Pin::Capabilities::Native);
-        _toolsetter_Pin.setAttr(Pin::Attr::Input);
-
-        if (show_init_msg) {
-            _toolsetter_Pin.report("Toolsetter Pin:");
-        }
+    if (_toolsetterPin.defined()) {
+        _toolsetterPin.getNative(Pin::Capabilities::Input | Pin::Capabilities::Native);
+        _toolsetter_is_native = true;
     }
-    show_init_msg = false;
+    try {
+            _toolsetterPin.getNative(Pin::Capabilities::Input | Pin::Capabilities::Native);
+            _toolsetter_is_native = true;
+        } catch (...) {
+        _toolsetter_is_native = false;
+    }
+    _toolsetterPin.getNative(Pin::Capabilities::Input | Pin::Capabilities::Native);
+
+    _toolsetterEventPin = new ProbeEventPin("Toolsetter", _toolsetterPin);
+    _toolsetterEventPin->init();
+
 }
 
 void Probe::set_direction(bool is_away) {
@@ -37,20 +40,42 @@ void Probe::set_direction(bool is_away) {
 
 // Returns the probe pin state. Triggered = true. Called by gcode parser.
 bool Probe::get_state() {
-    return (_probePin.read() || _toolsetter_Pin.read());
+    // This is time-critical when called from the stepper IRQ so
+    // we go to a lot of trouble to optimize the case where we
+    // read the GPIOs directly
+    // But we might be screwed by the vtable of EventPin
+    if (_probe_is_native) {
+        if (_probePin.read()) {
+            return true;
+        }
+        if (_toolsetter_is_native) {
+            return _toolsetterPin.read();
+        }
+        // Native probe pin was inactive
+        return _toolsetterEventPin && _toolsetterEventPin->get();
+    }
+    if (_toolsetter_is_native) {
+        if (_toolsetterPin.read()) {
+            return true;
+        }
+        // Native toolsetter pin was inactive
+        return _probeEventPin && _probeEventPin->get();
+    }
+    // Neither probe nor toolsetter was native so we must use the Event pins
+    return ((_probeEventPin && _probeEventPin->get()) || (_toolsetterEventPin && _toolsetterEventPin->get()));
 }
 
 // Returns true if the probe pin is tripped, accounting for the direction (away or not).
 // This function must be extremely efficient as to not bog down the stepper ISR.
 // Should be called only in situations where the probe pin is known to be defined.
 bool IRAM_ATTR Probe::tripped() {
-    return (_probePin.read() || _toolsetter_Pin.read()) ^ _isProbeAway;
+    return get_state() ^ _isProbeAway;
 }
 
 void Probe::validate() {}
 
 void Probe::group(Configuration::HandlerBase& handler) {
     handler.item("pin", _probePin);
-    handler.item("toolsetter_pin", _toolsetter_Pin);
+    handler.item("toolsetter_pin", _toolsetterPin);
     handler.item("check_mode_start", _check_mode_start);
 }

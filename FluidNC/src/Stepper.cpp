@@ -247,7 +247,7 @@ bool IRAM_ATTR Stepper::pulse_func() {
             return false;  // Nothing to do but exit.
         }
     }
-
+#if 0
     // Check probing state.
     if (probeState == ProbeState::Active && config->_probe->tripped()) {
         probeState = ProbeState::Off;
@@ -258,7 +258,7 @@ bool IRAM_ATTR Stepper::pulse_func() {
         }
         protocol_send_event_from_ISR(&motionCancelEvent);
     }
-
+#endif
     // Reset step out bits.
     st.step_outbits = 0;
 
