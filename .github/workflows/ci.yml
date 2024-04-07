@@ -37,12 +37,12 @@ jobs:
           key: platformio-${{ runner.os }}
       - name: Build target ${{ matrix.pio_env }}${{ matrix.pio_env_variant }}
         run: pio run -e ${{ matrix.pio_env }}${{ matrix.pio_env_variant }}
-      - if: ${{ ${{ matrix.pio_env }}${{ matrix.pio_env_variant }} == 'wifi' && matrix.os == 'ubuntu-latest' }}
-        name: Upload wifi firmware.bin
+      - if: matrix.os == 'ubuntu-latest'
+        name: Upload ${{ matrix.pio_env }}${{ matrix.pio_env_variant }} firmware.bin
         uses: actions/upload-artifact@v4
         with:
-          name: firmware
-          path: .pio/build/wifi/firmware.bin
+          name: ${{ matrix.pio_env }}${{ matrix.pio_env_variant }}_firmware
+          path: .pio/build/${{ matrix.pio_env }}${{ matrix.pio_env_variant }}/firmware.bin
 
   tests:
     strategy:
