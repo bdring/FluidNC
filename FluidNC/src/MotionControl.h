@@ -12,7 +12,7 @@
 
 #include <cstdint>
 
-extern volatile ProbeState probeState;  // Probing state value.  Used to coordinate the probing cycle with stepper ISR.
+extern volatile bool probing;  // Probing state value.  Used to coordinate the probing cycle with stepper ISR.
 
 extern bool probe_succeeded;  // Tracks if last probing cycle was successful.
 

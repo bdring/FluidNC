@@ -103,18 +103,18 @@ void Channel::autoReportGCodeState() {
 }
 void Channel::autoReport() {
     if (_reportInterval) {
-        auto probeState = config->_probe->get_state();
-        if (probeState != _lastProbe) {
+        auto thisProbeState = config->_probe->get_state();
+        if (thisProbeState != _lastProbe) {
             report_recompute_pin_string();
         }
-        if (_reportWco || sys.state != _lastState || probeState != _lastProbe || _lastPinString != report_pin_string ||
+        if (_reportWco || sys.state != _lastState || thisProbeState != _lastProbe || _lastPinString != report_pin_string ||
             (motionState() && (int32_t(xTaskGetTickCount()) - _nextReportTime) >= 0)) {
             if (_reportWco) {
                 report_wco_counter = 0;
             }
             _reportWco     = false;
             _lastState     = sys.state;
-            _lastProbe     = probeState;
+            _lastProbe     = thisProbeState;
             _lastPinString = report_pin_string;
 
             _nextReportTime = xTaskGetTickCount() + _reportInterval;

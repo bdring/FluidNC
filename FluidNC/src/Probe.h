@@ -6,27 +6,18 @@
 
 #include "Configuration/HandlerBase.h"
 #include "Configuration/Configurable.h"
-#include "Machine/ProbeEventPin.h"
 
 #include <cstdint>
-
-using namespace Machine;
-
-// Values that define the probing state machine.
-enum class ProbeState : uint8_t {
-    Off    = 0,  // Probing disabled or not in use. (Must be zero.)
-    Active = 1,  // Actively watching the input pin.
-};
+class ProbeEventPin;
 
 class Probe : public Configuration::Configurable {
     // Inverts the probe pin state depending on user settings and probing cycle mode.
-    bool _isProbeAway = false;
+    bool _away = false;
     ProbeEventPin* _probeEventPin;
     ProbeEventPin* _toolsetterEventPin;
-    bool _probe_is_native = false;
-    bool _toolsetter_is_native = false;
 
 public:
+    bool _hard_stop = false;
     // Configurable
     bool _check_mode_start = true;
     // _check_mode_start configures the position after a probing cycle
@@ -44,7 +35,7 @@ public:
     void init();
 
     // setup probing direction G38.2 vs. G38.4
-    void set_direction(bool is_away);
+    void set_direction(bool away);
 
     // Returns probe pin state. Triggered = true. Called by gcode parser and probe state monitor.
     bool get_state();

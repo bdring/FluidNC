@@ -44,6 +44,8 @@ void protocol_buffer_synchronize();
 void protocol_disable_steppers();
 void protocol_cancel_disable_steppers();
 
+void protocol_do_motion_cancel();
+
 extern volatile bool rtCycleStop;
 
 extern volatile bool runLimitLoop;
@@ -87,7 +89,6 @@ extern ArgEvent rapidOverrideEvent;
 extern ArgEvent spindleOverrideEvent;
 extern ArgEvent accessoryOverrideEvent;
 extern ArgEvent limitEvent;
-extern ArgEvent probeEvent;
 extern ArgEvent faultPinEvent;
 
 extern ArgEvent reportStatusEvent;
