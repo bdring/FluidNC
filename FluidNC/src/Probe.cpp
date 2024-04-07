@@ -12,7 +12,7 @@ ArgEvent probeEvent { protocol_do_probe };
 
 class ProbeEventPin : public EventPin {
 private:
-    bool _value = 0;
+    bool _value = false;
     Pin* _pin = nullptr;
 
 public:
@@ -27,6 +27,7 @@ public:
         _pin->report(_legend);
         _pin->setAttr(Pin::Attr::Input);
         _pin->registerEvent(static_cast<EventPin*>(this));
+        update(_pin->read());
     }
     void update(bool state) { _value = state; }
 
