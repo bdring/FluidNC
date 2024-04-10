@@ -18,6 +18,8 @@ namespace Machine {
 
     AxisMask Axes::homingMask = 0;
 
+    bool Axes::disabled = false;
+
     Axes::Axes() : _axis() {
         for (int i = 0; i < MAX_N_AXIS; ++i) {
             _axis[i] = nullptr;
@@ -57,6 +59,8 @@ namespace Machine {
                 m->_driver->set_disable(disable);
             }
         }
+        if (disable)  // any disable, !disable does not change anything here
+            disabled = true;
     }
 
     void IRAM_ATTR Axes::set_disable(bool disable) {
@@ -66,9 +70,12 @@ namespace Machine {
 
         _sharedStepperDisable.synchronousWrite(disable);
 
-        if (!disable && config->_stepping->_disableDelayUsecs) {  // wait for the enable delay
+        if (!disable && disabled && config->_stepping->_disableDelayUsecs) {  // wait for the enable delay
             log_debug("enable delay:" << config->_stepping->_disableDelayUsecs);
             delay_us(config->_stepping->_disableDelayUsecs);
+        }
+        if (!disable) {  // only the not case changes it.
+            disabled = false;
         }
     }
 
