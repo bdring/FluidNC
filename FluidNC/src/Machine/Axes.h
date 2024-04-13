@@ -29,6 +29,8 @@ namespace Machine {
 
         static AxisMask homingMask;
 
+        static bool disabled;
+
         Pin _sharedStepperDisable;
         Pin _sharedStepperReset;
 
