@@ -40,27 +40,17 @@ namespace Machine {
     std::queue<int> Homing::_remainingCycles;
     uint32_t        Homing::_settling_ms;
 
+    uint32_t Homing::_runs;
+
     AxisMask Homing::_unhomed_axes;  // Bitmap of axes whose position is unknown
 
-    bool Homing::axis_is_homed(size_t axis) {
-        return bitnum_is_false(_unhomed_axes, axis);
-    }
-    void Homing::set_axis_homed(size_t axis) {
-        clear_bitnum(_unhomed_axes, axis);
-    }
-    void Homing::set_axis_unhomed(size_t axis) {
-        set_bitnum(_unhomed_axes, axis);
-    }
-    void Homing::set_all_axes_unhomed() {
-        _unhomed_axes = Machine::Axes::homingMask;
-    }
-    void Homing::set_all_axes_homed() {
-        _unhomed_axes = 0;
-    }
+    bool Homing::axis_is_homed(size_t axis) { return bitnum_is_false(_unhomed_axes, axis); }
+    void Homing::set_axis_homed(size_t axis) { clear_bitnum(_unhomed_axes, axis); }
+    void Homing::set_axis_unhomed(size_t axis) { set_bitnum(_unhomed_axes, axis); }
+    void Homing::set_all_axes_unhomed() { _unhomed_axes = Machine::Axes::homingMask; }
+    void Homing::set_all_axes_homed() { _unhomed_axes = 0; }
 
-    AxisMask Homing::unhomed_axes() {
-        return _unhomed_axes;
-    }
+    AxisMask Homing::unhomed_axes() { return _unhomed_axes; }
 
     const char* Homing::_phaseNames[] = {
         "None", "PrePulloff", "FastApproach", "Pulloff0", "SlowApproach", "Pulloff1", "Pulloff2", "CycleDone",
@@ -88,9 +78,7 @@ namespace Machine {
         protocol_send_event(&cycleStartEvent);
     }
 
-    static MotorMask limited() {
-        return Machine::Axes::posLimitMask | Machine::Axes::negLimitMask;
-    }
+    static MotorMask limited() { return Machine::Axes::posLimitMask | Machine::Axes::negLimitMask; }
 
     void Homing::cycleStop() {
         log_debug("CycleStop " << phaseName(_phase));
@@ -121,6 +109,15 @@ namespace Machine {
 
     void Homing::nextPhase() {
         _phase = static_cast<Phase>(static_cast<int>(_phase) + 1);
+
+        if (_phase == SlowApproach && _runs == 1) {
+            // If this is the last approach/pulloff run, skip past the Pulloff1 phase
+            _phase = Pulloff2;
+        } else if (_phase == Pulloff2 && --_runs > 1) {
+            // If we haven't done all of the runs, go back to the SlowApproach phase
+            _phase = SlowApproach;
+        }
+
         log_debug("Homing nextPhase " << phaseName(_phase));
         if (_phase == CycleDone || (_phase == Phase::Pulloff2 && !needsPulloff2(_cycleMotors))) {
             set_mpos();
@@ -370,6 +367,7 @@ namespace Machine {
         _cycleMotors = config->_axes->set_homing_mode(_cycleAxes, true);
 
         _phase = Phase::PrePulloff;
+        _runs  = config->_axes->_homing_runs;
         runPhase();
     }
 

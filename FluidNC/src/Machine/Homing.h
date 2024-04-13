@@ -24,6 +24,7 @@ namespace Machine {
             Pulloff2     = 6,
             CycleDone    = 7,
         } _phase;
+        static uint32_t _runs;
 
         static AxisMask unhomed_axes();
 
