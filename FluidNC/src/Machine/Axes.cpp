@@ -70,12 +70,11 @@ namespace Machine {
 
         _sharedStepperDisable.synchronousWrite(disable);
 
-        if (!disable && disabled && config->_stepping->_disableDelayUsecs) {  // wait for the enable delay
-            log_debug("enable delay:" << config->_stepping->_disableDelayUsecs);
-            delay_us(config->_stepping->_disableDelayUsecs);
-        }
-        if (!disable) {  // only the not case changes it.
+        if (!disable && disabled) {
             disabled = false;
+            if (config->_stepping->_disableDelayUsecs) {  // wait for the enable delay
+                delay_us(config->_stepping->_disableDelayUsecs);
+            }
         }
     }
 
