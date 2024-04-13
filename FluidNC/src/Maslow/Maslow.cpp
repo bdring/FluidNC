@@ -7,7 +7,7 @@
 #include "../WebUI/WifiConfig.h"
 
 // Maslow specific defines
-#define VERSION_NUMBER "0.67"
+#define VERSION_NUMBER "0.68"
 
 #define TLEncoderLine 2
 #define TREncoderLine 1
@@ -603,8 +603,8 @@ void Maslow_::safety_control() {
 
         //If the motor has a position error greater than 1mm and we are running a file or jogging
         if ((abs(axis[i]->getPositionError()) > 1) && (sys.state() == State::Jog || sys.state() == State::Cycle) && !tick[i]) {
-            log_error("Position error on " << axis_id_to_label(i).c_str() << " axis exceeded 1mm, error is " << axis[i]->getPositionError()
-                                           << "mm");
+            // log_error("Position error on " << axis_id_to_label(i).c_str() << " axis exceeded 1mm, error is " << axis[i]->getPositionError()
+            //                                << "mm");
             tick[i] = true;
         }
         if ((abs(axis[i]->getPositionError()) > 15) && (sys.state() == State::Cycle)) {
