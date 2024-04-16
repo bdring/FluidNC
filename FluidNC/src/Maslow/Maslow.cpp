@@ -415,6 +415,10 @@ bool Maslow_::takeSlackFunc() {
 void Maslow_::calibration_loop() {
     static int  direction             = UP;
     static bool measurementInProgress = false;
+    if(waypoint > 38){
+        calibrationInProgress = false;
+        waypoint              = 0;
+    }
     //Taking measurment once we've reached the point
     if (measurementInProgress) {
         if (take_measurement_avg_with_check(waypoint, direction)) {  //Takes a measurement and returns true if it's done
@@ -431,8 +435,16 @@ void Maslow_::calibration_loop() {
             }
             else if(waypoint == 17){
                 calibrationInProgress = false;
-                waypoint              = 0;
+                //waypoint              = 0;
                 log_info("Calibration stge 2 complete");
+                print_calibration_data();
+                calibrationDataWaiting = millis();
+                sys.set_state(State::Idle);
+            }
+            else if(waypoint == 39){
+                calibrationInProgress = false;
+                //waypoint              = 0;
+                log_info("Calibration stge 3 complete");
                 print_calibration_data();
                 calibrationDataWaiting = millis();
                 sys.set_state(State::Idle);
@@ -1169,6 +1181,69 @@ bool Maslow_::generate_calibration_grid() {
 
     calibrationGrid[17][0] = 150;
     calibrationGrid[17][1] = -150;
+
+    calibrationGrid[18][0] = 150;
+    calibrationGrid[18][1] = -250;
+
+    calibrationGrid[19][0] = 75;
+    calibrationGrid[19][1] = -250;
+
+    calibrationGrid[20][0] = -75;
+    calibrationGrid[20][1] = -250;
+
+    calibrationGrid[21][0] = -150;
+    calibrationGrid[21][1] = -250;
+
+    calibrationGrid[22][0] = -250;
+    calibrationGrid[22][1] = -250;
+
+    calibrationGrid[23][0] = -250;
+    calibrationGrid[23][1] = -150;
+
+    calibrationGrid[24][0] = -250;
+    calibrationGrid[24][1] = -75;
+
+    calibrationGrid[25][0] = -250;
+    calibrationGrid[25][1] = 75;
+
+    calibrationGrid[26][0] = -250;
+    calibrationGrid[26][1] = 150;
+
+    calibrationGrid[27][0] = -250;
+    calibrationGrid[27][1] = 250;
+
+    calibrationGrid[28][0] = -150;
+    calibrationGrid[28][1] = 250;
+
+    calibrationGrid[29][0] = -75;
+    calibrationGrid[29][1] = 250;
+
+    calibrationGrid[30][0] = 75;
+    calibrationGrid[30][1] = 250;
+
+    calibrationGrid[31][0] = 150;
+    calibrationGrid[31][1] = 250;
+
+    calibrationGrid[32][0] = 250;
+    calibrationGrid[32][1] = 250;
+
+    calibrationGrid[33][0] = 250;
+    calibrationGrid[33][1] = 150;
+
+    calibrationGrid[34][0] = 250;
+    calibrationGrid[34][1] = 75;
+
+    calibrationGrid[35][0] = 250;
+    calibrationGrid[35][1] = -75;
+
+    calibrationGrid[36][0] = 250;
+    calibrationGrid[36][1] = -150;
+
+    calibrationGrid[37][0] = 250;
+    calibrationGrid[37][1] = -250;
+
+    calibrationGrid[38][0] = 0;
+    calibrationGrid[38][1] = 0;
 
 
     // log_info("Point: 0 (0, 0)");
