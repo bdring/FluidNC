@@ -413,7 +413,6 @@ bool Maslow_::takeSlackFunc() {
 
 // --Maslow calibration loop
 void Maslow_::calibration_loop() {
-    static int  waypoint              = 0;
     static int  direction             = UP;
     static bool measurementInProgress = false;
     //Taking measurment once we've reached the point
@@ -423,14 +422,22 @@ void Maslow_::calibration_loop() {
             
             waypoint++;  //Increment the waypoint counter
 
-            if (waypoint > pointCount - 1) {  //If we have reached the end of the calibration process
+            if (waypoint == 6) {  //If we have reached the end of first stage of the calibration process
                 calibrationInProgress = false;
-                waypoint              = 0;
-                log_info("Calibration complete");
+                log_info("Calibration stge 1 complete");
                 print_calibration_data();
                 calibrationDataWaiting = millis();
                 sys.set_state(State::Idle);
-            } else {
+            }
+            else if(waypoint == 17){
+                calibrationInProgress = false;
+                waypoint              = 0;
+                log_info("Calibration stge 2 complete");
+                print_calibration_data();
+                calibrationDataWaiting = millis();
+                sys.set_state(State::Idle);
+            }
+            else {
                 hold(250);
             }
         }
@@ -912,6 +919,12 @@ bool Maslow_::move_with_slack(double fromX, double fromY, double toX, double toY
    
     static int direction = UP;
 
+
+    bool withSlack = true;
+    if(waypoint > 5){
+        withSlack = false;
+    }
+
     //We only want to decompress at the beginning of each move
     if (decompress) {
         moveBeginTimer = millis();
@@ -920,7 +933,7 @@ bool Maslow_::move_with_slack(double fromX, double fromY, double toX, double toY
     }
 
     //Decompress belts for 500ms...this happens by returning right away before running any of the rest of the code
-    if (millis() - moveBeginTimer < 750) {
+    if (millis() - moveBeginTimer < 750 && withSlack) {
         if (orientation == VERTICAL) {
             axisTL.recomputePID();
             axisTR.recomputePID();
@@ -967,26 +980,50 @@ bool Maslow_::move_with_slack(double fromX, double fromY, double toX, double toY
             case UP:
                 axisTL.recomputePID();
                 axisTR.recomputePID();
-                axisBL.comply();
-                axisBR.comply();
+                if(withSlack){
+                    axisBL.comply();
+                    axisBR.comply();
+                }
+                else{
+                    axisBL.recomputePID();
+                    axisBR.recomputePID();
+                }
                 break;
             case DOWN:
-                axisTL.comply();
-                axisTR.comply();
+                if(withSlack){
+                    axisTL.comply();
+                    axisTR.comply();
+                }
+                else{
+                    axisTL.recomputePID();
+                    axisTR.recomputePID();
+                }
                 axisBL.recomputePID();
                 axisBR.recomputePID();
                 break;
             case LEFT:
                 axisTL.recomputePID();
-                axisTR.comply();
                 axisBL.recomputePID();
-                axisBR.comply();
+                if(withSlack){
+                    axisTR.comply();
+                    axisBR.comply();
+                }
+                else{
+                    axisTR.recomputePID();
+                    axisBR.recomputePID();
+                }
                 break;
             case RIGHT:
-                axisTL.comply();
                 axisTR.recomputePID();
-                axisBL.comply();
                 axisBR.recomputePID();
+                if(withSlack){
+                    axisTL.comply();
+                    axisBL.comply();
+                }
+                else{
+                    axisTL.recomputePID();
+                    axisBL.recomputePID();
+                }
                 break;
         }
     }
@@ -1052,67 +1089,120 @@ int Maslow_::get_direction(double x, double y, double targetX, double targetY) {
 
 bool Maslow_::generate_calibration_grid() {
 
-    float calibration_grid_offset_X = (trX - calibration_grid_width_mm_X)/2;
-    float calibration_grid_offset_Y = (trY - calibration_grid_height_mm_Y)/2;
+    // float calibration_grid_offset_X = (trX - calibration_grid_width_mm_X)/2;
+    // float calibration_grid_offset_Y = (trY - calibration_grid_height_mm_Y)/2;
 
 
-    //Check to make sure that the offset is less than 1/2 of the frame width
-    if (calibration_grid_offset_X > trX / 2) {
-        log_error("Calibration grid offset is greater than half the frame width");
-        return false;
-    }
-    //Check to make sure that the offset is less than 1/2 of the frame height
-    if (calibration_grid_offset_Y > trY / 2) {
-        log_error("Calibration grid offset is greater than half the frame height");
-        return false;
-    }
+    // //Check to make sure that the offset is less than 1/2 of the frame width
+    // if (calibration_grid_offset_X > trX / 2) {
+    //     log_error("Calibration grid offset is greater than half the frame width");
+    //     return false;
+    // }
+    // //Check to make sure that the offset is less than 1/2 of the frame height
+    // if (calibration_grid_offset_Y > trY / 2) {
+    //     log_error("Calibration grid offset is greater than half the frame height");
+    //     return false;
+    // }
 
-    double trX_adjusted = trX - (2*calibration_grid_offset_X); // shrink the grid by calibration_grid_offset in X direction
-    double trY_adjusted = trY - (2*calibration_grid_offset_Y); // shrink the grid by calibration_grid_offset in Y direction
+    // double trX_adjusted = trX - (2*calibration_grid_offset_X); // shrink the grid by calibration_grid_offset in X direction
+    // double trY_adjusted = trY - (2*calibration_grid_offset_Y); // shrink the grid by calibration_grid_offset in Y direction
 
-    double deltaX = trX_adjusted / (calibrationGridSizeX - 1);
-    double deltaY = trY_adjusted / (calibrationGridSizeY - 1);
+    // double deltaX = trX_adjusted / (calibrationGridSizeX - 1);
+    // double deltaY = trY_adjusted / (calibrationGridSizeY - 1);
 
-    pointCount = 2; //Offset by 2 to account for the points moving to the start
 
-    //Manually add the first two points used for taking up the slack while moving to the first true point
+
+    pointCount = 5+12; //Manually define the number of points
+
+    //The first five points that we do using move with slack
     calibrationGrid[0][0] = 0;
     calibrationGrid[0][1] = 0;
+
     calibrationGrid[1][0] = 0;
-    calibrationGrid[1][1] = -trY_adjusted / 2;
+    calibrationGrid[1][1] = -75;
 
-    log_info("Point: 0 (0, 0)");
-    log_info("Point: 1 (0, " << -trY_adjusted / 2 << ")");
+    calibrationGrid[2][0] = -75;
+    calibrationGrid[2][1] = -75;
 
-    for (int x = 0; x < calibrationGridSizeX; x++) {
-        if (x % 2 == 0) { // For even columns, go bottom to top
-            for (int y = 0; y < calibrationGridSizeY; y++) {
-                double targetX = -trX_adjusted / 2  + x * deltaX;
-                double targetY = -trY_adjusted / 2  + y * deltaY;
+    calibrationGrid[3][0] = -75;
+    calibrationGrid[3][1] = 75;
 
-                log_info("Point: " << pointCount << " (" << targetX << ", " << targetY << ")");
+    calibrationGrid[4][0] = 75;
+    calibrationGrid[4][1] = 75;
 
-                //Store the values
-                calibrationGrid[pointCount][0] = targetX;
-                calibrationGrid[pointCount][1] = targetY;
+    calibrationGrid[5][0] = 75;
+    calibrationGrid[5][1] = -75;
 
-                pointCount++;
-            }
-        } else { // For odd columns, go top to bottom
-            for (int y = calibrationGridSizeY - 1; y >= 0; y--) {
-                double targetX = -trX_adjusted / 2  + x * deltaX;
-                double targetY = -trY_adjusted / 2  + y * deltaY;
+    //The next 12 points that we will do using fully controlled moves
+    calibrationGrid[6][0] = 75;
+    calibrationGrid[6][1] = -150;
 
-                log_info("Point: " << pointCount << " (" << targetX << ", " << targetY << ")");
+    calibrationGrid[7][0] = -75;
+    calibrationGrid[7][1] = -150;
 
-                // Store the values
-                calibrationGrid[pointCount][0] = targetX;
-                calibrationGrid[pointCount][1] = targetY;
+    calibrationGrid[8][0] = -150;
+    calibrationGrid[8][1] = -150;
 
-                pointCount++;
-            }
-        }
-    }
+    calibrationGrid[9][0] = -150;
+    calibrationGrid[9][1] = -75;
+
+    calibrationGrid[10][0] = -150;
+    calibrationGrid[10][1] = 75;
+
+    calibrationGrid[11][0] = -150;
+    calibrationGrid[11][1] = 150;
+
+    calibrationGrid[12][0] = -75;
+    calibrationGrid[12][1] = 150;
+
+    calibrationGrid[13][0] = 75;
+    calibrationGrid[13][1] = 150;
+
+    calibrationGrid[14][0] = 150;
+    calibrationGrid[14][1] = 150;
+
+    calibrationGrid[15][0] = 150;
+    calibrationGrid[15][1] = 75;
+
+    calibrationGrid[16][0] = 150;
+    calibrationGrid[16][1] = -75;
+
+    calibrationGrid[17][0] = 150;
+    calibrationGrid[17][1] = -150;
+
+
+    // log_info("Point: 0 (0, 0)");
+    // log_info("Point: 1 (0, " << -trY_adjusted / 2 << ")");
+
+    // for (int x = 0; x < calibrationGridSizeX; x++) {
+    //     if (x % 2 == 0) { // For even columns, go bottom to top
+    //         for (int y = 0; y < calibrationGridSizeY; y++) {
+    //             double targetX = -trX_adjusted / 2  + x * deltaX;
+    //             double targetY = -trY_adjusted / 2  + y * deltaY;
+
+    //             log_info("Point: " << pointCount << " (" << targetX << ", " << targetY << ")");
+
+    //             //Store the values
+    //             calibrationGrid[pointCount][0] = targetX;
+    //             calibrationGrid[pointCount][1] = targetY;
+
+    //             pointCount++;
+    //         }
+    //     } else { // For odd columns, go top to bottom
+    //         for (int y = calibrationGridSizeY - 1; y >= 0; y--) {
+    //             double targetX = -trX_adjusted / 2  + x * deltaX;
+    //             double targetY = -trY_adjusted / 2  + y * deltaY;
+
+    //             log_info("Point: " << pointCount << " (" << targetX << ", " << targetY << ")");
+
+    //             // Store the values
+    //             calibrationGrid[pointCount][0] = targetX;
+    //             calibrationGrid[pointCount][1] = targetY;
+
+    //             pointCount++;
+    //         }
+    //     }
+    // }
     return true;
 }
 
@@ -1426,11 +1516,9 @@ void Maslow_::checkCalibrationData() {
 // function for outputting calibration data in the log line by line like this: {bl:2376.69,   br:923.40,   tr:1733.87,   tl:2801.87},
 void Maslow_::print_calibration_data() {
     String data = "CLBM:[";
-    for (int i = 0; i < pointCount; i++) {
+    for (int i = 0; i < waypoint; i++) {
         data += "{bl:" + String(calibration_data[2][i]) + ",   br:" + String(calibration_data[3][i]) +
                 ",   tr:" + String(calibration_data[1][i]) + ",   tl:" + String(calibration_data[0][i]) + "},";
-        //This log_info is used to send the data to the calibration process
-        //log_info("{bl:" << calibration_data[2][i] << ",   br:" << calibration_data[3][i] << ",   tr:" << calibration_data[1][i] << ",   tl:" << calibration_data[0][i] << "},");
     }
     data += "]";
     log_data(data.c_str());  //will it print really large strings?
