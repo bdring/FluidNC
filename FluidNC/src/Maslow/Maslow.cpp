@@ -1099,186 +1099,91 @@ int Maslow_::get_direction(double x, double y, double targetX, double targetY) {
     return direction;
 }
 
+//The number of points high and wide  must be an odd number
 bool Maslow_::generate_calibration_grid() {
+    log_info("Generating grid");
 
-    // float calibration_grid_offset_X = (trX - calibration_grid_width_mm_X)/2;
-    // float calibration_grid_offset_Y = (trY - calibration_grid_height_mm_Y)/2;
+    int gridWidth = 2000;
+    int gridHeight = 1000;
+    int numberOfPointsHigh = 6;
+    int numberOfPointsWide = 6;
 
+    float xSpacing = gridHeight / (numberOfPointsHigh - 1);
+    float ySpacing = gridWidth / (numberOfPointsWide - 1);
 
-    // //Check to make sure that the offset is less than 1/2 of the frame width
-    // if (calibration_grid_offset_X > trX / 2) {
-    //     log_error("Calibration grid offset is greater than half the frame width");
-    //     return false;
-    // }
-    // //Check to make sure that the offset is less than 1/2 of the frame height
-    // if (calibration_grid_offset_Y > trY / 2) {
-    //     log_error("Calibration grid offset is greater than half the frame height");
-    //     return false;
-    // }
+    pointCount = 0;
 
-    // double trX_adjusted = trX - (2*calibration_grid_offset_X); // shrink the grid by calibration_grid_offset in X direction
-    // double trY_adjusted = trY - (2*calibration_grid_offset_Y); // shrink the grid by calibration_grid_offset in Y direction
+    //The point in the center
+    calibrationGrid[pointCount][0] = 0;
+    calibrationGrid[pointCount][1] = 0;
+    pointCount++;
 
-    // double deltaX = trX_adjusted / (calibrationGridSizeX - 1);
-    // double deltaY = trY_adjusted / (calibrationGridSizeY - 1);
+    int maxX = 1;
+    int maxY = 1;
 
+    int currentX = 0;
+    int currentY = -1;
 
-
-    pointCount = 5+12; //Manually define the number of points
-
-    //The first five points that we do using move with slack
-    calibrationGrid[0][0] = 0;
-    calibrationGrid[0][1] = 0;
-
-    calibrationGrid[1][0] = 0;
-    calibrationGrid[1][1] = -75;
-
-    calibrationGrid[2][0] = -75;
-    calibrationGrid[2][1] = -75;
-
-    calibrationGrid[3][0] = -75;
-    calibrationGrid[3][1] = 75;
-
-    calibrationGrid[4][0] = 75;
-    calibrationGrid[4][1] = 75;
-
-    calibrationGrid[5][0] = 75;
-    calibrationGrid[5][1] = -75;
-
-    //The next 12 points that we will do using fully controlled moves
-    calibrationGrid[6][0] = 75;
-    calibrationGrid[6][1] = -150;
-
-    calibrationGrid[7][0] = -75;
-    calibrationGrid[7][1] = -150;
-
-    calibrationGrid[8][0] = -150;
-    calibrationGrid[8][1] = -150;
-
-    calibrationGrid[9][0] = -150;
-    calibrationGrid[9][1] = -75;
-
-    calibrationGrid[10][0] = -150;
-    calibrationGrid[10][1] = 75;
-
-    calibrationGrid[11][0] = -150;
-    calibrationGrid[11][1] = 150;
-
-    calibrationGrid[12][0] = -75;
-    calibrationGrid[12][1] = 150;
-
-    calibrationGrid[13][0] = 75;
-    calibrationGrid[13][1] = 150;
-
-    calibrationGrid[14][0] = 150;
-    calibrationGrid[14][1] = 150;
-
-    calibrationGrid[15][0] = 150;
-    calibrationGrid[15][1] = 75;
-
-    calibrationGrid[16][0] = 150;
-    calibrationGrid[16][1] = -75;
-
-    calibrationGrid[17][0] = 150;
-    calibrationGrid[17][1] = -150;
-
-    calibrationGrid[18][0] = 150;
-    calibrationGrid[18][1] = -250;
-
-    calibrationGrid[19][0] = 75;
-    calibrationGrid[19][1] = -250;
-
-    calibrationGrid[20][0] = -75;
-    calibrationGrid[20][1] = -250;
-
-    calibrationGrid[21][0] = -150;
-    calibrationGrid[21][1] = -250;
-
-    calibrationGrid[22][0] = -250;
-    calibrationGrid[22][1] = -250;
-
-    calibrationGrid[23][0] = -250;
-    calibrationGrid[23][1] = -150;
-
-    calibrationGrid[24][0] = -250;
-    calibrationGrid[24][1] = -75;
-
-    calibrationGrid[25][0] = -250;
-    calibrationGrid[25][1] = 75;
-
-    calibrationGrid[26][0] = -250;
-    calibrationGrid[26][1] = 150;
-
-    calibrationGrid[27][0] = -250;
-    calibrationGrid[27][1] = 250;
-
-    calibrationGrid[28][0] = -150;
-    calibrationGrid[28][1] = 250;
-
-    calibrationGrid[29][0] = -75;
-    calibrationGrid[29][1] = 250;
-
-    calibrationGrid[30][0] = 75;
-    calibrationGrid[30][1] = 250;
-
-    calibrationGrid[31][0] = 150;
-    calibrationGrid[31][1] = 250;
-
-    calibrationGrid[32][0] = 250;
-    calibrationGrid[32][1] = 250;
-
-    calibrationGrid[33][0] = 250;
-    calibrationGrid[33][1] = 150;
-
-    calibrationGrid[34][0] = 250;
-    calibrationGrid[34][1] = 75;
-
-    calibrationGrid[35][0] = 250;
-    calibrationGrid[35][1] = -75;
-
-    calibrationGrid[36][0] = 250;
-    calibrationGrid[36][1] = -150;
-
-    calibrationGrid[37][0] = 250;
-    calibrationGrid[37][1] = -250;
-
-    calibrationGrid[38][0] = 0;
-    calibrationGrid[38][1] = 0;
+    recomputeCount = 0;
 
 
-    // log_info("Point: 0 (0, 0)");
-    // log_info("Point: 1 (0, " << -trY_adjusted / 2 << ")");
+    while(maxX <= 4){ //4 produces a 9x9 grid
+        while(currentX > -1*maxX){
+            calibrationGrid[pointCount][0] = currentX * xSpacing;
+            calibrationGrid[pointCount][1] = currentY * ySpacing;
+            pointCount++;
+            currentX--;
+        }
+        while(currentY < maxY){
+            calibrationGrid[pointCount][0] = currentX * xSpacing;
+            calibrationGrid[pointCount][1] = currentY * ySpacing;
+            pointCount++;
+            currentY++;
+        }
+        while(currentX < maxX){
+            calibrationGrid[pointCount][0] = currentX * xSpacing;
+            calibrationGrid[pointCount][1] = currentY * ySpacing;
+            pointCount++;
+            currentX++;
+        }
+        while(currentY > -1*maxY){
+            calibrationGrid[pointCount][0] = currentX * xSpacing;
+            calibrationGrid[pointCount][1] = currentY * ySpacing;
+            pointCount++;
+            currentY--;
+        }
 
-    // for (int x = 0; x < calibrationGridSizeX; x++) {
-    //     if (x % 2 == 0) { // For even columns, go bottom to top
-    //         for (int y = 0; y < calibrationGridSizeY; y++) {
-    //             double targetX = -trX_adjusted / 2  + x * deltaX;
-    //             double targetY = -trY_adjusted / 2  + y * deltaY;
+        //Add the last point to the recompute list
+        calibrationGrid[pointCount][0] = currentX * xSpacing;
+        calibrationGrid[pointCount][1] = currentY * ySpacing;
+        pointCount++;
 
-    //             log_info("Point: " << pointCount << " (" << targetX << ", " << targetY << ")");
+        recomputePoints[recomputeCount] = pointCount - 1; //Minus one because we increment after each point is generated
+        recomputeCount++;
 
-    //             //Store the values
-    //             calibrationGrid[pointCount][0] = targetX;
-    //             calibrationGrid[pointCount][1] = targetY;
+        maxX = maxX + 1;
+        maxY = maxY + 1;
 
-    //             pointCount++;
-    //         }
-    //     } else { // For odd columns, go top to bottom
-    //         for (int y = calibrationGridSizeY - 1; y >= 0; y--) {
-    //             double targetX = -trX_adjusted / 2  + x * deltaX;
-    //             double targetY = -trY_adjusted / 2  + y * deltaY;
+        currentY = currentY + -1;
+    }
 
-    //             log_info("Point: " << pointCount << " (" << targetX << ", " << targetY << ")");
+    log_info("Grid generated");
 
-    //             // Store the values
-    //             calibrationGrid[pointCount][0] = targetX;
-    //             calibrationGrid[pointCount][1] = targetY;
-
-    //             pointCount++;
-    //         }
-    //     }
-    // }
     return true;
+}
+
+//Print calibration grid
+void Maslow_::printCalibrationGrid() {
+    for (int i = 0; i < pointCount; i++) {
+        log_info("Point " << i << ": " << calibrationGrid[i][0] << ", " << calibrationGrid[i][1]);
+    }
+
+    for(int i = 0; i < recomputeCount; i++){
+        log_info("Recompute point: " << recomputePoints[i]);
+    }
+
+    log_info("Times to recompute: " << recomputeCount);
+
 }
 
 //------------------------------------------------------
@@ -1493,6 +1398,9 @@ void Maslow_::test_() {
     axisTR.test();
     axisBL.test();
     axisBR.test();
+
+    generate_calibration_grid();
+    printCalibrationGrid();
 
 }
 void Maslow_::set_frame_width(double width) {

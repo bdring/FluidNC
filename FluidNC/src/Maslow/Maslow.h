@@ -132,10 +132,14 @@ public:
     double calibrationGrid[CALIBRATION_GRID_SIZE_MAX][2] = { 0 };
     float  calibration_grid_width_mm_X               = 2000;  // mm offset from the edge of the frame
     float  calibration_grid_height_mm_Y              = 1000;  // mm offset from the edge of the frame
+    int    recomputePoints[10];                               // Stores the index of the points where we want to trigger a recompute
+    int    recomputeCountIndex = 0;                           // Stores the index of the recompute point we are currently on
+    int    recomputeCount      = 0;                           // Stores the number of recompute points
     double calibrationDataWaiting                    = -1;   //-1 if data is not waiting, other wise the milis since the data was last sent
     bool   error                                     = false;
     String errorMessage;
     bool   generate_calibration_grid();
+    void   printCalibrationGrid();
     bool   move_with_slack(double fromX, double fromY, double toX, double toY);
     int    get_direction(double x, double y, double targetX, double targetY);
     bool   take_measurement_avg_with_check(int waypoint, int dir);
@@ -151,7 +155,7 @@ public:
     bool   orientation;
     double calibration_data[4][CALIBRATION_GRID_SIZE_MAX] = { 0 };
     int    pointCount                                 = 0;  //number of actual points in the grid,  < GRID_SIZE_MAX
-    int  waypoint                                     = 0;  //The current waypoint in the calibration process
+    int    waypoint                                   = 0;  //The current waypoint in the calibration process
     int    calibrationGridSizeX                       = 10;
     int    calibrationGridSizeY                       = 9;
     // //keep track of where Maslow actually is, lower left corner is 0,0
