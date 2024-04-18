@@ -7,7 +7,7 @@
 #include "../WebUI/WifiConfig.h"
 
 // Maslow specific defines
-#define VERSION_NUMBER "0.68"
+#define VERSION_NUMBER "0.69"
 
 #define TLEncoderLine 2
 #define TREncoderLine 1
@@ -60,10 +60,10 @@ void Maslow_::begin(void (*sys_rt)()) {
     Wire.begin(5, 4, 400000);
     I2CMux.begin(TCAADDR, Wire);
 
-    axisTL.begin(tlIn1Pin, tlIn2Pin, tlADCPin, TLEncoderLine, tlIn1Channel, tlIn2Channel, retractCurrentThreshold);
-    axisTR.begin(trIn1Pin, trIn2Pin, trADCPin, TREncoderLine, trIn1Channel, trIn2Channel, retractCurrentThreshold);
-    axisBL.begin(blIn1Pin, blIn2Pin, blADCPin, BLEncoderLine, blIn1Channel, blIn2Channel, retractCurrentThreshold);
-    axisBR.begin(brIn1Pin, brIn2Pin, brADCPin, BREncoderLine, brIn1Channel, brIn2Channel, retractCurrentThreshold);
+    axisTL.begin(tlIn1Pin, tlIn2Pin, tlADCPin, TLEncoderLine, tlIn1Channel, tlIn2Channel);
+    axisTR.begin(trIn1Pin, trIn2Pin, trADCPin, TREncoderLine, trIn1Channel, trIn2Channel);
+    axisBL.begin(blIn1Pin, blIn2Pin, blADCPin, BLEncoderLine, blIn1Channel, blIn2Channel);
+    axisBR.begin(brIn1Pin, brIn2Pin, brADCPin, BREncoderLine, brIn1Channel, brIn2Channel);
 
     axisBLHomed = false;
     axisBRHomed = false;
@@ -826,25 +826,22 @@ bool Maslow_::take_measurement_avg_with_check(int waypoint, int dir) {
     static double        measurements[4][4] = { 0 };
     static double        avg                = 0;
     static double        sum                = 0;
-    static unsigned long decompressTimer    = millis();
 
     if (take_measurement(waypoint, dir, run)) {
-        if (run < 3) {
-            //decompress lower belts for 500 ms before taking the next measurement
-            decompressTimer = millis();
+        if (run < 2) {
             run++;
             return false;  //discard the first three measurements
         }
 
-        measurements[0][run - 3] = calibration_data[0][waypoint];  //-3 cuz discarding the first 3 measurements
-        measurements[1][run - 3] = calibration_data[1][waypoint];
-        measurements[2][run - 3] = calibration_data[2][waypoint];
-        measurements[3][run - 3] = calibration_data[3][waypoint];
+        measurements[0][run - 2] = calibration_data[0][waypoint];  //-3 cuz discarding the first 3 measurements
+        measurements[1][run - 2] = calibration_data[1][waypoint];
+        measurements[2][run - 2] = calibration_data[2][waypoint];
+        measurements[3][run - 2] = calibration_data[3][waypoint];
 
         run++;
 
         static int criticalCounter = 0;
-        if (run > 6) {
+        if (run > 5) {
             run = 0;
 
             //check if all measurements are within 1mm of each other
@@ -856,9 +853,6 @@ bool Maslow_::take_measurement_avg_with_check(int waypoint, int dir) {
                     maxDeviation[i] = max(maxDeviation[i], abs(measurements[i][j] - measurements[i][j + 1]));
                 }
             }
-            //log max deviations at every axis:
-            //log_info("Max deviation at BL: " << maxDeviation[2] << " BR: " << maxDeviation[3] << " TR: " << maxDeviation[1] << " TL: " << maxDeviation[0]);
-            //find max deviation between all measurements
 
             for (int i = 0; i < 4; i++) {
                 maxDeviationAbs = max(maxDeviationAbs, maxDeviation[i]);
@@ -875,7 +869,7 @@ bool Maslow_::take_measurement_avg_with_check(int waypoint, int dir) {
                     }
                 }
                 //reset the run counter to run the measurements again
-                if (criticalCounter++ > 8) { //This appears not to be incremented anywhere
+                if (criticalCounter++ > 8) { //This updates the counter and checks
                     log_error("Critical error, measurements are not within 1.5mm of each other 8 times in a row, stopping calibration");
                     calibrationInProgress = false;
                     waypoint              = 0;
@@ -883,7 +877,6 @@ bool Maslow_::take_measurement_avg_with_check(int waypoint, int dir) {
                     return false;
                 }
 
-                decompressTimer = millis();
                 return false;
             }
             //if they are, take the average and record it to the calibration data array
@@ -899,9 +892,6 @@ bool Maslow_::take_measurement_avg_with_check(int waypoint, int dir) {
             log_info("Measured waypoint " << waypoint);
             return true;
         }
-
-        //decompress lower belts for 500 ms before taking the next measurement
-        decompressTimer = millis();
     }
 
     return false;
