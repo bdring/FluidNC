@@ -415,7 +415,7 @@ bool Maslow_::takeSlackFunc() {
 void Maslow_::calibration_loop() {
     static int  direction             = UP;
     static bool measurementInProgress = false;
-    if(waypoint > 38){
+    if(waypoint > pointCount){
         calibrationInProgress = false;
         waypoint              = 0;
     }
@@ -426,28 +426,13 @@ void Maslow_::calibration_loop() {
             
             waypoint++;  //Increment the waypoint counter
 
-            if (waypoint == 6) {  //If we have reached the end of first stage of the calibration process
+            if (waypoint == recomputePoints[recomputeCountIndex]) {  //If we have reached the end of this stage of the calibration process
                 calibrationInProgress = false;
                 log_info("Calibration stge 1 complete");
                 print_calibration_data();
                 calibrationDataWaiting = millis();
                 sys.set_state(State::Idle);
-            }
-            else if(waypoint == 17){
-                calibrationInProgress = false;
-                //waypoint              = 0;
-                log_info("Calibration stge 2 complete");
-                print_calibration_data();
-                calibrationDataWaiting = millis();
-                sys.set_state(State::Idle);
-            }
-            else if(waypoint == 39){
-                calibrationInProgress = false;
-                //waypoint              = 0;
-                log_info("Calibration stge 3 complete");
-                print_calibration_data();
-                calibrationDataWaiting = millis();
-                sys.set_state(State::Idle);
+                recomputeCountIndex++;
             }
             else {
                 hold(250);
@@ -1103,13 +1088,15 @@ int Maslow_::get_direction(double x, double y, double targetX, double targetY) {
 bool Maslow_::generate_calibration_grid() {
     log_info("Generating grid");
 
-    int gridWidth = 2000;
-    int gridHeight = 1000;
-    int numberOfPointsHigh = 6;
-    int numberOfPointsWide = 6;
+    int gridWidth = 1800;
+    int gridHeight = 900;
+    int numberOfPointsHigh = 9;
+    int numberOfPointsWide = 9;
 
-    float xSpacing = gridHeight / (numberOfPointsHigh - 1);
-    float ySpacing = gridWidth / (numberOfPointsWide - 1);
+    float xSpacing = gridWidth / (numberOfPointsHigh - 1);
+    float ySpacing = gridHeight / (numberOfPointsWide - 1);
+
+    log_info("xSpacing: " << xSpacing << " ySpacing: " << ySpacing);
 
     pointCount = 0;
 
@@ -1166,6 +1153,15 @@ bool Maslow_::generate_calibration_grid() {
 
         currentY = currentY + -1;
     }
+
+    //Move back to the center
+    calibrationGrid[pointCount][0] = 0;
+    calibrationGrid[pointCount][1] = currentY * ySpacing;
+    pointCount++;
+
+    calibrationGrid[pointCount][0] = 0;
+    calibrationGrid[pointCount][1] = 0;
+    pointCount++;
 
     log_info("Grid generated");
 
@@ -1488,7 +1484,7 @@ String Maslow_::axis_id_to_label(int axis_id) {
 //Checks to see if the calibration data needs to be sent again
 void Maslow_::checkCalibrationData() {
     if (calibrationDataWaiting > 0) {
-        if (millis() - calibrationDataWaiting > 10000) {
+        if (millis() - calibrationDataWaiting > 30000) {
             log_error("Calibration data not acknowledged by computer, resending");
             print_calibration_data();
             calibrationDataWaiting = millis();
