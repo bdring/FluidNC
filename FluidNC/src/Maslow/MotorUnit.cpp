@@ -193,7 +193,7 @@ bool MotorUnit::retract() {
 // Pulls the belt until we hit a current treshold; returns true when done
 bool MotorUnit::pull_tight(int currentThreshold) {
     //call at most every 5ms
-    if (millis() - lastCallToRetract < 5) {
+    if (millis() - lastCallToRetract < 4) {
         return false;
     }
     lastCallToRetract = millis();
@@ -218,7 +218,7 @@ bool MotorUnit::pull_tight(int currentThreshold) {
     }
 
 
-    if (retract_speed > 75) { //75 is not the actual speed, it is the amount of time so we don't trigger immediately
+    if (retract_speed > 20) { //20 is not the actual speed, it is the amount of time so we don't trigger immediately
         if (currentMeasurement > currentThreshold || incrementalThresholdHits > 2) {
             //stop motor, reset variables
             stop();
