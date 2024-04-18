@@ -142,6 +142,7 @@ public:
     void   printCalibrationGrid();
     bool   move_with_slack(double fromX, double fromY, double toX, double toY);
     int    get_direction(double x, double y, double targetX, double targetY);
+    bool   checkValidMove(double fromX, double fromY, double toX, double toY);
     bool   take_measurement_avg_with_check(int waypoint, int dir);
     bool   take_measurement(int waypoint, int dir, int run);
     bool   takeSlackFunc();

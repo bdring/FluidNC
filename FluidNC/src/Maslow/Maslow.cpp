@@ -426,7 +426,7 @@ void Maslow_::calibration_loop() {
             
             waypoint++;  //Increment the waypoint counter
 
-            if (waypoint == recomputePoints[recomputeCountIndex]) {  //If we have reached the end of this stage of the calibration process
+            if (waypoint > recomputePoints[recomputeCountIndex]) {  //If we have reached the end of this stage of the calibration process
                 calibrationInProgress = false;
                 log_info("Calibration stge 1 complete");
                 print_calibration_data();
@@ -908,7 +908,7 @@ bool Maslow_::move_with_slack(double fromX, double fromY, double toX, double toY
 
 
     bool withSlack = true;
-    if(waypoint > 5){
+    if(waypoint >= recomputePoints[0]){ //If we have completed the first level of calibraiton
         withSlack = false;
     }
 
@@ -917,6 +917,7 @@ bool Maslow_::move_with_slack(double fromX, double fromY, double toX, double toY
         moveBeginTimer = millis();
         decompress = false;
         direction = get_direction(fromX, fromY, toX, toY);
+        checkValidMove(fromX, fromY, toX, toY);
     }
 
     //Decompress belts for 500ms...this happens by returning right away before running any of the rest of the code
@@ -1072,6 +1073,40 @@ int Maslow_::get_direction(double x, double y, double targetX, double targetY) {
     }
 
     return direction;
+}
+
+bool Maslow_::checkValidMove(double fromX, double fromY, double toX, double toY){
+    bool valid = true;
+    int direction = get_direction(fromX, fromY, toX, toY);
+    switch(direction){
+        case UP: //If we are moving up we expect the top belts to get shorter so to should be shorter than they are now
+            if(computeTL(toX, toY, 0) > axisTL.getPosition() || computeTR(toX, toY, 0) > axisTR.getPosition()){
+                valid = false;
+            }
+            break;
+        case DOWN: //If we are moving down we expect the bottom belts to get shorter so they should be shorter than they are now
+            if(computeBL(toX, toY, 0) > axisBL.getPosition() || computeBR(toX, toY, 0) > axisBR.getPosition()){
+                valid = false;
+            }
+            break;
+        case LEFT: //If we are moving left we expect the left belts to get shorter so they should be shorter than they are now
+            if(computeTL(toX, toY, 0) > axisTL.getPosition() || computeBL(toX, toY, 0) > axisBL.getPosition()){
+                valid = false;
+            }
+            break;
+        case RIGHT: //If we are moving right we expect the right belts to get shorter so they should be shorter than they are now
+            if(computeTR(toX, toY, 0) > axisTR.getPosition() || computeBR(toX, toY, 0) > axisBR.getPosition()){
+                valid = false;
+            }
+            break;
+    }
+    if(!valid){
+        log_error("Unable to move safely, stopping calibration");
+        calibrationInProgress = false;
+        waypoint              = 0;
+        eStop();
+    }
+    return valid;
 }
 
 //The number of points high and wide  must be an odd number
