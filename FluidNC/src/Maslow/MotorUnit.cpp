@@ -15,10 +15,8 @@
 //------------------------------------------------------ Core utility functions
 //------------------------------------------------------
 
-void MotorUnit::begin(int forwardPin, int backwardPin, int readbackPin, int encoderAddress, int channel1, int channel2, int retractCurrentThreshold) {
+void MotorUnit::begin(int forwardPin, int backwardPin, int readbackPin, int encoderAddress, int channel1, int channel2) {
     _encoderAddress = encoderAddress;
-
-    absoluteCurrentThreshold = retractCurrentThreshold;
 
     Maslow.I2CMux.setPort(_encoderAddress);
     if (!encoder.begin()) {
@@ -182,7 +180,7 @@ bool MotorUnit::comply() {
 
 // Pulls_tight and zeros axis; returns true when done
 bool MotorUnit::retract() {
-    if (pull_tight(absoluteCurrentThreshold)) {
+    if (pull_tight(Maslow.retractCurrentThreshold)) {
         log_info(Maslow.axis_id_to_label(_encoderAddress).c_str() << " pulled tight with offset " << getPosition());
         zero();
         return true;
