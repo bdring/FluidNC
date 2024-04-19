@@ -1167,7 +1167,7 @@ bool Maslow_::generate_calibration_grid() {
     recomputeCount = 0;
 
 
-    while(maxX <= 1){ //4 produces a 9x9 grid
+    while(maxX <= 4){ //4 produces a 9x9 grid
         while(currentX > -1*maxX){
             calibrationGrid[pointCount][0] = currentX * xSpacing;
             calibrationGrid[pointCount][1] = currentY * ySpacing;
