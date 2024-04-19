@@ -201,6 +201,7 @@ namespace Machine {
     void Axes::group(Configuration::HandlerBase& handler) {
         handler.item("shared_stepper_disable_pin", _sharedStepperDisable);
         handler.item("shared_stepper_reset_pin", _sharedStepperReset);
+        handler.item("homing_runs", _homing_runs, 1, 5);
 
         // Handle axis names xyzabc.  handler.section is inferred
         // from a template.

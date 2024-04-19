@@ -62,7 +62,7 @@ bool limits_startup_check() {  // return true if there is a hard limit error.
 // Called only from Kinematics canHome() methods, hence from states allowing homing
 bool ambiguousLimit() {
     if (Machine::Axes::posLimitMask & Machine::Axes::negLimitMask) {
-        mc_critical(ExecAlarm::HardLimit);
+        mc_critical(ExecAlarm::HomingAmbiguousSwitch);
         return true;
     }
     return false;
