@@ -10,7 +10,7 @@
 
 #include "DCMotor.h"
 
-#define motorPWMFreq 2000
+#define motorPWMFreq 16000
 #define motorPWMRes 10
 
 /*!
