@@ -418,6 +418,7 @@ void Maslow_::calibration_loop() {
     if(waypoint > pointCount){
         calibrationInProgress = false;
         waypoint              = 0;
+        log_info("Calibration complete");
     }
     //Taking measurment once we've reached the point
     if (measurementInProgress) {
@@ -428,7 +429,6 @@ void Maslow_::calibration_loop() {
 
             if (waypoint > recomputePoints[recomputeCountIndex]) {  //If we have reached the end of this stage of the calibration process
                 calibrationInProgress = false;
-                log_info("Calibration stge 1 complete");
                 print_calibration_data();
                 calibrationDataWaiting = millis();
                 sys.set_state(State::Idle);
@@ -982,8 +982,14 @@ bool Maslow_::move_with_slack(double fromX, double fromY, double toX, double toY
     if(orientation == VERTICAL){
         axisTL.recomputePID();
         axisTR.recomputePID();
-        axisBL.comply();
-        axisBR.comply();
+        if(withSlack){
+            axisBL.comply();
+            axisBR.comply();
+        }
+        else{
+            axisBL.recomputePID();
+            axisBR.recomputePID();
+        }
     }
     else{
         switch (direction) {
@@ -1161,7 +1167,7 @@ bool Maslow_::generate_calibration_grid() {
     recomputeCount = 0;
 
 
-    while(maxX <= 4){ //4 produces a 9x9 grid
+    while(maxX <= 1){ //4 produces a 9x9 grid
         while(currentX > -1*maxX){
             calibrationGrid[pointCount][0] = currentX * xSpacing;
             calibrationGrid[pointCount][1] = currentY * ySpacing;
@@ -1208,7 +1214,8 @@ bool Maslow_::generate_calibration_grid() {
 
     calibrationGrid[pointCount][0] = 0;
     calibrationGrid[pointCount][1] = 0;
-    pointCount++;
+
+    recomputePoints[recomputeCount] = pointCount;
 
     log_info("Grid generated");
 
@@ -1217,15 +1224,17 @@ bool Maslow_::generate_calibration_grid() {
 
 //Print calibration grid
 void Maslow_::printCalibrationGrid() {
-    for (int i = 0; i < pointCount; i++) {
+    for (int i = 0; i <= pointCount; i++) {
         log_info("Point " << i << ": " << calibrationGrid[i][0] << ", " << calibrationGrid[i][1]);
     }
+    log_info("Max value for pointCount: " << pointCount);
 
     for(int i = 0; i < recomputeCount; i++){
         log_info("Recompute point: " << recomputePoints[i]);
     }
 
     log_info("Times to recompute: " << recomputeCount);
+    
 
 }
 
