@@ -1209,7 +1209,7 @@ bool Maslow_::generate_calibration_grid() {
 
     //Move back to the center
     calibrationGrid[pointCount][0] = 0;
-    calibrationGrid[pointCount][1] = currentY * ySpacing;
+    calibrationGrid[pointCount][1] = currentY-1 * ySpacing; //The last loop added an nunecessary +1 to the y position
     pointCount++;
 
     calibrationGrid[pointCount][0] = 0;
@@ -1280,7 +1280,6 @@ void Maslow_::retractALL() {
     axisBR.reset();
 }
 void Maslow_::extendALL() {
-    // ADD also shouldn't extend before we get the parameters from the user
 
     if (!all_axis_homed()) {
         log_error("Please press Retract All before using Extend All");  //I keep getting everything set up for calibration and then this trips me up
@@ -1290,6 +1289,15 @@ void Maslow_::extendALL() {
 
     stop();
     extendingALL = true;
+
+    updateCenterXY();
+
+    log_info("Extend TL: " << computeTL(0, 0, 0));
+    log_info("Extend TR: " << computeTR(0, 0, 0));
+    log_info("Extend BL: " << computeBL(0, 300, 0));
+    log_info("Extend BR: " << computeBR(0, 300, 0));
+    log_info("TLX: " << tlX << " TLY: " << tlY << " TRX: " << trX << " TRY: " << trY << " BLX: " << blX << " BLY: " << blY << " BRX: " << brX << " BRY: " << brY);
+
     //extendCallTimer = millis();
 }
 void Maslow_::runCalibration() {
@@ -1626,6 +1634,7 @@ double Maslow_::getTargetZ() {
 
 //Updates where the center x and y positions are
 void Maslow_::updateCenterXY() {
+    log_info("Updating center x and y");
     double A = (trY - blY) / (trX - blX);
     double B = (brY - tlY) / (brX - tlX);
     centerX  = (brY - (B * brX) + (A * trX) - trY) / (A - B);
