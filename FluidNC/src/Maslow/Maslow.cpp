@@ -1163,8 +1163,6 @@ bool Maslow_::generate_calibration_grid() {
             return false; // return false or handle error appropriately
     }
 
-    log_info("xSpacing: " << xSpacing << " ySpacing: " << ySpacing);
-
     pointCount = 0;
 
     //The point in the center
@@ -1230,8 +1228,6 @@ bool Maslow_::generate_calibration_grid() {
     calibrationGrid[pointCount][1] = 0;
 
     recomputePoints[recomputeCount] = pointCount;
-
-    log_info("Grid generated");
 
     return true;
 }
@@ -1305,12 +1301,6 @@ void Maslow_::extendALL() {
     extendingALL = true;
 
     updateCenterXY();
-
-    log_info("Extend TL: " << computeTL(0, 0, 0));
-    log_info("Extend TR: " << computeTR(0, 0, 0));
-    log_info("Extend BL: " << computeBL(0, 300, 0));
-    log_info("Extend BR: " << computeBR(0, 300, 0));
-    log_info("TLX: " << tlX << " TLY: " << tlY << " TRX: " << trX << " TRY: " << trY << " BLX: " << blX << " BLY: " << blY << " BRX: " << brX << " BRY: " << brY);
 
     //extendCallTimer = millis();
 }
@@ -1472,9 +1462,6 @@ void Maslow_::test_() {
     axisTR.test();
     axisBL.test();
     axisBR.test();
-
-    generate_calibration_grid();
-    printCalibrationGrid();
 
 }
 void Maslow_::set_frame_width(double width) {
@@ -1648,7 +1635,6 @@ double Maslow_::getTargetZ() {
 
 //Updates where the center x and y positions are
 void Maslow_::updateCenterXY() {
-    log_info("Updating center x and y");
     double A = (trY - blY) / (trX - blX);
     double B = (brY - tlY) / (brX - tlX);
     centerX  = (brY - (B * brX) + (A * trX) - trY) / (A - B);
