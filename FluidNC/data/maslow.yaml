@@ -8,9 +8,8 @@ Maslow_vertical: false
 maslow_calibration_grid_width_mm_X: 2000
 maslow_calibraiton_grid_height_mm_Y: 1000
 
-# Defines the number of points in the calibration grid (X by Y), maximum is 10x10
-Maslow_calibration_size_X: 10
-Maslow_calibration_size_Y: 9
+# Defines the number of points in the calibration grid. Options are 3,5,7,9
+maslow_calibration_grid_size: 9
 
 #####################################################################
 # Define the frame
