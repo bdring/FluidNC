@@ -1223,7 +1223,7 @@ bool Maslow_::generate_calibration_grid() {
 
     //Move back to the center
     calibrationGrid[pointCount][0] = 0;
-    calibrationGrid[pointCount][1] = currentY-1 * ySpacing; //The last loop added an nunecessary +1 to the y position
+    calibrationGrid[pointCount][1] = (currentY+1) * ySpacing; //The last loop added an nunecessary -1 to the y position
     pointCount++;
 
     calibrationGrid[pointCount][0] = 0;
@@ -1583,7 +1583,7 @@ void Maslow_::print_calibration_data() {
 
 //Runs when the calibration data has been acknowledged as received by the computer and the calibration process is progressing
 void Maslow_::calibrationDataRecieved(){
-    log_info("Calibration data acknowledged received by computer");
+    // log_info("Calibration data acknowledged received by computer");
     calibrationDataWaiting = -1;
 }
 
