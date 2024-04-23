@@ -5,6 +5,7 @@
 
 #include "../Report.h"
 #include "../Protocol.h"  // send_line()
+#include "../Maslow/Maslow.h"
 
 #include <cstdlib>
 #include <atomic>
@@ -105,6 +106,7 @@ namespace Configuration {
             } else {
                 char* floatEnd;
                 value = strtof(newValue_, &floatEnd);
+                Maslow.updateCenterXY();
             }
         }
     }
