@@ -1139,15 +1139,29 @@ bool Maslow_::checkValidMove(double fromX, double fromY, double toX, double toY)
 
 //The number of points high and wide  must be an odd number
 bool Maslow_::generate_calibration_grid() {
-    log_info("Generating grid");
 
-    int gridWidth = 1800;
-    int gridHeight = 900;
-    int numberOfPointsHigh = 9;
-    int numberOfPointsWide = 9;
+    float xSpacing = calibration_grid_width_mm_X / (calibrationGridSize - 1);
+    float ySpacing = calibration_grid_height_mm_Y / (calibrationGridSize - 1);
 
-    float xSpacing = gridWidth / (numberOfPointsHigh - 1);
-    float ySpacing = gridHeight / (numberOfPointsWide - 1);
+    int numberOfCycles = 0;
+
+    switch(calibrationGridSize) {
+        case 3:
+            numberOfCycles = 1; // 3x3 grid
+            break;
+        case 5:
+            numberOfCycles = 2; // 5x5 grid
+            break;
+        case 7:
+            numberOfCycles = 3; // 7x7 grid
+            break;
+        case 9:
+            numberOfCycles = 4; // 9x9 grid
+            break;
+        default:
+            log_error("Invalid maslow_calibration_grid_size: " << calibrationGridSize);
+            return false; // return false or handle error appropriately
+    }
 
     log_info("xSpacing: " << xSpacing << " ySpacing: " << ySpacing);
 
@@ -1167,7 +1181,7 @@ bool Maslow_::generate_calibration_grid() {
     recomputeCount = 0;
 
 
-    while(maxX <= 4){ //4 produces a 9x9 grid
+    while(maxX <= numberOfCycles){ //4 produces a 9x9 grid
         while(currentX > -1*maxX){
             calibrationGrid[pointCount][0] = currentX * xSpacing;
             calibrationGrid[pointCount][1] = currentY * ySpacing;

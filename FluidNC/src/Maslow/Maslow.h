@@ -157,8 +157,7 @@ public:
     double calibration_data[4][CALIBRATION_GRID_SIZE_MAX] = { 0 };
     int    pointCount                                 = 0;  //number of actual points in the grid,  < GRID_SIZE_MAX
     int    waypoint                                   = 0;  //The current waypoint in the calibration process
-    int    calibrationGridSizeX                       = 10;
-    int    calibrationGridSizeY                       = 9;
+    int    calibrationGridSize                        = 9;
     // //keep track of where Maslow actually is, lower left corner is 0,0
     double x;
     double y;

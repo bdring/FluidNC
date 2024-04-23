@@ -41,7 +41,7 @@ namespace Machine {
         handler.item("Maslow_vertical", Maslow.orientation);
         handler.item("maslow_calibration_grid_width_mm_X", Maslow.calibration_grid_width_mm_X, 100, 3000);
         handler.item("maslow_calibration_grid_height_mm_Y", Maslow.calibration_grid_height_mm_Y, 100, 3000);
-        handler.item("maslow_calibration_grid_size", Maslow.calibrationGridSizeX, 3, 9);
+        handler.item("maslow_calibration_grid_size", Maslow.calibrationGridSize, 3, 9);
         
         handler.item("Maslow_brX", Maslow.brX);
         handler.item("Maslow_brY", Maslow.brY);
