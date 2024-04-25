@@ -64,7 +64,7 @@ public:
     void   take_slack();
     void   comply();
     void   stop();
-    void   eStop();
+    void   eStop(String message = "Emergency stop triggered.");
     void   panic();
     void   setSafety(bool state);
     String axis_id_to_label(int axis_id);

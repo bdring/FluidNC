@@ -905,9 +905,23 @@ bool Maslow_::take_measurement_avg_with_check(int waypoint, int dir) {
                 if (abs(diffTL) > threshold || abs(diffTR) > threshold || abs(diffBL) > threshold || abs(diffBR) > threshold) {
                     log_error("Center point deviation over " << threshold << "mmm, your coordinate system is not accurate, adjust your frame dimensions and restart.");
                     //Should we enter an alarm state here to prevent things from going wrong?
+
+
+                    String message = "";
+                    //If both of the bottom belts are longer than expected then the frame is smaller than expected
+                    if(diffBL > threshold && diffBR > threshold){
+                        log_error("Frame size error, try entering larger frame dimensions and restart.");
+                        message = "Frame size error, try entering larger frame dimensions and restart.";
+                    }
+                    //If both of the bottom belts are shorter than expected then the frame is larger than expected
+                    else if(diffBL < -threshold && diffBR < -threshold){
+                        log_error("Frame size error, try entering smaller frame dimensions and restart.");
+                        message = "Frame size error, try entering smaller frame dimensions and restart.";
+                    }
+
                 
                     //Stop calibration
-                    eStop();
+                    eStop(message);
                     return true; 
                 }
             }
@@ -1609,12 +1623,12 @@ void Maslow_::panic() {
 }
 
 //Emergecy Stop
-void Maslow_::eStop() {
+void Maslow_::eStop(String message) {
     log_error("Emergency stop! Stopping all motors");
     log_warn("The machine will not respond until turned off and back on again");
     stop();
     error = true;
-    errorMessage = "Emergency stop triggered.";
+    errorMessage = message;
     sys.set_state(State::Alarm);
 }
 
