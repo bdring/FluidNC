@@ -247,10 +247,10 @@ bool IRAM_ATTR Stepper::pulse_func() {
             return false;  // Nothing to do but exit.
         }
     }
-
+#if 0
     // Check probing state.
-    if (probeState == ProbeState::Active && config->_probe->tripped()) {
-        probeState = ProbeState::Off;
+    if (probing && config->_probe->tripped()) {
+        probing = false;
         auto axes  = config->_axes;
         for (int axis = 0; axis < n_axis; axis++) {
             auto m            = axes->_axis[axis]->_motors[0];
@@ -258,7 +258,7 @@ bool IRAM_ATTR Stepper::pulse_func() {
         }
         protocol_send_event_from_ISR(&motionCancelEvent);
     }
-
+#endif
     // Reset step out bits.
     st.step_outbits = 0;
 

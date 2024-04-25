@@ -14,7 +14,7 @@ public:
 
     virtual void update(bool state) {};
 
-    void trigger(bool active);
+    virtual void trigger(bool active);
 
     ~EventPin() {}
 };

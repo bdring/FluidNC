@@ -74,15 +74,19 @@ int32_t get_axis_motor_steps(size_t axis) {
     return m ? m->_steps : 0;
 }
 
-int32_t* get_motor_steps() {
-    static int32_t motor_steps[MAX_N_AXIS];
-
+void get_motor_steps(int32_t* motor_steps) {
     auto axes   = config->_axes;
     auto n_axis = axes->_numberAxis;
     for (size_t axis = 0; axis < n_axis; axis++) {
         auto m            = axes->_axis[axis]->_motors[0];
         motor_steps[axis] = m ? m->_steps : 0;
     }
+
+}
+int32_t* get_motor_steps() {
+    static int32_t motor_steps[MAX_N_AXIS];
+
+    get_motor_steps(motor_steps);
     return motor_steps;
 }
 

@@ -274,7 +274,7 @@ bool mc_dwell(int32_t milliseconds) {
     return delay_msec(milliseconds, DwellMode::Dwell);
 }
 
-volatile ProbeState probeState;
+volatile bool probing;
 
 bool probe_succeeded = false;
 
@@ -310,8 +310,9 @@ GCUpdatePos mc_probe_cycle(float* target, plan_line_data_t* pl_data, bool away, 
     }
     // Setup and queue probing motion. Auto cycle-start should not start the cycle.
     mc_linear(target, pl_data, gc_state.position);
+    printf("Target %f\n", target[2]);
     // Activate the probing state monitor in the stepper module.
-    probeState = ProbeState::Active;
+    probing = true;
     // Perform probing cycle. Wait here until probe is triggered or motion completes.
     protocol_send_event(&cycleStartEvent);
     do {
@@ -326,16 +327,16 @@ GCUpdatePos mc_probe_cycle(float* target, plan_line_data_t* pl_data, bool away, 
 
     // Probing cycle complete!
     // Set state variables and error out, if the probe failed and cycle with error is enabled.
-    if (probeState == ProbeState::Active) {
+    if (probing) {
         if (no_error) {
-            copyAxes(probe_steps, get_motor_steps());
+            get_motor_steps(probe_steps);
         } else {
             send_alarm(ExecAlarm::ProbeFailContact);
         }
     } else {
         probe_succeeded = true;  // Indicate to system the probing cycle completed successfully.
     }
-    probeState = ProbeState::Off;  // Ensure probe state monitor is disabled.
+    probing = false;  // Ensure probe state monitor is disabled.
     protocol_execute_realtime();   // Check and execute run-time commands
     // Reset the stepper and planner buffers to remove the remainder of the probe motion.
     Stepper::reset();      // Reset step segment buffer.

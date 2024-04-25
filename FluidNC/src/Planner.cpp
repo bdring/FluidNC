@@ -307,7 +307,7 @@ bool plan_buffer_line(float* target, plan_line_data_t* pl_data) {
     float   unit_vec[MAX_N_AXIS], delta_mm;
     // Copy position data based on type of motion being planned.
     if (block->motion.systemMotion) {
-        copyAxes(position_steps, get_motor_steps());
+        get_motor_steps(position_steps);
     } else {
         if (!block->is_jog && Homing::unhomed_axes()) {
             log_info("Unhomed axes: " << config->_axes->maskToNames(Homing::unhomed_axes()));
@@ -426,7 +426,7 @@ void plan_sync_position() {
     // TODO: For motor configurations not in the same coordinate frame as the machine position,
     // this function needs to be updated to accomodate the difference.
     if (config->_axes) {
-        copyAxes(pl.position, get_motor_steps());
+        get_motor_steps(pl.position);
     }
 }
 

@@ -72,7 +72,7 @@ union SpindleStop {
 static SpindleStop spindle_stop_ovr;
 
 void protocol_reset() {
-    probeState             = ProbeState::Off;
+    probing = false;
     soft_limit             = false;
     rtSafetyDoor           = false;
     spindle_stop_ovr.value = 0;
@@ -413,7 +413,7 @@ static void protocol_hold_complete() {
     sys.suspend.bit.holdComplete = true;
 }
 
-static void protocol_do_motion_cancel() {
+void protocol_do_motion_cancel() {
     // log_debug("protocol_do_motion_cancel " << state_name());
     // Execute and flag a motion cancel with deceleration and return to idle. Used primarily by probing cycle
     // to halt and cancel the remainder of the motion.
@@ -1032,7 +1032,6 @@ ArgEvent spindleOverrideEvent { protocol_do_spindle_override };
 ArgEvent accessoryOverrideEvent { protocol_do_accessory_override };
 ArgEvent limitEvent { protocol_do_limit };
 ArgEvent faultPinEvent { protocol_do_fault_pin };
-
 ArgEvent reportStatusEvent { (void (*)(void*))report_realtime_status };
 
 NoArgEvent safetyDoorEvent { request_safety_door };
