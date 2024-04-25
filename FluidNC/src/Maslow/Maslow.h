@@ -212,6 +212,8 @@ private:
     bool BROOveride = false;
     unsigned long overideTimer = millis();
 
+    bool HeartBeatEnabled = true;
+
 };
 
 extern Maslow_& Maslow;

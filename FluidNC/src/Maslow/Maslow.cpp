@@ -243,7 +243,7 @@ void Maslow_::blinkIPAddress() {
 void Maslow_::heartBeat(){
     static unsigned long heartBeatTimer = millis();
 
-    if(millis() - heartBeatTimer > 1000){
+    if(millis() - heartBeatTimer > 1000 && HeartBeatEnabled) {
         heartBeatTimer = millis();
         log_info("Heartbeat");
     }
@@ -1549,7 +1549,7 @@ String Maslow_::axis_id_to_label(int axis_id) {
 //Checks to see if the calibration data needs to be sent again
 void Maslow_::checkCalibrationData() {
     if (calibrationDataWaiting > 0) {
-        if (millis() - calibrationDataWaiting > 30000) {
+        if (millis() - calibrationDataWaiting > 30007) {
             log_error("Calibration data not acknowledged by computer, resending");
             print_calibration_data();
             calibrationDataWaiting = millis();
@@ -1565,7 +1565,9 @@ void Maslow_::print_calibration_data() {
                 ",   tr:" + String(calibration_data[1][i]) + ",   tl:" + String(calibration_data[0][i]) + "},";
     }
     data += "]";
+    HeartBeatEnabled = false;
     log_data(data.c_str());  //will it print really large strings?
+    HeartBeatEnabled = true;
 }
 
 //Runs when the calibration data has been acknowledged as received by the computer and the calibration process is progressing
