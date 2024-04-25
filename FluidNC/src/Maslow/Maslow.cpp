@@ -1549,7 +1549,7 @@ String Maslow_::axis_id_to_label(int axis_id) {
 //Checks to see if the calibration data needs to be sent again
 void Maslow_::checkCalibrationData() {
     if (calibrationDataWaiting > 0) {
-        if (millis() - calibrationDataWaiting > 27000) {
+        if (millis() - calibrationDataWaiting > 30007) {
             log_error("Calibration data not acknowledged by computer, resending");
             print_calibration_data();
             calibrationDataWaiting = millis();
