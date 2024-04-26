@@ -55,7 +55,7 @@ bool Macro::run() {
         return false;
     }
 
-    if (sys.state != State::Idle) {
+    if (!state_is(State::Idle)) {
         log_error("Macro can only be used in idle state");
         return false;
     }

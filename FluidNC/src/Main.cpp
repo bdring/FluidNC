@@ -117,7 +117,7 @@ void setup() {
         }
 
         // Initialize system state.
-        if (sys.state != State::ConfigAlarm) {
+        if (!state_is(State::ConfigAlarm)) {
             for (auto s : config->_spindles) {
                 s->init();
             }
@@ -129,8 +129,7 @@ void setup() {
 
     } catch (const AssertionFailed& ex) {
         // This means something is terribly broken:
-        log_error("Critical error in main_init: " << ex.what());
-        sys.state = State::ConfigAlarm;
+        log_config_error("Critical error in main_init: " << ex.what());
     }
 
     // Try Bluetooth first so its memory can be released if it is disabled
@@ -164,9 +163,8 @@ void loop() {
         // and run_once into a single control flow, and it would
         // require careful teardown of the existing configuration
         // to avoid memory leaks. It is probably worth doing eventually.
-        log_error("Critical error in run_once: " << ex.msg);
+        log_config_error("Critical error in run_once: " << ex.msg);
         log_error("Stacktrace: " << ex.stackTrace);
-        sys.state = State::ConfigAlarm;
     }
     // sys.abort is a user-initiated exit via ^x so we don't limit the number of occurrences
     if (!sys.abort && ++tries > 1) {

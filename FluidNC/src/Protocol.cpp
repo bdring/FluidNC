@@ -267,7 +267,7 @@ void protocol_buffer_synchronize() {
         if (sys.abort) {
             return;  // Check for system abort
         }
-    } while (plan_get_current_block() || (sys.state == State::Cycle));
+    } while (plan_get_current_block() || state_is(State::Cycle));
 }
 
 // Auto-cycle start triggers when there is a motion ready to execute and if the main program is not
@@ -277,9 +277,8 @@ void protocol_buffer_synchronize() {
 // is finished, single commands), a command that needs to wait for the motions in the buffer to
 // execute calls a buffer sync, or the planner buffer is full and ready to go.
 void protocol_auto_cycle_start() {
-    if (plan_get_current_block() != NULL && sys.state != State::Cycle &&
-        sys.state != State::Hold) {             // Check if there are any blocks in the buffer.
-        protocol_send_event(&cycleStartEvent);  // If so, execute them
+    if (plan_get_current_block() != NULL && !state_is(State::Cycle) && !state_is(State::Hold)) {  // Check if there are any blocks in the buffer.
+        protocol_send_event(&cycleStartEvent);                                                    // If so, execute them
     }
 }
 
@@ -317,7 +316,7 @@ static void protocol_do_restart() {
 
     plan_reset();  // Clear block buffer and planner variables
 
-    if (sys.state != State::ConfigAlarm) {
+    if (!state_is(State::ConfigAlarm)) {
         if (spindle) {
             spindle->stop();
             report_ovr_counter = 0;  // Set to report change immediately
@@ -335,7 +334,7 @@ static void protocol_do_restart() {
     // Check for and report alarm state after a reset, error, or an initial power up.
     // NOTE: Sleep mode disables the stepper drivers and position can't be guaranteed.
     // Re-initialize the sleep state as an ALARM mode to ensure user homes or acknowledges.
-    if (sys.state == State::ConfigAlarm) {
+    if (state_is(State::ConfigAlarm)) {
         report_error_message(Message::ConfigAlarmLock);
         return;
     }
@@ -346,7 +345,7 @@ static void protocol_do_restart() {
     } else if (config->_control->startup_check()) {
         send_alarm(ExecAlarm::ControlPin);
     } else {
-        if (sys.state == State::Idle) {
+        if (state_is(State::Idle)) {
             config->_macros->_after_reset.run();
         }
     }
@@ -354,7 +353,7 @@ static void protocol_do_restart() {
 
 static void protocol_do_start() {
     protocol_send_event(&restartEvent);
-    sys.state = State::Critical;
+    set_state(State::Critical);
     if (FORCE_INITIALIZATION_ALARM) {
         // Force ALARM state upon a power-cycle or hard reset.
         send_alarm(ExecAlarm::Init);
@@ -366,7 +365,7 @@ static void protocol_do_start() {
         // If there is an axis with homing configured, enter Alarm state on startup
         send_alarm(ExecAlarm::Unhomed);
     } else {
-        sys.state = State::Idle;
+        set_state(State::Idle);
     }
     protocol_send_event(&runStartupLinesEvent);
 }
@@ -378,18 +377,18 @@ static void protocol_do_alarm(void* alarmVoid) {
     }
     alarm_msg(lastAlarm);
     if (lastAlarm == ExecAlarm::HardLimit || lastAlarm == ExecAlarm::HardStop) {
-        sys.state = State::Critical;  // Set system alarm state
+        set_state(State::Critical);  // Set system alarm state
         report_error_message(Message::CriticalEvent);
         protocol_disable_steppers();
         Homing::set_all_axes_unhomed();
         return;
     }
     if (lastAlarm == ExecAlarm::SoftLimit) {
-        sys.state = State::Critical;  // Set system alarm state
+        set_state(State::Critical);  // Set system alarm state
         report_error_message(Message::CriticalEvent);
         return;
     }
-    sys.state = State::Alarm;
+    set_state(State::Alarm);
 }
 
 static void protocol_start_holding() {
@@ -486,7 +485,7 @@ static void protocol_do_feedhold() {
             protocol_cancel_jogging();
             return;  // Do not change the state to Hold
     }
-    sys.state = State::Hold;
+    set_state(State::Hold);
 }
 
 static void protocol_do_safety_door() {
@@ -541,7 +540,7 @@ static void protocol_do_safety_door() {
     if (!sys.suspend.bit.jogCancel) {
         // If jogging, leave the safety door event pending until the jog cancel completes
         rtSafetyDoor = false;
-        sys.state    = State::SafetyDoor;
+        set_state(State::SafetyDoor);
     }
     // NOTE: This flag doesn't change when the door closes, unlike sys.state. Ensures any parking motions
     // are executed if the door switch closes and the state returns to HOLD.
@@ -574,7 +573,7 @@ static void protocol_do_sleep() {
         case State::SafetyDoor:
             break;
     }
-    sys.state = State::Sleep;
+    set_state(State::Sleep);
 }
 
 void protocol_cancel_disable_steppers() {
@@ -589,12 +588,12 @@ static void protocol_do_initiate_cycle() {
     plan_block_t* pb;
     if ((pb = plan_get_current_block()) && !sys.suspend.bit.motionCancel) {
         sys.suspend.value = 0;  // Break suspend state.
-        sys.state         = pb->is_jog ? State::Jog : State::Cycle;
+        set_state(pb->is_jog ? State::Jog : State::Cycle);
         Stepper::prep_buffer();  // Initialize step segment buffer before beginning cycle.
         Stepper::wake_up();
     } else {                    // Otherwise, do nothing. Set and resume IDLE state.
         sys.suspend.value = 0;  // Break suspend state.
-        sys.state         = State::Idle;
+        set_state(State::Idle);
     }
 }
 static void protocol_initiate_homing_cycle() {
@@ -615,7 +614,7 @@ static void protocol_do_cycle_start() {
         case State::SafetyDoor:
             if (!sys.suspend.bit.safetyDoorAjar) {
                 if (sys.suspend.bit.restoreComplete) {
-                    sys.state = State::Idle;
+                    set_state(State::Idle);
                     protocol_do_initiate_cycle();
                 } else if (sys.suspend.bit.retractComplete) {
                     sys.suspend.bit.initiateRestore = true;
@@ -649,12 +648,12 @@ static void protocol_do_cycle_start() {
 }
 
 void protocol_disable_steppers() {
-    if (sys.state == State::Homing) {
+    if (state_is(State::Homing)) {
         // Leave steppers enabled while homing
         config->_axes->set_disable(false);
         return;
     }
-    if (sys.state == State::Sleep || sys.state == State::Alarm) {
+    if (state_is(State::Sleep) || state_is(State::Alarm)) {
         // Disable steppers immediately in sleep or alarm state
         config->_axes->set_disable(true);
         return;
@@ -720,10 +719,10 @@ void protocol_do_cycle_stop() {
             if (sys.suspend.bit.safetyDoorAjar) {  // Only occurs when safety door opens during jog.
                 sys.suspend.bit.jogCancel    = false;
                 sys.suspend.bit.holdComplete = true;
-                sys.state                    = State::SafetyDoor;
+                set_state(State::SafetyDoor);
             } else {
                 sys.suspend.value = 0;
-                sys.state         = State::Idle;
+                set_state(State::Idle);
             }
             break;
         case State::Homing:
@@ -847,7 +846,7 @@ static void protocol_exec_rt_suspend() {
         if (sys.suspend.bit.holdComplete) {
             // Parking manager. Handles de/re-energizing, switch state checks, and parking motions for
             // the safety door and sleep states.
-            if (sys.state == State::SafetyDoor || sys.state == State::Sleep) {
+            if (state_is(State::SafetyDoor) || state_is(State::Sleep)) {
                 // Handles retraction motions and de-energizing.
                 config->_parking->set_target();
                 if (!sys.suspend.bit.retractComplete) {
@@ -862,7 +861,7 @@ static void protocol_exec_rt_suspend() {
                     sys.suspend.bit.retractComplete = true;
                     sys.suspend.bit.restartRetract  = false;
                 } else {
-                    if (sys.state == State::Sleep) {
+                    if (state_is(State::Sleep)) {
                         report_feedback_message(Message::SleepMode);
                         // Spindle and coolant should already be stopped, but do it again just to be sure.
                         spindle->spinDown();
@@ -875,7 +874,7 @@ static void protocol_exec_rt_suspend() {
                         return;  // Abort received. Return to re-initialize.
                     }
                     // Allows resuming from parking/safety door. Polls to see if safety door is closed and ready to resume.
-                    if (sys.state == State::SafetyDoor && !config->_control->safety_door_ajar()) {
+                    if (state_is(State::SafetyDoor) && !config->_control->safety_door_ajar()) {
                         if (sys.suspend.bit.safetyDoorAjar) {
                             log_info("Safety door closed.  Issue cycle start to resume");
                         }
@@ -884,8 +883,8 @@ static void protocol_exec_rt_suspend() {
                     if (sys.suspend.bit.initiateRestore) {
                         config->_parking->unpark(sys.suspend.bit.restartRetract);
 
-                        if (!sys.suspend.bit.restartRetract && sys.state == State::SafetyDoor && !sys.suspend.bit.safetyDoorAjar) {
-                            sys.state = State::Idle;
+                        if (!sys.suspend.bit.restartRetract && state_is(State::SafetyDoor) && !sys.suspend.bit.safetyDoorAjar) {
+                            set_state(State::Idle);
                             protocol_send_event(&cycleStartEvent);  // Resume program.
                         }
                     }
@@ -956,7 +955,7 @@ static void protocol_do_accessory_override(void* type) {
     switch (int(type)) {
         case AccessoryOverride::SpindleStopOvr:
             // Spindle stop override allowed only while in HOLD state.
-            if (sys.state == State::Hold) {
+            if (state_is(State::Hold)) {
                 if (spindle_stop_ovr.value == 0) {
                     spindle_stop_ovr.bit.initiate = true;
                 } else if (spindle_stop_ovr.bit.enabled) {
@@ -968,14 +967,14 @@ static void protocol_do_accessory_override(void* type) {
         case AccessoryOverride::FloodToggle:
             // NOTE: Since coolant state always performs a planner sync whenever it changes, the current
             // run state can be determined by checking the parser state.
-            if (config->_coolant->hasFlood() && (sys.state == State::Idle || sys.state == State::Cycle || sys.state == State::Hold)) {
+            if (config->_coolant->hasFlood() && (state_is(State::Idle) || state_is(State::Cycle) || state_is(State::Hold))) {
                 gc_state.modal.coolant.Flood = !gc_state.modal.coolant.Flood;
                 config->_coolant->set_state(gc_state.modal.coolant);
                 report_ovr_counter = 0;  // Set to report change immediately
             }
             break;
         case AccessoryOverride::MistToggle:
-            if (config->_coolant->hasMist() && (sys.state == State::Idle || sys.state == State::Cycle || sys.state == State::Hold)) {
+            if (config->_coolant->hasMist() && (state_is(State::Idle) || state_is(State::Cycle) || state_is(State::Hold))) {
                 gc_state.modal.coolant.Mist = !gc_state.modal.coolant.Mist;
                 config->_coolant->set_state(gc_state.modal.coolant);
                 report_ovr_counter = 0;  // Set to report change immediately
@@ -988,39 +987,37 @@ static void protocol_do_accessory_override(void* type) {
 
 static void protocol_do_limit(void* arg) {
     Machine::LimitPin* limit = (Machine::LimitPin*)arg;
-    if (sys.state == State::Homing) {
+    if (state_is(State::Homing)) {
         Machine::Homing::limitReached();
         return;
     }
-    if ((sys.state == State::Cycle || sys.state == State::Jog || sys.state == State::Idle || sys.state == State::Hold ||
-         sys.state == State::SafetyDoor) &&
+    if ((state_is(State::Cycle) || state_is(State::Jog) || state_is(State::Idle) || state_is(State::Hold) || state_is(State::SafetyDoor)) &&
         limit->isHard()) {
         mc_critical(ExecAlarm::HardLimit);
     }
     log_debug("Limit switch tripped for " << config->_axes->axisName(limit->_axis) << " motor " << limit->_motorNum);
 }
 static void protocol_do_fault_pin(void* arg) {
-    if (sys.state == State::Cycle || sys.state == State::Jog || sys.state == State::Idle || sys.state == State::Hold ||
-        sys.state == State::SafetyDoor) {
+    if (state_is(State::Cycle) || state_is(State::Jog) || state_is(State::Idle) || state_is(State::Hold) || state_is(State::SafetyDoor)) {
         mc_critical(ExecAlarm::HardStop);  // Initiate system kill.
     }
     ControlPin* pin = (ControlPin*)arg;
     log_info("Stopped by " << pin->_legend);
 }
 void protocol_do_rt_reset() {
-    if (sys.state == State::Homing) {
+    if (state_is(State::Homing)) {
         Machine::Homing::fail(ExecAlarm::HomingFailReset);
-    } else if (sys.state == State::Cycle || sys.state == State::Jog || sys.step_control.executeHold || sys.step_control.executeSysMotion) {
+    } else if (state_is(State::Cycle) || state_is(State::Jog) || sys.step_control.executeHold || sys.step_control.executeSysMotion) {
         Stepper::stop_stepping();  // Stop stepping immediately, possibly losing position
         protocol_do_alarm((void*)ExecAlarm::AbortCycle);
-    } else if (sys.state == State::Critical) {
+    } else if (state_is(State::Critical)) {
         if (Homing::unhomed_axes()) {
             protocol_do_alarm((void*)ExecAlarm::Unhomed);
         } else {
-            sys.state = State::Idle;
+            set_state(State::Idle);
         }
-    } else if (sys.state != State::Alarm) {
-        sys.state = State::Idle;
+    } else if (!state_is(State::Alarm)) {
+        set_state(State::Idle);
     }
     protocol_do_late_reset();
     protocol_send_event(&restartEvent);

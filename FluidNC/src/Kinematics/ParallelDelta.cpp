@@ -87,10 +87,10 @@ namespace Kinematics {
         auto axes   = config->_axes;
         auto n_axis = config->_axes->_numberAxis;
 
-        // warn about axissofy limits
+        // warn about axis soft limits
         for (int axis = 0; axis < n_axis; axis++) {
             if (axes->_axis[axis]->_softLimits) {
-                log_warn(" All soft_limits configured in axes should be false");
+                log_config_error(" All soft_limits configured in axes should be false");
                 break;
             }
         }

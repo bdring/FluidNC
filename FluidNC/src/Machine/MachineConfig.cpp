@@ -192,7 +192,7 @@ namespace Machine {
             // Trimming the overall config file could influence indentation, hence false
             return load_yaml(std::string_view { buffer.get(), filesize });
         } catch (...) {
-            log_warn("Cannot open configuration file:" << filename);
+            log_config_error("Cannot open configuration file:" << filename);
             return false;
         }
     }
@@ -230,31 +230,27 @@ namespace Machine {
                 Configuration::Validator validator;
                 config->validate();
                 config->group(validator);
-            } catch (std::exception& ex) { log_error("Validation error: " << ex.what()); }
+            } catch (std::exception& ex) { log_config_error("Validation error: " << ex.what()); }
 
             // log_info("Heap size after configuation load is " << uint32_t(xPortGetFreeHeapSize()));
 
-            successful = (sys.state != State::ConfigAlarm);
+            successful = (!state_is(State::ConfigAlarm));
 
             if (!successful) {
                 log_error("Configuration is invalid");
             }
 
         } catch (const Configuration::ParseException& ex) {
-            sys.state = State::ConfigAlarm;
-            log_error("Configuration parse error on line " << ex.LineNumber() << ": " << ex.What());
+            log_config_error("Configuration parse error on line " << ex.LineNumber() << ": " << ex.What());
         } catch (const AssertionFailed& ex) {
-            sys.state = State::ConfigAlarm;
             // Get rid of buffer and return
-            log_error("Configuration loading failed: " << ex.what());
+            log_config_error("Configuration loading failed: " << ex.what());
         } catch (std::exception& ex) {
-            sys.state = State::ConfigAlarm;
             // Log exception:
             log_error("Configuration validation error: " << ex.what());
         } catch (...) {
-            sys.state = State::ConfigAlarm;
             // Get rid of buffer and return
-            log_error("Unknown error while processing config file");
+            log_config_error("Unknown error while processing config file");
         }
 
         std::atomic_thread_fence(std::memory_order::memory_order_seq_cst);

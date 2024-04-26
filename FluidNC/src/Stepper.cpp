@@ -235,7 +235,7 @@ bool IRAM_ATTR Stepper::pulse_func() {
         } else {
             // Segment buffer empty. Shutdown.
             stop_stepping();
-            if (sys.state != State::Jog) {  // added to prevent ... jog after probing crash
+            if (!state_is(State::Jog)) {  // added to prevent ... jog after probing crash
                 // Ensure pwm is set properly upon completion of rate-controlled motion.
                 if (st.exec_block != NULL && st.exec_block->is_pwm_rate_adjusted) {
                     spindle->setSpeedfromISR(0);

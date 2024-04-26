@@ -23,7 +23,7 @@ void system_reset() {
     State prior_state = sys.state;
     bool  prior_abort = sys.abort;
     memset(&sys, 0, sizeof(system_t));  // Clear system struct variable.
-    sys.state             = prior_state;
+    set_state(prior_state);
     sys.abort             = prior_abort;
     sys.f_override        = FeedOverride::Default;          // Set to 100%
     sys.r_override        = RapidOverride::Default;         // Set to 100%
@@ -124,6 +124,13 @@ std::map<State, const char*> StateName = {
     { State::Critical, "Critical" },
 };
 
+void set_state(State s) {
+    sys.state = s;
+}
+bool state_is(State s) {
+    return sys.state == s;
+}
+
 bool inMotionState() {
-    return sys.state == State::Cycle || sys.state == State::Homing || sys.state == State::Jog;
+    return state_is(State::Cycle) || state_is(State::Homing) || state_is(State::Jog);
 }

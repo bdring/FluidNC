@@ -66,7 +66,7 @@ namespace Spindles {
         }
 
         if (!_output_cw_pin.defined() || !_output_ccw_pin.defined()) {
-            log_warn(name() << " spindle pins not defined");
+            log_config_error(name() << " spindle pins not defined");
         }
 
         // We always use mapSpeed() with the unmodified input speed so it sets
