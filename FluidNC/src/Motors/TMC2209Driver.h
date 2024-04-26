@@ -27,6 +27,7 @@ namespace MotorDrivers {
 
             handler.item("run_mode", _run_mode, trinamicModes);
             handler.item("homing_mode", _homing_mode, trinamicModes);
+            handler.item("homing_amps", _homing_current, 0.5, 10.0);
             handler.item("stallguard", _stallguard, 0, 255);
             handler.item("stallguard_debug", _stallguardDebugMode);
             handler.item("toff_coolstep", _toff_coolstep, 2, 15);
