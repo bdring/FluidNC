@@ -7,7 +7,7 @@
 #include "../WebUI/WifiConfig.h"
 
 // Maslow specific defines
-#define VERSION_NUMBER "0.69"
+#define VERSION_NUMBER "0.70"
 
 #define TLEncoderLine 2
 #define TREncoderLine 1
@@ -243,7 +243,7 @@ void Maslow_::blinkIPAddress() {
 void Maslow_::heartBeat(){
     static unsigned long heartBeatTimer = millis();
 
-    if(millis() - heartBeatTimer > 1000){
+    if(millis() - heartBeatTimer > 1000 && HeartBeatEnabled) {
         heartBeatTimer = millis();
         log_info("Heartbeat");
     }
@@ -413,9 +413,13 @@ bool Maslow_::takeSlackFunc() {
 
 // --Maslow calibration loop
 void Maslow_::calibration_loop() {
-    static int  waypoint              = 0;
     static int  direction             = UP;
     static bool measurementInProgress = false;
+    if(waypoint > pointCount){
+        calibrationInProgress = false;
+        waypoint              = 0;
+        log_info("Calibration complete");
+    }
     //Taking measurment once we've reached the point
     if (measurementInProgress) {
         if (take_measurement_avg_with_check(waypoint, direction)) {  //Takes a measurement and returns true if it's done
@@ -423,14 +427,14 @@ void Maslow_::calibration_loop() {
             
             waypoint++;  //Increment the waypoint counter
 
-            if (waypoint > pointCount - 1) {  //If we have reached the end of the calibration process
+            if (waypoint > recomputePoints[recomputeCountIndex]) {  //If we have reached the end of this stage of the calibration process
                 calibrationInProgress = false;
-                waypoint              = 0;
-                log_info("Calibration complete");
                 print_calibration_data();
                 calibrationDataWaiting = millis();
                 sys.set_state(State::Idle);
-            } else {
+                recomputeCountIndex++;
+            }
+            else {
                 hold(250);
             }
         }
@@ -886,6 +890,42 @@ bool Maslow_::take_measurement_avg_with_check(int waypoint, int dir) {
                 criticalCounter               = 0;
             }
             log_info("Measured waypoint " << waypoint);
+
+            //A check to see if the results on the first point are within the expected range
+            if(waypoint == 0){
+                double offset = _beltEndExtension + _armLength;
+                double threshold = 100;
+
+                float diffTL = calibration_data[0][0] - offset - computeTL(0, 0, 0);
+                float diffTR = calibration_data[1][0] - offset - computeTR(0, 0, 0);
+                float diffBL = calibration_data[2][0] - offset - computeBL(0, 0, 0);
+                float diffBR = calibration_data[3][0] - offset - computeBR(0, 0, 0);
+                log_info("Center point deviation: TL: " << diffTL << " TR: " << diffTR << " BL: " << diffBL << " BR: " << diffBR);
+
+                if (abs(diffTL) > threshold || abs(diffTR) > threshold || abs(diffBL) > threshold || abs(diffBR) > threshold) {
+                    log_error("Center point deviation over " << threshold << "mmm, your coordinate system is not accurate, adjust your frame dimensions and restart.");
+                    //Should we enter an alarm state here to prevent things from going wrong?
+
+
+                    String message = "";
+                    //If both of the bottom belts are longer than expected then the frame is smaller than expected
+                    if(diffBL > threshold && diffBR > threshold){
+                        log_error("Frame size error, try entering larger frame dimensions and restart.");
+                        message = "Frame size error, try entering larger frame dimensions and restart.";
+                    }
+                    //If both of the bottom belts are shorter than expected then the frame is larger than expected
+                    else if(diffBL < -threshold && diffBR < -threshold){
+                        log_error("Frame size error, try entering smaller frame dimensions and restart.");
+                        message = "Frame size error, try entering smaller frame dimensions and restart.";
+                    }
+
+                
+                    //Stop calibration
+                    eStop(message);
+                    return true; 
+                }
+            }
+
             return true;
         }
     }
@@ -902,15 +942,22 @@ bool Maslow_::move_with_slack(double fromX, double fromY, double toX, double toY
    
     static int direction = UP;
 
+
+    bool withSlack = true;
+    if(waypoint > recomputePoints[0]){ //If we have completed the first level of calibraiton
+        withSlack = false;
+    }
+
     //We only want to decompress at the beginning of each move
     if (decompress) {
         moveBeginTimer = millis();
         decompress = false;
         direction = get_direction(fromX, fromY, toX, toY);
+        checkValidMove(fromX, fromY, toX, toY);
     }
 
     //Decompress belts for 500ms...this happens by returning right away before running any of the rest of the code
-    if (millis() - moveBeginTimer < 750) {
+    if (millis() - moveBeginTimer < 750 && withSlack) {
         if (orientation == VERTICAL) {
             axisTL.recomputePID();
             axisTR.recomputePID();
@@ -949,34 +996,64 @@ bool Maslow_::move_with_slack(double fromX, double fromY, double toX, double toY
     if(orientation == VERTICAL){
         axisTL.recomputePID();
         axisTR.recomputePID();
-        axisBL.comply();
-        axisBR.comply();
+        if(withSlack){
+            axisBL.comply();
+            axisBR.comply();
+        }
+        else{
+            axisBL.recomputePID();
+            axisBR.recomputePID();
+        }
     }
     else{
         switch (direction) {
             case UP:
                 axisTL.recomputePID();
                 axisTR.recomputePID();
-                axisBL.comply();
-                axisBR.comply();
+                if(withSlack){
+                    axisBL.comply();
+                    axisBR.comply();
+                }
+                else{
+                    axisBL.recomputePID();
+                    axisBR.recomputePID();
+                }
                 break;
             case DOWN:
-                axisTL.comply();
-                axisTR.comply();
+                if(withSlack){
+                    axisTL.comply();
+                    axisTR.comply();
+                }
+                else{
+                    axisTL.recomputePID();
+                    axisTR.recomputePID();
+                }
                 axisBL.recomputePID();
                 axisBR.recomputePID();
                 break;
             case LEFT:
                 axisTL.recomputePID();
-                axisTR.comply();
                 axisBL.recomputePID();
-                axisBR.comply();
+                if(withSlack){
+                    axisTR.comply();
+                    axisBR.comply();
+                }
+                else{
+                    axisTR.recomputePID();
+                    axisBR.recomputePID();
+                }
                 break;
             case RIGHT:
-                axisTL.comply();
                 axisTR.recomputePID();
-                axisBL.comply();
                 axisBR.recomputePID();
+                if(withSlack){
+                    axisTL.comply();
+                    axisBL.comply();
+                }
+                else{
+                    axisTL.recomputePID();
+                    axisBL.recomputePID();
+                }
                 break;
         }
     }
@@ -1040,70 +1117,149 @@ int Maslow_::get_direction(double x, double y, double targetX, double targetY) {
     return direction;
 }
 
+bool Maslow_::checkValidMove(double fromX, double fromY, double toX, double toY){
+    bool valid = true;
+    int direction = get_direction(fromX, fromY, toX, toY);
+    switch(direction){
+        case UP: //If we are moving up we expect the top belts to get shorter so to should be shorter than they are now
+            if(computeTL(toX, toY, 0) > axisTL.getPosition() || computeTR(toX, toY, 0) > axisTR.getPosition()){
+                valid = false;
+            }
+            break;
+        case DOWN: //If we are moving down we expect the bottom belts to get shorter so they should be shorter than they are now
+            if(computeBL(toX, toY, 0) > axisBL.getPosition() || computeBR(toX, toY, 0) > axisBR.getPosition()){
+                valid = false;
+            }
+            break;
+        case LEFT: //If we are moving left we expect the left belts to get shorter so they should be shorter than they are now
+            if(computeTL(toX, toY, 0) > axisTL.getPosition() || computeBL(toX, toY, 0) > axisBL.getPosition()){
+                valid = false;
+            }
+            break;
+        case RIGHT: //If we are moving right we expect the right belts to get shorter so they should be shorter than they are now
+            if(computeTR(toX, toY, 0) > axisTR.getPosition() || computeBR(toX, toY, 0) > axisBR.getPosition()){
+                valid = false;
+            }
+            break;
+    }
+    if(!valid){
+        log_error("Unable to move safely, stopping calibration");
+        calibrationInProgress = false;
+        waypoint              = 0;
+        eStop();
+    }
+    return valid;
+}
+
+//The number of points high and wide  must be an odd number
 bool Maslow_::generate_calibration_grid() {
 
-    float calibration_grid_offset_X = (trX - calibration_grid_width_mm_X)/2;
-    float calibration_grid_offset_Y = (trY - calibration_grid_height_mm_Y)/2;
+    float xSpacing = calibration_grid_width_mm_X / (calibrationGridSize - 1);
+    float ySpacing = calibration_grid_height_mm_Y / (calibrationGridSize - 1);
 
+    int numberOfCycles = 0;
 
-    //Check to make sure that the offset is less than 1/2 of the frame width
-    if (calibration_grid_offset_X > trX / 2) {
-        log_error("Calibration grid offset is greater than half the frame width");
-        return false;
+    switch(calibrationGridSize) {
+        case 3:
+            numberOfCycles = 1; // 3x3 grid
+            break;
+        case 5:
+            numberOfCycles = 2; // 5x5 grid
+            break;
+        case 7:
+            numberOfCycles = 3; // 7x7 grid
+            break;
+        case 9:
+            numberOfCycles = 4; // 9x9 grid
+            break;
+        default:
+            log_error("Invalid maslow_calibration_grid_size: " << calibrationGridSize);
+            return false; // return false or handle error appropriately
     }
-    //Check to make sure that the offset is less than 1/2 of the frame height
-    if (calibration_grid_offset_Y > trY / 2) {
-        log_error("Calibration grid offset is greater than half the frame height");
-        return false;
-    }
 
-    double trX_adjusted = trX - (2*calibration_grid_offset_X); // shrink the grid by calibration_grid_offset in X direction
-    double trY_adjusted = trY - (2*calibration_grid_offset_Y); // shrink the grid by calibration_grid_offset in Y direction
+    pointCount = 0;
 
-    double deltaX = trX_adjusted / (calibrationGridSizeX - 1);
-    double deltaY = trY_adjusted / (calibrationGridSizeY - 1);
+    //The point in the center
+    calibrationGrid[pointCount][0] = 0;
+    calibrationGrid[pointCount][1] = 0;
+    pointCount++;
 
-    pointCount = 2; //Offset by 2 to account for the points moving to the start
+    int maxX = 1;
+    int maxY = 1;
 
-    //Manually add the first two points used for taking up the slack while moving to the first true point
-    calibrationGrid[0][0] = 0;
-    calibrationGrid[0][1] = 0;
-    calibrationGrid[1][0] = 0;
-    calibrationGrid[1][1] = -trY_adjusted / 2;
+    int currentX = 0;
+    int currentY = -1;
 
-    log_info("Point: 0 (0, 0)");
-    log_info("Point: 1 (0, " << -trY_adjusted / 2 << ")");
+    recomputeCount = 0;
 
-    for (int x = 0; x < calibrationGridSizeX; x++) {
-        if (x % 2 == 0) { // For even columns, go bottom to top
-            for (int y = 0; y < calibrationGridSizeY; y++) {
-                double targetX = -trX_adjusted / 2  + x * deltaX;
-                double targetY = -trY_adjusted / 2  + y * deltaY;
 
-                log_info("Point: " << pointCount << " (" << targetX << ", " << targetY << ")");
-
-                //Store the values
-                calibrationGrid[pointCount][0] = targetX;
-                calibrationGrid[pointCount][1] = targetY;
-
-                pointCount++;
-            }
-        } else { // For odd columns, go top to bottom
-            for (int y = calibrationGridSizeY - 1; y >= 0; y--) {
-                double targetX = -trX_adjusted / 2  + x * deltaX;
-                double targetY = -trY_adjusted / 2  + y * deltaY;
-
-                log_info("Point: " << pointCount << " (" << targetX << ", " << targetY << ")");
-
-                // Store the values
-                calibrationGrid[pointCount][0] = targetX;
-                calibrationGrid[pointCount][1] = targetY;
-
-                pointCount++;
-            }
+    while(maxX <= numberOfCycles){ //4 produces a 9x9 grid
+        while(currentX > -1*maxX){
+            calibrationGrid[pointCount][0] = currentX * xSpacing;
+            calibrationGrid[pointCount][1] = currentY * ySpacing;
+            pointCount++;
+            currentX--;
         }
+        while(currentY < maxY){
+            calibrationGrid[pointCount][0] = currentX * xSpacing;
+            calibrationGrid[pointCount][1] = currentY * ySpacing;
+            pointCount++;
+            currentY++;
+        }
+        while(currentX < maxX){
+            calibrationGrid[pointCount][0] = currentX * xSpacing;
+            calibrationGrid[pointCount][1] = currentY * ySpacing;
+            pointCount++;
+            currentX++;
+        }
+        while(currentY > -1*maxY){
+            calibrationGrid[pointCount][0] = currentX * xSpacing;
+            calibrationGrid[pointCount][1] = currentY * ySpacing;
+            pointCount++;
+            currentY--;
+        }
+
+        //Add the last point to the recompute list
+        calibrationGrid[pointCount][0] = currentX * xSpacing;
+        calibrationGrid[pointCount][1] = currentY * ySpacing;
+        pointCount++;
+
+        recomputePoints[recomputeCount] = pointCount - 1; //Minus one because we increment after each point is generated
+        recomputeCount++;
+
+        maxX = maxX + 1;
+        maxY = maxY + 1;
+
+        currentY = currentY + -1;
     }
+
+    //Move back to the center
+    calibrationGrid[pointCount][0] = 0;
+    calibrationGrid[pointCount][1] = (currentY+1) * ySpacing; //The last loop added an nunecessary -1 to the y position
+    pointCount++;
+
+    calibrationGrid[pointCount][0] = 0;
+    calibrationGrid[pointCount][1] = 0;
+
+    recomputePoints[recomputeCount] = pointCount;
+
     return true;
+}
+
+//Print calibration grid
+void Maslow_::printCalibrationGrid() {
+    for (int i = 0; i <= pointCount; i++) {
+        log_info("Point " << i << ": " << calibrationGrid[i][0] << ", " << calibrationGrid[i][1]);
+    }
+    log_info("Max value for pointCount: " << pointCount);
+
+    for(int i = 0; i < recomputeCount; i++){
+        log_info("Recompute point: " << recomputePoints[i]);
+    }
+
+    log_info("Times to recompute: " << recomputeCount);
+    
+
 }
 
 //------------------------------------------------------
@@ -1148,7 +1304,6 @@ void Maslow_::retractALL() {
     axisBR.reset();
 }
 void Maslow_::extendALL() {
-    // ADD also shouldn't extend before we get the parameters from the user
 
     if (!all_axis_homed()) {
         log_error("Please press Retract All before using Extend All");  //I keep getting everything set up for calibration and then this trips me up
@@ -1158,6 +1313,9 @@ void Maslow_::extendALL() {
 
     stop();
     extendingALL = true;
+
+    updateCenterXY();
+
     //extendCallTimer = millis();
 }
 void Maslow_::runCalibration() {
@@ -1405,7 +1563,7 @@ String Maslow_::axis_id_to_label(int axis_id) {
 //Checks to see if the calibration data needs to be sent again
 void Maslow_::checkCalibrationData() {
     if (calibrationDataWaiting > 0) {
-        if (millis() - calibrationDataWaiting > 10000) {
+        if (millis() - calibrationDataWaiting > 30007) {
             log_error("Calibration data not acknowledged by computer, resending");
             print_calibration_data();
             calibrationDataWaiting = millis();
@@ -1416,19 +1574,19 @@ void Maslow_::checkCalibrationData() {
 // function for outputting calibration data in the log line by line like this: {bl:2376.69,   br:923.40,   tr:1733.87,   tl:2801.87},
 void Maslow_::print_calibration_data() {
     String data = "CLBM:[";
-    for (int i = 0; i < pointCount; i++) {
+    for (int i = 0; i < waypoint; i++) {
         data += "{bl:" + String(calibration_data[2][i]) + ",   br:" + String(calibration_data[3][i]) +
                 ",   tr:" + String(calibration_data[1][i]) + ",   tl:" + String(calibration_data[0][i]) + "},";
-        //This log_info is used to send the data to the calibration process
-        //log_info("{bl:" << calibration_data[2][i] << ",   br:" << calibration_data[3][i] << ",   tr:" << calibration_data[1][i] << ",   tl:" << calibration_data[0][i] << "},");
     }
     data += "]";
+    HeartBeatEnabled = false;
     log_data(data.c_str());  //will it print really large strings?
+    HeartBeatEnabled = true;
 }
 
 //Runs when the calibration data has been acknowledged as received by the computer and the calibration process is progressing
 void Maslow_::calibrationDataRecieved(){
-    log_info("Calibration data acknowledged received by computer");
+    // log_info("Calibration data acknowledged received by computer");
     calibrationDataWaiting = -1;
 }
 
@@ -1467,12 +1625,12 @@ void Maslow_::panic() {
 }
 
 //Emergecy Stop
-void Maslow_::eStop() {
+void Maslow_::eStop(String message) {
     log_error("Emergency stop! Stopping all motors");
     log_warn("The machine will not respond until turned off and back on again");
     stop();
     error = true;
-    errorMessage = "Emergency stop triggered.";
+    errorMessage = message;
     sys.set_state(State::Alarm);
 }
 
