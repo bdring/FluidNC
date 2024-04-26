@@ -415,6 +415,11 @@ bool Maslow_::takeSlackFunc() {
 void Maslow_::calibration_loop() {
     static int  direction             = UP;
     static bool measurementInProgress = false;
+    if(waypoint > pointCount){
+        calibrationInProgress = false;
+        waypoint              = 0;
+        log_info("Calibration complete");
+    }
     //Taking measurment once we've reached the point
     if (measurementInProgress) {
         if (take_measurement_avg_with_check(waypoint, direction)) {  //Takes a measurement and returns true if it's done
@@ -450,12 +455,6 @@ void Maslow_::calibration_loop() {
             y                     = calibrationGrid[waypoint][1];
             hold(250);
         }
-    }
-    
-    if(waypoint > pointCount){
-        calibrationInProgress = false;
-        waypoint              = 0;
-        log_info("Calibration complete");
     }
 }
 
