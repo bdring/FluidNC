@@ -419,6 +419,7 @@ void Maslow_::calibration_loop() {
         calibrationInProgress = false;
         waypoint              = 0;
         log_info("Calibration complete");
+        return;
     }
     //Taking measurment once we've reached the point
     if (measurementInProgress) {
@@ -614,7 +615,7 @@ void Maslow_::safety_control() {
         if ((abs(axis[i]->getPositionError()) > 15) && (sys.state() == State::Cycle)) {
             log_error("Position error on " << axis_id_to_label(i).c_str() << " axis exceeded 15mm while running. Halting. Error is "
                                            << axis[i]->getPositionError() << "mm");
-            Maslow.eStop();
+            Maslow.eStop("Position error > 15mm while running. E-Stop triggered.");
         }
     }
 
@@ -1146,7 +1147,7 @@ bool Maslow_::checkValidMove(double fromX, double fromY, double toX, double toY)
         log_error("Unable to move safely, stopping calibration");
         calibrationInProgress = false;
         waypoint              = 0;
-        eStop();
+        eStop("Unable to move safely, stopping calibration");
     }
     return valid;
 }
