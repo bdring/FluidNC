@@ -72,7 +72,7 @@ union SpindleStop {
 static SpindleStop spindle_stop_ovr;
 
 void protocol_reset() {
-    probing = false;
+    probing                = false;
     soft_limit             = false;
     rtSafetyDoor           = false;
     spindle_stop_ovr.value = 0;
@@ -353,6 +353,9 @@ static void protocol_do_restart() {
 
 static void protocol_do_start() {
     protocol_send_event(&restartEvent);
+    if (!state_is(State::Idle)) {
+        return;
+    }
     set_state(State::Critical);
     if (FORCE_INITIALIZATION_ALARM) {
         // Force ALARM state upon a power-cycle or hard reset.

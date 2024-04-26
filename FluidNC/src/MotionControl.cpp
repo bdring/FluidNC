@@ -310,7 +310,6 @@ GCUpdatePos mc_probe_cycle(float* target, plan_line_data_t* pl_data, bool away, 
     }
     // Setup and queue probing motion. Auto cycle-start should not start the cycle.
     mc_linear(target, pl_data, gc_state.position);
-    printf("Target %f\n", target[2]);
     // Activate the probing state monitor in the stepper module.
     probing = true;
     // Perform probing cycle. Wait here until probe is triggered or motion completes.
@@ -336,8 +335,8 @@ GCUpdatePos mc_probe_cycle(float* target, plan_line_data_t* pl_data, bool away, 
     } else {
         probe_succeeded = true;  // Indicate to system the probing cycle completed successfully.
     }
-    probing = false;  // Ensure probe state monitor is disabled.
-    protocol_execute_realtime();   // Check and execute run-time commands
+    probing = false;              // Ensure probe state monitor is disabled.
+    protocol_execute_realtime();  // Check and execute run-time commands
     // Reset the stepper and planner buffers to remove the remainder of the probe motion.
     Stepper::reset();      // Reset step segment buffer.
     plan_reset();          // Reset planner buffer. Zero planner positions. Ensure probing motion is cleared.

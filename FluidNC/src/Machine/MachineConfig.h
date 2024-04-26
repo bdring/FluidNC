@@ -110,9 +110,9 @@ namespace Machine {
         void afterParse() override;
         void group(Configuration::HandlerBase& handler) override;
 
-        static bool load();
-        static bool load_file(std::string_view file);
-        static bool load_yaml(std::string_view yaml_string);
+        static void load();
+        static void load_file(std::string_view file);
+        static void load_yaml(std::string_view yaml_string);
 
         ~MachineConfig();
     };

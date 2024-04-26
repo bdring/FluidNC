@@ -81,7 +81,6 @@ void get_motor_steps(int32_t* motor_steps) {
         auto m            = axes->_axis[axis]->_motors[0];
         motor_steps[axis] = m ? m->_steps : 0;
     }
-
 }
 int32_t* get_motor_steps() {
     static int32_t motor_steps[MAX_N_AXIS];

@@ -151,53 +151,48 @@ namespace Machine {
 
     const char defaultConfig[] = "name: Default (Test Drive)\nboard: None\n";
 
-    bool MachineConfig::load() {
-        bool configOkay;
+    void MachineConfig::load() {
         // If the system crashes we skip the config file and use the default
         // builtin config.  This helps prevent reset loops on bad config files.
         esp_reset_reason_t reason = esp_reset_reason();
         if (reason == ESP_RST_PANIC) {
             log_error("Skipping configuration file due to panic");
-            configOkay = false;
-        } else {
-            configOkay = load_file(config_filename->get());
-        }
-
-        if (!configOkay) {
             log_info("Using default configuration");
-            configOkay = load_yaml(defaultConfig);
+            load_yaml(defaultConfig);
+            set_state(State::ConfigAlarm);
+        } else {
+            load_file(config_filename->get());
         }
-
-        return configOkay;
     }
 
-    bool MachineConfig::load_file(const std::string_view filename) {
+    void MachineConfig::load_file(const std::string_view filename) {
         try {
             FileStream file(std::string { filename }, "r", "");
 
             auto filesize = file.size();
             if (filesize <= 0) {
-                log_info("Configuration file:" << filename << " is empty");
-                return false;
+                log_config_error("Configuration file:" << filename << " is empty");
+                return;
             }
 
             auto buffer      = std::make_unique<char[]>(filesize + 1);
             buffer[filesize] = '\0';
             auto actual      = file.read(buffer.get(), filesize);
             if (actual != filesize) {
-                log_info("Configuration file:" << filename << " read error");
-                return false;
+                log_config_error("Configuration file:" << filename << " read error");
+                return;
             }
             log_info("Configuration file:" << filename);
-            // Trimming the overall config file could influence indentation, hence false
-            return load_yaml(std::string_view { buffer.get(), filesize });
+            load_yaml(std::string_view { buffer.get(), filesize });
         } catch (...) {
             log_config_error("Cannot open configuration file:" << filename);
-            return false;
+            log_info("Using default configuration");
+            load_yaml(defaultConfig);
+            set_state(State::ConfigAlarm);
         }
     }
 
-    bool MachineConfig::load_yaml(std::string_view input) {
+    void MachineConfig::load_yaml(std::string_view input) {
         bool successful = false;
         try {
             Configuration::Parser        parser(input);
@@ -234,12 +229,6 @@ namespace Machine {
 
             // log_info("Heap size after configuation load is " << uint32_t(xPortGetFreeHeapSize()));
 
-            successful = (!state_is(State::ConfigAlarm));
-
-            if (!successful) {
-                log_error("Configuration is invalid");
-            }
-
         } catch (const Configuration::ParseException& ex) {
             log_config_error("Configuration parse error on line " << ex.LineNumber() << ": " << ex.What());
         } catch (const AssertionFailed& ex) {
@@ -247,15 +236,13 @@ namespace Machine {
             log_config_error("Configuration loading failed: " << ex.what());
         } catch (std::exception& ex) {
             // Log exception:
-            log_error("Configuration validation error: " << ex.what());
+            log_config_error("Configuration validation error: " << ex.what());
         } catch (...) {
             // Get rid of buffer and return
             log_config_error("Unknown error while processing config file");
         }
 
         std::atomic_thread_fence(std::memory_order::memory_order_seq_cst);
-
-        return successful;
     }
 
     MachineConfig::~MachineConfig() {
