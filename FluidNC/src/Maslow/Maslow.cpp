@@ -950,7 +950,7 @@ bool Maslow_::move_with_slack(double fromX, double fromY, double toX, double toY
     //This is where we want to introduce some slack so the system
     static unsigned long moveBeginTimer = millis();
     static bool          decompress     = true;
-    const float          stepSize       = 0.05;
+    const float          stepSize       = 0.06;
    
     static int direction = UP;
 

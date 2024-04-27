@@ -216,7 +216,7 @@ bool MotorUnit::pull_tight(int currentThreshold) {
     }
 
 
-    if (retract_speed > 20) { //20 is not the actual speed, it is the amount of time so we don't trigger immediately
+    if (retract_speed > 15) { //20 is not the actual speed, it is the amount of time so we don't trigger immediately
         if (currentMeasurement > currentThreshold || incrementalThresholdHits > 2) {
             //stop motor, reset variables
             stop();
