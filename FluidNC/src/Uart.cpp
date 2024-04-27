@@ -63,7 +63,6 @@ int Uart::read() {
     uint8_t c;
     int     res = uart_read_bytes(uart_port_t(_uart_num), &c, 1, 0);
     if (res == 1 && c == 0x11) {
-        printf("SW Flow control\n");
         // 0x11 is XON.  If we receive that, it is a request to use software flow control
         setSwFlowControl(true, -1, -1);
         return -1;

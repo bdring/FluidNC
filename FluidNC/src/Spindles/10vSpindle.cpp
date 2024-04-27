@@ -22,7 +22,7 @@ namespace Spindles {
     void _10v::init() {
         // a couple more pins not inherited from PWM Spindle
         if (_output_pin.undefined()) {
-            log_warn("Spindle output pin not defined");
+            log_config_error(name() << " output pin not defined");
             return;  // We cannot continue without the output pin
         }
 

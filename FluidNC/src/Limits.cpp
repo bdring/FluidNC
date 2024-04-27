@@ -85,14 +85,14 @@ void limit_error() {
     // workspace volume so just come to a controlled stop so position is not lost. When complete
     // enter alarm mode.
     protocol_buffer_synchronize();
-    if (sys.state == State::Cycle) {
+    if (state_is(State::Cycle)) {
         protocol_send_event(&feedHoldEvent);
         do {
             protocol_execute_realtime();
             if (sys.abort) {
                 return;
             }
-        } while (sys.state != State::Idle);
+        } while (!state_is(State::Idle));
     }
 
     mc_critical(ExecAlarm::SoftLimit);

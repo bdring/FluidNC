@@ -49,14 +49,11 @@ namespace Configuration {
                             section->group(*this);
                         } catch (const AssertionFailed& ex) {
                             // Log something meaningful to the user:
-                            log_error("Configuration error at "; for (auto it : _path) { ss << '/' << it; } ss << ": " << ex.msg);
-
-                            // Set the state to config alarm, so users can't run time machine.
-                            sys.state = State::ConfigAlarm;
+                            log_config_error("Configuration error at "; for (auto it : _path) { ss << '/' << it; } ss << ": " << ex.msg);
                         }
 
                         if (_parser._token._state == TokenState::Matching) {
-                            log_warn("Ignored key " << _parser.key());
+                            log_config_error("Ignored key " << _parser.key());
                         }
                         if (_parser._token._state == Configuration::TokenState::Matched) {
                             log_parser_verbose("Handled key " << _parser.key());

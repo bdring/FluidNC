@@ -308,7 +308,7 @@ namespace Spindles {
             return;  // Block during abort.
         }
 
-        bool critical = (sys.state == State::Cycle || state != SpindleState::Disable);
+        bool critical = (state_is(State::Cycle) || state != SpindleState::Disable);
 
         uint32_t dev_speed = mapSpeed(speed);
         log_debug("RPM:" << speed << " mapped to device units:" << dev_speed);

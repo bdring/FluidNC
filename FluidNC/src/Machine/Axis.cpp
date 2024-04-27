@@ -50,8 +50,7 @@ namespace Machine {
         }
 
         if (!_motors[0] && _motors[1]) {
-            sys.state = State::ConfigAlarm;
-            log_error("motor1 defined without motor0");
+            log_config_error("motor1 defined without motor0");
         }
 
         // If dual motors and only one motor has switches, this is the configuration

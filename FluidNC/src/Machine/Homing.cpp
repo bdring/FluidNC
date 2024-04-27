@@ -341,14 +341,14 @@ namespace Machine {
         config->_stepping->endLowLatency();
 
         if (!sys.abort) {
-            sys.state = unhomed_axes() ? State::Alarm : State::Idle;
+            set_state(unhomed_axes() ? State::Alarm : State::Idle);
             Stepper::go_idle();  // Set steppers to the settings idle state before returning.
         }
     }
 
     void Homing::nextCycle() {
         // Start the next cycle in the queue
-        if (sys.state == State::Alarm) {
+        if (state_is(State::Alarm)) {
             while (!_remainingCycles.empty()) {
                 _remainingCycles.pop();
             }
@@ -452,7 +452,7 @@ namespace Machine {
         }
 
         if (!config->_kinematics->canHome(axisMask)) {
-            sys.state = State::Alarm;
+            set_state(State::Alarm);
             return;
         }
 
@@ -494,12 +494,12 @@ namespace Machine {
 
         if (_remainingCycles.empty()) {
             log_error("No homing cycles defined");
-            sys.state = State::Alarm;
+            set_state(State::Alarm);
             return;
         }
         config->_stepping->beginLowLatency();
 
-        sys.state = State::Homing;
+        set_state(State::Homing);
         nextCycle();
     }
 

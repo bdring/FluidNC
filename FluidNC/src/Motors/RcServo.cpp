@@ -30,7 +30,7 @@ namespace MotorDrivers {
 
     void RcServo::init() {
         if (_output_pin.undefined()) {
-            log_warn("    RC Servo disabled: No output pin");
+            log_config_error("    RC Servo disabled: No output pin");
             _has_errors = true;
             return;  // We cannot continue without the output pin
         }

@@ -55,7 +55,7 @@ namespace Machine {
 
     void LimitPin::update(bool value) {
         if (value) {
-            if (Homing::approach() || (sys.state != State::Homing && _pHardLimits)) {
+            if (Homing::approach() || (!state_is(State::Homing) && _pHardLimits)) {
                 _pLimited = value;
 
                 if (_pExtraLimited != nullptr) {

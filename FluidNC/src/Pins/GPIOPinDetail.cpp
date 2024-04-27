@@ -101,14 +101,14 @@ namespace Pins {
                 if (_capabilities.has(PinCapabilities::PullUp)) {
                     _attributes = _attributes | PinAttributes::PullUp;
                 } else {
-                    log_warn(toString() << " does not support :pu attribute");
+                    log_config_error(toString() << " does not support :pu attribute");
                 }
 
             } else if (opt.is("pd")) {
                 if (_capabilities.has(PinCapabilities::PullDown)) {
                     _attributes = _attributes | PinAttributes::PullDown;
                 } else {
-                    log_warn(toString() << " does not support :pd attribute");
+                    log_config_error(toString() << " does not support :pd attribute");
                 }
             } else if (opt.is("low")) {
                 _attributes = _attributes | PinAttributes::ActiveLow;

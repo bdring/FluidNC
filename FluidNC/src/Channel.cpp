@@ -78,7 +78,7 @@ uint32_t Channel::setReportInterval(uint32_t ms) {
     return actual;
 }
 static bool motionState() {
-    return sys.state == State::Cycle || sys.state == State::Homing || sys.state == State::Jog;
+    return state_is(State::Cycle) || state_is(State::Homing) || state_is(State::Jog);
 }
 
 void Channel::autoReportGCodeState() {
@@ -107,7 +107,7 @@ void Channel::autoReport() {
         if (thisProbeState != _lastProbe) {
             report_recompute_pin_string();
         }
-        if (_reportWco || sys.state != _lastState || thisProbeState != _lastProbe || _lastPinString != report_pin_string ||
+        if (_reportWco || !state_is(_lastState) || thisProbeState != _lastProbe || _lastPinString != report_pin_string ||
             (motionState() && (int32_t(xTaskGetTickCount()) - _nextReportTime) >= 0)) {
             if (_reportWco) {
                 report_wco_counter = 0;
@@ -257,11 +257,12 @@ void Channel::ack(Error status) {
     // With verbose errors, the message text is displayed instead of the number.
     // Grbl 0.9 used to display the text, while Grbl 1.1 switched to the number.
     // Many senders support both formats.
-    LogStream msg(*this, "error:");
-    if (config->_verboseErrors) {
-        msg << errorString(status);
-    } else {
+    {
+        LogStream msg(*this, "error:");
         msg << static_cast<int>(status);
+    }
+    if (config->_verboseErrors) {
+        log_error_to(*this, errorString(status));
     }
 }
 

@@ -83,7 +83,7 @@ namespace Machine {
 
         float _arcTolerance      = 0.002f;
         float _junctionDeviation = 0.01f;
-        bool  _verboseErrors     = false;
+        bool  _verboseErrors     = true;
         bool  _reportInches      = false;
 
         size_t _planner_blocks = 16;
@@ -110,9 +110,9 @@ namespace Machine {
         void afterParse() override;
         void group(Configuration::HandlerBase& handler) override;
 
-        static bool load();
-        static bool load_file(std::string_view file);
-        static bool load_yaml(std::string_view yaml_string);
+        static void load();
+        static void load_file(std::string_view file);
+        static void load_yaml(std::string_view yaml_string);
 
         ~MachineConfig();
     };

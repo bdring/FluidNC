@@ -47,7 +47,7 @@ namespace MotorDrivers {
 
     void Solenoid::init() {
         if (_output_pin.undefined()) {
-            log_warn("    Solenoid disabled: No output pin");
+            log_config_error("    Solenoid disabled: No output pin");
             _has_errors = true;
             return;  // We cannot continue without the output pin
         }

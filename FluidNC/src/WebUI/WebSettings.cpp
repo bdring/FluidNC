@@ -574,11 +574,11 @@ namespace WebUI {
 
     static Error runFile(const char* fs, const char* parameter, AuthenticationLevel auth_level, Channel& out) {
         Error err;
-        if (sys.state == State::Alarm || sys.state == State::ConfigAlarm) {
+        if (state_is(State::Alarm) || state_is(State::ConfigAlarm)) {
             log_string(out, "Alarm");
             return Error::IdleError;
         }
-        if (sys.state != State::Idle) {
+        if (!state_is(State::Idle)) {
             log_string(out, "Busy");
             return Error::IdleError;
         }

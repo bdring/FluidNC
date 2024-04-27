@@ -249,21 +249,21 @@ static Error list_commands(const char* value, WebUI::AuthenticationLevel auth_le
     return Error::Ok;
 }
 static Error toggle_check_mode(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
-    if (sys.state == State::ConfigAlarm) {
+    if (state_is(State::ConfigAlarm)) {
         return Error::ConfigurationInvalid;
     }
 
     // Perform reset when toggling off. Check g-code mode should only work when
     // idle and ready, regardless of alarm locks. This is mainly to keep things
     // simple and consistent.
-    if (sys.state == State::CheckMode) {
+    if (state_is(State::CheckMode)) {
         report_feedback_message(Message::Disabled);
         sys.abort = true;
     } else {
-        if (sys.state != State::Idle) {
+        if (!state_is(State::Idle)) {
             return Error::IdleError;  // Requires no alarm mode.
         }
-        sys.state = State::CheckMode;
+        set_state(State::CheckMode);
         report_feedback_message(Message::Enabled);
     }
     return Error::Ok;
@@ -282,10 +282,10 @@ static Error isStuck() {
     return Error::Ok;
 }
 static Error disable_alarm_lock(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
-    if (sys.state == State::ConfigAlarm) {
+    if (state_is(State::ConfigAlarm)) {
         return Error::ConfigurationInvalid;
     }
-    if (sys.state == State::Alarm) {
+    if (state_is(State::Alarm)) {
         Error err = isStuck();
         if (err != Error::Ok) {
             return err;
@@ -293,7 +293,7 @@ static Error disable_alarm_lock(const char* value, WebUI::AuthenticationLevel au
         Homing::set_all_axes_homed();
         config->_kinematics->releaseMotors(config->_axes->motorMask, config->_axes->hardLimitMask());
         report_feedback_message(Message::AlarmUnlock);
-        sys.state = State::Idle;
+        set_state(State::Idle);
     }
     // Run the after_unlock macro even if no unlock was necessary
     config->_macros->_after_unlock.run();
@@ -392,7 +392,7 @@ static Error home(AxisMask axisMask) {
         }
     }
 
-    if (sys.state == State::ConfigAlarm) {
+    if (state_is(State::ConfigAlarm)) {
         return Error::ConfigurationInvalid;
     }
     if (!Machine::Axes::homingMask) {
@@ -407,7 +407,7 @@ static Error home(AxisMask axisMask) {
 
     do {
         protocol_execute_realtime();
-    } while (sys.state == State::Homing);
+    } while (state_is(State::Homing));
 
     if (!Homing::unhomed_axes()) {
         config->_macros->_after_homing.run();
@@ -557,7 +557,7 @@ static Error showState(const char* value, WebUI::AuthenticationLevel auth_level,
 }
 
 static Error doJog(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
-    if (sys.state == State::ConfigAlarm) {
+    if (state_is(State::ConfigAlarm)) {
         return Error::ConfigurationInvalid;
     }
 
@@ -575,9 +575,9 @@ static Error doJog(const char* value, WebUI::AuthenticationLevel auth_level, Cha
 }
 
 static Error listAlarms(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
-    if (sys.state == State::ConfigAlarm) {
+    if (state_is(State::ConfigAlarm)) {
         log_string(out, "Configuration alarm is active. Check the boot messages for 'ERR'.");
-    } else if (sys.state == State::Alarm) {
+    } else if (state_is(State::Alarm)) {
         log_stream(out, "Active alarm: " << int(lastAlarm) << " (" << alarmString(lastAlarm));
     }
     if (value) {
@@ -633,7 +633,7 @@ static Error listErrors(const char* value, WebUI::AuthenticationLevel auth_level
 }
 
 static Error motor_control(const char* value, bool disable) {
-    if (sys.state == State::ConfigAlarm) {
+    if (state_is(State::ConfigAlarm)) {
         return Error::ConfigurationInvalid;
     }
 
@@ -1085,7 +1085,7 @@ Error settings_execute_line(char* line, Channel& out, WebUI::AuthenticationLevel
 }
 
 void settings_execute_startup() {
-    if (sys.state != State::Idle) {
+    if (!state_is(State::Idle)) {
         return;
     }
     Error status_code;
@@ -1104,7 +1104,7 @@ Error execute_line(char* line, Channel& channel, WebUI::AuthenticationLevel auth
         return settings_execute_line(line, channel, auth_level);
     }
     // Everything else is gcode. Block if in alarm or jog mode.
-    if (sys.state == State::Alarm || sys.state == State::ConfigAlarm || sys.state == State::Jog) {
+    if (state_is(State::Alarm) || state_is(State::ConfigAlarm) || state_is(State::Jog)) {
         return Error::SystemGcLock;
     }
     Error result = gc_execute_line(line);
