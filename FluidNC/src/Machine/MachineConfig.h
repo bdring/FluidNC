@@ -83,7 +83,7 @@ namespace Machine {
 
         float _arcTolerance      = 0.002f;
         float _junctionDeviation = 0.01f;
-        bool  _verboseErrors     = false;
+        bool  _verboseErrors     = true;
         bool  _reportInches      = false;
 
         size_t _planner_blocks = 16;
