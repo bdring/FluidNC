@@ -791,19 +791,30 @@ bool Maslow_::take_measurement(int waypoint, int dir, int run) {
         }
         holdAxis1->recomputePID();
         holdAxis2->recomputePID();
-        if (!pull1_tight) {
+
+        if(run == 0){
+            if (!pull1_tight) {
+                if (pullAxis1->pull_tight(calibrationCurrentThreshold)) {
+                    pull1_tight      = true;
+                }
+                if (run == 0) //Second axis complies while first is pulling
+                    pullAxis2->comply();
+                return false;
+            }
+            if (!pull2_tight) {
+                if (pullAxis2->pull_tight(calibrationCurrentThreshold)) {
+                    pull2_tight      = true;
+                }
+                return false;
+            }
+        }
+        else{
             if (pullAxis1->pull_tight(calibrationCurrentThreshold)) {
                 pull1_tight      = true;
             }
-            if (run == 0)
-                pullAxis2->comply();
-            return false;
-        }
-        if (!pull2_tight) {
             if (pullAxis2->pull_tight(calibrationCurrentThreshold)) {
                 pull2_tight      = true;
             }
-            return false;
         }
         if (pull1_tight && pull2_tight) {
             //take measurement and record it to the calibration data array
@@ -939,7 +950,7 @@ bool Maslow_::move_with_slack(double fromX, double fromY, double toX, double toY
     //This is where we want to introduce some slack so the system
     static unsigned long moveBeginTimer = millis();
     static bool          decompress     = true;
-    const float          stepSize       = 0.04;
+    const float          stepSize       = 0.06;
    
     static int direction = UP;
 
