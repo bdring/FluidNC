@@ -8,7 +8,7 @@
 #include "../Protocol.h"
 
 // Maslow specific defines
-#define VERSION_NUMBER "0.7"
+#define VERSION_NUMBER "0.70"
 
 #define TLEncoderLine 2
 #define TREncoderLine 1
