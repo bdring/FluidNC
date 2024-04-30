@@ -5,6 +5,7 @@
 #include "Maslow.h"
 #include "../Report.h"
 #include "../WebUI/WifiConfig.h"
+#include "../Protocol.h"
 
 // Maslow specific defines
 #define VERSION_NUMBER "0.70"
@@ -84,7 +85,7 @@ void Maslow_::begin(void (*sys_rt)()) {
 
     currentThreshold = 1500;
     lastCallToUpdate = millis();
-    
+
     if (error) {
         log_error("Maslow failed to initialize - fix errors and restart");
     } else
@@ -101,7 +102,10 @@ void Maslow_::update() {
             st = !st;
             digitalWrite(REDLED, st);
             timer = millis();
-            log_error(errorMessage.c_str());
+            if (errorMessage != "") {
+                log_error(errorMessage.c_str());
+            }
+            errorMessage = "";
         }
         return;
     }
@@ -385,10 +389,10 @@ bool Maslow_::takeSlackFunc() {
             if (abs(diffTL) > threshold || abs(diffTR) > threshold || abs(diffBL) > threshold || abs(diffBR) > threshold) {
                 log_error("Center point deviation over " << threshold << "mmm, your coordinate system is not accurate, maybe try running calibration again?");
                 //Should we enter an alarm state here to prevent things from going wrong?
-                
+
                 //Reset
                 takeSlackState = 0;
-                return true; 
+                return true;
             }
             else{
                 log_info("Center point deviation within " << threshold << "mm, your coordinate system is accurate");
@@ -425,7 +429,7 @@ void Maslow_::calibration_loop() {
     if (measurementInProgress) {
         if (take_measurement_avg_with_check(waypoint, direction)) {  //Takes a measurement and returns true if it's done
             measurementInProgress = false;
-            
+
             waypoint++;  //Increment the waypoint counter
 
             if (waypoint > recomputePoints[recomputeCountIndex]) {  //If we have reached the end of this stage of the calibration process
@@ -931,10 +935,10 @@ bool Maslow_::take_measurement_avg_with_check(int waypoint, int dir) {
                         message = "Frame size error, try entering smaller frame dimensions and restart.";
                     }
 
-                
+
                     //Stop calibration
                     eStop(message);
-                    return true; 
+                    return true;
                 }
             }
 
@@ -951,7 +955,7 @@ bool Maslow_::move_with_slack(double fromX, double fromY, double toX, double toY
     static unsigned long moveBeginTimer = millis();
     static bool          decompress     = true;
     const float          stepSize       = 0.06;
-   
+
     static int direction = UP;
 
 
@@ -1270,7 +1274,7 @@ void Maslow_::printCalibrationGrid() {
     }
 
     log_info("Times to recompute: " << recomputeCount);
-    
+
 
 }
 
@@ -1629,11 +1633,16 @@ void Maslow_::stopMotors() {
     axisTL.stop();
 }
 
+static void stopEverything() {
+    sys.set_state(State::Alarm);
+    protocol_disable_steppers();
+    allChannels.stopJob();
+}
+
 // Panic function, stops all motors and sets state to alarm
 void Maslow_::panic() {
-    log_error("PANIC! Stopping all motors");
     stop();
-    sys.set_state(State::Alarm);
+    stopEverything();
 }
 
 //Emergecy Stop
@@ -1643,8 +1652,9 @@ void Maslow_::eStop(String message) {
     stop();
     error = true;
     errorMessage = message;
-    sys.set_state(State::Alarm);
+    stopEverything();
 }
+
 
 // Get's the most recently set target position in X
 double Maslow_::getTargetX() {
