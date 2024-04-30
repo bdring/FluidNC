@@ -419,6 +419,7 @@ void Maslow_::calibration_loop() {
         calibrationInProgress = false;
         waypoint              = 0;
         log_info("Calibration complete");
+        return;
     }
     //Taking measurment once we've reached the point
     if (measurementInProgress) {
@@ -614,7 +615,7 @@ void Maslow_::safety_control() {
         if ((abs(axis[i]->getPositionError()) > 15) && (sys.state() == State::Cycle)) {
             log_error("Position error on " << axis_id_to_label(i).c_str() << " axis exceeded 15mm while running. Halting. Error is "
                                            << axis[i]->getPositionError() << "mm");
-            Maslow.eStop();
+            Maslow.eStop("Position error > 15mm while running. E-Stop triggered.");
         }
     }
 
@@ -790,19 +791,30 @@ bool Maslow_::take_measurement(int waypoint, int dir, int run) {
         }
         holdAxis1->recomputePID();
         holdAxis2->recomputePID();
-        if (!pull1_tight) {
+
+        if(run == 0){
+            if (!pull1_tight) {
+                if (pullAxis1->pull_tight(calibrationCurrentThreshold)) {
+                    pull1_tight      = true;
+                }
+                if (run == 0) //Second axis complies while first is pulling
+                    pullAxis2->comply();
+                return false;
+            }
+            if (!pull2_tight) {
+                if (pullAxis2->pull_tight(calibrationCurrentThreshold)) {
+                    pull2_tight      = true;
+                }
+                return false;
+            }
+        }
+        else{
             if (pullAxis1->pull_tight(calibrationCurrentThreshold)) {
                 pull1_tight      = true;
             }
-            if (run == 0)
-                pullAxis2->comply();
-            return false;
-        }
-        if (!pull2_tight) {
             if (pullAxis2->pull_tight(calibrationCurrentThreshold)) {
                 pull2_tight      = true;
             }
-            return false;
         }
         if (pull1_tight && pull2_tight) {
             //take measurement and record it to the calibration data array
@@ -938,7 +950,7 @@ bool Maslow_::move_with_slack(double fromX, double fromY, double toX, double toY
     //This is where we want to introduce some slack so the system
     static unsigned long moveBeginTimer = millis();
     static bool          decompress     = true;
-    const float          stepSize       = 0.04;
+    const float          stepSize       = 0.06;
    
     static int direction = UP;
 
@@ -1146,7 +1158,7 @@ bool Maslow_::checkValidMove(double fromX, double fromY, double toX, double toY)
         log_error("Unable to move safely, stopping calibration");
         calibrationInProgress = false;
         waypoint              = 0;
-        eStop();
+        eStop("Unable to move safely, stopping calibration");
     }
     return valid;
 }
