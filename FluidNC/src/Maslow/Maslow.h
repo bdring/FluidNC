@@ -126,7 +126,7 @@ public:
 
     //calibration stuff
 
-    int frame_dimention_MIN = 1000;
+    int frame_dimention_MIN = 400;
     int frame_dimention_MAX = 5000;
 
     double calibrationGrid[CALIBRATION_GRID_SIZE_MAX][2] = { 0 };
