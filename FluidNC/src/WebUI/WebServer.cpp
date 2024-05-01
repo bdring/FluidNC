@@ -414,16 +414,16 @@ namespace WebUI {
                             "</device>"
                             "</root>\r\n"
                             "\r\n";
-        char        uuid[37];
-        const char* sip    = IP_string(WiFi.localIP()).c_str();
-        uint32_t    chipId = (uint16_t)(ESP.getEfuseMac() >> 32);
+        char              uuid[37];
+        const std::string sip    = IP_string(WiFi.localIP());
+        uint32_t          chipId = (uint16_t)(ESP.getEfuseMac() >> 32);
         sprintf(uuid,
                 "38323636-4558-4dda-9188-cda0e6%02x%02x%02x",
                 (uint16_t)((chipId >> 16) & 0xff),
                 (uint16_t)((chipId >> 8) & 0xff),
                 (uint16_t)chipId & 0xff);
-        const char* serialNumber = std::to_string(chipId).c_str();
-        sschema.printf(templ, sip, _port, wifi_config.Hostname().c_str(), serialNumber, uuid);
+        const std::string serialNumber = std::to_string(chipId);
+        sschema.printf(templ, sip, _port, wifi_config.Hostname(), serialNumber, uuid);
         _webserver->send(200, "text/xml", sschema);
     }
 
