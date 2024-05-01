@@ -16,10 +16,10 @@ namespace Configuration {
     class Configurable;
 
     typedef struct {
-        SpindleSpeed speed;
-        float        percent;
-        uint32_t     offset;
-        uint32_t     scale;
+        SpindleSpeed speed   = 0;
+        float        percent = 0.0;
+        uint32_t     offset  = 0;
+        uint32_t     scale   = 0;
     } speedEntry;
 
     template <typename BaseType>

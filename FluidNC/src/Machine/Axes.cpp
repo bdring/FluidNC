@@ -271,7 +271,7 @@ namespace Machine {
     }
 
     MotorMask Axes::hardLimitMask() {
-        MotorMask mask;
+        MotorMask mask = 0;
         for (int axis = 0; axis < _numberAxis; ++axis) {
             auto a = _axis[axis];
 

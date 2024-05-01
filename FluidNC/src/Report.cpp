@@ -67,6 +67,7 @@ void _notifyf(const char* title, const char* format, ...) {
     if (len >= sizeof(loc_buf)) {
         temp = new char[len + 1];
         if (temp == NULL) {
+            va_end(arg);
             return;
         }
     }
