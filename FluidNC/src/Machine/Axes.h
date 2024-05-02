@@ -91,4 +91,4 @@ namespace Machine {
         ~Axes();
     };
 }
-extern EnumItem axisType[];
+extern const EnumItem axisType[];

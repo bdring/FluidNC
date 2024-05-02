@@ -278,22 +278,22 @@ typedef std::map<const char*, int8_t, cmp_str> enum_opt_t;
 
 class EnumSetting : public Setting {
 private:
-    int8_t                                  _defaultValue;
-    int8_t                                  _storedValue;
-    int8_t                                  _currentValue;
-    std::map<const char*, int8_t, cmp_str>* _options;
-    const char*                             enumToString(int8_t value);
+    int8_t                                        _defaultValue;
+    int8_t                                        _storedValue;
+    int8_t                                        _currentValue;
+    const std::map<const char*, int8_t, cmp_str>* _options;
+    const char*                                   enumToString(int8_t value);
 
 public:
-    EnumSetting(const char*   description,
-                type_t        type,
-                permissions_t permissions,
-                const char*   grblName,
-                const char*   name,
-                int8_t        defVal,
-                enum_opt_t*   opts);
+    EnumSetting(const char*       description,
+                type_t            type,
+                permissions_t     permissions,
+                const char*       grblName,
+                const char*       name,
+                int8_t            defVal,
+                const enum_opt_t* opts);
 
-    EnumSetting(type_t type, permissions_t permissions, const char* grblName, const char* name, int8_t defVal, enum_opt_t* opts) :
+    EnumSetting(type_t type, permissions_t permissions, const char* grblName, const char* name, int8_t defVal, const enum_opt_t* opts) :
         EnumSetting(NULL, type, permissions, grblName, name, defVal, opts) {}
 
     void        load();
@@ -374,4 +374,4 @@ Error settings_execute_line(char* line, Channel& out, WebUI::AuthenticationLevel
 Error do_command_or_setting(const char* key, const char* value, WebUI::AuthenticationLevel auth_level, Channel&);
 Error execute_line(char* line, Channel& channel, WebUI::AuthenticationLevel auth_level);
 
-extern enum_opt_t onoffOptions;
+extern const enum_opt_t onoffOptions;

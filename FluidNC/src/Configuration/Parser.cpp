@@ -142,7 +142,7 @@ namespace Configuration {
         return ip;
     }
 
-    int Parser::enumValue(EnumItem* e) const {
+    int Parser::enumValue(const EnumItem* e) const {
         auto token = string_util::trim(_token._value);
         for (; e->name; ++e) {
             if (string_util::equal_ignore_case(token, e->name)) {

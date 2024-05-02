@@ -21,7 +21,7 @@ EnumSetting* message_level;
 std::vector<std::unique_ptr<MachineConfigProxySetting<float>>>   float_proxies;
 std::vector<std::unique_ptr<MachineConfigProxySetting<int32_t>>> int_proxies;
 
-enum_opt_t messageLevels = {
+const enum_opt_t messageLevels = {
     // clang-format off
     { "None", MsgLevelNone },
     { "Error", MsgLevelError },
@@ -32,7 +32,7 @@ enum_opt_t messageLevels = {
     // clang-format on
 };
 
-enum_opt_t onoffOptions = { { "OFF", 0 }, { "ON", 1 } };
+const enum_opt_t onoffOptions = { { "OFF", 0 }, { "ON", 1 } };
 
 void make_coordinate(CoordIndex index, const char* name) {
     float coord_data[MAX_N_AXIS] = { 0.0 };

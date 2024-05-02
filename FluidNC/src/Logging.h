@@ -31,7 +31,7 @@ extern TaskHandle_t outputTask;
 
 extern xQueueHandle message_queue;
 
-extern EnumItem messageLevels2[];
+extern const EnumItem messageLevels2[];
 
 // How to use logging? Well, the basics are pretty simple:
 //

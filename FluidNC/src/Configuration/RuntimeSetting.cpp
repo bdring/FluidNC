@@ -69,7 +69,7 @@ namespace Configuration {
         }
     }
 
-    void RuntimeSetting::item(const char* name, int32_t& value, int32_t minValue, int32_t maxValue) {
+    void RuntimeSetting::item(const char* name, int32_t& value, const int32_t minValue, const int32_t maxValue) {
         if (is(name)) {
             isHandled_ = true;
             if (newValue_ == nullptr) {
@@ -80,7 +80,7 @@ namespace Configuration {
         }
     }
 
-    void RuntimeSetting::item(const char* name, uint32_t& value, uint32_t minValue, uint32_t maxValue) {
+    void RuntimeSetting::item(const char* name, uint32_t& value, const uint32_t minValue, const uint32_t maxValue) {
         if (is(name)) {
             isHandled_ = true;
             if (newValue_ == nullptr) {
@@ -96,7 +96,7 @@ namespace Configuration {
         }
     }
 
-    void RuntimeSetting::item(const char* name, float& value, float minValue, float maxValue) {
+    void RuntimeSetting::item(const char* name, float& value, const float minValue, const float maxValue) {
         if (is(name)) {
             isHandled_ = true;
             if (newValue_ == nullptr) {
@@ -109,7 +109,7 @@ namespace Configuration {
         }
     }
 
-    void RuntimeSetting::item(const char* name, std::string& value, int minLength, int maxLength) {
+    void RuntimeSetting::item(const char* name, std::string& value, const int minLength, const int maxLength) {
         if (is(name)) {
             isHandled_ = true;
             if (newValue_ == nullptr) {
@@ -120,7 +120,7 @@ namespace Configuration {
         }
     }
 
-    void RuntimeSetting::item(const char* name, int& value, EnumItem* e) {
+    void RuntimeSetting::item(const char* name, int& value, const EnumItem* e) {
         if (is(name)) {
             isHandled_ = true;
             if (newValue_ == nullptr) {

@@ -10,11 +10,11 @@ namespace Machine {
 
     int Stepping::_engine = RMT;
 
-    EnumItem stepTypes[] = { { Stepping::TIMED, "Timed" },
-                             { Stepping::RMT, "RMT" },
-                             { Stepping::I2S_STATIC, "I2S_static" },
-                             { Stepping::I2S_STREAM, "I2S_stream" },
-                             EnumItem(Stepping::RMT) };
+    const EnumItem stepTypes[] = { { Stepping::TIMED, "Timed" },
+                                   { Stepping::RMT, "RMT" },
+                                   { Stepping::I2S_STATIC, "I2S_static" },
+                                   { Stepping::I2S_STREAM, "I2S_stream" },
+                                   EnumItem(Stepping::RMT) };
 
     void Stepping::init() {
         log_info("Stepping:" << stepTypes[_engine].name << " Pulse:" << _pulseUsecs << "us Dsbl Delay:" << _disableDelayUsecs

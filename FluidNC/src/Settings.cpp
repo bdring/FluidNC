@@ -269,7 +269,7 @@ void StringSetting::addWebui(WebUI::JSONencoder* j) {
 // typedef std::map<const char*, int8_t, std::less<>> enum_opt_t;
 
 EnumSetting::EnumSetting(
-    const char* description, type_t type, permissions_t permissions, const char* grblName, const char* name, int8_t defVal, enum_opt_t* opts) :
+    const char* description, type_t type, permissions_t permissions, const char* grblName, const char* name, int8_t defVal, const enum_opt_t* opts) :
     Setting(description, type, permissions, grblName, name),
     _defaultValue(defVal), _options(opts) {}
 
@@ -301,7 +301,7 @@ Error EnumSetting::setStringValue(std::string_view s) {
     }
     trim(s);
     std::string          str(s);
-    enum_opt_t::iterator it = _options->find(str.c_str());
+    enum_opt_t::const_iterator it = _options->find(str.c_str());
     if (it == _options->end()) {
         // If we don't find the value in keys, look for it in the numeric values
 
@@ -342,7 +342,7 @@ Error EnumSetting::setStringValue(std::string_view s) {
 }
 
 const char* EnumSetting::enumToString(int8_t value) {
-    for (enum_opt_t::iterator it = _options->begin(); it != _options->end(); it++) {
+    for (enum_opt_t::const_iterator it = _options->begin(); it != _options->end(); it++) {
         if (it->second == value) {
             return it->first;
         }
@@ -359,7 +359,7 @@ const char* EnumSetting::getStringValue() {
 
 void EnumSetting::showList() {
     std::string optList = "";
-    for (enum_opt_t::iterator it = _options->begin(); it != _options->end(); it++) {
+    for (enum_opt_t::const_iterator it = _options->begin(); it != _options->end(); it++) {
         optList = optList + " " + it->first;
     }
     log_info("Valid options:" << optList);
@@ -371,7 +371,7 @@ void EnumSetting::addWebui(WebUI::JSONencoder* j) {
     }
     j->begin_webui(getName(), getName(), "B", get());
     j->begin_array("O");
-    for (enum_opt_t::iterator it = _options->begin(); it != _options->end(); it++) {
+    for (enum_opt_t:: const_iterator it = _options->begin(); it != _options->end(); it++) {
         j->begin_object();
         j->member(it->first, it->second);
         j->end_object();

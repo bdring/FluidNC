@@ -7,9 +7,9 @@
 #include "SettingsDefinitions.h"
 #include "Channel.h"
 
-EnumItem messageLevels2[] = { { MsgLevelNone, "None" }, { MsgLevelError, "Error" }, { MsgLevelWarning, "Warn" },
-                              { MsgLevelInfo, "Info" }, { MsgLevelDebug, "Debug" }, { MsgLevelVerbose, "Verbose" },
-                              EnumItem(MsgLevelNone) };
+const EnumItem messageLevels2[] = { { MsgLevelNone, "None" }, { MsgLevelError, "Error" }, { MsgLevelWarning, "Warn" },
+                                    { MsgLevelInfo, "Info" }, { MsgLevelDebug, "Debug" }, { MsgLevelVerbose, "Verbose" },
+                                    EnumItem(MsgLevelNone) };
 
 bool atMsgLevel(MsgLevel level) {
     return message_level == nullptr || message_level->get() >= level;

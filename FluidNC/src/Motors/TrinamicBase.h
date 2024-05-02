@@ -16,7 +16,7 @@ namespace MotorDrivers {
         StallGuard  = 2,  // coolstep plus stall indication
     };
 
-    extern EnumItem trinamicModes[];
+    extern const EnumItem trinamicModes[];
 
     class TrinamicBase : public StandardStepper {
     private:

@@ -8,7 +8,7 @@
 #include "MachineConfig.h"  // config->
 #include "../Limits.h"
 
-EnumItem axisType[] = { { 0, "X" }, { 1, "Y" }, { 2, "Z" }, { 3, "A" }, { 4, "B" }, { 5, "C" }, EnumItem(0) };
+const EnumItem axisType[] = { { 0, "X" }, { 1, "Y" }, { 2, "Z" }, { 3, "A" }, { 4, "B" }, { 5, "C" }, EnumItem(0) };
 
 namespace Machine {
     MotorMask Axes::posLimitMask = 0;
