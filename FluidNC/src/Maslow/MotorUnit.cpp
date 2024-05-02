@@ -116,8 +116,8 @@ bool MotorUnit::updateEncoderPosition() {
         return true;
     } else if (millis() - encoderReadFailurePrintTime > 5000) {
         encoderReadFailurePrintTime = millis();
-        log_warn("Encoder read failure on " << _encoderAddress);
-        Maslow.panic();
+        log_warn("Encoder read failure on " << Maslow.axis_id_to_label(_encoderAddress).c_str());
+        //Maslow.panic();
     }
     return false;
 }
