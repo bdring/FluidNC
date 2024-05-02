@@ -289,6 +289,9 @@ void plan_update_velocity_profile_parameters() {
         block_index        = plan_next_block_index(block_index);
     }
     pl.previous_nominal_speed = prev_nominal_speed;  // Update prev nominal speed for next incoming block.
+    if (block_buffer_tail != block_buffer_head) {
+        plan_cycle_reinitialize();
+    }
 }
 
 bool plan_buffer_line(float* target, plan_line_data_t* pl_data) {
