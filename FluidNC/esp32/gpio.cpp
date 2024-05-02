@@ -205,7 +205,7 @@ struct pin_mux {
     int         pinnum;
     const char* pinname;
     const char* functions[6];
-} pins[] = {
+} const pins[] = {
     { 0, "GPIO0", { "GPIO0", "CLK_OUT1", "GPIO0", "-", "-", "EMAC_TX_CLK" } },
     { 1, "U0TXD", { "U0TXD", "CLK_OUT3", "GPIO1", "-", "-", "EMAC_RXD2" } },
     { 2, "GPIO2", { "GPIO2", "HSPIWP", "GPIO2", "HS2_DATA0", "SD_DATA0", "-" } },
@@ -243,7 +243,7 @@ struct pin_mux {
     { -1, "", { "" } },
 };
 const char* pin_function_name(gpio_num_t gpio, int function) {
-    pin_mux* p;
+    const pin_mux* p;
     for (p = pins; p->pinnum != -1; ++p) {
         if (p->pinnum == gpio) {
             return p->functions[function];
@@ -257,7 +257,7 @@ struct gpio_matrix_t {
     const char* in;
     const char* out;
     bool        iomux;
-} gpio_matrix[] = { { 0, "SPICLK_in", "SPICLK_out", true },
+} const gpio_matrix[] = { { 0, "SPICLK_in", "SPICLK_out", true },
                     { 1, "SPIQ_in", "SPIQ_out", true },
                     { 2, "SPID_in", "SPID_out", true },
                     { 3, "SPIHD_in", "SPIHD_out", true },
@@ -459,7 +459,7 @@ struct gpio_matrix_t {
                     { -1, "", "", false } };
 
 static const char* out_sel_name(int function) {
-    gpio_matrix_t* p;
+    const gpio_matrix_t* p;
     for (p = gpio_matrix; p->num != -1; ++p) {
         if (p->num == function) {
             return p->out;
@@ -469,7 +469,7 @@ static const char* out_sel_name(int function) {
 }
 
 static void show_matrix(Print& out) {
-    gpio_matrix_t* p;
+    const gpio_matrix_t* p;
     for (p = gpio_matrix; p->num != -1; ++p) {
         uint32_t in_sel = gpio_in_sel(p->num);
         if (in_sel & 0x80) {

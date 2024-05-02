@@ -71,4 +71,4 @@ namespace Machine {
         void afterParse() override;
     };
 }
-extern EnumItem stepTypes[];
+extern const EnumItem stepTypes[];

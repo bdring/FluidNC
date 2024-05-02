@@ -30,7 +30,7 @@ namespace Configuration {
         std::vector<speedEntry> speedEntryValue() const;
         float                   floatValue() const;
         Pin                     pinValue() const;
-        int                     enumValue(EnumItem* e) const;
+        int                     enumValue(const EnumItem* e) const;
         IPAddress               ipValue() const;
         void                    uartMode(UartData& wordLength, UartParity& parity, UartStop& stopBits) const;
     };

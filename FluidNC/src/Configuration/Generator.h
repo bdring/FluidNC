@@ -45,13 +45,13 @@ namespace Configuration {
             s << value;
         }
 
-        void item(const char* name, int& value, int32_t minValue, int32_t maxValue) override { send_item(name, std::to_string(value)); }
+        void item(const char* name, int& value, const int32_t minValue, const int32_t maxValue) override { send_item(name, std::to_string(value)); }
 
-        void item(const char* name, uint32_t& value, uint32_t minValue, uint32_t maxValue) override {
+        void item(const char* name, uint32_t& value, const uint32_t minValue, const uint32_t maxValue) override {
             send_item(name, std::to_string(value));
         }
 
-        void item(const char* name, float& value, float minValue, float maxValue) override { send_item(name, std::to_string(value)); }
+        void item(const char* name, float& value, const float minValue, const float maxValue) override { send_item(name, std::to_string(value)); }
 
         void item(const char* name, std::vector<speedEntry>& value) {
             if (value.size() == 0) {
@@ -96,14 +96,14 @@ namespace Configuration {
             send_item(name, s);
         }
 
-        void item(const char* name, std::string& value, int minLength, int maxLength) override { send_item(name, value); }
+        void item(const char* name, std::string& value, const int minLength, const int maxLength) override { send_item(name, value); }
 
         void item(const char* name, bool& value) override { send_item(name, value ? "true" : "false"); }
 
         void item(const char* name, Pin& value) override { send_item(name, value.name()); }
 
         void item(const char* name, IPAddress& value) override { send_item(name, IP_string(value)); }
-        void item(const char* name, int& value, EnumItem* e) override {
+        void item(const char* name, int& value, const EnumItem* e) override {
             const char* str = "unknown";
             for (; e->name; ++e) {
                 if (value == e->value) {

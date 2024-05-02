@@ -27,15 +27,15 @@ namespace Configuration {
 
         void item(const char* name);
         void item(const char* name, bool& value) override { item(name); }
-        void item(const char* name, int32_t& value, int32_t minValue, int32_t maxValue) override { item(name); }
-        void item(const char* name, uint32_t& value, uint32_t minValue, uint32_t maxValue) override { item(name); }
-        void item(const char* name, float& value, float minValue, float maxValue) override { item(name); }
+        void item(const char* name, int32_t& value, const int32_t minValue, const int32_t maxValue) override { item(name); }
+        void item(const char* name, uint32_t& value, const uint32_t minValue, const uint32_t maxValue) override { item(name); }
+        void item(const char* name, float& value, const float minValue, const float maxValue) override { item(name); }
         void item(const char* name, std::vector<speedEntry>& value) override { item(name); }
         void item(const char* name, UartData& wordLength, UartParity& parity, UartStop& stopBits) override { item(name); }
-        void item(const char* name, std::string& value, int minLength, int maxLength) override { item(name); }
+        void item(const char* name, std::string& value, const int minLength, const int maxLength) override { item(name); }
         void item(const char* name, Pin& value) { item(name); }
         void item(const char* name, IPAddress& value) override { item(name); }
-        void item(const char* name, int& value, EnumItem* e) override { item(name); }
+        void item(const char* name, int& value, const EnumItem* e) override { item(name); }
 
         HandlerType handlerType() override { return HandlerType::Completer; }
 

@@ -7,10 +7,10 @@
 #include <atomic>
 
 namespace MotorDrivers {
-    EnumItem trinamicModes[] = { { TrinamicMode::StealthChop, "StealthChop" },
-                                 { TrinamicMode::CoolStep, "CoolStep" },
-                                 { TrinamicMode::StallGuard, "StallGuard" },
-                                 EnumItem(TrinamicMode::StealthChop) };
+    const EnumItem trinamicModes[] = { { TrinamicMode::StealthChop, "StealthChop" },
+                                       { TrinamicMode::CoolStep, "CoolStep" },
+                                       { TrinamicMode::StallGuard, "StallGuard" },
+                                       EnumItem(TrinamicMode::StealthChop) };
 
     std::vector<TrinamicBase*> TrinamicBase::_instances;  // static list of all drivers for stallguard reporting
 

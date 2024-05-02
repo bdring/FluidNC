@@ -50,7 +50,7 @@ namespace WebUI {
 
     static const int EMAILTIMEOUT = 5000;
 
-    enum_opt_t notificationOptions = {
+    const enum_opt_t notificationOptions = {
         { "NONE", 0 },
         { "LINE", 3 },
         { "PUSHOVER", 1 },

@@ -36,7 +36,7 @@ namespace WebUI {
         WiFiFallback,  // Try STA and fall back to AP if STA fails
     };
 
-    enum_opt_t wifiModeOptions = {
+    const enum_opt_t wifiModeOptions = {
         { "Off", WiFiOff },
         { "STA", WiFiSTA },
         { "AP", WiFiAP },
@@ -91,7 +91,7 @@ namespace WebUI {
         WiFiCountryUS,
     };
 
-    enum_opt_t wifiContryOptions = {
+    const enum_opt_t wifiContryOptions = {
         { "01", WiFiCountry01 }, { "AT", WiFiCountryAT }, { "AU", WiFiCountryAU }, { "BE", WiFiCountryBE }, { "BG", WiFiCountryBG },
         { "BR", WiFiCountryBR }, { "CA", WiFiCountryCA }, { "CH", WiFiCountryCH }, { "CN", WiFiCountryCN }, { "CY", WiFiCountryCY },
         { "CZ", WiFiCountryCZ }, { "DE", WiFiCountryDE }, { "DK", WiFiCountryDK }, { "EE", WiFiCountryEE }, { "ES", WiFiCountryES },
@@ -126,12 +126,12 @@ namespace WebUI {
 
     HostnameSetting* wifi_hostname;
 
-    enum_opt_t staModeOptions = {
+    const enum_opt_t staModeOptions = {
         { "DHCP", DHCP_MODE },
         { "Static", STATIC_MODE },
     };
 
-    enum_opt_t staSecurityOptions = {
+    const enum_opt_t staSecurityOptions = {
         { "OPEN", WIFI_AUTH_OPEN },
         { "WEP", WIFI_AUTH_WEP },
         { "WPA-PSK", WIFI_AUTH_WPA_PSK },

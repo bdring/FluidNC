@@ -109,7 +109,7 @@ void HashFS::hash_all() {
 }
 std::string HashFS::hash(const std::filesystem::path& path) {
     if (file_is_hashed(path)) {
-        std::map<std::string, std::string>::iterator it;
+        std::map<std::string, std::string>::const_iterator it;
         it = localFsHashes.find(path.filename());
         if (it != localFsHashes.end()) {
             return it->second;
