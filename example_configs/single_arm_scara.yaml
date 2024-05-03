@@ -1,0 +1,151 @@
+name: "coaxial Servo"
+board: "2x 2209 Pen/Laser"
+
+stepping:
+  engine: RMT
+  idle_ms: 255
+  dir_delay_us: 1
+  pulse_us: 2
+  disable_delay_us: 0
+
+# TMC2209 UART
+uart1:
+  txd_pin: gpio.17
+  rxd_pin: gpio.16
+  rts_pin: NO_PIN
+  cts_pin: NO_PIN
+  baud: 115200
+  mode: 8N1
+  
+kinematics:
+  SingleArmScara:
+    upper_arm_mm: 110.0
+    forearm_mm: 72.0
+    segment_mm: 1.0
+    elbow_motor: false
+
+axes:
+  shared_stepper_disable_pin: gpio.13
+# X controls the upper arm
+  x:
+    # 200 steps/rev 16 micros/step 6.28318 radian/rev
+    # Steps/radian
+    steps_per_mm: 509.295817
+    max_rate_mm_per_min: 1000.000
+    acceleration_mm_per_sec2: 60.000
+    # 2 pi radians (360deg) 
+    max_travel_mm: 6.283
+    soft_limits: false
+    homing:
+      cycle: 2
+      positive_direction: true
+      mpos_mm: 0
+      feed_mm_per_min: 100.000
+      seek_mm_per_min: 200.000
+      settle_ms: 500
+      seek_scaler: 1.100
+      feed_scaler: 1.100
+
+    motor0:
+      hard_limits: false
+      pulloff_mm: 1.000
+      tmc_2209:
+        addr: 0
+        cs_pin: NO_PIN
+        uart_num: 1
+        step_pin: gpio.14
+        direction_pin: gpio.12:low
+        disable_pin: NO_PIN
+        r_sense_ohms: 0.110000
+        run_amps: 1.500000
+        hold_amps: 0.40000
+        microsteps: 16
+        toff_disable: 0
+        toff_stealthchop: 5
+        use_enable: false
+        run_mode: StealthChop
+        homing_mode: StealthChop
+        homing_amps: 0.500000
+        stallguard: 0
+        stallguard_debug: false
+        toff_coolstep: 3
+
+  y:
+    # 200 steps/rev 16 micros/step 6.28318 radian/rev
+    # Steps/radian
+    steps_per_mm: 509.295817  
+    max_rate_mm_per_min: 1000.000
+    acceleration_mm_per_sec2: 60.000
+    # 2 pi radians (360deg) 
+    max_travel_mm: 3.14159
+    soft_limits: false
+    homing:
+      cycle: 2
+      positive_direction: true
+      mpos_mm: 0
+      feed_mm_per_min: 100.000
+      seek_mm_per_min: 200.000
+      settle_ms: 500
+      seek_scaler: 1.100
+      feed_scaler: 1.100
+
+    motor0:
+      hard_limits: false
+      pulloff_mm: 1.000
+      tmc_2209:
+        addr: 1
+        cs_pin: NO_PIN
+        uart_num: 1
+        step_pin: gpio.25
+        direction_pin: gpio.26:low
+        disable_pin: NO_PIN
+        r_sense_ohms: 0.110000
+        run_amps: 1.500000
+        hold_amps: 0.40000
+        microsteps: 16
+        toff_disable: 0
+        toff_stealthchop: 5
+        use_enable: false
+        run_mode: StealthChop
+        homing_mode: StealthChop
+        homing_amps: 0.500000
+        stallguard: 0
+        stallguard_debug: false
+        toff_coolstep: 3
+        
+  z:
+    steps_per_mm: 100.000
+    max_rate_mm_per_min: 5000.000
+    acceleration_mm_per_sec2: 100.000
+    max_travel_mm: 5.000
+    soft_limits: false
+    homing:
+      cycle: 1
+      positive_direction: true
+      mpos_mm: 5.000
+
+    motor0:
+      rc_servo:
+        pwm_hz: 50
+        output_pin: gpio.27
+        min_pulse_us: 1000
+        max_pulse_us: 2000
+        timer_ms: 20
+
+spi:
+  miso_pin: gpio.19
+  mosi_pin: gpio.23
+  sck_pin: gpio.18
+
+sdcard:
+  card_detect_pin: NO_PIN
+  cs_pin: gpio.5
+
+control:
+  macro0_pin: gpio.35:low
+
+macros:
+  macro0: $LocalFS/Run=test.g
+
+start:
+  must_home: false
