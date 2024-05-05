@@ -28,7 +28,7 @@ void Control::init() {
 
 void Control::group(Configuration::HandlerBase& handler) {
     for (auto pin : _pins) {
-        handler.item(pin->_legend.c_str(), pin->_pin);
+        handler.item(pin->legend().c_str(), pin->pin());
     }
 }
 
@@ -55,7 +55,7 @@ bool Control::startup_check() {
     bool ret = false;
     for (auto pin : _pins) {
         if (pin->get()) {
-            log_error(pin->_legend << " is active at startup");
+            log_error(pin->legend() << " is active at startup");
             ret = true;
         }
     }

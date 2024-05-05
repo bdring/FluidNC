@@ -84,51 +84,51 @@ enum AccessoryOverride {
     MistToggle     = 3,
 };
 
-extern ArgEvent feedOverrideEvent;
-extern ArgEvent rapidOverrideEvent;
-extern ArgEvent spindleOverrideEvent;
-extern ArgEvent accessoryOverrideEvent;
-extern ArgEvent limitEvent;
-extern ArgEvent faultPinEvent;
+extern const ArgEvent feedOverrideEvent;
+extern const ArgEvent rapidOverrideEvent;
+extern const ArgEvent spindleOverrideEvent;
+extern const ArgEvent accessoryOverrideEvent;
+extern const ArgEvent limitEvent;
+extern const ArgEvent faultPinEvent;
 
-extern ArgEvent reportStatusEvent;
+extern const ArgEvent reportStatusEvent;
 
-extern NoArgEvent safetyDoorEvent;
-extern NoArgEvent feedHoldEvent;
-extern NoArgEvent cycleStartEvent;
-extern NoArgEvent cycleStopEvent;
-extern NoArgEvent motionCancelEvent;
-extern NoArgEvent sleepEvent;
-extern NoArgEvent rtResetEvent;
-extern NoArgEvent debugEvent;
-extern NoArgEvent unhomedEvent;
-extern NoArgEvent startEvent;
-extern NoArgEvent restartEvent;
+extern const NoArgEvent safetyDoorEvent;
+extern const NoArgEvent feedHoldEvent;
+extern const NoArgEvent cycleStartEvent;
+extern const NoArgEvent cycleStopEvent;
+extern const NoArgEvent motionCancelEvent;
+extern const NoArgEvent sleepEvent;
+extern const NoArgEvent rtResetEvent;
+extern const NoArgEvent debugEvent;
+extern const NoArgEvent unhomedEvent;
+extern const NoArgEvent startEvent;
+extern const NoArgEvent restartEvent;
 
-extern NoArgEvent runStartupLinesEvent;
+extern const NoArgEvent runStartupLinesEvent;
 
-// extern NoArgEvent statusReportEvent;
+// extern const NoArgEvent statusReportEvent;
 
 extern xQueueHandle event_queue;
 
 extern bool pollingPaused;
 
 struct EventItem {
-    Event* event;
+    const Event* event;
     void*  arg;
 };
 
-void protocol_send_event(Event*, void* arg = 0);
+void protocol_send_event(const Event*,  void* arg = 0);
 void protocol_handle_events();
 
 void send_alarm(ExecAlarm alarm);
 void send_alarm_from_ISR(ExecAlarm alarm);
 
-inline void protocol_send_event(Event* evt, int arg) {
+inline void protocol_send_event(const Event* evt, int arg) {
     protocol_send_event(evt, (void*)arg);
 }
 
-void protocol_send_event_from_ISR(Event* evt, void* arg = 0);
+void protocol_send_event_from_ISR(const Event* evt, void* arg = 0);
 
 void drain_messages();
 

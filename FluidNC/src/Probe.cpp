@@ -8,7 +8,7 @@
 #include "Machine/MachineConfig.h"
 
 extern void protocol_do_probe(void* arg);
-ArgEvent probeEvent { protocol_do_probe };
+const ArgEvent probeEvent { protocol_do_probe };
 
 class ProbeEventPin : public EventPin {
 private:
