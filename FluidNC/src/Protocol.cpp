@@ -737,7 +737,6 @@ void protocol_do_cycle_stop() {
 static void update_velocities() {
     report_ovr_counter = 0;  // Set to report change immediately
     plan_update_velocity_profile_parameters();
-    plan_cycle_reinitialize();
 }
 
 // This is the final phase of the shutdown activity for a reset
