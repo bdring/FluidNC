@@ -24,7 +24,7 @@ MacroEvent macro2Event { 2 };
 MacroEvent macro3Event { 3 };
 
 // clang-format off
-std::map<std::string, Cmd> overrideCodes = {
+const std::map<std::string, Cmd> overrideCodes = {
     { "fr", Cmd::FeedOvrReset },
     { "f>", Cmd::FeedOvrCoarsePlus },
     { "f<", Cmd::FeedOvrCoarseMinus },

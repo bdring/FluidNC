@@ -73,7 +73,7 @@ enum class ExecAlarm : uint8_t {
 extern volatile ExecAlarm lastAlarm;
 
 #include <map>
-extern std::map<ExecAlarm, const char*> AlarmNames;
+extern const std::map<ExecAlarm, const char*> AlarmNames;
 
 const char* alarmString(ExecAlarm alarmNumber);
 

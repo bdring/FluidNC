@@ -5,7 +5,7 @@
 
 #include "Error.h"
 
-std::map<Error, const char*> ErrorNames = {
+const std::map<Error, const char*> ErrorNames = {
     { Error::Ok, "No error" },
     { Error::ExpectedCommandLetter, "Expected GCodecommand letter" },
     { Error::BadNumberFormat, "Bad GCode number format" },

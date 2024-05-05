@@ -78,7 +78,6 @@ protected:
     std::map<int, bool*>     _pin_values;
 
     UTF8        _utf8;
-    std::string _gcode_extensions = ".g .gc .gco .gcode .nc .ngc .ncc .txt .cnc .tap";
 
 protected:
     bool _active = true;
