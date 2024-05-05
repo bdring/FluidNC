@@ -423,7 +423,8 @@ static Error home_all(const char* value, WebUI::AuthenticationLevel auth_level, 
     // or a list of axis names like "XZ", which will home the X and Z axes simultaneously
     if (value) {
         int ndigits = 0;
-        for (int i = 0; i < strlen(value); i++) {
+        const auto lenValue = strlen(value);
+        for (int i = 0; i < lenValue; i++) {
             char cycleName = value[i];
             if (isdigit(cycleName)) {
                 if (!Machine::Homing::axis_mask_from_cycle(cycleName - '0')) {
@@ -434,11 +435,11 @@ static Error home_all(const char* value, WebUI::AuthenticationLevel auth_level, 
             }
         }
         if (ndigits) {
-            if (ndigits != strlen(value)) {
+            if (ndigits != lenValue) {
                 log_error("Invalid homing cycle list");
                 return Error::InvalidValue;
             } else {
-                for (int i = 0; i < strlen(value); i++) {
+                for (int i = 0; i < lenValue; i++) {
                     char cycleName = value[i];
                     requestedAxes  = Machine::Homing::axis_mask_from_cycle(cycleName - '0');
                     retval         = home(requestedAxes);
