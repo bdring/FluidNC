@@ -12,7 +12,7 @@
 #include "Config.h"  // MAX_N_AXIS
 #include <map>
 
-extern std::map<State, const char*> StateName;
+extern const std::map<State, const char*> StateName;
 
 // Step segment generator state flags.
 struct StepControl {

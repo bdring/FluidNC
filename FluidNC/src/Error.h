@@ -85,4 +85,4 @@ enum class Error : uint8_t {
 
 const char* errorString(Error errorNumber);
 
-extern std::map<Error, const char*> ErrorNames;
+extern const std::map<Error, const char*> ErrorNames;

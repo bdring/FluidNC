@@ -21,7 +21,7 @@
 
 volatile ExecAlarm lastAlarm;  // The most recent alarm code
 
-std::map<ExecAlarm, const char*> AlarmNames = {
+const std::map<ExecAlarm, const char*> AlarmNames = {
     { ExecAlarm::None, "None" },
     { ExecAlarm::HardLimit, "Hard Limit" },
     { ExecAlarm::SoftLimit, "Soft Limit" },

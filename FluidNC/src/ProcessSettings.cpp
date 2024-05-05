@@ -529,7 +529,7 @@ static Error show_startup_lines(const char* value, WebUI::AuthenticationLevel au
     return Error::Ok;
 }
 
-std::map<const char*, uint8_t, cmp_str> restoreCommands = {
+const std::map<const char*, uint8_t, cmp_str> restoreCommands = {
     { "$", SettingsRestore::Defaults },   { "settings", SettingsRestore::Defaults },
     { "#", SettingsRestore::Parameters }, { "gcode", SettingsRestore::Parameters },
     { "*", SettingsRestore::All },        { "all", SettingsRestore::All },

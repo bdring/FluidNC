@@ -109,7 +109,7 @@ float* get_wco() {
     return wco;
 }
 
-std::map<State, const char*> StateName = {
+const std::map<State, const char*> StateName = {
     { State::Idle, "Idle" },
     { State::Alarm, "Alarm" },
     { State::CheckMode, "CheckMode" },
