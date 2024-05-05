@@ -337,7 +337,7 @@ bool Channel::is_visible(const std::string& stem, const std::string& extension, 
     }
 
     // common gcode extensions
-    std::string_view extensions( ".g .gc .gco .gcode .nc .ngc .ncc .txt .cnc .tap");
+    std::string_view extensions(".g .gc .gco .gcode .nc .ngc .ncc .txt .cnc .tap");
     int              pos = 0;
     while (extensions.length()) {
         auto             next_pos       = extensions.find_first_of(' ', pos);
