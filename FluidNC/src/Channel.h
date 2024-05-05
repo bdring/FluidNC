@@ -33,18 +33,18 @@ class Channel : public Stream {
 private:
     void pin_event(uint32_t pinnum, bool active);
 
-    const int PinLowFirst  = 0x100;
-    const int PinLowLast   = 0x13f;
-    const int PinHighFirst = 0x140;
-    const int PinHighLast  = 0x17f;
+    static constexpr int PinLowFirst  = 0x100;
+    static constexpr int PinLowLast   = 0x13f;
+    static constexpr int PinHighFirst = 0x140;
+    static constexpr int PinHighLast  = 0x17f;
 
-    const int PinACK = 0xB2;
-    const int PinNAK = 0xB3;
+    static constexpr int PinACK = 0xB2;
+    static constexpr int PinNAK = 0xB3;
 
-    const int timeout = 2000;
+    static constexpr int timeout = 2000;
 
 public:
-    static const int maxLine = 255;
+    static constexpr int maxLine = 255;
 
     int _message_level = MsgLevelVerbose;
 

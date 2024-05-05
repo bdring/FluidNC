@@ -30,8 +30,8 @@ namespace Spindles {
     class BESC : public PWM {
     private:
         // Fixed
-        const uint32_t besc_pwm_min_freq = 50;    // 50 Hz
-        const uint32_t besc_pwm_max_freq = 2000;  // 50 Hz
+        static constexpr uint32_t besc_pwm_min_freq = 50;    // 50 Hz
+        static constexpr uint32_t besc_pwm_max_freq = 2000;  // 50 Hz
 
         // Calculated
         uint32_t _pulse_span_counts;  // In counts of a 32-bit counter. ESP32 uses up to 20bits

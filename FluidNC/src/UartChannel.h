@@ -15,7 +15,7 @@ private:
     int _uart_num           = 0;
     int _report_interval_ms = 0;
 
-    const int _ack_timeout = 2000;
+    static constexpr int _ack_timeout = 2000;
 
 public:
     UartChannel(int num, bool addCR = false);

@@ -50,7 +50,7 @@ namespace MotorDrivers {
         uint8_t _toff_stealthchop = 5;
         uint8_t _toff_coolstep    = 3;
 
-        const double fclk = 12700000.0;  // Internal clock Approx (Hz) used to calculate TSTEP from homing rate
+        static constexpr double fclk = 12700000.0;  // Internal clock Approx (Hz) used to calculate TSTEP from homing rate
 
         float        holdPercent();
         bool         report_open_load(bool ola, bool olb);
