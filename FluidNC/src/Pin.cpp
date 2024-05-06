@@ -135,7 +135,7 @@ Pin Pin::create(std::string_view str) {
             return Pin(pinImplementation);
         }
     } catch (const AssertionFailed& ex) {  // We shouldn't get here under normal circumstances.
-        log_error("ERR: " << str << " - " << ex.what());
+        log_error(str << " - " << ex.what());
         Assert(false, "");
         // return Pin(new Pins::ErrorPinDetail(str.str()));
     }
