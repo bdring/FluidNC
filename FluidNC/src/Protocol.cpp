@@ -1004,7 +1004,7 @@ static void protocol_do_fault_pin(void* arg) {
         mc_critical(ExecAlarm::HardStop);  // Initiate system kill.
     }
     ControlPin* pin = (ControlPin*)arg;
-    log_info("Stopped by " << pin->_legend);
+    log_info("Stopped by " << pin->legend());
 }
 void protocol_do_rt_reset() {
     if (state_is(State::Homing)) {
@@ -1025,30 +1025,30 @@ void protocol_do_rt_reset() {
     protocol_send_event(&restartEvent);
 }
 
-ArgEvent feedOverrideEvent { protocol_do_feed_override };
-ArgEvent rapidOverrideEvent { protocol_do_rapid_override };
-ArgEvent spindleOverrideEvent { protocol_do_spindle_override };
-ArgEvent accessoryOverrideEvent { protocol_do_accessory_override };
-ArgEvent limitEvent { protocol_do_limit };
-ArgEvent faultPinEvent { protocol_do_fault_pin };
-ArgEvent reportStatusEvent { (void (*)(void*))report_realtime_status };
+const ArgEvent feedOverrideEvent { protocol_do_feed_override };
+const ArgEvent rapidOverrideEvent { protocol_do_rapid_override };
+const ArgEvent spindleOverrideEvent { protocol_do_spindle_override };
+const ArgEvent accessoryOverrideEvent { protocol_do_accessory_override };
+const ArgEvent limitEvent { protocol_do_limit };
+const ArgEvent faultPinEvent { protocol_do_fault_pin };
+const ArgEvent reportStatusEvent { (void (*)(void*))report_realtime_status };
 
-NoArgEvent safetyDoorEvent { request_safety_door };
-NoArgEvent feedHoldEvent { protocol_do_feedhold };
-NoArgEvent cycleStartEvent { protocol_do_cycle_start };
-NoArgEvent cycleStopEvent { protocol_do_cycle_stop };
-NoArgEvent motionCancelEvent { protocol_do_motion_cancel };
-NoArgEvent sleepEvent { protocol_do_sleep };
-NoArgEvent debugEvent { report_realtime_debug };
-NoArgEvent startEvent { protocol_do_start };
-NoArgEvent restartEvent { protocol_do_restart };
-NoArgEvent runStartupLinesEvent { protocol_run_startup_lines };
+const NoArgEvent safetyDoorEvent { request_safety_door };
+const NoArgEvent feedHoldEvent { protocol_do_feedhold };
+const NoArgEvent cycleStartEvent { protocol_do_cycle_start };
+const NoArgEvent cycleStopEvent { protocol_do_cycle_stop };
+const NoArgEvent motionCancelEvent { protocol_do_motion_cancel };
+const NoArgEvent sleepEvent { protocol_do_sleep };
+const NoArgEvent debugEvent { report_realtime_debug };
+const NoArgEvent startEvent { protocol_do_start };
+const NoArgEvent restartEvent { protocol_do_restart };
+const NoArgEvent runStartupLinesEvent { protocol_run_startup_lines };
 
-NoArgEvent rtResetEvent { protocol_do_rt_reset };
+const NoArgEvent rtResetEvent { protocol_do_rt_reset };
 
 // The problem is that report_realtime_status needs a channel argument
 // Event statusReportEvent { protocol_do_status_report(XXX) };
-ArgEvent alarmEvent { (void (*)(void*))protocol_do_alarm };
+const ArgEvent alarmEvent { (void (*)(void*))protocol_do_alarm };
 
 xQueueHandle event_queue;
 
@@ -1057,11 +1057,11 @@ void protocol_init() {
     message_queue = xQueueCreate(10, sizeof(LogMessage));
 }
 
-void IRAM_ATTR protocol_send_event_from_ISR(Event* evt, void* arg) {
+void IRAM_ATTR protocol_send_event_from_ISR(const Event* evt, void* arg) {
     EventItem item { evt, arg };
     xQueueSendFromISR(event_queue, &item, NULL);
 }
-void protocol_send_event(Event* evt, void* arg) {
+void protocol_send_event(const Event* evt, void* arg) {
     EventItem item { evt, arg };
     xQueueSend(event_queue, &item, 0);
 }

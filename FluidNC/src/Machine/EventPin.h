@@ -5,16 +5,18 @@
 
 class EventPin {
 protected:
-    Event* _event = nullptr;  // Subordinate event that is called conditionally
+    const Event* _event;  
+    std::string  _legend;  // The name that appears in init() messages and the name of the configuration item
 
 public:
-    std::string _legend;  // The name that appears in init() messages and the name of the configuration item
 
-    EventPin(Event* event, const char* legend);
+    EventPin(const Event* event, const char* legend) : _event(event), _legend(legend) {};
 
     virtual void update(bool state) {};
 
     virtual void trigger(bool active);
+
+    const std::string& legend() { return _legend; }
 
     ~EventPin() {}
 };

@@ -15,20 +15,20 @@ class MacroEvent : public Event {
 
 public:
     MacroEvent(int num) : _num(num) {}
-    void run(void*) override;
+    void run(void*) const override;
 };
 
-extern MacroEvent macro0Event;
-extern MacroEvent macro1Event;
-extern MacroEvent macro2Event;
-extern MacroEvent macro3Event;
+extern const MacroEvent macro0Event;
+extern const MacroEvent macro1Event;
+extern const MacroEvent macro2Event;
+extern const MacroEvent macro3Event;
 
 namespace Machine {
     class Macro {
     public:
         std::string _gcode;
         const char* _name;
-        Macro(const char* name);
+        Macro(const char* name) : _name(name) {}
         bool run();
     };
 

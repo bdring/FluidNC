@@ -5,16 +5,17 @@
 namespace Machine {
     class ControlPin : public EventPin {
     private:
-        const char _letter;  // The name that appears in init() messages and the name of the configuration item
+        char _letter;  // The name that appears in init() messages and the name of the configuration item
+        Pin  _pin;
 
     public:
-        ControlPin(Event* event, const char* legend, char letter) : EventPin(event, legend), _letter(letter) {}
+        ControlPin(const Event* event, const char* legend, char letter) : EventPin(event, legend), _letter(letter) {}
 
         void init();
 
-        Pin _pin;
-
         bool get() { return _pin.read(); }
+
+        Pin& pin() { return _pin; }
 
         char letter() { return _letter; };
 
