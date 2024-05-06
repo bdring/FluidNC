@@ -336,7 +336,7 @@ static Error home(AxisMask axisMask) {
 static Error home_all(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
     AxisMask requestedAxes = Machine::Homing::AllCycles;
     auto     retval        = Error::Ok;
-    
+
     // value can be a list of cycle numbers like "21", which will run homing cycle 2 then cycle 1,
     // or a list of axis names like "XZ", which will home the X and Z axes simultaneously
     if (value) {
@@ -823,7 +823,7 @@ static Error showHeap(const char* value, WebUI::AuthenticationLevel auth_level, 
 
 /*
 
-                
+
               //////////  Maslow-specific user cmd functions  //////////////
 
 
@@ -1154,7 +1154,7 @@ void make_user_commands() {
     new UserCommand("TEST", "Maslow/test", maslow_test, anyState);
     new UserCommand("TKSLK", "Maslow/takeSlack", maslow_takeSlack, anyState);
     new UserCommand("ACKCAL", "Maslow/ackCalibration", maslow_ack_cal, anyState);
-    new UserCommand("ESTOP", "Maslow/stop", maslow_estop, anyState);
+    new UserCommand("ESTOP", "Maslow/estop", maslow_estop, anyState);
 
 };
 

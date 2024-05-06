@@ -1623,6 +1623,9 @@ void Maslow_::stop() {
     axisTR.reset();
     axisBL.reset();
     axisBR.reset();
+
+    // if we are stopping, stop any running job too
+    allChannels.stopJob();
 }
 
 // Stop all the motors
@@ -1636,7 +1639,6 @@ void Maslow_::stopMotors() {
 static void stopEverything() {
     sys.set_state(State::Alarm);
     protocol_disable_steppers();
-    allChannels.stopJob();
 }
 
 // Panic function, stops all motors and sets state to alarm
