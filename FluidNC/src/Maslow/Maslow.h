@@ -199,9 +199,6 @@ private:
     //Stores a reference to the global system runtime function to be called when blocking operations are needed
     void (*_sys_rt)() = nullptr;
 
-    //Handle to access the non volitle memory on the ESP32
-    nvs_handle_t my_handle;
-
     //How hard to pull the belts when taking a measurement
     int currentThreshold;
 

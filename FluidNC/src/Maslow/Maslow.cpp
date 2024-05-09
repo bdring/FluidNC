@@ -1493,37 +1493,53 @@ void Maslow_::test_() {
     axisBL.test();
     axisBR.test();
 
-    esp_err_t ret = nvs_open("storage", NVS_READWRITE, &my_handle);
+    nvs_handle_t nvsHandle;
+    esp_err_t ret = nvs_open("maslow", NVS_READWRITE, &nvsHandle);
     if (ret != ESP_OK) {
         log_info("Error " << esp_err_to_name(ret) << " opening NVS handle!\n");
         return;
     }
 
     // Write
-    int32_t value = 123; // the value you want to write
-    ret = nvs_set_i32(my_handle, "myKey", value);
+    union FloatInt32 {
+        float f;
+        int32_t i;
+    };
+    FloatInt32 fi;
+    fi.f = targetZ;
+    ret = nvs_set_i32(nvsHandle, "zPos", fi.i);
     if (ret != ESP_OK) {
         printf("Error (%s) writing to NVS!\n", esp_err_to_name(ret));
     } else {
-        printf("Written value = %d\n", value);
+        printf("Written value = %f\n", targetZ);
     }
 
     // Commit written value to non-volatile storage
-    ret = nvs_commit(my_handle);
+    ret = nvs_commit(nvsHandle);
     if (ret != ESP_OK) {
         printf("Error (%s) committing changes to NVS!\n", esp_err_to_name(ret));
     }
 
     // Read
     int32_t value2;
-    ret = nvs_get_i32(my_handle, "myKey", &value2);
+    ret = nvs_get_i32(nvsHandle, "zPos", &value2);
     if (ret != ESP_OK) {
         log_info("Error " << esp_err_to_name(ret) << " reading from NVS!");
     } else {
-        log_info("Read value = " << value2);
+        fi.i = value2;
+        float readValue = fi.f;
+        log_info("Read value = " << readValue);
     }
 
+    //Print the current z-axis position
+    log_info("Current z-axis position: " << targetZ);
+
 }
+
+//This function saves the current z-axis position to the non-volitle storage
+
+
+
 void Maslow_::set_frame_width(double width) {
     trX = width;
     brX = width;
