@@ -1494,11 +1494,12 @@ void Maslow_::test_() {
     axisBL.test();
     axisBR.test();
 
-    loadZPos();
+    saveZPos();
 }
-
 //This function saves the current z-axis position to the non-volitle storage
 void Maslow_::saveZPos() {
+    log_info("Saving z-axis position as " << targetZ);;
+
     nvs_handle_t nvsHandle;
     esp_err_t ret = nvs_open("maslow", NVS_READWRITE, &nvsHandle);
     if (ret != ESP_OK) {
@@ -1506,24 +1507,34 @@ void Maslow_::saveZPos() {
         return;
     }
 
-    // Write - Convert the float to an int32_t
+    // Read the current value
+    int32_t currentZPos;
+    ret = nvs_get_i32(nvsHandle, "zPos", &currentZPos);
+    if (ret != ESP_OK && ret != ESP_ERR_NVS_NOT_FOUND) {
+        log_info("Error " + std::string(esp_err_to_name(ret)) + " reading from NVS!\n");
+        return;
+    }
+
+    // Write - Convert the float to an int32_t and write only if it has changed
     union FloatInt32 {
         float f;
         int32_t i;
     };
     FloatInt32 fi;
     fi.f = targetZ;
-    ret = nvs_set_i32(nvsHandle, "zPos", fi.i);
-    if (ret != ESP_OK) {
-        log_info("Error " + std::string(esp_err_to_name(ret)) + " writing to NVS!\n");
-    } else {
-        log_info("Written value = " + std::to_string(targetZ));
-    }
+    if (ret == ESP_ERR_NVS_NOT_FOUND || currentZPos != fi.i) { // Only write if the value has changed
+        ret = nvs_set_i32(nvsHandle, "zPos", fi.i);
+        if (ret != ESP_OK) {
+            log_info("Error " + std::string(esp_err_to_name(ret)) + " writing to NVS!\n");
+        } else {
+            log_info("Written value = " + std::to_string(targetZ));
 
-    // Commit written value to non-volatile storage
-    ret = nvs_commit(nvsHandle);
-    if (ret != ESP_OK) {
-        log_info("Error " + std::string(esp_err_to_name(ret)) + " committing changes to NVS!\n");
+            // Commit written value to non-volatile storage
+            ret = nvs_commit(nvsHandle);
+            if (ret != ESP_OK) {
+                log_info("Error " + std::string(esp_err_to_name(ret)) + " committing changes to NVS!\n");
+            }
+        }
     }
 }
 
