@@ -1535,8 +1535,10 @@ void Maslow_::test_() {
     //Print the current z-axis position
     log_info("Current z-axis position: " + std::to_string(targetZ));
 
-    //Change the z-axis position in fluidNC
-    set_motor_steps(2, 0);  //Sets the z-axis (axis 2) steps to 0
+    //Set the current z-axis position in FluidNC to be zero
+    targetZ = 0;
+    int zAxis = 2;
+    set_motor_steps(zAxis, mpos_to_steps(targetZ, zAxis));
     log_info("Current z-axis position: " << get_axis_motor_steps(2));
 }
 
