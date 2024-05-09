@@ -37,9 +37,9 @@ Maslow_brY: 0
 # Z axis values 
 # These define the height of the anchor points in relation to each of the arms. You do not need to change these typically
 Maslow_tlZ: 100
-Maslow_trZ: 78
-Maslow_blZ: 56
-Maslow_brZ: 34
+Maslow_trZ: 56
+Maslow_blZ: 34
+Maslow_brZ: 78
 
 # Sets how hard should Maslow pull on the belts to retract before considering them to be all the way in.
 # Maximum value is 4,000. Arbitrary units.
