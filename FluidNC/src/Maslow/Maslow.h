@@ -6,6 +6,7 @@
 #include <Arduino.h>
 #include "MotorUnit.h"
 #include "../System.h"  // sys.*
+#include "../Planner.h"
 #include <nvs.h>
 
 #define TCAADDR 0x70

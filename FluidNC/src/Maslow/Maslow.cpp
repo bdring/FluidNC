@@ -1587,6 +1587,7 @@ void Maslow_::loadZPos() {
 
         //When this is called the 
         gc_sync_position();//This updates the Gcode engine with the new position from the stepping engine that we set with set_motor_steps
+        plan_sync_position();
     }
 }
 
