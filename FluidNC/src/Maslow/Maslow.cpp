@@ -6,6 +6,7 @@
 #include "../Report.h"
 #include "../WebUI/WifiConfig.h"
 #include "../Protocol.h"
+#include "../System.h"
 
 // Maslow specific defines
 #define VERSION_NUMBER "0.71"
@@ -1496,7 +1497,7 @@ void Maslow_::test_() {
     nvs_handle_t nvsHandle;
     esp_err_t ret = nvs_open("maslow", NVS_READWRITE, &nvsHandle);
     if (ret != ESP_OK) {
-        log_info("Error " << esp_err_to_name(ret) << " opening NVS handle!\n");
+        log_info("Error " + std::string(esp_err_to_name(ret)) + " opening NVS handle!\n");
         return;
     }
 
@@ -1509,31 +1510,34 @@ void Maslow_::test_() {
     fi.f = targetZ;
     ret = nvs_set_i32(nvsHandle, "zPos", fi.i);
     if (ret != ESP_OK) {
-        printf("Error (%s) writing to NVS!\n", esp_err_to_name(ret));
+        log_info("Error " + std::string(esp_err_to_name(ret)) + " writing to NVS!\n");
     } else {
-        printf("Written value = %f\n", targetZ);
+        log_info("Written value = " + std::to_string(targetZ));
     }
 
     // Commit written value to non-volatile storage
     ret = nvs_commit(nvsHandle);
     if (ret != ESP_OK) {
-        printf("Error (%s) committing changes to NVS!\n", esp_err_to_name(ret));
+        log_info("Error " + std::string(esp_err_to_name(ret)) + " committing changes to NVS!\n");
     }
 
     // Read
     int32_t value2;
     ret = nvs_get_i32(nvsHandle, "zPos", &value2);
     if (ret != ESP_OK) {
-        log_info("Error " << esp_err_to_name(ret) << " reading from NVS!");
+        log_info("Error " + std::string(esp_err_to_name(ret)) + " reading from NVS!");
     } else {
         fi.i = value2;
         float readValue = fi.f;
-        log_info("Read value = " << readValue);
+        log_info("Read value = " + std::to_string(readValue));
     }
 
     //Print the current z-axis position
-    log_info("Current z-axis position: " << targetZ);
+    log_info("Current z-axis position: " + std::to_string(targetZ));
 
+    //Change the z-axis position in fluidNC
+    set_motor_steps(2, 0);  //Sets the z-axis (axis 2) steps to 0
+    log_info("Current z-axis position: " << get_axis_motor_steps(2));
 }
 
 //This function saves the current z-axis position to the non-volitle storage
