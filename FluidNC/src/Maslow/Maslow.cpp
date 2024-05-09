@@ -87,6 +87,8 @@ void Maslow_::begin(void (*sys_rt)()) {
     currentThreshold = 1500;
     lastCallToUpdate = millis();
 
+    loadZPos(); //Loads the z-axis position from EEPROM
+
     if (error) {
         log_error("Maslow failed to initialize - fix errors and restart");
     } else
@@ -95,6 +97,9 @@ void Maslow_::begin(void (*sys_rt)()) {
 
 // Maslow main loop, everything is processed here
 void Maslow_::update() {
+    static State prevState = sys.state();
+
+    //If we are in an error state, blink the LED and stop the motors
     if (error) {
         static unsigned long timer = millis();
         static bool          st    = true; //This is used to blink the LED
@@ -110,12 +115,19 @@ void Maslow_::update() {
         }
         return;
     }
+
+    //Blinks the Ethernet LEDs randomly
     if (random(10000) == 0) {
         digitalWrite(ETHERNETLEDPIN, LOW);
     }
 
     if (random(10000) == 0) {
         digitalWrite(ETHERNETLEDPIN, HIGH);
+    }
+
+    //Save the z-axis position if the prevous state was jog or cycle and the current state is idle
+    if ((prevState == State::Jog || prevState == State::Cycle) && sys.state() == State::Idle) {
+        saveZPos();
     }
 
     blinkIPAddress();
@@ -193,6 +205,8 @@ void Maslow_::update() {
             log_error("Emergency stop. Update function not being called enough." << elapsedTime << "ms since last call");
         }
     }
+
+    prevState = sys.state(); //Store for next time
 }
 
 void Maslow_::blinkIPAddress() {
@@ -1341,6 +1355,10 @@ void Maslow_::runCalibration() {
     }
     stop();
 
+    //Save that the z-axis position is zero
+    targetZ = 0;
+    saveZPos();
+
     //if not all axis are homed, we can't run calibration, OR if the user hasnt entered width and height?
     if (!allAxisExtended()) {
         log_error("Cannot run calibration until all axis are extended fully");
@@ -1493,12 +1511,9 @@ void Maslow_::test_() {
     axisTR.test();
     axisBL.test();
     axisBR.test();
-
-    saveZPos();
 }
 //This function saves the current z-axis position to the non-volitle storage
 void Maslow_::saveZPos() {
-    log_info("Saving z-axis position as " << targetZ);;
 
     nvs_handle_t nvsHandle;
     esp_err_t ret = nvs_open("maslow", NVS_READWRITE, &nvsHandle);
@@ -1527,7 +1542,7 @@ void Maslow_::saveZPos() {
         if (ret != ESP_OK) {
             log_info("Error " + std::string(esp_err_to_name(ret)) + " writing to NVS!\n");
         } else {
-            log_info("Written value = " + std::to_string(targetZ));
+            //log_info("Written value = " + std::to_string(targetZ));
 
             // Commit written value to non-volatile storage
             ret = nvs_commit(nvsHandle);
