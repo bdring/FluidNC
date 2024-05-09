@@ -6,6 +6,8 @@
 #include <Arduino.h>
 #include "MotorUnit.h"
 #include "../System.h"  // sys.*
+#include "../Planner.h"
+#include <nvs.h>
 
 #define TCAADDR 0x70
 
@@ -49,6 +51,10 @@ public:
     float computeBR(float x, float y, float z);
     float computeTR(float x, float y, float z);
     float computeTL(float x, float y, float z);
+
+    //Save and load z-axis position
+    void saveZPos();
+    void loadZPos();
 
     //calibration functions
     void runCalibration();

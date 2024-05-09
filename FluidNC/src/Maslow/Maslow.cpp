@@ -6,6 +6,7 @@
 #include "../Report.h"
 #include "../WebUI/WifiConfig.h"
 #include "../Protocol.h"
+#include "../System.h"
 
 // Maslow specific defines
 #define VERSION_NUMBER "0.71"
@@ -86,6 +87,8 @@ void Maslow_::begin(void (*sys_rt)()) {
     currentThreshold = 1500;
     lastCallToUpdate = millis();
 
+    loadZPos(); //Loads the z-axis position from EEPROM
+
     if (error) {
         log_error("Maslow failed to initialize - fix errors and restart");
     } else
@@ -94,6 +97,9 @@ void Maslow_::begin(void (*sys_rt)()) {
 
 // Maslow main loop, everything is processed here
 void Maslow_::update() {
+    static State prevState = sys.state();
+
+    //If we are in an error state, blink the LED and stop the motors
     if (error) {
         static unsigned long timer = millis();
         static bool          st    = true; //This is used to blink the LED
@@ -109,12 +115,19 @@ void Maslow_::update() {
         }
         return;
     }
+
+    //Blinks the Ethernet LEDs randomly
     if (random(10000) == 0) {
         digitalWrite(ETHERNETLEDPIN, LOW);
     }
 
     if (random(10000) == 0) {
         digitalWrite(ETHERNETLEDPIN, HIGH);
+    }
+
+    //Save the z-axis position if the prevous state was jog or cycle and the current state is idle
+    if ((prevState == State::Jog || prevState == State::Cycle) && sys.state() == State::Idle) {
+        saveZPos();
     }
 
     blinkIPAddress();
@@ -192,6 +205,8 @@ void Maslow_::update() {
             log_error("Emergency stop. Update function not being called enough." << elapsedTime << "ms since last call");
         }
     }
+
+    prevState = sys.state(); //Store for next time
 }
 
 void Maslow_::blinkIPAddress() {
@@ -244,9 +259,9 @@ void Maslow_::blinkIPAddress() {
     }
 }
 
+//Sends a heartbeat message to the UI...should be replaced with the built in ones for fluidNC
 void Maslow_::heartBeat(){
     static unsigned long heartBeatTimer = millis();
-
     if(millis() - heartBeatTimer > 1000 && HeartBeatEnabled) {
         heartBeatTimer = millis();
         log_info("Heartbeat");
@@ -1340,6 +1355,10 @@ void Maslow_::runCalibration() {
     }
     stop();
 
+    //Save that the z-axis position is zero
+    targetZ = 0;
+    saveZPos();
+
     //if not all axis are homed, we can't run calibration, OR if the user hasnt entered width and height?
     if (!allAxisExtended()) {
         log_error("Cannot run calibration until all axis are extended fully");
@@ -1492,8 +1511,85 @@ void Maslow_::test_() {
     axisTR.test();
     axisBL.test();
     axisBR.test();
-
 }
+//This function saves the current z-axis position to the non-volitle storage
+void Maslow_::saveZPos() {
+    nvs_handle_t nvsHandle;
+    esp_err_t ret = nvs_open("maslow", NVS_READWRITE, &nvsHandle);
+    if (ret != ESP_OK) {
+        log_info("Error " + std::string(esp_err_to_name(ret)) + " opening NVS handle!\n");
+        return;
+    }
+
+    // Read the current value
+    int32_t currentZPos;
+    ret = nvs_get_i32(nvsHandle, "zPos", &currentZPos);
+    if (ret != ESP_OK && ret != ESP_ERR_NVS_NOT_FOUND) {
+        log_info("Error " + std::string(esp_err_to_name(ret)) + " reading from NVS!\n");
+        return;
+    }
+
+    // Write - Convert the float to an int32_t and write only if it has changed
+    union FloatInt32 {
+        float f;
+        int32_t i;
+    };
+    FloatInt32 fi;
+    fi.f = targetZ;
+    if (ret == ESP_ERR_NVS_NOT_FOUND || currentZPos != fi.i) { // Only write if the value has changed
+        ret = nvs_set_i32(nvsHandle, "zPos", fi.i);
+        if (ret != ESP_OK) {
+            log_info("Error " + std::string(esp_err_to_name(ret)) + " writing to NVS!\n");
+        } else {
+            //log_info("Written value = " + std::to_string(targetZ));
+
+            // Commit written value to non-volatile storage
+            ret = nvs_commit(nvsHandle);
+            if (ret != ESP_OK) {
+                log_info("Error " + std::string(esp_err_to_name(ret)) + " committing changes to NVS!\n");
+            }
+        }
+    }
+}
+
+//This function loads the z-axis position from the non-volitle storage
+void Maslow_::loadZPos() {
+    nvs_handle_t nvsHandle;
+    esp_err_t ret = nvs_open("maslow", NVS_READWRITE, &nvsHandle);
+    if (ret != ESP_OK) {
+        log_info("Error " + std::string(esp_err_to_name(ret)) + " opening NVS handle!\n");
+        return;
+    }
+
+    // Read
+    int32_t value2;
+    ret = nvs_get_i32(nvsHandle, "zPos", &value2);
+    if (ret != ESP_OK) {
+        log_info("Error " + std::string(esp_err_to_name(ret)) + " reading from NVS!");
+    } else {
+        union FloatInt32 {
+            float f;
+            int32_t i;
+        };
+        FloatInt32 fi;
+        fi.i = value2;
+        targetZ = fi.f;
+        int zAxis = 2;
+
+        float* mpos = get_mpos();
+        mpos[zAxis] = targetZ;
+        set_motor_steps_from_mpos(mpos);
+
+        log_info("Current z-axis position loaded as: " << targetZ);
+
+        //When this is called the 
+        gc_sync_position();//This updates the Gcode engine with the new position from the stepping engine that we set with set_motor_steps
+        plan_sync_position();
+    }
+}
+
+
+
 void Maslow_::set_frame_width(double width) {
     trX = width;
     brX = width;
