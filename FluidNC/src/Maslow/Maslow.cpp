@@ -1493,6 +1493,36 @@ void Maslow_::test_() {
     axisBL.test();
     axisBR.test();
 
+    esp_err_t ret = nvs_open("storage", NVS_READWRITE, &my_handle);
+    if (ret != ESP_OK) {
+        log_info("Error " << esp_err_to_name(ret) << " opening NVS handle!\n");
+        return;
+    }
+
+    // Write
+    int32_t value = 123; // the value you want to write
+    ret = nvs_set_i32(my_handle, "myKey", value);
+    if (ret != ESP_OK) {
+        printf("Error (%s) writing to NVS!\n", esp_err_to_name(ret));
+    } else {
+        printf("Written value = %d\n", value);
+    }
+
+    // Commit written value to non-volatile storage
+    ret = nvs_commit(my_handle);
+    if (ret != ESP_OK) {
+        printf("Error (%s) committing changes to NVS!\n", esp_err_to_name(ret));
+    }
+
+    // Read
+    int32_t value2;
+    ret = nvs_get_i32(my_handle, "myKey", &value2);
+    if (ret != ESP_OK) {
+        log_info("Error " << esp_err_to_name(ret) << " reading from NVS!");
+    } else {
+        log_info("Read value = " << value2);
+    }
+
 }
 void Maslow_::set_frame_width(double width) {
     trX = width;
