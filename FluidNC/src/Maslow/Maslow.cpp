@@ -1494,6 +1494,11 @@ void Maslow_::test_() {
     axisBL.test();
     axisBR.test();
 
+    loadZPos();
+}
+
+//This function saves the current z-axis position to the non-volitle storage
+void Maslow_::saveZPos() {
     nvs_handle_t nvsHandle;
     esp_err_t ret = nvs_open("maslow", NVS_READWRITE, &nvsHandle);
     if (ret != ESP_OK) {
@@ -1501,7 +1506,7 @@ void Maslow_::test_() {
         return;
     }
 
-    // Write
+    // Write - Convert the float to an int32_t
     union FloatInt32 {
         float f;
         int32_t i;
@@ -1520,6 +1525,16 @@ void Maslow_::test_() {
     if (ret != ESP_OK) {
         log_info("Error " + std::string(esp_err_to_name(ret)) + " committing changes to NVS!\n");
     }
+}
+
+//This function loads the z-axis position from the non-volitle storage
+void Maslow_::loadZPos() {
+    nvs_handle_t nvsHandle;
+    esp_err_t ret = nvs_open("maslow", NVS_READWRITE, &nvsHandle);
+    if (ret != ESP_OK) {
+        log_info("Error " + std::string(esp_err_to_name(ret)) + " opening NVS handle!\n");
+        return;
+    }
 
     // Read
     int32_t value2;
@@ -1527,22 +1542,18 @@ void Maslow_::test_() {
     if (ret != ESP_OK) {
         log_info("Error " + std::string(esp_err_to_name(ret)) + " reading from NVS!");
     } else {
+        union FloatInt32 {
+            float f;
+            int32_t i;
+        };
+        FloatInt32 fi;
         fi.i = value2;
-        float readValue = fi.f;
-        log_info("Read value = " + std::to_string(readValue));
+        targetZ = fi.f;
+        int zAxis = 2;
+        set_motor_steps(zAxis, mpos_to_steps(targetZ, zAxis));
+        log_info("Current z-axis set to: " << targetZ);
     }
-
-    //Print the current z-axis position
-    log_info("Current z-axis position: " + std::to_string(targetZ));
-
-    //Set the current z-axis position in FluidNC to be zero
-    targetZ = 0;
-    int zAxis = 2;
-    set_motor_steps(zAxis, mpos_to_steps(targetZ, zAxis));
-    log_info("Current z-axis position: " << get_axis_motor_steps(2));
 }
-
-//This function saves the current z-axis position to the non-volitle storage
 
 
 

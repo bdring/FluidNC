@@ -51,6 +51,10 @@ public:
     float computeTR(float x, float y, float z);
     float computeTL(float x, float y, float z);
 
+    //Save and load z-axis position
+    void saveZPos();
+    void loadZPos();
+
     //calibration functions
     void runCalibration();
 
