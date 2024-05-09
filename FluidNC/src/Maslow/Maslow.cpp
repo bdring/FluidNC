@@ -259,13 +259,13 @@ void Maslow_::blinkIPAddress() {
     }
 }
 
+//Sends a heartbeat message to the UI...should be replaced with the built in ones for fluidNC
 void Maslow_::heartBeat(){
     static unsigned long heartBeatTimer = millis();
-
-    // if(millis() - heartBeatTimer > 1000 && HeartBeatEnabled) {
-    //     heartBeatTimer = millis();
-    //     log_info("Heartbeat");
-    // }
+    if(millis() - heartBeatTimer > 1000 && HeartBeatEnabled) {
+        heartBeatTimer = millis();
+        log_info("Heartbeat");
+    }
 }
 
 // -Maslow homing loop
@@ -1514,8 +1514,6 @@ void Maslow_::test_() {
 }
 //This function saves the current z-axis position to the non-volitle storage
 void Maslow_::saveZPos() {
-    log_info("Saving z-axis position to non-volitile storage");
-
     nvs_handle_t nvsHandle;
     esp_err_t ret = nvs_open("maslow", NVS_READWRITE, &nvsHandle);
     if (ret != ESP_OK) {
@@ -1556,7 +1554,6 @@ void Maslow_::saveZPos() {
 
 //This function loads the z-axis position from the non-volitle storage
 void Maslow_::loadZPos() {
-    log_info("Loading z-axis position from NVS");
     nvs_handle_t nvsHandle;
     esp_err_t ret = nvs_open("maslow", NVS_READWRITE, &nvsHandle);
     if (ret != ESP_OK) {
@@ -1583,7 +1580,7 @@ void Maslow_::loadZPos() {
         mpos[zAxis] = targetZ;
         set_motor_steps_from_mpos(mpos);
 
-        log_info("Current z-axis set to: " << targetZ);
+        log_info("Current z-axis position loaded as: " << targetZ);
 
         //When this is called the 
         gc_sync_position();//This updates the Gcode engine with the new position from the stepping engine that we set with set_motor_steps
