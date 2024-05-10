@@ -1357,7 +1357,7 @@ void Maslow_::runCalibration() {
 
     //Save that the z-axis position is zero
     targetZ = 0;
-    saveZPos();
+    zeroZPos();
 
     //if not all axis are homed, we can't run calibration, OR if the user hasnt entered width and height?
     if (!allAxisExtended()) {
@@ -1574,8 +1574,8 @@ void Maslow_::loadZPos() {
         FloatInt32 fi;
         fi.i = value2;
         targetZ = fi.f;
-        int zAxis = 2;
 
+        int zAxis = 2;
         float* mpos = get_mpos();
         mpos[zAxis] = targetZ;
         set_motor_steps_from_mpos(mpos);
@@ -1586,6 +1586,22 @@ void Maslow_::loadZPos() {
         gc_sync_position();//This updates the Gcode engine with the new position from the stepping engine that we set with set_motor_steps
         plan_sync_position();
     }
+}
+
+//Sets the z-axis position to zero
+void Maslow_::zeroZPos() {
+    log_info("Zeroing z-axis position");
+
+    targetZ = 0;
+    
+    int zAxis = 2;
+    float* mpos = get_mpos();
+    mpos[zAxis] = targetZ;
+    set_motor_steps_from_mpos(mpos);
+
+    //When this is called the 
+    gc_sync_position();//This updates the Gcode engine with the new position from the stepping engine that we set with set_motor_steps
+    plan_sync_position();
 }
 
 
