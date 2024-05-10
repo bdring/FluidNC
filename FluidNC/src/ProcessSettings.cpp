@@ -1065,6 +1065,12 @@ static Error maslow_estop(const char* value, WebUI::AuthenticationLevel auth_lev
     return Error::Ok;
 }
 
+static Error maslowHomeZ(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+    sys.set_state(State::Homing);
+    Maslow.zeroZPos();
+    return Error::Ok;
+}
+
 // Commands use the same syntax as Settings, but instead of setting or
 // displaying a persistent value, a command causes some action to occur.
 // That action could be anything, from displaying a run-time parameter
@@ -1155,6 +1161,7 @@ void make_user_commands() {
     new UserCommand("TKSLK", "Maslow/takeSlack", maslow_takeSlack, anyState);
     new UserCommand("ACKCAL", "Maslow/ackCalibration", maslow_ack_cal, anyState);
     new UserCommand("ESTOP", "Maslow/estop", maslow_estop, anyState);
+    new UserCommand("HZAxis", "Maslow/homeZ", maslowHomeZ, anyState);
 
 };
 

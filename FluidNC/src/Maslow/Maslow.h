@@ -55,6 +55,7 @@ public:
     //Save and load z-axis position
     void saveZPos();
     void loadZPos();
+    void zeroZPos();
 
     //calibration functions
     void runCalibration();
