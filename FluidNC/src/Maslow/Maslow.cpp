@@ -1582,7 +1582,6 @@ void Maslow_::loadZPos() {
 
         log_info("Current z-axis position loaded as: " << targetZ);
 
-        //When this is called the 
         gc_sync_position();//This updates the Gcode engine with the new position from the stepping engine that we set with set_motor_steps
         plan_sync_position();
     }
@@ -1599,7 +1598,6 @@ void Maslow_::zeroZPos() {
     mpos[zAxis] = targetZ;
     set_motor_steps_from_mpos(mpos);
 
-    //When this is called the 
     gc_sync_position();//This updates the Gcode engine with the new position from the stepping engine that we set with set_motor_steps
     plan_sync_position();
 }
