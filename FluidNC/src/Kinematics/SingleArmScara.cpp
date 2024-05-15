@@ -39,6 +39,16 @@ namespace Kinematics {
         return true;
     }
 
+    bool SingleArmScara::invalid_line(float* cartesian) {
+        float motors[MAX_N_AXIS] = { 0.0, 0.0, 0.0 };
+
+        if (!xy_to_angles(cartesian, motors)) {
+            limit_error();
+            return true;
+        }
+        return false;
+    }
+
     // Initialize the machine position
     void SingleArmScara::init_position() {
         // initialize to the arms fully extended
@@ -77,36 +87,39 @@ namespace Kinematics {
         float shoulder_motor_angle, elbow_motor_angle;
         float angles[2];
         float motors[n_axis];
-        xy_to_angles(target, motors);
 
-        //return mc_move_motors(motors, pl_data);
-
-        // ---------------------------------------- Temporary endpoint -------------------------
-
-        float total_cartesian_distance = vector_distance(position, target, n_axis);
+        float total_cartesian_distance = vector_distance(position, target, 2);
 
         // if move is zero do nothing and pass back the existing values
         if (total_cartesian_distance == 0) {
-            xy_to_angles(target, motors);
+            if (!xy_to_angles(target, motors)) {
+                return false;
+            }
             mc_move_motors(motors, pl_data);
             return true;
         }
-
-        //float cartesian_feed_rate = pl_data->feed_rate;
 
         // calculate the total X,Y axis move distance
         // higher axes are the same in both coord systems, so it does not undergo conversion
         float xydist = vector_distance(target, position, 2);
         // Segment the moves. If we choose a small enough _segment_length_mm we can hide the nonlinearity
+
+        // this must only be a move in axes above XY
+        if (xydist == 0) {
+            mc_move_motors(motor_segment_end, pl_data);
+            return true;
+        }
+
         segment_count = xydist / _segment_length_mm;
         if (segment_count < 1) {  // Make sure there is at least one segment, even if there is no movement
             segment_count = 1;
         }
+
         //log_info("Segment Count:" << segment_count);
 
         float cartesian_segment_length_mm = total_cartesian_distance / segment_count;
 
-        // Calc length of each cartesian segment - The are the same for all segments.
+        // Calc length of each cartesian segment - They are the same for all segments.
         float cartesian_segment_components[n_axis];
         for (size_t axis = X_AXIS; axis < n_axis; axis++) {
             cartesian_segment_components[axis] = (target[axis] - position[axis]) / segment_count;
@@ -124,12 +137,14 @@ namespace Kinematics {
 
             // Convert cartesian space coords to motor space
             float motor_segment_end[n_axis];
-            xy_to_angles(cartesian_segment_end, motor_segment_end);
+            if (!xy_to_angles(cartesian_segment_end, motor_segment_end)) {
+                return false;
+            }
 
             // Remember the last motor position so the length can be computed the next time
-            copyAxes(last_motor_segment_end, motor_segment_end);
+            copyAxes(_last_motor_segment_end, motor_segment_end);
 
-            float motor_dist = vector_distance(last_motor_segment_end, motor_segment_end, 2);
+            float motor_dist = vector_distance(_last_motor_segment_end, motor_segment_end, 2);
 
             segment_pl_data->feed_rate = pl_data->feed_rate * (motor_dist / cartesian_segment_length_mm);
 
@@ -195,10 +210,13 @@ namespace Kinematics {
             return false;
         }
 
-        // if (D < 20.0) {
-        //     log_error("Tip and shoulder too close:" << D << " (" << cartesian[0] << "," << cartesian[1] << ")");
-        //     return false;
-        // }
+        // if the forearm is shorter than the upper arm is the target too close to the hub?
+        if (_upper_arm_mm > _forearm_mm) {
+            if (D < (_upper_arm_mm - _forearm_mm)) {
+                log_error("forearm too short to reach location");
+                return false;
+            }
+        }
 
         float L1 = _upper_arm_mm;
         float L2 = _forearm_mm;
@@ -223,15 +241,14 @@ namespace Kinematics {
             angles[axis] = cartesian[axis];
         }
 
-        return true;
-    }
+        log_info("Go to angles (" << angles[0] << "," << angles[1] << "," << angles[2] << ")");
 
-    bool SingleArmScara::invalid_line(float* cartesian) {
-        return false;
+        return true;
     }
 
     bool SingleArmScara::invalid_arc(
         float* target, plan_line_data_t* pl_data, float* position, float center[3], float radius, size_t caxes[3], bool is_clockwise_arc) {
+        // TO DO not implemented yet
         return false;
     }
 
