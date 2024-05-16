@@ -74,24 +74,22 @@ namespace Kinematics {
         position = an n_axis array of where the machine is starting from for this move
     */
     bool SingleArmScara::cartesian_to_motors(float* target, plan_line_data_t* pl_data, float* position) {
-        //log_info("Go to cartesian x:" << target[X_AXIS] << " y:" << target[Y_AXIS]);
-
         float             dx, dy, dz;                 // segment distances in each cartesian axis
         uint32_t          segment_count;              // number of segments the move will be broken in to.
         plan_line_data_t* segment_pl_data = pl_data;  // copy the plan data. The feedrate will be changing
 
-        auto n_axis = config->_axes->_numberAxis;
-
+        auto  n_axis = config->_axes->_numberAxis;
         float motor_segment_end[n_axis];
-
         float shoulder_motor_angle, elbow_motor_angle;
         float angles[2];
         float motors[n_axis];
+        float feedrate = pl_data->feed_rate;  // save a local copy of the commanded feedrate
 
-        float total_cartesian_distance = vector_distance(position, target, 2);
+        float total_cartesian_distance = vector_distance(position, target, 3);
+        float xydist                   = vector_distance(target, position, 2);
 
-        // if move is zero do nothing and pass back the existing values
-        if (total_cartesian_distance == 0) {
+        // If there is no XY move or this is a rapid move we only do one segment.
+        if (xydist == 0 || pl_data->motion.rapidMotion) {
             if (!xy_to_angles(target, motors)) {
                 return false;
             }
@@ -99,23 +97,12 @@ namespace Kinematics {
             return true;
         }
 
-        // calculate the total X,Y axis move distance
-        // higher axes are the same in both coord systems, so it does not undergo conversion
-        float xydist = vector_distance(target, position, 2);
-        // Segment the moves. If we choose a small enough _segment_length_mm we can hide the nonlinearity
-
-        // this must only be a move in axes above XY
-        if (xydist == 0) {
-            mc_move_motors(motor_segment_end, pl_data);
-            return true;
-        }
+        xy_to_angles(position, _last_motor_segment_end);  // save the start position in angles
 
         segment_count = xydist / _segment_length_mm;
         if (segment_count < 1) {  // Make sure there is at least one segment, even if there is no movement
             segment_count = 1;
         }
-
-        //log_info("Segment Count:" << segment_count);
 
         float cartesian_segment_length_mm = total_cartesian_distance / segment_count;
 
@@ -127,6 +114,8 @@ namespace Kinematics {
 
         float cartesian_segment_end[n_axis];
         copyAxes(cartesian_segment_end, position);
+
+        //log_info("Go to cartesian x:" << target[X_AXIS] << " y:" << target[Y_AXIS] << " fr:" << feedrate);
 
         // Calculate desired cartesian feedrate distance ratio. Same for each seg.
         for (uint32_t segment = 1; segment <= segment_count; segment++) {
@@ -141,12 +130,14 @@ namespace Kinematics {
                 return false;
             }
 
+            float motor_dist = vector_distance(_last_motor_segment_end, motor_segment_end, 2);
+
             // Remember the last motor position so the length can be computed the next time
             copyAxes(_last_motor_segment_end, motor_segment_end);
 
-            float motor_dist = vector_distance(_last_motor_segment_end, motor_segment_end, 2);
+            segment_pl_data->feed_rate = feedrate * (motor_dist / cartesian_segment_length_mm);
 
-            segment_pl_data->feed_rate = pl_data->feed_rate * (motor_dist / cartesian_segment_length_mm);
+            //log_warn("motor_dist:" << motor_dist << " Feed rate cart:" << feedrate << " scara:" << segment_pl_data->feed_rate);
 
             if (!mc_move_motors(motor_segment_end, segment_pl_data)) {
                 // TODO fixup last_left last_right?? What is position state when jog is cancelled?
@@ -241,7 +232,7 @@ namespace Kinematics {
             angles[axis] = cartesian[axis];
         }
 
-        log_info("Go to angles (" << angles[0] << "," << angles[1] << "," << angles[2] << ")");
+        //log_info("Go to angles (" << angles[0] << "," << angles[1] << "," << angles[2] << ")");
 
         return true;
     }
