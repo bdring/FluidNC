@@ -634,7 +634,7 @@ void Maslow_::safety_control() {
         if ((abs(axis[i]->getPositionError()) > 15) && (sys.state() == State::Cycle)) {
             log_error("Position error on " << axis_id_to_label(i).c_str() << " axis exceeded 15mm while running. Halting. Error is "
                                            << axis[i]->getPositionError() << "mm");
-                Maslow.eStop("Position error > 15mm while running. E-Stop triggered.");
+            Maslow.eStop("Position error > 15mm while running. E-Stop triggered.");
         }
     }
 
