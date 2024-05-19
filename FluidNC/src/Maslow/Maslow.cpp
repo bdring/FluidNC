@@ -634,7 +634,7 @@ void Maslow_::safety_control() {
         if ((abs(axis[i]->getPositionError()) > 15) && (sys.state() == State::Cycle)) {
             log_error("Position error on " << axis_id_to_label(i).c_str() << " axis exceeded 15mm while running. Halting. Error is "
                                            << axis[i]->getPositionError() << "mm");
-            Maslow.eStop("Position error > 15mm while running. E-Stop triggered.");
+                Maslow.eStop("Position error > 15mm while running. E-Stop triggered.");
         }
     }
 
@@ -1592,7 +1592,7 @@ void Maslow_::zeroZPos() {
     log_info("Zeroing z-axis position");
 
     targetZ = 0;
-    
+
     int zAxis = 2;
     float* mpos = get_mpos();
     mpos[zAxis] = targetZ;
@@ -1789,6 +1789,14 @@ void Maslow_::updateCenterXY() {
     double B = (brY - tlY) / (brX - tlX);
     centerX  = (brY - (B * brX) + (A * trX) - trY) / (A - B);
     centerY  = A * (centerX - trX) + trY;
+}
+
+// Prints out state
+void Maslow_::getInfo() {
+    log_data("MINFO: { \"homed\": " << (all_axis_homed() ? "true" : "false") << ","
+          << "\"extended\": " << (allAxisExtended() ? "true" : "false") << ","
+          << "\"calibrationInProgress\": " << (calibrationInProgress ? "true" : "false")
+          << "}");
 }
 
 Maslow_& Maslow_::getInstance() {
