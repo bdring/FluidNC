@@ -1794,8 +1794,16 @@ void Maslow_::updateCenterXY() {
 // Prints out state
 void Maslow_::getInfo() {
     log_data("MINFO: { \"homed\": " << (all_axis_homed() ? "true" : "false") << ","
-          << "\"extended\": " << (allAxisExtended() ? "true" : "false") << ","
-          << "\"calibrationInProgress\": " << (calibrationInProgress ? "true" : "false")
+          << "\"calibrationInProgress\": " << (calibrationInProgress ? "true" : "false") << ","
+          << "\"tl\": " << axisTL.getPosition() << ","
+          << "\"tr\": " << axisTR.getPosition() << ","
+          << "\"br\": " << axisBR.getPosition() << ","
+          << "\"bl\": " << axisBL.getPosition() << ","
+          << "\"etl\": " << axisTL.getPositionError() << ","
+          << "\"etr\": " << axisTR.getPositionError() << ","
+          << "\"ebr\": " << axisBR.getPositionError() << ","
+          << "\"ebl\": " << axisBL.getPositionError() << ","
+          << "\"extended\": " << (allAxisExtended() ? "true" : "false")
           << "}");
 }
 
