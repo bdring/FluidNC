@@ -132,7 +132,8 @@ void Maslow_::update() {
 
     blinkIPAddress();
 
-    heartBeat();
+    // The ui is using the ping from the websocket to detect issues. we don't need the info message any more.
+    // heartBeat();
 
     //Make sure we're running maslow config file
     if (!Maslow.using_default_config) {
