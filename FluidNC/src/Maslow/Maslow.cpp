@@ -9,7 +9,7 @@
 #include "../System.h"
 
 // Maslow specific defines
-#define VERSION_NUMBER "0.71"
+#define VERSION_NUMBER "0.74"
 
 #define TLEncoderLine 2
 #define TREncoderLine 1
