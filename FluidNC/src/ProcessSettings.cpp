@@ -1071,6 +1071,11 @@ static Error maslowHomeZ(const char* value, WebUI::AuthenticationLevel auth_leve
     return Error::Ok;
 }
 
+static Error maslow_get_info(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+    Maslow.getInfo();
+    return Error::Ok;
+}
+
 // Commands use the same syntax as Settings, but instead of setting or
 // displaying a persistent value, a command causes some action to occur.
 // That action could be anything, from displaying a run-time parameter
@@ -1142,15 +1147,15 @@ void make_user_commands() {
     new UserCommand("CMP", "Maslow/comply", maslow_set_comply, anyState);
     new UserCommand("CAL", "Maslow/calibrate", maslow_start_calibration, anyState);
 
-    new UserCommand("TLI", "Maslow/calibrate", maslow_TLI, anyState);
-    new UserCommand("TRI", "Maslow/calibrate", maslow_TRI, anyState);
-    new UserCommand("BRI", "Maslow/calibrate", maslow_BRI, anyState);
-    new UserCommand("BLI", "Maslow/calibrate", maslow_BLI, anyState);
+    new UserCommand("TLI", "Maslow/calibrateTLI", maslow_TLI, anyState);
+    new UserCommand("TRI", "Maslow/calibrateTRI", maslow_TRI, anyState);
+    new UserCommand("BRI", "Maslow/calibrateBRI", maslow_BRI, anyState);
+    new UserCommand("BLI", "Maslow/calibrateBLI", maslow_BLI, anyState);
 
-    new UserCommand("TLO", "Maslow/calibrate", maslow_TLO, anyState);
-    new UserCommand("TRO", "Maslow/calibrate", maslow_TRO, anyState);
-    new UserCommand("BRO", "Maslow/calibrate", maslow_BRO, anyState);
-    new UserCommand("BLO", "Maslow/calibrate", maslow_BLO, anyState);
+    new UserCommand("TLO", "Maslow/calibrateTLO", maslow_TLO, anyState);
+    new UserCommand("TRO", "Maslow/calibrateTRO", maslow_TRO, anyState);
+    new UserCommand("BRO", "Maslow/calibrateBRO", maslow_BRO, anyState);
+    new UserCommand("BLO", "Maslow/calibrateBLO", maslow_BLO, anyState);
 
     new UserCommand("STOP", "Maslow/stop", maslow_stop, anyState); // experimental
     new UserCommand("WDT", "Maslow/width", maslow_set_width, anyState);
@@ -1162,6 +1167,7 @@ void make_user_commands() {
     new UserCommand("ACKCAL", "Maslow/ackCalibration", maslow_ack_cal, anyState);
     new UserCommand("ESTOP", "Maslow/estop", maslow_estop, anyState);
     new UserCommand("HZAxis", "Maslow/homeZ", maslowHomeZ, anyState);
+    new UserCommand("MINFO", "Maslow/getInfo", maslow_get_info, anyState);
 
 };
 

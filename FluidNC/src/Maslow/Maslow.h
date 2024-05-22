@@ -109,6 +109,7 @@ public:
     void BRO();
     void handleMotorOverides();
     bool checkOverides();
+    void getInfo();
 
     //These are the current targets set by the setTargets function used for moving the machine during normal operations
     double targetX = 0;

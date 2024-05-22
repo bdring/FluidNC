@@ -1592,7 +1592,7 @@ void Maslow_::zeroZPos() {
     log_info("Zeroing z-axis position");
 
     targetZ = 0;
-    
+
     int zAxis = 2;
     float* mpos = get_mpos();
     mpos[zAxis] = targetZ;
@@ -1789,6 +1789,22 @@ void Maslow_::updateCenterXY() {
     double B = (brY - tlY) / (brX - tlX);
     centerX  = (brY - (B * brX) + (A * trX) - trY) / (A - B);
     centerY  = A * (centerX - trX) + trY;
+}
+
+// Prints out state
+void Maslow_::getInfo() {
+    log_data("MINFO: { \"homed\": " << (all_axis_homed() ? "true" : "false") << ","
+          << "\"calibrationInProgress\": " << (calibrationInProgress ? "true" : "false") << ","
+          << "\"tl\": " << axisTL.getPosition() << ","
+          << "\"tr\": " << axisTR.getPosition() << ","
+          << "\"br\": " << axisBR.getPosition() << ","
+          << "\"bl\": " << axisBL.getPosition() << ","
+          << "\"etl\": " << axisTL.getPositionError() << ","
+          << "\"etr\": " << axisTR.getPositionError() << ","
+          << "\"ebr\": " << axisBR.getPositionError() << ","
+          << "\"ebl\": " << axisBL.getPositionError() << ","
+          << "\"extended\": " << (allAxisExtended() ? "true" : "false")
+          << "}");
 }
 
 Maslow_& Maslow_::getInstance() {
