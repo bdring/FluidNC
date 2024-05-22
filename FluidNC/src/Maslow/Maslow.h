@@ -121,6 +121,7 @@ public:
     MotorUnit axisBR;
     int retractCurrentThreshold = 1300;
     int calibrationCurrentThreshold = 1300;
+    float acceptableCalibrationThreshold = 0.5;
 
     bool axisBLHomed;
     bool axisBRHomed;
