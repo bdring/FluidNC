@@ -588,6 +588,9 @@ void Maslow_::safety_control() {
     static int           tresholdHitsBeforePanic = 15;
     static int           panicCounter[4]         = { 0 };
 
+    static int           positionErrorCounter[4] = { 0 };
+    static float         previousPositionError[4] = { 0, 0, 0, 0 };
+
     MotorUnit* axis[4] = { &axisTL, &axisTR, &axisBL, &axisBR };
     for (int i = 0; i < 4; i++) {
         //If the current exceeds some absolute value, we need to call panic() and stop the machine
@@ -632,10 +635,21 @@ void Maslow_::safety_control() {
             //                                << "mm");
             tick[i] = true;
         }
+
+        //If the motor has a position error greater than 15mm and we are running a file or jogging
+        previousPositionError[i] = axis[i]->getPositionError();
         if ((abs(axis[i]->getPositionError()) > 15) && (sys.state() == State::Cycle)) {
-            log_error("Position error on " << axis_id_to_label(i).c_str() << " axis exceeded 15mm while running. Halting. Error is "
-                                           << axis[i]->getPositionError() << "mm");
-            Maslow.eStop("Position error > 15mm while running. E-Stop triggered.");
+            positionErrorCounter[i]++;
+            log_warn("Position error on " << axis_id_to_label(i).c_str() << " axis exceeded 15mm while running. Error is "
+                                            << axis[i]->getPositionError() << "mm" << " Counter: " << positionErrorCounter[i]);
+            log_warn("Previous error was " << previousPositionError[i] << "mm");
+            
+            if(positionErrorCounter[i] > 5){
+                Maslow.eStop("Position error > 15mm while running. E-Stop triggered.");
+            }
+        }
+        else{
+            positionErrorCounter[i] = 0;
         }
     }
 
