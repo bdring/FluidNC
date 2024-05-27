@@ -345,6 +345,9 @@ GCUpdatePos mc_probe_cycle(float* target, plan_line_data_t* pl_data, bool away, 
         // All done! Output the probe position as message.
         report_probe_parameters(allChannels);
     }
+    if (config->_tool_changer) {
+        config->_tool_changer->probe_notification();
+    }
     if (probe_succeeded) {
         if (offset != __FLT_MAX__) {
             float coord_data[MAX_N_AXIS];

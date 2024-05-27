@@ -695,6 +695,13 @@ Error gc_execute_line(char* line) {
                             FAIL(Error::GcodeMaxValueExceeded);
                         }
                         log_info("Tool No: " << int_value);
+                        // if there is no M6
+                        // !gc_block.modal.tool_change == ToolChange::Enable
+                        if (!(gc_block.modal.tool_change == ToolChange::Enable)) {
+                            if (config->_tool_changer) {
+                                config->_tool_changer->tool_change(int_value, true);
+                            }
+                        }
                         gc_state.tool = int_value;
                         break;
                     case 'X':
@@ -1420,7 +1427,7 @@ Error gc_execute_line(char* line) {
     // NOTE: Pass zero spindle speed for all restricted laser motions.
     if (!disableLaser) {
         pl_data->spindle_speed = gc_state.spindle_speed;  // Record data for planner use.
-    }                                                     // else { pl_data->spindle_speed = 0.0; } // Initialized as zero already.
+    }  // else { pl_data->spindle_speed = 0.0; } // Initialized as zero already.
     // [5. Select tool ]: NOT SUPPORTED. Only tracks tool value.
     //	gc_state.tool = gc_block.values.t;
     // [6. Change tool ]: NOT SUPPORTED
@@ -1697,6 +1704,38 @@ Error gc_execute_line(char* line) {
     return Error::Ok;
 }
 
+//void grbl_msg_sendf(uint8_t client, MsgLevel level, const char* format, ...);
+void gc_exec_linef(bool sync_after, Channel& out, const char* format, ...) {
+    char    loc_buf[100];
+    char*   temp = loc_buf;
+    va_list arg;
+    va_list copy;
+    va_start(arg, format);
+    va_copy(copy, arg);
+    size_t len = vsnprintf(NULL, 0, format, arg);
+    va_end(copy);
+
+    if (len >= sizeof(loc_buf)) {
+        temp = new char[len + 1];
+        if (temp == NULL) {
+            return;
+        }
+    }
+    len = vsnprintf(temp, len + 1, format, arg);
+
+    //log_debug("gc_exec_linef:" << temp);
+
+    gc_execute_line(temp);
+
+    va_end(arg);
+    if (temp != loc_buf) {
+        delete[] temp;
+    }
+    if (sync_after) {
+        protocol_buffer_synchronize();
+    }
+}
+
 /*
   Not supported:
 
@@ -1725,6 +1764,10 @@ Error gc_execute_line(char* line) {
 void WEAK_LINK user_m30() {}
 
 void WEAK_LINK user_tool_change(uint32_t new_tool) {
-    Spindles::Spindle::switchSpindle(new_tool, config->_spindles, spindle);
+    if (config->_tool_changer) {
+        config->_tool_changer->tool_change(new_tool, false);
+    } else {
+        Spindles::Spindle::switchSpindle(new_tool, config->_spindles, spindle);
+    }
     report_ovr_counter = 0;  // Set to report change immediately
 }

@@ -49,6 +49,7 @@ namespace Spindles {
         virtual void config_message() = 0;
         virtual bool isRateAdjusted();
         virtual bool use_delay_settings() const { return true; }
+        virtual uint8_t get_current_tool_num() { return _current_tool; }
 
         virtual void setSpeedfromISR(uint32_t dev_speed) = 0;
 
@@ -91,6 +92,9 @@ namespace Spindles {
 
         // Virtual base classes require a virtual destructor.
         virtual ~Spindle() {}
+
+        protected:
+            uint8_t _current_tool = 0;
     };
     using SpindleFactory = Configuration::GenericFactory<Spindle>;
 }

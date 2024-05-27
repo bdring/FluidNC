@@ -68,6 +68,8 @@ namespace Machine {
         handler.section("oled", _oled);
         handler.section("status_outputs", _stat_out);
 
+        handler.section("tool_changer", _tool_changer);
+
         Spindles::SpindleFactory::factory(handler, _spindles);
 
         // TODO: Consider putting these under a gcode: hierarchy level? Or motion control?
@@ -78,6 +80,9 @@ namespace Machine {
         handler.item("enable_parking_override_control", _enableParkingOverrideControl);
         handler.item("use_line_numbers", _useLineNumbers);
         handler.item("planner_blocks", _planner_blocks, 10, 120);
+
+
+
     }
 
     void MachineConfig::afterParse() {
