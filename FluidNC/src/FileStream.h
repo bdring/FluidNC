@@ -52,7 +52,7 @@ public:
 
     // pollLine() is a required method of the Channel class that
     // FileStream implements as a no-op.
-    Channel* pollLine(char* line) override { return nullptr; }
+    Error pollLine(char* line) override { return Error::NoData; }
 
-    ~FileStream();
+    ~FileStream() override;
 };

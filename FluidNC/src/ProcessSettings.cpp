@@ -422,7 +422,7 @@ static Error home_all(const char* value, WebUI::AuthenticationLevel auth_level, 
     // value can be a list of cycle numbers like "21", which will run homing cycle 2 then cycle 1,
     // or a list of axis names like "XZ", which will home the X and Z axes simultaneously
     if (value) {
-        int ndigits = 0;
+        int        ndigits  = 0;
         const auto lenValue = strlen(value);
         for (int i = 0; i < lenValue; i++) {
             char cycleName = value[i];
@@ -521,12 +521,6 @@ static Error get_report_build_info(const char* value, WebUI::AuthenticationLevel
         return Error::Ok;
     }
     return Error::InvalidStatement;
-}
-static Error show_startup_lines(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
-    for (int i = 0; i < config->_macros->n_startup_lines; i++) {
-        log_stream(out, "$N" << i << "=" << config->_macros->_startup_line[i]._gcode);
-    }
-    return Error::Ok;
 }
 
 const std::map<const char*, uint8_t, cmp_str> restoreCommands = {
@@ -679,10 +673,10 @@ static Error motors_init(const char* value, WebUI::AuthenticationLevel auth_leve
 
 static Error macros_run(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
     if (value) {
-        log_info("Running macro" << *value);
         size_t macro_num = (*value) - '0';
-        config->_macros->_macro[macro_num].run();
-        return Error::Ok;
+
+        auto ok = config->_macros->_macro[macro_num].run();
+        return ok ? Error::Ok : Error::NumberRange;
     }
     log_error("$Macros/Run requires a macro number argument");
     return Error::InvalidStatement;
@@ -874,7 +868,7 @@ void make_user_commands() {
     new UserCommand("ME", "Motor/Enable", motor_enable, notIdleOrAlarm);
     new UserCommand("MI", "Motors/Init", motors_init, notIdleOrAlarm);
 
-    new UserCommand("RM", "Macros/Run", macros_run, notIdleOrAlarm);
+    new UserCommand("RM", "Macros/Run", macros_run, nullptr);
 
     new UserCommand("H", "Home", home_all, allowConfigStates);
     new UserCommand("HX", "Home/X", home_x, allowConfigStates);
@@ -895,7 +889,6 @@ void make_user_commands() {
 
     new UserCommand("SLP", "System/Sleep", go_to_sleep, notIdleOrAlarm);
     new UserCommand("I", "Build/Info", get_report_build_info, notIdleOrAlarm);
-    new UserCommand("N", "GCode/StartupLines", show_startup_lines, notIdleOrAlarm);
     new UserCommand("RST", "Settings/Restore", restore_settings, notIdleOrAlarm, WA);
 
     new UserCommand("SA", "Alarm/Send", sendAlarm, anyState);
@@ -946,8 +939,7 @@ Error do_command_or_setting(const char* key, const char* value, WebUI::Authentic
     // If value is NULL, it means that there was no value string, i.e.
     // $key without =, or [key] with nothing following.
     // If value is not NULL, but the string is empty, that is the form
-    // $key= with nothing following the = .  It is important to distinguish
-    // those cases so that you can say "$N0=" to clear a startup line.
+    // $key= with nothing following the = .
 
     // First search the yaml settings by name. If found, set a new
     // value if one is given, otherwise display the current value
@@ -1083,16 +1075,6 @@ Error settings_execute_line(char* line, Channel& out, WebUI::AuthenticationLevel
     // empty string - $xxx= with nothing after
     // non-empty string - [ESPxxx]yyy or $xxx=yyy
     return do_command_or_setting(key, value, auth_level, out);
-}
-
-void settings_execute_startup() {
-    if (!state_is(State::Idle)) {
-        return;
-    }
-    Error status_code;
-    for (int i = 0; i < config->_macros->n_startup_lines; i++) {
-        config->_macros->_startup_line[i].run();
-    }
 }
 
 Error execute_line(char* line, Channel& channel, WebUI::AuthenticationLevel auth_level) {

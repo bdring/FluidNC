@@ -631,8 +631,8 @@ void report_realtime_status(Channel& channel) {
             }
         }
     }
-    if (InputFile::_progress.length()) {
-        msg << "|" + InputFile::_progress;
+    if (!jobChannels.empty()) {
+        msg << "|" << jobChannels.top()->_progress;
     }
 #ifdef DEBUG_STEPPER_ISR
     msg << "|ISRs:" << Stepper::isr_count;

@@ -385,7 +385,7 @@ namespace WebUI {
         return Error::Ok;
     }
 
-    static Error openFile(const char* fs, const char* parameter, AuthenticationLevel auth_level, Channel& out, InputFile*& theFile) {
+    static Error openFile(const char* fs, const char* parameter, Channel& out, InputFile*& theFile) {
         if (*parameter == '\0') {
             log_string(out, "Missing file name!");
             return Error::InvalidValue;
@@ -396,7 +396,7 @@ namespace WebUI {
         }
 
         try {
-            theFile = new InputFile(fs, path.c_str(), auth_level, out);
+            theFile = new InputFile(fs, path.c_str());
         } catch (Error err) { return err; }
         return Error::Ok;
     }
@@ -407,7 +407,7 @@ namespace WebUI {
         }
         InputFile* theFile;
         Error      err;
-        if ((err = openFile(fs, parameter, auth_level, out, theFile)) != Error::Ok) {
+        if ((err = openFile(fs, parameter, out, theFile)) != Error::Ok) {
             return err;
         }
         char  fileLine[255];
@@ -492,7 +492,7 @@ namespace WebUI {
         InputFile*  theFile;
         Error       err;
         std::string fn(filename);
-        if ((err = openFile(sdName, fn.c_str(), auth_level, out, theFile)) != Error::Ok) {
+        if ((err = openFile(sdName, fn.c_str(), out, theFile)) != Error::Ok) {
             error = "Cannot open file";
         } else {
             char  fileLine[255];
@@ -544,7 +544,7 @@ namespace WebUI {
 
         InputFile* theFile;
         Error      err = Error::Ok;
-        if ((err = openFile(localfsName, fn.c_str(), auth_level, out, theFile)) != Error::Ok) {
+        if ((err = openFile(localfsName, fn.c_str(), out, theFile)) != Error::Ok) {
             err    = Error::FsFailedOpenFile;
             status = "Cannot open file";
         } else {
@@ -574,21 +574,17 @@ namespace WebUI {
 
     static Error runFile(const char* fs, const char* parameter, AuthenticationLevel auth_level, Channel& out) {
         Error err;
+        log_debug("Run " << parameter);
         if (state_is(State::Alarm) || state_is(State::ConfigAlarm)) {
             log_string(out, "Alarm");
             return Error::IdleError;
         }
-        if (!state_is(State::Idle)) {
-            log_string(out, "Busy");
-            return Error::IdleError;
-        }
         InputFile* theFile;
-        if ((err = openFile(fs, parameter, auth_level, out, theFile)) != Error::Ok) {
+        if ((err = openFile(fs, parameter, out, theFile)) != Error::Ok) {
             return err;
         }
-        allChannels.registration(theFile);
+        jobChannels.push(theFile);
 
-        //report_realtime_status(out);
         return Error::Ok;
     }
 
@@ -998,7 +994,7 @@ namespace WebUI {
         new WebCommand(NULL, WEBCMD, WU, "ESP720", "LocalFS/Size", localFSSize);
         new WebCommand("FORMAT", WEBCMD, WA, "ESP710", "LocalFS/Format", formatLocalFS);
         new WebCommand("path", WEBCMD, WU, NULL, "LocalFS/Show", showLocalFile);
-        new WebCommand("path", WEBCMD, WU, "ESP700", "LocalFS/Run", runLocalFile);
+        new WebCommand("path", WEBCMD, WU, "ESP700", "LocalFS/Run", runLocalFile, nullptr);
         new WebCommand("path", WEBCMD, WU, NULL, "LocalFS/List", listLocalFiles);
         new WebCommand("path", WEBCMD, WU, NULL, "LocalFS/ListJSON", listLocalFilesJSON);
         new WebCommand("path", WEBCMD, WU, NULL, "LocalFS/Delete", deleteLocalFile);
@@ -1011,7 +1007,7 @@ namespace WebUI {
         new WebCommand("path", WEBCMD, WU, NULL, "File/SendJSON", fileSendJson);
         new WebCommand("path", WEBCMD, WU, NULL, "File/ShowSome", fileShowSome);
         new WebCommand("path", WEBCMD, WU, "ESP221", "SD/Show", showSDFile);
-        new WebCommand("path", WEBCMD, WU, "ESP220", "SD/Run", runSDFile);
+        new WebCommand("path", WEBCMD, WU, "ESP220", "SD/Run", runSDFile, nullptr);
         new WebCommand("file_or_directory_path", WEBCMD, WU, "ESP215", "SD/Delete", deleteSDObject);
         new WebCommand("path", WEBCMD, WU, NULL, "SD/Rename", renameSDObject);
         new WebCommand(NULL, WEBCMD, WU, "ESP210", "SD/List", listSDFiles);

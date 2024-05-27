@@ -56,9 +56,9 @@ size_t Status_Outputs::write(uint8_t data) {
     return 1;
 }
 
-Channel* Status_Outputs::pollLine(char* line) {
+Error Status_Outputs::pollLine(char* line) {
     autoReport();
-    return nullptr;
+    return Error::NoData;
 }
 
 void Status_Outputs::parse_status_report() {

@@ -5,10 +5,8 @@
 #pragma once
 
 #include "src/Configuration/Configurable.h"
-#include "src/WebUI/InputBuffer.h"  // WebUI::inputBuffer
-#include "src/UartChannel.h"
 #include "src/Event.h"
-#include <algorithm>
+// #include <algorithm>  // std::replace()
 
 class MacroEvent : public Event {
     int _num;
@@ -23,44 +21,60 @@ extern const MacroEvent macro1Event;
 extern const MacroEvent macro2Event;
 extern const MacroEvent macro3Event;
 
+class Macro;
 namespace Machine {
-    class Macro {
-    public:
-        std::string _gcode;
-        const char* _name;
-        Macro(const char* name) : _name(name) {}
-        bool run();
-    };
-
     class Macros : public Configuration::Configurable {
     public:
-        static const int n_startup_lines = 2;
-        static const int n_macros        = 4;
+        static const int n_macros = 4;
 
-        static Macro _macro[n_macros];
-        static Macro _startup_line[n_startup_lines];
+        static Macro _macro[];
+        static Macro _startup;
         static Macro _after_homing;
         static Macro _after_reset;
         static Macro _after_unlock;
 
         Macros() = default;
 
+        bool run_macro(size_t index);
+
         // Configuration helpers:
 
-        // TODO: We could validate the startup lines
-
         void group(Configuration::HandlerBase& handler) override {
-            handler.item(_startup_line[0]._name, _startup_line[0]._gcode);
-            handler.item(_startup_line[1]._name, _startup_line[1]._gcode);
-            handler.item(_macro[0]._name, _macro[0]._gcode);
-            handler.item(_macro[1]._name, _macro[1]._gcode);
-            handler.item(_macro[2]._name, _macro[2]._gcode);
-            handler.item(_macro[3]._name, _macro[3]._gcode);
-            handler.item(_after_homing._name, _after_homing._gcode);
-            handler.item(_after_reset._name, _after_reset._gcode);
-            handler.item(_after_unlock._name, _after_unlock._gcode);
+            // handler.item(_startup._name, &_startup);
+            handler.item(_startup.name(), _startup);
+            handler.item(_macro[0].name(), _macro[0]);
+            handler.item(_macro[1].name(), _macro[1]);
+            handler.item(_macro[2].name(), _macro[2]);
+            handler.item(_macro[3].name(), _macro[3]);
+            handler.item(_after_homing.name(), _after_homing);
+            handler.item(_after_reset.name(), _after_reset);
+            handler.item(_after_unlock.name(), _after_unlock);
         }
 
         ~Macros() {}
+    };
+
+    class MacroChannel : public Channel {
+    private:
+        Error  _pending_error = Error::Ok;
+        size_t _position      = 0;
+
+        Macro* _macro;
+
+        Error readLine(char* line, int maxlen);
+
+    public:
+        Error pollLine(char* line) override;
+
+        MacroChannel(Macro* macro);
+
+        MacroChannel(const MacroChannel&) = delete;
+        MacroChannel& operator=(const MacroChannel&) = delete;
+
+        // Channel methods
+        size_t write(uint8_t c) override { return 0; }
+        void   ack(Error status) override;
+
+        ~MacroChannel();
     };
 }

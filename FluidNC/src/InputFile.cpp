@@ -5,8 +5,7 @@
 
 #include "Report.h"
 
-InputFile::InputFile(const char* defaultFs, const char* path, WebUI::AuthenticationLevel auth_level, Channel& out) :
-    FileStream(path, "r", defaultFs), _auth_level(auth_level), _out(out), _line_num(0) {}
+InputFile::InputFile(const char* defaultFs, const char* path) : FileStream(path, "r", defaultFs) {}
 /*
   Read a line from the file
   Returns Error::Ok if a line was read, even if the line was empty.
@@ -14,7 +13,6 @@ InputFile::InputFile(const char* defaultFs, const char* path, WebUI::Authenticat
   Returns other Error code on error, after displaying a message.
 */
 Error InputFile::readLine(char* line, int maxlen) {
-    ++_line_num;
     int len = 0;
     int c;
     while ((c = read()) >= 0) {
@@ -25,6 +23,7 @@ Error InputFile::readLine(char* line, int maxlen) {
             continue;
         }
         if (c == '\n') {
+            ++_line_number;
             break;
         }
         line[len++] = c;
@@ -33,65 +32,48 @@ Error InputFile::readLine(char* line, int maxlen) {
     return len || c >= 0 ? Error::Ok : Error::Eof;
 }
 
-// return a percentage complete 50.5 = 50.5%
-float InputFile::percent_complete() {
-    return (float)position() / (float)size() * 100.0f;
-}
-
 void InputFile::ack(Error status) {
     if (status != Error::Ok) {
-        log_error(static_cast<int>(status) << " (" << errorString(status) << ") in " << path() << " at line " << getLineNumber());
+        log_error(static_cast<int>(status) << " (" << errorString(status) << ") in " << name() << " at line " << lineNumber());
         if (status != Error::GcodeUnsupportedCommand) {
-            // Do not stop on unsupported commands because most senders do not
+            // Do not stop on unsupported commands because most senders do not stop.
             // Stop the file job on other errors
-            _notifyf("File job error", "Error:%d in %s at line: %d", status, path(), getLineNumber());
-            allChannels.kill(this);
-            return;
+            _notifyf("File job error", "Error:%d in %s at line: %d", status, name(), lineNumber());
+            _pending_error == status;
         }
     }
-    _readyNext = true;
 }
-
-std::string InputFile::_progress = "";
 
 #include <sstream>
 #include <iomanip>
 
-Channel* InputFile::pollLine(char* line) {
+Error InputFile::pollLine(char* line) {
     // File input never returns realtime characters, so we do nothing
     // if line is null.
-    if (!_readyNext || !line) {
-        return nullptr;
+    if (!line) {
+        return Error::NoData;
+    }
+    if (_pending_error != Error::Ok) {
+        return _pending_error;
     }
     switch (auto err = readLine(line, Channel::maxLine)) {
         case Error::Ok: {
+            float percent_complete = ((float)position()) * 100.0f / size();
+
             std::ostringstream s;
-            s << "SD:" << std::fixed << std::setprecision(2) << percent_complete() << "," << path().c_str();
+            s << "SD:" << std::fixed << std::setprecision(2) << percent_complete << "," << path().c_str();
             _progress = s.str();
         }
-            return &allChannels;
+            return Error::Ok;
         case Error::Eof:
-            _progress = "";
-            _notifyf("File job done", "%s file job succeeded", path());
-            log_msg(path() << " file job succeeded");
-            allChannels.kill(this);
-            return nullptr;
+            _progress = "SD: ";
+            _progress += name();
+            _progress += ": Sent";
+            return Error::Eof;
         default:
             _progress = "";
-            log_error(static_cast<int>(err) << " (" << errorString(err) << ") in " << path() << " at line " << getLineNumber());
-            allChannels.kill(this);
-            return nullptr;
+            return err;
     }
 }
 
-void InputFile::stopJob() {
-    //Report print stopped
-    _notifyf("File print canceled", "Reset during file job at line: %d", getLineNumber());
-    log_info("Reset during file job at line: " << getLineNumber());
-    _progress = "";
-    allChannels.kill(this);
-}
-
-InputFile::~InputFile() {
-    _progress = "";
-}
+InputFile::~InputFile() {}

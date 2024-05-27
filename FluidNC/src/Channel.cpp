@@ -183,7 +183,7 @@ void Channel::push(uint8_t byte) {
     }
 }
 
-Channel* Channel::pollLine(char* line) {
+Error Channel::pollLine(char* line) {
     handle();
     while (1) {
         int ch = -1;
@@ -207,13 +207,13 @@ Channel* Channel::pollLine(char* line) {
         }
 
         if (lineComplete(line, ch)) {
-            return this;
+            return Error::Ok;
         }
     }
     if (_active) {
         autoReport();
     }
-    return nullptr;
+    return Error::NoData;
 }
 
 void Channel::setAttr(int index, bool* value, const std::string& attrString, const char* tag) {
@@ -352,3 +352,5 @@ bool Channel::is_visible(const std::string& stem, const std::string& extension, 
     }
     return false;
 }
+
+std::stack<Channel*> jobChannels;

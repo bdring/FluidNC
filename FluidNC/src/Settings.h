@@ -369,7 +369,6 @@ public:
 };
 
 // Execute the startup script lines stored in non-volatile storage upon initialization
-void  settings_execute_startup();
 Error settings_execute_line(char* line, Channel& out, WebUI::AuthenticationLevel);
 Error do_command_or_setting(const char* key, const char* value, WebUI::AuthenticationLevel auth_level, Channel&);
 Error execute_line(char* line, Channel& channel, WebUI::AuthenticationLevel auth_level);

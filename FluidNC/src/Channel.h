@@ -28,6 +28,7 @@
 #include <Stream.h>
 #include <freertos/FreeRTOS.h>  // TickType_T
 #include <queue>
+#include <stack>
 
 class Channel : public Stream {
 private:
@@ -77,12 +78,13 @@ protected:
     std::map<int, EventPin*> _events;
     std::map<int, bool*>     _pin_values;
 
-    UTF8        _utf8;
+    UTF8 _utf8;
 
 protected:
     bool _active = true;
 
 public:
+    Channel(std::string name, bool addCR = false) : _name(name), _linelen(0), _addCR(addCR) {}
     Channel(const char* name, bool addCR = false) : _name(name), _linelen(0), _addCR(addCR) {}
     Channel(const char* name, int num, bool addCR = false) {
         _name = name;
@@ -93,13 +95,17 @@ public:
     bool _ackwait = false;
 
     virtual void       handle() {};
-    virtual Channel*   pollLine(char* line);
+    virtual Error      pollLine(char* line);
     virtual void       ack(Error status);
     const std::string& name() { return _name; }
 
     virtual void sendLine(MsgLevel level, const char* line);
     virtual void sendLine(MsgLevel level, const std::string* line);
     virtual void sendLine(MsgLevel level, const std::string& line);
+
+    size_t _line_number = 0;
+
+    std::string _progress;
 
     // rx_buffer_available() is the number of bytes that can be sent without overflowing
     // a reception buffer, even if the system is busy.  Channels that can handle external
@@ -130,8 +136,6 @@ public:
         setTimeout(timeout);
         return readBytes(buffer, length);
     }
-
-    virtual void stopJob() {}
 
     virtual bool is_visible(const std::string& stem, const std::string& extension, bool isdir);
 
@@ -182,4 +186,8 @@ public:
 
     void ready();
     void registerEvent(uint8_t code, EventPin* obj);
+
+    size_t lineNumber() { return _line_number; }
 };
+
+extern std::stack<Channel*> jobChannels;

@@ -34,7 +34,7 @@
   To allow the realtime commands to be randomly mixed in the stream of data, we
   read all channels as fast as possible. The realtime commands are acted upon and
   the other characters are placed into a per-channel buffer.  When a complete line
-  is received, pollChannel returns the associated channel spec.
+  is received, pollChannels returns the associated channel spec.
 */
 
 #include "Serial.h"
@@ -156,14 +156,6 @@ void AllChannels::notifyNgc(CoordIndex coord) {
     _mutex_general.unlock();
 }
 
-void AllChannels::stopJob() {
-    _mutex_general.lock();
-    for (auto channel : _channelq) {
-        channel->stopJob();
-    }
-    _mutex_general.unlock();
-}
-
 size_t AllChannels::write(const uint8_t* buffer, size_t length) {
     _mutex_general.lock();
     for (auto channel : _channelq) {
@@ -191,7 +183,7 @@ Channel* AllChannels::find(const std::string& name) {
     _mutex_general.unlock();
     return nullptr;
 }
-Channel* AllChannels::pollLine(char* line) {
+Channel* AllChannels::poll(char* line) {
     Channel* deadChannel;
     while (xQueueReceive(_killQueue, &deadChannel, 0)) {
         deregistration(deadChannel);
@@ -205,7 +197,7 @@ Channel* AllChannels::pollLine(char* line) {
 
     for (auto channel : _channelq) {
         // Skip the last channel in the loop
-        if (channel != _lastChannel && channel && channel->pollLine(line)) {
+        if (channel != _lastChannel && channel->pollLine(line) == Error::Ok) {
             _lastChannel = channel;
             _mutex_pollLine.unlock();
             return _lastChannel;
@@ -213,7 +205,7 @@ Channel* AllChannels::pollLine(char* line) {
     }
     _mutex_pollLine.unlock();
     // If no other channel returned a line, try the last one
-    if (_lastChannel && _lastChannel->pollLine(line)) {
+    if (_lastChannel && _lastChannel->pollLine(line) == Error::Ok) {
         return _lastChannel;
     }
     _lastChannel = nullptr;
@@ -238,7 +230,7 @@ Channel* pollChannels(char* line) {
     }
     counter = 50;
 
-    Channel* retval = allChannels.pollLine(line);
+    Channel* retval = allChannels.poll(line);
 
     WebUI::COMMANDS::handle();      // Handles ESP restart
     WebUI::wifi_services.handle();  // OTA, webServer, telnetServer polling
