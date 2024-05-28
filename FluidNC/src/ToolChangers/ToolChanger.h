@@ -1,7 +1,6 @@
 #pragma once
 
-#include "Config.h"
-
+#include "../Config.h"
 #include "../Configuration/Configurable.h"
 
 namespace ToolChangers {
