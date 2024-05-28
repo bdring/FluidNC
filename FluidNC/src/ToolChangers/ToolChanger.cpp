@@ -33,7 +33,17 @@
   Posible New Persistant values (might want a save_ATC_values: config item. default false)
      -- TLO
      -- Tool number
+
+
+tool_changer:
+  safe_z_mpos_mm: -1.000000
+  probe_seek_rate_mm_per_min: 800.000000
+  probe_feed_rate_mm_per_min: 80.000000
+  change_mpos_mm: 80.000 0.000 -1.000
+  ets_mpos_mm: 5.000 -17.000 -40.000
       
+
+
 
 */
 
@@ -70,81 +80,85 @@ namespace ToolChangers {
             return true;
         }
 
-        protocol_buffer_synchronize();  // wait for all motion to complete
+        try {
+            protocol_buffer_synchronize();  // wait for all motion to complete
 
-        if (_prev_tool == 0) {  // M6T<anything> from T0 is used for a manual change before zero'ing
-            log_info("Load first tool");
-            move_to_change_location();
+            if (_prev_tool == 0) {  // M6T<anything> from T0 is used for a manual change before zero'ing
+                log_info("Load first tool");
+                move_to_change_location();
+                _prev_tool = new_tool;
+                return true;
+            }
+
+            float  starting_wpos[6] = {};
+            float* mpos             = get_mpos();
+            float* wco              = get_wco();
+
+            auto n_axis = config->_axes->_numberAxis;
+            for (int idx = 0; idx < n_axis; idx++) {
+                starting_wpos[idx] = mpos[idx] - wco[idx];
+            }
+            //log_info("Starting WPos: " << starting_wpos[0] << "," << starting_wpos[1] << "," << starting_wpos[2]);
+
             _prev_tool = new_tool;
-            return true;
-        }
 
-        float starting_wpos[6] = {};
-        float* mpos = get_mpos();
-        float* wco  = get_wco();
+            move_to_save_z();
+            if (gc_state.modal.spindle != SpindleState::Disable) {
+                spindle_was_on = true;
+                gc_exec_linef(true, Uart0, "M5");  // this should add a delay if there is one
+            }
 
-        auto n_axis = config->_axes->_numberAxis;
-        for (int idx = 0; idx < n_axis; idx++) {
-            starting_wpos[idx] = mpos[idx] - wco[idx];
-        }
-        //log_info("Starting WPos: " << starting_wpos[0] << "," << starting_wpos[1] << "," << starting_wpos[2]);
+            // if we have not determined the tool setter offset yet, we need to do that.
+            if (!_have_tool_setter_offset) {
+                move_over_toolsetter();
+                // do a seek probe if needed
+                if (!seek_probe())
+                    return false;
+                // do the position finding feed rate probe
+                if (!probe(_probe_feed_rate, _tool_setter_position)) {
+                    return false;
+                }
 
-        _prev_tool = new_tool;
+                _tool_setter_offset      = _tool_setter_position[2];
+                _have_tool_setter_offset = true;
+            }
 
-        move_to_save_z();
-        if (gc_state.modal.spindle != SpindleState::Disable) {
-            spindle_was_on = true;
-            gc_exec_linef(true, Uart0, "M5");  // this should add a delay if there is one
-        }
+            move_to_change_location();
+            log_info("Please install tool:" << new_tool);
 
-        // if we have not determined the tool setter offset yet, we need to do that.
-        if (!_have_tool_setter_offset) {
+            if (!hold_and_wait_for_resume()) {
+                log_info("Tool change aborted");
+                return false;  // aborted
+            }
+            // probe the new tool
+            move_to_save_z();
             move_over_toolsetter();
-            // do a seek probe if needed
+
             if (!seek_probe())
                 return false;
-            // do the position finding feed rate probe 
-            if (!probe(_probe_feed_rate, _tool_setter_position)) {
+
+            float offset_probe[MAX_N_AXIS] = {};
+            if (!probe(_probe_feed_rate, offset_probe)) {
                 return false;
             }
 
-            _tool_setter_offset      = _tool_setter_position[2];
-            _have_tool_setter_offset = true;
-        }
+            float tlo = offset_probe[2] - _tool_setter_offset;
 
-        move_to_change_location();
-        log_info("Please install tool:" << new_tool);
+            //log_info("Set TLO:" << tlo);
+            gc_exec_linef(false, Uart0, "G43.1Z%0.3f", tlo);
 
-        if (!hold_and_wait_for_resume()) {
-            log_info("Tool change aborted");
-            return false;  // aborted
-        }
-        // probe the new tool
-        move_to_save_z();
-        move_over_toolsetter();
+            move_to_save_z();
+            gc_exec_linef(false, Uart0, "G0X%0.3fY%0.3f", starting_wpos[0], starting_wpos[1]);
+            gc_exec_linef(false, Uart0, "G0Z%0.3f", starting_wpos[2]);
 
-        if (!seek_probe())
-            return false;
+            if (spindle_was_on) {
+                gc_exec_linef(false, Uart0, "M3");  // spindle should handle spinup delay
+            }
 
-        float offset_probe[MAX_N_AXIS] = {};
-        if (!probe(_probe_feed_rate, offset_probe)) {
-            return false;
-        }
+            return true;
+        } catch (...) { log_info("Exception caught"); }
 
-        float tlo = offset_probe[2] - _tool_setter_offset;
-
-        //log_info("Set TLO:" << tlo);
-        gc_exec_linef(false, Uart0, "G43.1Z%0.3f", tlo);
-
-        move_to_save_z();
-        gc_exec_linef(false, Uart0, "G0X%0.3fY%0.3f", starting_wpos[0], starting_wpos[1]);
-        gc_exec_linef(false, Uart0, "G0Z%0.3f", starting_wpos[2]);
-
-        if (spindle_was_on) {
-            gc_exec_linef(false, Uart0, "M3");  // spindle should handle spinup delay
-        }
-
-        return true;
+        return false;
     }
 
     bool ToolChanger::is_OK() {
@@ -167,11 +181,9 @@ namespace ToolChangers {
     bool ToolChanger::probe(float rate, float* probe_z_mpos) {
         gc_exec_linef(true, Uart0, "G53 G38.2 Z%0.3f F%0.3f", _ets_mpos[2], rate);
         if (sys.state == State::Alarm) {
-            log_info("Probe Failed. Are you missing a tool?");
             return false;
         }
         motor_steps_to_mpos(probe_z_mpos, probe_steps);
-        log_info("Probe OK");
         return true;
     }
 

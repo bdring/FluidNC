@@ -1706,7 +1706,11 @@ Error gc_execute_line(char* line) {
 
 //void grbl_msg_sendf(uint8_t client, MsgLevel level, const char* format, ...);
 void gc_exec_linef(bool sync_after, Channel& out, const char* format, ...) {
-    char    loc_buf[100];
+    if (sys.state != State::Idle && sys.state != State::Cycle) {
+        throw std::runtime_error("Invalid atate");
+    }
+
+    char loc_buf[100];
     char*   temp = loc_buf;
     va_list arg;
     va_list copy;
