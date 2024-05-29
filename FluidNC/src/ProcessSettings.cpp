@@ -16,7 +16,7 @@
 #include "MotionControl.h"
 #include "System.h"
 #include "Limits.h"               // homingAxes
-#include "SettingsDefinitions.h"  // build_info
+#include "SettingsDefinitions.h"  // build_info, config_filename
 #include "Protocol.h"             // LINE_BUFFER_SIZE
 #include "UartChannel.h"          // Uart0.write()
 #include "FileStream.h"           // FileStream()
@@ -904,6 +904,14 @@ static Error maslow_start_calibration(const char* value, WebUI::AuthenticationLe
     return Error::Ok;
 }
 
+static Error overwrite_config(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+    if (Maslow.using_default_config) {
+        return Error::ConfigChangeRejected;
+    }
+    // value will be ignored, we will use the config_filename value instead
+    return dump_config(config_filename->get(), auth_level, out);
+}
+
 static Error maslow_TLO(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
     if(Maslow.using_default_config) {
         return Error::ConfigurationInvalid;
@@ -1157,6 +1165,8 @@ void make_user_commands() {
     new UserCommand("BRO", "Maslow/calibrateBRO", maslow_BRO, anyState);
     new UserCommand("BLO", "Maslow/calibrateBLO", maslow_BLO, anyState);
 
+    new UserCommand("CO", "Config/Overwrite", overwrite_config, anyState);
+
     new UserCommand("STOP", "Maslow/stop", maslow_stop, anyState); // experimental
     new UserCommand("WDT", "Maslow/width", maslow_set_width, anyState);
     new UserCommand("HGT", "Maslow/height", maslow_set_height, anyState);
@@ -1168,7 +1178,6 @@ void make_user_commands() {
     new UserCommand("ESTOP", "Maslow/estop", maslow_estop, anyState);
     new UserCommand("HZAxis", "Maslow/homeZ", maslowHomeZ, anyState);
     new UserCommand("MINFO", "Maslow/getInfo", maslow_get_info, anyState);
-
 };
 
 // normalize_key puts a key string into canonical form -
