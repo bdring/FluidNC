@@ -76,6 +76,7 @@ enum class Error : uint8_t {
     BadPinSpecification         = 150,
     BadRuntimeConfigSetting     = 151,
     ConfigurationInvalid        = 152,
+    ConfigChangeRejected        = 153,
     UploadFailed                = 160,
     DownloadFailed              = 161,
 };

@@ -188,6 +188,9 @@ namespace Machine {
         //If the system crashes we skip the config file and use the default
         //builtin config.  This helps prevent reset loops on bad config files.
         esp_reset_reason_t reason = esp_reset_reason();
+
+        // TEST: Uncomment the following to mock an ESP panic reset
+        // reason = ESP_RST_PANIC;
         if (reason == ESP_RST_PANIC) {
             log_error("Skipping configuration file due to panic");
             configOkay = false;

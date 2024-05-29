@@ -906,7 +906,7 @@ static Error maslow_start_calibration(const char* value, WebUI::AuthenticationLe
 
 static Error overwrite_config(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
     if (Maslow.using_default_config) {
-        return Error::ConfigurationInvalid;
+        return Error::ConfigChangeRejected;
     }
     // value will be ignored, we will use the config_filename value instead
     return dump_config(config_filename->get(), auth_level, out);
