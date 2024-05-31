@@ -11,6 +11,8 @@
 
 #include <cstdint>
 
+typedef uint16_t gcodenum_t;
+
 enum class Override : uint8_t {
     ParkingMotion = 0,  // M56 (Default: Must be zero)
     Disabled      = 1,  // Parking disabled.
@@ -52,86 +54,86 @@ enum class ModalGroup : uint8_t {
 
 // Modal Group G0: Non-modal actions
 
-enum class NonModal : uint8_t {
-    NoAction              = 0,    // (Default: Must be zero)
-    Dwell                 = 4,    // G4 (Do not alter value)
-    SetCoordinateData     = 10,   // G10 (Do not alter value)
-    GoHome0               = 28,   // G28 (Do not alter value)
-    SetHome0              = 38,   // G28.1 (Do not alter value)
-    GoHome1               = 30,   // G30 (Do not alter value)
-    SetHome1              = 40,   // G30.1 (Do not alter value)
-    AbsoluteOverride      = 53,   // G53 (Do not alter value)
-    SetCoordinateOffset   = 92,   // G92 (Do not alter value)
-    ResetCoordinateOffset = 102,  //G92.1 (Do not alter value)
+enum class NonModal : gcodenum_t {
+    NoAction              = 0,    // Default
+    Dwell                 = 40,   // G4
+    SetCoordinateData     = 100,  // G10
+    GoHome0               = 280,  // G28
+    SetHome0              = 281,  // G28.1
+    GoHome1               = 300,  // G30
+    SetHome1              = 301,  // G30.1
+    AbsoluteOverride      = 530,  // G53
+    SetCoordinateOffset   = 920,  // G92
+    ResetCoordinateOffset = 921,  // G92.1
 };
 
 // Modal Group G1: Motion modes
-enum class Motion : uint8_t {
-    Seek               = 0,    // G0 (Default: Must be zero)
-    Linear             = 1,    // G1 (Do not alter value)
-    CwArc              = 2,    // G2 (Do not alter value)
-    CcwArc             = 3,    // G3 (Do not alter value)
-    ProbeToward        = 140,  // G38.2 (Do not alter value)
-    ProbeTowardNoError = 141,  // G38.3 (Do not alter value)
-    ProbeAway          = 142,  // G38.4 (Do not alter value)
-    ProbeAwayNoError   = 143,  // G38.5 (Do not alter value)
-    None               = 80,   // G80 (Do not alter value)
+enum class Motion : gcodenum_t {
+    Seek               = 00,   // G0 Default
+    Linear             = 10,   // G1
+    CwArc              = 20,   // G2
+    CcwArc             = 30,   // G3
+    ProbeToward        = 382,  // G38.2
+    ProbeTowardNoError = 383,  // G38.3
+    ProbeAway          = 384,  // G38.4
+    ProbeAwayNoError   = 385,  // G38.5
+    None               = 800,  // G80
 };
 
 // Modal Group G2: Plane select
-enum class Plane : uint8_t {
-    XY = 0,  // G17 (Default: Must be zero)
-    ZX = 1,  // G18 (Do not alter value)
-    YZ = 2,  // G19 (Do not alter value)
+enum class Plane : gcodenum_t {
+    XY = 170,  // G17
+    ZX = 180,  // G18
+    YZ = 190,  // G19
 };
 
 // Modal Group G3: Distance mode
-enum class Distance : uint8_t {
-    Absolute    = 0,  // G90 (Default: Must be zero)
-    Incremental = 1,  // G91 (Do not alter value)
+enum class Distance : gcodenum_t {
+    Absolute    = 900,  // G90 Default
+    Incremental = 910,  // G91
 };
 
 // Modal Group G4: Arc IJK distance mode
-enum class ArcDistance : uint8_t {
-    Incremental = 0,  // G91.1 (Default: Must be zero)
-    Absolute    = 1,
+enum class ArcDistance : gcodenum_t {
+    Incremental = 911,  // G91.1 Default
+    Absolute    = 901,  // G90.1
 };
 
 // Modal Group M4: Program flow
 enum class ProgramFlow : uint8_t {
-    Running      = 0,   // (Default: Must be zero)
+    Running      = 0,   // Default
     Paused       = 3,   // M0
     OptionalStop = 1,   // M1 NOTE: Not supported, but valid and ignored.
-    CompletedM2  = 2,   // M2 (Do not alter value)
-    CompletedM30 = 30,  // M30 (Do not alter value)
+    CompletedM2  = 2,   // M2
+    CompletedM30 = 30,  // M30
 };
 
 // Modal Group G5: Feed rate mode
-enum class FeedRate : uint8_t {
-    UnitsPerMin = 0,  // G94 (Default: Must be zero)
-    InverseTime = 1,  // G93 (Do not alter value)
+enum class FeedRate : gcodenum_t {
+    UnitsPerMin = 940,  // G94 Default
+    InverseTime = 930,  // G93
 };
 
 // Modal Group G6: Units mode
-enum class Units : uint8_t {
-    Mm     = 0,  // G21 (Default: Must be zero)
-    Inches = 1,  // G20 (Do not alter value)
+enum class Units : gcodenum_t {
+    Mm     = 210,  // G21 Default
+    Inches = 200,  // G20
 };
 
 // Modal Group G7: Cutter radius compensation mode
-enum class CutterCompensation : uint8_t {
-    Disable = 0,  // G40 (Default: Must be zero)
-    Enable  = 1,
+enum class CutterCompensation : gcodenum_t {
+    Disable = 400,  // G40 Default
+    Enable  = 410,
 };
 
 // Modal Group G13: Control mode
-enum class ControlMode : uint8_t {
-    ExactPath = 0,  // G61 (Default: Must be zero)
+enum class ControlMode : gcodenum_t {
+    ExactPath = 610,  // G61
 };
 
 // GCodeCoolant is used by the parser, where at most one of
 // M7, M8, M9 may be present in a GCode block
-enum class GCodeCoolant : uint8_t {
+enum class GCodeCoolant : gcodenum_t {
     None = 0,
     M7,
     M8,
@@ -150,7 +152,8 @@ struct CoolantState {
 // Modal Group M9: Override control
 
 // Modal Group M10: User I/O control
-enum class IoControl : uint8_t {
+enum class IoControl : gcodenum_t {
+    None                = 0,
     DigitalOnSync       = 1,  // M62
     DigitalOffSync      = 2,  // M63
     DigitalOnImmediate  = 3,  // M64
@@ -163,14 +166,14 @@ static const int MaxUserDigitalPin = 8;
 static const int MaxUserAnalogPin  = 4;
 
 // Modal Group G8: Tool length offset
-enum class ToolLengthOffset : uint8_t {
-    Cancel        = 0,  // G49 (Default: Must be zero)
-    EnableDynamic = 1,  // G43.1
+enum class ToolLengthOffset : gcodenum_t {
+    Cancel        = 490,  // G49 Default
+    EnableDynamic = 431,  // G43.1
 };
 
 static const uint32_t MaxToolNumber = 99999999;
 
-enum class ToolChange : uint8_t {
+enum class ToolChange : bool {
     Disable = 0,
     Enable  = 1,
 };
@@ -198,6 +201,7 @@ enum class GCodeWord : uint8_t {
     A = 15,
     B = 16,
     C = 17,
+    D = 18,  // For debugging
 };
 
 // GCode parser position updating flags
@@ -209,7 +213,7 @@ enum class GCUpdatePos : uint8_t {
 
 // Various places in the code access saved coordinate system data
 // by a small integer index according to the values below.
-enum CoordIndex : uint8_t {
+enum CoordIndex : uint16_t {
     Begin = 0,
     G54   = Begin,
     G55,
@@ -272,7 +276,7 @@ struct parser_state_t {
 
     float    spindle_speed;  // RPM
     float    feed_rate;      // Millimeters/min
-    uint32_t tool;           // Tracks tool number. NOT USED.
+    uint32_t tool;           // Tracks tool number
     int32_t  line_number;    // Last line number sent
 
     float position[MAX_N_AXIS];  // Where the interpreter considers the tool to be at this point in the code
@@ -311,3 +315,6 @@ void gc_sync_position();
 
 void user_tool_change(uint32_t new_tool);
 void user_m30();
+
+void gc_ngc_changed(CoordIndex coord);
+void gc_wco_changed();

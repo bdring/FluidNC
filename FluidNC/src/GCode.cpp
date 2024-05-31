@@ -16,6 +16,7 @@
 #include "Platform.h"             // WEAK_LINK
 
 #include "Machine/MachineConfig.h"
+#include "Parameters.h"
 
 #include <string.h>  // memset
 #include <math.h>    // sqrt etc.
@@ -35,6 +36,26 @@ static const int32_t MaxLineNumber = 10000000;
 parser_state_t gc_state;
 parser_block_t gc_block;
 
+// clang-format off
+gc_modal_t modal_defaults = {
+    Motion::Seek,
+    FeedRate::UnitsPerMin,
+    Units::Mm,
+    Distance::Absolute,  // G90
+    // ArcDistance::Incremental
+    Plane::XY,
+    // CutterCompensation::Disable,
+    ToolLengthOffset::Cancel,
+    CoordIndex::G54,
+    ProgramFlow::Running,
+    {}, // 0, // CoolantState::M7,
+    SpindleState::Disable,
+    ToolChange::Disable,
+    IoControl::None,
+    Override::ParkingMotion
+};
+// clang-format on
+
 #define FAIL(status) return (status);
 
 void gc_init() {
@@ -42,8 +63,8 @@ void gc_init() {
     memset(&gc_state, 0, sizeof(parser_state_t));
 
     // Load default G54 coordinate system.
-    gc_state.modal.coord_select = CoordIndex::G54;
-    gc_state.modal.override     = config->_start->_deactivateParking ? Override::Disabled : Override::ParkingMotion;
+    gc_state.modal          = modal_defaults;
+    gc_state.modal.override = config->_start->_deactivateParking ? Override::Disabled : Override::ParkingMotion;
     coords[gc_state.modal.coord_select]->get(gc_state.coord_system);
 }
 
@@ -124,11 +145,11 @@ void collapseGCode(char* line) {
     *outPtr = '\0';
 }
 
-static void gc_ngc_changed(CoordIndex coord) {
+void gc_ngc_changed(CoordIndex coord) {
     allChannels.notifyNgc(coord);
 }
 
-static void gc_wco_changed() {
+void gc_wco_changed() {
     if (FORCE_BUFFER_SYNC_DURING_WCO_CHANGE) {
         protocol_buffer_synchronize();
     }
@@ -201,15 +222,21 @@ Error gc_execute_line(char* line) {
     float      value;
     uint8_t    int_value = 0;
     uint16_t   mantissa  = 0;
-    char_counter         = jogMotion ? 3 : 0;  // Start parsing after `$J=` if jogging
-    while (line[char_counter] != 0) {          // Loop until no more g-code words in line.
+    char_counter         = jogMotion ? 3 : 0;        // Start parsing after `$J=` if jogging
+    while ((letter = line[char_counter]) != '\0') {  // Loop until no more g-code words in line.
+        if (letter == '#') {
+            char_counter++;
+            if (!assign_param(line, &char_counter)) {
+                FAIL(Error::BadNumberFormat);
+            }
+            continue;
+        }
         // Import the next g-code word, expecting a letter followed by a value. Otherwise, error out.
-        letter = line[char_counter];
         if ((letter < 'A') || (letter > 'Z')) {
             FAIL(Error::ExpectedCommandLetter);  // [Expected word letter]
         }
         char_counter++;
-        if (!read_float(line, &char_counter, &value)) {
+        if (!read_number(line, &char_counter, value)) {
             FAIL(Error::BadNumberFormat);  // [Expected word value]
         }
         // Convert values to smaller uint8 significand and mantissa values for parsing this word.
@@ -638,7 +665,11 @@ Error gc_execute_line(char* line) {
                             FAIL(Error::GcodeUnsupportedCommand);
                         }
                         break;
-                    // case 'D': // Not supported
+
+                    case 'D':  // Unsupported word used for parameter debugging
+                        axis_word_bit = GCodeWord::D;
+                        log_info("Value is " << value);
+                        break;
                     case 'E':
                         axis_word_bit     = GCodeWord::E;
                         gc_block.values.e = int_value;
@@ -1324,6 +1355,7 @@ Error gc_execute_line(char* line) {
                    (bitnum_to_mask(GCodeWord::X) | bitnum_to_mask(GCodeWord::Y) | bitnum_to_mask(GCodeWord::Z) |
                     bitnum_to_mask(GCodeWord::A) | bitnum_to_mask(GCodeWord::B) | bitnum_to_mask(GCodeWord::C)));  // Remove axis words.
     }
+    clear_bits(value_words, bitnum_to_mask(GCodeWord::D));
     if (value_words) {
         FAIL(Error::GcodeUnusedWords);  // [Unused words]
     }
@@ -1692,6 +1724,8 @@ Error gc_execute_line(char* line) {
             break;
     }
     gc_state.modal.program_flow = ProgramFlow::Running;  // Reset program flow.
+
+    perform_assignments();
 
     // TODO: % to denote start of program.
     return Error::Ok;
