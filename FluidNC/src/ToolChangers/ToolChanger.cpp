@@ -57,21 +57,22 @@ namespace ToolChangers {
         _is_OK                   = true;
         _have_tool_setter_offset = false;
         _prev_tool               = gc_state.tool;
+        gc_exec_linef(false, Uart0, "G43.1Z0.0");  // Reset TLO
     }
 
     bool ToolChanger::tool_change(uint8_t new_tool, bool pre_select) {
         bool spindle_was_on = false;
 
+        if (new_tool == 0) {  // M6T0 is used to reset this ATC
+            log_info("ATC values reset");
+            reset();
+            return true;
+        }
+
         if (pre_select) {  // user just send a T value (no M6)
                            // If T=0 reset
             _prev_tool = new_tool;
             log_info("Current tool changed to:" << new_tool);
-            return true;
-        }
-
-        if (new_tool == 0) {  // M6T0 is used to reset this ATC
-            log_info("ATC values reset");
-            reset();
             return true;
         }
 
@@ -188,6 +189,7 @@ namespace ToolChangers {
     }
 
     bool ToolChanger::seek_probe() {
+        gc_exec_linef(true, Uart0, "G53G0Z%0.3f", _ets_rapid_z_mpos);
         if (_probe_seek_rate > _probe_feed_rate) {
             float probe_mpos[6];
             if (!probe(_probe_seek_rate, probe_mpos)) {

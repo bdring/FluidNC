@@ -1710,7 +1710,7 @@ void gc_exec_linef(bool sync_after, Channel& out, const char* format, ...) {
         throw std::runtime_error("Invalid atate");
     }
 
-    char loc_buf[100];
+    char    loc_buf[100];
     char*   temp = loc_buf;
     va_list arg;
     va_list copy;
@@ -1727,7 +1727,7 @@ void gc_exec_linef(bool sync_after, Channel& out, const char* format, ...) {
     }
     len = vsnprintf(temp, len + 1, format, arg);
 
-    //log_debug("gc_exec_linef:" << temp);
+    //log_info("gc_exec_linef:" << temp);
 
     gc_execute_line(temp);
 

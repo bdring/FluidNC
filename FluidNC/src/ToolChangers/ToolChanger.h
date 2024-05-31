@@ -6,12 +6,13 @@
 namespace ToolChangers {
     class ToolChanger : public Configuration::Configurable {
     private:
-        uint8_t            _prev_tool       = 0;  // TODO This could be a NV setting
-        float              _safe_z          = 50.0;
-        float              _probe_seek_rate = 200.0;
-        float              _probe_feed_rate = 80.0;
-        std::vector<float> _ets_mpos = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
-        std::vector<float> _change_mpos = { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 }; // manual tool change location
+        uint8_t            _prev_tool               = 0;  // TODO This could be a NV setting
+        float              _safe_z                  = 50.0;
+        float              _probe_seek_rate         = 200.0;
+        float              _probe_feed_rate         = 80.0;
+        std::vector<float> _ets_mpos                = { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 };
+        std::vector<float> _change_mpos             = { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 };  // manual tool change location
+        float              _ets_rapid_z_mpos        = 0;
         bool               _is_OK                   = false;
         bool               _have_tool_setter_offset = false;
         float              _tool_setter_offset      = 0.0;  // have we established an offset.
@@ -48,6 +49,7 @@ namespace ToolChangers {
             handler.item("probe_feed_rate_mm_per_min", _probe_feed_rate, 1, 10000);
             handler.item("change_mpos_mm", _change_mpos);
             handler.item("ets_mpos_mm", _ets_mpos);
+            handler.item("ets_rapid_z_mpos_mm", _ets_rapid_z_mpos);
         }
 
         using ChangerFactory = Configuration::GenericFactory<ToolChanger>;
