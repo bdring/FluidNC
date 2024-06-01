@@ -340,18 +340,18 @@ bool get_param(const param_ref_t& param_ref, float& result) {
     return get_numbered_param(param_ref.id, result);
 }
 
-bool get_param_ref(const char* line, size_t* cntp, param_ref_t& param_ref) {
+bool get_param_ref(const char* line, size_t* pos, param_ref_t& param_ref) {
     // Entry condition - the previous character was #
-    char  c = line[*cntp];
+    char  c = line[*pos];
     float result;
 
-    // c is the first character and *cntp still points to it
+    // c is the first character and *pos still points to it
     switch (c) {
         case '#': {
             // Indirection resulting in param number
             param_ref_t next_param_ref;
-            ++*cntp;
-            if (!get_param_ref(line, cntp, next_param_ref)) {
+            ++*pos;
+            if (!get_param_ref(line, pos, next_param_ref)) {
                 return false;
             }
             if (!get_param(next_param_ref, result)) {
@@ -362,27 +362,30 @@ bool get_param_ref(const char* line, size_t* cntp, param_ref_t& param_ref) {
             return true;
         case '<':
             // Named parameter
-            ++*cntp;
-            while ((c = line[*cntp]) && c != '>') {
-                ++*cntp;
+            ++*pos;
+            while ((c = line[*pos]) && c != '>') {
+                ++*pos;
                 param_ref.name += c;
             }
             if (!c) {
                 return false;
             }
-            ++*cntp;
+            ++*pos;
             return true;
-        case '[':
+        case '[': {
             // Expression evaluating to param number
-            ++*cntp;
-            if (expression(line, cntp, result) != Error::Ok) {
+            ++*pos;
+            Error status = expression(line, pos, result);
+            if (status != Error::Ok) {
+                log_debug(errorString(status));
                 return false;
             }
             param_ref.id = result;
             return true;
+        }
         default:
             // Param number
-            if (!read_float(line, cntp, result)) {
+            if (!read_float(line, pos, result)) {
                 return false;
             }
             param_ref.id = result;
@@ -417,7 +420,12 @@ bool read_number(const char* line, size_t* pos, float& result, bool in_expressio
         return get_param(param_ref, result);
     }
     if (c == '[') {
-        return expression(line, pos, result) == Error::Ok;
+        Error status = expression(line, pos, result);
+        if (status != Error::Ok) {
+            log_debug(errorString(status));
+            return false;
+        }
+        return true;
     }
     if (in_expression) {
         if (isalpha(c)) {
