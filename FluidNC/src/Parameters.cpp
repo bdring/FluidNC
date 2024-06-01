@@ -202,6 +202,11 @@ bool get_system_param(const std::string& name, float& result) {
         result = gc_state.modal.spindle == SpindleState::Cw;
         return true;
     }
+    if (sysn == "_spindle_m") {
+        result = static_cast<int>(gc_state.modal.spindle);
+        return true;
+    }
+
     if (sysn == "_mist") {
         result = gc_state.modal.coolant.Mist;
         return true;
