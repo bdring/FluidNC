@@ -14,14 +14,7 @@
 #include <string>
 #include <map>
 
-bool expression(const char* line, size_t* char_counter, float& result) {
-    char c;
-    do {
-        c = line[*char_counter];
-        ++*char_counter;
-    } while (c != ']');
-    return false;
-}
+#include "Expression.h"
 
 // clang-format off
 const std::map<const int, bool *> bool_params = {
@@ -310,6 +303,29 @@ bool get_system_param(const std::string& name, float& result) {
     return false;
 }
 
+// The LinuxCNC doc says that the EXISTS syntax is like EXISTS[#<_foo>]
+// For convenience, we also allow EXISTS[_foo]
+bool named_param_exists(std::string& name) {
+    std::string search;
+    if (name.length() > 3 && name[0] == '#' && name[1] == '<' && name.back() == '>') {
+        search = name.substr(2, name.length() - 3);
+    } else {
+        search = name;
+    }
+    if (search.length() == 0) {
+        return false;
+    }
+    if (search[0] == '/') {
+        float dummy;
+        return get_config_item(search, dummy);
+    }
+    if (search[0] == '_') {
+        float dummy;
+        return get_system_param(search, dummy);
+    }
+    return named_params.count(search) != 0;
+}
+
 bool get_param(const param_ref_t& param_ref, float& result) {
     if (param_ref.name.length()) {
         if (param_ref.name[0] == '/') {
@@ -359,7 +375,7 @@ bool get_param_ref(const char* line, size_t* cntp, param_ref_t& param_ref) {
         case '[':
             // Expression evaluating to param number
             ++*cntp;
-            if (!expression(line, cntp, result)) {
+            if (expression(line, cntp, result) != Error::Ok) {
                 return false;
             }
             param_ref.id = result;
@@ -390,33 +406,56 @@ void set_param(const param_ref_t& param_ref, float value) {
 }
 
 // Gets a numeric value, either a literal number or a #-prefixed parameter value
-bool read_number(const char* line, size_t* char_counter, float& result) {
-    if (line[*char_counter] == '#') {
-        ++*char_counter;
+bool read_number(const char* line, size_t* pos, float& result, bool in_expression) {
+    char c = line[*pos];
+    if (c == '#') {
+        ++*pos;
         param_ref_t param_ref;
-        if (!get_param_ref(line, char_counter, param_ref)) {
+        if (!get_param_ref(line, pos, param_ref)) {
             return false;
         }
-        return get_param(param_ref, result));
+        return get_param(param_ref, result);
     }
-    return read_float(line, char_counter, result);
+    if (c == '[') {
+        return expression(line, pos, result) == Error::Ok;
+    }
+    if (in_expression) {
+        if (isalpha(c)) {
+            // Functions are available only inside expressions because
+            // their names conflict with GCode words
+            return read_unary(line, pos, result) == Error::Ok;
+        }
+        if (c == '-') {
+            ++*pos;
+            if (!read_number(line, pos, result, in_expression)) {
+                return false;
+            }
+            result = -result;
+            return true;
+        }
+        if (c == '+') {
+            ++*pos;
+            return read_number(line, pos, result, in_expression);
+        }
+    }
+    return read_float(line, pos, result);
 }
 
 // Process a #PREF=value assignment, with the initial # already consumed
-bool assign_param(const char* line, size_t* cntp) {
+bool assign_param(const char* line, size_t* pos) {
     param_ref_t param_ref;
 
-    if (!get_param_ref(line, cntp, param_ref)) {
+    if (!get_param_ref(line, pos, param_ref)) {
         return false;
     }
-    if (line[*cntp] != '=') {
+    if (line[*pos] != '=') {
         log_debug("Missing =");
         return false;
     }
-    ++*cntp;
+    ++*pos;
 
     float value;
-    if (!read_number(line, cntp, value)) {
+    if (!read_number(line, pos, value)) {
         log_debug("Missing value");
         return false;
     }
