@@ -54,9 +54,6 @@ static void protocol_exec_rt_suspend();
 
 static char line[LINE_BUFFER_SIZE];     // Line to be executed. Zero-terminated.
 static char comment[LINE_BUFFER_SIZE];  // Line to be executed. Zero-terminated.
-// static uint8_t line_flags           = 0;
-// static uint8_t char_counter         = 0;
-// static uint8_t comment_char_counter = 0;
 
 // Spindle stop override control states.
 struct SpindleStopBits {

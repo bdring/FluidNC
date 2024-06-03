@@ -4,7 +4,9 @@
 #pragma once
 
 #include <stddef.h>
+#include <string>
 
-bool assign_param(const char* line, size_t* char_counter);
-bool read_number(const char* line, size_t* char_counter, float& value);
+bool assign_param(const char* line, size_t* pos);
+bool read_number(const char* line, size_t* pos, float& value, bool in_expression = false);
 void perform_assignments();
+bool named_param_exists(std::string& name);

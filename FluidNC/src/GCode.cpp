@@ -217,16 +217,16 @@ Error gc_execute_line(char* line) {
        words, and for negative values set for the value words F, N, P, T, and S. */
     ModalGroup mg_word_bit;  // Bit-value for assigning tracking variables
     uint32_t   bitmask = 0;
-    size_t     char_counter;
+    size_t     pos;
     char       letter;
     float      value;
     uint8_t    int_value = 0;
     uint16_t   mantissa  = 0;
-    char_counter         = jogMotion ? 3 : 0;        // Start parsing after `$J=` if jogging
-    while ((letter = line[char_counter]) != '\0') {  // Loop until no more g-code words in line.
+    pos                  = jogMotion ? 3 : 0;  // Start parsing after `$J=` if jogging
+    while ((letter = line[pos]) != '\0') {     // Loop until no more g-code words in line.
         if (letter == '#') {
-            char_counter++;
-            if (!assign_param(line, &char_counter)) {
+            pos++;
+            if (!assign_param(line, &pos)) {
                 FAIL(Error::BadNumberFormat);
             }
             continue;
@@ -235,8 +235,8 @@ Error gc_execute_line(char* line) {
         if ((letter < 'A') || (letter > 'Z')) {
             FAIL(Error::ExpectedCommandLetter);  // [Expected word letter]
         }
-        char_counter++;
-        if (!read_number(line, &char_counter, value)) {
+        pos++;
+        if (!read_number(line, &pos, value)) {
             FAIL(Error::BadNumberFormat);  // [Expected word value]
         }
         // Convert values to smaller uint8 significand and mantissa values for parsing this word.

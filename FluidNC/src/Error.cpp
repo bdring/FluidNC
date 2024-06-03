@@ -78,4 +78,9 @@ const std::map<Error, const char*> ErrorNames = {
     { Error::UploadFailed, "File Upload Failed" },
     { Error::DownloadFailed, "File Download Failed" },
     { Error::ReadOnlySetting, "Read-only setting" },
+    { Error::ExpressionDivideByZero, "Expression Divide By Zero" },
+    { Error::ExpressionInvalidArgument, "Expression Invalid Argument" },
+    { Error::ExpressionUnknownOp, "Expression Unknown Operator" },
+    { Error::ExpressionArgumentOutOfRange, "Expression Argument Out of Range" },
+    { Error::ExpressionSyntaxError, "Expression Syntax Error" },
 };
