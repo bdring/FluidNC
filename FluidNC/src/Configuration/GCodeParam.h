@@ -43,6 +43,7 @@ namespace Configuration {
         void item(const char* name, Pin& value) override;
         void item(const char* name, IPAddress& value) override;
         void item(const char* name, int& value, const EnumItem* e) override;
+        void item(const char* name, Macro& value) override;
 
         std::string setting_prefix();
 

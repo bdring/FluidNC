@@ -14,7 +14,9 @@ namespace Configuration {
         start_ = setting_;
     }
 
-    void GCodeParam::error() { Assert(false, "Non-numeric config item"); }
+    void GCodeParam::error() {
+        Assert(false, "Non-numeric config item");
+    }
 
     void GCodeParam::enterSection(const char* name, Configuration::Configurable* value) {
         if (is(name) && !isHandled_) {
@@ -119,6 +121,12 @@ namespace Configuration {
     }
 
     void GCodeParam::item(const char* name, Pin& value) {
+        if (is(name)) {
+            error();
+        }
+    }
+
+    void GCodeParam::item(const char* name, Macro& value) {
         if (is(name)) {
             error();
         }
