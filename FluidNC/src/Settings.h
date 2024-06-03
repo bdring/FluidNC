@@ -234,7 +234,12 @@ public:
     void get(float* value) { memcpy(value, _currentValue, sizeof(_currentValue)); }
     // Return a pointer to the array
     const float* get() { return _currentValue; }
-    void         set(float* value);
+    // Get an individual component
+    const float get(int axis) { return _currentValue[axis]; }
+    // Set an individual component
+    void set(int axis, float value) { _currentValue[axis] = value; }
+
+    void set(float* value);
 };
 
 extern Coordinates* coords[CoordIndex::End];

@@ -268,8 +268,13 @@ void StringSetting::addWebui(WebUI::JSONencoder* j) {
 // typedef std::map<const char*, int8_t, cmp_str> enum_opt_t;
 // typedef std::map<const char*, int8_t, std::less<>> enum_opt_t;
 
-EnumSetting::EnumSetting(
-    const char* description, type_t type, permissions_t permissions, const char* grblName, const char* name, int8_t defVal, const enum_opt_t* opts) :
+EnumSetting::EnumSetting(const char*       description,
+                         type_t            type,
+                         permissions_t     permissions,
+                         const char*       grblName,
+                         const char*       name,
+                         int8_t            defVal,
+                         const enum_opt_t* opts) :
     Setting(description, type, permissions, grblName, name),
     _defaultValue(defVal), _options(opts) {}
 
@@ -300,7 +305,7 @@ Error EnumSetting::setStringValue(std::string_view s) {
         return err;
     }
     trim(s);
-    std::string          str(s);
+    std::string                str(s);
     enum_opt_t::const_iterator it = _options->find(str.c_str());
     if (it == _options->end()) {
         // If we don't find the value in keys, look for it in the numeric values
@@ -371,7 +376,7 @@ void EnumSetting::addWebui(WebUI::JSONencoder* j) {
     }
     j->begin_webui(getName(), getName(), "B", get());
     j->begin_array("O");
-    for (enum_opt_t:: const_iterator it = _options->begin(); it != _options->end(); it++) {
+    for (enum_opt_t::const_iterator it = _options->begin(); it != _options->end(); it++) {
         j->begin_object();
         j->member(it->first, it->second);
         j->end_object();
