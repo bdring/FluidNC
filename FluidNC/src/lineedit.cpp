@@ -14,10 +14,10 @@ void Lineedit::emit(char c) {
 }
 
 void Lineedit::echo_line() {
-    for (char* p = startaddr; p < endaddr; ++p) {
+    for (const char* p = startaddr; p < endaddr; ++p) {
         emit(*p);
     }
-    for (char* p = endaddr; p > thisaddr; --p) {
+    for (const char* p = endaddr; p > thisaddr; --p) {
         emit('\b');
     }
 }
@@ -161,9 +161,9 @@ void Lineedit::add_to_history(char* adr, int len) {
 // history_num is the number of the history line to fetch
 // returns true if that line exists.
 bool Lineedit::get_history(int history_num) {
-    int   i;
-    int   hn;
-    char* p;
+    int         i;
+    int         hn;
+    const char* p;
 
     validate_history();
 
@@ -237,7 +237,7 @@ void Lineedit::kill_forward() {
     *p = '\0';
 }
 void Lineedit::yank() {
-    for (char* p = killbuf; *p; ++p) {
+    for (const char* p = killbuf; *p; ++p) {
         addchar(*p);
     }
 }
@@ -291,7 +291,7 @@ bool Lineedit::find_word_under_cursor() {
     return true;
 }
 
-extern int num_initial_matches(char* key, int keylen, int matchnum, char* matchname);
+extern int num_initial_matches(const char* key, int keylen, int matchnum, char* matchname);
 
 void Lineedit::color(const char* s) {
     emit(0x1b);

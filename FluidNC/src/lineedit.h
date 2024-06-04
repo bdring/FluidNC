@@ -68,7 +68,7 @@ private:
     void kill_forward();
     void yank();
     void backward_word();
-    bool isdelim(char* addr);
+    bool isdelim(const char* addr);
     bool find_word_under_cursor();
     void color(const char* s);
     void cyan();
