@@ -16,6 +16,7 @@ bool isSD(const char* mountpoint) {
 bool isLittleFS(const char* mountpoint) {
     return !strcmp(mountpoint, "littlefs");
 }
+// cppcheck-suppress unusedFunction
 bool fluidnc_vfs_stats(const char* mountpoint, uint64_t& total, uint64_t& used) {
     if (isSD(mountpoint)) {
         FATFS* fsinfo;

@@ -44,11 +44,11 @@ void Lineedit::addchar(char c, bool echo) {
 }
 
 void Lineedit::erase_char() {
-    char* p;
     if (thisaddr > startaddr) {
         --thisaddr;
         --endaddr;
         emit('\b');
+        char* p;
         for (p = thisaddr; p < endaddr; p++) {
             *p = *(p + 1);
             emit(*p);
@@ -267,7 +267,8 @@ void Lineedit::backward_word() {
 }
 
 #ifndef NO_COMPLETION
-bool Lineedit::isdelim(char* addr) {
+// cppcheck-suppress unusedFunction
+bool Lineedit::isdelim(const char* addr) {
     return (addr < startaddr) || (addr == endaddr) || is_word_delim(*addr);
 }
 
@@ -412,6 +413,7 @@ void Lineedit::show_realtime_command(const char* s) {
 
 // public
 
+// cppcheck-suppress unusedFunction
 int Lineedit::finish() {
     int length = (int)(endaddr - startaddr);
     add_to_history(startaddr, length);
@@ -426,6 +428,7 @@ int Lineedit::finish() {
 // of the line that is being collected.
 // Returns true if the character should be treated as realtime.
 
+// cppcheck-suppress unusedFunction
 bool Lineedit::realtime(int c) {
     if (!editing) {
         return true;
@@ -456,6 +459,7 @@ bool Lineedit::realtime(int c) {
 }
 
 // Returns true when the line is complete
+// cppcheck-suppress unusedFunction
 bool Lineedit::step(int c) {
     // Regardless of editing mode, ^L turns off editing/echoing
     if (c == CTRL('l')) {
