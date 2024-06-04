@@ -12,6 +12,7 @@
 #include "../Kinematics/Kinematics.h"
 #include "../WebUI/BTConfig.h"
 #include "../Extenders/Extenders.h"
+
 #include "../Control.h"
 #include "../Probe.h"
 #include "../Parking.h"
@@ -24,6 +25,7 @@
 #include "../UartChannel.h"
 #include "../Uart.h"
 #include "../Listeners/SysListener.h"
+
 #include "Axes.h"
 #include "SPIBus.h"
 #include "I2CBus.h"
@@ -61,21 +63,22 @@ namespace Machine {
     public:
         MachineConfig() = default;
 
-        Axes*                      _axes           = nullptr;
-        Kinematics*                _kinematics     = nullptr;
-        SPIBus*                    _spi            = nullptr;
-        I2CBus*                    _i2c[MAX_N_I2C] = { nullptr };
-        I2SOBus*                   _i2so           = nullptr;
-        Stepping*                  _stepping       = nullptr;
-        CoolantControl*            _coolant        = nullptr;
-        Probe*                     _probe          = nullptr;
-        Control*                   _control        = nullptr;
-        UserOutputs*               _userOutputs    = nullptr;
-        SDCard*                    _sdCard         = nullptr;
-        Macros*                    _macros         = nullptr;
-        Start*                     _start          = nullptr;
-        Parking*                   _parking        = nullptr;
-        OLED*                      _oled           = nullptr;
+        Axes*                 _axes           = nullptr;
+        Kinematics*           _kinematics     = nullptr;
+        SPIBus*               _spi            = nullptr;
+        I2CBus*               _i2c[MAX_N_I2C] = { nullptr };
+        I2SOBus*              _i2so           = nullptr;
+        Stepping*             _stepping       = nullptr;
+        CoolantControl*       _coolant        = nullptr;
+        Probe*                _probe          = nullptr;
+        Control*              _control        = nullptr;
+        UserOutputs*          _userOutputs    = nullptr;
+        SDCard*               _sdCard         = nullptr;
+        Macros*               _macros         = nullptr;
+        Start*                _start          = nullptr;
+        Parking*              _parking        = nullptr;
+        OLED*                 _oled           = nullptr;
+
         Listeners::SysListenerList _sysListeners;
         Spindles::SpindleList      _spindles;
         Extenders::Extenders*      _extenders = nullptr;
@@ -112,9 +115,12 @@ namespace Machine {
         void afterParse() override;
         void group(Configuration::HandlerBase& handler) override;
 
+        // Maslow M4 Specific
+        void groupM4Items(Configuration::HandlerBase& handler);
+
         static bool load();
-        static bool load(const char* file);
-        static bool load(StringRange* input);
+        static bool load_file(const char* filename);
+        static bool load_yaml(StringRange* input);
 
         ~MachineConfig();
     };
