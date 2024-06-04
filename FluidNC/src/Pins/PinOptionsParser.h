@@ -55,8 +55,8 @@ namespace Pins {
 
     // This parses the options passed to the Pin class.
     class PinOptionsParser {
-        const char* _buffer;
-        const char* _bufferEnd;
+        const char* _buffer = nullptr;
+        const char* _bufferEnd = nullptr;
 
     public:
         PinOptionsParser(const char* buffer, const char* endBuffer);

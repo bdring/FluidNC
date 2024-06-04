@@ -8,7 +8,9 @@
 #include <cstdlib>
 
 namespace Pins {
-    PinOption::PinOption(const char* start, const char* end) : _start(start), _end(end), _key(start), _value(start) { tokenize(); }
+    PinOption::PinOption(const char* start, const char* end) : _start(start), _end(end), _key(start), _value(start) {
+        tokenize();
+    }
 
     // Copy the value into a null-terminated string, converting to lower case
     const char* PinOption::value() const {
@@ -70,6 +72,7 @@ namespace Pins {
         }
     }
 
+    // cppcheck-suppress unusedFunction
     bool PinOption::is(const char* option) const {
         const char* k = _key;
         while (*option && k != _keyend) {
@@ -83,11 +86,13 @@ namespace Pins {
         return !*option && k == _keyend;
     }
 
+    // cppcheck-suppress unusedFunction
     int PinOption::iValue() const {
         // Parse to integer
         return ::atoi(value());
     }
 
+    // cppcheck-suppress unusedFunction
     double PinOption::dValue() const {
         // Parse to integer
         return ::atof(value());

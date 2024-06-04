@@ -35,12 +35,14 @@ namespace string_util {
         return end == s.cend();
     }
 
+    // cppcheck-suppress unusedFunction
     bool is_uint(std::string_view s, uint32_t& value) {
         char* end;
         value = std::strtoul(s.cbegin(), &end, 10);
         return end == s.cend();
     }
 
+    // cppcheck-suppress unusedFunction
     bool is_float(std::string_view s, float& value) {
         char* end;
         value = std::strtof(s.cbegin(), &end);

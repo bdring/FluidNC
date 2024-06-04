@@ -8,7 +8,7 @@
 
 class UTF8 {
 private:
-    uint32_t _num;
+    uint32_t _num = 0;
     int      _state = 0;
 
 public:

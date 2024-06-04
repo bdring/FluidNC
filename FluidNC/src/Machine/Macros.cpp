@@ -17,17 +17,17 @@ const MacroEvent macro1Event { 1 };
 const MacroEvent macro2Event { 2 };
 const MacroEvent macro3Event { 3 };
 
-Macro Macros::_startup = { "Startup" };
+Macro Macros::_startup { "Startup" };
 Macro Macros::_macro[] = {
-    { "Macro0" },
-    { "Macro1" },
-    { "Macro2" },
-    { "Macro3" },
+    Macro { "Macro0" },
+    Macro { "Macro1" },
+    Macro { "Macro2" },
+    Macro { "Macro3" },
 };
 
-Macro Macros::_after_homing = { "after_homing" };
-Macro Macros::_after_reset  = { "after_reset" };
-Macro Macros::_after_unlock = { "after_unlock" };
+Macro Macros::_after_homing { "after_homing" };
+Macro Macros::_after_reset { "after_reset" };
+Macro Macros::_after_unlock { "after_unlock" };
 
 // clang-format off
 const std::map<std::string, Cmd> overrideCodes = {

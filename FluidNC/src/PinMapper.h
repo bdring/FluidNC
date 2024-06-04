@@ -18,10 +18,10 @@ public:
     PinMapper();
 
     // Constructor that maps a pin to some Arduino pin ID
-    PinMapper(Pin& pin);
+    explicit PinMapper(Pin& pin);
 
     // We do not want object copies
-    PinMapper(const Pin& o) = delete;
+    PinMapper(const Pin& o)            = delete;
     PinMapper& operator=(const Pin& o) = delete;
 
     // For return values, we have to add some move semantics. This is just to

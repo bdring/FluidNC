@@ -31,3 +31,5 @@ dist/
 *.cppx
 *.hx
 /compile_commands.json
+data-wmb/
+*#

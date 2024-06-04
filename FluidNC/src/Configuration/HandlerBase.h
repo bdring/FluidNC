@@ -65,10 +65,8 @@ namespace Configuration {
                 // For Parser, matchesUninitialized(name) resolves to _parser.is(name)
                 if (matchesUninitialized(name)) {
                     Assert(value == nullptr, "Duplicate section %s", name);
-                    if (value == nullptr) {
-                        value = new T(args...);
-                        enterSection(name, value);
-                    }
+                    value = new T(args...);
+                     enterSection(name, value);
                 }
             } else {
                 if (value != nullptr) {

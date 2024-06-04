@@ -85,7 +85,7 @@ typedef enum {
 \param rhs pointer to the right hand side operand.
 \returns #Error::Ok enum value if processed without error, appropriate \ref Error enum value if not.
 */
-static Error execute_binary1(float& lhs, ngc_binary_op_t operation, float& rhs) {
+static Error execute_binary1(float& lhs, ngc_binary_op_t operation, const float& rhs) {
     Error status = Error::Ok;
 
     switch (operation) {
@@ -131,7 +131,7 @@ Any non-zero input value is taken as meaning true, and only 0.0 means false.
 \param rhs pointer to the right hand side operand.
 \returns #Error::Ok enum value if processed without error, appropriate \ref Error enum value if not.
 */
-static Error execute_binary2(float& lhs, ngc_binary_op_t operation, float& rhs) {
+static Error execute_binary2(float& lhs, ngc_binary_op_t operation, const float& rhs) {
     switch (operation) {
         case NGCBinaryOp_And2:
             lhs = ((lhs == 0.0f) || (rhs == 0.0f)) ? 0.0f : 1.0f;
@@ -197,7 +197,7 @@ This just calls either execute_binary1 or execute_binary2.
 \param rhs pointer to the right hand side operand.
 \returns #Error::Ok enum value if processed without error, appropriate \ref Error enum value if not.
 */
-static Error execute_binary(float& lhs, ngc_binary_op_t operation, float& rhs) {
+static Error execute_binary(float& lhs, ngc_binary_op_t operation, const float& rhs) {
     if (operation <= NGCBinaryOp_Binary2)
         return execute_binary1(lhs, operation, rhs);
 
@@ -594,6 +594,7 @@ handled specially because it is followed by two arguments.
 \param value pointer to float where result is to be stored.
 \returns #Error::Ok enum value if processed without error, appropriate \ref Error enum value if not.
 */
+// cppcheck-suppress unusedFunction
 Error read_unary(const char* line, size_t* pos, float& value) {
     ngc_unary_op_t operation;
     Error          status;
@@ -616,7 +617,7 @@ Error read_unary(const char* line, size_t* pos, float& value) {
             return Error::ExpressionSyntaxError;
         }
         ++*pos;
-        value = named_param_exists(arg);
+        value = named_param_exists(arg) ? 1.0 : 0.0;
         return Error::Ok;
     }
     if ((status = expression(line, pos, value)) != Error::Ok) {

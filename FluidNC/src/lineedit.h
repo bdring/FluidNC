@@ -36,15 +36,16 @@ private:
     char* endaddr;
     char* maxaddr;
 
-    int  saved_length;
-    char lastline[MAXHISTORY];
+    int saved_length = 0;
+    ;
+    char lastline[MAXHISTORY] = { 0 };
 
     char killbuf[100] = { 0 };
 
-    char theWord[100];
+    char theWord[100] = { 0 };
 
-    int nmatches = 0;
-    int matchlen;
+    int nmatches  = 0;
+    int matchlen  = 0;
     int thismatch = 0;
 
     int escaping;

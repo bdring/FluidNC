@@ -164,7 +164,7 @@ TEST(PinOptionsParser, TwoArgWithValues) {
     test_for_loop(parser);
 }
 
-static void test_for_loop(PinOptionsParser& parser) {
+static void test_for_loop(const PinOptionsParser& parser) {
     // Typical use is a for loop. Let's test the two ways to use it:
     int ctr = 0;
     for (auto it : parser) {
@@ -179,7 +179,7 @@ static void test_for_loop(PinOptionsParser& parser) {
     }
 }
 
-static void test_for_loop_only_first(PinOptionsParser& parser) {
+static void test_for_loop_only_first(const PinOptionsParser& parser) {
     // Typical use is a for loop. Let's test the two ways to use it:
     int ctr = 0;
     for (auto it : parser) {

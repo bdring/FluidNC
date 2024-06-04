@@ -3,6 +3,7 @@
 #include "wdt.h"
 #include "src/Config.h"
 
+// cppcheck-suppress unusedFunction
 bool spiffs_format(const char* partition_label) {
     disable_core0_WDT();
     esp_err_t err = esp_spiffs_format(partition_label);
@@ -13,6 +14,7 @@ bool spiffs_format(const char* partition_label) {
     }
     return false;
 }
+// cppcheck-suppress unusedFunction
 bool spiffs_mount(const char* label, bool format) {
     esp_log_level_set("SPIFFS", ESP_LOG_NONE);
     esp_vfs_spiffs_conf_t conf = { .base_path = "/spiffs", .partition_label = label, .max_files = 2, .format_if_mount_failed = format };
@@ -23,6 +25,7 @@ bool spiffs_mount(const char* label, bool format) {
     }
     return false;
 }
+// cppcheck-suppress unusedFunction
 void spiffs_unmount() {
     esp_vfs_spiffs_unregister("spiffs");
 }

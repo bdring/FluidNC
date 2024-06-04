@@ -11,7 +11,7 @@ struct EnumItem {
     EnumItem() {} 
 
     // Set enumItem with a default value as last item in the EnumItem array. This is the terminator.
-    EnumItem(int defaultValue) : value(defaultValue), name(nullptr) {}
+    explicit EnumItem(int defaultValue) : value(defaultValue), name(nullptr) {}
 
     // Other items are here.
     EnumItem(int val, const char* n) : value(val), name(n) {}

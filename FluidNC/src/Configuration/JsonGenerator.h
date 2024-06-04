@@ -32,7 +32,7 @@ namespace Configuration {
         HandlerType handlerType() override { return HandlerType::Generator; }
 
     public:
-        JsonGenerator(WebUI::JSONencoder& encoder);
+        explicit JsonGenerator(WebUI::JSONencoder& encoder);
 
         void item(const char* name, bool& value) override;
         void item(const char* name, int& value, const int32_t minValue, const int32_t maxValue) override;

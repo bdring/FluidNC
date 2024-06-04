@@ -26,7 +26,7 @@ namespace Pins {
         void          setAttr(PinAttributes value) override;
         PinAttributes getAttr() const override;
 
-        void registerEvent(EventPin* obj);
+        void registerEvent(EventPin* obj) override;
 
         std::string toString() override;
 

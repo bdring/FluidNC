@@ -23,8 +23,8 @@ void Lineedit::echo_line() {
 }
 
 void Lineedit::addchar(char c, bool echo) {
-    char* p;
     if (thisaddr < maxaddr) {
+        char* p;
         if (endaddr < maxaddr)
             ++endaddr;
         for (p = endaddr; --p >= thisaddr + 1;) {
@@ -134,11 +134,11 @@ bool Lineedit::already_in_history(char* adr, int len) {
 }
 
 void Lineedit::add_to_history(char* adr, int len) {
-    int i;
-    int new_length;
-
     validate_history();
     if (len && !already_in_history(adr, len)) {
+        int i;
+        int new_length;
+
         len += 1;  // Room for null
         new_length = (len > MAXHISTORY) ? MAXHISTORY : len;
 
@@ -276,8 +276,8 @@ bool Lineedit::find_word_under_cursor() {
     if (startaddr == endaddr || *startaddr != '$') {
         return false;
     }
-    int   i    = 0;
-    char* addr = startaddr + 1;
+    int         i    = 0;
+    const char* addr = startaddr + 1;
     while (addr < thisaddr && i < (100 - 1)) {
         theWord[i++] = *addr++;
     }
@@ -360,7 +360,7 @@ void Lineedit::propose_word() {
     char name[100];
     name[0]         = '\0';
     int len         = strlen(theWord);
-    int nmatches    = num_initial_matches(theWord, len, thismatch, name);
+    nmatches        = num_initial_matches(theWord, len, thismatch, name);
     int newmatchlen = strlen(name);
 
     while (matchlen > len) {
@@ -391,7 +391,6 @@ void Lineedit::accept_word() {
 void Lineedit::restart() {
     needs_reecho = false;
     endaddr = thisaddr = startaddr;
-    endaddr            = startaddr;
     escaping           = 0;
     history_num        = -1;
 }

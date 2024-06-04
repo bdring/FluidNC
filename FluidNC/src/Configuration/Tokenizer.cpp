@@ -13,13 +13,17 @@ namespace Configuration {
 
     Tokenizer::Tokenizer(std::string_view yaml_string) : _remainder(yaml_string), _linenum(0), _token() {}
 
-    bool Tokenizer::isWhiteSpace(char c) { return c == ' ' || c == '\t' || c == '\f' || c == '\r'; }
+    bool Tokenizer::isWhiteSpace(char c) {
+        return c == ' ' || c == '\t' || c == '\f' || c == '\r';
+    }
 
     bool Tokenizer::isIdentifierChar(char c) {
         return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_';
     }
 
-    void Tokenizer::ParseError(const char* description) const { throw ParseException(_linenum, description); }
+    void Tokenizer::ParseError(const char* description) const {
+        throw ParseException(_linenum, description);
+    }
 
     void Tokenizer::parseKey() {
         // entry: first character is not space
@@ -131,6 +135,7 @@ namespace Configuration {
         }
     }
 
+    // cppcheck-suppress unusedFunction
     void Tokenizer::Tokenize() {
         // Release a held token
         if (_token._state == TokenState::Held) {

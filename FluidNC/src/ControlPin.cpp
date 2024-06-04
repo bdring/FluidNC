@@ -1,6 +1,7 @@
 #include "ControlPin.h"
 
 namespace Machine {
+    // cppcheck-suppress unusedFunction
     void ControlPin::init() {
         if (_pin.undefined()) {
             return;
