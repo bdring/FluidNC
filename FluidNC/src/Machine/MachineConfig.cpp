@@ -44,7 +44,11 @@ namespace Machine {
         handler.section("stepping", _stepping);
 
         handler.section("uart1", _uarts[1], 1);
-        /*
+
+        // The following could all be commented out and left to defaults from FluidNC
+        // uart2, uart_channel1, uart_channel2, i2so, i2c0, i2c1,
+        // kinematics,
+        // control, coolant, probe, macros, start, parking, user_outputs, oled
         handler.section("uart2", _uarts[2], 2);
 
         handler.section("uart_channel1", _uart_channels[1]);
@@ -54,17 +58,13 @@ namespace Machine {
 
         handler.section("i2c0", _i2c[0], 0);
         handler.section("i2c1", _i2c[1], 1);
-        */
 
         handler.section("spi", _spi);
         handler.section("sdcard", _sdCard);
 
-        /*
         handler.section("kinematics", _kinematics);
-        */
         handler.section("axes", _axes);
 
-        /*
         handler.section("control", _control);
         handler.section("coolant", _coolant);
         handler.section("probe", _probe);
@@ -76,7 +76,6 @@ namespace Machine {
         handler.section("user_outputs", _userOutputs);
 
         handler.section("oled", _oled);
-        */
 
         Spindles::SpindleFactory::factory(handler, _spindles);
 
@@ -84,7 +83,7 @@ namespace Machine {
         Listeners::SysListenerFactory::factory(handler, _sysListeners);
 
         // TODO: Consider putting these under a gcode: hierarchy level? Or motion control?
-        /*
+        // The following could all be commented out and left to defaults from FluidNC
         handler.item("arc_tolerance_mm", _arcTolerance, 0.001, 1.0);
         handler.item("junction_deviation_mm", _junctionDeviation, 0.01, 1.0);
         handler.item("verbose_errors", _verboseErrors);
@@ -92,7 +91,6 @@ namespace Machine {
         handler.item("enable_parking_override_control", _enableParkingOverrideControl);
         handler.item("use_line_numbers", _useLineNumbers);
         handler.item("planner_blocks", _planner_blocks, 10, 120);
-        */
     }
 
     void MachineConfig::groupM4Items(Configuration::HandlerBase& handler) {
