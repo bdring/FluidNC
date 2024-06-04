@@ -5,8 +5,8 @@
 #include "src/Pins/PinOptionsParser.h"
 
 using PinOptionsParser = Pins::PinOptionsParser;
-static void test_for_loop(PinOptionsParser& parser);
-static void test_for_loop_only_first(PinOptionsParser& parser);
+static void test_for_loop(const PinOptionsParser& parser);
+static void test_for_loop_only_first(const PinOptionsParser& parser);
 
 TEST(PinOptionsParser, WithEmptyString) {
     char             nullDescr[1] = { '\0' };
