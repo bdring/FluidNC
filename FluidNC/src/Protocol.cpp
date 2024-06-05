@@ -261,7 +261,7 @@ static void check_startup_state() {
             settings_execute_startup();  // Execute startup script.
         }
     }
-    if(!Maslow.using_default_config) Maslow.begin(&protocol_exec_rt_system);
+    Maslow.begin(&protocol_exec_rt_system);
 }
 
 const uint32_t heapWarnThreshold = 15000;

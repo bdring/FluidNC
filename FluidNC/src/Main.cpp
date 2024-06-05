@@ -34,6 +34,34 @@ void setup() {
     // dummyUart0->_rxd_pin = Pin::create("gpio.17");
     // dummyUart0->begin();
 
+    //Start out with the motor drivers disabled
+    //TODO: This is a bit of a hack. We shouldn't be setting the pins here.
+    #define tlIn1Pin 45
+    #define tlIn2Pin 21
+    #define trIn1Pin 42
+    #define trIn2Pin 41
+    #define blIn1Pin 37
+    #define blIn2Pin 36
+    #define brIn1Pin 9
+    #define brIn2Pin 3
+    pinMode(tlIn1Pin, OUTPUT);
+    pinMode(tlIn2Pin, OUTPUT);
+    pinMode(trIn1Pin, OUTPUT);
+    pinMode(trIn2Pin, OUTPUT);
+    pinMode(blIn1Pin, OUTPUT);
+    pinMode(blIn2Pin, OUTPUT);
+    pinMode(brIn1Pin, OUTPUT);
+    pinMode(brIn2Pin, OUTPUT);
+
+    digitalWrite(tlIn1Pin, LOW);
+    digitalWrite(tlIn2Pin, LOW);
+    digitalWrite(trIn1Pin, LOW);
+    digitalWrite(trIn2Pin, LOW);
+    digitalWrite(blIn1Pin, LOW);
+    digitalWrite(blIn2Pin, LOW);
+    digitalWrite(brIn1Pin, LOW);
+    digitalWrite(brIn2Pin, LOW);
+
     disableCore0WDT();
     try {
         // uartInit();       // Setup serial port
