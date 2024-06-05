@@ -35,6 +35,7 @@ void setup() {
     // dummyUart0->begin();
 
     //Start out with the motor drivers disabled
+    //TODO: This is a bit of a hack. We shouldn't be setting the pins here.
     #define tlIn1Pin 45
     #define tlIn2Pin 21
     #define trIn1Pin 42
