@@ -89,10 +89,13 @@ void Maslow_::begin(void (*sys_rt)()) {
 
     loadZPos(); //Loads the z-axis position from EEPROM
 
+    stopMotors();
+
     if (error) {
         log_error("Maslow failed to initialize - fix errors and restart");
-    } else
+    } else {
         log_info("Starting Maslow Version " << VERSION_NUMBER);
+    }
 }
 
 // Maslow main loop, everything is processed here
@@ -179,8 +182,7 @@ void Maslow_::update() {
         else if (sys.state() == State::Homing) {
             home();
         } else {  //In any other state, keep motors off
-            if (!test)
-                Maslow.stopMotors();
+            Maslow.stopMotors();
         }
 
         //If we are in any state other than idle or alarm turn the cooling fan on
