@@ -29,7 +29,9 @@ namespace MotorDrivers {
         TrinamicBase::config_motor();
     }
 
-    bool TMC2130Driver::test() { return checkVersion(0x11, tmc2130->version()); }
+    bool TMC2130Driver::test() {
+        return checkVersion(0x11, tmc2130->version());
+    }
 
     void TMC2130Driver::set_registers(bool isHoming) {
         if (_has_errors) {
@@ -66,12 +68,10 @@ namespace MotorDrivers {
             case TrinamicMode ::StallGuard:
                 log_debug(axisName() << " Stallguard");
                 {
-                    auto feedrate = config->_axes->_axis[axis_index()]->_homing->_feedRate;
-
                     tmc2130->en_pwm_mode(false);
                     tmc2130->pwm_autoscale(false);
-                    tmc2130->TCOOLTHRS(calc_tstep(feedrate, 150.0));
-                    tmc2130->THIGH(calc_tstep(feedrate, 60.0));
+                    tmc2130->TCOOLTHRS(calc_tstep(150));
+                    tmc2130->THIGH(calc_tstep(60));
                     tmc2130->sfilt(1);
                     tmc2130->diag1_stall(true);  // stallguard i/o is on diag1
                     tmc2130->sgt(constrain(_stallguard, -64, 63));

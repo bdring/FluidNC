@@ -385,7 +385,8 @@ static Error home(AxisMask axisMask) {
         for (int axis = 0; axis < n_axis; axis++) {
             if (bitnum_is_true(axisMask, axis)) {
                 auto axisConfig     = config->_axes->_axis[axis];
-                auto homing_allowed = axisConfig->_homing->_allow_single_axis;
+                auto homing         = axisConfig->_homing;
+                auto homing_allowed = homing && homing->_allow_single_axis;
                 if (!homing_allowed)
                     return Error::SingleAxisHoming;
             }
@@ -422,7 +423,7 @@ static Error home_all(const char* value, WebUI::AuthenticationLevel auth_level, 
     // value can be a list of cycle numbers like "21", which will run homing cycle 2 then cycle 1,
     // or a list of axis names like "XZ", which will home the X and Z axes simultaneously
     if (value) {
-        int ndigits = 0;
+        int        ndigits  = 0;
         const auto lenValue = strlen(value);
         for (int i = 0; i < lenValue; i++) {
             char cycleName = value[i];
