@@ -542,7 +542,8 @@ namespace WebUI {
     std::string WiFiConfig::station_info() {
         std::string result;
 
-        if ((WiFi.getMode() == WIFI_MODE_STA) || (WiFi.getMode() == WIFI_MODE_APSTA)) {
+        auto mode = WiFi.getMode();
+        if (mode == WIFI_MODE_STA || mode == WIFI_MODE_APSTA) {
             result += "Mode=STA:SSID=";
             result += WiFi.SSID().c_str();
             result += ":Status=";
@@ -560,7 +561,8 @@ namespace WebUI {
     std::string WiFiConfig::ap_info() {
         std::string result;
 
-        if ((WiFi.getMode() == WIFI_MODE_AP) || (WiFi.getMode() == WIFI_MODE_APSTA)) {
+        auto mode = WiFi.getMode();
+        if (mode == WIFI_MODE_AP || mode == WIFI_MODE_APSTA) {
             if (WiFi.getMode() == WIFI_MODE_APSTA) {
                 result += "]\n[MSG:";
             }
@@ -675,10 +677,12 @@ namespace WebUI {
         //stop active service
         wifi_services.end();
         //Sanity check
-        if ((WiFi.getMode() == WIFI_STA) || (WiFi.getMode() == WIFI_AP_STA)) {
+        auto mode = WiFi.getMode();
+        if (mode == WIFI_STA || mode == WIFI_AP_STA) {
             WiFi.disconnect();
         }
-        if ((WiFi.getMode() == WIFI_AP) || (WiFi.getMode() == WIFI_AP_STA)) {
+
+        if (mode == WIFI_AP || mode == WIFI_AP_STA) {
             WiFi.softAPdisconnect();
         }
 
