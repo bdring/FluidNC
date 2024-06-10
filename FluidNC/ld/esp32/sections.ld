@@ -558,8 +558,6 @@ SECTIONS
     *libspi_flash.a:spi_flash_chip_winbond.*(.rodata .rodata.*)
     *libspi_flash.a:spi_flash_rom_patch.*(.rodata .rodata.*)
 
-    INCLUDE vtable_in_dram.ld
-
     _data_end = ABSOLUTE(.);
     . = ALIGN(4);
   } > dram0_0_seg
@@ -776,6 +774,8 @@ SECTIONS
     _coredump_iram_start = ABSOLUTE(.);
     *(.iram2.coredump .iram2.coredump.*)
     _coredump_iram_end = ABSOLUTE(.);
+
+    INCLUDE vtable_in_dram.ld
 
     _iram_data_end = ABSOLUTE(.);
   } > iram0_0_seg
