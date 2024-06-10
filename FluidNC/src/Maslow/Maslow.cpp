@@ -599,7 +599,7 @@ void Maslow_::safety_control() {
         if (axis[i]->getMotorCurrent() > 4000 && !tick[i]) {
             panicCounter[i]++;
             if (panicCounter[i] > tresholdHitsBeforePanic) {
-                if(!calibrationInProgress){
+                if(sys.state() != State::Jog && sys.state() != State::Cycle){
                     log_error("Motor current on " << axis_id_to_label(i).c_str() << " axis exceeded threshold of " << 4000);
                     Maslow.panic();
                 }
