@@ -140,7 +140,9 @@ namespace WebUI {
         { "WPA2-ENTERPRISE", WIFI_AUTH_WPA2_ENTERPRISE },
     };
 
-    static void print_mac(Channel& out, const char* prefix, const char* mac) { log_stream(out, prefix << " (" << mac << ")"); }
+    static void print_mac(Channel& out, const char* prefix, const char* mac) {
+        log_stream(out, prefix << " (" << mac << ")");
+    }
 
     static Error showIP(const char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP111
         log_stream(out, parameter << IP_string(WiFi.getMode() == WIFI_STA ? WiFi.localIP() : WiFi.softAPIP()));
@@ -872,7 +874,9 @@ namespace WebUI {
     /**
      * End WiFi
      */
-    void WiFiConfig::end() { StopWiFi(); }
+    void WiFiConfig::end() {
+        StopWiFi();
+    }
 
     /**
      * Reset ESP
@@ -892,12 +896,16 @@ namespace WebUI {
         }
         log_info("WiFi reset done");
     }
-    bool WiFiConfig::isOn() { return !(WiFi.getMode() == WIFI_MODE_NULL); }
+    bool WiFiConfig::isOn() {
+        return !(WiFi.getMode() == WIFI_MODE_NULL);
+    }
 
     /**
      * Handle not critical actions that must be done in sync environment
      */
-    void WiFiConfig::handle() { wifi_services.handle(); }
+    void WiFiConfig::handle() {
+        wifi_services.handle();
+    }
 
     // Used by js/scanwifidlg.js
 
@@ -945,6 +953,8 @@ namespace WebUI {
         return Error::Ok;
     }
 
-    WiFiConfig::~WiFiConfig() { end(); }
+    WiFiConfig::~WiFiConfig() {
+        end();
+    }
 }
 #endif
