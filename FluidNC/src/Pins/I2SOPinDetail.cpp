@@ -28,7 +28,7 @@ namespace Pins {
         _claimed[index] = true;
 
         // readWriteMask is xor'ed with the value to invert it if active low
-        _readWriteMask = _attributes.has(PinAttributes::ActiveLow);
+        _readWriteMask = int(_attributes.has(PinAttributes::ActiveLow));
     }
 
     PinCapabilities I2SOPinDetail::capabilities() const {
