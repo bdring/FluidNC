@@ -70,7 +70,7 @@ const char* Pin::parse(std::string_view pin_str, Pins::PinDetail*& pinImplementa
     }
 
     // Build an options parser:
-    Pins::PinOptionsParser parser(pin_str.cbegin(), pin_str.cend());
+    Pins::PinOptionsParser parser(pin_str);
 
     // Build this pin:
     if (string_util::equal_ignore_case(prefix, "gpio")) {
