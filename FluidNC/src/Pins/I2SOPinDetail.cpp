@@ -31,7 +31,9 @@ namespace Pins {
         _readWriteMask = _attributes.has(PinAttributes::ActiveLow);
     }
 
-    PinCapabilities I2SOPinDetail::capabilities() const { return PinCapabilities::Output | PinCapabilities::I2S; }
+    PinCapabilities I2SOPinDetail::capabilities() const {
+        return PinCapabilities::Output | PinCapabilities::I2S;
+    }
 
     // The write will not happen immediately; the data is queued for
     // delivery to the serial shift register chain via DMA and a FIFO
@@ -77,7 +79,9 @@ namespace Pins {
         i2s_out_write(_index, value.has(PinAttributes::InitialOn) ^ _readWriteMask);
     }
 
-    PinAttributes I2SOPinDetail::getAttr() const { return _attributes; }
+    PinAttributes I2SOPinDetail::getAttr() const {
+        return _attributes;
+    }
 
     std::string I2SOPinDetail::toString() {
         std::string s("I2SO.");

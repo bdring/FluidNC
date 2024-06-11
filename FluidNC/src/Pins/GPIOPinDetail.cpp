@@ -124,9 +124,13 @@ namespace Pins {
         _readWriteMask = int(_attributes.has(PinAttributes::ActiveLow));
     }
 
-    PinAttributes GPIOPinDetail::getAttr() const { return _attributes; }
+    PinAttributes GPIOPinDetail::getAttr() const {
+        return _attributes;
+    }
 
-    PinCapabilities GPIOPinDetail::capabilities() const { return _capabilities; }
+    PinCapabilities GPIOPinDetail::capabilities() const {
+        return _capabilities;
+    }
 
     void IRAM_ATTR GPIOPinDetail::write(int high) {
         if (high != _lastWrittenValue) {
