@@ -47,6 +47,9 @@ void StartupLog::dump(Channel& out) {
             }
             line += c;
         }
+        if (!line.empty() && line.back() == ']') {
+            line.pop_back();
+        }
         log_stream(out, line);
     }
 }

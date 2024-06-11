@@ -31,8 +31,12 @@ namespace MotorDrivers {
     // tstep = fclk / (time between 1/256 steps)
     // This is used to set the stallguard window from the homing speed.
     // The percent is the offset on the window
-    uint32_t TrinamicBase::calc_tstep(float speed, float percent) {
-        double tstep = speed / 60.0 * config->_axes->_axis[axis_index()]->_stepsPerMm * (256.0 / _microsteps);
+    uint32_t TrinamicBase::calc_tstep(int percent) {
+        auto axisConfig     = config->_axes->_axis[axis_index()];
+        auto homing         = axisConfig->_homing;
+        auto homingFeedrate = homing ? homing->_feedRate : 200.0;
+
+        double tstep = homingFeedrate / 60.0 * config->_axes->_axis[axis_index()]->_stepsPerMm * (256.0 / _microsteps);
         tstep        = fclk / tstep * percent / 100.0;
 
         return static_cast<uint32_t>(tstep);
@@ -113,7 +117,9 @@ namespace MotorDrivers {
         return true;
     }
 
-    void TrinamicBase::reportCommsFailure(void) { log_info(axisName() << " communications check failed"); }
+    void TrinamicBase::reportCommsFailure(void) {
+        log_info(axisName() << " communications check failed");
+    }
 
     bool TrinamicBase::startDisable(bool disable) {
         if (_has_errors) {

@@ -99,21 +99,19 @@ void limit_error() {
 }
 
 float limitsMaxPosition(size_t axis) {
-    auto  axisConfig = config->_axes->_axis[axis];
-    auto  homing     = axisConfig->_homing;
-    float mpos       = (homing != nullptr) ? homing->_mpos : 0;
-    auto  maxtravel  = axisConfig->_maxTravel;
+    auto axisConfig = config->_axes->_axis[axis];
+    auto homing     = axisConfig->_homing;
+    auto mpos       = homing ? homing->_mpos : 0;
+    auto maxtravel  = axisConfig->_maxTravel;
 
-    //return (homing == nullptr || homing->_positiveDirection) ? mpos + maxtravel : mpos;
-    return (homing == nullptr || homing->_positiveDirection) ? mpos : mpos + maxtravel;
+    return (!homing || homing->_positiveDirection) ? mpos : mpos + maxtravel;
 }
 
 float limitsMinPosition(size_t axis) {
-    auto  axisConfig = config->_axes->_axis[axis];
-    auto  homing     = axisConfig->_homing;
-    float mpos       = (homing != nullptr) ? homing->_mpos : 0;
-    auto  maxtravel  = axisConfig->_maxTravel;
+    auto axisConfig = config->_axes->_axis[axis];
+    auto homing     = axisConfig->_homing;
+    auto mpos       = homing ? homing->_mpos : 0;
+    auto maxtravel  = axisConfig->_maxTravel;
 
-    //return (homing == nullptr || homing->_positiveDirection) ? mpos : mpos - maxtravel;
-    return (homing == nullptr || homing->_positiveDirection) ? mpos - maxtravel : mpos;
+    return (!homing || homing->_positiveDirection) ? mpos - maxtravel : mpos;
 }

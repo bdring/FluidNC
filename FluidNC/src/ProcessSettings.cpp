@@ -385,7 +385,8 @@ static Error home(AxisMask axisMask) {
         for (int axis = 0; axis < n_axis; axis++) {
             if (bitnum_is_true(axisMask, axis)) {
                 auto axisConfig     = config->_axes->_axis[axis];
-                auto homing_allowed = axisConfig->_homing->_allow_single_axis;
+                auto homing         = axisConfig->_homing;
+                auto homing_allowed = homing && homing->_allow_single_axis;
                 if (!homing_allowed)
                     return Error::SingleAxisHoming;
             }

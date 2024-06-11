@@ -44,13 +44,25 @@ namespace Machine {
 
     AxisMask Homing::_unhomed_axes;  // Bitmap of axes whose position is unknown
 
-    bool Homing::axis_is_homed(size_t axis) { return bitnum_is_false(_unhomed_axes, axis); }
-    void Homing::set_axis_homed(size_t axis) { clear_bitnum(_unhomed_axes, axis); }
-    void Homing::set_axis_unhomed(size_t axis) { set_bitnum(_unhomed_axes, axis); }
-    void Homing::set_all_axes_unhomed() { _unhomed_axes = Machine::Axes::homingMask; }
-    void Homing::set_all_axes_homed() { _unhomed_axes = 0; }
+    bool Homing::axis_is_homed(size_t axis) {
+        return bitnum_is_false(_unhomed_axes, axis);
+    }
+    void Homing::set_axis_homed(size_t axis) {
+        clear_bitnum(_unhomed_axes, axis);
+    }
+    void Homing::set_axis_unhomed(size_t axis) {
+        set_bitnum(_unhomed_axes, axis);
+    }
+    void Homing::set_all_axes_unhomed() {
+        _unhomed_axes = Machine::Axes::homingMask;
+    }
+    void Homing::set_all_axes_homed() {
+        _unhomed_axes = 0;
+    }
 
-    AxisMask Homing::unhomed_axes() { return _unhomed_axes; }
+    AxisMask Homing::unhomed_axes() {
+        return _unhomed_axes;
+    }
 
     const char* Homing::_phaseNames[] = {
         "None", "PrePulloff", "FastApproach", "Pulloff0", "SlowApproach", "Pulloff1", "Pulloff2", "CycleDone",
@@ -78,7 +90,9 @@ namespace Machine {
         protocol_send_event(&cycleStartEvent);
     }
 
-    static MotorMask limited() { return Machine::Axes::posLimitMask | Machine::Axes::negLimitMask; }
+    static MotorMask limited() {
+        return Machine::Axes::posLimitMask | Machine::Axes::negLimitMask;
+    }
 
     void Homing::cycleStop() {
         log_debug("CycleStop " << phaseName(_phase));
@@ -160,6 +174,9 @@ namespace Machine {
 
             auto axisConfig = axes->_axis[axis];
             auto homing     = axisConfig->_homing;
+            if (!homing) {
+                continue;
+            }
 
             settle_ms = std::max(settle_ms, homing->_settle_ms);
 
@@ -253,9 +270,11 @@ namespace Machine {
 
                 auto paxis  = axes->_axis[axis];
                 auto homing = paxis->_homing;
-                auto scaler = approach ? (seeking ? homing->_seek_scaler : homing->_feed_scaler) : 1.0;
-                distance[axis] *= scaler;
-                target[axis] += distance[axis];
+                if (homing) {
+                    auto scaler = approach ? (seeking ? homing->_seek_scaler : homing->_feed_scaler) : 1.0;
+                    distance[axis] *= scaler;
+                    target[axis] += distance[axis];
+                }
             }
         }
 
@@ -411,9 +430,12 @@ namespace Machine {
         // Replace coordinates homed axes with the homing values.
         for (size_t axis = 0; axis < n_axis; axis++) {
             if (bitnum_is_true(_cycleAxes, axis)) {
-                set_axis_homed(axis);
-                mpos[axis] = axes->_axis[axis]->_homing->_mpos;
-                homedAxes += axes->axisName(axis);
+                auto homing = axes->_axis[axis]->_homing;
+                if (homing) {
+                    set_axis_homed(axis);
+                    mpos[axis] = homing->_mpos;
+                    homedAxes += axes->axisName(axis);
+                }
             }
         }
         log_msg("Homed:" << homedAxes);
@@ -459,13 +481,15 @@ namespace Machine {
         // Find any cycles that set the m_pos without motion
         auto n_axis = config->_axes->_numberAxis;
         for (int axis = X_AXIS; axis < n_axis; axis++) {
-            if (config->_axes->_axis[axis]->_homing->_cycle == set_mpos_only) {
+            auto homing = config->_axes->_axis[axis]->_homing;
+            if (homing && homing->_cycle == set_mpos_only) {
                 if (axisMask == 0 || axisMask & 1 << axis) {
                     float* mpos = get_mpos();
-                    mpos[axis]  = config->_axes->_axis[axis]->_homing->_mpos;
+                    mpos[axis]  = homing->_mpos;
                     set_motor_steps_from_mpos(mpos);
-                    if (axisMask == bitnum_to_mask(axis))
+                    if (axisMask == bitnum_to_mask(axis)) {
                         return;
+                    }
 
                     clear_bitnum(axisMask, axis);
                 }

@@ -25,7 +25,7 @@ namespace MotorDrivers {
         static std::vector<TrinamicBase*> _instances;
 
     protected:
-        uint32_t calc_tstep(float speed, float percent);
+        uint32_t calc_tstep(int percent);
 
         bool         _disable_state_known = false;  // we need to always set the state least once.
         bool         _has_errors;

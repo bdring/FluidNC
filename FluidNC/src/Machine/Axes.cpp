@@ -286,7 +286,7 @@ namespace Machine {
     }
 
     bool Axes::namesToMask(const char* names, AxisMask& mask) {
-        bool retval = true;
+        bool       retval   = true;
         const auto lenNames = strlen(names);
         for (int i = 0; i < lenNames; i++) {
             char  axisName = toupper(names[i]);

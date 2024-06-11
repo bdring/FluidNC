@@ -250,7 +250,8 @@ const uint32_t heapWarnThreshold = 15000;
 uint32_t heapLowWater           = UINT_MAX;
 uint32_t heapLowWaterReported   = UINT_MAX;
 int32_t  heapLowWaterReportTime = 0;
-void     protocol_main_loop() {
+
+void protocol_main_loop() {
     start_polling();
 
     // ---------------------------------------------------------------------------------

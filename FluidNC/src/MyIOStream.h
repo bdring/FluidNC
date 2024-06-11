@@ -23,9 +23,7 @@ inline Print& operator<<(Print& lhs, const char* v) {
 }
 
 inline Print& operator<<(Print& lhs, const std::string_view& v) {
-    for (const char* p = v.cbegin(); p < v.cend(); ++p) {
-        lhs.print(*p);
-    }
+    lhs.write(reinterpret_cast<const uint8_t*>(v.data()), v.length());
     return lhs;
 }
 

@@ -9,8 +9,7 @@ static void test_for_loop(const PinOptionsParser& parser);
 static void test_for_loop_only_first(const PinOptionsParser& parser);
 
 TEST(PinOptionsParser, WithEmptyString) {
-    char             nullDescr[1] = { '\0' };
-    PinOptionsParser parser(nullDescr, nullDescr);
+    PinOptionsParser parser("");
 
     {
         auto opt    = parser.begin();
@@ -29,17 +28,13 @@ TEST(PinOptionsParser, WithEmptyString) {
 }
 
 TEST(PinOptionsParser, SingleArg) {
-    const char* input = "first";
-    char        tmp[20];
-    int         n = snprintf(tmp, 20, "%s", input);
-
-    PinOptionsParser parser(tmp, tmp + n);
+    PinOptionsParser parser("first");
 
     {
         auto opt    = parser.begin();
         auto endopt = parser.end();
         ASSERT_NE(opt, endopt) << "Expected an argument";
-        ASSERT_TRUE(opt->is("first")) << "Expected 'first'";
+        ASSERT_TRUE(opt.is("first")) << "Expected 'first'";
         ++opt;
         ASSERT_EQ(opt, endopt) << "Expected one argument";
     }
@@ -48,17 +43,13 @@ TEST(PinOptionsParser, SingleArg) {
 }
 
 TEST(PinOptionsParser, SingleArgWithWS) {
-    const char* input = "  first";
-    char        tmp[20];
-    int         n = snprintf(tmp, 20, "%s", input);
-
-    PinOptionsParser parser(tmp, tmp + n);
+    PinOptionsParser parser("   first");
 
     {
         auto opt    = parser.begin();
         auto endopt = parser.end();
         ASSERT_NE(opt, endopt) << "Expected an argument";
-        ASSERT_TRUE(opt->is("first")) << "Expected 'first'";
+        ASSERT_TRUE(opt.is("first")) << "Expected 'first'";
         ++opt;
         ASSERT_EQ(opt, endopt) << "Expected one argument";
     }
@@ -67,17 +58,12 @@ TEST(PinOptionsParser, SingleArgWithWS) {
 }
 
 TEST(PinOptionsParser, SingleArgWithWS2) {
-    const char* input = "  first  ";
-    char        tmp[20];
-    int         n = snprintf(tmp, 20, "%s", input);
-
-    PinOptionsParser parser(tmp, tmp + n);
-
+    PinOptionsParser parser("  first  ");
     {
         auto opt    = parser.begin();
         auto endopt = parser.end();
         ASSERT_NE(opt, endopt) << "Expected an argument";
-        ASSERT_TRUE(opt->is("first")) << "Expected 'first'";
+        ASSERT_TRUE(opt.is("first")) << "Expected 'first'";
 
         ++opt;
         ASSERT_EQ(opt, endopt) << "Expected one argument";
@@ -87,21 +73,16 @@ TEST(PinOptionsParser, SingleArgWithWS2) {
 }
 
 TEST(PinOptionsParser, TwoArg1) {
-    const char* input = "first;second";
-    char        tmp[20];
-    int         n = snprintf(tmp, 20, "%s", input);
-
-    PinOptionsParser parser(tmp, tmp + n);
-
+    PinOptionsParser parser("first;second");
     {
         auto opt    = parser.begin();
         auto endopt = parser.end();
         ASSERT_NE(opt, endopt) << "Expected an argument";
-        ASSERT_TRUE(opt->is("first")) << "Expected 'first'";
+        ASSERT_TRUE(opt.is("first")) << "Expected 'first'";
 
         ++opt;
         ASSERT_NE(opt, endopt) << "Expected second argument";
-        ASSERT_TRUE(opt->is("second")) << "Expected 'second'";
+        ASSERT_TRUE(opt.is("second")) << "Expected 'second'";
 
         ++opt;
         ASSERT_EQ(opt, endopt) << "Expected one argument";
@@ -111,21 +92,16 @@ TEST(PinOptionsParser, TwoArg1) {
 }
 
 TEST(PinOptionsParser, TwoArg2) {
-    const char* input = "first:second";
-    char        tmp[20];
-    int         n = snprintf(tmp, 20, "%s", input);
-
-    PinOptionsParser parser(tmp, tmp + n);
-
+    PinOptionsParser parser("first:second");
     {
         auto opt    = parser.begin();
         auto endopt = parser.end();
         ASSERT_NE(opt, endopt) << "Expected an argument";
-        ASSERT_TRUE(opt->is("first")) << "Expected 'first'";
+        ASSERT_TRUE(opt.is("first")) << "Expected 'first'";
 
         ++opt;
         ASSERT_NE(opt, endopt) << "Expected second argument";
-        ASSERT_TRUE(opt->is("second")) << "Expected 'second'";
+        ASSERT_TRUE(opt.is("second")) << "Expected 'second'";
 
         ++opt;
         ASSERT_EQ(opt, endopt) << "Expected one argument";
@@ -135,27 +111,21 @@ TEST(PinOptionsParser, TwoArg2) {
 }
 
 TEST(PinOptionsParser, TwoArgWithValues) {
-    const char* input = "first=12;second=13";
-    char        tmp[20];
-    int         n = snprintf(tmp, 20, "%s", input);
-
-    PinOptionsParser parser(tmp, tmp + n);
+    PinOptionsParser parser("first=12;second=13");
 
     {
         auto opt    = parser.begin();
         auto endopt = parser.end();
         ASSERT_NE(opt, endopt) << "Expected an argument";
-        ASSERT_TRUE(opt->is("first")) << "Expected 'first'";
-        ASSERT_EQ(strcmp("12", opt->value()), 0);
-        ASSERT_EQ(12, opt->iValue());
-        ASSERT_EQ(12, opt->dValue());
+        ASSERT_TRUE(opt.is("first")) << "Expected 'first'";
+        ASSERT_TRUE(opt.value() == "12");
+        ASSERT_EQ(12, opt.iValue());
 
         ++opt;
         ASSERT_NE(opt, endopt) << "Expected second argument";
-        ASSERT_TRUE(opt->is("second")) << "Expected 'second'";
-        ASSERT_EQ(strcmp("13", opt->value()), 0);
-        ASSERT_EQ(13, opt->iValue());
-        ASSERT_EQ(13, opt->dValue());
+        ASSERT_TRUE(opt.is("second")) << "Expected 'second'";
+        ASSERT_TRUE(opt.value() == "13");
+        ASSERT_EQ(13, opt.iValue());
 
         ++opt;
         ASSERT_EQ(opt, endopt) << "Expected one argument";

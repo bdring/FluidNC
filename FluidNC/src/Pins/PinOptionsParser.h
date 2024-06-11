@@ -2,6 +2,7 @@
 // Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
 
 #pragma once
+#include <string_view>
 
 namespace Pins {
     // Pin options are passed as PinOption object. This is a simple C++ forward iterator,
@@ -23,45 +24,41 @@ namespace Pins {
     class PinOption {
         friend class PinOptionsParser;
 
-        const char* _start;
-        const char* _end;
+        std::string_view _options;
+        std::string_view _option;
+        std::string_view _key;
+        std::string_view _value;
 
-        const char* _key;
-        const char* _keyend;
-        const char* _value;
-        const char* _valueend;
-
-        PinOption(const char* start, const char* end);
+        PinOption(const std::string_view options);
 
         void tokenize();
 
     public:
-        inline const char* operator()() const { return _key; }
-        bool               is(const char* option) const;
+        bool is(const char* option) const;
 
-        int    iValue() const;
-        double dValue() const;
+        int iValue() const;
 
-        const char* value() const;
+        inline const std::string_view operator()() { return _option; }
+        inline const std::string_view value() { return _value; }
+        inline const std::string_view key() { return _key; }
 
         // Iterator support:
         inline PinOption const* operator->() const { return this; }
         inline PinOption        operator*() const { return *this; }
         PinOption&              operator++();
 
-        bool operator==(const PinOption& o) const { return _key == o._key && _keyend == o._keyend; }
-        bool operator!=(const PinOption& o) const { return _key != o._key || _keyend != o._keyend; }
+        bool operator==(const PinOption& o) const { return _key == o._key; }
+        bool operator!=(const PinOption& o) const { return _key != o._key; }
     };
 
     // This parses the options passed to the Pin class.
     class PinOptionsParser {
-        const char* _buffer = nullptr;
-        const char* _bufferEnd = nullptr;
+        std::string_view _options;
 
     public:
-        PinOptionsParser(const char* buffer, const char* endBuffer);
+        PinOptionsParser(std::string_view options);
 
-        inline PinOption begin() const { return PinOption(_buffer, _bufferEnd); }
-        inline PinOption end() const { return PinOption(_bufferEnd, _bufferEnd); }
+        inline PinOption begin() const { return PinOption(_options); }
+        inline PinOption end() const { return PinOption(std::string_view()); }
     };
 }
