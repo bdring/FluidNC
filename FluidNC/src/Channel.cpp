@@ -104,9 +104,7 @@ void Channel::autoReportGCodeState() {
 void Channel::autoReport() {
     if (_reportInterval) {
         auto thisProbeState = config->_probe->get_state();
-        if (thisProbeState != _lastProbe) {
-            report_recompute_pin_string();
-        }
+        report_recompute_pin_string();
         if (_reportWco || !state_is(_lastState) || thisProbeState != _lastProbe || _lastPinString != report_pin_string ||
             (motionState() && (int32_t(xTaskGetTickCount()) - _nextReportTime) >= 0)) {
             if (_reportWco) {
