@@ -171,8 +171,10 @@ namespace MotorDrivers {
             return false;
         }
 
-        auto axis = config->_axes->_axis[_axis_index];
-        set_motor_steps(_axis_index, mpos_to_steps(axis->_homing->_mpos, _axis_index));
+        auto axisConfig = config->_axes->_axis[_axis_index];
+        auto homing     = axisConfig->_homing;
+        auto mpos       = homing ? homing->_mpos : 0;
+        set_motor_steps(_axis_index, mpos_to_steps(mpos, _axis_index));
 
         set_disable(false);
         set_location();  // force the PWM to update now
