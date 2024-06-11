@@ -21,13 +21,20 @@ namespace Pins {
         }
         auto pos = _options.find_first_of(":;");
         _option  = _options.substr(0, pos);
-        _options.remove_prefix((pos == std::string_view::npos) ? pos : pos + 1);
-
-        pos  = _options.find_first_of('=');
-        _key = _option.substr(0, pos);
         if (pos == std::string_view::npos) {
+            _option = _options;
+            _options.remove_prefix(_options.size());
+        } else {
+            _option = _options.substr(0, pos);
+            _options.remove_prefix(pos + 1);
+        }
+
+        pos = _option.find_first_of('=');
+        if (pos == std::string_view::npos) {
+            _key   = _option;
             _value = {};
         } else {
+            _key   = _option.substr(0, pos);
             _value = _option.substr(pos + 1);
         }
     }
