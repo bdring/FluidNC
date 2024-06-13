@@ -59,13 +59,27 @@ void FileStream::setup(const char* mode) {
     _size = stdfs::file_size(_fpath);
 }
 
-FileStream::FileStream(const char* filename, const char* mode, const char* fs) : Channel(filename), _fpath(filename, fs) {
+FileStream::FileStream(const char* filename, const char* mode, const char* fs) : Channel(filename), _fpath(filename, fs), _mode(mode) {
     setup(mode);
 }
 
-FileStream::FileStream(FluidPath fpath, const char* mode) : Channel("file") {
+FileStream::FileStream(FluidPath fpath, const char* mode) : Channel("file"), _mode(mode) {
     std::swap(_fpath, fpath);
     setup(mode);
+}
+
+void FileStream::save() {
+    _saved_position = position();
+    fclose(_fd);
+}
+
+void FileStream::restore() {
+    _fd = fopen(_fpath.c_str(), _mode);
+    if (_fd) {
+        fseek(_fd, _saved_position, SEEK_SET);
+    } else {
+        // XXX need to unwind the job stack somehow
+    }
 }
 
 FileStream::~FileStream() {

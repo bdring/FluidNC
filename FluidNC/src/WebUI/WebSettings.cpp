@@ -579,6 +579,7 @@ namespace WebUI {
             log_string(out, "Alarm");
             return Error::IdleError;
         }
+        saveJob();
         InputFile* theFile;
         if ((err = openFile(fs, parameter, out, theFile)) != Error::Ok) {
             return err;

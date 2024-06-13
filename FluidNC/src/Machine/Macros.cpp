@@ -59,6 +59,7 @@ Cmd findOverride(std::string name) {
 bool Macro::run() {
     log_debug("Run " << name());
     if (_gcode.length()) {
+        saveJob();
         jobChannels.push(new MacroChannel(this));
         return true;
     }
@@ -120,6 +121,7 @@ bool Macros::run_macro(size_t index) {
         return false;
     }
 
+    saveJob();
     jobChannels.push(new MacroChannel(&_macro[index]));
     return true;
 }

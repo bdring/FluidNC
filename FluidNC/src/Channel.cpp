@@ -352,3 +352,14 @@ bool Channel::is_visible(const std::string& stem, const std::string& extension, 
 }
 
 std::stack<Channel*> jobChannels;
+
+void saveJob() {
+    if (!jobChannels.empty()) {
+        jobChannels.top()->save();
+    }
+}
+void restoreJob() {
+    if (!jobChannels.empty()) {
+        jobChannels.top()->restore();
+    }
+}

@@ -186,6 +186,12 @@ public:
     void registerEvent(uint8_t code, EventPin* obj);
 
     size_t lineNumber() { return _line_number; }
+
+    virtual void save() {}
+    virtual void restore() {}
 };
 
 extern std::stack<Channel*> jobChannels;
+
+void saveJob();
+void restoreJob();

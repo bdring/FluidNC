@@ -160,12 +160,14 @@ void polling_loop(void* unused) {
                         log_info(channel->name() << " job sent");
                         jobChannels.pop();
                         delete channel;
+                        restoreJob();
                         break;
                     default:
                         log_error(static_cast<int>(status)
                                   << " (" << errorString(status) << ") in " << channel->name() << " at line " << channel->lineNumber());
                         jobChannels.pop();
                         delete channel;
+                        restoreJob();
                         break;
                 }
             }
@@ -828,6 +830,7 @@ static void protocol_do_late_reset() {
         log_info("Reset during job " << channel->name() << " at line " << channel->lineNumber());
         jobChannels.pop();
         delete channel;
+        // restoreJob();
     }
 }
 

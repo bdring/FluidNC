@@ -28,7 +28,7 @@ public:
     // path is the full path to the file
     InputFile(const char* fsname, const char* path);
 
-    InputFile(const InputFile&) = delete;
+    InputFile(const InputFile&)            = delete;
     InputFile& operator=(const InputFile&) = delete;
 
     // readLine() differs from pollLine() in the Channel API as follows:

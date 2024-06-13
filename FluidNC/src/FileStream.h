@@ -22,6 +22,12 @@ class FileStream : public Channel {
     FILE*     _fd;
     size_t    _size;
 
+    // When another subordinate file is being run, we close the
+    // current file to free up its file descriptor, saving the
+    // position so we can reopen later and restore the position
+    long        _saved_position;  // Used when the
+    const char* _mode;
+
     void setup(const char* mode);
 
 public:
@@ -53,6 +59,9 @@ public:
     // pollLine() is a required method of the Channel class that
     // FileStream implements as a no-op.
     Error pollLine(char* line) override { return Error::NoData; }
+
+    void save() override;
+    void restore() override;
 
     ~FileStream() override;
 };
