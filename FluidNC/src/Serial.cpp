@@ -40,7 +40,6 @@
 #include "Serial.h"
 #include "UartChannel.h"
 #include "Machine/MachineConfig.h"
-#include "WebUI/InputBuffer.h"
 #include "WebUI/Commands.h"
 #include "WebUI/WifiServices.h"
 #include "MotionControl.h"
@@ -48,9 +47,8 @@
 #include "System.h"
 #include "Protocol.h"  // *Event
 #include "InputFile.h"
-#include "WebUI/InputBuffer.h"  // XXX could this be a StringStream ?
-#include "Main.h"               // display()
-#include "StartupLog.h"         // startupLog
+#include "Main.h"        // display()
+#include "StartupLog.h"  // startupLog
 
 #include "Driver/fluidnc_gpio.h"
 
@@ -84,8 +82,7 @@ void heapCheckTask(void* pvParameters) {
 }
 
 void AllChannels::init() {
-    registration(&WebUI::inputBuffer);  // Macros
-    registration(&startupLog);          // Early startup messages for $SS
+    registration(&startupLog);  // Early startup messages for $SS
 }
 
 void AllChannels::ready() {
