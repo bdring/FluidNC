@@ -9,7 +9,7 @@
 #include <iomanip>
 
 void MacroEvent::run(void* arg) const {
-    config->_macros->_macro[_num].run();
+    config->_macros->_macro[_num].run(nullptr);
 }
 
 const MacroEvent macro0Event { 0 };
@@ -56,11 +56,13 @@ Cmd findOverride(std::string name) {
     return it == overrideCodes.end() ? Cmd::None : it->second;
 }
 
-bool Macro::run() {
-    log_debug("Run " << name());
+bool Macro::run(Channel* channel) {
+    if (channel) {
+        log_debug_to(*channel, "Run " << name());
+    }
     if (_gcode.length()) {
         saveJob();
-        jobChannels.push(new MacroChannel(this));
+        pushJob(new MacroChannel(this), channel);
         return true;
     }
     return false;
@@ -106,24 +108,14 @@ Error MacroChannel::readLine(char* line, int maxlen) {
 
 void MacroChannel::ack(Error status) {
     if (status != Error::Ok) {
-        log_error(static_cast<int>(status) << " (" << errorString(status) << ") in " << name() << " at line " << lineNumber());
-        if (status != Error::GcodeUnsupportedCommand) {
-            // Do not stop on unsupported commands because most senders do not stop.
-            // Stop the macro job on other errors
-            _notifyf("Macro job error", "Error:%d in %s at line: %d", status, name().c_str(), lineNumber());
-            _pending_error = status;
-        }
+        //        log_error(static_cast<int>(status) << " (" << errorString(status) << ") in " << name() << " at line " << lineNumber());
+        //        if (status != Error::GcodeUnsupportedCommand) {
+        // Do not stop on unsupported commands because most senders do not stop.
+        // Stop the macro job on other errors
+        _notifyf("Macro job error", "Error:%d in %s at line: %d", status, name().c_str(), lineNumber());
+        _pending_error = status;
+        //        }
     }
-}
-
-bool Macros::run_macro(size_t index) {
-    if (index >= n_macros) {
-        return false;
-    }
-
-    saveJob();
-    jobChannels.push(new MacroChannel(&_macro[index]));
-    return true;
 }
 
 MacroChannel::MacroChannel(Macro* macro) : Channel(macro->name(), false), _macro(macro) {}

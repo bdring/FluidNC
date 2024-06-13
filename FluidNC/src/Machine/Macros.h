@@ -35,8 +35,6 @@ namespace Machine {
 
         Macros() = default;
 
-        bool run_macro(size_t index);
-
         // Configuration helpers:
 
         void group(Configuration::HandlerBase& handler) override {
@@ -68,7 +66,7 @@ namespace Machine {
 
         MacroChannel(Macro* macro);
 
-        MacroChannel(const MacroChannel&) = delete;
+        MacroChannel(const MacroChannel&)            = delete;
         MacroChannel& operator=(const MacroChannel&) = delete;
 
         // Channel methods

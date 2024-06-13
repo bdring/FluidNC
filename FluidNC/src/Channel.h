@@ -191,7 +191,11 @@ public:
     virtual void restore() {}
 };
 
+extern Channel* jobLeader;
+
 extern std::stack<Channel*> jobChannels;
 
+void pushJob(Channel* in_channel, Channel* out_channel);
+void popJob();
 void saveJob();
 void restoreJob();

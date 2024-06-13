@@ -351,7 +351,23 @@ bool Channel::is_visible(const std::string& stem, const std::string& extension, 
     return false;
 }
 
+Channel* jobLeader = nullptr;
+
 std::stack<Channel*> jobChannels;
+
+void pushJob(Channel* in_channel, Channel* out_channel) {
+    if (out_channel && jobChannels.empty()) {
+        jobLeader = out_channel;
+    }
+    jobChannels.push(in_channel);
+}
+void popJob() {
+    if (!jobChannels.empty()) {
+        auto channel = jobChannels.top();
+        jobChannels.pop();
+        delete channel;
+    }
+}
 
 void saveJob() {
     if (!jobChannels.empty()) {

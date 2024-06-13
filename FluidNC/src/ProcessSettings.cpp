@@ -296,7 +296,7 @@ static Error disable_alarm_lock(const char* value, WebUI::AuthenticationLevel au
         set_state(State::Idle);
     }
     // Run the after_unlock macro even if no unlock was necessary
-    config->_macros->_after_unlock.run();
+    config->_macros->_after_unlock.run(&out);
     return Error::Ok;
 }
 static Error report_ngc(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
@@ -378,7 +378,7 @@ static Error cmd_log_verbose(const char* value, WebUI::AuthenticationLevel auth_
     }
     return Error::Ok;
 }
-static Error home(AxisMask axisMask) {
+static Error home(AxisMask axisMask, Channel& out) {
     if (axisMask != Machine::Homing::AllCycles) {  // if not AllCycles we need to make sure the cycle is not prohibited
         // if there is a cycle it is the axis from $H<axis>
         auto n_axis = config->_axes->_numberAxis;
@@ -411,7 +411,7 @@ static Error home(AxisMask axisMask) {
     } while (state_is(State::Homing));
 
     if (!Homing::unhomed_axes()) {
-        config->_macros->_after_homing.run();
+        config->_macros->_after_homing.run(&out);
     }
 
     return Error::Ok;
@@ -443,7 +443,7 @@ static Error home_all(const char* value, WebUI::AuthenticationLevel auth_level, 
                 for (int i = 0; i < lenValue; i++) {
                     char cycleName = value[i];
                     requestedAxes  = Machine::Homing::axis_mask_from_cycle(cycleName - '0');
-                    retval         = home(requestedAxes);
+                    retval         = home(requestedAxes, out);
                     if (retval != Error::Ok) {
                         return retval;
                     }
@@ -456,26 +456,26 @@ static Error home_all(const char* value, WebUI::AuthenticationLevel auth_level, 
         }
     }
 
-    return home(requestedAxes);
+    return home(requestedAxes, out);
 }
 
 static Error home_x(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
-    return home(bitnum_to_mask(X_AXIS));
+    return home(bitnum_to_mask(X_AXIS), out);
 }
 static Error home_y(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
-    return home(bitnum_to_mask(Y_AXIS));
+    return home(bitnum_to_mask(Y_AXIS), out);
 }
 static Error home_z(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
-    return home(bitnum_to_mask(Z_AXIS));
+    return home(bitnum_to_mask(Z_AXIS), out);
 }
 static Error home_a(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
-    return home(bitnum_to_mask(A_AXIS));
+    return home(bitnum_to_mask(A_AXIS), out);
 }
 static Error home_b(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
-    return home(bitnum_to_mask(B_AXIS));
+    return home(bitnum_to_mask(B_AXIS), out);
 }
 static Error home_c(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
-    return home(bitnum_to_mask(C_AXIS));
+    return home(bitnum_to_mask(C_AXIS), out);
 }
 static std::string limit_set(uint32_t mask) {
     const char* motor0AxisName = "xyzabc";
@@ -676,7 +676,7 @@ static Error macros_run(const char* value, WebUI::AuthenticationLevel auth_level
     if (value) {
         size_t macro_num = (*value) - '0';
 
-        auto ok = config->_macros->_macro[macro_num].run();
+        auto ok = config->_macros->_macro[macro_num].run(&out);
         return ok ? Error::Ok : Error::NumberRange;
     }
     log_error("$Macros/Run requires a macro number argument");

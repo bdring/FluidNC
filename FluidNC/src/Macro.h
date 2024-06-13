@@ -1,11 +1,12 @@
 #pragma once
+#include "Channel.h"
 
 class Macro {
     std::string _name;
 
 public:
     std::string        _gcode;
-    bool               run();
+    bool               run(Channel* channel);
     void               set(const char* value) { _gcode = value; }
     void               set(const std::string& value) { _gcode = value; }
     void               set(const std::string_view value) { _gcode = value; }

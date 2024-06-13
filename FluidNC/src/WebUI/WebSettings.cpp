@@ -584,7 +584,7 @@ namespace WebUI {
         if ((err = openFile(fs, parameter, out, theFile)) != Error::Ok) {
             return err;
         }
-        jobChannels.push(theFile);
+        pushJob(theFile, &out);
 
         return Error::Ok;
     }

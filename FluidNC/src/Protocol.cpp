@@ -148,6 +148,12 @@ void polling_loop(void* unused) {
                 // channels to see if one has a line ready.
                 activeChannel = pollChannels(activeLine);
             } else {
+                if (state_is(State::Alarm) || state_is(State::ConfigAlarm)) {
+                    log_debug("Unwinding from Alarm");
+                    protocol_unwind_jobs();
+                    unwind_cause = nullptr;
+                    continue;
+                }
                 if (unwind_cause) {
                     protocol_unwind_jobs();
                     unwind_cause = nullptr;
@@ -166,16 +172,16 @@ void polling_loop(void* unused) {
                     case Error::Eof:
                         _notifyf("Job done", "%s job sent", channel->name());
                         log_info(channel->name() << " job sent");
-                        jobChannels.pop();
-                        delete channel;
+                        popJob();
                         restoreJob();
                         break;
                     default:
-                        log_error(static_cast<int>(status)
-                                  << " (" << errorString(status) << ") in " << channel->name() << " at line " << channel->lineNumber());
-                        jobChannels.pop();
-                        delete channel;
-                        restoreJob();
+                        if (jobLeader) {
+                            log_error_to(*jobLeader,
+                                         static_cast<int>(status) << " (" << errorString(status) << ") in " << channel->name()
+                                                                  << " at line " << channel->lineNumber());
+                        }
+                        protocol_unwind_jobs();
                         break;
                 }
             }
@@ -349,8 +355,7 @@ void protocol_buffer_synchronize() {
 // Auto-cycle start triggers when there is a motion ready to execute and if the main program is not
 // actively parsing commands.
 // NOTE: This function is called from the main loop, buffer sync, and mc_move_motors() only and executes
-// when one of these conditions exist respectively: There are no more blocks sent (i.e. streaming
-// is finished, single commands), a command that needs to wait for the motions in the buffer to
+// when one of these conditions exist respectively: There are no more blocks sent (i.e. streaming// is finished, single commands), a command that needs to wait for the motions in the buffer to
 // execute calls a buffer sync, or the planner buffer is full and ready to go.
 void protocol_auto_cycle_start() {
     if (plan_get_current_block() != NULL && !state_is(State::Cycle) && !state_is(State::Hold)) {  // Check if there are any blocks in the buffer.
@@ -377,7 +382,7 @@ void protocol_execute_realtime() {
 }
 
 static void protocol_run_startup_lines() {
-    config->_macros->_startup.run();
+    config->_macros->_startup.run(&allChannels);
 }
 
 static void protocol_do_restart() {
@@ -422,7 +427,7 @@ static void protocol_do_restart() {
         send_alarm(ExecAlarm::ControlPin);
     } else {
         if (state_is(State::Idle)) {
-            config->_macros->_after_reset.run();
+            config->_macros->_after_reset.run(&allChannels);
         }
     }
 }
@@ -460,16 +465,14 @@ static void protocol_do_alarm(void* alarmVoid) {
         report_error_message(Message::CriticalEvent);
         protocol_disable_steppers();
         Homing::set_all_axes_unhomed();
-        goto out;
+        return;
     }
     if (lastAlarm == ExecAlarm::SoftLimit) {
         set_state(State::Critical);  // Set system alarm state
         report_error_message(Message::CriticalEvent);
-        goto out;
+        return;
     }
     set_state(State::Alarm);
-out:
-    unwind_cause = "Alarm";
 }
 
 static void protocol_start_holding() {
@@ -820,9 +823,7 @@ static void update_velocities() {
 void protocol_unwind_jobs() {
     // Kill all active jobs
     while (!jobChannels.empty()) {
-        auto channel = jobChannels.top();
-        jobChannels.pop();
-        delete channel;
+        popJob();
     }
 }
 
