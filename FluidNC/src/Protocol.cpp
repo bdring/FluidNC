@@ -22,6 +22,8 @@
 
 volatile ExecAlarm lastAlarm;  // The most recent alarm code
 
+volatile const char* unwind_cause = nullptr;
+
 const std::map<ExecAlarm, const char*> AlarmNames = {
     { ExecAlarm::None, "None" },
     { ExecAlarm::HardLimit, "Hard Limit" },
@@ -141,10 +143,16 @@ void polling_loop(void* unused) {
         if (!activeChannel) {
             // Job channels have priority
             if (jobChannels.empty()) {
+                unwind_cause = nullptr;
                 // No job channel is active, so poll all of the serial-style
                 // channels to see if one has a line ready.
                 activeChannel = pollChannels(activeLine);
             } else {
+                if (unwind_cause) {
+                    protocol_unwind_jobs();
+                    unwind_cause = nullptr;
+                    continue;
+                }
                 // A job channel is active, so accept line-oriented input only
                 // from the job channel on top of the job stack.
                 auto channel = jobChannels.top();
@@ -452,14 +460,16 @@ static void protocol_do_alarm(void* alarmVoid) {
         report_error_message(Message::CriticalEvent);
         protocol_disable_steppers();
         Homing::set_all_axes_unhomed();
-        return;
+        goto out;
     }
     if (lastAlarm == ExecAlarm::SoftLimit) {
         set_state(State::Critical);  // Set system alarm state
         report_error_message(Message::CriticalEvent);
-        return;
+        goto out;
     }
     set_state(State::Alarm);
+out:
+    unwind_cause = "Alarm";
 }
 
 static void protocol_start_holding() {
@@ -807,6 +817,15 @@ static void update_velocities() {
     plan_update_velocity_profile_parameters();
 }
 
+void protocol_unwind_jobs() {
+    // Kill all active jobs
+    while (!jobChannels.empty()) {
+        auto channel = jobChannels.top();
+        jobChannels.pop();
+        delete channel;
+    }
+}
+
 // This is the final phase of the shutdown activity for a reset
 // The stuff herein is not necessarily safe to do in an ISR.
 static void protocol_do_late_reset() {
@@ -823,15 +842,7 @@ static void protocol_do_late_reset() {
 
     sys.abort = true;
 
-    // Kill all active jobs
-    while (!jobChannels.empty()) {
-        auto channel = jobChannels.top();
-        _notifyf("Job canceled", "Reset during job %s at line %d", channel->name(), channel->lineNumber());
-        log_info("Reset during job " << channel->name() << " at line " << channel->lineNumber());
-        jobChannels.pop();
-        delete channel;
-        // restoreJob();
-    }
+    unwind_cause = "Reset";
 }
 
 void protocol_exec_rt_system() {

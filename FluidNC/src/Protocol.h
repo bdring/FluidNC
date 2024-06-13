@@ -115,10 +115,10 @@ extern bool pollingPaused;
 
 struct EventItem {
     const Event* event;
-    void*  arg;
+    void*        arg;
 };
 
-void protocol_send_event(const Event*,  void* arg = 0);
+void protocol_send_event(const Event*, void* arg = 0);
 void protocol_handle_events();
 
 void send_alarm(ExecAlarm alarm);
@@ -131,5 +131,7 @@ inline void protocol_send_event(const Event* evt, int arg) {
 void protocol_send_event_from_ISR(const Event* evt, void* arg = 0);
 
 void drain_messages();
+
+void protocol_unwind_jobs();
 
 extern uint32_t heapLowWater;

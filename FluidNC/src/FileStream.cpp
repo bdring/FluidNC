@@ -71,6 +71,7 @@ FileStream::FileStream(FluidPath fpath, const char* mode) : Channel("file"), _mo
 void FileStream::save() {
     _saved_position = position();
     fclose(_fd);
+    _fd = nullptr;
 }
 
 void FileStream::restore() {
@@ -83,5 +84,7 @@ void FileStream::restore() {
 }
 
 FileStream::~FileStream() {
-    fclose(_fd);
+    if (_fd) {
+        fclose(_fd);
+    }
 }
