@@ -23,7 +23,7 @@ const std::map<const int, bool *> bool_params = {
 };
 typedef int ngc_param_id_t;
 
-std::map<const ngc_param_id_t, float> user_vars = {};
+std::map<const ngc_param_id_t, float> user_params = {};
 
 const std::map<const ngc_param_id_t, CoordIndex> axis_params = {
     { 5161, CoordIndex::G28 },
@@ -105,7 +105,7 @@ bool set_numbered_param(ngc_param_id_t id, float value) {
         return true;
     }
     if (id >= 31 && id <= 5000) {
-        user_vars[id] = value;
+        user_params[id] = value;
         return true;
     }
     log_info("N " << id << " is not found");
@@ -142,7 +142,7 @@ bool get_numbered_param(ngc_param_id_t id, float& result) {
         }
     }
     if (id >= 31 && id <= 5000) {
-        result = user_vars[id];
+        result = user_params[id];
         return true;
     }
 
