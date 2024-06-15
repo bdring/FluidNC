@@ -32,6 +32,7 @@
 #include "WebUI/BTConfig.h"              // bt_config
 #include "WebUI/WebSettings.h"
 #include "InputFile.h"
+#include "Job.h"
 
 #include <map>
 #include <freertos/task.h>
@@ -631,8 +632,8 @@ void report_realtime_status(Channel& channel) {
             }
         }
     }
-    if (!jobChannels.empty()) {
-        msg << "|" << jobChannels.top()->_progress;
+    if (Job::active()) {
+        msg << "|" << Job::channel()->_progress;
     }
 #ifdef DEBUG_STEPPER_ISR
     msg << "|ISRs:" << Stepper::isr_count;

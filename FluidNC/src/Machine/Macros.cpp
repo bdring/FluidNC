@@ -5,6 +5,7 @@
 #include "src/Serial.h"                 // Cmd
 #include "src/System.h"                 // sys
 #include "src/Machine/MachineConfig.h"  // config
+#include "src/Job.h"                    // Job::
 #include <sstream>
 #include <iomanip>
 
@@ -61,8 +62,8 @@ bool Macro::run(Channel* channel) {
         log_debug_to(*channel, "Run " << name());
     }
     if (_gcode.length()) {
-        saveJob();
-        pushJob(new MacroChannel(this), channel);
+        Job::prenest();
+        Job::nest(new MacroChannel(this), channel);
         return true;
     }
     return false;
@@ -80,18 +81,13 @@ Error MacroChannel::readLine(char* line, int maxlen) {
         // XXX this can probably be pushed into the GCode parser alongside expressions
         // Realtime characters can be inserted in macros with #xx escapes
         if (c == '#') {
-            if ((_position + 2) > gcode_len) {
-                log_error("Missing characters after # realtime escape in macro");
-                return Error::Eof;
-            }
-            {
+            if ((_position + 2) <= gcode_len) {
                 Cmd cmd = findOverride(gcode.substr(_position, 2));
-                if (cmd == Cmd::None) {
-                    log_error("Bad #xx realtime escape in macro");
-                    return Error::Eof;
+                if (cmd != Cmd::None) {
+                    _position += 2;
+                    execute_realtime_command(cmd, *this);
+                    continue;
                 }
-                _position += 2;
-                execute_realtime_command(cmd, *this);
             }
         }
         // & is a proxy for newlines in macros, because you cannot

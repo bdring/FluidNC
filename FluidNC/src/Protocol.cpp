@@ -19,6 +19,7 @@
 
 #include "SettingsDefinitions.h"  // gcode_echo
 #include "Machine/LimitPin.h"
+#include "Job.h"
 
 volatile ExecAlarm lastAlarm;  // The most recent alarm code
 
@@ -142,7 +143,7 @@ void polling_loop(void* unused) {
         // handles IO from channels.
         if (!activeChannel) {
             // Job channels have priority
-            if (jobChannels.empty()) {
+            if (!Job::active()) {
                 unwind_cause = nullptr;
                 // No job channel is active, so poll all of the serial-style
                 // channels to see if one has a line ready.
@@ -150,18 +151,18 @@ void polling_loop(void* unused) {
             } else {
                 if (state_is(State::Alarm) || state_is(State::ConfigAlarm)) {
                     log_debug("Unwinding from Alarm");
-                    protocol_unwind_jobs();
+                    Job::abort();
                     unwind_cause = nullptr;
                     continue;
                 }
                 if (unwind_cause) {
-                    protocol_unwind_jobs();
+                    Job::abort();
                     unwind_cause = nullptr;
                     continue;
                 }
                 // A job channel is active, so accept line-oriented input only
                 // from the job channel on top of the job stack.
-                auto channel = jobChannels.top();
+                auto channel = Job::channel();
                 auto status  = channel->pollLine(activeLine);
                 switch (status) {
                     case Error::Ok:
@@ -172,16 +173,15 @@ void polling_loop(void* unused) {
                     case Error::Eof:
                         _notifyf("Job done", "%s job sent", channel->name());
                         log_info(channel->name() << " job sent");
-                        popJob();
-                        restoreJob();
+                        Job::unnest();
                         break;
                     default:
-                        if (jobLeader) {
-                            log_error_to(*jobLeader,
+                        if (Job::leader) {
+                            log_error_to(*Job::leader,
                                          static_cast<int>(status) << " (" << errorString(status) << ") in " << channel->name()
                                                                   << " at line " << channel->lineNumber());
                         }
-                        protocol_unwind_jobs();
+                        Job::abort();
                         break;
                 }
             }
@@ -818,13 +818,6 @@ void protocol_do_cycle_stop() {
 static void update_velocities() {
     report_ovr_counter = 0;  // Set to report change immediately
     plan_update_velocity_profile_parameters();
-}
-
-void protocol_unwind_jobs() {
-    // Kill all active jobs
-    while (!jobChannels.empty()) {
-        popJob();
-    }
 }
 
 // This is the final phase of the shutdown activity for a reset

@@ -132,6 +132,4 @@ void protocol_send_event_from_ISR(const Event* evt, void* arg = 0);
 
 void drain_messages();
 
-void protocol_unwind_jobs();
-
 extern uint32_t heapLowWater;

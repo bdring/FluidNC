@@ -10,6 +10,7 @@
 #include "Machine/MachineConfig.h"
 #include "MotionControl.h"
 #include "GCode.h"
+#include "Job.h"
 
 #include <string>
 #include <map>
@@ -76,7 +77,7 @@ const std::array<const std::string, 6> unsupported_sys = {
 
 // clang-format on
 
-std::map<std::string, float> named_params;
+std::map<std::string, float> global_named_params;
 
 bool ngc_param_is_rw(ngc_param_id_t id) {
     return true;
@@ -326,20 +327,34 @@ bool named_param_exists(std::string& name) {
     }
     if (search[0] == '_') {
         float dummy;
-        return get_system_param(search, dummy);
+        bool  got = get_system_param(search, dummy);
+        if (got) {
+            return true;
+        }
+        got = Job::param_exists(search);
+        if (got) {
+            return true;
+        }
     }
-    return named_params.count(search) != 0;
+    return global_named_params.count(search) != 0;
 }
 
 bool get_param(const param_ref_t& param_ref, float& result) {
-    if (param_ref.name.length()) {
-        if (param_ref.name[0] == '/') {
-            return get_config_item(param_ref.name, result);
+    auto name = param_ref.name;
+    if (name.length()) {
+        if (name[0] == '/') {
+            return get_config_item(name, result);
         }
-        if (param_ref.name[0] == '_') {
-            return get_system_param(param_ref.name, result);
+        bool got;
+        if (name[0] == '_') {
+            got = get_system_param(name, result);
+            if (got) {
+                return true;
+            }
+            result = global_named_params[name];
+            return true;
         }
-        result = named_params[param_ref.name];
+        result = Job::active() ? Job::get_param(name) : global_named_params[name];
         return true;
     }
     return get_numbered_param(param_ref.id, result);
@@ -400,11 +415,16 @@ bool get_param_ref(const char* line, size_t* pos, param_ref_t& param_ref) {
 
 void set_param(const param_ref_t& param_ref, float value) {
     if (param_ref.name.length()) {
-        if (param_ref.name[0] == '/') {
+        auto name = param_ref.name;
+        if (name[0] == '/') {
             set_config_item(param_ref.name, value);
             return;
         }
-        named_params[param_ref.name] = value;
+        if (name[0] != '_' && Job::active()) {
+            Job::set_param(name, value);
+        } else {
+            global_named_params[name] = value;
+        }
         return;
     }
 
