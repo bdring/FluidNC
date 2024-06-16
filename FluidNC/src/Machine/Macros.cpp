@@ -62,7 +62,7 @@ bool Macro::run(Channel* channel) {
         log_debug_to(*channel, "Run " << name());
     }
     if (_gcode.length()) {
-        Job::prenest();
+        Job::save();
         Job::nest(new MacroChannel(this), channel);
         return true;
     }

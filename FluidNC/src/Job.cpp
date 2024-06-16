@@ -13,12 +13,17 @@ bool Job::active() {
     return !job.empty();
 }
 
-// prenest() and nest() must be separate because we must save the position and close
-// an SD file before trying to open a nested SD file.  The reason for that is because
+// save() and restore() are use to close/reopen an SD file atop the job stack
+// before trying to open a nested SD file.  The reason for that is because
 // the number of simultaneously-open SD files is limited to conserve RAM.
-void Job::prenest() {
+void Job::save() {
     if (active()) {
         job.top()->save();
+    }
+}
+void Job::restore() {
+    if (active()) {
+        job.top()->restore();
     }
 }
 void Job::nest(Channel* in_channel, Channel* out_channel) {
@@ -39,9 +44,7 @@ void Job::pop() {
 void Job::unnest() {
     if (active()) {
         pop();
-        if (active()) {
-            job.top()->restore();
-        }
+        restore();
     }
 }
 

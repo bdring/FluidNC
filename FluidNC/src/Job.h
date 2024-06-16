@@ -31,7 +31,8 @@ public:
 
     static bool active();
 
-    static void prenest();
+    static void save();
+    static void restore();
     static void nest(Channel* in_channel, Channel* out_channel);
     static void unnest();
     static void abort();

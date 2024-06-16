@@ -575,14 +575,14 @@ namespace WebUI {
 
     static Error runFile(const char* fs, const char* parameter, AuthenticationLevel auth_level, Channel& out) {
         Error err;
-        log_debug("Run " << parameter);
         if (state_is(State::Alarm) || state_is(State::ConfigAlarm)) {
             log_string(out, "Alarm");
             return Error::IdleError;
         }
-        Job::prenest();
+        Job::save();
         InputFile* theFile;
         if ((err = openFile(fs, parameter, out, theFile)) != Error::Ok) {
+            Job::restore();
             return err;
         }
         Job::nest(theFile, &out);
