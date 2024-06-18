@@ -37,10 +37,15 @@ bool allowConfigStates() {
 Word::Word(type_t type, permissions_t permissions, const char* description, const char* grblName, const char* fullName) :
     _description(description), _grblName(grblName), _fullName(fullName), _type(type), _permissions(permissions) {}
 
-Command::Command(
-    const char* description, type_t type, permissions_t permissions, const char* grblName, const char* fullName, bool (*cmdChecker)()) :
+Command::Command(const char*   description,
+                 type_t        type,
+                 permissions_t permissions,
+                 const char*   grblName,
+                 const char*   fullName,
+                 bool (*cmdChecker)(),
+                 bool synchronous) :
     Word(type, permissions, description, grblName, fullName),
-    _cmdChecker(cmdChecker) {
+    _cmdChecker(cmdChecker), _synchronous(synchronous) {
     List.insert(List.begin(), this);
 }
 

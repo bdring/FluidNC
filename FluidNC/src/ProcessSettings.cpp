@@ -849,7 +849,6 @@ void make_user_commands() {
     new UserCommand("CD", "Config/Dump", dump_config, anyState);
     new UserCommand("", "Help", show_help, anyState);
     new UserCommand("T", "State", showState, anyState);
-    new UserCommand("J", "Jog", doJog, notIdleOrJog);
 
     new UserCommand("$", "GrblSettings/List", report_normal_settings, cycleOrHold);
     new UserCommand("L", "GrblNames/List", list_grbl_names, cycleOrHold);
@@ -859,7 +858,6 @@ void make_user_commands() {
     new UserCommand("CMD", "Commands/List", list_commands, cycleOrHold);
     new UserCommand("A", "Alarms/List", listAlarms, anyState);
     new UserCommand("E", "Errors/List", listErrors, anyState);
-    new UserCommand("G", "GCode/Modes", report_gcode, anyState);
     new UserCommand("C", "GCode/Check", toggle_check_mode, anyState);
     new UserCommand("X", "Alarm/Disable", disable_alarm_lock, anyState);
     new UserCommand("NVX", "Settings/Erase", Setting::eraseNVS, notIdleOrAlarm, WA);
@@ -900,6 +898,9 @@ void make_user_commands() {
 
     new UserCommand("30", "FakeMaxSpindleSpeed", fakeMaxSpindleSpeed, notIdleOrAlarm);
     new UserCommand("32", "FakeLaserMode", fakeLaserMode, notIdleOrAlarm);
+
+    new AsyncUserCommand("J", "Jog", doJog, notIdleOrJog);
+    new AsyncUserCommand("G", "GCode/Modes", report_gcode, anyState);
 };
 
 // normalize_key puts a key string into canonical form -
@@ -941,6 +942,23 @@ Error do_command_or_setting(const char* key, const char* value, WebUI::Authentic
     // $key without =, or [key] with nothing following.
     // If value is not NULL, but the string is empty, that is the form
     // $key= with nothing following the = .
+
+    // Try to execute a command.  Commands handle values internally;
+    // you cannot determine whether to set or display solely based on
+    // the presence of a value.
+    for (Command* cp : Command::List) {
+        if ((strcasecmp(cp->getName(), key) == 0) || (cp->getGrblName() && strcasecmp(cp->getGrblName(), key) == 0)) {
+            if (auth_failed(cp, value, auth_level)) {
+                return Error::AuthenticationFailed;
+            }
+            if (cp->synchronous()) {
+                protocol_buffer_synchronize();
+            }
+            return cp->action(value, auth_level, out);
+        }
+    }
+
+    protocol_buffer_synchronize();
 
     // First search the yaml settings by name. If found, set a new
     // value if one is given, otherwise display the current value
@@ -1003,17 +1021,6 @@ Error do_command_or_setting(const char* key, const char* value, WebUI::Authentic
                 show_setting(s->getGrblName(), s->getCompatibleValue(), NULL, out);
                 return Error::Ok;
             }
-        }
-    }
-    // If we did not find a setting, look for a command.  Commands
-    // handle values internally; you cannot determine whether to set
-    // or display solely based on the presence of a value.
-    for (Command* cp : Command::List) {
-        if ((strcasecmp(cp->getName(), key) == 0) || (cp->getGrblName() && strcasecmp(cp->getGrblName(), key) == 0)) {
-            if (auth_failed(cp, value, auth_level)) {
-                return Error::AuthenticationFailed;
-            }
-            return cp->action(value, auth_level, out);
         }
     }
 
