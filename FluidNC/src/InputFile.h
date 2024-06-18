@@ -22,6 +22,7 @@
 class InputFile : public FileStream {
 private:
     Error _pending_error = Error::Ok;
+    void  end_message();
 
 public:
     // fsname is the default file system on which the file is located, in case the path does not specify

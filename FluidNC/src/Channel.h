@@ -79,6 +79,8 @@ protected:
 
     UTF8 _utf8;
 
+    bool _ended = false;
+
 protected:
     bool _active = true;
 
@@ -173,6 +175,8 @@ public:
         }
     }
     void push(const std::string& s) { push(reinterpret_cast<const uint8_t*>(s.c_str()), s.length()); }
+
+    void end() { _ended = true; }
 
     // Pin extender functions
     virtual void out(const char* s, const char* tag);

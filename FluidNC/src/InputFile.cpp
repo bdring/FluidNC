@@ -47,6 +47,12 @@ void InputFile::ack(Error status) {
 #include <sstream>
 #include <iomanip>
 
+void InputFile::end_message() {
+    _progress = "SD: ";
+    _progress += name();
+    _progress += ": Sent";
+}
+
 Error InputFile::pollLine(char* line) {
     // File input never returns realtime characters, so we do nothing
     // if line is null.
@@ -55,6 +61,10 @@ Error InputFile::pollLine(char* line) {
     }
     if (_pending_error != Error::Ok) {
         return _pending_error;
+    }
+    if (_ended) {
+        end_message();
+        return Error::Eof;
     }
     switch (auto err = readLine(line, Channel::maxLine)) {
         case Error::Ok: {
@@ -66,9 +76,7 @@ Error InputFile::pollLine(char* line) {
         }
             return Error::Ok;
         case Error::Eof:
-            _progress = "SD: ";
-            _progress += name();
-            _progress += ": Sent";
+            end_message();
             return Error::Eof;
         default:
             _progress = "";

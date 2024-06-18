@@ -14,6 +14,7 @@
 #include "MotionControl.h"        // mc_override_ctrl_update
 #include "Machine/UserOutputs.h"  // setAnalogPercent
 #include "Platform.h"             // WEAK_LINK
+#include "Job.h"                  // Job::active() and Job::channel()
 
 #include "Machine/MachineConfig.h"
 #include "Parameters.h"
@@ -1684,6 +1685,10 @@ Error gc_execute_line(char* line) {
         case ProgramFlow::CompletedM30:
             protocol_buffer_synchronize();  // Sync and finish all remaining buffered motions before moving on.
 
+            if (Job::active()) {
+                Job::channel()->end();
+                break;
+            }
             // Upon program complete, only a subset of g-codes reset to certain defaults, according to
             // LinuxCNC's program end descriptions and testing. Only modal groups [G-code 1,2,3,5,7,12]
             // and [M-code 7,8,9] reset to [G1,G17,G90,G94,G40,G54,M5,M9,M48]. The remaining modal groups
