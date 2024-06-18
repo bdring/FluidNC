@@ -193,6 +193,7 @@ Error Channel::pollLine(char* line) {
             if (ch < 0) {
                 break;
             }
+            _active = true;
             if (realtimeOkay(ch) && is_realtime_command(ch)) {
                 handleRealtimeCharacter((uint8_t)ch);
                 continue;
