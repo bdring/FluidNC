@@ -1723,7 +1723,7 @@ void Maslow_::print_calibration_data() {
     }
     data += "]";
     HeartBeatEnabled = false;
-    //log_data(data.c_str());  //will it print really large strings?
+    log_data(data.c_str());
     HeartBeatEnabled = true;
 }
 
@@ -1810,18 +1810,18 @@ void Maslow_::updateCenterXY() {
 
 // Prints out state
 void Maslow_::getInfo() {
-    // log_data("MINFO: { \"homed\": " << (all_axis_homed() ? "true" : "false") << ","
-    //       << "\"calibrationInProgress\": " << (calibrationInProgress ? "true" : "false") << ","
-    //       << "\"tl\": " << axisTL.getPosition() << ","
-    //       << "\"tr\": " << axisTR.getPosition() << ","
-    //       << "\"br\": " << axisBR.getPosition() << ","
-    //       << "\"bl\": " << axisBL.getPosition() << ","
-    //       << "\"etl\": " << axisTL.getPositionError() << ","
-    //       << "\"etr\": " << axisTR.getPositionError() << ","
-    //       << "\"ebr\": " << axisBR.getPositionError() << ","
-    //       << "\"ebl\": " << axisBL.getPositionError() << ","
-    //       << "\"extended\": " << (allAxisExtended() ? "true" : "false")
-    //       << "}");
+    log_data("MINFO: { \"homed\": " << (all_axis_homed() ? "true" : "false") << ","
+          << "\"calibrationInProgress\": " << (calibrationInProgress ? "true" : "false") << ","
+          << "\"tl\": " << axisTL.getPosition() << ","
+          << "\"tr\": " << axisTR.getPosition() << ","
+          << "\"br\": " << axisBR.getPosition() << ","
+          << "\"bl\": " << axisBL.getPosition() << ","
+          << "\"etl\": " << axisTL.getPositionError() << ","
+          << "\"etr\": " << axisTR.getPositionError() << ","
+          << "\"ebr\": " << axisBR.getPositionError() << ","
+          << "\"ebl\": " << axisBL.getPositionError() << ","
+          << "\"extended\": " << (allAxisExtended() ? "true" : "false")
+          << "}");
 }
 
 Maslow_& Maslow_::getInstance() {
