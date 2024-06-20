@@ -19,6 +19,8 @@
 #include "Settings.h"       // settings_execute_startup
 #include "Machine/LimitPin.h"
 
+#include "./Maslow/Maslow.h"
+
 volatile ExecAlarm rtAlarm;  // Global realtime executor bitflag variable for setting various alarms.
 
 std::map<ExecAlarm, const char*> AlarmNames = {
@@ -259,6 +261,7 @@ static void check_startup_state() {
             settings_execute_startup();  // Execute startup script.
         }
     }
+    Maslow.begin(&protocol_exec_rt_system);
 }
 
 const uint32_t heapWarnThreshold = 15000;
@@ -368,6 +371,7 @@ void protocol_execute_realtime() {
     if (sys.suspend().value) {
         protocol_exec_rt_suspend();
     }
+
 }
 
 static void alarm_msg(ExecAlarm alarm_code) {
@@ -470,10 +474,12 @@ static void protocol_do_motion_cancel() {
 }
 
 static void protocol_do_feedhold() {
+    Serial.println("protocol do feedhold");
     if (runLimitLoop) {
         runLimitLoop = false;  // Hack to stop show_limits()
         return;
     }
+    
     // log_debug("protocol_do_feedhold " << state_name());
     // Execute a feed hold with deceleration, if required. Then, suspend system.
     switch (sys.state()) {
@@ -822,9 +828,14 @@ void protocol_exec_rt_system() {
     if (rtSafetyDoor) {
         protocol_do_safety_door();
     }
+  
+    //Maslow.recomputePID(); //This one works as an alternative to having recomputePID called in DCServo.cpp
 
     protocol_handle_events();
 
+    
+    //do all the Maslow stuff here
+    Maslow.update();
     // Reload step segment buffer
     switch (sys.state()) {
         case State::ConfigAlarm:
