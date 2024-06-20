@@ -18,7 +18,8 @@ const MacroEvent macro1Event { 1 };
 const MacroEvent macro2Event { 2 };
 const MacroEvent macro3Event { 3 };
 
-Macro Macros::_startup { "Startup" };
+Macro Macros::_startup_line0 { "startup_line0" };
+Macro Macros::_startup_line1 { "startup_line1" };
 Macro Macros::_macro[] = {
     Macro { "Macro0" },
     Macro { "Macro1" },

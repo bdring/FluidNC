@@ -382,7 +382,8 @@ void protocol_execute_realtime() {
 }
 
 static void protocol_run_startup_lines() {
-    config->_macros->_startup.run(&allChannels);
+    config->_macros->_startup_line0.run(&allChannels);
+    config->_macros->_startup_line1.run(&allChannels);
 }
 
 static void protocol_do_restart() {

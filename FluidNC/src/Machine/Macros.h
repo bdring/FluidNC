@@ -29,6 +29,8 @@ namespace Machine {
 
         static Macro _macro[];
         static Macro _startup;
+        static Macro _startup_line0;
+        static Macro _startup_line1;
         static Macro _after_homing;
         static Macro _after_reset;
         static Macro _after_unlock;
@@ -38,8 +40,8 @@ namespace Machine {
         // Configuration helpers:
 
         void group(Configuration::HandlerBase& handler) override {
-            // handler.item(_startup._name, &_startup);
-            handler.item(_startup.name(), _startup);
+            handler.item(_startup_line0.name(), _startup_line0);
+            handler.item(_startup_line1.name(), _startup_line1);
             handler.item(_macro[0].name(), _macro[0]);
             handler.item(_macro[1].name(), _macro[1]);
             handler.item(_macro[2].name(), _macro[2]);
