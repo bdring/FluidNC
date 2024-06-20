@@ -16,13 +16,14 @@
 #include "MotionControl.h"
 #include "System.h"
 #include "Limits.h"               // homingAxes
-#include "SettingsDefinitions.h"  // build_info
+#include "SettingsDefinitions.h"  // build_info, config_filename
 #include "Protocol.h"             // LINE_BUFFER_SIZE
 #include "UartChannel.h"          // Uart0.write()
 #include "FileStream.h"           // FileStream()
 #include "xmodem.h"               // xmodemReceive(), xmodemTransmit()
 #include "StartupLog.h"           // startupLog
 #include "Driver/fluidnc_gpio.h"  // gpio_dump()
+#include "Maslow/Maslow.h"
 
 #include "FluidPath.h"
 
@@ -819,6 +820,271 @@ static Error showHeap(const char* value, WebUI::AuthenticationLevel auth_level, 
     return Error::Ok;
 }
 
+
+/*
+
+
+              //////////  Maslow-specific user cmd functions  //////////////
+
+
+*/
+static Error maslow_retract_TL(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+    if(Maslow.using_default_config) {
+        return Error::ConfigurationInvalid;
+    }
+    sys.set_state(State::Homing);
+    Maslow.retractTL();
+    return Error::Ok;
+}
+static Error maslow_retract_TR(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+    if(Maslow.using_default_config) {
+        return Error::ConfigurationInvalid;
+    }
+    sys.set_state(State::Homing);
+    Maslow.retractTR();
+    return Error::Ok;
+}
+static Error maslow_retract_BR(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+    if(Maslow.using_default_config) {
+        return Error::ConfigurationInvalid;
+    }
+    sys.set_state(State::Homing);
+    Maslow.retractBR();
+    return Error::Ok;
+}
+static Error maslow_retract_BL(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+    if(Maslow.using_default_config) {
+        return Error::ConfigurationInvalid;
+    }
+    sys.set_state(State::Homing);
+    Maslow.retractBL();
+    return Error::Ok;
+}
+static Error maslow_retract_ALL(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+    if(Maslow.using_default_config) {
+        return Error::ConfigurationInvalid;
+    }
+    sys.set_state(State::Homing);
+    log_info("Retracting all belts");
+    Maslow.retractALL();
+    return Error::Ok;
+}
+static Error maslow_extend_ALL(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+    if(Maslow.using_default_config) {
+        return Error::ConfigurationInvalid;
+    }
+    sys.set_state(State::Homing);
+    log_info("Extending all belts");
+    Maslow.extendALL();
+    return Error::Ok;
+}
+static Error maslow_stop(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+    if(Maslow.using_default_config) {
+        return Error::ConfigurationInvalid;
+    }
+    sys.set_state(State::Alarm);
+    Maslow.stop();
+    return Error::Ok;
+}
+static Error maslow_set_comply(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+    if(Maslow.using_default_config) {
+        return Error::ConfigurationInvalid;
+    }
+    sys.set_state(State::Homing);
+    log_info("Set to comply");
+    Maslow.comply();
+    return Error::Ok;
+}
+static Error maslow_start_calibration(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+    if(Maslow.using_default_config) {
+        return Error::ConfigurationInvalid;
+    }
+    sys.set_state(State::Homing);
+    Maslow.runCalibration();
+    return Error::Ok;
+}
+
+static Error overwrite_config(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+    if (Maslow.using_default_config) {
+        return Error::ConfigurationInvalid;
+    }
+    // value will be ignored, we will use the config_filename value instead
+    return dump_config(config_filename->get(), auth_level, out);
+}
+
+static Error maslow_TLO(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+    if(Maslow.using_default_config) {
+        return Error::ConfigurationInvalid;
+    }
+    sys.set_state(State::Homing);
+    Maslow.TLO();
+    return Error::Ok;
+}
+static Error maslow_TRO(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+    if(Maslow.using_default_config) {
+        return Error::ConfigurationInvalid;
+    }
+    sys.set_state(State::Homing);
+    Maslow.TRO();
+    return Error::Ok;
+}
+static Error maslow_BLO(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+    if(Maslow.using_default_config) {
+        return Error::ConfigurationInvalid;
+    }
+    sys.set_state(State::Homing);
+    Maslow.BLO();
+    return Error::Ok;
+}
+static Error maslow_BRO(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+    if(Maslow.using_default_config) {
+        return Error::ConfigurationInvalid;
+    }
+    sys.set_state(State::Homing);
+    Maslow.BRO();
+    return Error::Ok;
+}
+static Error maslow_TLI(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+    if(Maslow.using_default_config) {
+        return Error::ConfigurationInvalid;
+    }
+    sys.set_state(State::Homing);
+    Maslow.TLI();
+    return Error::Ok;
+}
+static Error maslow_TRI(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+    if(Maslow.using_default_config) {
+        return Error::ConfigurationInvalid;
+    }
+    sys.set_state(State::Homing);
+    Maslow.TRI();
+    return Error::Ok;
+}
+static Error maslow_BLI(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+    if(Maslow.using_default_config) {
+        return Error::ConfigurationInvalid;
+    }
+    sys.set_state(State::Homing);
+    Maslow.BLI();
+    return Error::Ok;
+}
+static Error maslow_BRI(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+    if(Maslow.using_default_config) {
+        return Error::ConfigurationInvalid;
+    }
+    sys.set_state(State::Homing);
+    Maslow.BRI();
+    return Error::Ok;
+}
+
+
+static Error maslow_set_width(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+    if(Maslow.using_default_config) {
+        return Error::ConfigurationInvalid;
+    }
+    if (!value) {
+        //double width = Maslow.frame_width;
+        //log_info("Maslow frame width is " << width);
+        return Error::Ok;
+    }
+    char*    endptr;
+    uint32_t intValue = strtol(value, &endptr, 10);
+
+    if (endptr == value || *endptr != '\0') {
+        return Error::BadNumberFormat;
+    }
+
+    if( intValue < Maslow.frame_dimention_MIN || intValue > Maslow.frame_dimention_MAX ){
+        log_error("Maslow frame width must be between " << Maslow.frame_dimention_MIN << " and " << Maslow.frame_dimention_MAX);
+        return Error::BadNumberFormat;
+    }
+    Maslow.set_frame_width(intValue);
+    log_info("Maslow frame width set to " << intValue);
+    return Error::Ok;
+}
+
+static Error maslow_set_height(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+    if(Maslow.using_default_config) {
+        return Error::ConfigurationInvalid;
+    }
+    if (!value) {
+        //double height = Maslow.frame_height;
+        //log_info("Maslow frame height is " << height);
+        return Error::Ok;
+    }
+    char*    endptr;
+    uint32_t intValue = strtol(value, &endptr, 10);
+
+    if (endptr == value || *endptr != '\0') {
+        return Error::BadNumberFormat;
+    }
+
+    if( intValue < Maslow.frame_dimention_MIN || intValue > Maslow.frame_dimention_MAX ){
+        log_error("Maslow frame height must be between " << Maslow.frame_dimention_MIN << " and " << Maslow.frame_dimention_MAX);
+        return Error::BadNumberFormat;
+    }
+    Maslow.set_frame_height(intValue);
+    log_info("Maslow frame height set to " << intValue);
+    return Error::Ok;
+}
+static Error maslow_safety_off(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+    if(Maslow.using_default_config) {
+        return Error::ConfigurationInvalid;
+    }
+    Maslow.setSafety(false);
+    return Error::Ok;
+}
+
+static Error maslow_safety_on(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+    if(Maslow.using_default_config) {
+        return Error::ConfigurationInvalid;
+    }
+    Maslow.setSafety(true);
+    return Error::Ok;
+}
+
+static Error maslow_test(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+    if(Maslow.using_default_config) {
+        return Error::ConfigurationInvalid;
+    }
+    Maslow.test_();
+    return Error::Ok;
+}
+static Error maslow_takeSlack(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+    if(Maslow.using_default_config) {
+        return Error::ConfigurationInvalid;
+    }
+    sys.set_state(State::Homing);
+    Maslow.take_slack();
+    return Error::Ok;
+}
+
+static Error maslow_ack_cal(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+    if(Maslow.using_default_config) {
+        return Error::ConfigurationInvalid;
+    }
+    Maslow.calibrationDataRecieved();
+    return Error::Ok;
+}
+
+static Error maslow_estop(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+    sys.set_state(State::Alarm);
+    Maslow.eStop();
+    return Error::Ok;
+}
+
+/** Sets the 'bottom' Z position, this is a 'stop' beyond which travel cannot continue */
+static Error maslow_set_zStop(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+    sys.set_state(State::Homing);
+    Maslow.setZStop();
+    return Error::Ok;
+}
+
+static Error maslow_get_info(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+    Maslow.getInfo();
+    return Error::Ok;
+}
+
 // Commands use the same syntax as Settings, but instead of setting or
 // displaying a persistent value, a command causes some action to occur.
 // That action could be anything, from displaying a run-time parameter
@@ -880,6 +1146,39 @@ void make_user_commands() {
 
     new UserCommand("30", "FakeMaxSpindleSpeed", fakeMaxSpindleSpeed, notIdleOrAlarm);
     new UserCommand("32", "FakeLaserMode", fakeLaserMode, notIdleOrAlarm);
+    //Maslow-specific commands
+    new UserCommand("TL", "Maslow/retractTL", maslow_retract_TL, anyState);
+    new UserCommand("TR", "Maslow/retractTR", maslow_retract_TR, anyState);
+    new UserCommand("BR", "Maslow/retractBR", maslow_retract_BR, anyState);
+    new UserCommand("BL", "Maslow/retractBL", maslow_retract_BL, anyState);
+    new UserCommand("ALL", "Maslow/retract", maslow_retract_ALL, anyState);
+    new UserCommand("EXT", "Maslow/extend", maslow_extend_ALL, anyState);
+    new UserCommand("CMP", "Maslow/comply", maslow_set_comply, anyState);
+    new UserCommand("CAL", "Maslow/calibrate", maslow_start_calibration, anyState);
+
+    new UserCommand("TLI", "Maslow/calibrateTLI", maslow_TLI, anyState);
+    new UserCommand("TRI", "Maslow/calibrateTRI", maslow_TRI, anyState);
+    new UserCommand("BRI", "Maslow/calibrateBRI", maslow_BRI, anyState);
+    new UserCommand("BLI", "Maslow/calibrateBLI", maslow_BLI, anyState);
+
+    new UserCommand("TLO", "Maslow/calibrateTLO", maslow_TLO, anyState);
+    new UserCommand("TRO", "Maslow/calibrateTRO", maslow_TRO, anyState);
+    new UserCommand("BRO", "Maslow/calibrateBRO", maslow_BRO, anyState);
+    new UserCommand("BLO", "Maslow/calibrateBLO", maslow_BLO, anyState);
+
+    new UserCommand("CO", "Config/Overwrite", overwrite_config, anyState);
+
+    new UserCommand("STOP", "Maslow/stop", maslow_stop, anyState); // experimental
+    new UserCommand("WDT", "Maslow/width", maslow_set_width, anyState);
+    new UserCommand("HGT", "Maslow/height", maslow_set_height, anyState);
+    new UserCommand("SFON", "Maslow/safetyON", maslow_safety_on, anyState);
+    new UserCommand("SFOFF", "Maslow/safetyOFF", maslow_safety_off, anyState);
+    new UserCommand("TEST", "Maslow/test", maslow_test, anyState);
+    new UserCommand("TKSLK", "Maslow/takeSlack", maslow_takeSlack, anyState);
+    new UserCommand("ACKCAL", "Maslow/ackCalibration", maslow_ack_cal, anyState);
+    new UserCommand("ESTOP", "Maslow/estop", maslow_estop, anyState);
+    new UserCommand("SETZSTOP", "Maslow/setZStop", maslow_set_zStop, anyState);
+    new UserCommand("MINFO", "Maslow/getInfo", maslow_get_info, anyState);
 };
 
 // normalize_key puts a key string into canonical form -
