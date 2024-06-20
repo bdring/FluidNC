@@ -520,6 +520,30 @@ namespace WebUI {
         return Error::Ok;
     }
 
+    // Can be used by installers to check the version of files
+    static Error fileShowHash(const char* parameter, AuthenticationLevel auth_level, Channel& out) {
+        if (notIdleOrAlarm()) {
+            return Error::IdleError;
+        }
+        if (!parameter || !*parameter) {
+            log_error_to(out, "Missing argument");
+            return Error::InvalidValue;
+        }
+
+        std::string hash = HashFS::hash(parameter);
+        replace_string_in_place(hash, "\"", "");
+        JSONencoder j(true, &out);  // Encapsulated JSON
+        j.begin();
+        j.begin_member_object("signature");
+        j.member("algorithm", "SHA2-256");
+        j.member("value", hash);
+        j.end_object();
+        j.member("path", parameter);
+        j.end();
+
+        return Error::Ok;
+    }
+
     static Error fileSendJson(const char* parameter, AuthenticationLevel auth_level, Channel& out) {
         if (notIdleOrAlarm()) {
             return Error::IdleError;
@@ -1008,6 +1032,7 @@ namespace WebUI {
 
         new WebCommand("path", WEBCMD, WU, NULL, "File/SendJSON", fileSendJson);
         new WebCommand("path", WEBCMD, WU, NULL, "File/ShowSome", fileShowSome);
+        new WebCommand("path", WEBCMD, WU, NULL, "File/ShowHash", fileShowHash);
         new WebCommand("path", WEBCMD, WU, "ESP221", "SD/Show", showSDFile);
         new WebCommand("path", WEBCMD, WU, "ESP220", "SD/Run", runSDFile, nullptr);
         new WebCommand("file_or_directory_path", WEBCMD, WU, "ESP215", "SD/Delete", deleteSDObject);

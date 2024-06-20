@@ -114,6 +114,10 @@ std::string HashFS::hash(const std::filesystem::path& path) {
         if (it != localFsHashes.end()) {
             return it->second;
         }
+    } else {
+        std::string theHash;
+        hashFile(path, theHash);
+        return theHash;
     }
     return std::string();
 }
