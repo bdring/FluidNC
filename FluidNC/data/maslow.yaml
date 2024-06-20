@@ -1,0 +1,140 @@
+board: Maslow
+name: Maslow S3 Board
+
+# Is the maslow on vertical (true) or horizontal (false)
+Maslow_vertical: false
+
+# Define the distance from the anchor points to the corners of the calibration grid in mm
+maslow_calibration_grid_width_mm_X: 2000
+maslow_calibration_grid_height_mm_Y: 1000
+
+# Defines the number of points in the calibration grid. Options are 3,5,7,9
+maslow_calibration_grid_size: 9
+
+#####################################################################
+# Define the frame
+#
+# By convention we have defined the bottom left to be (0,0) and the bottom right to be (__,0) but any values are valid.
+# Bottom, top, left, right are defined with relation to the power cord being down looking from the top of the machine.
+# All values in millimeters!
+
+# Top left corner of frame. nominally  0, height
+Maslow_tlX: -27.6
+Maslow_tlY: 2064.9
+
+# Top right corner of frame. nominally width, height.
+Maslow_trX: 2924.3
+Maslow_trY: 2066.5
+
+# Bottom left. Nominally 0,0
+Maslow_blX: 0
+Maslow_blY: 0
+
+# Bottom right. Nominally width,0
+Maslow_brX: 2953.2
+Maslow_brY: 0
+
+# Z axis values 
+# These define the height of the anchor points in relation to each of the arms. You do not need to change these typically
+Maslow_tlZ: 100
+Maslow_trZ: 56
+Maslow_blZ: 34
+Maslow_brZ: 78
+
+# Sets how hard should Maslow pull on the belts to retract before considering them to be all the way in.
+# Maximum value is 4,000. Arbitrary units.
+Maslow_Retract_Current_Threshold: 1300
+# Sets how hard should Maslow pull on the belts during the calibration process.
+Maslow_Calibration_Current_Threshold: 1500
+# Sets the acceptable fitness threshold for moving on to the next calibration round.
+Maslow_Acceptable_Calibration_Threshold: 0.5
+
+
+####################
+# Below here should not need to change, these are related to how fluidcnc connects to the board.
+
+spi:
+  miso_pin: gpio.13
+  mosi_pin: gpio.11
+  sck_pin: gpio.12
+
+sdcard:
+  card_detect_pin: NO_PIN
+  cs_pin: gpio.10
+
+stepping:
+  engine: RMT
+  idle_ms: 240
+
+uart1:
+  txd_pin: gpio.1
+  rxd_pin: gpio.2
+  baud: 115200
+  mode: 8N1
+
+axes:
+  x:
+    max_rate_mm_per_min: 2000
+    acceleration_mm_per_sec2: 25
+    max_travel_mm: 2438.4
+    homing:
+      cycle: -1
+
+    motor0:
+      dc_servo:
+
+  y:
+    max_rate_mm_per_min: 2000
+    acceleration_mm_per_sec2: 25
+    max_travel_mm: 1219.2
+    homing:
+      cycle: -1
+
+  z:
+    steps_per_mm: 100
+    max_rate_mm_per_min: 400
+    acceleration_mm_per_sec2: 10
+    max_travel_mm: 100
+
+    homing:
+      cycle: -1
+
+    motor0:
+      tmc_2209:
+        uart_num: 1
+        addr: 0
+        cs_pin: NO_PIN
+        r_sense_ohms: 0.110
+        run_amps: 1.000
+        hold_amps: 0.500
+        microsteps: 0
+        stallguard: 0
+        stallguard_debug: false
+        toff_disable: 0
+        toff_stealthchop: 5
+        toff_coolstep: 3
+        run_mode: StealthChop
+        homing_mode: StealthChop
+        use_enable: true
+        direction_pin: gpio.16
+        step_pin: gpio.15
+
+    motor1:
+      tmc_2209:
+        uart_num: 1
+        addr: 1
+        cs_pin: NO_PIN
+        r_sense_ohms: 0.110
+        run_amps: 1.000
+        hold_amps: 0.500
+        microsteps: 0
+        stallguard: 0
+        stallguard_debug: false
+        toff_disable: 0
+        toff_stealthchop: 5
+        toff_coolstep: 3
+        run_mode: StealthChop
+        homing_mode: StealthChop
+        use_enable: true
+        direction_pin: gpio.38
+        step_pin: gpio.46
