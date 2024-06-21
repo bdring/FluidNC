@@ -222,7 +222,7 @@ void Maslow_::blinkIPAddress() {
     int longMS  = 500;
     int pauseMS = 2000;
 
-    std::string IP_String = "999.999.999.999";//WebUI::wifi_config.getIP();
+    std::string IP_String = WebUI::wifi_config.getIP();
 
     if (currentChar >= IP_String.length()) {
         currentChar   = 0;
