@@ -424,6 +424,15 @@ namespace WebUI {
         return result;
     }
 
+    std::string WiFiConfig::getIP() {
+        std::string result;
+
+        if ((WiFi.getMode() == WIFI_MODE_STA) || (WiFi.getMode() == WIFI_MODE_APSTA)) {
+            result += IP_string(WiFi.localIP());
+        }
+        return result;
+    }
+
     std::string WiFiConfig::ap_info() {
         std::string result;
 
@@ -624,11 +633,12 @@ namespace WebUI {
             log_info("STA SSID is not set");
             return false;
         }
+        //Get parameters for STA
+        WiFi.setHostname(wifi_hostname->get());
         WiFi.mode(WIFI_STA);
         WiFi.setMinSecurity(static_cast<wifi_auth_mode_t>(wifi_sta_min_security->get()));
         WiFi.setScanMethod(wifi_fast_scan->get() ? WIFI_FAST_SCAN : WIFI_ALL_CHANNEL_SCAN);
-        //Get parameters for STA
-        WiFi.setHostname(wifi_hostname->get());
+        
         //password
         const char* password = wifi_sta_password->get();
         int8_t      IP_mode  = wifi_sta_mode->get();
@@ -758,6 +768,11 @@ namespace WebUI {
             case WiFiFallback:
                 if (StartSTA()) {
                     goto wifi_on;
+                }
+                else{ // STA failed, reset
+                    WiFi.mode(WIFI_OFF);
+                    esp_wifi_restore();
+                    delay(100);
                 }
                 // fall through to fallback to AP mode
             case WiFiAP:
