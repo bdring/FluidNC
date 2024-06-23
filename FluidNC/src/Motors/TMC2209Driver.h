@@ -33,6 +33,13 @@ namespace MotorDrivers {
             handler.item("toff_coolstep", _toff_coolstep, 2, 15);
         }
 
+        void afterParse() override {
+            TrinamicUartDriver::afterParse();
+            if (_homing_current == 0) {
+                _homing_current = _run_current;
+            }
+        }
+
         // Name of the configurable. Must match the name registered in the cpp file.
         const char* name() const override { return "tmc_2209"; }
 
