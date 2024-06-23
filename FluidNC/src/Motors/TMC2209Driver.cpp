@@ -23,6 +23,10 @@ namespace MotorDrivers {
 
         tmc2209 = new TMC2209Stepper(_uart, _r_sense, _addr);
 
+        // For upgraders that do not update their config file.
+        if (_homing_current == 0)
+            _homing_current = _run_current;
+
         registration();
     }
 
