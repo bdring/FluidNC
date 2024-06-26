@@ -41,7 +41,7 @@ namespace MotorDrivers {
 
         float _run_current         = 0.50;
         float _hold_current        = 0.50;
-        float _homing_current      = 0.50;
+        float _homing_current      = 0.0;
         int   _microsteps          = 16;
         int   _stallguard          = 0;
         bool  _stallguardDebugMode = false;
