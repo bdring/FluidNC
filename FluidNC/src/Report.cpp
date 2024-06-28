@@ -462,10 +462,12 @@ void mpos_to_wpos(float* position) {
     }
 }
 
-const char* state_name() {
+const char* state_name(bool actual) {
     switch (sys.state) {
         case State::Idle:
             return "Idle";
+        case State::Delay:
+            return actual ? "Delay" : "Run";
         case State::Cycle:
             return "Run";
         case State::Hold:
@@ -477,7 +479,9 @@ const char* state_name() {
         case State::Homing:
             return "Home";
         case State::Critical:
+            return actual ? "Critical" : "Alarm";
         case State::ConfigAlarm:
+            return actual ? "ConfigAlarm" : "Alarm";
         case State::Alarm:
             return "Alarm";
         case State::CheckMode:
@@ -530,7 +534,7 @@ void report_realtime_debug() {}
 // especially during g-code programs with fast, short line segments and high frequency reports (5-20Hz).
 void report_realtime_status(Channel& channel) {
     LogStream msg(channel, "<");
-    msg << state_name();
+    msg << state_name(false);
 
     // Report position
     float* print_position = get_mpos();

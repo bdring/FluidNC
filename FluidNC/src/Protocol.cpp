@@ -174,6 +174,9 @@ void polling_loop(void* unused) {
                         _notifyf("Job done", "%s job sent", channel->name());
                         log_info(channel->name() << " job sent");
                         Job::unnest();
+                        if (!Job::active() && state_is(State::Delay)) {
+                            set_state(State::Idle);
+                        }
                         break;
                     default:
                         if (Job::leader) {
@@ -427,7 +430,7 @@ static void protocol_do_restart() {
     } else if (config->_control->startup_check()) {
         send_alarm(ExecAlarm::ControlPin);
     } else {
-        if (state_is(State::Idle)) {
+        if (state_is(State::Idle) || state_is(State::Delay)) {
             config->_macros->_after_reset.run(&allChannels);
         }
     }
@@ -435,7 +438,7 @@ static void protocol_do_restart() {
 
 static void protocol_do_start() {
     protocol_send_event(&restartEvent);
-    if (!state_is(State::Idle)) {
+    if (!(state_is(State::Idle) || state_is(State::Delay))) {
         return;
     }
     set_state(State::Critical);
@@ -498,7 +501,7 @@ static void protocol_hold_complete() {
 }
 
 void protocol_do_motion_cancel() {
-    // log_debug("protocol_do_motion_cancel " << state_name());
+    // log_debug("protocol_do_motion_cancel " << state_name(true));
     // Execute and flag a motion cancel with deceleration and return to idle. Used primarily by probing cycle
     // to halt and cancel the remainder of the motion.
 
@@ -512,6 +515,7 @@ void protocol_do_motion_cancel() {
             return;  // Do not set motionCancel
 
         case State::Idle:
+        case State::Delay:
             protocol_hold_complete();
             break;
 
@@ -540,7 +544,7 @@ static void protocol_do_feedhold() {
         runLimitLoop = false;  // Hack to stop show_limits()
         return;
     }
-    // log_debug("protocol_do_feedhold " << state_name());
+    // log_debug("protocol_do_feedhold " << state_name(true));
     // Execute a feed hold with deceleration, if required. Then, suspend system.
     switch (sys.state) {
         case State::ConfigAlarm:
@@ -558,6 +562,7 @@ static void protocol_do_feedhold() {
             break;
 
         case State::Idle:
+        case State::Delay:
             protocol_hold_complete();
             break;
 
@@ -612,6 +617,7 @@ static void protocol_do_safety_door() {
             }
             break;
         case State::Idle:
+        case State::Delay:
             protocol_hold_complete();
             break;
         case State::Cycle:
@@ -633,7 +639,7 @@ static void protocol_do_safety_door() {
 }
 
 static void protocol_do_sleep() {
-    // log_debug("protocol_do_sleep " << state_name());
+    // log_debug("protocol_do_sleep " << state_name(true));
     switch (sys.state) {
         case State::ConfigAlarm:
         case State::Alarm:
@@ -642,6 +648,7 @@ static void protocol_do_sleep() {
             break;
 
         case State::Idle:
+        case State::Delay:
             protocol_hold_complete();
             break;
 
@@ -667,7 +674,7 @@ void protocol_cancel_disable_steppers() {
 }
 
 static void protocol_do_initiate_cycle() {
-    // log_debug("protocol_do_initiate_cycle " << state_name());
+    // log_debug("protocol_do_initiate_cycle " << state_name(true));
     // Start cycle only if queued motions exist in planner buffer and the motion is not canceled.
     sys.step_control = {};  // Restore step control to normal operation
     plan_block_t* pb;
@@ -682,7 +689,7 @@ static void protocol_do_initiate_cycle() {
     }
 }
 static void protocol_initiate_homing_cycle() {
-    // log_debug("protocol_initiate_homing_cycle " << state_name());
+    // log_debug("protocol_initiate_homing_cycle " << state_name(true));
     sys.step_control                  = {};    // Restore step control to normal operation
     sys.suspend.value                 = 0;     // Break suspend state.
     sys.step_control.executeSysMotion = true;  // Set to execute homing motion and clear existing flags.
@@ -691,7 +698,7 @@ static void protocol_initiate_homing_cycle() {
 }
 
 static void protocol_do_cycle_start() {
-    // log_debug("protocol_do_cycle_start " << state_name());
+    // log_debug("protocol_do_cycle_start " << state_name(true));
     // Execute a cycle start by starting the stepper interrupt to begin executing the blocks in queue.
 
     // Resume door state when parking motion has retracted and door has been closed.
@@ -707,6 +714,7 @@ static void protocol_do_cycle_start() {
             }
             break;
         case State::Idle:
+        case State::Delay:
             protocol_do_initiate_cycle();
             break;
         case State::Homing:
@@ -761,7 +769,7 @@ void protocol_disable_steppers() {
 }
 
 void protocol_do_cycle_stop() {
-    // log_debug("protocol_do_cycle_stop " << state_name());
+    // log_debug("protocol_do_cycle_stop " << state_name(true));
     protocol_disable_steppers();
 
     switch (sys.state) {
@@ -790,6 +798,7 @@ void protocol_do_cycle_stop() {
             break;
         case State::CheckMode:
         case State::Idle:
+        case State::Delay:
         case State::Cycle:
         case State::Jog:
             // Motion complete. Includes CYCLE/JOG/HOMING states and jog cancel/motion cancel/soft limit events.
@@ -807,7 +816,11 @@ void protocol_do_cycle_stop() {
                 set_state(State::SafetyDoor);
             } else {
                 sys.suspend.value = 0;
-                set_state(State::Idle);
+                if (Job::active() && state_is(State::Cycle)) {
+                    set_state(State::Delay);
+                } else {
+                    set_state(State::Idle);
+                }
             }
             break;
         case State::Homing:
@@ -853,6 +866,7 @@ void protocol_exec_rt_system() {
         case State::Alarm:
         case State::CheckMode:
         case State::Idle:
+        case State::Delay:
         case State::Sleep:
             break;
         case State::Cycle:
