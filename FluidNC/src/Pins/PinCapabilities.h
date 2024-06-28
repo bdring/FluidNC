@@ -16,7 +16,7 @@ namespace Pins {
     class PinCapabilities {
         uint32_t _value;
 
-        constexpr PinCapabilities(const uint32_t value) : _value(value) {}
+        explicit constexpr PinCapabilities(const uint32_t value) : _value(value) {}
 
         friend class PinAttributes;  // Wants access to _value for validation
 

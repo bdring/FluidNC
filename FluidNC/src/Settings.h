@@ -79,6 +79,9 @@ public:
 };
 
 class Command : public Word {
+private:
+    bool _synchronous = true;
+
 protected:
     bool (*_cmdChecker)();
 
@@ -88,13 +91,20 @@ public:
     static std::vector<Command*> List;
 
     ~Command() {}
-    Command(const char* description, type_t type, permissions_t permissions, const char* grblName, const char* fullName, bool (*cmdChecker)());
+    Command(const char*   description,
+            type_t        type,
+            permissions_t permissions,
+            const char*   grblName,
+            const char*   fullName,
+            bool (*cmdChecker)(),
+            bool synchronous = true);
 
     // The default implementation of addWebui() does nothing.
     // Derived classes may override it to do something.
     virtual void addWebui(WebUI::JSONencoder*) {};
 
     virtual Error action(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) = 0;
+    bool          synchronous() { return _synchronous; }
 };
 
 class Setting : public Word {
@@ -140,8 +150,12 @@ public:
 
     ~Setting() {}
     Setting(const char* description, type_t type, permissions_t permissions, const char* grblName, const char* fullName);
-    axis_t getAxis() { return _axis; }
-    void   setAxis(axis_t axis) { _axis = axis; }
+    axis_t getAxis() {
+        return _axis;
+    }
+    void setAxis(axis_t axis) {
+        _axis = axis;
+    }
 
     // load() reads the backing store to get the current
     // value of the setting.  This could be slow so it
@@ -155,7 +169,9 @@ public:
 
     virtual Error       setStringValue(std::string_view s) = 0;
     virtual const char* getStringValue()                   = 0;
-    virtual const char* getCompatibleValue() { return getStringValue(); }
+    virtual const char* getCompatibleValue() {
+        return getStringValue();
+    }
     virtual const char* getDefaultString() = 0;
 };
 
@@ -224,7 +240,8 @@ public:
 
     const char* getName() { return _name; }
     bool        load();
-    void        setDefault() {
+
+    void setDefault() {
         float zeros[MAX_N_AXIS] = {
             0.0,
         };
@@ -234,7 +251,12 @@ public:
     void get(float* value) { memcpy(value, _currentValue, sizeof(_currentValue)); }
     // Return a pointer to the array
     const float* get() { return _currentValue; }
-    void         set(float* value);
+    // Get an individual component
+    const float get(int axis) { return _currentValue[axis]; }
+    // Set an individual component
+    void set(int axis, float value) { _currentValue[axis] = value; }
+
+    void set(float* value);
 };
 
 extern Coordinates* coords[CoordIndex::End];
@@ -361,15 +383,24 @@ public:
                 const char* name,
                 Error (*action)(const char*, WebUI::AuthenticationLevel, Channel&),
                 bool (*cmdChecker)(),
-                permissions_t auth = WG) :
-        Command(NULL, GRBLCMD, auth, grblName, name, cmdChecker),
+                permissions_t auth        = WG,
+                bool          synchronous = true) :
+        Command(NULL, GRBLCMD, auth, grblName, name, cmdChecker, synchronous),
         _action(action) {}
 
     Error action(const char* value, WebUI::AuthenticationLevel auth_level, Channel& response);
 };
+class AsyncUserCommand : public UserCommand {
+public:
+    AsyncUserCommand(const char* grblName,
+                     const char* name,
+                     Error (*action)(const char*, WebUI::AuthenticationLevel, Channel&),
+                     bool (*cmdChecker)(),
+                     permissions_t auth = WG) :
+        UserCommand(grblName, name, action, cmdChecker, auth, false) {}
+};
 
 // Execute the startup script lines stored in non-volatile storage upon initialization
-void  settings_execute_startup();
 Error settings_execute_line(char* line, Channel& out, WebUI::AuthenticationLevel);
 Error do_command_or_setting(const char* key, const char* value, WebUI::AuthenticationLevel auth_level, Channel&);
 Error execute_line(char* line, Channel& channel, WebUI::AuthenticationLevel auth_level);

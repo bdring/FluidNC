@@ -5,7 +5,7 @@
 
 namespace Configuration {
     class ParseException {
-        int               _linenum;
+        int               _linenum = 0;
         const std::string _description;
 
     public:

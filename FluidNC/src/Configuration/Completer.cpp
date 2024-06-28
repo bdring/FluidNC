@@ -67,7 +67,7 @@ static bool isInitialSubstringCI(const char* key, const char* test) {
 // matchnum is the index of the match that we will return
 // matchname is the matchnum'th match
 
-int num_initial_matches(char* key, int keylen, int matchnum, char* matchname) {
+int num_initial_matches(const char* key, int keylen, int matchnum, char* matchname) {
     int nfound = 0;
 
     if (key[0] == '/') {

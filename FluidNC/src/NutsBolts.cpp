@@ -22,8 +22,8 @@ const int MAX_INT_DIGITS = 8;  // Maximum number of digits in int32 (and float)
 // Scientific notation is officially not supported by g-code, and the 'E' character may
 // be a g-code word on some CNC systems. So, 'E' notation will not be recognized.
 // NOTE: Thanks to Radu-Eosif Mihailescu for identifying the issues with using strtod().
-bool read_float(const char* line, size_t* char_counter, float* float_ptr) {
-    const char*   ptr = line + *char_counter;
+bool read_float(const char* line, size_t* pos, float& result) {
+    const char*   ptr = line + *pos;
     unsigned char c;
     // Grab first character and increment pointer. No spaces assumed in line.
     c = *ptr++;
@@ -87,11 +87,11 @@ bool read_float(const char* line, size_t* char_counter, float* float_ptr) {
     }
     // Assign floating point value with correct sign.
     if (isnegative) {
-        *float_ptr = -fval;
+        result = -fval;
     } else {
-        *float_ptr = fval;
+        result = fval;
     }
-    *char_counter = ptr - line - 1;  // Set char_counter to next statement
+    *pos = ptr - line - 1;  // Set pos to next statement
     return true;
 }
 

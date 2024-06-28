@@ -296,7 +296,7 @@ static Error disable_alarm_lock(const char* value, WebUI::AuthenticationLevel au
         set_state(State::Idle);
     }
     // Run the after_unlock macro even if no unlock was necessary
-    config->_macros->_after_unlock.run();
+    config->_macros->_after_unlock.run(&out);
     return Error::Ok;
 }
 static Error report_ngc(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
@@ -378,7 +378,7 @@ static Error cmd_log_verbose(const char* value, WebUI::AuthenticationLevel auth_
     }
     return Error::Ok;
 }
-static Error home(AxisMask axisMask) {
+static Error home(AxisMask axisMask, Channel& out) {
     if (axisMask != Machine::Homing::AllCycles) {  // if not AllCycles we need to make sure the cycle is not prohibited
         // if there is a cycle it is the axis from $H<axis>
         auto n_axis = config->_axes->_numberAxis;
@@ -411,7 +411,7 @@ static Error home(AxisMask axisMask) {
     } while (state_is(State::Homing));
 
     if (!Homing::unhomed_axes()) {
-        config->_macros->_after_homing.run();
+        config->_macros->_after_homing.run(&out);
     }
 
     return Error::Ok;
@@ -443,7 +443,7 @@ static Error home_all(const char* value, WebUI::AuthenticationLevel auth_level, 
                 for (int i = 0; i < lenValue; i++) {
                     char cycleName = value[i];
                     requestedAxes  = Machine::Homing::axis_mask_from_cycle(cycleName - '0');
-                    retval         = home(requestedAxes);
+                    retval         = home(requestedAxes, out);
                     if (retval != Error::Ok) {
                         return retval;
                     }
@@ -456,26 +456,26 @@ static Error home_all(const char* value, WebUI::AuthenticationLevel auth_level, 
         }
     }
 
-    return home(requestedAxes);
+    return home(requestedAxes, out);
 }
 
 static Error home_x(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
-    return home(bitnum_to_mask(X_AXIS));
+    return home(bitnum_to_mask(X_AXIS), out);
 }
 static Error home_y(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
-    return home(bitnum_to_mask(Y_AXIS));
+    return home(bitnum_to_mask(Y_AXIS), out);
 }
 static Error home_z(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
-    return home(bitnum_to_mask(Z_AXIS));
+    return home(bitnum_to_mask(Z_AXIS), out);
 }
 static Error home_a(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
-    return home(bitnum_to_mask(A_AXIS));
+    return home(bitnum_to_mask(A_AXIS), out);
 }
 static Error home_b(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
-    return home(bitnum_to_mask(B_AXIS));
+    return home(bitnum_to_mask(B_AXIS), out);
 }
 static Error home_c(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
-    return home(bitnum_to_mask(C_AXIS));
+    return home(bitnum_to_mask(C_AXIS), out);
 }
 static std::string limit_set(uint32_t mask) {
     const char* motor0AxisName = "xyzabc";
@@ -522,12 +522,6 @@ static Error get_report_build_info(const char* value, WebUI::AuthenticationLevel
         return Error::Ok;
     }
     return Error::InvalidStatement;
-}
-static Error show_startup_lines(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
-    for (int i = 0; i < config->_macros->n_startup_lines; i++) {
-        log_stream(out, "$N" << i << "=" << config->_macros->_startup_line[i]._gcode);
-    }
-    return Error::Ok;
 }
 
 const std::map<const char*, uint8_t, cmp_str> restoreCommands = {
@@ -680,10 +674,10 @@ static Error motors_init(const char* value, WebUI::AuthenticationLevel auth_leve
 
 static Error macros_run(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
     if (value) {
-        log_info("Running macro" << *value);
         size_t macro_num = (*value) - '0';
-        config->_macros->_macro[macro_num].run();
-        return Error::Ok;
+
+        auto ok = config->_macros->_macro[macro_num].run(&out);
+        return ok ? Error::Ok : Error::NumberRange;
     }
     log_error("$Macros/Run requires a macro number argument");
     return Error::InvalidStatement;
@@ -822,8 +816,8 @@ static Error setReportInterval(const char* value, WebUI::AuthenticationLevel aut
     }
 
     // Send a full status report immediately so the client has all the data
-    report_wco_counter = 0;
-    report_ovr_counter = 0;
+    out.notifyWco();
+    out.notifyOvr();
 
     return Error::Ok;
 }
@@ -855,7 +849,6 @@ void make_user_commands() {
     new UserCommand("CD", "Config/Dump", dump_config, anyState);
     new UserCommand("", "Help", show_help, anyState);
     new UserCommand("T", "State", showState, anyState);
-    new UserCommand("J", "Jog", doJog, notIdleOrJog);
 
     new UserCommand("$", "GrblSettings/List", report_normal_settings, cycleOrHold);
     new UserCommand("L", "GrblNames/List", list_grbl_names, cycleOrHold);
@@ -865,7 +858,6 @@ void make_user_commands() {
     new UserCommand("CMD", "Commands/List", list_commands, cycleOrHold);
     new UserCommand("A", "Alarms/List", listAlarms, anyState);
     new UserCommand("E", "Errors/List", listErrors, anyState);
-    new UserCommand("G", "GCode/Modes", report_gcode, anyState);
     new UserCommand("C", "GCode/Check", toggle_check_mode, anyState);
     new UserCommand("X", "Alarm/Disable", disable_alarm_lock, anyState);
     new UserCommand("NVX", "Settings/Erase", Setting::eraseNVS, notIdleOrAlarm, WA);
@@ -875,7 +867,7 @@ void make_user_commands() {
     new UserCommand("ME", "Motor/Enable", motor_enable, notIdleOrAlarm);
     new UserCommand("MI", "Motors/Init", motors_init, notIdleOrAlarm);
 
-    new UserCommand("RM", "Macros/Run", macros_run, notIdleOrAlarm);
+    new UserCommand("RM", "Macros/Run", macros_run, nullptr);
 
     new UserCommand("H", "Home", home_all, allowConfigStates);
     new UserCommand("HX", "Home/X", home_x, allowConfigStates);
@@ -896,7 +888,6 @@ void make_user_commands() {
 
     new UserCommand("SLP", "System/Sleep", go_to_sleep, notIdleOrAlarm);
     new UserCommand("I", "Build/Info", get_report_build_info, notIdleOrAlarm);
-    new UserCommand("N", "GCode/StartupLines", show_startup_lines, notIdleOrAlarm);
     new UserCommand("RST", "Settings/Restore", restore_settings, notIdleOrAlarm, WA);
 
     new UserCommand("SA", "Alarm/Send", sendAlarm, anyState);
@@ -907,6 +898,9 @@ void make_user_commands() {
 
     new UserCommand("30", "FakeMaxSpindleSpeed", fakeMaxSpindleSpeed, notIdleOrAlarm);
     new UserCommand("32", "FakeLaserMode", fakeLaserMode, notIdleOrAlarm);
+
+    new AsyncUserCommand("J", "Jog", doJog, notIdleOrJog);
+    new AsyncUserCommand("G", "GCode/Modes", report_gcode, anyState);
 };
 
 // normalize_key puts a key string into canonical form -
@@ -947,8 +941,24 @@ Error do_command_or_setting(const char* key, const char* value, WebUI::Authentic
     // If value is NULL, it means that there was no value string, i.e.
     // $key without =, or [key] with nothing following.
     // If value is not NULL, but the string is empty, that is the form
-    // $key= with nothing following the = .  It is important to distinguish
-    // those cases so that you can say "$N0=" to clear a startup line.
+    // $key= with nothing following the = .
+
+    // Try to execute a command.  Commands handle values internally;
+    // you cannot determine whether to set or display solely based on
+    // the presence of a value.
+    for (Command* cp : Command::List) {
+        if ((strcasecmp(cp->getName(), key) == 0) || (cp->getGrblName() && strcasecmp(cp->getGrblName(), key) == 0)) {
+            if (auth_failed(cp, value, auth_level)) {
+                return Error::AuthenticationFailed;
+            }
+            if (cp->synchronous()) {
+                protocol_buffer_synchronize();
+            }
+            return cp->action(value, auth_level, out);
+        }
+    }
+
+    protocol_buffer_synchronize();
 
     // First search the yaml settings by name. If found, set a new
     // value if one is given, otherwise display the current value
@@ -1013,17 +1023,6 @@ Error do_command_or_setting(const char* key, const char* value, WebUI::Authentic
             }
         }
     }
-    // If we did not find a setting, look for a command.  Commands
-    // handle values internally; you cannot determine whether to set
-    // or display solely based on the presence of a value.
-    for (Command* cp : Command::List) {
-        if ((strcasecmp(cp->getName(), key) == 0) || (cp->getGrblName() && strcasecmp(cp->getGrblName(), key) == 0)) {
-            if (auth_failed(cp, value, auth_level)) {
-                return Error::AuthenticationFailed;
-            }
-            return cp->action(value, auth_level, out);
-        }
-    }
 
     // If we did not find an exact match and there is no value,
     // indicating a display operation, we allow partial matches
@@ -1084,16 +1083,6 @@ Error settings_execute_line(char* line, Channel& out, WebUI::AuthenticationLevel
     // empty string - $xxx= with nothing after
     // non-empty string - [ESPxxx]yyy or $xxx=yyy
     return do_command_or_setting(key, value, auth_level, out);
-}
-
-void settings_execute_startup() {
-    if (!state_is(State::Idle)) {
-        return;
-    }
-    Error status_code;
-    for (int i = 0; i < config->_macros->n_startup_lines; i++) {
-        config->_macros->_startup_line[i].run();
-    }
 }
 
 Error execute_line(char* line, Channel& channel, WebUI::AuthenticationLevel auth_level) {

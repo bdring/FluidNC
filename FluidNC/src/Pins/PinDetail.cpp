@@ -7,8 +7,13 @@
 #include <esp_attr.h>  // IRAM_ATTR
 
 namespace Pins {
-    void PinDetail::registerEvent(EventPin* obj) { Assert(false, "registerEvent is not supported by pin %d", _index); }
+    // cppcheck-suppress unusedFunction
+    void PinDetail::registerEvent(EventPin* obj) {
+        Assert(false, "registerEvent is not supported by pin %d", _index);
+    }
 
-    void IRAM_ATTR PinDetail::synchronousWrite(int high) { write(high); }
-
+    // cppcheck-suppress unusedFunction
+    void IRAM_ATTR PinDetail::synchronousWrite(int high) {
+        write(high);
+    }
 }

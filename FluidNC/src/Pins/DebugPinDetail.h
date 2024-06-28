@@ -26,7 +26,7 @@ namespace Pins {
         bool shouldEvent();
 
     public:
-        DebugPinDetail(PinDetail* implementation) :
+        explicit DebugPinDetail(PinDetail* implementation) :
             PinDetail(implementation->number()), _implementation(implementation), _lastEvent(0), _eventCount(0), _isHigh(false),
             _isrHandler({ 0 }) {}
 

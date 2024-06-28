@@ -7,6 +7,7 @@
 #include "../Logging.h"
 
 #include "HandlerBase.h"
+#include <algorithm>
 
 namespace Configuration {
     template <typename BaseType>
@@ -18,7 +19,7 @@ namespace Configuration {
 
         GenericFactory() = default;
 
-        GenericFactory(const GenericFactory&) = delete;
+        GenericFactory(const GenericFactory&)            = delete;
         GenericFactory& operator=(const GenericFactory&) = delete;
 
         class BuilderBase {
@@ -27,7 +28,7 @@ namespace Configuration {
         public:
             BuilderBase(const char* name) : name_(name) {}
 
-            BuilderBase(const BuilderBase& o) = delete;
+            BuilderBase(const BuilderBase& o)            = delete;
             BuilderBase& operator=(const BuilderBase& o) = delete;
 
             virtual BaseType* create() const = 0;
@@ -44,20 +45,19 @@ namespace Configuration {
         template <typename DerivedType>
         class InstanceBuilder : public BuilderBase {
         public:
-            InstanceBuilder(const char* name) : BuilderBase(name) { instance().registerBuilder(this); }
+            explicit InstanceBuilder(const char* name) : BuilderBase(name) { instance().registerBuilder(this); }
 
             BaseType* create() const override { return new DerivedType(); }
         };
 
         static void factory(Configuration::HandlerBase& handler, BaseType*& inst) {
             if (inst == nullptr) {
-                for (auto it : instance().builders_) {
-                    if (handler.matchesUninitialized(it->name())) {
-                        inst = it->create();
-                        handler.enterFactory(it->name(), *inst);
-
-                        return;
-                    }
+                auto& builders = instance().builders_;
+                auto  it       = std::find_if(
+                    builders.begin(), builders.end(), [&](auto& builder) { return handler.matchesUninitialized(builder->name()); });
+                if (it != builders.end()) {
+                    inst = (*it)->create();
+                    handler.enterFactory((*it)->name(), *inst);
                 }
             } else {
                 handler.enterSection(inst->name(), inst);
@@ -65,14 +65,13 @@ namespace Configuration {
         }
         static void factory(Configuration::HandlerBase& handler, std::vector<BaseType*>& inst) {
             if (handler.handlerType() == HandlerType::Parser) {
-                for (auto it : instance().builders_) {
-                    if (handler.matchesUninitialized(it->name())) {
-                        auto product = it->create();
-                        inst.push_back(product);
-                        handler.enterFactory(it->name(), *product);
-
-                        return;
-                    }
+                auto& builders = instance().builders_;
+                auto  it       = std::find_if(
+                    builders.begin(), builders.end(), [&](auto& builder) { return handler.matchesUninitialized(builder->name()); });
+                if (it != builders.end()) {
+                    auto product = (*it)->create();
+                    inst.push_back(product);
+                    handler.enterFactory((*it)->name(), *product);
                 }
             } else {
                 for (auto it : inst) {

@@ -65,7 +65,7 @@ class Pin {
 
     static const char* parse(std::string_view str, Pins::PinDetail*& detail);
 
-    inline Pin(Pins::PinDetail* detail) : _detail(detail) {}
+    explicit inline Pin(Pins::PinDetail* detail) : _detail(detail) {}
 
 public:
     using Capabilities = Pins::PinCapabilities;
@@ -136,7 +136,7 @@ public:
     inline std::string name() const { return _detail->toString(); }
 
     void report(const char* legend);
-    void report(std::string legend) { report(legend.c_str()); }
+    void report(const std::string& legend) { report(legend.c_str()); }
 
     inline void swap(Pin& o) { std::swap(o._detail, _detail); }
 

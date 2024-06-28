@@ -71,7 +71,7 @@ class setprecision {
     int precision;
 
 public:
-    setprecision(int p) : precision(p) {}
+    explicit setprecision(int p) : precision(p) {}
 
     inline void Write(Print& stream, float f) const { stream.print(f, precision); }
     inline void Write(Print& stream, double d) const { stream.print(d, precision); }

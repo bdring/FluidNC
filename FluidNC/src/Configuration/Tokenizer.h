@@ -39,7 +39,7 @@ namespace Configuration {
         void ParseError(const char* description) const;
 
     public:
-        Tokenizer(std::string_view yaml_string);
+        explicit Tokenizer(std::string_view yaml_string);
         void                    Tokenize();
         inline std::string_view key() const { return _token._key; }
     };

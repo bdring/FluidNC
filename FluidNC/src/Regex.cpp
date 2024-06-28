@@ -49,6 +49,7 @@ static bool matchHere(const char* regexp, const char* text, bool case_sensitive)
 
 // match - search for regular expression anywhere in text
 // Returns true if text contains the regular expression regexp
+// cppcheck-suppress unusedFunction
 bool regexMatch(const char* regexp, const char* text, bool case_sensitive) {
     if (regexp[0] == '^') {
         return matchHere(++regexp, text, case_sensitive);

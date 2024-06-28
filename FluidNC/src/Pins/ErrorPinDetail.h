@@ -12,7 +12,7 @@ namespace Pins {
         std::string _description;
 
     public:
-        ErrorPinDetail(std::string_view descr);
+        explicit ErrorPinDetail(std::string_view descr);
 
         PinCapabilities capabilities() const override;
 

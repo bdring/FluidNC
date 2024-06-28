@@ -8,16 +8,27 @@ namespace Pins {
     VoidPinDetail::VoidPinDetail(int number) : PinDetail(number) {}
     VoidPinDetail::VoidPinDetail(const PinOptionsParser& options) : VoidPinDetail() {}
 
+    // cppcheck-suppress unusedFunction
     PinCapabilities VoidPinDetail::capabilities() const {
         // Void pins support basic functionality. It just won't do you any good.
         return PinCapabilities::Output | PinCapabilities::Input | PinCapabilities::ISR | PinCapabilities::Void;
     }
 
+    // cppcheck-suppress unusedFunction
     void IRAM_ATTR VoidPinDetail::write(int high) {}
-    int            VoidPinDetail::read() { return 0; }
-    void           VoidPinDetail::setAttr(PinAttributes value) {}
-    PinAttributes  VoidPinDetail::getAttr() const { return PinAttributes::None; }
+    // cppcheck-suppress unusedFunction
+    int VoidPinDetail::read() {
+        return 0;
+    }
+    // cppcheck-suppress unusedFunction
+    void VoidPinDetail::setAttr(PinAttributes value) {}
+    // cppcheck-suppress unusedFunction
+    PinAttributes VoidPinDetail::getAttr() const {
+        return PinAttributes::None;
+    }
 
-    std::string VoidPinDetail::toString() { return std::string("NO_PIN"); }
-
+    // cppcheck-suppress unusedFunction
+    std::string VoidPinDetail::toString() {
+        return std::string("NO_PIN");
+    }
 }

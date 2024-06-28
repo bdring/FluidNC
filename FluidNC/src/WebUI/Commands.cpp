@@ -14,7 +14,8 @@
 namespace WebUI {
     bool COMMANDS::_restart_MCU = false;
 
-    void COMMANDS::send_json_command_response(Channel& out, uint cmdID, bool isok, std::string message) {
+    // cppcheck-suppress unusedFunction
+    void COMMANDS::send_json_command_response(Channel& out, uint cmdID, bool isok, const std::string& message) {
         JSONencoder j(true, &out);
         j.begin();
         j.member("cmd", String(cmdID).c_str());
@@ -23,16 +24,23 @@ namespace WebUI {
         j.end();
     }
 
-    bool COMMANDS::isJSON(const char* cmd_params) { return strstr(cmd_params, "json=yes") != NULL; }
+    // cppcheck-suppress unusedFunction
+    bool COMMANDS::isJSON(const char* cmd_params) {
+        return strstr(cmd_params, "json=yes") != NULL;
+    }
 
     /**
      * Restart ESP
      */
-    void COMMANDS::restart_MCU() { _restart_MCU = true; }
+    // cppcheck-suppress unusedFunction
+    void COMMANDS::restart_MCU() {
+        _restart_MCU = true;
+    }
 
     /**
      * Handle not critical actions that must be done in sync environement
      */
+    // cppcheck-suppress unusedFunction
     void COMMANDS::handle() {
         if (_restart_MCU) {
             ESP.restart();

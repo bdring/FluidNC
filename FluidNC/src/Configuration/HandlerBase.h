@@ -8,6 +8,7 @@
 #include "../EnumItem.h"
 #include "../SpindleDatatypes.h"
 #include "../UartTypes.h"
+#include "src/Macro.h"
 
 #include <IPAddress.h>
 #include <string>
@@ -34,7 +35,8 @@ namespace Configuration {
         friend class GenericFactory;
 
     public:
-        virtual void item(const char* name, bool& value)                                                            = 0;
+        virtual void item(const char* name, Macro& value)                                                                       = 0;
+        virtual void item(const char* name, bool& value)                                                                        = 0;
         virtual void item(const char* name, int32_t& value, const int32_t minValue = 0, const int32_t maxValue = INT32_MAX)     = 0;
         virtual void item(const char* name, uint32_t& value, const uint32_t minValue = 0, uint32_t const maxValue = UINT32_MAX) = 0;
 
@@ -44,9 +46,9 @@ namespace Configuration {
             value = uint8_t(v);
         }
 
-        virtual void item(const char* name, float& value, const float minValue = -3e38, const float maxValue = 3e38)  = 0;
-        virtual void item(const char* name, std::vector<speedEntry>& value)                               = 0;
-        virtual void item(const char* name, UartData& wordLength, UartParity& parity, UartStop& stopBits) = 0;
+        virtual void item(const char* name, float& value, const float minValue = -3e38, const float maxValue = 3e38) = 0;
+        virtual void item(const char* name, std::vector<speedEntry>& value)                                          = 0;
+        virtual void item(const char* name, UartData& wordLength, UartParity& parity, UartStop& stopBits)            = 0;
 
         virtual void item(const char* name, Pin& value)       = 0;
         virtual void item(const char* name, IPAddress& value) = 0;
@@ -63,10 +65,8 @@ namespace Configuration {
                 // For Parser, matchesUninitialized(name) resolves to _parser.is(name)
                 if (matchesUninitialized(name)) {
                     Assert(value == nullptr, "Duplicate section %s", name);
-                    if (value == nullptr) {
-                        value = new T(args...);
-                        enterSection(name, value);
-                    }
+                    value = new T(args...);
+                     enterSection(name, value);
                 }
             } else {
                 if (value != nullptr) {

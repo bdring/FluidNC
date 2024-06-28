@@ -25,6 +25,7 @@ static void get_wdt_task_handle() {
     }
 }
 
+// cppcheck-suppress unusedFunction
 void enable_core0_WDT() {
     if (!wdt_task_handle) {
         return;
@@ -35,6 +36,7 @@ void enable_core0_WDT() {
     }
 }
 
+// cppcheck-suppress unusedFunction
 void disable_core0_WDT() {
     get_wdt_task_handle();
     if (!wdt_task_handle) {

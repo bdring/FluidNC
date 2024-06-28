@@ -28,7 +28,7 @@ static esp_err_t mount_to_vfs_fat(int max_files, sdmmc_card_t* card, uint8_t pdr
 
     //    ESP_LOGD(TAG, "using pdrv=%i", pdrv);
     // Drive names are "0:", "1:", etc.
-    char drv[3] = { (char)('0' + pdrv), ':', 0 };
+    const char drv[3] = { (char)('0' + pdrv), ':', 0 };
 
     FRESULT res;
 
@@ -71,6 +71,7 @@ static void call_host_deinit(const sdmmc_host_t* host_config) {
     }
 }
 
+// cppcheck-suppress unusedFunction
 bool sd_init_slot(uint32_t freq_hz, int cs_pin, int cd_pin, int wp_pin) {
     esp_err_t err;
 
@@ -136,6 +137,7 @@ bool init_spi_bus(int mosi_pin, int miso_pin, int clk_pin) {
 #endif
 
 // adapted from vfs_fat_sdmmc.c:esp_vfs_fat_sdmmc_mount()
+// cppcheck-suppress unusedFunction
 std::error_code sd_mount(int max_files) {
     log_verbose("Mount_sd");
     esp_err_t err;
@@ -154,7 +156,7 @@ std::error_code sd_mount(int max_files) {
     // pdrv is now the index of the unused drive slot
 
     // not using ff_memalloc here, as allocation in internal RAM is preferred
-    card = (sdmmc_card_t*)malloc(sizeof(sdmmc_card_t));
+    card = static_cast<sdmmc_card_t*>(malloc(sizeof(sdmmc_card_t)));
     if (card == NULL) {
         log_debug("could not allocate new sdmmc_card_t");
         return esp_error::make_error_code(ESP_ERR_NO_MEM);
@@ -175,6 +177,7 @@ cleanup:
     return esp_error::make_error_code(err);
 }
 
+// cppcheck-suppress unusedFunction
 void sd_unmount() {
     BYTE pdrv = ff_diskio_get_pdrv_card(card);
     if (pdrv == 0xff) {
@@ -182,7 +185,7 @@ void sd_unmount() {
     }
 
     // unmount
-    char drv[3] = { (char)('0' + pdrv), ':', 0 };
+    const char drv[3] = { (char)('0' + pdrv), ':', 0 };
     f_mount(NULL, drv, 0);
 
     esp_vfs_fat_unregister_path(base_path);
@@ -194,6 +197,7 @@ void sd_unmount() {
     card = NULL;
 }
 
+// cppcheck-suppress unusedFunction
 void sd_deinit_slot() {
     sdspi_host_remove_device(host_config.slot);
     call_host_deinit(&host_config);

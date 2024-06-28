@@ -30,6 +30,7 @@ size_t StartupLog::write(uint8_t data) {
     _messages[_len++] = (char)data;
     return 1;
 }
+// cppcheck-suppress unusedFunction
 void StartupLog::dump(Channel& out) {
     if (_paniced) {
         log_error_to(out, "Showing startup log from previous panic");

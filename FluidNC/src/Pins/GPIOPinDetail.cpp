@@ -184,7 +184,7 @@ namespace Pins {
     }
 
     void GPIOPinDetail::registerEvent(EventPin* obj) {
-        gpio_set_action(_index, gpioAction, (void*)obj, _attributes.has(Pin::Attr::ActiveLow));
+        gpio_set_action(_index, gpioAction, reinterpret_cast<void*>(obj), _attributes.has(Pin::Attr::ActiveLow));
     }
 
     std::string GPIOPinDetail::toString() {

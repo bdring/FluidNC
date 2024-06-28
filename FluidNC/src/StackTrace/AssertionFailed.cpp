@@ -20,7 +20,7 @@ AssertionFailed AssertionFailed::create(const char* condition, const char* msg, 
     char    tmp[255];
     va_list arg;
     va_start(arg, msg);
-    size_t len = vsnprintf(tmp, 255, msg, arg);
+    vsnprintf(tmp, 255, msg, arg);
     va_end(arg);
     tmp[254] = 0;
 
@@ -52,9 +52,9 @@ std::exception AssertionFailed::create(const char* condition, const char* msg, .
     char    tmp[255];
     va_list arg;
     va_start(arg, msg);
-    size_t len = vsnprintf(tmp, 255, msg, arg);
-    tmp[254]   = 0;
-    msg        = tmp;
+    vsnprintf(tmp, 255, msg, arg);
+    tmp[254] = 0;
+    msg      = tmp;
     oss << tmp;
 
     oss << " at ";

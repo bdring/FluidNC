@@ -20,7 +20,6 @@
 #    include "StartupLog.h"
 
 #    include "WebUI/TelnetServer.h"
-#    include "WebUI/InputBuffer.h"
 
 #    include "WebUI/WifiConfig.h"
 #    include "Driver/localfs.h"

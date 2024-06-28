@@ -71,7 +71,7 @@ int UTF8::decode(uint8_t ch, uint32_t& value) {
 }
 bool UTF8::decode(const std::vector<uint8_t>& input, uint32_t& value) {
     int len = input.size();
-    for (auto& ch : input) {
+    for (auto const& ch : input) {
         --len;
         int result = decode(ch, value);
         if (result == -1) {
@@ -84,6 +84,7 @@ bool UTF8::decode(const std::vector<uint8_t>& input, uint32_t& value) {
     // Reached end of input without finishing the decode
     return false;
 }
+// cppcheck-suppress unusedFunction
 std::vector<uint8_t> UTF8::encode(const uint32_t value) {
     std::vector<uint8_t> output;
     if (value >= 0x110000) {
@@ -177,5 +178,6 @@ void test_UTF8() {
     delete utf8;
 }
 #else
+// cppcheck-suppress unusedFunction
 void test_UTF8() {}
 #endif

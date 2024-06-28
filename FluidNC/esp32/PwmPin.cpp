@@ -71,7 +71,7 @@ static uint8_t calc_pwm_precision(uint32_t frequency) {
     return ledcMaxBits;
 }
 
-PwmPin::PwmPin(Pin& pin, uint32_t frequency) : _frequency(frequency) {
+PwmPin::PwmPin(const Pin& pin, uint32_t frequency) : _frequency(frequency) {
     uint8_t bits       = calc_pwm_precision(frequency);
     _period            = (1 << bits) - 1;
     _channel           = allocateChannel();
@@ -107,6 +107,7 @@ PwmPin::PwmPin(Pin& pin, uint32_t frequency) : _frequency(frequency) {
     }
 }
 
+// cppcheck-suppress unusedFunction
 void IRAM_ATTR PwmPin::setDuty(uint32_t duty) {
     uint8_t g = _channel >> 3, c = _channel & 7;
     bool    on = duty != 0;

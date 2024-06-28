@@ -50,56 +50,61 @@ public:
 
 protected:
     std::string _name;
-    char        _line[maxLine];
-    size_t      _linelen;
-    bool        _addCR     = false;
-    char        _lastWasCR = false;
+    char        _line[maxLine] = {};
+    size_t      _linelen       = 0;
+    bool        _addCR         = false;
+    char        _lastWasCR     = false;
 
     std::queue<uint8_t> _queue;
 
     uint32_t _reportInterval = 0;
     int32_t  _nextReportTime = 0;
 
-    gc_modal_t  _lastModal;
-    uint8_t     _lastTool;
-    float       _lastSpindleSpeed;
-    float       _lastFeedRate;
-    State       _lastState;
-    MotorMask   _lastLimits;
-    bool        _lastProbe;
-    std::string _lastPinString;
+    gc_modal_t  _lastModal        = modal_defaults;
+    uint8_t     _lastTool         = 0;
+    float       _lastSpindleSpeed = 0;
+    float       _lastFeedRate     = 0;
+    State       _lastState        = State::Idle;
+    MotorMask   _lastLimits       = 0;
+    bool        _lastProbe        = false;
+    std::string _lastPinString    = "";
 
+    bool       _reportOvr = true;
     bool       _reportWco = true;
     CoordIndex _reportNgc = CoordIndex::End;
 
-    Cmd _last_rt_cmd;
+    Cmd _last_rt_cmd = Cmd::None;
 
     std::map<int, EventPin*> _events;
     std::map<int, bool*>     _pin_values;
 
-    UTF8        _utf8;
+    UTF8 _utf8;
+
+    bool _ended = false;
 
 protected:
     bool _active = true;
 
 public:
-    Channel(const char* name, bool addCR = false) : _name(name), _linelen(0), _addCR(addCR) {}
-    Channel(const char* name, int num, bool addCR = false) {
-        _name = name;
-        _name += std::to_string(num), _linelen = 0, _addCR = addCR;
-    }
+    explicit Channel(const std::string& name, bool addCR = false) : _name(name), _linelen(0), _addCR(addCR) {}
+    explicit Channel(const char* name, bool addCR = false) : _name(name), _linelen(0), _addCR(addCR) {}
+    Channel(const char* name, int num, bool addCR = false) : _name(name) { _name += std::to_string(num), _linelen = 0, _addCR = addCR; }
     virtual ~Channel() = default;
 
     bool _ackwait = false;
 
     virtual void       handle() {};
-    virtual Channel*   pollLine(char* line);
+    virtual Error      pollLine(char* line);
     virtual void       ack(Error status);
     const std::string& name() { return _name; }
 
     virtual void sendLine(MsgLevel level, const char* line);
     virtual void sendLine(MsgLevel level, const std::string* line);
     virtual void sendLine(MsgLevel level, const std::string& line);
+
+    size_t _line_number = 0;
+
+    std::string _progress;
 
     // rx_buffer_available() is the number of bytes that can be sent without overflowing
     // a reception buffer, even if the system is busy.  Channels that can handle external
@@ -131,11 +136,11 @@ public:
         return readBytes(buffer, length);
     }
 
-    virtual void stopJob() {}
-
     virtual bool is_visible(const std::string& stem, const std::string& extension, bool isdir);
 
-    size_t timedReadBytes(uint8_t* buffer, size_t length, TickType_t timeout) { return timedReadBytes((char*)buffer, length, timeout); }
+    size_t timedReadBytes(uint8_t* buffer, size_t length, TickType_t timeout) {
+        return timedReadBytes(reinterpret_cast<char*>(buffer), length, timeout);
+    }
 
     bool setCr(bool on) {
         bool retval = _addCR;
@@ -143,6 +148,7 @@ public:
         return retval;
     }
 
+    void notifyOvr() { _reportOvr = true; }
     void notifyWco() { _reportWco = true; }
     void notifyNgc(CoordIndex coord) { _reportNgc = coord; }
 
@@ -160,7 +166,7 @@ public:
     void         autoReportGCodeState();
 
     void push(uint8_t byte);
-    void push(uint8_t* data, size_t length) {
+    void push(const uint8_t* data, size_t length) {
         while (length--) {
             push(*data++);
         }
@@ -170,8 +176,9 @@ public:
             push((uint8_t)c);
         }
     }
+    void push(const std::string& s) { push(reinterpret_cast<const uint8_t*>(s.c_str()), s.length()); }
 
-    void push(const std::string& s) { push((uint8_t*)s.c_str(), s.length()); }
+    void end() { _ended = true; }
 
     // Pin extender functions
     virtual void out(const char* s, const char* tag);
@@ -182,4 +189,9 @@ public:
 
     void ready();
     void registerEvent(uint8_t code, EventPin* obj);
+
+    size_t lineNumber() { return _line_number; }
+
+    virtual void save() {}
+    virtual void restore() {}
 };

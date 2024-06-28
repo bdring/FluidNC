@@ -9,8 +9,8 @@
 namespace Pins {
     class VoidPinDetail : public PinDetail {
     public:
-        VoidPinDetail(int number = 0);
-        VoidPinDetail(const PinOptionsParser& options);
+        explicit VoidPinDetail(int number = 0);
+        explicit VoidPinDetail(const PinOptionsParser& options);
 
         PinCapabilities capabilities() const override;
 

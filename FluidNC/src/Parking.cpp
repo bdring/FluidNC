@@ -113,7 +113,7 @@ void Parking::park(bool restart) {
 
         log_debug("Spin down");
         spindle->spinDown();
-        report_ovr_counter = 0;  // Set to report change immediately
+        gc_ovr_changed();
 
         // Execute fast parking retract motion to parking target location.
         if (parking_target[_axis] < _target_mpos) {
@@ -128,7 +128,7 @@ void Parking::park(bool restart) {
         // NOTE: Laser mode does not start a parking motion to ensure the laser stops immediately.
         spindle->spinDown();
         config->_coolant->off();
-        report_ovr_counter = 0;  // Set to report changes immediately
+        gc_ovr_changed();
     }
 }
 void Parking::unpark(bool restart) {
@@ -154,7 +154,7 @@ void Parking::unpark(bool restart) {
             } else {
                 log_debug("Spin up");
                 restore_spindle();
-                report_ovr_counter = 0;  // Set to report change immediately
+                gc_ovr_changed();
             }
         }
     }
@@ -162,7 +162,7 @@ void Parking::unpark(bool restart) {
         // Block if safety door re-opened during prior restore actions.
         if (!restart) {
             restore_coolant();
-            report_ovr_counter = 0;  // Set to report change immediately
+            gc_ovr_changed();
         }
     }
 

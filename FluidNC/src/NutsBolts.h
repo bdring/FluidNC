@@ -51,10 +51,10 @@ const float INCH_PER_MM = (0.0393701f);
 #define bitnum_is_true(target, num) ((target & bitnum_to_mask(num)) != 0)
 #define bitnum_is_false(target, num) ((target & bitnum_to_mask(num)) == 0)
 
-// Read a floating point value from a string. Line points to the input buffer, char_counter
+// Read a floating point value from a string. Line points to the input buffer, pos
 // is the indexer pointing to the current character of the line, while float_ptr is
 // a pointer to the result variable. Returns true when it succeeds
-bool read_float(const char* line, size_t* char_counter, float* float_ptr);
+bool read_float(const char* line, size_t* pos, float& result);
 
 // Blocking delay for very short time intervals
 void delay_us(int32_t microseconds);

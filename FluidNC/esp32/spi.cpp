@@ -12,6 +12,7 @@
 #    define HSPI_HOST SPI2_HOST
 #endif
 
+// cppcheck-suppress unusedFunction
 bool spi_init_bus(pinnum_t sck_pin, pinnum_t miso_pin, pinnum_t mosi_pin, bool dma) {
     // Start the SPI bus with the pins defined here.  Once it has been started,
     // those pins "stick" and subsequent attempts to restart it with defaults
@@ -30,6 +31,7 @@ bool spi_init_bus(pinnum_t sck_pin, pinnum_t miso_pin, pinnum_t mosi_pin, bool d
     return !spi_bus_initialize(HSPI_HOST, &bus_cfg, dma ? SPI_DMA_CH_AUTO : SPI_DMA_DISABLED);
 }
 
+// cppcheck-suppress unusedFunction
 void spi_deinit_bus() {
     esp_err_t err = spi_bus_free(HSPI_HOST);
     log_debug("deinit spi " << int(err));

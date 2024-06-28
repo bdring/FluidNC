@@ -39,10 +39,12 @@ namespace Pins {
         }
     }
 
+    // cppcheck-suppress unusedFunction
     bool PinOption::is(const char* option) const {
         return string_util::equal_ignore_case(_key, option);
     }
 
+    // cppcheck-suppress unusedFunction
     int PinOption::iValue() const {
         // Parse to integer
         int num;

@@ -9,7 +9,7 @@
 
 class PwmPin {
 public:
-    PwmPin(Pin& pin, uint32_t frequency);
+    PwmPin(const Pin& pin, uint32_t frequency);
     ~PwmPin();
     uint32_t frequency() { return _frequency; }
     uint32_t period() { return _period; }

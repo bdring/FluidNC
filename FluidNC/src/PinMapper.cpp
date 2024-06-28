@@ -99,7 +99,7 @@ void IRAM_ATTR digitalWrite(pinnum_t pin, uint8_t val) {
         gpio_write(pin, val);
         return;
     }
-    auto thePin = PinMap::instance()._mapping[pin - PinMap::BOUNDARY];
+    const Pin* thePin = PinMap::instance()._mapping[pin - PinMap::BOUNDARY];
     if (thePin) {
         thePin->synchronousWrite(val);
     }
@@ -111,7 +111,7 @@ void IRAM_ATTR pinMode(pinnum_t pin, uint8_t mode) {
         return;
     }
 
-    auto thePin = PinMap::instance()._mapping[pin - PinMap::BOUNDARY];
+    const Pin* thePin = PinMap::instance()._mapping[pin - PinMap::BOUNDARY];
     if (!thePin) {
         return;
     }
@@ -137,6 +137,6 @@ int IRAM_ATTR digitalRead(pinnum_t pin) {
     if (pin < PinMap::BOUNDARY) {
         return gpio_read(pin);
     }
-    auto thePin = PinMap::instance()._mapping[pin - PinMap::BOUNDARY];
+    const Pin* thePin = PinMap::instance()._mapping[pin - PinMap::BOUNDARY];
     return (thePin) ? thePin->read() : 0;
 }

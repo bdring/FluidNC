@@ -24,6 +24,7 @@ namespace Pins {
     PinAttributes PinAttributes::Exclusive(1 << (__LINE__ - START_LINE));  // \/       These are attributes
     PinAttributes PinAttributes::InitialOn(1 << (__LINE__ - START_LINE));  // \/       These are attributes
 
+    // cppcheck-suppress unusedFunction
     bool PinAttributes::validateWith(PinCapabilities caps) {
         auto capMask  = (caps._value & capabilityMask);
         auto attrMask = (_value & capabilityMask);
@@ -33,6 +34,7 @@ namespace Pins {
                (capMask | attrMask) == capMask;     // if the required attributes all match an available capability
     }
 
+    // cppcheck-suppress unusedFunction
     bool PinAttributes::conflictsWith(PinAttributes t) {
         // If it's exclusive, we are not allowed to set it again:
         if (_value != Undefined._value && this->has(Exclusive) && _value != t._value) {

@@ -6,10 +6,15 @@
 #include "LegacySettingHandler.h"
 
 namespace Configuration {
-    bool LegacySettingRegistry::isLegacySetting(const char* str) { return str[0] == '$' && (str[1] >= '0' && str[1] <= '9'); }
+    bool LegacySettingRegistry::isLegacySetting(const char* str) {
+        return str[0] == '$' && (str[1] >= '0' && str[1] <= '9');
+    }
 
-    void LegacySettingRegistry::registerHandler(LegacySettingHandler* handler) { instance().handlers_.push_back(handler); }
+    void LegacySettingRegistry::registerHandler(LegacySettingHandler* handler) {
+        instance().handlers_.push_back(handler);
+    }
 
+    // cppcheck-suppress unusedFunction
     bool LegacySettingRegistry::tryHandleLegacy(const char* str) {
         if (isLegacySetting(str)) {
             auto start = str;

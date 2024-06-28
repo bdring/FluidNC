@@ -10,12 +10,13 @@
 
 #include "WebSettings.h"
 
-#include "../Settings.h"
-#include "../Machine/MachineConfig.h"
-#include "../Configuration/JsonGenerator.h"
-#include "../Uart.h"       // Uart0.baud
-#include "../Report.h"     // git_info
-#include "../InputFile.h"  // InputFile
+#include "src/Settings.h"
+#include "src/Machine/MachineConfig.h"
+#include "src/Configuration/JsonGenerator.h"
+#include "src/Uart.h"       // Uart0.baud
+#include "src/Report.h"     // git_info
+#include "src/InputFile.h"  // InputFile
+#include "src/Job.h"        // Job::
 
 #include "Commands.h"  // COMMANDS::restart_MCU();
 #include "WifiConfig.h"
@@ -385,7 +386,7 @@ namespace WebUI {
         return Error::Ok;
     }
 
-    static Error openFile(const char* fs, const char* parameter, AuthenticationLevel auth_level, Channel& out, InputFile*& theFile) {
+    static Error openFile(const char* fs, const char* parameter, Channel& out, InputFile*& theFile) {
         if (*parameter == '\0') {
             log_string(out, "Missing file name!");
             return Error::InvalidValue;
@@ -396,7 +397,7 @@ namespace WebUI {
         }
 
         try {
-            theFile = new InputFile(fs, path.c_str(), auth_level, out);
+            theFile = new InputFile(fs, path.c_str());
         } catch (Error err) { return err; }
         return Error::Ok;
     }
@@ -407,7 +408,7 @@ namespace WebUI {
         }
         InputFile* theFile;
         Error      err;
-        if ((err = openFile(fs, parameter, auth_level, out, theFile)) != Error::Ok) {
+        if ((err = openFile(fs, parameter, out, theFile)) != Error::Ok) {
             return err;
         }
         char  fileLine[255];
@@ -492,7 +493,7 @@ namespace WebUI {
         InputFile*  theFile;
         Error       err;
         std::string fn(filename);
-        if ((err = openFile(sdName, fn.c_str(), auth_level, out, theFile)) != Error::Ok) {
+        if ((err = openFile(sdName, fn.c_str(), out, theFile)) != Error::Ok) {
             error = "Cannot open file";
         } else {
             char  fileLine[255];
@@ -516,6 +517,30 @@ namespace WebUI {
         }
 
         j.end();
+        return Error::Ok;
+    }
+
+    // Can be used by installers to check the version of files
+    static Error fileShowHash(const char* parameter, AuthenticationLevel auth_level, Channel& out) {
+        if (notIdleOrAlarm()) {
+            return Error::IdleError;
+        }
+        if (!parameter || !*parameter) {
+            log_error_to(out, "Missing argument");
+            return Error::InvalidValue;
+        }
+
+        std::string hash = HashFS::hash(parameter);
+        replace_string_in_place(hash, "\"", "");
+        JSONencoder j(true, &out);  // Encapsulated JSON
+        j.begin();
+        j.begin_member_object("signature");
+        j.member("algorithm", "SHA2-256");
+        j.member("value", hash);
+        j.end_object();
+        j.member("path", parameter);
+        j.end();
+
         return Error::Ok;
     }
 
@@ -544,7 +569,7 @@ namespace WebUI {
 
         InputFile* theFile;
         Error      err = Error::Ok;
-        if ((err = openFile(localfsName, fn.c_str(), auth_level, out, theFile)) != Error::Ok) {
+        if ((err = openFile(localfsName, fn.c_str(), out, theFile)) != Error::Ok) {
             err    = Error::FsFailedOpenFile;
             status = "Cannot open file";
         } else {
@@ -578,17 +603,14 @@ namespace WebUI {
             log_string(out, "Alarm");
             return Error::IdleError;
         }
-        if (!state_is(State::Idle)) {
-            log_string(out, "Busy");
-            return Error::IdleError;
-        }
+        Job::save();
         InputFile* theFile;
-        if ((err = openFile(fs, parameter, auth_level, out, theFile)) != Error::Ok) {
+        if ((err = openFile(fs, parameter, out, theFile)) != Error::Ok) {
+            Job::restore();
             return err;
         }
-        allChannels.registration(theFile);
+        Job::nest(theFile, &out);
 
-        //report_realtime_status(out);
         return Error::Ok;
     }
 
@@ -998,7 +1020,7 @@ namespace WebUI {
         new WebCommand(NULL, WEBCMD, WU, "ESP720", "LocalFS/Size", localFSSize);
         new WebCommand("FORMAT", WEBCMD, WA, "ESP710", "LocalFS/Format", formatLocalFS);
         new WebCommand("path", WEBCMD, WU, NULL, "LocalFS/Show", showLocalFile);
-        new WebCommand("path", WEBCMD, WU, "ESP700", "LocalFS/Run", runLocalFile);
+        new WebCommand("path", WEBCMD, WU, "ESP700", "LocalFS/Run", runLocalFile, nullptr);
         new WebCommand("path", WEBCMD, WU, NULL, "LocalFS/List", listLocalFiles);
         new WebCommand("path", WEBCMD, WU, NULL, "LocalFS/ListJSON", listLocalFilesJSON);
         new WebCommand("path", WEBCMD, WU, NULL, "LocalFS/Delete", deleteLocalFile);
@@ -1010,8 +1032,9 @@ namespace WebUI {
 
         new WebCommand("path", WEBCMD, WU, NULL, "File/SendJSON", fileSendJson);
         new WebCommand("path", WEBCMD, WU, NULL, "File/ShowSome", fileShowSome);
+        new WebCommand("path", WEBCMD, WU, NULL, "File/ShowHash", fileShowHash);
         new WebCommand("path", WEBCMD, WU, "ESP221", "SD/Show", showSDFile);
-        new WebCommand("path", WEBCMD, WU, "ESP220", "SD/Run", runSDFile);
+        new WebCommand("path", WEBCMD, WU, "ESP220", "SD/Run", runSDFile, nullptr);
         new WebCommand("file_or_directory_path", WEBCMD, WU, "ESP215", "SD/Delete", deleteSDObject);
         new WebCommand("path", WEBCMD, WU, NULL, "SD/Rename", renameSDObject);
         new WebCommand(NULL, WEBCMD, WU, "ESP210", "SD/List", listSDFiles);

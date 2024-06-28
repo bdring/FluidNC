@@ -234,6 +234,17 @@ namespace Configuration {
         }
     }
 
+    void RuntimeSetting::item(const char* name, Macro& value) {
+        if (is(name)) {
+            isHandled_ = true;
+            if (newValue_ == nullptr) {
+                log_stream(out_, setting_prefix() << value.get());
+            } else {
+                value.set(newValue_);
+            }
+        }
+    }
+
     RuntimeSetting::~RuntimeSetting() {
         std::atomic_thread_fence(std::memory_order::memory_order_seq_cst);  // Write fence for config
     }
