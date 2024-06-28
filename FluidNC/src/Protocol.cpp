@@ -888,7 +888,7 @@ static void protocol_manage_spindle() {
                     sys.step_control.updateSpindleSpeed = true;
                 } else {
                     config->_parking->restore_spindle();
-                    report_ovr_counter = 0;  // Set to report change immediately
+                    gc_ovr_changed();
                 }
             }
             if (spindle_stop_ovr.bit.restoreCycle) {
@@ -950,8 +950,8 @@ static void protocol_exec_rt_suspend() {
                         // Spindle and coolant should already be stopped, but do it again just to be sure.
                         spindle->spinDown();
                         config->_coolant->off();
-                        report_ovr_counter = 0;  // Set to report change immediately
-                        Stepper::go_idle();      // Stop stepping and maybe disable steppers
+                        gc_ovr_changed();
+                        Stepper::go_idle();  // Stop stepping and maybe disable steppers
                         while (!(sys.abort)) {
                             protocol_exec_rt_system();  // Do nothing until reset.
                         }
@@ -997,6 +997,7 @@ static void protocol_do_feed_override(void* incrementvp) {
     if (percent != sys.f_override) {
         sys.f_override = percent;
         update_velocities();
+        gc_ovr_changed();
     }
 }
 
@@ -1005,6 +1006,7 @@ static void protocol_do_rapid_override(void* percentvp) {
     if (percent != sys.r_override) {
         sys.r_override = percent;
         update_velocities();
+        gc_ovr_changed();
     }
 }
 
@@ -1024,13 +1026,13 @@ static void protocol_do_spindle_override(void* incrementvp) {
     if (percent != sys.spindle_speed_ovr) {
         sys.spindle_speed_ovr               = percent;
         sys.step_control.updateSpindleSpeed = true;
-        report_ovr_counter                  = 0;  // Set to report change immediately
+        gc_ovr_changed();
 
         // If spindle is on, tell it the RPM has been overridden
         // When moving, the override is handled by the stepping code
         if (gc_state.modal.spindle != SpindleState::Disable && !inMotionState()) {
             spindle->setState(gc_state.modal.spindle, gc_state.spindle_speed);
-            report_ovr_counter = 0;  // Set to report change immediately
+            gc_ovr_changed();
         }
     }
 }
@@ -1045,7 +1047,7 @@ static void protocol_do_accessory_override(void* type) {
                 } else if (spindle_stop_ovr.bit.enabled) {
                     spindle_stop_ovr.bit.restore = true;
                 }
-                report_ovr_counter = 0;  // Set to report change immediately
+                gc_ovr_changed();
             }
             break;
         case AccessoryOverride::FloodToggle:
@@ -1054,14 +1056,14 @@ static void protocol_do_accessory_override(void* type) {
             if (config->_coolant->hasFlood() && (state_is(State::Idle) || state_is(State::Cycle) || state_is(State::Hold))) {
                 gc_state.modal.coolant.Flood = !gc_state.modal.coolant.Flood;
                 config->_coolant->set_state(gc_state.modal.coolant);
-                report_ovr_counter = 0;  // Set to report change immediately
+                gc_ovr_changed();
             }
             break;
         case AccessoryOverride::MistToggle:
             if (config->_coolant->hasMist() && (state_is(State::Idle) || state_is(State::Cycle) || state_is(State::Hold))) {
                 gc_state.modal.coolant.Mist = !gc_state.modal.coolant.Mist;
                 config->_coolant->set_state(gc_state.modal.coolant);
-                report_ovr_counter = 0;  // Set to report change immediately
+                gc_ovr_changed();
             }
             break;
         default:

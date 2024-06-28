@@ -69,6 +69,7 @@ protected:
     bool        _lastProbe        = false;
     std::string _lastPinString    = "";
 
+    bool       _reportOvr = true;
     bool       _reportWco = true;
     CoordIndex _reportNgc = CoordIndex::End;
 
@@ -147,6 +148,7 @@ public:
         return retval;
     }
 
+    void notifyOvr() { _reportOvr = true; }
     void notifyWco() { _reportWco = true; }
     void notifyNgc(CoordIndex coord) { _reportNgc = coord; }
 

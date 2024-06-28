@@ -49,6 +49,7 @@ public:
 
     void flushRx();
 
+    void notifyOvr();
     void notifyWco();
     void notifyNgc(CoordIndex coord);
 

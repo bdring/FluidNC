@@ -318,5 +318,6 @@ void user_m30();
 
 void gc_ngc_changed(CoordIndex coord);
 void gc_wco_changed();
+void gc_ovr_changed();
 
 extern gc_modal_t modal_defaults;

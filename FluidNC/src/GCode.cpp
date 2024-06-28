@@ -150,6 +150,10 @@ void gc_ngc_changed(CoordIndex coord) {
     allChannels.notifyNgc(coord);
 }
 
+void gc_ovr_changed() {
+    allChannels.notifyOvr();
+}
+
 void gc_wco_changed() {
     if (FORCE_BUFFER_SYNC_DURING_WCO_CHANGE) {
         protocol_buffer_synchronize();
@@ -1446,7 +1450,7 @@ Error gc_execute_line(char* line) {
         if (gc_state.modal.spindle != SpindleState::Disable && !laserIsMotion && !state_is(State::CheckMode)) {
             protocol_buffer_synchronize();
             spindle->setState(gc_state.modal.spindle, disableLaser ? 0 : (uint32_t)gc_block.values.s);
-            report_ovr_counter = 0;  // Set to report change immediately
+            gc_ovr_changed();
         }
         gc_state.spindle_speed = gc_block.values.s;  // Update spindle speed state.
     }
@@ -1469,7 +1473,7 @@ Error gc_execute_line(char* line) {
             protocol_buffer_synchronize();
             spindle->setState(gc_block.modal.spindle, (uint32_t)pl_data->spindle_speed);
         }
-        report_ovr_counter     = 0;  // Set to report change immediately
+        gc_ovr_changed();
         gc_state.modal.spindle = gc_block.modal.spindle;
     }
     pl_data->spindle = gc_state.modal.spindle;
@@ -1496,7 +1500,7 @@ Error gc_execute_line(char* line) {
         if (!state_is(State::CheckMode)) {
             protocol_buffer_synchronize();
             config->_coolant->set_state(gc_state.modal.coolant);
-            report_ovr_counter = 0;  // Set to report change immediately
+            gc_ovr_changed();
         }
     }
 
@@ -1722,7 +1726,7 @@ Error gc_execute_line(char* line) {
                 gc_wco_changed();  // Set to refresh immediately just in case something altered.
                 spindle->spinDown();
                 config->_coolant->off();
-                report_ovr_counter = 0;  // Set to report changes immediately
+                gc_ovr_changed();
             }
             report_feedback_message(Message::ProgramEnd);
             user_m30();
@@ -1765,5 +1769,5 @@ void WEAK_LINK user_m30() {}
 
 void WEAK_LINK user_tool_change(uint32_t new_tool) {
     Spindles::Spindle::switchSpindle(new_tool, config->_spindles, spindle);
-    report_ovr_counter = 0;  // Set to report change immediately
+    gc_ovr_changed();
 }
