@@ -476,7 +476,7 @@ namespace WebUI {
 
             auto cmd = _webserver->arg("cmd");
             // [ESPXXX] commands expect data in the HTTP response
-            if (cmd.startsWith("[ESP")) {
+            if (cmd.startsWith("[ESP") || cmd.startsWith("$/")) {
                 synchronousCommand(cmd.c_str(), silent, auth_level);
             } else {
                 websocketCommand(cmd.c_str(), -1, auth_level);  // WebUI3 does not support PAGEID
