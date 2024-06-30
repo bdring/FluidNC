@@ -7,6 +7,7 @@
 	Cartesian.h
 
 	This is a kinematic system for where the motors operate in the cartesian space.
+    All logical axis of the system perfectly alligned with physical axis of machine.
 */
 
 #include "Kinematics.h"
