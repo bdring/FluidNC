@@ -2,6 +2,7 @@
 // Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
 
 #pragma once
+#ifndef EXTERNAL_STEPPERS_ONLY
 
 #include "StandardStepper.h"
 #include "../EnumItem.h"
@@ -86,3 +87,4 @@ namespace MotorDrivers {
     };
 
 }
+#endif

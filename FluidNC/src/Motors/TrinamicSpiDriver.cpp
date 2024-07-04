@@ -4,6 +4,7 @@
 /*
     This is used for Trinamic SPI controlled stepper motor drivers.
 */
+#ifndef EXTERNAL_STEPPERS_ONLY
 
 #include "TrinamicSpiDriver.h"
 #include "../Machine/MachineConfig.h"
@@ -51,3 +52,4 @@ namespace MotorDrivers {
     }
 
 }
+#endif

@@ -8,6 +8,7 @@
     TMC2209 Datasheet
     https://www.trinamic.com/fileadmin/assets/Products/ICs_Documents/TMC2209_Datasheet_V103.pdf
 */
+#ifndef EXTERNAL_STEPPERS_ONLY
 
 #include "TrinamicUartDriver.h"
 
@@ -44,3 +45,4 @@ namespace MotorDrivers {
     }
 
 }
+#endif

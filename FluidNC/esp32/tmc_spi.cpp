@@ -1,3 +1,4 @@
+#ifndef EXTERNAL_STEPPERS_ONLY
 // Copyright (c) 2022 Mitch Bradley
 // Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
 
@@ -92,3 +93,4 @@ uint32_t TMC2130Stepper::read(uint8_t reg) {
 
     return data;
 }
+#endif

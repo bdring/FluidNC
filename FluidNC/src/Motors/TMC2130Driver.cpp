@@ -1,5 +1,6 @@
 // Copyright (c) 2020 -	Bart Dring
 // Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
+#ifndef EXTERNAL_STEPPERS_ONLY
 
 /*
     This is used for Trinamic SPI controlled stepper motor drivers.
@@ -110,3 +111,4 @@ namespace MotorDrivers {
         MotorFactory::InstanceBuilder<TMC2130Driver> registration("tmc_2130");
     }
 }
+#endif

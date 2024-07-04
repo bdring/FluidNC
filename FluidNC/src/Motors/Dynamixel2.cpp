@@ -1,6 +1,6 @@
 // Copyright (c) 2020 -	Bart Dring
 // Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
-
+#ifndef EXTERNAL_STEPPERS_ONLY
 /*
     Dynamixel2.cpp
 
@@ -358,3 +358,4 @@ namespace MotorDrivers {
         MotorFactory::InstanceBuilder<Dynamixel2> registration("dynamixel2");
     }
 }
+#endif

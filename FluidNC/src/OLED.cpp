@@ -1,3 +1,4 @@
+#ifndef NO_OLED
 #include "OLED.h"
 
 #include "Machine/MachineConfig.h"
@@ -557,3 +558,5 @@ void OLED::draw_checkbox(int16_t x, int16_t y, int16_t width, int16_t height, bo
         _oled->drawRect(x, y, width, height);  // If log.1
     }
 }
+}
+#endif //NO_OLED

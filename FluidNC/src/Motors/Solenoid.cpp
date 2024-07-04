@@ -1,5 +1,6 @@
 // Copyright (c) 2020 -	Bart Dring
 // Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
+#ifndef EXTERNAL_STEPPERS_ONLY
 
 /*
     This lets an Solenoid act like an axis. It will active when the machine position of 
@@ -123,3 +124,4 @@ namespace MotorDrivers {
         MotorFactory::InstanceBuilder<Solenoid> registration("solenoid");
     }
 }
+#endif
