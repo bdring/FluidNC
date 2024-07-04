@@ -18,7 +18,7 @@
 #include "MotionControl.h"  // PARKING_MOTION_LINE_NUMBER
 #include "Settings.h"       // settings_execute_startup
 #include "Machine/LimitPin.h"
-
+#include "FileStream.h"
 #include "./Maslow/Maslow.h"
 
 volatile ExecAlarm rtAlarm;  // Global realtime executor bitflag variable for setting various alarms.
@@ -173,9 +173,32 @@ void output_loop(void* unused) {
 
 Channel* activeChannel = nullptr;  // Channel associated with the input line
 
+TaskHandle_t telemetryTask = nullptr;
+
 TaskHandle_t pollingTask = nullptr;
 
 char activeLine[Channel::maxLine];
+
+void stop_telemetry() {
+    if (telemetryTask) {
+        vTaskSuspend(telemetryTask);
+    }
+}
+
+void start_telemetry() {
+    if (telemetryTask) {
+        vTaskResume(telemetryTask);
+    } else {
+        xTaskCreatePinnedToCore(telemetry_loop,  // task
+                                "telemetry",     // name for task
+                                16000,             // size of task stack
+                                0,                 // parameters
+                                1,                 // priority
+                                &telemetryTask,       // task handle
+                                SUPPORT_TASK_CORE  // core
+        );
+    }
+}
 
 bool pollingPaused = false;
 void polling_loop(void* unused) {
@@ -270,6 +293,7 @@ uint32_t heapLowWater = UINT_MAX;
 void     protocol_main_loop() {
     check_startup_state();
     start_polling();
+    start_telemetry();
 
     // ---------------------------------------------------------------------------------
     // Primary loop! Upon a system abort, this exits back to main() to reset the system.
@@ -299,6 +323,7 @@ void     protocol_main_loop() {
 
         if (sys.abort()) {
             stop_polling();
+            stop_telemetry();
 
             return;  // Bail to main() program loop to reset system.
         }
@@ -479,7 +504,7 @@ static void protocol_do_feedhold() {
         runLimitLoop = false;  // Hack to stop show_limits()
         return;
     }
-    
+
     // log_debug("protocol_do_feedhold " << state_name());
     // Execute a feed hold with deceleration, if required. Then, suspend system.
     switch (sys.state()) {
@@ -828,12 +853,12 @@ void protocol_exec_rt_system() {
     if (rtSafetyDoor) {
         protocol_do_safety_door();
     }
-  
+
     //Maslow.recomputePID(); //This one works as an alternative to having recomputePID called in DCServo.cpp
 
     protocol_handle_events();
 
-    
+
     //do all the Maslow stuff here
     Maslow.update();
     // Reload step segment buffer
