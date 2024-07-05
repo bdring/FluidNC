@@ -121,6 +121,15 @@ bool get_numbered_param(ngc_param_id_t id, float& result) {
             return true;
         }
     }
+
+    // last probe
+    if (id >= 5061 && id < (5061 + MAX_N_AXIS)) {
+        float probe_position[MAX_N_AXIS];
+        motor_steps_to_mpos(probe_position, probe_steps);
+        result = probe_position[id - 5061];
+        return true;
+    }
+
     // Non-volatile G92
     if (id >= 5211 && id < (5211 + MAX_N_AXIS)) {
         result = gc_state.coord_offset[id - 5211];
@@ -133,6 +142,14 @@ bool get_numbered_param(ngc_param_id_t id, float& result) {
     }
     if (id == 5400) {
         result = static_cast<float>(gc_state.tool);
+        return true;
+    }
+
+    // Current relative position in the active coordinate system including all offsets
+    if (id >= 5420 && id < (5420 + MAX_N_AXIS)) {
+        float* my_position = get_mpos();        
+        mpos_to_wpos(my_position);
+        result = my_position[id - 5420];
         return true;
     }
 

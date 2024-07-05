@@ -78,6 +78,17 @@ typedef enum {
     NGCUnaryOp_Exists,  // Not implemented
 } ngc_unary_op_t;
 
+static void report_param_error(Error err) {
+    switch (err) {
+        case Error::ExpressionDivideByZero:
+            log_error("Divide by zero");
+            break;
+        case Error::ExpressionArgumentOutOfRange:
+            log_error("Argument out of range");
+            break;
+    }
+}
+
 /*! \brief Executes the operations: /, MOD, ** (POW), *.
 
 \param lhs pointer to the left hand side operand and result.
@@ -116,6 +127,9 @@ static Error execute_binary1(float& lhs, ngc_binary_op_t operation, const float&
         default:
             status = Error::ExpressionUnknownOp;
     }
+
+    if (status != Error::Ok)
+        report_param_error(status);
 
     return status;
 }
