@@ -1837,14 +1837,15 @@ void Maslow_::set_telemetry(bool enabled) {
         file->flush();
         delete file;
     } else {
-        std::string filePath = MASLOW_TELEM_FILE;
-        std::string newFilePath = filePath + "." + std::to_string(millis());
-        std::error_code ec;
-        log_info("renaming file: " + filePath + " to " + newFilePath);
-        stdfs::rename(filePath, newFilePath, ec);
-        if (ec) {
-            log_error(std::string("Error renaming file: ") + ec.message());
-        }
+        // TODO: not sure why this fails to find the file
+        // std::string filePath = MASLOW_TELEM_FILE;
+        // std::string newFilePath = filePath + "." + std::to_string(millis());
+        // std::error_code ec;
+        // log_info("renaming file: " + filePath + " to " + newFilePath);
+        // stdfs::rename(filePath, newFilePath, ec);
+        // if (ec) {
+        //     log_error(std::string("Error renaming file: ") + ec.message());
+        // }
     }
     telemetry_enabled = enabled;
     log_info("Telemetry: " << (enabled? "enabled" : "disabled"));
