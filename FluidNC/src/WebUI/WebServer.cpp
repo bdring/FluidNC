@@ -16,7 +16,6 @@
 #    include <WebSocketsServer.h>
 #    include <WiFi.h>
 #    include <WebServer.h>
-#    include <ESP32SSDP.h>
 #    include <StreamString.h>
 #    include <Update.h>
 #    include <esp_wifi_types.h>
