@@ -41,8 +41,6 @@
 #include "../Pin.h"
 #include "../Limits.h"  // limitsMaxPosition
 
-#include <freertos/task.h>  // vTaskDelay
-
 namespace MotorDrivers {
 
     void Solenoid::init() {

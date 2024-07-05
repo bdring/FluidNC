@@ -802,7 +802,7 @@ namespace WebUI {
 
         //if success restart
         if (_upload_status == UploadStatus::SUCCESSFUL) {
-            delay_ms(1000);
+            delay(1000);
             COMMANDS::restart_MCU();
         } else {
             _upload_status = UploadStatus::NONE;
@@ -860,7 +860,7 @@ namespace WebUI {
                     //Upload write
                     //**************
                 } else if (upload.status == UPLOAD_FILE_WRITE) {
-                    vTaskDelay(1 / portTICK_RATE_MS);
+                    delay(1);
                     //check if no error
                     if (_upload_status == UploadStatus::ONGOING) {
                         if (((100 * upload.totalSize) / maxSketchSpace) != last_upload_update) {
@@ -1080,7 +1080,7 @@ namespace WebUI {
     }
 
     void Web_Server::uploadWrite(uint8_t* buffer, size_t length) {
-        vTaskDelay(1 / portTICK_RATE_MS);
+        delay(1);
         if (_uploadFile && _upload_status == UploadStatus::ONGOING) {
             //no error write post data
             if (length != _uploadFile->write(buffer, length)) {

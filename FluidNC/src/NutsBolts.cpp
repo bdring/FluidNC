@@ -95,10 +95,6 @@ bool read_float(const char* line, size_t* pos, float& result) {
     return true;
 }
 
-void delay_ms(uint16_t ms) {
-    vTaskDelay(ms / portTICK_PERIOD_MS);
-}
-
 // Non-blocking delay function used for general operation and suspend features.
 bool delay_msec(uint32_t milliseconds, DwellMode mode) {
     while (milliseconds--) {
@@ -114,7 +110,7 @@ bool delay_msec(uint32_t milliseconds, DwellMode mode) {
         if (sys.abort) {
             return false;
         }
-        vTaskDelay(1 / portTICK_PERIOD_MS);
+        delay(1);
     }
     return true;
 }

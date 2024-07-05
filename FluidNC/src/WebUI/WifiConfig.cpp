@@ -664,7 +664,7 @@ namespace WebUI {
                     break;
             }
             log_info(msg);
-            delay_ms(2000);  // Give it some time to connect
+            delay(2000);  // Give it some time to connect
         }
         return false;
     }

@@ -544,7 +544,7 @@ void i2s_out_delay() {
         // Just wait until the data now registered in the DMA descripter
         // is reflected in the I2S TX module via FIFO.
         // XXX perhaps just wait until I2SO.conf1.tx_start == 0
-        delay_ms(I2S_OUT_DELAY_MS);
+        delay(I2S_OUT_DELAY_MS);
     }
     I2S_OUT_PULSER_EXIT_CRITICAL();
 }
@@ -614,7 +614,7 @@ int i2s_out_set_stepping() {
         // Wait for complete DMAs
         for (;;) {
             I2S_OUT_PULSER_EXIT_CRITICAL();
-            delay_ms(I2S_OUT_DELAY_DMABUF_MS);
+            delay(I2S_OUT_DELAY_DMABUF_MS);
             I2S_OUT_PULSER_ENTER_CRITICAL();
             if (i2s_out_pulser_status == WAITING) {
                 continue;

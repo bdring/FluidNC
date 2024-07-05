@@ -156,7 +156,7 @@ namespace WebUI {
                 if ((answer.find(linetrigger) != std::string::npos) || (strlen(linetrigger) == 0)) {
                     break;
                 }
-                delay_ms(10);
+                delay(10);
                 log_verbose("Received: '" << answer << "' (waiting 4 '" << expected_answer << "')");
             }
             if (strlen(expected_answer) == 0) {

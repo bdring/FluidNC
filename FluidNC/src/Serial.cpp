@@ -72,7 +72,7 @@ void heapCheckTask(void* pvParameters) {
             heapSize = newHeapSize;
             log_info("heap " << heapSize);
         }
-        vTaskDelay(3000 / portTICK_RATE_MS);  // Yield to other tasks
+        delay(3000);  // Yield to other tasks
 
         static UBaseType_t uxHighWaterMark = 0;
 #ifdef DEBUG_TASK_STACK

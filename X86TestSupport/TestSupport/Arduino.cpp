@@ -2,9 +2,8 @@
 
 #include "SoftwareGPIO.h"
 #include "Capture.h"
-
+#include "freertos/task.h"
 #include <chrono>
-#include <thread>
 
 int64_t esp_timer_get_time() {
     return Capture::instance().current();
@@ -45,7 +44,7 @@ extern "C" void __digitalWrite(uint8_t pin, uint8_t val) {
 }
 
 void delay(int ms) {
-    std::this_thread::sleep_for(std::chrono::milliseconds(ms));
+    vTaskDelay(ms / portTICK_PERIOD_MS);
 }
 
 int temperatureRead(void) {

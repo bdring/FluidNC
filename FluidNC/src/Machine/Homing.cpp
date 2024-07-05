@@ -116,7 +116,7 @@ namespace Machine {
 
         // Advance to next cycle
         Stepper::reset();        // Stop steppers and reset step segment buffer
-        delay_ms(_settling_ms);  // Delay to allow transient dynamics to dissipate.
+        delay(_settling_ms);  // Delay to allow transient dynamics to dissipate.
 
         nextPhase();
     }
@@ -339,7 +339,7 @@ namespace Machine {
             } else {
                 // If all axes have hit their limits, this phase is complete and
                 // we can start the next one
-                delay_ms(_settling_ms);  // Delay to allow transient dynamics to dissipate.
+                delay(_settling_ms);  // Delay to allow transient dynamics to dissipate.
                 nextPhase();
             }
         }

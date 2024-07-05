@@ -94,7 +94,7 @@ xQueueHandle message_queue;
 
 void drain_messages() {
     while (uxQueueMessagesWaiting(message_queue)) {
-        vTaskDelay(1);  // Let the output task finish sending data
+        delay(1);  // Let the output task finish sending data
     }
 }
 
@@ -124,10 +124,10 @@ char activeLine[Channel::maxLine];
 bool pollingPaused = false;
 void polling_loop(void* unused) {
     // Poll the input sources waiting for a complete line to arrive
-    for (; true; /*feedLoopWDT(), */ vTaskDelay(0)) {
+    for (; true; /*feedLoopWDT(), */ delay(0)) {
         // Polling is paused when xmodem is using a channel for binary upload
         if (pollingPaused) {
-            vTaskDelay(100);
+            delay(100);
             continue;
         }
 
@@ -222,7 +222,7 @@ void start_polling() {
 static void alarm_msg(ExecAlarm alarm_code) {
     log_info_to(allChannels, "ALARM: " << alarmString(alarm_code));
     log_stream(allChannels, "ALARM:" << static_cast<int>(alarm_code));
-    delay_ms(500);  // Force delay to ensure message clears serial write buffer.
+    delay(500);  // Force delay to ensure message clears serial write buffer.
 }
 
 #if 0
@@ -274,7 +274,7 @@ void protocol_main_loop() {
     // Primary loop! Upon a system abort, this exits back to main() to reset the system.
     // This is also where the system idles while waiting for something to do.
     // ---------------------------------------------------------------------------------
-    for (;; vTaskDelay(0)) {
+    for (;; delay(0)) {
         if (activeChannel) {
             // The input polling task has collected a line of input
             if (gcode_echo->get()) {

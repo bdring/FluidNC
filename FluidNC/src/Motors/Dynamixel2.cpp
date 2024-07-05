@@ -73,7 +73,7 @@ namespace MotorDrivers {
 
         // servos will blink in axis order for reference
         LED_on(true);
-        vTaskDelay(100);
+        delay(100);
         LED_on(false);
     }
 

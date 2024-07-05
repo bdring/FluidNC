@@ -506,7 +506,7 @@ static Error show_limits(const char* value, WebUI::AuthenticationLevel auth_leve
                             << (config->_probe->get_state() ? " P" : ""));
             limit = thisTime + interval;
         }
-        vTaskDelay(1);
+        delay(1);
         protocol_handle_events();
     } while (runLimitLoop);
     log_string(out, "");
@@ -691,14 +691,14 @@ static Error xmodem_receive(const char* value, WebUI::AuthenticationLevel auth_l
     try {
         outfile = new FileStream(value, "w");
     } catch (...) {
-        delay_ms(1000);   // Delay for FluidTerm to handle command echoing
+        delay(1000);   // Delay for FluidTerm to handle command echoing
         out.write(0x04);  // Cancel xmodem transfer with EOT
         log_info("Cannot open " << value);
         return Error::UploadFailed;
     }
     pollingPaused = true;
     bool oldCr    = out.setCr(false);
-    delay_ms(1000);
+    delay(1000);
     int size = xmodemReceive(&out, outfile);
     out.setCr(oldCr);
     pollingPaused = false;
