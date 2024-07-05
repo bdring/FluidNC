@@ -1,12 +1,12 @@
 // Copyright (c) 2014 Luc Lebosse. All rights reserved.
 // Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
-#include <ESPmDNS.h>
 #include "../Machine/MachineConfig.h"
 #include "TelnetClient.h"
 #include "TelnetServer.h"
 #include "WebSettings.h"
 
 #ifdef ENABLE_WIFI
+#include <ESPmDNS.h>
 
 namespace WebUI {
     TelnetServer telnetServer __attribute__((init_priority(107)));
