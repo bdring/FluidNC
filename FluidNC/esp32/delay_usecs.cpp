@@ -25,7 +25,6 @@ void timing_init() {
     ticks_per_us = esp_clk_cpu_freq() / 1000000;
 }
 
-// cppcheck-suppress unusedFunction
 void IRAM_ATTR delay_us(int32_t us) {
     spinUntil(usToEndTicks(us));
 }

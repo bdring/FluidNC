@@ -335,7 +335,7 @@ static int i2s_out_start() {
 
     I2S0.conf.tx_start = 1;
     // Wait for the first FIFO data to prevent the unintentional generation of 0 data
-    ets_delay_us(20);
+    delay_us(20);
     I2S0.conf1.tx_stop_en = 0;  // BCK and WCK are generated regardless of the FIFO status
 
     I2S_OUT_EXIT_CRITICAL();
