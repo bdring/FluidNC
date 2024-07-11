@@ -913,8 +913,6 @@ namespace WebUI {
             j.begin_array("AP_LIST");
         }
 
-        // An initial async scanNetworks was issued at startup, so there
-        // is a good chance that scan information is already available.
         int n = WiFi.scanComplete();
         switch (n) {
             case -2:                      // Scan not triggered
