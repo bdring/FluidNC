@@ -19,7 +19,6 @@
 #include "../Machine/MachineConfig.h"
 
 #include <atomic>
-#include <freertos/task.h>  // portTICK_PERIOD_MS, vTaskDelay
 
 namespace MotorDrivers {
 

@@ -832,7 +832,7 @@ namespace WebUI {
                 } else {  // STA failed, reset
                     WiFi.mode(WIFI_OFF);
                     esp_wifi_restore();
-                    delay(100);
+                    delay_ms(100);
                 }
                 // fall through to fallback to AP mode
             case WiFiAP:
