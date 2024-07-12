@@ -76,7 +76,7 @@ void CoolantControl::set_state(CoolantState state) {
     write(state);
 
     if (state.Mist || state.Flood)  // ignore delay on turn off
-        delay_msec(_delay_ms, DwellMode::SysSuspend);
+        dwell_ms(_delay_ms, DwellMode::SysSuspend);
 }
 
 void CoolantControl::off() {

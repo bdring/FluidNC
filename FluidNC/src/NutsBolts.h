@@ -57,10 +57,10 @@ const float INCH_PER_MM = (0.0393701f);
 bool read_float(const char* line, size_t* pos, float& result);
 
 // Delay while checking for realtime characters and other events
-bool delay_msec(uint32_t milliseconds, DwellMode mode = DwellMode::Dwell);
+bool dwell_ms(uint32_t milliseconds, DwellMode mode = DwellMode::Dwell);
 
 // Delay without checking for realtime events.  Use only for short delays
-void delay_ms(uint16_t ms);
+void delay_ms(uint32_t ms);
 
 // Computes hypotenuse, avoiding avr-gcc's bloated version and the extra error checking.
 float hypot_f(float x, float y);

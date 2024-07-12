@@ -506,7 +506,7 @@ static Error show_limits(const char* value, WebUI::AuthenticationLevel auth_leve
                             << (config->_probe->get_state() ? " P" : ""));
             limit = thisTime + interval;
         }
-        vTaskDelay(1);
+        delay_ms(1);
         protocol_handle_events();
     } while (runLimitLoop);
     log_string(out, "");

@@ -7,7 +7,6 @@
 #include "Spindle.h"
 
 #include "../System.h"  //sys.spindle_speed_ovr
-#include <esp32-hal.h>  // delay()
 
 Spindles::Spindle* spindle = nullptr;
 
@@ -206,10 +205,10 @@ namespace Spindles {
                 }
         }
         if (down) {
-            delay(down < maxSpeed() ? _spindown_ms * down / maxSpeed() : _spindown_ms);
+            dwell_ms(down < maxSpeed() ? _spindown_ms * down / maxSpeed() : _spindown_ms, DwellMode::SysSuspend);
         }
         if (up) {
-            delay(up < maxSpeed() ? _spinup_ms * up / maxSpeed() : _spinup_ms);
+            dwell_ms(up < maxSpeed() ? _spinup_ms * up / maxSpeed() : _spinup_ms, DwellMode::SysSuspend);
         }
         _current_state = state;
         _current_speed = speed;

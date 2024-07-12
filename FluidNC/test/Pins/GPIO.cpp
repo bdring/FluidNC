@@ -129,7 +129,7 @@ namespace Pins {
             if (deltaRising) {
                 auto oldCount = hitCount;
                 gpio17.on();
-                delay(1);
+                delay_ms(1);
                 auto newCount = hitCount;
 
                 Assert(oldCount < newCount, "Expected rise after set state");
@@ -140,7 +140,7 @@ namespace Pins {
             if (deltaFalling) {
                 auto oldCount = hitCount;
                 gpio17.off();
-                delay(1);
+                delay_ms(1);
                 auto newCount = hitCount;
 
                 Assert(oldCount < newCount, "Expected rise after set state");
@@ -155,7 +155,7 @@ namespace Pins {
         auto oldCount = hitCount;
         gpio17.on();
         gpio17.off();
-        delay(1);
+        delay_ms(1);
         auto newCount = hitCount;
 
         Assert(oldCount == newCount, "ISR hitcount error");
@@ -310,7 +310,7 @@ namespace Pins {
                 if (deltaRising) {
                     auto oldCount = hitCount;
                     gpio17.on();
-                    delay(1);
+                    delay_ms(1);
                     auto newCount = hitCount;
 
                     Assert(oldCount < newCount, "Expected rise after set state");
@@ -321,7 +321,7 @@ namespace Pins {
                 if (deltaFalling) {
                     auto oldCount = hitCount;
                     gpio17.off();
-                    delay(1);
+                    delay_ms(1);
                     auto newCount = hitCount;
 
                     Assert(oldCount < newCount, "Expected rise after set state");
@@ -336,7 +336,7 @@ namespace Pins {
             auto oldCount = hitCount;
             gpio17.on();
             gpio17.off();
-            delay(1);
+            delay_ms(1);
             auto newCount = hitCount;
 
             Assert(oldCount == newCount, "ISR hitcount error");
