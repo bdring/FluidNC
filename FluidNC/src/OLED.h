@@ -5,12 +5,26 @@
 #include "Configuration/Configurable.h"
 
 #include "Channel.h"
+
+#ifndef NO_OLED
 #include "SSD1306_I2C.h"
 
 typedef const uint8_t* font_t;
+#else
+
+#ifdef ARDUINO
+//#include <Arduino.h>
+
+#include "esp_arduino_version.h"
+#include "esp32-hal.h"
+#endif
+
+#endif // NO_OLED
 
 class OLED : public Channel, public Configuration::Configurable {
 public:
+#ifndef NO_OLED
+
     struct Layout {
         uint8_t                    _x;
         uint8_t                    _y;
@@ -77,6 +91,7 @@ private:
     OLEDDISPLAY_GEOMETRY _geometry = GEOMETRY_64_48;
 
     bool _error = false;
+#endif
 
 public:
     OLED() : Channel("oled") {}
@@ -88,7 +103,9 @@ public:
 
     virtual ~OLED() = default;
 
+#ifndef NO_OLED
     void init();
+
 
     OLEDDisplay* _oled;
 
@@ -128,4 +145,10 @@ public:
         handler.item("mirror", _mirror);
         handler.item("radio_delay_ms", _radio_delay);
     }
+#else
+    void   init() {}
+    size_t write(uint8_t data) override { return 0; }
+    void   group(Configuration::HandlerBase& handler) override {}
+
+#endif // NO_OLED
 };
