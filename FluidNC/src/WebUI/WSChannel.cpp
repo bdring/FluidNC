@@ -28,9 +28,13 @@ namespace WebUI {
         }
     }
 
-    WSChannel::operator bool() const { return true; }
+    WSChannel::operator bool() const {
+        return true;
+    }
 
-    size_t WSChannel::write(uint8_t c) { return write(&c, 1); }
+    size_t WSChannel::write(uint8_t c) {
+        return write(&c, 1);
+    }
 
     size_t WSChannel::write(const uint8_t* buffer, size_t size) {
         if (buffer == NULL || !_active || !size) {
@@ -62,12 +66,6 @@ namespace WebUI {
             log_debug("WebSocket is dead; closing");
             return 0;
         }
-        if (stat == 0) {
-            if (_output_line.length()) {
-                _output_line = "";
-            }
-            return size;
-        }
         if (!_server->sendBIN(_clientNum, out, outlen)) {
             _active = false;
             log_debug("WebSocket is unresponsive; closing");
@@ -92,9 +90,19 @@ namespace WebUI {
     }
 
     void WSChannel::autoReport() {
-        if (!_active || !_server->canSend(_clientNum)) {
+        if (!_active) {
             return;
         }
+        int stat = _server->canSend(_clientNum);
+        if (stat < 0) {
+            _active = false;
+            log_debug("WebSocket is dead; closing");
+            return;
+        }
+        if (stat == 0) {
+            return;
+        }
+
         Channel::autoReport();
     }
 
