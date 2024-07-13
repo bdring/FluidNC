@@ -4,24 +4,23 @@
 
 #pragma once
 
-#include "../Assert.h"
-#include "../Configuration/GenericFactory.h"
-#include "../Configuration/HandlerBase.h"
-#include "../Configuration/Configurable.h"
-#include "../CoolantControl.h"
-#include "../Kinematics/Kinematics.h"
-#include "../WebUI/BTConfig.h"
-#include "../Control.h"
-#include "../Probe.h"
+#include "src/Assert.h"
+#include "src/Configuration/GenericFactory.h"
+#include "src/Configuration/HandlerBase.h"
+#include "src/Configuration/Configurable.h"
+#include "src/CoolantControl.h"
+#include "src/Kinematics/Kinematics.h"
+#include "src/WebUI/BTConfig.h"
+#include "src/Control.h"
+#include "src/Probe.h"
 #include "src/Parking.h"
-#include "../SDCard.h"
-#include "../Spindles/Spindle.h"
-#include "../Stepping.h"
-#include "../Stepper.h"
-#include "../Config.h"
-#include "../OLED.h"
-#include "../Status_outputs.h"
-#include "../UartChannel.h"
+#include "src/SDCard.h"
+#include "src/Spindles/Spindle.h"
+#include "src/Stepping.h"
+#include "src/Stepper.h"
+#include "src/Config.h"
+#include "src/UartChannel.h"
+#include "src/Module.h"
 #include "Axes.h"
 #include "SPIBus.h"
 #include "I2CBus.h"
@@ -75,9 +74,8 @@ namespace Machine {
         Macros*               _macros         = nullptr;
         Start*                _start          = nullptr;
         Parking*              _parking        = nullptr;
-        OLED*                 _oled           = nullptr;
-        Status_Outputs*       _stat_out       = nullptr;
         Spindles::SpindleList _spindles;
+        ModuleList            _modules;
 
         UartChannel* _uart_channels[MAX_N_UARTS] = { nullptr };
         Uart*        _uarts[MAX_N_UARTS]         = { nullptr };

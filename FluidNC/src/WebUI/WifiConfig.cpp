@@ -10,9 +10,10 @@
 
 WebUI::WiFiConfig wifi_config __attribute__((init_priority(109)));
 
-#ifdef ENABLE_WIFI
-#    include "../Config.h"
-#    include "../Main.h"
+// #ifdef ENABLE_WIFI
+#if 1
+#    include "src/Config.h"
+#    include "src/Main.h"
 #    include "Commands.h"      // COMMANDS
 #    include "WifiServices.h"  // wifi_services.start() etc.
 #    include "WebSettings.h"   // get_param()
@@ -325,7 +326,10 @@ namespace WebUI {
         }
     }
 
-    void WiFiConfig::showWifiStats(Channel& out) {
+    void WiFiConfig::init_module() {
+        begin();
+    }
+    void WiFiConfig::info(Channel& out) {
         log_stream(out, "Sleep mode: " << (WiFi.getSleep() ? "Modem" : "None"));
         int mode = WiFi.getMode();
         if (mode != WIFI_MODE_NULL) {
@@ -477,7 +481,7 @@ namespace WebUI {
     std::string WiFiConfig::_hostname("");
     bool        WiFiConfig::_events_registered = false;
 
-    WiFiConfig::WiFiConfig() {
+    WiFiConfig::WiFiConfig() : Module("wifi_config") {
         new WebCommand(NULL, WEBCMD, WU, "ESP410", "WiFi/ListAPs", listAPs);
 
         wifi_hostname = new HostnameSetting("Hostname", "ESP112", "Hostname", DEFAULT_HOSTNAME);
@@ -948,5 +952,22 @@ namespace WebUI {
     WiFiConfig::~WiFiConfig() {
         end();
     }
+
+    ModuleFactory::InstanceBuilder<WebUI::WiFiConfig> registration("wifi_config");
 }
 #endif
+// Configuration registration
+namespace {}
+void report_wifi_info(Channel& channel) {
+    std::string station_info = WebUI::wifi_config.station_info();
+    if (station_info.length()) {
+        log_msg_to(channel, station_info);
+    }
+    std::string ap_info = WebUI::wifi_config.ap_info();
+    if (ap_info.length()) {
+        log_msg_to(channel, ap_info);
+    }
+    if (!station_info.length() && !ap_info.length()) {
+        log_msg_to(channel, "No Wifi");
+    }
+}

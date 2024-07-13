@@ -101,3 +101,6 @@ extern bool readyNext;
 
 extern std::string report_pin_string;
 void               report_recompute_pin_string();
+
+void report_wifi_info(Channel& channel);
+void report_bt_info(Channel& channel);

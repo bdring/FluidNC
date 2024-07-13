@@ -7,7 +7,8 @@
 
 #    include "../Machine/MachineConfig.h"
 #    include "../Report.h"  // CLIENT_*
-#    include "Commands.h"   // COMMANDS
+#    include "../Channel.h"
+#    include "Commands.h"  // COMMANDS
 #    include "WebSettings.h"
 
 #    include "esp_bt.h"
@@ -96,11 +97,19 @@ namespace WebUI {
         return str;
     }
 
-    int BTChannel::available() { return SerialBT.available(); }
-    int BTChannel::read() { return SerialBT.read(); }
-    int BTChannel::peek() { return SerialBT.peek(); }
+    int BTChannel::available() {
+        return SerialBT.available();
+    }
+    int BTChannel::read() {
+        return SerialBT.read();
+    }
+    int BTChannel::peek() {
+        return SerialBT.peek();
+    }
 
-    bool BTChannel::realtimeOkay(char c) { return _lineedit->realtime(c); }
+    bool BTChannel::realtimeOkay(char c) {
+        return _lineedit->realtime(c);
+    }
 
     bool BTChannel::lineComplete(char* line, char c) {
         if (_lineedit->step(c)) {
@@ -172,14 +181,24 @@ namespace WebUI {
     /**
      * Check if BT is on and working
      */
-    bool BTConfig::isOn() const { return btStarted(); }
+    bool BTConfig::isOn() const {
+        return btStarted();
+    }
 
     /**
      * Handle not critical actions that must be done in sync environement
      */
     void BTConfig::handle() {}
 
-    BTConfig::~BTConfig() { end(); }
+    BTConfig::~BTConfig() {
+        end();
+    }
 }
 
+void report_bt_info(Channel& channel) {
+    std::string bt_info = WebUI::bt_config.info();
+    if (bt_info.length()) {
+        log_msg_to(channel, bt_info);
+    }
+}
 #endif

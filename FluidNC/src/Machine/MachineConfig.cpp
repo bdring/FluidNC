@@ -65,8 +65,7 @@ namespace Machine {
 
         handler.section("user_outputs", _userOutputs);
 
-        handler.section("oled", _oled);
-        handler.section("status_outputs", _stat_out);
+        ModuleFactory::factory(handler, _modules);
 
         Spindles::SpindleFactory::factory(handler, _spindles);
 

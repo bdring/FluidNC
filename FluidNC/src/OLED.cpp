@@ -1,6 +1,7 @@
-#include "OLED.h"
+#if 0
+#    include "OLED.h"
 
-#include "Machine/MachineConfig.h"
+#    include "Machine/MachineConfig.h"
 
 void OLED::show(Layout& layout, const char* msg) {
     if (_width < layout._width_required) {
@@ -63,7 +64,7 @@ void OLED::afterParse() {
     }
 }
 
-void OLED::init() {
+void OLED::init_module() {
     if (_error) {
         return;
     }
@@ -557,3 +558,9 @@ void OLED::draw_checkbox(int16_t x, int16_t y, int16_t width, int16_t height, bo
         _oled->drawRect(x, y, width, height);  // If log.1
     }
 }
+
+// Configuration registration
+namespace {
+    ModuleFactory::InstanceBuilder<OLED> registration("oled");
+}
+#endif

@@ -30,7 +30,7 @@
 
 #    include "src/Protocol.h"  // protocol_send_event
 #    include "src/FluidPath.h"
-#    include "src/WebUI/JSONEncoder.h"
+#    include "src/JSONEncoder.h"
 
 #    include "src/HashFS.h"
 #    include <list>

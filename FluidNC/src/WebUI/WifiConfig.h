@@ -5,9 +5,10 @@
 
 //Preferences entries
 
-#include "../Config.h"       // ENABLE_*
-#include "../Channel.h"      // Channel
-#include "../Error.h"        // Error
+#include "src/Config.h"      // ENABLE_*
+#include "src/Channel.h"     // Channel
+#include "src/Error.h"       // Error
+#include "src/Module.h"      // Module
 #include "Authentication.h"  // AuthenticationLevel
 
 #ifndef ENABLE_WIFI
@@ -70,7 +71,7 @@ namespace WebUI {
     static const int MIN_CHANNEL         = 1;
     static const int MAX_CHANNEL         = 14;
 
-    class WiFiConfig {
+    class WiFiConfig : public Module {
     public:
         WiFiConfig();
 
@@ -97,8 +98,16 @@ namespace WebUI {
         static const char* modeName();
 
         static Error listAPs(const char* parameter, AuthenticationLevel auth_level, Channel& out);
-        static void  showWifiStats(Channel& out);
-        static void  addWifiStatsToArray(JSONencoder& j);
+
+        void init_module() override;
+        void info(Channel& out) override;
+        void group(Configuration::HandlerBase& handler) override {}
+        void validate() override {}
+        // void afterParse() override { WebUI::registration.create(); }
+        void afterParse() override { this->Configuration::GenericFactory<Module>::InstanceBuilder<WebUI::WiFiConfig>::create(); }
+        // void afterParse() override {}
+
+        static void addWifiStatsToArray(JSONencoder& j);
         ~WiFiConfig();
 
     private:
@@ -125,12 +134,12 @@ namespace WebUI {
         const char* getDefaultString() { return "********"; }
         const char* getStringValue() { return "********"; }
         Error       setStringValue(std::string_view s) {
-            for (auto const& c : s) {  //no space allowed
+                  for (auto const& c : s) {  //no space allowed
                 if (c == ' ') {
-                    return Error::InvalidValue;
+                          return Error::InvalidValue;
                 }
             }
-            return StringSetting::setStringValue(s);
+                  return StringSetting::setStringValue(s);
         }
     };
 

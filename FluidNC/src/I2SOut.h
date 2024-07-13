@@ -9,6 +9,7 @@
 #include <stdint.h>
 
 #include "Pin.h"
+#include "Driver/fluidnc_gpio.h"
 
 /* Assert */
 #if defined(I2S_OUT_NUM_BITS)

@@ -299,12 +299,11 @@ namespace WebUI {
         // Round baudRate to nearest 100 because ESP32 can say e.g. 115201
         //        log_stream(out, "Baud rate: " << ((Uart0.baud / 100) * 100));
 
-        WiFiConfig::showWifiStats(out);
-
-        std::string info = bt_config.info();
-        if (info.length()) {
-            log_stream(out, info);
+        for (auto const& m : config->_modules) {
+            printf("Module %s\n", m->name());
+            m->info(out);
         }
+
         log_stream(out, "FW version: FluidNC " << git_info);
         return Error::Ok;
     }

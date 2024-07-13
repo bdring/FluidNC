@@ -52,10 +52,6 @@ std::string report_pin_string;
 
 portMUX_TYPE mmux = portMUX_INITIALIZER_UNLOCKED;
 
-void _notify(const char* title, const char* msg) {
-    WebUI::notificationsService.sendMSG(title, msg);
-}
-
 void _notifyf(const char* title, const char* format, ...) {
     char    loc_buf[64];
     char*   temp = loc_buf;
@@ -420,21 +416,8 @@ void report_build_info(const char* line, Channel& channel) {
 
     log_msg_to(channel, "Machine: " << config->_name);
 
-    std::string station_info = WebUI::wifi_config.station_info();
-    if (station_info.length()) {
-        log_msg_to(channel, station_info);
-    }
-    std::string ap_info = WebUI::wifi_config.ap_info();
-    if (ap_info.length()) {
-        log_msg_to(channel, ap_info);
-    }
-    if (!station_info.length() && !ap_info.length()) {
-        log_msg_to(channel, "No Wifi");
-    }
-    std::string bt_info = WebUI::bt_config.info();
-    if (bt_info.length()) {
-        log_msg_to(channel, bt_info);
-    }
+    report_wifi_info(channel);
+    report_bt_info(channel);
 }
 
 // Prints the character string line that was received, which has been pre-parsed,
@@ -668,3 +651,6 @@ void reportTaskStackSize(UBaseType_t& saved) {
 }
 
 void WEAK_LINK display_init() {}
+void WEAK_LINK _notify(const char* title, const char* msg) {}
+void WEAK_LINK report_wifi_info(Channel& channel) {}
+void WEAK_LINK report_bt_info(Channel& channel) {}

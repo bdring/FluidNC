@@ -9,7 +9,7 @@
 #include "Status_outputs.h"
 #include "Machine/MachineConfig.h"
 
-void Status_Outputs::init() {
+void Status_Outputs::init_module() {
     if (_Idle_pin.defined()) {
         _Idle_pin.setAttr(Pin::Attr::Output);
     }
@@ -74,4 +74,9 @@ void Status_Outputs::parse_status_report() {
     _Run_pin.write(_state == "Run");
     _Hold_pin.write(_state.substr(0, 4) == "Hold");
     _Alarm_pin.write(_state == "Alarm");
+}
+
+// Configuration registration
+namespace {
+    ModuleFactory::InstanceBuilder<Status_Outputs> registration("status_outputs");
 }

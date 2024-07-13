@@ -8,13 +8,13 @@
 #include "../Pin.h"
 #include "HandlerBase.h"
 
-#include "../WebUI/JSONEncoder.h"
+#include "src/JSONEncoder.h"
 
 namespace Configuration {
     class Configurable;
 
     class JsonGenerator : public HandlerBase {
-        JsonGenerator(const JsonGenerator&) = delete;
+        JsonGenerator(const JsonGenerator&)            = delete;
         JsonGenerator& operator=(const JsonGenerator&) = delete;
 
         char                _currentPath[256];  // 256 = max size of configuration string.

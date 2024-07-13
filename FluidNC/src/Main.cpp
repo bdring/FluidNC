@@ -18,6 +18,7 @@
 #    include "MotionControl.h"
 #    include "Platform.h"
 #    include "StartupLog.h"
+#    include "Module.h"
 
 #    include "WebUI/TelnetServer.h"
 
@@ -91,14 +92,6 @@ void setup() {
             }
         }
 
-        if (config->_oled) {
-            config->_oled->init();
-        }
-
-        if (config->_stat_out) {
-            config->_stat_out->init();
-        }
-
         config->_stepping->init();  // Configure stepper interrupt timers
 
         plan_init();
@@ -115,13 +108,17 @@ void setup() {
 
         // Initialize system state.
         if (!state_is(State::ConfigAlarm)) {
-            for (auto s : config->_spindles) {
+            for (auto const& s : config->_spindles) {
                 s->init();
             }
             Spindles::Spindle::switchSpindle(0, config->_spindles, spindle);
 
             config->_coolant->init();
             config->_probe->init();
+        }
+
+        for (auto const& m : config->_modules) {
+            m->init_module();
         }
 
     } catch (const AssertionFailed& ex) {
