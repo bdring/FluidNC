@@ -6,7 +6,8 @@
 #include "src/Machine/MachineConfig.h"
 #include "src/Report.h"  // CLIENT_*
 #include "src/Channel.h"
-#include "WebCommands.h"
+#include "src/Logging.h"
+#include "src/WebUI/WebCommands.h"
 
 #include "esp_bt.h"
 #include "esp_bt_main.h"
@@ -15,7 +16,6 @@
 
 // SerialBT sends the data over Bluetooth
 namespace WebUI {
-    BTConfig        bt_config __attribute__((init_priority(105)));
     BluetoothSerial SerialBT;
     BTChannel       btChannel;
 }
@@ -28,6 +28,8 @@ const uint8_t* esp_bt_dev_get_address(void);
 namespace WebUI {
     EnumSetting*   bt_enable;
     BTNameSetting* bt_name;
+    std::string    BTConfig::_btclient = "";
+    std::string    BTConfig::_btname   = "";
 
     size_t BTChannel::write(uint8_t data) {
         static uint8_t lastchar = '\0';
@@ -38,8 +40,6 @@ namespace WebUI {
         return SerialBT.write(data);
     }
 
-    BTConfig* BTConfig::instance = nullptr;
-
     BTConfig::BTConfig() : Module("bt") {
         bt_enable = new EnumSetting("Bluetooth Enable", WEBSET, WA, "ESP141", "Bluetooth/Enable", 1, &onoffOptions);
 
@@ -47,44 +47,24 @@ namespace WebUI {
     }
 
     void BTConfig::my_spp_cb(esp_spp_cb_event_t event, esp_spp_cb_param_t* param) {
-        auto inst = instance;
         switch (event) {
             case ESP_SPP_SRV_OPEN_EVT: {  //Server connection open
                 char str[18];
                 str[17]       = '\0';
                 uint8_t* addr = param->srv_open.rem_bda;
                 sprintf(str, "%02X:%02X:%02X:%02X:%02X:%02X", addr[0], addr[1], addr[2], addr[3], addr[4], addr[5]);
-                inst->_btclient = str;
+                _btclient = str;
                 log_info("BT Connected with " << str);
             } break;
             case ESP_SPP_CLOSE_EVT:  //Client connection closed
                 log_info("BT Disconnected");
-                inst->_btclient = "";
+                _btclient = "";
                 break;
             default:
                 break;
         }
     }
 
-    std::string BTConfig::status_report() {
-        std::string result;
-        if (isOn()) {
-            result += "Mode=BT:Name=";
-            result += _btname.c_str();
-            result += "(";
-            result += device_address();
-            result += "):Status=";
-            if (SerialBT.hasClient()) {
-                result += "Connected with ";
-                result + _btclient.c_str();
-            } else {
-                result += "Not connected";
-            }
-        } else {
-            result += "No BT";
-        }
-        return result;
-    }
     const char* BTConfig::device_address() {
         const uint8_t* point = esp_bt_dev_get_address();
         char*          str   = _deviceAddrBuffer;
@@ -120,8 +100,6 @@ namespace WebUI {
     }
 
     Error BTChannel::pollLine(char* line) {
-        // UART0 is the only Uart instance that can be a channel input device
-        // Other UART users like RS485 use it as a dumb character device
         if (_lineedit == nullptr) {
             return Error::NoData;
         }
@@ -136,11 +114,10 @@ namespace WebUI {
     }
 
     void BTConfig::init() {
-        instance = this;
-
         log_debug("Begin Bluetooth setup");
+        return;
         //stop active services
-        end();
+        deinit();
 
         log_debug("Heap: " << xPortGetFreeHeapSize());
         _btname = bt_name->getStringValue();
@@ -161,7 +138,7 @@ namespace WebUI {
         log_info("BT is not enabled");
     }
 
-    void BTConfig::end() {
+    void BTConfig::deinit() {
         if (isOn()) {
             SerialBT.end();
             allChannels.deregistration(&btChannel);
@@ -173,18 +150,28 @@ namespace WebUI {
     }
 
     void BTConfig::build_info(Channel& channel) {
-        std::string bt_info = WebUI::bt_config.info();
-        if (bt_info.length()) {
-            log_msg_to(channel, bt_info);
+        std::string result;
+        if (isOn()) {
+            result += "Mode=BT:Name=";
+            result += _btname;
+            result += "(";
+            result += device_address();
+            result += "):Status=";
+            if (SerialBT.hasClient()) {
+                result += "Connected with ";
+                result += _btclient;
+            } else {
+                result += "Not connected";
+            }
+        } else {
+            result += "No BT";
         }
+        log_msg_to(channel, result);
     }
 
     BTConfig::~BTConfig() {
-        end();
+        deinit();
     }
 
-    // Configuration registration
-    namespace {
-        ModuleFactory::InstanceBuilder<WiFiConfig> registration("bt", true);
-    }
+    //    ModuleFactory::InstanceBuilder<BTConfig> bt_module("bt", true);
 }

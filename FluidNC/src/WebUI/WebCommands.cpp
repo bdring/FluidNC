@@ -295,7 +295,6 @@ namespace WebUI {
         // WA - need admin password to set
         new WebCommand(NULL, WEBCMD, WU, "ESP420", "System/Stats", showSysStats, anyState);
         new WebCommand("RESTART", WEBCMD, WA, "ESP444", "System/Control", setSystemMode);
-        new WebCommand("RESTART", WEBCMD, WA, NULL, "Bye", restart);
 
         //      new WebCommand("ON|OFF", WEBCMD, WA, "ESP115", "Radio/State", setRadioState);
 

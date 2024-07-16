@@ -645,6 +645,12 @@ static Error xmodem_send(const char* value, AuthenticationLevel auth_level, Chan
     return size < 0 ? Error::DownloadFailed : Error::Ok;
 }
 
+static Error restart(const char* parameter, AuthenticationLevel auth_level, Channel& out) {
+    log_info("Restarting");
+    protocol_send_event(&fullResetEvent);
+    return Error::Ok;
+}
+
 void make_file_commands() {
     new WebCommand(NULL, WEBCMD, WU, "ESP720", "LocalFS/Size", localFSSize);
     new WebCommand("FORMAT", WEBCMD, WA, "ESP710", "LocalFS/Format", formatLocalFS);
@@ -672,4 +678,6 @@ void make_file_commands() {
     new WebCommand("path", WEBCMD, WU, NULL, "Files/ListGCode", listGCodeFiles);
     new UserCommand("XR", "Xmodem/Receive", xmodem_receive, allowConfigStates);
     new UserCommand("XS", "Xmodem/Send", xmodem_send, notIdleOrAlarm);
+
+    new WebCommand("RESTART", WEBCMD, WA, NULL, "Bye", restart);
 }

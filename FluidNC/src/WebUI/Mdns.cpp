@@ -8,9 +8,10 @@
 namespace WebUI {
     class Mdns : public Module {
     public:
-        Mdns() : Module("mdns") {}
+        Mdns() : Module("mdns") { printf("Instantiate MDNS\n"); }
 
         void init() override {
+            printf("*** Mdns init\n");
             if (WiFi.getMode() == WIFI_STA && WebUI::wifi_sta_ssdp->get()) {
                 const char* h = WebUI::wifi_hostname->get();
                 if (!MDNS.begin(h)) {
@@ -25,7 +26,5 @@ namespace WebUI {
         ~Mdns() {}
     };
 
-    namespace {
-        ModuleFactory::InstanceBuilder<Mdns> __attribute__((init_priority(106))) registration("mdns", true);
-    }
+    ModuleFactory::InstanceBuilder<Mdns> __attribute__((init_priority(107))) mdns_module("mdns", true);
 }

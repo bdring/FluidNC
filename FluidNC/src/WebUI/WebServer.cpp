@@ -1351,7 +1351,5 @@ namespace WebUI {
         return AuthenticationLevel::LEVEL_GUEST;
     }
 #endif
-    namespace {
-        ModuleFactory::InstanceBuilder<Web_Server> __attribute__((init_priority(110))) registration("wifi", true);
-    }
+    ModuleFactory::InstanceBuilder<Web_Server> __attribute__((init_priority(108))) web_server_module("wifi", true);
 }

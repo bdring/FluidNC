@@ -39,7 +39,7 @@ void setup() {
         // because the polling may depend on the config
         allChannels.init();
 
-        WebUI::WiFiConfig::reset();
+        // WebUI::WiFiConfig::reset();
 
         protocol_init();
 

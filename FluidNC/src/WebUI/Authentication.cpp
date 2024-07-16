@@ -36,9 +36,4 @@ void remove_password(char* str, AuthenticationLevel& auth_level) {
         }
     }
 }
-#else
-// cppcheck-suppress unusedFunction
-void remove_password(char* str, AuthenticationLevel& auth_level) {
-    auth_level = AuthenticationLevel::LEVEL_ADMIN;
-}
 #endif

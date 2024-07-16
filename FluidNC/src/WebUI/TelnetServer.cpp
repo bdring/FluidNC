@@ -95,8 +95,5 @@ namespace WebUI {
         deinit();
     }
 
-    // Configuration registration
-    namespace {
-        ModuleFactory::InstanceBuilder<TelnetServer> __attribute__((init_priority(110))) registration("telnet_server", true);
-    }
+    ModuleFactory::InstanceBuilder<TelnetServer> __attribute__((init_priority(109))) telnet_module("telnet_server", true);
 }

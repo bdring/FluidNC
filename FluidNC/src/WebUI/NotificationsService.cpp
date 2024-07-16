@@ -447,10 +447,7 @@ namespace WebUI {
         deinit();
     }
 
-    // Configuration registration
-    namespace {
-        ModuleFactory::InstanceBuilder<NotificationsService> __attribute__((init_priority(111))) registration("notifications", true);
-    }
+    ModuleFactory::InstanceBuilder<NotificationsService> __attribute__((init_priority(110))) notification_module("notifications", true);
 }
 
 // Override weak link

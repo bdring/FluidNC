@@ -4,6 +4,7 @@
 #include "src/Module.h"
 
 #include "src/Logging.h"
+#include "src/WebUI/WifiConfig.h"
 #include <WiFi.h>
 #include "Driver/localfs.h"
 #include <ArduinoOTA.h>
@@ -18,6 +19,11 @@ public:
         }
 
         ArduinoOTA
+            // By default, ArduinoOTA starts MDNS and advertises itself to the ArduinoIDE
+            // We don't care about the Arduino IDE, and we want to start MDNS explicitly
+            // in Mdns.cpp
+            .setMdnsEnabled(false)
+            .setHostname(WiFi.getHostname())
             .onStart([]() {
                 const char* type;
                 if (ArduinoOTA.getCommand() == U_FLASH) {
@@ -54,8 +60,8 @@ public:
                 }
 
                 log_info("OTA Error(" << error << "):" << errorName);
-            });
-        ArduinoOTA.begin();
+            })
+            .begin();
     }
 
     void deinit() override { ArduinoOTA.end(); }
@@ -65,6 +71,4 @@ public:
     ~OTA() {}
 };
 
-namespace {
-    ModuleFactory::InstanceBuilder<OTA> __attribute__((init_priority(112))) registration("ota", true);
-}
+ModuleFactory::InstanceBuilder<OTA> __attribute__((init_priority(106))) ota_module("ota", true);
