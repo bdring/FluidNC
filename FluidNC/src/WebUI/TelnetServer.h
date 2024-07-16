@@ -3,20 +3,17 @@
 
 #pragma once
 
-#include "../Config.h"  // ENABLE_*
-#include "../Channel.h"
+#include "src/Module.h"  // Module
 #include <queue>
 
-#ifdef ENABLE_WIFI
+#include "src/Settings.h"
 
-#    include "../Settings.h"
-
-#    include <WiFi.h>
+#include <WiFi.h>
 
 class TelnetClient;
 
 namespace WebUI {
-    class TelnetServer {
+    class TelnetServer : public Module {
         static const int DEFAULT_TELNET_STATE      = 1;
         static const int DEFAULT_TELNETSERVER_PORT = 23;
 
@@ -30,23 +27,20 @@ namespace WebUI {
     public:
         TelnetServer();
 
-        bool begin();
-        void end();
-        void handle();
+        static uint16_t port() { return _port; }
 
-        uint16_t port() { return _port; }
+        static std::queue<TelnetClient*> _disconnected;
 
-        std::queue<TelnetClient*> _disconnected;
+        void init() override;
+        void deinit() override;
+        void poll() override;
+        void status_report(Channel& out) override;
 
         ~TelnetServer();
 
     private:
-        bool        _setupdone  = false;
-        WiFiServer* _wifiServer = nullptr;
-        uint16_t    _port       = 0;
+        bool            _setupdone  = false;
+        WiFiServer*     _wifiServer = nullptr;
+        static uint16_t _port;
     };
-
-    extern TelnetServer telnetServer;
 }
-
-#endif

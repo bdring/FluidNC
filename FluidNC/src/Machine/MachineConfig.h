@@ -10,7 +10,6 @@
 #include "src/Configuration/Configurable.h"
 #include "src/CoolantControl.h"
 #include "src/Kinematics/Kinematics.h"
-#include "src/WebUI/BTConfig.h"
 #include "src/Control.h"
 #include "src/Probe.h"
 #include "src/Parking.h"
@@ -60,22 +59,20 @@ namespace Machine {
     public:
         MachineConfig() = default;
 
-        Axes*                 _axes           = nullptr;
-        Kinematics*           _kinematics     = nullptr;
-        SPIBus*               _spi            = nullptr;
-        I2CBus*               _i2c[MAX_N_I2C] = { nullptr };
-        I2SOBus*              _i2so           = nullptr;
-        Stepping*             _stepping       = nullptr;
-        CoolantControl*       _coolant        = nullptr;
-        Probe*                _probe          = nullptr;
-        Control*              _control        = nullptr;
-        UserOutputs*          _userOutputs    = nullptr;
-        SDCard*               _sdCard         = nullptr;
-        Macros*               _macros         = nullptr;
-        Start*                _start          = nullptr;
-        Parking*              _parking        = nullptr;
-        Spindles::SpindleList _spindles;
-        ModuleList            _modules;
+        Axes*           _axes           = nullptr;
+        Kinematics*     _kinematics     = nullptr;
+        SPIBus*         _spi            = nullptr;
+        I2CBus*         _i2c[MAX_N_I2C] = { nullptr };
+        I2SOBus*        _i2so           = nullptr;
+        Stepping*       _stepping       = nullptr;
+        CoolantControl* _coolant        = nullptr;
+        Probe*          _probe          = nullptr;
+        Control*        _control        = nullptr;
+        UserOutputs*    _userOutputs    = nullptr;
+        SDCard*         _sdCard         = nullptr;
+        Macros*         _macros         = nullptr;
+        Start*          _start          = nullptr;
+        Parking*        _parking        = nullptr;
 
         UartChannel* _uart_channels[MAX_N_UARTS] = { nullptr };
         Uart*        _uarts[MAX_N_UARTS]         = { nullptr };

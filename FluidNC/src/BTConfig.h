@@ -4,27 +4,11 @@
 
 #pragma once
 
-#ifndef ENABLE_BLUETOOTH
-namespace WebUI {
-    class BTConfig {
-    public:
-        static std::string info() { return std::string(); }
+#include "src/Configuration/Configurable.h"
+#include "src/lineedit.h"
+#include "src/Module.h"
 
-        static bool begin() { return false; };
-        static void end() {};
-        static void handle() {}
-        static void releaseMem() {}
-        static bool isOn() { return false; }
-    };
-    extern BTConfig bt_config;
-}
-#else
-#    include "../Configuration/Configurable.h"
-#    include "../Config.h"    // ENABLE_*
-#    include "../Settings.h"  // ENABLE_*
-#    include "../lineedit.h"
-
-#    include <BluetoothSerial.h>
+#include <BluetoothSerial.h>
 
 const char* const DEFAULT_BT_NAME = "FluidNC";
 
@@ -55,7 +39,7 @@ namespace WebUI {
     };
     extern BTChannel btChannel;
 
-    class BTConfig {
+    class BTConfig : public Module {
     private:
         static BTConfig* instance;  // BT Callback does not support passing parameters. Sigh.
 
@@ -69,17 +53,19 @@ namespace WebUI {
     public:
         BTConfig();
 
-        std::string info();
-
         const std::string& BTname() const { return _btname; }
         const std::string& client_name() const { return _btclient; }
         const char*        device_address();
         bool               begin();
         void               end();
-        void               handle();
-        void               reset_settings();
-        bool               isOn() const;
-        void               releaseMem();
+
+        bool isOn() const;
+        void releaseMem();
+
+        void init() override;
+        void status_report(Channel& out) override;
+        void build_info(Channel& out) override;
+        bool is_radio() override { return true; }
 
         ~BTConfig();
     };
@@ -107,5 +93,3 @@ namespace WebUI {
     extern EnumSetting*   bt_enable;
     extern BTNameSetting* bt_name;
 }
-
-#endif

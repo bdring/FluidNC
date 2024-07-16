@@ -3,12 +3,11 @@
 
 #include "WSChannel.h"
 
-#ifdef ENABLE_WIFI
-#    include "WebServer.h"
-#    include <WebSocketsServer.h>
-#    include <WiFi.h>
+#include "WebServer.h"
+#include <WebSocketsServer.h>
+#include <WiFi.h>
 
-#    include "../Serial.h"  // is_realtime_command
+#include "src/Serial.h"  // is_realtime_command
 
 namespace WebUI {
     class WSChannels;
@@ -28,9 +27,13 @@ namespace WebUI {
         }
     }
 
-    WSChannel::operator bool() const { return true; }
+    WSChannel::operator bool() const {
+        return true;
+    }
 
-    size_t WSChannel::write(uint8_t c) { return write(&c, 1); }
+    size_t WSChannel::write(uint8_t c) {
+        return write(&c, 1);
+    }
 
     size_t WSChannel::write(const uint8_t* buffer, size_t size) {
         if (buffer == NULL || !_active || !size) {
@@ -287,4 +290,3 @@ namespace WebUI {
         }
     }
 }
-#endif

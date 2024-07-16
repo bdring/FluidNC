@@ -40,8 +40,6 @@
 #include "Serial.h"
 #include "UartChannel.h"
 #include "Machine/MachineConfig.h"
-#include "WebUI/Commands.h"
-#include "WebUI/WifiServices.h"
 #include "MotionControl.h"
 #include "Report.h"
 #include "System.h"
@@ -236,9 +234,6 @@ Channel* pollChannels(char* line) {
     counter = 50;
 
     Channel* retval = allChannels.poll(line);
-
-    WebUI::COMMANDS::handle();      // Handles ESP restart
-    WebUI::wifi_services.handle();  // OTA, webServer, telnetServer polling
 
     return retval;
 }

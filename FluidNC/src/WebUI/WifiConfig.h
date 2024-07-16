@@ -5,35 +5,13 @@
 
 //Preferences entries
 
-#include "src/Config.h"      // ENABLE_*
 #include "src/Channel.h"     // Channel
 #include "src/Error.h"       // Error
 #include "src/Module.h"      // Module
 #include "Authentication.h"  // AuthenticationLevel
 
-#ifndef ENABLE_WIFI
-namespace WebUI {
-    class WiFiConfig {
-    public:
-        static std::string webInfo() { return std::string(); }
-        static std::string station_info() { return std::string(); }
-        static std::string ap_info() { return std::string(); }
-
-        static bool begin() { return false; }
-        static void end() {}
-        static void reset() {}
-        static void reset_settings() {}
-        static void handle() {}
-        static bool isOn() { return false; }
-        static void showWifiStats(Channel& out) {}
-
-        static const char* modeName() { return "None"; }
-    };
-    extern WiFiConfig wifi_config;
-}
-#else
-#    include <WiFi.h>
-#    include "../Settings.h"
+#include <WiFi.h>
+#include "src/Settings.h"
 
 namespace WebUI {
     // TODO: Clean these constants up. Some of them don't belong here.
@@ -77,12 +55,13 @@ namespace WebUI {
 
         static void reset();
 
-        static std::string webInfo();
-
         static std::string station_info();
         static std::string ap_info();
 
         static std::string Hostname() { return _hostname; }
+
+        static Error showFwInfoJSON(const char* parameter, AuthenticationLevel auth_level, Channel& out);
+        static Error showFwInfo(const char* parameter, AuthenticationLevel auth_level, Channel& out);
 
         static char*   mac2str(uint8_t mac[8]);
         static bool    StartAP();
@@ -91,23 +70,21 @@ namespace WebUI {
         static int32_t getSignal(int32_t RSSI);
         static bool    begin();
         static void    end();
-        static void    handle();
-        static void    reset_settings();
-        static bool    isOn();
+
+        static bool isOn();
 
         static const char* modeName();
 
         static Error listAPs(const char* parameter, AuthenticationLevel auth_level, Channel& out);
 
-        void init_module() override;
-        void info(Channel& out) override;
-        void group(Configuration::HandlerBase& handler) override {}
-        void validate() override {}
-        // void afterParse() override { WebUI::registration.create(); }
-        void afterParse() override { this->Configuration::GenericFactory<Module>::InstanceBuilder<WebUI::WiFiConfig>::create(); }
-        // void afterParse() override {}
+        void init() override;
+        void poll() override;
 
-        static void addWifiStatsToArray(JSONencoder& j);
+        void status_report(Channel& out) override;
+        void build_info(Channel& out) override;
+        bool is_radio() override { return true; }
+        void wifi_stats(JSONencoder& j);
+
         ~WiFiConfig();
 
     private:
@@ -158,8 +135,6 @@ namespace WebUI {
         }
     };
 
-    extern WiFiConfig wifi_config;
-
     extern EnumSetting* wifi_mode;
 
     extern StringSetting* wifi_sta_ssid;
@@ -182,4 +157,3 @@ namespace WebUI {
 
     extern HostnameSetting* wifi_hostname;
 }
-#endif

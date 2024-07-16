@@ -176,7 +176,7 @@ const char* IntSetting::getStringValue() {
     return strval;
 }
 
-void IntSetting::addWebui(WebUI::JSONencoder* j) {
+void IntSetting::addWebui(JSONencoder* j) {
     if (getDescription()) {
         j->begin_webui(getName(), getName(), "I", getStringValue(), _minValue, _maxValue);
         j->end_object();
@@ -259,7 +259,7 @@ const char* StringSetting::getStringValue() {
     return get();
 }
 
-void StringSetting::addWebui(WebUI::JSONencoder* j) {
+void StringSetting::addWebui(JSONencoder* j) {
     if (!getDescription()) {
         return;
     }
@@ -372,7 +372,7 @@ void EnumSetting::showList() {
     log_info("Valid options:" << optList);
 }
 
-void EnumSetting::addWebui(WebUI::JSONencoder* j) {
+void EnumSetting::addWebui(JSONencoder* j) {
     if (!getDescription()) {
         return;
     }
@@ -387,7 +387,7 @@ void EnumSetting::addWebui(WebUI::JSONencoder* j) {
     j->end_object();
 }
 
-Error UserCommand::action(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+Error UserCommand::action(const char* value, AuthenticationLevel auth_level, Channel& out) {
     if (_cmdChecker && _cmdChecker()) {
         return Error::IdleError;
     }
@@ -493,7 +493,7 @@ const char* IPaddrSetting::getStringValue() {
     return ipstr;
 }
 
-void IPaddrSetting::addWebui(WebUI::JSONencoder* j) {
+void IPaddrSetting::addWebui(JSONencoder* j) {
     if (getDescription()) {
         j->begin_webui(getName(), getName(), "A", getStringValue());
         j->end_object();

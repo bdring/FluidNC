@@ -14,19 +14,12 @@
 
 #include "NotificationsService.h"
 
-namespace WebUI {
-    NotificationsService notificationsService __attribute__((init_priority(106)));
-}
+#include "WebCommands.h"  // get_param()
+#include "WifiConfig.h"   // WiFiConfig::Hostname()
+#include "src/Machine/MachineConfig.h"
 
-#ifdef ENABLE_WIFI
-
-#    include "WebSettings.h"  // notification_ts
-#    include "Commands.h"
-#    include "WifiConfig.h"  // wifi_config.Hostname()
-#    include "../Machine/MachineConfig.h"
-
-#    include <WiFiClientSecure.h>
-#    include <base64.h>
+#include <WiFiClientSecure.h>
+#include <base64.h>
 
 namespace WebUI {
     static const int PUSHOVER_NOTIFICATION = 1;
@@ -49,6 +42,14 @@ namespace WebUI {
     static const int   LINEPORT    = 443;
 
     static const int EMAILTIMEOUT = 5000;
+
+    bool        NotificationsService::_started = false;
+    uint8_t     NotificationsService::_notificationType;
+    std::string NotificationsService::_token1;
+    std::string NotificationsService::_token2;
+    std::string NotificationsService::_settings;
+    std::string NotificationsService::_serveraddress;
+    uint16_t    NotificationsService::_port;
 
     const enum_opt_t notificationOptions = {
         { "NONE", 0 },
@@ -103,19 +104,19 @@ namespace WebUI {
         return Error::Ok;
     }
 
-    static Error sendMessage(const char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP600
+    Error NotificationsService::sendMessage(const char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP600
         if (*parameter == '\0') {
             log_string(out, "Invalid message!");
             return Error::InvalidValue;
         }
-        if (!notificationsService.sendMSG("GRBL Notification", parameter)) {
+        if (!sendMSG("GRBL Notification", parameter)) {
             log_string(out, "Cannot send message!");
             return Error::MessageFailed;
         }
         return Error::Ok;
     }
 
-    NotificationsService::NotificationsService() {
+    NotificationsService::NotificationsService() : Module("notifications") {
         _started          = false;
         _notificationType = 0;
         _token1           = "";
@@ -235,7 +236,7 @@ namespace WebUI {
         data += "&message=";
         data += message;
         data += "&device=";
-        data += wifi_config.Hostname();
+        data += WiFiConfig::Hostname();
         //build post query
         postcmd = "POST /1/messages.json HTTP/1.1\r\nHost: api.pushover.net\r\nConnection: close\r\nCache-Control: no-cache\r\nUser-Agent: "
                   "ESP3D\r\nAccept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8\r\nContent-Length: ";
@@ -390,12 +391,12 @@ namespace WebUI {
         return true;
     }
 
-    bool NotificationsService::begin() {
-        end();
+    void NotificationsService::init() {
+        deinit();
         _notificationType = notification_type->get();
         switch (_notificationType) {
             case 0:  //no notification = no error but no start
-                return true;
+                return;
             case PUSHOVER_NOTIFICATION:
                 _token1        = notification_t1->get();
                 _token2        = notification_t2->get();
@@ -411,11 +412,11 @@ namespace WebUI {
                 _token1 = base64::encode(notification_t1->get()).c_str();
                 _token2 = base64::encode(notification_t2->get()).c_str();
                 if (!getEmailFromSettings() || !getPortFromSettings() || !getServerAddressFromSettings()) {
-                    return false;
+                    return;
                 }
                 break;
             default:
-                return false;
+                return;
                 break;
         }
         bool res = true;
@@ -423,13 +424,12 @@ namespace WebUI {
             res = false;
         }
         if (!res) {
-            end();
+            deinit();
         }
         _started = res;
-        return _started;
     }
 
-    void NotificationsService::end() {
+    void NotificationsService::deinit() {
         if (!_started) {
             return;
         }
@@ -443,16 +443,17 @@ namespace WebUI {
         _port             = 0;
     }
 
-    void NotificationsService::handle() {
-        if (_started) {}
+    NotificationsService::~NotificationsService() {
+        deinit();
     }
 
-    NotificationsService::~NotificationsService() {
-        end();
+    // Configuration registration
+    namespace {
+        ModuleFactory::InstanceBuilder<NotificationsService> __attribute__((init_priority(111))) registration("notifications", true);
     }
 }
-#endif
 
-void _notify(const char* title, const char* msg) {
-    WebUI::notificationsService.sendMSG(title, msg);
+// Override weak link
+void notify(const char* title, const char* msg) {
+    WebUI::NotificationsService::sendMSG(title, msg);
 }

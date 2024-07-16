@@ -101,9 +101,9 @@ public:
 
     // The default implementation of addWebui() does nothing.
     // Derived classes may override it to do something.
-    virtual void addWebui(WebUI::JSONencoder*) {};
+    virtual void addWebui(JSONencoder*) {};
 
-    virtual Error action(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) = 0;
+    virtual Error action(const char* value, AuthenticationLevel auth_level, Channel& out) = 0;
     bool          synchronous() { return _synchronous; }
 };
 
@@ -124,7 +124,7 @@ public:
 
     Error check_state();
 
-    static Error report_nvs_stats(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+    static Error report_nvs_stats(const char* value, AuthenticationLevel auth_level, Channel& out) {
         nvs_stats_t stats;
         if (esp_err_t err = nvs_get_stats(NULL, &stats)) {
             return Error::NvsGetStatsFailed;
@@ -143,7 +143,7 @@ public:
         return Error::Ok;
     }
 
-    static Error eraseNVS(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+    static Error eraseNVS(const char* value, AuthenticationLevel auth_level, Channel& out) {
         nvs_erase_all(_handle);
         return Error::Ok;
     }
@@ -165,7 +165,7 @@ public:
 
     // The default implementation of addWebui() does nothing.
     // Derived classes may override it to do something.
-    virtual void addWebui(WebUI::JSONencoder*) {};
+    virtual void addWebui(JSONencoder*) {};
 
     virtual Error       setStringValue(std::string_view s) = 0;
     virtual const char* getStringValue()                   = 0;
@@ -207,7 +207,7 @@ public:
 
     void        load();
     void        setDefault();
-    void        addWebui(WebUI::JSONencoder*);
+    void        addWebui(JSONencoder*);
     Error       setStringValue(std::string_view s);
     const char* getStringValue();
     const char* getDefaultString();
@@ -285,7 +285,7 @@ public:
 
     void        load();
     void        setDefault();
-    void        addWebui(WebUI::JSONencoder*);
+    void        addWebui(JSONencoder*);
     Error       setStringValue(std::string_view s);
     const char* getStringValue();
     const char* getDefaultString();
@@ -320,7 +320,7 @@ public:
 
     void        load();
     void        setDefault();
-    void        addWebui(WebUI::JSONencoder*);
+    void        addWebui(JSONencoder*);
     Error       setStringValue(std::string_view s);
     const char* getStringValue();
     const char* getDefaultString();
@@ -347,7 +347,7 @@ public:
 
     void        load();
     void        setDefault();
-    void        addWebui(WebUI::JSONencoder*);
+    void        addWebui(JSONencoder*);
     Error       setStringValue(std::string_view s);
     const char* getStringValue();
     const char* getDefaultString();
@@ -357,7 +357,7 @@ public:
 
 class WebCommand : public Command {
 private:
-    Error (*_action)(const char*, WebUI::AuthenticationLevel, Channel& out);
+    Error (*_action)(const char*, AuthenticationLevel, Channel& out);
     const char* password;
 
 public:
@@ -366,43 +366,43 @@ public:
                permissions_t permissions,
                const char*   grblName,
                const char*   name,
-               Error (*action)(const char*, WebUI::AuthenticationLevel, Channel& out),
+               Error (*action)(const char*, AuthenticationLevel, Channel& out),
                bool (*cmdChecker)() = notIdleOrAlarm) :
         Command(description, type, permissions, grblName, name, cmdChecker),
         _action(action) {}
 
-    Error action(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out);
+    Error action(const char* value, AuthenticationLevel auth_level, Channel& out);
 };
 
 class UserCommand : public Command {
 private:
-    Error (*_action)(const char*, WebUI::AuthenticationLevel, Channel&);
+    Error (*_action)(const char*, AuthenticationLevel, Channel&);
 
 public:
     UserCommand(const char* grblName,
                 const char* name,
-                Error (*action)(const char*, WebUI::AuthenticationLevel, Channel&),
+                Error (*action)(const char*, AuthenticationLevel, Channel&),
                 bool (*cmdChecker)(),
                 permissions_t auth        = WG,
                 bool          synchronous = true) :
         Command(NULL, GRBLCMD, auth, grblName, name, cmdChecker, synchronous),
         _action(action) {}
 
-    Error action(const char* value, WebUI::AuthenticationLevel auth_level, Channel& response);
+    Error action(const char* value, AuthenticationLevel auth_level, Channel& response);
 };
 class AsyncUserCommand : public UserCommand {
 public:
     AsyncUserCommand(const char* grblName,
                      const char* name,
-                     Error (*action)(const char*, WebUI::AuthenticationLevel, Channel&),
+                     Error (*action)(const char*, AuthenticationLevel, Channel&),
                      bool (*cmdChecker)(),
                      permissions_t auth = WG) :
         UserCommand(grblName, name, action, cmdChecker, auth, false) {}
 };
 
 // Execute the startup script lines stored in non-volatile storage upon initialization
-Error settings_execute_line(char* line, Channel& out, WebUI::AuthenticationLevel);
-Error do_command_or_setting(const char* key, const char* value, WebUI::AuthenticationLevel auth_level, Channel&);
-Error execute_line(char* line, Channel& channel, WebUI::AuthenticationLevel auth_level);
+Error settings_execute_line(char* line, Channel& out, AuthenticationLevel);
+Error do_command_or_setting(const char* key, const char* value, AuthenticationLevel auth_level, Channel&);
+Error execute_line(char* line, Channel& channel, AuthenticationLevel auth_level);
 
 extern const enum_opt_t onoffOptions;

@@ -41,8 +41,6 @@ void setup() {
 
         WebUI::WiFiConfig::reset();
 
-        display_init();
-
         protocol_init();
 
         // Load settings from non-volatile storage
@@ -107,28 +105,24 @@ void setup() {
         limits_init();
 
         // Initialize system state.
+        for (auto const& module : Modules()) {
+            module->init();
+        }
+
         if (!state_is(State::ConfigAlarm)) {
-            for (auto const& s : config->_spindles) {
-                s->init();
+            auto spindles = Spindles::SpindleFactory::objects();
+            for (auto const& spindle : spindles) {
+                spindle->init();
             }
-            Spindles::Spindle::switchSpindle(0, config->_spindles, spindle);
+            Spindles::Spindle::switchSpindle(0, spindles, spindle);
 
             config->_coolant->init();
             config->_probe->init();
         }
 
-        for (auto const& m : config->_modules) {
-            m->init_module();
-        }
-
     } catch (const AssertionFailed& ex) {
         // This means something is terribly broken:
         log_config_error("Critical error in main_init: " << ex.what());
-    }
-
-    // Try Bluetooth first so its memory can be released if it is disabled
-    if (!WebUI::bt_config.begin()) {
-        WebUI::wifi_config.begin();
     }
 
     allChannels.ready();

@@ -30,7 +30,7 @@ public:
 
     virtual ~Status_Outputs() = default;
 
-    void init_module() override;
+    void init() override;
 
     size_t write(uint8_t data) override;
 

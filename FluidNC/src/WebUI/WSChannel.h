@@ -3,8 +3,6 @@
 
 #pragma once
 
-#include "../Config.h"  // ENABLE_*
-
 #include <cstdint>
 #include <cstring>
 #include <list>
@@ -12,20 +10,7 @@
 
 class WebSocketsServer;
 
-#ifndef ENABLE_WIFI
-#    if 0
-namespace WebUI {
-    class WSChannel {
-    public:
-        WSChannel(WebSocketsServer* server, uint8_t clientNum);
-        int    read() { return -1; }
-        size_t write(const uint8_t* buffer, size_t size) { return 0; }
-    };
-}
-#    endif
-#else
-
-#    include "../Channel.h"
+#include "src/Channel.h"
 
 namespace WebUI {
     class WSChannel : public Channel {
@@ -89,5 +74,3 @@ namespace WebUI {
         static void handlev3Event(WebSocketsServer* server, uint8_t num, uint8_t type, uint8_t* payload, size_t length);
     };
 }
-
-#endif

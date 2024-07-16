@@ -1,20 +1,17 @@
 // Copyright (c) 2014 Luc Lebosse. All rights reserved.
 // Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
 
-#ifdef ENABLE_BLUETOOTH
+#include "BTConfig.h"
 
-#    include "BTConfig.h"
+#include "src/Machine/MachineConfig.h"
+#include "src/Report.h"  // CLIENT_*
+#include "src/Channel.h"
+#include "WebCommands.h"
 
-#    include "../Machine/MachineConfig.h"
-#    include "../Report.h"  // CLIENT_*
-#    include "../Channel.h"
-#    include "Commands.h"  // COMMANDS
-#    include "WebSettings.h"
+#include "esp_bt.h"
+#include "esp_bt_main.h"
 
-#    include "esp_bt.h"
-#    include "esp_bt_main.h"
-
-#    include <cstdint>
+#include <cstdint>
 
 // SerialBT sends the data over Bluetooth
 namespace WebUI {
@@ -43,7 +40,7 @@ namespace WebUI {
 
     BTConfig* BTConfig::instance = nullptr;
 
-    BTConfig::BTConfig() {
+    BTConfig::BTConfig() : Module("bt") {
         bt_enable = new EnumSetting("Bluetooth Enable", WEBSET, WA, "ESP141", "Bluetooth/Enable", 1, &onoffOptions);
 
         bt_name = new BTNameSetting("Bluetooth name", "ESP140", "Bluetooth/Name", DEFAULT_BT_NAME);
@@ -69,7 +66,7 @@ namespace WebUI {
         }
     }
 
-    std::string BTConfig::info() {
+    std::string BTConfig::status_report() {
         std::string result;
         if (isOn()) {
             result += "Mode=BT:Name=";
@@ -138,10 +135,7 @@ namespace WebUI {
         log_debug("Heap: " << xPortGetFreeHeapSize());
     }
 
-    /**
-     * begin WiFi setup
-     */
-    bool BTConfig::begin() {
+    void BTConfig::init() {
         instance = this;
 
         log_debug("Begin Bluetooth setup");
@@ -155,22 +149,18 @@ namespace WebUI {
             log_debug("Heap: " << xPortGetFreeHeapSize());
             if (!SerialBT.begin(_btname.c_str())) {
                 log_error("Bluetooth failed to start");
-                return false;
+                return;
             }
 
             SerialBT.register_callback(&my_spp_cb);
             log_info("BT Started with " << _btname);
             allChannels.registration(&btChannel);
-            return true;
+            return;
         }
         releaseMem();
         log_info("BT is not enabled");
-        return false;
     }
 
-    /**
-     * End WiFi
-     */
     void BTConfig::end() {
         if (isOn()) {
             SerialBT.end();
@@ -178,27 +168,23 @@ namespace WebUI {
         }
     }
 
-    /**
-     * Check if BT is on and working
-     */
     bool BTConfig::isOn() const {
         return btStarted();
     }
 
-    /**
-     * Handle not critical actions that must be done in sync environement
-     */
-    void BTConfig::handle() {}
+    void BTConfig::build_info(Channel& channel) {
+        std::string bt_info = WebUI::bt_config.info();
+        if (bt_info.length()) {
+            log_msg_to(channel, bt_info);
+        }
+    }
 
     BTConfig::~BTConfig() {
         end();
     }
-}
 
-void report_bt_info(Channel& channel) {
-    std::string bt_info = WebUI::bt_config.info();
-    if (bt_info.length()) {
-        log_msg_to(channel, bt_info);
+    // Configuration registration
+    namespace {
+        ModuleFactory::InstanceBuilder<WiFiConfig> registration("bt", true);
     }
 }
-#endif

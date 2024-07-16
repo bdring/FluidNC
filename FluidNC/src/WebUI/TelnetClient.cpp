@@ -1,15 +1,12 @@
 // Copyright 2022 Mitch Bradley
 // Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
 
-// #include "../Machine/MachineConfig.h"
 #include "TelnetClient.h"
 #include "TelnetServer.h"
 
-#ifdef ENABLE_WIFI
+#include "WifiServices.h"
 
-#    include "WifiServices.h"
-
-#    include <WiFi.h>
+#include <WiFi.h>
 
 namespace WebUI {
     TelnetClient::TelnetClient(WiFiClient* wifiClient) : Channel("telnet"), _wifiClient(wifiClient) {}
@@ -19,13 +16,17 @@ namespace WebUI {
     void TelnetClient::closeOnDisconnect() {
         if (_state != -1 && !_wifiClient->connected()) {
             _state = -1;
-            telnetServer._disconnected.push(this);
+            TelnetServer::_disconnected.push(this);
         }
     }
 
-    void TelnetClient::flushRx() { Channel::flushRx(); }
+    void TelnetClient::flushRx() {
+        Channel::flushRx();
+    }
 
-    size_t TelnetClient::write(uint8_t data) { return write(&data, 1); }
+    size_t TelnetClient::write(uint8_t data) {
+        return write(&data, 1);
+    }
 
     size_t TelnetClient::write(const uint8_t* buffer, size_t length) {
         // Replace \n with \r\n
@@ -56,11 +57,17 @@ namespace WebUI {
         return length;
     }
 
-    int TelnetClient::peek(void) { return _wifiClient->peek(); }
+    int TelnetClient::peek(void) {
+        return _wifiClient->peek();
+    }
 
-    int TelnetClient::available() { return _wifiClient->available(); }
+    int TelnetClient::available() {
+        return _wifiClient->available();
+    }
 
-    int TelnetClient::rx_buffer_available() { return WIFI_CLIENT_READ_BUFFER_SIZE - available(); }
+    int TelnetClient::rx_buffer_available() {
+        return WIFI_CLIENT_READ_BUFFER_SIZE - available();
+    }
 
     int TelnetClient::read(void) {
         if (_state == -1) {
@@ -82,7 +89,7 @@ namespace WebUI {
         return ret;
     }
 
-    TelnetClient::~TelnetClient() { delete _wifiClient; }
+    TelnetClient::~TelnetClient() {
+        delete _wifiClient;
+    }
 }
-
-#endif

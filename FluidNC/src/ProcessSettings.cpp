@@ -12,6 +12,7 @@
 #include "Regex.h"
 #include "WebUI/Authentication.h"
 #include "WebUI/WifiConfig.h"
+#include "WebUI/WebCommands.h"  // make_web_commands()
 #include "Report.h"
 #include "MotionControl.h"
 #include "System.h"
@@ -20,9 +21,9 @@
 #include "Protocol.h"             // LINE_BUFFER_SIZE
 #include "UartChannel.h"          // Uart0.write()
 #include "FileStream.h"           // FileStream()
-#include "xmodem.h"               // xmodemReceive(), xmodemTransmit()
 #include "StartupLog.h"           // startupLog
 #include "Driver/fluidnc_gpio.h"  // gpio_dump()
+#include "FileCommands.h"         // make_file_commands()
 
 #include "FluidPath.h"
 #include "HashFS.h"
@@ -35,19 +36,19 @@
 // WU Readable and writable as user and admin
 // WA Readable as user and admin, writable as admin
 
-static Error fakeMaxSpindleSpeed(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out);
+static Error fakeMaxSpindleSpeed(const char* value, AuthenticationLevel auth_level, Channel& out);
 
 // If authentication is disabled, auth_level will be LEVEL_ADMIN
-static bool auth_failed(Word* w, const char* value, WebUI::AuthenticationLevel auth_level) {
+static bool auth_failed(Word* w, const char* value, AuthenticationLevel auth_level) {
     permissions_t permissions = w->getPermissions();
     switch (auth_level) {
-        case WebUI::AuthenticationLevel::LEVEL_ADMIN:  // Admin can do anything
-            return false;                              // Nothing is an Admin auth fail
-        case WebUI::AuthenticationLevel::LEVEL_GUEST:  // Guest can only access open settings
-            return permissions != WG;                  // Anything other than RG is Guest auth fail
-        case WebUI::AuthenticationLevel::LEVEL_USER:   // User is complicated...
-            if (!value) {                              // User can read anything
-                return false;                          // No read is a User auth fail
+        case AuthenticationLevel::LEVEL_ADMIN:  // Admin can do anything
+            return false;                       // Nothing is an Admin auth fail
+        case AuthenticationLevel::LEVEL_GUEST:  // Guest can only access open settings
+            return permissions != WG;           // Anything other than RG is Guest auth fail
+        case AuthenticationLevel::LEVEL_USER:   // User is complicated...
+            if (!value) {                       // User can read anything
+                return false;                   // No read is a User auth fail
             }
             return permissions == WA;  // User cannot write WA
         default:
@@ -130,7 +131,11 @@ static void show_setting(const char* name, const char* value, const char* descri
 
 void settings_restore(uint8_t restore_flag) {
     if (restore_flag & SettingsRestore::Wifi) {
-        WebUI::wifi_config.reset_settings();
+        for (Setting* s : Setting::List) {
+            if (!s->getType() == WEBSET) {
+                s->setDefault();
+            }
+        }
     }
 
     if (restore_flag & SettingsRestore::Defaults) {
@@ -167,22 +172,19 @@ static void load_settings() {
 extern void make_settings();
 extern void make_user_commands();
 
-namespace WebUI {
-    extern void make_web_settings();
-}
-
 void settings_init() {
     make_settings();
-    WebUI::make_web_settings();
+    make_file_commands();
+    WebUI::make_web_commands();
     load_settings();
 }
 
-static Error show_help(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+static Error show_help(const char* value, AuthenticationLevel auth_level, Channel& out) {
     log_string(out, "HLP:$$ $+ $# $S $L $G $I $N $x=val $Nx=line $J=line $SLP $C $X $H $F $E=err ~ ! ? ctrl-x");
     return Error::Ok;
 }
 
-static Error report_gcode(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+static Error report_gcode(const char* value, AuthenticationLevel auth_level, Channel& out) {
     report_gcode_modes(out);
     return Error::Ok;
 }
@@ -196,13 +198,13 @@ static void show_settings(Channel& out, type_t type) {
         }
     }
     // need this per issue #1036
-    fakeMaxSpindleSpeed(NULL, WebUI::AuthenticationLevel::LEVEL_ADMIN, out);
+    fakeMaxSpindleSpeed(NULL, AuthenticationLevel::LEVEL_ADMIN, out);
 }
-static Error report_normal_settings(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+static Error report_normal_settings(const char* value, AuthenticationLevel auth_level, Channel& out) {
     show_settings(out, GRBL);  // GRBL non-axis settings
     return Error::Ok;
 }
-static Error list_grbl_names(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+static Error list_grbl_names(const char* value, AuthenticationLevel auth_level, Channel& out) {
     for (Setting* setting : Setting::List) {
         const char* gn = setting->getGrblName();
         if (gn) {
@@ -211,7 +213,7 @@ static Error list_grbl_names(const char* value, WebUI::AuthenticationLevel auth_
     }
     return Error::Ok;
 }
-static Error list_settings(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+static Error list_settings(const char* value, AuthenticationLevel auth_level, Channel& out) {
     for (Setting* s : Setting::List) {
         const char* displayValue = auth_failed(s, value, auth_level) ? "<Authentication required>" : s->getStringValue();
         if (s->getType() != PIN) {
@@ -220,7 +222,7 @@ static Error list_settings(const char* value, WebUI::AuthenticationLevel auth_le
     }
     return Error::Ok;
 }
-static Error list_changed_settings(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+static Error list_changed_settings(const char* value, AuthenticationLevel auth_level, Channel& out) {
     for (Setting* s : Setting::List) {
         const char* value = s->getStringValue();
         if (!auth_failed(s, value, auth_level) && strcmp(value, s->getDefaultString())) {
@@ -232,7 +234,7 @@ static Error list_changed_settings(const char* value, WebUI::AuthenticationLevel
     log_string(out, "(Passwords not shown)");
     return Error::Ok;
 }
-static Error list_commands(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+static Error list_commands(const char* value, AuthenticationLevel auth_level, Channel& out) {
     for (Command* cp : Command::List) {
         const char* name    = cp->getName();
         const char* oldName = cp->getGrblName();
@@ -248,7 +250,7 @@ static Error list_commands(const char* value, WebUI::AuthenticationLevel auth_le
     }
     return Error::Ok;
 }
-static Error toggle_check_mode(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+static Error toggle_check_mode(const char* value, AuthenticationLevel auth_level, Channel& out) {
     if (state_is(State::ConfigAlarm)) {
         return Error::ConfigurationInvalid;
     }
@@ -281,7 +283,7 @@ static Error isStuck() {
     }
     return Error::Ok;
 }
-static Error disable_alarm_lock(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+static Error disable_alarm_lock(const char* value, AuthenticationLevel auth_level, Channel& out) {
     if (state_is(State::ConfigAlarm)) {
         return Error::ConfigurationInvalid;
     }
@@ -299,11 +301,11 @@ static Error disable_alarm_lock(const char* value, WebUI::AuthenticationLevel au
     config->_macros->_after_unlock.run(&out);
     return Error::Ok;
 }
-static Error report_ngc(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+static Error report_ngc(const char* value, AuthenticationLevel auth_level, Channel& out) {
     report_ngc_parameters(out);
     return Error::Ok;
 }
-static Error msg_to_uart0(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+static Error msg_to_uart0(const char* value, AuthenticationLevel auth_level, Channel& out) {
     if (value) {
         Channel* dest = allChannels.find("uart_channel0");
         if (dest) {
@@ -312,13 +314,13 @@ static Error msg_to_uart0(const char* value, WebUI::AuthenticationLevel auth_lev
     }
     return Error::Ok;
 }
-static Error msg_to_uart1(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+static Error msg_to_uart1(const char* value, AuthenticationLevel auth_level, Channel& out) {
     if (value && config->_uart_channels[1]) {
         log_msg_to(*(config->_uart_channels[1]), value);
     }
     return Error::Ok;
 }
-static Error cmd_log_msg(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+static Error cmd_log_msg(const char* value, AuthenticationLevel auth_level, Channel& out) {
     if (value) {
         if (*value == '*') {
             log_msg(value + 1);
@@ -328,7 +330,7 @@ static Error cmd_log_msg(const char* value, WebUI::AuthenticationLevel auth_leve
     }
     return Error::Ok;
 }
-static Error cmd_log_error(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+static Error cmd_log_error(const char* value, AuthenticationLevel auth_level, Channel& out) {
     if (value) {
         if (*value == '*') {
             log_error(value + 1);
@@ -338,7 +340,7 @@ static Error cmd_log_error(const char* value, WebUI::AuthenticationLevel auth_le
     }
     return Error::Ok;
 }
-static Error cmd_log_warn(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+static Error cmd_log_warn(const char* value, AuthenticationLevel auth_level, Channel& out) {
     if (value) {
         if (*value == '*') {
             log_warn(value + 1);
@@ -348,7 +350,7 @@ static Error cmd_log_warn(const char* value, WebUI::AuthenticationLevel auth_lev
     }
     return Error::Ok;
 }
-static Error cmd_log_info(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+static Error cmd_log_info(const char* value, AuthenticationLevel auth_level, Channel& out) {
     if (value) {
         if (*value == '*') {
             log_info(value + 1);
@@ -358,7 +360,7 @@ static Error cmd_log_info(const char* value, WebUI::AuthenticationLevel auth_lev
     }
     return Error::Ok;
 }
-static Error cmd_log_debug(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+static Error cmd_log_debug(const char* value, AuthenticationLevel auth_level, Channel& out) {
     if (value) {
         if (*value == '*') {
             log_debug(value + 1);
@@ -368,7 +370,7 @@ static Error cmd_log_debug(const char* value, WebUI::AuthenticationLevel auth_le
     }
     return Error::Ok;
 }
-static Error cmd_log_verbose(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+static Error cmd_log_verbose(const char* value, AuthenticationLevel auth_level, Channel& out) {
     if (value) {
         if (*value == '*') {
             log_verbose(value + 1);
@@ -416,7 +418,7 @@ static Error home(AxisMask axisMask, Channel& out) {
 
     return Error::Ok;
 }
-static Error home_all(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+static Error home_all(const char* value, AuthenticationLevel auth_level, Channel& out) {
     AxisMask requestedAxes = Machine::Homing::AllCycles;
     auto     retval        = Error::Ok;
 
@@ -459,22 +461,22 @@ static Error home_all(const char* value, WebUI::AuthenticationLevel auth_level, 
     return home(requestedAxes, out);
 }
 
-static Error home_x(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+static Error home_x(const char* value, AuthenticationLevel auth_level, Channel& out) {
     return home(bitnum_to_mask(X_AXIS), out);
 }
-static Error home_y(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+static Error home_y(const char* value, AuthenticationLevel auth_level, Channel& out) {
     return home(bitnum_to_mask(Y_AXIS), out);
 }
-static Error home_z(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+static Error home_z(const char* value, AuthenticationLevel auth_level, Channel& out) {
     return home(bitnum_to_mask(Z_AXIS), out);
 }
-static Error home_a(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+static Error home_a(const char* value, AuthenticationLevel auth_level, Channel& out) {
     return home(bitnum_to_mask(A_AXIS), out);
 }
-static Error home_b(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+static Error home_b(const char* value, AuthenticationLevel auth_level, Channel& out) {
     return home(bitnum_to_mask(B_AXIS), out);
 }
-static Error home_c(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+static Error home_c(const char* value, AuthenticationLevel auth_level, Channel& out) {
     return home(bitnum_to_mask(C_AXIS), out);
 }
 static std::string limit_set(uint32_t mask) {
@@ -489,7 +491,7 @@ static std::string limit_set(uint32_t mask) {
     }
     return s;
 }
-static Error show_limits(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+static Error show_limits(const char* value, AuthenticationLevel auth_level, Channel& out) {
     log_string(out, "Send ! to exit");
     log_stream(out, "Homing Axes : " << limit_set(Machine::Axes::homingMask));
     log_stream(out, "Limit Axes : " << limit_set(Machine::Axes::limitMask));
@@ -512,11 +514,11 @@ static Error show_limits(const char* value, WebUI::AuthenticationLevel auth_leve
     log_string(out, "");
     return Error::Ok;
 }
-static Error go_to_sleep(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+static Error go_to_sleep(const char* value, AuthenticationLevel auth_level, Channel& out) {
     protocol_send_event(&sleepEvent);
     return Error::Ok;
 }
-static Error get_report_build_info(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+static Error get_report_build_info(const char* value, AuthenticationLevel auth_level, Channel& out) {
     if (!value) {
         report_build_info(build_info->get(), out);
         return Error::Ok;
@@ -530,7 +532,7 @@ const std::map<const char*, uint8_t, cmp_str> restoreCommands = {
     { "*", SettingsRestore::All },        { "all", SettingsRestore::All },
     { "@", SettingsRestore::Wifi },       { "wifi", SettingsRestore::Wifi },
 };
-static Error restore_settings(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+static Error restore_settings(const char* value, AuthenticationLevel auth_level, Channel& out) {
     if (!value) {
         return Error::InvalidStatement;
     }
@@ -542,7 +544,7 @@ static Error restore_settings(const char* value, WebUI::AuthenticationLevel auth
     return Error::Ok;
 }
 
-static Error showState(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+static Error showState(const char* value, AuthenticationLevel auth_level, Channel& out) {
     const char* name;
     const State state = sys.state;
     auto        it    = StateName.find(state);
@@ -552,7 +554,7 @@ static Error showState(const char* value, WebUI::AuthenticationLevel auth_level,
     return Error::Ok;
 }
 
-static Error doJog(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+static Error doJog(const char* value, AuthenticationLevel auth_level, Channel& out) {
     if (state_is(State::ConfigAlarm)) {
         return Error::ConfigurationInvalid;
     }
@@ -570,7 +572,7 @@ static Error doJog(const char* value, WebUI::AuthenticationLevel auth_level, Cha
     return gc_execute_line(jogLine);
 }
 
-static Error listAlarms(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+static Error listAlarms(const char* value, AuthenticationLevel auth_level, Channel& out) {
     if (state_is(State::ConfigAlarm)) {
         log_string(out, "Configuration alarm is active. Check the boot messages for 'ERR'.");
     } else if (state_is(State::Alarm)) {
@@ -604,7 +606,7 @@ const char* errorString(Error errorNumber) {
     return it == ErrorNames.end() ? NULL : it->second;
 }
 
-static Error listErrors(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+static Error listErrors(const char* value, AuthenticationLevel auth_level, Channel& out) {
     if (value) {
         char* endptr      = NULL;
         int   errorNumber = strtol(value, &endptr, 10);
@@ -659,20 +661,20 @@ static Error motor_control(const char* value, bool disable) {
     }
     return Error::Ok;
 }
-static Error motor_disable(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+static Error motor_disable(const char* value, AuthenticationLevel auth_level, Channel& out) {
     return motor_control(value, true);
 }
 
-static Error motor_enable(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+static Error motor_enable(const char* value, AuthenticationLevel auth_level, Channel& out) {
     return motor_control(value, false);
 }
 
-static Error motors_init(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+static Error motors_init(const char* value, AuthenticationLevel auth_level, Channel& out) {
     config->_axes->config_motors();
     return Error::Ok;
 }
 
-static Error macros_run(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+static Error macros_run(const char* value, AuthenticationLevel auth_level, Channel& out) {
     if (value) {
         size_t macro_num = (*value) - '0';
 
@@ -683,62 +685,7 @@ static Error macros_run(const char* value, WebUI::AuthenticationLevel auth_level
     return Error::InvalidStatement;
 }
 
-static Error xmodem_receive(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
-    if (!value || !*value) {
-        value = "uploaded";
-    }
-    FileStream* outfile;
-    try {
-        outfile = new FileStream(value, "w");
-    } catch (...) {
-        delay_ms(1000);   // Delay for FluidTerm to handle command echoing
-        out.write(0x04);  // Cancel xmodem transfer with EOT
-        log_info("Cannot open " << value);
-        return Error::UploadFailed;
-    }
-    pollingPaused = true;
-    bool oldCr    = out.setCr(false);
-    delay_ms(1000);
-    int size = xmodemReceive(&out, outfile);
-    out.setCr(oldCr);
-    pollingPaused = false;
-    if (size >= 0) {
-        log_info("Received " << size << " bytes to file " << outfile->path());
-    } else {
-        log_info("Reception failed or was canceled");
-    }
-    std::filesystem::path fname = outfile->fpath();
-    delete outfile;
-    HashFS::rehash_file(fname);
-
-    return size < 0 ? Error::UploadFailed : Error::Ok;
-}
-
-static Error xmodem_send(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
-    if (!value || !*value) {
-        value = "config.yaml";
-    }
-    FileStream* infile;
-    try {
-        infile = new FileStream(value, "r");
-    } catch (...) {
-        log_info("Cannot open " << value);
-        return Error::DownloadFailed;
-    }
-    bool oldCr = out.setCr(false);
-    log_info("Sending " << value << " via XModem");
-    int size = xmodemTransmit(&out, infile);
-    out.setCr(oldCr);
-    delete infile;
-    if (size >= 0) {
-        log_info("Sent " << size << " bytes");
-    } else {
-        log_info("Sending failed or was canceled");
-    }
-    return size < 0 ? Error::DownloadFailed : Error::Ok;
-}
-
-static Error dump_config(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+static Error dump_config(const char* value, AuthenticationLevel auth_level, Channel& out) {
     Channel* ss;
     if (value) {
         // Use a file on the local file system unless there is an explicit prefix like /sd/
@@ -762,36 +709,36 @@ static Error dump_config(const char* value, WebUI::AuthenticationLevel auth_leve
     return Error::Ok;
 }
 
-static Error fakeMaxSpindleSpeed(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+static Error fakeMaxSpindleSpeed(const char* value, AuthenticationLevel auth_level, Channel& out) {
     if (!value) {
         log_stream(out, "$30=" << spindle->maxSpeed());
     }
     return Error::Ok;
 }
 
-static Error fakeLaserMode(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+static Error fakeLaserMode(const char* value, AuthenticationLevel auth_level, Channel& out) {
     if (!value) {
         log_stream(out, "$32=" << (spindle->isRateAdjusted() ? "1" : "0"));
     }
     return Error::Ok;
 }
 
-static Error showChannelInfo(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+static Error showChannelInfo(const char* value, AuthenticationLevel auth_level, Channel& out) {
     allChannels.listChannels(out);
     return Error::Ok;
 }
 
-static Error showStartupLog(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+static Error showStartupLog(const char* value, AuthenticationLevel auth_level, Channel& out) {
     StartupLog::dump(out);
     return Error::Ok;
 }
 
-static Error showGPIOs(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+static Error showGPIOs(const char* value, AuthenticationLevel auth_level, Channel& out) {
     gpio_dump(out);
     return Error::Ok;
 }
 
-static Error setReportInterval(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+static Error setReportInterval(const char* value, AuthenticationLevel auth_level, Channel& out) {
     if (!value) {
         uint32_t actual = out.getReportInterval();
         if (actual) {
@@ -822,7 +769,7 @@ static Error setReportInterval(const char* value, WebUI::AuthenticationLevel aut
     return Error::Ok;
 }
 
-static Error sendAlarm(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+static Error sendAlarm(const char* value, AuthenticationLevel auth_level, Channel& out) {
     int       intValue = value ? atoi(value) : 0;
     ExecAlarm alarm    = static_cast<ExecAlarm>(intValue);
     log_debug("Sending alarm " << intValue << " " << alarmString(alarm));
@@ -830,7 +777,7 @@ static Error sendAlarm(const char* value, WebUI::AuthenticationLevel auth_level,
     return Error::Ok;
 }
 
-static Error showHeap(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+static Error showHeap(const char* value, AuthenticationLevel auth_level, Channel& out) {
     log_info("Heap free: " << xPortGetFreeHeapSize() << " min: " << heapLowWater);
     return Error::Ok;
 }
@@ -844,8 +791,6 @@ void make_user_commands() {
     new UserCommand("GD", "GPIO/Dump", showGPIOs, anyState);
 
     new UserCommand("CI", "Channel/Info", showChannelInfo, anyState);
-    new UserCommand("XR", "Xmodem/Receive", xmodem_receive, allowConfigStates);
-    new UserCommand("XS", "Xmodem/Send", xmodem_send, notIdleOrAlarm);
     new UserCommand("CD", "Config/Dump", dump_config, anyState);
     new UserCommand("", "Help", show_help, anyState);
     new UserCommand("T", "State", showState, anyState);
@@ -937,7 +882,7 @@ char* normalize_key(char* start) {
 
 // This is the handler for all forms of settings commands,
 // $..= and [..], with and without a value.
-Error do_command_or_setting(const char* key, const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+Error do_command_or_setting(const char* key, const char* value, AuthenticationLevel auth_level, Channel& out) {
     // If value is NULL, it means that there was no value string, i.e.
     // $key without =, or [key] with nothing following.
     // If value is not NULL, but the string is empty, that is the form
@@ -1050,7 +995,7 @@ Error do_command_or_setting(const char* key, const char* value, WebUI::Authentic
     return Error::InvalidStatement;
 }
 
-Error settings_execute_line(char* line, Channel& out, WebUI::AuthenticationLevel auth_level) {
+Error settings_execute_line(char* line, Channel& out, AuthenticationLevel auth_level) {
     remove_password(line, auth_level);
 
     char* value;
@@ -1085,7 +1030,7 @@ Error settings_execute_line(char* line, Channel& out, WebUI::AuthenticationLevel
     return do_command_or_setting(key, value, auth_level, out);
 }
 
-Error execute_line(char* line, Channel& channel, WebUI::AuthenticationLevel auth_level) {
+Error execute_line(char* line, Channel& channel, AuthenticationLevel auth_level) {
     // Empty or comment line. For syncing purposes.
     if (line[0] == 0) {
         return Error::Ok;

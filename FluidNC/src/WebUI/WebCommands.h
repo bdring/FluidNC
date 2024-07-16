@@ -4,12 +4,16 @@
 
 #pragma once
 
-#include "../Config.h"  // ENABLE_*
-#include "../Settings.h"
+#include "src/Settings.h"
 #include <string>
 
 namespace WebUI {
     bool get_param(const char* parameter, const char* key, std::string& s);
+    void make_web_commands();
+
+    static bool paramIsJSON(const char* cmd_params) {
+        return strstr(cmd_params, "json=yes") != NULL;
+    }
 
 #ifdef ENABLE_AUTHENTICATION
     extern AuthPasswordSetting* user_password;

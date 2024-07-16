@@ -89,7 +89,7 @@ public:
 
     virtual ~OLED() = default;
 
-    void init_module() override;
+    void init() override;
 
     OLEDDisplay* _oled;
 
