@@ -1972,6 +1972,13 @@ void Maslow_::write_telemetry_buffer(uint8_t* buffer, size_t length) {
 }
 
 void Maslow_::dump_telemetry(const char* file) {
+    if (telemetry_enabled) {
+        telemetry_enabled = false;
+        log_info("Closing telemetry file");
+        //allow loop to process the buffer.
+        vTaskDelay(8000 / portTICK_PERIOD_MS);
+    }
+    log_info("Dumping telemetry");
     // open the file
     FileStream* f = new FileStream(file, "r", "sd");
     if (f) {
