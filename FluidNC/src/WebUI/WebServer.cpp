@@ -908,11 +908,11 @@ namespace WebUI {
 
         // Handle renames, deletions and directory creation
         if (_webserver->hasArg("action") && _webserver->hasArg("filename")) {
-            std::string action(_webserver->arg("action").c_str());
+            std::string action = std::string(_webserver->arg("action").c_str());
             std::string filename = std::string(_webserver->arg("filename").c_str());
             if (action == "delete") {
                 log_debug("Deleting " << fpath << " / " << filename);
-                if (stdfs::remove(fpath / filename, ec)) {
+                if (stdfs::remove(fpath / filename.c_str(), ec)) {
                     sstatus = filename + " deleted";
                 } else {
                     sstatus = "Cannot delete ";
@@ -920,17 +920,17 @@ namespace WebUI {
                 }
             } else if (action == "rename") {
                 std::string newname = std::string(_webserver->arg("newname").c_str());
-                stdfs::rename(fpath / filename, fpath / newname, ec);
+                stdfs::rename(fpath / filename.c_str(), fpath / newname.c_str(), ec);
                 sstatus = filename + " renamed to " + newname + " "+ ec.message();
             } else if (action == "deletedir") {
-                if (stdfs::remove_all(fpath / filename, ec)) {
+                if (stdfs::remove_all(fpath / filename.c_str(), ec)) {
                     sstatus = filename + " deleted";
                 } else {
                     sstatus = "Cannot delete ";
                     sstatus += filename + " " + ec.message();
                 }
             } else if (action == "createdir") {
-                if (stdfs::create_directory(fpath / filename, ec)) {
+                if (stdfs::create_directory(fpath / filename.c_str(), ec)) {
                     sstatus = filename + " created";
                 } else {
                     sstatus = "Cannot create ";
