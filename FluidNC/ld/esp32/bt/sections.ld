@@ -558,6 +558,10 @@ SECTIONS
     *libspi_flash.a:spi_flash_chip_winbond.*(.rodata .rodata.*)
     *libspi_flash.a:spi_flash_rom_patch.*(.rodata .rodata.*)
 
+    /* For the bluetooth build we must use DRAM for the ISR vtables */
+    /* because there is not enough space left in IRAM */
+    INCLUDE ../vtable_in_dram.ld
+
     _data_end = ABSOLUTE(.);
     . = ALIGN(4);
   } > dram0_0_seg
@@ -775,9 +779,8 @@ SECTIONS
     *(.iram2.coredump .iram2.coredump.*)
     _coredump_iram_end = ABSOLUTE(.);
 
-    INCLUDE vtable_in_dram.ld
-
     _iram_data_end = ABSOLUTE(.);
+
   } > iram0_0_seg
 
   .iram0.bss (NOLOAD) :
@@ -791,6 +794,9 @@ SECTIONS
     . = ALIGN(4);
     _iram_end = ABSOLUTE(.);
    } > iram0_0_seg
+
+  ASSERT(((_iram_data_end - ORIGIN(iram0_0_seg)) <= LENGTH(iram0_0_seg)),
+          "IRAM segment data does not fit.")
 
   /* Marks the end of data, bss and possibly rodata  */
   .dram0.heap_start (NOLOAD) :
