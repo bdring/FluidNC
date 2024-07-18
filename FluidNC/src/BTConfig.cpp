@@ -173,5 +173,5 @@ namespace WebUI {
         deinit();
     }
 
-    //    ModuleFactory::InstanceBuilder<BTConfig> bt_module("bt", true);
+    ModuleFactory::InstanceBuilder<BTConfig> bt_module("bt", true);
 }

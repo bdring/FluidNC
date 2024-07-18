@@ -1,31 +1,30 @@
 // Copyright (c) 2014 Luc Lebosse. All rights reserved.
 // Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
 
-#if 0
-#    include "WifiConfig.h"
+#include "WifiConfig.h"
 
-#    include "src/Settings.h"
-#    include "src/Machine/MachineConfig.h"
-#    include "src/WebUI/WebCommands.h"
-#    include <sstream>
-#    include <iomanip>
+#include "src/Settings.h"
+#include "src/Machine/MachineConfig.h"
+#include "src/WebUI/WebCommands.h"
+#include <sstream>
+#include <iomanip>
 
-#    include "src/Main.h"
+#include "src/Main.h"
 // #include "WifiServices.h"  // wifi_services.start() etc.
-#    include "WebCommands.h"  // get_param()
+#include "WebCommands.h"  // get_param()
 
-#    include "WebServer.h"             // Web_Server::port()
-#    include "TelnetServer.h"          // TelnetServer::port()
-#    include "NotificationsService.h"  // notificationsservice
+#include "WebServer.h"             // Web_Server::port()
+#include "TelnetServer.h"          // TelnetServer::port()
+#include "NotificationsService.h"  // notificationsservice
 
-#    include <WiFi.h>
-#    include <esp_wifi.h>
-#    include "Driver/localfs.h"
-#    include <cstring>
+#include <WiFi.h>
+#include <esp_wifi.h>
+#include "Driver/localfs.h"
+#include <cstring>
 
-#    include <esp_ota_ops.h>
+#include <esp_ota_ops.h>
 
-    namespace WebUI {
+namespace WebUI {
     enum WiFiStartupMode {
         WiFiOff = 0,
         WiFiSTA,
@@ -137,7 +136,7 @@
         { "WPA2-ENTERPRISE", WIFI_AUTH_WPA2_ENTERPRISE },
     };
 
-    static void print_mac(Channel & out, const char* prefix, const char* mac) {
+    static void print_mac(Channel& out, const char* prefix, const char* mac) {
         log_stream(out, prefix << " (" << mac << ")");
     }
 
@@ -168,7 +167,7 @@
         return err;
     }
 
-    void WiFiConfig::wifi_stats(JSONencoder & j) {
+    void WiFiConfig::wifi_stats(JSONencoder& j) {
         j.id_value_object("Sleep mode", WiFi.getSleep() ? "Modem" : "None");
         int mode = WiFi.getMode();
         if (mode != WIFI_MODE_NULL) {
@@ -298,7 +297,7 @@
         }
     }
 
-    void WiFiConfig::status_report(Channel & out) {
+    void WiFiConfig::status_report(Channel& out) {
         log_stream(out, "Sleep mode: " << (WiFi.getSleep() ? "Modem" : "None"));
         int mode = WiFi.getMode();
         if (mode != WIFI_MODE_NULL) {
@@ -463,11 +462,11 @@
             j.member("Setup", "Disabled");
             j.member("SDConnection", "direct");
             j.member("SerialProtocol", "Socket");
-#    ifdef ENABLE_AUTHENTICATION
+#ifdef ENABLE_AUTHENTICATION
             j.member("Authentication", "Enabled");
-#    else
+#else
             j.member("Authentication", "Disabled");
-#    endif
+#endif
             j.member("WebCommunication", "Synchronous");
             j.member("WebSocketIP", "localhost");
 
@@ -511,11 +510,11 @@
         s << " # secondary sd:none ";
 
         s << " # authentication:";
-#    ifdef ENABLE_AUTHENTICATION
+#ifdef ENABLE_AUTHENTICATION
         s << "yes";
-#    else
+#else
         s << "no";
-#    endif
+#endif
         s << " # webcommunication: Sync: ";
         s << std::to_string(Web_Server::port() + 1) + ":";
         switch (WiFi.getMode()) {
@@ -950,7 +949,7 @@
         return Error::Ok;
     }
 
-    void WiFiConfig::build_info(Channel & channel) {
+    void WiFiConfig::build_info(Channel& channel) {
         std::string sti = station_info();
         if (sti.length()) {
             log_msg_to(channel, sti);
@@ -982,4 +981,3 @@
 
     ModuleFactory::InstanceBuilder<WiFiConfig> __attribute__((init_priority(105))) wifi_module("wifi", true);
 }
-#endif
