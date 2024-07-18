@@ -129,7 +129,7 @@ namespace Pins {
             if (deltaRising) {
                 auto oldCount = hitCount;
                 gpio17.on();
-                delay(1);
+                delay_ms(1);
                 auto newCount = hitCount;
 
                 Assert(oldCount < newCount, "Expected rise after set state");
@@ -140,7 +140,7 @@ namespace Pins {
             if (deltaFalling) {
                 auto oldCount = hitCount;
                 gpio17.off();
-                delay(1);
+                delay_ms(1);
                 auto newCount = hitCount;
 
                 Assert(oldCount < newCount, "Expected rise after set state");
@@ -155,17 +155,23 @@ namespace Pins {
         auto oldCount = hitCount;
         gpio17.on();
         gpio17.off();
-        delay(1);
+        delay_ms(1);
         auto newCount = hitCount;
 
         Assert(oldCount == newCount, "ISR hitcount error");
     }
 
-    Test(GPIO, ISRRisingPin) { TestISR(1, 0, RISING); }
+    Test(GPIO, ISRRisingPin) {
+        TestISR(1, 0, RISING);
+    }
 
-    Test(GPIO, ISRFallingPin) { TestISR(0, 1, FALLING); }
+    Test(GPIO, ISRFallingPin) {
+        TestISR(0, 1, FALLING);
+    }
 
-    Test(GPIO, ISRChangePin) { TestISR(1, 1, CHANGE); }
+    Test(GPIO, ISRChangePin) {
+        TestISR(1, 1, CHANGE);
+    }
 
     Test(GPIO, NativeForwardingInput) {
         GPIONative::initialize();
@@ -276,7 +282,7 @@ namespace Pins {
     }
 
     class GPIOISR {
-        int  hitCount;
+        int  hitCount = 0;
         void HandleISR() { ++hitCount; }
 
     public:
@@ -304,7 +310,7 @@ namespace Pins {
                 if (deltaRising) {
                     auto oldCount = hitCount;
                     gpio17.on();
-                    delay(1);
+                    delay_ms(1);
                     auto newCount = hitCount;
 
                     Assert(oldCount < newCount, "Expected rise after set state");
@@ -315,7 +321,7 @@ namespace Pins {
                 if (deltaFalling) {
                     auto oldCount = hitCount;
                     gpio17.off();
-                    delay(1);
+                    delay_ms(1);
                     auto newCount = hitCount;
 
                     Assert(oldCount < newCount, "Expected rise after set state");
@@ -330,16 +336,22 @@ namespace Pins {
             auto oldCount = hitCount;
             gpio17.on();
             gpio17.off();
-            delay(1);
+            delay_ms(1);
             auto newCount = hitCount;
 
             Assert(oldCount == newCount, "ISR hitcount error");
         }
     };
 
-    Test(GPIO, ISRRisingPinClass) { GPIOISR isr(1, 0, RISING); }
+    Test(GPIO, ISRRisingPinClass) {
+        GPIOISR isr(1, 0, RISING);
+    }
 
-    Test(GPIO, ISRFallingPinClass) { GPIOISR isr(0, 1, FALLING); }
+    Test(GPIO, ISRFallingPinClass) {
+        GPIOISR isr(0, 1, FALLING);
+    }
 
-    Test(GPIO, ISRChangePinClass) { GPIOISR isr(1, 1, CHANGE); }
+    Test(GPIO, ISRChangePinClass) {
+        GPIOISR isr(1, 1, CHANGE);
+    }
 }

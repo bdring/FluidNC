@@ -22,16 +22,18 @@ namespace Pins {
             } else if (opt.is("high")) {
                 // Default: Active HIGH.
             } else {
-                Assert(false, "Unsupported I2SO option '%s'", opt());
+                Assert(false, "Unsupported I2SO option '%.*s'", static_cast<int>(opt().length()), opt().data());
             }
         }
         _claimed[index] = true;
 
         // readWriteMask is xor'ed with the value to invert it if active low
-        _readWriteMask = _attributes.has(PinAttributes::ActiveLow);
+        _readWriteMask = int(_attributes.has(PinAttributes::ActiveLow));
     }
 
-    PinCapabilities I2SOPinDetail::capabilities() const { return PinCapabilities::Output | PinCapabilities::I2S; }
+    PinCapabilities I2SOPinDetail::capabilities() const {
+        return PinCapabilities::Output | PinCapabilities::I2S;
+    }
 
     // The write will not happen immediately; the data is queued for
     // delivery to the serial shift register chain via DMA and a FIFO
@@ -43,6 +45,7 @@ namespace Pins {
     }
 
     // Write and wait for completion.  Not suitable for use from an ISR
+    // cppcheck-suppress unusedFunction
     void I2SOPinDetail::synchronousWrite(int high) {
         if (high != _lastWrittenValue) {
             _lastWrittenValue = high;
@@ -77,7 +80,9 @@ namespace Pins {
         i2s_out_write(_index, value.has(PinAttributes::InitialOn) ^ _readWriteMask);
     }
 
-    PinAttributes I2SOPinDetail::getAttr() const { return _attributes; }
+    PinAttributes I2SOPinDetail::getAttr() const {
+        return _attributes;
+    }
 
     std::string I2SOPinDetail::toString() {
         std::string s("I2SO.");

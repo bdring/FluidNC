@@ -21,6 +21,7 @@
 #include "../Config.h"
 #include "../OLED.h"
 #include "../Status_outputs.h"
+#include "../UartChannel.h"
 #include "Axes.h"
 #include "SPIBus.h"
 #include "I2CBus.h"

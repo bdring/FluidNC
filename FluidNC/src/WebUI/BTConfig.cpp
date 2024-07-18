@@ -113,11 +113,11 @@ namespace WebUI {
         return false;
     }
 
-    Channel* BTChannel::pollLine(char* line) {
+    Error BTChannel::pollLine(char* line) {
         // UART0 is the only Uart instance that can be a channel input device
         // Other UART users like RS485 use it as a dumb character device
         if (_lineedit == nullptr) {
-            return nullptr;
+            return Error::NoData;
         }
         return Channel::pollLine(line);
     }

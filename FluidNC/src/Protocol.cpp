@@ -16,10 +16,14 @@
 #include "Limits.h"         // limits_get_state, soft_limit
 #include "Planner.h"        // plan_get_current_block
 #include "MotionControl.h"  // PARKING_MOTION_LINE_NUMBER
-#include "Settings.h"       // settings_execute_startup
+
+#include "SettingsDefinitions.h"  // gcode_echo
 #include "Machine/LimitPin.h"
+#include "Job.h"
 
 volatile ExecAlarm lastAlarm;  // The most recent alarm code
+
+volatile const char* unwind_cause = nullptr;
 
 const std::map<ExecAlarm, const char*> AlarmNames = {
     { ExecAlarm::None, "None" },
@@ -53,9 +57,6 @@ static void protocol_exec_rt_suspend();
 
 static char line[LINE_BUFFER_SIZE];     // Line to be executed. Zero-terminated.
 static char comment[LINE_BUFFER_SIZE];  // Line to be executed. Zero-terminated.
-// static uint8_t line_flags           = 0;
-// static uint8_t char_counter         = 0;
-// static uint8_t comment_char_counter = 0;
 
 // Spindle stop override control states.
 struct SpindleStopBits {
@@ -129,16 +130,62 @@ void polling_loop(void* unused) {
             vTaskDelay(100);
             continue;
         }
-        if (activeChannel) {
-            // Poll for realtime characters when waiting for the primary loop
-            // (in another thread) to pick up the line.
-            pollChannels();
-            continue;
-        }
 
-        // Polling without an argument both checks for realtime characters and
+        // Polling without an argument checks for realtime characters
+        // Polling with an argument both checks for realtime characters and
         // returns a line-oriented command if one is ready.
-        activeChannel = pollChannels(activeLine);
+        pollChannels();
+
+        // If activeChannel is non-null, it means that we have recieved a line
+        // but the task running protocol_main_loop() has not yet picked it up.
+        // activeChannel is thus a form of flow control between the protocol
+        // task that processes GCode lines and other events and this task that
+        // handles IO from channels.
+        if (!activeChannel) {
+            // Job channels have priority
+            if (!Job::active()) {
+                unwind_cause = nullptr;
+                // No job channel is active, so poll all of the serial-style
+                // channels to see if one has a line ready.
+                activeChannel = pollChannels(activeLine);
+            } else {
+                if (state_is(State::Alarm) || state_is(State::ConfigAlarm)) {
+                    log_debug("Unwinding from Alarm");
+                    Job::abort();
+                    unwind_cause = nullptr;
+                    continue;
+                }
+                if (unwind_cause) {
+                    Job::abort();
+                    unwind_cause = nullptr;
+                    continue;
+                }
+                // A job channel is active, so accept line-oriented input only
+                // from the job channel on top of the job stack.
+                auto channel = Job::channel();
+                auto status  = channel->pollLine(activeLine);
+                switch (status) {
+                    case Error::Ok:
+                        activeChannel = channel;
+                        break;
+                    case Error::NoData:
+                        break;
+                    case Error::Eof:
+                        _notifyf("Job done", "%s job sent", channel->name());
+                        log_info(channel->name() << " job sent");
+                        Job::unnest();
+                        break;
+                    default:
+                        if (Job::leader) {
+                            log_error_to(*Job::leader,
+                                         static_cast<int>(status) << " (" << errorString(status) << ") in " << channel->name()
+                                                                  << " at line " << channel->lineNumber());
+                        }
+                        Job::abort();
+                        break;
+                }
+            }
+        }
     }
 }
 
@@ -178,14 +225,49 @@ static void alarm_msg(ExecAlarm alarm_code) {
     delay_ms(500);  // Force delay to ensure message clears serial write buffer.
 }
 
-static void check_startup_state() {}
+#if 0
+// XXX This is not used!
+static void check_startup_state() {
+    // Check for and report alarm state after a reset, error, or an initial power up.
+    // NOTE: Sleep mode disables the stepper drivers and position can't be guaranteed.
+    // Re-initialize the sleep state as an ALARM mode to ensure user homes or acknowledges.
+    if (sys.state == State::ConfigAlarm) {
+        report_error_message(Message::ConfigAlarmLock);
+    } else {
+        // Perform some machine checks to make sure everything is good to go.
+        if (config->_start->_checkLimits && config->_axes->hasHardLimits()) {
+            if (limits_get_state()) {
+                sys.state = State::Alarm;  // Ensure alarm state is active.
+                report_error_message(Message::CheckLimits);
+            }
+        }
+        if (config->_control->startup_check()) {
+            send_alarm(ExecAlarm::ControlPin);
+        }
+
+        if (sys.state == State::Alarm || sys.state == State::Sleep) {
+            report_feedback_message(Message::AlarmLock);
+            sys.state = State::Alarm;  // Ensure alarm state is set.
+        } else {
+            // Wait for the safety door to close
+            sys.state = State::Idle;
+            while (config->_control->safety_door_ajar()) {
+                request_safety_door();
+                protocol_execute_realtime();  // Enter safety door mode. Should return as IDLE state.
+            }
+            protocol_run_startup_lines();
+        }
+    }
+}
+#endif
 
 const uint32_t heapWarnThreshold = 15000;
 
 uint32_t heapLowWater           = UINT_MAX;
 uint32_t heapLowWaterReported   = UINT_MAX;
 int32_t  heapLowWaterReportTime = 0;
-void     protocol_main_loop() {
+
+void protocol_main_loop() {
     start_polling();
 
     // ---------------------------------------------------------------------------------
@@ -195,11 +277,12 @@ void     protocol_main_loop() {
     for (;; vTaskDelay(0)) {
         if (activeChannel) {
             // The input polling task has collected a line of input
-#ifdef DEBUG_REPORT_ECHO_RAW_LINE_RECEIVED
-            report_echo_line_received(activeLine, *activeChannel);
-#endif
+            if (gcode_echo->get()) {
+                report_echo_line_received(activeLine, allChannels);
+            }
 
-            Error status_code = execute_line(activeLine, *activeChannel, WebUI::AuthenticationLevel::LEVEL_GUEST);
+            Channel* out_channel = Job::leader ? Job::leader : activeChannel;
+            Error    status_code = execute_line(activeLine, *out_channel, WebUI::AuthenticationLevel::LEVEL_GUEST);
 
             // Tell the channel that the line has been processed.
             // If the line was aborted, the channel could be invalid
@@ -273,8 +356,7 @@ void protocol_buffer_synchronize() {
 // Auto-cycle start triggers when there is a motion ready to execute and if the main program is not
 // actively parsing commands.
 // NOTE: This function is called from the main loop, buffer sync, and mc_move_motors() only and executes
-// when one of these conditions exist respectively: There are no more blocks sent (i.e. streaming
-// is finished, single commands), a command that needs to wait for the motions in the buffer to
+// when one of these conditions exist respectively: There are no more blocks sent (i.e. streaming// is finished, single commands), a command that needs to wait for the motions in the buffer to
 // execute calls a buffer sync, or the planner buffer is full and ready to go.
 void protocol_auto_cycle_start() {
     if (plan_get_current_block() != NULL && !state_is(State::Cycle) && !state_is(State::Hold)) {  // Check if there are any blocks in the buffer.
@@ -301,7 +383,8 @@ void protocol_execute_realtime() {
 }
 
 static void protocol_run_startup_lines() {
-    settings_execute_startup();  // Execute startup script.
+    config->_macros->_startup_line0.run(&allChannels);
+    config->_macros->_startup_line1.run(&allChannels);
 }
 
 static void protocol_do_restart() {
@@ -346,7 +429,7 @@ static void protocol_do_restart() {
         send_alarm(ExecAlarm::ControlPin);
     } else {
         if (state_is(State::Idle)) {
-            config->_macros->_after_reset.run();
+            config->_macros->_after_reset.run(&allChannels);
         }
     }
 }
@@ -753,9 +836,9 @@ static void protocol_do_late_reset() {
     // turn off all User I/O immediately
     config->_userOutputs->all_off();
 
-    // do we need to stop a running file job?
-    allChannels.stopJob();
     sys.abort = true;
+
+    unwind_cause = "Reset";
 }
 
 void protocol_exec_rt_system() {
@@ -806,7 +889,7 @@ static void protocol_manage_spindle() {
                     sys.step_control.updateSpindleSpeed = true;
                 } else {
                     config->_parking->restore_spindle();
-                    report_ovr_counter = 0;  // Set to report change immediately
+                    gc_ovr_changed();
                 }
             }
             if (spindle_stop_ovr.bit.restoreCycle) {
@@ -868,8 +951,8 @@ static void protocol_exec_rt_suspend() {
                         // Spindle and coolant should already be stopped, but do it again just to be sure.
                         spindle->spinDown();
                         config->_coolant->off();
-                        report_ovr_counter = 0;  // Set to report change immediately
-                        Stepper::go_idle();      // Stop stepping and maybe disable steppers
+                        gc_ovr_changed();
+                        Stepper::go_idle();  // Stop stepping and maybe disable steppers
                         while (!(sys.abort)) {
                             protocol_exec_rt_system();  // Do nothing until reset.
                         }
@@ -915,6 +998,7 @@ static void protocol_do_feed_override(void* incrementvp) {
     if (percent != sys.f_override) {
         sys.f_override = percent;
         update_velocities();
+        gc_ovr_changed();
     }
 }
 
@@ -923,6 +1007,7 @@ static void protocol_do_rapid_override(void* percentvp) {
     if (percent != sys.r_override) {
         sys.r_override = percent;
         update_velocities();
+        gc_ovr_changed();
     }
 }
 
@@ -942,13 +1027,13 @@ static void protocol_do_spindle_override(void* incrementvp) {
     if (percent != sys.spindle_speed_ovr) {
         sys.spindle_speed_ovr               = percent;
         sys.step_control.updateSpindleSpeed = true;
-        report_ovr_counter                  = 0;  // Set to report change immediately
+        gc_ovr_changed();
 
         // If spindle is on, tell it the RPM has been overridden
         // When moving, the override is handled by the stepping code
         if (gc_state.modal.spindle != SpindleState::Disable && !inMotionState()) {
             spindle->setState(gc_state.modal.spindle, gc_state.spindle_speed);
-            report_ovr_counter = 0;  // Set to report change immediately
+            gc_ovr_changed();
         }
     }
 }
@@ -963,7 +1048,7 @@ static void protocol_do_accessory_override(void* type) {
                 } else if (spindle_stop_ovr.bit.enabled) {
                     spindle_stop_ovr.bit.restore = true;
                 }
-                report_ovr_counter = 0;  // Set to report change immediately
+                gc_ovr_changed();
             }
             break;
         case AccessoryOverride::FloodToggle:
@@ -972,14 +1057,14 @@ static void protocol_do_accessory_override(void* type) {
             if (config->_coolant->hasFlood() && (state_is(State::Idle) || state_is(State::Cycle) || state_is(State::Hold))) {
                 gc_state.modal.coolant.Flood = !gc_state.modal.coolant.Flood;
                 config->_coolant->set_state(gc_state.modal.coolant);
-                report_ovr_counter = 0;  // Set to report change immediately
+                gc_ovr_changed();
             }
             break;
         case AccessoryOverride::MistToggle:
             if (config->_coolant->hasMist() && (state_is(State::Idle) || state_is(State::Cycle) || state_is(State::Hold))) {
                 gc_state.modal.coolant.Mist = !gc_state.modal.coolant.Mist;
                 config->_coolant->set_state(gc_state.modal.coolant);
-                report_ovr_counter = 0;  // Set to report change immediately
+                gc_ovr_changed();
             }
             break;
         default:

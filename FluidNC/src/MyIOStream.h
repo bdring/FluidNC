@@ -23,9 +23,7 @@ inline Print& operator<<(Print& lhs, const char* v) {
 }
 
 inline Print& operator<<(Print& lhs, const std::string_view& v) {
-    for (const char* p = v.cbegin(); p < v.cend(); ++p) {
-        lhs.print(*p);
-    }
+    lhs.write(reinterpret_cast<const uint8_t*>(v.data()), v.length());
     return lhs;
 }
 
@@ -73,7 +71,7 @@ class setprecision {
     int precision;
 
 public:
-    setprecision(int p) : precision(p) {}
+    explicit setprecision(int p) : precision(p) {}
 
     inline void Write(Print& stream, float f) const { stream.print(f, precision); }
     inline void Write(Print& stream, double d) const { stream.print(d, precision); }

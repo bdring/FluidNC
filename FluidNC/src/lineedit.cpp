@@ -14,17 +14,17 @@ void Lineedit::emit(char c) {
 }
 
 void Lineedit::echo_line() {
-    for (char* p = startaddr; p < endaddr; ++p) {
+    for (const char* p = startaddr; p < endaddr; ++p) {
         emit(*p);
     }
-    for (char* p = endaddr; p > thisaddr; --p) {
+    for (const char* p = endaddr; p > thisaddr; --p) {
         emit('\b');
     }
 }
 
 void Lineedit::addchar(char c, bool echo) {
-    char* p;
     if (thisaddr < maxaddr) {
+        char* p;
         if (endaddr < maxaddr)
             ++endaddr;
         for (p = endaddr; --p >= thisaddr + 1;) {
@@ -44,11 +44,11 @@ void Lineedit::addchar(char c, bool echo) {
 }
 
 void Lineedit::erase_char() {
-    char* p;
     if (thisaddr > startaddr) {
         --thisaddr;
         --endaddr;
         emit('\b');
+        char* p;
         for (p = thisaddr; p < endaddr; p++) {
             *p = *(p + 1);
             emit(*p);
@@ -134,11 +134,11 @@ bool Lineedit::already_in_history(char* adr, int len) {
 }
 
 void Lineedit::add_to_history(char* adr, int len) {
-    int i;
-    int new_length;
-
     validate_history();
     if (len && !already_in_history(adr, len)) {
+        int i;
+        int new_length;
+
         len += 1;  // Room for null
         new_length = (len > MAXHISTORY) ? MAXHISTORY : len;
 
@@ -161,9 +161,9 @@ void Lineedit::add_to_history(char* adr, int len) {
 // history_num is the number of the history line to fetch
 // returns true if that line exists.
 bool Lineedit::get_history(int history_num) {
-    int   i;
-    int   hn;
-    char* p;
+    int         i;
+    int         hn;
+    const char* p;
 
     validate_history();
 
@@ -237,7 +237,7 @@ void Lineedit::kill_forward() {
     *p = '\0';
 }
 void Lineedit::yank() {
-    for (char* p = killbuf; *p; ++p) {
+    for (const char* p = killbuf; *p; ++p) {
         addchar(*p);
     }
 }
@@ -267,7 +267,8 @@ void Lineedit::backward_word() {
 }
 
 #ifndef NO_COMPLETION
-bool Lineedit::isdelim(char* addr) {
+// cppcheck-suppress unusedFunction
+bool Lineedit::isdelim(const char* addr) {
     return (addr < startaddr) || (addr == endaddr) || is_word_delim(*addr);
 }
 
@@ -276,8 +277,8 @@ bool Lineedit::find_word_under_cursor() {
     if (startaddr == endaddr || *startaddr != '$') {
         return false;
     }
-    int   i    = 0;
-    char* addr = startaddr + 1;
+    int         i    = 0;
+    const char* addr = startaddr + 1;
     while (addr < thisaddr && i < (100 - 1)) {
         theWord[i++] = *addr++;
     }
@@ -290,7 +291,7 @@ bool Lineedit::find_word_under_cursor() {
     return true;
 }
 
-extern int num_initial_matches(char* key, int keylen, int matchnum, char* matchname);
+extern int num_initial_matches(const char* key, int keylen, int matchnum, char* matchname);
 
 void Lineedit::color(const char* s) {
     emit(0x1b);
@@ -360,7 +361,7 @@ void Lineedit::propose_word() {
     char name[100];
     name[0]         = '\0';
     int len         = strlen(theWord);
-    int nmatches    = num_initial_matches(theWord, len, thismatch, name);
+    nmatches        = num_initial_matches(theWord, len, thismatch, name);
     int newmatchlen = strlen(name);
 
     while (matchlen > len) {
@@ -391,7 +392,6 @@ void Lineedit::accept_word() {
 void Lineedit::restart() {
     needs_reecho = false;
     endaddr = thisaddr = startaddr;
-    endaddr            = startaddr;
     escaping           = 0;
     history_num        = -1;
 }
@@ -413,6 +413,7 @@ void Lineedit::show_realtime_command(const char* s) {
 
 // public
 
+// cppcheck-suppress unusedFunction
 int Lineedit::finish() {
     int length = (int)(endaddr - startaddr);
     add_to_history(startaddr, length);
@@ -427,6 +428,7 @@ int Lineedit::finish() {
 // of the line that is being collected.
 // Returns true if the character should be treated as realtime.
 
+// cppcheck-suppress unusedFunction
 bool Lineedit::realtime(int c) {
     if (!editing) {
         return true;
@@ -457,6 +459,7 @@ bool Lineedit::realtime(int c) {
 }
 
 // Returns true when the line is complete
+// cppcheck-suppress unusedFunction
 bool Lineedit::step(int c) {
     // Regardless of editing mode, ^L turns off editing/echoing
     if (c == CTRL('l')) {

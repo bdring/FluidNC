@@ -271,7 +271,7 @@ bool mc_dwell(int32_t milliseconds) {
         return false;
     }
     protocol_buffer_synchronize();
-    return delay_msec(milliseconds, DwellMode::Dwell);
+    return dwell_ms(milliseconds, DwellMode::Dwell);
 }
 
 volatile bool probing;

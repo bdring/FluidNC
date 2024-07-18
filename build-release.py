@@ -90,6 +90,13 @@ manifest = {
         "release_url": "https://github.com/bdring/FluidNC/releases/tag/" + tag,
         "funding_url": "https://www.paypal.com/donate/?hosted_button_id=8DYLB6ZYYDG7Y",
         "images": {},
+        "files": {},
+        "upload": {
+            "name": "upload",
+            "description": "Things you can upload to the file system",
+            "choice-name": "Upload group",
+            "choices": []
+        },
         "installable": {
             "name": "installable",
             "description": "Things you can install",
@@ -132,6 +139,34 @@ def addImage(name, offset, filename, srcpath, dstpath):
         print("Duplicate image name", name)
         sys.exit(1)
     manifest['images'][name] = image
+    # manifest['images'].append(image)
+
+def addFile(name, controllerpath, filename, srcpath, dstpath):
+    fulldstpath = os.path.join(manifestRelPath,os.path.normpath(dstpath))
+
+    os.makedirs(fulldstpath, exist_ok=True)
+
+    fulldstfile = os.path.join(fulldstpath, filename)
+
+    shutil.copy(os.path.join(srcpath, filename), fulldstfile)
+
+    print("file ", name)
+
+    with open(fulldstfile, "rb") as f:
+        data = f.read()
+    file = {
+        "size": os.path.getsize(fulldstfile),
+        "controller-path": controllerpath,
+        "path": dstpath + '/' + filename,
+        "signature": {
+            "algorithm": "SHA2-256",
+            "value": hashlib.sha256(data).hexdigest()
+        }
+    }
+    if manifest['files'].get(name) != None:
+        print("Duplicate file name", name)
+        sys.exit(1)
+    manifest['files'][name] = file
     # manifest['images'].append(image)
 
 flashsize = "4m"
@@ -202,6 +237,18 @@ def addInstallable(install_type, erase, images):
     }
     node2[node2len-1]['choices'].append(installable)
 
+def addUpload(name, description, files):
+    for file in files:
+        if manifest['files'].get(file) == None:
+            print("Missing file", file)
+            sys.exit(1)
+    upload = {
+        "name": name,
+        "description": description,
+        "files": files
+    }
+    manifest['upload']['choices'].append(upload)
+
 fresh_install = { "name": "fresh-install", "description": "Complete FluidNC installation, erasing all previous data"}
 firmware_update = { "name": "firmware-update", "description": "Update FluidNC to latest firmware version, preserving previous filesystem data."}
 filesystem_update = { "name": "filesystem-update", "description": "Update FluidNC filesystem only, erasing previous filesystem data."}
@@ -221,6 +268,11 @@ def makeManifest():
     addVariant("noradio", "Supports neither WiFi nor Bluetooth", "Installation type")
     addInstallable(fresh_install, True, ["esp32-4m-partitions", "esp32-bootloader", "esp32-bootapp", "esp32-noradio-firmware"])
     addInstallable(firmware_update, False, ["esp32-noradio-firmware"])
+
+    addFile("WebUI-2", "/localfs/index.html.gz", "index.html.gz", os.path.join("FluidNC", "data"), "data")
+    # addFile("WebUI-3", "/localfs/index.html.gz", "3index.html.gz", os.path.join("FluidNC", "data"), "data")
+
+    addUpload("WebUI generation 2", "Add WebUI to local filesystem", ["WebUI-2"])
 
 makeManifest()
 

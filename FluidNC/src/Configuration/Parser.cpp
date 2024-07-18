@@ -42,14 +42,18 @@ namespace Configuration {
     }
 
     // String values might have meaningful leading and trailing spaces so we avoid trimming the string (false)
+
+    // cppcheck-suppress unusedFunction
     std::string_view Parser::stringValue() const {
         return _token._value;
     }
 
+    // cppcheck-suppress unusedFunction
     bool Parser::boolValue() const {
         return string_util::equal_ignore_case(string_util::trim(_token._value), "true");
     }
 
+    // cppcheck-suppress unusedFunction
     int Parser::intValue() const {
         auto    value_token = string_util::trim(_token._value);
         int32_t int_value;
@@ -84,6 +88,7 @@ namespace Configuration {
         return 0;
     }
 
+    // cppcheck-suppress unusedFunction
     float Parser::floatValue() const {
         auto  token = string_util::trim(_token._value);
         float float_value;
@@ -94,6 +99,7 @@ namespace Configuration {
         return NAN;
     }
 
+    // cppcheck-suppress unusedFunction
     std::vector<speedEntry> Parser::speedEntryValue() const {
         auto str = string_util::trim(_token._value);
 
@@ -165,10 +171,12 @@ namespace Configuration {
         return values;
     }
 
+    // cppcheck-suppress unusedFunction
     Pin Parser::pinValue() const {
         return Pin::create(string_util::trim(_token._value));
     }
 
+    // cppcheck-suppress unusedFunction
     IPAddress Parser::ipValue() const {
         IPAddress ip;
         if (!ip.fromString(std::string(string_util::trim(_token._value)).c_str())) {
@@ -177,6 +185,7 @@ namespace Configuration {
         return ip;
     }
 
+    // cppcheck-suppress unusedFunction
     int Parser::enumValue(const EnumItem* e) const {
         auto token = string_util::trim(_token._value);
         for (; e->name; ++e) {
@@ -187,6 +196,7 @@ namespace Configuration {
         return e->value;  // Terminal value is default.
     }
 
+    // cppcheck-suppress unusedFunction
     void Parser::uartMode(UartData& wordLength, UartParity& parity, UartStop& stopBits) const {
         auto str = string_util::trim(_token._value);
         if (str.length() == 5 || str.length() == 3) {

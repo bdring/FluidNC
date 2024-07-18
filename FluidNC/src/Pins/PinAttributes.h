@@ -20,7 +20,7 @@ namespace Pins {
     class PinAttributes {
         uint32_t _value;
 
-        constexpr PinAttributes(const uint32_t value) : _value(value) {}
+        explicit constexpr PinAttributes(const uint32_t value) : _value(value) {}
 
     public:
         // Having a default constructor lets us use PinAttributes with std::map

@@ -6,6 +6,7 @@
 #include "Driver/fluidnc_i2c.h"
 #include "src/Logging.h"
 
+// cppcheck-suppress unusedFunction
 bool i2c_master_init(int bus_number, pinnum_t sda_pin, pinnum_t scl_pin, uint32_t frequency) {
     i2c_config_t conf = {
         .mode          = I2C_MODE_MASTER,
@@ -31,6 +32,7 @@ bool i2c_master_init(int bus_number, pinnum_t sda_pin, pinnum_t scl_pin, uint32_
     return false;
 }
 
+// cppcheck-suppress unusedFunction
 int i2c_write(int bus_number, uint8_t address, const uint8_t* data, size_t count) {
 #if 0
         esp_err_t        ret = ESP_FAIL;
@@ -72,6 +74,7 @@ int i2c_write(int bus_number, uint8_t address, const uint8_t* data, size_t count
 #endif
 }
 
+// cppcheck-suppress unusedFunction
 int i2c_read(int bus_number, uint8_t address, uint8_t* data, size_t count) {
     return i2c_master_read_from_device((i2c_port_t)bus_number, address, data, count, 10 / portTICK_RATE_MS) ? -1 : count;
 }

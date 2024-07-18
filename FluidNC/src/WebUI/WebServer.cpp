@@ -16,7 +16,6 @@
 #    include <WebSocketsServer.h>
 #    include <WiFi.h>
 #    include <WebServer.h>
-#    include <ESP32SSDP.h>
 #    include <StreamString.h>
 #    include <Update.h>
 #    include <esp_wifi_types.h>
@@ -87,7 +86,9 @@ namespace WebUI {
                                                    DEFAULT_HTTP_BLOCKED_DURING_MOTION,
                                                    &onoffOptions);
     }
-    Web_Server::~Web_Server() { end(); }
+    Web_Server::~Web_Server() {
+        end();
+    }
 
     bool Web_Server::begin() {
         bool no_error = true;
@@ -325,7 +326,9 @@ namespace WebUI {
         "interval=setInterval(function(){\ni=i+1; \nvar x = document.getElementById(\"prg\"); \nx.value=i; \nif (i>5) "
         "\n{\nclearInterval(interval);\nwindow.location.href='/';\n}\n},1000);\n</script>\n</CENTER>\n</BODY>\n</HTML>\n\n";
 
-    void Web_Server::sendCaptivePortal() { sendWithOurAddress(PAGE_CAPTIVE, 200); }
+    void Web_Server::sendCaptivePortal() {
+        sendWithOurAddress(PAGE_CAPTIVE, 200);
+    }
 
     //Default 404 page that is sent when a request cannot be satisfied
     const char PAGE_404[] =
@@ -335,7 +338,9 @@ namespace WebUI {
         "interval=setInterval(function(){\ni=i+1; \nvar x = document.getElementById(\"prg\"); \nx.value=i; \nif (i>5) "
         "\n{\nclearInterval(interval);\nwindow.location.href='/';\n}\n},1000);\n</script>\n</CENTER>\n</BODY>\n</HTML>\n\n";
 
-    void Web_Server::send404Page() { sendWithOurAddress(PAGE_404, 404); }
+    void Web_Server::send404Page() {
+        sendWithOurAddress(PAGE_404, 404);
+    }
 
     void Web_Server::handle_root() {
         log_info("WebUI: Request from " << _webserver->client().remoteIP());
@@ -393,27 +398,27 @@ namespace WebUI {
             _webserver->send(500);
             return;
         }
-        const char* templ = "<?xml version=\"1.0\"?>"
-                            "<root xmlns=\"urn:schemas-upnp-org:device-1-0\">"
-                            "<specVersion>"
-                            "<major>1</major>"
-                            "<minor>0</minor>"
-                            "</specVersion>"
-                            "<URLBase>http://%s:%u/</URLBase>"
-                            "<device>"
-                            "<deviceType>upnp:rootdevice</deviceType>"
-                            "<friendlyName>%s</friendlyName>"
-                            "<presentationURL>/</presentationURL>"
-                            "<serialNumber>%s</serialNumber>"
-                            "<modelName>ESP32</modelName>"
-                            "<modelNumber>Marlin</modelNumber>"
-                            "<modelURL>http://espressif.com/en/products/hardware/esp-wroom-32/overview</modelURL>"
-                            "<manufacturer>Espressif Systems</manufacturer>"
-                            "<manufacturerURL>http://espressif.com</manufacturerURL>"
-                            "<UDN>uuid:%s</UDN>"
-                            "</device>"
-                            "</root>\r\n"
-                            "\r\n";
+        const char*       templ = "<?xml version=\"1.0\"?>"
+                                  "<root xmlns=\"urn:schemas-upnp-org:device-1-0\">"
+                                  "<specVersion>"
+                                  "<major>1</major>"
+                                  "<minor>0</minor>"
+                                  "</specVersion>"
+                                  "<URLBase>http://%s:%u/</URLBase>"
+                                  "<device>"
+                                  "<deviceType>upnp:rootdevice</deviceType>"
+                                  "<friendlyName>%s</friendlyName>"
+                                  "<presentationURL>/</presentationURL>"
+                                  "<serialNumber>%s</serialNumber>"
+                                  "<modelName>ESP32</modelName>"
+                                  "<modelNumber>Marlin</modelNumber>"
+                                  "<modelURL>http://espressif.com/en/products/hardware/esp-wroom-32/overview</modelURL>"
+                                  "<manufacturer>Espressif Systems</manufacturer>"
+                                  "<manufacturerURL>http://espressif.com</manufacturerURL>"
+                                  "<UDN>uuid:%s</UDN>"
+                                  "</device>"
+                                  "</root>\r\n"
+                                  "\r\n";
         char              uuid[37];
         const std::string sip    = IP_string(WiFi.localIP());
         uint32_t          chipId = (uint16_t)(ESP.getEfuseMac() >> 32);
@@ -470,7 +475,7 @@ namespace WebUI {
 
             auto cmd = _webserver->arg("cmd");
             // [ESPXXX] commands expect data in the HTTP response
-            if (cmd.startsWith("[ESP")) {
+            if (cmd.startsWith("[ESP") || cmd.startsWith("$/")) {
                 synchronousCommand(cmd.c_str(), silent, auth_level);
             } else {
                 websocketCommand(cmd.c_str(), -1, auth_level);  // WebUI3 does not support PAGEID
@@ -687,14 +692,14 @@ namespace WebUI {
             uint32_t start_time = millis();
             while ((millis() - start_time) < timeout) {
                 _socket_server->loop();
-                delay(10);
+                delay_ms(10);
             }
 
             if (_socket_serverv3) {
                 start_time = millis();
                 while ((millis() - start_time) < timeout) {
                     _socket_serverv3->loop();
-                    delay(10);
+                    delay_ms(10);
                 }
             }
         }
@@ -772,10 +777,16 @@ namespace WebUI {
         sendJSON(code, s);
     }
 
-    void Web_Server::sendAuthFailed() { sendStatus(401, "Authentication failed"); }
+    void Web_Server::sendAuthFailed() {
+        sendStatus(401, "Authentication failed");
+    }
 
-    void Web_Server::LocalFSFileupload() { fileUpload(localfsName); }
-    void Web_Server::SDFileUpload() { fileUpload(sdName); }
+    void Web_Server::LocalFSFileupload() {
+        fileUpload(localfsName);
+    }
+    void Web_Server::SDFileUpload() {
+        fileUpload(sdName);
+    }
 
     //Web Update handler
     void Web_Server::handleUpdate() {
@@ -848,7 +859,7 @@ namespace WebUI {
                     //Upload write
                     //**************
                 } else if (upload.status == UPLOAD_FILE_WRITE) {
-                    vTaskDelay(1 / portTICK_RATE_MS);
+                    delay_ms(1);
                     //check if no error
                     if (_upload_status == UploadStatus::ONGOING) {
                         if (((100 * upload.totalSize) / maxSketchSpace) != last_upload_update) {
@@ -1021,8 +1032,12 @@ namespace WebUI {
         sendJSON(200, s);
     }
 
-    void Web_Server::handle_direct_SDFileList() { handleFileOps(sdName); }
-    void Web_Server::handleFileList() { handleFileOps(localfsName); }
+    void Web_Server::handle_direct_SDFileList() {
+        handleFileOps(sdName);
+    }
+    void Web_Server::handleFileList() {
+        handleFileOps(localfsName);
+    }
 
     // File upload
     void Web_Server::uploadStart(const char* filename, size_t filesize, const char* fs) {
@@ -1064,7 +1079,7 @@ namespace WebUI {
     }
 
     void Web_Server::uploadWrite(uint8_t* buffer, size_t length) {
-        vTaskDelay(1 / portTICK_RATE_MS);
+        delay_ms(1);
         if (_uploadFile && _upload_status == UploadStatus::ONGOING) {
             //no error write post data
             if (length != _uploadFile->write(buffer, length)) {

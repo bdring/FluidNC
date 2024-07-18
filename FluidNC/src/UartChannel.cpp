@@ -28,8 +28,6 @@ void UartChannel::init(Uart* uart) {
         log_info("uart_channel" << _uart_num << " created");
     }
     log_msg_to(*this, "RST");
-    // Give the extender a little time to process the command
-    //    delay(100);
 }
 
 size_t UartChannel::write(uint8_t c) {
@@ -92,7 +90,13 @@ bool UartChannel::lineComplete(char* line, char c) {
 }
 
 int UartChannel::read() {
-    return _uart->read();
+    int c = _uart->read();
+    if (c == 0x11) {
+        // 0x11 is XON.  If we receive that, it is a request to use software flow control
+        _uart->setSwFlowControl(true, -1, -1);
+        return -1;
+    }
+    return c;
 }
 
 void UartChannel::flushRx() {

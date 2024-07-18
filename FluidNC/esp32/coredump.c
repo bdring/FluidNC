@@ -15,17 +15,24 @@
 extern "C" {
 #endif
 
+// cppcheck-suppress unusedFunction
 void esp_core_dump_init(void) {}
 
+// cppcheck-suppress unusedFunction
 void esp_core_dump_flash_init(void) {}
+
+// cppcheck-suppress unusedFunction
 void esp_core_dump_to_flash(void* info) {}
 
+// cppcheck-suppress unusedFunction
 esp_err_t esp_core_dump_image_check(void) {
     return ESP_ERR_NOT_FOUND;
 }
+// cppcheck-suppress unusedFunction
 esp_err_t esp_core_dump_image_get(size_t* out_addr, size_t* out_size) {
     return ESP_ERR_NOT_FOUND;
 }
+// cppcheck-suppress unusedFunction
 esp_err_t esp_core_dump_image_erase(void) {
     return ESP_OK;
 }

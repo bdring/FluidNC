@@ -24,7 +24,7 @@
             static void runWrap() {                                                                                                        \
                 try {                                                                                                                      \
                     runDetail();                                                                                                           \
-                } catch (AssertionFailed ex) { TEST_FAIL_MESSAGE(ex.stackTrace.c_str()); } catch (...) {                                   \
+                } catch (AssertionFailed & ex) { TEST_FAIL_MESSAGE(ex.stackTrace.c_str()); } catch (...) {                                 \
                     TEST_FAIL_MESSAGE("Failed for unknown reason.");                                                                       \
                 }                                                                                                                          \
             }                                                                                                                              \
@@ -48,7 +48,7 @@ inline void PrintSerial(const char* format, ...) {
     size_t len = vsnprintf(NULL, 0, format, arg);
     auto   tmp = new char[len + 1];
     va_end(copy);
-    len = vsnprintf(tmp, len + 1, format, arg);
+    vsnprintf(tmp, len + 1, format, arg);
     Serial.println(tmp);
     va_end(arg);
     delete[] tmp;

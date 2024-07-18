@@ -51,19 +51,16 @@ const float INCH_PER_MM = (0.0393701f);
 #define bitnum_is_true(target, num) ((target & bitnum_to_mask(num)) != 0)
 #define bitnum_is_false(target, num) ((target & bitnum_to_mask(num)) == 0)
 
-// Read a floating point value from a string. Line points to the input buffer, char_counter
+// Read a floating point value from a string. Line points to the input buffer, pos
 // is the indexer pointing to the current character of the line, while float_ptr is
 // a pointer to the result variable. Returns true when it succeeds
-bool read_float(const char* line, size_t* char_counter, float* float_ptr);
-
-// Blocking delay for very short time intervals
-void delay_us(int32_t microseconds);
+bool read_float(const char* line, size_t* pos, float& result);
 
 // Delay while checking for realtime characters and other events
-bool delay_msec(uint32_t milliseconds, DwellMode mode = DwellMode::Dwell);
+bool dwell_ms(uint32_t milliseconds, DwellMode mode = DwellMode::Dwell);
 
 // Delay without checking for realtime events.  Use only for short delays
-void delay_ms(uint16_t ms);
+void delay_ms(uint32_t ms);
 
 // Computes hypotenuse, avoiding avr-gcc's bloated version and the extra error checking.
 float hypot_f(float x, float y);

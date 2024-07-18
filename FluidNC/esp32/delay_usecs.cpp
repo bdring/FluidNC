@@ -20,6 +20,7 @@
 uint32_t ticks_per_us;
 int      esp_clk_cpu_freq(void);
 
+// cppcheck-suppress unusedFunction
 void timing_init() {
     ticks_per_us = esp_clk_cpu_freq() / 1000000;
 }

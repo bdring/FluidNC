@@ -11,7 +11,7 @@ public:
     std::string stackTrace;
     std::string msg;
 
-    AssertionFailed(std::string st, std::string message) : stackTrace(st), msg(message) {}
+    AssertionFailed(const std::string& st, const std::string& message) : stackTrace(st), msg(message) {}
 
     static AssertionFailed create(const char* condition) { return create(condition, "Assertion failed"); }
     static AssertionFailed create(const char* condition, const char* msg, ...);

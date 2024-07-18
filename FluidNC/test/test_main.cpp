@@ -11,7 +11,7 @@ void test_blank() {
 }
 
 void setup() {
-    delay(500); // Let's give it some time first, in case it triggers a reboot.
+    delay_ms(500);  // Let's give it some time first, in case it triggers a reboot.
 
     UNITY_BEGIN();
 

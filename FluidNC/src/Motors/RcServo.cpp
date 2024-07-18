@@ -23,8 +23,6 @@
 #include "../Limits.h"  // limitsMaxPosition
 #include "RcServoSettings.h"
 
-#include <freertos/task.h>  // vTaskDelay
-
 namespace MotorDrivers {
     // RcServo::RcServo(Pin pwm_pin) : Servo(), _pwm_pin(pwm_pin) {}
 
@@ -84,19 +82,23 @@ namespace MotorDrivers {
             return false;
 
         if (isHoming) {
-            auto axis = config->_axes->_axis[_axis_index];
-            set_motor_steps(_axis_index, mpos_to_steps(axis->_homing->_mpos, _axis_index));
+            auto axisConfig = config->_axes->_axis[_axis_index];
+            auto homing     = axisConfig->_homing;
+            auto mpos       = homing ? homing->_mpos : 0;
+            set_motor_steps(_axis_index, mpos_to_steps(mpos, _axis_index));
 
-            float home_time_sec = (axis->_maxTravel / axis->_maxRate * 60 * 1.1);  // 1.1 fudge factor for accell time.
+            float home_time_sec = (axisConfig->_maxTravel / axisConfig->_maxRate * 60 * 1.1);  // 1.1 fudge factor for accell time.
 
             _disabled = false;
-            set_location();                    // force the PWM to update now
-            vTaskDelay(home_time_sec * 1000);  // give time to move
+            set_location();                                         // force the PWM to update now
+            dwell_ms(home_time_sec * 1000, DwellMode::SysSuspend);  // give time to move
         }
         return false;  // Cannot be homed in the conventional way
     }
 
-    void RcServo::update() { set_location(); }
+    void RcServo::update() {
+        set_location();
+    }
 
     void RcServo::set_location() {
         if (_disabled || _has_errors) {

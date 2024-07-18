@@ -36,8 +36,8 @@ public:
 
     size_t write(uint8_t data) override;
 
-    Channel* pollLine(char* line) override;
-    void     flushRx() override {}
+    Error pollLine(char* line) override;
+    void  flushRx() override {}
 
     bool   lineComplete(char*, char) override { return false; }
     size_t timedReadBytes(char* buffer, size_t length, TickType_t timeout) override { return 0; }

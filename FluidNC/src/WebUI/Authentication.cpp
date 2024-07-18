@@ -40,6 +40,9 @@ namespace WebUI {
         }
     }
 #else
-    void remove_password(char* str, AuthenticationLevel& auth_level) { auth_level = AuthenticationLevel::LEVEL_ADMIN; }
+    // cppcheck-suppress unusedFunction
+    void remove_password(char* str, AuthenticationLevel& auth_level) {
+        auth_level = AuthenticationLevel::LEVEL_ADMIN;
+    }
 #endif
 }

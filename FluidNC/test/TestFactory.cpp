@@ -5,15 +5,14 @@
 
 #ifdef ESP32
 
-#include "unity.h"
-#include <cstdio>
+#    include "unity.h"
+#    include <cstdio>
 
 void TestFactory::runAll() {
-    int index = 0;
-    auto        current = first;
-    const char* prev = nullptr;
+    int  i       = 0;
+    auto current = first;
     while (current) {
-        ++index;
+        ++i;
         auto curTestName = current->unitTestName();
         auto curTestCase = current->unitTestCase();
 
@@ -21,7 +20,7 @@ void TestFactory::runAll() {
         snprintf(fullName, 80, "%s:%s", curTestName, curTestCase);
 
         auto function = current->getFunction();
-        UnityDefaultTestRun(function, fullName, index);
+        UnityDefaultTestRun(function, fullName, i);
 
         current = current->next;
     }

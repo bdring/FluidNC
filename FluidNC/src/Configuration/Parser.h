@@ -19,7 +19,7 @@ namespace Configuration {
         void parseError(const char* description) const;
 
     public:
-        Parser(std::string_view yaml_string);
+        explicit Parser(std::string_view yaml_string);
 
         bool is(const char* expected);
 
