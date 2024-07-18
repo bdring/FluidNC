@@ -78,7 +78,7 @@ namespace Spindles {
         _speeds[i].scale  = scaler;
     }
 
-    void Spindle::afterParse() {
+    void Spindle::afterParse() {        
         if (_speeds.size() && !maxSpeed()) {
             log_error("Speed map max speed is 0. Using default");
             _speeds.clear();

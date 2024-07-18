@@ -6,6 +6,7 @@
 #include <cstdint>
 
 #include "../SpindleDatatypes.h"
+#include "../Machine/Macros.h"
 
 #include "../Configuration/Configurable.h"
 #include "../Configuration/GenericFactory.h"
@@ -70,6 +71,8 @@ namespace Spindles {
 
         bool _off_on_alarm = false;
 
+        Macro _m6_macro;
+
         // Name is required for the configuration factory to work.
         virtual const char* name() const = 0;
 
@@ -88,6 +91,7 @@ namespace Spindles {
             handler.item("tool_num", _tool, 0, MaxToolNumber);
             handler.item("speed_map", _speeds);
             handler.item("off_on_alarm", _off_on_alarm);
+            handler.item("m6_macro", _m6_macro);
         }
 
         // Virtual base classes require a virtual destructor.

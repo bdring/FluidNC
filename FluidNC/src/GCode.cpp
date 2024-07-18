@@ -1810,7 +1810,15 @@ void gc_exec_linef(bool sync_after, Channel& out, const char* format, ...) {
 
 void WEAK_LINK user_m30() {}
 
+// Do we still need "WEAK_LINK"
 void WEAK_LINK user_tool_change(uint32_t new_tool) {
+    // switch spindle first
+    Spindles::Spindle::switchSpindle(new_tool, config->_spindles, spindle);
+
+    // if there is an m6 macro, then run it and quit
+    if (spindle->_m6_macro.run(&allChannels))
+        return;
+
     if (config->_tool_changer) {
         config->_tool_changer->tool_change(new_tool, false);
     } else {
