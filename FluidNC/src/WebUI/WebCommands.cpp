@@ -14,7 +14,7 @@
 #include "src/Uart.h"    // Uart0.baud
 #include "src/Report.h"  // git_info
 
-#include <ESP.h>
+#include <Esp.h>
 
 #include <sstream>
 #include <iomanip>
