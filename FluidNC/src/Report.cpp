@@ -28,8 +28,6 @@
 #include "Stepper.h"                     // step_count
 #include "Platform.h"                    // WEAK_LINK
 #include "WebUI/NotificationsService.h"  // WebUI::notificationsService
-#include "WebUI/WifiConfig.h"            // wifi_config
-#include "WebUI/WebCommands.h"
 #include "InputFile.h"
 #include "Job.h"
 

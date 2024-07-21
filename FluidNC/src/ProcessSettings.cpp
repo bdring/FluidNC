@@ -11,8 +11,6 @@
 #include "Machine/Axes.h"
 #include "Regex.h"
 #include "WebUI/Authentication.h"
-#include "WebUI/WifiConfig.h"
-#include "WebUI/WebCommands.h"  // make_web_commands()
 #include "Report.h"
 #include "MotionControl.h"
 #include "System.h"
@@ -175,8 +173,6 @@ extern void make_user_commands();
 void settings_init() {
     make_settings();
     make_file_commands();
-    WebUI::make_web_commands();
-    load_settings();
 }
 
 static Error show_help(const char* value, AuthenticationLevel auth_level, Channel& out) {

@@ -2,18 +2,23 @@
 // Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
 
 #include "src/Module.h"
-#include "WifiConfig.h"
+#include "Mdns.h"
+#include <WiFi.h>
 #include <ESPmDNS.h>
 
 namespace WebUI {
+    EnumSetting* mdns_enable;
+
     class Mdns : public Module {
     public:
-        Mdns() : Module("mdns") { printf("Instantiate MDNS\n"); }
+        Mdns() : Module("mdns") {}
 
         void init() override {
+            mdns_enable = new EnumSetting("mDNS enable", WEBSET, WA, NULL, "MDNS/Enable", true, &onoffOptions);
+
             printf("*** Mdns init\n");
-            if (WiFi.getMode() == WIFI_STA && WebUI::wifi_sta_ssdp->get()) {
-                const char* h = WebUI::wifi_hostname->get();
+            if (WiFi.getMode() == WIFI_STA && WebUI::mdns_enable->get()) {
+                const char* h = WiFi.getHostname();
                 if (!MDNS.begin(h)) {
                     log_info("Cannot start mDNS");
                 } else {

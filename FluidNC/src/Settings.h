@@ -53,6 +53,9 @@ typedef enum : uint8_t {
     WEBCMD,    // ESP3D_WebUI commands that are not directly settings
 } type_t;
 
+bool get_param(const char* parameter, const char* key, std::string& s);
+bool paramIsJSON(const char* cmd_params);
+
 typedef enum : uint8_t {
     WG,  // Readable and writable as guest
     WU,  // Readable and writable as user and admin

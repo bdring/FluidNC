@@ -20,10 +20,8 @@
 #    include "StartupLog.h"
 #    include "Module.h"
 
-#    include "WebUI/TelnetServer.h"
-
-#    include "WebUI/WifiConfig.h"
 #    include "Driver/localfs.h"
+#    include "esp32-hal.h"  // disableCore0WDT
 
 extern void make_user_commands();
 

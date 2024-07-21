@@ -12,10 +12,9 @@
 // - https://github.com/CosmicBoris/ESP8266SMTP
 // - https://www.electronicshub.org/send-an-email-using-esp8266/
 
+#include "src/Settings.h"
 #include "NotificationsService.h"
 
-#include "WebCommands.h"  // get_param()
-#include "WifiConfig.h"   // WiFiConfig::Hostname()
 #include "src/Machine/MachineConfig.h"
 
 #include <WiFiClientSecure.h>
@@ -122,30 +121,6 @@ namespace WebUI {
         _token1           = "";
         _token1           = "";
         _settings         = "";
-
-        new WebCommand(
-            "TYPE=NONE|PUSHOVER|EMAIL|LINE T1=token1 T2=token2 TS=settings", WEBCMD, WA, "ESP610", "Notification/Setup", showSetNotification);
-        notification_ts = new StringSetting(
-            "Notification Settings", WEBSET, WA, NULL, "Notification/TS", DEFAULT_TOKEN, 0, MAX_NOTIFICATION_SETTING_LENGTH);
-        notification_t2 = new StringSetting("Notification Token 2",
-                                            WEBSET,
-                                            WA,
-                                            NULL,
-                                            "Notification/T2",
-                                            DEFAULT_TOKEN,
-                                            MIN_NOTIFICATION_TOKEN_LENGTH,
-                                            MAX_NOTIFICATION_TOKEN_LENGTH);
-        notification_t1 = new StringSetting("Notification Token 1",
-                                            WEBSET,
-                                            WA,
-                                            NULL,
-                                            "Notification/T1",
-                                            DEFAULT_TOKEN,
-                                            MIN_NOTIFICATION_TOKEN_LENGTH,
-                                            MAX_NOTIFICATION_TOKEN_LENGTH);
-        notification_type =
-            new EnumSetting("Notification type", WEBSET, WA, NULL, "Notification/Type", DEFAULT_NOTIFICATION_TYPE, &notificationOptions);
-        new WebCommand("message", WEBCMD, WU, "ESP600", "Notification/Send", sendMessage);
     }
 
     bool Wait4Answer(WiFiClientSecure& client, const char* linetrigger, const char* expected_answer, uint32_t timeout) {
@@ -236,7 +211,7 @@ namespace WebUI {
         data += "&message=";
         data += message;
         data += "&device=";
-        data += WiFiConfig::Hostname();
+        data += WiFi.getHostname();
         //build post query
         postcmd = "POST /1/messages.json HTTP/1.1\r\nHost: api.pushover.net\r\nConnection: close\r\nCache-Control: no-cache\r\nUser-Agent: "
                   "ESP3D\r\nAccept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8\r\nContent-Length: ";
@@ -393,6 +368,31 @@ namespace WebUI {
 
     void NotificationsService::init() {
         deinit();
+
+        new WebCommand(
+            "TYPE=NONE|PUSHOVER|EMAIL|LINE T1=token1 T2=token2 TS=settings", WEBCMD, WA, "ESP610", "Notification/Setup", showSetNotification);
+        notification_ts = new StringSetting(
+            "Notification Settings", WEBSET, WA, NULL, "Notification/TS", DEFAULT_TOKEN, 0, MAX_NOTIFICATION_SETTING_LENGTH);
+        notification_t2 = new StringSetting("Notification Token 2",
+                                            WEBSET,
+                                            WA,
+                                            NULL,
+                                            "Notification/T2",
+                                            DEFAULT_TOKEN,
+                                            MIN_NOTIFICATION_TOKEN_LENGTH,
+                                            MAX_NOTIFICATION_TOKEN_LENGTH);
+        notification_t1 = new StringSetting("Notification Token 1",
+                                            WEBSET,
+                                            WA,
+                                            NULL,
+                                            "Notification/T1",
+                                            DEFAULT_TOKEN,
+                                            MIN_NOTIFICATION_TOKEN_LENGTH,
+                                            MAX_NOTIFICATION_TOKEN_LENGTH);
+        notification_type =
+            new EnumSetting("Notification type", WEBSET, WA, NULL, "Notification/Type", DEFAULT_NOTIFICATION_TYPE, &notificationOptions);
+        new WebCommand("message", WEBCMD, WU, "ESP600", "Notification/Send", sendMessage);
+
         _notificationType = notification_type->get();
         switch (_notificationType) {
             case 0:  //no notification = no error but no start

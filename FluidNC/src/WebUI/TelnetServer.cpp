@@ -4,11 +4,8 @@
 #include "src/Machine/MachineConfig.h"
 #include "TelnetClient.h"
 #include "TelnetServer.h"
-#include "WebCommands.h"
 
-#include "WifiServices.h"
-
-#include "WifiConfig.h"
+#include "Mdns.h"
 #include "src/Report.h"  // report_init_message()
 
 #include <WiFi.h>
@@ -22,15 +19,15 @@ namespace WebUI {
 
     std::queue<TelnetClient*> TelnetServer::_disconnected;
 
-    TelnetServer::TelnetServer() : Module("telnet") {
+    TelnetServer::TelnetServer() : Module("telnet") {}
+
+    void TelnetServer::init() {
+        deinit();
+
         telnet_port =
             new IntSetting("Telnet Port", WEBSET, WA, "ESP131", "Telnet/Port", DEFAULT_TELNETSERVER_PORT, MIN_TELNET_PORT, MAX_TELNET_PORT);
 
         telnet_enable = new EnumSetting("Telnet Enable", WEBSET, WA, "ESP130", "Telnet/Enable", DEFAULT_TELNET_STATE, &onoffOptions);
-    }
-
-    void TelnetServer::init() {
-        deinit();
 
         if (!WebUI::telnet_enable->get()) {
             return;
@@ -46,7 +43,7 @@ namespace WebUI {
         _setupdone = true;
 
         //add mDNS
-        if (WebUI::wifi_sta_ssdp->get()) {
+        if (WebUI::mdns_enable->get()) {
             MDNS.addService("telnet", "tcp", _port);
         }
     }

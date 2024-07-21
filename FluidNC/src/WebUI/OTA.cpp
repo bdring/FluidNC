@@ -4,7 +4,6 @@
 #include "src/Module.h"
 
 #include "src/Logging.h"
-#include "src/WebUI/WifiConfig.h"
 #include <WiFi.h>
 #include "Driver/localfs.h"
 #include <ArduinoOTA.h>

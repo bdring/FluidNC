@@ -4,8 +4,6 @@
 #include "TelnetClient.h"
 #include "TelnetServer.h"
 
-#include "WifiServices.h"
-
 #include <WiFi.h>
 
 namespace WebUI {

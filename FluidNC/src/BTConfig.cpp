@@ -7,7 +7,6 @@
 #include "src/Report.h"  // CLIENT_*
 #include "src/Channel.h"
 #include "src/Logging.h"
-#include "src/WebUI/WebCommands.h"
 
 #include "esp_bt.h"
 #include "esp_bt_main.h"

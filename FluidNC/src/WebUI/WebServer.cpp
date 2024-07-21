@@ -5,10 +5,9 @@
 #include "src/Serial.h"    // is_realtime_command()
 #include "src/Settings.h"  // settings_execute_line()
 
-#include "WifiServices.h"
-#include "WifiConfig.h"  // WiFiConfig::
-
 #include "WebServer.h"
+
+#include "Mdns.h"  // mdns_enable
 
 #include <WebSocketsServer.h>
 #include <WiFi.h>
@@ -17,9 +16,8 @@
 #include <Update.h>
 #include <esp_wifi_types.h>
 #include <ESPmDNS.h>
-#include <ESP32SSDP.h>
+// #include <ESP32SSDP.h>
 #include <DNSServer.h>
-#include "WebCommands.h"
 
 #include "WSChannel.h"
 
@@ -71,7 +69,12 @@ namespace WebUI {
     EnumSetting *http_enable, *http_block_during_motion;
     IntSetting*  http_port;
 
-    Web_Server::Web_Server() : Module("web_server") {
+    Web_Server::Web_Server() : Module("web_server") {}
+    Web_Server::~Web_Server() {
+        deinit();
+    }
+
+    void Web_Server::init() {
         http_port   = new IntSetting("HTTP Port", WEBSET, WA, "ESP121", "HTTP/Port", DEFAULT_HTTP_PORT, MIN_HTTP_PORT, MAX_HTTP_PORT);
         http_enable = new EnumSetting("HTTP Enable", WEBSET, WA, "ESP120", "HTTP/Enable", DEFAULT_HTTP_STATE, &onoffOptions);
         http_block_during_motion = new EnumSetting("Block serving HTTP content during motion",
@@ -81,18 +84,13 @@ namespace WebUI {
                                                    "HTTP/BlockDuringMotion",
                                                    DEFAULT_HTTP_BLOCKED_DURING_MOTION,
                                                    &onoffOptions);
-    }
-    Web_Server::~Web_Server() {
-        deinit();
-    }
 
-    void Web_Server::init() {
         _setupdone = false;
 
-        if (!WebUI::http_enable->get()) {
+        if (!http_enable->get()) {
             return;
         }
-        _port = WebUI::http_port->get();
+        _port = http_port->get();
 
         //create instance
         printf("**** creating Arduino WebServer\n");
@@ -159,13 +157,15 @@ namespace WebUI {
             _webserver->on("/fwlink/", HTTP_ANY, handle_root);
         }
 
+#if 0
         //SSDP service presentation
-        if (WiFi.getMode() == WIFI_STA && WebUI::wifi_sta_ssdp->get()) {
+        if (WiFi.getMode() == WIFI_STA && WebUI::mdns_enable->get()) {
             _webserver->on("/description.xml", HTTP_GET, handle_SSDP);
             //Add specific for SSDP
             SSDP.setSchemaURL("description.xml");
             SSDP.setHTTPPort(_port);
-            SSDP.setName(WiFiConfig::Hostname().c_str());
+            printf("*** Hostname %s\n", WiFi.getHostname());
+            SSDP.setName(WiFi.getHostname());
             SSDP.setURL("/");
             SSDP.setDeviceType("upnp:rootdevice");
             /*Any customization could be here
@@ -180,13 +180,14 @@ namespace WebUI {
             log_info("SSDP Started");
             SSDP.begin();
         }
+#endif
 
         log_info("HTTP started on port " << WebUI::http_port->get());
         //start webserver
         _webserver->begin();
 
         //add mDNS
-        if (WiFi.getMode() == WIFI_STA && WebUI::wifi_sta_ssdp->get()) {
+        if (WiFi.getMode() == WIFI_STA && WebUI::mdns_enable->get()) {
             MDNS.addService("http", "tcp", _port);
         }
 
@@ -198,7 +199,7 @@ namespace WebUI {
     void Web_Server::deinit() {
         _setupdone = false;
 
-        SSDP.end();
+        //        SSDP.end();
 
         //remove mDNS
         mdns_service_remove("_http", "_tcp");
@@ -386,6 +387,7 @@ namespace WebUI {
         send404Page();
     }
 
+#if 0
     //http SSDP xml presentation
     void Web_Server::handle_SSDP() {
         StreamString sschema;
@@ -404,7 +406,7 @@ namespace WebUI {
                                   "<deviceType>upnp:rootdevice</deviceType>"
                                   "<friendlyName>%s</friendlyName>"
                                   "<presentationURL>/</presentationURL>"
-                                  "<serialNumber>%s</serialNumber>"
+                                  "<serialNumber>%u</serialNumber>"
                                   "<modelName>ESP32</modelName>"
                                   "<modelNumber>Marlin</modelNumber>"
                                   "<modelURL>http://espressif.com/en/products/hardware/esp-wroom-32/overview</modelURL>"
@@ -422,10 +424,10 @@ namespace WebUI {
                 (uint16_t)((chipId >> 16) & 0xff),
                 (uint16_t)((chipId >> 8) & 0xff),
                 (uint16_t)chipId & 0xff);
-        const std::string serialNumber = std::to_string(chipId);
-        sschema.printf(templ, sip, _port, WiFiConfig::Hostname(), serialNumber, uuid);
+        sschema.printf(templ, sip.c_str(), _port, WiFi.getHostname(), chipId, uuid);
         _webserver->send(200, "text/xml", sschema);
     }
+#endif
 
     // WebUI sends a PAGEID arg to identify the websocket it is using
     int Web_Server::getPageid() {
