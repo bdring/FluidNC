@@ -906,19 +906,22 @@ namespace WebUI {
             return;
         }
 
-        // Handle deletions and directory creation
+        // Handle renames, deletions and directory creation
         if (_webserver->hasArg("action") && _webserver->hasArg("filename")) {
-            std::string action(_webserver->arg("action").c_str());
+            std::string action = std::string(_webserver->arg("action").c_str());
             std::string filename = std::string(_webserver->arg("filename").c_str());
             if (action == "delete") {
                 log_debug("Deleting " << fpath << " / " << filename);
-                if (stdfs::remove(fpath / filename, ec)) {
-                    fpath.rehash_fs();
+                if (stdfs::remove(fpath / filename.c_str(), ec)) {
                     sstatus = filename + " deleted";
                 } else {
                     sstatus = "Cannot delete ";
                     sstatus += filename + " " + ec.message();
                 }
+            } else if (action == "rename") {
+                std::string newname = std::string(_webserver->arg("newname").c_str());
+                stdfs::rename(fpath / filename.c_str(), fpath / newname.c_str(), ec);
+                sstatus = filename + " renamed to " + newname + " "+ ec.message();
             } else if (action == "deletedir") {
                 if (stdfs::remove_all(fpath / filename.c_str(), ec)) {
                     sstatus = filename + " deleted";
@@ -927,13 +930,14 @@ namespace WebUI {
                     sstatus += filename + " " + ec.message();
                 }
             } else if (action == "createdir") {
-                if (stdfs::create_directory(fpath / filename, ec)) {
+                if (stdfs::create_directory(fpath / filename.c_str(), ec)) {
                     sstatus = filename + " created";
                 } else {
                     sstatus = "Cannot create ";
                     sstatus += filename + " " + ec.message();
                 }
             }
+            fpath.rehash_fs();
         }
 
         //check if no need build file list
