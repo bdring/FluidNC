@@ -1088,7 +1088,7 @@ static void protocol_do_limit(void* arg) {
     log_debug("Limit switch tripped for " << config->_axes->axisName(limit->_axis) << " motor " << limit->_motorNum);
 }
 static void protocol_do_fault_pin(void* arg) {
-    if (state_is(State::Cycle) || state_is(State::Jog) || state_is(State::Idle) || state_is(State::Hold) || state_is(State::SafetyDoor)) {
+    if (inMotionState() || state_is(State::Idle) || state_is(State::Hold) || state_is(State::SafetyDoor)) {
         mc_critical(ExecAlarm::HardStop);  // Initiate system kill.
     }
     ControlPin* pin = (ControlPin*)arg;
