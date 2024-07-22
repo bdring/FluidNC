@@ -1,6 +1,6 @@
 // Copyright (c) 2014 Luc Lebosse. All rights reserved.
 // Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
-#include <ESPmDNS.h>
+// #include <ESPmDNS.h>
 #include "src/Machine/MachineConfig.h"
 #include "TelnetClient.h"
 #include "TelnetServer.h"
@@ -42,10 +42,7 @@ namespace WebUI {
         _wifiServer->begin();
         _setupdone = true;
 
-        //add mDNS
-        if (WebUI::mdns_enable->get()) {
-            MDNS.addService("telnet", "tcp", _port);
-        }
+        Mdns::add("telnet", "tcp", _port);
     }
 
     void TelnetServer::deinit() {
@@ -56,7 +53,7 @@ namespace WebUI {
         }
 
         //remove mDNS
-        mdns_service_remove("_telnet", "_tcp");
+        Mdns::remove("_telnet", "_tcp");
     }
 
     void TelnetServer::poll() {

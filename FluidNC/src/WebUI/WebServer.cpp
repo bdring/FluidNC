@@ -7,7 +7,7 @@
 
 #include "WebServer.h"
 
-#include "Mdns.h"  // mdns_enable
+#include "Mdns.h"
 
 #include <WebSocketsServer.h>
 #include <WiFi.h>
@@ -15,7 +15,6 @@
 #include <StreamString.h>
 #include <Update.h>
 #include <esp_wifi_types.h>
-#include <ESPmDNS.h>
 // #include <ESP32SSDP.h>
 #include <DNSServer.h>
 
@@ -93,7 +92,6 @@ namespace WebUI {
         _port = http_port->get();
 
         //create instance
-        printf("**** creating Arduino WebServer\n");
         _webserver = new WebServer(_port);
 #ifdef ENABLE_AUTHENTICATION
         //here the list of headers to be recorded
@@ -164,7 +162,6 @@ namespace WebUI {
             //Add specific for SSDP
             SSDP.setSchemaURL("description.xml");
             SSDP.setHTTPPort(_port);
-            printf("*** Hostname %s\n", WiFi.getHostname());
             SSDP.setName(WiFi.getHostname());
             SSDP.setURL("/");
             SSDP.setDeviceType("upnp:rootdevice");
@@ -186,10 +183,7 @@ namespace WebUI {
         //start webserver
         _webserver->begin();
 
-        //add mDNS
-        if (WiFi.getMode() == WIFI_STA && WebUI::mdns_enable->get()) {
-            MDNS.addService("http", "tcp", _port);
-        }
+        Mdns::add("_http", "_tcp", _port);
 
         HashFS::hash_all();
 
@@ -201,8 +195,7 @@ namespace WebUI {
 
         //        SSDP.end();
 
-        //remove mDNS
-        mdns_service_remove("_http", "_tcp");
+        Mdns::remove("_http", "_tcp");
 
         if (_socket_server) {
             delete _socket_server;

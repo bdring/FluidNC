@@ -3,7 +3,19 @@
 
 #pragma once
 #include "src/Settings.h"
+#include "esp_wifi.h"
+#include <mdns.h>
 
 namespace WebUI {
-    extern EnumSetting* mdns_enable;
+    class Mdns : public Module {
+        static EnumSetting* _enable;
+
+    public:
+        Mdns();
+        void        init() override;
+        void        deinit() override;
+        static void add(const char* service, const char* proto, int port);
+        static void remove(const char* service, const char* proto);
+        ~Mdns() {}
+    };
 }

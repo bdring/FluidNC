@@ -4,32 +4,42 @@
 #include "src/Module.h"
 #include "Mdns.h"
 #include <WiFi.h>
-#include <ESPmDNS.h>
 
 namespace WebUI {
-    EnumSetting* mdns_enable;
+    EnumSetting* Mdns::_enable;
 
-    class Mdns : public Module {
-    public:
-        Mdns() : Module("mdns") {}
+    Mdns::Mdns() : Module("mdns") {}
 
-        void init() override {
-            mdns_enable = new EnumSetting("mDNS enable", WEBSET, WA, NULL, "MDNS/Enable", true, &onoffOptions);
+    void Mdns::init() {
+        _enable = new EnumSetting("mDNS enable", WEBSET, WA, NULL, "MDNS/Enable", true, &onoffOptions);
 
-            printf("*** Mdns init\n");
-            if (WiFi.getMode() == WIFI_STA && WebUI::mdns_enable->get()) {
-                const char* h = WiFi.getHostname();
-                if (!MDNS.begin(h)) {
-                    log_info("Cannot start mDNS");
-                } else {
-                    log_info("Start mDNS with hostname:http://" << h << ".local/");
-                }
+        if (WiFi.getMode() == WIFI_STA && _enable->get()) {
+            if (mdns_init()) {
+                log_error("Cannot start mDNS");
+                return;
             }
+            const char* h = WiFi.getHostname();
+            if (mdns_hostname_set(h)) {
+                log_error("Cannot set mDNS hostname to " << h);
+                return;
+            }
+            log_info("Start mDNS with hostname:http://" << h << ".local/");
         }
+    }
 
-        void deinit() override { MDNS.end(); }
-        ~Mdns() {}
-    };
+    void Mdns::deinit() {
+        mdns_free();
+    }
+    void Mdns::add(const char* service, const char* proto, int port) {
+        if (WiFi.getMode() == WIFI_STA && _enable->get()) {
+            mdns_service_add(NULL, service, proto, port, NULL, 0);
+        }
+    }
+    void Mdns::remove(const char* service, const char* proto) {
+        if (WiFi.getMode() == WIFI_STA && _enable->get()) {
+            mdns_service_remove(service, proto);
+        }
+    }
 
     ModuleFactory::InstanceBuilder<Mdns> __attribute__((init_priority(107))) mdns_module("mdns", true);
 }
