@@ -21,7 +21,7 @@ private:
     void parse_status_report();
 
 public:
-    Status_Outputs() : Channel("status_outputs"), Module("status_outputs") {}
+    Status_Outputs(const char* name) : Channel(name), Module(name) {}
 
     Status_Outputs(const Status_Outputs&)            = delete;
     Status_Outputs(Status_Outputs&&)                 = delete;

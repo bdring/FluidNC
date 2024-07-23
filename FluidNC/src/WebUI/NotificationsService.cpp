@@ -115,14 +115,6 @@ namespace WebUI {
         return Error::Ok;
     }
 
-    NotificationsService::NotificationsService() : Module("notifications") {
-        _started          = false;
-        _notificationType = 0;
-        _token1           = "";
-        _token1           = "";
-        _settings         = "";
-    }
-
     bool Wait4Answer(WiFiClientSecure& client, const char* linetrigger, const char* expected_answer, uint32_t timeout) {
         if (client.connected()) {
             std::string answer;

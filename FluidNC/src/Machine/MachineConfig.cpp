@@ -131,7 +131,7 @@ namespace Machine {
 
         auto spindles = Spindles::SpindleFactory::objects();
         if (spindles.size() == 0) {
-            spindles.push_back(new Spindles::Null());
+            spindles.push_back(new Spindles::Null("NoSpindle"));
             //            Spindles::SpindleFactory::add(new Spindles::Null());
         }
 

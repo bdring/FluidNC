@@ -17,8 +17,6 @@
 #include <esp_attr.h>  // IRAM_ATTR
 
 namespace Spindles {
-    H100Spindle::H100Spindle() : VFD() {}
-
     void H100Spindle::direction_command(SpindleState mode, ModbusCommand& data) {
         // NOTE: data length is excluding the CRC16 checksum.
         data.tx_length = 6;

@@ -21,10 +21,7 @@ namespace Spindles {
 
         bool use_delay_settings() const override { return false; }
 
-        // Name of the configurable. Must match the name registered in the cpp file.
-        const char* name() const override { return "NowForever"; }
-
     public:
-        NowForever();
+        NowForever(const char* name) : VFD(name) {}
     };
 }

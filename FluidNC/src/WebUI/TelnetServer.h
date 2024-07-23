@@ -25,7 +25,7 @@ namespace WebUI {
         static const int FLUSHTIMEOUT = 500;
 
     public:
-        TelnetServer();
+        TelnetServer(const char* name) : Module(name) {}
 
         static uint16_t port() { return _port; }
 

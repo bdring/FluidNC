@@ -18,8 +18,6 @@
 #include "H2ASpindle.h"
 
 namespace Spindles {
-    H2A::H2A() : VFD() {}
-
     void H2A::direction_command(SpindleState mode, ModbusCommand& data) {
         data.tx_length = 6;
         data.rx_length = 6;
@@ -32,7 +30,7 @@ namespace Spindles {
     }
 
     void H2A::set_speed_command(uint32_t dev_speed, ModbusCommand& data) {
-        // NOTE: H2A inverters are a-symmetrical. You set the speed in 1/100 
+        // NOTE: H2A inverters are a-symmetrical. You set the speed in 1/100
         // percentages, and you get the speed in RPM. So, we need to convert
         // the RPM using maxRPM to a percentage. See MD document for details.
         //
@@ -77,8 +75,8 @@ namespace Spindles {
                     vfd->shelfSpeeds(maxRPM / 4, maxRPM);
                 }
 
-                vfd->setupSpeeds(maxRPM);               // The speed is given directly in RPM
-                vfd->_slop                      = 300;  // 300 RPM
+                vfd->setupSpeeds(maxRPM);  // The speed is given directly in RPM
+                vfd->_slop = 300;          // 300 RPM
 
                 static_cast<H2A*>(vfd)->_maxRPM = uint32_t(maxRPM);
 

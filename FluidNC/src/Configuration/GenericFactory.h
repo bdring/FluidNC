@@ -31,7 +31,7 @@ namespace Configuration {
             BuilderBase(const BuilderBase& o)            = delete;
             BuilderBase& operator=(const BuilderBase& o) = delete;
 
-            virtual BaseType* create() const = 0;
+            virtual BaseType* create(const char* name) const = 0;
             const char*       name() const { return name_; }
 
             virtual ~BuilderBase() = default;
@@ -54,12 +54,12 @@ namespace Configuration {
                 instance().registerBuilder(this);
                 if (autocreate) {
                     auto& objects = instance().objects_;
-                    auto  object  = create();
+                    auto  object  = create(name);
                     objects.push_back(object);
                 }
             }
 
-            BaseType* create() const override { return new DerivedType(); }
+            BaseType* create(const char* name) const override { return new DerivedType(name); }
         };
 
         // This factory() method is used when there can be only one instance of the type,
@@ -71,7 +71,7 @@ namespace Configuration {
                 auto  it       = std::find_if(
                     builders.begin(), builders.end(), [&](auto& builder) { return handler.matchesUninitialized(builder->name()); });
                 if (it != builders.end()) {
-                    inst = (*it)->create();
+                    inst = (*it)->create((*it)->name());
                     handler.enterFactory((*it)->name(), *inst);
                 }
             } else {
@@ -96,7 +96,7 @@ namespace Configuration {
                     auto it2 =
                         std::find_if(objects.begin(), objects.end(), [&](auto& object) { return strcasecmp(object->name(), name) == 0; });
                     if (it2 == objects.end()) {
-                        auto object = (*it)->create();
+                        auto object = (*it)->create(name);
                         objects.push_back(object);
                         handler.enterFactory(name, *object);
                     } else {

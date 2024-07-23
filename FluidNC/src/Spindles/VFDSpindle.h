@@ -79,11 +79,11 @@ namespace Spindles {
         volatile bool _syncing;
 
     public:
-        VFD() {}
-        VFD(const VFD&) = delete;
-        VFD(VFD&&)      = delete;
+        VFD(const char* name) : Spindle(name) {}
+        VFD(const VFD&)            = delete;
+        VFD(VFD&&)                 = delete;
         VFD& operator=(const VFD&) = delete;
-        VFD& operator=(VFD&&) = delete;
+        VFD& operator=(VFD&&)      = delete;
 
         void init();
         void config_message();

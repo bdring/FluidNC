@@ -11,7 +11,13 @@
 namespace WebUI {
     class NotificationsService : public Module {
     public:
-        NotificationsService();
+        NotificationsService(const char* name) : Module(name) {
+            _started          = false;
+            _notificationType = 0;
+            _token1           = "";
+            _token1           = "";
+            _settings         = "";
+        }
 
         static bool        sendMSG(const char* title, const char* message);
         static const char* getTypeString();

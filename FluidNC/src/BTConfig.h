@@ -52,7 +52,7 @@ namespace WebUI {
 
         //boundaries
     public:
-        BTConfig();
+        BTConfig(const char* name);
 
         const char* device_address();
 

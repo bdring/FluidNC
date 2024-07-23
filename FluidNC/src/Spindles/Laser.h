@@ -16,20 +16,18 @@ namespace Spindles {
     // this is the same as a PWM spindle but the M4 compensation is supported.
     class Laser : public PWM {
     public:
-        Laser() = default;
+        Laser(const char* name) : PWM(name) {};
 
-        Laser(const Laser&) = delete;
-        Laser(Laser&&)      = delete;
+        Laser(const Laser&)            = delete;
+        Laser(Laser&&)                 = delete;
         Laser& operator=(const Laser&) = delete;
-        Laser& operator=(Laser&&) = delete;
+        Laser& operator=(Laser&&)      = delete;
 
         bool isRateAdjusted() override;
         void config_message() override;
         void init() override;
         void set_direction(bool Clockwise) override {};
         bool use_delay_settings() const override { return false; }
-        // Name of the configurable. Must match the name registered in the cpp file.
-        const char* name() const override { return "Laser"; }
 
         void group(Configuration::HandlerBase& handler) override {
             // pwm_freq is the only item that the PWM class adds to OnOff

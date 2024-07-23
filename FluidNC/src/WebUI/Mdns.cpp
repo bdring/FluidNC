@@ -8,8 +8,6 @@
 namespace WebUI {
     EnumSetting* Mdns::_enable;
 
-    Mdns::Mdns() : Module("mdns") {}
-
     void Mdns::init() {
         _enable = new EnumSetting("mDNS enable", WEBSET, WA, NULL, "MDNS/Enable", true, &onoffOptions);
 

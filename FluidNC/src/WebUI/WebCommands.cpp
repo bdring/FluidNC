@@ -25,7 +25,7 @@ namespace WebUI {
 
     class WebCommands : public Module {
     public:
-        WebCommands() : Module("web_commands") {}
+        WebCommands(const char* name) : Module(name) {}
 
         static std::string LeftJustify(const char* s, size_t width) {
             std::string ret(s);

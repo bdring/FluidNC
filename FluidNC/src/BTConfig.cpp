@@ -39,7 +39,7 @@ namespace WebUI {
         return SerialBT.write(data);
     }
 
-    BTConfig::BTConfig() : Module("bt") {
+    BTConfig::BTConfig(const char* name) : Module(name) {
         bt_enable = new EnumSetting("Bluetooth Enable", WEBSET, WA, "ESP141", "Bluetooth/Enable", 1, &onoffOptions);
 
         bt_name = new BTNameSetting("Bluetooth name", "ESP140", "Bluetooth/Name", DEFAULT_BT_NAME);

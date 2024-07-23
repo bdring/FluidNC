@@ -20,12 +20,12 @@ namespace Spindles {
     // This uses one of the (2) DAC pins on ESP32 to output a voltage
     class Dac : public OnOff {
     public:
-        Dac() = default;
+        Dac(const char* name) : OnOff(name) {}
 
-        Dac(const Dac&) = delete;
-        Dac(Dac&&)      = delete;
+        Dac(const Dac&)            = delete;
+        Dac(Dac&&)                 = delete;
         Dac& operator=(const Dac&) = delete;
-        Dac& operator=(Dac&&) = delete;
+        Dac& operator=(Dac&&)      = delete;
 
         void init() override;
         void config_message() override;
@@ -33,9 +33,6 @@ namespace Spindles {
 
         // Configuration handlers:
         // Inherited from PWM
-
-        // Name of the configurable. Must match the name registered in the cpp file.
-        const char* name() const override { return "DAC"; }
 
         ~Dac() {}
 

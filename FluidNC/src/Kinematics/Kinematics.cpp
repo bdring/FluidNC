@@ -65,7 +65,7 @@ namespace Kinematics {
 
     void Kinematics::afterParse() {
         if (_system == nullptr) {
-            _system = new ::Kinematics::Cartesian();
+            _system = new ::Kinematics::Cartesian("Cartesian");
         }
     }
 

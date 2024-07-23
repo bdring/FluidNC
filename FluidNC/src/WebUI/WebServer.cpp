@@ -68,7 +68,6 @@ namespace WebUI {
     EnumSetting *http_enable, *http_block_during_motion;
     IntSetting*  http_port;
 
-    Web_Server::Web_Server() : Module("web_server") {}
     Web_Server::~Web_Server() {
         deinit();
     }

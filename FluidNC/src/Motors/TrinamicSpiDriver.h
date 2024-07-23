@@ -16,6 +16,7 @@ namespace MotorDrivers {
 
     class TrinamicSpiDriver : public TrinamicBase {
     public:
+        TrinamicSpiDriver(const char* name) : TrinamicBase(name) {}
         TrinamicSpiDriver() = default;
 
         // Overrides for inherited methods
@@ -65,9 +66,9 @@ namespace MotorDrivers {
         }
 
     protected:
-        Pin       _cs_pin;  // The chip select pin (can be the same for daisy chain)
-        int32_t   _spi_index      = -1;
-        bool      _spi_setup_done = false;
+        Pin     _cs_pin;  // The chip select pin (can be the same for daisy chain)
+        int32_t _spi_index      = -1;
+        bool    _spi_setup_done = false;
 
         static constexpr int _spi_freq = 100000;
 

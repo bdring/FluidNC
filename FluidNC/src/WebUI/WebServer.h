@@ -40,7 +40,7 @@ namespace WebUI {
 
     class Web_Server : public Module {
     public:
-        Web_Server();
+        Web_Server(const char* name) : Module(name) {}
 
         void init() override;
         void deinit() override;

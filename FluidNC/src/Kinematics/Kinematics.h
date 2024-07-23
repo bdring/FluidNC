@@ -55,8 +55,10 @@ namespace Kinematics {
     };
 
     class KinematicSystem : public Configuration::Configurable {
+        const char* _name;
+
     public:
-        KinematicSystem() = default;
+        KinematicSystem(const char* name) : _name(name) {}
 
         KinematicSystem(const KinematicSystem&)            = delete;
         KinematicSystem(KinematicSystem&&)                 = delete;
@@ -90,7 +92,7 @@ namespace Kinematics {
         void validate() override {}
 
         // Name of the configurable. Must match the name registered in the cpp file.
-        virtual const char* name() const = 0;
+        const char* name() { return _name; }
 
         // Virtual base classes require a virtual destructor.
         virtual ~KinematicSystem() {}

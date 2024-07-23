@@ -19,8 +19,6 @@ namespace WebUI {
 
     std::queue<TelnetClient*> TelnetServer::_disconnected;
 
-    TelnetServer::TelnetServer() : Module("telnet") {}
-
     void TelnetServer::init() {
         deinit();
 

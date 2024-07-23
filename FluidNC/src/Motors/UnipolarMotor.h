@@ -8,7 +8,7 @@
 namespace MotorDrivers {
     class UnipolarMotor : public MotorDriver {
     public:
-        UnipolarMotor() = default;
+        UnipolarMotor(const char* name) : MotorDriver(name) {}
 
         // Overrides for inherited methods
         void init() override;
@@ -32,9 +32,6 @@ namespace MotorDrivers {
             handler.item("phase3_pin", _pin_phase3);
             handler.item("half_step", _half_step);
         }
-
-        // Name of the configurable. Must match the name registered in the cpp file.
-        const char* name() const override { return "unipolar"; }
 
     private:
         Pin     _pin_phase0;

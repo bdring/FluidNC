@@ -11,7 +11,8 @@ namespace WebUI {
         static EnumSetting* _enable;
 
     public:
-        Mdns();
+        Mdns(const char* name) : Module(name) {}
+
         void        init() override;
         void        deinit() override;
         static void add(const char* service, const char* proto, int port);

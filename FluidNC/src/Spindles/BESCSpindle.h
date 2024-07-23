@@ -43,12 +43,12 @@ namespace Spindles {
         uint32_t _max_pulse_us = 2200;  // microseconds
 
     public:
-        BESC() = default;
+        BESC(const char* name) : PWM(name) {}
 
-        BESC(const BESC&) = delete;
-        BESC(BESC&&)      = delete;
+        BESC(const BESC&)            = delete;
+        BESC(BESC&&)                 = delete;
         BESC& operator=(const BESC&) = delete;
-        BESC& operator=(BESC&&) = delete;
+        BESC& operator=(BESC&&)      = delete;
 
         void init() override;
         void config_message() override;
@@ -66,9 +66,6 @@ namespace Spindles {
         }
 
         void afterParse() override {}
-
-        // Name of the configurable. Must match the name registered in the cpp file.
-        const char* name() const override { return "BESC"; }
 
         ~BESC() {}
     };

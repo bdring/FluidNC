@@ -873,7 +873,7 @@ namespace WebUI {
         }
 
     public:
-        WiFiConfig() : Module("wifi") {}
+        WiFiConfig(const char* name) : Module(name) {}
 
         void init() {
             _sta_ssid    = new StringSetting("Station SSID", WEBSET, WA, "ESP100", "Sta/SSID", "", MIN_SSID_LENGTH, MAX_SSID_LENGTH);

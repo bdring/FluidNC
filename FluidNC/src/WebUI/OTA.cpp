@@ -10,7 +10,7 @@
 
 class OTA : public Module {
 public:
-    OTA() : Module("ota") {}
+    OTA(const char* name) : Module(name) {}
 
     void init() override {
         if (WiFi.getMode() == WIFI_OFF) {
