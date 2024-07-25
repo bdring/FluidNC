@@ -19,12 +19,14 @@
 #include <DNSServer.h>
 
 #include "WSChannel.h"
+#include "HTTPChannel.h"
 
 #include "WebClient.h"
 
 #include "src/Protocol.h"  // protocol_send_event
 #include "src/FluidPath.h"
 #include "src/JSONEncoder.h"
+#include "src/Job.h"
 
 #include "src/HashFS.h"
 #include <list>
@@ -460,8 +462,14 @@ namespace WebUI {
     }
     void Web_Server::_handle_web_command(bool silent) {
         AuthenticationLevel auth_level = is_authenticated();
-        if (_webserver->hasArg("cmd")) {  // WebUI3
+        if (_webserver->hasArg("port")) {
+            auto        correspondent    = IP_string(_webserver->client().remoteIP());
+            std::string port             = _webserver->arg("port").c_str();
+            auto        response_channel = HTTPChannel::set_responder(correspondent, port);
+            Job::set_leader(response_channel);
+        }
 
+        if (_webserver->hasArg("cmd")) {  // WebUI3
             auto cmd = _webserver->arg("cmd");
             // [ESPXXX] commands expect data in the HTTP response
             if (cmd.startsWith("[ESP") || cmd.startsWith("$/")) {

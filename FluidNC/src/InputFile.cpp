@@ -2,6 +2,7 @@
 // Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
 
 #include "InputFile.h"
+#include "Job.h"
 
 #include "Report.h"
 
@@ -34,11 +35,16 @@ Error InputFile::readLine(char* line, int maxlen) {
 
 void InputFile::ack(Error status) {
     if (status != Error::Ok) {
-        log_error(static_cast<int>(status) << " (" << errorString(status) << ") in " << name() << " at line " << lineNumber());
+        if (Job::leader) {
+            log_error_to(*Job::leader,
+                         static_cast<int>(status) << " (" << errorString(status) << ") in " << name() << " at line " << lineNumber());
+        } else {
+            log_error(static_cast<int>(status) << " (" << errorString(status) << ") in " << name() << " at line " << lineNumber());
+        }
         if (status != Error::GcodeUnsupportedCommand) {
             // Do not stop on unsupported commands because most senders do not stop.
             // Stop the file job on other errors
-            notifyf("File job error", "Error:%d in %s at line: %d", status, name(), lineNumber());
+            notifyf("File job error", "Error:%d in %s at line: %d", status, name().c_str(), lineNumber());
             _pending_error == status;
         }
     }

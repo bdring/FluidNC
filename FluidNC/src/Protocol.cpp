@@ -175,8 +175,12 @@ void polling_loop(void* unused) {
                     case Error::NoData:
                         break;
                     case Error::Eof:
-                        notifyf("Job done", "%s job sent", channel->name());
-                        log_info(channel->name() << " job sent");
+                        notifyf("Job done", "%s job sent", channel->name().c_str());
+                        if (Job::leader) {
+                            log_info_to(*Job::leader, channel->name() << " job sent");
+                        } else {
+                            log_info(channel->name() << " job sent");
+                        }
                         Job::unnest();
                         break;
                     default:

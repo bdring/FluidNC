@@ -26,6 +26,8 @@ class Job {
 private:
     static void pop();
 
+    static Channel* _new_leader;
+
 public:
     static Channel* leader;
 
@@ -41,4 +43,6 @@ public:
     static void     set_param(const std::string& name, float value);
     static bool     param_exists(const std::string& name);
     static Channel* channel();
+
+    static void set_leader(Channel* out) { _new_leader = out; }
 };

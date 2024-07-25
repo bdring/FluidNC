@@ -7,7 +7,8 @@
 
 std::stack<JobSource*> job;
 
-Channel* Job::leader = nullptr;
+Channel* Job::leader      = nullptr;
+Channel* Job::_new_leader = nullptr;
 
 bool Job::active() {
     return !job.empty();
@@ -28,8 +29,13 @@ void Job::restore() {
 }
 void Job::nest(Channel* in_channel, Channel* out_channel) {
     auto source = new JobSource(in_channel);
-    if (out_channel && job.empty()) {
-        leader = out_channel;
+    if (job.empty()) {
+        if (_new_leader) {
+            leader      = _new_leader;
+            _new_leader = nullptr;
+        } else if (out_channel) {
+            leader = out_channel;
+        }
     }
     job.push(source);
 }
