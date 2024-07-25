@@ -30,7 +30,6 @@ Channel* HTTPChannel::set_responder(const std::string& server, const std::string
     _url += "/?client=";
     _url += WiFi.getHostname();
     _url += "&message=";
-    log_debug("Httpresponder " << _url);
     return pinstance();
 }
 
