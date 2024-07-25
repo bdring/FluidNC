@@ -247,7 +247,7 @@ namespace WebUI {
             return Error::Ok;
         }
 
-        void init() {
+        void init() override {
             // If authentication enabled, display_settings skips or displays <Authentication Required>
             // RU - need user or admin password to read
             // WU - need user or admin password to set
@@ -263,5 +263,5 @@ namespace WebUI {
             new WebCommand(NULL, WEBCMD, WG, "ESP", "WebUI/Help", showWebHelp, anyState);
         }
     };
-    ModuleFactory::InstanceBuilder<WebCommands> web_commands_module __attribute__((init_priority(101))) ("web_commands");
+    ModuleFactory::InstanceBuilder<WebCommands> web_commands_module __attribute__((init_priority(103))) ("web_commands", true);
 }
