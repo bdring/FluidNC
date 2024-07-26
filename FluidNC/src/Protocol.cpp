@@ -286,7 +286,7 @@ void protocol_main_loop() {
             }
 
             Channel* out_channel = Job::leader ? Job::leader : activeChannel;
-            Error    status_code = execute_line(activeLine, *out_channel, WebUI::AuthenticationLevel::LEVEL_GUEST);
+            Error    status_code = execute_line(activeLine, *out_channel, AuthenticationLevel::LEVEL_GUEST);
 
             // Tell the channel that the line has been processed.
             // If the line was aborted, the channel could be invalid
