@@ -131,7 +131,7 @@ Error MacroChannel::pollLine(char* line) {
             float percent_complete = (float)_position * 100.0f / _macro->get().length();
 
             std::ostringstream s;
-            s << name() << ":" << std::fixed << std::setprecision(2) << percent_complete;
+            s << "SD:" << std::fixed << std::setprecision(2) << percent_complete << "," << name();
             _progress = s.str();
         }
             return Error::Ok;

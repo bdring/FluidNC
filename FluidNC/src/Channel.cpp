@@ -7,6 +7,7 @@
 #include "RealtimeCmd.h"            // execute_realtime_command
 #include "Limits.h"
 #include "Logging.h"
+#include "Job.h"
 #include <string_view>
 
 void Channel::flushRx() {
@@ -106,7 +107,7 @@ void Channel::autoReport() {
         auto thisProbeState = config->_probe->get_state();
         report_recompute_pin_string();
         if (_reportOvr || _reportWco || !state_is(_lastState) || thisProbeState != _lastProbe || _lastPinString != report_pin_string ||
-            (motionState() && (int32_t(xTaskGetTickCount()) - _nextReportTime) >= 0)) {
+            (motionState() && (int32_t(xTaskGetTickCount()) - _nextReportTime) >= 0) || (_lastJobActive != Job::active())) {
             if (_reportOvr) {
                 report_ovr_counter = 0;
                 _reportOvr         = false;
@@ -118,6 +119,7 @@ void Channel::autoReport() {
             _lastState     = sys.state;
             _lastProbe     = thisProbeState;
             _lastPinString = report_pin_string;
+            _lastJobActive = Job::active();
 
             _nextReportTime = xTaskGetTickCount() + _reportInterval;
             report_realtime_status(*this);

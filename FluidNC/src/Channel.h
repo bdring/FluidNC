@@ -67,6 +67,7 @@ protected:
     State       _lastState        = State::Idle;
     MotorMask   _lastLimits       = 0;
     bool        _lastProbe        = false;
+    bool        _lastJobActive    = false;
     std::string _lastPinString    = "";
 
     bool       _reportOvr = true;

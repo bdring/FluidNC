@@ -285,7 +285,8 @@ void protocol_main_loop() {
                 report_echo_line_received(activeLine, allChannels);
             }
 
-            Error status_code = execute_line(activeLine, *activeChannel, AuthenticationLevel::LEVEL_GUEST);
+            Channel* out_channel = Job::leader ? Job::leader : activeChannel;
+            Error    status_code = execute_line(activeLine, *out_channel, WebUI::AuthenticationLevel::LEVEL_GUEST);
 
             // Tell the channel that the line has been processed.
             // If the line was aborted, the channel could be invalid
