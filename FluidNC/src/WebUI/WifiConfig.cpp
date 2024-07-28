@@ -43,6 +43,12 @@ namespace WebUI {
         { "STA>AP", WiFiFallback },
     };
 
+    const enum_opt_t wifiPsModeOptions = {
+        { "None", WIFI_PS_NONE },
+        { "Min", WIFI_PS_MIN_MODEM },
+        { "Max", WIFI_PS_MAX_MODEM },
+    };
+
     enum WiFiContry {
         WiFiCountry01 = 0,  // country "01" is the safest set of settings which complies with all regulatory domains
         WiFiCountryAT,
@@ -104,6 +110,8 @@ namespace WebUI {
     };
 
     EnumSetting* wifi_mode;
+
+    EnumSetting* wifi_ps_mode;
 
     StringSetting* wifi_sta_ssid;
     StringSetting* wifi_sta_password;
@@ -501,6 +509,8 @@ namespace WebUI {
 
         wifi_mode = new EnumSetting("WiFi mode", WEBSET, WA, "ESP116", "WiFi/Mode", WiFiFallback, &wifiModeOptions);
 
+        wifi_ps_mode = new EnumSetting("WiFi power saving mode", WEBSET, WA, NULL, "WiFi/PsMode", WIFI_PS_NONE, &wifiPsModeOptions);
+
         new WebCommand(NULL, WEBCMD, WG, "ESP111", "System/IP", showIP);
         new WebCommand("IP=ipaddress MSK=netmask GW=gateway", WEBCMD, WA, "ESP103", "Sta/Setup", showSetStaParams);
     }
@@ -857,7 +867,8 @@ namespace WebUI {
             WiFi.onEvent(WiFiConfig::WiFiEvent);
             _events_registered = true;
         }
-        esp_wifi_set_ps(WIFI_PS_NONE);
+        //esp_wifi_set_ps(WIFI_PS_NONE);
+        esp_wifi_set_ps(static_cast<wifi_ps_type_t>(wifi_ps_mode->get()));
         log_info("WiFi on");
         wifi_services.begin();
         return true;
