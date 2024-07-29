@@ -74,8 +74,6 @@
 #include <algorithm>
 
 namespace Spindles {
-    YL620::YL620() : VFD() {}
-
     void YL620::direction_command(SpindleState mode, ModbusCommand& data) {
         data.tx_length = 6;
         data.rx_length = 6;

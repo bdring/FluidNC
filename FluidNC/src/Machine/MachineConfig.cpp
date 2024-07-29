@@ -4,23 +4,25 @@
 
 #include "MachineConfig.h"
 
-#include "../Kinematics/Kinematics.h"
+#include "src/Kinematics/Kinematics.h"
 
-#include "../Motors/MotorDriver.h"
-#include "../Motors/NullMotor.h"
+#include "src/Motors/MotorDriver.h"
+#include "src/Motors/NullMotor.h"
 
-#include "../Spindles/NullSpindle.h"
-#include "../UartChannel.h"
+#include "src/Spindles/NullSpindle.h"
+#include "src/UartChannel.h"
 
-#include "../SettingsDefinitions.h"  // config_filename
-#include "../FileStream.h"
+#include "src/SettingsDefinitions.h"  // config_filename
+#include "src/FileStream.h"
 
-#include "../Configuration/Parser.h"
-#include "../Configuration/ParserHandler.h"
-#include "../Configuration/Validator.h"
-#include "../Configuration/AfterParse.h"
-#include "../Configuration/ParseException.h"
-#include "../Config.h"  // ENABLE_*
+#include "src/Configuration/Parser.h"
+#include "src/Configuration/ParserHandler.h"
+#include "src/Configuration/Validator.h"
+#include "src/Configuration/AfterParse.h"
+#include "src/Configuration/ParseException.h"
+#include "src/Config.h"  // ENABLE_*
+
+#include "Driver/restart.h"
 
 #include <cstdio>
 #include <cstring>
@@ -65,12 +67,8 @@ namespace Machine {
 
         handler.section("user_outputs", _userOutputs);
 
-        handler.section("oled", _oled);
-        handler.section("status_outputs", _stat_out);
-
-        handler.section("tool_changer", _tool_changer);
-
-        Spindles::SpindleFactory::factory(handler, _spindles);
+        ModuleFactory::factory(handler);
+        Spindles::SpindleFactory::factory(handler);
 
         // TODO: Consider putting these under a gcode: hierarchy level? Or motion control?
         handler.item("arc_tolerance_mm", _arcTolerance, 0.001, 1.0);
@@ -80,9 +78,6 @@ namespace Machine {
         handler.item("enable_parking_override_control", _enableParkingOverrideControl);
         handler.item("use_line_numbers", _useLineNumbers);
         handler.item("planner_blocks", _planner_blocks, 10, 120);
-
-
-
     }
 
     void MachineConfig::afterParse() {
@@ -134,16 +129,18 @@ namespace Machine {
             _parking = new Parking();
         }
 
-        if (_spindles.size() == 0) {
-            _spindles.push_back(new Spindles::Null());
+        auto spindles = Spindles::SpindleFactory::objects();
+        if (spindles.size() == 0) {
+            spindles.push_back(new Spindles::Null("NoSpindle"));
+            //            Spindles::SpindleFactory::add(new Spindles::Null());
         }
 
         // Precaution in case the full spindle initialization does not happen
         // due to a configuration error
-        spindle = _spindles[0];
+        spindle = spindles[0];
 
         uint32_t next_tool = 100;
-        for (auto s : _spindles) {
+        for (auto s : Spindles::SpindleFactory::objects()) {
             if (s->_tool == -1) {
                 s->_tool = next_tool++;
             }
@@ -159,8 +156,7 @@ namespace Machine {
     void MachineConfig::load() {
         // If the system crashes we skip the config file and use the default
         // builtin config.  This helps prevent reset loops on bad config files.
-        esp_reset_reason_t reason = esp_reset_reason();
-        if (reason == ESP_RST_PANIC) {
+        if (restart_was_panic()) {
             log_error("Skipping configuration file due to panic");
             log_info("Using default configuration");
             load_yaml(defaultConfig);

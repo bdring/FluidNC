@@ -21,9 +21,6 @@
 #include <atomic>
 
 namespace MotorDrivers {
-
-    Servo::Servo() : MotorDriver() {}
-
     void Servo::update_servo(TimerHandle_t timer) {
         Servo* servo = static_cast<Servo*>(pvTimerGetTimerID(timer));
         servo->update();

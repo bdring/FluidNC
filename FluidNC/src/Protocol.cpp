@@ -20,6 +20,7 @@
 #include "SettingsDefinitions.h"  // gcode_echo
 #include "Machine/LimitPin.h"
 #include "Job.h"
+#include "Driver/restart.h"
 
 volatile ExecAlarm lastAlarm;  // The most recent alarm code
 
@@ -135,6 +136,9 @@ void polling_loop(void* unused) {
         // Polling with an argument both checks for realtime characters and
         // returns a line-oriented command if one is ready.
         pollChannels();
+        for (auto const& module : Modules()) {
+            module->poll();
+        }
 
         // If activeChannel is non-null, it means that we have recieved a line
         // but the task running protocol_main_loop() has not yet picked it up.
@@ -171,7 +175,7 @@ void polling_loop(void* unused) {
                     case Error::NoData:
                         break;
                     case Error::Eof:
-                        _notifyf("Job done", "%s job sent", channel->name());
+                        notifyf("Job done", "%s job sent", channel->name());
                         log_info(channel->name() << " job sent");
                         Job::unnest();
                         break;
@@ -282,7 +286,7 @@ void protocol_main_loop() {
             }
 
             Channel* out_channel = Job::leader ? Job::leader : activeChannel;
-            Error    status_code = execute_line(activeLine, *out_channel, WebUI::AuthenticationLevel::LEVEL_GUEST);
+            Error    status_code = execute_line(activeLine, *out_channel, AuthenticationLevel::LEVEL_GUEST);
 
             // Tell the channel that the line has been processed.
             // If the line was aborted, the channel could be invalid
@@ -387,7 +391,7 @@ static void protocol_run_startup_lines() {
     config->_macros->_startup_line1.run(&allChannels);
 }
 
-static void protocol_do_restart() {
+static void protocol_do_soft_restart() {
     // Reset primary systems.
     system_reset();
     protocol_reset();
@@ -1085,7 +1089,7 @@ static void protocol_do_limit(void* arg) {
     log_debug("Limit switch tripped for " << config->_axes->axisName(limit->_axis) << " motor " << limit->_motorNum);
 }
 static void protocol_do_fault_pin(void* arg) {
-    if (state_is(State::Cycle) || state_is(State::Jog) || state_is(State::Idle) || state_is(State::Hold) || state_is(State::SafetyDoor)) {
+    if (inMotionState() || state_is(State::Idle) || state_is(State::Hold) || state_is(State::SafetyDoor)) {
         mc_critical(ExecAlarm::HardStop);  // Initiate system kill.
     }
     ControlPin* pin = (ControlPin*)arg;
@@ -1126,7 +1130,8 @@ const NoArgEvent motionCancelEvent { protocol_do_motion_cancel };
 const NoArgEvent sleepEvent { protocol_do_sleep };
 const NoArgEvent debugEvent { report_realtime_debug };
 const NoArgEvent startEvent { protocol_do_start };
-const NoArgEvent restartEvent { protocol_do_restart };
+const NoArgEvent restartEvent { protocol_do_soft_restart };
+const NoArgEvent fullResetEvent { restart };
 const NoArgEvent runStartupLinesEvent { protocol_run_startup_lines };
 
 const NoArgEvent rtResetEvent { protocol_do_rt_reset };

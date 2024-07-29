@@ -10,7 +10,6 @@
     General setup of the VFD is covered in https://files.danfoss.com/download/Drives/doc_B_1_MG28E902.pdf
 */
 
-
 #include "DanfossSpindle.h"
 
 #include <algorithm>
@@ -21,10 +20,7 @@
 #define WRITE_SINGLE_COIL 0x05
 #define WRITE_MULTIPLE_COIL 0x0F
 
-
 namespace Spindles {
-    DanfossVLT2800::DanfossVLT2800() : VFD() {}
-
     void DanfossVLT2800::init() {
         VFD::init();
         setupSpeeds(_maxFrequency);

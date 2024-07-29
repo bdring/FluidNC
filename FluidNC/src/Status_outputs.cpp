@@ -75,3 +75,8 @@ void Status_Outputs::parse_status_report() {
     _Hold_pin.write(_state.substr(0, 4) == "Hold");
     _Alarm_pin.write(_state == "Alarm");
 }
+
+// Configuration registration
+namespace {
+    ModuleFactory::InstanceBuilder<Status_Outputs> registration("status_outputs");
+}

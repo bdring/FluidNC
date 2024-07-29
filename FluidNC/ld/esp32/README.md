@@ -50,12 +50,19 @@ add into that file the line
 
    INCLUDE ( vtable_in_dram.ld )
 
-The INCLUDE line is added inside the section that puts things into
-data RAM.  It causes the contents of the new file "vtable_in_dram.ld"
+The INCLUDE line is added inside a section that puts things into
+RAM.  It causes the contents of the new file "vtable_in_dram.ld"
 to be processed in that context, which has the effect of forcing the
 vtables from several code modules to be placed in RAM.  We use the
 INCLUDE technique to isolate the changes into one new file, for easier
 maintenance.
+
+For the wifi and noradio builds, the vtables are placed in IRAM because
+there is enough free space there, freeing up some DRAM to use as heap.
+For the bt build, bluetooth functions use so much IRAM that there is
+not enough room for the vtables, so they are placed into DRAM.  The
+bt version does not need as much heap as the wifi version (wifi needs
+quite a few large buffers for wifi packets).
 
 ### Making PlatformIO Use the Modified File
 
@@ -65,10 +72,12 @@ feature.  In the platformio.ini [env] section, we add this line
 
    extra_scripts = FluidNC/ld/esp32/vtable_in_dram.py
 
-"vtable_in_dram.py" contains code that puts this directory at
+"vtable_in_dram.py" contains code that puts a directory at
 the beginning of LIBPATH so this directory will be searched before
 the standard list of directories.  Thus the linker will find
 the modified esp32.project.ld instead of the stock version.
+The directory name depends on the build type:
+FluidNC/ld/esp32/$PIOENV where $PIOENV is wifi, bt, or noradio.
 
 ### Contents of vtable_in_dram.ld
 

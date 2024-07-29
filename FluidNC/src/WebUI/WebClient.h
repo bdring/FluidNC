@@ -3,10 +3,8 @@
 
 #pragma once
 
-#include "../Config.h"  // ENABLE_*
-#include "../Channel.h"
+#include "src/Channel.h"
 
-#ifdef ENABLE_WIFI
 class WebServer;
 
 namespace WebUI {
@@ -45,5 +43,3 @@ namespace WebUI {
 
     extern WebClient webClient;
 }
-
-#endif

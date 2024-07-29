@@ -3,52 +3,46 @@
 
 #pragma once
 
-#include "../Config.h"  // ENABLE_*
+#include "src/Module.h"  // Module
+#include "src/WebUI/Authentication.h"
 
-#ifndef ENABLE_WIFI
-namespace WebUI {
-    class NotificationsService {
-    public:
-        NotificationsService() = default;
-        bool sendMSG(const char* title, const char* message) { return false; };
-    };
-    extern NotificationsService notificationsService;
-}
-#else
-#    include <cstdint>
+#include <cstdint>
 
 namespace WebUI {
-    class NotificationsService {
+    class NotificationsService : public Module {
     public:
-        NotificationsService();
+        NotificationsService(const char* name) : Module(name) {
+            _started          = false;
+            _notificationType = 0;
+            _token1           = "";
+            _token1           = "";
+            _settings         = "";
+        }
 
-        bool        begin();
-        void        end();
-        void        handle();
-        bool        sendMSG(const char* title, const char* message);
-        const char* getTypeString();
-        bool        started();
+        static bool        sendMSG(const char* title, const char* message);
+        static const char* getTypeString();
+        static bool        started();
+
+        void init() override;
+        void deinit() override;
 
         ~NotificationsService();
 
     private:
-        bool        _started;
-        uint8_t     _notificationType;
-        std::string _token1;
-        std::string _token2;
-        std::string _settings;
-        std::string _serveraddress;
-        uint16_t    _port;
+        static bool        _started;
+        static uint8_t     _notificationType;
+        static std::string _token1;
+        static std::string _token2;
+        static std::string _settings;
+        static std::string _serveraddress;
+        static uint16_t    _port;
 
-        bool sendPushoverMSG(const char* title, const char* message);
-        bool sendEmailMSG(const char* title, const char* message);
-        bool sendLineMSG(const char* title, const char* message);
-        bool getPortFromSettings();
-        bool getServerAddressFromSettings();
-        bool getEmailFromSettings();
+        static Error sendMessage(const char* parameter, AuthenticationLevel auth_level, Channel& out);
+        static bool  sendPushoverMSG(const char* title, const char* message);
+        static bool  sendEmailMSG(const char* title, const char* message);
+        static bool  sendLineMSG(const char* title, const char* message);
+        static bool  getPortFromSettings();
+        static bool  getServerAddressFromSettings();
+        static bool  getEmailFromSettings();
     };
-
-    extern NotificationsService notificationsService;
 }
-
-#endif

@@ -9,7 +9,7 @@ namespace MotorDrivers {
     public:
         //StandardStepper(size_t axis_index, Pin step_pin, Pin dir_pin, Pin disable_pin);
 
-        StandardStepper() = default;
+        StandardStepper(const char* name) : MotorDriver(name) {}
 
         // Overrides for inherited methods
         void init() override;
@@ -39,9 +39,6 @@ namespace MotorDrivers {
             handler.item("direction_pin", _dir_pin);
             handler.item("disable_pin", _disable_pin);
         }
-
-        // Name of the configurable. Must match the name registered in the cpp file.
-        const char* name() const override { return "standard_stepper"; }
 
     private:
         // Initialized after configuration for RMT steps:
