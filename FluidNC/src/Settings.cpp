@@ -1,10 +1,7 @@
 #include "Settings.h"
 
-#include "WebUI/JSONEncoder.h"  // JSON
-#include "WebUI/WifiConfig.h"   // WebUI::WiFiConfig
-#include "WebUI/Commands.h"     // WebUI::COMMANDS
-#include "System.h"             // sys
-#include "Protocol.h"           // protocol_buffer_synchronize
+#include "System.h"    // sys
+#include "Protocol.h"  // protocol_buffer_synchronize
 #include "Machine/MachineConfig.h"
 
 #include <map>
@@ -16,6 +13,30 @@
 
 std::vector<Setting*> Setting::List __attribute__((init_priority(101))) = {};
 std::vector<Command*> Command::List __attribute__((init_priority(102))) = {};
+
+bool get_param(const char* parameter, const char* key, std::string& s) {
+    char* start = strstr(parameter, key);
+    if (!start) {
+        return false;
+    }
+    s = "";
+    for (char* p = start + strlen(key); *p; ++p) {
+        if (*p == ' ') {
+            break;  // Unescaped space
+        }
+        if (*p == '\\') {
+            if (*++p == '\0') {
+                break;
+            }
+        }
+        s += *p;
+    }
+    return true;
+}
+
+bool paramIsJSON(const char* cmd_params) {
+    return strstr(cmd_params, "json=yes") != NULL;
+}
 
 bool anyState() {
     return false;
@@ -99,6 +120,7 @@ IntSetting::IntSetting(const char*   description,
     Setting(description, type, permissions, grblName, name),
     _defaultValue(defVal), _currentValue(defVal), _minValue(minVal), _maxValue(maxVal), _currentIsNvm(currentIsNvm) {
     _storedValue = std::numeric_limits<int32_t>::min();
+    load();
 }
 
 void IntSetting::load() {
@@ -179,7 +201,7 @@ const char* IntSetting::getStringValue() {
     return strval;
 }
 
-void IntSetting::addWebui(WebUI::JSONencoder* j) {
+void IntSetting::addWebui(JSONencoder* j) {
     if (getDescription()) {
         j->begin_webui(getName(), getName(), "I", getStringValue(), _minValue, _maxValue);
         j->end_object();
@@ -194,11 +216,9 @@ StringSetting::StringSetting(const char*   description,
                              const char*   defVal,
                              int           min,
                              int           max) :
-    Setting(description, type, permissions, grblName, name) {
-    _defaultValue = defVal;
-    _currentValue = defVal;
-    _minLength    = min;
-    _maxLength    = max;
+    Setting(description, type, permissions, grblName, name),
+    _defaultValue(defVal), _currentValue(defVal), _minLength(min), _maxLength(max) {
+    load();
 };
 
 void StringSetting::load() {
@@ -262,7 +282,7 @@ const char* StringSetting::getStringValue() {
     return get();
 }
 
-void StringSetting::addWebui(WebUI::JSONencoder* j) {
+void StringSetting::addWebui(JSONencoder* j) {
     if (!getDescription()) {
         return;
     }
@@ -281,7 +301,9 @@ EnumSetting::EnumSetting(const char*       description,
                          int8_t            defVal,
                          const enum_opt_t* opts) :
     Setting(description, type, permissions, grblName, name),
-    _defaultValue(defVal), _options(opts) {}
+    _defaultValue(defVal), _options(opts) {
+    load();
+}
 
 void EnumSetting::load() {
     esp_err_t err = nvs_get_i8(_handle, _keyName, &_storedValue);
@@ -375,7 +397,7 @@ void EnumSetting::showList() {
     log_info("Valid options:" << optList);
 }
 
-void EnumSetting::addWebui(WebUI::JSONencoder* j) {
+void EnumSetting::addWebui(JSONencoder* j) {
     if (!getDescription()) {
         return;
     }
@@ -390,7 +412,7 @@ void EnumSetting::addWebui(WebUI::JSONencoder* j) {
     j->end_object();
 }
 
-Error UserCommand::action(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+Error UserCommand::action(const char* value, AuthenticationLevel auth_level, Channel& out) {
     if (_cmdChecker && _cmdChecker()) {
         return Error::IdleError;
     }
@@ -430,7 +452,9 @@ IPaddrSetting::IPaddrSetting(
     const char* description, type_t type, permissions_t permissions, const char* grblName, const char* name, uint32_t defVal) :
     Setting(description, type, permissions, grblName, name)  // There are no GRBL IP settings.
     ,
-    _defaultValue(defVal), _currentValue(defVal) {}
+    _defaultValue(defVal), _currentValue(defVal) {
+    load();
+}
 
 IPaddrSetting::IPaddrSetting(
     const char* description, type_t type, permissions_t permissions, const char* grblName, const char* name, const char* defVal) :
@@ -442,6 +466,7 @@ IPaddrSetting::IPaddrSetting(
     } else {
         throw std::runtime_error("Bad IPaddr default");
     }
+    load();
 }
 
 void IPaddrSetting::load() {
@@ -496,12 +521,23 @@ const char* IPaddrSetting::getStringValue() {
     return ipstr;
 }
 
-void IPaddrSetting::addWebui(WebUI::JSONencoder* j) {
+void IPaddrSetting::addWebui(JSONencoder* j) {
     if (getDescription()) {
         j->begin_webui(getName(), getName(), "A", getStringValue());
         j->end_object();
     }
 }
+
+Error WebCommand::action(const char* value, AuthenticationLevel auth_level, Channel& out) {
+    if (_cmdChecker && _cmdChecker()) {
+        return Error::AnotherInterfaceBusy;
+    }
+    char empty = '\0';
+    if (!value) {
+        value = &empty;
+    }
+    return _action(value, auth_level, out);
+};
 
 template <>
 const char* MachineConfigProxySetting<float>::getStringValue() {

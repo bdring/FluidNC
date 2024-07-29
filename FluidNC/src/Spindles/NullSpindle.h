@@ -15,12 +15,12 @@ namespace Spindles {
     // It is used to ignore spindle commands when no spindle is desired
     class Null : public Spindle {
     public:
-        Null() = default;
+        Null(const char* name) : Spindle(name) {}
 
-        Null(const Null&) = delete;
-        Null(Null&&)      = delete;
+        Null(const Null&)            = delete;
+        Null(Null&&)                 = delete;
         Null& operator=(const Null&) = delete;
-        Null& operator=(Null&&) = delete;
+        Null& operator=(Null&&)      = delete;
 
         void init() override;
         void setSpeedfromISR(uint32_t dev_speed) override;
@@ -29,9 +29,6 @@ namespace Spindles {
 
         // Configuration handlers:
         void group(Configuration::HandlerBase& handler) override {}
-
-        // Name of the configurable. Must match the name registered in the cpp file.
-        const char* name() const override { return "NoSpindle"; }
 
         ~Null() {}
     };

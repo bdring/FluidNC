@@ -28,8 +28,10 @@
 
 namespace MotorDrivers {
     class MotorDriver : public Configuration::Configurable {
+        const char* _name;
+
     public:
-        MotorDriver() = default;
+        MotorDriver(const char* name) : _name(name) {}
 
         static constexpr int      max_n_axis = MAX_N_AXIS;
         static constexpr uint32_t axis_mask  = (1 << max_n_axis) - 1;
@@ -88,7 +90,7 @@ namespace MotorDrivers {
         virtual bool test();
 
         // Name is required for the configuration factory to work.
-        virtual const char* name() const = 0;
+        const char* name() { return _name; }
 
         // Test for a real motor as opposed to a NullMotor placeholder
         virtual bool isReal() { return true; }

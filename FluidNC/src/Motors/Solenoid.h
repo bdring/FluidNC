@@ -31,7 +31,7 @@ namespace MotorDrivers {
         SolenoidMode _current_mode = SolenoidMode::Off;
 
     public:
-        Solenoid() = default;
+        Solenoid(const char* name) : RcServo(name) {}
 
         void set_location();
         void init() override;
@@ -52,8 +52,5 @@ namespace MotorDrivers {
 
             Servo::group(handler);
         }
-
-        // Name of the configurable. Must match the name registered in the cpp file.
-        const char* name() const override { return "solenoid"; }
     };
 }

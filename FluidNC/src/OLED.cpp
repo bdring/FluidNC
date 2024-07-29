@@ -557,3 +557,5 @@ void OLED::draw_checkbox(int16_t x, int16_t y, int16_t width, int16_t height, bo
         _oled->drawRect(x, y, width, height);  // If log.1
     }
 }
+
+ModuleFactory::InstanceBuilder<OLED> oled_module __attribute__((init_priority(104))) ("oled");

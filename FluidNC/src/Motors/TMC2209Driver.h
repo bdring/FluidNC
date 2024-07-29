@@ -15,6 +15,8 @@ namespace MotorDrivers {
 
     class TMC2209Driver : public TrinamicUartDriver {
     public:
+        TMC2209Driver(const char* name) : TrinamicUartDriver(name) {}
+
         // Overrides for inherited methods
         void init() override;
         void set_disable(bool disable);
@@ -40,9 +42,6 @@ namespace MotorDrivers {
                 log_warn(axisName() << " " << name() << " homing current not in config. Using run current");
             }
         }
-
-        // Name of the configurable. Must match the name registered in the cpp file.
-        const char* name() const override { return "tmc_2209"; }
 
     private:
         TMC2209Stepper* tmc2209 = nullptr;

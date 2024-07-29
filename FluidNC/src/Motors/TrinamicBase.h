@@ -70,7 +70,7 @@ namespace MotorDrivers {
         void registration();
 
     public:
-        TrinamicBase() = default;
+        TrinamicBase(const char* name) : StandardStepper(name) {}
 
         void group(Configuration::HandlerBase& handler) override {
             StandardStepper::group(handler);

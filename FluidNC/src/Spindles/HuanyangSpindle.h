@@ -26,10 +26,7 @@ namespace Spindles {
         response_parser get_status_ok(ModbusCommand& data) override;
         response_parser get_current_speed(ModbusCommand& data) override;
 
-        // Name of the configurable. Must match the name registered in the cpp file.
-        const char* name() const override { return "Huanyang"; }
-
     public:
-        Huanyang();
+        Huanyang(const char* name) : VFD(name) {}
     };
 }

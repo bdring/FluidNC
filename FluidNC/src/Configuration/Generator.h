@@ -15,7 +15,7 @@ namespace Configuration {
     class Configurable;
 
     class Generator : public HandlerBase {
-        Generator(const Generator&) = delete;
+        Generator(const Generator&)            = delete;
         Generator& operator=(const Generator&) = delete;
 
         int      indent_;

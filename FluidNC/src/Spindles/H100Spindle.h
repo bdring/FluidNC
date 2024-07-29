@@ -11,7 +11,7 @@ namespace Spindles {
         int reg;
 
     protected:
-        uint16_t _minFrequency = 0;   
+        uint16_t _minFrequency = 0;
         uint16_t _maxFrequency = 4000;  // H100 works with frequencies scaled by 10.
 
         void updateRPM();
@@ -25,10 +25,7 @@ namespace Spindles {
 
         bool use_delay_settings() const override { return false; }
 
-        // Name of the configurable. Must match the name registered in the cpp file.
-        const char* name() const override { return "H100"; }
-
     public:
-        H100Spindle();
+        H100Spindle(const char* name) : VFD(name) {}
     };
 }

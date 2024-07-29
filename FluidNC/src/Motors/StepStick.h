@@ -17,7 +17,7 @@ namespace MotorDrivers {
         Pin _Reset;
 
     public:
-        StepStick() = default;
+        StepStick(const char* name) : StandardStepper(name) {}
 
         void init() override;
 
@@ -26,9 +26,6 @@ namespace MotorDrivers {
         void group(Configuration::HandlerBase& handler) override;
 
         void afterParse() override;
-
-        // Name of the configurable. Must match the name registered in the cpp file.
-        const char* name() const override;
 
         ~StepStick() = default;
     };

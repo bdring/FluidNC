@@ -3,11 +3,9 @@
 
 #pragma once
 
-#include "../Config.h"  // ENABLE_*
-#include "../Channel.h"
+#include "src/Channel.h"
 
-#ifdef ENABLE_WIFI
-#    include <WiFi.h>
+#include <WiFi.h>
 
 namespace WebUI {
     class TelnetClient : public Channel {
@@ -44,4 +42,3 @@ namespace WebUI {
         ~TelnetClient();
     };
 }
-#endif

@@ -16,20 +16,17 @@
 namespace Kinematics {
     class Midtbot : public CoreXY {
     public:
-        Midtbot() = default;
+        Midtbot(const char* name) : CoreXY(name) {}
 
-        Midtbot(const Midtbot&) = delete;
-        Midtbot(Midtbot&&)      = delete;
+        Midtbot(const Midtbot&)            = delete;
+        Midtbot(Midtbot&&)                 = delete;
         Midtbot& operator=(const Midtbot&) = delete;
-        Midtbot& operator=(Midtbot&&) = delete;
+        Midtbot& operator=(Midtbot&&)      = delete;
 
         // Kinematic Interface
 
         void init() override;
         void group(Configuration::HandlerBase& handler) override;
-
-        // Name of the configurable. Must match the name registered in the cpp file.
-        const char* name() const override { return "midtbot"; }
 
         ~Midtbot() {}
     };

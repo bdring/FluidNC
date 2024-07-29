@@ -1768,6 +1768,6 @@ Error gc_execute_line(char* line) {
 void WEAK_LINK user_m30() {}
 
 void WEAK_LINK user_tool_change(uint32_t new_tool) {
-    Spindles::Spindle::switchSpindle(new_tool, config->_spindles, spindle);
+    Spindles::Spindle::switchSpindle(new_tool, Spindles::SpindleFactory::objects(), spindle);
     gc_ovr_changed();
 }

@@ -18,7 +18,8 @@ void i2s_out_write(pinnum_t pin, uint8_t val) {}
 void i2s_out_push_sample(uint32_t usec) {}
 void i2s_out_push() {}
 void i2s_out_delay() {}
-int  i2s_out_set_passthrough() {
+
+int i2s_out_set_passthrough() {
     return 0;
 }
 i2s_out_pulser_status_t i2s_out_get_pulser_status() {
@@ -169,15 +170,6 @@ static portMUX_TYPE i2s_out_pulser_spinlock = portMUX_INITIALIZER_UNLOCKED;
 //
 // Internal functions
 //
-static inline void gpio_matrix_out_check(pinnum_t gpio, uint32_t signal_idx, bool out_inv, bool oen_inv) {
-    //if pin == 255, do not need to configure
-    if (gpio != 255) {
-        PIN_FUNC_SELECT(GPIO_PIN_MUX_REG[gpio], PIN_FUNC_GPIO);
-        gpio_set_direction((gpio_num_t)gpio, (gpio_mode_t)GPIO_MODE_DEF_OUTPUT);
-        gpio_matrix_out(gpio, signal_idx, out_inv, oen_inv);
-    }
-}
-
 static void IRAM_ATTR set_single_data(uint32_t portData) {
     // Apply port data in real-time (static I2S)
     I2S0.conf_single_data = portData << DATA_SHIFT;
@@ -225,9 +217,9 @@ static int i2s_clear_o_dma_buffers(uint32_t port_data) {
 
 static int i2s_out_gpio_attach(pinnum_t ws, pinnum_t bck, pinnum_t data) {
     // Route the i2s pins to the appropriate GPIO
-    gpio_matrix_out_check(data, I2S0O_DATA_OUT23_IDX, 0, 0);
-    gpio_matrix_out_check(bck, I2S0O_BCK_OUT_IDX, 0, 0);
-    gpio_matrix_out_check(ws, I2S0O_WS_OUT_IDX, 0, 0);
+    gpio_route(data, I2S0O_DATA_OUT23_IDX);
+    gpio_route(bck, I2S0O_BCK_OUT_IDX);
+    gpio_route(ws, I2S0O_WS_OUT_IDX);
     return 0;
 }
 
@@ -235,9 +227,9 @@ const int I2S_OUT_DETACH_PORT_IDX = 0x100;
 
 static int i2s_out_gpio_detach(pinnum_t ws, pinnum_t bck, pinnum_t data) {
     // Route the i2s pins to the appropriate GPIO
-    gpio_matrix_out_check(ws, I2S_OUT_DETACH_PORT_IDX, 0, 0);
-    gpio_matrix_out_check(bck, I2S_OUT_DETACH_PORT_IDX, 0, 0);
-    gpio_matrix_out_check(data, I2S_OUT_DETACH_PORT_IDX, 0, 0);
+    gpio_route(ws, I2S_OUT_DETACH_PORT_IDX);
+    gpio_route(bck, I2S_OUT_DETACH_PORT_IDX);
+    gpio_route(data, I2S_OUT_DETACH_PORT_IDX);
     return 0;
 }
 
