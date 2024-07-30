@@ -842,31 +842,32 @@ namespace WebUI {
 
             // An initial async scanNetworks was issued at startup, so there
             // is a good chance that scan information is already available.
-            int n = WiFi.scanComplete();
-            switch (n) {
-                case -2:                      // Scan not triggered
-                    WiFi.scanNetworks(true);  // Begin async scan
+            int n;
+            while (true) {
+                n = WiFi.scanComplete();
+                if (n >= 0) {  // Scan completed with n results
                     break;
-                case -1:  // Scan in progress
-                    break;
-                default:
-                    for (int i = 0; i < n; ++i) {
-                        j.begin_object();
-                        j.member("SSID", WiFi.SSID(i).c_str());
-                        j.member("SIGNAL", getSignal(WiFi.RSSI(i)));
-                        j.member("IS_PROTECTED", WiFi.encryptionType(i) != WIFI_AUTH_OPEN);
-                        //            j->member("IS_PROTECTED", WiFi.encryptionType(i) == WIFI_AUTH_OPEN ? "0" : "1");
-                        j.end_object();
-                    }
-                    WiFi.scanDelete();
-                    // Restart the scan in async mode so new data will be available
-                    // when we ask again.
-                    n = WiFi.scanComplete();
-                    if (n == -2) {
-                        WiFi.scanNetworks(true);
-                    }
-                    break;
+                }
+                if (n == WIFI_SCAN_FAILED) {  // Begin async scan
+                    //                async hidden passive ms_per_chan
+                    WiFi.scanNetworks(true, false, false, 1000);
+                }
+                // Else WIFI_SCAN_RUNNING
+                delay(1000);
             }
+
+            for (int i = 0; i < n; ++i) {
+                j.begin_object();
+                j.member("SSID", WiFi.SSID(i).c_str());
+                j.member("SIGNAL", getSignal(WiFi.RSSI(i)));
+                j.member("IS_PROTECTED", WiFi.encryptionType(i) != WIFI_AUTH_OPEN);
+                //            j->member("IS_PROTECTED", WiFi.encryptionType(i) == WIFI_AUTH_OPEN ? "0" : "1");
+                j.end_object();
+            }
+            WiFi.scanDelete();
+            // Restart the scan in async mode so new data will be available
+            // when we ask again.
+            WiFi.scanNetworks(true);
             j.end_array();
             j.end();
             return Error::Ok;
