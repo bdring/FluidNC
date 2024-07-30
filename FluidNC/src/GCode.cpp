@@ -1811,7 +1811,8 @@ void gc_exec_linef(bool sync_after, Channel& out, const char* format, ...) {
 void WEAK_LINK user_m30() {}
 
 // Do we still need "WEAK_LINK"
-void WEAK_LINK user_tool_change(uint32_t new_tool) {
+void user_tool_change(uint32_t new_tool) {
     Spindles::Spindle::switchSpindle(new_tool, Spindles::SpindleFactory::objects(), spindle);
+    spindle->tool_change(new_tool);
     gc_ovr_changed();
 }

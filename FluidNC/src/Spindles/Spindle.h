@@ -54,6 +54,7 @@ namespace Spindles {
         virtual bool isRateAdjusted();
         virtual bool use_delay_settings() const { return true; }
         virtual uint8_t get_current_tool_num() { return _current_tool; }
+        virtual bool    tool_change(uint32_t tool_number);
 
         virtual void setSpeedfromISR(uint32_t dev_speed) = 0;
 
@@ -75,6 +76,7 @@ namespace Spindles {
         bool _off_on_alarm = false;
 
         Macro _m6_macro;
+        std::string _atc = "";
 
         // Name is required for the configuration factory to work.
         const char* name() { return _name; }
@@ -94,6 +96,7 @@ namespace Spindles {
             handler.item("tool_num", _tool, 0, MaxToolNumber);
             handler.item("speed_map", _speeds);
             handler.item("off_on_alarm", _off_on_alarm);
+            handler.item("atc", _atc);
             handler.item("m6_macro", _m6_macro);
         }
 

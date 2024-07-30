@@ -102,6 +102,17 @@ namespace Spindles {
         _speeds.push_back({ max, 100.0f });
     }
 
+    bool Spindle::tool_change(uint32_t tool_number) {
+        if (!_atc.empty()) {
+            log_info(_name << " spindle changed to tool: " << tool_number);
+            return true;
+        }
+        // if (!_m6_macro.get().empty()) {
+        //     log_info(_name << " spindle run macro: " << _m6_macro.get());
+        // }
+        return true;
+    }
+
     uint32_t Spindle::maxSpeed() {
         if (_speeds.size() == 0) {
             return 0;
