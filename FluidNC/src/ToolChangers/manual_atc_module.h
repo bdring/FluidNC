@@ -6,8 +6,7 @@
 
 #include "src/Channel.h"
 #include "src/Module.h"
-
-typedef const uint8_t* font_t;
+#include "atc.h"
 
 class Manual_ATC : public Module {
 public:
@@ -21,7 +20,6 @@ private:
     std::vector<float> _ets_mpos         = { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 };
     std::vector<float> _change_mpos      = { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 };  // manual tool change location
     float              _ets_rapid_z_mpos = 0;
-    bool               _error            = false;
 
 public:
     Manual_ATC() : Module("atc_manual") {}

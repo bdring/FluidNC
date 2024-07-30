@@ -734,9 +734,9 @@ Error gc_execute_line(char* line) {
                         // if there is no M6
                         // !gc_block.modal.tool_change == ToolChange::Enable
                         if (!(gc_block.modal.tool_change == ToolChange::Enable)) {
-                            if (config->_tool_changer) {
-                                config->_tool_changer->tool_change(int_value, true);
-                            }
+                            // if (config->_tool_changer) {
+                            //     config->_tool_changer->tool_change(int_value, true);
+                            // }
                         }
                         gc_state.tool = int_value;
                         break;

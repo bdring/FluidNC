@@ -26,7 +26,6 @@
 #include "I2SOBus.h"
 #include "UserOutputs.h"
 #include "Macros.h"
-#include "../ToolChangers/ToolChanger.h"
 
 #include <string_view>
 
@@ -74,7 +73,6 @@ namespace Machine {
         Macros*                    _macros         = nullptr;
         Start*                     _start          = nullptr;
         Parking*                   _parking        = nullptr;
-        ToolChangers::ToolChanger* _tool_changer   = nullptr;
 
         UartChannel* _uart_channels[MAX_N_UARTS] = { nullptr };
         Uart*        _uarts[MAX_N_UARTS]         = { nullptr };

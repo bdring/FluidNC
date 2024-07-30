@@ -12,6 +12,7 @@
 #include "../Configuration/GenericFactory.h"
 
 #include "src/GCode.h"  // MaxToolNumber
+#include "src/Module.h"
 
 // ===============  No floats! ===========================
 // ================ NO FLOATS! ==========================

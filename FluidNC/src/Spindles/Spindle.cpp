@@ -78,7 +78,7 @@ namespace Spindles {
         _speeds[i].scale  = scaler;
     }
 
-    void Spindle::afterParse() {        
+    void Spindle::afterParse() {
         if (_speeds.size() && !maxSpeed()) {
             log_error("Speed map max speed is 0. Using default");
             _speeds.clear();
@@ -104,12 +104,17 @@ namespace Spindles {
 
     bool Spindle::tool_change(uint32_t tool_number) {
         if (!_atc.empty()) {
-            log_info(_name << " spindle changed to tool: " << tool_number);
+            for (auto const& module : Modules()) {
+                if (strcmp(module->name(), _atc.c_str()) == 0) {
+                    log_info(_name << " spindle changed to tool:" << tool_number << " using ATC:" << module->name());
+                }
+            }
             return true;
         }
-        // if (!_m6_macro.get().empty()) {
-        //     log_info(_name << " spindle run macro: " << _m6_macro.get());
-        // }
+        if (!_m6_macro.get().empty()) {
+            log_info(_name << " spindle run macro: " << _m6_macro.get());
+            return true;
+        }
         return true;
     }
 

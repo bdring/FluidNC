@@ -117,8 +117,8 @@ void setup() {
             config->_coolant->init();
             config->_probe->init();
 
-            if (config->_tool_changer)
-                config->_tool_changer->init();
+            // if (config->_tool_changer)
+            //     config->_tool_changer->init();
         }
 
     } catch (const AssertionFailed& ex) {
