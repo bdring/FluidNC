@@ -178,7 +178,7 @@ Laser:
   tool_num: 10
   speed_map: 0=0.000% 255=100.000%
   off_on_alarm: true
-  M6_macro: G55 & G0X0Y0
+  M6_macro: G90 & G55 & G0X0Y0
   
 verbose_errors: true
 

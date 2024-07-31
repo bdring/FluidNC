@@ -36,6 +36,7 @@ namespace ATCs {
         void validate() override {}
         void afterParse() override {};
         void group(Configuration::HandlerBase& handler) override {}
+        
     };
 
     using ATCFactory = Configuration::GenericFactory<ATC>;

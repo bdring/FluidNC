@@ -7,11 +7,22 @@
 #include "Spindle.h"
 
 #include "../System.h"  //sys.spindle_speed_ovr
+#include "src/UartChannel.h";
 
 Spindles::Spindle* spindle = nullptr;
 
 namespace Spindles {
     // ========================= Spindle ==================================
+
+    void Spindle::init_atc() {
+        ATCs::ATC* candidate = nullptr;
+        auto       atcs      = ATCs::ATCFactory::objects();
+        for (auto a : atcs) {
+            if (strcmp(_atc_name.c_str(), a->name()) == 0) {
+                _atc = a;
+            }
+        }
+    }
 
     void Spindle::switchSpindle(uint32_t new_tool, SpindleList spindles, Spindle*& spindle) {
         // Find the spindle whose tool number is closest to and below the new tool number
@@ -102,19 +113,35 @@ namespace Spindles {
         _speeds.push_back({ max, 100.0f });
     }
 
+    const char* Spindle::atc_info() { // this can be used in the startup response
+        std::string atc_info = "";
+        if (_atc != NULL) {
+            atc_info = " ATC:" + _atc_name;
+        } else if (!_m6_macro._gcode.empty()) {
+            atc_info = " M6 macro:";
+        }
+        return atc_info.c_str();
+    }
+
     bool Spindle::tool_change(uint32_t tool_number) {
-        if (!_atc.empty()) {
-            for (auto const& module : Modules()) {
-                if (strcmp(module->name(), _atc.c_str()) == 0) {
-                    log_info(_name << " spindle changed to tool:" << tool_number << " using ATC:" << module->name());
-                }
-            }
+        if (_atc != NULL) {
+            log_info(_name << " spindle changed to tool:" << tool_number << " using ATC:" << _atc_name);
             return true;
         }
+        // if (!_atc.empty()) {
+        //     for (auto const& module : Modules()) {
+        //         if (strcmp(module->name(), _atc.c_str()) == 0) {
+        //             log_info(_name << " spindle changed to tool:" << tool_number << " using ATC:" << module->name());
+        //         }
+        //     }
+        //     return true;
+        // }
         if (!_m6_macro.get().empty()) {
             log_info(_name << " spindle run macro: " << _m6_macro.get());
+            _m6_macro.run(nullptr);
             return true;
         }
+        log_info(_name << " spindle tool change ignored.");
         return true;
     }
 
