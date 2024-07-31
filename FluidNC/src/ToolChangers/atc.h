@@ -6,35 +6,38 @@
 
 #include "src/Channel.h"
 #include "src/Module.h"
+namespace ATCs {
+    class ATC : public Configuration::Configurable {
+    protected:
+        const char* _name;
+        uint32_t    _last_tool = 0;
+        bool        _error     = false;
 
-class ATC : public Module {
-public:
-    ATC(const char* name) : Module(name) {}
+    public:
+        ATC(const char* name) : _name(name) {}
 
-private:
-    // config items
-    uint32_t _last_tool = 0;
-    bool     _error     = false;
+        ATC(const ATC&)                    = delete;
+        ATC(ATC&&)                         = delete;
+        ATC&     operator=(const ATC&)     = delete;
+        ATC&     operator=(ATC&&)          = delete;
 
-public:
-    ATC() : Module("atc") {}
+        virtual ~ATC() = default;
 
-    ATC(const ATC&)            = delete;
-    ATC(ATC&&)                 = delete;
-    ATC& operator=(const ATC&) = delete;
-    ATC& operator=(ATC&&)      = delete;
+        const char* name() { return _name; }
 
-    virtual ~ATC() = default;
+        virtual void init() = 0;
 
-    virtual void init() = 0;
+        virtual void probe_notification();
+        virtual void tool_change(uint8_t value, bool pre_select);
 
-    virtual void probe_notification();
-    virtual void tool_change(uint8_t value, bool pre_select);
+        ATC* __atc;
 
-    ATC* __atc;
+        // Configuration handlers:
+        void validate() override {}
+        void afterParse() override {};
+        void group(Configuration::HandlerBase& handler) override {}
+    };
 
-    // Configuration handlers:
-    void validate() override {}
-    void afterParse() override;
-    void group(Configuration::HandlerBase& handler) override {}
-};
+    using ATCFactory = Configuration::GenericFactory<ATC>;
+}
+extern ATCs::ATC* atc;

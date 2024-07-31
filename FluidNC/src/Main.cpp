@@ -23,6 +23,8 @@
 #    include "Driver/localfs.h"
 #    include "esp32-hal.h"  // disableCore0WDT
 
+#    include "src/ToolChangers/atc.h"
+
 extern void make_user_commands();
 
 void setup() {
@@ -105,6 +107,11 @@ void setup() {
         // Initialize system state.
         for (auto const& module : Modules()) {
             module->init();
+        }
+
+        auto atcs = ATCs::ATCFactory::objects();
+        for (auto const& atc : atcs) {
+            atc->init();
         }
 
         if (!state_is(State::ConfigAlarm)) {

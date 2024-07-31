@@ -1,11 +1,17 @@
-// #include "atc.h"
+#include "atc.h"
 
-// #include "../Machine/MachineConfig.h"
+#include "../Machine/MachineConfig.h"
 
-// void ATC::afterParse() {};
+ATCs::ATC* atc = nullptr;
 
-// void ATC::init() {
-//     log_info("ATC: atc base");
-// }
+namespace ATCs {
+    void probe_notification() {
 
-// ModuleFactory::InstanceBuilder<ATC> atc_module __attribute__((init_priority(104))) ("atc");
+    }
+
+    void tool_change(uint8_t value, bool pre_select) {
+
+    }
+}
+
+
