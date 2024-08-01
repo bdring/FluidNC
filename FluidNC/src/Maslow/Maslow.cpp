@@ -10,7 +10,7 @@
 #include "../FileStream.h"
 
 // Maslow specific defines
-#define VERSION_NUMBER "0.80"
+#define VERSION_NUMBER "0.81"
 
 #define TLEncoderLine 2
 #define TREncoderLine 1
@@ -601,8 +601,8 @@ void Maslow_::safety_control() {
             panicCounter[i]++;
             if (panicCounter[i] > tresholdHitsBeforePanic) {
                 if(sys.state() == State::Jog || sys.state() == State::Cycle){
-                    log_error("Motor current on " << axis_id_to_label(i).c_str() << " axis exceeded threshold of " << 4000);
-                    Maslow.panic();
+                    log_warn("Motor current on " << axis_id_to_label(i).c_str() << " axis exceeded threshold of " << 4000);
+                    // Maslow.panic();
                 }
                 tick[i] = true;
             }
