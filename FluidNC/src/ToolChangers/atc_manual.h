@@ -1,3 +1,6 @@
+// Copyright (c) 2024 -	Bart Dring
+// Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
+
 #pragma once
 
 #include "src/Config.h"
@@ -13,8 +16,8 @@ namespace ATCs {
     public:
         Manual_ATC(const char* name) : ATC(name) {}
 
-        Manual_ATC(const Manual_ATC&)  = delete;
-        Manual_ATC(Manual_ATC&&)       = delete;
+        Manual_ATC(const Manual_ATC&)            = delete;
+        Manual_ATC(Manual_ATC&&)                 = delete;
         Manual_ATC& operator=(const Manual_ATC&) = delete;
         Manual_ATC& operator=(Manual_ATC&&)      = delete;
 
@@ -29,15 +32,26 @@ namespace ATCs {
         std::vector<float> _change_mpos      = { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 };  // manual tool change location
         float              _ets_rapid_z_mpos = 0;
 
-    public:
-        
+        bool    _is_OK                   = false;
+        uint8_t _prev_tool               = 0;  // TODO This could be a NV setting
+        bool    _have_tool_setter_offset = false;
+        float   _tool_setter_offset      = 0.0;  // have we established an offset.
+        float   _tool_setter_position[MAX_N_AXIS];
 
+        void move_to_change_location();
+        void move_to_save_z();
+        void move_over_toolsetter();
+        bool seek_probe();
+        bool hold_and_wait_for_resume();
+        bool probe(float rate, float* probe_z_mpos);
+        void reset();
+
+    public:
         void init() override;
         void probe_notification() override;
-        void tool_change(uint8_t value, bool pre_select) override;
+        bool tool_change(uint8_t value, bool pre_select) override;
 
         void validate() override {}
-
 
         void group(Configuration::HandlerBase& handler) override {
             handler.item("safe_z_mpos_mm", _safe_z, -100000, 100000);

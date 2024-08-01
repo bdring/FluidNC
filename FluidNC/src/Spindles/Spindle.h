@@ -29,6 +29,7 @@ namespace Spindles {
 
     protected:
         ATCs::ATC* _atc = NULL;
+        uint32_t   _last_tool = 0;
 
     public:
         Spindle(const char* name) : _name(name) {}
@@ -61,7 +62,7 @@ namespace Spindles {
         virtual bool    isRateAdjusted();
         virtual bool    use_delay_settings() const { return true; }
         virtual uint8_t get_current_tool_num() { return _current_tool; }
-        virtual bool    tool_change(uint32_t tool_number);
+        virtual bool    tool_change(uint32_t tool_number, bool pre_select);
 
         virtual void setSpeedfromISR(uint32_t dev_speed) = 0;
 

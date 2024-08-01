@@ -113,7 +113,7 @@ namespace Spindles {
         _speeds.push_back({ max, 100.0f });
     }
 
-    const char* Spindle::atc_info() { // this can be used in the startup response
+    const char* Spindle::atc_info() {  // this can be used in the startup response
         std::string atc_info = "";
         if (_atc != NULL) {
             atc_info = " ATC:" + _atc_name;
@@ -123,24 +123,22 @@ namespace Spindles {
         return atc_info.c_str();
     }
 
-    bool Spindle::tool_change(uint32_t tool_number) {
+    bool Spindle::tool_change(uint32_t tool_number, bool pre_select) {
         if (_atc != NULL) {
             log_info(_name << " spindle changed to tool:" << tool_number << " using ATC:" << _atc_name);
-            return true;
+            return _atc->tool_change(tool_number, pre_select);
         }
-        // if (!_atc.empty()) {
-        //     for (auto const& module : Modules()) {
-        //         if (strcmp(module->name(), _atc.c_str()) == 0) {
-        //             log_info(_name << " spindle changed to tool:" << tool_number << " using ATC:" << module->name());
-        //         }
-        //     }
-        //     return true;
-        // }
         if (!_m6_macro.get().empty()) {
-            log_info(_name << " spindle run macro: " << _m6_macro.get());
-            _m6_macro.run(nullptr);
+            if (tool_number == 0) {
+                gc_exec_linef(false, Uart0, "G49");
+            } else if (tool_number != _last_tool) {
+                log_info(_name << " spindle run macro: " << _m6_macro.get());
+                _m6_macro.run(nullptr);
+            }
+            _last_tool = tool_number;
             return true;
         }
+        
         log_info(_name << " spindle tool change ignored.");
         return true;
     }

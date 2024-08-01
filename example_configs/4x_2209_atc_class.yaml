@@ -152,7 +152,7 @@ atc_manual:
   probe_seek_rate_mm_per_min: 800.000000
   probe_feed_rate_mm_per_min: 80.000000
   change_mpos_mm: 80.000 0.000 -1.000
-  ets_mpos_mm: 5.000 -17.000 -40.000
+  ets_mpos_mm: 5.000 -9.000 -40.000
   
 pwm:
   pwm_hz: 5000

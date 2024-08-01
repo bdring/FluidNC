@@ -733,10 +733,8 @@ Error gc_execute_line(char* line) {
                         log_info("Tool No: " << int_value);
                         // if there is no M6
                         // !gc_block.modal.tool_change == ToolChange::Enable
-                        if (!(gc_block.modal.tool_change == ToolChange::Enable)) {
-                            // if (config->_tool_changer) {
-                            //     config->_tool_changer->tool_change(int_value, true);
-                            // }
+                        if (!(gc_block.modal.tool_change == ToolChange::Enable)) {                            
+                            spindle->tool_change(int_value, true);
                         }
                         gc_state.tool = int_value;
                         break;
@@ -1813,6 +1811,6 @@ void WEAK_LINK user_m30() {}
 // Do we still need "WEAK_LINK"
 void user_tool_change(uint32_t new_tool) {
     Spindles::Spindle::switchSpindle(new_tool, Spindles::SpindleFactory::objects(), spindle);
-    spindle->tool_change(new_tool);
+    spindle->tool_change(new_tool, false);
     gc_ovr_changed();
 }

@@ -1,3 +1,6 @@
+// Copyright (c) 2024 -	Bart Dring
+// Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
+
 #pragma once
 
 #include "src/Config.h"
@@ -16,10 +19,10 @@ namespace ATCs {
     public:
         ATC(const char* name) : _name(name) {}
 
-        ATC(const ATC&)                    = delete;
-        ATC(ATC&&)                         = delete;
-        ATC&     operator=(const ATC&)     = delete;
-        ATC&     operator=(ATC&&)          = delete;
+        ATC(const ATC&)            = delete;
+        ATC(ATC&&)                 = delete;
+        ATC& operator=(const ATC&) = delete;
+        ATC& operator=(ATC&&)      = delete;
 
         virtual ~ATC() = default;
 
@@ -28,7 +31,7 @@ namespace ATCs {
         virtual void init() = 0;
 
         virtual void probe_notification();
-        virtual void tool_change(uint8_t value, bool pre_select);
+        virtual bool tool_change(uint8_t value, bool pre_select) = 0;
 
         ATC* __atc;
 
@@ -36,7 +39,6 @@ namespace ATCs {
         void validate() override {}
         void afterParse() override {};
         void group(Configuration::HandlerBase& handler) override {}
-        
     };
 
     using ATCFactory = Configuration::GenericFactory<ATC>;
