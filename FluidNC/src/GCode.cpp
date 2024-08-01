@@ -52,6 +52,7 @@ gc_modal_t modal_defaults = {
     {}, // 0, // CoolantState::M7,
     SpindleState::Disable,
     ToolChange::Disable,
+    SetToolNumber::Disable,
     IoControl::None,
     Override::ParkingMotion
 };
@@ -601,6 +602,10 @@ Error gc_execute_line(char* line) {
                             FAIL(Error::GcodeUnsupportedCommand);  // [Unsupported M command]
                         }
                         break;
+                    case 61:  // set tool number
+                        gc_block.modal.set_tool_number = SetToolNumber::Enable;
+                        mg_word_bit                    = ModalGroup::MM6;
+                        break;
                     case 62:
                         gc_block.modal.io_control = IoControl::DigitalOnSync;
                         mg_word_bit               = ModalGroup::MM10;
@@ -731,6 +736,9 @@ Error gc_execute_line(char* line) {
                             FAIL(Error::GcodeMaxValueExceeded);
                         }
                         log_info("Tool No: " << int_value);
+                        if (!(gc_block.modal.tool_change == ToolChange::Enable)) {
+                            user_tool_change(gc_block.values.t);
+                        }
                         gc_state.tool = int_value;
                         break;
                     case 'X':
@@ -916,6 +924,13 @@ Error gc_execute_line(char* line) {
         clear_bitnum(value_words, GCodeWord::E);
         clear_bitnum(value_words, GCodeWord::Q);
     }
+    if (gc_block.modal.set_tool_number == SetToolNumber::Enable) {
+        if (bitnum_is_false(value_words, GCodeWord::Q)) {
+            FAIL(Error::GcodeValueWordMissing);
+        }
+        clear_bitnum(value_words, GCodeWord::Q);
+    }
+
     // [11. Set active plane ]: N/A
     switch (gc_block.modal.plane_select) {
         case Plane::XY:
@@ -1457,12 +1472,16 @@ Error gc_execute_line(char* line) {
     // NOTE: Pass zero spindle speed for all restricted laser motions.
     if (!disableLaser) {
         pl_data->spindle_speed = gc_state.spindle_speed;  // Record data for planner use.
-    }                                                     // else { pl_data->spindle_speed = 0.0; } // Initialized as zero already.
+    }  // else { pl_data->spindle_speed = 0.0; } // Initialized as zero already.
     // [5. Select tool ]: NOT SUPPORTED. Only tracks tool value.
     //	gc_state.tool = gc_block.values.t;
     // [6. Change tool ]: NOT SUPPORTED
     if (gc_block.modal.tool_change == ToolChange::Enable) {
         user_tool_change(gc_state.tool);
+    }
+    if (gc_block.modal.set_tool_number == SetToolNumber::Enable) {
+        user_tool_change(gc_block.values.q);
+        gc_state.tool = gc_block.values.q;
     }
     // [7. Spindle control ]:
     if (gc_state.modal.spindle != gc_block.modal.spindle) {
@@ -1767,7 +1786,7 @@ Error gc_execute_line(char* line) {
 
 void WEAK_LINK user_m30() {}
 
-void WEAK_LINK user_tool_change(uint32_t new_tool) {
+void user_tool_change(uint32_t new_tool) {
     Spindles::Spindle::switchSpindle(new_tool, Spindles::SpindleFactory::objects(), spindle);
     gc_ovr_changed();
 }
