@@ -10,7 +10,7 @@
 #include "../FileStream.h"
 
 // Maslow specific defines
-#define VERSION_NUMBER "0.81"
+#define VERSION_NUMBER "0.80"
 
 #define TLEncoderLine 2
 #define TREncoderLine 1
@@ -601,8 +601,8 @@ void Maslow_::safety_control() {
             panicCounter[i]++;
             if (panicCounter[i] > tresholdHitsBeforePanic) {
                 if(sys.state() == State::Jog || sys.state() == State::Cycle){
-                    log_warn("Motor current on " << axis_id_to_label(i).c_str() << " axis exceeded threshold of " << 4000);
-                    // Maslow.panic();
+                    log_error("Motor current on " << axis_id_to_label(i).c_str() << " axis exceeded threshold of " << 4000);
+                    Maslow.panic();
                 }
                 tick[i] = true;
             }
@@ -1972,15 +1972,10 @@ void Maslow_::write_telemetry_buffer(uint8_t* buffer, size_t length) {
 }
 
 void Maslow_::dump_telemetry(const char* file) {
-    if (telemetry_enabled) {
-        telemetry_enabled = false;
-        log_info("Closing telemetry file");
-        //allow loop to process the buffer.
-        vTaskDelay(8000 / portTICK_PERIOD_MS);
-    }
-    log_info("Dumping telemetry");
+    log_info("Dumping telemetry...");
+    vTaskDelay(2000 / portTICK_PERIOD_MS);
     // open the file
-    FileStream* f = new FileStream(file, "r", "sd");
+    FileStream* f = new FileStream(MASLOW_TELEM_FILE, "r", "sd");
     if (f) {
         // read the size of each struct from the file
         TelemetryFileHeader header;
