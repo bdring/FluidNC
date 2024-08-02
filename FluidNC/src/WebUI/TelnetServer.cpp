@@ -20,6 +20,10 @@ namespace WebUI {
     std::queue<TelnetClient*> TelnetServer::_disconnected;
 
     void TelnetServer::init() {
+        if (WiFi.getMode() == WIFI_OFF) {
+            return;
+        }
+
         deinit();
 
         telnet_port =

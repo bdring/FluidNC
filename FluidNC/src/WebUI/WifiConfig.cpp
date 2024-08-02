@@ -206,7 +206,7 @@ namespace WebUI {
         void wifi_stats(JSONencoder& j) {
             j.id_value_object("Sleep mode", WiFi.getSleep() ? "Modem" : "None");
             int mode = WiFi.getMode();
-            if (mode != WIFI_MODE_NULL) {
+            if (mode != WIFI_OFF) {
                 //Is OTA available ?
                 size_t flashsize = 0;
                 if (esp_ota_get_running_partition()) {
@@ -337,7 +337,7 @@ namespace WebUI {
         void status_report(Channel& out) {
             log_stream(out, "Sleep mode: " << (WiFi.getSleep() ? "Modem" : "None"));
             int mode = WiFi.getMode();
-            if (mode != WIFI_MODE_NULL) {
+            if (mode != WIFI_OFF) {
                 //Is OTA available ?
                 size_t flashsize = 0;
                 if (esp_ota_get_running_partition()) {
@@ -471,7 +471,7 @@ namespace WebUI {
 
         static const char* modeName() {
             switch (WiFi.getMode()) {
-                case WIFI_MODE_NULL:
+                case WIFI_OFF:
                     return "None";
                 case WIFI_STA:
                     return "STA";
@@ -555,13 +555,13 @@ namespace WebUI {
             s << " # webcommunication: Sync: ";
             s << std::to_string(Web_Server::port() + 1) + ":";
             switch (WiFi.getMode()) {
-                case WIFI_MODE_AP:
+                case WIFI_AP:
                     s << IP_string(WiFi.softAPIP());
                     break;
-                case WIFI_MODE_STA:
+                case WIFI_STA:
                     s << IP_string(WiFi.localIP());
                     break;
-                case WIFI_MODE_APSTA:
+                case WIFI_AP_STA:
                     s << IP_string(WiFi.softAPIP());
                     break;
                 default:
@@ -758,7 +758,7 @@ namespace WebUI {
         }
 
         static void StopWiFi() {
-            if (WiFi.getMode() != WIFI_MODE_NULL) {
+            if (WiFi.getMode() != WIFI_OFF) {
                 if ((WiFi.getMode() == WIFI_STA) || (WiFi.getMode() == WIFI_AP_STA)) {
                     WiFi.disconnect(true);
                 }
@@ -785,7 +785,7 @@ namespace WebUI {
             std::string result;
 
             auto mode = WiFi.getMode();
-            if (mode == WIFI_MODE_STA || mode == WIFI_MODE_APSTA) {
+            if (mode == WIFI_STA || mode == WIFI_AP_STA) {
                 result += "Mode=STA:SSID=";
                 result += WiFi.SSID().c_str();
                 result += ":Status=";
@@ -804,8 +804,8 @@ namespace WebUI {
             std::string result;
 
             auto mode = WiFi.getMode();
-            if (mode == WIFI_MODE_AP || mode == WIFI_MODE_APSTA) {
-                if (WiFi.getMode() == WIFI_MODE_APSTA) {
+            if (mode == WIFI_AP || mode == WIFI_AP_STA) {
+                if (WiFi.getMode() == WIFI_AP_STA) {
                     result += "]\n[MSG:";
                 }
                 result += "Mode=AP:SSID=";
@@ -823,7 +823,7 @@ namespace WebUI {
         }
 
         static bool isOn() {
-            return !(WiFi.getMode() == WIFI_MODE_NULL);
+            return !(WiFi.getMode() == WIFI_OFF);
         }
 
         // Used by js/scanwifidlg.js
@@ -842,31 +842,32 @@ namespace WebUI {
 
             // An initial async scanNetworks was issued at startup, so there
             // is a good chance that scan information is already available.
-            int n = WiFi.scanComplete();
-            switch (n) {
-                case -2:                      // Scan not triggered
-                    WiFi.scanNetworks(true);  // Begin async scan
+            int n;
+            while (true) {
+                n = WiFi.scanComplete();
+                if (n >= 0) {  // Scan completed with n results
                     break;
-                case -1:  // Scan in progress
-                    break;
-                default:
-                    for (int i = 0; i < n; ++i) {
-                        j.begin_object();
-                        j.member("SSID", WiFi.SSID(i).c_str());
-                        j.member("SIGNAL", getSignal(WiFi.RSSI(i)));
-                        j.member("IS_PROTECTED", WiFi.encryptionType(i) != WIFI_AUTH_OPEN);
-                        //            j->member("IS_PROTECTED", WiFi.encryptionType(i) == WIFI_AUTH_OPEN ? "0" : "1");
-                        j.end_object();
-                    }
-                    WiFi.scanDelete();
-                    // Restart the scan in async mode so new data will be available
-                    // when we ask again.
-                    n = WiFi.scanComplete();
-                    if (n == -2) {
-                        WiFi.scanNetworks(true);
-                    }
-                    break;
+                }
+                if (n == WIFI_SCAN_FAILED) {  // Begin async scan
+                    //                async hidden passive ms_per_chan
+                    WiFi.scanNetworks(true, false, false, 1000);
+                }
+                // Else WIFI_SCAN_RUNNING
+                delay(1000);
             }
+
+            for (int i = 0; i < n; ++i) {
+                j.begin_object();
+                j.member("SSID", WiFi.SSID(i).c_str());
+                j.member("SIGNAL", getSignal(WiFi.RSSI(i)));
+                j.member("IS_PROTECTED", WiFi.encryptionType(i) != WIFI_AUTH_OPEN);
+                //            j->member("IS_PROTECTED", WiFi.encryptionType(i) == WIFI_AUTH_OPEN ? "0" : "1");
+                j.end_object();
+            }
+            WiFi.scanDelete();
+            // Restart the scan in async mode so new data will be available
+            // when we ask again.
+            WiFi.scanNetworks(true);
             j.end_array();
             j.end();
             return Error::Ok;
