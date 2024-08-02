@@ -563,8 +563,7 @@ Error gc_execute_line(char* line) {
                         break;
                     case 6:  // tool change
                         gc_block.modal.tool_change = ToolChange::Enable;
-                        // user_tool_change(gc_state.tool);
-                        mg_word_bit = ModalGroup::MM6;
+                        mg_word_bit                = ModalGroup::MM6;
                         break;
                     case 7:
                     case 8:
@@ -739,7 +738,7 @@ Error gc_execute_line(char* line) {
                         // if there is no M6
                         // !gc_block.modal.tool_change == ToolChange::Enable
                         if (!(gc_block.modal.tool_change == ToolChange::Enable)) {
-                            spindle->tool_change(int_value, true);
+                            spindle->tool_change(int_value, true, false);
                         }
                         gc_state.tool = int_value;
                         break;
@@ -1479,10 +1478,10 @@ Error gc_execute_line(char* line) {
     //	gc_state.tool = gc_block.values.t;
     // [6. Change tool ]: NOT SUPPORTED
     if (gc_block.modal.tool_change == ToolChange::Enable) {
-        user_tool_change(gc_state.tool);
+        user_tool_change(gc_state.tool, false, false);
     }
     if (gc_block.modal.set_tool_number == SetToolNumber::Enable) {
-        user_tool_change(gc_block.values.q);
+        user_tool_change(gc_block.values.q, false, true);  // set only
         gc_state.tool = gc_block.values.q;
     }
     // [7. Spindle control ]:
@@ -1824,9 +1823,8 @@ void gc_exec_linef(bool sync_after, Channel& out, const char* format, ...) {
 
 void WEAK_LINK user_m30() {}
 
-// Do we still need "WEAK_LINK"
-void user_tool_change(uint32_t new_tool) {
+void user_tool_change(uint32_t new_tool, bool pre_select, bool set_only) {
     Spindles::Spindle::switchSpindle(new_tool, Spindles::SpindleFactory::objects(), spindle);
-    spindle->tool_change(new_tool, false);
+    spindle->tool_change(new_tool, pre_select, set_only);
     gc_ovr_changed();
 }

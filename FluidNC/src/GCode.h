@@ -320,7 +320,7 @@ void  gc_exec_linef(bool sync_after, Channel& out, const char* format, ...);
 // Set g-code parser position. Input in steps.
 void gc_sync_position();
 
-void user_tool_change(uint32_t new_tool);
+void user_tool_change(uint32_t new_tool, bool pre_select, bool set_only);
 void user_m30();
 
 void gc_ngc_changed(CoordIndex coord);

@@ -31,7 +31,7 @@ namespace ATCs {
         virtual void init() = 0;
 
         virtual void probe_notification();
-        virtual bool tool_change(uint8_t value, bool pre_select) = 0;
+        virtual bool tool_change(uint8_t value, bool pre_select, bool set_tool) = 0;
 
         ATC* __atc;
 

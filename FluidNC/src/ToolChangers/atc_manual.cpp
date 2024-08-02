@@ -53,7 +53,7 @@ namespace ATCs {
 
     void Manual_ATC::probe_notification() {}
 
-    bool Manual_ATC::tool_change(uint8_t new_tool, bool pre_select) {
+    bool Manual_ATC::tool_change(uint8_t new_tool, bool pre_select, bool set_tool) {
         bool spindle_was_on = false;
 
         if (new_tool == 0) {  // M6T0 is used to reset this ATC

@@ -7,7 +7,7 @@
 #include "Spindle.h"
 
 #include "../System.h"  //sys.spindle_speed_ovr
-#include "src/UartChannel.h";
+#include "src/UartChannel.h"
 
 Spindles::Spindle* spindle = nullptr;
 
@@ -118,27 +118,33 @@ namespace Spindles {
         if (_atc != NULL) {
             atc_info = " ATC:" + _atc_name;
         } else if (!_m6_macro._gcode.empty()) {
-            atc_info = " M6 macro:";
+            atc_info = " m6_macro:";
         }
         return atc_info.c_str();
     }
 
-    bool Spindle::tool_change(uint32_t tool_number, bool pre_select) {
+    // pre_select is generally ignored except for machines that need to get a tool ready
+    // set_tool is just used to tell the atc what is already installed.
+    bool Spindle::tool_change(uint32_t tool_number, bool pre_select, bool set_tool) {
+        log_info("Tool:" << tool_number << " PS:" << pre_select << " Set:" << set_tool);
         if (_atc != NULL) {
             log_info(_name << " spindle changed to tool:" << tool_number << " using ATC:" << _atc_name);
-            return _atc->tool_change(tool_number, pre_select);
+            return _atc->tool_change(tool_number, pre_select, set_tool);
         }
         if (!_m6_macro.get().empty()) {
+            if (pre_select) {
+                return true;
+            }
             if (tool_number == 0) {
                 gc_exec_linef(false, Uart0, "G49");
-            } else if (tool_number != _last_tool) {
+            } else if (tool_number != _last_tool && !set_tool) {
                 log_info(_name << " spindle run macro: " << _m6_macro.get());
                 _m6_macro.run(nullptr);
             }
             _last_tool = tool_number;
             return true;
         }
-        
+
         log_info(_name << " spindle tool change ignored.");
         return true;
     }

@@ -166,8 +166,8 @@ pwm:
   tool_num: 0
   speed_map: 0=0.000% 1000=100.000%
   off_on_alarm: false
-  atc: atc_manual
-  M6_macro:
+  atc:
+  M6_macro: G55 G0X0Y0
   
 Laser:
   pwm_hz: 5000

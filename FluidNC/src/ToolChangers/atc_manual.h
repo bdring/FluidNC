@@ -49,7 +49,7 @@ namespace ATCs {
     public:
         void init() override;
         void probe_notification() override;
-        bool tool_change(uint8_t value, bool pre_select) override;
+        bool tool_change(uint8_t value, bool pre_select, bool set_tool) override;
 
         void validate() override {}
 
