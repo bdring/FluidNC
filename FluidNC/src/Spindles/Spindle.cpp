@@ -78,6 +78,12 @@ namespace Spindles {
         _speeds[i].scale  = scaler;
     }
 
+    void Spindle::validate() {
+        for (auto s : Spindles::SpindleFactory::objects()) {
+            Assert(s == this || s->_tool != _tool, "Duplicate tool_number %d with /%s", _tool, s->name());
+        }
+    }
+
     void Spindle::afterParse() {
         if (_speeds.size() && !maxSpeed()) {
             log_error("Speed map max speed is 0. Using default");
