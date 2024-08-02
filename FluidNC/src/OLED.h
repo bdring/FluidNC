@@ -12,7 +12,7 @@ typedef const uint8_t* font_t;
 
 class OLED : public Channel, public Module {
 public:
-    OLED(const char* name) : Module(name) {}
+    OLED(const char* name) : Channel(name), Module(name) {}
     struct Layout {
         uint8_t                    _x;
         uint8_t                    _y;
@@ -81,8 +81,6 @@ private:
     bool _error = false;
 
 public:
-    OLED() : Channel("oled"), Module("oled") {}
-
     OLED(const OLED&)            = delete;
     OLED(OLED&&)                 = delete;
     OLED& operator=(const OLED&) = delete;
