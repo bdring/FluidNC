@@ -90,10 +90,7 @@ namespace Spindles {
         const char* name() { return _name; }
 
         // Configuration handlers:
-        void validate() override {
-            // TODO: Validate spinup/spindown delay?
-        }
-
+        void validate() override;
         void afterParse() override;
 
         void group(Configuration::HandlerBase& handler) override {

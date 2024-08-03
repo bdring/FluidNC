@@ -95,13 +95,13 @@ namespace Configuration {
                     auto name = (*it)->name();
                     auto it2 =
                         std::find_if(objects.begin(), objects.end(), [&](auto& object) { return strcasecmp(object->name(), name) == 0; });
-                    if (it2 == objects.end()) {
-                        auto object = (*it)->create(name);
-                        objects.push_back(object);
-                        handler.enterFactory(name, *object);
-                    } else {
-                        handler.enterFactory(name, **it2);
-                    }
+                    // If the config file contains multiple factory sections with the same name,
+                    // for example two laser: sections or oled: sections, create a new node
+                    // for each repetition.  FluidNC can thus support multiple lasers with
+                    // different tool numbers and output pins, multiple OLED displays, etc
+                    auto object = (*it)->create(name);
+                    objects.push_back(object);
+                    handler.enterFactory(name, *object);
                 }
             } else {
                 for (auto it : objects) {

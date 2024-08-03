@@ -85,9 +85,10 @@ namespace WebUI {
 
         _setupdone = false;
 
-        if (!http_enable->get()) {
+        if (WiFi.getMode() == WIFI_OFF || !http_enable->get()) {
             return;
         }
+
         _port = http_port->get();
 
         //create instance
