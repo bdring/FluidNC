@@ -304,7 +304,8 @@ private:
     unsigned long overideTimer = millis();
 
     bool HeartBeatEnabled = true;
-    void log_telem_pt(TelemetryData data);
+    void log_telem_hdr_csv();
+    void log_telem_pt_csv(TelemetryData data);
 };
 
 extern Maslow_& Maslow;
