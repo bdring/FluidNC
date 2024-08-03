@@ -149,10 +149,11 @@ sdcard:
 
 atc_manual:
   safe_z_mpos_mm: -1.000000
-  probe_seek_rate_mm_per_min: 800.000000
+  probe_seek_rate_mm_per_min: 500.000000
   probe_feed_rate_mm_per_min: 80.000000
   change_mpos_mm: 80.000 0.000 -1.000
   ets_mpos_mm: 5.000 -9.000 -40.000
+  ets_rapid_z_mpos_mm: -25.0
   
 pwm:
   pwm_hz: 5000
@@ -166,8 +167,8 @@ pwm:
   tool_num: 0
   speed_map: 0=0.000% 1000=100.000%
   off_on_alarm: false
-  atc:
-  M6_macro: G55 G0X0Y0
+  atc: atc_manual
+#  M6_macro: G55 G0X0Y0
   
 Laser:
   pwm_hz: 5000
@@ -178,7 +179,7 @@ Laser:
   tool_num: 10
   speed_map: 0=0.000% 255=100.000%
   off_on_alarm: true
-  M6_macro: G90 & G55 & G0X0Y0
+#  M6_macro: G90 & G55 & G0X0Y0
   
 verbose_errors: true
 

@@ -601,7 +601,7 @@ Error gc_execute_line(char* line) {
                             FAIL(Error::GcodeUnsupportedCommand);  // [Unsupported M command]
                         }
                         break;
-                    case 61:  // set tool number
+                    case 61:  // M61 set tool number
                         gc_block.modal.set_tool_number = SetToolNumber::Enable;
                         mg_word_bit                    = ModalGroup::MM6;
                         break;
@@ -734,13 +734,7 @@ Error gc_execute_line(char* line) {
                         if (value > MaxToolNumber) {
                             FAIL(Error::GcodeMaxValueExceeded);
                         }
-                        log_info("Tool No: " << int_value);
-                        // if there is no M6
-                        // !gc_block.modal.tool_change == ToolChange::Enable
-                        if (!(gc_block.modal.tool_change == ToolChange::Enable)) {
-                            spindle->tool_change(int_value, true, false);
-                        }
-                        gc_state.tool = int_value;
+                        gc_state.selected_tool = int_value;
                         break;
                     case 'X':
                         if (n_axis > X_AXIS) {
@@ -1476,12 +1470,23 @@ Error gc_execute_line(char* line) {
     }  // else { pl_data->spindle_speed = 0.0; } // Initialized as zero already.
     // [5. Select tool ]: NOT SUPPORTED. Only tracks tool value.
     //	gc_state.tool = gc_block.values.t;
-    // [6. Change tool ]: NOT SUPPORTED
+    // [M6. Change tool ]:
     if (gc_block.modal.tool_change == ToolChange::Enable) {
-        user_tool_change(gc_state.tool, false, false);
+        if (gc_state.selected_tool != gc_state.tool) {
+            bool stopped_spindle;
+            Spindles::Spindle::switchSpindle(gc_state.selected_tool, Spindles::SpindleFactory::objects(), spindle, stopped_spindle);
+            if (stopped_spindle) {
+                spindle->stop();  // stop the new spindle
+                gc_state.spindle_speed = 0.0;
+                gc_block.modal.spindle = SpindleState::Disable;
+            }
+            spindle->tool_change(gc_state.selected_tool, false, false);
+            gc_state.tool      = gc_state.selected_tool;
+            report_ovr_counter = 0;  // Set to report change immediately
+            gc_ovr_changed();
+        }
     }
     if (gc_block.modal.set_tool_number == SetToolNumber::Enable) {
-        user_tool_change(gc_block.values.q, false, true);  // set only
         gc_state.tool = gc_block.values.q;
     }
     // [7. Spindle control ]:
@@ -1749,7 +1754,6 @@ Error gc_execute_line(char* line) {
                 gc_ovr_changed();
             }
             report_feedback_message(Message::ProgramEnd);
-            user_m30();
             break;
     }
     gc_state.modal.program_flow = ProgramFlow::Running;  // Reset program flow.
@@ -1820,11 +1824,3 @@ void gc_exec_linef(bool sync_after, Channel& out, const char* format, ...) {
    group 10 = {G98, G99} return mode canned cycles
    group 13 = {G61.1, G64} path control mode (G61 is supported)
 */
-
-void WEAK_LINK user_m30() {}
-
-void user_tool_change(uint32_t new_tool, bool pre_select, bool set_only) {
-    Spindles::Spindle::switchSpindle(new_tool, Spindles::SpindleFactory::objects(), spindle);
-    spindle->tool_change(new_tool, pre_select, set_only);
-    gc_ovr_changed();
-}

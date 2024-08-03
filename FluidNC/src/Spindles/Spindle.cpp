@@ -24,7 +24,7 @@ namespace Spindles {
         }
     }
 
-    void Spindle::switchSpindle(uint32_t new_tool, SpindleList spindles, Spindle*& spindle) {
+    void Spindle::switchSpindle(uint32_t new_tool, SpindleList spindles, Spindle*& spindle, bool& stop_spindle) {
         // Find the spindle whose tool number is closest to and below the new tool number
         Spindle* candidate = nullptr;
         for (auto s : spindles) {
@@ -35,9 +35,11 @@ namespace Spindles {
         if (candidate) {
             if (candidate != spindle) {
                 if (spindle != nullptr) {
-                    spindle->stop();
+                    spindle->stop();      // stop the current spindle
+                    stop_spindle = true;  // used to stop the next spindle
                 }
                 spindle = candidate;
+                log_info("Changed to spindle:" << spindle->name());
             }
         } else {
             if (spindle == nullptr) {
@@ -48,7 +50,6 @@ namespace Spindles {
                 spindle = spindles[0];
             }
         }
-        log_info("Using spindle " << spindle->name());
     }
 
     bool Spindle::isRateAdjusted() {
@@ -126,7 +127,6 @@ namespace Spindles {
     // pre_select is generally ignored except for machines that need to get a tool ready
     // set_tool is just used to tell the atc what is already installed.
     bool Spindle::tool_change(uint32_t tool_number, bool pre_select, bool set_tool) {
-        log_info("Tool:" << tool_number << " PS:" << pre_select << " Set:" << set_tool);
         if (_atc != NULL) {
             log_info(_name << " spindle changed to tool:" << tool_number << " using ATC:" << _atc_name);
             return _atc->tool_change(tool_number, pre_select, set_tool);
@@ -144,8 +144,6 @@ namespace Spindles {
             _last_tool = tool_number;
             return true;
         }
-
-        log_info(_name << " spindle tool change ignored.");
         return true;
     }
 

@@ -59,13 +59,7 @@ namespace ATCs {
         if (new_tool == 0) {  // M6T0 is used to reset this ATC
             log_info("ATC values reset");
             reset();
-            return true;
-        }
-
-        if (pre_select) {  // user just send a T value (no M6)
-                           // If T=0 reset
-            _prev_tool = new_tool;
-            log_info("Current tool changed to:" << new_tool);
+            move_to_change_location();
             return true;
         }
 
@@ -158,7 +152,7 @@ namespace ATCs {
     void Manual_ATC::reset() {
         _is_OK                   = true;
         _have_tool_setter_offset = false;
-        _prev_tool               = gc_state.tool;
+        _prev_tool               = gc_state.tool;  // Double check this
     }
 
     void Manual_ATC::move_to_change_location() {

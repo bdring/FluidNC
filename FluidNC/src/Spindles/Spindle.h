@@ -47,7 +47,7 @@ namespace Spindles {
         void     shelfSpeeds(SpindleSpeed min, SpindleSpeed max);
         void     linearSpeeds(SpindleSpeed maxSpeed, float maxPercent);
 
-        static void switchSpindle(uint32_t new_tool, SpindleList spindles, Spindle*& spindle);
+        static void switchSpindle(uint32_t new_tool, SpindleList spindles, Spindle*& spindle, bool& stop_spindle);
 
         void         spindleDelay(SpindleState state, SpindleSpeed speed);
         virtual void init() = 0;  // not in constructor because this also gets called when $$ settings change
