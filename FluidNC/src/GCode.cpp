@@ -1487,7 +1487,18 @@ Error gc_execute_line(char* line) {
         }
     }
     if (gc_block.modal.set_tool_number == SetToolNumber::Enable) {
-        gc_state.tool = gc_block.values.q;
+        gc_state.selected_tool = gc_block.values.q;
+        gc_state.tool = gc_state.selected_tool;
+        bool stopped_spindle;
+        Spindles::Spindle::switchSpindle(gc_state.selected_tool, Spindles::SpindleFactory::objects(), spindle, stopped_spindle);
+        if (stopped_spindle) {
+            spindle->stop();  // stop the new spindle
+            gc_state.spindle_speed = 0.0;
+            gc_block.modal.spindle = SpindleState::Disable;
+        }
+        spindle->tool_change(gc_state.selected_tool, false, true);        
+        report_ovr_counter = 0;  // Set to report change immediately
+        gc_ovr_changed();
     }
     // [7. Spindle control ]:
     if (gc_state.modal.spindle != gc_block.modal.spindle) {

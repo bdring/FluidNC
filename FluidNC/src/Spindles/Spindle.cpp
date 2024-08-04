@@ -33,11 +33,11 @@ namespace Spindles {
             }
         }
         if (candidate) {
+            if (spindle != nullptr) {
+                spindle->stop();      // stop the current spindle
+                stop_spindle = true;  // used to stop the next spindle
+            }
             if (candidate != spindle) {
-                if (spindle != nullptr) {
-                    spindle->stop();      // stop the current spindle
-                    stop_spindle = true;  // used to stop the next spindle
-                }
                 spindle = candidate;
                 log_info("Changed to spindle:" << spindle->name());
             }
@@ -141,14 +141,16 @@ namespace Spindles {
             if (pre_select) {
                 return true;
             }
-            if (tool_number == 0) {
-                gc_exec_linef(false, Uart0, "G49");
-            } else if (tool_number != _last_tool && !set_tool) {
+            if (set_tool) {
+                _last_tool = tool_number;
+                return true;
+            }
+            if (tool_number != _last_tool) {
                 log_info(_name << " spindle run macro: " << _m6_macro.get());
                 _m6_macro.run(nullptr);
+                _last_tool = tool_number;
+                return true;
             }
-            _last_tool = tool_number;
-            return true;
         }
         return true;
     }

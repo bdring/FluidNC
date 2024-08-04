@@ -56,10 +56,10 @@ namespace ATCs {
     bool Manual_ATC::tool_change(uint8_t new_tool, bool pre_select, bool set_tool) {
         bool spindle_was_on = false;
 
-        if (new_tool == 0) {  // M6T0 is used to reset this ATC
-            log_info("ATC values reset");
+        // M6T0 is used to reset this ATC and allow us
+        if (new_tool == 0 || set_tool) {
+            _prev_tool = new_tool;
             reset();
-            move_to_change_location();
             return true;
         }
 
