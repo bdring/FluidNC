@@ -40,6 +40,12 @@ namespace WebUI {
         { "STA>AP", WiFiFallback },
     };
 
+    const enum_opt_t wifiPsModeOptions = {
+        { "None", WIFI_PS_NONE },
+        { "Min", WIFI_PS_MIN_MODEM },
+        { "Max", WIFI_PS_MAX_MODEM },
+    };
+
     enum WiFiCountry {
         WiFiCountry01 = 0,  // country "01" is the safest set of settings which complies with all regulatory domains
         WiFiCountryAT,
@@ -171,6 +177,7 @@ namespace WebUI {
     static EnumSetting*     _fast_scan;
     static EnumSetting*     _sta_min_security;
     static PasswordSetting* _sta_password;
+    static EnumSetting*     _wifi_ps_mode;
 
     class WiFiConfig : public Module {
     private:
@@ -822,9 +829,7 @@ namespace WebUI {
             return result;
         }
 
-        static bool isOn() {
-            return !(WiFi.getMode() == WIFI_OFF);
-        }
+        static bool isOn() { return !(WiFi.getMode() == WIFI_OFF); }
 
         // Used by js/scanwifidlg.js
 
@@ -893,7 +898,8 @@ namespace WebUI {
                 new EnumSetting("Station IP Mode", WEBSET, WA, NULL, "Sta/MinSecurity", WIFI_AUTH_WPA2_PSK, &staSecurityOptions);
             _sta_password = new PasswordSetting("Station Password", "ESP101", "Sta/Password", "");
 
-            _mode = new EnumSetting("WiFi mode", WEBSET, WA, "ESP116", "WiFi/Mode", WiFiFallback, &wifiModeOptions);
+            _mode         = new EnumSetting("WiFi mode", WEBSET, WA, "ESP116", "WiFi/Mode", WiFiFallback, &wifiModeOptions);
+            _wifi_ps_mode = new EnumSetting("WiFi power saving mode", WEBSET, WA, NULL, "WiFi/PsMode", WIFI_PS_NONE, &wifiPsModeOptions);
 
             new WebCommand(NULL, WEBCMD, WU, "ESP410", "WiFi/ListAPs", listAPs);
             new WebCommand(NULL, WEBCMD, WG, "ESP800", "Firmware/Info", showFwInfo, anyState);
@@ -942,13 +948,12 @@ namespace WebUI {
                 _events_registered = true;
             }
             esp_wifi_set_ps(WIFI_PS_NONE);
+            esp_wifi_set_ps(static_cast<wifi_ps_type_t>(_wifi_ps_mode->get()));
             log_info("WiFi on");
             //        wifi_services.begin();
         }
 
-        void deinit() override {
-            StopWiFi();
-        }
+        void deinit() override { StopWiFi(); }
 
         void build_info(Channel& channel) {
             std::string sti = station_info();
@@ -976,9 +981,7 @@ namespace WebUI {
             }
         }
 
-        ~WiFiConfig() {
-            deinit();
-        }
+        ~WiFiConfig() { deinit(); }
     };
 
     ModuleFactory::InstanceBuilder<WiFiConfig> __attribute__((init_priority(105))) wifi_module("wifi", true);
