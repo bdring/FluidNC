@@ -138,19 +138,21 @@ namespace Spindles {
             return _atc->tool_change(tool_number, pre_select, set_tool);
         }
         if (!_m6_macro.get().empty()) {
+            log_info(_name << " spindle changed to tool:" << tool_number << " using m6_macro");
             if (pre_select) {
                 return true;
             }
-            if (set_tool) {
-                _last_tool = tool_number;
+            _last_tool = tool_number;
+            if (set_tool) {}
+            if (tool_number == 0) {  // do nothing
                 return true;
             }
-            if (tool_number != _last_tool) {
-                log_info(_name << " spindle run macro: " << _m6_macro.get());
-                _m6_macro.run(nullptr);
-                _last_tool = tool_number;
-                return true;
-            }
+            //if (tool_number != _last_tool) {
+            log_info(_name << " spindle run macro: " << _m6_macro.get());
+            _m6_macro.run(nullptr);
+            _last_tool = tool_number;
+            return true;
+            //}
         }
         return true;
     }
