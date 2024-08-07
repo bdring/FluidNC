@@ -886,6 +886,24 @@ static Error maslow_stop(const char* value, WebUI::AuthenticationLevel auth_leve
     Maslow.stop();
     return Error::Ok;
 }
+static Error maslow_telemetry_dump(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+    if (!value || !*value) {
+        value = std::string(MASLOW_TELEM_FILE).c_str();
+    }
+    // TODO: only call if the file exists
+    Maslow.dump_telemetry(value);
+    return Error::Ok;
+}
+static Error maslow_telemetry_set(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+    if (!value ||!*value) {
+        // if no value, then toggle telem
+        Maslow.set_telemetry(!Maslow.telemetry_enabled);
+    } else {
+        Maslow.set_telemetry(*value == '1');
+    }
+    log_info("M4 telmetry set to " << (Maslow.telemetry_enabled ? "on" : "off"));
+    return Error::Ok;
+}
 static Error maslow_set_comply(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
     if(Maslow.using_default_config) {
         return Error::ConfigurationInvalid;
@@ -1153,6 +1171,8 @@ void make_user_commands() {
     new UserCommand("BL", "Maslow/retractBL", maslow_retract_BL, anyState);
     new UserCommand("ALL", "Maslow/retract", maslow_retract_ALL, anyState);
     new UserCommand("EXT", "Maslow/extend", maslow_extend_ALL, anyState);
+    new UserCommand("TELEMDUMP", "Maslow/telemetryDump", maslow_telemetry_dump, anyState);
+    new UserCommand("TELEM", "Maslow/setTelemetry", maslow_telemetry_set, anyState);
     new UserCommand("CMP", "Maslow/comply", maslow_set_comply, anyState);
     new UserCommand("CAL", "Maslow/calibrate", maslow_start_calibration, anyState);
 

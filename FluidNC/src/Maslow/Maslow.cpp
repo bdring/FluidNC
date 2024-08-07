@@ -7,6 +7,7 @@
 #include "../WebUI/WifiConfig.h"
 #include "../Protocol.h"
 #include "../System.h"
+#include "../FileStream.h"
 
 // Maslow specific defines
 #define VERSION_NUMBER "0.82"
@@ -645,7 +646,7 @@ void Maslow_::safety_control() {
             log_warn("Position error on " << axis_id_to_label(i).c_str() << " axis exceeded 15mm while running. Error is "
                                             << axis[i]->getPositionError() << "mm" << " Counter: " << positionErrorCounter[i]);
             log_warn("Previous error was " << previousPositionError[i] << "mm");
-            
+
             if(positionErrorCounter[i] > 5){
                 Maslow.eStop("Position error > 15mm while running. E-Stop triggered.");
             }
@@ -1822,6 +1823,265 @@ void Maslow_::getInfo() {
           << "\"ebl\": " << axisBL.getPositionError() << ","
           << "\"extended\": " << (allAxisExtended() ? "true" : "false")
           << "}");
+}
+
+void Maslow_::set_telemetry(bool enabled) {
+    if (enabled) {
+        // Start off the file with the length of each struct in it.
+        FileStream* file = new FileStream(MASLOW_TELEM_FILE, "w", "sd");
+        // write header
+        TelemetryFileHeader header;
+        header.structureSize = sizeof(TelemetryData);
+        strcpy(header.version, VERSION_NUMBER);
+        file->write(reinterpret_cast<uint8_t *>(&header), sizeof(TelemetryFileHeader));
+        file->flush();
+        delete file;
+    } else {
+        // TODO: not sure why this fails to find the file
+        // std::string filePath = MASLOW_TELEM_FILE;
+        // std::string newFilePath = filePath + "." + std::to_string(millis());
+        // std::error_code ec;
+        // log_info("renaming file: " + filePath + " to " + newFilePath);
+        // stdfs::rename(filePath, newFilePath, ec);
+        // if (ec) {
+        //     log_error(std::string("Error renaming file: ") + ec.message());
+        // }
+    }
+    telemetry_enabled = enabled;
+    log_info("Telemetry: " << (enabled? "enabled" : "disabled"));
+}
+
+void Maslow_::log_telem_hdr_csv() {
+    log_data(
+       "millis," <<
+       "tlCurrent," <<
+       "trCurrent," <<
+       "blCurrent," <<
+       "brCurrent," <<
+       "tlPower," <<
+       "trPower," <<
+       "blPower," <<
+       "brPower," <<
+       "tlSpeed," <<
+       "trSpeed," <<
+       "blSpeed," <<
+       "brSpeed," <<
+       "tlPos," <<
+       "trPos," <<
+       "blPos," <<
+       "brPos," <<
+       "extendedTL," <<
+       "extendedTR," <<
+       "extendedBL," <<
+       "extendedBR," <<
+       "extendingALL," <<
+       "complyALL," <<
+       "takeSlack," <<
+       "safetyOn," <<
+       "targetX," <<
+       "targetY," <<
+       "targetZ," <<
+       "x," <<
+       "y," <<
+       "test," <<
+       "pointCount," <<
+       "waypoint," <<
+       "calibrationGridSize," <<
+       "holdTimer," <<
+       "holding," <<
+       "holdTime," <<
+       "centerX," <<
+       "centerY," <<
+       "lastCallToPID," <<
+       "lastMiss," <<
+       "lastCallToUpdate," <<
+       "extendCallTimer," <<
+       "complyCallTimer");
+}
+
+void Maslow_::log_telem_pt_csv(TelemetryData data) {
+    log_data(
+       std::to_string(data.timestamp) + ","
+       + std::to_string(data.tlCurrent) + ","
+       + std::to_string(data.trCurrent)  + ","
+       + std::to_string(data.blCurrent)  + ","
+       + std::to_string(data.brCurrent)  + ","
+       + std::to_string(data.tlPower) + ","
+       + std::to_string(data.trPower) + ","
+       + std::to_string(data.blPower) + ","
+       + std::to_string(data.brPower) + ","
+       + std::to_string(data.tlSpeed) + ","
+       + std::to_string(data.trSpeed) + ","
+       + std::to_string(data.blSpeed) + ","
+       + std::to_string(data.brSpeed) + ","
+       + std::to_string(data.tlPos) + ","
+       + std::to_string(data.trPos) + ","
+       + std::to_string(data.blPos) + ","
+       + std::to_string(data.brPos) + ","
+       + std::to_string(data.extendedTL) + ","
+       + std::to_string(data.extendedTR) + ","
+       + std::to_string(data.extendedBL) + ","
+       + std::to_string(data.extendedBR) + ","
+       + std::to_string(data.extendingALL) + ","
+       + std::to_string(data.complyALL) + ","
+       + std::to_string(data.takeSlack) + ","
+       + std::to_string(data.safetyOn) + ","
+       + std::to_string(data.targetX) + ","
+       + std::to_string(data.targetY) + ","
+       + std::to_string(data.targetZ) + ","
+       + std::to_string(data.x) + ","
+       + std::to_string(data.y) + ","
+       + std::to_string(data.test) + ","
+       + std::to_string(data.pointCount) + ","
+       + std::to_string(data.waypoint) + ","
+       + std::to_string(data.calibrationGridSize) + ","
+       + std::to_string(data.holdTimer) + ","
+       + std::to_string(data.holding) + ","
+       + std::to_string(data.holdTime) + ","
+       + std::to_string(data.centerX) + ","
+       + std::to_string(data.centerY) + ","
+       + std::to_string(data.lastCallToPID) + ","
+       + std::to_string(data.lastMiss) + ","
+       + std::to_string(data.lastCallToUpdate) + ","
+       + std::to_string(data.extendCallTimer) + ","
+       + std::to_string(data.complyCallTimer)
+    )
+}
+
+TelemetryData Maslow_::get_telemetry_data() {
+    TelemetryData data;
+
+    // TODO: probably, we ought to use mutexes here?, but it is not implemented yet and
+    // it may not matter much. the reads are generally of types that don't
+    //if (xSemaphoreTake(telemetry_mutex, portMAX_DELAY)) {
+    // Access shared variables here
+    data.timestamp = millis();
+    data.tlCurrent = axisTL.getMotorCurrent();
+    data.trCurrent = axisTR.getMotorCurrent();
+    data.blCurrent = axisBL.getMotorCurrent();
+    data.brCurrent = axisBR.getMotorCurrent();
+
+    data.tlPower = axisTL.getMotorPower();
+    data.trPower = axisTR.getMotorPower();
+    data.blPower = axisBL.getMotorPower();
+    data.brPower = axisBR.getMotorPower();
+
+    data.tlSpeed = axisTL.getBeltSpeed();
+    data.trSpeed = axisTR.getBeltSpeed();
+    data.blSpeed = axisBL.getBeltSpeed();
+    data.brSpeed = axisBR.getBeltSpeed();
+
+    data.tlPos = axisTL.getPosition();
+    data.trPos = axisTR.getPosition();
+    data.blPos = axisBL.getPosition();
+    data.brPos = axisBR.getPosition();
+
+    data.extendedTL          = extendedTL;
+    data.extendedTR          = extendedTR;
+    data.extendedBL          = extendedBL;
+    data.extendedBR          = extendedBR;
+    data.extendingALL        = extendingALL;
+    data.complyALL           = complyALL;
+    data.takeSlack           = takeSlack;
+    data.safetyOn            = safetyOn;
+    data.targetX             = targetX;
+    data.targetY             = targetY;
+    data.targetZ             = targetZ;
+    data.x                   = x;
+    data.y                   = y;
+    data.test                = test;
+    data.pointCount          = pointCount;
+    data.waypoint            = waypoint;
+    data.calibrationGridSize = calibrationGridSize;
+    data.holdTimer           = holdTimer;
+    data.holding             = holding;
+    data.holdTime            = holdTime;
+    data.centerX             = centerX;
+    data.centerY             = centerY;
+    data.lastCallToPID       = lastCallToPID;
+    data.lastMiss            = lastMiss;
+    data.lastCallToUpdate    = lastCallToUpdate;
+    data.extendCallTimer     = extendCallTimer;
+    data.complyCallTimer     = complyCallTimer;
+    // xSemaphoreGive(telemetry_mutex);
+    //}
+    return data;
+}
+void Maslow_::write_telemetry_buffer(uint8_t* buffer, size_t length) {
+    // Open the file in append mode
+    FileStream* file = new FileStream(MASLOW_TELEM_FILE, "a", "sd");
+
+    // Write the buffer to the file
+    file->write(buffer, length);
+    file->flush();
+
+    // Close the file
+    delete file;
+}
+
+void Maslow_::dump_telemetry(const char* file) {
+    log_info("Dumping telemetry...");
+    vTaskDelay(2000 / portTICK_PERIOD_MS);
+    // open the file
+    FileStream* f = new FileStream(MASLOW_TELEM_FILE, "r", "sd");
+    if (f) {
+        // read the size of each struct from the file
+        TelemetryFileHeader header;
+        f->read(reinterpret_cast<char*>(&header), sizeof(TelemetryFileHeader));
+        log_info("Struct size " << header.structureSize);
+        log_info("Dump version " << header.version);
+        log_telem_hdr_csv();
+        // TODO: check version and adapt?
+        TelemetryData* data   = new TelemetryData();
+        char*          buffer = new char[header.structureSize];
+        while (f->available()) {
+            f->read(&buffer[0], header.structureSize);
+            // populate data from buffer
+            memcpy(data, buffer, header.structureSize);
+            // print the data
+            log_telem_pt_csv(*data);
+            // log_telem_pt(*data);
+        }
+        // delete the buffer
+        delete[] buffer;
+        // delete the data
+        delete data;
+    } else{
+        log_info("File not found")
+    }
+    delete f;
+}
+
+// Called on utility core as a task to gather telemetry and write it to an SD log
+void telemetry_loop(void* unused) {
+    const int bufferSize = 5000;
+    uint8_t buffer[bufferSize];
+    int bufferIndex = 0;
+
+    while (true) {
+        if (Maslow.telemetry_enabled) {
+            TelemetryData data = Maslow.get_telemetry_data();
+
+            // Copy the telemetry data into the buffer
+            memcpy(buffer + bufferIndex, reinterpret_cast<uint8_t*>(&data), sizeof(TelemetryData));
+            // increment the index
+            bufferIndex += sizeof(TelemetryData);
+
+            // Check if the buffer is about to overflow
+            if (bufferIndex >= bufferSize) {
+                log_debug("!" << bufferIndex);
+                Maslow.write_telemetry_buffer(buffer, bufferIndex);
+                bufferIndex = 0;
+            }
+        } else {
+            if (bufferIndex > 0) {
+                Maslow.write_telemetry_buffer(buffer, bufferIndex);
+                bufferIndex = 0;
+            }
+        }
+        // Start with 2Hz-ish
+        vTaskDelay(500 / portTICK_PERIOD_MS);
+    }
 }
 
 Maslow_& Maslow_::getInstance() {
