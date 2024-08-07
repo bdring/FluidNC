@@ -588,7 +588,7 @@ void Maslow_::safety_control() {
     //We need to keep track of average belt speeds and motor currents for every axis
     static bool          tick[4]                 = { false, false, false, false };
     static unsigned long spamTimer               = millis();
-    static int           tresholdHitsBeforePanic = 15;
+    static int           tresholdHitsBeforePanic = 150;
     static int           panicCounter[4]         = { 0 };
 
     static int           positionErrorCounter[4] = { 0 };
@@ -602,7 +602,7 @@ void Maslow_::safety_control() {
             if (panicCounter[i] > tresholdHitsBeforePanic) {
                 if(sys.state() == State::Jog || sys.state() == State::Cycle){
                     log_warn("Motor current on " << axis_id_to_label(i).c_str() << " axis exceeded threshold of " << 4000);
-                    // Maslow.panic();
+                    Maslow.panic();
                 }
                 tick[i] = true;
             }
