@@ -114,7 +114,6 @@ namespace WebUI {
 
     void BTConfig::init() {
         log_debug("Begin Bluetooth setup");
-        return;
         //stop active services
         deinit();
 
