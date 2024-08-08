@@ -22,6 +22,13 @@ namespace Configuration {
         Channel& dst_;
         bool     lastIsNewline_ = false;
 
+        inline void indent() {
+            lastIsNewline_ = false;
+            for (int i = 0; i < indent_ * 2; ++i) {
+                dst_ << ' ';
+            }
+        }
+
         void enter(const char* name);
         void add(Configuration::Configurable* configurable);
         void leave();
@@ -74,6 +81,22 @@ namespace Configuration {
                 const char* separator = "";
                 for (speedEntry n : value) {
                     s << separator << n.speed << "=" << std::fixed << n.percent << "%";
+                    separator = " ";
+                }
+                send_item(name, s.str());
+            }
+        }
+
+        void item(const char* name, std::vector<float>& value) {
+            if (value.size() == 0) {
+                send_item(name, "None");
+            } else {
+                std::ostringstream s;
+                s.precision(3);
+                s << std::fixed;
+                const char* separator = "";
+                for (float n : value) {
+                    s << separator << n;
                     separator = " ";
                 }
                 send_item(name, s.str());

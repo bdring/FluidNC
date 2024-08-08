@@ -102,6 +102,8 @@ namespace Configuration {
     }
 
     void JsonGenerator::item(const char* name, std::vector<speedEntry>& value) {}
+    void JsonGenerator::item(const char* name, std::vector<float>& value) {}
+
     void JsonGenerator::item(const char* name, UartData& wordLength, UartParity& parity, UartStop& stopBits) {
         // Not sure if I should comment this out or not. The implementation is similar to the one in Generator.h.
     }

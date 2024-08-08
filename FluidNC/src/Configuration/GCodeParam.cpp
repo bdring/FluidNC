@@ -114,6 +114,12 @@ namespace Configuration {
         }
     }
 
+    void GCodeParam::item(const char* name, std::vector<float>& value) {
+        if (is(name)) {
+            error();
+        }
+    }
+
     void GCodeParam::item(const char* name, IPAddress& value) {
         if (is(name)) {
             error();

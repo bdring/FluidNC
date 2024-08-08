@@ -119,6 +119,12 @@ namespace Configuration {
             }
         }
 
+        void item(const char* name, std::vector<float>& value) override {
+            if (_parser.is(name)) {
+                value = _parser.floatArray();
+            }
+        }
+
         void item(const char* name, UartData& wordLength, UartParity& parity, UartStop& stopBits) override {
             if (_parser.is(name)) {
                 _parser.uartMode(wordLength, parity, stopBits);

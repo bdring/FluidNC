@@ -42,6 +42,7 @@ namespace Spindles {
             linearSpeeds(10000, 100.0f);
         }
         setupSpeeds(_pwm->period());
+        init_atc();
         config_message();
     }
 
@@ -92,7 +93,7 @@ namespace Spindles {
     // prints the startup message of the spindle config
     void PWM::config_message() {
         log_info(name() << " Spindle Ena:" << _enable_pin.name() << " Out:" << _output_pin.name() << " Dir:" << _direction_pin.name()
-                        << " Freq:" << _pwm->frequency() << "Hz Period:" << _pwm->period()
+                        << " Freq:" << _pwm->frequency() << "Hz Period:" << _pwm->period() << atc_info()
 
         );
     }
