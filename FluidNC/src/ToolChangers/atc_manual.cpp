@@ -3,6 +3,8 @@
 
 #include "atc_manual.h"
 #include "../Machine/MachineConfig.h"
+#include <cstdio>
+#include <iostream>
 
 /*
   safe_z_mm: Set this to the mpos height you want the Z to travel around when tool changing. It is typically near the top so the longest tool can clear the work.
@@ -40,10 +42,6 @@ tool_changer:
   probe_feed_rate_mm_per_min: 80.000000
   change_mpos_mm: 80.000 0.000 -1.000
   ets_mpos_mm: 5.000 -17.000 -40.000
-      
-
-
-
 */
 
 namespace ATCs {
@@ -56,92 +54,81 @@ namespace ATCs {
     bool Manual_ATC::tool_change(uint8_t new_tool, bool pre_select, bool set_tool) {
         bool spindle_was_on = false;
 
-        // M6T0 is used to reset this ATC and allow us
+        // M6T0 is used to reset this ATC and allow us to start a new job
         if (new_tool == 0 || set_tool) {
             _prev_tool = new_tool;
             reset();
             return true;
         }
 
-        if (new_tool == _prev_tool) {
-            log_info("Requested tool already active");
-            return true;
-        }
-
         try {
             protocol_buffer_synchronize();  // wait for all motion to complete
+
+            _macro._gcode = "";  // clear previous gcode
 
             if (_prev_tool == 0) {  // M6T<anything> from T0 is used for a manual change before zero'ing
                 log_info("Load first tool");
                 move_to_change_location();
+                _macro.addf("G4P0 0.1");
+                _macro.addf("(MSG : Install tool #1 then resume to continue)");
+                _macro.run(nullptr);
                 _prev_tool = new_tool;
                 return true;
             }
 
-            float  starting_wpos[6] = {};
-            float* mpos             = get_mpos();
-            float* wco              = get_wco();
-
-            auto n_axis = config->_axes->_numberAxis;
-            for (int idx = 0; idx < n_axis; idx++) {
-                starting_wpos[idx] = mpos[idx] - wco[idx];
-            }
-            //log_info("Starting WPos: " << starting_wpos[0] << "," << starting_wpos[1] << "," << starting_wpos[2]);
-
             _prev_tool = new_tool;
 
+            _macro.addf("#<start_x >= #<_x>");
+            _macro.addf("#<start_y >= #<_y>");
+            _macro.addf("#<start_z >= #<_z>");
+
             move_to_save_z();
+
+            // turn off the spindle
             if (gc_state.modal.spindle != SpindleState::Disable) {
                 spindle_was_on = true;
-                gc_exec_linef(true, Uart0, "M5");  // this should add a delay if there is one
+                _macro.addf("M5");
             }
 
             // if we have not determined the tool setter offset yet, we need to do that.
             if (!_have_tool_setter_offset) {
+                log_info("Need TLO T1");
                 move_over_toolsetter();
                 // do a seek probe if needed
-                if (!seek_probe())
-                    return false;
-                // do the position finding feed rate probe
-                if (!probe(_probe_feed_rate, _tool_setter_position)) {
-                    return false;
-                }
+                ets_probe();
 
-                _tool_setter_offset      = _tool_setter_position[2];
+                _macro.addf("#<_ets_tool1_z>=[#5063]");
+                _macro.addf("D#<_ets_tool1_z>");
+
                 _have_tool_setter_offset = true;
             }
 
             move_to_change_location();
-            log_info("Please install tool:" << new_tool);
 
-            if (!hold_and_wait_for_resume()) {
-                log_info("Tool change aborted");
-                return false;  // aborted
-            }
+            _macro.addf("G4P0 0.1");
+            _macro.addf("(MSG: Install tool #%d)", new_tool);
+            _macro.addf("M0");
+
             // probe the new tool
             move_to_save_z();
             move_over_toolsetter();
 
-            if (!seek_probe())
-                return false;
-
-            float offset_probe[MAX_N_AXIS] = {};
-            if (!probe(_probe_feed_rate, offset_probe)) {
-                return false;
-            }
-
-            float tlo = offset_probe[2] - _tool_setter_offset;
+            ets_probe();
 
             //log_info("Set TLO:" << tlo);
-            gc_exec_linef(false, Uart0, "G43.1Z%0.3f", tlo);
+            _macro.addf("#<_my_tlo_z >=[#5063 - #<_ets_tool1_z>]");
+            _macro.addf("G43.1Z#<_my_tlo_z>");
 
             move_to_save_z();
-            gc_exec_linef(false, Uart0, "G0X%0.3fY%0.3f", starting_wpos[0], starting_wpos[1]);
-            gc_exec_linef(false, Uart0, "G0Z%0.3f", starting_wpos[2]);
+
+            _macro.addf("G0X#<start_x>Y#<start_y>");
+            //_macro.addf("G0Z#<start_z>");
 
             if (spindle_was_on) {
-                gc_exec_linef(false, Uart0, "M3");  // spindle should handle spinup delay
+                _macro.addf("M3");  // spindle should handle spinup delay
             }
+
+            _macro.run(nullptr);
 
             return true;
         } catch (...) { log_info("Exception caught"); }
@@ -156,57 +143,30 @@ namespace ATCs {
     }
 
     void Manual_ATC::move_to_change_location() {
-        move_to_save_z();                                                                                           // go to safe Z
-        gc_exec_linef(false, Uart0, "G53G0X%0.3fY%0.3fZ%0.3f", _change_mpos[0], _change_mpos[1], _change_mpos[2]);  // go to change position
+        move_to_save_z();
+        _macro.addf("G53G0X%0.3fY%0.3fZ%0.3f", _change_mpos[0], _change_mpos[1], _change_mpos[2]);
     }
 
     void Manual_ATC::move_to_save_z() {
-        gc_exec_linef(false, Uart0, "G53G0Z%0.3f", _safe_z);
+        _macro.addf("G53G0Z%0.3f", _safe_z);
     }
 
     void Manual_ATC::move_over_toolsetter() {
-        gc_exec_linef(false, Uart0, "G53G0X%0.3fY%0.3f", _ets_mpos[0], _ets_mpos[1]);
+        move_to_save_z();
+        _macro.addf("G53G0X%0.3fY%0.3f", _ets_mpos[0], _ets_mpos[1]);
     }
 
-    bool Manual_ATC::probe(float rate, float* probe_z_mpos) {
-        gc_exec_linef(true, Uart0, "G53 G38.2 Z%0.3f F%0.3f", _ets_mpos[2], rate);
-        if (sys.state == State::Alarm) {
-            return false;
-        }
-        motor_steps_to_mpos(probe_z_mpos, probe_steps);
-        return true;
-    }
+    void Manual_ATC::ets_probe() {
+        _macro.addf("G53G0Z #</ atc_manual / ets_rapid_z_mpos_mm>");  // rapid down
 
-    bool Manual_ATC::seek_probe() {
-        gc_exec_linef(true, Uart0, "G53G0Z%0.3f", _ets_rapid_z_mpos);
+        // do a fast probe if there is a seek that is faster than feed
         if (_probe_seek_rate > _probe_feed_rate) {
-            float probe_mpos[6];
-            if (!probe(_probe_seek_rate, probe_mpos)) {
-                return false;
-            }
-            // retract
-            gc_exec_linef(false, Uart0, "G53G0Z%0.3f", probe_mpos[2] + 5.0);
-        }
-        return true;
-    }
-
-    bool Manual_ATC::hold_and_wait_for_resume() {
-        protocol_buffer_synchronize();
-        protocol_send_event(&feedHoldEvent);
-
-        log_info("Feedhold. Send resume after tool change.");
-        protocol_handle_events();
-
-        while (sys.state == State::Hold) {
-            vTaskDelay(1);
-            protocol_handle_events();  // do critical stuff
+            _macro.addf("G53 G38.2 Z%0.3f F%0.3f", _ets_mpos[2], _probe_seek_rate);
+            _macro.addf("G0Z[#<_z> + 5]");  // move up 5mm
         }
 
-        if (sys.state == State::Idle) {
-            return true;
-        }
-
-        return false;
+        // do the feed rate probe
+        _macro.addf("G53 G38.2 Z%0.3f F%0.3f", _ets_mpos[2], _probe_feed_rate);
     }
 
     namespace {

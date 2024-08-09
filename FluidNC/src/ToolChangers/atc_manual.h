@@ -10,6 +10,7 @@
 #include "src/Channel.h"
 #include "src/Module.h"
 #include "atc.h"
+#include "../Machine/Macros.h"
 
 namespace ATCs {
     class Manual_ATC : public ATC {
@@ -41,10 +42,10 @@ namespace ATCs {
         void move_to_change_location();
         void move_to_save_z();
         void move_over_toolsetter();
-        bool seek_probe();
-        bool hold_and_wait_for_resume();
-        bool probe(float rate, float* probe_z_mpos);
+        void ets_probe();
         void reset();
+
+        Macro _macro;
 
     public:
         void init() override;

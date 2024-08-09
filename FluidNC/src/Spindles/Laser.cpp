@@ -20,7 +20,7 @@ namespace Spindles {
 
     void Laser::config_message() {
         log_info(name() << " Ena:" << _enable_pin.name() << " Out:" << _output_pin.name() << " Freq:" << _pwm->frequency()
-                        << "Hz Period:" << _pwm->period());
+                        << "Hz Period:" << _pwm->period() << atc_info());
     }
 
     void Laser::init() {

@@ -44,7 +44,7 @@ namespace Spindles {
     }
 
     void Dac::config_message() {
-        log_info(name() << " Spindle Out:" << _output_pin.name() << " Dir:" << _direction_pin.name() << " Res:8bits");
+        log_info(name() << " Spindle Out:" << _output_pin.name() << " Dir:" << _direction_pin.name() << " Res:8bits" << atc_info());
     }
 
     void IRAM_ATTR Dac::setSpeedfromISR(uint32_t speed) { set_output(speed); };

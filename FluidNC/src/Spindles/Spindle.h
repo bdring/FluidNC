@@ -28,7 +28,7 @@ namespace Spindles {
         const char* _name;
 
     protected:
-        ATCs::ATC* _atc = NULL;
+        ATCs::ATC* _atc       = NULL;
         uint32_t   _last_tool = 0;
 
     public:
@@ -52,7 +52,7 @@ namespace Spindles {
         void         spindleDelay(SpindleState state, SpindleSpeed speed);
         virtual void init() = 0;  // not in constructor because this also gets called when $$ settings change
         virtual void init_atc();
-        const char* atc_info();
+        std::string  atc_info();
 
         // Used by Protocol.cpp to restore the state during a restart
         virtual void    setState(SpindleState state, uint32_t speed) = 0;

@@ -120,14 +120,14 @@ namespace Spindles {
         _speeds.push_back({ max, 100.0f });
     }
 
-    const char* Spindle::atc_info() {  // this can be used in the startup response
+    std::string Spindle::atc_info() {  // this can be used in the startup response
         std::string atc_info = "";
         if (_atc != NULL) {
             atc_info = " ATC:" + _atc_name;
         } else if (!_m6_macro._gcode.empty()) {
             atc_info = " m6_macro:";
         }
-        return atc_info.c_str();
+        return atc_info;
     }
 
     // pre_select is generally ignored except for machines that need to get a tool ready
