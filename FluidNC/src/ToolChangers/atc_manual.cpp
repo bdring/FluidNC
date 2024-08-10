@@ -52,7 +52,8 @@ namespace ATCs {
     void Manual_ATC::probe_notification() {}
 
     bool Manual_ATC::tool_change(uint8_t new_tool, bool pre_select, bool set_tool) {
-        bool spindle_was_on = false;
+        bool spindle_was_on = false;  // used to restore the spindle state
+        bool was_inch_mode  = false;  // allows use to restore inch mode if req'd
 
         protocol_buffer_synchronize();  // wait for all motion to complete
         _macro._gcode = "";             // clear previous gcode
@@ -64,11 +65,20 @@ namespace ATCs {
             return true;
         }
 
+        was_inch_mode = (gc_state.modal.units == Units::Inches);
+
+        if (was_inch_mode) {
+            _macro.addf("G21");
+        }
+
         try {
             if (_prev_tool == 0) {  // M6T<anything> from T0 is used for a manual change before zero'ing
                 move_to_change_location();
                 _macro.addf("G43.1Z0");
-                _macro.addf("(MSG : Install tool #1 then resume to continue)");
+                _macro.addf("(MSG : Install tool #%d)", new_tool);
+                if (was_inch_mode) {
+                    _macro.addf("G20");
+                }
                 _macro.run(nullptr);
                 _prev_tool = new_tool;
                 return true;
@@ -90,8 +100,7 @@ namespace ATCs {
             }
 
             // if we have not determined the tool setter offset yet, we need to do that.
-            if (!_have_tool_setter_offset) {
-                log_info("Need TLO T1");
+            if (!_have_tool_setter_offset) {                
                 move_over_toolsetter();
                 ets_probe();
                 _macro.addf("#<_ets_tool1_z>=[#5063]");  // save the value of the tool1 ETS Z
@@ -121,6 +130,10 @@ namespace ATCs {
 
             if (spindle_was_on) {
                 _macro.addf("M3");  // spindle should handle spinup delay
+            }
+
+            if (was_inch_mode) {
+                _macro.addf("G20");
             }
 
             _macro.run(nullptr);
@@ -159,8 +172,7 @@ namespace ATCs {
         // do a fast probe if there is a seek that is faster than feed
         if (_probe_seek_rate > _probe_feed_rate) {
             _macro.addf("G53 G38.2 Z%0.3f F%0.3f", _ets_mpos[2], _probe_seek_rate);
-            _macro.addf("#<_retract>=[0.25 + [#<_metric>] * 5.0]");  // 0.25 inch or 5.25mm
-            _macro.addf("G0Z[#<_z> + #<_retract>]");                 // retract for next probe
+            _macro.addf("G0Z[#<_z> + 5]");  // retract befor next probe
         }
 
         // do the feed rate probe

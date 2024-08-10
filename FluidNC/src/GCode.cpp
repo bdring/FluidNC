@@ -86,7 +86,7 @@ static void gcode_comment_msg(char* comment) {
             index++;
         }
         msg[index - offset] = 0;  // null terminate
-        log_info("GCode Comment..." << msg);
+        log_info("GCode comment" << msg);
     }
 }
 
@@ -1488,7 +1488,7 @@ Error gc_execute_line(char* line) {
     }
     if (gc_block.modal.set_tool_number == SetToolNumber::Enable) {
         gc_state.selected_tool = gc_block.values.q;
-        gc_state.tool = gc_state.selected_tool;
+        gc_state.tool          = gc_state.selected_tool;
         bool stopped_spindle;
         Spindles::Spindle::switchSpindle(gc_state.selected_tool, Spindles::SpindleFactory::objects(), spindle, stopped_spindle);
         if (stopped_spindle) {
@@ -1496,7 +1496,7 @@ Error gc_execute_line(char* line) {
             gc_state.spindle_speed = 0.0;
             gc_block.modal.spindle = SpindleState::Disable;
         }
-        spindle->tool_change(gc_state.selected_tool, false, true);        
+        spindle->tool_change(gc_state.selected_tool, false, true);
         report_ovr_counter = 0;  // Set to report change immediately
         gc_ovr_changed();
     }
