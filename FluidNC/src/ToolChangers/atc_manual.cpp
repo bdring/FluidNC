@@ -74,6 +74,7 @@ namespace ATCs {
         try {
             if (_prev_tool == 0) {  // M6T<anything> from T0 is used for a manual change before zero'ing
                 move_to_change_location();
+                _macro.addf("G4P0 0.1");
                 _macro.addf("G43.1Z0");
                 _macro.addf("(MSG : Install tool #%d)", new_tool);
                 if (was_inch_mode) {
@@ -91,7 +92,7 @@ namespace ATCs {
             _macro.addf("#<start_y >= #<_y>");
             _macro.addf("#<start_z >= #<_z>");
 
-            move_to_save_z();
+            move_to_safe_z();
 
             // turn off the spindle
             if (gc_state.modal.spindle != SpindleState::Disable) {
@@ -100,7 +101,7 @@ namespace ATCs {
             }
 
             // if we have not determined the tool setter offset yet, we need to do that.
-            if (!_have_tool_setter_offset) {                
+            if (!_have_tool_setter_offset) {
                 move_over_toolsetter();
                 ets_probe();
                 _macro.addf("#<_ets_tool1_z>=[#5063]");  // save the value of the tool1 ETS Z
@@ -114,7 +115,7 @@ namespace ATCs {
             _macro.addf("M0");
 
             // probe the new tool
-            move_to_save_z();
+            move_to_safe_z();
             move_over_toolsetter();
             ets_probe();
 
@@ -122,7 +123,7 @@ namespace ATCs {
             _macro.addf("#<_my_tlo_z >=[#5063 - #<_ets_tool1_z>]");
             _macro.addf("G43.1Z#<_my_tlo_z>");
 
-            move_to_save_z();
+            move_to_safe_z();
 
             // return to location before the tool change
             _macro.addf("G0X#<start_x>Y#<start_y>");
@@ -153,16 +154,16 @@ namespace ATCs {
     }
 
     void Manual_ATC::move_to_change_location() {
-        move_to_save_z();
+        move_to_safe_z();
         _macro.addf("G53G0X%0.3fY%0.3fZ%0.3f", _change_mpos[0], _change_mpos[1], _change_mpos[2]);
     }
 
-    void Manual_ATC::move_to_save_z() {
+    void Manual_ATC::move_to_safe_z() {
         _macro.addf("G53G0Z%0.3f", _safe_z);
     }
 
     void Manual_ATC::move_over_toolsetter() {
-        move_to_save_z();
+        move_to_safe_z();
         _macro.addf("G53G0X%0.3fY%0.3f", _ets_mpos[0], _ets_mpos[1]);
     }
 

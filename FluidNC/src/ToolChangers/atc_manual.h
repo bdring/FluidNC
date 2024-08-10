@@ -40,7 +40,7 @@ namespace ATCs {
         float   _tool_setter_position[MAX_N_AXIS];
 
         void move_to_change_location();
-        void move_to_save_z();
+        void move_to_safe_z();
         void move_over_toolsetter();
         void ets_probe();
         void reset();
