@@ -91,7 +91,7 @@ static bool is_rotary(int axis) {
 }
 static float to_inches(int axis, float value) {
     if (!is_rotary(axis) && gc_state.modal.units == Units::Inches) {
-        return value * MM_PER_INCH;
+        return value * INCH_PER_MM;
     }
     return value;
 }
