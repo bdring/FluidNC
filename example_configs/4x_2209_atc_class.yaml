@@ -38,6 +38,7 @@ axes:
       limit_neg_pin: gpio.35:low
       limit_pos_pin: NO_PIN
       limit_all_pin: NO_PIN
+      hard_limits: true
       pulloff_mm: 2
       tmc_2209:
         uart_num: 1
