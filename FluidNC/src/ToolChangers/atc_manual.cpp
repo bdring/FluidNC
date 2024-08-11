@@ -56,12 +56,15 @@ namespace ATCs {
         bool was_inch_mode  = false;  // allows use to restore inch mode if req'd
 
         protocol_buffer_synchronize();  // wait for all motion to complete
-        _macro._gcode = "";             // clear previous gcode
+        _macro.erase();             // clear previous gcode
 
         // M6T0 is used to reset this ATC and allow us to start a new job
         if (new_tool == 0 || set_tool) {
             _prev_tool = new_tool;
+            move_to_safe_z();
+            move_to_change_location();
             reset();
+            _macro.run(nullptr);
             return true;
         }
 
