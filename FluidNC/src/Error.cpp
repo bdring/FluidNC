@@ -83,4 +83,8 @@ const std::map<Error, const char*> ErrorNames = {
     { Error::ExpressionUnknownOp, "Expression Unknown Operator" },
     { Error::ExpressionArgumentOutOfRange, "Expression Argument Out of Range" },
     { Error::ExpressionSyntaxError, "Expression Syntax Error" },
+    { Error::FlowControlSyntaxError, "Flow Control Syntax Error" },
+    { Error::FlowControlNotExecutingMacro, "Flow Control Not Executing Macro" },
+    { Error::FlowControlOutOfMemory, "Flow Control Out of Memory" },
+    { Error::FlowControlStackOverflow, "Flow Control Stack Overflow" },
 };

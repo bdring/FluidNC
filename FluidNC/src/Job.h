@@ -31,11 +31,12 @@ public:
 
     static bool active();
 
-    static void save();
-    static void restore();
-    static void nest(Channel* in_channel, Channel* out_channel);
-    static void unnest();
-    static void abort();
+    static void       save();
+    static void       restore();
+    static void       nest(Channel* in_channel, Channel* out_channel);
+    static void       unnest();
+    static void       abort();
+    static JobSource* source();
 
     static float    get_param(const std::string& name);
     static void     set_param(const std::string& name, float value);

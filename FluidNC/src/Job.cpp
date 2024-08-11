@@ -13,6 +13,10 @@ bool Job::active() {
     return !job.empty();
 }
 
+JobSource* Job::source() {
+    return job.empty() ? nullptr : job.top();
+}
+
 // save() and restore() are use to close/reopen an SD file atop the job stack
 // before trying to open a nested SD file.  The reason for that is because
 // the number of simultaneously-open SD files is limited to conserve RAM.

@@ -18,6 +18,7 @@
 
 #include "Machine/MachineConfig.h"
 #include "Parameters.h"
+#include "Flowcontrol.h"
 
 #include <string.h>  // memset
 #include <math.h>    // sqrt etc.
@@ -68,6 +69,7 @@ void gc_init() {
     gc_state.modal          = modal_defaults;
     gc_state.modal.override = config->_start->_deactivateParking ? Override::Disabled : Override::ParkingMotion;
     coords[gc_state.modal.coord_select]->get(gc_state.coord_system);
+    flowcontrol_init();
 }
 
 // Sets g-code parser position in mm. Input in steps. Called by the system abort and hard
@@ -231,12 +233,21 @@ Error gc_execute_line(char* line) {
     pos                  = jogMotion ? 3 : 0;  // Start parsing after `$J=` if jogging
     while ((letter = line[pos]) != '\0') {     // Loop until no more g-code words in line.
         if (letter == '#') {
+            if (gc_state.skip_blocks) {
+                return Error::Ok;
+            }
             pos++;
             if (!assign_param(line, &pos)) {
                 FAIL(Error::BadNumberFormat);
             }
             continue;
         }
+
+        // XXX Should check that no other words are also present
+        if (bitnum_is_true(value_words, GCodeWord::O)) {
+            return flowcontrol(gc_block.values.o, line, &pos, gc_state.skip_blocks);
+        }
+
         // Import the next g-code word, expecting a letter followed by a value. Otherwise, error out.
         if ((letter < 'A') || (letter > 'Z')) {
             FAIL(Error::ExpectedCommandLetter);  // [Expected word letter]
@@ -245,6 +256,10 @@ Error gc_execute_line(char* line) {
         if (!read_number(line, &pos, value)) {
             FAIL(Error::BadNumberFormat);  // [Expected word value]
         }
+        if (gc_state.skip_blocks && letter != 'O') {
+            return Error::Ok;
+        }
+
         // Convert values to smaller uint8 significand and mantissa values for parsing this word.
         // NOTE: Mantissa is multiplied by 100 to catch non-integer command values. This is more
         // accurate than the NIST gcode requirement of x10 when used for commands, but not quite
@@ -713,6 +728,14 @@ Error gc_execute_line(char* line) {
                         axis_word_bit     = GCodeWord::N;
                         gc_block.values.n = int32_t(truncf(value));
                         break;
+                    case 'O':
+                        if (mantissa > 0) {
+                            FAIL(Error::GcodeCommandValueNotInteger);
+                        }
+                        axis_word_bit     = GCodeWord::O;
+                        gc_block.values.o = int_value;
+                        break;
+
                     case 'P':
                         axis_word_bit     = GCodeWord::P;
                         gc_block.values.p = value;
@@ -1108,7 +1131,7 @@ Error gc_execute_line(char* line) {
                 case NonModal::GoHome0:  // G28
                 case NonModal::GoHome1:  // G30
                     // [G28/30 Errors]: Cutter compensation is enabled.
-                    // Retreive G28/30 go-home position data (in machine coordinates) from non-volatile storage
+                    // Retrieve G28/30 go-home position data (in machine coordinates) from non-volatile storage
                     if (gc_block.non_modal_command == NonModal::GoHome0) {
                         coords[CoordIndex::G28]->get(coord_data);
                     } else {  // == NonModal::GoHome1
@@ -1375,7 +1398,7 @@ Error gc_execute_line(char* line) {
                    (bitnum_to_mask(GCodeWord::X) | bitnum_to_mask(GCodeWord::Y) | bitnum_to_mask(GCodeWord::Z) |
                     bitnum_to_mask(GCodeWord::A) | bitnum_to_mask(GCodeWord::B) | bitnum_to_mask(GCodeWord::C)));  // Remove axis words.
     }
-    clear_bits(value_words, bitnum_to_mask(GCodeWord::D));
+    clear_bits(value_words, (bitnum_to_mask(GCodeWord::D) | bitnum_to_mask(GCodeWord::O)));
     if (value_words) {
         FAIL(Error::GcodeUnusedWords);  // [Unused words]
     }
@@ -1472,7 +1495,7 @@ Error gc_execute_line(char* line) {
     // NOTE: Pass zero spindle speed for all restricted laser motions.
     if (!disableLaser) {
         pl_data->spindle_speed = gc_state.spindle_speed;  // Record data for planner use.
-    }  // else { pl_data->spindle_speed = 0.0; } // Initialized as zero already.
+    }                                                     // else { pl_data->spindle_speed = 0.0; } // Initialized as zero already.
     // [5. Select tool ]: NOT SUPPORTED. Only tracks tool value.
     //	gc_state.tool = gc_block.values.t;
     // [6. Change tool ]: NOT SUPPORTED
