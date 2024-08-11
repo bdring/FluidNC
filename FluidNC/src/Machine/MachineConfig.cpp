@@ -10,6 +10,7 @@
 #include "src/Motors/NullMotor.h"
 
 #include "src/Spindles/NullSpindle.h"
+#include "src/ToolChangers/atc.h"
 #include "src/UartChannel.h"
 
 #include "src/SettingsDefinitions.h"  // config_filename
@@ -68,6 +69,7 @@ namespace Machine {
         handler.section("user_outputs", _userOutputs);
 
         ModuleFactory::factory(handler);
+        ATCs::ATCFactory::factory(handler);
         Spindles::SpindleFactory::factory(handler);
 
         // TODO: Consider putting these under a gcode: hierarchy level? Or motion control?

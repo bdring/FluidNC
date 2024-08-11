@@ -283,6 +283,7 @@ struct parser_state_t {
     float    spindle_speed;  // RPM
     float    feed_rate;      // Millimeters/min
     uint32_t tool;           // Tracks tool number
+    uint32_t selected_tool;  // tool from T value
     int32_t  line_number;    // Last line number sent
 
     float position[MAX_N_AXIS];  // Where the interpreter considers the tool to be at this point in the code
@@ -315,12 +316,10 @@ void gc_init();
 
 // Execute one block of rs275/ngc/g-code
 Error gc_execute_line(char* line);
+void  gc_exec_linef(bool sync_after, Channel& out, const char* format, ...);
 
 // Set g-code parser position. Input in steps.
 void gc_sync_position();
-
-void user_tool_change(uint32_t new_tool);
-void user_m30();
 
 void gc_ngc_changed(CoordIndex coord);
 void gc_wco_changed();

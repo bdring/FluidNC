@@ -102,7 +102,7 @@ bool set_numbered_param(ngc_param_id_t id, float value) {
         return true;
     }
     if (id == 5400) {
-        gc_state.tool = static_cast<uint32_t>(value);
+        gc_state.selected_tool = static_cast<uint32_t>(value);
         return true;
     }
     if (id >= 31 && id <= 5000) {
@@ -147,7 +147,7 @@ bool get_numbered_param(ngc_param_id_t id, float& result) {
 
     // Current relative position in the active coordinate system including all offsets
     if (id >= 5420 && id < (5420 + MAX_N_AXIS)) {
-        float* my_position = get_mpos();        
+        float* my_position = get_mpos();
         mpos_to_wpos(my_position);
         result = my_position[id - 5420];
         return true;
@@ -411,7 +411,6 @@ bool get_param_ref(const char* line, size_t* pos, param_ref_t& param_ref) {
             return true;
         case '[': {
             // Expression evaluating to param number
-            ++*pos;
             Error status = expression(line, pos, result);
             if (status != Error::Ok) {
                 log_debug(errorString(status));

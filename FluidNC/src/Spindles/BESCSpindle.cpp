@@ -85,7 +85,7 @@ namespace Spindles {
     // prints the startup message of the spindle config
     void BESC::config_message() {
         log_info(name() << " Spindle Out:" << _output_pin.name() << " Min:" << _min_pulse_us << "us Max:" << _max_pulse_us
-                        << "us Freq:" << _pwm->frequency() << "Hz Full Period count:" << _pwm->period());
+                        << "us Freq:" << _pwm->frequency() << "Hz Full Period count:" << _pwm->period() << atc_info());
     }
 
     // Configuration registration

@@ -49,10 +49,8 @@ namespace MotorDrivers {
         _cs_pin.synchronousWrite(true);
 
         tmc2209->I_scale_analog(false);  // do not scale via pot
-        log_debug("sr 3'");
         tmc2209->rms_current(run_i, TrinamicBase::holdPercent());
 
-        log_debug("sr 4");
         // The TMCStepper library uses the value 0 to mean 1x microstepping
         int usteps = _microsteps == 1 ? 0 : _microsteps;
         tmc2209->microsteps(usteps);
