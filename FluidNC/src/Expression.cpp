@@ -1,3 +1,4 @@
+// Expression.cpp - derived from
 // ngc_expr.c - derived from:
 
 /********************************************************************
@@ -345,6 +346,42 @@ static uint_fast8_t precedence(ngc_binary_op_t op) {
     return 0;  // should never happen
 }
 
+#if 0
+// For possible later code simplification
+std::map<std::string, ngc_cmd_t, std::less<>> binary_ops = {
+    { "+", Binary_Plus },
+    { "-", Binary_Minus },
+    { "/", Binary_DividedBy },
+    { "*", Binary_Times },
+    { "**", Binary_Power },
+    { "]", Binary_RightBracket },
+    { "AND", Binary_And2 },
+    { "MOD", Binary_Mod },
+    { "RR", Binary_NotExclusiveOr },
+    { "XOR", Binary_ExclusiveOr },
+    { "EQ", Binary_EQ },
+    { "NE", Binary_NE },
+    { "GE", Binary_GE },
+    { "GT", Binary_GT },
+};
+std::map<std::string, ngc_cmd_t, std::less<>> unary_ops = {
+    { "ABS", Unary_ABS },
+    { "ACOS", Unary_ACOS },
+    { "ASIN", Unary_ASIN },
+    { "ATAN", Unary_ATAN },
+    { "COS", Unary_COS },
+    { "EXP", Unary_EXP },
+    { "EXISTS", Unary_Exists },
+    { "FIX", Unary_FIX },
+    { "FUP", Unary_FUP },
+    { "LN", Unary_LN },
+    { "ROUND", Unary_ROUND },
+    { "SIN", Unary_SIN },
+    { "SQRT", Unary_SQRT },
+    { "TAN", Unary_TAN },
+};
+#endif
+
 /*! \brief Reads a binary operation out of the line
 starting at the index given by the pos offset. If a valid one is found, the
 value of operation is set to the symbolic value for that operation.
@@ -354,7 +391,7 @@ value of operation is set to the symbolic value for that operation.
 \param operation pointer to \ref ngc_binary_op_t enum value.
 \returns #Error::Ok enum value if processed without error, appropriate \ref Error enum value if not.
 */
-static Error read_operation(const char* line, size_t& pos, ngc_binary_op_t* operation) {
+static Error read_operation(const char* line, size_t& pos, ngc_binary_op_t& operation) {
     char  c      = line[pos];
     Error status = Error::Ok;
 
@@ -362,32 +399,32 @@ static Error read_operation(const char* line, size_t& pos, ngc_binary_op_t* oper
 
     switch (c) {
         case '+':
-            *operation = Binary_Plus;
+            operation = Binary_Plus;
             break;
 
         case '-':
-            *operation = Binary_Minus;
+            operation = Binary_Minus;
             break;
 
         case '/':
-            *operation = Binary_DividedBy;
+            operation = Binary_DividedBy;
             break;
 
         case '*':
             if (line[pos] == '*') {
-                *operation = Binary_Power;
+                operation = Binary_Power;
                 pos++;
             } else
-                *operation = Binary_Times;
+                operation = Binary_Times;
             break;
 
         case ']':
-            *operation = Binary_RightBracket;
+            operation = Binary_RightBracket;
             break;
 
         case 'A':
             if (!strncmp(line + pos, "ND", 2)) {
-                *operation = Binary_And2;
+                operation = Binary_And2;
                 pos += 2;
             } else
                 status = Error::ExpressionUnknownOp;  // Unknown operation name starting with A
@@ -395,7 +432,7 @@ static Error read_operation(const char* line, size_t& pos, ngc_binary_op_t* oper
 
         case 'M':
             if (!strncmp(line + pos, "OD", 2)) {
-                *operation = Binary_Modulo;
+                operation = Binary_Modulo;
                 pos += 2;
             } else
                 status = Error::ExpressionUnknownOp;  // Unknown operation name starting with M
@@ -403,7 +440,7 @@ static Error read_operation(const char* line, size_t& pos, ngc_binary_op_t* oper
 
         case 'R':
             if (line[pos] == 'R') {
-                *operation = Binary_NotExclusiveOR;
+                operation = Binary_NotExclusiveOR;
                 pos++;
             } else
                 status = Error::ExpressionUnknownOp;  // Unknown operation name starting with R
@@ -411,7 +448,7 @@ static Error read_operation(const char* line, size_t& pos, ngc_binary_op_t* oper
 
         case 'X':
             if (!strncmp(line + pos, "OR", 2)) {
-                *operation = Binary_ExclusiveOR;
+                operation = Binary_ExclusiveOR;
                 pos += 2;
             } else
                 status = Error::ExpressionUnknownOp;  // Unknown operation name starting with X
@@ -420,7 +457,7 @@ static Error read_operation(const char* line, size_t& pos, ngc_binary_op_t* oper
         /* relational operators */
         case 'E':
             if (line[pos] == 'Q') {
-                *operation = Binary_EQ;
+                operation = Binary_EQ;
                 pos++;
             } else
                 status = Error::ExpressionUnknownOp;  // Unknown operation name starting with E
@@ -428,7 +465,7 @@ static Error read_operation(const char* line, size_t& pos, ngc_binary_op_t* oper
 
         case 'N':
             if (line[pos] == 'E') {
-                *operation = Binary_NE;
+                operation = Binary_NE;
                 pos++;
             } else
                 status = Error::ExpressionUnknownOp;  // Unknown operation name starting with N
@@ -436,10 +473,10 @@ static Error read_operation(const char* line, size_t& pos, ngc_binary_op_t* oper
 
         case 'G':
             if (line[pos] == 'E') {
-                *operation = Binary_GE;
+                operation = Binary_GE;
                 pos++;
             } else if (line[pos] == 'T') {
-                *operation = Binary_GT;
+                operation = Binary_GT;
                 pos++;
             } else
                 status = Error::ExpressionUnknownOp;  // Unknown operation name starting with G
@@ -447,10 +484,10 @@ static Error read_operation(const char* line, size_t& pos, ngc_binary_op_t* oper
 
         case 'L':
             if (line[pos] == 'E') {
-                *operation = Binary_LE;
+                operation = Binary_LE;
                 pos++;
             } else if (line[pos] == 'T') {
-                *operation = Binary_LT;
+                operation = Binary_LT;
                 pos++;
             } else
                 status = Error::ExpressionUnknownOp;  // Unknown operation name starting with L
@@ -475,7 +512,7 @@ value of operation is set to the symbolic value for that operation.
 \param operation pointer to \ref ngc_unary_op_t enum value.
 \returns #Error::Ok enum value if processed without error, appropriate \ref Error enum value if not.
 */
-static Error read_operation_unary(const char* line, size_t& pos, ngc_unary_op_t* operation) {
+static Error read_operation_unary(const char* line, size_t& pos, ngc_unary_op_t& operation) {
     char  c      = line[pos];
     Error status = Error::Ok;
 
@@ -484,16 +521,16 @@ static Error read_operation_unary(const char* line, size_t& pos, ngc_unary_op_t*
     switch (c) {
         case 'A':
             if (!strncmp(line + pos, "BS", 2)) {
-                *operation = Unary_ABS;
+                operation = Unary_ABS;
                 pos += 2;
             } else if (!strncmp(line + pos, "COS", 3)) {
-                *operation = Unary_ACOS;
+                operation = Unary_ACOS;
                 pos += 3;
             } else if (!strncmp(line + pos, "SIN", 3)) {
-                *operation = Unary_ASIN;
+                operation = Unary_ASIN;
                 pos += 3;
             } else if (!strncmp(line + pos, "TAN", 3)) {
-                *operation = Unary_ATAN;
+                operation = Unary_ATAN;
                 pos += 3;
             } else
                 status = Error::ExpressionUnknownOp;
@@ -501,7 +538,7 @@ static Error read_operation_unary(const char* line, size_t& pos, ngc_unary_op_t*
 
         case 'C':
             if (!strncmp(line + pos, "OS", 2)) {
-                *operation = Unary_COS;
+                operation = Unary_COS;
                 pos += 2;
             } else
                 status = Error::ExpressionUnknownOp;
@@ -509,10 +546,10 @@ static Error read_operation_unary(const char* line, size_t& pos, ngc_unary_op_t*
 
         case 'E':
             if (!strncmp(line + pos, "XP", 2)) {
-                *operation = Unary_EXP;
+                operation = Unary_EXP;
                 pos += 2;
             } else if (!strncmp(line + pos, "XISTS", 5)) {
-                *operation = Unary_Exists;
+                operation = Unary_Exists;
                 pos += 5;
             } else
                 status = Error::ExpressionUnknownOp;
@@ -520,10 +557,10 @@ static Error read_operation_unary(const char* line, size_t& pos, ngc_unary_op_t*
 
         case 'F':
             if (!strncmp(line + pos, "IX", 2)) {
-                *operation = Unary_FIX;
+                operation = Unary_FIX;
                 pos += 2;
             } else if (!strncmp(line + pos, "UP", 2)) {
-                *operation = Unary_FUP;
+                operation = Unary_FUP;
                 pos += 2;
             } else
                 status = Error::ExpressionUnknownOp;
@@ -531,7 +568,7 @@ static Error read_operation_unary(const char* line, size_t& pos, ngc_unary_op_t*
 
         case 'L':
             if (line[pos] == 'N') {
-                *operation = Unary_LN;
+                operation = Unary_LN;
                 pos++;
             } else
                 status = Error::ExpressionUnknownOp;
@@ -539,7 +576,7 @@ static Error read_operation_unary(const char* line, size_t& pos, ngc_unary_op_t*
 
         case 'R':
             if (!strncmp(line + pos, "OUND", 4)) {
-                *operation = Unary_Round;
+                operation = Unary_Round;
                 pos += 4;
             } else
                 status = Error::ExpressionUnknownOp;
@@ -547,10 +584,10 @@ static Error read_operation_unary(const char* line, size_t& pos, ngc_unary_op_t*
 
         case 'S':
             if (!strncmp(line + pos, "IN", 2)) {
-                *operation = Unary_SIN;
+                operation = Unary_SIN;
                 pos += 2;
             } else if (!strncmp((line + pos), "QRT", 3)) {
-                *operation = Unary_SQRT;
+                operation = Unary_SQRT;
                 pos += 3;
             } else
                 status = Error::ExpressionUnknownOp;
@@ -558,7 +595,7 @@ static Error read_operation_unary(const char* line, size_t& pos, ngc_unary_op_t*
 
         case 'T':
             if (!strncmp(line + pos, "AN", 2)) {
-                *operation = Unary_TAN;
+                operation = Unary_TAN;
                 pos += 2;
             } else
                 status = Error::ExpressionUnknownOp;
@@ -613,7 +650,7 @@ Error read_unary(const char* line, size_t& pos, float& value) {
     ngc_unary_op_t operation;
     Error          status;
 
-    if ((status = read_operation_unary(line, pos, &operation)) != Error::Ok) {
+    if ((status = read_operation_unary(line, pos, operation)) != Error::Ok) {
         return status;
     }
     if (line[pos] != '[') {
@@ -665,14 +702,14 @@ Error expression(const char* line, size_t& pos, float& value) {
     if ((!read_number(line, pos, values[0], true)))
         return Error::BadNumberFormat;
 
-    if ((status = read_operation(line, pos, operators)) != Error::Ok)
+    if ((status = read_operation(line, pos, operators[0])) != Error::Ok)
         return status;
 
     for (; operators[0] != Binary_RightBracket;) {
         if ((!read_number(line, pos, values[stack_index], true)))
             return Error::BadNumberFormat;
 
-        if ((status = read_operation(line, pos, operators + stack_index)) != Error::Ok)
+        if ((status = read_operation(line, pos, operators[stack_index])) != Error::Ok)
             return status;
 
         if (precedence(operators[stack_index]) > precedence(operators[stack_index - 1]))

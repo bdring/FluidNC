@@ -11,6 +11,7 @@
 #include "Expression.h"
 #include "Parameters.h"
 #include "Job.h"
+#include <stack>
 
 #ifndef NGC_STACK_DEPTH
 #    define NGC_STACK_DEPTH 10
@@ -35,16 +36,18 @@ typedef enum {
 } ngc_cmd_t;
 
 typedef struct {
-    uint32_t   o_label;
-    ngc_cmd_t  operation;
-    JobSource* file;
-    size_t     file_pos;
-    char*      expr;
-    uint32_t   repeats;
-    bool       skip;
-    bool       handled;
-    bool       brk;
+    uint32_t    o_label;
+    ngc_cmd_t   operation;
+    JobSource*  file;
+    size_t      file_pos;
+    std::string expr;
+    uint32_t    repeats;
+    bool        skip;
+    bool        handled;
+    bool        brk;
 } ngc_stack_entry_t;
+
+std::stack<ngc_stack_entry_t> context;
 
 std::map<std::string, ngc_cmd_t, std::less<>> commands = {
     { "IF", Op_If },
@@ -63,13 +66,9 @@ std::map<std::string, ngc_cmd_t, std::less<>> commands = {
     { "ERROR", Op_RaiseError },
 };
 
-static volatile int      stack_idx              = -1;
-static ngc_stack_entry_t stack[NGC_STACK_DEPTH] = { 0 };
-
 static Error read_command(char* line, size_t& pos, ngc_cmd_t& operation) {
     size_t start = pos;
-    char   c;
-    while ((c = line[pos]) >= 'A' && c <= 'Z') {
+    while (isalpha(line[pos])) {
         ++pos;
     }
     std::string_view key(line + start, pos - start);
@@ -81,42 +80,34 @@ static Error read_command(char* line, size_t& pos, ngc_cmd_t& operation) {
     return Error::Ok;
 }
 
-static Error stack_push(uint32_t o_label, ngc_cmd_t operation) {
-    if (stack_idx < (NGC_STACK_DEPTH - 1)) {
-        stack[++stack_idx].o_label = o_label;
-        stack[stack_idx].file      = Job::source();
-        stack[stack_idx].operation = operation;
-        return Error::Ok;
-    }
-
-    return Error::FlowControlStackOverflow;
+static Error stack_push(uint32_t o_label, ngc_cmd_t operation, bool skip) {
+    ngc_stack_entry_t ent = { o_label, operation, Job::source(), 0, "", 0, skip, false, false };
+    context.push(ent);
+    return Error::Ok;
 }
-
 static bool stack_pull(void) {
-    bool ok;
-
-    if ((ok = stack_idx >= 0)) {
-        if (stack[stack_idx].expr)
-            free(stack[stack_idx].expr);
-        memset(&stack[stack_idx], 0, sizeof(ngc_stack_entry_t));
-        stack_idx--;
+    if (context.empty()) {
+        return false;
     }
-
-    return ok;
+    context.pop();
+    return true;
+}
+void unwind_stack() {
+    if (context.empty()) {
+        return;
+    }
+    JobSource* file = context.top().file;
+    while (!context.empty() && context.top().file == file) {
+        stack_pull();
+    }
+}
+void flowcontrol_init(void) {
+    while (!context.empty()) {
+        stack_pull();
+    }
 }
 
 // Public functions
-
-void ngc_flowctrl_unwind_stack(JobSource* file) {
-    while (stack_idx >= 0 && stack[stack_idx].file == file)
-        stack_pull();
-}
-
-void flowcontrol_init(void) {
-    while (stack_idx >= 0) {
-        stack_pull();
-    }
-}
 
 Error flowcontrol(uint32_t o_label, char* line, size_t& pos, bool& skip) {
     float     value;
@@ -129,46 +120,46 @@ Error flowcontrol(uint32_t o_label, char* line, size_t& pos, bool& skip) {
         return status;
     }
 
-    skipping = stack_idx >= 0 && stack[stack_idx].skip;
-    last_op  = stack_idx >= 0 ? stack[stack_idx].operation : Op_NoOp;
+    skipping = !context.empty() && context.top().skip;
+    last_op  = context.empty() ? Op_NoOp : context.top().operation;
 
     switch (operation) {
         case Op_If:
             if (!skipping && (status = expression(line, pos, value)) == Error::Ok) {
-                if ((status = stack_push(o_label, operation)) == Error::Ok) {
-                    stack[stack_idx].skip    = value == 0.0f;
-                    stack[stack_idx].handled = !stack[stack_idx].skip;
-                }
+                stack_push(o_label, operation, !value);
+                context.top().handled = value;
             }
             break;
 
         case Op_ElseIf:
             if (last_op == Op_If || last_op == Op_ElseIf) {
-                if (o_label == stack[stack_idx].o_label && !(stack[stack_idx].skip = stack[stack_idx].handled) &&
-                    !stack[stack_idx].handled && (status = expression(line, pos, value)) == Error::Ok) {
-                    if (!(stack[stack_idx].skip = value == 0.0f)) {
-                        stack[stack_idx].operation = operation;
-                        stack[stack_idx].handled   = true;
+                if (o_label == context.top().o_label && !(context.top().skip = context.top().handled) && !context.top().handled &&
+                    (status = expression(line, pos, value)) == Error::Ok) {
+                    if (!(context.top().skip = !value)) {
+                        context.top().operation = operation;
+                        context.top().handled   = true;
                     }
                 }
-            } else if (!skipping)
+            } else if (!skipping) {
                 status = Error::FlowControlSyntaxError;
+            }
             break;
 
         case Op_Else:
             if (last_op == Op_If || last_op == Op_ElseIf) {
-                if (o_label == stack[stack_idx].o_label) {
-                    if (!(stack[stack_idx].skip = stack[stack_idx].handled)) {
-                        stack[stack_idx].operation = operation;
+                if (o_label == context.top().o_label) {
+                    if (!(context.top().skip = context.top().handled)) {
+                        context.top().operation = operation;
                     }
                 }
-            } else if (!skipping)
+            } else if (!skipping) {
                 status = Error::FlowControlSyntaxError;
+            }
             break;
 
         case Op_EndIf:
             if (last_op == Op_If || last_op == Op_ElseIf || last_op == Op_Else) {
-                if (o_label == stack[stack_idx].o_label) {
+                if (o_label == context.top().o_label) {
                     stack_pull();
                 }
             } else if (!skipping) {
@@ -178,10 +169,9 @@ Error flowcontrol(uint32_t o_label, char* line, size_t& pos, bool& skip) {
 
         case Op_Do:
             if (Job::active()) {
-                if (!skipping && (status = stack_push(o_label, operation)) == Error::Ok) {
-                    // stack[stack_idx].file_pos = vfs_tell(hal.stream.file);
-                    Job::save();
-                    stack[stack_idx].skip = false;
+                if (!skipping) {
+                    stack_push(o_label, operation, false);
+                    context.top().file_pos = context.top().file->position();
                 }
             } else {
                 status = Error::FlowControlNotExecutingMacro;
@@ -191,30 +181,25 @@ Error flowcontrol(uint32_t o_label, char* line, size_t& pos, bool& skip) {
         case Op_While:
             if (Job::active()) {
                 char* expr = line + pos;
-                if (stack_idx >= 0 && stack[stack_idx].brk) {
-                    if (last_op == Op_Do && o_label == stack[stack_idx].o_label) {
+                if (!context.empty() && context.top().brk) {
+                    if (last_op == Op_Do && o_label == context.top().o_label) {
                         stack_pull();
                     }
                 } else if (!skipping && (status = expression(line, pos, value)) == Error::Ok) {
                     if (last_op == Op_Do) {
-                        if (o_label == stack[stack_idx].o_label) {
-                            if (value != 0.0f) {
-                                // vfs_seek(stack[stack_idx].file, stack[stack_idx].file_pos);
-                                Job::restore();
+                        if (o_label == context.top().o_label) {
+                            if (value) {
+                                context.top().file->set_position(context.top().file_pos);
                             } else {
                                 stack_pull();
                             }
                         }
-                    } else if ((status = stack_push(o_label, operation)) == Error::Ok) {
-                        if (!(stack[stack_idx].skip = value == 0.0f)) {
-                            if ((stack[stack_idx].expr = (char*)malloc(strlen(expr) + 1))) {
-                                strcpy(stack[stack_idx].expr, expr);
-                                stack[stack_idx].file = Job::source();
-                                // stack[stack_idx].file_pos = vfs_tell(hal.stream.file);
-                                Job::save();
-                            } else {
-                                status = Error::FlowControlOutOfMemory;
-                            }
+                    } else {
+                        stack_push(o_label, operation, !value);
+                        if (value) {
+                            context.top().expr     = expr;
+                            context.top().file     = Job::source();
+                            context.top().file_pos = context.top().file->position();
                         }
                     }
                 }
@@ -226,15 +211,14 @@ Error flowcontrol(uint32_t o_label, char* line, size_t& pos, bool& skip) {
         case Op_EndWhile:
             if (Job::active()) {
                 if (last_op == Op_While) {
-                    if (!skipping && o_label == stack[stack_idx].o_label) {
+                    if (!skipping && o_label == context.top().o_label) {
                         uint_fast8_t pos = 0;
-                        if (!stack[stack_idx].skip && (status = expression(stack[stack_idx].expr, pos, value)) == Error::Ok) {
-                            if (!(stack[stack_idx].skip = value == 0)) {
-                                // vfs_seek(stack[stack_idx].file, stack[stack_idx].file_pos);
-                                Job::restore();
+                        if (!context.top().skip && (status = expression(context.top().expr.c_str(), pos, value)) == Error::Ok) {
+                            if (!(context.top().skip = value == 0)) {
+                                context.top().file->set_position(context.top().file_pos);
                             }
                         }
-                        if (stack[stack_idx].skip) {
+                        if (context.top().skip) {
                             stack_pull();
                         }
                     }
@@ -249,13 +233,11 @@ Error flowcontrol(uint32_t o_label, char* line, size_t& pos, bool& skip) {
         case Op_Repeat:
             if (Job::active()) {
                 if (!skipping && (status = expression(line, pos, value)) == Error::Ok) {
-                    if ((status = stack_push(o_label, operation)) == Error::Ok) {
-                        if (!(stack[stack_idx].skip = value == 0.0f)) {
-                            stack[stack_idx].file = Job::source();
-                            // stack[stack_idx].file_pos = vfs_tell(hal.stream.file);
-                            Job::save();
-                            stack[stack_idx].repeats = (uint32_t)value;
-                        }
+                    stack_push(o_label, operation, !value);
+                    if (value) {
+                        context.top().file     = Job::source();
+                        context.top().file_pos = context.top().file->position();
+                        context.top().repeats  = (uint32_t)value;
                     }
                 }
             } else {
@@ -266,10 +248,9 @@ Error flowcontrol(uint32_t o_label, char* line, size_t& pos, bool& skip) {
         case Op_EndRepeat:
             if (Job::active()) {
                 if (last_op == Op_Repeat) {
-                    if (!skipping && o_label == stack[stack_idx].o_label) {
-                        if (stack[stack_idx].repeats && --stack[stack_idx].repeats) {
-                            Job::restore();
-                            // vfs_seek(stack[stack_idx].file, stack[stack_idx].file_pos);
+                    if (!skipping && o_label == context.top().o_label) {
+                        if (context.top().repeats && --context.top().repeats) {
+                            context.top().file->set_position(context.top().file_pos);
                         } else {
                             stack_pull();
                         }
@@ -285,13 +266,13 @@ Error flowcontrol(uint32_t o_label, char* line, size_t& pos, bool& skip) {
         case Op_Break:
             if (Job::active()) {
                 if (!skipping) {
-                    while (o_label != stack[stack_idx].o_label && stack_pull())
+                    while (o_label != context.top().o_label && stack_pull())
                         ;
-                    last_op = stack_idx >= 0 ? stack[stack_idx].operation : Op_NoOp;
+                    last_op = !context.empty() ? Op_NoOp : context.top().operation;
                     if (last_op == Op_Do || last_op == Op_While || last_op == Op_Repeat) {
-                        if (o_label == stack[stack_idx].o_label) {
-                            stack[stack_idx].repeats = 0;
-                            stack[stack_idx].brk = stack[stack_idx].skip = stack[stack_idx].handled = true;
+                        if (o_label == context.top().o_label) {
+                            context.top().repeats = 0;
+                            context.top().brk = context.top().skip = context.top().handled = true;
                         }
                     } else {
                         status = Error::FlowControlSyntaxError;
@@ -305,37 +286,30 @@ Error flowcontrol(uint32_t o_label, char* line, size_t& pos, bool& skip) {
         case Op_Continue:
             if (Job::active()) {
                 if (!skipping) {
-                    while (o_label != stack[stack_idx].o_label && stack_pull())
+                    while (o_label != context.top().o_label && stack_pull())
                         ;
-                    if (stack_idx >= 0 && o_label == stack[stack_idx].o_label) {
-                        switch (stack[stack_idx].operation) {
+                    if (!context.empty() && o_label == context.top().o_label) {
+                        switch (context.top().operation) {
                             case Op_Repeat:
-                                if (stack[stack_idx].repeats && --stack[stack_idx].repeats) {
-                                    Job::restore();
-                                    // vfs_seek(stack[stack_idx].file, stack[stack_idx].file_pos);
+                                if (context.top().repeats && --context.top().repeats) {
+                                    context.top().file->set_position(context.top().file_pos);
                                 } else {
                                     stack_pull();
                                 }
                                 break;
 
                             case Op_Do:
-                                Job::restore();
-                                // vfs_seek(stack[stack_idx].file, stack[stack_idx].file_pos);
+                                context.top().file->set_position(context.top().file_pos);
                                 break;
 
                             case Op_While: {
                                 uint_fast8_t pos = 0;
-                                if (!stack[stack_idx].skip && (status = expression(stack[stack_idx].expr, pos, value)) == Error::Ok) {
-                                    if (!(stack[stack_idx].skip = value == 0)) {
-                                        Job::restore();
-                                        // vfs_seek(stack[stack_idx].file, stack[stack_idx].file_pos);
+                                if (!context.top().skip && (status = expression(context.top().expr.c_str(), pos, value)) == Error::Ok) {
+                                    if (!(context.top().skip = value == 0)) {
+                                        context.top().file->set_position(context.top().file_pos);
                                     }
                                 }
-                                if (stack[stack_idx].skip) {
-                                    if (stack[stack_idx].expr) {
-                                        free(stack[stack_idx].expr);
-                                        stack[stack_idx].expr = NULL;
-                                    }
+                                if (context.top().skip) {
                                     stack_pull();
                                 }
                             } break;
@@ -369,7 +343,7 @@ Error flowcontrol(uint32_t o_label, char* line, size_t& pos, bool& skip) {
             if (Job::active()) {
 #if 0
                 if (!skipping && grbl.on_macro_return) {
-                    ngc_flowctrl_unwind_stack(stack[stack_idx].file);
+                    unwind_stack();
                     if (expression(line, pos, value) == Error::Ok) {
                         set_named_param("_value", value);
                         set_named_param("_value_returned", 1.0f);
@@ -393,7 +367,7 @@ Error flowcontrol(uint32_t o_label, char* line, size_t& pos, bool& skip) {
         skip = false;
         log_debug(line);
     } else {
-        skip = stack_idx >= 0 && stack[stack_idx].skip;
+        skip = !context.empty() && context.top().skip;
     }
 
     return status;

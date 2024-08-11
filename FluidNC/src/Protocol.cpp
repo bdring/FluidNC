@@ -176,7 +176,7 @@ void polling_loop(void* unused) {
                         break;
                     case Error::Eof:
                         notifyf("Job done", "%s job sent", channel->name());
-                        log_info(channel->name() << " job sent");
+                        log_debug(channel->name() << " job sent");
                         Job::unnest();
                         break;
                     default:

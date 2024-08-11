@@ -193,6 +193,8 @@ public:
 
     size_t lineNumber() { return _line_number; }
 
-    virtual void save() {}
-    virtual void restore() {}
+    virtual void   save() {}
+    virtual void   restore() {}
+    virtual size_t position() { return 0; }
+    virtual void   set_position(size_t pos) {}
 };

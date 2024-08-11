@@ -126,7 +126,9 @@ bool set_numbered_param(ngc_param_id_t id, float value) {
         gc_state.tool = static_cast<uint32_t>(value);
         return true;
     }
-    if (id >= 31 && id <= 5000) {
+    if (id >= 1 && id <= 5000) {
+        // 1-30 are for subroutine arguments, but since we don't
+        // implement subroutines, we treat them the same as user params
         user_params[id] = value;
         return true;
     }

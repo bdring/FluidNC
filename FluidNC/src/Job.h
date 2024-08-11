@@ -15,8 +15,11 @@ public:
     void  set_param(const std::string& name, float value) { _local_params[name] = value; }
     bool  param_exists(const std::string& name) { return _local_params.count(name) != 0; }
 
-    void     save() { _channel->save(); }
-    void     restore() { _channel->restore(); }
+    void   save() { _channel->save(); }
+    void   restore() { _channel->restore(); }
+    size_t position() { return _channel->position(); }
+    void   set_position(size_t pos) { _channel->set_position(pos); }
+
     Channel* channel() { return _channel; }
 
     ~JobSource() { delete _channel; }

@@ -68,6 +68,10 @@ FileStream::FileStream(FluidPath fpath, const char* mode) : Channel("file"), _mo
     setup(mode);
 }
 
+void FileStream::set_position(size_t pos) {
+    fseek(_fd, pos, SEEK_SET);
+}
+
 void FileStream::save() {
     _saved_position = position();
     fclose(_fd);
