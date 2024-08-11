@@ -54,7 +54,7 @@ const float INCH_PER_MM = (0.0393701f);
 // Read a floating point value from a string. Line points to the input buffer, pos
 // is the indexer pointing to the current character of the line, while float_ptr is
 // a pointer to the result variable. Returns true when it succeeds
-bool read_float(const char* line, size_t* pos, float& result);
+bool read_float(const char* line, size_t& pos, float& result);
 
 // Delay while checking for realtime characters and other events
 bool dwell_ms(uint32_t milliseconds, DwellMode mode = DwellMode::Dwell);

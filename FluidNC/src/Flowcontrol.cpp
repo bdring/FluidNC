@@ -17,21 +17,21 @@
 #endif
 
 typedef enum {
-    NGCFlowCtrl_NoOp = 0,
-    NGCFlowCtrl_If,
-    NGCFlowCtrl_ElseIf,
-    NGCFlowCtrl_Else,
-    NGCFlowCtrl_EndIf,
-    NGCFlowCtrl_Do,
-    NGCFlowCtrl_Continue,
-    NGCFlowCtrl_Break,
-    NGCFlowCtrl_While,
-    NGCFlowCtrl_EndWhile,
-    NGCFlowCtrl_Repeat,
-    NGCFlowCtrl_EndRepeat,
-    NGCFlowCtrl_Return,
-    NGCFlowCtrl_RaiseAlarm,
-    NGCFlowCtrl_RaiseError
+    Op_NoOp = 0,
+    Op_If,
+    Op_ElseIf,
+    Op_Else,
+    Op_EndIf,
+    Op_Do,
+    Op_Continue,
+    Op_Break,
+    Op_While,
+    Op_EndWhile,
+    Op_Repeat,
+    Op_EndRepeat,
+    Op_Return,
+    Op_RaiseAlarm,
+    Op_RaiseError
 } ngc_cmd_t;
 
 typedef struct {
@@ -46,105 +46,39 @@ typedef struct {
     bool       brk;
 } ngc_stack_entry_t;
 
-static volatile int_fast8_t stack_idx              = -1;
-static ngc_stack_entry_t    stack[NGC_STACK_DEPTH] = { 0 };
+std::map<std::string, ngc_cmd_t, std::less<>> commands = {
+    { "IF", Op_If },
+    { "ELSEIF", Op_ElseIf },
+    { "ELSE", Op_Else },
+    { "ENDIF", Op_EndIf },
+    { "DO", Op_Do },
+    { "CONTINUE", Op_Continue },
+    { "BREAK", Op_Break },
+    { "WHILE", Op_While },
+    { "ENDWHILE", Op_EndWhile },
+    { "REPEAT", Op_Repeat },
+    { "ENDREPEAT", Op_EndRepeat },
+    { "RETURN", Op_Return },
+    { "ALARM", Op_RaiseAlarm },
+    { "ERROR", Op_RaiseError },
+};
 
-static Error read_command(char* line, uint_fast8_t* pos, ngc_cmd_t* operation) {
-    char  c      = line[*pos];
-    Error status = Error::Ok;
+static volatile int      stack_idx              = -1;
+static ngc_stack_entry_t stack[NGC_STACK_DEPTH] = { 0 };
 
-    (*pos)++;
-
-    switch (c) {
-        case 'A':
-            if (!strncmp(line + *pos, "LARM", 4)) {
-                *operation = NGCFlowCtrl_RaiseAlarm;
-                *pos += 4;
-            } else
-                status = Error::FlowControlSyntaxError;  // Unknown statement name starting with A
-            break;
-
-        case 'B':
-            if (!strncmp(line + *pos, "REAK", 4)) {
-                *operation = NGCFlowCtrl_Break;
-                *pos += 4;
-            } else
-                status = Error::FlowControlSyntaxError;  // Unknown statement name starting with B
-            break;
-
-        case 'C':
-            if (!strncmp(line + *pos, "ONTINUE", 7)) {
-                *operation = NGCFlowCtrl_Continue;
-                *pos += 7;
-            } else
-                status = Error::FlowControlSyntaxError;  // Unknown statement name starting with C
-            break;
-
-        case 'D':
-            if (line[*pos] == 'O') {
-                *operation = NGCFlowCtrl_Do;
-                (*pos)++;
-            } else
-                status = Error::FlowControlSyntaxError;  // Unknown statement name starting with D
-            break;
-
-        case 'E':
-            if (!strncmp(line + *pos, "LSEIF", 5)) {
-                *operation = NGCFlowCtrl_ElseIf;
-                *pos += 5;
-            } else if (!strncmp(line + *pos, "LSE", 3)) {
-                *operation = NGCFlowCtrl_Else;
-                *pos += 3;
-            } else if (!strncmp(line + *pos, "NDIF", 4)) {
-                *operation = NGCFlowCtrl_EndIf;
-                *pos += 4;
-            } else if (!strncmp(line + *pos, "NDWHILE", 7)) {
-                *operation = NGCFlowCtrl_EndWhile;
-                *pos += 7;
-            } else if (!strncmp(line + *pos, "NDREPEAT", 8)) {
-                *operation = NGCFlowCtrl_EndRepeat;
-                *pos += 8;
-            } else if (!strncmp(line + *pos, "RROR", 4)) {
-                *operation = NGCFlowCtrl_RaiseError;
-                *pos += 4;
-            } else
-                status = Error::FlowControlSyntaxError;  // Unknown statement name starting with E
-            break;
-
-        case 'I':
-            if (line[*pos] == 'F') {
-                *operation = NGCFlowCtrl_If;
-                (*pos)++;
-            } else
-                *operation = NGCFlowCtrl_RaiseError;  // Unknown statement name starting with F
-            break;
-
-        case 'R':
-            if (!strncmp(line + *pos, "EPEAT", 5)) {
-                *operation = NGCFlowCtrl_Repeat;
-                *pos += 5;
-            } else if (!strncmp(line + *pos, "ETURN", 5)) {
-                *operation = NGCFlowCtrl_Return;
-                *pos += 5;
-            } else {
-                *operation = NGCFlowCtrl_RaiseError;  // Unknown statement name starting with R
-            }
-            break;
-
-        case 'W':
-            if (!strncmp(line + *pos, "HILE", 4)) {
-                *operation = NGCFlowCtrl_While;
-                *pos += 4;
-            } else {
-                status = Error::FlowControlSyntaxError;  // Unknown statement name starting with W
-            }
-            break;
-
-        default:
-            status = Error::FlowControlSyntaxError;  // Unknown statement
+static Error read_command(char* line, size_t& pos, ngc_cmd_t& operation) {
+    size_t start = pos;
+    char   c;
+    while ((c = line[pos]) >= 'A' && c <= 'Z') {
+        ++pos;
     }
-
-    return status;
+    std::string_view key(line + start, pos - start);
+    auto             it = commands.find(key);
+    if (it == commands.end()) {
+        return Error::FlowControlSyntaxError;
+    }
+    operation = it->second;
+    return Error::Ok;
 }
 
 static Error stack_push(uint32_t o_label, ngc_cmd_t operation) {
@@ -184,21 +118,22 @@ void flowcontrol_init(void) {
     }
 }
 
-Error flowcontrol(uint32_t o_label, char* line, uint_fast8_t* pos, bool& skip) {
+Error flowcontrol(uint32_t o_label, char* line, size_t& pos, bool& skip) {
     float     value;
     bool      skipping;
     ngc_cmd_t operation, last_op;
 
     Error status;
 
-    if ((status = read_command(line, pos, &operation)) != Error::Ok)
+    if ((status = read_command(line, pos, operation)) != Error::Ok) {
         return status;
+    }
 
     skipping = stack_idx >= 0 && stack[stack_idx].skip;
-    last_op  = stack_idx >= 0 ? stack[stack_idx].operation : NGCFlowCtrl_NoOp;
+    last_op  = stack_idx >= 0 ? stack[stack_idx].operation : Op_NoOp;
 
     switch (operation) {
-        case NGCFlowCtrl_If:
+        case Op_If:
             if (!skipping && (status = expression(line, pos, value)) == Error::Ok) {
                 if ((status = stack_push(o_label, operation)) == Error::Ok) {
                     stack[stack_idx].skip    = value == 0.0f;
@@ -207,8 +142,8 @@ Error flowcontrol(uint32_t o_label, char* line, uint_fast8_t* pos, bool& skip) {
             }
             break;
 
-        case NGCFlowCtrl_ElseIf:
-            if (last_op == NGCFlowCtrl_If || last_op == NGCFlowCtrl_ElseIf) {
+        case Op_ElseIf:
+            if (last_op == Op_If || last_op == Op_ElseIf) {
                 if (o_label == stack[stack_idx].o_label && !(stack[stack_idx].skip = stack[stack_idx].handled) &&
                     !stack[stack_idx].handled && (status = expression(line, pos, value)) == Error::Ok) {
                     if (!(stack[stack_idx].skip = value == 0.0f)) {
@@ -220,8 +155,8 @@ Error flowcontrol(uint32_t o_label, char* line, uint_fast8_t* pos, bool& skip) {
                 status = Error::FlowControlSyntaxError;
             break;
 
-        case NGCFlowCtrl_Else:
-            if (last_op == NGCFlowCtrl_If || last_op == NGCFlowCtrl_ElseIf) {
+        case Op_Else:
+            if (last_op == Op_If || last_op == Op_ElseIf) {
                 if (o_label == stack[stack_idx].o_label) {
                     if (!(stack[stack_idx].skip = stack[stack_idx].handled)) {
                         stack[stack_idx].operation = operation;
@@ -231,8 +166,8 @@ Error flowcontrol(uint32_t o_label, char* line, uint_fast8_t* pos, bool& skip) {
                 status = Error::FlowControlSyntaxError;
             break;
 
-        case NGCFlowCtrl_EndIf:
-            if (last_op == NGCFlowCtrl_If || last_op == NGCFlowCtrl_ElseIf || last_op == NGCFlowCtrl_Else) {
+        case Op_EndIf:
+            if (last_op == Op_If || last_op == Op_ElseIf || last_op == Op_Else) {
                 if (o_label == stack[stack_idx].o_label) {
                     stack_pull();
                 }
@@ -241,7 +176,7 @@ Error flowcontrol(uint32_t o_label, char* line, uint_fast8_t* pos, bool& skip) {
             }
             break;
 
-        case NGCFlowCtrl_Do:
+        case Op_Do:
             if (Job::active()) {
                 if (!skipping && (status = stack_push(o_label, operation)) == Error::Ok) {
                     // stack[stack_idx].file_pos = vfs_tell(hal.stream.file);
@@ -253,15 +188,15 @@ Error flowcontrol(uint32_t o_label, char* line, uint_fast8_t* pos, bool& skip) {
             }
             break;
 
-        case NGCFlowCtrl_While:
+        case Op_While:
             if (Job::active()) {
-                char* expr = line + *pos;
+                char* expr = line + pos;
                 if (stack_idx >= 0 && stack[stack_idx].brk) {
-                    if (last_op == NGCFlowCtrl_Do && o_label == stack[stack_idx].o_label) {
+                    if (last_op == Op_Do && o_label == stack[stack_idx].o_label) {
                         stack_pull();
                     }
                 } else if (!skipping && (status = expression(line, pos, value)) == Error::Ok) {
-                    if (last_op == NGCFlowCtrl_Do) {
+                    if (last_op == Op_Do) {
                         if (o_label == stack[stack_idx].o_label) {
                             if (value != 0.0f) {
                                 // vfs_seek(stack[stack_idx].file, stack[stack_idx].file_pos);
@@ -288,12 +223,12 @@ Error flowcontrol(uint32_t o_label, char* line, uint_fast8_t* pos, bool& skip) {
             }
             break;
 
-        case NGCFlowCtrl_EndWhile:
+        case Op_EndWhile:
             if (Job::active()) {
-                if (last_op == NGCFlowCtrl_While) {
+                if (last_op == Op_While) {
                     if (!skipping && o_label == stack[stack_idx].o_label) {
                         uint_fast8_t pos = 0;
-                        if (!stack[stack_idx].skip && (status = expression(stack[stack_idx].expr, &pos, value)) == Error::Ok) {
+                        if (!stack[stack_idx].skip && (status = expression(stack[stack_idx].expr, pos, value)) == Error::Ok) {
                             if (!(stack[stack_idx].skip = value == 0)) {
                                 // vfs_seek(stack[stack_idx].file, stack[stack_idx].file_pos);
                                 Job::restore();
@@ -311,7 +246,7 @@ Error flowcontrol(uint32_t o_label, char* line, uint_fast8_t* pos, bool& skip) {
             }
             break;
 
-        case NGCFlowCtrl_Repeat:
+        case Op_Repeat:
             if (Job::active()) {
                 if (!skipping && (status = expression(line, pos, value)) == Error::Ok) {
                     if ((status = stack_push(o_label, operation)) == Error::Ok) {
@@ -328,9 +263,9 @@ Error flowcontrol(uint32_t o_label, char* line, uint_fast8_t* pos, bool& skip) {
             }
             break;
 
-        case NGCFlowCtrl_EndRepeat:
+        case Op_EndRepeat:
             if (Job::active()) {
-                if (last_op == NGCFlowCtrl_Repeat) {
+                if (last_op == Op_Repeat) {
                     if (!skipping && o_label == stack[stack_idx].o_label) {
                         if (stack[stack_idx].repeats && --stack[stack_idx].repeats) {
                             Job::restore();
@@ -347,13 +282,13 @@ Error flowcontrol(uint32_t o_label, char* line, uint_fast8_t* pos, bool& skip) {
             }
             break;
 
-        case NGCFlowCtrl_Break:
+        case Op_Break:
             if (Job::active()) {
                 if (!skipping) {
                     while (o_label != stack[stack_idx].o_label && stack_pull())
                         ;
-                    last_op = stack_idx >= 0 ? stack[stack_idx].operation : NGCFlowCtrl_NoOp;
-                    if (last_op == NGCFlowCtrl_Do || last_op == NGCFlowCtrl_While || last_op == NGCFlowCtrl_Repeat) {
+                    last_op = stack_idx >= 0 ? stack[stack_idx].operation : Op_NoOp;
+                    if (last_op == Op_Do || last_op == Op_While || last_op == Op_Repeat) {
                         if (o_label == stack[stack_idx].o_label) {
                             stack[stack_idx].repeats = 0;
                             stack[stack_idx].brk = stack[stack_idx].skip = stack[stack_idx].handled = true;
@@ -367,14 +302,14 @@ Error flowcontrol(uint32_t o_label, char* line, uint_fast8_t* pos, bool& skip) {
             }
             break;
 
-        case NGCFlowCtrl_Continue:
+        case Op_Continue:
             if (Job::active()) {
                 if (!skipping) {
                     while (o_label != stack[stack_idx].o_label && stack_pull())
                         ;
                     if (stack_idx >= 0 && o_label == stack[stack_idx].o_label) {
                         switch (stack[stack_idx].operation) {
-                            case NGCFlowCtrl_Repeat:
+                            case Op_Repeat:
                                 if (stack[stack_idx].repeats && --stack[stack_idx].repeats) {
                                     Job::restore();
                                     // vfs_seek(stack[stack_idx].file, stack[stack_idx].file_pos);
@@ -383,14 +318,14 @@ Error flowcontrol(uint32_t o_label, char* line, uint_fast8_t* pos, bool& skip) {
                                 }
                                 break;
 
-                            case NGCFlowCtrl_Do:
+                            case Op_Do:
                                 Job::restore();
                                 // vfs_seek(stack[stack_idx].file, stack[stack_idx].file_pos);
                                 break;
 
-                            case NGCFlowCtrl_While: {
+                            case Op_While: {
                                 uint_fast8_t pos = 0;
-                                if (!stack[stack_idx].skip && (status = expression(stack[stack_idx].expr, &pos, value)) == Error::Ok) {
+                                if (!stack[stack_idx].skip && (status = expression(stack[stack_idx].expr, pos, value)) == Error::Ok) {
                                     if (!(stack[stack_idx].skip = value == 0)) {
                                         Job::restore();
                                         // vfs_seek(stack[stack_idx].file, stack[stack_idx].file_pos);
@@ -418,19 +353,19 @@ Error flowcontrol(uint32_t o_label, char* line, uint_fast8_t* pos, bool& skip) {
             }
             break;
 
-        case NGCFlowCtrl_RaiseAlarm:
+        case Op_RaiseAlarm:
             if (!skipping && expression(line, pos, value) == Error::Ok) {
                 send_alarm((ExecAlarm)value);
             }
             break;
 
-        case NGCFlowCtrl_RaiseError:
+        case Op_RaiseError:
             if (!skipping && expression(line, pos, value) == Error::Ok) {
                 status = (Error)value;
             }
             break;
 
-        case NGCFlowCtrl_Return:
+        case Op_Return:
             if (Job::active()) {
 #if 0
                 if (!skipping && grbl.on_macro_return) {

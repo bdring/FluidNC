@@ -405,17 +405,17 @@ bool get_param(const param_ref_t& param_ref, float& result) {
     return get_numbered_param(param_ref.id, result);
 }
 
-bool get_param_ref(const char* line, size_t* pos, param_ref_t& param_ref) {
+bool get_param_ref(const char* line, size_t& pos, param_ref_t& param_ref) {
     // Entry condition - the previous character was #
-    char  c = line[*pos];
+    char  c = line[pos];
     float result;
 
-    // c is the first character and *pos still points to it
+    // c is the first character and pos still points to it
     switch (c) {
         case '#': {
             // Indirection resulting in param number
             param_ref_t next_param_ref;
-            ++*pos;
+            ++pos;
             if (!get_param_ref(line, pos, next_param_ref)) {
                 return false;
             }
@@ -427,19 +427,19 @@ bool get_param_ref(const char* line, size_t* pos, param_ref_t& param_ref) {
             return true;
         case '<':
             // Named parameter
-            ++*pos;
-            while ((c = line[*pos]) && c != '>') {
-                ++*pos;
+            ++pos;
+            while ((c = line[pos]) && c != '>') {
+                ++pos;
                 param_ref.name += c;
             }
             if (!c) {
                 return false;
             }
-            ++*pos;
+            ++pos;
             return true;
         case '[': {
             // Expression evaluating to param number
-            ++*pos;
+            ++pos;
             Error status = expression(line, pos, result);
             if (status != Error::Ok) {
                 log_debug(errorString(status));
@@ -483,10 +483,10 @@ void set_param(const param_ref_t& param_ref, float value) {
 }
 
 // Gets a numeric value, either a literal number or a #-prefixed parameter value
-bool read_number(const char* line, size_t* pos, float& result, bool in_expression) {
-    char c = line[*pos];
+bool read_number(const char* line, size_t& pos, float& result, bool in_expression) {
+    char c = line[pos];
     if (c == '#') {
-        ++*pos;
+        ++pos;
         param_ref_t param_ref;
         if (!get_param_ref(line, pos, param_ref)) {
             return false;
@@ -508,7 +508,7 @@ bool read_number(const char* line, size_t* pos, float& result, bool in_expressio
             return read_unary(line, pos, result) == Error::Ok;
         }
         if (c == '-') {
-            ++*pos;
+            ++pos;
             if (!read_number(line, pos, result, in_expression)) {
                 return false;
             }
@@ -516,7 +516,7 @@ bool read_number(const char* line, size_t* pos, float& result, bool in_expressio
             return true;
         }
         if (c == '+') {
-            ++*pos;
+            ++pos;
             return read_number(line, pos, result, in_expression);
         }
     }
@@ -524,17 +524,17 @@ bool read_number(const char* line, size_t* pos, float& result, bool in_expressio
 }
 
 // Process a #PREF=value assignment, with the initial # already consumed
-bool assign_param(const char* line, size_t* pos) {
+bool assign_param(const char* line, size_t& pos) {
     param_ref_t param_ref;
 
     if (!get_param_ref(line, pos, param_ref)) {
         return false;
     }
-    if (line[*pos] != '=') {
+    if (line[pos] != '=') {
         log_debug("Missing =");
         return false;
     }
-    ++*pos;
+    ++pos;
 
     float value;
     if (!read_number(line, pos, value)) {

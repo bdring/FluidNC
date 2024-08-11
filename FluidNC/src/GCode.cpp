@@ -237,7 +237,7 @@ Error gc_execute_line(char* line) {
                 return Error::Ok;
             }
             pos++;
-            if (!assign_param(line, &pos)) {
+            if (!assign_param(line, pos)) {
                 FAIL(Error::BadNumberFormat);
             }
             continue;
@@ -245,7 +245,7 @@ Error gc_execute_line(char* line) {
 
         // XXX Should check that no other words are also present
         if (bitnum_is_true(value_words, GCodeWord::O)) {
-            return flowcontrol(gc_block.values.o, line, &pos, gc_state.skip_blocks);
+            return flowcontrol(gc_block.values.o, line, pos, gc_state.skip_blocks);
         }
 
         // Import the next g-code word, expecting a letter followed by a value. Otherwise, error out.
@@ -253,7 +253,7 @@ Error gc_execute_line(char* line) {
             FAIL(Error::ExpectedCommandLetter);  // [Expected word letter]
         }
         pos++;
-        if (!read_number(line, &pos, value)) {
+        if (!read_number(line, pos, value)) {
             FAIL(Error::BadNumberFormat);  // [Expected word value]
         }
         if (gc_state.skip_blocks && letter != 'O') {
