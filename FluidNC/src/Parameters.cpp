@@ -83,17 +83,38 @@ bool ngc_param_is_rw(ngc_param_id_t id) {
     return true;
 }
 
+static bool is_axis(int axis) {
+    return axis >= 0 && axis < MAX_N_AXIS;
+}
+static bool is_rotary(int axis) {
+    return axis >= A_AXIS && axis <= C_AXIS;
+}
+static float to_inches(int axis, float value) {
+    if (!is_rotary(axis) && gc_state.modal.units == Units::Inches) {
+        return value * INCH_PER_MM;
+    }
+    return value;
+}
+static float to_mm(int axis, float value) {
+    if (!is_rotary(axis) && gc_state.modal.units == Units::Inches) {
+        return value * MM_PER_INCH;
+    }
+    return value;
+}
 bool set_numbered_param(ngc_param_id_t id, float value) {
+    int axis;
     for (auto const& [key, coord_index] : axis_params) {
-        if (key <= id && id < (key + MAX_N_AXIS)) {
-            coords[coord_index]->set(id - key, value);
+        axis = id - key;
+        if (is_axis(axis)) {
+            coords[coord_index]->set(axis, to_mm(axis, value));
             gc_ngc_changed(coord_index);
             return true;
         }
     }
     // Non-volatile G92
-    if (id >= 5211 && id < (5211 + MAX_N_AXIS)) {
-        gc_state.coord_offset[id - 5211] = value;
+    axis = id - 5211;
+    if (is_axis(axis)) {
+        gc_state.coord_offset[axis] = to_mm(axis, value);
         gc_ngc_changed(CoordIndex::G92);
         return true;
     }
@@ -114,26 +135,30 @@ bool set_numbered_param(ngc_param_id_t id, float value) {
 }
 
 bool get_numbered_param(ngc_param_id_t id, float& result) {
+    int axis;
     for (auto const& [key, coord_index] : axis_params) {
-        if (key <= id && id < (key + MAX_N_AXIS)) {
+        axis = id - key;
+        if (is_axis(axis)) {
             const float* p = coords[coord_index]->get();
-            result         = coords[coord_index]->get(id - key);
+
+            result = to_inches(axis, coords[coord_index]->get(axis));
             return true;
         }
     }
 
     // last probe
-    if (id >= 5061 && id < (5061 + MAX_N_AXIS)) {
+    axis = id - 5061;
+    if (is_axis(axis)) {
         float probe_position[MAX_N_AXIS];
         motor_steps_to_mpos(probe_position, probe_steps);
-        result = probe_position[id - 5061];
+        result = to_inches(axis, probe_position[axis]);
         return true;
     }
 
     // Non-volatile G92
-    if (id >= 5211 && id < (5211 + MAX_N_AXIS)) {
-        result = gc_state.coord_offset[id - 5211];
-        return true;
+    axis = id - 5211;
+    if (is_axis(axis)) {
+        result = to_inches(axis, gc_state.coord_offset[axis]);
     }
 
     if (id == 5220) {
@@ -146,10 +171,11 @@ bool get_numbered_param(ngc_param_id_t id, float& result) {
     }
 
     // Current relative position in the active coordinate system including all offsets
-    if (id >= 5420 && id < (5420 + MAX_N_AXIS)) {
+    axis = id - 5420;
+    if (is_axis(axis)) {
         float* my_position = get_mpos();
         mpos_to_wpos(my_position);
-        result = my_position[id - 5420];
+        result = to_inches(axis, my_position[axis]);
         return true;
     }
 
@@ -201,11 +227,13 @@ bool get_system_param(const std::string& name, float& result) {
         sysn += tolower(c);
     }
     if (auto search = work_positions.find(sysn); search != work_positions.end()) {
-        result = get_mpos()[search->second] - get_wco()[search->second];
+        auto axis = search->second;
+        result    = to_inches(axis, get_mpos()[axis] - get_wco()[axis]);
         return true;
     }
     if (auto search = machine_positions.find(sysn); search != machine_positions.end()) {
-        result = get_mpos()[search->second];
+        auto axis = search->second;
+        result    = to_inches(axis, get_mpos()[axis]);
         return true;
     }
     if (std::find(unsupported_sys.begin(), unsupported_sys.end(), sysn) != unsupported_sys.end()) {
@@ -246,7 +274,7 @@ bool get_system_param(const std::string& name, float& result) {
         return true;
     }
     if (sysn == "_feed") {
-        result = gc_state.feed_rate;
+        result = to_inches(0, gc_state.feed_rate);
         return true;
     }
     if (sysn == "_rpm") {
