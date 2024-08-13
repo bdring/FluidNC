@@ -11,9 +11,16 @@ private:
 
 public:
     JobSource(Channel* channel) : _channel(channel) {}
-    float get_param(const std::string& name) { return _local_params[name]; }
-    void  set_param(const std::string& name, float value) { _local_params[name] = value; }
-    bool  param_exists(const std::string& name) { return _local_params.count(name) != 0; }
+    bool get_param(const std::string& name, float& value) {
+        auto it = _local_params.find(name);
+        if (it == _local_params.end()) {
+            return false;
+        }
+        value = it->second;
+        return true;
+    }
+    void set_param(const std::string& name, float value) { _local_params[name] = value; }
+    bool param_exists(const std::string& name) { return _local_params.count(name) != 0; }
 
     void   save() { _channel->save(); }
     void   restore() { _channel->restore(); }
@@ -41,7 +48,7 @@ public:
     static void       abort();
     static JobSource* source();
 
-    static float    get_param(const std::string& name);
+    static bool     get_param(const std::string& name, float& value);
     static void     set_param(const std::string& name, float value);
     static bool     param_exists(const std::string& name);
     static Channel* channel();

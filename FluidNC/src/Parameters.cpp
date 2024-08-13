@@ -386,25 +386,30 @@ bool named_param_exists(std::string& name) {
     return global_named_params.count(search) != 0;
 }
 
-bool get_param(const param_ref_t& param_ref, float& result) {
+bool get_global_named_param(const std::string& name, float& value) {
+    auto it = global_named_params.find(name);
+    if (it == global_named_params.end()) {
+        return false;
+    }
+    value = it->second;
+    return true;
+}
+
+bool get_param(const param_ref_t& param_ref, float& value) {
     auto name = param_ref.name;
     if (name.length()) {
         if (name[0] == '/') {
-            return get_config_item(name, result);
+            return get_config_item(name, value);
         }
-        bool got;
         if (name[0] == '_') {
-            got = get_system_param(name, result);
-            if (got) {
+            if (get_system_param(name, value)) {
                 return true;
             }
-            result = global_named_params[name];
-            return true;
+            return get_global_named_param(name, value);
         }
-        result = Job::active() ? Job::get_param(name) : global_named_params[name];
-        return true;
+        return Job::active() ? Job::get_param(name, value) : get_global_named_param(name, value);
     }
-    return get_numbered_param(param_ref.id, result);
+    return get_numbered_param(param_ref.id, value);
 }
 
 bool get_param_ref(const char* line, size_t& pos, param_ref_t& param_ref) {
@@ -462,7 +467,7 @@ bool get_param_ref(const char* line, size_t& pos, param_ref_t& param_ref) {
     }
 }
 
-void set_named_param(const char* name, float value) {
+void set_named_param(const std::string& name, float value) {
     global_named_params[name] = value;
 }
 
@@ -476,7 +481,7 @@ void set_param(const param_ref_t& param_ref, float value) {
         if (name[0] != '_' && Job::active()) {
             Job::set_param(name, value);
         } else {
-            global_named_params[name] = value;
+            set_named_param(name, value);
         }
         return;
     }
@@ -495,6 +500,10 @@ bool read_number(const char* line, size_t& pos, float& result, bool in_expressio
         if (!get_param_ref(line, pos, param_ref)) {
             return false;
         }
+        if (get_param(param_ref, result)) {
+            return true;
+        }
+        log_debug("Undefined parameter " << param_ref.name);
         return get_param(param_ref, result);
     }
     if (c == '[') {

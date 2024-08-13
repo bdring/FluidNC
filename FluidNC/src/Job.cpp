@@ -59,8 +59,8 @@ void Job::abort() {
     }
 }
 
-float Job::get_param(const std::string& name) {
-    return job.top()->get_param(name);
+bool Job::get_param(const std::string& name, float& value) {
+    return job.top()->get_param(name, value);
 }
 void Job::set_param(const std::string& name, float value) {
     job.top()->set_param(name, value);
