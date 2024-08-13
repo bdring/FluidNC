@@ -78,17 +78,68 @@ void gc_sync_position() {
     motor_steps_to_mpos(gc_state.position, get_motor_steps());
 }
 
+static bool decode_format_string(const char* comment, size_t& index, size_t len, const char*& format) {
+    // comment[index] is '%'
+    const char* f   = comment + index;
+    int         rem = len - index;
+    if (rem > 1 && f[1] == 'd') {
+        ++index;
+        format = "%.0f";
+        return true;
+    }
+    if (rem > 2 && f[1] == 'f') {
+        ++index;
+        format = "%.4f";
+        return true;
+    }
+    if (rem > 3 && f[1] == '.' && f[2] >= '0' && f[2] <= '9' && f[3] == 'f') {
+        static char fmt[5];
+        memcpy(fmt, f, 4);
+        fmt[4] = '\0';
+        index += 3;
+        format = fmt;
+        return true;
+    }
+    return false;
+}
+
 static void gcode_comment_msg(char* comment) {
-    char         msg[80];
-    const size_t offset = 4;  // ignore "MSG_" part of comment
-    size_t       index  = offset;
+    char   msg[128];
+    size_t offset = strlen("MSG_");
+    size_t index;
     if (strstr(comment, "MSG")) {
-        while (index < strlen(comment)) {
-            msg[index - offset] = comment[index];
-            index++;
+        log_info("MSG," << &comment[offset]);
+        return;
+    }
+    offset       = strlen("PRINT,");  // Same length as DEBUG,
+    bool isdebug = strncasecmp(comment, "DEBUG,", offset) == 0;
+    if (isdebug || strncasecmp(comment, "PRINT,", offset) == 0) {
+        const char* format   = "%lf";
+        size_t      msgindex = 0;
+        size_t      len      = strlen(comment);
+        for (index = offset; index < len; ++index) {
+            char c = comment[index];
+            if (c == '%') {
+                if (!decode_format_string(comment, index, len, format)) {
+                    msg[msgindex++] = c;
+                }
+            } else if (c == '#') {
+                float number;
+                if (read_number(comment, index, number)) {
+                    msgindex += sprintf(&msg[msgindex], format, number);
+                } else {
+                    msg[msgindex++] = c;
+                }
+            } else {
+                msg[msgindex++] = c;
+            }
         }
-        msg[index - offset] = 0;  // null terminate
-        log_info("GCode Comment..." << msg);
+        msg[msgindex] = '\0';
+        if (isdebug) {
+            log_debug("DEBUG," << msg);
+        } else {
+            log_info("PRINT," << msg);
+        }
     }
 }
 

@@ -432,7 +432,9 @@ bool get_param_ref(const char* line, size_t& pos, param_ref_t& param_ref) {
             ++pos;
             while ((c = line[pos]) && c != '>') {
                 ++pos;
-                param_ref.name += c;
+                if (!isspace(c)) {
+                    param_ref.name += toupper(c);
+                }
             }
             if (!c) {
                 return false;
