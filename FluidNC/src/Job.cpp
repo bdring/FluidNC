@@ -62,8 +62,8 @@ void Job::abort() {
 bool Job::get_param(const std::string& name, float& value) {
     return job.top()->get_param(name, value);
 }
-void Job::set_param(const std::string& name, float value) {
-    job.top()->set_param(name, value);
+bool Job::set_param(const std::string& name, float value) {
+    return job.top()->set_param(name, value);
 }
 bool Job::param_exists(const std::string& name) {
     return job.top()->param_exists(name);

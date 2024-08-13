@@ -201,24 +201,33 @@ struct param_ref_t {
 };
 std::vector<std::tuple<param_ref_t, float>> assignments;
 
-void set_config_item(const std::string& name, float result) {
+bool set_config_item(const std::string& name, float result) {
     try {
         Configuration::GCodeParam gci(name.c_str(), result, false);
         config->group(gci);
-    } catch (...) {}
+        if (gci.isHandled_) {
+            return true;
+        }
+    } catch (const AssertionFailed& ex) {
+        log_debug(ex.msg);
+        return false;
+    }
+    log_debug("Failed to set " << name);
+    return false;
 }
 
 bool get_config_item(const std::string& name, float& result) {
     try {
         Configuration::GCodeParam gci(name.c_str(), result, true);
         config->group(gci);
-
         if (gci.isHandled_) {
             return true;
         }
-        log_debug(name << " is missing");
+    } catch (const AssertionFailed& ex) {
+        log_debug(ex.msg);
         return false;
-    } catch (...) { return false; }
+    }
+    return false;
 }
 
 int coord_values[] = { 540, 550, 560, 570, 580, 590, 591, 592, 593 };
@@ -356,6 +365,11 @@ bool get_system_param(const std::string& name, float& result) {
     return false;
 }
 
+bool system_param_exists(const std::string& name) {
+    float dummy;
+    return get_system_param(name, dummy);
+}
+
 // The LinuxCNC doc says that the EXISTS syntax is like EXISTS[#<_foo>]
 // For convenience, we also allow EXISTS[_foo]
 bool named_param_exists(std::string& name) {
@@ -442,6 +456,7 @@ bool get_param_ref(const char* line, size_t& pos, param_ref_t& param_ref) {
                 }
             }
             if (!c) {
+                log_debug("Missing >");
                 return false;
             }
             ++pos;
@@ -467,28 +482,32 @@ bool get_param_ref(const char* line, size_t& pos, param_ref_t& param_ref) {
     }
 }
 
-void set_named_param(const std::string& name, float value) {
+bool set_named_param(const std::string& name, float value) {
     global_named_params[name] = value;
+    return true;
 }
 
-void set_param(const param_ref_t& param_ref, float value) {
-    if (param_ref.name.length()) {
+bool set_param(const param_ref_t& param_ref, float value) {
+    if (param_ref.name.length()) {  // Named parameter
         auto name = param_ref.name;
         if (name[0] == '/') {
-            set_config_item(param_ref.name, value);
-            return;
+            return set_config_item(param_ref.name, value);
         }
         if (name[0] != '_' && Job::active()) {
-            Job::set_param(name, value);
-        } else {
-            set_named_param(name, value);
+            return Job::set_param(name, value);
         }
-        return;
+        if (name[0] == '_' && system_param_exists(name)) {
+            log_debug("Attempt to set read-only parameter " << name);
+            return false;
+        }
+        return set_named_param(name, value);
     }
 
-    if (ngc_param_is_rw(param_ref.id)) {
-        set_numbered_param(param_ref.id, value);
+    if (ngc_param_is_rw(param_ref.id)) {  // Numbered parameter
+        return set_numbered_param(param_ref.id, value);
     }
+    log_debug("Attempt to set read-only parameter " << param_ref.id);
+    return false;
 }
 
 // Gets a numeric value, either a literal number or a #-prefixed parameter value
@@ -504,7 +523,7 @@ bool read_number(const char* line, size_t& pos, float& result, bool in_expressio
             return true;
         }
         log_debug("Undefined parameter " << param_ref.name);
-        return get_param(param_ref, result);
+        return false;
     }
     if (c == '[') {
         Error status = expression(line, pos, result);
@@ -559,9 +578,13 @@ bool assign_param(const char* line, size_t& pos) {
     return true;
 }
 
-void perform_assignments() {
+bool perform_assignments() {
+    bool result = true;
     for (auto const& [ref, value] : assignments) {
-        set_param(ref, value);
+        if (!set_param(ref, value)) {
+            result = false;
+        }
     }
     assignments.clear();
+    return result;
 }

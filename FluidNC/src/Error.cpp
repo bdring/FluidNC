@@ -87,4 +87,5 @@ const std::map<Error, const char*> ErrorNames = {
     { Error::FlowControlNotExecutingMacro, "Flow Control Not Executing Macro" },
     { Error::FlowControlOutOfMemory, "Flow Control Out of Memory" },
     { Error::FlowControlStackOverflow, "Flow Control Stack Overflow" },
+    { Error::ParameterAssignmentFailed, "Parameter Assignment Failed" },
 };

@@ -92,6 +92,7 @@ enum class Error : uint8_t {
     FlowControlNotExecutingMacro = 177,
     FlowControlOutOfMemory       = 178,
     FlowControlStackOverflow     = 179,
+    ParameterAssignmentFailed    = 180,
 };
 
 const char* errorString(Error errorNumber);

@@ -19,7 +19,10 @@ public:
         value = it->second;
         return true;
     }
-    void set_param(const std::string& name, float value) { _local_params[name] = value; }
+    bool set_param(const std::string& name, float value) {
+        _local_params[name] = value;
+        return true;
+    }
     bool param_exists(const std::string& name) { return _local_params.count(name) != 0; }
 
     void   save() { _channel->save(); }
@@ -49,7 +52,7 @@ public:
     static JobSource* source();
 
     static bool     get_param(const std::string& name, float& value);
-    static void     set_param(const std::string& name, float value);
+    static bool     set_param(const std::string& name, float value);
     static bool     param_exists(const std::string& name);
     static Channel* channel();
 };

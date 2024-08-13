@@ -1827,10 +1827,9 @@ Error gc_execute_line(char* line) {
     }
     gc_state.modal.program_flow = ProgramFlow::Running;  // Reset program flow.
 
-    perform_assignments();
+    return perform_assignments() ? Error::Ok : Error::ParameterAssignmentFailed;
 
     // TODO: % to denote start of program.
-    return Error::Ok;
 }
 
 /*
