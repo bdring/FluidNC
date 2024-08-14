@@ -392,12 +392,11 @@ bool named_param_exists(std::string& name) {
         if (got) {
             return true;
         }
-        got = Job::param_exists(search);
-        if (got) {
-            return true;
-        }
+        return global_named_params.count(search) != 0;
     }
-    return global_named_params.count(search) != 0;
+    // If the name does not start with _ it is local so we look for a job-local parameter
+    // If no job is active, we treat the interpretive context like a local context
+    return Job::active() ? Job::param_exists(search) : global_named_params.count(search) != 0;
 }
 
 bool get_global_named_param(const std::string& name, float& value) {
