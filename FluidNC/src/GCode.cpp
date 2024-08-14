@@ -167,10 +167,19 @@ void collapseGCode(char* line) {
                 // Strip out ) that does not follow a (
                 break;
             case '(':
+                if (gc_state.skip_blocks) {
+                    *line = '\0';
+                    return;
+                }
+
                 // Start the comment at the character after (
                 parenPtr = inPtr + 1;
                 break;
             case ';':
+                if (gc_state.skip_blocks) {
+                    *line = '\0';
+                    return;
+                }
                 // NOTE: ';' comment to EOL is a LinuxCNC definition. Not NIST.
                 // gcode_comment_msg(inPtr + 1);
                 *outPtr = '\0';
