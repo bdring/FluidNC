@@ -23,6 +23,7 @@ namespace Spindles {
             linearSpeeds(1, 100.0f);
         }
         setupSpeeds(1);
+        init_atc();
         config_message();
     }
 
