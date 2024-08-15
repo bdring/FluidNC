@@ -47,6 +47,7 @@ namespace Spindles {
 
         stop();
 
+        init_atc();
         config_message();
 
         is_reversable = true;  // these VFDs are always reversable

@@ -56,6 +56,7 @@ namespace Spindles {
         //setupSpeeds(_pulse_span_counts); // Map the counts for just the part of the pulse that changes to keep math inside 32bits later...
         setupSpeeds(_pwm->period());  // Map the entire pulse width period in counts
         stop();
+        init_atc();
         config_message();
     }
 

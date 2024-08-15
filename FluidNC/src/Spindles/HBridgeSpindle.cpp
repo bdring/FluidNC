@@ -44,6 +44,7 @@ namespace Spindles {
             linearSpeeds(10000, 100.0f);
         }
         setupSpeeds(_pwm_cw->period());
+        init_atc();
         config_message();
     }
 

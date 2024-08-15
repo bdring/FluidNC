@@ -295,6 +295,7 @@ namespace Spindles {
             );
         }
 
+        init_atc();
         config_message();
 
         set_mode(SpindleState::Disable, true);

@@ -40,6 +40,7 @@ namespace Spindles {
         }
         setupSpeeds(255);
 
+        init_atc();
         config_message();
     }
 
