@@ -47,6 +47,7 @@ namespace Spindles {
 
         stop();
 
+        init_atc();
         config_message();
 
         is_reversable = true;  // these VFDs are always reversable
@@ -56,7 +57,7 @@ namespace Spindles {
     void _10v::config_message() {
         log_info(name() << " Spindle Ena:" << _enable_pin.name() << " Out:" << _output_pin.name() << " Dir:" << _direction_pin.name()
                         << " Fwd:" << _forward_pin.name() << " Rev:" << _reverse_pin.name() << " Freq:" << _pwm->frequency()
-                        << "Hz Period:" << _pwm->period());
+                        << "Hz Period:" << _pwm->period() << atc_info());
     }
 
     // This appears identical to the code in PWMSpindle.cpp but

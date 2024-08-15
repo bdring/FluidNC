@@ -295,12 +295,15 @@ namespace Spindles {
             );
         }
 
+        init_atc();
         config_message();
 
         set_mode(SpindleState::Disable, true);
     }
 
-    void VFD::config_message() { _uart->config_message(name(), " Spindle "); }
+    void VFD::config_message() {
+        _uart->config_message(name(), " Spindle ");
+    }
 
     void VFD::setState(SpindleState state, SpindleSpeed speed) {
         log_debug("VFD setState:" << uint8_t(state) << " SpindleSpeed:" << speed);

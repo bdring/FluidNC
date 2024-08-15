@@ -42,6 +42,7 @@ namespace Configuration {
     }
 
     // String values might have meaningful leading and trailing spaces so we avoid trimming the string (false)
+
     // cppcheck-suppress unusedFunction
     std::string_view Parser::stringValue() const {
         return _token._value;
@@ -139,6 +140,35 @@ namespace Configuration {
         }
 
         return speed_entries;
+    }
+
+    std::vector<float> Parser::floatArray() const {
+        auto               str = string_util::trim(_token._value);
+        std::vector<float> values;
+        float              float_value;
+
+        while (!str.empty()) {
+            str                = string_util::trim(str);
+            auto next_ws_delim = str.find(' ');
+            auto entry_str     = string_util::trim(str.substr(0, next_ws_delim));
+
+            str.remove_prefix(next_ws_delim + 1);
+
+            if (!string_util::is_float(entry_str, float_value)) {
+                log_error("Bad number " << entry_str);
+                values.clear();
+                break;
+            }
+            values.push_back(float_value);
+
+            if (str == entry_str)
+                break;
+        }
+
+        if (!values.size())
+            log_info("Using default value");
+
+        return values;
     }
 
     // cppcheck-suppress unusedFunction

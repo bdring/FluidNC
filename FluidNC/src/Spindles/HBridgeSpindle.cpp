@@ -44,6 +44,7 @@ namespace Spindles {
             linearSpeeds(10000, 100.0f);
         }
         setupSpeeds(_pwm_cw->period());
+        init_atc();
         config_message();
     }
 
@@ -103,8 +104,8 @@ namespace Spindles {
 
     // prints the startup message of the spindle config
     void HBridge::config_message() {
-        log_info(name() << " Spindle Ena:" << _enable_pin.name() << " Out CW:" << _output_cw_pin.name()
-                        << " Out CCW:" << _output_ccw_pin.name() << " Freq:" << _pwm_cw->frequency() << "Hz Period:" << _pwm_cw->period()
+        log_info(name() << " Spindle Ena:" << _enable_pin.name() << " Out CW:" << _output_cw_pin.name() << " Out CCW:"
+                        << _output_ccw_pin.name() << " Freq:" << _pwm_cw->frequency() << "Hz Period:" << _pwm_cw->period() << atc_info()
 
         );
     }

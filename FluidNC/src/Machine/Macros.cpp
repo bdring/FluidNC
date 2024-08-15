@@ -93,7 +93,7 @@ Error MacroChannel::readLine(char* line, int maxlen) {
         }
         // & is a proxy for newlines in macros, because you cannot
         // enter a newline directly in a config file string value.
-        if (c == '&') {
+        if (c == '&' || c == '\n') {
             break;
         }
         line[len++] = c;

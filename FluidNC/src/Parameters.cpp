@@ -123,7 +123,7 @@ bool set_numbered_param(ngc_param_id_t id, float value) {
         return true;
     }
     if (id == 5400) {
-        gc_state.tool = static_cast<uint32_t>(value);
+        gc_state.selected_tool = static_cast<uint32_t>(value);
         return true;
     }
     if (id >= 1 && id <= 5000) {

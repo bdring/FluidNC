@@ -23,6 +23,8 @@
 #    include "Driver/localfs.h"
 #    include "esp32-hal.h"  // disableCore0WDT
 
+#    include "src/ToolChangers/atc.h"
+
 extern void make_user_commands();
 
 void setup() {
@@ -107,12 +109,18 @@ void setup() {
             module->init();
         }
 
+        auto atcs = ATCs::ATCFactory::objects();
+        for (auto const& atc : atcs) {
+            atc->init();
+        }
+
         if (!state_is(State::ConfigAlarm)) {
             auto spindles = Spindles::SpindleFactory::objects();
             for (auto const& spindle : spindles) {
                 spindle->init();
             }
-            Spindles::Spindle::switchSpindle(0, spindles, spindle);
+            bool stopped_spindle;
+            Spindles::Spindle::switchSpindle(0, spindles, spindle, stopped_spindle);
 
             config->_coolant->init();
             config->_probe->init();
