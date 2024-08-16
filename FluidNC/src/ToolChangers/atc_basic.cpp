@@ -14,94 +14,96 @@ namespace ATCs {
     void Basic_ATC::probe_notification() {}
 
     bool Basic_ATC::tool_change(uint8_t new_tool, bool pre_select, bool set_tool) {
-        bool spindle_was_on = false;  // used to restore the spindle state
-        bool was_inch_mode  = false;  // allows use to restore inch mode if req'd
-
         protocol_buffer_synchronize();  // wait for all motion to complete
         _macro.erase();             // clear previous gcode
-
-        // M6T0 is used to reset this ATC and allow us to start a new job
-        if (new_tool == 0 || set_tool) {
-            _prev_tool = new_tool;
-            move_to_safe_z();
-            move_to_change_location();
-            reset();
-            _macro.run(nullptr);
+        
+        if (pre_select) { // not implemented
             return true;
         }
 
-        was_inch_mode = (gc_state.modal.units == Units::Inches);
-
-        if (was_inch_mode) {
+        // set_tool is used to update the current tool and reset the TLO to 0
+        if (set_tool) {
+            _prev_tool = new_tool;
+            _macro.addf("G4P0 0.0");
+            if (!_have_tool_setter_offset) {
+                get_ets_offset();
+            }
+            _macro.run(nullptr);
+            return true;
+        }
+        
+        //save machine states
+        bool spindle_was_on = (gc_state.modal.spindle != SpindleState::Disable);  // used to restore the spindle state
+        bool was_inch_mode  = (gc_state.modal.units == Units::Inches);
+        bool was_absolute_mode = (gc_state.modal.distance == Distance::Absolute);
+        bool mistcoolant_was_on= (gc_state.modal.coolant.Mist);
+        bool floodcoolant_was_on = (gc_state.modal.coolant.Flood);
+        // save current location, so we can return after the tool change.
+        _macro.addf("#<start_x >= #<_x>");
+        _macro.addf("#<start_y >= #<_y>");
+        _macro.addf("#<start_z >= #<_z>");
+        
+        if (mistcoolant_was_on || floodcoolant_was_on) {
+            _macro.addf("M9");
+        }
+        if (was_inch_mode) { // become Metric
             _macro.addf("G21");
+        }
+        if (!was_absolute_mode) { // become absolute
+            _macro.addf("G90");
+        }
+        if (spindle_was_on) { // turn off the spindle
+            _macro.addf("M5");
         }
 
         try {
-            if (_prev_tool == 0) {  // M6T<anything> from T0 is used for a manual change before zero'ing
-                move_to_change_location();
-                _macro.addf("G4P0 0.1");
-                _macro.addf("G43.1Z0");
-                _macro.addf("(MSG : Install tool #%d)", new_tool);
-                if (was_inch_mode) {
-                    _macro.addf("G20");
+            if (_prev_tool > 0) {
+                // return tool
+                move_to_tool_position(_prev_tool);
+                _macro.addf(_toolreturn_macro._gcode.c_str()); // use macro with G91 movements or the _tc_tool_* variables to to return tool, operating the ATC using M62 & M63
+                // ensure the macro didn't change positioning mode
+                _macro.addf("G90");
+                _macro.addf("G21");
+            }
+
+            if (new_tool > 0) {
+                //pickup tool
+                move_to_tool_position(_prev_tool);
+                _macro.addf(_toolpickup_macro._gcode.c_str()); // use macro with G91 movements or the _tc_tool_* variables to to pickup tool, operating the ATC using M62 & M63
+                // ensure the macro didn't change positioning mode
+                _macro.addf("G90");
+                _macro.addf("G21");
+                if (!_have_tool_setter_offset) {
+                    get_ets_offset();
                 }
-                _macro.run(nullptr);
-                _prev_tool = new_tool;
-                return true;
             }
-
-            _prev_tool = new_tool;
-
-            // save current location, so we can return after the tool change.
-            _macro.addf("#<start_x >= #<_x>");
-            _macro.addf("#<start_y >= #<_y>");
-            _macro.addf("#<start_z >= #<_z>");
-
-            move_to_safe_z();
-
-            // turn off the spindle
-            if (gc_state.modal.spindle != SpindleState::Disable) {
-                spindle_was_on = true;
-                _macro.addf("M5");
-            }
-
-            // if we have not determined the tool setter offset yet, we need to do that.
-            if (!_have_tool_setter_offset) {
-                move_over_toolsetter();
-                ets_probe();
-                _macro.addf("#<_ets_tool1_z>=[#5063]");  // save the value of the tool1 ETS Z
-                _have_tool_setter_offset = true;
-            }
-
-            move_to_change_location();
-
-            _macro.addf("G4P0 0.1");
-            _macro.addf("(MSG: Install tool #%d then resume to continue)", new_tool);
-            _macro.addf("M0");
 
             // probe the new tool
-            move_to_safe_z();
-            move_over_toolsetter();
             ets_probe();
 
             // TLO is simply the difference between the tool1 probe and the new tool probe.
             _macro.addf("#<_my_tlo_z >=[#5063 - #<_ets_tool1_z>]");
             _macro.addf("G43.1Z#<_my_tlo_z>");
 
-            move_to_safe_z();
-
             // return to location before the tool change
-            _macro.addf("G0X#<start_x>Y#<start_y>");
-            _macro.addf("G0Z#<start_z>");
-
-            if (spindle_was_on) {
-                _macro.addf("M3");  // spindle should handle spinup delay
-            }
-
+            move_to_safe_z();
+            _macro.addf("G0 X#<start_x>Y#<start_y>");
+            _macro.addf("G0 Z#<start_z>");
             if (was_inch_mode) {
                 _macro.addf("G20");
             }
-
+            if (!was_absolute_mode) { // become relative
+                _macro.addf("G91");
+            }
+            if (spindle_was_on) {
+                _macro.addf("M3");  // spindle should handle spinup delay
+            }
+            if (mistcoolant_was_on) {
+                _macro.addf("M7");
+            }
+            if (floodcoolant_was_on) {
+                _macro.addf("M8");
+            }
             _macro.run(nullptr);
 
             return true;
@@ -110,37 +112,40 @@ namespace ATCs {
         return false;
     }
 
-    void Basic_ATC::reset() {
-        _is_OK                   = true;
-        _have_tool_setter_offset = false;
-        _prev_tool               = gc_state.tool;  // Double check this
-        _macro.addf("G4P0 0.1");                   // reset the TLO to 0
-        _macro.addf("(MSG: TLO Z reset to 0)");    //
-    }
-
-    void Basic_ATC::move_to_change_location() {
+    void Basic_ATC::move_to_tool_position(uint8_t tool_index) {
+        tool_index -= 1;
         move_to_safe_z();
-        _macro.addf("G53G0X%0.3fY%0.3fZ%0.3f", _change_mpos[0], _change_mpos[1], _change_mpos[2]);
+        _macro.addf("G53 G0 X%0.3f Y%0.3f", _tool_mpos[tool_index][X_AXIS], _tool_mpos[tool_index][Y_AXIS]);
+        _macro.addf("#<_tc_tool_x >=%0.3f",_tool_mpos[tool_index][X_AXIS]);
+        _macro.addf("#<_tc_tool_y >=%0.3f",_tool_mpos[tool_index][Y_AXIS]);
+        _macro.addf("#<_tc_tool_z >=%0.3f",_tool_mpos[tool_index][Z_AXIS]);
     }
 
     void Basic_ATC::move_to_safe_z() {
-        _macro.addf("G53G0Z%0.3f", _safe_z);
+        _macro.addf("G53 G0 Z%0.3f", _safe_z);
     }
 
     void Basic_ATC::move_over_toolsetter() {
         move_to_safe_z();
-        _macro.addf("G53G0X%0.3fY%0.3f", _ets_mpos[0], _ets_mpos[1]);
+        _macro.addf("G53 G0 X%0.3fY%0.3f", _ets_mpos[0], _ets_mpos[1]);
+    }
+
+    void Basic_ATC::get_ets_offset(){
+        ets_probe();
+        _macro.addf("#<_ets_tool1_z>=[#5063]");  // save the value of the tool1 ETS Z
+        _have_tool_setter_offset = true;
     }
 
     void Basic_ATC::ets_probe() {
-        _macro.addf("G53G0Z #</ atc_manual / ets_rapid_z_mpos_mm>");  // rapid down
+        move_to_safe_z();
+        move_over_toolsetter();
+        _macro.addf("G53 G0 Z #</ atc_manual / ets_rapid_z_mpos_mm>");  // rapid down
 
         // do a fast probe if there is a seek that is faster than feed
         if (_probe_seek_rate > _probe_feed_rate) {
             _macro.addf("G53 G38.2 Z%0.3f F%0.3f", _ets_mpos[2], _probe_seek_rate);
-            _macro.addf("G0Z[#<_z> + 5]");  // retract befor next probe
+            _macro.addf("G0 Z[#<_z> + 5]");  // retract before next probe
         }
-
         // do the feed rate probe
         _macro.addf("G53 G38.2 Z%0.3f F%0.3f", _ets_mpos[2], _probe_feed_rate);
     }

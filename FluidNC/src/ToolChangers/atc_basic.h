@@ -13,6 +13,8 @@
 #include "../Machine/Macros.h"
 
 namespace ATCs {
+    const int TOOL_COUNT = 8;
+    
     class Basic_ATC : public ATC {
     public:
         Basic_ATC(const char* name) : ATC(name) {}
@@ -30,22 +32,22 @@ namespace ATCs {
         float              _probe_seek_rate  = 200.0;
         float              _probe_feed_rate  = 80.0;
         std::vector<float> _ets_mpos         = { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 };
-        std::vector<float> _change_mpos      = { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 };  // manual tool change location
         float              _ets_rapid_z_mpos = 0;
+        std::vector<float> _tool_mpos[TOOL_COUNT];
 
-        bool    _is_OK                   = false;
         uint8_t _prev_tool               = 0;  // TODO This could be a NV setting
         bool    _have_tool_setter_offset = false;
         float   _tool_setter_offset      = 0.0;  // have we established an offset.
         float   _tool_setter_position[MAX_N_AXIS];
 
-        void move_to_change_location();
         void move_to_safe_z();
         void move_over_toolsetter();
         void ets_probe();
-        void reset();
-
+        void get_ets_offset();
+        void move_to_tool_position(uint8_t tool_index);
         Macro _macro;
+        Macro _toolreturn_macro;
+        Macro _toolpickup_macro;
 
     public:
         void init() override;
@@ -58,9 +60,18 @@ namespace ATCs {
             handler.item("safe_z_mpos_mm", _safe_z, -100000, 100000);
             handler.item("probe_seek_rate_mm_per_min", _probe_seek_rate, 1, 10000);
             handler.item("probe_feed_rate_mm_per_min", _probe_feed_rate, 1, 10000);
-            handler.item("change_mpos_mm", _change_mpos);
             handler.item("ets_mpos_mm", _ets_mpos);
             handler.item("ets_rapid_z_mpos_mm", _ets_rapid_z_mpos);
+            handler.item("toolreturn_macro", _toolreturn_macro);
+            handler.item("toolpickup_macro", _toolpickup_macro);
+            handler.item("tool1_mpos_mm", _tool_mpos[0]);
+            handler.item("tool2_mpos_mm", _tool_mpos[1]);
+            handler.item("tool3_mpos_mm", _tool_mpos[2]);
+            handler.item("tool4_mpos_mm", _tool_mpos[3]);
+            handler.item("tool5_mpos_mm", _tool_mpos[4]);
+            handler.item("tool6_mpos_mm", _tool_mpos[5]);
+            handler.item("tool7_mpos_mm", _tool_mpos[6]);
+            handler.item("tool8_mpos_mm", _tool_mpos[7]);
         }
     };
 }
