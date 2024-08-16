@@ -11,12 +11,25 @@ private:
 
 public:
     JobSource(Channel* channel) : _channel(channel) {}
-    float get_param(const std::string& name) { return _local_params[name]; }
-    void  set_param(const std::string& name, float value) { _local_params[name] = value; }
-    bool  param_exists(const std::string& name) { return _local_params.count(name) != 0; }
+    bool get_param(const std::string& name, float& value) {
+        auto it = _local_params.find(name);
+        if (it == _local_params.end()) {
+            return false;
+        }
+        value = it->second;
+        return true;
+    }
+    bool set_param(const std::string& name, float value) {
+        _local_params[name] = value;
+        return true;
+    }
+    bool param_exists(const std::string& name) { return _local_params.count(name) != 0; }
 
-    void     save() { _channel->save(); }
-    void     restore() { _channel->restore(); }
+    void   save() { _channel->save(); }
+    void   restore() { _channel->restore(); }
+    size_t position() { return _channel->position(); }
+    void   set_position(size_t pos) { _channel->set_position(pos); }
+
     Channel* channel() { return _channel; }
 
     ~JobSource() { delete _channel; }
@@ -31,14 +44,15 @@ public:
 
     static bool active();
 
-    static void save();
-    static void restore();
-    static void nest(Channel* in_channel, Channel* out_channel);
-    static void unnest();
-    static void abort();
+    static void       save();
+    static void       restore();
+    static void       nest(Channel* in_channel, Channel* out_channel);
+    static void       unnest();
+    static void       abort();
+    static JobSource* source();
 
-    static float    get_param(const std::string& name);
-    static void     set_param(const std::string& name, float value);
+    static bool     get_param(const std::string& name, float& value);
+    static bool     set_param(const std::string& name, float value);
     static bool     param_exists(const std::string& name);
     static Channel* channel();
 };

@@ -18,6 +18,7 @@
 
 #include "Machine/MachineConfig.h"
 #include "Parameters.h"
+#include "Flowcontrol.h"
 
 #include <string.h>  // memset
 #include <math.h>    // sqrt etc.
@@ -68,6 +69,7 @@ void gc_init() {
     gc_state.modal          = modal_defaults;
     gc_state.modal.override = config->_start->_deactivateParking ? Override::Disabled : Override::ParkingMotion;
     coords[gc_state.modal.coord_select]->get(gc_state.coord_system);
+    flowcontrol_init();
 }
 
 // Sets g-code parser position in mm. Input in steps. Called by the system abort and hard
@@ -76,17 +78,68 @@ void gc_sync_position() {
     motor_steps_to_mpos(gc_state.position, get_motor_steps());
 }
 
+static bool decode_format_string(const char* comment, size_t& index, size_t len, const char*& format) {
+    // comment[index] is '%'
+    const char* f   = comment + index;
+    int         rem = len - index;
+    if (rem > 1 && f[1] == 'd') {
+        ++index;
+        format = "%.0f";
+        return true;
+    }
+    if (rem > 2 && f[1] == 'f') {
+        ++index;
+        format = "%.4f";
+        return true;
+    }
+    if (rem > 3 && f[1] == '.' && f[2] >= '0' && f[2] <= '9' && f[3] == 'f') {
+        static char fmt[5];
+        memcpy(fmt, f, 4);
+        fmt[4] = '\0';
+        index += 3;
+        format = fmt;
+        return true;
+    }
+    return false;
+}
+
 static void gcode_comment_msg(char* comment) {
-    char         msg[80];
-    const size_t offset = 4;  // ignore "MSG_" part of comment
-    size_t       index  = offset;
+    char   msg[128];
+    size_t offset = strlen("MSG_");
+    size_t index;
     if (strstr(comment, "MSG")) {
-        while (index < strlen(comment)) {
-            msg[index - offset] = comment[index];
-            index++;
+        log_info("MSG," << &comment[offset]);
+        return;
+    }
+    offset       = strlen("PRINT,");  // Same length as DEBUG,
+    bool isdebug = strncasecmp(comment, "DEBUG,", offset) == 0;
+    if (isdebug || strncasecmp(comment, "PRINT,", offset) == 0) {
+        const char* format   = "%lf";
+        size_t      msgindex = 0;
+        size_t      len      = strlen(comment);
+        for (index = offset; index < len; ++index) {
+            char c = comment[index];
+            if (c == '%') {
+                if (!decode_format_string(comment, index, len, format)) {
+                    msg[msgindex++] = c;
+                }
+            } else if (c == '#') {
+                float number;
+                if (read_number(comment, index, number)) {
+                    msgindex += sprintf(&msg[msgindex], format, number);
+                } else {
+                    msg[msgindex++] = c;
+                }
+            } else {
+                msg[msgindex++] = c;
+            }
         }
-        msg[index - offset] = 0;  // null terminate
-        log_info("GCode comment" << msg);
+        msg[msgindex] = '\0';
+        if (isdebug) {
+            log_debug("DEBUG," << msg);
+        } else {
+            log_info("PRINT," << msg);
+        }
     }
 }
 
@@ -114,10 +167,19 @@ void collapseGCode(char* line) {
                 // Strip out ) that does not follow a (
                 break;
             case '(':
+                if (gc_state.skip_blocks) {
+                    *line = '\0';
+                    return;
+                }
+
                 // Start the comment at the character after (
                 parenPtr = inPtr + 1;
                 break;
             case ';':
+                if (gc_state.skip_blocks) {
+                    *line = '\0';
+                    return;
+                }
                 // NOTE: ';' comment to EOL is a LinuxCNC definition. Not NIST.
                 // gcode_comment_msg(inPtr + 1);
                 *outPtr = '\0';
@@ -231,20 +293,33 @@ Error gc_execute_line(char* line) {
     pos                  = jogMotion ? 3 : 0;  // Start parsing after `$J=` if jogging
     while ((letter = line[pos]) != '\0') {     // Loop until no more g-code words in line.
         if (letter == '#') {
+            if (gc_state.skip_blocks) {
+                return Error::Ok;
+            }
             pos++;
-            if (!assign_param(line, &pos)) {
+            if (!assign_param(line, pos)) {
                 FAIL(Error::BadNumberFormat);
             }
             continue;
         }
+
+        // XXX Should check that no other words are also present
+        if (bitnum_is_true(value_words, GCodeWord::O)) {
+            return flowcontrol(gc_block.values.o, line, pos, gc_state.skip_blocks);
+        }
+
         // Import the next g-code word, expecting a letter followed by a value. Otherwise, error out.
         if ((letter < 'A') || (letter > 'Z')) {
             FAIL(Error::ExpectedCommandLetter);  // [Expected word letter]
         }
         pos++;
-        if (!read_number(line, &pos, value)) {
+        if (!read_number(line, pos, value)) {
             FAIL(Error::BadNumberFormat);  // [Expected word value]
         }
+        if (gc_state.skip_blocks && letter != 'O') {
+            return Error::Ok;
+        }
+
         // Convert values to smaller uint8 significand and mantissa values for parsing this word.
         // NOTE: Mantissa is multiplied by 100 to catch non-integer command values. This is more
         // accurate than the NIST gcode requirement of x10 when used for commands, but not quite
@@ -712,6 +787,14 @@ Error gc_execute_line(char* line) {
                         axis_word_bit     = GCodeWord::N;
                         gc_block.values.n = int32_t(truncf(value));
                         break;
+                    case 'O':
+                        if (mantissa > 0) {
+                            FAIL(Error::GcodeCommandValueNotInteger);
+                        }
+                        axis_word_bit     = GCodeWord::O;
+                        gc_block.values.o = int_value;
+                        break;
+
                     case 'P':
                         axis_word_bit     = GCodeWord::P;
                         gc_block.values.p = value;
@@ -1103,7 +1186,7 @@ Error gc_execute_line(char* line) {
                 case NonModal::GoHome0:  // G28
                 case NonModal::GoHome1:  // G30
                     // [G28/30 Errors]: Cutter compensation is enabled.
-                    // Retreive G28/30 go-home position data (in machine coordinates) from non-volatile storage
+                    // Retrieve G28/30 go-home position data (in machine coordinates) from non-volatile storage
                     if (gc_block.non_modal_command == NonModal::GoHome0) {
                         coords[CoordIndex::G28]->get(coord_data);
                     } else {  // == NonModal::GoHome1
@@ -1370,7 +1453,7 @@ Error gc_execute_line(char* line) {
                    (bitnum_to_mask(GCodeWord::X) | bitnum_to_mask(GCodeWord::Y) | bitnum_to_mask(GCodeWord::Z) |
                     bitnum_to_mask(GCodeWord::A) | bitnum_to_mask(GCodeWord::B) | bitnum_to_mask(GCodeWord::C)));  // Remove axis words.
     }
-    clear_bits(value_words, bitnum_to_mask(GCodeWord::D));
+    clear_bits(value_words, (bitnum_to_mask(GCodeWord::D) | bitnum_to_mask(GCodeWord::O)));
     if (value_words) {
         FAIL(Error::GcodeUnusedWords);  // [Unused words]
     }
@@ -1467,7 +1550,7 @@ Error gc_execute_line(char* line) {
     // NOTE: Pass zero spindle speed for all restricted laser motions.
     if (!disableLaser) {
         pl_data->spindle_speed = gc_state.spindle_speed;  // Record data for planner use.
-    }  // else { pl_data->spindle_speed = 0.0; } // Initialized as zero already.
+    }                                                     // else { pl_data->spindle_speed = 0.0; } // Initialized as zero already.
     // [5. Select tool ]: NOT SUPPORTED. Only tracks tool value.
     //	gc_state.tool = gc_block.values.t;
     // [M6. Change tool ]:
@@ -1769,10 +1852,9 @@ Error gc_execute_line(char* line) {
     }
     gc_state.modal.program_flow = ProgramFlow::Running;  // Reset program flow.
 
-    perform_assignments();
+    return perform_assignments() ? Error::Ok : Error::ParameterAssignmentFailed;
 
     // TODO: % to denote start of program.
-    return Error::Ok;
 }
 
 //void grbl_msg_sendf(uint8_t client, MsgLevel level, const char* format, ...);

@@ -126,7 +126,9 @@ bool set_numbered_param(ngc_param_id_t id, float value) {
         gc_state.selected_tool = static_cast<uint32_t>(value);
         return true;
     }
-    if (id >= 31 && id <= 5000) {
+    if (id >= 1 && id <= 5000) {
+        // 1-30 are for subroutine arguments, but since we don't
+        // implement subroutines, we treat them the same as user params
         user_params[id] = value;
         return true;
     }
@@ -199,24 +201,33 @@ struct param_ref_t {
 };
 std::vector<std::tuple<param_ref_t, float>> assignments;
 
-void set_config_item(const std::string& name, float result) {
+bool set_config_item(const std::string& name, float result) {
     try {
         Configuration::GCodeParam gci(name.c_str(), result, false);
         config->group(gci);
-    } catch (...) {}
+        if (gci.isHandled_) {
+            return true;
+        }
+    } catch (const AssertionFailed& ex) {
+        log_debug(ex.msg);
+        return false;
+    }
+    log_debug("Failed to set " << name);
+    return false;
 }
 
 bool get_config_item(const std::string& name, float& result) {
     try {
         Configuration::GCodeParam gci(name.c_str(), result, true);
         config->group(gci);
-
         if (gci.isHandled_) {
             return true;
         }
-        log_debug(name << " is missing");
+    } catch (const AssertionFailed& ex) {
+        log_debug(ex.msg);
         return false;
-    } catch (...) { return false; }
+    }
+    return false;
 }
 
 int coord_values[] = { 540, 550, 560, 570, 580, 590, 591, 592, 593 };
@@ -354,6 +365,11 @@ bool get_system_param(const std::string& name, float& result) {
     return false;
 }
 
+bool system_param_exists(const std::string& name) {
+    float dummy;
+    return get_system_param(name, dummy);
+}
+
 // The LinuxCNC doc says that the EXISTS syntax is like EXISTS[#<_foo>]
 // For convenience, we also allow EXISTS[_foo]
 bool named_param_exists(std::string& name) {
@@ -376,46 +392,50 @@ bool named_param_exists(std::string& name) {
         if (got) {
             return true;
         }
-        got = Job::param_exists(search);
-        if (got) {
-            return true;
-        }
+        return global_named_params.count(search) != 0;
     }
-    return global_named_params.count(search) != 0;
+    // If the name does not start with _ it is local so we look for a job-local parameter
+    // If no job is active, we treat the interpretive context like a local context
+    return Job::active() ? Job::param_exists(search) : global_named_params.count(search) != 0;
 }
 
-bool get_param(const param_ref_t& param_ref, float& result) {
+bool get_global_named_param(const std::string& name, float& value) {
+    auto it = global_named_params.find(name);
+    if (it == global_named_params.end()) {
+        return false;
+    }
+    value = it->second;
+    return true;
+}
+
+bool get_param(const param_ref_t& param_ref, float& value) {
     auto name = param_ref.name;
     if (name.length()) {
         if (name[0] == '/') {
-            return get_config_item(name, result);
+            return get_config_item(name, value);
         }
-        bool got;
         if (name[0] == '_') {
-            got = get_system_param(name, result);
-            if (got) {
+            if (get_system_param(name, value)) {
                 return true;
             }
-            result = global_named_params[name];
-            return true;
+            return get_global_named_param(name, value);
         }
-        result = Job::active() ? Job::get_param(name) : global_named_params[name];
-        return true;
+        return Job::active() ? Job::get_param(name, value) : get_global_named_param(name, value);
     }
-    return get_numbered_param(param_ref.id, result);
+    return get_numbered_param(param_ref.id, value);
 }
 
-bool get_param_ref(const char* line, size_t* pos, param_ref_t& param_ref) {
+bool get_param_ref(const char* line, size_t& pos, param_ref_t& param_ref) {
     // Entry condition - the previous character was #
-    char  c = line[*pos];
+    char  c = line[pos];
     float result;
 
-    // c is the first character and *pos still points to it
+    // c is the first character and pos still points to it
     switch (c) {
         case '#': {
             // Indirection resulting in param number
             param_ref_t next_param_ref;
-            ++*pos;
+            ++pos;
             if (!get_param_ref(line, pos, next_param_ref)) {
                 return false;
             }
@@ -427,18 +447,22 @@ bool get_param_ref(const char* line, size_t* pos, param_ref_t& param_ref) {
             return true;
         case '<':
             // Named parameter
-            ++*pos;
-            while ((c = line[*pos]) && c != '>') {
-                ++*pos;
-                param_ref.name += c;
+            ++pos;
+            while ((c = line[pos]) && c != '>') {
+                ++pos;
+                if (!isspace(c)) {
+                    param_ref.name += toupper(c);
+                }
             }
             if (!c) {
+                log_debug("Missing >");
                 return false;
             }
-            ++*pos;
+            ++pos;
             return true;
         case '[': {
             // Expression evaluating to param number
+            ++pos;
             Error status = expression(line, pos, result);
             if (status != Error::Ok) {
                 log_debug(errorString(status));
@@ -457,36 +481,48 @@ bool get_param_ref(const char* line, size_t* pos, param_ref_t& param_ref) {
     }
 }
 
-void set_param(const param_ref_t& param_ref, float value) {
-    if (param_ref.name.length()) {
+bool set_named_param(const std::string& name, float value) {
+    global_named_params[name] = value;
+    return true;
+}
+
+bool set_param(const param_ref_t& param_ref, float value) {
+    if (param_ref.name.length()) {  // Named parameter
         auto name = param_ref.name;
         if (name[0] == '/') {
-            set_config_item(param_ref.name, value);
-            return;
+            return set_config_item(param_ref.name, value);
         }
         if (name[0] != '_' && Job::active()) {
-            Job::set_param(name, value);
-        } else {
-            global_named_params[name] = value;
+            return Job::set_param(name, value);
         }
-        return;
+        if (name[0] == '_' && system_param_exists(name)) {
+            log_debug("Attempt to set read-only parameter " << name);
+            return false;
+        }
+        return set_named_param(name, value);
     }
 
-    if (ngc_param_is_rw(param_ref.id)) {
-        set_numbered_param(param_ref.id, value);
+    if (ngc_param_is_rw(param_ref.id)) {  // Numbered parameter
+        return set_numbered_param(param_ref.id, value);
     }
+    log_debug("Attempt to set read-only parameter " << param_ref.id);
+    return false;
 }
 
 // Gets a numeric value, either a literal number or a #-prefixed parameter value
-bool read_number(const char* line, size_t* pos, float& result, bool in_expression) {
-    char c = line[*pos];
+bool read_number(const char* line, size_t& pos, float& result, bool in_expression) {
+    char c = line[pos];
     if (c == '#') {
-        ++*pos;
+        ++pos;
         param_ref_t param_ref;
         if (!get_param_ref(line, pos, param_ref)) {
             return false;
         }
-        return get_param(param_ref, result);
+        if (get_param(param_ref, result)) {
+            return true;
+        }
+        log_debug("Undefined parameter " << param_ref.name);
+        return false;
     }
     if (c == '[') {
         Error status = expression(line, pos, result);
@@ -503,7 +539,7 @@ bool read_number(const char* line, size_t* pos, float& result, bool in_expressio
             return read_unary(line, pos, result) == Error::Ok;
         }
         if (c == '-') {
-            ++*pos;
+            ++pos;
             if (!read_number(line, pos, result, in_expression)) {
                 return false;
             }
@@ -511,7 +547,7 @@ bool read_number(const char* line, size_t* pos, float& result, bool in_expressio
             return true;
         }
         if (c == '+') {
-            ++*pos;
+            ++pos;
             return read_number(line, pos, result, in_expression);
         }
     }
@@ -519,17 +555,17 @@ bool read_number(const char* line, size_t* pos, float& result, bool in_expressio
 }
 
 // Process a #PREF=value assignment, with the initial # already consumed
-bool assign_param(const char* line, size_t* pos) {
+bool assign_param(const char* line, size_t& pos) {
     param_ref_t param_ref;
 
     if (!get_param_ref(line, pos, param_ref)) {
         return false;
     }
-    if (line[*pos] != '=') {
+    if (line[pos] != '=') {
         log_debug("Missing =");
         return false;
     }
-    ++*pos;
+    ++pos;
 
     float value;
     if (!read_number(line, pos, value)) {
@@ -541,9 +577,13 @@ bool assign_param(const char* line, size_t* pos) {
     return true;
 }
 
-void perform_assignments() {
+bool perform_assignments() {
+    bool result = true;
     for (auto const& [ref, value] : assignments) {
-        set_param(ref, value);
+        if (!set_param(ref, value)) {
+            result = false;
+        }
     }
     assignments.clear();
+    return result;
 }

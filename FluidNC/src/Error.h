@@ -88,6 +88,11 @@ enum class Error : uint8_t {
     ExpressionUnknownOp          = 173,
     ExpressionArgumentOutOfRange = 174,
     ExpressionSyntaxError        = 175,
+    FlowControlSyntaxError       = 176,
+    FlowControlNotExecutingMacro = 177,
+    FlowControlOutOfMemory       = 178,
+    FlowControlStackOverflow     = 179,
+    ParameterAssignmentFailed    = 180,
 };
 
 const char* errorString(Error errorNumber);

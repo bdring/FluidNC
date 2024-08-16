@@ -206,7 +206,9 @@ enum class GCodeWord : uint8_t {
     A = 15,
     B = 16,
     C = 17,
-    D = 18,  // For debugging
+    O = 18,
+    D = 19,  // For debugging
+
 };
 
 // GCode parser position updating flags
@@ -269,6 +271,7 @@ struct gc_values_t {
     float    ijk[3];           // I,J,K Axis arc offsets - only 3 are possible
     uint8_t  l;                // G10 or canned cycles parameters
     int32_t  n;                // Line number
+    uint32_t o;                // Subroutine identifier - single-meaning word (not used by the core)
     float    p;                // G10 or dwell parameters
     float    q;                // M67
     float    r;                // Arc radius
@@ -293,6 +296,7 @@ struct parser_state_t {
     float coord_offset[MAX_N_AXIS];  // Retains the G92 coordinate offset (work coordinates) relative to
     // machine zero in mm. Non-persistent. Cleared upon reset and boot.
     float tool_length_offset;  // Tracks tool length offset value when enabled.
+    bool  skip_blocks;         // Skipping due to flow control
 };
 
 extern parser_state_t gc_state;

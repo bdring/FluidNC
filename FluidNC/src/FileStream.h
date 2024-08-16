@@ -55,6 +55,7 @@ public:
 
     size_t size();
     size_t position();
+    void   set_position(size_t);
 
     // pollLine() is a required method of the Channel class that
     // FileStream implements as a no-op.

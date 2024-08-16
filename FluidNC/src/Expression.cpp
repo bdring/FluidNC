@@ -1,3 +1,4 @@
+// Expression.cpp - derived from
 // ngc_expr.c - derived from:
 
 /********************************************************************
@@ -39,43 +40,43 @@
 #define MAX_STACK 7
 
 typedef enum {
-    NGCBinaryOp_NoOp = 0,
-    NGCBinaryOp_DividedBy,
-    NGCBinaryOp_Modulo,
-    NGCBinaryOp_Power,
-    NGCBinaryOp_Times,
-    NGCBinaryOp_Binary2 = NGCBinaryOp_Times,
-    NGCBinaryOp_And2,
-    NGCBinaryOp_ExclusiveOR,
-    NGCBinaryOp_Minus,
-    NGCBinaryOp_NotExclusiveOR,
-    NGCBinaryOp_Plus,
-    NGCBinaryOp_RightBracket,
-    NGCBinaryOp_RelationalFirst,
-    NGCBinaryOp_LT = NGCBinaryOp_RelationalFirst,
-    NGCBinaryOp_EQ,
-    NGCBinaryOp_NE,
-    NGCBinaryOp_LE,
-    NGCBinaryOp_GE,
-    NGCBinaryOp_GT,
-    NGCBinaryOp_RelationalLast = NGCBinaryOp_GT,
+    Binary_NoOp = 0,
+    Binary_DividedBy,
+    Binary_Modulo,
+    Binary_Power,
+    Binary_Times,
+    Binary_Binary2 = Binary_Times,
+    Binary_And2,
+    Binary_ExclusiveOR,
+    Binary_Minus,
+    Binary_NotExclusiveOR,
+    Binary_Plus,
+    Binary_RightBracket,
+    Binary_RelationalFirst,
+    Binary_LT = Binary_RelationalFirst,
+    Binary_EQ,
+    Binary_NE,
+    Binary_LE,
+    Binary_GE,
+    Binary_GT,
+    Binary_RelationalLast = Binary_GT,
 } ngc_binary_op_t;
 
 typedef enum {
-    NGCUnaryOp_ABS = 1,
-    NGCUnaryOp_ACOS,
-    NGCUnaryOp_ASIN,
-    NGCUnaryOp_ATAN,
-    NGCUnaryOp_COS,
-    NGCUnaryOp_EXP,
-    NGCUnaryOp_FIX,
-    NGCUnaryOp_FUP,
-    NGCUnaryOp_LN,
-    NGCUnaryOp_Round,
-    NGCUnaryOp_SIN,
-    NGCUnaryOp_SQRT,
-    NGCUnaryOp_TAN,
-    NGCUnaryOp_Exists,  // Not implemented
+    Unary_ABS = 1,
+    Unary_ACOS,
+    Unary_ASIN,
+    Unary_ATAN,
+    Unary_COS,
+    Unary_EXP,
+    Unary_FIX,
+    Unary_FUP,
+    Unary_LN,
+    Unary_Round,
+    Unary_SIN,
+    Unary_SQRT,
+    Unary_TAN,
+    Unary_Exists,  // Not implemented
 } ngc_unary_op_t;
 
 static void report_param_error(Error err) {
@@ -100,27 +101,27 @@ static Error execute_binary1(float& lhs, ngc_binary_op_t operation, const float&
     Error status = Error::Ok;
 
     switch (operation) {
-        case NGCBinaryOp_DividedBy:
+        case Binary_DividedBy:
             if (rhs == 0.0f || rhs == -0.0f)
                 status = Error::ExpressionDivideByZero;  // Attempt to divide by zero
             else
                 lhs = lhs / rhs;
             break;
 
-        case NGCBinaryOp_Modulo:  // always calculates a positive answer
+        case Binary_Modulo:  // always calculates a positive answer
             lhs = fmodf(lhs, rhs);
             if (lhs < 0.0f)
                 lhs = lhs + fabsf(rhs);
             break;
 
-        case NGCBinaryOp_Power:
+        case Binary_Power:
             if (lhs < 0.0f && floorf(rhs) != rhs)
                 status = Error::ExpressionInvalidArgument;  // Attempt to raise negative value to non-integer power
             else
                 lhs = powf(lhs, rhs);
             break;
 
-        case NGCBinaryOp_Times:
+        case Binary_Times:
             lhs = lhs * rhs;
             break;
 
@@ -147,51 +148,51 @@ Any non-zero input value is taken as meaning true, and only 0.0 means false.
 */
 static Error execute_binary2(float& lhs, ngc_binary_op_t operation, const float& rhs) {
     switch (operation) {
-        case NGCBinaryOp_And2:
+        case Binary_And2:
             lhs = ((lhs == 0.0f) || (rhs == 0.0f)) ? 0.0f : 1.0f;
             break;
 
-        case NGCBinaryOp_ExclusiveOR:
+        case Binary_ExclusiveOR:
             lhs = (((lhs == 0.0f) && (rhs != 0.0f)) || ((lhs != 0.0f) && (rhs == 0.0f))) ? 1.0f : 0.0f;
             break;
 
-        case NGCBinaryOp_Minus:
+        case Binary_Minus:
             lhs = (lhs - rhs);
             break;
 
-        case NGCBinaryOp_NotExclusiveOR:
+        case Binary_NotExclusiveOR:
             lhs = ((lhs != 0.0f) || (rhs != 0.0f)) ? 1.0f : 0.0f;
             break;
 
-        case NGCBinaryOp_Plus:
+        case Binary_Plus:
             lhs = (lhs + rhs);
             break;
 
-        case NGCBinaryOp_LT:
+        case Binary_LT:
             lhs = (lhs < rhs) ? 1.0f : 0.0f;
             break;
 
-        case NGCBinaryOp_EQ: {
+        case Binary_EQ: {
             float diff = lhs - rhs;
             diff       = (diff < 0.0f) ? -diff : diff;
             lhs        = (diff < TOLERANCE_EQUAL) ? 1.0f : 0.0f;
         } break;
 
-        case NGCBinaryOp_NE: {
+        case Binary_NE: {
             float diff = lhs - rhs;
             diff       = (diff < 0.0f) ? -diff : diff;
             lhs        = (diff >= TOLERANCE_EQUAL) ? 1.0f : 0.0f;
         } break;
 
-        case NGCBinaryOp_LE:
+        case Binary_LE:
             lhs = (lhs <= rhs) ? 1.0f : 0.0f;
             break;
 
-        case NGCBinaryOp_GE:
+        case Binary_GE:
             lhs = (lhs >= rhs) ? 1.0f : 0.0f;
             break;
 
-        case NGCBinaryOp_GT:
+        case Binary_GT:
             lhs = (lhs > rhs) ? 1.0f : 0.0f;
             break;
 
@@ -212,7 +213,7 @@ This just calls either execute_binary1 or execute_binary2.
 \returns #Error::Ok enum value if processed without error, appropriate \ref Error enum value if not.
 */
 static Error execute_binary(float& lhs, ngc_binary_op_t operation, const float& rhs) {
-    if (operation <= NGCBinaryOp_Binary2)
+    if (operation <= Binary_Binary2)
         return execute_binary1(lhs, operation, rhs);
 
     return execute_binary2(lhs, operation, rhs);
@@ -230,68 +231,68 @@ static Error execute_unary(float& operand, ngc_unary_op_t operation) {
     Error status = Error::Ok;
 
     switch (operation) {
-        case NGCUnaryOp_ABS:
+        case Unary_ABS:
             if (operand < 0.0f)
                 operand = (-1.0f * operand);
             break;
 
-        case NGCUnaryOp_ACOS:
+        case Unary_ACOS:
             if (operand < -1.0f || operand > 1.0f)
                 status = Error::ExpressionArgumentOutOfRange;  // Argument to ACOS out of range
             else
                 operand = acosf(operand) * DEGRAD;
             break;
 
-        case NGCUnaryOp_ASIN:
+        case Unary_ASIN:
             if (operand < -1.0f || operand > 1.0f)
                 status = Error::ExpressionArgumentOutOfRange;  // Argument to ASIN out of range
             else
                 operand = asinf(operand) * DEGRAD;
             break;
 
-        case NGCUnaryOp_COS:
+        case Unary_COS:
             operand = cosf(operand * RADDEG);
             break;
 
-        case NGCUnaryOp_Exists:
+        case Unary_Exists:
             // do nothing here, result for the EXISTS function is set by read_unary()
             break;
 
-        case NGCUnaryOp_EXP:
+        case Unary_EXP:
             operand = expf(operand);
             break;
 
-        case NGCUnaryOp_FIX:
+        case Unary_FIX:
             operand = floorf(operand);
             break;
 
-        case NGCUnaryOp_FUP:
+        case Unary_FUP:
             operand = ceilf(operand);
             break;
 
-        case NGCUnaryOp_LN:
+        case Unary_LN:
             if (operand <= 0.0f)
                 status = Error::ExpressionArgumentOutOfRange;  // Argument to LN out of range
             else
                 operand = logf(operand);
             break;
 
-        case NGCUnaryOp_Round:
+        case Unary_Round:
             operand = (float)((int)(operand + ((operand < 0.0f) ? -0.5f : 0.5f)));
             break;
 
-        case NGCUnaryOp_SIN:
+        case Unary_SIN:
             operand = sinf(operand * RADDEG);
             break;
 
-        case NGCUnaryOp_SQRT:
+        case Unary_SQRT:
             if (operand < 0.0f)
                 status = Error::ExpressionArgumentOutOfRange;  // Negative argument to SQRT
             else
                 operand = sqrtf(operand);
             break;
 
-        case NGCUnaryOp_TAN:
+        case Unary_TAN:
             operand = tanf(operand * RADDEG);
             break;
 
@@ -309,33 +310,33 @@ static Error execute_unary(float& operand, ngc_unary_op_t operation) {
 */
 static uint_fast8_t precedence(ngc_binary_op_t op) {
     switch (op) {
-        case NGCBinaryOp_RightBracket:
+        case Binary_RightBracket:
             return 1;
 
-        case NGCBinaryOp_And2:
-        case NGCBinaryOp_ExclusiveOR:
-        case NGCBinaryOp_NotExclusiveOR:
+        case Binary_And2:
+        case Binary_ExclusiveOR:
+        case Binary_NotExclusiveOR:
             return 2;
 
-        case NGCBinaryOp_LT:
-        case NGCBinaryOp_EQ:
-        case NGCBinaryOp_NE:
-        case NGCBinaryOp_LE:
-        case NGCBinaryOp_GE:
-        case NGCBinaryOp_GT:
+        case Binary_LT:
+        case Binary_EQ:
+        case Binary_NE:
+        case Binary_LE:
+        case Binary_GE:
+        case Binary_GT:
             return 3;
 
-        case NGCBinaryOp_Minus:
-        case NGCBinaryOp_Plus:
+        case Binary_Minus:
+        case Binary_Plus:
             return 4;
 
-        case NGCBinaryOp_NoOp:
-        case NGCBinaryOp_DividedBy:
-        case NGCBinaryOp_Modulo:
-        case NGCBinaryOp_Times:
+        case Binary_NoOp:
+        case Binary_DividedBy:
+        case Binary_Modulo:
+        case Binary_Times:
             return 5;
 
-        case NGCBinaryOp_Power:
+        case Binary_Power:
             return 6;
 
         default:
@@ -344,6 +345,42 @@ static uint_fast8_t precedence(ngc_binary_op_t op) {
 
     return 0;  // should never happen
 }
+
+#if 0
+// For possible later code simplification
+std::map<std::string, ngc_cmd_t, std::less<>> binary_ops = {
+    { "+", Binary_Plus },
+    { "-", Binary_Minus },
+    { "/", Binary_DividedBy },
+    { "*", Binary_Times },
+    { "**", Binary_Power },
+    { "]", Binary_RightBracket },
+    { "AND", Binary_And2 },
+    { "MOD", Binary_Mod },
+    { "RR", Binary_NotExclusiveOr },
+    { "XOR", Binary_ExclusiveOr },
+    { "EQ", Binary_EQ },
+    { "NE", Binary_NE },
+    { "GE", Binary_GE },
+    { "GT", Binary_GT },
+};
+std::map<std::string, ngc_cmd_t, std::less<>> unary_ops = {
+    { "ABS", Unary_ABS },
+    { "ACOS", Unary_ACOS },
+    { "ASIN", Unary_ASIN },
+    { "ATAN", Unary_ATAN },
+    { "COS", Unary_COS },
+    { "EXP", Unary_EXP },
+    { "EXISTS", Unary_Exists },
+    { "FIX", Unary_FIX },
+    { "FUP", Unary_FUP },
+    { "LN", Unary_LN },
+    { "ROUND", Unary_ROUND },
+    { "SIN", Unary_SIN },
+    { "SQRT", Unary_SQRT },
+    { "TAN", Unary_TAN },
+};
+#endif
 
 /*! \brief Reads a binary operation out of the line
 starting at the index given by the pos offset. If a valid one is found, the
@@ -354,104 +391,104 @@ value of operation is set to the symbolic value for that operation.
 \param operation pointer to \ref ngc_binary_op_t enum value.
 \returns #Error::Ok enum value if processed without error, appropriate \ref Error enum value if not.
 */
-static Error read_operation(const char* line, size_t* pos, ngc_binary_op_t* operation) {
-    char  c      = line[*pos];
+static Error read_operation(const char* line, size_t& pos, ngc_binary_op_t& operation) {
+    char  c      = line[pos];
     Error status = Error::Ok;
 
-    (*pos)++;
+    pos++;
 
     switch (c) {
         case '+':
-            *operation = NGCBinaryOp_Plus;
+            operation = Binary_Plus;
             break;
 
         case '-':
-            *operation = NGCBinaryOp_Minus;
+            operation = Binary_Minus;
             break;
 
         case '/':
-            *operation = NGCBinaryOp_DividedBy;
+            operation = Binary_DividedBy;
             break;
 
         case '*':
-            if (line[*pos] == '*') {
-                *operation = NGCBinaryOp_Power;
-                (*pos)++;
+            if (line[pos] == '*') {
+                operation = Binary_Power;
+                pos++;
             } else
-                *operation = NGCBinaryOp_Times;
+                operation = Binary_Times;
             break;
 
         case ']':
-            *operation = NGCBinaryOp_RightBracket;
+            operation = Binary_RightBracket;
             break;
 
         case 'A':
-            if (!strncmp(line + *pos, "ND", 2)) {
-                *operation = NGCBinaryOp_And2;
-                *pos += 2;
+            if (!strncmp(line + pos, "ND", 2)) {
+                operation = Binary_And2;
+                pos += 2;
             } else
                 status = Error::ExpressionUnknownOp;  // Unknown operation name starting with A
             break;
 
         case 'M':
-            if (!strncmp(line + *pos, "OD", 2)) {
-                *operation = NGCBinaryOp_Modulo;
-                *pos += 2;
+            if (!strncmp(line + pos, "OD", 2)) {
+                operation = Binary_Modulo;
+                pos += 2;
             } else
                 status = Error::ExpressionUnknownOp;  // Unknown operation name starting with M
             break;
 
         case 'R':
-            if (line[*pos] == 'R') {
-                *operation = NGCBinaryOp_NotExclusiveOR;
-                (*pos)++;
+            if (line[pos] == 'R') {
+                operation = Binary_NotExclusiveOR;
+                pos++;
             } else
                 status = Error::ExpressionUnknownOp;  // Unknown operation name starting with R
             break;
 
         case 'X':
-            if (!strncmp(line + *pos, "OR", 2)) {
-                *operation = NGCBinaryOp_ExclusiveOR;
-                *pos += 2;
+            if (!strncmp(line + pos, "OR", 2)) {
+                operation = Binary_ExclusiveOR;
+                pos += 2;
             } else
                 status = Error::ExpressionUnknownOp;  // Unknown operation name starting with X
             break;
 
         /* relational operators */
         case 'E':
-            if (line[*pos] == 'Q') {
-                *operation = NGCBinaryOp_EQ;
-                (*pos)++;
+            if (line[pos] == 'Q') {
+                operation = Binary_EQ;
+                pos++;
             } else
                 status = Error::ExpressionUnknownOp;  // Unknown operation name starting with E
             break;
 
         case 'N':
-            if (line[*pos] == 'E') {
-                *operation = NGCBinaryOp_NE;
-                (*pos)++;
+            if (line[pos] == 'E') {
+                operation = Binary_NE;
+                pos++;
             } else
                 status = Error::ExpressionUnknownOp;  // Unknown operation name starting with N
             break;
 
         case 'G':
-            if (line[*pos] == 'E') {
-                *operation = NGCBinaryOp_GE;
-                (*pos)++;
-            } else if (line[*pos] == 'T') {
-                *operation = NGCBinaryOp_GT;
-                (*pos)++;
+            if (line[pos] == 'E') {
+                operation = Binary_GE;
+                pos++;
+            } else if (line[pos] == 'T') {
+                operation = Binary_GT;
+                pos++;
             } else
                 status = Error::ExpressionUnknownOp;  // Unknown operation name starting with G
             break;
 
         case 'L':
-            if (line[*pos] == 'E') {
-                *operation = NGCBinaryOp_LE;
-                (*pos)++;
-            } else if (line[*pos] == 'T') {
-                *operation = NGCBinaryOp_LT;
-                (*pos)++;
+            if (line[pos] == 'E') {
+                operation = Binary_LE;
+                pos++;
+            } else if (line[pos] == 'T') {
+                operation = Binary_LT;
+                pos++;
             } else
                 status = Error::ExpressionUnknownOp;  // Unknown operation name starting with L
             break;
@@ -475,91 +512,91 @@ value of operation is set to the symbolic value for that operation.
 \param operation pointer to \ref ngc_unary_op_t enum value.
 \returns #Error::Ok enum value if processed without error, appropriate \ref Error enum value if not.
 */
-static Error read_operation_unary(const char* line, size_t* pos, ngc_unary_op_t* operation) {
-    char  c      = line[*pos];
+static Error read_operation_unary(const char* line, size_t& pos, ngc_unary_op_t& operation) {
+    char  c      = line[pos];
     Error status = Error::Ok;
 
-    (*pos)++;
+    pos++;
 
     switch (c) {
         case 'A':
-            if (!strncmp(line + *pos, "BS", 2)) {
-                *operation = NGCUnaryOp_ABS;
-                *pos += 2;
-            } else if (!strncmp(line + *pos, "COS", 3)) {
-                *operation = NGCUnaryOp_ACOS;
-                *pos += 3;
-            } else if (!strncmp(line + *pos, "SIN", 3)) {
-                *operation = NGCUnaryOp_ASIN;
-                *pos += 3;
-            } else if (!strncmp(line + *pos, "TAN", 3)) {
-                *operation = NGCUnaryOp_ATAN;
-                *pos += 3;
+            if (!strncmp(line + pos, "BS", 2)) {
+                operation = Unary_ABS;
+                pos += 2;
+            } else if (!strncmp(line + pos, "COS", 3)) {
+                operation = Unary_ACOS;
+                pos += 3;
+            } else if (!strncmp(line + pos, "SIN", 3)) {
+                operation = Unary_ASIN;
+                pos += 3;
+            } else if (!strncmp(line + pos, "TAN", 3)) {
+                operation = Unary_ATAN;
+                pos += 3;
             } else
                 status = Error::ExpressionUnknownOp;
             break;
 
         case 'C':
-            if (!strncmp(line + *pos, "OS", 2)) {
-                *operation = NGCUnaryOp_COS;
-                *pos += 2;
+            if (!strncmp(line + pos, "OS", 2)) {
+                operation = Unary_COS;
+                pos += 2;
             } else
                 status = Error::ExpressionUnknownOp;
             break;
 
         case 'E':
-            if (!strncmp(line + *pos, "XP", 2)) {
-                *operation = NGCUnaryOp_EXP;
-                *pos += 2;
-            } else if (!strncmp(line + *pos, "XISTS", 5)) {
-                *operation = NGCUnaryOp_Exists;
-                *pos += 5;
+            if (!strncmp(line + pos, "XP", 2)) {
+                operation = Unary_EXP;
+                pos += 2;
+            } else if (!strncmp(line + pos, "XISTS", 5)) {
+                operation = Unary_Exists;
+                pos += 5;
             } else
                 status = Error::ExpressionUnknownOp;
             break;
 
         case 'F':
-            if (!strncmp(line + *pos, "IX", 2)) {
-                *operation = NGCUnaryOp_FIX;
-                *pos += 2;
-            } else if (!strncmp(line + *pos, "UP", 2)) {
-                *operation = NGCUnaryOp_FUP;
-                *pos += 2;
+            if (!strncmp(line + pos, "IX", 2)) {
+                operation = Unary_FIX;
+                pos += 2;
+            } else if (!strncmp(line + pos, "UP", 2)) {
+                operation = Unary_FUP;
+                pos += 2;
             } else
                 status = Error::ExpressionUnknownOp;
             break;
 
         case 'L':
-            if (line[*pos] == 'N') {
-                *operation = NGCUnaryOp_LN;
-                (*pos)++;
+            if (line[pos] == 'N') {
+                operation = Unary_LN;
+                pos++;
             } else
                 status = Error::ExpressionUnknownOp;
             break;
 
         case 'R':
-            if (!strncmp(line + *pos, "OUND", 4)) {
-                *operation = NGCUnaryOp_Round;
-                *pos += 4;
+            if (!strncmp(line + pos, "OUND", 4)) {
+                operation = Unary_Round;
+                pos += 4;
             } else
                 status = Error::ExpressionUnknownOp;
             break;
 
         case 'S':
-            if (!strncmp(line + *pos, "IN", 2)) {
-                *operation = NGCUnaryOp_SIN;
-                *pos += 2;
-            } else if (!strncmp((line + *pos), "QRT", 3)) {
-                *operation = NGCUnaryOp_SQRT;
-                *pos += 3;
+            if (!strncmp(line + pos, "IN", 2)) {
+                operation = Unary_SIN;
+                pos += 2;
+            } else if (!strncmp((line + pos), "QRT", 3)) {
+                operation = Unary_SQRT;
+                pos += 3;
             } else
                 status = Error::ExpressionUnknownOp;
             break;
 
         case 'T':
-            if (!strncmp(line + *pos, "AN", 2)) {
-                *operation = NGCUnaryOp_TAN;
-                *pos += 2;
+            if (!strncmp(line + pos, "AN", 2)) {
+                operation = Unary_TAN;
+                pos += 2;
             } else
                 status = Error::ExpressionUnknownOp;
             break;
@@ -580,15 +617,15 @@ of the ATAN operation applied to the two arguments.
 \param value pointer to float where result is to be stored.
 \returns #Error::Ok enum value if processed without error, appropriate \ref Error enum value if not.
 */
-static Error read_atan(const char* line, size_t* pos, float& value) {
+static Error read_atan(const char* line, size_t& pos, float& value) {
     float argument2;
 
-    if (line[*pos] != '/')
+    if (line[pos] != '/')
         return Error::ExpressionSyntaxError;  // Slash missing after first ATAN argument
 
-    (*pos)++;
+    pos++;
 
-    if (line[*pos] != '[')
+    if (line[pos] != '[')
         return Error::ExpressionSyntaxError;  // Left bracket missing after slash with ATAN;
 
     Error status;
@@ -609,35 +646,35 @@ handled specially because it is followed by two arguments.
 \returns #Error::Ok enum value if processed without error, appropriate \ref Error enum value if not.
 */
 // cppcheck-suppress unusedFunction
-Error read_unary(const char* line, size_t* pos, float& value) {
+Error read_unary(const char* line, size_t& pos, float& value) {
     ngc_unary_op_t operation;
     Error          status;
 
-    if ((status = read_operation_unary(line, pos, &operation)) != Error::Ok) {
+    if ((status = read_operation_unary(line, pos, operation)) != Error::Ok) {
         return status;
     }
-    if (line[*pos] != '[') {
+    if (line[pos] != '[') {
         return Error::ExpressionSyntaxError;  // Left bracket missing after unary operation name
     }
-    if (operation == NGCUnaryOp_Exists) {
-        ++*pos;
+    if (operation == Unary_Exists) {
+        ++pos;
         std::string arg;
         char        c;
-        while ((c = line[*pos]) && c != ']') {
-            ++*pos;
+        while ((c = line[pos]) && c != ']') {
+            ++pos;
             arg += c;
         }
         if (!c) {
             return Error::ExpressionSyntaxError;
         }
-        ++*pos;
+        ++pos;
         value = named_param_exists(arg) ? 1.0 : 0.0;
         return Error::Ok;
     }
     if ((status = expression(line, pos, value)) != Error::Ok) {
         return status;
     }
-    if (operation == NGCUnaryOp_ATAN) {
+    if (operation == Unary_ATAN) {
         return read_atan(line, pos, value);
     }
     return execute_unary(value, operation);
@@ -650,29 +687,29 @@ Error read_unary(const char* line, size_t* pos, float& value) {
 \param value pointer to float where result is to be stored.
 \returns #Error::Ok enum value if evaluated without error, appropriate \ref Error enum value if not.
 */
-Error expression(const char* line, size_t* pos, float& value) {
+Error expression(const char* line, size_t& pos, float& value) {
     float           values[MAX_STACK];
     ngc_binary_op_t operators[MAX_STACK];
     uint_fast8_t    stack_index = 1;
 
-    if (line[*pos] != '[')
+    if (line[pos] != '[')
         return Error::GcodeUnsupportedCommand;
 
-    (*pos)++;
+    pos++;
 
     Error status;
 
     if ((!read_number(line, pos, values[0], true)))
         return Error::BadNumberFormat;
 
-    if ((status = read_operation(line, pos, operators)) != Error::Ok)
+    if ((status = read_operation(line, pos, operators[0])) != Error::Ok)
         return status;
 
-    for (; operators[0] != NGCBinaryOp_RightBracket;) {
+    for (; operators[0] != Binary_RightBracket;) {
         if ((!read_number(line, pos, values[stack_index], true)))
             return Error::BadNumberFormat;
 
-        if ((status = read_operation(line, pos, operators + stack_index)) != Error::Ok)
+        if ((status = read_operation(line, pos, operators[stack_index])) != Error::Ok)
             return status;
 
         if (precedence(operators[stack_index]) > precedence(operators[stack_index - 1]))
