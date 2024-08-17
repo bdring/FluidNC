@@ -52,6 +52,7 @@ namespace ATCs {
         _macro.addf(set_state._gcode.c_str());
 
         // set_tool is used to update the current tool and reset the TLO to 0
+        // if we dont have_tool_setter_offset then we also do an initial probe
         if (set_tool) {
             _prev_tool = new_tool;
             _macro.addf("G4P0 0.0");
@@ -59,6 +60,7 @@ namespace ATCs {
                 get_ets_offset();
             }
             _macro.addf(restore_state._gcode.c_str());
+            move_to_start_position();
             _macro.run(nullptr);
             return true;
         }
@@ -72,7 +74,7 @@ namespace ATCs {
             }
 
             if (new_tool > 0) {
-                //pickup tool
+                //pickup tool, if this is the 1st pickup ever, we also probe the tool_setter_offset
                 move_to_tool_position(_prev_tool);
                 _macro.addf(_toolpickup_macro._gcode.c_str()); // use macro with G91 movements or the _tc_tool_* variables to to pickup tool, operating the ATC using M62 & M63
                 _macro.addf(set_state._gcode.c_str()); // ensure the previous user macro didn't change modes
@@ -83,15 +85,11 @@ namespace ATCs {
 
             // probe the new tool
             ets_probe();
-
             // TLO is simply the difference between the tool1 probe and the new tool probe.
             _macro.addf("#<_my_tlo_z >=[#5063 - #<_ets_tool1_z>]");
             _macro.addf("G43.1Z#<_my_tlo_z>");
 
-            // return to location before the tool change
-            move_to_safe_z();
-            _macro.addf("G0 X#<start_x>Y#<start_y>");
-            _macro.addf("G0 Z#<start_z>");
+            move_to_start_position();
 
             _macro.addf(restore_state._gcode.c_str());
             _macro.run(nullptr);
@@ -100,6 +98,13 @@ namespace ATCs {
         } catch (...) { log_info("Exception caught"); }
 
         return false;
+    }
+    
+    void  Basic_ATC::move_to_start_position(){
+        // return to location before the tool change
+        move_to_safe_z();
+        _macro.addf("G0 X#<start_x>Y#<start_y>");
+        _macro.addf("G0 Z#<start_z>");
     }
 
     void Basic_ATC::move_to_tool_position(uint8_t tool_index) {

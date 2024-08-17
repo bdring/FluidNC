@@ -45,6 +45,8 @@ namespace ATCs {
         void  ets_probe();
         void  get_ets_offset();
         void  move_to_tool_position(uint8_t tool_index);
+        void  move_to_start_position();
+
         Macro _macro;
         Macro _toolreturn_macro;
         Macro _toolpickup_macro;
