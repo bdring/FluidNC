@@ -15,11 +15,41 @@ namespace ATCs {
 
     bool Basic_ATC::tool_change(uint8_t new_tool, bool pre_select, bool set_tool) {
         protocol_buffer_synchronize();  // wait for all motion to complete
-        _macro.erase();             // clear previous gcode
-        
-        if (pre_select) { // not implemented
+        _macro.erase();                 // clear previous gcode
+
+        if (pre_select) {  // not implemented
             return true;
         }
+
+        // save current location, so we can return after the tool change.
+        _macro.addf("#<start_x >= #<_x>");
+        _macro.addf("#<start_y >= #<_y>");
+        _macro.addf("#<start_z >= #<_z>");
+
+        //save machine states
+        Macro set_state;
+        Macro restore_state;
+        set_state.addf("M9");  // Disable coolant
+        if (gc_state.modal.coolant.Mist) {
+            restore_state.addf("M7");
+        }
+        if (gc_state.modal.coolant.Flood) {
+            restore_state.addf("M8");
+        }
+        set_state.addf("G21");  // become Metric
+        if (gc_state.modal.units == Units::Inches) {
+            restore_state.addf("G20");
+        }
+        set_state.addf("G90");  // become absolute
+        if (gc_state.modal.distance != Distance::Absolute) {
+            restore_state.addf("G91");
+        }
+        set_state.addf("M5");  // turn off the spindle
+        if (gc_state.modal.spindle != SpindleState::Disable) {
+            restore_state.addf("M3");
+        }
+
+        _macro.addf(set_state._gcode.c_str());
 
         // set_tool is used to update the current tool and reset the TLO to 0
         if (set_tool) {
@@ -28,32 +58,9 @@ namespace ATCs {
             if (!_have_tool_setter_offset) {
                 get_ets_offset();
             }
+            _macro.addf(restore_state._gcode.c_str());
             _macro.run(nullptr);
             return true;
-        }
-        
-        //save machine states
-        bool spindle_was_on = (gc_state.modal.spindle != SpindleState::Disable);  // used to restore the spindle state
-        bool was_inch_mode  = (gc_state.modal.units == Units::Inches);
-        bool was_absolute_mode = (gc_state.modal.distance == Distance::Absolute);
-        bool mistcoolant_was_on= (gc_state.modal.coolant.Mist);
-        bool floodcoolant_was_on = (gc_state.modal.coolant.Flood);
-        // save current location, so we can return after the tool change.
-        _macro.addf("#<start_x >= #<_x>");
-        _macro.addf("#<start_y >= #<_y>");
-        _macro.addf("#<start_z >= #<_z>");
-        
-        if (mistcoolant_was_on || floodcoolant_was_on) {
-            _macro.addf("M9");
-        }
-        if (was_inch_mode) { // become Metric
-            _macro.addf("G21");
-        }
-        if (!was_absolute_mode) { // become absolute
-            _macro.addf("G90");
-        }
-        if (spindle_was_on) { // turn off the spindle
-            _macro.addf("M5");
         }
 
         try {
@@ -61,18 +68,14 @@ namespace ATCs {
                 // return tool
                 move_to_tool_position(_prev_tool);
                 _macro.addf(_toolreturn_macro._gcode.c_str()); // use macro with G91 movements or the _tc_tool_* variables to to return tool, operating the ATC using M62 & M63
-                // ensure the macro didn't change positioning mode
-                _macro.addf("G90");
-                _macro.addf("G21");
+                _macro.addf(set_state._gcode.c_str()); // ensure the previous user macro didn't change modes
             }
 
             if (new_tool > 0) {
                 //pickup tool
                 move_to_tool_position(_prev_tool);
                 _macro.addf(_toolpickup_macro._gcode.c_str()); // use macro with G91 movements or the _tc_tool_* variables to to pickup tool, operating the ATC using M62 & M63
-                // ensure the macro didn't change positioning mode
-                _macro.addf("G90");
-                _macro.addf("G21");
+                _macro.addf(set_state._gcode.c_str()); // ensure the previous user macro didn't change modes
                 if (!_have_tool_setter_offset) {
                     get_ets_offset();
                 }
@@ -89,21 +92,8 @@ namespace ATCs {
             move_to_safe_z();
             _macro.addf("G0 X#<start_x>Y#<start_y>");
             _macro.addf("G0 Z#<start_z>");
-            if (was_inch_mode) {
-                _macro.addf("G20");
-            }
-            if (!was_absolute_mode) { // become relative
-                _macro.addf("G91");
-            }
-            if (spindle_was_on) {
-                _macro.addf("M3");  // spindle should handle spinup delay
-            }
-            if (mistcoolant_was_on) {
-                _macro.addf("M7");
-            }
-            if (floodcoolant_was_on) {
-                _macro.addf("M8");
-            }
+
+            _macro.addf(restore_state._gcode.c_str());
             _macro.run(nullptr);
 
             return true;
@@ -116,9 +106,9 @@ namespace ATCs {
         tool_index -= 1;
         move_to_safe_z();
         _macro.addf("G53 G0 X%0.3f Y%0.3f", _tool_mpos[tool_index][X_AXIS], _tool_mpos[tool_index][Y_AXIS]);
-        _macro.addf("#<_tc_tool_x >=%0.3f",_tool_mpos[tool_index][X_AXIS]);
-        _macro.addf("#<_tc_tool_y >=%0.3f",_tool_mpos[tool_index][Y_AXIS]);
-        _macro.addf("#<_tc_tool_z >=%0.3f",_tool_mpos[tool_index][Z_AXIS]);
+        _macro.addf("#<_tc_tool_x >=%0.3f", _tool_mpos[tool_index][X_AXIS]);
+        _macro.addf("#<_tc_tool_y >=%0.3f", _tool_mpos[tool_index][Y_AXIS]);
+        _macro.addf("#<_tc_tool_z >=%0.3f", _tool_mpos[tool_index][Z_AXIS]);
     }
 
     void Basic_ATC::move_to_safe_z() {
@@ -130,7 +120,7 @@ namespace ATCs {
         _macro.addf("G53 G0 X%0.3fY%0.3f", _ets_mpos[0], _ets_mpos[1]);
     }
 
-    void Basic_ATC::get_ets_offset(){
+    void Basic_ATC::get_ets_offset() {
         ets_probe();
         _macro.addf("#<_ets_tool1_z>=[#5063]");  // save the value of the tool1 ETS Z
         _have_tool_setter_offset = true;

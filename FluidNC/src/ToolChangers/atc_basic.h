@@ -14,7 +14,7 @@
 
 namespace ATCs {
     const int TOOL_COUNT = 8;
-    
+
     class Basic_ATC : public ATC {
     public:
         Basic_ATC(const char* name) : ATC(name) {}
@@ -40,11 +40,11 @@ namespace ATCs {
         float   _tool_setter_offset      = 0.0;  // have we established an offset.
         float   _tool_setter_position[MAX_N_AXIS];
 
-        void move_to_safe_z();
-        void move_over_toolsetter();
-        void ets_probe();
-        void get_ets_offset();
-        void move_to_tool_position(uint8_t tool_index);
+        void  move_to_safe_z();
+        void  move_over_toolsetter();
+        void  ets_probe();
+        void  get_ets_offset();
+        void  move_to_tool_position(uint8_t tool_index);
         Macro _macro;
         Macro _toolreturn_macro;
         Macro _toolpickup_macro;
