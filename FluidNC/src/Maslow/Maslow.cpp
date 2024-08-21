@@ -92,6 +92,8 @@ void Maslow_::begin(void (*sys_rt)()) {
 
     stopMotors();
 
+    Wire.setTimeOut(10);
+
     if (error) {
         log_error("Maslow failed to initialize - fix errors and restart");
     } else {
@@ -1524,6 +1526,9 @@ void Maslow_::setSafety(bool state) {
 }
 void Maslow_::test_() {
     log_info("Firmware Version: " << VERSION_NUMBER);
+
+    log_info("I2C Timeout: ");
+    log_info(Wire.getTimeOut());
 
     axisTL.test();
     axisTR.test();
