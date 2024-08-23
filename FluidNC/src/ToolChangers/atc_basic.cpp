@@ -94,6 +94,8 @@ namespace ATCs {
             _macro.addf(restore_state._gcode.c_str());
             _macro.run(nullptr);
 
+            _prev_tool = new_tool;
+
             return true;
         } catch (...) { log_info("Exception caught"); }
 
