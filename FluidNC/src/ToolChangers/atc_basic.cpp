@@ -14,10 +14,14 @@ namespace ATCs {
     void Basic_ATC::probe_notification() {}
 
     bool Basic_ATC::tool_change(uint8_t new_tool, bool pre_select, bool set_tool) {
+        std::string message = "ATC:tool_change: from " + std::to_string(_prev_tool) + " to " + std::to_string(new_tool);
+        log_info(message);
+
         protocol_buffer_synchronize();  // wait for all motion to complete
         _macro.erase();                 // clear previous gcode
 
         if (pre_select) {  // not implemented
+            log_debug("ATC: Preselect");
             return true;
         }
 
@@ -54,6 +58,7 @@ namespace ATCs {
         // set_tool is used to update the current tool and reset the TLO to 0
         // if we dont have_tool_setter_offset then we also do an initial probe
         if (set_tool) {
+            log_debug("ATC: Set Tool");
             _prev_tool = new_tool;
             _macro.addf("G4P0 0.0");
             if (!_have_tool_setter_offset) {
@@ -67,14 +72,15 @@ namespace ATCs {
 
         try {
             if (_prev_tool > 0) {
-                // return tool
+                log_debug("ATC: return tool");
                 move_to_tool_position(_prev_tool);
                 _macro.addf(_toolreturn_macro._gcode.c_str()); // use macro with G91 movements or the _tc_tool_* variables to to return tool, operating the ATC using M62 & M63
                 _macro.addf(set_state._gcode.c_str()); // ensure the previous user macro didn't change modes
             }
 
             if (new_tool > 0) {
-                //pickup tool, if this is the 1st pickup ever, we also probe the tool_setter_offset
+                log_debug("ATC: pickup tool");
+                //if this is the 1st pickup ever, we also probe the tool_setter_offset
                 move_to_tool_position(new_tool);
                 _macro.addf(_toolpickup_macro._gcode.c_str()); // use macro with G91 movements or the _tc_tool_* variables to to pickup tool, operating the ATC using M62 & M63
                 _macro.addf(set_state._gcode.c_str()); // ensure the previous user macro didn't change modes
