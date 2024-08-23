@@ -86,14 +86,14 @@ namespace ATCs {
                 _macro.addf(set_state._gcode.c_str()); // ensure the previous user macro didn't change modes
                 if (!_have_tool_setter_offset) {
                     get_ets_offset();
+                    _macro.addf("#<_my_tlo_z >=0.0"); //first tool is reference with 0 offset
+                } else {
+                    ets_probe();  // probe the new tool
+                    // TLO is simply the difference between the tool1 probe and the new tool probe.
+                    _macro.addf("#<_my_tlo_z >=[#5063 - #<_ets_tool1_z>]");
                 }
+                _macro.addf("G43.1Z#<_my_tlo_z>");
             }
-
-            // probe the new tool
-            ets_probe();
-            // TLO is simply the difference between the tool1 probe and the new tool probe.
-            _macro.addf("#<_my_tlo_z >=[#5063 - #<_ets_tool1_z>]");
-            _macro.addf("G43.1Z#<_my_tlo_z>");
 
             move_to_start_position();
 
@@ -107,8 +107,8 @@ namespace ATCs {
 
         return false;
     }
-    
-    void  Basic_ATC::move_to_start_position(){
+
+    void Basic_ATC::move_to_start_position(){
         // return to location before the tool change
         move_to_safe_z();
         _macro.addf("G0 X#<start_x>Y#<start_y>");
