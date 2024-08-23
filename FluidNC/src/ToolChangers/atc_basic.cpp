@@ -142,7 +142,7 @@ namespace ATCs {
     void Basic_ATC::ets_probe() {
         move_to_safe_z();
         move_over_toolsetter();
-        _macro.addf("G53 G0 Z #</ atc_manual / ets_rapid_z_mpos_mm>");  // rapid down
+        _macro.addf("G53 G0 Z #</ atc_basic / ets_rapid_z_mpos_mm>");  // rapid down
 
         // do a fast probe if there is a seek that is faster than feed
         if (_probe_seek_rate > _probe_feed_rate) {
