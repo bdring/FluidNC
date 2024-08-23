@@ -75,7 +75,7 @@ namespace ATCs {
 
             if (new_tool > 0) {
                 //pickup tool, if this is the 1st pickup ever, we also probe the tool_setter_offset
-                move_to_tool_position(_prev_tool);
+                move_to_tool_position(new_tool);
                 _macro.addf(_toolpickup_macro._gcode.c_str()); // use macro with G91 movements or the _tc_tool_* variables to to pickup tool, operating the ATC using M62 & M63
                 _macro.addf(set_state._gcode.c_str()); // ensure the previous user macro didn't change modes
                 if (!_have_tool_setter_offset) {
