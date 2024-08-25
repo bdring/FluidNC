@@ -1,4 +1,5 @@
 // Copyright (c) 2024 -	Bart Dring
+// Copyright (c) 2024 -	Nicolas Lang
 // Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
 
 #include "atc_basic.h"
@@ -71,6 +72,9 @@ namespace ATCs {
         }
 
         try {
+            _macro.addf(_atc_activate_macro._gcode.c_str());
+            _macro.addf(set_state._gcode.c_str());
+            
             if (_prev_tool > 0) {
                 log_debug("ATC: return tool");
                 move_to_tool_position(_prev_tool);
@@ -96,6 +100,9 @@ namespace ATCs {
             }
 
             move_to_start_position();
+
+            _macro.addf(_atc_deactivate_macro._gcode.c_str());
+            _macro.addf(set_state._gcode.c_str());
 
             _macro.addf(restore_state._gcode.c_str());
             _macro.run(nullptr);

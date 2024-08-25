@@ -50,6 +50,8 @@ namespace ATCs {
         Macro _macro;
         Macro _toolreturn_macro;
         Macro _toolpickup_macro;
+        Macro _atc_activate_macro;
+        Macro _atc_deactivate_macro;
 
     public:
         void init() override;
@@ -66,6 +68,8 @@ namespace ATCs {
             handler.item("ets_rapid_z_mpos_mm", _ets_rapid_z_mpos);
             handler.item("toolreturn_macro", _toolreturn_macro);
             handler.item("toolpickup_macro", _toolpickup_macro);
+            handler.item("atc_activate_macro", _atc_activate_macro);
+            handler.item("atc_deactivate_macro", _atc_deactivate_macro);
             handler.item("tool1_mpos_mm", _tool_mpos[0]);
             handler.item("tool2_mpos_mm", _tool_mpos[1]);
             handler.item("tool3_mpos_mm", _tool_mpos[2]);
