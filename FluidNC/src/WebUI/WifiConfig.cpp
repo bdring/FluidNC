@@ -829,7 +829,9 @@ namespace WebUI {
             return result;
         }
 
-        static bool isOn() { return !(WiFi.getMode() == WIFI_OFF); }
+        static bool isOn() {
+            return !(WiFi.getMode() == WIFI_OFF);
+        }
 
         // Used by js/scanwifidlg.js
 
@@ -953,7 +955,9 @@ namespace WebUI {
             //        wifi_services.begin();
         }
 
-        void deinit() override { StopWiFi(); }
+        void deinit() override {
+            StopWiFi();
+        }
 
         void build_info(Channel& channel) {
             std::string sti = station_info();
@@ -981,7 +985,13 @@ namespace WebUI {
             }
         }
 
-        ~WiFiConfig() { deinit(); }
+        bool is_radio() override {
+            return true;
+        }
+
+        ~WiFiConfig() {
+            deinit();
+        }
     };
 
     ModuleFactory::InstanceBuilder<WiFiConfig> __attribute__((init_priority(105))) wifi_module("wifi", true);
