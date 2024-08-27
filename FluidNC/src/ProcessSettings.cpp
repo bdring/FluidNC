@@ -36,6 +36,9 @@
 
 static Error fakeMaxSpindleSpeed(const char* value, AuthenticationLevel auth_level, Channel& out);
 
+static Error report_init_message_cmd(const char* value, AuthenticationLevel auth_level, Channel& out);
+
+void report_init_message(
 // If authentication is disabled, auth_level will be LEVEL_ADMIN
 static bool auth_failed(Word* w, const char* value, AuthenticationLevel auth_level) {
     permissions_t permissions = w->getPermissions();
@@ -705,6 +708,10 @@ static Error dump_config(const char* value, AuthenticationLevel auth_level, Chan
     return Error::Ok;
 }
 
+static Error report_init_message_cmd(const char* value, AuthenticationLevel auth_level, Channel& out) {
+    report_init_message(out);
+}
+
 static Error fakeMaxSpindleSpeed(const char* value, AuthenticationLevel auth_level, Channel& out) {
     if (!value) {
         log_stream(out, "$30=" << spindle->maxSpeed());
@@ -839,6 +846,8 @@ void make_user_commands() {
 
     new UserCommand("30", "FakeMaxSpindleSpeed", fakeMaxSpindleSpeed, notIdleOrAlarm);
     new UserCommand("32", "FakeLaserMode", fakeLaserMode, notIdleOrAlarm);
+
+    new UserCommand("GS", "GRBL/Show", report_init_message_cmd, notIdleOrAlarm);
 
     new AsyncUserCommand("J", "Jog", doJog, notIdleOrJog);
     new AsyncUserCommand("G", "GCode/Modes", report_gcode, anyState);
