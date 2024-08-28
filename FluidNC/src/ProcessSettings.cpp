@@ -709,6 +709,8 @@ static Error dump_config(const char* value, AuthenticationLevel auth_level, Chan
 
 static Error report_init_message_cmd(const char* value, AuthenticationLevel auth_level, Channel& out) {
     report_init_message(out);
+
+    return Error::Ok;
 }
 
 static Error fakeMaxSpindleSpeed(const char* value, AuthenticationLevel auth_level, Channel& out) {
