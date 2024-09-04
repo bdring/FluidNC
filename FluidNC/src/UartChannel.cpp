@@ -11,6 +11,10 @@ UartChannel::UartChannel(int num, bool addCR) : Channel("uart_channel", num, add
 }
 
 void UartChannel::init() {
+    if (_uart_num < 1 || _uart_num > UART_NUM_MAX - 1) {
+        log_error("UartChannel: uart_num: " << _uart_num << " out of range");
+        return;
+    }
     auto uart = config->_uarts[_uart_num];
     if (uart) {
         init(uart);
