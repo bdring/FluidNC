@@ -20,6 +20,10 @@
 namespace MotorDrivers {
 
     void TrinamicUartDriver::init() {
+        if (_uart_num < 1 || _uart_num > UART_NUM_MAX - 1) {
+            log_error("UartChannel: uart_num: " << _uart_num << " out of range");
+            return;
+        }
         _uart = config->_uarts[_uart_num];
         Assert(_uart, "TMC Driver missing uart%d section", _uart_num);
 

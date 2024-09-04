@@ -263,6 +263,10 @@ namespace Spindles {
         if (_uart) {
             _uart->begin();
         } else {
+            if (_uart_num < 1 || _uart_num > UART_NUM_MAX - 1) {
+                log_error("UartChannel: uart_num: " << _uart_num << " out of range");
+                return;
+            }
             _uart = config->_uarts[_uart_num];
             if (!_uart) {
                 log_error("VFDSpindle: Missing uart" << _uart_num << "section");

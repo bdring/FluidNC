@@ -40,6 +40,11 @@ namespace MotorDrivers {
     void Dynamixel2::init() {
         _axis_index = axis_index();
 
+        if (_uart_num < 1 || _uart_num > UART_NUM_MAX - 1) {
+            log_error("UartChannel: uart_num: " << _uart_num << " out of range");
+            return;
+        }
+
         if (!_uart_started) {
             _uart = config->_uarts[_uart_num];
             if (_uart->_rts_pin.undefined()) {
