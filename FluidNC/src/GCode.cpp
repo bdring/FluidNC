@@ -928,7 +928,7 @@ Error gc_execute_line(char* line) {
         if (gc_block.modal.feed_rate == FeedRate::InverseTime) {  // = G93
             // NOTE: G38 can also operate in inverse time, but is undefined as an error. Missing F word check added here.
             if (axis_command == AxisCommand::MotionMode) {
-                if ((gc_block.modal.motion != Motion::None) || (gc_block.modal.motion != Motion::Seek)) {
+                if ((gc_block.modal.motion != Motion::None) && (gc_block.modal.motion != Motion::Seek)) {
                     if (bitnum_is_false(value_words, GCodeWord::F)) {
                         FAIL(Error::GcodeUndefinedFeedRate);  // [F word missing]
                     }
@@ -1550,7 +1550,7 @@ Error gc_execute_line(char* line) {
     // NOTE: Pass zero spindle speed for all restricted laser motions.
     if (!disableLaser) {
         pl_data->spindle_speed = gc_state.spindle_speed;  // Record data for planner use.
-    }                                                     // else { pl_data->spindle_speed = 0.0; } // Initialized as zero already.
+    }  // else { pl_data->spindle_speed = 0.0; } // Initialized as zero already.
     // [5. Select tool ]: NOT SUPPORTED. Only tracks tool value.
     //	gc_state.tool = gc_block.values.t;
     // [M6. Change tool ]:
