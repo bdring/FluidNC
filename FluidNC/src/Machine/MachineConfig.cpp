@@ -68,7 +68,7 @@ namespace Machine {
 
         handler.section("user_outputs", _userOutputs);
 
-        ModuleFactory::factory(handler);
+        ConfigurableModuleFactory::factory(handler);
         ATCs::ATCFactory::factory(handler);
         Spindles::SpindleFactory::factory(handler);
 

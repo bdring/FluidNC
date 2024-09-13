@@ -108,6 +108,9 @@ void setup() {
         for (auto const& module : Modules()) {
             module->init();
         }
+        for (auto const& module : ConfigurableModules()) {
+            module->init();
+        }
 
         auto atcs = ATCs::ATCFactory::objects();
         for (auto const& atc : atcs) {
