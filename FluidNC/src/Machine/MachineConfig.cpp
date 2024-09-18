@@ -119,6 +119,9 @@ namespace Machine {
         handler.item("Maslow_Retract_Current_Threshold", Maslow.retractCurrentThreshold, 0, 3500);
         handler.item("Maslow_Calibration_Current_Threshold", Maslow.calibrationCurrentThreshold, 0, 3500);
         handler.item("Maslow_Acceptable_Calibration_Threshold", Maslow.acceptableCalibrationThreshold, 0, 1);
+
+        handler.item("Maslow_Scale_X", Maslow.scaleX, .8, 1.2);
+        handler.item("Maslow_Scale_Y", Maslow.scaleY, .8, 1.2);
     }
 
     void MachineConfig::afterParse() {

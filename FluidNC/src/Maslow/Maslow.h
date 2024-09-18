@@ -252,6 +252,8 @@ public:
     // //keep track of where Maslow actually is, lower left corner is 0,0
     double x;
     double y;
+    float scaleX = 1.0;
+    float scaleY = 1.0;
 
     //hold
     void          hold(unsigned long time);
