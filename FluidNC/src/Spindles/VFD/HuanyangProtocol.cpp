@@ -138,6 +138,8 @@
 
 #include "HuanyangProtocol.h"
 
+#include "../VFDSpindle.h"
+
 #include <algorithm>  // std::max
 
 namespace Spindles {
@@ -208,7 +210,7 @@ namespace Spindles {
         }
 
         // This gets data from the VFS. It does not set any values
-        VFDDetail::response_parser HuanyangProtocol::initialization_sequence(int index, ModbusCommand& data) {
+        VFDProtocol::response_parser HuanyangProtocol::initialization_sequence(int index, ModbusCommand& data) {
             // NOTE: data length is excluding the CRC16 checksum.
             data.tx_length = 6;
             data.rx_length = 6;
@@ -224,7 +226,7 @@ namespace Spindles {
                 case -1:
                     data.msg[3] = 5;  // PD005: max frequency the VFD will allow. Normally 400.
 
-                    return [](const uint8_t* response, VFDSpindle* vfd, VFDDetail* detail) -> bool {
+                    return [](const uint8_t* response, VFDSpindle* vfd, VFDProtocol* detail) -> bool {
                         uint16_t value = (response[4] << 8) | response[5];
 
                         // Set current RPM value? Somewhere?
@@ -236,7 +238,7 @@ namespace Spindles {
                 case -2:
                     data.msg[3] = 11;  // PD011: frequency lower limit. Normally 0.
 
-                    return [](const uint8_t* response, VFDSpindle* vfd, VFDDetail* detail) -> bool {
+                    return [](const uint8_t* response, VFDSpindle* vfd, VFDProtocol* detail) -> bool {
                         uint16_t value = (response[4] << 8) | response[5];
 
                         // Set current RPM value? Somewhere?
@@ -253,7 +255,7 @@ namespace Spindles {
                 case -3:
                     data.msg[3] = 144;  // PD144: max rated motor revolution at 50Hz => 24000@400Hz = 3000@50HZ
 
-                    return [](const uint8_t* response, VFDSpindle* vfd, VFDDetail* detail) -> bool {
+                    return [](const uint8_t* response, VFDSpindle* vfd, VFDProtocol* detail) -> bool {
                         uint16_t value = (response[4] << 8) | response[5];
 
                         // Set current RPM value? Somewhere?
@@ -277,7 +279,7 @@ namespace Spindles {
                     data.rx_length = 5;
                     data.msg[3]    = 143;  // PD143: 4 or 2 poles in motor. Default is 4. A spindle being 24000RPM@400Hz implies 2 poles
 
-                    return [](const uint8_t* response, VFDSpindle* vfd, VFDDetail* detail) -> bool {
+                    return [](const uint8_t* response, VFDSpindle* vfd, VFDProtocol* detail) -> bool {
                         uint8_t value    = response[4];  // Single byte response.
                         auto    huanyang = static_cast<HuanyangProtocol*>(detail);
                         // Sanity check. We expect something like 2 or 4 poles.
@@ -300,7 +302,7 @@ namespace Spindles {
                 case -5:
                     data.msg[3] = 14;  // Accel value displayed is X.X
 
-                    return [](const uint8_t* response, VFDSpindle* vfd, VFDDetail* detail) -> bool {
+                    return [](const uint8_t* response, VFDSpindle* vfd, VFDProtocol* detail) -> bool {
                         uint16_t value = (response[4] << 8) | response[5];
 
                         auto huanyang = static_cast<HuanyangProtocol*>(detail);
@@ -311,7 +313,7 @@ namespace Spindles {
                 case -6:
                     data.msg[3] = 15;  // Decel alue displayed is X.X
 
-                    return [](const uint8_t* response, VFDSpindle* vfd, VFDDetail* detail) -> bool {
+                    return [](const uint8_t* response, VFDSpindle* vfd, VFDProtocol* detail) -> bool {
                         uint16_t value = (response[4] << 8) | response[5];
 
                         auto huanyang = static_cast<HuanyangProtocol*>(detail);
@@ -348,7 +350,7 @@ namespace Spindles {
             vfd->_slop = std::max(_maxFrequency / 40, 1);
         }
 
-        VFDDetail::response_parser HuanyangProtocol::get_status_ok(ModbusCommand& data) {
+        VFDProtocol::response_parser HuanyangProtocol::get_status_ok(ModbusCommand& data) {
             // NOTE: data length is excluding the CRC16 checksum.
             data.tx_length = 6;
             data.rx_length = 6;
@@ -365,10 +367,10 @@ namespace Spindles {
             } else {
                 reg = 0x00;
             }
-            return [](const uint8_t* response, VFDSpindle* vfd, VFDDetail* detail) -> bool { return true; };
+            return [](const uint8_t* response, VFDSpindle* vfd, VFDProtocol* detail) -> bool { return true; };
         }
 
-        VFDDetail::response_parser HuanyangProtocol::get_current_speed(ModbusCommand& data) {
+        VFDProtocol::response_parser HuanyangProtocol::get_current_speed(ModbusCommand& data) {
             // NOTE: data length is excluding the CRC16 checksum.
             data.tx_length = 6;
             data.rx_length = 6;
@@ -380,7 +382,7 @@ namespace Spindles {
             data.msg[4] = 0x00;
             data.msg[5] = 0x00;
 
-            return [](const uint8_t* response, VFDSpindle* vfd, VFDDetail* detail) -> bool {
+            return [](const uint8_t* response, VFDSpindle* vfd, VFDProtocol* detail) -> bool {
                 uint16_t frequency = (response[4] << 8) | response[5];
 
                 // Store speed for synchronization

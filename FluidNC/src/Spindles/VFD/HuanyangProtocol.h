@@ -4,11 +4,11 @@
 
 #pragma once
 
-#include "../VFDSpindle.h"
+#include "VFDProtocol.h"
 
 namespace Spindles {
     namespace VFD {
-        class HuanyangProtocol : public VFDDetail {
+        class HuanyangProtocol : public VFDProtocol {
         private:
             int reg = 0;
 

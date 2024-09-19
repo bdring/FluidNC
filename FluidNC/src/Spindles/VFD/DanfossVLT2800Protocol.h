@@ -3,11 +3,11 @@
 
 #pragma once
 
-#include "../VFDSpindle.h"
+#include "VFDProtocol.h"
 
 namespace Spindles {
     namespace VFD {
-        class DanfossVLT2800Protocol : public VFDDetail {
+        class DanfossVLT2800Protocol : public VFDProtocol {
             union SpindleStatus {
                 struct {
                     bool control_ready : 1;   // bit 00 = 0: ""                        | Bit = 1: "Control ready"

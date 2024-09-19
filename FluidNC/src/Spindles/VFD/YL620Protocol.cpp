@@ -71,6 +71,8 @@
 
 #include "YL620Protocol.h"
 
+#include "../VFDSpindle.h"
+
 #include <algorithm>
 
 namespace Spindles {
@@ -113,7 +115,7 @@ namespace Spindles {
             data.msg[5] = speed & 0xFF;
         }
 
-        VFDDetail::response_parser YL620Protocol::initialization_sequence(int index, ModbusCommand& data) {
+        VFDProtocol::response_parser YL620Protocol::initialization_sequence(int index, ModbusCommand& data) {
             if (index == -1) {
                 data.tx_length = 6;
                 data.rx_length = 5;
@@ -126,7 +128,7 @@ namespace Spindles {
 
                 //  Recv: 01 03 02 03 E8 xx xx
                 //                 -- -- = 1000
-                return [](const uint8_t* response, VFDSpindle* vfd, VFDDetail* detail) -> bool {
+                return [](const uint8_t* response, VFDSpindle* vfd, VFDProtocol* detail) -> bool {
                     auto yl620           = static_cast<YL620Protocol*>(detail);
                     yl620->_minFrequency = (uint16_t(response[3]) << 8) | uint16_t(response[4]);
 
@@ -148,7 +150,7 @@ namespace Spindles {
 
                 //  Recv: 01 03 02 0F A0 xx xx
                 //                 -- -- = 4000
-                return [](const uint8_t* response, VFDSpindle* vfd, VFDDetail* detail) -> bool {
+                return [](const uint8_t* response, VFDSpindle* vfd, VFDProtocol* detail) -> bool {
                     auto yl620           = static_cast<YL620Protocol*>(detail);
                     yl620->_maxFrequency = (uint16_t(response[3]) << 8) | uint16_t(response[4]);
 
@@ -180,7 +182,7 @@ namespace Spindles {
             }
         }
 
-        VFDDetail::response_parser YL620Protocol::get_current_speed(ModbusCommand& data) {
+        VFDProtocol::response_parser YL620Protocol::get_current_speed(ModbusCommand& data) {
             data.tx_length = 6;
             data.rx_length = 5;
 
@@ -193,7 +195,7 @@ namespace Spindles {
 
             //  Recv: 01 03 02 05 DC xx xx
             //                 ---- = 1500
-            return [](const uint8_t* response, VFDSpindle* vfd, VFDDetail* detail) -> bool {
+            return [](const uint8_t* response, VFDSpindle* vfd, VFDProtocol* detail) -> bool {
                 uint16_t freq = (uint16_t(response[3]) << 8) | uint16_t(response[4]);
 
                 auto yl620 = static_cast<YL620Protocol*>(detail);
@@ -203,7 +205,7 @@ namespace Spindles {
             };
         }
 
-        VFDDetail::response_parser YL620Protocol::get_current_direction(ModbusCommand& data) {
+        VFDProtocol::response_parser YL620Protocol::get_current_direction(ModbusCommand& data) {
             data.tx_length = 6;
             data.rx_length = 5;
 
@@ -218,7 +220,7 @@ namespace Spindles {
             //                   ----- status is in 00 0A bit 5:4
 
             // TODO: What are we going to do with this? Update vfd state?
-            return [](const uint8_t* response, VFDSpindle* vfd, VFDDetail* detail) -> bool { return true; };
+            return [](const uint8_t* response, VFDSpindle* vfd, VFDProtocol* detail) -> bool { return true; };
         }
 
         // Configuration registration

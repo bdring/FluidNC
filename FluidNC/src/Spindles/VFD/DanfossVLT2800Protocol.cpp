@@ -12,6 +12,7 @@
 
 #include "DanfossVLT2800Protocol.h"
 #include "../../Platform.h"
+#include "../VFDSpindle.h"
 
 #include <algorithm>
 
@@ -23,7 +24,7 @@
 
 namespace Spindles {
     namespace VFD {
-        void DanfossVLT2800Protocol::set_speed_command(uint32_t dev_speed, VFDDetail::ModbusCommand& data) {
+        void DanfossVLT2800Protocol::set_speed_command(uint32_t dev_speed, VFDProtocol::ModbusCommand& data) {
             // Cache received speed
             cachedSpindleState.speed = dev_speed;
 
@@ -31,7 +32,7 @@ namespace Spindles {
             writeVFDState(cachedSpindleState, data);
         }
 
-        void DanfossVLT2800Protocol::direction_command(SpindleState mode, VFDDetail::ModbusCommand& data) {
+        void DanfossVLT2800Protocol::direction_command(SpindleState mode, VFDProtocol::ModbusCommand& data) {
             // Cache received direction
             cachedSpindleState.state = mode;
 
@@ -39,7 +40,7 @@ namespace Spindles {
             writeVFDState(cachedSpindleState, data);
         }
 
-        VFDDetail::response_parser DanfossVLT2800Protocol::get_current_speed(VFDDetail::ModbusCommand& data) {
+        VFDProtocol::response_parser DanfossVLT2800Protocol::get_current_speed(VFDProtocol::ModbusCommand& data) {
             data.tx_length = 6;      // including automatically set client_id, excluding crc
             data.rx_length = 3 + 2;  // excluding crc
 
@@ -50,7 +51,7 @@ namespace Spindles {
             data.msg[4] = 0x00;
             data.msg[5] = 0x01;  // no of points
 
-            return [](const uint8_t* response, VFDSpindle* vfd, VFDDetail* detail) -> bool {
+            return [](const uint8_t* response, VFDSpindle* vfd, VFDProtocol* detail) -> bool {
                 // const uint8_t slave_addr = response[0]
                 // const uint8_t function = response[1]
                 // const uint8_t response_byte_count = response[2]
@@ -61,7 +62,7 @@ namespace Spindles {
             };
         }
 
-        VFDDetail::response_parser DanfossVLT2800Protocol::get_status_ok_and_init(VFDDetail::ModbusCommand& data, bool init) {
+        VFDProtocol::response_parser DanfossVLT2800Protocol::get_status_ok_and_init(VFDProtocol::ModbusCommand& data, bool init) {
             data.tx_length = 6;  // including automatically set client_id, excluding crc
             data.rx_length = 5;  // excluding crc
 
@@ -73,7 +74,7 @@ namespace Spindles {
             data.msg[5] = 0x10;  // Read 16 Bits
 
             if (init) {
-                return [](const uint8_t* response, VFDSpindle* vfd, VFDDetail* detail) -> bool {
+                return [](const uint8_t* response, VFDSpindle* vfd, VFDProtocol* detail) -> bool {
                     // The VFD is responsive. Initialize speeds.
 
                     auto df = static_cast<DanfossVLT2800Protocol*>(detail);
@@ -82,7 +83,7 @@ namespace Spindles {
                     return true;
                 };
             } else {
-                return [](const uint8_t* response, VFDSpindle* vfd, VFDDetail* detail) -> bool {
+                return [](const uint8_t* response, VFDSpindle* vfd, VFDProtocol* detail) -> bool {
                     SpindleStatus status;
                     status.statusWord = int16_t(response[3]) | uint16_t(response[4] << 8);  // See DanfossSpindle.h for structure
 

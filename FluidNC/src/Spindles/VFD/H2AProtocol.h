@@ -3,11 +3,11 @@
 
 #pragma once
 
-#include "../VFDSpindle.h"
+#include "VFDProtocol.h"
 
 namespace Spindles {
     namespace VFD {
-        class H2AProtocol : public VFDDetail {
+        class H2AProtocol : public VFDProtocol {
         protected:
             void direction_command(SpindleState mode, ModbusCommand& data) override;
             void set_speed_command(uint32_t dev_speed, ModbusCommand& data) override;

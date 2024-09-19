@@ -1,5 +1,7 @@
 #include "NowForeverProtocol.h"
 
+#include "../VFDSpindle.h"
+
 namespace Spindles {
     namespace VFD {
         void NowForeverProtocol::direction_command(SpindleState mode, ModbusCommand& data) {
@@ -67,7 +69,7 @@ namespace Spindles {
             log_debug("VFD: Set speed: " << hz / 100 << "hz or" << (hz * 60 / 100) << "rpm");
         }
 
-        VFDDetail::response_parser NowForeverProtocol::initialization_sequence(int index, ModbusCommand& data) {
+        VFDProtocol::response_parser NowForeverProtocol::initialization_sequence(int index, ModbusCommand& data) {
             if (index == -1) {
                 data.tx_length = 6;
                 data.rx_length = 7;
@@ -86,7 +88,7 @@ namespace Spindles {
             Bit 0-15: min speed in hz * 100
             */
 
-                return [](const uint8_t* response, VFDSpindle* vfd, VFDDetail* detail) -> bool {
+                return [](const uint8_t* response, VFDSpindle* vfd, VFDProtocol* detail) -> bool {
                     if (response[1] != 0x03) {
                         return false;
                     }
@@ -132,7 +134,7 @@ namespace Spindles {
             spindle->_slop = std::max(_maxFrequency / 400, 1);
         }
 
-        VFDDetail::response_parser NowForeverProtocol::get_current_speed(ModbusCommand& data) {
+        VFDProtocol::response_parser NowForeverProtocol::get_current_speed(ModbusCommand& data) {
             data.tx_length = 6;
             data.rx_length = 5;
 
@@ -147,7 +149,7 @@ namespace Spindles {
         Bit 0-15: current output frequency in hz * 100
         */
 
-            return [](const uint8_t* response, VFDSpindle* vfd, VFDDetail* detail) -> bool {
+            return [](const uint8_t* response, VFDSpindle* vfd, VFDProtocol* detail) -> bool {
                 uint16_t currentHz = 0;
 
                 if (response[1] != 0x03) {
@@ -168,7 +170,7 @@ namespace Spindles {
             };
         }
 
-        VFDDetail::response_parser NowForeverProtocol::get_current_direction(ModbusCommand& data) {
+        VFDProtocol::response_parser NowForeverProtocol::get_current_direction(ModbusCommand& data) {
             data.tx_length = 6;
             data.rx_length = 5;
 
@@ -188,7 +190,7 @@ namespace Spindles {
         Bit 5-15: reserved
         */
 
-            return [](const uint8_t* response, VFDSpindle* vfd, VFDDetail* detail) -> bool {
+            return [](const uint8_t* response, VFDSpindle* vfd, VFDProtocol* detail) -> bool {
                 bool running   = false;
                 bool direction = false;  // false = cw, true = ccw
 
@@ -219,7 +221,7 @@ namespace Spindles {
             };
         }
 
-        VFDDetail::response_parser NowForeverProtocol::get_status_ok(ModbusCommand& data) {
+        VFDProtocol::response_parser NowForeverProtocol::get_status_ok(ModbusCommand& data) {
             data.tx_length = 6;
             data.rx_length = 5;
 
@@ -234,7 +236,7 @@ namespace Spindles {
         Bit 0-15: current fault number, 0 = no fault, 1~18 = fault number
         */
 
-            return [](const uint8_t* response, VFDSpindle* vfd, VFDDetail* detail) -> bool {
+            return [](const uint8_t* response, VFDSpindle* vfd, VFDProtocol* detail) -> bool {
                 uint16_t currentFaultNumber = 0;
 
                 if (response[1] != 0x03) {

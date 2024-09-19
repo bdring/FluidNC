@@ -3,11 +3,11 @@
 
 #pragma once
 
-#include "../VFDSpindle.h"
+#include "VFDProtocol.h"
 
 namespace Spindles {
     namespace VFD {
-        class YL620Protocol : public VFDDetail {
+        class YL620Protocol : public VFDProtocol {
         protected:
             uint16_t _minFrequency = 0;     // frequency lower limit. Factor 10 of actual frequency
             uint16_t _maxFrequency = 4000;  // max frequency the VFD will allow. Normally 400.0. Factor 10 of actual frequency

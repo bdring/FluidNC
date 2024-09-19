@@ -12,6 +12,7 @@
 */
 
 #include "H100Protocol.h"
+#include "../VFDSpindle.h"
 
 #include <algorithm>  // std::max
 
@@ -69,7 +70,7 @@ namespace Spindles {
         }
 
         // This gets data from the VFD. It does not set any values
-        VFDDetail::response_parser H100Protocol::initialization_sequence(int index, ModbusCommand& data) {
+        VFDProtocol::response_parser H100Protocol::initialization_sequence(int index, ModbusCommand& data) {
             // NOTE: data length is excluding the CRC16 checksum.
             data.tx_length = 6;
             data.rx_length = 5;
@@ -89,7 +90,7 @@ namespace Spindles {
                 // Max frequency
                 data.msg[3] = 0x05;  // PD005: max frequency the VFD will allow. Normally 400.
 
-                return [](const uint8_t* response, VFDSpindle* vfd, VFDDetail* detail) -> bool {
+                return [](const uint8_t* response, VFDSpindle* vfd, VFDProtocol* detail) -> bool {
                     uint16_t value = (response[3] << 8) | response[4];
 
 #ifdef DEBUG_VFD
@@ -108,7 +109,7 @@ namespace Spindles {
                 // Min Frequency
                 data.msg[3] = 0x0B;  // PD011: frequency lower limit. Normally 0.
 
-                return [](const uint8_t* response, VFDSpindle* vfd, VFDDetail* detail) -> bool {
+                return [](const uint8_t* response, VFDSpindle* vfd, VFDProtocol* detail) -> bool {
                     uint16_t value = (response[3] << 8) | response[4];
 
 #ifdef DEBUG_VFD
@@ -147,7 +148,7 @@ namespace Spindles {
             log_info("VFD: VFD settings read: Freq range(" << _minFrequency << " , " << _maxFrequency << ")]");
         }
 
-        VFDDetail::response_parser H100Protocol::get_current_speed(ModbusCommand& data) {
+        VFDProtocol::response_parser H100Protocol::get_current_speed(ModbusCommand& data) {
             // NOTE: data length is excluding the CRC16 checksum.
             // [01] [04] [0000] [0002] -- output frequency
             data.tx_length = 6;
@@ -160,7 +161,7 @@ namespace Spindles {
             data.msg[4] = 0x00;
             data.msg[5] = 0x02;
 
-            return [](const uint8_t* response, VFDSpindle* vfd, VFDDetail* detail) -> bool {
+            return [](const uint8_t* response, VFDSpindle* vfd, VFDProtocol* detail) -> bool {
                 // 01 04 04 [freq 16] [set freq 16] [crc16]
                 uint16_t frequency = (uint16_t(response[3]) << 8) | uint16_t(response[4]);
 

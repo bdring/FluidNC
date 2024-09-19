@@ -1,10 +1,10 @@
 #pragma once
 
-#include "../VFDSpindle.h"
+#include "VFDProtocol.h"
 
 namespace Spindles {
     namespace VFD {
-        class NowForeverProtocol : public VFDDetail {
+        class NowForeverProtocol : public VFDProtocol {
         protected:
             uint16_t _minFrequency = 0;
             uint16_t _maxFrequency = 0;

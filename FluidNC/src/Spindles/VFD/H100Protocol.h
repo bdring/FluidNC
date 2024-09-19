@@ -3,11 +3,11 @@
 
 #pragma once
 
-#include "../VFDSpindle.h"
+#include "VFDProtocol.h"
 
 namespace Spindles {
     namespace VFD {
-        class H100Protocol : public VFDDetail {
+        class H100Protocol : public VFDProtocol {
         private:
             int reg = 0;
 

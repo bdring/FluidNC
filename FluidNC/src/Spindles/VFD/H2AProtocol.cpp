@@ -16,6 +16,7 @@
 */
 
 #include "H2AProtocol.h"
+#include "../VFDSpindle.h"
 
 namespace Spindles {
     namespace VFD {
@@ -55,7 +56,7 @@ namespace Spindles {
             data.msg[5] = speed & 0xFF;
         }
 
-        VFDDetail::response_parser H2AProtocol::initialization_sequence(int index, ModbusCommand& data) {
+        VFDProtocol::response_parser H2AProtocol::initialization_sequence(int index, ModbusCommand& data) {
             if (index == -1) {
                 data.tx_length = 6;
                 data.rx_length = 8;
@@ -69,7 +70,7 @@ namespace Spindles {
 
                 //  Recv: 01 03 00 04 5D C0 03 F6
                 //                    -- -- = 24000 (val #1)
-                return [](const uint8_t* response, VFDSpindle* vfd, VFDDetail* detail) -> bool {
+                return [](const uint8_t* response, VFDSpindle* vfd, VFDProtocol* detail) -> bool {
                     uint16_t maxRPM = (uint16_t(response[4]) << 8) | uint16_t(response[5]);
 
                     if (vfd->_speeds.size() == 0) {
@@ -90,7 +91,7 @@ namespace Spindles {
             }
         }
 
-        VFDDetail::response_parser H2AProtocol::get_current_speed(ModbusCommand& data) {
+        VFDProtocol::response_parser H2AProtocol::get_current_speed(ModbusCommand& data) {
             data.tx_length = 6;
             data.rx_length = 8;
 
@@ -103,13 +104,13 @@ namespace Spindles {
 
             //  Recv: 01 03 0004 095D 0000
             //                   ---- = 2397 (val #1)
-            return [](const uint8_t* response, VFDSpindle* vfd, VFDDetail* detail) -> bool {
+            return [](const uint8_t* response, VFDSpindle* vfd, VFDProtocol* detail) -> bool {
                 vfd->_sync_dev_speed = (uint16_t(response[4]) << 8) | uint16_t(response[5]);
                 return true;
             };
         }
 
-        VFDDetail::response_parser H2AProtocol::get_current_direction(ModbusCommand& data) {
+        VFDProtocol::response_parser H2AProtocol::get_current_direction(ModbusCommand& data) {
             data.tx_length = 6;
             data.rx_length = 6;
 
@@ -124,7 +125,7 @@ namespace Spindles {
             //                      ----- status
 
             // TODO: What are we going to do with this? Update vfd state?
-            return [](const uint8_t* response, VFDSpindle* vfd, VFDDetail* detail) -> bool { return true; };
+            return [](const uint8_t* response, VFDSpindle* vfd, VFDProtocol* detail) -> bool { return true; };
         }
 
         // Configuration registration
