@@ -20,11 +20,12 @@
 */
 #include "VFDSpindle.h"
 
-#include "src/Machine/MachineConfig.h"
-#include "src/MotionControl.h"  // mc_critical
-#include "src/Protocol.h"       // rtAlarm
-#include "src/Report.h"         // hex message
-#include "src/Configuration/HandlerType.h"
+#include "../Machine/MachineConfig.h"
+#include "../MotionControl.h"  // mc_critical
+#include "../Protocol.h"       // rtAlarm
+#include "../Report.h"         // hex message
+#include "../Configuration/HandlerType.h"
+#include "../Platform.h"
 
 #include <freertos/task.h>
 #include <freertos/queue.h>
@@ -37,16 +38,16 @@ const int        VFD_RS485_POLL_RATE  = 250;                                    
 const TickType_t response_ticks       = RESPONSE_WAIT_MS / portTICK_PERIOD_MS;  // in milliseconds between commands
 
 namespace Spindles {
-    QueueHandle_t VFD::vfd_cmd_queue     = nullptr;
-    TaskHandle_t  VFD::vfd_cmdTaskHandle = nullptr;
+    QueueHandle_t VFDDetail::vfd_cmd_queue     = nullptr;
+    TaskHandle_t  VFDDetail::vfd_cmdTaskHandle = nullptr;
 
-    void VFD::reportParsingErrors(ModbusCommand cmd, uint8_t* rx_message, size_t read_length) {
+    void VFDDetail::reportParsingErrors(ModbusCommand cmd, uint8_t* rx_message, size_t read_length) {
 #ifdef DEBUG_VFD
         hex_msg(cmd.msg, "RS485 Tx: ", cmd.tx_length);
         hex_msg(rx_message, "RS485 Rx: ", read_length);
 #endif
     }
-    void VFD::reportCmdErrors(ModbusCommand cmd, uint8_t* rx_message, size_t read_length, uint8_t id) {
+    void VFDDetail::reportCmdErrors(ModbusCommand cmd, uint8_t* rx_message, size_t read_length, uint8_t id) {
 #ifdef DEBUG_VFD
         hex_msg(cmd.msg, "RS485 Tx: ", cmd.tx_length);
         hex_msg(rx_message, "RS485 Rx: ", read_length);
@@ -66,22 +67,23 @@ namespace Spindles {
     }
 
     // The communications task
-    void VFD::vfd_cmd_task(void* pvParameters) {
+    void VFDDetail::vfd_cmd_task(void* pvParameters) {
         static bool unresponsive = false;  // to pop off a message once each time it becomes unresponsive
         static int  pollidx      = -1;
 
-        VFD*          instance = static_cast<VFD*>(pvParameters);
+        VFDSpindle*   instance = static_cast<VFDSpindle*>(pvParameters);
+        auto          impl     = instance->detail_;
         auto&         uart     = *instance->_uart;
         ModbusCommand next_cmd;
         uint8_t       rx_message[VFD_RS485_MAX_MSG_SIZE];
-        bool          safetyPollingEnabled = instance->safety_polling();
+        bool          safetyPollingEnabled = impl->safety_polling();
 
         for (; true; delay_ms(VFD_RS485_POLL_RATE)) {
             std::atomic_thread_fence(std::memory_order::memory_order_seq_cst);  // read fence for settings
             response_parser parser = nullptr;
 
             // First check if we should ask the VFD for the speed parameters as part of the initialization.
-            if (pollidx < 0 && (parser = instance->initialization_sequence(pollidx, next_cmd)) != nullptr) {
+            if (pollidx < 0 && (parser = impl->initialization_sequence(pollidx, next_cmd)) != nullptr) {
             } else {
                 pollidx = 1;  // Done with initialization. Main sequence.
             }
@@ -93,7 +95,7 @@ namespace Spindles {
                 if (xQueueReceive(vfd_cmd_queue, &action, 0)) {
                     switch (action.action) {
                         case actionSetSpeed:
-                            if (!instance->prepareSetSpeedCommand(action.arg, next_cmd)) {
+                            if (!impl->prepareSetSpeedCommand(action.arg, next_cmd, instance)) {
                                 // prepareSetSpeedCommand() can return false if the speed
                                 // change is unnecessary - already at that speed.
                                 // In that case we just discard the command.
@@ -103,7 +105,7 @@ namespace Spindles {
                             break;
                         case actionSetMode:
                             log_debug("vfd_cmd_task mode:" << action.action);
-                            if (!instance->prepareSetModeCommand(SpindleState(action.arg), next_cmd)) {
+                            if (!impl->prepareSetModeCommand(SpindleState(action.arg), next_cmd, instance)) {
                                 continue;  // main loop
                             }
                             next_cmd.critical = action.critical;
@@ -116,18 +118,18 @@ namespace Spindles {
                     // We poll in a cycle. Note that the switch will fall through unless we encounter a hit.
                     // The weakest form here is 'get_status_ok' which should be implemented if the rest fails.
                     if (instance->_syncing) {
-                        parser = instance->get_current_speed(next_cmd);
+                        parser = impl->get_current_speed(next_cmd);
                     } else if (safetyPollingEnabled) {
                         switch (pollidx) {
                             case 1:
-                                parser = instance->get_current_speed(next_cmd);
+                                parser = impl->get_current_speed(next_cmd);
                                 if (parser) {
                                     pollidx = 2;
                                     break;
                                 }
                                 // fall through if get_current_speed did not return a parser
                             case 2:
-                                parser = instance->get_current_direction(next_cmd);
+                                parser = impl->get_current_direction(next_cmd);
                                 if (parser) {
                                     pollidx = 3;
                                     break;
@@ -135,7 +137,7 @@ namespace Spindles {
                                 // fall through if get_current_direction did not return a parser
                             case 3:
                             default:
-                                parser  = instance->get_status_ok(next_cmd);
+                                parser  = impl->get_status_ok(next_cmd);
                                 pollidx = 1;
 
                                 // we could complete this in case parser == nullptr with some ifs, but let's
@@ -209,7 +211,7 @@ namespace Spindles {
 
                     // Should we parse this?
                     if (parser != nullptr) {
-                        if (parser(rx_message, instance)) {
+                        if (parser(rx_message, instance, impl)) {
                             // If we're initializing, move to the next initialization command:
                             if (pollidx < 0) {
                                 --pollidx;
@@ -254,7 +256,7 @@ namespace Spindles {
 
     // ================== Class methods ==================================
 
-    void VFD::init() {
+    void VFDSpindle::init() {
         _sync_dev_speed = 0;
         _syncing        = false;
 
@@ -283,14 +285,14 @@ namespace Spindles {
         _current_state = SpindleState::Disable;
 
         // Initialization is complete, so now it's okay to run the queue task:
-        if (!vfd_cmd_queue) {  // init can happen many times, we only want to start one task
-            vfd_cmd_queue = xQueueCreate(VFD_RS485_QUEUE_SIZE, sizeof(VFDaction));
-            xTaskCreatePinnedToCore(vfd_cmd_task,         // task
-                                    "vfd_cmdTaskHandle",  // name for task
-                                    2048,                 // size of task stack
-                                    this,                 // parameters
-                                    1,                    // priority
-                                    &vfd_cmdTaskHandle,
+        if (!VFDDetail::vfd_cmd_queue) {  // init can happen many times, we only want to start one task
+            VFDDetail::vfd_cmd_queue = xQueueCreate(VFD_RS485_QUEUE_SIZE, sizeof(VFDDetail::VFDaction));
+            xTaskCreatePinnedToCore(VFDDetail::vfd_cmd_task,  // task
+                                    "vfd_cmdTaskHandle",      // name for task
+                                    2048,                     // size of task stack
+                                    this,                     // parameters
+                                    1,                        // priority
+                                    &VFDDetail::vfd_cmdTaskHandle,
                                     SUPPORT_TASK_CORE  // core
             );
         }
@@ -301,11 +303,9 @@ namespace Spindles {
         set_mode(SpindleState::Disable, true);
     }
 
-    void VFD::config_message() {
-        _uart->config_message(name(), " Spindle ");
-    }
+    void VFDSpindle::config_message() { _uart->config_message(name(), " Spindle "); }
 
-    void VFD::setState(SpindleState state, SpindleSpeed speed) {
+    void VFDSpindle::setState(SpindleState state, SpindleSpeed speed) {
         log_debug("VFD setState:" << uint8_t(state) << " SpindleSpeed:" << speed);
         if (sys.abort) {
             return;  // Block during abort.
@@ -328,7 +328,7 @@ namespace Spindles {
                 setSpeed(dev_speed);
             }
         }
-        if (use_delay_settings()) {
+        if (detail_->use_delay_settings()) {
             spindleDelay(state, speed);
         } else {
             // _sync_dev_speed is set by a callback that handles
@@ -380,7 +380,7 @@ namespace Spindles {
         //        }
     }
 
-    bool VFD::prepareSetModeCommand(SpindleState mode, ModbusCommand& data) {
+    bool VFDDetail::prepareSetModeCommand(SpindleState mode, ModbusCommand& data, VFDSpindle* spindle) {
         // Do variant-specific command preparation
         direction_command(mode, data);
 
@@ -390,59 +390,59 @@ namespace Spindles {
             }
         }
 
-        _current_state = mode;
+        spindle->_current_state = mode;
         return true;
     }
 
-    void VFD::set_mode(SpindleState mode, bool critical) {
+    void VFDSpindle::set_mode(SpindleState mode, bool critical) {
         _last_override_value = sys.spindle_speed_ovr;  // sync these on mode changes
-        if (vfd_cmd_queue) {
-            VFDaction action;
-            action.action   = actionSetMode;
+        if (VFDDetail::vfd_cmd_queue) {
+            VFDDetail::VFDaction action;
+            action.action   = VFDDetail::actionSetMode;
             action.arg      = uint32_t(mode);
             action.critical = critical;
-            if (xQueueSend(vfd_cmd_queue, &action, 0) != pdTRUE) {
+            if (xQueueSend(VFDDetail::vfd_cmd_queue, &action, 0) != pdTRUE) {
                 log_info("VFD Queue Full");
             }
         }
     }
 
-    void IRAM_ATTR VFD::setSpeedfromISR(uint32_t dev_speed) {
+    void IRAM_ATTR VFDSpindle::setSpeedfromISR(uint32_t dev_speed) {
         if (_current_dev_speed == dev_speed || _last_speed == dev_speed) {
             return;
         }
 
         _last_speed = dev_speed;
 
-        if (vfd_cmd_queue) {
-            VFDaction action;
-            action.action   = actionSetSpeed;
+        if (VFDDetail::vfd_cmd_queue) {
+            VFDDetail::VFDaction action;
+            action.action   = VFDDetail::actionSetSpeed;
             action.arg      = dev_speed;
             action.critical = (dev_speed == 0);
             // Ignore errors because reporting is not safe from an ISR.
             // Perhaps set a flag instead?
-            xQueueSendFromISR(vfd_cmd_queue, &action, 0);
+            xQueueSendFromISR(VFDDetail::vfd_cmd_queue, &action, 0);
         }
     }
 
-    void VFD::setSpeed(uint32_t dev_speed) {
-        if (vfd_cmd_queue) {
-            VFDaction action;
-            action.action   = actionSetSpeed;
+    void VFDSpindle::setSpeed(uint32_t dev_speed) {
+        if (VFDDetail::vfd_cmd_queue) {
+            VFDDetail::VFDaction action;
+            action.action   = VFDDetail::actionSetSpeed;
             action.arg      = dev_speed;
             action.critical = dev_speed == 0;
-            if (xQueueSend(vfd_cmd_queue, &action, 0) != pdTRUE) {
+            if (xQueueSend(VFDDetail::vfd_cmd_queue, &action, 0) != pdTRUE) {
                 log_info("VFD Queue Full");
             }
         }
     }
 
-    bool VFD::prepareSetSpeedCommand(uint32_t speed, ModbusCommand& data) {
-        log_debug("prep speed " << speed << " curr " << _current_dev_speed);
-        if (speed == _current_dev_speed) {  // prevent setting same speed twice
+    bool VFDDetail::prepareSetSpeedCommand(uint32_t speed, ModbusCommand& data, VFDSpindle* spindle) {
+        log_debug("prep speed " << speed << " curr " << spindle->_current_dev_speed);
+        if (speed == spindle->_current_dev_speed) {  // prevent setting same speed twice
             return false;
         }
-        _current_dev_speed = speed;
+        spindle->_current_dev_speed = speed;
 
 #ifdef DEBUG_VFD_ALL
         log_debug("Setting spindle speed to:" << int(speed));
@@ -452,7 +452,7 @@ namespace Spindles {
 
         // Sometimes sync_dev_speed is retained between different set_speed_command's. We don't want that - we want
         // spindle sync to kick in after we set the speed. This forces that.
-        _sync_dev_speed = UINT32_MAX;
+        spindle->_sync_dev_speed = UINT32_MAX;
 
         return true;
     }
@@ -461,7 +461,7 @@ namespace Spindles {
     // It then added the CRC to those last 2 bytes
     // full_msg_len This is the length of the message including the 2 crc bytes
     // Source: https://ctlsys.com/support/how_to_compute_the_modbus_rtu_message_crc/
-    uint16_t VFD::ModRTU_CRC(uint8_t* buf, int msg_len) {
+    uint16_t VFDDetail::ModRTU_CRC(uint8_t* buf, int msg_len) {
         uint16_t crc = 0xFFFF;
         for (int pos = 0; pos < msg_len; pos++) {
             crc ^= uint16_t(buf[pos]);  // XOR byte into least sig. byte of crc.
@@ -478,12 +478,13 @@ namespace Spindles {
 
         return crc;
     }
-    void VFD::validate() {
+
+    void VFDSpindle::validate() {
         Spindle::validate();
         Assert(_uart != nullptr || _uart_num != -1, "VFD: missing UART configuration");
     }
 
-    void VFD::group(Configuration::HandlerBase& handler) {
+    void VFDSpindle::group(Configuration::HandlerBase& handler) {
         if (handler.handlerType() == Configuration::HandlerType::Generator) {
             if (_uart_num == -1) {
                 handler.section("uart", _uart, 1);
