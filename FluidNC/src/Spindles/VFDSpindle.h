@@ -104,7 +104,7 @@ namespace Spindles {
         volatile bool _syncing;
 
     public:
-        VFDSpindle(const char* name) : Spindle(name) {}
+        VFDSpindle(const char* name, VFDDetail* detail) : Spindle(name), detail_(detail) {}
         VFDSpindle(const VFDSpindle&) = delete;
         VFDSpindle(VFDSpindle&&)      = delete;
         VFDSpindle& operator=(const VFDSpindle&) = delete;

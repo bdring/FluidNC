@@ -129,7 +129,7 @@ namespace Spindles {
 
         // Configuration registration
         namespace {
-            SpindleFactory::InstanceBuilder<H2A> registration("H2A");
+            SpindleFactory::DependentInstanceBuilder<VFDSpindle, H2A> registration("H2A");
         }
     }
 }

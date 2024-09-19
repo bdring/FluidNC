@@ -172,7 +172,7 @@ namespace Spindles {
 
         // Configuration registration
         namespace {
-            SpindleFactory::InstanceBuilder<H100Spindle> registration("H100");
+            SpindleFactory::DependentInstanceBuilder<VFDSpindle, H100Spindle> registration("H100");
         }
     }
 }

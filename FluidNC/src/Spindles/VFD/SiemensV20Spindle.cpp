@@ -227,7 +227,7 @@ namespace Spindles {
 
         // Configuration registration
         namespace {
-            SpindleFactory::InstanceBuilder<SiemensV20> registration("SiemensV20");
+            SpindleFactory::DependentInstanceBuilder<VFDSpindle, SiemensV20> registration("SiemensV20");
         }
     }
 }

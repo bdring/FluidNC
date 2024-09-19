@@ -259,7 +259,7 @@ namespace Spindles {
 
         // Configuration registration
         namespace {
-            SpindleFactory::InstanceBuilder<NowForever> registration("NowForever");
+            SpindleFactory::DependentInstanceBuilder<VFDSpindle, NowForever> registration("NowForever");
         }
     }
 }

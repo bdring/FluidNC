@@ -160,7 +160,7 @@ namespace Spindles {
             data.msg[10] = spindle.speed >> 8;
         }
         namespace {
-            SpindleFactory::InstanceBuilder<DanfossVLT2800> registration("DanfossVLT2800");
+            SpindleFactory::DependentInstanceBuilder<VFDSpindle, DanfossVLT2800> registration("DanfossVLT2800");
         }
     }
 }

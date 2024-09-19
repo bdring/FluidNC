@@ -391,7 +391,7 @@ namespace Spindles {
 
         // Configuration registration
         namespace {
-            SpindleFactory::InstanceBuilder<Huanyang> registration("Huanyang");
+            SpindleFactory::DependentInstanceBuilder<VFDSpindle, Huanyang> registration("Huanyang");
         }
     }
 }

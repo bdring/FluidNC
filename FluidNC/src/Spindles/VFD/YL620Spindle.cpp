@@ -223,7 +223,7 @@ namespace Spindles {
 
         // Configuration registration
         namespace {
-            SpindleFactory::InstanceBuilder<YL620> registration("YL620");
+            SpindleFactory::DependentInstanceBuilder<VFDSpindle, YL620> registration("YL620");
         }
     }
 }
