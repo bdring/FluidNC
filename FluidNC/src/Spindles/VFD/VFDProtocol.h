@@ -51,6 +51,14 @@ namespace Spindles {
                 uint32_t      arg;
             };
 
+            // Careful observers will notice that these *shouldn't* be static, but they are. The reason is 
+            // hard to track down. In the spindle class, you can find: 
+            //
+            // 'virtual void init() = 0;  // not in constructor because this also gets called when $$ settings change'
+            // 
+            // With init being called multiple times, static suddenly makes more sense - especially since there is
+            // no de-init. Oh well...
+
             static QueueHandle_t vfd_cmd_queue;
             static TaskHandle_t  vfd_cmdTaskHandle;
             static void          vfd_cmd_task(void* pvParameters);
