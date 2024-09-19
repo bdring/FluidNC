@@ -8,7 +8,7 @@
 
 namespace Spindles {
     namespace VFD {
-        class Huanyang : public VFDDetail {
+        class HuanyangProtocol : public VFDDetail {
         private:
             int reg = 0;
 

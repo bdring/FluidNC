@@ -11,13 +11,13 @@
     Remove power before changing bits.
 */
 
-#include "H100Spindle.h"
+#include "H100Protocol.h"
 
 #include <algorithm>  // std::max
 
 namespace Spindles {
     namespace VFD {
-        void H100Spindle::direction_command(SpindleState mode, ModbusCommand& data) {
+        void H100Protocol::direction_command(SpindleState mode, ModbusCommand& data) {
             // NOTE: data length is excluding the CRC16 checksum.
             data.tx_length = 6;
             data.rx_length = 6;
@@ -45,7 +45,7 @@ namespace Spindles {
             }
         }
 
-        void H100Spindle::set_speed_command(uint32_t dev_speed, ModbusCommand& data) {
+        void H100Protocol::set_speed_command(uint32_t dev_speed, ModbusCommand& data) {
             data.tx_length = 6;
             data.rx_length = 6;
 
@@ -69,7 +69,7 @@ namespace Spindles {
         }
 
         // This gets data from the VFD. It does not set any values
-        VFDDetail::response_parser H100Spindle::initialization_sequence(int index, ModbusCommand& data) {
+        VFDDetail::response_parser H100Protocol::initialization_sequence(int index, ModbusCommand& data) {
             // NOTE: data length is excluding the CRC16 checksum.
             data.tx_length = 6;
             data.rx_length = 5;
@@ -98,7 +98,7 @@ namespace Spindles {
                     log_info("VFD: Max speed:" << (value / 10 * 60) << "rpm");
 
                     // Set current RPM value? Somewhere?
-                    auto h100           = static_cast<H100Spindle*>(detail);
+                    auto h100           = static_cast<H100Protocol*>(detail);
                     h100->_maxFrequency = value;
 
                     return true;
@@ -117,7 +117,7 @@ namespace Spindles {
                     log_info("VFD: Min speed:" << (value / 10 * 60) << "rpm");
 
                     // Set current RPM value? Somewhere?
-                    auto h100           = static_cast<H100Spindle*>(detail);
+                    auto h100           = static_cast<H100Protocol*>(detail);
                     h100->_minFrequency = value;
 
                     h100->updateRPM(vfd);
@@ -130,7 +130,7 @@ namespace Spindles {
             return nullptr;
         }
 
-        void H100Spindle::updateRPM(VFDSpindle* vfd) {
+        void H100Protocol::updateRPM(VFDSpindle* vfd) {
             if (_minFrequency > _maxFrequency) {
                 _minFrequency = _maxFrequency;
             }
@@ -147,7 +147,7 @@ namespace Spindles {
             log_info("VFD: VFD settings read: Freq range(" << _minFrequency << " , " << _maxFrequency << ")]");
         }
 
-        VFDDetail::response_parser H100Spindle::get_current_speed(ModbusCommand& data) {
+        VFDDetail::response_parser H100Protocol::get_current_speed(ModbusCommand& data) {
             // NOTE: data length is excluding the CRC16 checksum.
             // [01] [04] [0000] [0002] -- output frequency
             data.tx_length = 6;
@@ -172,7 +172,7 @@ namespace Spindles {
 
         // Configuration registration
         namespace {
-            SpindleFactory::DependentInstanceBuilder<VFDSpindle, H100Spindle> registration("H100");
+            SpindleFactory::DependentInstanceBuilder<VFDSpindle, H100Protocol> registration("H100");
         }
     }
 }

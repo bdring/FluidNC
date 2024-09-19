@@ -10,7 +10,7 @@
     General setup of the VFD is covered in https://files.danfoss.com/download/Drives/doc_B_1_MG28E902.pdf
 */
 
-#include "DanfossSpindle.h"
+#include "DanfossVLT2800Protocol.h"
 #include "../../Platform.h"
 
 #include <algorithm>
@@ -23,7 +23,7 @@
 
 namespace Spindles {
     namespace VFD {
-        void DanfossVLT2800::set_speed_command(uint32_t dev_speed, VFDDetail::ModbusCommand& data) {
+        void DanfossVLT2800Protocol::set_speed_command(uint32_t dev_speed, VFDDetail::ModbusCommand& data) {
             // Cache received speed
             cachedSpindleState.speed = dev_speed;
 
@@ -31,7 +31,7 @@ namespace Spindles {
             writeVFDState(cachedSpindleState, data);
         }
 
-        void DanfossVLT2800::direction_command(SpindleState mode, VFDDetail::ModbusCommand& data) {
+        void DanfossVLT2800Protocol::direction_command(SpindleState mode, VFDDetail::ModbusCommand& data) {
             // Cache received direction
             cachedSpindleState.state = mode;
 
@@ -39,7 +39,7 @@ namespace Spindles {
             writeVFDState(cachedSpindleState, data);
         }
 
-        VFDDetail::response_parser DanfossVLT2800::get_current_speed(VFDDetail::ModbusCommand& data) {
+        VFDDetail::response_parser DanfossVLT2800Protocol::get_current_speed(VFDDetail::ModbusCommand& data) {
             data.tx_length = 6;      // including automatically set client_id, excluding crc
             data.rx_length = 3 + 2;  // excluding crc
 
@@ -61,7 +61,7 @@ namespace Spindles {
             };
         }
 
-        VFDDetail::response_parser DanfossVLT2800::get_status_ok_and_init(VFDDetail::ModbusCommand& data, bool init) {
+        VFDDetail::response_parser DanfossVLT2800Protocol::get_status_ok_and_init(VFDDetail::ModbusCommand& data, bool init) {
             data.tx_length = 6;  // including automatically set client_id, excluding crc
             data.rx_length = 5;  // excluding crc
 
@@ -76,7 +76,7 @@ namespace Spindles {
                 return [](const uint8_t* response, VFDSpindle* vfd, VFDDetail* detail) -> bool {
                     // The VFD is responsive. Initialize speeds.
 
-                    auto df = static_cast<DanfossVLT2800*>(detail);
+                    auto df = static_cast<DanfossVLT2800Protocol*>(detail);
                     vfd->setupSpeeds(df->_maxFrequency);
 
                     return true;
@@ -110,7 +110,7 @@ namespace Spindles {
 
         // The VLT2800 expects speed, direction and enable to be sent together at all times.
         // This function uses a combined cached spindle state that includes the speed and sends it to the VFD.
-        void DanfossVLT2800::writeVFDState(combinedSpindleState spindle, ModbusCommand& data) {
+        void DanfossVLT2800Protocol::writeVFDState(combinedSpindleState spindle, ModbusCommand& data) {
             SpindleControl cword;
             cword.flags.coasting_stop    = 1;
             cword.flags.dc_braking_stop  = 1;
@@ -160,7 +160,7 @@ namespace Spindles {
             data.msg[10] = spindle.speed >> 8;
         }
         namespace {
-            SpindleFactory::DependentInstanceBuilder<VFDSpindle, DanfossVLT2800> registration("DanfossVLT2800");
+            SpindleFactory::DependentInstanceBuilder<VFDSpindle, DanfossVLT2800Protocol> registration("DanfossVLT2800");
         }
     }
 }

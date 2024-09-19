@@ -15,11 +15,11 @@
     managed to piece together.
 */
 
-#include "H2ASpindle.h"
+#include "H2AProtocol.h"
 
 namespace Spindles {
     namespace VFD {
-        void H2A::direction_command(SpindleState mode, ModbusCommand& data) {
+        void H2AProtocol::direction_command(SpindleState mode, ModbusCommand& data) {
             data.tx_length = 6;
             data.rx_length = 6;
 
@@ -30,7 +30,7 @@ namespace Spindles {
             data.msg[5] = (mode == SpindleState::Ccw) ? 0x02 : (mode == SpindleState::Cw ? 0x01 : 0x06);
         }
 
-        void H2A::set_speed_command(uint32_t dev_speed, ModbusCommand& data) {
+        void H2AProtocol::set_speed_command(uint32_t dev_speed, ModbusCommand& data) {
             // NOTE: H2A inverters are a-symmetrical. You set the speed in 1/100
             // percentages, and you get the speed in RPM. So, we need to convert
             // the RPM using maxRPM to a percentage. See MD document for details.
@@ -55,7 +55,7 @@ namespace Spindles {
             data.msg[5] = speed & 0xFF;
         }
 
-        VFDDetail::response_parser H2A::initialization_sequence(int index, ModbusCommand& data) {
+        VFDDetail::response_parser H2AProtocol::initialization_sequence(int index, ModbusCommand& data) {
             if (index == -1) {
                 data.tx_length = 6;
                 data.rx_length = 8;
@@ -79,7 +79,7 @@ namespace Spindles {
                     vfd->setupSpeeds(maxRPM);  // The speed is given directly in RPM
                     vfd->_slop = 300;          // 300 RPM
 
-                    static_cast<H2A*>(detail)->_maxRPM = uint32_t(maxRPM);
+                    static_cast<H2AProtocol*>(detail)->_maxRPM = uint32_t(maxRPM);
 
                     log_info("H2A spindle initialized at " << maxRPM << " RPM");
 
@@ -90,7 +90,7 @@ namespace Spindles {
             }
         }
 
-        VFDDetail::response_parser H2A::get_current_speed(ModbusCommand& data) {
+        VFDDetail::response_parser H2AProtocol::get_current_speed(ModbusCommand& data) {
             data.tx_length = 6;
             data.rx_length = 8;
 
@@ -109,7 +109,7 @@ namespace Spindles {
             };
         }
 
-        VFDDetail::response_parser H2A::get_current_direction(ModbusCommand& data) {
+        VFDDetail::response_parser H2AProtocol::get_current_direction(ModbusCommand& data) {
             data.tx_length = 6;
             data.rx_length = 6;
 
@@ -129,7 +129,7 @@ namespace Spindles {
 
         // Configuration registration
         namespace {
-            SpindleFactory::DependentInstanceBuilder<VFDSpindle, H2A> registration("H2A");
+            SpindleFactory::DependentInstanceBuilder<VFDSpindle, H2AProtocol> registration("H2A");
         }
     }
 }

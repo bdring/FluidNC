@@ -136,7 +136,7 @@
     If the frequency is -say- 25 Hz, Huanyang wants us to send 2500 (eg. 25.00 Hz).
 */
 
-#include "HuanyangSpindle.h"
+#include "HuanyangProtocol.h"
 
 #include <algorithm>  // std::max
 
@@ -145,7 +145,7 @@ namespace Spindles {
         // Baud rate is set in the PD164 setting.  If it is not 9600, add, for example,
         // _baudrate = 19200;
 
-        void Huanyang::direction_command(SpindleState mode, ModbusCommand& data) {
+        void HuanyangProtocol::direction_command(SpindleState mode, ModbusCommand& data) {
             // NOTE: data length is excluding the CRC16 checksum.
             data.tx_length = 4;
             data.rx_length = 4;
@@ -167,7 +167,7 @@ namespace Spindles {
             }
         }
 
-        void Huanyang::set_speed_command(uint32_t dev_speed, ModbusCommand& data) {
+        void HuanyangProtocol::set_speed_command(uint32_t dev_speed, ModbusCommand& data) {
             // The units for setting Huanyang speed are Hz * 100.  For a 2-pole motor,
             // RPM is Hz * 60 sec/min.  The maximum possible speed is 400 Hz so
             // 400 * 60 = 24000 RPM.
@@ -208,7 +208,7 @@ namespace Spindles {
         }
 
         // This gets data from the VFS. It does not set any values
-        VFDDetail::response_parser Huanyang::initialization_sequence(int index, ModbusCommand& data) {
+        VFDDetail::response_parser HuanyangProtocol::initialization_sequence(int index, ModbusCommand& data) {
             // NOTE: data length is excluding the CRC16 checksum.
             data.tx_length = 6;
             data.rx_length = 6;
@@ -228,7 +228,7 @@ namespace Spindles {
                         uint16_t value = (response[4] << 8) | response[5];
 
                         // Set current RPM value? Somewhere?
-                        auto huanyang           = static_cast<Huanyang*>(detail);
+                        auto huanyang           = static_cast<HuanyangProtocol*>(detail);
                         huanyang->_maxFrequency = value;
                         return true;
                     };
@@ -240,7 +240,7 @@ namespace Spindles {
                         uint16_t value = (response[4] << 8) | response[5];
 
                         // Set current RPM value? Somewhere?
-                        auto huanyang           = static_cast<Huanyang*>(detail);
+                        auto huanyang           = static_cast<HuanyangProtocol*>(detail);
                         huanyang->_minFrequency = value;
 
                         log_info("Huanyang PD0011, PD005 Freq range ("
@@ -257,7 +257,7 @@ namespace Spindles {
                         uint16_t value = (response[4] << 8) | response[5];
 
                         // Set current RPM value? Somewhere?
-                        auto huanyang           = static_cast<Huanyang*>(detail);
+                        auto huanyang           = static_cast<HuanyangProtocol*>(detail);
                         huanyang->_maxRpmAt50Hz = value;
 
                         log_info("Huanyang PD144 Rated RPM @ 50Hz:" << huanyang->_maxRpmAt50Hz);
@@ -279,7 +279,7 @@ namespace Spindles {
 
                     return [](const uint8_t* response, VFDSpindle* vfd, VFDDetail* detail) -> bool {
                         uint8_t value    = response[4];  // Single byte response.
-                        auto    huanyang = static_cast<Huanyang*>(detail);
+                        auto    huanyang = static_cast<HuanyangProtocol*>(detail);
                         // Sanity check. We expect something like 2 or 4 poles.
                         if (value <= 4 && value >= 2) {
                             // Set current RPM value? Somewhere?
@@ -303,7 +303,7 @@ namespace Spindles {
                     return [](const uint8_t* response, VFDSpindle* vfd, VFDDetail* detail) -> bool {
                         uint16_t value = (response[4] << 8) | response[5];
 
-                        auto huanyang = static_cast<Huanyang*>(detail);
+                        auto huanyang = static_cast<HuanyangProtocol*>(detail);
                         log_info("Huanyang PD014 Accel:" << float(value) / 10.0);
                         return true;
                     };
@@ -314,7 +314,7 @@ namespace Spindles {
                     return [](const uint8_t* response, VFDSpindle* vfd, VFDDetail* detail) -> bool {
                         uint16_t value = (response[4] << 8) | response[5];
 
-                        auto huanyang = static_cast<Huanyang*>(detail);
+                        auto huanyang = static_cast<HuanyangProtocol*>(detail);
                         log_info("Huanyang PD015 Decel:" << float(value) / 10.0);
                         return true;
                     };
@@ -327,7 +327,7 @@ namespace Spindles {
             return nullptr;
         }
 
-        void Huanyang::updateRPM(VFDSpindle* vfd) {
+        void HuanyangProtocol::updateRPM(VFDSpindle* vfd) {
             /*
             PD005 = 400.00 ; max frequency the VFD will allow
             MaxRPM = PD005 * 60; but see PD176
@@ -348,7 +348,7 @@ namespace Spindles {
             vfd->_slop = std::max(_maxFrequency / 40, 1);
         }
 
-        VFDDetail::response_parser Huanyang::get_status_ok(ModbusCommand& data) {
+        VFDDetail::response_parser HuanyangProtocol::get_status_ok(ModbusCommand& data) {
             // NOTE: data length is excluding the CRC16 checksum.
             data.tx_length = 6;
             data.rx_length = 6;
@@ -368,7 +368,7 @@ namespace Spindles {
             return [](const uint8_t* response, VFDSpindle* vfd, VFDDetail* detail) -> bool { return true; };
         }
 
-        VFDDetail::response_parser Huanyang::get_current_speed(ModbusCommand& data) {
+        VFDDetail::response_parser HuanyangProtocol::get_current_speed(ModbusCommand& data) {
             // NOTE: data length is excluding the CRC16 checksum.
             data.tx_length = 6;
             data.rx_length = 6;
@@ -391,7 +391,7 @@ namespace Spindles {
 
         // Configuration registration
         namespace {
-            SpindleFactory::DependentInstanceBuilder<VFDSpindle, Huanyang> registration("Huanyang");
+            SpindleFactory::DependentInstanceBuilder<VFDSpindle, HuanyangProtocol> registration("Huanyang");
         }
     }
 }

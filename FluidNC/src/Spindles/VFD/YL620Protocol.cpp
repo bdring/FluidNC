@@ -69,13 +69,13 @@
                         b11: reserved
 */
 
-#include "YL620Spindle.h"
+#include "YL620Protocol.h"
 
 #include <algorithm>
 
 namespace Spindles {
     namespace VFD {
-        void YL620::direction_command(SpindleState mode, ModbusCommand& data) {
+        void YL620Protocol::direction_command(SpindleState mode, ModbusCommand& data) {
             data.tx_length = 6;
             data.rx_length = 6;
 
@@ -98,7 +98,7 @@ namespace Spindles {
             }
         }
 
-        void YL620::set_speed_command(uint32_t speed, ModbusCommand& data) {
+        void YL620Protocol::set_speed_command(uint32_t speed, ModbusCommand& data) {
 #ifdef DEBUG_VFD
             log_debug("Setting VFD speed to " << speed);
 #endif
@@ -113,7 +113,7 @@ namespace Spindles {
             data.msg[5] = speed & 0xFF;
         }
 
-        VFDDetail::response_parser YL620::initialization_sequence(int index, ModbusCommand& data) {
+        VFDDetail::response_parser YL620Protocol::initialization_sequence(int index, ModbusCommand& data) {
             if (index == -1) {
                 data.tx_length = 6;
                 data.rx_length = 5;
@@ -127,7 +127,7 @@ namespace Spindles {
                 //  Recv: 01 03 02 03 E8 xx xx
                 //                 -- -- = 1000
                 return [](const uint8_t* response, VFDSpindle* vfd, VFDDetail* detail) -> bool {
-                    auto yl620           = static_cast<YL620*>(detail);
+                    auto yl620           = static_cast<YL620Protocol*>(detail);
                     yl620->_minFrequency = (uint16_t(response[3]) << 8) | uint16_t(response[4]);
 
 #ifdef DEBUG_VFD
@@ -149,7 +149,7 @@ namespace Spindles {
                 //  Recv: 01 03 02 0F A0 xx xx
                 //                 -- -- = 4000
                 return [](const uint8_t* response, VFDSpindle* vfd, VFDDetail* detail) -> bool {
-                    auto yl620           = static_cast<YL620*>(detail);
+                    auto yl620           = static_cast<YL620Protocol*>(detail);
                     yl620->_maxFrequency = (uint16_t(response[3]) << 8) | uint16_t(response[4]);
 
                     // frequency is in Hz * 10, so RPM is frequency * 60 / 10 = frequency * 6
@@ -180,7 +180,7 @@ namespace Spindles {
             }
         }
 
-        VFDDetail::response_parser YL620::get_current_speed(ModbusCommand& data) {
+        VFDDetail::response_parser YL620Protocol::get_current_speed(ModbusCommand& data) {
             data.tx_length = 6;
             data.rx_length = 5;
 
@@ -196,14 +196,14 @@ namespace Spindles {
             return [](const uint8_t* response, VFDSpindle* vfd, VFDDetail* detail) -> bool {
                 uint16_t freq = (uint16_t(response[3]) << 8) | uint16_t(response[4]);
 
-                auto yl620 = static_cast<YL620*>(detail);
+                auto yl620 = static_cast<YL620Protocol*>(detail);
 
                 vfd->_sync_dev_speed = freq;
                 return true;
             };
         }
 
-        VFDDetail::response_parser YL620::get_current_direction(ModbusCommand& data) {
+        VFDDetail::response_parser YL620Protocol::get_current_direction(ModbusCommand& data) {
             data.tx_length = 6;
             data.rx_length = 5;
 
@@ -223,7 +223,7 @@ namespace Spindles {
 
         // Configuration registration
         namespace {
-            SpindleFactory::DependentInstanceBuilder<VFDSpindle, YL620> registration("YL620");
+            SpindleFactory::DependentInstanceBuilder<VFDSpindle, YL620Protocol> registration("YL620");
         }
     }
 }

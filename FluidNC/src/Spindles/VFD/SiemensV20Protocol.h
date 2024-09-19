@@ -8,7 +8,7 @@
 
 namespace Spindles {
     namespace VFD {
-        class SiemensV20 : public VFDDetail {
+        class SiemensV20Protocol : public VFDDetail {
         protected:
             uint16_t _minFrequency = 0;    // PD011: frequency lower limit. Normally 0.
             uint16_t _maxFrequency = 400;  // PD005: max frequency the VFD will allow. Normally 400.

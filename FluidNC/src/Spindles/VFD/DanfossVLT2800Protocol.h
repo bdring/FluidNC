@@ -7,7 +7,7 @@
 
 namespace Spindles {
     namespace VFD {
-        class DanfossVLT2800 : public VFDDetail {
+        class DanfossVLT2800Protocol : public VFDDetail {
             union SpindleStatus {
                 struct {
                     bool control_ready : 1;   // bit 00 = 0: ""                        | Bit = 1: "Control ready"

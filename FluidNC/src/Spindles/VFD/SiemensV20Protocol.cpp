@@ -102,7 +102,7 @@ Take note that the serial interface use EVEN parity!
 
 */
 
-#include "SiemensV20Spindle.h"
+#include "SiemensV20Protocol.h"
 
 #include <algorithm>  // std::max
 
@@ -111,7 +111,7 @@ namespace Spindles {
         // Baud rate is set in the PD164 setting.  If it is not 9600, add, for example,
         // _baudrate = 19200;
 
-        void SiemensV20::direction_command(SpindleState mode, ModbusCommand& data) {
+        void SiemensV20Protocol::direction_command(SpindleState mode, ModbusCommand& data) {
             // NOTE: data length is excluding the CRC16 checksum.
             data.tx_length = 6;
             data.rx_length = 6;
@@ -137,7 +137,7 @@ namespace Spindles {
             }
         }
 
-        void SiemensV20::set_speed_command(uint32_t speed, ModbusCommand& data) {
+        void SiemensV20Protocol::set_speed_command(uint32_t speed, ModbusCommand& data) {
             // The units for setting SiemensV20 speed are Hz * 100.  For a 2-pole motor,
             // RPM is Hz * 60 sec/min.  The maximum possible speed is 400 Hz so
             // 400 * 60 = 24000 RPM.
@@ -167,7 +167,7 @@ namespace Spindles {
             data.msg[5] = ScaledFreq & 0xFF;
         }
 
-        VFDDetail::response_parser SiemensV20::initialization_sequence(int index, ModbusCommand& data) {
+        VFDDetail::response_parser SiemensV20Protocol::initialization_sequence(int index, ModbusCommand& data) {
             // NOTE: data length is excluding the CRC16 checksum.
             data.tx_length = 6;
             data.rx_length = 5;
@@ -184,7 +184,7 @@ namespace Spindles {
             The VFD does not have any noticeable registers to set this information up programmatically
             For now - it is user set in the software but is a typical setup
             */
-                auto siemens = static_cast<SiemensV20*>(detail);
+                auto siemens = static_cast<SiemensV20Protocol*>(detail);
 
                 if (siemens->_minFrequency > siemens->_maxFrequency) {
                     siemens->_minFrequency = siemens->_maxFrequency;
@@ -201,7 +201,7 @@ namespace Spindles {
             };
         }
 
-        VFDDetail::response_parser SiemensV20::get_current_speed(ModbusCommand& data) {
+        VFDDetail::response_parser SiemensV20Protocol::get_current_speed(ModbusCommand& data) {
             // NOTE: data length is excluding the CRC16 checksum.
             data.tx_length = 6;
             data.rx_length = 5;
@@ -214,7 +214,7 @@ namespace Spindles {
             data.msg[5] = 0x01;
 
             return [](const uint8_t* response, VFDSpindle* vfd, VFDDetail* detail) -> bool {
-                auto    siemensV20      = static_cast<SiemensV20*>(detail);
+                auto    siemensV20      = static_cast<SiemensV20Protocol*>(detail);
                 int16_t Scaledfrequency = ((response[3] << 8) | response[4]);
                 int16_t frequency       = float(Scaledfrequency) / (-1 * (siemensV20->_FreqScaler));
                 log_debug("VFD Measured Value " << int16_t(Scaledfrequency) << " Freq " << int16_t(frequency));
@@ -227,7 +227,7 @@ namespace Spindles {
 
         // Configuration registration
         namespace {
-            SpindleFactory::DependentInstanceBuilder<VFDSpindle, SiemensV20> registration("SiemensV20");
+            SpindleFactory::DependentInstanceBuilder<VFDSpindle, SiemensV20Protocol> registration("SiemensV20");
         }
     }
 }

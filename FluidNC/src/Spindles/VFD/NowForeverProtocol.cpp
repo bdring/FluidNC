@@ -1,8 +1,8 @@
-#include "NowForeverSpindle.h"
+#include "NowForeverProtocol.h"
 
 namespace Spindles {
     namespace VFD {
-        void NowForever::direction_command(SpindleState mode, ModbusCommand& data) {
+        void NowForeverProtocol::direction_command(SpindleState mode, ModbusCommand& data) {
             data.tx_length = 9;
             data.rx_length = 6;
 
@@ -45,7 +45,7 @@ namespace Spindles {
             }
         }
 
-        void NowForever::set_speed_command(uint32_t hz, ModbusCommand& data) {
+        void NowForeverProtocol::set_speed_command(uint32_t hz, ModbusCommand& data) {
             data.tx_length = 9;
             data.rx_length = 6;
 
@@ -67,7 +67,7 @@ namespace Spindles {
             log_debug("VFD: Set speed: " << hz / 100 << "hz or" << (hz * 60 / 100) << "rpm");
         }
 
-        VFDDetail::response_parser NowForever::initialization_sequence(int index, ModbusCommand& data) {
+        VFDDetail::response_parser NowForeverProtocol::initialization_sequence(int index, ModbusCommand& data) {
             if (index == -1) {
                 data.tx_length = 6;
                 data.rx_length = 7;
@@ -96,7 +96,7 @@ namespace Spindles {
                         return false;
                     }
 
-                    auto nowForever = static_cast<NowForever*>(detail);
+                    auto nowForever = static_cast<NowForeverProtocol*>(detail);
 
                     nowForever->_minFrequency = (uint16_t(response[5]) << 8) | uint16_t(response[6]);
                     nowForever->_maxFrequency = (uint16_t(response[3]) << 8) | uint16_t(response[4]);
@@ -115,7 +115,7 @@ namespace Spindles {
             return nullptr;
         }
 
-        void NowForever::updateRPM(VFDSpindle* spindle) {
+        void NowForeverProtocol::updateRPM(VFDSpindle* spindle) {
             if (_minFrequency > _maxFrequency) {
                 uint16_t tmp  = _minFrequency;
                 _minFrequency = _maxFrequency;
@@ -132,7 +132,7 @@ namespace Spindles {
             spindle->_slop = std::max(_maxFrequency / 400, 1);
         }
 
-        VFDDetail::response_parser NowForever::get_current_speed(ModbusCommand& data) {
+        VFDDetail::response_parser NowForeverProtocol::get_current_speed(ModbusCommand& data) {
             data.tx_length = 6;
             data.rx_length = 5;
 
@@ -168,7 +168,7 @@ namespace Spindles {
             };
         }
 
-        VFDDetail::response_parser NowForever::get_current_direction(ModbusCommand& data) {
+        VFDDetail::response_parser NowForeverProtocol::get_current_direction(ModbusCommand& data) {
             data.tx_length = 6;
             data.rx_length = 5;
 
@@ -219,7 +219,7 @@ namespace Spindles {
             };
         }
 
-        VFDDetail::response_parser NowForever::get_status_ok(ModbusCommand& data) {
+        VFDDetail::response_parser NowForeverProtocol::get_status_ok(ModbusCommand& data) {
             data.tx_length = 6;
             data.rx_length = 5;
 
@@ -259,7 +259,7 @@ namespace Spindles {
 
         // Configuration registration
         namespace {
-            SpindleFactory::DependentInstanceBuilder<VFDSpindle, NowForever> registration("NowForever");
+            SpindleFactory::DependentInstanceBuilder<VFDSpindle, NowForeverProtocol> registration("NowForever");
         }
     }
 }
