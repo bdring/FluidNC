@@ -386,7 +386,7 @@ namespace Spindles {
 
         if (mode == SpindleState::Disable) {
             if (!xQueueReset(vfd_cmd_queue)) {
-                log_info(name() << " spindle off, queue could not be reset");
+                log_info(spindle->name() << " spindle off, queue could not be reset");
             }
         }
 

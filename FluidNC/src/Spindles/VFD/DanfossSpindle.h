@@ -69,9 +69,6 @@ namespace Spindles {
 
             bool safety_polling() const override { return true; }
 
-        public:
-            DanfossVLT2800(const char* name) : VFDDetail(name) {}
-
         private:
             struct combinedSpindleState {
                 SpindleState state;

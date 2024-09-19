@@ -15,13 +15,16 @@
 namespace Spindles {
     extern Uart _uart;
 
-    class VFD;
+    class VFDSpindle;
 
     // VFDDetail resides in a separate class because it doesn't need to be in IRAM. This contains all the
     // VFD specific code, which is called from a separate task.
     class VFDDetail {
     public:
         using response_parser = bool (*)(const uint8_t* response, VFDSpindle* spindle, VFDDetail* detail);
+
+        static const int VFD_RS485_MAX_MSG_SIZE = 16;  // more than enough for a modbus message
+        static const int MAX_RETRIES            = 5;   // otherwise the spindle is marked 'unresponsive'
 
         struct ModbusCommand {
             bool critical;  // TODO SdB: change into `uint8_t critical : 1;`: We want more flags...
@@ -32,9 +35,6 @@ namespace Spindles {
         };
 
     protected:
-        static const int VFD_RS485_MAX_MSG_SIZE = 16;  // more than enough for a modbus message
-        static const int MAX_RETRIES            = 5;   // otherwise the spindle is marked 'unresponsive'
-
         // Enable spindown / spinup settings:
         virtual bool use_delay_settings() const { return true; }
 
