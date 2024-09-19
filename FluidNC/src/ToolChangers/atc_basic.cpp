@@ -77,7 +77,8 @@ namespace ATCs {
             
             if (_prev_tool > 0) {
                 log_debug("ATC: return tool");
-                move_to_tool_position(_prev_tool);
+                move_to_safe_z();
+                set_tool_position(_prev_tool);
                 _macro.addf(_toolreturn_macro._gcode.c_str()); // use macro with G91 movements or the _tc_tool_* variables to to return tool, operating the ATC using M62 & M63
                 _macro.addf(set_state._gcode.c_str()); // ensure the previous user macro didn't change modes
             }
@@ -85,7 +86,8 @@ namespace ATCs {
             if (new_tool > 0) {
                 log_debug("ATC: pickup tool");
                 //if this is the 1st pickup ever, we also probe the tool_setter_offset
-                move_to_tool_position(new_tool);
+                move_to_safe_z();
+                set_tool_position(new_tool);
                 _macro.addf(_toolpickup_macro._gcode.c_str()); // use macro with G91 movements or the _tc_tool_* variables to to pickup tool, operating the ATC using M62 & M63
                 _macro.addf(set_state._gcode.c_str()); // ensure the previous user macro didn't change modes
                 if (!_have_tool_setter_offset) {
@@ -96,6 +98,7 @@ namespace ATCs {
                     // TLO is simply the difference between the tool1 probe and the new tool probe.
                     _macro.addf("#<_my_tlo_z >=[#5063 - #<_ets_tool1_z>]");
                 }
+                _macro.addf("(print,ATC: New TLO #<_my_tlo_z>)");
                 _macro.addf("G43.1Z#<_my_tlo_z>");
             }
 
@@ -122,10 +125,8 @@ namespace ATCs {
         _macro.addf("G0 Z#<start_z>");
     }
 
-    void Basic_ATC::move_to_tool_position(uint8_t tool_index) {
+    void Basic_ATC::set_tool_position(uint8_t tool_index) {
         tool_index -= 1;
-        move_to_safe_z();
-        _macro.addf("G53 G0 X%0.3f Y%0.3f", _tool_mpos[tool_index][X_AXIS], _tool_mpos[tool_index][Y_AXIS]);
         _macro.addf("#<_tc_tool_x >=%0.3f", _tool_mpos[tool_index][X_AXIS]);
         _macro.addf("#<_tc_tool_y >=%0.3f", _tool_mpos[tool_index][Y_AXIS]);
         _macro.addf("#<_tc_tool_z >=%0.3f", _tool_mpos[tool_index][Z_AXIS]);
