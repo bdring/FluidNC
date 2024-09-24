@@ -10,6 +10,7 @@
 #include "SpindleDatatypes.h"
 
 #include <cstdint>
+#include <optional>
 
 typedef uint16_t gcodenum_t;
 
@@ -25,7 +26,9 @@ enum class Override : uint8_t {
 // and are similar/identical to other g-code interpreters by manufacturers (Haas,Fanuc,Mazak,etc).
 // NOTE: Modal group values must be sequential and starting from zero.
 
+// http://linuxcnc.org/docs/html/gcode/overview.html#gcode:modal-groups
 enum class ModalGroup : uint8_t {
+    // Table 5. G-code Modal Groups
     MG0  = 0,   // [G4,G10,G28,G28.1,G30,G30.1,G53,G92,G92.1] Non-modal
     MG1  = 1,   // [G0,G1,G2,G3,G38.2,G38.3,G38.4,G38.5,G80] Motion
     MG2  = 2,   // [G17,G18,G19] Plane selection
@@ -37,12 +40,14 @@ enum class ModalGroup : uint8_t {
     MG8  = 8,   // [G43.1,G49] Tool length offset
     MG12 = 9,   // [G54,G55,G56,G57,G58,G59] Coordinate system selection
     MG13 = 10,  // [G61] Control mode
+    // Table 6. M-code Modal Groups
     MM4  = 11,  // [M0,M1,M2,M30] Stopping
-    MM6  = 14,  // [M6] [M61] Tool change
-    MM7  = 12,  // [M3,M4,M5] Spindle turning
-    MM8  = 13,  // [M7,M8,M9] Coolant control
-    MM9  = 14,  // [M56] Override control
-    MM10 = 15,  // [M62, M63, M64, M65, M67, M68] User Defined http://linuxcnc.org/docs/html/gcode/overview.html#_modal_groups
+    MM5  = 12,  // [M62,M63,M64,M65,M66,M67,M68] Digital/analog output/input
+    MM6  = 13,  // [M6] [M61] Tool change
+    MM7  = 14,  // [M3,M4,M5] Spindle turning
+    MM8  = 15,  // [M7,M8,M9] Coolant control
+    MM9  = 16,  // [M56] Override control
+    MM10 = 17,  // [M100-M199] User Defined
 };
 
 // Command actions for within execution-type modal groups (motion, stopping, non-modal). Used
@@ -151,15 +156,25 @@ struct CoolantState {
 // Modal Group M8: Coolant control
 // Modal Group M9: Override control
 
-// Modal Group M10: User I/O control
+// Modal Group M5: User I/O control
 enum class IoControl : gcodenum_t {
     None                = 0,
     DigitalOnSync       = 1,  // M62
     DigitalOffSync      = 2,  // M63
     DigitalOnImmediate  = 3,  // M64
     DigitalOffImmediate = 4,  // M65
-    SetAnalogSync       = 5,  // M67
-    SetAnalogImmediate  = 6,  // M68
+    WaitOnInput         = 5,  // M66
+    SetAnalogSync       = 6,  // M67
+    SetAnalogImmediate  = 7,  // M68
+};
+
+// {M66} L word value, indicates wait mode
+enum class WaitOnInputMode : int8_t {
+    Immediate,
+    Rise,
+    Fall,
+    High,
+    Low,
 };
 
 static const int MaxUserDigitalPin = 8;
@@ -266,14 +281,14 @@ struct gc_modal_t {
 };
 
 struct gc_values_t {
-    uint8_t  e;                // M67
+    uint8_t  e;                // {M66,M67}
     float    f;                // Feed
     float    ijk[3];           // I,J,K Axis arc offsets - only 3 are possible
-    uint8_t  l;                // G10 or canned cycles parameters
+    uint8_t  l;                // {M66,G10}, or canned cycles parameters
     int32_t  n;                // Line number
     uint32_t o;                // Subroutine identifier - single-meaning word (not used by the core)
-    float    p;                // G10 or dwell parameters
-    float    q;                // M67
+    float    p;                // {M66,G10}, or dwell parameters
+    float    q;                // {M66,M67}
     float    r;                // Arc radius
     float    s;                // Spindle speed
     uint32_t t;                // Tool selection
