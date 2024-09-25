@@ -10,9 +10,9 @@
 
 typedef const uint8_t* font_t;
 
-class OLED : public Channel, public Module {
+class OLED : public Channel, public ConfigurableModule {
 public:
-    OLED(const char* name) : Channel(name), Module(name) {}
+    OLED(const char* name) : Channel(name), ConfigurableModule(name) {}
     struct Layout {
         uint8_t                    _x;
         uint8_t                    _y;
