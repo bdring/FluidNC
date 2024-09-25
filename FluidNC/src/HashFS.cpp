@@ -54,7 +54,7 @@ void HashFS::delete_file(const std::filesystem::path& path, bool report) {
     }
 }
 
-bool HashFS::file_is_hashed(const std::filesystem::path& path) {
+bool HashFS::file_is_hashable(const std::filesystem::path& path) {
     int count = 0;
     for (auto it = path.begin(); it != path.end(); ++it) {
         ++count;
@@ -70,7 +70,7 @@ bool HashFS::file_is_hashed(const std::filesystem::path& path) {
 }
 
 void HashFS::rehash_file(const std::filesystem::path& path, bool report) {
-    if (file_is_hashed(path)) {
+    if (file_is_hashable(path)) {
         std::string hash;
         if (hashFile(path, hash) != Error::Ok) {
             delete_file(path, false);
@@ -108,7 +108,7 @@ void HashFS::hash_all() {
     }
 }
 std::string HashFS::hash(const std::filesystem::path& path) {
-    if (file_is_hashed(path)) {
+    if (file_is_hashable(path)) {
         std::map<std::string, std::string>::const_iterator it;
         it = localFsHashes.find(path.filename());
         if (it != localFsHashes.end()) {

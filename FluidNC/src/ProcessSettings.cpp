@@ -1040,7 +1040,7 @@ Error execute_line(char* line, Channel& channel, AuthenticationLevel auth_level)
         return Error::SystemGcLock;
     }
     Error result = gc_execute_line(line);
-    if (result != Error::Ok) {
+    if (result != Error::Ok && result != Error::Reset) {
         log_debug_to(channel, "Bad GCode: " << line);
     }
     return result;

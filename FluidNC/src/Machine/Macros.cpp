@@ -59,10 +59,10 @@ Cmd findOverride(std::string name) {
 }
 
 bool Macro::run(Channel* channel) {
-    if (channel) {
-        log_debug_to(*channel, "Run " << name());
-    }
     if (_gcode.length()) {
+        if (channel) {
+            log_debug_to(*channel, "Run " << name() << ": " << _gcode);
+        }
         Job::save();
         Job::nest(new MacroChannel(this), channel);
         return true;
