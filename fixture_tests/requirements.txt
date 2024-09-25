@@ -1,0 +1,2 @@
+pyserial==3.5
+termcolor==2.4.0
