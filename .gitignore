@@ -34,3 +34,4 @@ dist/
 /compile_commands.json
 data-wmb/
 *#
+/gcode_tests/venv

@@ -1,0 +1,141 @@
+#!/usr/bin/env python3 -u
+# runs python unbuffered
+
+from termcolor import colored
+import argparse
+import os
+import serial
+
+parser = argparse.ArgumentParser()
+parser.add_argument("device")
+parser.add_argument("fixture_file")
+parser.add_argument("-b", "--baudrate", type=int, default=115200)
+args = parser.parse_args()
+
+OPS = [
+    # send to controller
+    "->",
+    # expect from controller
+    "<-",
+    # expect from controller, but optional
+    "<~",
+    # expect one of
+    "<|",
+]
+
+fixture_files = []
+
+# check if fixture_file is a directory
+if os.path.isdir(args.fixture_file):
+    for file in os.listdir(args.fixture_file):
+        if file.endswith(".nc"):
+            fixture_files.append(os.path.join(args.fixture_file, file))
+else:
+    fixture_files.append(args.fixture_file)
+
+
+def parse_fixture_lines(fixture_file):
+    # fixture_lines is a list of tuples:
+    # (op, match, lineno)
+
+    # Read the fixture file
+    with open(fixture_file, "r") as f:
+        fixture_lines = []
+        fixture_file = f.read()
+        for lineno, line in enumerate(fixture_file.splitlines()):
+            if line.startswith("#"):
+                # skip comment lines
+                continue
+
+            for op in OPS:
+                if line.startswith(op + " "):
+                    line = line[len(op) + 1 :]
+                    if op == "<|":
+                        if len(fixture_lines) > 0 and fixture_lines[-1][0] == "<|":
+                            # append to previous group of matches
+                            fixture_lines[-1][1].append(line)
+                        else:
+                            # new group of matches
+                            fixture_lines.append((op, [line], lineno + 1))
+                    else:
+                        fixture_lines.append((op, line, lineno + 1))
+                    break
+            else:
+                raise ValueError(
+                    f"Invalid line {lineno} in fixture file {fixture_file}: {line}"
+                )
+    return fixture_lines
+
+
+def run_fixture(fixture_file):
+    fixture_lines = parse_fixture_lines(fixture_file)
+    controller = serial.Serial(args.device, args.baudrate, timeout=1)
+    try:
+        # last line read from the controller
+        line = None
+
+        for op, fixture_line, lineno in fixture_lines:
+            if op == "->":
+                # send the fixture line to the controller
+                print(
+                    colored(f"{op} ", "dark_grey")
+                    + colored(fixture_line, "green", attrs=["dark"])
+                )
+                controller.write(fixture_line.encode("utf-8") + b"\n")
+            elif op == "<-" or op == "<~" or op == "<|":
+                is_optional = op == "<~"
+
+                # read a line, and wait for the expected response
+                if line is None:
+                    line = controller.readline().decode("utf-8").strip()
+
+                if op == "<|":  # match any one of
+                    if line in fixture_line:
+                        print(
+                            colored(f"{op} ", "dark_grey")
+                            + colored(line, "green", attrs=["dark", "bold"])
+                        )
+                        line = None
+                    else:
+                        print(f"Test failed at line {colored(str(lineno), 'red')}")
+                        print(f"Expected one of:")
+                        for fline in fixture_line:
+                            print(f"        `{colored(fline, 'red')}'")
+                        print(f"Actual: `{colored(line, 'red')}'")
+                        exit(1)
+                elif line == fixture_line:  # exact match
+                    print(
+                        colored(f"{op} ", "dark_grey")
+                        + colored(line, "green", attrs=["dark", "bold"])
+                    )
+                    line = None
+                else:  # match failed
+                    if is_optional:  # but that's okay if it's an optional line
+                        print(
+                            colored(f"{op} Did not get optional line ", "dark_grey")
+                            + colored(fixture_line, "dark_grey", attrs=["bold"])
+                        )
+                        # do not clear line, so we can try to match it again on
+                        # the next op
+                    else:
+                        print(f"Test failed at line {colored(str(lineno), 'red')}")
+                        print(f"Expected: `{colored(fixture_line, 'red')}'")
+                        print(f"Actual:   `{colored(line, 'red')}'")
+                        exit(1)
+
+    except KeyboardInterrupt:
+        print("Interrupt")
+    except TimeoutError as e:
+        print("Timeout waiting for response, line: " + e.args[0])
+    finally:
+        controller.close()
+
+    print(
+        colored(f"Fixture ", "green")
+        + colored(fixture_file, "green", attrs=["bold"])
+        + colored(" passed", "green")
+    )
+
+
+for fixture_file in fixture_files:
+    run_fixture(fixture_file)
