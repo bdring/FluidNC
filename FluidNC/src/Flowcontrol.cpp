@@ -248,7 +248,7 @@ Error flowcontrol(uint32_t o_label, char* line, size_t& pos, bool& skip) {
         case Op_EndRepeat:
             if (Job::active()) {
                 if (last_op == Op_Repeat) {
-                    if (!skipping && o_label == context.top().o_label) {
+                    if (o_label == context.top().o_label) {
                         if (context.top().repeats && --context.top().repeats) {
                             context.top().file->set_position(context.top().file_pos);
                         } else {
