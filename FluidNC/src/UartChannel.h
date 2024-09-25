@@ -6,11 +6,14 @@
 #include "Uart.h"
 #include "Channel.h"
 #include "lineedit.h"
+#include "FixedCircularBuffer.h"
 
 class UartChannel : public Channel, public Configuration::Configurable {
 private:
-    Lineedit* _lineedit;
-    Uart*     _uart;
+    Lineedit*                 _lineedit;
+    Uart*                     _uart;
+    FixedCircularBuffer<char> _history_buffer;
+    std::size_t               _history_buffer_pos;
 
     int _uart_num           = 0;
     int _report_interval_ms = 0;
@@ -49,6 +52,9 @@ public:
         handler.item("uart_num", _uart_num);
         handler.item("message_level", _message_level, messageLevels2);
     }
+
+    size_t position() override { return _history_buffer_pos; }
+    void   set_position(size_t pos) override { _history_buffer_pos = pos; }
 };
 
 extern UartChannel Uart0;
