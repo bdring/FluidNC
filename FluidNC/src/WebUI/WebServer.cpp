@@ -133,6 +133,9 @@ namespace WebUI {
         _webserver->on("/command", HTTP_ANY, handle_web_command);
         _webserver->on("/command_silent", HTTP_ANY, handle_web_command_silent);
         _webserver->on("/feedhold_reload", HTTP_ANY, handleFeedholdReload);
+        _webserver->on("/cyclestart_reload", HTTP_ANY, handleCyclestartReload);
+        _webserver->on("/restart_reload", HTTP_ANY, handleRestartReload);
+        _webserver->on("/did_restart", HTTP_ANY, handleDidRestart);
 
         //LocalFS
         _webserver->on("/files", HTTP_ANY, handleFileList, LocalFSFileupload);
@@ -230,6 +233,22 @@ namespace WebUI {
             return false;
         }
 
+        // If you load or reload WebUI while a program is running, there is a high
+        // risk of stalling the motion because serving a file from
+        // the local FLASH filesystem takes away a lot of CPU cycles.  If we get
+        // a request for a file when running, reject it to preserve the motion
+        // integrity.
+        // This can make it hard to debug ISR IRAM problems, because the easiest
+        // way to trigger such problems is to refresh WebUI during motion.
+        if (http_block_during_motion->get() && inMotionState()) {
+            Web_Server::handleReloadBlocked();
+            return true;
+        }
+        if (state_is(State::Hold)) {
+            Web_Server::handleFeedholdBlocked();
+            return true;
+        }
+
         std::string hash;
         // Check for brower cache match
 
@@ -241,19 +260,7 @@ namespace WebUI {
         }
 
         if (hash.length() && std::string(_webserver->header("If-None-Match").c_str()) == hash) {
-            log_debug(path << " is cached");
             _webserver->send(304);
-            return true;
-        }
-        // If you load or reload WebUI while a program is running, there is a high
-        // risk of stalling the motion because serving a file from
-        // the local FLASH filesystem takes away a lot of CPU cycles.  If we get
-        // a request for a file when running, reject it to preserve the motion
-        // integrity.
-        // This can make it hard to debug ISR IRAM problems, because the easiest
-        // way to trigger such problems is to refresh WebUI during motion.
-        if (http_block_during_motion->get() && inMotionState()) {
-            Web_Server::handleReloadBlocked();
             return true;
         }
 
@@ -646,23 +653,74 @@ namespace WebUI {
 
     // This page is used when you try to reload WebUI during motion,
     // to avoid interrupting that motion.  It lets you wait until
-    // motion is finished or issue a feedhold.
+    // motion is finished.
     void Web_Server::handleReloadBlocked() {
         _webserver->send(503,
                          "text/html",
                          "<!DOCTYPE html><html><body>"
-                         "<h3>Cannot load WebUI while moving</h3>"
-                         "<button onclick='window.location.reload()'>Retry</button>"
-                         "&nbsp;Retry (you must first wait for motion to finish)<br><br>"
-                         "<button onclick='window.location.replace(\"/feedhold_reload\")'>Feedhold</button>"
-                         "&nbsp;Stop the motion with feedhold and then retry<br>"
+                         "<h3>Cannot load WebUI while GCode Program is Running</h3>"
+
+                         "<button onclick='window.location.replace(\"/feedhold_reload\")'>Pause</button>"
+                         "&nbsp;Pause the GCode program with feedhold<br><br>"
+
+                         "<button onclick='window.location.replace(\"/restart_reload\")'>Stop</button>"
+                         "&nbsp;Stop the GCode Program with reset<br><br>"
+
+                         "<button onclick='window.location.reload()'>Reload WebUI</button>"
+                         "&nbsp;(You must first stop the GCode program or wait for it to finish)<br><br>"
+
+                         "</body></html>");
+    }
+    // This page is used when you try to reload WebUI during feedhold state.
+    // Reload will not work because commands cannot be executed in feedhold,
+    // so things like ESP800 will hang.
+    void Web_Server::handleFeedholdBlocked() {
+        _webserver->send(503,
+                         "text/html",
+                         "<!DOCTYPE html><html><body>"
+                         "<h3>GCode Program is Paused (in Feedhold state)</h3>"
+
+                         "<button onclick='window.location.replace(\"/cyclestart_reload\")'>Resume</button>"
+                         "&nbsp;Resume the GCode program with cyclestart<br><br>"
+
+                         "<button onclick='window.location.replace(\"/restart_reload\")'>Stop</button>"
+                         "&nbsp;Stop the GCode Program with reset<br><br>"
+
+                         "</body></html>");
+    }
+    void Web_Server::handleDidRestart() {
+        _webserver->send(503,
+                         "text/html",
+                         "<!DOCTYPE html><html><body>"
+                         "<h3>GCode Program has been stopped</h3>"
+                         "<button onclick='window.location.replace(\"/\")'>Reload WebUI</button>"
                          "</body></html>");
     }
     // This page issues a feedhold to pause the motion then retries the WebUI reload
     void Web_Server::handleFeedholdReload() {
         protocol_send_event(&feedHoldEvent);
+        //        delay(100);
+        //        delay(100);
         // Go to the main page
         _webserver->sendHeader(LOCATION_HEADER, "/");
+        _webserver->send(302);
+    }
+    // This page issues a feedhold to pause the motion then retries the WebUI reload
+    void Web_Server::handleCyclestartReload() {
+        protocol_send_event(&cycleStartEvent);
+        //        delay(100);
+        //        delay(100);
+        // Go to the main page
+        _webserver->sendHeader(LOCATION_HEADER, "/");
+        _webserver->send(302);
+    }
+    // This page issues a feedhold to pause the motion then retries the WebUI reload
+    void Web_Server::handleRestartReload() {
+        protocol_send_event(&rtResetEvent);
+        //        delay(100);
+        //        delay(100);
+        // Go to the main page
+        _webserver->sendHeader(LOCATION_HEADER, "/did_restart");
         _webserver->send(302);
     }
 

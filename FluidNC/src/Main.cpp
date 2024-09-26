@@ -96,6 +96,8 @@ void setup() {
 
         config->_userOutputs->init();
 
+        config->_userInputs->init();
+
         config->_axes->init();
 
         config->_control->init();
@@ -106,6 +108,9 @@ void setup() {
 
         // Initialize system state.
         for (auto const& module : Modules()) {
+            module->init();
+        }
+        for (auto const& module : ConfigurableModules()) {
             module->init();
         }
 

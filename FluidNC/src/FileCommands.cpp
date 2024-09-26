@@ -598,8 +598,7 @@ static Error xmodem_receive(const char* value, AuthenticationLevel auth_level, C
     try {
         outfile = new FileStream(value, "w");
     } catch (...) {
-        delay_ms(1000);   // Delay for FluidTerm to handle command echoing
-        out.write(0x04);  // Cancel xmodem transfer with EOT
+        out.write(0x18);  // Cancel xmodem transfer with CAN
         log_info("Cannot open " << value);
         return Error::UploadFailed;
     }
@@ -629,6 +628,7 @@ static Error xmodem_send(const char* value, AuthenticationLevel auth_level, Chan
     try {
         infile = new FileStream(value, "r");
     } catch (...) {
+        out.write(0x04);  // XModem EOT
         log_info("Cannot open " << value);
         return Error::DownloadFailed;
     }

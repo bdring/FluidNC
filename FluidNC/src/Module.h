@@ -27,9 +27,16 @@ cases where one module depends on another.  For example, the TelnetServer module
 the WifiConfig module be initialized first.  Lower numbers are initialized before higher numbers.
 If two modules have the same number, the order among them is undefined.
 
-The Module class derives from Configurable, so a module can define its own configuration
-items by overriding the group() method.  A module that needs no configuration items need
-not define a group() method, since there is a default no-op group() method.
+The ConfigurableModule class derives from Configurable, so a module can define its own
+configuration items by overriding the group() method.  A module that needs no configuration items
+should derive from the Module class.
+
+ConfigurableModule methods:
+   void init()
+       FluidNC calls all the init methods at startup, to prepare the modules for use
+   void deinit()
+       The deinit method disables the module.  FluidNC does not call the deinit()
+       methods.  It is for completeness and possible future use.
 
 Module methods:
    void init()
@@ -53,8 +60,6 @@ Module methods:
     bool is_radio()
        Returns true if the module is for a radio like Bluetooth or WiFi.  This is
        used to populate the "R" field in the Grbl signon message.
-
-
 */
 #pragma once
 
@@ -67,19 +72,13 @@ class Channel;
 class Module;
 class JSONencoder;
 
-class Module : public Configuration::Configurable {
+class Module {
     const char* _name;
 
 public:
     Module() : _name("noname") {}
     Module(const char* name) : _name(name) {}
     ~Module() = default;
-
-    // Configuration system helpers:
-    // Many modules do not have configuration items hence these null default
-    // configuration helpers.  Configured modules can override them.
-    void group(Configuration::HandlerBase& handler) override {}
-    void afterParse() override {};
 
     const char* name() { return _name; };
 
@@ -93,8 +92,24 @@ public:
     virtual bool is_radio() { return false; }
 };
 
-using ModuleFactory = Configuration::GenericFactory<Module>;
+class ConfigurableModule : public Configuration::Configurable {
+    const char* _name;
 
+public:
+    ConfigurableModule(const char* name) : _name(name) {}
+    ~ConfigurableModule() = default;
+
+    const char*  name() { return _name; };
+    virtual void init() {}
+    virtual void deinit() {}
+};
+
+using ModuleFactory = Configuration::GenericFactory<Module>;
 inline std::vector<Module*>& Modules() {
     return ModuleFactory::objects();
+}
+
+using ConfigurableModuleFactory = Configuration::GenericFactory<ConfigurableModule>;
+inline std::vector<ConfigurableModule*>& ConfigurableModules() {
+    return ConfigurableModuleFactory::objects();
 }

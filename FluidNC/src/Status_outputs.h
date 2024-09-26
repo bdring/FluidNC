@@ -4,7 +4,7 @@
 #include "src/Module.h"
 #include "src/Channel.h"
 
-class Status_Outputs : public Channel, public Module {
+class Status_Outputs : public Channel, public ConfigurableModule {
     Pin _Idle_pin;
     Pin _Run_pin;
     Pin _Hold_pin;
@@ -21,7 +21,7 @@ private:
     void parse_status_report();
 
 public:
-    Status_Outputs(const char* name) : Channel(name), Module(name) {}
+    Status_Outputs(const char* name) : Channel(name), ConfigurableModule(name) {}
 
     Status_Outputs(const Status_Outputs&)            = delete;
     Status_Outputs(Status_Outputs&&)                 = delete;

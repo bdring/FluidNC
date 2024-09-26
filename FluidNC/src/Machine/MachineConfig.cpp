@@ -67,8 +67,9 @@ namespace Machine {
         handler.section("parking", _parking);
 
         handler.section("user_outputs", _userOutputs);
+        handler.section("user_inputs", _userInputs);
 
-        ModuleFactory::factory(handler);
+        ConfigurableModuleFactory::factory(handler);
         ATCs::ATCFactory::factory(handler);
         Spindles::SpindleFactory::factory(handler);
 
@@ -102,6 +103,10 @@ namespace Machine {
 
         if (_userOutputs == nullptr) {
             _userOutputs = new UserOutputs();
+        }
+
+        if (_userInputs == nullptr) {
+            _userInputs = new UserInputs();
         }
 
         if (_sdCard == nullptr) {

@@ -1,0 +1,9 @@
+board: 6 Pack
+name: Fixture Tests
+kinematics:
+  Cartesian:
+user_outputs:
+  digital0_pin: gpio.4
+user_inputs:
+  digital0_pin: gpio.5
+planner_blocks: 16

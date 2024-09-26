@@ -78,5 +78,5 @@ void Status_Outputs::parse_status_report() {
 
 // Configuration registration
 namespace {
-    ModuleFactory::InstanceBuilder<Status_Outputs> registration("status_outputs");
+    ConfigurableModuleFactory::InstanceBuilder<Status_Outputs> registration("status_outputs");
 }

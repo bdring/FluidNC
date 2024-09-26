@@ -17,14 +17,43 @@
 
 #include "Expression.h"
 
+// See documentation "4.1. Numbered Parameters" for list of numbered parameters
+// that LinuxCNC supports.
+// http://wiki.fluidnc.com/en/features/gcode_parameters_expressions
+// https://linuxcnc.org/docs/stable/html/gcode/overview.html#sub:numbered-parameters
+
 // clang-format off
 const std::map<const int, bool *> bool_params = {
     { 5070, &probe_succeeded },
-    // { 5399, &m66okay },
 };
-typedef int ngc_param_id_t;
 
-std::map<const ngc_param_id_t, float> user_params = {};
+std::map<const ngc_param_id_t, float> float_params = {
+    { 5399, 0.0 }, // M66 last immediate read input result
+};
+
+static bool can_write_float_param(ngc_param_id_t id) {
+    if (id == 5399) {
+        // M66 last immediate read input result
+        return true;
+    }
+    if(id >= 1 && id <= 5000) {
+        // User parameters
+        return true;
+    }
+    return false;
+}
+
+static bool can_read_float_param(ngc_param_id_t id) {
+    if (id == 5399) {
+        // M66
+        return true;
+    }
+    if (id >= 31 && id <= 5000) {
+        // User parameters
+        return true;
+    }
+    return false;
+}
 
 const std::map<const ngc_param_id_t, CoordIndex> axis_params = {
     { 5161, CoordIndex::G28 },
@@ -41,7 +70,6 @@ const std::map<const ngc_param_id_t, CoordIndex> axis_params = {
     // { 5381, CoordIndex::G59_3 },  // Not implemented
     // { 5401, CoordIndex::TLO },
 };
-
 
 const std::map<const std::string, int> work_positions = {
     { "_x", 0 },
@@ -101,40 +129,6 @@ static float to_mm(int axis, float value) {
     }
     return value;
 }
-bool set_numbered_param(ngc_param_id_t id, float value) {
-    int axis;
-    for (auto const& [key, coord_index] : axis_params) {
-        axis = id - key;
-        if (is_axis(axis)) {
-            coords[coord_index]->set(axis, to_mm(axis, value));
-            gc_ngc_changed(coord_index);
-            return true;
-        }
-    }
-    // Non-volatile G92
-    axis = id - 5211;
-    if (is_axis(axis)) {
-        gc_state.coord_offset[axis] = to_mm(axis, value);
-        gc_ngc_changed(CoordIndex::G92);
-        return true;
-    }
-    if (id == 5220) {
-        gc_state.modal.coord_select = static_cast<CoordIndex>(value);
-        return true;
-    }
-    if (id == 5400) {
-        gc_state.selected_tool = static_cast<uint32_t>(value);
-        return true;
-    }
-    if (id >= 1 && id <= 5000) {
-        // 1-30 are for subroutine arguments, but since we don't
-        // implement subroutines, we treat them the same as user params
-        user_params[id] = value;
-        return true;
-    }
-    log_info("N " << id << " is not found");
-    return false;
-}
 
 bool get_numbered_param(ngc_param_id_t id, float& result) {
     int axis;
@@ -181,20 +175,25 @@ bool get_numbered_param(ngc_param_id_t id, float& result) {
         return true;
     }
 
-    for (const auto& [key, valuep] : bool_params) {
-        if (key == id) {
-            result = *valuep;
-            return true;
-        }
-    }
-    if (id >= 31 && id <= 5000) {
-        result = user_params[id];
+    if (auto param = bool_params.find(id); param != bool_params.end()) {
+        result = *param->second ? 1.0 : 0.0;
         return true;
+    }
+
+    if (can_read_float_param(id)) {
+        if (auto param = float_params.find(id); param != float_params.end()) {
+            result = param->second;
+            return true;
+        } else {
+            log_info("param #" << id << " is not found");
+            return false;
+        }
     }
 
     return false;
 }
 
+// TODO - make this a variant?
 struct param_ref_t {
     std::string    name;  // If non-empty, the parameter is named
     ngc_param_id_t id;    // Valid if name is empty
@@ -484,6 +483,39 @@ bool get_param_ref(const char* line, size_t& pos, param_ref_t& param_ref) {
 bool set_named_param(const std::string& name, float value) {
     global_named_params[name] = value;
     return true;
+}
+
+bool set_numbered_param(ngc_param_id_t id, float value) {
+    int axis;
+    for (auto const& [key, coord_index] : axis_params) {
+        axis = id - key;
+        if (is_axis(axis)) {
+            coords[coord_index]->set(axis, to_mm(axis, value));
+            gc_ngc_changed(coord_index);
+            return true;
+        }
+    }
+    // Non-volatile G92
+    axis = id - 5211;
+    if (is_axis(axis)) {
+        gc_state.coord_offset[axis] = to_mm(axis, value);
+        gc_ngc_changed(CoordIndex::G92);
+        return true;
+    }
+    if (id == 5220) {
+        gc_state.modal.coord_select = static_cast<CoordIndex>(value);
+        return true;
+    }
+    if (id == 5400) {
+        gc_state.selected_tool = static_cast<uint32_t>(value);
+        return true;
+    }
+    if (can_write_float_param(id)) {
+        float_params[id] = value;
+        return true;
+    }
+    log_info("param #" << id << " is not found");
+    return false;
 }
 
 bool set_param(const param_ref_t& param_ref, float value) {

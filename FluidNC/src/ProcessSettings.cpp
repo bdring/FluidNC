@@ -1033,6 +1033,9 @@ Error execute_line(char* line, Channel& channel, AuthenticationLevel auth_level)
     }
     // User '$' or WebUI '[ESPxxx]' command
     if (line[0] == '$' || line[0] == '[') {
+        if (gc_state.skip_blocks) {
+            return Error::Ok;
+        }
         return settings_execute_line(line, channel, auth_level);
     }
     // Everything else is gcode. Block if in alarm or jog mode.
@@ -1040,7 +1043,7 @@ Error execute_line(char* line, Channel& channel, AuthenticationLevel auth_level)
         return Error::SystemGcLock;
     }
     Error result = gc_execute_line(line);
-    if (result != Error::Ok) {
+    if (result != Error::Ok && result != Error::Reset) {
         log_debug_to(channel, "Bad GCode: " << line);
     }
     return result;

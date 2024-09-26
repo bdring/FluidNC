@@ -20,7 +20,7 @@ namespace Machine {
             if (pin.defined()) {
                 pin.setAttr(Pin::Attr::Output);
                 pin.off();
-                log_info("User Digital Output:" << i << " on Pin:" << pin.name());
+                log_info("User Digital Output: " << i << " on Pin:" << pin.name());
             }
         }
         // determine the highest resolution (number of precision bits) allowed by frequency
@@ -32,7 +32,7 @@ namespace Machine {
             if (pin.defined()) {
                 _pwm[i] = new PwmPin(pin, _analogFrequency[i]);
                 _pwm[i]->setDuty(0);
-                log_info("User Analog Output " << i << " on Pin:" << pin.name() << " Freq:" << _pwm[i]->frequency() << "Hz");
+                log_info("User Analog Output: " << i << " on Pin:" << pin.name() << " Freq:" << _pwm[i]->frequency() << "Hz");
             }
         }
     }

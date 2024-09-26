@@ -13,6 +13,7 @@
 #include "Protocol.h"             // protocol_buffer_synchronize
 #include "MotionControl.h"        // mc_override_ctrl_update
 #include "Machine/UserOutputs.h"  // setAnalogPercent
+#include "Machine/UserInputs.h"   // read digital/analog inputs
 #include "Platform.h"             // WEAK_LINK
 #include "Job.h"                  // Job::active() and Job::channel()
 
@@ -143,6 +144,9 @@ static void gcode_comment_msg(char* comment) {
     }
 }
 
+static std::optional<WaitOnInputMode> validate_wait_on_input_mode_value(uint8_t);
+static Error                          gc_wait_on_input(bool is_digital, uint8_t input_number, WaitOnInputMode mode, float timeout);
+
 // Edit GCode line in-place, removing whitespace and comments and
 // converting to uppercase
 void collapseGCode(char* line) {
@@ -252,16 +256,17 @@ Error gc_execute_line(char* line) {
     uint32_t command_words = 0;  // Tracks G and M command words. Also used for modal group violations.
     uint32_t value_words   = 0;  // Tracks value words.
 
-    bool jogMotion     = false;
-    bool checkMantissa = false;
-    bool clockwiseArc  = false;
-    bool probeExplicit = false;
-    bool probeAway     = false;
-    bool probeNoError  = false;
-    bool syncLaser     = false;
-    bool disableLaser  = false;
-    bool laserIsMotion = false;
-    bool nonmodalG38   = false;  // Used for G38.6-9
+    bool jogMotion            = false;
+    bool checkMantissa        = false;
+    bool clockwiseArc         = false;
+    bool probeExplicit        = false;
+    bool probeAway            = false;
+    bool probeNoError         = false;
+    bool syncLaser            = false;
+    bool disableLaser         = false;
+    bool laserIsMotion        = false;
+    bool nonmodalG38          = false;  // Used for G38.6-9
+    bool isWaitOnInputDigital = false;
 
     auto    n_axis = config->_axes->_numberAxis;
     float   coord_data[MAX_N_AXIS];  // Used by WCO-related commands
@@ -288,8 +293,8 @@ Error gc_execute_line(char* line) {
     size_t     pos;
     char       letter;
     float      value;
-    uint8_t    int_value = 0;
-    uint16_t   mantissa  = 0;
+    int32_t    int_value = 0;
+    int32_t    mantissa  = 0;
     pos                  = jogMotion ? 3 : 0;  // Start parsing after `$J=` if jogging
     while ((letter = line[pos]) != '\0') {     // Loop until no more g-code words in line.
         if (letter == '#') {
@@ -327,7 +332,7 @@ Error gc_execute_line(char* line) {
         // a good enough compromise and catch most all non-integer errors. To make it compliant,
         // we would simply need to change the mantissa to int16, but this add compiled flash space.
         // Maybe update this later.
-        int_value = int8_t(truncf(value));
+        int_value = static_cast<int32_t>(truncf(value));
         mantissa  = lroundf(100 * (value - int_value));  // Compute mantissa for Gxx.x commands.
         // NOTE: Rounding must be used to catch small floating point errors.
         // Check if the g-code word is supported or errors due to modal group violations or has
@@ -682,27 +687,31 @@ Error gc_execute_line(char* line) {
                         break;
                     case 62:
                         gc_block.modal.io_control = IoControl::DigitalOnSync;
-                        mg_word_bit               = ModalGroup::MM10;
+                        mg_word_bit               = ModalGroup::MM5;
                         break;
                     case 63:
                         gc_block.modal.io_control = IoControl::DigitalOffSync;
-                        mg_word_bit               = ModalGroup::MM10;
+                        mg_word_bit               = ModalGroup::MM5;
                         break;
                     case 64:
                         gc_block.modal.io_control = IoControl::DigitalOnImmediate;
-                        mg_word_bit               = ModalGroup::MM10;
+                        mg_word_bit               = ModalGroup::MM5;
                         break;
                     case 65:
                         gc_block.modal.io_control = IoControl::DigitalOffImmediate;
-                        mg_word_bit               = ModalGroup::MM10;
+                        mg_word_bit               = ModalGroup::MM5;
+                        break;
+                    case 66:
+                        gc_block.modal.io_control = IoControl::WaitOnInput;
+                        mg_word_bit               = ModalGroup::MM5;
                         break;
                     case 67:
                         gc_block.modal.io_control = IoControl::SetAnalogSync;
-                        mg_word_bit               = ModalGroup::MM10;
+                        mg_word_bit               = ModalGroup::MM5;
                         break;
                     case 68:
                         gc_block.modal.io_control = IoControl::SetAnalogImmediate;
-                        mg_word_bit               = ModalGroup::MM10;
+                        mg_word_bit               = ModalGroup::MM5;
                         break;
                     default:
                         FAIL(Error::GcodeUnsupportedCommand);  // [Unsupported M command]
@@ -757,7 +766,6 @@ Error gc_execute_line(char* line) {
                     case 'E':
                         axis_word_bit     = GCodeWord::E;
                         gc_block.values.e = int_value;
-                        //log_info("E " << gc_block.values.e);
                         break;
                     case 'F':
                         axis_word_bit     = GCodeWord::F;
@@ -794,7 +802,6 @@ Error gc_execute_line(char* line) {
                         axis_word_bit     = GCodeWord::O;
                         gc_block.values.o = int_value;
                         break;
-
                     case 'P':
                         axis_word_bit     = GCodeWord::P;
                         gc_block.values.p = value;
@@ -928,7 +935,7 @@ Error gc_execute_line(char* line) {
         if (gc_block.modal.feed_rate == FeedRate::InverseTime) {  // = G93
             // NOTE: G38 can also operate in inverse time, but is undefined as an error. Missing F word check added here.
             if (axis_command == AxisCommand::MotionMode) {
-                if ((gc_block.modal.motion != Motion::None) || (gc_block.modal.motion != Motion::Seek)) {
+                if ((gc_block.modal.motion != Motion::None) && (gc_block.modal.motion != Motion::Seek)) {
                     if (bitnum_is_false(value_words, GCodeWord::F)) {
                         FAIL(Error::GcodeUndefinedFeedRate);  // [F word missing]
                     }
@@ -1000,6 +1007,51 @@ Error gc_execute_line(char* line) {
             FAIL(Error::GcodeValueWordMissing);
         }
         clear_bitnum(value_words, GCodeWord::E);
+        clear_bitnum(value_words, GCodeWord::Q);
+    }
+    if ((gc_block.modal.io_control == IoControl::WaitOnInput)) {
+        // M66 P<digital input> L<wait mode type> Q<timeout>
+        // M66 E<analog input> L<wait mode type> Q<timeout>
+        // Exactly one of P or E must be present
+        if (bitnum_is_false(value_words, GCodeWord::P) && bitnum_is_false(value_words, GCodeWord::E)) {
+            // need at least one of P or E
+            FAIL(Error::GcodeValueWordMissing);
+        }
+        if (bitnum_is_true(value_words, GCodeWord::P) && bitnum_is_true(value_words, GCodeWord::E)) {
+            // need at most one of P or E
+            FAIL(Error::GcodeValueWordInvalid);
+        }
+        isWaitOnInputDigital = bitnum_is_true(value_words, GCodeWord::P);
+        clear_bitnum(value_words, GCodeWord::P);
+        clear_bitnum(value_words, GCodeWord::E);
+        if (bitnum_is_false(value_words, GCodeWord::L)) {
+            FAIL(Error::GcodeValueWordMissing);
+        }
+        clear_bitnum(value_words, GCodeWord::L);
+        auto const wait_mode = validate_wait_on_input_mode_value(gc_block.values.l);
+        if (!wait_mode) {
+            FAIL(Error::GcodeValueWordInvalid);
+        }
+        // Only Immediate mode is valid for analog input
+        if (!isWaitOnInputDigital && wait_mode != WaitOnInputMode::Immediate) {
+            FAIL(Error::GcodeValueWordInvalid);
+        }
+        // Q is the timeout in seconds (conditionally optional)
+        //  - Ignored if L is 0 (Immediate).
+        //  - Error if value 0 seconds, and L is not 0 (Immediate).
+        if (bitnum_is_true(value_words, GCodeWord::Q)) {
+            if (gc_block.values.q != 0.0) {
+                if (wait_mode != WaitOnInputMode::Immediate) {
+                    // Non-immediate waits must have a non-zero timeout
+                    FAIL(Error::GcodeValueWordInvalid);
+                }
+            }
+        } else {
+            if (wait_mode != WaitOnInputMode::Immediate) {
+                // Non-immediate waits must have a timeout
+                FAIL(Error::GcodeValueWordMissing);
+            }
+        }
         clear_bitnum(value_words, GCodeWord::Q);
     }
     if (gc_block.modal.set_tool_number == SetToolNumber::Enable) {
@@ -1550,7 +1602,7 @@ Error gc_execute_line(char* line) {
     // NOTE: Pass zero spindle speed for all restricted laser motions.
     if (!disableLaser) {
         pl_data->spindle_speed = gc_state.spindle_speed;  // Record data for planner use.
-    }                                                     // else { pl_data->spindle_speed = 0.0; } // Initialized as zero already.
+    }  // else { pl_data->spindle_speed = 0.0; } // Initialized as zero already.
     // [5. Select tool ]: NOT SUPPORTED. Only tracks tool value.
     //	gc_state.tool = gc_block.values.t;
     // [M6. Change tool ]:
@@ -1655,6 +1707,29 @@ Error gc_execute_line(char* line) {
         } else {
             FAIL(Error::PParamMaxExceeded);
         }
+    }
+    if (gc_block.modal.io_control == IoControl::WaitOnInput) {
+        auto const validate_input_number = [&](const float input_number) -> std::optional<uint8_t> {
+            if (input_number < 0) {
+                return std::nullopt;
+            }
+            if (isWaitOnInputDigital) {
+                if (input_number > MaxUserDigitalPin) {
+                    return std::nullopt;
+                } else if (input_number > MaxUserAnalogPin) {
+                    return std::nullopt;
+                }
+            }
+            return (uint8_t)input_number;
+        };
+        auto const maybe_input_number = validate_input_number(isWaitOnInputDigital ? gc_block.values.p : gc_block.values.e);
+        if (!maybe_input_number.has_value()) {
+            FAIL(Error::PParamMaxExceeded);
+        }
+        auto const input_number = *maybe_input_number;
+        auto const wait_mode    = *validate_wait_on_input_mode_value(gc_block.values.l);
+        auto const timeout      = gc_block.values.q;
+        gc_wait_on_input(isWaitOnInputDigital, input_number, wait_mode, timeout);
     }
 
     // [9. Override control ]: NOT SUPPORTED. Always enabled, except for parking control.
@@ -1917,3 +1992,48 @@ void gc_exec_linef(bool sync_after, Channel& out, const char* format, ...) {
    group 10 = {G98, G99} return mode canned cycles
    group 13 = {G61.1, G64} path control mode (G61 is supported)
 */
+
+static std::optional<WaitOnInputMode> validate_wait_on_input_mode_value(uint8_t value) {
+    switch (value) {
+        case 0:
+            return WaitOnInputMode::Immediate;
+        case 1:
+            return WaitOnInputMode::Rise;
+        case 2:
+            return WaitOnInputMode::Fall;
+        case 3:
+            return WaitOnInputMode::High;
+        case 4:
+            return WaitOnInputMode::Low;
+        default:
+            return std::nullopt;
+    }
+}
+
+template <class... Ts>
+struct overloaded : Ts... {
+    using Ts::operator()...;
+};
+template <class... Ts>
+overloaded(Ts...) -> overloaded<Ts...>;
+
+static Error gc_wait_on_input(bool is_digital, uint8_t input_number, WaitOnInputMode mode, float timeout) {
+    // TODO - only Immediate read mode is supported
+    if (mode == WaitOnInputMode::Immediate) {
+        auto const result = is_digital ? config->_userInputs->readDigitalInput(input_number) :
+                                         config->_userInputs->readAnalogInput(input_number);
+        auto const on_ok  = [&](bool result) {
+            log_debug("M66: " << (is_digital ? "digital" : "analog") << "_input" << input_number << " result=" << result);
+            set_numbered_param(5399, result ? 1.0 : 0.0);
+            return Error::Ok;
+        };
+        auto const on_error = [&](Error error) {
+            log_error("M66: " << (is_digital ? "digital" : "analog") << "_input" << input_number << " failed");
+            return error;
+        };
+        return std::visit(overloaded { on_ok, on_error }, result);
+    }
+
+    // TODO - implement rest of modes
+    return Error::GcodeValueWordInvalid;
+}
