@@ -25,18 +25,19 @@ atc_basic:
   tool1_mpos_mm: -484.000 -2.000 -76.000
 ```
 
+the following macros need to be saved to `$LocalFS/ATC/`
 ```gcode
-(atc_activate_macro)
+(/ATC/atc_activate_macro.g)
 G53 G0 Z-1
 G53 G0 X-694 Y-150
 ```
 
 ```gcode
-(atc_deactivate_macro)
+(/ATC/atc_deactivate_macro.g)
 ```
 
 ```gcode
-(toolpickup_macro)
+(/ATC/toolpickup_macro.g)
 G91
 G53 G0 X#<_tc_tool_x> Y#<_tc_tool_y>
 M62 P6
@@ -50,7 +51,7 @@ G53 G0 Z-1.0
 ```
 
 ```gcode
-(toolreturn_macro)
+(/ATC/toolreturn_macro.g)
 G91
 G53 G0 X#<_tc_tool_x> Y[#<_tc_tool_y> -35.0]
 G53 G0 Z#<_tc_tool_z>
