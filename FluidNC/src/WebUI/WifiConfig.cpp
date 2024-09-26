@@ -278,7 +278,7 @@ namespace WebUI {
                     j.id_value_object("SSID: ", (const char*)conf.ap.ssid);
                     j.id_value_object("Visible: ", (conf.ap.ssid_hidden == 0 ? "Yes" : "No"));
                     j.id_value_object("Radio country set: ",
-                                      std::string("") + country.cc + " (channels " + std::to_string(country.schan) + "-" +
+                                      std::string("") + country.cc[0] + country.cc[1] + " (channels " + std::to_string(country.schan) + "-" +
                                           std::to_string((country.schan + country.nchan - 1)) + ", max power " +
                                           std::to_string(country.max_tx_power) + "dBm)");
 
