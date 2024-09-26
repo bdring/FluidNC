@@ -293,8 +293,8 @@ Error gc_execute_line(char* line) {
     size_t     pos;
     char       letter;
     float      value;
-    uint8_t    int_value = 0;
-    uint16_t   mantissa  = 0;
+    int32_t    int_value = 0;
+    int32_t    mantissa  = 0;
     pos                  = jogMotion ? 3 : 0;  // Start parsing after `$J=` if jogging
     while ((letter = line[pos]) != '\0') {     // Loop until no more g-code words in line.
         if (letter == '#') {
@@ -332,7 +332,7 @@ Error gc_execute_line(char* line) {
         // a good enough compromise and catch most all non-integer errors. To make it compliant,
         // we would simply need to change the mantissa to int16, but this add compiled flash space.
         // Maybe update this later.
-        int_value = int8_t(truncf(value));
+        int_value = static_cast<int32_t>(truncf(value));
         mantissa  = lroundf(100 * (value - int_value));  // Compute mantissa for Gxx.x commands.
         // NOTE: Rounding must be used to catch small floating point errors.
         // Check if the g-code word is supported or errors due to modal group violations or has
@@ -766,7 +766,6 @@ Error gc_execute_line(char* line) {
                     case 'E':
                         axis_word_bit     = GCodeWord::E;
                         gc_block.values.e = int_value;
-                        //log_info("E " << gc_block.values.e);
                         break;
                     case 'F':
                         axis_word_bit     = GCodeWord::F;
@@ -803,7 +802,6 @@ Error gc_execute_line(char* line) {
                         axis_word_bit     = GCodeWord::O;
                         gc_block.values.o = int_value;
                         break;
-
                     case 'P':
                         axis_word_bit     = GCodeWord::P;
                         gc_block.values.p = value;
