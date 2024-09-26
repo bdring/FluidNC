@@ -27,6 +27,6 @@ namespace Machine {
         bool setDigital(size_t io_num, bool isOn);
         bool setAnalogPercent(size_t io_num, float percent);
 
-        ~UserOutputs();
+        virtual ~UserOutputs();
     };
 }

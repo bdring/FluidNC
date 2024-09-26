@@ -96,6 +96,8 @@ void setup() {
 
         config->_userOutputs->init();
 
+        config->_userInputs->init();
+
         config->_axes->init();
 
         config->_control->init();
