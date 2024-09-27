@@ -1031,6 +1031,10 @@ Error execute_line(char* line, Channel& channel, AuthenticationLevel auth_level)
     if (line[0] == 0) {
         return Error::Ok;
     }
+    // Skip leading whitespace
+    while (isspace(*line)) {
+        ++line;
+    }
     // User '$' or WebUI '[ESPxxx]' command
     if (line[0] == '$' || line[0] == '[') {
         if (gc_state.skip_blocks) {
