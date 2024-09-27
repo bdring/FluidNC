@@ -512,9 +512,23 @@ namespace WebUI {
                 j.member("Authentication", "Disabled");
 #endif
                 j.member("WebCommunication", "Synchronous");
-                j.member("WebSocketIP", "localhost");
 
-                j.member("WebSocketPort", "82");
+                switch (WiFi.getMode()) {
+                  case WIFI_AP:
+                    j.member("WebSocketIP", IP_string(WiFi.softAPIP()));
+                    break;
+                  case WIFI_STA:
+                    j.member("WebSocketIP", IP_string(WiFi.localIP()));
+                    break;
+                  case WIFI_AP_STA:
+                    j.member("WebSocketIP", IP_string(WiFi.softAPIP()));
+                    break;
+                  default:
+                    j.member("WebSocketIP", "0.0.0.0");
+                    break;
+                }
+
+                j.member("WebSocketPort", std::to_string(Web_Server::port() + 2));
                 j.member("HostName", WiFi.getHostname());
                 j.member("WiFiMode", modeName());
                 j.member("FlashFileSystem", "LittleFS");
