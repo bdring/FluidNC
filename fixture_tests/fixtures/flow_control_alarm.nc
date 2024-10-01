@@ -10,3 +10,5 @@
 <- ok
 <- ok
 <- [MSG:INFO: PRINT, success]
+<- ok
+<- ok
