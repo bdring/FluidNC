@@ -4,17 +4,29 @@
 #include "Job.h"
 #include <map>
 #include <stack>
+#include "Protocol.h"
 
 std::stack<JobSource*> job;
 
 Channel* Job::leader = nullptr;
 
 bool Job::active() {
-    return !job.empty();
+    return !job.empty() || activeChannel;
 }
 
+JobSource activeChannelJobSource(nullptr);
+
 JobSource* Job::source() {
-    return job.empty() ? nullptr : job.top();
+    if (job.empty()) {
+        if (activeChannel) {
+            activeChannelJobSource.set_channel(activeChannel);
+            return &activeChannelJobSource;
+        } else {
+            return nullptr;
+        }
+    } else {
+        return job.top();
+    }
 }
 
 // save() and restore() are use to close/reopen an SD file atop the job stack
@@ -38,9 +50,11 @@ void Job::nest(Channel* in_channel, Channel* out_channel) {
     job.push(source);
 }
 void Job::pop() {
-    auto source = job.top();
-    job.pop();
-    delete source;
+    if (!job.empty()) {
+        auto source = job.top();
+        job.pop();
+        delete source;
+    }
     if (!active()) {
         leader = nullptr;
     }
@@ -60,14 +74,14 @@ void Job::abort() {
 }
 
 bool Job::get_param(const std::string& name, float& value) {
-    return job.top()->get_param(name, value);
+    return source()->get_param(name, value);
 }
 bool Job::set_param(const std::string& name, float value) {
-    return job.top()->set_param(name, value);
+    return source()->set_param(name, value);
 }
 bool Job::param_exists(const std::string& name) {
-    return job.top()->param_exists(name);
+    return source()->param_exists(name);
 }
 Channel* Job::channel() {
-    return job.top()->channel();
+    return source()->channel();
 }
