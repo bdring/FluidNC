@@ -14,7 +14,7 @@ namespace Configuration {
         String b;
         String c;
 
-        void validate() const {}
+        void validate() {}
         void group(HandlerBase& handler) {
             handler.item("a", a);
             handler.item("b", b);
@@ -27,7 +27,7 @@ namespace Configuration {
         String aap;
         int    banaan;
 
-        void validate() const {}
+        void validate() {}
         void group(HandlerBase& handler) {
             handler.item("aap", aap);
             handler.item("banaan", banaan);
@@ -51,7 +51,7 @@ namespace Configuration {
         int value;
         int banaan;
 
-        void validate() const {}
+        void validate() {}
         void group(HandlerBase& handler) override {
             handler.item("aap", aap);
             handler.item("type", value, stepTypes);
@@ -65,7 +65,7 @@ namespace Configuration {
         TestBasic2* n2  = nullptr;
         int         foo = 0;
 
-        void validate() const {}
+        void validate() {}
         void group(HandlerBase& handler) override {
             handler.section("n1", n1);
             handler.section("n2", n2);
