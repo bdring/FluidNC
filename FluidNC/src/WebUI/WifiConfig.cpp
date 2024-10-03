@@ -278,8 +278,8 @@ namespace WebUI {
                     j.id_value_object("SSID: ", (const char*)conf.ap.ssid);
                     j.id_value_object("Visible: ", (conf.ap.ssid_hidden == 0 ? "Yes" : "No"));
                     j.id_value_object("Radio country set: ",
-                                      std::string("") + country.cc[0] + country.cc[1] + " (channels " + std::to_string(country.schan) + "-" +
-                                          std::to_string((country.schan + country.nchan - 1)) + ", max power " +
+                                      std::string("") + country.cc[0] + country.cc[1] + " (channels " + std::to_string(country.schan) +
+                                          "-" + std::to_string((country.schan + country.nchan - 1)) + ", max power " +
                                           std::to_string(country.max_tx_power) + "dBm)");
 
                     const char* mode;
@@ -520,7 +520,7 @@ namespace WebUI {
                 j.member("FlashFileSystem", "LittleFS");
                 j.member("HostPath", "/");
                 j.member("Time", "none");
-                j.member("Axisletters", config->_axes->_names);
+                j.member("Axisletters", Axes::_names);
                 j.end_object();
                 j.end();
                 return Error::Ok;
@@ -582,7 +582,7 @@ namespace WebUI {
             }
 
             //to save time in decoding `?`
-            s << " # axis:" << config->_axes->_numberAxis;
+            s << " # axis:" << Axes::_numberAxis;
             return Error::Ok;
         }
 

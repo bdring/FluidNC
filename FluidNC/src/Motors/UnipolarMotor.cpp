@@ -15,8 +15,8 @@ namespace MotorDrivers {
     }
 
     void UnipolarMotor::config_message() {
-        log_info("    " << name() << " Ph0:" << _pin_phase0.name() << " Ph1:" << _pin_phase1.name()
-                        << " Ph2:" << _pin_phase2.name() << " Ph3:" << _pin_phase3.name());
+        log_info("    " << name() << " Ph0:" << _pin_phase0.name() << " Ph1:" << _pin_phase1.name() << " Ph2:" << _pin_phase2.name()
+                        << " Ph3:" << _pin_phase3.name());
     }
 
     void IRAM_ATTR UnipolarMotor::set_disable(bool disable) {
@@ -29,7 +29,9 @@ namespace MotorDrivers {
         _enabled = !disable;
     }
 
-    void IRAM_ATTR UnipolarMotor::set_direction(bool dir) { _dir = dir; }
+    void IRAM_ATTR UnipolarMotor::set_direction(bool dir) {
+        _dir = dir;
+    }
 
     void IRAM_ATTR UnipolarMotor::step() {
         uint8_t _phase[8] = { 0, 0, 0, 0, 0, 0, 0, 0 };  // temporary phase values...all start as off
@@ -116,7 +118,7 @@ namespace MotorDrivers {
         _pin_phase1.write(_phase[1]);
         _pin_phase2.write(_phase[2]);
         _pin_phase3.write(_phase[3]);
-        config->_stepping->startPulseTimer();
+        Stepping::startPulseTimer();
     }
 
     // Configuration registration

@@ -12,7 +12,7 @@ namespace Kinematics {
 
     // Initialize the machine position
     void Cartesian::init_position() {
-        auto n_axis = config->_axes->_numberAxis;
+        auto n_axis = Axes::_numberAxis;
         for (size_t axis = 0; axis < n_axis; axis++) {
             set_motor_steps(axis, 0);  // Set to zeros
         }
@@ -178,7 +178,7 @@ namespace Kinematics {
 
     void Cartesian::constrain_jog(float* target, plan_line_data_t* pl_data, float* position) {
         auto axes   = config->_axes;
-        auto n_axis = config->_axes->_numberAxis;
+        auto n_axis = Axes::_numberAxis;
 
         float*    current_position = get_mpos();
         MotorMask lim_pin_state    = limits_get_state();
@@ -237,7 +237,7 @@ namespace Kinematics {
 
     bool Cartesian::invalid_line(float* cartesian) {
         auto axes   = config->_axes;
-        auto n_axis = config->_axes->_numberAxis;
+        auto n_axis = Axes::_numberAxis;
 
         for (int axis = 0; axis < n_axis; axis++) {
             float coordinate = cartesian[axis];

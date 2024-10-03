@@ -14,12 +14,11 @@ namespace Machine {
         static const uint32_t fStepperTimer = 20000000;  // frequency of step pulse timer
 
     private:
-        static bool onStepperDriverTimer();
-
         static const int ticksPerMicrosecond = fStepperTimer / 1000000;
 
-        bool    _switchedStepper = false;
-        int32_t _stepPulseEndTime;
+        static bool    _switchedStepper;
+        static int32_t _stepPulseEndTime;
+
 
     public:
         enum stepper_id_t {
@@ -38,32 +37,38 @@ namespace Machine {
         // execution lead time there is for other processes to run.  The latency for a feedhold or other
         // override is roughly 10 ms times _segments.
 
-        size_t _segments = 12;
+        static size_t _segments;
 
-        uint32_t _idleMsecs           = 255;
-        uint32_t _pulseUsecs          = 4;
-        uint32_t _directionDelayUsecs = 0;
-        uint32_t _disableDelayUsecs   = 0;
+        static uint32_t _idleMsecs;
+        static uint32_t _pulseUsecs;
+        static uint32_t _directionDelayUsecs;
+        static uint32_t _disableDelayUsecs;
 
         static int _engine;
 
         // Interfaces to stepping engine
-        void init();
+        static void init();
 
-        void reset();  // Clean up old state and start fresh
-        void beginLowLatency();
-        void endLowLatency();
-        void startPulseTimer();
-        void waitPulse();      // Wait for pulse length
-        void waitDirection();  // Wait for direction delay
-        void waitMotion();     // Wait for motion to complete
-        void finishPulse();    // Cleanup after unstep
+        static void assignMotor(int axis, int motor, int step_pin, bool step_invert, int dir_pin, bool dir_invert);
 
-        uint32_t maxPulsesPerSec();
+        static void setStepPin(int axis, int motor, int pin, bool invert);
+        static void setDirPin(int axis, int motor, int pin, bool invert);
+
+        static void reset();  // Clean up old state and start fresh
+        static void beginLowLatency();
+        static void endLowLatency();
+        static void startPulseTimer();
+        static void waitPulse();      // Wait for pulse length
+        static void waitDirection();  // Wait for direction delay
+        static void waitMotion();     // Wait for motion to complete
+        static void finishPulse();    // Cleanup after unstep
+
+
+        static uint32_t maxPulsesPerSec();
 
         // Timers
-        void        setTimerPeriod(uint16_t timerTicks);
-        void        startTimer();
+        static void setTimerPeriod(uint16_t timerTicks);
+        static void startTimer();
         static void stopTimer();
 
         // Configuration system helpers:

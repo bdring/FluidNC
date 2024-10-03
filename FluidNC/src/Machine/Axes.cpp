@@ -20,14 +20,19 @@ namespace Machine {
 
     bool Axes::disabled = false;
 
-    Axes::Axes() : _axis() {
-        for (int i = 0; i < MAX_N_AXIS; ++i) {
-            _axis[i] = nullptr;
-        }
-    }
+    Pin Axes::_sharedStepperDisable;
+    Pin Axes::_sharedStepperReset;
+
+    uint32_t Axes::_homing_runs = 2;  // Number of Approach/Pulloff cycles
+
+    int Axes::_numberAxis = 0;
+
+    Axis* Axes::_axis[MAX_N_AXIS] = { nullptr };
+
+    Axes::Axes() {}
 
     void Axes::init() {
-        log_info("Axis count " << config->_axes->_numberAxis);
+        log_info("Axis count " << Axes::_numberAxis);
 
         if (_sharedStepperDisable.defined()) {
             _sharedStepperDisable.setAttr(Pin::Attr::Output);
@@ -72,8 +77,8 @@ namespace Machine {
 
         if (!disable && disabled) {
             disabled = false;
-            if (config->_stepping->_disableDelayUsecs) {  // wait for the enable delay
-                delay_us(config->_stepping->_disableDelayUsecs);
+            if (Stepping::_disableDelayUsecs) {  // wait for the enable delay
+                delay_us(Stepping::_disableDelayUsecs);
             }
         }
     }
@@ -167,7 +172,7 @@ namespace Machine {
 
     // Some small helpers to find the axis index and axis motor index for a given motor. This
     // is helpful for some motors that need this info, as well as debug information.
-    size_t Axes::findAxisIndex(const MotorDrivers::MotorDriver* const driver) const {
+    size_t Axes::findAxisIndex(const MotorDrivers::MotorDriver* const driver) {
         for (int i = 0; i < _numberAxis; ++i) {
             for (int j = 0; j < Axis::MAX_MOTORS_PER_AXIS; ++j) {
                 if (_axis[i] != nullptr && _axis[i]->hasMotor(driver)) {
@@ -180,7 +185,7 @@ namespace Machine {
         return SIZE_MAX;
     }
 
-    size_t Axes::findAxisMotor(const MotorDrivers::MotorDriver* const driver) const {
+    size_t Axes::findAxisMotor(const MotorDrivers::MotorDriver* const driver) {
         for (int i = 0; i < _numberAxis; ++i) {
             if (_axis[i] != nullptr && _axis[i]->hasMotor(driver)) {
                 for (int j = 0; j < Axis::MAX_MOTORS_PER_AXIS; ++j) {

@@ -34,10 +34,10 @@ void system_reset() {
 }
 
 float steps_to_mpos(int32_t steps, size_t axis) {
-    return float(steps / config->_axes->_axis[axis]->_stepsPerMm);
+    return float(steps / Axes::_axis[axis]->_stepsPerMm);
 }
 int32_t mpos_to_steps(float mpos, size_t axis) {
-    return lroundf(mpos * config->_axes->_axis[axis]->_stepsPerMm);
+    return lroundf(mpos * Axes::_axis[axis]->_stepsPerMm);
 }
 
 void motor_steps_to_mpos(float* position, int32_t* steps) {
@@ -98,7 +98,7 @@ float* get_mpos() {
 
 float* get_wco() {
     static float wco[MAX_N_AXIS];
-    auto         n_axis = config->_axes->_numberAxis;
+    auto         n_axis = Axes::_numberAxis;
     for (int idx = 0; idx < n_axis; idx++) {
         // Apply work coordinate offsets and tool length offset to current position.
         wco[idx] = gc_state.coord_system[idx] + gc_state.coord_offset[idx];

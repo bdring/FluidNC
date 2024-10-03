@@ -95,7 +95,7 @@ public:
     inline Pin(Pin&& o) : _detail(nullptr) { std::swap(_detail, o._detail); }
 
     inline Pin& operator=(const Pin& o) = delete;
-    inline Pin& operator                =(Pin&& o) {
+    inline Pin& operator=(Pin&& o) {
         std::swap(_detail, o._detail);
         return *this;
     }

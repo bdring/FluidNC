@@ -9,6 +9,14 @@
 namespace Machine {
 
     int Stepping::_engine = RMT;
+    bool    Stepping::_switchedStepper = false;
+    int32_t Stepping::_stepPulseEndTime;
+    size_t  Stepping::_segments = 12;
+
+    uint32_t Stepping::_idleMsecs           = 255;
+    uint32_t Stepping::_pulseUsecs          = 4;
+    uint32_t Stepping::_directionDelayUsecs = 0;
+    uint32_t Stepping::_disableDelayUsecs   = 0;
 
     const EnumItem stepTypes[] = { { Stepping::TIMED, "Timed" },
                                    { Stepping::RMT, "RMT" },
