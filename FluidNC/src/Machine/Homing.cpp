@@ -199,11 +199,11 @@ namespace Machine {
                     travel    = axisConfig->extraPulloff();
                     if (travel < 0) {
                         // Motor0's pulloff is greater than motor1's, so we block motor1
-                        axisConfig->_motors[1]->block();
+                        Stepping::block(axis, 1);
                         travel = -travel;
                     } else if (travel > 0) {
                         // Motor1's pulloff is greater than motor0's, so we block motor0
-                        axisConfig->_motors[0]->block();
+                        Stepping::block(axis, 0);
                     }
                     // All motors will be unblocked later by set_homing_mode()
                     break;
@@ -357,7 +357,7 @@ namespace Machine {
         gc_sync_position();
         plan_sync_position();
 
-        config->_stepping->endLowLatency();
+        Stepping::endLowLatency();
 
         if (!sys.abort) {
             set_state(unhomed_axes() ? State::Alarm : State::Idle);
@@ -521,7 +521,7 @@ namespace Machine {
             set_state(State::Alarm);
             return;
         }
-        config->_stepping->beginLowLatency();
+        Stepping::beginLowLatency();
 
         set_state(State::Homing);
         nextCycle();

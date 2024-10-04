@@ -294,12 +294,11 @@ namespace Kinematics {
         auto n_axis = axes->_numberAxis;
         for (int axis = 0; axis < n_axis; axis++) {
             if (bitnum_is_true(axisMask, axis)) {
-                auto paxis = axes->_axis[axis];
                 if (bitnum_is_true(motors, Machine::Axes::motor_bit(axis, 0))) {
-                    paxis->_motors[0]->unlimit();
+                    Stepping::unlimit(axis, 0);
                 }
                 if (bitnum_is_true(motors, Machine::Axes::motor_bit(axis, 1))) {
-                    paxis->_motors[1]->unlimit();
+                    Stepping::unlimit(axis, 1);
                 }
             }
         }

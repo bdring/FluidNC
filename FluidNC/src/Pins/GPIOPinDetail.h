@@ -9,7 +9,6 @@ namespace Pins {
     class GPIOPinDetail : public PinDetail {
         PinCapabilities _capabilities;
         PinAttributes   _attributes;
-        int             _readWriteMask;
 
         static PinCapabilities GetDefaultCapabilities(pinnum_t index);
 
@@ -31,6 +30,8 @@ namespace Pins {
         int IRAM_ATTR read() override;
         void          setAttr(PinAttributes value) override;
         PinAttributes getAttr() const override;
+
+        bool canStep() override { return true; }
 
         void registerEvent(EventPin* obj) override;
 

@@ -93,9 +93,9 @@ namespace Machine {
                 auto a = _axis[axis];
                 if (a != nullptr) {
                     for (size_t motor = 0; motor < Axis::MAX_MOTORS_PER_AXIS; motor++) {
+                        Stepping::unblock(axis, motor);
                         auto m = _axis[axis]->_motors[motor];
                         if (m) {
-                            m->unblock();
                             if (m->_driver->set_homing_mode(isHoming)) {
                                 set_bitnum(motorsCanHome, motor_bit(axis, motor));
                             }
@@ -106,62 +106,6 @@ namespace Machine {
         }
 
         return motorsCanHome;
-    }
-
-    void IRAM_ATTR Axes::step(uint8_t step_mask, uint8_t dir_mask) {
-        auto n_axis = _numberAxis;
-        //log_info("motors_set_direction_pins:0x%02X", onMask);
-
-        // Set the direction pins, but optimize for the common
-        // situation where the direction bits haven't changed.
-        static uint8_t previous_dir = 255;  // should never be this value
-        if (dir_mask != previous_dir) {
-            previous_dir = dir_mask;
-
-            for (int axis = X_AXIS; axis < n_axis; axis++) {
-                bool thisDir = bitnum_is_true(dir_mask, axis);
-
-                for (size_t motor = 0; motor < Axis::MAX_MOTORS_PER_AXIS; motor++) {
-                    auto m = _axis[axis]->_motors[motor];
-                    if (m) {
-                        m->_driver->set_direction(thisDir);
-                    }
-                }
-            }
-            config->_stepping->waitDirection();
-        }
-
-        // Turn on step pulses for motors that are supposed to step now
-        for (size_t axis = X_AXIS; axis < n_axis; axis++) {
-            if (bitnum_is_true(step_mask, axis)) {
-                bool dir = bitnum_is_true(dir_mask, axis);
-
-                auto a = _axis[axis];
-                for (size_t motor = 0; motor < Axis::MAX_MOTORS_PER_AXIS; motor++) {
-                    auto m = a->_motors[motor];
-                    if (m) {
-                        m->step(dir);
-                    }
-                }
-            }
-        }
-        config->_stepping->startPulseTimer();
-    }
-
-    // Turn all stepper pins off
-    void IRAM_ATTR Axes::unstep() {
-        config->_stepping->waitPulse();
-        auto n_axis = _numberAxis;
-        for (size_t axis = X_AXIS; axis < n_axis; axis++) {
-            for (size_t motor = 0; motor < Axis::MAX_MOTORS_PER_AXIS; motor++) {
-                auto m = _axis[axis]->_motors[motor];
-                if (m) {
-                    m->_driver->unstep();
-                }
-            }
-        }
-
-        config->_stepping->finishPulse();
     }
 
     void Axes::config_motors() {

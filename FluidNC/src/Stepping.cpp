@@ -4,11 +4,20 @@
 #include "Stepper.h"
 #include "Machine/MachineConfig.h"  // config
 
+#include <esp32-hal-gpio.h>
+#include <driver/rmt.h>
+
 #include <atomic>
 
 namespace Machine {
 
-    int Stepping::_engine = RMT;
+    // fStepperTimer should be an integer divisor of the bus speed, i.e. of fTimers
+    const int ticksPerMicrosecond = Stepping::fStepperTimer / 1000000;
+
+    int Stepping::_engine = RMT_ENGINE;
+
+    int Stepping::_n_active_axes = 0;
+
     bool    Stepping::_switchedStepper = false;
     int32_t Stepping::_stepPulseEndTime;
     size_t  Stepping::_segments = 12;
@@ -19,10 +28,10 @@ namespace Machine {
     uint32_t Stepping::_disableDelayUsecs   = 0;
 
     const EnumItem stepTypes[] = { { Stepping::TIMED, "Timed" },
-                                   { Stepping::RMT, "RMT" },
+                                   { Stepping::RMT_ENGINE, "RMT" },
                                    { Stepping::I2S_STATIC, "I2S_static" },
                                    { Stepping::I2S_STREAM, "I2S_stream" },
-                                   EnumItem(Stepping::RMT) };
+                                   EnumItem(Stepping::RMT_ENGINE) };
 
     void Stepping::init() {
         log_info("Stepping:" << stepTypes[_engine].name << " Pulse:" << _pulseUsecs << "us Dsbl Delay:" << _disableDelayUsecs
@@ -39,6 +48,196 @@ namespace Machine {
         //        i2s_out_set_pulse_callback(Stepper::pulse_func);
 
         Stepper::init();
+    }
+
+    rmt_channel_t _rmt_chan_num = RMT_CHANNEL_MAX;
+
+    static int init_rmt_channel(rmt_channel_t& rmt_chan_num, int step_gpio, bool invert_step, uint32_t dir_delay_ms, uint32_t pulse_us) {
+        static rmt_channel_t next_RMT_chan_num = RMT_CHANNEL_0;
+        if (rmt_chan_num == RMT_CHANNEL_MAX) {
+            if (next_RMT_chan_num == RMT_CHANNEL_MAX) {
+                log_error("Out of RMT channels");
+                return -1;
+            }
+            rmt_chan_num      = next_RMT_chan_num;
+            next_RMT_chan_num = static_cast<rmt_channel_t>(static_cast<int>(next_RMT_chan_num) + 1);
+        }
+
+        rmt_config_t rmtConfig = { .rmt_mode      = RMT_MODE_TX,
+                                   .channel       = rmt_chan_num,
+                                   .gpio_num      = gpio_num_t(step_gpio),
+                                   .clk_div       = 20,
+                                   .mem_block_num = 2,
+                                   .flags         = 0,
+                                   .tx_config     = {
+                                           .carrier_freq_hz      = 0,
+                                           .carrier_level        = RMT_CARRIER_LEVEL_LOW,
+                                           .idle_level           = invert_step ? RMT_IDLE_LEVEL_HIGH : RMT_IDLE_LEVEL_LOW,
+                                           .carrier_duty_percent = 50,
+#if SOC_RMT_SUPPORT_TX_LOOP_COUNT
+                                       .loop_count = 1,
+#endif
+                                       .carrier_en     = false,
+                                       .loop_en        = false,
+                                       .idle_output_en = true,
+                                   } };
+
+        rmt_item32_t rmtItem[2];
+        rmtItem[0].duration0 = dir_delay_ms ? dir_delay_ms * 4 : 1;
+        rmtItem[0].duration1 = 4 * pulse_us;
+        rmtItem[1].duration0 = 0;
+        rmtItem[1].duration1 = 0;
+
+        rmtItem[0].level0 = rmtConfig.tx_config.idle_level;
+        rmtItem[0].level1 = !rmtConfig.tx_config.idle_level;
+        rmt_config(&rmtConfig);
+        rmt_fill_tx_items(rmtConfig.channel, &rmtItem[0], rmtConfig.mem_block_num, 0);
+        return rmt_chan_num;
+    }
+
+    Stepping::motor_t* Stepping::axis_motors[MAX_N_AXIS][MAX_MOTORS_PER_AXIS] = { nullptr };
+
+    void Stepping::assignMotor(int axis, int motor, int step_pin, bool step_invert, int dir_pin, bool dir_invert) {
+        if (axis >= _n_active_axes) {
+            _n_active_axes = axis + 1;
+        }
+        if (_engine == RMT_ENGINE) {
+            step_pin = init_rmt_channel(_rmt_chan_num, step_pin, step_invert, _directionDelayUsecs, _pulseUsecs);
+        }
+
+        motor_t* m               = new motor_t;
+        axis_motors[axis][motor] = m;
+        m->step_pin              = step_pin;
+        m->step_invert           = step_invert;
+        m->dir_pin               = dir_pin;
+        m->dir_invert            = dir_invert;
+        m->blocked               = false;
+        m->limited               = false;
+    }
+
+    int Stepping::axis_steps[MAX_N_AXIS] = { 0 };
+
+    bool* Stepping::limit_var(int axis, int motor) {
+        auto m = axis_motors[axis][motor];
+        return m ? &(m->limited) : nullptr;
+    }
+
+    void Stepping::block(int axis, int motor) {
+        auto m = axis_motors[axis][motor];
+        if (m) {
+            m->blocked = true;
+        }
+    }
+
+    void Stepping::unblock(int axis, int motor) {
+        auto m = axis_motors[axis][motor];
+        if (m) {
+            m->blocked = false;
+        }
+    }
+
+    void Stepping::limit(int axis, int motor) {
+        auto m = axis_motors[axis][motor];
+        if (m) {
+            m->limited = true;
+        }
+    }
+    void Stepping::unlimit(int axis, int motor) {
+        auto m = axis_motors[axis][motor];
+        if (m) {
+            m->limited = false;
+        }
+    }
+
+    void IRAM_ATTR Stepping::step(uint8_t step_mask, uint8_t dir_mask) {
+        // Set the direction pins, but optimize for the common
+        // situation where the direction bits haven't changed.
+        static uint8_t previous_dir_mask = 255;  // should never be this value
+        if (dir_mask != previous_dir_mask) {
+            for (size_t axis = 0; axis < _n_active_axes; axis++) {
+                bool dir     = bitnum_is_true(dir_mask, axis);
+                bool old_dir = bitnum_is_true(previous_dir_mask, axis);
+                if (dir != old_dir) {
+                    for (size_t motor = 0; motor < MAX_MOTORS_PER_AXIS; motor++) {
+                        auto m = axis_motors[axis][motor];
+                        if (m) {
+                            int  pin       = m->dir_pin;
+                            bool inverted  = m->dir_invert;
+                            bool direction = dir ^ inverted;
+                            if (_engine == RMT_ENGINE || _engine == TIMED) {
+                                gpio_write(pin, direction);
+                            } else if (_engine == I2S_STATIC || _engine == I2S_STREAM) {
+                                i2s_out_write(pin, direction);
+                            }
+                        }
+                    }
+                }
+                waitDirection();
+                previous_dir_mask = dir_mask;
+            }
+        }
+
+        // Turn on step pulses for motors that are supposed to step now
+        for (size_t axis = 0; axis < _n_active_axes; axis++) {
+            if (bitnum_is_true(step_mask, axis)) {
+                auto increment = bitnum_is_true(dir_mask, axis) ? 1 : -1;
+                axis_steps[axis] += increment;
+                for (size_t motor = 0; motor < MAX_MOTORS_PER_AXIS; motor++) {
+                    auto m = axis_motors[axis][motor];
+                    if (m && !m->blocked && !m->limited) {
+                        int  pin      = m->step_pin;
+                        bool inverted = m->step_invert;
+                        if (_engine == RMT_ENGINE) {
+                            // Restart the RMT which has already been configured
+                            // for the desired pulse length and polarity
+#ifdef CONFIG_IDF_TARGET_ESP32
+                            RMT.conf_ch[pin].conf1.mem_rd_rst = 1;
+                            RMT.conf_ch[pin].conf1.mem_rd_rst = 0;
+                            RMT.conf_ch[pin].conf1.tx_start   = 1;
+#endif
+#ifdef CONFIG_IDF_TARGET_ESP32S3
+                            RMT.chnconf0[pin].mem_rd_rst_n = 1;
+                            RMT.chnconf0[pin].mem_rd_rst_n = 0;
+                            RMT.chnconf0[pin].tx_start_n   = 1;
+#endif
+                        } else if (_engine == I2S_STATIC || _engine == I2S_STREAM) {
+                            i2s_out_write(pin, !inverted);
+                        } else if (_engine == TIMED) {
+                            gpio_write(pin, !inverted);
+                        }
+                    }
+                }
+            }
+        }
+        startPulseTimer();
+    }
+
+    // Turn all stepper pins off
+    void IRAM_ATTR Stepping::unstep() {
+        // With RMT, the end of the step is automatic
+        if (_engine == RMT_ENGINE) {
+            return;
+        }
+        if (_engine == I2S_STATIC || _engine == TIMED) {  // Wait pulse
+            spinUntil(_stepPulseEndTime);
+        }
+        for (size_t axis = 0; axis < _n_active_axes; axis++) {
+            for (size_t motor = 0; motor < MAX_MOTORS_PER_AXIS; motor++) {
+                auto m = axis_motors[axis][motor];
+                if (m) {
+                    int  pin      = m->step_pin;
+                    bool inverted = m->step_invert;
+                    if (_engine == I2S_STATIC || _engine == I2S_STREAM) {
+                        i2s_out_write(pin, inverted);
+                    } else if (_engine == TIMED) {
+                        gpio_write(pin, inverted);
+                    }
+                }
+            }
+        }
+        if (_engine == stepper_id_t::I2S_STATIC) {
+            i2s_out_push();
+        }
     }
 
     void Stepping::reset() {
@@ -65,14 +264,8 @@ namespace Machine {
             _engine = I2S_STREAM;
         }
     }
-    // Called only from Axes::unstep()
-    void IRAM_ATTR Stepping::waitPulse() {
-        if (_engine == I2S_STATIC || _engine == TIMED) {
-            spinUntil(_stepPulseEndTime);
-        }
-    }
 
-    // Called only from Axes::step()
+    // Called only from step()
     void IRAM_ATTR Stepping::waitDirection() {
         if (_directionDelayUsecs) {
             // Stepper drivers need some time between changing direction and doing a pulse.
@@ -91,7 +284,7 @@ namespace Machine {
         }
     }
 
-    // Called from Axes::step() and, probably incorrectly, from UnipolarMotor::step()
+    // Called from step()
     void IRAM_ATTR Stepping::startPulseTimer() {
         // Do not use switch() in IRAM
         if (_engine == stepper_id_t::I2S_STREAM) {
@@ -102,13 +295,6 @@ namespace Machine {
             _stepPulseEndTime = usToEndTicks(_pulseUsecs);
         } else if (_engine == stepper_id_t::TIMED) {
             _stepPulseEndTime = usToEndTicks(_pulseUsecs);
-        }
-    }
-
-    // Called only from Axes::unstep()
-    void IRAM_ATTR Stepping::finishPulse() {
-        if (_engine == stepper_id_t::I2S_STATIC) {
-            i2s_out_push();
         }
     }
 
@@ -169,7 +355,7 @@ namespace Machine {
             case stepper_id_t::I2S_STREAM:
             case stepper_id_t::I2S_STATIC:
                 return i2s_out_max_steps_per_sec;
-            case stepper_id_t::RMT:
+            case stepper_id_t::RMT_ENGINE:
                 return 1000000 / (2 * _pulseUsecs + _directionDelayUsecs);
             case stepper_id_t::TIMED:
             default:

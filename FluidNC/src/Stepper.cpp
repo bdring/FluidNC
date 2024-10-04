@@ -177,7 +177,7 @@ static st_prep_t prep;
 
 // Stepper shutdown
 void IRAM_ATTR Stepper::stop_stepping() {
-    config->_axes->unstep();
+    Stepping::unstep();
     st.step_outbits = 0;
 }
 
@@ -203,7 +203,7 @@ bool IRAM_ATTR Stepper::pulse_func() {
     }
     auto n_axis = Axes::_numberAxis;
 
-    config->_axes->step(st.step_outbits, st.dir_outbits);
+    Stepping::step(st.step_outbits, st.dir_outbits);
 
     // If there is no step segment, attempt to pop one from the stepper buffer
     if (st.exec_segment == NULL) {
@@ -266,7 +266,7 @@ bool IRAM_ATTR Stepper::pulse_func() {
         segment_buffer_tail = segment_buffer_tail >= (Stepping::_segments - 1) ? 0 : segment_buffer_tail + 1;
     }
 
-    config->_axes->unstep();
+    Stepping::unstep();
     return true;
 }
 
@@ -294,7 +294,7 @@ void Stepper::go_idle() {
 // Reset and clear stepper subsystem variables
 void Stepper::reset() {
     // Initialize Stepping driver idle state.
-    config->_stepping->reset();
+    Stepping::reset();
 
     go_idle();
 

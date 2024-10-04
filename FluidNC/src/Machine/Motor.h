@@ -35,10 +35,6 @@ namespace Machine {
         Pin  _allPin;
         bool _hardLimits = false;
 
-        int32_t _steps   = 0;
-        bool    _limited = false;  // _limited is set by the LimitPin ISR
-        bool    _blocked = false;  // _blocked is used during asymmetric homing pulloff
-
         // Configuration system helpers:
         void group(Configuration::HandlerBase& handler) override;
         void afterParse() override;
@@ -48,11 +44,6 @@ namespace Machine {
         void limitOtherAxis(int axis);
         void init();
         void config_motor();
-        void step(bool reverse);
-        void unstep();
-        void block() { _blocked = true; }
-        void unblock() { _blocked = false; }
-        void unlimit() { _limited = false; }
         ~Motor();
     };
 }

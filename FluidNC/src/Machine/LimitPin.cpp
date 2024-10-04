@@ -6,9 +6,9 @@
 #include "src/Protocol.h"  // protocol_send_event_from_ISR()
 
 namespace Machine {
-    LimitPin::LimitPin(Pin& pin, int axis, int motor, int direction, bool& pHardLimits, bool& pLimited) :
-        EventPin(&limitEvent, "Limit"), _axis(axis), _motorNum(motor), _value(false), _pHardLimits(pHardLimits), _pLimited(pLimited),
-        _pin(&pin) {
+    LimitPin::LimitPin(Pin& pin, int axis, int motor, int direction, bool& pHardLimits) :
+        EventPin(&limitEvent, "Limit"), _axis(axis), _motorNum(motor), _value(false), _pHardLimits(pHardLimits), _pin(&pin) {
+        _pLimited = Stepping::limit_var(axis, motor);
         const char* sDir;
         // Select one or two bitmask variables to receive the switch data
         switch (direction) {
@@ -56,7 +56,7 @@ namespace Machine {
     void LimitPin::update(bool value) {
         if (value) {
             if (Homing::approach() || (!state_is(State::Homing) && _pHardLimits)) {
-                _pLimited = value;
+                *_pLimited = value;
 
                 if (_pExtraLimited != nullptr) {
                     *_pExtraLimited = value;
@@ -70,7 +70,7 @@ namespace Machine {
                 set_bits(*_negLimits, _bitmask);
             }
         } else {
-            _pLimited = value;
+            *_pLimited = value;
 
             if (_pExtraLimited != nullptr) {
                 *_pExtraLimited = value;
@@ -92,6 +92,6 @@ namespace Machine {
     }
 
     void LimitPin::setExtraMotorLimit(int axis, int motorNum) {
-        _pExtraLimited = &config->_axes->_axis[axis]->_motors[motorNum]->_limited;
+        _pExtraLimited = Stepping::limit_var(axis, motorNum);
     }
 }

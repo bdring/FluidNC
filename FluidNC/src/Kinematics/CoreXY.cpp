@@ -75,7 +75,7 @@ namespace Kinematics {
         auto n_axis = axes->_numberAxis;
         for (size_t axis = X_AXIS; axis < n_axis; axis++) {
             if (bitnum_is_true(axisMask, axis)) {
-                axes->_axis[axis]->_motors[0]->unlimit();
+                Stepping::unlimit(axis, 0);
             }
         }
     }

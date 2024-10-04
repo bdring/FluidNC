@@ -558,8 +558,6 @@ SECTIONS
     *libspi_flash.a:spi_flash_chip_winbond.*(.rodata .rodata.*)
     *libspi_flash.a:spi_flash_rom_patch.*(.rodata .rodata.*)
 
-    /* For the bluetooth build we must use DRAM for the ISR vtables */
-    /* because there is not enough space left in IRAM */
     INCLUDE ../vtable_in_dram.ld
 
     _data_end = ABSOLUTE(.);

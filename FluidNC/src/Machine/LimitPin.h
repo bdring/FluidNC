@@ -19,7 +19,7 @@ namespace Machine {
         // touch, increasing the accuracy of homing
         // _pExtraLimited lets the limit control two motors, as with
         // CoreXY
-        volatile bool& _pLimited;
+        volatile bool* _pLimited;
         volatile bool* _pExtraLimited = nullptr;
 
         volatile uint32_t* _posLimits = nullptr;
@@ -28,7 +28,7 @@ namespace Machine {
         Pin* _pin;
 
     public:
-        LimitPin(Pin& pin, int axis, int motorNum, int direction, bool& phardLimits, bool& pLimited);
+        LimitPin(Pin& pin, int axis, int motorNum, int direction, bool& phardLimits);
 
         void update(bool value) override;
 

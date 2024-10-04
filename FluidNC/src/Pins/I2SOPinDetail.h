@@ -10,7 +10,7 @@ namespace Pins {
     class I2SOPinDetail : public PinDetail {
         PinCapabilities _capabilities;
         PinAttributes   _attributes;
-        int             _readWriteMask;
+        int             _inverted;
 
         static const int         nI2SOPins = 32;
         static std::vector<bool> _claimed;
@@ -28,6 +28,8 @@ namespace Pins {
         int           read() override;
         void          setAttr(PinAttributes value) override;
         PinAttributes getAttr() const override;
+
+        bool canStep() override { return true; }
 
         std::string toString() override;
 
