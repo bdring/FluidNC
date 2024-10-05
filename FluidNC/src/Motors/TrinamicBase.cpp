@@ -137,11 +137,12 @@ namespace MotorDrivers {
         return true;
     }
 
+    void TrinamicBase::init() {
+        init_step_dir_pins();
+    }
+
     void TrinamicBase::config_motor() {
         _has_errors = !test();  // Try communicating with motor. Prints an error if there is a problem.
-
-        log_debug("Trinamic base config_motor");
-        init_step_dir_pins();
 
         if (_has_errors) {
             return;

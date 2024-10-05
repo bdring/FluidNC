@@ -63,6 +63,7 @@ namespace MotorDrivers {
         void         reportCommsFailure(void);
         bool         checkVersion(uint8_t expected, uint8_t got);
         bool         startDisable(bool disable);
+        void         init() override;
         virtual void config_motor();
 
         const char* yn(bool v) { return v ? "Y" : "N"; }

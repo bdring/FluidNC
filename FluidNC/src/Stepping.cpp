@@ -94,13 +94,11 @@ namespace Machine {
     Stepping::motor_t* Stepping::axis_motors[MAX_N_AXIS][MAX_MOTORS_PER_AXIS] = { nullptr };
 
     void Stepping::assignMotor(int axis, int motor, int step_pin, bool step_invert, int dir_pin, bool dir_invert) {
-        log_debug("assignMotor " << axis << " " << motor << " " << step_pin << " " << dir_pin << " " << dir_invert);
         if (axis >= _n_active_axes) {
             _n_active_axes = axis + 1;
         }
         if (_engine == RMT_ENGINE) {
             step_pin = init_rmt_channel(step_pin, step_invert, _directionDelayUsecs, _pulseUsecs);
-            log_debug("RMT num " << step_pin << " for axis " << axis << " motor " << motor);
         }
 
         motor_t* m               = new motor_t;
@@ -151,6 +149,11 @@ namespace Machine {
         // Set the direction pins, but optimize for the common
         // situation where the direction bits haven't changed.
         static uint8_t previous_dir_mask = 255;  // should never be this value
+        if (previous_dir_mask == 255) {
+            // Set all the direction bits the first time
+            previous_dir_mask = ~dir_mask;
+        }
+
         if (dir_mask != previous_dir_mask) {
             for (size_t axis = 0; axis < _n_active_axes; axis++) {
                 bool dir     = bitnum_is_true(dir_mask, axis);
@@ -160,8 +163,7 @@ namespace Machine {
                         auto m = axis_motors[axis][motor];
                         if (m) {
                             int  pin       = m->dir_pin;
-                            bool inverted  = m->dir_invert;
-                            bool direction = dir ^ inverted;
+                            bool direction = dir ^ m->dir_invert;
                             if (_engine == RMT_ENGINE || _engine == TIMED) {
                                 gpio_write(pin, direction);
                             } else if (_engine == I2S_STATIC || _engine == I2S_STREAM) {
@@ -171,8 +173,8 @@ namespace Machine {
                     }
                 }
                 waitDirection();
-                previous_dir_mask = dir_mask;
             }
+            previous_dir_mask = dir_mask;
         }
 
         // Turn on step pulses for motors that are supposed to step now

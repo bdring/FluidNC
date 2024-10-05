@@ -8,7 +8,6 @@
 namespace Machine {
     LimitPin::LimitPin(Pin& pin, int axis, int motor, int direction, bool& pHardLimits) :
         EventPin(&limitEvent, "Limit"), _axis(axis), _motorNum(motor), _value(false), _pHardLimits(pHardLimits), _pin(&pin) {
-        _pLimited = Stepping::limit_var(axis, motor);
         const char* sDir;
         // Select one or two bitmask variables to receive the switch data
         switch (direction) {
@@ -47,6 +46,8 @@ namespace Machine {
         if (_pin->undefined()) {
             return;
         }
+        _pLimited = Stepping::limit_var(_axis, _motorNum);
+
         _pin->report(_legend);
         _pin->setAttr(Pin::Attr::Input);
         _pin->registerEvent(static_cast<EventPin*>(this));
