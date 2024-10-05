@@ -48,11 +48,6 @@ namespace MotorDrivers {
         // the stallguard debugging problem.
         virtual void debug_message();
 
-        // read_settings(), called from init(), re-establishes the motor
-        // setup from configurable arameters.
-        // TODO Architecture: Maybe this should be subsumed by init()
-        virtual void read_settings() {}
-
         // set_homing_mode() is called from motors_set_homing_mode(),
         // which in turn is called at the beginning of a homing cycle
         // with isHoming true, and at the end with isHoming false.

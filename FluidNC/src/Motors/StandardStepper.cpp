@@ -19,11 +19,7 @@ using namespace Machine;
 namespace MotorDrivers {
 
     void StandardStepper::init() {
-        read_settings();
         config_message();
-    }
-
-    void StandardStepper::read_settings() {
         init_step_dir_pins();
     }
 
@@ -41,8 +37,6 @@ namespace MotorDrivers {
         if (_step_pin.canStep()) {
             Stepping::assignMotor(axisIndex, dualAxisIndex, _step_pin.index(), _step_pin.inverted(), _dir_pin.index(), _dir_pin.inverted());
         }
-
-        auto dir_gpio = _step_pin.getNative(Pin::Capabilities::Output);
     }
 
     void StandardStepper::config_message() {
