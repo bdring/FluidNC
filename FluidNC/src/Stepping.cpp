@@ -50,18 +50,14 @@ namespace Machine {
         Stepper::init();
     }
 
-    rmt_channel_t _rmt_chan_num = RMT_CHANNEL_MAX;
-
-    static int init_rmt_channel(rmt_channel_t& rmt_chan_num, int step_gpio, bool invert_step, uint32_t dir_delay_ms, uint32_t pulse_us) {
+    static int init_rmt_channel(int step_gpio, bool invert_step, uint32_t dir_delay_ms, uint32_t pulse_us) {
         static rmt_channel_t next_RMT_chan_num = RMT_CHANNEL_0;
-        if (rmt_chan_num == RMT_CHANNEL_MAX) {
-            if (next_RMT_chan_num == RMT_CHANNEL_MAX) {
-                log_error("Out of RMT channels");
-                return -1;
-            }
-            rmt_chan_num      = next_RMT_chan_num;
-            next_RMT_chan_num = static_cast<rmt_channel_t>(static_cast<int>(next_RMT_chan_num) + 1);
+        if (next_RMT_chan_num == RMT_CHANNEL_MAX) {
+            log_error("Out of RMT channels");
+            return -1;
         }
+        rmt_channel_t rmt_chan_num = next_RMT_chan_num;
+        next_RMT_chan_num          = static_cast<rmt_channel_t>(static_cast<int>(next_RMT_chan_num) + 1);
 
         rmt_config_t rmtConfig = { .rmt_mode      = RMT_MODE_TX,
                                    .channel       = rmt_chan_num,
@@ -92,17 +88,19 @@ namespace Machine {
         rmtItem[0].level1 = !rmtConfig.tx_config.idle_level;
         rmt_config(&rmtConfig);
         rmt_fill_tx_items(rmtConfig.channel, &rmtItem[0], rmtConfig.mem_block_num, 0);
-        return rmt_chan_num;
+        return static_cast<int>(rmt_chan_num);
     }
 
     Stepping::motor_t* Stepping::axis_motors[MAX_N_AXIS][MAX_MOTORS_PER_AXIS] = { nullptr };
 
     void Stepping::assignMotor(int axis, int motor, int step_pin, bool step_invert, int dir_pin, bool dir_invert) {
+        log_debug("assignMotor " << axis << " " << motor << " " << step_pin << " " << dir_pin << " " << dir_invert);
         if (axis >= _n_active_axes) {
             _n_active_axes = axis + 1;
         }
         if (_engine == RMT_ENGINE) {
-            step_pin = init_rmt_channel(_rmt_chan_num, step_pin, step_invert, _directionDelayUsecs, _pulseUsecs);
+            step_pin = init_rmt_channel(step_pin, step_invert, _directionDelayUsecs, _pulseUsecs);
+            log_debug("RMT num " << step_pin << " for axis " << axis << " motor " << motor);
         }
 
         motor_t* m               = new motor_t;

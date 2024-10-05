@@ -56,8 +56,9 @@ namespace Machine {
     void LimitPin::update(bool value) {
         if (value) {
             if (Homing::approach() || (!state_is(State::Homing) && _pHardLimits)) {
-                *_pLimited = value;
-
+                if (_pLimited != nullptr) {
+                    *_pLimited = value;
+                }
                 if (_pExtraLimited != nullptr) {
                     *_pExtraLimited = value;
                 }
@@ -70,8 +71,9 @@ namespace Machine {
                 set_bits(*_negLimits, _bitmask);
             }
         } else {
-            *_pLimited = value;
-
+            if (_pLimited != nullptr) {
+                *_pLimited = value;
+            }
             if (_pExtraLimited != nullptr) {
                 *_pExtraLimited = value;
             }
