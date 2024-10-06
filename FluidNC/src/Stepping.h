@@ -14,6 +14,7 @@ namespace Machine {
     private:
         static bool    _switchedStepper;
         static int32_t _stepPulseEndTime;
+        static int     _i2sPulseCounts;
 
         static const int MAX_MOTORS_PER_AXIS = 2;
         struct motor_t {

@@ -180,6 +180,10 @@ void IRAM_ATTR i2s_out_push() {
         set_single_data(ATOMIC_LOAD(&i2s_out_port_data));
     }
 }
+void IRAM_ATTR i2s_out_push_fifo() {
+    uint32_t portData = ATOMIC_LOAD(&i2s_out_port_data);
+    I2S0.fifo_wr      = portData << DATA_SHIFT;
+}
 
 static inline void i2s_out_reset_fifo_without_lock() {
     I2S0.conf.rx_fifo_reset = 1;
@@ -291,7 +295,7 @@ static int i2s_out_start() {
     // Attach I2S to specified GPIO pin
     i2s_out_gpio_attach(i2s_out_ws_pin, i2s_out_bck_pin, i2s_out_data_pin);
 
-    // reest TX/RX module
+    // reset TX/RX module
     I2S0.conf.tx_reset = 1;
     I2S0.conf.tx_reset = 0;
     I2S0.conf.rx_reset = 1;
@@ -310,8 +314,12 @@ static int i2s_out_start() {
 
     // start DMA link
     if (i2s_out_pulser_status == PASSTHROUGH) {
+#    if 0
         I2S0.conf_chan.tx_chan_mod = 3;  // 3:right+constant 4:left+constant (when tx_msb_right = 1)
-        I2S0.conf_single_data      = port_data;
+#    else
+        I2S0.conf_chan.tx_chan_mod = 4;  // 3:right+constant 4:left+constant (when tx_msb_right = 1)
+#    endif
+        I2S0.conf_single_data = port_data;
     } else {
         I2S0.conf_chan.tx_chan_mod = 4;  // 3:right+constant 4:left+constant (when tx_msb_right = 1)
         I2S0.conf_single_data      = 0;
@@ -320,7 +328,11 @@ static int i2s_out_start() {
     I2S0.conf1.tx_stop_en = 1;  // BCK and WCK are suppressed while FIFO is empty
 
     // Connect DMA to FIFO
+#    if 0
     I2S0.fifo_conf.dscr_en = 1;  // Set this bit to enable I2S DMA mode. (R/W)
+#    else
+    I2S0.fifo_conf.dscr_en     = 0;      // Set this bit to enable I2S DMA mode. (R/W)
+#    endif
 
     I2S0.int_clr.val    = 0xFFFFFFFF;
     I2S0.out_link.start = 1;
@@ -775,8 +787,9 @@ int i2s_out_init(i2s_out_init_t& init_param) {
     I2S0.lc_conf.out_no_restart_clr = 0;
     I2S0.lc_conf.indscr_burst_en    = 0;
     I2S0.lc_conf.out_eof_mode       = 1;  // I2S_OUT_EOF_INT generated when DMA has popped all data from the FIFO;
-    I2S0.conf2.lcd_en               = 0;
-    I2S0.conf2.camera_en            = 0;
+
+    I2S0.conf2.lcd_en    = 0;
+    I2S0.conf2.camera_en = 0;
 #    ifdef SOC_I2S_SUPPORTS_PDM_TX
     // i2s_ll_tx_enable_pdm(dev, false);
     // i2s_ll_tx_enable_pdm(dev2, false);
@@ -802,8 +815,8 @@ int i2s_out_init(i2s_out_init_t& init_param) {
     I2S0.sample_rate_conf.tx_bits_mod = 16;  // default is 16-bits
     I2S0.sample_rate_conf.rx_bits_mod = 16;  // default is 16-bits
 #    else
-    I2S0.fifo_conf.tx_fifo_mod = 3;  // 0: 16-bit dual channel data, 3: 32-bit single channel data
-    I2S0.fifo_conf.rx_fifo_mod = 3;  // 0: 16-bit dual channel data, 3: 32-bit single channel data
+    I2S0.fifo_conf.tx_fifo_mod = 3;      // 0: 16-bit dual channel data, 3: 32-bit single channel data
+    I2S0.fifo_conf.rx_fifo_mod = 3;      // 0: 16-bit dual channel data, 3: 32-bit single channel data
     // Data width is 32-bit. Forgetting this setting will result in a 16-bit transfer.
     I2S0.sample_rate_conf.tx_bits_mod = 32;
     I2S0.sample_rate_conf.rx_bits_mod = 32;
@@ -813,9 +826,13 @@ int i2s_out_init(i2s_out_init_t& init_param) {
     I2S0.conf_chan.rx_chan_mod = 1;  // 1: right+right
     I2S0.conf.rx_mono          = 0;
 
+#    if 0
     I2S0.fifo_conf.dscr_en = 1;  //connect DMA to fifo
-    I2S0.conf.tx_start     = 0;
-    I2S0.conf.rx_start     = 0;
+#    else
+    I2S0.fifo_conf.dscr_en            = 0;  //connect DMA to fifo
+#    endif
+    I2S0.conf.tx_start         = 0;
+    I2S0.conf.rx_start         = 0;
 
     I2S0.conf.tx_msb_right   = 1;  // Set this bit to place right-channel data at the MSB in the transmit FIFO.
     I2S0.conf.tx_right_first = 0;  // Setting this bit allows the right-channel data to be sent first.

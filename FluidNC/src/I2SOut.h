@@ -86,6 +86,8 @@ uint8_t i2s_out_read(pinnum_t pin);
 
 void i2s_out_push();
 
+void i2s_out_push_fifo();
+
 /*
    Set a bit in the internal pin state var. (not written electrically)
    pin: expanded pin No. (0..31)

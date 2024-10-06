@@ -22,6 +22,8 @@ namespace Machine {
     int32_t Stepping::_stepPulseEndTime;
     size_t  Stepping::_segments = 12;
 
+    int Stepping::_i2sPulseCounts;
+
     uint32_t Stepping::_idleMsecs           = 255;
     uint32_t Stepping::_pulseUsecs          = 4;
     uint32_t Stepping::_directionDelayUsecs = 0;
@@ -34,8 +36,14 @@ namespace Machine {
                                    EnumItem(Stepping::RMT_ENGINE) };
 
     void Stepping::init() {
+        if (_engine == I2S_STATIC) {
+            // Number of I2S frames for a pulse, rounded up
+            _i2sPulseCounts = (_pulseUsecs + I2S_OUT_USEC_PER_PULSE - 1) / I2S_OUT_USEC_PER_PULSE;
+        }
+
         log_info("Stepping:" << stepTypes[_engine].name << " Pulse:" << _pulseUsecs << "us Dsbl Delay:" << _disableDelayUsecs
-                             << "us Dir Delay:" << _directionDelayUsecs << "us Idle Delay:" << _idleMsecs << "ms");
+                             << "us Dir Delay:" << _directionDelayUsecs << "us Idle Delay:" << _idleMsecs << "ms"
+                             << " Pulses: " << _i2sPulseCounts);
 
         // Prepare stepping interrupt callbacks.  The one that is actually
         // used is determined by timerStart() and timerStop()
@@ -209,7 +217,21 @@ namespace Machine {
                 }
             }
         }
-        startPulseTimer();
+        // Do not use switch() in IRAM
+        if (_engine == stepper_id_t::I2S_STREAM) {
+            // Generate the number of pulses needed to span pulse_microseconds
+            i2s_out_push_sample(_pulseUsecs);
+        } else if (_engine == stepper_id_t::I2S_STATIC) {
+            // i2s_out_push();
+            for (int i = 0; i < _i2sPulseCounts; i++) {
+                i2s_out_push_fifo();
+            }
+#if 0
+            _stepPulseEndTime = usToEndTicks(_pulseUsecs);
+#endif
+        } else if (_engine == stepper_id_t::TIMED) {
+            _stepPulseEndTime = usToEndTicks(_pulseUsecs);
+        }
     }
 
     // Turn all stepper pins off
@@ -218,9 +240,11 @@ namespace Machine {
         if (_engine == RMT_ENGINE) {
             return;
         }
+#if 0
         if (_engine == I2S_STATIC || _engine == TIMED) {  // Wait pulse
             spinUntil(_stepPulseEndTime);
         }
+#endif
         for (size_t axis = 0; axis < _n_active_axes; axis++) {
             for (size_t motor = 0; motor < MAX_MOTORS_PER_AXIS; motor++) {
                 auto m = axis_motors[axis][motor];
@@ -236,7 +260,8 @@ namespace Machine {
             }
         }
         if (_engine == stepper_id_t::I2S_STATIC) {
-            i2s_out_push();
+            // i2s_out_push();
+            i2s_out_push_fifo();
         }
     }
 
@@ -275,26 +300,13 @@ namespace Machine {
                 i2s_out_push_sample(_directionDelayUsecs);
             } else if (_engine == stepper_id_t::I2S_STATIC) {
                 // Commit the pin changes to the hardware immediately
-                i2s_out_push();
+                // i2s_out_push();
+                i2s_out_push_fifo();
                 delay_us(_directionDelayUsecs);
             } else if (_engine == stepper_id_t::TIMED) {
                 // If we are using RMT, we can't delay here.
                 delay_us(_directionDelayUsecs);
             }
-        }
-    }
-
-    // Called from step()
-    void IRAM_ATTR Stepping::startPulseTimer() {
-        // Do not use switch() in IRAM
-        if (_engine == stepper_id_t::I2S_STREAM) {
-            // Generate the number of pulses needed to span pulse_microseconds
-            i2s_out_push_sample(_pulseUsecs);
-        } else if (_engine == stepper_id_t::I2S_STATIC) {
-            i2s_out_push();
-            _stepPulseEndTime = usToEndTicks(_pulseUsecs);
-        } else if (_engine == stepper_id_t::TIMED) {
-            _stepPulseEndTime = usToEndTicks(_pulseUsecs);
         }
     }
 
