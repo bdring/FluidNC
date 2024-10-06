@@ -26,7 +26,7 @@ namespace Machine {
 
     void Axis::afterParse() {
         uint32_t stepRate = uint32_t(_stepsPerMm * _maxRate / 60.0);
-        auto     maxRate  = config->_stepping->maxPulsesPerSec();
+        auto     maxRate  = Stepping::maxPulsesPerSec();
         Assert(stepRate <= maxRate, "Stepping rate %d steps/sec exceeds the maximum rate %d", stepRate, maxRate);
         if (_motors[0] == nullptr) {
             _motors[0] = new Machine::Motor(_axis, 0);

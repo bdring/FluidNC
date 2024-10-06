@@ -22,7 +22,7 @@ namespace Machine {
     int32_t Stepping::_stepPulseEndTime;
     size_t  Stepping::_segments = 12;
 
-    int Stepping::_i2sPulseCounts;
+    int Stepping::_i2sPulseCounts = 2;
 
     uint32_t Stepping::_idleMsecs           = 255;
     uint32_t Stepping::_pulseUsecs          = 4;
@@ -36,11 +36,6 @@ namespace Machine {
                                    EnumItem(Stepping::RMT_ENGINE) };
 
     void Stepping::init() {
-        if (_engine == I2S_STATIC) {
-            // Number of I2S frames for a pulse, rounded up
-            _i2sPulseCounts = (_pulseUsecs + I2S_OUT_USEC_PER_PULSE - 1) / I2S_OUT_USEC_PER_PULSE;
-        }
-
         log_info("Stepping:" << stepTypes[_engine].name << " Pulse:" << _pulseUsecs << "us Dsbl Delay:" << _disableDelayUsecs
                              << "us Dir Delay:" << _directionDelayUsecs << "us Idle Delay:" << _idleMsecs << "ms"
                              << " Pulses: " << _i2sPulseCounts);
@@ -355,10 +350,14 @@ namespace Machine {
                 log_warn("Increasing stepping/pulse_us to the IS2 minimum value " << I2S_OUT_USEC_PER_PULSE);
                 _pulseUsecs = I2S_OUT_USEC_PER_PULSE;
             }
-            if (_engine == I2S_STREAM && _pulseUsecs > I2S_STREAM_MAX_USEC_PER_PULSE) {
+            if ((_engine == I2S_STATIC || _engine == I2S_STREAM) && _pulseUsecs > I2S_STREAM_MAX_USEC_PER_PULSE) {
                 log_warn("Decreasing stepping/pulse_us to " << I2S_STREAM_MAX_USEC_PER_PULSE << ", the maximum value for I2S_STREAM");
                 _pulseUsecs = I2S_STREAM_MAX_USEC_PER_PULSE;
             }
+        }
+        if (_engine == I2S_STATIC || _engine == I2S_STREAM) {
+            // Number of I2S frames for a pulse, rounded up
+            _i2sPulseCounts = (_pulseUsecs + I2S_OUT_USEC_PER_PULSE - 1) / I2S_OUT_USEC_PER_PULSE;
         }
     }
 
@@ -366,7 +365,7 @@ namespace Machine {
         switch (_engine) {
             case stepper_id_t::I2S_STREAM:
             case stepper_id_t::I2S_STATIC:
-                return i2s_out_max_steps_per_sec;
+                return 1000000 / ((_i2sPulseCounts + 1) * I2S_OUT_USEC_PER_PULSE);
             case stepper_id_t::RMT_ENGINE:
                 return 1000000 / (2 * _pulseUsecs + _directionDelayUsecs);
             case stepper_id_t::TIMED:
