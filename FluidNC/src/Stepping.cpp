@@ -180,7 +180,7 @@ namespace Machine {
         // Turn on step pulses for motors that are supposed to step now
         for (size_t axis = 0; axis < _n_active_axes; axis++) {
             if (bitnum_is_true(step_mask, axis)) {
-                auto increment = bitnum_is_true(dir_mask, axis) ? 1 : -1;
+                auto increment = bitnum_is_true(dir_mask, axis) ? -1 : 1;
                 axis_steps[axis] += increment;
                 for (size_t motor = 0; motor < MAX_MOTORS_PER_AXIS; motor++) {
                     auto m = axis_motors[axis][motor];
