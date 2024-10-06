@@ -255,8 +255,9 @@ namespace Machine {
             }
         }
         if (_engine == stepper_id_t::I2S_STATIC) {
-            // i2s_out_push();
-            i2s_out_push_fifo();
+            for (int i = 0; i < _i2sPulseCounts; i++) {
+                i2s_out_push_fifo();
+            }
         }
     }
 
@@ -365,7 +366,7 @@ namespace Machine {
         switch (_engine) {
             case stepper_id_t::I2S_STREAM:
             case stepper_id_t::I2S_STATIC:
-                return 1000000 / ((_i2sPulseCounts + 1) * I2S_OUT_USEC_PER_PULSE);
+                return 1000000 / ((2 * _i2sPulseCounts) * I2S_OUT_USEC_PER_PULSE);
             case stepper_id_t::RMT_ENGINE:
                 return 1000000 / (2 * _pulseUsecs + _directionDelayUsecs);
             case stepper_id_t::TIMED:
