@@ -169,7 +169,7 @@ namespace Machine {
                             bool direction = dir ^ m->dir_invert;
                             if (_engine == RMT_ENGINE || _engine == TIMED) {
                                 gpio_write(pin, direction);
-                            } else if (_engine == I2S_STATIC || _engine == I2S_STREAM) {
+                            } else if (_engine == I2S_STREAM || _engine == I2S_STATIC) {
                                 i2s_out_write(pin, direction);
                             }
                         }
@@ -203,7 +203,7 @@ namespace Machine {
                             RMT.chnconf0[pin].mem_rd_rst_n = 0;
                             RMT.chnconf0[pin].tx_start_n   = 1;
 #endif
-                        } else if (_engine == I2S_STATIC || _engine == I2S_STREAM) {
+                        } else if (_engine == I2S_STREAM || _engine == I2S_STATIC) {
                             i2s_out_write(pin, !inverted);
                         } else if (_engine == TIMED) {
                             gpio_write(pin, !inverted);
@@ -213,17 +213,8 @@ namespace Machine {
             }
         }
         // Do not use switch() in IRAM
-        if (_engine == stepper_id_t::I2S_STREAM) {
-            // Generate the number of pulses needed to span pulse_microseconds
-            i2s_out_push_sample(_pulseUsecs);
-        } else if (_engine == stepper_id_t::I2S_STATIC) {
-            // i2s_out_push();
-            for (int i = 0; i < _i2sPulseCounts; i++) {
-                i2s_out_push_fifo();
-            }
-#if 0
-            _stepPulseEndTime = usToEndTicks(_pulseUsecs);
-#endif
+        if (_engine == I2S_STREAM || _engine == I2S_STATIC) {
+            i2s_out_push_fifo(_i2sPulseCounts);
         } else if (_engine == stepper_id_t::TIMED) {
             _stepPulseEndTime = usToEndTicks(_pulseUsecs);
         }
@@ -235,18 +226,16 @@ namespace Machine {
         if (_engine == RMT_ENGINE) {
             return;
         }
-#if 0
-        if (_engine == I2S_STATIC || _engine == TIMED) {  // Wait pulse
+        if (_engine == TIMED) {  // Wait pulse
             spinUntil(_stepPulseEndTime);
         }
-#endif
         for (size_t axis = 0; axis < _n_active_axes; axis++) {
             for (size_t motor = 0; motor < MAX_MOTORS_PER_AXIS; motor++) {
                 auto m = axis_motors[axis][motor];
                 if (m) {
                     int  pin      = m->step_pin;
                     bool inverted = m->step_invert;
-                    if (_engine == I2S_STATIC || _engine == I2S_STREAM) {
+                    if (_engine == I2S_STREAM || _engine == I2S_STATIC) {
                         i2s_out_write(pin, inverted);
                     } else if (_engine == TIMED) {
                         gpio_write(pin, inverted);
@@ -254,50 +243,24 @@ namespace Machine {
                 }
             }
         }
-        if (_engine == stepper_id_t::I2S_STATIC) {
-            for (int i = 0; i < _i2sPulseCounts; i++) {
-                i2s_out_push_fifo();
-            }
+        if (_engine == I2S_STREAM || _engine == I2S_STATIC) {
+            i2s_out_push_fifo(_i2sPulseCounts);
         }
     }
 
-    void Stepping::reset() {
-        if (_engine == I2S_STREAM) {
-            i2s_out_reset();
-        }
-    }
-    void Stepping::beginLowLatency() {
-        _switchedStepper = _engine == I2S_STREAM;
-        if (_switchedStepper) {
-            _engine = I2S_STATIC;
-            i2s_out_set_passthrough();
-            i2s_out_delay();  // Wait for a change in mode.
-        }
-    }
-    void Stepping::endLowLatency() {
-        if (_switchedStepper) {
-            if (i2s_out_get_pulser_status() != PASSTHROUGH) {
-                // Called during streaming. Stop streaming.
-                // log_debug("Stop the I2S streaming and switch to the passthrough mode.");
-                i2s_out_set_passthrough();
-                i2s_out_delay();  // Wait for a change in mode.
-            }
-            _engine = I2S_STREAM;
-        }
-    }
+    void Stepping::reset() {}
+    void Stepping::beginLowLatency() {}
+    void Stepping::endLowLatency() {}
 
     // Called only from step()
     void IRAM_ATTR Stepping::waitDirection() {
         if (_directionDelayUsecs) {
             // Stepper drivers need some time between changing direction and doing a pulse.
             // Do not use switch() in IRAM
-            if (_engine == stepper_id_t::I2S_STREAM) {
-                // Commit the pin changes to the DMA queue
-                i2s_out_push_sample(_directionDelayUsecs);
-            } else if (_engine == stepper_id_t::I2S_STATIC) {
+            if (_engine == stepper_id_t::I2S_STREAM || _engine == stepper_id_t::I2S_STATIC) {
                 // Commit the pin changes to the hardware immediately
                 // i2s_out_push();
-                i2s_out_push_fifo();
+                i2s_out_push_fifo(1);
                 delay_us(_directionDelayUsecs);
             } else if (_engine == stepper_id_t::TIMED) {
                 // If we are using RMT, we can't delay here.
@@ -309,30 +272,16 @@ namespace Machine {
     // Called only from Stepper::pulse_func when a new segment is loaded
     // The argument is in units of ticks of the timer that generates ISRs
     void IRAM_ATTR Stepping::setTimerPeriod(uint16_t timerTicks) {
-        if (_engine == I2S_STREAM) {
-            // Pulse ISR is called for each tick of alarm_val.
-            // The argument to i2s_out_set_pulse_period is in units of microseconds
-            i2s_out_set_pulse_period(((uint32_t)timerTicks) / ticksPerMicrosecond);
-        } else {
-            stepTimerSetTicks((uint32_t)timerTicks);
-        }
+        stepTimerSetTicks((uint32_t)timerTicks);
     }
 
     // Called only from Stepper::wake_up which is not used in ISR context
     void Stepping::startTimer() {
-        if (_engine == I2S_STREAM) {
-            i2s_out_set_stepping();
-        } else {
-            stepTimerStart();
-        }
+        stepTimerStart();
     }
     // Called only from Stepper::stop_stepping, used in both ISR and foreground contexts
     void IRAM_ATTR Stepping::stopTimer() {
-        if (_engine == I2S_STREAM) {
-            i2s_out_set_passthrough();
-        } else {
-            stepTimerStop();
-        }
+        stepTimerStop();
     }
 
     void Stepping::group(Configuration::HandlerBase& handler) {
@@ -351,27 +300,33 @@ namespace Machine {
                 log_warn("Increasing stepping/pulse_us to the IS2 minimum value " << I2S_OUT_USEC_PER_PULSE);
                 _pulseUsecs = I2S_OUT_USEC_PER_PULSE;
             }
-            if ((_engine == I2S_STATIC || _engine == I2S_STREAM) && _pulseUsecs > I2S_STREAM_MAX_USEC_PER_PULSE) {
-                log_warn("Decreasing stepping/pulse_us to " << I2S_STREAM_MAX_USEC_PER_PULSE << ", the maximum value for I2S_STREAM");
-                _pulseUsecs = I2S_STREAM_MAX_USEC_PER_PULSE;
+            if ((_engine == I2S_STREAM || _engine == I2S_STATIC) && _pulseUsecs > I2S_MAX_USEC_PER_PULSE) {
+                log_warn("Decreasing stepping/pulse_us to " << I2S_MAX_USEC_PER_PULSE << ", the maximum value for I2S");
+                _pulseUsecs = I2S_MAX_USEC_PER_PULSE;
             }
         }
-        if (_engine == I2S_STATIC || _engine == I2S_STREAM) {
+        if (_engine == I2S_STREAM || _engine == I2S_STATIC) {
             // Number of I2S frames for a pulse, rounded up
             _i2sPulseCounts = (_pulseUsecs + I2S_OUT_USEC_PER_PULSE - 1) / I2S_OUT_USEC_PER_PULSE;
         }
     }
 
     uint32_t Stepping::maxPulsesPerSec() {
+        uint32_t pps;
         switch (_engine) {
-            case stepper_id_t::I2S_STREAM:
-            case stepper_id_t::I2S_STATIC:
-                return 1000000 / ((2 * _i2sPulseCounts) * I2S_OUT_USEC_PER_PULSE);
-            case stepper_id_t::RMT_ENGINE:
-                return 1000000 / (2 * _pulseUsecs + _directionDelayUsecs);
-            case stepper_id_t::TIMED:
+            case I2S_STREAM:
+            case I2S_STATIC:
+                pps = 1000000 / ((2 * _i2sPulseCounts) * I2S_OUT_USEC_PER_PULSE);
+                break;
+            case RMT_ENGINE:
+                pps = 1000000 / (2 * _pulseUsecs + _directionDelayUsecs);
+                // fall through
+            case TIMED:
             default:
-                return 80000;  // based on testing
+                if (pps > 80000) {  // Based on testing
+                    pps = 80000;
+                }
         }
+        return pps;
     }
 }

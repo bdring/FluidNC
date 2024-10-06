@@ -11,7 +11,6 @@
 #include "Report.h"          // report_over_counter
 #include "Protocol.h"        // protocol_execute_realtime
 #include "Planner.h"         // plan_reset, etc
-#include "I2SOut.h"          // i2s_out_reset
 #include "Platform.h"        // WEAK_LINK
 #include "Settings.h"        // coords
 

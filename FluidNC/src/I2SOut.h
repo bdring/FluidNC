@@ -26,17 +26,10 @@
 /* 32-bit mode: 1000000 usec / ((160000000 Hz) /  5 / 2) x 32 bit/pulse x 2(stereo) = 4 usec/pulse */
 const uint32_t I2S_OUT_USEC_PER_PULSE = 4;
 
-// This value is empirically determined.  It might depend on I2S_OUT_USEC_PULSE but
-// the root cause of the limitation has not been analyzed so that is just a guess.
-const uint32_t I2S_STREAM_MAX_USEC_PER_PULSE = 20;
-
-constexpr uint32_t i2s_out_max_steps_per_sec = 1000000 / (2 * I2S_OUT_USEC_PER_PULSE);
-
-const int I2S_OUT_DMABUF_COUNT = 5;    /* number of DMA buffers to store data */
-const int I2S_OUT_DMABUF_LEN   = 2000; /* maximum size in bytes (4092 is DMA's limit) */
-
-const int I2S_OUT_DELAY_DMABUF_MS = (I2S_OUT_DMABUF_LEN / sizeof(uint32_t) * I2S_OUT_USEC_PER_PULSE / 1000);
-const int I2S_OUT_DELAY_MS        = (I2S_OUT_DELAY_DMABUF_MS * (I2S_OUT_DMABUF_COUNT + 1));
+// The longest pulse that we allow when using I2S.  It is affected by the
+// FIFO depth and could probably be a bit longer, but empirically this is
+// enough for all known stepper drivers.
+const uint32_t I2S_MAX_USEC_PER_PULSE = 20;
 
 typedef struct {
     /*
@@ -84,10 +77,6 @@ int i2s_out_init();
 */
 uint8_t i2s_out_read(pinnum_t pin);
 
-void i2s_out_push();
-
-void i2s_out_push_fifo();
-
 /*
    Set a bit in the internal pin state var. (not written electrically)
    pin: expanded pin No. (0..31)
@@ -96,61 +85,17 @@ void i2s_out_push_fifo();
 void i2s_out_write(pinnum_t pin, uint8_t val);
 
 /*
-    Set current pin state to the I2S bitstream buffer
-    (This call will generate a future I2S_OUT_USEC_PER_PULSE μs x N bitstream)
-    usec: The length of time that the pulse should be repeated.
-         That time will be converted to an integer number of pulses of
-         length I2S_OUT_USEC_PER_PULSE.
-         The number of samples is limited to (20 / I2S_OUT_USEC_PER_PULSE).
-    return: number of pushed samples
-            0 .. no space for push
- */
-void i2s_out_push_sample(uint32_t usec);
-
-/*
-   Set pulser mode to passtrough
-   After this function is called,
-   the callback function to generate the pulse data
-   will not be called.
- */
-int i2s_out_set_passthrough();
-
-/*
-   Set pulser mode to stepping
-   After this function is called,
-   the callback function to generate stepping pulse data
-   will be called.
- */
-int i2s_out_set_stepping();
+   Push the I2S output value that was constructed by a series of
+   i2s_out_write() calls to the I2S FIFO so it will be shifted out
+   count: Number of repetitions
+*/
+void i2s_out_push_fifo(int count);
 
 /*
   Dynamically delay until the Shift Register Pin changes
   according to the current I2S processing state and mode.
  */
 void i2s_out_delay();
-
-/*
-   Set the pulse callback period in microseconds
- */
-int i2s_out_set_pulse_period(uint32_t usec);
-
-/*
-   Get current pulser mode
- */
-enum i2s_out_pulser_status_t {
-    PASSTHROUGH = 0,  // Static I2S mode.The i2s_out_write() reflected with very little delay
-    STEPPING,         // Streaming step data.
-    WAITING,          // Waiting for the step DMA completion
-};
-i2s_out_pulser_status_t IRAM_ATTR i2s_out_get_pulser_status();
-
-/*
-   Reset i2s I/O expander
-   - Stop ISR/DMA
-   - Clear DMA buffer with the current expanded GPIO bits
-   - Retart ISR/DMA
- */
-int i2s_out_reset();
 
 /*
    Reference: "ESP32 Technical Reference Manual" by Espressif Systems
