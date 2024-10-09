@@ -899,8 +899,6 @@ Error do_command_or_setting(const char* key, const char* value, AuthenticationLe
         }
     }
 
-    protocol_buffer_synchronize();
-
     // First search the yaml settings by name. If found, set a new
     // value if one is given, otherwise display the current value
     try {
