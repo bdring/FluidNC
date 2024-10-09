@@ -178,7 +178,7 @@ namespace Pins {
 
     // This is a callback from the low-level GPIO driver that is invoked after
     // registerEvent() has been called and the pin becomes active.
-    void GPIOPinDetail::gpioAction(int gpio_num, void* arg, bool active) {
+    void GPIOPinDetail::gpioAction(int gpio_num, void* arg, int active) {
         EventPin* obj = static_cast<EventPin*>(arg);
         obj->trigger(active);
     }

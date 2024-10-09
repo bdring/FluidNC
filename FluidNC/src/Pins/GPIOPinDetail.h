@@ -16,7 +16,7 @@ namespace Pins {
 
         bool _lastWrittenValue = false;
 
-        static void gpioAction(int, void*, bool);
+        static void gpioAction(int, void*, int);
 
     public:
         static const int nGPIOPins = 40;

@@ -6,6 +6,8 @@
 
 #include "Configuration/Configurable.h"
 #include "Driver/StepTimer.h"
+#include "Driver/step_engine.h"
+
 namespace Machine {
     class Stepping : public Configuration::Configurable {
     public:
@@ -31,6 +33,8 @@ namespace Machine {
         static void    startPulseTimer();
         static void    waitDirection();  // Wait for direction delay
         static int32_t axis_steps[MAX_N_AXIS];
+
+        static step_engine_t* step_engine;
 
     public:
         enum stepper_id_t {

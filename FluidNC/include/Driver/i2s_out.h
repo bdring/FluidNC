@@ -3,12 +3,12 @@
 
 #pragma once
 
-// It should be included at the outset to know the machine configuration.
-#include "Config.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 #include <stdint.h>
 
-#include "Pin.h"
 #include "Driver/fluidnc_gpio.h"
 
 /* Assert */
@@ -21,10 +21,6 @@
 #endif
 
 // #    define I2SO(n) (I2S_OUT_PIN_BASE + n)
-
-/* 16-bit mode: 1000000 usec / ((160000000 Hz) / 10 / 2) x 16 bit/pulse x 2(stereo) = 4 usec/pulse */
-/* 32-bit mode: 1000000 usec / ((160000000 Hz) /  5 / 2) x 32 bit/pulse x 2(stereo) = 4 usec/pulse */
-const uint32_t I2S_OUT_USEC_PER_PULSE = 4;
 
 // The longest pulse that we allow when using I2S.  It is affected by the
 // FIFO depth and could probably be a bit longer, but empirically this is
@@ -56,20 +52,7 @@ typedef struct {
   Initialize I2S out by parameters.
   return -1 ... already initialized
 */
-int i2s_out_init(i2s_out_init_t& init_param);
-
-/*
-  Initialize I2S out by default parameters.
-    i2s_out_init_t default_param = {
-        .ws_pin = I2S_OUT_WS,
-        .bck_pin = I2S_OUT_BCK,
-        .data_pin = I2S_OUT_DATA,
-        .pulse_period = I2S_OUT_USEC_PER_PULSE,
-        .init_val = I2S_OUT_INIT_VAL,
-    };
-  return -1 ... already initialized
-*/
-int i2s_out_init();
+int i2s_out_init(i2s_out_init_t* init_param);
 
 /*
   Read a bit state from the internal pin state var.
@@ -101,3 +84,7 @@ void i2s_out_delay();
    Reference: "ESP32 Technical Reference Manual" by Espressif Systems
      https://www.espressif.com/sites/default/files/documentation/esp32_technical_reference_manual_en.pdf
  */
+
+#ifdef __cplusplus
+}
+#endif

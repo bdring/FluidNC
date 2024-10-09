@@ -20,7 +20,7 @@
 #include "UartChannel.h"          // Uart0.write()
 #include "FileStream.h"           // FileStream()
 #include "StartupLog.h"           // startupLog
-#include "Driver/fluidnc_gpio.h"  // gpio_dump()
+#include "Driver/gpio_dump.h"     // gpio_dump()
 #include "FileCommands.h"         // make_file_commands()
 
 #include "FluidPath.h"

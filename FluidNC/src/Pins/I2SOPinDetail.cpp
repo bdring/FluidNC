@@ -4,8 +4,9 @@
 #ifdef ESP32
 #    include "I2SOPinDetail.h"
 
-#    include "../I2SOut.h"
+#    include "Driver/i2s_out.h"  // i2s_out_write() etc
 #    include "../Assert.h"
+#    include <esp_attr.h>  // IRAM_ATTR
 
 namespace Pins {
     std::vector<bool> I2SOPinDetail::_claimed(nI2SOPins, false);
@@ -75,7 +76,7 @@ namespace Pins {
         // is nothing to do here for them. We basically
         // just check for conflicts above...
 
-        // If the pin is ActiveLow, we should take that into account here:
+        // Set the initial value of the pin per the configuration
         i2s_out_write(_index, value.has(PinAttributes::InitialOn) ^ _inverted);
     }
 

@@ -25,15 +25,16 @@ namespace Machine {
     }
 
     void Axis::afterParse() {
-        uint32_t stepRate = uint32_t(_stepsPerMm * _maxRate / 60.0);
-        auto     maxRate  = Stepping::maxPulsesPerSec();
-        Assert(stepRate <= maxRate, "Stepping rate %d steps/sec exceeds the maximum rate %d", stepRate, maxRate);
         if (_motors[0] == nullptr) {
             _motors[0] = new Machine::Motor(_axis, 0);
         }
     }
 
     void Axis::init() {
+        uint32_t stepRate = uint32_t(_stepsPerMm * _maxRate / 60.0);
+        auto     maxRate  = Stepping::maxPulsesPerSec();
+        Assert(stepRate <= maxRate, "Stepping rate %d steps/sec exceeds the maximum rate %d", stepRate, maxRate);
+
         for (size_t i = 0; i < Axis::MAX_MOTORS_PER_AXIS; i++) {
             auto m = _motors[i];
             if (m) {
