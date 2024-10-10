@@ -11,7 +11,7 @@
 static gpio_dev_t* _gpio_dev = GPIO_HAL_GET_HW(GPIO_PORT_0);
 
 void IRAM_ATTR gpio_write(pinnum_t pin, int value) {
-    gpio_ll_set_level(_gpio_dev, (gpio_num_t)pin, value);
+    gpio_ll_set_level(_gpio_dev, (gpio_num_t)pin, (uint32_t)value);
 }
 int IRAM_ATTR gpio_read(pinnum_t pin) {
     return gpio_ll_get_level(_gpio_dev, (gpio_num_t)pin);
@@ -95,7 +95,7 @@ static gpio_mask_t gpio_mask(int gpio_num) {
 static inline int gpio_is_active(int gpio_num) {
     return get_gpios() & gpio_mask(gpio_num);
 }
-static void gpios_update(gpio_mask_t& gpios, int gpio_num, int active) {
+static void gpios_update(gpio_mask_t& gpios, int gpio_num, bool active) {
     if (active) {
         gpios |= gpio_mask(gpio_num);
     } else {
@@ -124,7 +124,7 @@ void gpio_clear_action(int gpio_num) {
     gpios_update(gpios_interest, gpio_num, false);
 }
 
-static void gpio_send_action(int gpio_num, int active) {
+static void gpio_send_action(int gpio_num, bool active) {
     auto    end_ticks  = gpio_next_event_ticks[gpio_num];
     int32_t this_ticks = int32_t(xTaskGetTickCount());
     if (end_ticks == 0 || ((this_ticks - end_ticks) > 0)) {
