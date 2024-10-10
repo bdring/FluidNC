@@ -151,6 +151,8 @@ void IRAM_ATTR Stepping::step(uint8_t step_mask, uint8_t dir_mask) {
         previous_dir_mask = dir_mask;
     }
 
+    step_engine->start_step();
+
     // Turn on step pulses for motors that are supposed to step now
     for (size_t axis = 0; axis < _n_active_axes; axis++) {
         if (bitnum_is_true(step_mask, axis)) {
@@ -193,8 +195,7 @@ void IRAM_ATTR Stepping::waitDirection() {}
 // Called only from Stepper::pulse_func when a new segment is loaded
 // The argument is in units of ticks of the timer that generates ISRs
 void IRAM_ATTR Stepping::setTimerPeriod(uint16_t timerTicks) {
-    // stepTimerSetTicks((uint32_t)timerTicks * 3 / 10);
-    stepTimerSetTicks((uint32_t)timerTicks / 2);
+    stepTimerSetTicks((uint32_t)timerTicks);
 }
 
 // Called only from Stepper::wake_up which is not used in ISR context

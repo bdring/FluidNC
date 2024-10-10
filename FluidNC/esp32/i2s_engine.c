@@ -455,21 +455,23 @@ static IRAM_ATTR void finish_dir() {
 // push _pulse_counts copies of the memory variable to the
 // I2S FIFO, thus creating a pulse of the desired length.
 static IRAM_ATTR void finish_step() {
+    if (new_port_data == i2s_out_port_data) {
+        return;
+    }
     for (int i = 0; i < _pulse_counts; i++) {
         I2S0.fifo_wr = new_port_data;
     }
-    for (int i = 0; i < _pulse_counts; i++) {
-        I2S0.fifo_wr = i2s_out_port_data;
-    }
+    // There is no need for multiple "step off" samples since the timer will not fire
+    // until the next time for a pulse.
+    I2S0.fifo_wr = i2s_out_port_data;
 }
 
 static IRAM_ATTR int start_unstep() {
-#if 1
     return 1;
-#else
-    return 0;
-#endif
 }
+
+// Not called since start_unstep() returns 1
+static IRAM_ATTR void finish_unstep() {}
 
 static uint32_t max_pulses_per_sec() {
     return 1000000 / (2 * _pulse_counts * I2S_OUT_USEC_PER_PULSE);
@@ -486,7 +488,7 @@ step_engine_t engine = {
     set_step_pin,
     finish_step,
     start_unstep,
-    finish_step,   // finish_step and finish_unstep are the same
+    finish_unstep,
     max_pulses_per_sec
 };
 
