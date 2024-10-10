@@ -375,13 +375,11 @@ int i2s_out_init(i2s_out_init_t* init_param) {
 
     delay_us(20);
     value = *(uint32_t*)(ptr + 0xac);
-    printf("Clkreg AENA %d b %d a %d n %d\n", (value >> 21) & 1, (value >> 14) & 0x3f, (value >> 8) & 0x3f, value & 0xff);
 
     i2s_ll_mclk_div_t div = { 2, 32, 16 };  // b/a = 0.5
     i2s_ll_tx_set_clk(&I2S0, &div);
 
     value = *(uint32_t*)(ptr + 0xac);
-    printf("Clkreg AENA %d b %d a %d n %d\n", (value >> 21) & 1, (value >> 14) & 0x3f, (value >> 8) & 0x3f, value & 0xff);
 
     // Bit clock configuration bit in transmitter mode.
     // fbck = fi2s / tx_bck_div_num = (160 MHz / 5) / 2 = 16 MHz
@@ -405,7 +403,6 @@ static uint32_t _dir_delay_us;
 
 // Convert the delays from microseconds to a number of I2S frame
 static uint32_t init_engine(uint32_t dir_delay_us, uint32_t pulse_us) {
-    printf("Pus %d\n", pulse_us);
     if (pulse_us < I2S_OUT_USEC_PER_PULSE) {
         pulse_us = I2S_OUT_USEC_PER_PULSE;
     }
@@ -413,10 +410,8 @@ static uint32_t init_engine(uint32_t dir_delay_us, uint32_t pulse_us) {
         pulse_us = I2S_MAX_USEC_PER_PULSE;
     }
     _dir_delay_us = dir_delay_us;
-    printf("Pus2 %d Uspp %d\n", pulse_us, I2S_OUT_USEC_PER_PULSE);
     _pulse_counts = (pulse_us + I2S_OUT_USEC_PER_PULSE - 1) / I2S_OUT_USEC_PER_PULSE;
 
-    printf("PC %d plen %d\n", _pulse_counts, _pulse_counts * I2S_OUT_USEC_PER_PULSE);
     return _pulse_counts * I2S_OUT_USEC_PER_PULSE;
 }
 
@@ -477,7 +472,6 @@ static IRAM_ATTR int start_unstep() {
 }
 
 static uint32_t max_pulses_per_sec() {
-    printf("pulse_counts %d, rate %d\n", _pulse_counts, 1000000 / (2 * _pulse_counts * I2S_OUT_USEC_PER_PULSE));
     return 1000000 / (2 * _pulse_counts * I2S_OUT_USEC_PER_PULSE);
 }
 
