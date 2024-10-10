@@ -71,6 +71,7 @@ static IRAM_ATTR void set_dir_pin(int pin, int level) {
 // The direction delay is handled by the RMT pulser
 static IRAM_ATTR void finish_dir() {}
 
+// No need for any common setup before setting step pins
 static IRAM_ATTR void start_step() {}
 
 // Restart the RMT which has already been configured
@@ -99,8 +100,8 @@ static IRAM_ATTR int start_unstep() {
     return 1;
 }
 
-// This is a noop and will not be called since start_unstep()
-// returned true
+// This is a noop and will not be called because start_unstep()
+// returns 1
 static IRAM_ATTR void finish_unstep() {}
 
 // Possible speedup: If the direction delay were done explicitly
@@ -109,9 +110,6 @@ static IRAM_ATTR void finish_unstep() {}
 // and thus do not need to be applied to every pulse
 static uint32_t max_pulses_per_sec() {
     uint32_t pps = 1000000 / (2 * _pulse_delay_us + _dir_delay_us);
-    if (pps > 80000) {  // Based on testing
-        pps = 80000;
-    }
     return pps;
 }
 
