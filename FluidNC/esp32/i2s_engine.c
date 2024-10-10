@@ -423,7 +423,7 @@ static int init_step_pin(int step_pin, int step_invert) {
 // pin states.  Later, that variable will be transferred to
 // the I2S FIFO to change all the affected pins at once.
 static IRAM_ATTR void set_dir_pin(int pin, int level) {
-    i2s_out_write(pin, level);
+    i2s_out_write(pin, !level);
 }
 
 uint32_t new_port_data;
