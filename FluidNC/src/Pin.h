@@ -95,7 +95,7 @@ public:
     inline Pin(Pin&& o) : _detail(nullptr) { std::swap(_detail, o._detail); }
 
     inline Pin& operator=(const Pin& o) = delete;
-    inline Pin& operator                =(Pin&& o) {
+    inline Pin& operator=(Pin&& o) {
         std::swap(_detail, o._detail);
         return *this;
     }
@@ -113,6 +113,9 @@ public:
         Assert(_detail->capabilities().has(expectedBehavior), "Requested pin %s does not have the expected behavior.", name().c_str());
         return _detail->_index;
     }
+    inline bool canStep() { return _detail->canStep(); }
+    inline int  index() { return _detail->_index; }
+    inline bool inverted() { return _detail->_inverted; }
 
     void write(bool value) const;
     void synchronousWrite(bool value) const;

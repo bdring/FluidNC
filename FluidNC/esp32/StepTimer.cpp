@@ -29,14 +29,21 @@ static void IRAM_ATTR timer_isr(void* arg) {
     }
 }
 
+// Possibly-unnecessary optimization to avoid rewriting the alarm value
+static uint32_t old_ticks = 0xffffffff;
+
 void IRAM_ATTR stepTimerStart() {
     timer_ll_set_alarm_value(&TIMERG0, TIMER_0, 10ULL);  // Interrupt very soon to start the stepping
+    old_ticks = 10ULL;
     timer_ll_set_alarm_enable(&TIMERG0, TIMER_0, true);
     timer_ll_set_counter_enable(&TIMERG0, TIMER_0, true);
 }
 
 void IRAM_ATTR stepTimerSetTicks(uint32_t ticks) {
-    timer_ll_set_alarm_value(&TIMERG0, TIMER_0, (uint64_t)ticks);
+    if (ticks != old_ticks) {
+        timer_ll_set_alarm_value(&TIMERG0, TIMER_0, (uint64_t)ticks);
+        old_ticks = ticks;
+    }
 }
 
 void IRAM_ATTR stepTimerStop() {
@@ -61,7 +68,7 @@ void stepTimerInit(uint32_t frequency, bool (*callback)(void)) {
     timer_isr_callback = callback;
 
     esp_intr_alloc_intrstatus(timer_group_periph_signals.groups[TIMER_GROUP_0].t0_irq_id,
-                              ESP_INTR_FLAG_IRAM,
+                              ESP_INTR_FLAG_IRAM | ESP_INTR_FLAG_LEVEL3,
                               timer_ll_get_intr_status_reg(&TIMERG0),
                               1 << TIMER_0,
                               timer_isr,

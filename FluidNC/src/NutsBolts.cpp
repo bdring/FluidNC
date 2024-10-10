@@ -151,7 +151,7 @@ void scale_vector(float* v, float scale, size_t n) {
 }
 
 float convert_delta_vector_to_unit_vector(float* v) {
-    auto  n_axis    = config->_axes->_numberAxis;
+    auto  n_axis    = Axes::_numberAxis;
     float magnitude = vector_length(v, n_axis);
     scale_vector(v, 1.0f / magnitude, n_axis);
     return magnitude;
@@ -161,9 +161,9 @@ const float secPerMinSq = 60.0 * 60.0;  // Seconds Per Minute Squared, for accel
 
 float limit_acceleration_by_axis_maximum(float* unit_vec) {
     float limit_value = SOME_LARGE_VALUE;
-    auto  n_axis      = config->_axes->_numberAxis;
+    auto  n_axis      = Axes::_numberAxis;
     for (size_t idx = 0; idx < n_axis; idx++) {
-        auto axisSetting = config->_axes->_axis[idx];
+        auto axisSetting = Axes::_axis[idx];
         if (unit_vec[idx] != 0) {  // Avoid divide by zero.
             limit_value = MIN(limit_value, fabsf(axisSetting->_acceleration / unit_vec[idx]));
         }
@@ -177,9 +177,9 @@ float limit_acceleration_by_axis_maximum(float* unit_vec) {
 
 float limit_rate_by_axis_maximum(float* unit_vec) {
     float limit_value = SOME_LARGE_VALUE;
-    auto  n_axis      = config->_axes->_numberAxis;
+    auto  n_axis      = Axes::_numberAxis;
     for (size_t idx = 0; idx < n_axis; idx++) {
-        auto axisSetting = config->_axes->_axis[idx];
+        auto axisSetting = Axes::_axis[idx];
         if (unit_vec[idx] != 0) {  // Avoid divide by zero.
             limit_value = MIN(limit_value, fabsf(axisSetting->_maxRate / unit_vec[idx]));
         }

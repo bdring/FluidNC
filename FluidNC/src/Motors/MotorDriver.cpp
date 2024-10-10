@@ -27,23 +27,22 @@
 
 namespace MotorDrivers {
     std::string MotorDriver::axisName() const {
-        return std::string(1, config->_axes->axisName(axis_index())) + (dual_axis_index() ? "2" : "") + " Axis";
+        return std::string(1, Axes::axisName(axis_index())) + (dual_axis_index() ? "2" : "") + " Axis";
     }
 
     void MotorDriver::debug_message() {}
 
-    bool MotorDriver::test() { return true; };  // true = OK
+    bool MotorDriver::test() {
+        return true;
+    };  // true = OK
 
     size_t MotorDriver::axis_index() const {
         Assert(config != nullptr && config->_axes != nullptr, "Expected machine to be configured before this is called.");
-        return size_t(config->_axes->findAxisIndex(this));
+        return size_t(Axes::findAxisIndex(this));
     }
     size_t MotorDriver::dual_axis_index() const {
         Assert(config != nullptr && config->_axes != nullptr, "Expected machine to be configured before this is called.");
-        return size_t(config->_axes->findAxisMotor(this));
+        return size_t(Axes::findAxisMotor(this));
     }
     void IRAM_ATTR MotorDriver::set_disable(bool disable) {}
-    void IRAM_ATTR MotorDriver::set_direction(bool) {}
-    void IRAM_ATTR MotorDriver::step() {}
-    void IRAM_ATTR MotorDriver::unstep() {}
 }

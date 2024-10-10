@@ -317,13 +317,13 @@ bool plan_buffer_line(float* target, plan_line_data_t* pl_data) {
         get_motor_steps(position_steps);
     } else {
         if (!block->is_jog && Homing::unhomed_axes()) {
-            log_info("Unhomed axes: " << config->_axes->maskToNames(Homing::unhomed_axes()));
+            log_info("Unhomed axes: " << Axes::maskToNames(Homing::unhomed_axes()));
             send_alarm(ExecAlarm::Unhomed);
             return false;
         }
         copyAxes(position_steps, pl.position);
     }
-    auto n_axis = config->_axes->_numberAxis;
+    auto n_axis = Axes::_numberAxis;
     for (size_t idx = 0; idx < n_axis; idx++) {
         // Calculate target position in absolute steps, number of steps for each axis, and determine max step events.
         // Also, compute individual axes distance for move and prep unit vector calculations.

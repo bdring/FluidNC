@@ -6,7 +6,7 @@
     M4 speed vs. power compensation.
 */
 
-#include "Laser.h"
+#include "LaserSpindle.h"
 #include "Driver/PwmPin.h"  // pwmInit(), etc.
 
 #include "../Machine/MachineConfig.h"

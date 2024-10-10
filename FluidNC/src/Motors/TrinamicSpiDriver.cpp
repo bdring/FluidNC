@@ -15,7 +15,9 @@ namespace MotorDrivers {
     pinnum_t TrinamicSpiDriver::daisy_chain_cs_id = 255;
     uint8_t  TrinamicSpiDriver::spi_index_mask    = 0;
 
-    void TrinamicSpiDriver::init() {}
+    void TrinamicSpiDriver::init() {
+        TrinamicBase::init();
+    }
 
     uint8_t TrinamicSpiDriver::setupSPI() {
         _has_errors = false;
