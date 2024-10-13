@@ -8,6 +8,8 @@
 namespace MotorDrivers {
 
     void TMC5160Driver::init() {
+        TrinamicSpiDriver::init();
+
         uint8_t cs_id;
         cs_id = setupSPI();
 
