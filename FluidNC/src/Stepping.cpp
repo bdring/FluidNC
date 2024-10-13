@@ -24,8 +24,6 @@ namespace Machine {
 
     int Stepping::_engine = RMT_ENGINE;
 
-    int Stepping::_n_active_axes = 0;
-
     bool   Stepping::_switchedStepper = false;
     size_t Stepping::_segments        = 12;
 
@@ -75,9 +73,6 @@ namespace Machine {
 Stepping::motor_t* Stepping::axis_motors[MAX_N_AXIS][MAX_MOTORS_PER_AXIS] = { nullptr };
 
 void Stepping::assignMotor(int axis, int motor, int step_pin, bool step_invert, int dir_pin, bool dir_invert) {
-    if (axis >= _n_active_axes) {
-        _n_active_axes = axis + 1;
-    }
     step_pin = step_engine->init_step_pin(step_pin, step_invert);
 
     motor_t* m               = new motor_t;
@@ -134,7 +129,7 @@ void IRAM_ATTR Stepping::step(uint8_t step_mask, uint8_t dir_mask) {
     }
 
     if (dir_mask != previous_dir_mask) {
-        for (size_t axis = 0; axis < _n_active_axes; axis++) {
+        for (size_t axis = 0; axis < Axes::_numberAxis; axis++) {
             bool dir     = bitnum_is_true(dir_mask, axis);
             bool old_dir = bitnum_is_true(previous_dir_mask, axis);
             if (dir != old_dir) {
@@ -154,7 +149,7 @@ void IRAM_ATTR Stepping::step(uint8_t step_mask, uint8_t dir_mask) {
     step_engine->start_step();
 
     // Turn on step pulses for motors that are supposed to step now
-    for (size_t axis = 0; axis < _n_active_axes; axis++) {
+    for (size_t axis = 0; axis < Axes::_numberAxis; axis++) {
         if (bitnum_is_true(step_mask, axis)) {
             auto increment = bitnum_is_true(dir_mask, axis) ? -1 : 1;
             axis_steps[axis] += increment;
@@ -174,7 +169,7 @@ void IRAM_ATTR Stepping::unstep() {
     if (step_engine->start_unstep()) {
         return;
     }
-    for (size_t axis = 0; axis < _n_active_axes; axis++) {
+    for (size_t axis = 0; axis < Axes::_numberAxis; axis++) {
         for (size_t motor = 0; motor < MAX_MOTORS_PER_AXIS; motor++) {
             auto m = axis_motors[axis][motor];
             if (m) {
