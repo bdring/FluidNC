@@ -10,7 +10,6 @@ namespace Pins {
     class I2SOPinDetail : public PinDetail {
         PinCapabilities _capabilities;
         PinAttributes   _attributes;
-        int             _inverted;
 
         static const int         nI2SOPins = 32;
         static std::vector<bool> _claimed;
