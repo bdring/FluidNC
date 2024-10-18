@@ -23,7 +23,7 @@ namespace Pins {
         return PinCapabilities::Output | PinCapabilities::Input | PinCapabilities::PWM | PinCapabilities::Void;
     }
 
-    void ChannelPinDetail::write(int high) {
+    void IRAM_ATTR ChannelPinDetail::write(int high) {
         if (high == _value) {
             return;
         }

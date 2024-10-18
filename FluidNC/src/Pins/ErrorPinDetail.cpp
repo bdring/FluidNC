@@ -13,7 +13,7 @@ namespace Pins {
     }
 
 #ifdef ESP32
-    void ErrorPinDetail::write(int high) {
+    void IRAM_ATTR ErrorPinDetail::write(int high) {
         log_error("Cannot write to pin " << _description.c_str() << ". The config is incorrect.");
     }
     int ErrorPinDetail::read() {
@@ -25,7 +25,7 @@ namespace Pins {
     }
 
 #else
-    void ErrorPinDetail::write(int high) {
+    void IRAM_ATTR ErrorPinDetail::write(int high) {
         Assert(false, "Cannot write to an error pin.");
     }
     int ErrorPinDetail::read() {

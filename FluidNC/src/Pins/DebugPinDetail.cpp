@@ -9,7 +9,7 @@
 namespace Pins {
 
     // I/O:
-    void DebugPinDetail::write(int high) {
+    void IRAM_ATTR DebugPinDetail::write(int high) {
         if (high != int(_isHigh)) {
             _isHigh = bool(high);
             if (shouldEvent()) {

@@ -560,7 +560,18 @@ namespace WebUI {
             s << "no";
 #endif
             s << " # webcommunication: Sync: ";
-            s << std::to_string(Web_Server::port() + 1) + ":";
+            s << std::to_string(Web_Server::port() + 1);
+#if 0
+            // If we omit the explicit IP address for the websocket,
+            // WebUI will use the same IP address that it uses for
+            // HTTP, with the port number as above.  That is better
+            // than providing an explicit address, because if the WiFi
+            // drops and comes back up again, DHCP might assign a
+            // different IP address so the one provided below would no
+            // longer work.  But if we are using an MDNS address like
+            // fluidnc.local, a websocket reconnection will succeed
+            // because MDNS will offer the new IP address.
+            s << ":";
             switch (WiFi.getMode()) {
                 case WIFI_AP:
                     s << IP_string(WiFi.softAPIP());
@@ -575,6 +586,7 @@ namespace WebUI {
                     s << "0.0.0.0";
                     break;
             }
+#endif
             s << " # hostname:";
             s << WiFi.getHostname();
             if (WiFi.getMode() == WIFI_AP) {
@@ -616,14 +628,26 @@ namespace WebUI {
      */
 
         static void WiFiEvent(WiFiEvent_t event) {
+            static bool disconnect_seen = false;
             switch (event) {
                 case SYSTEM_EVENT_STA_GOT_IP:
                     break;
                 case SYSTEM_EVENT_STA_DISCONNECTED:
-                    log_info("WiFi Disconnected");
+                    if (!disconnect_seen) {
+                        log_info_to(Uart0, "WiFi Disconnected");
+                        disconnect_seen = true;
+                    }
+                    break;
+                case SYSTEM_EVENT_STA_START:
+                    break;
+                case SYSTEM_EVENT_STA_STOP:
+                    break;
+                case SYSTEM_EVENT_STA_CONNECTED:
+                    disconnect_seen = false;
+                    log_info_to(Uart0, "WiFi STA Connected");
                     break;
                 default:
-                    //log_info("WiFi event:" << event);
+                    log_debug_to(Uart0, "WiFi event: " << (int)event);
                     break;
             }
         }
@@ -692,6 +716,7 @@ namespace WebUI {
             WiFi.mode(WIFI_STA);
             WiFi.setMinSecurity(static_cast<wifi_auth_mode_t>(_sta_min_security->get()));
             WiFi.setScanMethod(_fast_scan->get() ? WIFI_FAST_SCAN : WIFI_ALL_CHANNEL_SCAN);
+            WiFi.setAutoReconnect(true);
             //Get parameters for STA
             //password
             const char* password = _sta_password->get();

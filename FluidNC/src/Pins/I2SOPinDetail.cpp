@@ -46,7 +46,7 @@ namespace Pins {
 
     // Write and wait for completion.  Not suitable for use from an ISR
     // cppcheck-suppress unusedFunction
-    void I2SOPinDetail::synchronousWrite(int high) {
+    void IRAM_ATTR I2SOPinDetail::synchronousWrite(int high) {
         if (high != _lastWrittenValue) {
             _lastWrittenValue = high;
 
