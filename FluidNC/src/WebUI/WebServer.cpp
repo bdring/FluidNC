@@ -437,6 +437,10 @@ namespace WebUI {
         return -1;
     }
     void Web_Server::synchronousCommand(const char* cmd, bool silent, AuthenticationLevel auth_level) {
+        if (http_block_during_motion->get() && inMotionState()) {
+            _webserver->send(503, "text/plain", "Try again when not moving\n");
+            return;
+        }
         char line[256];
         strncpy(line, cmd, 255);
         webClient.attachWS(_webserver, silent);

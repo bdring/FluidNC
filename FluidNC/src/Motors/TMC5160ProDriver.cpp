@@ -8,6 +8,8 @@
 namespace MotorDrivers {
 
     void TMC5160ProDriver::init() {
+        TrinamicSpiDriver::init();
+
         uint8_t cs_id;
         cs_id = setupSPI();
 
@@ -26,7 +28,9 @@ namespace MotorDrivers {
         TrinamicBase::config_motor();
     }
 
-    bool TMC5160ProDriver::test() { return checkVersion(0x30, tmc5160->version()); }
+    bool TMC5160ProDriver::test() {
+        return checkVersion(0x30, tmc5160->version());
+    }
 
     void TMC5160ProDriver::set_registers(bool isHoming) {
         if (_has_errors) {

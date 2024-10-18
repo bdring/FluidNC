@@ -558,6 +558,8 @@ SECTIONS
     *libspi_flash.a:spi_flash_chip_winbond.*(.rodata .rodata.*)
     *libspi_flash.a:spi_flash_rom_patch.*(.rodata .rodata.*)
 
+    INCLUDE ../vtable_in_dram.ld
+
     _data_end = ABSOLUTE(.);
     . = ALIGN(4);
   } > dram0_0_seg
@@ -774,11 +776,6 @@ SECTIONS
     _coredump_iram_start = ABSOLUTE(.);
     *(.iram2.coredump .iram2.coredump.*)
     _coredump_iram_end = ABSOLUTE(.);
-
-    /* For the wifi build we can use IRAM for the ISR vtables */
-    /* because there is enough space left there, conserving */
-    /* DRAM which is needed for extra heap space */
-    INCLUDE ../vtable_in_dram.ld
 
     _iram_data_end = ABSOLUTE(.);
 

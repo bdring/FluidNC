@@ -106,8 +106,6 @@ namespace MotorDrivers {
         return true;
     }
 
-    void Dynamixel2::read_settings() {}
-
     // sets the PWM to zero. This allows most servos to be manually moved
     void IRAM_ATTR Dynamixel2::set_disable(bool disable) {
         if (_disabled == disable) {
@@ -171,7 +169,7 @@ namespace MotorDrivers {
             return false;
         }
 
-        auto axisConfig = config->_axes->_axis[_axis_index];
+        auto axisConfig = Axes::_axis[_axis_index];
         auto homing     = axisConfig->_homing;
         auto mpos       = homing ? homing->_mpos : 0;
         set_motor_steps(_axis_index, mpos_to_steps(mpos, _axis_index));
@@ -237,7 +235,7 @@ namespace MotorDrivers {
         if (data_len == 15) {
             uint32_t dxl_position = _rx_message[9] | (_rx_message[10] << 8) | (_rx_message[11] << 16) | (_rx_message[12] << 24);
 
-            auto axis = config->_axes->_axis[_axis_index];
+            auto axis = Axes::_axis[_axis_index];
 
             uint32_t pos_min_steps = mpos_to_steps(limitsMinPosition(_axis_index), _axis_index);
             uint32_t pos_max_steps = mpos_to_steps(limitsMaxPosition(_axis_index), _axis_index);

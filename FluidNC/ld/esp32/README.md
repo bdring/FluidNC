@@ -57,13 +57,6 @@ vtables from several code modules to be placed in RAM.  We use the
 INCLUDE technique to isolate the changes into one new file, for easier
 maintenance.
 
-For the wifi and noradio builds, the vtables are placed in IRAM because
-there is enough free space there, freeing up some DRAM to use as heap.
-For the bt build, bluetooth functions use so much IRAM that there is
-not enough room for the vtables, so they are placed into DRAM.  The
-bt version does not need as much heap as the wifi version (wifi needs
-quite a few large buffers for wifi packets).
-
 ### Making PlatformIO Use the Modified File
 
 To make PlatformIO use the modified sections.ld instead

@@ -9,7 +9,7 @@
 namespace Pins {
 
     // I/O:
-    void DebugPinDetail::write(int high) {
+    void IRAM_ATTR DebugPinDetail::write(int high) {
         if (high != int(_isHigh)) {
             _isHigh = bool(high);
             if (shouldEvent()) {
@@ -58,7 +58,9 @@ namespace Pins {
         _implementation->setAttr(value);
     }
 
-    PinAttributes DebugPinDetail::getAttr() const { return _implementation->getAttr(); }
+    PinAttributes DebugPinDetail::getAttr() const {
+        return _implementation->getAttr();
+    }
 
     void DebugPinDetail::CallbackHandler::handle(void* arg) {
         auto handler = static_cast<CallbackHandler*>(arg);

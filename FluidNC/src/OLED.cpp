@@ -147,7 +147,7 @@ void OLED::show_dro(const float* axes, bool isMpos, bool* limits) {
         return;
     }
 
-    auto n_axis = config->_axes->_numberAxis;
+    auto n_axis = Axes::_numberAxis;
     char axisVal[20];
 
     show(limitLabelLayout, "L");

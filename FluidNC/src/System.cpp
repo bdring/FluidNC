@@ -10,6 +10,7 @@
 #include "Report.h"                 // report_ovr_counter
 #include "Config.h"                 // MAX_N_AXIS
 #include "Machine/MachineConfig.h"  // config
+#include "src/Stepping.h"           // config
 
 #include <cstring>  // memset
 #include <cmath>    // roundf
@@ -34,10 +35,10 @@ void system_reset() {
 }
 
 float steps_to_mpos(int32_t steps, size_t axis) {
-    return float(steps / config->_axes->_axis[axis]->_stepsPerMm);
+    return float(steps / Axes::_axis[axis]->_stepsPerMm);
 }
 int32_t mpos_to_steps(float mpos, size_t axis) {
-    return lroundf(mpos * config->_axes->_axis[axis]->_stepsPerMm);
+    return lroundf(mpos * Axes::_axis[axis]->_stepsPerMm);
 }
 
 void motor_steps_to_mpos(float* position, int32_t* steps) {
@@ -51,17 +52,11 @@ void motor_steps_to_mpos(float* position, int32_t* steps) {
 }
 
 void set_motor_steps(size_t axis, int32_t steps) {
-    auto a = config->_axes->_axis[axis];
-    for (size_t motor = 0; motor < Machine::Axis::MAX_MOTORS_PER_AXIS; motor++) {
-        auto m = a->_motors[motor];
-        if (m) {
-            m->_steps = steps;
-        }
-    }
+    Stepping::setSteps(axis, steps);
 }
 
 void set_motor_steps_from_mpos(float* mpos) {
-    auto  n_axis = config->_axes->_numberAxis;
+    auto  n_axis = Axes::_numberAxis;
     float motor_steps[n_axis];
     config->_kinematics->transform_cartesian_to_motors(motor_steps, mpos);
     for (size_t axis = 0; axis < n_axis; axis++) {
@@ -70,16 +65,14 @@ void set_motor_steps_from_mpos(float* mpos) {
 }
 
 int32_t get_axis_motor_steps(size_t axis) {
-    auto m = config->_axes->_axis[axis]->_motors[0];
-    return m ? m->_steps : 0;
+    return Stepping::getSteps(axis);
 }
 
 void get_motor_steps(int32_t* motor_steps) {
     auto axes   = config->_axes;
     auto n_axis = axes->_numberAxis;
     for (size_t axis = 0; axis < n_axis; axis++) {
-        auto m            = axes->_axis[axis]->_motors[0];
-        motor_steps[axis] = m ? m->_steps : 0;
+        motor_steps[axis] = Stepping::getSteps(axis);
     }
 }
 int32_t* get_motor_steps() {
@@ -98,7 +91,7 @@ float* get_mpos() {
 
 float* get_wco() {
     static float wco[MAX_N_AXIS];
-    auto         n_axis = config->_axes->_numberAxis;
+    auto         n_axis = Axes::_numberAxis;
     for (int idx = 0; idx < n_axis; idx++) {
         // Apply work coordinate offsets and tool length offset to current position.
         wco[idx] = gc_state.coord_system[idx] + gc_state.coord_offset[idx];

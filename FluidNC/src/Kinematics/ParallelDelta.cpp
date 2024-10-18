@@ -85,7 +85,7 @@ namespace Kinematics {
         log_info("Kinematic system:" << name() << " soft_limits:" << _softLimits);
 
         auto axes   = config->_axes;
-        auto n_axis = config->_axes->_numberAxis;
+        auto n_axis = Axes::_numberAxis;
 
         // warn about axis soft limits
         for (int axis = 0; axis < n_axis; axis++) {
@@ -293,7 +293,7 @@ namespace Kinematics {
         auto axes   = config->_axes;
         auto n_axis = axes->_numberAxis;
 
-        config->_axes->set_disable(false);
+        Axes::set_disable(false);
 
         // TODO deal with non kinematic axes above Z
         for (int axis = 0; axis < 3; axis++) {

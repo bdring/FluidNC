@@ -32,11 +32,11 @@ namespace MotorDrivers {
     // This is used to set the stallguard window from the homing speed.
     // The percent is the offset on the window
     uint32_t TrinamicBase::calc_tstep(int percent) {
-        auto axisConfig     = config->_axes->_axis[axis_index()];
+        auto axisConfig     = Axes::_axis[axis_index()];
         auto homing         = axisConfig->_homing;
         auto homingFeedrate = homing ? homing->_feedRate : 200.0;
 
-        double tstep = homingFeedrate / 60.0 * config->_axes->_axis[axis_index()]->_stepsPerMm * (256.0 / _microsteps);
+        double tstep = homingFeedrate / 60.0 * Axes::_axis[axis_index()]->_stepsPerMm * (256.0 / _microsteps);
         tstep        = fclk / tstep * percent / 100.0;
 
         return static_cast<uint32_t>(tstep);
@@ -137,10 +137,12 @@ namespace MotorDrivers {
         return true;
     }
 
+    void TrinamicBase::init() {
+        init_step_dir_pins();
+    }
+
     void TrinamicBase::config_motor() {
         _has_errors = !test();  // Try communicating with motor. Prints an error if there is a problem.
-
-        init_step_dir_pins();
 
         if (_has_errors) {
             return;
