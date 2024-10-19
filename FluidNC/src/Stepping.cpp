@@ -36,8 +36,8 @@ namespace Machine {
 
     const EnumItem stepTypes[] = { { Stepping::TIMED, "Timed" },
                                    { Stepping::RMT_ENGINE, "RMT" },
-                                   { Stepping::I2S_STATIC, "I2S_static" },
-                                   { Stepping::I2S_STREAM, "I2S_stream" },
+                                   { Stepping::I2S_STATIC, "I2S_STATIC" },
+                                   { Stepping::I2S_STREAM, "I2S_STREAM" },
                                    EnumItem(Stepping::RMT_ENGINE) };
 
     void Stepping::afterParse() {
@@ -51,15 +51,10 @@ namespace Machine {
         log_info("Stepping:" << stepTypes[_engine].name << " Pulse:" << _pulseUsecs << "us Dsbl Delay:" << _disableDelayUsecs
                              << "us Dir Delay:" << _directionDelayUsecs << "us Idle Delay:" << _idleMsecs << "ms");
 
-        uint32_t actual = step_engine->init(_directionDelayUsecs, _pulseUsecs);
+        uint32_t actual = step_engine->init(_directionDelayUsecs, _pulseUsecs, fStepperTimer, Stepper::pulse_func);
         if (actual != _pulseUsecs) {
             log_warn("stepping/pulse_us adjusted to " << actual);
         }
-        // Prepare stepping interrupt callbacks.  The one that is actually
-        // used is determined by timerStart() and timerStop()
-
-        // Setup a timer for direct stepping
-        stepTimerInit(fStepperTimer, Stepper::pulse_func);
 
         // Register pulse_func with the I2S subsystem
         // This could be done via the linker.
@@ -184,22 +179,20 @@ void Stepping::reset() {}
 void Stepping::beginLowLatency() {}
 void Stepping::endLowLatency() {}
 
-// Called only from step()
-void IRAM_ATTR Stepping::waitDirection() {}
-
 // Called only from Stepper::pulse_func when a new segment is loaded
 // The argument is in units of ticks of the timer that generates ISRs
-void IRAM_ATTR Stepping::setTimerPeriod(uint16_t timerTicks) {
-    stepTimerSetTicks((uint32_t)timerTicks);
+void IRAM_ATTR Stepping::setTimerPeriod(uint32_t ticks) {
+    step_engine->set_timer_ticks((uint32_t)ticks);
 }
 
 // Called only from Stepper::wake_up which is not used in ISR context
 void Stepping::startTimer() {
-    stepTimerStart();
+    step_engine->start_timer();
 }
+
 // Called only from Stepper::stop_stepping, used in both ISR and foreground contexts
 void IRAM_ATTR Stepping::stopTimer() {
-    stepTimerStop();
+    step_engine->stop_timer();
 }
 
 void Stepping::group(Configuration::HandlerBase& handler) {

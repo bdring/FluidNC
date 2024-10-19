@@ -5,7 +5,6 @@
 #pragma once
 
 #include "Configuration/Configurable.h"
-#include "Driver/StepTimer.h"
 #include "Driver/step_engine.h"
 
 namespace Machine {
@@ -89,7 +88,7 @@ namespace Machine {
         static uint32_t maxPulsesPerSec();
 
         // Timers
-        static void setTimerPeriod(uint16_t timerTicks);
+        static void setTimerPeriod(uint32_t timerTicks);
         static void startTimer();
         static void stopTimer();
 

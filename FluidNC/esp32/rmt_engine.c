@@ -6,6 +6,7 @@
 
 #include "Driver/step_engine.h"
 #include "Driver/fluidnc_gpio.h"
+#include "Driver/StepTimer.h"
 #include <driver/rmt.h>
 #include <esp32-hal-gpio.h>
 #include <esp_attr.h>  // IRAM_ATTR
@@ -13,7 +14,8 @@
 static uint32_t _pulse_delay_us;
 static uint32_t _dir_delay_us;
 
-static uint32_t init_engine(uint32_t dir_delay_us, uint32_t pulse_delay_us) {
+static uint32_t init_engine(uint32_t dir_delay_us, uint32_t pulse_delay_us, uint32_t frequency, bool (*callback)(void)) {
+    stepTimerInit(frequency, callback);
     _dir_delay_us   = dir_delay_us;
     _pulse_delay_us = pulse_delay_us;
     return _pulse_delay_us;
@@ -113,6 +115,18 @@ static uint32_t max_pulses_per_sec() {
     return pps;
 }
 
+static void IRAM_ATTR set_timer_ticks(uint32_t ticks) {
+    stepTimerSetTicks(ticks);
+}
+
+static void IRAM_ATTR start_timer() {
+    stepTimerStart();
+}
+
+static void IRAM_ATTR stop_timer() {
+    stepTimerStop();
+}
+
 // clang-format off
 static step_engine_t engine = {
     "RMT",
@@ -125,7 +139,10 @@ static step_engine_t engine = {
     finish_step,
     start_unstep,
     finish_unstep,
-    max_pulses_per_sec
+    max_pulses_per_sec,
+    set_timer_ticks,
+    start_timer,
+    stop_timer
 };
 
 REGISTER_STEP_ENGINE(RMT, &engine);

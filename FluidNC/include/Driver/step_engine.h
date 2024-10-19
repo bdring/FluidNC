@@ -9,6 +9,7 @@
 #pragma once
 
 #include <stdint.h>
+#include <stdbool.h>
 
 typedef struct step_engine {
     const char* name;
@@ -16,7 +17,7 @@ typedef struct step_engine {
     // Prepare the engine for use
     // The return value is the actual pulse delay according to the
     // characteristics of the engine.
-    uint32_t (*init)(uint32_t dir_delay_us, uint32_t pulse_delay_us);
+    uint32_t (*init)(uint32_t dir_delay_us, uint32_t pulse_delay_us, uint32_t frequency, bool (*fn)(void));
 
     // Setup the step pin, returning a number to identify it.
     // In many cases, the return value is the same as pin, but some step
@@ -51,6 +52,15 @@ typedef struct step_engine {
     // The maximum step rate for this engine as a function of dir_delay_us,
     // pulse_delay_us, and other characteristics of this stepping engine
     uint32_t (*max_pulses_per_sec)();
+
+    // Set the period to the next pulse event in ticks of the stepping timer
+    void (*set_timer_ticks)(uint32_t ticks);
+
+    // Start the pulse event timer
+    void (*start_timer)();
+
+    // Stop the pulse event timer
+    void (*stop_timer)();
 
     // Link to next engine in the list of registered stepping engines
     struct step_engine* link;

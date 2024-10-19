@@ -1,10 +1,18 @@
 // Copyright (c) 2024 -	Mitch Bradley
 // Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
 
-// Stepping engine that uses the I2S FIFO
+// Stepping engine that uses the I2S FIFO.  An interrupt service routine runs when
+// the FIFO is below a set threshold.  The ISR pushes samples into the FIFO, representing
+// step pulses and inter-pulse delays.  There are variables for the value to push for
+// a pulse, the number of samples for that pulse, the value to push to the delay, and
+// the number of samples for the delay.  When the delay is done, the ISR calls the Stepper
+// pulse_func to determine the new values of those variables. The FIFO lets the ISR stay
+// just far enough ahead so the information is always ready, but not so far ahead to cause
+// latency problems.
 
 #include "Driver/step_engine.h"
 #include "Driver/i2s_out.h"
+#include "Driver/StepTimer.h"
 #include "hal/i2s_hal.h"
 
 #include <sdkconfig.h>
@@ -14,13 +22,14 @@
 #include <esp_attr.h>  // IRAM_ATTR
 
 #include <freertos/FreeRTOS.h>
-// #include <freertos/queue.h>
 
 #include <driver/periph_ctrl.h>
 #include <rom/lldesc.h>
 #include <soc/i2s_struct.h>
 #include <soc/gpio_periph.h>
 #include "Driver/fluidnc_gpio.h"
+
+#include "esp_intr_alloc.h"
 
 /* 16-bit mode: 1000000 usec / ((160000000 Hz) / 10 / 2) x 16 bit/pulse x 2(stereo) = 4 usec/pulse */
 /* 32-bit mode: 1000000 usec / ((160000000 Hz) /  5 / 2) x 32 bit/pulse x 2(stereo) = 4 usec/pulse */
@@ -50,53 +59,11 @@ static std::atomic<std::uint32_t> i2s_out_port_data = ATOMIC_VAR_INIT(0);
 
 const int I2S_SAMPLE_SIZE = 4; /* 4 bytes, 32 bits per sample */
 
-// inner lock
-static portMUX_TYPE i2s_out_spinlock = portMUX_INITIALIZER_UNLOCKED;
-#define I2S_OUT_ENTER_CRITICAL()                                                                                                           \
-    do {                                                                                                                                   \
-        if (xPortInIsrContext()) {                                                                                                         \
-            portENTER_CRITICAL_ISR(&i2s_out_spinlock);                                                                                     \
-        } else {                                                                                                                           \
-            portENTER_CRITICAL(&i2s_out_spinlock);                                                                                         \
-        }                                                                                                                                  \
-    } while (0)
-#define I2S_OUT_EXIT_CRITICAL()                                                                                                            \
-    do {                                                                                                                                   \
-        if (xPortInIsrContext()) {                                                                                                         \
-            portEXIT_CRITICAL_ISR(&i2s_out_spinlock);                                                                                      \
-        } else {                                                                                                                           \
-            portEXIT_CRITICAL(&i2s_out_spinlock);                                                                                          \
-        }                                                                                                                                  \
-    } while (0)
-#define I2S_OUT_ENTER_CRITICAL_ISR() portENTER_CRITICAL_ISR(&i2s_out_spinlock)
-#define I2S_OUT_EXIT_CRITICAL_ISR() portEXIT_CRITICAL_ISR(&i2s_out_spinlock)
-
 static int i2s_out_initialized = 0;
 
 static pinnum_t i2s_out_ws_pin   = 255;
 static pinnum_t i2s_out_bck_pin  = 255;
 static pinnum_t i2s_out_data_pin = 255;
-
-// outer lock
-static portMUX_TYPE i2s_out_pulser_spinlock = portMUX_INITIALIZER_UNLOCKED;
-#define I2S_OUT_PULSER_ENTER_CRITICAL()                                                                                                    \
-    do {                                                                                                                                   \
-        if (xPortInIsrContext()) {                                                                                                         \
-            portENTER_CRITICAL_ISR(&i2s_out_pulser_spinlock);                                                                              \
-        } else {                                                                                                                           \
-            portENTER_CRITICAL(&i2s_out_pulser_spinlock);                                                                                  \
-        }                                                                                                                                  \
-    } while (0)
-#define I2S_OUT_PULSER_EXIT_CRITICAL()                                                                                                     \
-    do {                                                                                                                                   \
-        if (xPortInIsrContext()) {                                                                                                         \
-            portEXIT_CRITICAL_ISR(&i2s_out_pulser_spinlock);                                                                               \
-        } else {                                                                                                                           \
-            portEXIT_CRITICAL(&i2s_out_pulser_spinlock);                                                                                   \
-        }                                                                                                                                  \
-    } while (0)
-#define I2S_OUT_PULSER_ENTER_CRITICAL_ISR() portENTER_CRITICAL_ISR(&i2s_out_pulser_spinlock)
-#define I2S_OUT_PULSER_EXIT_CRITICAL_ISR() portEXIT_CRITICAL_ISR(&i2s_out_pulser_spinlock)
 
 #if I2S_OUT_NUM_BITS == 16
 #    define DATA_SHIFT 16
@@ -108,11 +75,7 @@ static portMUX_TYPE i2s_out_pulser_spinlock = portMUX_INITIALIZER_UNLOCKED;
 // Internal functions
 //
 void IRAM_ATTR i2s_out_push_fifo(int count) {
-#if 0
-    uint32_t portData = ATOMIC_LOAD(&i2s_out_port_data) << DATA_SHIFT;
-#else
     uint32_t portData = i2s_out_port_data << DATA_SHIFT;
-#endif
     for (int i = 0; i < count; i++) {
         I2S0.fifo_wr = portData;
     }
@@ -158,8 +121,6 @@ static int i2s_out_gpio_shiftout(uint32_t port_data) {
 }
 
 static int i2s_out_stop() {
-    I2S_OUT_ENTER_CRITICAL();
-
     // stop TX module
     i2s_ll_tx_stop(&I2S0);
 
@@ -179,12 +140,6 @@ static int i2s_out_stop() {
     uint32_t port_data = ATOMIC_LOAD(&i2s_out_port_data);  // current expanded port value
     i2s_out_gpio_shiftout(port_data);
 
-#if 0
-    //clear pending interrupt
-    i2s_ll_clear_intr_status(&I2S0, i2s_ll_get_intr_status(&I2S0));
-#endif
-
-    I2S_OUT_EXIT_CRITICAL();
     return 0;
 }
 
@@ -193,7 +148,6 @@ static int i2s_out_start() {
         return -1;
     }
 
-    I2S_OUT_ENTER_CRITICAL();
     // Transmit recovery data to 74HC595
     uint32_t port_data = ATOMIC_LOAD(&i2s_out_port_data);  // current expanded port value
     i2s_out_gpio_shiftout(port_data);
@@ -208,18 +162,11 @@ static int i2s_out_start() {
 
     i2s_ll_tx_set_chan_mod(&I2S0, I2S_CHANNEL_FMT_ONLY_LEFT);
     i2s_ll_tx_stop_on_fifo_empty(&I2S0, true);
-
-#if 0
-    i2s_ll_clear_intr_status(&I2S0, 0xFFFFFFFF);
-#endif
-
     i2s_ll_tx_start(&I2S0);
 
     // Wait for the first FIFO data to prevent the unintentional generation of 0 data
     delay_us(20);
     i2s_ll_tx_stop_on_fifo_empty(&I2S0, false);
-
-    I2S_OUT_EXIT_CRITICAL();
 
     return 0;
 }
@@ -228,11 +175,9 @@ static int i2s_out_start() {
 // External funtions
 //
 void i2s_out_delay() {
-    I2S_OUT_PULSER_ENTER_CRITICAL();
     // Depending on the timing, it may not be reflected immediately,
     // so wait twice as long just in case.
     delay_us(I2S_OUT_USEC_PER_PULSE * 2);
-    I2S_OUT_PULSER_EXIT_CRITICAL();
 }
 
 void IRAM_ATTR i2s_out_write(pinnum_t pin, uint8_t val) {
@@ -249,12 +194,8 @@ uint8_t i2s_out_read(pinnum_t pin) {
     return !!(port_data & (1 << pin));
 }
 
-//
-// Initialize function (external function)
-//
 int i2s_out_init(i2s_out_init_t* init_param) {
     if (i2s_out_initialized) {
-        // already initialized
         return -1;
     }
 
@@ -370,16 +311,8 @@ int i2s_out_init(i2s_out_init_t* init_param) {
     i2s_ll_mclk_div_t first_div = { 2, 3, 47 };  // { N, b, a }
     i2s_ll_tx_set_clk(&I2S0, &first_div);
 
-    volatile void* ptr = &I2S0;
-    uint32_t       value;
-
-    delay_us(20);
-    value = *(uint32_t*)(ptr + 0xac);
-
     i2s_ll_mclk_div_t div = { 2, 32, 16 };  // b/a = 0.5
     i2s_ll_tx_set_clk(&I2S0, &div);
-
-    value = *(uint32_t*)(ptr + 0xac);
 
     // Bit clock configuration bit in transmitter mode.
     // fbck = fi2s / tx_bck_div_num = (160 MHz / 5) / 2 = 16 MHz
@@ -398,11 +331,111 @@ int i2s_out_init(i2s_out_init_t* init_param) {
     return 0;
 }
 
+// Interface to step engine
+
 static uint32_t _pulse_counts = 2;
 static uint32_t _dir_delay_us;
 
-// Convert the delays from microseconds to a number of I2S frame
-static uint32_t init_engine(uint32_t dir_delay_us, uint32_t pulse_us) {
+// The key FIFO parameters are FIFO_THRESHOLD and FIFO_RELOAD
+// Their sum must be less than FIFO_LENGTH (64 for ESP32).
+// - FIFO_THRESHOLD is the level at which the interrupt fires.
+// If it is too low, you risk FIFO underflow.  Higher values
+// allow more leeway for interrupt latency, but increase the
+// latency between the software step generation and the appearance
+// of step pulses at the driver.
+// - FIFO_RELOAD is the number of entries that each ISR invocation
+// pushes into the FIFO.  Larger values of FIFO_RELOAD decrease
+// the number of times that the ISR runs, while smaller values
+// decrease the step generation latency.
+// - With an I2S frame clock of 500 kHz, FIFO_THRESHOLD = 16,
+// FIFO_RELOAD = 8, the step latency is about 24 us.  That
+// is about half of the modulation period of a laser that
+// is modulated at 20 kHZ.
+
+#define FIFO_LENGTH (I2S_TX_DATA_NUM + 1)
+#define FIFO_THRESHOLD (FIFO_LENGTH / 4)
+#define FIFO_REMAINING (FIFO_LENGTH - FIFO_THRESHOLD)
+#define FIFO_RELOAD 8
+
+bool (*_pulse_func)();
+
+static uint32_t _remaining_pulse_counts = 0;
+static uint32_t _remaining_delay_counts = 0;
+
+static uint32_t _pulse_data;
+static uint32_t _delay_counts = 40;
+static uint32_t _tick_divisor;
+
+static void IRAM_ATTR set_timer_ticks(uint32_t ticks) {
+    _delay_counts = ticks / _tick_divisor;
+}
+
+static void IRAM_ATTR start_timer() {
+    i2s_ll_enable_intr(&I2S0, I2S_TX_PUT_DATA_INT_ENA, 1);
+    i2s_ll_clear_intr_status(&I2S0, I2S_PUT_DATA_INT_CLR);
+}
+static void IRAM_ATTR stop_timer() {
+    i2s_ll_enable_intr(&I2S0, I2S_TX_PUT_DATA_INT_ENA, 0);
+}
+
+static void IRAM_ATTR i2s_isr() {
+    // gpio_write(12, 1);  // For debugging
+
+    // Keeping local copies of this information speeds up the ISR
+    uint32_t pulse_data             = _pulse_data;
+    uint32_t delay_data             = i2s_out_port_data;
+    uint32_t remaining_pulse_counts = _remaining_pulse_counts;
+    uint32_t remaining_delay_counts = _remaining_delay_counts;
+
+    int i = FIFO_RELOAD;
+    do {
+        if (remaining_pulse_counts) {
+            I2S0.fifo_wr = pulse_data;
+            --i;
+            --remaining_pulse_counts;
+        } else if (remaining_delay_counts) {
+            I2S0.fifo_wr = delay_data;
+            --i;
+            --remaining_delay_counts;
+        } else {
+            _pulse_func();
+
+            // Reload from variables that could have been modified by pulse_func
+            pulse_data = _pulse_data;
+            delay_data = i2s_out_port_data;
+
+            remaining_pulse_counts = pulse_data == delay_data ? 0 : _pulse_counts;
+            remaining_delay_counts = _delay_counts - _pulse_counts;
+        }
+    } while (i);
+
+    // Save the counts back to the variables
+    _remaining_pulse_counts = remaining_pulse_counts;
+    _remaining_delay_counts = remaining_delay_counts;
+
+    // Clear the interrupt after pushing new data into the FIFO.  If you clear
+    // it before, the interrupt will re-fire back because the FIFO is still
+    // below the threshold.
+    i2s_ll_clear_intr_status(&I2S0, I2S_PUT_DATA_INT_CLR);
+
+    // gpio_write(12, 0);
+}
+
+static void i2s_fifo_intr_setup() {
+    I2S0.fifo_conf.tx_data_num = FIFO_THRESHOLD;
+    esp_intr_alloc_intrstatus(ETS_I2S0_INTR_SOURCE,
+                              ESP_INTR_FLAG_IRAM | ESP_INTR_FLAG_LEVEL3,
+                              (uint32_t)i2s_ll_get_intr_status_reg(&I2S0),
+                              I2S_PUT_DATA_INT_CLR_M,
+                              i2s_isr,
+                              NULL,
+                              NULL);
+}
+
+static uint32_t init_engine(uint32_t dir_delay_us, uint32_t pulse_us, uint32_t frequency, bool (*callback)(void)) {
+    _pulse_func = callback;
+    i2s_fifo_intr_setup();
+
     if (pulse_us < I2S_OUT_USEC_PER_PULSE) {
         pulse_us = I2S_OUT_USEC_PER_PULSE;
     }
@@ -411,6 +444,12 @@ static uint32_t init_engine(uint32_t dir_delay_us, uint32_t pulse_us) {
     }
     _dir_delay_us = dir_delay_us;
     _pulse_counts = (pulse_us + I2S_OUT_USEC_PER_PULSE - 1) / I2S_OUT_USEC_PER_PULSE;
+    _tick_divisor = frequency * I2S_OUT_USEC_PER_PULSE / 1000000;
+
+    _remaining_pulse_counts = 0;
+    _remaining_delay_counts = 0;
+
+    // gpio_mode(12, 0, 1, 0, 0, 0);
 
     return _pulse_counts * I2S_OUT_USEC_PER_PULSE;
 }
@@ -426,21 +465,6 @@ static IRAM_ATTR void set_dir_pin(int pin, int level) {
     i2s_out_write(pin, level);
 }
 
-uint32_t new_port_data;
-
-static IRAM_ATTR void start_step() {
-    new_port_data = i2s_out_port_data;
-}
-
-static IRAM_ATTR void set_step_pin(int pin, int level) {
-    uint32_t bit = 1 << pin;
-    if (level) {
-        new_port_data |= bit;
-    } else {
-        new_port_data &= ~bit;
-    }
-}
-
 // For direction changes, we push one sample to the FIFO
 // and busy-wait for the delay.  If the delay is short enough,
 // it might be possible to use the same multiple-sample trick
@@ -451,22 +475,22 @@ static IRAM_ATTR void finish_dir() {
     delay_us(_dir_delay_us);
 }
 
-// After all the desired values have been set with set_pin(),
-// push _pulse_counts copies of the memory variable to the
-// I2S FIFO, thus creating a pulse of the desired length.
-static IRAM_ATTR void finish_step() {
-    if (new_port_data == i2s_out_port_data) {
-        return;
-    }
-    for (int i = 0; i < _pulse_counts; i++) {
-        I2S0.fifo_wr = new_port_data;
-    }
-    // There is no need for multiple "step off" samples since the timer will not fire
-    // until the next time for a pulse.
-    I2S0.fifo_wr = i2s_out_port_data;
+static void IRAM_ATTR start_step() {
+    _pulse_data = i2s_out_port_data;
 }
 
-static IRAM_ATTR int start_unstep() {
+static IRAM_ATTR void set_step_pin(int pin, int level) {
+    uint32_t bit = 1 << pin;
+    if (level) {
+        _pulse_data |= bit;
+    } else {
+        _pulse_data &= ~bit;
+    }
+}
+
+static void IRAM_ATTR finish_step() {}
+
+static int IRAM_ATTR start_unstep() {
     return 1;
 }
 
@@ -478,7 +502,7 @@ static uint32_t max_pulses_per_sec() {
 }
 
 // clang-format off
-step_engine_t engine = {
+step_engine_t i2s_engine = {
     "I2S",
     init_engine,
     init_step_pin,
@@ -489,7 +513,10 @@ step_engine_t engine = {
     finish_step,
     start_unstep,
     finish_unstep,
-    max_pulses_per_sec
+    max_pulses_per_sec,
+    set_timer_ticks,
+    start_timer,
+    stop_timer
 };
-
-REGISTER_STEP_ENGINE(I2S, &engine);
+// clang-format on
+REGISTER_STEP_ENGINE(I2S, &i2s_engine);
