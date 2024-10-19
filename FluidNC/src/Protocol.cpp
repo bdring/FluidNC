@@ -239,7 +239,7 @@ static void check_startup_state() {
         report_error_message(Message::ConfigAlarmLock);
     } else {
         // Perform some machine checks to make sure everything is good to go.
-        if (config->_start->_checkLimits && config->_axes->hasHardLimits()) {
+        if (config->_start->_checkLimits && Axes::hasHardLimits()) {
             if (limits_get_state()) {
                 sys.state = State::Alarm;  // Ensure alarm state is active.
                 report_error_message(Message::CheckLimits);
@@ -319,7 +319,7 @@ void protocol_main_loop() {
 
         if (idleEndTime && (getCpuTicks() - idleEndTime) > 0) {
             idleEndTime = 0;  //
-            config->_axes->set_disable(true);
+            Axes::set_disable(true);
         }
         uint32_t newHeapSize = xPortGetFreeHeapSize();
         if (newHeapSize < heapLowWater) {
@@ -740,23 +740,23 @@ static void protocol_do_cycle_start() {
 void protocol_disable_steppers() {
     if (state_is(State::Homing)) {
         // Leave steppers enabled while homing
-        config->_axes->set_disable(false);
+        Axes::set_disable(false);
         return;
     }
     if (state_is(State::Sleep) || state_is(State::Alarm)) {
         // Disable steppers immediately in sleep or alarm state
-        config->_axes->set_disable(true);
+        Axes::set_disable(true);
         return;
     }
-    if (config->_stepping->_idleMsecs == 255) {
+    if (Stepping::_idleMsecs == 255) {
         // Leave steppers enabled if configured for "stay enabled"
-        config->_axes->set_disable(false);
+        Axes::set_disable(false);
         return;
     }
     // Otherwise, schedule stepper disable in a few milliseconds
     // unless a disable time has already been scheduled
     if (idleEndTime == 0) {
-        idleEndTime = usToEndTicks(config->_stepping->_idleMsecs * 1000);
+        idleEndTime = usToEndTicks(Stepping::_idleMsecs * 1000);
         // idleEndTime 0 means that a stepper disable is not scheduled. so if we happen to
         // land on 0 as an end time, just push it back by one microsecond to get off 0.
         if (idleEndTime == 0) {
@@ -835,7 +835,7 @@ static void protocol_do_late_reset() {
     config->_coolant->stop();
 
     protocol_disable_steppers();
-    config->_stepping->reset();
+    Stepping::reset();
 
     // turn off all User I/O immediately
     config->_userOutputs->all_off();
@@ -1086,7 +1086,7 @@ static void protocol_do_limit(void* arg) {
         limit->isHard()) {
         mc_critical(ExecAlarm::HardLimit);
     }
-    log_debug("Limit switch tripped for " << config->_axes->axisName(limit->_axis) << " motor " << limit->_motorNum);
+    log_debug("Limit switch tripped for " << Axes::axisName(limit->_axis) << " motor " << limit->_motorNum);
 }
 static void protocol_do_fault_pin(void* arg) {
     if (inMotionState() || state_is(State::Idle) || state_is(State::Hold) || state_is(State::SafetyDoor)) {

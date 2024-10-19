@@ -12,6 +12,8 @@
 namespace MotorDrivers {
 
     void TMC2130Driver::init() {
+        TrinamicSpiDriver::init();
+
         uint8_t cs_id;
         cs_id = setupSPI();
 

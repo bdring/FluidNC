@@ -100,7 +100,7 @@ public:
             const char*   grblName,
             const char*   fullName,
             bool (*cmdChecker)(),
-            bool synchronous = true);
+            bool synchronous = false);
 
     // The default implementation of addWebui() does nothing.
     // Derived classes may override it to do something.

@@ -24,6 +24,7 @@ namespace MotorDrivers {
         Assert(_uart, "TMC Driver missing uart%d section", _uart_num);
 
         _cs_pin.setAttr(Pin::Attr::Output);
+        TrinamicBase::init();
     }
 
     /*

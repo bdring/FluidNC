@@ -26,7 +26,7 @@ namespace Kinematics {
         xy_to_lengths(0, 0, zero_left, zero_right);
         last_motor_segment_end[0] = zero_left;
         last_motor_segment_end[1] = zero_right;
-        auto n_axis               = config->_axes->_numberAxis;
+        auto n_axis               = Axes::_numberAxis;
         for (size_t axis = Z_AXIS; axis < n_axis; axis++) {
             last_motor_segment_end[axis] = 0.0;
         }
@@ -36,7 +36,7 @@ namespace Kinematics {
 
     // Initialize the machine position
     void WallPlotter::init_position() {
-        auto n_axis = config->_axes->_numberAxis;
+        auto n_axis = Axes::_numberAxis;
         for (size_t axis = 0; axis < n_axis; axis++) {
             set_motor_steps(axis, 0);  // Set to zeros
         }
@@ -66,7 +66,7 @@ namespace Kinematics {
         float    dx, dy, dz;     // segment distances in each cartesian axis
         uint32_t segment_count;  // number of segments the move will be broken in to.
 
-        auto n_axis = config->_axes->_numberAxis;
+        auto n_axis = Axes::_numberAxis;
 
         float total_cartesian_distance = vector_distance(position, target, n_axis);
         if (total_cartesian_distance == 0) {
