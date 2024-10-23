@@ -168,15 +168,14 @@ void Maslow_::update() {
 
         //------------------------ Maslow State Machine
 
-        //-------Jog or G-code execution. Maybe need to add more modes here like Hold?
-        //Jog doesn't work for lack of feedback, HOLD doesn't get automatically called after jog, so IDK what (TODO)
+        //-------Jog or G-code execution.
         if (sys.state() == State::Jog || sys.state() == State::Cycle) {
             Maslow.setTargets(steps_to_mpos(get_axis_motor_steps(0), 0),
                               steps_to_mpos(get_axis_motor_steps(1), 1),
                               steps_to_mpos(get_axis_motor_steps(2), 2));
 
-            //This allows the z-axis to be moved without the motors being enabled before calibration is run
-            if (allAxisExtended()) {
+            //This disables the belt motors until the user has completed calibration or apply tension and they have succeded
+            if (setupComplete()) {
                 Maslow.recomputePID();
             }
         }
@@ -419,6 +418,7 @@ bool Maslow_::takeSlackFunc() {
                 log_info("Center point deviation within " << threshold << "mm, your coordinate system is accurate");
                 takeSlackState = 3;
                 holdTimer = millis();
+                setupIsComplete = true;
             }
         }
     }
@@ -443,6 +443,7 @@ void Maslow_::calibration_loop() {
     if(waypoint > pointCount){
         calibrationInProgress = false;
         waypoint              = 0;
+        setupIsComplete       = true;
         log_info("Calibration complete");
         return;
     }
@@ -1687,6 +1688,11 @@ bool Maslow_::all_axis_homed() {
 // True if all axis were extended
 bool Maslow_::allAxisExtended() {
     return extendedTL && extendedTR && extendedBL && extendedBR;
+}
+
+// True if calibration is complete or take slack has been run
+bool Maslow_::setupComplete() {
+    return setupIsComplete;
 }
 
 // int to string name conversion for axis labels
