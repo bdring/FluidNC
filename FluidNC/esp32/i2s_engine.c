@@ -31,33 +31,10 @@
 
 #include "esp_intr_alloc.h"
 
-/* 16-bit mode: 1000000 usec / ((160000000 Hz) / 10 / 2) x 16 bit/pulse x 2(stereo) = 4 usec/pulse */
 /* 32-bit mode: 1000000 usec / ((160000000 Hz) /  5 / 2) x 32 bit/pulse x 2(stereo) = 4 usec/pulse */
 const uint32_t I2S_OUT_USEC_PER_PULSE = 2;
 
-// The <atomic> library routines are not in IRAM so they can crash when called from FLASH
-// The GCC intrinsic versions which are prefixed with __ are compiled inline
-#define USE_INLINE_ATOMIC
-
-#ifdef USE_INLINE_ATOMIC
-#    define MEMORY_MODEL_FETCH __ATOMIC_RELAXED
-#    define MEMORY_MODEL_STORE __ATOMIC_RELAXED
-#    define ATOMIC_LOAD(var) __atomic_load_n(var, MEMORY_MODEL_FETCH)
-#    define ATOMIC_STORE(var, val) __atomic_store_n(var, val, MEMORY_MODEL_STORE)
-#    define ATOMIC_FETCH_AND(var, val) __atomic_fetch_and(var, val, MEMORY_MODEL_FETCH)
-#    define ATOMIC_FETCH_OR(var, val) __atomic_fetch_or(var, val, MEMORY_MODEL_FETCH)
 static uint32_t i2s_out_port_data = 0;
-#else
-#    include <atomic>
-#    define ATOMIC_LOAD(var) atomic_load(var)
-#    define ATOMIC_STORE(var, val) atomic_store(var, val)
-#    define ATOMIC_FETCH_AND(var, val) atomic_fetch_and(var, val)
-#    define ATOMIC_FETCH_OR(var, val) atomic_fetch_or(var, val)
-static std::atomic<std::uint32_t> i2s_out_port_data = ATOMIC_VAR_INIT(0);
-
-#endif
-
-const int I2S_SAMPLE_SIZE = 4; /* 4 bytes, 32 bits per sample */
 
 static int i2s_out_initialized = 0;
 
@@ -65,21 +42,9 @@ static pinnum_t i2s_out_ws_pin   = 255;
 static pinnum_t i2s_out_bck_pin  = 255;
 static pinnum_t i2s_out_data_pin = 255;
 
-#if I2S_OUT_NUM_BITS == 16
-#    define DATA_SHIFT 16
-#else
-#    define DATA_SHIFT 0
-#endif
-
 //
 // Internal functions
 //
-void IRAM_ATTR i2s_out_push_fifo(int count) {
-    uint32_t portData = i2s_out_port_data << DATA_SHIFT;
-    for (int i = 0; i < count; i++) {
-        I2S0.fifo_wr = portData;
-    }
-}
 
 static inline void i2s_out_reset_tx_rx() {
     i2s_ll_tx_reset(&I2S0);
@@ -137,7 +102,7 @@ static int i2s_out_stop() {
     gpio_write(i2s_out_bck_pin, 0);
 
     // Transmit recovery data to 74HC595
-    uint32_t port_data = ATOMIC_LOAD(&i2s_out_port_data);  // current expanded port value
+    uint32_t port_data = i2s_out_port_data;  // current expanded port value
     i2s_out_gpio_shiftout(port_data);
 
     return 0;
@@ -149,7 +114,7 @@ static int i2s_out_start() {
     }
 
     // Transmit recovery data to 74HC595
-    uint32_t port_data = ATOMIC_LOAD(&i2s_out_port_data);  // current expanded port value
+    uint32_t port_data = i2s_out_port_data;  // current expanded port value
     i2s_out_gpio_shiftout(port_data);
 
     // Attach I2S to specified GPIO pin
@@ -183,14 +148,14 @@ void i2s_out_delay() {
 void IRAM_ATTR i2s_out_write(pinnum_t pin, uint8_t val) {
     uint32_t bit = 1 << pin;
     if (val) {
-        ATOMIC_FETCH_OR(&i2s_out_port_data, bit);
+        i2s_out_port_data |= bit;
     } else {
-        ATOMIC_FETCH_AND(&i2s_out_port_data, ~bit);
+        i2s_out_port_data &= ~bit;
     }
 }
 
 uint8_t i2s_out_read(pinnum_t pin) {
-    uint32_t port_data = ATOMIC_LOAD(&i2s_out_port_data);
+    uint32_t port_data = i2s_out_port_data;
     return !!(port_data & (1 << pin));
 }
 
@@ -199,7 +164,7 @@ int i2s_out_init(i2s_out_init_t* init_param) {
         return -1;
     }
 
-    ATOMIC_STORE(&i2s_out_port_data, init_param->init_val);
+    i2s_out_port_data = init_param->init_val;
 
     // To make sure hardware is enabled before any hardware register operations.
     periph_module_reset(PERIPH_I2S0_MODULE);
@@ -367,12 +332,18 @@ static uint32_t _delay_counts = 40;
 static uint32_t _tick_divisor;
 
 static void IRAM_ATTR set_timer_ticks(uint32_t ticks) {
-    _delay_counts = ticks / _tick_divisor;
+    if (ticks) {
+        _delay_counts = ticks / _tick_divisor;
+    }
 }
 
 static void IRAM_ATTR start_timer() {
-    i2s_ll_enable_intr(&I2S0, I2S_TX_PUT_DATA_INT_ENA, 1);
-    i2s_ll_clear_intr_status(&I2S0, I2S_PUT_DATA_INT_CLR);
+    static bool once = true;
+    if (once) {
+        i2s_ll_enable_intr(&I2S0, I2S_TX_PUT_DATA_INT_ENA, 1);
+        i2s_ll_clear_intr_status(&I2S0, I2S_PUT_DATA_INT_CLR);
+        once = false;
+    }
 }
 static void IRAM_ATTR stop_timer() {
     i2s_ll_enable_intr(&I2S0, I2S_TX_PUT_DATA_INT_ENA, 0);
@@ -382,8 +353,8 @@ static void IRAM_ATTR i2s_isr() {
     // gpio_write(12, 1);  // For debugging
 
     // Keeping local copies of this information speeds up the ISR
-    uint32_t pulse_data             = _pulse_data;
     uint32_t delay_data             = i2s_out_port_data;
+    uint32_t pulse_data             = _pulse_data;
     uint32_t remaining_pulse_counts = _remaining_pulse_counts;
     uint32_t remaining_delay_counts = _remaining_delay_counts;
 
@@ -398,6 +369,10 @@ static void IRAM_ATTR i2s_isr() {
             --i;
             --remaining_delay_counts;
         } else {
+            // Set _pulse_data to a safe value in case pulse_func() does nothing,
+            // which can happen if it is not awake
+            _pulse_data = i2s_out_port_data;
+
             _pulse_func();
 
             // Reload from variables that could have been modified by pulse_func
@@ -405,7 +380,7 @@ static void IRAM_ATTR i2s_isr() {
             delay_data = i2s_out_port_data;
 
             remaining_pulse_counts = pulse_data == delay_data ? 0 : _pulse_counts;
-            remaining_delay_counts = _delay_counts - _pulse_counts;
+            remaining_delay_counts = _delay_counts - remaining_pulse_counts;
         }
     } while (i);
 
@@ -471,7 +446,7 @@ static IRAM_ATTR void set_dir_pin(int pin, int level) {
 // that we use for step pulses, but the optimizaton might not
 // be worthwhile since direction changes are infrequent.
 static IRAM_ATTR void finish_dir() {
-    i2s_out_push_fifo(1);
+    I2S0.fifo_wr = i2s_out_port_data;
     delay_us(_dir_delay_us);
 }
 

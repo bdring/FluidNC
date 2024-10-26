@@ -204,6 +204,7 @@ bool IRAM_ATTR Stepper::pulse_func() {
     auto n_axis = Axes::_numberAxis;
 
     Stepping::step(st.step_outbits, st.dir_outbits);
+    st.step_outbits = 0;
 
     // If there is no step segment, attempt to pop one from the stepper buffer
     if (st.exec_segment == NULL) {
@@ -244,11 +245,10 @@ bool IRAM_ATTR Stepper::pulse_func() {
 
             protocol_send_event_from_ISR(&cycleStopEvent);
             awake = false;
+            Stepping::unstep();
             return false;  // Nothing to do but exit.
         }
     }
-    // Reset step out bits.
-    st.step_outbits = 0;
 
     for (int axis = 0; axis < n_axis; axis++) {
         // Execute step displacement profile by Bresenham line algorithm

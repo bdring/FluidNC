@@ -51,7 +51,6 @@ namespace Pins {
             _lastWrittenValue = high;
 
             i2s_out_write(_index, _inverted ^ (bool)high);
-            i2s_out_push_fifo(1);
             i2s_out_delay();
         }
     }

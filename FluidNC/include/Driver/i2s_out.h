@@ -11,14 +11,7 @@ extern "C" {
 
 #include "Driver/fluidnc_gpio.h"
 
-/* Assert */
-#if defined(I2S_OUT_NUM_BITS)
-#    if (I2S_OUT_NUM_BITS != 16) && (I2S_OUT_NUM_BITS != 32)
-#        error "I2S_OUT_NUM_BITS should be 16 or 32"
-#    endif
-#else
-#    define I2S_OUT_NUM_BITS 32
-#endif
+#define I2S_OUT_NUM_BITS 32
 
 // #    define I2SO(n) (I2S_OUT_PIN_BASE + n)
 
@@ -66,13 +59,6 @@ uint8_t i2s_out_read(pinnum_t pin);
    val: bit value(0 or not 0)
 */
 void i2s_out_write(pinnum_t pin, uint8_t val);
-
-/*
-   Push the I2S output value that was constructed by a series of
-   i2s_out_write() calls to the I2S FIFO so it will be shifted out
-   count: Number of repetitions
-*/
-void i2s_out_push_fifo(int count);
 
 /*
   Dynamically delay until the Shift Register Pin changes
