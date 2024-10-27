@@ -357,7 +357,7 @@ std::map<std::string, ngc_cmd_t, std::less<>> binary_ops = {
     { "]", Binary_RightBracket },
     { "AND", Binary_And2 },
     { "MOD", Binary_Mod },
-    { "RR", Binary_NotExclusiveOr },
+    { "OR", Binary_NotExclusiveOr },
     { "XOR", Binary_ExclusiveOr },
     { "EQ", Binary_EQ },
     { "NE", Binary_NE },
@@ -438,7 +438,7 @@ static Error read_operation(const char* line, size_t& pos, ngc_binary_op_t& oper
                 status = Error::ExpressionUnknownOp;  // Unknown operation name starting with M
             break;
 
-        case 'R':
+        case 'O':
             if (line[pos] == 'R') {
                 operation = Binary_NotExclusiveOR;
                 pos++;
