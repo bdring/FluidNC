@@ -34,7 +34,7 @@
 /* 32-bit mode: 1000000 usec / ((160000000 Hz) /  5 / 2) x 32 bit/pulse x 2(stereo) = 4 usec/pulse */
 const uint32_t I2S_OUT_USEC_PER_PULSE = 2;
 
-static uint32_t i2s_out_port_data = 0;
+static volatile uint32_t i2s_out_port_data = 0;
 
 static int i2s_out_initialized = 0;
 
@@ -136,13 +136,37 @@ static int i2s_out_start() {
     return 0;
 }
 
+// The key FIFO parameters are FIFO_THRESHOLD and FIFO_RELOAD
+// Their sum must be less than FIFO_LENGTH (64 for ESP32).
+// - FIFO_THRESHOLD is the level at which the interrupt fires.
+// If it is too low, you risk FIFO underflow.  Higher values
+// allow more leeway for interrupt latency, but increase the
+// latency between the software step generation and the appearance
+// of step pulses at the driver.
+// - FIFO_RELOAD is the number of entries that each ISR invocation
+// pushes into the FIFO.  Larger values of FIFO_RELOAD decrease
+// the number of times that the ISR runs, while smaller values
+// decrease the step generation latency.
+// - With an I2S frame clock of 500 kHz, FIFO_THRESHOLD = 16,
+// FIFO_RELOAD = 8, the step latency is about 24 us.  That
+// is about half of the modulation period of a laser that
+// is modulated at 20 kHZ.
+
+#define FIFO_LENGTH (I2S_TX_DATA_NUM + 1)
+#define FIFO_THRESHOLD (FIFO_LENGTH / 4)
+#define FIFO_REMAINING (FIFO_LENGTH - FIFO_THRESHOLD)
+#define FIFO_RELOAD 8
+
+static bool timer_running = false;
+
 //
-// External funtions
+// External functions
 //
 void i2s_out_delay() {
     // Depending on the timing, it may not be reflected immediately,
     // so wait twice as long just in case.
-    delay_us(I2S_OUT_USEC_PER_PULSE * 2);
+    uint32_t wait_counts = timer_running ? FIFO_THRESHOLD + FIFO_RELOAD : 2;
+    delay_us(I2S_OUT_USEC_PER_PULSE * wait_counts);
 }
 
 void IRAM_ATTR i2s_out_write(pinnum_t pin, uint8_t val) {
@@ -151,6 +175,11 @@ void IRAM_ATTR i2s_out_write(pinnum_t pin, uint8_t val) {
         i2s_out_port_data |= bit;
     } else {
         i2s_out_port_data &= ~bit;
+    }
+
+    if (!timer_running) {
+        // Direct write to the I2S FIFO in case the pulse timer is not running
+        I2S0.fifo_wr = i2s_out_port_data;
     }
 }
 
@@ -301,27 +330,6 @@ int i2s_out_init(i2s_out_init_t* init_param) {
 static uint32_t _pulse_counts = 2;
 static uint32_t _dir_delay_us;
 
-// The key FIFO parameters are FIFO_THRESHOLD and FIFO_RELOAD
-// Their sum must be less than FIFO_LENGTH (64 for ESP32).
-// - FIFO_THRESHOLD is the level at which the interrupt fires.
-// If it is too low, you risk FIFO underflow.  Higher values
-// allow more leeway for interrupt latency, but increase the
-// latency between the software step generation and the appearance
-// of step pulses at the driver.
-// - FIFO_RELOAD is the number of entries that each ISR invocation
-// pushes into the FIFO.  Larger values of FIFO_RELOAD decrease
-// the number of times that the ISR runs, while smaller values
-// decrease the step generation latency.
-// - With an I2S frame clock of 500 kHz, FIFO_THRESHOLD = 16,
-// FIFO_RELOAD = 8, the step latency is about 24 us.  That
-// is about half of the modulation period of a laser that
-// is modulated at 20 kHZ.
-
-#define FIFO_LENGTH (I2S_TX_DATA_NUM + 1)
-#define FIFO_THRESHOLD (FIFO_LENGTH / 4)
-#define FIFO_REMAINING (FIFO_LENGTH - FIFO_THRESHOLD)
-#define FIFO_RELOAD 8
-
 bool (*_pulse_func)();
 
 static uint32_t _remaining_pulse_counts = 0;
@@ -338,22 +346,23 @@ static void IRAM_ATTR set_timer_ticks(uint32_t ticks) {
 }
 
 static void IRAM_ATTR start_timer() {
-    static bool once = true;
-    if (once) {
+    if (!timer_running) {
         i2s_ll_enable_intr(&I2S0, I2S_TX_PUT_DATA_INT_ENA, 1);
         i2s_ll_clear_intr_status(&I2S0, I2S_PUT_DATA_INT_CLR);
-        once = false;
+        timer_running = true;
     }
 }
 static void IRAM_ATTR stop_timer() {
-    i2s_ll_enable_intr(&I2S0, I2S_TX_PUT_DATA_INT_ENA, 0);
+    if (timer_running) {
+        i2s_ll_enable_intr(&I2S0, I2S_TX_PUT_DATA_INT_ENA, 0);
+        timer_running = false;
+    }
 }
 
 static void IRAM_ATTR i2s_isr() {
     // gpio_write(12, 1);  // For debugging
 
     // Keeping local copies of this information speeds up the ISR
-    uint32_t delay_data             = i2s_out_port_data;
     uint32_t pulse_data             = _pulse_data;
     uint32_t remaining_pulse_counts = _remaining_pulse_counts;
     uint32_t remaining_delay_counts = _remaining_delay_counts;
@@ -365,21 +374,19 @@ static void IRAM_ATTR i2s_isr() {
             --i;
             --remaining_pulse_counts;
         } else if (remaining_delay_counts) {
-            I2S0.fifo_wr = delay_data;
+            I2S0.fifo_wr = i2s_out_port_data;
             --i;
             --remaining_delay_counts;
         } else {
-            // Set _pulse_data to a safe value in case pulse_func() does nothing,
+            // Set _pulse_data to the non-pulse value in case pulse_func() does nothing,
             // which can happen if it is not awake
             _pulse_data = i2s_out_port_data;
 
             _pulse_func();
 
             // Reload from variables that could have been modified by pulse_func
-            pulse_data = _pulse_data;
-            delay_data = i2s_out_port_data;
-
-            remaining_pulse_counts = pulse_data == delay_data ? 0 : _pulse_counts;
+            pulse_data             = _pulse_data;
+            remaining_pulse_counts = pulse_data == i2s_out_port_data ? 0 : _pulse_counts;
             remaining_delay_counts = _delay_counts - remaining_pulse_counts;
         }
     } while (i);
@@ -425,6 +432,10 @@ static uint32_t init_engine(uint32_t dir_delay_us, uint32_t pulse_us, uint32_t f
     _remaining_delay_counts = 0;
 
     // gpio_mode(12, 0, 1, 0, 0, 0);
+
+    // Run the pulser all the time to pick up writes to non-stepping I2S outputs
+    start_timer();
+    set_timer_ticks(100);
 
     return _pulse_counts * I2S_OUT_USEC_PER_PULSE;
 }
