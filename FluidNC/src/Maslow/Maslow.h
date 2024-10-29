@@ -150,6 +150,7 @@ public:
     String axis_id_to_label(int axis_id);
     bool   all_axis_homed();
     bool   allAxisExtended();
+    bool   setupComplete();
     void   safety_control();
     void   set_frame_width(double width);
     void   set_frame_height(double height);
@@ -170,6 +171,8 @@ public:
     bool takeSlack    = false;
 
     bool safetyOn = true;
+
+    bool setupIsComplete = false;
 
     //Used to override and drive the motors directly
     void TLI();
