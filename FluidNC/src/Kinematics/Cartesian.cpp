@@ -12,7 +12,7 @@ namespace Kinematics {
 
     // Initialize the machine position
     void Cartesian::init_position() {
-        auto n_axis = config->_axes->_numberAxis;
+        auto n_axis = Axes::_numberAxis;
         for (size_t axis = 0; axis < n_axis; axis++) {
             set_motor_steps(axis, 0);  // Set to zeros
         }
@@ -178,7 +178,7 @@ namespace Kinematics {
 
     void Cartesian::constrain_jog(float* target, plan_line_data_t* pl_data, float* position) {
         auto axes   = config->_axes;
-        auto n_axis = config->_axes->_numberAxis;
+        auto n_axis = Axes::_numberAxis;
 
         float*    current_position = get_mpos();
         MotorMask lim_pin_state    = limits_get_state();
@@ -237,7 +237,7 @@ namespace Kinematics {
 
     bool Cartesian::invalid_line(float* cartesian) {
         auto axes   = config->_axes;
-        auto n_axis = config->_axes->_numberAxis;
+        auto n_axis = Axes::_numberAxis;
 
         for (int axis = 0; axis < n_axis; axis++) {
             float coordinate = cartesian[axis];
@@ -294,12 +294,11 @@ namespace Kinematics {
         auto n_axis = axes->_numberAxis;
         for (int axis = 0; axis < n_axis; axis++) {
             if (bitnum_is_true(axisMask, axis)) {
-                auto paxis = axes->_axis[axis];
                 if (bitnum_is_true(motors, Machine::Axes::motor_bit(axis, 0))) {
-                    paxis->_motors[0]->unlimit();
+                    Stepping::unlimit(axis, 0);
                 }
                 if (bitnum_is_true(motors, Machine::Axes::motor_bit(axis, 1))) {
-                    paxis->_motors[1]->unlimit();
+                    Stepping::unlimit(axis, 1);
                 }
             }
         }

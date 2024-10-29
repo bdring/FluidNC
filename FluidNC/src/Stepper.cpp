@@ -24,7 +24,7 @@ static bool awake = false;
 
 // Stores the planner block Bresenham algorithm execution data for the segments in the segment
 // buffer. Normally, this buffer is partially in-use, but, for the worst case scenario, it will
-// never exceed the number of accessible stepper buffer segments (config->_stepping->_segments-1).
+// never exceed the number of accessible stepper buffer segments (Stepping::_segments-1).
 // NOTE: This data is copied from the prepped planner blocks so that the planner blocks may be
 // discarded when entirely consumed and completed by the segment buffer. Also, AMASS alters this
 // data for its own use.
@@ -54,11 +54,11 @@ void Stepper::init() {
     if (st_block_buffer) {
         delete[] st_block_buffer;
     }
-    st_block_buffer = new st_block_t[config->_stepping->_segments - 1];
+    st_block_buffer = new st_block_t[Stepping::_segments - 1];
     if (segment_buffer) {
         delete[] segment_buffer;
     }
-    segment_buffer = new segment_t[config->_stepping->_segments];
+    segment_buffer = new segment_t[Stepping::_segments];
 }
 
 // Stepper ISR data struct. Contains the running data for the main stepper ISR.
@@ -177,7 +177,7 @@ static st_prep_t prep;
 
 // Stepper shutdown
 void IRAM_ATTR Stepper::stop_stepping() {
-    config->_axes->unstep();
+    Stepping::unstep();
     st.step_outbits = 0;
 }
 
@@ -201,9 +201,10 @@ bool IRAM_ATTR Stepper::pulse_func() {
     if (!awake) {
         return false;
     }
-    auto n_axis = config->_axes->_numberAxis;
+    auto n_axis = Axes::_numberAxis;
 
-    config->_axes->step(st.step_outbits, st.dir_outbits);
+    Stepping::step(st.step_outbits, st.dir_outbits);
+    st.step_outbits = 0;
 
     // If there is no step segment, attempt to pop one from the stepper buffer
     if (st.exec_segment == NULL) {
@@ -212,7 +213,7 @@ bool IRAM_ATTR Stepper::pulse_func() {
             // Initialize new step segment and load number of steps to execute
             st.exec_segment = &segment_buffer[segment_buffer_tail];
             // Initialize step segment timing per step and load number of steps to execute.
-            config->_stepping->setTimerPeriod(st.exec_segment->isrPeriod);
+            Stepping::setTimerPeriod(st.exec_segment->isrPeriod);
             st.step_count = st.exec_segment->n_step;  // NOTE: Can sometimes be zero when moving slow.
             // If the new segment starts a new planner block, initialize stepper variables and counters.
             // NOTE: When the segment data index changes, this indicates a new planner block.
@@ -244,23 +245,10 @@ bool IRAM_ATTR Stepper::pulse_func() {
 
             protocol_send_event_from_ISR(&cycleStopEvent);
             awake = false;
+            Stepping::unstep();
             return false;  // Nothing to do but exit.
         }
     }
-#if 0
-    // Check probing state.
-    if (probing && config->_probe->tripped()) {
-        probing = false;
-        auto axes  = config->_axes;
-        for (int axis = 0; axis < n_axis; axis++) {
-            auto m            = axes->_axis[axis]->_motors[0];
-            probe_steps[axis] = m ? m->_steps : 0;
-        }
-        protocol_send_event_from_ISR(&motionCancelEvent);
-    }
-#endif
-    // Reset step out bits.
-    st.step_outbits = 0;
 
     for (int axis = 0; axis < n_axis; axis++) {
         // Execute step displacement profile by Bresenham line algorithm
@@ -275,10 +263,10 @@ bool IRAM_ATTR Stepper::pulse_func() {
     if (st.step_count == 0) {
         // Segment is complete. Discard current segment and advance segment indexing.
         st.exec_segment     = NULL;
-        segment_buffer_tail = segment_buffer_tail >= (config->_stepping->_segments - 1) ? 0 : segment_buffer_tail + 1;
+        segment_buffer_tail = segment_buffer_tail >= (Stepping::_segments - 1) ? 0 : segment_buffer_tail + 1;
     }
 
-    config->_axes->unstep();
+    Stepping::unstep();
     return true;
 }
 
@@ -291,10 +279,10 @@ void Stepper::wake_up() {
     // Cancel any pending stepper disable
     protocol_cancel_disable_steppers();
     // Enable stepper drivers.
-    config->_axes->set_disable(false);
+    Axes::set_disable(false);
 
     // Enable Stepping Driver Interrupt
-    config->_stepping->startTimer();
+    Stepping::startTimer();
 }
 
 void Stepper::go_idle() {
@@ -306,7 +294,7 @@ void Stepper::go_idle() {
 // Reset and clear stepper subsystem variables
 void Stepper::reset() {
     // Initialize Stepping driver idle state.
-    config->_stepping->reset();
+    Stepping::reset();
 
     go_idle();
 
@@ -371,7 +359,7 @@ void Stepper::parking_restore_buffer() {
 // Increments the step segment buffer block data ring buffer.
 static uint8_t next_block_index(uint8_t block_index) {
     block_index++;
-    return block_index == (config->_stepping->_segments - 1) ? 0 : block_index;
+    return block_index == (Stepping::_segments - 1) ? 0 : block_index;
 }
 
 /* Prepares step segment buffer. Continuously called from main program.
@@ -423,7 +411,7 @@ void Stepper::prep_buffer() {
                 st_prep_block                 = &st_block_buffer[prep.st_block_index];
                 st_prep_block->direction_bits = pl_block->direction_bits;
                 uint8_t idx;
-                auto    n_axis = config->_axes->_numberAxis;
+                auto    n_axis = Axes::_numberAxis;
 
                 // Bit-shift multiply all Bresenham data by the max AMASS level so that
                 // we never divide beyond the original data anywhere in the algorithm.
@@ -746,7 +734,7 @@ void Stepper::prep_buffer() {
 
         // Segment complete! Increment segment buffer indices, so stepper ISR can immediately execute it.
         auto lastseg        = segment_next_head;
-        segment_next_head   = segment_next_head >= (config->_stepping->_segments - 1) ? 0 : segment_next_head + 1;
+        segment_next_head   = segment_next_head >= (Stepping::_segments - 1) ? 0 : segment_next_head + 1;
         segment_buffer_head = lastseg;
 
         // Update the appropriate planner and segment data.

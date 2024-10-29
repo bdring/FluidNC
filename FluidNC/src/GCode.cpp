@@ -268,7 +268,7 @@ Error gc_execute_line(char* line) {
     bool nonmodalG38          = false;  // Used for G38.6-9
     bool isWaitOnInputDigital = false;
 
-    auto    n_axis = config->_axes->_numberAxis;
+    auto    n_axis = Axes::_numberAxis;
     float   coord_data[MAX_N_AXIS];  // Used by WCO-related commands
     uint8_t pValue;                  // Integer value of P word
 
@@ -1602,7 +1602,7 @@ Error gc_execute_line(char* line) {
     // NOTE: Pass zero spindle speed for all restricted laser motions.
     if (!disableLaser) {
         pl_data->spindle_speed = gc_state.spindle_speed;  // Record data for planner use.
-    }  // else { pl_data->spindle_speed = 0.0; } // Initialized as zero already.
+    }                                                     // else { pl_data->spindle_speed = 0.0; } // Initialized as zero already.
     // [5. Select tool ]: NOT SUPPORTED. Only tracks tool value.
     //	gc_state.tool = gc_block.values.t;
     // [M6. Change tool ]:

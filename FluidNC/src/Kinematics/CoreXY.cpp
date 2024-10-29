@@ -33,8 +33,8 @@ namespace Kinematics {
         log_info("Kinematic system: " << name());
 
         // A limit switch on either axis stops both motors
-        config->_axes->_axis[X_AXIS]->_motors[0]->limitOtherAxis(Y_AXIS);
-        config->_axes->_axis[Y_AXIS]->_motors[0]->limitOtherAxis(X_AXIS);
+        Axes::_axis[X_AXIS]->_motors[0]->limitOtherAxis(Y_AXIS);
+        Axes::_axis[Y_AXIS]->_motors[0]->limitOtherAxis(X_AXIS);
     }
 
     bool CoreXY::canHome(AxisMask axisMask) {
@@ -75,7 +75,7 @@ namespace Kinematics {
         auto n_axis = axes->_numberAxis;
         for (size_t axis = X_AXIS; axis < n_axis; axis++) {
             if (bitnum_is_true(axisMask, axis)) {
-                axes->_axis[axis]->_motors[0]->unlimit();
+                Stepping::unlimit(axis, 0);
             }
         }
     }
@@ -93,7 +93,7 @@ namespace Kinematics {
     bool CoreXY::cartesian_to_motors(float* target, plan_line_data_t* pl_data, float* position) {
         //        log_debug("cartesian_to_motors position (" << position[X_AXIS] << "," << position[Y_AXIS] << ") target (" << target[X_AXIS] << "," << target[Y_AXIS] << ")");
 
-        auto n_axis = config->_axes->_numberAxis;
+        auto n_axis = Axes::_numberAxis;
 
         float motors[n_axis];
         transform_cartesian_to_motors(motors, target);
@@ -136,7 +136,7 @@ namespace Kinematics {
         motors[X_AXIS] = (_x_scaler * cartesian[X_AXIS]) + cartesian[Y_AXIS];
         motors[Y_AXIS] = (_x_scaler * cartesian[X_AXIS]) - cartesian[Y_AXIS];
 
-        auto n_axis = config->_axes->_numberAxis;
+        auto n_axis = Axes::_numberAxis;
         for (size_t axis = Z_AXIS; axis < n_axis; axis++) {
             motors[axis] = cartesian[axis];
         }

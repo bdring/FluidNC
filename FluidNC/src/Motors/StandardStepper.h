@@ -2,8 +2,6 @@
 
 #include "MotorDriver.h"
 
-#include <driver/rmt.h>
-
 namespace MotorDrivers {
     class StandardStepper : public MotorDriver {
     public:
@@ -17,10 +15,6 @@ namespace MotorDrivers {
         // No special action, but return true to say homing is possible
         bool set_homing_mode(bool isHoming) override { return true; }
         void set_disable(bool) override;
-        void set_direction(bool) override;
-        void step() override;
-        void unstep() override;
-        void read_settings() override;
 
         void init_step_dir_pins();
 
@@ -39,12 +33,5 @@ namespace MotorDrivers {
             handler.item("direction_pin", _dir_pin);
             handler.item("disable_pin", _disable_pin);
         }
-
-    private:
-        // Initialized after configuration for RMT steps:
-        bool _invert_step;
-        bool _invert_disable;
-
-        rmt_channel_t _rmt_chan_num = RMT_CHANNEL_MAX;
     };
 }

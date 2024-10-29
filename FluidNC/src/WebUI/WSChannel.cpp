@@ -3,6 +3,7 @@
 
 #include "WSChannel.h"
 
+#include "src/UartChannel.h"
 #include "WebServer.h"
 #include <WebSocketsServer.h>
 #include <WiFi.h>
@@ -62,12 +63,10 @@ namespace WebUI {
         int stat = _server->canSend(_clientNum);
         if (stat < 0) {
             _active = false;
-            log_debug("WebSocket is dead; closing");
             return 0;
         }
         if (!_server->sendBIN(_clientNum, out, outlen)) {
             _active = false;
-            log_debug("WebSocket is unresponsive; closing");
         }
         if (_output_line.length()) {
             _output_line = "";
@@ -82,7 +81,7 @@ namespace WebUI {
         }
         if (!_server->sendTXT(_clientNum, s.c_str())) {
             _active = false;
-            log_debug("WebSocket is unresponsive; closing");
+            log_debug_to(Uart0, "WebSocket is unresponsive; closing");
             return false;
         }
         return true;
@@ -95,7 +94,7 @@ namespace WebUI {
         int stat = _server->canSend(_clientNum);
         if (stat < 0) {
             _active = false;
-            log_debug("WebSocket is dead; closing");
+            log_debug_to(Uart0, "WebSocket is dead; closing");
             return;
         }
         if (stat == 0) {
@@ -195,18 +194,18 @@ namespace WebUI {
     void WSChannels::handleEvent(WebSocketsServer* server, uint8_t num, uint8_t type, uint8_t* payload, size_t length) {
         switch (type) {
             case WStype_DISCONNECTED:
-                log_debug("WebSocket disconnect " << num);
+                log_debug_to(Uart0, "WebSocket disconnect " << num);
                 WSChannels::removeChannel(num);
                 break;
             case WStype_CONNECTED: {
                 WSChannel* wsChannel = new WSChannel(server, num);
                 if (!wsChannel) {
-                    log_error("Creating WebSocket channel failed");
+                    log_error_to(Uart0, "Creating WebSocket channel failed");
                 } else {
                     std::string uri((char*)payload, length);
 
                     IPAddress ip = server->remoteIP(num);
-                    log_debug("WebSocket " << num << " from " << ip << " uri " << uri);
+                    log_debug_to(Uart0, "WebSocket " << num << " from " << ip << " uri " << uri);
 
                     _lastWSChannel = wsChannel;
                     allChannels.registration(wsChannel);
@@ -238,19 +237,19 @@ namespace WebUI {
     void WSChannels::handlev3Event(WebSocketsServer* server, uint8_t num, uint8_t type, uint8_t* payload, size_t length) {
         switch (type) {
             case WStype_DISCONNECTED:
-                log_debug("WebSocket disconnect " << num);
+                printf("WebSocket disconnect %d\n", num);
                 WSChannels::removeChannel(num);
                 break;
             case WStype_CONNECTED: {
-                log_debug("WStype_Connected");
+                log_debug_to(Uart0, "WStype_Connected");
                 WSChannel* wsChannel = new WSChannel(server, num);
                 if (!wsChannel) {
-                    log_error("Creating WebSocket channel failed");
+                    log_error_to(Uart0, "Creating WebSocket channel failed");
                 } else {
                     std::string uri((char*)payload, length);
 
                     IPAddress ip = server->remoteIP(num);
-                    log_debug("WebSocket " << num << " from " << ip << " uri " << uri);
+                    log_debug_to(Uart0, "WebSocket " << num << " from " << ip << " uri " << uri);
 
                     _lastWSChannel = wsChannel;
                     allChannels.registration(wsChannel);
@@ -276,7 +275,6 @@ namespace WebUI {
             case WStype_TEXT:
                 try {
                     std::string msg = (const char*)payload;
-                    //log_debug("WSv3Channels::handleEvent WStype_TEXT:" << msg)
                     if (msg.rfind("PING:", 0) == 0) {
                         std::string response("PING:60000:60000");
                         _wsChannels.at(num)->sendTXT(response);

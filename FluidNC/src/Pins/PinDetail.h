@@ -21,13 +21,14 @@ namespace Pins {
     class PinDetail {
     protected:
     public:
-        int _index;
+        int  _index    = -1;
+        bool _inverted = false;
 
         PinDetail(int number) : _index(number) {}
-        PinDetail(const PinDetail& o) = delete;
-        PinDetail(PinDetail&& o)      = delete;
+        PinDetail(const PinDetail& o)            = delete;
+        PinDetail(PinDetail&& o)                 = delete;
         PinDetail& operator=(const PinDetail& o) = delete;
-        PinDetail& operator=(PinDetail&& o) = delete;
+        PinDetail& operator=(PinDetail&& o)      = delete;
 
         virtual PinCapabilities capabilities() const = 0;
 
@@ -37,6 +38,8 @@ namespace Pins {
         virtual int           read()                       = 0;
         virtual void          setAttr(PinAttributes value) = 0;
         virtual PinAttributes getAttr() const              = 0;
+
+        virtual bool canStep() { return false; }
 
         virtual void registerEvent(EventPin* obj);
 

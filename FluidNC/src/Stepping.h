@@ -5,26 +5,40 @@
 #pragma once
 
 #include "Configuration/Configurable.h"
-#include "Driver/StepTimer.h"
+#include "Driver/step_engine.h"
 
 namespace Machine {
     class Stepping : public Configuration::Configurable {
     public:
         // fStepperTimer should be an integer divisor of the bus speed, i.e. of fTimers
         static const uint32_t fStepperTimer = 20000000;  // frequency of step pulse timer
-
     private:
-        static bool onStepperDriverTimer();
+        static bool    _switchedStepper;
+        static int32_t _stepPulseEndTime;
+        static int     _i2sPulseCounts;
 
-        static const int ticksPerMicrosecond = fStepperTimer / 1000000;
+        static const int MAX_MOTORS_PER_AXIS = 2;
+        struct motor_t {
+            int  step_pin;
+            int  dir_pin;
+            bool step_invert;
+            bool dir_invert;
+            bool blocked;
+            bool limited;
+        };
+        static motor_t* axis_motors[MAX_N_AXIS][MAX_MOTORS_PER_AXIS];
+        static int      _n_active_axes;
 
-        bool    _switchedStepper = false;
-        int32_t _stepPulseEndTime;
+        static void    startPulseTimer();
+        static void    waitDirection();  // Wait for direction delay
+        static int32_t axis_steps[MAX_N_AXIS];
+
+        static step_engine_t* step_engine;
 
     public:
         enum stepper_id_t {
             TIMED = 0,
-            RMT,
+            RMT_ENGINE,
             I2S_STATIC,
             I2S_STREAM,
         };
@@ -38,32 +52,44 @@ namespace Machine {
         // execution lead time there is for other processes to run.  The latency for a feedhold or other
         // override is roughly 10 ms times _segments.
 
-        size_t _segments = 12;
+        static size_t _segments;
 
-        uint32_t _idleMsecs           = 255;
-        uint32_t _pulseUsecs          = 4;
-        uint32_t _directionDelayUsecs = 0;
-        uint32_t _disableDelayUsecs   = 0;
+        static uint32_t _idleMsecs;
+        static uint32_t _pulseUsecs;
+        static uint32_t _directionDelayUsecs;
+        static uint32_t _disableDelayUsecs;
 
         static int _engine;
 
         // Interfaces to stepping engine
-        void init();
+        static void init();
 
-        void reset();  // Clean up old state and start fresh
-        void beginLowLatency();
-        void endLowLatency();
-        void startPulseTimer();
-        void waitPulse();      // Wait for pulse length
-        void waitDirection();  // Wait for direction delay
-        void waitMotion();     // Wait for motion to complete
-        void finishPulse();    // Cleanup after unstep
+        static uint32_t getSteps(int axis) { return axis_steps[axis]; }
+        static void     setSteps(int axis, uint32_t steps) { axis_steps[axis] = steps; }
 
-        uint32_t maxPulsesPerSec();
+        static void assignMotor(int axis, int motor, int step_pin, bool step_invert, int dir_pin, bool dir_invert);
+
+        static void reset();  // Clean up old state and start fresh
+        static void beginLowLatency();
+        static void endLowLatency();
+
+        static void step(uint8_t step_mask, uint8_t dir_mask);
+        static void unstep();
+
+        // Used to stop a motor quickly when a limit switch is hit
+        static bool* limit_var(int axis, int motor);
+        static void  limit(int axis, int motor);
+        static void  unlimit(int axis, int motor);
+
+        // Used to stop a motor during ganged homint
+        static void block(int axis, int motor);
+        static void unblock(int axis, int motor);
+
+        static uint32_t maxPulsesPerSec();
 
         // Timers
-        void        setTimerPeriod(uint16_t timerTicks);
-        void        startTimer();
+        static void setTimerPeriod(uint32_t timerTicks);
+        static void startTimer();
         static void stopTimer();
 
         // Configuration system helpers:

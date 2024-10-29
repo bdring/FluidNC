@@ -19,7 +19,7 @@ namespace Configuration {
 
         GenericFactory() = default;
 
-        GenericFactory(const GenericFactory&)            = delete;
+        GenericFactory(const GenericFactory&) = delete;
         GenericFactory& operator=(const GenericFactory&) = delete;
 
         class BuilderBase {
@@ -28,7 +28,7 @@ namespace Configuration {
         public:
             BuilderBase(const char* name) : name_(name) {}
 
-            BuilderBase(const BuilderBase& o)            = delete;
+            BuilderBase(const BuilderBase& o) = delete;
             BuilderBase& operator=(const BuilderBase& o) = delete;
 
             virtual BaseType* create(const char* name) const = 0;
@@ -59,6 +59,24 @@ namespace Configuration {
             BaseType* create(const char* name) const override { return new DerivedType(name); }
         };
 
+        template <typename DerivedType, typename DependencyType>
+        class DependentInstanceBuilder : public BuilderBase {
+        public:
+            explicit DependentInstanceBuilder(const char* name, bool autocreate = false) : BuilderBase(name) {
+                instance().registerBuilder(this);
+                if (autocreate) {
+                    auto& objects = instance().objects_;
+                    auto  object  = create(name);
+                    objects.push_back(object);
+                }
+            }
+
+            DerivedType* create(const char* name) const override {
+                auto dependency = new DependencyType();
+                return new DerivedType(name, dependency);
+            }
+        };
+
         // This factory() method is used when there can be only one instance of the type,
         // as with a kinematics system.  The variable that points to the instance must
         // be created externally and passed as an argument.
@@ -75,6 +93,7 @@ namespace Configuration {
                 handler.enterSection(inst->name(), inst);
             }
         }
+
         // This factory() method is used when there can be multiple instances,
         // as with spindles and modules.  A vector in the GenericFactory<BaseType>
         // singleton holds the derived type instances, so there is no need to

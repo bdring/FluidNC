@@ -34,10 +34,10 @@ namespace Spindles {
     public:
         Spindle(const char* name) : _name(name) {}
 
-        Spindle(const Spindle&)            = delete;
-        Spindle(Spindle&&)                 = delete;
+        Spindle(const Spindle&) = delete;
+        Spindle(Spindle&&)      = delete;
         Spindle& operator=(const Spindle&) = delete;
-        Spindle& operator=(Spindle&&)      = delete;
+        Spindle& operator=(Spindle&&) = delete;
 
         bool     _defaultedSpeeds;
         uint32_t offSpeed() { return _speeds[0].offset; }
@@ -111,6 +111,7 @@ namespace Spindles {
     protected:
         uint8_t _current_tool = 0;
     };
+
     using SpindleFactory = Configuration::GenericFactory<Spindle>;
 }
 extern Spindles::Spindle* spindle;

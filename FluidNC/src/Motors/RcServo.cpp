@@ -82,7 +82,7 @@ namespace MotorDrivers {
             return false;
 
         if (isHoming) {
-            auto axisConfig = config->_axes->_axis[_axis_index];
+            auto axisConfig = Axes::_axis[_axis_index];
             auto homing     = axisConfig->_homing;
             auto mpos       = homing ? homing->_mpos : 0;
             set_motor_steps(_axis_index, mpos_to_steps(mpos, _axis_index));

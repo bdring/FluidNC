@@ -4,15 +4,15 @@
 #ifdef ESP32
 #    include "I2SOPinDetail.h"
 
-#    include "../I2SOut.h"
+#    include "Driver/i2s_out.h"  // i2s_out_write() etc
 #    include "../Assert.h"
+#    include <esp_attr.h>  // IRAM_ATTR
 
 namespace Pins {
     std::vector<bool> I2SOPinDetail::_claimed(nI2SOPins, false);
 
     I2SOPinDetail::I2SOPinDetail(pinnum_t index, const PinOptionsParser& options) :
-        PinDetail(index), _capabilities(PinCapabilities::Output | PinCapabilities::I2S), _attributes(Pins::PinAttributes::Undefined),
-        _readWriteMask(0) {
+        PinDetail(index), _capabilities(PinCapabilities::Output | PinCapabilities::I2S), _attributes(Pins::PinAttributes::Undefined) {
         Assert(index < nI2SOPins, "Pin number is greater than max %d", nI2SOPins - 1);
         Assert(!_claimed[index], "Pin is already used.");
         // User defined pin capabilities
@@ -28,7 +28,7 @@ namespace Pins {
         _claimed[index] = true;
 
         // readWriteMask is xor'ed with the value to invert it if active low
-        _readWriteMask = int(_attributes.has(PinAttributes::ActiveLow));
+        _inverted = _attributes.has(PinAttributes::ActiveLow);
     }
 
     PinCapabilities I2SOPinDetail::capabilities() const {
@@ -40,25 +40,24 @@ namespace Pins {
     void IRAM_ATTR I2SOPinDetail::write(int high) {
         if (high != _lastWrittenValue) {
             _lastWrittenValue = high;
-            i2s_out_write(_index, _readWriteMask ^ high);
+            i2s_out_write(_index, _inverted ^ (bool)high);
         }
     }
 
     // Write and wait for completion.  Not suitable for use from an ISR
     // cppcheck-suppress unusedFunction
-    void I2SOPinDetail::synchronousWrite(int high) {
+    void IRAM_ATTR I2SOPinDetail::synchronousWrite(int high) {
         if (high != _lastWrittenValue) {
             _lastWrittenValue = high;
 
-            i2s_out_write(_index, _readWriteMask ^ high);
-            i2s_out_push();
+            i2s_out_write(_index, _inverted ^ (bool)high);
             i2s_out_delay();
         }
     }
 
     int I2SOPinDetail::read() {
         auto raw = i2s_out_read(_index);
-        return raw ^ _readWriteMask;
+        return (bool)raw ^ _inverted;
     }
 
     void I2SOPinDetail::setAttr(PinAttributes value) {
@@ -76,8 +75,8 @@ namespace Pins {
         // is nothing to do here for them. We basically
         // just check for conflicts above...
 
-        // If the pin is ActiveLow, we should take that into account here:
-        i2s_out_write(_index, value.has(PinAttributes::InitialOn) ^ _readWriteMask);
+        // Set the initial value of the pin per the configuration
+        i2s_out_write(_index, value.has(PinAttributes::InitialOn) ^ _inverted);
     }
 
     PinAttributes I2SOPinDetail::getAttr() const {

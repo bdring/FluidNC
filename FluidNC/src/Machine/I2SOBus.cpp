@@ -3,7 +3,7 @@
 // Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
 
 #include "I2SOBus.h"
-#include "../I2SOut.h"
+#include "Driver/i2s_out.h"  // i2s_out_init()
 
 namespace Machine {
     void I2SOBus::validate() {
@@ -22,6 +22,25 @@ namespace Machine {
 
     void I2SOBus::init() {
         log_info("I2SO BCK:" << _bck.name() << " WS:" << _ws.name() << " DATA:" << _data.name());
-        i2s_out_init();
+
+        // Check capabilities:
+        if (!_ws.capabilities().has(Pin::Capabilities::Output | Pin::Capabilities::Native)) {
+            log_info("Not setting up I2SO: WS pin has incorrect capabilities");
+            return;
+        } else if (!_bck.capabilities().has(Pin::Capabilities::Output | Pin::Capabilities::Native)) {
+            log_info("Not setting up I2SO: BCK pin has incorrect capabilities");
+            return;
+        } else if (!_data.capabilities().has(Pin::Capabilities::Output | Pin::Capabilities::Native)) {
+            log_info("Not setting up I2SO: DATA pin has incorrect capabilities");
+            return;
+        } else {
+            i2s_out_init_t params;
+            params.ws_pin   = _ws.getNative(Pin::Capabilities::Output | Pin::Capabilities::Native);
+            params.bck_pin  = _bck.getNative(Pin::Capabilities::Output | Pin::Capabilities::Native);
+            params.data_pin = _data.getNative(Pin::Capabilities::Output | Pin::Capabilities::Native);
+            params.init_val = 0;
+
+            i2s_out_init(&params);
+        }
     }
 }

@@ -11,7 +11,6 @@
 #include "Report.h"          // report_over_counter
 #include "Protocol.h"        // protocol_execute_realtime
 #include "Planner.h"         // plan_reset, etc
-#include "I2SOut.h"          // i2s_out_reset
 #include "Platform.h"        // WEAK_LINK
 #include "Settings.h"        // coords
 
@@ -145,7 +144,7 @@ void mc_arc(float*            target,
     float radii[2] = { -offset[axis_0], -offset[axis_1] };
     float rt[2]    = { target[axis_0] - center[0], target[axis_1] - center[1] };
 
-    auto n_axis = config->_axes->_numberAxis;
+    auto n_axis = Axes::_numberAxis;
 
     float previous_position[n_axis] = { 0.0 };
     for (size_t i = 0; i < n_axis; i++) {
@@ -295,7 +294,7 @@ GCUpdatePos mc_probe_cycle(float* target, plan_line_data_t* pl_data, bool away, 
         return GCUpdatePos::None;  // Return if system reset has been issued.
     }
 
-    config->_stepping->beginLowLatency();
+    Stepping::beginLowLatency();
 
     // Initialize probing control variables
     probe_succeeded = false;  // Re-initialize probe history before beginning cycle.
@@ -305,7 +304,7 @@ GCUpdatePos mc_probe_cycle(float* target, plan_line_data_t* pl_data, bool away, 
     if (config->_probe->tripped()) {
         send_alarm(ExecAlarm::ProbeFailInitial);
         protocol_execute_realtime();
-        config->_stepping->endLowLatency();
+        Stepping::endLowLatency();
         return GCUpdatePos::None;  // Nothing else to do but bail.
     }
     // Setup and queue probing motion. Auto cycle-start should not start the cycle.
@@ -317,12 +316,12 @@ GCUpdatePos mc_probe_cycle(float* target, plan_line_data_t* pl_data, bool away, 
     do {
         protocol_execute_realtime();
         if (sys.abort) {
-            config->_stepping->endLowLatency();
+            Stepping::endLowLatency();
             return GCUpdatePos::None;  // Check for system abort
         }
     } while (!state_is(State::Idle));
 
-    config->_stepping->endLowLatency();
+    Stepping::endLowLatency();
 
     // Probing cycle complete!
     // Set state variables and error out, if the probe failed and cycle with error is enabled.
@@ -355,7 +354,7 @@ GCUpdatePos mc_probe_cycle(float* target, plan_line_data_t* pl_data, bool away, 
 
             motor_steps_to_mpos(probe_contact, probe_steps);
             coords[gc_state.modal.coord_select]->get(coord_data);  // get a copy of the current coordinate offsets
-            auto n_axis = config->_axes->_numberAxis;
+            auto n_axis = Axes::_numberAxis;
             for (int axis = 0; axis < n_axis; axis++) {  // find the axis specified. There should only be one.
                 if (offsetAxis & (1 << axis)) {
                     coord_data[axis] = probe_contact[axis] - offset;

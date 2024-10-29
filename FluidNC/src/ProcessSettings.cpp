@@ -20,7 +20,7 @@
 #include "UartChannel.h"          // Uart0.write()
 #include "FileStream.h"           // FileStream()
 #include "StartupLog.h"           // startupLog
-#include "Driver/fluidnc_gpio.h"  // gpio_dump()
+#include "Driver/gpio_dump.h"     // gpio_dump()
 #include "FileCommands.h"         // make_file_commands()
 
 #include "FluidPath.h"
@@ -289,7 +289,7 @@ static Error disable_alarm_lock(const char* value, AuthenticationLevel auth_leve
             return err;
         }
         Homing::set_all_axes_homed();
-        config->_kinematics->releaseMotors(config->_axes->motorMask, config->_axes->hardLimitMask());
+        config->_kinematics->releaseMotors(Axes::motorMask, Axes::hardLimitMask());
         report_feedback_message(Message::AlarmUnlock);
         set_state(State::Idle);
     }
@@ -379,10 +379,10 @@ static Error cmd_log_verbose(const char* value, AuthenticationLevel auth_level, 
 static Error home(AxisMask axisMask, Channel& out) {
     if (axisMask != Machine::Homing::AllCycles) {  // if not AllCycles we need to make sure the cycle is not prohibited
         // if there is a cycle it is the axis from $H<axis>
-        auto n_axis = config->_axes->_numberAxis;
+        auto n_axis = Axes::_numberAxis;
         for (int axis = 0; axis < n_axis; axis++) {
             if (bitnum_is_true(axisMask, axis)) {
-                auto axisConfig     = config->_axes->_axis[axis];
+                auto axisConfig     = Axes::_axis[axis];
                 auto homing         = axisConfig->_homing;
                 auto homing_allowed = homing && homing->_allow_single_axis;
                 if (!homing_allowed)
@@ -449,7 +449,7 @@ static Error home_all(const char* value, AuthenticationLevel auth_level, Channel
                 return retval;
             }
         }
-        if (!config->_axes->namesToMask(value, requestedAxes)) {
+        if (!Axes::namesToMask(value, requestedAxes)) {
             return Error::InvalidValue;
         }
     }
@@ -636,7 +636,7 @@ static Error motor_control(const char* value, bool disable) {
     }
     if (!value || *value == '\0') {
         log_info((disable ? "Dis" : "En") << "abling all motors");
-        config->_axes->set_disable(disable);
+        Axes::set_disable(disable);
         return Error::Ok;
     }
 
@@ -647,7 +647,7 @@ static Error motor_control(const char* value, bool disable) {
         return Error::InvalidStatement;
     }
 
-    for (int i = 0; i < config->_axes->_numberAxis; i++) {
+    for (int i = 0; i < Axes::_numberAxis; i++) {
         char axisName = axes->axisName(i);
 
         if (strchr(value, axisName) || strchr(value, tolower(axisName))) {
@@ -666,7 +666,7 @@ static Error motor_enable(const char* value, AuthenticationLevel auth_level, Cha
 }
 
 static Error motors_init(const char* value, AuthenticationLevel auth_level, Channel& out) {
-    config->_axes->config_motors();
+    Axes::config_motors();
     return Error::Ok;
 }
 
@@ -898,8 +898,6 @@ Error do_command_or_setting(const char* key, const char* value, AuthenticationLe
             return cp->action(value, auth_level, out);
         }
     }
-
-    protocol_buffer_synchronize();
 
     // First search the yaml settings by name. If found, set a new
     // value if one is given, otherwise display the current value

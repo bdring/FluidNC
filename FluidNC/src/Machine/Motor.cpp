@@ -31,15 +31,13 @@ namespace Machine {
         }
         _driver->init();
 
-        _negLimitPin = new LimitPin(_negPin, _axis, _motorNum, -1, _hardLimits, _limited);
-        _posLimitPin = new LimitPin(_posPin, _axis, _motorNum, 1, _hardLimits, _limited);
-        _allLimitPin = new LimitPin(_allPin, _axis, _motorNum, 0, _hardLimits, _limited);
+        _negLimitPin = new LimitPin(_negPin, _axis, _motorNum, -1, _hardLimits);
+        _posLimitPin = new LimitPin(_posPin, _axis, _motorNum, 1, _hardLimits);
+        _allLimitPin = new LimitPin(_allPin, _axis, _motorNum, 0, _hardLimits);
 
         _negLimitPin->init();
         _posLimitPin->init();
         _allLimitPin->init();
-
-        unblock();
     }
 
     void Motor::config_motor() {
@@ -69,21 +67,6 @@ namespace Machine {
 
     bool Motor::isReal() {
         return _driver->isReal();
-    }
-
-    void IRAM_ATTR Motor::step(bool reverse) {
-        // Skip steps based on limit pins
-        // _blocked is for asymmetric pulloff
-        // _limited is for limit pins
-        if (_blocked || _limited) {
-            return;
-        }
-        _driver->step();
-        _steps += reverse ? -1 : 1;
-    }
-
-    void IRAM_ATTR Motor::unstep() {
-        _driver->unstep();
     }
 
     Motor::~Motor() {

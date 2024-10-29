@@ -47,7 +47,7 @@ class Vcxproj:
 	# configuration, platform
 	ImportGroupFmt = '\n'.join([
 		'	<ImportGroup Label="PropertySheets" Condition="\'$(Configuration)|$(Platform)\'==\'{0}|{1}\'">',
-		'		<Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists(\'$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props\')" Label="LocalAppDataPlatform" />',
+		'		<Import Project="$(UserRootDir)\\Microsoft.Cpp.$(Platform).user.props" Condition="exists(\'$(UserRootDir)\\Microsoft.Cpp.$(Platform).user.props\')" Label="LocalAppDataPlatform" />',
 		'	</ImportGroup>'
 	])
 
@@ -192,12 +192,12 @@ class Generator:
 		project.append('	<Keyword>Win32Proj</Keyword>')
 		project.append('</PropertyGroup>')
 
-		project.append('<Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />')
+		project.append('<Import Project="$(VCTargetsPath)\\Microsoft.Cpp.Default.props" />')
 		for p in self.Platforms:
 			for c in self.Configurations:
 				project.append(Vcxproj.ConfigTypePropertyGroup(c, p))
 
-		project.append('<Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />')
+		project.append('<Import Project="$(VCTargetsPath)\\Microsoft.Cpp.props" />')
 		project.append('<ImportGroup Label="ExtensionSettings">')
 		project.append('</ImportGroup>')
 		project.append('	<ImportGroup Label="Shared">')
@@ -214,7 +214,7 @@ class Generator:
 		
 		project.append('<ItemDefinitionGroup>')
 		project.append('</ItemDefinitionGroup>')
-		project.append('<Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />')
+		project.append('<Import Project="$(VCTargetsPath)\\Microsoft.Cpp.targets" />')
 		project.append('	<ImportGroup Label="ExtensionTargets">')
 		project.append('</ImportGroup>')
 		project.append('<ProjectExtensions>')

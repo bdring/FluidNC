@@ -23,7 +23,7 @@ namespace Pins {
         return PinCapabilities::Output | PinCapabilities::Input | PinCapabilities::PWM | PinCapabilities::Void;
     }
 
-    void ChannelPinDetail::write(int high) {
+    void IRAM_ATTR ChannelPinDetail::write(int high) {
         if (high == _value) {
             return;
         }
@@ -34,7 +34,9 @@ namespace Pins {
         s += std::to_string(high);
         _channel->out(s, "SET:");
     }
-    int  ChannelPinDetail::read() { return _value; }
+    int ChannelPinDetail::read() {
+        return _value;
+    }
     void ChannelPinDetail::setAttr(PinAttributes attr) {
         _attributes = _attributes | attr;
 
@@ -61,8 +63,10 @@ namespace Pins {
 
         _channel->setAttr(_index, _attributes.has(Pins::PinAttributes::Input) ? &this->_value : nullptr, s, "INI:");
     }
-    PinAttributes ChannelPinDetail::getAttr() const { return _attributes; }
-    std::string   ChannelPinDetail::toString() {
+    PinAttributes ChannelPinDetail::getAttr() const {
+        return _attributes;
+    }
+    std::string ChannelPinDetail::toString() {
         std::string s = _channel->name();
         s += ".";
         s += std::to_string(_index);
@@ -78,5 +82,7 @@ namespace Pins {
         return s;
     }
 
-    void ChannelPinDetail::registerEvent(EventPin* obj) { _channel->registerEvent(_index, obj); }
+    void ChannelPinDetail::registerEvent(EventPin* obj) {
+        _channel->registerEvent(_index, obj);
+    }
 }

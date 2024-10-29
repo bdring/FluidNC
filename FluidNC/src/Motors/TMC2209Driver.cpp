@@ -113,13 +113,13 @@ namespace MotorDrivers {
     }
 
     void TMC2209Driver::set_disable(bool disable) {
-        _cs_pin.synchronousWrite(true);
         if (TrinamicUartDriver::startDisable(disable)) {
             if (_use_enable) {
+                _cs_pin.synchronousWrite(true);
                 tmc2209->toff(TrinamicUartDriver::toffValue());
+                _cs_pin.synchronousWrite(false);
             }
         }
-        _cs_pin.synchronousWrite(false);
     }
 
     bool TMC2209Driver::test() {
