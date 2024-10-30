@@ -795,10 +795,10 @@ bool Maslow_::take_measurement(int waypoint, int dir, int run) {
         //once both belts are pulled, take a measurement
         if (BR_tight && BL_tight) {
             //take measurement and record it to the calibration data array
-            calibration_data[0][waypoint] = measurementToXYPlane(axisTL.getPosition());
-            calibration_data[1][waypoint] = measurementToXYPlane(axisTR.getPosition());
-            calibration_data[2][waypoint] = measurementToXYPlane(axisBL.getPosition());
-            calibration_data[3][waypoint] = measurementToXYPlane(axisBR.getPosition());
+            calibration_data[0][waypoint] = measurementToXYPlane(axisTL.getPosition(), tlZ);
+            calibration_data[1][waypoint] = measurementToXYPlane(axisTR.getPosition(), trZ);
+            calibration_data[2][waypoint] = measurementToXYPlane(axisBL.getPosition(), blZ);
+            calibration_data[3][waypoint] = measurementToXYPlane(axisBR.getPosition(), brZ);
             BR_tight                      = false;
             BL_tight                      = false;
             return true;
@@ -888,10 +888,10 @@ bool Maslow_::take_measurement(int waypoint, int dir, int run) {
         }
         if (pull1_tight && pull2_tight) {
             //take measurement and record it to the calibration data array
-            calibration_data[0][waypoint] = measurementToXYPlane(axisTL.getPosition());
-            calibration_data[1][waypoint] = measurementToXYPlane(axisTR.getPosition());
-            calibration_data[2][waypoint] = measurementToXYPlane(axisBL.getPosition());
-            calibration_data[3][waypoint] = measurementToXYPlane(axisBR.getPosition());
+            calibration_data[0][waypoint] = measurementToXYPlane(axisTL.getPosition(), tlZ);
+            calibration_data[1][waypoint] = measurementToXYPlane(axisTR.getPosition(), trZ);
+            calibration_data[2][waypoint] = measurementToXYPlane(axisBL.getPosition(), blZ);
+            calibration_data[3][waypoint] = measurementToXYPlane(axisBR.getPosition(), brZ);
             pull1_tight                   = false;
             pull2_tight                   = false;
             return true;
