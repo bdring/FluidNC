@@ -239,6 +239,7 @@ public:
     bool   checkValidMove(double fromX, double fromY, double toX, double toY);
     bool   take_measurement_avg_with_check(int waypoint, int dir);
     bool   take_measurement(int waypoint, int dir, int run);
+    float  measurementToXYPlane(float measurement, float zHeight);
     bool   takeSlackFunc();
     void   test_();
     void   calibration_loop();
