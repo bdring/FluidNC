@@ -672,11 +672,15 @@ float Maslow_::computeBL(float x, float y, float z) {
     //Move from lower left corner coordinates to centered coordinates
     x       = x + centerX;
     y       = y + centerY;
-    float a = blX - x;
-    float b = blY - y;
-    float c = 0.0 - (z + blZ);
+    float a = blX - x; //X dist from corner to router center
+    float b = blY - y; //Y dist from corner to router center
+    float c = 0.0 - (z + blZ); //Z dist from corner to router center
 
-    float length = sqrt(a * a + b * b + c * c) - (_beltEndExtension + _armLength);
+    float XYlength = sqrt(a * a + b * b); //Get the distance in the XY plane from the corner to the router center
+
+    float XYBeltLength = XYlength - (_beltEndExtension + _armLength); //Subtract the belt end extension and arm length to get the belt length
+
+    float length = sqrt(XYBeltLength * XYBeltLength + c * c); //Get the angled belt length
 
     return length;  //+ lowerBeltsExtra;
 }
@@ -688,7 +692,11 @@ float Maslow_::computeBR(float x, float y, float z) {
     float b = brY - y;
     float c = 0.0 - (z + brZ);
 
-    float length = sqrt(a * a + b * b + c * c) - (_beltEndExtension + _armLength);
+    float XYlength = sqrt(a * a + b * b); //Get the distance in the XY plane from the corner to the router center
+
+    float XYBeltLength = XYlength - (_beltEndExtension + _armLength); //Subtract the belt end extension and arm length to get the belt length
+
+    float length = sqrt(XYBeltLength * XYBeltLength + c * c); //Get the angled belt length
 
     return length;  //+ lowerBeltsExtra;
 }
@@ -699,7 +707,14 @@ float Maslow_::computeTR(float x, float y, float z) {
     float a = trX - x;
     float b = trY - y;
     float c = 0.0 - (z + trZ);
-    return sqrt(a * a + b * b + c * c) - (_beltEndExtension + _armLength);
+    
+    float XYlength = sqrt(a * a + b * b); //Get the distance in the XY plane from the corner to the router center
+
+    float XYBeltLength = XYlength - (_beltEndExtension + _armLength); //Subtract the belt end extension and arm length to get the belt length
+
+    float length = sqrt(XYBeltLength * XYBeltLength + c * c); //Get the angled belt length
+
+    return length;  //+ lowerBeltsExtra;
 }
 float Maslow_::computeTL(float x, float y, float z) {
     //Move from lower left corner coordinates to centered coordinates
@@ -708,7 +723,14 @@ float Maslow_::computeTL(float x, float y, float z) {
     float a = tlX - x;
     float b = tlY - y;
     float c = 0.0 - (z + tlZ);
-    return sqrt(a * a + b * b + c * c) - (_beltEndExtension + _armLength);
+    
+    float XYlength = sqrt(a * a + b * b); //Get the distance in the XY plane from the corner to the router center
+
+    float XYBeltLength = XYlength - (_beltEndExtension + _armLength); //Subtract the belt end extension and arm length to get the belt length
+
+    float length = sqrt(XYBeltLength * XYBeltLength + c * c); //Get the angled belt length
+
+    return length;  //+ lowerBeltsExtra;
 }
 
 //------------------------------------------------------
