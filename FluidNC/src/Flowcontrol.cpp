@@ -233,10 +233,8 @@ Error flowcontrol(uint32_t o_label, char* line, size_t& pos, bool& skip) {
         case Op_Repeat:
             if (Job::active()) {
                 if (!skipping && (status = expression(line, pos, value)) == Error::Ok) {
-                    // TODO - return an error if value < 0
-                    // For now, just guard against negative values
-                    stack_push(o_label, operation, !(value > 0.0));
-                    if (value > 0.0) {
+                    stack_push(o_label, operation, !value);
+                    if (value) {
                         context.top().file     = Job::source();
                         context.top().file_pos = context.top().file->position();
                         context.top().repeats  = (uint32_t)value;
@@ -251,7 +249,7 @@ Error flowcontrol(uint32_t o_label, char* line, size_t& pos, bool& skip) {
             if (Job::active()) {
                 if (last_op == Op_Repeat) {
                     if (o_label == context.top().o_label) {
-                        if (context.top().repeats && --context.top().repeats > 0.0) {
+                        if (context.top().repeats && --context.top().repeats) {
                             context.top().file->set_position(context.top().file_pos);
                         } else {
                             stack_pull();
