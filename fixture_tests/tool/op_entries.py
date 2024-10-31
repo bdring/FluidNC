@@ -9,10 +9,6 @@ def parse_file(fixture_path):
     with open(fixture_path, "r") as f:
         op_entries = []
         for lineno, line in enumerate(f.read().splitlines()):
-            if line == "":
-                # skip empty lines
-                continue
-
             if line.startswith("#"):
                 # skip comment lines
                 continue
@@ -61,13 +57,6 @@ class OpEntry:
 
     def _op_str(self):
         return color.dark_grey(self.op) + " "
-
-
-class IgnoreLineOpEntry(OpEntry):
-    def execute(self, controller):
-        print(self._op_str() + color.dark_grey(self.data, dark=True, bold=True))
-        controller.ignore_line(self.data)
-        return True
 
 
 class SendLineOpEntry(OpEntry):
@@ -120,29 +109,26 @@ class AnyStringMatchOpEntry(OpEntry):
 
 class UntilStringMatchOpEntry(OpEntry):
     def __init__(self, op, data, lineno, fixture_path):
-        self._glob_match = data.startswith("* ")
+        self.glob_match = data.startswith("* ")
         super().__init__(op, data.removeprefix("* "), lineno, fixture_path)
 
     def execute(self, controller):
         while True:
-            line = controller.current_line()
-            matches = self._line_matches(line)
-
-            opstr = self._op_str()
-            if self._glob_match:
-                opstr += color.dark_grey("* ", bold=True)
-
-            print(opstr + color.green(line, dark=True, bold=matches))
+            matches = self._line_matches(controller)
+            print(
+                self._op_str()
+                + color.green(controller.current_line(), dark=True, bold=matches)
+            )
             controller.clear_line()
             if matches:
                 break
         return True
 
-    def _line_matches(self, line):
-        if self._glob_match:
-            return fnmatch.fnmatch(line, self.data)
+    def _line_matches(self, controller):
+        if self.glob_match:
+            return fnmatch.fnmatch(controller.current_line(), self.data)
         else:
-            return self.data == line
+            return self.data == controller.current_line()
 
 
 class SendFileOpEntry(OpEntry):
@@ -231,8 +217,6 @@ class SendFileOpEntry(OpEntry):
 
 
 OPS_MAP = {
-    # ignores messages consisting of only the following line (e.g. 'ok')
-    "ignore": IgnoreLineOpEntry,
     # send command to controller
     "->": SendLineOpEntry,
     # send file to controller
