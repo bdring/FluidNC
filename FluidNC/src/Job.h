@@ -31,7 +31,6 @@ public:
     void   set_position(size_t pos) { _channel->set_position(pos); }
 
     Channel* channel() { return _channel; }
-    void     set_channel(Channel* channel) { _channel = channel; }
 
     ~JobSource() { delete _channel; }
 };

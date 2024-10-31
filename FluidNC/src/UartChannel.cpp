@@ -6,10 +6,8 @@
 #include "Serial.h"                 // allChannels
 
 UartChannel::UartChannel(int num, bool addCR) : Channel("uart_channel", num, addCR) {
-    _lineedit           = new Lineedit(this, _line, Channel::maxLine - 1);
-    _active             = false;
-    _history_buffer     = FixedCircularBuffer<char>(512);
-    _history_buffer_pos = 0;
+    _lineedit = new Lineedit(this, _line, Channel::maxLine - 1);
+    _active   = false;
 }
 
 void UartChannel::init() {
@@ -65,13 +63,10 @@ size_t UartChannel::write(const uint8_t* buffer, size_t length) {
 }
 
 int UartChannel::available() {
-    return (_history_buffer_pos < _history_buffer.position()) || _uart->available();
+    return _uart->available();
 }
 
 int UartChannel::peek() {
-    if (_history_buffer_pos < _history_buffer.position()) {
-        return _history_buffer.at(_history_buffer_pos).value();
-    }
     return _uart->peek();
 }
 
@@ -95,21 +90,11 @@ bool UartChannel::lineComplete(char* line, char c) {
 }
 
 int UartChannel::read() {
-    if (_history_buffer_pos < _history_buffer.position()) {
-        int c = _history_buffer.at(_history_buffer_pos).value();
-        _history_buffer_pos += 1;
-        return c;
-    }
-
     int c = _uart->read();
     if (c == 0x11) {
         // 0x11 is XON.  If we receive that, it is a request to use software flow control
         _uart->setSwFlowControl(true, -1, -1);
         return -1;
-    }
-    if (c != -1) {
-        _history_buffer.push((char)c);
-        _history_buffer_pos += 1;
     }
     return c;
 }
