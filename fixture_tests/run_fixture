@@ -28,12 +28,6 @@ else:
 def run_fixture(fixture_path, controller):
     op_entries_parsed = op_entries.parse_file(fixture_path)
 
-    print(
-        colored(f"--- Run fixture ", "blue")
-        + colored(fixture_path, "blue", attrs=["bold"])
-        + colored(" ---", "blue")
-    )
-
     try:
         for op_entry in op_entries_parsed:
             if not op_entry.execute(controller):
@@ -45,8 +39,7 @@ def run_fixture(fixture_path, controller):
                 exit(1)
 
     except KeyboardInterrupt:
-        print("Interrupted by user")
-        exit(1)
+        print("Interrupt")
 
     except TimeoutError as e:
         print("Timeout waiting for response, line: " + e.args[0])

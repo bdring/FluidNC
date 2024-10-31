@@ -50,8 +50,6 @@ extern volatile bool rtCycleStop;
 
 extern volatile bool runLimitLoop;
 
-extern Channel* activeChannel;
-
 // Alarm codes.
 enum class ExecAlarm : uint8_t {
     None                  = 0,
