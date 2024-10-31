@@ -407,7 +407,7 @@ bool Maslow_::takeSlackFunc() {
             float diffBR = calibration_data[3][0] - offset - computeBR(0, 0, 0);
             log_info("Center point deviation: TL: " << diffTL << " TR: " << diffTR << " BL: " << diffBL << " BR: " << diffBR);
             if (abs(diffTL) > threshold || abs(diffTR) > threshold || abs(diffBL) > threshold || abs(diffBR) > threshold) {
-                log_error("Center point deviation over " << threshold << "mmm, your coordinate system is not accurate, maybe try running calibration again?");
+                log_error("Center point deviation over " << threshold << "mm, your coordinate system is not accurate, maybe try running calibration again?");
                 //Should we enter an alarm state here to prevent things from going wrong?
 
                 //Reset
@@ -1382,7 +1382,7 @@ void Maslow_::runCalibration() {
 
     //if not all axis are homed, we can't run calibration, OR if the user hasnt entered width and height?
     if (!allAxisExtended()) {
-        log_error("Cannot run calibration until all axis are extended fully");
+        log_error("Cannot run calibration until all belts are extended fully");
         sys.set_state(State::Idle);
         return;
     }
