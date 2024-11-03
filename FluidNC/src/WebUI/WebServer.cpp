@@ -233,6 +233,8 @@ namespace WebUI {
             return false;
         }
 
+        std::string hash;
+
         // If you load or reload WebUI while a program is running, there is a high
         // risk of stalling the motion because serving a file from
         // the local FLASH filesystem takes away a lot of CPU cycles.  If we get
@@ -241,17 +243,24 @@ namespace WebUI {
         // This can make it hard to debug ISR IRAM problems, because the easiest
         // way to trigger such problems is to refresh WebUI during motion.
         if (http_block_during_motion->get() && inMotionState()) {
+            // Check to see if we have a cached hash of the file that can be retrieved without accessing FLASH
+            hash = HashFS::hash(fpath, true);
+            if (!hash.length()) {
+                std::filesystem::path gzpath(fpath);
+                gzpath += ".gz";
+                hash = HashFS::hash(gzpath, true);
+            }
+
+            if (hash.length() && std::string(_webserver->header("If-None-Match").c_str()) == hash) {
+                _webserver->send(304);
+                return true;
+            }
+
             Web_Server::handleReloadBlocked();
             return true;
         }
-        if (state_is(State::Hold)) {
-            Web_Server::handleFeedholdBlocked();
-            return true;
-        }
 
-        std::string hash;
         // Check for brower cache match
-
         hash = HashFS::hash(fpath);
         if (!hash.length()) {
             std::filesystem::path gzpath(fpath);
@@ -672,23 +681,6 @@ namespace WebUI {
 
                          "<button onclick='window.location.reload()'>Reload WebUI</button>"
                          "&nbsp;(You must first stop the GCode program or wait for it to finish)<br><br>"
-
-                         "</body></html>");
-    }
-    // This page is used when you try to reload WebUI during feedhold state.
-    // Reload will not work because commands cannot be executed in feedhold,
-    // so things like ESP800 will hang.
-    void Web_Server::handleFeedholdBlocked() {
-        _webserver->send(503,
-                         "text/html",
-                         "<!DOCTYPE html><html><body>"
-                         "<h3>GCode Program is Paused (in Feedhold state)</h3>"
-
-                         "<button onclick='window.location.replace(\"/cyclestart_reload\")'>Resume</button>"
-                         "&nbsp;Resume the GCode program with cyclestart<br><br>"
-
-                         "<button onclick='window.location.replace(\"/restart_reload\")'>Stop</button>"
-                         "&nbsp;Stop the GCode Program with reset<br><br>"
 
                          "</body></html>");
     }

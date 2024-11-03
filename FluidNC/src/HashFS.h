@@ -14,7 +14,7 @@ public:
     static void hash_all();
     static void report_change();
 
-    static std::string hash(const std::filesystem::path& path);
+    static std::string hash(const std::filesystem::path& path, bool useCacheOnly = false);
 
 private:
 };

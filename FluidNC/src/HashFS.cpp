@@ -107,14 +107,14 @@ void HashFS::hash_all() {
         }
     }
 }
-std::string HashFS::hash(const std::filesystem::path& path) {
+std::string HashFS::hash(const std::filesystem::path& path, bool useCacheOnly /*= false*/) {
     if (file_is_hashable(path)) {
         std::map<std::string, std::string>::const_iterator it;
         it = localFsHashes.find(path.filename());
         if (it != localFsHashes.end()) {
             return it->second;
         }
-    } else {
+    } else if (!useCacheOnly) {
         std::string theHash;
         hashFile(path, theHash);
         return theHash;
