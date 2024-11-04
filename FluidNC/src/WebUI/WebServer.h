@@ -86,7 +86,6 @@ namespace WebUI {
         static void handle_Websocket_Event(uint8_t num, uint8_t type, uint8_t* payload, size_t length);
         static void handle_Websocketv3_Event(uint8_t num, uint8_t type, uint8_t* payload, size_t length);
         static void handleReloadBlocked();
-        static void handleFeedholdBlocked();
         static void handleFeedholdReload();
         static void handleCyclestartReload();
         static void handleRestartReload();
