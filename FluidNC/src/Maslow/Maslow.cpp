@@ -672,11 +672,15 @@ float Maslow_::computeBL(float x, float y, float z) {
     //Move from lower left corner coordinates to centered coordinates
     x       = x + centerX;
     y       = y + centerY;
-    float a = blX - x;
-    float b = blY - y;
-    float c = 0.0 - (z + blZ);
+    float a = blX - x; //X dist from corner to router center
+    float b = blY - y; //Y dist from corner to router center
+    float c = 0.0 - (z + blZ); //Z dist from corner to router center
 
-    float length = sqrt(a * a + b * b + c * c) - (_beltEndExtension + _armLength);
+    float XYlength = sqrt(a * a + b * b); //Get the distance in the XY plane from the corner to the router center
+
+    float XYBeltLength = XYlength - (_beltEndExtension + _armLength); //Subtract the belt end extension and arm length to get the belt length
+
+    float length = sqrt(XYBeltLength * XYBeltLength + c * c); //Get the angled belt length
 
     return length;  //+ lowerBeltsExtra;
 }
@@ -688,7 +692,11 @@ float Maslow_::computeBR(float x, float y, float z) {
     float b = brY - y;
     float c = 0.0 - (z + brZ);
 
-    float length = sqrt(a * a + b * b + c * c) - (_beltEndExtension + _armLength);
+    float XYlength = sqrt(a * a + b * b); //Get the distance in the XY plane from the corner to the router center
+
+    float XYBeltLength = XYlength - (_beltEndExtension + _armLength); //Subtract the belt end extension and arm length to get the belt length
+
+    float length = sqrt(XYBeltLength * XYBeltLength + c * c); //Get the angled belt length
 
     return length;  //+ lowerBeltsExtra;
 }
@@ -699,7 +707,14 @@ float Maslow_::computeTR(float x, float y, float z) {
     float a = trX - x;
     float b = trY - y;
     float c = 0.0 - (z + trZ);
-    return sqrt(a * a + b * b + c * c) - (_beltEndExtension + _armLength);
+    
+    float XYlength = sqrt(a * a + b * b); //Get the distance in the XY plane from the corner to the router center
+
+    float XYBeltLength = XYlength - (_beltEndExtension + _armLength); //Subtract the belt end extension and arm length to get the belt length
+
+    float length = sqrt(XYBeltLength * XYBeltLength + c * c); //Get the angled belt length
+
+    return length;  //+ lowerBeltsExtra;
 }
 float Maslow_::computeTL(float x, float y, float z) {
     //Move from lower left corner coordinates to centered coordinates
@@ -708,14 +723,29 @@ float Maslow_::computeTL(float x, float y, float z) {
     float a = tlX - x;
     float b = tlY - y;
     float c = 0.0 - (z + tlZ);
-    return sqrt(a * a + b * b + c * c) - (_beltEndExtension + _armLength);
+    
+    float XYlength = sqrt(a * a + b * b); //Get the distance in the XY plane from the corner to the router center
+
+    float XYBeltLength = XYlength - (_beltEndExtension + _armLength); //Subtract the belt end extension and arm length to get the belt length
+
+    float length = sqrt(XYBeltLength * XYBeltLength + c * c); //Get the angled belt length
+
+    return length;  //+ lowerBeltsExtra;
 }
 
 //------------------------------------------------------
 //------------------------------------------------------ Homing and calibration functions
 //------------------------------------------------------
 
-// Takes one measurement; returns true when it's done. Waypoint # is used to st
+//Takes a raw measurement, projects it into the XY plane, then adds the belt end extension and arm length to get the actual distance.
+float Maslow_::measurementToXYPlane(float measurement, float zHeight){
+
+    float lengthInXY = sqrt(measurement * measurement - zHeight * zHeight);
+    return lengthInXY + _beltEndExtension + _armLength; //Add the belt end extension and arm length to get the actual distance
+}
+
+// Takes one measurement; returns true when it's done. Waypoint # is used to store the result
+// Each measurement is the raw belt length pro
 bool Maslow_::take_measurement(int waypoint, int dir, int run) {
 
     //Shouldn't this be handled with the same code as below but with the direction set to UP?
@@ -765,10 +795,10 @@ bool Maslow_::take_measurement(int waypoint, int dir, int run) {
         //once both belts are pulled, take a measurement
         if (BR_tight && BL_tight) {
             //take measurement and record it to the calibration data array
-            calibration_data[0][waypoint] = axisTL.getPosition() + _beltEndExtension + _armLength;
-            calibration_data[1][waypoint] = axisTR.getPosition() + _beltEndExtension + _armLength;
-            calibration_data[2][waypoint] = axisBL.getPosition() + _beltEndExtension + _armLength;
-            calibration_data[3][waypoint] = axisBR.getPosition() + _beltEndExtension + _armLength;
+            calibration_data[0][waypoint] = measurementToXYPlane(axisTL.getPosition(), tlZ);
+            calibration_data[1][waypoint] = measurementToXYPlane(axisTR.getPosition(), trZ);
+            calibration_data[2][waypoint] = measurementToXYPlane(axisBL.getPosition(), blZ);
+            calibration_data[3][waypoint] = measurementToXYPlane(axisBR.getPosition(), brZ);
             BR_tight                      = false;
             BL_tight                      = false;
             return true;
@@ -858,10 +888,10 @@ bool Maslow_::take_measurement(int waypoint, int dir, int run) {
         }
         if (pull1_tight && pull2_tight) {
             //take measurement and record it to the calibration data array
-            calibration_data[0][waypoint] = axisTL.getPosition() + _beltEndExtension + _armLength;
-            calibration_data[1][waypoint] = axisTR.getPosition() + _beltEndExtension + _armLength;
-            calibration_data[2][waypoint] = axisBL.getPosition() + _beltEndExtension + _armLength;
-            calibration_data[3][waypoint] = axisBR.getPosition() + _beltEndExtension + _armLength;
+            calibration_data[0][waypoint] = measurementToXYPlane(axisTL.getPosition(), tlZ);
+            calibration_data[1][waypoint] = measurementToXYPlane(axisTR.getPosition(), trZ);
+            calibration_data[2][waypoint] = measurementToXYPlane(axisBL.getPosition(), blZ);
+            calibration_data[3][waypoint] = measurementToXYPlane(axisBR.getPosition(), brZ);
             pull1_tight                   = false;
             pull2_tight                   = false;
             return true;
