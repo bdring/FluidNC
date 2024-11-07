@@ -743,7 +743,7 @@ void protocol_disable_steppers() {
         Axes::set_disable(false);
         return;
     }
-    if (state_is(State::Sleep) || state_is(State::Alarm)) {
+    if (state_is(State::Sleep)) {
         // Disable steppers immediately in sleep or alarm state
         Axes::set_disable(true);
         return;
