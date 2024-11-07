@@ -143,10 +143,10 @@ namespace Spindles {
                 return true;
             }
             _last_tool = tool_number;
-            if (set_tool) {}
-            if (tool_number == 0) {  // do nothing
+            if (set_tool) {
                 return true;
             }
+
             //if (tool_number != _last_tool) {
             log_info(_name << " spindle run macro: " << _m6_macro.get());
             _m6_macro.run(nullptr);
