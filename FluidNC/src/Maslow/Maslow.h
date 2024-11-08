@@ -281,12 +281,12 @@ public:
     float brY;
     float brZ;
 
+    float _beltEndExtension = 30;  //Based on the CAD model these should add to 153.4
+    float _armLength        = 123.4;
+
 private:
     float centerX;
     float centerY;
-
-    float _beltEndExtension = 30;  //Based on the CAD model these should add to 153.4
-    float _armLength        = 123.4;
 
     //Used to keep track of how often the PID controller is updated
     unsigned long lastCallToPID    = millis();
