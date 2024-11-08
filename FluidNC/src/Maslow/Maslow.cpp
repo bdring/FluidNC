@@ -95,7 +95,7 @@ void Maslow_::begin(void (*sys_rt)()) {
     Wire.setTimeOut(10);
 
     if (error) {
-        log_error("Maslow failed to initialize - fix errors and restart");
+        log_error(M+" failed to initialize - fix errors and restart");
     } else {
         log_info("Starting Maslow Version " << VERSION_NUMBER);
     }
@@ -115,7 +115,7 @@ void Maslow_::update() {
             digitalWrite(REDLED, st);
             timer = millis();
             if (errorMessage != "") {
-                log_error(errorMessage.c_str());
+                log_error(&errorMessage[0]);
             }
             errorMessage = "";
         }
@@ -535,11 +535,11 @@ bool Maslow_::updateEncoderPositions() {
             String label = axis_id_to_label(i);
             if (encoderFailCounter[i] > 0.1 * ENCODER_READ_FREQUENCY_HZ) {
                 // log error statement with appropriate label
-                log_error("Failure on " << label.c_str() << " encoder, failed to read " << encoderFailCounter[i]
+                log_error("Failure on " << &label[0] << " encoder, failed to read " << encoderFailCounter[i]
                                         << " times in the last second");
                 Maslow.panic();
             } else if (encoderFailCounter[i] > 0) {  //0.01*ENCODER_READ_FREQUENCY_HZ){
-                log_warn("Bad connection on " << label.c_str() << " encoder, failed to read " << encoderFailCounter[i]
+                log_warn("Bad connection on " << &label[0] << " encoder, failed to read " << encoderFailCounter[i]
                                               << " times in the last second");
             }
             encoderFailCounter[i] = 0;
@@ -604,7 +604,7 @@ void Maslow_::safety_control() {
             panicCounter[i]++;
             if (panicCounter[i] > tresholdHitsBeforePanic) {
                 if(sys.state() == State::Jog || sys.state() == State::Cycle){
-                    log_warn("Motor current on " << axis_id_to_label(i).c_str() << " axis exceeded threshold of " << 4000);
+                    log_warn("Motor current on " << &axis_id_to_label(i)[0] << " axis exceeded threshold of " << 4000);
                     //Maslow.panic();
                 }
                 tick[i] = true;
@@ -624,10 +624,10 @@ void Maslow_::safety_control() {
         if (axis[i]->getMotorPower() > 450 && abs(axis[i]->getBeltSpeed()) < 0.1 && !tick[i]) {
             axisSlackCounter[i]++;
             if (axisSlackCounter[i] > 3000) {
-                // log_info("SLACK:" << axis_id_to_label(i).c_str() << " motor power is " << int(axis[i]->getMotorPower())
+                // log_info("SLACK:" << &axis_id_to_label(i)[0] << " motor power is " << int(axis[i]->getMotorPower())
                 //                   << ", but the belt speed is" << axis[i]->getBeltSpeed());
                 // log_info(axisSlackCounter[i]);
-                // log_info("Pull on " << axis_id_to_label(i).c_str() << " and restart!");
+                // log_info("Pull on " << &axis_id_to_label(i)[0] << " and restart!");
                 tick[i]             = true;
                 axisSlackCounter[i] = 0;
                 Maslow.panic();
@@ -637,7 +637,7 @@ void Maslow_::safety_control() {
 
         //If the motor has a position error greater than 1mm and we are running a file or jogging
         if ((abs(axis[i]->getPositionError()) > 1) && (sys.state() == State::Jog || sys.state() == State::Cycle) && !tick[i]) {
-            // log_error("Position error on " << axis_id_to_label(i).c_str() << " axis exceeded 1mm, error is " << axis[i]->getPositionError()
+            // log_error("Position error on " << &axis_id_to_label(i)[0] << " axis exceeded 1mm, error is " << axis[i]->getPositionError()
             //                                << "mm");
             tick[i] = true;
         }
@@ -646,7 +646,7 @@ void Maslow_::safety_control() {
         previousPositionError[i] = axis[i]->getPositionError();
         if ((abs(axis[i]->getPositionError()) > 15) && (sys.state() == State::Cycle)) {
             positionErrorCounter[i]++;
-            log_warn("Position error on " << axis_id_to_label(i).c_str() << " axis exceeded 15mm while running. Error is "
+            log_warn("Position error on " << &axis_id_to_label(i)[0] << " axis exceeded 15mm while running. Error is "
                                             << axis[i]->getPositionError() << "mm" << " Counter: " << positionErrorCounter[i]);
             log_warn("Previous error was " << previousPositionError[i] << "mm");
 
@@ -947,7 +947,7 @@ bool Maslow_::take_measurement_avg_with_check(int waypoint, int dir) {
                 for (int i = 0; i < 4; i++) {
                     for (int j = 0; j < 4; j++) {
                         //use axis id to label:
-                        log_info(axis_id_to_label(i).c_str() << " " << measurements[i][j]);
+                        log_info(&axis_id_to_label(i)[0] << " " << measurements[i][j]);
                     }
                 }
                 //reset the run counter to run the measurements again
@@ -1255,7 +1255,7 @@ bool Maslow_::generate_calibration_grid() {
             numberOfCycles = 4; // 9x9 grid
             break;
         default:
-            log_error("Invalid maslow_calibration_grid_size: " << calibrationGridSize);
+            log_error("Invalid Maslow_calibration_grid_size: " << calibrationGridSize);
             return false; // return false or handle error appropriately
     }
 
@@ -1569,7 +1569,7 @@ void Maslow_::test_() {
 //This function saves the current z-axis position to the non-volitle storage
 void Maslow_::saveZPos() {
     nvs_handle_t nvsHandle;
-    esp_err_t ret = nvs_open("maslow", NVS_READWRITE, &nvsHandle);
+    esp_err_t ret = nvs_open(nvs, NVS_READWRITE, &nvsHandle);
     if (ret != ESP_OK) {
         log_info("Error " + std::string(esp_err_to_name(ret)) + " opening NVS handle!\n");
         return;
@@ -1609,7 +1609,7 @@ void Maslow_::saveZPos() {
 //This function loads the z-axis position from the non-volitle storage
 void Maslow_::loadZPos() {
     nvs_handle_t nvsHandle;
-    esp_err_t ret = nvs_open("maslow", NVS_READWRITE, &nvsHandle);
+    esp_err_t ret = nvs_open(nvs, NVS_READWRITE, &nvsHandle);
     if (ret != ESP_OK) {
         log_info("Error " + std::string(esp_err_to_name(ret)) + " opening NVS handle!\n");
         return;
@@ -1765,7 +1765,7 @@ void Maslow_::print_calibration_data() {
     }
     data += "]";
     HeartBeatEnabled = false;
-    log_data(data.c_str());
+    log_data(&data[0]);
     HeartBeatEnabled = true;
 }
 

@@ -94,36 +94,36 @@ namespace Machine {
     }
 
     void MachineConfig::groupM4Items(Configuration::HandlerBase& handler) {
-        handler.item("Maslow_vertical", Maslow.orientation);
-        handler.item("maslow_calibration_grid_width_mm_X", Maslow.calibration_grid_width_mm_X, 100, 3000);
-        handler.item("maslow_calibration_grid_height_mm_Y", Maslow.calibration_grid_height_mm_Y, 100, 3000);
-        handler.item("maslow_calibration_grid_size", Maslow.calibrationGridSize, 3, 9);
+        handler.item(M+"_vertical", Maslow.orientation);
+        handler.item(M+"_calibration_grid_width_mm_X", Maslow.calibration_grid_width_mm_X, 100, 3000);
+        handler.item(M+"_calibration_grid_height_mm_Y", Maslow.calibration_grid_height_mm_Y, 100, 3000);
+        handler.item(M+"_calibration_grid_size", Maslow.calibrationGridSize, 3, 9);
 
-        handler.item("Maslow_tlX", Maslow.tlX);
-        handler.item("Maslow_tlY", Maslow.tlY);
+        handler.item(M+"_tlX", Maslow.tlX);
+        handler.item(M+"_tlY", Maslow.tlY);
 
-        handler.item("Maslow_trX", Maslow.trX);
-        handler.item("Maslow_trY", Maslow.trY);
+        handler.item(M+"_trX", Maslow.trX);
+        handler.item(M+"_trY", Maslow.trY);
 
-        handler.item("Maslow_blX", Maslow.blX);
-        handler.item("Maslow_blY", Maslow.blY);
+        handler.item(M+"_blX", Maslow.blX);
+        handler.item(M+"_blY", Maslow.blY);
         
-        handler.item("Maslow_brX", Maslow.brX);
-        handler.item("Maslow_brY", Maslow.brY);
+        handler.item(M+"_brX", Maslow.brX);
+        handler.item(M+"_brY", Maslow.brY);
 
-        handler.item("Maslow_tlZ", Maslow.tlZ);
-        handler.item("Maslow_trZ", Maslow.trZ);
-        handler.item("Maslow_blZ", Maslow.blZ);
-        handler.item("Maslow_brZ", Maslow.brZ);
+        handler.item(M+"_tlZ", Maslow.tlZ);
+        handler.item(M+"_trZ", Maslow.trZ);
+        handler.item(M+"_blZ", Maslow.blZ);
+        handler.item(M+"_brZ", Maslow.brZ);
 
-        handler.item("Maslow_Retract_Current_Threshold", Maslow.retractCurrentThreshold, 0, 3500);
-        handler.item("Maslow_Calibration_Current_Threshold", Maslow.calibrationCurrentThreshold, 0, 3500);
-        handler.item("Maslow_Acceptable_Calibration_Threshold", Maslow.acceptableCalibrationThreshold, 0, 1);
+        handler.item(M+"_Retract_Current_Threshold", Maslow.retractCurrentThreshold, 0, 3500);
+        handler.item(M+"_Calibration_Current_Threshold", Maslow.calibrationCurrentThreshold, 0, 3500);
+        handler.item(M+"_Acceptable_Calibration_Threshold", Maslow.acceptableCalibrationThreshold, 0, 1);
     }
 
     void MachineConfig::afterParse() {
         if (_axes == nullptr) {
-            log_config_error("Maslow M4 expects the 'axes' section to be defined in the file or the default config");
+            log_config_error(M+"M4 expects the 'axes' section to be defined in the file or the default config");
             // The following is NOT expected to yield the correct result for the M4
             _axes = new Axes();
         }
@@ -146,19 +146,19 @@ namespace Machine {
         }
 
         if (_sdCard == nullptr) {
-            log_config_error("Maslow M4 expects the 'scCard' section to be defined in the file or the default config");
+            log_config_error(M+" M4 expects the 'scCard' section to be defined in the file or the default config");
             // The following is NOT expected to yield the correct result for the M4
             _sdCard = new SDCard();
         }
 
         if (_spi == nullptr) {
-            log_config_error("Maslow M4 expects the 'spi' section to be defined in the file or the default config");
+            log_config_error(M+" M4 expects the 'spi' section to be defined in the file or the default config");
             // The following is NOT expected to yield the correct result for the M4
             _spi = new SPIBus();
         }
 
         if (_stepping == nullptr) {
-            log_config_error("Maslow M4 expects the 'stepping' section to be defined in the file or the default config");
+            log_config_error(M+" M4 expects the 'stepping' section to be defined in the file or the default config");
             // The following is NOT expected to yield the correct result for the M4
             _stepping = new Stepping();
         }
@@ -200,10 +200,10 @@ namespace Machine {
     }
 
     // Common Default Config partial strings
-    const std::string M = "Maslow";
-    const std::string mcgrid = "maslow_calibration_grid_";
+    const std::string mcgrid = M+"_calibration_grid_";
 
     // Individual Default Config items and sections
+    // Default Config - Board
     const std::string dcBoard = "name: Default ("+M+" S3 Board)\nboard: "+M+"\n";
 
     const std::string dcM4Vert = M+"_vertical: false\n";
@@ -262,7 +262,7 @@ namespace Machine {
 
         if (!configOkay) {
             log_info("Using default configuration");
-            configOkay = load_yaml(new StringRange(defaultConfig.c_str()));
+            configOkay = load_yaml(new StringRange(&defaultConfig[0]));
             Maslow.using_default_config = true;
         }
         //configOkay = load(config_filename->get());
