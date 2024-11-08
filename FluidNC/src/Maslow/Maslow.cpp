@@ -398,13 +398,12 @@ bool Maslow_::takeSlackFunc() {
     if(takeSlackState == 2){
         if (take_measurement_avg_with_check(0, UP)) {
 
-            double offset = _beltEndExtension + _armLength;
             double threshold = 15;
 
-            float diffTL = calibration_data[0][0] - offset - computeTL(0, 0, 0);
-            float diffTR = calibration_data[1][0] - offset - computeTR(0, 0, 0);
-            float diffBL = calibration_data[2][0] - offset - computeBL(0, 0, 0);
-            float diffBR = calibration_data[3][0] - offset - computeBR(0, 0, 0);
+            float diffTL = calibration_data[0][0] - measurementToXYPlane(computeTL(0, 0, 0), tlZ);
+            float diffTR = calibration_data[1][0] - measurementToXYPlane(computeTR(0, 0, 0), trZ);
+            float diffBL = calibration_data[2][0] - measurementToXYPlane(computeBL(0, 0, 0), blZ);
+            float diffBR = calibration_data[3][0] - measurementToXYPlane(computeBR(0, 0, 0), brZ);
             log_info("Center point deviation: TL: " << diffTL << " TR: " << diffTR << " BL: " << diffBL << " BR: " << diffBR);
             if (abs(diffTL) > threshold || abs(diffTR) > threshold || abs(diffBL) > threshold || abs(diffBR) > threshold) {
                 log_error("Center point deviation over " << threshold << "mm, your coordinate system is not accurate, maybe try running calibration again?");
@@ -975,13 +974,12 @@ bool Maslow_::take_measurement_avg_with_check(int waypoint, int dir) {
 
             //A check to see if the results on the first point are within the expected range
             if(waypoint == 0){
-                double offset = _beltEndExtension + _armLength;
                 double threshold = 100;
 
-                float diffTL = calibration_data[0][0] - offset - computeTL(0, 0, 0);
-                float diffTR = calibration_data[1][0] - offset - computeTR(0, 0, 0);
-                float diffBL = calibration_data[2][0] - offset - computeBL(0, 0, 0);
-                float diffBR = calibration_data[3][0] - offset - computeBR(0, 0, 0);
+                float diffTL = calibration_data[0][0] - measurementToXYPlane(computeTL(0, 0, 0), tlZ);
+                float diffTR = calibration_data[1][0] - measurementToXYPlane(computeTR(0, 0, 0), trZ);
+                float diffBL = calibration_data[2][0] - measurementToXYPlane(computeBL(0, 0, 0), blZ);
+                float diffBR = calibration_data[3][0] - measurementToXYPlane(computeBR(0, 0, 0), brZ);
                 log_info("Center point deviation: TL: " << diffTL << " TR: " << diffTR << " BL: " << diffBL << " BR: " << diffBR);
 
                 if (abs(diffTL) > threshold || abs(diffTR) > threshold || abs(diffBL) > threshold || abs(diffBR) > threshold) {
