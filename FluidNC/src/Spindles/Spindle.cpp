@@ -24,7 +24,7 @@ namespace Spindles {
         }
     }
 
-    void Spindle::switchSpindle(uint32_t new_tool, SpindleList spindles, Spindle*& spindle, bool& stop_spindle) {
+    void Spindle::switchSpindle(uint32_t new_tool, SpindleList spindles, Spindle*& spindle, bool& stop_spindle, bool& new_spindle) {
         // Find the spindle whose tool number is closest to and below the new tool number
         Spindle* candidate = nullptr;
         for (auto s : spindles) {
@@ -39,6 +39,7 @@ namespace Spindles {
             }
             if (candidate != spindle) {
                 spindle = candidate;
+                new_spindle = true;
                 log_info("Changed to spindle:" << spindle->name());
             }
         } else {
