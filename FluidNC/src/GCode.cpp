@@ -1602,17 +1602,16 @@ Error gc_execute_line(char* line) {
     // NOTE: Pass zero spindle speed for all restricted laser motions.
     if (!disableLaser) {
         pl_data->spindle_speed = gc_state.spindle_speed;  // Record data for planner use.
-    }                                                     // else { pl_data->spindle_speed = 0.0; } // Initialized as zero already.
+    }  // else { pl_data->spindle_speed = 0.0; } // Initialized as zero already.
     // [5. Select tool ]: NOT SUPPORTED. Only tracks tool value.
     //	gc_state.tool = gc_block.values.t;
     // [M6. Change tool ]:
     if (gc_block.modal.tool_change == ToolChange::Enable) {
         if (gc_state.selected_tool != gc_state.tool) {
-            bool stopped_spindle;
+            bool stopped_spindle = false;   // was spindle stopped via the change
+            protocol_buffer_synchronize();  // wait for motion in buffer to finish
             Spindles::Spindle::switchSpindle(gc_state.selected_tool, Spindles::SpindleFactory::objects(), spindle, stopped_spindle);
             if (stopped_spindle) {
-                spindle->stop();  // stop the new spindle
-                gc_state.spindle_speed = 0.0;
                 gc_block.modal.spindle = SpindleState::Disable;
             }
             spindle->tool_change(gc_state.selected_tool, false, false);
@@ -1624,11 +1623,10 @@ Error gc_execute_line(char* line) {
     if (gc_block.modal.set_tool_number == SetToolNumber::Enable) {
         gc_state.selected_tool = gc_block.values.q;
         gc_state.tool          = gc_state.selected_tool;
-        bool stopped_spindle;
+        bool stopped_spindle   = false;  // was spindle stopped via the change
+        protocol_buffer_synchronize();   // wait for motion in buffer to finish
         Spindles::Spindle::switchSpindle(gc_state.selected_tool, Spindles::SpindleFactory::objects(), spindle, stopped_spindle);
         if (stopped_spindle) {
-            spindle->stop();  // stop the new spindle
-            gc_state.spindle_speed = 0.0;
             gc_block.modal.spindle = SpindleState::Disable;
         }
         spindle->tool_change(gc_state.selected_tool, false, true);
