@@ -888,7 +888,7 @@ static Error maslow_stop(const char* value, WebUI::AuthenticationLevel auth_leve
 }
 static Error maslow_telemetry_dump(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
     if (!value || !*value) {
-        value = &std::string(MASLOW_TELEM_FILE)[0];
+        value = std::string(MASLOW_TELEM_FILE).c_str();
     }
     // TODO: only call if the file exists
     Maslow.dump_telemetry(value);

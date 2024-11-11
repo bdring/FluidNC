@@ -262,7 +262,7 @@ namespace Machine {
 
         if (!configOkay) {
             log_info("Using default configuration");
-            configOkay = load_yaml(new StringRange(&defaultConfig[0]));
+            configOkay = load_yaml(new StringRange(defaultConfig.c_str()));
             Maslow.using_default_config = true;
         }
         //configOkay = load(config_filename->get());
