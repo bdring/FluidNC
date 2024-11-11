@@ -1386,7 +1386,7 @@ void settings_execute_startup() {
             // We have to copy this to a mutable array because
             // gc_execute_line modifies the line while parsing.
             char gcline[256];
-            strncpy(gcline, &str[0], 255);
+            strncpy(gcline, str.c_str(), 255);
             status_code = gc_execute_line(gcline);
             // Uart0 << ">" << gcline << ":";
             if (status_code != Error::Ok) {

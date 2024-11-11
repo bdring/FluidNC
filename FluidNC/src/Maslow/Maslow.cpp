@@ -1765,7 +1765,7 @@ void Maslow_::print_calibration_data() {
     }
     data += "]";
     HeartBeatEnabled = false;
-    log_data(&data[0]);
+    log_data(data.c_str());
     HeartBeatEnabled = true;
 }
 
