@@ -398,7 +398,8 @@ bool Maslow_::takeSlackFunc() {
     if(takeSlackState == 2){
         if (take_measurement_avg_with_check(0, UP)) {
 
-            double threshold = 15;
+            double offset = _beltEndExtension + _armLength;
+            double threshold = 12;
 
             float diffTL = calibration_data[0][0] - measurementToXYPlane(computeTL(0, 0, 0), tlZ);
             float diffTR = calibration_data[1][0] - measurementToXYPlane(computeTR(0, 0, 0), trZ);
