@@ -56,10 +56,20 @@ namespace ATCs {
         bool was_inch_mode  = false;  // allows use to restore inch mode if req'd
 
         protocol_buffer_synchronize();  // wait for all motion to complete
-        _macro.erase();             // clear previous gcode
+        _macro.erase();                 // clear previous gcode
+
+        // This is for M61. The ATC does nothing.
+        if (set_tool) {
+            _prev_tool = new_tool;
+            if (new_tool == 0) {
+                reset();  // clear TLO
+            }
+            _macro.run(nullptr);
+            return true;
+        }
 
         // M6T0 is used to reset this ATC and allow us to start a new job
-        if (new_tool == 0 || set_tool) {
+        if (new_tool == 0) {
             _prev_tool = new_tool;
             move_to_safe_z();
             move_to_change_location();
@@ -152,7 +162,7 @@ namespace ATCs {
         _is_OK                   = true;
         _have_tool_setter_offset = false;
         _prev_tool               = gc_state.tool;  // Double check this
-        _macro.addf("G4P0 0.1");                   // reset the TLO to 0
+        _macro.addf("G43.1Z0");                    // reset the TLO to 0
         _macro.addf("(MSG: TLO Z reset to 0)");    //
     }
 

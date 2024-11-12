@@ -13,7 +13,7 @@ class Controller:
         self._serial.flush()
         self.clear_line()
         # wait for startup message
-        while not self.current_line().startswith("Grbl 3.8"):
+        while not self.current_line().startswith("Grbl "):
             self.clear_line()
         self.clear_line()
 
