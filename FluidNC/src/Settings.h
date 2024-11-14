@@ -370,6 +370,12 @@ public:
                 permissions_t auth = WG) :
         Command(NULL, GRBLCMD, auth, grblName, name, cmdChecker),
         _action(action) {}
+    UserCommand(const char* grblName,
+                const std::string name,
+                Error (*action)(const char*, WebUI::AuthenticationLevel, Channel&),
+                bool (*cmdChecker)(),
+                permissions_t auth = WG) :
+        UserCommand(grblName, &name[0], action, cmdChecker, auth) {}
 
     Error action(char* value, WebUI::AuthenticationLevel auth_level, Channel& response);
 };

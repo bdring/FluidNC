@@ -35,7 +35,11 @@ namespace Configuration {
 
     public:
         virtual void item(const char* name, bool& value)                                                            = 0;
+        virtual void item(const std::string name, bool& value) { item(name.c_str(), value); };
         virtual void item(const char* name, int32_t& value, int32_t minValue = 0, int32_t maxValue = INT32_MAX)     = 0;
+        virtual void item(const std::string name, int32_t& value, int32_t minValue = 0, int32_t maxValue = INT32_MAX) {
+            item(name.c_str(), value, minValue, maxValue);
+        };
         virtual void item(const char* name, uint32_t& value, uint32_t minValue = 0, uint32_t maxValue = UINT32_MAX) = 0;
 
         void item(const char* name, uint8_t& value, uint8_t minValue = 0, uint8_t maxValue = UINT8_MAX) {
@@ -43,8 +47,16 @@ namespace Configuration {
             item(name, v, int32_t(minValue), int32_t(maxValue));
             value = uint8_t(v);
         }
+        void item(const std::string name, uint8_t& value, uint8_t minValue = 0, uint8_t maxValue = UINT8_MAX) {
+            int32_t v = int32_t(value);
+            item(name.c_str(), v, int32_t(minValue), int32_t(maxValue));
+            value = uint8_t(v);
+        }
 
         virtual void item(const char* name, float& value, float minValue = -3e38, float maxValue = 3e38)  = 0;
+        virtual void item(const std::string name, float& value, float minValue = -3e38, float maxValue = 3e38) {
+            item(name.c_str(), value, minValue, maxValue);
+        };
         virtual void item(const char* name, std::vector<speedEntry>& value)                               = 0;
         virtual void item(const char* name, UartData& wordLength, UartParity& parity, UartStop& stopBits) = 0;
 
