@@ -302,6 +302,7 @@ struct parser_state_t {
     float    feed_rate;      // Millimeters/min
     uint32_t tool;           // Tracks tool number
     uint32_t selected_tool;  // tool from T value
+    int32_t  current_tool;   // the tool in use. default is -1
     int32_t  line_number;    // Last line number sent
 
     float position[MAX_N_AXIS];  // Where the interpreter considers the tool to be at this point in the code
