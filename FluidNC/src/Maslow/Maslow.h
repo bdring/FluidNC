@@ -226,7 +226,7 @@ public:
     //calibration stuff
 
     int frame_dimention_MIN = 400;
-    int frame_dimention_MAX = 5000;
+    int frame_dimention_MAX = 15000;
 
     double calibrationGrid[CALIBRATION_GRID_SIZE_MAX][2] = { 0 };
     float  calibration_grid_width_mm_X               = 2000;  // mm offset from the edge of the frame
