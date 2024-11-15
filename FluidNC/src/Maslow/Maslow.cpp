@@ -1568,7 +1568,7 @@ void Maslow_::test_() {
 //This function saves the current z-axis position to the non-volitle storage
 void Maslow_::saveZPos() {
     nvs_handle_t nvsHandle;
-    esp_err_t ret = nvs_open(nvs, NVS_READWRITE, &nvsHandle);
+    esp_err_t ret = nvs_open("maslow", NVS_READWRITE, &nvsHandle);
     if (ret != ESP_OK) {
         log_info("Error " + std::string(esp_err_to_name(ret)) + " opening NVS handle!\n");
         return;
@@ -1608,7 +1608,7 @@ void Maslow_::saveZPos() {
 //This function loads the z-axis position from the non-volitle storage
 void Maslow_::loadZPos() {
     nvs_handle_t nvsHandle;
-    esp_err_t ret = nvs_open(nvs, NVS_READWRITE, &nvsHandle);
+    esp_err_t ret = nvs_open("maslow", NVS_READWRITE, &nvsHandle);
     if (ret != ESP_OK) {
         log_info("Error " + std::string(esp_err_to_name(ret)) + " opening NVS handle!\n");
         return;
