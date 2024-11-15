@@ -162,7 +162,7 @@ bool get_numbered_param(ngc_param_id_t id, float& result) {
         return true;
     }
     if (id == 5400) {
-        result = static_cast<float>(gc_state.tool);
+        result = static_cast<float>(gc_state.selected_tool);
         return true;
     }
 

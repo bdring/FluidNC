@@ -161,7 +161,7 @@ namespace ATCs {
     void Manual_ATC::reset() {
         _is_OK                   = true;
         _have_tool_setter_offset = false;
-        _prev_tool               = gc_state.tool;  // Double check this
+        _prev_tool               = gc_state.selected_tool;  // Double check this
         _macro.addf("G43.1Z0");                    // reset the TLO to 0
         _macro.addf("(MSG: TLO Z reset to 0)");    //
     }
