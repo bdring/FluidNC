@@ -162,7 +162,7 @@ bool get_numbered_param(ngc_param_id_t id, float& result) {
         return true;
     }
     if (id == 5400) {
-        result = static_cast<float>(gc_state.tool);
+        result = static_cast<float>(gc_state.selected_tool);
         return true;
     }
 
@@ -291,10 +291,16 @@ bool get_system_param(const std::string& name, float& result) {
         result = gc_state.spindle_speed;
         return true;
     }
-    if (sysn == "_current_tool" || sysn == "_selected_tool") {
-        result = gc_state.tool;
+    if (sysn == "_selected_tool") {
+        result = gc_state.selected_tool;
         return true;
     }
+
+    if (sysn == "_current_tool") {
+        result = gc_state.current_tool;
+        return true;
+    }
+
     if (sysn == "_vmajor") {
         std::string version(grbl_version);
         auto        major = version.substr(0, version.find('.'));

@@ -367,7 +367,7 @@ void report_gcode_modes(Channel& channel) {
         msg << " M56";
     }
 
-    msg << " T" << gc_state.tool;
+    msg << " T" << gc_state.selected_tool;
     int digits = config->_reportInches ? 1 : 0;
     msg << " F" << std::fixed << std::setprecision(digits) << gc_state.feed_rate;
     msg << " S" << uint32_t(gc_state.spindle_speed);

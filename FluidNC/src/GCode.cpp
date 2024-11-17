@@ -69,6 +69,7 @@ void gc_init() {
     // Load default G54 coordinate system.
     gc_state.modal          = modal_defaults;
     gc_state.modal.override = config->_start->_deactivateParking ? Override::Disabled : Override::ParkingMotion;
+    gc_state.current_tool   = -1;
     coords[gc_state.modal.coord_select]->get(gc_state.coord_system);
     flowcontrol_init();
 }
@@ -1604,14 +1605,14 @@ Error gc_execute_line(char* line) {
         pl_data->spindle_speed = gc_state.spindle_speed;  // Record data for planner use.
     }  // else { pl_data->spindle_speed = 0.0; } // Initialized as zero already.
     // [5. Select tool ]: NOT SUPPORTED. Only tracks tool value.
-    //	gc_state.tool = gc_block.values.t;
     // [M6. Change tool ]:
     if (gc_block.modal.tool_change == ToolChange::Enable) {
-        if (gc_state.selected_tool != gc_state.tool) {
+        if (gc_state.selected_tool != gc_state.current_tool) {
             bool stopped_spindle = false;   // was spindle stopped via the change
             bool new_spindle     = false;   // was the spindle changed
             protocol_buffer_synchronize();  // wait for motion in buffer to finish
-            Spindles::Spindle::switchSpindle(gc_state.selected_tool, Spindles::SpindleFactory::objects(), spindle, stopped_spindle, new_spindle);
+            Spindles::Spindle::switchSpindle(
+                gc_state.selected_tool, Spindles::SpindleFactory::objects(), spindle, stopped_spindle, new_spindle);
             if (stopped_spindle) {
                 gc_block.modal.spindle = SpindleState::Disable;
             }
@@ -1619,17 +1620,16 @@ Error gc_execute_line(char* line) {
                 gc_state.spindle_speed = 0.0;
             }
             spindle->tool_change(gc_state.selected_tool, false, false);
-            gc_state.tool      = gc_state.selected_tool;
-            report_ovr_counter = 0;  // Set to report change immediately
+            gc_state.current_tool = gc_state.selected_tool;
+            report_ovr_counter    = 0;  // Set to report change immediately
             gc_ovr_changed();
         }
     }
     if (gc_block.modal.set_tool_number == SetToolNumber::Enable) {
         gc_state.selected_tool = gc_block.values.q;
-        gc_state.tool          = gc_state.selected_tool;
-        bool stopped_spindle   = false;  // was spindle stopped via the change
-        bool new_spindle       = false;  // was the spindle changed
-        protocol_buffer_synchronize();   // wait for motion in buffer to finish
+        bool stopped_spindle = false;   // was spindle stopped via the change
+        bool new_spindle     = false;   // was the spindle changed
+        protocol_buffer_synchronize();  // wait for motion in buffer to finish
         Spindles::Spindle::switchSpindle(gc_state.selected_tool, Spindles::SpindleFactory::objects(), spindle, stopped_spindle, new_spindle);
         if (stopped_spindle) {
             gc_block.modal.spindle = SpindleState::Disable;
@@ -1638,7 +1638,8 @@ Error gc_execute_line(char* line) {
             gc_state.spindle_speed = 0.0;
         }
         spindle->tool_change(gc_state.selected_tool, false, true);
-        report_ovr_counter = 0;  // Set to report change immediately
+        gc_state.current_tool = gc_block.values.q;
+        report_ovr_counter    = 0;  // Set to report change immediately
         gc_ovr_changed();
     }
     // [7. Spindle control ]:
