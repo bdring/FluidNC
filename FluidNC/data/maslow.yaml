@@ -5,11 +5,11 @@ name: Maslow S3 Board
 Maslow_vertical: false
 
 # Define the distance from the anchor points to the corners of the calibration grid in mm
-maslow_calibration_grid_width_mm_X: 2000
-maslow_calibration_grid_height_mm_Y: 1000
+maslow_calibration_grid_width_mm_X: 1500
+maslow_calibration_grid_height_mm_Y: 800
 
 # Defines the number of points in the calibration grid. Options are 3,5,7,9
-maslow_calibration_grid_size: 9
+maslow_calibration_grid_size: 7
 
 #####################################################################
 # Define the frame
