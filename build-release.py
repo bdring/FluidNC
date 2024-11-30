@@ -81,7 +81,8 @@ os.makedirs(manifestRelPath)
 # Copy the web application to the release directory
 dataRelPath = os.path.join(manifestRelPath, 'data')
 os.makedirs(dataRelPath)
-shutil.copy(os.path.join("FluidNC", "data", "index.html.gz"), dataRelPath)
+shutil.copy(os.path.join("FluidNC", "data", "index.html.gz"), os.path.join(dataRelPath, "index-webui-2.html.gz"))
+urllib.request.urlretrieve("https://github.com/michmela44/ESP3D-WEBUI/releases/download/3.0.0-a77-FluidNC/index.html.gz", os.path.join("release", "current", "data", "index-webui-3.html.gz"))
 
 manifest = {
         "name": "FluidNC",
@@ -148,7 +149,9 @@ def addFile(name, controllerpath, filename, srcpath, dstpath):
 
     fulldstfile = os.path.join(fulldstpath, filename)
 
-    shutil.copy(os.path.join(srcpath, filename), fulldstfile)
+    # Only copy files that are not already in the directory
+    if os.path.join(srcpath, filename) != fulldstfile:
+        shutil.copy(os.path.join(srcpath, filename), fulldstfile)
 
     print("file ", name)
 
@@ -259,7 +262,6 @@ def makeManifest():
     addVariant("wifi", "Supports WiFi and WebUI", "Installation type")
     addInstallable(fresh_install, True, ["esp32-4m-partitions", "esp32-bootloader", "esp32-bootapp", "esp32-wifi-firmware", "esp32-wifi-4m-filesystem"])
     addInstallable(firmware_update, False, ["esp32-wifi-firmware"])
-    addInstallable(filesystem_update, False, ["esp32-wifi-4m-filesystem"])
 
     addVariant("bt", "Supports Bluetooth serial", "Installation type")
     addInstallable(fresh_install, True, ["esp32-4m-partitions", "esp32-bootloader", "esp32-bootapp", "esp32-bt-firmware"])
@@ -269,10 +271,11 @@ def makeManifest():
     addInstallable(fresh_install, True, ["esp32-4m-partitions", "esp32-bootloader", "esp32-bootapp", "esp32-noradio-firmware"])
     addInstallable(firmware_update, False, ["esp32-noradio-firmware"])
 
-    addFile("WebUI-2", "/localfs/index.html.gz", "index.html.gz", os.path.join("FluidNC", "data"), "data")
-    # addFile("WebUI-3", "/localfs/index.html.gz", "3index.html.gz", os.path.join("FluidNC", "data"), "data")
+    addFile("WebUI-2", "/localfs/index.html.gz", "index-webui-2.html.gz", os.path.join("release", "current", "data"), "data")
+    addFile("WebUI-3", "/localfs/index.html.gz", "index-webui-3.html.gz", os.path.join("release", "current", "data"), "data")
 
     addUpload("WebUI generation 2", "Add WebUI to local filesystem", ["WebUI-2"])
+    addUpload("WebUI generation 3", "Add WebUI to local filesystem", ["WebUI-3"])
 
 makeManifest()
 

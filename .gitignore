@@ -35,3 +35,4 @@ dist/
 data-wmb/
 *#
 /gcode_tests/venv
+release/
