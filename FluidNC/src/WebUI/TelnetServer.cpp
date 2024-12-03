@@ -44,7 +44,7 @@ namespace WebUI {
         _wifiServer->begin();
         _setupdone = true;
 
-        Mdns::add("telnet", "tcp", _port);
+        Mdns::add("_telnet", "_tcp", _port);
     }
 
     void TelnetServer::deinit() {
