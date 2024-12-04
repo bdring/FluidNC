@@ -10,7 +10,7 @@
 #include "../FileStream.h"
 
 // Maslow specific defines
-#define VERSION_NUMBER "0.86"
+#define VERSION_NUMBER "0.87"
 
 #define TLEncoderLine 2
 #define TREncoderLine 1
