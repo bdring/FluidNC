@@ -1383,6 +1383,7 @@ void Maslow_::retractALL() {
     axisTR.reset();
     axisBL.reset();
     axisBR.reset();
+    setupIsComplete = false;
 }
 void Maslow_::extendALL() {
 
