@@ -47,3 +47,12 @@ We have a Discord server for the development this project. Ask for an invite
 This project requires a lot of work and often expensive items for testing. Please consider a safe, secure and highly appreciated donation via the PayPal link below or via the GitHub sponsor link at the top of the page.
 
 [![](https://www.paypalobjects.com/en_US/i/btn/btn_donateCC_LG.gif)](https://www.paypal.com/donate/?hosted_button_id=8DYLB6ZYYDG7Y)
+
+
+Two useful command from the platform IO terminal are 
+
+pio run -e wifi_s3 -t  erase
+
+pio run -e wifi_s3 -t uploadfs
+
+to erase and upload the file system if the UI is not responding.
