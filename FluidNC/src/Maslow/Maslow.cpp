@@ -178,11 +178,10 @@ void Maslow_::update() {
                 Maslow.recomputePID();
             }
         }
-
         //--------Homing routines
         else if (sys.state() == State::Homing) {
             home();
-        } else {  //In any other state, keep motors off...is this right? Why are we calling stopMotors() in the jog state?
+        } else {  //This is confusing to understand. This is an else if so this is only run if we are not in jog, cycle, or homing
             Maslow.stopMotors();
         }
 
