@@ -944,13 +944,33 @@ bool Maslow_::take_measurement(float result[4], int dir, int run) {
     return false;
 }
 
-// Takes a series of measurements, calculates average and records calibration data;  returns true when it's done
+static float** measurements = nullptr;
+
+void allocateMeasurements() {
+    measurements = new float*[4];
+    for (int i = 0; i < 4; ++i) {
+        measurements[i] = new float[4];
+    }
+}
+
+void freeMeasurements() {
+    for (int i = 0; i < 4; ++i) {
+        delete[] measurements[i];
+    }
+    delete[] measurements;
+    measurements = nullptr;
+}
+
+// Takes a series of measurements, calculates average and records calibration data;  Returns true when it's done and the result has been stored
 bool Maslow_::take_measurement_avg_with_check(int waypoint, int dir) {
     //take 5 measurements in a row, (ignoring the first one), if they are all within 1mm of each other, take the average and record it to the calibration data array
     static int           run                = 0;
-    static float         measurements[4][4] = { 0 }; //This is structured [[tl],[tr],[bl],[br]],[[tl],[tr],[bl],[br]],[[tl],[tr],[bl],[br]],[[tl],[tr],[bl],[br]]     //We should be alocating and freeing this memory when we are done with it
     static float         avg                = 0;
     static float         sum                = 0;
+
+    if (measurements == nullptr) {
+        allocateMeasurements(); //This is structured [[tl],[tr],[bl],[br]],[[tl],[tr],[bl],[br]],[[tl],[tr],[bl],[br]],[[tl],[tr],[bl],[br]]
+    }
 
     if (take_measurement(measurements[max(run-2, 0)], dir, run)) { //Throw away measurements are stored in [0]
         if (run < 2) {
@@ -994,9 +1014,10 @@ bool Maslow_::take_measurement_avg_with_check(int waypoint, int dir) {
                     calibrationInProgress = false;
                     waypoint              = 0;
                     criticalCounter       = 0;
+                    freeMeasurements();
                     return false;
                 }
-
+                freeMeasurements();
                 return false;
             }
             //If the measurements seem valid, take the average and record it to the calibration data array. This is the only place we should be writing to the calibration_data array
@@ -1040,14 +1061,15 @@ bool Maslow_::take_measurement_avg_with_check(int waypoint, int dir) {
 
                     //Stop calibration
                     eStop(message);
-                    return true;
+                    freeMeasurements();
+                    return true;//Should this return false?
                 }
             }
-
+            freeMeasurements();
             return true;
         }
     }
-
+    //We don't free memory alocated here because we will cycle through again and need it
     return false;
 }
 
