@@ -502,14 +502,13 @@ void Maslow_::allocateCalibrationMemory() {
 
 // Function to deallocate memory for calibration arrays
 void Maslow_::deallocateCalibrationMemory() {
-    return;
-    // delete[] calibrationGrid;
-    // calibrationGrid = nullptr;
-    // for (int i = 0; i < CALIBRATION_GRID_SIZE_MAX; ++i) {
-    //     delete[] calibration_data[i];
-    //     }
-    // delete[] calibration_data;
-    // calibration_data = nullptr;
+    delete[] calibrationGrid;
+    calibrationGrid = nullptr;
+    for (int i = 0; i < CALIBRATION_GRID_SIZE_MAX; ++i) {
+        delete[] calibration_data[i];
+        }
+    delete[] calibration_data;
+    calibration_data = nullptr;
 }
 
 //------------------------------------------------------
@@ -838,7 +837,7 @@ bool Maslow_::take_measurement(float result[4], int dir, int run) {
 
         //once both belts are pulled, take a measurement
         if (BR_tight && BL_tight) {
-            //take measurement and record it to the calibration data array. This should take a pointer to where to store the data
+            //take measurement and record it to the calibration data array.
             result[0] = measurementToXYPlane(axisTL.getPosition(), tlZ);
             result[1] = measurementToXYPlane(axisTR.getPosition(), trZ);
             result[2] = measurementToXYPlane(axisBL.getPosition(), blZ);
@@ -931,7 +930,7 @@ bool Maslow_::take_measurement(float result[4], int dir, int run) {
             }
         }
         if (pull1_tight && pull2_tight) {
-            //take measurement and record it to the calibration data array. This should take a pointer to where to store the data
+            //take measurement and record it to the calibration data array.
             result[0] = measurementToXYPlane(axisTL.getPosition(), tlZ);
             result[1] = measurementToXYPlane(axisTR.getPosition(), trZ);
             result[2] = measurementToXYPlane(axisBL.getPosition(), blZ);
