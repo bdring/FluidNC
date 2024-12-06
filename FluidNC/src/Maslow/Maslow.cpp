@@ -122,11 +122,10 @@ void Maslow_::update() {
         return;
     }
 
-    //Blinks the Ethernet LEDs randomly
+    //Blinks the Ethernet LEDs randomly...these have been removed from the board, this pin should be freed up
     if (random(10000) == 0) {
         digitalWrite(ETHERNETLEDPIN, LOW);
     }
-
     if (random(10000) == 0) {
         digitalWrite(ETHERNETLEDPIN, HIGH);
     }
@@ -161,7 +160,7 @@ void Maslow_::update() {
         } else if (holding)
             return;
 
-        //temp test function
+        //temp test function...This is used for debugging when the test command is sent
         if (test) {
             test = false;
         }
@@ -183,7 +182,7 @@ void Maslow_::update() {
         //--------Homing routines
         else if (sys.state() == State::Homing) {
             home();
-        } else {  //In any other state, keep motors off
+        } else {  //In any other state, keep motors off...is this right? Why are we calling stopMotors() in the jog state?
             Maslow.stopMotors();
         }
 
@@ -373,7 +372,12 @@ void Maslow_::home() {
     }
 }
 
-//Moves to 0,0 takes a measurement
+/*
+* This function is used to take up the slack in the belts and confirm that the calibration values are resonable
+* It moves the sled to (0,0) and takes a measurement, then compares that measurement to the calibration data
+* If the calibration data is within a certain threshold of the measurement, the calibration is considered valid
+* If the calibration data is not within the threshold, the calibration is considered invalid
+*/
 bool Maslow_::takeSlackFunc() {
     static int takeSlackState = 0; //0 -> Starting, 1-> Moving to (0,0), 2-> Taking a measurement
     static unsigned long holdTimer = millis();
@@ -401,10 +405,11 @@ bool Maslow_::takeSlackFunc() {
             double offset = _beltEndExtension + _armLength;
             double threshold = 12;
 
+            //This should use it's own array, this is not calibration data
             float diffTL = calibration_data[0][0] - measurementToXYPlane(computeTL(0, 0, 0), tlZ);
-            float diffTR = calibration_data[1][0] - measurementToXYPlane(computeTR(0, 0, 0), trZ);
-            float diffBL = calibration_data[2][0] - measurementToXYPlane(computeBL(0, 0, 0), blZ);
-            float diffBR = calibration_data[3][0] - measurementToXYPlane(computeBR(0, 0, 0), brZ);
+            float diffTR = calibration_data[0][1] - measurementToXYPlane(computeTR(0, 0, 0), trZ);
+            float diffBL = calibration_data[0][2] - measurementToXYPlane(computeBL(0, 0, 0), blZ);
+            float diffBR = calibration_data[0][3] - measurementToXYPlane(computeBR(0, 0, 0), brZ);
             log_info("Center point deviation: TL: " << diffTL << " TR: " << diffTR << " BL: " << diffBL << " BR: " << diffBR);
             if (abs(diffTL) > threshold || abs(diffTR) > threshold || abs(diffBL) > threshold || abs(diffBR) > threshold) {
                 log_error("Center point deviation over " << threshold << "mm, your coordinate system is not accurate, maybe try running calibration again?");
@@ -441,10 +446,14 @@ void Maslow_::calibration_loop() {
     static int  direction             = UP;
     static bool measurementInProgress = false;
     if(waypoint > pointCount){
+        log_info("Thinks it's finished");
+        log_info("Waypoint: " << waypoint << " PointCount: " << pointCount);
         calibrationInProgress = false;
         waypoint              = 0;
         setupIsComplete       = true;
-        log_info("Calibration complete");
+        log_info("Calibration complete 447");
+        log_info("Dealocating calibration memory");
+        deallocateCalibrationMemory();
         return;
     }
     //Taking measurment once we've reached the point
@@ -460,6 +469,7 @@ void Maslow_::calibration_loop() {
                 calibrationDataWaiting = millis();
                 sys.set_state(State::Idle);
                 recomputeCountIndex++;
+                debug_calibration_data();
             }
             else {
                 hold(250);
@@ -483,6 +493,28 @@ void Maslow_::calibration_loop() {
             hold(250);
         }
     }
+}
+
+// Function to allocate memory for calibration arrays
+void Maslow_::allocateCalibrationMemory() {
+    log_info("Allocating calibration memory");
+    calibrationGrid = new float[CALIBRATION_GRID_SIZE_MAX][2];
+    calibration_data = new float*[CALIBRATION_GRID_SIZE_MAX];
+    for (int i = 0; i < CALIBRATION_GRID_SIZE_MAX; ++i) {
+        calibration_data[i] = new float[4];
+    }
+}
+
+// Function to deallocate memory for calibration arrays
+void Maslow_::deallocateCalibrationMemory() {
+    return;
+    // delete[] calibrationGrid;
+    // calibrationGrid = nullptr;
+    // for (int i = 0; i < CALIBRATION_GRID_SIZE_MAX; ++i) {
+    //     delete[] calibration_data[i];
+    //     }
+    // delete[] calibration_data;
+    // calibration_data = nullptr;
 }
 
 //------------------------------------------------------
@@ -744,9 +776,30 @@ float Maslow_::measurementToXYPlane(float measurement, float zHeight){
     return lengthInXY + _beltEndExtension + _armLength; //Add the belt end extension and arm length to get the actual distance
 }
 
-// Takes one measurement; returns true when it's done. Waypoint # is used to store the result
-// Each measurement is the raw belt length pro
-bool Maslow_::take_measurement(int waypoint, int dir, int run) {
+/**
+ * Takes one measurement and returns true when it's done. The result is stored in the passed array.
+ * Each measurement is the raw belt length processed into XY plane coordinates.
+ * 
+ * The function handles two orientations: VERTICAL and HORIZONTAL.
+ * 
+ * In VERTICAL orientation:
+ * - Pulls two bottom belts tight one after another based on the x-coordinate.
+ * - Takes a measurement once both belts are tight and stores it in the calibration data array.
+ * 
+ * In HORIZONTAL orientation:
+ * - Pulls belts tight based on the direction of the last move.
+ * - Takes a measurement once both belts are tight and stores it in the calibration data array.
+ * 
+ * @param waypoint The waypoint number to store the result.
+ * @param dir The direction of the last move (UP, DOWN, LEFT, RIGHT).
+ * @param run The run mode (0 for sequential tightening, non-zero for simultaneous tightening).
+ * @return True when the measurement is done, false otherwise.
+ */
+bool Maslow_::take_measurement(float result[4], int dir, int run) {
+
+    if(random(1000) == 0) {
+        debug_calibration_data();
+    }
 
     //Shouldn't this be handled with the same code as below but with the direction set to UP?
     if (orientation == VERTICAL) {
@@ -794,11 +847,11 @@ bool Maslow_::take_measurement(int waypoint, int dir, int run) {
 
         //once both belts are pulled, take a measurement
         if (BR_tight && BL_tight) {
-            //take measurement and record it to the calibration data array
-            calibration_data[0][waypoint] = measurementToXYPlane(axisTL.getPosition(), tlZ);
-            calibration_data[1][waypoint] = measurementToXYPlane(axisTR.getPosition(), trZ);
-            calibration_data[2][waypoint] = measurementToXYPlane(axisBL.getPosition(), blZ);
-            calibration_data[3][waypoint] = measurementToXYPlane(axisBR.getPosition(), brZ);
+            //take measurement and record it to the calibration data array. This should take a pointer to where to store the data
+            result[0] = measurementToXYPlane(axisTL.getPosition(), tlZ);
+            result[1] = measurementToXYPlane(axisTR.getPosition(), trZ);
+            result[2] = measurementToXYPlane(axisBL.getPosition(), blZ);
+            result[3] = measurementToXYPlane(axisBR.getPosition(), brZ);
             BR_tight                      = false;
             BL_tight                      = false;
             return true;
@@ -887,11 +940,11 @@ bool Maslow_::take_measurement(int waypoint, int dir, int run) {
             }
         }
         if (pull1_tight && pull2_tight) {
-            //take measurement and record it to the calibration data array
-            calibration_data[0][waypoint] = measurementToXYPlane(axisTL.getPosition(), tlZ);
-            calibration_data[1][waypoint] = measurementToXYPlane(axisTR.getPosition(), trZ);
-            calibration_data[2][waypoint] = measurementToXYPlane(axisBL.getPosition(), blZ);
-            calibration_data[3][waypoint] = measurementToXYPlane(axisBR.getPosition(), brZ);
+            //take measurement and record it to the calibration data array. This should take a pointer to where to store the data
+            result[0] = measurementToXYPlane(axisTL.getPosition(), tlZ);
+            result[1] = measurementToXYPlane(axisTR.getPosition(), trZ);
+            result[2] = measurementToXYPlane(axisBL.getPosition(), blZ);
+            result[3] = measurementToXYPlane(axisBR.getPosition(), brZ);
             pull1_tight                   = false;
             pull2_tight                   = false;
             return true;
@@ -905,20 +958,15 @@ bool Maslow_::take_measurement(int waypoint, int dir, int run) {
 bool Maslow_::take_measurement_avg_with_check(int waypoint, int dir) {
     //take 5 measurements in a row, (ignoring the first one), if they are all within 1mm of each other, take the average and record it to the calibration data array
     static int           run                = 0;
-    static double        measurements[4][4] = { 0 };
-    static double        avg                = 0;
-    static double        sum                = 0;
+    static float         measurements[4][4] = { 0 }; //This is structured [[tl],[tr],[bl],[br]],[[tl],[tr],[bl],[br]],[[tl],[tr],[bl],[br]],[[tl],[tr],[bl],[br]]     //We should be alocating and freeing this memory when we are done with it
+    static float         avg                = 0;
+    static float         sum                = 0;
 
-    if (take_measurement(waypoint, dir, run)) {
+    if (take_measurement(measurements[max(run-2, 0)], dir, run)) { //Throw away measurements are stored in [0]
         if (run < 2) {
             run++;
-            return false;  //discard the first three measurements
+            return false;  //discard the first two measurements
         }
-
-        measurements[0][run - 2] = calibration_data[0][waypoint];  //-3 cuz discarding the first 3 measurements
-        measurements[1][run - 2] = calibration_data[1][waypoint];
-        measurements[2][run - 2] = calibration_data[2][waypoint];
-        measurements[3][run - 2] = calibration_data[3][waypoint];
 
         run++;
 
@@ -927,12 +975,12 @@ bool Maslow_::take_measurement_avg_with_check(int waypoint, int dir) {
             run = 0;
 
             //check if all measurements are within 1mm of each other
-            double maxDeviation[4] = { 0 };
-            double maxDeviationAbs = 0;
+            float maxDeviation[4] = { 0 };
+            float maxDeviationAbs = 0;
             for (int i = 0; i < 4; i++) {
                 for (int j = 0; j < 3; j++) {
                     //find max deviation between measurements
-                    maxDeviation[i] = max(maxDeviation[i], abs(measurements[i][j] - measurements[i][j + 1]));
+                    maxDeviation[i] = max(maxDeviation[i], abs(measurements[j][i] - measurements[j+1][i]));
                 }
             }
 
@@ -947,7 +995,7 @@ bool Maslow_::take_measurement_avg_with_check(int waypoint, int dir) {
                 for (int i = 0; i < 4; i++) {
                     for (int j = 0; j < 4; j++) {
                         //use axis id to label:
-                        log_info(axis_id_to_label(i).c_str() << " " << measurements[i][j]);
+                        log_info(axis_id_to_label(i).c_str() << " " << measurements[j][i]);
                     }
                 }
                 //reset the run counter to run the measurements again
@@ -961,26 +1009,25 @@ bool Maslow_::take_measurement_avg_with_check(int waypoint, int dir) {
 
                 return false;
             }
-            //if they are, take the average and record it to the calibration data array
-            for (int i = 0; i < 4; i++) {
-                for (int j = 0; j < 4; j++) {
-                    sum += measurements[i][j];
-                }
+            //If the measurements seem valid, take the average and record it to the calibration data array. This is the only place we should be writing to the calibration_data array
+            for (int i = 0; i < 4; i++) { //For each axis
+                sum = measurements[0][i] + measurements[1][i] + measurements[2][i] + measurements[3][i];
                 avg                           = sum / 4;
-                calibration_data[i][waypoint] = avg;
+                calibration_data[waypoint][i] = avg; //This is the only time we should be writing to the calibration data array
                 sum                           = 0;
                 criticalCounter               = 0;
             }
             log_info("Measured waypoint " << waypoint);
 
             //A check to see if the results on the first point are within the expected range
+            //This is dupliated code from the takeSlackFunc() function and it should be refactored
             if(waypoint == 0){
                 double threshold = 100;
 
-                float diffTL = calibration_data[0][0] - measurementToXYPlane(computeTL(0, 0, 0), tlZ);
-                float diffTR = calibration_data[1][0] - measurementToXYPlane(computeTR(0, 0, 0), trZ);
-                float diffBL = calibration_data[2][0] - measurementToXYPlane(computeBL(0, 0, 0), blZ);
-                float diffBR = calibration_data[3][0] - measurementToXYPlane(computeBR(0, 0, 0), brZ);
+                float diffTL = measurements[0][0] - measurementToXYPlane(computeTL(0, 0, 0), tlZ);
+                float diffTR = measurements[0][1] - measurementToXYPlane(computeTR(0, 0, 0), trZ);
+                float diffBL = measurements[0][2] - measurementToXYPlane(computeBL(0, 0, 0), blZ);
+                float diffBR = measurements[0][3] - measurementToXYPlane(computeBR(0, 0, 0), brZ);
                 log_info("Center point deviation: TL: " << diffTL << " TR: " << diffTR << " BL: " << diffBL << " BR: " << diffBR);
 
                 if (abs(diffTL) > threshold || abs(diffTR) > threshold || abs(diffBL) > threshold || abs(diffBR) > threshold) {
@@ -1234,6 +1281,10 @@ bool Maslow_::checkValidMove(double fromX, double fromY, double toX, double toY)
 
 //The number of points high and wide  must be an odd number
 bool Maslow_::generate_calibration_grid() {
+    log_info("Generating calibration grid");
+
+    //Allocate memory for the calibration grid
+    allocateCalibrationMemory();
 
     float xSpacing = calibration_grid_width_mm_X / (calibrationGridSize - 1);
     float ySpacing = calibration_grid_height_mm_Y / (calibrationGridSize - 1);
@@ -1400,9 +1451,16 @@ void Maslow_::extendALL() {
 
     //extendCallTimer = millis();
 }
+
+/*
+* This function is called once when calibration is started
+*/
 void Maslow_::runCalibration() {
-    if(!generate_calibration_grid()){
-        return;
+    //If we are at the first point we need to generate the grid before we can start
+    if (waypoint == 0) {
+        if(!generate_calibration_grid()){ //Fail out if the grid cannot be generated
+            return;
+        }
     }
     stop();
 
@@ -1421,6 +1479,7 @@ void Maslow_::runCalibration() {
 
     calibrationInProgress = true;
 }
+
 void Maslow_::comply() {
     complyCallTimer = millis();
     retractingTL    = false;
@@ -1751,6 +1810,7 @@ void Maslow_::checkCalibrationData() {
         if (millis() - calibrationDataWaiting > 30007) {
             log_error("Calibration data not acknowledged by computer, resending");
             print_calibration_data();
+            debug_calibration_data();
             calibrationDataWaiting = millis();
         }
     }
@@ -1760,8 +1820,21 @@ void Maslow_::checkCalibrationData() {
 void Maslow_::print_calibration_data() {
     String data = "CLBM:[";
     for (int i = 0; i < waypoint; i++) {
-        data += "{bl:" + String(calibration_data[2][i]) + ",   br:" + String(calibration_data[3][i]) +
-                ",   tr:" + String(calibration_data[1][i]) + ",   tl:" + String(calibration_data[0][i]) + "},";
+        data += "{bl:" + String(calibration_data[i][2]) + ",   br:" + String(calibration_data[i][3]) +
+                ",   tr:" + String(calibration_data[i][1]) + ",   tl:" + String(calibration_data[i][0]) + "},";
+    }
+    data += "]";
+    HeartBeatEnabled = false;
+    log_data(data.c_str());
+    HeartBeatEnabled = true;
+}
+
+// function for outputting calibration data in the log line by line like this: {bl:2376.69,   br:923.40,   tr:1733.87,   tl:2801.87},
+void Maslow_::debug_calibration_data() {
+    String data = "Data:[";
+    for (int i = 0; i < waypoint; i++) {
+        data += "{bl:" + String(calibration_data[i][2]) + ",   br:" + String(calibration_data[i][3]) +
+                ",   tr:" + String(calibration_data[i][1]) + ",   tl:" + String(calibration_data[i][0]) + "},";
     }
     data += "]";
     HeartBeatEnabled = false;

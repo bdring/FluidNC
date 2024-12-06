@@ -228,7 +228,7 @@ public:
     int frame_dimention_MIN = 400;
     int frame_dimention_MAX = 15000;
 
-    double calibrationGrid[CALIBRATION_GRID_SIZE_MAX][2] = { 0 };
+    float  (*calibrationGrid)[2] = nullptr;
     float  calibration_grid_width_mm_X               = 2000;  // mm offset from the edge of the frame
     float  calibration_grid_height_mm_Y              = 1000;  // mm offset from the edge of the frame
     int    recomputePoints[10];                               // Stores the index of the points where we want to trigger a recompute
@@ -243,18 +243,19 @@ public:
     int    get_direction(double x, double y, double targetX, double targetY);
     bool   checkValidMove(double fromX, double fromY, double toX, double toY);
     bool   take_measurement_avg_with_check(int waypoint, int dir);
-    bool   take_measurement(int waypoint, int dir, int run);
+    bool   take_measurement(float result[4], int dir, int run);
     float  measurementToXYPlane(float measurement, float zHeight);
     bool   takeSlackFunc();
     void   test_();
     void   calibration_loop();
     void   print_calibration_data();
+    void   debug_calibration_data();
     void   calibrationDataRecieved();
     void   checkCalibrationData();
     void   reset_all_axis();
     bool   test = false;
     bool   orientation;
-    double calibration_data[4][CALIBRATION_GRID_SIZE_MAX] = { 0 };
+    float  **calibration_data = nullptr;
     int    pointCount                                 = 0;  //number of actual points in the grid,  < GRID_SIZE_MAX
     int    waypoint                                   = 0;  //The current waypoint in the calibration process
     int    calibrationGridSize                        = 9;
@@ -315,6 +316,8 @@ private:
     bool HeartBeatEnabled = true;
     void log_telem_hdr_csv();
     void log_telem_pt_csv(TelemetryData data);
+    void allocateCalibrationMemory();
+    void deallocateCalibrationMemory();
 };
 
 extern Maslow_& Maslow;
