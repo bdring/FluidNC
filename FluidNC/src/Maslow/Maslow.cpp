@@ -360,6 +360,7 @@ void Maslow_::home() {
     if(takeSlack){
         if (takeSlackFunc()) {
             takeSlack = false;
+            deallocateCalibrationMemory();
         }
     }
 
@@ -493,10 +494,14 @@ void Maslow_::calibration_loop() {
 
 // Function to allocate memory for calibration arrays
 void Maslow_::allocateCalibrationMemory() {
-    calibrationGrid = new float[CALIBRATION_GRID_SIZE_MAX][2];
-    calibration_data = new float*[CALIBRATION_GRID_SIZE_MAX];
-    for (int i = 0; i < CALIBRATION_GRID_SIZE_MAX; ++i) {
-        calibration_data[i] = new float[4];
+    if(calibrationGrid == nullptr){ //Check to prevent realocating
+        calibrationGrid = new float[CALIBRATION_GRID_SIZE_MAX][2];
+    }
+    if(calibration_data == nullptr){
+        calibration_data = new float*[CALIBRATION_GRID_SIZE_MAX];
+        for (int i = 0; i < CALIBRATION_GRID_SIZE_MAX; ++i) {
+            calibration_data[i] = new float[4];
+        }
     }
 }
 
@@ -1759,6 +1764,9 @@ void Maslow_::take_slack() {
     x         = 0;
     y         = 0;
     takeSlack = true;
+
+    //Alocate the memory to store the measurements in
+    allocateCalibrationMemory();
 }
 
 //------------------------------------------------------
