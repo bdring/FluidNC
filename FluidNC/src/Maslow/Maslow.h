@@ -249,7 +249,6 @@ public:
     void   test_();
     void   calibration_loop();
     void   print_calibration_data();
-    void   debug_calibration_data();
     void   calibrationDataRecieved();
     void   checkCalibrationData();
     void   reset_all_axis();

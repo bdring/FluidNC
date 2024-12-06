@@ -446,13 +446,10 @@ void Maslow_::calibration_loop() {
     static int  direction             = UP;
     static bool measurementInProgress = false;
     if(waypoint > pointCount){
-        log_info("Thinks it's finished");
-        log_info("Waypoint: " << waypoint << " PointCount: " << pointCount);
         calibrationInProgress = false;
         waypoint              = 0;
         setupIsComplete       = true;
-        log_info("Calibration complete 447");
-        log_info("Dealocating calibration memory");
+        log_info("Calibration complete");
         deallocateCalibrationMemory();
         return;
     }
@@ -469,7 +466,6 @@ void Maslow_::calibration_loop() {
                 calibrationDataWaiting = millis();
                 sys.set_state(State::Idle);
                 recomputeCountIndex++;
-                debug_calibration_data();
             }
             else {
                 hold(250);
@@ -497,7 +493,6 @@ void Maslow_::calibration_loop() {
 
 // Function to allocate memory for calibration arrays
 void Maslow_::allocateCalibrationMemory() {
-    log_info("Allocating calibration memory");
     calibrationGrid = new float[CALIBRATION_GRID_SIZE_MAX][2];
     calibration_data = new float*[CALIBRATION_GRID_SIZE_MAX];
     for (int i = 0; i < CALIBRATION_GRID_SIZE_MAX; ++i) {
@@ -796,10 +791,6 @@ float Maslow_::measurementToXYPlane(float measurement, float zHeight){
  * @return True when the measurement is done, false otherwise.
  */
 bool Maslow_::take_measurement(float result[4], int dir, int run) {
-
-    if(random(1000) == 0) {
-        debug_calibration_data();
-    }
 
     //Shouldn't this be handled with the same code as below but with the direction set to UP?
     if (orientation == VERTICAL) {
@@ -1281,7 +1272,6 @@ bool Maslow_::checkValidMove(double fromX, double fromY, double toX, double toY)
 
 //The number of points high and wide  must be an odd number
 bool Maslow_::generate_calibration_grid() {
-    log_info("Generating calibration grid");
 
     //Allocate memory for the calibration grid
     allocateCalibrationMemory();
@@ -1810,7 +1800,6 @@ void Maslow_::checkCalibrationData() {
         if (millis() - calibrationDataWaiting > 30007) {
             log_error("Calibration data not acknowledged by computer, resending");
             print_calibration_data();
-            debug_calibration_data();
             calibrationDataWaiting = millis();
         }
     }
@@ -1819,19 +1808,6 @@ void Maslow_::checkCalibrationData() {
 // function for outputting calibration data in the log line by line like this: {bl:2376.69,   br:923.40,   tr:1733.87,   tl:2801.87},
 void Maslow_::print_calibration_data() {
     String data = "CLBM:[";
-    for (int i = 0; i < waypoint; i++) {
-        data += "{bl:" + String(calibration_data[i][2]) + ",   br:" + String(calibration_data[i][3]) +
-                ",   tr:" + String(calibration_data[i][1]) + ",   tl:" + String(calibration_data[i][0]) + "},";
-    }
-    data += "]";
-    HeartBeatEnabled = false;
-    log_data(data.c_str());
-    HeartBeatEnabled = true;
-}
-
-// function for outputting calibration data in the log line by line like this: {bl:2376.69,   br:923.40,   tr:1733.87,   tl:2801.87},
-void Maslow_::debug_calibration_data() {
-    String data = "Data:[";
     for (int i = 0; i < waypoint; i++) {
         data += "{bl:" + String(calibration_data[i][2]) + ",   br:" + String(calibration_data[i][3]) +
                 ",   tr:" + String(calibration_data[i][1]) + ",   tl:" + String(calibration_data[i][0]) + "},";
