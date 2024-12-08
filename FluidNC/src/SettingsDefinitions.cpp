@@ -1,6 +1,8 @@
 #include "Machine/MachineConfig.h"
 #include "SettingsDefinitions.h"
 #include "Config.h"
+#include "Stepping.h"
+#include "Machine/Homing.h"
 
 #include <tuple>
 #include <array>
@@ -109,7 +111,9 @@ void make_settings() {
     FLOAT_PROXY("101", "Grbl/Resolution/Y", config._axes->_axis[1]->_stepsPerMm)
     FLOAT_PROXY("102", "Grbl/Resolution/Z", config._axes->_axis[2]->_stepsPerMm)
 
+    INT_PROXY("3", "Grbl/InvertMask", Machine::Stepping::direction_mask)
     INT_PROXY("20", "Grbl/SoftLimitsEnable", config._axes->_axis[0]->_softLimits)
     INT_PROXY("21", "Grbl/HardLimitsEnable", config._axes->hasHardLimits())
     INT_PROXY("22", "Grbl/HomingCycleEnable", (bool)Axes::homingMask)
+    INT_PROXY("23", "Grbl/HomingInvertMask", Homing::direction_mask)
 }

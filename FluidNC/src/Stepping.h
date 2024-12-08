@@ -87,6 +87,8 @@ namespace Machine {
 
         static uint32_t maxPulsesPerSec();
 
+        static AxisMask direction_mask;
+
         // Timers
         static void setTimerPeriod(uint32_t timerTicks);
         static void startTimer();
