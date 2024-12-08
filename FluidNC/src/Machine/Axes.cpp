@@ -52,6 +52,10 @@ namespace Machine {
                 log_info("Axis " << axisName(axis) << " (" << limitsMinPosition(axis) << "," << limitsMaxPosition(axis) << ")");
                 a->init();
             }
+            auto homing = a->_homing;
+            if (homing && !homing->_positiveDirection) {
+                set_bitnum(Homing::direction_mask, axis);
+            }
         }
 
         config_motors();

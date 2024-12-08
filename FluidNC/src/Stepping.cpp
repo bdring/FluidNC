@@ -24,6 +24,8 @@ namespace Machine {
 
     int Stepping::_engine = RMT_ENGINE;
 
+    AxisMask Stepping::direction_mask = 0;
+
     bool   Stepping::_switchedStepper = false;
     size_t Stepping::_segments        = 12;
 
@@ -78,6 +80,10 @@ void Stepping::assignMotor(int axis, int motor, int step_pin, bool step_invert, 
     m->dir_invert            = dir_invert;
     m->blocked               = false;
     m->limited               = false;
+
+    if (motor == 0 && dir_invert) {
+        set_bitnum(direction_mask, axis);
+    }
 }
 
 int Stepping::axis_steps[MAX_N_AXIS] = { 0 };

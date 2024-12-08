@@ -31,11 +31,10 @@
 #include <freertos/queue.h>
 #include <atomic>
 
-namespace Spindles 
-{
+namespace Spindles {
     // number of commands that can be queued up.
-    const int        VFD_RS485_QUEUE_SIZE = 10;                                     
-        
+    const int VFD_RS485_QUEUE_SIZE = 10;
+
     // ================== Class methods ==================================
 
     void VFDSpindle::init() {
@@ -85,8 +84,12 @@ namespace Spindles
         set_mode(SpindleState::Disable, true);
     }
 
-    void VFDSpindle::config_message() { _uart->config_message(name(), " Spindle "); }
-    
+    void VFDSpindle::config_message() {
+        std::string usage(" Spindle");
+        usage += atc_info();
+        _uart->config_message(name(), usage.c_str());
+    }
+
     void VFDSpindle::set_mode(SpindleState mode, bool critical) {
         _last_override_value = sys.spindle_speed_ovr;  // sync these on mode changes
         if (VFD::VFDProtocol::vfd_cmd_queue) {
