@@ -793,7 +793,7 @@ float Maslow_::measurementToXYPlane(float measurement, float zHeight){
  * @param run The run mode (0 for sequential tightening, non-zero for simultaneous tightening).
  * @return True when the measurement is done, false otherwise.
  */
-bool Maslow_::take_measurement(float result[4], int dir, int run) {
+bool Maslow_::take_measurement(float result[4], int dir, int run, int current) {
 
     //Shouldn't this be handled with the same code as below but with the direction set to UP?
     if (orientation == VERTICAL) {
@@ -806,14 +806,14 @@ bool Maslow_::take_measurement(float result[4], int dir, int run) {
         //On the left side of the sheet we want to pull the left belt tight first
         if (x < 0) {
             if (!BL_tight) {
-                if (axisBL.pull_tight(calibrationCurrentThreshold)) {
+                if (axisBL.pull_tight(current)) {
                     BL_tight = true;
                     //log_info("Pulled BL tight");
                 }
                 return false;
             }
             if (!BR_tight) {
-                if (axisBR.pull_tight(calibrationCurrentThreshold)) {
+                if (axisBR.pull_tight(current)) {
                     BR_tight = true;
                     //log_info("Pulled BR tight");
                 }
@@ -824,14 +824,14 @@ bool Maslow_::take_measurement(float result[4], int dir, int run) {
         //On the right side of the sheet we want to pull the right belt tight first
         else {
             if (!BR_tight) {
-                if (axisBR.pull_tight(calibrationCurrentThreshold)) {
+                if (axisBR.pull_tight(current)) {
                     BR_tight = true;
                     //log_info("Pulled BR tight");
                 }
                 return false;
             }
             if (!BL_tight) {
-                if (axisBL.pull_tight(calibrationCurrentThreshold)) {
+                if (axisBL.pull_tight(current)) {
                     BL_tight = true;
                     //log_info("Pulled BL tight");
                 }
@@ -911,7 +911,7 @@ bool Maslow_::take_measurement(float result[4], int dir, int run) {
 
         if(run == 0){
             if (!pull1_tight) {
-                if (pullAxis1->pull_tight(calibrationCurrentThreshold)) {
+                if (pullAxis1->pull_tight(current)) {
                     pull1_tight      = true;
                 }
                 if (run == 0) //Second axis complies while first is pulling
@@ -919,17 +919,17 @@ bool Maslow_::take_measurement(float result[4], int dir, int run) {
                 return false;
             }
             if (!pull2_tight) {
-                if (pullAxis2->pull_tight(calibrationCurrentThreshold)) {
+                if (pullAxis2->pull_tight(current)) {
                     pull2_tight      = true;
                 }
                 return false;
             }
         }
         else{
-            if (pullAxis1->pull_tight(calibrationCurrentThreshold)) {
+            if (pullAxis1->pull_tight(current)) {
                 pull1_tight      = true;
             }
-            if (pullAxis2->pull_tight(calibrationCurrentThreshold)) {
+            if (pullAxis2->pull_tight(current)) {
                 pull2_tight      = true;
             }
         }
@@ -971,12 +971,19 @@ bool Maslow_::take_measurement_avg_with_check(int waypoint, int dir) {
     static int           run                = 0;
     static float         avg                = 0;
     static float         sum                = 0;
+    static bool          measureFlex        = false;
 
     if (measurements == nullptr) {
         allocateMeasurements(); //This is structured [[tl],[tr],[bl],[br]],[[tl],[tr],[bl],[br]],[[tl],[tr],[bl],[br]],[[tl],[tr],[bl],[br]]
     }
 
-    if (take_measurement(measurements[max(run-2, 0)], dir, run)) { //Throw away measurements are stored in [0]
+
+    int howHardToPull = calibrationCurrentThreshold;
+    if(measureFlex){
+        howHardToPull = calibrationCurrentThreshold + 500;
+    }
+
+    if (take_measurement(measurements[max(run-2, 0)], dir, run, howHardToPull)) { //Throw away measurements are stored in [0]
         if (run < 2) {
             run++;
             return false;  //discard the first two measurements
@@ -1024,6 +1031,26 @@ bool Maslow_::take_measurement_avg_with_check(int waypoint, int dir) {
                 freeMeasurements();
                 return false;
             }
+
+            //If we are measurring the flex we don't want to save the result and instead we want to compare it to the last result
+            if(measureFlex){
+                float newLenTLBR = measurements[0][0] + measurements[0][3];
+                float newLenTRBL = measurements[0][1] + measurements[0][2];
+
+                float origLenTLBR = calibration_data[0][0] + calibration_data[0][3];
+                float origLenTRBL = calibration_data[0][1] + calibration_data[0][2];
+
+                float diffTLBR = abs(newLenTLBR - origLenTLBR);
+                float diffTRBL = abs(newLenTRBL - origLenTRBL);
+
+                log_info("Flex measurement: TLBR: " << diffTLBR << " TRBL: " << diffTRBL);
+
+                measureFlex = false;
+
+                freeMeasurements(); //We have completed this measurement, but we don't want to store anything this time
+                return true;
+            }
+
             //If the measurements seem valid, take the average and record it to the calibration data array. This is the only place we should be writing to the calibration_data array
             for (int i = 0; i < 4; i++) { //For each axis
                 sum = measurements[0][i] + measurements[1][i] + measurements[2][i] + measurements[3][i];
@@ -1069,8 +1096,18 @@ bool Maslow_::take_measurement_avg_with_check(int waypoint, int dir) {
                     return true;//Should this return false?
                 }
             }
+
+            //This is the exit to indicate that the measurement was successful
             freeMeasurements();
-            return true;
+
+            //Special case where we have a good measurement but we need to take another at this point to measure the flex of the frame
+            if(waypoint == 0){
+                measureFlex = true;
+                log_info("Measuring Frame Flex");
+                return false;
+            }
+
+            return true; 
         }
     }
     //We don't free memory alocated here because we will cycle through again and need it
