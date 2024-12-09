@@ -213,6 +213,7 @@ public:
     int retractCurrentThreshold = 1300;
     int calibrationCurrentThreshold = 1300;
     float acceptableCalibrationThreshold = 0.5;
+    float extendDist = 1000;
 
     bool axisBLHomed;
     bool axisBRHomed;
