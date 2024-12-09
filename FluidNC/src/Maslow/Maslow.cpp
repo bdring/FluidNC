@@ -1103,6 +1103,7 @@ bool Maslow_::take_measurement_avg_with_check(int waypoint, int dir) {
             //Special case where we have a good measurement but we need to take another at this point to measure the flex of the frame
             if(waypoint == 0){
                 measureFlex = true;
+                log_info("Measuring Frame Flex");
                 return false;
             }
 
