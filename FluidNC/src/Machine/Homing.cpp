@@ -32,10 +32,11 @@ namespace Machine {
     const uint32_t MOTOR0 = 0xffff;
     const uint32_t MOTOR1 = 0xffff0000;
 
-    Homing::Phase   Homing::_phase       = Phase::None;
-    AxisMask        Homing::_cycleAxes   = 0;
-    AxisMask        Homing::_phaseAxes   = 0;
-    MotorMask       Homing::_cycleMotors = 0;
+    Homing::Phase   Homing::_phase         = Phase::None;
+    AxisMask        Homing::_cycleAxes     = 0;
+    AxisMask        Homing::_phaseAxes     = 0;
+    AxisMask        Homing::direction_mask = 0;
+    MotorMask       Homing::_cycleMotors   = 0;
     MotorMask       Homing::_phaseMotors;
     std::queue<int> Homing::_remainingCycles;
     uint32_t        Homing::_settling_ms;

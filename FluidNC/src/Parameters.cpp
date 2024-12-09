@@ -467,7 +467,6 @@ bool get_param_ref(const char* line, size_t& pos, param_ref_t& param_ref) {
             return true;
         case '[': {
             // Expression evaluating to param number
-            ++pos;
             Error status = expression(line, pos, result);
             if (status != Error::Ok) {
                 log_debug(errorString(status));
