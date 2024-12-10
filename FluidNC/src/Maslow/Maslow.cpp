@@ -778,22 +778,31 @@ float Maslow_::measurementToXYPlane(float measurement, float zHeight){
 *Computes the current x cordinate of the sled based on the lengths of the upper two belts
 */
 bool Maslow_::computeXYfromLengths(double TL, double TR, float &x, float &y) {
-    double tlLength = TL + _beltEndExtension + _armLength;
-    double trLength = TR + _beltEndExtension + _armLength;
+    double tlLength = measurementToXYPlane(TL, tlZ);
+    double trLength = measurementToXYPlane(TR, trZ);
 
-    //The distance between the top two anchor points
-    double topAnchorDistance = sqrt((trX - tlX) * (trX - tlX) + (trY - tlY) * (trY - tlY));
+    log_info("TL Length: " << tlLength << " TR Length: " << trLength);
 
-    //Find the XY coordinates of the sled by using two circles centered on the anchor points
-    double rawX = (tlX + trX) / 2 + (trX - tlX) * (tlLength * tlLength - trLength * trLength + topAnchorDistance * topAnchorDistance) / (2 * topAnchorDistance * topAnchorDistance);
-    double rawY = (tlY + trY) / 2 + (trY - tlY) * (tlLength * tlLength - trLength * trLength + topAnchorDistance * topAnchorDistance) / (2 * topAnchorDistance * topAnchorDistance);
+    //Find the intersection of the two circles centered at tlX, tlY and trX, trY with radii tlLength and trLength
+    double d = sqrt((tlX - trX) * (tlX - trX) + (tlY - trY) * (tlY - trY));
+    if (d > tlLength + trLength || d < abs(tlLength - trLength)) {
+        log_error("The circles do not intersect");
+        return false;
+    }
+    
+    double a = (tlLength * tlLength - trLength * trLength + d * d) / (2 * d);
+    double h = sqrt(tlLength * tlLength - a * a);
+    double x0 = tlX + a * (trX - tlX) / d;
+    double y0 = tlY + a * (trY - tlY) / d;
+    double rawX = x0 + h * (trY - tlY) / d;
+    double rawY = y0 - h * (trX - tlX) / d;
 
     log_info("Raw X: " << rawX << " Raw Y: " << rawY);
     log_info("Center X: " << centerX << " Center Y: " << centerY);
 
     // Adjust to the centered coordinates
-    x = rawX - centerX*2;
-    y = rawY - centerY*2;
+    x = rawX - centerX;
+    y = rawY - centerY;
 
     return true;
 }
@@ -1547,11 +1556,14 @@ void Maslow_::retractBR() {
 }
 void Maslow_::retractALL() {
 
+    float initialX = -100;
+    float initialY = 100;
+
     float x = 100;
     float y = 100;
 
-    double TLLength = computeTL(0, 0, 0);
-    double TRLength = computeTR(0, 0, 0);
+    double TLLength = computeTL(initialX,initialY,0);
+    double TRLength = computeTR(initialX,initialY,0);
 
     log_info("TL: " << TLLength << " TR: " << TRLength);
 
