@@ -328,7 +328,7 @@ void Maslow_::home() {
                 extendedBR = axisBR.extend(extendDist);
             if (extendedTL && extendedTR && extendedBL && extendedBR) {
                 extendingALL = false;
-                log_info("All belts extended to" << extendDist << "mm");
+                log_info("All belts extended to " << extendDist << "mm");
             }
         }
     }
@@ -384,33 +384,29 @@ bool Maslow_::takeSlackFunc() {
     static float startingX    = 0;
     static float startingY    = 0;
 
-    //Initialize
-    if (takeSlackState == 0) {
-        takeSlackState = 1;
-        startingX   = getTargetX();
-        startingY   = getTargetY();
-    }
-
-    //Move to (0,0)
-    if(takeSlackState == 1){
-        if (move_with_slack(startingX, startingY, 0, 0)) {
-            takeSlackState = 2;
-        }
-    }
-
     //Take a measurement
-    if(takeSlackState == 2){
-        if (take_measurement_avg_with_check(0, UP)) {
+    if(takeSlackState == 0){
+        if (take_measurement_avg_with_check(2, UP)) {
 
-            double offset = _beltEndExtension + _armLength;
-            double threshold = 12;
+            
+            float x = 0;
+            float y = 0;
+            computeXYfromLengths(calibration_data[2][0], calibration_data[2][1], x, y);
+
+            log_info("Machine Position found as X: " << x << " Y: " << y);
+
+            log_info("TL measurement: " << calibration_data[2][0] << " TL computed: " << computeTL(x, y, 0));
+            log_info("TR measurement: " << calibration_data[2][1] << " TR computed: " << computeTR(x, y, 0));
+            log_info("BL measurement: " << calibration_data[2][2] << " BL computed: " << computeBL(x, y, 0));
+            log_info("BR measurement: " << calibration_data[2][3] << " BR computed: " << computeBR(x, y, 0));
 
             //This should use it's own array, this is not calibration data
-            float diffTL = calibration_data[0][0] - measurementToXYPlane(computeTL(0, 0, 0), tlZ);
-            float diffTR = calibration_data[0][1] - measurementToXYPlane(computeTR(0, 0, 0), trZ);
-            float diffBL = calibration_data[0][2] - measurementToXYPlane(computeBL(0, 0, 0), blZ);
-            float diffBR = calibration_data[0][3] - measurementToXYPlane(computeBR(0, 0, 0), brZ);
+            float diffTL = calibration_data[2][0] - computeTL(x, y, 0);
+            float diffTR = calibration_data[2][1] - computeTR(x, y, 0);
+            float diffBL = calibration_data[2][2] - computeBL(x, y, 0);
+            float diffBR = calibration_data[2][3] - computeBR(x, y, 0);
             log_info("Center point deviation: TL: " << diffTL << " TR: " << diffTR << " BL: " << diffBL << " BR: " << diffBR);
+            double threshold = 12;
             if (abs(diffTL) > threshold || abs(diffTR) > threshold || abs(diffBL) > threshold || abs(diffBR) > threshold) {
                 log_error("Center point deviation over " << threshold << "mm, your coordinate system is not accurate, maybe try running calibration again?");
                 //Should we enter an alarm state here to prevent things from going wrong?
@@ -429,7 +425,7 @@ bool Maslow_::takeSlackFunc() {
     }
 
     //Position hold for 2 seconds
-    if(takeSlackState == 3){
+    if(takeSlackState == 1){
         if(millis() - holdTimer > 2000){
             takeSlackState = 0;
             return true;
@@ -781,12 +777,10 @@ bool Maslow_::computeXYfromLengths(double TL, double TR, float &x, float &y) {
     double tlLength = measurementToXYPlane(TL, tlZ);
     double trLength = measurementToXYPlane(TR, trZ);
 
-    log_info("TL Length: " << tlLength << " TR Length: " << trLength);
-
     //Find the intersection of the two circles centered at tlX, tlY and trX, trY with radii tlLength and trLength
     double d = sqrt((tlX - trX) * (tlX - trX) + (tlY - trY) * (tlY - trY));
     if (d > tlLength + trLength || d < abs(tlLength - trLength)) {
-        log_error("The circles do not intersect");
+        log_error("Unable to determine machine position");
         return false;
     }
     
@@ -797,31 +791,12 @@ bool Maslow_::computeXYfromLengths(double TL, double TR, float &x, float &y) {
     double rawX = x0 + h * (trY - tlY) / d;
     double rawY = y0 - h * (trX - tlX) / d;
 
-    log_info("Raw X: " << rawX << " Raw Y: " << rawY);
-    log_info("Center X: " << centerX << " Center Y: " << centerY);
-
     // Adjust to the centered coordinates
     x = rawX - centerX;
     y = rawY - centerY;
 
     return true;
 }
-
-//Check to see if a measurment matches the frame size by 
-// bool measurementMatchesFrame(
-
-//     double threshold = 100;
-
-//     float x = 0;
-//     float y = 0;
-
-//     float diffTL = measurements[0][0] - measurementToXYPlane(computeTL(0, 0, 0), tlZ);
-//     float diffTR = measurements[0][1] - measurementToXYPlane(computeTR(0, 0, 0), trZ);
-//     float diffBL = measurements[0][2] - measurementToXYPlane(computeBL(0, 0, 0), blZ);
-//     float diffBR = measurements[0][3] - measurementToXYPlane(computeBR(0, 0, 0), brZ);
-//     log_info("Center point deviation: TL: " << diffTL << " TR: " << diffTR << " BL: " << diffBL << " BR: " << diffBR);
-
-//     if (abs(diffTL) > threshold || abs(diffTR) > threshold || abs(diffBL) > threshold || abs(diffBR) > threshold) {
 
 /**
  * Takes one measurement and returns true when it's done. The result is stored in the passed array.
@@ -1112,16 +1087,26 @@ bool Maslow_::take_measurement_avg_with_check(int waypoint, int dir) {
 
             //A check to see if the results on the first point are within the expected range
             if(waypoint == 0){
-                double threshold = 100;
+                //Compute the current XY position from the top two belt measurements
+                float x = 0;
+                float y = 0;
+                if(!computeXYfromLengths(calibration_data[0][0], calibration_data[0][1], x, y)){
+                    eStop("Unable to find machine position from measurements");
+                    freeMeasurements();
+                    return true;
+                }
 
-                float diffTL = measurements[0][0] - measurementToXYPlane(computeTL(0, 0, 0), tlZ);
-                float diffTR = measurements[0][1] - measurementToXYPlane(computeTR(0, 0, 0), trZ);
-                float diffBL = measurements[0][2] - measurementToXYPlane(computeBL(0, 0, 0), blZ);
-                float diffBR = measurements[0][3] - measurementToXYPlane(computeBR(0, 0, 0), brZ);
-                log_info("Center point deviation: TL: " << diffTL << " TR: " << diffTR << " BL: " << diffBL << " BR: " << diffBR);
+                log_info("Machine Position found as X: " << x << " Y: " << y);
+
+                double threshold = 100;
+                float diffTL = measurements[0][0] - measurementToXYPlane(computeTL(x, y, 0), tlZ);
+                float diffTR = measurements[0][1] - measurementToXYPlane(computeTR(x, y, 0), trZ);
+                float diffBL = measurements[0][2] - measurementToXYPlane(computeBL(x, y, 0), blZ);
+                float diffBR = measurements[0][3] - measurementToXYPlane(computeBR(x, y, 0), brZ);
+                log_info("Center point off by: TL: " << diffTL << " TR: " << diffTR << " BL: " << diffBL << " BR: " << diffBR);
 
                 if (abs(diffTL) > threshold || abs(diffTR) > threshold || abs(diffBL) > threshold || abs(diffBR) > threshold) {
-                    log_error("Center point deviation over " << threshold << "mm");
+                    log_error("Center point off by over " << threshold << "mm");
                     //Should we enter an alarm state here to prevent things from going wrong?
 
                     if(!adjustFrameSizeToMatchFirstMeasurement()){
