@@ -1556,35 +1556,19 @@ void Maslow_::retractBR() {
 }
 void Maslow_::retractALL() {
 
-    float initialX = -100;
-    float initialY = 100;
-
-    float x = 100;
-    float y = 100;
-
-    double TLLength = computeTL(initialX,initialY,0);
-    double TRLength = computeTR(initialX,initialY,0);
-
-    log_info("TL: " << TLLength << " TR: " << TRLength);
-
-    computeXYfromLengths(TLLength, TRLength, x, y);
-
-    log_info("Computed XY: " << x << ", " << y);
-
+    retractingTL = true;
+    retractingTR = true;
+    retractingBL = true;
+    retractingBR = true;
+    complyALL    = false;
+    extendingALL = false;
+    axisTL.reset();
+    axisTR.reset();
+    axisBL.reset();
+    axisBR.reset();
+    setupIsComplete = false;
 }
 
-    // retractingTL = true;
-    // retractingTR = true;
-    // retractingBL = true;
-    // retractingBR = true;
-    // complyALL    = false;
-    // extendingALL = false;
-    // axisTL.reset();
-    // axisTR.reset();
-    // axisBL.reset();
-    // axisBR.reset();
-    // setupIsComplete = false;
-//}
 void Maslow_::extendALL() {
 
     if (!all_axis_homed()) {
