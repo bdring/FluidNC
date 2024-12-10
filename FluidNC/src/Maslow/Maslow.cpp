@@ -319,16 +319,18 @@ void Maslow_::home() {
         //then make all the belts comply until they are extended fully, or user terminates it
         else {
             if (!extendedTL)
-                extendedTL = axisTL.extend(extendDist);
+                extendedTL = axisTL.extend(computeBL(0, 0, 0));
             if (!extendedTR)
-                extendedTR = axisTR.extend(extendDist);
+                extendedTR = axisTR.extend(computeBL(0, 0, 0));
             if (!extendedBL)
-                extendedBL = axisBL.extend(extendDist);
+                extendedBL = axisBL.extend(computeBL(0, 300, 0));
             if (!extendedBR)
-                extendedBR = axisBR.extend(extendDist);
+                extendedBR = axisBR.extend(computeBL(0, 300, 0));
             if (extendedTL && extendedTR && extendedBL && extendedBR) {
                 extendingALL = false;
-                log_info("All belts extended to " << extendDist << "mm");
+                //log_info("All belts extended to " << extendDist << "mm");
+                log_info("TL Extended To: " << computeBL(0, 0, 0));
+                log_info("TR Extended To: " << computeBL(0, 0, 0));
             }
         }
     }
@@ -393,6 +395,9 @@ bool Maslow_::takeSlackFunc() {
             float y = 0;
             computeXYfromLengths(calibration_data[2][0], calibration_data[2][1], x, y);
 
+            log_info("TL Measured As: " << calibration_data[2][0]);
+            log_info("TR Measured As: " << calibration_data[2][1]);
+
             log_info("Machine Position found as X: " << x << " Y: " << y);
 
             log_info("TL measurement: " << calibration_data[2][0] << " TL computed: " << computeTL(x, y, 0));
@@ -400,11 +405,15 @@ bool Maslow_::takeSlackFunc() {
             log_info("BL measurement: " << calibration_data[2][2] << " BL computed: " << computeBL(x, y, 0));
             log_info("BR measurement: " << calibration_data[2][3] << " BR computed: " << computeBR(x, y, 0));
 
+            float extension = _beltEndExtension + _armLength;
+
+            log_info("Extension: " << extension);
+            
             //This should use it's own array, this is not calibration data
-            float diffTL = calibration_data[2][0] - computeTL(x, y, 0);
-            float diffTR = calibration_data[2][1] - computeTR(x, y, 0);
-            float diffBL = calibration_data[2][2] - computeBL(x, y, 0);
-            float diffBR = calibration_data[2][3] - computeBR(x, y, 0);
+            float diffTL = calibration_data[2][0] - measurementToXYPlane(computeTL(x, y, 0), tlZ);
+            float diffTR = calibration_data[2][1] - measurementToXYPlane(computeTR(x, y, 0), trZ);
+            float diffBL = calibration_data[2][2] - measurementToXYPlane(computeBL(x, y, 0), blZ);
+            float diffBR = calibration_data[2][3] - measurementToXYPlane(computeBR(x, y, 0), brZ);
             log_info("Center point deviation: TL: " << diffTL << " TR: " << diffTR << " BL: " << diffBL << " BR: " << diffBR);
             double threshold = 12;
             if (abs(diffTL) > threshold || abs(diffTR) > threshold || abs(diffBL) > threshold || abs(diffBR) > threshold) {
@@ -708,7 +717,7 @@ float Maslow_::computeBL(float x, float y, float z) {
 
     float length = sqrt(XYBeltLength * XYBeltLength + c * c); //Get the angled belt length
 
-    return length;  //+ lowerBeltsExtra;
+    return length;
 }
 float Maslow_::computeBR(float x, float y, float z) {
     //Move from lower left corner coordinates to centered coordinates
@@ -724,7 +733,7 @@ float Maslow_::computeBR(float x, float y, float z) {
 
     float length = sqrt(XYBeltLength * XYBeltLength + c * c); //Get the angled belt length
 
-    return length;  //+ lowerBeltsExtra;
+    return length;
 }
 float Maslow_::computeTR(float x, float y, float z) {
     //Move from lower left corner coordinates to centered coordinates
@@ -740,7 +749,7 @@ float Maslow_::computeTR(float x, float y, float z) {
 
     float length = sqrt(XYBeltLength * XYBeltLength + c * c); //Get the angled belt length
 
-    return length;  //+ lowerBeltsExtra;
+    return length;
 }
 float Maslow_::computeTL(float x, float y, float z) {
     //Move from lower left corner coordinates to centered coordinates
@@ -756,7 +765,7 @@ float Maslow_::computeTL(float x, float y, float z) {
 
     float length = sqrt(XYBeltLength * XYBeltLength + c * c); //Get the angled belt length
 
-    return length;  //+ lowerBeltsExtra;
+    return length;
 }
 
 //------------------------------------------------------
@@ -774,8 +783,8 @@ float Maslow_::measurementToXYPlane(float measurement, float zHeight){
 *Computes the current x cordinate of the sled based on the lengths of the upper two belts
 */
 bool Maslow_::computeXYfromLengths(double TL, double TR, float &x, float &y) {
-    double tlLength = measurementToXYPlane(TL, tlZ);
-    double trLength = measurementToXYPlane(TR, trZ);
+    double tlLength = TL;//measurementToXYPlane(TL, tlZ);
+    double trLength = TR;//measurementToXYPlane(TR, trZ);
 
     //Find the intersection of the two circles centered at tlX, tlY and trX, trY with radii tlLength and trLength
     double d = sqrt((tlX - trX) * (tlX - trX) + (tlY - trY) * (tlY - trY));
