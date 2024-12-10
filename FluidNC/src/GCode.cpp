@@ -1603,7 +1603,7 @@ Error gc_execute_line(char* line) {
     // NOTE: Pass zero spindle speed for all restricted laser motions.
     if (!disableLaser) {
         pl_data->spindle_speed = gc_state.spindle_speed;  // Record data for planner use.
-    }  // else { pl_data->spindle_speed = 0.0; } // Initialized as zero already.
+    }                                                     // else { pl_data->spindle_speed = 0.0; } // Initialized as zero already.
     // [5. Select tool ]: NOT SUPPORTED. Only tracks tool value.
     // [M6. Change tool ]:
     if (gc_block.modal.tool_change == ToolChange::Enable) {
@@ -1627,9 +1627,9 @@ Error gc_execute_line(char* line) {
     }
     if (gc_block.modal.set_tool_number == SetToolNumber::Enable) {
         gc_state.selected_tool = gc_block.values.q;
-        bool stopped_spindle = false;   // was spindle stopped via the change
-        bool new_spindle     = false;   // was the spindle changed
-        protocol_buffer_synchronize();  // wait for motion in buffer to finish
+        bool stopped_spindle   = false;  // was spindle stopped via the change
+        bool new_spindle       = false;  // was the spindle changed
+        protocol_buffer_synchronize();   // wait for motion in buffer to finish
         Spindles::Spindle::switchSpindle(gc_state.selected_tool, Spindles::SpindleFactory::objects(), spindle, stopped_spindle, new_spindle);
         if (stopped_spindle) {
             gc_block.modal.spindle = SpindleState::Disable;
@@ -1786,10 +1786,10 @@ Error gc_execute_line(char* line) {
     switch (gc_block.non_modal_command) {
         case NonModal::SetCoordinateData:
             coords[coord_select]->set(coord_data);
+            gc_wco_changed();
             // Update system coordinate system if currently active.
             if (gc_state.modal.coord_select == coord_select) {
                 copyAxes(gc_state.coord_system, coord_data);
-                gc_wco_changed();
             }
             break;
         case NonModal::GoHome0:
