@@ -774,6 +774,46 @@ float Maslow_::measurementToXYPlane(float measurement, float zHeight){
     return lengthInXY + _beltEndExtension + _armLength; //Add the belt end extension and arm length to get the actual distance
 }
 
+/*
+*Computes the current x cordinate of the sled based on the lengths of the upper two belts
+*/
+bool Maslow_::computeXYfromLengths(double TL, double TR, float &x, float &y) {
+    double tlLength = TL + _beltEndExtension + _armLength;
+    double trLength = TR + _beltEndExtension + _armLength;
+
+    //The distance between the top two anchor points
+    double topAnchorDistance = sqrt((trX - tlX) * (trX - tlX) + (trY - tlY) * (trY - tlY));
+
+    //Find the XY coordinates of the sled by using two circles centered on the anchor points
+    double rawX = (tlX + trX) / 2 + (trX - tlX) * (tlLength * tlLength - trLength * trLength + topAnchorDistance * topAnchorDistance) / (2 * topAnchorDistance * topAnchorDistance);
+    double rawY = (tlY + trY) / 2 + (trY - tlY) * (tlLength * tlLength - trLength * trLength + topAnchorDistance * topAnchorDistance) / (2 * topAnchorDistance * topAnchorDistance);
+
+    log_info("Raw X: " << rawX << " Raw Y: " << rawY);
+    log_info("Center X: " << centerX << " Center Y: " << centerY);
+
+    // Adjust to the centered coordinates
+    x = rawX - centerX*2;
+    y = rawY - centerY*2;
+
+    return true;
+}
+
+//Check to see if a measurment matches the frame size by 
+// bool measurementMatchesFrame(
+
+//     double threshold = 100;
+
+//     float x = 0;
+//     float y = 0;
+
+//     float diffTL = measurements[0][0] - measurementToXYPlane(computeTL(0, 0, 0), tlZ);
+//     float diffTR = measurements[0][1] - measurementToXYPlane(computeTR(0, 0, 0), trZ);
+//     float diffBL = measurements[0][2] - measurementToXYPlane(computeBL(0, 0, 0), blZ);
+//     float diffBR = measurements[0][3] - measurementToXYPlane(computeBR(0, 0, 0), brZ);
+//     log_info("Center point deviation: TL: " << diffTL << " TR: " << diffTR << " BL: " << diffBL << " BR: " << diffBR);
+
+//     if (abs(diffTL) > threshold || abs(diffTR) > threshold || abs(diffBL) > threshold || abs(diffBR) > threshold) {
+
 /**
  * Takes one measurement and returns true when it's done. The result is stored in the passed array.
  * Each measurement is the raw belt length processed into XY plane coordinates.
@@ -1062,7 +1102,6 @@ bool Maslow_::take_measurement_avg_with_check(int waypoint, int dir) {
             log_info("Measured waypoint " << waypoint);
 
             //A check to see if the results on the first point are within the expected range
-            //This is dupliated code from the takeSlackFunc() function and it should be refactored
             if(waypoint == 0){
                 double threshold = 100;
 
@@ -1073,27 +1112,14 @@ bool Maslow_::take_measurement_avg_with_check(int waypoint, int dir) {
                 log_info("Center point deviation: TL: " << diffTL << " TR: " << diffTR << " BL: " << diffBL << " BR: " << diffBR);
 
                 if (abs(diffTL) > threshold || abs(diffTR) > threshold || abs(diffBL) > threshold || abs(diffBR) > threshold) {
-                    log_error("Center point deviation over " << threshold << "mmm, your coordinate system is not accurate, adjust your frame dimensions and restart.");
+                    log_error("Center point deviation over " << threshold << "mm");
                     //Should we enter an alarm state here to prevent things from going wrong?
 
-
-                    String message = "";
-                    //If both of the bottom belts are longer than expected then the frame is smaller than expected
-                    if(diffBL > threshold && diffBR > threshold){
-                        log_error("Frame size error, try entering larger frame dimensions and restart.");
-                        message = "Frame size error, try entering larger frame dimensions and restart.";
+                    if(!adjustFrameSizeToMatchFirstMeasurement()){
+                        eStop("Unable to find a valid frame size to match the first measurement");
+                        freeMeasurements();
+                        return true;//Should this return false?
                     }
-                    //If both of the bottom belts are shorter than expected then the frame is larger than expected
-                    else if(diffBL < -threshold && diffBR < -threshold){
-                        log_error("Frame size error, try entering smaller frame dimensions and restart.");
-                        message = "Frame size error, try entering smaller frame dimensions and restart.";
-                    }
-
-
-                    //Stop calibration
-                    eStop(message);
-                    freeMeasurements();
-                    return true;//Should this return false?
                 }
             }
 
@@ -1332,6 +1358,50 @@ bool Maslow_::checkValidMove(double fromX, double fromY, double toX, double toY)
     return valid;
 }
 
+bool Maslow_::adjustFrameSizeToMatchFirstMeasurement() {
+    double offset = _beltEndExtension + _armLength;
+    double threshold = 50.0;
+    double amountToAdjust = 3;
+    int maxCycles = 450;
+
+    static int cycleNumber = 0; // This is used to prevent an infinite loop
+
+    while (cycleNumber <= maxCycles) {
+        double diffTL = calibration_data[0][0] - offset - computeTL(0, 0, 0);
+        double diffTR = calibration_data[1][0] - offset - computeTR(0, 0, 0);
+        double diffBL = calibration_data[2][0] - offset - computeBL(0, 0, 0);
+        double diffBR = calibration_data[3][0] - offset - computeBR(0, 0, 0);
+
+        if (std::abs(diffTL) > threshold || std::abs(diffTR) > threshold || diffBL < 0 || diffBR < 0) {
+            if (diffBL > threshold || diffBR > threshold) {
+                // The frame is currently too small, grow the frame and try again
+                tlY += amountToAdjust;
+                trX += amountToAdjust;
+                trY += amountToAdjust;
+                brX += amountToAdjust;
+                updateCenterXY();
+            } else if (diffBL < 0 || diffBR < 0) {
+                // The frame is currently too large, shrink the frame and try again
+                tlY -= amountToAdjust;
+                trX -= amountToAdjust;
+                trY -= amountToAdjust;
+                brX -= amountToAdjust;
+                updateCenterXY();
+            }
+
+            cycleNumber++;
+        } else {
+            if(cycleNumber > 0){
+                log_info("Frame size automaticlaly adjusted to " + std::to_string(brX) + " by " + std::to_string(trY));
+            }
+            return true;
+        }
+    }
+
+    log_error("Unable to find frame size, adjust initial frame size and try again");
+    return false;
+}
+
 //The number of points high and wide  must be an odd number
 bool Maslow_::generate_calibration_grid() {
 
@@ -1476,18 +1546,33 @@ void Maslow_::retractBR() {
     axisBR.reset();
 }
 void Maslow_::retractALL() {
-    retractingTL = true;
-    retractingTR = true;
-    retractingBL = true;
-    retractingBR = true;
-    complyALL    = false;
-    extendingALL = false;
-    axisTL.reset();
-    axisTR.reset();
-    axisBL.reset();
-    axisBR.reset();
-    setupIsComplete = false;
+
+    float x = 100;
+    float y = 100;
+
+    double TLLength = computeTL(0, 0, 0);
+    double TRLength = computeTR(0, 0, 0);
+
+    log_info("TL: " << TLLength << " TR: " << TRLength);
+
+    computeXYfromLengths(TLLength, TRLength, x, y);
+
+    log_info("Computed XY: " << x << ", " << y);
+
 }
+
+    // retractingTL = true;
+    // retractingTR = true;
+    // retractingBL = true;
+    // retractingBR = true;
+    // complyALL    = false;
+    // extendingALL = false;
+    // axisTL.reset();
+    // axisTR.reset();
+    // axisBL.reset();
+    // axisBR.reset();
+    // setupIsComplete = false;
+//}
 void Maslow_::extendALL() {
 
     if (!all_axis_homed()) {
@@ -1956,7 +2041,10 @@ double Maslow_::getTargetZ() {
     return targetZ;
 }
 
-//Updates where the center x and y positions are
+/* Calculates and updates the center (X, Y) position based on the coordinates of the four corners
+* (top-left, top-right, bottom-left, bottom-right) of a rectangular area. The center is determined
+* by finding the intersection of the diagonals of the rectangle.
+*/
 void Maslow_::updateCenterXY() {
     double A = (trY - blY) / (trX - blX);
     double B = (brY - tlY) / (brX - tlX);
