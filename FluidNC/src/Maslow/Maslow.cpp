@@ -319,18 +319,16 @@ void Maslow_::home() {
         //then make all the belts comply until they are extended fully, or user terminates it
         else {
             if (!extendedTL)
-                extendedTL = axisTL.extend(computeBL(0, 0, 0));
+                extendedTL = axisTL.extend(extendDist);
             if (!extendedTR)
-                extendedTR = axisTR.extend(computeBL(0, 0, 0));
+                extendedTR = axisTR.extend(extendDist);
             if (!extendedBL)
-                extendedBL = axisBL.extend(computeBL(0, 300, 0));
+                extendedBL = axisBL.extend(extendDist);
             if (!extendedBR)
-                extendedBR = axisBR.extend(computeBL(0, 300, 0));
+                extendedBR = axisBR.extend(extendDist);
             if (extendedTL && extendedTR && extendedBL && extendedBR) {
                 extendingALL = false;
-                //log_info("All belts extended to " << extendDist << "mm");
-                log_info("TL Extended To: " << computeBL(0, 0, 0));
-                log_info("TR Extended To: " << computeBL(0, 0, 0));
+                log_info("All belts extended to " << extendDist << "mm");
             }
         }
     }
@@ -429,6 +427,19 @@ bool Maslow_::takeSlackFunc() {
                 takeSlackState = 3;
                 holdTimer = millis();
                 setupIsComplete = true;
+
+                int zAxis = 2;
+                float* mpos = get_mpos();
+                mpos[0] = x;
+                mpos[1] = y;
+                set_motor_steps_from_mpos(mpos);
+
+                log_info("Current machine position loaded as X: " << x << " Y: " << y );
+
+                gc_sync_position();//This updates the Gcode engine with the new position from the stepping engine that we set with set_motor_steps
+                plan_sync_position();
+
+                sys.set_state(State::Idle);
             }
         }
     }
