@@ -374,9 +374,9 @@ void Maslow_::home() {
 
 /*
 * This function is used to take up the slack in the belts and confirm that the calibration values are resonable
-* It moves the sled to (0,0) and takes a measurement, then compares that measurement to the calibration data
-* If the calibration data is within a certain threshold of the measurement, the calibration is considered valid
-* If the calibration data is not within the threshold, the calibration is considered invalid
+* It does this by retracting the two lower belts and taking a measurement. The machine's position is then calculated 
+* from the lenghts of the two upper belts. The lengths of the two lower belts are then compared to their expected calculated lengths
+* If the difference is beyond a threshold we know that the stored anchor point locations do not match the real dimensons and and error is thrown
 */
 bool Maslow_::takeSlackFunc() {
     static int takeSlackState = 0; //0 -> Starting, 1-> Moving to (0,0), 2-> Taking a measurement
@@ -386,26 +386,16 @@ bool Maslow_::takeSlackFunc() {
 
     //Take a measurement
     if(takeSlackState == 0){
-        if (take_measurement_avg_with_check(2, UP)) {
-
+        if (take_measurement_avg_with_check(2, UP)) { //We really shouldn't be using the second position to store the data, it should have it's own array
             
             float x = 0;
             float y = 0;
-            computeXYfromLengths(calibration_data[2][0], calibration_data[2][1], x, y);
-
-            log_info("TL Measured As: " << calibration_data[2][0]);
-            log_info("TR Measured As: " << calibration_data[2][1]);
-
-            log_info("Machine Position found as X: " << x << " Y: " << y);
-
-            log_info("TL measurement: " << calibration_data[2][0] << " TL computed: " << computeTL(x, y, 0));
-            log_info("TR measurement: " << calibration_data[2][1] << " TR computed: " << computeTR(x, y, 0));
-            log_info("BL measurement: " << calibration_data[2][2] << " BL computed: " << computeBL(x, y, 0));
-            log_info("BR measurement: " << calibration_data[2][3] << " BR computed: " << computeBR(x, y, 0));
+            if(!computeXYfromLengths(calibration_data[2][0], calibration_data[2][1], x, y)){
+                log_error("Failed to compute XY from lengths");
+                return true;
+            }
 
             float extension = _beltEndExtension + _armLength;
-
-            log_info("Extension: " << extension);
             
             //This should use it's own array, this is not calibration data
             float diffTL = calibration_data[2][0] - measurementToXYPlane(computeTL(x, y, 0), tlZ);
@@ -428,14 +418,12 @@ bool Maslow_::takeSlackFunc() {
                 holdTimer = millis();
                 setupIsComplete = true;
 
-                int zAxis = 2;
+                log_info("Current machine position loaded as X: " << x << " Y: " << y );
+
                 float* mpos = get_mpos();
                 mpos[0] = x;
                 mpos[1] = y;
                 set_motor_steps_from_mpos(mpos);
-
-                log_info("Current machine position loaded as X: " << x << " Y: " << y );
-
                 gc_sync_position();//This updates the Gcode engine with the new position from the stepping engine that we set with set_motor_steps
                 plan_sync_position();
 
@@ -1112,8 +1100,11 @@ bool Maslow_::take_measurement_avg_with_check(int waypoint, int dir) {
                 float y = 0;
                 if(!computeXYfromLengths(calibration_data[0][0], calibration_data[0][1], x, y)){
                     eStop("Unable to find machine position from measurements");
+                    calibrationInProgress = false;
+                    waypoint              = 0;
+                    criticalCounter       = 0;
                     freeMeasurements();
-                    return true;
+                    return false;
                 }
 
                 log_info("Machine Position found as X: " << x << " Y: " << y);
@@ -1127,12 +1118,27 @@ bool Maslow_::take_measurement_avg_with_check(int waypoint, int dir) {
 
                 if (abs(diffTL) > threshold || abs(diffTR) > threshold || abs(diffBL) > threshold || abs(diffBR) > threshold) {
                     log_error("Center point off by over " << threshold << "mm");
-                    //Should we enter an alarm state here to prevent things from going wrong?
 
                     if(!adjustFrameSizeToMatchFirstMeasurement()){
                         eStop("Unable to find a valid frame size to match the first measurement");
+                        calibrationInProgress = false;
+                        waypoint              = 0;
+                        criticalCounter       = 0;
                         freeMeasurements();
-                        return true;//Should this return false?
+                        return false;
+                    }
+                    else{
+                        log_info("Recomputing position for new frame size");
+
+                        //This leaves the machine with a decent understanding of where it is for the next move
+                        computeXYfromLengths(calibration_data[0][0], calibration_data[0][1], x, y);
+                        float* mpos = get_mpos();
+                        mpos[0] = x;
+                        mpos[1] = y;
+                        set_motor_steps_from_mpos(mpos);
+                        gc_sync_position();//This updates the Gcode engine with the new position from the stepping engine that we set with set_motor_steps
+                        plan_sync_position();
+                        return true;
                     }
                 }
             }
