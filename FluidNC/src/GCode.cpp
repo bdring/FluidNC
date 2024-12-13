@@ -64,7 +64,9 @@ gc_modal_t modal_defaults = {
 
 void gc_init() {
     // Reset parser state:
+    auto save_tlo = gc_state.tool_length_offset;  // we want TLO to persist until reboot.
     memset(&gc_state, 0, sizeof(parser_state_t));
+    gc_state.tool_length_offset = save_tlo;
 
     // Load default G54 coordinate system.
     gc_state.modal          = modal_defaults;
