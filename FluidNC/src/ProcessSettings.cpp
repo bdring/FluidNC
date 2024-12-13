@@ -378,7 +378,7 @@ static Error cmd_log_verbose(const char* value, AuthenticationLevel auth_level, 
 }
 static Error home(AxisMask axisMask, Channel& out) {
     // see if blocking control switches are active
-    if (config->_control->pins_block_reset()) {
+    if (config->_control->pins_block_unlock()) {
         return Error::CheckControlPins;
     }
     if (axisMask != Machine::Homing::AllCycles) {  // if not AllCycles we need to make sure the cycle is not prohibited

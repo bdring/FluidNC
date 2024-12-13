@@ -22,7 +22,7 @@ public:
 
     bool stuck();
     bool safety_door_ajar();
-    bool pins_block_reset();
+    bool pins_block_unlock();
 
     std::string report_status();
 
