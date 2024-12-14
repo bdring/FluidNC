@@ -43,7 +43,7 @@ std::string Control::report_status() {
 }
 
 bool Control::pins_block_unlock() {
-    std::string blockers("DHFE"); // Door, Hold, Fault, E-Stop block unlock and homing
+    std::string blockers("FE"); // Fault, E-Stop block unlock and homing
     for (auto pin : _pins) {
         if (pin->get()  && blockers.find(pin->letter()) != std::string::npos) {
             return true;
