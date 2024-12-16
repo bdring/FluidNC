@@ -490,7 +490,7 @@ void Maslow_::calibration_loop() {
             
             log_info("Moved with slack complete to " << calibrationGrid[waypoint][0] << " " << calibrationGrid[waypoint][1]);
             log_info("About to take a measurement");
-            
+
             measurementInProgress = true;
             direction             = get_direction(calibrationGrid[waypoint - 1][0],
                                       calibrationGrid[waypoint - 1][1],
@@ -1119,12 +1119,12 @@ bool Maslow_::take_measurement_avg_with_check(int waypoint, int dir) {
                 log_info("Machine Position found as X: " << x << " Y: " << y);
 
                 //Recompute the first four waypoint locations based on the current position
-                calibrationGrid[1][0] = x - 100;
+                calibrationGrid[1][0] = x + 100;
                 calibrationGrid[1][1] = y;
-                calibrationGrid[2][0] = x - 100;
-                calibrationGrid[2][1] = y - 100;
+                calibrationGrid[2][0] = x + 100;
+                calibrationGrid[2][1] = y + 100;
                 calibrationGrid[3][0] = x;
-                calibrationGrid[3][1] = y - 100;
+                calibrationGrid[3][1] = y + 100;
 
                 double threshold = 100;
                 float diffTL = measurements[0][0] - measurementToXYPlane(computeTL(x, y, 0), tlZ);
@@ -1472,6 +1472,7 @@ bool Maslow_::generate_calibration_grid() {
     //The point in the center
     calibrationGrid[pointCount][0] = 0;
     calibrationGrid[pointCount][1] = 0;
+    recomputePoints[0] = 4;
     pointCount++;
 
     int maxX = 1;
@@ -1480,7 +1481,7 @@ bool Maslow_::generate_calibration_grid() {
     int currentX = 0;
     int currentY = -1;
 
-    recomputeCount = 0;
+    recomputeCount = 1;
 
 
     while(maxX <= numberOfCycles){ //4 produces a 9x9 grid
