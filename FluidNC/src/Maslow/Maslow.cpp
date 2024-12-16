@@ -448,7 +448,7 @@ bool Maslow_::takeSlackFunc() {
 // --Maslow calibration loop
 void Maslow_::calibration_loop() {
     static int  direction             = UP;
-    static bool measurementInProgress = false;
+    static bool measurementInProgress = true; //We start by taking a measurement, then we move
     if(waypoint > pointCount){
         calibrationInProgress = false;
         waypoint              = 0;
@@ -464,7 +464,10 @@ void Maslow_::calibration_loop() {
 
             waypoint++;  //Increment the waypoint counter
 
+            log_info("Measurement complete at waypoint " << waypoint);
+
             if (waypoint > recomputePoints[recomputeCountIndex]) {  //If we have reached the end of this stage of the calibration process
+                log_info("Recompute point reached, sending the data to the UI");
                 calibrationInProgress = false;
                 print_calibration_data();
                 calibrationDataWaiting = millis();
@@ -479,16 +482,21 @@ void Maslow_::calibration_loop() {
 
     //Move to the next point in the grid
     else {
+
         if (move_with_slack(calibrationGrid[waypoint - 1][0],
                             calibrationGrid[waypoint - 1][1],
                             calibrationGrid[waypoint][0],
                             calibrationGrid[waypoint][1])) {
+            
+            log_info("Moved with slack complete to " << calibrationGrid[waypoint][0] << " " << calibrationGrid[waypoint][1]);
+            log_info("About to take a measurement");
+            
             measurementInProgress = true;
             direction             = get_direction(calibrationGrid[waypoint - 1][0],
                                       calibrationGrid[waypoint - 1][1],
                                       calibrationGrid[waypoint][0],
-                                      calibrationGrid[waypoint][1]);
-            x                     = calibrationGrid[waypoint][0];
+                                      calibrationGrid[waypoint][1]); //This is used to set the order that the belts are pulled tight in the following measurement
+            x                     = calibrationGrid[waypoint][0]; //Are these ever used anywhere?
             y                     = calibrationGrid[waypoint][1];
             hold(250);
         }
@@ -821,7 +829,7 @@ bool Maslow_::computeXYfromLengths(double TL, double TR, float &x, float &y) {
  * - Takes a measurement once both belts are tight and stores it in the calibration data array.
  * 
  * @param waypoint The waypoint number to store the result.
- * @param dir The direction of the last move (UP, DOWN, LEFT, RIGHT).
+ * @param dir The direction of the last move (UP, DOWN, LEFT, RIGHT). This is used to descide which belts to tighten first
  * @param run The run mode (0 for sequential tightening, non-zero for simultaneous tightening).
  * @return True when the measurement is done, false otherwise.
  */
@@ -998,6 +1006,7 @@ void freeMeasurements() {
 }
 
 // Takes a series of measurements, calculates average and records calibration data;  Returns true when it's done and the result has been stored
+// There is way too much being done in this function. It needs to be split apart and cleaned up
 bool Maslow_::take_measurement_avg_with_check(int waypoint, int dir) {
     //take 5 measurements in a row, (ignoring the first one), if they are all within 1mm of each other, take the average and record it to the calibration data array
     static int           run                = 0;
@@ -1108,6 +1117,14 @@ bool Maslow_::take_measurement_avg_with_check(int waypoint, int dir) {
                 }
 
                 log_info("Machine Position found as X: " << x << " Y: " << y);
+
+                //Recompute the first four waypoint locations based on the current position
+                calibrationGrid[1][0] = x - 100;
+                calibrationGrid[1][1] = y;
+                calibrationGrid[2][0] = x - 100;
+                calibrationGrid[2][1] = y - 100;
+                calibrationGrid[3][0] = x;
+                calibrationGrid[3][1] = y - 100;
 
                 double threshold = 100;
                 float diffTL = measurements[0][0] - measurementToXYPlane(computeTL(x, y, 0), tlZ);
@@ -1285,7 +1302,6 @@ bool Maslow_::move_with_slack(double fromX, double fromY, double toX, double toY
         }
     }
 
-    //This system of setting the final target and then waiting until we get there doesn't feel good to me
     switch (direction) {
         case UP:
             setTargets(toX, getTargetY() + stepSize, 0);
