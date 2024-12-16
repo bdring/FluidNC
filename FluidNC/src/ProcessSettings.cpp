@@ -377,6 +377,10 @@ static Error cmd_log_verbose(const char* value, AuthenticationLevel auth_level, 
     return Error::Ok;
 }
 static Error home(AxisMask axisMask, Channel& out) {
+    // see if blocking control switches are active
+    if (config->_control->pins_block_unlock()) {
+        return Error::CheckControlPins;
+    }
     if (axisMask != Machine::Homing::AllCycles) {  // if not AllCycles we need to make sure the cycle is not prohibited
         // if there is a cycle it is the axis from $H<axis>
         auto n_axis = Axes::_numberAxis;
