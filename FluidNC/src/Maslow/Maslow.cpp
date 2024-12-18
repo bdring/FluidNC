@@ -1119,12 +1119,16 @@ bool Maslow_::take_measurement_avg_with_check(int waypoint, int dir) {
                 log_info("Machine Position found as X: " << x << " Y: " << y);
 
                 //Recompute the first four waypoint locations based on the current position
+                calibrationGrid[0][0] = x;//This first point is never really used because we've already measured here, but it shouldn't be left undefined
+                calibrationGrid[0][1] = y;
                 calibrationGrid[1][0] = x + 100;
                 calibrationGrid[1][1] = y;
                 calibrationGrid[2][0] = x + 100;
                 calibrationGrid[2][1] = y + 100;
                 calibrationGrid[3][0] = x;
                 calibrationGrid[3][1] = y + 100;
+
+                printCalibrationGrid();
 
                 double threshold = 100;
                 float diffTL = measurements[0][0] - measurementToXYPlane(computeTL(x, y, 0), tlZ);
@@ -1394,11 +1398,15 @@ bool Maslow_::checkValidMove(double fromX, double fromY, double toX, double toY)
     return valid;
 }
 
+
+/*
+* This function takes a single measurement and adjusts the frame dimensions to find a valid frame size that matches the measurement
+*/
 bool Maslow_::adjustFrameSizeToMatchFirstMeasurement() {
     double offset = _beltEndExtension + _armLength;
     double threshold = 50.0;
     double amountToAdjust = 3;
-    int maxCycles = 450;
+    int maxCycles = 1000;
 
     static int cycleNumber = 0; // This is used to prevent an infinite loop
 
@@ -1409,6 +1417,11 @@ bool Maslow_::adjustFrameSizeToMatchFirstMeasurement() {
         double diffBR = calibration_data[3][0] - offset - computeBR(0, 0, 0);
 
         if (std::abs(diffTL) > threshold || std::abs(diffTR) > threshold || diffBL < 0 || diffBR < 0) {
+
+            if(cycleNumber%10 == 0){
+                log_info("diffBL: " + std::to_string(diffBL) + " diffBR: " + std::to_string(diffBR));
+            }
+
             if (diffBL > threshold || diffBR > threshold) {
                 // The frame is currently too small, grow the frame and try again
                 tlY += amountToAdjust;
@@ -1434,7 +1447,8 @@ bool Maslow_::adjustFrameSizeToMatchFirstMeasurement() {
         }
     }
 
-    log_error("Unable to find frame size, adjust initial frame size and try again");
+    log_error("Unable to automatically adjust frame size in the aloted cycles");
+    log_error("Frame size is currently: " + std::to_string(brX) + " by " + std::to_string(trY));
     return false;
 }
 
@@ -1467,12 +1481,12 @@ bool Maslow_::generate_calibration_grid() {
             return false; // return false or handle error appropriately
     }
 
-    pointCount = 0;
+    pointCount = 4; //The first four points are computed dynamically
 
     //The point in the center
     calibrationGrid[pointCount][0] = 0;
     calibrationGrid[pointCount][1] = 0;
-    recomputePoints[0] = 4;
+    recomputePoints[0] = 3;
     pointCount++;
 
     int maxX = 1;
