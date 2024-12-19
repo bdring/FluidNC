@@ -1104,32 +1104,9 @@ bool Maslow_::take_measurement_avg_with_check(int waypoint, int dir) {
 
             //A check to see if the results on the first point are within the expected range
             if(waypoint == 0){
-                //Compute the current XY position from the top two belt measurements
-                float x = 0;
-                float y = 0;
-                if(!computeXYfromLengths(calibration_data[0][0], calibration_data[0][1], x, y)){
-                    eStop("Unable to find machine position from measurements");
-                    calibrationInProgress = false;
-                    waypoint              = 0;
-                    criticalCounter       = 0;
-                    freeMeasurements();
-                    return false;
-                }
 
-                log_info("Machine Position found as X: " << x << " Y: " << y);
 
-                //Recompute the first four waypoint locations based on the current position
-                calibrationGrid[0][0] = x;//This first point is never really used because we've already measured here, but it shouldn't be left undefined
-                calibrationGrid[0][1] = y;
-                calibrationGrid[1][0] = x + 100;
-                calibrationGrid[1][1] = y;
-                calibrationGrid[2][0] = x + 100;
-                calibrationGrid[2][1] = y + 100;
-                calibrationGrid[3][0] = x;
-                calibrationGrid[3][1] = y + 100;
-
-                printCalibrationGrid();
-
+//If the frame size is way off, we will compute a rough (assumed to be a square) frame size from the first measurmeent
                 double threshold = 100;
                 float diffTL = measurements[0][0] - measurementToXYPlane(computeTL(x, y, 0), tlZ);
                 float diffTR = measurements[0][1] - measurementToXYPlane(computeTR(x, y, 0), trZ);
@@ -1148,20 +1125,40 @@ bool Maslow_::take_measurement_avg_with_check(int waypoint, int dir) {
                         freeMeasurements();
                         return false;
                     }
-                    else{
-                        log_info("Recomputing position for new frame size");
-
-                        //This leaves the machine with a decent understanding of where it is for the next move
-                        computeXYfromLengths(calibration_data[0][0], calibration_data[0][1], x, y);
-                        float* mpos = get_mpos();
-                        mpos[0] = x;
-                        mpos[1] = y;
-                        set_motor_steps_from_mpos(mpos);
-                        gc_sync_position();//This updates the Gcode engine with the new position from the stepping engine that we set with set_motor_steps
-                        plan_sync_position();
-                        return true;
-                    }
                 }
+
+                //Compute the current XY position from the top two belt measurements
+                float x = 0;
+                float y = 0;
+                if(!computeXYfromLengths(calibration_data[0][0], calibration_data[0][1], x, y)){
+                    eStop("Unable to find machine position from measurements");
+                    calibrationInProgress = false;
+                    waypoint              = 0;
+                    criticalCounter       = 0;
+                    freeMeasurements();
+                    return false;
+                }
+                float* mpos = get_mpos();
+                mpos[0] = x;
+                mpos[1] = y;
+                set_motor_steps_from_mpos(mpos);
+                gc_sync_position();//This updates the Gcode engine with the new position from the stepping engine that we set with set_motor_steps
+                plan_sync_position();
+
+                log_info("Machine Position found as X: " << x << " Y: " << y);
+
+                //Recompute the first four waypoint locations based on the current position
+                calibrationGrid[0][0] = x;//This first point is never really used because we've already measured here, but it shouldn't be left undefined
+                calibrationGrid[0][1] = y;
+                calibrationGrid[1][0] = x + 100;
+                calibrationGrid[1][1] = y;
+                calibrationGrid[2][0] = x + 100;
+                calibrationGrid[2][1] = y + 100;
+                calibrationGrid[3][0] = x;
+                calibrationGrid[3][1] = y + 100;
+
+                printCalibrationGrid();
+                
             }
 
             //This is the exit to indicate that the measurement was successful
@@ -1403,53 +1400,35 @@ bool Maslow_::checkValidMove(double fromX, double fromY, double toX, double toY)
 * This function takes a single measurement and adjusts the frame dimensions to find a valid frame size that matches the measurement
 */
 bool Maslow_::adjustFrameSizeToMatchFirstMeasurement() {
-    double offset = _beltEndExtension + _armLength;
-    double threshold = 50.0;
-    double amountToAdjust = 3;
-    int maxCycles = 1000;
 
-    static int cycleNumber = 0; // This is used to prevent an infinite loop
+    //Get the last measurments
+    double tlLen = measurements[0][0];
+    double trLen = measurements[0][1];
+    double blLen = measurements[0][2];
+    double brLen = measurements[0][3];
 
-    while (cycleNumber <= maxCycles) {
-        double diffTL = calibration_data[0][0] - offset - computeTL(0, 0, 0);
-        double diffTR = calibration_data[1][0] - offset - computeTR(0, 0, 0);
-        double diffBL = calibration_data[2][0] - offset - computeBL(0, 0, 0);
-        double diffBR = calibration_data[3][0] - offset - computeBR(0, 0, 0);
-
-        if (std::abs(diffTL) > threshold || std::abs(diffTR) > threshold || diffBL < 0 || diffBR < 0) {
-
-            if(cycleNumber%10 == 0){
-                log_info("diffBL: " + std::to_string(diffBL) + " diffBR: " + std::to_string(diffBR));
-            }
-
-            if (diffBL > threshold || diffBR > threshold) {
-                // The frame is currently too small, grow the frame and try again
-                tlY += amountToAdjust;
-                trX += amountToAdjust;
-                trY += amountToAdjust;
-                brX += amountToAdjust;
-                updateCenterXY();
-            } else if (diffBL < 0 || diffBR < 0) {
-                // The frame is currently too large, shrink the frame and try again
-                tlY -= amountToAdjust;
-                trX -= amountToAdjust;
-                trY -= amountToAdjust;
-                brX -= amountToAdjust;
-                updateCenterXY();
-            }
-
-            cycleNumber++;
-        } else {
-            if(cycleNumber > 0){
-                log_info("Frame size automaticlaly adjusted to " + std::to_string(brX) + " by " + std::to_string(trY));
-            }
-            return true;
-        }
+    //Check that we are in fact on the center line. The math assumes that we are roughly centered on the frame and so
+    //the topleft and topright measurements should be roughly the same. It doesn't need to be exact.
+    if (std::abs(tlLen - trLen) > 20) {
+        log_error("Unable to adjust frame size. Not centered.");
+        return false;
     }
 
-    log_error("Unable to automatically adjust frame size in the aloted cycles");
-    log_error("Frame size is currently: " + std::to_string(brX) + " by " + std::to_string(trY));
-    return false;
+    //Compute the size of the frame from the given measurements
+
+    double numerator = sqrt(pow(tlLen, 2) + sqrt(-pow(tlLen, 4) + 6 * pow(tlLen, 2) * pow(blLen, 2) - pow(blLen, 4)) + pow(blLen, 2));
+    double denominator = sqrt(2);
+    float L = numerator / denominator;
+
+    //Adjust the frame size to match the computed size
+    tlY = L;
+    trX = L;
+    trY = L;
+    brX = L;
+    updateCenterXY();
+
+    log_info("Frame size automaticlaly adjusted to " + std::to_string(brX) + " by " + std::to_string(trY));
+    return true;
 }
 
 //The number of points high and wide  must be an odd number
