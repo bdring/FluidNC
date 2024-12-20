@@ -15,6 +15,8 @@ namespace Machine {
         Pin _data;
         Pin _ws;
 
+        uint32_t _min_pulse_us = 2;
+
         void validate() override;
         void group(Configuration::HandlerBase& handler) override;
 

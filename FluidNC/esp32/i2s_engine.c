@@ -31,8 +31,7 @@
 
 #include "esp_intr_alloc.h"
 
-/* 32-bit mode: 1000000 usec / ((160000000 Hz) /  5 / 2) x 32 bit/pulse x 2(stereo) = 4 usec/pulse */
-const uint32_t I2S_OUT_USEC_PER_PULSE = 2;
+uint32_t i2s_frame_us;  // 1, 2 or 4
 
 static volatile uint32_t i2s_out_port_data = 0;
 
@@ -41,10 +40,6 @@ static int i2s_out_initialized = 0;
 static pinnum_t i2s_out_ws_pin   = 255;
 static pinnum_t i2s_out_bck_pin  = 255;
 static pinnum_t i2s_out_data_pin = 255;
-
-//
-// Internal functions
-//
 
 static inline void i2s_out_reset_tx_rx() {
     i2s_ll_tx_reset(&I2S0);
@@ -125,7 +120,7 @@ static int i2s_out_start() {
     i2s_out_reset_tx_rx();
     i2s_out_reset_fifo_without_lock();
 
-    i2s_ll_tx_set_chan_mod(&I2S0, I2S_CHANNEL_FMT_ONLY_LEFT);
+    // i2s_ll_tx_set_chan_mod(&I2S0, I2S_CHANNEL_FMT_RIGHT_LEFT);
     i2s_ll_tx_stop_on_fifo_empty(&I2S0, true);
     i2s_ll_tx_start(&I2S0);
 
@@ -159,14 +154,11 @@ static int i2s_out_start() {
 
 static bool timer_running = false;
 
-//
-// External functions
-//
 void i2s_out_delay() {
     // Depending on the timing, it may not be reflected immediately,
     // so wait twice as long just in case.
     uint32_t wait_counts = timer_running ? FIFO_THRESHOLD + FIFO_RELOAD : 2;
-    delay_us(I2S_OUT_USEC_PER_PULSE * wait_counts);
+    delay_us(i2s_frame_us * wait_counts);
 }
 
 void IRAM_ATTR i2s_out_write(pinnum_t pin, uint8_t val) {
@@ -192,6 +184,8 @@ int i2s_out_init(i2s_out_init_t* init_param) {
     if (i2s_out_initialized) {
         return -1;
     }
+
+    i2s_frame_us = init_param->min_pulse_us;
 
     i2s_out_port_data = init_param->init_val;
 
@@ -241,77 +235,60 @@ int i2s_out_init(i2s_out_init_t* init_param) {
     i2s_ll_enable_camera(&I2S0, false);
 #ifdef SOC_I2S_SUPPORTS_PDM_TX
     i2s_ll_tx_enable_pdm(&I2S0, false);
-    i2s_ll_rx_enable_pdm(&I2S0, false);
 #endif
 
     i2s_ll_enable_dma(&I2S0, false);
 
-    i2s_ll_tx_set_chan_mod(&I2S0, I2S_CHANNEL_FMT_ONLY_LEFT);
+    i2s_ll_tx_set_chan_mod(&I2S0, I2S_CHANNEL_FMT_RIGHT_LEFT);  // Overridden by i2s_out_start
 
-#if I2S_OUT_NUM_BITS == 16
-    i2s_ll_tx_set_sample_bit(&I2S0, I2S_BITS_PER_SAMPLE_16BIT, I2S_BITS_PER_SAMPLE_16BIT);
-    i2s_ll_rx_set_sample_bit(&I2S0, I2S_BITS_PER_SAMPLE_16BIT, I2S_BITS_PER_SAMPLE_16BIT);
-#else
-    i2s_ll_tx_set_sample_bit(&I2S0, I2S_BITS_PER_SAMPLE_32BIT, I2S_BITS_PER_SAMPLE_32BIT);
-    i2s_ll_rx_set_sample_bit(&I2S0, I2S_BITS_PER_SAMPLE_32BIT, I2S_BITS_PER_SAMPLE_32BIT);
-    i2s_ll_tx_enable_mono_mode(&I2S0, true);
-    i2s_ll_rx_enable_mono_mode(&I2S0, true);
-    // Data width is 32-bit. Forgetting this setting will result in a 16-bit transfer.
-#endif
-    //    I2S0.conf.tx_mono = 0;  // Set this bit to enable transmitter’s mono mode in PCM standard mode.
-
-    i2s_ll_rx_set_chan_mod(&I2S0, 1);
-    // i2s_ll_rx_set_chan_mod(&I2S0, I2S_CHANNEL_FMT_ALL_LEFT, false);
-    //    I2S0.conf.rx_mono = 0;
+    i2s_ll_tx_set_sample_bit(&I2S0, I2S_BITS_PER_SAMPLE_32BIT, I2S_BITS_PER_SAMPLE_16BIT);
+    i2s_ll_tx_enable_mono_mode(&I2S0, false);
 
     i2s_ll_enable_dma(&I2S0, false);  // FIFO is not connected to DMA
     i2s_ll_tx_stop(&I2S0);
     i2s_ll_rx_stop(&I2S0);
 
-    i2s_ll_tx_enable_msb_right(&I2S0, true);     // Place right-channel data at the MSB in the transmit FIFO.
+    i2s_ll_tx_enable_msb_right(&I2S0, true);  // Place right-channel data at the MSB in the transmit FIFO.
+
     i2s_ll_tx_enable_right_first(&I2S0, false);  // Send the left-channel data first
+    // i2s_ll_tx_enable_right_first(&I2S0, true);  // Send the right-channel data first
 
     i2s_ll_tx_set_slave_mod(&I2S0, false);  // Master
     i2s_ll_tx_force_enable_fifo_mod(&I2S0, true);
-#ifdef SOC_I2S_SUPPORTS_PDM_RX
-    i2s_ll_rx_enable_pdm(&I2S0, false);
-#endif
 #ifdef SOC_I2S_SUPPORTS_PDM_TX
     i2s_ll_tx_enable_pdm(&I2S0, false);
 #endif
 
     // I2S_COMM_FORMAT_I2S_LSB
     i2s_ll_tx_set_ws_width(&I2S0, 0);          // PCM standard mode.
-    i2s_ll_rx_set_ws_width(&I2S0, 0);          // PCM standard mode.
     i2s_ll_tx_enable_msb_shift(&I2S0, false);  // Do not use the Philips standard to avoid bit-shifting
-    i2s_ll_rx_enable_msb_shift(&I2S0, false);  // Do not use the Philips standard to avoid bit-shifting
 
-    // i2s_set_clk
-
-    // set clock (fi2s) 160MHz / 5
 #ifdef CONFIG_IDF_TARGET_ESP32
     i2s_ll_tx_clk_set_src(&I2S0, I2S_CLK_D2CLK);
 #endif
     // N + b/a = 0
-#if I2S_OUT_NUM_BITS == 16
-    // N = 10
-    uint16_t mclk_div = 10;
-#else
-    uint16_t mclk_div = 3;
-    // N = 5
-    // 5 could be changed to 2 to make I2SO pulse at 312.5 kHZ instead of 125 kHz, but doing so would
-    // require some changes to deal with pulse lengths that are not an integral number of microseconds.
-#endif
-    i2s_ll_mclk_div_t first_div = { 2, 3, 47 };  // { N, b, a }
-    i2s_ll_tx_set_clk(&I2S0, &first_div);
+    //    i2s_ll_mclk_div_t first_div = { 2, 3, 47 };  // { N, b, a }
+    //    i2s_ll_tx_set_clk(&I2S0, &first_div);
 
-    i2s_ll_mclk_div_t div = { 2, 32, 16 };  // b/a = 0.5
+    i2s_ll_mclk_div_t div = { 5, 0, 0 };
+    switch (i2s_frame_us) {
+        case 1:
+            div.mclk_div = 2;  // Fractional divisor 2.5, i.e. 2 + 16/32
+            div.a        = 32;
+            div.b        = 16;
+            break;
+        case 2:
+            div.mclk_div = 5;
+            break;
+
+        case 4:
+        default:
+            div.mclk_div = 10;
+            break;
+    }
     i2s_ll_tx_set_clk(&I2S0, &div);
 
-    // Bit clock configuration bit in transmitter mode.
-    // fbck = fi2s / tx_bck_div_num = (160 MHz / 5) / 2 = 16 MHz
     i2s_ll_tx_set_bck_div_num(&I2S0, 2);
-    i2s_ll_rx_set_bck_div_num(&I2S0, 2);
 
     // Remember GPIO pin numbers
     i2s_out_ws_pin      = init_param->ws_pin;
@@ -418,15 +395,15 @@ static uint32_t init_engine(uint32_t dir_delay_us, uint32_t pulse_us, uint32_t f
     _pulse_func = callback;
     i2s_fifo_intr_setup();
 
-    if (pulse_us < I2S_OUT_USEC_PER_PULSE) {
-        pulse_us = I2S_OUT_USEC_PER_PULSE;
+    if (pulse_us < i2s_frame_us) {
+        pulse_us = i2s_frame_us;
     }
     if (pulse_us > I2S_MAX_USEC_PER_PULSE) {
         pulse_us = I2S_MAX_USEC_PER_PULSE;
     }
     _dir_delay_us = dir_delay_us;
-    _pulse_counts = (pulse_us + I2S_OUT_USEC_PER_PULSE - 1) / I2S_OUT_USEC_PER_PULSE;
-    _tick_divisor = frequency * I2S_OUT_USEC_PER_PULSE / 1000000;
+    _pulse_counts = (pulse_us + i2s_frame_us - 1) / i2s_frame_us;
+    _tick_divisor = frequency * i2s_frame_us / 1000000;
 
     _remaining_pulse_counts = 0;
     _remaining_delay_counts = 0;
@@ -437,7 +414,7 @@ static uint32_t init_engine(uint32_t dir_delay_us, uint32_t pulse_us, uint32_t f
     start_timer();
     set_timer_ticks(100);
 
-    return _pulse_counts * I2S_OUT_USEC_PER_PULSE;
+    return _pulse_counts * i2s_frame_us;
 }
 
 static int init_step_pin(int step_pin, int step_invert) {
@@ -484,7 +461,7 @@ static int IRAM_ATTR start_unstep() {
 static IRAM_ATTR void finish_unstep() {}
 
 static uint32_t max_pulses_per_sec() {
-    return 1000000 / (2 * _pulse_counts * I2S_OUT_USEC_PER_PULSE);
+    return 1000000 / (2 * _pulse_counts * i2s_frame_us);
 }
 
 // clang-format off
