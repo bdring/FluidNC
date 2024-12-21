@@ -23,7 +23,7 @@ namespace Machine {
     }
 
     void I2SOBus::init() {
-        log_info("I2SO BCK:" << _bck.name() << " WS:" << _ws.name() << " DATA:" << _data.name());
+        log_info("I2SO BCK:" << _bck.name() << " WS:" << _ws.name() << " DATA:" << _data.name() << "Min Pulse:" << _min_pulse_us << "us");
 
         // Check capabilities:
         if (!_ws.capabilities().has(Pin::Capabilities::Output | Pin::Capabilities::Native)) {
