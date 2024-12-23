@@ -1410,7 +1410,7 @@ bool Maslow_::adjustFrameSizeToMatchFirstMeasurement() {
     //Check that we are in fact on the center line. The math assumes that we are roughly centered on the frame and so
     //the topleft and topright measurements should be roughly the same. It doesn't need to be exact.
     if (std::abs(tlLen - trLen) > 20) {
-        log_error("Unable to adjust frame size. Not centered.");
+        log_error("Unable to adjust frame size. Not centered."); //There exists a more generalized solution which should be implimented here: https://math.stackexchange.com/questions/5013127/find-square-size-from-inscribed-triangles?noredirect=1#comment10752043_5013127
         return false;
     }
 
