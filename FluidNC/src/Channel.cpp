@@ -9,6 +9,7 @@
 #include "Logging.h"
 #include "Job.h"
 #include <string_view>
+#include <algorithm>
 
 void Channel::flushRx() {
     _linelen   = 0;
@@ -328,7 +329,7 @@ void Channel::sendLine(MsgLevel level, const std::string& line) {
     }
 }
 
-bool Channel::is_visible(const std::string& stem, const std::string& extension, bool isdir) {
+bool Channel::is_visible(const std::string& stem, std::string extension, bool isdir) {
     if (stem.length() && stem[0] == '.') {
         // Exclude hidden files and directories
         return false;
@@ -340,6 +341,9 @@ bool Channel::is_visible(const std::string& stem, const std::string& extension, 
     if (isdir) {
         return true;
     }
+
+    // Convert extension to canonical lower case format
+    std::transform(extension.begin(), extension.end(), extension.begin(), [](unsigned char c) { return std::tolower(c); });
 
     // common gcode extensions
     std::string_view extensions(".g .gc .gco .gcode .nc .ngc .ncc .txt .cnc .tap");
