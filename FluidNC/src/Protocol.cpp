@@ -484,9 +484,7 @@ static void protocol_do_alarm(void* alarmVoid) {
 static void protocol_start_holding() {
     if (!(sys.suspend.bit.motionCancel || sys.suspend.bit.jogCancel)) {  // Block, if already holding.
         sys.step_control = {};
-        if (!Stepper::update_plan_block_parameters()) {  // Notify stepper module to recompute for hold deceleration.
-            //sys.step_control.endMotion = true;
-        }
+        Stepper::update_plan_block_parameters();
         sys.step_control.executeHold = true;  // Initiate suspend state with active flag.
     }
 }
