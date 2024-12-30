@@ -449,7 +449,7 @@ bool Maslow_::takeSlackFunc() {
 void Maslow_::calibration_loop() {
     static int  direction             = UP;
     static bool measurementInProgress = true; //We start by taking a measurement, then we move
-    if(waypoint > pointCount){
+    if(waypoint > pointCount){ //Point count is the total number of points to measure so if waypoint > pointcount then the overall measurement process is complete
         calibrationInProgress = false;
         waypoint              = 0;
         setupIsComplete       = true;
@@ -1156,8 +1156,6 @@ bool Maslow_::take_measurement_avg_with_check(int waypoint, int dir) {
                 calibrationGrid[2][1] = y + 100;
                 calibrationGrid[3][0] = x;
                 calibrationGrid[3][1] = y + 100;
-
-                printCalibrationGrid();
                 
             }
 
@@ -1198,7 +1196,9 @@ bool Maslow_::move_with_slack(double fromX, double fromY, double toX, double toY
         moveBeginTimer = millis();
         decompress = false;
         direction = get_direction(fromX, fromY, toX, toY);
-        checkValidMove(fromX, fromY, toX, toY);
+        if(withSlack){
+            checkValidMove(fromX, fromY, toX, toY);  //Here we can handle diagonal moves when all four belts are taught...check if this is needed before merging
+        }
     }
 
     //Decompress belts for 500ms...this happens by returning right away before running any of the rest of the code
@@ -1628,6 +1628,26 @@ void Maslow_::runCalibration() {
         sys.set_state(State::Idle);
         return;
     }
+
+    //Compute the current XY position from the top two belt measurements
+    float x = 0;
+    float y = 0;
+    
+    //At this point it's likely that we have just sent the machine new cordinates for the anchor points so we need to figure out our new XY
+    //cordinates by looing at the current lengths of the top two belts.
+    if(!computeXYfromLengths(measurementToXYPlane(axisTL.getPosition(), tlZ), measurementToXYPlane(axisTR.getPosition(), trZ), x, y)){
+        eStop("Unable to find machine position from measurements");
+        calibrationInProgress = false;
+        waypoint              = 0;
+        freeMeasurements();
+        return;
+    }
+    float* mpos = get_mpos();
+    mpos[0] = x;
+    mpos[1] = y;
+    set_motor_steps_from_mpos(mpos);
+    gc_sync_position();//This updates the Gcode engine with the new position from the stepping engine that we set with set_motor_steps
+    plan_sync_position();
 
     sys.set_state(State::Homing);
 
