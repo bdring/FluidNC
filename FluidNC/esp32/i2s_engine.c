@@ -154,11 +154,10 @@ static int i2s_out_start() {
 
 static bool timer_running = false;
 
+// i2s_out_delay() is used by synchronous_write(), to ensure that that
+// the newly-written data has arrived at the shift register output
 void i2s_out_delay() {
-    // Depending on the timing, it may not be reflected immediately,
-    // so wait twice as long just in case.
-    uint32_t wait_counts = timer_running ? FIFO_THRESHOLD + FIFO_RELOAD : 2;
-    delay_us(i2s_frame_us * wait_counts);
+    delay_us((FIFO_LENGTH + FIFO_RELOAD) * (I2S_OUT_USEC_PER_PULSE / 2));
 }
 
 void IRAM_ATTR i2s_out_write(pinnum_t pin, uint8_t val) {

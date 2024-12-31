@@ -484,16 +484,17 @@ static void protocol_do_alarm(void* alarmVoid) {
 static void protocol_start_holding() {
     if (!(sys.suspend.bit.motionCancel || sys.suspend.bit.jogCancel)) {  // Block, if already holding.
         sys.step_control = {};
-        if (!Stepper::update_plan_block_parameters()) {  // Notify stepper module to recompute for hold deceleration.
-            sys.step_control.endMotion = true;
-        }
+        Stepper::update_plan_block_parameters();
         sys.step_control.executeHold = true;  // Initiate suspend state with active flag.
     }
 }
 
 static void protocol_cancel_jogging() {
-    if (!sys.suspend.bit.motionCancel) {
-        sys.suspend.bit.jogCancel = true;
+    if (!(sys.suspend.bit.motionCancel || sys.suspend.bit.jogCancel)) {  // Block, if already holding.
+        sys.step_control = {};
+        Stepper::update_plan_block_parameters();
+        sys.step_control.executeHold = true;  // Initiate suspend state with active flag.
+        sys.suspend.bit.jogCancel    = true;
     }
 }
 
@@ -525,7 +526,6 @@ void protocol_do_motion_cancel() {
             break;
 
         case State::Jog:
-            protocol_start_holding();
             protocol_cancel_jogging();
             // When jogging, we do not set motionCancel, hence return not break
             return;
@@ -571,7 +571,6 @@ static void protocol_do_feedhold() {
             break;
 
         case State::Jog:
-            protocol_start_holding();
             protocol_cancel_jogging();
             return;  // Do not change the state to Hold
     }
@@ -623,7 +622,6 @@ static void protocol_do_safety_door() {
             protocol_start_holding();
             break;
         case State::Jog:
-            protocol_start_holding();
             protocol_cancel_jogging();
             break;
     }

@@ -42,6 +42,16 @@ std::string Control::report_status() {
     return ret;
 }
 
+bool Control::pins_block_unlock() {
+    std::string blockers("FE"); // Fault, E-Stop block unlock and homing
+    for (auto pin : _pins) {
+        if (pin->get()  && blockers.find(pin->letter()) != std::string::npos) {
+            return true;
+        }
+    }
+    return false;
+}
+
 bool Control::stuck() {
     for (auto pin : _pins) {
         if (pin->get()) {

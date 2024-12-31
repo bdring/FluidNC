@@ -116,4 +116,5 @@ void make_settings() {
     INT_PROXY("21", "Grbl/HardLimitsEnable", config._axes->hasHardLimits())
     INT_PROXY("22", "Grbl/HomingCycleEnable", (bool)Axes::homingMask)
     INT_PROXY("23", "Grbl/HomingInvertMask", Homing::direction_mask)
+    INT_PROXY("32", "Grbl/LaserMode", spindle->isRateAdjusted())
 }

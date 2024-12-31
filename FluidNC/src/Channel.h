@@ -137,7 +137,7 @@ public:
         return readBytes(buffer, length);
     }
 
-    virtual bool is_visible(const std::string& stem, const std::string& extension, bool isdir);
+    virtual bool is_visible(const std::string& stem, std::string extension, bool isdir);
 
     size_t timedReadBytes(uint8_t* buffer, size_t length, TickType_t timeout) {
         return timedReadBytes(reinterpret_cast<char*>(buffer), length, timeout);

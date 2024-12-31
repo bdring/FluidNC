@@ -34,7 +34,11 @@
 // WU Readable and writable as user and admin
 // WA Readable as user and admin, writable as admin
 
+static Error switchInchMM(const char* value, AuthenticationLevel auth_level, Channel& out);
+
 static Error fakeMaxSpindleSpeed(const char* value, AuthenticationLevel auth_level, Channel& out);
+
+static Error report_init_message_cmd(const char* value, AuthenticationLevel auth_level, Channel& out);
 
 // If authentication is disabled, auth_level will be LEVEL_ADMIN
 static bool auth_failed(Word* w, const char* value, AuthenticationLevel auth_level) {
@@ -193,9 +197,13 @@ static void show_settings(Channel& out, type_t type) {
             show_setting(s->getGrblName(), s->getCompatibleValue(), NULL, out);
         }
     }
+   // Print Report/Inches
+    switchInchMM(NULL, AuthenticationLevel::LEVEL_ADMIN, out);
+
     // need this per issue #1036
     fakeMaxSpindleSpeed(NULL, AuthenticationLevel::LEVEL_ADMIN, out);
 }
+
 static Error report_normal_settings(const char* value, AuthenticationLevel auth_level, Channel& out) {
     show_settings(out, GRBL);  // GRBL non-axis settings
     return Error::Ok;
@@ -377,6 +385,10 @@ static Error cmd_log_verbose(const char* value, AuthenticationLevel auth_level, 
     return Error::Ok;
 }
 static Error home(AxisMask axisMask, Channel& out) {
+    // see if blocking control switches are active
+    if (config->_control->pins_block_unlock()) {
+        return Error::CheckControlPins;
+    }
     if (axisMask != Machine::Homing::AllCycles) {  // if not AllCycles we need to make sure the cycle is not prohibited
         // if there is a cycle it is the axis from $H<axis>
         auto n_axis = Axes::_numberAxis;
@@ -705,6 +717,22 @@ static Error dump_config(const char* value, AuthenticationLevel auth_level, Chan
     return Error::Ok;
 }
 
+static Error report_init_message_cmd(const char* value, AuthenticationLevel auth_level, Channel& out) {
+    report_init_message(out);
+
+    return Error::Ok;
+}
+
+static Error switchInchMM(const char* value, AuthenticationLevel auth_level, Channel& out) {
+    if (!value) {
+        log_stream(out, "$13=" << (config->_reportInches ? "1" : "0"));
+    } else {
+        config->_reportInches = ((value[0]=='1') ? true : false);
+    }
+
+    return Error::Ok;
+}
+
 static Error fakeMaxSpindleSpeed(const char* value, AuthenticationLevel auth_level, Channel& out) {
     if (!value) {
         log_stream(out, "$30=" << spindle->maxSpeed());
@@ -837,8 +865,11 @@ void make_user_commands() {
 
     new UserCommand("RI", "Report/Interval", setReportInterval, anyState);
 
+    new UserCommand("13", "Report/Inches", switchInchMM, notIdleOrAlarm);
     new UserCommand("30", "FakeMaxSpindleSpeed", fakeMaxSpindleSpeed, notIdleOrAlarm);
     new UserCommand("32", "FakeLaserMode", fakeLaserMode, notIdleOrAlarm);
+
+    new UserCommand("GS", "GRBL/Show", report_init_message_cmd, notIdleOrAlarm);
 
     new AsyncUserCommand("J", "Jog", doJog, notIdleOrJog);
     new AsyncUserCommand("G", "GCode/Modes", report_gcode, anyState);
