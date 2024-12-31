@@ -39,6 +39,7 @@ typedef struct {
     pinnum_t data_pin;
     uint32_t pulse_period;  // aka step rate.
     uint32_t init_val;
+    uint32_t min_pulse_us;
 } i2s_out_init_t;
 
 /*
