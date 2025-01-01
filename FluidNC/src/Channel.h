@@ -64,7 +64,7 @@ protected:
     uint8_t     _lastTool         = 0;
     float       _lastSpindleSpeed = 0;
     float       _lastFeedRate     = 0;
-    State       _lastState        = State::Idle;
+    const char* _lastStateName    = "";
     MotorMask   _lastLimits       = 0;
     bool        _lastProbe        = false;
     bool        _lastJobActive    = false;
