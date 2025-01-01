@@ -107,7 +107,8 @@ void Channel::autoReport() {
     if (_reportInterval) {
         auto thisProbeState = config->_probe->get_state();
         report_recompute_pin_string();
-        if (_reportOvr || _reportWco || !state_is(_lastState) || thisProbeState != _lastProbe || _lastPinString != report_pin_string ||
+        const char* stateName = state_name();
+        if (_reportOvr || _reportWco || stateName != _lastStateName || thisProbeState != _lastProbe || _lastPinString != report_pin_string ||
             (motionState() && (int32_t(xTaskGetTickCount()) - _nextReportTime) >= 0) || (_lastJobActive != Job::active())) {
             if (_reportOvr) {
                 report_ovr_counter = 0;
@@ -117,7 +118,7 @@ void Channel::autoReport() {
                 report_wco_counter = 0;
                 _reportWco         = false;
             }
-            _lastState     = sys.state;
+            _lastStateName = stateName;
             _lastProbe     = thisProbeState;
             _lastPinString = report_pin_string;
             _lastJobActive = Job::active();
