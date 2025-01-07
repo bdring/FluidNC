@@ -464,8 +464,6 @@ void Maslow_::calibration_loop() {
 
             waypoint++;  //Increment the waypoint counter
 
-            log_info("Measurement complete at waypoint " << waypoint);
-
             if (waypoint > recomputePoints[recomputeCountIndex]) {  //If we have reached the end of this stage of the calibration process
                 log_info("Recompute point reached, sending the data to the UI");
                 calibrationInProgress = false;
@@ -487,9 +485,8 @@ void Maslow_::calibration_loop() {
                             calibrationGrid[waypoint - 1][1],
                             calibrationGrid[waypoint][0],
                             calibrationGrid[waypoint][1])) {
-            
-            log_info("Moved with slack complete to " << calibrationGrid[waypoint][0] << " " << calibrationGrid[waypoint][1]);
-            log_info("About to take a measurement");
+
+            log_info("Moved with slack complete from " << calibrationGrid[waypoint - 1][0] << "," << calibrationGrid[waypoint - 1][1] << " to " << calibrationGrid[waypoint][0] << "," << calibrationGrid[waypoint][1]);
 
             measurementInProgress = true;
             direction             = get_direction(calibrationGrid[waypoint - 1][0],
@@ -1344,6 +1341,13 @@ bool Maslow_::move_with_slack(double fromX, double fromY, double toX, double toY
                 return true;
             }
             break;
+        // case DIAGONAL:
+        //     //If the X axis needs to move in the positive direction
+        //     float updatedXTarget;
+        //     float updatedYTarget;
+        //     if (toX - getTargetX() > 0) {
+        //         setTargets(getTargetX() + stepSize, getTargetY(), 0);
+        //     }
     }
     return false;  //We have not yet reached our target position
 }
@@ -1536,50 +1540,50 @@ bool Maslow_::generate_calibration_grid() {
 }
 
 //Print calibration grid
-void Maslow_::printCalibrationGrid() {
-    for (int i = 0; i <= pointCount; i++) {
-        log_info("Point " << i << ": " << calibrationGrid[i][0] << ", " << calibrationGrid[i][1]);
-    }
-    log_info("Max value for pointCount: " << pointCount);
+// void Maslow_::printCalibrationGrid() {
+//     for (int i = 0; i <= pointCount; i++) {
+//         log_info("Point " << i << ": " << calibrationGrid[i][0] << ", " << calibrationGrid[i][1]);
+//     }
+//     log_info("Max value for pointCount: " << pointCount);
 
-    for(int i = 0; i < recomputeCount; i++){
-        log_info("Recompute point: " << recomputePoints[i]);
-    }
+//     for(int i = 0; i < recomputeCount; i++){
+//         log_info("Recompute point: " << recomputePoints[i]);
+//     }
 
-    log_info("Times to recompute: " << recomputeCount);
+//     log_info("Times to recompute: " << recomputeCount);
 
 
-}
+// }
 
 //------------------------------------------------------
 //------------------------------------------------------ User commands
 //------------------------------------------------------
 
-void Maslow_::retractTL() {
-    //We allow other bells retracting to continue
-    retractingTL = true;
-    complyALL    = false;
-    extendingALL = false;
-    axisTL.reset();
-}
-void Maslow_::retractTR() {
-    retractingTR = true;
-    complyALL    = false;
-    extendingALL = false;
-    axisTR.reset();
-}
-void Maslow_::retractBL() {
-    retractingBL = true;
-    complyALL    = false;
-    extendingALL = false;
-    axisBL.reset();
-}
-void Maslow_::retractBR() {
-    retractingBR = true;
-    complyALL    = false;
-    extendingALL = false;
-    axisBR.reset();
-}
+// void Maslow_::retractTL() {
+//     //We allow other bells retracting to continue
+//     retractingTL = true;
+//     complyALL    = false;
+//     extendingALL = false;
+//     axisTL.reset();
+// }
+// void Maslow_::retractTR() {
+//     retractingTR = true;
+//     complyALL    = false;
+//     extendingALL = false;
+//     axisTR.reset();
+// }
+// void Maslow_::retractBL() {
+//     retractingBL = true;
+//     complyALL    = false;
+//     extendingALL = false;
+//     axisBL.reset();
+// }
+// void Maslow_::retractBR() {
+//     retractingBR = true;
+//     complyALL    = false;
+//     extendingALL = false;
+//     axisBR.reset();
+// }
 void Maslow_::retractALL() {
 
     retractingTL = true;
@@ -1647,6 +1651,19 @@ void Maslow_::runCalibration() {
         freeMeasurements();
         return;
     }
+
+    //We reset the last waypoint to where it actually is so that we can move from the updated position to the next waypoint
+    if(waypoint > 0){
+        calibrationGrid[waypoint - 1][0] = x;
+        calibrationGrid[waypoint - 1][1] = y;
+    }
+
+    log_info("Starting calibration");
+
+    log_info("Machine Position found as X: " << x << " Y: " << y);
+
+
+    //Set the internal machine position to the new XY position
     float* mpos = get_mpos();
     mpos[0] = x;
     mpos[1] = y;
@@ -1689,7 +1706,6 @@ void Maslow_::BLI(){
 }
 void Maslow_::BRI(){
     BRIOveride = true;
-    log_info("BRI in "+M+" seen");
     overideTimer = millis();
 }
 void Maslow_::TLO(){
@@ -1708,6 +1724,10 @@ void Maslow_::BRO(){
     BROOveride = true;
     overideTimer = millis();
 }
+
+/*
+* This function is used to manuall force the motors to move for a fraction of a second to clear jams
+*/
 void Maslow_::handleMotorOverides(){
     if(TLIOveride){
         log_info(int(millis() - overideTimer));
@@ -1896,16 +1916,16 @@ void Maslow_::setZStop() {
 
 
 
-void Maslow_::set_frame_width(double width) {
-    trX = width;
-    brX = width;
-    updateCenterXY();
-}
-void Maslow_::set_frame_height(double height) {
-    tlY = height;
-    trY = height;
-    updateCenterXY();
-}
+// void Maslow_::set_frame_width(double width) {
+//     trX = width;
+//     brX = width;
+//     updateCenterXY();
+// }
+// void Maslow_::set_frame_height(double height) {
+//     tlY = height;
+//     trY = height;
+//     updateCenterXY();
+// }
 void Maslow_::take_slack() {
     //if not all axis are homed, we can't take the slack up
     if (!allAxisExtended()) {

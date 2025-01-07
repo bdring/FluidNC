@@ -828,38 +828,38 @@ static Error showHeap(const char* value, WebUI::AuthenticationLevel auth_level, 
 
 
 */
-static Error maslow_retract_TL(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
-    if(Maslow.using_default_config) {
-        return Error::ConfigurationInvalid;
-    }
-    sys.set_state(State::Homing);
-    Maslow.retractTL();
-    return Error::Ok;
-}
-static Error maslow_retract_TR(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
-    if(Maslow.using_default_config) {
-        return Error::ConfigurationInvalid;
-    }
-    sys.set_state(State::Homing);
-    Maslow.retractTR();
-    return Error::Ok;
-}
-static Error maslow_retract_BR(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
-    if(Maslow.using_default_config) {
-        return Error::ConfigurationInvalid;
-    }
-    sys.set_state(State::Homing);
-    Maslow.retractBR();
-    return Error::Ok;
-}
-static Error maslow_retract_BL(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
-    if(Maslow.using_default_config) {
-        return Error::ConfigurationInvalid;
-    }
-    sys.set_state(State::Homing);
-    Maslow.retractBL();
-    return Error::Ok;
-}
+// static Error maslow_retract_TL(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+//     if(Maslow.using_default_config) {
+//         return Error::ConfigurationInvalid;
+//     }
+//     sys.set_state(State::Homing);
+//     Maslow.retractTL();
+//     return Error::Ok;
+// }
+// static Error maslow_retract_TR(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+//     if(Maslow.using_default_config) {
+//         return Error::ConfigurationInvalid;
+//     }
+//     sys.set_state(State::Homing);
+//     Maslow.retractTR();
+//     return Error::Ok;
+// }
+// static Error maslow_retract_BR(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+//     if(Maslow.using_default_config) {
+//         return Error::ConfigurationInvalid;
+//     }
+//     sys.set_state(State::Homing);
+//     Maslow.retractBR();
+//     return Error::Ok;
+// }
+// static Error maslow_retract_BL(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+//     if(Maslow.using_default_config) {
+//         return Error::ConfigurationInvalid;
+//     }
+//     sys.set_state(State::Homing);
+//     Maslow.retractBL();
+//     return Error::Ok;
+// }
 static Error maslow_retract_ALL(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
     if(Maslow.using_default_config) {
         return Error::ConfigurationInvalid;
@@ -996,55 +996,55 @@ static Error maslow_BRI(const char* value, WebUI::AuthenticationLevel auth_level
 }
 
 
-static Error maslow_set_width(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
-    if(Maslow.using_default_config) {
-        return Error::ConfigurationInvalid;
-    }
-    if (!value) {
-        //double width = Maslow.frame_width;
-        //log_info(M+" frame width is " << width);
-        return Error::Ok;
-    }
-    char*    endptr;
-    uint32_t intValue = strtol(value, &endptr, 10);
+// static Error maslow_set_width(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+//     if(Maslow.using_default_config) {
+//         return Error::ConfigurationInvalid;
+//     }
+//     if (!value) {
+//         //double width = Maslow.frame_width;
+//         //log_info(M+" frame width is " << width);
+//         return Error::Ok;
+//     }
+//     char*    endptr;
+//     uint32_t intValue = strtol(value, &endptr, 10);
 
-    if (endptr == value || *endptr != '\0') {
-        return Error::BadNumberFormat;
-    }
+//     if (endptr == value || *endptr != '\0') {
+//         return Error::BadNumberFormat;
+//     }
 
-    if( intValue < Maslow.frame_dimention_MIN || intValue > Maslow.frame_dimention_MAX ){
-        log_error(M+" frame width must be between " << Maslow.frame_dimention_MIN << " and " << Maslow.frame_dimention_MAX);
-        return Error::BadNumberFormat;
-    }
-    Maslow.set_frame_width(intValue);
-    log_info(M+" frame width set to " << intValue);
-    return Error::Ok;
-}
+//     if( intValue < Maslow.frame_dimention_MIN || intValue > Maslow.frame_dimention_MAX ){
+//         log_error(M+" frame width must be between " << Maslow.frame_dimention_MIN << " and " << Maslow.frame_dimention_MAX);
+//         return Error::BadNumberFormat;
+//     }
+//     Maslow.set_frame_width(intValue);
+//     log_info(M+" frame width set to " << intValue);
+//     return Error::Ok;
+// }
 
-static Error maslow_set_height(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
-    if(Maslow.using_default_config) {
-        return Error::ConfigurationInvalid;
-    }
-    if (!value) {
-        //double height = Maslow.frame_height;
-        //log_info(M+" frame height is " << height);
-        return Error::Ok;
-    }
-    char*    endptr;
-    uint32_t intValue = strtol(value, &endptr, 10);
+// static Error maslow_set_height(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+//     if(Maslow.using_default_config) {
+//         return Error::ConfigurationInvalid;
+//     }
+//     if (!value) {
+//         //double height = Maslow.frame_height;
+//         //log_info(M+" frame height is " << height);
+//         return Error::Ok;
+//     }
+//     char*    endptr;
+//     uint32_t intValue = strtol(value, &endptr, 10);
 
-    if (endptr == value || *endptr != '\0') {
-        return Error::BadNumberFormat;
-    }
+//     if (endptr == value || *endptr != '\0') {
+//         return Error::BadNumberFormat;
+//     }
 
-    if( intValue < Maslow.frame_dimention_MIN || intValue > Maslow.frame_dimention_MAX ){
-        log_error(M+" frame height must be between " << Maslow.frame_dimention_MIN << " and " << Maslow.frame_dimention_MAX);
-        return Error::BadNumberFormat;
-    }
-    Maslow.set_frame_height(intValue);
-    log_info(M+" frame height set to " << intValue);
-    return Error::Ok;
-}
+//     if( intValue < Maslow.frame_dimention_MIN || intValue > Maslow.frame_dimention_MAX ){
+//         log_error(M+" frame height must be between " << Maslow.frame_dimention_MIN << " and " << Maslow.frame_dimention_MAX);
+//         return Error::BadNumberFormat;
+//     }
+//     Maslow.set_frame_height(intValue);
+//     log_info(M+" frame height set to " << intValue);
+//     return Error::Ok;
+// }
 static Error maslow_safety_off(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
     if(Maslow.using_default_config) {
         return Error::ConfigurationInvalid;
@@ -1165,10 +1165,10 @@ void make_user_commands() {
     new UserCommand("30", "FakeMaxSpindleSpeed", fakeMaxSpindleSpeed, notIdleOrAlarm);
     new UserCommand("32", "FakeLaserMode", fakeLaserMode, notIdleOrAlarm);
     //Maslow-specific commands
-    new UserCommand("TL", M+"/retractTL", maslow_retract_TL, anyState);
-    new UserCommand("TR", M+"/retractTR", maslow_retract_TR, anyState);
-    new UserCommand("BR", M+"/retractBR", maslow_retract_BR, anyState);
-    new UserCommand("BL", M+"/retractBL", maslow_retract_BL, anyState);
+    // new UserCommand("TL", M+"/retractTL", maslow_retract_TL, anyState);
+    // new UserCommand("TR", M+"/retractTR", maslow_retract_TR, anyState);
+    // new UserCommand("BR", M+"/retractBR", maslow_retract_BR, anyState);
+    // new UserCommand("BL", M+"/retractBL", maslow_retract_BL, anyState);
     new UserCommand("ALL", M+"/retract", maslow_retract_ALL, anyState);
     new UserCommand("EXT", M+"/extend", maslow_extend_ALL, anyState);
     new UserCommand("TELEMDUMP", M+"/telemetryDump", maslow_telemetry_dump, anyState);
@@ -1189,8 +1189,8 @@ void make_user_commands() {
     new UserCommand("CO", "Config/Overwrite", overwrite_config, anyState);
 
     new UserCommand("STOP", M+"/stop", maslow_stop, anyState); // experimental
-    new UserCommand("WDT", M+"/width", maslow_set_width, anyState);
-    new UserCommand("HGT", M+"/height", maslow_set_height, anyState);
+    // new UserCommand("WDT", M+"/width", maslow_set_width, anyState);
+    // new UserCommand("HGT", M+"/height", maslow_set_height, anyState);
     new UserCommand("SFON", M+"/safetyON", maslow_safety_on, anyState);
     new UserCommand("SFOFF", M+"/safetyOFF", maslow_safety_off, anyState);
     new UserCommand("TEST", M+"/test", maslow_test, anyState);

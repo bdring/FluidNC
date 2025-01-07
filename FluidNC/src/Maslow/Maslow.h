@@ -140,10 +140,10 @@ public:
 
     void stopMotors();
 
-    void   retractTL();
-    void   retractTR();
-    void   retractBL();
-    void   retractBR();
+    // void   retractTL();
+    // void   retractTR();
+    // void   retractBL();
+    // void   retractBR();
     void   retractALL();
     void   extendALL();
     void   take_slack();
@@ -157,8 +157,8 @@ public:
     bool   allAxisExtended();
     bool   setupComplete();
     void   safety_control();
-    void   set_frame_width(double width);
-    void   set_frame_height(double height);
+    // void   set_frame_width(double width);
+    // void   set_frame_height(double height);
     void   update_frame_xyz();
     bool   axis_homed[4] = { false, false, false, false };
     bool   retractingTL  = false;
@@ -239,7 +239,7 @@ public:
     bool   error                                     = false;
     String errorMessage;
     bool   generate_calibration_grid();
-    void   printCalibrationGrid();
+    //void   printCalibrationGrid();
     bool   move_with_slack(double fromX, double fromY, double toX, double toY);
     int    get_direction(double x, double y, double targetX, double targetY);
     bool   checkValidMove(double fromX, double fromY, double toX, double toY);
@@ -261,7 +261,7 @@ public:
     int    pointCount                                 = 0;  //number of actual points in the grid,  < GRID_SIZE_MAX
     int    waypoint                                   = 0;  //The current waypoint in the calibration process
     int    calibrationGridSize                        = 9;
-    // //keep track of where Maslow actually is
+    // //keep track of where Maslow actually is...are these actually used anywhere?
     double x;
     double y;
 
