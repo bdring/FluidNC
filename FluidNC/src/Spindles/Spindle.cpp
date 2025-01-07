@@ -42,10 +42,7 @@ namespace Spindles {
                 spindle->stop();      // stop the current spindle
                 stop_spindle = true;  // used to stop the next spindle
             }
-            if (candidate != spindle) {                 // we are changing spindles
-                log_info("Sel:" << gc_state.selected_tool << " Cur:" << gc_state.current_tool);
-                //gc_state.selected_tool = 0;             // we are changing the original spindle to tool 0, for use by macro or class
-                spindle->tool_change(new_tool, false, false);  // run the tool change on the exiting spindle
+            if (candidate != spindle) {  // we are changing spindles
                 gc_state.selected_tool = new_tool;
                 spindle                = candidate;
                 new_spindle            = true;
@@ -133,14 +130,11 @@ namespace Spindles {
     // pre_select is generally ignored except for machines that need to get a tool ready
     // set_tool is just used to tell the atc what is already installed.
     bool Spindle::tool_change(uint32_t tool_number, bool pre_select, bool set_tool) {
-        log_info(_name << " Spindle::tool_change Sel:" << gc_state.selected_tool << " Cur:" << gc_state.current_tool << "pre:" << pre_select << " set:" << set_tool);
-
         if (_atc != NULL) {
             log_info(_name << " spindle changed to tool:" << tool_number << " using " << _atc_name);
             return _atc->tool_change(tool_number, pre_select, set_tool);
         }
         if (!_m6_macro.get().empty()) {
-            log_info("#1 " << _name << " spindle changed to tool:" << tool_number << " using m6_macro" << _m6_macro.get());
             if (pre_select) {
                 return true;
             }
@@ -148,7 +142,6 @@ namespace Spindles {
             if (set_tool) {
                 return true;
             }
-            log_info("#2 " << _name << " spindle changed to tool:" << tool_number << " using m6_macro" << _m6_macro.get());
             _m6_macro.run(nullptr);
             _last_tool = tool_number;
             return true;
