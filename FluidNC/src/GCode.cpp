@@ -1605,7 +1605,7 @@ Error gc_execute_line(char* line) {
     // NOTE: Pass zero spindle speed for all restricted laser motions.
     if (!disableLaser) {
         pl_data->spindle_speed = gc_state.spindle_speed;  // Record data for planner use.
-    }                                                     // else { pl_data->spindle_speed = 0.0; } // Initialized as zero already.
+    }  // else { pl_data->spindle_speed = 0.0; } // Initialized as zero already.
     // [5. Select tool ]: NOT SUPPORTED. Only tracks tool value.
     // [M6. Change tool ]:
     if (gc_block.modal.tool_change == ToolChange::Enable) {
@@ -1613,6 +1613,7 @@ Error gc_execute_line(char* line) {
             bool stopped_spindle = false;   // was spindle stopped via the change
             bool new_spindle     = false;   // was the spindle changed
             protocol_buffer_synchronize();  // wait for motion in buffer to finish
+            
             Spindles::Spindle::switchSpindle(
                 gc_state.selected_tool, Spindles::SpindleFactory::objects(), spindle, stopped_spindle, new_spindle);
             if (stopped_spindle) {
@@ -1621,13 +1622,19 @@ Error gc_execute_line(char* line) {
             if (new_spindle) {
                 gc_state.spindle_speed = 0.0;
             }
+            log_info("Sel:" << gc_state.selected_tool << " Cur:" << gc_state.current_tool);
             spindle->tool_change(gc_state.selected_tool, false, false);
-            gc_state.current_tool = gc_state.selected_tool;
-            report_ovr_counter    = 0;  // Set to report change immediately
+            if (spindle->_atc_name == "" && spindle->_m6_macro.get().empty()) {  // if neither of these exist we need to set the value here
+                gc_state.current_tool = gc_state.selected_tool;
+            }
+            report_ovr_counter = 0;  // Set to report change immediately
             gc_ovr_changed();
         }
     }
     if (gc_block.modal.set_tool_number == SetToolNumber::Enable) {
+        if (gc_block.values.q < 0) {
+            FAIL(Error::NegativeValue);  // https://linuxcnc.org/docs/2.8/html/gcode/m-code.html#mcode:m61
+        }
         gc_state.selected_tool = gc_block.values.q;
         bool stopped_spindle   = false;  // was spindle stopped via the change
         bool new_spindle       = false;  // was the spindle changed
