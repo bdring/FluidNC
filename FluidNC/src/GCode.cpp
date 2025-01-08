@@ -1631,7 +1631,7 @@ Error gc_execute_line(char* line) {
             gc_ovr_changed();
         }
     }
-    if (gc_block.modal.set_tool_number == SetToolNumber::Enable) {
+    if (gc_block.modal.set_tool_number == SetToolNumber::Enable) {  // M61
         if (gc_block.values.q < 0) {
             FAIL(Error::NegativeValue);  // https://linuxcnc.org/docs/2.8/html/gcode/m-code.html#mcode:m61
         }
