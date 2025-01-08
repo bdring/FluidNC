@@ -43,7 +43,7 @@ namespace Machine {
 
     uint32_t Homing::_runs;
 
-    AxisMask Homing::_unhomed_axes;  // Bitmap of axes whose position is unknown
+    AxisMask Homing::_unhomed_axes = 0;  // Bitmap of axes whose position is unknown
 
     bool Homing::axis_is_homed(size_t axis) {
         return bitnum_is_false(_unhomed_axes, axis);
@@ -55,7 +55,9 @@ namespace Machine {
         set_bitnum(_unhomed_axes, axis);
     }
     void Homing::set_all_axes_unhomed() {
-        _unhomed_axes = Machine::Axes::homingMask;
+        if (config->_start->_mustHome) {
+            _unhomed_axes = Machine::Axes::homingMask;
+        }
     }
     void Homing::set_all_axes_homed() {
         _unhomed_axes = 0;
