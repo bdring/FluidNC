@@ -1182,7 +1182,7 @@ bool Maslow_::move_with_slack(double fromX, double fromY, double toX, double toY
     //This is where we want to introduce some slack so the system
     static unsigned long moveBeginTimer = millis();
     static bool          decompress     = true;
-    const float          stepSize       = 0.006;
+    const float          stepSize       = 0.06;
 
     static int direction = UP;
 
@@ -1204,17 +1204,17 @@ bool Maslow_::move_with_slack(double fromX, double fromY, double toX, double toY
         moveBeginTimer = millis();
         decompress = false;
         direction = get_direction(fromX, fromY, toX, toY);
-        if(withSlack){
-            checkValidMove(fromX, fromY, toX, toY);  //Here we can handle diagonal moves when all four belts are taught...check if this is needed before merging
-        }
+        // if(withSlack){
+        //     checkValidMove(fromX, fromY, toX, toY);  //Here we can handle diagonal moves when all four belts are taught...check if this is needed before merging
+        // }
 
         //Compute the X and Y step Size
         if (abs(toX - fromX) > abs(toY - fromY)) {
-            xStepSize = stepSize;
-            yStepSize = stepSize * (toY - fromY) / (toX - fromX);
+            xStepSize = (toX - fromX) > 0 ? stepSize : -stepSize;
+            yStepSize = ((toY - fromY) > 0 ? stepSize : -stepSize) * abs(toY - fromY) / abs(toX - fromX);
         } else {
-            yStepSize = stepSize;
-            xStepSize = stepSize * (toX - fromX) / (toY - fromY);
+            yStepSize = (toY - fromY) > 0 ? stepSize : -stepSize;
+            xStepSize = ((toX - fromX) > 0 ? stepSize : -stepSize) * abs(toX - fromX) / abs(toY - fromY);
         }
 
         //Compute which belts will be getting longer. If the current length is less than the final length the belt needs to get longer
@@ -1239,8 +1239,12 @@ bool Maslow_::move_with_slack(double fromX, double fromY, double toX, double toY
             brExtending = false;
         }
 
+        //Set the target to the starting position
+        setTargets(fromX, fromY, 0);
+
         log_info("Moving from " << fromX << "," << fromY << " to " << toX << "," << toY);
         log_info("BL Extending: " << blExtending << " BR Extending: " << brExtending << " TL Extending: " << tlExtending << " TR Extending: " << trExtending);
+        log_info("X Step Size: " << xStepSize << " Y Step Size: " << yStepSize);
     }
 
     //Decompress belts for 500ms...this happens by returning right away before running any of the rest of the code
@@ -1284,12 +1288,13 @@ bool Maslow_::move_with_slack(double fromX, double fromY, double toX, double toY
     //Set the targets
     setTargets(getTargetX() + xStepSize, getTargetY() + yStepSize, 0);
 
-    if(random(0, 50) == 1){
-        log_info("Target (" << getTargetX() << "," << getTargetY() << ")");
-    }
-
         //Check to see if we have reached our target position
     if (abs(getTargetX() - toX) < 5 && abs(getTargetY() - toY) < 5) {
+
+        log_info("Reached target position");
+        log_info("Final position: " << getTargetX() << "," << getTargetY());
+        log_info("Final Target: " << toX << "," << toY);
+
         stopMotors();
         reset_all_axis();
         decompress = true;  //Reset for the next pass
