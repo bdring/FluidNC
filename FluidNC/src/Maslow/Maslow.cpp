@@ -1182,17 +1182,24 @@ bool Maslow_::move_with_slack(double fromX, double fromY, double toX, double toY
     //This is where we want to introduce some slack so the system
     static unsigned long moveBeginTimer = millis();
     static bool          decompress     = true;
-    const float          stepSize       = 0.06;
+    const float          stepSize       = 0.006;
 
     static int direction = UP;
 
+    static float xStepSize = 1;
+    static float yStepSize = 1;
 
+    static bool tlExtending = false;
+    static bool trExtending = false;
+    static bool blExtending = false;
+    static bool brExtending = false;
+    
     bool withSlack = true;
-    if(waypoint > recomputePoints[0]){ //If we have completed the first level of calibraiton
+    if(waypoint > recomputePoints[0]){ //If we have completed the first round of calibraiton
         withSlack = false;
     }
 
-    //We only want to decompress at the beginning of each move
+    //This runs once at the beginning of the move
     if (decompress) {
         moveBeginTimer = millis();
         decompress = false;
@@ -1200,6 +1207,40 @@ bool Maslow_::move_with_slack(double fromX, double fromY, double toX, double toY
         if(withSlack){
             checkValidMove(fromX, fromY, toX, toY);  //Here we can handle diagonal moves when all four belts are taught...check if this is needed before merging
         }
+
+        //Compute the X and Y step Size
+        if (abs(toX - fromX) > abs(toY - fromY)) {
+            xStepSize = stepSize;
+            yStepSize = stepSize * (toY - fromY) / (toX - fromX);
+        } else {
+            yStepSize = stepSize;
+            xStepSize = stepSize * (toX - fromX) / (toY - fromY);
+        }
+
+        //Compute which belts will be getting longer. If the current length is less than the final length the belt needs to get longer
+        if (computeTL(fromX, fromY, 0) < computeTL(toX, toY, 0)) {
+            tlExtending = true;
+        } else {
+            tlExtending = false;
+        }
+        if (computeTR(fromX, fromY, 0) < computeTR(toX, toY, 0)) {
+            trExtending = true;
+        } else {
+            trExtending = false;
+        }
+        if (computeBL(fromX, fromY, 0) < computeBL(toX, toY, 0)) {
+            blExtending = true;
+        } else {
+            blExtending = false;
+        }
+        if (computeBR(fromX, fromY, 0) < computeBR(toX, toY, 0)) {
+            brExtending = true;
+        } else {
+            brExtending = false;
+        }
+
+        log_info("Moving from " << fromX << "," << fromY << " to " << toX << "," << toY);
+        log_info("BL Extending: " << blExtending << " BR Extending: " << brExtending << " TL Extending: " << tlExtending << " TR Extending: " << trExtending);
     }
 
     //Decompress belts for 500ms...this happens by returning right away before running any of the rest of the code
@@ -1239,6 +1280,23 @@ bool Maslow_::move_with_slack(double fromX, double fromY, double toX, double toY
         stopMotors();
         return false;
     }
+
+    //Set the targets
+    setTargets(getTargetX() + xStepSize, getTargetY() + yStepSize, 0);
+
+    if(random(0, 50) == 1){
+        log_info("Target (" << getTargetX() << "," << getTargetY() << ")");
+    }
+
+        //Check to see if we have reached our target position
+    if (abs(getTargetX() - toX) < 5 && abs(getTargetY() - toY) < 5) {
+        stopMotors();
+        reset_all_axis();
+        decompress = true;  //Reset for the next pass
+        return true;
+    }
+
+    //In vertical orientation we want to move with the top two belts and always have the lower ones be slack
     if(orientation == VERTICAL){
         axisTL.recomputePID();
         axisTR.recomputePID();
@@ -1252,103 +1310,37 @@ bool Maslow_::move_with_slack(double fromX, double fromY, double toX, double toY
         }
     }
     else{
-        switch (direction) {
-            case UP:
-                axisTL.recomputePID();
-                axisTR.recomputePID();
-                if(withSlack){
-                    axisBL.comply();
-                    axisBR.comply();
-                }
-                else{
-                    axisBL.recomputePID();
-                    axisBR.recomputePID();
-                }
-                break;
-            case DOWN:
-                if(withSlack){
-                    axisTL.comply();
-                    axisTR.comply();
-                }
-                else{
-                    axisTL.recomputePID();
-                    axisTR.recomputePID();
-                }
-                axisBL.recomputePID();
-                axisBR.recomputePID();
-                break;
-            case LEFT:
-                axisTL.recomputePID();
-                axisBL.recomputePID();
-                if(withSlack){
-                    axisTR.comply();
-                    axisBR.comply();
-                }
-                else{
-                    axisTR.recomputePID();
-                    axisBR.recomputePID();
-                }
-                break;
-            case RIGHT:
-                axisTR.recomputePID();
-                axisBR.recomputePID();
-                if(withSlack){
-                    axisTL.comply();
-                    axisBL.comply();
-                }
-                else{
-                    axisTL.recomputePID();
-                    axisBL.recomputePID();
-                }
-                break;
+
+        //For each belt we check to see if it should be slack
+        if(withSlack && tlExtending){
+            axisTL.comply();
+        }
+        else{
+            axisTL.recomputePID();
+        }
+
+        if(withSlack && trExtending){
+            axisTR.comply();
+        }
+        else{
+            axisTR.recomputePID();
+        }
+
+        if(withSlack && blExtending){
+            axisBL.comply();
+        }
+        else{
+            axisBL.recomputePID();
+        }
+
+        if(withSlack && brExtending){
+            axisBR.comply();
+        }
+        else{
+            axisBR.recomputePID();
         }
     }
 
-    switch (direction) {
-        case UP:
-            setTargets(toX, getTargetY() + stepSize, 0);
-            if (getTargetY() > toY) {
-                stopMotors();
-                reset_all_axis();
-                decompress = true;  //Reset for the next pass
-                return true;
-            }
-            break;
-        case DOWN:
-            setTargets(toX, getTargetY() - stepSize, 0);
-            if (getTargetY() < toY) {
-                stopMotors();
-                reset_all_axis();
-                decompress = true;  //Reset for the next pass
-                return true;
-            }
-            break;
-        case LEFT:
-            setTargets(getTargetX() - stepSize, toY, 0);
-            if (getTargetX() < toX){
-                stopMotors();
-                reset_all_axis();
-                decompress = true;  //Reset for the next pass
-                return true;
-            }
-            break;
-        case RIGHT:
-            setTargets(getTargetX() + stepSize, toY, 0);
-            if (getTargetX() > toX){
-                stopMotors();
-                reset_all_axis();
-                decompress = true;  //Reset for the next pass
-                return true;
-            }
-            break;
-        // case DIAGONAL:
-        //     //If the X axis needs to move in the positive direction
-        //     float updatedXTarget;
-        //     float updatedYTarget;
-        //     if (toX - getTargetX() > 0) {
-        //         setTargets(getTargetX() + stepSize, getTargetY(), 0);
-        //     }
-    }
     return false;  //We have not yet reached our target position
 }
 
