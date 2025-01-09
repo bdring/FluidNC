@@ -1613,7 +1613,7 @@ Error gc_execute_line(char* line) {
             bool stopped_spindle = false;   // was spindle stopped via the change
             bool new_spindle     = false;   // was the spindle changed
             protocol_buffer_synchronize();  // wait for motion in buffer to finish
-            
+
             Spindles::Spindle::switchSpindle(
                 gc_state.selected_tool, Spindles::SpindleFactory::objects(), spindle, stopped_spindle, new_spindle);
             if (stopped_spindle) {
@@ -1901,7 +1901,6 @@ Error gc_execute_line(char* line) {
 
             if (Job::active()) {
                 Job::channel()->end();
-                break;
             }
             // Upon program complete, only a subset of g-codes reset to certain defaults, according to
             // LinuxCNC's program end descriptions and testing. Only modal groups [G-code 1,2,3,5,7,12]
