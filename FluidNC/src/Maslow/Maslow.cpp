@@ -1135,12 +1135,12 @@ bool Maslow_::take_measurement_avg_with_check(int waypoint, int dir) {
                     freeMeasurements();
                     return false;
                 }
-                float* mpos = get_mpos();
-                mpos[0] = x;
-                mpos[1] = y;
-                set_motor_steps_from_mpos(mpos);
-                gc_sync_position();//This updates the Gcode engine with the new position from the stepping engine that we set with set_motor_steps
-                plan_sync_position();
+                // float* mpos = get_mpos();
+                // mpos[0] = x;
+                // mpos[1] = y;
+                // set_motor_steps_from_mpos(mpos);
+                // gc_sync_position();//This updates the Gcode engine with the new position from the stepping engine that we set with set_motor_steps
+                // plan_sync_position();
 
                 log_info("Machine Position found as X: " << x << " Y: " << y);
 
@@ -1243,8 +1243,8 @@ bool Maslow_::move_with_slack(double fromX, double fromY, double toX, double toY
         setTargets(fromX, fromY, 0);
 
         log_info("Moving from " << fromX << "," << fromY << " to " << toX << "," << toY);
-        log_info("BL Extending: " << blExtending << " BR Extending: " << brExtending << " TL Extending: " << tlExtending << " TR Extending: " << trExtending);
-        log_info("X Step Size: " << xStepSize << " Y Step Size: " << yStepSize);
+        // log_info("BL Extending: " << blExtending << " BR Extending: " << brExtending << " TL Extending: " << tlExtending << " TR Extending: " << trExtending);
+        // log_info("X Step Size: " << xStepSize << " Y Step Size: " << yStepSize);
     }
 
     //Decompress belts for 500ms...this happens by returning right away before running any of the rest of the code
@@ -1290,11 +1290,6 @@ bool Maslow_::move_with_slack(double fromX, double fromY, double toX, double toY
 
         //Check to see if we have reached our target position
     if (abs(getTargetX() - toX) < 5 && abs(getTargetY() - toY) < 5) {
-
-        log_info("Reached target position");
-        log_info("Final position: " << getTargetX() << "," << getTargetY());
-        log_info("Final Target: " << toX << "," << toY);
-
         stopMotors();
         reset_all_axis();
         decompress = true;  //Reset for the next pass
