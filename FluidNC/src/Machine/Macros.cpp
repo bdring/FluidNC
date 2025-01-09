@@ -100,6 +100,10 @@ Error MacroChannel::readLine(char* line, int maxlen) {
     }
     line[len] = '\0';
     ++_line_number;
+    if (len == 0) {
+        ++_blank_lines;
+    }
+
     return len ? Error::Ok : Error::Eof;
 }
 
@@ -129,6 +133,17 @@ Error MacroChannel::pollLine(char* line) {
     }
     if (_pending_error != Error::Ok) {
         return _pending_error;
+    }
+    if (_percent) {
+        _percent = false;
+        // If the first non-blank line in the macro is a % line, it denotes start-of-file.
+        // Otherwise a % line causes the rest of the macro to be skipped, per
+        // https://linuxcnc.org/docs/html/gcode/overview.html#gcode:file-requirements
+        // The line with % is not blank, so if it is the first non-blank line
+        // _line_number will be one more than _blank_lines
+        if (_line_number != _blank_lines + 1) {
+            _ended = true;
+        }
     }
     if (_ended) {
         end_message();
