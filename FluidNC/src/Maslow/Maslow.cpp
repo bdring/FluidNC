@@ -1663,6 +1663,8 @@ void Maslow_::runCalibration() {
     gc_sync_position();//This updates the Gcode engine with the new position from the stepping engine that we set with set_motor_steps
     plan_sync_position();
 
+    updateCenterXY();
+
     sys.set_state(State::Homing);
 
     calibrationInProgress = true;
