@@ -117,6 +117,11 @@ void MacroChannel::ack(Error status) {
 
 MacroChannel::MacroChannel(Macro* macro) : Channel(macro->name(), false), _macro(macro) {}
 
+void MacroChannel::end_message() {
+    _progress += name();
+    _progress += ": Sent";
+}
+
 Error MacroChannel::pollLine(char* line) {
     // Macros only execute as proper jobs so we should not be polling one with a null line
     if (!line) {
@@ -124,6 +129,10 @@ Error MacroChannel::pollLine(char* line) {
     }
     if (_pending_error != Error::Ok) {
         return _pending_error;
+    }
+    if (_ended) {
+        end_message();
+        return Error::Eof;
     }
     switch (auto err = readLine(line, Channel::maxLine)) {
         case Error::Ok: {
@@ -136,8 +145,7 @@ Error MacroChannel::pollLine(char* line) {
         }
             return Error::Ok;
         case Error::Eof:
-            _progress = name();
-            _progress += ": Sent";
+            end_message();
             return Error::Eof;
         default:
             log_error("Macro readLine failed");

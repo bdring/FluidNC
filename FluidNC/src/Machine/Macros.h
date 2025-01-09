@@ -62,6 +62,7 @@ namespace Machine {
         Macro* _macro;
 
         Error readLine(char* line, int maxlen);
+        void  end_message();
 
     public:
         Error pollLine(char* line) override;
