@@ -192,12 +192,13 @@ void collapseGCode(char* line) {
                 *outPtr = '\0';
                 return;
             case '%':
-                // TODO: Install '%' feature
-                // Program start-end percent sign NOT SUPPORTED.
-                // NOTE: This may be installed to distinguish between program running vs manual input,
-                // where, during a program, the system auto-cycle start will continue to execute
-                // everything until the next '%' sign. This will help fix resuming issues with certain
-                // functions that empty the planner buffer to execute its task on-time.
+                // Per https://linuxcnc.org/docs/html/gcode/overview.html#gcode:file-requirements
+                // % only applies to "job" channels like files and macros, not to serial channels
+                // where the sequence of lines is potentially never-ending.  A sender that handles
+                // files on the host system could apply the % semantics.
+                if (Job::active()) {
+                    Job::channel()->percent();
+                }
                 break;
             case '\r':
                 // In case one sneaks in
@@ -1605,7 +1606,7 @@ Error gc_execute_line(char* line) {
     // NOTE: Pass zero spindle speed for all restricted laser motions.
     if (!disableLaser) {
         pl_data->spindle_speed = gc_state.spindle_speed;  // Record data for planner use.
-    }  // else { pl_data->spindle_speed = 0.0; } // Initialized as zero already.
+    }                                                     // else { pl_data->spindle_speed = 0.0; } // Initialized as zero already.
     // [5. Select tool ]: NOT SUPPORTED. Only tracks tool value.
     // [M6. Change tool ]:
     if (gc_block.modal.tool_change == ToolChange::Enable) {
@@ -1613,7 +1614,7 @@ Error gc_execute_line(char* line) {
             bool stopped_spindle = false;   // was spindle stopped via the change
             bool new_spindle     = false;   // was the spindle changed
             protocol_buffer_synchronize();  // wait for motion in buffer to finish
-            
+
             Spindles::Spindle::switchSpindle(
                 gc_state.selected_tool, Spindles::SpindleFactory::objects(), spindle, stopped_spindle, new_spindle);
             if (stopped_spindle) {
