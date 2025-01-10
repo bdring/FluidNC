@@ -2013,6 +2013,12 @@ void Maslow_::checkCalibrationData() {
 
 // function for outputting calibration data in the log line by line like this: {bl:2376.69,   br:923.40,   tr:1733.87,   tl:2801.87},
 void Maslow_::print_calibration_data() {
+    log_data("$/" << M << "_tlX=" << tlX);
+    log_data("$/" << M << "_tlY=" << tlY);
+    log_data("$/" << M << "_trX=" << trX);
+    log_data("$/" << M << "_trY=" << trY);
+    log_data("$/" << M << "_brX=" << brX);
+
     String data = "CLBM:[";
     for (int i = 0; i < waypoint; i++) {
         data += "{bl:" + String(calibration_data[i][2]) + ",   br:" + String(calibration_data[i][3]) +
