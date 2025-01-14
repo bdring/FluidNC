@@ -1103,7 +1103,7 @@ bool Maslow_::take_measurement_avg_with_check(int waypoint, int dir) {
             if(waypoint == 0){
 
 
-//If the frame size is way off, we will compute a rough (assumed to be a square) frame size from the first measurmeent
+                //If the frame size is way off, we will compute a rough (assumed to be a square) frame size from the first measurmeent
                 double threshold = 100;
                 float diffTL = measurements[0][0] - measurementToXYPlane(computeTL(x, y, 0), tlZ);
                 float diffTR = measurements[0][1] - measurementToXYPlane(computeTR(x, y, 0), trZ);
@@ -1142,7 +1142,7 @@ bool Maslow_::take_measurement_avg_with_check(int waypoint, int dir) {
                 // gc_sync_position();//This updates the Gcode engine with the new position from the stepping engine that we set with set_motor_steps
                 // plan_sync_position();
 
-                log_info("Machine Position found as X: " << x << " Y: " << y);
+                log_info("Machine Position computed as X: " << x << " Y: " << y);
 
                 //Recompute the first four waypoint locations based on the current position
                 calibrationGrid[0][0] = x;//This first point is never really used because we've already measured here, but it shouldn't be left undefined
@@ -1182,7 +1182,7 @@ bool Maslow_::move_with_slack(double fromX, double fromY, double toX, double toY
     //This is where we want to introduce some slack so the system
     static unsigned long moveBeginTimer = millis();
     static bool          decompress     = true;
-    const float          stepSize       = 0.06;
+    float                stepSize       = 0.06;
 
     static int direction = UP;
 
@@ -1204,9 +1204,6 @@ bool Maslow_::move_with_slack(double fromX, double fromY, double toX, double toY
         moveBeginTimer = millis();
         decompress = false;
         direction = get_direction(fromX, fromY, toX, toY);
-        // if(withSlack){
-        //     checkValidMove(fromX, fromY, toX, toY);  //Here we can handle diagonal moves when all four belts are taught...check if this is needed before merging
-        // }
 
         //Compute the X and Y step Size
         if (abs(toX - fromX) > abs(toY - fromY)) {
@@ -1242,7 +1239,6 @@ bool Maslow_::move_with_slack(double fromX, double fromY, double toX, double toY
         //Set the target to the starting position
         setTargets(fromX, fromY, 0);
 
-        log_info("Moving from " << fromX << "," << fromY << " to " << toX << "," << toY);
         // log_info("BL Extending: " << blExtending << " BR Extending: " << brExtending << " TL Extending: " << tlExtending << " TR Extending: " << trExtending);
         // log_info("X Step Size: " << xStepSize << " Y Step Size: " << yStepSize);
     }
@@ -1360,41 +1356,6 @@ int Maslow_::get_direction(double x, double y, double targetX, double targetY) {
 
     return direction;
 }
-
-bool Maslow_::checkValidMove(double fromX, double fromY, double toX, double toY){
-    bool valid = true;
-    int direction = get_direction(fromX, fromY, toX, toY);
-    switch(direction){
-        case UP: //If we are moving up we expect the top belts to get shorter so to should be shorter than they are now
-            if(computeTL(toX, toY, 0) > axisTL.getPosition() || computeTR(toX, toY, 0) > axisTR.getPosition()){
-                valid = false;
-            }
-            break;
-        case DOWN: //If we are moving down we expect the bottom belts to get shorter so they should be shorter than they are now
-            if(computeBL(toX, toY, 0) > axisBL.getPosition() || computeBR(toX, toY, 0) > axisBR.getPosition()){
-                valid = false;
-            }
-            break;
-        case LEFT: //If we are moving left we expect the left belts to get shorter so they should be shorter than they are now
-            if(computeTL(toX, toY, 0) > axisTL.getPosition() || computeBL(toX, toY, 0) > axisBL.getPosition()){
-                valid = false;
-            }
-            break;
-        case RIGHT: //If we are moving right we expect the right belts to get shorter so they should be shorter than they are now
-            if(computeTR(toX, toY, 0) > axisTR.getPosition() || computeBR(toX, toY, 0) > axisBR.getPosition()){
-                valid = false;
-            }
-            break;
-    }
-    if(!valid){
-        log_error("Unable to move safely, stopping calibration");
-        calibrationInProgress = false;
-        waypoint              = 0;
-        eStop("Unable to move safely, stopping calibration");
-    }
-    return valid;
-}
-
 
 /*
 * This function takes a single measurement and adjusts the frame dimensions to find a valid frame size that matches the measurement
@@ -1630,6 +1591,9 @@ void Maslow_::runCalibration() {
         return;
     }
 
+    //Recalculate the center position because the machine dimensions may have been updated
+    updateCenterXY();
+
     //Compute the current XY position from the top two belt measurements
     float x = 0;
     float y = 0;
@@ -1654,7 +1618,6 @@ void Maslow_::runCalibration() {
 
     log_info("Machine Position found as X: " << x << " Y: " << y);
 
-
     //Set the internal machine position to the new XY position
     float* mpos = get_mpos();
     mpos[0] = x;
@@ -1662,8 +1625,6 @@ void Maslow_::runCalibration() {
     set_motor_steps_from_mpos(mpos);
     gc_sync_position();//This updates the Gcode engine with the new position from the stepping engine that we set with set_motor_steps
     plan_sync_position();
-
-    updateCenterXY();
 
     sys.set_state(State::Homing);
 
