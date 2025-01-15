@@ -791,7 +791,7 @@ bool Maslow_::computeXYfromLengths(double TL, double TR, float &x, float &y) {
     //Find the intersection of the two circles centered at tlX, tlY and trX, trY with radii tlLength and trLength
     double d = sqrt((tlX - trX) * (tlX - trX) + (tlY - trY) * (tlY - trY));
     if (d > tlLength + trLength || d < abs(tlLength - trLength)) {
-        log_error("Unable to determine machine position");
+        log_info("Unable to determine machine position");
         return false;
     }
     
@@ -1570,6 +1570,8 @@ void Maslow_::extendALL() {
 * This function is called once when calibration is started
 */
 void Maslow_::runCalibration() {
+    log_info("Starting calibration");
+
     //If we are at the first point we need to generate the grid before we can start
     if (waypoint == 0) {
         if(!generate_calibration_grid()){ //Fail out if the grid cannot be generated
@@ -1592,37 +1594,31 @@ void Maslow_::runCalibration() {
     //Recalculate the center position because the machine dimensions may have been updated
     updateCenterXY();
 
-    //Compute the current XY position from the top two belt measurements
+
+    //At this point it's likely that we have just sent the machine new cordinates for the anchor points so we need to figure out our new XY
+    //cordinates by looking at the current lengths of the top two belts.
+    //If we can't load the position, that's OK, we can still go ahead with the calibration and the first point will make a guess for it
     float x = 0;
     float y = 0;
-    
-    //At this point it's likely that we have just sent the machine new cordinates for the anchor points so we need to figure out our new XY
-    //cordinates by looing at the current lengths of the top two belts.
-    if(!computeXYfromLengths(measurementToXYPlane(axisTL.getPosition(), tlZ), measurementToXYPlane(axisTR.getPosition(), trZ), x, y)){
-        eStop("Unable to find machine position from measurements");
-        calibrationInProgress = false;
-        waypoint              = 0;
-        freeMeasurements();
-        return;
+    if(computeXYfromLengths(measurementToXYPlane(axisTL.getPosition(), tlZ), measurementToXYPlane(axisTR.getPosition(), trZ), x, y)){
+        
+        //We reset the last waypoint to where it actually is so that we can move from the updated position to the next waypoint
+        if(waypoint > 0){
+            calibrationGrid[waypoint - 1][0] = x;
+            calibrationGrid[waypoint - 1][1] = y;
+        }
+
+        log_info("Machine Position found as X: " << x << " Y: " << y);
+
+        //Set the internal machine position to the new XY position
+        float* mpos = get_mpos();
+        mpos[0] = x;
+        mpos[1] = y;
+        set_motor_steps_from_mpos(mpos);
+        gc_sync_position();//This updates the Gcode engine with the new position from the stepping engine that we set with set_motor_steps
+        plan_sync_position();
+        
     }
-
-    //We reset the last waypoint to where it actually is so that we can move from the updated position to the next waypoint
-    if(waypoint > 0){
-        calibrationGrid[waypoint - 1][0] = x;
-        calibrationGrid[waypoint - 1][1] = y;
-    }
-
-    log_info("Starting calibration");
-
-    log_info("Machine Position found as X: " << x << " Y: " << y);
-
-    //Set the internal machine position to the new XY position
-    float* mpos = get_mpos();
-    mpos[0] = x;
-    mpos[1] = y;
-    set_motor_steps_from_mpos(mpos);
-    gc_sync_position();//This updates the Gcode engine with the new position from the stepping engine that we set with set_motor_steps
-    plan_sync_position();
 
     sys.set_state(State::Homing);
 
