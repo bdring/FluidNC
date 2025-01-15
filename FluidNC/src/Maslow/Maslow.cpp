@@ -486,8 +486,6 @@ void Maslow_::calibration_loop() {
                             calibrationGrid[waypoint][0],
                             calibrationGrid[waypoint][1])) {
 
-            log_info("Moved with slack complete from " << calibrationGrid[waypoint - 1][0] << "," << calibrationGrid[waypoint - 1][1] << " to " << calibrationGrid[waypoint][0] << "," << calibrationGrid[waypoint][1]);
-
             measurementInProgress = true;
             direction             = get_direction(calibrationGrid[waypoint - 1][0],
                                       calibrationGrid[waypoint - 1][1],
