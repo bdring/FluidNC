@@ -140,10 +140,6 @@ public:
 
     void stopMotors();
 
-    // void   retractTL();
-    // void   retractTR();
-    // void   retractBL();
-    // void   retractBR();
     void   retractALL();
     void   extendALL();
     void   take_slack();
@@ -157,8 +153,6 @@ public:
     bool   allAxisExtended();
     bool   setupComplete();
     void   safety_control();
-    // void   set_frame_width(double width);
-    // void   set_frame_height(double height);
     void   update_frame_xyz();
     bool   axis_homed[4] = { false, false, false, false };
     bool   retractingTL  = false;
@@ -260,7 +254,7 @@ public:
     int    pointCount                                 = 0;  //number of actual points in the grid,  < GRID_SIZE_MAX
     int    waypoint                                   = 0;  //The current waypoint in the calibration process
     int    calibrationGridSize                        = 9;
-    // //keep track of where Maslow actually is...are these actually used anywhere?
+    // //keep track of where Maslow actually is
     double x;
     double y;
 

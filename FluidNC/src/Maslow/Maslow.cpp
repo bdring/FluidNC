@@ -465,7 +465,6 @@ void Maslow_::calibration_loop() {
             waypoint++;  //Increment the waypoint counter
 
             if (waypoint > recomputePoints[recomputeCountIndex]) {  //If we have reached the end of this stage of the calibration process
-                log_info("Recompute point reached, sending the data to the UI");
                 calibrationInProgress = false;
                 print_calibration_data();
                 calibrationDataWaiting = millis();
@@ -782,7 +781,7 @@ float Maslow_::measurementToXYPlane(float measurement, float zHeight){
 }
 
 /*
-*Computes the current x cordinate of the sled based on the lengths of the upper two belts
+*Computes the current xy cordinates of the sled based on the lengths of the upper two belts
 */
 bool Maslow_::computeXYfromLengths(double TL, double TR, float &x, float &y) {
     double tlLength = TL;//measurementToXYPlane(TL, tlZ);
@@ -1133,12 +1132,6 @@ bool Maslow_::take_measurement_avg_with_check(int waypoint, int dir) {
                     freeMeasurements();
                     return false;
                 }
-                // float* mpos = get_mpos();
-                // mpos[0] = x;
-                // mpos[1] = y;
-                // set_motor_steps_from_mpos(mpos);
-                // gc_sync_position();//This updates the Gcode engine with the new position from the stepping engine that we set with set_motor_steps
-                // plan_sync_position();
 
                 log_info("Machine Position computed as X: " << x << " Y: " << y);
 
@@ -1236,9 +1229,6 @@ bool Maslow_::move_with_slack(double fromX, double fromY, double toX, double toY
 
         //Set the target to the starting position
         setTargets(fromX, fromY, 0);
-
-        // log_info("BL Extending: " << blExtending << " BR Extending: " << brExtending << " TL Extending: " << tlExtending << " TR Extending: " << trExtending);
-        // log_info("X Step Size: " << xStepSize << " Y Step Size: " << yStepSize);
     }
 
     //Decompress belts for 500ms...this happens by returning right away before running any of the rest of the code
@@ -1570,7 +1560,6 @@ void Maslow_::extendALL() {
 * This function is called once when calibration is started
 */
 void Maslow_::runCalibration() {
-    log_info("Starting calibration");
 
     //If we are at the first point we need to generate the grid before we can start
     if (waypoint == 0) {
@@ -1863,18 +1852,6 @@ void Maslow_::setZStop() {
     plan_sync_position();
 }
 
-
-
-// void Maslow_::set_frame_width(double width) {
-//     trX = width;
-//     brX = width;
-//     updateCenterXY();
-// }
-// void Maslow_::set_frame_height(double height) {
-//     tlY = height;
-//     trY = height;
-//     updateCenterXY();
-// }
 void Maslow_::take_slack() {
     //if not all axis are homed, we can't take the slack up
     if (!allAxisExtended()) {
@@ -1968,6 +1945,7 @@ void Maslow_::checkCalibrationData() {
 
 // function for outputting calibration data in the log line by line like this: {bl:2376.69,   br:923.40,   tr:1733.87,   tl:2801.87},
 void Maslow_::print_calibration_data() {
+    //These are used to set the browser side initial guess for the frame size
     log_data("$/" << M << "_tlX=" << tlX);
     log_data("$/" << M << "_tlY=" << tlY);
     log_data("$/" << M << "_trX=" << trX);
