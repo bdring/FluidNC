@@ -140,10 +140,6 @@ public:
 
     void stopMotors();
 
-    void   retractTL();
-    void   retractTR();
-    void   retractBL();
-    void   retractBR();
     void   retractALL();
     void   extendALL();
     void   take_slack();
@@ -157,8 +153,6 @@ public:
     bool   allAxisExtended();
     bool   setupComplete();
     void   safety_control();
-    void   set_frame_width(double width);
-    void   set_frame_height(double height);
     void   update_frame_xyz();
     bool   axis_homed[4] = { false, false, false, false };
     bool   retractingTL  = false;
@@ -213,6 +207,7 @@ public:
     int retractCurrentThreshold = 1300;
     int calibrationCurrentThreshold = 1300;
     float acceptableCalibrationThreshold = 0.5;
+    float extendDist = 1700;
 
     bool axisBLHomed;
     bool axisBRHomed;
@@ -238,14 +233,15 @@ public:
     bool   error                                     = false;
     String errorMessage;
     bool   generate_calibration_grid();
-    void   printCalibrationGrid();
+    //void   printCalibrationGrid();
     bool   move_with_slack(double fromX, double fromY, double toX, double toY);
     int    get_direction(double x, double y, double targetX, double targetY);
-    bool   checkValidMove(double fromX, double fromY, double toX, double toY);
     bool   take_measurement_avg_with_check(int waypoint, int dir);
     bool   take_measurement(float result[4], int dir, int run, int current);
     float  measurementToXYPlane(float measurement, float zHeight);
     bool   takeSlackFunc();
+    bool   adjustFrameSizeToMatchFirstMeasurement();
+    bool   computeXYfromLengths(double TL, double TR, float &x, float &y);
     void   test_();
     void   calibration_loop();
     void   print_calibration_data();
@@ -258,7 +254,7 @@ public:
     int    pointCount                                 = 0;  //number of actual points in the grid,  < GRID_SIZE_MAX
     int    waypoint                                   = 0;  //The current waypoint in the calibration process
     int    calibrationGridSize                        = 9;
-    // //keep track of where Maslow actually is, lower left corner is 0,0
+    // //keep track of where Maslow actually is
     double x;
     double y;
 

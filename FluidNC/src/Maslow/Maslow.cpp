@@ -319,16 +319,16 @@ void Maslow_::home() {
         //then make all the belts comply until they are extended fully, or user terminates it
         else {
             if (!extendedTL)
-                extendedTL = axisTL.extend(computeTL(0, 0, 0));
+                extendedTL = axisTL.extend(extendDist);
             if (!extendedTR)
-                extendedTR = axisTR.extend(computeTR(0, 0, 0));
+                extendedTR = axisTR.extend(extendDist);
             if (!extendedBL)
-                extendedBL = axisBL.extend(computeBL(0, 300, 0));
+                extendedBL = axisBL.extend(extendDist);
             if (!extendedBR)
-                extendedBR = axisBR.extend(computeBR(0, 300, 0));
+                extendedBR = axisBR.extend(extendDist);
             if (extendedTL && extendedTR && extendedBL && extendedBR) {
                 extendingALL = false;
-                log_info("All belts extended to center position");
+                log_info("All belts extended to " << extendDist << "mm");
             }
         }
     }
@@ -374,9 +374,9 @@ void Maslow_::home() {
 
 /*
 * This function is used to take up the slack in the belts and confirm that the calibration values are resonable
-* It moves the sled to (0,0) and takes a measurement, then compares that measurement to the calibration data
-* If the calibration data is within a certain threshold of the measurement, the calibration is considered valid
-* If the calibration data is not within the threshold, the calibration is considered invalid
+* It does this by retracting the two lower belts and taking a measurement. The machine's position is then calculated 
+* from the lenghts of the two upper belts. The lengths of the two lower belts are then compared to their expected calculated lengths
+* If the difference is beyond a threshold we know that the stored anchor point locations do not match the real dimensons and and error is thrown
 */
 bool Maslow_::takeSlackFunc() {
     static int takeSlackState = 0; //0 -> Starting, 1-> Moving to (0,0), 2-> Taking a measurement
@@ -384,33 +384,26 @@ bool Maslow_::takeSlackFunc() {
     static float startingX    = 0;
     static float startingY    = 0;
 
-    //Initialize
-    if (takeSlackState == 0) {
-        takeSlackState = 1;
-        startingX   = getTargetX();
-        startingY   = getTargetY();
-    }
-
-    //Move to (0,0)
-    if(takeSlackState == 1){
-        if (move_with_slack(startingX, startingY, 0, 0)) {
-            takeSlackState = 2;
-        }
-    }
-
     //Take a measurement
-    if(takeSlackState == 2){
-        if (take_measurement_avg_with_check(0, UP)) {
+    if(takeSlackState == 0){
+        if (take_measurement_avg_with_check(2, UP)) { //We really shouldn't be using the second position to store the data, it should have it's own array
+            
+            float x = 0;
+            float y = 0;
+            if(!computeXYfromLengths(calibration_data[2][0], calibration_data[2][1], x, y)){
+                log_error("Failed to compute XY from lengths");
+                return true;
+            }
 
-            double offset = _beltEndExtension + _armLength;
-            double threshold = 12;
-
+            float extension = _beltEndExtension + _armLength;
+            
             //This should use it's own array, this is not calibration data
-            float diffTL = calibration_data[0][0] - measurementToXYPlane(computeTL(0, 0, 0), tlZ);
-            float diffTR = calibration_data[0][1] - measurementToXYPlane(computeTR(0, 0, 0), trZ);
-            float diffBL = calibration_data[0][2] - measurementToXYPlane(computeBL(0, 0, 0), blZ);
-            float diffBR = calibration_data[0][3] - measurementToXYPlane(computeBR(0, 0, 0), brZ);
+            float diffTL = calibration_data[2][0] - measurementToXYPlane(computeTL(x, y, 0), tlZ);
+            float diffTR = calibration_data[2][1] - measurementToXYPlane(computeTR(x, y, 0), trZ);
+            float diffBL = calibration_data[2][2] - measurementToXYPlane(computeBL(x, y, 0), blZ);
+            float diffBR = calibration_data[2][3] - measurementToXYPlane(computeBR(x, y, 0), brZ);
             log_info("Center point deviation: TL: " << diffTL << " TR: " << diffTR << " BL: " << diffBL << " BR: " << diffBR);
+            double threshold = 12;
             if (abs(diffTL) > threshold || abs(diffTR) > threshold || abs(diffBL) > threshold || abs(diffBR) > threshold) {
                 log_error("Center point deviation over " << threshold << "mm, your coordinate system is not accurate, maybe try running calibration again?");
                 //Should we enter an alarm state here to prevent things from going wrong?
@@ -424,12 +417,23 @@ bool Maslow_::takeSlackFunc() {
                 takeSlackState = 3;
                 holdTimer = millis();
                 setupIsComplete = true;
+
+                log_info("Current machine position loaded as X: " << x << " Y: " << y );
+
+                float* mpos = get_mpos();
+                mpos[0] = x;
+                mpos[1] = y;
+                set_motor_steps_from_mpos(mpos);
+                gc_sync_position();//This updates the Gcode engine with the new position from the stepping engine that we set with set_motor_steps
+                plan_sync_position();
+
+                sys.set_state(State::Idle);
             }
         }
     }
 
     //Position hold for 2 seconds
-    if(takeSlackState == 3){
+    if(takeSlackState == 1){
         if(millis() - holdTimer > 2000){
             takeSlackState = 0;
             return true;
@@ -444,8 +448,8 @@ bool Maslow_::takeSlackFunc() {
 // --Maslow calibration loop
 void Maslow_::calibration_loop() {
     static int  direction             = UP;
-    static bool measurementInProgress = false;
-    if(waypoint > pointCount){
+    static bool measurementInProgress = true; //We start by taking a measurement, then we move
+    if(waypoint > pointCount){ //Point count is the total number of points to measure so if waypoint > pointcount then the overall measurement process is complete
         calibrationInProgress = false;
         waypoint              = 0;
         setupIsComplete       = true;
@@ -475,16 +479,18 @@ void Maslow_::calibration_loop() {
 
     //Move to the next point in the grid
     else {
+
         if (move_with_slack(calibrationGrid[waypoint - 1][0],
                             calibrationGrid[waypoint - 1][1],
                             calibrationGrid[waypoint][0],
                             calibrationGrid[waypoint][1])) {
+
             measurementInProgress = true;
             direction             = get_direction(calibrationGrid[waypoint - 1][0],
                                       calibrationGrid[waypoint - 1][1],
                                       calibrationGrid[waypoint][0],
-                                      calibrationGrid[waypoint][1]);
-            x                     = calibrationGrid[waypoint][0];
+                                      calibrationGrid[waypoint][1]); //This is used to set the order that the belts are pulled tight in the following measurement
+            x                     = calibrationGrid[waypoint][0]; //Are these ever used anywhere?
             y                     = calibrationGrid[waypoint][1];
             hold(250);
         }
@@ -712,7 +718,7 @@ float Maslow_::computeBL(float x, float y, float z) {
 
     float length = sqrt(XYBeltLength * XYBeltLength + c * c); //Get the angled belt length
 
-    return length;  //+ lowerBeltsExtra;
+    return length;
 }
 float Maslow_::computeBR(float x, float y, float z) {
     //Move from lower left corner coordinates to centered coordinates
@@ -728,7 +734,7 @@ float Maslow_::computeBR(float x, float y, float z) {
 
     float length = sqrt(XYBeltLength * XYBeltLength + c * c); //Get the angled belt length
 
-    return length;  //+ lowerBeltsExtra;
+    return length;
 }
 float Maslow_::computeTR(float x, float y, float z) {
     //Move from lower left corner coordinates to centered coordinates
@@ -744,7 +750,7 @@ float Maslow_::computeTR(float x, float y, float z) {
 
     float length = sqrt(XYBeltLength * XYBeltLength + c * c); //Get the angled belt length
 
-    return length;  //+ lowerBeltsExtra;
+    return length;
 }
 float Maslow_::computeTL(float x, float y, float z) {
     //Move from lower left corner coordinates to centered coordinates
@@ -760,7 +766,7 @@ float Maslow_::computeTL(float x, float y, float z) {
 
     float length = sqrt(XYBeltLength * XYBeltLength + c * c); //Get the angled belt length
 
-    return length;  //+ lowerBeltsExtra;
+    return length;
 }
 
 //------------------------------------------------------
@@ -772,6 +778,34 @@ float Maslow_::measurementToXYPlane(float measurement, float zHeight){
 
     float lengthInXY = sqrt(measurement * measurement - zHeight * zHeight);
     return lengthInXY + _beltEndExtension + _armLength; //Add the belt end extension and arm length to get the actual distance
+}
+
+/*
+*Computes the current xy cordinates of the sled based on the lengths of the upper two belts
+*/
+bool Maslow_::computeXYfromLengths(double TL, double TR, float &x, float &y) {
+    double tlLength = TL;//measurementToXYPlane(TL, tlZ);
+    double trLength = TR;//measurementToXYPlane(TR, trZ);
+
+    //Find the intersection of the two circles centered at tlX, tlY and trX, trY with radii tlLength and trLength
+    double d = sqrt((tlX - trX) * (tlX - trX) + (tlY - trY) * (tlY - trY));
+    if (d > tlLength + trLength || d < abs(tlLength - trLength)) {
+        log_info("Unable to determine machine position");
+        return false;
+    }
+    
+    double a = (tlLength * tlLength - trLength * trLength + d * d) / (2 * d);
+    double h = sqrt(tlLength * tlLength - a * a);
+    double x0 = tlX + a * (trX - tlX) / d;
+    double y0 = tlY + a * (trY - tlY) / d;
+    double rawX = x0 + h * (trY - tlY) / d;
+    double rawY = y0 - h * (trX - tlX) / d;
+
+    // Adjust to the centered coordinates
+    x = rawX - centerX;
+    y = rawY - centerY;
+
+    return true;
 }
 
 /**
@@ -789,7 +823,7 @@ float Maslow_::measurementToXYPlane(float measurement, float zHeight){
  * - Takes a measurement once both belts are tight and stores it in the calibration data array.
  * 
  * @param waypoint The waypoint number to store the result.
- * @param dir The direction of the last move (UP, DOWN, LEFT, RIGHT).
+ * @param dir The direction of the last move (UP, DOWN, LEFT, RIGHT). This is used to descide which belts to tighten first
  * @param run The run mode (0 for sequential tightening, non-zero for simultaneous tightening).
  * @return True when the measurement is done, false otherwise.
  */
@@ -966,6 +1000,7 @@ void freeMeasurements() {
 }
 
 // Takes a series of measurements, calculates average and records calibration data;  Returns true when it's done and the result has been stored
+// There is way too much being done in this function. It needs to be split apart and cleaned up
 bool Maslow_::take_measurement_avg_with_check(int waypoint, int dir) {
     //take 5 measurements in a row, (ignoring the first one), if they are all within 1mm of each other, take the average and record it to the calibration data array
     static int           run                = 0;
@@ -1062,39 +1097,58 @@ bool Maslow_::take_measurement_avg_with_check(int waypoint, int dir) {
             log_info("Measured waypoint " << waypoint);
 
             //A check to see if the results on the first point are within the expected range
-            //This is dupliated code from the takeSlackFunc() function and it should be refactored
             if(waypoint == 0){
-                double threshold = 100;
 
-                float diffTL = measurements[0][0] - measurementToXYPlane(computeTL(0, 0, 0), tlZ);
-                float diffTR = measurements[0][1] - measurementToXYPlane(computeTR(0, 0, 0), trZ);
-                float diffBL = measurements[0][2] - measurementToXYPlane(computeBL(0, 0, 0), blZ);
-                float diffBR = measurements[0][3] - measurementToXYPlane(computeBR(0, 0, 0), brZ);
-                log_info("Center point deviation: TL: " << diffTL << " TR: " << diffTR << " BL: " << diffBL << " BR: " << diffBR);
+
+                //If the frame size is way off, we will compute a rough (assumed to be a square) frame size from the first measurmeent
+                double threshold = 100;
+                float diffTL = measurements[0][0] - measurementToXYPlane(computeTL(x, y, 0), tlZ);
+                float diffTR = measurements[0][1] - measurementToXYPlane(computeTR(x, y, 0), trZ);
+                float diffBL = measurements[0][2] - measurementToXYPlane(computeBL(x, y, 0), blZ);
+                float diffBR = measurements[0][3] - measurementToXYPlane(computeBR(x, y, 0), brZ);
+                log_info("Center point off by: TL: " << diffTL << " TR: " << diffTR << " BL: " << diffBL << " BR: " << diffBR);
 
                 if (abs(diffTL) > threshold || abs(diffTR) > threshold || abs(diffBL) > threshold || abs(diffBR) > threshold) {
-                    log_error("Center point deviation over " << threshold << "mmm, your coordinate system is not accurate, adjust your frame dimensions and restart.");
-                    //Should we enter an alarm state here to prevent things from going wrong?
+                    log_error("Center point off by over " << threshold << "mm");
 
-
-                    String message = "";
-                    //If both of the bottom belts are longer than expected then the frame is smaller than expected
-                    if(diffBL > threshold && diffBR > threshold){
-                        log_error("Frame size error, try entering larger frame dimensions and restart.");
-                        message = "Frame size error, try entering larger frame dimensions and restart.";
+                    if(!adjustFrameSizeToMatchFirstMeasurement()){
+                        eStop("Unable to find a valid frame size to match the first measurement");
+                        calibrationInProgress = false;
+                        waypoint              = 0;
+                        criticalCounter       = 0;
+                        freeMeasurements();
+                        return false;
                     }
-                    //If both of the bottom belts are shorter than expected then the frame is larger than expected
-                    else if(diffBL < -threshold && diffBR < -threshold){
-                        log_error("Frame size error, try entering smaller frame dimensions and restart.");
-                        message = "Frame size error, try entering smaller frame dimensions and restart.";
-                    }
-
-
-                    //Stop calibration
-                    eStop(message);
-                    freeMeasurements();
-                    return true;//Should this return false?
                 }
+
+                //Compute the current XY position from the top two belt measurements
+                float x = 0;
+                float y = 0;
+                if(!computeXYfromLengths(calibration_data[0][0], calibration_data[0][1], x, y)){
+                    eStop("Unable to find machine position from measurements");
+                    calibrationInProgress = false;
+                    waypoint              = 0;
+                    criticalCounter       = 0;
+                    freeMeasurements();
+                    return false;
+                }
+
+                log_info("Machine Position computed as X: " << x << " Y: " << y);
+
+                //Recompute the first four waypoint locations based on the current position
+                calibrationGrid[0][0] = x;//This first point is never really used because we've already measured here, but it shouldn't be left undefined
+                calibrationGrid[0][1] = y;
+                calibrationGrid[1][0] = x + 150;
+                calibrationGrid[1][1] = y;
+                calibrationGrid[2][0] = x + 150;
+                calibrationGrid[2][1] = y + 150;
+                calibrationGrid[3][0] = x;
+                calibrationGrid[3][1] = y + 150;
+                calibrationGrid[4][0] = x - 150;
+                calibrationGrid[4][1] = y + 150;
+                calibrationGrid[5][0] = x - 150;
+                calibrationGrid[5][1] = y;
+                
             }
 
             //This is the exit to indicate that the measurement was successful
@@ -1119,22 +1173,62 @@ bool Maslow_::move_with_slack(double fromX, double fromY, double toX, double toY
     //This is where we want to introduce some slack so the system
     static unsigned long moveBeginTimer = millis();
     static bool          decompress     = true;
-    const float          stepSize       = 0.06;
+    float                stepSize       = 0.06;
 
     static int direction = UP;
 
+    static float xStepSize = 1;
+    static float yStepSize = 1;
 
+    static bool tlExtending = false;
+    static bool trExtending = false;
+    static bool blExtending = false;
+    static bool brExtending = false;
+    
     bool withSlack = true;
-    if(waypoint > recomputePoints[0]){ //If we have completed the first level of calibraiton
+    if(waypoint > recomputePoints[0]){ //If we have completed the first round of calibraiton
         withSlack = false;
     }
 
-    //We only want to decompress at the beginning of each move
+    //This runs once at the beginning of the move
     if (decompress) {
         moveBeginTimer = millis();
         decompress = false;
         direction = get_direction(fromX, fromY, toX, toY);
-        checkValidMove(fromX, fromY, toX, toY);
+
+        //Compute the X and Y step Size
+        if (abs(toX - fromX) > abs(toY - fromY)) {
+            xStepSize = (toX - fromX) > 0 ? stepSize : -stepSize;
+            yStepSize = ((toY - fromY) > 0 ? stepSize : -stepSize) * abs(toY - fromY) / abs(toX - fromX);
+        } else {
+            yStepSize = (toY - fromY) > 0 ? stepSize : -stepSize;
+            xStepSize = ((toX - fromX) > 0 ? stepSize : -stepSize) * abs(toX - fromX) / abs(toY - fromY);
+        }
+
+        //Compute which belts will be getting longer. If the current length is less than the final length the belt needs to get longer
+        if (computeTL(fromX, fromY, 0) < computeTL(toX, toY, 0)) {
+            tlExtending = true;
+        } else {
+            tlExtending = false;
+        }
+        if (computeTR(fromX, fromY, 0) < computeTR(toX, toY, 0)) {
+            trExtending = true;
+        } else {
+            trExtending = false;
+        }
+        if (computeBL(fromX, fromY, 0) < computeBL(toX, toY, 0)) {
+            blExtending = true;
+        } else {
+            blExtending = false;
+        }
+        if (computeBR(fromX, fromY, 0) < computeBR(toX, toY, 0)) {
+            brExtending = true;
+        } else {
+            brExtending = false;
+        }
+
+        //Set the target to the starting position
+        setTargets(fromX, fromY, 0);
     }
 
     //Decompress belts for 500ms...this happens by returning right away before running any of the rest of the code
@@ -1174,6 +1268,19 @@ bool Maslow_::move_with_slack(double fromX, double fromY, double toX, double toY
         stopMotors();
         return false;
     }
+
+    //Set the targets
+    setTargets(getTargetX() + xStepSize, getTargetY() + yStepSize, 0);
+
+        //Check to see if we have reached our target position
+    if (abs(getTargetX() - toX) < 5 && abs(getTargetY() - toY) < 5) {
+        stopMotors();
+        reset_all_axis();
+        decompress = true;  //Reset for the next pass
+        return true;
+    }
+
+    //In vertical orientation we want to move with the top two belts and always have the lower ones be slack
     if(orientation == VERTICAL){
         axisTL.recomputePID();
         axisTR.recomputePID();
@@ -1187,97 +1294,37 @@ bool Maslow_::move_with_slack(double fromX, double fromY, double toX, double toY
         }
     }
     else{
-        switch (direction) {
-            case UP:
-                axisTL.recomputePID();
-                axisTR.recomputePID();
-                if(withSlack){
-                    axisBL.comply();
-                    axisBR.comply();
-                }
-                else{
-                    axisBL.recomputePID();
-                    axisBR.recomputePID();
-                }
-                break;
-            case DOWN:
-                if(withSlack){
-                    axisTL.comply();
-                    axisTR.comply();
-                }
-                else{
-                    axisTL.recomputePID();
-                    axisTR.recomputePID();
-                }
-                axisBL.recomputePID();
-                axisBR.recomputePID();
-                break;
-            case LEFT:
-                axisTL.recomputePID();
-                axisBL.recomputePID();
-                if(withSlack){
-                    axisTR.comply();
-                    axisBR.comply();
-                }
-                else{
-                    axisTR.recomputePID();
-                    axisBR.recomputePID();
-                }
-                break;
-            case RIGHT:
-                axisTR.recomputePID();
-                axisBR.recomputePID();
-                if(withSlack){
-                    axisTL.comply();
-                    axisBL.comply();
-                }
-                else{
-                    axisTL.recomputePID();
-                    axisBL.recomputePID();
-                }
-                break;
+
+        //For each belt we check to see if it should be slack
+        if(withSlack && tlExtending){
+            axisTL.comply();
+        }
+        else{
+            axisTL.recomputePID();
+        }
+
+        if(withSlack && trExtending){
+            axisTR.comply();
+        }
+        else{
+            axisTR.recomputePID();
+        }
+
+        if(withSlack && blExtending){
+            axisBL.comply();
+        }
+        else{
+            axisBL.recomputePID();
+        }
+
+        if(withSlack && brExtending){
+            axisBR.comply();
+        }
+        else{
+            axisBR.recomputePID();
         }
     }
 
-    //This system of setting the final target and then waiting until we get there doesn't feel good to me
-    switch (direction) {
-        case UP:
-            setTargets(toX, getTargetY() + stepSize, 0);
-            if (getTargetY() > toY) {
-                stopMotors();
-                reset_all_axis();
-                decompress = true;  //Reset for the next pass
-                return true;
-            }
-            break;
-        case DOWN:
-            setTargets(toX, getTargetY() - stepSize, 0);
-            if (getTargetY() < toY) {
-                stopMotors();
-                reset_all_axis();
-                decompress = true;  //Reset for the next pass
-                return true;
-            }
-            break;
-        case LEFT:
-            setTargets(getTargetX() - stepSize, toY, 0);
-            if (getTargetX() < toX){
-                stopMotors();
-                reset_all_axis();
-                decompress = true;  //Reset for the next pass
-                return true;
-            }
-            break;
-        case RIGHT:
-            setTargets(getTargetX() + stepSize, toY, 0);
-            if (getTargetX() > toX){
-                stopMotors();
-                reset_all_axis();
-                decompress = true;  //Reset for the next pass
-                return true;
-            }
-            break;
-    }
     return false;  //We have not yet reached our target position
 }
 
@@ -1298,38 +1345,39 @@ int Maslow_::get_direction(double x, double y, double targetX, double targetY) {
     return direction;
 }
 
-bool Maslow_::checkValidMove(double fromX, double fromY, double toX, double toY){
-    bool valid = true;
-    int direction = get_direction(fromX, fromY, toX, toY);
-    switch(direction){
-        case UP: //If we are moving up we expect the top belts to get shorter so to should be shorter than they are now
-            if(computeTL(toX, toY, 0) > axisTL.getPosition() || computeTR(toX, toY, 0) > axisTR.getPosition()){
-                valid = false;
-            }
-            break;
-        case DOWN: //If we are moving down we expect the bottom belts to get shorter so they should be shorter than they are now
-            if(computeBL(toX, toY, 0) > axisBL.getPosition() || computeBR(toX, toY, 0) > axisBR.getPosition()){
-                valid = false;
-            }
-            break;
-        case LEFT: //If we are moving left we expect the left belts to get shorter so they should be shorter than they are now
-            if(computeTL(toX, toY, 0) > axisTL.getPosition() || computeBL(toX, toY, 0) > axisBL.getPosition()){
-                valid = false;
-            }
-            break;
-        case RIGHT: //If we are moving right we expect the right belts to get shorter so they should be shorter than they are now
-            if(computeTR(toX, toY, 0) > axisTR.getPosition() || computeBR(toX, toY, 0) > axisBR.getPosition()){
-                valid = false;
-            }
-            break;
+/*
+* This function takes a single measurement and adjusts the frame dimensions to find a valid frame size that matches the measurement
+*/
+bool Maslow_::adjustFrameSizeToMatchFirstMeasurement() {
+
+    //Get the last measurments
+    double tlLen = measurements[0][0];
+    double trLen = measurements[0][1];
+    double blLen = measurements[0][2];
+    double brLen = measurements[0][3];
+
+    //Check that we are in fact on the center line. The math assumes that we are roughly centered on the frame and so
+    //the topleft and topright measurements should be roughly the same. It doesn't need to be exact.
+    if (std::abs(tlLen - trLen) > 20) {
+        log_error("Unable to adjust frame size. Not centered."); //There exists a more generalized solution which should be implimented here: https://math.stackexchange.com/questions/5013127/find-square-size-from-inscribed-triangles?noredirect=1#comment10752043_5013127
+        return false;
     }
-    if(!valid){
-        log_error("Unable to move safely, stopping calibration");
-        calibrationInProgress = false;
-        waypoint              = 0;
-        eStop("Unable to move safely, stopping calibration");
-    }
-    return valid;
+
+    //Compute the size of the frame from the given measurements
+
+    double numerator = sqrt(pow(tlLen, 2) + sqrt(-pow(tlLen, 4) + 6 * pow(tlLen, 2) * pow(blLen, 2) - pow(blLen, 4)) + pow(blLen, 2));
+    double denominator = sqrt(2);
+    float L = numerator / denominator;
+
+    //Adjust the frame size to match the computed size
+    tlY = L;
+    trX = L;
+    trY = L;
+    brX = L;
+    updateCenterXY();
+
+    log_info("Frame size automaticlaly adjusted to " + std::to_string(brX) + " by " + std::to_string(trY));
+    return true;
 }
 
 //The number of points high and wide  must be an odd number
@@ -1361,11 +1409,13 @@ bool Maslow_::generate_calibration_grid() {
             return false; // return false or handle error appropriately
     }
 
-    pointCount = 0;
+    pointCount = 6; //The first four points are computed dynamically
+    recomputePoints[0] = 5;
 
     //The point in the center
     calibrationGrid[pointCount][0] = 0;
     calibrationGrid[pointCount][1] = 0;
+
     pointCount++;
 
     int maxX = 1;
@@ -1374,7 +1424,7 @@ bool Maslow_::generate_calibration_grid() {
     int currentX = 0;
     int currentY = -1;
 
-    recomputeCount = 0;
+    recomputeCount = 1;
 
 
     while(maxX <= numberOfCycles){ //4 produces a 9x9 grid
@@ -1431,51 +1481,52 @@ bool Maslow_::generate_calibration_grid() {
 }
 
 //Print calibration grid
-void Maslow_::printCalibrationGrid() {
-    for (int i = 0; i <= pointCount; i++) {
-        log_info("Point " << i << ": " << calibrationGrid[i][0] << ", " << calibrationGrid[i][1]);
-    }
-    log_info("Max value for pointCount: " << pointCount);
+// void Maslow_::printCalibrationGrid() {
+//     for (int i = 0; i <= pointCount; i++) {
+//         log_info("Point " << i << ": " << calibrationGrid[i][0] << ", " << calibrationGrid[i][1]);
+//     }
+//     log_info("Max value for pointCount: " << pointCount);
 
-    for(int i = 0; i < recomputeCount; i++){
-        log_info("Recompute point: " << recomputePoints[i]);
-    }
+//     for(int i = 0; i < recomputeCount; i++){
+//         log_info("Recompute point: " << recomputePoints[i]);
+//     }
 
-    log_info("Times to recompute: " << recomputeCount);
+//     log_info("Times to recompute: " << recomputeCount);
 
 
-}
+// }
 
 //------------------------------------------------------
 //------------------------------------------------------ User commands
 //------------------------------------------------------
 
-void Maslow_::retractTL() {
-    //We allow other bells retracting to continue
-    retractingTL = true;
-    complyALL    = false;
-    extendingALL = false;
-    axisTL.reset();
-}
-void Maslow_::retractTR() {
-    retractingTR = true;
-    complyALL    = false;
-    extendingALL = false;
-    axisTR.reset();
-}
-void Maslow_::retractBL() {
-    retractingBL = true;
-    complyALL    = false;
-    extendingALL = false;
-    axisBL.reset();
-}
-void Maslow_::retractBR() {
-    retractingBR = true;
-    complyALL    = false;
-    extendingALL = false;
-    axisBR.reset();
-}
+// void Maslow_::retractTL() {
+//     //We allow other bells retracting to continue
+//     retractingTL = true;
+//     complyALL    = false;
+//     extendingALL = false;
+//     axisTL.reset();
+// }
+// void Maslow_::retractTR() {
+//     retractingTR = true;
+//     complyALL    = false;
+//     extendingALL = false;
+//     axisTR.reset();
+// }
+// void Maslow_::retractBL() {
+//     retractingBL = true;
+//     complyALL    = false;
+//     extendingALL = false;
+//     axisBL.reset();
+// }
+// void Maslow_::retractBR() {
+//     retractingBR = true;
+//     complyALL    = false;
+//     extendingALL = false;
+//     axisBR.reset();
+// }
 void Maslow_::retractALL() {
+
     retractingTL = true;
     retractingTR = true;
     retractingBL = true;
@@ -1488,6 +1539,7 @@ void Maslow_::retractALL() {
     axisBR.reset();
     setupIsComplete = false;
 }
+
 void Maslow_::extendALL() {
 
     if (!all_axis_homed()) {
@@ -1508,6 +1560,7 @@ void Maslow_::extendALL() {
 * This function is called once when calibration is started
 */
 void Maslow_::runCalibration() {
+
     //If we are at the first point we need to generate the grid before we can start
     if (waypoint == 0) {
         if(!generate_calibration_grid()){ //Fail out if the grid cannot be generated
@@ -1525,6 +1578,35 @@ void Maslow_::runCalibration() {
         log_error("Cannot run calibration until all belts are extended fully");
         sys.set_state(State::Idle);
         return;
+    }
+
+    //Recalculate the center position because the machine dimensions may have been updated
+    updateCenterXY();
+
+
+    //At this point it's likely that we have just sent the machine new cordinates for the anchor points so we need to figure out our new XY
+    //cordinates by looking at the current lengths of the top two belts.
+    //If we can't load the position, that's OK, we can still go ahead with the calibration and the first point will make a guess for it
+    float x = 0;
+    float y = 0;
+    if(computeXYfromLengths(measurementToXYPlane(axisTL.getPosition(), tlZ), measurementToXYPlane(axisTR.getPosition(), trZ), x, y)){
+        
+        //We reset the last waypoint to where it actually is so that we can move from the updated position to the next waypoint
+        if(waypoint > 0){
+            calibrationGrid[waypoint - 1][0] = x;
+            calibrationGrid[waypoint - 1][1] = y;
+        }
+
+        log_info("Machine Position found as X: " << x << " Y: " << y);
+
+        //Set the internal machine position to the new XY position
+        float* mpos = get_mpos();
+        mpos[0] = x;
+        mpos[1] = y;
+        set_motor_steps_from_mpos(mpos);
+        gc_sync_position();//This updates the Gcode engine with the new position from the stepping engine that we set with set_motor_steps
+        plan_sync_position();
+        
     }
 
     sys.set_state(State::Homing);
@@ -1562,7 +1644,6 @@ void Maslow_::BLI(){
 }
 void Maslow_::BRI(){
     BRIOveride = true;
-    log_info("BRI in "+M+" seen");
     overideTimer = millis();
 }
 void Maslow_::TLO(){
@@ -1581,6 +1662,10 @@ void Maslow_::BRO(){
     BROOveride = true;
     overideTimer = millis();
 }
+
+/*
+* This function is used to manuall force the motors to move for a fraction of a second to clear jams
+*/
 void Maslow_::handleMotorOverides(){
     if(TLIOveride){
         log_info(int(millis() - overideTimer));
@@ -1767,18 +1852,6 @@ void Maslow_::setZStop() {
     plan_sync_position();
 }
 
-
-
-void Maslow_::set_frame_width(double width) {
-    trX = width;
-    brX = width;
-    updateCenterXY();
-}
-void Maslow_::set_frame_height(double height) {
-    tlY = height;
-    trY = height;
-    updateCenterXY();
-}
 void Maslow_::take_slack() {
     //if not all axis are homed, we can't take the slack up
     if (!allAxisExtended()) {
@@ -1872,6 +1945,13 @@ void Maslow_::checkCalibrationData() {
 
 // function for outputting calibration data in the log line by line like this: {bl:2376.69,   br:923.40,   tr:1733.87,   tl:2801.87},
 void Maslow_::print_calibration_data() {
+    //These are used to set the browser side initial guess for the frame size
+    log_data("$/" << M << "_tlX=" << tlX);
+    log_data("$/" << M << "_tlY=" << tlY);
+    log_data("$/" << M << "_trX=" << trX);
+    log_data("$/" << M << "_trY=" << trY);
+    log_data("$/" << M << "_brX=" << brX);
+
     String data = "CLBM:[";
     for (int i = 0; i < waypoint; i++) {
         data += "{bl:" + String(calibration_data[i][2]) + ",   br:" + String(calibration_data[i][3]) +
@@ -1956,7 +2036,10 @@ double Maslow_::getTargetZ() {
     return targetZ;
 }
 
-//Updates where the center x and y positions are
+/* Calculates and updates the center (X, Y) position based on the coordinates of the four corners
+* (top-left, top-right, bottom-left, bottom-right) of a rectangular area. The center is determined
+* by finding the intersection of the diagonals of the rectangle.
+*/
 void Maslow_::updateCenterXY() {
     double A = (trY - blY) / (trX - blX);
     double B = (brY - tlY) / (brX - tlX);
