@@ -7,26 +7,20 @@
 #include <freertos/queue.h>
 #include <atomic>
 
-namespace Spindles 
-{
-    namespace VFD 
-    {
-        const int        VFD_RS485_BUF_SIZE   = 127;
-        const int        RESPONSE_WAIT_MS     = 1000;                                   // how long to wait for a response
-        const int        VFD_RS485_POLL_RATE  = 250;                                    // in milliseconds between commands
-        const TickType_t response_ticks       = RESPONSE_WAIT_MS / portTICK_PERIOD_MS;  // in milliseconds between commands
+namespace Spindles {
+    namespace VFD {
+        const int        VFD_RS485_BUF_SIZE = 127;
+        const int        RESPONSE_WAIT_MS   = 1000;                                   // how long to wait for a response
+        const TickType_t response_ticks     = RESPONSE_WAIT_MS / portTICK_PERIOD_MS;  // in milliseconds between commands
 
         QueueHandle_t VFDProtocol::vfd_cmd_queue     = nullptr;
         TaskHandle_t  VFDProtocol::vfd_cmdTaskHandle = nullptr;
 
         void VFDProtocol::reportParsingErrors(ModbusCommand cmd, uint8_t* rx_message, size_t read_length) {
-    #ifdef DEBUG_VFD
             hex_msg(cmd.msg, "RS485 Tx: ", cmd.tx_length);
             hex_msg(rx_message, "RS485 Rx: ", read_length);
-    #endif
         }
         void VFDProtocol::reportCmdErrors(ModbusCommand cmd, uint8_t* rx_message, size_t read_length, uint8_t id) {
-    #ifdef DEBUG_VFD
             hex_msg(cmd.msg, "RS485 Tx: ", cmd.tx_length);
             hex_msg(rx_message, "RS485 Rx: ", read_length);
 
@@ -41,9 +35,8 @@ namespace Spindles
             } else {
                 log_info("RS485 No response");
             }
-    #endif
         }
-    
+
         // The communications task
         void VFDProtocol::vfd_cmd_task(void* pvParameters) {
             static bool unresponsive = false;  // to pop off a message once each time it becomes unresponsive
@@ -56,12 +49,12 @@ namespace Spindles
             uint8_t       rx_message[VFD_RS485_MAX_MSG_SIZE];
             bool          safetyPollingEnabled = impl->safety_polling();
 
-            for (; true; delay_ms(VFD_RS485_POLL_RATE)) {
+            for (; true; delay_ms(instance->_poll_ms)) {
                 std::atomic_thread_fence(std::memory_order::memory_order_seq_cst);  // read fence for settings
                 response_parser parser = nullptr;
 
                 // First check if we should ask the VFD for the speed parameters as part of the initialization.
-                if (pollidx < 0 && (parser = impl->initialization_sequence(pollidx, next_cmd)) != nullptr) {
+                if (pollidx < 0 && (parser = impl->initialization_sequence(pollidx, next_cmd, instance)) != nullptr) {
                 } else {
                     pollidx = 1;  // Done with initialization. Main sequence.
                 }
@@ -143,11 +136,11 @@ namespace Spindles
                     next_cmd.msg[next_cmd.tx_length++] = (crc16 & 0xFF00) >> 8;
                     next_cmd.rx_length += 2;
 
-    #ifdef DEBUG_VFD_ALL
-                    if (parser == nullptr) {
+                    if (instance->_debug > 2) {
+                        //                    if (parser == nullptr) {
                         hex_msg(next_cmd.msg, "RS485 Tx: ", next_cmd.tx_length);
+                        //                    }
                     }
-    #endif
                 }
 
                 // Assume for the worst, and retry...
@@ -187,6 +180,7 @@ namespace Spindles
                         unresponsive = false;
                         retry_count  = MAX_RETRIES + 1;  // stop retry'ing
 
+                        hex_msg(rx_message, "RS485 Rx: ", read_length);
                         // Should we parse this?
                         if (parser != nullptr) {
                             if (parser(rx_message, instance, impl)) {
@@ -196,7 +190,9 @@ namespace Spindles
                                 }
                             } else {
                                 // Parsing failed
-                                reportParsingErrors(next_cmd, rx_message, read_length);
+                                if (instance->_debug) {
+                                    reportParsingErrors(next_cmd, rx_message, read_length);
+                                }
 
                                 // If we were initializing, move back to where we started.
                                 unresponsive = true;
@@ -205,16 +201,17 @@ namespace Spindles
                             }
                         }
                     } else {
-                        reportCmdErrors(next_cmd, rx_message, read_length, instance->_modbus_id);
+                        if (instance->_debug) {
+                            reportCmdErrors(next_cmd, rx_message, read_length, instance->_modbus_id);
+                        }
 
-                        // Wait a bit before we retry. Set the delay to poll-rate. Not sure
-                        // if we should use a different value...
-                        delay_ms(VFD_RS485_POLL_RATE);
+                        // Wait a bit before we retry.
+                        delay_ms(instance->_poll_ms);
 
-    #ifdef DEBUG_TASK_STACK
+#ifdef DEBUG_TASK_STACK
                         static UBaseType_t uxHighWaterMark = 0;
                         reportTaskStackSize(uxHighWaterMark);
-    #endif
+#endif
                     }
                 }
 
@@ -253,9 +250,6 @@ namespace Spindles
             }
             spindle->_current_dev_speed = speed;
 
-    #ifdef DEBUG_VFD_ALL
-            log_debug("Setting spindle speed to:" << int(speed));
-    #endif
             // Do variant-specific command preparation
             set_speed_command(speed, data);
 

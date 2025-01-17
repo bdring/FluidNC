@@ -210,7 +210,7 @@ namespace Spindles {
         }
 
         // This gets data from the VFS. It does not set any values
-        VFDProtocol::response_parser HuanyangProtocol::initialization_sequence(int index, ModbusCommand& data) {
+        VFDProtocol::response_parser HuanyangProtocol::initialization_sequence(int index, ModbusCommand& data, VFDSpindle* vfd) {
             // NOTE: data length is excluding the CRC16 checksum.
             data.tx_length = 6;
             data.rx_length = 6;

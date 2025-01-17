@@ -115,7 +115,7 @@ namespace Spindles {
             data.msg[5] = speed & 0xFF;
         }
 
-        VFDProtocol::response_parser YL620Protocol::initialization_sequence(int index, ModbusCommand& data) {
+        VFDProtocol::response_parser YL620Protocol::initialization_sequence(int index, ModbusCommand& data, VFDSpindle* vfd) {
             if (index == -1) {
                 data.tx_length = 6;
                 data.rx_length = 5;

@@ -628,7 +628,7 @@ void hex_msg(uint8_t* buf, const char* prefix, int len) {
     char temp[20];
     sprintf(report, "%s", prefix);
     for (int i = 0; i < len; i++) {
-        sprintf(temp, " 0x%02X", buf[i]);
+        sprintf(temp, " %02X", buf[i]);
         strcat(report, temp);
     }
 

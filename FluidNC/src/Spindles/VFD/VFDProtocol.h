@@ -5,7 +5,7 @@
 
 namespace Spindles {
     class VFDSpindle;
-    
+
     namespace VFD {
         // VFDProtocol resides in a separate class because it doesn't need to be in IRAM. This contains all the
         // VFD specific code, which is called from a separate task.
@@ -23,6 +23,7 @@ namespace Spindles {
                 uint8_t rx_length;
                 uint8_t msg[VFD_RS485_MAX_MSG_SIZE];
             };
+            virtual void group(Configuration::HandlerBase& handler) {};
 
         protected:
             // Enable spindown / spinup settings:
@@ -34,7 +35,7 @@ namespace Spindles {
 
             // Commands that return the status. Returns nullptr if unavailable by this VFD (default):
 
-            virtual response_parser initialization_sequence(int index, ModbusCommand& data) { return nullptr; }
+            virtual response_parser initialization_sequence(int index, ModbusCommand& data, VFDSpindle* vfd) { return nullptr; }
             virtual response_parser get_current_speed(ModbusCommand& data) { return nullptr; }
             virtual response_parser get_current_direction(ModbusCommand& data) { return nullptr; }
             virtual response_parser get_status_ok(ModbusCommand& data) = 0;
@@ -51,11 +52,11 @@ namespace Spindles {
                 uint32_t      arg;
             };
 
-            // Careful observers will notice that these *shouldn't* be static, but they are. The reason is 
-            // hard to track down. In the spindle class, you can find: 
+            // Careful observers will notice that these *shouldn't* be static, but they are. The reason is
+            // hard to track down. In the spindle class, you can find:
             //
             // 'virtual void init() = 0;  // not in constructor because this also gets called when $$ settings change'
-            // 
+            //
             // With init being called multiple times, static suddenly makes more sense - especially since there is
             // no de-init. Oh well...
 
@@ -72,10 +73,10 @@ namespace Spindles {
 
         public:
             VFDProtocol() {}
-            VFDProtocol(const VFDProtocol&) = delete;
-            VFDProtocol(VFDProtocol&&)      = delete;
+            VFDProtocol(const VFDProtocol&)            = delete;
+            VFDProtocol(VFDProtocol&&)                 = delete;
             VFDProtocol& operator=(const VFDProtocol&) = delete;
-            VFDProtocol& operator=(VFDProtocol&&) = delete;
+            VFDProtocol& operator=(VFDProtocol&&)      = delete;
         };
     }
 }
