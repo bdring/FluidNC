@@ -40,7 +40,6 @@ namespace Spindles {
                 return false;
             }
             while (str.size()) {
-                value <<= 4;
                 if (!isdigit(str[0])) {
                     return false;
                 }
@@ -120,7 +119,6 @@ namespace Spindles {
                 uint32_t rval  = (response_view[0] << 8) + (response_view[1] & 0xff);
                 uint32_t orval = rval;
                 scale(rval, token.substr(strlen(name)));
-                log_debug("Input " << orval << " scaled to " << rval);
                 data = rval;
                 response_view.remove_prefix(2);
                 return true;
@@ -144,9 +142,11 @@ namespace Spindles {
                     continue;
                 }
                 if (set_data(token, response_view, "minrpm", instance->_minRPM)) {
+                    log_debug("VFD: got minRPM " << instance->_minRPM);
                     continue;
                 }
                 if (set_data(token, response_view, "maxrpm", instance->_maxRPM)) {
+                    log_debug("VFD: got maxRPM " << instance->_maxRPM);
                     continue;
                 }
                 if (from_hex(token, val)) {
@@ -163,7 +163,6 @@ namespace Spindles {
             return true;
         }
         void GenericProtocol::send_vfd_command(const std::string cmd, ModbusCommand& data, uint32_t out) {
-            log_debug("Sending " << cmd);
             data.tx_length = 1;
             data.rx_length = 1;
             if (cmd.empty()) {
@@ -195,7 +194,6 @@ namespace Spindles {
                 }
             }
             while (data.rx_length < (VFD_RS485_MAX_MSG_SIZE - 3) && split(in_view, token, " ")) {
-                // log_debug("<tok " << token);
                 if (token == "") {
                     // Ignore repeated spaces
                     continue;
@@ -247,15 +245,15 @@ namespace Spindles {
             vfd->_slop = 300;
         }
         VFDProtocol::response_parser GenericProtocol::initialization_sequence(int index, ModbusCommand& data, VFDSpindle* vfd) {
-            if (_minRPM == 0xffffffff && !_get_min_rpm_cmd.empty()) {
-                send_vfd_command(_get_min_rpm_cmd, data, 0);
+            if (_maxRPM == 0xffffffff && !_get_max_rpm_cmd.empty()) {
+                send_vfd_command(_get_max_rpm_cmd, data, 0);
                 return [](const uint8_t* response, VFDSpindle* spindle, VFDProtocol* protocol) -> bool {
                     auto instance = static_cast<GenericProtocol*>(protocol);
                     return instance->parser(response, spindle, instance);
                 };
             }
-            if (_maxRPM == 0xffffffff && !_get_max_rpm_cmd.empty()) {
-                send_vfd_command(_get_max_rpm_cmd, data, 0);
+            if (_minRPM == 0xffffffff && !_get_min_rpm_cmd.empty()) {
+                send_vfd_command(_get_min_rpm_cmd, data, 0);
                 return [](const uint8_t* response, VFDSpindle* spindle, VFDProtocol* protocol) -> bool {
                     auto instance = static_cast<GenericProtocol*>(protocol);
                     return instance->parser(response, spindle, instance);

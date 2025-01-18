@@ -17,7 +17,7 @@ namespace Spindles {
             response_parser get_current_direction(ModbusCommand& data) override { return nullptr; };
             response_parser get_status_ok(ModbusCommand& data) override { return nullptr; }
 
-            bool use_delay_settings() const override { return false; }
+            bool use_delay_settings() const override { return true; }
             bool safety_polling() const override { return false; }
 
             std::string _cw_cmd;

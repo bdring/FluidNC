@@ -54,9 +54,10 @@ namespace Spindles {
                 response_parser parser = nullptr;
 
                 // First check if we should ask the VFD for the speed parameters as part of the initialization.
-                if (pollidx < 0 && (parser = impl->initialization_sequence(pollidx, next_cmd, instance)) != nullptr) {
-                } else {
-                    pollidx = 1;  // Done with initialization. Main sequence.
+                if (pollidx < 0) {
+                    if ((parser = impl->initialization_sequence(pollidx, next_cmd, instance)) == nullptr) {
+                        pollidx = 1;  // Done with initialization. Main sequence.
+                    }
                 }
                 next_cmd.critical = false;
 
@@ -75,7 +76,6 @@ namespace Spindles {
                                 next_cmd.critical = action.critical;
                                 break;
                             case actionSetMode:
-                                log_debug("vfd_cmd_task mode:" << action.action);
                                 if (!impl->prepareSetModeCommand(SpindleState(action.arg), next_cmd, instance)) {
                                     continue;  // main loop
                                 }
@@ -159,6 +159,7 @@ namespace Spindles {
                     // Apparently some Huanyang report modbus errors in the correct way, and the rest not. Sigh.
                     // Let's just check for the condition, and truncate the first byte.
                     if (read_length > 0 && instance->_modbus_id != 0 && rx_message[0] == 0) {
+                        log_debug("Huanyang workaround");
                         memmove(rx_message + 1, rx_message, read_length - 1);
                     }
 
@@ -179,8 +180,9 @@ namespace Spindles {
                         // Success
                         unresponsive = false;
                         retry_count  = MAX_RETRIES + 1;  // stop retry'ing
-
-                        hex_msg(rx_message, "RS485 Rx: ", read_length);
+                        if (instance->_debug > 2) {
+                            hex_msg(rx_message, "RS485 Rx: ", read_length);
+                        }
                         // Should we parse this?
                         if (parser != nullptr) {
                             if (parser(rx_message, instance, impl)) {
