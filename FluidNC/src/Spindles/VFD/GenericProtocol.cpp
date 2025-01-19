@@ -40,9 +40,14 @@ namespace Spindles {
             return true;
         }
 
-        void scale(uint32_t& n, std::string_view scale_str) {
+        void scale(uint32_t& n, std::string_view scale_str, uint32_t maxRPM) {
             if (scale_str.empty()) {
                 return;
+            }
+            if (scale_str[0] == '%') {
+                scale_str.remove_prefix(1);
+                n *= 100;
+                n /= maxRPM;
             }
             if (scale_str[0] == '*') {
                 std::string_view numerator_str;
@@ -109,7 +114,7 @@ namespace Spindles {
             if (string_util::starts_with_ignore_case(token, name)) {
                 uint32_t rval  = (response_view[0] << 8) + (response_view[1] & 0xff);
                 uint32_t orval = rval;
-                scale(rval, token.substr(strlen(name)));
+                scale(rval, token.substr(strlen(name)), 1);
                 data = rval;
                 response_view.remove_prefix(2);
                 return true;
@@ -173,7 +178,7 @@ namespace Spindles {
                 }
                 if (string_util::starts_with_ignore_case(token, "rpm")) {
                     uint32_t oout = out;
-                    scale(out, token.substr(strlen("rpm")));
+                    scale(out, token.substr(strlen("rpm")), _maxRPM);
                     data.msg[data.tx_length++] = out >> 8;
                     data.msg[data.tx_length++] = out & 0xff;
                 } else if (from_hex(token, data.msg[data.tx_length])) {
