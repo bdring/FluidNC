@@ -145,7 +145,7 @@ namespace Spindles {
 
                 // Assume for the worst, and retry...
                 int retry_count = 0;
-                for (; retry_count < MAX_RETRIES; ++retry_count) {
+                for (; retry_count < instance->_retries; ++retry_count) {
                     // Flush the UART and write the data:
                     uart.flush();
                     uart.write(next_cmd.msg, next_cmd.tx_length);
@@ -179,7 +179,7 @@ namespace Spindles {
 
                         // Success
                         unresponsive = false;
-                        retry_count  = MAX_RETRIES + 1;  // stop retry'ing
+                        retry_count  = instance->_retries + 1;  // stop retry'ing
                         if (instance->_debug > 2) {
                             hex_msg(rx_message, "RS485 Rx: ", read_length);
                         }
@@ -217,7 +217,7 @@ namespace Spindles {
                     }
                 }
 
-                if (retry_count == MAX_RETRIES) {
+                if (retry_count == instance->_retries) {
                     if (!unresponsive) {
                         log_info("VFD RS485 Unresponsive");
                         unresponsive = true;
@@ -246,7 +246,6 @@ namespace Spindles {
         }
 
         bool VFDProtocol::prepareSetSpeedCommand(uint32_t speed, ModbusCommand& data, VFDSpindle* spindle) {
-            log_debug("prep speed " << speed << " curr " << spindle->_current_dev_speed);
             if (speed == spindle->_current_dev_speed) {  // prevent setting same speed twice
                 return false;
             }

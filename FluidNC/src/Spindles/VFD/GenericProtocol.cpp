@@ -9,15 +9,6 @@
 #include <algorithm>
 
 namespace Spindles {
-    // cw_cmd: 06 20 00 00 12 < 06 20 00 00 12
-    // ccw_cmd: 06 20 00 00 22 < 06 20 00 00 22
-    // off_cmd: 06 20 00 00 01 < 06 20 00 00 01
-    // get_speed_cmd: 03 20 0b 00 01 < 03 02 xxxx
-    // set_speed_cmd: 03 20 01 xxxx < 06 20 01 xxxx
-    // get_min_freq_cmd: 03 03 08 00 01 < 03 02 xxxx
-    // get_max_freq_cmd: 03 00 00 00 01 < 03 02 xxxx
-    // rpm_factor: 6
-
     namespace VFD {
         bool split(std::string_view& input, std::string_view& token, const char* delims) {
             if (input.size() == 0) {
@@ -61,7 +52,7 @@ namespace Spindles {
                 if (from_decimal(numerator_str, numerator)) {
                     n *= numerator;
                 } else {
-                    log_error("Bad decimal number " << numerator_str);
+                    log_error(spindle->name() << ": bad decimal number " << numerator_str);
                     return;
                 }
                 if (!scale_str.empty()) {
@@ -69,7 +60,7 @@ namespace Spindles {
                     if (from_decimal(scale_str, denominator)) {
                         n /= denominator;
                     } else {
-                        log_error("Bad decimal number " << scale_str);
+                        log_error(spindle->name() << ": bad decimal number " << scale_str);
                         return;
                     }
                 }
@@ -79,7 +70,7 @@ namespace Spindles {
                 if (from_decimal(denominator_str, denominator)) {
                     n /= denominator;
                 } else {
-                    log_error("Bad decimal number " << scale_str);
+                    log_error(spindle->name() << ": bad decimal number " << scale_str);
                     return;
                 }
             }
@@ -142,22 +133,22 @@ namespace Spindles {
                     continue;
                 }
                 if (set_data(token, response_view, "minrpm", instance->_minRPM)) {
-                    log_debug("VFD: got minRPM " << instance->_minRPM);
+                    log_debug(spindle->name() << ": got minRPM " << instance->_minRPM);
                     continue;
                 }
                 if (set_data(token, response_view, "maxrpm", instance->_maxRPM)) {
-                    log_debug("VFD: got maxRPM " << instance->_maxRPM);
+                    log_debug(spindle->name() << ": got maxRPM " << instance->_maxRPM);
                     continue;
                 }
                 if (from_hex(token, val)) {
                     if (val != response_view[0]) {
-                        log_debug("VFD Response mismatch - expected " << to_hex(val) << " got " << to_hex(response_view[0]));
+                        log_debug(spindle->name() << ": response mismatch - expected " << to_hex(val) << " got " << to_hex(response_view[0]));
                         return false;
                     }
                     response_view.remove_prefix(1);
                     continue;
                 }
-                log_error("Bad response token " << token);
+                log_error(spindle->name() << ": bad response token " << token);
                 return false;
             }
             return true;
@@ -183,13 +174,12 @@ namespace Spindles {
                 if (string_util::starts_with_ignore_case(token, "rpm")) {
                     uint32_t oout = out;
                     scale(out, token.substr(strlen("rpm")));
-                    log_debug("Output " << oout << " scaled to " << out);
                     data.msg[data.tx_length++] = out >> 8;
                     data.msg[data.tx_length++] = out & 0xff;
                 } else if (from_hex(token, data.msg[data.tx_length])) {
                     ++data.tx_length;
                 } else {
-                    log_error("Bad hex number " << token);
+                    log_error(spindle->name() << ":Bad hex number " << token);
                     return;
                 }
             }
@@ -209,7 +199,7 @@ namespace Spindles {
                 } else if (from_hex(token, x)) {
                     ++data.rx_length;
                 } else {
-                    log_error("Bad hex number " << token);
+                    log_error(spindle->name() << ": bad hex number " << token);
                 }
             }
         }
@@ -228,11 +218,11 @@ namespace Spindles {
         }
 
         void GenericProtocol::set_speed_command(uint32_t speed, ModbusCommand& data) {
-            send_vfd_command(_set_speed_cmd, data, speed);
+            send_vfd_command(_set_rpm_cmd, data, speed);
         }
 
         VFDProtocol::response_parser GenericProtocol::get_current_speed(ModbusCommand& data) {
-            send_vfd_command(_get_speed_cmd, data, 0);
+            send_vfd_command(_get_rpm_cmd, data, 0);
             return [](const uint8_t* response, VFDSpindle* spindle, VFDProtocol* protocol) -> bool {
                 auto instance = static_cast<GenericProtocol*>(protocol);
                 return instance->parser(response, spindle, instance);
@@ -267,7 +257,7 @@ namespace Spindles {
 
         // Configuration registration
         namespace {
-            SpindleFactory::DependentInstanceBuilder<VFDSpindle, GenericProtocol> registration("VFD");
+            SpindleFactory::DependentInstanceBuilder<VFDSpindle, GenericProtocol> registration("ModbusVFD");
         }
     }
 }

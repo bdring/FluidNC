@@ -38,6 +38,7 @@ namespace Spindles {
         uint8_t  _modbus_id = 1;
         uint8_t  _debug     = 0;
         uint32_t _poll_ms   = 250;
+        uint32_t _retries   = 5;
 
         void setSpeed(uint32_t dev_speed);
 

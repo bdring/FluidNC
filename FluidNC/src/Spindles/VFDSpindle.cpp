@@ -104,7 +104,7 @@ namespace Spindles {
     }
 
     void VFDSpindle::setState(SpindleState state, SpindleSpeed speed) {
-        log_debug("VFD setState:" << uint8_t(state) << " SpindleSpeed:" << speed);
+        log_debug(name() << ": setState:" << uint8_t(state) << " SpindleSpeed:" << speed);
         if (sys.abort) {
             return;  // Block during abort.
         }
@@ -112,7 +112,6 @@ namespace Spindles {
         bool critical = (state_is(State::Cycle) || state != SpindleState::Disable);
 
         uint32_t dev_speed = mapSpeed(speed);
-        log_debug("RPM:" << speed << " mapped to device units:" << dev_speed);
 
         if (_current_state != state) {
             // Changing state
@@ -144,6 +143,7 @@ namespace Spindles {
 
             while ((_last_override_value == sys.spindle_speed_ovr) &&  // skip if the override changes
                    ((_sync_dev_speed < minSpeedAllowed || _sync_dev_speed > maxSpeedAllowed) && unchanged < limit)) {
+                delay_ms(_poll_ms);
                 if (_debug > 1) {
                     log_debug("Syncing speed. Requested: " << int(dev_speed) << " current:" << int(_sync_dev_speed));
                 }
@@ -153,7 +153,6 @@ namespace Spindles {
                 //     last      = _sync_dev_speed;
                 //     break;
                 // }
-                delay_ms(500);
 
                 // unchanged counts the number of consecutive times that we see the same speed
                 unchanged = (_sync_dev_speed == last) ? unchanged + 1 : 0;
@@ -167,7 +166,7 @@ namespace Spindles {
 
             if (unchanged == limit) {
                 mc_critical(ExecAlarm::SpindleControl);
-                log_error(name() << " spindle did not reach device units " << dev_speed << ". Reported value is " << _sync_dev_speed);
+                log_error(name() << ": spindle did not reach device units " << dev_speed << ". Reported value is " << _sync_dev_speed);
             }
 
             _syncing = false;
@@ -227,6 +226,7 @@ namespace Spindles {
         handler.item("modbus_id", _modbus_id, 0, 247);  // per https://modbus.org/docs/PI_MBUS_300.pdf
         handler.item("debug", _debug, 0, 5);
         handler.item("poll_ms", _poll_ms, 250, 20000);
+        handler.item("retries", _retries);
 
         Spindle::group(handler);
         detail_->group(handler);

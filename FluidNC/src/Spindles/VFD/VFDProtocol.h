@@ -14,7 +14,6 @@ namespace Spindles {
             using response_parser = bool (*)(const uint8_t* response, VFDSpindle* spindle, VFDProtocol* detail);
 
             static const int VFD_RS485_MAX_MSG_SIZE = 16;  // more than enough for a modbus message
-            static const int MAX_RETRIES            = 5;   // otherwise the spindle is marked 'unresponsive'
 
             struct ModbusCommand {
                 bool critical;  // TODO SdB: change into `uint8_t critical : 1;`: We want more flags...
