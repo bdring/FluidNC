@@ -100,6 +100,10 @@ Error MacroChannel::readLine(char* line, int maxlen) {
     }
     line[len] = '\0';
     ++_line_number;
+    if (len == 0) {
+        ++_blank_lines;
+    }
+
     return len ? Error::Ok : Error::Eof;
 }
 
@@ -117,6 +121,11 @@ void MacroChannel::ack(Error status) {
 
 MacroChannel::MacroChannel(Macro* macro) : Channel(macro->name(), false), _macro(macro) {}
 
+void MacroChannel::end_message() {
+    _progress += name();
+    _progress += ": Sent";
+}
+
 Error MacroChannel::pollLine(char* line) {
     // Macros only execute as proper jobs so we should not be polling one with a null line
     if (!line) {
@@ -124,6 +133,21 @@ Error MacroChannel::pollLine(char* line) {
     }
     if (_pending_error != Error::Ok) {
         return _pending_error;
+    }
+    if (_percent) {
+        _percent = false;
+        // If the first non-blank line in the macro is a % line, it denotes start-of-file.
+        // Otherwise a % line causes the rest of the macro to be skipped, per
+        // https://linuxcnc.org/docs/html/gcode/overview.html#gcode:file-requirements
+        // The line with % is not blank, so if it is the first non-blank line
+        // _line_number will be one more than _blank_lines
+        if (_line_number != _blank_lines + 1) {
+            _ended = true;
+        }
+    }
+    if (_ended) {
+        end_message();
+        return Error::Eof;
     }
     switch (auto err = readLine(line, Channel::maxLine)) {
         case Error::Ok: {
@@ -136,8 +160,7 @@ Error MacroChannel::pollLine(char* line) {
         }
             return Error::Ok;
         case Error::Eof:
-            _progress = name();
-            _progress += ": Sent";
+            end_message();
             return Error::Eof;
         default:
             log_error("Macro readLine failed");

@@ -42,9 +42,10 @@ namespace Spindles {
                 spindle->stop();      // stop the current spindle
                 stop_spindle = true;  // used to stop the next spindle
             }
-            if (candidate != spindle) {
-                spindle = candidate;
-                new_spindle = true;
+            if (candidate != spindle) {  // we are changing spindles
+                gc_state.selected_tool = new_tool;
+                spindle                = candidate;
+                new_spindle            = true;
                 log_info("Changed to spindle:" << spindle->name());
             }
         } else {
@@ -134,7 +135,6 @@ namespace Spindles {
             return _atc->tool_change(tool_number, pre_select, set_tool);
         }
         if (!_m6_macro.get().empty()) {
-            log_info(_name << " spindle changed to tool:" << tool_number << " using m6_macro");
             if (pre_select) {
                 return true;
             }
@@ -142,14 +142,12 @@ namespace Spindles {
             if (set_tool) {
                 return true;
             }
-
-            //if (tool_number != _last_tool) {
-            log_info(_name << " spindle run macro: " << _m6_macro.get());
             _m6_macro.run(nullptr);
             _last_tool = tool_number;
             return true;
             //}
         }
+
         return true;
     }
 

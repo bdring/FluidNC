@@ -192,12 +192,13 @@ void collapseGCode(char* line) {
                 *outPtr = '\0';
                 return;
             case '%':
-                // TODO: Install '%' feature
-                // Program start-end percent sign NOT SUPPORTED.
-                // NOTE: This may be installed to distinguish between program running vs manual input,
-                // where, during a program, the system auto-cycle start will continue to execute
-                // everything until the next '%' sign. This will help fix resuming issues with certain
-                // functions that empty the planner buffer to execute its task on-time.
+                // Per https://linuxcnc.org/docs/html/gcode/overview.html#gcode:file-requirements
+                // % only applies to "job" channels like files and macros, not to serial channels
+                // where the sequence of lines is potentially never-ending.  A sender that handles
+                // files on the host system could apply the % semantics.
+                if (Job::active()) {
+                    Job::channel()->percent();
+                }
                 break;
             case '\r':
                 // In case one sneaks in
@@ -1613,6 +1614,7 @@ Error gc_execute_line(char* line) {
             bool stopped_spindle = false;   // was spindle stopped via the change
             bool new_spindle     = false;   // was the spindle changed
             protocol_buffer_synchronize();  // wait for motion in buffer to finish
+
             Spindles::Spindle::switchSpindle(
                 gc_state.selected_tool, Spindles::SpindleFactory::objects(), spindle, stopped_spindle, new_spindle);
             if (stopped_spindle) {
@@ -1621,13 +1623,19 @@ Error gc_execute_line(char* line) {
             if (new_spindle) {
                 gc_state.spindle_speed = 0.0;
             }
+            log_info("Sel:" << gc_state.selected_tool << " Cur:" << gc_state.current_tool);
             spindle->tool_change(gc_state.selected_tool, false, false);
-            gc_state.current_tool = gc_state.selected_tool;
-            report_ovr_counter    = 0;  // Set to report change immediately
+            if (spindle->_atc_name == "" && spindle->_m6_macro.get().empty()) {  // if neither of these exist we need to set the value here
+                gc_state.current_tool = gc_state.selected_tool;
+            }
+            report_ovr_counter = 0;  // Set to report change immediately
             gc_ovr_changed();
         }
     }
-    if (gc_block.modal.set_tool_number == SetToolNumber::Enable) {
+    if (gc_block.modal.set_tool_number == SetToolNumber::Enable) {  // M61
+        if (gc_block.values.q < 0) {
+            FAIL(Error::NegativeValue);  // https://linuxcnc.org/docs/2.8/html/gcode/m-code.html#mcode:m61
+        }
         gc_state.selected_tool = gc_block.values.q;
         bool stopped_spindle   = false;  // was spindle stopped via the change
         bool new_spindle       = false;  // was the spindle changed
@@ -1894,7 +1902,6 @@ Error gc_execute_line(char* line) {
 
             if (Job::active()) {
                 Job::channel()->end();
-                break;
             }
             // Upon program complete, only a subset of g-codes reset to certain defaults, according to
             // LinuxCNC's program end descriptions and testing. Only modal groups [G-code 1,2,3,5,7,12]

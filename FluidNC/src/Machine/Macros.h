@@ -58,10 +58,12 @@ namespace Machine {
     private:
         Error  _pending_error = Error::Ok;
         size_t _position      = 0;
+        size_t _blank_lines   = 0;
 
         Macro* _macro;
 
         Error readLine(char* line, int maxlen);
+        void  end_message();
 
     public:
         Error pollLine(char* line) override;

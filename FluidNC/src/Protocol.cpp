@@ -153,7 +153,7 @@ void polling_loop(void* unused) {
                 // channels to see if one has a line ready.
                 activeChannel = pollChannels(activeLine);
             } else {
-                if (state_is(State::Alarm) || state_is(State::ConfigAlarm)) {
+                if (state_is(State::Alarm) || state_is(State::ConfigAlarm) || state_is(State::Critical)) {
                     log_debug("Unwinding from Alarm");
                     Job::abort();
                     unwind_cause = nullptr;
@@ -449,9 +449,8 @@ static void protocol_do_start() {
         send_alarm(ExecAlarm::Init);
         return;
     }
-    Homing::set_all_axes_homed();
-    if (config->_start->_mustHome && Machine::Axes::homingMask) {
-        Homing::set_all_axes_unhomed();
+    Homing::set_all_axes_unhomed();
+    if (Homing::unhomed_axes()) {
         // If there is an axis with homing configured, enter Alarm state on startup
         send_alarm(ExecAlarm::Unhomed);
     } else {
@@ -465,20 +464,25 @@ static void protocol_do_alarm(void* alarmVoid) {
     if (spindle->_off_on_alarm) {
         spindle->stop();
     }
-    alarm_msg(lastAlarm);
+    // It is important to do set_state() before alarm_msg() because the
+    // latter can cause a task switch that can introduce a race condition
+    // whereby polling_loop() does not see the state change.
     if (lastAlarm == ExecAlarm::HardLimit || lastAlarm == ExecAlarm::HardStop) {
-        set_state(State::Critical);  // Set system alarm state
-        report_error_message(Message::CriticalEvent);
         protocol_disable_steppers();
         Homing::set_all_axes_unhomed();
+        set_state(State::Critical);  // Set system alarm state
+        alarm_msg(lastAlarm);
+        report_error_message(Message::CriticalEvent);
         return;
     }
     if (lastAlarm == ExecAlarm::SoftLimit) {
         set_state(State::Critical);  // Set system alarm state
+        alarm_msg(lastAlarm);
         report_error_message(Message::CriticalEvent);
         return;
     }
     set_state(State::Alarm);
+    alarm_msg(lastAlarm);
 }
 
 static void protocol_start_holding() {
