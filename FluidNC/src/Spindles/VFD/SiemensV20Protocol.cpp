@@ -169,7 +169,7 @@ namespace Spindles {
             data.msg[5] = ScaledFreq & 0xFF;
         }
 
-        VFDProtocol::response_parser SiemensV20Protocol::initialization_sequence(int index, ModbusCommand& data) {
+        VFDProtocol::response_parser SiemensV20Protocol::initialization_sequence(int index, ModbusCommand& data, VFDSpindle* vfd) {
             // NOTE: data length is excluding the CRC16 checksum.
             data.tx_length = 6;
             data.rx_length = 5;

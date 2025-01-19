@@ -70,7 +70,7 @@ namespace Spindles {
         }
 
         // This gets data from the VFD. It does not set any values
-        VFDProtocol::response_parser H100Protocol::initialization_sequence(int index, ModbusCommand& data) {
+        VFDProtocol::response_parser H100Protocol::initialization_sequence(int index, ModbusCommand& data, VFDSpindle* vfd) {
             // NOTE: data length is excluding the CRC16 checksum.
             data.tx_length = 6;
             data.rx_length = 5;

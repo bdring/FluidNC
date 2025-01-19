@@ -60,7 +60,9 @@ namespace Spindles {
             void direction_command(SpindleState mode, ModbusCommand& data) override;
             void set_speed_command(uint32_t rpm, ModbusCommand& data) override;
 
-            response_parser initialization_sequence(int index, ModbusCommand& data) { return get_status_ok_and_init(data, true); }
+            response_parser initialization_sequence(int index, ModbusCommand& data, VFDSpindle* vfd) {
+                return get_status_ok_and_init(data, true);
+            }
             response_parser get_current_speed(ModbusCommand& data) override;
             response_parser get_current_direction(ModbusCommand& data) override { return nullptr; };
             response_parser get_status_ok(ModbusCommand& data) override { return get_status_ok_and_init(data, false); }

@@ -22,8 +22,8 @@
 #include "VFD/VFDProtocol.h"
 
 #include "../Machine/MachineConfig.h"
-#include "../Protocol.h"       // rtAlarm
-#include "../Report.h"         // hex message
+#include "../Protocol.h"  // rtAlarm
+#include "../Report.h"    // hex message
 #include "../Configuration/HandlerType.h"
 #include "../Platform.h"
 
@@ -48,7 +48,7 @@ namespace Spindles {
         } else {
             _uart = config->_uarts[_uart_num];
             if (!_uart) {
-                log_error("VFDSpindle: Missing uart" << _uart_num << "section");
+                log_error("VFDSpindle: Missing uart" << _uart_num << " section");
                 return;
             }
         }
@@ -69,10 +69,10 @@ namespace Spindles {
         if (!VFD::VFDProtocol::vfd_cmd_queue) {  // init can happen many times, we only want to start one task
             VFD::VFDProtocol::vfd_cmd_queue = xQueueCreate(VFD_RS485_QUEUE_SIZE, sizeof(VFD::VFDProtocol::VFDaction));
             xTaskCreatePinnedToCore(VFD::VFDProtocol::vfd_cmd_task,  // task
-                                    "vfd_cmdTaskHandle",      // name for task
-                                    2048,                     // size of task stack
-                                    this,                     // parameters
-                                    1,                        // priority
+                                    "vfd_cmdTaskHandle",             // name for task
+                                    2048,                            // size of task stack
+                                    this,                            // parameters
+                                    1,                               // priority
                                     &VFD::VFDProtocol::vfd_cmdTaskHandle,
                                     SUPPORT_TASK_CORE  // core
             );
@@ -104,7 +104,7 @@ namespace Spindles {
     }
 
     void VFDSpindle::setState(SpindleState state, SpindleSpeed speed) {
-        log_debug("VFD setState:" << uint8_t(state) << " SpindleSpeed:" << speed);
+        log_debug(name() << ": setState:" << uint8_t(state) << " SpindleSpeed:" << speed);
         if (sys.abort) {
             return;  // Block during abort.
         }
@@ -112,7 +112,6 @@ namespace Spindles {
         bool critical = (state_is(State::Cycle) || state != SpindleState::Disable);
 
         uint32_t dev_speed = mapSpeed(speed);
-        log_debug("RPM:" << speed << " mapped to device units:" << dev_speed);
 
         if (_current_state != state) {
             // Changing state
@@ -144,16 +143,16 @@ namespace Spindles {
 
             while ((_last_override_value == sys.spindle_speed_ovr) &&  // skip if the override changes
                    ((_sync_dev_speed < minSpeedAllowed || _sync_dev_speed > maxSpeedAllowed) && unchanged < limit)) {
-#ifdef DEBUG_VFD
-                log_debug("Syncing speed. Requested: " << int(dev_speed) << " current:" << int(_sync_dev_speed));
-#endif
+                delay_ms(_poll_ms);
+                if (_debug > 1) {
+                    log_debug("Syncing speed. Requested: " << int(dev_speed) << " current:" << int(_sync_dev_speed));
+                }
                 // if (!mc_dwell(500)) {
                 //     // Something happened while we were dwelling, like a safety door.
                 //     unchanged = limit;
                 //     last      = _sync_dev_speed;
                 //     break;
                 // }
-                delay_ms(500);
 
                 // unchanged counts the number of consecutive times that we see the same speed
                 unchanged = (_sync_dev_speed == last) ? unchanged + 1 : 0;
@@ -161,13 +160,13 @@ namespace Spindles {
             }
             _last_override_value = sys.spindle_speed_ovr;
 
-#ifdef DEBUG_VFD
-            log_debug("Synced speed. Requested:" << int(dev_speed) << " current:" << int(_sync_dev_speed));
-#endif
+            if (_debug > 1) {
+                log_debug("Synced speed. Requested:" << int(dev_speed) << " current:" << int(_sync_dev_speed));
+            }
 
             if (unchanged == limit) {
                 mc_critical(ExecAlarm::SpindleControl);
-                log_error(name() << " spindle did not reach device units " << dev_speed << ". Reported value is " << _sync_dev_speed);
+                log_error(name() << ": spindle did not reach device units " << dev_speed << ". Reported value is " << _sync_dev_speed);
             }
 
             _syncing = false;
@@ -225,7 +224,11 @@ namespace Spindles {
             handler.item("uart_num", _uart_num);
         }
         handler.item("modbus_id", _modbus_id, 0, 247);  // per https://modbus.org/docs/PI_MBUS_300.pdf
+        handler.item("debug", _debug, 0, 5);
+        handler.item("poll_ms", _poll_ms, 250, 20000);
+        handler.item("retries", _retries);
 
         Spindle::group(handler);
+        detail_->group(handler);
     }
 }
