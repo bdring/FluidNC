@@ -81,12 +81,12 @@ namespace Spindles {
                 data.msg[5] = 0x02;  // Number of elements, low byte (2 elements)
 
                 /*
-            Contents of register 0x0007
-            Bit 0-15: max speed in hz * 100
+                Contents of register 0x0007
+                Bit 0-15: max speed in hz * 100
 
-            Contents of register 0x0008
-            Bit 0-15: min speed in hz * 100
-            */
+                Contents of register 0x0008
+                Bit 0-15: min speed in hz * 100
+                */
 
                 return [](const uint8_t* response, VFDSpindle* vfd, VFDProtocol* detail) -> bool {
                     if (response[1] != 0x03) {
