@@ -151,11 +151,11 @@ namespace Spindles {
                                                        << _maxFrequency << ")");
             }
             /*
-        V20 has a scalled input and is standardized to 16384 
-        please note Signed numbers work IE -16384 to 16384 
-        but for this implementation only posivite number are allowed
-        */
-            int16_t ScaledFreq = speed * _FreqScaler;
+            V20 has a scalled input and is standardized to 16384 
+            please note Signed numbers work IE -16384 to 16384 
+            but for this implementation only posivite number are allowed
+            */
+            int16_t ScaledFreq = int16_t(speed * _FreqScaler);
             log_debug("Setting VFD Scaled Value " << int16_t(ScaledFreq) << " Byte 1 " << uint8_t(ScaledFreq >> 8) << " Byte 2 "
                                                   << uint8_t(ScaledFreq & 0xFF));
 
@@ -183,9 +183,9 @@ namespace Spindles {
 
             return [](const uint8_t* response, VFDSpindle* vfd, VFDProtocol* detail) -> bool {
                 /*
-            The VFD does not have any noticeable registers to set this information up programmatically
-            For now - it is user set in the software but is a typical setup
-            */
+                The VFD does not have any noticeable registers to set this information up programmatically
+                For now - it is user set in the software but is a typical setup
+                */
                 auto siemens = static_cast<SiemensV20Protocol*>(detail);
 
                 if (siemens->_minFrequency > siemens->_maxFrequency) {
@@ -218,7 +218,7 @@ namespace Spindles {
             return [](const uint8_t* response, VFDSpindle* vfd, VFDProtocol* detail) -> bool {
                 auto    siemensV20      = static_cast<SiemensV20Protocol*>(detail);
                 int16_t Scaledfrequency = ((response[3] << 8) | response[4]);
-                int16_t frequency       = float(Scaledfrequency) / (-1 * (siemensV20->_FreqScaler));
+                int16_t frequency       = int16_t(float(Scaledfrequency) / (-1 * (siemensV20->_FreqScaler)));
                 log_debug("VFD Measured Value " << int16_t(Scaledfrequency) << " Freq " << int16_t(frequency));
 
                 // Store speed for synchronization

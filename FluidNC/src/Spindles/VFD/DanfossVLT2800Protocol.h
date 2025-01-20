@@ -33,7 +33,7 @@ namespace Spindles {
             union SpindleControl {
                 struct {
                     uint8_t reference_preset : 2;  // bit 00 = lsb of 2 bit value for preset reference selection
-                                                   // bit 01 = msb
+                    // bit 01 = msb
                     bool    dc_braking_stop : 1;   // bit 02 = 0 causes stop with dc brake
                     bool    coasting_stop : 1;     // bit 03 = 0 causes coasting stop
                     bool    quick_stop : 1;        // bit 04 = 0 causes quick stop
@@ -46,7 +46,7 @@ namespace Spindles {
                     bool    relay_01 : 1;          // bit 11 = 1 activates relay 01
                     bool    output_46 : 1;         // bit 12 = 1 activates digital output on terminal 46
                     uint8_t setup_preset : 2;      // bit 13 = lsb of 2 bit value for setup selection when par. 004 multi setup is enabled
-                                                   // bit 14 = msb
+                    // bit 14 = msb
                     bool reverse : 1;              // bit 15 = 1 causes reversing
                 } flags;
                 uint16_t controlWord;
@@ -60,8 +60,15 @@ namespace Spindles {
             void direction_command(SpindleState mode, ModbusCommand& data) override;
             void set_speed_command(uint32_t rpm, ModbusCommand& data) override;
 
-            response_parser initialization_sequence(int index, ModbusCommand& data, VFDSpindle* vfd) {
-                return get_status_ok_and_init(data, true);
+            response_parser initialization_sequence(int index, ModbusCommand& data, VFDSpindle* vfd)
+            {
+                // This is a bug in the original implementation. Index changes, so we must handle that.
+                if (index == -1) {
+                    return get_status_ok_and_init(data, true);
+                }
+                else {
+                    return nullptr;
+                }
             }
             response_parser get_current_speed(ModbusCommand& data) override;
             response_parser get_current_direction(ModbusCommand& data) override { return nullptr; };
