@@ -6,19 +6,12 @@
 #include "VFDProtocol.h"
 #include <string_view>
 
-
-namespace Testing {
-    class GenericProtocolTest;
-}
-
 namespace Spindles {
     class VFDSpindle;
 
     namespace VFD {
         class GenericProtocol : public VFDProtocol, Configuration::Configurable {
         private:
-            friend class ::Testing::GenericProtocolTest;
-            
             bool split(std::string_view& input, std::string_view& token, const char* delims);
             bool from_decimal(std::string_view str, uint32_t& value);
             void scale(uint32_t& n, std::string_view scale_str, uint32_t maxRPM);
