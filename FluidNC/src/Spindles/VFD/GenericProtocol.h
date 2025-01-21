@@ -50,6 +50,7 @@ namespace Spindles {
             void        setup_speeds(VFDSpindle* vfd);
 
         public:
+            void afterParse() override;
             void group(Configuration::HandlerBase& handler) override {
                 handler.item("model", _model);
                 handler.item("min_RPM", _minRPM, 0xffffffff);
