@@ -8,12 +8,16 @@
 */
 
 #include "Spindle.h"
-#include "esp32-hal.h" // millis()
+#include "esp32-hal.h"         // millis()
 #include "../MotionControl.h"  // mc_critical
+
+class ArcOkEventPin;
 
 namespace Spindles {
     // This is for an on/off spindle all RPMs above 0 are on
     class PlasmaSpindle : public Spindle {
+        ArcOkEventPin* _arcOkEventPin;
+
     protected:
         // This includes all items except direction_pin.  direction_pin applies
         // to most but not all of OnOff's derived classes.  Derived classes that
@@ -58,6 +62,7 @@ namespace Spindles {
         Pin _enable_pin;
         Pin _output_pin;
         Pin _arc_ok_pin;
+
         //Pin _direction_pin;
 
         uint32_t _max_arc_wait = 1000;
@@ -66,8 +71,12 @@ namespace Spindles {
         // _zero_speed_with_disable forces speed to 0 when disabled
         bool _zero_speed_with_disable = true;
 
+        bool _arc_on = false;
+
         bool         use_delay_settings() const override { return false; }
         virtual void set_output(uint32_t speed);
         virtual void deinit();
+
+        void arcOkPinEvent();
     };
 }

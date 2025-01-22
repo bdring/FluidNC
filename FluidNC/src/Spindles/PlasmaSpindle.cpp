@@ -4,10 +4,54 @@
 
 /*
 
+PlasmaSpindle:
+  output_pin: gpio.13
+  enable_pin: gpio.14
+  arc_ok_pin: 'gpio.33:low'
+  arc_wait_ms: 1200
+  tool_num: 0
+  speed_map: 0=0.00% 1=100.00%
+  off_on_alarm: true
+  atc:
+  m6_macro:
 
+Ideas:
 
+ - Maybe arc_wait_ms disables that feature
 
 */
+extern void    arcOkPinEvent(void* arg);
+const ArgEvent arcOkEvent { arcOkPinEvent };
+
+class ArcOkEventPin : public EventPin {
+private:
+    bool _value = false;
+    Pin* _pin   = nullptr;
+
+public:
+    ArcOkEventPin(const char* legend, Pin& pin) : EventPin(&arcOkEvent, legend), _pin(&pin) {}
+
+    void init() {
+        if (_pin->undefined()) {
+            return;
+        }
+        _value = _pin->read();
+        _pin->report(_legend);
+        _pin->setAttr(Pin::Attr::Input);
+        _pin->registerEvent(static_cast<EventPin*>(this));
+        update(_pin->read());
+    }
+    void update(bool state) { _value = state; }
+
+    // Differs from the base class version by sending the event on either edge
+    void trigger(bool active) override {
+        update(active);
+        protocol_send_event(_event, this);
+        report_recompute_pin_string();
+    }
+
+    bool get() { return _value; }
+};
 
 namespace Spindles {
 
@@ -16,6 +60,13 @@ namespace Spindles {
             log_error("Output pin pin must be defined for Plasma Spindle");
             return;
         }
+
+        if (_arc_ok_pin.defined()) {
+            _arcOkEventPin = new ArcOkEventPin("ArcOK", _arc_ok_pin);
+            _arcOkEventPin->init();
+        }
+
+        _arc_on = false;
 
         _enable_pin.setAttr(Pin::Attr::Output);
         _output_pin.setAttr(Pin::Attr::Output);
@@ -38,7 +89,6 @@ namespace Spindles {
     }
 
     void PlasmaSpindle::setState(SpindleState state, SpindleSpeed speed) {
-
         if (sys.abort) {
             return;  // Block during abort.
         }
@@ -47,13 +97,14 @@ namespace Spindles {
         // sys.spindle_speed correctly.
         uint32_t dev_speed = speed;                              // no mapping
         if (state == SpindleState::Disable || dev_speed == 0) {  // Halt or set spindle direction and speed.
+            _arc_on = false;
             set_output(false);
             set_enable(false);
         } else {
             // maybe check arc OK is not on before starting
-
+            _arc_on = true;
             set_output(speed);
-            set_enable(true);            
+            set_enable(true);
         }
     }
 
@@ -61,11 +112,13 @@ namespace Spindles {
         uint32_t wait_until_ms = millis() + _max_arc_wait;
         while (millis() < wait_until_ms) {
             if (_arc_ok_pin.read()) {
+                _arc_on = true;
                 return true;
             }
             protocol_execute_realtime();
             delay_ms(1);
         }
+        _arc_on                = false;
         gc_state.modal.spindle = SpindleState::Disable;
         mc_critical(ExecAlarm::SpindleControl);
         log_error(name() << " failed to get arc OK signal");
@@ -108,4 +161,8 @@ namespace Spindles {
     namespace {
         SpindleFactory::InstanceBuilder<PlasmaSpindle> registration("PlasmaSpindle");
     }
+}
+
+void arcOkPinEvent(void* arg) {
+    log_info("Arc OK Event:");
 }
