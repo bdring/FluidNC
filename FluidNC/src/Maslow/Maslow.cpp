@@ -1099,6 +1099,10 @@ bool Maslow_::take_measurement_avg_with_check(int waypoint, int dir) {
             //A check to see if the results on the first point are within the expected range
             if(waypoint == 0){
 
+                //Recompute the machine position with the belt lenths and compare the results to that
+                float x = 0;
+                float y = 0;
+                computeXYfromLengths(measurements[0][0], measurements[0][1], x, y);
 
                 //If the frame size is way off, we will compute a rough (assumed to be a square) frame size from the first measurmeent
                 double threshold = 100;
@@ -1121,9 +1125,7 @@ bool Maslow_::take_measurement_avg_with_check(int waypoint, int dir) {
                     }
                 }
 
-                //Compute the current XY position from the top two belt measurements
-                float x = 0;
-                float y = 0;
+                //Compute the current XY position from the top two belt measurements...needs to be redone because we've adjusted the frame size by here
                 if(!computeXYfromLengths(calibration_data[0][0], calibration_data[0][1], x, y)){
                     eStop("Unable to find machine position from measurements");
                     calibrationInProgress = false;
