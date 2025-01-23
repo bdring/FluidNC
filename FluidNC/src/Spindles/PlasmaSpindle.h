@@ -11,11 +11,43 @@
 #include "esp32-hal.h"         // millis()
 #include "../MotionControl.h"  // mc_critical
 
-class ArcOkEventPin;
-
 namespace Spindles {
     // This is for an on/off spindle all RPMs above 0 are on
     class PlasmaSpindle : public Spindle {
+    private:
+        class ArcOkEventPin : public EventPin {
+        private:
+            bool           _value = false;
+            Pin*           _pin   = nullptr;
+            PlasmaSpindle* _parent;
+
+        public:
+            ArcOkEventPin(const char* legend, Pin& pin, PlasmaSpindle* parent) : EventPin(nullptr, legend), _pin(&pin), _parent(parent) {}
+
+            void init() {
+                if (_pin->undefined()) {
+                    return;
+                }
+                _value = _pin->read();
+                _pin->report(_legend);
+                _pin->setAttr(Pin::Attr::Input);
+                _pin->registerEvent(static_cast<EventPin*>(this));
+                update(_pin->read());
+            }
+            void update(bool state) { _value = state; }
+
+            // Differs from the base class version by sending the event on either edge
+            void trigger(bool active) override {
+                update(active);
+                if (!active && _parent->_arc_on) {
+                    send_alarm(ExecAlarm::AbortCycle);
+                }
+            }
+
+            bool get() { return _value; }
+        };
+
+    private:
         ArcOkEventPin* _arcOkEventPin;
 
     protected:

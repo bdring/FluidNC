@@ -21,37 +21,6 @@ Ideas:
 
 */
 
-class ArcOkEventPin : public EventPin {
-private:
-    bool _value = false;
-    Pin* _pin   = nullptr;
-
-public:
-    ArcOkEventPin(const char* legend, Pin& pin) : EventPin(nullptr, legend), _pin(&pin) {}
-
-    void init() {
-        if (_pin->undefined()) {
-            return;
-        }
-        _value = _pin->read();
-        _pin->report(_legend);
-        _pin->setAttr(Pin::Attr::Input);
-        _pin->registerEvent(static_cast<EventPin*>(this));
-        update(_pin->read());
-    }
-    void update(bool state) { _value = state; }
-
-    // Differs from the base class version by sending the event on either edge
-    void trigger(bool active) override {
-        update(active);
-        if (!active) {
-            send_alarm(ExecAlarm::AbortCycle);
-        }
-    }
-
-    bool get() { return _value; }
-};
-
 namespace Spindles {
 
     void PlasmaSpindle::init() {
@@ -61,7 +30,7 @@ namespace Spindles {
         }
 
         if (_arc_ok_pin.defined()) {
-            _arcOkEventPin = new ArcOkEventPin("ArcOK", _arc_ok_pin);
+            _arcOkEventPin = new ArcOkEventPin("ArcOK", _arc_ok_pin, this);
             _arcOkEventPin->init();
         }
 
