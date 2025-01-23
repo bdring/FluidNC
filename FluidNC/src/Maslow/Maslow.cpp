@@ -347,6 +347,10 @@ void Maslow_::home() {
             axisBR.comply();
         }
         else {
+            axisTL.stop();
+            axisTR.stop();
+            axisBL.stop();
+            axisBR.stop();
             complyALL = false;
         }
     }
