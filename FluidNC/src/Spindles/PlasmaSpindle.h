@@ -17,7 +17,6 @@ namespace Spindles {
     // This is for an on/off spindle all RPMs above 0 are on
     class PlasmaSpindle : public Spindle {
         ArcOkEventPin* _arcOkEventPin;
-        
 
     protected:
         // This includes all items except direction_pin.  direction_pin applies
@@ -33,8 +32,6 @@ namespace Spindles {
         }
 
     public:
-        
-        
         PlasmaSpindle(const char* name) : Spindle(name) {}
 
         PlasmaSpindle(const PlasmaSpindle&)            = delete;
@@ -53,8 +50,6 @@ namespace Spindles {
         virtual void set_enable(bool enable);
 
         bool wait_for_arc_ok();
-
-        void arcOkPinEvent();
 
         // Configuration handlers:
         void validate() override { Spindle::validate(); }
@@ -82,6 +77,6 @@ namespace Spindles {
         virtual void set_output(uint32_t speed);
         virtual void deinit();
 
-        
+        void arcOkPinEvent();
     };
 }

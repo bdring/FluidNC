@@ -20,7 +20,8 @@ Ideas:
  - Maybe arc_wait_ms disables that feature
 
 */
-
+extern void    arcOkPinEvent(void* arg);
+const ArgEvent arcOkEvent { arcOkPinEvent };
 
 class ArcOkEventPin : public EventPin {
 private:
@@ -28,7 +29,7 @@ private:
     Pin* _pin   = nullptr;
 
 public:
-    ArcOkEventPin(const char* legend, Pin& pin, const Event* event) : EventPin(event, legend), _pin(&pin) {}
+    ArcOkEventPin(const char* legend, Pin& pin) : EventPin(&arcOkEvent, legend), _pin(&pin) {}
 
     void init() {
         if (_pin->undefined()) {
@@ -54,8 +55,6 @@ public:
 
 namespace Spindles {
 
-    const ArgEvent arcOkEvent { arcOkPinEvent };
-
     void PlasmaSpindle::init() {
         if (_output_pin.undefined()) {
             log_error("Output pin pin must be defined for Plasma Spindle");
@@ -63,7 +62,7 @@ namespace Spindles {
         }
 
         if (_arc_ok_pin.defined()) {
-            _arcOkEventPin = new ArcOkEventPin("ArcOK", _arc_ok_pin, &arcOkEvent);
+            _arcOkEventPin = new ArcOkEventPin("ArcOK", _arc_ok_pin);
             _arcOkEventPin->init();
         }
 
@@ -158,14 +157,12 @@ namespace Spindles {
         _arc_ok_pin.setAttr(Pin::Attr::Input);
     }
 
-    void PlasmaSpindle::arcOkPinEvent() {
-        log_info("arcOkPinEvent");
-    }
-
     // Configuration registration
     namespace {
         SpindleFactory::InstanceBuilder<PlasmaSpindle> registration("PlasmaSpindle");
     }
 }
 
-
+void arcOkPinEvent(void* arg) {
+    log_info("Arc OK Event:");
+}
