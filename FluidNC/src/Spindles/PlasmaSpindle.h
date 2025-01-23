@@ -76,7 +76,5 @@ namespace Spindles {
         bool         use_delay_settings() const override { return false; }
         virtual void set_output(uint32_t speed);
         virtual void deinit();
-
-        void arcOkPinEvent();
     };
 }

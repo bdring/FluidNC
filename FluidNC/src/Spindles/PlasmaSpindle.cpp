@@ -20,8 +20,6 @@ Ideas:
  - Maybe arc_wait_ms disables that feature
 
 */
-extern void    arcOkPinEvent(void* arg);
-const ArgEvent arcOkEvent { arcOkPinEvent };
 
 class ArcOkEventPin : public EventPin {
 private:
@@ -29,7 +27,7 @@ private:
     Pin* _pin   = nullptr;
 
 public:
-    ArcOkEventPin(const char* legend, Pin& pin) : EventPin(&arcOkEvent, legend), _pin(&pin) {}
+    ArcOkEventPin(const char* legend, Pin& pin) : EventPin(nullptr, legend), _pin(&pin) {}
 
     void init() {
         if (_pin->undefined()) {
@@ -46,8 +44,9 @@ public:
     // Differs from the base class version by sending the event on either edge
     void trigger(bool active) override {
         update(active);
-        protocol_send_event(_event, this);
-        report_recompute_pin_string();
+        if (!active) {
+            send_alarm(ExecAlarm::AbortCycle);
+        }
     }
 
     bool get() { return _value; }
@@ -111,7 +110,7 @@ namespace Spindles {
     bool IRAM_ATTR PlasmaSpindle::wait_for_arc_ok() {
         uint32_t wait_until_ms = millis() + _max_arc_wait;
         while (millis() < wait_until_ms) {
-            if (_arc_ok_pin.read()) {
+            if (_arcOkEventPin->get()) {
                 _arc_on = true;
                 return true;
             }
@@ -161,8 +160,4 @@ namespace Spindles {
     namespace {
         SpindleFactory::InstanceBuilder<PlasmaSpindle> registration("PlasmaSpindle");
     }
-}
-
-void arcOkPinEvent(void* arg) {
-    log_info("Arc OK Event:");
 }
