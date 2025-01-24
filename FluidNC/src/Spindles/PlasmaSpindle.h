@@ -40,6 +40,7 @@ namespace Spindles {
             void trigger(bool active) override {
                 update(active);
                 if (!active && _parent->_arc_on) {
+                    _parent->_arc_on = false;
                     send_alarm(ExecAlarm::AbortCycle);
                 }
             }
@@ -56,7 +57,6 @@ namespace Spindles {
         // do not support direction_pin can invoke OnOff::groupCommon() instead
         // of OnOff::group()
         void groupCommon(Configuration::HandlerBase& handler) {
-            handler.item("output_pin", _output_pin);
             handler.item("enable_pin", _enable_pin);
             handler.item("arc_ok_pin", _arc_ok_pin);
             handler.item("arc_wait_ms", _max_arc_wait, 0, 3000);
@@ -92,19 +92,17 @@ namespace Spindles {
 
     protected:
         Pin _enable_pin;
-        Pin _output_pin;
         Pin _arc_ok_pin;
 
-        //Pin _direction_pin;
-
         uint32_t _max_arc_wait = 1000;
+
+        // TO DO. These are not used in the class
         // _disable_with_zero_speed forces a disable when speed is 0
         bool _disable_with_zero_speed = false;
         // _zero_speed_with_disable forces speed to 0 when disabled
-        bool _zero_speed_with_disable = true;
+        bool _zero_speed_with_disable = false;
 
-        bool _arc_on = false;
-
+        bool         _arc_on = false;
         bool         use_delay_settings() const override { return false; }
         virtual void set_output(uint32_t speed);
         virtual void deinit();
