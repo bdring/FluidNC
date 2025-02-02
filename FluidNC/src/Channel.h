@@ -86,6 +86,7 @@ protected:
 
 protected:
     bool _active = true;
+    bool _paused = false;
 
 public:
     explicit Channel(const std::string& name, bool addCR = false) : _name(name), _linelen(0), _addCR(addCR) {}
@@ -199,4 +200,7 @@ public:
     virtual void   restore() {}
     virtual size_t position() { return 0; }
     virtual void   set_position(size_t pos) {}
+
+    void pause();
+    void resume();
 };

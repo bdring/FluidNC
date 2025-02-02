@@ -17,21 +17,25 @@ static void uart_driver_n_install(void* arg) {
     uart_driver_install((uart_port_t)arg, 256, 0, 0, NULL, ESP_INTR_FLAG_IRAM);
 }
 
-// This version is used for the initial console UART where we do not want to change the pins
-void Uart::begin(unsigned long baud, UartData dataBits, UartStop stopBits, UartParity parity) {
-    //    uart_driver_delete(_uart_num);
+void Uart::changeMode(unsigned long baud, UartData dataBits, UartParity parity, UartStop stopBits) {
     uart_config_t conf;
     conf.source_clk          = UART_SCLK_APB;
     conf.baud_rate           = baud;
-    conf.data_bits           = uart_word_length_t(_dataBits);
-    conf.parity              = uart_parity_t(_parity);
-    conf.stop_bits           = uart_stop_bits_t(_stopBits);
+    conf.data_bits           = uart_word_length_t(dataBits);
+    conf.parity              = uart_parity_t(parity);
+    conf.stop_bits           = uart_stop_bits_t(stopBits);
     conf.flow_ctrl           = UART_HW_FLOWCTRL_DISABLE;
     conf.rx_flow_ctrl_thresh = 0;
-    if (uart_param_config(uart_port_t(_uart_num), &conf) != ESP_OK) {
-        // TODO FIXME - should this throw an error?
-        return;
-    };
+    auto ret                 = uart_param_config(uart_port_t(_uart_num), &conf);
+}
+void Uart::restoreMode() {
+    changeMode(_baud, _dataBits, _parity, _stopBits);
+}
+
+// This version is used for the initial console UART where we do not want to change the pins
+void Uart::begin(unsigned long baud, UartData dataBits, UartStop stopBits, UartParity parity) {
+    //    uart_driver_delete(_uart_num);
+    changeMode(baud, dataBits, parity, stopBits);
 
     // We init UARTs on core 0 so the interrupt handler runs there,
     // thus avoiding conflict with the StepTimer interrupt
@@ -100,7 +104,15 @@ void Uart::setSwFlowControl(bool on, int xon_threshold, int xoff_threshold) {
     if (xoff_threshold <= 0) {
         xoff_threshold = 127;
     }
+    _sw_flowcontrol_enabled = true;
+    _xon_threshold          = xon_threshold;
+    _xoff_threshold         = xoff_threshold;
     uart_set_sw_flow_ctrl(uart_port_t(_uart_num), on, xon_threshold, xoff_threshold);
+}
+void Uart::getSwFlowControl(bool& enabled, int& xon_threshold, int& xoff_threshold) {
+    enabled        = _sw_flowcontrol_enabled;
+    xon_threshold  = _xon_threshold;
+    xoff_threshold = _xoff_threshold;
 }
 bool Uart::setHalfDuplex() {
     return uart_set_mode(uart_port_t(_uart_num), UART_MODE_RS485_HALF_DUPLEX) != ESP_OK;

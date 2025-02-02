@@ -24,6 +24,10 @@ private:
 
     int _uart_num = 0;  // Hardware UART engine number
 
+    bool _sw_flowcontrol_enabled = false;
+    int  _xon_threshold          = 0;
+    int  _xoff_threshold         = 0;
+
 public:
     // These are public so that validators from classes
     // that use Uart can check that the setup is suitable.
@@ -77,6 +81,9 @@ public:
     void forceXoff();
 
     void setSwFlowControl(bool on, int rx_threshold, int tx_threshold);
+    void getSwFlowControl(bool& enabled, int& rx_threshold, int& tx_threshold);
+    void changeMode(unsigned long baud, UartData dataBits, UartParity parity, UartStop stopBits);
+    void restoreMode();
 
     // Configuration handlers:
     void validate() override {
