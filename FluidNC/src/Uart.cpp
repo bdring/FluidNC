@@ -109,7 +109,7 @@ void Uart::restoreMode() {
 }
 
 void Uart::enterBootloader() {
-    changeMode(_bootloaderBaud, _bootloaderDataBits, _bootloaderParity, _bootloaderStopBits);
+    changeMode(_bootloader_baud, _bootloader_databits, _bootloader_parity, _bootloader_stopbits);
 }
 
 void Uart::exitBootloader() {

@@ -764,26 +764,45 @@ static Error showGPIOs(const char* value, AuthenticationLevel auth_level, Channe
 
 #include "UartTypes.h"
 
-static Error serialPassthrough(const char* value, AuthenticationLevel auth_level, Channel& out) {
+static Error uartPassthrough(const char* value, AuthenticationLevel auth_level, Channel& out) {
     Uart* downstream_uart = nullptr;
     if (!value) {
         value = "uart1";
     }
-
-    // Find a UART device that matches the name
     int uart_num;
-    for (uart_num = 1; uart_num < MAX_N_UARTS; ++uart_num) {
-        downstream_uart = config->_uarts[uart_num];
-        if (downstream_uart) {
-            if (downstream_uart->name() == value) {
-                break;
+    if (strcasecmp(value, "auto") == 0) {
+        // Find a UART device with a non-empty bootloader_baud config item
+        for (uart_num = 1; uart_num < MAX_N_UARTS; ++uart_num) {
+            downstream_uart = config->_uarts[uart_num];
+            if (downstream_uart) {
+                if (downstream_uart->_bootloader_baud != 0) {
+                    break;
+                }
             }
         }
-    }
-    if (uart_num == MAX_N_UARTS) {
-        log_error_to(out, value << " does not exist");
-        // printf("Bad argument %s\n", value);
-        return Error::InvalidValue;
+        if (uart_num == MAX_N_UARTS) {
+            log_error_to(out, "No uart has bootloader_baud configured");
+            return Error::InvalidValue;
+        }
+    } else {
+        // Find a UART device that matches the name
+        for (uart_num = 1; uart_num < MAX_N_UARTS; ++uart_num) {
+            downstream_uart = config->_uarts[uart_num];
+            if (downstream_uart) {
+                if (downstream_uart->name() == value) {
+                    if (downstream_uart->_bootloader_baud == 0) {
+                        log_error_to(out, value << " does not have bootloader_baud configured");
+                        return Error::InvalidValue;
+                    } else {
+                        break;
+                    }
+                }
+            }
+        }
+        if (uart_num == MAX_N_UARTS) {
+            log_error_to(out, value << " does not exist");
+            return Error::InvalidValue;
+        }
     }
 
     out.pause();  // Stop input polling on the upstream channel
@@ -791,13 +810,10 @@ static Error serialPassthrough(const char* value, AuthenticationLevel auth_level
     UartChannel* channel = nullptr;
     for (size_t n = 0; (channel = config->_uart_channels[n]) != nullptr; ++n) {
         if (channel->uart_num() == uart_num) {
-            printf("Channel %d\n", n);
             break;
         }
+        channel = nullptr;  // Leave channel null if not found
     }
-    // Uart& upstream_uart = *config->_uarts[0];
-    // Uart& upstream_uart = *Uart0.uart();
-    //    Uart& upstream_uart = *(static_cast<UartChannel&>(out)).uart();
 
     bool flow;
     int  xon_threshold;
@@ -938,7 +954,7 @@ void make_user_commands() {
     new UserCommand("SA", "Alarm/Send", sendAlarm, anyState);
     new UserCommand("Heap", "Heap/Show", showHeap, anyState);
     new UserCommand("SS", "Startup/Show", showStartupLog, anyState);
-    new UserCommand("SP", "Serial/Passthrough", serialPassthrough, notIdleOrAlarm);
+    new UserCommand("SP", "Uart/Passthrough", uartPassthrough, notIdleOrAlarm);
 
     new UserCommand("RI", "Report/Interval", setReportInterval, anyState);
 
