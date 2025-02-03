@@ -42,10 +42,10 @@ public:
     UartParity _parity   = UartParity::None;
     UartStop   _stopBits = UartStop::Bits1;
 
-    int        _bootloaderBaud     = 115200;
-    UartData   _bootloaderDataBits = UartData::Bits8;
-    UartParity _bootloaderParity   = UartParity::None;
-    UartStop   _bootloaderStopBits = UartStop::Bits1;
+    int        _bootloader_baud     = 0;
+    UartData   _bootloader_databits = UartData::Bits8;
+    UartParity _bootloader_parity   = UartParity::Even;
+    UartStop   _bootloader_stopbits = UartStop::Bits1;
 
     Pin _txd_pin;
     Pin _rxd_pin;
@@ -109,8 +109,8 @@ public:
 
         handler.item("baud", _baud, 2400, 10000000);
         handler.item("mode", _dataBits, _parity, _stopBits);
-        handler.item("bootloader_baud", _bootloaderBaud, 2400, 10000000);
-        handler.item("bootloader_mode", _bootloaderDataBits, _bootloaderParity, _bootloaderStopBits);
+        handler.item("bootloader_baud", _bootloader_baud, 0, 10000000);  // 0 means not configured
+        handler.item("bootloader_mode", _bootloader_databits, _bootloader_parity, _bootloader_stopbits);
     }
 
     void config_message(const char* prefix, const char* usage);
