@@ -12,6 +12,80 @@
 #include "hal/uart_hal.h"
 
 Uart::Uart(int uart_num) : _uart_num(uart_num) {}
+std::string encodeUartMode(UartData wordLength, UartParity parity, UartStop stopBits) {
+    std::string s;
+    s += std::to_string(int(wordLength) - int(UartData::Bits5) + 5);
+    switch (parity) {
+        case UartParity::Even:
+            s += 'E';
+            break;
+        case UartParity::Odd:
+            s += 'O';
+            break;
+        case UartParity::None:
+            s += 'N';
+            break;
+    }
+    switch (stopBits) {
+        case UartStop::Bits1:
+            s += '1';
+            break;
+        case UartStop::Bits1_5:
+            s += "1.5";
+            break;
+        case UartStop::Bits2:
+            s += '2';
+            break;
+    }
+    return s;
+}
+
+const char* decodeUartMode(std::string_view str, UartData& wordLength, UartParity& parity, UartStop& stopBits) {
+    str = string_util::trim(str);
+    if (str.length() == 5 || str.length() == 3) {
+        int32_t wordLenInt;
+        if (!string_util::is_int(str.substr(0, 1), wordLenInt)) {
+            return "Uart mode should be specified as [Bits Parity Stopbits] like [8N1]";
+        } else if (wordLenInt < 5 || wordLenInt > 8) {
+            return "Number of data bits for uart is out of range. Expected format like [8N1].";
+        }
+        wordLength = UartData(int(UartData::Bits5) + (wordLenInt - 5));
+
+        switch (str[1]) {
+            case 'N':
+            case 'n':
+                parity = UartParity::None;
+                break;
+            case 'O':
+            case 'o':
+                parity = UartParity::Odd;
+                break;
+            case 'E':
+            case 'e':
+                parity = UartParity::Even;
+                break;
+            default:
+                return "Uart mode should be specified as [Bits Parity Stopbits] like [8N1]";
+                break;  // Omits compiler warning. Never hit.
+        }
+
+        auto stop = str.substr(2, str.length() - 2);
+        if (stop == "1") {
+            stopBits = UartStop::Bits1;
+        } else if (stop == "1.5") {
+            stopBits = UartStop::Bits1_5;
+        } else if (stop == "2") {
+            stopBits = UartStop::Bits2;
+        } else {
+            return "Uart stopbits can only be 1, 1.5 or 2. Syntax is [8N1]";
+        }
+
+    } else {
+        return "Uart mode should be specified as [Bits Parity Stopbits] like [8N1]";
+    }
+    return "";
+}
+
 
 static void uart_driver_n_install(void* arg) {
     uart_driver_install((uart_port_t)arg, 256, 0, 0, NULL, ESP_INTR_FLAG_IRAM);
