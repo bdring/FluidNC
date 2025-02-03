@@ -108,11 +108,11 @@ void Uart::restoreMode() {
     changeMode(_baud, _dataBits, _parity, _stopBits);
 }
 
-void Uart::enterBootloader() {
-    changeMode(_bootloader_baud, _bootloader_databits, _bootloader_parity, _bootloader_stopbits);
+void Uart::enterPassthrough() {
+    changeMode(_passthrough_baud, _passthrough_databits, _passthrough_parity, _passthrough_stopbits);
 }
 
-void Uart::exitBootloader() {
+void Uart::exitPassthrough() {
     restoreMode();
     if (_sw_flowcontrol_enabled) {
         setSwFlowControl(_sw_flowcontrol_enabled, _xon_threshold, _xoff_threshold);

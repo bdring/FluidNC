@@ -766,22 +766,22 @@ static Error showGPIOs(const char* value, AuthenticationLevel auth_level, Channe
 
 static Error uartPassthrough(const char* value, AuthenticationLevel auth_level, Channel& out) {
     Uart* downstream_uart = nullptr;
+    int   uart_num;
     if (!value) {
-        value = "uart1";
+        value = "auto";
     }
-    int uart_num;
     if (strcasecmp(value, "auto") == 0) {
-        // Find a UART device with a non-empty bootloader_baud config item
+        // Find a UART device with a non-empty passthrough_baud config item
         for (uart_num = 1; uart_num < MAX_N_UARTS; ++uart_num) {
             downstream_uart = config->_uarts[uart_num];
             if (downstream_uart) {
-                if (downstream_uart->_bootloader_baud != 0) {
+                if (downstream_uart->_passthrough_baud != 0) {
                     break;
                 }
             }
         }
         if (uart_num == MAX_N_UARTS) {
-            log_error_to(out, "No uart has bootloader_baud configured");
+            log_error_to(out, "No uart has passthrough_baud configured");
             return Error::InvalidValue;
         }
     } else {
@@ -790,8 +790,8 @@ static Error uartPassthrough(const char* value, AuthenticationLevel auth_level, 
             downstream_uart = config->_uarts[uart_num];
             if (downstream_uart) {
                 if (downstream_uart->name() == value) {
-                    if (downstream_uart->_bootloader_baud == 0) {
-                        log_error_to(out, value << " does not have bootloader_baud configured");
+                    if (downstream_uart->_passthrough_baud == 0) {
+                        log_error_to(out, value << " does not have passthrough_baud configured");
                         return Error::InvalidValue;
                     } else {
                         break;
@@ -822,7 +822,7 @@ static Error uartPassthrough(const char* value, AuthenticationLevel auth_level, 
     if (channel) {
         channel->pause();
     }
-    downstream_uart->enterBootloader();
+    downstream_uart->enterPassthrough();
 
     const int buflen = 256;
     uint8_t   buffer[buflen];
@@ -846,7 +846,7 @@ static Error uartPassthrough(const char* value, AuthenticationLevel auth_level, 
         }
     }
 
-    downstream_uart->exitBootloader();
+    downstream_uart->exitPassthrough();
     if (channel) {
         channel->resume();
     }
