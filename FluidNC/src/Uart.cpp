@@ -11,7 +11,6 @@
 #include <esp_ipc.h>
 #include "hal/uart_hal.h"
 
-Uart::Uart(int uart_num) : _uart_num(uart_num) {}
 std::string encodeUartMode(UartData wordLength, UartParity parity, UartStop stopBits) {
     std::string s;
     s += std::to_string(int(wordLength) - int(UartData::Bits5) + 5);
@@ -86,6 +85,9 @@ const char* decodeUartMode(std::string_view str, UartData& wordLength, UartParit
     return "";
 }
 
+Uart::Uart(int uart_num) : _uart_num(uart_num), _name("uart") {
+    _name += std::to_string(uart_num);
+}
 
 static void uart_driver_n_install(void* arg) {
     uart_driver_install((uart_port_t)arg, 256, 0, 0, NULL, ESP_INTR_FLAG_IRAM);
@@ -104,6 +106,17 @@ void Uart::changeMode(unsigned long baud, UartData dataBits, UartParity parity, 
 }
 void Uart::restoreMode() {
     changeMode(_baud, _dataBits, _parity, _stopBits);
+}
+
+void Uart::enterBootloader() {
+    changeMode(_bootloaderBaud, _bootloaderDataBits, _bootloaderParity, _bootloaderStopBits);
+}
+
+void Uart::exitBootloader() {
+    restoreMode();
+    if (_sw_flowcontrol_enabled) {
+        setSwFlowControl(_sw_flowcontrol_enabled, _xon_threshold, _xoff_threshold);
+    }
 }
 
 // This version is used for the initial console UART where we do not want to change the pins

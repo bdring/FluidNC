@@ -765,32 +765,28 @@ static Error showGPIOs(const char* value, AuthenticationLevel auth_level, Channe
 #include "UartTypes.h"
 
 static Error serialPassthrough(const char* value, AuthenticationLevel auth_level, Channel& out) {
-#if 0
-    if (out != static_cast<Channel&>(Uart0)) {
-        log_error_to(out, "Passthrough can only be used from the primary serial port");
-        return Error::InvalidValue;
+    Uart* downstream_uart = nullptr;
+    if (!value) {
+        value = "uart1";
     }
-#endif
-    int        uart_num = 1;
-    uint32_t   baud     = 115200;
-    UartData   databits = UartData::Bits8;
-    UartParity parity   = UartParity::Even;
-    UartStop   stopbits = UartStop::Bits1;
-    if (value) {
-        // XXX handle modes too
-        if (strcasecmp(value, "uart1") == 0) {
-            // Parse arguments to set uart number and modes
-            uart_num = 1;
-        } else if (strcasecmp(value, "uart2") == 0) {
-            // Parse arguments to set uart number and modes
-            uart_num = 2;
-        } else {
-            //            log_error_to(out, "Bad argument " << value);
-            printf("Bad argument %s\n", value);
-            return Error::InvalidValue;
+
+    // Find a UART device that matches the name
+    int uart_num;
+    for (uart_num = 1; uart_num < MAX_N_UARTS; ++uart_num) {
+        downstream_uart = config->_uarts[uart_num];
+        if (downstream_uart) {
+            if (downstream_uart->name() == value) {
+                break;
+            }
         }
     }
-    out.pause();  // Stop input polling
+    if (uart_num == MAX_N_UARTS) {
+        log_error_to(out, value << " does not exist");
+        // printf("Bad argument %s\n", value);
+        return Error::InvalidValue;
+    }
+
+    out.pause();  // Stop input polling on the upstream channel
 
     UartChannel* channel = nullptr;
     for (size_t n = 0; (channel = config->_uart_channels[n]) != nullptr; ++n) {
@@ -800,12 +796,8 @@ static Error serialPassthrough(const char* value, AuthenticationLevel auth_level
         }
     }
     // Uart& upstream_uart = *config->_uarts[0];
-    Uart& upstream_uart = *Uart0.uart();
-    if (config->_uarts[uart_num] == nullptr) {
-        log_error_to(out, "Uart " << uart_num << " is not configured");
-        return Error::InvalidValue;
-    }
-    Uart& downstream_uart = *config->_uarts[uart_num];
+    // Uart& upstream_uart = *Uart0.uart();
+    //    Uart& upstream_uart = *(static_cast<UartChannel&>(out)).uart();
 
     bool flow;
     int  xon_threshold;
@@ -813,37 +805,33 @@ static Error serialPassthrough(const char* value, AuthenticationLevel auth_level
 
     if (channel) {
         channel->pause();
-        downstream_uart.getSwFlowControl(flow, xon_threshold, xoff_threshold);
-        // downstream_uart.setSwFlowVontrol(false, 0, 0);  // Unnecessary since changeMode turns off flow control
-        downstream_uart.changeMode(baud, databits, parity, stopbits);
-    } else {
-        downstream_uart.changeMode(baud, databits, parity, stopbits);
     }
+    downstream_uart->enterBootloader();
+
     const int buflen = 256;
     uint8_t   buffer[buflen];
     size_t    upstream_len;
     size_t    downstream_len;
 
     TickType_t last_ticks = xTaskGetTickCount();
-    int        timeout    = 4000;
+    int        timeout    = 2000;
 
     while (xTaskGetTickCount() - last_ticks < timeout) {
         size_t len;
-        len = upstream_uart.timedReadBytes((char*)buffer, buflen, 10);
+        len = out.timedReadBytes((char*)buffer, buflen, 10);
         if (len > 0) {
             last_ticks = xTaskGetTickCount();
-            downstream_uart.write(buffer, len);
+            downstream_uart->write(buffer, len);
         }
-        len = downstream_uart.timedReadBytes((char*)buffer, buflen, 10);
+        len = downstream_uart->timedReadBytes((char*)buffer, buflen, 10);
         if (len > 0) {
             last_ticks = xTaskGetTickCount();
-            upstream_uart.write(buffer, len);
+            out.write(buffer, len);
         }
     }
 
+    downstream_uart->exitBootloader();
     if (channel) {
-        downstream_uart.restoreMode();
-        downstream_uart.setSwFlowControl(flow, xon_threshold, xoff_threshold);
         channel->resume();
     }
     out.resume();

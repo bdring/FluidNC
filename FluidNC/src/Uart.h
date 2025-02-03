@@ -28,6 +28,9 @@ private:
     int  _xon_threshold          = 0;
     int  _xoff_threshold         = 0;
 
+    std::string bootloader_mode = "";
+    std::string _name;
+
 public:
     // These are public so that validators from classes
     // that use Uart can check that the setup is suitable.
@@ -39,17 +42,18 @@ public:
     UartParity _parity   = UartParity::None;
     UartStop   _stopBits = UartStop::Bits1;
 
+    int        _bootloaderBaud     = 115200;
+    UartData   _bootloaderDataBits = UartData::Bits8;
+    UartParity _bootloaderParity   = UartParity::None;
+    UartStop   _bootloaderStopBits = UartStop::Bits1;
+
     Pin _txd_pin;
     Pin _rxd_pin;
     Pin _rts_pin;
     Pin _cts_pin;
 
     // Name is required for the configuration factory to work.
-    const char* name() {
-        static char nstr[6] = "uartN";
-        nstr[4]             = _uart_num - '0';
-        return nstr;
-    }
+    std::string name() { return _name; }
 
     Uart(int uart_num = -1);
     void begin();
@@ -85,6 +89,9 @@ public:
     void changeMode(unsigned long baud, UartData dataBits, UartParity parity, UartStop stopBits);
     void restoreMode();
 
+    void enterBootloader();
+    void exitBootloader();
+
     // Configuration handlers:
     void validate() override {
         Assert(!_txd_pin.undefined(), "UART: TXD is undefined");
@@ -102,6 +109,8 @@ public:
 
         handler.item("baud", _baud, 2400, 10000000);
         handler.item("mode", _dataBits, _parity, _stopBits);
+        handler.item("bootloader_baud", _bootloaderBaud, 2400, 10000000);
+        handler.item("bootloader_mode", _bootloaderDataBits, _bootloaderParity, _bootloaderStopBits);
     }
 
     void config_message(const char* prefix, const char* usage);
