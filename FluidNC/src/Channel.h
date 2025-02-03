@@ -89,9 +89,9 @@ protected:
     bool _paused = false;
 
 public:
-    explicit Channel(const std::string& name, bool addCR = false) : _name(name), _linelen(0), _addCR(addCR) {}
-    explicit Channel(const char* name, bool addCR = false) : _name(name), _linelen(0), _addCR(addCR) {}
-    Channel(const char* name, int num, bool addCR = false) : _name(name) { _name += std::to_string(num), _linelen = 0, _addCR = addCR; }
+    explicit Channel(const std::string& name, bool addCR = false);
+    explicit Channel(const char* name, bool addCR = false);
+    Channel(const char* name, int num, bool addCR = false);
     virtual ~Channel() = default;
 
     bool _ackwait = false;
