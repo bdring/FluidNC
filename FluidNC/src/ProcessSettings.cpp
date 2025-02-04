@@ -954,7 +954,7 @@ void make_user_commands() {
     new UserCommand("SA", "Alarm/Send", sendAlarm, anyState);
     new UserCommand("Heap", "Heap/Show", showHeap, anyState);
     new UserCommand("SS", "Startup/Show", showStartupLog, anyState);
-    new UserCommand("SP", "Uart/Passthrough", uartPassthrough, notIdleOrAlarm);
+    new UserCommand("UP", "Uart/Passthrough", uartPassthrough, notIdleOrAlarm);
 
     new UserCommand("RI", "Report/Interval", setReportInterval, anyState);
 
