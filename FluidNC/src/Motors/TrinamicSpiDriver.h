@@ -63,6 +63,9 @@ namespace MotorDrivers {
             handler.item("stallguard", _stallguard, -64, 63);
             handler.item("stallguard_debug", _stallguardDebugMode);
             handler.item("toff_coolstep", _toff_coolstep, 2, 15);
+
+
+            
         }
 
     protected:
