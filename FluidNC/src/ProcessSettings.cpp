@@ -875,7 +875,6 @@ static Error maslow_set_comply(const char* value, WebUI::AuthenticationLevel aut
         return Error::ConfigurationInvalid;
     }
     sys.set_state(State::Homing);
-    log_info("Set to comply");
     Maslow.comply();
     return Error::Ok;
 }

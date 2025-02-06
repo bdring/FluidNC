@@ -332,7 +332,7 @@ void Maslow_::home() {
             }
         }
     }
-    // $CMP - comply mode
+    //  - comply mode
     if (complyALL) {
         //decompress belts for the first half second
         if (millis() - complyCallTimer < 40) {
@@ -352,6 +352,8 @@ void Maslow_::home() {
             axisBL.stop();
             axisBR.stop();
             complyALL = false;
+            sys.set_state(State::Idle);
+            setupIsComplete = false; //We've undone the setup so apply tension is needed before we can move
         }
     }
 
@@ -378,6 +380,7 @@ void Maslow_::home() {
 
 /*
 * This function is used to take up the slack in the belts and confirm that the calibration values are resonable
+* It is run when the "Apply Tension" button is pressed in the UI
 * It does this by retracting the two lower belts and taking a measurement. The machine's position is then calculated 
 * from the lenghts of the two upper belts. The lengths of the two lower belts are then compared to their expected calculated lengths
 * If the difference is beyond a threshold we know that the stored anchor point locations do not match the real dimensons and and error is thrown
@@ -418,7 +421,7 @@ bool Maslow_::takeSlackFunc() {
             }
             else{
                 log_info("Center point deviation within " << threshold << "mm, your coordinate system is accurate");
-                takeSlackState = 3;
+                takeSlackState = 0;
                 holdTimer = millis();
                 setupIsComplete = true;
 
@@ -1620,6 +1623,7 @@ void Maslow_::runCalibration() {
     calibrationInProgress = true;
 }
 
+//This function is used for release tension
 void Maslow_::comply() {
     complyCallTimer = millis();
     retractingTL    = false;
@@ -1880,7 +1884,7 @@ void Maslow_::take_slack() {
     y         = 0;
     takeSlack = true;
 
-    //Alocate the memory to store the measurements in
+    //Alocate the memory to store the measurements in. This is used here because take slack will use the same memory as the calibration
     allocateCalibrationMemory();
 }
 
