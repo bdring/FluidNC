@@ -271,7 +271,776 @@ void Maslow_::heartBeat(){
     }
 }
 
-// -Maslow homing loop
+//------------------------------------------------------
+//------------------------------------------------------ Core utility functions
+//------------------------------------------------------
+
+//updating encoder positions for all 4 arms, cycling through them each call, at ENCODER_READ_FREQUENCY_HZ frequency
+bool Maslow_::updateEncoderPositions() {
+    bool                 success               = true;
+    static unsigned long lastCallToEncoderRead = millis();
+
+    static int           encoderFailCounter[4] = { 0, 0, 0, 0 };
+    static unsigned long encoderFailTimer      = millis();
+
+    if (!readingFromSD && (millis() - lastCallToEncoderRead > 1000 / (ENCODER_READ_FREQUENCY_HZ))) {
+        static int encoderToRead = 0;
+        switch (encoderToRead) {
+            case 0:
+                if (!axisTL.updateEncoderPosition()) {
+                    encoderFailCounter[TLEncoderLine]++;
+                }
+                break;
+            case 1:
+                if (!axisTR.updateEncoderPosition()) {
+                    encoderFailCounter[TREncoderLine]++;
+                }
+                break;
+            case 2:
+                if (!axisBL.updateEncoderPosition()) {
+                    encoderFailCounter[BLEncoderLine]++;
+                }
+                break;
+            case 3:
+                if (!axisBR.updateEncoderPosition()) {
+                    encoderFailCounter[BREncoderLine]++;
+                }
+                break;
+        }
+        encoderToRead++;
+        if (encoderToRead > 3) {
+            encoderToRead         = 0;
+            lastCallToEncoderRead = millis();
+        }
+    }
+
+    // if more than 1% of readings fail, warn user, if more than 10% fail, stop the machine and raise alarm
+    if (millis() - encoderFailTimer > 1000) {
+        for (int i = 0; i < 4; i++) {
+            //turn i into proper label
+            String label = axis_id_to_label(i);
+            if (encoderFailCounter[i] > 0.1 * ENCODER_READ_FREQUENCY_HZ) {
+                // log error statement with appropriate label
+                log_error("Failure on " << label.c_str() << " encoder, failed to read " << encoderFailCounter[i]
+                                        << " times in the last second");
+                Maslow.panic();
+            } else if (encoderFailCounter[i] > 0) {  //0.01*ENCODER_READ_FREQUENCY_HZ){
+                log_warn("Bad connection on " << label.c_str() << " encoder, failed to read " << encoderFailCounter[i]
+                                              << " times in the last second");
+            }
+            encoderFailCounter[i] = 0;
+            encoderFailTimer      = millis();
+        }
+    }
+
+    return success;
+}
+
+// This computes the target lengths of the belts based on the target x and y coordinates and sends that information to each arm.
+void Maslow_::setTargets(float xTarget, float yTarget, float zTarget, bool tl, bool tr, bool bl, bool br) {
+    //Store the target x and y coordinates for the getTargetN() functions
+    targetX = xTarget;
+    targetY = yTarget;
+    targetZ = zTarget;
+
+    if (tl) {
+        axisTL.setTarget(computeTL(xTarget, yTarget, zTarget));
+    }
+    if (tr) {
+        axisTR.setTarget(computeTR(xTarget, yTarget, zTarget));
+    }
+    if (bl) {
+        axisBL.setTarget(computeBL(xTarget, yTarget, zTarget));
+    }
+    if (br) {
+        axisBR.setTarget(computeBR(xTarget, yTarget, zTarget));
+    }
+}
+
+//updates motor powers for all axis, based on targets set by setTargets()
+void Maslow_::recomputePID() {
+    axisBL.recomputePID();
+    axisBR.recomputePID();
+    axisTR.recomputePID();
+    axisTL.recomputePID();
+
+    digitalWrite(coolingFanPin, HIGH);  //keep the cooling fan on
+
+    if (digitalRead(SERVOFAULT) ==
+        1) {  //The servo drives have a fault pin that goes high when there is a fault (ie one over heats). We should probably call panic here. Also this should probably be read in the main loop
+        log_info("Servo fault!");
+    }
+}
+
+//This is the function that should prevent machine from damaging itself
+void Maslow_::safety_control() {
+    //We need to keep track of average belt speeds and motor currents for every axis
+    static bool          tick[4]                 = { false, false, false, false };
+    static unsigned long spamTimer               = millis();
+    static int           tresholdHitsBeforePanic = 150;
+    static int           panicCounter[4]         = { 0 };
+
+    static int           positionErrorCounter[4] = { 0 };
+    static float         previousPositionError[4] = { 0, 0, 0, 0 };
+
+    MotorUnit* axis[4] = { &axisTL, &axisTR, &axisBL, &axisBR };
+    for (int i = 0; i < 4; i++) {
+        //If the current exceeds some absolute value, we need to call panic() and stop the machine
+        if (axis[i]->getMotorCurrent() > 4000 && !tick[i]) {
+            panicCounter[i]++;
+            if (panicCounter[i] > tresholdHitsBeforePanic) {
+                if(sys.state() == State::Jog || sys.state() == State::Cycle){
+                    log_warn("Motor current on " << axis_id_to_label(i).c_str() << " axis exceeded threshold of " << 4000);
+                    //Maslow.panic();
+                }
+                tick[i] = true;
+            }
+        } else {
+            panicCounter[i] = 0;
+        }
+
+        //If the motor torque is high, but the belt is not moving
+        //  if motor is moving IN, this means the axis is STALL, we should warn the user and lower torque to the motor
+        //  if the motor is moving OUT, that means the axis has SLACK, so we should warn the user and stop the motor, until the belt starts moving again
+        // don't spam log, no more than once every 5 seconds
+
+        static int axisSlackCounter[4] = { 0, 0, 0, 0 };
+
+        axisSlackCounter[i] = 0;  //TEMP
+        if (axis[i]->getMotorPower() > 450 && abs(axis[i]->getBeltSpeed()) < 0.1 && !tick[i]) {
+            axisSlackCounter[i]++;
+            if (axisSlackCounter[i] > 3000) {
+                // log_info("SLACK:" << axis_id_to_label(i).c_str() << " motor power is " << int(axis[i]->getMotorPower())
+                //                   << ", but the belt speed is" << axis[i]->getBeltSpeed());
+                // log_info(axisSlackCounter[i]);
+                // log_info("Pull on " << axis_id_to_label(i).c_str() << " and restart!");
+                tick[i]             = true;
+                axisSlackCounter[i] = 0;
+                Maslow.panic();
+            }
+        } else
+            axisSlackCounter[i] = 0;
+
+        //If the motor has a position error greater than 1mm and we are running a file or jogging
+        if ((abs(axis[i]->getPositionError()) > 1) && (sys.state() == State::Jog || sys.state() == State::Cycle) && !tick[i]) {
+            // log_error("Position error on " << axis_id_to_label(i).c_str() << " axis exceeded 1mm, error is " << axis[i]->getPositionError()
+            //                                << "mm");
+            tick[i] = true;
+        }
+
+        //If the motor has a position error greater than 15mm and we are running a file or jogging
+        previousPositionError[i] = axis[i]->getPositionError();
+        if ((abs(axis[i]->getPositionError()) > 15) && (sys.state() == State::Cycle)) {
+            positionErrorCounter[i]++;
+            log_warn("Position error on " << axis_id_to_label(i).c_str() << " axis exceeded 15mm while running. Error is "
+                                            << axis[i]->getPositionError() << "mm" << " Counter: " << positionErrorCounter[i]);
+            log_warn("Previous error was " << previousPositionError[i] << "mm");
+
+            if(positionErrorCounter[i] > 5){
+                Maslow.eStop("Position error > 15mm while running. E-Stop triggered.");
+            }
+        }
+        else{
+            positionErrorCounter[i] = 0;
+        }
+    }
+
+    if (millis() - spamTimer > 5000) {
+        for (int i = 0; i < 4; i++) {
+            tick[i] = false;
+        }
+        spamTimer = millis();
+    }
+}
+
+// Compute target belt lengths based on X-Y-Z coordinates
+float Maslow_::computeBL(float x, float y, float z) {
+    //Move from lower left corner coordinates to centered coordinates
+    x       = x + centerX;
+    y       = y + centerY;
+    float a = blX - x; //X dist from corner to router center
+    float b = blY - y; //Y dist from corner to router center
+    float c = 0.0 - (z + blZ); //Z dist from corner to router center
+
+    float XYlength = sqrt(a * a + b * b); //Get the distance in the XY plane from the corner to the router center
+
+    float XYBeltLength = XYlength - (_beltEndExtension + _armLength); //Subtract the belt end extension and arm length to get the belt length
+
+    float length = sqrt(XYBeltLength * XYBeltLength + c * c); //Get the angled belt length
+
+    return length;
+}
+float Maslow_::computeBR(float x, float y, float z) {
+    //Move from lower left corner coordinates to centered coordinates
+    x       = x + centerX;
+    y       = y + centerY;
+    float a = brX - x;
+    float b = brY - y;
+    float c = 0.0 - (z + brZ);
+
+    float XYlength = sqrt(a * a + b * b); //Get the distance in the XY plane from the corner to the router center
+
+    float XYBeltLength = XYlength - (_beltEndExtension + _armLength); //Subtract the belt end extension and arm length to get the belt length
+
+    float length = sqrt(XYBeltLength * XYBeltLength + c * c); //Get the angled belt length
+
+    return length;
+}
+float Maslow_::computeTR(float x, float y, float z) {
+    //Move from lower left corner coordinates to centered coordinates
+    x       = x + centerX;
+    y       = y + centerY;
+    float a = trX - x;
+    float b = trY - y;
+    float c = 0.0 - (z + trZ);
+    
+    float XYlength = sqrt(a * a + b * b); //Get the distance in the XY plane from the corner to the router center
+
+    float XYBeltLength = XYlength - (_beltEndExtension + _armLength); //Subtract the belt end extension and arm length to get the belt length
+
+    float length = sqrt(XYBeltLength * XYBeltLength + c * c); //Get the angled belt length
+
+    return length;
+}
+float Maslow_::computeTL(float x, float y, float z) {
+    //Move from lower left corner coordinates to centered coordinates
+    x       = x + centerX;
+    y       = y + centerY;
+    float a = tlX - x;
+    float b = tlY - y;
+    float c = 0.0 - (z + tlZ);
+    
+    float XYlength = sqrt(a * a + b * b); //Get the distance in the XY plane from the corner to the router center
+
+    float XYBeltLength = XYlength - (_beltEndExtension + _armLength); //Subtract the belt end extension and arm length to get the belt length
+
+    float length = sqrt(XYBeltLength * XYBeltLength + c * c); //Get the angled belt length
+
+    return length;
+}
+
+void Maslow_::test_() {
+    log_info("Firmware Version: " << VERSION_NUMBER);
+
+    log_info("I2C Timeout: ");
+    log_info(Wire.getTimeOut());
+
+    axisTL.test();
+    axisTR.test();
+    axisBL.test();
+    axisBR.test();
+}
+//This function saves the current z-axis position to the non-volitle storage
+void Maslow_::saveZPos() {
+    nvs_handle_t nvsHandle;
+    esp_err_t ret = nvs_open("maslow", NVS_READWRITE, &nvsHandle);
+    if (ret != ESP_OK) {
+        log_info("Error " + std::string(esp_err_to_name(ret)) + " opening NVS handle!\n");
+        return;
+    }
+
+    // Read the current value
+    int32_t currentZPos;
+    ret = nvs_get_i32(nvsHandle, "zPos", &currentZPos);
+    if (ret != ESP_OK && ret != ESP_ERR_NVS_NOT_FOUND) {
+        log_info("Error " + std::string(esp_err_to_name(ret)) + " reading from NVS!\n");
+        return;
+    }
+
+    // Write - Convert the float to an int32_t and write only if it has changed
+    union FloatInt32 {
+        float f;
+        int32_t i;
+    };
+    FloatInt32 fi;
+    fi.f = targetZ;
+    if (ret == ESP_ERR_NVS_NOT_FOUND || currentZPos != fi.i) { // Only write if the value has changed
+        ret = nvs_set_i32(nvsHandle, "zPos", fi.i);
+        if (ret != ESP_OK) {
+            log_info("Error " + std::string(esp_err_to_name(ret)) + " writing to NVS!\n");
+        } else {
+            //log_info("Written value = " + std::to_string(targetZ));
+
+            // Commit written value to non-volatile storage
+            ret = nvs_commit(nvsHandle);
+            if (ret != ESP_OK) {
+                log_info("Error " + std::string(esp_err_to_name(ret)) + " committing changes to NVS!\n");
+            }
+        }
+    }
+}
+
+//This function loads the z-axis position from the non-volitle storage
+void Maslow_::loadZPos() {
+    nvs_handle_t nvsHandle;
+    esp_err_t ret = nvs_open("maslow", NVS_READWRITE, &nvsHandle);
+    if (ret != ESP_OK) {
+        log_info("Error " + std::string(esp_err_to_name(ret)) + " opening NVS handle!\n");
+        return;
+    }
+
+    // Read
+    int32_t value2;
+    ret = nvs_get_i32(nvsHandle, "zPos", &value2);
+    if (ret != ESP_OK) {
+        log_info("Error " + std::string(esp_err_to_name(ret)) + " reading from NVS!");
+    } else {
+        union FloatInt32 {
+            float f;
+            int32_t i;
+        };
+        FloatInt32 fi;
+        fi.i = value2;
+        targetZ = fi.f;
+
+        int zAxis = 2;
+        float* mpos = get_mpos();
+        mpos[zAxis] = targetZ;
+        set_motor_steps_from_mpos(mpos);
+
+        log_info("Current z-axis position loaded as: " << targetZ);
+
+        gc_sync_position();//This updates the Gcode engine with the new position from the stepping engine that we set with set_motor_steps
+        plan_sync_position();
+    }
+}
+
+/** Sets the 'bottom' Z position, this is a 'stop' beyond which travel cannot continue */
+void Maslow_::setZStop() {
+    log_info("Setting z-stop position");
+
+    targetZ = 0;
+
+    int zAxis = 2;
+    float* mpos = get_mpos();
+    mpos[zAxis] = targetZ;
+    set_motor_steps_from_mpos(mpos);
+
+    gc_sync_position();//This updates the Gcode engine with the new position from the stepping engine that we set with set_motor_steps
+    plan_sync_position();
+}
+
+// int to string name conversion for axis labels
+String Maslow_::axis_id_to_label(int axis_id) {
+    String label;
+    switch (axis_id) {
+        case TLEncoderLine:
+            label = "Top Left";
+            break;
+        case TREncoderLine:
+            label = "Top Right";
+            break;
+        case BREncoderLine:
+            label = "Bottom Right";
+            break;
+        case BLEncoderLine:
+            label = "Bottom Left";
+            break;
+    }
+    return label;
+}
+
+//------------------------------------------------------
+//------------------------------------------------------ Utility functions
+//------------------------------------------------------
+
+//non-blocking delay, just pauses everything for specified time
+void Maslow_::hold(unsigned long time) {
+    holdTime  = time;
+    holding   = true;
+    holdTimer = millis();
+}
+
+// Resets variables on all 4 axis
+void Maslow_::reset_all_axis() {
+    axisTL.reset();
+    axisTR.reset();
+    axisBL.reset();
+    axisBR.reset();
+}
+
+// Stop all motors and reset all state variables
+void Maslow_::stop() {
+    stopMotors();
+    retractingTL          = false;
+    retractingTR          = false;
+    retractingBL          = false;
+    retractingBR          = false;
+    extendingALL          = false;
+    complyALL             = false;
+    calibrationInProgress = false;
+    test                  = false;
+    takeSlack             = false;
+
+    axisTL.reset();
+    axisTR.reset();
+    axisBL.reset();
+    axisBR.reset();
+
+    // if we are stopping, stop any running job too
+    allChannels.stopJob();
+}
+
+// Stop all the motors
+void Maslow_::stopMotors() {
+    axisBL.stop();
+    axisBR.stop();
+    axisTR.stop();
+    axisTL.stop();
+}
+
+static void stopEverything() {
+    sys.set_state(State::Alarm);
+    protocol_disable_steppers();
+}
+
+// Panic function, stops all motors and sets state to alarm
+void Maslow_::panic() {
+    stop();
+    stopEverything();
+}
+
+//Emergecy Stop
+void Maslow_::eStop(String message) {
+    log_error("Emergency stop! Stopping all motors");
+    log_warn("The machine will not respond until turned off and back on again");
+    stop();
+    error = true;
+    errorMessage = message;
+    stopEverything();
+}
+
+
+// Get's the most recently set target position in X
+double Maslow_::getTargetX() {
+    return targetX;
+}
+
+// Get's the most recently set target position in Y
+double Maslow_::getTargetY() {
+    return targetY;
+}
+
+//Get's the most recently set target position in Z
+double Maslow_::getTargetZ() {
+    return targetZ;
+}
+
+// Prints out state
+void Maslow_::getInfo() {
+    log_data("MINFO: { \"homed\": " << (all_axis_homed() ? "true" : "false") << ","
+          << "\"calibrationInProgress\": " << (calibrationInProgress ? "true" : "false") << ","
+          << "\"tl\": " << axisTL.getPosition() << ","
+          << "\"tr\": " << axisTR.getPosition() << ","
+          << "\"br\": " << axisBR.getPosition() << ","
+          << "\"bl\": " << axisBL.getPosition() << ","
+          << "\"etl\": " << axisTL.getPositionError() << ","
+          << "\"etr\": " << axisTR.getPositionError() << ","
+          << "\"ebr\": " << axisBR.getPositionError() << ","
+          << "\"ebl\": " << axisBL.getPositionError() << ","
+          << "\"extended\": " << (allAxisExtended() ? "true" : "false")
+          << "}");
+}
+
+void Maslow_::set_telemetry(bool enabled) {
+    if (enabled) {
+        // Start off the file with the length of each struct in it.
+        FileStream* file = new FileStream(MASLOW_TELEM_FILE, "w", "sd");
+        // write header
+        TelemetryFileHeader header;
+        header.structureSize = sizeof(TelemetryData);
+        strcpy(header.version, VERSION_NUMBER);
+        file->write(reinterpret_cast<uint8_t *>(&header), sizeof(TelemetryFileHeader));
+        file->flush();
+        delete file;
+    } else {
+        // TODO: not sure why this fails to find the file
+        // std::string filePath = MASLOW_TELEM_FILE;
+        // std::string newFilePath = filePath + "." + std::to_string(millis());
+        // std::error_code ec;
+        // log_info("renaming file: " + filePath + " to " + newFilePath);
+        // stdfs::rename(filePath, newFilePath, ec);
+        // if (ec) {
+        //     log_error(std::string("Error renaming file: ") + ec.message());
+        // }
+    }
+    telemetry_enabled = enabled;
+    log_info("Telemetry: " << (enabled? "enabled" : "disabled"));
+}
+
+void Maslow_::log_telem_hdr_csv() {
+    log_data(
+       "millis," <<
+       "tlCurrent," <<
+       "trCurrent," <<
+       "blCurrent," <<
+       "brCurrent," <<
+       "tlPower," <<
+       "trPower," <<
+       "blPower," <<
+       "brPower," <<
+       "tlSpeed," <<
+       "trSpeed," <<
+       "blSpeed," <<
+       "brSpeed," <<
+       "tlPos," <<
+       "trPos," <<
+       "blPos," <<
+       "brPos," <<
+       "extendedTL," <<
+       "extendedTR," <<
+       "extendedBL," <<
+       "extendedBR," <<
+       "extendingALL," <<
+       "complyALL," <<
+       "takeSlack," <<
+       "safetyOn," <<
+       "targetX," <<
+       "targetY," <<
+       "targetZ," <<
+       "x," <<
+       "y," <<
+       "test," <<
+       "pointCount," <<
+       "waypoint," <<
+       "calibrationGridSize," <<
+       "holdTimer," <<
+       "holding," <<
+       "holdTime," <<
+       "centerX," <<
+       "centerY," <<
+       "lastCallToPID," <<
+       "lastMiss," <<
+       "lastCallToUpdate," <<
+       "extendCallTimer," <<
+       "complyCallTimer");
+}
+
+void Maslow_::log_telem_pt_csv(TelemetryData data) {
+    log_data(
+       std::to_string(data.timestamp) + ","
+       + std::to_string(data.tlCurrent) + ","
+       + std::to_string(data.trCurrent)  + ","
+       + std::to_string(data.blCurrent)  + ","
+       + std::to_string(data.brCurrent)  + ","
+       + std::to_string(data.tlPower) + ","
+       + std::to_string(data.trPower) + ","
+       + std::to_string(data.blPower) + ","
+       + std::to_string(data.brPower) + ","
+       + std::to_string(data.tlSpeed) + ","
+       + std::to_string(data.trSpeed) + ","
+       + std::to_string(data.blSpeed) + ","
+       + std::to_string(data.brSpeed) + ","
+       + std::to_string(data.tlPos) + ","
+       + std::to_string(data.trPos) + ","
+       + std::to_string(data.blPos) + ","
+       + std::to_string(data.brPos) + ","
+       + std::to_string(data.extendedTL) + ","
+       + std::to_string(data.extendedTR) + ","
+       + std::to_string(data.extendedBL) + ","
+       + std::to_string(data.extendedBR) + ","
+       + std::to_string(data.extendingALL) + ","
+       + std::to_string(data.complyALL) + ","
+       + std::to_string(data.takeSlack) + ","
+       + std::to_string(data.safetyOn) + ","
+       + std::to_string(data.targetX) + ","
+       + std::to_string(data.targetY) + ","
+       + std::to_string(data.targetZ) + ","
+       + std::to_string(data.x) + ","
+       + std::to_string(data.y) + ","
+       + std::to_string(data.test) + ","
+       + std::to_string(data.pointCount) + ","
+       + std::to_string(data.waypoint) + ","
+       + std::to_string(data.calibrationGridSize) + ","
+       + std::to_string(data.holdTimer) + ","
+       + std::to_string(data.holding) + ","
+       + std::to_string(data.holdTime) + ","
+       + std::to_string(data.centerX) + ","
+       + std::to_string(data.centerY) + ","
+       + std::to_string(data.lastCallToPID) + ","
+       + std::to_string(data.lastMiss) + ","
+       + std::to_string(data.lastCallToUpdate) + ","
+       + std::to_string(data.extendCallTimer) + ","
+       + std::to_string(data.complyCallTimer)
+    )
+}
+
+TelemetryData Maslow_::get_telemetry_data() {
+    TelemetryData data;
+
+    // TODO: probably, we ought to use mutexes here?, but it is not implemented yet and
+    // it may not matter much. the reads are generally of types that don't
+    //if (xSemaphoreTake(telemetry_mutex, portMAX_DELAY)) {
+    // Access shared variables here
+    data.timestamp = millis();
+    data.tlCurrent = axisTL.getMotorCurrent();
+    data.trCurrent = axisTR.getMotorCurrent();
+    data.blCurrent = axisBL.getMotorCurrent();
+    data.brCurrent = axisBR.getMotorCurrent();
+
+    data.tlPower = axisTL.getMotorPower();
+    data.trPower = axisTR.getMotorPower();
+    data.blPower = axisBL.getMotorPower();
+    data.brPower = axisBR.getMotorPower();
+
+    data.tlSpeed = axisTL.getBeltSpeed();
+    data.trSpeed = axisTR.getBeltSpeed();
+    data.blSpeed = axisBL.getBeltSpeed();
+    data.brSpeed = axisBR.getBeltSpeed();
+
+    data.tlPos = axisTL.getPosition();
+    data.trPos = axisTR.getPosition();
+    data.blPos = axisBL.getPosition();
+    data.brPos = axisBR.getPosition();
+
+    data.extendedTL          = extendedTL;
+    data.extendedTR          = extendedTR;
+    data.extendedBL          = extendedBL;
+    data.extendedBR          = extendedBR;
+    data.extendingALL        = extendingALL;
+    data.complyALL           = complyALL;
+    data.takeSlack           = takeSlack;
+    data.safetyOn            = safetyOn;
+    data.targetX             = targetX;
+    data.targetY             = targetY;
+    data.targetZ             = targetZ;
+    data.x                   = x;
+    data.y                   = y;
+    data.test                = test;
+    data.pointCount          = pointCount;
+    data.waypoint            = waypoint;
+    data.calibrationGridSize = calibrationGridSize;
+    data.holdTimer           = holdTimer;
+    data.holding             = holding;
+    data.holdTime            = holdTime;
+    data.centerX             = centerX;
+    data.centerY             = centerY;
+    data.lastCallToPID       = lastCallToPID;
+    data.lastMiss            = lastMiss;
+    data.lastCallToUpdate    = lastCallToUpdate;
+    data.extendCallTimer     = extendCallTimer;
+    data.complyCallTimer     = complyCallTimer;
+    // xSemaphoreGive(telemetry_mutex);
+    //}
+    return data;
+}
+void Maslow_::write_telemetry_buffer(uint8_t* buffer, size_t length) {
+    // Open the file in append mode
+    FileStream* file = new FileStream(MASLOW_TELEM_FILE, "a", "sd");
+
+    // Write the buffer to the file
+    file->write(buffer, length);
+    file->flush();
+
+    // Close the file
+    delete file;
+}
+
+void Maslow_::dump_telemetry(const char* file) {
+    log_info("Dumping telemetry...");
+    vTaskDelay(2000 / portTICK_PERIOD_MS);
+    // open the file
+    FileStream* f = new FileStream(MASLOW_TELEM_FILE, "r", "sd");
+    if (f) {
+        // read the size of each struct from the file
+        TelemetryFileHeader header;
+        f->read(reinterpret_cast<char*>(&header), sizeof(TelemetryFileHeader));
+        log_info("Struct size " << header.structureSize);
+        log_info("Dump version " << header.version);
+        log_telem_hdr_csv();
+        // TODO: check version and adapt?
+        TelemetryData* data   = new TelemetryData();
+        char*          buffer = new char[header.structureSize];
+        while (f->available()) {
+            f->read(&buffer[0], header.structureSize);
+            // populate data from buffer
+            memcpy(data, buffer, header.structureSize);
+            // print the data
+            log_telem_pt_csv(*data);
+            // log_telem_pt(*data);
+        }
+        // delete the buffer
+        delete[] buffer;
+        // delete the data
+        delete data;
+    } else{
+        log_info("File not found")
+    }
+    delete f;
+}
+
+// Called on utility core as a task to gather telemetry and write it to an SD log
+void telemetry_loop(void* unused) {
+    const int bufferSize = 5000;
+    uint8_t buffer[bufferSize];
+    int bufferIndex = 0;
+
+    while (true) {
+        if (Maslow.telemetry_enabled) {
+            TelemetryData data = Maslow.get_telemetry_data();
+
+            // Copy the telemetry data into the buffer
+            memcpy(buffer + bufferIndex, reinterpret_cast<uint8_t*>(&data), sizeof(TelemetryData));
+            // increment the index
+            bufferIndex += sizeof(TelemetryData);
+
+            // Check if the buffer is about to overflow
+            if (bufferIndex >= bufferSize) {
+                log_debug("!" << bufferIndex);
+                Maslow.write_telemetry_buffer(buffer, bufferIndex);
+                bufferIndex = 0;
+            }
+        } else {
+            if (bufferIndex > 0) {
+                Maslow.write_telemetry_buffer(buffer, bufferIndex);
+                bufferIndex = 0;
+            }
+        }
+        // Start with 2Hz-ish
+        vTaskDelay(500 / portTICK_PERIOD_MS);
+    }
+}
+
+Maslow_& Maslow_::getInstance() {
+    static Maslow_ instance;
+    return instance;
+}
+
+Maslow_& Maslow = Maslow.getInstance();
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+//------------------------------------------------------
+//------------------------------------------------------ Homing and calibration functions
+//------------------------------------------------------
+
+
+
+
+
+
+
+
+
+
+
+// -Maslow homing loop. This is used whenver any of the homing funcitons are active (belts extending or retracting)
 void Maslow_::home() {
     //run all the retract functions untill we hit the current limit
     if (retractingTL) {
@@ -528,257 +1297,6 @@ void Maslow_::deallocateCalibrationMemory() {
     calibration_data = nullptr;
 }
 
-//------------------------------------------------------
-//------------------------------------------------------ Core utility functions
-//------------------------------------------------------
-
-//updating encoder positions for all 4 arms, cycling through them each call, at ENCODER_READ_FREQUENCY_HZ frequency
-bool Maslow_::updateEncoderPositions() {
-    bool                 success               = true;
-    static unsigned long lastCallToEncoderRead = millis();
-
-    static int           encoderFailCounter[4] = { 0, 0, 0, 0 };
-    static unsigned long encoderFailTimer      = millis();
-
-    if (!readingFromSD && (millis() - lastCallToEncoderRead > 1000 / (ENCODER_READ_FREQUENCY_HZ))) {
-        static int encoderToRead = 0;
-        switch (encoderToRead) {
-            case 0:
-                if (!axisTL.updateEncoderPosition()) {
-                    encoderFailCounter[TLEncoderLine]++;
-                }
-                break;
-            case 1:
-                if (!axisTR.updateEncoderPosition()) {
-                    encoderFailCounter[TREncoderLine]++;
-                }
-                break;
-            case 2:
-                if (!axisBL.updateEncoderPosition()) {
-                    encoderFailCounter[BLEncoderLine]++;
-                }
-                break;
-            case 3:
-                if (!axisBR.updateEncoderPosition()) {
-                    encoderFailCounter[BREncoderLine]++;
-                }
-                break;
-        }
-        encoderToRead++;
-        if (encoderToRead > 3) {
-            encoderToRead         = 0;
-            lastCallToEncoderRead = millis();
-        }
-    }
-
-    // if more than 1% of readings fail, warn user, if more than 10% fail, stop the machine and raise alarm
-    if (millis() - encoderFailTimer > 1000) {
-        for (int i = 0; i < 4; i++) {
-            //turn i into proper label
-            String label = axis_id_to_label(i);
-            if (encoderFailCounter[i] > 0.1 * ENCODER_READ_FREQUENCY_HZ) {
-                // log error statement with appropriate label
-                log_error("Failure on " << label.c_str() << " encoder, failed to read " << encoderFailCounter[i]
-                                        << " times in the last second");
-                Maslow.panic();
-            } else if (encoderFailCounter[i] > 0) {  //0.01*ENCODER_READ_FREQUENCY_HZ){
-                log_warn("Bad connection on " << label.c_str() << " encoder, failed to read " << encoderFailCounter[i]
-                                              << " times in the last second");
-            }
-            encoderFailCounter[i] = 0;
-            encoderFailTimer      = millis();
-        }
-    }
-
-    return success;
-}
-
-// This computes the target lengths of the belts based on the target x and y coordinates and sends that information to each arm.
-void Maslow_::setTargets(float xTarget, float yTarget, float zTarget, bool tl, bool tr, bool bl, bool br) {
-    //Store the target x and y coordinates for the getTargetN() functions
-    targetX = xTarget;
-    targetY = yTarget;
-    targetZ = zTarget;
-
-    if (tl) {
-        axisTL.setTarget(computeTL(xTarget, yTarget, zTarget));
-    }
-    if (tr) {
-        axisTR.setTarget(computeTR(xTarget, yTarget, zTarget));
-    }
-    if (bl) {
-        axisBL.setTarget(computeBL(xTarget, yTarget, zTarget));
-    }
-    if (br) {
-        axisBR.setTarget(computeBR(xTarget, yTarget, zTarget));
-    }
-}
-
-//updates motor powers for all axis, based on targets set by setTargets()
-void Maslow_::recomputePID() {
-    axisBL.recomputePID();
-    axisBR.recomputePID();
-    axisTR.recomputePID();
-    axisTL.recomputePID();
-
-    digitalWrite(coolingFanPin, HIGH);  //keep the cooling fan on
-
-    if (digitalRead(SERVOFAULT) ==
-        1) {  //The servo drives have a fault pin that goes high when there is a fault (ie one over heats). We should probably call panic here. Also this should probably be read in the main loop
-        log_info("Servo fault!");
-    }
-}
-
-//This is the function that should prevent machine from damaging itself
-void Maslow_::safety_control() {
-    //We need to keep track of average belt speeds and motor currents for every axis
-    static bool          tick[4]                 = { false, false, false, false };
-    static unsigned long spamTimer               = millis();
-    static int           tresholdHitsBeforePanic = 150;
-    static int           panicCounter[4]         = { 0 };
-
-    static int           positionErrorCounter[4] = { 0 };
-    static float         previousPositionError[4] = { 0, 0, 0, 0 };
-
-    MotorUnit* axis[4] = { &axisTL, &axisTR, &axisBL, &axisBR };
-    for (int i = 0; i < 4; i++) {
-        //If the current exceeds some absolute value, we need to call panic() and stop the machine
-        if (axis[i]->getMotorCurrent() > 4000 && !tick[i]) {
-            panicCounter[i]++;
-            if (panicCounter[i] > tresholdHitsBeforePanic) {
-                if(sys.state() == State::Jog || sys.state() == State::Cycle){
-                    log_warn("Motor current on " << axis_id_to_label(i).c_str() << " axis exceeded threshold of " << 4000);
-                    //Maslow.panic();
-                }
-                tick[i] = true;
-            }
-        } else {
-            panicCounter[i] = 0;
-        }
-
-        //If the motor torque is high, but the belt is not moving
-        //  if motor is moving IN, this means the axis is STALL, we should warn the user and lower torque to the motor
-        //  if the motor is moving OUT, that means the axis has SLACK, so we should warn the user and stop the motor, until the belt starts moving again
-        // don't spam log, no more than once every 5 seconds
-
-        static int axisSlackCounter[4] = { 0, 0, 0, 0 };
-
-        axisSlackCounter[i] = 0;  //TEMP
-        if (axis[i]->getMotorPower() > 450 && abs(axis[i]->getBeltSpeed()) < 0.1 && !tick[i]) {
-            axisSlackCounter[i]++;
-            if (axisSlackCounter[i] > 3000) {
-                // log_info("SLACK:" << axis_id_to_label(i).c_str() << " motor power is " << int(axis[i]->getMotorPower())
-                //                   << ", but the belt speed is" << axis[i]->getBeltSpeed());
-                // log_info(axisSlackCounter[i]);
-                // log_info("Pull on " << axis_id_to_label(i).c_str() << " and restart!");
-                tick[i]             = true;
-                axisSlackCounter[i] = 0;
-                Maslow.panic();
-            }
-        } else
-            axisSlackCounter[i] = 0;
-
-        //If the motor has a position error greater than 1mm and we are running a file or jogging
-        if ((abs(axis[i]->getPositionError()) > 1) && (sys.state() == State::Jog || sys.state() == State::Cycle) && !tick[i]) {
-            // log_error("Position error on " << axis_id_to_label(i).c_str() << " axis exceeded 1mm, error is " << axis[i]->getPositionError()
-            //                                << "mm");
-            tick[i] = true;
-        }
-
-        //If the motor has a position error greater than 15mm and we are running a file or jogging
-        previousPositionError[i] = axis[i]->getPositionError();
-        if ((abs(axis[i]->getPositionError()) > 15) && (sys.state() == State::Cycle)) {
-            positionErrorCounter[i]++;
-            log_warn("Position error on " << axis_id_to_label(i).c_str() << " axis exceeded 15mm while running. Error is "
-                                            << axis[i]->getPositionError() << "mm" << " Counter: " << positionErrorCounter[i]);
-            log_warn("Previous error was " << previousPositionError[i] << "mm");
-
-            if(positionErrorCounter[i] > 5){
-                Maslow.eStop("Position error > 15mm while running. E-Stop triggered.");
-            }
-        }
-        else{
-            positionErrorCounter[i] = 0;
-        }
-    }
-
-    if (millis() - spamTimer > 5000) {
-        for (int i = 0; i < 4; i++) {
-            tick[i] = false;
-        }
-        spamTimer = millis();
-    }
-}
-
-// Compute target belt lengths based on X-Y-Z coordinates
-float Maslow_::computeBL(float x, float y, float z) {
-    //Move from lower left corner coordinates to centered coordinates
-    x       = x + centerX;
-    y       = y + centerY;
-    float a = blX - x; //X dist from corner to router center
-    float b = blY - y; //Y dist from corner to router center
-    float c = 0.0 - (z + blZ); //Z dist from corner to router center
-
-    float XYlength = sqrt(a * a + b * b); //Get the distance in the XY plane from the corner to the router center
-
-    float XYBeltLength = XYlength - (_beltEndExtension + _armLength); //Subtract the belt end extension and arm length to get the belt length
-
-    float length = sqrt(XYBeltLength * XYBeltLength + c * c); //Get the angled belt length
-
-    return length;
-}
-float Maslow_::computeBR(float x, float y, float z) {
-    //Move from lower left corner coordinates to centered coordinates
-    x       = x + centerX;
-    y       = y + centerY;
-    float a = brX - x;
-    float b = brY - y;
-    float c = 0.0 - (z + brZ);
-
-    float XYlength = sqrt(a * a + b * b); //Get the distance in the XY plane from the corner to the router center
-
-    float XYBeltLength = XYlength - (_beltEndExtension + _armLength); //Subtract the belt end extension and arm length to get the belt length
-
-    float length = sqrt(XYBeltLength * XYBeltLength + c * c); //Get the angled belt length
-
-    return length;
-}
-float Maslow_::computeTR(float x, float y, float z) {
-    //Move from lower left corner coordinates to centered coordinates
-    x       = x + centerX;
-    y       = y + centerY;
-    float a = trX - x;
-    float b = trY - y;
-    float c = 0.0 - (z + trZ);
-    
-    float XYlength = sqrt(a * a + b * b); //Get the distance in the XY plane from the corner to the router center
-
-    float XYBeltLength = XYlength - (_beltEndExtension + _armLength); //Subtract the belt end extension and arm length to get the belt length
-
-    float length = sqrt(XYBeltLength * XYBeltLength + c * c); //Get the angled belt length
-
-    return length;
-}
-float Maslow_::computeTL(float x, float y, float z) {
-    //Move from lower left corner coordinates to centered coordinates
-    x       = x + centerX;
-    y       = y + centerY;
-    float a = tlX - x;
-    float b = tlY - y;
-    float c = 0.0 - (z + tlZ);
-    
-    float XYlength = sqrt(a * a + b * b); //Get the distance in the XY plane from the corner to the router center
-
-    float XYBeltLength = XYlength - (_beltEndExtension + _armLength); //Subtract the belt end extension and arm length to get the belt length
-
-    float length = sqrt(XYBeltLength * XYBeltLength + c * c); //Get the angled belt length
-
-    return length;
-}
-
-//------------------------------------------------------
-//------------------------------------------------------ Homing and calibration functions
-//------------------------------------------------------
 
 //Takes a raw measurement, projects it into the XY plane, then adds the belt end extension and arm length to get the actual distance.
 float Maslow_::measurementToXYPlane(float measurement, float zHeight){
@@ -1761,106 +2279,6 @@ bool Maslow_::checkOverides(){
 void Maslow_::setSafety(bool state) {
     safetyOn = state;
 }
-void Maslow_::test_() {
-    log_info("Firmware Version: " << VERSION_NUMBER);
-
-    log_info("I2C Timeout: ");
-    log_info(Wire.getTimeOut());
-
-    axisTL.test();
-    axisTR.test();
-    axisBL.test();
-    axisBR.test();
-}
-//This function saves the current z-axis position to the non-volitle storage
-void Maslow_::saveZPos() {
-    nvs_handle_t nvsHandle;
-    esp_err_t ret = nvs_open("maslow", NVS_READWRITE, &nvsHandle);
-    if (ret != ESP_OK) {
-        log_info("Error " + std::string(esp_err_to_name(ret)) + " opening NVS handle!\n");
-        return;
-    }
-
-    // Read the current value
-    int32_t currentZPos;
-    ret = nvs_get_i32(nvsHandle, "zPos", &currentZPos);
-    if (ret != ESP_OK && ret != ESP_ERR_NVS_NOT_FOUND) {
-        log_info("Error " + std::string(esp_err_to_name(ret)) + " reading from NVS!\n");
-        return;
-    }
-
-    // Write - Convert the float to an int32_t and write only if it has changed
-    union FloatInt32 {
-        float f;
-        int32_t i;
-    };
-    FloatInt32 fi;
-    fi.f = targetZ;
-    if (ret == ESP_ERR_NVS_NOT_FOUND || currentZPos != fi.i) { // Only write if the value has changed
-        ret = nvs_set_i32(nvsHandle, "zPos", fi.i);
-        if (ret != ESP_OK) {
-            log_info("Error " + std::string(esp_err_to_name(ret)) + " writing to NVS!\n");
-        } else {
-            //log_info("Written value = " + std::to_string(targetZ));
-
-            // Commit written value to non-volatile storage
-            ret = nvs_commit(nvsHandle);
-            if (ret != ESP_OK) {
-                log_info("Error " + std::string(esp_err_to_name(ret)) + " committing changes to NVS!\n");
-            }
-        }
-    }
-}
-
-//This function loads the z-axis position from the non-volitle storage
-void Maslow_::loadZPos() {
-    nvs_handle_t nvsHandle;
-    esp_err_t ret = nvs_open("maslow", NVS_READWRITE, &nvsHandle);
-    if (ret != ESP_OK) {
-        log_info("Error " + std::string(esp_err_to_name(ret)) + " opening NVS handle!\n");
-        return;
-    }
-
-    // Read
-    int32_t value2;
-    ret = nvs_get_i32(nvsHandle, "zPos", &value2);
-    if (ret != ESP_OK) {
-        log_info("Error " + std::string(esp_err_to_name(ret)) + " reading from NVS!");
-    } else {
-        union FloatInt32 {
-            float f;
-            int32_t i;
-        };
-        FloatInt32 fi;
-        fi.i = value2;
-        targetZ = fi.f;
-
-        int zAxis = 2;
-        float* mpos = get_mpos();
-        mpos[zAxis] = targetZ;
-        set_motor_steps_from_mpos(mpos);
-
-        log_info("Current z-axis position loaded as: " << targetZ);
-
-        gc_sync_position();//This updates the Gcode engine with the new position from the stepping engine that we set with set_motor_steps
-        plan_sync_position();
-    }
-}
-
-/** Sets the 'bottom' Z position, this is a 'stop' beyond which travel cannot continue */
-void Maslow_::setZStop() {
-    log_info("Setting z-stop position");
-
-    targetZ = 0;
-
-    int zAxis = 2;
-    float* mpos = get_mpos();
-    mpos[zAxis] = targetZ;
-    set_motor_steps_from_mpos(mpos);
-
-    gc_sync_position();//This updates the Gcode engine with the new position from the stepping engine that we set with set_motor_steps
-    plan_sync_position();
-}
 
 void Maslow_::take_slack() {
     //if not all axis are homed, we can't take the slack up
@@ -1888,24 +2306,7 @@ void Maslow_::take_slack() {
     allocateCalibrationMemory();
 }
 
-//------------------------------------------------------
-//------------------------------------------------------ Utility functions
-//------------------------------------------------------
 
-//non-blocking delay, just pauses everything for specified time
-void Maslow_::hold(unsigned long time) {
-    holdTime  = time;
-    holding   = true;
-    holdTimer = millis();
-}
-
-// Resets variables on all 4 axis
-void Maslow_::reset_all_axis() {
-    axisTL.reset();
-    axisTR.reset();
-    axisBL.reset();
-    axisBR.reset();
-}
 
 // True if all axis were zeroed
 bool Maslow_::all_axis_homed() {
@@ -1922,25 +2323,7 @@ bool Maslow_::setupComplete() {
     return setupIsComplete;
 }
 
-// int to string name conversion for axis labels
-String Maslow_::axis_id_to_label(int axis_id) {
-    String label;
-    switch (axis_id) {
-        case TLEncoderLine:
-            label = "Top Left";
-            break;
-        case TREncoderLine:
-            label = "Top Right";
-            break;
-        case BREncoderLine:
-            label = "Bottom Right";
-            break;
-        case BLEncoderLine:
-            label = "Bottom Left";
-            break;
-    }
-    return label;
-}
+
 
 //Checks to see if the calibration data needs to be sent again
 void Maslow_::checkCalibrationData() {
@@ -1979,72 +2362,7 @@ void Maslow_::calibrationDataRecieved(){
     calibrationDataWaiting = -1;
 }
 
-// Stop all motors and reset all state variables
-void Maslow_::stop() {
-    stopMotors();
-    retractingTL          = false;
-    retractingTR          = false;
-    retractingBL          = false;
-    retractingBR          = false;
-    extendingALL          = false;
-    complyALL             = false;
-    calibrationInProgress = false;
-    test                  = false;
-    takeSlack             = false;
 
-    axisTL.reset();
-    axisTR.reset();
-    axisBL.reset();
-    axisBR.reset();
-
-    // if we are stopping, stop any running job too
-    allChannels.stopJob();
-}
-
-// Stop all the motors
-void Maslow_::stopMotors() {
-    axisBL.stop();
-    axisBR.stop();
-    axisTR.stop();
-    axisTL.stop();
-}
-
-static void stopEverything() {
-    sys.set_state(State::Alarm);
-    protocol_disable_steppers();
-}
-
-// Panic function, stops all motors and sets state to alarm
-void Maslow_::panic() {
-    stop();
-    stopEverything();
-}
-
-//Emergecy Stop
-void Maslow_::eStop(String message) {
-    log_error("Emergency stop! Stopping all motors");
-    log_warn("The machine will not respond until turned off and back on again");
-    stop();
-    error = true;
-    errorMessage = message;
-    stopEverything();
-}
-
-
-// Get's the most recently set target position in X
-double Maslow_::getTargetX() {
-    return targetX;
-}
-
-// Get's the most recently set target position in Y
-double Maslow_::getTargetY() {
-    return targetY;
-}
-
-//Get's the most recently set target position in Z
-double Maslow_::getTargetZ() {
-    return targetZ;
-}
 
 /* Calculates and updates the center (X, Y) position based on the coordinates of the four corners
 * (top-left, top-right, bottom-left, bottom-right) of a rectangular area. The center is determined
@@ -2057,284 +2375,4 @@ void Maslow_::updateCenterXY() {
     centerY  = A * (centerX - trX) + trY;
 }
 
-// Prints out state
-void Maslow_::getInfo() {
-    log_data("MINFO: { \"homed\": " << (all_axis_homed() ? "true" : "false") << ","
-          << "\"calibrationInProgress\": " << (calibrationInProgress ? "true" : "false") << ","
-          << "\"tl\": " << axisTL.getPosition() << ","
-          << "\"tr\": " << axisTR.getPosition() << ","
-          << "\"br\": " << axisBR.getPosition() << ","
-          << "\"bl\": " << axisBL.getPosition() << ","
-          << "\"etl\": " << axisTL.getPositionError() << ","
-          << "\"etr\": " << axisTR.getPositionError() << ","
-          << "\"ebr\": " << axisBR.getPositionError() << ","
-          << "\"ebl\": " << axisBL.getPositionError() << ","
-          << "\"extended\": " << (allAxisExtended() ? "true" : "false")
-          << "}");
-}
 
-void Maslow_::set_telemetry(bool enabled) {
-    if (enabled) {
-        // Start off the file with the length of each struct in it.
-        FileStream* file = new FileStream(MASLOW_TELEM_FILE, "w", "sd");
-        // write header
-        TelemetryFileHeader header;
-        header.structureSize = sizeof(TelemetryData);
-        strcpy(header.version, VERSION_NUMBER);
-        file->write(reinterpret_cast<uint8_t *>(&header), sizeof(TelemetryFileHeader));
-        file->flush();
-        delete file;
-    } else {
-        // TODO: not sure why this fails to find the file
-        // std::string filePath = MASLOW_TELEM_FILE;
-        // std::string newFilePath = filePath + "." + std::to_string(millis());
-        // std::error_code ec;
-        // log_info("renaming file: " + filePath + " to " + newFilePath);
-        // stdfs::rename(filePath, newFilePath, ec);
-        // if (ec) {
-        //     log_error(std::string("Error renaming file: ") + ec.message());
-        // }
-    }
-    telemetry_enabled = enabled;
-    log_info("Telemetry: " << (enabled? "enabled" : "disabled"));
-}
-
-void Maslow_::log_telem_hdr_csv() {
-    log_data(
-       "millis," <<
-       "tlCurrent," <<
-       "trCurrent," <<
-       "blCurrent," <<
-       "brCurrent," <<
-       "tlPower," <<
-       "trPower," <<
-       "blPower," <<
-       "brPower," <<
-       "tlSpeed," <<
-       "trSpeed," <<
-       "blSpeed," <<
-       "brSpeed," <<
-       "tlPos," <<
-       "trPos," <<
-       "blPos," <<
-       "brPos," <<
-       "extendedTL," <<
-       "extendedTR," <<
-       "extendedBL," <<
-       "extendedBR," <<
-       "extendingALL," <<
-       "complyALL," <<
-       "takeSlack," <<
-       "safetyOn," <<
-       "targetX," <<
-       "targetY," <<
-       "targetZ," <<
-       "x," <<
-       "y," <<
-       "test," <<
-       "pointCount," <<
-       "waypoint," <<
-       "calibrationGridSize," <<
-       "holdTimer," <<
-       "holding," <<
-       "holdTime," <<
-       "centerX," <<
-       "centerY," <<
-       "lastCallToPID," <<
-       "lastMiss," <<
-       "lastCallToUpdate," <<
-       "extendCallTimer," <<
-       "complyCallTimer");
-}
-
-void Maslow_::log_telem_pt_csv(TelemetryData data) {
-    log_data(
-       std::to_string(data.timestamp) + ","
-       + std::to_string(data.tlCurrent) + ","
-       + std::to_string(data.trCurrent)  + ","
-       + std::to_string(data.blCurrent)  + ","
-       + std::to_string(data.brCurrent)  + ","
-       + std::to_string(data.tlPower) + ","
-       + std::to_string(data.trPower) + ","
-       + std::to_string(data.blPower) + ","
-       + std::to_string(data.brPower) + ","
-       + std::to_string(data.tlSpeed) + ","
-       + std::to_string(data.trSpeed) + ","
-       + std::to_string(data.blSpeed) + ","
-       + std::to_string(data.brSpeed) + ","
-       + std::to_string(data.tlPos) + ","
-       + std::to_string(data.trPos) + ","
-       + std::to_string(data.blPos) + ","
-       + std::to_string(data.brPos) + ","
-       + std::to_string(data.extendedTL) + ","
-       + std::to_string(data.extendedTR) + ","
-       + std::to_string(data.extendedBL) + ","
-       + std::to_string(data.extendedBR) + ","
-       + std::to_string(data.extendingALL) + ","
-       + std::to_string(data.complyALL) + ","
-       + std::to_string(data.takeSlack) + ","
-       + std::to_string(data.safetyOn) + ","
-       + std::to_string(data.targetX) + ","
-       + std::to_string(data.targetY) + ","
-       + std::to_string(data.targetZ) + ","
-       + std::to_string(data.x) + ","
-       + std::to_string(data.y) + ","
-       + std::to_string(data.test) + ","
-       + std::to_string(data.pointCount) + ","
-       + std::to_string(data.waypoint) + ","
-       + std::to_string(data.calibrationGridSize) + ","
-       + std::to_string(data.holdTimer) + ","
-       + std::to_string(data.holding) + ","
-       + std::to_string(data.holdTime) + ","
-       + std::to_string(data.centerX) + ","
-       + std::to_string(data.centerY) + ","
-       + std::to_string(data.lastCallToPID) + ","
-       + std::to_string(data.lastMiss) + ","
-       + std::to_string(data.lastCallToUpdate) + ","
-       + std::to_string(data.extendCallTimer) + ","
-       + std::to_string(data.complyCallTimer)
-    )
-}
-
-TelemetryData Maslow_::get_telemetry_data() {
-    TelemetryData data;
-
-    // TODO: probably, we ought to use mutexes here?, but it is not implemented yet and
-    // it may not matter much. the reads are generally of types that don't
-    //if (xSemaphoreTake(telemetry_mutex, portMAX_DELAY)) {
-    // Access shared variables here
-    data.timestamp = millis();
-    data.tlCurrent = axisTL.getMotorCurrent();
-    data.trCurrent = axisTR.getMotorCurrent();
-    data.blCurrent = axisBL.getMotorCurrent();
-    data.brCurrent = axisBR.getMotorCurrent();
-
-    data.tlPower = axisTL.getMotorPower();
-    data.trPower = axisTR.getMotorPower();
-    data.blPower = axisBL.getMotorPower();
-    data.brPower = axisBR.getMotorPower();
-
-    data.tlSpeed = axisTL.getBeltSpeed();
-    data.trSpeed = axisTR.getBeltSpeed();
-    data.blSpeed = axisBL.getBeltSpeed();
-    data.brSpeed = axisBR.getBeltSpeed();
-
-    data.tlPos = axisTL.getPosition();
-    data.trPos = axisTR.getPosition();
-    data.blPos = axisBL.getPosition();
-    data.brPos = axisBR.getPosition();
-
-    data.extendedTL          = extendedTL;
-    data.extendedTR          = extendedTR;
-    data.extendedBL          = extendedBL;
-    data.extendedBR          = extendedBR;
-    data.extendingALL        = extendingALL;
-    data.complyALL           = complyALL;
-    data.takeSlack           = takeSlack;
-    data.safetyOn            = safetyOn;
-    data.targetX             = targetX;
-    data.targetY             = targetY;
-    data.targetZ             = targetZ;
-    data.x                   = x;
-    data.y                   = y;
-    data.test                = test;
-    data.pointCount          = pointCount;
-    data.waypoint            = waypoint;
-    data.calibrationGridSize = calibrationGridSize;
-    data.holdTimer           = holdTimer;
-    data.holding             = holding;
-    data.holdTime            = holdTime;
-    data.centerX             = centerX;
-    data.centerY             = centerY;
-    data.lastCallToPID       = lastCallToPID;
-    data.lastMiss            = lastMiss;
-    data.lastCallToUpdate    = lastCallToUpdate;
-    data.extendCallTimer     = extendCallTimer;
-    data.complyCallTimer     = complyCallTimer;
-    // xSemaphoreGive(telemetry_mutex);
-    //}
-    return data;
-}
-void Maslow_::write_telemetry_buffer(uint8_t* buffer, size_t length) {
-    // Open the file in append mode
-    FileStream* file = new FileStream(MASLOW_TELEM_FILE, "a", "sd");
-
-    // Write the buffer to the file
-    file->write(buffer, length);
-    file->flush();
-
-    // Close the file
-    delete file;
-}
-
-void Maslow_::dump_telemetry(const char* file) {
-    log_info("Dumping telemetry...");
-    vTaskDelay(2000 / portTICK_PERIOD_MS);
-    // open the file
-    FileStream* f = new FileStream(MASLOW_TELEM_FILE, "r", "sd");
-    if (f) {
-        // read the size of each struct from the file
-        TelemetryFileHeader header;
-        f->read(reinterpret_cast<char*>(&header), sizeof(TelemetryFileHeader));
-        log_info("Struct size " << header.structureSize);
-        log_info("Dump version " << header.version);
-        log_telem_hdr_csv();
-        // TODO: check version and adapt?
-        TelemetryData* data   = new TelemetryData();
-        char*          buffer = new char[header.structureSize];
-        while (f->available()) {
-            f->read(&buffer[0], header.structureSize);
-            // populate data from buffer
-            memcpy(data, buffer, header.structureSize);
-            // print the data
-            log_telem_pt_csv(*data);
-            // log_telem_pt(*data);
-        }
-        // delete the buffer
-        delete[] buffer;
-        // delete the data
-        delete data;
-    } else{
-        log_info("File not found")
-    }
-    delete f;
-}
-
-// Called on utility core as a task to gather telemetry and write it to an SD log
-void telemetry_loop(void* unused) {
-    const int bufferSize = 5000;
-    uint8_t buffer[bufferSize];
-    int bufferIndex = 0;
-
-    while (true) {
-        if (Maslow.telemetry_enabled) {
-            TelemetryData data = Maslow.get_telemetry_data();
-
-            // Copy the telemetry data into the buffer
-            memcpy(buffer + bufferIndex, reinterpret_cast<uint8_t*>(&data), sizeof(TelemetryData));
-            // increment the index
-            bufferIndex += sizeof(TelemetryData);
-
-            // Check if the buffer is about to overflow
-            if (bufferIndex >= bufferSize) {
-                log_debug("!" << bufferIndex);
-                Maslow.write_telemetry_buffer(buffer, bufferIndex);
-                bufferIndex = 0;
-            }
-        } else {
-            if (bufferIndex > 0) {
-                Maslow.write_telemetry_buffer(buffer, bufferIndex);
-                bufferIndex = 0;
-            }
-        }
-        // Start with 2Hz-ish
-        vTaskDelay(500 / portTICK_PERIOD_MS);
-    }
-}
-
-Maslow_& Maslow_::getInstance() {
-    static Maslow_ instance;
-    return instance;
-}
-
-Maslow_& Maslow = Maslow.getInstance();
