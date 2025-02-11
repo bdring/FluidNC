@@ -5,6 +5,7 @@
 #pragma once
 #include <Arduino.h>
 #include "MotorUnit.h"
+#include "Calibration.h"
 #include "../System.h"  // sys.*
 #include "../Planner.h"
 #include <nvs.h>
@@ -111,7 +112,6 @@ public:
 public:
     //main utility functions
     void   begin(void (*sys_rt)());
-    void   home();
     void   update();
     void   blinkIPAddress();
     void   heartBeat();
@@ -123,7 +123,6 @@ public:
     void   recomputePID();
 
     //math
-    void  updateCenterXY();
     float computeBL(float x, float y, float z);
     float computeBR(float x, float y, float z);
     float computeTR(float x, float y, float z);
@@ -135,25 +134,13 @@ public:
     /** Sets the 'bottom' Z position, this is a 'stop' beyond which travel cannot continue */
     void setZStop();
 
-    //calibration functions
-    void runCalibration();
-
     void stopMotors();
 
-    void   retractALL();
-    void   extendALL();
-    void   take_slack();
-    void   comply();
     void   stop();
     void   eStop(String message = "Emergency stop triggered.");
     void   panic();
-    void   setSafety(bool state);
     String axis_id_to_label(int axis_id);
-    bool   all_axis_homed();
-    bool   allAxisExtended();
-    bool   setupComplete();
     void   safety_control();
-    void   update_frame_xyz();
     bool   axis_homed[4] = { false, false, false, false };
     bool   retractingTL  = false;
     bool   retractingTR  = false;
@@ -173,17 +160,8 @@ public:
 
     bool setupIsComplete = false;
 
-    //Used to override and drive the motors directly
-    void TLI();
-    void TRI();
-    void BLI();
-    void BRI();
-    void TLO();
-    void TRO();
-    void BLO();
-    void BRO();
-    void handleMotorOverides();
-    bool checkOverides();
+    Calibration calibration;
+
     void getInfo();
     bool telemetry_enabled = false;
     // TODO: probably need to use this for all fields in telemetry, but we'll try without first
@@ -232,21 +210,8 @@ public:
     double calibrationDataWaiting                    = -1;   //-1 if data is not waiting, other wise the milis since the data was last sent
     bool   error                                     = false;
     String errorMessage;
-    bool   generate_calibration_grid();
-    //void   printCalibrationGrid();
-    bool   move_with_slack(double fromX, double fromY, double toX, double toY);
-    int    get_direction(double x, double y, double targetX, double targetY);
-    bool   take_measurement_avg_with_check(int waypoint, int dir);
-    bool   take_measurement(float result[4], int dir, int run, int current);
-    float  measurementToXYPlane(float measurement, float zHeight);
-    bool   takeSlackFunc();
-    bool   adjustFrameSizeToMatchFirstMeasurement();
-    bool   computeXYfromLengths(double TL, double TR, float &x, float &y);
+    
     void   test_();
-    void   calibration_loop();
-    void   print_calibration_data();
-    void   calibrationDataRecieved();
-    void   checkCalibrationData();
     void   reset_all_axis();
     bool   test = false;
     bool   orientation;
@@ -257,12 +222,6 @@ public:
     // //keep track of where Maslow actually is
     double x;
     double y;
-
-    //hold
-    void          hold(unsigned long time);
-    unsigned long holdTimer = millis();
-    bool          holding   = false;
-    unsigned long holdTime  = 0;
 
     float tlX;
     float tlY;
@@ -280,9 +239,10 @@ public:
     float _beltEndExtension = 30;  //Based on the CAD model these should add to 153.4
     float _armLength        = 123.4;
 
-private:
     float centerX;
     float centerY;
+
+private:
 
     //Used to keep track of how often the PID controller is updated
     unsigned long lastCallToPID    = millis();
@@ -311,8 +271,6 @@ private:
     bool HeartBeatEnabled = true;
     void log_telem_hdr_csv();
     void log_telem_pt_csv(TelemetryData data);
-    void allocateCalibrationMemory();
-    void deallocateCalibrationMemory();
 };
 
 extern Maslow_& Maslow;
