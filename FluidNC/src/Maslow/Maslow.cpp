@@ -55,7 +55,7 @@
 int ENCODER_READ_FREQUENCY_HZ = 1000;  //max frequency for polling the encoders
 
 //------------------------------------------------------
-//------------------------------------------------------ Main function loops
+//------------------------------------------------------ Main Function Loops
 //------------------------------------------------------
 
 // Initialization function
@@ -212,67 +212,10 @@ void Maslow_::update() {
     prevState = sys.state(); //Store for next time
 }
 
-void Maslow_::blinkIPAddress() {
-    static size_t        currentChar   = 0;
-    static int           currentBlink  = 0;
-    static unsigned long lastBlinkTime = 0;
-    static bool          inPause       = false;
 
-    int shortMS = 400;
-    int longMS  = 500;
-    int pauseMS = 2000;
-
-    std::string IP_String = WebUI::wifi_config.getIP();
-
-    if (currentChar >= IP_String.length()) {
-        currentChar   = 0;
-        currentBlink  = 0;
-        lastBlinkTime = 0;
-        inPause       = false;
-        digitalWrite(WIFILED, LOW);
-        return;
-    }
-
-    char c = IP_String[currentChar];
-    if (isdigit(c)) {
-        int blinkCount = c - '0';
-        if (currentBlink < blinkCount * 2) {
-            if (millis() - lastBlinkTime >= shortMS) {
-                //log_info("Blinking Digit: " << c);
-                digitalWrite(WIFILED, currentBlink % 2 == 0 ? HIGH : LOW);
-                currentBlink++;
-                lastBlinkTime = millis();
-            }
-        } else if (!inPause) {
-            inPause       = true;
-            lastBlinkTime = millis();
-        } else if (millis() - lastBlinkTime >= pauseMS) {
-            inPause = false;
-            currentChar++;
-            currentBlink = 0;
-        }
-    } else if (c == '.') {
-        if (millis() - lastBlinkTime >= longMS) {
-            digitalWrite(WIFILED, LOW);
-            currentChar++;
-            currentBlink = 0;
-        } else {
-            digitalWrite(WIFILED, HIGH);
-        }
-    }
-}
-
-//Sends a heartbeat message to the UI...should be replaced with the built in ones for fluidNC
-void Maslow_::heartBeat(){
-    static unsigned long heartBeatTimer = millis();
-    if(millis() - heartBeatTimer > 1000 && HeartBeatEnabled) {
-        heartBeatTimer = millis();
-        log_info("Heartbeat");
-    }
-}
 
 //------------------------------------------------------
-//------------------------------------------------------ Core utility functions
+//------------------------------------------------------ Position Control Functions
 //------------------------------------------------------
 
 //updating encoder positions for all 4 arms, cycling through them each call, at ENCODER_READ_FREQUENCY_HZ frequency
@@ -357,6 +300,21 @@ void Maslow_::setTargets(float xTarget, float yTarget, float zTarget, bool tl, b
     }
 }
 
+// Get's the most recently set target position in X
+double Maslow_::getTargetX() {
+    return targetX;
+}
+
+// Get's the most recently set target position in Y
+double Maslow_::getTargetY() {
+    return targetY;
+}
+
+//Get's the most recently set target position in Z
+double Maslow_::getTargetZ() {
+    return targetZ;
+}
+
 //updates motor powers for all axis, based on targets set by setTargets()
 void Maslow_::recomputePID() {
     axisBL.recomputePID();
@@ -369,87 +327,6 @@ void Maslow_::recomputePID() {
     if (digitalRead(SERVOFAULT) ==
         1) {  //The servo drives have a fault pin that goes high when there is a fault (ie one over heats). We should probably call panic here. Also this should probably be read in the main loop
         log_info("Servo fault!");
-    }
-}
-
-//This is the function that should prevent machine from damaging itself
-void Maslow_::safety_control() {
-    //We need to keep track of average belt speeds and motor currents for every axis
-    static bool          tick[4]                 = { false, false, false, false };
-    static unsigned long spamTimer               = millis();
-    static int           tresholdHitsBeforePanic = 150;
-    static int           panicCounter[4]         = { 0 };
-
-    static int           positionErrorCounter[4] = { 0 };
-    static float         previousPositionError[4] = { 0, 0, 0, 0 };
-
-    MotorUnit* axis[4] = { &axisTL, &axisTR, &axisBL, &axisBR };
-    for (int i = 0; i < 4; i++) {
-        //If the current exceeds some absolute value, we need to call panic() and stop the machine
-        if (axis[i]->getMotorCurrent() > 4000 && !tick[i]) {
-            panicCounter[i]++;
-            if (panicCounter[i] > tresholdHitsBeforePanic) {
-                if(sys.state() == State::Jog || sys.state() == State::Cycle){
-                    log_warn("Motor current on " << axis_id_to_label(i).c_str() << " axis exceeded threshold of " << 4000);
-                    //Maslow.panic();
-                }
-                tick[i] = true;
-            }
-        } else {
-            panicCounter[i] = 0;
-        }
-
-        //If the motor torque is high, but the belt is not moving
-        //  if motor is moving IN, this means the axis is STALL, we should warn the user and lower torque to the motor
-        //  if the motor is moving OUT, that means the axis has SLACK, so we should warn the user and stop the motor, until the belt starts moving again
-        // don't spam log, no more than once every 5 seconds
-
-        static int axisSlackCounter[4] = { 0, 0, 0, 0 };
-
-        axisSlackCounter[i] = 0;  //TEMP
-        if (axis[i]->getMotorPower() > 450 && abs(axis[i]->getBeltSpeed()) < 0.1 && !tick[i]) {
-            axisSlackCounter[i]++;
-            if (axisSlackCounter[i] > 3000) {
-                // log_info("SLACK:" << axis_id_to_label(i).c_str() << " motor power is " << int(axis[i]->getMotorPower())
-                //                   << ", but the belt speed is" << axis[i]->getBeltSpeed());
-                // log_info(axisSlackCounter[i]);
-                // log_info("Pull on " << axis_id_to_label(i).c_str() << " and restart!");
-                tick[i]             = true;
-                axisSlackCounter[i] = 0;
-                Maslow.panic();
-            }
-        } else
-            axisSlackCounter[i] = 0;
-
-        //If the motor has a position error greater than 1mm and we are running a file or jogging
-        if ((abs(axis[i]->getPositionError()) > 1) && (sys.state() == State::Jog || sys.state() == State::Cycle) && !tick[i]) {
-            // log_error("Position error on " << axis_id_to_label(i).c_str() << " axis exceeded 1mm, error is " << axis[i]->getPositionError()
-            //                                << "mm");
-            tick[i] = true;
-        }
-
-        //If the motor has a position error greater than 15mm and we are running a file or jogging
-        previousPositionError[i] = axis[i]->getPositionError();
-        if ((abs(axis[i]->getPositionError()) > 15) && (sys.state() == State::Cycle)) {
-            positionErrorCounter[i]++;
-            log_warn("Position error on " << axis_id_to_label(i).c_str() << " axis exceeded 15mm while running. Error is "
-                                            << axis[i]->getPositionError() << "mm" << " Counter: " << positionErrorCounter[i]);
-            log_warn("Previous error was " << previousPositionError[i] << "mm");
-
-            if(positionErrorCounter[i] > 5){
-                Maslow.eStop("Position error > 15mm while running. E-Stop triggered.");
-            }
-        }
-        else{
-            positionErrorCounter[i] = 0;
-        }
-    }
-
-    if (millis() - spamTimer > 5000) {
-        for (int i = 0; i < 4; i++) {
-            tick[i] = false;
-        }
-        spamTimer = millis();
     }
 }
 
@@ -519,17 +396,14 @@ float Maslow_::computeTL(float x, float y, float z) {
     return length;
 }
 
-void Maslow_::test_() {
-    log_info("Firmware Version: " << VERSION_NUMBER);
 
-    log_info("I2C Timeout: ");
-    log_info(Wire.getTimeOut());
 
-    axisTL.test();
-    axisTR.test();
-    axisBL.test();
-    axisBR.test();
-}
+
+//------------
+// Z-Axis Functions
+//------------
+
+
 //This function saves the current z-axis position to the non-volitle storage
 void Maslow_::saveZPos() {
     nvs_handle_t nvsHandle;
@@ -620,6 +494,14 @@ void Maslow_::setZStop() {
     plan_sync_position();
 }
 
+
+
+//------------------------------------------------------
+//------------------------------------------------------ Utility Functions
+//------------------------------------------------------
+
+
+
 // int to string name conversion for axis labels
 String Maslow_::axis_id_to_label(int axis_id) {
     String label;
@@ -640,8 +522,81 @@ String Maslow_::axis_id_to_label(int axis_id) {
     return label;
 }
 
+//Runs the self test feature
+void Maslow_::test_() {
+    log_info("Firmware Version: " << VERSION_NUMBER);
+
+    log_info("I2C Timeout: ");
+    log_info(Wire.getTimeOut());
+
+    axisTL.test();
+    axisTR.test();
+    axisBL.test();
+    axisBR.test();
+}
+
+//Blinks out the IP address of the machine on the blue LED
+void Maslow_::blinkIPAddress() {
+    static size_t        currentChar   = 0;
+    static int           currentBlink  = 0;
+    static unsigned long lastBlinkTime = 0;
+    static bool          inPause       = false;
+
+    int shortMS = 400;
+    int longMS  = 500;
+    int pauseMS = 2000;
+
+    std::string IP_String = WebUI::wifi_config.getIP();
+
+    if (currentChar >= IP_String.length()) {
+        currentChar   = 0;
+        currentBlink  = 0;
+        lastBlinkTime = 0;
+        inPause       = false;
+        digitalWrite(WIFILED, LOW);
+        return;
+    }
+
+    char c = IP_String[currentChar];
+    if (isdigit(c)) {
+        int blinkCount = c - '0';
+        if (currentBlink < blinkCount * 2) {
+            if (millis() - lastBlinkTime >= shortMS) {
+                //log_info("Blinking Digit: " << c);
+                digitalWrite(WIFILED, currentBlink % 2 == 0 ? HIGH : LOW);
+                currentBlink++;
+                lastBlinkTime = millis();
+            }
+        } else if (!inPause) {
+            inPause       = true;
+            lastBlinkTime = millis();
+        } else if (millis() - lastBlinkTime >= pauseMS) {
+            inPause = false;
+            currentChar++;
+            currentBlink = 0;
+        }
+    } else if (c == '.') {
+        if (millis() - lastBlinkTime >= longMS) {
+            digitalWrite(WIFILED, LOW);
+            currentChar++;
+            currentBlink = 0;
+        } else {
+            digitalWrite(WIFILED, HIGH);
+        }
+    }
+}
+
+//Sends a heartbeat message to the UI...should be replaced with the built in ones for fluidNC...has been?
+void Maslow_::heartBeat(){
+    static unsigned long heartBeatTimer = millis();
+    if(millis() - heartBeatTimer > 1000 && HeartBeatEnabled) {
+        heartBeatTimer = millis();
+        log_info("Heartbeat");
+    }
+}
+
 //------------------------------------------------------
-//------------------------------------------------------ Utility functions
+//------------------------------------------------------ Stops    TODO: Do we need all of these? Can some be combigned or reduced?
 //------------------------------------------------------
 
 // Resets variables on all 4 axis
@@ -703,21 +658,98 @@ void Maslow_::eStop(String message) {
     stopEverything();
 }
 
+//This is the function that should prevent machine from damaging itself
+void Maslow_::safety_control() {
+    //We need to keep track of average belt speeds and motor currents for every axis
+    static bool          tick[4]                 = { false, false, false, false };
+    static unsigned long spamTimer               = millis();
+    static int           tresholdHitsBeforePanic = 150;
+    static int           panicCounter[4]         = { 0 };
 
-// Get's the most recently set target position in X
-double Maslow_::getTargetX() {
-    return targetX;
+    static int           positionErrorCounter[4] = { 0 };
+    static float         previousPositionError[4] = { 0, 0, 0, 0 };
+
+    MotorUnit* axis[4] = { &axisTL, &axisTR, &axisBL, &axisBR };
+    for (int i = 0; i < 4; i++) {
+        //If the current exceeds some absolute value, we need to call panic() and stop the machine
+        if (axis[i]->getMotorCurrent() > 4000 && !tick[i]) {
+            panicCounter[i]++;
+            if (panicCounter[i] > tresholdHitsBeforePanic) {
+                if(sys.state() == State::Jog || sys.state() == State::Cycle){
+                    log_warn("Motor current on " << axis_id_to_label(i).c_str() << " axis exceeded threshold of " << 4000);
+                    //Maslow.panic();
+                }
+                tick[i] = true;
+            }
+        } else {
+            panicCounter[i] = 0;
+        }
+
+        //If the motor torque is high, but the belt is not moving
+        //  if motor is moving IN, this means the axis is STALL, we should warn the user and lower torque to the motor
+        //  if the motor is moving OUT, that means the axis has SLACK, so we should warn the user and stop the motor, until the belt starts moving again
+        // don't spam log, no more than once every 5 seconds
+
+        static int axisSlackCounter[4] = { 0, 0, 0, 0 };
+
+        axisSlackCounter[i] = 0;  //TEMP
+        if (axis[i]->getMotorPower() > 450 && abs(axis[i]->getBeltSpeed()) < 0.1 && !tick[i]) {
+            axisSlackCounter[i]++;
+            if (axisSlackCounter[i] > 3000) {
+                // log_info("SLACK:" << axis_id_to_label(i).c_str() << " motor power is " << int(axis[i]->getMotorPower())
+                //                   << ", but the belt speed is" << axis[i]->getBeltSpeed());
+                // log_info(axisSlackCounter[i]);
+                // log_info("Pull on " << axis_id_to_label(i).c_str() << " and restart!");
+                tick[i]             = true;
+                axisSlackCounter[i] = 0;
+                Maslow.panic();
+            }
+        } else
+            axisSlackCounter[i] = 0;
+
+        //If the motor has a position error greater than 1mm and we are running a file or jogging
+        if ((abs(axis[i]->getPositionError()) > 1) && (sys.state() == State::Jog || sys.state() == State::Cycle) && !tick[i]) {
+            // log_error("Position error on " << axis_id_to_label(i).c_str() << " axis exceeded 1mm, error is " << axis[i]->getPositionError()
+            //                                << "mm");
+            tick[i] = true;
+        }
+
+        //If the motor has a position error greater than 15mm and we are running a file or jogging
+        previousPositionError[i] = axis[i]->getPositionError();
+        if ((abs(axis[i]->getPositionError()) > 15) && (sys.state() == State::Cycle)) {
+            positionErrorCounter[i]++;
+            log_warn("Position error on " << axis_id_to_label(i).c_str() << " axis exceeded 15mm while running. Error is "
+                                            << axis[i]->getPositionError() << "mm" << " Counter: " << positionErrorCounter[i]);
+            log_warn("Previous error was " << previousPositionError[i] << "mm");
+
+            if(positionErrorCounter[i] > 5){
+                Maslow.eStop("Position error > 15mm while running. E-Stop triggered.");
+            }
+        }
+        else{
+            positionErrorCounter[i] = 0;
+        }
+    }
+
+    if (millis() - spamTimer > 5000) {
+        for (int i = 0; i < 4; i++) {
+            tick[i] = false;
+        }
+        spamTimer = millis();
+    }
 }
 
-// Get's the most recently set target position in Y
-double Maslow_::getTargetY() {
-    return targetY;
-}
 
-//Get's the most recently set target position in Z
-double Maslow_::getTargetZ() {
-    return targetZ;
-}
+
+
+
+
+
+//---------------
+// Telemetry
+//---------------
+
+
 
 // Prints out state
 void Maslow_::getInfo() {

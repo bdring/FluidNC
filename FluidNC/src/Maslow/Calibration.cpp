@@ -9,6 +9,97 @@
 Calibration::Calibration() {
     // Initialization code here
 }
+
+void Calibration::retractALL() {
+
+    retractingTL = true;
+    retractingTR = true;
+    retractingBL = true;
+    retractingBR = true;
+    complyALL    = false;
+    extendingALL = false;
+    Maslow.axisTL.reset();
+    Maslow.axisTR.reset();
+    Maslow.axisBL.reset();
+    Maslow.axisBR.reset();
+    setupIsComplete = false;
+}
+
+void Calibration::extendALL() {
+
+    if (!all_axis_homed()) {
+        log_error("Please press Retract All before using Extend All");  //I keep getting everything set up for calibration and then this trips me up
+        sys.set_state(State::Idle);
+        return;
+    }
+
+    Maslow.stop();
+    extendingALL = true;
+
+    updateCenterXY();
+
+    //extendCallTimer = millis();
+}
+
+/*
+* This function is called once when calibration is started
+*/
+void Calibration::runCalibration() {
+
+    //If we are at the first point we need to generate the grid before we can start
+    if (waypoint == 0) {
+        if(!generate_calibration_grid()){ //Fail out if the grid cannot be generated
+            return;
+        }
+    }
+    Maslow.stop();
+
+    //Save the z-axis 'stop' position
+    Maslow.targetZ = 0;
+    Maslow.setZStop();
+
+    //if not all axis are homed, we can't run calibration, OR if the user hasnt entered width and height?
+    if (!allAxisExtended()) {
+        log_error("Cannot run calibration until all belts are extended fully");
+        sys.set_state(State::Idle);
+        return;
+    }
+
+    //Recalculate the center position because the machine dimensions may have been updated
+    updateCenterXY();
+
+
+    //At this point it's likely that we have just sent the machine new cordinates for the anchor points so we need to figure out our new XY
+    //cordinates by looking at the current lengths of the top two belts.
+    //If we can't load the position, that's OK, we can still go ahead with the calibration and the first point will make a guess for it
+    float x = 0;
+    float y = 0;
+    if(computeXYfromLengths(measurementToXYPlane(Maslow.axisTL.getPosition(), Maslow.tlZ), measurementToXYPlane(Maslow.axisTR.getPosition(), Maslow.trZ), x, y)){
+        
+        //We reset the last waypoint to where it actually is so that we can move from the updated position to the next waypoint
+        if(waypoint > 0){
+            calibrationGrid[waypoint - 1][0] = x;
+            calibrationGrid[waypoint - 1][1] = y;
+        }
+
+        log_info("Machine Position found as X: " << x << " Y: " << y);
+
+        //Set the internal machine position to the new XY position
+        float* mpos = get_mpos();
+        mpos[0] = x;
+        mpos[1] = y;
+        set_motor_steps_from_mpos(mpos);
+        gc_sync_position();//This updates the Gcode engine with the new position from the stepping engine that we set with set_motor_steps
+        plan_sync_position();
+        
+    }
+
+    sys.set_state(State::Homing);
+
+    calibrationInProgress = true;
+}
+
+
 // -Maslow homing loop. This is used whenver any of the homing funcitons are active (belts extending or retracting)
 void Calibration::home() {
     //run all the retract functions untill we hit the current limit
@@ -116,6 +207,58 @@ void Calibration::home() {
     }
 }
 
+// --Maslow calibration loop
+void Calibration::calibration_loop() {
+    static int  direction             = UP;
+    static bool measurementInProgress = true; //We start by taking a measurement, then we move
+    if(waypoint > pointCount){ //Point count is the total number of points to measure so if waypoint > pointcount then the overall measurement process is complete
+        calibrationInProgress = false;
+        waypoint              = 0;
+        setupIsComplete       = true;
+        log_info("Calibration complete");
+        deallocateCalibrationMemory();
+        return;
+    }
+    //Taking measurment once we've reached the point
+    if (measurementInProgress) {
+        if (take_measurement_avg_with_check(waypoint, direction)) {  //Takes a measurement and returns true if it's done
+            measurementInProgress = false;
+
+            waypoint++;  //Increment the waypoint counter
+
+            if (waypoint > recomputePoints[recomputeCountIndex]) {  //If we have reached the end of this stage of the calibration process
+                calibrationInProgress = false;
+                print_calibration_data();
+                calibrationDataWaiting = millis();
+                sys.set_state(State::Idle);
+                recomputeCountIndex++;
+            }
+            else {
+                hold(250);
+            }
+        }
+    }
+
+    //Move to the next point in the grid
+    else {
+
+        if (move_with_slack(calibrationGrid[waypoint - 1][0],
+                            calibrationGrid[waypoint - 1][1],
+                            calibrationGrid[waypoint][0],
+                            calibrationGrid[waypoint][1])) {
+
+            measurementInProgress = true;
+            direction             = get_direction(calibrationGrid[waypoint - 1][0],
+                                      calibrationGrid[waypoint - 1][1],
+                                      calibrationGrid[waypoint][0],
+                                      calibrationGrid[waypoint][1]); //This is used to set the order that the belts are pulled tight in the following measurement
+            Maslow.x                     = calibrationGrid[waypoint][0]; //Are these ever used anywhere?
+            Maslow.y                     = calibrationGrid[waypoint][1];
+            hold(250);
+        }
+    }
+}
+
 /*
 * This function is used to take up the slack in the belts and confirm that the calibration values are resonable
 * It is run when the "Apply Tension" button is pressed in the UI
@@ -190,89 +333,6 @@ bool Calibration::takeSlackFunc() {
     return false;
 }
 
-// --Maslow calibration loop
-void Calibration::calibration_loop() {
-    static int  direction             = UP;
-    static bool measurementInProgress = true; //We start by taking a measurement, then we move
-    if(waypoint > pointCount){ //Point count is the total number of points to measure so if waypoint > pointcount then the overall measurement process is complete
-        calibrationInProgress = false;
-        waypoint              = 0;
-        setupIsComplete       = true;
-        log_info("Calibration complete");
-        deallocateCalibrationMemory();
-        return;
-    }
-    //Taking measurment once we've reached the point
-    if (measurementInProgress) {
-        if (take_measurement_avg_with_check(waypoint, direction)) {  //Takes a measurement and returns true if it's done
-            measurementInProgress = false;
-
-            waypoint++;  //Increment the waypoint counter
-
-            if (waypoint > recomputePoints[recomputeCountIndex]) {  //If we have reached the end of this stage of the calibration process
-                calibrationInProgress = false;
-                print_calibration_data();
-                calibrationDataWaiting = millis();
-                sys.set_state(State::Idle);
-                recomputeCountIndex++;
-            }
-            else {
-                hold(250);
-            }
-        }
-    }
-
-    //Move to the next point in the grid
-    else {
-
-        if (move_with_slack(calibrationGrid[waypoint - 1][0],
-                            calibrationGrid[waypoint - 1][1],
-                            calibrationGrid[waypoint][0],
-                            calibrationGrid[waypoint][1])) {
-
-            measurementInProgress = true;
-            direction             = get_direction(calibrationGrid[waypoint - 1][0],
-                                      calibrationGrid[waypoint - 1][1],
-                                      calibrationGrid[waypoint][0],
-                                      calibrationGrid[waypoint][1]); //This is used to set the order that the belts are pulled tight in the following measurement
-            Maslow.x                     = calibrationGrid[waypoint][0]; //Are these ever used anywhere?
-            Maslow.y                     = calibrationGrid[waypoint][1];
-            hold(250);
-        }
-    }
-}
-
-// Function to allocate memory for calibration arrays
-void Calibration::allocateCalibrationMemory() {
-    if(calibrationGrid == nullptr){ //Check to prevent realocating
-        calibrationGrid = new float[CALIBRATION_GRID_SIZE_MAX][2];
-    }
-    if(calibration_data == nullptr){
-        calibration_data = new float*[CALIBRATION_GRID_SIZE_MAX];
-        for (int i = 0; i < CALIBRATION_GRID_SIZE_MAX; ++i) {
-            calibration_data[i] = new float[4];
-        }
-    }
-}
-
-// Function to deallocate memory for calibration arrays
-void Calibration::deallocateCalibrationMemory() {
-    delete[] calibrationGrid;
-    calibrationGrid = nullptr;
-    for (int i = 0; i < CALIBRATION_GRID_SIZE_MAX; ++i) {
-        delete[] calibration_data[i];
-        }
-    delete[] calibration_data;
-    calibration_data = nullptr;
-}
-
-
-//Takes a raw measurement, projects it into the XY plane, then adds the belt end extension and arm length to get the actual distance.
-float Calibration::measurementToXYPlane(float measurement, float zHeight){
-
-    float lengthInXY = sqrt(measurement * measurement - zHeight * zHeight);
-    return lengthInXY + Maslow._beltEndExtension + Maslow._armLength; //Add the belt end extension and arm length to get the actual distance
-}
 
 /*
 *Computes the current xy cordinates of the sled based on the lengths of the upper two belts
@@ -824,57 +884,34 @@ bool Calibration::move_with_slack(double fromX, double fromY, double toX, double
     return false;  //We have not yet reached our target position
 }
 
-// Direction from maslow current coordinates to the target coordinates
-int Calibration::get_direction(double x, double y, double targetX, double targetY) {
-    int direction = UP;
 
-    if (targetX - x > 1) {
-        direction = RIGHT;
-    } else if (targetX - x < -1) {
-        direction = LEFT;
-    } else if (targetY - y > 1) {
-        direction = UP;
-    } else if (targetY - y < -1) {
-        direction = DOWN;
+void Calibration::take_slack() {
+    //if not all axis are homed, we can't take the slack up
+    if (!allAxisExtended()) {
+        log_error("Cannot take slack until all axis are extended fully");
+        sys.set_state(State::Idle);
+        return;
     }
+    retractingTL = false;
+    retractingTR = false;
+    retractingBL = false;
+    retractingBR = false;
+    extendingALL = false;
+    complyALL    = false;
+    Maslow.axisTL.reset();
+    Maslow.axisTR.reset();
+    Maslow.axisBL.reset();
+    Maslow.axisBR.reset();
 
-    return direction;
+    Maslow.x         = 0;
+    Maslow.y         = 0;
+    takeSlack = true;
+
+    //Alocate the memory to store the measurements in. This is used here because take slack will use the same memory as the calibration
+    allocateCalibrationMemory();
 }
 
-/*
-* This function takes a single measurement and adjusts the frame dimensions to find a valid frame size that matches the measurement
-*/
-bool Calibration::adjustFrameSizeToMatchFirstMeasurement() {
 
-    //Get the last measurments
-    double tlLen = measurements[0][0];
-    double trLen = measurements[0][1];
-    double blLen = measurements[0][2];
-    double brLen = measurements[0][3];
-
-    //Check that we are in fact on the center line. The math assumes that we are roughly centered on the frame and so
-    //the topleft and topright measurements should be roughly the same. It doesn't need to be exact.
-    if (std::abs(tlLen - trLen) > 20) {
-        log_error("Unable to adjust frame size. Not centered."); //There exists a more generalized solution which should be implimented here: https://math.stackexchange.com/questions/5013127/find-square-size-from-inscribed-triangles?noredirect=1#comment10752043_5013127
-        return false;
-    }
-
-    //Compute the size of the frame from the given measurements
-
-    double numerator = sqrt(pow(tlLen, 2) + sqrt(-pow(tlLen, 4) + 6 * pow(tlLen, 2) * pow(blLen, 2) - pow(blLen, 4)) + pow(blLen, 2));
-    double denominator = sqrt(2);
-    float L = numerator / denominator;
-
-    //Adjust the frame size to match the computed size
-    Maslow.tlY = L;
-    Maslow.trX = L;
-    Maslow.trY = L;
-    Maslow.brX = L;
-    updateCenterXY();
-
-    log_info("Frame size automaticlaly adjusted to " + std::to_string(Maslow.brX) + " by " + std::to_string(Maslow.trY));
-    return true;
-}
 
 //The number of points high and wide  must be an odd number
 bool Calibration::generate_calibration_grid() {
@@ -976,6 +1013,94 @@ bool Calibration::generate_calibration_grid() {
     return true;
 }
 
+/*
+* This function takes a single measurement and adjusts the frame dimensions to find a valid frame size that matches the measurement
+*/
+bool Calibration::adjustFrameSizeToMatchFirstMeasurement() {
+
+    //Get the last measurments
+    double tlLen = measurements[0][0];
+    double trLen = measurements[0][1];
+    double blLen = measurements[0][2];
+    double brLen = measurements[0][3];
+
+    //Check that we are in fact on the center line. The math assumes that we are roughly centered on the frame and so
+    //the topleft and topright measurements should be roughly the same. It doesn't need to be exact.
+    if (std::abs(tlLen - trLen) > 20) {
+        log_error("Unable to adjust frame size. Not centered."); //There exists a more generalized solution which should be implimented here: https://math.stackexchange.com/questions/5013127/find-square-size-from-inscribed-triangles?noredirect=1#comment10752043_5013127
+        return false;
+    }
+
+    //Compute the size of the frame from the given measurements
+
+    double numerator = sqrt(pow(tlLen, 2) + sqrt(-pow(tlLen, 4) + 6 * pow(tlLen, 2) * pow(blLen, 2) - pow(blLen, 4)) + pow(blLen, 2));
+    double denominator = sqrt(2);
+    float L = numerator / denominator;
+
+    //Adjust the frame size to match the computed size
+    Maslow.tlY = L;
+    Maslow.trX = L;
+    Maslow.trY = L;
+    Maslow.brX = L;
+    updateCenterXY();
+
+    log_info("Frame size automaticlaly adjusted to " + std::to_string(Maslow.brX) + " by " + std::to_string(Maslow.trY));
+    return true;
+}
+
+
+
+
+// ------------------------------------------------------
+// ------------------------------------------------------ Communication Functions
+// ------------------------------------------------------
+
+//Checks to see if the calibration data needs to be sent again
+void Calibration::checkCalibrationData() {
+    if (calibrationDataWaiting > 0) {
+        if (millis() - calibrationDataWaiting > 30007) {
+            log_error("Calibration data not acknowledged by computer, resending");
+            print_calibration_data();
+            calibrationDataWaiting = millis();
+        }
+    }
+}
+
+// function for outputting calibration data in the log line by line like this: {bl:2376.69,   br:923.40,   tr:1733.87,   tl:2801.87},
+void Calibration::print_calibration_data() {
+    //These are used to set the browser side initial guess for the frame size
+    log_data("$/" << M << "_tlX=" << Maslow.tlX);
+    log_data("$/" << M << "_tlY=" << Maslow.tlY);
+    log_data("$/" << M << "_trX=" << Maslow.trX);
+    log_data("$/" << M << "_trY=" << Maslow.trY);
+    log_data("$/" << M << "_brX=" << Maslow.brX);
+
+    String data = "CLBM:[";
+    for (int i = 0; i < waypoint; i++) {
+        data += "{bl:" + String(calibration_data[i][2]) + ",   br:" + String(calibration_data[i][3]) +
+                ",   tr:" + String(calibration_data[i][1]) + ",   tl:" + String(calibration_data[i][0]) + "},";
+    }
+    data += "]";
+    HeartBeatEnabled = false;
+    log_data(data.c_str());
+    HeartBeatEnabled = true;
+}
+
+//Runs when the calibration data has been acknowledged as received by the computer and the calibration process is progressing
+void Calibration::calibrationDataRecieved(){
+    // log_info("Calibration data acknowledged received by computer");
+    calibrationDataWaiting = -1;
+}
+
+
+
+//non-blocking delay, just pauses everything for specified time
+void Calibration::hold(unsigned long time) {
+    holdTime  = time;
+    holding   = true;
+    holdTimer = millis();
+}
+
 //Print calibration grid
 // void Calibration::printCalibrationGrid() {
 //     for (int i = 0; i <= pointCount; i++) {
@@ -992,123 +1117,14 @@ bool Calibration::generate_calibration_grid() {
 
 // }
 
+
+
+
+
+
 //------------------------------------------------------
-//------------------------------------------------------ User commands
+//------------------------------------------------------ Utility Functions
 //------------------------------------------------------
-
-// void Calibration::retractTL() {
-//     //We allow other bells retracting to continue
-//     retractingTL = true;
-//     complyALL    = false;
-//     extendingALL = false;
-//     axisTL.reset();
-// }
-// void Calibration::retractTR() {
-//     retractingTR = true;
-//     complyALL    = false;
-//     extendingALL = false;
-//     axisTR.reset();
-// }
-// void Calibration::retractBL() {
-//     retractingBL = true;
-//     complyALL    = false;
-//     extendingALL = false;
-//     axisBL.reset();
-// }
-// void Calibration::retractBR() {
-//     retractingBR = true;
-//     complyALL    = false;
-//     extendingALL = false;
-//     axisBR.reset();
-// }
-void Calibration::retractALL() {
-
-    retractingTL = true;
-    retractingTR = true;
-    retractingBL = true;
-    retractingBR = true;
-    complyALL    = false;
-    extendingALL = false;
-    Maslow.axisTL.reset();
-    Maslow.axisTR.reset();
-    Maslow.axisBL.reset();
-    Maslow.axisBR.reset();
-    setupIsComplete = false;
-}
-
-void Calibration::extendALL() {
-
-    if (!all_axis_homed()) {
-        log_error("Please press Retract All before using Extend All");  //I keep getting everything set up for calibration and then this trips me up
-        sys.set_state(State::Idle);
-        return;
-    }
-
-    Maslow.stop();
-    extendingALL = true;
-
-    updateCenterXY();
-
-    //extendCallTimer = millis();
-}
-
-/*
-* This function is called once when calibration is started
-*/
-void Calibration::runCalibration() {
-
-    //If we are at the first point we need to generate the grid before we can start
-    if (waypoint == 0) {
-        if(!generate_calibration_grid()){ //Fail out if the grid cannot be generated
-            return;
-        }
-    }
-    Maslow.stop();
-
-    //Save the z-axis 'stop' position
-    Maslow.targetZ = 0;
-    Maslow.setZStop();
-
-    //if not all axis are homed, we can't run calibration, OR if the user hasnt entered width and height?
-    if (!allAxisExtended()) {
-        log_error("Cannot run calibration until all belts are extended fully");
-        sys.set_state(State::Idle);
-        return;
-    }
-
-    //Recalculate the center position because the machine dimensions may have been updated
-    updateCenterXY();
-
-
-    //At this point it's likely that we have just sent the machine new cordinates for the anchor points so we need to figure out our new XY
-    //cordinates by looking at the current lengths of the top two belts.
-    //If we can't load the position, that's OK, we can still go ahead with the calibration and the first point will make a guess for it
-    float x = 0;
-    float y = 0;
-    if(computeXYfromLengths(measurementToXYPlane(Maslow.axisTL.getPosition(), Maslow.tlZ), measurementToXYPlane(Maslow.axisTR.getPosition(), Maslow.trZ), x, y)){
-        
-        //We reset the last waypoint to where it actually is so that we can move from the updated position to the next waypoint
-        if(waypoint > 0){
-            calibrationGrid[waypoint - 1][0] = x;
-            calibrationGrid[waypoint - 1][1] = y;
-        }
-
-        log_info("Machine Position found as X: " << x << " Y: " << y);
-
-        //Set the internal machine position to the new XY position
-        float* mpos = get_mpos();
-        mpos[0] = x;
-        mpos[1] = y;
-        set_motor_steps_from_mpos(mpos);
-        gc_sync_position();//This updates the Gcode engine with the new position from the stepping engine that we set with set_motor_steps
-        plan_sync_position();
-        
-    }
-
-    sys.set_state(State::Homing);
-
-    calibrationInProgress = true;
-}
 
 //This function is used for release tension
 void Calibration::comply() {
@@ -1124,6 +1140,102 @@ void Calibration::comply() {
     Maslow.axisBL.reset();
     Maslow.axisBR.reset();
 }
+
+// Direction from maslow current coordinates to the target coordinates
+int Calibration::get_direction(double x, double y, double targetX, double targetY) {
+    int direction = UP;
+
+    if (targetX - x > 1) {
+        direction = RIGHT;
+    } else if (targetX - x < -1) {
+        direction = LEFT;
+    } else if (targetY - y > 1) {
+        direction = UP;
+    } else if (targetY - y < -1) {
+        direction = DOWN;
+    }
+
+    return direction;
+}
+
+// Function to allocate memory for calibration arrays
+void Calibration::allocateCalibrationMemory() {
+    if(calibrationGrid == nullptr){ //Check to prevent realocating
+        calibrationGrid = new float[CALIBRATION_GRID_SIZE_MAX][2];
+    }
+    if(calibration_data == nullptr){
+        calibration_data = new float*[CALIBRATION_GRID_SIZE_MAX];
+        for (int i = 0; i < CALIBRATION_GRID_SIZE_MAX; ++i) {
+            calibration_data[i] = new float[4];
+        }
+    }
+}
+
+// Function to deallocate memory for calibration arrays
+void Calibration::deallocateCalibrationMemory() {
+    delete[] calibrationGrid;
+    calibrationGrid = nullptr;
+    for (int i = 0; i < CALIBRATION_GRID_SIZE_MAX; ++i) {
+        delete[] calibration_data[i];
+        }
+    delete[] calibration_data;
+    calibration_data = nullptr;
+}
+
+
+//Takes a raw measurement, projects it into the XY plane, then adds the belt end extension and arm length to get the actual distance.
+float Calibration::measurementToXYPlane(float measurement, float zHeight){
+
+    float lengthInXY = sqrt(measurement * measurement - zHeight * zHeight);
+    return lengthInXY + Maslow._beltEndExtension + Maslow._armLength; //Add the belt end extension and arm length to get the actual distance
+}
+
+/* Calculates and updates the center (X, Y) position based on the coordinates of the four corners
+* (top-left, top-right, bottom-left, bottom-right) of a rectangular area. The center is determined
+* by finding the intersection of the diagonals of the rectangle.
+*/
+void Calibration::updateCenterXY() {
+    double A = (Maslow.trY - Maslow.blY) / (Maslow.trX - Maslow.blX);
+    double B = (Maslow.brY - Maslow.tlY) / (Maslow.brX - Maslow.tlX);
+    Maslow.centerX  = (Maslow.brY - (B * Maslow.brX) + (A * Maslow.trX) - Maslow.trY) / (A - B);
+   Maslow.centerY  = A * (Maslow.centerX - Maslow.trX) + Maslow.trY;
+}
+
+
+// True if all axis were zeroed
+bool Calibration::all_axis_homed() {
+    return axis_homed[0] && axis_homed[1] && axis_homed[2] && axis_homed[3];
+}
+
+// True if all axis were extended
+bool Calibration::allAxisExtended() {
+    return extendedTL && extendedTR && extendedBL && extendedBR;
+}
+
+// True if calibration is complete or take slack has been run
+bool Calibration::setupComplete() {
+    return setupIsComplete;
+}
+
+bool Calibration::checkOverides(){
+    if(TLIOveride || TRIOveride || BLIOveride || BRIOveride || TLOOveride || TROOveride || BLOOveride || BROOveride){
+        return true;
+    }
+    return false;
+}
+
+void Calibration::setSafety(bool state) {
+    safetyOn = state;
+}
+
+
+
+
+
+
+//------------------------------------------------------
+//------------------------------------------------------ Motor Overides
+//------------------------------------------------------
 
 
 //These are used to force one motor to rotate
@@ -1236,115 +1348,4 @@ void Calibration::handleMotorOverides(){
             Maslow.axisBL.stop();
         }
     }
-}
-
-bool Calibration::checkOverides(){
-    if(TLIOveride || TRIOveride || BLIOveride || BRIOveride || TLOOveride || TROOveride || BLOOveride || BROOveride){
-        return true;
-    }
-    return false;
-}
-
-void Calibration::setSafety(bool state) {
-    safetyOn = state;
-}
-
-void Calibration::take_slack() {
-    //if not all axis are homed, we can't take the slack up
-    if (!allAxisExtended()) {
-        log_error("Cannot take slack until all axis are extended fully");
-        sys.set_state(State::Idle);
-        return;
-    }
-    retractingTL = false;
-    retractingTR = false;
-    retractingBL = false;
-    retractingBR = false;
-    extendingALL = false;
-    complyALL    = false;
-    Maslow.axisTL.reset();
-    Maslow.axisTR.reset();
-    Maslow.axisBL.reset();
-    Maslow.axisBR.reset();
-
-    Maslow.x         = 0;
-    Maslow.y         = 0;
-    takeSlack = true;
-
-    //Alocate the memory to store the measurements in. This is used here because take slack will use the same memory as the calibration
-    allocateCalibrationMemory();
-}
-
-
-
-// True if all axis were zeroed
-bool Calibration::all_axis_homed() {
-    return axis_homed[0] && axis_homed[1] && axis_homed[2] && axis_homed[3];
-}
-
-// True if all axis were extended
-bool Calibration::allAxisExtended() {
-    return extendedTL && extendedTR && extendedBL && extendedBR;
-}
-
-// True if calibration is complete or take slack has been run
-bool Calibration::setupComplete() {
-    return setupIsComplete;
-}
-
-
-
-//Checks to see if the calibration data needs to be sent again
-void Calibration::checkCalibrationData() {
-    if (calibrationDataWaiting > 0) {
-        if (millis() - calibrationDataWaiting > 30007) {
-            log_error("Calibration data not acknowledged by computer, resending");
-            print_calibration_data();
-            calibrationDataWaiting = millis();
-        }
-    }
-}
-
-// function for outputting calibration data in the log line by line like this: {bl:2376.69,   br:923.40,   tr:1733.87,   tl:2801.87},
-void Calibration::print_calibration_data() {
-    //These are used to set the browser side initial guess for the frame size
-    log_data("$/" << M << "_tlX=" << Maslow.tlX);
-    log_data("$/" << M << "_tlY=" << Maslow.tlY);
-    log_data("$/" << M << "_trX=" << Maslow.trX);
-    log_data("$/" << M << "_trY=" << Maslow.trY);
-    log_data("$/" << M << "_brX=" << Maslow.brX);
-
-    String data = "CLBM:[";
-    for (int i = 0; i < waypoint; i++) {
-        data += "{bl:" + String(calibration_data[i][2]) + ",   br:" + String(calibration_data[i][3]) +
-                ",   tr:" + String(calibration_data[i][1]) + ",   tl:" + String(calibration_data[i][0]) + "},";
-    }
-    data += "]";
-    HeartBeatEnabled = false;
-    log_data(data.c_str());
-    HeartBeatEnabled = true;
-}
-
-//Runs when the calibration data has been acknowledged as received by the computer and the calibration process is progressing
-void Calibration::calibrationDataRecieved(){
-    // log_info("Calibration data acknowledged received by computer");
-    calibrationDataWaiting = -1;
-}
-
-/* Calculates and updates the center (X, Y) position based on the coordinates of the four corners
-* (top-left, top-right, bottom-left, bottom-right) of a rectangular area. The center is determined
-* by finding the intersection of the diagonals of the rectangle.
-*/
-void Calibration::updateCenterXY() {
-    double A = (Maslow.trY - Maslow.blY) / (Maslow.trX - Maslow.blX);
-    double B = (Maslow.brY - Maslow.tlY) / (Maslow.brX - Maslow.tlX);
-    Maslow.centerX  = (Maslow.brY - (B * Maslow.brX) + (A * Maslow.trX) - Maslow.trY) / (A - B);
-   Maslow.centerY  = A * (Maslow.centerX - Maslow.trX) + Maslow.trY;
-}
-
-//non-blocking delay, just pauses everything for specified time
-void Calibration::hold(unsigned long time) {
-    holdTime  = time;
-    holding   = true;
-    holdTimer = millis();
 }
