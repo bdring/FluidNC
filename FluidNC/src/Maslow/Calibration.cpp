@@ -872,7 +872,7 @@ bool Calibration::adjustFrameSizeToMatchFirstMeasurement() {
     Maslow.brX = L;
     updateCenterXY();
 
-    log_info("Frame size automaticlaly adjusted to " + std::to_string(brX) + " by " + std::to_string(trY));
+    log_info("Frame size automaticlaly adjusted to " + std::to_string(Maslow.brX) + " by " + std::to_string(Maslow.trY));
     return true;
 }
 
@@ -1066,7 +1066,7 @@ void Calibration::runCalibration() {
     Maslow.stop();
 
     //Save the z-axis 'stop' position
-    targetZ = 0;
+    Maslow.targetZ = 0;
     Maslow.setZStop();
 
     //if not all axis are homed, we can't run calibration, OR if the user hasnt entered width and height?
@@ -1267,8 +1267,8 @@ void Calibration::take_slack() {
     Maslow.axisBL.reset();
     Maslow.axisBR.reset();
 
-    x         = 0;
-    y         = 0;
+    Maslow.x         = 0;
+    Maslow.y         = 0;
     takeSlack = true;
 
     //Alocate the memory to store the measurements in. This is used here because take slack will use the same memory as the calibration
@@ -1308,11 +1308,11 @@ void Calibration::checkCalibrationData() {
 // function for outputting calibration data in the log line by line like this: {bl:2376.69,   br:923.40,   tr:1733.87,   tl:2801.87},
 void Calibration::print_calibration_data() {
     //These are used to set the browser side initial guess for the frame size
-    log_data("$/" << M << "_tlX=" << tlX);
-    log_data("$/" << M << "_tlY=" << tlY);
-    log_data("$/" << M << "_trX=" << trX);
-    log_data("$/" << M << "_trY=" << trY);
-    log_data("$/" << M << "_brX=" << brX);
+    log_data("$/" << M << "_tlX=" << Maslow.tlX);
+    log_data("$/" << M << "_tlY=" << Maslow.tlY);
+    log_data("$/" << M << "_trX=" << Maslow.trX);
+    log_data("$/" << M << "_trY=" << Maslow.trY);
+    log_data("$/" << M << "_brX=" << Maslow.brX);
 
     String data = "CLBM:[";
     for (int i = 0; i < waypoint; i++) {

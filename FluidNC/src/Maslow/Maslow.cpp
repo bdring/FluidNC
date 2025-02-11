@@ -74,7 +74,7 @@ void Maslow_::begin(void (*sys_rt)()) {
     axisTLHomed = false;
 
     //Recompute the center XY
-    updateCenterXY();
+    calibration.updateCenterXY();
 
     pinMode(coolingFanPin, OUTPUT);
     pinMode(ETHERNETLEDPIN, OUTPUT);
@@ -155,9 +155,9 @@ void Maslow_::update() {
             safety_control();
 
         //quick solution for delay without blocking
-        if (holding && millis() - holdTimer > holdTime) {
-            holding = false;
-        } else if (holding)
+        if (calibration.holding && millis() - calibration.holdTimer > calibration.holdTime) {
+            calibration.holding = false;
+        } else if (calibration.holding)
             return;
 
         //temp test function...This is used for debugging when the test command is sent
@@ -174,13 +174,13 @@ void Maslow_::update() {
                               steps_to_mpos(get_axis_motor_steps(2), 2));
 
             //This disables the belt motors until the user has completed calibration or apply tension and they have succeded
-            if (setupComplete()) {
+            if (calibration.setupComplete()) {
                 Maslow.recomputePID();
             }
         }
         //--------Homing routines
         else if (sys.state() == State::Homing) {
-            home();
+            calibration.home();
         } else {  //This is confusing to understand. This is an else if so this is only run if we are not in jog, cycle, or homing
             Maslow.stopMotors();
         }
@@ -197,7 +197,7 @@ void Maslow_::update() {
         }
 
         //Check to see if we need to resend the calibration data
-        checkCalibrationData();
+        calibration.checkCalibrationData();
 
         //------------------------ End of Maslow State Machine
 
@@ -721,7 +721,7 @@ double Maslow_::getTargetZ() {
 
 // Prints out state
 void Maslow_::getInfo() {
-    log_data("MINFO: { \"homed\": " << (all_axis_homed() ? "true" : "false") << ","
+    log_data("MINFO: { \"homed\": " << (calibration.all_axis_homed() ? "true" : "false") << ","
           << "\"calibrationInProgress\": " << (calibrationInProgress ? "true" : "false") << ","
           << "\"tl\": " << axisTL.getPosition() << ","
           << "\"tr\": " << axisTR.getPosition() << ","
@@ -731,7 +731,7 @@ void Maslow_::getInfo() {
           << "\"etr\": " << axisTR.getPositionError() << ","
           << "\"ebr\": " << axisBR.getPositionError() << ","
           << "\"ebl\": " << axisBL.getPositionError() << ","
-          << "\"extended\": " << (allAxisExtended() ? "true" : "false")
+          << "\"extended\": " << (calibration.allAxisExtended() ? "true" : "false")
           << "}");
 }
 
@@ -903,9 +903,9 @@ TelemetryData Maslow_::get_telemetry_data() {
     data.pointCount          = pointCount;
     data.waypoint            = waypoint;
     data.calibrationGridSize = calibrationGridSize;
-    data.holdTimer           = holdTimer;
-    data.holding             = holding;
-    data.holdTime            = holdTime;
+    data.holdTimer           = calibration.holdTimer;
+    data.holding             = calibration.holding;
+    data.holdTime            = calibration.holdTime;
     data.centerX             = centerX;
     data.centerY             = centerY;
     data.lastCallToPID       = lastCallToPID;

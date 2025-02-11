@@ -1,7 +1,6 @@
 #pragma once
 #include <Arduino.h>
-#include "../System.h"  // sys.*
-#include "../FileStream.h"
+
 
 class Calibration {
 public:
@@ -60,6 +59,10 @@ public:
     void take_slack();
 
     //Public Variables
+    //hold
+    unsigned long holdTimer = millis();
+    bool          holding   = false;
+    unsigned long holdTime  = 0;
 
 private:
     // Member variable
@@ -130,8 +133,5 @@ private:
     bool safetyOn = true;
     bool HeartBeatEnabled = true;
 
-    //hold
-    unsigned long holdTimer = millis();
-    bool          holding   = false;
-    unsigned long holdTime  = 0;
+
 };
