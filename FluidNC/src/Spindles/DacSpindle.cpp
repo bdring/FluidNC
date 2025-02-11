@@ -31,6 +31,7 @@ namespace Spindles {
             return;
         }
 
+        _enable_pin.setAttr(Pin::Attr::Output);
         _direction_pin.setAttr(Pin::Attr::Output);
 
         is_reversable = _direction_pin.defined();
@@ -45,10 +46,13 @@ namespace Spindles {
     }
 
     void Dac::config_message() {
-        log_info(name() << " Spindle Out:" << _output_pin.name() << " Dir:" << _direction_pin.name() << " Res:8bits" << atc_info());
+        log_info(name() << " Spindle Ena:" << _enable_pin.name() << " Out:" << _output_pin.name() << " Dir:" << _direction_pin.name()
+                        << " Res:8bits" << atc_info());
     }
 
-    void IRAM_ATTR Dac::setSpeedfromISR(uint32_t speed) { set_output(speed); };
+    void IRAM_ATTR Dac::setSpeedfromISR(uint32_t speed) {
+        set_output(speed);
+    };
     void IRAM_ATTR Dac::set_output(uint32_t duty) {
         if (_gpio_ok) {
             auto outputNative = _output_pin.getNative(Pin::Capabilities::DAC);
