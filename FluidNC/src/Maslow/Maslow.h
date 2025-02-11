@@ -5,6 +5,7 @@
 #pragma once
 #include <Arduino.h>
 #include "MotorUnit.h"
+#include "Calibration.h"
 #include "../System.h"  // sys.*
 #include "../Planner.h"
 #include <nvs.h>
@@ -172,6 +173,8 @@ public:
     bool safetyOn = true;
 
     bool setupIsComplete = false;
+
+    Calibration calibration;
 
     //Used to override and drive the motors directly
     void TLI();
