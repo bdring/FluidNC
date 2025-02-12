@@ -6,7 +6,7 @@ fi
 
 . ./tools.sh
 
-LocalFS="0x3d0000 wifi/spiffs.bin"
+LocalFS="0x5F0000 wifi/spiffs.bin"
 
 esptool_write $LocalFS
 
