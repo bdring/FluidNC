@@ -68,10 +68,10 @@ void Maslow_::begin(void (*sys_rt)()) {
     axisBL.begin(blIn1Pin, blIn2Pin, blADCPin, BLEncoderLine, blIn1Channel, blIn2Channel);
     axisBR.begin(brIn1Pin, brIn2Pin, brADCPin, BREncoderLine, brIn1Channel, brIn2Channel);
 
-    axisBLHomed = false;
-    axisBRHomed = false;
-    axisTRHomed = false;
-    axisTLHomed = false;
+    calibration.axisBLHomed = false;
+    calibration.axisBRHomed = false;
+    calibration.axisTRHomed = false;
+    calibration.axisTLHomed = false;
 
     //Recompute the center XY
     calibration.updateCenterXY();
@@ -85,7 +85,6 @@ void Maslow_::begin(void (*sys_rt)()) {
 
     pinMode(SERVOFAULT, INPUT);
 
-    currentThreshold = 1500;
     lastCallToUpdate = millis();
 
     loadZPos(); //Loads the z-axis position from EEPROM
@@ -190,7 +189,7 @@ void Maslow_::update() {
             digitalWrite(coolingFanPin, HIGH);  //keep the cooling fan on
         }
         //If we are doing calibration turn the cooling fan on
-        else if (calibrationInProgress || extendingALL || retractingTL || retractingTR || retractingBL || retractingBR) {
+        else if (calibration.calibrationInProgress || extendingALL || retractingTL || retractingTR || retractingBL || retractingBR) {
             digitalWrite(coolingFanPin, HIGH);  //keep the cooling fan on
         } else {
             digitalWrite(coolingFanPin, LOW);  //Turn the cooling fan off
@@ -616,7 +615,7 @@ void Maslow_::stop() {
     retractingBR          = false;
     extendingALL          = false;
     complyALL             = false;
-    calibrationInProgress = false;
+    calibration.calibrationInProgress = false;
     test                  = false;
     takeSlack             = false;
 
@@ -754,7 +753,7 @@ void Maslow_::safety_control() {
 // Prints out state
 void Maslow_::getInfo() {
     log_data("MINFO: { \"homed\": " << (calibration.all_axis_homed() ? "true" : "false") << ","
-          << "\"calibrationInProgress\": " << (calibrationInProgress ? "true" : "false") << ","
+          << "\"calibrationInProgress\": " << (calibration.calibrationInProgress ? "true" : "false") << ","
           << "\"tl\": " << axisTL.getPosition() << ","
           << "\"tr\": " << axisTR.getPosition() << ","
           << "\"br\": " << axisBR.getPosition() << ","
@@ -932,9 +931,9 @@ TelemetryData Maslow_::get_telemetry_data() {
     data.x                   = x;
     data.y                   = y;
     data.test                = test;
-    data.pointCount          = pointCount;
-    data.waypoint            = waypoint;
-    data.calibrationGridSize = calibrationGridSize;
+    // data.pointCount          = calibration.pointCount;
+    // data.waypoint            = calibration.waypoint;
+    data.calibrationGridSize = calibration.calibrationGridSize;
     data.holdTimer           = calibration.holdTimer;
     data.holding             = calibration.holding;
     data.holdTime            = calibration.holdTime;

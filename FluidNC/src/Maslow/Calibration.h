@@ -81,6 +81,29 @@ public:
     bool          holding   = false;
     unsigned long holdTime  = 0;
 
+
+    //Public calibration state variables. These need to be public since they are accessed externally. 
+    //They probably shouldn't be.
+
+    //Variables used by retraction
+    int    retractCurrentThreshold   = 1300;
+    bool axisBLHomed;
+    bool axisBRHomed;
+    bool axisTRHomed;
+    bool axisTLHomed;
+
+    //Variables used by extension
+    float extendDist                 = 1700;
+
+    //Variables used by calibration
+    bool   orientation;
+    int calibrationCurrentThreshold        = 1300;
+    float acceptableCalibrationThreshold   = 0.5;
+    int    calibrationGridSize             = 9;
+    float  calibration_grid_width_mm_X     = 2000;  // mm offset from the edge of the frame
+    float  calibration_grid_height_mm_Y    = 1000;  // mm offset from the edge of the frame
+    bool  calibrationInProgress;  //Used to turn off regular movements during calibration
+
 private:
 
     //State machine variables
@@ -92,11 +115,6 @@ private:
     bool   retractingTR              = false;
     bool   retractingBL              = false;
     bool   retractingBR              = false;
-    int    retractCurrentThreshold   = 1300;
-    bool axisBLHomed;
-    bool axisBRHomed;
-    bool axisTRHomed;
-    bool axisTLHomed;
 
     //Variables used by extending
     bool extendedTL                  = false;
@@ -105,7 +123,6 @@ private:
     bool extendedBR                  = false;
     bool extendingALL                = false;
     bool complyALL                   = false;
-    float extendDist                 = 1700;
     bool setupIsComplete             = false; //This should be replaced by the state machine
 
 
@@ -113,19 +130,12 @@ private:
     bool takeSlack    = false;
 
     //Variables used by calibration
-    int calibrationCurrentThreshold        = 1300;
-    float acceptableCalibrationThreshold   = 0.5;
-    bool calibrationInProgress;  //Used to turn off regular movements during calibration
-    bool   orientation;
     float  **calibration_data              = nullptr;
     int    pointCount                      = 0;  //number of actual points in the grid,  < GRID_SIZE_MAX
     int    waypoint                        = 0;  //The current waypoint in the calibration process
-    int    calibrationGridSize             = 9;
-    int frame_dimention_MIN                = 400;
-    int frame_dimention_MAX                = 15000;
+    int    frame_dimention_MIN             = 400; //Is this used? This should be enforced by the user settings. TODO.
+    int    frame_dimention_MAX             = 15000;
     float  (*calibrationGrid)[2]           = nullptr;
-    float  calibration_grid_width_mm_X     = 2000;  // mm offset from the edge of the frame
-    float  calibration_grid_height_mm_Y    = 1000;  // mm offset from the edge of the frame
     int    recomputePoints[10];                               // Stores the index of the points where we want to trigger a recompute
     int    recomputeCountIndex = 0;                           // Stores the index of the recompute point we are currently on
     int    recomputeCount      = 0;                           // Stores the number of recompute points

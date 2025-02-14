@@ -94,10 +94,10 @@ namespace Machine {
     }
 
     void MachineConfig::groupM4Items(Configuration::HandlerBase& handler) {
-        handler.item(M+"_vertical", Maslow.orientation);
-        handler.item(M+"_calibration_grid_width_mm_X", Maslow.calibration_grid_width_mm_X, 100, 3000);
-        handler.item(M+"_calibration_grid_height_mm_Y", Maslow.calibration_grid_height_mm_Y, 100, 3000);
-        handler.item(M+"_calibration_grid_size", Maslow.calibrationGridSize, 3, 9);
+        handler.item(M+"_vertical", Maslow.calibration.orientation);
+        handler.item(M+"_calibration_grid_width_mm_X", Maslow.calibration.calibration_grid_width_mm_X, 100, 3000);
+        handler.item(M+"_calibration_grid_height_mm_Y", Maslow.calibration.calibration_grid_height_mm_Y, 100, 3000);
+        handler.item(M+"_calibration_grid_size", Maslow.calibration.calibrationGridSize, 3, 9);
 
         handler.item(M+"_tlX", Maslow.tlX);
         handler.item(M+"_tlY", Maslow.tlY);
@@ -116,10 +116,10 @@ namespace Machine {
         handler.item(M+"_blZ", Maslow.blZ);
         handler.item(M+"_brZ", Maslow.brZ);
 
-        handler.item(M+"_Retract_Current_Threshold", Maslow.retractCurrentThreshold, 0, 3500);
-        handler.item(M+"_Calibration_Current_Threshold", Maslow.calibrationCurrentThreshold, 0, 3500);
-        handler.item(M+"_Acceptable_Calibration_Threshold", Maslow.acceptableCalibrationThreshold, 0, 1);
-        handler.item(M+"_Extend_Dist", Maslow.extendDist, 0, 4250);
+        handler.item(M+"_Retract_Current_Threshold", Maslow.calibration.retractCurrentThreshold, 0, 3500);
+        handler.item(M+"_Calibration_Current_Threshold", Maslow.calibration.calibrationCurrentThreshold, 0, 3500);
+        handler.item(M+"_Acceptable_Calibration_Threshold", Maslow.calibration.acceptableCalibrationThreshold, 0, 1);
+        handler.item(M+"_Extend_Dist", Maslow.calibration.extendDist, 0, 4250);
 	handler.item(M+"_beltEndExtension", Maslow._beltEndExtension);
 	handler.item(M+"_armLength", Maslow._armLength);
     }
