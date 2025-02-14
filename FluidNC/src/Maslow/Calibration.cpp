@@ -1,14 +1,103 @@
 #include "Calibration.h"
 #include "Maslow.h"
 
-//------------------------------------------------------
-//------------------------------------------------------ Homing and calibration functions
-//------------------------------------------------------
+
+
+
+// #define UNKNOWN 0
+// #define RETRACTING 1
+// #define RETRACTED 2
+// #define EXTENDING 3
+// #define EXTENDED 4
+// #define TAKING_SLACK 5
+// #define CALIBRATION_IN_PROGRESS 6
+// #define READY_TO_CUT 7
+
+
 
 // Constructor
 Calibration::Calibration() {
     // Initialization code here
 }
+
+//------------------------------------------------------
+//------------------------------------------------------ State Machine Functions
+//------------------------------------------------------
+int Calibration::getCurrentState(){
+    return currentState;
+}
+
+
+bool Calibration::requestStateChange(int newState){
+
+
+
+    //I think that this is backwards, we should be switching based on the new state and only enter if it's OK to do so. Then we can reset some state variables there too.
+    switch(newState){
+        case UNKNOWN: //We can enter unknown from any state
+            currentState = UNKNOWN;
+            return true;
+        case RETRACTING: //We can enter retracting from any state
+            currentState = RETRACTING;
+            return true;
+        case RETRACTED: //We can enter retracted from retracting only
+            if(currentState == RETRACTING){
+                currentState = RETRACTED;
+                return true;
+            }
+            else{
+                break;
+            }
+        case EXTENDING: //We can enter extending from retracted only
+            if(currentState == RETRACTED){
+                currentState = EXTENDING;
+                return true;
+            }
+            else{
+                break;
+            }
+        case EXTENDEDOUT: //We can enter extended from extending only
+            if(currentState == EXTENDING){
+                currentState = EXTENDEDOUT;
+                return true;
+            }
+            else{
+                break;
+            }
+        case TAKING_SLACK: //We can enter taking slack from extended only
+            if(currentState == EXTENDEDOUT){
+                currentState = TAKING_SLACK;
+                return true;
+            }
+            else{
+                break;
+            }
+        case CALIBRATION_IN_PROGRESS: //We can enter calibration in progress from EXTENDEDOUT only
+            if(currentState == EXTENDEDOUT){
+                currentState = CALIBRATION_IN_PROGRESS;
+                return true;
+            }
+            else{
+                break;
+            }
+        case READY_TO_CUT: //We can enter ready to cut from calibration in progress or taking slack
+            if(currentState == CALIBRATION_IN_PROGRESS || currentState == TAKING_SLACK){
+                currentState = READY_TO_CUT;
+                return true;
+            }
+            else{
+                break;
+            }
+        default:
+            return false;
+    }
+
+    return false;
+}
+
+//------------------------------------------------------
+//------------------------------------------------------ Homing and calibration functions
+//------------------------------------------------------
 
 void Calibration::retractALL() {
 

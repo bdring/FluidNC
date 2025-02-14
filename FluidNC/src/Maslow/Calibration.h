@@ -1,6 +1,19 @@
 #pragma once
 #include <Arduino.h>
 
+//------------------------------------------------------
+//------------------------------------------------------ State Definitions
+//------------------------------------------------------
+
+#define UNKNOWN 0
+#define RETRACTING 1
+#define RETRACTED 2
+#define EXTENDING 3
+#define EXTENDEDOUT 4 //Extended is a reserved word
+#define TAKING_SLACK 5
+#define CALIBRATION_IN_PROGRESS 6
+#define READY_TO_CUT 7
+
 
 class Calibration {
 public:
@@ -58,6 +71,10 @@ public:
     void setSafety(bool state);
     void take_slack();
 
+    //State machine functions
+    int getCurrentState();
+    bool requestStateChange(int newState);
+
     //Public Variables
     //hold
     unsigned long holdTimer = millis();
@@ -65,27 +82,55 @@ public:
     unsigned long holdTime  = 0;
 
 private:
-    // Member variable
-    bool   axis_homed[4] = { false, false, false, false };
-    //These are used to determine which arms have already been retracted when retract all is called...this state should be handled by arms?
-    bool   retractingTL  = false;
-    bool   retractingTR  = false;
-    bool   retractingBL  = false;
-    bool   retractingBR  = false;
 
-    bool extendedTL = false;
-    bool extendedTR = false;
-    bool extendedBL = false;
-    bool extendedBR = false;
+    //State machine variables
+    int currentState = UNKNOWN;
 
-    bool extendingALL = false;
-    bool complyALL    = false;
+    //Variables used for retracting state
+    bool   axis_homed[4]             = { false, false, false, false };
+    bool   retractingTL              = false;
+    bool   retractingTR              = false;
+    bool   retractingBL              = false;
+    bool   retractingBR              = false;
+    int    retractCurrentThreshold   = 1300;
+    bool axisBLHomed;
+    bool axisBRHomed;
+    bool axisTRHomed;
+    bool axisTLHomed;
+
+    //Variables used by extending
+    bool extendedTL                  = false;
+    bool extendedTR                  = false;
+    bool extendedBL                  = false;
+    bool extendedBR                  = false;
+    bool extendingALL                = false;
+    bool complyALL                   = false;
+    float extendDist                 = 1700;
+    bool setupIsComplete             = false; //This should be replaced by the state machine
+
+
+    //Variables used by take slack
     bool takeSlack    = false;
 
-    int retractCurrentThreshold = 1300;
-    int calibrationCurrentThreshold = 1300;
-    float acceptableCalibrationThreshold = 0.5;
-    float extendDist = 1700;
+    //Variables used by calibration
+    int calibrationCurrentThreshold        = 1300;
+    float acceptableCalibrationThreshold   = 0.5;
+    bool calibrationInProgress;  //Used to turn off regular movements during calibration
+    bool   orientation;
+    float  **calibration_data              = nullptr;
+    int    pointCount                      = 0;  //number of actual points in the grid,  < GRID_SIZE_MAX
+    int    waypoint                        = 0;  //The current waypoint in the calibration process
+    int    calibrationGridSize             = 9;
+    int frame_dimention_MIN                = 400;
+    int frame_dimention_MAX                = 15000;
+    float  (*calibrationGrid)[2]           = nullptr;
+    float  calibration_grid_width_mm_X     = 2000;  // mm offset from the edge of the frame
+    float  calibration_grid_height_mm_Y    = 1000;  // mm offset from the edge of the frame
+    int    recomputePoints[10];                               // Stores the index of the points where we want to trigger a recompute
+    int    recomputeCountIndex = 0;                           // Stores the index of the recompute point we are currently on
+    int    recomputeCount      = 0;                           // Stores the number of recompute points
+    double calibrationDataWaiting          = -1;   //-1 if data is not waiting, other wise the milis since the data was last sent
+
 
     //Used to keep track of how often the PID controller is updated
     unsigned long lastCallToPID    = millis();
@@ -94,30 +139,7 @@ private:
     unsigned long extendCallTimer  = millis();
     unsigned long complyCallTimer  = millis();
 
-    bool setupIsComplete = false;
-
-    bool axisBLHomed;
-    bool axisBRHomed;
-    bool axisTRHomed;
-    bool axisTLHomed;
-    bool calibrationInProgress;  //Used to turn off regular movements during calibration
-
-    bool   orientation;
-    float  **calibration_data = nullptr;
-    int    pointCount                                 = 0;  //number of actual points in the grid,  < GRID_SIZE_MAX
-    int    waypoint                                   = 0;  //The current waypoint in the calibration process
-    int    calibrationGridSize                        = 9;
-
-    int frame_dimention_MIN = 400;
-    int frame_dimention_MAX = 15000;
-
-    float  (*calibrationGrid)[2] = nullptr;
-    float  calibration_grid_width_mm_X               = 2000;  // mm offset from the edge of the frame
-    float  calibration_grid_height_mm_Y              = 1000;  // mm offset from the edge of the frame
-    int    recomputePoints[10];                               // Stores the index of the points where we want to trigger a recompute
-    int    recomputeCountIndex = 0;                           // Stores the index of the recompute point we are currently on
-    int    recomputeCount      = 0;                           // Stores the number of recompute points
-    double calibrationDataWaiting                    = -1;   //-1 if data is not waiting, other wise the milis since the data was last sent
+    
 
     //Used to overide and drive motors directly...dangerous
     bool TLIOveride = false;
