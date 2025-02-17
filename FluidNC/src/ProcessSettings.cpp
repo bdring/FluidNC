@@ -24,6 +24,7 @@
 #include "StartupLog.h"           // startupLog
 #include "Driver/fluidnc_gpio.h"  // gpio_dump()
 #include "Maslow/Maslow.h"
+#include "Maslow/Calibration.h"
 
 #include "FluidPath.h"
 
@@ -832,7 +833,7 @@ static Error maslow_retract_ALL(const char* value, WebUI::AuthenticationLevel au
     }
     sys.set_state(State::Homing);
     log_info("Retracting all belts");
-    Maslow.calibration.retractALL();
+    Maslow.calibration.requestStateChange(RETRACTING);
     return Error::Ok;
 }
 static Error maslow_extend_ALL(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {

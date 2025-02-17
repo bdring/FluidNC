@@ -17,7 +17,7 @@
 
 // Constructor
 Calibration::Calibration() {
-    // Initialization code here
+    currentState = UNKNOWN;
 }
 
 //------------------------------------------------------
@@ -30,7 +30,7 @@ int Calibration::getCurrentState(){
 
 bool Calibration::requestStateChange(int newState){
 
-
+    log_info("Requesting state change from " << currentState << " to " << newState);
 
     //I think that this is backwards, we should be switching based on the new state and only enter if it's OK to do so. Then we can reset some state variables there too.
     switch(newState){
@@ -39,6 +39,19 @@ bool Calibration::requestStateChange(int newState){
             return true;
         case RETRACTING: //We can enter retracting from any state
             currentState = RETRACTING;
+
+            retractingTL = true;
+            retractingTR = true;
+            retractingBL = true;
+            retractingBR = true;
+            complyALL    = false;
+            extendingALL = false;
+            Maslow.axisTL.reset();
+            Maslow.axisTR.reset();
+            Maslow.axisBL.reset();
+            Maslow.axisBR.reset();
+            setupIsComplete = false;
+
             return true;
         case RETRACTED: //We can enter retracted from retracting only
             if(currentState == RETRACTING){
@@ -98,21 +111,6 @@ bool Calibration::requestStateChange(int newState){
 //------------------------------------------------------
 //------------------------------------------------------ Homing and calibration functions
 //------------------------------------------------------
-
-void Calibration::retractALL() {
-
-    retractingTL = true;
-    retractingTR = true;
-    retractingBL = true;
-    retractingBR = true;
-    complyALL    = false;
-    extendingALL = false;
-    Maslow.axisTL.reset();
-    Maslow.axisTR.reset();
-    Maslow.axisBL.reset();
-    Maslow.axisBR.reset();
-    setupIsComplete = false;
-}
 
 void Calibration::extendALL() {
 
