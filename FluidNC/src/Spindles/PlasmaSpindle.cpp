@@ -63,7 +63,13 @@ namespace Spindles {
             set_enable(false);
 
         } else {
-            // TODO maybe check arc OK is not on before starting
+            // check arc OK is not on before starting
+            if (_arcOkEventPin->get()) {
+                log_error(name() << " arc_ok active before starting plasma");
+                mc_critical(ExecAlarm::SpindleControl);
+                return;
+            }
+
             if (!wait_for_arc_ok()) {
                 return;
             }
