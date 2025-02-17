@@ -61,7 +61,8 @@ public:
 
     void allocateCalibrationMemory();
     void deallocateCalibrationMemory();
-    
+
+    void retractALL();
     void extendALL();
     void comply();
 

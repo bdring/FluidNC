@@ -18,7 +18,6 @@
 // Constructor
 Calibration::Calibration() {
     // Initialization code here
-    currentState = UNKNOWN;
 }
 
 //------------------------------------------------------
@@ -31,7 +30,6 @@ int Calibration::getCurrentState(){
 
 bool Calibration::requestStateChange(int newState){
 
-    log_info("Requesting state change from " << currentState << " to " << newState);
 
 
     //I think that this is backwards, we should be switching based on the new state and only enter if it's OK to do so. Then we can reset some state variables there too.
@@ -41,22 +39,6 @@ bool Calibration::requestStateChange(int newState){
             return true;
         case RETRACTING: //We can enter retracting from any state
             currentState = RETRACTING;
-
-            retractingTL = true;
-            retractingTR = true;
-            retractingBL = true;
-            retractingBR = true;
-
-            complyALL    = false;
-            extendingALL = false;
-
-            Maslow.axisTL.reset();
-            Maslow.axisTR.reset();
-            Maslow.axisBL.reset();
-            Maslow.axisBR.reset();
-
-            setupIsComplete = false;
-
             return true;
         case RETRACTED: //We can enter retracted from retracting only
             if(currentState == RETRACTING){
@@ -109,13 +91,28 @@ bool Calibration::requestStateChange(int newState){
         default:
             return false;
     }
-    log_warn("Invalid state change request from " << currentState << " to " << newState);
+
     return false;
 }
 
 //------------------------------------------------------
 //------------------------------------------------------ Homing and calibration functions
 //------------------------------------------------------
+
+void Calibration::retractALL() {
+
+    retractingTL = true;
+    retractingTR = true;
+    retractingBL = true;
+    retractingBR = true;
+    complyALL    = false;
+    extendingALL = false;
+    Maslow.axisTL.reset();
+    Maslow.axisTR.reset();
+    Maslow.axisBL.reset();
+    Maslow.axisBR.reset();
+    setupIsComplete = false;
+}
 
 void Calibration::extendALL() {
 
@@ -193,53 +190,36 @@ void Calibration::runCalibration() {
 
 
 // -Maslow homing loop. This is used whenver any of the homing funcitons are active (belts extending or retracting)
-// TODO: Make this more of a state machine
 void Calibration::home() {
-
-    switch (currentState)
-    {
-    case RETRACTING:
-        //run all the retract functions untill we hit the current limit
-        if (retractingTL) {
-            if (Maslow.axisTL.retract()) {
-                retractingTL  = false;
-                axis_homed[0] = true;
-                extendedTL    = false;
-            }
+    //run all the retract functions untill we hit the current limit
+    if (retractingTL) {
+        if (Maslow.axisTL.retract()) {
+            retractingTL  = false;
+            axis_homed[0] = true;
+            extendedTL    = false;
         }
-        if (retractingTR) {
-            if (Maslow.axisTR.retract()) {
-                retractingTR  = false;
-                axis_homed[1] = true;
-                extendedTR    = false;
-            }
-        }
-        if (retractingBL) {
-            if (Maslow.axisBL.retract()) {
-                retractingBL  = false;
-                axis_homed[2] = true;
-                extendedBL    = false;
-            }
-        }
-        if (retractingBR) {
-            if (Maslow.axisBR.retract()) {
-                retractingBR  = false;
-                axis_homed[3] = true;
-                extendedBR    = false;
-            }
-        }
-        //Once the limits are hit switch to the next state
-        if (!retractingTL && !retractingBL && !retractingBR && !retractingTR) {
-            requestStateChange(RETRACTED);
-        }
-
-        break;
-    
-    default:
-        break;
     }
-    
-    
+    if (retractingTR) {
+        if (Maslow.axisTR.retract()) {
+            retractingTR  = false;
+            axis_homed[1] = true;
+            extendedTR    = false;
+        }
+    }
+    if (retractingBL) {
+        if (Maslow.axisBL.retract()) {
+            retractingBL  = false;
+            axis_homed[2] = true;
+            extendedBL    = false;
+        }
+    }
+    if (retractingBR) {
+        if (Maslow.axisBR.retract()) {
+            retractingBR  = false;
+            axis_homed[3] = true;
+            extendedBR    = false;
+        }
+    }
 
     // $EXT - extend mode
     if (extendingALL) {
