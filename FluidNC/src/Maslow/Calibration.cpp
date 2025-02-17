@@ -189,34 +189,41 @@ void Calibration::runCalibration() {
 
 // -Maslow homing loop. This is used whenver any of the homing funcitons are active (belts extending or retracting)
 void Calibration::home() {
-    //run all the retract functions untill we hit the current limit
-    if (retractingTL) {
-        if (Maslow.axisTL.retract()) {
-            retractingTL  = false;
-            axis_homed[0] = true;
-            extendedTL    = false;
+
+
+    switch (currentState){
+        case RETRACTING:
+        //run all the retract functions untill we hit the current limit
+        if (retractingTL) {
+            if (Maslow.axisTL.retract()) {
+                retractingTL  = false;
+                axis_homed[0] = true;
+                extendedTL    = false;
+            }
         }
-    }
-    if (retractingTR) {
-        if (Maslow.axisTR.retract()) {
-            retractingTR  = false;
-            axis_homed[1] = true;
-            extendedTR    = false;
+        if (retractingTR) {
+            if (Maslow.axisTR.retract()) {
+                retractingTR  = false;
+                axis_homed[1] = true;
+                extendedTR    = false;
+            }
         }
-    }
-    if (retractingBL) {
-        if (Maslow.axisBL.retract()) {
-            retractingBL  = false;
-            axis_homed[2] = true;
-            extendedBL    = false;
+        if (retractingBL) {
+            if (Maslow.axisBL.retract()) {
+                retractingBL  = false;
+                axis_homed[2] = true;
+                extendedBL    = false;
+            }
         }
-    }
-    if (retractingBR) {
-        if (Maslow.axisBR.retract()) {
-            retractingBR  = false;
-            axis_homed[3] = true;
-            extendedBR    = false;
+        if (retractingBR) {
+            if (Maslow.axisBR.retract()) {
+                retractingBR  = false;
+                axis_homed[3] = true;
+                extendedBR    = false;
+            }
         }
+
+        break;
     }
 
     // $EXT - extend mode
