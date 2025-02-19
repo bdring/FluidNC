@@ -223,6 +223,11 @@ void Calibration::home() {
             }
         }
 
+        //Once the limits are hit switch to the next state
+        if (!retractingTL && !retractingBL && !retractingBR && !retractingTR) {
+            requestStateChange(RETRACTED);
+        }
+
         break;
     }
 
