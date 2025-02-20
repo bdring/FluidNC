@@ -52,4 +52,29 @@ namespace string_util {
         value = std::strtof(s.cbegin(), &end);
         return end == s.cend();
     }
+
+    bool split(std::string_view& input, std::string_view& next, char delim) {
+        auto pos = input.find_first_of(delim);
+        if (pos != std::string_view::npos) {
+            next  = input.substr(pos + 1);
+            input = input.substr(0, pos);
+            return true;
+        }
+        next = "";
+        return false;
+    }
+    bool split_prefix(std::string_view& rest, std::string_view& prefix, char delim) {
+        if (rest.empty()) {
+            return false;
+        }
+        auto pos = rest.find_first_of(delim);
+        if (pos != std::string_view::npos) {
+            prefix = rest.substr(0, pos);
+            rest   = rest.substr(pos + 1);
+        } else {
+            prefix = rest;
+            rest   = "";
+        }
+        return true;
+    }
 }

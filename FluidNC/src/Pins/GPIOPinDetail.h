@@ -28,7 +28,7 @@ namespace Pins {
         // I/O:
         void          write(int high) override;
         int IRAM_ATTR read() override;
-        void          setAttr(PinAttributes value) override;
+        void          setAttr(PinAttributes value, uint32_t frequency) override;
         PinAttributes getAttr() const override;
 
         bool canStep() override { return true; }

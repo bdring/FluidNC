@@ -120,9 +120,11 @@ public:
     void write(bool value) const;
     void synchronousWrite(bool value) const;
 
+    void setDuty(uint32_t duty) const;
+
     inline bool read() const { return _detail->read() != 0; }
 
-    inline void setAttr(Attr attributes) const { _detail->setAttr(attributes); }
+    inline void setAttr(Attr attributes, uint32_t frequency = 0) const { _detail->setAttr(attributes, frequency); }
 
     inline Attr getAttr() const { return _detail->getAttr(); }
 

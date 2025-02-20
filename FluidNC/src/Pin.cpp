@@ -158,6 +158,10 @@ void Pin::report(const char* legend) {
     }
 }
 
+void IRAM_ATTR Pin::setDuty(uint32_t duty) const {
+    _detail->setDuty(duty);
+}
+
 void IRAM_ATTR Pin::write(bool value) const {
     _detail->write(value);
 }
