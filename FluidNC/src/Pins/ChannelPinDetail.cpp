@@ -27,17 +27,25 @@ namespace Pins {
         if (high == _value) {
             return;
         }
-        _value        = high;
+        _value = high;
+#if 0
         std::string s = "io.";
+
         s += std::to_string(_index);
         s += "=";
         s += std::to_string(high);
         _channel->out(s, "SET:");
+#else
+        _channel->write(high ? 0xC5 : 0xC4);
+        _channel->write(0x80 + _index);
+#endif
     }
+    void IRAM_ATTR ChannelPinDetail::setDuty(uint32_t duty) {}
+
     int ChannelPinDetail::read() {
         return _value;
     }
-    void ChannelPinDetail::setAttr(PinAttributes attr) {
+    void ChannelPinDetail::setAttr(PinAttributes attr, uint32_t frequency) {
         _attributes = _attributes | attr;
 
         std::string s = "io.";
@@ -52,16 +60,19 @@ namespace Pins {
         }
 
         if (_attributes.has(Pins::PinAttributes::PullUp)) {
-            s += ":pu";
+            s += ",pu";
         }
         if (_attributes.has(Pins::PinAttributes::PullDown)) {
-            s += ":pd";
+            s += ",pd";
         }
         if (_attributes.has(Pins::PinAttributes::ActiveLow)) {
-            s += ":low";
+            s += ",low";
         }
 
-        _channel->setAttr(_index, _attributes.has(Pins::PinAttributes::Input) ? &this->_value : nullptr, s, "INI:");
+        if (_attributes.has(Pins::PinAttributes::PWM)) {
+        } else {
+            _channel->setAttr(_index, _attributes.has(Pins::PinAttributes::Input) ? &this->_value : nullptr, s, "INI:");
+        }
     }
     PinAttributes ChannelPinDetail::getAttr() const {
         return _attributes;

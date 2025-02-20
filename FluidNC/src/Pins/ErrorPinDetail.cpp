@@ -20,7 +20,7 @@ namespace Pins {
         log_error("Cannot read from pin " << _description.c_str() << ". The config is incorrect.");
         return false;
     }
-    void ErrorPinDetail::setAttr(PinAttributes value) {
+    void ErrorPinDetail::setAttr(PinAttributes value, uint32_t frequency) {
         log_error("Cannot set mode on pin " << _description.c_str() << ". The config is incorrect.");
     }
 
@@ -32,7 +32,7 @@ namespace Pins {
         Assert(false, "Cannot read from an error pin.");
         return false;
     }
-    void ErrorPinDetail::setAttr(PinAttributes value) { /* Fine, this won't get you anywhere. */
+    void ErrorPinDetail::setAttr(PinAttributes value, uint32_t frequency) { /* Fine, this won't get you anywhere. */
     }
 
 #endif

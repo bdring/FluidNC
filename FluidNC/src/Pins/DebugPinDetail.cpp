@@ -26,7 +26,7 @@ namespace Pins {
         }
         return result;
     }
-    void DebugPinDetail::setAttr(PinAttributes value) {
+    void DebugPinDetail::setAttr(PinAttributes value, uint32_t frequency) {
         char buf[10];
         int  n = 0;
         if (value.has(PinAttributes::Input)) {

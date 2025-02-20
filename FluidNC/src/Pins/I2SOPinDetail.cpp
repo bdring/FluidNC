@@ -60,7 +60,7 @@ namespace Pins {
         return (bool)raw ^ _inverted;
     }
 
-    void I2SOPinDetail::setAttr(PinAttributes value) {
+    void I2SOPinDetail::setAttr(PinAttributes value, uint32_t frequency) {
         // The Arduino framework encodes OUTPUT as OUTPUT | INPUT.  We can't do the input part.
         if (value.has(PinAttributes::Output) && value.has(PinAttributes::Input)) {
             value = PinAttributes::Output;

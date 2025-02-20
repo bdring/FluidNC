@@ -26,7 +26,7 @@ namespace Pins {
         // Having a default constructor lets us use PinAttributes with std::map
         PinAttributes() { _value = Undefined; }
 
-        PinAttributes(const PinAttributes&) = default;
+        PinAttributes(const PinAttributes&)            = default;
         PinAttributes& operator=(const PinAttributes&) = default;
 
         // All the capabilities we use and test:
@@ -39,6 +39,10 @@ namespace Pins {
         static PinAttributes PullUp;
         static PinAttributes PullDown;
         static PinAttributes ISR;
+        static PinAttributes PWM;
+        static PinAttributes UART;
+        static PinAttributes ADC;
+        static PinAttributes DAC;
 
         static PinAttributes ActiveLow;
         static PinAttributes Exclusive;

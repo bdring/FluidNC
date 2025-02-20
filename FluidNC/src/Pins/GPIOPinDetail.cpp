@@ -148,7 +148,7 @@ namespace Pins {
         return (bool)raw ^ _inverted;
     }
 
-    void GPIOPinDetail::setAttr(PinAttributes value) {
+    void GPIOPinDetail::setAttr(PinAttributes value, uint32_t frequency) {
         // These two assertions will fail if we do them for index 1/3 (Serial uart). This is because
         // they are initialized by HardwareSerial well before we start our main operations. Best to
         // just ignore them for now, and figure this out later. TODO FIXME!

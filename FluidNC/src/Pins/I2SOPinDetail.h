@@ -25,7 +25,7 @@ namespace Pins {
         void          write(int high) override;
         void          synchronousWrite(int high) override;
         int           read() override;
-        void          setAttr(PinAttributes value) override;
+        void          setAttr(PinAttributes value, uint32_t frequency) override;
         PinAttributes getAttr() const override;
 
         bool canStep() override { return true; }

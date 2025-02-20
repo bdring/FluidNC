@@ -21,7 +21,7 @@ namespace Pins {
         return 0;
     }
     // cppcheck-suppress unusedFunction
-    void VoidPinDetail::setAttr(PinAttributes value) {}
+    void VoidPinDetail::setAttr(PinAttributes value, uint32_t frequency) {}
     // cppcheck-suppress unusedFunction
     PinAttributes VoidPinDetail::getAttr() const {
         return PinAttributes::None;
