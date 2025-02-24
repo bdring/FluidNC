@@ -878,7 +878,7 @@ static Error maslow_set_comply(const char* value, WebUI::AuthenticationLevel aut
         return Error::ConfigurationInvalid;
     }
     sys.set_state(State::Homing);
-    Maslow.calibration.comply();
+    Maslow.calibration.requestStateChange(RELEASE_TENSION);
     return Error::Ok;
 }
 static Error maslow_start_calibration(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
@@ -886,7 +886,7 @@ static Error maslow_start_calibration(const char* value, WebUI::AuthenticationLe
         return Error::ConfigurationInvalid;
     }
     sys.set_state(State::Homing);
-    Maslow.calibration.runCalibration();
+    Maslow.calibration.requestStateChange(CALIBRATION_IN_PROGRESS);
     return Error::Ok;
 }
 
@@ -991,7 +991,7 @@ static Error maslow_takeSlack(const char* value, WebUI::AuthenticationLevel auth
         return Error::ConfigurationInvalid;
     }
     sys.set_state(State::Homing);
-    Maslow.calibration.take_slack();
+    Maslow.calibration.requestStateChange(TAKING_SLACK);
     return Error::Ok;
 }
 

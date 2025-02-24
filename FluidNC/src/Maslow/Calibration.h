@@ -13,6 +13,7 @@
 #define TAKING_SLACK 5
 #define CALIBRATION_IN_PROGRESS 6
 #define READY_TO_CUT 7
+#define RELEASE_TENSION 8
 
 
 class Calibration {
@@ -23,8 +24,6 @@ public:
     // Public method
     void home();
     void  updateCenterXY();
-
-    void   runCalibration();
 
     bool   all_axis_homed();
     bool   allAxisExtended();
@@ -67,7 +66,6 @@ public:
     void hold(unsigned long time);
 
     void setSafety(bool state);
-    void take_slack();
 
     //State machine functions
     int getCurrentState();
