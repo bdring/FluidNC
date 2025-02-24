@@ -24,6 +24,7 @@
 #include "StartupLog.h"           // startupLog
 #include "Driver/fluidnc_gpio.h"  // gpio_dump()
 #include "Maslow/Maslow.h"
+#include "Maslow/Calibration.h"
 
 #include "FluidPath.h"
 
@@ -832,7 +833,7 @@ static Error maslow_retract_ALL(const char* value, WebUI::AuthenticationLevel au
     }
     sys.set_state(State::Homing);
     log_info("Retracting all belts");
-    Maslow.calibration.retractALL();
+    Maslow.calibration.requestStateChange(RETRACTING);
     return Error::Ok;
 }
 static Error maslow_extend_ALL(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
@@ -841,7 +842,7 @@ static Error maslow_extend_ALL(const char* value, WebUI::AuthenticationLevel aut
     }
     sys.set_state(State::Homing);
     log_info("Extending all belts");
-    Maslow.calibration.extendALL();
+    Maslow.calibration.requestStateChange(EXTENDING);
     return Error::Ok;
 }
 static Error maslow_stop(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
@@ -870,12 +871,14 @@ static Error maslow_telemetry_set(const char* value, WebUI::AuthenticationLevel 
     log_info("M4 telmetry set to " << (Maslow.telemetry_enabled ? "on" : "off"));
     return Error::Ok;
 }
+
+//This is used for release tension
 static Error maslow_set_comply(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
     if(Maslow.using_default_config) {
         return Error::ConfigurationInvalid;
     }
     sys.set_state(State::Homing);
-    Maslow.calibration.comply();
+    Maslow.calibration.requestStateChange(RELEASE_TENSION);
     return Error::Ok;
 }
 static Error maslow_start_calibration(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
@@ -883,7 +886,7 @@ static Error maslow_start_calibration(const char* value, WebUI::AuthenticationLe
         return Error::ConfigurationInvalid;
     }
     sys.set_state(State::Homing);
-    Maslow.calibration.runCalibration();
+    Maslow.calibration.requestStateChange(CALIBRATION_IN_PROGRESS);
     return Error::Ok;
 }
 
@@ -988,7 +991,7 @@ static Error maslow_takeSlack(const char* value, WebUI::AuthenticationLevel auth
         return Error::ConfigurationInvalid;
     }
     sys.set_state(State::Homing);
-    Maslow.calibration.take_slack();
+    Maslow.calibration.requestStateChange(TAKING_SLACK);
     return Error::Ok;
 }
 

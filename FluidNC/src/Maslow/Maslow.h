@@ -182,44 +182,17 @@ public:
     MotorUnit axisTR;
     MotorUnit axisBL;
     MotorUnit axisBR;
-    int retractCurrentThreshold = 1300;
-    int calibrationCurrentThreshold = 1300;
-    float acceptableCalibrationThreshold = 0.5;
-    float extendDist = 1700;
 
-    bool axisBLHomed;
-    bool axisBRHomed;
-    bool axisTRHomed;
-    bool axisTLHomed;
-    bool calibrationInProgress;  //Used to turn off regular movements during calibration
     bool readingFromSD = false;  //Used to turn off reading from the encoders when reading from the - i dont think we need this anymore TODO
     bool using_default_config = false;
     QWIICMUX I2CMux;
 
-    //calibration stuff
-
-    int frame_dimention_MIN = 400;
-    int frame_dimention_MAX = 15000;
-
-    float  (*calibrationGrid)[2] = nullptr;
-    float  calibration_grid_width_mm_X               = 2000;  // mm offset from the edge of the frame
-    float  calibration_grid_height_mm_Y              = 1000;  // mm offset from the edge of the frame
-    int    recomputePoints[10];                               // Stores the index of the points where we want to trigger a recompute
-    int    recomputeCountIndex = 0;                           // Stores the index of the recompute point we are currently on
-    int    recomputeCount      = 0;                           // Stores the number of recompute points
-    double calibrationDataWaiting                    = -1;   //-1 if data is not waiting, other wise the milis since the data was last sent
     bool   error                                     = false;
     String errorMessage;
     
     void   test_();
     void   reset_all_axis();
-    bool   test = false;
-    bool   orientation;
-    float  **calibration_data = nullptr;
-    int    pointCount                                 = 0;  //number of actual points in the grid,  < GRID_SIZE_MAX
-    int    waypoint                                   = 0;  //The current waypoint in the calibration process
-    int    calibrationGridSize                        = 9;
-    // //keep track of where Maslow actually is
+    //keep track of where Maslow actually is
     double x;
     double y;
 
@@ -242,6 +215,8 @@ public:
     float centerX;
     float centerY;
 
+    bool   test = false;
+
 private:
 
     //Used to keep track of how often the PID controller is updated
@@ -253,9 +228,6 @@ private:
 
     //Stores a reference to the global system runtime function to be called when blocking operations are needed
     void (*_sys_rt)() = nullptr;
-
-    //How hard to pull the belts when taking a measurement
-    int currentThreshold;
 
     //Used to overide and drive motors directly...dangerous
     bool TLIOveride = false;

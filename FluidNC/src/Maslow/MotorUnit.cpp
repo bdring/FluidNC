@@ -190,7 +190,7 @@ bool MotorUnit::comply() {
 
 // Pulls_tight and zeros axis; returns true when done
 bool MotorUnit::retract() {
-    if (!pull_tight(Maslow.retractCurrentThreshold))
+    if (!pull_tight(Maslow.calibration.retractCurrentThreshold))
         return false;
 
     String encAddrLabel = Maslow.axis_id_to_label(_encoderAddress);

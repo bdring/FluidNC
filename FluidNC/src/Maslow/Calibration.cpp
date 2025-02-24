@@ -1,201 +1,301 @@
 #include "Calibration.h"
 #include "Maslow.h"
 
-//------------------------------------------------------
-//------------------------------------------------------ Homing and calibration functions
-//------------------------------------------------------
+
+
+
+// #define UNKNOWN 0
+// #define RETRACTING 1
+// #define RETRACTED 2
+// #define EXTENDING 3
+// #define EXTENDEDOUT 4 //Extended is a reserved word
+// #define TAKING_SLACK 5
+// #define CALIBRATION_IN_PROGRESS 6
+// #define READY_TO_CUT 7
+// #define RELEASE_TENSION 8
+
+
 
 // Constructor
 Calibration::Calibration() {
-    // Initialization code here
+    currentState = UNKNOWN;
 }
 
-void Calibration::retractALL() {
-
-    retractingTL = true;
-    retractingTR = true;
-    retractingBL = true;
-    retractingBR = true;
-    complyALL    = false;
-    extendingALL = false;
-    Maslow.axisTL.reset();
-    Maslow.axisTR.reset();
-    Maslow.axisBL.reset();
-    Maslow.axisBR.reset();
-    setupIsComplete = false;
+//------------------------------------------------------
+//------------------------------------------------------ State Machine Functions
+//------------------------------------------------------
+int Calibration::getCurrentState(){
+    return currentState;
 }
 
-void Calibration::extendALL() {
 
-    if (!all_axis_homed()) {
-        log_error("Please press Retract All before using Extend All");  //I keep getting everything set up for calibration and then this trips me up
-        sys.set_state(State::Idle);
-        return;
+bool Calibration::requestStateChange(int newState){
+
+    log_info("Requesting state change from " << currentState << " to " << newState);
+
+    switch(newState){
+        case UNKNOWN: //We can enter unknown from any state
+            currentState = UNKNOWN;
+            return true;
+        case RETRACTING: //We can enter retracting from any state
+            currentState = RETRACTING;
+
+            retractingTL = true;
+            retractingTR = true;
+            retractingBL = true;
+            retractingBR = true;
+            complyALL    = false;
+            extendingALL = false;
+            Maslow.axisTL.reset();
+            Maslow.axisTR.reset();
+            Maslow.axisBL.reset();
+            Maslow.axisBR.reset();
+            setupIsComplete = false;
+
+            return true;
+        case RETRACTED: //We can enter retracted from retracting only
+            if(currentState == RETRACTING){
+                currentState = RETRACTED;
+                return true;
+            }
+            else{
+                break;
+            }
+        case EXTENDING: //We can enter extending from retracted only
+            if(currentState == RETRACTED){
+                currentState = EXTENDING;
+                Maslow.stop();
+                extendingALL = true; //This should be replaced by state variables
+
+                updateCenterXY(); //Why is this needed here?
+                return true;
+            }
+            else{
+                break;
+            }
+        case EXTENDEDOUT: //We can enter extended from extending or in the event of a failure from taking slack or release tension
+            if(currentState == EXTENDING || currentState == TAKING_SLACK || currentState == RELEASE_TENSION){
+                currentState = EXTENDEDOUT;
+                return true;
+            }
+            else{
+                break;
+            }
+        case TAKING_SLACK: //We can enter taking slack from extended only
+            if(currentState == EXTENDEDOUT){
+                currentState = TAKING_SLACK;
+
+                retractingTL = false; //Should be replaced by state now
+                retractingTR = false;
+                retractingBL = false;
+                retractingBR = false;
+                extendingALL = false;
+                complyALL    = false;
+
+                Maslow.axisTL.reset();
+                Maslow.axisTR.reset();
+                Maslow.axisBL.reset();
+                Maslow.axisBR.reset();
+            
+                Maslow.x         = 0;
+                Maslow.y         = 0;
+                takeSlack = true;
+            
+                //Alocate the memory to store the measurements in. This is used here because take slack will use the same memory as the calibration
+                allocateCalibrationMemory();
+                return true;
+            }
+            else{
+                break;
+            }
+        case CALIBRATION_IN_PROGRESS: //We can enter calibration in progress from EXTENDEDOUT or READY_TO_CUT
+            if(currentState == EXTENDEDOUT || currentState == READY_TO_CUT){
+                currentState = CALIBRATION_IN_PROGRESS;
+                //If we are at the first point we need to generate the grid before we can start
+                if (waypoint == 0) {
+                    if(!generate_calibration_grid()){ //Fail out if the grid cannot be generated
+                        return false;
+                    }
+                }
+                Maslow.stop();
+
+                //Save the z-axis 'stop' position
+                Maslow.targetZ = 0;
+                Maslow.setZStop();
+
+                //Recalculate the center position because the machine dimensions may have been updated
+                updateCenterXY();
+
+
+                //At this point it's likely that we have just sent the machine new cordinates for the anchor points so we need to figure out our new XY
+                //cordinates by looking at the current lengths of the top two belts.
+                //If we can't load the position, that's OK, we can still go ahead with the calibration and the first point will make a guess for it
+                float x = 0;
+                float y = 0;
+                if(computeXYfromLengths(measurementToXYPlane(Maslow.axisTL.getPosition(), Maslow.tlZ), measurementToXYPlane(Maslow.axisTR.getPosition(), Maslow.trZ), x, y)){
+                    
+                    //We reset the last waypoint to where it actually is so that we can move from the updated position to the next waypoint
+                    if(waypoint > 0){
+                        calibrationGrid[waypoint - 1][0] = x;
+                        calibrationGrid[waypoint - 1][1] = y;
+                    }
+
+                    log_info("Machine Position found as X: " << x << " Y: " << y);
+
+                    //Set the internal machine position to the new XY position
+                    float* mpos = get_mpos();
+                    mpos[0] = x;
+                    mpos[1] = y;
+                    set_motor_steps_from_mpos(mpos);
+                    gc_sync_position();//This updates the Gcode engine with the new position from the stepping engine that we set with set_motor_steps
+                    plan_sync_position();
+                    
+                }
+
+                sys.set_state(State::Homing);
+
+                calibrationInProgress = true; //Should be replaced by state machine
+                return true;
+            }
+            else{
+                break;
+            }
+        case READY_TO_CUT: //We can enter ready to cut from calibration in progress or taking slack
+            if(currentState == CALIBRATION_IN_PROGRESS || currentState == TAKING_SLACK){
+                currentState = READY_TO_CUT;
+                return true;
+            }
+            else{
+                break;
+            }
+        case RELEASE_TENSION: //We can enter release tension only from READY_TO_CUT
+            if(currentState == READY_TO_CUT){
+                currentState = RELEASE_TENSION;
+                complyCallTimer = millis();
+                retractingTL    = false;
+                retractingTR    = false;
+                retractingBL    = false;
+                retractingBR    = false;
+                extendingALL    = false;
+                complyALL       = true;
+                Maslow.axisTL.reset(); //This just resets the thresholds for pull tight
+                Maslow.axisTR.reset();
+                Maslow.axisBL.reset();
+                Maslow.axisBR.reset();
+            }
+            else{
+                break;
+            }
+        default:
+            return false;
     }
 
-    Maslow.stop();
-    extendingALL = true;
-
-    updateCenterXY();
-
-    //extendCallTimer = millis();
-}
-
-/*
-* This function is called once when calibration is started
-*/
-void Calibration::runCalibration() {
-
-    //If we are at the first point we need to generate the grid before we can start
-    if (waypoint == 0) {
-        if(!generate_calibration_grid()){ //Fail out if the grid cannot be generated
-            return;
-        }
-    }
-    Maslow.stop();
-
-    //Save the z-axis 'stop' position
-    Maslow.targetZ = 0;
-    Maslow.setZStop();
-
-    //if not all axis are homed, we can't run calibration, OR if the user hasnt entered width and height?
-    if (!allAxisExtended()) {
-        log_error("Cannot run calibration until all belts are extended fully");
-        sys.set_state(State::Idle);
-        return;
-    }
-
-    //Recalculate the center position because the machine dimensions may have been updated
-    updateCenterXY();
-
-
-    //At this point it's likely that we have just sent the machine new cordinates for the anchor points so we need to figure out our new XY
-    //cordinates by looking at the current lengths of the top two belts.
-    //If we can't load the position, that's OK, we can still go ahead with the calibration and the first point will make a guess for it
-    float x = 0;
-    float y = 0;
-    if(computeXYfromLengths(measurementToXYPlane(Maslow.axisTL.getPosition(), Maslow.tlZ), measurementToXYPlane(Maslow.axisTR.getPosition(), Maslow.trZ), x, y)){
-        
-        //We reset the last waypoint to where it actually is so that we can move from the updated position to the next waypoint
-        if(waypoint > 0){
-            calibrationGrid[waypoint - 1][0] = x;
-            calibrationGrid[waypoint - 1][1] = y;
-        }
-
-        log_info("Machine Position found as X: " << x << " Y: " << y);
-
-        //Set the internal machine position to the new XY position
-        float* mpos = get_mpos();
-        mpos[0] = x;
-        mpos[1] = y;
-        set_motor_steps_from_mpos(mpos);
-        gc_sync_position();//This updates the Gcode engine with the new position from the stepping engine that we set with set_motor_steps
-        plan_sync_position();
-        
-    }
-
-    sys.set_state(State::Homing);
-
-    calibrationInProgress = true;
+    return false;
 }
 
 
 // -Maslow homing loop. This is used whenver any of the homing funcitons are active (belts extending or retracting)
 void Calibration::home() {
-    //run all the retract functions untill we hit the current limit
-    if (retractingTL) {
-        if (Maslow.axisTL.retract()) {
-            retractingTL  = false;
-            axis_homed[0] = true;
-            extendedTL    = false;
-        }
-    }
-    if (retractingTR) {
-        if (Maslow.axisTR.retract()) {
-            retractingTR  = false;
-            axis_homed[1] = true;
-            extendedTR    = false;
-        }
-    }
-    if (retractingBL) {
-        if (Maslow.axisBL.retract()) {
-            retractingBL  = false;
-            axis_homed[2] = true;
-            extendedBL    = false;
-        }
-    }
-    if (retractingBR) {
-        if (Maslow.axisBR.retract()) {
-            retractingBR  = false;
-            axis_homed[3] = true;
-            extendedBR    = false;
-        }
-    }
 
-    // $EXT - extend mode
-    if (extendingALL) {
-        //decompress belts for the first half second
-        if (millis() - extendCallTimer < 700) {
-            if (millis() - extendCallTimer > 0)
-                Maslow.axisBR.decompressBelt();
-            if (millis() - extendCallTimer > 150)
-                Maslow.axisBL.decompressBelt();
-            if (millis() - extendCallTimer > 250)
-                Maslow.axisTR.decompressBelt();
-            if (millis() - extendCallTimer > 350)
-                Maslow.axisTL.decompressBelt();
-        }
-        //then make all the belts comply until they are extended fully, or user terminates it
-        else {
-            if (!extendedTL)
-                extendedTL = Maslow.axisTL.extend(extendDist);
-            if (!extendedTR)
-                extendedTR = Maslow.axisTR.extend(extendDist);
-            if (!extendedBL)
-                extendedBL = Maslow.axisBL.extend(extendDist);
-            if (!extendedBR)
-                extendedBR = Maslow.axisBR.extend(extendDist);
-            if (extendedTL && extendedTR && extendedBL && extendedBR) {
-                extendingALL = false;
-                log_info("All belts extended to " << extendDist << "mm");
+    switch (currentState){
+        case RETRACTING:
+            //run all the retract functions untill we hit the current limit
+            if (retractingTL) {
+                if (Maslow.axisTL.retract()) {
+                    retractingTL  = false;
+                    axis_homed[0] = true;
+                    extendedTL    = false;
+                }
             }
-        }
-    }
-    //  - comply mode
-    if (complyALL) {
-        //decompress belts for the first half second
-        if (millis() - complyCallTimer < 40) {
-            Maslow.axisBR.decompressBelt();
-            Maslow.axisBL.decompressBelt();
-            Maslow.axisTR.decompressBelt();
-            Maslow.axisTL.decompressBelt();
-        } else if(millis() - complyCallTimer < 800){
-            Maslow.axisTL.comply();
-            Maslow.axisTR.comply();
-            Maslow.axisBL.comply();
-            Maslow.axisBR.comply();
-        }
-        else {
-            Maslow.axisTL.stop();
-            Maslow.axisTR.stop();
-            Maslow.axisBL.stop();
-            Maslow.axisBR.stop();
-            complyALL = false;
-            sys.set_state(State::Idle);
-            setupIsComplete = false; //We've undone the setup so apply tension is needed before we can move
-        }
-    }
+            if (retractingTR) {
+                if (Maslow.axisTR.retract()) {
+                    retractingTR  = false;
+                    axis_homed[1] = true;
+                    extendedTR    = false;
+                }
+            }
+            if (retractingBL) {
+                if (Maslow.axisBL.retract()) {
+                    retractingBL  = false;
+                    axis_homed[2] = true;
+                    extendedBL    = false;
+                }
+            }
+            if (retractingBR) {
+                if (Maslow.axisBR.retract()) {
+                    retractingBR  = false;
+                    axis_homed[3] = true;
+                    extendedBR    = false;
+                }
+            }
 
-    // $CAL - calibration mode
-    if (calibrationInProgress) {
-        calibration_loop();
-    }
-    // Runs the take slack sequence
-    if(takeSlack){
-        if (takeSlackFunc()) {
-            takeSlack = false;
-            deallocateCalibrationMemory();
-        }
+            //Once the limits are hit switch to the next state
+            if (!retractingTL && !retractingBL && !retractingBR && !retractingTR) {
+                requestStateChange(RETRACTED);
+            }
+
+            break;
+        case EXTENDING:
+            //decompress belts for the first half second
+            if (millis() - extendCallTimer < 700) {
+                if (millis() - extendCallTimer > 0)
+                    Maslow.axisBR.decompressBelt();
+                if (millis() - extendCallTimer > 150)
+                    Maslow.axisBL.decompressBelt();
+                if (millis() - extendCallTimer > 250)
+                    Maslow.axisTR.decompressBelt();
+                if (millis() - extendCallTimer > 350)
+                    Maslow.axisTL.decompressBelt();
+            }
+            //then make all the belts comply until they are extended fully, or user terminates it
+            else {
+                if (!extendedTL)
+                    extendedTL = Maslow.axisTL.extend(extendDist);
+                if (!extendedTR)
+                    extendedTR = Maslow.axisTR.extend(extendDist);
+                if (!extendedBL)
+                    extendedBL = Maslow.axisBL.extend(extendDist);
+                if (!extendedBR)
+                    extendedBR = Maslow.axisBR.extend(extendDist);
+                if (extendedTL && extendedTR && extendedBL && extendedBR) {
+                    extendingALL = false;
+                    log_info("All belts extended to " << extendDist << "mm");
+                    requestStateChange(EXTENDEDOUT);
+                }
+            }
+            break;
+        case TAKING_SLACK:
+            if (takeSlackFunc()) { //Returns true. Requests correct state transition within function
+                takeSlack = false;
+                deallocateCalibrationMemory();
+            }
+            break;
+        case RELEASE_TENSION:
+            //decompress belts for the first half second
+            if (millis() - complyCallTimer < 40) {
+                Maslow.axisBR.decompressBelt();
+                Maslow.axisBL.decompressBelt();
+                Maslow.axisTR.decompressBelt();
+                Maslow.axisTL.decompressBelt();
+            } else if(millis() - complyCallTimer < 800){
+                Maslow.axisTL.comply();
+                Maslow.axisTR.comply();
+                Maslow.axisBL.comply();
+                Maslow.axisBR.comply();
+            }
+            else {
+                Maslow.axisTL.stop();
+                Maslow.axisTR.stop();
+                Maslow.axisBL.stop();
+                Maslow.axisBR.stop();
+                complyALL = false;
+                sys.set_state(State::Idle);
+                setupIsComplete = false; //We've undone the setup so apply tension is needed before we can move
+            }
+            break;
+        case CALIBRATION_IN_PROGRESS:
+            calibration_loop();
+            break;
     }
 
     handleMotorOverides();
@@ -207,6 +307,11 @@ void Calibration::home() {
     }
 }
 
+//------------------------------------------------------
+//------------------------------------------------------ Homing and calibration functions
+//------------------------------------------------------
+
+
 // --Maslow calibration loop
 void Calibration::calibration_loop() {
     static int  direction             = UP;
@@ -217,6 +322,7 @@ void Calibration::calibration_loop() {
         setupIsComplete       = true;
         log_info("Calibration complete");
         deallocateCalibrationMemory();
+        requestStateChange(READY_TO_CUT);
         return;
     }
     //Taking measurment once we've reached the point
@@ -232,6 +338,7 @@ void Calibration::calibration_loop() {
                 calibrationDataWaiting = millis();
                 sys.set_state(State::Idle);
                 recomputeCountIndex++;
+                requestStateChange(READY_TO_CUT);
             }
             else {
                 hold(250);
@@ -265,9 +372,10 @@ void Calibration::calibration_loop() {
 * It does this by retracting the two lower belts and taking a measurement. The machine's position is then calculated 
 * from the lenghts of the two upper belts. The lengths of the two lower belts are then compared to their expected calculated lengths
 * If the difference is beyond a threshold we know that the stored anchor point locations do not match the real dimensons and and error is thrown
+* Returns true when it is finished regardless of result. Otherwise returns false. 
 */
 bool Calibration::takeSlackFunc() {
-    static int takeSlackState = 0; //0 -> Starting, 1-> Moving to (0,0), 2-> Taking a measurement
+    static int takeSlackState = 0; //0 -> Starting, 1-> Moving to (0,0), 2-> Taking a measurement. Where should this be defined correctly?
     static unsigned long holdTimer = millis();
     static float startingX    = 0;
     static float startingY    = 0;
@@ -298,6 +406,7 @@ bool Calibration::takeSlackFunc() {
 
                 //Reset
                 takeSlackState = 0;
+                requestStateChange(EXTENDEDOUT);
                 return true;
             }
             else{
@@ -316,6 +425,7 @@ bool Calibration::takeSlackFunc() {
                 plan_sync_position();
 
                 sys.set_state(State::Idle);
+                requestStateChange(READY_TO_CUT);
             }
         }
     }
@@ -615,6 +725,7 @@ bool Calibration::take_measurement_avg_with_check(int waypoint, int dir) {
                     waypoint              = 0;
                     criticalCounter       = 0;
                     freeMeasurements();
+                    requestStateChange(EXTENDEDOUT);
                     return false;
                 }
                 freeMeasurements();
@@ -675,6 +786,7 @@ bool Calibration::take_measurement_avg_with_check(int waypoint, int dir) {
                         waypoint              = 0;
                         criticalCounter       = 0;
                         freeMeasurements();
+                        requestStateChange(EXTENDEDOUT);
                         return false;
                     }
                 }
@@ -686,6 +798,7 @@ bool Calibration::take_measurement_avg_with_check(int waypoint, int dir) {
                     waypoint              = 0;
                     criticalCounter       = 0;
                     freeMeasurements();
+                    requestStateChange(EXTENDEDOUT);
                     return false;
                 }
 
@@ -884,32 +997,6 @@ bool Calibration::move_with_slack(double fromX, double fromY, double toX, double
     return false;  //We have not yet reached our target position
 }
 
-
-void Calibration::take_slack() {
-    //if not all axis are homed, we can't take the slack up
-    if (!allAxisExtended()) {
-        log_error("Cannot take slack until all axis are extended fully");
-        sys.set_state(State::Idle);
-        return;
-    }
-    retractingTL = false;
-    retractingTR = false;
-    retractingBL = false;
-    retractingBR = false;
-    extendingALL = false;
-    complyALL    = false;
-    Maslow.axisTL.reset();
-    Maslow.axisTR.reset();
-    Maslow.axisBL.reset();
-    Maslow.axisBR.reset();
-
-    Maslow.x         = 0;
-    Maslow.y         = 0;
-    takeSlack = true;
-
-    //Alocate the memory to store the measurements in. This is used here because take slack will use the same memory as the calibration
-    allocateCalibrationMemory();
-}
 
 
 
