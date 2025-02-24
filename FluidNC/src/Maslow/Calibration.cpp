@@ -33,7 +33,6 @@ bool Calibration::requestStateChange(int newState){
 
     log_info("Requesting state change from " << currentState << " to " << newState);
 
-    //I think that this is backwards, we should be switching based on the new state and only enter if it's OK to do so. Then we can reset some state variables there too.
     switch(newState){
         case UNKNOWN: //We can enter unknown from any state
             currentState = UNKNOWN;
