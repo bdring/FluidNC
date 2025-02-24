@@ -842,7 +842,7 @@ static Error maslow_extend_ALL(const char* value, WebUI::AuthenticationLevel aut
     }
     sys.set_state(State::Homing);
     log_info("Extending all belts");
-    Maslow.calibration.extendALL();
+    Maslow.calibration.requestStateChange(EXTENDING);
     return Error::Ok;
 }
 static Error maslow_stop(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
@@ -871,6 +871,8 @@ static Error maslow_telemetry_set(const char* value, WebUI::AuthenticationLevel 
     log_info("M4 telmetry set to " << (Maslow.telemetry_enabled ? "on" : "off"));
     return Error::Ok;
 }
+
+//This is used for release tension
 static Error maslow_set_comply(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
     if(Maslow.using_default_config) {
         return Error::ConfigurationInvalid;

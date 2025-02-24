@@ -8,7 +8,7 @@
 // #define RETRACTING 1
 // #define RETRACTED 2
 // #define EXTENDING 3
-// #define EXTENDED 4
+// #define EXTENDEDOUT 4 //Extended is a reserved word
 // #define TAKING_SLACK 5
 // #define CALIBRATION_IN_PROGRESS 6
 // #define READY_TO_CUT 7
@@ -64,6 +64,10 @@ bool Calibration::requestStateChange(int newState){
         case EXTENDING: //We can enter extending from retracted only
             if(currentState == RETRACTED){
                 currentState = EXTENDING;
+                Maslow.stop();
+                extendingALL = true; //This should be replaced by state variables
+
+                updateCenterXY(); //Why is this needed here?
                 return true;
             }
             else{
@@ -108,25 +112,126 @@ bool Calibration::requestStateChange(int newState){
     return false;
 }
 
+// -Maslow homing loop. This is used whenver any of the homing funcitons are active (belts extending or retracting)
+void Calibration::home() {
+
+    switch (currentState){
+        case RETRACTING:
+            //run all the retract functions untill we hit the current limit
+            if (retractingTL) {
+                if (Maslow.axisTL.retract()) {
+                    retractingTL  = false;
+                    axis_homed[0] = true;
+                    extendedTL    = false;
+                }
+            }
+            if (retractingTR) {
+                if (Maslow.axisTR.retract()) {
+                    retractingTR  = false;
+                    axis_homed[1] = true;
+                    extendedTR    = false;
+                }
+            }
+            if (retractingBL) {
+                if (Maslow.axisBL.retract()) {
+                    retractingBL  = false;
+                    axis_homed[2] = true;
+                    extendedBL    = false;
+                }
+            }
+            if (retractingBR) {
+                if (Maslow.axisBR.retract()) {
+                    retractingBR  = false;
+                    axis_homed[3] = true;
+                    extendedBR    = false;
+                }
+            }
+
+            //Once the limits are hit switch to the next state
+            if (!retractingTL && !retractingBL && !retractingBR && !retractingTR) {
+                requestStateChange(RETRACTED);
+            }
+
+            break;
+        case EXTENDING:
+            //decompress belts for the first half second
+            if (millis() - extendCallTimer < 700) {
+                if (millis() - extendCallTimer > 0)
+                    Maslow.axisBR.decompressBelt();
+                if (millis() - extendCallTimer > 150)
+                    Maslow.axisBL.decompressBelt();
+                if (millis() - extendCallTimer > 250)
+                    Maslow.axisTR.decompressBelt();
+                if (millis() - extendCallTimer > 350)
+                    Maslow.axisTL.decompressBelt();
+            }
+            //then make all the belts comply until they are extended fully, or user terminates it
+            else {
+                if (!extendedTL)
+                    extendedTL = Maslow.axisTL.extend(extendDist);
+                if (!extendedTR)
+                    extendedTR = Maslow.axisTR.extend(extendDist);
+                if (!extendedBL)
+                    extendedBL = Maslow.axisBL.extend(extendDist);
+                if (!extendedBR)
+                    extendedBR = Maslow.axisBR.extend(extendDist);
+                if (extendedTL && extendedTR && extendedBL && extendedBR) {
+                    extendingALL = false;
+                    log_info("All belts extended to " << extendDist << "mm");
+                }
+            }
+            break;
+    }
+
+    //  - comply mode...used exclusively for release tension
+    if (complyALL) {
+        //decompress belts for the first half second
+        if (millis() - complyCallTimer < 40) {
+            Maslow.axisBR.decompressBelt();
+            Maslow.axisBL.decompressBelt();
+            Maslow.axisTR.decompressBelt();
+            Maslow.axisTL.decompressBelt();
+        } else if(millis() - complyCallTimer < 800){
+            Maslow.axisTL.comply();
+            Maslow.axisTR.comply();
+            Maslow.axisBL.comply();
+            Maslow.axisBR.comply();
+        }
+        else {
+            Maslow.axisTL.stop();
+            Maslow.axisTR.stop();
+            Maslow.axisBL.stop();
+            Maslow.axisBR.stop();
+            complyALL = false;
+            sys.set_state(State::Idle);
+            setupIsComplete = false; //We've undone the setup so apply tension is needed before we can move
+        }
+    }
+
+    // $CAL - calibration mode
+    if (calibrationInProgress) {
+        calibration_loop();
+    }
+    // Runs the take slack sequence
+    if(takeSlack){
+        if (takeSlackFunc()) {
+            takeSlack = false;
+            deallocateCalibrationMemory();
+        }
+    }
+
+    handleMotorOverides();
+
+    //if we are done with all the homing moves, switch system state back to Idle?
+    if (!retractingTL && !retractingBL && !retractingBR && !retractingTR && !extendingALL && !complyALL && !calibrationInProgress &&
+        !takeSlack && !checkOverides()) {
+        sys.set_state(State::Idle);
+    }
+}
+
 //------------------------------------------------------
 //------------------------------------------------------ Homing and calibration functions
 //------------------------------------------------------
-
-void Calibration::extendALL() {
-
-    if (!all_axis_homed()) {
-        log_error("Please press Retract All before using Extend All");  //I keep getting everything set up for calibration and then this trips me up
-        sys.set_state(State::Idle);
-        return;
-    }
-
-    Maslow.stop();
-    extendingALL = true;
-
-    updateCenterXY();
-
-    //extendCallTimer = millis();
-}
 
 /*
 * This function is called once when calibration is started
@@ -187,124 +292,7 @@ void Calibration::runCalibration() {
 }
 
 
-// -Maslow homing loop. This is used whenver any of the homing funcitons are active (belts extending or retracting)
-void Calibration::home() {
 
-
-    switch (currentState){
-        case RETRACTING:
-        //run all the retract functions untill we hit the current limit
-        if (retractingTL) {
-            if (Maslow.axisTL.retract()) {
-                retractingTL  = false;
-                axis_homed[0] = true;
-                extendedTL    = false;
-            }
-        }
-        if (retractingTR) {
-            if (Maslow.axisTR.retract()) {
-                retractingTR  = false;
-                axis_homed[1] = true;
-                extendedTR    = false;
-            }
-        }
-        if (retractingBL) {
-            if (Maslow.axisBL.retract()) {
-                retractingBL  = false;
-                axis_homed[2] = true;
-                extendedBL    = false;
-            }
-        }
-        if (retractingBR) {
-            if (Maslow.axisBR.retract()) {
-                retractingBR  = false;
-                axis_homed[3] = true;
-                extendedBR    = false;
-            }
-        }
-
-        //Once the limits are hit switch to the next state
-        if (!retractingTL && !retractingBL && !retractingBR && !retractingTR) {
-            requestStateChange(RETRACTED);
-        }
-
-        break;
-    }
-
-    // $EXT - extend mode
-    if (extendingALL) {
-        //decompress belts for the first half second
-        if (millis() - extendCallTimer < 700) {
-            if (millis() - extendCallTimer > 0)
-                Maslow.axisBR.decompressBelt();
-            if (millis() - extendCallTimer > 150)
-                Maslow.axisBL.decompressBelt();
-            if (millis() - extendCallTimer > 250)
-                Maslow.axisTR.decompressBelt();
-            if (millis() - extendCallTimer > 350)
-                Maslow.axisTL.decompressBelt();
-        }
-        //then make all the belts comply until they are extended fully, or user terminates it
-        else {
-            if (!extendedTL)
-                extendedTL = Maslow.axisTL.extend(extendDist);
-            if (!extendedTR)
-                extendedTR = Maslow.axisTR.extend(extendDist);
-            if (!extendedBL)
-                extendedBL = Maslow.axisBL.extend(extendDist);
-            if (!extendedBR)
-                extendedBR = Maslow.axisBR.extend(extendDist);
-            if (extendedTL && extendedTR && extendedBL && extendedBR) {
-                extendingALL = false;
-                log_info("All belts extended to " << extendDist << "mm");
-            }
-        }
-    }
-    //  - comply mode
-    if (complyALL) {
-        //decompress belts for the first half second
-        if (millis() - complyCallTimer < 40) {
-            Maslow.axisBR.decompressBelt();
-            Maslow.axisBL.decompressBelt();
-            Maslow.axisTR.decompressBelt();
-            Maslow.axisTL.decompressBelt();
-        } else if(millis() - complyCallTimer < 800){
-            Maslow.axisTL.comply();
-            Maslow.axisTR.comply();
-            Maslow.axisBL.comply();
-            Maslow.axisBR.comply();
-        }
-        else {
-            Maslow.axisTL.stop();
-            Maslow.axisTR.stop();
-            Maslow.axisBL.stop();
-            Maslow.axisBR.stop();
-            complyALL = false;
-            sys.set_state(State::Idle);
-            setupIsComplete = false; //We've undone the setup so apply tension is needed before we can move
-        }
-    }
-
-    // $CAL - calibration mode
-    if (calibrationInProgress) {
-        calibration_loop();
-    }
-    // Runs the take slack sequence
-    if(takeSlack){
-        if (takeSlackFunc()) {
-            takeSlack = false;
-            deallocateCalibrationMemory();
-        }
-    }
-
-    handleMotorOverides();
-
-    //if we are done with all the homing moves, switch system state back to Idle?
-    if (!retractingTL && !retractingBL && !retractingBR && !retractingTR && !extendingALL && !complyALL && !calibrationInProgress &&
-        !takeSlack && !checkOverides()) {
-        sys.set_state(State::Idle);
-    }
-}
 
 // --Maslow calibration loop
 void Calibration::calibration_loop() {

@@ -62,7 +62,6 @@ public:
     void allocateCalibrationMemory();
     void deallocateCalibrationMemory();
 
-    void extendALL();
     void comply();
 
     void hold(unsigned long time);
@@ -120,7 +119,7 @@ private:
     bool extendedTR                  = false;
     bool extendedBL                  = false;
     bool extendedBR                  = false;
-    bool extendingALL                = false;
+    bool extendingALL                = false;  //This is replaced by the state machine. Delete
     bool complyALL                   = false;
     bool setupIsComplete             = false; //This should be replaced by the state machine
 
