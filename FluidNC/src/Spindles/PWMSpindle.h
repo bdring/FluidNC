@@ -9,12 +9,10 @@
 */
 
 #include "OnOffSpindle.h"
-#include "Driver/PwmPin.h"
 
 #include <cstdint>
 
 namespace Spindles {
-    // This adds support for PWM
     class PWM : public OnOff {
     public:
         PWM(const char* name) : OnOff(name) {}
@@ -57,7 +55,6 @@ namespace Spindles {
 
     protected:
         uint32_t _current_pwm_duty = 0;
-        PwmPin*  _pwm              = nullptr;
 
         // Configurable
         uint32_t _pwm_freq = 5000;

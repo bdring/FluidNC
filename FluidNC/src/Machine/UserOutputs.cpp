@@ -30,9 +30,9 @@ namespace Machine {
             uint8_t resolution_bits;
             Pin&    pin = _analogOutput[i];
             if (pin.defined()) {
-                _pwm[i] = new PwmPin(pin, _analogFrequency[i]);
-                _pwm[i]->setDuty(0);
-                log_info("User Analog Output: " << i << " on Pin:" << pin.name() << " Freq:" << _pwm[i]->frequency() << "Hz");
+                pin.setAttr(Pin::Attr::PWM, _analogFrequency[i]);
+                pin.setDuty(0);
+                log_info("User Analog Output: " << i << " on Pin:" << pin.name() << " Freq:" << _analogFrequency[i] << "Hz");
             }
         }
     }
@@ -63,13 +63,9 @@ namespace Machine {
             return percent == 0.0;
         }
 
-        auto pwm = _pwm[io_num];
-        if (!pwm) {
-            log_error("M67 PWM channel error");
-            return false;
-        }
-
-        uint32_t duty = uint32_t(percent * pwm->period() / 100.0f);
+        // The 0.5 rounds to the nearest duty unit
+        uint32_t duty = uint32_t(((percent * pin.maxDuty()) / 100.0f) + 0.5);
+        printf("analog percent %f maxduty %d duty %d\n", percent, pin.maxDuty(), duty);
 
         if (_current_value[io_num] == duty) {
             return true;
@@ -77,7 +73,7 @@ namespace Machine {
 
         _current_value[io_num] = duty;
 
-        pwm->setDuty(duty);
+        pin.setDuty(duty);
 
         return true;
     }

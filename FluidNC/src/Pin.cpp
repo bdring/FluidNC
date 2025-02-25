@@ -158,18 +158,6 @@ void Pin::report(const char* legend) {
     }
 }
 
-void IRAM_ATTR Pin::setDuty(uint32_t duty) const {
-    _detail->setDuty(duty);
-}
-
-void IRAM_ATTR Pin::write(bool value) const {
-    _detail->write(value);
-}
-
-void IRAM_ATTR Pin::synchronousWrite(bool value) const {
-    _detail->synchronousWrite(value);
-}
-
 Pin::~Pin() {
     if (_detail != undefinedPin && _detail != errorPin) {
         delete _detail;
