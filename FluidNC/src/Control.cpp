@@ -43,9 +43,9 @@ std::string Control::report_status() {
 }
 
 bool Control::pins_block_unlock() {
-    std::string blockers("FE"); // Fault, E-Stop block unlock and homing
+    std::string blockers("FE");  // Fault, E-Stop block unlock and homing
     for (auto pin : _pins) {
-        if (pin->get()  && blockers.find(pin->letter()) != std::string::npos) {
+        if (pin->get() && blockers.find(pin->letter()) != std::string::npos) {
             return true;
         }
     }
@@ -65,8 +65,11 @@ bool Control::startup_check() {
     bool ret = false;
     for (auto pin : _pins) {
         if (pin->get()) {
-            log_error(pin->legend() << " is active at startup");
-            ret = true;
+            delay_ms(1000);
+            if (pin->get()) {
+                log_error(pin->legend() << " is active at startup");
+                ret = true;
+            }
         }
     }
     return ret;

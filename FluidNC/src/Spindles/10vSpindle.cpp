@@ -14,9 +14,8 @@
 
 #include "10vSpindle.h"
 
-#include "Driver/PwmPin.h"  // pwmInit(), etc.
-#include "../System.h"      // sys.spindle_speed
-#include "../GCode.h"       // gc_state.modal
+#include "../System.h"  // sys.spindle_speed
+#include "../GCode.h"   // gc_state.modal
 
 namespace Spindles {
     void _10v::init() {
@@ -26,7 +25,7 @@ namespace Spindles {
             return;  // We cannot continue without the output pin
         }
 
-        _pwm = new PwmPin(_output_pin, _pwm_freq);  // allocate and setup a PWM channel
+        _output_pin.setAttr(Pin::Attr::PWM, _pwm_freq);
 
         _enable_pin.setAttr(Pin::Attr::Output);
         _direction_pin.setAttr(Pin::Attr::Output);
@@ -43,7 +42,7 @@ namespace Spindles {
         // We set the dev_speed scale in the speed map to the full PWM period (64K)
         // Then, in set_output, we map the dev_speed range of 0..64K to the pulse
         // length range of ~1ms .. 2ms
-        setupSpeeds(_pwm->period());
+        setupSpeeds(_output_pin.maxDuty());
 
         stop();
 
@@ -56,8 +55,8 @@ namespace Spindles {
     // prints the startup message of the spindle config
     void _10v::config_message() {
         log_info(name() << " Spindle Ena:" << _enable_pin.name() << " Out:" << _output_pin.name() << " Dir:" << _direction_pin.name()
-                        << " Fwd:" << _forward_pin.name() << " Rev:" << _reverse_pin.name() << " Freq:" << _pwm->frequency()
-                        << "Hz Period:" << _pwm->period() << atc_info());
+                        << " Fwd:" << _forward_pin.name() << " Rev:" << _reverse_pin.name() << " Freq:" << _pwm_freq
+                        << "Hz Period:" << _output_pin.maxDuty() << atc_info());
     }
 
     // This appears identical to the code in PWMSpindle.cpp but
@@ -93,10 +92,6 @@ namespace Spindles {
         _direction_pin.setAttr(Pin::Attr::Input);
         _forward_pin.setAttr(Pin::Attr::Input);
         _reverse_pin.setAttr(Pin::Attr::Input);
-        if (_pwm) {
-            delete _pwm;
-            _pwm = nullptr;
-        }
         _output_pin.setAttr(Pin::Attr::Input);
     }
 

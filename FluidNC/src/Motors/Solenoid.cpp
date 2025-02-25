@@ -52,11 +52,12 @@ namespace MotorDrivers {
 
         _axis_index = axis_index();
 
-        _pwm = new PwmPin(_output_pin, _pwm_freq);  // Allocate a channel
+        _output_pin.setAttr(Pin::Attr::PWM, _pwm_freq);
 
-        pwm_cnt[SolenoidMode::Off]  = uint32_t(_off_percent / 100.0f * _pwm->period());
-        pwm_cnt[SolenoidMode::Pull] = uint32_t(_pull_percent / 100.0f * _pwm->period());
-        pwm_cnt[SolenoidMode::Hold] = uint32_t(_hold_percent / 100.0f * _pwm->period());
+        auto max_duty               = _output_pin.maxDuty();
+        pwm_cnt[SolenoidMode::Off]  = uint32_t(_off_percent * max_duty / 100.0f);
+        pwm_cnt[SolenoidMode::Pull] = uint32_t(_pull_percent * max_duty / 100.0f);
+        pwm_cnt[SolenoidMode::Hold] = uint32_t(_hold_percent * max_duty / 100.0f);
 
         config_message();
 
@@ -71,7 +72,7 @@ namespace MotorDrivers {
 
     void Solenoid::config_message() {
         log_info("    " << name() << " Pin: " << _output_pin.name() << " Off: " << _off_percent << " Hold: " << _hold_percent << " Pull:"
-                        << _pull_percent << " Duration:" << _pull_ms << " pwm hz:" << _pwm->frequency() << " period:" << _pwm->frequency());
+                        << _pull_percent << " Duration:" << _pull_ms << " pwm hz:" << _pwm_freq << " period:" << _output_pin.maxDuty());
     }
 
     void Solenoid::set_location() {

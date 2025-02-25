@@ -386,3 +386,10 @@ bool Channel::is_visible(const std::string& stem, std::string extension, bool is
     }
     return false;
 }
+
+void Channel::writeUTF8(uint32_t code) {
+    auto v = _utf8.encode(code);
+    for (auto const& b : v) {
+        write(b);
+    }
+}

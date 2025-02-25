@@ -33,17 +33,17 @@ class Channel : public Stream {
 private:
     void pin_event(uint32_t pinnum, bool active);
 
-    static constexpr int PinLowFirst  = 0x100;
-    static constexpr int PinLowLast   = 0x13f;
-    static constexpr int PinHighFirst = 0x140;
-    static constexpr int PinHighLast  = 0x17f;
-
     static constexpr int PinACK = 0xB2;
     static constexpr int PinNAK = 0xB3;
 
     static constexpr int timeout = 2000;
 
 public:
+    static constexpr int PinLowFirst  = 0x100;
+    static constexpr int PinLowLast   = 0x13f;
+    static constexpr int PinHighFirst = 0x140;
+    static constexpr int PinHighLast  = 0x17f;
+
     static constexpr int maxLine = 255;
 
     int _message_level = MsgLevelVerbose;
@@ -144,6 +144,8 @@ public:
     size_t timedReadBytes(uint8_t* buffer, size_t length, TickType_t timeout) {
         return timedReadBytes(reinterpret_cast<char*>(buffer), length, timeout);
     }
+
+    void writeUTF8(uint32_t code);
 
     bool setCr(bool on) {
         bool retval = _addCR;
