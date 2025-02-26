@@ -53,8 +53,8 @@ namespace Spindles {
             void afterParse() override;
             void group(Configuration::HandlerBase& handler) override {
                 handler.item("model", _model);
-                handler.item("min_RPM", _minRPM, 0xffffffff);
-                handler.item("max_RPM", _maxRPM, 0xffffffff);
+                handler.item("min_RPM", _minRPM);
+                handler.item("max_RPM", _maxRPM);
                 handler.item("cw_cmd", _cw_cmd);
                 handler.item("ccw_cmd", _ccw_cmd);
                 handler.item("off_cmd", _off_cmd);
