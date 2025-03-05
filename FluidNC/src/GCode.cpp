@@ -1709,7 +1709,7 @@ Error gc_execute_line(char* line) {
         }
     }
     if ((gc_block.modal.io_control == IoControl::SetAnalogSync) || (gc_block.modal.io_control == IoControl::SetAnalogImmediate)) {
-        if (gc_block.values.e < MaxUserDigitalPin) {
+        if (gc_block.values.e < MaxUserAnalogPin) {
             if (gc_block.values.q < 0.0f) {
                 gc_block.values.q = 0.0f;
             } else if (gc_block.values.q > 100.0f) {
