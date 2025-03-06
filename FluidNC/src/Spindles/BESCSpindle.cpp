@@ -58,6 +58,7 @@ namespace Spindles {
         stop();
         init_atc();
         config_message();
+        set_besc_duty(0);
     }
 
     void IRAM_ATTR BESC::set_output(uint32_t duty) {
@@ -77,10 +78,14 @@ namespace Spindles {
         // represents full on.  Typically the off value is a 1ms pulse length and the
         // full on value is a 2ms pulse.
         // uint32_t pulse_counts = _min_pulse_counts + (_pulse_span_counts * (uint64_t) duty)/_pwm->period();
-        _pwm->setDuty(_min_pulse_counts + (_pulse_span_counts * (uint64_t)duty) / _pwm->period());
+        set_besc_duty(duty);       
         // _pwm->setDuty(_min_pulse_counts+duty); // More efficient by keeping math within 32bits??
         // log_info(name() << " duty:" << duty << " _min_pulse_counts:" << _min_pulse_counts
         //                 << " _pulse_span_counts:" << _pulse_span_counts << " pulse_counts" << pulse_counts);
+    }
+
+    void BESC::set_besc_duty(uint32_t duty) {
+        _pwm->setDuty(_min_pulse_counts + (_pulse_span_counts * (uint64_t)duty) / _pwm->period());
     }
 
     // prints the startup message of the spindle config
