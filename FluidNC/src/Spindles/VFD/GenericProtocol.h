@@ -12,7 +12,6 @@ namespace Spindles {
     namespace VFD {
         class GenericProtocol : public VFDProtocol, Configuration::Configurable {
         private:
-            bool split(std::string_view& input, std::string_view& token, const char* delims);
             void scale(uint32_t& n, std::string_view scale_str, uint32_t maxRPM);
             bool set_data(std::string_view token, std::basic_string_view<uint8_t>& response_view, const char* name, uint32_t& data);
 

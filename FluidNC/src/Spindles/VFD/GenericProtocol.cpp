@@ -10,21 +10,6 @@
 
 namespace Spindles {
     namespace VFD {
-        bool GenericProtocol::split(std::string_view& input, std::string_view& token, const char* delims) {
-            if (input.size() == 0) {
-                return false;
-            }
-            auto pos = input.find_first_of(delims);
-            if (pos != std::string_view::npos) {
-                token = input.substr(0, pos);
-                input = input.substr(pos + 1);
-            } else {
-                token = input;
-                input = "";
-            }
-            return true;
-        }
-
         void GenericProtocol::scale(uint32_t& n, std::string_view scale_str, uint32_t maxRPM) {
             int32_t divider = 1;
             if (scale_str.empty()) {
@@ -38,7 +23,7 @@ namespace Spindles {
             if (scale_str[0] == '*') {
                 std::string_view numerator_str;
                 scale_str = scale_str.substr(1);
-                split(scale_str, numerator_str, "/");
+                string_util::split_prefix(scale_str, numerator_str, '/');
                 uint32_t numerator;
                 if (string_util::from_decimal(numerator_str, numerator)) {
                     n *= numerator;
@@ -87,7 +72,7 @@ namespace Spindles {
 
             std::string_view token;
             std::string_view format(_response_format);
-            while (split(format, token, " ")) {
+            while (string_util::split_prefix(format, token, ' ')) {
                 uint8_t val;
                 if (token == "") {
                     // Ignore repeated blanks
@@ -134,11 +119,11 @@ namespace Spindles {
 
             std::string_view out_view;
             std::string_view in_view(cmd);
-            split(in_view, out_view, ">");
+            string_util::split_prefix(in_view, out_view, ' ');
             _response_format = in_view;  // Remember the response format for the parser
 
             std::string_view token;
-            while (data.tx_length < (VFD_RS485_MAX_MSG_SIZE - 3) && split(out_view, token, " ")) {
+            while (data.tx_length < (VFD_RS485_MAX_MSG_SIZE - 3) && string_util::split_prefix(out_view, token, ' ')) {
                 if (token == "") {
                     // Ignore repeated blanks
                     continue;
@@ -155,7 +140,7 @@ namespace Spindles {
                     return;
                 }
             }
-            while (data.rx_length < (VFD_RS485_MAX_MSG_SIZE - 3) && split(in_view, token, " ")) {
+            while (data.rx_length < (VFD_RS485_MAX_MSG_SIZE - 3) && string_util::split_prefix(in_view, token, ' ')) {
                 if (token == "") {
                     // Ignore repeated spaces
                     continue;

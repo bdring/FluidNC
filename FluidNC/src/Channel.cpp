@@ -159,12 +159,17 @@ void Channel::pin_event(uint32_t pinnum, bool active) {
 }
 
 void Channel::handleRealtimeCharacter(uint8_t ch) {
-    uint32_t cmd;
+    uint32_t cmd = 0;
 
+    if ((ch & 0xf8) == 0xf8) {
+        // 0xf8-0xff are not valid UTF-8 byte but can appear under some
+        // glitch conditions.
+        return;
+    }
     int res = _utf8.decode(ch, cmd);
     if (res == -1) {
         // This can be caused by line noise on an unpowered pendant
-        log_debug("UTF8 decoding error");
+        log_debug("UTF8 decoding error " << to_hex(ch) << " " << to_hex(cmd));
         _active = false;
         return;
     }

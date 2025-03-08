@@ -765,12 +765,30 @@ static Error showGPIOs(const char* value, AuthenticationLevel auth_level, Channe
 #include "UartTypes.h"
 
 static Error uartPassthrough(const char* value, AuthenticationLevel auth_level, Channel& out) {
-    Uart* downstream_uart = nullptr;
-    int   uart_num;
-    if (!value) {
-        value = "auto";
+    int         timeout = 2000;
+    std::string uart_name("auto");
+    int         uart_num;
+
+    if (value) {
+        std::string_view rest(value);
+        std::string_view first;
+        while (string_util::split_prefix(rest, first, ',')) {
+            if (string_util::equal_ignore_case(first, "auto")) {
+                uart_name = "auto";
+            } else if (!first.empty() && string_util::tolower(first.back()) == 's') {
+                first.remove_suffix(1);
+                if (!string_util::is_int(first, timeout)) {
+                    log_error_to(out, "Invalid timeout number");
+                    return Error::InvalidValue;
+                }
+                timeout *= 1000;
+            } else {
+                uart_name = first;
+            }
+        }
     }
-    if (strcasecmp(value, "auto") == 0) {
+    Uart* downstream_uart = nullptr;
+    if (uart_name == "auto") {
         // Find a UART device with a non-empty passthrough_baud config item
         for (uart_num = 1; uart_num < MAX_N_UARTS; ++uart_num) {
             downstream_uart = config->_uarts[uart_num];
@@ -789,9 +807,9 @@ static Error uartPassthrough(const char* value, AuthenticationLevel auth_level, 
         for (uart_num = 1; uart_num < MAX_N_UARTS; ++uart_num) {
             downstream_uart = config->_uarts[uart_num];
             if (downstream_uart) {
-                if (downstream_uart->name() == value) {
+                if (downstream_uart->name() == uart_name) {
                     if (downstream_uart->_passthrough_baud == 0) {
-                        log_error_to(out, value << " does not have passthrough_baud configured");
+                        log_error_to(out, uart_name << " does not have passthrough_baud configured");
                         return Error::InvalidValue;
                     } else {
                         break;
@@ -800,7 +818,7 @@ static Error uartPassthrough(const char* value, AuthenticationLevel auth_level, 
             }
         }
         if (uart_num == MAX_N_UARTS) {
-            log_error_to(out, value << " does not exist");
+            log_error_to(out, uart_name << " does not exist");
             return Error::InvalidValue;
         }
     }
@@ -830,7 +848,6 @@ static Error uartPassthrough(const char* value, AuthenticationLevel auth_level, 
     size_t    downstream_len;
 
     TickType_t last_ticks = xTaskGetTickCount();
-    int        timeout    = 2000;
 
     while (xTaskGetTickCount() - last_ticks < timeout) {
         size_t len;
