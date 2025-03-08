@@ -266,7 +266,7 @@ void mc_arc(float*            target,
 
 // Execute dwell in seconds.
 bool mc_dwell(int32_t milliseconds) {
-    if (milliseconds <= 0 || state_is(State::CheckMode)) {
+    if (milliseconds < 0 || state_is(State::CheckMode)) {
         return false;
     }
     protocol_buffer_synchronize();
