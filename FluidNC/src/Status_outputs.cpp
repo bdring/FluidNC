@@ -33,7 +33,7 @@ void Status_Outputs::init() {
 
     log_info("Status outputs"
              << " Interval:" << _report_interval_ms << " Idle:" << _Idle_pin.name() << " Cycle:" << _Run_pin.name()
-             << " Hold:" << _Hold_pin.name() << " Alarm:" << _Alarm_pin.name()) << "Door:" << _Door_pin.name();
+             << " Hold:" << _Hold_pin.name() << " Alarm:" << _Alarm_pin.name()<< "Door:" << _Door_pin.name()) ;
 
     allChannels.registration(this);
     setReportInterval(_report_interval_ms);
