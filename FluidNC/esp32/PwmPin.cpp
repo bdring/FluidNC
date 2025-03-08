@@ -71,7 +71,7 @@ static uint8_t calc_pwm_precision(uint32_t frequency) {
     return ledcMaxBits;
 }
 
-PwmPin::PwmPin(const Pin& pin, uint32_t frequency) : _frequency(frequency) {
+PwmPin::PwmPin(int gpio, bool invert, uint32_t frequency) : _gpio(gpio), _frequency(frequency) {
     uint8_t bits       = calc_pwm_precision(frequency);
     _period            = (1 << bits) - 1;
     _channel           = allocateChannel();
@@ -89,10 +89,6 @@ PwmPin::PwmPin(const Pin& pin, uint32_t frequency) : _frequency(frequency) {
         throw -1;
     }
 
-    _gpio = pin.getNative(Pin::Capabilities::PWM);
-
-    bool isActiveLow = pin.getAttr().has(Pin::Attr::ActiveLow);
-
     ledc_channel_config_t ledc_channel = { .gpio_num   = _gpio,
                                            .speed_mode = ledc_mode_t(group),
                                            .channel    = ledc_channel_t(_channel),
@@ -100,7 +96,7 @@ PwmPin::PwmPin(const Pin& pin, uint32_t frequency) : _frequency(frequency) {
                                            .timer_sel  = timer,
                                            .duty       = 0,
                                            .hpoint     = 0,
-                                           .flags      = { .output_invert = isActiveLow } };
+                                           .flags      = { .output_invert = invert } };
     if (ledc_channel_config(&ledc_channel) != ESP_OK) {
         log_error("ledc channel setup failed");
         throw -1;

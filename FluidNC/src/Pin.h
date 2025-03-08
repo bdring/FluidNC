@@ -117,12 +117,15 @@ public:
     inline int  index() { return _detail->_index; }
     inline bool inverted() { return _detail->_inverted; }
 
-    void write(bool value) const;
-    void synchronousWrite(bool value) const;
+    inline void write(bool value) const { _detail->write(value); };
+    inline void synchronousWrite(bool value) const { _detail->synchronousWrite(value); };
+
+    inline void     setDuty(uint32_t duty) const { _detail->setDuty(duty); }
+    inline uint32_t maxDuty() const { return _detail->maxDuty(); }
 
     inline bool read() const { return _detail->read() != 0; }
 
-    inline void setAttr(Attr attributes) const { _detail->setAttr(attributes); }
+    inline void setAttr(Attr attributes, uint32_t frequency = 0) const { _detail->setAttr(attributes, frequency); }
 
     inline Attr getAttr() const { return _detail->getAttr(); }
 

@@ -23,8 +23,10 @@ namespace Pins {
         // I/O:
         void          write(int high) override;
         int           read() override;
-        void          setAttr(PinAttributes value) override;
+        void          setAttr(PinAttributes value, uint32_t frequency = 0) override;
         PinAttributes getAttr() const override;
+        void          setDuty(uint32_t duty) override;
+        uint32_t      maxDuty() override;
 
         void registerEvent(EventPin* obj) override;
 

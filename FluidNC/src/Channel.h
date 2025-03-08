@@ -33,17 +33,17 @@ class Channel : public Stream {
 private:
     void pin_event(uint32_t pinnum, bool active);
 
-    static constexpr int PinLowFirst  = 0x100;
-    static constexpr int PinLowLast   = 0x13f;
-    static constexpr int PinHighFirst = 0x140;
-    static constexpr int PinHighLast  = 0x17f;
-
     static constexpr int PinACK = 0xB2;
     static constexpr int PinNAK = 0xB3;
 
     static constexpr int timeout = 2000;
 
 public:
+    static constexpr int PinLowFirst  = 0x100;
+    static constexpr int PinLowLast   = 0x13f;
+    static constexpr int PinHighFirst = 0x140;
+    static constexpr int PinHighLast  = 0x17f;
+
     static constexpr int maxLine = 255;
 
     int _message_level = MsgLevelVerbose;
@@ -86,11 +86,12 @@ protected:
 
 protected:
     bool _active = true;
+    bool _paused = false;
 
 public:
-    explicit Channel(const std::string& name, bool addCR = false) : _name(name), _linelen(0), _addCR(addCR) {}
-    explicit Channel(const char* name, bool addCR = false) : _name(name), _linelen(0), _addCR(addCR) {}
-    Channel(const char* name, int num, bool addCR = false) : _name(name) { _name += std::to_string(num), _linelen = 0, _addCR = addCR; }
+    explicit Channel(const std::string& name, bool addCR = false);
+    explicit Channel(const char* name, bool addCR = false);
+    Channel(const char* name, int num, bool addCR = false);
     virtual ~Channel() = default;
 
     bool _ackwait = false;
@@ -143,6 +144,8 @@ public:
     size_t timedReadBytes(uint8_t* buffer, size_t length, TickType_t timeout) {
         return timedReadBytes(reinterpret_cast<char*>(buffer), length, timeout);
     }
+
+    void writeUTF8(uint32_t code);
 
     bool setCr(bool on) {
         bool retval = _addCR;
@@ -199,4 +202,7 @@ public:
     virtual void   restore() {}
     virtual size_t position() { return 0; }
     virtual void   set_position(size_t pos) {}
+
+    void pause();
+    void resume();
 };

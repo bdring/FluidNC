@@ -148,7 +148,7 @@ namespace Pins {
         return (bool)raw ^ _inverted;
     }
 
-    void GPIOPinDetail::setAttr(PinAttributes value) {
+    void GPIOPinDetail::setAttr(PinAttributes value, uint32_t frequency) {
         // These two assertions will fail if we do them for index 1/3 (Serial uart). This is because
         // they are initialized by HardwareSerial well before we start our main operations. Best to
         // just ignore them for now, and figure this out later. TODO FIXME!
@@ -163,6 +163,12 @@ namespace Pins {
 
         _attributes = _attributes | value;
 
+        if (value.has(PinAttributes::PWM)) {
+            _pwm = new PwmPin(_index, _attributes.has(PinAttributes::ActiveLow), frequency);
+            // _pwm->setDuty(0);  // Unnecessary since new PwmPins start at 0 duty
+            return;
+        }
+
         // If the pin is ActiveLow, we should take that into account here:
         if (value.has(PinAttributes::Output)) {
             gpio_write(_index, int(value.has(PinAttributes::InitialOn)) ^ _inverted);
@@ -174,6 +180,10 @@ namespace Pins {
                   _attributes.has(PinAttributes::PullUp),
                   _attributes.has(PinAttributes::PullDown),
                   false);  // We do not have an OpenDrain attribute yet
+    }
+
+    void IRAM_ATTR GPIOPinDetail::setDuty(uint32_t duty) {
+        _pwm->setDuty(duty);
     }
 
     // This is a callback from the low-level GPIO driver that is invoked after

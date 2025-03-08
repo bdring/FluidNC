@@ -5,10 +5,11 @@
 #include "src/Settings.h"
 #include "src/WebUI/Authentication.h"
 #include "src/Configuration/JsonGenerator.h"
-#include "src/InputFile.h"  // InputFile
-#include "src/Job.h"        // Job::
-#include "src/xmodem.h"     // xmodemReceive(), xmodemTransmit()
-#include "src/Protocol.h"   // pollingPaused
+#include "src/InputFile.h"    // InputFile
+#include "src/Job.h"          // Job::
+#include "src/xmodem.h"       // xmodemReceive(), xmodemTransmit()
+#include "src/Protocol.h"     // pollingPaused
+#include "src/string_util.h"  // split_prefix()
 
 #include "src/HashFS.h"
 
@@ -79,17 +80,6 @@ static Error showFile(const char* fs, const char* parameter, AuthenticationLevel
     return Error::Ok;
 }
 
-static bool split(std::string_view input, std::string_view& next, char delim) {
-    auto pos = input.find_first_of(delim);
-    if (pos != std::string_view::npos) {
-        next  = input.substr(pos + 1);
-        input = input.substr(0, pos);
-        return true;
-    }
-    next = "";
-    return false;
-}
-
 static Error showSDFile(const char* parameter, AuthenticationLevel auth_level, Channel& out) {  // ESP221
     return showFile("sd", parameter, auth_level, out);
 }
@@ -112,9 +102,10 @@ static Error fileShowSome(const char* parameter, AuthenticationLevel auth_level,
     int firstline = 0;
     int lastline  = 0;
 
-    std::string_view filename;
-    split(args, filename, ',');
-    if (filename.empty() || args.empty()) {
+    std::string_view line_range;
+    // Syntax: firstline:lastline,filename  or lastline,filename
+    string_util::split_prefix(args, line_range, ',');
+    if (line_range.empty() || args.empty()) {
         log_error_to(out, "Invalid syntax");
         return Error::InvalidValue;
     }
@@ -122,28 +113,33 @@ static Error fileShowSome(const char* parameter, AuthenticationLevel auth_level,
     // Args is the list of lines to display
     // N means the first N lines
     // N:M means lines N through M inclusive
-    if (!*parameter) {
+    if (line_range.empty()) {
         log_error_to(out, "Missing line count");
         return Error::InvalidValue;
     }
     JSONencoder j(true, &out);  // Encapsulated JSON
 
-    std::string_view second;
-    split(args, second, ':');
-    if (second.empty()) {
+    std::string_view first;
+    string_util::split_prefix(line_range, first, ':');
+    if (line_range.empty()) {
         firstline = 0;
-        std::from_chars(args.data(), args.data() + args.length(), lastline);
+        std::from_chars(first.data(), first.data() + first.length(), lastline);
     } else {
-        std::from_chars(args.data(), args.data() + args.length(), firstline);
-        std::from_chars(second.data(), second.data() + second.length(), lastline);
+        std::from_chars(first.data(), first.data() + first.length(), firstline);
+        std::from_chars(line_range.data(), line_range.data() + line_range.length(), lastline);
     }
+    if (lastline < firstline) {
+        log_error_to(out, "Last line is less than first line");
+        return Error::InvalidValue;
+    }
+
     const char* error = "";
     j.begin();
     j.begin_array("file_lines");
 
     InputFile*  theFile;
     Error       err;
-    std::string fn(filename);
+    std::string fn(args);
     if ((err = openFile(sdName, fn.c_str(), out, theFile)) != Error::Ok) {
         error = "Cannot open file";
     } else {

@@ -4,6 +4,7 @@
 #pragma once
 
 #include "PinDetail.h"
+#include "Driver/PwmPin.h"
 
 namespace Pins {
     class GPIOPinDetail : public PinDetail {
@@ -17,6 +18,7 @@ namespace Pins {
         bool _lastWrittenValue = false;
 
         static void gpioAction(int, void*, int);
+        PwmPin*     _pwm;
 
     public:
         static const int nGPIOPins = 40;
@@ -28,8 +30,11 @@ namespace Pins {
         // I/O:
         void          write(int high) override;
         int IRAM_ATTR read() override;
-        void          setAttr(PinAttributes value) override;
+        void          setAttr(PinAttributes value, uint32_t frequency) override;
         PinAttributes getAttr() const override;
+
+        void     setDuty(uint32_t duty) override;
+        uint32_t maxDuty() override { return _pwm->period(); };
 
         bool canStep() override { return true; }
 

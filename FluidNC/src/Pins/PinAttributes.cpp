@@ -18,7 +18,13 @@ namespace Pins {
     PinAttributes PinAttributes::Output(1 << (__LINE__ - START_LINE));
     PinAttributes PinAttributes::PullUp(1 << (__LINE__ - START_LINE));
     PinAttributes PinAttributes::PullDown(1 << (__LINE__ - START_LINE));
-    PinAttributes PinAttributes::ISR(1 << (__LINE__ - START_LINE));     // ^        These are capabilities mapped
+    PinAttributes PinAttributes::ISR(1 << (__LINE__ - START_LINE));  // ^        These are capabilities mapped
+
+    PinAttributes PinAttributes::PWM(1 << (__LINE__ - START_LINE));
+    PinAttributes PinAttributes::UART(1 << (__LINE__ - START_LINE));
+    PinAttributes PinAttributes::ADC(1 << (__LINE__ - START_LINE));
+    PinAttributes PinAttributes::DAC(1 << (__LINE__ - START_LINE));
+
     const int     capabilityMask = (1 << (__LINE__ - START_LINE)) - 1;  // -------- Mask capabilities till here
     PinAttributes PinAttributes::ActiveLow(1 << (__LINE__ - START_LINE));
     PinAttributes PinAttributes::Exclusive(1 << (__LINE__ - START_LINE));  // \/       These are attributes

@@ -24,8 +24,6 @@
 #include "RcServoSettings.h"
 
 namespace MotorDrivers {
-    // RcServo::RcServo(Pin pwm_pin) : Servo(), _pwm_pin(pwm_pin) {}
-
     void RcServo::init() {
         if (_output_pin.undefined()) {
             log_config_error("    RC Servo disabled: No output pin");
@@ -35,7 +33,7 @@ namespace MotorDrivers {
 
         _axis_index = axis_index();
 
-        _pwm = new PwmPin(_output_pin, _pwm_freq);  // Allocate a channel
+        _output_pin.setAttr(Pin::Attr::PWM, _pwm_freq);
 
         _current_pwm_duty = 0;
 
@@ -50,7 +48,7 @@ namespace MotorDrivers {
 
     void RcServo::config_message() {
         log_info("    " << name() << " Pin:" << _output_pin.name() << " Pulse Len(" << _min_pulse_us << "," << _max_pulse_us
-                        << " period:" << _pwm->period() << ")");
+                        << " period:" << _output_pin.maxDuty() << ")");
     }
 
     void RcServo::_write_pwm(uint32_t duty) {
@@ -60,7 +58,7 @@ namespace MotorDrivers {
         }
 
         _current_pwm_duty = duty;
-        _pwm->setDuty(duty);
+        _output_pin.setDuty(duty);
     }
 
     // sets the PWM to zero. This allows most servos to be manually moved
@@ -123,8 +121,10 @@ namespace MotorDrivers {
     }
 
     void RcServo::read_settings() {
-        _min_pulse_cnt = (_min_pulse_us * ((_pwm_freq * _pwm->period()) / 1000)) / 1000;  // play some math games to prevent overflowing 32 bit
-        _max_pulse_cnt = (_max_pulse_us * ((_pwm_freq * _pwm->period()) / 1000)) / 1000;
+        uint32_t pulse_counts_per_ms = _pwm_freq * _output_pin.maxDuty() / 1000;
+
+        _min_pulse_cnt = _min_pulse_us * pulse_counts_per_ms / 1000;
+        _max_pulse_cnt = _max_pulse_us * pulse_counts_per_ms / 1000;
     }
 
     // Configuration registration

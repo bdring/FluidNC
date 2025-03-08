@@ -91,7 +91,7 @@ std::vector<uint8_t> UTF8::encode(const uint32_t value) {
         // In this case, the returned vector will be empty
         return output;
     }
-    if (value >= 0x100000) {
+    if (value >= 0x10000) {
         output.push_back(0xf0 | ((value >> 18) & 0x07));
         output.push_back(0x80 | ((value >> 12) & 0x3f));
         output.push_back(0x80 | ((value >> 6) & 0x3f));

@@ -7,7 +7,6 @@
 */
 
 #include "LaserSpindle.h"
-#include "Driver/PwmPin.h"  // pwmInit(), etc.
 
 #include "../Machine/MachineConfig.h"
 
@@ -19,8 +18,8 @@ namespace Spindles {
     }
 
     void Laser::config_message() {
-        log_info(name() << " Ena:" << _enable_pin.name() << " Out:" << _output_pin.name() << " Freq:" << _pwm->frequency()
-                        << "Hz Period:" << _pwm->period() << atc_info());
+        log_info(name() << " Ena:" << _enable_pin.name() << " Out:" << _output_pin.name() << " Freq:" << _pwm_freq
+                        << "Hz Period:" << _output_pin.maxDuty() << atc_info());
     }
 
     void Laser::init() {

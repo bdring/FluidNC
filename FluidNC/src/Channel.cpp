@@ -11,6 +11,22 @@
 #include <string_view>
 #include <algorithm>
 
+Channel::Channel(const std::string& name, bool addCR) : _name(name), _linelen(0), _addCR(addCR) {}
+Channel::Channel(const char* name, bool addCR) : _name(name), _linelen(0), _addCR(addCR) {}
+Channel::Channel(const char* name, int num, bool addCR) : _name(name) {
+    _name += std::to_string(num);
+    _linelen = 0;
+    _addCR   = addCR;
+}
+
+void Channel::pause() {
+    _paused = true;
+}
+
+void Channel::resume() {
+    _paused = false;
+}
+
 void Channel::flushRx() {
     _linelen   = 0;
     _lastWasCR = false;
@@ -143,12 +159,17 @@ void Channel::pin_event(uint32_t pinnum, bool active) {
 }
 
 void Channel::handleRealtimeCharacter(uint8_t ch) {
-    uint32_t cmd;
+    uint32_t cmd = 0;
 
+    if ((ch & 0xf8) == 0xf8) {
+        // 0xf8-0xff are not valid UTF-8 byte but can appear under some
+        // glitch conditions.
+        return;
+    }
     int res = _utf8.decode(ch, cmd);
     if (res == -1) {
         // This can be caused by line noise on an unpowered pendant
-        log_debug("UTF8 decoding error");
+        log_debug("UTF8 decoding error " << to_hex(ch) << " " << to_hex(cmd));
         _active = false;
         return;
     }
@@ -190,6 +211,9 @@ void Channel::push(uint8_t byte) {
 }
 
 Error Channel::pollLine(char* line) {
+    if (_paused) {
+        return Error::Ok;
+    }
     handle();
     while (1) {
         int ch = -1;
@@ -361,4 +385,11 @@ bool Channel::is_visible(const std::string& stem, std::string extension, bool is
         extensions.remove_prefix(next_pos + 1);
     }
     return false;
+}
+
+void Channel::writeUTF8(uint32_t code) {
+    auto v = _utf8.encode(code);
+    for (auto const& b : v) {
+        write(b);
+    }
 }
