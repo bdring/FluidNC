@@ -9,6 +9,7 @@ class Status_Outputs : public Channel, public ConfigurableModule {
     Pin _Run_pin;
     Pin _Hold_pin;
     Pin _Alarm_pin;
+    Pin _Door_pin;
 
 public:
 private:
@@ -50,5 +51,6 @@ public:
         handler.item("run_pin", _Run_pin);
         handler.item("hold_pin", _Hold_pin);
         handler.item("alarm_pin", _Alarm_pin);
+        handler.item("door_pin", _Door_pin);
     }
 };

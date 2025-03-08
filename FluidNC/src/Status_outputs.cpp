@@ -26,9 +26,14 @@ void Status_Outputs::init() {
         _Alarm_pin.setAttr(Pin::Attr::Output);
     }
 
+    if(_Door_pin.defined())
+    {
+        _Door_pin.setAttr(Pin::Attr::Output);
+    }
+
     log_info("Status outputs"
              << " Interval:" << _report_interval_ms << " Idle:" << _Idle_pin.name() << " Cycle:" << _Run_pin.name()
-             << " Hold:" << _Hold_pin.name() << " Alarm:" << _Alarm_pin.name());
+             << " Hold:" << _Hold_pin.name() << " Alarm:" << _Alarm_pin.name()<< "Door:" << _Door_pin.name()) ;
 
     allChannels.registration(this);
     setReportInterval(_report_interval_ms);
@@ -74,6 +79,7 @@ void Status_Outputs::parse_status_report() {
     _Run_pin.write(_state == "Run");
     _Hold_pin.write(_state.substr(0, 4) == "Hold");
     _Alarm_pin.write(_state == "Alarm");
+    _Door_pin.write(_state.substr(0,4) == "Door");
 }
 
 // Configuration registration
