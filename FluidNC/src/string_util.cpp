@@ -1,5 +1,6 @@
 #include "string_util.h"
 #include <cstdlib>
+#include <cctype>
 
 namespace string_util {
     char tolower(char c) {
@@ -53,27 +54,46 @@ namespace string_util {
         return end == s.cend();
     }
 
-    bool split(std::string_view& input, std::string_view& next, char delim) {
-        auto pos = input.find_first_of(delim);
-        if (pos != std::string_view::npos) {
-            next  = input.substr(pos + 1);
-            input = input.substr(0, pos);
+    bool from_xdigit(char c, uint8_t& value) {
+        if (isdigit(c)) {
+            value = c - '0';
             return true;
         }
-        next = "";
+        c = tolower(c);
+        if (c >= 'a' && c <= 'f') {
+            value = 10 + c - 'a';
+            return true;
+        }
         return false;
     }
-    bool split_prefix(std::string_view& rest, std::string_view& prefix, char delim) {
-        if (rest.empty()) {
+
+    bool from_hex(std::string_view str, uint8_t& value) {
+        value = 0;
+        if (str.size() == 0 || str.size() > 2) {
             return false;
         }
-        auto pos = rest.find_first_of(delim);
-        if (pos != std::string_view::npos) {
-            prefix = rest.substr(0, pos);
-            rest   = rest.substr(pos + 1);
-        } else {
-            prefix = rest;
-            rest   = "";
+        uint8_t x;
+        while (str.size()) {
+            value <<= 4;
+            if (!from_xdigit(str[0], x)) {
+                return false;
+            }
+            value += x;
+            str = str.substr(1);
+        }
+        return true;
+    }
+    bool from_decimal(std::string_view str, uint32_t& value) {
+        value = 0;
+        if (str.size() == 0) {
+            return false;
+        }
+        while (str.size()) {
+            if (!isdigit(str[0])) {
+                return false;
+            }
+            value = value * 10 + str[0] - '0';
+            str   = str.substr(1);
         }
         return true;
     }

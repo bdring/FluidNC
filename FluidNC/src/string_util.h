@@ -12,6 +12,7 @@ namespace string_util {
     bool is_int(std::string_view s, int32_t& value);
     bool is_uint(std::string_view s, uint32_t& value);
     bool is_float(std::string_view s, float& value);
-    bool split(std::string_view& input, std::string_view& next, char delim);
-    bool split_prefix(std::string_view& rest, std::string_view& prefix, char delim);
+    bool from_xdigit(char c, uint8_t& value);
+    bool from_hex(std::string_view str, uint8_t& value);
+    bool from_decimal(std::string_view str, uint32_t& value);
 }
