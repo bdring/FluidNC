@@ -184,6 +184,7 @@ void Channel::handleRealtimeCharacter(uint8_t ch) {
         return;
     }
     if (cmd == PinNAK) {
+        log_verbose("NAK");
         _ackwait = -1;
         return;
     }
@@ -248,7 +249,6 @@ bool Channel::setAttr(int index, bool* value, const std::string& attrString, con
     if (value) {
         _pin_values[index] = value;
     }
-    // out_acked(attrString, tag);
     out(attrString, tag);
     _ackwait = 1;
     for (int i = 0; i < 20; i++) {

@@ -27,7 +27,10 @@ void UartChannel::init(Uart* uart) {
     } else {
         log_info("uart_channel" << _uart_num << " created");
     }
-    log_msg_to(*this, "RST");
+    // Tell the channel listener that FluidNC has restarted.
+    // The initial newline clears out any garbage characters that might have
+    // resulted from the UART initialization and turn-on
+    print("\n[MSG:RST]\n");
 }
 
 size_t UartChannel::write(uint8_t c) {

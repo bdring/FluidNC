@@ -42,7 +42,7 @@ namespace Pins {
 #endif
     }
     uint32_t ChannelPinDetail::maxDuty() {
-        return 999;
+        return 1000;
     }
     void IRAM_ATTR ChannelPinDetail::setDuty(uint32_t duty) {
         _channel->writeUTF8(0x10000 + (_index << 10) + duty);
