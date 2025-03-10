@@ -65,8 +65,6 @@ namespace Machine {
 
         // The 0.5 rounds to the nearest duty unit
         uint32_t duty = uint32_t(((percent * pin.maxDuty()) / 100.0f) + 0.5);
-        printf("analog percent %f maxduty %d duty %d\n", percent, pin.maxDuty(), duty);
-
         if (_current_value[io_num] == duty) {
             return true;
         }

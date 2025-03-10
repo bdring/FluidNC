@@ -45,7 +45,6 @@ namespace Pins {
         return 999;
     }
     void IRAM_ATTR ChannelPinDetail::setDuty(uint32_t duty) {
-        printf("pwm index %d duty %d cmd %x\n", _index, duty, 0x10000 + (_index << 10) + duty);
         _channel->writeUTF8(0x10000 + (_index << 10) + duty);
     }
 
