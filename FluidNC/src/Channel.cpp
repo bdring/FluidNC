@@ -180,14 +180,11 @@ void Channel::handleRealtimeCharacter(uint8_t ch) {
 
     _active = true;
     if (cmd == PinACK) {
-        // log_debug("ACK");
-        _ackwait = false;
+        _ackwait = 0;
         return;
     }
     if (cmd == PinNAK) {
-        log_error("Channel device rejected config");
-        // log_debug("NAK");
-        _ackwait = false;
+        _ackwait = -1;
         return;
     }
 
@@ -247,11 +244,23 @@ Error Channel::pollLine(char* line) {
     return Error::NoData;
 }
 
-void Channel::setAttr(int index, bool* value, const std::string& attrString, const char* tag) {
+bool Channel::setAttr(int index, bool* value, const std::string& attrString, const char* tag) {
     if (value) {
         _pin_values[index] = value;
     }
-    out_acked(attrString, tag);
+    // out_acked(attrString, tag);
+    out(attrString, tag);
+    _ackwait = 1;
+    for (int i = 0; i < 20; i++) {
+        pollLine(nullptr);
+        if (_ackwait < 1) {
+            return _ackwait == 0;
+        }
+        delay_us(100);
+    }
+    _ackwait = 0;
+    log_error("IO Expander is unresponsive");
+    return false;
 }
 
 void Channel::out(const char* s, const char* tag) {

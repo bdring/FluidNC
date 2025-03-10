@@ -94,7 +94,7 @@ public:
     Channel(const char* name, int num, bool addCR = false);
     virtual ~Channel() = default;
 
-    bool _ackwait = false;
+    int _ackwait = 0;  // 1 - waiting, 0 - ACKed, -1 - NAKed
 
     virtual void       handle() {};
     virtual Error      pollLine(char* line);
@@ -191,7 +191,7 @@ public:
     virtual void out(const std::string& s, const char* tag);
     virtual void out_acked(const std::string& s, const char* tag);
 
-    void setAttr(int index, bool* valuep, const std::string& s, const char* tag);
+    bool setAttr(int index, bool* valuep, const std::string& s, const char* tag);
 
     void ready();
     void registerEvent(uint8_t code, EventPin* obj);

@@ -79,7 +79,10 @@ namespace Pins {
         }
 
         // The second parameter is used to maintain a list of pin values in the Channel
-        _channel->setAttr(_index, _attributes.has(Pins::PinAttributes::Input) ? &this->_value : nullptr, s, "INI:");
+        Assert(_channel->setAttr(_index, _attributes.has(Pins::PinAttributes::Input) ? &this->_value : nullptr, s, "INI:"),
+               "Expander pin configuration failed: %s %s",
+               _channel->name().c_str(),
+               s.c_str());
     }
     PinAttributes ChannelPinDetail::getAttr() const {
         return _attributes;
