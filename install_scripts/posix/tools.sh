@@ -95,6 +95,6 @@ install() {
     fi
     esptool_write $Bootloader $Bootapp $Firmware $Partitions
 
-    echo Starting fluidterm
-    run_fluidterm
+    # echo Starting fluidterm
+    # run_fluidterm
 }
