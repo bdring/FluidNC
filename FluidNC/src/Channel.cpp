@@ -188,7 +188,11 @@ void Channel::handleRealtimeCharacter(uint8_t ch) {
         _ackwait = -1;
         return;
     }
-
+    if (cmd == PinRST) {
+        _ackwait = -1;
+        send_alarm(ExecAlarm::ExpanderReset);
+        return;
+    }
     if (cmd >= PinLowFirst && cmd < PinLowLast) {
         pin_event(cmd - PinLowFirst, false);
         return;

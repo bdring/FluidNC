@@ -68,6 +68,7 @@ enum class ExecAlarm : uint8_t {
     HardStop              = 13,
     Unhomed               = 14,
     Init                  = 15,
+    ExpanderReset         = 16,
 };
 
 extern volatile ExecAlarm lastAlarm;

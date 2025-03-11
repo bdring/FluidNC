@@ -35,6 +35,7 @@ private:
 
     static constexpr int PinACK = 0xB2;
     static constexpr int PinNAK = 0xB3;
+    static constexpr int PinRST = 0xB4;
 
     static constexpr int timeout = 2000;
 
