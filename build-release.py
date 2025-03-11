@@ -154,6 +154,9 @@ for platform in ['win64', 'posix']:
             # E.g. posix/fluidterm.sh -> fluidterm.sh
             copyToZip(zipObj, platform, script + scriptExtension[platform], zipDirName)
 
+        if platform == 'posix':
+            copyToZip(zipObj, platform, 'full-install.command', zipDirName)
+
         # Put the fluidterm code in the archive
         for obj in ['fluidterm.py', 'README-FluidTerm.md']:
             fn = os.path.join('fluidterm', obj)
