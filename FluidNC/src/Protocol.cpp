@@ -468,7 +468,13 @@ static void protocol_do_alarm(void* alarmVoid) {
     // It is important to do set_state() before alarm_msg() because the
     // latter can cause a task switch that can introduce a race condition
     // whereby polling_loop() does not see the state change.
-    if (lastAlarm == ExecAlarm::HardLimit || lastAlarm == ExecAlarm::HardStop || lastAlarm == ExecAlarm::ExpanderReset) {
+    if (lastAlarm == ExecAlarm::ExpanderReset) {
+        set_state(State::Critical);  // Set system alarm state
+        alarm_msg(lastAlarm);
+        report_error_message(Message::MustReboot);
+        return;
+    }
+    if (lastAlarm == ExecAlarm::HardLimit || lastAlarm == ExecAlarm::HardStop) {
         protocol_disable_steppers();
         Homing::set_all_axes_unhomed();
         set_state(State::Critical);  // Set system alarm state
