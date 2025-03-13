@@ -1135,6 +1135,7 @@ const NoArgEvent startEvent { protocol_do_start };
 const NoArgEvent restartEvent { protocol_do_soft_restart };
 const NoArgEvent fullResetEvent { restart };
 const NoArgEvent runStartupLinesEvent { protocol_run_startup_lines };
+const NoArgEvent homingButtonEvent { protocol_initiate_homing_cycle };
 
 const NoArgEvent rtResetEvent { protocol_do_rt_reset };
 
