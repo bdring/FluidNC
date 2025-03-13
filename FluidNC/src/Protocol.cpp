@@ -391,6 +391,10 @@ static void protocol_run_startup_lines() {
     config->_macros->_startup_line1.run(&allChannels);
 }
 
+static void protocol_do_start_homing(){
+    Machine::Homing::run_cycles(Machine::Homing::AllCycles);
+}
+
 static void protocol_do_soft_restart() {
     // Reset primary systems.
     system_reset();
@@ -1135,7 +1139,7 @@ const NoArgEvent startEvent { protocol_do_start };
 const NoArgEvent restartEvent { protocol_do_soft_restart };
 const NoArgEvent fullResetEvent { restart };
 const NoArgEvent runStartupLinesEvent { protocol_run_startup_lines };
-const NoArgEvent homingButtonEvent { protocol_initiate_homing_cycle };
+const NoArgEvent homingButtonEvent { protocol_do_start_homing };
 
 const NoArgEvent rtResetEvent { protocol_do_rt_reset };
 
