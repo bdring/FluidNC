@@ -1,6 +1,7 @@
 // Copyright (c) 2020 -	Bart Dring
 // Copyright (c) 2020 -	Stefan de Bruijn
 // Copyright (c) 2022 -	Peter Newbery
+// Copyright (c) 2025 - Raphael Mack
 // Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
 
 /*
@@ -170,6 +171,9 @@ namespace Spindles {
         }
 
         VFDProtocol::response_parser SiemensV20Protocol::initialization_sequence(int index, ModbusCommand& data, VFDSpindle* vfd) {
+            if (index != -1) {
+                return nullptr;
+            }
             // NOTE: data length is excluding the CRC16 checksum.
             data.tx_length = 6;
             data.rx_length = 5;
