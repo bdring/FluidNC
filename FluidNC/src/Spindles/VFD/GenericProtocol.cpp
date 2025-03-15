@@ -119,7 +119,7 @@ namespace Spindles {
 
             std::string_view out_view;
             std::string_view in_view(cmd);
-            string_util::split_prefix(in_view, out_view, ' ');
+            string_util::split_prefix(in_view, out_view, '>');
             _response_format = in_view;  // Remember the response format for the parser
 
             std::string_view token;
