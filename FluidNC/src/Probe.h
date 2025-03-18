@@ -8,13 +8,25 @@
 #include "Configuration/Configurable.h"
 
 #include <cstdint>
-class ProbeEventPin;
 
 class Probe : public Configuration::Configurable {
     // Inverts the probe pin state depending on user settings and probing cycle mode.
     bool _away = false;
-    ProbeEventPin* _probeEventPin;
-    ProbeEventPin* _toolsetterEventPin;
+
+    class ProbeEventPin : public EventPin {
+    public:
+        ProbeEventPin(const char* legend);
+
+        // Differs from the base class version by sending the event on either edge
+        void trigger(bool active) override {
+            update(active);
+            protocol_send_event(_event, this);
+            report_recompute_pin_string();
+        }
+    };
+
+    ProbeEventPin _probeEventPin;
+    ProbeEventPin _toolsetterEventPin;
 
 public:
     bool _hard_stop = false;
@@ -24,14 +36,11 @@ public:
     // during check mode. false sets the position to the probe target,
     // true sets the position to the start position.
 
-    Probe() = default;
+    Probe() : _probeEventPin("Probe"), _toolsetterEventPin("Toolsetter") {}
 
     // Configurable
-    Pin _probePin;
-    Pin _toolsetterPin;
+    bool exists() { return _probeEventPin.defined() || _toolsetterEventPin.defined(); }
 
-    bool exists() const { return _probePin.defined() || _toolsetterPin.defined(); }
-    // Probe pin initialization routine.
     void init();
 
     // setup probing direction G38.2 vs. G38.4

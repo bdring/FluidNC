@@ -23,16 +23,14 @@ Ideas:
 
 namespace Spindles {
 
+    //    PlasmaSpindle::ArcOkEventPin PlasmaSpindle::_arcOkEventPin(this);
+
     void PlasmaSpindle::init() {
-        if (_arc_ok_pin.defined()) {
-            _arcOkEventPin = new ArcOkEventPin("ArcOK", _arc_ok_pin, this);
-            _arcOkEventPin->init();
-        }
+        _arcOkEventPin.init();
 
         _arc_on = false;
 
         _enable_pin.setAttr(Pin::Attr::Output);
-        _arc_ok_pin.setAttr(Pin::Attr::Input);
 
         if (_speeds.size() == 0) {
             // The default speed map for an On/Off spindle is off - 0% -
@@ -47,7 +45,8 @@ namespace Spindles {
 
     // prints the startup message of the spindle config
     void PlasmaSpindle ::config_message() {
-        log_info(name() << " Ena:" << _enable_pin.name() << " Arc OK:" << _arc_ok_pin.name() << atc_info());
+        //        log_info(name() << " Ena:" << _enable_pin.name() << " Arc OK:" << _arcOkEventPin.pin().name() << atc_info());
+        log_info(name() << " Ena:" << _enable_pin.name() << " Arc OK:" << _arcOkEventPin.name() << atc_info());
     }
 
     void PlasmaSpindle::setState(SpindleState state, SpindleSpeed speed) {
@@ -64,7 +63,7 @@ namespace Spindles {
 
         } else {
             // check arc OK is not on before starting
-            if (_arcOkEventPin->get()) {
+            if (_arcOkEventPin.get()) {
                 log_error(name() << " arc_ok active before starting plasma");
                 mc_critical(ExecAlarm::SpindleControl);
                 return;
@@ -81,7 +80,7 @@ namespace Spindles {
     bool IRAM_ATTR PlasmaSpindle::wait_for_arc_ok() {
         uint32_t wait_until_ms = millis() + _max_arc_wait;
         while (millis() < wait_until_ms) {
-            if (_arcOkEventPin->get()) {
+            if (_arcOkEventPin.get()) {
                 _arc_on = true;
                 return true;
             }
@@ -112,7 +111,6 @@ namespace Spindles {
     void PlasmaSpindle::deinit() {
         stop();
         _enable_pin.setAttr(Pin::Attr::Input);
-        _arc_ok_pin.setAttr(Pin::Attr::Input);
     }
 
     // Configuration registration

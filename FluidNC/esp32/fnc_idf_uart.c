@@ -119,6 +119,7 @@ typedef struct {
     uint8_t                      tx_brk_len; /*!< TX break signal cycle length/number */
     uint8_t                      tx_waiting_brk; /*!< Flag to indicate that TX FIFO is ready to send break signal after FIFO is empty, do not push data into TX FIFO right now.*/
     uart_select_notif_callback_t uart_select_notif_callback; /*!< Notification about select() events */
+    uart_data_callback_t         uart_data_callback;         /*!< Callback for data modification>*/
     QueueHandle_t                event_queue;                /*!< UART event queue handler*/
     RingbufHandle_t              rx_ring_buf;                /*!< RX ring buffer handler*/
     RingbufHandle_t              tx_ring_buf;                /*!< TX ring buffer handler*/
@@ -697,6 +698,10 @@ static void UART_ISR_ATTR fnc_uart_rx_intr_handler_default(void* param) {
                 } else {
                     //After Copying the Data From FIFO ,Clear intr_status
                     uart_hal_clr_intsts_mask(&(uart_context[uart_num].hal), UART_INTR_RXFIFO_TOUT | UART_INTR_RXFIFO_FULL);
+                    if (p_uart->uart_data_callback) {
+                        p_uart->uart_data_callback(uart_num, p_uart->rx_data_buf, &rx_fifo_len);
+                    }
+
                     uart_event.type         = UART_DATA;
                     uart_event.size         = rx_fifo_len;
                     uart_event.timeout_flag = (uart_intr_status & UART_INTR_RXFIFO_TOUT) ? true : false;
@@ -1424,4 +1429,10 @@ esp_err_t fnc_uart_set_mode(uart_port_t uart_num, uart_mode_t mode) {
     p_uart_obj[uart_num]->uart_mode = mode;
     UART_EXIT_CRITICAL(&(uart_context[uart_num].spinlock));
     return ESP_OK;
+}
+
+void fnc_uart_set_data_callback(uart_port_t uart_num, uart_data_callback_t uart_data_callback) {
+    if (uart_num < UART_NUM_MAX && p_uart_obj[uart_num]) {
+        p_uart_obj[uart_num]->uart_data_callback = (uart_data_callback_t)uart_data_callback;
+    }
 }

@@ -6,7 +6,6 @@
 #include "Pins/PinDetail.h"
 #include "Pins/PinCapabilities.h"
 #include "Pins/PinAttributes.h"
-#include "src/Machine/EventPin.h"
 
 #include <esp_attr.h>  // IRAM_ATTR
 #include <cstdint>

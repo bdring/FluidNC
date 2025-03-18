@@ -112,6 +112,7 @@ namespace Configuration {
 
         void item(const char* name, bool& value) override { send_item(name, value ? "true" : "false"); }
 
+        void item(const char* name, EventPin& value) override { send_item(name, value.pin().name()); }
         void item(const char* name, Pin& value) override { send_item(name, value.name()); }
         void item(const char* name, Macro& value) override { send_item(name, value.get()); }
 

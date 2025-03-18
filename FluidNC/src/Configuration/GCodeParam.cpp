@@ -126,6 +126,12 @@ namespace Configuration {
         }
     }
 
+    void GCodeParam::item(const char* name, EventPin& value) {
+        if (is(name)) {
+            error();
+        }
+    }
+
     void GCodeParam::item(const char* name, Pin& value) {
         if (is(name)) {
             error();

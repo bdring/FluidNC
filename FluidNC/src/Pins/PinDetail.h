@@ -6,7 +6,6 @@
 #include "PinCapabilities.h"
 #include "PinAttributes.h"
 #include "PinOptionsParser.h"
-#include "src/Machine/EventPin.h"
 
 #include <cstdint>
 #include <cstring>
@@ -14,6 +13,8 @@
 #include <vector>
 
 typedef uint8_t pinnum_t;
+
+class EventPin;
 
 namespace Pins {
 

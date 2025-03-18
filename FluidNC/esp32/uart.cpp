@@ -5,6 +5,43 @@
 #include "fnc_idf_uart.h"
 #include <esp_ipc.h>
 #include "hal/uart_hal.h"
+#include "src/Protocol.h"
+
+typedef struct {
+    EventPin* object;
+    uint8_t   last;
+} fluidnc_event_t;
+
+fluidnc_event_t events[UART_NUM_MAX] = { nullptr, 0 };
+
+void uart_data_callback(uart_port_t uart_num, uint8_t* buf, int* len) {
+    fluidnc_event_t* evt    = &events[uart_num];
+    int              in_len = *len;
+    int              in, out;
+    for (in = 0, out = 0; in < in_len; in++, out++) {
+        uint8_t c = buf[in];
+        if (out != in) {
+            buf[out] = c;
+        }
+        if (evt->last) {
+            out = out - 1;
+            protocol_send_event_from_ISR(evt->last == 0xc4 ? &pinInactiveEvent : &pinActiveEvent, (void*)evt->object);
+            evt->last = 0;
+        } else {
+            if (c == 0xc4 || c == 0xc5) {
+                out       = out - 1;
+                evt->last = c;
+            }
+        }
+    }
+    *len = out;
+}
+void register_uart_event(int uart_num, EventPin* object) {
+    fluidnc_event_t* evt = &events[uart_num];
+
+    evt->object = object;
+    evt->last   = 0;
+}
 
 static void uart_driver_n_install(void* arg) {
     uart_port_t port = (uart_port_t)arg;

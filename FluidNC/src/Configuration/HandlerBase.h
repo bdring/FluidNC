@@ -4,10 +4,11 @@
 #pragma once
 
 #include "HandlerType.h"
-#include "../Pin.h"
-#include "../EnumItem.h"
-#include "../SpindleDatatypes.h"
-#include "../UartTypes.h"
+#include "src/Pin.h"
+#include "src/Machine/EventPin.h"
+#include "src/EnumItem.h"
+#include "src/SpindleDatatypes.h"
+#include "src/UartTypes.h"
 #include "src/Macro.h"
 
 #include <IPAddress.h>
@@ -51,6 +52,7 @@ namespace Configuration {
         virtual void item(const char* name, std::vector<float>& value)                                               = 0;
         virtual void item(const char* name, UartData& wordLength, UartParity& parity, UartStop& stopBits)            = 0;
 
+        virtual void item(const char* name, EventPin& value)  = 0;
         virtual void item(const char* name, Pin& value)       = 0;
         virtual void item(const char* name, IPAddress& value) = 0;
 

@@ -1123,6 +1123,15 @@ void protocol_do_rt_reset() {
     protocol_send_event(&restartEvent);
 }
 
+void protocol_do_pin_active(void* vpEventPin) {
+    auto eventPin = static_cast<EventPin*>(vpEventPin);
+    eventPin->trigger(true);
+}
+void protocol_do_pin_inactive(void* vpEventPin) {
+    auto eventPin = static_cast<EventPin*>(vpEventPin);
+    eventPin->trigger(false);
+}
+
 const ArgEvent feedOverrideEvent { protocol_do_feed_override };
 const ArgEvent rapidOverrideEvent { protocol_do_rapid_override };
 const ArgEvent spindleOverrideEvent { protocol_do_spindle_override };
@@ -1130,6 +1139,8 @@ const ArgEvent accessoryOverrideEvent { protocol_do_accessory_override };
 const ArgEvent limitEvent { protocol_do_limit };
 const ArgEvent faultPinEvent { protocol_do_fault_pin };
 const ArgEvent reportStatusEvent { (void (*)(void*))report_realtime_status };
+const ArgEvent pinActiveEvent { protocol_do_pin_active };
+const ArgEvent pinInactiveEvent { protocol_do_pin_inactive };
 
 const NoArgEvent safetyDoorEvent { request_safety_door };
 const NoArgEvent feedHoldEvent { protocol_do_feedhold };

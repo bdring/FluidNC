@@ -3,7 +3,6 @@
 
 #pragma once
 
-#include "../Pin.h"
 #include "HandlerBase.h"
 
 #include <vector>
@@ -12,7 +11,7 @@ namespace Configuration {
     class Configurable;
 
     class AfterParse : public HandlerBase {
-        AfterParse(const AfterParse&) = delete;
+        AfterParse(const AfterParse&)            = delete;
         AfterParse& operator=(const AfterParse&) = delete;
 
         std::vector<const char*> _path;
@@ -33,6 +32,7 @@ namespace Configuration {
         void item(const char* name, std::vector<float>& value) override {}
         void item(const char* name, UartData& wordLength, UartParity& parity, UartStop& stopBits) override {}
         void item(const char* name, std::string& value, const int minLength, const int maxLength) override {}
+        void item(const char* name, EventPin& value) override {}
         void item(const char* name, Pin& value) override {}
         void item(const char* name, Macro& value) override {}
         void item(const char* name, IPAddress& value) override {}
