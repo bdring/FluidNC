@@ -43,9 +43,9 @@ Maslow_brZ: 78
 
 # Sets how hard should Maslow pull on the belts to retract before considering them to be all the way in.
 # Maximum value is 4,000. Arbitrary units.
-Maslow_Retract_Current_Threshold: 1300
+Maslow_Retract_Current_Threshold: 900
 # Sets how hard should Maslow pull on the belts during the calibration process.
-Maslow_Calibration_Current_Threshold: 1200
+Maslow_Calibration_Current_Threshold: 900
 # Sets the acceptable fitness threshold for moving on to the next calibration round.
 Maslow_Acceptable_Calibration_Threshold: 0.45
 # Sets the distance to extend the bels during the calibration process.
