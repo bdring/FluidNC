@@ -217,9 +217,6 @@ void Uart::flushRx() {
     uart_discard_input(_uart_num);
 }
 
-#if 0
-namespace {
-    UartFactory::InstanceBuilder<Uart> uart2("uart2");
-    UartFactory::InstanceBuilder<Uart> uart3("uart3");
+void Uart::registerInputPin(InputPin* pin) {
+    uart_register_input_pin(_uart_num, pin);
 }
-#endif

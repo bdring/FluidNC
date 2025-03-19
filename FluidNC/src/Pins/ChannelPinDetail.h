@@ -28,7 +28,7 @@ namespace Pins {
         void          setDuty(uint32_t duty) override;
         uint32_t      maxDuty() override;
 
-        void registerEvent(EventPin* obj) override;
+        void registerEvent(InputPin* obj) override;
 
         std::string toString() override;
 

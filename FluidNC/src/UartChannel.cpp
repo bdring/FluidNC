@@ -131,6 +131,10 @@ void UartChannel::out_acked(const std::string& s, const char* tag) {
     log_stream(*this, "[" << tag << s);
 }
 
+void UartChannel::registerEvent(uint8_t code, InputPin* obj) {
+    _uart->registerInputPin(obj);
+}
+
 UartChannel Uart0(0, true);  // Primary serial channel with LF to CRLF conversion
 
 void uartInit() {

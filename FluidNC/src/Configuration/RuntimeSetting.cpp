@@ -289,7 +289,7 @@ namespace Configuration {
         if (is(name)) {
             isHandled_ = true;
             if (newValue_ == nullptr) {
-                log_stream(out_, setting_prefix() << value.pin().name());
+                log_stream(out_, setting_prefix() << value.name());
             } else {
                 log_string(out_, "Runtime setting of Pin objects is not supported");
                 // auto parsed = Pin::create(newValue);

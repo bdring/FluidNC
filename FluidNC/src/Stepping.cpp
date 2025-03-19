@@ -90,7 +90,6 @@ int Stepping::axis_steps[MAX_N_AXIS] = { 0 };
 
 bool* Stepping::limit_var(int axis, int motor) {
     auto m = axis_motors[axis][motor];
-    fprintf(stderr, "limit_var %p\n", m);
     return m ? &(m->limited) : nullptr;
 }
 

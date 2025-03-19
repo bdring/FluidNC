@@ -133,7 +133,7 @@ public:
 
     static Pin Error() { return Pin(errorPin); }
 
-    void registerEvent(EventPin* obj) { _detail->registerEvent(obj); };
+    void registerEvent(InputPin* obj) { _detail->registerEvent(obj); };
 
     // Other functions:
     Capabilities capabilities() const { return _detail->capabilities(); }

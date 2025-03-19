@@ -102,7 +102,7 @@ namespace Pins {
         return s;
     }
 
-    void ChannelPinDetail::registerEvent(EventPin* obj) {
+    void ChannelPinDetail::registerEvent(InputPin* obj) {
         _channel->registerEvent(_index, obj);
     }
 }

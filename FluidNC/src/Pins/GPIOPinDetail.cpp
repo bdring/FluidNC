@@ -10,6 +10,7 @@
 #include "src/Assert.h"
 #include "src/Config.h"
 #include "src/Machine/EventPin.h"
+#include "src/Protocol.h"
 
 namespace Pins {
     std::vector<bool> GPIOPinDetail::_claimed(nGPIOPins, false);
@@ -186,15 +187,8 @@ namespace Pins {
         _pwm->setDuty(duty);
     }
 
-    // This is a callback from the low-level GPIO driver that is invoked after
-    // registerEvent() has been called and the pin becomes active.
-    void GPIOPinDetail::gpioAction(int gpio_num, void* arg, int active) {
-        EventPin* obj = static_cast<EventPin*>(arg);
-        obj->trigger(active);
-    }
-
-    void GPIOPinDetail::registerEvent(EventPin* obj) {
-        gpio_set_action(_index, gpioAction, reinterpret_cast<void*>(obj), _attributes.has(Pin::Attr::ActiveLow));
+    void GPIOPinDetail::registerEvent(InputPin* obj) {
+        gpio_set_event(_index, reinterpret_cast<void*>(obj), _attributes.has(Pin::Attr::ActiveLow));
     }
 
     std::string GPIOPinDetail::toString() {

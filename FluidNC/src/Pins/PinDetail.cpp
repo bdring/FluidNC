@@ -8,7 +8,7 @@
 
 namespace Pins {
     // cppcheck-suppress unusedFunction
-    void PinDetail::registerEvent(EventPin* obj) {
+    void PinDetail::registerEvent(InputPin* obj) {
         Assert(false, "registerEvent is not supported by pin %d", _index);
     }
 

@@ -23,10 +23,8 @@ void gpio_add_interrupt(pinnum_t pin, int mode, void (*callback)(void*), void* a
 void gpio_remove_interrupt(pinnum_t pin);
 void gpio_route(pinnum_t pin, uint32_t signal);
 
-typedef void (*gpio_dispatch_t)(int, void*, int);
-
-void gpio_set_action(int gpio_num, gpio_dispatch_t action, void* arg, int invert);
-void gpio_clear_action(int gpio_num);
+void gpio_set_event(int gpio_num, void* arg, int invert);
+void gpio_clear_event(int gpio_num);
 void poll_gpios();
 
 #ifdef __cplusplus

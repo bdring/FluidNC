@@ -77,8 +77,7 @@ protected:
 
     Cmd _last_rt_cmd = Cmd::None;
 
-    std::map<int, EventPin*> _events;
-    std::map<int, bool*>     _pin_values;
+    std::map<int, InputPin*> _pins;
 
     UTF8 _utf8;
 
@@ -195,7 +194,7 @@ public:
     bool setAttr(int index, bool* valuep, const std::string& s, const char* tag);
 
     void ready();
-    void registerEvent(uint8_t code, EventPin* obj);
+    void registerEvent(uint8_t code, InputPin* obj);
 
     size_t lineNumber() { return _line_number; }
 

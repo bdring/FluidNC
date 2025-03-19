@@ -8,39 +8,39 @@
 #include "src/Protocol.h"
 
 typedef struct {
-    EventPin* object;
+    InputPin* object;
     uint8_t   last;
-} fluidnc_event_t;
+} fluidnc_input_pin_t;
 
-fluidnc_event_t events[UART_NUM_MAX] = { nullptr, 0 };
+fluidnc_input_pin_t input_pins[UART_NUM_MAX] = { nullptr, 0 };
 
 void uart_data_callback(uart_port_t uart_num, uint8_t* buf, int* len) {
-    fluidnc_event_t* evt    = &events[uart_num];
-    int              in_len = *len;
-    int              in, out;
+    fluidnc_input_pin_t* input_pin = &input_pins[uart_num];
+    int                  in_len    = *len;
+    int                  in, out;
     for (in = 0, out = 0; in < in_len; in++, out++) {
         uint8_t c = buf[in];
         if (out != in) {
             buf[out] = c;
         }
-        if (evt->last) {
+        if (input_pin->last) {
             out = out - 1;
-            protocol_send_event_from_ISR(evt->last == 0xc4 ? &pinInactiveEvent : &pinActiveEvent, (void*)evt->object);
-            evt->last = 0;
+            protocol_send_event_from_ISR(input_pin->last == 0xc4 ? &pinInactiveEvent : &pinActiveEvent, (void*)input_pin->object);
+            input_pin->last = 0;
         } else {
             if (c == 0xc4 || c == 0xc5) {
-                out       = out - 1;
-                evt->last = c;
+                out             = out - 1;
+                input_pin->last = c;
             }
         }
     }
     *len = out;
 }
-void register_uart_event(int uart_num, EventPin* object) {
-    fluidnc_event_t* evt = &events[uart_num];
+void uart_register_input_pin(int uart_num, InputPin* object) {
+    fluidnc_input_pin_t* input_pin = &input_pins[uart_num];
 
-    evt->object = object;
-    evt->last   = 0;
+    input_pin->object = object;
+    input_pin->last   = 0;
 }
 
 static void uart_driver_n_install(void* arg) {

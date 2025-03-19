@@ -140,7 +140,7 @@ namespace Configuration {
         void item(const char* name, EventPin& value) override {
             if (_parser.is(name)) {
                 auto parsed = _parser.pinValue();
-                value.pin().swap(parsed);
+                value.swap(parsed);
             }
         }
 

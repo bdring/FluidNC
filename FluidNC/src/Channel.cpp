@@ -151,11 +151,8 @@ void Channel::autoReport() {
 }
 
 void Channel::pin_event(uint32_t pinnum, bool active) {
-    try {
-        auto event_pin       = _events.at(pinnum);
-        *_pin_values[pinnum] = active;
-        event_pin->trigger(active);
-    } catch (std::exception& ex) {}
+    auto input_pin = _pins.at(pinnum);
+    protocol_send_event(active ? &pinActiveEvent : &pinInactiveEvent, input_pin);
 }
 
 void Channel::handleRealtimeCharacter(uint8_t ch) {
@@ -250,9 +247,6 @@ Error Channel::pollLine(char* line) {
 }
 
 bool Channel::setAttr(int index, bool* value, const std::string& attrString, const char* tag) {
-    if (value) {
-        _pin_values[index] = value;
-    }
     out(attrString, tag);
     _ackwait = 1;
     for (int i = 0; i < 20; i++) {
@@ -279,18 +273,10 @@ void Channel::out_acked(const std::string& s, const char* tag) {
     out(s, tag);
 }
 
-void Channel::ready() {
-#if 0
-    // At the moment this is unnecessary because initializing
-    // an input pin triggers an initial value event
-    if (!_pin_values.empty()) {
-        out("GET: io.*");
-    }
-#endif
-}
+void Channel::ready() {}
 
-void Channel::registerEvent(uint8_t code, EventPin* obj) {
-    _events[code] = obj;
+void Channel::registerEvent(uint8_t code, InputPin* obj) {
+    _pins[code] = obj;
 }
 
 void Channel::ack(Error status) {

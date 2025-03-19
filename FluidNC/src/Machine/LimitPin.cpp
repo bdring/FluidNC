@@ -44,12 +44,10 @@ namespace Machine {
 
     void LimitPin::init() {
         EventPin::init();
-        fprintf(stderr, "Limit init %d %d \n", _axis, _motorNum);
         _pLimited = Stepping::limit_var(_axis, _motorNum);
     }
 
     void LimitPin::trigger(bool active) {
-        update(active);
         if (active) {
             if (Homing::approach() || (!state_is(State::Homing) && _pHardLimits)) {
                 if (_pLimited != nullptr) {
@@ -80,6 +78,7 @@ namespace Machine {
                 clear_bits(*_negLimits, _bitmask);
             }
         }
+        EventPin::trigger(active);
     }
 
     // Make this switch act like an axis level switch. Both motors will report the same

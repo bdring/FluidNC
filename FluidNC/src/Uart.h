@@ -91,6 +91,8 @@ public:
     void enterPassthrough();
     void exitPassthrough();
 
+    void registerInputPin(InputPin* pin);
+
     // Configuration handlers:
     void validate() override {
         Assert(!_txd_pin.undefined(), "UART: TXD is undefined");
