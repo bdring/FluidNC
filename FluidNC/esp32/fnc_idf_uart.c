@@ -702,29 +702,32 @@ static void UART_ISR_ATTR fnc_uart_rx_intr_handler_default(void* param) {
                         p_uart->uart_data_callback(uart_num, p_uart->rx_data_buf, &rx_fifo_len);
                     }
 
-                    uart_event.type         = UART_DATA;
-                    uart_event.size         = rx_fifo_len;
-                    uart_event.timeout_flag = (uart_intr_status & UART_INTR_RXFIFO_TOUT) ? true : false;
-                    UART_ENTER_CRITICAL_ISR(&uart_selectlock);
-                    if (p_uart->uart_select_notif_callback) {
-                        p_uart->uart_select_notif_callback(uart_num, UART_SELECT_READ_NOTIF, &HPTaskAwoken);
+                    if (rx_fifo_len) {
+                        uart_event.type         = UART_DATA;
+                        uart_event.size         = rx_fifo_len;
+                        uart_event.timeout_flag = (uart_intr_status & UART_INTR_RXFIFO_TOUT) ? true : false;
+                        UART_ENTER_CRITICAL_ISR(&uart_selectlock);
+                        if (p_uart->uart_select_notif_callback) {
+                            p_uart->uart_select_notif_callback(uart_num, UART_SELECT_READ_NOTIF, &HPTaskAwoken);
+                        }
                     }
                     UART_EXIT_CRITICAL_ISR(&uart_selectlock);
                 }
                 p_uart->rx_stash_len = rx_fifo_len;
-                //If we fail to push data to ring buffer, we will have to stash the data, and send next time.
-                //Mainly for applications that uses flow control or small ring buffer.
-                if (pdFALSE == xRingbufferSendFromISR(p_uart->rx_ring_buf, p_uart->rx_data_buf, p_uart->rx_stash_len, &HPTaskAwoken)) {
-                    p_uart->rx_buffer_full_flg = true;
-                    UART_ENTER_CRITICAL_ISR(&(uart_context[uart_num].spinlock));
-                    uart_hal_disable_intr_mask(&(uart_context[uart_num].hal), UART_INTR_RXFIFO_TOUT | UART_INTR_RXFIFO_FULL);
-                    UART_EXIT_CRITICAL_ISR(&(uart_context[uart_num].spinlock));
-                    if (uart_event.type == UART_PATTERN_DET) {
+                if (rx_fifo_len) {
+                    //If we fail to push data to ring buffer, we will have to stash the data, and send next time.
+                    //Mainly for applications that uses flow control or small ring buffer.
+                    if (pdFALSE == xRingbufferSendFromISR(p_uart->rx_ring_buf, p_uart->rx_data_buf, p_uart->rx_stash_len, &HPTaskAwoken)) {
+                        p_uart->rx_buffer_full_flg = true;
                         UART_ENTER_CRITICAL_ISR(&(uart_context[uart_num].spinlock));
-                        if (rx_fifo_len < pat_num) {
-                            //some of the characters are read out in last interrupt
-                            //                            uart_pattern_enqueue(uart_num, p_uart->rx_buffered_len - (pat_num - rx_fifo_len));
-                        } else {
+                        uart_hal_disable_intr_mask(&(uart_context[uart_num].hal), UART_INTR_RXFIFO_TOUT | UART_INTR_RXFIFO_FULL);
+                        UART_EXIT_CRITICAL_ISR(&(uart_context[uart_num].spinlock));
+                        if (uart_event.type == UART_PATTERN_DET) {
+                            UART_ENTER_CRITICAL_ISR(&(uart_context[uart_num].spinlock));
+                            if (rx_fifo_len < pat_num) {
+                                //some of the characters are read out in last interrupt
+                                //                            uart_pattern_enqueue(uart_num, p_uart->rx_buffered_len - (pat_num - rx_fifo_len));
+                            } else {
 #if 0
                             uart_pattern_enqueue(uart_num,
                                                  pat_idx <= -1 ?
@@ -733,29 +736,30 @@ static void UART_ISR_ATTR fnc_uart_rx_intr_handler_default(void* param) {
                                                      // find the pattern in buffer
                                                      p_uart->rx_buffered_len + pat_idx);
 #endif
-                        }
-                        UART_EXIT_CRITICAL_ISR(&(uart_context[uart_num].spinlock));
-                        if ((p_uart->event_queue != NULL) &&
-                            (pdFALSE == xQueueSendFromISR(p_uart->event_queue, (void*)&uart_event, &HPTaskAwoken))) {
+                            }
+                            UART_EXIT_CRITICAL_ISR(&(uart_context[uart_num].spinlock));
+                            if ((p_uart->event_queue != NULL) &&
+                                (pdFALSE == xQueueSendFromISR(p_uart->event_queue, (void*)&uart_event, &HPTaskAwoken))) {
 #ifndef CONFIG_UART_ISR_IN_IRAM  //Only log if ISR is not in IRAM
-                            ESP_EARLY_LOGV(UART_TAG, "UART event queue full");
+                                ESP_EARLY_LOGV(UART_TAG, "UART event queue full");
 #endif
+                            }
                         }
-                    }
-                    uart_event.type = UART_BUFFER_FULL;
-                } else {
-                    UART_ENTER_CRITICAL_ISR(&(uart_context[uart_num].spinlock));
-                    if (uart_intr_status & UART_INTR_CMD_CHAR_DET) {
-                        if (rx_fifo_len < pat_num) {
-                            //some of the characters are read out in last interrupt
-                            // uart_pattern_enqueue(uart_num, p_uart->rx_buffered_len - (pat_num - rx_fifo_len));
-                        } else if (pat_idx >= 0) {
-                            // find the pattern in stash buffer.
-                            // uart_pattern_enqueue(uart_num, p_uart->rx_buffered_len + pat_idx);
+                        uart_event.type = UART_BUFFER_FULL;
+                    } else {
+                        UART_ENTER_CRITICAL_ISR(&(uart_context[uart_num].spinlock));
+                        if (uart_intr_status & UART_INTR_CMD_CHAR_DET) {
+                            if (rx_fifo_len < pat_num) {
+                                //some of the characters are read out in last interrupt
+                                // uart_pattern_enqueue(uart_num, p_uart->rx_buffered_len - (pat_num - rx_fifo_len));
+                            } else if (pat_idx >= 0) {
+                                // find the pattern in stash buffer.
+                                // uart_pattern_enqueue(uart_num, p_uart->rx_buffered_len + pat_idx);
+                            }
                         }
+                        p_uart->rx_buffered_len += p_uart->rx_stash_len;
+                        UART_EXIT_CRITICAL_ISR(&(uart_context[uart_num].spinlock));
                     }
-                    p_uart->rx_buffered_len += p_uart->rx_stash_len;
-                    UART_EXIT_CRITICAL_ISR(&(uart_context[uart_num].spinlock));
                 }
             } else {
                 UART_ENTER_CRITICAL_ISR(&(uart_context[uart_num].spinlock));
