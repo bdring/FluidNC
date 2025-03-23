@@ -7,40 +7,35 @@
 #include "hal/uart_hal.h"
 #include "src/Protocol.h"
 
-typedef struct {
-    InputPin* object;
-    uint8_t   last;
-} fluidnc_input_pin_t;
-
-fluidnc_input_pin_t input_pins[UART_NUM_MAX] = { nullptr, 0 };
+const int PINNUM_MAX                        = 64;
+InputPin* objects[UART_NUM_MAX][PINNUM_MAX] = { nullptr };
+uint8_t   last[UART_NUM_MAX]                = { 0 };
 
 void uart_data_callback(uart_port_t uart_num, uint8_t* buf, int* len) {
-    fluidnc_input_pin_t* input_pin = &input_pins[uart_num];
-    int                  in_len    = *len;
-    int                  in, out;
+    int in_len = *len;
+    int in, out;
     for (in = 0, out = 0; in < in_len; in++, out++) {
         uint8_t c = buf[in];
         if (out != in) {
             buf[out] = c;
         }
-        if (input_pin->last) {
-            out = out - 1;
-            protocol_send_event_from_ISR(input_pin->last == 0xc4 ? &pinInactiveEvent : &pinActiveEvent, (void*)input_pin->object);
-            input_pin->last = 0;
+        if (last[uart_num]) {
+            --out;
+            uint8_t pinnum = c & (PINNUM_MAX - 1);
+            protocol_send_event_from_ISR(last[uart_num] == 0xc4 ? &pinInactiveEvent : &pinActiveEvent, (void*)objects[uart_num][pinnum]);
+            last[uart_num] = 0;
         } else {
             if (c == 0xc4 || c == 0xc5) {
-                out             = out - 1;
-                input_pin->last = c;
+                --out;
+                last[uart_num] = c;
             }
         }
     }
     *len = out;
 }
-void uart_register_input_pin(int uart_num, InputPin* object) {
-    fluidnc_input_pin_t* input_pin = &input_pins[uart_num];
-
-    input_pin->object = object;
-    input_pin->last   = 0;
+void uart_register_input_pin(int uart_num, uint8_t pinnum, InputPin* object) {
+    objects[uart_num][pinnum] = object;
+    last[uart_num]            = 0;
 }
 
 static void uart_driver_n_install(void* arg) {
@@ -56,6 +51,9 @@ void uart_init(int uart_num) {
     // We init UARTs on core 0 so the interrupt handler runs there,
     // thus avoiding conflict with the StepTimer interrupt
     esp_ipc_call_blocking(0, uart_driver_n_install, (void*)uart_num);
+    if (uart_num) {
+        fnc_uart_set_data_callback((uart_port_t)uart_num, uart_data_callback);
+    }
 }
 
 void uart_mode(int uart_num, unsigned long baud, UartData dataBits, UartParity parity, UartStop stopBits) {

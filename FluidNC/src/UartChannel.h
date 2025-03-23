@@ -45,7 +45,7 @@ public:
     void out(const std::string& s, const char* tag) override;
     void out_acked(const std::string& s, const char* tag) override;
 
-    void registerEvent(uint8_t code, InputPin* obj);
+    void registerEvent(uint8_t pinnum, InputPin* obj);
 
     // Configuration methods
     void group(Configuration::HandlerBase& handler) override {

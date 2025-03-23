@@ -194,7 +194,7 @@ public:
     bool setAttr(int index, bool* valuep, const std::string& s, const char* tag);
 
     void ready();
-    void registerEvent(uint8_t code, InputPin* obj);
+    void registerEvent(uint8_t pinnum, InputPin* obj);
 
     size_t lineNumber() { return _line_number; }
 

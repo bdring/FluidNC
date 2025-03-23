@@ -275,8 +275,8 @@ void Channel::out_acked(const std::string& s, const char* tag) {
 
 void Channel::ready() {}
 
-void Channel::registerEvent(uint8_t code, InputPin* obj) {
-    _pins[code] = obj;
+void Channel::registerEvent(uint8_t pinnum, InputPin* obj) {
+    _pins[pinnum] = obj;
 }
 
 void Channel::ack(Error status) {

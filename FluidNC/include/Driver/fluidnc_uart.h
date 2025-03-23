@@ -16,4 +16,4 @@ int  uart_buflen(int uart_num);
 void uart_discard_input(int uart_num);
 bool uart_wait_output(int uart_num, int timeout_ms);
 
-void uart_register_input_pin(int uart_num, InputPin* object);
+void uart_register_input_pin(int uart_num, uint8_t pinnum, InputPin* object);

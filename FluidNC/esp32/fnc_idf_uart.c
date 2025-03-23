@@ -710,8 +710,8 @@ static void UART_ISR_ATTR fnc_uart_rx_intr_handler_default(void* param) {
                         if (p_uart->uart_select_notif_callback) {
                             p_uart->uart_select_notif_callback(uart_num, UART_SELECT_READ_NOTIF, &HPTaskAwoken);
                         }
+                        UART_EXIT_CRITICAL_ISR(&uart_selectlock);
                     }
-                    UART_EXIT_CRITICAL_ISR(&uart_selectlock);
                 }
                 p_uart->rx_stash_len = rx_fifo_len;
                 if (rx_fifo_len) {

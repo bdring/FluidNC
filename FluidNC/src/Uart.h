@@ -91,7 +91,7 @@ public:
     void enterPassthrough();
     void exitPassthrough();
 
-    void registerInputPin(InputPin* pin);
+    void registerInputPin(uint8_t pinnum, InputPin* pin);
 
     // Configuration handlers:
     void validate() override {

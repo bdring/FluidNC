@@ -1125,11 +1125,15 @@ void protocol_do_rt_reset() {
 
 void protocol_do_pin_active(void* vpEventPin) {
     auto eventPin = static_cast<EventPin*>(vpEventPin);
-    eventPin->trigger(true);
+    if (eventPin) {  // Safety check; null eventPin should not happen
+        eventPin->trigger(true);
+    }
 }
 void protocol_do_pin_inactive(void* vpEventPin) {
     auto eventPin = static_cast<EventPin*>(vpEventPin);
-    eventPin->trigger(false);
+    if (eventPin) {  // Safety check; null eventPin should not happen
+        eventPin->trigger(false);
+    }
 }
 
 const ArgEvent feedOverrideEvent { protocol_do_feed_override };

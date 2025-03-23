@@ -4,7 +4,7 @@
 #include "ChannelPinDetail.h"
 
 namespace Pins {
-    ChannelPinDetail::ChannelPinDetail(Channel* channel, int number, const PinOptionsParser& options) :
+    ChannelPinDetail::ChannelPinDetail(UartChannel* channel, int number, const PinOptionsParser& options) :
         PinDetail(number), _channel(channel) {
         for (auto opt : options) {
             if (opt.is("pu")) {
