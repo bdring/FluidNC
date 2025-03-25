@@ -167,6 +167,7 @@ bool Calibration::requestStateChange(int newState){
         case READY_TO_CUT: //We can enter ready to cut from calibration in progress or taking slack
             if(currentState == CALIBRATION_IN_PROGRESS || currentState == TAKING_SLACK){
                 currentState = READY_TO_CUT;
+                sys.set_state(State::Idle);
                 return true;
             }
             else{
@@ -1217,7 +1218,7 @@ void Calibration::hold(unsigned long time) {
 //------------------------------------------------------ Utility Functions
 //------------------------------------------------------
 
-//This function is used for release tension
+//This function is used for release tension...is this function still needed?
 void Calibration::comply() {
     complyCallTimer = millis();
     retractingTL    = false;
