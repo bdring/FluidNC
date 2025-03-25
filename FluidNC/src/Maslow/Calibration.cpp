@@ -56,6 +56,7 @@ bool Calibration::requestStateChange(int newState){
         case RETRACTED: //We can enter retracted from retracting only
             if(currentState == RETRACTING){
                 currentState = RETRACTED;
+                sys.set_state(State::Idle);
                 return true;
             }
             else{
@@ -66,6 +67,7 @@ bool Calibration::requestStateChange(int newState){
                 currentState = EXTENDING;
                 Maslow.stop();
                 extendingALL = true; //This should be replaced by state variables
+                sys.set_state(State::Homing);
 
                 updateCenterXY(); //Why is this needed here?
                 return true;
@@ -76,6 +78,7 @@ bool Calibration::requestStateChange(int newState){
         case EXTENDEDOUT: //We can enter extended from extending or in the event of a failure from taking slack or release tension
             if(currentState == EXTENDING || currentState == TAKING_SLACK || currentState == RELEASE_TENSION){
                 currentState = EXTENDEDOUT;
+                sys.set_state(State::Idle);
                 return true;
             }
             else{
@@ -111,6 +114,7 @@ bool Calibration::requestStateChange(int newState){
         case CALIBRATION_IN_PROGRESS: //We can enter calibration in progress from EXTENDEDOUT or READY_TO_CUT
             if(currentState == EXTENDEDOUT || currentState == READY_TO_CUT){
                 currentState = CALIBRATION_IN_PROGRESS;
+                sys.set_state(State::Homing);
                 //If we are at the first point we need to generate the grid before we can start
                 if (waypoint == 0) {
                     if(!generate_calibration_grid()){ //Fail out if the grid cannot be generated
