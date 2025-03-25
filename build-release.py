@@ -13,7 +13,7 @@ verbose = '-v' in sys.argv
 environ = dict(os.environ)
 
 platformio = r"/Users/barsmith/.platformio/penv/bin/platformio" #"/Users/barsmith/.platformio/penv/bin/platformio"
-version = "0.78"
+version = "1.01"
 os.chdir(os.path.dirname(os.path.realpath(r"/Users/barsmith/Documents/GitHub/FluidNC/.pio"))) #"/Users/barsmith/Documents/GitHub/FluidNC/.pio"
 #change path to the project folder (the folder with platformio.ini)
 tag = "maslow4-"+version
