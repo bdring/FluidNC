@@ -124,12 +124,14 @@ void setup() {
             for (auto const& spindle : spindles) {
                 spindle->init();
             }
-            bool stopped_spindle, new_spindle; 
+            bool stopped_spindle, new_spindle;
             Spindles::Spindle::switchSpindle(0, spindles, spindle, stopped_spindle, new_spindle);
 
             config->_coolant->init();
             config->_probe->init();
         }
+
+        make_proxies();
 
     } catch (const AssertionFailed& ex) {
         // This means something is terribly broken:
