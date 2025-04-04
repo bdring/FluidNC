@@ -42,8 +42,14 @@ public:
     int    uart_num() { return _uart_num; }
     Uart*  uart() { return _uart; }
 
+    bool setAttr(int index, bool* valuep, const std::string& s);
+
     void out(const std::string& s, const char* tag) override;
     void out_acked(const std::string& s, const char* tag) override;
+
+    void getExpanderId();
+
+    void registerEvent(uint8_t pinnum, InputPin* obj);
 
     // Configuration methods
     void group(Configuration::HandlerBase& handler) override {

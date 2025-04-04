@@ -6,8 +6,8 @@
 #include "src/Protocol.h"  // protocol_send_event_from_ISR()
 
 namespace Machine {
-    LimitPin::LimitPin(Pin& pin, int axis, int motor, int direction, bool& pHardLimits) :
-        EventPin(&limitEvent, "Limit"), _axis(axis), _motorNum(motor), _value(false), _pHardLimits(pHardLimits), _pin(&pin) {
+    LimitPin::LimitPin(int axis, int motor, int direction, bool& pHardLimits) :
+        EventPin(&limitEvent, "Limit"), _axis(axis), _motorNum(motor), _pHardLimits(pHardLimits) {
         const char* sDir;
         // Select one or two bitmask variables to receive the switch data
         switch (direction) {
@@ -43,25 +43,18 @@ namespace Machine {
     }
 
     void LimitPin::init() {
-        if (_pin->undefined()) {
-            return;
-        }
+        EventPin::init();
         _pLimited = Stepping::limit_var(_axis, _motorNum);
-
-        _pin->report(_legend);
-        _pin->setAttr(Pin::Attr::Input);
-        _pin->registerEvent(static_cast<EventPin*>(this));
-        update(get());
     }
 
-    void LimitPin::update(bool value) {
-        if (value) {
+    void LimitPin::trigger(bool active) {
+        if (active) {
             if (Homing::approach() || (!state_is(State::Homing) && _pHardLimits)) {
                 if (_pLimited != nullptr) {
-                    *_pLimited = value;
+                    *_pLimited = active;
                 }
                 if (_pExtraLimited != nullptr) {
-                    *_pExtraLimited = value;
+                    *_pExtraLimited = active;
                 }
             }
 
@@ -73,10 +66,10 @@ namespace Machine {
             }
         } else {
             if (_pLimited != nullptr) {
-                *_pLimited = value;
+                *_pLimited = active;
             }
             if (_pExtraLimited != nullptr) {
-                *_pExtraLimited = value;
+                *_pExtraLimited = active;
             }
             if (_posLimits != nullptr) {
                 clear_bits(*_posLimits, _bitmask);
@@ -85,6 +78,7 @@ namespace Machine {
                 clear_bits(*_negLimits, _bitmask);
             }
         }
+        EventPin::trigger(active);
     }
 
     // Make this switch act like an axis level switch. Both motors will report the same

@@ -285,6 +285,19 @@ namespace Configuration {
         }
     }
 
+    void RuntimeSetting::item(const char* name, EventPin& value) {
+        if (is(name)) {
+            isHandled_ = true;
+            if (newValue_ == nullptr) {
+                log_stream(out_, setting_prefix() << value.name());
+            } else {
+                log_string(out_, "Runtime setting of Pin objects is not supported");
+                // auto parsed = Pin::create(newValue);
+                // value.swap(parsed);
+            }
+        }
+    }
+
     void RuntimeSetting::item(const char* name, Pin& value) {
         if (is(name)) {
             isHandled_ = true;

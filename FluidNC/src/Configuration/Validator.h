@@ -12,7 +12,7 @@ namespace Configuration {
     class Configurable;
 
     class Validator : public HandlerBase {
-        Validator(const Validator&) = delete;
+        Validator(const Validator&)            = delete;
         Validator& operator=(const Validator&) = delete;
 
         std::vector<const char*> _path;
@@ -33,6 +33,7 @@ namespace Configuration {
         void item(const char* name, std::vector<float>& value) override {}
         void item(const char* name, UartData& wordLength, UartParity& parity, UartStop& stopBits) override {}
         void item(const char* name, std::string& value, const int minLength, const int maxLength) override {}
+        void item(const char* name, EventPin& value) override {}
         void item(const char* name, Pin& value) override {}
         void item(const char* name, Macro& value) override {}
         void item(const char* name, IPAddress& value) override {}

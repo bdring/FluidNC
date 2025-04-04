@@ -17,22 +17,19 @@ namespace Machine {
 
 namespace Machine {
     class Motor : public Configuration::Configurable {
-        LimitPin* _negLimitPin;
-        LimitPin* _posLimitPin;
-        LimitPin* _allLimitPin;
+        LimitPin _negLimitPin;
+        LimitPin _posLimitPin;
+        LimitPin _allLimitPin;
 
         int _axis;
         int _motorNum;
 
     public:
-        Motor(int axis, int motorNum) : _axis(axis), _motorNum(motorNum) {}
+        Motor(int axis, int motorNum);
 
         MotorDrivers::MotorDriver* _driver  = nullptr;
         float                      _pulloff = 1.0f;  // mm
 
-        Pin  _negPin;
-        Pin  _posPin;
-        Pin  _allPin;
         bool _hardLimits = false;
 
         // Configuration system helpers:

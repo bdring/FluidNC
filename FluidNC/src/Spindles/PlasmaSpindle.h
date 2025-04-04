@@ -8,35 +8,20 @@
 */
 
 #include "Spindle.h"
-#include "esp32-hal.h"         // millis()
-#include "../MotionControl.h"  // mc_critical
+#include "esp32-hal.h"          // millis()
+#include "src/MotionControl.h"  // mc_critical
 
 namespace Spindles {
     // This is for an on/off spindle all RPMs above 0 are on
     class PlasmaSpindle : public Spindle {
     private:
-        class ArcOkEventPin : public EventPin {
+        class ArcOkEventPin : public InputPin {
         private:
-            bool           _value = false;
-            Pin*           _pin   = nullptr;
             PlasmaSpindle* _parent;
 
         public:
-            ArcOkEventPin(const char* legend, Pin& pin, PlasmaSpindle* parent) : EventPin(nullptr, legend), _pin(&pin), _parent(parent) {}
+            ArcOkEventPin(PlasmaSpindle* parent) : InputPin("ArcOK"), _parent(parent) {}
 
-            void init() {
-                if (_pin->undefined()) {
-                    return;
-                }
-                _value = _pin->read();
-                _pin->report(_legend);
-                _pin->setAttr(Pin::Attr::Input);
-                _pin->registerEvent(static_cast<EventPin*>(this));
-                update(_pin->read());
-            }
-            void update(bool state) { _value = state; }
-
-            // Differs from the base class version by sending the event on either edge
             void trigger(bool active) override {
                 update(active);
                 if (!active && _parent->_arc_on) {
@@ -44,12 +29,10 @@ namespace Spindles {
                     send_alarm(ExecAlarm::AbortCycle);
                 }
             }
-
-            bool get() { return _value; }
         };
 
     private:
-        ArcOkEventPin* _arcOkEventPin;
+        ArcOkEventPin _arcOkEventPin;
 
     protected:
         // This includes all items except direction_pin.  direction_pin applies
@@ -58,13 +41,13 @@ namespace Spindles {
         // of OnOff::group()
         void groupCommon(Configuration::HandlerBase& handler) {
             handler.item("enable_pin", _enable_pin);
-            handler.item("arc_ok_pin", _arc_ok_pin);
+            handler.item("arc_ok_pin", _arcOkEventPin);
             handler.item("arc_wait_ms", _max_arc_wait, 0, 3000);
             Spindle::group(handler);
         }
 
     public:
-        PlasmaSpindle(const char* name) : Spindle(name) {}
+        PlasmaSpindle(const char* name) : Spindle(name), _arcOkEventPin(this) {}
 
         PlasmaSpindle(const PlasmaSpindle&)            = delete;
         PlasmaSpindle(PlasmaSpindle&&)                 = delete;
@@ -92,7 +75,6 @@ namespace Spindles {
 
     protected:
         Pin _enable_pin;
-        Pin _arc_ok_pin;
 
         uint32_t _max_arc_wait = 1000;
 

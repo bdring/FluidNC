@@ -4,7 +4,7 @@
 #include "ChannelPinDetail.h"
 
 namespace Pins {
-    ChannelPinDetail::ChannelPinDetail(Channel* channel, int number, const PinOptionsParser& options) :
+    ChannelPinDetail::ChannelPinDetail(UartChannel* channel, int number, const PinOptionsParser& options) :
         PinDetail(number), _channel(channel) {
         for (auto opt : options) {
             if (opt.is("pu")) {
@@ -28,24 +28,14 @@ namespace Pins {
             return;
         }
         _value = high;
-#if 0
-        std::string s = "io.";
-
-        s += std::to_string(_index);
-        s += "=";
-        s += std::to_string(high);
-        _channel->out(s, "SET:");
-#else
         //        _channel->write(high ? 0xC5 : 0xC4);
         //        _channel->write(0x80 + _index);
         _channel->writeUTF8(_index + (high ? Channel::PinHighFirst : Channel::PinLowFirst));
-#endif
     }
     uint32_t ChannelPinDetail::maxDuty() {
-        return 999;
+        return 1000;
     }
     void IRAM_ATTR ChannelPinDetail::setDuty(uint32_t duty) {
-        printf("pwm index %d duty %d cmd %x\n", _index, duty, 0x10000 + (_index << 10) + duty);
         _channel->writeUTF8(0x10000 + (_index << 10) + duty);
     }
 
@@ -79,7 +69,10 @@ namespace Pins {
         }
 
         // The second parameter is used to maintain a list of pin values in the Channel
-        _channel->setAttr(_index, _attributes.has(Pins::PinAttributes::Input) ? &this->_value : nullptr, s, "INI:");
+        Assert(_channel->setAttr(_index, _attributes.has(Pins::PinAttributes::Input) ? &this->_value : nullptr, s),
+               "Expander pin configuration failed: %s %s",
+               _channel->name().c_str(),
+               s.c_str());
     }
     PinAttributes ChannelPinDetail::getAttr() const {
         return _attributes;
@@ -100,7 +93,7 @@ namespace Pins {
         return s;
     }
 
-    void ChannelPinDetail::registerEvent(EventPin* obj) {
+    void ChannelPinDetail::registerEvent(InputPin* obj) {
         _channel->registerEvent(_index, obj);
     }
 }

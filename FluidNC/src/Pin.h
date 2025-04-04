@@ -6,7 +6,6 @@
 #include "Pins/PinDetail.h"
 #include "Pins/PinCapabilities.h"
 #include "Pins/PinAttributes.h"
-#include "src/Machine/EventPin.h"
 
 #include <esp_attr.h>  // IRAM_ATTR
 #include <cstdint>
@@ -134,7 +133,7 @@ public:
 
     static Pin Error() { return Pin(errorPin); }
 
-    void registerEvent(EventPin* obj) { _detail->registerEvent(obj); };
+    void registerEvent(InputPin* obj) { _detail->registerEvent(obj); };
 
     // Other functions:
     Capabilities capabilities() const { return _detail->capabilities(); }

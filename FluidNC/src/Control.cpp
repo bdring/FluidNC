@@ -28,7 +28,7 @@ void Control::init() {
 
 void Control::group(Configuration::HandlerBase& handler) {
     for (auto pin : _pins) {
-        handler.item(pin->legend().c_str(), pin->pin());
+        handler.item(pin->legend().c_str(), *pin);
     }
 }
 

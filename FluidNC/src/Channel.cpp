@@ -151,11 +151,8 @@ void Channel::autoReport() {
 }
 
 void Channel::pin_event(uint32_t pinnum, bool active) {
-    try {
-        auto event_pin       = _events.at(pinnum);
-        *_pin_values[pinnum] = active;
-        event_pin->trigger(active);
-    } catch (std::exception& ex) {}
+    auto input_pin = _pins.at(pinnum);
+    protocol_send_event(active ? &pinActiveEvent : &pinInactiveEvent, input_pin);
 }
 
 void Channel::handleRealtimeCharacter(uint8_t ch) {
@@ -180,17 +177,19 @@ void Channel::handleRealtimeCharacter(uint8_t ch) {
 
     _active = true;
     if (cmd == PinACK) {
-        // log_debug("ACK");
-        _ackwait = false;
+        _ackwait = 0;
         return;
     }
     if (cmd == PinNAK) {
-        log_error("Channel device rejected config");
-        // log_debug("NAK");
-        _ackwait = false;
+        log_verbose("NAK");
+        _ackwait = -1;
         return;
     }
-
+    if (cmd == PinRST) {
+        _ackwait = -1;
+        send_alarm(ExecAlarm::ExpanderReset);
+        return;
+    }
     if (cmd >= PinLowFirst && cmd < PinLowLast) {
         pin_event(cmd - PinLowFirst, false);
         return;
@@ -247,13 +246,6 @@ Error Channel::pollLine(char* line) {
     return Error::NoData;
 }
 
-void Channel::setAttr(int index, bool* value, const std::string& attrString, const char* tag) {
-    if (value) {
-        _pin_values[index] = value;
-    }
-    out_acked(attrString, tag);
-}
-
 void Channel::out(const char* s, const char* tag) {
     sendLine(MsgLevelNone, s);
 }
@@ -266,18 +258,10 @@ void Channel::out_acked(const std::string& s, const char* tag) {
     out(s, tag);
 }
 
-void Channel::ready() {
-#if 0
-    // At the moment this is unnecessary because initializing
-    // an input pin triggers an initial value event
-    if (!_pin_values.empty()) {
-        out("GET: io.*");
-    }
-#endif
-}
+void Channel::ready() {}
 
-void Channel::registerEvent(uint8_t code, EventPin* obj) {
-    _events[code] = obj;
+void Channel::registerEvent(uint8_t pinnum, InputPin* obj) {
+    _pins[pinnum] = obj;
 }
 
 void Channel::ack(Error status) {
@@ -299,7 +283,8 @@ void Channel::ack(Error status) {
 
 void Channel::print_msg(MsgLevel level, const char* msg) {
     if (_message_level >= level) {
-        println(msg);
+        write(msg);
+        write("\n");
     }
 }
 

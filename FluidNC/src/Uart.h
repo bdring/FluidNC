@@ -1,6 +1,5 @@
 // Copyright (c) 2021 -  Mitch Bradley
 // Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
-
 #pragma once
 
 #include "Config.h"
@@ -91,6 +90,8 @@ public:
 
     void enterPassthrough();
     void exitPassthrough();
+
+    void registerInputPin(uint8_t pinnum, InputPin* pin);
 
     // Configuration handlers:
     void validate() override {

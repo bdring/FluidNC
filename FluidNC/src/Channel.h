@@ -35,6 +35,7 @@ private:
 
     static constexpr int PinACK = 0xB2;
     static constexpr int PinNAK = 0xB3;
+    static constexpr int PinRST = 0xB4;
 
     static constexpr int timeout = 2000;
 
@@ -76,8 +77,7 @@ protected:
 
     Cmd _last_rt_cmd = Cmd::None;
 
-    std::map<int, EventPin*> _events;
-    std::map<int, bool*>     _pin_values;
+    std::map<int, InputPin*> _pins;
 
     UTF8 _utf8;
 
@@ -94,7 +94,7 @@ public:
     Channel(const char* name, int num, bool addCR = false);
     virtual ~Channel() = default;
 
-    bool _ackwait = false;
+    int _ackwait = 0;  // 1 - waiting, 0 - ACKed, -1 - NAKed
 
     virtual void       handle() {};
     virtual Error      pollLine(char* line);
@@ -191,10 +191,8 @@ public:
     virtual void out(const std::string& s, const char* tag);
     virtual void out_acked(const std::string& s, const char* tag);
 
-    void setAttr(int index, bool* valuep, const std::string& s, const char* tag);
-
     void ready();
-    void registerEvent(uint8_t code, EventPin* obj);
+    void registerEvent(uint8_t pinnum, InputPin* obj);
 
     size_t lineNumber() { return _line_number; }
 

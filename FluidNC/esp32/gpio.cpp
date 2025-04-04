@@ -3,6 +3,7 @@
 
 #include "src/Pin.h"
 #include "src/Uart.h"
+#include "src/Protocol.h"
 #include "Driver/fluidnc_gpio.h"
 
 #include "driver/gpio.h"
@@ -103,13 +104,11 @@ static void gpios_update(gpio_mask_t& gpios, int gpio_num, bool active) {
     }
 }
 
-static gpio_dispatch_t gpioActions[GPIO_NUM_MAX + 1] = { nullptr };
-static void*           gpioArgs[GPIO_NUM_MAX + 1];
+static void* gpioArgs[GPIO_NUM_MAX + 1];
 
-void gpio_set_action(int gpio_num, gpio_dispatch_t action, void* arg, int invert) {
-    gpioActions[gpio_num] = action;
-    gpioArgs[gpio_num]    = arg;
-    gpio_mask_t mask      = gpio_mask(gpio_num);
+void gpio_set_event(int gpio_num, void* arg, int invert) {
+    gpioArgs[gpio_num] = arg;
+    gpio_mask_t mask   = gpio_mask(gpio_num);
     gpios_update(gpios_interest, gpio_num, true);
     gpios_update(gpios_inverted, gpio_num, invert);
     gpio_set_rate_limit(gpio_num, 5);
@@ -118,13 +117,12 @@ void gpio_set_action(int gpio_num, gpio_dispatch_t action, void* arg, int invert
     // Set current to the opposite of the current state so the first poll will send the current state
     gpios_update(gpios_current, gpio_num, !active);
 }
-void gpio_clear_action(int gpio_num) {
-    gpioActions[gpio_num] = nullptr;
-    gpioArgs[gpio_num]    = nullptr;
+void gpio_clear_event(int gpio_num) {
+    gpioArgs[gpio_num] = nullptr;
     gpios_update(gpios_interest, gpio_num, false);
 }
 
-static void gpio_send_action(int gpio_num, bool active) {
+static void gpio_send_event(int gpio_num, bool active) {
     auto    end_ticks  = gpio_next_event_ticks[gpio_num];
     int32_t this_ticks = int32_t(xTaskGetTickCount());
     if (end_ticks == 0 || ((this_ticks - end_ticks) > 0)) {
@@ -134,9 +132,9 @@ static void gpio_send_action(int gpio_num, bool active) {
         }
         gpio_next_event_ticks[gpio_num] = end_ticks;
 
-        gpio_dispatch_t action = gpioActions[gpio_num];
-        if (action) {
-            action(gpio_num, gpioArgs[gpio_num], active);
+        auto arg = gpioArgs[gpio_num];
+        if (arg) {
+            protocol_send_event_from_ISR(active ? &pinActiveEvent : &pinInactiveEvent, arg);
         }
         gpios_update(gpios_current, gpio_num, active);
     }
@@ -149,7 +147,7 @@ void poll_gpios() {
         int zeros;
         while ((zeros = __builtin_clzll(gpios_changed)) != 64) {
             int gpio_num = 63 - zeros;
-            gpio_send_action(gpio_num, gpios_active & gpio_mask(gpio_num));
+            gpio_send_event(gpio_num, gpios_active & gpio_mask(gpio_num));
             // Remove bit from mask so clzll will find the next one
             gpios_update(gpios_changed, gpio_num, false);
         }

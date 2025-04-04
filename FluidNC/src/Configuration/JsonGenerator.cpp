@@ -137,6 +137,18 @@ namespace Configuration {
         */
     }
 
+    void JsonGenerator::item(const char* name, EventPin& value) {
+        // We commented this out, because pins are very confusing for users. The code is correct,
+        // but it really gives more support than it's worth.
+        /*
+        enter(name);
+        auto sv = value.name();
+        _encoder.begin_webui(_currentPath, _currentPath, "S", sv.c_str(), 0, 255);
+        _encoder.end_object();
+        leave();
+        */
+    }
+
     void JsonGenerator::item(const char* name, IPAddress& value) {
         enter(name);
         _encoder.begin_webui(_currentPath, _currentPath, "A", IP_string(value));

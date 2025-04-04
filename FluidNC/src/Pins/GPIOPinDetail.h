@@ -38,7 +38,7 @@ namespace Pins {
 
         bool canStep() override { return true; }
 
-        void registerEvent(EventPin* obj) override;
+        void registerEvent(InputPin* obj) override;
 
         std::string toString() override;
 

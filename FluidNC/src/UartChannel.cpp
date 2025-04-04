@@ -27,7 +27,31 @@ void UartChannel::init(Uart* uart) {
     } else {
         log_info("uart_channel" << _uart_num << " created");
     }
-    log_msg_to(*this, "RST");
+    // Tell the channel listener that FluidNC has restarted.
+    // The initial newline clears out any garbage characters that might have
+    // resulted from the UART initialization and turn-on
+    print("\n");
+    out("RST", "MSG:");
+    if (_uart_num) {
+        getExpanderId();
+    }
+}
+
+void UartChannel::getExpanderId() {
+    out("ID", "EXP:");
+    char   buf[128];
+    size_t len;
+    while ((len = _uart->timedReadBytes(buf, 128, 50)) != 0) {
+        buf[len] = '\0';
+        if (strncmp(buf, "(EXP,", 5) == 0) {
+            auto pos = strrchr(buf, ')');
+            if (pos) {
+                *pos = '\0';
+            }
+            print("ok\n");
+            log_info("IO Expander " << &buf[5]);
+        }
+    }
 }
 
 size_t UartChannel::write(uint8_t c) {
@@ -126,6 +150,25 @@ void UartChannel::out(const std::string& s, const char* tag) {
 
 void UartChannel::out_acked(const std::string& s, const char* tag) {
     log_stream(*this, "[" << tag << s);
+}
+
+void UartChannel::registerEvent(uint8_t pinnum, InputPin* obj) {
+    _uart->registerInputPin(pinnum, obj);
+}
+
+bool UartChannel::setAttr(int index, bool* value, const std::string& attrString) {
+    out(attrString, "EXP:");
+    _ackwait = 1;
+    for (int i = 0; i < 20; i++) {
+        pollLine(nullptr);
+        if (_ackwait < 1) {
+            return _ackwait == 0;
+        }
+        delay_us(100);
+    }
+    _ackwait = 0;
+    log_error("IO Expander is unresponsive");
+    return false;
 }
 
 UartChannel Uart0(0, true);  // Primary serial channel with LF to CRLF conversion
