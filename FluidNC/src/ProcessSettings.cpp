@@ -190,18 +190,13 @@ static Error report_gcode(const char* value, AuthenticationLevel auth_level, Cha
 }
 
 static void show_settings(Channel& out, type_t type) {
+    switchInchMM(NULL, AuthenticationLevel::LEVEL_ADMIN, out);  // Print Report/Inches
+
     for (Setting* s : Setting::List) {
         if (s->getType() == type && s->getGrblName()) {
-            // The following test could be expressed more succinctly with XOR,
-            // but is arguably clearer when written out
             show_setting(s->getGrblName(), s->getCompatibleValue(), NULL, out);
         }
     }
-    // Print Report/Inches
-    switchInchMM(NULL, AuthenticationLevel::LEVEL_ADMIN, out);
-
-    // need this per issue #1036
-    fakeMaxSpindleSpeed(NULL, AuthenticationLevel::LEVEL_ADMIN, out);
 }
 
 static Error report_normal_settings(const char* value, AuthenticationLevel auth_level, Channel& out) {
@@ -209,6 +204,8 @@ static Error report_normal_settings(const char* value, AuthenticationLevel auth_
     return Error::Ok;
 }
 static Error list_grbl_names(const char* value, AuthenticationLevel auth_level, Channel& out) {
+    log_stream(out, "$13 => $Report/Inches");
+
     for (Setting* setting : Setting::List) {
         const char* gn = setting->getGrblName();
         if (gn) {
@@ -733,20 +730,6 @@ static Error switchInchMM(const char* value, AuthenticationLevel auth_level, Cha
     return Error::Ok;
 }
 
-static Error fakeMaxSpindleSpeed(const char* value, AuthenticationLevel auth_level, Channel& out) {
-    if (!value) {
-        log_stream(out, "$30=" << spindle->maxSpeed());
-    }
-    return Error::Ok;
-}
-
-static Error fakeLaserMode(const char* value, AuthenticationLevel auth_level, Channel& out) {
-    if (!value) {
-        log_stream(out, "$32=" << (spindle->isRateAdjusted() ? "1" : "0"));
-    }
-    return Error::Ok;
-}
-
 static Error showChannelInfo(const char* value, AuthenticationLevel auth_level, Channel& out) {
     allChannels.listChannels(out);
     return Error::Ok;
@@ -976,8 +959,6 @@ void make_user_commands() {
     new UserCommand("RI", "Report/Interval", setReportInterval, anyState);
 
     new UserCommand("13", "Report/Inches", switchInchMM, notIdleOrAlarm);
-    new UserCommand("30", "FakeMaxSpindleSpeed", fakeMaxSpindleSpeed, notIdleOrAlarm);
-    new UserCommand("32", "FakeLaserMode", fakeLaserMode, notIdleOrAlarm);
 
     new UserCommand("GS", "GRBL/Show", report_init_message_cmd, notIdleOrAlarm);
 

@@ -20,9 +20,6 @@ IntSetting* sd_fallback_cs;
 
 EnumSetting* message_level;
 
-std::vector<std::unique_ptr<MachineConfigProxySetting<float>>>   float_proxies;
-std::vector<std::unique_ptr<MachineConfigProxySetting<int32_t>>> int_proxies;
-
 const enum_opt_t messageLevels = {
     // clang-format off
     { "None", MsgLevelNone },
@@ -47,13 +44,23 @@ void make_coordinate(CoordIndex index, const char* name) {
     }
 }
 
-#define FLOAT_PROXY(number, name, configvar)                                                                                               \
-    float_proxies.emplace_back(                                                                                                            \
-        std::make_unique<MachineConfigProxySetting<float>>(number, name, [](MachineConfig const& config) { return configvar; }));
+void float_proxy(int axis, int grbl_number, const char* name, float* varp) {
+    // The two strings allocated below are intentionally not freed
+    char* grbl_name = new char[4];
+    snprintf(grbl_name, 4, "%d", grbl_number + axis);
+
+    char* fluidnc_name = new char[strlen(name) + 2];
+    sprintf(fluidnc_name, "%s%c", name, Axes::axisName(axis));
+
+    // Creation of any setting inserts it into the settings list, so we
+    // do not need to keep the pointer here
+    auto proxy = new FloatProxySetting(grbl_name, fluidnc_name, varp);
+}
 
 #define INT_PROXY(number, name, configvar)                                                                                                 \
-    int_proxies.emplace_back(                                                                                                              \
-        std::make_unique<MachineConfigProxySetting<int>>(number, name, [](MachineConfig const& config) { return configvar; }));
+    {                                                                                                                                      \
+        auto dummy = new IntProxySetting(number, name, [](MachineConfig const& config) { return configvar; });                             \
+    }
 
 void make_settings() {
     Setting::init();
@@ -86,35 +93,37 @@ void make_settings() {
         new StringSetting("Message issued at startup", EXTENDED, WG, NULL, "Start/Message", "Grbl \\V [FluidNC \\B (\\R) \\H]", 0, 40);
 
     gcode_echo = new EnumSetting("GCode Echo Enable", WEBSET, WG, NULL, "GCode/Echo", 0, &onoffOptions);
+}
 
+void make_proxies() {
     // Some gcode senders expect Grbl to report certain numbered settings to improve
     // their reporting. The following macros set up various legacy numbered Grbl settings,
     // which are derived from MachineConfig settings.
 
-    // 130-132: Max travel (mm)
-    FLOAT_PROXY("130", "Grbl/MaxTravel/X", config._axes->_axis[0]->_maxTravel)
-    FLOAT_PROXY("131", "Grbl/MaxTravel/Y", config._axes->_axis[1]->_maxTravel)
-    FLOAT_PROXY("132", "Grbl/MaxTravel/Z", config._axes->_axis[2]->_maxTravel)
+    // We do this with multiple loops so the setting numbers are displayed in the expected order
+    auto n_axis = Axes::_numberAxis;
+    for (int axis = n_axis - 1; axis >= 0; --axis) {
+        float_proxy(axis, 130, "Grbl/MaxTravel/", &(config->_axes->_axis[axis]->_maxTravel));
+    }
 
-    // 120-122: Acceleration (mm/sec^2)
-    FLOAT_PROXY("120", "Grbl/Acceleration/X", config._axes->_axis[0]->_acceleration)
-    FLOAT_PROXY("121", "Grbl/Acceleration/Y", config._axes->_axis[1]->_acceleration)
-    FLOAT_PROXY("122", "Grbl/Acceleration/Z", config._axes->_axis[2]->_acceleration)
+    for (int axis = n_axis - 1; axis >= 0; --axis) {
+        float_proxy(axis, 120, "Grbl/Acceleration/", &(config->_axes->_axis[axis]->_acceleration));
+    }
 
-    // 110-112: Max rate (mm/min)
-    FLOAT_PROXY("110", "Grbl/MaxRate/X", config._axes->_axis[0]->_maxRate)
-    FLOAT_PROXY("111", "Grbl/MaxRate/Y", config._axes->_axis[1]->_maxRate)
-    FLOAT_PROXY("112", "Grbl/MaxRate/Z", config._axes->_axis[2]->_maxRate)
+    for (int axis = n_axis - 1; axis >= 0; --axis) {
+        float_proxy(axis, 110, "Grbl/MaxRate/", &(config->_axes->_axis[axis]->_maxRate));
+    }
 
-    // 100-102: Resolution (steps/mm)
-    FLOAT_PROXY("100", "Grbl/Resolution/X", config._axes->_axis[0]->_stepsPerMm)
-    FLOAT_PROXY("101", "Grbl/Resolution/Y", config._axes->_axis[1]->_stepsPerMm)
-    FLOAT_PROXY("102", "Grbl/Resolution/Z", config._axes->_axis[2]->_stepsPerMm)
+    for (int axis = n_axis - 1; axis >= 0; --axis) {
+        float_proxy(axis, 100, "Grbl/Resolution/", &(config->_axes->_axis[axis]->_stepsPerMm));
+    }
 
-    INT_PROXY("3", "Grbl/InvertMask", Machine::Stepping::direction_mask)
-    INT_PROXY("20", "Grbl/SoftLimitsEnable", config._axes->_axis[0]->_softLimits)
-    INT_PROXY("21", "Grbl/HardLimitsEnable", config._axes->hasHardLimits())
-    INT_PROXY("22", "Grbl/HomingCycleEnable", (bool)Axes::homingMask)
-    INT_PROXY("23", "Grbl/HomingInvertMask", Homing::direction_mask)
     INT_PROXY("32", "Grbl/LaserMode", spindle->isRateAdjusted())
+
+    INT_PROXY("30", "Grbl/MaxSpindleSpeed", spindle->maxSpeed())
+
+    INT_PROXY("23", "Grbl/HomingDirections", Homing::direction_mask);
+    INT_PROXY("22", "Grbl/HomingCycleEnable", (bool)Axes::homingMask);
+    INT_PROXY("21", "Grbl/HardLimitsEnable", config._axes->hasHardLimits());
+    INT_PROXY("20", "Grbl/SoftLimitsEnable", config._axes->_axis[0]->_softLimits);
 }

@@ -218,16 +218,32 @@ public:
     int32_t get() { return _currentValue; }
 };
 
-// See Settings.cpp for the int32_t and float specialization implementations
-template <typename T>
-class MachineConfigProxySetting : public Setting {
-    std::function<T(Machine::MachineConfig const&)> _getter;
-    std::string                                     _cachedValue;
+class FloatProxySetting : public Setting {
+    float* _valuep;
 
 public:
-    MachineConfigProxySetting(const char* grblName, const char* fullName, std::function<T(Machine::MachineConfig const&)> getter) :
-        Setting(fullName, type_t::GRBL, permissions_t::WU, grblName, fullName), _getter(getter), _cachedValue("") {}
+    FloatProxySetting(const char* grblName, const char* fullName, float* valuep) :
+        Setting(fullName, type_t::GRBL, permissions_t::WU, grblName, fullName), _valuep(valuep) {}
 
+    const char* getStringValue() override {
+        static char strval[32];
+        std::snprintf(strval, 31, "%.3f", *_valuep);
+        return strval;
+    }
+    Error       setStringValue(std::string_view value) { return Error::ReadOnlySetting; }
+    const char* getDefaultString() override { return ""; }
+};
+
+// IntProxySetting needs a getter function instead of a simple value pointer
+// because there are a variety of other ways to get the information, including
+// function calls and type conversion from mask to bool
+class IntProxySetting : public Setting {
+    std::function<int(Machine::MachineConfig const&)> _getter;
+    std::string                                       _cachedValue;
+
+public:
+    IntProxySetting(const char* grblName, const char* fullName, std::function<int(Machine::MachineConfig const&)> getter) :
+        Setting(fullName, type_t::GRBL, permissions_t::WU, grblName, fullName), _getter(getter), _cachedValue("") {}
     const char* getStringValue() override;
     Error       setStringValue(std::string_view value) { return Error::ReadOnlySetting; }
     const char* getDefaultString() override { return ""; }

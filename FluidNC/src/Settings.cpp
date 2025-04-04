@@ -539,16 +539,7 @@ Error WebCommand::action(const char* value, AuthenticationLevel auth_level, Chan
     return _action(value, auth_level, out);
 };
 
-template <>
-const char* MachineConfigProxySetting<float>::getStringValue() {
-    auto got = _getter(*MachineConfig::instance());
-    _cachedValue.reserve(16);
-    std::snprintf(_cachedValue.data(), _cachedValue.capacity(), "%.3f", got);
-    return _cachedValue.c_str();
-}
-
-template <>
-const char* MachineConfigProxySetting<int32_t>::getStringValue() {
+const char* IntProxySetting::getStringValue() {
     auto got     = _getter(*MachineConfig::instance());
     _cachedValue = std::to_string(got);
     return _cachedValue.c_str();

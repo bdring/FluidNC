@@ -78,7 +78,7 @@ namespace WebUI {
         http_block_during_motion = new EnumSetting("Block serving HTTP content during motion",
                                                    WEBSET,
                                                    WA,
-                                                   "",
+                                                   NULL,
                                                    "HTTP/BlockDuringMotion",
                                                    DEFAULT_HTTP_BLOCKED_DURING_MOTION,
                                                    &onoffOptions);
