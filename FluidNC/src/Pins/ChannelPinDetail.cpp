@@ -28,18 +28,9 @@ namespace Pins {
             return;
         }
         _value = high;
-#if 0
-        std::string s = "io.";
-
-        s += std::to_string(_index);
-        s += "=";
-        s += std::to_string(high);
-        _channel->out(s, "SET:");
-#else
         //        _channel->write(high ? 0xC5 : 0xC4);
         //        _channel->write(0x80 + _index);
         _channel->writeUTF8(_index + (high ? Channel::PinHighFirst : Channel::PinLowFirst));
-#endif
     }
     uint32_t ChannelPinDetail::maxDuty() {
         return 1000;
@@ -78,7 +69,7 @@ namespace Pins {
         }
 
         // The second parameter is used to maintain a list of pin values in the Channel
-        Assert(_channel->setAttr(_index, _attributes.has(Pins::PinAttributes::Input) ? &this->_value : nullptr, s, "INI:"),
+        Assert(_channel->setAttr(_index, _attributes.has(Pins::PinAttributes::Input) ? &this->_value : nullptr, s),
                "Expander pin configuration failed: %s %s",
                _channel->name().c_str(),
                s.c_str());

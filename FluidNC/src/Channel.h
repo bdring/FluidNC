@@ -191,8 +191,6 @@ public:
     virtual void out(const std::string& s, const char* tag);
     virtual void out_acked(const std::string& s, const char* tag);
 
-    bool setAttr(int index, bool* valuep, const std::string& s, const char* tag);
-
     void ready();
     void registerEvent(uint8_t pinnum, InputPin* obj);
 

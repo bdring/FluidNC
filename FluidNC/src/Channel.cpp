@@ -246,21 +246,6 @@ Error Channel::pollLine(char* line) {
     return Error::NoData;
 }
 
-bool Channel::setAttr(int index, bool* value, const std::string& attrString, const char* tag) {
-    out(attrString, tag);
-    _ackwait = 1;
-    for (int i = 0; i < 20; i++) {
-        pollLine(nullptr);
-        if (_ackwait < 1) {
-            return _ackwait == 0;
-        }
-        delay_us(100);
-    }
-    _ackwait = 0;
-    log_error("IO Expander is unresponsive");
-    return false;
-}
-
 void Channel::out(const char* s, const char* tag) {
     sendLine(MsgLevelNone, s);
 }
