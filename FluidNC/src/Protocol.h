@@ -110,6 +110,7 @@ extern const NoArgEvent restartEvent;
 extern const NoArgEvent fullResetEvent;
 
 extern const NoArgEvent runStartupLinesEvent;
+extern const NoArgEvent homingButtonEvent;
 
 // extern const NoArgEvent statusReportEvent;
 
