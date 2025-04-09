@@ -101,17 +101,6 @@ bool sd_init_slot(uint32_t freq_hz, int cs_pin, int cd_pin, int wp_pin) {
     err = sdspi_host_init_device(&slot_config, &(host_config.slot));
     CHECK_EXECUTE_RESULT(err, "slot init failed");
 
-    // Empirically it is necessary to set the frequency twice.
-    // If you do it only above, the max frequency will be pinned
-    // at the highest "standard" frequency lower than the requested
-    // one, which is 400 kHz for requested frequencies < 20 MHz.
-    // If you do it only once below, the attempt to change it seems to
-    // be ignored, and you get 20 MHz regardless of what you ask for.
-    if (freq_hz) {
-        err = sdspi_host_set_card_clk(host_config.slot, freq_hz / 1000);
-        CHECK_EXECUTE_RESULT(err, "set slot clock speed failed");
-    }
-
     return true;
 
 cleanup:
@@ -121,26 +110,16 @@ cleanup:
     return false;
 }
 
-#if 0
-bool init_spi_bus(int mosi_pin, int miso_pin, int clk_pin) {
-    spi_bus_config_t bus_cfg = {
-        .mosi_io_num     = mosi_pin,
-        .miso_io_num     = miso_pin,
-        .sclk_io_num     = clk_pin,
-        .quadwp_io_num   = -1,
-        .quadhd_io_num   = -1,
-        .max_transfer_sz = 4000,
-    };
-    esp_err_t err = spi_bus_initialize(host_config.slot, &bus_cfg, SPI_DMA_CHAN);
-    return err == ESP_OK;
-}
-#endif
-
 // adapted from vfs_fat_sdmmc.c:esp_vfs_fat_sdmmc_mount()
 // cppcheck-suppress unusedFunction
 std::error_code sd_mount(int max_files) {
     log_verbose("Mount_sd");
     esp_err_t err;
+
+    if ((err = host_config.set_card_clk(host_config.slot, host_config.max_freq_khz)) != ESP_OK) {
+        log_debug("spi_set_card_clk failed");
+        return esp_error::make_error_code(err);
+    }
 
     // mount_prepare_mem() ... minus the strdup of base_path
     // Search for a free drive slot
@@ -205,14 +184,3 @@ void sd_deinit_slot() {
     //deinitialize the bus after all devices are removed
     //    spi_bus_free(HSPI_HOST);
 }
-
-#if 0
-static esp_err_t unmount_card_core(const char* base_path, sdmmc_card_t* card) {
-    return err;
-}
-
-unmount2() {
-    char drv[3] = { (char)('0' + pdrv), ':', 0 };
-    f_mount(NULL, drv, 0);
-}
-#endif
