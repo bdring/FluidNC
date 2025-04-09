@@ -155,9 +155,11 @@ static int i2s_out_start() {
 static bool timer_running = false;
 
 void i2s_out_delay() {
-    // Depending on the timing, it may not be reflected immediately,
-    // so wait twice as long just in case.
-    uint32_t wait_counts = timer_running ? FIFO_THRESHOLD + FIFO_RELOAD : 2;
+    // Empirically, FIFO_LENGTH/2 seems to be enough, but we use
+    // FIFO_LENGTH to be safe.  This function is used infrequently,
+    // typically only when setting up TMC drivers, so the extra
+    // delay does not affect the performance significantly.
+    uint32_t wait_counts = FIFO_LENGTH;
     delay_us(i2s_frame_us * wait_counts);
 }
 
