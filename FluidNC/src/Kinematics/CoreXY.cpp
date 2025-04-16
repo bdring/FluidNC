@@ -73,7 +73,12 @@ namespace Kinematics {
     void CoreXY::releaseMotors(AxisMask axisMask, MotorMask motors) {
         auto axes   = config->_axes;
         auto n_axis = axes->_numberAxis;
-        for (size_t axis = X_AXIS; axis < n_axis; axis++) {
+        // In CoreXY kinematics, the X and Y axes are coupled through two motors.
+        if (bitnum_is_true(axisMask, X_AXIS) || bitnum_is_true(axisMask, Y_AXIS)) {
+            Stepping::unlimit(X_AXIS, 0);
+            Stepping::unlimit(Y_AXIS, 0);
+        }
+        for (size_t axis = Z_AXIS; axis < n_axis; axis++) {
             if (bitnum_is_true(axisMask, axis)) {
                 Stepping::unlimit(axis, 0);
             }
