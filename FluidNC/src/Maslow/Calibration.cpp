@@ -70,6 +70,11 @@ bool Calibration::requestStateChange(int newState){
                 extendingALL = true; //This should be replaced by state variables
                 sys.set_state(State::Homing);
 
+                extendedTL = false;
+                extendedTR = false;
+                extendedBL = false;
+                extendedBR = false;
+
                 updateCenterXY(); //Why is this needed here?
                 return true;
             }
@@ -178,7 +183,7 @@ bool Calibration::requestStateChange(int newState){
                 break;
             }
         case RELEASE_TENSION: //We can enter release tension only from READY_TO_CUT or EXTENDEDOUT
-            if(currentState == READY_TO_CUT || currentState == EXTENDEDOUT){
+            if(currentState == READY_TO_CUT || currentState == UNKNOWN){
                 currentState = RELEASE_TENSION;
                 complyCallTimer = millis();
                 retractingTL    = false;
@@ -302,6 +307,7 @@ void Calibration::home() {
                 complyALL = false;
                 sys.set_state(State::Idle);
                 setupIsComplete = false; //We've undone the setup so apply tension is needed before we can move
+                requestStateChange(UNKNOWN);
             }
             break;
         case CALIBRATION_IN_PROGRESS:
