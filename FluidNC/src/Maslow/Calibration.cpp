@@ -29,9 +29,10 @@ int Calibration::getCurrentState(){
 }
 
 
+//Request a state change to a new state. Returns true on success and false on failure (although return value is never used atm)
 bool Calibration::requestStateChange(int newState){
 
-    log_info("Requesting state change from " << currentState << " to " << newState);
+    log_info("Requesting state change from " << stateNames[currentState].name << " to " << stateNames[newState].name);
 
     switch(newState){
         case UNKNOWN: //We can enter unknown from any state
@@ -62,17 +63,23 @@ bool Calibration::requestStateChange(int newState){
             else{
                 break;
             }
-        case EXTENDING: //We can enter extending from retracted only
-            if(currentState == RETRACTED){
+        case EXTENDING: //We can enter extending from retracted or extended out
+            if(currentState == RETRACTED || currentState == EXTENDEDOUT){
                 currentState = EXTENDING;
                 Maslow.stop();
                 extendingALL = true; //This should be replaced by state variables
                 sys.set_state(State::Homing);
 
+                extendedTL = false;
+                extendedTR = false;
+                extendedBL = false;
+                extendedBR = false;
+
                 updateCenterXY(); //Why is this needed here?
                 return true;
             }
             else{
+                log_info("Cannot extend the belts until they have been retracted");
                 break;
             }
         case EXTENDEDOUT: //We can enter extended from extending or in the event of a failure from taking slack or release tension
@@ -109,6 +116,7 @@ bool Calibration::requestStateChange(int newState){
                 return true;
             }
             else{
+                log_info("Cannot take slack until the belts have been extended");
                 break;
             }
         case CALIBRATION_IN_PROGRESS: //We can enter calibration in progress from EXTENDEDOUT or READY_TO_CUT
@@ -162,6 +170,7 @@ bool Calibration::requestStateChange(int newState){
                 return true;
             }
             else{
+                log_info("Cannot start calibration until the belts have been extended");
                 break;
             }
         case READY_TO_CUT: //We can enter ready to cut from calibration in progress or taking slack
@@ -173,8 +182,8 @@ bool Calibration::requestStateChange(int newState){
             else{
                 break;
             }
-        case RELEASE_TENSION: //We can enter release tension only from READY_TO_CUT
-            if(currentState == READY_TO_CUT){
+        case RELEASE_TENSION: //We can enter release tension only from READY_TO_CUT or EXTENDEDOUT
+            if(currentState == READY_TO_CUT || currentState == UNKNOWN){
                 currentState = RELEASE_TENSION;
                 complyCallTimer = millis();
                 retractingTL    = false;
@@ -187,8 +196,10 @@ bool Calibration::requestStateChange(int newState){
                 Maslow.axisTR.reset();
                 Maslow.axisBL.reset();
                 Maslow.axisBR.reset();
+                //Should we be returning true here?
             }
             else{
+                log_info("Cannot release tension from state " << stateNames[currentState].name);
                 break;
             }
         default:
@@ -296,6 +307,7 @@ void Calibration::home() {
                 complyALL = false;
                 sys.set_state(State::Idle);
                 setupIsComplete = false; //We've undone the setup so apply tension is needed before we can move
+                requestStateChange(UNKNOWN);
             }
             break;
         case CALIBRATION_IN_PROGRESS:
@@ -1212,8 +1224,6 @@ void Calibration::hold(unsigned long time) {
 
 
 
-
-
 //------------------------------------------------------
 //------------------------------------------------------ Utility Functions
 //------------------------------------------------------
@@ -1292,7 +1302,6 @@ void Calibration::updateCenterXY() {
     Maslow.centerX  = (Maslow.brY - (B * Maslow.brX) + (A * Maslow.trX) - Maslow.trY) / (A - B);
    Maslow.centerY  = A * (Maslow.centerX - Maslow.trX) + Maslow.trY;
 }
-
 
 // True if all axis were zeroed
 bool Calibration::all_axis_homed() {

@@ -161,5 +161,22 @@ private:
     bool safetyOn = true;
     bool HeartBeatEnabled = true;
 
+    //A structure to hold the state names
+    struct StateName {
+        int   state;
+        char* name;
+    };
+    StateName stateNames[10] = {
+        { UNKNOWN, "Unknown" },
+        { RETRACTING, "Retracting Belts" },
+        { RETRACTED, "Belts Retracted" },
+        { EXTENDING, "Extending Belts" },
+        { EXTENDEDOUT, "Belts Extended" },
+        { TAKING_SLACK, "Taking Slack" },
+        { CALIBRATION_IN_PROGRESS, "Calibrating" },
+        { READY_TO_CUT, "Ready To Cut" },
+        { RELEASE_TENSION, "Releasing Tension" }
+    };
+
 
 };
