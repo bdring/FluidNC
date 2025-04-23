@@ -182,7 +182,7 @@ bool Calibration::requestStateChange(int newState){
             else{
                 break;
             }
-        case RELEASE_TENSION: //We can enter release tension from any state
+        case RELEASE_TENSION: //We can enter release tension from any stable state (the machine is not currently performing an action)
             if(currentState == READY_TO_CUT || currentState == UNKNOWN || currentState == EXTENDEDOUT){
                 currentState = RELEASE_TENSION;
                 complyCallTimer = millis();
