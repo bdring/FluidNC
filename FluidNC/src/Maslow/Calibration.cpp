@@ -35,7 +35,7 @@ bool Calibration::requestStateChange(int newState){
     log_info("Requesting state change from " << stateNames[currentState].name << " to " << stateNames[newState].name);
 
     switch(newState){
-        case UNKNOWN: //We can enter unknown from any state
+        case UNKNOWN: //We can enter unknown from any stable state (the machine is not currently performing an action)
             currentState = UNKNOWN;
             return true;
         case RETRACTING: //We can enter retracting from any state
