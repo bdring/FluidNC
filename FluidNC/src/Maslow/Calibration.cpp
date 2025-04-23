@@ -35,7 +35,7 @@ bool Calibration::requestStateChange(int newState){
     log_info("Requesting state change from " << stateNames[currentState].name << " to " << stateNames[newState].name);
 
     switch(newState){
-        case UNKNOWN: //We can enter unknown from any state
+        case UNKNOWN: //We can enter unknown from any stable state (the machine is not currently performing an action)
             currentState = UNKNOWN;
             return true;
         case RETRACTING: //We can enter retracting from any state
@@ -182,8 +182,8 @@ bool Calibration::requestStateChange(int newState){
             else{
                 break;
             }
-        case RELEASE_TENSION: //We can enter release tension only from READY_TO_CUT or EXTENDEDOUT
-            if(currentState == READY_TO_CUT || currentState == UNKNOWN){
+        case RELEASE_TENSION: //We can enter release tension from any stable state (the machine is not currently performing an action)
+            if(currentState == READY_TO_CUT || currentState == UNKNOWN || currentState == EXTENDEDOUT){
                 currentState = RELEASE_TENSION;
                 complyCallTimer = millis();
                 retractingTL    = false;
