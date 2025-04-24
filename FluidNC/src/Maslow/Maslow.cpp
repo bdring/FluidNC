@@ -136,9 +136,6 @@ void Maslow_::update() {
 
     blinkIPAddress();
 
-    // The ui is using the ping from the websocket to detect issues. we don't need the info message any more.
-    // heartBeat();
-
     //Make sure we're running maslow config file
     if (!Maslow.using_default_config) {
         lastCallToUpdate = millis();
@@ -582,15 +579,6 @@ void Maslow_::blinkIPAddress() {
         } else {
             digitalWrite(WIFILED, HIGH);
         }
-    }
-}
-
-//Sends a heartbeat message to the UI...should be replaced with the built in ones for fluidNC...has been?
-void Maslow_::heartBeat(){
-    static unsigned long heartBeatTimer = millis();
-    if(millis() - heartBeatTimer > 1000 && HeartBeatEnabled) {
-        heartBeatTimer = millis();
-        log_info("Heartbeat");
     }
 }
 
