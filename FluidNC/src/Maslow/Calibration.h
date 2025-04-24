@@ -69,6 +69,7 @@ public:
 
     //State machine functions
     int getCurrentState();
+    void printCurrentState();
     bool requestStateChange(int newState);
 
     //Public Variables
@@ -100,10 +101,10 @@ public:
     float  calibration_grid_height_mm_Y    = 1000;  // mm offset from the edge of the frame
     bool  calibrationInProgress;  //Used to turn off regular movements during calibration
 
-private:
-
     //State machine variables
     int currentState = UNKNOWN;
+
+private:
 
     //Variables used for retracting state
     bool   axis_homed[4]             = { false, false, false, false };

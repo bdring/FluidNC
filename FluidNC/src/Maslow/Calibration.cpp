@@ -28,6 +28,11 @@ int Calibration::getCurrentState(){
     return currentState;
 }
 
+//Prints the machine's current state
+void Calibration::printCurrentState(){
+    log_info("Current state: " << currentState);
+}
+
 
 //Request a state change to a new state. Returns true on success and false on failure (although return value is never used atm)
 bool Calibration::requestStateChange(int newState){

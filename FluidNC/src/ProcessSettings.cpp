@@ -872,6 +872,12 @@ static Error maslow_telemetry_set(const char* value, WebUI::AuthenticationLevel 
     return Error::Ok;
 }
 
+//Get the machine's current state
+static Error maslow_get_state(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
+    Maslow.calibration.printCurrentState();
+    return Error::Ok;
+}
+
 //This is used for release tension
 static Error maslow_set_comply(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
     if(Maslow.using_default_config) {
@@ -1113,6 +1119,7 @@ void make_user_commands() {
     new UserCommand("ESTOP", M+"/estop", maslow_estop, anyState);
     new UserCommand("SETZSTOP", M+"/setZStop", maslow_set_zStop, anyState);
     new UserCommand("MINFO", M+"/getInfo", maslow_get_info, anyState);
+    new UserCommand("GSTATE", M+"/gstate", maslow_get_state, anyState);
 };
 
 // normalize_key puts a key string into canonical form -
