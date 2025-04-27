@@ -670,7 +670,7 @@ void Stepper::prep_buffer() {
             sys.step_control.updateSpindleSpeed = false;
         }
         prep_segment->spindle_speed     = prep.current_spindle_speed;
-        prep_segment->spindle_dev_speed = spindle->mapSpeed(prep.current_spindle_speed);  // Reload segment PWM value
+        prep_segment->spindle_dev_speed = spindle->mapSpeed(pl_block->spindle, prep.current_spindle_speed);  // Reload segment PWM value
 
         /* -----------------------------------------------------------------------------------
            Compute segment step rate, steps to execute, and apply necessary rate corrections.

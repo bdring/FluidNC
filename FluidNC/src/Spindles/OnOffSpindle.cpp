@@ -38,14 +38,8 @@ namespace Spindles {
             return;  // Block during abort.
         }
 
-        // We always use mapSpeed() with the unmodified input speed so it sets
-        // sys.spindle_speed correctly.
-        uint32_t dev_speed = mapSpeed(speed);
-        if (state == SpindleState::Disable) {  // Halt or set spindle direction and speed.
-            if (_zero_speed_with_disable) {
-                dev_speed = offSpeed();
-            }
-        } else {
+        uint32_t dev_speed = mapSpeed(state, speed);
+        if (state != SpindleState::Disable) {  // Halt or set spindle direction and speed.
             // XXX this could wreak havoc if the direction is changed without first
             // spinning down.
             set_direction(state == SpindleState::Cw);

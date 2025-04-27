@@ -54,14 +54,13 @@ namespace Spindles {
             return;  // Block during abort.
         }
 
-        // We always use mapSpeed() with the unmodified input speed so it sets
-        // sys.spindle_speed correctly.
         uint32_t dev_speed = speed;  // no mapping
         if (state == SpindleState::Disable) {
             _arc_on = false;
             set_enable(false);
-
+            sys.spindle_speed = 0.0;
         } else {
+            sys.spindle_speed = speed;
             // check arc OK is not on before starting
             if (_arcOkEventPin.get()) {
                 log_error(name() << " arc_ok active before starting plasma");

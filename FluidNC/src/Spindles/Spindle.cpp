@@ -159,12 +159,18 @@ namespace Spindles {
         }
     }
 
-    uint32_t IRAM_ATTR Spindle::mapSpeed(SpindleSpeed speed) {
+    uint32_t IRAM_ATTR Spindle::mapSpeed(SpindleState state, SpindleSpeed speed) {
+        speed             = speed * sys.spindle_speed_ovr / 100;
+        sys.spindle_speed = speed;
+        if (state == SpindleState::Disable) {  // Halt or set spindle direction and speed.
+            if (_zero_speed_with_disable) {
+                sys.spindle_speed = 0.0;
+                return 0;
+            }
+        }
         if (_speeds.size() == 0) {
             return 0;
         }
-        speed             = speed * sys.spindle_speed_ovr / 100;
-        sys.spindle_speed = speed;
         if (speed < _speeds[0].speed) {
             return _speeds[0].offset;
         }

@@ -28,6 +28,9 @@ namespace Spindles {
         const char* _name;
         std::string _atc_info = "";
 
+        // _zero_speed_with_disable forces speed to 0 when disabled
+        bool _zero_speed_with_disable = false;
+
     protected:
         ATCs::ATC* _atc       = nullptr;
         uint32_t   _last_tool = 0;
@@ -35,15 +38,15 @@ namespace Spindles {
     public:
         Spindle(const char* name) : _name(name) {}
 
-        Spindle(const Spindle&) = delete;
-        Spindle(Spindle&&)      = delete;
+        Spindle(const Spindle&)            = delete;
+        Spindle(Spindle&&)                 = delete;
         Spindle& operator=(const Spindle&) = delete;
-        Spindle& operator=(Spindle&&) = delete;
+        Spindle& operator=(Spindle&&)      = delete;
 
         bool     _defaultedSpeeds;
         uint32_t offSpeed() { return _speeds[0].offset; }
         uint32_t maxSpeed();
-        uint32_t mapSpeed(SpindleSpeed speed);
+        uint32_t mapSpeed(SpindleState state, SpindleSpeed speed);
         void     setupSpeeds(uint32_t max_dev_speed);
         void     shelfSpeeds(SpindleSpeed min, SpindleSpeed max);
         void     linearSpeeds(SpindleSpeed maxSpeed, float maxPercent);
@@ -104,6 +107,7 @@ namespace Spindles {
             handler.item("off_on_alarm", _off_on_alarm);
             handler.item("atc", _atc_name);
             handler.item("m6_macro", _m6_macro);
+            handler.item("s0_with_disable", _zero_speed_with_disable);
         }
 
         // Virtual base classes require a virtual destructor.
