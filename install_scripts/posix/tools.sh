@@ -36,7 +36,7 @@ fi
 
 EsptoolPath=esptool.py
 
-BaseArgs="--chip esp32 --baud 230400"
+BaseArgs="--chip esp32s3 --baud 921600"
 
 SetupArgs="--before default_reset --after hard_reset write_flash -z --flash_mode dio --flash_freq 80m --flash_size detect"
 
@@ -80,7 +80,7 @@ esptool_erase() {
     esptool_basic erase_flash
 }
 
-Bootloader="0x1000 ${BuildType}/bootloader.bin"
+Bootloader="0x0000 ${BuildType}/bootloader.bin"
 Bootapp="0xe000 common/boot_app0.bin"
 Firmware="0x10000 ${BuildType}/firmware.bin"
 Partitions="0x8000 ${BuildType}/partitions.bin"
@@ -95,6 +95,6 @@ install() {
     fi
     esptool_write $Bootloader $Bootapp $Firmware $Partitions
 
-    echo Starting fluidterm
-    run_fluidterm
+    # echo Starting fluidterm
+    # run_fluidterm
 }

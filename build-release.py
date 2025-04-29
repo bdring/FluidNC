@@ -6,14 +6,15 @@ from shutil import copy
 from zipfile import ZipFile, ZipInfo
 import subprocess, os, sys, shutil
 import urllib.request
+import certifi
 
 verbose = '-v' in sys.argv
 
 environ = dict(os.environ)
 
-platformio = r"C:\Users\bar\.platformio\penv\Scripts\platformio.exe"
-version = "0.78 "
-os.chdir(os.path.dirname(os.path.realpath(r"C:\Users\bar\Documents\GitHub\FluidNC\.pio")))
+platformio = r"/Users/barsmith/.platformio/penv/bin/platformio" #"/Users/barsmith/.platformio/penv/bin/platformio"
+version = "1.04"
+os.chdir(os.path.dirname(os.path.realpath(r"/Users/barsmith/Documents/GitHub/FluidNC/.pio"))) #"/Users/barsmith/Documents/GitHub/FluidNC/.pio"
 #change path to the project folder (the folder with platformio.ini)
 tag = "maslow4-"+version
 sharedPath = 'install_scripts'
@@ -93,7 +94,7 @@ for envName in ['wifi_s3']:
     shutil.copy(os.path.join('.pio', 'build', envName, 'firmware.elf'), os.path.join(relPath, envName + '-' + 'firmware.elf'))
 
 for platform in ['win64', 'posix']:
-    print("Creating zip file for ", platform)
+    print("Creating zip file for", platform)
     terseOSName = {
         'win64': 'win',
         'posix': 'posix',
@@ -153,6 +154,9 @@ for platform in ['win64', 'posix']:
             # E.g. posix/fluidterm.sh -> fluidterm.sh
             copyToZip(zipObj, platform, script + scriptExtension[platform], zipDirName)
 
+        if platform == 'posix':
+            copyToZip(zipObj, platform, 'full-install.command', zipDirName)
+
         # Put the fluidterm code in the archive
         for obj in ['fluidterm.py', 'README-FluidTerm.md']:
             fn = os.path.join('fluidterm', obj)
@@ -182,7 +186,7 @@ for platform in ['win64', 'posix']:
         # Download and unzip from ESP repo
         ZipFileName = EspDir + '.zip'
         if not os.path.isfile(ZipFileName):
-            with urllib.request.urlopen(EspRepo + ZipFileName) as u:
+            with urllib.request.urlopen(EspRepo + ZipFileName, cafile=certifi.where()) as u:
                 open(ZipFileName, 'wb').write(u.read())
 
         if withEsptoolBinary[platform]:

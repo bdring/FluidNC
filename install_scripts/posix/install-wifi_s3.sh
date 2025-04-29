@@ -1,6 +1,6 @@
 #!/bin/sh
 
-BuildType=wifi
+BuildType=wifi_s3
 
 if ! . ./tools.sh; then exit 1; fi
 
