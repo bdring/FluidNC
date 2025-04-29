@@ -114,7 +114,6 @@ public:
     void   begin(void (*sys_rt)());
     void   update();
     void   blinkIPAddress();
-    void   heartBeat();
     bool   updateEncoderPositions();
     void   setTargets(float xTarget, float yTarget, float zTarget, bool tl = true, bool tr = true, bool bl = true, bool br = true);
     double getTargetX();

@@ -28,16 +28,24 @@ int Calibration::getCurrentState(){
     return currentState;
 }
 
+//Prints the machine's current state
+void Calibration::printCurrentState(){
+    log_info("Current state: " << currentState);
+}
+
 
 //Request a state change to a new state. Returns true on success and false on failure (although return value is never used atm)
 bool Calibration::requestStateChange(int newState){
 
     log_info("Requesting state change from " << stateNames[currentState].name << " to " << stateNames[newState].name);
 
+    bool success = false;
+
     switch(newState){
         case UNKNOWN: //We can enter unknown from any stable state (the machine is not currently performing an action)
             currentState = UNKNOWN;
-            return true;
+            success =  true;
+            break;
         case RETRACTING: //We can enter retracting from any state
             currentState = RETRACTING;
 
@@ -53,12 +61,14 @@ bool Calibration::requestStateChange(int newState){
             Maslow.axisBR.reset();
             setupIsComplete = false;
 
-            return true;
+            success =  true;
+            break;
         case RETRACTED: //We can enter retracted from retracting only
             if(currentState == RETRACTING){
                 currentState = RETRACTED;
                 sys.set_state(State::Idle);
-                return true;
+                success =  true;
+                break;
             }
             else{
                 break;
@@ -76,7 +86,8 @@ bool Calibration::requestStateChange(int newState){
                 extendedBR = false;
 
                 updateCenterXY(); //Why is this needed here?
-                return true;
+                success =  true;
+                break;
             }
             else{
                 log_info("Cannot extend the belts until they have been retracted");
@@ -86,7 +97,8 @@ bool Calibration::requestStateChange(int newState){
             if(currentState == EXTENDING || currentState == TAKING_SLACK || currentState == RELEASE_TENSION){
                 currentState = EXTENDEDOUT;
                 sys.set_state(State::Idle);
-                return true;
+                success =  true;
+                break;
             }
             else{
                 break;
@@ -113,7 +125,8 @@ bool Calibration::requestStateChange(int newState){
             
                 //Alocate the memory to store the measurements in. This is used here because take slack will use the same memory as the calibration
                 allocateCalibrationMemory();
-                return true;
+                success =  true;
+                break;
             }
             else{
                 log_info("Cannot take slack until the belts have been extended");
@@ -167,7 +180,8 @@ bool Calibration::requestStateChange(int newState){
                 sys.set_state(State::Homing);
 
                 calibrationInProgress = true; //Should be replaced by state machine
-                return true;
+                success =  true;
+                break;
             }
             else{
                 log_info("Cannot start calibration until the belts have been extended");
@@ -177,7 +191,8 @@ bool Calibration::requestStateChange(int newState){
             if(currentState == CALIBRATION_IN_PROGRESS || currentState == TAKING_SLACK){
                 currentState = READY_TO_CUT;
                 sys.set_state(State::Idle);
-                return true;
+                success =  true;
+                break;
             }
             else{
                 break;
@@ -196,7 +211,8 @@ bool Calibration::requestStateChange(int newState){
                 Maslow.axisTR.reset();
                 Maslow.axisBL.reset();
                 Maslow.axisBR.reset();
-                //Should we be returning true here?
+                success =  true;
+                break;
             }
             else{
                 log_info("Cannot release tension from state " << stateNames[currentState].name);
@@ -206,7 +222,13 @@ bool Calibration::requestStateChange(int newState){
             return false;
     }
 
-    return false;
+    if(success){
+        log_info("Succeeded");
+    }
+
+    printCurrentState();
+
+    return success;
 }
 
 
