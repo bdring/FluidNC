@@ -120,8 +120,11 @@ namespace Machine {
         handler.item(M+"_Calibration_Current_Threshold", Maslow.calibration.calibrationCurrentThreshold, 0, 3500);
         handler.item(M+"_Acceptable_Calibration_Threshold", Maslow.calibration.acceptableCalibrationThreshold, 0, 1);
         handler.item(M+"_Extend_Dist", Maslow.calibration.extendDist, 0, 4250);
-	handler.item(M+"_beltEndExtension", Maslow._beltEndExtension);
-	handler.item(M+"_armLength", Maslow._armLength);
+        handler.item(M+"_beltEndExtension", Maslow._beltEndExtension);
+        handler.item(M+"_armLength", Maslow._armLength);
+
+        handler.item(M+"_Scale_X", Maslow.scaleX, .8, 1.2);
+        handler.item(M+"_Scale_Y", Maslow.scaleY, .8, 1.2);
     }
 
     void MachineConfig::afterParse() {

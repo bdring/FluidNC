@@ -48,6 +48,10 @@ Maslow_Retract_Current_Threshold: 900
 Maslow_Calibration_Current_Threshold: 900
 # Sets the acceptable fitness threshold for moving on to the next calibration round.
 Maslow_Acceptable_Calibration_Threshold: 0.45
+# Sets the scale factor for the x axis. 
+Maslow_Scale_X: 1.0
+# Sets the scale factor for the y axis.
+Maslow_Scale_Y: 1.0
 # Sets the distance to extend the bels during the calibration process.
 Maslow_Extend_Dist: 1700
 

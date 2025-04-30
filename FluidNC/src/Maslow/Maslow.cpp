@@ -165,8 +165,8 @@ void Maslow_::update() {
 
         //-------Jog or G-code execution.
         if (sys.state() == State::Jog || sys.state() == State::Cycle) {
-            Maslow.setTargets(steps_to_mpos(get_axis_motor_steps(0), 0),
-                              steps_to_mpos(get_axis_motor_steps(1), 1),
+            Maslow.setTargets(steps_to_mpos(get_axis_motor_steps(0), 0)*scaleX,
+                              steps_to_mpos(get_axis_motor_steps(1), 1)*scaleY,
                               steps_to_mpos(get_axis_motor_steps(2), 2));
 
             //This disables the belt motors until the user has completed calibration or apply tension and they have succeded

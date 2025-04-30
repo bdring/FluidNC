@@ -194,6 +194,8 @@ public:
     //keep track of where Maslow actually is
     double x;
     double y;
+    float scaleX = 1.0;
+    float scaleY = 1.0;
 
     float tlX;
     float tlY;
