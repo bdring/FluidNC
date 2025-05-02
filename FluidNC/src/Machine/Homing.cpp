@@ -366,7 +366,7 @@ namespace Machine {
             set_state(unhomed_axes() ? State::Alarm : State::Idle);
             Stepper::go_idle();  // Set steppers to the settings idle state before returning.
             if (state_is(State::Idle)) {
-                config->_macros->_after_homing.run(&out);
+                config->_macros->_after_homing.run(&allChannels);
             }
         }
     }
