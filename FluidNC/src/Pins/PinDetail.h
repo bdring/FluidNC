@@ -42,6 +42,8 @@ namespace Pins {
         virtual void          setAttr(PinAttributes value, uint32_t frequencey = 0) = 0;
         virtual PinAttributes getAttr() const                                       = 0;
 
+        virtual int8_t driveStrength() { return -1; }
+
         virtual bool canStep() { return false; }
 
         virtual void registerEvent(InputPin* obj);

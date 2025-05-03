@@ -115,9 +115,24 @@ namespace Pins {
                 _attributes = _attributes | PinAttributes::ActiveLow;
             } else if (opt.is("high")) {
                 // Default: Active HIGH.
+            } else if (opt.is("ds0")) {
+                _attributes    = _attributes | PinAttributes::DS0;
+                _driveStrength = 0;
+            } else if (opt.is("ds1")) {
+                _attributes    = _attributes | PinAttributes::DS1;
+                _driveStrength = 1;
+            } else if (opt.is("ds2")) {
+                _attributes    = _attributes | PinAttributes::DS2;
+                _driveStrength = 2;
+            } else if (opt.is("ds3")) {
+                _attributes    = _attributes | PinAttributes::DS3;
+                _driveStrength = 3;
             } else {
                 Assert(false, "Bad GPIO option passed to pin %d: %.*s", int(index), static_cast<int>(opt().length()), opt().data());
             }
+        }
+        if (_driveStrength != -1) {
+            gpio_drive_strength(index, _driveStrength);
         }
         _claimed[index] = true;
 
@@ -181,6 +196,22 @@ namespace Pins {
                   _attributes.has(PinAttributes::PullUp),
                   _attributes.has(PinAttributes::PullDown),
                   false);  // We do not have an OpenDrain attribute yet
+
+        // setAttr can be used to set the drive strength, which is normally
+        // set when the pin is created
+        if (value.has(PinAttributes::DS0)) {
+            _driveStrength = 0;
+        } else if (value.has(PinAttributes::DS1)) {
+            _driveStrength = 1;
+        } else if (value.has(PinAttributes::DS2)) {
+            _driveStrength = 2;
+        } else if (value.has(PinAttributes::DS3)) {
+            _driveStrength = 3;
+        }
+
+        if (_driveStrength != -1) {
+            gpio_drive_strength(_index, _driveStrength);
+        }
     }
 
     void IRAM_ATTR GPIOPinDetail::setDuty(uint32_t duty) {
@@ -202,6 +233,18 @@ namespace Pins {
         }
         if (_attributes.has(PinAttributes::PullDown)) {
             s += ":pd";
+        }
+        if (_attributes.has(PinAttributes::DS0)) {
+            s += ":ds0";
+        }
+        if (_attributes.has(PinAttributes::DS1)) {
+            s += ":ds1";
+        }
+        if (_attributes.has(PinAttributes::DS2)) {
+            s += ":ds2";
+        }
+        if (_attributes.has(PinAttributes::DS3)) {
+            s += ":ds3";
         }
 
         return s;

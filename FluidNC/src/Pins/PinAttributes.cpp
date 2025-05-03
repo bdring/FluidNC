@@ -30,6 +30,11 @@ namespace Pins {
     PinAttributes PinAttributes::Exclusive(1 << (__LINE__ - START_LINE));  // \/       These are attributes
     PinAttributes PinAttributes::InitialOn(1 << (__LINE__ - START_LINE));  // \/       These are attributes
 
+    PinAttributes PinAttributes::DS0(1 << (__LINE__ - START_LINE));  // Lowest drive strength
+    PinAttributes PinAttributes::DS1(1 << (__LINE__ - START_LINE));  // Second to lowest drive strength
+    PinAttributes PinAttributes::DS2(1 << (__LINE__ - START_LINE));  // Second to highest drive strength
+    PinAttributes PinAttributes::DS3(1 << (__LINE__ - START_LINE));  // Highest drive strength
+
     // cppcheck-suppress unusedFunction
     bool PinAttributes::validateWith(PinCapabilities caps) {
         auto capMask  = (caps._value & capabilityMask);

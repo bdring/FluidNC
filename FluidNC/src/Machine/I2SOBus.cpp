@@ -46,6 +46,10 @@ namespace Machine {
 
             params.min_pulse_us = _min_pulse_us;
 
+            params.ws_drive_strength   = _ws.driveStrength();
+            params.bck_drive_strength  = _bck.driveStrength();
+            params.data_drive_strength = _data.driveStrength();
+
             i2s_out_init(&params);
         }
     }

@@ -40,6 +40,9 @@ typedef struct {
     uint32_t pulse_period;  // aka step rate.
     uint32_t init_val;
     uint32_t min_pulse_us;
+    int8_t   ws_drive_strength;
+    int8_t   bck_drive_strength;
+    int8_t   data_drive_strength;
 } i2s_out_init_t;
 
 /*
