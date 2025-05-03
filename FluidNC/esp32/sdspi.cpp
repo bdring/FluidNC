@@ -1,6 +1,10 @@
 // Copyright (c) 2022 Mitch Bradley
 // Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
 
+#include <esp_log.h>
+#undef CONFIG_LOG_MAXIMUM_LEVEL
+#define CONFIG_LOG_MAXIMUM_LEVEL CORE_DEBUG_LEVEL
+
 #include "vfs_api.h"
 #include "esp_vfs_fat.h"
 #include "diskio_impl.h"
@@ -76,6 +80,7 @@ bool sd_init_slot(uint32_t freq_hz, int cs_pin, int cd_pin, int wp_pin) {
     esp_err_t err;
 
     esp_log_level_set("sdmmc_sd", ESP_LOG_NONE);
+    esp_log_level_set("sdmmc_common", ESP_LOG_NONE);
 
     // Note: esp_vfs_fat_sdmmc/sdspi_mount is all-in-one convenience functions.
     // Please check its source code and implement error recovery when developing
@@ -144,6 +149,11 @@ std::error_code sd_mount(int max_files) {
 
     // probe and initialize card
     err = sdmmc_card_init(&host_config, card);
+    if (err != ESP_OK) {
+        // Some cards fail the first time after they are inserted, but then succeed,
+        // so we retry this step once.
+        err = sdmmc_card_init(&host_config, card);
+    }
     CHECK_EXECUTE_RESULT(err, "sdmmc_card_init failed");
 
     err = mount_to_vfs_fat(max_files, card, pdrv, base_path);
