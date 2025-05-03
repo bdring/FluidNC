@@ -7,11 +7,8 @@
 extern "C" {
 #endif
 
-#if 0
-#    include "src/Pins/PinDetail.h"  // pinnum_t
-#else
+#include "stdint.h"
 typedef uint8_t pinnum_t;
-#endif
 
 // GPIO interface
 

@@ -22,6 +22,8 @@ namespace Pins {
 
         int8_t _driveStrength = -1;
 
+        void setDriveStrength(int n, PinAttributes attr);
+
     public:
         static const int nGPIOPins = 40;
 
@@ -31,7 +33,7 @@ namespace Pins {
 
         // I/O:
         void          write(int high) override;
-        int IRAM_ATTR read() override;
+        int           read() override;
         void          setAttr(PinAttributes value, uint32_t frequency) override;
         PinAttributes getAttr() const override;
 

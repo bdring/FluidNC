@@ -2,7 +2,6 @@
 // Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
 
 #include <esp_attr.h>  // IRAM_ATTR
-#include <esp32-hal-gpio.h>
 #include "Driver/fluidnc_gpio.h"
 #include <stdexcept>
 
@@ -15,72 +14,10 @@
 namespace Pins {
     std::vector<bool> GPIOPinDetail::_claimed(nGPIOPins, false);
 
-    PinCapabilities GPIOPinDetail::GetDefaultCapabilities(pinnum_t index) {
-        // See https://randomnerdtutorials.com/esp32-pinout-reference-gpios/ for an overview:
-        switch (index) {
-            case 0:  // Outputs PWM signal at boot
-                return PinCapabilities::Native | PinCapabilities::Input | PinCapabilities::Output | PinCapabilities::PullUp |
-                       PinCapabilities::PullDown | PinCapabilities::ADC | PinCapabilities::PWM | PinCapabilities::ISR |
-                       PinCapabilities::UART;
-
-            case 1:  // TX pin of Serial0. Note that Serial0 also runs through the Pins framework!
-                return PinCapabilities::Native | PinCapabilities::Output | PinCapabilities::Input | PinCapabilities::UART;
-
-            case 3:  // RX pin of Serial0. Note that Serial0 also runs through the Pins framework!
-                return PinCapabilities::Native | PinCapabilities::Output | PinCapabilities::Input | PinCapabilities::ISR |
-                       PinCapabilities::UART;
-
-            case 5:
-            case 9:
-            case 10:
-            case 16:
-            case 17:
-            case 18:
-            case 19:
-            case 21:
-            case 22:
-            case 23:
-            case 29:
-                return PinCapabilities::Native | PinCapabilities::Input | PinCapabilities::Output | PinCapabilities::PullUp |
-                       PinCapabilities::PullDown | PinCapabilities::PWM | PinCapabilities::ISR | PinCapabilities::UART;
-
-            case 2:  // Normal pins
-            case 4:
-            case 12:  // Boot fail if pulled high
-            case 13:
-            case 14:  // Outputs PWM signal at boot
-            case 15:  // Outputs PWM signal at boot
-            case 27:
-            case 32:
-            case 33:
-                return PinCapabilities::Native | PinCapabilities::Input | PinCapabilities::Output | PinCapabilities::PullUp |
-                       PinCapabilities::PullDown | PinCapabilities::ADC | PinCapabilities::PWM | PinCapabilities::ISR |
-                       PinCapabilities::UART;
-
-            case 25:
-            case 26:
-                return PinCapabilities::Native | PinCapabilities::Input | PinCapabilities::Output | PinCapabilities::PullUp |
-                       PinCapabilities::PullDown | PinCapabilities::ADC | PinCapabilities::DAC | PinCapabilities::PWM |
-                       PinCapabilities::ISR | PinCapabilities::UART;
-
-            case 6:  // SPI flash integrated
-            case 7:
-            case 8:
-            case 11:
-                return PinCapabilities::Reserved;
-
-            case 34:  // Input only pins
-            case 35:
-            case 36:
-            case 37:
-            case 38:
-            case 39:
-                return PinCapabilities::Native | PinCapabilities::Input | PinCapabilities::ADC | PinCapabilities::ISR | PinCapabilities::UART;
-                break;
-
-            default:  // Not mapped to actual GPIO pins
-                return PinCapabilities::None;
-        }
+    void GPIOPinDetail::setDriveStrength(int n, PinAttributes attr) {
+        Assert(_capabilities.has(PinCapabilities::Output), "Drive strength only applies to output pins");
+        _attributes    = _attributes | attr;
+        _driveStrength = n;
     }
 
     GPIOPinDetail::GPIOPinDetail(pinnum_t index, PinOptionsParser options) :
@@ -116,17 +53,13 @@ namespace Pins {
             } else if (opt.is("high")) {
                 // Default: Active HIGH.
             } else if (opt.is("ds0")) {
-                _attributes    = _attributes | PinAttributes::DS0;
-                _driveStrength = 0;
+                setDriveStrength(0, PinAttributes::DS0);
             } else if (opt.is("ds1")) {
-                _attributes    = _attributes | PinAttributes::DS1;
-                _driveStrength = 1;
+                setDriveStrength(1, PinAttributes::DS1);
             } else if (opt.is("ds2")) {
-                _attributes    = _attributes | PinAttributes::DS2;
-                _driveStrength = 2;
+                setDriveStrength(2, PinAttributes::DS2);
             } else if (opt.is("ds3")) {
-                _attributes    = _attributes | PinAttributes::DS3;
-                _driveStrength = 3;
+                setDriveStrength(3, PinAttributes::DS3);
             } else {
                 Assert(false, "Bad GPIO option passed to pin %d: %.*s", int(index), static_cast<int>(opt().length()), opt().data());
             }

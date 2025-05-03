@@ -3,7 +3,6 @@
 
 #pragma once
 
-#include "PinCapabilities.h"
 #include "PinAttributes.h"
 #include "PinOptionsParser.h"
 
@@ -11,8 +10,6 @@
 #include <cstring>
 #include <string>
 #include <vector>
-
-typedef uint8_t pinnum_t;
 
 class InputPin;
 

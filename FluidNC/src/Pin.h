@@ -4,8 +4,6 @@
 #pragma once
 
 #include "Pins/PinDetail.h"
-#include "Pins/PinCapabilities.h"
-#include "Pins/PinAttributes.h"
 
 #include <esp_attr.h>  // IRAM_ATTR
 #include <cstdint>
