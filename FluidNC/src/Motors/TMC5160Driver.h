@@ -23,17 +23,9 @@ namespace MotorDrivers {
         void debug_message() override;
         void validate() override { StandardStepper::validate(); }
 
-        bool _diag0_error = false;
-        bool _diag0_otpw = false;
-        bool _diag0_int_pushpull = false;
-
         void group(Configuration::HandlerBase& handler) override {
             TrinamicSpiDriver::group(handler);
             handler.item("tpfd", _tpfd, 0, 15);
-
-            handler.item("diag0_error", _diag0_error);
-            handler.item("diag0_otpw", _diag0_otpw);
-            handler.item("diag0_int_pushpull", _diag0_int_pushpull);
         }
 
     private:
