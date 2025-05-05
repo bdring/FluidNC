@@ -37,6 +37,9 @@ void gpio_mode(pinnum_t pin, int input, int output, int pullup, int pulldown, in
     }
     gpio_config(&conf);
 }
+void gpio_drive_strength(pinnum_t pin, int strength) {
+    gpio_set_drive_capability((gpio_num_t)pin, (gpio_drive_cap_t)strength);
+}
 #if 0
 void gpio_add_interrupt(pinnum_t pin, int mode, void (*callback)(void*), void* arg) {
     gpio_install_isr_service(ESP_INTR_FLAG_IRAM);  // Will return an err if already called

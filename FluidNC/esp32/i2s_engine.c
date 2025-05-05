@@ -197,6 +197,18 @@ int i2s_out_init(i2s_out_init_t* init_param) {
 
     // Route the i2s pins to the appropriate GPIO
     i2s_out_gpio_attach(init_param->ws_pin, init_param->bck_pin, init_param->data_pin);
+    if (init_param->ws_drive_strength != -1) {
+        gpio_drive_strength(init_param->ws_pin, init_param->ws_drive_strength);
+    }
+    if (init_param->ws_drive_strength != -1) {
+        gpio_drive_strength(init_param->ws_pin, init_param->ws_drive_strength);
+    }
+    if (init_param->bck_drive_strength != -1) {
+        gpio_drive_strength(init_param->bck_pin, init_param->bck_drive_strength);
+    }
+    if (init_param->data_drive_strength != -1) {
+        gpio_drive_strength(init_param->data_pin, init_param->data_drive_strength);
+    }
 
     /**
    * Each i2s transfer will take

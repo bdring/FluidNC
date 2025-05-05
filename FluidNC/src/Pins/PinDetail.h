@@ -3,7 +3,6 @@
 
 #pragma once
 
-#include "PinCapabilities.h"
 #include "PinAttributes.h"
 #include "PinOptionsParser.h"
 
@@ -11,8 +10,6 @@
 #include <cstring>
 #include <string>
 #include <vector>
-
-typedef uint8_t pinnum_t;
 
 class InputPin;
 
@@ -41,6 +38,8 @@ namespace Pins {
         virtual int           read()                                                = 0;
         virtual void          setAttr(PinAttributes value, uint32_t frequencey = 0) = 0;
         virtual PinAttributes getAttr() const                                       = 0;
+
+        virtual int8_t driveStrength() { return -1; }
 
         virtual bool canStep() { return false; }
 

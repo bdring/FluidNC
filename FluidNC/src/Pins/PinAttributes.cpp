@@ -2,7 +2,6 @@
 // Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
 
 #include "PinAttributes.h"
-#include "PinCapabilities.h"
 
 namespace Pins {
     PinAttributes PinAttributes::Undefined(0);
@@ -29,6 +28,11 @@ namespace Pins {
     PinAttributes PinAttributes::ActiveLow(1 << (__LINE__ - START_LINE));
     PinAttributes PinAttributes::Exclusive(1 << (__LINE__ - START_LINE));  // \/       These are attributes
     PinAttributes PinAttributes::InitialOn(1 << (__LINE__ - START_LINE));  // \/       These are attributes
+
+    PinAttributes PinAttributes::DS0(1 << (__LINE__ - START_LINE));  // Lowest drive strength
+    PinAttributes PinAttributes::DS1(1 << (__LINE__ - START_LINE));  // Second to lowest drive strength
+    PinAttributes PinAttributes::DS2(1 << (__LINE__ - START_LINE));  // Second to highest drive strength
+    PinAttributes PinAttributes::DS3(1 << (__LINE__ - START_LINE));  // Highest drive strength
 
     // cppcheck-suppress unusedFunction
     bool PinAttributes::validateWith(PinCapabilities caps) {

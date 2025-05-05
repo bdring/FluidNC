@@ -4,8 +4,6 @@
 #pragma once
 
 #include "Pins/PinDetail.h"
-#include "Pins/PinCapabilities.h"
-#include "Pins/PinAttributes.h"
 
 #include <esp_attr.h>  // IRAM_ATTR
 #include <cstdint>
@@ -112,9 +110,10 @@ public:
         Assert(_detail->capabilities().has(expectedBehavior), "Requested pin %s does not have the expected behavior.", name().c_str());
         return _detail->_index;
     }
-    inline bool canStep() { return _detail->canStep(); }
-    inline int  index() { return _detail->_index; }
-    inline bool inverted() { return _detail->_inverted; }
+    inline int8_t driveStrength() const { return _detail->driveStrength(); }
+    inline bool   canStep() { return _detail->canStep(); }
+    inline int    index() { return _detail->_index; }
+    inline bool   inverted() { return _detail->_inverted; }
 
     inline void write(bool value) const { _detail->write(value); };
     inline void synchronousWrite(bool value) const { _detail->synchronousWrite(value); };

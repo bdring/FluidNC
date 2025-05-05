@@ -4,6 +4,7 @@
 #pragma once
 
 #include <cstdint>
+#include "Driver/fluidnc_gpio.h"
 
 #include "PinCapabilities.h"
 
@@ -47,6 +48,11 @@ namespace Pins {
         static PinAttributes ActiveLow;
         static PinAttributes Exclusive;
         static PinAttributes InitialOn;
+
+        static PinAttributes DS0;
+        static PinAttributes DS1;
+        static PinAttributes DS2;
+        static PinAttributes DS3;
 
         inline PinAttributes operator|(PinAttributes rhs) { return PinAttributes(_value | rhs._value); }
         inline PinAttributes operator&(PinAttributes rhs) { return PinAttributes(_value & rhs._value); }
