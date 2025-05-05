@@ -417,10 +417,6 @@ static Error home(AxisMask axisMask, Channel& out) {
         protocol_execute_realtime();
     } while (state_is(State::Homing));
 
-    if (!Homing::unhomed_axes()) {
-        config->_macros->_after_homing.run(&out);
-    }
-
     return Error::Ok;
 }
 static Error home_all(const char* value, AuthenticationLevel auth_level, Channel& out) {
