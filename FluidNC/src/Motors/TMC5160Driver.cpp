@@ -54,6 +54,10 @@ namespace MotorDrivers {
 
         tmc5160->tpfd(_tpfd);
 
+        tmc5160->diag0_error(_diag0_error);
+        tmc5160->diag0_otpw(_diag0_otpw);
+        tmc5160->diag0_int_pushpull(_diag0_int_pushpull);
+
         switch (_mode) {
             case TrinamicMode ::StealthChop:
                 log_debug(axisName() << " StealthChop");
