@@ -111,7 +111,7 @@ namespace Spindles {
 
         bool critical = (state_is(State::Cycle) || state != SpindleState::Disable);
 
-        uint32_t dev_speed = mapSpeed(speed);
+        uint32_t dev_speed = mapSpeed(state, speed);
 
         if (_current_state != state) {
             // Changing state

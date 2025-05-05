@@ -81,8 +81,6 @@ namespace Spindles {
         // TO DO. These are not used in the class
         // _disable_with_zero_speed forces a disable when speed is 0
         bool _disable_with_zero_speed = false;
-        // _zero_speed_with_disable forces speed to 0 when disabled
-        bool _zero_speed_with_disable = false;
 
         bool         _arc_on = false;
         bool         use_delay_settings() const override { return false; }

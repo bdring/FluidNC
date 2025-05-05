@@ -69,17 +69,8 @@ namespace Spindles {
             log_config_error(name() << " spindle pins not defined");
         }
 
-        // We always use mapSpeed() with the unmodified input speed so it sets
-        // sys.spindle_speed correctly.
-        uint32_t dev_speed = mapSpeed(speed);
-        if (state == SpindleState::Disable) {  // Halt or set spindle direction and speed.
-            dev_speed = 0;
-        } else {
-            // The core is responsible for stopping the motor before changing
-            // direction
-            if (state == SpindleState::Cw || state == SpindleState::Ccw) {}
-        }
-        _state = state;
+        uint32_t dev_speed = mapSpeed(state, speed);
+        _state             = state;
 
         if (_current_state != state) {
             _current_state      = state;
