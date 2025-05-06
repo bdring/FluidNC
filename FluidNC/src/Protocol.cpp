@@ -21,6 +21,7 @@
 #include "Machine/LimitPin.h"
 #include "Job.h"
 #include "Driver/restart.h"
+#include "Bridge.h"
 
 volatile ExecAlarm lastAlarm;  // The most recent alarm code
 
@@ -280,6 +281,14 @@ void protocol_main_loop() {
     // This is also where the system idles while waiting for something to do.
     // ---------------------------------------------------------------------------------
     for (;; vTaskDelay(0)) {
+                // Check if we're in bridge mode
+        if (state_is(State::Bridge)) {
+            // In bridge mode, just handle the bridge processing
+            BridgeMode::process();
+            continue;
+        }
+
+
         if (activeChannel) {
             // The input polling task has collected a line of input
             if (gcode_echo->get()) {

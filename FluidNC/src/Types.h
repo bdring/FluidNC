@@ -21,6 +21,7 @@ enum class State : uint8_t {
     Sleep,        // Sleep state.
     ConfigAlarm,  // You can't do anything but fix your config file.
     Critical,     // You can't do anything but reset with CTRL-x or the reset button
+    Bridge,       // UART bridge mode - pass data between USB and UART
 };
 
 void set_state(State s);

@@ -22,6 +22,7 @@
 #include "StartupLog.h"           // startupLog
 #include "Driver/gpio_dump.h"     // gpio_dump()
 #include "FileCommands.h"         // make_file_commands()
+#include "Bridge.h"
 
 #include "FluidPath.h"
 #include "HashFS.h"
@@ -942,6 +943,10 @@ void make_user_commands() {
     new UserCommand("LI", "Log/Info", cmd_log_info, anyState);
     new UserCommand("LD", "Log/Debug", cmd_log_debug, anyState);
     new UserCommand("LV  ", "Log/Verbose", cmd_log_verbose, anyState);
+
+    new UserCommand("BRIDGE", "Uart/Bridge", cmd_bridge_start, anyState);
+    new UserCommand("NORMAL", "Uart/Normal", cmd_bridge_stop, anyState);
+
 
     new UserCommand("SLP", "System/Sleep", go_to_sleep, notIdleOrAlarm);
     new UserCommand("I", "Build/Info", get_report_build_info, notIdleOrAlarm);

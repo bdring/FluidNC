@@ -19,6 +19,7 @@
 #    include "Platform.h"
 #    include "StartupLog.h"
 #    include "Module.h"
+#    include "Bridge.h"
 
 #    include "Driver/localfs.h"
 #    include "esp32-hal.h"  // disableCore0WDT
@@ -130,6 +131,9 @@ void setup() {
             config->_coolant->init();
             config->_probe->init();
         }
+        
+        // Initialize bridge mode system
+        BridgeMode::init();
 
         make_proxies();
 
