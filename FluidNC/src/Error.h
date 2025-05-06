@@ -94,6 +94,8 @@ enum class Error : uint8_t {
     FlowControlStackOverflow     = 179,
     ParameterAssignmentFailed    = 180,
     GcodeValueWordInvalid        = 181,
+    FailedToEnterBridgeMode      = 182,
+    NotInBridgeMode              = 183,
 };
 
 const char* errorString(Error errorNumber);

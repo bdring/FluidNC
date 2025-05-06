@@ -114,6 +114,7 @@ const std::map<State, const char*> StateName = {
     { State::Sleep, "Sleep" },
     { State::ConfigAlarm, "ConfigAlarm" },
     { State::Critical, "Critical" },
+    { State::Bridge, "Bridge" },
 };
 
 void set_state(State s) {
