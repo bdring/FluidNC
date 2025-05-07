@@ -9,8 +9,8 @@
  * - A UART connection to an external device (like a pendant)
  *
  * The bridge mode can be entered using the $BRIDGE command and exited using:
- * 1. $NORMAL or $$NORMAL command from USB (computer side)
- * 2. $$EXIT_BRIDGE command from the pendant
+ * 1. $NORMAL command from USB (computer side)
+ * 2. $EXIT_BRIDGE command from the pendant
  * 3. Ctrl+C (ASCII 3) character from a terminal
  * 4. Automatic timeout after inactivity (5 min default, configurable)
  *
@@ -145,9 +145,7 @@ void BridgeMode::process() {
         
         if (len > 0) {
             // Check for special command to exit bridge mode
-            if ((len >= 9 && memcmp(buffer, "$$NORMAL\r\n", 9) == 0) || 
-                (len >= 8 && memcmp(buffer, "$$NORMAL\n", 8) == 0) ||
-                (len >= 7 && memcmp(buffer, "$NORMAL\n", 7) == 0) ||
+            if ((len >= 7 && memcmp(buffer, "$NORMAL\n", 7) == 0) ||
                 (len >= 8 && memcmp(buffer, "$NORMAL\r\n", 8) == 0) ||
                 (len >= 6 && memcmp(buffer, "NORMAL", 6) == 0) ||
                 (len >= 6 && memcmp(buffer, "normal", 6) == 0)) {
@@ -189,8 +187,7 @@ void BridgeMode::process() {
         
         if (len > 0) {
             // Check if the pendant is requesting to exit bridge mode
-            if ((len >= 12 && memcmp(buffer, "$$EXIT_BRIDGE", 12) == 0) || 
-                (len >= 11 && memcmp(buffer, "$EXIT_BRIDGE", 11) == 0)) {
+            if ((len >= 11 && memcmp(buffer, "$EXIT_BRIDGE", 11) == 0)) {
                 Uart0.println("Pendant requested to exit bridge mode");
                 stop();
                 return;
@@ -223,7 +220,7 @@ Error cmd_bridge_start(const char* value, AuthenticationLevel auth_level, Channe
     int timeout_ms = 0; // Default to no timeout (stay in bridge mode until explicit exit)
 
     if (value) {
-        // Parse command parameters: $$BRIDGE=<uart_num>,<timeout_s>
+        // Parse command parameters: $BRIDGE=<uart_num>,<timeout_s>
         std::string_view rest(value);
         std::string_view first;
         bool first_param = true;
@@ -232,7 +229,7 @@ Error cmd_bridge_start(const char* value, AuthenticationLevel auth_level, Channe
             if (first_param) {
                 // First parameter is UART number
                 if (!string_util::is_int(first, uart_num) || uart_num < 1 || uart_num >= MAX_N_UARTS) {
-                    log_error_to(out, "Invalid UART number. Usage: $$BRIDGE=<uart_num>,<timeout_s>");
+                    log_error_to(out, "Invalid UART number. Usage: $BRIDGE=<uart_num>,<timeout_s>");
                     return Error::InvalidValue;
                 }
                 first_param = false;
@@ -240,7 +237,7 @@ Error cmd_bridge_start(const char* value, AuthenticationLevel auth_level, Channe
                 // Second parameter is timeout in seconds
                 int timeout_s;
                 if (!string_util::is_int(first, timeout_s) || timeout_s < 0) {
-                    log_error_to(out, "Invalid timeout value. Usage: $$BRIDGE=<uart_num>,<timeout_s>");
+                    log_error_to(out, "Invalid timeout value. Usage: $BRIDGE=<uart_num>,<timeout_s>");
                     return Error::InvalidValue;
                 }
                 timeout_ms = timeout_s * 1000;
@@ -256,14 +253,14 @@ Error cmd_bridge_start(const char* value, AuthenticationLevel auth_level, Channe
 
     // Notify the pendant we're entering bridge mode
     if (config->_uart_channels[uart_num]) {
-        config->_uart_channels[uart_num]->println("$$BRIDGE_START");
+        config->_uart_channels[uart_num]->println("$BRIDGE_START");
         delay_ms(100); // Give pendant time to prepare
     }
 
     bool result = BridgeMode::start(uart_num, timeout_ms);
     if (result) {
         log_info_to(out, "Entering bridge mode with UART" << uart_num);
-        log_info_to(out, "Use $$NORMAL to exit bridge mode");
+        log_info_to(out, "Use $NORMAL to exit bridge mode");
         
         if (timeout_ms > 0) {
             log_info_to(out, "Bridge will auto-exit after " << (timeout_ms / 1000) << "s of inactivity");
@@ -285,7 +282,7 @@ Error cmd_bridge_stop(const char* value, AuthenticationLevel auth_level, Channel
     // Notify the pendant we're exiting bridge mode
     int uart_num = BridgeMode::get_uart_num();
     if (uart_num > 0 && uart_num < MAX_N_UARTS && config->_uart_channels[uart_num]) {
-        config->_uart_channels[uart_num]->println("$$BRIDGE_END");
+        config->_uart_channels[uart_num]->println("$BRIDGE_END");
         delay_ms(100); // Give pendant time to prepare
     }
 
