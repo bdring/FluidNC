@@ -17,16 +17,15 @@ class Probe : public Configuration::Configurable {
     public:
         ProbeEventPin(const char* legend);
 
-        // Differs from the base class version by sending the event on either edge
+        // Differs from the EventPin version by sending the event on either edge
         void trigger(bool active) override {
-            update(active);
+            InputPin::trigger(active);
             protocol_send_event(_event, this);
-            report_recompute_pin_string();
         }
     };
 
-    ProbeEventPin _probeEventPin;
-    ProbeEventPin _toolsetterEventPin;
+    ProbeEventPin _probePin;
+    ProbeEventPin _toolsetterPin;
 
 public:
     bool _hard_stop = false;
@@ -36,10 +35,10 @@ public:
     // during check mode. false sets the position to the probe target,
     // true sets the position to the start position.
 
-    Probe() : _probeEventPin("Probe"), _toolsetterEventPin("Toolsetter") {}
+    Probe() : _probePin("Probe"), _toolsetterPin("Toolsetter") {}
 
     // Configurable
-    bool exists() { return _probeEventPin.defined() || _toolsetterEventPin.defined(); }
+    bool exists() { return _probePin.defined() || _toolsetterPin.defined(); }
 
     void init();
 
@@ -51,6 +50,9 @@ public:
 
     // Returns true if the probe pin is tripped, depending on the direction (away or not)
     bool IRAM_ATTR tripped();
+
+    ProbeEventPin& probePin() { return _probePin; }
+    ProbeEventPin& toolsetterPin() { return _toolsetterPin; }
 
     // Configuration handlers.
     void validate() override;

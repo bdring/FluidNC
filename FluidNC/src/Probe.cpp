@@ -12,8 +12,8 @@ const ArgEvent probeEvent { protocol_do_probe };
 Probe::ProbeEventPin::ProbeEventPin(const char* legend) : EventPin(&probeEvent, legend) {}
 
 void Probe::init() {
-    _probeEventPin.init();
-    _toolsetterEventPin.init();
+    _probePin.init();
+    _toolsetterPin.init();
 }
 
 void Probe::set_direction(bool away) {
@@ -22,7 +22,7 @@ void Probe::set_direction(bool away) {
 
 // Returns the probe pin state. Triggered = true. Called by gcode parser.
 bool Probe::get_state() {
-    return _probeEventPin.get() || _toolsetterEventPin.get();
+    return _probePin.get() || _toolsetterPin.get();
 }
 
 // Returns true if the probe pin is tripped, accounting for the direction (away or not).
@@ -33,8 +33,8 @@ bool Probe::tripped() {
 void Probe::validate() {}
 
 void Probe::group(Configuration::HandlerBase& handler) {
-    handler.item("pin", _probeEventPin);
-    handler.item("toolsetter_pin", _toolsetterEventPin);
+    handler.item("pin", _probePin);
+    handler.item("toolsetter_pin", _toolsetterPin);
     handler.item("check_mode_start", _check_mode_start);
     handler.item("hard_stop", _hard_stop);
 }
