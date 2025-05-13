@@ -67,7 +67,6 @@ protected:
     float       _lastFeedRate     = 0;
     const char* _lastStateName    = "";
     MotorMask   _lastLimits       = 0;
-    bool        _lastProbe        = false;
     bool        _lastJobActive    = false;
     std::string _lastPinString    = "";
 

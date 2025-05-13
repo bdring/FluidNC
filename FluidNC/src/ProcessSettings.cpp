@@ -496,7 +496,7 @@ static Error show_limits(const char* value, AuthenticationLevel auth_level, Chan
     log_string(out, "Send ! to exit");
     log_stream(out, "Homing Axes : " << limit_set(Machine::Axes::homingMask));
     log_stream(out, "Limit Axes : " << limit_set(Machine::Axes::limitMask));
-    log_string(out, "  PosLimitPins NegLimitPins Probe");
+    log_string(out, "  PosLimitPins NegLimitPins Probe Toolsetter");
 
     const TickType_t interval = 500;
     TickType_t       limit    = xTaskGetTickCount();
@@ -506,7 +506,7 @@ static Error show_limits(const char* value, AuthenticationLevel auth_level, Chan
         if (((long)(thisTime - limit)) > 0) {
             log_stream(out,
                        ": " << limit_set(Machine::Axes::posLimitMask) << " " << limit_set(Machine::Axes::negLimitMask)
-                            << (config->_probe->get_state() ? " P" : ""));
+                            << (config->_probe->probePin().get() ? " P" : "") << (config->_probe->toolsetterPin().get() ? " T" : ""));
             limit = thisTime + interval;
         }
         delay_ms(1);
