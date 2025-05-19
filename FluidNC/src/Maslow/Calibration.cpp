@@ -1335,11 +1335,6 @@ bool Calibration::allAxisExtended() {
     return extendedTL && extendedTR && extendedBL && extendedBR;
 }
 
-// True if calibration is complete or take slack has been run
-bool Calibration::setupComplete() {
-    return setupIsComplete;
-}
-
 bool Calibration::checkOverides(){
     if(TLIOveride || TRIOveride || BLIOveride || BRIOveride || TLOOveride || TROOveride || BLOOveride || BROOveride){
         return true;

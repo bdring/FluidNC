@@ -27,7 +27,6 @@ public:
 
     bool   all_axis_homed();
     bool   allAxisExtended();
-    bool   setupComplete();
     void   safety_control();
     void   update_frame_xyz();
 
