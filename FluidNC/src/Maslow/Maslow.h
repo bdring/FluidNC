@@ -157,8 +157,6 @@ public:
 
     bool safetyOn = true;
 
-    bool setupIsComplete = false;
-
     Calibration calibration;
 
     void getInfo();

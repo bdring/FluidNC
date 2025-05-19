@@ -27,7 +27,6 @@ public:
 
     bool   all_axis_homed();
     bool   allAxisExtended();
-    bool   setupComplete();
     void   safety_control();
     void   update_frame_xyz();
 
@@ -120,7 +119,6 @@ private:
     bool extendedBR                  = false;
     bool extendingALL                = false;  //This is replaced by the state machine. Delete
     bool complyALL                   = false;
-    bool setupIsComplete             = false; //This should be replaced by the state machine
 
 
     //Variables used by take slack

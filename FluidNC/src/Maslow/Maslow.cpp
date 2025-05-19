@@ -170,7 +170,7 @@ void Maslow_::update() {
                               steps_to_mpos(get_axis_motor_steps(2), 2));
 
             //This disables the belt motors until the user has completed calibration or apply tension and they have succeded
-            if (calibration.setupComplete()) {
+            if (calibration.currentState == READY_TO_CUT) {
                 Maslow.recomputePID();
             }
         }

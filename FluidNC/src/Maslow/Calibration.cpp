@@ -59,7 +59,6 @@ bool Calibration::requestStateChange(int newState){
             Maslow.axisTR.reset();
             Maslow.axisBL.reset();
             Maslow.axisBR.reset();
-            setupIsComplete = false;
 
             success =  true;
             break;
@@ -328,7 +327,6 @@ void Calibration::home() {
                 Maslow.axisBR.stop();
                 complyALL = false;
                 sys.set_state(State::Idle);
-                setupIsComplete = false; //We've undone the setup so apply tension is needed before we can move
                 requestStateChange(UNKNOWN);
             }
             break;
@@ -358,7 +356,6 @@ void Calibration::calibration_loop() {
     if(waypoint > pointCount){ //Point count is the total number of points to measure so if waypoint > pointcount then the overall measurement process is complete
         calibrationInProgress = false;
         waypoint              = 0;
-        setupIsComplete       = true;
         log_info("Calibration complete");
         deallocateCalibrationMemory();
         requestStateChange(READY_TO_CUT);
@@ -452,7 +449,6 @@ bool Calibration::takeSlackFunc() {
                 log_info("Center point deviation within " << threshold << "mm, your coordinate system is accurate");
                 takeSlackState = 0;
                 holdTimer = millis();
-                setupIsComplete = true;
 
                 log_info("Current machine position loaded as X: " << x << " Y: " << y );
 
@@ -1333,11 +1329,6 @@ bool Calibration::all_axis_homed() {
 // True if all axis were extended
 bool Calibration::allAxisExtended() {
     return extendedTL && extendedTR && extendedBL && extendedBR;
-}
-
-// True if calibration is complete or take slack has been run
-bool Calibration::setupComplete() {
-    return setupIsComplete;
 }
 
 bool Calibration::checkOverides(){
