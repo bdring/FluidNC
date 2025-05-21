@@ -355,10 +355,12 @@ void Calibration::calibration_loop() {
     static bool measurementInProgress = true; //We start by taking a measurement, then we move
     if(waypoint > pointCount){ //Point count is the total number of points to measure so if waypoint > pointcount then the overall measurement process is complete
         calibrationInProgress = false;
+        //Reset all of the calibration variables to the defaults so that calibraiton can be run again
         waypoint              = 0;
-        log_info("Calibration complete");
+        recomputeCountIndex   = 0;
         deallocateCalibrationMemory();
         requestStateChange(READY_TO_CUT);
+        log_info("Calibration complete");
         return;
     }
     //Taking measurment once we've reached the point
