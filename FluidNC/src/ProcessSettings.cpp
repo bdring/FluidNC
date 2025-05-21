@@ -1019,6 +1019,7 @@ static Error maslow_estop(const char* value, WebUI::AuthenticationLevel auth_lev
 static Error maslow_set_zStop(const char* value, WebUI::AuthenticationLevel auth_level, Channel& out) {
     sys.set_state(State::Homing);
     Maslow.setZStop();
+    sys.set_state(State::Idle);
     return Error::Ok;
 }
 
