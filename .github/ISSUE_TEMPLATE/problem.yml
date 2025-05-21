@@ -5,3 +5,21 @@ body:
 - type: markdown
   attributes:
     value: Please fill in the forms below.  The better the information you provide, the better we can help you. Information that you might think is irrelevant is often the key to solving the problem.  **If we have to keep asking for information that you should have provided at the outset, we will become annoyed fairly quickly.**  The amount of information that we ask for might seem excessive; it is not.  We handle several issues a day.  We cannot solve problems efficiently if we have to keep going back and forth for the basic information that we need.
+
+- type: textarea
+  id: replicate-issue
+  attributes:
+    label: How do you replicate the issue
+    description: Please provde clear step by step instructions to replicate the issue starting from the machine powered off.  If you are not sure, please provide as much information as you can.
+    placeholder: To replicate the issue, I...
+    render: yaml
+  validations:
+    required: true
+
+- type: textarea
+  id: desired-behavior
+  attributes:
+    label: What did you expect to happen
+    description: Please describe what you expected to happen.  If you are not sure, please provide as much information as you can.
+    placeholder: I would like to see the machine...
+    render: yaml
