@@ -198,6 +198,7 @@ bool Calibration::requestStateChange(int newState){
             }
         case RELEASE_TENSION: //We can enter release tension from any stable state (the machine is not currently performing an action)
             if(currentState == READY_TO_CUT || currentState == UNKNOWN || currentState == EXTENDEDOUT){
+                previousState = currentState; // Store the previous state
                 currentState = RELEASE_TENSION;
                 complyCallTimer = millis();
                 retractingTL    = false;
@@ -327,7 +328,14 @@ void Calibration::home() {
                 Maslow.axisBR.stop();
                 complyALL = false;
                 sys.set_state(State::Idle);
-                requestStateChange(UNKNOWN);
+                
+                // If the machine was in READY_TO_CUT or EXTENDEDOUT state before releasing tension,
+                // return to EXTENDEDOUT state, otherwise go to UNKNOWN
+                if (previousState == READY_TO_CUT || previousState == EXTENDEDOUT) {
+                    requestStateChange(EXTENDEDOUT);
+                } else {
+                    requestStateChange(UNKNOWN);
+                }
             }
             break;
         case CALIBRATION_IN_PROGRESS:
