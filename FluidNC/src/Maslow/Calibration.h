@@ -111,6 +111,9 @@ private:
     bool   retractingTR              = false;
     bool   retractingBL              = false;
     bool   retractingBR              = false;
+    
+    // Store the previous state before entering RELEASE_TENSION
+    int    previousState             = UNKNOWN;
 
     //Variables used by extending
     bool extendedTL                  = false;
