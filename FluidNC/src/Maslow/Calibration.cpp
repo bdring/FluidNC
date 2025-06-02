@@ -196,8 +196,8 @@ bool Calibration::requestStateChange(int newState){
             else{
                 break;
             }
-        case READY_TO_CUT: //We can enter ready to cut from calibration computing or taking slack
-            if(currentState == CALIBRATIONCOMPUTING || currentState == TAKING_SLACK){
+        case READY_TO_CUT: //We can enter ready to cut from calibration in progress, calibration computing or taking slack
+            if(currentState == CALIBRATION_IN_PROGRESS || currentState == CALIBRATIONCOMPUTING || currentState == TAKING_SLACK){
                 currentState = READY_TO_CUT;
                 sys.set_state(State::Idle);
                 success =  true;
@@ -372,12 +372,13 @@ void Calibration::calibration_loop() {
     static int  direction             = UP;
     static bool measurementInProgress = true; //We start by taking a measurement, then we move
     if(waypoint > pointCount){ //Point count is the total number of points to measure so if waypoint > pointcount then the overall measurement process is complete
+        calibrationInProgress = false;
         //Reset all of the calibration variables to the defaults so that calibraiton can be run again
         waypoint              = 0;
         recomputeCountIndex   = 0;
         deallocateCalibrationMemory();
-        requestStateChange(CALIBRATIONCOMPUTING);
-        log_info("Calibration complete, computing results...");
+        requestStateChange(READY_TO_CUT);
+        log_info("Calibration complete");
         return;
     }
     //Taking measurment once we've reached the point
