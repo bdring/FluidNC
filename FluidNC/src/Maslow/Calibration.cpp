@@ -190,7 +190,6 @@ bool Calibration::requestStateChange(int newState){
         case CALIBRATIONCOMPUTING: //We can enter calibration computing from calibration in progress
             if(currentState == CALIBRATION_IN_PROGRESS){
                 currentState = CALIBRATIONCOMPUTING;
-                sys.set_state(State::Idle);
                 success =  true;
                 break;
             }
@@ -373,7 +372,6 @@ void Calibration::calibration_loop() {
     static int  direction             = UP;
     static bool measurementInProgress = true; //We start by taking a measurement, then we move
     if(waypoint > pointCount){ //Point count is the total number of points to measure so if waypoint > pointcount then the overall measurement process is complete
-        calibrationInProgress = false;
         //Reset all of the calibration variables to the defaults so that calibraiton can be run again
         waypoint              = 0;
         recomputeCountIndex   = 0;
@@ -390,7 +388,6 @@ void Calibration::calibration_loop() {
             waypoint++;  //Increment the waypoint counter
 
             if (waypoint > recomputePoints[recomputeCountIndex]) {  //If we have reached the end of this stage of the calibration process
-                calibrationInProgress = false;
                 print_calibration_data();
                 calibrationDataWaiting = millis();
                 sys.set_state(State::Idle);
@@ -1236,6 +1233,7 @@ void Calibration::calibrationDataRecieved(){
     
     // If we're in the computing state, transition to ready to cut
     if(currentState == CALIBRATIONCOMPUTING){
+        calibrationInProgress = false;  // Now safe to allow movement
         requestStateChange(READY_TO_CUT);
         log_info("Calibration computation complete, ready to cut");
     }
