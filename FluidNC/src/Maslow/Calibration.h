@@ -12,9 +12,9 @@
 #define EXTENDEDOUT 4 //Extended is a reserved word
 #define TAKING_SLACK 5
 #define CALIBRATION_IN_PROGRESS 6
-#define CALIBRATIONCOMPUTING 7
-#define READY_TO_CUT 8
-#define RELEASE_TENSION 9
+#define READY_TO_CUT 7
+#define RELEASE_TENSION 8
+#define CALIBRATIONCOMPUTING 9
 
 
 class Calibration {
@@ -177,9 +177,9 @@ private:
         { EXTENDEDOUT, "Belts Extended" },
         { TAKING_SLACK, "Taking Slack" },
         { CALIBRATION_IN_PROGRESS, "Calibrating" },
-        { CALIBRATIONCOMPUTING, "Calibration Computing" },
         { READY_TO_CUT, "Ready To Cut" },
-        { RELEASE_TENSION, "Releasing Tension" }
+        { RELEASE_TENSION, "Releasing Tension" },
+        { CALIBRATIONCOMPUTING, "Calibration Computing" }
     };
 
 

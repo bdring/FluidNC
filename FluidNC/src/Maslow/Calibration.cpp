@@ -11,9 +11,9 @@
 // #define EXTENDEDOUT 4 //Extended is a reserved word
 // #define TAKING_SLACK 5
 // #define CALIBRATION_IN_PROGRESS 6
-// #define CALIBRATIONCOMPUTING 7
-// #define READY_TO_CUT 8
-// #define RELEASE_TENSION 9
+// #define READY_TO_CUT 7
+// #define RELEASE_TENSION 8
+// #define CALIBRATIONCOMPUTING 9
 
 
 
