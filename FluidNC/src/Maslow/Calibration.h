@@ -14,6 +14,7 @@
 #define CALIBRATION_IN_PROGRESS 6
 #define READY_TO_CUT 7
 #define RELEASE_TENSION 8
+#define CALIBRATION_COMPUTING 9
 
 
 class Calibration {
@@ -168,7 +169,7 @@ private:
         int   state;
         char* name;
     };
-    StateName stateNames[10] = {
+    StateName stateNames[11] = {
         { UNKNOWN, "Unknown" },
         { RETRACTING, "Retracting Belts" },
         { RETRACTED, "Belts Retracted" },
@@ -177,7 +178,8 @@ private:
         { TAKING_SLACK, "Taking Slack" },
         { CALIBRATION_IN_PROGRESS, "Calibrating" },
         { READY_TO_CUT, "Ready To Cut" },
-        { RELEASE_TENSION, "Releasing Tension" }
+        { RELEASE_TENSION, "Releasing Tension" },
+        { CALIBRATION_COMPUTING, "Calibration Computing" }
     };
 
 
