@@ -190,10 +190,12 @@ bool Calibration::requestStateChange(int newState){
         case CALIBRATION_COMPUTING: //We can enter calibration computing from calibration in progress
             if(currentState == CALIBRATION_IN_PROGRESS){
                 currentState = CALIBRATION_COMPUTING;
+                calibrationInProgress = false;
                 success =  true;
                 break;
             }
             else{
+                log_info("Cannot enter calibration computing from state " << stateNames[currentState].name);
                 break;
             }
         case READY_TO_CUT: //We can enter ready to cut from calibration in progress, calibration computing or taking slack
@@ -389,11 +391,11 @@ void Calibration::calibration_loop() {
             waypoint++;  //Increment the waypoint counter
 
             if (waypoint > recomputePoints[recomputeCountIndex]) {  //If we have reached the end of this stage of the calibration process
+                requestStateChange(CALIBRATION_COMPUTING);
                 print_calibration_data();
                 calibrationDataWaiting = millis();
                 sys.set_state(State::Idle);
                 recomputeCountIndex++;
-                requestStateChange(CALIBRATION_COMPUTING);
             }
             else {
                 hold(250);
