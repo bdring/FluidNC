@@ -13,7 +13,7 @@
 // #define CALIBRATION_IN_PROGRESS 6
 // #define READY_TO_CUT 7
 // #define RELEASE_TENSION 8
-// #define CALIBRATIONCOMPUTING 9
+// #define CALIBRATION_COMPUTING 9
 
 
 
@@ -132,8 +132,8 @@ bool Calibration::requestStateChange(int newState){
                 log_info("Cannot take slack until the belts have been extended");
                 break;
             }
-        case CALIBRATION_IN_PROGRESS: //We can enter calibration in progress from EXTENDEDOUT, READY_TO_CUT, or CALIBRATIONCOMPUTING
-            if(currentState == EXTENDEDOUT || currentState == READY_TO_CUT || currentState == CALIBRATIONCOMPUTING){
+        case CALIBRATION_IN_PROGRESS: //We can enter calibration in progress from EXTENDEDOUT, READY_TO_CUT, or CALIBRATION_COMPUTING
+            if(currentState == EXTENDEDOUT || currentState == READY_TO_CUT || currentState == CALIBRATION_COMPUTING){
                 currentState = CALIBRATION_IN_PROGRESS;
                 sys.set_state(State::Homing);
                 //If we are at the first point we need to generate the grid before we can start
@@ -187,9 +187,9 @@ bool Calibration::requestStateChange(int newState){
                 log_info("Cannot start calibration until the belts have been extended");
                 break;
             }
-        case CALIBRATIONCOMPUTING: //We can enter calibration computing from calibration in progress
+        case CALIBRATION_COMPUTING: //We can enter calibration computing from calibration in progress
             if(currentState == CALIBRATION_IN_PROGRESS){
-                currentState = CALIBRATIONCOMPUTING;
+                currentState = CALIBRATION_COMPUTING;
                 success =  true;
                 break;
             }
@@ -197,7 +197,7 @@ bool Calibration::requestStateChange(int newState){
                 break;
             }
         case READY_TO_CUT: //We can enter ready to cut from calibration in progress, calibration computing or taking slack
-            if(currentState == CALIBRATION_IN_PROGRESS || currentState == CALIBRATIONCOMPUTING || currentState == TAKING_SLACK){
+            if(currentState == CALIBRATION_IN_PROGRESS || currentState == CALIBRATION_COMPUTING || currentState == TAKING_SLACK){
                 currentState = READY_TO_CUT;
                 sys.set_state(State::Idle);
                 success =  true;
@@ -207,7 +207,7 @@ bool Calibration::requestStateChange(int newState){
                 break;
             }
         case RELEASE_TENSION: //We can enter release tension from any stable state (the machine is not currently performing an action)
-            if(currentState == READY_TO_CUT || currentState == UNKNOWN || currentState == EXTENDEDOUT || currentState == CALIBRATIONCOMPUTING){
+            if(currentState == READY_TO_CUT || currentState == UNKNOWN || currentState == EXTENDEDOUT || currentState == CALIBRATION_COMPUTING){
                 previousState = currentState; // Store the previous state
                 currentState = RELEASE_TENSION;
                 complyCallTimer = millis();
@@ -339,9 +339,9 @@ void Calibration::home() {
                 complyALL = false;
                 sys.set_state(State::Idle);
                 
-                // If the machine was in READY_TO_CUT, EXTENDEDOUT, or CALIBRATIONCOMPUTING state before releasing tension,
+                // If the machine was in READY_TO_CUT, EXTENDEDOUT, or CALIBRATION_COMPUTING state before releasing tension,
                 // return to EXTENDEDOUT state, otherwise go to UNKNOWN
-                if (previousState == READY_TO_CUT || previousState == EXTENDEDOUT || previousState == CALIBRATIONCOMPUTING) {
+                if (previousState == READY_TO_CUT || previousState == EXTENDEDOUT || previousState == CALIBRATION_COMPUTING) {
                     requestStateChange(EXTENDEDOUT);
                 } else {
                     requestStateChange(UNKNOWN);
@@ -393,7 +393,7 @@ void Calibration::calibration_loop() {
                 calibrationDataWaiting = millis();
                 sys.set_state(State::Idle);
                 recomputeCountIndex++;
-                requestStateChange(CALIBRATIONCOMPUTING);
+                requestStateChange(CALIBRATION_COMPUTING);
             }
             else {
                 hold(250);
@@ -1231,13 +1231,6 @@ void Calibration::print_calibration_data() {
 void Calibration::calibrationDataRecieved(){
     // log_info("Calibration data acknowledged received by computer");
     calibrationDataWaiting = -1;
-    
-    // If we're in the computing state, transition to ready to cut
-    if(currentState == CALIBRATIONCOMPUTING){
-        calibrationInProgress = false;  // Now safe to allow movement
-        requestStateChange(READY_TO_CUT);
-        log_info("Calibration computation complete, ready to cut");
-    }
 }
 
 

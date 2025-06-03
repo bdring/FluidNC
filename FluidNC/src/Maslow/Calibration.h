@@ -14,7 +14,7 @@
 #define CALIBRATION_IN_PROGRESS 6
 #define READY_TO_CUT 7
 #define RELEASE_TENSION 8
-#define CALIBRATIONCOMPUTING 9
+#define CALIBRATION_COMPUTING 9
 
 
 class Calibration {
@@ -179,7 +179,7 @@ private:
         { CALIBRATION_IN_PROGRESS, "Calibrating" },
         { READY_TO_CUT, "Ready To Cut" },
         { RELEASE_TENSION, "Releasing Tension" },
-        { CALIBRATIONCOMPUTING, "Calibration Computing" }
+        { CALIBRATION_COMPUTING, "Calibration Computing" }
     };
 
 
