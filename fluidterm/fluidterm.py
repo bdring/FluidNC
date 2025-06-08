@@ -680,7 +680,7 @@ class Miniterm(object):
         # Right Arrow is an innocuous one
         # If you restart FluidNC with $bye or the reset switch, you
         # will have to trigger interactive mode manually
-        time.sleep(2) # Time for FluidNC to be ready for input
+        time.sleep(4) # Time for FluidNC to be ready for input
         self.enable_fluid_echo()
 
         try:
@@ -924,18 +924,27 @@ class Miniterm(object):
 
     def upload_xmodem(self):
         """Ask user for filename and send its contents"""
-        with self.console:
-            (filename, destname) = self.file_dialog("config.flnc")
-            if filename:
-                try:
-                    self._xmodem_stream = open(filename, 'rb')
-                    #show what is happening in the console.
-                    self.console.write(f'--- Sending file {filename} as {destname} ---\n')
-                    #send the command to put FluidNC in receive mode
-                    self.serial.write(self.tx_encoder.encode(f'$Xmodem/Receive={destname}\n'))
-                except IOError as e:
-                    sys.stderr.write(f'--- ERROR opening file {filename}: {e} ---\n')
+        (filename, destname) = self.file_dialog("config.flnc")
+        if filename:
+            self.send_xmodem(filename, destname)
         # self._uploading = False
+
+    def send_xmodem(self, filename, destname):
+        with self.console:
+            try:
+                self._xmodem_stream = open(filename, "rb")
+                # show what is happening in the console.
+                self.console.write(
+                    "--- Sending file {} as {} ---\n".format(filename, destname)
+                )
+                # send the command to put FluidNC in receive mode
+                self.serial.write(
+                    self.tx_encoder.encode(f"$Xmodem/Receive={destname}\n")
+                )
+            except IOError as e:
+                sys.stderr.write(
+                    "--- ERROR opening file {}: {} ---\n".format(filename, e)
+                )
 
     def upload_file(self, name="config.flnc"):
         """Ask user for filename and send its contents"""
@@ -1221,6 +1230,14 @@ def main(default_port=None, default_baudrate=115200, default_rts=None, default_d
         help='Do no apply any encodings/transformations',
         default=False)
 
+    group.add_argument(
+        "--upload",
+        dest="upload_file",
+        metavar="FILE",
+        help="Upload FILE via XModem protocol",
+        default="",
+    )
+
     group = parser.add_argument_group('hotkeys')
 
     group.add_argument(
@@ -1326,6 +1343,20 @@ def main(default_port=None, default_baudrate=115200, default_rts=None, default_d
     miniterm.raw = args.raw
     miniterm.set_rx_encoding(args.serial_port_encoding)
     miniterm.set_tx_encoding(args.serial_port_encoding)
+
+    # Handle file upload if requested
+    if args.upload_file != "":
+        if not os.path.isfile(args.upload_file):
+            sys.stderr.write(f'--- ERROR: file {args.upload_file} does not exist ---\n')
+            return
+        filename = os.path.basename(args.upload_file)
+        miniterm.start()
+        miniterm.send_xmodem(args.upload_file, filename)
+        while miniterm._xmodem_stream is not None:
+            time.sleep(0.1)
+
+        return
+
 
     if not args.quiet:
         sys.stderr.write('--- FluidTerm ' + VERSION + ' on {p.name}  {p.baudrate},{p.bytesize},{p.parity},{p.stopbits} ---\n'.format(
