@@ -61,13 +61,20 @@ namespace Spindles {
             sys.spindle_speed = 0.0;
         } else {
             sys.spindle_speed = speed;
-            set_enable(true);
+
+            // if the spindle was already enabled this was just a speed change
+            if (gc_state.modal.spindle != SpindleState::Disable) {
+                return;
+            }
+
             // check arc OK is not on before starting
             if (_arcOkEventPin.get()) {
                 log_error(name() << " arc_ok active before starting plasma");
                 mc_critical(ExecAlarm::SpindleControl);
                 return;
             }
+
+            set_enable(true);
 
             if (!wait_for_arc_ok()) {
                 return;
