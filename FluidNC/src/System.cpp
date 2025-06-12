@@ -124,5 +124,5 @@ bool state_is(State s) {
 }
 
 bool inMotionState() {
-    return state_is(State::Cycle) || state_is(State::Homing) || state_is(State::Jog);
+    return state_is(State::Cycle) || state_is(State::Homing) || state_is(State::Jog || (state_is(State::Hold && !sys.suspend.bit.holdComplete));
 }
