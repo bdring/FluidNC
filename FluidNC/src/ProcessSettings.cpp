@@ -1119,7 +1119,7 @@ Error execute_line(const char* line, Channel& channel, AuthenticationLevel auth_
     }
     Error result = gc_execute_line(line);
     if (result != Error::Ok && result != Error::Reset) {
-        log_debug_to(channel, "Bad GCode: " << line);
+        log_error_to(channel, "Bad GCode: " << line);
     }
     return result;
 }
