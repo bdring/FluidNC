@@ -40,7 +40,7 @@ const char* decodeUartMode(std::string_view str, UartData& wordLength, UartParit
     str = string_util::trim(str);
     if (str.length() == 5 || str.length() == 3) {
         int32_t wordLenInt;
-        if (!string_util::is_int(str.substr(0, 1), wordLenInt)) {
+        if (!string_util::from_decimal(str.substr(0, 1), wordLenInt)) {
             return "Uart mode should be specified as [Bits Parity Stopbits] like [8N1]";
         } else if (wordLenInt < 5 || wordLenInt > 8) {
             return "Number of data bits for uart is out of range. Expected format like [8N1].";

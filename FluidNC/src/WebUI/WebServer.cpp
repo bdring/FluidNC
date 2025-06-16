@@ -1299,7 +1299,7 @@ namespace WebUI {
     }
 
     //Session ID based on IP and time using 16 char
-    char* Web_Server::create_session_ID() {
+    const char* Web_Server::create_session_ID() {
         static char sessionID[17];
         //reset SESSIONID
         for (int i = 0; i < 17; i++) {

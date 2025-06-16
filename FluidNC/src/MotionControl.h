@@ -5,7 +5,6 @@
 
 #pragma once
 
-#include "Types.h"  // AxisMask
 #include "Planner.h"
 #include "Config.h"
 #include "Probe.h"

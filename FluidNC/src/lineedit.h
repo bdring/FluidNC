@@ -31,13 +31,13 @@ private:
     bool editing      = false;
     bool needs_reecho = false;
 
-    char* thisaddr;
-    char* startaddr;
-    char* endaddr;
-    char* maxaddr;
+    char*       thisaddr;
+    char*       startaddr;
+    char*       endaddr;
+    const char* maxaddr;
 
     int saved_length = 0;
-    ;
+
     char lastline[MAXHISTORY] = { 0 };
 
     char killbuf[100] = { 0 };
@@ -58,8 +58,8 @@ private:
     void erase_char();
     void erase_line();
     void validate_history();
-    bool already_in_history(char* adr, int len);
-    void add_to_history(char* adr, int len);
+    bool already_in_history(const char* adr, int len);
+    void add_to_history(const char* adr, int len);
     bool get_history(int history_num);
     void backward_char();
     void forward_char();

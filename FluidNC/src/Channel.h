@@ -18,7 +18,7 @@
 
 #include "src/Error.h"        // Error
 #include "src/GCode.h"        // gc_modal_t
-#include "src/Types.h"        // State
+#include "src/Types.h"        // MotorMask
 #include "src/RealtimeCmd.h"  // Cmd
 #include "src/UTF8.h"
 

@@ -59,7 +59,7 @@ void report_error_message(Message message);
 void report_init_message(Channel& channel);
 
 // Prints an echo of the pre-parsed line received right before execution.
-void report_echo_line_received(char* line, Channel& channel);
+void report_echo_line_received(const char* line, Channel& channel);
 
 // Prints realtime status report
 void report_realtime_status(Channel& channel);
@@ -83,8 +83,6 @@ void report_realtime_debug();
 void reportTaskStackSize(UBaseType_t& saved);
 
 void hex_msg(uint8_t* buf, const char* prefix, int len);
-
-void addPinReport(char* status, char pinLetter);
 
 #include "MyIOStream.h"
 

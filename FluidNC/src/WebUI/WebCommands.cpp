@@ -156,7 +156,7 @@ namespace WebUI {
                 return Error::InvalidValue;
             }
 
-            Error ret = do_command_or_setting(p.c_str(), v.c_str(), auth_level, out);
+            Error ret = do_command_or_setting(p, v, auth_level, out);
             if (isJSON) {
                 send_json_command_response(out, 401, ret == Error::Ok, errorString(ret));
             }

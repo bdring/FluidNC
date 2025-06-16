@@ -66,7 +66,7 @@ std::map<std::string, ngc_cmd_t, std::less<>> commands = {
     { "ERROR", Op_RaiseError },
 };
 
-static Error read_command(char* line, size_t& pos, ngc_cmd_t& operation) {
+static Error read_command(const char* line, size_t& pos, ngc_cmd_t& operation) {
     size_t start = pos;
     while (isalpha(line[pos])) {
         ++pos;
@@ -109,7 +109,7 @@ void flowcontrol_init(void) {
 
 // Public functions
 
-Error flowcontrol(uint32_t o_label, char* line, size_t& pos, bool& skip) {
+Error flowcontrol(uint32_t o_label, const char* line, size_t& pos, bool& skip) {
     float     value;
     bool      skipping;
     ngc_cmd_t operation, last_op;
@@ -180,7 +180,7 @@ Error flowcontrol(uint32_t o_label, char* line, size_t& pos, bool& skip) {
 
         case Op_While:
             if (Job::active()) {
-                char* expr = line + pos;
+                const char* expr = line + pos;
                 if (!context.empty() && context.top().brk) {
                     if (last_op == Op_Do && o_label == context.top().o_label) {
                         stack_pull();

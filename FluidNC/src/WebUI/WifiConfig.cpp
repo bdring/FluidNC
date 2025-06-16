@@ -514,18 +514,18 @@ namespace WebUI {
                 j.member("WebCommunication", "Synchronous");
 
                 switch (WiFi.getMode()) {
-                  case WIFI_AP:
-                    j.member("WebSocketIP", IP_string(WiFi.softAPIP()));
-                    break;
-                  case WIFI_STA:
-                    j.member("WebSocketIP", IP_string(WiFi.localIP()));
-                    break;
-                  case WIFI_AP_STA:
-                    j.member("WebSocketIP", IP_string(WiFi.softAPIP()));
-                    break;
-                  default:
-                    j.member("WebSocketIP", "0.0.0.0");
-                    break;
+                    case WIFI_AP:
+                        j.member("WebSocketIP", IP_string(WiFi.softAPIP()));
+                        break;
+                    case WIFI_STA:
+                        j.member("WebSocketIP", IP_string(WiFi.localIP()));
+                        break;
+                    case WIFI_AP_STA:
+                        j.member("WebSocketIP", IP_string(WiFi.softAPIP()));
+                        break;
+                    default:
+                        j.member("WebSocketIP", "0.0.0.0");
+                        break;
                 }
 
                 j.member("WebSocketPort", std::to_string(Web_Server::port() + 2));
@@ -819,7 +819,7 @@ namespace WebUI {
             log_info("WiFi Off");
         }
 
-        static char* mac2str(uint8_t mac[8]) {
+        static const char* mac2str(uint8_t mac[8]) {
             static char macstr[18];
             if (0 > sprintf(macstr, "%02X:%02X:%02X:%02X:%02X:%02X", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5])) {
                 strcpy(macstr, "00:00:00:00:00:00");

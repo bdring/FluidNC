@@ -12,7 +12,6 @@
 #include "Config.h"            // MAX_N_AXIS
 #include "SpindleDatatypes.h"  // SpindleState
 #include "GCode.h"             // CoolantState
-#include "Types.h"             // AxisMask
 
 #include <cstdint>
 

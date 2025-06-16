@@ -5,7 +5,7 @@
 
 #pragma once
 
-#include "Types.h"
+#include "State.h"
 
 #include <freertos/FreeRTOS.h>
 #include <freertos/queue.h>

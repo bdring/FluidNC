@@ -6,10 +6,15 @@
 #include <cstdlib>
 
 namespace Configuration {
-    GCodeParam::GCodeParam(const char* key, float& iovalue, bool get) : _iovalue(iovalue), _get(get) {
+    GCodeParam::GCodeParam(std::string_view key, float& iovalue, bool get) : setting_(key), _iovalue(iovalue), _get(get) {
         // Remove leading '/' if it is present
-        setting_ = (*key == '/') ? key + 1 : key;
+        if (setting_.front() == '/') {
+            setting_.remove_prefix(1);
+        }
         // Also remove trailing '/' if it is present
+        if (setting_.back() == '/') {
+            setting_.remove_suffix(1);
+        }
 
         start_ = setting_;
     }
@@ -23,17 +28,14 @@ namespace Configuration {
             auto previous = start_;
 
             // Figure out next node
-            auto next = start_;
-            for (; *next && *next != '/'; ++next) {}
+            std::string_view residue;
+            string_util::split(start_, residue, '/');
 
-            // Do we have a child?
-            if (*next == '/' && next[1] != '\0') {
-                ++next;
-                start_ = next;
-                // Handle child:
-                value->group(*this);
-            } else {
+            if (residue.empty()) {
                 error();
+            } else {
+                start_ = residue;
+                value->group(*this);
             }
 
             // Restore situation:

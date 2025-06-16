@@ -4,6 +4,7 @@
 #pragma once
 
 #include <vector>
+#include <stack>
 
 #include "../Pin.h"
 #include "HandlerBase.h"
@@ -17,10 +18,9 @@ namespace Configuration {
         JsonGenerator(const JsonGenerator&)            = delete;
         JsonGenerator& operator=(const JsonGenerator&) = delete;
 
-        char         _currentPath[256];  // 256 = max size of configuration string.
-        char*        _paths[16];         // 16 = max depth. Points to the _end_ of a string in currentPath
-        int          _depth;             // current depth. Used along with _paths
-        JSONencoder& _encoder;
+        std::string     _currentPath;
+        std::stack<int> _path_lengths;
+        JSONencoder&    _encoder;
 
         void enter(const char* name);
         void add(Configuration::Configurable* configurable);

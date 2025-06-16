@@ -57,14 +57,14 @@ namespace Configuration {
     int Parser::intValue() const {
         auto    value_token = string_util::trim(_token._value);
         int32_t int_value;
-        if (string_util::is_int(value_token, int_value)) {
+        if (string_util::from_decimal(value_token, int_value)) {
             return int_value;
         }
 
         // TODO(dymk) - is there a situation where we want to round a float
         // to an int, rather than throwing?
         float float_value;
-        if (string_util::is_float(value_token, float_value)) {
+        if (string_util::from_float(value_token, float_value)) {
             return lroundf(float_value);
         }
 
@@ -75,12 +75,12 @@ namespace Configuration {
     uint32_t Parser::uintValue() const {
         auto     token = string_util::trim(_token._value);
         uint32_t uint_value;
-        if (string_util::is_uint(token, uint_value)) {
+        if (string_util::from_decimal(token, uint_value)) {
             return uint_value;
         }
 
         float float_value;
-        if (string_util::is_float(token, float_value)) {
+        if (string_util::from_float(token, float_value)) {
             return lroundf(float_value);
         }
 
@@ -92,7 +92,7 @@ namespace Configuration {
     float Parser::floatValue() const {
         auto  token = string_util::trim(_token._value);
         float float_value;
-        if (string_util::is_float(token, float_value)) {
+        if (string_util::from_float(token, float_value)) {
             return float_value;
         }
         parseError("Expected a float value like 123.456");
@@ -118,7 +118,7 @@ namespace Configuration {
             speedEntry entry;
             auto       next_eq_delim = entry_str.find('=');
             auto       speed_str     = string_util::trim(entry_str.substr(0, next_eq_delim));
-            if (!string_util::is_uint(speed_str, entry.speed)) {
+            if (!string_util::from_decimal(speed_str, entry.speed)) {
                 log_error("Bad speed number " << speed_str);
                 return {};
             }
@@ -126,7 +126,7 @@ namespace Configuration {
 
             auto next_pct_delim = entry_str.find('%');
             auto percent_str    = string_util::trim(entry_str.substr(0, next_pct_delim));
-            if (!string_util::is_float(percent_str, entry.percent)) {
+            if (!string_util::from_float(percent_str, entry.percent)) {
                 log_error("Bad speed percent " << percent_str);
                 return {};
             }
@@ -154,7 +154,7 @@ namespace Configuration {
 
             str.remove_prefix(next_ws_delim + 1);
 
-            if (!string_util::is_float(entry_str, float_value)) {
+            if (!string_util::from_float(entry_str, float_value)) {
                 log_error("Bad number " << entry_str);
                 values.clear();
                 break;

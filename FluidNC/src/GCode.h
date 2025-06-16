@@ -334,8 +334,7 @@ enum class AxisCommand : uint8_t {
 void gc_init();
 
 // Execute one block of rs275/ngc/g-code
-Error gc_execute_line(char* line);
-void  gc_exec_linef(bool sync_after, Channel& out, const char* format, ...);
+Error gc_execute_line(const char* line);
 
 // Set g-code parser position. Input in steps.
 void gc_sync_position();

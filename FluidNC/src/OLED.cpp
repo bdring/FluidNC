@@ -1,4 +1,5 @@
 #include "OLED.h"
+#include "src/string_util.h"
 
 #include "Machine/MachineConfig.h"
 
@@ -203,10 +204,10 @@ void OLED::parse_numbers(std::string s, float* nums, int maxnums) {
         if (i >= maxnums) {
             return;
         }
-        nextpos   = s.find_first_of(",", pos);
-        auto num  = s.substr(pos, nextpos - pos);
-        nums[i++] = std::strtof(num.c_str(), nullptr);
-        pos       = nextpos + 1;
+        nextpos  = s.find_first_of(",", pos);
+        auto num = s.substr(pos, nextpos - pos);
+        string_util::from_float(num, nums[i++]);
+        pos = nextpos + 1;
     } while (nextpos != std::string::npos);
 }
 
@@ -218,7 +219,7 @@ void OLED::parse_axes(std::string s, float* axes) {
         nextpos  = s.find_first_of(",", pos);
         auto num = s.substr(pos, nextpos - pos);
         if (axis < MAX_N_AXIS) {
-            axes[axis++] = std::strtof(num.c_str(), nullptr);
+            string_util::from_float(num, axes[axis++]);
         }
         pos = nextpos + 1;
     } while (nextpos != std::string::npos);
@@ -239,6 +240,7 @@ void OLED::parse_status_report() {
     float axes[MAX_N_AXIS];
     bool  isMpos = false;
     _filename    = "";
+    uint32_t linenum;
 
     // ... handle it
     while (nextpos != std::string::npos) {
@@ -267,7 +269,7 @@ void OLED::parse_status_report() {
         }
         if (tag == "Ln") {
             // n
-            auto linenum = std::strtol(value.c_str(), nullptr, 10);
+            string_util::from_decimal(value, linenum);
             continue;
         }
         if (tag == "FS") {
@@ -344,8 +346,8 @@ void OLED::parse_status_report() {
         }
         if (tag == "SD") {
             auto commaPos = value.find_first_of(",");
-            _percent      = std::strtof(value.substr(0, commaPos).c_str(), nullptr);
-            _filename     = value.substr(commaPos + 1);
+            string_util::from_float(value.substr(0, commaPos), _percent);
+            _filename = value.substr(commaPos + 1);
             continue;
         }
     }

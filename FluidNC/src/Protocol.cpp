@@ -392,7 +392,7 @@ static void protocol_run_startup_lines() {
     config->_macros->_startup_line1.run(&allChannels);
 }
 
-static void protocol_do_start_homing(){
+static void protocol_do_start_homing() {
     Machine::Homing::run_cycles(Machine::Homing::AllCycles);
 }
 

@@ -192,7 +192,6 @@ bool char_is_numeric(char value) {
 }
 
 void trim(std::string_view& sv) {
-    char* end;
     // Trim leading space
     while (sv.size() && ::isspace(sv.front())) {
         sv.remove_prefix(1);
@@ -200,25 +199,6 @@ void trim(std::string_view& sv) {
     while (sv.size() && ::isspace(sv.back())) {
         sv.remove_suffix(1);
     }
-}
-
-char* trim(char* str) {
-    char* end;
-    // Trim leading space
-    while (::isspace((unsigned char)*str)) {
-        str++;
-    }
-    if (*str == 0) {  // All spaces?
-        return str;
-    }
-    // Trim trailing space
-    end = str + ::strlen(str) - 1;
-    while (end > str && ::isspace((unsigned char)*end)) {
-        end--;
-    }
-    // Write new null terminator character
-    end[1] = '\0';
-    return str;
 }
 
 bool multiple_bits_set(uint32_t val) {

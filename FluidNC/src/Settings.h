@@ -8,7 +8,6 @@
 #include <string_view>
 #include <map>
 #include <nvs.h>
-#include <string_view>
 
 // forward declarations
 namespace Machine {
@@ -420,8 +419,8 @@ public:
 };
 
 // Execute the startup script lines stored in non-volatile storage upon initialization
-Error settings_execute_line(char* line, Channel& out, AuthenticationLevel);
-Error do_command_or_setting(const char* key, const char* value, AuthenticationLevel auth_level, Channel&);
-Error execute_line(char* line, Channel& channel, AuthenticationLevel auth_level);
+Error settings_execute_line(const char* line, Channel& out, AuthenticationLevel);
+Error do_command_or_setting(std::string_view key, std::string_view value, AuthenticationLevel auth_level, Channel&);
+Error execute_line(const char* line, Channel& channel, AuthenticationLevel auth_level);
 
 extern const enum_opt_t onoffOptions;

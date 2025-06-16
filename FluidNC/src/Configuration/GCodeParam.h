@@ -9,21 +9,19 @@
 namespace Configuration {
     class GCodeParam : public Configuration::HandlerBase {
     private:
-        const char* setting_;  // foo/bar
-        const char* start_;
+        std::string_view setting_;  // foo/bar
+        std::string_view start_;
 
         bool   _get;
         float& _iovalue;
 
-        bool is(const char* name) const {
-            if (start_ != nullptr) {
-                auto len    = strlen(name);
-                auto result = !strncasecmp(name, start_, len) && (start_[len] == '\0' || start_[len] == '/');
-                return result;
-            } else {
+        bool is(std::string_view name) const {
+            if (start_.empty()) {
                 return false;
             }
+            return string_util::starts_with_ignore_case(start_, name) && (start_.length() == name.length() || start_[name.length()] == '/');
         }
+
         void error();
 
     protected:
@@ -31,7 +29,7 @@ namespace Configuration {
         bool matchesUninitialized(const char* name) override { return false; }
 
     public:
-        GCodeParam(const char* key, float& iovalue, bool get);
+        GCodeParam(std::string_view key, float& iovalue, bool get);
 
         void item(const char* name, bool& value) override;
         void item(const char* name, int32_t& value, const int32_t minValue, const int32_t maxValue) override;

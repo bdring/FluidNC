@@ -7,7 +7,7 @@
 #include "EnumItem.h"
 #include <freertos/FreeRTOS.h>
 #include <freertos/queue.h>
-#include "Types.h"
+#include "State.h"
 
 class Channel;
 

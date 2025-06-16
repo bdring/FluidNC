@@ -27,6 +27,7 @@
 #include "HashFS.h"
 
 #include <cstring>
+#include <string_view>
 #include <map>
 #include <filesystem>
 
@@ -40,8 +41,9 @@ static Error fakeMaxSpindleSpeed(const char* value, AuthenticationLevel auth_lev
 
 static Error report_init_message_cmd(const char* value, AuthenticationLevel auth_level, Channel& out);
 
+#ifdef ENABLE_AUTHENTICATION
 // If authentication is disabled, auth_level will be LEVEL_ADMIN
-static bool auth_failed(Word* w, const char* value, AuthenticationLevel auth_level) {
+static bool auth_failed(Word* w, std::string_view value, AuthenticationLevel auth_level) {
     permissions_t permissions = w->getPermissions();
     switch (auth_level) {
         case AuthenticationLevel::LEVEL_ADMIN:  // Admin can do anything
@@ -49,7 +51,7 @@ static bool auth_failed(Word* w, const char* value, AuthenticationLevel auth_lev
         case AuthenticationLevel::LEVEL_GUEST:  // Guest can only access open settings
             return permissions != WG;           // Anything other than RG is Guest auth fail
         case AuthenticationLevel::LEVEL_USER:   // User is complicated...
-            if (!value) {                       // User can read anything
+            if (value.empty()) {                // User can read anything
                 return false;                   // No read is a User auth fail
             }
             return permissions == WA;  // User cannot write WA
@@ -57,6 +59,11 @@ static bool auth_failed(Word* w, const char* value, AuthenticationLevel auth_lev
             return true;
     }
 }
+#else
+static bool auth_failed(Word* w, std::string_view value, AuthenticationLevel auth_level) {
+    return false;
+}
+#endif
 
 // Replace GRBL realtime characters with the corresponding URI-style
 // escape sequence.
@@ -88,37 +95,28 @@ static std::string uriEncodeGrblCharacters(const char* clear) {
 // Replace URI-style escape sequences like %HH with the character
 // corresponding to the hex number HH.  This works with any escaped
 // characters, not only those that are special to Grbl
-static char* uriDecode(const char* s) {
-    const int   dlen = 100;
-    static char decoded[dlen + 1];
-    char*       out = decoded;
-    char        c;
-    while ((c = *s++) != '\0') {
+static std::string uriDecode(std::string_view s) {
+    static std::string decoded;
+    char               c;
+    while (!s.empty()) {
+        c = s.front();
+        s.remove_prefix(1);
         if (c == '%') {
-            if (strlen(s) < 2) {
+            if (s.length() < 2) {
                 log_error("Bad % encoding - too short");
                 goto done;
             }
-            char escstr[3];
-            escstr[0] = *s++;
-            escstr[1] = *s++;
-            escstr[2] = '\0';
-            char*   endptr;
-            uint8_t esc = strtol(escstr, &endptr, 16);
-            if (endptr != &escstr[2]) {
+            uint8_t esc;
+            if (!string_util::from_hex(s.substr(0, 2), esc)) {
                 log_error("Bad % encoding - not hex");
                 goto done;
             }
+            s.remove_prefix(2);
             c = (char)esc;
         }
-        if ((out - decoded) == dlen) {
-            log_error("String value too long");
-            goto done;
-        }
-        *out++ = c;
+        decoded += c;
     }
 done:
-    *out = '\0';
     return decoded;
 }
 
@@ -580,9 +578,8 @@ static Error listAlarms(const char* value, AuthenticationLevel auth_level, Chann
         log_stream(out, "Active alarm: " << int(lastAlarm) << " (" << alarmString(lastAlarm));
     }
     if (value) {
-        char*   endptr      = NULL;
-        uint8_t alarmNumber = uint8_t(strtol(value, &endptr, 10));
-        if (*endptr) {
+        uint32_t alarmNumber;
+        if (!string_util::from_decimal(value, alarmNumber)) {
             log_stream(out, "Malformed alarm number: " << value);
             return Error::InvalidValue;
         }
@@ -609,9 +606,8 @@ const char* errorString(Error errorNumber) {
 
 static Error listErrors(const char* value, AuthenticationLevel auth_level, Channel& out) {
     if (value) {
-        char* endptr      = NULL;
-        int   errorNumber = strtol(value, &endptr, 10);
-        if (*endptr) {
+        int errorNumber;
+        if (!string_util::from_decimal(value, errorNumber)) {
             log_stream(out, "Malformed error number: " << value);
             return Error::InvalidValue;
         }
@@ -756,7 +752,7 @@ static Error uartPassthrough(const char* value, AuthenticationLevel auth_level, 
                 uart_name = "auto";
             } else if (!first.empty() && string_util::tolower(first.back()) == 's') {
                 first.remove_suffix(1);
-                if (!string_util::is_int(first, timeout)) {
+                if (!string_util::from_decimal(first, timeout)) {
                     log_error_to(out, "Invalid timeout number");
                     return Error::InvalidValue;
                 }
@@ -860,10 +856,9 @@ static Error setReportInterval(const char* value, AuthenticationLevel auth_level
         }
         return Error::Ok;
     }
-    char*    endptr;
-    uint32_t intValue = strtol(value, &endptr, 10);
+    uint32_t intValue;
 
-    if (endptr == value || *endptr != '\0') {
+    if (!string_util::from_decimal(value, intValue)) {
         return Error::BadNumberFormat;
     }
 
@@ -962,42 +957,10 @@ void make_user_commands() {
     new AsyncUserCommand("G", "GCode/Modes", report_gcode, anyState);
 };
 
-// normalize_key puts a key string into canonical form -
-// without whitespace.
-// start points to a null-terminated string.
-// Returns the first substring that does not contain whitespace.
-// Case is unchanged because comparisons are case-insensitive.
-char* normalize_key(char* start) {
-    char c;
-
-    // In the usual case, this loop will exit on the very first test,
-    // because the first character is likely to be non-white.
-    // Null ('\0') is not considered to be a space character.
-    while (isspace(c = *start) && c != '\0') {
-        ++start;
-    }
-
-    // start now points to either a printable character or end of string
-    if (c == '\0') {
-        return start;
-    }
-
-    // Having found the beginning of the printable string,
-    // we now scan forward until we find a space character.
-    char* end;
-    for (end = start; (c = *end) != '\0' && !isspace(c); end++) {}
-
-    // end now points to either a whitespace character or end of string
-    // In either case it is okay to place a null there
-    *end = '\0';
-
-    return start;
-}
-
 // This is the handler for all forms of settings commands,
 // $..= and [..], with and without a value.
-Error do_command_or_setting(const char* key, const char* value, AuthenticationLevel auth_level, Channel& out) {
-    // If value is NULL, it means that there was no value string, i.e.
+Error do_command_or_setting(std::string_view key, std::string_view value, AuthenticationLevel auth_level, Channel& out) {
+    // If value is empty, it means that there was no value string, i.e.
     // $key without =, or [key] with nothing following.
     // If value is not NULL, but the string is empty, that is the form
     // $key= with nothing following the = .
@@ -1006,14 +969,19 @@ Error do_command_or_setting(const char* key, const char* value, AuthenticationLe
     // you cannot determine whether to set or display solely based on
     // the presence of a value.
     for (Command* cp : Command::List) {
-        if ((strcasecmp(cp->getName(), key) == 0) || (cp->getGrblName() && strcasecmp(cp->getGrblName(), key) == 0)) {
+        if (string_util::equal_ignore_case(cp->getName(), key) ||
+            (cp->getGrblName() && string_util::equal_ignore_case(cp->getGrblName(), key))) {
             if (auth_failed(cp, value, auth_level)) {
                 return Error::AuthenticationFailed;
             }
             if (cp->synchronous()) {
                 protocol_buffer_synchronize();
             }
-            return cp->action(value, auth_level, out);
+            if (value.empty()) {
+                return cp->action(nullptr, auth_level, out);
+            }
+            std::string s(value);
+            return cp->action(s.c_str(), auth_level, out);
         }
     }
 
@@ -1024,7 +992,7 @@ Error do_command_or_setting(const char* key, const char* value, AuthenticationLe
         config->group(rts);
 
         if (rts.isHandled_) {
-            if (value) {
+            if (!value.empty()) {
                 // Validate only if something changed, not for display
                 try {
                     Configuration::Validator validator;
@@ -1052,32 +1020,34 @@ Error do_command_or_setting(const char* key, const char* value, AuthenticationLe
     // Next search the settings list by text name. If found, set a new
     // value if one is given, otherwise display the current value
     for (Setting* s : Setting::List) {
-        if (strcasecmp(s->getName(), key) == 0) {
+        if (string_util::equal_ignore_case(s->getName(), key)) {
+#if 0
             if (auth_failed(s, value, auth_level)) {
                 return Error::AuthenticationFailed;
             }
-            if (value) {
-                return s->setStringValue(uriDecode(value));
-            } else {
+#endif
+            if (value.empty()) {
                 show_setting(s->getName(), s->getStringValue(), NULL, out);
                 return Error::Ok;
             }
+            return s->setStringValue(uriDecode(value));
         }
     }
 
     // Then search the setting list by compatible name.  If found, set a new
     // value if one is given, otherwise display the current value in compatible mode
     for (Setting* s : Setting::List) {
-        if (s->getGrblName() && strcasecmp(s->getGrblName(), key) == 0) {
+        if (s->getGrblName() && string_util::equal_ignore_case(s->getGrblName(), key)) {
+#if 0
             if (auth_failed(s, value, auth_level)) {
                 return Error::AuthenticationFailed;
             }
-            if (value) {
-                return s->setStringValue(uriDecode(value));
-            } else {
+#endif
+            if (value.empty()) {
                 show_setting(s->getGrblName(), s->getCompatibleValue(), NULL, out);
                 return Error::Ok;
             }
+            return s->setStringValue(uriDecode(value));
         }
     }
 
@@ -1086,7 +1056,7 @@ Error do_command_or_setting(const char* key, const char* value, AuthenticationLe
     // and display every possibility.  This only applies to the
     // text form of the name, not to the nnn and ESPnnn forms.
     Error retval = Error::InvalidStatement;
-    if (!value) {
+    if (value.empty()) {
         bool found = false;
         for (Setting* s : Setting::List) {
             auto test = s->getName();
@@ -1095,7 +1065,12 @@ Error do_command_or_setting(const char* key, const char* value, AuthenticationLe
             // consumes a lot of FLASH.  The extra capability is rarely useful
             // especially now that there are only a few NVS settings.
             if (regexMatch(key, test, false)) {
-                const char* displayValue = auth_failed(s, value, auth_level) ? "<Authentication required>" : s->getStringValue();
+                const char* displayValue = s->getStringValue();
+#if 0
+                if (auth_failed(s, value, auth_level)) {
+                    displayValue = "<Authentication required>";
+                }
+#endif
                 show_setting(test, displayValue, NULL, out);
                 found = true;
             }
@@ -1107,32 +1082,12 @@ Error do_command_or_setting(const char* key, const char* value, AuthenticationLe
     return Error::InvalidStatement;
 }
 
-Error settings_execute_line(char* line, Channel& out, AuthenticationLevel auth_level) {
-    remove_password(line, auth_level);
+Error settings_execute_line(const char* line, Channel& out, AuthenticationLevel auth_level) {
+    std::string_view key(line + 1);
+    std::string_view value;
 
-    char* value;
-    if (*line++ == '[') {  // [ESPxxx] form
-        value = strchr(line, ']');
-        if (!value) {
-            // Missing ] is an error in this form
-            return Error::InvalidStatement;
-        }
-        // ']' was found; replace it with null and set value to the rest of the line.
-        *value++ = '\0';
-        // If the rest of the line is empty, replace value with NULL.
-        if (*value == '\0') {
-            value = NULL;
-        }
-    } else {
-        // $xxx form
-        value = strchr(line, '=');
-        if (value) {
-            // $xxx=yyy form.
-            *value++ = '\0';
-        }
-    }
-
-    char* key = normalize_key(line);
+    string_util::split(key, value, *line == '[' ? ']' : '=');
+    key = string_util::trim(key);
 
     // At this point there are three possibilities for value
     // NULL - $xxx without =
@@ -1142,7 +1097,7 @@ Error settings_execute_line(char* line, Channel& out, AuthenticationLevel auth_l
     return do_command_or_setting(key, value, auth_level, out);
 }
 
-Error execute_line(char* line, Channel& channel, AuthenticationLevel auth_level) {
+Error execute_line(const char* line, Channel& channel, AuthenticationLevel auth_level) {
     // Empty or comment line. For syncing purposes.
     if (line[0] == 0) {
         return Error::Ok;
