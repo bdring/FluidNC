@@ -22,6 +22,7 @@
 #include "StartupLog.h"           // startupLog
 #include "Driver/gpio_dump.h"     // gpio_dump()
 #include "FileCommands.h"         // make_file_commands()
+#include "Job.h"                  // Job::active()
 
 #include "FluidPath.h"
 #include "HashFS.h"
@@ -575,7 +576,7 @@ static Error listAlarms(const char* value, AuthenticationLevel auth_level, Chann
     if (state_is(State::ConfigAlarm)) {
         log_string(out, "Configuration alarm is active. Check the boot messages for 'ERR'.");
     } else if (state_is(State::Alarm)) {
-        log_stream(out, "Active alarm: " << int(lastAlarm) << " (" << alarmString(lastAlarm));
+        log_stream(out, "Active alarm: " << int(lastAlarm) << " (" << alarmString(lastAlarm) << ")");
     }
     if (value) {
         uint32_t alarmNumber;
@@ -1120,6 +1121,9 @@ Error execute_line(const char* line, Channel& channel, AuthenticationLevel auth_
     Error result = gc_execute_line(line);
     if (result != Error::Ok && result != Error::Reset) {
         log_error_to(channel, "Bad GCode: " << line);
+        if (Job::active()) {
+            send_alarm(ExecAlarm::GCodeError);
+        }
     }
     return result;
 }

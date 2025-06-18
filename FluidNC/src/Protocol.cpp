@@ -44,6 +44,7 @@ const std::map<ExecAlarm, const char*> AlarmNames = {
     { ExecAlarm::Unhomed, "Unhomed" },
     { ExecAlarm::Init, "Init" },
     { ExecAlarm::ExpanderReset, "Expander Reset" },
+    { ExecAlarm::GCodeError, "GCode Error" },
 };
 
 const char* alarmString(ExecAlarm alarmNumber) {
