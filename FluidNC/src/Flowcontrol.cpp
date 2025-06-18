@@ -40,6 +40,7 @@ typedef struct {
     ngc_cmd_t   operation;
     JobSource*  file;
     size_t      file_pos;
+    size_t      line_number;
     std::string expr;
     uint32_t    repeats;
     bool        skip;
@@ -81,7 +82,7 @@ static Error read_command(const char* line, size_t& pos, ngc_cmd_t& operation) {
 }
 
 static Error stack_push(uint32_t o_label, ngc_cmd_t operation, bool skip) {
-    ngc_stack_entry_t ent = { o_label, operation, Job::source(), 0, "", 0, skip, false, false };
+    ngc_stack_entry_t ent = { o_label, operation, Job::source(), 0, 0, "", 0, skip, false, false };
     context.push(ent);
     return Error::Ok;
 }
@@ -171,7 +172,8 @@ Error flowcontrol(uint32_t o_label, const char* line, size_t& pos, bool& skip) {
             if (Job::active()) {
                 if (!skipping) {
                     stack_push(o_label, operation, false);
-                    context.top().file_pos = context.top().file->position();
+                    context.top().file_pos    = context.top().file->position();
+                    context.top().line_number = context.top().file->lineNumber();
                 }
             } else {
                 status = Error::FlowControlNotExecutingMacro;
@@ -190,6 +192,7 @@ Error flowcontrol(uint32_t o_label, const char* line, size_t& pos, bool& skip) {
                         if (o_label == context.top().o_label) {
                             if (value) {
                                 context.top().file->set_position(context.top().file_pos);
+                                context.top().file->setLineNumber(context.top().line_number);
                             } else {
                                 stack_pull();
                             }
@@ -197,9 +200,10 @@ Error flowcontrol(uint32_t o_label, const char* line, size_t& pos, bool& skip) {
                     } else {
                         stack_push(o_label, operation, !value);
                         if (value) {
-                            context.top().expr     = expr;
-                            context.top().file     = Job::source();
-                            context.top().file_pos = context.top().file->position();
+                            context.top().expr        = expr;
+                            context.top().file        = Job::source();
+                            context.top().file_pos    = context.top().file->position();
+                            context.top().line_number = context.top().file->lineNumber();
                         }
                     }
                 }
@@ -235,9 +239,10 @@ Error flowcontrol(uint32_t o_label, const char* line, size_t& pos, bool& skip) {
                 if (!skipping && (status = expression(line, pos, value)) == Error::Ok) {
                     stack_push(o_label, operation, !value);
                     if (value) {
-                        context.top().file     = Job::source();
-                        context.top().file_pos = context.top().file->position();
-                        context.top().repeats  = (uint32_t)value;
+                        context.top().file        = Job::source();
+                        context.top().file_pos    = context.top().file->position();
+                        context.top().line_number = context.top().file->lineNumber();
+                        context.top().repeats     = (uint32_t)value;
                     }
                 }
             } else {
@@ -251,6 +256,7 @@ Error flowcontrol(uint32_t o_label, const char* line, size_t& pos, bool& skip) {
                     if (o_label == context.top().o_label) {
                         if (context.top().repeats && --context.top().repeats) {
                             context.top().file->set_position(context.top().file_pos);
+                            context.top().file->setLineNumber(context.top().line_number);
                         } else {
                             stack_pull();
                         }
@@ -293,6 +299,7 @@ Error flowcontrol(uint32_t o_label, const char* line, size_t& pos, bool& skip) {
                             case Op_Repeat:
                                 if (context.top().repeats && --context.top().repeats) {
                                     context.top().file->set_position(context.top().file_pos);
+                                    context.top().file->setLineNumber(context.top().line_number);
                                 } else {
                                     stack_pull();
                                 }
@@ -300,6 +307,7 @@ Error flowcontrol(uint32_t o_label, const char* line, size_t& pos, bool& skip) {
 
                             case Op_Do:
                                 context.top().file->set_position(context.top().file_pos);
+                                context.top().file->setLineNumber(context.top().line_number);
                                 break;
 
                             case Op_While: {
@@ -307,6 +315,7 @@ Error flowcontrol(uint32_t o_label, const char* line, size_t& pos, bool& skip) {
                                 if (!context.top().skip && (status = expression(context.top().expr.c_str(), pos, value)) == Error::Ok) {
                                     if (!(context.top().skip = value == 0)) {
                                         context.top().file->set_position(context.top().file_pos);
+                                        context.top().file->setLineNumber(context.top().line_number);
                                     }
                                 }
                                 if (context.top().skip) {

@@ -29,6 +29,8 @@ public:
     void   restore() { _channel->restore(); }
     size_t position() { return _channel->position(); }
     void   set_position(size_t pos) { _channel->set_position(pos); }
+    size_t lineNumber() { return _channel->lineNumber(); }
+    void   setLineNumber(size_t line_number) { _channel->setLineNumber(line_number); }
 
     Channel* channel() { return _channel; }
 
