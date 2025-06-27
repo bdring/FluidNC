@@ -82,7 +82,7 @@ os.makedirs(manifestRelPath)
 dataRelPath = os.path.join(manifestRelPath, 'data')
 os.makedirs(dataRelPath)
 shutil.copy(os.path.join("FluidNC", "data", "index.html.gz"), os.path.join(dataRelPath, "index-webui-2.html.gz"))
-urllib.request.urlretrieve("https://github.com/michmela44/ESP3D-WEBUI/releases/download/3.0.0-5/index.html.gz", os.path.join("release", "current", "data", "index-webui-3.html.gz"))
+urllib.request.urlretrieve("https://github.com/michmela44/ESP3D-WEBUI/releases/latest/download/index.html.gz", os.path.join("release", "current", "data", "index-webui-3.html.gz"))
 
 manifest = {
         "name": "FluidNC",
