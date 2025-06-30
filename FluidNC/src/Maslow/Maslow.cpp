@@ -180,9 +180,15 @@ void Maslow_::update() {
             axisBR.setTarget(brBeltLength);
             
             // Update internal target tracking for getTargetX/Y/Z functions
-            // Note: This is a simplified approach - ideally we'd solve inverse kinematics
-            // For now, we'll keep the last known targets or use a placeholder
-            // targetX, targetY, targetZ would need to be computed from belt lengths
+            // For now, we'll use the Z position directly and estimate X,Y from frame center
+            // A full implementation would require solving inverse kinematics from belt lengths
+            targetZ = zPosition;
+            // Simple approximation - this could be improved with proper inverse kinematics
+            // For now, we'll assume we're near the center if we don't have better information
+            if (targetX == 0 && targetY == 0) {
+                targetX = (trX + blX) / 2.0f - centerX;  // Approximate center X
+                targetY = (trY + blY) / 2.0f - centerY;  // Approximate center Y
+            }
 
             //This disables the belt motors until the user has completed calibration or apply tension and they have succeded
             if (calibration.currentState == READY_TO_CUT) {
