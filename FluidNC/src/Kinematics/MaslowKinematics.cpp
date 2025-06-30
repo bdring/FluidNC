@@ -7,6 +7,9 @@
 #include "../Limits.h"
 #include "../Machine/Homing.h"
 #include "../Protocol.h"
+#include "../System.h"
+#include "../NutsBolts.h"
+#include "../MotionControl.h"
 #include <cmath>
 
 /*
