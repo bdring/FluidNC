@@ -165,9 +165,24 @@ void Maslow_::update() {
 
         //-------Jog or G-code execution.
         if (sys.state() == State::Jog || sys.state() == State::Cycle) {
-            Maslow.setTargets(steps_to_mpos(get_axis_motor_steps(0), 0)*scaleX,
-                              steps_to_mpos(get_axis_motor_steps(1), 1)*scaleY,
-                              steps_to_mpos(get_axis_motor_steps(2), 2));
+            // With MaslowKinematics, read belt motor positions directly from the axis system
+            // instead of computing them manually from virtual X,Y,Z positions
+            float tlBeltLength = steps_to_mpos(get_axis_motor_steps(0), 0); // TL from X axis
+            float trBeltLength = steps_to_mpos(get_axis_motor_steps(1), 1); // TR from Y axis  
+            float zPosition = steps_to_mpos(get_axis_motor_steps(2), 2);    // Z from Z axis
+            float blBeltLength = steps_to_mpos(get_axis_motor_steps(3), 3); // BL from A axis
+            float brBeltLength = steps_to_mpos(get_axis_motor_steps(4), 4); // BR from B axis
+            
+            // Set individual belt targets using the computed positions
+            axisTL.setTarget(tlBeltLength);
+            axisTR.setTarget(trBeltLength);
+            axisBL.setTarget(blBeltLength);
+            axisBR.setTarget(brBeltLength);
+            
+            // Update internal target tracking for getTargetX/Y/Z functions
+            // Note: This is a simplified approach - ideally we'd solve inverse kinematics
+            // For now, we'll keep the last known targets or use a placeholder
+            // targetX, targetY, targetZ would need to be computed from belt lengths
 
             //This disables the belt motors until the user has completed calibration or apply tension and they have succeded
             if (calibration.currentState == READY_TO_CUT) {
