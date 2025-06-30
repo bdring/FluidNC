@@ -78,30 +78,49 @@ uart1:
   baud: 115200
   mode: 8N1
 
+kinematics:
+  MaslowKinematics:
+    tlX: -27.6
+    tlY: 2064.9
+    tlZ: 100.0
+    trX: 2924.3
+    trY: 2066.5
+    trZ: 56.0
+    blX: 0.0
+    blY: 0.0
+    blZ: 34.0
+    brX: 2953.2
+    brY: 0.0
+    brZ: 78.0
+    beltEndExtension: 30.0
+    armLength: 123.4
+
 axes:
-  x:
-    max_rate_mm_per_min: 2000
-    acceleration_mm_per_sec2: 25
-    max_travel_mm: 2438.4
+  x:  # Top Left belt motor (TL)
+    max_rate_mm_per_min: 3000
+    acceleration_mm_per_sec2: 50
+    max_travel_mm: 5000
     homing:
       cycle: -1
 
     motor0:
       dc_servo:
 
-  y:
-    max_rate_mm_per_min: 2000
-    acceleration_mm_per_sec2: 25
-    max_travel_mm: 1219.2
+  y:  # Top Right belt motor (TR) 
+    max_rate_mm_per_min: 3000
+    acceleration_mm_per_sec2: 50
+    max_travel_mm: 5000
     homing:
       cycle: -1
 
-  z:
+    motor0:
+      dc_servo:
+
+  z:  # Router Z-axis
     steps_per_mm: 100
     max_rate_mm_per_min: 400
     acceleration_mm_per_sec2: 10
     max_travel_mm: 100
-
     homing:
       cycle: -1
 
@@ -144,3 +163,23 @@ axes:
         use_enable: true
         direction_pin: gpio.38
         step_pin: gpio.46
+
+  a:  # Bottom Left belt motor (BL)
+    max_rate_mm_per_min: 3000
+    acceleration_mm_per_sec2: 50
+    max_travel_mm: 5000
+    homing:
+      cycle: -1
+
+    motor0:
+      dc_servo:
+
+  b:  # Bottom Right belt motor (BR)
+    max_rate_mm_per_min: 3000
+    acceleration_mm_per_sec2: 50
+    max_travel_mm: 5000
+    homing:
+      cycle: -1
+
+    motor0:
+      dc_servo:
