@@ -99,10 +99,29 @@ namespace Machine {
         handler.item(M+"_calibration_grid_height_mm_Y", Maslow.calibration.calibration_grid_height_mm_Y, 100, 3000);
         handler.item(M+"_calibration_grid_size", Maslow.calibration.calibrationGridSize, 3, 9);
 
+        handler.item(M+"_tlX", Maslow.tlX);
+        handler.item(M+"_tlY", Maslow.tlY);
+
+        handler.item(M+"_trX", Maslow.trX);
+        handler.item(M+"_trY", Maslow.trY);
+
+        handler.item(M+"_blX", Maslow.blX);
+        handler.item(M+"_blY", Maslow.blY);
+        
+        handler.item(M+"_brX", Maslow.brX);
+        handler.item(M+"_brY", Maslow.brY);
+
+        handler.item(M+"_tlZ", Maslow.tlZ);
+        handler.item(M+"_trZ", Maslow.trZ);
+        handler.item(M+"_blZ", Maslow.blZ);
+        handler.item(M+"_brZ", Maslow.brZ);
+
         handler.item(M+"_Retract_Current_Threshold", Maslow.calibration.retractCurrentThreshold, 0, 3500);
         handler.item(M+"_Calibration_Current_Threshold", Maslow.calibration.calibrationCurrentThreshold, 0, 3500);
         handler.item(M+"_Acceptable_Calibration_Threshold", Maslow.calibration.acceptableCalibrationThreshold, 0, 1);
         handler.item(M+"_Extend_Dist", Maslow.calibration.extendDist, 0, 4250);
+        handler.item(M+"_beltEndExtension", Maslow._beltEndExtension);
+        handler.item(M+"_armLength", Maslow._armLength);
 
         handler.item(M+"_Scale_X", Maslow.scaleX, .8, 1.2);
         handler.item(M+"_Scale_Y", Maslow.scaleY, .8, 1.2);
@@ -196,14 +215,12 @@ namespace Machine {
     const std::string dcM4Vert = M+"_vertical: false\n";
     const std::string dcM4CalibrationGrid = mcgrid + "width_mm_X: 2000\n" + mcgrid + "height_mm_Y: 1000\n" + mcgrid + "size: 9\n";
 
-    const std::string dcM4Kinematics =
-        "kinematics:\n"
-        "  MaslowKinematics:\n"
-        "    tlX: -27.6\n    tlY: 2064.9\n    tlZ: 100.0\n"
-        "    trX: 2924.3\n    trY: 2066.5\n    trZ: 56.0\n"
-        "    blX: 0.0\n    blY: 0.0\n    blZ: 34.0\n"
-        "    brX: 2953.2\n    brY: 0.0\n    brZ: 78.0\n"
-        "    beltEndExtension: 30.0\n    armLength: 123.4\n";
+    const std::string dcM4Anchors =
+        M+"_tlX: -27.6\n"+M+"_tlY: 2064.9\n"
+        +M+"_trX: 2924.3\n"+M+"_trY: 2066.5\n"
+        +M+"_blX: 0\n"+M+"_blY: 0\n"
+        +M+"_brX: 2953.2\n"+M+"_brY: 0\n";
+    const std::string dcM4ZAxis = M+"_tlZ: 100\n"+M+"_trZ: 56\n"+M+"_blZ: 34\n"+M+"_brZ: 78\n";
 
     const std::string dcM4CurrentThreshold = M+"_Retract_Current_Threshold: 1300\n"+M+"_Calibration_Current_Threshold: 1500\n"+M+"_Acceptable_Calibration_Threshold: 0.5\n";
 
@@ -222,18 +239,13 @@ namespace Machine {
     const std::string defaultConfig =
         dcBoard +
         // Maslow M4 default items
-        dcM4Vert + dcM4CalibrationGrid + dcM4CurrentThreshold +
+        dcM4Vert + dcM4CalibrationGrid + dcM4Anchors + dcM4ZAxis + dcM4CurrentThreshold +
         // Default sections
-        dcSpi + dcSDCard + dcStepping + dcUart1 + dcM4Kinematics +
+        dcSpi + dcSDCard + dcStepping + dcUart1 + 
         "axes:\n"
-        "  a:\n    max_rate_mm_per_min: 3000\n    acceleration_mm_per_sec2: 50\n    max_travel_mm: 5000\n    homing:\n      cycle: -1\n"
+        "  x:\n    max_rate_mm_per_min: 2000\n    acceleration_mm_per_sec2: 25\n    max_travel_mm: 2438.4\n    homing:\n      cycle: -1\n"
         "    motor0:\n      dc_servo:\n"
-        "  b:\n    max_rate_mm_per_min: 3000\n    acceleration_mm_per_sec2: 50\n    max_travel_mm: 5000\n    homing:\n      cycle: -1\n"
-        "    motor0:\n      dc_servo:\n"
-        "  c:\n    max_rate_mm_per_min: 3000\n    acceleration_mm_per_sec2: 50\n    max_travel_mm: 5000\n    homing:\n      cycle: -1\n"
-        "    motor0:\n      dc_servo:\n"
-        "  d:\n    max_rate_mm_per_min: 3000\n    acceleration_mm_per_sec2: 50\n    max_travel_mm: 5000\n    homing:\n      cycle: -1\n"
-        "    motor0:\n      dc_servo:\n"
+        "  y:\n    max_rate_mm_per_min: 2000\n    acceleration_mm_per_sec2: 25\n    max_travel_mm: 1219.2\n    homing:\n      cycle: -1\n"
         "  z:\n    max_rate_mm_per_min: 400\n    acceleration_mm_per_sec2: 10\n    max_travel_mm: 100\n    steps_per_mm: 100\n    homing:\n      cycle: -1\n"
         "    motor0:\n      tmc_2209:\n        addr: 0\n        direction_pin: gpio.16\n        step_pin: gpio.15\n" + dcZMotor +
         "    motor1:\n      tmc_2209:\n        addr: 1\n        direction_pin: gpio.38\n        step_pin: gpio.46\n" + dcZMotor;
