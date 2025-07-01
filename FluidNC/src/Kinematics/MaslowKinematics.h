@@ -50,6 +50,30 @@ namespace Kinematics {
 
         ~MaslowKinematics() {}
 
+        // Public access to compute functions for calibration system
+        float computeTL(float x, float y, float z);
+        float computeTR(float x, float y, float z);  
+        float computeBL(float x, float y, float z);
+        float computeBR(float x, float y, float z);
+        
+        // Getters for parameters used by calibration system
+        float getTlX() const { return _tlX; }
+        float getTlY() const { return _tlY; }
+        float getTlZ() const { return _tlZ; }
+        float getTrX() const { return _trX; }
+        float getTrY() const { return _trY; }
+        float getTrZ() const { return _trZ; }
+        float getBlX() const { return _blX; }
+        float getBlY() const { return _blY; }
+        float getBlZ() const { return _blZ; }
+        float getBrX() const { return _brX; }
+        float getBrY() const { return _brY; }
+        float getBrZ() const { return _brZ; }
+        float getBeltEndExtension() const { return _beltEndExtension; }
+        float getArmLength() const { return _armLength; }
+        float getCenterX() const { return _centerX; }
+        float getCenterY() const { return _centerY; }
+
     private:
         // Anchor point coordinates (in mm)
         float _tlX = -27.6f;   // Top left X
@@ -75,14 +99,11 @@ namespace Kinematics {
         // Center offset for coordinate system transformation
         float _centerX = 0.0f;  // Will be calculated from frame dimensions
         float _centerY = 0.0f;  // Will be calculated from frame dimensions
-
-        // Helper functions for belt length calculations
-        float computeTL(float x, float y, float z);
-        float computeTR(float x, float y, float z);  
-        float computeBL(float x, float y, float z);
-        float computeBR(float x, float y, float z);
         
         // Initialize center coordinates
         void calculateCenter();
     };
+    
+    // Global accessor function to get the current MaslowKinematics instance
+    MaslowKinematics* getMaslowKinematics();
 }  //  namespace Kinematics

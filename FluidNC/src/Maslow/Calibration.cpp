@@ -1,5 +1,16 @@
 #include "Calibration.h"
 #include "Maslow.h"
+#include "../Kinematics/MaslowKinematics.h"
+
+// Helper function to get MaslowKinematics instance
+static Kinematics::MaslowKinematics* getKinematics() {
+    using namespace Kinematics;
+    MaslowKinematics* kinematics = getMaslowKinematics();
+    if (!kinematics) {
+        log_error("MaslowKinematics not available");
+    }
+    return kinematics;
+}
 
 
 
@@ -157,7 +168,8 @@ bool Calibration::requestStateChange(int newState){
                 //If we can't load the position, that's OK, we can still go ahead with the calibration and the first point will make a guess for it
                 float x = 0;
                 float y = 0;
-                if(computeXYfromLengths(measurementToXYPlane(Maslow.axisTL.getPosition(), Maslow.tlZ), measurementToXYPlane(Maslow.axisTR.getPosition(), Maslow.trZ), x, y)){
+                auto kinematics = getKinematics();
+                if(kinematics && computeXYfromLengths(measurementToXYPlane(Maslow.axisTL.getPosition(), kinematics->getTlZ()), measurementToXYPlane(Maslow.axisTR.getPosition(), kinematics->getTrZ()), x, y)){
                     
                     //We reset the last waypoint to where it actually is so that we can move from the updated position to the next waypoint
                     if(waypoint > 0){
@@ -448,13 +460,16 @@ bool Calibration::takeSlackFunc() {
                 return true;
             }
 
-            float extension = Maslow._beltEndExtension + Maslow._armLength;
+            auto kinematics = getKinematics();
+            if (!kinematics) return true;
+            
+            float extension = kinematics->getBeltEndExtension() + kinematics->getArmLength();
             
             //This should use it's own array, this is not calibration data
-            float diffTL = calibration_data[2][0] - measurementToXYPlane(Maslow.computeTL(x, y, 0), Maslow.tlZ);
-            float diffTR = calibration_data[2][1] - measurementToXYPlane(Maslow.computeTR(x, y, 0), Maslow.trZ);
-            float diffBL = calibration_data[2][2] - measurementToXYPlane(Maslow.computeBL(x, y, 0), Maslow.blZ);
-            float diffBR = calibration_data[2][3] - measurementToXYPlane(Maslow.computeBR(x, y, 0), Maslow.brZ);
+            float diffTL = calibration_data[2][0] - measurementToXYPlane(kinematics->computeTL(x, y, 0), kinematics->getTlZ());
+            float diffTR = calibration_data[2][1] - measurementToXYPlane(kinematics->computeTR(x, y, 0), kinematics->getTrZ());
+            float diffBL = calibration_data[2][2] - measurementToXYPlane(kinematics->computeBL(x, y, 0), kinematics->getBlZ());
+            float diffBR = calibration_data[2][3] - measurementToXYPlane(kinematics->computeBR(x, y, 0), kinematics->getBrZ());
             log_info("Center point deviation: TL: " << diffTL << " TR: " << diffTR << " BL: " << diffBL << " BR: " << diffBR);
             double threshold = 12;
             if (abs(diffTL) > threshold || abs(diffTR) > threshold || abs(diffBL) > threshold || abs(diffBR) > threshold) {
@@ -504,11 +519,19 @@ bool Calibration::takeSlackFunc() {
 *Computes the current xy cordinates of the sled based on the lengths of the upper two belts
 */
 bool Calibration::computeXYfromLengths(double TL, double TR, float &x, float &y) {
+    auto kinematics = getKinematics();
+    if (!kinematics) return false;
+    
     double tlLength = TL;//measurementToXYPlane(TL, tlZ);
     double trLength = TR;//measurementToXYPlane(TR, trZ);
 
     //Find the intersection of the two circles centered at tlX, tlY and trX, trY with radii tlLength and trLength
-    double d = sqrt((Maslow.tlX - Maslow.trX) * (Maslow.tlX - Maslow.trX) + (Maslow.tlY - Maslow.trY) * (Maslow.tlY - Maslow.trY));
+    double tlX = kinematics->getTlX();
+    double tlY = kinematics->getTlY();
+    double trX = kinematics->getTrX();
+    double trY = kinematics->getTrY();
+    
+    double d = sqrt((tlX - trX) * (tlX - trX) + (tlY - trY) * (tlY - trY));
     if (d > tlLength + trLength || d < abs(tlLength - trLength)) {
         log_info("Unable to determine machine position");
         return false;
@@ -516,14 +539,14 @@ bool Calibration::computeXYfromLengths(double TL, double TR, float &x, float &y)
     
     double a = (tlLength * tlLength - trLength * trLength + d * d) / (2 * d);
     double h = sqrt(tlLength * tlLength - a * a);
-    double x0 = Maslow.tlX + a * (Maslow.trX - Maslow.tlX) / d;
-    double y0 = Maslow.tlY + a * (Maslow.trY - Maslow.tlY) / d;
-    double rawX = x0 + h * (Maslow.trY - Maslow.tlY) / d;
-    double rawY = y0 - h * (Maslow.trX - Maslow.tlX) / d;
+    double x0 = tlX + a * (trX - tlX) / d;
+    double y0 = tlY + a * (trY - tlY) / d;
+    double rawX = x0 + h * (trY - tlY) / d;
+    double rawY = y0 - h * (trX - tlX) / d;
 
     // Adjust to the centered coordinates
-    x = rawX - Maslow.centerX;
-    y = rawY - Maslow.centerY;
+    x = rawX - kinematics->getCenterX();
+    y = rawY - kinematics->getCenterY();
 
     return true;
 }
@@ -595,11 +618,13 @@ bool Calibration::take_measurement(float result[4], int dir, int run, int curren
 
         //once both belts are pulled, take a measurement
         if (BR_tight && BL_tight) {
+            auto kinematics = getKinematics();
+            if (!kinematics) return false;
             //take measurement and record it to the calibration data array.
-            result[0] = measurementToXYPlane(Maslow.axisTL.getPosition(), Maslow.tlZ);
-            result[1] = measurementToXYPlane(Maslow.axisTR.getPosition(), Maslow.trZ);
-            result[2] = measurementToXYPlane(Maslow.axisBL.getPosition(), Maslow.blZ);
-            result[3] = measurementToXYPlane(Maslow.axisBR.getPosition(), Maslow.brZ);
+            result[0] = measurementToXYPlane(Maslow.axisTL.getPosition(), kinematics->getTlZ());
+            result[1] = measurementToXYPlane(Maslow.axisTR.getPosition(), kinematics->getTrZ());
+            result[2] = measurementToXYPlane(Maslow.axisBL.getPosition(), kinematics->getBlZ());
+            result[3] = measurementToXYPlane(Maslow.axisBR.getPosition(), kinematics->getBrZ());
             BR_tight                      = false;
             BL_tight                      = false;
             return true;
@@ -688,11 +713,13 @@ bool Calibration::take_measurement(float result[4], int dir, int run, int curren
             }
         }
         if (pull1_tight && pull2_tight) {
+            auto kinematics = getKinematics();
+            if (!kinematics) return false;
             //take measurement and record it to the calibration data array.
-            result[0] = measurementToXYPlane(Maslow.axisTL.getPosition(), Maslow.tlZ);
-            result[1] = measurementToXYPlane(Maslow.axisTR.getPosition(), Maslow.trZ);
-            result[2] = measurementToXYPlane(Maslow.axisBL.getPosition(), Maslow.blZ);
-            result[3] = measurementToXYPlane(Maslow.axisBR.getPosition(), Maslow.brZ);
+            result[0] = measurementToXYPlane(Maslow.axisTL.getPosition(), kinematics->getTlZ());
+            result[1] = measurementToXYPlane(Maslow.axisTR.getPosition(), kinematics->getTrZ());
+            result[2] = measurementToXYPlane(Maslow.axisBL.getPosition(), kinematics->getBlZ());
+            result[3] = measurementToXYPlane(Maslow.axisBR.getPosition(), kinematics->getBrZ());
             pull1_tight                   = false;
             pull2_tight                   = false;
             return true;
@@ -826,11 +853,14 @@ bool Calibration::take_measurement_avg_with_check(int waypoint, int dir) {
                 computeXYfromLengths(measurements[0][0], measurements[0][1], x, y);
 
                 //If the frame size is way off, we will compute a rough (assumed to be a square) frame size from the first measurmeent
+                auto kinematics = getKinematics();
+                if (!kinematics) return false;
+                
                 double threshold = 100;
-                float diffTL = measurements[0][0] - measurementToXYPlane(Maslow.computeTL(x, y, 0), Maslow.tlZ);
-                float diffTR = measurements[0][1] - measurementToXYPlane(Maslow.computeTR(x, y, 0), Maslow.trZ);
-                float diffBL = measurements[0][2] - measurementToXYPlane(Maslow.computeBL(x, y, 0), Maslow.blZ);
-                float diffBR = measurements[0][3] - measurementToXYPlane(Maslow.computeBR(x, y, 0), Maslow.brZ);
+                float diffTL = measurements[0][0] - measurementToXYPlane(kinematics->computeTL(x, y, 0), kinematics->getTlZ());
+                float diffTR = measurements[0][1] - measurementToXYPlane(kinematics->computeTR(x, y, 0), kinematics->getTrZ());
+                float diffBL = measurements[0][2] - measurementToXYPlane(kinematics->computeBL(x, y, 0), kinematics->getBlZ());
+                float diffBR = measurements[0][3] - measurementToXYPlane(kinematics->computeBR(x, y, 0), kinematics->getBrZ());
                 log_info("Center point off by: TL: " << diffTL << " TR: " << diffTR << " BL: " << diffBL << " BR: " << diffBR);
 
                 if (abs(diffTL) > threshold || abs(diffTR) > threshold || abs(diffBL) > threshold || abs(diffBR) > threshold) {
@@ -931,22 +961,25 @@ bool Calibration::move_with_slack(double fromX, double fromY, double toX, double
         }
 
         //Compute which belts will be getting longer. If the current length is less than the final length the belt needs to get longer
-        if (Maslow.computeTL(fromX, fromY, 0) < Maslow.computeTL(toX, toY, 0)) {
+        auto kinematics = getKinematics();
+        if (!kinematics) return false;
+        
+        if (kinematics->computeTL(fromX, fromY, 0) < kinematics->computeTL(toX, toY, 0)) {
             tlExtending = true;
         } else {
             tlExtending = false;
         }
-        if (Maslow.computeTR(fromX, fromY, 0) < Maslow.computeTR(toX, toY, 0)) {
+        if (kinematics->computeTR(fromX, fromY, 0) < kinematics->computeTR(toX, toY, 0)) {
             trExtending = true;
         } else {
             trExtending = false;
         }
-        if (Maslow.computeBL(fromX, fromY, 0) < Maslow.computeBL(toX, toY, 0)) {
+        if (kinematics->computeBL(fromX, fromY, 0) < kinematics->computeBL(toX, toY, 0)) {
             blExtending = true;
         } else {
             blExtending = false;
         }
-        if (Maslow.computeBR(fromX, fromY, 0) < Maslow.computeBR(toX, toY, 0)) {
+        if (kinematics->computeBR(fromX, fromY, 0) < kinematics->computeBR(toX, toY, 0)) {
             brExtending = true;
         } else {
             brExtending = false;
@@ -1181,14 +1214,11 @@ bool Calibration::adjustFrameSizeToMatchFirstMeasurement() {
     float L = numerator / denominator;
 
     //Adjust the frame size to match the computed size
-    Maslow.tlY = L;
-    Maslow.trX = L;
-    Maslow.trY = L;
-    Maslow.brX = L;
-    updateCenterXY();
-
-    log_info("Frame size automaticlaly adjusted to " + std::to_string(Maslow.brX) + " by " + std::to_string(Maslow.trY));
-    return true;
+    // TODO: This function needs to be updated to modify MaslowKinematics parameters
+    // instead of Maslow parameters. For now, log an error.
+    log_error("adjustFrameSizeToMatchFirstMeasurement: Frame adjustment not implemented for MaslowKinematics");
+    log_info("Computed frame size would be: " << L << " by " << L);
+    return false; // Return false to indicate this feature is not yet implemented
 }
 
 
@@ -1211,12 +1241,15 @@ void Calibration::checkCalibrationData() {
 
 // function for outputting calibration data in the log line by line like this: {bl:2376.69,   br:923.40,   tr:1733.87,   tl:2801.87},
 void Calibration::print_calibration_data() {
+    auto kinematics = getKinematics();
+    if (!kinematics) return;
+    
     //These are used to set the browser side initial guess for the frame size
-    log_data("$/" << M << "_tlX=" << Maslow.tlX);
-    log_data("$/" << M << "_tlY=" << Maslow.tlY);
-    log_data("$/" << M << "_trX=" << Maslow.trX);
-    log_data("$/" << M << "_trY=" << Maslow.trY);
-    log_data("$/" << M << "_brX=" << Maslow.brX);
+    log_data("$/" << M << "_tlX=" << kinematics->getTlX());
+    log_data("$/" << M << "_tlY=" << kinematics->getTlY());
+    log_data("$/" << M << "_trX=" << kinematics->getTrX());
+    log_data("$/" << M << "_trY=" << kinematics->getTrY());
+    log_data("$/" << M << "_brX=" << kinematics->getBrX());
 
     String data = "CLBM:[";
     for (int i = 0; i < waypoint; i++) {
@@ -1326,9 +1359,11 @@ void Calibration::deallocateCalibrationMemory() {
 
 //Takes a raw measurement, projects it into the XY plane, then adds the belt end extension and arm length to get the actual distance.
 float Calibration::measurementToXYPlane(float measurement, float zHeight){
-
+    auto kinematics = getKinematics();
+    if (!kinematics) return 0.0f;
+    
     float lengthInXY = sqrt(measurement * measurement - zHeight * zHeight);
-    return lengthInXY + Maslow._beltEndExtension + Maslow._armLength; //Add the belt end extension and arm length to get the actual distance
+    return lengthInXY + kinematics->getBeltEndExtension() + kinematics->getArmLength(); //Add the belt end extension and arm length to get the actual distance
 }
 
 /* Calculates and updates the center (X, Y) position based on the coordinates of the four corners
@@ -1336,10 +1371,13 @@ float Calibration::measurementToXYPlane(float measurement, float zHeight){
 * by finding the intersection of the diagonals of the rectangle.
 */
 void Calibration::updateCenterXY() {
-    double A = (Maslow.trY - Maslow.blY) / (Maslow.trX - Maslow.blX);
-    double B = (Maslow.brY - Maslow.tlY) / (Maslow.brX - Maslow.tlX);
-    Maslow.centerX  = (Maslow.brY - (B * Maslow.brX) + (A * Maslow.trX) - Maslow.trY) / (A - B);
-   Maslow.centerY  = A * (Maslow.centerX - Maslow.trX) + Maslow.trY;
+    // The MaslowKinematics system handles center calculation automatically
+    // We no longer maintain separate center coordinates in the Maslow class
+    auto kinematics = getKinematics();
+    if (kinematics) {
+        // The center is already calculated in MaslowKinematics and accessible via getters
+        log_info("Center coordinates updated in MaslowKinematics: X=" << kinematics->getCenterX() << " Y=" << kinematics->getCenterY());
+    }
 }
 
 // True if all axis were zeroed

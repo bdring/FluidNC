@@ -8,6 +8,7 @@
 #include "../Protocol.h"
 #include "../System.h"
 #include "../FileStream.h"
+#include "../Kinematics/MaslowKinematics.h"
 
 // Maslow specific defines
 #define VERSION_NUMBER "1.07"
@@ -186,8 +187,12 @@ void Maslow_::update() {
             // Simple approximation - this could be improved with proper inverse kinematics
             // For now, we'll assume we're near the center if we don't have better information
             if (targetX == 0 && targetY == 0) {
-                targetX = (trX + blX) / 2.0f - centerX;  // Approximate center X
-                targetY = (trY + blY) / 2.0f - centerY;  // Approximate center Y
+                using namespace Kinematics;
+                MaslowKinematics* kinematics = getMaslowKinematics();
+                if (kinematics) {
+                    targetX = (kinematics->getTrX() + kinematics->getBlX()) / 2.0f - kinematics->getCenterX();  // Approximate center X
+                    targetY = (kinematics->getTrY() + kinematics->getBlY()) / 2.0f - kinematics->getCenterY();  // Approximate center Y
+                }
             }
 
             //This disables the belt motors until the user has completed calibration or apply tension and they have succeded
@@ -303,17 +308,24 @@ void Maslow_::setTargets(float xTarget, float yTarget, float zTarget, bool tl, b
     targetY = yTarget;
     targetZ = zTarget;
 
+    using namespace Kinematics;
+    MaslowKinematics* kinematics = getMaslowKinematics();
+    if (!kinematics) {
+        log_error("MaslowKinematics not available");
+        return;
+    }
+
     if (tl) {
-        axisTL.setTarget(computeTL(xTarget, yTarget, zTarget));
+        axisTL.setTarget(kinematics->computeTL(xTarget, yTarget, zTarget));
     }
     if (tr) {
-        axisTR.setTarget(computeTR(xTarget, yTarget, zTarget));
+        axisTR.setTarget(kinematics->computeTR(xTarget, yTarget, zTarget));
     }
     if (bl) {
-        axisBL.setTarget(computeBL(xTarget, yTarget, zTarget));
+        axisBL.setTarget(kinematics->computeBL(xTarget, yTarget, zTarget));
     }
     if (br) {
-        axisBR.setTarget(computeBR(xTarget, yTarget, zTarget));
+        axisBR.setTarget(kinematics->computeBR(xTarget, yTarget, zTarget));
     }
 }
 
@@ -346,74 +358,6 @@ void Maslow_::recomputePID() {
         log_info("Servo fault!");
     }
 }
-
-// Compute target belt lengths based on X-Y-Z coordinates
-float Maslow_::computeBL(float x, float y, float z) {
-    //Move from lower left corner coordinates to centered coordinates
-    x       = x + centerX;
-    y       = y + centerY;
-    float a = blX - x; //X dist from corner to router center
-    float b = blY - y; //Y dist from corner to router center
-    float c = 0.0 - (z + blZ); //Z dist from corner to router center
-
-    float XYlength = sqrt(a * a + b * b); //Get the distance in the XY plane from the corner to the router center
-
-    float XYBeltLength = XYlength - (_beltEndExtension + _armLength); //Subtract the belt end extension and arm length to get the belt length
-
-    float length = sqrt(XYBeltLength * XYBeltLength + c * c); //Get the angled belt length
-
-    return length;
-}
-float Maslow_::computeBR(float x, float y, float z) {
-    //Move from lower left corner coordinates to centered coordinates
-    x       = x + centerX;
-    y       = y + centerY;
-    float a = brX - x;
-    float b = brY - y;
-    float c = 0.0 - (z + brZ);
-
-    float XYlength = sqrt(a * a + b * b); //Get the distance in the XY plane from the corner to the router center
-
-    float XYBeltLength = XYlength - (_beltEndExtension + _armLength); //Subtract the belt end extension and arm length to get the belt length
-
-    float length = sqrt(XYBeltLength * XYBeltLength + c * c); //Get the angled belt length
-
-    return length;
-}
-float Maslow_::computeTR(float x, float y, float z) {
-    //Move from lower left corner coordinates to centered coordinates
-    x       = x + centerX;
-    y       = y + centerY;
-    float a = trX - x;
-    float b = trY - y;
-    float c = 0.0 - (z + trZ);
-    
-    float XYlength = sqrt(a * a + b * b); //Get the distance in the XY plane from the corner to the router center
-
-    float XYBeltLength = XYlength - (_beltEndExtension + _armLength); //Subtract the belt end extension and arm length to get the belt length
-
-    float length = sqrt(XYBeltLength * XYBeltLength + c * c); //Get the angled belt length
-
-    return length;
-}
-float Maslow_::computeTL(float x, float y, float z) {
-    //Move from lower left corner coordinates to centered coordinates
-    x       = x + centerX;
-    y       = y + centerY;
-    float a = tlX - x;
-    float b = tlY - y;
-    float c = 0.0 - (z + tlZ);
-    
-    float XYlength = sqrt(a * a + b * b); //Get the distance in the XY plane from the corner to the router center
-
-    float XYBeltLength = XYlength - (_beltEndExtension + _armLength); //Subtract the belt end extension and arm length to get the belt length
-
-    float length = sqrt(XYBeltLength * XYBeltLength + c * c); //Get the angled belt length
-
-    return length;
-}
-
-
 
 
 //------------
@@ -946,8 +890,10 @@ TelemetryData Maslow_::get_telemetry_data() {
     data.holdTimer           = calibration.holdTimer;
     data.holding             = calibration.holding;
     data.holdTime            = calibration.holdTime;
-    data.centerX             = centerX;
-    data.centerY             = centerY;
+    using namespace Kinematics;
+    MaslowKinematics* kinematics = getMaslowKinematics();
+    data.centerX             = kinematics ? kinematics->getCenterX() : 0.0f;
+    data.centerY             = kinematics ? kinematics->getCenterY() : 0.0f;
     data.lastCallToPID       = lastCallToPID;
     data.lastMiss            = lastMiss;
     data.lastCallToUpdate    = lastCallToUpdate;

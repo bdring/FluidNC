@@ -121,12 +121,6 @@ public:
     double getTargetZ();
     void   recomputePID();
 
-    //math
-    float computeBL(float x, float y, float z);
-    float computeBR(float x, float y, float z);
-    float computeTR(float x, float y, float z);
-    float computeTL(float x, float y, float z);
-
     //Save and load z-axis position, set z-stop
     void saveZPos();
     void loadZPos();
@@ -194,25 +188,6 @@ public:
     double y;
     float scaleX = 1.0;
     float scaleY = 1.0;
-
-    float tlX;
-    float tlY;
-    float tlZ;
-    float trX;
-    float trY;
-    float trZ;
-    float blX;
-    float blY;
-    float blZ;
-    float brX;
-    float brY;
-    float brZ;
-
-    float _beltEndExtension = 30;  //Based on the CAD model these should add to 153.4
-    float _armLength        = 123.4;
-
-    float centerX;
-    float centerY;
 
     bool   test = false;
 

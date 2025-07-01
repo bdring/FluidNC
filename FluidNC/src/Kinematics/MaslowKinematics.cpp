@@ -261,4 +261,12 @@ namespace Kinematics {
     namespace {
         KinematicsFactory::InstanceBuilder<MaslowKinematics> registration("MaslowKinematics");
     }
+    
+    // Global accessor function to get the current MaslowKinematics instance
+    MaslowKinematics* getMaslowKinematics() {
+        if (config && config->_kinematics) {
+            return dynamic_cast<MaslowKinematics*>(config->_kinematics);
+        }
+        return nullptr;
+    }
 }
