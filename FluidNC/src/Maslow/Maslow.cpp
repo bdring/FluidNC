@@ -173,6 +173,12 @@ void Maslow_::update() {
             float blBeltLength = steps_to_mpos(get_axis_motor_steps(2), 2); // BL from C axis (axis 2)
             float brBeltLength = steps_to_mpos(get_axis_motor_steps(3), 3); // BR from D axis (axis 3)
             float zPosition = steps_to_mpos(get_axis_motor_steps(4), 4);    // Z from Z axis (axis 4)
+
+            if(random(100) == 1) {  // Randomly print the belt lengths for debugging
+                log_info("Belt lengths: TL=" << tlBeltLength << ", TR=" << trBeltLength
+                                             << ", BL=" << blBeltLength << ", BR=" << brBeltLength);
+                log_info("Z Position: " << zPosition);
+            }
             
             // Set individual belt targets using the computed positions
             axisTL.setTarget(tlBeltLength);
@@ -194,6 +200,8 @@ void Maslow_::update() {
                     targetY = (kinematics->getTrY() + kinematics->getBlY()) / 2.0f - kinematics->getCenterY();  // Approximate center Y
                 }
             }
+
+            //We used to call Maslow.updatePositions() here, but now we use the axis system directly
 
             //This disables the belt motors until the user has completed calibration or apply tension and they have succeded
             if (calibration.currentState == READY_TO_CUT) {
