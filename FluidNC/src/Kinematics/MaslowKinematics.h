@@ -48,7 +48,7 @@ namespace Kinematics {
         // Name of the configurable. Must match the name registered in the cpp file.
         const char* name() const override { return "MaslowKinematics"; }
 
-        ~MaslowKinematics() {}
+        ~MaslowKinematics();
 
         // Public access to compute functions for calibration system
         float computeTL(float x, float y, float z);

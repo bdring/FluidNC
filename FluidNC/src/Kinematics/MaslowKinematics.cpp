@@ -42,9 +42,13 @@ The system has 5 axes:
 
 namespace Kinematics {
     
+    // Global pointer to the current MaslowKinematics instance
+    static MaslowKinematics* g_maslowKinematics = nullptr;
+    
     void MaslowKinematics::init() {
         log_info("Kinematic system: " << name());
         calculateCenter();
+        g_maslowKinematics = this;  // Set global pointer for access
         init_position();
     }
 
@@ -258,6 +262,13 @@ namespace Kinematics {
         handler.item("armLength", _armLength);
     }
 
+    // Destructor - clear global pointer
+    MaslowKinematics::~MaslowKinematics() {
+        if (g_maslowKinematics == this) {
+            g_maslowKinematics = nullptr;
+        }
+    }
+
     // Configuration registration
     namespace {
         KinematicsFactory::InstanceBuilder<MaslowKinematics> registration("MaslowKinematics");
@@ -265,10 +276,6 @@ namespace Kinematics {
     
     // Global accessor function to get the current MaslowKinematics instance
     MaslowKinematics* getMaslowKinematics() {
-        if (config && config->_kinematics && 
-            strcmp(config->_kinematics->name(), "MaslowKinematics") == 0) {
-            return static_cast<MaslowKinematics*>(config->_kinematics);
-        }
-        return nullptr;
+        return g_maslowKinematics;
     }
 }
