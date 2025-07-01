@@ -155,12 +155,24 @@ namespace Kinematics {
         float y = cartesian[Y_AXIS];  // Y_AXIS = 1
         float z = cartesian[Z_AXIS];  // Z_AXIS = 2
 
+        // Debug output for coordinate transformation
+        static int debug_count = 0;
+        if (debug_count < 10) {  // Only log first 10 calls to avoid spam
+            log_info("MaslowKinematics transform: input X=" << x << " Y=" << y << " Z=" << z << " centerX=" << _centerX << " centerY=" << _centerY);
+            debug_count++;
+        }
+
         // Compute belt lengths for each corner
         motors[0] = computeTL(x, y, z);  // Top Left -> A axis
         motors[1] = computeTR(x, y, z);  // Top Right -> B axis
         motors[2] = computeBL(x, y, z);  // Bottom Left -> C axis
         motors[3] = computeBR(x, y, z);  // Bottom Right -> D axis
         motors[4] = z;                   // Z position -> Z axis (pass through)
+
+        // Debug output for motor values
+        if (debug_count <= 10) {
+            log_info("MaslowKinematics motors: TL=" << motors[0] << " TR=" << motors[1] << " BL=" << motors[2] << " BR=" << motors[3] << " Z=" << motors[4]);
+        }
 
         // Handle any additional axes beyond the 5 we use
         auto n_axis = config->_axes->_numberAxis;
@@ -172,6 +184,7 @@ namespace Kinematics {
     // Belt length calculation functions - moved from Maslow.cpp
     float MaslowKinematics::computeTL(float x, float y, float z) {
         // Move from lower left corner coordinates to centered coordinates
+        float orig_x = x, orig_y = y;
         x = x + _centerX;
         y = y + _centerY;
         float a = _tlX - x; // X dist from corner to router center
@@ -181,6 +194,12 @@ namespace Kinematics {
         float XYlength = sqrt(a * a + b * b); // Get the distance in the XY plane from the corner to the router center
         float XYBeltLength = XYlength - (_beltEndExtension + _armLength); // Subtract the belt end extension and arm length to get the belt length
         float length = sqrt(XYBeltLength * XYBeltLength + c * c); // Get the angled belt length
+
+        static int tl_debug_count = 0;
+        if (tl_debug_count < 5) {
+            log_info("computeTL: input(" << orig_x << "," << orig_y << "," << z << ") -> frame(" << x << "," << y << ") -> length=" << length);
+            tl_debug_count++;
+        }
 
         return length;
     }
