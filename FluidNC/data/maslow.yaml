@@ -80,16 +80,16 @@ uart1:
 
 kinematics:
   MaslowKinematics:
-    tlX: -27.6
-    tlY: 2064.9
+    tlX: 6.8
+    tlY: 2073.699951
     tlZ: 100.0
-    trX: 2924.3
-    trY: 2066.5
+    trX: 3077.600098
+    trY: 2070.100098
     trZ: 56.0
     blX: 0.0
     blY: 0.0
     blZ: 34.0
-    brX: 2953.2
+    brX: 3080.100098
     brY: 0.0
     brZ: 78.0
     beltEndExtension: 30.0
