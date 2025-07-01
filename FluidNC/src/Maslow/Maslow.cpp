@@ -167,12 +167,12 @@ void Maslow_::update() {
         //-------Jog or G-code execution.
         if (sys.state() == State::Jog || sys.state() == State::Cycle) {
             // With MaslowKinematics, read belt motor positions directly from the axis system
-            // instead of computing them manually from virtual X,Y,Z positions
-            float tlBeltLength = steps_to_mpos(get_axis_motor_steps(0), 0); // TL from X axis
-            float trBeltLength = steps_to_mpos(get_axis_motor_steps(1), 1); // TR from Y axis  
-            float zPosition = steps_to_mpos(get_axis_motor_steps(2), 2);    // Z from Z axis
-            float blBeltLength = steps_to_mpos(get_axis_motor_steps(3), 3); // BL from A axis
-            float brBeltLength = steps_to_mpos(get_axis_motor_steps(4), 4); // BR from B axis
+            // Correct axis mapping: A=TL, B=TR, C=BL, D=BR, Z=Router
+            float tlBeltLength = steps_to_mpos(get_axis_motor_steps(0), 0); // TL from A axis (axis 0)
+            float trBeltLength = steps_to_mpos(get_axis_motor_steps(1), 1); // TR from B axis (axis 1)
+            float blBeltLength = steps_to_mpos(get_axis_motor_steps(2), 2); // BL from C axis (axis 2)
+            float brBeltLength = steps_to_mpos(get_axis_motor_steps(3), 3); // BR from D axis (axis 3)
+            float zPosition = steps_to_mpos(get_axis_motor_steps(4), 4);    // Z from Z axis (axis 4)
             
             // Set individual belt targets using the computed positions
             axisTL.setTarget(tlBeltLength);
