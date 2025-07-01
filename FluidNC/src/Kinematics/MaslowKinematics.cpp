@@ -61,9 +61,11 @@ namespace Kinematics {
 
     void MaslowKinematics::calculateCenter() {
         // Calculate center point of the frame for coordinate system transformation
-        // Using the frame corner positions
-        _centerX = (_trX + _blX) / 2.0f;
-        _centerY = (_trY + _blY) / 2.0f;
+        // Find the intersection of the diagonals of the rectangle (proper geometric center)
+        float A = (_trY - _blY) / (_trX - _blX);
+        float B = (_brY - _tlY) / (_brX - _tlX);
+        _centerX = (_brY - (B * _brX) + (A * _trX) - _trY) / (A - B);
+        _centerY = A * (_centerX - _trX) + _trY;
         
         log_info("Maslow center calculated: X=" << _centerX << " Y=" << _centerY);
     }
