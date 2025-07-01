@@ -12,34 +12,7 @@ maslow_calibration_grid_height_mm_Y: 800
 maslow_calibration_grid_size: 7
 
 #####################################################################
-# Define the frame
-#
-# By convention we have defined the bottom left to be (0,0) and the bottom right to be (__,0) but any values are valid.
-# Bottom, top, left, right are defined with relation to the power cord being down looking from the top of the machine.
-# All values in millimeters!
-
-# Top left corner of frame. nominally  0, height
-Maslow_tlX: -27.6
-Maslow_tlY: 2064.9
-
-# Top right corner of frame. nominally width, height.
-Maslow_trX: 2924.3
-Maslow_trY: 2066.5
-
-# Bottom left. Nominally 0,0
-Maslow_blX: 0
-Maslow_blY: 0
-
-# Bottom right. Nominally width,0
-Maslow_brX: 2953.2
-Maslow_brY: 0
-
-# Z axis values 
-# These define the height of the anchor points in relation to each of the arms. You do not need to change these typically
-Maslow_tlZ: 100
-Maslow_trZ: 56
-Maslow_blZ: 34
-Maslow_brZ: 78
+# Frame anchor points are now defined in the kinematics section below
 
 # Sets how hard should Maslow pull on the belts to retract before considering them to be all the way in.
 # Maximum value is 4,000. Arbitrary units.
@@ -80,20 +53,33 @@ uart1:
 
 kinematics:
   MaslowKinematics:
+    # Frame anchor points - all values in millimeters
+    # By convention bottom left is (0,0) and bottom right is (width,0)
+    # Bottom, top, left, right are defined with power cord down, looking from top
+    
+    # Top left corner of frame (nominally 0, height)
     tlX: 6.8
     tlY: 2073.699951
-    tlZ: 100.0
+    tlZ: 100.0  # Height of anchor point above arm
+    
+    # Top right corner of frame (nominally width, height)
     trX: 3077.600098
     trY: 2070.100098
-    trZ: 56.0
+    trZ: 56.0   # Height of anchor point above arm
+    
+    # Bottom left corner (nominally 0,0)
     blX: 0.0
     blY: 0.0
-    blZ: 34.0
+    blZ: 34.0   # Height of anchor point above arm
+    
+    # Bottom right corner (nominally width,0)
     brX: 3080.100098
     brY: 0.0
-    brZ: 78.0
-    beltEndExtension: 30.0
-    armLength: 123.4
+    brZ: 78.0   # Height of anchor point above arm
+    
+    # Belt/arm configuration
+    beltEndExtension: 30.0  # Extension distance during calibration
+    armLength: 123.4        # Length of the router arm
 
 axes:
   a:  # Top Left belt motor (TL)
