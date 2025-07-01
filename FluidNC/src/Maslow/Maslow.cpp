@@ -328,9 +328,7 @@ void Maslow_::setTargets(float xTarget, float yTarget, float zTarget, bool tl, b
         axisBR.setTarget(kinematics->computeBR(xTarget, yTarget, zTarget));
     }
 
-    if(random(0, 100) == 1) {  // Randomly print the target for debugging
-        log_info("TL Target: " << axisTL.getTarget() << " for X: " << xTarget << ", Y: " << yTarget << ", Z: " << zTarget);
-    }
+    log_info("TL Target: " << axisTL.getTarget() << " for X: " << xTarget << ", Y: " << yTarget << ", Z: " << zTarget);
 }
 
 // Get's the most recently set target position in X
