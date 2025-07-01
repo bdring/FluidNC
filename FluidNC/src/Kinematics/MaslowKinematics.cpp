@@ -8,6 +8,7 @@
 #include "../Machine/Homing.h"
 #include "../Protocol.h"
 #include "../System.h"
+#include <cstring>
 #include "../NutsBolts.h"
 #include "../MotionControl.h"
 #include <cmath>
@@ -264,8 +265,9 @@ namespace Kinematics {
     
     // Global accessor function to get the current MaslowKinematics instance
     MaslowKinematics* getMaslowKinematics() {
-        if (config && config->_kinematics) {
-            return dynamic_cast<MaslowKinematics*>(config->_kinematics);
+        if (config && config->_kinematics && 
+            strcmp(config->_kinematics->name(), "MaslowKinematics") == 0) {
+            return static_cast<MaslowKinematics*>(config->_kinematics);
         }
         return nullptr;
     }
