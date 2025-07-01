@@ -124,8 +124,8 @@ axes:
 
   z:  # Router Z-axis
     steps_per_mm: 100
-    max_rate_mm_per_min: 400
-    acceleration_mm_per_sec2: 10
+    max_rate_mm_per_min: 1500
+    acceleration_mm_per_sec2: 100
     max_travel_mm: 100
     homing:
       cycle: -1
