@@ -96,7 +96,7 @@ kinematics:
     armLength: 123.4
 
 axes:
-  x:  # Top Left belt motor (TL)
+  a:  # Top Left belt motor (TL)
     max_rate_mm_per_min: 3000
     acceleration_mm_per_sec2: 50
     max_travel_mm: 5000
@@ -106,7 +106,27 @@ axes:
     motor0:
       dc_servo:
 
-  y:  # Top Right belt motor (TR) 
+  b:  # Top Right belt motor (TR) 
+    max_rate_mm_per_min: 3000
+    acceleration_mm_per_sec2: 50
+    max_travel_mm: 5000
+    homing:
+      cycle: -1
+
+    motor0:
+      dc_servo:
+
+  c:  # Bottom Left belt motor (BL)
+    max_rate_mm_per_min: 3000
+    acceleration_mm_per_sec2: 50
+    max_travel_mm: 5000
+    homing:
+      cycle: -1
+
+    motor0:
+      dc_servo:
+
+  d:  # Bottom Right belt motor (BR)
     max_rate_mm_per_min: 3000
     acceleration_mm_per_sec2: 50
     max_travel_mm: 5000
@@ -163,23 +183,3 @@ axes:
         use_enable: true
         direction_pin: gpio.38
         step_pin: gpio.46
-
-  a:  # Bottom Left belt motor (BL)
-    max_rate_mm_per_min: 3000
-    acceleration_mm_per_sec2: 50
-    max_travel_mm: 5000
-    homing:
-      cycle: -1
-
-    motor0:
-      dc_servo:
-
-  b:  # Bottom Right belt motor (BR)
-    max_rate_mm_per_min: 3000
-    acceleration_mm_per_sec2: 50
-    max_travel_mm: 5000
-    homing:
-      cycle: -1
-
-    motor0:
-      dc_servo:
