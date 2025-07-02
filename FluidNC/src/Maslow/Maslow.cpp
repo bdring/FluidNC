@@ -167,12 +167,12 @@ void Maslow_::update() {
         //-------Jog or G-code execution.
         if (sys.state() == State::Jog || sys.state() == State::Cycle) {
             // With MaslowKinematics, read belt motor positions directly from the axis system
-            // Axis mapping: A=TL, B=TR, C=BL, X=BR, Z=Router
-            float tlBeltLength = steps_to_mpos(get_axis_motor_steps(3), 3); // TL from A axis (axis 3)
-            float trBeltLength = steps_to_mpos(get_axis_motor_steps(4), 4); // TR from B axis (axis 4)
-            float blBeltLength = steps_to_mpos(get_axis_motor_steps(5), 5); // BL from C axis (axis 5)
-            float brBeltLength = steps_to_mpos(get_axis_motor_steps(0), 0); // BR from X axis (axis 0)
-            float zPosition = steps_to_mpos(get_axis_motor_steps(2), 2);    // Z from Z axis (axis 2)
+            // Axis mapping: A=TL, B=TR, C=BL, D=BR, Z=Router
+            float tlBeltLength = steps_to_mpos(get_axis_motor_steps(0), 0); // TL from A axis (axis 0)
+            float trBeltLength = steps_to_mpos(get_axis_motor_steps(1), 1); // TR from B axis (axis 1)
+            float blBeltLength = steps_to_mpos(get_axis_motor_steps(2), 2); // BL from C axis (axis 2)
+            float brBeltLength = steps_to_mpos(get_axis_motor_steps(3), 3); // BR from D axis (axis 3)
+            float zPosition = steps_to_mpos(get_axis_motor_steps(4), 4);    // Z from Z axis (axis 4)
             
             // Set individual belt targets using the computed positions
             axisTL.setTarget(tlBeltLength);
@@ -430,7 +430,7 @@ void Maslow_::loadZPos() {
         fi.i = value2;
         targetZ = fi.f;
 
-        int zAxis = 2;
+        int zAxis = 4;  // Z axis is now at index 4 with ABCDZX naming
         float* mpos = get_mpos();
         mpos[zAxis] = targetZ;
         set_motor_steps_from_mpos(mpos);
@@ -448,7 +448,7 @@ void Maslow_::setZStop() {
 
     targetZ = 0;
 
-    int zAxis = 2;
+    int zAxis = 4;  // Z axis is now at index 4 with ABCDZX naming
     float* mpos = get_mpos();
     mpos[zAxis] = targetZ;
     set_motor_steps_from_mpos(mpos);
