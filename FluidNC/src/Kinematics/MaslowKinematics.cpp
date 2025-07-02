@@ -141,13 +141,13 @@ namespace Kinematics {
     }
 
     void MaslowKinematics::transform_cartesian_to_motors(float* motors, float* cartesian) {
-        // In this implementation, FluidNC axis order is XYZABC:
-        // motors[0] = X axis = Bottom Right belt length
-        // motors[1] = Y axis = (not used, keep as 0)
-        // motors[2] = Z axis = Router position
-        // motors[3] = A axis = Top Left belt length
-        // motors[4] = B axis = Top Right belt length  
-        // motors[5] = C axis = Bottom Left belt length
+        // In this implementation, FluidNC axis order is ABCDZX:
+        // motors[0] = A axis = Top Left belt length
+        // motors[1] = B axis = Top Right belt length  
+        // motors[2] = C axis = Bottom Left belt length
+        // motors[3] = D axis = Bottom Right belt length
+        // motors[4] = Z axis = Router position
+        // motors[5] = X axis = (not used, keep as 0)
 
         // Extract X, Y, Z coordinates from cartesian space
         float x = cartesian[X_AXIS];  // X_AXIS = 0
@@ -162,16 +162,16 @@ namespace Kinematics {
         }
 
         // Compute belt lengths for each corner and assign to correct axis
-        motors[0] = computeBR(x, y, z);  // Bottom Right -> X axis
-        motors[1] = 0.0f;                // Y axis not used
-        motors[2] = z;                   // Z position -> Z axis (pass through)
-        motors[3] = computeTL(x, y, z);  // Top Left -> A axis
-        motors[4] = computeTR(x, y, z);  // Top Right -> B axis
-        motors[5] = computeBL(x, y, z);  // Bottom Left -> C axis
+        motors[0] = computeTL(x, y, z);  // Top Left -> A axis
+        motors[1] = computeTR(x, y, z);  // Top Right -> B axis
+        motors[2] = computeBL(x, y, z);  // Bottom Left -> C axis
+        motors[3] = computeBR(x, y, z);  // Bottom Right -> D axis
+        motors[4] = z;                   // Z position -> Z axis (pass through)
+        motors[5] = 0.0f;                // X axis not used
 
         // Debug output for motor values
         if (debug_count <= 10) {
-            log_info("MaslowKinematics motors: BR=" << motors[0] << " Y=" << motors[1] << " Z=" << motors[2] << " TL=" << motors[3] << " TR=" << motors[4] << " BL=" << motors[5]);
+            log_info("MaslowKinematics motors: TL=" << motors[0] << " TR=" << motors[1] << " BL=" << motors[2] << " BR=" << motors[3] << " Z=" << motors[4]);
         }
 
         // Handle any additional axes beyond the 6 we know about
