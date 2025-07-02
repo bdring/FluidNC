@@ -109,13 +109,13 @@ namespace Kinematics {
         This is complex for a cable-driven system and would require solving a system of 
         non-linear equations. 
         
-        With new axis mapping:
-        motors[0] = X axis = Bottom Right belt length
-        motors[1] = Y axis = (not used)
-        motors[2] = Z axis = Router position
-        motors[3] = A axis = Top Left belt length
-        motors[4] = B axis = Top Right belt length  
-        motors[5] = C axis = Bottom Left belt length
+        With ABCDZX axis mapping:
+        motors[0] = A axis = Top Left belt length
+        motors[1] = B axis = Top Right belt length  
+        motors[2] = C axis = Bottom Left belt length
+        motors[3] = D axis = Bottom Right belt length
+        motors[4] = Z axis = Router position
+        motors[5] = X axis = (not used)
         
         A full implementation would involve iterative solving of the constraint equations
         to find the X,Y position that produces the given belt lengths.
@@ -123,7 +123,7 @@ namespace Kinematics {
         
         // For now, we'll implement a simplified approach
         // The Z coordinate is straightforward - it's just the Z motor position
-        cartesian[Z_AXIS] = motors[2];
+        cartesian[Z_AXIS] = motors[4];  // Z from Z axis (index 4 in ABCDZX)
         
         // For X,Y coordinates, we need to solve the inverse kinematics
         // This is complex, so for now we'll use a placeholder that assumes
@@ -134,9 +134,11 @@ namespace Kinematics {
         cartesian[X_AXIS] = 0.0f;  // Would solve for actual X position
         cartesian[Y_AXIS] = 0.0f;  // Would solve for actual Y position
         
-        // Copy any additional axes directly
-        for (int axis = 3; axis < n_axis && axis < 3; axis++) {
-            cartesian[axis] = motors[axis];
+        // Copy any additional axes directly (none expected beyond Z for now)
+        for (int axis = 3; axis < n_axis && axis < MAX_N_AXIS; axis++) {
+            if (axis < 3) {  // Only copy if within valid cartesian range
+                cartesian[axis] = motors[axis];
+            }
         }
     }
 
