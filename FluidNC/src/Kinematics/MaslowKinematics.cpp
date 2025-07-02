@@ -85,13 +85,30 @@ namespace Kinematics {
         if (!pl_data->motion.rapidMotion) {
             // Calculate vector distance of the motion in cartesian coordinates (X,Y,Z only)
             float cartesian_distance = vector_distance(target, position, 3); // Only X,Y,Z for cartesian
+            
+            if (cartesian_distance > 0) {
 
             // Check if this is a Z-only move by examining X,Y changes
             float xy_distance = sqrt((target[X_AXIS] - position[X_AXIS]) * (target[X_AXIS] - position[X_AXIS]) + 
                                    (target[Y_AXIS] - position[Y_AXIS]) * (target[Y_AXIS] - position[Y_AXIS]));
             bool is_z_only_move = (xy_distance < 0.001f); // Consider moves < 0.001mm as Z-only
 
-            if (!is_z_only_move && cartesian_distance > 0) {
+            if (is_z_only_move) {
+                // For Z-only moves: Scale feed rate by Z motor movement ratio
+                // The Z motor moves directly with cartesian Z, so ratio should be 1:1,
+                // but we need to account for the fact that FluidNC's motion planning
+                // expects proper feed rate scaling for all motor movements
+                float last_motors[n_axis];
+                transform_cartesian_to_motors(last_motors, position);
+                
+                // For Z-only moves, only consider the Z motor distance
+                float z_motor_distance = fabs(motors[4] - last_motors[4]); // Z is at index 4
+                float z_cartesian_distance = fabs(target[Z_AXIS] - position[Z_AXIS]);
+                
+                if (z_cartesian_distance > 0) {
+                    pl_data->feed_rate = pl_data->feed_rate * z_motor_distance / z_cartesian_distance;
+                }
+            } else {
                 // For X/Y moves or combined moves: Scale feed rate by motor/cartesian ratio
                 // This accounts for the fact that belt movements are longer than cartesian movements
                 // and ensures the actual belt speed matches the programmed feed rate
@@ -103,9 +120,7 @@ namespace Kinematics {
                 
                 pl_data->feed_rate = pl_data->feed_rate * motor_distance / cartesian_distance;
             }
-            // For Z-only moves: Don't scale the feed rate based on belt movement
-            // The Z-axis motor moves directly with the cartesian Z distance, so no scaling is needed
-            // Scaling would be inappropriate because belt length changes are much larger than Z movement
+            }
         }
 
         return mc_move_motors(motors, pl_data);
