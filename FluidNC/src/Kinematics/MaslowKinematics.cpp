@@ -179,13 +179,6 @@ namespace Kinematics {
         float y = cartesian[Y_AXIS];  // Y_AXIS = 1
         float z = cartesian[Z_AXIS];  // Z_AXIS = 2
 
-        // Debug output for coordinate transformation
-        static int debug_count = 0;
-        if (debug_count < 10) {  // Only log first 10 calls to avoid spam
-            log_info("MaslowKinematics transform: input X=" << x << " Y=" << y << " Z=" << z << " centerX=" << _centerX << " centerY=" << _centerY);
-            debug_count++;
-        }
-
         // Compute belt lengths for each corner and assign to correct axis
         motors[0] = computeTL(x, y, z);  // Top Left -> A axis
         motors[1] = computeTR(x, y, z);  // Top Right -> B axis
@@ -193,11 +186,6 @@ namespace Kinematics {
         motors[3] = computeBR(x, y, z);  // Bottom Right -> D axis
         motors[4] = z;                   // Z position -> Z axis (pass through)
         motors[5] = 0.0f;                // X axis not used
-
-        // Debug output for motor values
-        if (debug_count <= 10) {
-            log_info("MaslowKinematics motors: TL=" << motors[0] << " TR=" << motors[1] << " BL=" << motors[2] << " BR=" << motors[3] << " Z=" << motors[4]);
-        }
 
         // Handle any additional axes beyond the 6 we know about
         auto n_axis = config->_axes->_numberAxis;
