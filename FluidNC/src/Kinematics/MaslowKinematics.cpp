@@ -107,13 +107,15 @@ namespace Kinematics {
         /* 
         Forward kinematics for Maslow CNC - convert belt lengths back to X,Y,Z coordinates.
         This is complex for a cable-driven system and would require solving a system of 
-        non-linear equations. For now, we'll use a simplified approach.
+        non-linear equations. 
         
-        motors[0] = Top Left belt length (A axis)
-        motors[1] = Top Right belt length (B axis)
-        motors[2] = Bottom Left belt length (C axis)
-        motors[3] = Bottom Right belt length (D axis)
-        motors[4] = Z router position (Z axis)
+        With new axis mapping:
+        motors[0] = X axis = Bottom Right belt length
+        motors[1] = Y axis = (not used)
+        motors[2] = Z axis = Router position
+        motors[3] = A axis = Top Left belt length
+        motors[4] = B axis = Top Right belt length  
+        motors[5] = C axis = Bottom Left belt length
         
         A full implementation would involve iterative solving of the constraint equations
         to find the X,Y position that produces the given belt lengths.
@@ -121,7 +123,7 @@ namespace Kinematics {
         
         // For now, we'll implement a simplified approach
         // The Z coordinate is straightforward - it's just the Z motor position
-        cartesian[Z_AXIS] = motors[4];
+        cartesian[Z_AXIS] = motors[2];
         
         // For X,Y coordinates, we need to solve the inverse kinematics
         // This is complex, so for now we'll use a placeholder that assumes
@@ -139,16 +141,13 @@ namespace Kinematics {
     }
 
     void MaslowKinematics::transform_cartesian_to_motors(float* motors, float* cartesian) {
-        // In this implementation:
-        // cartesian[0] = X coordinate (cartesian space)
-        // cartesian[1] = Y coordinate (cartesian space) 
-        // cartesian[2] = Z coordinate (cartesian space)
-        // 
-        // motors[0] = Top Left belt length (A axis in config)
-        // motors[1] = Top Right belt length (B axis in config)
-        // motors[2] = Bottom Left belt length (C axis in config)
-        // motors[3] = Bottom Right belt length (D axis in config)
-        // motors[4] = Z router position (Z axis in config)
+        // In this implementation, FluidNC axis order is XYZABC:
+        // motors[0] = X axis = Bottom Right belt length
+        // motors[1] = Y axis = (not used, keep as 0)
+        // motors[2] = Z axis = Router position
+        // motors[3] = A axis = Top Left belt length
+        // motors[4] = B axis = Top Right belt length  
+        // motors[5] = C axis = Bottom Left belt length
 
         // Extract X, Y, Z coordinates from cartesian space
         float x = cartesian[X_AXIS];  // X_AXIS = 0
@@ -162,21 +161,22 @@ namespace Kinematics {
             debug_count++;
         }
 
-        // Compute belt lengths for each corner
-        motors[0] = computeTL(x, y, z);  // Top Left -> A axis
-        motors[1] = computeTR(x, y, z);  // Top Right -> B axis
-        motors[2] = computeBL(x, y, z);  // Bottom Left -> C axis
-        motors[3] = computeBR(x, y, z);  // Bottom Right -> D axis
-        motors[4] = z;                   // Z position -> Z axis (pass through)
+        // Compute belt lengths for each corner and assign to correct axis
+        motors[0] = computeBR(x, y, z);  // Bottom Right -> X axis
+        motors[1] = 0.0f;                // Y axis not used
+        motors[2] = z;                   // Z position -> Z axis (pass through)
+        motors[3] = computeTL(x, y, z);  // Top Left -> A axis
+        motors[4] = computeTR(x, y, z);  // Top Right -> B axis
+        motors[5] = computeBL(x, y, z);  // Bottom Left -> C axis
 
         // Debug output for motor values
         if (debug_count <= 10) {
-            log_info("MaslowKinematics motors: TL=" << motors[0] << " TR=" << motors[1] << " BL=" << motors[2] << " BR=" << motors[3] << " Z=" << motors[4]);
+            log_info("MaslowKinematics motors: BR=" << motors[0] << " Y=" << motors[1] << " Z=" << motors[2] << " TL=" << motors[3] << " TR=" << motors[4] << " BL=" << motors[5]);
         }
 
-        // Handle any additional axes beyond the 5 we use
+        // Handle any additional axes beyond the 6 we know about
         auto n_axis = config->_axes->_numberAxis;
-        for (size_t axis = 5; axis < n_axis; axis++) {
+        for (size_t axis = 6; axis < n_axis; axis++) {
             motors[axis] = cartesian[axis];
         }
     }

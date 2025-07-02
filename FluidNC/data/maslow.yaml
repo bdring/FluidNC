@@ -114,7 +114,7 @@ axes:
     motor0:
       null_motor:
 
-  d:  # Bottom Right belt motor (BR)
+  x:  # Bottom Right belt motor (BR) - using X since D is not supported
     max_rate_mm_per_min: 3000
     acceleration_mm_per_sec2: 50
     max_travel_mm: 5000
