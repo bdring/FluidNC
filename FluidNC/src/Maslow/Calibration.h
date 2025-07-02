@@ -50,6 +50,7 @@ public:
     bool   take_measurement_avg_with_check(int waypoint, int dir);
     bool   take_measurement(float result[4], int dir, int run, int current);
     float  measurementToXYPlane(float measurement, float zHeight);
+    float  measurementFromXYPlane(float xyPlaneDistance, float zHeight);
     bool   takeSlackFunc();
     bool   adjustFrameSizeToMatchFirstMeasurement();
     bool   computeXYfromLengths(double TL, double TR, float &x, float &y);

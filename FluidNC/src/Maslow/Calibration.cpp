@@ -1,6 +1,7 @@
 #include "Calibration.h"
 #include "Maslow.h"
 #include "../Kinematics/MaslowKinematics.h"
+#include "../System.h"
 
 // Helper function to get MaslowKinematics instance
 static Kinematics::MaslowKinematics* getKinematics() {
@@ -179,11 +180,24 @@ bool Calibration::requestStateChange(int newState){
 
                     log_info("Machine Position found as X: " << x << " Y: " << y);
 
-                    //Set the internal machine position to the new XY position
-                    float* mpos = get_mpos();
-                    mpos[0] = x;
-                    mpos[1] = y;
-                    set_motor_steps_from_mpos(mpos);
+                    //Set the internal machine position using actual belt positions to avoid synchronization issues
+                    // Get current belt positions from hardware and set motor steps directly
+                    float tlBeltLength = Maslow.axisTL.getPosition(); // Actual belt position from hardware
+                    float trBeltLength = Maslow.axisTR.getPosition(); 
+                    float blBeltLength = Maslow.axisBL.getPosition(); 
+                    float brBeltLength = Maslow.axisBR.getPosition(); 
+                    
+                    log_info("Setting motor positions from hardware readings:");
+                    log_info("TL: " << tlBeltLength << " TR: " << trBeltLength << " BL: " << blBeltLength << " BR: " << brBeltLength);
+                    
+                    // Set motor positions directly from hardware readings
+                    // Axis mapping: A=TL(0), B=TR(1), C=BL(2), D=BR(3), Z=router(4)
+                    set_motor_steps(0, mpos_to_steps(tlBeltLength, 0)); // A axis = TL belt
+                    set_motor_steps(1, mpos_to_steps(trBeltLength, 1)); // B axis = TR belt
+                    set_motor_steps(2, mpos_to_steps(blBeltLength, 2)); // C axis = BL belt
+                    set_motor_steps(3, mpos_to_steps(brBeltLength, 3)); // D axis = BR belt
+                    // Z axis is left unchanged
+                    
                     gc_sync_position();//This updates the Gcode engine with the new position from the stepping engine that we set with set_motor_steps
                     plan_sync_position();
                     
@@ -488,15 +502,34 @@ bool Calibration::takeSlackFunc() {
 
                 log_info("Current machine position loaded as X: " << x << " Y: " << y );
 
+                // Instead of setting cartesian position and letting kinematics recalculate motor positions,
+                // we need to set the motor positions directly from the measured belt lengths to avoid
+                // position synchronization issues between hardware and FluidNC's motion planning system
+                
+                // Get current motor position array
                 float* mpos = get_mpos();
                 log_info("Before update - mpos: X=" << mpos[0] << " Y=" << mpos[1] << " Z=" << mpos[2]);
-                mpos[0] = x;
-                mpos[1] = y;
-                mpos[2] = 0.0; // Set router Z position to 0 (surface level)
-                log_info("Setting mpos to: X=" << mpos[0] << " Y=" << mpos[1] << " Z=" << mpos[2]);
-                set_motor_steps_from_mpos(mpos);
                 
-                // Verify that the position was set correctly
+                // Convert measured XY plane distances to actual belt lengths for motor positions
+                // calibration_data[2] contains measured XY plane distances: [TL, TR, BL, BR]
+                float tlBeltLength = measurementFromXYPlane(calibration_data[2][0], kinematics->getTlZ());
+                float trBeltLength = measurementFromXYPlane(calibration_data[2][1], kinematics->getTrZ());
+                float blBeltLength = measurementFromXYPlane(calibration_data[2][2], kinematics->getBlZ());
+                float brBeltLength = measurementFromXYPlane(calibration_data[2][3], kinematics->getBrZ());
+                
+                log_info("Setting motor positions directly from measurements:");
+                log_info("TL belt: " << tlBeltLength << " TR belt: " << trBeltLength);
+                log_info("BL belt: " << blBeltLength << " BR belt: " << brBeltLength);
+                
+                // Set motor positions directly from measured belt lengths
+                // Axis mapping: A=TL(0), B=TR(1), C=BL(2), D=BR(3), Z=router(4)
+                set_motor_steps(0, mpos_to_steps(tlBeltLength, 0)); // A axis = TL belt
+                set_motor_steps(1, mpos_to_steps(trBeltLength, 1)); // B axis = TR belt
+                set_motor_steps(2, mpos_to_steps(blBeltLength, 2)); // C axis = BL belt
+                set_motor_steps(3, mpos_to_steps(brBeltLength, 3)); // D axis = BR belt
+                set_motor_steps(4, mpos_to_steps(0.0, 4));          // Z axis = 0 (surface level)
+                
+                // Verify that the position was set correctly by reading back from motors
                 float* verify_mpos = get_mpos();
                 log_info("After update - mpos: X=" << verify_mpos[0] << " Y=" << verify_mpos[1] << " Z=" << verify_mpos[2]);
                 
@@ -1372,6 +1405,15 @@ float Calibration::measurementToXYPlane(float measurement, float zHeight){
     
     float lengthInXY = sqrt(measurement * measurement - zHeight * zHeight);
     return lengthInXY + kinematics->getBeltEndExtension() + kinematics->getArmLength(); //Add the belt end extension and arm length to get the actual distance
+}
+
+//Takes an XY plane distance, subtracts the belt end extension and arm length, then calculates the angled belt measurement.
+float Calibration::measurementFromXYPlane(float xyPlaneDistance, float zHeight){
+    auto kinematics = getKinematics();
+    if (!kinematics) return 0.0f;
+    
+    float lengthInXY = xyPlaneDistance - kinematics->getBeltEndExtension() - kinematics->getArmLength(); //Subtract the belt end extension and arm length
+    return sqrt(lengthInXY * lengthInXY + zHeight * zHeight); //Calculate the angled belt length
 }
 
 /* Calculates and updates the center (X, Y) position based on the coordinates of the four corners
