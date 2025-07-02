@@ -92,7 +92,7 @@ axes:
       cycle: -1
 
     motor0:
-      dc_servo:
+      null_motor:
 
   b:  # Top Right belt motor (TR) 
     max_rate_mm_per_min: 3000
@@ -102,7 +102,7 @@ axes:
       cycle: -1
 
     motor0:
-      dc_servo:
+      null_motor:
 
   c:  # Bottom Left belt motor (BL)
     max_rate_mm_per_min: 3000
@@ -112,7 +112,7 @@ axes:
       cycle: -1
 
     motor0:
-      dc_servo:
+      null_motor:
 
   d:  # Bottom Right belt motor (BR)
     max_rate_mm_per_min: 3000
@@ -122,7 +122,7 @@ axes:
       cycle: -1
 
     motor0:
-      dc_servo:
+      null_motor:
 
   z:  # Router Z-axis
     steps_per_mm: 100.000000
