@@ -74,6 +74,10 @@ namespace Kinematics {
         float getCenterX() const { return _centerX; }
         float getCenterY() const { return _centerY; }
 
+        // Forward kinematics methods for position synchronization
+        bool computeXYfromBeltLengths(float tlLength, float trLength, float& x, float& y) const;
+        float measurementToXYPlane(float measurement, float zHeight) const;
+
     private:
         // Anchor point coordinates (in mm)
         float _tlX = -27.6f;   // Top left X

@@ -129,8 +129,6 @@ namespace Kinematics {
     void MaslowKinematics::motors_to_cartesian(float* cartesian, float* motors, int n_axis) {
         /* 
         Forward kinematics for Maslow CNC - convert belt lengths back to X,Y,Z coordinates.
-        This is complex for a cable-driven system and would require solving a system of 
-        non-linear equations. 
         
         With ABCDZX axis mapping:
         motors[0] = A axis = Top Left belt length
@@ -139,23 +137,38 @@ namespace Kinematics {
         motors[3] = D axis = Bottom Right belt length
         motors[4] = Z axis = Router position
         motors[5] = X axis = (not used)
-        
-        A full implementation would involve iterative solving of the constraint equations
-        to find the X,Y position that produces the given belt lengths.
         */
         
-        // For now, we'll implement a simplified approach
         // The Z coordinate is straightforward - it's just the Z motor position
         cartesian[Z_AXIS] = motors[4];  // Z from Z axis (index 4 in ABCDZX)
         
-        // For X,Y coordinates, we need to solve the inverse kinematics
-        // This is complex, so for now we'll use a placeholder that assumes
-        // the system is properly calibrated and we can use the last known position
-        // A full implementation would use iterative methods to solve for X,Y
+        // For X,Y coordinates, we use the TL and TR belt lengths to solve the forward kinematics
+        // We need to convert the raw belt lengths to XY plane distances first
+        float tlBeltLength = motors[0];  // Top Left belt length (A axis)
+        float trBeltLength = motors[1];  // Top Right belt length (B axis)
         
-        // Placeholder implementation - would need proper inverse kinematics
-        cartesian[X_AXIS] = 0.0f;  // Would solve for actual X position
-        cartesian[Y_AXIS] = 0.0f;  // Would solve for actual Y position
+        // Convert angled belt measurements to XY plane distances
+        float tlXYDistance = measurementToXYPlane(tlBeltLength, _tlZ);
+        float trXYDistance = measurementToXYPlane(trBeltLength, _trZ);
+        
+        // Solve for X,Y position using intersection of circles
+        float x, y;
+        if (computeXYfromBeltLengths(tlXYDistance, trXYDistance, x, y)) {
+            cartesian[X_AXIS] = x;
+            cartesian[Y_AXIS] = y;
+            
+            static int debug_count = 0;
+            if (debug_count < 5) {
+                log_info("motors_to_cartesian: TL=" << tlBeltLength << " TR=" << trBeltLength << " -> X=" << x << " Y=" << y);
+                debug_count++;
+            }
+        } else {
+            // If we can't solve the kinematics, fall back to (0,0)
+            // This can happen if belt lengths are inconsistent
+            cartesian[X_AXIS] = 0.0f;
+            cartesian[Y_AXIS] = 0.0f;
+            log_error("MaslowKinematics: Failed to compute X,Y from belt lengths, using (0,0)");
+        }
         
         // Copy any additional axes directly (none expected beyond Z for now)
         for (int axis = 3; axis < n_axis && axis < MAX_N_AXIS; axis++) {
@@ -266,6 +279,37 @@ namespace Kinematics {
         // For Maslow CNC, homing is typically done by retracting all belts
         // until they reach full retraction, then calibrating the system
         return true;
+    }
+
+    // Forward kinematics - compute X,Y from belt lengths
+    bool MaslowKinematics::computeXYfromBeltLengths(float tlLength, float trLength, float& x, float& y) const {
+        // Find the intersection of two circles centered at TL and TR anchor points
+        // with radii equal to the belt lengths
+        
+        double d = sqrt((_tlX - _trX) * (_tlX - _trX) + (_tlY - _trY) * (_tlY - _trY));
+        if (d > tlLength + trLength || d < abs(tlLength - trLength)) {
+            log_info("Unable to determine machine position from belt lengths");
+            return false;
+        }
+        
+        double a = (tlLength * tlLength - trLength * trLength + d * d) / (2 * d);
+        double h = sqrt(tlLength * tlLength - a * a);
+        double x0 = _tlX + a * (_trX - _tlX) / d;
+        double y0 = _tlY + a * (_trY - _tlY) / d;
+        double rawX = x0 + h * (_trY - _tlY) / d;
+        double rawY = y0 - h * (_trX - _tlX) / d;
+
+        // Adjust to the centered coordinates (convert from frame coordinates to centered coordinates)
+        x = rawX - _centerX;
+        y = rawY - _centerY;
+
+        return true;
+    }
+
+    // Convert angled belt measurement to XY plane distance
+    float MaslowKinematics::measurementToXYPlane(float measurement, float zHeight) const {
+        float lengthInXY = sqrt(measurement * measurement - zHeight * zHeight);
+        return lengthInXY + _beltEndExtension + _armLength; // Add belt end extension and arm length
     }
 
     void MaslowKinematics::releaseMotors(AxisMask axisMask, MotorMask motors) {

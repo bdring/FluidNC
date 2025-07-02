@@ -489,10 +489,17 @@ bool Calibration::takeSlackFunc() {
                 log_info("Current machine position loaded as X: " << x << " Y: " << y );
 
                 float* mpos = get_mpos();
+                log_info("Before update - mpos: X=" << mpos[0] << " Y=" << mpos[1] << " Z=" << mpos[2]);
                 mpos[0] = x;
                 mpos[1] = y;
                 mpos[2] = 0.0; // Set router Z position to 0 (surface level)
+                log_info("Setting mpos to: X=" << mpos[0] << " Y=" << mpos[1] << " Z=" << mpos[2]);
                 set_motor_steps_from_mpos(mpos);
+                
+                // Verify that the position was set correctly
+                float* verify_mpos = get_mpos();
+                log_info("After update - mpos: X=" << verify_mpos[0] << " Y=" << verify_mpos[1] << " Z=" << verify_mpos[2]);
+                
                 gc_sync_position();//This updates the Gcode engine with the new position from the stepping engine that we set with set_motor_steps
                 plan_sync_position();
 
