@@ -60,26 +60,28 @@ kinematics:
     # Top left corner of frame (nominally 0, height)
     tlX: 6.8
     tlY: 2073.699951
-    tlZ: 100.0  # Height of anchor point above arm
+    tlZ: 100.0
     
     # Top right corner of frame (nominally width, height)
     trX: 3077.600098
     trY: 2070.100098
-    trZ: 56.0   # Height of anchor point above arm
+    trZ: 56.0
     
     # Bottom left corner (nominally 0,0)
     blX: 0.0
     blY: 0.0
-    blZ: 34.0   # Height of anchor point above arm
+    blZ: 34.0
     
     # Bottom right corner (nominally width,0)
     brX: 3080.100098
     brY: 0.0
-    brZ: 78.0   # Height of anchor point above arm
+    brZ: 78.0
     
     # Belt/arm configuration
-    beltEndExtension: 30.0  # Extension distance during calibration
-    armLength: 123.4        # Length of the router arm
+    # Extension distance during calibration
+    beltEndExtension: 30.0
+    # Length of the router arm
+    armLength: 123.4
 
 axes:
   a:  # Top Left belt motor (TL)
@@ -133,39 +135,39 @@ axes:
     motor0:
       tmc_2209:
         uart_num: 1
-        addr: 0
-        cs_pin: NO_PIN
-        r_sense_ohms: 0.110
-        run_amps: 1.000
-        hold_amps: 0.500
-        microsteps: 0
-        stallguard: 0
-        stallguard_debug: false
+        step_pin: gpio.15
+        direction_pin: gpio.16
+        disable_pin: NO_PIN
+        r_sense_ohms: 0.110000
+        run_amps: 1.000000
+        hold_amps: 0.500000
+        microsteps: 1
         toff_disable: 0
         toff_stealthchop: 5
-        toff_coolstep: 3
+        use_enable: true
+        addr: 0
         run_mode: StealthChop
         homing_mode: StealthChop
-        use_enable: true
-        direction_pin: gpio.16
-        step_pin: gpio.15
+        stallguard: 0
+        stallguard_debug: false
+        toff_coolstep: 3
 
     motor1:
       tmc_2209:
         uart_num: 1
-        addr: 1
-        cs_pin: NO_PIN
-        r_sense_ohms: 0.110
-        run_amps: 1.000
-        hold_amps: 0.500
-        microsteps: 0
-        stallguard: 0
-        stallguard_debug: false
+        step_pin: gpio.46
+        direction_pin: gpio.38
+        disable_pin: NO_PIN
+        r_sense_ohms: 0.110000
+        run_amps: 1.000000
+        hold_amps: 0.500000
+        microsteps: 1
         toff_disable: 0
         toff_stealthchop: 5
-        toff_coolstep: 3
+        use_enable: true
+        addr: 1
         run_mode: StealthChop
         homing_mode: StealthChop
-        use_enable: true
-        direction_pin: gpio.38
-        step_pin: gpio.46
+        stallguard: 0
+        stallguard_debug: false
+        toff_coolstep: 3
