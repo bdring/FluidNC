@@ -86,18 +86,26 @@ namespace Kinematics {
             // Calculate vector distance of the motion in cartesian coordinates (X,Y,Z only)
             float cartesian_distance = vector_distance(target, position, 3); // Only X,Y,Z for cartesian
 
-            // Calculate vector distance of the motion in motor coordinates (all belt motors)
-            float last_motors[n_axis];
-            transform_cartesian_to_motors(last_motors, position);
-            
-            // Calculate distance considering all belt motors for proper feed rate scaling
-            float motor_distance = vector_distance(motors, last_motors, n_axis);
+            // Check if this is a Z-only move by examining X,Y changes
+            float xy_distance = sqrt((target[X_AXIS] - position[X_AXIS]) * (target[X_AXIS] - position[X_AXIS]) + 
+                                   (target[Y_AXIS] - position[Y_AXIS]) * (target[Y_AXIS] - position[Y_AXIS]));
+            bool is_z_only_move = (xy_distance < 0.001f); // Consider moves < 0.001mm as Z-only
 
-            // Scale the feed rate by the motor/cartesian ratio
-            // This ensures that the actual belt speed matches the programmed feed rate
-            if (cartesian_distance > 0) {
+            if (!is_z_only_move && cartesian_distance > 0) {
+                // For X/Y moves or combined moves: Scale feed rate by motor/cartesian ratio
+                // This accounts for the fact that belt movements are longer than cartesian movements
+                // and ensures the actual belt speed matches the programmed feed rate
+                float last_motors[n_axis];
+                transform_cartesian_to_motors(last_motors, position);
+                
+                // Calculate distance considering all belt motors for proper feed rate scaling
+                float motor_distance = vector_distance(motors, last_motors, n_axis);
+                
                 pl_data->feed_rate = pl_data->feed_rate * motor_distance / cartesian_distance;
             }
+            // For Z-only moves: Don't scale the feed rate based on belt movement
+            // The Z-axis motor moves directly with the cartesian Z distance, so no scaling is needed
+            // Scaling would be inappropriate because belt length changes are much larger than Z movement
         }
 
         return mc_move_motors(motors, pl_data);
