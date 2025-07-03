@@ -28,10 +28,6 @@ Maslow_Scale_Y: 1.0
 # Sets the distance to extend the bels during the calibration process.
 Maslow_Extend_Dist: 1700
 
-
-####################
-# Below here should not need to change, these are related to how fluidcnc connects to the board.
-
 spi:
   miso_pin: gpio.13
   mosi_pin: gpio.11
