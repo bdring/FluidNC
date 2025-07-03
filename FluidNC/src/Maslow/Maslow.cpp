@@ -197,7 +197,7 @@ void Maslow_::update() {
 
             //We used to call Maslow.setTargets() here, but now we use the axis system directly
 
-            //This disables the belt motors until the user has completed calibration or apply tension and they have succeded
+            //This disables the belt motors until the user has completed calibration or apply tension and they have succeeded
             if (calibration.currentState == READY_TO_CUT) {
                 Maslow.recomputePID();
             }
