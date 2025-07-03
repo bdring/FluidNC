@@ -12,6 +12,7 @@
 #include "../NutsBolts.h"
 #include "../MotionControl.h"
 #include <cmath>
+#include "../Maslow/Maslow.h"
 
 /*
 Default configuration for Maslow CNC:
@@ -192,11 +193,23 @@ namespace Kinematics {
         float y = cartesian[Y_AXIS];  // Y_AXIS = 1
         float z = cartesian[Z_AXIS];  // Z_AXIS = 2
 
-        // Compute belt lengths for each corner and assign to correct axis
-        motors[0] = computeTL(x, y, z);  // Top Left -> A axis
-        motors[1] = computeTR(x, y, z);  // Top Right -> B axis
-        motors[2] = computeBL(x, y, z);  // Bottom Left -> C axis
-        motors[3] = computeBR(x, y, z);  // Bottom Right -> D axis
+        // Check if belts are ready to cut - if not, don't compute belt movements
+        // This allows the Z-axis to move independently when belts are not calibrated
+        if (Maslow.calibration.currentState == READY_TO_CUT) {
+            // Compute belt lengths for each corner and assign to correct axis
+            motors[0] = computeTL(x, y, z);  // Top Left -> A axis
+            motors[1] = computeTR(x, y, z);  // Top Right -> B axis
+            motors[2] = computeBL(x, y, z);  // Bottom Left -> C axis
+            motors[3] = computeBR(x, y, z);  // Bottom Right -> D axis
+        } else {
+            // When belts are not ready, keep them at their current positions
+            // This prevents the motion planner from synchronizing Z-axis with large belt movements
+            motors[0] = steps_to_mpos(get_axis_motor_steps(0), 0);  // Keep TL at current position
+            motors[1] = steps_to_mpos(get_axis_motor_steps(1), 1);  // Keep TR at current position  
+            motors[2] = steps_to_mpos(get_axis_motor_steps(2), 2);  // Keep BL at current position
+            motors[3] = steps_to_mpos(get_axis_motor_steps(3), 3);  // Keep BR at current position
+        }
+        
         motors[4] = z;                   // Z position -> Z axis (pass through)
         motors[5] = 0.0f;                // X axis not used
 
