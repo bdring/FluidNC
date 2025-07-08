@@ -13,6 +13,7 @@
 #include "Planner.h"         // plan_reset, etc
 #include "Platform.h"        // WEAK_LINK
 #include "Settings.h"        // coords
+#include "State.h"           // State
 
 #include <cmath>
 

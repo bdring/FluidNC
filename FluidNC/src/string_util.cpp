@@ -1,6 +1,8 @@
 #include "string_util.h"
+#include <string>
 #include <cstdlib>
 #include <cctype>
+#include <charconv>
 
 namespace string_util {
     char tolower(char c) {
@@ -31,27 +33,6 @@ namespace string_util {
             return s.substr(start);
         }
         return s.substr(start, end - start + 1);
-    }
-
-    // cppcheck-suppress unusedFunction
-    bool is_int(std::string_view s, int32_t& value) {
-        char* end;
-        value = std::strtol(s.cbegin(), &end, 10);
-        return end == s.cend();
-    }
-
-    // cppcheck-suppress unusedFunction
-    bool is_uint(std::string_view s, uint32_t& value) {
-        char* end;
-        value = std::strtoul(s.cbegin(), &end, 10);
-        return end == s.cend();
-    }
-
-    // cppcheck-suppress unusedFunction
-    bool is_float(std::string_view s, float& value) {
-        char* end;
-        value = std::strtof(s.cbegin(), &end);
-        return end == s.cend();
     }
 
     bool from_xdigit(char c, uint8_t& value) {
@@ -95,6 +76,28 @@ namespace string_util {
             value = value * 10 + str[0] - '0';
             str   = str.substr(1);
         }
+        return true;
+    }
+    bool from_decimal(std::string_view sv, int32_t& value) {
+        auto [ptr, ec] = std::from_chars(sv.data(), sv.data() + sv.size(), value);
+
+        if (ec == std::errc::invalid_argument || ec == std::errc::result_out_of_range || ptr != sv.data() + sv.size()) {
+            return false;
+        }
+
+        return true;
+    }
+
+    bool from_float(std::string_view sv, float& value) {
+        // std::from_chars() does not work for float arguments on ESP32
+        std::string s(sv);
+        char*       floatEnd;
+        const char* str = s.c_str();
+        value           = strtof(str, &floatEnd);
+        if (floatEnd != (str + sv.length())) {
+            return false;
+        }
+
         return true;
     }
 

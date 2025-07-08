@@ -242,8 +242,8 @@ namespace Machine {
         bool       retval   = true;
         const auto lenNames = strlen(names);
         for (int i = 0; i < lenNames; i++) {
-            char  axisName = toupper(names[i]);
-            char* pos      = index(_names, axisName);
+            char        axisName = toupper(names[i]);
+            const char* pos      = index(_names, axisName);
             if (!pos) {
                 log_error("Invalid axis name " << names[i]);
                 retval = false;

@@ -16,48 +16,56 @@
 // "bare * wildcard" is similar to filename wildcarding in many shells
 // and CLIs.
 
-#include <ctype.h>
+#include <string_view>
+#include <cctype>
 
-static bool matchHere(const char* regexp, const char* text, bool case_sensitive);
+static bool matchHere(std::string_view regexp, std::string_view text, bool case_sensitive);
 
 // matchStar - search for *regexp at beginning of text
-static bool matchStar(const char* regexp, const char* text, bool case_sensitive) {
+static bool matchStar(std::string_view regexp, std::string_view text, bool case_sensitive) {
     do {
         if (matchHere(regexp, text, case_sensitive)) {
             return true;
         }
-    } while (*text++ != '\0');
+        if (text.empty()) {
+            break;
+        }
+        text.remove_prefix(1);
+    } while (true);
     return false;
 }
 
 // matchHere - search for regex at beginning of text
-static bool matchHere(const char* regexp, const char* text, bool case_sensitive) {
-    if (regexp[0] == '\0') {
+static bool matchHere(std::string_view regexp, std::string_view text, bool case_sensitive) {
+    if (regexp.empty()) {
         return true;
     }
     if (regexp[0] == '*') {
-        return matchStar(regexp + 1, text, case_sensitive);
+        return matchStar(regexp.substr(1), text, case_sensitive);
     }
-    if (regexp[0] == '$' && regexp[1] == '\0') {
-        return *text == '\0';
+    if (regexp[0] == '$' && regexp.size() == 1) {
+        return text.empty();
     }
-    if (*text != '\0' && (case_sensitive ? regexp[0] == *text : tolower(regexp[0]) == tolower(*text))) {
-        return matchHere(++regexp, ++text, case_sensitive);
+    if (!text.empty() && (case_sensitive ? regexp[0] == text[0] : std::tolower(regexp[0]) == std::tolower(text[0]))) {
+        return matchHere(regexp.substr(1), text.substr(1), case_sensitive);
     }
     return false;
 }
 
 // match - search for regular expression anywhere in text
 // Returns true if text contains the regular expression regexp
-// cppcheck-suppress unusedFunction
-bool regexMatch(const char* regexp, const char* text, bool case_sensitive) {
-    if (regexp[0] == '^') {
-        return matchHere(++regexp, text, case_sensitive);
+bool regexMatch(std::string_view regexp, std::string_view text, bool case_sensitive) {
+    if (!regexp.empty() && regexp[0] == '^') {
+        return matchHere(regexp.substr(1), text, case_sensitive);
     }
     do {
         if (matchHere(regexp, text, case_sensitive)) {
             return true;
         }
-    } while (*text++ != '\0');
+        if (text.empty()) {
+            break;
+        }
+        text.remove_prefix(1);
+    } while (true);
     return false;
 }

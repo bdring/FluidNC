@@ -15,12 +15,12 @@ std::vector<Setting*> Setting::List __attribute__((init_priority(101))) = {};
 std::vector<Command*> Command::List __attribute__((init_priority(102))) = {};
 
 bool get_param(const char* parameter, const char* key, std::string& s) {
-    char* start = strstr(parameter, key);
+    const char* start = strstr(parameter, key);
     if (!start) {
         return false;
     }
     s = "";
-    for (char* p = start + strlen(key); *p; ++p) {
+    for (const char* p = start + strlen(key); *p; ++p) {
         if (*p == ' ') {
             break;  // Unescaped space
         }
@@ -81,11 +81,12 @@ Setting::Setting(const char* description, type_t type, permissions_t permissions
         _keyName = _fullName;
     } else {
         // This is Donald Knuth's hash function from Vol 3, chapter 6.4
-        char*    hashName = (char*)malloc(16);
-        uint32_t hash     = len;
+        uint32_t hash = len;
         for (const char* s = fullName; *s; s++) {
             hash = ((hash << 5) ^ (hash >> 27)) ^ (*s);
         }
+
+        char* hashName = (char*)malloc(16);  // Intentionally not freed
         sprintf(hashName, "%.7s%08x", fullName, hash);
         _keyName = hashName;
     }
@@ -203,7 +204,7 @@ const char* IntSetting::getStringValue() {
 
 void IntSetting::addWebui(JSONencoder* j) {
     if (getDescription()) {
-        j->begin_webui(getName(), getName(), "I", getStringValue(), _minValue, _maxValue);
+        j->begin_webui(getName(), "I", getStringValue(), _minValue, _maxValue);
         j->end_object();
     }
 }
@@ -230,9 +231,8 @@ void StringSetting::load() {
         return;
     }
 
-    // TODO: Can't we allocate the string immediately?
-    std::vector<char> buffer;
-    buffer.resize(len);
+    std::vector<char> buffer(len);
+
     char* buf = buffer.data();
     err       = nvs_get_str(_handle, _keyName, buf, &len);
     if (err) {
@@ -286,7 +286,7 @@ void StringSetting::addWebui(JSONencoder* j) {
     if (!getDescription()) {
         return;
     }
-    j->begin_webui(getName(), getName(), "S", getStringValue(), _minLength, _maxLength);
+    j->begin_webui(getName(), "S", getStringValue(), _minLength, _maxLength);
     j->end_object();
 }
 
@@ -342,8 +342,7 @@ Error EnumSetting::setStringValue(std::string_view s) {
             showList();
             return Error::BadNumberFormat;
         }
-        char* endptr;
-        int   num;
+        int num;
         // Disallow non-numeric characters in string
         auto [ptr, ec] = std::from_chars(s.data(), s.data() + s.length(), num);
         if (ec != std::errc()) {
@@ -401,7 +400,7 @@ void EnumSetting::addWebui(JSONencoder* j) {
     if (!getDescription()) {
         return;
     }
-    j->begin_webui(getName(), getName(), "B", get());
+    j->begin_webui(getName(), "B", get());
     j->begin_array("O");
     for (enum_opt_t::const_iterator it = _options->begin(); it != _options->end(); it++) {
         j->begin_object();
@@ -523,7 +522,7 @@ const char* IPaddrSetting::getStringValue() {
 
 void IPaddrSetting::addWebui(JSONencoder* j) {
     if (getDescription()) {
-        j->begin_webui(getName(), getName(), "A", getStringValue());
+        j->begin_webui(getName(), "A", getStringValue());
         j->end_object();
     }
 }

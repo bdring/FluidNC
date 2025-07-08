@@ -80,9 +80,8 @@ float limit_rate_by_axis_maximum(float* unit_vec);
 
 const char* to_hex(uint32_t n);
 
-bool  char_is_numeric(char value);
-char* trim(char* value);
-void  trim(std::string_view& sv);
+bool char_is_numeric(char value);
+void trim(std::string_view& sv);
 
 template <typename T>
 T myMap(T x, const T in_min, const T in_max, T out_min, T out_max) {  // DrawBot_Badge

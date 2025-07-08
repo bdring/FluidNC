@@ -239,7 +239,7 @@ void JSONencoder::member(const char* tag, int value) {
 
 // Creates an Esp32_WebUI configuration item specification from
 // a value passed in as a C-style string.
-void JSONencoder::begin_webui(const char* name, const char* help, const char* type, const char* val) {
+void JSONencoder::begin_webui(const std::string name, const char* type, const char* val) {
     begin_object();
     member("F", category);
     // P is the name that WebUI uses to set a new value.
@@ -247,22 +247,22 @@ void JSONencoder::begin_webui(const char* name, const char* help, const char* ty
     // The distinction used to be important because, prior to the introuction
     // of named settings, P was a numerical offset into a fixed EEPROM layout.
     // Now P is a hierarchical name that is as easy to understand as the old H values.
-    member("P", name);
-    member("H", help);
+    member("P", name.c_str());
+    member("H", name.c_str());
     member("T", type);
     member("V", val);
 }
 
 // Creates an Esp32_WebUI configuration item specification from
 // an integer value.
-void JSONencoder::begin_webui(const char* brief, const char* full, const char* type, int val) {
-    begin_webui(brief, full, type, std::to_string(val).c_str());
+void JSONencoder::begin_webui(const std::string name, const char* type, int val) {
+    begin_webui(name, type, std::to_string(val).c_str());
 }
 
 // Creates an Esp32_WebUI configuration item specification from
 // a C-style string value, with additional min and max arguments.
-void JSONencoder::begin_webui(const char* brief, const char* full, const char* type, const char* val, int min, int max) {
-    begin_webui(brief, full, type, val);
+void JSONencoder::begin_webui(const std::string name, const char* type, const char* val, int min, int max) {
+    begin_webui(name, type, val);
     member("S", max);
     member("M", min);
 }

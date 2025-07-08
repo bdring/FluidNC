@@ -4,10 +4,8 @@
 
 #pragma once
 
-#include "Types.h"
-
 // Execution states and alarm
-#include "Types.h"
+#include "State.h"
 #include "Probe.h"
 #include "Config.h"  // MAX_N_AXIS
 #include <map>

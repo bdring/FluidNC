@@ -50,11 +50,14 @@ else:
             dirty = ""
         rev = " (%s-%s%s)" % (branchname, revision, dirty)
 
-    url = (
-        subprocess.check_output(["git", "config", "--get", "remote.origin.url"])
+    try:
+        url = (
+            subprocess.check_output(["git", "config", "--get", "remote.origin.url"])
             .strip()
             .decode("utf-8")
         )
+    except:
+        url = "None"
 
 grbl_version = tag.replace('v','').rpartition('.')[0]
 git_info = '%s%s' % (tag, rev)

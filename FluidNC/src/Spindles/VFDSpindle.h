@@ -5,7 +5,6 @@
 #pragma once
 
 #include "Spindle.h"
-#include "../Types.h"
 
 #include "../Uart.h"
 

@@ -418,7 +418,7 @@ void report_build_info(const char* line, Channel& channel) {
 
 // Prints the character string line that was received, which has been pre-parsed,
 // and has been sent into protocol_execute_line() routine to be executed.
-void report_echo_line_received(char* line, Channel& channel) {
+void report_echo_line_received(const char* line, Channel& channel) {
     log_stream(channel, "[echo: " << line);
 }
 
@@ -426,12 +426,6 @@ void report_echo_line_received(char* line, Channel& channel) {
 // float print_position = returned position
 // float wco            = returns the work coordinate offset
 // bool wpos            = true for work position compensation
-
-void addPinReport(char* status, char pinLetter) {
-    size_t pos      = strlen(status);
-    status[pos]     = pinLetter;
-    status[pos + 1] = '\0';
-}
 
 void mpos_to_wpos(float* position) {
     float* wco    = get_wco();

@@ -18,7 +18,7 @@
 
 #include "src/Error.h"        // Error
 #include "src/GCode.h"        // gc_modal_t
-#include "src/Types.h"        // State
+#include "src/Types.h"        // MotorMask
 #include "src/RealtimeCmd.h"  // Cmd
 #include "src/UTF8.h"
 
@@ -194,6 +194,7 @@ public:
     void registerEvent(uint8_t pinnum, InputPin* obj);
 
     size_t lineNumber() { return _line_number; }
+    void   setLineNumber(size_t line_number) { _line_number = line_number; }
 
     virtual void   save() {}
     virtual void   restore() {}

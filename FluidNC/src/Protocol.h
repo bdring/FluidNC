@@ -5,7 +5,7 @@
 
 #pragma once
 
-#include "Types.h"
+#include "State.h"
 
 #include <freertos/FreeRTOS.h>
 #include <freertos/queue.h>
@@ -69,6 +69,7 @@ enum class ExecAlarm : uint8_t {
     Unhomed               = 14,
     Init                  = 15,
     ExpanderReset         = 16,
+    GCodeError            = 17,
 };
 
 extern volatile ExecAlarm lastAlarm;

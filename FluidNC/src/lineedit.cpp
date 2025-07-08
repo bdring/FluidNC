@@ -25,8 +25,9 @@ void Lineedit::echo_line() {
 void Lineedit::addchar(char c, bool echo) {
     if (thisaddr < maxaddr) {
         char* p;
-        if (endaddr < maxaddr)
+        if (endaddr < maxaddr) {
             ++endaddr;
+        }
         for (p = endaddr; --p >= thisaddr + 1;) {
             *p = *(p - 1);
         }
@@ -88,17 +89,16 @@ clear_history:
     saved_length = 0;
 }
 
-bool Lineedit::already_in_history(char* adr, int len) {
-    char* p;
-    char* first;
-    char* thischar;
-    int   i;
+bool Lineedit::already_in_history(const char* adr, int len) {
+    const char* first;
+    const char* thischar;
+    int         i;
     if (!saved_length)
         return false;
 
     thischar = adr;
     first    = lastline;
-    for (p = lastline; p < &lastline[MAXHISTORY];) {
+    for (char* p = lastline; p < &lastline[MAXHISTORY];) {
         if (*p == '\0') {
             if ((p - first) == len) {
                 // Found a match; reorder history so the match
@@ -133,7 +133,7 @@ bool Lineedit::already_in_history(char* adr, int len) {
     return false;
 }
 
-void Lineedit::add_to_history(char* adr, int len) {
+void Lineedit::add_to_history(const char* adr, int len) {
     validate_history();
     if (len && !already_in_history(adr, len)) {
         int i;
