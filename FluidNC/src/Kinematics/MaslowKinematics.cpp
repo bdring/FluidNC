@@ -353,6 +353,42 @@ namespace Kinematics {
         handler.item("armLength", _armLength);
     }
 
+    // Setter methods for calibration system to update frame parameters
+    void MaslowKinematics::setFrameSize(float frameSize) {
+        // Update anchor coordinates for a square frame of size frameSize x frameSize
+        // Keep the same Z coordinates but adjust X,Y to form a square
+        _blX = 0.0f;
+        _blY = 0.0f;
+        _brX = frameSize;
+        _brY = 0.0f;
+        _tlX = 0.0f;
+        _tlY = frameSize;
+        _trX = frameSize;
+        _trY = frameSize;
+        
+        // Recalculate center coordinates
+        calculateCenter();
+        
+        log_info("Frame size updated to: " << frameSize << " x " << frameSize);
+        log_info("Anchor points updated - TL: (" << _tlX << "," << _tlY << "), TR: (" << _trX << "," << _trY << 
+                "), BL: (" << _blX << "," << _blY << "), BR: (" << _brX << "," << _brY << ")");
+    }
+
+    void MaslowKinematics::updateAnchorCoordinates(float tlX, float tlY, float tlZ, 
+                                                  float trX, float trY, float trZ,
+                                                  float blX, float blY, float blZ,
+                                                  float brX, float brY, float brZ) {
+        _tlX = tlX; _tlY = tlY; _tlZ = tlZ;
+        _trX = trX; _trY = trY; _trZ = trZ;
+        _blX = blX; _blY = blY; _blZ = blZ;
+        _brX = brX; _brY = brY; _brZ = brZ;
+        
+        // Recalculate center coordinates
+        calculateCenter();
+        
+        log_info("Anchor coordinates updated manually");
+    }
+
     // Destructor - clear global pointer
     MaslowKinematics::~MaslowKinematics() {
         if (g_maslowKinematics == this) {

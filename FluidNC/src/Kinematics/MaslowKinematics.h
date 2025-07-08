@@ -77,6 +77,13 @@ namespace Kinematics {
         // Forward kinematics methods for position synchronization
         bool computeXYfromBeltLengths(float tlLength, float trLength, float& x, float& y) const;
         float measurementToXYPlane(float measurement, float zHeight) const;
+        
+        // Setter methods for calibration system to update frame parameters
+        void setFrameSize(float frameSize);
+        void updateAnchorCoordinates(float tlX, float tlY, float tlZ, 
+                                   float trX, float trY, float trZ,
+                                   float blX, float blY, float blZ,
+                                   float brX, float brY, float brZ);
 
     private:
         // Anchor point coordinates (in mm)
