@@ -1,136 +1,186 @@
 board: Maslow
 name: Maslow S3 Board
-
-# Is the maslow on vertical (true) or horizontal (false)
-Maslow_vertical: false
-
-# Define the distance from the anchor points to the corners of the calibration grid in mm
-maslow_calibration_grid_width_mm_X: 1500
-maslow_calibration_grid_height_mm_Y: 800
-
-# Defines the number of points in the calibration grid. Options are 3,5,7,9
-maslow_calibration_grid_size: 7
-
-#####################################################################
-# Frame anchor points are now defined in the kinematics section below
-
-# Sets how hard should Maslow pull on the belts to retract before considering them to be all the way in.
-# Maximum value is 4,000. Arbitrary units.
-Maslow_Retract_Current_Threshold: 900
-# Sets how hard should Maslow pull on the belts during the calibration process.
+meta: 
+Maslow_vertical: true
+Maslow_calibration_grid_width_mm_X: 500.000000
+Maslow_calibration_grid_height_mm_Y: 500.000000
+Maslow_calibration_grid_size: 3
+Maslow_Retract_Current_Threshold: 1100
 Maslow_Calibration_Current_Threshold: 900
-# Sets the acceptable fitness threshold for moving on to the next calibration round.
-Maslow_Acceptable_Calibration_Threshold: 0.45
-# Sets the scale factor for the x axis. 
-Maslow_Scale_X: 1.0
-# Sets the scale factor for the y axis.
-Maslow_Scale_Y: 1.0
-# Sets the distance to extend the bels during the calibration process.
-Maslow_Extend_Dist: 1700
+Maslow_Acceptable_Calibration_Threshold: 0.450000
+Maslow_Extend_Dist: 1700.000000
+Maslow_Scale_X: 1.000000
+Maslow_Scale_Y: 1.000000
+stepping: 
+  engine: Timed
+  idle_ms: 240
+  pulse_us: 4
+  dir_delay_us: 0
+  disable_delay_us: 0
+  segments: 12
 
-spi:
+uart1: 
+  txd_pin: gpio.1
+  rxd_pin: gpio.2
+  rts_pin: NO_PIN
+  cts_pin: NO_PIN
+  baud: 115200
+  mode: 8N1
+
+spi: 
   miso_pin: gpio.13
   mosi_pin: gpio.11
   sck_pin: gpio.12
 
-sdcard:
-  card_detect_pin: NO_PIN
+sdcard: 
   cs_pin: gpio.10
+  card_detect_pin: NO_PIN
+  frequency_hz: 8000000
 
-stepping:
-  engine: RMT
-  idle_ms: 240
+kinematics: 
+  MaslowKinematics: 
+    tlX: -6.200000
+    tlY: 2188.000000
+    tlZ: 100.000000
+    trX: 2991.199951
+    trY: 2197.399902
+    trZ: 56.000000
+    blX: 0.000000
+    blY: 0.000000
+    blZ: 34.000000
+    brX: 2989.800049
+    brY: 0.000000
+    brZ: 78.000000
+    beltEndExtension: 30.000000
+    armLength: 123.400002
 
-uart1:
-  txd_pin: gpio.1
-  rxd_pin: gpio.2
-  baud: 115200
-  mode: 8N1
-
-kinematics:
-  MaslowKinematics:
-    # Frame anchor points - all values in millimeters
-    # By convention bottom left is (0,0) and bottom right is (width,0)
-    # Bottom, top, left, right are defined with power cord down, looking from top
-    
-    # Top left corner of frame (nominally 0, height)
-    tlX: 6.8
-    tlY: 2073.699951
-    tlZ: 100.0
-    
-    # Top right corner of frame (nominally width, height)
-    trX: 3077.600098
-    trY: 2070.100098
-    trZ: 56.0
-    
-    # Bottom left corner (nominally 0,0)
-    blX: 0.0
-    blY: 0.0
-    blZ: 34.0
-    
-    # Bottom right corner (nominally width,0)
-    brX: 3080.100098
-    brY: 0.0
-    brZ: 78.0
-    
-    # Belt/arm configuration
-    # Extension distance during calibration
-    beltEndExtension: 30.0
-    # Length of the router arm
-    armLength: 123.4
-
-axes:
-  a:  # Top Left belt motor (TL)
-    max_rate_mm_per_min: 3000
-    acceleration_mm_per_sec2: 50
-    max_travel_mm: 5000
-    homing:
+axes: 
+  shared_stepper_disable_pin: NO_PIN
+  shared_stepper_reset_pin: NO_PIN
+  a: 
+    steps_per_mm: 80.000000
+    max_rate_mm_per_min: 1400.000000
+    acceleration_mm_per_sec2: 50.000000
+    max_travel_mm: 5000.000000
+    soft_limits: false
+    homing: 
       cycle: -1
+      allow_single_axis: true
+      positive_direction: true
+      mpos_mm: 0.000000
+      feed_mm_per_min: 50.000000
+      seek_mm_per_min: 200.000000
+      settle_ms: 250
+      seek_scaler: 1.100000
+      feed_scaler: 1.100000
 
-    motor0:
-      null_motor:
+    motor0: 
+      limit_neg_pin: NO_PIN
+      limit_pos_pin: NO_PIN
+      limit_all_pin: NO_PIN
+      hard_limits: false
+      pulloff_mm: 1.000000
+      null_motor: 
 
-  b:  # Top Right belt motor (TR) 
-    max_rate_mm_per_min: 3000
-    acceleration_mm_per_sec2: 50
-    max_travel_mm: 5000
-    homing:
+  b: 
+    steps_per_mm: 80.000000
+    max_rate_mm_per_min: 1400.000000
+    acceleration_mm_per_sec2: 50.000000
+    max_travel_mm: 5000.000000
+    soft_limits: false
+    homing: 
       cycle: -1
+      allow_single_axis: true
+      positive_direction: true
+      mpos_mm: 0.000000
+      feed_mm_per_min: 50.000000
+      seek_mm_per_min: 200.000000
+      settle_ms: 250
+      seek_scaler: 1.100000
+      feed_scaler: 1.100000
 
-    motor0:
-      null_motor:
+    motor0: 
+      limit_neg_pin: NO_PIN
+      limit_pos_pin: NO_PIN
+      limit_all_pin: NO_PIN
+      hard_limits: false
+      pulloff_mm: 1.000000
+      null_motor: 
 
-  c:  # Bottom Left belt motor (BL)
-    max_rate_mm_per_min: 3000
-    acceleration_mm_per_sec2: 50
-    max_travel_mm: 5000
-    homing:
+  c: 
+    steps_per_mm: 80.000000
+    max_rate_mm_per_min: 1400.000000
+    acceleration_mm_per_sec2: 50.000000
+    max_travel_mm: 5000.000000
+    soft_limits: false
+    homing: 
       cycle: -1
+      allow_single_axis: true
+      positive_direction: true
+      mpos_mm: 0.000000
+      feed_mm_per_min: 50.000000
+      seek_mm_per_min: 200.000000
+      settle_ms: 250
+      seek_scaler: 1.100000
+      feed_scaler: 1.100000
 
-    motor0:
-      null_motor:
+    motor0: 
+      limit_neg_pin: NO_PIN
+      limit_pos_pin: NO_PIN
+      limit_all_pin: NO_PIN
+      hard_limits: false
+      pulloff_mm: 1.000000
+      null_motor: 
 
-  d:  # Bottom Right belt motor (BR)
-    max_rate_mm_per_min: 3000
-    acceleration_mm_per_sec2: 50
-    max_travel_mm: 5000
-    homing:
+  d: 
+    steps_per_mm: 80.000000
+    max_rate_mm_per_min: 1400.000000
+    acceleration_mm_per_sec2: 50.000000
+    max_travel_mm: 5000.000000
+    soft_limits: false
+    homing: 
       cycle: -1
+      allow_single_axis: true
+      positive_direction: true
+      mpos_mm: 0.000000
+      feed_mm_per_min: 50.000000
+      seek_mm_per_min: 200.000000
+      settle_ms: 250
+      seek_scaler: 1.100000
+      feed_scaler: 1.100000
 
-    motor0:
-      null_motor:
+    motor0: 
+      limit_neg_pin: NO_PIN
+      limit_pos_pin: NO_PIN
+      limit_all_pin: NO_PIN
+      hard_limits: false
+      pulloff_mm: 1.000000
+      null_motor: 
 
-  z:  # Router Z-axis
+  z: 
     steps_per_mm: 100.000000
     max_rate_mm_per_min: 1500.000000
     acceleration_mm_per_sec2: 100.000000
     max_travel_mm: 100.000000
     soft_limits: false
-    homing:
+    homing: 
       cycle: -1
+      allow_single_axis: true
+      positive_direction: true
+      mpos_mm: 0.000000
+      feed_mm_per_min: 50.000000
+      seek_mm_per_min: 200.000000
+      settle_ms: 250
+      seek_scaler: 1.100000
+      feed_scaler: 1.100000
 
-    motor0:
-      tmc_2209:
+    motor0: 
+      limit_neg_pin: NO_PIN
+      limit_pos_pin: NO_PIN
+      limit_all_pin: NO_PIN
+      hard_limits: false
+      pulloff_mm: 1.000000
+      tmc_2209: 
         uart_num: 1
         step_pin: gpio.15
         direction_pin: gpio.16
@@ -149,8 +199,13 @@ axes:
         stallguard_debug: false
         toff_coolstep: 3
 
-    motor1:
-      tmc_2209:
+    motor1: 
+      limit_neg_pin: NO_PIN
+      limit_pos_pin: NO_PIN
+      limit_all_pin: NO_PIN
+      hard_limits: false
+      pulloff_mm: 1.000000
+      tmc_2209: 
         uart_num: 1
         step_pin: gpio.46
         direction_pin: gpio.38
@@ -168,3 +223,71 @@ axes:
         stallguard: 0
         stallguard_debug: false
         toff_coolstep: 3
+
+control: 
+  safety_door_pin: NO_PIN
+  reset_pin: NO_PIN
+  feed_hold_pin: NO_PIN
+  cycle_start_pin: NO_PIN
+  macro0_pin: NO_PIN
+  macro1_pin: NO_PIN
+  macro2_pin: NO_PIN
+  macro3_pin: NO_PIN
+
+coolant: 
+  flood_pin: NO_PIN
+  mist_pin: NO_PIN
+  delay_ms: 0
+
+probe: 
+  pin: NO_PIN
+  check_mode_start: true
+
+macros: 
+  startup_line0: 
+  startup_line1: 
+  macro0: 
+  macro1: 
+  macro2: 
+  macro3: 
+
+start: 
+  must_home: true
+  deactivate_parking: false
+  check_limits: false
+
+parking: 
+  enable: false
+  axis: Z
+  target_mpos_mm: -5.000000
+  rate_mm_per_min: 800.000000
+  pullout_distance_mm: 5.000000
+  pullout_rate_mm_per_min: 250.000000
+
+user_outputs: 
+  analog0_pin: NO_PIN
+  analog1_pin: NO_PIN
+  analog2_pin: NO_PIN
+  analog3_pin: NO_PIN
+  analog0_hz: 5000
+  analog1_hz: 5000
+  analog2_hz: 5000
+  analog3_hz: 5000
+  digital0_pin: NO_PIN
+  digital1_pin: NO_PIN
+  digital2_pin: NO_PIN
+  digital3_pin: NO_PIN
+  digital4_pin: NO_PIN
+  digital5_pin: NO_PIN
+  digital6_pin: NO_PIN
+  digital7_pin: NO_PIN
+
+NoSpindle: 
+
+arc_tolerance_mm: 0.002000
+junction_deviation_mm: 0.010000
+verbose_errors: false
+report_inches: false
+enable_parking_override_control: false
+use_line_numbers: false
+planner_blocks: 16
