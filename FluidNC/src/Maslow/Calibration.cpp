@@ -1255,11 +1255,17 @@ bool Calibration::adjustFrameSizeToMatchFirstMeasurement() {
     float L = numerator / denominator;
 
     //Adjust the frame size to match the computed size
-    // TODO: This function needs to be updated to modify MaslowKinematics parameters
-    // instead of Maslow parameters. For now, log an error.
-    log_error("adjustFrameSizeToMatchFirstMeasurement: Frame adjustment not implemented for MaslowKinematics");
-    log_info("Computed frame size would be: " << L << " by " << L);
-    return false; // Return false to indicate this feature is not yet implemented
+    auto kinematics = getKinematics();
+    if (!kinematics) {
+        log_error("adjustFrameSizeToMatchFirstMeasurement: MaslowKinematics not available");
+        return false;
+    }
+    
+    // Update the frame size in the MaslowKinematics system
+    kinematics->setFrameSize(L);
+    
+    log_info("Frame size successfully adjusted to: " << L << " x " << L);
+    return true;
 }
 
 
