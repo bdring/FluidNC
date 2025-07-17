@@ -145,7 +145,7 @@ namespace Machine {
             }
         }
 
-        Assert(false, "Cannot find axis for motor. Something wonky is going on here...");
+        Assert(false, "Cannot find axis for motor.");
         return SIZE_MAX;
     }
 
@@ -258,6 +258,7 @@ namespace Machine {
         for (int i = 0; i < MAX_N_AXIS; ++i) {
             if (_axis[i] != nullptr) {
                 delete _axis[i];
+                _axis[i] = nullptr;  // _axis[] is static
             }
         }
     }

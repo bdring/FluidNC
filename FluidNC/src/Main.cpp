@@ -94,15 +94,23 @@ void setup() {
 
         plan_init();
 
-        config->_userOutputs->init();
+        if (config->_userOutputs) {
+            config->_userOutputs->init();
+        }
 
-        config->_userInputs->init();
+        if (config->_userInputs) {
+            config->_userInputs->init();
+        }
 
         Axes::init();
 
-        config->_control->init();
+        if (config->_control) {
+            config->_control->init();
+        }
 
-        config->_kinematics->init();
+        if (config->_kinematics) {
+            config->_kinematics->init();
+        }
 
         limits_init();
 
@@ -127,12 +135,15 @@ void setup() {
             bool stopped_spindle, new_spindle;
             Spindles::Spindle::switchSpindle(0, spindles, spindle, stopped_spindle, new_spindle);
 
-            config->_coolant->init();
-            config->_probe->init();
+            if (config->_coolant) {
+                config->_coolant->init();
+            }
+            if (config->_probe) {
+                config->_probe->init();
+            }
         }
 
         make_proxies();
-
     } catch (const AssertionFailed& ex) {
         // This means something is terribly broken:
         log_config_error("Critical error in main_init: " << ex.what());

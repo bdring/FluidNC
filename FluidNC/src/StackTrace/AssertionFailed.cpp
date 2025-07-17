@@ -36,6 +36,7 @@ AssertionFailed AssertionFailed::create(const char* condition, const char* msg, 
 
 #else
 
+#    include <exception>
 #    include <iostream>
 #    include <string>
 #    include <sstream>

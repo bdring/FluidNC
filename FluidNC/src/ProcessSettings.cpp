@@ -574,7 +574,7 @@ static Error doJog(const char* value, AuthenticationLevel auth_level, Channel& o
 
 static Error listAlarms(const char* value, AuthenticationLevel auth_level, Channel& out) {
     if (state_is(State::ConfigAlarm)) {
-        log_string(out, "Configuration alarm is active. Check the boot messages for 'ERR'.");
+        log_string(out, "Configuration alarm is active. Check the startup messages for 'ERR'.");
     } else if (state_is(State::Alarm)) {
         log_stream(out, "Active alarm: " << int(lastAlarm) << " (" << alarmString(lastAlarm) << ")");
     }

@@ -10,11 +10,9 @@ namespace Machine {
 
     void I2SOBus::validate() {
         Assert(_min_pulse_us == 1 || _min_pulse_us == 2 || _min_pulse_us == 4, "min_pulse_us must be 1, 2 or 4");
-        if (_bck.defined() || _data.defined() || _ws.defined()) {
-            Assert(_bck.defined(), "I2SO BCK pin should be configured once");
-            Assert(_data.defined(), "I2SO Data pin should be configured once");
-            Assert(_ws.defined(), "I2SO WS pin should be configured once");
-        }
+        Assert(_bck.defined(), "I2SO BCK pin must be configured");
+        Assert(_data.defined(), "I2SO Data pin must be configured");
+        Assert(_ws.defined(), "I2SO WS pin must be configured");
     }
 
     void I2SOBus::group(Configuration::HandlerBase& handler) {

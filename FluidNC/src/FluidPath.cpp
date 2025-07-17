@@ -16,7 +16,7 @@ FluidPath::FluidPath(const char* name, const char* fs, std::error_code* ecptr) :
     _isSD      = mount == "sd";
 
     if (_isSD) {
-        if (!config->_sdCard->config_ok) {
+        if (!config->_sdCard && !config->_sdCard->config_ok) {
             std::error_code ec = FluidError::SDNotConfigured;
             if (ecptr) {
                 *ecptr = ec;

@@ -109,14 +109,6 @@ namespace Machine {
             _userInputs = new UserInputs();
         }
 
-        if (_sdCard == nullptr) {
-            _sdCard = new SDCard();
-        }
-
-        if (_spi == nullptr) {
-            _spi = new SPIBus();
-        }
-
         if (_stepping == nullptr) {
             _stepping = new Stepping();
         }
@@ -136,7 +128,7 @@ namespace Machine {
             _parking = new Parking();
         }
 
-        auto spindles = Spindles::SpindleFactory::objects();
+        auto& spindles = Spindles::SpindleFactory::objects();
         if (spindles.size() == 0) {
             spindles.push_back(new Spindles::Null("NoSpindle"));
             //            Spindles::SpindleFactory::add(new Spindles::Null());
@@ -147,7 +139,7 @@ namespace Machine {
         spindle = spindles[0];
 
         uint32_t next_tool = 100;
-        for (auto s : Spindles::SpindleFactory::objects()) {
+        for (auto s : spindles) {
             if (s->_tool == -1) {
                 s->_tool = next_tool++;
             }
@@ -221,46 +213,92 @@ namespace Machine {
 
             log_debug("Running after-parse tasks");
 
-            try {
-                Configuration::AfterParse afterParse;
-                config->afterParse();
-                config->group(afterParse);
-            } catch (std::exception& ex) { log_error("Validation error: " << ex.what()); }
+            Configuration::AfterParse afterParse;
+            config->afterParse();
+            config->group(afterParse);
 
-            log_debug("Checking configuration");
+            log_debug("Validating configuration");
 
-            try {
-                Configuration::Validator validator;
-                config->validate();
-                config->group(validator);
-            } catch (std::exception& ex) { log_config_error("Validation error: " << ex.what()); }
-
-            // log_info("Heap size after configuation load is " << uint32_t(xPortGetFreeHeapSize()));
-
+            Configuration::Validator validator;
+            config->validate();
+            log_debug("Validating configuration group");
+            config->group(validator);
+            return;
         } catch (const Configuration::ParseException& ex) {
             log_config_error("Configuration parse error on line " << ex.LineNumber() << ": " << ex.What());
         } catch (const AssertionFailed& ex) {
-            // Get rid of buffer and return
-            log_config_error("Configuration loading failed: " << ex.what());
+            //
+            log_config_error("Configuration error: " << ex.what());
         } catch (std::exception& ex) {
-            // Log exception:
-            log_config_error("Configuration validation error: " << ex.what());
-        } catch (...) {
-            // Get rid of buffer and return
-            log_config_error("Unknown error while processing config file");
+            //
+            log_config_error("Configuration error: " << ex.what());
         }
-
-        std::atomic_thread_fence(std::memory_order::memory_order_seq_cst);
+        throw Error::ConfigurationInvalid;
     }
 
     MachineConfig::~MachineConfig() {
-        delete _axes;
-        delete _i2so;
-        delete _coolant;
-        delete _probe;
-        delete _sdCard;
-        delete _spi;
-        delete _control;
-        delete _macros;
+        if (_axes) {
+            delete _axes;
+        }
+        if (_i2so) {
+            delete _i2so;
+        }
+        if (_coolant) {
+            delete _coolant;
+        }
+        if (_kinematics) {
+            delete _kinematics;
+        }
+        if (_probe) {
+            delete _probe;
+        }
+        if (_userOutputs) {
+            delete _userOutputs;
+        }
+        if (_userInputs) {
+            delete _userInputs;
+        }
+        if (_sdCard) {
+            delete _sdCard;
+        }
+        if (_spi) {
+            delete _spi;
+        }
+        if (_stepping) {
+            delete _stepping;
+        }
+        if (_control) {
+            delete _control;
+        }
+        if (_start) {
+            delete _start;
+        }
+        if (_parking) {
+            delete _parking;
+        }
+        auto& spindles = Spindles::SpindleFactory::objects();
+        for (auto const& s : spindles) {
+            delete s;
+        }
+        spindles.clear();
+
+        if (_macros) {
+            delete _macros;
+        }
+        for (int i = 0; i < MAX_N_I2C; i++) {
+            if (_i2c[i]) {
+                delete _i2c[i];
+            }
+        }
+        for (int i = 1; i < MAX_N_UARTS; i++) {
+            if (_uarts[i]) {
+                delete _uarts[i];
+            }
+        }
+        for (int i = 1; i < MAX_N_UARTS; i++) {
+            if (_uart_channels[i]) {
+                delete _uart_channels[i];
+            }
+        }
     }
 }

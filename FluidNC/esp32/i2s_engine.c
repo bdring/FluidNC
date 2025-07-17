@@ -31,7 +31,7 @@
 
 #include "esp_intr_alloc.h"
 
-uint32_t i2s_frame_us;  // 1, 2 or 4
+uint32_t i2s_frame_us = 0;  // 1, 2 or 4; if 0, i2s_out_init was not called
 
 static volatile uint32_t i2s_out_port_data = 0;
 
@@ -406,6 +406,11 @@ static void i2s_fifo_intr_setup() {
 }
 
 static uint32_t init_engine(uint32_t dir_delay_us, uint32_t pulse_us, uint32_t frequency, bool (*callback)(void)) {
+    if (i2s_frame_us == 0) {
+        // We cannot continue because i2s_out_init was not called
+        return 0;
+    }
+
     _pulse_func = callback;
     i2s_fifo_intr_setup();
 

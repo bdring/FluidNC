@@ -20,7 +20,7 @@ void SDCard::init() {
     int         csFallback;
 
     if (_cs.defined()) {
-        if (!config->_spi->defined()) {
+        if (!config->_spi || !config->_spi->defined()) {
             log_error("SD needs SPI defined");
         } else {
             log_info("SD Card cs_pin:" << _cs.name() << " detect:" << _cardDetect.name() << " freq:" << _frequency_hz);

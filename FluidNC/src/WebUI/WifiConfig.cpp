@@ -563,7 +563,7 @@ namespace WebUI {
 
             s << "  # primary sd:";
 
-            (config->_sdCard->config_ok) ? s << "/sd" : s << "none";
+            (config->_sdCard && config->_sdCard->config_ok) ? s << "/sd" : s << "none";
 
             s << " # secondary sd:none ";
 

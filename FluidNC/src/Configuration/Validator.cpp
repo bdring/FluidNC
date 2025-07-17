@@ -18,12 +18,7 @@ namespace Configuration {
     void Validator::enterSection(const char* name, Configurable* value) {
         _path.push_back(name);  // For error handling
 
-        try {
-            value->validate();
-        } catch (const AssertionFailed& ex) {
-            // Log something meaningful to the user:
-            log_config_error("Validation error at "; for (auto it : _path) { ss << '/' << it; } ss << ": " << ex.msg);
-        }
+        value->validate();
 
         value->group(*this);
 

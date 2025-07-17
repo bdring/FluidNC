@@ -28,26 +28,17 @@ namespace Pins {
         // that were allocated by the constructor up to that point _MUST_ be freed! Otherwise, you
         // WILL get into trouble.
 
-        Assert(index < nGPIOPins, "Pin number is greater than max %d", nGPIOPins - 1);
-        Assert(_capabilities != PinCapabilities::Reserved, "Unusable GPIO");
-        Assert(_capabilities != PinCapabilities::None, "Unavailable GPIO");
-        Assert(!_claimed[index], "Pin is already used.");
+        Assert(index < nGPIOPins, "gpio.%d: pin number is greater than max %d", index, nGPIOPins - 1);
+        Assert(_capabilities != PinCapabilities::Reserved, "gpio.%d is unnusable", index);
+        Assert(_capabilities != PinCapabilities::None, "gpio.%d is unavailable", index);
+        Assert(!_claimed[index], "gpio.%d is already used.", index);
 
         // User defined pin capabilities
         for (auto opt : options) {
-            if (opt.is("pu")) {
-                if (_capabilities.has(PinCapabilities::PullUp)) {
-                    _attributes = _attributes | PinAttributes::PullUp;
-                } else {
-                    log_config_error(toString() << " does not support :pu attribute");
-                }
-
-            } else if (opt.is("pd")) {
-                if (_capabilities.has(PinCapabilities::PullDown)) {
-                    _attributes = _attributes | PinAttributes::PullDown;
-                } else {
-                    log_config_error(toString() << " does not support :pd attribute");
-                }
+            if (opt.is("pu") && _capabilities.has(PinCapabilities::PullUp)) {
+                _attributes = _attributes | PinAttributes::PullUp;
+            } else if (opt.is("pd") && _capabilities.has(PinCapabilities::PullDown)) {
+                _attributes = _attributes | PinAttributes::PullDown;
             } else if (opt.is("low")) {
                 _attributes = _attributes | PinAttributes::ActiveLow;
             } else if (opt.is("high")) {
@@ -61,7 +52,7 @@ namespace Pins {
             } else if (opt.is("ds3")) {
                 setDriveStrength(3, PinAttributes::DS3);
             } else {
-                Assert(false, "Bad GPIO option passed to pin %d: %.*s", int(index), static_cast<int>(opt().length()), opt().data());
+                Assert(false, "gpio.%d: Unsupported option '%.*s'", int(index), static_cast<int>(opt().length()), opt().data());
             }
         }
         if (_driveStrength != -1) {

@@ -13,8 +13,8 @@ namespace Pins {
 
     I2SOPinDetail::I2SOPinDetail(pinnum_t index, const PinOptionsParser& options) :
         PinDetail(index), _capabilities(PinCapabilities::Output | PinCapabilities::I2S), _attributes(Pins::PinAttributes::Undefined) {
-        Assert(index < nI2SOPins, "Pin number is greater than max %d", nI2SOPins - 1);
-        Assert(!_claimed[index], "Pin is already used.");
+        Assert(index < nI2SOPins, "i2so.%d: pin number is greater than max %d", index, nI2SOPins - 1);
+        Assert(!_claimed[index], "i2so.%d is already used.", index);
         // User defined pin capabilities
         for (auto opt : options) {
             if (opt.is("low")) {
@@ -22,7 +22,7 @@ namespace Pins {
             } else if (opt.is("high")) {
                 // Default: Active HIGH.
             } else {
-                Assert(false, "Unsupported I2SO option '%.*s'", static_cast<int>(opt().length()), opt().data());
+                Assert(false, "i2so.%d: Unsupported option '%.*s'", index, static_cast<int>(opt().length()), opt().data());
             }
         }
         _claimed[index] = true;

@@ -12,12 +12,7 @@ namespace Configuration {
     void AfterParse::enterSection(const char* name, Configurable* value) {
         _path.push_back(name);  // For error handling
 
-        try {
-            value->afterParse();
-        } catch (const AssertionFailed& ex) {
-            // Log something meaningful to the user:
-            log_config_error("Initialization error at "; for (auto it : _path) { ss << '/' << it; } ss << ": " << ex.msg);
-        }
+        value->afterParse();
 
         value->group(*this);
 

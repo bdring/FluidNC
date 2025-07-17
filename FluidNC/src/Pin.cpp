@@ -109,22 +109,16 @@ const char* Pin::parse(std::string_view pin_str, Pins::PinDetail*& pinImplementa
 
 Pin Pin::create(std::string_view str) {
     Pins::PinDetail* pinImplementation = nullptr;
-    try {
-        const char* err = parse(str, pinImplementation);
-        if (err) {
-            if (pinImplementation) {
-                delete pinImplementation;
-            }
-
-            log_error("Setting up pin: " << str << " failed:" << err);
-            return Pin(new Pins::ErrorPinDetail(str));
-        } else {
-            return Pin(pinImplementation);
+    const char*      err               = parse(str, pinImplementation);
+    if (err) {
+        if (pinImplementation) {
+            delete pinImplementation;
         }
-    } catch (const AssertionFailed& ex) {  // We shouldn't get here under normal circumstances.
-        log_error(str << " - " << ex.what());
-        Assert(false, "");
-        // return Pin(new Pins::ErrorPinDetail(str.str()));
+
+        log_error("Setting up pin: " << str << " failed:" << err);
+        return Pin(new Pins::ErrorPinDetail(str));
+    } else {
+        return Pin(pinImplementation);
     }
 }
 

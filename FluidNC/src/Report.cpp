@@ -121,7 +121,7 @@ std::map<Message, const char*> MessageText = {
     { Message::SpindleRestore, "Restoring spindle" },
     { Message::SleepMode, "Sleeping" },
     { Message::HardStop, "Hard stop" },
-    { Message::ConfigAlarmLock, "Configuration is invalid. Check boot messages for ERR's." },
+    { Message::ConfigAlarmLock, "Configuration is invalid. Check startup messages for ERR's." },
     // Handled separately due to numeric argument
     // { Message::FileQuit, "Reset during file job at line: %d" },
     { Message::MustReboot, "Reboot FluidNC" },

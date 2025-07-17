@@ -9,11 +9,9 @@
 
 namespace Machine {
     void SPIBus::validate() {
-        if (_miso.defined() || _mosi.defined() || _sck.defined()) {
-            Assert(_miso.defined(), "SPI MISO pin should be configured once");
-            Assert(_mosi.defined(), "SPI MOSI pin should be configured once");
-            Assert(_sck.defined(), "SPI SCK pin should be configured once");
-        }
+        Assert(_miso.defined(), "SPI MISO pin must be configured");
+        Assert(_mosi.defined(), "SPI MOSI pin must be configured");
+        Assert(_sck.defined(), "SPI SCK pin must be configured");
     }
 
     void SPIBus::init() {

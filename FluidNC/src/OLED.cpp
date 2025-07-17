@@ -24,11 +24,7 @@ OLED::Layout OLED::posLabelLayout   = { 60, 14, 128, ArialMT_Plain_10, TEXT_ALIG
 OLED::Layout OLED::radioAddrLayout  = { 50, 0, 128, ArialMT_Plain_10, TEXT_ALIGN_LEFT };
 
 void OLED::afterParse() {
-    if (!config->_i2c[_i2c_num]) {
-        log_error("i2c" << _i2c_num << " section must be defined for OLED");
-        _error = true;
-        return;
-    }
+    Assert(config->_i2c[_i2c_num], "i2c%d section must be defined for OLED", _i2c_num);
     switch (_width) {
         case 128:
             switch (_height) {
