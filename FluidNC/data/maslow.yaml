@@ -59,7 +59,7 @@ axes:
   shared_stepper_reset_pin: NO_PIN
   a: 
     steps_per_mm: 80.000000
-    max_rate_mm_per_min: 1400.000000
+    max_rate_mm_per_min: 2200.000000
     acceleration_mm_per_sec2: 50.000000
     max_travel_mm: 5000.000000
     soft_limits: false
@@ -84,7 +84,7 @@ axes:
 
   b: 
     steps_per_mm: 80.000000
-    max_rate_mm_per_min: 1400.000000
+    max_rate_mm_per_min: 2200.000000
     acceleration_mm_per_sec2: 50.000000
     max_travel_mm: 5000.000000
     soft_limits: false
@@ -109,7 +109,7 @@ axes:
 
   c: 
     steps_per_mm: 80.000000
-    max_rate_mm_per_min: 1400.000000
+    max_rate_mm_per_min: 2200.000000
     acceleration_mm_per_sec2: 50.000000
     max_travel_mm: 5000.000000
     soft_limits: false
@@ -134,7 +134,7 @@ axes:
 
   d: 
     steps_per_mm: 80.000000
-    max_rate_mm_per_min: 1400.000000
+    max_rate_mm_per_min: 2200.000000
     acceleration_mm_per_sec2: 50.000000
     max_travel_mm: 5000.000000
     soft_limits: false
