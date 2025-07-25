@@ -39,11 +39,7 @@ namespace WebUI {
         return SerialBT.write(data);
     }
 
-    BTConfig::BTConfig(const char* name) : Module(name) {
-        bt_enable = new EnumSetting("Bluetooth Enable", WEBSET, WA, "ESP141", "Bluetooth/Enable", 1, &onoffOptions);
-
-        bt_name = new BTNameSetting("Bluetooth name", "ESP140", "Bluetooth/Name", DEFAULT_BT_NAME);
-    }
+    BTConfig::BTConfig(const char* name) : Module(name) {}
 
     void BTConfig::my_spp_cb(esp_spp_cb_event_t event, esp_spp_cb_param_t* param) {
         switch (event) {
@@ -113,7 +109,9 @@ namespace WebUI {
     }
 
     void BTConfig::init() {
-        log_debug("Begin Bluetooth setup");
+        bt_enable = new EnumSetting("Bluetooth Enable", WEBSET, WA, "ESP141", "Bluetooth/Enable", 1, &onoffOptions);
+        bt_name   = new BTNameSetting("Bluetooth name", "ESP140", "Bluetooth/Name", DEFAULT_BT_NAME);
+
         //stop active services
         deinit();
 
@@ -129,6 +127,7 @@ namespace WebUI {
 
             SerialBT.register_callback(&my_spp_cb);
             log_info("BT Started with " << _btname);
+            log_debug("Heap: " << xPortGetFreeHeapSize());
             allChannels.registration(&btChannel);
             return;
         }
