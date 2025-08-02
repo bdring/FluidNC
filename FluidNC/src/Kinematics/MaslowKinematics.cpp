@@ -94,11 +94,17 @@ namespace Kinematics {
         
         // For long XY moves, segment the path to maintain belt length synchronization
         // This prevents linear interpolation in motor space from causing belt slack
-        if (!pl_data->motion.rapidMotion && !is_z_only_move && cartesian_distance > _maxSegmentLength) {
+        // Only segment if we're not already in a segmentation to prevent recursion
+        if (!_isSegmenting && !pl_data->motion.rapidMotion && !is_z_only_move && cartesian_distance > _maxSegmentLength) {
+            log_info("MaslowKinematics: Segmenting long move of " << cartesian_distance << "mm into smaller segments");
             // Calculate number of segments needed
             uint16_t segments = uint16_t(ceilf(cartesian_distance / _maxSegmentLength));
             
             if (segments > 1 && segments <= 100) { // Reasonable upper limit to prevent excessive segmentation
+                log_info("MaslowKinematics: Breaking move into " << segments << " segments");
+                // Set flag to prevent recursion
+                _isSegmenting = true;
+                
                 // Similar to arc segmentation in MotionControl.cpp
                 // Multiply inverse feed_rate to compensate for the fact that this movement is approximated
                 // by a number of discrete segments. The inverse feed_rate should be correct for the sum of
@@ -134,24 +140,10 @@ namespace Kinematics {
                     plan_line_data_t segment_pl_data = *pl_data;
                     segment_pl_data.feed_rate = original_feedrate; // Reset to original before scaling
                     
-                    // Transform and submit this segment
-                    float motors[n_axis];
-                    transform_cartesian_to_motors(motors, intermediate_target);
-                    
-                    // Scale feed rate for this segment
-                    if (cartesian_distance > 0) {
-                        float segment_cartesian_distance = vector_distance(intermediate_target, segment_position, 3);
-                        float last_motors[n_axis];
-                        transform_cartesian_to_motors(last_motors, segment_position);
-                        float segment_motor_distance = vector_distance(motors, last_motors, n_axis);
-                        
-                        if (segment_cartesian_distance > 0) {
-                            segment_pl_data.feed_rate = segment_pl_data.feed_rate * segment_motor_distance / segment_cartesian_distance;
-                        }
-                    }
-                    
-                    // Submit this segment to the planner
-                    if (!mc_move_motors(motors, &segment_pl_data)) {
+                    // Submit this segment to the motion controller in cartesian space
+                    // This is similar to how arc segmentation works - use mc_linear() 
+                    // which will call cartesian_to_motors() for proper kinematics transformation
+                    if (!mc_linear(intermediate_target, &segment_pl_data, segment_position)) {
                         return false; // If any segment fails, fail the whole move
                     }
                     
@@ -169,6 +161,9 @@ namespace Kinematics {
                 
                 // Reset feed rate for final segment
                 pl_data->feed_rate = original_feedrate;
+                
+                // Clear the segmentation flag
+                _isSegmenting = false;
             }
         }
         
