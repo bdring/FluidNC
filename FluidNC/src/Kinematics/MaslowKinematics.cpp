@@ -95,7 +95,8 @@ namespace Kinematics {
         // For long XY moves, segment the path to maintain belt length synchronization
         // This prevents linear interpolation in motor space from causing belt slack
         // Only segment if we're not already in a segmentation to prevent recursion
-        if (!_isSegmenting && !pl_data->motion.rapidMotion && !is_z_only_move && cartesian_distance > _maxSegmentLength) {
+        // Apply to both feed moves and rapid moves to ensure consistent belt tension
+        if (!_isSegmenting && !is_z_only_move && cartesian_distance > _maxSegmentLength) {
             log_info("MaslowKinematics: Segmenting long move of " << cartesian_distance << "mm into smaller segments");
             // Calculate number of segments needed
             uint16_t segments = uint16_t(ceilf(cartesian_distance / _maxSegmentLength));
