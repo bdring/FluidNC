@@ -29,6 +29,20 @@ kinematics:
 # Configuration Notes:
 # - The maxSegmentLength parameter controls how FluidNC handles long moves
 # - Moves longer than this distance will be automatically broken into smaller segments
+# - Each segment uses proper kinematic transformation for accurate belt lengths
+# - This prevents belt slack that occurs when the motion planner linearly interpolates belt lengths
+# - For most Maslow CNCs, 5mm provides a good balance of accuracy and performance
+# 
+# Troubleshooting Belt Slack:
+# - If belts still go slack during long moves, try reducing maxSegmentLength to 2-3mm
+# - If performance is slow during complex cuts, try increasing to 8-10mm  
+# - Z-only moves and rapid motions are not segmented for compatibility
+#
+# Performance Impact:
+# - A 100mm diagonal move gets broken into ~29 segments at 5mm setting
+# - Each segment adds minimal computation overhead
+# - Total performance impact is typically negligible for most use cases
+# - Moves longer than this distance will be automatically broken into smaller segments
 # - Each segment recalculates correct belt lengths, preventing slack during long moves  
 # - This fixes the belt tension issue during long diagonal moves
 # - Only affects XY moves; Z-only moves and rapid motions are unaffected

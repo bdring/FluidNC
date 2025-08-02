@@ -23,6 +23,15 @@ The fix implements automatic segmentation of long moves to ensure correct belt l
 - **Selective**: Only affects XY moves; Z-only moves and rapid motions are unaffected
 - **Feed Rate Preservation**: Feed rate is properly distributed across segments to maintain timing
 
+### Technical Implementation:
+1. **Segmentation in Cartesian Space**: Uses `mc_linear()` to submit segments in cartesian coordinates
+2. **Proper Kinematic Transformation**: Each segment passes through `cartesian_to_motors()` for correct belt length computation
+3. **Recursion Prevention**: Prevents infinite loops during segmentation with internal flag
+4. **Arc-Style Processing**: Follows the same pattern as FluidNC's existing arc segmentation
+
+### Critical Fix Applied:
+The initial implementation incorrectly used `mc_move_motors()` which operates in motor space, bypassing kinematic transformation. The fix changes to `mc_linear()` which operates in cartesian space and ensures each segment gets proper kinematic transformation for accurate belt lengths.
+
 ### Configuration:
 ```yaml
 kinematics:
