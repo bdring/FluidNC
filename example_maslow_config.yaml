@@ -1,0 +1,36 @@
+# Example configuration showing belt length synchronization settings
+
+kinematics:
+  MaslowKinematics:
+    # Frame anchor coordinates (in mm)
+    tlX: -27.6      # Top left X coordinate
+    tlY: 2064.9     # Top left Y coordinate  
+    tlZ: 100.0      # Top left Z coordinate
+    trX: 2924.3     # Top right X coordinate
+    trY: 2066.5     # Top right Y coordinate
+    trZ: 56.0       # Top right Z coordinate
+    blX: 0.0        # Bottom left X coordinate
+    blY: 0.0        # Bottom left Y coordinate
+    blZ: 34.0       # Bottom left Z coordinate
+    brX: 2953.2     # Bottom right X coordinate
+    brY: 0.0        # Bottom right Y coordinate
+    brZ: 78.0       # Bottom right Z coordinate
+    
+    # Belt and arm parameters (in mm)
+    beltEndExtension: 30.0   # Belt end extension length
+    armLength: 123.4         # Router arm length
+    
+    # Belt length synchronization (NEW FEATURE)
+    maxSegmentLength: 5.0    # Maximum segment length before automatic segmentation
+                            # Smaller values = better belt tension maintenance but more computation
+                            # Larger values = less computation but potential belt slack on long moves
+                            # Recommended range: 2.0 - 10.0 mm
+
+# Configuration Notes:
+# - The maxSegmentLength parameter controls how FluidNC handles long moves
+# - Moves longer than this distance will be automatically broken into smaller segments
+# - Each segment recalculates correct belt lengths, preventing slack during long moves  
+# - This fixes the belt tension issue during long diagonal moves
+# - Only affects XY moves; Z-only moves and rapid motions are unaffected
+# - Setting too small (< 1mm) may cause excessive computation and choppy motion
+# - Setting too large (> 20mm) may not adequately solve belt slack issues
