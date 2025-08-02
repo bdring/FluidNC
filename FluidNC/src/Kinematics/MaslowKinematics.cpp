@@ -33,12 +33,16 @@ kinematics:
     brZ: 78.0
     beltEndExtension: 30.0
     armLength: 123.4
+    maxSegmentLength: 5.0
 
 This implements the cable-driven kinematics for the Maslow CNC system.
 The system has 5 axes:
 - A, B, C, D (belt motors: TL, TR, BL, BR mapped to motors 0-3)
 - Z (cartesian Z coordinate mapped to motor 4)
 
+The maxSegmentLength parameter controls belt length synchronization during long moves.
+Moves longer than this distance (in mm) will be automatically segmented to ensure
+correct belt lengths are computed at intermediate points, preventing belt slack.
 */
 
 namespace Kinematics {
@@ -80,20 +84,99 @@ namespace Kinematics {
             return false;
         }
 
+        // Calculate cartesian distance of the move (X,Y,Z only)
+        float cartesian_distance = vector_distance(target, position, 3); // Only X,Y,Z for cartesian
+        
+        // Check if this is a Z-only move by examining X,Y changes
+        float xy_distance = sqrt((target[X_AXIS] - position[X_AXIS]) * (target[X_AXIS] - position[X_AXIS]) + 
+                               (target[Y_AXIS] - position[Y_AXIS]) * (target[Y_AXIS] - position[Y_AXIS]));
+        bool is_z_only_move = (xy_distance < 0.001f); // Consider moves < 0.001mm as Z-only
+        
+        // For long XY moves, segment the path to maintain belt length synchronization
+        // This prevents linear interpolation in motor space from causing belt slack
+        if (!pl_data->motion.rapidMotion && !is_z_only_move && cartesian_distance > _maxSegmentLength) {
+            // Calculate number of segments needed
+            uint16_t segments = uint16_t(ceilf(cartesian_distance / _maxSegmentLength));
+            
+            if (segments > 1 && segments <= 100) { // Reasonable upper limit to prevent excessive segmentation
+                // Similar to arc segmentation in MotionControl.cpp
+                // Multiply inverse feed_rate to compensate for the fact that this movement is approximated
+                // by a number of discrete segments. The inverse feed_rate should be correct for the sum of
+                // all segments.
+                if (pl_data->motion.inverseTime) {
+                    pl_data->feed_rate *= segments;
+                    pl_data->motion.inverseTime = 0;  // Force as feed absolute mode over segments.
+                }
+                
+                // Calculate increments per segment
+                float increment_per_segment[MAX_N_AXIS];
+                for (size_t axis = 0; axis < n_axis && axis < MAX_N_AXIS; axis++) {
+                    increment_per_segment[axis] = (target[axis] - position[axis]) / segments;
+                }
+                
+                // Current position for segmentation
+                float segment_position[MAX_N_AXIS];
+                for (size_t axis = 0; axis < n_axis && axis < MAX_N_AXIS; axis++) {
+                    segment_position[axis] = position[axis];
+                }
+                
+                float original_feedrate = pl_data->feed_rate;  // Save original for proper distribution
+                
+                // Submit each segment except the last one
+                for (uint16_t i = 1; i < segments; i++) {
+                    // Calculate intermediate target position
+                    float intermediate_target[MAX_N_AXIS];
+                    for (size_t axis = 0; axis < n_axis && axis < MAX_N_AXIS; axis++) {
+                        intermediate_target[axis] = position[axis] + (increment_per_segment[axis] * i);
+                    }
+                    
+                    // Create a copy of plan data for this segment
+                    plan_line_data_t segment_pl_data = *pl_data;
+                    segment_pl_data.feed_rate = original_feedrate; // Reset to original before scaling
+                    
+                    // Transform and submit this segment
+                    float motors[n_axis];
+                    transform_cartesian_to_motors(motors, intermediate_target);
+                    
+                    // Scale feed rate for this segment
+                    if (cartesian_distance > 0) {
+                        float segment_cartesian_distance = vector_distance(intermediate_target, segment_position, 3);
+                        float last_motors[n_axis];
+                        transform_cartesian_to_motors(last_motors, segment_position);
+                        float segment_motor_distance = vector_distance(motors, last_motors, n_axis);
+                        
+                        if (segment_cartesian_distance > 0) {
+                            segment_pl_data.feed_rate = segment_pl_data.feed_rate * segment_motor_distance / segment_cartesian_distance;
+                        }
+                    }
+                    
+                    // Submit this segment to the planner
+                    if (!mc_move_motors(motors, &segment_pl_data)) {
+                        return false; // If any segment fails, fail the whole move
+                    }
+                    
+                    // Update segment position for next iteration
+                    for (size_t axis = 0; axis < n_axis && axis < MAX_N_AXIS; axis++) {
+                        segment_position[axis] = intermediate_target[axis];
+                    }
+                }
+                
+                // Fall through to handle the final segment to the target position
+                // Update position to be the last segment position for final segment calculation
+                for (size_t axis = 0; axis < n_axis && axis < MAX_N_AXIS; axis++) {
+                    position[axis] = segment_position[axis];
+                }
+                
+                // Reset feed rate for final segment
+                pl_data->feed_rate = original_feedrate;
+            }
+        }
+        
+        // Handle the final segment (or the entire move if no segmentation was needed)
         float motors[n_axis];
         transform_cartesian_to_motors(motors, target);
 
-        if (!pl_data->motion.rapidMotion) {
-            // Calculate vector distance of the motion in cartesian coordinates (X,Y,Z only)
-            float cartesian_distance = vector_distance(target, position, 3); // Only X,Y,Z for cartesian
-            
-            if (cartesian_distance > 0) {
-
-            // Check if this is a Z-only move by examining X,Y changes
-            float xy_distance = sqrt((target[X_AXIS] - position[X_AXIS]) * (target[X_AXIS] - position[X_AXIS]) + 
-                                   (target[Y_AXIS] - position[Y_AXIS]) * (target[Y_AXIS] - position[Y_AXIS]));
-            bool is_z_only_move = (xy_distance < 0.001f); // Consider moves < 0.001mm as Z-only
-
+        if (!pl_data->motion.rapidMotion && cartesian_distance > 0) {
             if (is_z_only_move) {
                 // For Z-only moves: Scale feed rate by Z motor movement ratio
                 // The Z motor moves directly with cartesian Z, so ratio should be 1:1,
@@ -118,9 +201,11 @@ namespace Kinematics {
                 
                 // Calculate distance considering all belt motors for proper feed rate scaling
                 float motor_distance = vector_distance(motors, last_motors, n_axis);
+                float current_cartesian_distance = vector_distance(target, position, 3);
                 
-                pl_data->feed_rate = pl_data->feed_rate * motor_distance / cartesian_distance;
-            }
+                if (current_cartesian_distance > 0) {
+                    pl_data->feed_rate = pl_data->feed_rate * motor_distance / current_cartesian_distance;
+                }
             }
         }
 
@@ -351,6 +436,7 @@ namespace Kinematics {
         handler.item("brZ", _brZ);
         handler.item("beltEndExtension", _beltEndExtension);
         handler.item("armLength", _armLength);
+        handler.item("maxSegmentLength", _maxSegmentLength);
     }
 
     // Setter methods for calibration system to update frame parameters
