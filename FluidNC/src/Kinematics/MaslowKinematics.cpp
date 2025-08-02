@@ -12,6 +12,7 @@
 #include "../NutsBolts.h"
 #include "../MotionControl.h"
 #include <cmath>
+#include <algorithm>
 #include "../Maslow/Maslow.h"
 
 /*
@@ -98,11 +99,23 @@ namespace Kinematics {
         // Apply to both feed moves and rapid moves to ensure consistent belt tension
         if (!_isSegmenting && !is_z_only_move && cartesian_distance > _maxSegmentLength) {
             log_info("MaslowKinematics: Segmenting long move of " << cartesian_distance << "mm into smaller segments");
-            // Calculate number of segments needed
-            uint16_t segments = uint16_t(ceilf(cartesian_distance / _maxSegmentLength));
             
-            if (segments > 1 && segments <= 100) { // Reasonable upper limit to prevent excessive segmentation
-                log_info("MaslowKinematics: Breaking move into " << segments << " segments");
+            // For very long moves, use smaller segments to minimize belt slack
+            // Adaptive segmentation: longer moves need smaller segments due to increased kinematic non-linearity
+            float effectiveSegmentLength = _maxSegmentLength;
+            if (cartesian_distance > 100.0f) {
+                // For moves longer than 100mm, progressively smaller segments
+                // Formula: smaller segments for longer moves to minimize non-linear interpolation errors
+                float scaleFactor = 100.0f / cartesian_distance; // Gets smaller as distance increases
+                effectiveSegmentLength = _maxSegmentLength * scaleFactor;
+                effectiveSegmentLength = std::max(effectiveSegmentLength, 1.0f); // Minimum 1mm segments
+            }
+            
+            // Calculate number of segments needed with adaptive length
+            uint16_t segments = uint16_t(ceilf(cartesian_distance / effectiveSegmentLength));
+            
+            if (segments > 1 && segments <= 1000) { // Increased limit for better belt synchronization
+                log_info("MaslowKinematics: Breaking move into " << segments << " segments (effective length: " << effectiveSegmentLength << "mm)");
                 // Set flag to prevent recursion
                 _isSegmenting = true;
                 

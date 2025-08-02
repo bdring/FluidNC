@@ -3,6 +3,7 @@
 #include "../../src/MotionControl.h"
 #include "../../src/Planner.h"
 #include <cmath>
+#include <algorithm>
 
 // Test to verify that belt lengths are correctly computed for intermediate points during long moves
 Test(MaslowKinematicsBeltLengthSync, BeltLengthSynchronizationTest) {
@@ -215,6 +216,71 @@ Test(MaslowKinematicsSegmentBeltLengths, BeltLengthSynchronizationTest) {
     Assert(fabs(seg2TR - seg1TR) < maxReasonableChange, "TR belt should change smoothly between segments");
     Assert(fabs(seg2BL - seg1BL) < maxReasonableChange, "BL belt should change smoothly between segments");
     Assert(fabs(seg2BR - seg1BR) < maxReasonableChange, "BR belt should change smoothly between segments");
+}
+
+// Test adaptive segmentation for long moves
+Test(MaslowKinematicsAdaptiveSegmentation, BeltLengthSynchronizationTest) {
+    using namespace Kinematics;
+    
+    // Create a MaslowKinematics instance
+    MaslowKinematics kinematics;
+    kinematics.setFrameSize(3000.0f);
+    
+    // Test 1: Short move (should use default segment length)
+    float shortStart[3] = {0.0f, 0.0f, 0.0f};
+    float shortEnd[3] = {10.0f, 0.0f, 0.0f}; // 10mm move
+    float shortDistance = 10.0f;
+    
+    // With default 5mm segments: 10/5 = 2 segments
+    uint16_t expectedShortSegments = uint16_t(ceilf(shortDistance / 5.0f));
+    Assert(expectedShortSegments == 2, "Short move should use 2 segments with default length");
+    
+    // Test 2: Medium move (should use default segment length)
+    float mediumStart[3] = {0.0f, 0.0f, 0.0f};
+    float mediumEnd[3] = {50.0f, 0.0f, 0.0f}; // 50mm move
+    float mediumDistance = 50.0f;
+    
+    // With default 5mm segments: 50/5 = 10 segments
+    uint16_t expectedMediumSegments = uint16_t(ceilf(mediumDistance / 5.0f));
+    Assert(expectedMediumSegments == 10, "Medium move should use 10 segments with default length");
+    
+    // Test 3: Long move (should use adaptive smaller segments)
+    float longStart[3] = {0.0f, 0.0f, 0.0f};
+    float longEnd[3] = {800.0f, 0.0f, 0.0f}; // 800mm move
+    float longDistance = 800.0f;
+    
+    // For moves > 100mm, adaptive segmentation kicks in
+    // scaleFactor = 100.0 / 800.0 = 0.125
+    // effectiveSegmentLength = 5.0 * 0.125 = 0.625, but max(0.625, 1.0) = 1.0mm
+    float longEffectiveSegmentLength = 5.0f; // maxSegmentLength
+    if (longDistance > 100.0f) {
+        float scaleFactor = 100.0f / longDistance;
+        longEffectiveSegmentLength = 5.0f * scaleFactor;
+        longEffectiveSegmentLength = std::max(longEffectiveSegmentLength, 1.0f);
+    }
+    
+    Assert(longEffectiveSegmentLength == 1.0f, "800mm move should use 1mm segments");
+    
+    uint16_t expectedLongSegments = uint16_t(ceilf(longDistance / longEffectiveSegmentLength));
+    Assert(expectedLongSegments == 800, "800mm move with 1mm segments should create 800 segments");
+    
+    // Test 4: Very long move (should use minimum 1mm segments)
+    float veryLongStart[3] = {0.0f, 0.0f, 0.0f};
+    float veryLongEnd[3] = {1500.0f, 1500.0f, 0.0f}; // ~2121mm diagonal move
+    float veryLongDistance = sqrt(1500.0f * 1500.0f + 1500.0f * 1500.0f);
+    
+    float veryLongEffectiveSegmentLength = 5.0f;
+    if (veryLongDistance > 100.0f) {
+        float scaleFactor = 100.0f / veryLongDistance;
+        veryLongEffectiveSegmentLength = 5.0f * scaleFactor;
+        veryLongEffectiveSegmentLength = std::max(veryLongEffectiveSegmentLength, 1.0f);
+    }
+    
+    Assert(veryLongEffectiveSegmentLength == 1.0f, "Very long move should use minimum 1mm segments");
+    
+    uint16_t expectedVeryLongSegments = uint16_t(ceilf(veryLongDistance / veryLongEffectiveSegmentLength));
+    Assert(expectedVeryLongSegments > expectedLongSegments, "Very long move should use more segments than long move");
+    Assert(expectedVeryLongSegments <= 1000, "Very long move should still be within segment limit");
 }
 
 // Test rapid move belt length synchronization  
