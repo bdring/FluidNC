@@ -43,8 +43,9 @@ namespace Machine {
     }
 
     void LimitPin::init() {
-        _pLimited = Stepping::limit_var(_axis, _motorNum);
         EventPin::init();
+        _pLimited = Stepping::limit_var(_axis, _motorNum);
+        trigger(_value);
     }
 
     void LimitPin::trigger(bool active) {

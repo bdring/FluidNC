@@ -25,8 +25,3 @@ void EventPin::trigger(bool active) {
         protocol_send_event(_event, this);
     }
 }
-
-void EventPin::init() {
-    InputPin::init();
-    trigger(_value);
-}
