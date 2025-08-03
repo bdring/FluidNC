@@ -31,6 +31,7 @@ protected:
 public:
     EventPin(const Event* event, const char* legend) : InputPin(legend), _event(event) {};
 
+    void init();
     void trigger(bool active) override;
 
     ~EventPin() {}
