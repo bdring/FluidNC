@@ -8,6 +8,9 @@
 #include "src/Types.h"
 #include "src/Machine/Homing.h"
 
+// Kinematics types.
+#define tangential_knife_kinematics
+
 /*
 Special types
 
