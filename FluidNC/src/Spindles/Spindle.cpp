@@ -26,9 +26,8 @@ namespace Spindles {
         }
         if (!_atc_name.empty()) {
             _atc_info = " atc: '" + _atc_name + "' not found";
-            return;
         }
-        if (!_m6_macro._gcode.empty()) {
+        else if (!_m6_macro._gcode.empty()) {
             _atc_info = " with m6_macro";
         }
     }
