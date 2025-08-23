@@ -42,19 +42,23 @@ namespace Machine {
 
         handler.section("stepping", _stepping);
 
-        handler.section("uart1", _uarts[1], 1);
-        handler.section("uart2", _uarts[2], 2);
-
-        handler.section("uart_channel1", _uart_channels[1], 1);
-        handler.section("uart_channel2", _uart_channels[2], 2);
-
+        handler.sections("uart", 1, MAX_N_UARTS, true, _uarts);
+        handler.sections("uart_channel", 1, MAX_N_UARTS, true, _uart_channels);
+#if MAX_N_I2SO
+        // We currently support only one I2S bus
         handler.section("i2so", _i2so);
-
-        handler.section("i2c0", _i2c[0], 0);
-        handler.section("i2c1", _i2c[1], 1);
-
+#endif
+#if MAX_N_I2SO
+        handler.sections("i2c", 0, MAX_N_I2C, false, _i2c);
+#endif
+#if MAX_N_SPI
+        // We currently support only one SPI bus
         handler.section("spi", _spi);
+#endif
+
+#if MAX_N_SDCARD
         handler.section("sdcard", _sdCard);
+#endif
 
         handler.section("kinematics", _kinematics);
         handler.section("axes", _axes);
@@ -109,13 +113,17 @@ namespace Machine {
             _userInputs = new UserInputs();
         }
 
+#if MAX_N_SDCARD
         if (_sdCard == nullptr) {
             _sdCard = new SDCard();
         }
+#endif
 
+#if MAX_N_SPI
         if (_spi == nullptr) {
             _spi = new SPIBus();
         }
+#endif
 
         if (_stepping == nullptr) {
             _stepping = new Stepping();
@@ -175,7 +183,7 @@ namespace Machine {
 
     void MachineConfig::load_file(const std::string_view filename) {
         try {
-            FileStream file(std::string { filename }, "r", "");
+            FileStream file(std::string { filename }, "rb", "");
 
             auto filesize = file.size();
             if (filesize <= 0) {
@@ -187,7 +195,7 @@ namespace Machine {
             buffer[filesize] = '\0';
             auto actual      = file.read(buffer.get(), filesize);
             if (actual != filesize) {
-                log_config_error("Configuration file:" << filename << " read error");
+                log_config_error("Configuration file:" << filename << " read error - expected " << filesize << " got " << actual);
                 return;
             }
             log_info("Configuration file:" << filename);
@@ -221,27 +229,25 @@ namespace Machine {
 
             log_debug("Running after-parse tasks");
 
-            try {
-                Configuration::AfterParse afterParse;
-                config->afterParse();
-                config->group(afterParse);
-            } catch (std::exception& ex) { log_error("Validation error: " << ex.what()); }
+            Configuration::AfterParse afterParse;
+            config->afterParse();
+            config->group(afterParse);
 
             log_debug("Checking configuration");
 
-            try {
-                Configuration::Validator validator;
-                config->validate();
-                config->group(validator);
-            } catch (std::exception& ex) { log_config_error("Validation error: " << ex.what()); }
+            Configuration::Validator validator;
+            config->validate();
+            config->group(validator);
 
             // log_info("Heap size after configuation load is " << uint32_t(xPortGetFreeHeapSize()));
-
         } catch (const Configuration::ParseException& ex) {
             log_config_error("Configuration parse error on line " << ex.LineNumber() << ": " << ex.What());
         } catch (const AssertionFailed& ex) {
             // Get rid of buffer and return
             log_config_error("Configuration loading failed: " << ex.what());
+        } catch (std::runtime_error& ex) {
+            // Log exception:
+            log_config_error("Configuration validation error: " << ex.what());
         } catch (std::exception& ex) {
             // Log exception:
             log_config_error("Configuration validation error: " << ex.what());
@@ -255,11 +261,17 @@ namespace Machine {
 
     MachineConfig::~MachineConfig() {
         delete _axes;
+#if MAX_N_I2SO
         delete _i2so;
+#endif
         delete _coolant;
         delete _probe;
+#if MAX_N_SDCARD
         delete _sdCard;
+#endif
+#if MAX_N_SDCARD
         delete _spi;
+#endif
         delete _control;
         delete _macros;
     }

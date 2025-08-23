@@ -1,12 +1,12 @@
 #include "Axes.h"
 
-#include "../Motors/MotorDriver.h"
-#include "../Motors/NullMotor.h"
-#include "../Config.h"
-#include "../MotionControl.h"
-#include "../Stepper.h"     // stepper_id_t
+#include "src/Motors/MotorDriver.h"
+#include "src/Motors/NullMotor.h"
+#include "src/Config.h"
+#include "src/MotionControl.h"
+#include "src/Stepper.h"  // stepper_id_t
+#include "src/Limits.h"
 #include "MachineConfig.h"  // config->
-#include "../Limits.h"
 
 const EnumItem axisType[] = { { 0, "X" }, { 1, "Y" }, { 2, "Z" }, { 3, "A" }, { 4, "B" }, { 5, "C" }, EnumItem(0) };
 
@@ -243,7 +243,7 @@ namespace Machine {
         const auto lenNames = strlen(names);
         for (int i = 0; i < lenNames; i++) {
             char        axisName = toupper(names[i]);
-            const char* pos      = index(_names, axisName);
+            const char* pos      = strchr(_names, axisName);
             if (!pos) {
                 log_error("Invalid axis name " << names[i]);
                 retval = false;

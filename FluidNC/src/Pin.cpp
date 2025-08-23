@@ -64,11 +64,12 @@ const char* Pin::parse(std::string_view pin_str, Pins::PinDetail*& pinImplementa
         pinImplementation = new Pins::GPIOPinDetail(static_cast<pinnum_t>(pin_number), parser);
         return nullptr;
     }
+#if MAX_N_I2SO
     if (string_util::equal_ignore_case(pin_type, "i2so")) {
         pinImplementation = new Pins::I2SOPinDetail(static_cast<pinnum_t>(pin_number), parser);
         return nullptr;
     }
-
+#endif
     if (string_util::starts_with_ignore_case(pin_type, "uart_channel")) {
         auto num_str     = pin_type.substr(strlen("uart_channel"));
         int  channel_num = -1;

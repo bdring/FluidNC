@@ -15,7 +15,6 @@
 #include <StreamString.h>
 #include <Update.h>
 #include <esp_wifi_types.h>
-// #include <ESP32SSDP.h>
 #include <DNSServer.h>
 
 #include "WSChannel.h"
@@ -169,11 +168,11 @@ namespace WebUI {
             SSDP.setURL("/");
             SSDP.setDeviceType("upnp:rootdevice");
             /*Any customization could be here
-        SSDP.setModelName (ESP32_MODEL_NAME);
-        SSDP.setModelURL (ESP32_MODEL_URL);
-        SSDP.setModelNumber (ESP_MODEL_NUMBER);
-        SSDP.setManufacturer (ESP_MANUFACTURER_NAME);
-        SSDP.setManufacturerURL (ESP_MANUFACTURER_URL);
+        SSDP.setModelName (MODEL_NAME);
+        SSDP.setModelURL (MODEL_URL);
+        SSDP.setModelNumber (MODEL_NUMBER);
+        SSDP.setManufacturer (MANUFACTURER_NAME);
+        SSDP.setManufacturerURL (MANUFACTURER_URL);
         */
 
             //Start SSDP
@@ -416,8 +415,8 @@ namespace WebUI {
                                   "<friendlyName>%s</friendlyName>"
                                   "<presentationURL>/</presentationURL>"
                                   "<serialNumber>%u</serialNumber>"
-                                  "<modelName>ESP32</modelName>"
-                                  "<modelNumber>Marlin</modelNumber>"
+                                  "<modelName>FluidNC</modelName>"
+                                  "<modelNumber>6x</modelNumber>"
                                   "<modelURL>http://espressif.com/en/products/hardware/esp-wroom-32/overview</modelURL>"
                                   "<manufacturer>Espressif Systems</manufacturer>"
                                   "<manufacturerURL>http://espressif.com</manufacturerURL>"
@@ -1050,8 +1049,8 @@ namespace WebUI {
                 j.begin_array("files");
                 for (auto const& dir_entry : iter) {
                     j.begin_object();
-                    j.member("name", dir_entry.path().filename());
-                    j.member("shortname", dir_entry.path().filename());
+                    j.member("name", dir_entry.path().filename().u8string());
+                    j.member("shortname", dir_entry.path().filename().u8string());
                     j.member("size", dir_entry.is_directory() ? -1 : dir_entry.file_size());
                     j.member("datetime", "");
                     j.end_object();

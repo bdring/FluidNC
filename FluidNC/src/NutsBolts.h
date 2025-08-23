@@ -56,6 +56,9 @@ const float INCH_PER_MM = (0.0393701f);
 // a pointer to the result variable. Returns true when it succeeds
 bool read_float(const char* line, size_t& pos, float& result);
 
+// Get the current "time" in millisecond ticks
+uint32_t get_ms();
+
 // Delay while checking for realtime characters and other events
 bool dwell_ms(uint32_t milliseconds, DwellMode mode = DwellMode::Dwell);
 

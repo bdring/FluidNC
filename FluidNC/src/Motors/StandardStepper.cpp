@@ -7,12 +7,9 @@
 
 #include "StandardStepper.h"
 
-#include "../Machine/MachineConfig.h"
-#include "../Stepper.h"   // ST_I2S_*
-#include "../Stepping.h"  // Stepping::_engine
-
-#include <esp32-hal-gpio.h>  // gpio
-#include <sdkconfig.h>       // CONFIG_IDF_TARGET_*
+#include "src./Machine/MachineConfig.h"
+#include "src/Stepper.h"   // ST_I2S_*
+#include "src/Stepping.h"  // Stepping::_engine
 
 using namespace Machine;
 

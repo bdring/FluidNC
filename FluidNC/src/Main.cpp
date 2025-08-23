@@ -21,14 +21,13 @@
 #    include "Module.h"
 
 #    include "Driver/localfs.h"
-#    include "esp32-hal.h"  // disableCore0WDT
 
 #    include "src/ToolChangers/atc.h"
 
 extern void make_user_commands();
 
 void setup() {
-    disableCore0WDT();
+    platform_preinit();
     try {
         timing_init();
         uartInit();  // Setup serial port
@@ -47,7 +46,6 @@ void setup() {
         settings_init();  // requires config
 
         log_info("FluidNC " << git_info << " " << git_url);
-        log_info("Compiled with ESP32 SDK:" << esp_get_idf_version());
 
         if (localfs_mount()) {
             log_error("Cannot mount a local filesystem");
@@ -74,21 +72,30 @@ void setup() {
             }
         }
 
+#    if MAX_N_I2SO
         if (config->_i2so) {
             config->_i2so->init();
         }
+#    endif
+
+#    if MAX_N_SPI
         if (config->_spi) {
             config->_spi->init();
-
+#        if MAX_N_SDCARD
             if (config->_sdCard != nullptr) {
                 config->_sdCard->init();
             }
+#        endif
         }
+#    endif
+
+#    if MAX_N_I2C
         for (size_t i = 0; i < MAX_N_I2C; i++) {
             if (config->_i2c[i]) {
                 config->_i2c[i]->init();
             }
         }
+#    endif
 
         Stepping::init();  // Configure stepper interrupt timers
 
@@ -133,6 +140,9 @@ void setup() {
 
         make_proxies();
 
+    } catch (std::runtime_error& ex) {
+        // Log exception:
+        log_config_error("Critical error in main_init: " << ex.what());
     } catch (const AssertionFailed& ex) {
         // This means something is terribly broken:
         log_config_error("Critical error in main_init: " << ex.what());
@@ -175,15 +185,5 @@ void loop() {
 }
 
 void WEAK_LINK machine_init() {}
-
-#    if 0
-int main() {
-    setup();  // setup()
-    while (1) {   // loop()
-        loop();
-    }
-    return 0;
-}
-#    endif
 
 #endif

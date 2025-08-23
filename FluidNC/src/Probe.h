@@ -49,7 +49,7 @@ public:
     bool get_state();
 
     // Returns true if the probe pin is tripped, depending on the direction (away or not)
-    bool IRAM_ATTR tripped();
+    bool tripped();
 
     ProbeEventPin& probePin() { return _probePin; }
     ProbeEventPin& toolsetterPin() { return _toolsetterPin; }

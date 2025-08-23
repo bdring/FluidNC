@@ -97,6 +97,10 @@ bool read_float(const char* line, size_t& pos, float& result) {
     return true;
 }
 
+uint32_t get_ms() {
+    return xTaskGetTickCount() * (1000 / configTICK_RATE_HZ);
+}
+
 void delay_ms(uint32_t ms) {
     vTaskDelay(ms / portTICK_PERIOD_MS);
 }

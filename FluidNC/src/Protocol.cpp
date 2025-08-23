@@ -466,7 +466,7 @@ static void protocol_do_start() {
 }
 
 static void protocol_do_alarm(void* alarmVoid) {
-    lastAlarm = (ExecAlarm)((int)alarmVoid);
+    lastAlarm = (ExecAlarm)((int)(intptr_t)alarmVoid);
     if (spindle->_off_on_alarm) {
         spindle->stop();
     }
@@ -1001,7 +1001,7 @@ static void protocol_exec_rt_suspend() {
 }
 
 static void protocol_do_feed_override(void* incrementvp) {
-    int increment = int(incrementvp);
+    int increment = int((intptr_t)incrementvp);
     int percent;
     if (increment == FeedOverride::Default) {
         percent = FeedOverride::Default;
@@ -1021,7 +1021,7 @@ static void protocol_do_feed_override(void* incrementvp) {
 }
 
 static void protocol_do_rapid_override(void* percentvp) {
-    int percent = int(percentvp);
+    int percent = intptr_t(percentvp);
     if (percent != sys.r_override) {
         sys.r_override = percent;
         update_velocities();
@@ -1031,7 +1031,7 @@ static void protocol_do_rapid_override(void* percentvp) {
 
 static void protocol_do_spindle_override(void* incrementvp) {
     int percent;
-    int increment = int(incrementvp);
+    int increment = intptr_t(incrementvp);
     if (increment == SpindleSpeedOverride::Default) {
         percent = SpindleSpeedOverride::Default;
     } else {
@@ -1057,7 +1057,7 @@ static void protocol_do_spindle_override(void* incrementvp) {
 }
 
 static void protocol_do_accessory_override(void* type) {
-    switch (int(type)) {
+    switch (int(intptr_t(type))) {
         case AccessoryOverride::SpindleStopOvr:
             // Spindle stop override allowed only while in HOLD state.
             if (state_is(State::Hold)) {

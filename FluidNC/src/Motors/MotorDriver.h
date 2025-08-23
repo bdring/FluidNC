@@ -3,11 +3,10 @@
 
 #pragma once
 
-#include "../Config.h"
-#include "../Assert.h"
-#include "../Configuration/GenericFactory.h"
-#include "../Configuration/HandlerBase.h"
-#include "../Configuration/Configurable.h"
+#include "src/Config.h"
+#include "src/Configuration/GenericFactory.h"
+#include "src/Configuration/HandlerBase.h"
+#include "src/Configuration/Configurable.h"
 
 /*
     Header file for Motor Classes

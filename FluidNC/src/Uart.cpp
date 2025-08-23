@@ -1,10 +1,6 @@
 // Copyright (c) 2021 -  Mitch Bradley
 // Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
 
-/*
- * UART driver that accesses the ESP32 hardware FIFOs directly.
- */
-
 #include "Uart.h"
 #include <Driver/fluidnc_uart.h>
 
@@ -155,7 +151,6 @@ size_t Uart::write(const uint8_t* buffer, size_t length) {
 size_t Uart::timedReadBytes(char* buffer, size_t len, TickType_t timeout) {
     int res = uart_read(_uart_num, (uint8_t*)buffer, len, timeout);
     // If res < 0, no bytes were read
-
     return res < 0 ? 0 : res;
 }
 
@@ -185,7 +180,7 @@ bool Uart::setPins(int tx_pin, int rx_pin, int rts_pin, int cts_pin) {
     return uart_pins(_uart_num, tx_pin, rx_pin, rts_pin, cts_pin);
 }
 bool Uart::flushTxTimed(TickType_t ticks) {
-    return uart_wait_output(_uart_num, ticks) != ESP_OK;
+    return !uart_wait_output(_uart_num, ticks);
 }
 
 void Uart::config_message(const char* prefix, const char* usage) {
@@ -193,7 +188,7 @@ void Uart::config_message(const char* prefix, const char* usage) {
 }
 
 int Uart::rx_buffer_available(void) {
-    return UART_FIFO_LEN - available();
+    return uart_bufavail(_uart_num);
 }
 
 int Uart::peek() {

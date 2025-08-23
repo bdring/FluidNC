@@ -1,6 +1,7 @@
 // Copyright (c) 2021 -	Stefan de Bruijn
 // Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
 
+#include "src/Config.h"
 #include "JsonGenerator.h"
 
 #include "Configurable.h"
@@ -70,7 +71,7 @@ namespace Configuration {
     void JsonGenerator::item(const char* name, uint32_t& value, const uint32_t minValue, const uint32_t maxValue) {
         enter(name);
         char buf[32];
-        utoa(value, buf, 10);
+        snprintf(buf, 32, "%u", value);
         _encoder.begin_webui(_currentPath, "I", buf, minValue, maxValue);
         _encoder.end_object();
         leave();

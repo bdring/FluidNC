@@ -1,5 +1,5 @@
 #include "dac.h"
-#include "../Capture.h"
+#include "Capture.h"
 
 #include <string>
 #include <sstream>

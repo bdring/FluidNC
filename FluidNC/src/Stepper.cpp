@@ -15,7 +15,6 @@
 #include "StepperPrivate.h"
 #include "Planner.h"
 #include "Protocol.h"
-#include <esp_attr.h>  // IRAM_ATTR
 #include <cmath>
 
 using namespace Stepper;

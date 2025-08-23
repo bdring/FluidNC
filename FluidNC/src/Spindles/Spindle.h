@@ -5,12 +5,10 @@
 
 #include <cstdint>
 
-#include "../SpindleDatatypes.h"
-#include "../Machine/Macros.h"
-
-#include "../Configuration/Configurable.h"
-#include "../Configuration/GenericFactory.h"
-
+#include "src/SpindleDatatypes.h"
+#include "src/Machine/Macros.h"
+#include "src/Configuration/Configurable.h"
+#include "src/Configuration/GenericFactory.h"
 #include "src/GCode.h"  // MaxToolNumber
 #include "src/Module.h"
 #include "src/ToolChangers/atc.h"

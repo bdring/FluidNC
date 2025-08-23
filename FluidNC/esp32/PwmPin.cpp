@@ -4,9 +4,8 @@
 /*
   PWM capabilities provided by the ESP32 LEDC controller via the ESP-IDF driver
 */
-
-#include "Driver/PwmPin.h"
 #include "src/Config.h"
+#include "Driver/PwmPin.h"
 
 #include <soc/ledc_struct.h>  // LEDC
 

@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <Driver/fluidnc_uart.h>
 
-// #include <driver/uart.h>
+#include <driver/uart.h>
 #include "fnc_idf_uart.h"
 #include <esp_ipc.h>
 #include "hal/uart_hal.h"
@@ -56,13 +56,32 @@ void uart_init(int uart_num) {
     }
 }
 
+std::map<UartData, uart_word_length_t> datalen = {
+    { UartData::Bits5, UART_DATA_5_BITS },
+    { UartData::Bits6, UART_DATA_6_BITS },
+    { UartData::Bits7, UART_DATA_7_BITS },
+    { UartData::Bits8, UART_DATA_8_BITS },
+};
+
+std::map<UartStop, uart_stop_bits_t> stopbits = {
+    { UartStop::Bits1, UART_STOP_BITS_1 },
+    { UartStop::Bits1, UART_STOP_BITS_1_5 },
+    { UartStop::Bits2, UART_STOP_BITS_2 },
+};
+
+std::map<UartParity, uart_parity_t> parity_mode = {
+    { UartParity::None, UART_PARITY_DISABLE },
+    { UartParity::Even, UART_PARITY_EVEN },
+    { UartParity::Odd, UART_PARITY_ODD },
+};
+
 void uart_mode(int uart_num, unsigned long baud, UartData dataBits, UartParity parity, UartStop stopBits) {
     uart_config_t conf;
     conf.source_clk          = UART_SCLK_APB;
     conf.baud_rate           = baud;
-    conf.data_bits           = uart_word_length_t(dataBits);
-    conf.parity              = uart_parity_t(parity);
-    conf.stop_bits           = uart_stop_bits_t(stopBits);
+    conf.data_bits           = datalen[dataBits];
+    conf.parity              = parity_mode[parity];
+    conf.stop_bits           = stopbits[stopBits];
     conf.flow_ctrl           = UART_HW_FLOWCTRL_DISABLE;
     conf.rx_flow_ctrl_thresh = 0;
 
@@ -128,6 +147,9 @@ bool uart_pins(int uart_num, int tx_pin, int rx_pin, int rts_pin, int cts_pin) {
     } else {
         return uart_set_pin(uart_num, tx_pin, rx_pin, rts_pin, cts_pin) != ESP_OK;
     }
+}
+int uart_bufavail(int uart_num) {
+    return UART_FIFO_LEN - uart_buflen(uart_num);
 }
 int uart_buflen(int uart_num) {
     size_t      size;

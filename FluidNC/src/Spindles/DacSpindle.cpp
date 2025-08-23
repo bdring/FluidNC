@@ -4,13 +4,13 @@
 /*
     DacSpindle.cpp
 
-    This uses the Analog DAC in the ESP32 to generate a voltage
+    This uses the Analog DAC to generate a voltage
     proportional to the GCode S value desired. Some spindle uses
-    a 0-5V or 0-10V value to control the spindle. You would use
-    an Op Amp type circuit to get from the 0.3.3V of the ESP32 to that voltage.
+    a 0-5V or 0-10V value to control the spindle. You might need an
+    external Op Amp type circuit to upconvert the MCU pin voltage.
 */
-#include <sdkconfig.h>
-#ifdef CONFIG_IDF_TARGET_ESP32
+#include "src/Config.h"
+#if MAX_N_DACS
 
 #    include "DacSpindle.h"
 

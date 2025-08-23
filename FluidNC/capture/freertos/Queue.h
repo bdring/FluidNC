@@ -53,3 +53,5 @@ BaseType_t xQueueGenericSend(QueueHandle_t xQueue, const void* const pvItemToQue
 #define xQueueReset(xQueue) xQueueGenericReset(xQueue, pdFALSE)
 
 #define xQueueSend(xQueue, pvItemToQueue, xTicksToWait) xQueueGenericSend((xQueue), (pvItemToQueue), (xTicksToWait), queueSEND_TO_BACK)
+
+UBaseType_t uxQueueMessagesWaiting(const QueueHandle_t xQueue);

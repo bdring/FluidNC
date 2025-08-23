@@ -1,6 +1,5 @@
 #pragma once
 
-#include "../Arduino.h"
 #include "FreeRTOS.h"
 #include "FreeRTOSTypes.h"
 
@@ -18,16 +17,20 @@ BaseType_t xTaskCreatePinnedToCore(TaskFunction_t      pvTaskCode,
 
 #define tskNO_AFFINITY INT_MAX
 
-static inline IRAM_ATTR BaseType_t xTaskCreate(TaskFunction_t      pvTaskCode,
-                                               const char* const   pcName,
-                                               const uint32_t      usStackDepth,
-                                               void* const         pvParameters,
-                                               UBaseType_t         uxPriority,
-                                               TaskHandle_t* const pvCreatedTask) {
+static inline BaseType_t xTaskCreate(TaskFunction_t      pvTaskCode,
+                                     const char* const   pcName,
+                                     const uint32_t      usStackDepth,
+                                     void* const         pvParameters,
+                                     UBaseType_t         uxPriority,
+                                     TaskHandle_t* const pvCreatedTask) {
     return xTaskCreatePinnedToCore(pvTaskCode, pcName, usStackDepth, pvParameters, uxPriority, pvCreatedTask, tskNO_AFFINITY);
 }
 
 void vTaskDelayUntil(TickType_t* const pxPreviousWakeTime, const TickType_t xTimeIncrement);
+
+inline void vTaskSuspend(TaskHandle_t xTaskToSuspend) {}
+
+inline void vTaskResume(TaskHandle_t xTaskToResume) {}
 
 TickType_t xTaskGetTickCount(void);
 

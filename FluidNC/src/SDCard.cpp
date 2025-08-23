@@ -1,16 +1,17 @@
 // Copyright (c) 2018 -	Bart Dring
 // Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
 
-#include "Config.h"
+#include "src/Config.h"
+#if MAX_N_SDCARD
 
-#include "SDCard.h"
-#include "Machine/MachineConfig.h"
-#include "Channel.h"
-#include "Report.h"
+#    include "SDCard.h"
+#    include "Machine/MachineConfig.h"
+#    include "Channel.h"
+#    include "Report.h"
 
-#include "Driver/sdspi.h"
-#include "src/SettingsDefinitions.h"
-#include "FluidPath.h"
+#    include "Driver/sdspi.h"
+#    include "src/SettingsDefinitions.h"
+#    include "FluidPath.h"
 
 SDCard::SDCard() : _state(State::Idle) {}
 
@@ -54,3 +55,4 @@ void SDCard::afterParse() {
 }
 
 SDCard::~SDCard() {}
+#endif

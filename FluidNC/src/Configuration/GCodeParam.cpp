@@ -1,6 +1,7 @@
 // Copyright (c) 2021 -	Stefan de Bruijn
 // Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
 
+#include "src/Config.h"
 #include "GCodeParam.h"
 
 #include <cstdlib>

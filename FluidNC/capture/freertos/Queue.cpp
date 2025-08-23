@@ -1,5 +1,6 @@
 #include "Queue.h"
 
+#include <cstring>
 #include <atomic>
 #include <vector>
 #include <mutex>
@@ -59,4 +60,12 @@ BaseType_t xQueueGenericReset(QueueHandle_t xQueue, BaseType_t xNewQueue) {
 
 BaseType_t xQueueGenericSend(QueueHandle_t xQueue, const void* const pvItemToQueue, TickType_t xTicksToWait, BaseType_t xCopyPosition) {
     return xQueueGenericSendFromISR(xQueue, pvItemToQueue, nullptr, xCopyPosition);
+}
+
+UBaseType_t uxQueueMessagesWaiting(const QueueHandle_t xQueue) {
+    int n = xQueue->writeIndex - xQueue->readIndex;
+    if (n < 0) {
+        n += xQueue->numberItems;
+    }
+    return UBaseType_t(n / xQueue->entrySize);
 }

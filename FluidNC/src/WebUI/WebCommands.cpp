@@ -130,9 +130,6 @@ namespace WebUI {
             log_stream(out, "SDK: " << ESP.getSdkVersion());
             log_stream(out, "Flash Size: " << formatBytes(ESP.getFlashChipSize()));
 
-            // Round baudRate to nearest 100 because ESP32 can say e.g. 115201
-            //        log_stream(out, "Baud rate: " << ((Uart0.baud / 100) * 100));
-
             for (auto const& module : Modules()) {
                 module->build_info(out);
             }

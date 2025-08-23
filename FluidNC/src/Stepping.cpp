@@ -26,8 +26,8 @@ namespace Machine {
 
     AxisMask Stepping::direction_mask = 0;
 
-    bool   Stepping::_switchedStepper = false;
-    size_t Stepping::_segments        = 12;
+    bool    Stepping::_switchedStepper = false;
+    int32_t Stepping::_segments        = 12;
 
     uint32_t Stepping::_idleMsecs           = 255;
     uint32_t Stepping::_pulseUsecs          = 4;
@@ -38,15 +38,19 @@ namespace Machine {
 
     const EnumItem stepTypes[] = { { Stepping::TIMED, "Timed" },
                                    { Stepping::RMT_ENGINE, "RMT" },
+#if MAX_N_I2SO
                                    { Stepping::I2S_STATIC, "I2S_STATIC" },
                                    { Stepping::I2S_STREAM, "I2S_STREAM" },
+#endif
                                    EnumItem(Stepping::RMT_ENGINE) };
 
     void Stepping::afterParse() {
         const char* name = stepTypes[_engine].name;
         step_engine      = find_engine(name);
         Assert(step_engine, "Cannot find stepping engine for %s", name);
+#if MAX_N_I2SO
         Assert(strcmp("I2S", name) || config->_i2so, "I2SO bus must be configured for this stepping type");
+#endif
     }
 
     void Stepping::init() {

@@ -28,7 +28,7 @@ namespace Configuration {
             // The initial value for indent is -1, so when ParserHandler::enterSection()
             // is called to handle the top level of the YAML config file, tokens at
             // indent 0 will be processed.
-            TokenData() : _key({}), _value({}), _indent(-1), _state(TokenState::Bof) {}
+            TokenData() : _key(), _value(), _indent(-1), _state(TokenState::Bof) {}
             std::string_view _key;
             std::string_view _value;
             int              _indent;

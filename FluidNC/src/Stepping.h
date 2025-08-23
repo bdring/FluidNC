@@ -52,7 +52,7 @@ namespace Machine {
         // execution lead time there is for other processes to run.  The latency for a feedhold or other
         // override is roughly 10 ms times _segments.
 
-        static size_t _segments;
+        static int32_t _segments;
 
         static uint32_t _idleMsecs;
         static uint32_t _pulseUsecs;

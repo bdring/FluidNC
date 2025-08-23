@@ -8,7 +8,6 @@
 */
 
 #include "Spindle.h"
-#include "esp32-hal.h"          // millis()
 #include "src/MotionControl.h"  // mc_critical
 
 namespace Spindles {

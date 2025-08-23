@@ -26,6 +26,15 @@ inline void vTaskEnterCritical(portMUX_TYPE* mux) {
     mux->unlock();
 }
 
+inline void vTaskPrioritySet(TaskHandle_t xTask, UBaseType_t uxNewPriority) {}
+
+inline void vTaskPrioritySet(portMUX_TYPE* mux) {
+    mux->unlock();
+}
+
 inline int32_t xPortGetFreeHeapSize() {
     return 1024 * 1024 * 4;
 }
+
+#define INC_FREERTOS_H
+#define PRIVILEGED_FUNCTION

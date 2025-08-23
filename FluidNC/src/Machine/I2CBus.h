@@ -5,10 +5,6 @@
 
 #include "../Configuration/Configurable.h"
 
-#include <esp_attr.h>
-
-class TwoWire;
-
 namespace Machine {
     class I2CBus : public Configuration::Configurable {
     private:

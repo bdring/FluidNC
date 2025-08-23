@@ -1,15 +1,12 @@
 // Copyright (c) 2021 -  Stefan de Bruijn
 // Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
 
-#include <esp_attr.h>  // IRAM_ATTR
-#include "Driver/fluidnc_gpio.h"
-#include <stdexcept>
-
-#include "GPIOPinDetail.h"
-#include "src/Assert.h"
 #include "src/Config.h"
+#include "Driver/fluidnc_gpio.h"
+#include "GPIOPinDetail.h"
 #include "src/Machine/EventPin.h"
 #include "src/Protocol.h"
+#include <stdexcept>
 
 namespace Pins {
     std::vector<bool> GPIOPinDetail::_claimed(nGPIOPins, false);

@@ -1,5 +1,6 @@
 #pragma once
 #include "Channel.h"
+#include <cstdarg>
 
 class Macro {
     std::string _name;

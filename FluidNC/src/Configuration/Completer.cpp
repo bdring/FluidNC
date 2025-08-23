@@ -1,6 +1,7 @@
 // Copyright (c) 2021 -	Stefan de Bruijn
 // Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
 
+#include "src/Config.h"
 #include "Completer.h"
 #include "../Machine/MachineConfig.h"
 
@@ -48,7 +49,7 @@ namespace Configuration {
     Completer::~Completer() {}
 }
 
-#include "../Settings.h"
+#include "src/Settings.h"
 
 static bool isInitialSubstringCI(const char* key, const char* test) {
     while (*key && *test) {

@@ -8,8 +8,6 @@
 #include <string>
 #include <string_view>
 
-#include "Pin.h"
-
 std::string IP_string(uint32_t ipaddr);
 
 inline Print& operator<<(Print& lhs, char c) {
@@ -54,11 +52,6 @@ inline Print& operator<<(Print& lhs, float v) {
 
 inline Print& operator<<(Print& lhs, double v) {
     lhs.print(v, 3);
-    return lhs;
-}
-
-inline Print& operator<<(Print& lhs, const Pin& v) {
-    lhs.print(v.name().c_str());
     return lhs;
 }
 

@@ -5,6 +5,8 @@
 
 #pragma once
 
+#include "Platform.h"
+
 // This file contains compile-time configuration choices.  Most users will not need
 // to directly modify these, but they are here for unusual needs, i.e.
 // performance tuning or adjusting to non-typical machines.
@@ -45,11 +47,6 @@ const int B2_AXIS = (B_AXIS + MAX_N_AXIS);
 const int C2_AXIS = (C_AXIS + MAX_N_AXIS);
 
 const int SUPPORT_TASK_CORE = 0;  // Reference: CONFIG_ARDUINO_RUNNING_CORE = 1
-
-// Serial baud rate
-// OK to change, but the ESP32 boot text is 115200, so you will not see that is your
-// serial monitor, sender, etc uses a different value than 115200
-const int BAUD_RATE = 115200;
 
 //Connect to your local AP with these credentials
 //#define CONNECT_TO_SSID  "your SSID"
@@ -211,6 +208,6 @@ const bool FORCE_BUFFER_SYNC_DURING_WCO_CHANGE = true;  // Default enabled. Comm
 // repeatable. If needed, you can disable this behavior by uncommenting the define below.
 const bool ALLOW_FEED_OVERRIDE_DURING_PROBE_CYCLES = false;
 
-const int MAX_N_I2C = 2;
-
 #include "NutsBolts.h"
+
+#include "Assert.h"

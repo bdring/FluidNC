@@ -79,6 +79,17 @@ namespace Configuration {
         }
 
         template <typename T>
+        void sections(const char* name, int first_section, int limit_section, bool omit0, T* array) {
+            for (int i = first_section; i < limit_section; i++) {
+                std::string section_name(name);
+                if (i || !omit0) {
+                    section_name += std::to_string(i);
+                }
+                section(section_name.c_str(), array[i], i);
+            }
+        }
+
+        template <typename T>
         void enterFactory(const char* name, T& value) {
             enterSection(name, &value);
         }

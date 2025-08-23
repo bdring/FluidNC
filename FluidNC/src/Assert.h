@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include "StackTrace/AssertionFailed.h"
+#include "AssertionFailed.h"
 
 class AssertionFailed;
 

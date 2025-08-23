@@ -1,6 +1,6 @@
 #include "uart.h"
 
-#include "../Capture.h"
+#include "Capture.h"
 #include "../esp_err.h"
 
 #include <sstream>

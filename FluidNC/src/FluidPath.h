@@ -1,6 +1,5 @@
 #pragma once
 
-#include <Arduino.h>
 #include <filesystem>
 #include <string>
 #include "Driver/localfs.h"
@@ -33,3 +32,9 @@ private:
     static int _refcnt;
     bool       _isSD = false;
 };
+
+#include <Print.h>
+inline Print& operator<<(Print& lhs, FluidPath path) {
+    lhs.print(path.u8string().c_str());
+    return lhs;
+}

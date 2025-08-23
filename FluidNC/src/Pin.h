@@ -3,19 +3,18 @@
 
 #pragma once
 
+#include "src/Config.h"
 #include "Pins/PinDetail.h"
 
-#include <esp_attr.h>  // IRAM_ATTR
 #include <cstdint>
 #include <string>
 #include <cstring>
 #include <utility>
 #include <string_view>
-#include "Assert.h"
 
 // #define DEBUG_PIN_DUMP  // Pin debugging. WILL spam you with a lot of data!
 
-// Pin class. A pin is basically a thing that can 'output', 'input' or do both. GPIO on an ESP32 comes to mind,
+// Pin class. A pin is basically a thing that can 'output', 'input' or do both.
 // but there are way more possible pins. Think about I2S/I2C/SPI extenders, RS485 driven pin devices and even
 // WiFi wall sockets.
 //
@@ -146,3 +145,9 @@ public:
 
     ~Pin();
 };
+
+#include <Print.h>
+inline Print& operator<<(Print& lhs, const Pin& v) {
+    lhs.print(v.name().c_str());
+    return lhs;
+}

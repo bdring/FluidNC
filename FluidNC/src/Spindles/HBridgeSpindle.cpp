@@ -2,9 +2,8 @@
 // Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
 
 #include "HBridgeSpindle.h"
-
-#include "../GCode.h"   // gc_state.modal
-#include "../System.h"  // sys
+#include "src/GCode.h"   // gc_state.modal
+#include "src/System.h"  // sys
 
 namespace Spindles {
     void HBridge::init() {

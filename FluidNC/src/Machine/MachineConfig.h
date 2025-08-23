@@ -4,7 +4,6 @@
 
 #pragma once
 
-#include "src/Assert.h"
 #include "src/Configuration/GenericFactory.h"
 #include "src/Configuration/HandlerBase.h"
 #include "src/Configuration/Configurable.h"
@@ -60,21 +59,25 @@ namespace Machine {
     public:
         MachineConfig() = default;
 
-        Axes*           _axes           = nullptr;
-        Kinematics*     _kinematics     = nullptr;
-        SPIBus*         _spi            = nullptr;
-        I2CBus*         _i2c[MAX_N_I2C] = { nullptr };
-        I2SOBus*        _i2so           = nullptr;
-        Stepping*       _stepping       = nullptr;
-        CoolantControl* _coolant        = nullptr;
-        Probe*          _probe          = nullptr;
-        Control*        _control        = nullptr;
-        UserOutputs*    _userOutputs    = nullptr;
-        UserInputs*     _userInputs     = nullptr;
-        SDCard*         _sdCard         = nullptr;
-        Macros*         _macros         = nullptr;
-        Start*          _start          = nullptr;
-        Parking*        _parking        = nullptr;
+        Axes*       _axes       = nullptr;
+        Kinematics* _kinematics = nullptr;
+        SPIBus*     _spi        = nullptr;
+#if MAX_N_I2C
+        I2CBus* _i2c[MAX_N_I2C] = { nullptr };
+#endif
+#if MAX_N_I2SO
+        I2SOBus* _i2so = nullptr;
+#endif
+        Stepping*       _stepping    = nullptr;
+        CoolantControl* _coolant     = nullptr;
+        Probe*          _probe       = nullptr;
+        Control*        _control     = nullptr;
+        UserOutputs*    _userOutputs = nullptr;
+        UserInputs*     _userInputs  = nullptr;
+        SDCard*         _sdCard      = nullptr;
+        Macros*         _macros      = nullptr;
+        Start*          _start       = nullptr;
+        Parking*        _parking     = nullptr;
 
         UartChannel* _uart_channels[MAX_N_UARTS] = { nullptr };
         Uart*        _uarts[MAX_N_UARTS]         = { nullptr };
@@ -84,7 +87,7 @@ namespace Machine {
         bool  _verboseErrors     = true;
         bool  _reportInches      = false;
 
-        size_t _planner_blocks = 16;
+        int32_t _planner_blocks = 16;
 
         // Enables a special set of M-code commands that enables and disables the parking motion.
         // These are controlled by `M56`, `M56 P1`, or `M56 Px` to enable and `M56 P0` to disable.

@@ -3,8 +3,7 @@
 
 #include "DebugPinDetail.h"
 
-#include "../UartChannel.h"
-#include <esp32-hal.h>  // millis()
+#include "src/UartChannel.h"
 
 namespace Pins {
 

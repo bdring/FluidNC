@@ -1,6 +1,6 @@
 #include "PlasmaSpindle.h"
 
-#include "../System.h"  // sys.abort
+#include "src/System.h"  // sys.abort
 
 /*
 
@@ -84,8 +84,8 @@ namespace Spindles {
     }
 
     bool IRAM_ATTR PlasmaSpindle::wait_for_arc_ok() {
-        uint32_t wait_until_ms = millis() + _max_arc_wait;
-        while (millis() < wait_until_ms) {
+        uint32_t wait_until_ms = get_ms() + _max_arc_wait;
+        while (get_ms() < wait_until_ms) {
             if (_arcOkEventPin.get()) {
                 _arc_on = true;
                 return true;

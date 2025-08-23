@@ -1,6 +1,5 @@
 #include "OnOffSpindle.h"
-
-#include "../System.h"  // sys.abort
+#include "src/System.h"  // sys.abort
 
 namespace Spindles {
 

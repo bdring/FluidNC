@@ -7,7 +7,8 @@
 
 #include <string_view>
 #include <map>
-#include <nvs.h>
+#include <Driver/NVS.h>
+#include <functional>
 
 // forward declarations
 namespace Machine {
@@ -109,6 +110,8 @@ public:
     bool          synchronous() { return _synchronous; }
 };
 
+extern NVS nvs;
+
 class Setting : public Word {
 private:
 protected:
@@ -117,8 +120,7 @@ protected:
     const char* _keyName;
 
 public:
-    static nvs_handle _handle;
-    static void       init();
+    static void init();
 
     // Setting::List is a vector of all settings,
     // so common code can enumerate them.
@@ -127,37 +129,24 @@ public:
     Error check_state();
 
     static Error report_nvs_stats(const char* value, AuthenticationLevel auth_level, Channel& out) {
-        nvs_stats_t stats;
-        if (esp_err_t err = nvs_get_stats(NULL, &stats)) {
+        size_t used, free, total;
+        if (nvs.get_stats(used, free, total)) {
             return Error::NvsGetStatsFailed;
         }
 
-        log_info("NVS Used:" << stats.used_entries << " Free:" << stats.free_entries << " Total:" << stats.total_entries);
-#if 0  // The SDK we use does not have this yet
-        nvs_iterator_t it = nvs_entry_find(NULL, NULL, NVS_TYPE_ANY);
-        while (it != NULL) {
-            nvs_entry_info_t info;
-            nvs_entry_info(it, &info);
-            it = nvs_entry_next(it);
-            log_info("namespace:"<<info.namespace_name<<" key:"<<info.key<<" type:"<< info.type);
-        }
-#endif
+        log_info("NVS Used:" << used << " Free:" << free << " Total:" << total);
         return Error::Ok;
     }
 
     static Error eraseNVS(const char* value, AuthenticationLevel auth_level, Channel& out) {
-        nvs_erase_all(_handle);
+        nvs.erase_all();
         return Error::Ok;
     }
 
     ~Setting() {}
     Setting(const char* description, type_t type, permissions_t permissions, const char* grblName, const char* fullName);
-    axis_t getAxis() {
-        return _axis;
-    }
-    void setAxis(axis_t axis) {
-        _axis = axis;
-    }
+    axis_t getAxis() { return _axis; }
+    void   setAxis(axis_t axis) { _axis = axis; }
 
     // load() reads the backing store to get the current
     // value of the setting.  This could be slow so it
@@ -171,9 +160,7 @@ public:
 
     virtual Error       setStringValue(std::string_view s) = 0;
     virtual const char* getStringValue()                   = 0;
-    virtual const char* getCompatibleValue() {
-        return getStringValue();
-    }
+    virtual const char* getCompatibleValue() { return getStringValue(); }
     virtual const char* getDefaultString() = 0;
 };
 

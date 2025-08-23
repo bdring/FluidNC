@@ -1,7 +1,7 @@
 #include "Task.h"
 
 #include "Capture.h"
-#include "../Arduino.h"
+#include "Arduino.h"
 
 // This code is based on std::thread, which is actually incorrect. A closer representation would be to
 // use thread fibers like MS ConvertThreadToFiber and CreateFiber. That way, we can have 2 threads (one for
@@ -39,12 +39,12 @@ TickType_t xTaskGetTickCount(void) {
     return inst.current();
 }
 
-unsigned long micros() {
-    return xTaskGetTickCount() / (portTICK_PERIOD_MS / 1000);
-}
-
 unsigned long millis() {
     return xTaskGetTickCount() / portTICK_PERIOD_MS;
+}
+
+unsigned long micros() {
+    return 1000 * millis();
 }
 
 void delay(uint32_t value) {
@@ -53,4 +53,11 @@ void delay(uint32_t value) {
 
 void delayMicroseconds(uint32_t us) {
     vTaskDelay(us * (portTICK_PERIOD_MS / 1000));  // delay a while
+}
+
+void cleanupThreads() {
+    for (auto const& thread : threads) {
+        // This lets the OS destroy the thread silently on exit
+        thread->detach();
+    }
 }
