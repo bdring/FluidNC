@@ -5,10 +5,10 @@
 #include "Parser.h"
 
 #include "ParseException.h"
-#include "../EnumItem.h"
+#include "EnumItem.h"
 
-#include "../Config.h"
-#include "../string_util.h"
+#include "Config.h"
+#include "string_util.h"
 
 #include <climits>
 #include <math.h>  // round

@@ -1,6 +1,6 @@
 #include <Driver/fluidnc_uart.h>
 
-#include <src/UartTypes.h>
+#include "UartTypes.h"
 
 #include "Capture.h"
 

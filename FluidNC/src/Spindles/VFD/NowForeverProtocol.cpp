@@ -1,6 +1,6 @@
 #include "NowForeverProtocol.h"
 
-#include "../VFDSpindle.h"
+#include "Spindles/VFDSpindle.h"
 
 namespace Spindles {
     namespace VFD {

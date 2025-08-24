@@ -2,7 +2,7 @@
 // Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
 
 #include "atc_manual.h"
-#include "../Machine/MachineConfig.h"
+#include "Machine/MachineConfig.h"
 #include <cstdio>
 #include <iostream>
 
@@ -162,8 +162,8 @@ namespace ATCs {
         _is_OK                   = true;
         _have_tool_setter_offset = false;
         _prev_tool               = gc_state.selected_tool;  // Double check this
-        _macro.addf("G43.1Z0");                    // reset the TLO to 0
-        _macro.addf("(MSG: TLO Z reset to 0)");    //
+        _macro.addf("G43.1Z0");                             // reset the TLO to 0
+        _macro.addf("(MSG: TLO Z reset to 0)");             //
     }
 
     void Manual_ATC::move_to_change_location() {

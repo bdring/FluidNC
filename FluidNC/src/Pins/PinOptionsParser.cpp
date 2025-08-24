@@ -2,7 +2,7 @@
 // Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
 
 #include "PinOptionsParser.h"
-#include "../string_util.h"
+#include "string_util.h"
 
 #include <cstring>
 #include <cctype>

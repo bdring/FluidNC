@@ -1,10 +1,10 @@
 #include "ParallelDelta.h"
 
-#include "../Machine/MachineConfig.h"
-#include "../Limits.h"  // ambiguousLimit()
-#include "../Machine/Homing.h"
+#include "Machine/MachineConfig.h"
+#include "Limit.h"  // ambiguousLimit()
+#include "Machine/Homing.h"
 
-#include "../Protocol.h"  // protocol_execute_realtime
+#include "Protocol.h"  // protocol_execute_realtime
 
 #include <cmath>
 

@@ -4,9 +4,9 @@
 
 #pragma once
 
-#include "src/Configuration/Configurable.h"
-#include "src/System.h"    // AxisMask, MotorMask
-#include "src/Protocol.h"  // ExecAlarm
+#include "Configuration/Configurable.h"
+#include "System.h"    // AxisMask, MotorMask
+#include "Protocol.h"  // ExecAlarm
 #include <queue>
 
 namespace Machine {

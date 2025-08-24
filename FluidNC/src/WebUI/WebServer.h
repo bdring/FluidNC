@@ -3,10 +3,10 @@
 
 #pragma once
 
-#include "src/FileStream.h"
+#include "FileStream.h"
 
-#include "src/Settings.h"
-#include "src/Module.h"
+#include "Settings.h"
+#include "Module.h"
 
 #include "Authentication.h"  // AuthenticationLevel
 

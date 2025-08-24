@@ -21,10 +21,10 @@
 #include "VFDSpindle.h"
 #include "VFD/VFDProtocol.h"
 
-#include "src/Machine/MachineConfig.h"
-#include "src/Protocol.h"  // rtAlarm
-#include "src/Report.h"    // hex message
-#include "src/Configuration/HandlerType.h"
+#include "Machine/MachineConfig.h"
+#include "Protocol.h"  // rtAlarm
+#include "Report.h"    // hex message
+#include "Configuration/HandlerType.h"
 
 #include <freertos/task.h>
 #include <freertos/queue.h>

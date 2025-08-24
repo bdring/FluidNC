@@ -3,14 +3,14 @@
 
 #pragma once
 
-#include "src/Config.h"
+#include "Config.h"
 
-#include "src/Configuration/Configurable.h"
+#include "Configuration/Configurable.h"
 
-#include "src/Channel.h"
-#include "src/Module.h"
+#include "Channel.h"
+#include "Module.h"
 #include "atc.h"
-#include "../Machine/Macros.h"
+#include "Machine/Macros.h"
 
 namespace ATCs {
     class Manual_ATC : public ATC {

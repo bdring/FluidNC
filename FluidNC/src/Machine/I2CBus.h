@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include "../Configuration/Configurable.h"
+#include "Configuration/Configurable.h"
 
 namespace Machine {
     class I2CBus : public Configuration::Configurable {

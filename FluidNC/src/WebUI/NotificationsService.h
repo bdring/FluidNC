@@ -3,8 +3,8 @@
 
 #pragma once
 
-#include "src/Module.h"  // Module
-#include "src/WebUI/Authentication.h"
+#include "Module.h"  // Module
+#include "WebUI/Authentication.h"
 
 #include <cstdint>
 

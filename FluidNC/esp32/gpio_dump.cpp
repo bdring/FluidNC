@@ -3,7 +3,7 @@
 #include "driver/gpio.h"
 #include "hal/gpio_hal.h"
 #include <vector>
-#include "src/Protocol.h"
+#include "Protocol.h"
 
 // Support functions for gpio_dump
 static int exists(gpio_num_t gpio) {

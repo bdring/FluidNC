@@ -1,11 +1,11 @@
 // Copyright 2022 - Mitch Bradley
 // Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
 
-#include "src/Config.h"
-#include "src/Uart.h"
-#include "src/Protocol.h"
+#include "Config.h"
+#include "Uart.h"
+#include "Protocol.h"
 #include "Driver/fluidnc_gpio.h"
-#include "src/Pin.h"
+#include "Pin.h"
 
 #include "driver/gpio.h"
 #include "hal/gpio_hal.h"

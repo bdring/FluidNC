@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include "src/Config.h"
+#include "Config.h"
 #include "Pins/PinDetail.h"
 
 #include <cstdint>

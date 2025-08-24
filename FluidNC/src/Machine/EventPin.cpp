@@ -1,7 +1,7 @@
 #include "EventPin.h"
-#include "src/Report.h"
+#include "Report.h"
 
-#include "src/Protocol.h"  // protocol_send_event
+#include "Protocol.h"  // protocol_send_event
 
 void InputPin::init() {
     if (undefined()) {

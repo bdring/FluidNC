@@ -3,10 +3,10 @@
 
 #include "BTConfig.h"
 
-#include "src/Machine/MachineConfig.h"
-#include "src/Report.h"  // CLIENT_*
-#include "src/Channel.h"
-#include "src/Logging.h"
+#include "Machine/MachineConfig.h"
+#include "Report.h"  // CLIENT_*
+#include "Channel.h"
+#include "Logging.h"
 
 #include "esp_bt.h"
 #include "esp_bt_main.h"

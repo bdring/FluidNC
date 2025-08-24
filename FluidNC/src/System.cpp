@@ -10,7 +10,7 @@
 #include "Report.h"                 // report_ovr_counter
 #include "Config.h"                 // MAX_N_AXIS
 #include "Machine/MachineConfig.h"  // config
-#include "src/Stepping.h"           // config
+#include "Stepping.h"               // config
 
 #include <cstring>  // memset
 #include <cmath>    // roundf

@@ -7,7 +7,7 @@
 
 #include "Machine/MachineConfig.h"
 #include "Machine/Homing.h"  // run_cycles
-#include "Limits.h"          // limits_soft_check
+#include "Limit.h"           // limits_soft_check
 #include "Report.h"          // report_over_counter
 #include "Protocol.h"        // protocol_execute_realtime
 #include "Planner.h"         // plan_reset, etc

@@ -15,10 +15,10 @@
 
 #include "Dynamixel2.h"
 
-#include "../Machine/MachineConfig.h"
-#include "../System.h"   // mpos_to_steps() etc
-#include "../Limits.h"   // limitsMinPosition
-#include "../Planner.h"  // plan_sync_position()
+#include "Machine/MachineConfig.h"
+#include "System.h"   // mpos_to_steps() etc
+#include "Limit.h"    // limitsMinPosition
+#include "Planner.h"  // plan_sync_position()
 
 #include <cstdarg>
 #include <cmath>

@@ -3,12 +3,12 @@
 
 #include "WSChannel.h"
 
-#include "src/UartChannel.h"
+#include "UartChannel.h"
 #include "WebServer.h"
 #include <WebSocketsServer.h>
 #include <WiFi.h>
 
-#include "src/Serial.h"  // is_realtime_command
+#include "Serial.h"  // is_realtime_command
 
 namespace WebUI {
     class WSChannels;

@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include "../Configuration/Configurable.h"
-#include "../GCode.h"  // MaxUserDigitalPin MaxUserAnalogPin
+#include "Configuration/Configurable.h"
+#include "GCode.h"  // MaxUserDigitalPin MaxUserAnalogPin
 
 namespace Machine {
     class UserOutputs : public Configuration::Configurable {

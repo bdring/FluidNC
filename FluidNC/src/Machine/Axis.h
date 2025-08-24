@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "../Configuration/Configurable.h"
+#include "Configuration/Configurable.h"
 // #include "Axes.h"
 #include "Motor.h"
 #include "Homing.h"

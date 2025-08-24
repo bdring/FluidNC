@@ -14,7 +14,7 @@
 #include "Report.h"
 #include "MotionControl.h"
 #include "System.h"
-#include "Limits.h"               // homingAxes
+#include "Limit.h"                // homingAxes
 #include "SettingsDefinitions.h"  // build_info
 #include "Protocol.h"             // LINE_BUFFER_SIZE
 #include "UartChannel.h"          // Uart0.write()

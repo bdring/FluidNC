@@ -1,7 +1,7 @@
 #pragma once
 
 #include <cstdint>
-#include "../Spindle.h"
+#include "Spindles/Spindle.h"
 
 namespace Spindles {
     class VFDSpindle;

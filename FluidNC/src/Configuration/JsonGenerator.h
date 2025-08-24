@@ -6,10 +6,10 @@
 #include <vector>
 #include <stack>
 
-#include "../Pin.h"
+#include "Pin.h"
 #include "HandlerBase.h"
 
-#include "src/JSONEncoder.h"
+#include "JSONEncoder.h"
 
 namespace Configuration {
     class Configurable;

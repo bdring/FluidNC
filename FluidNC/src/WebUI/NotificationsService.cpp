@@ -12,10 +12,10 @@
 // - https://github.com/CosmicBoris/ESP8266SMTP
 // - https://www.electronicshub.org/send-an-email-using-esp8266/
 
-#include "src/Settings.h"
+#include "Settings.h"
 #include "NotificationsService.h"
 
-#include "src/Machine/MachineConfig.h"
+#include "Machine/MachineConfig.h"
 
 #include <WiFiClientSecure.h>
 #include <base64.h>

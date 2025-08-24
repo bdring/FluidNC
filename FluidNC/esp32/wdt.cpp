@@ -4,7 +4,7 @@
 #include "wdt.h"
 #include "esp_task_wdt.h"
 #include <freertos/FreeRTOS.h>
-#include "src/Config.h"
+#include "Config.h"
 
 static TaskHandle_t wdt_task_handle = nullptr;
 

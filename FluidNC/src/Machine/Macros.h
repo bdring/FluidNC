@@ -4,8 +4,8 @@
 
 #pragma once
 
-#include "src/Configuration/Configurable.h"
-#include "src/Event.h"
+#include "Configuration/Configurable.h"
+#include "Event.h"
 // #include <algorithm>  // std::replace()
 
 class MacroEvent : public Event {

@@ -1,12 +1,12 @@
 #pragma once
 
 // Kinematics interface.
-#include "src/Configuration/Configurable.h"
-#include "src/Configuration/GenericFactory.h"
-#include "src/MotionControl.h"
-#include "src/Planner.h"
-#include "src/Types.h"
-#include "src/Machine/Homing.h"
+#include "Configuration/Configurable.h"
+#include "Configuration/GenericFactory.h"
+#include "MotionControl.h"
+#include "Planner.h"
+#include "Types.h"
+#include "Machine/Homing.h"
 
 /*
 Special types

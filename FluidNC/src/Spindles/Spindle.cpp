@@ -6,8 +6,8 @@
 */
 #include "Spindle.h"
 
-#include "../System.h"  //sys.spindle_speed_ovr
-#include "src/UartChannel.h"
+#include "System.h"  //sys.spindle_speed_ovr
+#include "UartChannel.h"
 
 Spindles::Spindle* spindle = nullptr;
 

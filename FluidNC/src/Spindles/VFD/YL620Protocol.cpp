@@ -71,7 +71,7 @@
 
 #include "YL620Protocol.h"
 
-#include "../VFDSpindle.h"
+#include "Spindles/VFDSpindle.h"
 
 #include <algorithm>
 

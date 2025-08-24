@@ -10,7 +10,7 @@
 
 class WebSocketsServer;
 
-#include "src/Channel.h"
+#include "Channel.h"
 
 namespace WebUI {
     class WSChannel : public Channel {

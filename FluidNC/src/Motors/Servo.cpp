@@ -16,7 +16,7 @@
 */
 
 #include "Servo.h"
-#include "../Machine/MachineConfig.h"
+#include "Machine/MachineConfig.h"
 
 #include <atomic>
 

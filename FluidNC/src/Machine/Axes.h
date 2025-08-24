@@ -4,9 +4,9 @@
 
 #pragma once
 
-#include "../Configuration/Configurable.h"
+#include "Configuration/Configurable.h"
 #include "Axis.h"
-#include "../EnumItem.h"
+#include "EnumItem.h"
 
 namespace MotorDrivers {
     class MotorDriver;

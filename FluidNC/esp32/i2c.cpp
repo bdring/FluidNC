@@ -4,7 +4,7 @@
 #include "driver/i2c.h"
 
 #include "Driver/fluidnc_i2c.h"
-#include "src/Logging.h"
+#include "Logging.h"
 
 // cppcheck-suppress unusedFunction
 bool i2c_master_init(int bus_number, pinnum_t sda_pin, pinnum_t scl_pin, uint32_t frequency) {

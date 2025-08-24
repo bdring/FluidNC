@@ -4,7 +4,7 @@
 
 #include "Kinematics.h"
 
-#include "src/Config.h"
+#include "Config.h"
 #include "Cartesian.h"
 
 namespace Kinematics {

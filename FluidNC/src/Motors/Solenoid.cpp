@@ -35,11 +35,11 @@
 
 #include "Solenoid.h"
 
-#include "../Machine/MachineConfig.h"
-#include "../System.h"      // mpos_to_steps() etc
+#include "Machine/MachineConfig.h"
+#include "System.h"         // mpos_to_steps() etc
 #include "Driver/PwmPin.h"  // pwmInit(), etc.
-#include "../Pin.h"
-#include "../Limits.h"  // limitsMaxPosition
+#include "Pin.h"
+#include "Limit.h"  // limitsMaxPosition
 
 namespace MotorDrivers {
 

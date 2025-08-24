@@ -6,7 +6,7 @@
 */
 
 #include "TrinamicSpiDriver.h"
-#include "../Machine/MachineConfig.h"
+#include "Machine/MachineConfig.h"
 #include <TMCStepper.h>  // https://github.com/teemuatlut/TMCStepper
 #include <atomic>
 

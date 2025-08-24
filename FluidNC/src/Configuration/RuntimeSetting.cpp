@@ -3,9 +3,9 @@
 
 #include "RuntimeSetting.h"
 
-#include "src/Report.h"
-#include "src/Protocol.h"  // send_line()
-#include "src/string_util.h"
+#include "Report.h"
+#include "Protocol.h"  // send_line()
+#include "string_util.h"
 
 #include <cstdlib>
 #include <atomic>

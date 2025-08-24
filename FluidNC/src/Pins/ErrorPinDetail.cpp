@@ -2,7 +2,7 @@
 // Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
 
 #include "ErrorPinDetail.h"
-#include "src/Config.h"
+#include "Config.h"
 namespace Pins {
     ErrorPinDetail::ErrorPinDetail(std::string_view descr) : PinDetail(0), _description(descr) {}
 

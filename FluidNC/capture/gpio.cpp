@@ -1,9 +1,9 @@
 // Copyright 2022 - Mitch Bradley
 // Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
 
-#include "src/Pin.h"
-#include "src/Uart.h"
-#include "src/Protocol.h"
+#include "Pin.h"
+#include "Uart.h"
+#include "Protocol.h"
 #include "Driver/fluidnc_gpio.h"
 
 #define GPIO_NUM_MAX 40

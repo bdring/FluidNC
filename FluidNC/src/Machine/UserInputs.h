@@ -3,8 +3,8 @@
 
 #pragma once
 
-#include "../Configuration/Configurable.h"
-#include "../GCode.h"
+#include "Configuration/Configurable.h"
+#include "GCode.h"
 
 #include <variant>
 #include <array>

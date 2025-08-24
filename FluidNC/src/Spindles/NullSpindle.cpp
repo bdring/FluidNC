@@ -7,7 +7,7 @@
 */
 #include "NullSpindle.h"
 
-#include "src/System.h"  // sys.spindle_speed
+#include "System.h"  // sys.spindle_speed
 
 namespace Spindles {
     // ======================= Null ==============================

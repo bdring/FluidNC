@@ -6,10 +6,10 @@
 #include <vector>
 #include <sstream>
 
-#include "src/Pin.h"
-#include "src/Report.h"    // report_gcode_modes()
-#include "src/Protocol.h"  // send_line()
-#include "src/string_util.h"
+#include "Pin.h"
+#include "Report.h"    // report_gcode_modes()
+#include "Protocol.h"  // send_line()
+#include "string_util.h"
 #include "HandlerBase.h"
 
 namespace Configuration {

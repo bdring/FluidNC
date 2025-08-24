@@ -4,9 +4,9 @@
 
 #include "Motor.h"
 
-#include "../Config.h"
-#include "../Motors/MotorDriver.h"
-#include "../Motors/NullMotor.h"
+#include "Config.h"
+#include "Motors/MotorDriver.h"
+#include "Motors/NullMotor.h"
 #include "Axes.h"
 
 namespace Machine {

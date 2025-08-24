@@ -35,8 +35,8 @@
 // This code assumes that the SPI bus has already been initialized,
 // with SCK, MOSI, and MISO pins assigned, via SPIBus.cpp
 
-#include "src/Config.h"
-#include "esp32/tmc_spi_support.h"
+#include "Config.h"
+#include "tmc_spi_support.h"
 #include <TMCStepper.h>  // https://github.com/teemuatlut/TMCStepper
 
 // Replace the library's weak definition of TMC2130Stepper::write()

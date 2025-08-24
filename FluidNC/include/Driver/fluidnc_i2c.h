@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include "src/Pins/PinDetail.h"  // pinnum_t
+#include "Pins/PinDetail.h"  // pinnum_t
 
 // I2C interface
 

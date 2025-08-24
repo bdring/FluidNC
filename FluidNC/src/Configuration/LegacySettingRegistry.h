@@ -4,7 +4,7 @@
 #pragma once
 
 #include <vector>
-#include "../Config.h"
+#include "Config.h"
 
 namespace Configuration {
     class LegacySettingHandler;
@@ -17,7 +17,7 @@ namespace Configuration {
 
         LegacySettingRegistry() = default;
 
-        LegacySettingRegistry(const LegacySettingRegistry&) = delete;
+        LegacySettingRegistry(const LegacySettingRegistry&)            = delete;
         LegacySettingRegistry& operator=(const LegacySettingRegistry&) = delete;
 
         std::vector<LegacySettingHandler*> handlers_;

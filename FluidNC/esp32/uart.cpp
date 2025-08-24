@@ -5,7 +5,7 @@
 #include "fnc_idf_uart.h"
 #include <esp_ipc.h>
 #include "hal/uart_hal.h"
-#include "src/Protocol.h"
+#include "Protocol.h"
 
 const int PINNUM_MAX                        = 64;
 InputPin* objects[UART_NUM_MAX][PINNUM_MAX] = { nullptr };

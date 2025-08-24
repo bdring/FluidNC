@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include "src/Channel.h"
+#include "Channel.h"
 
 #include <WiFi.h>
 

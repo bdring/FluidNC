@@ -1,9 +1,9 @@
 #pragma once
 
-#include "src/JSONEncoder.h"
-#include "src/WebUI/Authentication.h"
-#include "src/Report.h"  // info_channel
-#include "src/GCode.h"   // CoordIndex
+#include "JSONEncoder.h"
+#include "WebUI/Authentication.h"
+#include "Report.h"  // info_channel
+#include "GCode.h"   // CoordIndex
 
 #include <string_view>
 #include <map>

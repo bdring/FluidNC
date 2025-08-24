@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "../Configuration/Configurable.h"
+#include "Configuration/Configurable.h"
 #include "LimitPin.h"
 
 namespace MotorDrivers {

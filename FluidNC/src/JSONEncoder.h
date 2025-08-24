@@ -1,6 +1,6 @@
 #pragma once
 
-#include "src/Channel.h"
+#include "Channel.h"
 #include <string>
 
 // Class for creating JSON-encoded strings.

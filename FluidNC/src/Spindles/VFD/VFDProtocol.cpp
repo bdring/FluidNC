@@ -1,7 +1,7 @@
 #include "VFDProtocol.h"
 
-#include "../VFDSpindle.h"
-#include "../../MotionControl.h"  // mc_critical
+#include "Spindles/VFDSpindle.h"
+#include "MotionControl.h"  // mc_critical
 
 #include <freertos/task.h>
 #include <freertos/queue.h>

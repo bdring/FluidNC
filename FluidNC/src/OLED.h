@@ -1,11 +1,11 @@
 #pragma once
 
-#include "src/Config.h"
+#include "Config.h"
 
-#include "src/Configuration/Configurable.h"
+#include "Configuration/Configurable.h"
 
-#include "src/Channel.h"
-#include "src/Module.h"
+#include "Channel.h"
+#include "Module.h"
 #include "SSD1306_I2C.h"
 
 typedef const uint8_t* font_t;

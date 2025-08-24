@@ -8,7 +8,7 @@
 */
 
 #include "Spindle.h"
-#include "src/MotionControl.h"  // mc_critical
+#include "MotionControl.h"  // mc_critical
 
 namespace Spindles {
     // This is for an on/off spindle all RPMs above 0 are on

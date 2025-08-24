@@ -21,8 +21,8 @@
 */
 
 #include "MotorDriver.h"
-#include "src/Machine/MachineConfig.h"
-#include "src/Limits.h"  // limitsMinPosition
+#include "Machine/MachineConfig.h"
+#include "Limit.h"  // limitsMinPosition
 namespace MotorDrivers {
     std::string MotorDriver::axisName() const {
         return std::string(1, Axes::axisName(axis_index())) + (dual_axis_index() ? "2" : "") + " Axis";

@@ -4,12 +4,12 @@
 #pragma once
 
 #include "HandlerType.h"
-#include "src/Pin.h"
-#include "src/Machine/EventPin.h"
-#include "src/EnumItem.h"
-#include "src/SpindleDatatypes.h"
-#include "src/UartTypes.h"
-#include "src/Macro.h"
+#include "Pin.h"
+#include "Machine/EventPin.h"
+#include "EnumItem.h"
+#include "SpindleDatatypes.h"
+#include "UartTypes.h"
+#include "Macro.h"
 
 #include <IPAddress.h>
 #include <string>

@@ -1,8 +1,8 @@
 #include "Cartesian.h"
 
-#include "src/Machine/MachineConfig.h"
-#include "src/Machine/Axes.h"  // ambiguousLimit()
-#include "src/Limits.h"
+#include "Machine/MachineConfig.h"
+#include "Machine/Axes.h"  // ambiguousLimit()
+#include "Limit.h"
 
 namespace Kinematics {
     void Cartesian::init() {

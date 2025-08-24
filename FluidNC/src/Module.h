@@ -63,10 +63,10 @@ Module methods:
 */
 #pragma once
 
-#include "src/Config.h"
+#include "Config.h"
 
-#include "src/Configuration/Configurable.h"
-#include "src/Configuration/GenericFactory.h"
+#include "Configuration/Configurable.h"
+#include "Configuration/GenericFactory.h"
 
 class Channel;
 class Module;

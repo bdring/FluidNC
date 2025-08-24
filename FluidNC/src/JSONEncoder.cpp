@@ -1,9 +1,9 @@
 // Class for creating JSON-encoded strings.
 
 #include "JSONEncoder.h"
-#include "src/Report.h"
-#include "src/Protocol.h"  // send_line()
-#include "src/UartChannel.h"
+#include "Report.h"
+#include "Protocol.h"  // send_line()
+#include "UartChannel.h"
 
 // Constructor.  If _encapsulate is true, the output is
 // encapsulated in [MSG:JSON: ...] lines

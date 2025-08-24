@@ -2,7 +2,7 @@
 // Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
 
 #pragma once
-#include "src/Settings.h"
+#include "Settings.h"
 #include "esp_wifi.h"
 #include <mdns.h>
 

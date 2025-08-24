@@ -1,9 +1,9 @@
 // Copyright (c) 2014 Luc Lebosse. All rights reserved.
 // Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
 
-#include "src/Machine/MachineConfig.h"
-#include "src/Serial.h"    // is_realtime_command()
-#include "src/Settings.h"  // settings_execute_line()
+#include "Machine/MachineConfig.h"
+#include "Serial.h"    // is_realtime_command()
+#include "Settings.h"  // settings_execute_line()
 
 #include "WebServer.h"
 
@@ -21,11 +21,11 @@
 
 #include "WebClient.h"
 
-#include "src/Protocol.h"  // protocol_send_event
-#include "src/FluidPath.h"
-#include "src/JSONEncoder.h"
+#include "Protocol.h"  // protocol_send_event
+#include "FluidPath.h"
+#include "JSONEncoder.h"
 
-#include "src/HashFS.h"
+#include "HashFS.h"
 #include <list>
 
 namespace WebUI {

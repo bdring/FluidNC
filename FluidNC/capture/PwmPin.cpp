@@ -6,7 +6,7 @@
 */
 
 #include "Driver/PwmPin.h"
-#include "src/Config.h"
+#include "Config.h"
 
 PwmPin::PwmPin(int gpio, bool invert, uint32_t frequency) : _gpio(gpio), _frequency(frequency) {
     uint8_t bits = 12;

@@ -1,5 +1,5 @@
 #include "OLED.h"
-#include "src/string_util.h"
+#include "string_util.h"
 
 #include "Machine/MachineConfig.h"
 

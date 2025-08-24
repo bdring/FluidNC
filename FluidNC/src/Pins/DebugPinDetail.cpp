@@ -3,7 +3,7 @@
 
 #include "DebugPinDetail.h"
 
-#include "src/UartChannel.h"
+#include "UartChannel.h"
 
 namespace Pins {
 

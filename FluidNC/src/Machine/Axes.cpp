@@ -1,11 +1,11 @@
 #include "Axes.h"
 
-#include "src/Motors/MotorDriver.h"
-#include "src/Motors/NullMotor.h"
-#include "src/Config.h"
-#include "src/MotionControl.h"
-#include "src/Stepper.h"  // stepper_id_t
-#include "src/Limits.h"
+#include "Motors/MotorDriver.h"
+#include "Motors/NullMotor.h"
+#include "Config.h"
+#include "MotionControl.h"
+#include "Stepper.h"  // stepper_id_t
+#include "Limit.h"
 #include "MachineConfig.h"  // config->
 
 const EnumItem axisType[] = { { 0, "X" }, { 1, "Y" }, { 2, "Z" }, { 3, "A" }, { 4, "B" }, { 5, "C" }, EnumItem(0) };

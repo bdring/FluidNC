@@ -13,8 +13,8 @@
 */
 
 #include "10vSpindle.h"
-#include "src/System.h"  // sys.spindle_speed
-#include "src/GCode.h"   // gc_state.modal
+#include "System.h"  // sys.spindle_speed
+#include "GCode.h"   // gc_state.modal
 
 namespace Spindles {
     void _10v::init() {

@@ -3,11 +3,10 @@
 // Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
 
 #pragma once
-
-#include "src/Configuration/Configurable.h"
-#include "src/lineedit.h"
-#include "src/Module.h"
-#include "src/Settings.h"
+#include "Configuration/Configurable.h"
+#include "lineedit.h"
+#include "Module.h"
+#include "Settings.h"
 
 #include <BluetoothSerial.h>
 

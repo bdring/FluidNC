@@ -3,7 +3,7 @@
 
 #include "atc.h"
 
-#include "../Machine/MachineConfig.h"
+#include "Machine/MachineConfig.h"
 
 ATCs::ATC* atc = nullptr;
 

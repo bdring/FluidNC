@@ -28,7 +28,7 @@ Making a test works as follows:
 2. The contents should be something like this:
 
 ```c++
-#include "../TestFramework.h"
+#include "TestFramework.h"
 
 #include <src/SomethingYouWantTested.h>
 

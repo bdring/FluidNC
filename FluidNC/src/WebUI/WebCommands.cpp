@@ -8,18 +8,18 @@
   old WebUI interface code are presented via the Settings class.
 */
 
-#include "src/Settings.h"
-#include "src/Machine/MachineConfig.h"
-#include "src/Configuration/JsonGenerator.h"
-#include "src/Uart.h"    // Uart0.baud
-#include "src/Report.h"  // git_info
+#include "Settings.h"
+#include "Machine/MachineConfig.h"
+#include "Configuration/JsonGenerator.h"
+#include "Uart.h"    // Uart0.baud
+#include "Report.h"  // git_info
 
 #include <Esp.h>
 
 #include <sstream>
 #include <iomanip>
 
-#include "src/Module.h"
+#include "Module.h"
 
 namespace WebUI {
 

@@ -4,8 +4,8 @@
 #pragma once
 
 #include "TrinamicBase.h"
-#include "../Pin.h"
-#include "../PinMapper.h"
+#include "Pin.h"
+#include "PinMapper.h"
 
 #include <cstdint>
 

@@ -1,8 +1,8 @@
 // Copyright (c) 2023 - Mitch Bradley
 // Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
 
-#include "src/StartupLog.h"
-#include "src/Protocol.h"  // send_line()
+#include "StartupLog.h"
+#include "Protocol.h"  // send_line()
 #include <sstream>
 
 // The size is limited to mimic the size of ESP32 RTC RAM minus system usage thereof

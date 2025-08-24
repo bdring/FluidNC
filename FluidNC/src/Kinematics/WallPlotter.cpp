@@ -1,6 +1,6 @@
 #include "WallPlotter.h"
 
-#include "../Machine/MachineConfig.h"
+#include "Machine/MachineConfig.h"
 
 #include <cmath>
 

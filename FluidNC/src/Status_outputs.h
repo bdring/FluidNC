@@ -1,8 +1,8 @@
 #pragma once
 
-#include "src/Config.h"
-#include "src/Module.h"
-#include "src/Channel.h"
+#include "Config.h"
+#include "Module.h"
+#include "Channel.h"
 
 class Status_Outputs : public Channel, public ConfigurableModule {
     Pin _Idle_pin;

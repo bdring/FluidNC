@@ -5,8 +5,8 @@
 
 #include "PinDetail.h"
 #include "PinOptionsParser.h"
-#include "src/UartChannel.h"
-#include "../Logging.h"
+#include "UartChannel.h"
+#include "Logging.h"
 
 namespace Pins {
     class ChannelPinDetail : public PinDetail {

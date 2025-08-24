@@ -4,24 +4,24 @@
 
 #include "MachineConfig.h"
 
-#include "src/Kinematics/Kinematics.h"
+#include "Kinematics/Kinematics.h"
 
-#include "src/Motors/MotorDriver.h"
-#include "src/Motors/NullMotor.h"
+#include "Motors/MotorDriver.h"
+#include "Motors/NullMotor.h"
 
-#include "src/Spindles/NullSpindle.h"
-#include "src/ToolChangers/atc.h"
-#include "src/UartChannel.h"
+#include "Spindles/NullSpindle.h"
+#include "ToolChangers/atc.h"
+#include "UartChannel.h"
 
-#include "src/SettingsDefinitions.h"  // config_filename
-#include "src/FileStream.h"
+#include "SettingsDefinitions.h"  // config_filename
+#include "FileStream.h"
 
-#include "src/Configuration/Parser.h"
-#include "src/Configuration/ParserHandler.h"
-#include "src/Configuration/Validator.h"
-#include "src/Configuration/AfterParse.h"
-#include "src/Configuration/ParseException.h"
-#include "src/Config.h"  // ENABLE_*
+#include "Configuration/Parser.h"
+#include "Configuration/ParserHandler.h"
+#include "Configuration/Validator.h"
+#include "Configuration/AfterParse.h"
+#include "Configuration/ParseException.h"
+#include "Config.h"  // ENABLE_*
 
 #include "Driver/restart.h"
 

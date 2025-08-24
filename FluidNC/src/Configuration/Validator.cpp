@@ -4,7 +4,7 @@
 #include "Validator.h"
 
 #include "Configurable.h"
-#include "../System.h"
+#include "System.h"
 
 #include <cstring>
 #include <atomic>

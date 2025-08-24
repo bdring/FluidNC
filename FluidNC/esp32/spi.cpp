@@ -5,7 +5,7 @@
 #include "Driver/fluidnc_gpio.h"
 
 #include "driver/spi_common.h"
-#include "src/Config.h"
+#include "Config.h"
 
 #include <sdkconfig.h>
 

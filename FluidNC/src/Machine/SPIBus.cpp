@@ -3,11 +3,11 @@
 // Copyright (c) 2021 -  Bart Dring
 // Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
 
-#include "src/Config.h"
+#include "Config.h"
 #if MAX_N_SPI
 #    include "SPIBus.h"
 #    include "Driver/spi.h"
-#    include "src/SettingsDefinitions.h"
+#    include "SettingsDefinitions.h"
 
 namespace Machine {
     void SPIBus::validate() {

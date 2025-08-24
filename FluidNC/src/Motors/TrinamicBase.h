@@ -4,7 +4,7 @@
 #pragma once
 
 #include "StandardStepper.h"
-#include "../EnumItem.h"
+#include "EnumItem.h"
 #include <TMCStepper.h>  // https://github.com/teemuatlut/TMCStepper
 #include <cstdint>
 

@@ -1,7 +1,7 @@
 #pragma once
 
-#include "src/Event.h"
-#include "src/Pin.h"
+#include "Event.h"
+#include "Pin.h"
 #include <string>
 
 class InputPin : public Pin {

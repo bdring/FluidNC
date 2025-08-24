@@ -1,6 +1,6 @@
 #include "PlasmaSpindle.h"
 
-#include "src/System.h"  // sys.abort
+#include "System.h"  // sys.abort
 
 /*
 

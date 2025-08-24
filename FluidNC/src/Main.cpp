@@ -11,7 +11,7 @@
 #    include "Report.h"
 #    include "Settings.h"
 #    include "SettingsDefinitions.h"
-#    include "Limits.h"
+#    include "Limit.h"
 #    include "Protocol.h"
 #    include "System.h"
 #    include "UartChannel.h"
@@ -22,7 +22,7 @@
 
 #    include "Driver/localfs.h"
 
-#    include "src/ToolChangers/atc.h"
+#    include "ToolChangers/atc.h"
 
 extern void make_user_commands();
 

@@ -1,17 +1,17 @@
 // Copyright (c) 2014 Luc Lebosse. All rights reserved.
 // Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
 
-#include "src/Settings.h"
-#include "src/Machine/MachineConfig.h"
+#include "Settings.h"
+#include "Machine/MachineConfig.h"
 #include <sstream>
 #include <iomanip>
 
-#include "src/Channel.h"     // Channel
-#include "src/Error.h"       // Error
-#include "src/Module.h"      // Module
+#include "Channel.h"         // Channel
+#include "Error.h"           // Error
+#include "Module.h"          // Module
 #include "Authentication.h"  // AuthenticationLevel
 
-#include "src/Main.h"
+#include "Main.h"
 
 #include "WebServer.h"             // Web_Server::port()
 #include "TelnetServer.h"          // TelnetServer::port()

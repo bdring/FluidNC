@@ -3,9 +3,9 @@
 
 #include "GenericProtocol.h"
 
-#include "../VFDSpindle.h"
+#include "Spindles/VFDSpindle.h"
 
-#include "src/string_util.h"
+#include "string_util.h"
 #include <algorithm>
 
 namespace Spindles {

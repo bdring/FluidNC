@@ -5,7 +5,7 @@
 #pragma once
 
 #include "TokenState.h"
-#include "../Config.h"
+#include "Config.h"
 #include <string_view>
 
 namespace Configuration {

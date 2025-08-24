@@ -4,9 +4,9 @@
 
 #pragma once
 
-#include "Spindle.h"
+#include "Spindles/Spindle.h"
 
-#include "../Uart.h"
+#include "Uart.h"
 
 namespace Spindles {
     extern Uart _uart;

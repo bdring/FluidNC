@@ -105,7 +105,7 @@ Take note that the serial interface use EVEN parity!
 
 #include "SiemensV20Protocol.h"
 
-#include "../VFDSpindle.h"
+#include "Spindles/VFDSpindle.h"
 
 #include <algorithm>  // std::max
 

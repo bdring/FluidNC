@@ -15,7 +15,7 @@
 #include "esp_error.hpp"
 
 #include "Driver/sdspi.h"
-#include "src/Config.h"
+#include "Config.h"
 
 #define CHECK_EXECUTE_RESULT(err, str)                                                                                                     \
     do {                                                                                                                                   \

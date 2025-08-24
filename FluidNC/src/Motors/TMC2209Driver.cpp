@@ -6,7 +6,7 @@
 */
 
 #include "TMC2209Driver.h"
-#include "../Machine/MachineConfig.h"
+#include "Machine/MachineConfig.h"
 #include <atomic>
 
 namespace MotorDrivers {

@@ -16,14 +16,14 @@
 
 #pragma once
 
-#include "src/Error.h"        // Error
-#include "src/GCode.h"        // gc_modal_t
-#include "src/Types.h"        // MotorMask
-#include "src/RealtimeCmd.h"  // Cmd
-#include "src/UTF8.h"
+#include "Error.h"        // Error
+#include "GCode.h"        // gc_modal_t
+#include "Types.h"        // MotorMask
+#include "RealtimeCmd.h"  // Cmd
+#include "UTF8.h"
 
-#include "src/Pins/PinAttributes.h"
-#include "src/Machine/EventPin.h"
+#include "Pins/PinAttributes.h"
+#include "Machine/EventPin.h"
 
 #include <Stream.h>
 #include <freertos/FreeRTOS.h>  // TickType_T

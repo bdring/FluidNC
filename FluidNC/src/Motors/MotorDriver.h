@@ -3,10 +3,10 @@
 
 #pragma once
 
-#include "src/Config.h"
-#include "src/Configuration/GenericFactory.h"
-#include "src/Configuration/HandlerBase.h"
-#include "src/Configuration/Configurable.h"
+#include "Config.h"
+#include "Configuration/GenericFactory.h"
+#include "Configuration/HandlerBase.h"
+#include "Configuration/Configurable.h"
 
 /*
     Header file for Motor Classes
@@ -21,7 +21,7 @@
     See motorClass.cpp for more details
 */
 
-#include "../Configuration/Configurable.h"
+#include "Configuration/Configurable.h"
 
 #include <cstdint>
 

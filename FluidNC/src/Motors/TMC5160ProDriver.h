@@ -4,8 +4,8 @@
 #pragma once
 
 #include "TrinamicSpiDriver.h"
-#include "../Pin.h"
-#include "../PinMapper.h"
+#include "Pin.h"
+#include "PinMapper.h"
 
 #include <cstdint>
 

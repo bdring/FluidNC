@@ -1,9 +1,9 @@
-#include "src/Machine/EventPin.h"
-#include "src/Machine/Axes.h"
-#include "src/Machine/MachineConfig.h"  // config
+#include "Machine/EventPin.h"
+#include "Machine/Axes.h"
+#include "Machine/MachineConfig.h"  // config
 
-#include "src/Limits.h"
-#include "src/Protocol.h"  // protocol_send_event_from_ISR()
+#include "Limit.h"
+#include "Protocol.h"  // protocol_send_event_from_ISR()
 
 namespace Machine {
     LimitPin::LimitPin(int axis, int motor, int direction, bool& pHardLimits) :

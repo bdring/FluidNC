@@ -8,9 +8,9 @@
 */
 
 #include "Servo.h"
-#include "../Pin.h"
+#include "Pin.h"
 
-#include "../Uart.h"
+#include "Uart.h"
 
 #include <cstdint>
 

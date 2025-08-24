@@ -1,7 +1,7 @@
 #include "esp_spiffs.h"
 #include "esp_log.h"
 #include "wdt.h"
-#include "src/Config.h"
+#include "Config.h"
 
 // cppcheck-suppress unusedFunction
 bool spiffs_format(const char* partition_label) {

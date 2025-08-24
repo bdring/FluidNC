@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include "src/Config.h"
+#include "Config.h"
 #if MAX_N_DACS
 /*
 	DacSpindle.h

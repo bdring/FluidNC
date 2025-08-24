@@ -1,4 +1,4 @@
-#include "src/Pins/GPIOPinDetail.h"
+#include "Pins/GPIOPinDetail.h"
 
 namespace Pins {
     PinCapabilities GPIOPinDetail::GetDefaultCapabilities(pinnum_t index) {

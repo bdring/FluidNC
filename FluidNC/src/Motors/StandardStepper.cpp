@@ -7,9 +7,9 @@
 
 #include "StandardStepper.h"
 
-#include "src./Machine/MachineConfig.h"
-#include "src/Stepper.h"   // ST_I2S_*
-#include "src/Stepping.h"  // Stepping::_engine
+#include "Machine/MachineConfig.h"
+#include "Stepper.h"   // ST_I2S_*
+#include "Stepping.h"  // Stepping::_engine
 
 using namespace Machine;
 

@@ -11,7 +11,7 @@
 */
 
 #include "DanfossVLT2800Protocol.h"
-#include "src/Spindles/VFDSpindle.h"
+#include "Spindles/VFDSpindle.h"
 
 #include <algorithm>
 

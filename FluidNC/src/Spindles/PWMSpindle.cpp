@@ -6,8 +6,8 @@
     compensation. Use the Laser class for that.
 */
 #include "PWMSpindle.h"
-#include "src/System.h"  // sys
-#include "src/GCode.h"   // gc_state.modal
+#include "System.h"  // sys
+#include "GCode.h"   // gc_state.modal
 
 // ======================= PWM ==============================
 /*

@@ -9,7 +9,7 @@
     a 0-5V or 0-10V value to control the spindle. You might need an
     external Op Amp type circuit to upconvert the MCU pin voltage.
 */
-#include "src/Config.h"
+#include "Config.h"
 #if MAX_N_DACS
 
 #    include "DacSpindle.h"

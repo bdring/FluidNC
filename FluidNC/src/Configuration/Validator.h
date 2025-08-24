@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include "../Pin.h"
+#include "Pin.h"
 #include "HandlerBase.h"
 
 #include <vector>

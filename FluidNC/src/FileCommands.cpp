@@ -2,16 +2,16 @@
 // Copyright (c) 2014 Luc Lebosse. All rights reserved.
 // Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
 
-#include "src/Settings.h"
-#include "src/WebUI/Authentication.h"
-#include "src/Configuration/JsonGenerator.h"
-#include "src/InputFile.h"    // InputFile
-#include "src/Job.h"          // Job::
-#include "src/xmodem.h"       // xmodemReceive(), xmodemTransmit()
-#include "src/Protocol.h"     // pollingPaused
-#include "src/string_util.h"  // split_prefix()
+#include "Settings.h"
+#include "WebUI/Authentication.h"
+#include "Configuration/JsonGenerator.h"
+#include "InputFile.h"    // InputFile
+#include "Job.h"          // Job::
+#include "xmodem.h"       // xmodemReceive(), xmodemTransmit()
+#include "Protocol.h"     // pollingPaused
+#include "string_util.h"  // split_prefix()
 
-#include "src/HashFS.h"
+#include "HashFS.h"
 
 #include <charconv>
 

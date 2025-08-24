@@ -5,8 +5,8 @@
 #pragma once
 
 #include "TrinamicBase.h"
-#include "../Pin.h"
-#include "../Uart.h"
+#include "Pin.h"
+#include "Uart.h"
 
 #include <cstdint>
 

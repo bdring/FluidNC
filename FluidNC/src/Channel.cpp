@@ -5,7 +5,7 @@
 #include "Report.h"                 // report_gcode_modes
 #include "Machine/MachineConfig.h"  // config
 #include "RealtimeCmd.h"            // execute_realtime_command
-#include "Limits.h"
+#include "Limit.h"
 #include "Logging.h"
 #include "Job.h"
 #include <string_view>

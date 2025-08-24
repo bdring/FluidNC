@@ -5,9 +5,9 @@
 #pragma once
 
 #include "Tokenizer.h"
-#include "../Pin.h"
-#include "../EnumItem.h"
-#include "../UartTypes.h"
+#include "Pin.h"
+#include "EnumItem.h"
+#include "UartTypes.h"
 #include "HandlerBase.h"
 
 #include <stack>
