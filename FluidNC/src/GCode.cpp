@@ -763,6 +763,37 @@ Error gc_execute_line(const char* input_line) {
                         }
                         break;
 
+                  case 'U':
+                      if (n_axis > U_AXIS) {
+                          axis_word_bit               = GCodeWord::U;
+                          gc_block.values.xyz[U_AXIS] = value;
+                          set_bitnum(axis_words, U_AXIS);
+                      } else {
+                          return Error::GcodeUnsupportedCommand;
+                      }
+                      break;
+
+                  case 'V':
+
+                     if (n_axis > V_AXIS) {
+                          axis_word_bit               = GCodeWord::V;
+                          gc_block.values.xyz[V_AXIS] = value;
+                          set_bitnum(axis_words, V_AXIS);
+                  } else {
+                        return Error::GcodeUnsupportedCommand;
+                  }
+                  break;
+
+                  case 'W':
+                      if (n_axis > W_AXIS) {
+                          axis_word_bit               = GCodeWord::W;
+                          gc_block.values.xyz[W_AXIS] = value;
+                          set_bitnum(axis_words, W_AXIS);
+                    } else {
+                        return Error::GcodeUnsupportedCommand;
+                    }
+                    break;
+
                     case 'D':  // Unsupported word used for parameter debugging
                         axis_word_bit = GCodeWord::D;
                         log_info("Value is " << value);
@@ -1507,7 +1538,8 @@ Error gc_execute_line(const char* input_line) {
     if (axis_command != AxisCommand::None) {
         clear_bits(value_words,
                    (bitnum_to_mask(GCodeWord::X) | bitnum_to_mask(GCodeWord::Y) | bitnum_to_mask(GCodeWord::Z) |
-                    bitnum_to_mask(GCodeWord::A) | bitnum_to_mask(GCodeWord::B) | bitnum_to_mask(GCodeWord::C)));  // Remove axis words.
+                    bitnum_to_mask(GCodeWord::A) | bitnum_to_mask(GCodeWord::B) | bitnum_to_mask(GCodeWord::C) |
+                    bitnum_to_mask(GCodeWord::U) | bitnum_to_mask(GCodeWord::V) | bitnum_to_mask(GCodeWord::W)));  // Remove axis words.
     }
     clear_bits(value_words, (bitnum_to_mask(GCodeWord::D) | bitnum_to_mask(GCodeWord::O)));
     if (value_words) {

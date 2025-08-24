@@ -112,7 +112,7 @@ bool ngc_param_is_rw(ngc_param_id_t id) {
 }
 
 static bool is_axis(int axis) {
-    return axis >= 0 && axis < MAX_N_AXIS;
+    return axis >= 0 && axis < MAX_N_AXIS - 1;
 }
 static bool is_rotary(int axis) {
     return axis >= A_AXIS && axis <= C_AXIS;

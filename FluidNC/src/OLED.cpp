@@ -303,6 +303,15 @@ void OLED::parse_status_report() {
                     case 'C':
                         limits[C_AXIS] = true;
                         break;
+                    case 'U':
+                        limits[U_AXIS] = true;
+                        break;
+                    case 'V':
+                        limits[V_AXIS] = true;
+                        break;
+                    case 'W':
+                        limits[W_AXIS] = true;
+                        break;
                 }
                 continue;
             }
