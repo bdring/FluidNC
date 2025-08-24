@@ -190,7 +190,6 @@ Channel* AllChannels::poll(char* line) {
     Channel* deadChannel;
     while (xQueueReceive(_killQueue, &deadChannel, 0)) {
         deregistration(deadChannel);
-        delete deadChannel;
     }
 
     // To avoid starving other channels when one has a lot

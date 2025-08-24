@@ -17,6 +17,8 @@ namespace WebUI {
     public:
         WSChannel(WebSocketsServer* server, uint8_t clientNum);
 
+        void init(WebSocketsServer* server, uint8_t clientNum);
+
         size_t write(uint8_t c);
         size_t write(const uint8_t* buffer, size_t size);
 
@@ -29,6 +31,7 @@ namespace WebUI {
         inline size_t write(int n) { return write((uint8_t)n); }
 
         void flush(void) override {}
+        void deactivate();
 
         int id() { return _clientNum; }
 
@@ -59,6 +62,7 @@ namespace WebUI {
     private:
         static std::map<uint8_t, WSChannel*> _wsChannels;
         static std::list<WSChannel*>         _webWsChannels;
+        static std::queue<WSChannel*>        _deadChannels;
 
         static WSChannel* _lastWSChannel;
         static WSChannel* getWSChannel(int pageid);
@@ -72,5 +76,8 @@ namespace WebUI {
         static void sendPing();
         static void handleEvent(WebSocketsServer* server, uint8_t num, uint8_t type, uint8_t* payload, size_t length);
         static void handlev3Event(WebSocketsServer* server, uint8_t num, uint8_t type, uint8_t* payload, size_t length);
+
+        static WSChannel* allocate(WebSocketsServer* server, uint8_t clientNum);
+        static void       recycle(WSChannel* channel);
     };
 }

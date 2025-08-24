@@ -7,6 +7,7 @@
 #include "WebServer.h"
 #include <WebSocketsServer.h>
 #include <WiFi.h>
+#include <queue>
 
 #include "src/Serial.h"  // is_realtime_command
 
@@ -14,6 +15,11 @@ namespace WebUI {
     class WSChannels;
 
     WSChannel::WSChannel(WebSocketsServer* server, uint8_t clientNum) : Channel("websocket"), _server(server), _clientNum(clientNum) {}
+
+    void WSChannel::init(WebSocketsServer* server, uint8_t clientNum) {
+        _server    = server;
+        _clientNum = clientNum;
+    }
 
     int WSChannel::read() {
         if (!_active) {
@@ -103,11 +109,15 @@ namespace WebUI {
 
         Channel::autoReport();
     }
+    void WSChannel::deactivate() {
+        _active = false;
+    }
 
     WSChannel::~WSChannel() {}
 
     std::map<uint8_t, WSChannel*> WSChannels::_wsChannels;
     std::list<WSChannel*>         WSChannels::_webWsChannels;
+    std::queue<WSChannel*>        WSChannels::_deadChannels;
 
     WSChannel* WSChannels::_lastWSChannel = nullptr;
 
@@ -134,14 +144,17 @@ namespace WebUI {
 
     void WSChannels::removeChannel(uint8_t num) {
         try {
-            WSChannel* wsChannel = _wsChannels.at(num);
-            _webWsChannels.remove(wsChannel);
-            allChannels.kill(wsChannel);
+            WSChannel* channel = _wsChannels.at(num);
+            channel->deactivate();
+            _webWsChannels.remove(channel);
+            allChannels.kill(channel);
             _wsChannels.erase(num);
+            recycle(channel);
         } catch (std::out_of_range& oor) {}
     }
 
     void WSChannels::removeChannel(WSChannel* channel) {
+        channel->deactivate();
         _lastWSChannel = nullptr;
         _webWsChannels.remove(channel);
         allChannels.kill(channel);
@@ -152,6 +165,7 @@ namespace WebUI {
                 ++it;
             }
         }
+        recycle(channel);
     }
 
     bool WSChannels::runGCode(int pageid, std::string_view cmd) {
@@ -191,6 +205,20 @@ namespace WebUI {
         }
     }
 
+    void WSChannels::recycle(WSChannel* channel) {
+        _deadChannels.push(channel);
+    }
+    WSChannel* WSChannels::allocate(WebSocketsServer* server, uint8_t clientNum) {
+        if (_deadChannels.empty()) {
+            return new WSChannel(server, clientNum);
+        }
+        auto ret = _deadChannels.front();
+        ret->init(server, clientNum);
+        _deadChannels.pop();
+
+        return ret;
+    }
+
     void WSChannels::handleEvent(WebSocketsServer* server, uint8_t num, uint8_t type, uint8_t* payload, size_t length) {
         switch (type) {
             case WStype_DISCONNECTED:
@@ -198,7 +226,7 @@ namespace WebUI {
                 WSChannels::removeChannel(num);
                 break;
             case WStype_CONNECTED: {
-                WSChannel* wsChannel = new WSChannel(server, num);
+                WSChannel* wsChannel = allocate(server, num);
                 if (!wsChannel) {
                     log_error_to(Uart0, "Creating WebSocket channel failed");
                 } else {
