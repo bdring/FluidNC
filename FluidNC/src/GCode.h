@@ -223,6 +223,10 @@ enum class GCodeWord : uint8_t {
     C = 17,
     O = 18,
     D = 19,  // For debugging
+    U = 20,  // 7th axis
+    V = 21,  // 8th Axis
+    W = 22,  // 9th Axis
+
 
 };
 

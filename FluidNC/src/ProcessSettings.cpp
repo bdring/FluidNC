@@ -479,13 +479,22 @@ static Error home_b(const char* value, AuthenticationLevel auth_level, Channel& 
 static Error home_c(const char* value, AuthenticationLevel auth_level, Channel& out) {
     return home(bitnum_to_mask(C_AXIS), out);
 }
+static Error home_u(const char* value, AuthenticationLevel auth_level, Channel& out) {
+    return home(bitnum_to_mask(U_AXIS), out);
+}
+static Error home_v(const char* value, AuthenticationLevel auth_level, Channel& out) {
+    return home(bitnum_to_mask(V_AXIS), out);
+}
+static Error home_w(const char* value, AuthenticationLevel auth_level, Channel& out) {
+    return home(bitnum_to_mask(W_AXIS), out);
+}
 static std::string limit_set(uint32_t mask) {
-    const char* motor0AxisName = "xyzabc";
+    const char* motor0AxisName = "xyzabcuvw";
     std::string s;
     for (int axis = 0; axis < MAX_N_AXIS; axis++) {
         s += bitnum_is_true(mask, Machine::Axes::motor_bit(axis, 0)) ? char(motor0AxisName[axis]) : ' ';
     }
-    const char* motor1AxisName = "XYZABC";
+    const char* motor1AxisName = "XYZABCUVW";
     for (int axis = 0; axis < MAX_N_AXIS; axis++) {
         s += bitnum_is_true(mask, Machine::Axes::motor_bit(axis, 1)) ? char(motor1AxisName[axis]) : ' ';
     }
@@ -929,6 +938,9 @@ void make_user_commands() {
     new UserCommand("HA", "Home/A", home_a, allowConfigStates);
     new UserCommand("HB", "Home/B", home_b, allowConfigStates);
     new UserCommand("HC", "Home/C", home_c, allowConfigStates);
+    new UserCommand("HU", "Home/U", home_u, allowConfigStates);
+    new UserCommand("HV", "Home/V", home_v, allowConfigStates);
+    new UserCommand("HW", "Home/W", home_w, allowConfigStates);
 
     new UserCommand("MU0", "Msg/Uart0", msg_to_uart0, anyState);
     new UserCommand("MU1", "Msg/Uart1", msg_to_uart1, anyState);
