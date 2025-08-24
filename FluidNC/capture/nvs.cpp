@@ -73,7 +73,7 @@ static void clear() {
     data.clear();
 }
 
-NVS::NVS(const char* name) : _name(name) {}
+NVS::NVS(const char* name) {}
 bool NVS::get_i8(const char* key, int8_t* out_value) {
     return tryGetI8(key, *out_value) ? 0 : 1;
 }

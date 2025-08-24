@@ -7,8 +7,6 @@
 #include <cstdint>
 
 class NVS {
-    const char* _name;
-
 public:
     NVS(const char* name);
     bool get_i32(const char* key, int32_t* out_value);
