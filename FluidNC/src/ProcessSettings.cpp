@@ -491,11 +491,11 @@ static Error home_w(const char* value, AuthenticationLevel auth_level, Channel& 
 static std::string limit_set(uint32_t mask) {
     const char* motor0AxisName = "xyzabcuvw";
     std::string s;
-    for (int axis = 0; axis < MAX_N_AXIS; axis++) {
+    for (int axis = 0; axis < MAX_N_AXIS - 1; axis++) {
         s += bitnum_is_true(mask, Machine::Axes::motor_bit(axis, 0)) ? char(motor0AxisName[axis]) : ' ';
     }
     const char* motor1AxisName = "XYZABCUVW";
-    for (int axis = 0; axis < MAX_N_AXIS; axis++) {
+    for (int axis = 0; axis < MAX_N_AXIS - 1; axis++) {
         s += bitnum_is_true(mask, Machine::Axes::motor_bit(axis, 1)) ? char(motor1AxisName[axis]) : ' ';
     }
     return s;
