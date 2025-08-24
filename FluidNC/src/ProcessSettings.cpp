@@ -9,7 +9,7 @@
 #include "Configuration/Validator.h"
 #include "Configuration/ParseException.h"
 #include "Machine/Axes.h"
-#include "Regex.h"
+#include "Regexpr.h"
 #include "WebUI/Authentication.h"
 #include "Report.h"
 #include "MotionControl.h"
