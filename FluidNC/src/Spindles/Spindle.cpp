@@ -17,14 +17,18 @@ namespace Spindles {
     void Spindle::init_atc() {
         ATCs::ATC* candidate = nullptr;
         auto       atcs      = ATCs::ATCFactory::objects();
+        _atc_name = string_util::trim(_atc_name);
         for (auto a : atcs) {
             if (_atc_name == a->name()) {
                 _atc      = a;
-                _atc_info = " with " + _atc_name;
+                _atc_info = " atc:" + _atc_name;
                 return;
             }
         }
-        if (!_m6_macro._gcode.empty()) {
+        if (!_atc_name.empty()) {
+            _atc_info = " atc: '" + _atc_name + "' not found";
+        }
+        else if (!_m6_macro._gcode.empty()) {
             _atc_info = " with m6_macro";
         }
     }
