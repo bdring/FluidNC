@@ -133,6 +133,10 @@ namespace WebUI {
         { "WPA2-PSK", WIFI_AUTH_WPA2_PSK },
         { "WPA-WPA2-PSK", WIFI_AUTH_WPA_WPA2_PSK },
         { "WPA2-ENTERPRISE", WIFI_AUTH_WPA2_ENTERPRISE },
+        { "WPA3-PSK", WIFI_AUTH_WPA3_PSK },
+        { "WPA2-WPA3-PSK", WIFI_AUTH_WPA2_WPA3_PSK },
+        { "WAPI-PSK", WIFI_AUTH_WAPI_PSK },
+        { "WPA3-ENT-192", WIFI_AUTH_WPA3_ENT_192 },
     };
 
     class PasswordSetting : public StringSetting {
