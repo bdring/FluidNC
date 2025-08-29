@@ -31,7 +31,7 @@ static bool awake = false;
 struct st_block_t {
     uint32_t steps[MAX_N_AXIS];
     uint32_t step_event_count;
-    uint8_t  direction_bits;
+    uint16_t  direction_bits;
     bool     is_pwm_rate_adjusted;  // Tracks motions that require constant laser power/rate
 };
 static volatile st_block_t* st_block_buffer = nullptr;
@@ -43,8 +43,8 @@ static volatile st_block_t* st_block_buffer = nullptr;
 struct segment_t {
     uint16_t     n_step;             // Number of step events to be executed for this segment
     uint16_t     isrPeriod;          // Time to next ISR tick, in units of timer ticks
-    uint8_t      st_block_index;     // Stepper block data index. Uses this information to execute this segment.
-    uint8_t      amass_level;        // AMASS level for the ISR to execute this segment
+    uint16_t      st_block_index;     // Stepper block data index. Uses this information to execute this segment.
+    uint16_t      amass_level;        // AMASS level for the ISR to execute this segment
     uint32_t     spindle_dev_speed;  // Spindle speed scaled to the device
     SpindleSpeed spindle_speed;      // Spindle speed in GCode units
 };
@@ -67,11 +67,11 @@ typedef struct {
 
     uint32_t counter[MAX_N_AXIS];  // Counter variables for the bresenham line tracer
 
-    uint8_t  step_bits;     // Stores out_bits output to complete the step pulse delay
-    uint8_t  execute_step;  // Flags step execution for each interrupt.
-    uint8_t  step_outbits;  // The next stepping-bits to be output
-    uint8_t  dir_outbits;
-    uint32_t steps[MAX_N_AXIS];
+    uint16_t  step_bits;     // Stores out_bits output to complete the step pulse delay
+    uint16_t  execute_step;  // Flags step execution for each interrupt.
+    uint16_t  step_outbits;  // The next stepping-bits to be output
+    uint16_t  dir_outbits;
+    uint16_t steps[MAX_N_AXIS];
 
     uint16_t             step_count;        // Steps remaining in line segment motion
     uint8_t              exec_block_index;  // Tracks the current st_block index. Change indicates new block.
