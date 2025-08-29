@@ -30,6 +30,8 @@
 #include "WebUI/NotificationsService.h"  // WebUI::notificationsService
 #include "InputFile.h"
 #include "Job.h"
+#include "Config.h"                      //ROTARY_AXES
+
 
 #include <map>
 #include <freertos/task.h>
@@ -38,6 +40,7 @@
 #include <cstdarg>
 #include <sstream>
 #include <iomanip>
+#include <unordered_set>
 
 #ifdef DEBUG_REPORT_HEAP
 EspClass esp;
@@ -86,7 +89,9 @@ static std::string report_util_axis_values(const float* axis_value) {
     for (size_t idx = 0; idx < n_axis; idx++) {
         int   decimals;
         float value = axis_value[idx];
-        if (idx >= A_AXIS && idx <= C_AXIS) {
+        // if (ROTARY_AXES.contains(idx)) {
+        if (ROTARY_AXES.find(idx) != ROTARY_AXES.end()) {
+
             // Rotary axes are in degrees so mm vs inch is not
             // relevant.  Three decimal places is probably overkill
             // for rotary axes but we use 3 in case somebody wants

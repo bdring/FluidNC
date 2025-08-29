@@ -23,6 +23,7 @@
 
 #include <string.h>  // memset
 #include <math.h>    // sqrt etc.
+#include <unordered_set>
 
 // Allow iteration over CoordIndex values
 CoordIndex& operator++(CoordIndex& i) {
@@ -1118,7 +1119,8 @@ Error gc_execute_line(const char* input_line) {
     // Pre-convert XYZ coordinate values to millimeters, if applicable.
     if (!nonmodalG38 && gc_block.modal.units == Units::Inches) {
         for (size_t idx = 0; idx < n_axis; idx++) {  // Axes indices are consistent, so loop may be used.
-            if ((idx < A_AXIS || idx > C_AXIS) && bitnum_is_true(axis_words, idx)) {
+            // if (LINEAR_AXES.contains(idx) && bitnum_is_true(axis_words, idx)) {
+            if (LINEAR_AXES.find(idx) != LINEAR_AXES.end() && bitnum_is_true(axis_words, idx)) {
                 gc_block.values.xyz[idx] *= MM_PER_INCH;
             }
         }

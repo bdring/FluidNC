@@ -11,9 +11,11 @@
 #include "MotionControl.h"
 #include "GCode.h"
 #include "Job.h"
+#include "Config.h"
 
 #include <string>
 #include <map>
+#include <unordered_set>
 
 #include "Expression.h"
 
@@ -115,7 +117,8 @@ static bool is_axis(int axis) {
     return axis >= 0 && axis < MAX_N_AXIS - 1;
 }
 static bool is_rotary(int axis) {
-    return axis >= A_AXIS && axis <= C_AXIS;
+    // return ROTARY_AXES.contains(axis);
+    return ROTARY_AXES.find(axis) != ROTARY_AXES.end();
 }
 static float to_inches(int axis, float value) {
     if (!is_rotary(axis) && gc_state.modal.units == Units::Inches) {

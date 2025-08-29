@@ -7,6 +7,7 @@
 #include "../Configuration/Configurable.h"
 #include "Axis.h"
 #include "../EnumItem.h"
+#include "../Config.h"
 
 namespace MotorDrivers {
     class MotorDriver;
@@ -17,7 +18,7 @@ namespace Machine {
         bool _switchedStepper = false;
 
     public:
-        static constexpr const char* _names = "XYZABCUVW";
+        static constexpr const char* _names = AXES_LABELS;
 
         Axes();
 
