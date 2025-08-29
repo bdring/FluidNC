@@ -71,7 +71,7 @@ typedef struct {
     uint16_t  execute_step;  // Flags step execution for each interrupt.
     uint16_t  step_outbits;  // The next stepping-bits to be output
     uint16_t  dir_outbits;
-    uint16_t steps[MAX_N_AXIS];
+    uint32_t steps[MAX_N_AXIS];
 
     uint16_t             step_count;        // Steps remaining in line segment motion
     uint8_t              exec_block_index;  // Tracks the current st_block index. Change indicates new block.
