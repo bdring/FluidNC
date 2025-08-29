@@ -23,6 +23,7 @@
 
 #include <string.h>  // memset
 #include <math.h>    // sqrt etc.
+#include <unordered_set>
 
 // Allow iteration over CoordIndex values
 CoordIndex& operator++(CoordIndex& i) {
@@ -762,7 +763,6 @@ Error gc_execute_line(const char* input_line) {
                             return Error::GcodeUnsupportedCommand;
                         }
                         break;
-
                     case 'D':  // Unsupported word used for parameter debugging
                         axis_word_bit = GCodeWord::D;
                         log_info("Value is " << value);
@@ -830,6 +830,33 @@ Error gc_execute_line(const char* input_line) {
                         }
                         gc_state.selected_tool = int_value;
                         break;
+                    case 'U':
+                        if (n_axis > U_AXIS) {
+                            axis_word_bit               = GCodeWord::U;
+                            gc_block.values.xyz[U_AXIS] = value;
+                            set_bitnum(axis_words, U_AXIS);
+                        } else {
+                            return Error::GcodeUnsupportedCommand;
+                        }
+                        break;
+                    case 'V':
+                       if (n_axis > V_AXIS) {
+                            axis_word_bit               = GCodeWord::V;
+                            gc_block.values.xyz[V_AXIS] = value;
+                            set_bitnum(axis_words, V_AXIS);
+                    } else {
+                          return Error::GcodeUnsupportedCommand;
+                    }
+                      break;
+                    case 'W':
+                        if (n_axis > W_AXIS) {
+                            axis_word_bit               = GCodeWord::W;
+                            gc_block.values.xyz[W_AXIS] = value;
+                            set_bitnum(axis_words, W_AXIS);
+                      } else {
+                          return Error::GcodeUnsupportedCommand;
+                      }
+                      break;
                     case 'X':
                         if (n_axis > X_AXIS) {
                             axis_word_bit               = GCodeWord::X;
@@ -1087,7 +1114,8 @@ Error gc_execute_line(const char* input_line) {
     // Pre-convert XYZ coordinate values to millimeters, if applicable.
     if (!nonmodalG38 && gc_block.modal.units == Units::Inches) {
         for (size_t idx = 0; idx < n_axis; idx++) {  // Axes indices are consistent, so loop may be used.
-            if ((idx < A_AXIS || idx > C_AXIS) && bitnum_is_true(axis_words, idx)) {
+            // if (LINEAR_AXES.contains(idx) && bitnum_is_true(axis_words, idx)) {
+            if (LINEAR_AXES.find(idx) != LINEAR_AXES.end() && bitnum_is_true(axis_words, idx)) {
                 gc_block.values.xyz[idx] *= MM_PER_INCH;
             }
         }
@@ -1507,7 +1535,8 @@ Error gc_execute_line(const char* input_line) {
     if (axis_command != AxisCommand::None) {
         clear_bits(value_words,
                    (bitnum_to_mask(GCodeWord::X) | bitnum_to_mask(GCodeWord::Y) | bitnum_to_mask(GCodeWord::Z) |
-                    bitnum_to_mask(GCodeWord::A) | bitnum_to_mask(GCodeWord::B) | bitnum_to_mask(GCodeWord::C)));  // Remove axis words.
+                    bitnum_to_mask(GCodeWord::A) | bitnum_to_mask(GCodeWord::B) | bitnum_to_mask(GCodeWord::C) |
+                    bitnum_to_mask(GCodeWord::U) | bitnum_to_mask(GCodeWord::V) | bitnum_to_mask(GCodeWord::W)));  // Remove axis words.
     }
     clear_bits(value_words, (bitnum_to_mask(GCodeWord::D) | bitnum_to_mask(GCodeWord::O)));
     if (value_words) {
