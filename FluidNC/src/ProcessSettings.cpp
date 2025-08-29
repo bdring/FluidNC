@@ -23,7 +23,7 @@
 #include "Driver/gpio_dump.h"     // gpio_dump()
 #include "FileCommands.h"         // make_file_commands()
 #include "Job.h"                  // Job::active()
-#include "Config.h"                  // Job::active()
+#include "Config.h"               //AXES_LABELS
 
 #include "FluidPath.h"
 #include "HashFS.h"

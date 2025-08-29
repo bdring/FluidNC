@@ -763,38 +763,6 @@ Error gc_execute_line(const char* input_line) {
                             return Error::GcodeUnsupportedCommand;
                         }
                         break;
-
-                  case 'U':
-                      if (n_axis > U_AXIS) {
-                          axis_word_bit               = GCodeWord::U;
-                          gc_block.values.xyz[U_AXIS] = value;
-                          set_bitnum(axis_words, U_AXIS);
-                      } else {
-                          return Error::GcodeUnsupportedCommand;
-                      }
-                      break;
-
-                  case 'V':
-
-                     if (n_axis > V_AXIS) {
-                          axis_word_bit               = GCodeWord::V;
-                          gc_block.values.xyz[V_AXIS] = value;
-                          set_bitnum(axis_words, V_AXIS);
-                  } else {
-                        return Error::GcodeUnsupportedCommand;
-                  }
-                  break;
-
-                  case 'W':
-                      if (n_axis > W_AXIS) {
-                          axis_word_bit               = GCodeWord::W;
-                          gc_block.values.xyz[W_AXIS] = value;
-                          set_bitnum(axis_words, W_AXIS);
-                    } else {
-                        return Error::GcodeUnsupportedCommand;
-                    }
-                    break;
-
                     case 'D':  // Unsupported word used for parameter debugging
                         axis_word_bit = GCodeWord::D;
                         log_info("Value is " << value);
@@ -862,6 +830,33 @@ Error gc_execute_line(const char* input_line) {
                         }
                         gc_state.selected_tool = int_value;
                         break;
+                    case 'U':
+                        if (n_axis > U_AXIS) {
+                            axis_word_bit               = GCodeWord::U;
+                            gc_block.values.xyz[U_AXIS] = value;
+                            set_bitnum(axis_words, U_AXIS);
+                        } else {
+                            return Error::GcodeUnsupportedCommand;
+                        }
+                        break;
+                    case 'V':
+                       if (n_axis > V_AXIS) {
+                            axis_word_bit               = GCodeWord::V;
+                            gc_block.values.xyz[V_AXIS] = value;
+                            set_bitnum(axis_words, V_AXIS);
+                    } else {
+                          return Error::GcodeUnsupportedCommand;
+                    }
+                      break;
+                    case 'W':
+                        if (n_axis > W_AXIS) {
+                            axis_word_bit               = GCodeWord::W;
+                            gc_block.values.xyz[W_AXIS] = value;
+                            set_bitnum(axis_words, W_AXIS);
+                      } else {
+                          return Error::GcodeUnsupportedCommand;
+                      }
+                      break;
                     case 'X':
                         if (n_axis > X_AXIS) {
                             axis_word_bit               = GCodeWord::X;
