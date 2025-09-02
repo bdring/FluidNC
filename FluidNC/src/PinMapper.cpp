@@ -1,3 +1,4 @@
+#include "Config.h"
 #include "PinMapper.h"
 #include "Pins/GPIOPinDetail.h"
 #include "Driver/fluidnc_gpio.h"
@@ -30,7 +31,7 @@
 namespace {
     class PinMap {
     public:
-        static const int BOUNDARY = Pins::GPIOPinDetail::nGPIOPins;
+        static const int BOUNDARY = MAX_N_GPIO;
 
     private:
         static const int N_PIN_MAPPINGS = 256 - BOUNDARY;

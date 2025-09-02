@@ -5,14 +5,15 @@
 #undef CONFIG_LOG_MAXIMUM_LEVEL
 #define CONFIG_LOG_MAXIMUM_LEVEL CORE_DEBUG_LEVEL
 
-#include "vfs_api.h"
-#include "esp_vfs_fat.h"
-#include "diskio_impl.h"
-#include "diskio_sdmmc.h"
-#include "ff.h"
-#include "sdmmc_cmd.h"
-#include "driver/sdspi_host.h"
-#include "esp_error.hpp"
+#include <vfs_api.h>
+#include <esp_vfs_fat.h>
+#include <diskio_impl.h>
+#include <diskio_sdmmc.h>
+#include <ff.h>
+#include <soc/sdmmc_struct.h>
+#include <sdmmc_cmd.h>
+#include <driver/sdspi_host.h>
+#include <esp_error.hpp>
 
 #include "Driver/sdspi.h"
 #include "Config.h"
@@ -90,6 +91,7 @@ bool sd_init_slot(uint32_t freq_hz, int cs_pin, int cd_pin, int wp_pin) {
 
     sdspi_device_config_t slot_config;
 
+    host_config.flags &= ~SDMMC_HOST_FLAG_DDR;
     host_config.max_freq_khz = freq_hz / 1000;
 
     err = host_config.init();
@@ -105,6 +107,9 @@ bool sd_init_slot(uint32_t freq_hz, int cs_pin, int cd_pin, int wp_pin) {
 
     err = sdspi_host_init_device(&slot_config, &(host_config.slot));
     CHECK_EXECUTE_RESULT(err, "slot init failed");
+
+    SDMMC.clock.phase_dout = 1;
+    SDMMC.clock.phase_din  = 6;
 
     return true;
 

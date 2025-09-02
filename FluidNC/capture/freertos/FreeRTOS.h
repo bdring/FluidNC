@@ -38,3 +38,4 @@ inline int32_t xPortGetFreeHeapSize() {
 
 #define INC_FREERTOS_H
 #define PRIVILEGED_FUNCTION
+#define configMINIMAL_STACK_SIZE 768

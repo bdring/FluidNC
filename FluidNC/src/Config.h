@@ -39,13 +39,6 @@ const int A_AXIS = 3;
 const int B_AXIS = 4;
 const int C_AXIS = 5;
 
-const int X2_AXIS = (X_AXIS + MAX_N_AXIS);
-const int Y2_AXIS = (Y_AXIS + MAX_N_AXIS);
-const int Z2_AXIS = (Z_AXIS + MAX_N_AXIS);
-const int A2_AXIS = (A_AXIS + MAX_N_AXIS);
-const int B2_AXIS = (B_AXIS + MAX_N_AXIS);
-const int C2_AXIS = (C_AXIS + MAX_N_AXIS);
-
 const int SUPPORT_TASK_CORE = 0;  // Reference: CONFIG_ARDUINO_RUNNING_CORE = 1
 
 //Connect to your local AP with these credentials

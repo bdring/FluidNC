@@ -11,7 +11,7 @@
 
 #include "Spindles/NullSpindle.h"
 #include "ToolChangers/atc.h"
-#include "UartChannel.h"
+#include "Driver/Console.h"
 
 #include "SettingsDefinitions.h"  // config_filename
 #include "FileStream.h"
@@ -67,6 +67,7 @@ namespace Machine {
         handler.section("coolant", _coolant);
         handler.section("probe", _probe);
         handler.section("macros", _macros);
+        handler.section("extenders", _extenders);
         handler.section("start", _start);
         handler.section("parking", _parking);
 
@@ -76,6 +77,7 @@ namespace Machine {
         ConfigurableModuleFactory::factory(handler);
         ATCs::ATCFactory::factory(handler);
         Spindles::SpindleFactory::factory(handler);
+        Listeners::SysListenerFactory::factory(handler);
 
         // TODO: Consider putting these under a gcode: hierarchy level? Or motion control?
         handler.item("arc_tolerance_mm", _arcTolerance, 0.001, 1.0);

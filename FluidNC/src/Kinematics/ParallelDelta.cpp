@@ -196,7 +196,7 @@ namespace Kinematics {
         float segment_dist = dist / ((float)segment_count);  // distance of each segment...will be used for feedrate conversion
 
         for (uint32_t segment = 1; segment <= segment_count; segment++) {
-            if (sys.abort) {
+            if (sys.abort()) {
                 return true;
             }
             //log_debug("Segment:" << segment << " of " << segment_count);

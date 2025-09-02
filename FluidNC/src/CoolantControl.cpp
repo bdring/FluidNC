@@ -70,7 +70,7 @@ void CoolantControl::stop() {
 // parser program end, and g-code parser CoolantControl::sync().
 
 void CoolantControl::set_state(CoolantState state) {
-    if (sys.abort || (_previous_state.Mist == state.Mist && _previous_state.Flood == state.Flood)) {
+    if (sys.abort() || (_previous_state.Mist == state.Mist && _previous_state.Flood == state.Flood)) {
         return;  // Block during abort or if no change
     }
     write(state);

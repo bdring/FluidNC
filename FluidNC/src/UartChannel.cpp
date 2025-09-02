@@ -170,11 +170,3 @@ bool UartChannel::setAttr(int index, bool* value, const std::string& attrString)
     log_error("IO Expander is unresponsive");
     return false;
 }
-
-UartChannel Uart0(0, true);  // Primary serial channel with LF to CRLF conversion
-
-void uartInit() {
-    auto uart0 = new Uart(0);
-    uart0->begin(BAUD_RATE, UartData::Bits8, UartStop::Bits1, UartParity::None);
-    Uart0.init(uart0);
-}

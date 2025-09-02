@@ -90,7 +90,7 @@ namespace Spindles {
     }
 
     void VFDSpindle::set_mode(SpindleState mode, bool critical) {
-        _last_override_value = sys.spindle_speed_ovr;  // sync these on mode changes
+        _last_override_value = sys.spindle_speed_ovr();  // sync these on mode changes
         if (VFD::VFDProtocol::vfd_cmd_queue) {
             VFD::VFDProtocol::VFDaction action;
             action.action   = VFD::VFDProtocol::actionSetMode;
@@ -104,7 +104,7 @@ namespace Spindles {
 
     void VFDSpindle::setState(SpindleState state, SpindleSpeed speed) {
         log_debug(name() << ": setState:" << uint8_t(state) << " SpindleSpeed:" << speed);
-        if (sys.abort) {
+        if (sys.abort()) {
             return;  // Block during abort.
         }
 
@@ -140,7 +140,7 @@ namespace Spindles {
             const int limit     = 20;  // 20 * 0.5s = 10 sec
             auto      last      = _sync_dev_speed;
 
-            while ((_last_override_value == sys.spindle_speed_ovr) &&  // skip if the override changes
+            while ((_last_override_value == sys.spindle_speed_ovr()) &&  // skip if the override changes
                    ((_sync_dev_speed < minSpeedAllowed || _sync_dev_speed > maxSpeedAllowed) && unchanged < limit)) {
                 delay_ms(_poll_ms);
                 if (_debug > 1) {
@@ -157,7 +157,7 @@ namespace Spindles {
                 unchanged = (_sync_dev_speed == last) ? unchanged + 1 : 0;
                 last      = _sync_dev_speed;
             }
-            _last_override_value = sys.spindle_speed_ovr;
+            _last_override_value = sys.spindle_speed_ovr();
 
             if (_debug > 1) {
                 log_debug("Synced speed. Requested:" << int(dev_speed) << " current:" << int(_sync_dev_speed));

@@ -1,3 +1,6 @@
+// Copyright (c) 2021 - Stefan de Bruijn, Mitch Bradley
+// Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
+
 #include "Homing.h"
 
 #include "System.h"    // sys.*
@@ -351,7 +354,7 @@ namespace Machine {
     void Homing::done() {
         log_debug("Homing done");
 
-        if (sys.abort) {
+        if (sys.abort()) {
             return;  // Did not complete. Alarm state set by mc_alarm.
         }
         // Homing cycle complete! Setup system for normal operation.
@@ -362,7 +365,7 @@ namespace Machine {
 
         Stepping::endLowLatency();
 
-        if (!sys.abort) {
+        if (!sys.abort()) {
             set_state(unhomed_axes() ? State::Alarm : State::Idle);
             Stepper::go_idle();  // Set steppers to the settings idle state before returning.
             if (state_is(State::Idle)) {

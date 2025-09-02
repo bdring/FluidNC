@@ -11,7 +11,6 @@
 #include "Settings.h"
 #include "Machine/MachineConfig.h"
 #include "Configuration/JsonGenerator.h"
-#include "Uart.h"    // Uart0.baud
 #include "Report.h"  // git_info
 
 #include <Esp.h>

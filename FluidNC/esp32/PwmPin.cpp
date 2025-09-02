@@ -1,4 +1,4 @@
-// Copyright 2022 - Mitch Bradley
+// Copyright 2022 - Mitch Bradley, Stefan de Bruijn
 // Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
 
 /*
@@ -9,27 +9,30 @@
 
 #include <soc/ledc_struct.h>  // LEDC
 
-#include "soc/soc_caps.h"
-#include "driver/ledc.h"
+#include <soc/soc_caps.h>
+#include <driver/ledc.h>
+#include <cstdint>
+
+#if CONFIG_IDF_TARGET_ESP32  // ESP32/PICO-D4
+#    include <esp32/rom/gpio.h>
+#elif CONFIG_IDF_TARGET_ESP32S2
+#    include <esp32s2/rom/gpio.h>
+#elif CONFIG_IDF_TARGET_ESP32S3
+#    include <esp32s3/rom/gpio.h>
+#elif CONFIG_IDF_TARGET_ESP32C3
+#    include <esp32c3/rom/gpio.h>
+#else
+#    error Target CONFIG_IDF_TARGET is not supported
+#endif
 
 //Use XTAL clock if possible to avoid timer frequency error when setting APB clock < 80 Mhz
 //Need to be fixed in ESP-IDF
 #ifdef SOC_LEDC_SUPPORT_XTAL_CLOCK
 #    define LEDC_DEFAULT_CLK LEDC_USE_XTAL_CLK
+#    define CLOCK_FREQUENCY 40000000
 #else
-#    define LEDC_DEFAULT_CLK LEDC_AUTO_CLK
-#endif
-
-#if CONFIG_IDF_TARGET_ESP32  // ESP32/PICO-D4
-#    include "esp32/rom/gpio.h"
-#elif CONFIG_IDF_TARGET_ESP32S2
-#    include "esp32s2/rom/gpio.h"
-#elif CONFIG_IDF_TARGET_ESP32S3
-#    include "esp32s3/rom/gpio.h"
-#elif CONFIG_IDF_TARGET_ESP32C3
-#    include "esp32c3/rom/gpio.h"
-#else
-#    error Target CONFIG_IDF_TARGET is not supported
+#    define LEDC_DEFAULT_CLK LEDC_USE_APB_CLK
+#    define CLOCK_FREQUENCY 80000000
 #endif
 
 static int allocateChannel() {
@@ -41,9 +44,10 @@ static int allocateChannel() {
     // that is already on the same frequency.  There is some
     // code for that in PinUsers/PwmPin.cpp TryGrabChannel()
 
-    Assert(nextLedcChannel < 8, "Out of LEDC PwmPin channels");
-    nextLedcChannel += 2;
-    return nextLedcChannel - 2;
+    Assert(nextLedcChannel < LEDC_CHANNEL_MAX, "Out of LEDC PwmPin channels");
+    auto result = nextLedcChannel;
+    nextLedcChannel += (LEDC_CHANNEL_MAX / LEDC_TIMER_MAX);
+    return result;
 }
 
 // Calculate the highest PwmPin precision in bits for the desired frequency
@@ -56,57 +60,76 @@ static uint8_t calc_pwm_precision(uint32_t frequency) {
         frequency = 1;  // Limited elsewhere but just to be safe...
     }
 
-    // Increase the precision (bits) until it exceeds the frequency
-    // The hardware maximum precision is 20 bits
-    const uint8_t  ledcMaxBits = 20;
-    const uint32_t apbFreq     = 80000000;
-    const uint32_t maxCount    = apbFreq / frequency;
-    for (uint8_t bits = 2; bits <= ledcMaxBits; ++bits) {
+    // Increase the precision (bits) until it exceeds the frequency:
+    const uint8_t  ledcMaxBits = LEDC_TIMER_BIT_MAX - 1;
+    const uint32_t maxCount    = uint32_t(CLOCK_FREQUENCY) / frequency;
+    for (uint32_t bits = 2; bits <= ledcMaxBits; ++bits) {
         if ((1u << bits) > maxCount) {
-            return bits - 1;
+            return uint8_t(bits - 1);
         }
     }
 
     return ledcMaxBits;
 }
 
-PwmPin::PwmPin(int gpio, bool invert, uint32_t frequency) : _gpio(gpio), _frequency(frequency) {
+PwmPin::PwmPin(int gpio, bool isActiveLow, uint32_t frequency) : _gpio(gpio), _frequency(frequency) {
     uint8_t bits       = calc_pwm_precision(frequency);
     _period            = (1 << bits) - 1;
     _channel           = allocateChannel();
-    uint8_t      group = (_channel / 8);
     ledc_timer_t timer = ledc_timer_t((_channel / 2) % 4);
 
-    ledc_timer_config_t ledc_timer = { .speed_mode      = ledc_mode_t(group),
+#ifdef SOC_LEDC_SUPPORT_HS_MODE
+    // Only ESP32 has LEDC_HIGH_SPEED_MODE with 8 channels per group
+    ledc_mode_t speedmode = ledc_mode_t(int(_channel / (LEDC_CHANNEL_MAX / LEDC_SPEED_MODE_MAX)));
+#else
+    ledc_mode_t speedmode = LEDC_LOW_SPEED_MODE;
+#endif
+
+    ledc_timer_config_t ledc_timer = { .speed_mode      = speedmode,
                                        .duty_resolution = ledc_timer_bit_t(bits),
                                        .timer_num       = timer,
                                        .freq_hz         = frequency,
-                                       .clk_cfg         = LEDC_DEFAULT_CLK };
+                                       .clk_cfg         = LEDC_DEFAULT_CLK,
+                                       /* .deconfigure     = false  */ };
 
-    if (ledc_timer_config(&ledc_timer) != ESP_OK) {
-        log_error("ledc timer setup failed");
-        throw -1;
+    int attempt = 0;
+    for (attempt = 0; attempt < 5; ++attempt) {
+        if (ledc_timer_config(&ledc_timer) != ESP_OK) {
+            log_error("ledc timer setup failed. Frequency: " << frequency << " hz; duty resolution: " << bits);
+            --bits;
+        } else {
+            break;
+        }
+    }
+    if (attempt == 5) {
+        Assert(false, "LEDC timer setup failed.");
     }
 
+    int maxFrequency = int(CLOCK_FREQUENCY / float(1 << bits));
+    log_info("Max frequency of LEDC set at " << maxFrequency << "; duty resolution: " << bits << "; channel " << int(_channel));
+
     ledc_channel_config_t ledc_channel = { .gpio_num   = _gpio,
-                                           .speed_mode = ledc_mode_t(group),
+                                           .speed_mode = speedmode,
                                            .channel    = ledc_channel_t(_channel),
                                            .intr_type  = LEDC_INTR_DISABLE,
                                            .timer_sel  = timer,
                                            .duty       = 0,
                                            .hpoint     = 0,
-                                           .flags      = { .output_invert = invert } };
+                                           .flags      = { .output_invert = isActiveLow } };
+
     if (ledc_channel_config(&ledc_channel) != ESP_OK) {
-        log_error("ledc channel setup failed");
-        throw -1;
+        log_error("ledc channel setup failed. Frequency: " << frequency << " hz; duty resolution: " << bits
+                                                           << "; channel: " << int(_channel));
     }
+
+    // We write 1 item to ensure the complete configuration is correct of both timer and ledc:
+    auto chan_num = ledc_channel_t(_channel % 8);
+    ledc_set_duty(speedmode, chan_num, 0);
+    ledc_update_duty(speedmode, chan_num);
 }
 
 // cppcheck-suppress unusedFunction
 void IRAM_ATTR PwmPin::setDuty(uint32_t duty) {
-    uint8_t g = _channel >> 3, c = _channel & 7;
-    bool    on = duty != 0;
-
     // This is like ledcWrite, but it is called from an ISR
     // and ledcWrite uses RTOS features not compatible with ISRs
     // Also, ledcWrite infers enable from duty, which is incorrect
@@ -114,9 +137,36 @@ void IRAM_ATTR PwmPin::setDuty(uint32_t duty) {
 
     // We might be able to use ledc_duty_config() which is IRAM_ATTR
 
-    LEDC.channel_group[g].channel[c].duty.duty        = duty << 4;
-    LEDC.channel_group[g].channel[c].conf0.sig_out_en = on;
-    LEDC.channel_group[g].channel[c].conf1.duty_start = on;
+    uint8_t c  = _channel & 7;
+    bool    on = duty != 0;
+
+#ifdef SOC_LEDC_SUPPORT_HS_MODE
+    // Only ESP32 has LEDC_HIGH_SPEED_MODE with 8 channels per group
+    ledc_mode_t speedmode = ledc_mode_t(int(_channel / (LEDC_CHANNEL_MAX / LEDC_SPEED_MODE_MAX)));
+#else
+    ledc_mode_t speedmode = LEDC_LOW_SPEED_MODE;
+#endif
+
+    // ledc_set_duty(speedmode, ledc_channel_t(c), duty);
+    // This does:
+
+    auto& ch = LEDC.channel_group[speedmode].channel[c];
+
+    // These can be ignored because they should have been set by initial set_duty / update_duty (ctor):
+    // ch.conf1.duty_inc   = 1;
+    // ch.conf1.duty_num   = 1;
+    // ch.conf1.duty_cycle = 1;
+    // ch.conf1.duty_scale = 0;
+    ch.duty.duty = duty << 4;
+
+    // -> ledc_hal_set_sig_out_en(&(p_ledc_obj[speed_mode]->ledc_hal), channel, true);
+    ch.conf0.sig_out_en = on;
+    // -> ledc_hal_set_duty_start(&(p_ledc_obj[speed_mode]->ledc_hal), channel, true);
+    ch.conf1.duty_start = on;
+    // -> ledc_ls_channel_update(speed_mode, channel); // Doesn't seem to hurt for high speed channels.
+    ch.conf0.low_speed_update = 1;
+
+    // log_debug("Setting duty to " << duty);
 }
 
 PwmPin::~PwmPin() {

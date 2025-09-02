@@ -8,11 +8,10 @@
 // The size is limited to mimic the size of ESP32 RTC RAM minus system usage thereof
 static const size_t _maxlen = 7000;
 static char         _messages[_maxlen];
-static size_t       _len;
+static size_t       _len = 0;
 
-void StartupLog::init() {
-    _len = 0;
-}
+StartupLog::StartupLog() : Channel("Startup Log") {}
+
 size_t StartupLog::write(uint8_t data) {
     if (_len >= _maxlen) {
         return 0;
@@ -20,6 +19,7 @@ size_t StartupLog::write(uint8_t data) {
     _messages[_len++] = (char)data;
     return 1;
 }
+
 // cppcheck-suppress unusedFunction
 void StartupLog::dump(Channel& out) {
     for (size_t i = 0; i < _len;) {

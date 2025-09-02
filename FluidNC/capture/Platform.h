@@ -3,6 +3,8 @@
 #define WEAK_LINK
 #define IRAM_ATTR
 
+#define MAX_N_GPIO 40
+
 // #define WITH_MBEDTLS
 
 #define MAX_N_SDCARD 0

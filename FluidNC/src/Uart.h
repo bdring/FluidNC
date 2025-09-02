@@ -35,7 +35,7 @@ public:
     // that use Uart can check that the setup is suitable.
     // E.g. some uses require an RTS pin.
 
-    // Configurable.  Uart0 uses a fixed configuration
+    // Configurable.  If the console is Uart0, it uses a fixed configuration
     int        _baud     = 115200;
     UartData   _dataBits = UartData::Bits8;
     UartParity _parity   = UartParity::None;

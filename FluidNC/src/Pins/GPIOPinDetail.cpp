@@ -9,7 +9,7 @@
 #include <stdexcept>
 
 namespace Pins {
-    std::vector<bool> GPIOPinDetail::_claimed(nGPIOPins, false);
+    std::vector<bool> GPIOPinDetail::_claimed(MAX_N_GPIO, false);
 
     void GPIOPinDetail::setDriveStrength(int n, PinAttributes attr) {
         Assert(_capabilities.has(PinCapabilities::Output), "Drive strength only applies to output pins");
@@ -25,7 +25,7 @@ namespace Pins {
         // that were allocated by the constructor up to that point _MUST_ be freed! Otherwise, you
         // WILL get into trouble.
 
-        Assert(index < nGPIOPins, "Pin number is greater than max %d", nGPIOPins - 1);
+        Assert(index < MAX_N_GPIO, "Pin number is greater than max %d", MAX_N_GPIO - 1);
         Assert(_capabilities != PinCapabilities::Reserved, "Unusable GPIO");
         Assert(_capabilities != PinCapabilities::None, "Unavailable GPIO");
         Assert(!_claimed[index], "Pin is already used.");

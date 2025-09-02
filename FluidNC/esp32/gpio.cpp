@@ -83,8 +83,8 @@ static gpio_mask_t gpios_inverted = 0;  // GPIOs that are active low
 static gpio_mask_t gpios_interest = 0;  // GPIOs with an action
 static gpio_mask_t gpios_current  = 0;  // The last GPIO action events that were sent
 
-static int32_t gpio_next_event_ticks[GPIO_NUM_MAX + 1] = { 0 };
-static int32_t gpio_deltat_ticks[GPIO_NUM_MAX + 1]     = { 0 };
+static int32_t gpio_next_event_ticks[MAX_N_GPIO + 1] = { 0 };
+static int32_t gpio_deltat_ticks[MAX_N_GPIO + 1]     = { 0 };
 
 // Do not send events for changes that occur too soon
 static void gpio_set_rate_limit(int gpio_num, uint32_t ms) {
@@ -108,7 +108,7 @@ static void gpios_update(gpio_mask_t& gpios, int gpio_num, bool active) {
     }
 }
 
-static void* gpioArgs[GPIO_NUM_MAX + 1];
+static void* gpioArgs[MAX_N_GPIO + 1];
 
 void gpio_set_event(int gpio_num, void* arg, int invert) {
     gpioArgs[gpio_num] = arg;

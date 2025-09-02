@@ -46,7 +46,7 @@ void protocol_do_probe(void* arg) {
         if (p->_hard_stop) {
             Stepper::reset();
             plan_reset();
-            sys.state = State::Idle;
+            state_is(State::Idle);
         } else {
             protocol_do_motion_cancel();
         }

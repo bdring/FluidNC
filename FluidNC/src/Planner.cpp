@@ -249,10 +249,10 @@ uint8_t plan_check_full_buffer() {
 float plan_compute_profile_nominal_speed(plan_block_t* block) {
     float nominal_speed = block->programmed_rate;
     if (block->motion.rapidMotion) {
-        nominal_speed *= (0.01f * sys.r_override);
+        nominal_speed *= (0.01f * sys.r_override());
     } else {
         if (!(block->motion.noFeedOverride)) {
-            nominal_speed *= (0.01f * sys.f_override);
+            nominal_speed *= (0.01f * sys.f_override());
         }
         if (nominal_speed > block->rapid_rate) {
             nominal_speed = block->rapid_rate;

@@ -272,15 +272,15 @@ bool get_system_param(const std::string& name, float& result) {
         return true;
     }
     if (sysn == "_speed_override") {
-        result = sys.spindle_speed_ovr != 100;
+        result = sys.spindle_speed_ovr() != 100;
         return true;
     }
     if (sysn == "_feed_override") {
-        result = sys.f_override != 100;
+        result = sys.f_override() != 100;
         return true;
     }
     if (sysn == "_feed_hold") {
-        result = sys.state == State::Hold;
+        result = state_is(State::Hold);
         return true;
     }
     if (sysn == "_feed") {

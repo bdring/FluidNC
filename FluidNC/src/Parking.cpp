@@ -10,7 +10,7 @@
 // Plans and executes the single special motion case for parking. Independent of main planner buffer.
 // NOTE: Uses the always free planner ring buffer head to store motion parameters for execution.
 void Parking::moveto(float* target) {
-    if (sys.abort) {
+    if (sys.abort()) {
         return;  // Block during abort.
     }
     if (plan_buffer_line(target, &plan_data)) {
@@ -21,7 +21,7 @@ void Parking::moveto(float* target) {
         Stepper::wake_up();
         do {
             protocol_exec_rt_system();
-            if (sys.abort) {
+            if (sys.abort()) {
                 return;
             }
         } while (sys.step_control.executeSysMotion);
@@ -53,7 +53,7 @@ bool Parking::can_park() {
     // If the M56 feature is present, M56 controls the value
     // of sys.override_ctrl, thus letting you disable parking
     // by saying M56 P0
-    return sys.override_ctrl == Override::ParkingMotion;
+    return sys.override_ctrl() == Override::ParkingMotion;
 }
 
 void Parking::setup() {

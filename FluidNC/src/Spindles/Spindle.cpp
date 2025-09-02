@@ -7,7 +7,6 @@
 #include "Spindle.h"
 
 #include "System.h"  //sys.spindle_speed_ovr
-#include "UartChannel.h"
 
 Spindles::Spindle* spindle = nullptr;
 
@@ -160,11 +159,11 @@ namespace Spindles {
     }
 
     uint32_t IRAM_ATTR Spindle::mapSpeed(SpindleState state, SpindleSpeed speed) {
-        speed             = speed * sys.spindle_speed_ovr / 100;
-        sys.spindle_speed = speed;
+        speed = speed * sys.spindle_speed_ovr() / 100;
+        sys.set_spindle_speed(speed);
         if (state == SpindleState::Disable) {  // Halt or set spindle direction and speed.
             if (_zero_speed_with_disable) {
-                sys.spindle_speed = 0.0;
+                sys.set_spindle_speed(0);
                 return 0;
             }
         }

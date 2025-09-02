@@ -66,7 +66,7 @@ namespace Spindles {
     }
 
     void IRAM_ATTR _10v::set_enable(bool enable) {
-        if (_disable_with_zero_speed && sys.spindle_speed == 0) {
+        if (_disable_with_zero_speed && sys.spindle_speed() == 0) {
             enable = false;
         }
 

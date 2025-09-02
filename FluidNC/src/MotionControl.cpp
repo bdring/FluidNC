@@ -77,7 +77,7 @@ bool mc_move_motors(float* target, plan_line_data_t* pl_data) {
         // While we are waiting for room in the buffer, look for realtime
         // commands and other situations that could cause state changes.
         protocol_execute_realtime();
-        if (sys.abort) {
+        if (sys.abort()) {
             mc_pl_data_inflight = NULL;
             return submitted_result;  // Bail, if system abort.
         }
@@ -147,7 +147,7 @@ void mc_arc(float*            target,
 
     auto n_axis = Axes::_numberAxis;
 
-    float previous_position[n_axis] = { 0.0 };
+    float previous_position[n_axis] = { 0.0f };
     for (size_t i = 0; i < n_axis; i++) {
         previous_position[i] = position[i];
     }
@@ -256,7 +256,7 @@ void mc_arc(float*            target,
             previous_position[axis_1]      = position[axis_1];
             previous_position[axis_linear] = position[axis_linear];
             // Bail mid-circle on system abort. Runtime command check already performed by mc_linear.
-            if (sys.abort) {
+            if (sys.abort()) {
                 return;
             }
         }
@@ -291,7 +291,7 @@ GCUpdatePos mc_probe_cycle(float* target, plan_line_data_t* pl_data, bool away, 
     }
     // Finish all queued commands and empty planner buffer before starting probe cycle.
     protocol_buffer_synchronize();
-    if (sys.abort) {
+    if (sys.abort()) {
         return GCUpdatePos::None;  // Return if system reset has been issued.
     }
 
@@ -316,7 +316,7 @@ GCUpdatePos mc_probe_cycle(float* target, plan_line_data_t* pl_data, bool away, 
     protocol_send_event(&cycleStartEvent);
     do {
         protocol_execute_realtime();
-        if (sys.abort) {
+        if (sys.abort()) {
             Stepping::endLowLatency();
             return GCUpdatePos::None;  // Check for system abort
         }
@@ -350,13 +350,13 @@ GCUpdatePos mc_probe_cycle(float* target, plan_line_data_t* pl_data, bool away, 
     // }
     if (probe_succeeded) {
         if (offset != __FLT_MAX__) {
-            float coord_data[MAX_N_AXIS];
-            float probe_contact[MAX_N_AXIS];
+            auto  n_axis = Axes::_numberAxis;
+            float coord_data[n_axis];
+            float probe_contact[n_axis];
 
             motor_steps_to_mpos(probe_contact, probe_steps);
             coords[gc_state.modal.coord_select]->get(coord_data);  // get a copy of the current coordinate offsets
-            auto n_axis = Axes::_numberAxis;
-            for (int axis = 0; axis < n_axis; axis++) {  // find the axis specified. There should only be one.
+            for (int axis = 0; axis < n_axis; axis++) {            // find the axis specified. There should only be one.
                 if (offsetAxis & (1 << axis)) {
                     coord_data[axis] = probe_contact[axis] - offset;
                     break;
@@ -377,10 +377,10 @@ GCUpdatePos mc_probe_cycle(float* target, plan_line_data_t* pl_data, bool away, 
 void mc_override_ctrl_update(Override override_state) {
     // Finish all queued commands before altering override control state
     protocol_buffer_synchronize();
-    if (sys.abort) {
+    if (sys.abort()) {
         return;
     }
-    sys.override_ctrl = override_state;
+    sys.set_override_ctrl(override_state);
 }
 
 // Method to ready the system to reset by setting the realtime reset command and killing any

@@ -3,7 +3,7 @@
 
 #include "WSChannel.h"
 
-#include "UartChannel.h"
+#include "Driver/Console.h"
 #include "WebServer.h"
 #include <WebSocketsServer.h>
 #include <WiFi.h>
@@ -81,7 +81,7 @@ namespace WebUI {
         }
         if (!_server->sendTXT(_clientNum, s.c_str())) {
             _active = false;
-            log_debug_to(Uart0, "WebSocket is unresponsive; closing");
+            log_debug_to(Console, "WebSocket is unresponsive; closing");
             return false;
         }
         return true;
@@ -94,7 +94,7 @@ namespace WebUI {
         int stat = _server->canSend(_clientNum);
         if (stat < 0) {
             _active = false;
-            log_debug_to(Uart0, "WebSocket is dead; closing");
+            log_debug_to(Console, "WebSocket is dead; closing");
             return;
         }
         if (stat == 0) {
@@ -194,18 +194,18 @@ namespace WebUI {
     void WSChannels::handleEvent(WebSocketsServer* server, uint8_t num, uint8_t type, uint8_t* payload, size_t length) {
         switch (type) {
             case WStype_DISCONNECTED:
-                log_debug_to(Uart0, "WebSocket disconnect " << num);
+                log_debug_to(Console, "WebSocket disconnect " << num);
                 WSChannels::removeChannel(num);
                 break;
             case WStype_CONNECTED: {
                 WSChannel* wsChannel = new WSChannel(server, num);
                 if (!wsChannel) {
-                    log_error_to(Uart0, "Creating WebSocket channel failed");
+                    log_error_to(Console, "Creating WebSocket channel failed");
                 } else {
                     std::string uri((char*)payload, length);
 
                     IPAddress ip = server->remoteIP(num);
-                    log_debug_to(Uart0, "WebSocket " << num << " from " << ip << " uri " << uri);
+                    log_debug_to(Console, "WebSocket " << num << " from " << ip << " uri " << uri);
 
                     _lastWSChannel = wsChannel;
                     allChannels.registration(wsChannel);
@@ -241,15 +241,15 @@ namespace WebUI {
                 WSChannels::removeChannel(num);
                 break;
             case WStype_CONNECTED: {
-                log_debug_to(Uart0, "WStype_Connected");
+                log_debug_to(Console, "WStype_Connected");
                 WSChannel* wsChannel = new WSChannel(server, num);
                 if (!wsChannel) {
-                    log_error_to(Uart0, "Creating WebSocket channel failed");
+                    log_error_to(Console, "Creating WebSocket channel failed");
                 } else {
                     std::string uri((char*)payload, length);
 
                     IPAddress ip = server->remoteIP(num);
-                    log_debug_to(Uart0, "WebSocket " << num << " from " << ip << " uri " << uri);
+                    log_debug_to(Console, "WebSocket " << num << " from " << ip << " uri " << uri);
 
                     _lastWSChannel = wsChannel;
                     allChannels.registration(wsChannel);

@@ -14,7 +14,7 @@
 #    include "Limit.h"
 #    include "Protocol.h"
 #    include "System.h"
-#    include "UartChannel.h"
+#    include "Driver/Console.h"
 #    include "MotionControl.h"
 #    include "Platform.h"
 #    include "StartupLog.h"
@@ -28,11 +28,11 @@ extern void make_user_commands();
 
 void setup() {
     platform_preinit();
+
     try {
         timing_init();
-        uartInit();  // Setup serial port
 
-        StartupLog::init();
+        Console.init();  // Setup main interaction channel
 
         // Setup input polling loop after loading the configuration,
         // because the polling may depend on the config
@@ -96,6 +96,16 @@ void setup() {
             }
         }
 #    endif
+
+        // We have to initialize the extenders first, before pins are used
+        if (config->_extenders) {
+            config->_extenders->init();
+        }
+
+        auto listeners = Listeners::SysListenerFactory::objects();
+        for (auto l : listeners) {
+            l->init();
+        }
 
         Stepping::init();  // Configure stepper interrupt timers
 
@@ -178,7 +188,7 @@ void loop() {
         log_error("Stacktrace: " << ex.stackTrace);
     }
     // sys.abort is a user-initiated exit via ^x so we don't limit the number of occurrences
-    if (!sys.abort && ++tries > 1) {
+    if (!sys.abort() && ++tries > 1) {
         log_info("Stalling due to too many failures");
         while (1) {}
     }

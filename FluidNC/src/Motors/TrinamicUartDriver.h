@@ -18,7 +18,9 @@ namespace MotorDrivers {
 
         void init() override;
 
-        uint8_t _addr;
+        // TMC2208 and TMC2225 have a fixed addr = 0
+        // TMC2209 and TMC2226 configure these through MS1/MS2.
+        uint8_t _addr = 0;
 
         // Configuration handlers:
         void validate() override { StandardStepper::validate(); }

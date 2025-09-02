@@ -1,0 +1,176 @@
+board: FluidNC MotorBlock CNC Controller 1.0
+name: FluidNC MotorBlock CNC Controller 1.0
+
+stepping:
+  engine: I2S_STATIC
+  idle_ms: 255
+  pulse_us: 2
+  dir_delay_us: 1
+  disable_delay_us: 0
+  
+i2so:
+  bck_pin: gpio.2
+  data_pin: gpio.43
+  ws_pin: gpio.1
+  oe_pin: gpio.36
+
+i2c0:
+  sda_pin: gpio.44
+  scl_pin: gpio.42
+  frequency: 100000
+
+spi:
+  miso_pin: gpio.7
+  mosi_pin: gpio.6
+  sck_pin: gpio.5
+
+sdcard:
+  cs_pin: gpio.4
+#  frequency_hz: 4000000
+  frequency_hz: 10000000
+  
+extenders:
+  pinextender0:
+    pca9535_9555:
+      busId: 0
+      interrupt0: gpio.37
+
+start:
+  check_limits: true
+  must_home: false
+
+probe:
+  pin: gpio.17
+  check_mode_start: true
+
+
+axes:
+  x:
+    steps_per_mm: 266.666
+    max_rate_mm_per_min: 1500.000
+    acceleration_mm_per_sec2: 500.000
+    max_travel_mm: 30000.000
+    soft_limits: false
+
+    motor0:
+      limit_neg_pin: pinext0.8
+      limit_pos_pin: NO_PIN
+      limit_all_pin: NO_PIN
+      hard_limits: false
+      pulloff_mm: 1.000
+    homing:
+      cycle: 2
+      positive_direction: false
+      mpos_mm: 150.000
+      feed_mm_per_min: 100.000
+      seek_mm_per_min: 200.000
+      settle_ms: 500
+      seek_scaler: 1.100
+      feed_scaler: 1.100
+
+  y:
+    steps_per_mm: 266.666
+    max_rate_mm_per_min: 1500.000
+    acceleration_mm_per_sec2: 500.000
+    max_travel_mm: 30000.000
+    soft_limits: false
+    motor0:
+      limit_neg_pin: pinext0.9
+      limit_pos_pin: NO_PIN
+      limit_all_pin: NO_PIN
+      hard_limits: false
+      pulloff_mm: 1.000
+    homing:
+      cycle: 3
+      positive_direction: false
+      mpos_mm: 150.000
+      feed_mm_per_min: 100.000
+      seek_mm_per_min: 200.000
+      settle_ms: 500
+      seek_scaler: 1.100
+      feed_scaler: 1.100
+
+  z:
+    steps_per_mm: 266.666
+    max_rate_mm_per_min: 1500.000
+    acceleration_mm_per_sec2: 500.000
+    max_travel_mm: 30000.000
+    soft_limits: false
+
+    motor0:
+      limit_neg_pin: pinext0.10
+      limit_pos_pin: NO_PIN
+      limit_all_pin: NO_PIN
+      hard_limits: false
+      pulloff_mm: 1.000
+    homing:
+      cycle: 1
+      positive_direction: false
+      mpos_mm: 150.000
+      feed_mm_per_min: 100.000
+      seek_mm_per_min: 200.000
+      settle_ms: 500
+      seek_scaler: 1.100
+      feed_scaler: 1.100
+
+  a:
+    steps_per_mm: 266.666
+    max_rate_mm_per_min: 1500.000
+    acceleration_mm_per_sec2: 500.000
+    max_travel_mm: 30000.000
+    soft_limits: false
+
+    motor0:
+      limit_neg_pin: pinext0.13
+      limit_pos_pin: NO_PIN
+      limit_all_pin: NO_PIN
+      hard_limits: false
+      pulloff_mm: 1.000
+    homing:
+      cycle: 4
+      positive_direction: false
+      mpos_mm: 150.000
+      feed_mm_per_min: 100.000
+      seek_mm_per_min: 200.000
+      settle_ms: 500
+      seek_scaler: 1.100
+      feed_scaler: 1.100
+
+rgbled:
+    pin: gpio.45
+    index: 0
+    idle: 007F00
+    alarm: 7F0000
+    checkMode: 00007F
+    homing: 501f00
+    cycle: 7f4422
+    hold: 777744
+    jog: 007f3f
+    safetyDoor: 3f7f00
+    sleep: 001F00
+    configAlarm: 7f0000
+
+Laser:
+  pwm_hz: 5000
+  output_pin: gpio.8:low
+  disable_with_s0: false
+  s0_with_disable: true
+  tool_num: 100
+  speed_map: 0=0.000% 1000=100.000%
+  off_on_alarm: true
+
+#Relay:
+#  tool_num: 200
+#  output_pin: gpio.8:low
+
+#10V:
+#  output_pin: gpio.18:low
+#  spinup_ms: 1000
+#  spindown_ms: 500
+#  tool_num: 0
+#  speed_map: 0=0% 3000=0% 12000=100%
+#  off_on_alarm: true
+
+coolant:
+  mist_pin:  I2so.20:low
+  flood_pin: I2so.19:low

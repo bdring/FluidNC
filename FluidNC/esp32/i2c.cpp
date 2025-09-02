@@ -1,7 +1,7 @@
 // Copyright 2022 - Mitch Bradley
 // Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
 
-#include "driver/i2c.h"
+#include <driver/i2c.h>
 
 #include "Driver/fluidnc_i2c.h"
 #include "Logging.h"
@@ -27,8 +27,16 @@ bool i2c_master_init(int bus_number, pinnum_t sda_pin, pinnum_t scl_pin, uint32_
         log_error("i2c_driver_install failed");
         return true;
     }
-    //Clock Stretching Timeout: 20b:esp32, 5b:esp32-c3, 24b:esp32-s2
-    i2c_set_timeout((i2c_port_t)bus_number, 0xfffff);
+
+    // Source: esp32-hal-i2c.c
+
+    // Clock Stretching Timeout: 20b:esp32, 5b:esp32-c3, 24b:esp32-s2
+    //
+    // #ifdef CONFIG_IDF_TARGET_ESP32S3
+    //     i2c_set_timeout((i2c_port_t)bus_number, 0x0000001FU);
+    // #else
+    //     i2c_set_timeout((i2c_port_t)bus_number, 0xfffff);
+    // #endif
     return false;
 }
 
@@ -70,7 +78,13 @@ int i2c_write(int bus_number, uint8_t address, const uint8_t* data, size_t count
         }
         return ret ? -1 : count;
 #else
-    return i2c_master_write_to_device((i2c_port_t)bus_number, address, data, count, 10 / portTICK_RATE_MS) ? -1 : count;
+    auto err = i2c_master_write_to_device((i2c_port_t)bus_number, address, data, count, 10 / portTICK_RATE_MS);
+    if (err == ESP_OK) {
+        return count;
+    } else {
+        log_warn("Error writing to I2C device: " << err);
+        return -1;
+    }
 #endif
 }
 

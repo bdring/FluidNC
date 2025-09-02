@@ -95,7 +95,8 @@ public:
 
     int _ackwait = 0;  // 1 - waiting, 0 - ACKed, -1 - NAKed
 
-    virtual void       handle() {};
+    virtual void       init() {}
+    virtual void       handle() {}
     virtual Error      pollLine(char* line);
     virtual void       ack(Error status);
     const std::string& name() { return _name; }

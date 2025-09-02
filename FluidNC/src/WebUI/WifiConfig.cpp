@@ -648,7 +648,7 @@ namespace WebUI {
                     break;
                 case SYSTEM_EVENT_STA_DISCONNECTED:
                     if (!disconnect_seen) {
-                        log_info_to(Uart0, "WiFi Disconnected");
+                        log_info_to(Console, "WiFi Disconnected");
                         disconnect_seen = true;
                     }
                     break;
@@ -658,10 +658,10 @@ namespace WebUI {
                     break;
                 case SYSTEM_EVENT_STA_CONNECTED:
                     disconnect_seen = false;
-                    log_info_to(Uart0, "WiFi STA Connected");
+                    log_info_to(Console, "WiFi STA Connected");
                     break;
                 default:
-                    log_debug_to(Uart0, "WiFi event: " << (int)event);
+                    log_debug_to(Console, "WiFi event: " << (int)event);
                     break;
             }
         }

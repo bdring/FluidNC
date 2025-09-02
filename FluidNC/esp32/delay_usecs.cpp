@@ -5,18 +5,6 @@
 
 #include <sdkconfig.h>
 
-#if CONFIG_IDF_TARGET_ESP32
-#    include "esp32/clk.h"
-#elif CONFIG_IDF_TARGET_ESP32S2
-#    include "esp32s2/clk.h"
-#elif CONFIG_IDF_TARGET_ESP32S3
-#    include "esp32s3/clk.h"
-#elif CONFIG_IDF_TARGET_ESP32C3
-#    include "esp32c3/clk.h"
-#elif CONFIG_IDF_TARGET_ESP32H2
-#    include "esp32h2/clk.h"
-#endif
-
 uint32_t ticks_per_us;
 int      esp_clk_cpu_freq(void);
 

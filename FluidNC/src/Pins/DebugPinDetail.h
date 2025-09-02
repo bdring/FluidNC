@@ -14,7 +14,7 @@ namespace Pins {
         bool     _isHigh;
 
         struct CallbackHandler {
-            void (*callback)(void* arg);
+            void (*callback)(void* arg, bool v);
             void*           argument;
             DebugPinDetail* _myPin;
 

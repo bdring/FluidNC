@@ -4,11 +4,14 @@
 
 #pragma once
 
+#include "Platform.h"
+#include "Config.h"
 #include "Configuration/GenericFactory.h"
 #include "Configuration/HandlerBase.h"
 #include "Configuration/Configurable.h"
 #include "CoolantControl.h"
 #include "Kinematics/Kinematics.h"
+#include "Extenders/Extenders.h"
 #include "Control.h"
 #include "Probe.h"
 #include "Parking.h"
@@ -16,9 +19,10 @@
 #include "Spindles/Spindle.h"
 #include "Stepping.h"
 #include "Stepper.h"
-#include "Config.h"
 #include "UartChannel.h"
+#include "Driver/Console.h"
 #include "Module.h"
+#include "Listeners/SysListener.h"
 #include "Axes.h"
 #include "SPIBus.h"
 #include "I2CBus.h"
@@ -78,6 +82,10 @@ namespace Machine {
         Macros*         _macros      = nullptr;
         Start*          _start       = nullptr;
         Parking*        _parking     = nullptr;
+
+        //        Listeners::SysListenerList _sysListeners;
+        //        Spindles::SpindleList      _spindles;
+        Extenders::Extenders* _extenders = nullptr;
 
         UartChannel* _uart_channels[MAX_N_UARTS] = { nullptr };
         Uart*        _uarts[MAX_N_UARTS]         = { nullptr };

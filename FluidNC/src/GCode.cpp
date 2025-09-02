@@ -1868,7 +1868,7 @@ Error gc_execute_line(const char* input_line) {
             // As far as the parser is concerned, the position is now == target. In reality the
             // motion control system might still be processing the action and the real tool position
             // in any intermediate location.
-            if (sys.abort) {
+            if (sys.abort()) {
                 return Error::Reset;
             }
             if (gc_update_pos == GCUpdatePos::Target) {
@@ -1925,9 +1925,9 @@ Error gc_execute_line(const char* input_line) {
 
             // gc_state.modal.override = OVERRIDE_DISABLE; // Not supported.
             if (RESTORE_OVERRIDES_AFTER_PROGRAM_END) {
-                sys.f_override        = FeedOverride::Default;
-                sys.r_override        = RapidOverride::Default;
-                sys.spindle_speed_ovr = SpindleSpeedOverride::Default;
+                sys.set_f_override(FeedOverride::Default);
+                sys.set_r_override(RapidOverride::Default);
+                sys.set_spindle_speed_ovr(SpindleSpeedOverride::Default);
             }
 
             // Execute coordinate change and spindle/coolant stop.

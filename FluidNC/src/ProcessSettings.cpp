@@ -17,7 +17,7 @@
 #include "Limit.h"                // homingAxes
 #include "SettingsDefinitions.h"  // build_info
 #include "Protocol.h"             // LINE_BUFFER_SIZE
-#include "UartChannel.h"          // Uart0.write()
+#include "UartChannel.h"          // UartChannel
 #include "FileStream.h"           // FileStream()
 #include "StartupLog.h"           // startupLog
 #include "Driver/gpio_dump.h"     // gpio_dump()
@@ -260,7 +260,7 @@ static Error toggle_check_mode(const char* value, AuthenticationLevel auth_level
     // simple and consistent.
     if (state_is(State::CheckMode)) {
         report_feedback_message(Message::Disabled);
-        sys.abort = true;
+        sys.set_abort(true);
     } else {
         if (!state_is(State::Idle)) {
             return Error::IdleError;  // Requires no alarm mode.
@@ -546,7 +546,7 @@ static Error restore_settings(const char* value, AuthenticationLevel auth_level,
 
 static Error showState(const char* value, AuthenticationLevel auth_level, Channel& out) {
     const char* name;
-    const State state = sys.state;
+    const State state = sys.state();
     auto        it    = StateName.find(state);
     name              = it == StateName.end() ? "<invalid>" : it->second;
 
@@ -847,6 +847,71 @@ static Error uartPassthrough(const char* value, AuthenticationLevel auth_level, 
     return Error::Ok;
 }
 
+std::map<std::string, Pin*> pins;
+
+static Error setGPIOInput(const char* value, AuthenticationLevel auth_level, Channel& out) {
+    if (pins.find(value) == pins.end()) {
+        Pin* thePin = new Pin(Pin::create(value));
+        pins[value] = thePin;
+    }
+
+    pins[value]->setAttr(Pin::Attr::Input);
+    log_info("Pin " << value << " set to input");
+
+    return Error::Ok;
+}
+
+static Error setGPIOOutput(const char* value, AuthenticationLevel auth_level, Channel& out) {
+    if (pins.find(value) == pins.end()) {
+        Pin* thePin = new Pin(Pin::create(value));
+        pins[value] = thePin;
+    }
+
+    pins[value]->setAttr(Pin::Attr::Output);
+    log_info("Pin " << value << " set to output");
+
+    return Error::Ok;
+}
+
+static Error readGPIO(const char* value, AuthenticationLevel auth_level, Channel& out) {
+    if (pins.find(value) == pins.end()) {
+        Pin* thePin = new Pin(Pin::create(value));
+        pins[value] = thePin;
+        thePin->setAttr(Pin::Attr::Input);
+    }
+
+    const auto v = pins[value]->read() ? "on" : "off";
+    log_info("Pin " << value << " reads " << v);
+
+    return Error::Ok;
+}
+
+static Error writeGPIOOn(const char* value, AuthenticationLevel auth_level, Channel& out) {
+    if (pins.find(value) == pins.end()) {
+        Pin* thePin = new Pin(Pin::create(value));
+        pins[value] = thePin;
+        thePin->setAttr(Pin::Attr::Output);
+    }
+
+    pins[value]->synchronousWrite(true);
+    log_info("Pin " << value << " is on");
+
+    return Error::Ok;
+}
+
+static Error writeGPIOOff(const char* value, AuthenticationLevel auth_level, Channel& out) {
+    if (pins.find(value) == pins.end()) {
+        Pin* thePin = new Pin(Pin::create(value));
+        pins[value] = thePin;
+        thePin->setAttr(Pin::Attr::Output);
+    }
+
+    pins[value]->synchronousWrite(0);
+    log_info("Pin " << value << " is off");
+
+    return Error::Ok;
+}
+
 static Error setReportInterval(const char* value, AuthenticationLevel auth_level, Channel& out) {
     if (!value) {
         uint32_t actual = out.getReportInterval();
@@ -897,6 +962,11 @@ static Error showHeap(const char* value, AuthenticationLevel auth_level, Channel
 // for decoding its own value string, if it needs one.
 void make_user_commands() {
     new UserCommand("GD", "GPIO/Dump", showGPIOs, anyState);
+    new UserCommand("GI", "GPIO/Input", setGPIOInput, anyState);
+    new UserCommand("GO", "GPIO/Output", setGPIOOutput, anyState);
+    new UserCommand("G+", "GPIO/On", writeGPIOOn, anyState);
+    new UserCommand("G-", "GPIO/Off", writeGPIOOff, anyState);
+    new UserCommand("GR", "GPIO/Read", readGPIO, anyState);
 
     new UserCommand("CI", "Channel/Info", showChannelInfo, anyState);
     new UserCommand("CD", "Config/Dump", dump_config, anyState);

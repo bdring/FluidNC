@@ -25,8 +25,6 @@ namespace Pins {
         void setDriveStrength(int n, PinAttributes attr);
 
     public:
-        static const int nGPIOPins = 40;
-
         GPIOPinDetail(pinnum_t index, PinOptionsParser options);
 
         PinCapabilities capabilities() const override;

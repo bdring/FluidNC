@@ -15,7 +15,7 @@ static RTC_NOINIT_ATTR char   _messages[_maxlen];
 static RTC_NOINIT_ATTR size_t _len;
 static bool                   _paniced;
 
-void StartupLog::init() {
+StartupLog::StartupLog() : Channel("Startup Log") {
     if (esp_reset_reason() == ESP_RST_PANIC) {
         _paniced = true;
     } else {

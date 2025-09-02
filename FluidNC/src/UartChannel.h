@@ -20,7 +20,7 @@ private:
 public:
     UartChannel(int num, bool addCR = false);
 
-    void init();
+    void init() override;
     void init(Uart* uart);
 
     // Print methods (Stream inherits from Print)
@@ -58,7 +58,3 @@ public:
         handler.item("message_level", _message_level, messageLevels2);
     }
 };
-
-extern UartChannel Uart0;
-
-extern void uartInit();

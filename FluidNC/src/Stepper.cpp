@@ -663,7 +663,7 @@ void Stepper::prep_buffer() {
 
                 prep.current_spindle_speed = speed;
             } else {
-                sys.spindle_speed          = 0;
+                sys.set_spindle_speed(0);
                 prep.current_spindle_speed = 0;
             }
             sys.step_control.updateSpindleSpeed = false;
@@ -770,7 +770,7 @@ void Stepper::prep_buffer() {
 // in the segment buffer. It will always be behind by up to the number of segment blocks (-1)
 // divided by the ACCELERATION TICKS PER SECOND in seconds.
 float Stepper::get_realtime_rate() {
-    switch (sys.state) {
+    switch (sys.state()) {
         case State::Cycle:
         case State::Homing:
         case State::Hold:

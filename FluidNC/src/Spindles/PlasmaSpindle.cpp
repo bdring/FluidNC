@@ -50,7 +50,7 @@ namespace Spindles {
     }
 
     void PlasmaSpindle::setState(SpindleState state, SpindleSpeed speed) {
-        if (sys.abort) {
+        if (sys.abort()) {
             return;  // Block during abort.
         }
 
@@ -58,9 +58,9 @@ namespace Spindles {
         if (state == SpindleState::Disable) {
             _arc_on = false;
             set_enable(false);
-            sys.spindle_speed = 0.0;
+            sys.set_spindle_speed(0);
         } else {
-            sys.spindle_speed = speed;
+            sys.set_spindle_speed(speed);
 
             // if the spindle was already enabled this was just a speed change
             if (gc_state.modal.spindle != SpindleState::Disable) {
@@ -105,7 +105,7 @@ namespace Spindles {
     void IRAM_ATTR PlasmaSpindle::setSpeedfromISR(uint32_t dev_speed) {}
 
     void IRAM_ATTR PlasmaSpindle::set_enable(bool enable) {
-        if (_disable_with_zero_speed && sys.spindle_speed == 0) {
+        if (_disable_with_zero_speed && sys.spindle_speed() == 0) {
             enable = false;
         }
 

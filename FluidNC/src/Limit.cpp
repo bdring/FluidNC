@@ -89,7 +89,7 @@ void limit_error() {
         protocol_send_event(&feedHoldEvent);
         do {
             protocol_execute_realtime();
-            if (sys.abort) {
+            if (sys.abort()) {
                 return;
             }
         } while (!state_is(State::Idle));

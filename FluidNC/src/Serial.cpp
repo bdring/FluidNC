@@ -38,7 +38,6 @@
 */
 
 #include "Serial.h"
-#include "UartChannel.h"
 #include "Machine/MachineConfig.h"
 #include "MotionControl.h"
 #include "Report.h"

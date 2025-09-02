@@ -10,6 +10,8 @@
 #define MAX_N_SPI 1
 #define MAX_N_DACS 2
 
+#define MAX_N_GPIO 47
+
 // Serial baud rate
 // The ESP32 boot text is 115200, so you will not see early startup
 // messages from the ESP32 bootloader if you use a different baud rate,

@@ -52,7 +52,7 @@ namespace Spindles {
 
     // XXX this is the same as OnOff::setState so it might be possible to combine them
     void PWM::setState(SpindleState state, SpindleSpeed speed) {
-        if (sys.abort) {
+        if (sys.abort()) {
             return;  // Block during abort.
         }
 

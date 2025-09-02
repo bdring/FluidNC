@@ -1,12 +1,12 @@
 // Copyright 2022 - Mitch Bradley
 // Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
 
+#include "Platform.h"
 #include "Pin.h"
 #include "Uart.h"
 #include "Protocol.h"
 #include "Driver/fluidnc_gpio.h"
 
-#define GPIO_NUM_MAX 40
 void gpio_write(pinnum_t pin, int value) {}
 int  gpio_read(pinnum_t pin) {
      return 0;
@@ -28,8 +28,8 @@ static gpio_mask_t gpios_inverted = 0;  // GPIOs that are active low
 static gpio_mask_t gpios_interest = 0;  // GPIOs with an action
 static gpio_mask_t gpios_current  = 0;  // The last GPIO action events that were sent
 
-static int32_t gpio_next_event_ticks[GPIO_NUM_MAX + 1] = { 0 };
-static int32_t gpio_deltat_ticks[GPIO_NUM_MAX + 1]     = { 0 };
+static int32_t gpio_next_event_ticks[MAX_N_GPIO + 1] = { 0 };
+static int32_t gpio_deltat_ticks[MAX_N_GPIO + 1]     = { 0 };
 
 // Do not send events for changes that occur too soon
 static void gpio_set_rate_limit(int gpio_num, uint32_t ms) {}
@@ -51,7 +51,7 @@ static void gpios_update(gpio_mask_t& gpios, int gpio_num, bool active) {
     }
 }
 
-static void* gpioArgs[GPIO_NUM_MAX + 1];
+static void* gpioArgs[MAX_N_GPIO + 1];
 
 void gpio_set_event(int gpio_num, void* arg, int invert) {
     gpioArgs[gpio_num] = arg;
