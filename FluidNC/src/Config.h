@@ -2,8 +2,8 @@
 // Copyright (c) 2009-2011 Simen Svale Skogsrud
 // Copyright (c) 2021 -	Bart Dring
 // Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
-
 #pragma once
+#include <unordered_set>
 
 // This file contains compile-time configuration choices.  Most users will not need
 // to directly modify these, but they are here for unusual needs, i.e.
@@ -23,7 +23,7 @@ Some features should not be changed. See notes below.
 // machine.h is #included below, after some definitions
 // that the machine file might choose to undefine.
 
-const int MAX_N_AXIS = 6;
+const int MAX_N_AXIS = 9;
 
 const int MAX_MESSAGE_LINE = 256;
 
@@ -36,13 +36,26 @@ const int Z_AXIS = 2;
 const int A_AXIS = 3;
 const int B_AXIS = 4;
 const int C_AXIS = 5;
+const int U_AXIS = 6;
+const int V_AXIS = 7;
+const int W_AXIS = 8;
 
-const int X2_AXIS = (X_AXIS + MAX_N_AXIS);
-const int Y2_AXIS = (Y_AXIS + MAX_N_AXIS);
-const int Z2_AXIS = (Z_AXIS + MAX_N_AXIS);
-const int A2_AXIS = (A_AXIS + MAX_N_AXIS);
-const int B2_AXIS = (B_AXIS + MAX_N_AXIS);
-const int C2_AXIS = (C_AXIS + MAX_N_AXIS);
+
+const std::unordered_set<int> LINEAR_AXES = { X_AXIS, Y_AXIS, Z_AXIS, U_AXIS, V_AXIS, W_AXIS };
+const std::unordered_set<int> ROTARY_AXES = { A_AXIS, B_AXIS, C_AXIS };
+
+static constexpr const char*  AXES_LABELS = "XYZABCUVW";
+static constexpr const char*  AXES_LABELS_LOWER = "xyzabcuvw";
+
+// static constexpr const char*  ROTARY_AXES_NAMES = "ABC";
+// static constexpr const char*  LINEAR_AXES_NAMES = "XYZUVW";
+
+// const int X2_AXIS = (X_AXIS + MAX_N_AXIS + 1);
+// const int Y2_AXIS = (Y_AXIS + MAX_N_AXIS + 1);
+// const int Z2_AXIS = (Z_AXIS + MAX_N_AXIS + 1);
+// const int A2_AXIS = (A_AXIS + MAX_N_AXIS + 1);
+// const int B2_AXIS = (B_AXIS + MAX_N_AXIS + 1);
+// const int C2_AXIS = (C_AXIS + MAX_N_AXIS + 1);
 
 const int SUPPORT_TASK_CORE = 0;  // Reference: CONFIG_ARDUINO_RUNNING_CORE = 1
 
