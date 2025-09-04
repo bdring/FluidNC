@@ -58,7 +58,7 @@ static bool can_read_float_param(ngc_param_id_t id) {
 const std::map<const ngc_param_id_t, CoordIndex> axis_params = {
     { 5161, CoordIndex::G28 },
     { 5181, CoordIndex::G30 },
-    // { 5211, CoordIndex::G92 },  // Non-persisent, handled specially
+    { 5211, CoordIndex::G92 },  // Non-persisent, handled specially
     { 5221, CoordIndex::G54 },
     { 5241, CoordIndex::G55 },
     { 5261, CoordIndex::G56 },
@@ -117,7 +117,7 @@ static bool is_axis(int axis) {
 static bool is_rotary(int axis) {
     return axis >= A_AXIS && axis <= C_AXIS;
 }
-static float to_inches(int axis, float value) {
+static float to_inches(int axis, float value) {  // convert to inches if required
     if (!is_rotary(axis) && gc_state.modal.units == Units::Inches) {
         return value * INCH_PER_MM;
     }
@@ -135,6 +135,10 @@ bool get_numbered_param(ngc_param_id_t id, float& result) {
     for (auto const& [key, coord_index] : axis_params) {
         axis = id - key;
         if (is_axis(axis)) {
+            if (coord_index == CoordIndex::G92) {  //special case non-volatile G92
+                result = to_inches(axis, gc_state.coord_offset[axis]);
+                return true;
+            }
             const float* p = coords[coord_index]->get();
 
             result = to_inches(axis, coords[coord_index]->get(axis));
@@ -149,12 +153,6 @@ bool get_numbered_param(ngc_param_id_t id, float& result) {
         motor_steps_to_mpos(probe_position, probe_steps);
         result = to_inches(axis, probe_position[axis]);
         return true;
-    }
-
-    // Non-volatile G92
-    axis = id - 5211;
-    if (is_axis(axis)) {
-        result = to_inches(axis, gc_state.coord_offset[axis]);
     }
 
     if (id == 5220) {
