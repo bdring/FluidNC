@@ -68,7 +68,7 @@ const std::map<const ngc_param_id_t, CoordIndex> axis_params = {
     // { 5341, CoordIndex::G59_1 },  // Not implemented
     // { 5361, CoordIndex::G59_2 },  // Not implemented
     // { 5381, CoordIndex::G59_3 },  // Not implemented
-    // { 5401, CoordIndex::TLO },
+    { 5401, CoordIndex::TLO },
 };
 
 const std::map<const std::string, int> work_positions = {
@@ -139,7 +139,12 @@ bool get_numbered_param(ngc_param_id_t id, float& result) {
                 result = to_inches(axis, gc_state.coord_offset[axis]);
                 return true;
             }
-            const float* p = coords[coord_index]->get();
+            if (coord_index == CoordIndex::TLO) {  //special case non-volatile TLO Z only
+                if (axis == Z_AXIS) {
+                    result = to_inches(axis, gc_state.tool_length_offset);
+                }
+                return (axis == Z_AXIS);
+            }
 
             result = to_inches(axis, coords[coord_index]->get(axis));
             return true;
