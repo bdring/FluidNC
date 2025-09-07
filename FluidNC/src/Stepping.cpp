@@ -22,7 +22,7 @@ namespace Machine {
     // fStepperTimer should be an integer divisor of the bus speed, i.e. of fTimers
     const int ticksPerMicrosecond = Stepping::fStepperTimer / 1000000;
 
-    int Stepping::_engine = RMT_ENGINE;
+    int Stepping::_engine = DEFAULT_STEPPING_ENGINE;
 
     AxisMask Stepping::direction_mask = 0;
 
@@ -37,12 +37,14 @@ namespace Machine {
     step_engine_t* Stepping::step_engine;
 
     const EnumItem stepTypes[] = { { Stepping::TIMED, "Timed" },
+#if MAX_N_RMT
                                    { Stepping::RMT_ENGINE, "RMT" },
+#endif
 #if MAX_N_I2SO
                                    { Stepping::I2S_STATIC, "I2S_STATIC" },
                                    { Stepping::I2S_STREAM, "I2S_STREAM" },
 #endif
-                                   EnumItem(Stepping::RMT_ENGINE) };
+                                   EnumItem(DEFAULT_STEPPING_ENGINE) };
 
     void Stepping::afterParse() {
         const char* name = stepTypes[_engine].name;

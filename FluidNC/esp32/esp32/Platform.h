@@ -9,8 +9,10 @@
 #define MAX_N_I2C 2
 #define MAX_N_SPI 1
 #define MAX_N_DACS 2
+#define MAX_N_RMT 1
 
 #define MAX_N_GPIO 40
+#define DEFAULT_STEPPING_ENGINE Stepping::RMT
 
 // Serial baud rate
 // The ESP32 boot text is 115200, so you will not see early startup

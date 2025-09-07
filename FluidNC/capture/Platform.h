@@ -13,6 +13,9 @@
 #define MAX_N_I2C 0
 #define MAX_N_SPI 0
 #define MAX_N_DACS 0
+#define MAX_N_RMT 0
+
+#define DEFAULT_STEPPING_ENGINE Stepping::TIMED
 
 const int BAUD_RATE = 115200;
 
