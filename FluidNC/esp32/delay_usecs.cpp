@@ -6,7 +6,9 @@
 #include <sdkconfig.h>
 
 uint32_t ticks_per_us;
-int      esp_clk_cpu_freq(void);
+int      esp_clk_cpu_freq(void) {
+         return 80000000;
+}
 
 // cppcheck-suppress unusedFunction
 void timing_init() {
