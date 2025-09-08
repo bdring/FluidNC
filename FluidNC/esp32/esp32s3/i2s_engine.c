@@ -10,6 +10,7 @@
 #include "Driver/step_engine.h"
 
 #include <driver/gpio.h>
+#include "hal/gpio_hal.h"
 #include <esp_attr.h>  // IRAM_ATTR
 
 static int i2s_out_initialized = 0;
@@ -26,14 +27,42 @@ static int _stepPulseEndTime;
 static uint32_t i2s_output_ = 0;
 static uint32_t i2s_pulse_  = 0;
 
+static gpio_dev_t* _gpio_dev = GPIO_HAL_GET_HW(GPIO_PORT_0);
+
 static int IRAM_ATTR i2s_out_gpio_shiftout(uint32_t port_data) {
-    gpio_write(i2s_out_ws_pin, 0);
-    for (int i = 0; i < 32; i++) {
-        gpio_write(i2s_out_data_pin, !!(port_data & (1 << (32 - 1 - i))));
-        gpio_write(i2s_out_bck_pin, 1);
-        gpio_write(i2s_out_bck_pin, 0);
+    // Only works if gpio num < 32
+    volatile uint32_t* out = &(_gpio_dev->out);
+
+    const uint32_t wsbit   = 1 << i2s_out_ws_pin;
+    const uint32_t databit = 1 << i2s_out_data_pin;
+    const uint32_t clkbit  = 1 << i2s_out_bck_pin;
+
+    // Pre-calculate the possible bit loop values for the out register
+    const uint32_t clk0data0 = *out & ~clkbit & ~databit & ~wsbit;
+    const uint32_t clk1data0 = clk0data0 | clkbit;
+    const uint32_t clk0data1 = clk0data0 | databit;
+    const uint32_t clk1data1 = clk1data0 | databit;
+
+    // With int32_t, the high bit can be tested with <0
+    int32_t data = port_data;
+
+    // It is not necessary to drive WS low before sending the bits
+    // The WS transition that matters is low-to-high, which happens
+    // after all the bits are send.  The high-to-low transition is
+    // concurrent with the clk-low phase of the first data bit.
+    //    *out = clk0data0;
+
+    for (int i = 32; i--;) {
+        if (data < 0) {
+            *out = clk0data1;  // Establish data 1 during clk low phase
+            *out = clk1data1;  // Hold data 1 across low-to-high transition
+        } else {
+            *out = clk0data0;  // Establish data 0 during clk low phase
+            *out = clk1data0;  // Hold data 0 across low-to-high transition
+        }
+        data >>= 1;
     }
-    gpio_write(i2s_out_ws_pin, 1);  // Latch
+    *out = clk0data0 | wsbit;  // Drive WS high to push to the output register
     return 0;
 }
 
@@ -133,7 +162,22 @@ static int IRAM_ATTR start_unstep() {
 static void IRAM_ATTR finish_unstep() {}
 
 static uint32_t max_pulses_per_sec() {
-    return 100000 / (2 * _pulse_delay_us);
+    const uint32_t max_pps = 1000000 / (2 * _pulse_delay_us);
+
+    const uint32_t hw_max_pps = 80000;
+    // 80000 is empirically determined.  The maximum clock rate for
+    // ESP32-S3 GPIO bit-banging (without using dedicated GPIOs) is
+    // 8 Mhz, so a 32-bit shift-in takes 32/8 = 4 uS.  A step pulse
+    // has both a leading and trailing edge, so 8 uS or 125000 pulses
+    // per second neglecting software overhead.  I measured 720 ns
+    // of software overhead between the two edges and 3280 ns between
+    // successive pulses, for a total pulse-to-pulse time of 12 us,
+    // so 83333 pulses per second.
+
+    if (max_pps > hw_max_pps) {
+        return hw_max_pps;
+    }
+    return max_pps;
 }
 
 static void IRAM_ATTR set_timer_ticks(uint32_t ticks) {
