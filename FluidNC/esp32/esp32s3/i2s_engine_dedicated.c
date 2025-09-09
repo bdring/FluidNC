@@ -44,7 +44,6 @@ static void setup_dedicated_gpios(pinnum_t bck_pin, pinnum_t data_pin, pinnum_t 
     };
     ESP_ERROR_CHECK(dedic_gpio_new_bundle(&bundle_config, &bundle));
     uint32_t* b = (uint32_t*)bundle;
-    printf("off %d msk %x core %d\n", b[3], b[1], b[0]);
 }
 
 static inline __attribute__((always_inline)) void oneclock(int32_t data) {
