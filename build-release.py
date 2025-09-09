@@ -174,9 +174,13 @@ def addFile(name, controllerpath, filename, srcpath, dstpath):
 
 flashsize = "4m"
 
-mcu = "esp32"
-for mcu in ['esp32']:
-    for envName in ['wifi','bt', 'noradio']:
+versions = [
+    { "mcu": "esp32",   "envs":  ["wifi", "bt", "noradio"]},
+    { "mcu": "esp32s3", "envs" : ["wifi_s3", "noradio_s3"]},
+]
+for version in versions:
+    mcu = version["mcu"]
+    for envName in version["envs"]:
         if buildEnv(envName, verbose=verbose) != 0:
             sys.exit(1)
         buildDir = os.path.join('.pio', 'build', envName)
@@ -184,7 +188,7 @@ for mcu in ['esp32']:
 
         addImage(mcu + '-' + envName + '-firmware', '0x10000', 'firmware.bin', buildDir, mcu + '/' + envName)
 
-        if envName == 'wifi':
+        if envName.startswith('wifi'):
             if buildFs('wifi', verbose=verbose) != 0:
                 sys.exit(1)
 
@@ -271,6 +275,16 @@ def makeManifest():
     addInstallable(fresh_install, True, ["esp32-4m-partitions", "esp32-bootloader", "esp32-bootapp", "esp32-noradio-firmware"])
     addInstallable(firmware_update, False, ["esp32-noradio-firmware"])
 
+    addMCU("esp32s3", "ESP32-S3-WROOM-1", "Firmware variant")
+
+    addVariant("wifi_s3", "Supports WiFi and WebUI", "Installation type")
+    addInstallable(fresh_install, True, ["esp32s3-4m-partitions", "esp32s3-bootloader", "esp32s3-bootapp", "esp32s3-wifi_s3-firmware", "esp32s3-wifi_s3-4m-filesystem"])
+    addInstallable(firmware_update, False, ["esp32s3-wifi_s3-firmware"])
+
+    addVariant("noradio", "Does not support WiFi", "Installation type")
+    addInstallable(fresh_install, True, ["esp32s3-4m-partitions", "esp32s3-bootloader", "esp32s3-bootapp", "esp32s3-noradio_s3-firmware"])
+    addInstallable(firmware_update, False, ["esp32s3-noradio_s3-firmware"])
+
     addFile("WebUI-2", "/localfs/index.html.gz", "index-webui-2.html.gz", os.path.join("release", "current", "data"), "data")
     addFile("WebUI-3", "/localfs/index.html.gz", "index-webui-3.html.gz", os.path.join("release", "current", "data"), "data")
 
@@ -323,7 +337,7 @@ for platform in ['win64', 'posix']:
             zipObj.write(os.path.join(sharedPath, 'common', secFuses), os.path.join(zipDirName, 'common', secFuses))
 
         # Put FluidNC binaries, partition maps, and installers in the archive
-        for envName in ['wifi','bt']:
+        for envName in ['wifi','bt','wifi_s3']:
 
             # Put bootloader binaries in the archive
             bootloader = 'bootloader.bin'
@@ -331,7 +345,7 @@ for platform in ['win64', 'posix']:
 
             # Put littlefs.bin and index.html.gz in the archive
             # bt does not need a littlefs.bin because there is no use for index.html.gz
-            if envName == 'wifi':
+            if envName.startswith('wifi'):
                 name = 'littlefs.bin'
                 zipObj.write(os.path.join(pioPath, envName, name), os.path.join(zipDirName, envName, name))
                 name = 'index.html.gz'
