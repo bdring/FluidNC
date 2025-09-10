@@ -175,22 +175,24 @@ def addFile(name, controllerpath, filename, srcpath, dstpath):
 flashsize = "4m"
 
 versions = [
-    { "mcu": "esp32",   "envs":  ["wifi", "bt", "noradio"]},
-    { "mcu": "esp32s3", "envs" : ["wifi_s3", "noradio_s3"]},
+    { "mcu": "esp32",   "env_suffix": "", "builds":  ["wifi", "bt", "noradio"]},
+    { "mcu": "esp32s3", "env_suffix": "_s3", "builds" : ["wifi", "noradio"]},
 ]
 for version in versions:
     mcu = version["mcu"]
-    for envName in version["envs"]:
-        if buildEnv(envName, verbose=verbose) != 0:
-            sys.exit(1)
+    suffix = version["env_suffix"]
+    for buildName in version["builds"]:
+        envName = buildName + suffix
+        # if buildEnv(envName, verbose=verbose) != 0:
+        #    sys.exit(1)
         buildDir = os.path.join('.pio', 'build', envName)
-        shutil.copy(os.path.join(buildDir, 'firmware.elf'), os.path.join(relPath, envName + '-' + 'firmware.elf'))
+        shutil.copy(os.path.join(buildDir, 'firmware.elf'), os.path.join(relPath, mcu + '-' + buildName + '-' + 'firmware.elf'))
 
-        addImage(mcu + '-' + envName + '-firmware', '0x10000', 'firmware.bin', buildDir, mcu + '/' + envName)
+        addImage(mcu + '-' + buildName + '-firmware', '0x10000', 'firmware.bin', buildDir, mcu + '/' + buildName)
 
-        if envName.startswith('wifi'):
-            if buildFs(envName, verbose=verbose) != 0:
-                sys.exit(1)
+        if buildName == 'wifi':
+            # if buildFs(envName, verbose=verbose) != 0:
+            #     sys.exit(1)
 
             # bootapp is a data partition that the bootloader and OTA use to determine which
             # image to run.  Its initial value is in a file "boot_app0.bin" in the platformio
@@ -198,9 +200,9 @@ for version in versions:
             bootappsrc = os.path.join(os.path.expanduser('~'),'.platformio','packages','framework-arduinoespressif32','tools','partitions', 'boot_app0.bin')
             shutil.copy(bootappsrc, buildDir)
 
-            addImage(mcu + '-' + envName + '-' + flashsize + '-filesystem', '0x3d0000', 'littlefs.bin', buildDir, mcu + '/' + envName + '/' + flashsize)
+            addImage(mcu + '-' + buildName + '-' + flashsize + '-filesystem', '0x3d0000', 'littlefs.bin', buildDir, mcu + '/' + buildName + '/' + flashsize)
             addImage(mcu + '-' + flashsize + '-partitions', '0x8000', 'partitions.bin', buildDir, mcu + '/' + flashsize)
-            addImage(mcu + '-bootloader', '0x1000', 'bootloader.bin', buildDir, mcu)
+            addImage(mcu + '-bootloader', '0x1000' if mcu == 'esp32' else '0x0', 'bootloader.bin', buildDir, mcu)
             addImage(mcu + '-bootapp', '0xe000', 'boot_app0.bin', buildDir, mcu)
 
 def addSection(node, name, description, choice):
@@ -277,13 +279,13 @@ def makeManifest():
 
     addMCU("esp32s3", "ESP32-S3-WROOM-1", "Firmware variant")
 
-    addVariant("wifi_s3", "Supports WiFi and WebUI", "Installation type")
-    addInstallable(fresh_install, True, ["esp32s3-4m-partitions", "esp32s3-bootloader", "esp32s3-bootapp", "esp32s3-wifi_s3-firmware", "esp32s3-wifi_s3-4m-filesystem"])
-    addInstallable(firmware_update, False, ["esp32s3-wifi_s3-firmware"])
+    addVariant("wifi", "Supports WiFi and WebUI", "Installation type")
+    addInstallable(fresh_install, True, ["esp32s3-4m-partitions", "esp32s3-bootloader", "esp32s3-bootapp", "esp32s3-wifi-firmware", "esp32s3-wifi-4m-filesystem"])
+    addInstallable(firmware_update, False, ["esp32s3-wifi-firmware"])
 
     addVariant("noradio", "Does not support WiFi", "Installation type")
-    addInstallable(fresh_install, True, ["esp32s3-4m-partitions", "esp32s3-bootloader", "esp32s3-bootapp", "esp32s3-noradio_s3-firmware"])
-    addInstallable(firmware_update, False, ["esp32s3-noradio_s3-firmware"])
+    addInstallable(fresh_install, True, ["esp32s3-4m-partitions", "esp32s3-bootloader", "esp32s3-bootapp", "esp32s3-noradio-firmware"])
+    addInstallable(firmware_update, False, ["esp32s3-noradio-firmware"])
 
     addFile("WebUI-2", "/localfs/index.html.gz", "index-webui-2.html.gz", os.path.join("release", "current", "data"), "data")
     addFile("WebUI-3", "/localfs/index.html.gz", "index-webui-3.html.gz", os.path.join("release", "current", "data"), "data")
@@ -345,7 +347,7 @@ for platform in ['win64', 'posix']:
 
             # Put littlefs.bin and index.html.gz in the archive
             # bt does not need a littlefs.bin because there is no use for index.html.gz
-            if envName.startswith('wifi'):
+            if envName == 'wifi':
                 name = 'littlefs.bin'
                 zipObj.write(os.path.join(pioPath, envName, name), os.path.join(zipDirName, envName, name))
                 name = 'index.html.gz'
