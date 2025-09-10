@@ -189,7 +189,7 @@ for version in versions:
         addImage(mcu + '-' + envName + '-firmware', '0x10000', 'firmware.bin', buildDir, mcu + '/' + envName)
 
         if envName.startswith('wifi'):
-            if buildFs('wifi', verbose=verbose) != 0:
+            if buildFs(envName, verbose=verbose) != 0:
                 sys.exit(1)
 
             # bootapp is a data partition that the bootloader and OTA use to determine which
