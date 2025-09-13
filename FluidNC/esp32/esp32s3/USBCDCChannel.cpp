@@ -2,23 +2,42 @@
 // Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
 
 #include "USBCDCChannel.h"
-#if ARDUINO_USB_CDC_ON_BOOT
 
-#    include "Machine/MachineConfig.h"  // config
-#    include "Serial.h"                 // allChannels
+#include "Machine/MachineConfig.h"  // config
+#include "Serial.h"                 // allChannels
+#include <HWCDC.h>
+
+USBCDC       USBCDCSerial;
+extern HWCDC USBSerial;
 
 USBCDCChannel::USBCDCChannel(bool addCR) : Channel("usbcdc", addCR) {
     _lineedit = new Lineedit(this, _line, Channel::maxLine - 1);
-    _cdc      = &Serial;
+    _cdc      = &USBCDCSerial;
+}
+
+#include "esp_event.h"
+void cb(void* arg, esp_event_base_t base, int32_t id, void* data) {
+    //   ::printf("Callback %p %d %d %p\n", arg, base, id, data);
 }
 
 void USBCDCChannel::init() {
+    USB.begin();
+
+    //    USBSerial.end();
     _cdc->begin(115200);
+    _cdc->enableReboot(false);
+    _cdc->onEvent(cb);
+    delay_ms(300);  // Time for the host USB to reconnect
     allChannels.registration(this);
 }
 
 size_t USBCDCChannel::write(uint8_t c) {
-    return _cdc->write(c);
+    int actual = _cdc->write(c);
+    if (actual != 1) {
+        //        ::printf("dropped one\n");
+    }
+
+    return actual;
 }
 
 size_t USBCDCChannel::write(const uint8_t* buffer, size_t length) {
@@ -41,12 +60,18 @@ size_t USBCDCChannel::write(const uint8_t* buffer, size_t length) {
                 modbuf[k++] = c;
                 --rem;
             }
-            _cdc->write(modbuf, k);
+            size_t actual = _cdc->write(modbuf, k);
+            if (actual != k) {
+                //                ::printf("dropped %d\n", k - actual);
+            }
         }
         return length;
-    } else {
-        return _cdc->write(buffer, length);
     }
+    size_t actual = _cdc->write(buffer, length);
+    if (actual != length) {
+        //        ::printf("dropped %d\n", length - actual);
+    }
+    return actual;
 }
 
 int USBCDCChannel::available() {
@@ -111,4 +136,3 @@ size_t USBCDCChannel::timedReadBytes(char* buffer, size_t length, TickType_t tim
     remlen -= (res < 0) ? 0 : res;
     return length - remlen;
 }
-#endif

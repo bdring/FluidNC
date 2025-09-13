@@ -1,9 +1,4 @@
-#if ARDUINO_USB_CDC_ON_BOOT
-#    include "USBCDCChannel.h"
-USBCDCChannel CDCUart(true);
-Channel&      Console = CDCUart;
-#else
-#    include "UartChannel.h"
+#include "UartChannel.h"
 
 // This derived class overrides init() to setup the primary UART
 class UartConsole : public UartChannel {
@@ -17,4 +12,3 @@ public:
 };
 UartConsole Uart0;
 Channel&    Console = Uart0;
-#endif

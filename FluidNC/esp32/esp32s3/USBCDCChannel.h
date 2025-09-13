@@ -1,21 +1,16 @@
 #pragma once
 
-#ifndef ARDUINO_USB_CDC_ON_BOOT
-#    define ARDUINO_USB_CDC_ON_BOOT 0
-#endif
-#if ARDUINO_USB_CDC_ON_BOOT  //Serial used for USB CDC
+#include <USB.h>
+#include <USBCDC.h>
+#include <USBCDC.h>
 
-#    include <USB.h>
-#    include <USBCDC.h>
-#    include <HWCDC.h>
-
-#    include "Channel.h"
-#    include "lineedit.h"
+#include "Channel.h"
+#include "lineedit.h"
 
 class USBCDCChannel : public Channel {
 private:
     Lineedit* _lineedit;
-    HWCDC*    _cdc;
+    USBCDC*   _cdc;
 
 public:
     USBCDCChannel(bool addCR = false);
@@ -40,5 +35,4 @@ public:
     bool   lineComplete(char* line, char c) override;
     Error  pollLine(char* line) override;
 };
-
-#endif
+extern USBCDCChannel CDCChannel;

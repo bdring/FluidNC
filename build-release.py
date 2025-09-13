@@ -205,7 +205,9 @@ for version in versions:
             addImage(mcu + '-bootloader', '0x1000' if mcu == 'esp32' else '0x0', 'bootloader.bin', buildDir, mcu)
             addImage(mcu + '-bootapp', '0xe000', 'boot_app0.bin', buildDir, mcu)
 
+currentList = manifest['installable']['choices']
 def addSection(node, name, description, choice):
+    global currentList
     section = {
         "name": name,
         "description": description,
@@ -213,15 +215,18 @@ def addSection(node, name, description, choice):
     if choice != None:
         section['choice-name'] = choice
         section['choices'] = []
+    currentNode = section
     node.append(section)
 
 def addMCU(name, description, choice=None):
-    addSection(manifest['installable']['choices'], name, description, choice)
+    global currentList
+    addSection(currentList, name, description, choice)
 
 def addVariant(variant, description, choice=None):
-    node1 = manifest['installable']['choices']
-    node1len = len(node1)
-    addSection(node1[node1len-1]['choices'], variant, description, choice)
+    global currentList
+    node = currentList
+    nodelen = len(node)
+    addSection(node[nodelen-1]['choices'], variant, description, choice)
 
 def addInstallable(install_type, erase, images):
     for image in images:
@@ -234,17 +239,16 @@ def addInstallable(install_type, erase, images):
         #    print("Duplicate image", image)
         #    sys.exit(2)
                       
-    node1 = manifest['installable']['choices']
-    node1len = len(node1)
-    node2 = node1[node1len-1]['choices']
-    node2len = len(node2)
+    node1 = currentList
+    children = node1[len(node1)-1]['choices']
+    images = children[len(children)-1]['choices']
     installable = {
         "name": install_type["name"],
         "description": install_type["description"],
         "erase": erase,
         "images": images
     }
-    node2[node2len-1]['choices'].append(installable)
+    images.append(installable)
 
 def addUpload(name, description, files):
     for file in files:

@@ -320,6 +320,13 @@ static Error msg_to_uart1(const char* value, AuthenticationLevel auth_level, Cha
     }
     return Error::Ok;
 }
+#include "USBCDCChannel.h"
+static Error msg_to_uart_cdc(const char* value, AuthenticationLevel auth_level, Channel& out) {
+    if (value) {
+        log_msg_to(CDCChannel, value);
+    }
+    return Error::Ok;
+}
 static Error cmd_log_msg(const char* value, AuthenticationLevel auth_level, Channel& out) {
     if (value) {
         if (*value == '*') {
@@ -1002,6 +1009,7 @@ void make_user_commands() {
 
     new UserCommand("MU0", "Msg/Uart0", msg_to_uart0, anyState);
     new UserCommand("MU1", "Msg/Uart1", msg_to_uart1, anyState);
+    new UserCommand("MUU", "Msg/UartCDC", msg_to_uart_cdc, anyState);
     new UserCommand("LM", "Log/Msg", cmd_log_msg, anyState);
     new UserCommand("LE", "Log/Error", cmd_log_error, anyState);
     new UserCommand("LW", "Log/Warn", cmd_log_warn, anyState);
