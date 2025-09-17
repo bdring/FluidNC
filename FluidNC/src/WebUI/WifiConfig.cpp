@@ -645,6 +645,7 @@ namespace WebUI {
             static bool disconnect_seen = false;
             switch (event) {
                 case SYSTEM_EVENT_STA_GOT_IP:
+                    log_info_to(Uart0, "Got IP: " << IP_string(WiFi.localIP()));
                     break;
                 case SYSTEM_EVENT_STA_DISCONNECTED:
                     if (!disconnect_seen) {
@@ -745,7 +746,7 @@ namespace WebUI {
             }
             if (WiFi.begin(SSID, (strlen(password) > 0) ? password : NULL)) {
                 log_info("Connecting to STA SSID:" << SSID);
-                return ConnectSTA2AP();
+                return true;
             } else {
                 log_info("Starting client failed");
                 return false;
