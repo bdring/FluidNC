@@ -24,7 +24,7 @@ namespace Machine {
     Pin Axes::_sharedStepperReset;
 
     uint32_t Axes::_homing_runs = 2;  // Number of Approach/Pulloff cycles
-
+    float Axes::_jogAccelerationDivisor = 1.0;
     int Axes::_numberAxis = 0;
 
     Axis* Axes::_axis[MAX_N_AXIS] = { nullptr };
@@ -155,6 +155,7 @@ namespace Machine {
         handler.item("shared_stepper_disable_pin", _sharedStepperDisable);
         handler.item("shared_stepper_reset_pin", _sharedStepperReset);
         handler.item("homing_runs", _homing_runs, 1, 5);
+        handler.item("jog_acceleration_divisor", _jogAccelerationDivisor, 1.0, 1000.0);
 
         // Handle axis names xyzabc.  handler.section is inferred
         // from a template.

@@ -348,7 +348,7 @@ bool plan_buffer_line(float* target, plan_line_data_t* pl_data) {
     // NOTE: This calculation assumes all axes are orthogonal (Cartesian) and works with ABC-axes,
     // if they are also orthogonal/independent. Operates on the absolute value of the unit vector.
     block->millimeters  = convert_delta_vector_to_unit_vector(unit_vec);
-    block->acceleration = limit_acceleration_by_axis_maximum(unit_vec);
+    block->acceleration = limit_acceleration_by_axis_maximum(unit_vec, block->is_jog);
     block->rapid_rate   = limit_rate_by_axis_maximum(unit_vec);
     // Store programmed rate.
     if (block->motion.rapidMotion) {
@@ -403,7 +403,7 @@ bool plan_buffer_line(float* target, plan_line_data_t* pl_data) {
                 block->max_junction_speed_sqr = SOME_LARGE_VALUE;
             } else {
                 convert_delta_vector_to_unit_vector(junction_unit_vec);
-                float junction_acceleration = limit_acceleration_by_axis_maximum(junction_unit_vec);
+                float junction_acceleration = limit_acceleration_by_axis_maximum(junction_unit_vec, block->is_jog);
                 float sin_theta_d2          = sqrtf(0.5f * (1.0f - junction_cos_theta));  // Trig half angle identity. Always positive.
                 block->max_junction_speed_sqr =
                     MAX(MINIMUM_JUNCTION_SPEED * MINIMUM_JUNCTION_SPEED,
