@@ -14,6 +14,7 @@ class AsyncWebSocket;
 class AsyncWebServer;
 class AsyncWebSocketMessageHandler;
 class AsyncHeaderFreeMiddleware;
+class AsyncWebServerRequest;
 
 namespace WebUI {
     static const int DEFAULT_HTTP_STATE                 = 1;
@@ -77,7 +78,7 @@ namespace WebUI {
         static AuthenticationLevel ResetAuthIP(IPAddress ip, const char* sessionID);
 #endif
         static void handle_SSDP();
-        static void handle_root();
+        static void handle_root(AsyncWebServerRequest *request);
         static void handle_login();
         static void handle_not_found();
         static void _handle_web_command(bool);

@@ -361,17 +361,18 @@ namespace WebUI {
         sendWithOurAddress(PAGE_404, 404);
     }
 
-    void WebUI_Server::handle_root() {
-        log_info("WebUI: Request from " << _webserver->client().remoteIP());
-        if (!(_webserver->hasArg("forcefallback") && _webserver->arg("forcefallback") == "yes")) {
+    void WebUI_Server::handle_root(AsyncWebServerRequest *request) {
+        log_info("WebUI: Request from " << request->client()->remoteIP());
+        if (!(request->hasParam("forcefallback") && request->getParam("forcefallback")->value() == "yes")) {
             if (myStreamFile("index.html")) {
                 return;
             }
         }
 
         // If we did not send index.html, send the default content that provides simple localfs file management
-        _webserver->sendHeader("Content-Encoding", "gzip");
-        _webserver->send_P(200, "text/html", PAGE_NOFILES, PAGE_NOFILES_SIZE);
+        AsyncWebServerResponse *response = request->beginResponse_P(200, "text/html", PAGE_NOFILES, PAGE_NOFILES_SIZE);
+        response->addHeader("Content-Encoding", "gzip");
+        request->send(response);
     }
 
     // Handle filenames and other things that are not explicitly registered
