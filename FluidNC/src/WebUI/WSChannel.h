@@ -7,15 +7,17 @@
 #include <cstring>
 #include <list>
 #include <map>
+#include <ESPAsyncWebServer.h>
 
-class WebSocketsServer;
+//class AsyncWebSocket;
+//class AsyncWebSocketClient;
 
 #include "src/Channel.h"
 
 namespace WebUI {
     class WSChannel : public Channel {
     public:
-        WSChannel(WebSocketsServer* server, uint8_t clientNum);
+        WSChannel(AsyncWebSocket* server, uint32_t clientNum);
 
         size_t write(uint8_t c);
         size_t write(const uint8_t* buffer, size_t size);
@@ -30,7 +32,7 @@ namespace WebUI {
 
         void flush(void) override {}
 
-        int id() { return _clientNum; }
+        uint32_t id() { return _clientNum; }
 
         int rx_buffer_available() override { return std::max(0, 256 - int(_queue.size())); }
 
@@ -44,8 +46,8 @@ namespace WebUI {
         void autoReport() override;
 
     private:
-        WebSocketsServer* _server;
-        uint8_t           _clientNum;
+        AsyncWebSocket* _server;
+        uint32_t           _clientNum;
 
         std::string _output_line;
 
@@ -57,7 +59,7 @@ namespace WebUI {
 
     class WSChannels {
     private:
-        static std::map<uint8_t, WSChannel*> _wsChannels;
+        static std::map<uint32_t, WSChannel*> _wsChannels;
         static std::list<WSChannel*>         _webWsChannels;
 
         static WSChannel* _lastWSChannel;
@@ -65,12 +67,12 @@ namespace WebUI {
 
     public:
         static void removeChannel(WSChannel* channel);
-        static void removeChannel(uint8_t num);
+        static void removeChannel(uint32_t num);
 
         static bool runGCode(int pageid, std::string_view cmd);
         static bool sendError(int pageid, std::string error);
         static void sendPing();
-        static void handleEvent(WebSocketsServer* server, uint8_t num, uint8_t type, uint8_t* payload, size_t length);
-        static void handlev3Event(WebSocketsServer* server, uint8_t num, uint8_t type, uint8_t* payload, size_t length);
+        static void handleEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventType type, void *arg, uint8_t *data, size_t len);
+        static void handlev3Event(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventType type, void *arg, uint8_t *data, size_t len);
     };
 }

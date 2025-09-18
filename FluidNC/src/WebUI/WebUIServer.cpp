@@ -58,9 +58,8 @@ namespace WebUI {
 
     UploadStatus      WebUI_Server::_upload_status   = UploadStatus::NONE;
     AsyncWebServer*        WebUI_Server::_webserver       = NULL;
-    AsyncWebSocketMessageHandler WebUI_Server::_socket_server_handler;
+    AsyncHeaderFreeMiddleware headerFilter;
     AsyncWebSocket* WebUI_Server::_socket_server = NULL;
-        AsyncWebSocketMessageHandler WebUI_Server::_socket_server_handlerv3;
     AsyncWebSocket* WebUI_Server::_socket_serverv3 = NULL;
    // AsyncWebSocketsServer* WebUI_Server::_socket_server   = NULL;
    // AsyncWebSocketsServer* WebUI_Server::_socket_serverv3 = NULL;
@@ -99,28 +98,33 @@ namespace WebUI {
 
         //create instance
         _webserver = new AsyncWebServer(_port);
+
 #ifdef ENABLE_AUTHENTICATION
         //here the list of headers to be recorded
-        const char* headerkeys[]   = { "Cookie" };
-        size_t      headerkeyssize = sizeof(headerkeys) / sizeof(char*);
         //ask server to track these headers
-        _webserver->collectHeaders(headerkeys, headerkeyssize);
+        headerFilter.keep("Cookie");
 #endif
 
         //here the list of headers to be recorded
-        const char* headerkeys[]   = { "If-None-Match" };
-        size_t      headerkeyssize = sizeof(headerkeys) / sizeof(char*);
-        _webserver->collectHeaders(headerkeys, headerkeyssize);
-
+        headerFilter.keep("If-None-Match");
+        _socket_server->addMiddlewares({&headerFilter});
         
-        _socket_server = new AsyncWebSocket("ws", _socket_server_handler.eventHandler()); // WebSocketsServer(_port + 1);
+        _socket_server = new AsyncWebSocket("ws"); // WebSocketsServer(_port + 1);
         //_socket_server->begin();
         //_socket_server->onEvent(handle_Websocket_Event);
 
-        _socket_serverv3 = new AsyncWebSocket("webui-v3", _socket_server_handlerv3.eventHandler()); //new WebSocketsServer(_port + 2, "", "webui-v3");
-
+        _socket_serverv3 = new AsyncWebSocket("webui-v3"); //new WebSocketsServer(_port + 2, "", "webui-v3");
+        
         _webserver->addHandler(_socket_server);
         _webserver->addHandler(_socket_serverv3);
+
+        _socket_server->onEvent([](AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventType type, void *arg, uint8_t *data, size_t len) {
+            WSChannels::handleEvent(server, client, type, arg, data, len);
+        });
+        _socket_serverv3->onEvent([](AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventType type, void *arg, uint8_t *data, size_t len) {
+             WSChannels::handlev3Event(server, client, type, arg, data, len);
+        });
+
         //_socket_serverv3->begin();
         //_socket_serverv3->onEvent(handle_Websocketv3_Event);
 
@@ -1230,14 +1234,6 @@ namespace WebUI {
             WSChannels::sendPing();
             start_time = millis();
         }
-    }
-
-    void WebUI_Server::handle_Websocket_Event(uint8_t num, uint8_t type, uint8_t* payload, size_t length) {
-        WSChannels::handleEvent(_socket_server, num, type, payload, length);
-    }
-
-    void WebUI_Server::handle_Websocketv3_Event(uint8_t num, uint8_t type, uint8_t* payload, size_t length) {
-        WSChannels::handlev3Event(_socket_serverv3, num, type, payload, length);
     }
 
     //Convert file extension to content type
