@@ -4,7 +4,7 @@
 #include "WSChannel.h"
 
 #include "src/UartChannel.h"
-#include "WebServer.h"
+#include "WebUIServer.h"
 #include <WebSocketsServer.h>
 #include <WiFi.h>
 
