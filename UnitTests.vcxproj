@@ -53,7 +53,7 @@
     <ClInclude Include="FluidNC\src\Spindles\10vSpindle.h" />
     <ClInclude Include="FluidNC\src\Machine\WifiSTAConfig.h" />
     <ClInclude Include="FluidNC\src\Channel.h" />
-    <ClInclude Include="FluidNC\src\WebUI\WebServer.h" />
+    <ClInclude Include="FluidNC\src\WebUI\WebUIServer.h" />
     <ClInclude Include="FluidNC\src\Assert.h" />
     <ClInclude Include="FluidNC\src\Spindles\RelaySpindle.h" />
     <ClInclude Include="FluidNC\src\Kinematics\WallPlotter.h" />

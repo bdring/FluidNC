@@ -10,8 +10,9 @@
 
 #include "Authentication.h"  // AuthenticationLevel
 
-class WebSocketsServer;
-class WebServer;
+class AsyncWebSocket;
+class AsyncWebServer;
+class AsyncWebSocketMessageHandler;
 
 namespace WebUI {
     static const int DEFAULT_HTTP_STATE                 = 1;
@@ -38,9 +39,9 @@ namespace WebUI {
     //Upload status
     enum class UploadStatus : uint8_t { NONE = 0, FAILED = 1, CANCELLED = 2, SUCCESSFUL = 3, ONGOING = 4 };
 
-    class Web_Server : public Module {
+    class WebUI_Server : public Module {
     public:
-        Web_Server(const char* name) : Module(name) {}
+        WebUI_Server(const char* name) : Module(name) {}
 
         void init() override;
         void deinit() override;
@@ -49,13 +50,16 @@ namespace WebUI {
         static long     get_client_ID();
         static uint16_t port() { return _port; }
 
-        ~Web_Server();
+        ~WebUI_Server();
 
     private:
         static bool              _setupdone;
-        static WebServer*        _webserver;
-        static WebSocketsServer* _socket_server;
-        static WebSocketsServer* _socket_serverv3;
+        static AsyncWebServer*    _webserver;
+        static AsyncWebSocket* _socket_server;
+        static AsyncWebSocketMessageHandler _socket_server_handler;
+        static AsyncWebSocket* _socket_serverv3;
+        static AsyncWebSocketMessageHandler _socket_server_handlerv3;
+
         static uint16_t          _port;
         static UploadStatus      _upload_status;
         static FileStream*       _uploadFile;
