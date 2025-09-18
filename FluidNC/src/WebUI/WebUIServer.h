@@ -13,6 +13,7 @@
 class AsyncWebSocket;
 class AsyncWebServer;
 class AsyncWebSocketMessageHandler;
+class AsyncHeaderFreeMiddleware;
 
 namespace WebUI {
     static const int DEFAULT_HTTP_STATE                 = 1;
@@ -55,10 +56,9 @@ namespace WebUI {
     private:
         static bool              _setupdone;
         static AsyncWebServer*    _webserver;
+        static AsyncHeaderFreeMiddleware headerFilter;
         static AsyncWebSocket* _socket_server;
-        static AsyncWebSocketMessageHandler _socket_server_handler;
         static AsyncWebSocket* _socket_serverv3;
-        static AsyncWebSocketMessageHandler _socket_server_handlerv3;
 
         static uint16_t          _port;
         static UploadStatus      _upload_status;
@@ -87,8 +87,6 @@ namespace WebUI {
         static void handle_web_command_silent() {
             _handle_web_command(true);
         }
-        static void handle_Websocket_Event(uint8_t num, uint8_t type, uint8_t* payload, size_t length);
-        static void handle_Websocketv3_Event(uint8_t num, uint8_t type, uint8_t* payload, size_t length);
         static void handleReloadBlocked();
         static void handleFeedholdReload();
         static void handleCyclestartReload();
