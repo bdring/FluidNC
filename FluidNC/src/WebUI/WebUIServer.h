@@ -98,7 +98,7 @@ namespace WebUI {
         static void handleUpdate();
         static void WebUpdateUpload();
 
-        static bool myStreamFile(const char* path, bool download = false);
+        static bool myStreamFile(AsyncWebServerRequest *request, const char* path, bool download = false);
 
         static void pushError(int code, const char* st, bool web_error = 500, uint16_t timeout = 1000);
 

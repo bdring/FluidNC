@@ -240,7 +240,7 @@ namespace WebUI {
     }
 
     // Send a file, either the specified path or path.gz
-    bool WebUI_Server::myStreamFile(const char* path, bool download) {
+    bool WebUI_Server::myStreamFile(AsyncWebServerRequest *request, const char* path, bool download) {
         std::error_code ec;
         FluidPath       fpath { path, localfsName, ec };
         if (ec) {
@@ -265,8 +265,8 @@ namespace WebUI {
                 hash = HashFS::hash(gzpath, true);
             }
 
-            if (hash.length() && std::string(_webserver->header("If-None-Match").c_str()) == hash) {
-                _webserver->send(304);
+            if (hash.length() && request->hasHeader("If-None-Match") && std::string(request->getHeader("If-None-Match")->value().c_str()) == hash) {
+                request->send(304);
                 return true;
             }
 
@@ -274,16 +274,15 @@ namespace WebUI {
             return true;
         }
 
-        // Check for brower cache match
+        // Check for browser cache match
         hash = HashFS::hash(fpath);
         if (!hash.length()) {
             std::filesystem::path gzpath(fpath);
             gzpath += ".gz";
             hash = HashFS::hash(gzpath);
         }
-
-        if (hash.length() && std::string(_webserver->header("If-None-Match").c_str()) == hash) {
-            _webserver->send(304);
+        if (hash.length() && request->hasHeader("If-None-Match") && std::string(request->getHeader("If-None-Match")->value().c_str()) == hash) {
+            request->send(304);
             return true;
         }
 
@@ -302,23 +301,29 @@ namespace WebUI {
                 return false;
             }
         }
+
+        AsyncWebServerResponse *response = request->beginResponse(*file, getContentType(path), file->size());
+        response->addHeader("Content-Encoding", "gzip");
+        
         if (download) {
-            _webserver->sendHeader("Content-Disposition", "attachment");
+            response->addHeader("Content-Disposition", "attachment");
         }
         if (hash.length()) {
-            _webserver->sendHeader("ETag", hash.c_str());
+            response->addHeader("ETag", hash.c_str());
         }
-        _webserver->setContentLength(file->size());
+        response->setContentLength(file->size());
         if (isGzip) {
-            _webserver->sendHeader("Content-Encoding", "gzip");
+            response->addHeader("Content-Encoding", "gzip");
         }
-        _webserver->send(200, getContentType(path), "");
+        //_webserver->send(200, getContentType(path), "");
+        
 
         // This depends on the fact that FileStream inherits from Stream
         // The Arduino implementation of WiFiClient::write(Stream*) just
         // reads repetitively from the stream in 1360-byte chunks and
         // sends the data over the TCP socket. so nothing special.
-        _webserver->client().write(*file);
+        //request->client().write(*file);
+        request->send(response);
 
         delete file;
         return true;
@@ -364,7 +369,7 @@ namespace WebUI {
     void WebUI_Server::handle_root(AsyncWebServerRequest *request) {
         log_info("WebUI: Request from " << request->client()->remoteIP());
         if (!(request->hasParam("forcefallback") && request->getParam("forcefallback")->value() == "yes")) {
-            if (myStreamFile("index.html")) {
+            if (myStreamFile(request, "index.html")) {
                 return;
             }
         }
