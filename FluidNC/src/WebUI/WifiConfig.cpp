@@ -528,7 +528,7 @@ namespace WebUI {
                         break;
                 }
 
-                j.member("WebSocketPort", std::to_string(WebUI_Server::port() + 2));
+                j.member("WebSocketPort", std::to_string(WebUI_Server::port()));
                 j.member("HostName", WiFi.getHostname());
                 j.member("WiFiMode", modeName());
                 j.member("FlashFileSystem", "LittleFS");

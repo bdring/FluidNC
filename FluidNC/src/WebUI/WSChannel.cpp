@@ -187,7 +187,6 @@ namespace WebUI {
         }
     }
 
-    //void WSChannels::handleEvent(AsyncWebSocket* server, uint8_t num, uint8_t type, uint8_t* payload, size_t length) {
     void WSChannels::handleEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventType type, void *arg, uint8_t *data, size_t len){
         uint32_t num = client->id();
         switch (type) {
@@ -264,12 +263,6 @@ namespace WebUI {
                         s += std::to_string(wsChannel->id());
                         server->textAll(s.c_str());
                     }
-
-                   /* for (uint32_t i = 0; i < WEBSOCKETS_SERVER_CLIENT_MAX; i++)
-                        if (i != num && server->clientIsConnected(i)) {
-                            server->disconnect(i);
-                        }
-                        */
                 }
             } break;
             case WS_EVT_DATA: {
