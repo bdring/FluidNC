@@ -9,9 +9,8 @@
 
 #include "Mdns.h"
 
-#include <WebSocketsServer.h>
 #include <WiFi.h>
-#include <WebServer.h>
+//#include <WebServer.h>
 #include <AsyncTCP.h>
 #include <ESPAsyncWebServer.h>
 #include <StreamString.h>
@@ -58,11 +57,12 @@ namespace WebUI {
 
     UploadStatus      WebUI_Server::_upload_status   = UploadStatus::NONE;
     AsyncWebServer*        WebUI_Server::_webserver       = NULL;
-    AsyncHeaderFreeMiddleware headerFilter;
+    AsyncHeaderFreeMiddleware* WebUI_Server::_headerFilter = NULL;
     AsyncWebSocket* WebUI_Server::_socket_server = NULL;
     AsyncWebSocket* WebUI_Server::_socket_serverv3 = NULL;
    // AsyncWebSocketsServer* WebUI_Server::_socket_server   = NULL;
    // AsyncWebSocketsServer* WebUI_Server::_socket_serverv3 = NULL;
+    std::map<std::string, FileStream*> WebUI_Server::_fileStreams;
 #ifdef ENABLE_AUTHENTICATION
     AuthenticationIP* WebUI_Server::_head  = NULL;
     uint8_t           WebUI_Server::_nb_ip = 0;
@@ -98,16 +98,16 @@ namespace WebUI {
 
         //create instance
         _webserver = new AsyncWebServer(_port);
-
+        _headerFilter = new AsyncHeaderFreeMiddleware();
 #ifdef ENABLE_AUTHENTICATION
         //here the list of headers to be recorded
         //ask server to track these headers
-        headerFilter.keep("Cookie");
+        _headerFilter->keep("Cookie");
 #endif
 
         //here the list of headers to be recorded
-        headerFilter.keep("If-None-Match");
-        _socket_server->addMiddlewares({&headerFilter});
+        _headerFilter->keep("If-None-Match");
+        _webserver->addMiddlewares({_headerFilter});
         
         _socket_server = new AsyncWebSocket("ws"); // WebSocketsServer(_port + 1);
         //_socket_server->begin();
@@ -172,30 +172,6 @@ namespace WebUI {
             _webserver->on("/fwlink/", HTTP_ANY, handle_root);
         }
 
-#if 0
-        //SSDP service presentation
-        if (WiFi.getMode() == WIFI_STA && WebUI::mdns_enable->get()) {
-            _webserver->on("/description.xml", HTTP_GET, handle_SSDP);
-            //Add specific for SSDP
-            SSDP.setSchemaURL("description.xml");
-            SSDP.setHTTPPort(_port);
-            SSDP.setName(WiFi.getHostname());
-            SSDP.setURL("/");
-            SSDP.setDeviceType("upnp:rootdevice");
-            /*Any customization could be here
-        SSDP.setModelName (ESP32_MODEL_NAME);
-        SSDP.setModelURL (ESP32_MODEL_URL);
-        SSDP.setModelNumber (ESP_MODEL_NUMBER);
-        SSDP.setManufacturer (ESP_MANUFACTURER_NAME);
-        SSDP.setManufacturerURL (ESP_MANUFACTURER_URL);
-        */
-
-            //Start SSDP
-            log_info("SSDP Started");
-            SSDP.begin();
-        }
-#endif
-
         log_info("HTTP started on port " << WebUI::http_port->get());
         //start webserver
         _webserver->begin();
@@ -228,6 +204,13 @@ namespace WebUI {
             delete _webserver;
             _webserver = NULL;
         }
+        if (_headerFilter) {
+            delete _headerFilter;
+            _headerFilter = NULL;
+        }
+        for (auto it = _fileStreams.begin(); it != _fileStreams.end(); ++it) {
+                delete it->second;
+        }
 
 #ifdef ENABLE_AUTHENTICATION
         while (_head) {
@@ -239,6 +222,24 @@ namespace WebUI {
 #endif
     }
 
+    FileStream* WebUI_Server::getFileStream(const char *path){
+        FileStream *fs;
+        try{
+            fs = _fileStreams.at(std::string(path));
+            // Position is now set in the response stream handler fo reach chunk
+            //fs->set_position(0);
+            //log_info("Reusing existing FileStream");
+            return fs;
+
+
+        } catch (std::out_of_range& oor) {
+            fs = new FileStream(path, "r", "");
+            //log_info("Creating new FileStream");
+            if(fs)
+                _fileStreams[std::string(path)]=fs;
+            return fs;
+        }
+    }
     // Send a file, either the specified path or path.gz
     bool WebUI_Server::myStreamFile(AsyncWebServerRequest *request, const char* path, bool download) {
         std::error_code ec;
@@ -270,7 +271,7 @@ namespace WebUI {
                 return true;
             }
 
-            WebUI_Server::handleReloadBlocked();
+            WebUI_Server::handleReloadBlocked(request);
             return true;
         }
 
@@ -285,50 +286,86 @@ namespace WebUI {
             request->send(304);
             return true;
         }
+        //AsyncWebServerResponse *response = request->beginResponse(SPIFFS, path, "text/html");
+        //request->send(SPIFFS, path, "text/html");
 
         bool        isGzip = false;
-        FileStream* file;
+        FileStream* file = NULL;
         try {
-            file = new FileStream(path, "r", "");
+            file = getFileStream(path);
+            //file = new FileStream(path, "r", "");
         } catch (const Error err) {
             try {
                 std::filesystem::path gzpath(fpath);
                 gzpath += ".gz";
-                file   = new FileStream(gzpath, "r", "");
+                file   = getFileStream(gzpath.c_str()); 
+                //file = new FileStream(gzpath, "r", "");
                 isGzip = true;
             } catch (const Error err) {
                 log_debug(path << " not found");
                 return false;
             }
         }
+        AsyncWebServerResponse *response = request->beginResponse(
+                getContentType(path),
+                file->size(),
+                [file, request](uint8_t *buffer, size_t maxLen, size_t total) mutable -> size_t {
+                    if(total >= file->size() || request->methodToString() == "HEAD" )
+                        return 0;
+                    // Seek on each chunk, to avoid concurrent client to get the wrong data, while still reusing the same filestream
+                    file->set_position(total);
+                    int bytes = file->read(buffer, maxLen);
 
-        AsyncWebServerResponse *response = request->beginResponse(*file, getContentType(path), file->size());
-        response->addHeader("Content-Encoding", "gzip");
-        
+                    return max(0, bytes); // return 0 even when no bytes were loaded
+                }
+            );
         if (download) {
             response->addHeader("Content-Disposition", "attachment");
         }
         if (hash.length()) {
             response->addHeader("ETag", hash.c_str());
         }
-        response->setContentLength(file->size());
+        // content lengtgh is set automatically
+        //response->setContentLength(file->size());
         if (isGzip) {
             response->addHeader("Content-Encoding", "gzip");
         }
-        //_webserver->send(200, getContentType(path), "");
-        
-
-        // This depends on the fact that FileStream inherits from Stream
-        // The Arduino implementation of WiFiClient::write(Stream*) just
-        // reads repetitively from the stream in 1360-byte chunks and
-        // sends the data over the TCP socket. so nothing special.
-        //request->client().write(*file);
         request->send(response);
 
-        delete file;
+
+// v1
+
+        // // Should find a better way... the map of path and filestream will work single user only
+        // AsyncWebServerResponse *response = request->beginResponse(*file, getContentType(path), file->size());
+        // //request->_tempObject = file;
+        // response->addHeader("Content-Encoding", "gzip");
+        
+        // if (download) {
+        //     response->addHeader("Content-Disposition", "attachment");
+        // }
+        // if (hash.length()) {
+        //     response->addHeader("ETag", hash.c_str());
+        // }
+        // response->setContentLength(file->size());
+        // if (isGzip) {
+        //     response->addHeader("Content-Encoding", "gzip");
+        // }
+
+
+        // //_webserver->send(200, getContentType(path), "");
+        
+
+        // // This depends on the fact that FileStream inherits from Stream
+        // // The Arduino implementation of WiFiClient::write(Stream*) just
+        // // reads repetitively from the stream in 1360-byte chunks and
+        // // sends the data over the TCP socket. so nothing special.
+        // //request->client().write(*file);
+        // request->send(response);
+
+        //delete file;
         return true;
     }
-    void WebUI_Server::sendWithOurAddress(const char* content, int code) {
+    void WebUI_Server::sendWithOurAddress(AsyncWebServerRequest *request, const char* content, int code) {
         auto        ip    = WiFi.getMode() == WIFI_STA ? WiFi.localIP() : WiFi.softAPIP();
         std::string ipstr = IP_string(ip);
         if (_port != 80) {
@@ -338,8 +375,8 @@ namespace WebUI {
 
         std::string scontent(content);
         replace_string_in_place(scontent, "$WEB_ADDRESS$", ipstr);
-        replace_string_in_place(scontent, "$QUERY$", _webserver->uri().c_str());
-        _webserver->send(code, "text/html", scontent.c_str());
+        replace_string_in_place(scontent, "$QUERY$", request->url().c_str());
+        request->send(code, "text/html", scontent.c_str());
     }
 
     // Captive Portal Page for use in AP mode
@@ -350,8 +387,8 @@ namespace WebUI {
         "interval=setInterval(function(){\ni=i+1; \nvar x = document.getElementById(\"prg\"); \nx.value=i; \nif (i>5) "
         "\n{\nclearInterval(interval);\nwindow.location.href='/';\n}\n},1000);\n</script>\n</CENTER>\n</BODY>\n</HTML>\n\n";
 
-    void WebUI_Server::sendCaptivePortal() {
-        sendWithOurAddress(PAGE_CAPTIVE, 200);
+    void WebUI_Server::sendCaptivePortal(AsyncWebServerRequest *request) {
+        sendWithOurAddress(request, PAGE_CAPTIVE, 200);
     }
 
     //Default 404 page that is sent when a request cannot be satisfied
@@ -362,8 +399,8 @@ namespace WebUI {
         "interval=setInterval(function(){\ni=i+1; \nvar x = document.getElementById(\"prg\"); \nx.value=i; \nif (i>5) "
         "\n{\nclearInterval(interval);\nwindow.location.href='/';\n}\n},1000);\n</script>\n</CENTER>\n</BODY>\n</HTML>\n\n";
 
-    void WebUI_Server::send404Page() {
-        sendWithOurAddress(PAGE_404, 404);
+    void WebUI_Server::send404Page(AsyncWebServerRequest *request) {
+        sendWithOurAddress(request, PAGE_404, 404);
     }
 
     void WebUI_Server::handle_root(AsyncWebServerRequest *request) {
@@ -375,104 +412,60 @@ namespace WebUI {
         }
 
         // If we did not send index.html, send the default content that provides simple localfs file management
-        AsyncWebServerResponse *response = request->beginResponse_P(200, "text/html", PAGE_NOFILES, PAGE_NOFILES_SIZE);
+        AsyncWebServerResponse *response = request->beginResponse(200, "text/html", (const uint8_t*)PAGE_NOFILES, PAGE_NOFILES_SIZE);
         response->addHeader("Content-Encoding", "gzip");
         request->send(response);
     }
 
     // Handle filenames and other things that are not explicitly registered
-    void WebUI_Server::handle_not_found() {
+    void WebUI_Server::handle_not_found(AsyncWebServerRequest *request) {
         if (is_authenticated() == AuthenticationLevel::LEVEL_GUEST) {
-            _webserver->sendHeader(LOCATION_HEADER, "/");
-            _webserver->send(302);
-
+            request->redirect("/");
             //_webserver->client().stop();
             return;
         }
 
-        std::string path(_webserver->urlDecode(_webserver->uri()).c_str());
+        std::string path(request->url().c_str()); //request->urlDecode(request->url()).c_str());
 
         if (path.rfind("/api/", 0) == 0) {
-            _webserver->send(404);
+            request->send(404);
             return;
         }
 
         // Download a file.  The true forces a download instead of displaying the file
-        if (myStreamFile(path.c_str(), true)) {
+        if (myStreamFile(request, path.c_str(), true)) {
             return;
         }
 
         if (WiFi.getMode() == WIFI_AP) {
-            sendCaptivePortal();
+            sendCaptivePortal(request);
             return;
         }
 
         // This lets the user customize the not-found page by
         // putting a "404.htm" file on the local filesystem
-        if (myStreamFile("404.htm")) {
+        if (myStreamFile(request, "404.htm")) {
             return;
         }
 
-        send404Page();
+        send404Page(request);
     }
-
-#if 0
-    //http SSDP xml presentation
-    void WebUI_Server::handle_SSDP() {
-        StreamString sschema;
-        if (!sschema.reserve(1024)) {
-            _webserver->send(500);
-            return;
-        }
-        const char*       templ = "<?xml version=\"1.0\"?>"
-                                  "<root xmlns=\"urn:schemas-upnp-org:device-1-0\">"
-                                  "<specVersion>"
-                                  "<major>1</major>"
-                                  "<minor>0</minor>"
-                                  "</specVersion>"
-                                  "<URLBase>http://%s:%u/</URLBase>"
-                                  "<device>"
-                                  "<deviceType>upnp:rootdevice</deviceType>"
-                                  "<friendlyName>%s</friendlyName>"
-                                  "<presentationURL>/</presentationURL>"
-                                  "<serialNumber>%u</serialNumber>"
-                                  "<modelName>ESP32</modelName>"
-                                  "<modelNumber>Marlin</modelNumber>"
-                                  "<modelURL>http://espressif.com/en/products/hardware/esp-wroom-32/overview</modelURL>"
-                                  "<manufacturer>Espressif Systems</manufacturer>"
-                                  "<manufacturerURL>http://espressif.com</manufacturerURL>"
-                                  "<UDN>uuid:%s</UDN>"
-                                  "</device>"
-                                  "</root>\r\n"
-                                  "\r\n";
-        char              uuid[37];
-        const std::string sip    = IP_string(WiFi.localIP());
-        uint32_t          chipId = (uint16_t)(ESP.getEfuseMac() >> 32);
-        sprintf(uuid,
-                "38323636-4558-4dda-9188-cda0e6%02x%02x%02x",
-                (uint16_t)((chipId >> 16) & 0xff),
-                (uint16_t)((chipId >> 8) & 0xff),
-                (uint16_t)chipId & 0xff);
-        sschema.printf(templ, sip.c_str(), _port, WiFi.getHostname(), chipId, uuid);
-        _webserver->send(200, "text/xml", sschema);
-    }
-#endif
 
     // WebUI sends a PAGEID arg to identify the websocket it is using
-    int WebUI_Server::getPageid() {
-        if (_webserver->hasArg("PAGEID")) {
-            return _webserver->arg("PAGEID").toInt();
+    int WebUI_Server::getPageid(AsyncWebServerRequest *request) {
+        if (request->hasParam("PAGEID")) {
+            return request->getParam("PAGEID")->value().toInt();
         }
         return -1;
     }
-    void WebUI_Server::synchronousCommand(const char* cmd, bool silent, AuthenticationLevel auth_level) {
+    void WebUI_Server::synchronousCommand(AsyncWebServerRequest *request, const char* cmd, bool silent, AuthenticationLevel auth_level) {
         if (http_block_during_motion->get() && inMotionState()) {
-            _webserver->send(503, "text/plain", "Try again when not moving\n");
+            request->send(503, "text/plain", "Try again when not moving\n");
             return;
         }
         char line[256];
         strncpy(line, cmd, 255);
-        webClient.attachWS(_webserver, silent);
+        webClient.attachWS(request, silent);
         Error err = settings_execute_line(line, webClient, auth_level);
         if (err != Error::Ok) {
             std::string answer = "Error: ";
@@ -489,49 +482,50 @@ namespace WebUI {
             webClient.write(nullptr, 0);
         }
         webClient.detachWS();
+        
     }
-    void WebUI_Server::websocketCommand(const char* cmd, int pageid, AuthenticationLevel auth_level) {
+    void WebUI_Server::websocketCommand(AsyncWebServerRequest *request, const char* cmd, int pageid, AuthenticationLevel auth_level) {
         if (auth_level == AuthenticationLevel::LEVEL_GUEST) {
-            _webserver->send(401, "text/plain", "Authentication failed\n");
+            request->send(401, "text/plain", "Authentication failed\n");
             return;
         }
 
         bool hasError = WSChannels::runGCode(pageid, cmd);
-        _webserver->send(hasError ? 500 : 200, "text/plain", hasError ? "WebSocket dead" : "");
+        request->send(hasError ? 500 : 200, "text/plain", hasError ? "WebSocket dead" : "");
     }
-    void WebUI_Server::_handle_web_command(bool silent) {
+    void WebUI_Server::_handle_web_command(AsyncWebServerRequest *request, bool silent) {
         AuthenticationLevel auth_level = is_authenticated();
-        if (_webserver->hasArg("cmd")) {  // WebUI3
+        if (request->hasParam("cmd")) {  // WebUI3
 
-            auto cmd = _webserver->arg("cmd");
+            auto cmd = request->getParam("cmd")->value();
             // [ESPXXX] commands expect data in the HTTP response
             if (cmd.startsWith("[ESP") || cmd.startsWith("$/")) {
-                synchronousCommand(cmd.c_str(), silent, auth_level);
+                synchronousCommand(request, cmd.c_str(), silent, auth_level);
             } else {
-                websocketCommand(cmd.c_str(), -1, auth_level);  // WebUI3 does not support PAGEID
+                websocketCommand(request, cmd.c_str(), -1, auth_level);  // WebUI3 does not support PAGEID
             }
             return;
         }
-        if (_webserver->hasArg("plain")) {
-            synchronousCommand(_webserver->arg("plain").c_str(), silent, auth_level);
+        if (request->hasParam("plain")) {
+            synchronousCommand(request, request->getParam("plain")->value().c_str(), silent, auth_level);
             return;
         }
-        if (_webserver->hasArg("commandText")) {
-            auto cmd = _webserver->arg("commandText");
+        if (request->hasParam("commandText")) {
+            auto cmd = request->getParam("commandText")->value();
             if (cmd.startsWith("[ESP")) {
                 // [ESPXXX] commands expect data in the HTTP response
                 // Only the fallback web page uses commandText with [ESPxxx]
-                synchronousCommand(cmd.c_str(), silent, auth_level);
+                synchronousCommand(request, cmd.c_str(), silent, auth_level);
             } else {
-                websocketCommand(_webserver->arg("commandText").c_str(), getPageid(), auth_level);
+                websocketCommand(request, request->getParam("commandText")->value().c_str(), getPageid(request), auth_level);
             }
             return;
         }
-        _webserver->send(500, "text/plain", "Invalid command");
+        request->send(500, "text/plain", "Invalid command");
     }
 
     //login status check
-    void WebUI_Server::handle_login() {
+    void WebUI_Server::handle_login(AsyncWebServerRequest *request) {
 #ifdef ENABLE_AUTHENTICATION
         const char* smsg;
         std::string sUser, sPassword;
@@ -680,15 +674,15 @@ namespace WebUI {
             sendAuth(smsg, auths, "");
         }
 #else
-        sendAuth("Ok", "admin", "");
+        sendAuth(request, "Ok", "admin", "");
 #endif
     }
 
     // This page is used when you try to reload WebUI during motion,
     // to avoid interrupting that motion.  It lets you wait until
     // motion is finished.
-    void WebUI_Server::handleReloadBlocked() {
-        _webserver->send(503,
+    void WebUI_Server::handleReloadBlocked(AsyncWebServerRequest *request) {
+        request->send(503,
                          "text/html",
                          "<!DOCTYPE html><html><body>"
                          "<h3>Cannot load WebUI while GCode Program is Running</h3>"
@@ -704,8 +698,8 @@ namespace WebUI {
 
                          "</body></html>");
     }
-    void WebUI_Server::handleDidRestart() {
-        _webserver->send(503,
+    void WebUI_Server::handleDidRestart(AsyncWebServerRequest *request) {
+        request->send(503,
                          "text/html",
                          "<!DOCTYPE html><html><body>"
                          "<h3>GCode Program has been stopped</h3>"
@@ -713,47 +707,44 @@ namespace WebUI {
                          "</body></html>");
     }
     // This page issues a feedhold to pause the motion then retries the WebUI reload
-    void WebUI_Server::handleFeedholdReload() {
+    void WebUI_Server::handleFeedholdReload(AsyncWebServerRequest *request) {
         protocol_send_event(&feedHoldEvent);
         //        delay(100);
         //        delay(100);
         // Go to the main page
-        _webserver->sendHeader(LOCATION_HEADER, "/");
-        _webserver->send(302);
+        request->redirect("/");
     }
     // This page issues a feedhold to pause the motion then retries the WebUI reload
-    void WebUI_Server::handleCyclestartReload() {
+    void WebUI_Server::handleCyclestartReload(AsyncWebServerRequest *request) {
         protocol_send_event(&cycleStartEvent);
         //        delay(100);
         //        delay(100);
         // Go to the main page
-        _webserver->sendHeader(LOCATION_HEADER, "/");
-        _webserver->send(302);
+        request->redirect("/");
     }
     // This page issues a feedhold to pause the motion then retries the WebUI reload
-    void WebUI_Server::handleRestartReload() {
+    void WebUI_Server::handleRestartReload(AsyncWebServerRequest *request) {
         protocol_send_event(&rtResetEvent);
         //        delay(100);
         //        delay(100);
         // Go to the main page
-        _webserver->sendHeader(LOCATION_HEADER, "/did_restart");
-        _webserver->send(302);
+        request->redirect("/did_restart");
     }
 
     //push error code and message to websocket.  Used by upload code
-    void WebUI_Server::pushError(int code, const char* st, bool web_error, uint16_t timeout) {
+    void WebUI_Server::pushError(AsyncWebServerRequest *request, int code, const char* st, bool web_error, uint16_t timeout) {
         if (_socket_server && st) {
             std::string s("ERROR:");
             s += std::to_string(code) + ":";
             s += st;
 
-            WSChannels::sendError(getPageid(), st);
+            WSChannels::sendError(getPageid(request), st);
 
-            if (web_error != 0 && _webserver && _webserver->client().available() > 0) {
-                _webserver->send(web_error, "text/xml", st);
+            if (web_error != 0 && request) { // && request->client().available() > 0) {
+                request->send(web_error, "text/xml", st);
             }
-
-            uint32_t start_time = millis();
+            // Maybe TODO... may no longer be needed
+            /*uint32_t start_time = millis();
             while ((millis() - start_time) < timeout) {
                 _socket_server->loop();
                 delay_ms(10);
@@ -765,59 +756,62 @@ namespace WebUI {
                     _socket_serverv3->loop();
                     delay_ms(10);
                 }
-            }
+            }*/
         }
     }
 
     //abort reception of packages
-    void WebUI_Server::cancelUpload() {
-        if (_webserver && _webserver->client().available() > 0) {
-            HTTPUpload& upload = _webserver->upload();
-            upload.status      = UPLOAD_FILE_ABORTED;
-            errno              = ECONNABORTED;
-            _webserver->client().stop();
-            delay(100);
-        }
+    void WebUI_Server::cancelUpload(AsyncWebServerRequest *request) {
+        // TODO
+        // if (request && _webserver->client().available() > 0) {
+        //     HTTPUpload& upload = _webserver->upload();
+        //     upload.status      = UPLOAD_FILE_ABORTED;
+        //     errno              = ECONNABORTED;
+        //     _webserver->client().stop();
+        //     delay(100);
+        // }
     }
 
     //LocalFS files uploader handle
-    void WebUI_Server::fileUpload(const char* fs) {
-        HTTPUpload& upload = _webserver->upload();
-        //this is only for admin and user
-        if (is_authenticated() == AuthenticationLevel::LEVEL_GUEST) {
-            _upload_status = UploadStatus::FAILED;
-            log_info("Upload rejected");
-            sendJSON(401, "{\"status\":\"Authentication failed!\"}");
-            pushError(ESP_ERROR_AUTHENTICATION, "Upload rejected", 401);
-        } else {
-            if ((_upload_status != UploadStatus::FAILED) || (upload.status == UPLOAD_FILE_START)) {
-                if (upload.status == UPLOAD_FILE_START) {
-                    std::string sizeargname(upload.filename.c_str());
-                    sizeargname += "S";
-                    size_t filesize = _webserver->hasArg(sizeargname.c_str()) ? _webserver->arg(sizeargname.c_str()).toInt() : 0;
-                    uploadStart(upload.filename.c_str(), filesize, fs);
-                } else if (upload.status == UPLOAD_FILE_WRITE) {
-                    uploadWrite(upload.buf, upload.currentSize);
-                } else if (upload.status == UPLOAD_FILE_END) {
-                    std::string sizeargname(upload.filename.c_str());
-                    sizeargname += "S";
-                    size_t filesize = _webserver->hasArg(sizeargname.c_str()) ? _webserver->arg(sizeargname.c_str()).toInt() : 0;
-                    uploadEnd(filesize);
-                } else {  //Upload cancelled
-                    uploadStop();
-                    return;
-                }
-            }
-        }
-        uploadCheck();
+    void WebUI_Server::fileUpload(AsyncWebServerRequest *request, const char* fs, String filename, size_t index, uint8_t *data, size_t len, bool final) {
+        // TODO
+        // HTTPUpload& upload = _webserver->upload();
+        // //this is only for admin and user
+        // if (is_authenticated() == AuthenticationLevel::LEVEL_GUEST) {
+        //     _upload_status = UploadStatus::FAILED;
+        //     log_info("Upload rejected");
+        //     sendJSON(401, "{\"status\":\"Authentication failed!\"}");
+        //     pushError(ESP_ERROR_AUTHENTICATION, "Upload rejected", 401);
+        // } else {
+        //     if ((_upload_status != UploadStatus::FAILED) || (upload.status == UPLOAD_FILE_START)) {
+        //         if (upload.status == UPLOAD_FILE_START) {
+        //             std::string sizeargname(upload.filename.c_str());
+        //             sizeargname += "S";
+        //             size_t filesize = _webserver->hasArg(sizeargname.c_str()) ? _webserver->arg(sizeargname.c_str()).toInt() : 0;
+        //             uploadStart(upload.filename.c_str(), filesize, fs);
+        //         } else if (upload.status == UPLOAD_FILE_WRITE) {
+        //             uploadWrite(upload.buf, upload.currentSize);
+        //         } else if (upload.status == UPLOAD_FILE_END) {
+        //             std::string sizeargname(upload.filename.c_str());
+        //             sizeargname += "S";
+        //             size_t filesize = _webserver->hasArg(sizeargname.c_str()) ? _webserver->arg(sizeargname.c_str()).toInt() : 0;
+        //             uploadEnd(filesize);
+        //         } else {  //Upload cancelled
+        //             uploadStop();
+        //             return;
+        //         }
+        //     }
+        // }
+        // uploadCheck();
     }
 
-    void WebUI_Server::sendJSON(int code, const char* s) {
-        _webserver->sendHeader("Cache-Control", "no-cache");
-        _webserver->send(200, "application/json", s);
+    void WebUI_Server::sendJSON(AsyncWebServerRequest *request, int code, const char* s) {
+        AsyncWebServerResponse *response = request->beginResponse(200, "application/json", s);
+        response->addHeader("Cache-Control", "no-cache");
+        request->send(response);
     }
 
-    void WebUI_Server::sendAuth(const char* status, const char* level, const char* user) {
+    void WebUI_Server::sendAuth(AsyncWebServerRequest *request, const char* status, const char* level, const char* user) {
         std::string s;
         JSONencoder j(&s);
         j.begin();
@@ -829,39 +823,39 @@ namespace WebUI {
             j.member("user", user);
         }
         j.end();
-        sendJSON(200, s);
+        sendJSON(request, 200, s);
     }
 
-    void WebUI_Server::sendStatus(int code, const char* status) {
+    void WebUI_Server::sendStatus(AsyncWebServerRequest *request, int code, const char* status) {
         std::string s;
         JSONencoder j(&s);
         j.begin();
         j.member("status", status);
         j.end();
-        sendJSON(code, s);
+        sendJSON(request, code, s);
     }
 
-    void WebUI_Server::sendAuthFailed() {
-        sendStatus(401, "Authentication failed");
+    void WebUI_Server::sendAuthFailed(AsyncWebServerRequest *request) {
+        sendStatus(request, 401, "Authentication failed");
     }
 
-    void WebUI_Server::LocalFSFileupload() {
-        fileUpload(localfsName);
+    void WebUI_Server::LocalFSFileupload(AsyncWebServerRequest *request, String filename, size_t index, uint8_t *data, size_t len, bool final) {
+        fileUpload(request, localfsName, filename, index, data, len, final);
     }
-    void WebUI_Server::SDFileUpload() {
-        fileUpload(sdName);
+    void WebUI_Server::SDFileUpload(AsyncWebServerRequest *request, String filename, size_t index, uint8_t *data, size_t len, bool final) {
+        fileUpload(request, sdName, filename, index, data, len, final);
     }
 
     //Web Update handler
-    void WebUI_Server::handleUpdate() {
+    void WebUI_Server::handleUpdate(AsyncWebServerRequest *request) {
         AuthenticationLevel auth_level = is_authenticated();
         if (auth_level != AuthenticationLevel::LEVEL_ADMIN) {
             _upload_status = UploadStatus::NONE;
-            _webserver->send(403, "text/plain", "Not allowed, log in first!\n");
+            request->send(403, "text/plain", "Not allowed, log in first!\n");
             return;
         }
 
-        sendStatus(200, std::to_string(int(_upload_status)).c_str());
+        sendStatus(request, 200, std::to_string(int(_upload_status)).c_str());
 
         //if success restart
         if (_upload_status == UploadStatus::SUCCESSFUL) {
@@ -873,7 +867,7 @@ namespace WebUI {
     }
 
     //File upload for Web update
-    void WebUI_Server::WebUpdateUpload() {
+    void WebUI_Server::WebUpdateUpload(AsyncWebServerRequest *request, String filename, size_t index, uint8_t *data, size_t len, bool final) {
         static size_t   last_upload_update;
         static uint32_t maxSketchSpace = 0;
 
@@ -881,353 +875,359 @@ namespace WebUI {
         if (is_authenticated() != AuthenticationLevel::LEVEL_ADMIN) {
             _upload_status = UploadStatus::FAILED;
             log_info("Upload rejected");
-            sendAuthFailed();
-            pushError(ESP_ERROR_AUTHENTICATION, "Upload rejected", 401);
-        } else {
-            //get current file ID
-            HTTPUpload& upload = _webserver->upload();
-            if ((_upload_status != UploadStatus::FAILED) || (upload.status == UPLOAD_FILE_START)) {
-                //Upload start
-                //**************
-                if (upload.status == UPLOAD_FILE_START) {
-                    log_info("Update Firmware");
-                    _upload_status = UploadStatus::ONGOING;
-                    std::string sizeargname(upload.filename.c_str());
-                    sizeargname += "S";
-                    if (_webserver->hasArg(sizeargname.c_str())) {
-                        maxSketchSpace = _webserver->arg(sizeargname.c_str()).toInt();
-                    }
-                    //check space
-                    size_t flashsize = 0;
-                    if (esp_ota_get_running_partition()) {
-                        const esp_partition_t* partition = esp_ota_get_next_update_partition(NULL);
-                        if (partition) {
-                            flashsize = partition->size;
-                        }
-                    }
-                    if (flashsize < maxSketchSpace) {
-                        pushError(ESP_ERROR_NOT_ENOUGH_SPACE, "Upload rejected, not enough space");
-                        _upload_status = UploadStatus::FAILED;
-                        log_info("Update cancelled");
-                    }
-                    if (_upload_status != UploadStatus::FAILED) {
-                        last_upload_update = 0;
-                        if (!Update.begin()) {  //start with max available size
-                            _upload_status = UploadStatus::FAILED;
-                            log_info("Update cancelled");
-                            pushError(ESP_ERROR_NOT_ENOUGH_SPACE, "Upload rejected, not enough space");
-                        } else {
-                            log_info("Update 0%");
-                        }
-                    }
-                    //Upload write
-                    //**************
-                } else if (upload.status == UPLOAD_FILE_WRITE) {
-                    delay_ms(1);
-                    //check if no error
-                    if (_upload_status == UploadStatus::ONGOING) {
-                        if (((100 * upload.totalSize) / maxSketchSpace) != last_upload_update) {
-                            if (maxSketchSpace > 0) {
-                                last_upload_update = (100 * upload.totalSize) / maxSketchSpace;
-                            } else {
-                                last_upload_update = upload.totalSize;
-                            }
+            sendAuthFailed(request);
+            pushError(request, ESP_ERROR_AUTHENTICATION, "Upload rejected", 401);
+        } 
+        else{request->send(500,"text/plain", "Not yet reimplemented in AsyncWebServer... coming soon!");}
+        // TODO
+        // else {
+        //     //get current file ID
+        //     HTTPUpload& upload = _webserver->upload();
+        //     if ((_upload_status != UploadStatus::FAILED) || (upload.status == UPLOAD_FILE_START)) {
+        //         //Upload start
+        //         //**************
+        //         if (upload.status == UPLOAD_FILE_START) {
+        //             log_info("Update Firmware");
+        //             _upload_status = UploadStatus::ONGOING;
+        //             std::string sizeargname(upload.filename.c_str());
+        //             sizeargname += "S";
+        //             if (_webserver->hasArg(sizeargname.c_str())) {
+        //                 maxSketchSpace = _webserver->arg(sizeargname.c_str()).toInt();
+        //             }
+        //             //check space
+        //             size_t flashsize = 0;
+        //             if (esp_ota_get_running_partition()) {
+        //                 const esp_partition_t* partition = esp_ota_get_next_update_partition(NULL);
+        //                 if (partition) {
+        //                     flashsize = partition->size;
+        //                 }
+        //             }
+        //             if (flashsize < maxSketchSpace) {
+        //                 pushError(ESP_ERROR_NOT_ENOUGH_SPACE, "Upload rejected, not enough space");
+        //                 _upload_status = UploadStatus::FAILED;
+        //                 log_info("Update cancelled");
+        //             }
+        //             if (_upload_status != UploadStatus::FAILED) {
+        //                 last_upload_update = 0;
+        //                 if (!Update.begin()) {  //start with max available size
+        //                     _upload_status = UploadStatus::FAILED;
+        //                     log_info("Update cancelled");
+        //                     pushError(ESP_ERROR_NOT_ENOUGH_SPACE, "Upload rejected, not enough space");
+        //                 } else {
+        //                     log_info("Update 0%");
+        //                 }
+        //             }
+        //             //Upload write
+        //             //**************
+        //         } else if (upload.status == UPLOAD_FILE_WRITE) {
+        //             delay_ms(1);
+        //             //check if no error
+        //             if (_upload_status == UploadStatus::ONGOING) {
+        //                 if (((100 * upload.totalSize) / maxSketchSpace) != last_upload_update) {
+        //                     if (maxSketchSpace > 0) {
+        //                         last_upload_update = (100 * upload.totalSize) / maxSketchSpace;
+        //                     } else {
+        //                         last_upload_update = upload.totalSize;
+        //                     }
 
-                            log_info("Update " << last_upload_update << "%");
-                        }
-                        if (Update.write(upload.buf, upload.currentSize) != upload.currentSize) {
-                            _upload_status = UploadStatus::FAILED;
-                            log_info("Update write failed");
-                            pushError(ESP_ERROR_FILE_WRITE, "File write failed");
-                        }
-                    }
-                    //Upload end
-                    //**************
-                } else if (upload.status == UPLOAD_FILE_END) {
-                    if (Update.end(true)) {  //true to set the size to the current progress
-                        //Now Reboot
-                        log_info("Update 100%");
-                        _upload_status = UploadStatus::SUCCESSFUL;
-                    } else {
-                        _upload_status = UploadStatus::FAILED;
-                        log_info("Update failed");
-                        pushError(ESP_ERROR_UPLOAD, "Update upload failed");
-                    }
-                } else if (upload.status == UPLOAD_FILE_ABORTED) {
-                    log_info("Update failed");
-                    _upload_status = UploadStatus::FAILED;
-                    return;
-                }
-            }
-        }
+        //                     log_info("Update " << last_upload_update << "%");
+        //                 }
+        //                 if (Update.write(upload.buf, upload.currentSize) != upload.currentSize) {
+        //                     _upload_status = UploadStatus::FAILED;
+        //                     log_info("Update write failed");
+        //                     pushError(ESP_ERROR_FILE_WRITE, "File write failed");
+        //                 }
+        //             }
+        //             //Upload end
+        //             //**************
+        //         } else if (upload.status == UPLOAD_FILE_END) {
+        //             if (Update.end(true)) {  //true to set the size to the current progress
+        //                 //Now Reboot
+        //                 log_info("Update 100%");
+        //                 _upload_status = UploadStatus::SUCCESSFUL;
+        //             } else {
+        //                 _upload_status = UploadStatus::FAILED;
+        //                 log_info("Update failed");
+        //                 pushError(ESP_ERROR_UPLOAD, "Update upload failed");
+        //             }
+        //         } else if (upload.status == UPLOAD_FILE_ABORTED) {
+        //             log_info("Update failed");
+        //             _upload_status = UploadStatus::FAILED;
+        //             return;
+        //         }
+        //     }
+        // }
 
-        if (_upload_status == UploadStatus::FAILED) {
-            cancelUpload();
-            Update.end();
-        }
+        // if (_upload_status == UploadStatus::FAILED) {
+        //     cancelUpload();
+        //     Update.end();
+        // }
     }
 
-    void WebUI_Server::handleFileOps(const char* fs) {
+    void WebUI_Server::handleFileOps(AsyncWebServerRequest *request, const char* fs) {
         //this is only for admin and user
         if (is_authenticated() == AuthenticationLevel::LEVEL_GUEST) {
             _upload_status = UploadStatus::NONE;
-            sendAuthFailed();
+            sendAuthFailed(request);
             return;
         }
 
-        std::error_code ec;
+        request->send(500,"text/plain", "Not yet reimplemented in AsyncWebServer... coming soon!");
+    //  TODO
+    //     std::error_code ec;
 
-        std::string path("");
-        std::string sstatus("Ok");
-        if ((_upload_status == UploadStatus::FAILED) || (_upload_status == UploadStatus::FAILED)) {
-            sstatus = "Upload failed";
-        }
-        _upload_status      = UploadStatus::NONE;
-        bool     list_files = true;
-        uint64_t totalspace = 0;
-        uint64_t usedspace  = 0;
+    //     std::string path("");
+    //     std::string sstatus("Ok");
+    //     if ((_upload_status == UploadStatus::FAILED) || (_upload_status == UploadStatus::FAILED)) {
+    //         sstatus = "Upload failed";
+    //     }
+    //     _upload_status      = UploadStatus::NONE;
+    //     bool     list_files = true;
+    //     uint64_t totalspace = 0;
+    //     uint64_t usedspace  = 0;
 
-        //get current path
-        if (_webserver->hasArg("path")) {
-            path += _webserver->arg("path").c_str();
-            // path.trim();
-            replace_string_in_place(path, "//", "/");
-            if (path[path.length() - 1] == '/') {
-                path = path.substr(0, path.length() - 1);
-            }
-            if (path.length() & path[0] == '/') {
-                path = path.substr(1);
-            }
-        }
+    //     //get current path
+    //     if (_webserver->hasArg("path")) {
+    //         path += _webserver->arg("path").c_str();
+    //         // path.trim();
+    //         replace_string_in_place(path, "//", "/");
+    //         if (path[path.length() - 1] == '/') {
+    //             path = path.substr(0, path.length() - 1);
+    //         }
+    //         if (path.length() & path[0] == '/') {
+    //             path = path.substr(1);
+    //         }
+    //     }
 
-        FluidPath fpath { path, fs, ec };
-        if (ec) {
-            sendJSON(200, "{\"status\":\"No SD card\"}");
-            return;
-        }
+    //     FluidPath fpath { path, fs, ec };
+    //     if (ec) {
+    //         sendJSON(200, "{\"status\":\"No SD card\"}");
+    //         return;
+    //     }
 
-        // Handle deletions and directory creation
-        if (_webserver->hasArg("action") && _webserver->hasArg("filename")) {
-            std::string action(_webserver->arg("action").c_str());
-            std::string filename = std::string(_webserver->arg("filename").c_str());
-            if (action == "delete") {
-                if (stdfs::remove(fpath / filename, ec)) {
-                    sstatus = filename + " deleted";
-                    HashFS::delete_file(fpath / filename);
-                } else {
-                    sstatus = "Cannot delete ";
-                    sstatus += filename + " " + ec.message();
-                }
-            } else if (action == "deletedir") {
-                stdfs::path dirpath { fpath / filename };
-                log_debug("Deleting directory " << dirpath);
-                int count = stdfs::remove_all(dirpath, ec);
-                if (count > 0) {
-                    sstatus = filename + " deleted";
-                    HashFS::report_change();
-                } else {
-                    log_debug("remove_all returned " << count);
-                    sstatus = "Cannot delete ";
-                    sstatus += filename + " " + ec.message();
-                }
-            } else if (action == "createdir") {
-                if (stdfs::create_directory(fpath / filename, ec)) {
-                    sstatus = filename + " created";
-                    HashFS::report_change();
-                } else {
-                    sstatus = "Cannot create ";
-                    sstatus += filename + " " + ec.message();
-                }
-            } else if (action == "rename") {
-                if (!_webserver->hasArg("newname")) {
-                    sstatus = "Missing new filename";
-                } else {
-                    std::string newname = std::string(_webserver->arg("newname").c_str());
-                    std::filesystem::rename(fpath / filename, fpath / newname, ec);
-                    if (ec) {
-                        sstatus = "Cannot rename ";
-                        sstatus += filename + " " + ec.message();
-                    } else {
-                        sstatus = filename + " renamed to " + newname;
-                        HashFS::rename_file(fpath / filename, fpath / newname);
-                    }
-                }
-            }
-        }
+    //     // Handle deletions and directory creation
+    //     if (_webserver->hasArg("action") && _webserver->hasArg("filename")) {
+    //         std::string action(_webserver->arg("action").c_str());
+    //         std::string filename = std::string(_webserver->arg("filename").c_str());
+    //         if (action == "delete") {
+    //             if (stdfs::remove(fpath / filename, ec)) {
+    //                 sstatus = filename + " deleted";
+    //                 HashFS::delete_file(fpath / filename);
+    //             } else {
+    //                 sstatus = "Cannot delete ";
+    //                 sstatus += filename + " " + ec.message();
+    //             }
+    //         } else if (action == "deletedir") {
+    //             stdfs::path dirpath { fpath / filename };
+    //             log_debug("Deleting directory " << dirpath);
+    //             int count = stdfs::remove_all(dirpath, ec);
+    //             if (count > 0) {
+    //                 sstatus = filename + " deleted";
+    //                 HashFS::report_change();
+    //             } else {
+    //                 log_debug("remove_all returned " << count);
+    //                 sstatus = "Cannot delete ";
+    //                 sstatus += filename + " " + ec.message();
+    //             }
+    //         } else if (action == "createdir") {
+    //             if (stdfs::create_directory(fpath / filename, ec)) {
+    //                 sstatus = filename + " created";
+    //                 HashFS::report_change();
+    //             } else {
+    //                 sstatus = "Cannot create ";
+    //                 sstatus += filename + " " + ec.message();
+    //             }
+    //         } else if (action == "rename") {
+    //             if (!_webserver->hasArg("newname")) {
+    //                 sstatus = "Missing new filename";
+    //             } else {
+    //                 std::string newname = std::string(_webserver->arg("newname").c_str());
+    //                 std::filesystem::rename(fpath / filename, fpath / newname, ec);
+    //                 if (ec) {
+    //                     sstatus = "Cannot rename ";
+    //                     sstatus += filename + " " + ec.message();
+    //                 } else {
+    //                     sstatus = filename + " renamed to " + newname;
+    //                     HashFS::rename_file(fpath / filename, fpath / newname);
+    //                 }
+    //             }
+    //         }
+    //     }
 
-        //check if no need build file list
-        if (_webserver->hasArg("dontlist") && _webserver->arg("dontlist") == "yes") {
-            list_files = false;
-        }
+    //     //check if no need build file list
+    //     if (_webserver->hasArg("dontlist") && _webserver->arg("dontlist") == "yes") {
+    //         list_files = false;
+    //     }
 
-        std::string s;
-        JSONencoder j(&s);
-        j.begin();
+    //     std::string s;
+    //     JSONencoder j(&s);
+    //     j.begin();
 
-        if (list_files) {
-            auto iter = stdfs::directory_iterator { fpath, ec };
-            if (!ec) {
-                j.begin_array("files");
-                for (auto const& dir_entry : iter) {
-                    j.begin_object();
-                    j.member("name", dir_entry.path().filename());
-                    j.member("shortname", dir_entry.path().filename());
-                    j.member("size", dir_entry.is_directory() ? -1 : dir_entry.file_size());
-                    j.member("datetime", "");
-                    j.end_object();
-                }
-                j.end_array();
-            }
-        }
+    //     if (list_files) {
+    //         auto iter = stdfs::directory_iterator { fpath, ec };
+    //         if (!ec) {
+    //             j.begin_array("files");
+    //             for (auto const& dir_entry : iter) {
+    //                 j.begin_object();
+    //                 j.member("name", dir_entry.path().filename());
+    //                 j.member("shortname", dir_entry.path().filename());
+    //                 j.member("size", dir_entry.is_directory() ? -1 : dir_entry.file_size());
+    //                 j.member("datetime", "");
+    //                 j.end_object();
+    //             }
+    //             j.end_array();
+    //         }
+    //     }
 
-        auto space = stdfs::space(fpath, ec);
-        totalspace = space.capacity;
-        usedspace  = totalspace - space.available;
+    //     auto space = stdfs::space(fpath, ec);
+    //     totalspace = space.capacity;
+    //     usedspace  = totalspace - space.available;
 
-        j.member("path", path.c_str());
-        j.member("total", formatBytes(totalspace));
-        j.member("used", formatBytes(usedspace + 1));
+    //     j.member("path", path.c_str());
+    //     j.member("total", formatBytes(totalspace));
+    //     j.member("used", formatBytes(usedspace + 1));
 
-        uint32_t percent = totalspace ? (usedspace * 100) / totalspace : 100;
+    //     uint32_t percent = totalspace ? (usedspace * 100) / totalspace : 100;
 
-        j.member("occupation", percent);
-        j.member("status", sstatus);
-        j.end();
-        sendJSON(200, s);
+    //     j.member("occupation", percent);
+    //     j.member("status", sstatus);
+    //     j.end();
+    //     sendJSON(request, 200, s);
     }
 
-    void WebUI_Server::handle_direct_SDFileList() {
-        handleFileOps(sdName);
+    void WebUI_Server::handle_direct_SDFileList(AsyncWebServerRequest *request) {
+        handleFileOps(request, sdName);
     }
-    void WebUI_Server::handleFileList() {
-        handleFileOps(localfsName);
+    void WebUI_Server::handleFileList(AsyncWebServerRequest *request) {
+        handleFileOps(request, localfsName);
     }
 
     // File upload
-    void WebUI_Server::uploadStart(const char* filename, size_t filesize, const char* fs) {
-        std::error_code ec;
+    // TODO
+    // void WebUI_Server::uploadStart(const char* filename, size_t filesize, const char* fs) {
+    //     std::error_code ec;
 
-        FluidPath fpath { filename, fs, ec };
-        if (ec) {
-            _upload_status = UploadStatus::FAILED;
-            log_info("Upload filesystem inaccessible");
-            pushError(ESP_ERROR_FILE_CREATION, "Upload rejected, filesystem inaccessible");
-            return;
-        }
+    //     FluidPath fpath { filename, fs, ec };
+    //     if (ec) {
+    //         _upload_status = UploadStatus::FAILED;
+    //         log_info("Upload filesystem inaccessible");
+    //         pushError(ESP_ERROR_FILE_CREATION, "Upload rejected, filesystem inaccessible");
+    //         return;
+    //     }
 
-        auto space = stdfs::space(fpath);
-        if (filesize && filesize > space.available) {
-            // If the file already exists, maybe there will be enough space
-            // when we replace it.
-            auto existing_size = stdfs::file_size(fpath, ec);
-            if (ec || (filesize > (space.available + existing_size))) {
-                _upload_status = UploadStatus::FAILED;
-                log_info("Upload not enough space");
-                pushError(ESP_ERROR_NOT_ENOUGH_SPACE, "Upload rejected, not enough space");
-                return;
-            }
-        }
+    //     auto space = stdfs::space(fpath);
+    //     if (filesize && filesize > space.available) {
+    //         // If the file already exists, maybe there will be enough space
+    //         // when we replace it.
+    //         auto existing_size = stdfs::file_size(fpath, ec);
+    //         if (ec || (filesize > (space.available + existing_size))) {
+    //             _upload_status = UploadStatus::FAILED;
+    //             log_info("Upload not enough space");
+    //             pushError(ESP_ERROR_NOT_ENOUGH_SPACE, "Upload rejected, not enough space");
+    //             return;
+    //         }
+    //     }
 
-        if (_upload_status != UploadStatus::FAILED) {
-            //Create file for writing
-            try {
-                _uploadFile    = new FileStream(fpath, "w");
-                _upload_status = UploadStatus::ONGOING;
-            } catch (const Error err) {
-                _uploadFile    = nullptr;
-                _upload_status = UploadStatus::FAILED;
-                log_info("Upload failed - cannot create file");
-                pushError(ESP_ERROR_FILE_CREATION, "File creation failed");
-            }
-        }
-    }
+    //     if (_upload_status != UploadStatus::FAILED) {
+    //         //Create file for writing
+    //         try {
+    //             _uploadFile    = new FileStream(fpath, "w");
+    //             _upload_status = UploadStatus::ONGOING;
+    //         } catch (const Error err) {
+    //             _uploadFile    = nullptr;
+    //             _upload_status = UploadStatus::FAILED;
+    //             log_info("Upload failed - cannot create file");
+    //             pushError(ESP_ERROR_FILE_CREATION, "File creation failed");
+    //         }
+    //     }
+    // }
 
-    void WebUI_Server::uploadWrite(uint8_t* buffer, size_t length) {
-        delay_ms(1);
-        if (_uploadFile && _upload_status == UploadStatus::ONGOING) {
-            //no error write post data
-            if (length != _uploadFile->write(buffer, length)) {
-                _upload_status = UploadStatus::FAILED;
-                log_info("Upload failed - file write failed");
-                pushError(ESP_ERROR_FILE_WRITE, "File write failed");
-            }
-        } else {  //if error set flag UploadStatus::FAILED
-            _upload_status = UploadStatus::FAILED;
-            log_info("Upload failed - file not open");
-            pushError(ESP_ERROR_FILE_WRITE, "File not open");
-        }
-    }
+    // void WebUI_Server::uploadWrite(uint8_t* buffer, size_t length) {
+    //     delay_ms(1);
+    //     if (_uploadFile && _upload_status == UploadStatus::ONGOING) {
+    //         //no error write post data
+    //         if (length != _uploadFile->write(buffer, length)) {
+    //             _upload_status = UploadStatus::FAILED;
+    //             log_info("Upload failed - file write failed");
+    //             pushError(ESP_ERROR_FILE_WRITE, "File write failed");
+    //         }
+    //     } else {  //if error set flag UploadStatus::FAILED
+    //         _upload_status = UploadStatus::FAILED;
+    //         log_info("Upload failed - file not open");
+    //         pushError(ESP_ERROR_FILE_WRITE, "File not open");
+    //     }
+    // }
 
-    void WebUI_Server::uploadEnd(size_t filesize) {
-        //if file is open close it
-        if (_uploadFile) {
-            //            delete _uploadFile;
-            // _uploadFile = nullptr;
+    // void WebUI_Server::uploadEnd(size_t filesize) {
+    //     //if file is open close it
+    //     if (_uploadFile) {
+    //         //            delete _uploadFile;
+    //         // _uploadFile = nullptr;
 
-            std::string pathname = _uploadFile->fpath();
-            delete _uploadFile;
-            _uploadFile = nullptr;
-            log_debug("pathname " << pathname);
+    //         std::string pathname = _uploadFile->fpath();
+    //         delete _uploadFile;
+    //         _uploadFile = nullptr;
+    //         log_debug("pathname " << pathname);
 
-            FluidPath filepath { pathname, "" };
+    //         FluidPath filepath { pathname, "" };
 
-            HashFS::rehash_file(filepath);
+    //         HashFS::rehash_file(filepath);
 
-            // Check size
-            if (filesize) {
-                uint32_t actual_size;
-                try {
-                    actual_size = stdfs::file_size(filepath);
-                } catch (const Error err) { actual_size = 0; }
+    //         // Check size
+    //         if (filesize) {
+    //             uint32_t actual_size;
+    //             try {
+    //                 actual_size = stdfs::file_size(filepath);
+    //             } catch (const Error err) { actual_size = 0; }
 
-                if (filesize != actual_size) {
-                    _upload_status = UploadStatus::FAILED;
-                    pushError(ESP_ERROR_UPLOAD, "File upload mismatch");
-                    log_info("Upload failed - size mismatch - exp " << filesize << " got " << actual_size);
-                }
-            }
-        } else {
-            _upload_status = UploadStatus::FAILED;
-            log_info("Upload failed - file not open");
-            pushError(ESP_ERROR_FILE_CLOSE, "File close failed");
-        }
-        if (_upload_status == UploadStatus::ONGOING) {
-            _upload_status = UploadStatus::SUCCESSFUL;
-        } else {
-            _upload_status = UploadStatus::FAILED;
-            pushError(ESP_ERROR_UPLOAD, "Upload error 8");
-        }
-    }
-    void WebUI_Server::uploadStop() {
-        _upload_status = UploadStatus::FAILED;
-        log_info("Upload cancelled");
-        if (_uploadFile) {
-            std::filesystem::path filepath = _uploadFile->fpath();
-            delete _uploadFile;
-            _uploadFile = nullptr;
-            HashFS::rehash_file(filepath);
-        }
-    }
-    void WebUI_Server::uploadCheck() {
-        std::error_code error_code;
-        if (_upload_status == UploadStatus::FAILED) {
-            cancelUpload();
-            if (_uploadFile) {
-                std::filesystem::path filepath = _uploadFile->fpath();
-                delete _uploadFile;
-                _uploadFile = nullptr;
-                stdfs::remove(filepath, error_code);
-                HashFS::rehash_file(filepath);
-            }
-        }
-    }
+    //             if (filesize != actual_size) {
+    //                 _upload_status = UploadStatus::FAILED;
+    //                 pushError(ESP_ERROR_UPLOAD, "File upload mismatch");
+    //                 log_info("Upload failed - size mismatch - exp " << filesize << " got " << actual_size);
+    //             }
+    //         }
+    //     } else {
+    //         _upload_status = UploadStatus::FAILED;
+    //         log_info("Upload failed - file not open");
+    //         pushError(ESP_ERROR_FILE_CLOSE, "File close failed");
+    //     }
+    //     if (_upload_status == UploadStatus::ONGOING) {
+    //         _upload_status = UploadStatus::SUCCESSFUL;
+    //     } else {
+    //         _upload_status = UploadStatus::FAILED;
+    //         pushError(ESP_ERROR_UPLOAD, "Upload error 8");
+    //     }
+    // }
+    // void WebUI_Server::uploadStop() {
+    //     _upload_status = UploadStatus::FAILED;
+    //     log_info("Upload cancelled");
+    //     if (_uploadFile) {
+    //         std::filesystem::path filepath = _uploadFile->fpath();
+    //         delete _uploadFile;
+    //         _uploadFile = nullptr;
+    //         HashFS::rehash_file(filepath);
+    //     }
+    // }
+    // void WebUI_Server::uploadCheck() {
+    //     std::error_code error_code;
+    //     if (_upload_status == UploadStatus::FAILED) {
+    //         cancelUpload();
+    //         if (_uploadFile) {
+    //             std::filesystem::path filepath = _uploadFile->fpath();
+    //             delete _uploadFile;
+    //             _uploadFile = nullptr;
+    //             stdfs::remove(filepath, error_code);
+    //             HashFS::rehash_file(filepath);
+    //         }
+    //     }
+    // }
 
     void WebUI_Server::poll() {
         static uint32_t start_time = millis();
         if (WiFi.getMode() == WIFI_AP) {
             dnsServer.processNextRequest();
         }
-        if (_webserver) {
+        /*if (_webserver) {
             _webserver->handleClient();
         }
         if (_socket_server && _setupdone) {
@@ -1235,7 +1235,7 @@ namespace WebUI {
         }
         if (_socket_serverv3 && _setupdone) {
             _socket_serverv3->loop();
-        }
+        }*/
         if ((millis() - start_time) > 10000 && _socket_server) {
             WSChannels::sendPing();
             start_time = millis();

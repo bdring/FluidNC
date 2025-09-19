@@ -5,7 +5,8 @@
 
 #include "src/Channel.h"
 
-class WebServer;
+class AsyncWebServerRequest;
+class AsyncResponseStream;
 
 namespace WebUI {
     class WebClient : public Channel {
@@ -13,7 +14,7 @@ namespace WebUI {
         WebClient();
         ~WebClient();
 
-        void attachWS(WebServer* webserver, bool silent);
+        void attachWS(AsyncWebServerRequest* request, bool silent);
         void detachWS();
 
         size_t write(uint8_t data) override;
@@ -33,12 +34,13 @@ namespace WebUI {
         void out_acked(const std::string& s, const char* tag) override;
 
     private:
-        bool                _header_sent = false;
-        bool                _silent      = false;
-        WebServer*          _webserver   = nullptr;
-        static const size_t BUFLEN       = 1200;
-        char                _buffer[BUFLEN];
-        size_t              _buflen = 0;
+        bool                   _header_sent = false;
+        bool                   _silent      = false;
+        AsyncWebServerRequest* _request     = nullptr;
+        static const size_t    BUFLEN       = 1200;
+        char                   _buffer[BUFLEN];
+        size_t                 _buflen = 0;
+        AsyncResponseStream     *_response    = nullptr;
     };
 
     extern WebClient webClient;

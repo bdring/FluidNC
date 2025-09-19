@@ -4,36 +4,38 @@
 #include "src/Report.h"
 #include "WebClient.h"
 #include <WebServer.h>
+#include <ESPAsyncWebServer.h>
 
 namespace WebUI {
     WebClient webClient;
 
     WebClient::WebClient() : Channel("webclient") {}
 
-    void WebClient::attachWS(WebServer* webserver, bool silent) {
+    void WebClient::attachWS(AsyncWebServerRequest* request, bool silent) {
         _header_sent = false;
         _silent      = silent;
-        _webserver   = webserver;
+        _request   = request;
         _buflen      = 0;
+        _response = _request->beginResponseStream("text/html");
     }
 
     void WebClient::detachWS() {
         flush();
-        _webserver->sendContent("");  //close connection
-        _webserver = nullptr;
+        _request->send(_response);  //close connection
+        _request = nullptr;
     }
 
     size_t WebClient::write(const uint8_t* buffer, size_t length) {
-        if (!_webserver || _silent) {
+        if (!_request || _silent) {
             return length;
         }
         if (!_header_sent) {
-            _webserver->setContentLength(CONTENT_LENGTH_UNKNOWN);
+            //_request->setContentLength(CONTENT_LENGTH_UNKNOWN);
             // The webserver code automatically sends Content-Type: text/html
             // so no need to do it explicitly
             // _webserver->sendHeader("Content-Type", "text/html");
-            _webserver->sendHeader("Cache-Control", "no-cache");
-            _webserver->send(200);
+            _response->addHeader("Cache-Control", "no-cache");
+            //_request->send(response);
             _header_sent = true;
         }
 
@@ -56,8 +58,9 @@ namespace WebUI {
     }
 
     void WebClient::flush() {
-        if (_webserver && _buflen) {
-            _webserver->sendContent(_buffer, _buflen);
+        if (_request && _buflen) {
+            _response->write((uint8_t *)_buffer, _buflen);
+            //_request->sendContent(_buffer, _buflen);
             _buflen = 0;
         }
     }
@@ -86,13 +89,13 @@ namespace WebUI {
     }
 
     void WebClient::sendError(int code, const std::string& line) {
-        if (_webserver) {
-            _webserver->send(code, "text/plain", line.c_str());
+        if (_request) {
+            _request->send(code, "text/plain", line.c_str());
         }
     }
 
     WebClient::~WebClient() {
-        flush();
-        _webserver->sendContent("");  //close connection
+        //flush();
+       // _request->send(_response); //200,"text/plain","");//close connection (?)
     }
 }
