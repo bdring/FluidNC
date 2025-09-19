@@ -57,13 +57,14 @@ namespace WebUI {
     private:
         static bool              _setupdone;
         static AsyncWebServer*    _webserver;
-        static AsyncHeaderFreeMiddleware headerFilter;
+        static AsyncHeaderFreeMiddleware* _headerFilter;
         static AsyncWebSocket* _socket_server;
         static AsyncWebSocket* _socket_serverv3;
 
         static uint16_t          _port;
         static UploadStatus      _upload_status;
         static FileStream*       _uploadFile;
+        static std::map<std::string, FileStream*> _fileStreams;
 
         static const char* getContentType(const char* filename);
 
@@ -79,56 +80,56 @@ namespace WebUI {
 #endif
         static void handle_SSDP();
         static void handle_root(AsyncWebServerRequest *request);
-        static void handle_login();
-        static void handle_not_found();
-        static void _handle_web_command(bool);
-        static void handle_web_command() {
-            _handle_web_command(false);
+        static void handle_login(AsyncWebServerRequest *request);
+        static void handle_not_found(AsyncWebServerRequest *request);
+        static void _handle_web_command(AsyncWebServerRequest *request, bool);
+        static void handle_web_command(AsyncWebServerRequest *request) {
+            _handle_web_command(request, false);
         }
-        static void handle_web_command_silent() {
-            _handle_web_command(true);
+        static void handle_web_command_silent(AsyncWebServerRequest *request) {
+            _handle_web_command(request, true);
         }
-        static void handleReloadBlocked();
-        static void handleFeedholdReload();
-        static void handleCyclestartReload();
-        static void handleRestartReload();
-        static void handleDidRestart();
-        static void LocalFSFileupload();
-        static void handleFileList();
-        static void handleUpdate();
-        static void WebUpdateUpload();
+        static void handleReloadBlocked(AsyncWebServerRequest *request);
+        static void handleFeedholdReload(AsyncWebServerRequest *request);
+        static void handleCyclestartReload(AsyncWebServerRequest *request);
+        static void handleRestartReload(AsyncWebServerRequest *request);
+        static void handleDidRestart(AsyncWebServerRequest *request);
+        static void LocalFSFileupload(AsyncWebServerRequest *request, String filename, size_t index, uint8_t *data, size_t len, bool final);
+        static void handleFileList(AsyncWebServerRequest *request);
+        static void handleUpdate(AsyncWebServerRequest *request);
+        static void WebUpdateUpload(AsyncWebServerRequest *request, String filename, size_t index, uint8_t *data, size_t len, bool final);
 
         static bool myStreamFile(AsyncWebServerRequest *request, const char* path, bool download = false);
 
-        static void pushError(int code, const char* st, bool web_error = 500, uint16_t timeout = 1000);
+        static void pushError(AsyncWebServerRequest *request, int code, const char* st, bool web_error = 500, uint16_t timeout = 1000);
+        static FileStream* getFileStream(const char *path);
+        static void cancelUpload(AsyncWebServerRequest *request);
+        static void handleFileOps(AsyncWebServerRequest *request, const char* mountpoint);
+        static void handle_direct_SDFileList(AsyncWebServerRequest *request);
+        static void fileUpload(AsyncWebServerRequest *request, const char* fs, String filename, size_t index, uint8_t *data, size_t len, bool final);
+        static void SDFileUpload(AsyncWebServerRequest *request, String filename, size_t index, uint8_t *data, size_t len, bool final);
+        // static void uploadStart(const char* filename, size_t filesize, const char* fs);
+        // static void uploadWrite(uint8_t* buffer, size_t length);
+        // static void uploadEnd(size_t filesize);
+        // static void uploadStop();
+        // static void uploadCheck();
 
-        static void cancelUpload();
-        static void handleFileOps(const char* mountpoint);
-        static void handle_direct_SDFileList();
-        static void fileUpload(const char* fs);
-        static void SDFileUpload();
-        static void uploadStart(const char* filename, size_t filesize, const char* fs);
-        static void uploadWrite(uint8_t* buffer, size_t length);
-        static void uploadEnd(size_t filesize);
-        static void uploadStop();
-        static void uploadCheck();
-
-        static void synchronousCommand(const char* cmd, bool silent, AuthenticationLevel auth_level);
-        static void websocketCommand(const char* cmd, int pageid, AuthenticationLevel auth_level);
+        static void synchronousCommand(AsyncWebServerRequest *request, const char* cmd, bool silent, AuthenticationLevel auth_level);
+        static void websocketCommand(AsyncWebServerRequest *request, const char* cmd, int pageid, AuthenticationLevel auth_level);
 
         static void sendFSError(Error err);
-        static void sendJSON(int code, const char* s);
-        static void sendJSON(int code, const std::string& s) {
-            sendJSON(code, s.c_str());
+        static void sendJSON(AsyncWebServerRequest *request, int code, const char* s);
+        static void sendJSON(AsyncWebServerRequest *request, int code, const std::string& s) {
+            sendJSON(request, code, s.c_str());
         }
-        static void sendAuth(const char* status, const char* level, const char* user);
-        static void sendAuthFailed();
-        static void sendStatus(int code, const char* str);
+        static void sendAuth(AsyncWebServerRequest *request, const char* status, const char* level, const char* user);
+        static void sendAuthFailed(AsyncWebServerRequest *request);
+        static void sendStatus(AsyncWebServerRequest *request, int code, const char* str);
 
-        static void sendWithOurAddress(const char* s, int code);
-        static void sendCaptivePortal();
-        static void send404Page();
+        static void sendWithOurAddress(AsyncWebServerRequest *request, const char* s, int code);
+        static void sendCaptivePortal(AsyncWebServerRequest *request);
+        static void send404Page(AsyncWebServerRequest *request);
 
-        static int getPageid();
+        static int getPageid(AsyncWebServerRequest *request);
     };
 }
