@@ -13,81 +13,67 @@ namespace WebUI {
     WebClient::WebClient() : Channel("webclient") {}
 
     void WebClient::attachWS(AsyncWebServerRequest* request, bool silent) {
-        _header_sent = false;
         _silent      = silent;
         _request   = request;
         _buflen      = 0;
-        if(_fs){
-            delete _fs;
-            _fs = nullptr;
-        }
-        _fs = new FileStream("/_webconfig.json", "w");
-        //_response = _request->beginResponseStream("text/html");
     }
 
     void WebClient::detachWS() {
-       // flush();
-        //_response = _request->beginResponseStream("text/html");
-       // log_info("Buffer len: " << _buflen);
-        //_fs->set_position(0);
-        if(_fs)
+
+        if(_buflen)
         {
-            delete _fs;
-            _fs = new FileStream("/_webconfig.json", "r");
-            FileStream *fs = _fs;
+            size_t *buflen = &_buflen;
+            size_t *allocsize = &_allocsize;
+            char **src_buffer = &_buffer;
             _response = _request->beginResponse(
                     "",
-                    _fs->size(),
-                    [fs](uint8_t *buffer, size_t maxLen, size_t total) mutable -> size_t {
-                        if(total >= fs->size())
-                            return 0;
-                        // Seek on each chunk, to avoid concurrent client to get the wrong data, while still reusing the same filestream
-                        fs->set_position(total);
-                        int bytes = fs->read(buffer, maxLen);
+                    _buflen,
+                    [buflen, allocsize, src_buffer](uint8_t *dest_buffer, size_t maxLen, size_t total) mutable -> size_t {
+                        int bytes = min(*buflen-total, maxLen);
+                        char *b = *src_buffer;
+                        memcpy(dest_buffer, &b[total], bytes);
+                        
+                        if(total+bytes >= *buflen)
+                        {
+                            free(*src_buffer);
+                            *src_buffer=nullptr;
+                            *allocsize=0;
+                            *buflen=0;
+                        }
 
-                        return max(0, bytes); // return 0 even when no bytes were loaded
+                        return bytes;
                     }
                 );
             _response->addHeader("Cache-Control", "no-cache");
             _request->send(_response);
-            _request = nullptr;
-            _response = nullptr;
         }
         else
-            _request->send(500,"rext/plain","Error");
-        
+        {
+            _request->send(204,"","");
+        }
+        _request = nullptr;
+        _response = nullptr;
     }
 
     size_t WebClient::write(const uint8_t* buffer, size_t length) {
         if (!_request || _silent) {
             return length;
         }
-        if (!_header_sent) {
-            //_request->setContentLength(CONTENT_LENGTH_UNKNOWN);
-            // The webserver code automatically sends Content-Type: text/html
-            // so no need to do it explicitly
-            // _webserver->sendHeader("Content-Type", "text/html");
-            // TODO: do this at the end...
-            //_response->addHeader("Cache-Control", "no-cache");
-            //_request->send(response);
-            _header_sent = true;
-        }
 
-        //_response->write(buffer, length);
-        return _fs->write(buffer,length);
-       /* size_t index = 0;
-        while (index < length) {
-            size_t copylen = std::min(length - index, BUFLEN - _buflen);
-            memcpy(_buffer + _buflen, buffer + index, copylen);
-            _buflen += copylen;
-            index += copylen;
-            if (_buflen >= BUFLEN) {  // The > case should not happen
-                log_info("We shouldnt be calling flush! Buffer is too small!");
-                _buflen=0;
-                //flush();
+        if(_buflen+length > _allocsize){
+            _allocsize = _allocsize + ((length / 2048 + 1)*2048);
+            char * new_buffer = (char*)realloc((void*)_buffer, _allocsize);
+            if(!new_buffer){
+                log_info("Not enough memory!");
+                return 0;
             }
-        }*/
-
+            _buffer = new_buffer;
+        }
+        if(_buffer)
+        {
+            memcpy(&_buffer[_buflen], buffer, length);
+            _buflen+=length;
+        }
         return length;
     }
 
@@ -95,12 +81,9 @@ namespace WebUI {
         return write(&data, 1);
     }
 
+    // Flush is no longer really possible, we can only send the response at the end
+    // once, to the client. So we do the sending in the detach since multiple flush/send would not work.
     void WebClient::flush() {
-        /*if (_request && _buflen) {
-            _response->write((uint8_t *)_buffer, _buflen);
-            //_request->sendContent(_buffer, _buflen);
-            _buflen = 0;
-        }*/
     }
 
     void WebClient::sendLine(MsgLevel level, const char* line) {
@@ -135,7 +118,5 @@ namespace WebUI {
     WebClient::~WebClient() {
         if(_fs)
             delete _fs;
-        //flush();
-       // _request->send(_response); //200,"text/plain","");//close connection (?)
     }
 }

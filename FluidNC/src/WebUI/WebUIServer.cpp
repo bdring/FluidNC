@@ -1242,7 +1242,7 @@ namespace WebUI {
         if (_socket_serverv3 && _setupdone) {
             _socket_serverv3->loop();
         }*/
-        if ((millis() - start_time) > 2000) {
+        if ((millis() - start_time) > 10000) {
             _socket_server->cleanupClients();
             _socket_serverv3->cleanupClients();
             WSChannels::sendPing();
