@@ -61,7 +61,8 @@ namespace WebUI {
             out    = (uint8_t*)_output_line.c_str();
             outlen = _output_line.length();
         }
-        if (!_server->binary(_clientNum, out, outlen)) {
+       // if (!_server->binary(_clientNum, out, outlen)) {
+        if (!_server->binaryAll(out, outlen)) {
             _active = false;
         }
         if (_output_line.length()) {
@@ -75,8 +76,9 @@ namespace WebUI {
         if (!_active) {
             return false;
         }
-        if (!_server->text(_clientNum, s.c_str())) {
-            _active = false;
+//        if (!_server->text(_clientNum, s.c_str())) {
+        if (!_server->textAll(s.c_str())) {
+           _active = false;
             log_debug_to(Uart0, "WebSocket is unresponsive; closing");
             return false;
         }
@@ -232,6 +234,8 @@ namespace WebUI {
 
     //void WSChannels::handlev3Event(AsyncWebSocket* server, uint8_t num, uint8_t type, uint8_t* payload, size_t length) {
     void WSChannels::handlev3Event(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventType type, void *arg, uint8_t *data, size_t len){
+        // TODO: I may have wrongly assumed that we were referencing client in the channels array, but those are pageIDs?
+        // Nothing works well probably because of that
         uint32_t num = client->id();
         switch (type) {
             case WS_EVT_DISCONNECT:
