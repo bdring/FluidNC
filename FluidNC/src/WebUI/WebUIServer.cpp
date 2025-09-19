@@ -107,23 +107,31 @@ namespace WebUI {
 
         //here the list of headers to be recorded
         _headerFilter->keep("If-None-Match");
+        
+        //For websockets, otherwise this wouldn't work!
+        _headerFilter->keep("Upgrade");
+        _headerFilter->keep("Connection");
+        _headerFilter->keep("Sec-WebSocket-Key");
+        _headerFilter->keep("Sec-WebSocket-Version");
+        _headerFilter->keep("Sec-WebSocket-Protocol");
+	    _headerFilter->keep("Sec-WebSocket-Extensions");
+        
         _webserver->addMiddlewares({_headerFilter});
         
-        _socket_server = new AsyncWebSocket("ws"); // WebSocketsServer(_port + 1);
-        //_socket_server->begin();
-        //_socket_server->onEvent(handle_Websocket_Event);
-
-        _socket_serverv3 = new AsyncWebSocket("webui-v3"); //new WebSocketsServer(_port + 2, "", "webui-v3");
+        _socket_server = new AsyncWebSocket("/wsv2"); // WebSocketsServer(_port + 1);
+        // Websocket can share the same path as other requests, this allow to not change the index.html.gz for webui3 in this case, but
+        // v2 would still need to be changed
+        _socket_serverv3 = new AsyncWebSocket("/"); //new WebSocketsServer(_port + 2, "", "webui-v3");
         
-        _webserver->addHandler(_socket_server);
-        _webserver->addHandler(_socket_serverv3);
-
         _socket_server->onEvent([](AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventType type, void *arg, uint8_t *data, size_t len) {
             WSChannels::handleEvent(server, client, type, arg, data, len);
         });
         _socket_serverv3->onEvent([](AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventType type, void *arg, uint8_t *data, size_t len) {
              WSChannels::handlev3Event(server, client, type, arg, data, len);
         });
+
+        _webserver->addHandler(_socket_server);
+        _webserver->addHandler(_socket_serverv3);
 
         //_socket_serverv3->begin();
         //_socket_serverv3->onEvent(handle_Websocketv3_Event);
@@ -171,7 +179,7 @@ namespace WebUI {
             //do not forget the / at the end
             _webserver->on("/fwlink/", HTTP_ANY, handle_root);
         }
-
+        
         log_info("HTTP started on port " << WebUI::http_port->get());
         //start webserver
         _webserver->begin();
@@ -972,127 +980,125 @@ namespace WebUI {
             return;
         }
 
-        request->send(500,"text/plain", "Not yet reimplemented in AsyncWebServer... coming soon!");
-    //  TODO
-    //     std::error_code ec;
+        std::error_code ec;
 
-    //     std::string path("");
-    //     std::string sstatus("Ok");
-    //     if ((_upload_status == UploadStatus::FAILED) || (_upload_status == UploadStatus::FAILED)) {
-    //         sstatus = "Upload failed";
-    //     }
-    //     _upload_status      = UploadStatus::NONE;
-    //     bool     list_files = true;
-    //     uint64_t totalspace = 0;
-    //     uint64_t usedspace  = 0;
+        std::string path("");
+        std::string sstatus("Ok");
+        if ((_upload_status == UploadStatus::FAILED) || (_upload_status == UploadStatus::FAILED)) {
+            sstatus = "Upload failed";
+        }
+        _upload_status      = UploadStatus::NONE;
+        bool     list_files = true;
+        uint64_t totalspace = 0;
+        uint64_t usedspace  = 0;
 
-    //     //get current path
-    //     if (_webserver->hasArg("path")) {
-    //         path += _webserver->arg("path").c_str();
-    //         // path.trim();
-    //         replace_string_in_place(path, "//", "/");
-    //         if (path[path.length() - 1] == '/') {
-    //             path = path.substr(0, path.length() - 1);
-    //         }
-    //         if (path.length() & path[0] == '/') {
-    //             path = path.substr(1);
-    //         }
-    //     }
+        //get current path
+        if (request->hasParam("path")) {
+            path += request->getParam("path")->value().c_str();
+            // path.trim();
+            replace_string_in_place(path, "//", "/");
+            if (path[path.length() - 1] == '/') {
+                path = path.substr(0, path.length() - 1);
+            }
+            if (path.length() & path[0] == '/') {
+                path = path.substr(1);
+            }
+        }
 
-    //     FluidPath fpath { path, fs, ec };
-    //     if (ec) {
-    //         sendJSON(200, "{\"status\":\"No SD card\"}");
-    //         return;
-    //     }
+        FluidPath fpath { path, fs, ec };
+        if (ec) {
+            sendJSON(request, 200, "{\"status\":\"No SD card\"}");
+            return;
+        }
 
-    //     // Handle deletions and directory creation
-    //     if (_webserver->hasArg("action") && _webserver->hasArg("filename")) {
-    //         std::string action(_webserver->arg("action").c_str());
-    //         std::string filename = std::string(_webserver->arg("filename").c_str());
-    //         if (action == "delete") {
-    //             if (stdfs::remove(fpath / filename, ec)) {
-    //                 sstatus = filename + " deleted";
-    //                 HashFS::delete_file(fpath / filename);
-    //             } else {
-    //                 sstatus = "Cannot delete ";
-    //                 sstatus += filename + " " + ec.message();
-    //             }
-    //         } else if (action == "deletedir") {
-    //             stdfs::path dirpath { fpath / filename };
-    //             log_debug("Deleting directory " << dirpath);
-    //             int count = stdfs::remove_all(dirpath, ec);
-    //             if (count > 0) {
-    //                 sstatus = filename + " deleted";
-    //                 HashFS::report_change();
-    //             } else {
-    //                 log_debug("remove_all returned " << count);
-    //                 sstatus = "Cannot delete ";
-    //                 sstatus += filename + " " + ec.message();
-    //             }
-    //         } else if (action == "createdir") {
-    //             if (stdfs::create_directory(fpath / filename, ec)) {
-    //                 sstatus = filename + " created";
-    //                 HashFS::report_change();
-    //             } else {
-    //                 sstatus = "Cannot create ";
-    //                 sstatus += filename + " " + ec.message();
-    //             }
-    //         } else if (action == "rename") {
-    //             if (!_webserver->hasArg("newname")) {
-    //                 sstatus = "Missing new filename";
-    //             } else {
-    //                 std::string newname = std::string(_webserver->arg("newname").c_str());
-    //                 std::filesystem::rename(fpath / filename, fpath / newname, ec);
-    //                 if (ec) {
-    //                     sstatus = "Cannot rename ";
-    //                     sstatus += filename + " " + ec.message();
-    //                 } else {
-    //                     sstatus = filename + " renamed to " + newname;
-    //                     HashFS::rename_file(fpath / filename, fpath / newname);
-    //                 }
-    //             }
-    //         }
-    //     }
+        // Handle deletions and directory creation
+        if (request->hasParam("action") && request->hasParam("filename")) {
+            std::string action(request->getParam("action")->value().c_str());
+            std::string filename = std::string(request->getParam("filename")->value().c_str());
+            if (action == "delete") {
+                if (stdfs::remove(fpath / filename, ec)) {
+                    sstatus = filename + " deleted";
+                    HashFS::delete_file(fpath / filename);
+                } else {
+                    sstatus = "Cannot delete ";
+                    sstatus += filename + " " + ec.message();
+                }
+            } else if (action == "deletedir") {
+                stdfs::path dirpath { fpath / filename };
+                log_debug("Deleting directory " << dirpath);
+                int count = stdfs::remove_all(dirpath, ec);
+                if (count > 0) {
+                    sstatus = filename + " deleted";
+                    HashFS::report_change();
+                } else {
+                    log_debug("remove_all returned " << count);
+                    sstatus = "Cannot delete ";
+                    sstatus += filename + " " + ec.message();
+                }
+            } else if (action == "createdir") {
+                if (stdfs::create_directory(fpath / filename, ec)) {
+                    sstatus = filename + " created";
+                    HashFS::report_change();
+                } else {
+                    sstatus = "Cannot create ";
+                    sstatus += filename + " " + ec.message();
+                }
+            } else if (action == "rename") {
+                if (!request->hasParam("newname")) {
+                    sstatus = "Missing new filename";
+                } else {
+                    std::string newname = std::string(request->getParam("newname")->value().c_str());
+                    std::filesystem::rename(fpath / filename, fpath / newname, ec);
+                    if (ec) {
+                        sstatus = "Cannot rename ";
+                        sstatus += filename + " " + ec.message();
+                    } else {
+                        sstatus = filename + " renamed to " + newname;
+                        HashFS::rename_file(fpath / filename, fpath / newname);
+                    }
+                }
+            }
+        }
 
-    //     //check if no need build file list
-    //     if (_webserver->hasArg("dontlist") && _webserver->arg("dontlist") == "yes") {
-    //         list_files = false;
-    //     }
+        //check if no need build file list
+        if (request->hasParam("dontlist") && request->getParam("dontlist")->value() == "yes") {
+            list_files = false;
+        }
 
-    //     std::string s;
-    //     JSONencoder j(&s);
-    //     j.begin();
+        std::string s;
+        JSONencoder j(&s);
+        j.begin();
 
-    //     if (list_files) {
-    //         auto iter = stdfs::directory_iterator { fpath, ec };
-    //         if (!ec) {
-    //             j.begin_array("files");
-    //             for (auto const& dir_entry : iter) {
-    //                 j.begin_object();
-    //                 j.member("name", dir_entry.path().filename());
-    //                 j.member("shortname", dir_entry.path().filename());
-    //                 j.member("size", dir_entry.is_directory() ? -1 : dir_entry.file_size());
-    //                 j.member("datetime", "");
-    //                 j.end_object();
-    //             }
-    //             j.end_array();
-    //         }
-    //     }
+        if (list_files) {
+            auto iter = stdfs::directory_iterator { fpath, ec };
+            if (!ec) {
+                j.begin_array("files");
+                for (auto const& dir_entry : iter) {
+                    j.begin_object();
+                    j.member("name", dir_entry.path().filename());
+                    j.member("shortname", dir_entry.path().filename());
+                    j.member("size", dir_entry.is_directory() ? -1 : dir_entry.file_size());
+                    j.member("datetime", "");
+                    j.end_object();
+                }
+                j.end_array();
+            }
+        }
 
-    //     auto space = stdfs::space(fpath, ec);
-    //     totalspace = space.capacity;
-    //     usedspace  = totalspace - space.available;
+        auto space = stdfs::space(fpath, ec);
+        totalspace = space.capacity;
+        usedspace  = totalspace - space.available;
 
-    //     j.member("path", path.c_str());
-    //     j.member("total", formatBytes(totalspace));
-    //     j.member("used", formatBytes(usedspace + 1));
+        j.member("path", path.c_str());
+        j.member("total", formatBytes(totalspace));
+        j.member("used", formatBytes(usedspace + 1));
 
-    //     uint32_t percent = totalspace ? (usedspace * 100) / totalspace : 100;
+        uint32_t percent = totalspace ? (usedspace * 100) / totalspace : 100;
 
-    //     j.member("occupation", percent);
-    //     j.member("status", sstatus);
-    //     j.end();
-    //     sendJSON(request, 200, s);
+        j.member("occupation", percent);
+        j.member("status", sstatus);
+        j.end();
+        sendJSON(request, 200, s);
     }
 
     void WebUI_Server::handle_direct_SDFileList(AsyncWebServerRequest *request) {
@@ -1236,9 +1242,12 @@ namespace WebUI {
         if (_socket_serverv3 && _setupdone) {
             _socket_serverv3->loop();
         }*/
-        if ((millis() - start_time) > 10000 && _socket_server) {
+        if ((millis() - start_time) > 2000) {
+            _socket_server->cleanupClients();
+            _socket_serverv3->cleanupClients();
             WSChannels::sendPing();
             start_time = millis();
+
         }
     }
 
