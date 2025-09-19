@@ -4,9 +4,10 @@
 #pragma once
 
 #include "src/Channel.h"
+#include "src/FileStream.h"
 
 class AsyncWebServerRequest;
-class AsyncResponseStream;
+class AsyncWebServerResponse;
 
 namespace WebUI {
     class WebClient : public Channel {
@@ -37,10 +38,11 @@ namespace WebUI {
         bool                   _header_sent = false;
         bool                   _silent      = false;
         AsyncWebServerRequest* _request     = nullptr;
-        static const size_t    BUFLEN       = 1200;
-        char                   _buffer[BUFLEN];
+        static const size_t    BUFLEN       = 1; //48*1024;
+        char                   *_buffer = nullptr; //[BUFLEN];
         size_t                 _buflen = 0;
-        AsyncResponseStream     *_response    = nullptr;
+        AsyncWebServerResponse *_response    = nullptr;
+        FileStream             *_fs         = nullptr;
     };
 
     extern WebClient webClient;
