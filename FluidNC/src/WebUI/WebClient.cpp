@@ -2,9 +2,10 @@
 // Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
 
 #include "src/Report.h"
+#include "src/FileStream.h"
 #include "WebClient.h"
-#include <WebServer.h>
 #include <ESPAsyncWebServer.h>
+
 
 namespace WebUI {
     WebClient webClient;
@@ -16,13 +17,45 @@ namespace WebUI {
         _silent      = silent;
         _request   = request;
         _buflen      = 0;
-        _response = _request->beginResponseStream("text/html");
+        if(_fs){
+            delete _fs;
+            _fs = nullptr;
+        }
+        _fs = new FileStream("/_webconfig.json", "w");
+        //_response = _request->beginResponseStream("text/html");
     }
 
     void WebClient::detachWS() {
-        flush();
-        _request->send(_response);  //close connection
-        _request = nullptr;
+       // flush();
+        //_response = _request->beginResponseStream("text/html");
+       // log_info("Buffer len: " << _buflen);
+        //_fs->set_position(0);
+        if(_fs)
+        {
+            delete _fs;
+            _fs = new FileStream("/_webconfig.json", "r");
+            FileStream *fs = _fs;
+            _response = _request->beginResponse(
+                    "",
+                    _fs->size(),
+                    [fs](uint8_t *buffer, size_t maxLen, size_t total) mutable -> size_t {
+                        if(total >= fs->size())
+                            return 0;
+                        // Seek on each chunk, to avoid concurrent client to get the wrong data, while still reusing the same filestream
+                        fs->set_position(total);
+                        int bytes = fs->read(buffer, maxLen);
+
+                        return max(0, bytes); // return 0 even when no bytes were loaded
+                    }
+                );
+            _response->addHeader("Cache-Control", "no-cache");
+            _request->send(_response);
+            _request = nullptr;
+            _response = nullptr;
+        }
+        else
+            _request->send(500,"rext/plain","Error");
+        
     }
 
     size_t WebClient::write(const uint8_t* buffer, size_t length) {
@@ -34,21 +67,26 @@ namespace WebUI {
             // The webserver code automatically sends Content-Type: text/html
             // so no need to do it explicitly
             // _webserver->sendHeader("Content-Type", "text/html");
-            _response->addHeader("Cache-Control", "no-cache");
+            // TODO: do this at the end...
+            //_response->addHeader("Cache-Control", "no-cache");
             //_request->send(response);
             _header_sent = true;
         }
 
-        size_t index = 0;
+        //_response->write(buffer, length);
+        return _fs->write(buffer,length);
+       /* size_t index = 0;
         while (index < length) {
             size_t copylen = std::min(length - index, BUFLEN - _buflen);
             memcpy(_buffer + _buflen, buffer + index, copylen);
             _buflen += copylen;
             index += copylen;
             if (_buflen >= BUFLEN) {  // The > case should not happen
-                flush();
+                log_info("We shouldnt be calling flush! Buffer is too small!");
+                _buflen=0;
+                //flush();
             }
-        }
+        }*/
 
         return length;
     }
@@ -58,11 +96,11 @@ namespace WebUI {
     }
 
     void WebClient::flush() {
-        if (_request && _buflen) {
+        /*if (_request && _buflen) {
             _response->write((uint8_t *)_buffer, _buflen);
             //_request->sendContent(_buffer, _buflen);
             _buflen = 0;
-        }
+        }*/
     }
 
     void WebClient::sendLine(MsgLevel level, const char* line) {
@@ -95,6 +133,8 @@ namespace WebUI {
     }
 
     WebClient::~WebClient() {
+        if(_fs)
+            delete _fs;
         //flush();
        // _request->send(_response); //200,"text/plain","");//close connection (?)
     }
