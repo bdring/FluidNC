@@ -44,6 +44,7 @@ namespace WebUI {
         int available() override { return _queue.size() + (_rtchar > -1); }
 
         void autoReport() override;
+        void active(bool is_active);
 
     private:
         AsyncWebSocket* _server;

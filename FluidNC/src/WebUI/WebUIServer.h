@@ -58,6 +58,8 @@ namespace WebUI {
         static bool              _setupdone;
         static AsyncWebServer*    _webserver;
         static AsyncHeaderFreeMiddleware* _headerFilter;
+        static AsyncWebServer*    _websocketserver;
+        static AsyncWebServer*    _websocketserverv3;
         static AsyncWebSocket* _socket_server;
         static AsyncWebSocket* _socket_serverv3;
 
@@ -101,7 +103,7 @@ namespace WebUI {
 
         static bool myStreamFile(AsyncWebServerRequest *request, const char* path, bool download = false);
 
-        static void pushError(AsyncWebServerRequest *request, int code, const char* st, bool web_error = 500, uint16_t timeout = 1000);
+        //static void pushError(AsyncWebServerRequest *request, int code, const char* st, bool web_error = 500, uint16_t timeout = 1000);
         static FileStream* getFileStream(const char *path);
         static void cancelUpload(AsyncWebServerRequest *request);
         static void handleFileOps(AsyncWebServerRequest *request, const char* mountpoint);

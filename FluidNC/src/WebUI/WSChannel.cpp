@@ -16,6 +16,9 @@ namespace WebUI {
 
     WSChannel::WSChannel(AsyncWebSocket* server, uint32_t clientNum) : Channel("websocket"), _server(server), _clientNum(clientNum) {}
 
+    void WSChannel::active(bool is_active){
+        _active=is_active;
+    }
     int WSChannel::read() {
         if (!_active) {
             return -1;
@@ -61,10 +64,20 @@ namespace WebUI {
             out    = (uint8_t*)_output_line.c_str();
             outlen = _output_line.length();
         }
-       // if (!_server->binary(_clientNum, out, outlen)) {
-        if (!_server->binaryAll(out, outlen)) {
-            _active = false;
-        }
+        // logging to uart0 causes the esp to crash and reboot (because of watchdog) when running a longer return command such as $$...
+        // not too sure why, I guess this may be the watchdog short timeout and by deasign, but perhaps there is something wrong with the code integrity
+        // after all the async migration, or it is just something that gets called recursivelly somehow in parent Channels... 
+        // should be tried in original non async code to confirm
+
+        // Since no web client has a session ID, why not always broadcast to all websockets instead of the last active one?
+        _server->binaryAll(out, outlen);
+        //_server->textAll(test_buf); //, sizeof(test_buf)); //out, outlen);
+        // if (!_server->binary(_clientNum, out, outlen)) {
+        
+        //      _active =  false;
+        // }
+        //if(_output_line == "$10=1\n")
+        //    _server->binaryAll(std::string("ok\n").c_str(), 3);
         if (_output_line.length()) {
             _output_line = "";
         }
@@ -76,12 +89,14 @@ namespace WebUI {
         if (!_active) {
             return false;
         }
-//        if (!_server->text(_clientNum, s.c_str())) {
-        if (!_server->textAll(s.c_str())) {
-           _active = false;
-            log_debug_to(Uart0, "WebSocket is unresponsive; closing");
-            return false;
-        }
+
+        // Same here, why not always broadcast
+//         if (!_server->text(_clientNum, s.c_str())) {
+        _server->textAll(s.c_str());
+    //     if (!_server->textAll(s.c_str())) {
+    //         _active = false;
+    //         return false;
+    //    }
         return true;
     }
 
@@ -102,7 +117,9 @@ namespace WebUI {
         Channel::autoReport();
     }
 
-    WSChannel::~WSChannel() {}
+    WSChannel::~WSChannel() {
+        log_info_to(Uart0,"WSChannel destructor");
+    }
 
     std::map<uint32_t, WSChannel*> WSChannels::_wsChannels;
     std::list<WSChannel*>          WSChannels::_webWsChannels;
@@ -110,21 +127,25 @@ namespace WebUI {
     WSChannel* WSChannels::_lastWSChannel = nullptr;
 
     WSChannel* WSChannels::getWSChannel(int pageid) {
+        pageid=-1;
         WSChannel* wsChannel = nullptr;
         if (pageid != -1) {
             try {
                 wsChannel = _wsChannels.at(pageid);
             } catch (std::out_of_range& oor) {}
         } else {
-            // If there is no PAGEID URL argument, it is an old version of WebUI
-            // that does not supply PAGEID in all cases.  In that case, we use
-            // the most recently used websocket if it is still in the list.
-            for (auto it = _wsChannels.begin(); it != _wsChannels.end(); ++it) {
-                if (it->second == _lastWSChannel) {
-                    wsChannel = _lastWSChannel;
-                    break;
-                }
-            }
+            if(_webWsChannels.size()>0)
+                wsChannel = _webWsChannels.front();
+
+            // // If there is no PAGEID URL argument, it is an old version of WebUI
+            // // that does not supply PAGEID in all cases.  In that case, we use
+            // // the most recently used websocket if it is still in the list.
+            // for (auto it = _wsChannels.begin(); it != _wsChannels.end(); ++it) {
+            //     if (it->second == _lastWSChannel) {
+            //         wsChannel = _lastWSChannel;
+            //         break;
+            //     }
+            // }
         }
         _lastWSChannel = wsChannel;
         return wsChannel;
@@ -133,26 +154,28 @@ namespace WebUI {
     void WSChannels::removeChannel(uint32_t num) {
         try {
             WSChannel* wsChannel = _wsChannels.at(num);
-            _webWsChannels.remove(wsChannel);
+            wsChannel->active(false);
             allChannels.kill(wsChannel);
+            _webWsChannels.remove(wsChannel);
             _wsChannels.erase(num);
         } catch (std::out_of_range& oor) {}
     }
 
     void WSChannels::removeChannel(WSChannel* channel) {
         _lastWSChannel = nullptr;
-        _webWsChannels.remove(channel);
+        channel->active(false);
         allChannels.kill(channel);
+        _webWsChannels.remove(channel);
         for (auto it = _wsChannels.cbegin(); it != _wsChannels.cend();) {
             if (it->second == channel) {
-                it = _wsChannels.erase(it);
+                 it = _wsChannels.erase(it);
             } else {
                 ++it;
             }
         }
     }
 
-    bool WSChannels::runGCode(int pageid, std::string_view cmd) {
+    bool WSChannels::runGCode(int pageid, std::string_view cmd, std::string session) {
         WSChannel* wsChannel = getWSChannel(pageid);
         if (wsChannel) {
             if (cmd.length()) {
@@ -161,6 +184,10 @@ namespace WebUI {
                         wsChannel->handleRealtimeCharacter((uint8_t)c);
                     }
                 } else {
+                    std::string _cmd = std::string(cmd);
+                    if (_cmd.back() != '\n')
+                        _cmd+='\n';
+                    //settings_execute_line(_cmd.c_str(), *wsChannel, AuthenticationLevel::LEVEL_ADMIN);
                     wsChannel->push(cmd);
                     if (cmd.back() != '\n') {
                         wsChannel->push('\n');
@@ -172,7 +199,7 @@ namespace WebUI {
         return true;  // Error - no websocket
     }
 
-    bool WSChannels::sendError(int pageid, std::string err) {
+    bool WSChannels::sendError(int pageid, std::string err, std::string session) {
         WSChannel* wsChannel = getWSChannel(pageid);
         if (wsChannel) {
             return !wsChannel->sendTXT(err);
@@ -193,7 +220,7 @@ namespace WebUI {
         uint32_t num = client->id();
         switch (type) {
             case WS_EVT_DISCONNECT:
-                log_debug_to(Uart0, "WebSocket disconnect " << num);
+                log_info_to(Uart0, "WebSocket disconnect " << num);
                 WSChannels::removeChannel(num);
                 break;
             case WS_EVT_CONNECT: {
@@ -204,7 +231,7 @@ namespace WebUI {
                     std::string uri((char*)server->url());
 
                     IPAddress ip = client->remoteIP();
-                    log_debug_to(Uart0, "WebSocket " << num << " from " << ip << " uri " << uri);
+                    log_info_to(Uart0, "WebSocket " << num << " from " << ip << " uri " << uri);
 
                     _lastWSChannel = wsChannel;
                     allChannels.registration(wsChannel);
@@ -232,18 +259,20 @@ namespace WebUI {
         }
     }
 
-    //void WSChannels::handlev3Event(AsyncWebSocket* server, uint8_t num, uint8_t type, uint8_t* payload, size_t length) {
     void WSChannels::handlev3Event(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventType type, void *arg, uint8_t *data, size_t len){
         // TODO: I may have wrongly assumed that we were referencing client in the channels array, but those are pageIDs?
-        // Nothing works well probably because of that
         uint32_t num = client->id();
         switch (type) {
+            case WS_EVT_ERROR:
+                log_info_to(Uart0, "WebSocket error cid#" << num << " total " << _wsChannels.size());
+                WSChannels::removeChannel(num);
+                break;
             case WS_EVT_DISCONNECT:
-                printf("WebSocket disconnect %d\n", num);
+                log_info_to(Uart0, "WebSocket disconnect cid#" << num << " total " << _wsChannels.size());
                 WSChannels::removeChannel(num);
                 break;
             case WS_EVT_CONNECT: {
-                log_debug_to(Uart0, "WStype_Connected");
+                log_info_to(Uart0, "WStype_Connected cid#" << num);
                 WSChannel* wsChannel = new WSChannel(server, num);
                 if (!wsChannel) {
                     log_error_to(Uart0, "Creating WebSocket channel failed");
@@ -251,12 +280,11 @@ namespace WebUI {
                     std::string uri((char*)server->url());
 
                     IPAddress ip = client->remoteIP();
-                    log_debug_to(Uart0, "WebSocket " << num << " from " << ip << " uri " << uri);
+                    log_info_to(Uart0, "WebSocket " << num << " from " << ip << " uri " << uri);
 
                     _lastWSChannel = wsChannel;
                     allChannels.registration(wsChannel);
                     _wsChannels[num] = wsChannel;
-
                     if (uri == "/") {
                         std::string s("currentID:");
                         s += std::to_string(num);
@@ -268,13 +296,16 @@ namespace WebUI {
                         server->textAll(s.c_str());
                     }
                 }
+                log_info_to(Uart0, "WebSocket channels count: " << _wsChannels.size());
             } break;
             case WS_EVT_DATA: {
                 AwsFrameInfo * info = (AwsFrameInfo*)arg;
                 if(info->opcode == WS_TEXT){
                     try {
-                        data[len]=0;
-                        std::string msg = (const char*)data;
+                        //data[len]=0; // !!! ?
+                        
+                        std::string msg((const char*)data, len);
+                        log_info_to(Uart0, msg);
                         if (msg.rfind("PING:", 0) == 0) {
                             std::string response("PING:60000:60000");
                             _wsChannels.at(num)->sendTXT(response);
@@ -290,6 +321,7 @@ namespace WebUI {
                 }
             } break;
             default:
+                log_info_to(Uart0, "WebSocket unexpected event! " << type);
                 break;
         }
     }
