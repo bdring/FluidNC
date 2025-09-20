@@ -1,6 +1,7 @@
 // Copyright (c) 2014 Luc Lebosse. All rights reserved.
 // Use of this source code is governed by a GPLv3 license that can be found in the LICENSE file.
 
+
 #include "src/Machine/MachineConfig.h"
 #include "src/Serial.h"    // is_realtime_command()
 #include "src/Settings.h"  // settings_execute_line()
@@ -10,9 +11,6 @@
 #include "Mdns.h"
 
 #include <WiFi.h>
-//#include <WebServer.h>
-#include <AsyncTCP.h>
-#include <ESPAsyncWebServer.h>
 #include <StreamString.h>
 #include <Update.h>
 #include <esp_wifi_types.h>
@@ -29,6 +27,12 @@
 
 #include "src/HashFS.h"
 #include <list>
+
+//#include <WebServer.h>
+#include <AsyncTCP.h>
+#include <ESPAsyncWebServer.h>
+
+
 
 namespace WebUI {
     const byte DNS_PORT = 53;
@@ -57,6 +61,8 @@ namespace WebUI {
 
     UploadStatus      WebUI_Server::_upload_status   = UploadStatus::NONE;
     AsyncWebServer*        WebUI_Server::_webserver       = NULL;
+    AsyncWebServer*     WebUI_Server::_websocketserver       = NULL;
+    AsyncWebServer*     WebUI_Server::_websocketserverv3       = NULL;
     AsyncHeaderFreeMiddleware* WebUI_Server::_headerFilter = NULL;
     AsyncWebSocket* WebUI_Server::_socket_server = NULL;
     AsyncWebSocket* WebUI_Server::_socket_serverv3 = NULL;
@@ -90,6 +96,14 @@ namespace WebUI {
 
         _setupdone = false;
 
+        Serial.printf("Startup\n");
+        //Serial = Serial0;
+        //Serial.begin(Uart0);
+
+        //Serial.begin(115200);
+        delay(1);
+        Serial.printf("Starting webserver\n");
+
         if (WiFi.getMode() == WIFI_OFF || !http_enable->get()) {
             return;
         }
@@ -118,20 +132,23 @@ namespace WebUI {
         
         _webserver->addMiddlewares({_headerFilter});
         
-        _socket_server = new AsyncWebSocket("/wsv2"); // WebSocketsServer(_port + 1);
+        //_websocketserver = new AsyncWebServer(_port+1);
+        //_socket_server = new AsyncWebSocket("/wsv2"); // WebSocketsServer(_port + 1);
         // Websocket can share the same path as other requests, this allow to not change the index.html.gz for webui3 in this case, but
         // v2 would still need to be changed
+        _websocketserverv3 = new AsyncWebServer(_port+2);
         _socket_serverv3 = new AsyncWebSocket("/"); //new WebSocketsServer(_port + 2, "", "webui-v3");
         
-        _socket_server->onEvent([](AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventType type, void *arg, uint8_t *data, size_t len) {
-            WSChannels::handleEvent(server, client, type, arg, data, len);
-        });
+        // _socket_server->onEvent([](AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventType type, void *arg, uint8_t *data, size_t len) {
+        //     WSChannels::handleEvent(server, client, type, arg, data, len);
+        // });
         _socket_serverv3->onEvent([](AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventType type, void *arg, uint8_t *data, size_t len) {
              WSChannels::handlev3Event(server, client, type, arg, data, len);
         });
 
-        _webserver->addHandler(_socket_server);
-        _webserver->addHandler(_socket_serverv3);
+        //_webserver->addHandler(_socket_server);
+        _websocketserverv3->addHandler(_socket_serverv3);
+        _websocketserverv3->begin();
 
         //_socket_serverv3->begin();
         //_socket_serverv3->onEvent(handle_Websocketv3_Event);
@@ -212,6 +229,17 @@ namespace WebUI {
             delete _webserver;
             _webserver = NULL;
         }
+
+        if (_websocketserver) {
+            delete _websocketserver;
+            _websocketserver = NULL;
+        }
+
+            if (_websocketserverv3) {
+            delete _websocketserverv3;
+            _websocketserverv3 = NULL;
+        }
+
         if (_headerFilter) {
             delete _headerFilter;
             _headerFilter = NULL;
@@ -498,8 +526,9 @@ namespace WebUI {
             return;
         }
 
-        bool hasError = WSChannels::runGCode(pageid, cmd);
-        request->send(hasError ? 500 : 200, "text/plain", hasError ? "WebSocket dead" : "");
+        bool hasError = WSChannels::runGCode(pageid, cmd, request->client()->removeip() + );
+        //request->send(hasError ? 500 : 200, "text/plain", hasError ? "WebSocket dead" : "");
+        request->send(200, "text/plain", "");
     }
     void WebUI_Server::_handle_web_command(AsyncWebServerRequest *request, bool silent) {
         AuthenticationLevel auth_level = is_authenticated();
@@ -740,33 +769,33 @@ namespace WebUI {
     }
 
     //push error code and message to websocket.  Used by upload code
-    void WebUI_Server::pushError(AsyncWebServerRequest *request, int code, const char* st, bool web_error, uint16_t timeout) {
-        if (_socket_server && st) {
-            std::string s("ERROR:");
-            s += std::to_string(code) + ":";
-            s += st;
+    // void WebUI_Server::pushError(AsyncWebServerRequest *request, int code, const char* st, bool web_error, uint16_t timeout) {
+    //     if (_socket_server && st) {
+    //         std::string s("ERROR:");
+    //         s += std::to_string(code) + ":";
+    //         s += st;
 
-            WSChannels::sendError(getPageid(request), st);
+    //         WSChannels::sendError(getPageid(request), st);
 
-            if (web_error != 0 && request) { // && request->client().available() > 0) {
-                request->send(web_error, "text/xml", st);
-            }
-            // Maybe TODO... may no longer be needed
-            /*uint32_t start_time = millis();
-            while ((millis() - start_time) < timeout) {
-                _socket_server->loop();
-                delay_ms(10);
-            }
+    //         if (web_error != 0 && request) { // && request->client().available() > 0) {
+    //             request->send(web_error, "text/xml", st);
+    //         }
+    //         // Maybe TODO... may no longer be needed
+    //         /*uint32_t start_time = millis();
+    //         while ((millis() - start_time) < timeout) {
+    //             _socket_server->loop();
+    //             delay_ms(10);
+    //         }
 
-            if (_socket_serverv3) {
-                start_time = millis();
-                while ((millis() - start_time) < timeout) {
-                    _socket_serverv3->loop();
-                    delay_ms(10);
-                }
-            }*/
-        }
-    }
+    //         if (_socket_serverv3) {
+    //             start_time = millis();
+    //             while ((millis() - start_time) < timeout) {
+    //                 _socket_serverv3->loop();
+    //                 delay_ms(10);
+    //             }
+    //         }*/
+    //     }
+    // }
 
     //abort reception of packages
     void WebUI_Server::cancelUpload(AsyncWebServerRequest *request) {
@@ -884,7 +913,7 @@ namespace WebUI {
             _upload_status = UploadStatus::FAILED;
             log_info("Upload rejected");
             sendAuthFailed(request);
-            pushError(request, ESP_ERROR_AUTHENTICATION, "Upload rejected", 401);
+            //pushError(request, ESP_ERROR_AUTHENTICATION, "Upload rejected", 401);
         } 
         else{request->send(500,"text/plain", "Not yet reimplemented in AsyncWebServer... coming soon!");}
         // TODO
@@ -1242,8 +1271,9 @@ namespace WebUI {
         if (_socket_serverv3 && _setupdone) {
             _socket_serverv3->loop();
         }*/
+        _socket_serverv3->cleanupClients();
         if ((millis() - start_time) > 10000) {
-            _socket_server->cleanupClients();
+            //_socket_server->cleanupClients();
             _socket_serverv3->cleanupClients();
             WSChannels::sendPing();
             start_time = millis();
