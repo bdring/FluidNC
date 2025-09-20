@@ -7,14 +7,12 @@
 #include <iostream>
 
 /*
+  Use G53 for all moves. This will make it save from G90 vs G91 mode. This only works in the G17 (XY). It will give a spindle alarm in other planes.
+
   safe_z_mm: Set this to the mpos height you want the Z to travel around when tool changing. It is typically near the top so the longest tool can clear the work.
   change_mpos_mm: This is where the machine will go for the manual tool change. 
 
   ets_mpos_mm: The X and Y location are the XY center of the toolsetter. The Z is the lowest the Z should go before we fail due to missing bit.
-
-  How do you tell FNC you already have a tool number installed before starting a job.
-
-  How do you tell it you want to install a tool before a job.
 
   M6T0 from T<anything> -- Resets the offsets for a new job
 
@@ -80,6 +78,12 @@ namespace ATCs {
 
         was_inch_mode = (gc_state.modal.units == Units::Inches);
 
+        if (gc_state.modal.plane_select != Plane::XY) {
+            log_error("This ATC only works in G17 (XY) mode");
+            send_alarm(ExecAlarm::SpindleControl);
+            return false;
+        }
+
         if (was_inch_mode) {
             _macro.addf("G21");
         }
@@ -101,9 +105,9 @@ namespace ATCs {
             _prev_tool = new_tool;
 
             // save current location, so we can return after the tool change.
-            _macro.addf("#<start_x >= #<_x>");
-            _macro.addf("#<start_y >= #<_y>");
-            _macro.addf("#<start_z >= #<_z>");
+            _macro.addf("#<start_x >= #<_abs_x>");
+            _macro.addf("#<start_y >= #<_abs_y>");
+            _macro.addf("#<start_z >= #<_abs_z>");
 
             move_to_safe_z();
 
@@ -139,8 +143,8 @@ namespace ATCs {
             move_to_safe_z();
 
             // return to location before the tool change
-            _macro.addf("G0X#<start_x>Y#<start_y>");
-            _macro.addf("G0Z#<start_z>");
+            _macro.addf("G53G0X#<start_x>Y#<start_y>");
+            _macro.addf("G53G0Z#<start_z>");
 
             if (spindle_was_on) {
                 _macro.addf("M3");  // spindle should handle spinup delay
@@ -162,8 +166,8 @@ namespace ATCs {
         _is_OK                   = true;
         _have_tool_setter_offset = false;
         _prev_tool               = gc_state.selected_tool;  // Double check this
-        _macro.addf("G43.1Z0");                    // reset the TLO to 0
-        _macro.addf("(MSG: TLO Z reset to 0)");    //
+        _macro.addf("G43.1Z0");                             // reset the TLO to 0
+        _macro.addf("(MSG: TLO Z reset to 0)");             //
     }
 
     void Manual_ATC::move_to_change_location() {
@@ -186,7 +190,7 @@ namespace ATCs {
         // do a fast probe if there is a seek that is faster than feed
         if (_probe_seek_rate > _probe_feed_rate) {
             _macro.addf("G53 G38.2 Z%0.3f F%0.3f", _ets_mpos[2], _probe_seek_rate);
-            _macro.addf("G0Z[#<_z> + 5]");  // retract befor next probe
+            _macro.addf("G53G0Z[#<_abs_z> + 5]");  // retract befor next probe
         }
 
         // do the feed rate probe
