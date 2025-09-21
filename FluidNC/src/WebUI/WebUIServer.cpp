@@ -568,20 +568,11 @@ namespace WebUI {
             request->send(503, "text/plain", "Try again when not moving\n");
             return;
         }
-        
-       
-
-        // request->client()->onPoll([](void *data, AsyncClient *client){
-        //         Uart0.printf("on poll start\n");
-        //         delay(5000);
-        //         Uart0.printf("on poll end\n");
-        // });
-        //webClient.attachWS(request, silent);
         char line[256];
         strncpy(line, cmd, 255);
         AsyncWebServerResponse *response;
         if(request->methodToString() == "GET"){
-            webClient.attachWS(request, silent);
+            webClient.attachWS(silent);
             webClient.executeCommandBackground(line);
             response = request->beginChunkedResponse("", [request](uint8_t *buffer, size_t maxLen, size_t total) mutable -> size_t {
                 // The method can change before the end... not good
@@ -596,40 +587,9 @@ namespace WebUI {
         }
         else
             response = request->beginResponse(200, "","");
-        //     // TODO... ?
-        //     Uart0.printf("WebClient on disconnect\n");
-        //     xBufferLock->lock();
-        //     if(*src_buffer){
-        //         free(*src_buffer);
-        //         *src_buffer=nullptr;
-        //         *allocsize=0;
-        //         *buflen=0;
-        //     }
-        //     xBufferLock->unlock();
         response->addHeader("Cache-Control", "no-cache");
         request->send(response);
         return;
-
-        // char line[256];
-        // strncpy(line, cmd, 255);
-        // webClient.attachWS(request, silent);
-        // Error err = settings_execute_line(line, webClient, auth_level);
-        // if (err != Error::Ok) {
-        //     std::string answer = "Error: ";
-        //     const char* msg    = errorString(err);
-        //     if (msg) {
-        //         answer += msg;
-        //     } else {
-        //         answer += std::to_string(static_cast<int>(err));
-        //     }
-        //     answer += "\n";
-        //     webClient.sendError(500, answer);
-        // } else {
-        //     // This will send a 200 if it hasn't already been sent
-        //     //webClient.write(nullptr, 0);
-        // }
-        // webClient.detachWS();
-        
     }
 
     std::string getSession(AsyncClient *client){
