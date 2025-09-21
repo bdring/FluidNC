@@ -16,7 +16,7 @@ namespace WebUI {
         WebClient();
         ~WebClient();
 
-        void attachWS(AsyncWebServerRequest* request, bool silent);
+        void attachWS(bool silent);
         void detachWS();
 
         size_t write(uint8_t data) override;
@@ -43,8 +43,7 @@ namespace WebUI {
 
     private:
         bool                   _silent      = false;
-        AsyncWebServerRequest* _request     = nullptr;
-        static const size_t    BUFLEN       = 1; //48*1024;
+        static const size_t    BUFLEN       = 2048;
         char                   *_buffer = nullptr; //[BUFLEN];
         size_t                 _buflen = 0;
         size_t                 _allocsize = 0;
