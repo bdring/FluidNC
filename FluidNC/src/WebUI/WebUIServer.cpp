@@ -611,7 +611,17 @@ namespace WebUI {
 
             auto cmd = request->getParam("cmd")->value();
             // [ESPXXX] commands expect data in the HTTP response
-            if (cmd.startsWith("[ESP") || cmd.startsWith("$/")) {
+            // Currently, the Async implementation has a limited websocket queue length
+            // and so command like $ESP400 (which works very well (but blocks) in previous non async version)
+            // run out of queue limit, since when they are processed in a loop
+            // the async implementation does not process anything in background
+            // A similar approach to new WebClient background task could be used
+            // but this is starting to look like the approach is not adequate.
+            // Fow now also include commands starting with $ESP, webui3 seems
+            // to handle them and show the results from a get jsut fine.
+            // It make sense that websockets are more designed to send back events
+            // rather than large document payload.
+            if (cmd.startsWith("[ESP") || cmd.startsWith("$/") || cmd.startsWith("$ESP")) {
                 synchronousCommand(request, cmd.c_str(), silent, auth_level);
             } else {
                 websocketCommand(request, cmd.c_str(), -1, auth_level);  // WebUI3 does not support PAGEID

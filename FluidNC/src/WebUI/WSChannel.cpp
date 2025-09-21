@@ -69,7 +69,7 @@ namespace WebUI {
         // after all the async migration, or it is just something that gets called recursivelly somehow in parent Channels... 
         // should be tried in original non async code to confirm
 
-        // Since no web client has a session ID, why not always broadcast to all websockets instead of the last active one?
+        // With the session cookie we no longer need to broadcast to all
         //_server->binaryAll(out, outlen);
         if (!_server->binary(_clientNum, out, outlen)) {
              _active =  false;
@@ -88,7 +88,7 @@ namespace WebUI {
             return false;
         }
 
-        // Same here, why not always broadcast
+        // With the session cookie we no longer need to broadcast to all
         //_server->textAll(s.c_str());
         if (!_server->text(_clientNum, s.c_str())) {
             _active = false;
