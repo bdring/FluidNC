@@ -200,7 +200,7 @@ namespace WebUI {
 
                 Uart0.printf("Got a new command to run in background...\n");
                 
-                settings_execute_line("[ESP400]json=yes", *_webClient, AuthenticationLevel::LEVEL_ADMIN);
+                settings_execute_line(cmd.c_str(), *_webClient, AuthenticationLevel::LEVEL_ADMIN);
                 Uart0.printf("We got out of settings_execute_line\n");
                 // Should not call detach, since we still need to send the remaining buffer, so we should not free and clear yet.
                 _webClient->_done=true;
