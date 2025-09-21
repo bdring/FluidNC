@@ -66,6 +66,7 @@ namespace WebUI {
     AsyncHeaderFreeMiddleware* WebUI_Server::_headerFilter = NULL;
     AsyncWebSocket* WebUI_Server::_socket_server = NULL;
     AsyncWebSocket* WebUI_Server::_socket_serverv3 = NULL;
+    std::string WebUI_Server::current_session = "";
    // AsyncWebSocketsServer* WebUI_Server::_socket_server   = NULL;
    // AsyncWebSocketsServer* WebUI_Server::_socket_serverv3 = NULL;
     std::map<std::string, FileStream*> WebUI_Server::_fileStreams;
@@ -79,6 +80,14 @@ namespace WebUI {
     EnumSetting *http_enable, *http_block_during_motion;
     IntSetting*  http_port;
 
+    /*class CookieMiddleware : public AsyncMiddleware {
+    public:
+    void run(AsyncWebServerRequest *request, ArMiddlewareNext next) override {
+        log_info_to(Uart0, "Before handler");
+        next();  // continue middleware chain
+        log_info_to(Uart0, "After handler");
+    }
+    };*/
     WebUI_Server::~WebUI_Server() {
         deinit();
     }
@@ -113,12 +122,12 @@ namespace WebUI {
         //create instance
         _webserver = new AsyncWebServer(_port);
         _headerFilter = new AsyncHeaderFreeMiddleware();
-#ifdef ENABLE_AUTHENTICATION
-        //here the list of headers to be recorded
-        //ask server to track these headers
+// #ifdef ENABLE_AUTHENTICATION
+//         //here the list of headers to be recorded
+//         //ask server to track these headers
+//              _headerFilter->keep("Cookie");  
+// #endif
         _headerFilter->keep("Cookie");
-#endif
-
         //here the list of headers to be recorded
         _headerFilter->keep("If-None-Match");
         
@@ -136,19 +145,35 @@ namespace WebUI {
         //_socket_server = new AsyncWebSocket("/wsv2"); // WebSocketsServer(_port + 1);
         // Websocket can share the same path as other requests, this allow to not change the index.html.gz for webui3 in this case, but
         // v2 would still need to be changed
-        _websocketserverv3 = new AsyncWebServer(_port+2);
+        //_websocketserverv3 = new AsyncWebServer(_port+2);
         _socket_serverv3 = new AsyncWebSocket("/"); //new WebSocketsServer(_port + 2, "", "webui-v3");
         
         // _socket_server->onEvent([](AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventType type, void *arg, uint8_t *data, size_t len) {
         //     WSChannels::handleEvent(server, client, type, arg, data, len);
         // });
+
+        _socket_serverv3->addMiddleware([](AsyncWebServerRequest *request, ArMiddlewareNext next) {
+            log_info_to(Uart0, "Before handler");
+            current_session = getSessionCookie(request);
+            
+            log_info_to(Uart0, current_session.c_str());
+           // if(request->hasHeader("Upgrade"))
+            //    log_info_to(Uart0, request->getHeader("Upgrade")->value().c_str());
+        
+        // << request->getHeader("Upgrade")->value();
+           // log_info_to(Uart0, message);
+            next();  // continue middleware chain
+            //log_info_to(Uart0, "After handler");
+        });
+        // Passing the current_session globally, lets hope there is no async swich back of other requests to change this in between 
         _socket_serverv3->onEvent([](AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventType type, void *arg, uint8_t *data, size_t len) {
-             WSChannels::handlev3Event(server, client, type, arg, data, len);
+             WSChannels::handlev3Event(server, client, type, arg, data, len, current_session);
         });
 
         //_webserver->addHandler(_socket_server);
-        _websocketserverv3->addHandler(_socket_serverv3);
-        _websocketserverv3->begin();
+        _webserver->addHandler(_socket_serverv3);
+        //_websocketserverv3->addHandler(_socket_serverv3);
+        //_websocketserverv3->begin();
 
         //_socket_serverv3->begin();
         //_socket_serverv3->onEvent(handle_Websocketv3_Event);
@@ -276,8 +301,38 @@ namespace WebUI {
             return fs;
         }
     }
+
+    std::string  WebUI_Server::getSessionCookie(AsyncWebServerRequest *request){
+        if(request->hasHeader("Cookie"))
+        {
+            std::string cookies = request->getHeader("Cookie")->value().c_str();
+
+            int  pos = cookies.find("sessionId=");
+            if (pos != std::string::npos) {
+                int pos2  = cookies.find(";", pos);
+                return cookies.substr(pos + strlen("sessionId="), pos2);
+            }
+        }
+        return "";
+
+    }
+
+    static void get_random_string(char *str, unsigned int len)
+    {
+        unsigned int i;
+
+        // reseed the random number generator
+        srand(time(NULL));
+        
+        for (i = 0; i < len; i++)
+        {
+            // Add random printable ASCII char
+            str[i] = (rand() % ('A' - 'Z')) + 'A';
+        }
+        str[i] = '\0';
+    }
     // Send a file, either the specified path or path.gz
-    bool WebUI_Server::myStreamFile(AsyncWebServerRequest *request, const char* path, bool download) {
+    bool WebUI_Server::myStreamFile(AsyncWebServerRequest *request, const char* path, bool download, bool setSession) {
         std::error_code ec;
         FluidPath       fpath { path, localfsName, ec };
         if (ec) {
@@ -346,15 +401,22 @@ namespace WebUI {
                 getContentType(path),
                 file->size(),
                 [file, request](uint8_t *buffer, size_t maxLen, size_t total) mutable -> size_t {
-                    if(total >= file->size() || request->methodToString() == "HEAD" )
+                    if(total >= file->size() || request->methodToString() != "GET" )
                         return 0;
                     // Seek on each chunk, to avoid concurrent client to get the wrong data, while still reusing the same filestream
                     file->set_position(total);
-                    int bytes = file->read(buffer, maxLen);
+                    int bytes = file->read(buffer, min((int)maxLen, 1000));
 
                     return max(0, bytes); // return 0 even when no bytes were loaded
                 }
             );
+
+        if(setSession){
+
+            char session[9];
+            get_random_string(session,sizeof(session)-1);
+            response->addHeader("Set-Cookie", ("sessionId=" + std::string(session)).c_str());
+        }
         if (download) {
             response->addHeader("Content-Disposition", "attachment");
         }
@@ -442,7 +504,7 @@ namespace WebUI {
     void WebUI_Server::handle_root(AsyncWebServerRequest *request) {
         log_info("WebUI: Request from " << request->client()->remoteIP());
         if (!(request->hasParam("forcefallback") && request->getParam("forcefallback")->value() == "yes")) {
-            if (myStreamFile(request, "index.html")) {
+            if (myStreamFile(request, "index.html", false, true)) {
                 return;
             }
         }
@@ -520,13 +582,17 @@ namespace WebUI {
         webClient.detachWS();
         
     }
+
+    std::string getSession(AsyncClient *client){
+        return(std::to_string(IPAddress(client->getRemoteAddress())) + ":" + std::to_string(client->getRemotePort()));
+    }
     void WebUI_Server::websocketCommand(AsyncWebServerRequest *request, const char* cmd, int pageid, AuthenticationLevel auth_level) {
         if (auth_level == AuthenticationLevel::LEVEL_GUEST) {
             request->send(401, "text/plain", "Authentication failed\n");
             return;
         }
-
-        bool hasError = WSChannels::runGCode(pageid, cmd, request->client()->removeip() + );
+        std::string session = getSessionCookie(request);
+        bool hasError = WSChannels::runGCode(pageid, cmd, session);
         //request->send(hasError ? 500 : 200, "text/plain", hasError ? "WebSocket dead" : "");
         request->send(200, "text/plain", "");
     }
@@ -1271,7 +1337,7 @@ namespace WebUI {
         if (_socket_serverv3 && _setupdone) {
             _socket_serverv3->loop();
         }*/
-        _socket_serverv3->cleanupClients();
+     //   _socket_serverv3->cleanupClients();
         if ((millis() - start_time) > 10000) {
             //_socket_server->cleanupClients();
             _socket_serverv3->cleanupClients();

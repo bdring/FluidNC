@@ -15,6 +15,7 @@ class AsyncWebServer;
 class AsyncWebSocketMessageHandler;
 class AsyncHeaderFreeMiddleware;
 class AsyncWebServerRequest;
+class AsyncClient;
 
 namespace WebUI {
     static const int DEFAULT_HTTP_STATE                 = 1;
@@ -37,6 +38,8 @@ namespace WebUI {
         AuthenticationIP*   _next;
     };
 #endif
+    
+    std::string getSession(AsyncClient *client);
 
     //Upload status
     enum class UploadStatus : uint8_t { NONE = 0, FAILED = 1, CANCELLED = 2, SUCCESSFUL = 3, ONGOING = 4 };
@@ -62,6 +65,7 @@ namespace WebUI {
         static AsyncWebServer*    _websocketserverv3;
         static AsyncWebSocket* _socket_server;
         static AsyncWebSocket* _socket_serverv3;
+        static std::string current_session;
 
         static uint16_t          _port;
         static UploadStatus      _upload_status;
@@ -80,6 +84,7 @@ namespace WebUI {
         static AuthenticationIP*   GetAuth(IPAddress ip, const char* sessionID);
         static AuthenticationLevel ResetAuthIP(IPAddress ip, const char* sessionID);
 #endif
+        static std::string getSessionCookie(AsyncWebServerRequest *request);
         static void handle_SSDP();
         static void handle_root(AsyncWebServerRequest *request);
         static void handle_login(AsyncWebServerRequest *request);
@@ -101,7 +106,7 @@ namespace WebUI {
         static void handleUpdate(AsyncWebServerRequest *request);
         static void WebUpdateUpload(AsyncWebServerRequest *request, String filename, size_t index, uint8_t *data, size_t len, bool final);
 
-        static bool myStreamFile(AsyncWebServerRequest *request, const char* path, bool download = false);
+        static bool myStreamFile(AsyncWebServerRequest *request, const char* path, bool download = false, bool setSession = false);
 
         //static void pushError(AsyncWebServerRequest *request, int code, const char* st, bool web_error = 500, uint16_t timeout = 1000);
         static FileStream* getFileStream(const char *path);
