@@ -70,7 +70,7 @@ namespace WebUI {
         static uint16_t          _port;
         static UploadStatus      _upload_status;
         static FileStream*       _uploadFile;
-        static std::map<std::string, FileStream*> _fileStreams;
+        //static std::map<std::string, FileStream*> _fileStreams;
 
         static const char* getContentType(const char* filename);
 
@@ -109,7 +109,7 @@ namespace WebUI {
         static bool myStreamFile(AsyncWebServerRequest *request, const char* path, bool download = false, bool setSession = false);
 
         //static void pushError(AsyncWebServerRequest *request, int code, const char* st, bool web_error = 500, uint16_t timeout = 1000);
-        static FileStream* getFileStream(const char *path);
+        //static FileStream* getFileStream(const char *path);
         static void cancelUpload(AsyncWebServerRequest *request);
         static void handleFileOps(AsyncWebServerRequest *request, const char* mountpoint);
         static void handle_direct_SDFileList(AsyncWebServerRequest *request);

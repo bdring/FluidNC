@@ -69,7 +69,7 @@ namespace WebUI {
     std::string WebUI_Server::current_session = "";
    // AsyncWebSocketsServer* WebUI_Server::_socket_server   = NULL;
    // AsyncWebSocketsServer* WebUI_Server::_socket_serverv3 = NULL;
-    std::map<std::string, FileStream*> WebUI_Server::_fileStreams;
+    // std::map<std::string, FileStream*> WebUI_Server::_fileStreams;
 #ifdef ENABLE_AUTHENTICATION
     AuthenticationIP* WebUI_Server::_head  = NULL;
     uint8_t           WebUI_Server::_nb_ip = 0;
@@ -252,9 +252,9 @@ namespace WebUI {
             delete _headerFilter;
             _headerFilter = NULL;
         }
-        for (auto it = _fileStreams.begin(); it != _fileStreams.end(); ++it) {
-                delete it->second;
-        }
+        // for (auto it = _fileStreams.begin(); it != _fileStreams.end(); ++it) {
+        //         delete it->second;
+        // }
 
 #ifdef ENABLE_AUTHENTICATION
         while (_head) {
@@ -266,24 +266,24 @@ namespace WebUI {
 #endif
     }
 
-    FileStream* WebUI_Server::getFileStream(const char *path){
-        FileStream *fs;
-        try{
-            fs = _fileStreams.at(std::string(path));
-            // Position is now set in the response stream handler fo reach chunk
-            //fs->set_position(0);
-            //log_info("Reusing existing FileStream");
-            return fs;
+    // FileStream* WebUI_Server::getFileStream(const char *path){
+    //     FileStream *fs;
+    //     try{
+    //         fs = _fileStreams.at(std::string(path));
+    //         // Position is now set in the response stream handler fo reach chunk
+    //         //fs->set_position(0);
+    //         //log_info("Reusing existing FileStream");
+    //         return fs;
 
 
-        } catch (std::out_of_range& oor) {
-            fs = new FileStream(path, "r", "");
-            //log_info("Creating new FileStream");
-            if(fs)
-                _fileStreams[std::string(path)]=fs;
-            return fs;
-        }
-    }
+    //     } catch (std::out_of_range& oor) {
+    //         fs = new FileStream(path, "r", "");
+    //         //log_info("Creating new FileStream");
+    //         if(fs)
+    //             _fileStreams[std::string(path)]=fs;
+    //         return fs;
+    //     }
+    // }
 
     std::string  WebUI_Server::getSessionCookie(AsyncWebServerRequest *request){
         if(request->hasHeader("Cookie"))
@@ -365,34 +365,55 @@ namespace WebUI {
 
         bool        isGzip = false;
         FileStream* file = NULL;
+        //FileStream** file_cb = &file;
         try {
-            file = getFileStream(path);
-            //file = new FileStream(path, "r", "");
+            //file = getFileStream(path);
+            file = new FileStream(path, "r", "");
         } catch (const Error err) {
             try {
                 std::filesystem::path gzpath(fpath);
                 gzpath += ".gz";
-                file   = getFileStream(gzpath.c_str()); 
-                //file = new FileStream(gzpath, "r", "");
+                //file   = getFileStream(gzpath.c_str()); 
+                file = new FileStream(gzpath, "r", "");
                 isGzip = true;
             } catch (const Error err) {
                 log_debug(path << " not found");
                 return false;
             }
         }
-        AsyncWebServerResponse *response = request->beginResponse(
+
+        AsyncWebServerResponse *response = request->beginResponse( //ChunkedResponse(
                 getContentType(path),
                 file->size(),
                 [file, request](uint8_t *buffer, size_t maxLen, size_t total) mutable -> size_t {
+                    if(!file)
+                    {
+                        //log_info_to(Uart0, "We should not have reached here"); // we do reach here in case of header request only
+                        request->client()->close();
+                        return 0; //RESPONSE_TRY_AGAIN; // This only works for ChunkedResponse
+                    }
                     if(total >= file->size() || request->methodToString() != "GET" )
+                    {
+                         //delete file;
+                        file = nullptr;
                         return 0;
+                    }
                     // Seek on each chunk, to avoid concurrent client to get the wrong data, while still reusing the same filestream
-                    file->set_position(total);
-                    int bytes = file->read(buffer, min((int)maxLen, 1000));
-
-                    return max(0, bytes); // return 0 even when no bytes were loaded
+                    //file->set_position(total);
+                    int bytes = max(0,(int)file->read(buffer, min((int)maxLen, 1024))); // return 0 even when no bytes were loaded
+                    if(bytes==0 || (bytes + total) >= file->size())
+                    {
+                        //delete file;
+                        file = nullptr;
+                    }
+                    return bytes; 
                 }
             );
+
+        request->onDisconnect([request, file](){
+            //log_info_to(Uart0,"Freeing on disconnect");
+            delete file;
+        });
 
         if(setSession){
 
