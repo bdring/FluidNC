@@ -17,7 +17,7 @@
 namespace WebUI {
     class WSChannel : public Channel {
     public:
-        WSChannel(AsyncWebSocket* server, uint32_t clientNum);
+        WSChannel(AsyncWebSocket* server, uint32_t clientNum, std::string session);
 
         size_t write(uint8_t c);
         size_t write(const uint8_t* buffer, size_t size);
@@ -45,10 +45,12 @@ namespace WebUI {
 
         void autoReport() override;
         void active(bool is_active);
+        std::string session(){return _session;};
 
     private:
         AsyncWebSocket* _server;
         uint32_t           _clientNum;
+        std::string        _session;
 
         std::string _output_line;
 
@@ -62,18 +64,21 @@ namespace WebUI {
     private:
         static std::map<uint32_t, WSChannel*> _wsChannels;
         static std::list<WSChannel*>         _webWsChannels;
+        static std::map<std::string, WSChannel*> _wsChannelsBySession;
+        static AsyncWebSocket *_server;
 
         static WSChannel* _lastWSChannel;
         static WSChannel* getWSChannel(int pageid);
+        static WSChannel* getWSChannel(std::string session);
 
     public:
         static void removeChannel(WSChannel* channel);
         static void removeChannel(uint32_t num);
 
-        static bool runGCode(int pageid, std::string_view cmd);
-        static bool sendError(int pageid, std::string error);
+        static bool runGCode(int pageid, std::string_view cmd, std::string session);
+        static bool sendError(int pageid, std::string error, std::string session);
         static void sendPing();
-        static void handleEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventType type, void *arg, uint8_t *data, size_t len);
-        static void handlev3Event(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventType type, void *arg, uint8_t *data, size_t len);
+        static void handleEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventType type, void *arg, uint8_t *data, size_t len, std::string session);
+        static void handlev3Event(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventType type, void *arg, uint8_t *data, size_t len, std::string session);
     };
 }

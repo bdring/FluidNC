@@ -14,7 +14,7 @@
 namespace WebUI {
     class WSChannels;
 
-    WSChannel::WSChannel(AsyncWebSocket* server, uint32_t clientNum) : Channel("websocket"), _server(server), _clientNum(clientNum) {}
+    WSChannel::WSChannel(AsyncWebSocket* server, uint32_t clientNum, std::string session) : Channel("websocket"), _server(server), _clientNum(clientNum), _session(session) {}
 
     void WSChannel::active(bool is_active){
         _active=is_active;
@@ -70,12 +70,10 @@ namespace WebUI {
         // should be tried in original non async code to confirm
 
         // Since no web client has a session ID, why not always broadcast to all websockets instead of the last active one?
-        _server->binaryAll(out, outlen);
-        //_server->textAll(test_buf); //, sizeof(test_buf)); //out, outlen);
-        // if (!_server->binary(_clientNum, out, outlen)) {
-        
-        //      _active =  false;
-        // }
+        //_server->binaryAll(out, outlen);
+        if (!_server->binary(_clientNum, out, outlen)) {
+             _active =  false;
+        }
         //if(_output_line == "$10=1\n")
         //    _server->binaryAll(std::string("ok\n").c_str(), 3);
         if (_output_line.length()) {
@@ -91,12 +89,11 @@ namespace WebUI {
         }
 
         // Same here, why not always broadcast
-//         if (!_server->text(_clientNum, s.c_str())) {
-        _server->textAll(s.c_str());
-    //     if (!_server->textAll(s.c_str())) {
-    //         _active = false;
-    //         return false;
-    //    }
+        //_server->textAll(s.c_str());
+        if (!_server->text(_clientNum, s.c_str())) {
+            _active = false;
+            return false;
+        }
         return true;
     }
 
@@ -116,15 +113,26 @@ namespace WebUI {
 
         Channel::autoReport();
     }
-
+        static AsyncWebSocket *_server;
     WSChannel::~WSChannel() {
         log_info_to(Uart0,"WSChannel destructor");
     }
 
     std::map<uint32_t, WSChannel*> WSChannels::_wsChannels;
+    std::map<std::string, WSChannel*> WSChannels::_wsChannelsBySession;
     std::list<WSChannel*>          WSChannels::_webWsChannels;
+    AsyncWebSocket *  WSChannels::_server = nullptr;
 
     WSChannel* WSChannels::_lastWSChannel = nullptr;
+
+    WSChannel* WSChannels::getWSChannel(std::string session) {
+        try {
+                return _wsChannelsBySession.at(session);
+            } catch (std::out_of_range& oor) {}
+        if(_webWsChannels.size()>0)
+                return  _webWsChannels.front();
+        return nullptr;
+    }
 
     WSChannel* WSChannels::getWSChannel(int pageid) {
         pageid=-1;
@@ -154,29 +162,32 @@ namespace WebUI {
     void WSChannels::removeChannel(uint32_t num) {
         try {
             WSChannel* wsChannel = _wsChannels.at(num);
+            std::string session = wsChannel->session();
             wsChannel->active(false);
             allChannels.kill(wsChannel);
             _webWsChannels.remove(wsChannel);
             _wsChannels.erase(num);
+            _wsChannelsBySession.erase(session);
         } catch (std::out_of_range& oor) {}
     }
 
-    void WSChannels::removeChannel(WSChannel* channel) {
-        _lastWSChannel = nullptr;
-        channel->active(false);
-        allChannels.kill(channel);
-        _webWsChannels.remove(channel);
-        for (auto it = _wsChannels.cbegin(); it != _wsChannels.cend();) {
-            if (it->second == channel) {
-                 it = _wsChannels.erase(it);
-            } else {
-                ++it;
-            }
-        }
-    }
+    // void WSChannels::removeChannel(WSChannel* channel) {
+    //     _lastWSChannel = nullptr;
+    //     channel->active(false);
+    //     allChannels.kill(channel);
+    //     _webWsChannels.remove(channel);
+    //     for (auto it = _wsChannels.cbegin(); it != _wsChannels.cend();) {
+    //         if (it->second == channel) {
+    //              it = _wsChannels.erase(it);
+    //         } else {
+    //             ++it;
+    //         }
+    //     }
+    // }
 
     bool WSChannels::runGCode(int pageid, std::string_view cmd, std::string session) {
-        WSChannel* wsChannel = getWSChannel(pageid);
+        log_info_to(Uart0, "runGCode session: " + session);
+        WSChannel* wsChannel = getWSChannel(session);
         if (wsChannel) {
             if (cmd.length()) {
                 if (is_realtime_command(cmd[0])) {
@@ -200,7 +211,7 @@ namespace WebUI {
     }
 
     bool WSChannels::sendError(int pageid, std::string err, std::string session) {
-        WSChannel* wsChannel = getWSChannel(pageid);
+        WSChannel* wsChannel = getWSChannel(session);
         if (wsChannel) {
             return !wsChannel->sendTXT(err);
         }
@@ -216,26 +227,29 @@ namespace WebUI {
         }
     }
 
-    void WSChannels::handleEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventType type, void *arg, uint8_t *data, size_t len){
+    void WSChannels::handleEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventType type, void *arg, uint8_t *data, size_t len, std::string session){
         uint32_t num = client->id();
+        _server = server;
         switch (type) {
             case WS_EVT_DISCONNECT:
                 log_info_to(Uart0, "WebSocket disconnect " << num);
                 WSChannels::removeChannel(num);
                 break;
             case WS_EVT_CONNECT: {
-                WSChannel* wsChannel = new WSChannel(server, num);
+                WSChannel* wsChannel = new WSChannel(server, num, session);
                 if (!wsChannel) {
                     log_error_to(Uart0, "Creating WebSocket channel failed");
                 } else {
                     std::string uri((char*)server->url());
 
                     IPAddress ip = client->remoteIP();
-                    log_info_to(Uart0, "WebSocket " << num << " from " << ip << " uri " << uri);
+                    log_info_to(Uart0, "WebSocket " << num << " from " << ip << " uri " << uri << " session " << session);
 
                     _lastWSChannel = wsChannel;
                     allChannels.registration(wsChannel);
+
                     _wsChannels[num] = wsChannel;
+                    _wsChannelsBySession[session] = wsChannel;
 
                     if (uri == "/") {
                         std::string s("CURRENT_ID:");
@@ -259,9 +273,10 @@ namespace WebUI {
         }
     }
 
-    void WSChannels::handlev3Event(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventType type, void *arg, uint8_t *data, size_t len){
+    void WSChannels::handlev3Event(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventType type, void *arg, uint8_t *data, size_t len, std::string session){
         // TODO: I may have wrongly assumed that we were referencing client in the channels array, but those are pageIDs?
         uint32_t num = client->id();
+        _server = server;
         switch (type) {
             case WS_EVT_ERROR:
                 log_info_to(Uart0, "WebSocket error cid#" << num << " total " << _wsChannels.size());
@@ -273,18 +288,19 @@ namespace WebUI {
                 break;
             case WS_EVT_CONNECT: {
                 log_info_to(Uart0, "WStype_Connected cid#" << num);
-                WSChannel* wsChannel = new WSChannel(server, num);
+                WSChannel* wsChannel = new WSChannel(server, num, session);
                 if (!wsChannel) {
                     log_error_to(Uart0, "Creating WebSocket channel failed");
                 } else {
                     std::string uri((char*)server->url());
 
                     IPAddress ip = client->remoteIP();
-                    log_info_to(Uart0, "WebSocket " << num << " from " << ip << " uri " << uri);
+                    log_info_to(Uart0, "WebSocket " << num << " from " << ip << " uri " << uri << " session " << session);
 
                     _lastWSChannel = wsChannel;
                     allChannels.registration(wsChannel);
                     _wsChannels[num] = wsChannel;
+                    _wsChannelsBySession[session] = wsChannel;
                     if (uri == "/") {
                         std::string s("currentID:");
                         s += std::to_string(num);
@@ -293,7 +309,7 @@ namespace WebUI {
                         wsChannel->sendTXT(s);
                         s = "activeID:";
                         s += std::to_string(wsChannel->id());
-                        server->textAll(s.c_str());
+                        wsChannel->sendTXT(s);
                     }
                 }
                 log_info_to(Uart0, "WebSocket channels count: " << _wsChannels.size());
@@ -305,7 +321,7 @@ namespace WebUI {
                         //data[len]=0; // !!! ?
                         
                         std::string msg((const char*)data, len);
-                        log_info_to(Uart0, msg);
+                        //log_info_to(Uart0, msg);
                         if (msg.rfind("PING:", 0) == 0) {
                             std::string response("PING:60000:60000");
                             _wsChannels.at(num)->sendTXT(response);
