@@ -186,7 +186,7 @@ namespace WebUI {
     // }
 
     bool WSChannels::runGCode(int pageid, std::string_view cmd, std::string session) {
-        log_info_to(Uart0, "runGCode session: " + session);
+        //log_info_to(Uart0, "runGCode session: " + session);
         WSChannel* wsChannel = getWSChannel(session);
         if (wsChannel) {
             if (cmd.length()) {
