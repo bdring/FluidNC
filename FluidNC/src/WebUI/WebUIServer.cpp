@@ -80,14 +80,6 @@ namespace WebUI {
     EnumSetting *http_enable, *http_block_during_motion;
     IntSetting*  http_port;
 
-    /*class CookieMiddleware : public AsyncMiddleware {
-    public:
-    void run(AsyncWebServerRequest *request, ArMiddlewareNext next) override {
-        log_info_to(Uart0, "Before handler");
-        next();  // continue middleware chain
-        log_info_to(Uart0, "After handler");
-    }
-    };*/
     WebUI_Server::~WebUI_Server() {
         deinit();
     }
@@ -153,17 +145,8 @@ namespace WebUI {
         // });
 
         _socket_serverv3->addMiddleware([](AsyncWebServerRequest *request, ArMiddlewareNext next) {
-            log_info_to(Uart0, "Before handler");
             current_session = getSessionCookie(request);
-            
-            log_info_to(Uart0, current_session.c_str());
-           // if(request->hasHeader("Upgrade"))
-            //    log_info_to(Uart0, request->getHeader("Upgrade")->value().c_str());
-        
-        // << request->getHeader("Upgrade")->value();
-           // log_info_to(Uart0, message);
             next();  // continue middleware chain
-            //log_info_to(Uart0, "After handler");
         });
         // Passing the current_session globally, lets hope there is no async swich back of other requests to change this in between 
         _socket_serverv3->onEvent([](AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventType type, void *arg, uint8_t *data, size_t len) {
