@@ -10,6 +10,8 @@
 
 #include "Authentication.h"  // AuthenticationLevel
 
+#include <freertos/task.h>
+
 class AsyncWebSocket;
 class AsyncWebServer;
 class AsyncWebSocketMessageHandler;

@@ -5,6 +5,7 @@
 
 #include "src/Channel.h"
 #include "src/FileStream.h"
+#include <list>
 
 class AsyncWebServerRequest;
 class AsyncWebServerResponse;
@@ -28,11 +29,17 @@ namespace WebUI {
 
         void sendError(int code, const std::string& line);
 
+        void executeCommandBackground(const char *cmd);
+
         bool anyOutput() { return _buflen > 0; }
 
         void out(const char* s, const char* tag) override;
         void out(const std::string& s, const char* tag) override;
         void out_acked(const std::string& s, const char* tag) override;
+        int copyBufferSafe(uint8_t *dest_buffer, size_t maxLen, size_t total);
+
+        std::mutex              _xBufferLock;
+        std::list<std::string> _cmds;
 
     private:
         bool                   _silent      = false;
@@ -43,6 +50,9 @@ namespace WebUI {
         size_t                 _allocsize = 0;
         AsyncWebServerResponse *_response    = nullptr;
         FileStream             *_fs         = nullptr;
+        bool                   _done        = false;
+        TaskHandle_t  _background_task_handle=nullptr;
+        static void background_task(void* pvParameters);
     };
 
     extern WebClient webClient;
