@@ -29,7 +29,7 @@ namespace WebUI {
                     "",
                     _buflen,
                     [buflen, allocsize, src_buffer](uint8_t *dest_buffer, size_t maxLen, size_t total) mutable -> size_t {
-                        int bytes = min((int)min(*buflen-total, maxLen),1000);
+                        int bytes = min((int)min(*buflen-total, maxLen),1024);
                         char *b = *src_buffer;
                         memcpy(dest_buffer, &b[total], bytes);
                         
