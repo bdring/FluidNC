@@ -110,18 +110,18 @@ namespace WebUI {
 
         static bool myStreamFile(AsyncWebServerRequest *request, const char* path, bool download = false, bool setSession = false);
 
-        //static void pushError(AsyncWebServerRequest *request, int code, const char* st, bool web_error = 500, uint16_t timeout = 1000);
+        static void pushError(AsyncWebServerRequest *request, int code, const char* st, bool web_error = 500, uint16_t timeout = 1000);
         //static FileStream* getFileStream(const char *path);
         static void cancelUpload(AsyncWebServerRequest *request);
         static void handleFileOps(AsyncWebServerRequest *request, const char* mountpoint);
         static void handle_direct_SDFileList(AsyncWebServerRequest *request);
         static void fileUpload(AsyncWebServerRequest *request, const char* fs, String filename, size_t index, uint8_t *data, size_t len, bool final);
         static void SDFileUpload(AsyncWebServerRequest *request, String filename, size_t index, uint8_t *data, size_t len, bool final);
-        // static void uploadStart(const char* filename, size_t filesize, const char* fs);
-        // static void uploadWrite(uint8_t* buffer, size_t length);
-        // static void uploadEnd(size_t filesize);
-        // static void uploadStop();
-        // static void uploadCheck();
+        static void uploadStart(AsyncWebServerRequest *request, const char* filename, size_t filesize, const char* fs);
+        static void uploadWrite(AsyncWebServerRequest *request, uint8_t* buffer, size_t length);
+        static void uploadEnd(AsyncWebServerRequest *request, size_t filesize);
+        static void uploadStop();
+        static void uploadCheck(AsyncWebServerRequest *request);
 
         static void synchronousCommand(AsyncWebServerRequest *request, const char* cmd, bool silent, AuthenticationLevel auth_level);
         static void websocketCommand(AsyncWebServerRequest *request, const char* cmd, int pageid, AuthenticationLevel auth_level);
