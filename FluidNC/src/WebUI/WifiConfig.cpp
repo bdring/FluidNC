@@ -574,7 +574,7 @@ namespace WebUI {
             s << "no";
 #endif
             s << " # webcommunication: Sync: ";
-            s << std::to_string(WebUI_Server::port() + 1);
+            s << std::to_string(WebUI_Server::port());
 #if 0
             // If we omit the explicit IP address for the websocket,
             // WebUI will use the same IP address that it uses for
