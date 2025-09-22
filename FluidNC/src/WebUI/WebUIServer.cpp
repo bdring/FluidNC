@@ -136,7 +136,7 @@ namespace WebUI {
         // 3 - Remove all of these active and current IDs altogether since again, we may have no need for this anymore
         // 4 - Potentially check for a difference in requests headers of v2 vs v3 to dynamically send the proper payload in the same handler
         // For now, I've settled with #3
-        _socket_server = new AsyncWebSocket("/"); //new WebSocketsServer(_port + 2, "", "webui-v3");
+        _socket_server = new AsyncWebSocket("/");
         
         _socket_server->addMiddleware([](AsyncWebServerRequest *request, ArMiddlewareNext next) {
             current_session = getSessionCookie(request);

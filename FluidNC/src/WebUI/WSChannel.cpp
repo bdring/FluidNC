@@ -103,22 +103,10 @@ namespace WebUI {
         if (!_active) {
             return;
         }
-        /*int stat = _server->canSend(_clientNum);
-        if (stat < 0) {
-            _active = false;
-            log_debug_to(Uart0, "WebSocket is dead; closing");
-            return;
-        }
-        if (stat == 0) {
-            return;
-        }*/
-
         Channel::autoReport();
     }
         static AsyncWebSocket *_server;
-    WSChannel::~WSChannel() {
-        log_info_to(Uart0,"WSChannel destructor");
-    }
+    WSChannel::~WSChannel() {}
 
     std::map<uint32_t, WSChannel*> WSChannels::_wsChannels;
     std::map<std::string, WSChannel*> WSChannels::_wsChannelsBySession;
@@ -173,20 +161,6 @@ namespace WebUI {
         } catch (std::out_of_range& oor) {}
     }
 
-    // void WSChannels::removeChannel(WSChannel* channel) {
-    //     _lastWSChannel = nullptr;
-    //     channel->active(false);
-    //     allChannels.kill(channel);
-    //     _webWsChannels.remove(channel);
-    //     for (auto it = _wsChannels.cbegin(); it != _wsChannels.cend();) {
-    //         if (it->second == channel) {
-    //              it = _wsChannels.erase(it);
-    //         } else {
-    //             ++it;
-    //         }
-    //     }
-    // }
-
     bool WSChannels::runGCode(int pageid, std::string_view cmd, std::string session) {
         //log_info_to(Uart0, "runGCode session: " + session);
         WSChannel* wsChannel = getWSChannel(session);
@@ -234,15 +208,14 @@ namespace WebUI {
         _server = server;
         switch (type) {
             case WS_EVT_ERROR:
-                log_info_to(Uart0, "WebSocket error cid#" << num << " total " << _wsChannels.size());
                 WSChannels::removeChannel(num);
+                log_info_to(Uart0, "WebSocket error cid#" << num << " total " << _wsChannels.size());
                 break;
             case WS_EVT_DISCONNECT:
-                log_info_to(Uart0, "WebSocket disconnect cid#" << num << " total " << _wsChannels.size());
                 WSChannels::removeChannel(num);
+                log_info_to(Uart0, "WebSocket disconnect cid#" << num << " total " << _wsChannels.size());
                 break;
             case WS_EVT_CONNECT: {
-                log_info_to(Uart0, "WStype_Connected cid#" << num);
                 WSChannel* wsChannel = new WSChannel(server, num, session);
                 if (!wsChannel) {
                     log_error_to(Uart0, "Creating WebSocket channel failed");
@@ -250,14 +223,13 @@ namespace WebUI {
                     std::string uri((char*)server->url());
 
                     IPAddress ip = client->remoteIP();
-                    log_info_to(Uart0, "WebSocket " << num << " from " << ip << " uri " << uri << " session " << session);
 
                     _lastWSChannel = wsChannel;
                     allChannels.registration(wsChannel);
                     _wsChannels[num] = wsChannel;
                     _wsChannelsBySession[session] = wsChannel;
+                    log_info_to(Uart0, "WebSocket cid#" << num << " from " << ip << " uri " << uri << " session " << session << " total " << _wsChannels.size());
                 }
-                log_info_to(Uart0, "WebSocket channels count: " << _wsChannels.size());
             } break;
             case WS_EVT_DATA: {
                 AwsFrameInfo * info = (AwsFrameInfo*)arg;
