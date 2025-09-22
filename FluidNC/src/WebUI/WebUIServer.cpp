@@ -313,7 +313,15 @@ namespace WebUI {
             hash = HashFS::hash(gzpath);
         }
         if (hash.length() && request->hasHeader("If-None-Match") && std::string(request->getHeader("If-None-Match")->value().c_str()) == hash) {
-            request->send(304);
+            if(setSession){
+                char session[9];
+                get_random_string(session,sizeof(session)-1);
+                AsyncWebServerResponse *response = request->beginResponse(304);
+                response->addHeader("Set-Cookie", ("sessionId=" + std::string(session)).c_str());
+                request->send(response);
+            }
+            else
+                request->send(304);
             return true;
         }
         //AsyncWebServerResponse *response = request->beginResponse(SPIFFS, path, "text/html");
