@@ -564,6 +564,7 @@ namespace WebUI {
 
 
     void WebUI_Server::synchronousCommand(AsyncWebServerRequest *request, const char* cmd, bool silent, AuthenticationLevel auth_level) {
+        // Can we do this with async?
         if (http_block_during_motion->get() && inMotionState()) {
             request->send(503, "text/plain", "Try again when not moving\n");
             return;
@@ -611,6 +612,7 @@ namespace WebUI {
 
             auto cmd = request->getParam("cmd")->value();
             // [ESPXXX] commands expect data in the HTTP response
+            // New:
             // Currently, the Async implementation has a limited websocket queue length
             // and so command like $ESP400 (which works very well (but blocks) in previous non async version)
             // run out of queue limit, since when they are processed in a loop
@@ -621,7 +623,10 @@ namespace WebUI {
             // to handle them and show the results from a get jsut fine.
             // It make sense that websockets are more designed to send back events
             // rather than large document payload.
-            if (cmd.startsWith("[ESP") || cmd.startsWith("$/") || cmd.startsWith("$ESP")) {
+            //std::string cmdUpper = std::transform(cmd.begin(), cmd.end(), cmd.begin(), ::toupper);
+            String cmdUpper = cmd;
+            cmdUpper.toUpperCase();
+            if (cmdUpper.startsWith("[ESP") || cmdUpper.startsWith("$/") || cmdUpper.startsWith("$ESP")) {
                 synchronousCommand(request, cmd.c_str(), silent, auth_level);
             } else {
                 websocketCommand(request, cmd.c_str(), -1, auth_level);  // WebUI3 does not support PAGEID
