@@ -4,6 +4,17 @@
 
 **FluidNC** is a CNC firmware optimized for the ESP32 controller. It is the next generation of firmware from the creators of Grbl_ESP32. It includes a web based UI and the flexibility to operate a wide variety of machine types. This includes the ability to control machines with multiple tool types such as laser plus spindle or a tool changer.  
 
+## Note about this Async fork/branch
+
+This is an implementation of the WebUI using AsyncWebServer and AsyncWebSocket from https://github.com/ESP32Async/ESPAsyncWebServer.git
+It is still a very early work and not much has been tested so far, so use it or try it at your own risks.
+It was only tested with webui3, webui2 probably won't work well since it uses a different websocket port and handler, but that should be easy to fix.
+Appart form that, the basic functionality seems to be working.
+
+The goal behind implementing async was to fix the issue where if any TCP client die without sending a gracefull disconnection during a job operation (think about a computer going into standby, a network cable unplugged from a switch / computer, etc.), and if using auto reports (which uses websockets), this will hang the job for some time. More testing is needed to see if the async implementation is more robust in reality.
+
+Github reference issue: https://github.com/bdring/FluidNC/issues/1360
+
 ## Firmware Architecture
 
 - Object-Oriented hierarchical design
