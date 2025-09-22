@@ -233,53 +233,6 @@ namespace WebUI {
         uint32_t num = client->id();
         _server = server;
         switch (type) {
-            case WS_EVT_DISCONNECT:
-                log_info_to(Uart0, "WebSocket disconnect " << num);
-                WSChannels::removeChannel(num);
-                break;
-            case WS_EVT_CONNECT: {
-                WSChannel* wsChannel = new WSChannel(server, num, session);
-                if (!wsChannel) {
-                    log_error_to(Uart0, "Creating WebSocket channel failed");
-                } else {
-                    std::string uri((char*)server->url());
-
-                    IPAddress ip = client->remoteIP();
-                    log_info_to(Uart0, "WebSocket " << num << " from " << ip << " uri " << uri << " session " << session);
-
-                    _lastWSChannel = wsChannel;
-                    allChannels.registration(wsChannel);
-
-                    _wsChannels[num] = wsChannel;
-                    _wsChannelsBySession[session] = wsChannel;
-
-                    if (uri == "/") {
-                        std::string s("CURRENT_ID:");
-                        s += std::to_string(num);
-                        // send message to client
-                        _webWsChannels.push_front(wsChannel);
-                        wsChannel->sendTXT(s);
-                        s = "ACTIVE_ID:";
-                        s += std::to_string(wsChannel->id());
-                        wsChannel->sendTXT(s);
-                    }
-                }
-            } break;
-            case WS_EVT_DATA:
-                try {
-                    _wsChannels.at(num)->push(data, len);
-                } catch (std::out_of_range& oor) {}
-                break;
-            default:
-                break;
-        }
-    }
-
-    void WSChannels::handlev3Event(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventType type, void *arg, uint8_t *data, size_t len, std::string session){
-        // TODO: I may have wrongly assumed that we were referencing client in the channels array, but those are pageIDs?
-        uint32_t num = client->id();
-        _server = server;
-        switch (type) {
             case WS_EVT_ERROR:
                 log_info_to(Uart0, "WebSocket error cid#" << num << " total " << _wsChannels.size());
                 WSChannels::removeChannel(num);
@@ -303,16 +256,6 @@ namespace WebUI {
                     allChannels.registration(wsChannel);
                     _wsChannels[num] = wsChannel;
                     _wsChannelsBySession[session] = wsChannel;
-                    if (uri == "/") {
-                        std::string s("currentID:");
-                        s += std::to_string(num);
-                        // send message to client
-                        _webWsChannels.push_front(wsChannel);
-                        wsChannel->sendTXT(s);
-                        s = "activeID:";
-                        s += std::to_string(wsChannel->id());
-                        wsChannel->sendTXT(s);
-                    }
                 }
                 log_info_to(Uart0, "WebSocket channels count: " << _wsChannels.size());
             } break;
@@ -320,8 +263,8 @@ namespace WebUI {
                 AwsFrameInfo * info = (AwsFrameInfo*)arg;
                 if(info->opcode == WS_TEXT){
                     try {
-                        //data[len]=0; // !!! ?
-                        
+                        //data[len]=0; // !!! this should not be safe? but was there before,
+                                       // will copy to a std::string of specified length to be on the safe side
                         std::string msg((const char*)data, len);
                         //log_info_to(Uart0, msg);
                         if (msg.rfind("PING:", 0) == 0) {

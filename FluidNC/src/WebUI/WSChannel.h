@@ -79,6 +79,5 @@ namespace WebUI {
         static bool sendError(int pageid, std::string error, std::string session);
         static void sendPing();
         static void handleEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventType type, void *arg, uint8_t *data, size_t len, std::string session);
-        static void handlev3Event(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventType type, void *arg, uint8_t *data, size_t len, std::string session);
     };
 }
