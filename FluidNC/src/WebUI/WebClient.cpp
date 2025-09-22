@@ -17,22 +17,24 @@ namespace WebUI {
         std::string cmd;
         while (true) {
             WebClient *_webClient;
-            xQueueReceive(_background_task_queue, &_webClient, portMAX_DELAY);
-            _webClient->_xBufferLock.lock();
+            if(xQueueReceive(_background_task_queue, &_webClient, portMAX_DELAY)==pdTRUE){
+                _webClient->_xBufferLock.lock();
 
-            if(_webClient->_cmds.size() > 0){
-                cmd = _webClient->_cmds.front();
-                _webClient->_cmds.pop_front();
+                if(_webClient->_cmds.size() > 0){
+                    cmd = _webClient->_cmds.front();
+                    _webClient->_cmds.pop_front();
+                    _webClient->_xBufferLock.unlock(); 
+                    // TODO: check error result and see if we can do anything...
+                    settings_execute_line(cmd.c_str(), *_webClient, AuthenticationLevel::LEVEL_ADMIN);
+                    // Should not call detach, since we still need to send the remaining buffer, so we should not free and clear yet.
+                    _webClient->_done=true; // TODO Forgot to lock mutex...
+
+                }else{
                 _webClient->_xBufferLock.unlock(); 
-                // TODO: check error result and see if we can do anything...
-                settings_execute_line(cmd.c_str(), *_webClient, AuthenticationLevel::LEVEL_ADMIN);
-                // Should not call detach, since we still need to send the remaining buffer, so we should not free and clear yet.
-                _webClient->_done=true; // TODO Forgot to lock mutex...
-
-            }else{
-               _webClient->_xBufferLock.unlock(); 
+                }
             }
-
+            else
+                delay(1); // This should never happen if portMAX_DELAY is trully infinite
         }
     }
 
