@@ -13,7 +13,9 @@ namespace WebUI {
     WebClient webClient;
 
     WebClient::WebClient() : Channel("webclient") {
+        _background_task_queue = xQueueCreate(256, 1); 
         _background_task_handle = nullptr;
+
         xTaskCreatePinnedToCore(background_task,                        // task
                                         "WebClient_background_task",    // name for task
                                         16384,                          // size of task stack
@@ -22,6 +24,11 @@ namespace WebUI {
                                         &_background_task_handle,
                                         SUPPORT_TASK_CORE               // core
         );
+    }
+
+    WebClient::~WebClient() {
+        vTaskDelete(_background_task_handle);
+        vQueueDelete(_background_task_queue);
     }
 
     void WebClient::attachWS(bool silent) {
@@ -72,20 +79,25 @@ namespace WebUI {
         _allocsize=0;
         _buflen=0;
         _done=true;
-        _xBufferLock.unlock();
+        _xBufferLock.unlock(); // here we know we know it was must be locked by us
      }
 
     void WebClient::executeCommandBackground(const char *cmd){
         _xBufferLock.lock();
         _cmds.push_back(std::string(cmd));
+        uint8_t m=1;
+        xQueueSend(_background_task_queue, &m, portTICK_PERIOD_MS*100);
         _xBufferLock.unlock();
     }
 
     void WebClient::background_task(void* pvParameters) {
         WebClient *_webClient = static_cast<WebClient*>(pvParameters);
         std::string cmd;
-        for (; true; delay_ms(1)) {
-        _webClient->_xBufferLock.lock();
+        delay_ms(100);
+        while (true) {
+            uint8_t m;
+            xQueueReceive(_webClient->_background_task_queue, &m, portMAX_DELAY);
+            _webClient->_xBufferLock.lock();
 
             if(_webClient->_cmds.size() > 0){
                 cmd = _webClient->_cmds.front();
@@ -99,9 +111,8 @@ namespace WebUI {
             }else{
                _webClient->_xBufferLock.unlock(); 
             }
-        }
-        Uart0.printf("WebClient::background_task is exiting... should this happen?\n");
 
+        }
     }
 
     size_t WebClient::write(const uint8_t* buffer, size_t length) {
@@ -184,6 +195,4 @@ namespace WebUI {
     void WebClient::sendError(int code, const std::string& line) {
     }
 
-    WebClient::~WebClient() {
-    }
 }

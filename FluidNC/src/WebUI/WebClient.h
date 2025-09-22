@@ -6,6 +6,7 @@
 #include "src/Channel.h"
 #include "src/FileStream.h"
 #include <list>
+#include <freertos/queue.h>
 
 class AsyncWebServerRequest;
 class AsyncWebServerResponse;
@@ -40,7 +41,7 @@ namespace WebUI {
 
         std::mutex              _xBufferLock;
         std::list<std::string> _cmds;
-
+        QueueHandle_t _background_task_queue=nullptr;
     private:
         bool                   _silent      = false;
         static const size_t    BUFLEN       = 2048;
@@ -51,6 +52,8 @@ namespace WebUI {
         FileStream             *_fs         = nullptr;
         bool                   _done        = false;
         TaskHandle_t  _background_task_handle=nullptr;
+
+        bool                   taskLocked=false; // this is to track the _xBackgroundTaskLoop locks to be sure, in case attach or detach are called twice or not called.
         static void background_task(void* pvParameters);
     };
 
