@@ -74,9 +74,6 @@ namespace WebUI {
         _done=true;
         _xBufferLock.unlock();
      }
-    // TODO / bug:
-    // Commands gets locked after a gcode job is running, then web client is put in standby, then resumes and reconnect fine
-    // but then commands are not responding, even after a job stops and even soft reset
 
     void WebClient::executeCommandBackground(const char *cmd){
         _xBufferLock.lock();

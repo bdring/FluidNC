@@ -785,23 +785,9 @@ namespace WebUI {
 
             WSChannels::sendError(getPageid(request), st, getSessionCookie(request));
 
-            if (web_error != 0 && request) { // && request->client().available() > 0) {
+            if (web_error != 0 && request) { 
                 request->send(web_error, "text/xml", st);
             }
-            // Maybe TODO... may no longer be needed
-            /*uint32_t start_time = millis();
-            while ((millis() - start_time) < timeout) {
-                _socket_server->loop();
-                delay_ms(10);
-            }
-
-            if (_socket_serverv3) {
-                start_time = millis();
-                while ((millis() - start_time) < timeout) {
-                    _socket_serverv3->loop();
-                    delay_ms(10);
-                }
-            }*/
         }
     }
 
