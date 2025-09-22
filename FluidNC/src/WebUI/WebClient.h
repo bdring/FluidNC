@@ -12,6 +12,13 @@ class AsyncWebServerRequest;
 class AsyncWebServerResponse;
 
 namespace WebUI {
+    class WebClients {
+    public:
+        static QueueHandle_t _background_task_queue;
+        static TaskHandle_t  _background_task_handle;
+        static void background_task(void* pvParameters);
+    };
+
     class WebClient : public Channel {
     public:
         WebClient();
@@ -41,7 +48,7 @@ namespace WebUI {
 
         std::mutex              _xBufferLock;
         std::list<std::string> _cmds;
-        QueueHandle_t _background_task_queue=nullptr;
+        bool                   _done        = false;
     private:
         bool                   _silent      = false;
         static const size_t    BUFLEN       = 2048;
@@ -50,12 +57,7 @@ namespace WebUI {
         size_t                 _allocsize = 0;
         AsyncWebServerResponse *_response    = nullptr;
         FileStream             *_fs         = nullptr;
-        bool                   _done        = false;
-        TaskHandle_t  _background_task_handle=nullptr;
 
         bool                   taskLocked=false; // this is to track the _xBackgroundTaskLoop locks to be sure, in case attach or detach are called twice or not called.
-        static void background_task(void* pvParameters);
     };
-
-    extern WebClient webClient;
 }
