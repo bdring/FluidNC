@@ -14,7 +14,9 @@
 namespace WebUI {
     class WSChannels;
 
-    WSChannel::WSChannel(AsyncWebSocket* server, uint32_t clientNum, std::string session) : Channel("websocket"), _server(server), _clientNum(clientNum), _session(session) {}
+    WSChannel::WSChannel(AsyncWebSocket* server, uint32_t clientNum, std::string session) : Channel("websocket"), _server(server), _clientNum(clientNum), _session(session) {
+        setReportInterval(200); // for testing async reconnections...
+    }
 
     void WSChannel::active(bool is_active){
         _active=is_active;
