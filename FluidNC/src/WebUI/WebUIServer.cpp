@@ -62,14 +62,9 @@ namespace WebUI {
     UploadStatus      WebUI_Server::_upload_status   = UploadStatus::NONE;
     AsyncWebServer*        WebUI_Server::_webserver       = NULL;
     AsyncWebServer*     WebUI_Server::_websocketserver       = NULL;
-    AsyncWebServer*     WebUI_Server::_websocketserverv3       = NULL;
     AsyncHeaderFreeMiddleware* WebUI_Server::_headerFilter = NULL;
     AsyncWebSocket* WebUI_Server::_socket_server = NULL;
-    AsyncWebSocket* WebUI_Server::_socket_serverv3 = NULL;
     std::string WebUI_Server::current_session = "";
-   // AsyncWebSocketsServer* WebUI_Server::_socket_server   = NULL;
-   // AsyncWebSocketsServer* WebUI_Server::_socket_serverv3 = NULL;
-    // std::map<std::string, FileStream*> WebUI_Server::_fileStreams;
 #ifdef ENABLE_AUTHENTICATION
     AuthenticationIP* WebUI_Server::_head  = NULL;
     uint8_t           WebUI_Server::_nb_ip = 0;
@@ -123,7 +118,7 @@ namespace WebUI {
         //here the list of headers to be recorded
         _headerFilter->keep("If-None-Match");
         
-        //For websockets, otherwise this wouldn't work!
+        //For websockets we need to keep these headers, otherwise this wouldn't work!
         _headerFilter->keep("Upgrade");
         _headerFilter->keep("Connection");
         _headerFilter->keep("Sec-WebSocket-Key");
@@ -133,33 +128,26 @@ namespace WebUI {
         
         _webserver->addMiddlewares({_headerFilter});
         
-        //_websocketserver = new AsyncWebServer(_port+1);
-        //_socket_server = new AsyncWebSocket("/wsv2"); // WebSocketsServer(_port + 1);
-        // Websocket can share the same path as other requests, this allow to not change the index.html.gz for webui3 in this case, but
-        // v2 would still need to be changed
-        //_websocketserverv3 = new AsyncWebServer(_port+2);
-        _socket_serverv3 = new AsyncWebSocket("/"); //new WebSocketsServer(_port + 2, "", "webui-v3");
+        // The only major difference with websockets for v2 webui vs v3 seems to be the currentID vs CURRENT_ID and activeID vs ACTIVE_ID
+        // In order to only have one websocket server (for simplicity and maintability reasons) we could:
+        // 1 - Send both messages types all the time
+        // 2 - Don't do anything and just send v3 payloads, since at this point it seems we don't rely on this pageId mechanism anymore with
+        // our async and cookie session implementation
+        // 3 - Remove all of these active and current IDs altogether since again, we may have no need for this anymore
+        // 4 - Potentially check for a difference in requests headers of v2 vs v3 to dynamically send the proper payload in the same handler
+        // For now, I've settled with #3
+        _socket_server = new AsyncWebSocket("/"); //new WebSocketsServer(_port + 2, "", "webui-v3");
         
-        // _socket_server->onEvent([](AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventType type, void *arg, uint8_t *data, size_t len) {
-        //     WSChannels::handleEvent(server, client, type, arg, data, len);
-        // });
-
-        _socket_serverv3->addMiddleware([](AsyncWebServerRequest *request, ArMiddlewareNext next) {
+        _socket_server->addMiddleware([](AsyncWebServerRequest *request, ArMiddlewareNext next) {
             current_session = getSessionCookie(request);
             next();  // continue middleware chain
         });
-        // Passing the current_session globally, lets hope there is no async swich back of other requests to change this in between 
-        _socket_serverv3->onEvent([](AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventType type, void *arg, uint8_t *data, size_t len) {
-             WSChannels::handlev3Event(server, client, type, arg, data, len, current_session);
+        // Passing the current_session globally, lets hope there is no async switch back of other requests to change this in between 
+        _socket_server->onEvent([](AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventType type, void *arg, uint8_t *data, size_t len) {
+             WSChannels::handleEvent(server, client, type, arg, data, len, current_session);
         });
 
-        //_webserver->addHandler(_socket_server);
-        _webserver->addHandler(_socket_serverv3);
-        //_websocketserverv3->addHandler(_socket_serverv3);
-        //_websocketserverv3->begin();
-
-        //_socket_serverv3->begin();
-        //_socket_serverv3->onEvent(handle_Websocketv3_Event);
+        _webserver->addHandler(_socket_server);
 
         //events functions
         //_web_events->onConnect(handle_onevent_connect);
@@ -228,11 +216,6 @@ namespace WebUI {
             _socket_server = NULL;
         }
 
-        if (_socket_serverv3) {
-            delete _socket_serverv3;
-            _socket_serverv3 = NULL;
-        }
-
         if (_webserver) {
             delete _webserver;
             _webserver = NULL;
@@ -243,18 +226,10 @@ namespace WebUI {
             _websocketserver = NULL;
         }
 
-            if (_websocketserverv3) {
-            delete _websocketserverv3;
-            _websocketserverv3 = NULL;
-        }
-
         if (_headerFilter) {
             delete _headerFilter;
             _headerFilter = NULL;
         }
-        // for (auto it = _fileStreams.begin(); it != _fileStreams.end(); ++it) {
-        //         delete it->second;
-        // }
 
 #ifdef ENABLE_AUTHENTICATION
         while (_head) {
@@ -265,25 +240,6 @@ namespace WebUI {
         _nb_ip = 0;
 #endif
     }
-
-    // FileStream* WebUI_Server::getFileStream(const char *path){
-    //     FileStream *fs;
-    //     try{
-    //         fs = _fileStreams.at(std::string(path));
-    //         // Position is now set in the response stream handler fo reach chunk
-    //         //fs->set_position(0);
-    //         //log_info("Reusing existing FileStream");
-    //         return fs;
-
-
-    //     } catch (std::out_of_range& oor) {
-    //         fs = new FileStream(path, "r", "");
-    //         //log_info("Creating new FileStream");
-    //         if(fs)
-    //             _fileStreams[std::string(path)]=fs;
-    //         return fs;
-    //     }
-    // }
 
     std::string  WebUI_Server::getSessionCookie(AsyncWebServerRequest *request){
         if(request->hasHeader("Cookie"))
@@ -427,44 +383,13 @@ namespace WebUI {
         if (hash.length()) {
             response->addHeader("ETag", hash.c_str());
         }
-        // content lengtgh is set automatically
-        //response->setContentLength(file->size());
+        // content length is set automatically
+        // response->setContentLength(file->size());
         if (isGzip) {
             response->addHeader("Content-Encoding", "gzip");
         }
         request->send(response);
 
-
-// v1
-
-        // // Should find a better way... the map of path and filestream will work single user only
-        // AsyncWebServerResponse *response = request->beginResponse(*file, getContentType(path), file->size());
-        // //request->_tempObject = file;
-        // response->addHeader("Content-Encoding", "gzip");
-        
-        // if (download) {
-        //     response->addHeader("Content-Disposition", "attachment");
-        // }
-        // if (hash.length()) {
-        //     response->addHeader("ETag", hash.c_str());
-        // }
-        // response->setContentLength(file->size());
-        // if (isGzip) {
-        //     response->addHeader("Content-Encoding", "gzip");
-        // }
-
-
-        // //_webserver->send(200, getContentType(path), "");
-        
-
-        // // This depends on the fact that FileStream inherits from Stream
-        // // The Arduino implementation of WiFiClient::write(Stream*) just
-        // // reads repetitively from the stream in 1360-byte chunks and
-        // // sends the data over the TCP socket. so nothing special.
-        // //request->client().write(*file);
-        // request->send(response);
-
-        //delete file;
         return true;
     }
     void WebUI_Server::sendWithOurAddress(AsyncWebServerRequest *request, const char* content, int code) {
@@ -1340,19 +1265,8 @@ namespace WebUI {
         if (WiFi.getMode() == WIFI_AP) {
             dnsServer.processNextRequest();
         }
-        /*if (_webserver) {
-            _webserver->handleClient();
-        }
-        if (_socket_server && _setupdone) {
-            _socket_server->loop();
-        }
-        if (_socket_serverv3 && _setupdone) {
-            _socket_serverv3->loop();
-        }*/
-     //   _socket_serverv3->cleanupClients();
         if ((millis() - start_time) > 10000) {
-            //_socket_server->cleanupClients();
-            _socket_serverv3->cleanupClients();
+            _socket_server->cleanupClients();
             WSChannels::sendPing();
             start_time = millis();
 
