@@ -228,7 +228,7 @@ namespace WebUI {
                     allChannels.registration(wsChannel);
                     _wsChannels[num] = wsChannel;
                     _wsChannelsBySession[session] = wsChannel;
-                    log_info_to(Uart0, "WebSocket cid#" << num << " from " << ip << " uri " << uri << " session " << session << " total " << _wsChannels.size());
+                    log_info_to(Uart0, "WebSocket connect cid#" << num << " from " << ip << " uri " << uri << " session " << session << " total " << _wsChannels.size());
                 }
             } break;
             case WS_EVT_DATA: {
