@@ -498,17 +498,20 @@ namespace WebUI {
         strncpy(line, cmd, 255);
         AsyncWebServerResponse *response;
         if(request->methodToString() == "GET"){
-            webClient.attachWS(silent);
-            webClient.executeCommandBackground(line);
-            response = request->beginChunkedResponse("", [request](uint8_t *buffer, size_t maxLen, size_t total) mutable -> size_t {
+            WebClient *webClient = new WebClient();
+            webClient->attachWS(silent);
+            webClient->executeCommandBackground(line);
+            response = request->beginChunkedResponse("", [webClient, request](uint8_t *buffer, size_t maxLen, size_t total) mutable -> size_t {
                 // The method can change before the end... not good
                 //if(request->methodToString() != "GET")
                 //    return 0;
-                int res = webClient.copyBufferSafe(buffer, min((int)maxLen, 1024), total);
+                int res = webClient->copyBufferSafe(buffer, min((int)maxLen, 1024), total);
                 return res;
             });
-            request->onDisconnect( []() {
-                webClient.detachWS();
+            request->onDisconnect( [webClient]() {
+                webClient->detachWS();
+                allChannels.kill(webClient);
+                //delete webClient;
             });
         }
         else

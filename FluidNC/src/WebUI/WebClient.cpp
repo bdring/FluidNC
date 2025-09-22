@@ -10,25 +10,55 @@
 #include "Authentication.h"  // Auth levels
 
 namespace WebUI {
-    WebClient webClient;
+    QueueHandle_t WebClients::_background_task_queue=nullptr;
+    TaskHandle_t  WebClients::_background_task_handle=nullptr;
+
+    void WebClients::background_task(void* pvParameters) {
+        std::string cmd;
+        while (true) {
+            WebClient *_webClient;
+            xQueueReceive(_background_task_queue, &_webClient, portMAX_DELAY);
+            _webClient->_xBufferLock.lock();
+
+            if(_webClient->_cmds.size() > 0){
+                cmd = _webClient->_cmds.front();
+                _webClient->_cmds.pop_front();
+                _webClient->_xBufferLock.unlock(); 
+                // TODO: check error result and see if we can do anything...
+                settings_execute_line(cmd.c_str(), *_webClient, AuthenticationLevel::LEVEL_ADMIN);
+                // Should not call detach, since we still need to send the remaining buffer, so we should not free and clear yet.
+                _webClient->_done=true; // TODO Forgot to lock mutex...
+
+            }else{
+               _webClient->_xBufferLock.unlock(); 
+            }
+
+        }
+    }
 
     WebClient::WebClient() : Channel("webclient") {
-        _background_task_queue = xQueueCreate(256, 1); 
-        _background_task_handle = nullptr;
-
-        xTaskCreatePinnedToCore(background_task,                        // task
-                                        "WebClient_background_task",    // name for task
-                                        16384,                          // size of task stack
-                                        this,                           // parameters
-                                        1,                              // priority
-                                        &_background_task_handle,
-                                        SUPPORT_TASK_CORE               // core
-        );
+        //Uart0.printf("WebClient::WebClient()\n");
+        if(WebClients::_background_task_queue==nullptr) // If we are the first instanciation ever, create the event queue
+            WebClients::_background_task_queue = xQueueCreate(64, sizeof(WebClient*)); 
+        if(WebClients::_background_task_handle == nullptr){ // Same here, create the unique background task
+            xTaskCreatePinnedToCore(WebClients::background_task,                        // task
+                                            "WebClient_background_task",    // name for task
+                                            16384,                          // size of task stack
+                                            NULL,                           // parameters
+                                            1,                              // priority
+                                            &WebClients::_background_task_handle,
+                                            SUPPORT_TASK_CORE               // core
+            );
+        }
     }
 
     WebClient::~WebClient() {
-        vTaskDelete(_background_task_handle);
-        vQueueDelete(_background_task_queue);
+        //vTaskDelete(_background_task_handle);
+        //vQueueDelete(_background_task_queue);
+        // this needs to be called externally apparently, and only .kill() works to avoid leaks, and we should not free / delete our object
+        //allChannels.deregistration(this);
+        //allChannels.kill(this);
+        //Uart0.printf("WebClient::~WebClient()\n");
     }
 
     void WebClient::attachWS(bool silent) {
@@ -79,40 +109,15 @@ namespace WebUI {
         _allocsize=0;
         _buflen=0;
         _done=true;
-        _xBufferLock.unlock(); // here we know we know it was must be locked by us
+        _xBufferLock.unlock();
      }
 
     void WebClient::executeCommandBackground(const char *cmd){
         _xBufferLock.lock();
         _cmds.push_back(std::string(cmd));
-        uint8_t m=1;
-        xQueueSend(_background_task_queue, &m, portTICK_PERIOD_MS*100);
+        WebClient *_this = this;
+        xQueueSend(WebClients::_background_task_queue, &_this, portTICK_PERIOD_MS*100);
         _xBufferLock.unlock();
-    }
-
-    void WebClient::background_task(void* pvParameters) {
-        WebClient *_webClient = static_cast<WebClient*>(pvParameters);
-        std::string cmd;
-        delay_ms(100);
-        while (true) {
-            uint8_t m;
-            xQueueReceive(_webClient->_background_task_queue, &m, portMAX_DELAY);
-            _webClient->_xBufferLock.lock();
-
-            if(_webClient->_cmds.size() > 0){
-                cmd = _webClient->_cmds.front();
-                _webClient->_cmds.pop_front();
-                _webClient->_xBufferLock.unlock(); 
-                // TODO: check error result and see if we can do anything...
-                settings_execute_line(cmd.c_str(), *_webClient, AuthenticationLevel::LEVEL_ADMIN);
-                // Should not call detach, since we still need to send the remaining buffer, so we should not free and clear yet.
-                _webClient->_done=true; // TODO Forgot to lock mutex...
-
-            }else{
-               _webClient->_xBufferLock.unlock(); 
-            }
-
-        }
     }
 
     size_t WebClient::write(const uint8_t* buffer, size_t length) {
