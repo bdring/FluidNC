@@ -66,11 +66,6 @@ namespace WebUI {
             out    = (uint8_t*)_output_line.c_str();
             outlen = _output_line.length();
         }
-        // logging to uart0 causes the esp to crash and reboot (because of watchdog) when running a longer return command such as $$...
-        // not too sure why, I guess this may be the watchdog short timeout and by deasign, but perhaps there is something wrong with the code integrity
-        // after all the async migration, or it is just something that gets called recursivelly somehow in parent Channels... 
-        // should be tried in original non async code to confirm
-
         // With the session cookie we no longer need to broadcast to all
         //_server->binaryAll(out, outlen);
         if (!_server->binary(_clientNum, out, outlen)) {
@@ -105,7 +100,8 @@ namespace WebUI {
         }
         Channel::autoReport();
     }
-        static AsyncWebSocket *_server;
+    
+    static AsyncWebSocket *_server;
     WSChannel::~WSChannel() {}
 
     std::map<uint32_t, WSChannel*> WSChannels::_wsChannels;
