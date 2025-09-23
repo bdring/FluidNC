@@ -119,7 +119,7 @@ namespace WebUI {
         _headerFilter->keep("Cookie");
         //here the list of headers to be recorded
         _headerFilter->keep("If-None-Match");
-        
+       
         //For websockets we need to keep these headers, otherwise this wouldn't work!
         _headerFilter->keep("Upgrade");
         _headerFilter->keep("Connection");
@@ -541,8 +541,7 @@ namespace WebUI {
         }
         std::string session = getSessionCookie(request);
         bool hasError = WSChannels::runGCode(pageid, cmd, session);
-        //request->send(hasError ? 500 : 200, "text/plain", hasError ? "WebSocket dead" : "");
-        request->send(200, "text/plain", "");
+        request->send(hasError ? 500 : 200, "text/plain", hasError ? "WebSocket dead" : "");
     }
     void WebUI_Server::_handle_web_command(AsyncWebServerRequest *request, bool silent) {
         AuthenticationLevel auth_level = is_authenticated();
@@ -553,22 +552,12 @@ namespace WebUI {
             else
                 cmd = request->getParam("commandText")->value();
             // [ESPXXX] commands expect data in the HTTP response
-            // New:
-            // Currently, the Async implementation has a limited websocket queue length
-            // and so command like $ESP400 (which works very well (but blocks) in previous non async version)
-            // run out of queue limit, since when they are processed in a loop
-            // the async implementation does not process anything in background until "some time"...
-            // A similar approach to new WebClient background task could be used
-            // but this is starting to look like the approach is not adequate.
-            // Fow now also include commands starting with $ESP, webui3 (and webui2 so far) seems
-            // to handle them and show the results from a get just fine.
-            // It would make sense to use websockets only for server initiated events, and rely on normal http
-            // request / response mechanism for client initiated demands, even if requests are long to process
-            // it does not matter in an async workflow, this should be a similar resources cost as the websocket
-            // connection cost over a long time
             String cmdUpper = cmd;
             cmdUpper.toUpperCase();
-            if (cmdUpper.startsWith("[ESP") || cmdUpper.startsWith("$/") || cmdUpper.startsWith("$ESP")) {
+            // Modified async hack // no longer needed...
+            //if (cmdUpper.startsWith("[ESP") || cmdUpper.startsWith("$/") || cmdUpper.startsWith("$ESP") {
+            // Original check (now also work with $ESP400, but is slower than if it was returned as http response)
+            if (cmdUpper.startsWith("[ESP") || cmdUpper.startsWith("$/") ) {
                 synchronousCommand(request, cmd.c_str(), silent, auth_level);
             } else {
                 websocketCommand(request, cmd.c_str(), -1, auth_level);  // We dont support or need PAGEID anymore

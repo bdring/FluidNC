@@ -16,6 +16,7 @@ namespace WebUI {
 
     WSChannel::WSChannel(AsyncWebSocket* server, uint32_t clientNum, std::string session) : Channel("websocket"), _server(server), _clientNum(clientNum), _session(session) {
         setReportInterval(200); // for testing async reconnections...
+        _server->client(_clientNum)->setCloseClientOnQueueFull(false);
     }
 
     void WSChannel::active(bool is_active){
@@ -68,11 +69,23 @@ namespace WebUI {
         }
         // With the session cookie we no longer need to broadcast to all
         //_server->binaryAll(out, outlen);
-        if (!_server->binary(_clientNum, out, outlen)) {
-             _active =  false;
+        
+        // For commands like $esp400, buffering multiple lines into one websocket message would be faster,
+        // however we don't get any event when the command response is completed,
+        // some commands respond with "ok" at the end, but not all of them.
+        // Also, for larges response commands (again like $esp400), there is just too many lines
+        // in the response (>32KB of json), so we need to check if the websocket buffer is full before continuing
+        // The delay seems to do the trick.
+        // It would be a lot better to always force these commands to return as a http response instead of websocket,
+        // however, Webui(3) expects the command $$ to come back from a websocket, which is at least one reason why we can't send all back as a http response 
+        while(_server->client(_clientNum) && _server->client(_clientNum)->queueLen()>= WS_MAX_QUEUED_MESSAGES/2-4){ // Not sure if the queue len is global and this is per client, leaving some room for other requests
+            delay(10);
         }
-        //if(_output_line == "$10=1\n")
-        //    _server->binaryAll(std::string("ok\n").c_str(), 3);
+        if (!_server->binary(_clientNum, out, outlen)) {
+
+            _active =  false;
+        }
+
         if (_output_line.length()) {
             _output_line = "";
         }
@@ -85,8 +98,6 @@ namespace WebUI {
             return false;
         }
 
-        // With the session cookie we no longer need to broadcast to all
-        //_server->textAll(s.c_str());
         if (!_server->text(_clientNum, s.c_str())) {
             _active = false;
             return false;
@@ -170,7 +181,6 @@ namespace WebUI {
                     std::string _cmd = std::string(cmd);
                     if (_cmd.back() != '\n')
                         _cmd+='\n';
-                    //settings_execute_line(_cmd.c_str(), *wsChannel, AuthenticationLevel::LEVEL_ADMIN);
                     wsChannel->push(cmd);
                     if (cmd.back() != '\n') {
                         wsChannel->push('\n');
