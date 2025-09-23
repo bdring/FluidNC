@@ -71,6 +71,8 @@ namespace WebUI {
         static uint16_t          _port;
         static UploadStatus      _upload_status;
         static FileStream*       _uploadFile;
+        static bool     schedule_reboot;
+        static uint32_t schedule_reboot_time;
 
         static const char* getContentType(const char* filename);
 
@@ -108,7 +110,7 @@ namespace WebUI {
 
         static bool myStreamFile(AsyncWebServerRequest *request, const char* path, bool download = false, bool setSession = false);
 
-        static void pushError(AsyncWebServerRequest *request, int code, const char* st, bool web_error = 500, uint16_t timeout = 1000);
+        static void pushError(AsyncWebServerRequest *request, int code, const char* st, int web_error = 500, uint16_t timeout = 1000);
         static void cancelUpload(AsyncWebServerRequest *request);
         static void handleFileOps(AsyncWebServerRequest *request, const char* mountpoint);
         static void handle_direct_SDFileList(AsyncWebServerRequest *request);

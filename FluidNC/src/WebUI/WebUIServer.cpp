@@ -58,6 +58,8 @@ namespace WebUI {
 
     bool     WebUI_Server::_setupdone = false;
     uint16_t WebUI_Server::_port      = 0;
+    bool     WebUI_Server::schedule_reboot = false;
+    uint32_t WebUI_Server::schedule_reboot_time = 0;
 
     UploadStatus      WebUI_Server::_upload_status   = UploadStatus::NONE;
     AsyncWebServer*        WebUI_Server::_webserver       = NULL;
@@ -788,7 +790,7 @@ namespace WebUI {
     }
 
     // push error code and message to websocket.  Used by upload code
-    void WebUI_Server::pushError(AsyncWebServerRequest *request, int code, const char* st, bool web_error, uint16_t timeout) {
+    void WebUI_Server::pushError(AsyncWebServerRequest *request, int code, const char* st, int web_error, uint16_t timeout) {
         if (_socket_server && st) {
             std::string s("ERROR:");
             s += std::to_string(code) + ":";
@@ -836,7 +838,7 @@ namespace WebUI {
     }
 
     void WebUI_Server::sendJSON(AsyncWebServerRequest *request, int code, const char* s) {
-        AsyncWebServerResponse *response = request->beginResponse(200, "application/json", s);
+        AsyncWebServerResponse *response = request->beginResponse(code, "application/json", s);
         response->addHeader("Cache-Control", "no-cache");
         request->send(response);
     }
@@ -885,13 +887,13 @@ namespace WebUI {
             return;
         }
 
-        sendStatus(request, 200, std::to_string(int(_upload_status)).c_str());
-
         //if success restart
         if (_upload_status == UploadStatus::SUCCESSFUL) {
-            delay_ms(1000);
-            protocol_send_event(&fullResetEvent);
+            sendStatus(request, 200, std::to_string(int(_upload_status)).c_str());
+            schedule_reboot_time=millis()+1000;
+            schedule_reboot=true;
         } else {
+            sendStatus(request, 200, std::to_string(int(_upload_status)).c_str());
             _upload_status = UploadStatus::NONE;
         }
     }
@@ -899,7 +901,7 @@ namespace WebUI {
     //File upload for Web update
     void WebUI_Server::WebUpdateUpload(AsyncWebServerRequest *request, String filename, size_t index, uint8_t *data, size_t len, bool final) {
         static size_t   last_upload_update;
-        static uint32_t maxSketchSpace = 0;
+        static uint32_t maxSketchSpace = UINT32_MAX;
 
         //only admin can update FW
         if (is_authenticated() != AuthenticationLevel::LEVEL_ADMIN) {
@@ -908,91 +910,77 @@ namespace WebUI {
             sendAuthFailed(request);
             //pushError(request, ESP_ERROR_AUTHENTICATION, "Upload rejected", 401);
         } 
-        else{request->send(500,"text/plain", "Not yet reimplemented in AsyncWebServer... coming soon!");}
-        // TODO
-        // else {
-        //     //get current file ID
-        //     HTTPUpload& upload = _webserver->upload();
-        //     if ((_upload_status != UploadStatus::FAILED) || (upload.status == UPLOAD_FILE_START)) {
-        //         //Upload start
-        //         //**************
-        //         if (upload.status == UPLOAD_FILE_START) {
-        //             log_info("Update Firmware");
-        //             _upload_status = UploadStatus::ONGOING;
-        //             std::string sizeargname(upload.filename.c_str());
-        //             sizeargname += "S";
-        //             if (_webserver->hasArg(sizeargname.c_str())) {
-        //                 maxSketchSpace = _webserver->arg(sizeargname.c_str()).toInt();
-        //             }
-        //             //check space
-        //             size_t flashsize = 0;
-        //             if (esp_ota_get_running_partition()) {
-        //                 const esp_partition_t* partition = esp_ota_get_next_update_partition(NULL);
-        //                 if (partition) {
-        //                     flashsize = partition->size;
-        //                 }
-        //             }
-        //             if (flashsize < maxSketchSpace) {
-        //                 pushError(ESP_ERROR_NOT_ENOUGH_SPACE, "Upload rejected, not enough space");
-        //                 _upload_status = UploadStatus::FAILED;
-        //                 log_info("Update cancelled");
-        //             }
-        //             if (_upload_status != UploadStatus::FAILED) {
-        //                 last_upload_update = 0;
-        //                 if (!Update.begin()) {  //start with max available size
-        //                     _upload_status = UploadStatus::FAILED;
-        //                     log_info("Update cancelled");
-        //                     pushError(ESP_ERROR_NOT_ENOUGH_SPACE, "Upload rejected, not enough space");
-        //                 } else {
-        //                     log_info("Update 0%");
-        //                 }
-        //             }
-        //             //Upload write
-        //             //**************
-        //         } else if (upload.status == UPLOAD_FILE_WRITE) {
-        //             delay_ms(1);
-        //             //check if no error
-        //             if (_upload_status == UploadStatus::ONGOING) {
-        //                 if (((100 * upload.totalSize) / maxSketchSpace) != last_upload_update) {
-        //                     if (maxSketchSpace > 0) {
-        //                         last_upload_update = (100 * upload.totalSize) / maxSketchSpace;
-        //                     } else {
-        //                         last_upload_update = upload.totalSize;
-        //                     }
+        else{
+            //Upload start
+            //**************
+            if (!index) { //upload.status == UPLOAD_FILE_START) {
+                log_info("Update Firmware");
+                _upload_status = UploadStatus::ONGOING;
+                std::string sizeargname(filename.c_str());
+                sizeargname += "S";
+                if (request->hasParam(sizeargname.c_str()))
+                    maxSketchSpace = request->getParam(sizeargname.c_str())->value().toInt();
+                else if(request->hasHeader("Content-Length"))
+                    maxSketchSpace = request->getHeader("Content-Length")->value().toInt();
+                //check space
+                size_t flashsize = 0;
+                if (esp_ota_get_running_partition()) {
+                    const esp_partition_t* partition = esp_ota_get_next_update_partition(NULL);
+                    if (partition) {
+                        flashsize = partition->size;
+                    }
+                }
+                if (flashsize < maxSketchSpace) {
+                    String msg = String("Upload rejected, not enough space (needs " + String(maxSketchSpace) + ", has " + String(flashsize));
+                    pushError(request, ESP_ERROR_NOT_ENOUGH_SPACE, msg.c_str());
+                    _upload_status = UploadStatus::FAILED;
+                    log_info("Update cancelled");
+                }
+                if (_upload_status != UploadStatus::FAILED) {
+                    last_upload_update = 0;
+                    if (!Update.begin()) {  //start with max available size
+                        _upload_status = UploadStatus::FAILED;
+                        log_info("Update cancelled");
+                        pushError(request, ESP_ERROR_NOT_ENOUGH_SPACE, "Upload rejected, not enough space");
+                    } else {
+                        log_info("Update 0%");
+                    }
+                }
 
-        //                     log_info("Update " << last_upload_update << "%");
-        //                 }
-        //                 if (Update.write(upload.buf, upload.currentSize) != upload.currentSize) {
-        //                     _upload_status = UploadStatus::FAILED;
-        //                     log_info("Update write failed");
-        //                     pushError(ESP_ERROR_FILE_WRITE, "File write failed");
-        //                 }
-        //             }
-        //             //Upload end
-        //             //**************
-        //         } else if (upload.status == UPLOAD_FILE_END) {
-        //             if (Update.end(true)) {  //true to set the size to the current progress
-        //                 //Now Reboot
-        //                 log_info("Update 100%");
-        //                 _upload_status = UploadStatus::SUCCESSFUL;
-        //             } else {
-        //                 _upload_status = UploadStatus::FAILED;
-        //                 log_info("Update failed");
-        //                 pushError(ESP_ERROR_UPLOAD, "Update upload failed");
-        //             }
-        //         } else if (upload.status == UPLOAD_FILE_ABORTED) {
-        //             log_info("Update failed");
-        //             _upload_status = UploadStatus::FAILED;
-        //             return;
-        //         }
-        //     }
-        // }
+            } 
+            //Upload write
+            //**************
+            //check if no error
+            if (_upload_status == UploadStatus::ONGOING) {
+                if (((100 * index) / maxSketchSpace) != last_upload_update) {
+                    if (maxSketchSpace > 0) {
+                        last_upload_update = (100 * index) / maxSketchSpace;
+                    } else {
+                        last_upload_update = index;
+                    }
 
-        // if (_upload_status == UploadStatus::FAILED) {
-        //     cancelUpload();
-        //     Update.end();
-        // }
-        return;
+                    log_info("Update " << last_upload_update << "%");
+                }
+                if (Update.write(data, len) != len) {
+                    _upload_status = UploadStatus::FAILED;
+                    log_info("Update write failed");
+                    pushError(request, ESP_ERROR_FILE_WRITE, "File write failed");
+                }
+            }
+            //Upload end
+            //**************
+            if (final) {
+                if (_upload_status == UploadStatus::ONGOING && Update.end(true)) {  //true to set the size to the current progress
+                    //Now Reboot
+                    log_info("Update 100%");
+                    _upload_status = UploadStatus::SUCCESSFUL;
+                } else {
+                    _upload_status = UploadStatus::FAILED;
+                    log_info("Update failed");
+                    pushError(request, ESP_ERROR_UPLOAD, "Update upload failed");
+                }
+            } 
+        }
     }
 
     void WebUI_Server::handleFileOps(AsyncWebServerRequest *request, const char* fs) {
@@ -1255,7 +1243,14 @@ namespace WebUI {
         if (WiFi.getMode() == WIFI_AP) {
             dnsServer.processNextRequest();
         }
+        if(schedule_reboot and schedule_reboot_time == millis())
+        {
+            schedule_reboot=false;
+            protocol_send_event(&fullResetEvent);
+        }
         if ((millis() - start_time) > 10000) {
+            uint32_t heapsize = xPortGetFreeHeapSize();
+            //Uart0.printf("Memory: %d\n", heapsize);
             _socket_server->cleanupClients();
             WSChannels::sendPing();
             start_time = millis();
