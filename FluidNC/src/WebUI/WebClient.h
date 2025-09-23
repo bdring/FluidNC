@@ -51,7 +51,7 @@ namespace WebUI {
         bool                   _done        = false;
     private:
         bool                   _silent      = false;
-        static const size_t    BUFLEN       = 2048;
+        static const size_t    BUFLEN       = 1024;
         char                   *_buffer = nullptr; //[BUFLEN];
         size_t                 _buflen = 0;
         size_t                 _allocsize = 0;

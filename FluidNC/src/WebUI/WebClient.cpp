@@ -148,7 +148,7 @@ namespace WebUI {
             }
             else
             {
-                _allocsize = _allocsize + ((length / 512 + 1)*512);
+                _allocsize = _allocsize + ((length / 256 + 1)*256);
                 char * new_buffer = (char*)realloc((void*)_buffer, _allocsize);
                 if(!new_buffer){
                     log_info_to(Uart0, "Not enough memory!" << _allocsize);
