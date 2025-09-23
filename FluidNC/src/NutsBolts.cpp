@@ -159,7 +159,7 @@ float convert_delta_vector_to_unit_vector(float* v) {
 
 const float secPerMinSq = 60.0 * 60.0;  // Seconds Per Minute Squared, for acceleration conversion
 
-float limit_acceleration_by_axis_maximum(float* unit_vec, bool is_jog) {
+float limit_acceleration_by_axis_maximum(float* unit_vec) {
     float limit_value = SOME_LARGE_VALUE;
     auto  n_axis      = Axes::_numberAxis;
     for (size_t idx = 0; idx < n_axis; idx++) {
@@ -172,9 +172,6 @@ float limit_acceleration_by_axis_maximum(float* unit_vec, bool is_jog) {
     // but used in units of mm/min^2.  It suffices to perform the conversion once on
     // exit, since the limit computation above is independent of units - it simply
     // finds the smallest value.
-    if(is_jog)
-        limit_value=limit_value/Axes::_jogAccelerationDivisor;
-
     return limit_value * secPerMinSq;
 }
 
