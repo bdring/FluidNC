@@ -14,7 +14,7 @@
 #include "src/Main.h"
 
 #include "WebUIServer.h"             // Web_Server::port()
-//#include "TelnetServer.h"          // TelnetServer::port()
+#include "TelnetServer.h"          // TelnetServer::port()
 #include "NotificationsService.h"  // notificationsservice
 
 #include <WiFi.h>
@@ -225,7 +225,7 @@ namespace WebUI {
                 j.id_value_object("Available Size for update", formatBytes(flashsize));
                 j.id_value_object("Available Size for LocalFS", formatBytes(localfs_size()));
                 j.id_value_object("Web port", WebUI_Server::port());
-                //j.id_value_object("Data port", TelnetServer::port());
+                j.id_value_object("Data port", TelnetServer::port());
                 j.id_value_object("Hostname", WiFi.getHostname());
             }
 
