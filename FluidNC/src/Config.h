@@ -49,7 +49,7 @@ const int SUPPORT_TASK_CORE = 0;  // Reference: CONFIG_ARDUINO_RUNNING_CORE = 1
 // Serial baud rate
 // OK to change, but the ESP32 boot text is 115200, so you will not see that is your
 // serial monitor, sender, etc uses a different value than 115200
-const int BAUD_RATE = 115200*1;
+const int BAUD_RATE = 115200;
 
 //Connect to your local AP with these credentials
 //#define CONNECT_TO_SSID  "your SSID"
