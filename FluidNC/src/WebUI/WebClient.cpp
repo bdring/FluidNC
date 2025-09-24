@@ -53,14 +53,7 @@ namespace WebUI {
         }
     }
 
-    WebClient::~WebClient() {
-        //vTaskDelete(_background_task_handle);
-        //vQueueDelete(_background_task_queue);
-        // this needs to be called externally apparently, and only .kill() works to avoid leaks, and we should not free / delete our object
-        //allChannels.deregistration(this);
-        //allChannels.kill(this);
-        //Uart0.printf("WebClient::~WebClient()\n");
-    }
+    WebClient::~WebClient() {}
 
     void WebClient::attachWS(bool silent) {
         _silent = silent;
