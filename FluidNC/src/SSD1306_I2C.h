@@ -59,7 +59,7 @@ public:
         }
 
         // If the minBoundY wasn't updated
-        // we can savely assume that buffer_back[pos] == buffer[pos]
+        // we can safely assume that buffer_back[pos] == buffer[pos]
         // holdes true for all values of pos
 
         if (minBoundY == UINT8_MAX)

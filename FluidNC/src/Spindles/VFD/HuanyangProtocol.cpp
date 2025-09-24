@@ -56,7 +56,7 @@
 
     Manuals: https://github.com/RobertOlechowski/Huanyang_VFD/tree/master/Documentations/pdf
     Reference: https://github.com/Smoothieware/Smoothieware/blob/edge/src/modules/tools/spindle/HuanyangSpindleControl.cpp
-    Refernece: https://gist.github.com/Bouni/803492ed0aab3f944066
+    Reference: https://gist.github.com/Bouni/803492ed0aab3f944066
     VFD settings: https://www.hobbytronics.co.za/Content/external/1159/Spindle_Settings.pdf
     Spindle Talker 2 https://github.com/GilchristT/SpindleTalker2/releases
     Python https://github.com/RobertOlechowski/Huanyang_VFD
@@ -103,8 +103,8 @@
     Status registers
     Addr    Read    Len     Reg     DataH   DataL   CRC     CRC
     0x01    0x04    0x03    0x00    0x00    0x00    CRC     CRC     //  Set Frequency * 100 (25Hz = 2500)
-    0x01    0x04    0x03    0x01    0x00    0x00    CRC     CRC     //  Ouput Frequency * 100
-    0x01    0x04    0x03    0x02    0x00    0x00    CRC     CRC     //  Ouput Amps * 10
+    0x01    0x04    0x03    0x01    0x00    0x00    CRC     CRC     //  Output Frequency * 100
+    0x01    0x04    0x03    0x02    0x00    0x00    CRC     CRC     //  Output Amps * 10
     0x01    0x04    0x03    0x03    0x00    0x00    0xF0    0x4E    //  Read RPM (example CRC shown)
     0x01    0x04    0x03    0x0     0x00    0x00    CRC     CRC     //  DC voltage
     0x01    0x04    0x03    0x05    0x00    0x00    CRC     CRC     //  AC voltage
@@ -311,7 +311,7 @@ namespace Spindles {
                     };
                     break;
                 case -6:
-                    data.msg[3] = 15;  // Decel alue displayed is X.X
+                    data.msg[3] = 15;  // Decel value displayed is X.X
 
                     return [](const uint8_t* response, VFDSpindle* vfd, VFDProtocol* detail) -> bool {
                         uint16_t value = (response[4] << 8) | response[5];

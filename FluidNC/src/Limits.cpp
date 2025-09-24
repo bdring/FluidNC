@@ -9,7 +9,7 @@
 #include "System.h"         // sys.*
 #include "Protocol.h"       // protocol_execute_realtime
 #include "Platform.h"       // WEAK_LINK
-#include "Machine/Axis.h"
+#include "Machine/fAxis.h"
 
 #include <freertos/task.h>
 #include <freertos/queue.h>

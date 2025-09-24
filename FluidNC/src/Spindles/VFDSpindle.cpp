@@ -58,7 +58,7 @@ namespace Spindles {
             return;
         }
 
-        // These VFDs are always reversable, but most can be set via the operator panel
+        // These VFDs are always reversible, but most can be set via the operator panel
         // to only allow one direction.  In principle we could check that setting and
         // automatically set is_reversable.
         is_reversable = true;

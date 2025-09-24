@@ -62,7 +62,7 @@ namespace Kinematics {
     // the geometry of the delta
     float rf;  // radius of the fixed side (length of motor cranks)
     float re;  // radius of end effector side (length of linkages)
-    float f;   // sized of fixed side triangel
+    float f;   // sized of fixed side triangle
     float e;   // size of end effector side triangle
 
     static float last_angle[MAX_N_AXIS]     = { 0.0 };  // A place to save the previous motor angles for distance/feed rate calcs
@@ -146,7 +146,7 @@ namespace Kinematics {
         }
 
         // TO DO better idea
-        // loop back from the target in increments of  kinematic_segment_len_mm unitl the position is valid.
+        // loop back from the target in increments of  kinematic_segment_len_mm until the position is valid.
         // constrain to that target.
     }
 

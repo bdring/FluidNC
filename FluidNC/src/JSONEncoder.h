@@ -75,7 +75,7 @@ public:
     // WebUI sends JSON objects to the UI to generate configuration
     // page entries. Each object describes a named setting with a
     // type, current value, and a description of the possible values.
-    // The possible values can either be a minumum and maximum
+    // The possible values can either be a minimum and maximum
     // integer value, min/max string length, or an enumeration list.
     // When the user chooses a value, this command is sent back:
     //   [ESP401]P=p T=type V=value

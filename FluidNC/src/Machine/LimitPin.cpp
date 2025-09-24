@@ -48,7 +48,7 @@ namespace Machine {
 
         // If there is a positive or negative limit pin that is initially true,
         // calling trigger(false) during the initialization of the all limit
-        // pin would incorrectly clear the bit in the positive or negative maks,
+        // pin would incorrectly clear the bit in the positive or negative mask,
         // thus trigger() must only be called if _value is true.
         if (_value) {
             trigger(_value);

@@ -260,7 +260,7 @@ namespace WebUI {
             return true;
         }
 
-        // Check for brower cache match
+        // Check for browser cache match
         hash = HashFS::hash(fpath);
         if (!hash.length()) {
             std::filesystem::path gzpath(fpath);
@@ -1265,7 +1265,7 @@ namespace WebUI {
         return m->mime_type;
     }
 
-    //check authentification
+    //check authentication
     AuthenticationLevel Web_Server::is_authenticated() {
 #ifdef ENABLE_AUTHENTICATION
         if (_webserver->hasHeader("Cookie")) {

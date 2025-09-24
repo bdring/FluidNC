@@ -235,7 +235,7 @@ namespace Machine {
                 config->group(validator);
             } catch (std::exception& ex) { log_config_error("Validation error: " << ex.what()); }
 
-            // log_info("Heap size after configuation load is " << uint32_t(xPortGetFreeHeapSize()));
+            // log_info("Heap size after configuration load is " << uint32_t(xPortGetFreeHeapSize()));
 
         } catch (const Configuration::ParseException& ex) {
             log_config_error("Configuration parse error on line " << ex.LineNumber() << ": " << ex.What());

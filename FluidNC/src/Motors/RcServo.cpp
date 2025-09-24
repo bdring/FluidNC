@@ -73,7 +73,7 @@ namespace MotorDrivers {
         }
     }
 
-    // Homing justs sets the new system position and the servo will move there
+    // Homing just sets the new system position and the servo will move there
     bool RcServo::set_homing_mode(bool isHoming) {
         log_debug("Servo homing:" << isHoming);
         if (_has_errors)

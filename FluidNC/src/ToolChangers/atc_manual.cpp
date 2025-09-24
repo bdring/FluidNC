@@ -29,7 +29,7 @@
      -- Set TLO
      -- Returns to position before command
 
-  Posible New Persistant values (might want a save_ATC_values: config item. default false)
+  Possible New Persistent values (might want a save_ATC_values: config item. default false)
      -- TLO
      -- Tool number
 
@@ -190,7 +190,7 @@ namespace ATCs {
         // do a fast probe if there is a seek that is faster than feed
         if (_probe_seek_rate > _probe_feed_rate) {
             _macro.addf("G53 G38.2 Z%0.3f F%0.3f", _ets_mpos[2], _probe_seek_rate);
-            _macro.addf("G53G0Z[#<_abs_z> + 5]");  // retract befor next probe
+            _macro.addf("G53G0Z[#<_abs_z> + 5]");  // retract before next probe
         }
 
         // do the feed rate probe

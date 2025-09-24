@@ -65,7 +65,7 @@ SINAMICS V20 at S7-1200 via Modbus Entry-ID: 63696870, V1.2, 11/2014
 
 
 VFD Settings:
-To use this spindle type - it assumes you have a working/ configued VFD with motor - the following settings
+To use this spindle type - it assumes you have a working/ configured VFD with motor - the following settings
 are to change the method of which the VFD takes it information.
 please do not enable this without a properly configured VFD
 
@@ -152,7 +152,7 @@ namespace Spindles {
                                                        << _maxFrequency << ")");
             }
             /*
-            V20 has a scalled input and is standardized to 16384 
+            V20 has a scaled input and is standardized to 16384 
             please note Signed numbers work IE -16384 to 16384 
             but for this implementation only posivite number are allowed
             */
