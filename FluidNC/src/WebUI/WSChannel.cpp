@@ -7,6 +7,7 @@
 #include "WebUIServer.h"
 #include <ESPAsyncWebServer.h>
 #include <WiFi.h>
+#include "src/System.h"
 
 #include "src/Serial.h"  // is_realtime_command
 
@@ -14,7 +15,7 @@ namespace WebUI {
     class WSChannels;
 
     WSChannel::WSChannel(AsyncWebSocket* server, uint32_t clientNum, std::string session) : Channel("websocket"), _server(server), _clientNum(clientNum), _session(session) {
-        setReportInterval(200); // for testing async reconnections...
+        setReportInterval(50); // for testing async reconnections... and queue buffer length and drops error
         _server->client(_clientNum)->setCloseClientOnQueueFull(false);
     }
 
@@ -77,12 +78,24 @@ namespace WebUI {
         // The delay seems to do the trick.
         // It would be a lot better to always force these commands to return as a http response instead of websocket,
         // however, Webui(3) expects the command $$ to come back from a websocket, which is at least one reason why we can't send all back as a http response 
-        while(_server->client(_clientNum) && _server->client(_clientNum)->queueLen()>= WS_MAX_QUEUED_MESSAGES/2-4){ // Not sure if the queue len is global and this is per client, leaving some room for other requests
-            delay(10);
+        if(!inMotionState()){
+            while(_server->client(_clientNum) && _server->client(_clientNum)->queueLen()>= max(WS_MAX_QUEUED_MESSAGES-2, 1)){
+                delay(1);
+            }
         }
+        else{
+            // To test this mechanism, try setting WS_MAX_QUEUED_MESSAGES to 2 and have 2 browsers on different PCs or your smartphone
+            if(_server->client(_clientNum) && _server->client(_clientNum)->queueIsFull() && (millis() - _last_queue_full) > 1000){
+                _last_queue_full=millis();
+                log_info_to(Uart0,"Websocket queue full while sending to cid#" << _clientNum << ", dropping");
+            }
+
+        }
+        // No need to set active false, we continue to send and let the websocket drop if buffer is too high
+        // and disconnect if client timeout
         if (!_server->binary(_clientNum, out, outlen)) {
 
-            _active =  false;
+           // _active =  false;
         }
 
         if (_output_line.length()) {

@@ -53,6 +53,7 @@ namespace WebUI {
         std::string        _session;
 
         std::string _output_line;
+        unsigned long _last_queue_full=0;
 
         // Instead of queueing realtime characters, we put them here
         // so they can be processed immediately during operations like

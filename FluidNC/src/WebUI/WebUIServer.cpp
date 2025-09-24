@@ -95,11 +95,6 @@ namespace WebUI {
         _setupdone = false;
 
         Serial.printf("Startup\n");
-        //Serial = Serial0;
-        //Serial.begin(Uart0);
-
-        //Serial.begin(115200);
-        delay(1);
         Serial.printf("Starting webserver\n");
 
         if (WiFi.getMode() == WIFI_OFF || !http_enable->get()) {
@@ -111,13 +106,9 @@ namespace WebUI {
         //create instance
         _webserver = new AsyncWebServer(_port);
         _headerFilter = new AsyncHeaderFreeMiddleware();
-// #ifdef ENABLE_AUTHENTICATION
-//         //here the list of headers to be recorded
-//         //ask server to track these headers
-//              _headerFilter->keep("Cookie");  
-// #endif
-        _headerFilter->keep("Cookie");
+
         //here the list of headers to be recorded
+        _headerFilter->keep("Cookie");
         _headerFilter->keep("If-None-Match");
        
         //For websockets we need to keep these headers, otherwise this wouldn't work!
@@ -326,20 +317,15 @@ namespace WebUI {
                 request->send(304);
             return true;
         }
-        //AsyncWebServerResponse *response = request->beginResponse(SPIFFS, path, "text/html");
-        //request->send(SPIFFS, path, "text/html");
 
         bool        isGzip = false;
         FileStream* file = NULL;
-        //FileStream** file_cb = &file;
         try {
-            //file = getFileStream(path);
             file = new FileStream(path, "r", "");
         } catch (const Error err) {
             try {
                 std::filesystem::path gzpath(fpath);
                 gzpath += ".gz";
-                //file   = getFileStream(gzpath.c_str()); 
                 file = new FileStream(gzpath, "r", "");
                 isGzip = true;
             } catch (const Error err) {
@@ -348,7 +334,7 @@ namespace WebUI {
             }
         }
 
-        AsyncWebServerResponse *response = request->beginResponse( //ChunkedResponse(
+        AsyncWebServerResponse *response = request->beginResponse(
                 getContentType(path),
                 file->size(),
                 [file, request](uint8_t *buffer, size_t maxLen, size_t total) mutable -> size_t {
@@ -360,16 +346,12 @@ namespace WebUI {
                     }
                     if(total >= file->size() || request->methodToString() != "GET" )
                     {
-                         //delete file;
                         file = nullptr;
                         return 0;
                     }
-                    // Seek on each chunk, to avoid concurrent client to get the wrong data, while still reusing the same filestream
-                    //file->set_position(total);
                     int bytes = max(0,(int)file->read(buffer, min((int)maxLen, 1024))); // return 0 even when no bytes were loaded
                     if(bytes==0 || (bytes + total) >= file->size())
                     {
-                        //delete file;
                         file = nullptr;
                     }
                     return bytes; 
