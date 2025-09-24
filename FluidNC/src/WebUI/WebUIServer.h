@@ -122,7 +122,8 @@ namespace WebUI {
         static void uploadStop();
         static void uploadCheck(AsyncWebServerRequest *request);
 
-        static void synchronousCommand(AsyncWebServerRequest *request, const char* cmd, bool silent, AuthenticationLevel auth_level);
+        static bool isAllowedInMotion(String cmd);
+        static void synchronousCommand(AsyncWebServerRequest *request, const char* cmd, bool silent, AuthenticationLevel auth_level, bool allowedInMotion=false);
         static void websocketCommand(AsyncWebServerRequest *request, const char* cmd, int pageid, AuthenticationLevel auth_level);
 
         static void sendFSError(Error err);

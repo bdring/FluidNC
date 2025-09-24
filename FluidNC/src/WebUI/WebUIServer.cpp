@@ -480,9 +480,9 @@ namespace WebUI {
 
 
 
-    void WebUI_Server::synchronousCommand(AsyncWebServerRequest *request, const char* cmd, bool silent, AuthenticationLevel auth_level) {
+    void WebUI_Server::synchronousCommand(AsyncWebServerRequest *request, const char* cmd, bool silent, AuthenticationLevel auth_level, bool allowedInMotion) {
         // Can we do this with async?
-        if (http_block_during_motion->get() && inMotionState()) {
+        if (http_block_during_motion->get() && inMotionState() && !allowedInMotion) { // ESP800 is to allow a cached paged reload on webui3
             request->send(503, "text/plain", "Try again when not moving\n");
             return;
         }
@@ -525,6 +525,13 @@ namespace WebUI {
         bool hasError = WSChannels::runGCode(pageid, cmd, session);
         request->send(hasError ? 500 : 200, "text/plain", hasError ? "WebSocket dead" : "");
     }
+
+    bool WebUI_Server::isAllowedInMotion(String cmd){
+        if(cmd.startsWith("[ESP800]"))
+            return true;
+        
+        return false;
+    }
     void WebUI_Server::_handle_web_command(AsyncWebServerRequest *request, bool silent) {
         AuthenticationLevel auth_level = is_authenticated();
         if (request->hasParam("cmd") ||  request->hasParam("commandText")) {
@@ -540,7 +547,7 @@ namespace WebUI {
             //if (cmdUpper.startsWith("[ESP") || cmdUpper.startsWith("$/") || cmdUpper.startsWith("$ESP") {
             // Original check (now also work with $ESP400, but is slower than if it was returned as http response)
             if (cmdUpper.startsWith("[ESP") || cmdUpper.startsWith("$/") ) {
-                synchronousCommand(request, cmd.c_str(), silent, auth_level);
+                synchronousCommand(request, cmd.c_str(), silent, auth_level, isAllowedInMotion(cmdUpper));
             } else {
                 websocketCommand(request, cmd.c_str(), -1, auth_level);  // We dont support or need PAGEID anymore
             }
