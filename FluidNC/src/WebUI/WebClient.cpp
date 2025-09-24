@@ -47,9 +47,9 @@ namespace WebUI {
                                             "WebClient_background_task",    // name for task
                                             16384,                          // size of task stack
                                             NULL,                           // parameters
-                                            1,                              // priority
+                                            20,                              // priority // If higher than (ASYNC TCP?) the commands like [ESP800] return faster
                                             &WebClients::_background_task_handle,
-                                            SUPPORT_TASK_CORE               // core
+                                            SUPPORT_TASK_CORE               // not sure if SUPPORT_TASK_CORE is the best choice
             );
         }
     }
