@@ -4,52 +4,51 @@
 #include "src/Report.h"
 #include "src/FileStream.h"
 #include "WebClient.h"
-#include "src/UartChannel.h" 
+#include "src/UartChannel.h"
 #include <ESPAsyncWebServer.h>
-#include "src/Settings.h"  // settings_execute_line()
+#include "src/Settings.h"    // settings_execute_line()
 #include "Authentication.h"  // Auth levels
 
 namespace WebUI {
-    QueueHandle_t WebClients::_background_task_queue=nullptr;
-    TaskHandle_t  WebClients::_background_task_handle=nullptr;
+    QueueHandle_t WebClients::_background_task_queue  = nullptr;
+    TaskHandle_t  WebClients::_background_task_handle = nullptr;
 
     void WebClients::background_task(void* pvParameters) {
         std::string cmd;
         while (true) {
-            WebClient *_webClient;
-            if(xQueueReceive(_background_task_queue, &_webClient, portMAX_DELAY)==pdTRUE){
-                _webClient->_xBufferLock.lock();
+            WebClient* _webClient;
+            if (xQueueReceive(_background_task_queue, &_webClient, portMAX_DELAY) == pdTRUE) {
+                _webClient->xBufferLock.lock();
 
-                if(_webClient->_cmds.size() > 0){
-                    cmd = _webClient->_cmds.front();
-                    _webClient->_cmds.pop_front();
-                    _webClient->_xBufferLock.unlock(); 
+                if (_webClient->cmds.size() > 0) {
+                    cmd = _webClient->cmds.front();
+                    _webClient->cmds.pop_front();
+                    _webClient->xBufferLock.unlock();
                     // TODO: check error result and see if we can do anything...
                     settings_execute_line(cmd.c_str(), *_webClient, AuthenticationLevel::LEVEL_ADMIN);
                     // Should not call detach, since we still need to send the remaining buffer, so we should not free and clear yet.
-                    _webClient->_done=true; // TODO Forgot to lock mutex...
+                    _webClient->done = true;  // TODO Forgot to lock mutex...
 
-                }else{
-                _webClient->_xBufferLock.unlock(); 
+                } else {
+                    _webClient->xBufferLock.unlock();
                 }
-            }
-            else
-                delay(1); // This should never happen if portMAX_DELAY is trully infinite
+            } else
+                delay(1);  // This should never happen if portMAX_DELAY is trully infinite
         }
     }
 
     WebClient::WebClient() : Channel("webclient") {
         //Uart0.printf("WebClient::WebClient()\n");
-        if(WebClients::_background_task_queue==nullptr) // If we are the first instanciation ever, create the event queue
-            WebClients::_background_task_queue = xQueueCreate(64, sizeof(WebClient*)); 
-        if(WebClients::_background_task_handle == nullptr){ // Same here, create the unique background task
-            xTaskCreatePinnedToCore(WebClients::background_task,                        // task
-                                            "WebClient_background_task",    // name for task
-                                            16384,                          // size of task stack
-                                            NULL,                           // parameters
-                                            20,                              // priority // If higher than (ASYNC TCP?) the commands like [ESP800] return faster
-                                            &WebClients::_background_task_handle,
-                                            SUPPORT_TASK_CORE               // not sure if SUPPORT_TASK_CORE is the best choice
+        if (WebClients::_background_task_queue == nullptr)  // If we are the first instanciation ever, create the event queue
+            WebClients::_background_task_queue = xQueueCreate(64, sizeof(WebClient*));
+        if (WebClients::_background_task_handle == nullptr) {     // Same here, create the unique background task
+            xTaskCreatePinnedToCore(WebClients::background_task,  // task
+                                    "WebClient_background_task",  // name for task
+                                    16384,                        // size of task stack
+                                    NULL,                         // parameters
+                                    20,  // priority // If higher than (ASYNC TCP?) the commands like [ESP800] return faster
+                                    &WebClients::_background_task_handle,
+                                    SUPPORT_TASK_CORE  // not sure if SUPPORT_TASK_CORE is the best choice
             );
         }
     }
@@ -64,107 +63,98 @@ namespace WebUI {
     }
 
     void WebClient::attachWS(bool silent) {
-        _silent      = silent;
-        _xBufferLock.lock();
-        _buflen      = 0;
-        _allocsize   = 0;
-        if(_buffer)
-        {
+        _silent = silent;
+        xBufferLock.lock();
+        _buflen    = 0;
+        _allocsize = 0;
+        if (_buffer) {
             free(_buffer);
-            _buffer=nullptr;
+            _buffer = nullptr;
         }
-        _done=false;
-        _xBufferLock.unlock();
+        done = false;
+        xBufferLock.unlock();
     }
 
-    int WebClient::copyBufferSafe(uint8_t *dest_buffer, size_t maxLen, size_t total){
-        _xBufferLock.lock();
-        if(_buflen>0)
-        {
+    int WebClient::copyBufferSafe(uint8_t* dest_buffer, size_t maxLen, size_t total) {
+        xBufferLock.lock();
+        if (_buflen > 0) {
             int bytes = min(_buflen, maxLen);
             memcpy(dest_buffer, _buffer, bytes);
-            memmove(_buffer, &_buffer[bytes], _buflen-bytes);
-            _buflen-=bytes;
-            _xBufferLock.unlock();
+            memmove(_buffer, &_buffer[bytes], _buflen - bytes);
+            _buflen -= bytes;
+            xBufferLock.unlock();
             return bytes;
-        }
-        else if(_done)
-        {
+        } else if (done) {
             free(_buffer);
-            _buffer=nullptr;
-            _allocsize=0;
-            _buflen=0;
-            _xBufferLock.unlock();
+            _buffer    = nullptr;
+            _allocsize = 0;
+            _buflen    = 0;
+            xBufferLock.unlock();
             return 0;
         }
-        _xBufferLock.unlock();
+        xBufferLock.unlock();
         return RESPONSE_TRY_AGAIN;
     }
 
     // Should be used externally to signify to free any potential resources
     // Any unread buffer will be cleared after that.
     void WebClient::detachWS() {
-        _xBufferLock.lock();
-        if(_buffer)
+        xBufferLock.lock();
+        if (_buffer)
             free(_buffer);
-        _buffer=nullptr;
-        _allocsize=0;
-        _buflen=0;
-        _done=true;
-        _xBufferLock.unlock();
-     }
+        _buffer    = nullptr;
+        _allocsize = 0;
+        _buflen    = 0;
+        done       = true;
+        xBufferLock.unlock();
+    }
 
-    void WebClient::executeCommandBackground(const char *cmd){
-        _xBufferLock.lock();
-        _cmds.push_back(std::string(cmd));
-        WebClient *_this = this;
-        xQueueSend(WebClients::_background_task_queue, &_this, portTICK_PERIOD_MS*100);
-        _xBufferLock.unlock();
+    void WebClient::executeCommandBackground(const char* cmd) {
+        xBufferLock.lock();
+        cmds.push_back(std::string(cmd));
+        WebClient* _this = this;
+        xQueueSend(WebClients::_background_task_queue, &_this, portTICK_PERIOD_MS * 100);
+        xBufferLock.unlock();
     }
 
     size_t WebClient::write(const uint8_t* buffer, size_t length) {
         if (_silent) {
             return length;
         }
-        _xBufferLock.lock();
-        if(_done)
-        {
+        xBufferLock.lock();
+        if (done) {
             return length;
-            _xBufferLock.unlock();
+            xBufferLock.unlock();
         }
-        if(_buflen+length > _allocsize){
-            if(_allocsize >= BUFLEN){
+        if (_buflen + length > _allocsize) {
+            if (_allocsize >= BUFLEN) {
                 //Uart0.printf("_allocsize is big, will wait\n");
-                while(_buflen+length > _allocsize && !_done){
-                    _xBufferLock.unlock();
+                while (_buflen + length > _allocsize && !done) {
+                    xBufferLock.unlock();
                     delay(1);
-                    _xBufferLock.lock();
+                    xBufferLock.lock();
                 }
-                if(_done)
-                {
-                     _xBufferLock.unlock();
+                if (done) {
+                    xBufferLock.unlock();
                     return length;
                 }
-            }
-            else
-            {
-                _allocsize = _allocsize + ((length / 256 + 1)*256);
-                char * new_buffer = (char*)realloc((void*)_buffer, _allocsize);
-                if(!new_buffer){
+            } else {
+                _allocsize       = _allocsize + ((length / 256 + 1) * 256);
+                char* new_buffer = (char*)realloc((void*)_buffer, _allocsize);
+                if (!new_buffer) {
                     log_info_to(Uart0, "Not enough memory!" << _allocsize);
-                    _xBufferLock.unlock();
+                    xBufferLock.unlock();
                     return length;
                 }
                 _buffer = new_buffer;
             }
         }
-        if(_buffer)
-        {
+        if (_buffer) {
             memcpy(&_buffer[_buflen], buffer, length);
-            _buflen+=length;
+            _buflen += length;
         }
-        _xBufferLock.unlock();
-        
+        xBufferLock.unlock();
+
         return length;
     }
 
@@ -173,8 +163,7 @@ namespace WebUI {
     }
 
     // Flush is no longer really needed
-    void WebClient::flush() {
-    }
+    void WebClient::flush() {}
 
     void WebClient::sendLine(MsgLevel level, const char* line) {
         print_msg(level, line);
@@ -199,7 +188,6 @@ namespace WebUI {
         out(s, tag);
     }
 
-    void WebClient::sendError(int code, const std::string& line) {
-    }
+    void WebClient::sendError(int code, const std::string& line) {}
 
 }

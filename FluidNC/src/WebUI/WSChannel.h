@@ -43,17 +43,17 @@ namespace WebUI {
         int read() override;
         int available() override { return _queue.size() + (_rtchar > -1); }
 
-        void autoReport() override;
-        void active(bool is_active);
-        std::string session(){return _session;};
+        void        autoReport() override;
+        void        active(bool is_active);
+        std::string session() { return _session; };
 
     private:
         AsyncWebSocket* _server;
-        uint32_t           _clientNum;
-        std::string        _session;
+        uint32_t        _clientNum;
+        std::string     _session;
 
-        std::string _output_line;
-        unsigned long _last_queue_full=0;
+        std::string   _output_line;
+        unsigned long _last_queue_full = 0;
 
         // Instead of queueing realtime characters, we put them here
         // so they can be processed immediately during operations like
@@ -63,10 +63,10 @@ namespace WebUI {
 
     class WSChannels {
     private:
-        static std::map<uint32_t, WSChannel*> _wsChannels;
-        static std::list<WSChannel*>         _webWsChannels;
+        static std::map<uint32_t, WSChannel*>    _wsChannels;
+        static std::list<WSChannel*>             _webWsChannels;
         static std::map<std::string, WSChannel*> _wsChannelsBySession;
-        static AsyncWebSocket *_server;
+        static AsyncWebSocket*                   _server;
 
         static WSChannel* _lastWSChannel;
         static WSChannel* getWSChannel(int pageid);
@@ -79,6 +79,7 @@ namespace WebUI {
         static bool runGCode(int pageid, std::string_view cmd, std::string session);
         static bool sendError(int pageid, std::string error, std::string session);
         static void sendPing();
-        static void handleEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventType type, void *arg, uint8_t *data, size_t len, std::string session);
+        static void handleEvent(
+            AsyncWebSocket* server, AsyncWebSocketClient* client, AwsEventType type, void* arg, uint8_t* data, size_t len, std::string session);
     };
 }

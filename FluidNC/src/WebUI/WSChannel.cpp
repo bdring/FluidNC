@@ -14,13 +14,14 @@
 namespace WebUI {
     class WSChannels;
 
-    WSChannel::WSChannel(AsyncWebSocket* server, uint32_t clientNum, std::string session) : Channel("websocket"), _server(server), _clientNum(clientNum), _session(session) {
-        setReportInterval(50); // for testing async reconnections... and queue buffer length and drops error
+    WSChannel::WSChannel(AsyncWebSocket* server, uint32_t clientNum, std::string session) :
+        Channel("websocket"), _server(server), _clientNum(clientNum), _session(session) {
+        setReportInterval(50);  // for testing async reconnections... and queue buffer length and drops error
         _server->client(_clientNum)->setCloseClientOnQueueFull(false);
     }
 
-    void WSChannel::active(bool is_active){
-        _active=is_active;
+    void WSChannel::active(bool is_active) {
+        _active = is_active;
     }
     int WSChannel::read() {
         if (!_active) {
@@ -69,7 +70,7 @@ namespace WebUI {
         }
         // With the session cookie we no longer need to broadcast to all
         //_server->binaryAll(out, outlen);
-        
+
         // For commands like $esp400, buffering multiple lines into one websocket message would be faster,
         // however we don't get any event when the command response is completed,
         // some commands respond with "ok" at the end, but not all of them.
@@ -77,25 +78,22 @@ namespace WebUI {
         // in the response (>32KB of json), so we need to check if the websocket buffer is full before continuing
         // The delay seems to do the trick.
         // It would be a lot better to always force these commands to return as a http response instead of websocket,
-        // however, Webui(3) expects the command $$ to come back from a websocket, which is at least one reason why we can't send all back as a http response 
-        if(!inMotionState()){
-            while(_server->client(_clientNum) && _server->client(_clientNum)->queueLen()>= max(WS_MAX_QUEUED_MESSAGES-2, 1)){
+        // however, Webui(3) expects the command $$ to come back from a websocket, which is at least one reason why we can't send all back as a http response
+        if (!inMotionState()) {
+            while (_server->client(_clientNum) && _server->client(_clientNum)->queueLen() >= max(WS_MAX_QUEUED_MESSAGES - 2, 1)) {
                 delay(1);
             }
-        }
-        else{
+        } else {
             // To test this mechanism, try setting WS_MAX_QUEUED_MESSAGES to 2 and have 2 browsers on different PCs or your smartphone
-            if(_server->client(_clientNum) && _server->client(_clientNum)->queueIsFull() && (millis() - _last_queue_full) > 1000){
-                _last_queue_full=millis();
-                log_info_to(Uart0,"Websocket queue full while sending to cid#" << _clientNum << ", dropping");
+            if (_server->client(_clientNum) && _server->client(_clientNum)->queueIsFull() && (millis() - _last_queue_full) > 1000) {
+                _last_queue_full = millis();
+                log_info_to(Uart0, "Websocket queue full while sending to cid#" << _clientNum << ", dropping");
             }
-
         }
         // No need to set active false, we continue to send and let the websocket drop if buffer is too high
         // and disconnect if client timeout
         if (!_server->binary(_clientNum, out, outlen)) {
-
-           // _active =  false;
+            // _active =  false;
         }
 
         if (_output_line.length()) {
@@ -123,35 +121,35 @@ namespace WebUI {
         }
         Channel::autoReport();
     }
-    
-    static AsyncWebSocket *_server;
+
+    static AsyncWebSocket* _server;
     WSChannel::~WSChannel() {}
 
-    std::map<uint32_t, WSChannel*> WSChannels::_wsChannels;
+    std::map<uint32_t, WSChannel*>    WSChannels::_wsChannels;
     std::map<std::string, WSChannel*> WSChannels::_wsChannelsBySession;
-    std::list<WSChannel*>          WSChannels::_webWsChannels;
-    AsyncWebSocket *  WSChannels::_server = nullptr;
+    std::list<WSChannel*>             WSChannels::_webWsChannels;
+    AsyncWebSocket*                   WSChannels::_server = nullptr;
 
     WSChannel* WSChannels::_lastWSChannel = nullptr;
 
     WSChannel* WSChannels::getWSChannel(std::string session) {
         try {
-                return _wsChannelsBySession.at(session);
-            } catch (std::out_of_range& oor) {}
-        if(_webWsChannels.size()>0)
-                return  _webWsChannels.front();
+            return _wsChannelsBySession.at(session);
+        } catch (std::out_of_range& oor) {}
+        if (_webWsChannels.size() > 0)
+            return _webWsChannels.front();
         return nullptr;
     }
 
     WSChannel* WSChannels::getWSChannel(int pageid) {
-        pageid=-1;
+        pageid               = -1;
         WSChannel* wsChannel = nullptr;
         if (pageid != -1) {
             try {
                 wsChannel = _wsChannels.at(pageid);
             } catch (std::out_of_range& oor) {}
         } else {
-            if(_webWsChannels.size()>0)
+            if (_webWsChannels.size() > 0)
                 wsChannel = _webWsChannels.front();
 
             // // If there is no PAGEID URL argument, it is an old version of WebUI
@@ -170,8 +168,8 @@ namespace WebUI {
 
     void WSChannels::removeChannel(uint32_t num) {
         try {
-            WSChannel* wsChannel = _wsChannels.at(num);
-            std::string session = wsChannel->session();
+            WSChannel*  wsChannel = _wsChannels.at(num);
+            std::string session   = wsChannel->session();
             wsChannel->active(false);
             allChannels.kill(wsChannel);
             _webWsChannels.remove(wsChannel);
@@ -192,7 +190,7 @@ namespace WebUI {
                 } else {
                     std::string _cmd = std::string(cmd);
                     if (_cmd.back() != '\n')
-                        _cmd+='\n';
+                        _cmd += '\n';
                     wsChannel->push(cmd);
                     if (cmd.back() != '\n') {
                         wsChannel->push('\n');
@@ -221,9 +219,10 @@ namespace WebUI {
         }
     }
 
-    void WSChannels::handleEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventType type, void *arg, uint8_t *data, size_t len, std::string session){
+    void WSChannels::handleEvent(
+        AsyncWebSocket* server, AsyncWebSocketClient* client, AwsEventType type, void* arg, uint8_t* data, size_t len, std::string session) {
         uint32_t num = client->id();
-        _server = server;
+        _server      = server;
         switch (type) {
             case WS_EVT_ERROR:
                 WSChannels::removeChannel(num);
@@ -244,17 +243,19 @@ namespace WebUI {
 
                     _lastWSChannel = wsChannel;
                     allChannels.registration(wsChannel);
-                    _wsChannels[num] = wsChannel;
+                    _wsChannels[num]              = wsChannel;
                     _wsChannelsBySession[session] = wsChannel;
-                    log_info_to(Uart0, "WebSocket connect cid#" << num << " from " << ip << " uri " << uri << " session " << session << " total " << _wsChannels.size());
+                    log_info_to(Uart0,
+                                "WebSocket connect cid#" << num << " from " << ip << " uri " << uri << " session " << session << " total "
+                                                         << _wsChannels.size());
                 }
             } break;
             case WS_EVT_DATA: {
-                AwsFrameInfo * info = (AwsFrameInfo*)arg;
-                if(info->opcode == WS_TEXT){
+                AwsFrameInfo* info = (AwsFrameInfo*)arg;
+                if (info->opcode == WS_TEXT) {
                     try {
                         //data[len]=0; // !!! this should not be safe? but was there before,
-                                       // will copy to a std::string of specified length to be on the safe side
+                        // will copy to a std::string of specified length to be on the safe side
                         std::string msg((const char*)data, len);
                         //log_info_to(Uart0, msg);
                         if (msg.rfind("PING:", 0) == 0) {
@@ -263,9 +264,7 @@ namespace WebUI {
                         } else
                             _wsChannels.at(num)->push(data, len);
                     } catch (std::out_of_range& oor) {}
-                }
-                else
-                {
+                } else {
                     try {
                         _wsChannels.at(num)->push(data, len);
                     } catch (std::out_of_range& oor) {}

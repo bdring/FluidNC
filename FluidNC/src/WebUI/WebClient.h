@@ -16,7 +16,7 @@ namespace WebUI {
     public:
         static QueueHandle_t _background_task_queue;
         static TaskHandle_t  _background_task_handle;
-        static void background_task(void* pvParameters);
+        static void          background_task(void* pvParameters);
     };
 
     class WebClient : public Channel {
@@ -37,27 +37,26 @@ namespace WebUI {
 
         void sendError(int code, const std::string& line);
 
-        void executeCommandBackground(const char *cmd);
+        void executeCommandBackground(const char* cmd);
 
         bool anyOutput() { return _buflen > 0; }
 
         void out(const char* s, const char* tag) override;
         void out(const std::string& s, const char* tag) override;
         void out_acked(const std::string& s, const char* tag) override;
-        int copyBufferSafe(uint8_t *dest_buffer, size_t maxLen, size_t total);
+        int  copyBufferSafe(uint8_t* dest_buffer, size_t maxLen, size_t total);
 
-        std::mutex              _xBufferLock;
-        std::list<std::string> _cmds;
-        bool                   _done        = false;
+        std::mutex             xBufferLock;
+        std::list<std::string> cmds;
+        bool                   done = false;
+
     private:
-        bool                   _silent      = false;
-        static const size_t    BUFLEN       = 1024;
-        char                   *_buffer = nullptr; //[BUFLEN];
-        size_t                 _buflen = 0;
-        size_t                 _allocsize = 0;
-        AsyncWebServerResponse *_response    = nullptr;
-        FileStream             *_fs         = nullptr;
-
-        bool                   taskLocked=false; // this is to track the _xBackgroundTaskLoop locks to be sure, in case attach or detach are called twice or not called.
+        bool                    _silent    = false;
+        static const size_t     BUFLEN     = 1024;
+        char*                   _buffer    = nullptr;  //[BUFLEN];
+        size_t                  _buflen    = 0;
+        size_t                  _allocsize = 0;
+        AsyncWebServerResponse* _response  = nullptr;
+        FileStream*             _fs        = nullptr;
     };
 }
