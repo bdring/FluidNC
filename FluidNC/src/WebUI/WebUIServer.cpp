@@ -1229,8 +1229,10 @@ namespace WebUI {
         if ((millis() - start_time) > 10000) {
             uint32_t heapsize = xPortGetFreeHeapSize();
             //Uart0.printf("Memory: %d\n", heapsize);
-            _socket_server->cleanupClients();
-            WSChannels::sendPing();
+            if(_socket_server){
+                _socket_server->cleanupClients();
+                WSChannels::sendPing();
+            }
             start_time = millis();
 
         }
