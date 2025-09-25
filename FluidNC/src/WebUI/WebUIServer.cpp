@@ -487,9 +487,13 @@ namespace WebUI {
                 int res = webClient->copyBufferSafe(buffer, min((int)maxLen, 1024), total);
                 return res;
             });
+            // onDisconnect MUST always happen, otherwise commands being processed will wait indefinitly to be read
+            // by the callback that may never happen if the client is dead
+            // We rely on AsyncWebServer to take care of that
             request->onDisconnect([webClient]() {
                 webClient->detachWS();
                 allChannels.kill(webClient);
+                // Should not delete, kill() takes care of that
                 //delete webClient;
             });
         } else

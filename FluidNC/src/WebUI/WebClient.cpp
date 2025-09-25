@@ -38,7 +38,6 @@ namespace WebUI {
     }
 
     WebClient::WebClient() : Channel("webclient") {
-        //Uart0.printf("WebClient::WebClient()\n");
         if (WebClients::_background_task_queue == nullptr)  // If we are the first instanciation ever, create the event queue
             WebClients::_background_task_queue = xQueueCreate(64, sizeof(WebClient*));
         if (WebClients::_background_task_handle == nullptr) {     // Same here, create the unique background task
@@ -81,7 +80,13 @@ namespace WebUI {
     // Any unread buffer will be cleared after that.
     void WebClient::detachWS() {
         xBufferLock.lock();
-        done = true;
+        _silent = true;
+        while (!done) {
+            //done = true;
+            xBufferLock.unlock();
+            delay(1);
+            xBufferLock.lock();
+        }
         xBufferLock.unlock();
     }
 
@@ -119,18 +124,14 @@ namespace WebUI {
             return length;
         }
         xBufferLock.lock();
-        if (done) {
-            xBufferLock.unlock();
-            return length;
-        }
         if (_buflen + length > _allocsize) {
             if (_allocsize >= BUFLEN) {
-                while (_buflen + length > _allocsize && !done) {
+                while (_buflen + length > _allocsize && !_silent && _active) {
                     xBufferLock.unlock();
                     delay(1);
                     xBufferLock.lock();
                 }
-                if (done) {
+                if (_silent || !_active) {
                     xBufferLock.unlock();
                     return length;
                 }

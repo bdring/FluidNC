@@ -48,10 +48,11 @@ namespace WebUI {
 
         std::mutex             xBufferLock;
         std::list<std::string> cmds;
-        bool                   done = false;
+        bool                   done = false; // Is used to tell that the background command is done executing,
+                                             // which also mean all write events have occured
 
     private:
-        bool                    _silent    = false;
+        bool                    _silent    = false; // Used to get no response, but also to discard data after a client may have disconnected
         static const size_t     BUFLEN     = 1024;
         char*                   _buffer    = nullptr;  //[BUFLEN];
         size_t                  _buflen    = 0;
