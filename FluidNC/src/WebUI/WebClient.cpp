@@ -19,7 +19,6 @@ namespace WebUI {
             WebClient* webClient;
             if (xQueueReceive(_background_task_queue, &webClient, portMAX_DELAY) == pdTRUE) {
                 webClient->xBufferLock.lock();
-
                 if (webClient->cmds.size() > 0) {
                     cmd = webClient->cmds.front();
                     webClient->cmds.pop_front();
@@ -54,7 +53,16 @@ namespace WebUI {
         }
     }
 
-    WebClient::~WebClient() {}
+    WebClient::~WebClient() {
+        xBufferLock.lock();
+        if (_buffer)
+            free(_buffer);
+        _buffer    = nullptr;
+        _allocsize = 0;
+        _buflen    = 0;
+        done       = true;
+        xBufferLock.unlock();
+    }
 
     void WebClient::attachWS(bool silent) {
         _silent = silent;
@@ -66,6 +74,14 @@ namespace WebUI {
             _buffer = nullptr;
         }
         done = false;
+        xBufferLock.unlock();
+    }
+
+    // Should be used externally to signify to free any potential resources
+    // Any unread buffer will be cleared after that.
+    void WebClient::detachWS() {
+        xBufferLock.lock();
+        done = true;
         xBufferLock.unlock();
     }
 
@@ -90,19 +106,6 @@ namespace WebUI {
         return RESPONSE_TRY_AGAIN;
     }
 
-    // Should be used externally to signify to free any potential resources
-    // Any unread buffer will be cleared after that.
-    void WebClient::detachWS() {
-        xBufferLock.lock();
-        if (_buffer)
-            free(_buffer);
-        _buffer    = nullptr;
-        _allocsize = 0;
-        _buflen    = 0;
-        done       = true;
-        xBufferLock.unlock();
-    }
-
     void WebClient::executeCommandBackground(const char* cmd) {
         xBufferLock.lock();
         cmds.push_back(std::string(cmd));
@@ -112,17 +115,16 @@ namespace WebUI {
     }
 
     size_t WebClient::write(const uint8_t* buffer, size_t length) {
-        if (_silent) {
+        if (_silent || !_active) {
             return length;
         }
         xBufferLock.lock();
         if (done) {
-            return length;
             xBufferLock.unlock();
+            return length;
         }
         if (_buflen + length > _allocsize) {
             if (_allocsize >= BUFLEN) {
-                //Uart0.printf("_allocsize is big, will wait\n");
                 while (_buflen + length > _allocsize && !done) {
                     xBufferLock.unlock();
                     delay(1);
