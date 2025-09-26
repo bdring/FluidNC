@@ -340,7 +340,8 @@ namespace WebUI {
                     file = nullptr;
                     return 0;
                 }
-                int bytes = max(0, (int)file->read(buffer, min((int)maxLen, 1024)));  // return 0 even when no bytes were loaded
+                int bytes = min(file->size(), maxLen);
+                int actual = file->read(buffer, bytes);  // return 0 even when no bytes were loaded
                 if (bytes == 0 || (bytes + total) >= file->size()) {
                     file = nullptr;
                 }
@@ -348,7 +349,6 @@ namespace WebUI {
             });
 
         request->onDisconnect([request, file]() {
-            //log_info_to(Uart0,"Freeing on disconnect");
             delete file;
         });
 
@@ -1215,7 +1215,7 @@ namespace WebUI {
         }
         if ((millis() - start_time) > 10000) {
             uint32_t heapsize = xPortGetFreeHeapSize();
-            //Uart0.printf("Memory: %d\n", heapsize);
+            log_info("memory: " << heapsize << " min: " << heapLowWater);
             if (_socket_server) {
                 _socket_server->cleanupClients();
                 WSChannels::sendPing();
