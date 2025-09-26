@@ -324,7 +324,7 @@ void Channel::sendLine(MsgLevel level, const std::string* line) {
 // via the std::string* version of send_line().  The original
 // string is freed by the caller sometime after send_line()
 // returns, while the new string is freed by the output task
-// after the message is forwared to the output channel.
+// after the message is forwarded to the output channel.
 // This is the least efficient form, requiring two strings
 // to be allocated and freed, with an intermediate copy.
 // It is used only rarely.

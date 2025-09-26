@@ -7,7 +7,7 @@
 #include "Machine/Macros.h"  // macro0Event
 
 Control::Control() {
-    // The SafetyDoor pin must be defined first because it is checked explicity in safety_door_ajar()
+    // The SafetyDoor pin must be defined first because it is checked explicitly in safety_door_ajar()
     _pins.push_back(new ControlPin(&safetyDoorEvent, "safety_door_pin", 'D'));
     _pins.push_back(new ControlPin(&rtResetEvent, "reset_pin", 'R'));
     _pins.push_back(new ControlPin(&feedHoldEvent, "feed_hold_pin", 'H'));

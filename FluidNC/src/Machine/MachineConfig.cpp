@@ -241,7 +241,7 @@ namespace Machine {
             config->validate();
             config->group(validator);
 
-            // log_info("Heap size after configuation load is " << uint32_t(xPortGetFreeHeapSize()));
+            // log_info("Heap size after configuration load is " << uint32_t(xPortGetFreeHeapSize()));
         } catch (const Configuration::ParseException& ex) {
             log_config_error("Configuration parse error on line " << ex.LineNumber() << ": " << ex.What());
         } catch (const AssertionFailed& ex) {

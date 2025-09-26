@@ -111,7 +111,7 @@ const bool RESTORE_OVERRIDES_AFTER_PROGRAM_END = true;  // Default enabled. Comm
 // change often. The following macros configures how many times a status report needs to be called before
 // the associated data is refreshed and included in the status report. However, if one of these value
 // changes, this data will be included in the next status report, regardless of the current count.
-// This reduces the communication overhead of high frequency reporting and agressive streaming.
+// This reduces the communication overhead of high frequency reporting and aggressive streaming.
 // The busy and idle refresh counts send refreshes more frequently when not doing anything important.
 // With a good GUI, this data doesn't need to be refreshed very often, on the order of a several seconds.
 // NOTE: WCO refresh must be 2 or greater. OVR refresh must be 1 or greater.
@@ -150,7 +150,7 @@ const float MINIMUM_JUNCTION_SPEED = 0.0f;  // (mm/min)
 const double MINIMUM_FEED_RATE = 1.0;  // (mm/min)
 
 // Number of arc generation iterations by small angle approximation before exact arc trajectory
-// correction with expensive sin() and cos() calcualtions. This parameter maybe decreased if there
+// correction with expensive sin() and cos() calculations. This parameter maybe decreased if there
 // are issues with the accuracy of the arc generations, or increased if arc execution is getting
 // bogged down by too many trig calculations.
 const int N_ARC_CORRECTION = 12;  // Integer (1-255)
@@ -168,7 +168,7 @@ const double ARC_ANGULAR_TRAVEL_EPSILON = 5E-7;  // Float (radians)
 // Serial send and receive buffer size. The receive buffer is often used as another streaming
 // buffer to store incoming blocks to be processed when ready. Most streaming
 // interfaces will character count and track each block send to each block response. So,
-// increase the receive buffer if a deeper receive buffer is needed for streaming and avaiable
+// increase the receive buffer if a deeper receive buffer is needed for streaming and available
 // memory allows. The send buffer primarily handles messages. Only increase if large
 // messages are sent and the system begins to stall, waiting to send the rest of the message.
 // #define RX_BUFFER_SIZE 128 // (1-254) Uncomment to override defaults in serial.h
@@ -178,7 +178,7 @@ const double ARC_ANGULAR_TRAVEL_EPSILON = 5E-7;  // Float (radians)
 // execution, causing problems for the stepper ISRs and serial comm ISRs and subsequent loss of
 // stepper position and serial data. This configuration option forces the planner buffer to completely
 // empty whenever the NVS is written, to prevent any chance of lost steps.
-// It doesn't prevent loss of serial Rx data, especially if a GUI is premptively filling up the
+// It doesn't prevent loss of serial Rx data, especially if a GUI is preemptively filling up the
 // serial Rx buffer.  GUIs should detect GCodes that write to NVS - notably G10,G28.1,G30.1 -
 // and wait for an 'ok' before sending more data.
 // NOTE: Most setting changes - $ commands - are blocked when a job is running. Coordinate setting

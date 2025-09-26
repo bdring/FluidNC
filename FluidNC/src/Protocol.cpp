@@ -142,7 +142,7 @@ void polling_loop(void* unused) {
             module->poll();
         }
 
-        // If activeChannel is non-null, it means that we have recieved a line
+        // If activeChannel is non-null, it means that we have received a line
         // but the task running protocol_main_loop() has not yet picked it up.
         // activeChannel is thus a form of flow control between the protocol
         // task that processes GCode lines and other events and this task that

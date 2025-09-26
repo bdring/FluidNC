@@ -49,7 +49,7 @@ static void setup_dedicated_gpios(pinnum_t bck_pin, pinnum_t data_pin, pinnum_t 
 static inline __attribute__((always_inline)) void oneclock(int32_t data) {
     cpu_ll_write_dedic_gpio_mask(3, data < 0);  // Set bck to 0 and data to the data bit
     __asm__ __volatile__("nop");                // Delay to reduce bck rate to about 21Mhz
-    __asm__ __volatile__("nop");                // to accomodate shift register max frequency
+    __asm__ __volatile__("nop");                // to accommodate shift register max frequency
     __asm__ __volatile__("nop");                // and board layout signal limitations
     __asm__ __volatile__("nop");
     cpu_ll_write_dedic_gpio_mask(2, 2);  // Set bck to 1, leaving data as-is

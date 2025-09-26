@@ -154,7 +154,7 @@ void collapseGCode(char* line) {
     // parenPtr, if non-NULL, is the address of the character after (
     const char* parenPtr = NULL;
     // outPtr is the address where newly-processed characters will be placed.
-    // outPtr is alway less than or equal to inPtr.
+    // outPtr is always less than or equal to inPtr.
     char* outPtr = line;
     char  c;
     for (char* inPtr = line; (c = *inPtr) != '\0'; inPtr++) {
@@ -385,7 +385,7 @@ Error gc_execute_line(const char* input_line) {
                                 mantissa = 0;  // Set to zero to indicate valid non-integer G command.
                                 break;
                             default:
-                                log_info("M4 requires laser mode or a reversable spindle");
+                                log_info("M4 requires laser mode or a reversible spindle");
                                 return Error::GcodeUnsupportedCommand;
                         }
                         mg_word_bit = ModalGroup::MG0;

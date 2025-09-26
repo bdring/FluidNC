@@ -41,7 +41,7 @@ void mc_init() {
 // kinematics.
 //
 // NOTE: This is the primary gateway to the planner. All line motions, including arc line
-// segments, must pass through this routine before being passed to the planner. The seperation of
+// segments, must pass through this routine before being passed to the planner. The separation of
 // mc_linear and plan_buffer_line is done primarily to place non-planner-type functions from being
 // in the planner and to let backlash compensation or canned cycle integration simple and direct.
 // returns true if line was submitted to planner, or false if intentionally dropped.
