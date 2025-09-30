@@ -5,14 +5,24 @@
 
 #include "Machine/MachineConfig.h"  // config
 #include "Serial.h"                 // allChannels
-#include <HWCDC.h>
+#include "esp32-hal-tinyusb.h"      // usb_persist_restart
 
-USBCDC       USBCDCSerial;
-extern HWCDC USBSerial;
+// There are two compiler flags that control how the Arduino framework predefines USB CDC serial class instances.
+// If ARDUINO_USB_MODE is 1, the TinyUSB variant is preferred, and
+//   If ARDUINO_USB_CDC_ON_BOOT it true
+//       Serial is a USBCDC (tinyusb)
+//       Serial0 is a HardwareSerial (UART)
+// Else (ARDUINO_USB_MODE is 0 or undefined)), the hardware CDC is preferred, and
+//   If ARDUINO_USB_CDC_ON_BOOT it true
+//       Serial is a HWCDC (hardware)
+//       Serial0 is a HardwareSerial (UART)
+//   Else
+//       Serial is a HardwareSerial (UART)
+//       USBSerial is a HWCDC (hardware)
+USBCDC TUSBCDCSerial;
 
-USBCDCChannel::USBCDCChannel(bool addCR) : Channel("usbcdc", addCR) {
+USBCDCChannel::USBCDCChannel(bool addCR) : Channel("usbcdc", addCR), _cdc(TUSBCDCSerial) {
     _lineedit = new Lineedit(this, _line, Channel::maxLine - 1);
-    _cdc      = &USBCDCSerial;
 }
 
 #include "esp_event.h"
@@ -20,19 +30,101 @@ void cb(void* arg, esp_event_base_t base, int32_t id, void* data) {
     //   ::printf("Callback %p %d %d %p\n", arg, base, id, data);
 }
 
+static int state = 0;
+
+static void usbEventCallback(void* arg, esp_event_base_t event_base, int32_t event_id, void* event_data) {
+    if (event_base == ARDUINO_USB_EVENTS) {
+        arduino_usb_event_data_t* data = (arduino_usb_event_data_t*)event_data;
+        switch (event_id) {
+            case ARDUINO_USB_STARTED_EVENT:
+                ::printf("USB PLUGGED\n");
+                break;
+            case ARDUINO_USB_STOPPED_EVENT:
+                ::printf("USB UNPLUGGED\n");
+                break;
+            case ARDUINO_USB_SUSPEND_EVENT:
+                ::printf("USB SUSPENDED: remote_wakeup_en: %u\n\n", data->suspend.remote_wakeup_en);
+                break;
+            case ARDUINO_USB_RESUME_EVENT:
+                ::printf("USB RESUMED\n");
+                break;
+
+            default:
+                break;
+        }
+    } else if (event_base == ARDUINO_USB_CDC_EVENTS) {
+        arduino_usb_cdc_event_data_t* data = (arduino_usb_cdc_event_data_t*)event_data;
+        switch (event_id) {
+            case ARDUINO_USB_CDC_CONNECTED_EVENT:
+                break;
+            case ARDUINO_USB_CDC_DISCONNECTED_EVENT:
+                break;
+            case ARDUINO_USB_CDC_LINE_STATE_EVENT: {
+                // 0=!r!d  1-!rd  2=r!d  3=rd
+                state <<= 4;
+                state |= ((!!data->line_state.rts) << 1) + (!!data->line_state.dtr);
+                state &= 0xfff;
+
+#if 0
+                ::putchar(((state >> 8) & 0xf) + '0');
+                ::putchar(((state >> 4) & 0xf) + '0');
+                ::putchar((state & 0xf) + '0');
+                ::putchar('\n');
+#endif
+
+                // A sequence of transitions from R1D1 to R0D0 to R1D0
+                if (state == 0x302) {
+                    usb_persist_restart(RESTART_PERSIST);
+                    //                    ::putchar('P');
+
+                } else if ((state & 0xff) == 0x21) {
+                    // A transition from R1D0 to R0D1 reboots to download mode
+                    usb_persist_restart(RESTART_BOOTLOADER);
+                    //                    ::putchar('B');
+                }
+            } break;
+            case ARDUINO_USB_CDC_LINE_CODING_EVENT:
+                ::printf("CDC LINE CODING: bit_rate: %u, data_bits: %u, stop_bits: %u, parity: %u\n\n",
+                         data->line_coding.bit_rate,
+                         data->line_coding.data_bits,
+                         data->line_coding.stop_bits,
+                         data->line_coding.parity);
+                break;
+            case ARDUINO_USB_CDC_RX_EVENT:
+#if 0
+                ::printf("CDC RX [%u]:\n", data->rx.len);
+                {
+                    uint8_t buf[data->rx.len];
+                    size_t  len = USBSerial.read(buf, data->rx.len);
+                    ::printf("%.*s", buf, len);
+                }
+                ::printf("\n");
+#endif
+                break;
+            case ARDUINO_USB_CDC_RX_OVERFLOW_EVENT:
+                ::printf("CDC RX Overflow of %d bytes\n", data->rx_overflow.dropped_bytes);
+                break;
+
+            default:
+                break;
+        }
+    }
+}
+
 void USBCDCChannel::init() {
+    _cdc.setRxBufferSize(1040);  // 1K + change
+    _cdc.begin(115200);
     USB.begin();
 
-    //    USBSerial.end();
-    _cdc->begin(115200);
-    _cdc->enableReboot(false);
-    _cdc->onEvent(cb);
+    _cdc.enableReboot(false);
+    _cdc.onEvent(usbEventCallback);
+    USB.onEvent(usbEventCallback);
     delay_ms(300);  // Time for the host USB to reconnect
     allChannels.registration(this);
 }
 
 size_t USBCDCChannel::write(uint8_t c) {
-    int actual = _cdc->write(c);
+    int actual = _cdc.write(c);
     if (actual != 1) {
         //        ::printf("dropped one\n");
     }
@@ -60,14 +152,14 @@ size_t USBCDCChannel::write(const uint8_t* buffer, size_t length) {
                 modbuf[k++] = c;
                 --rem;
             }
-            size_t actual = _cdc->write(modbuf, k);
+            size_t actual = _cdc.write(modbuf, k);
             if (actual != k) {
                 //                ::printf("dropped %d\n", k - actual);
             }
         }
         return length;
     }
-    size_t actual = _cdc->write(buffer, length);
+    size_t actual = _cdc.write(buffer, length);
     if (actual != length) {
         //        ::printf("dropped %d\n", length - actual);
     }
@@ -75,15 +167,15 @@ size_t USBCDCChannel::write(const uint8_t* buffer, size_t length) {
 }
 
 int USBCDCChannel::available() {
-    return _cdc->available();
+    return _cdc.available();
 }
 
 int USBCDCChannel::peek() {
-    return _cdc->peek();
+    return _cdc.peek();
 }
 
 int USBCDCChannel::rx_buffer_available() {
-    return 64 - _cdc->available();
+    return 64 - _cdc.available();
 }
 
 bool USBCDCChannel::realtimeOkay(char c) {
@@ -109,12 +201,14 @@ Error USBCDCChannel::pollLine(char* line) {
 }
 
 int USBCDCChannel::read() {
-    return _cdc->read();
+    return _cdc.read();
 }
 
 void USBCDCChannel::flushRx() {
     Channel::flushRx();
 }
+
+extern Channel& Console;
 
 size_t USBCDCChannel::timedReadBytes(char* buffer, size_t length, TickType_t timeout) {
     // It is likely that _queue will be empty because timedReadBytes() is only
@@ -124,15 +218,21 @@ size_t USBCDCChannel::timedReadBytes(char* buffer, size_t length, TickType_t tim
     while (remlen && _queue.size()) {
         *buffer++ = _queue.front();
         _queue.pop();
+        --remlen;
+    }
+    if (remlen < length) {
+        return length - remlen;
     }
 
-    int avail = _cdc->available();
-    if (avail > remlen) {
-        avail = remlen;
-    }
+    while (timeout) {
+        if (_cdc.available()) {
+            int res = int(_cdc.read(buffer, length));
+            // If res < 0, no bytes were read
+            return res < 0 ? 0 : res;
+        }
 
-    int res = int(_cdc->read(buffer, remlen));
-    // If res < 0, no bytes were read
-    remlen -= (res < 0) ? 0 : res;
-    return length - remlen;
+        delay_ms(1);
+        --timeout;
+    }
+    return 0;
 }

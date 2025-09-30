@@ -55,7 +55,7 @@ public:
 
     void listChannels(Channel& out);
 
-    Channel* find(const std::string& name);
+    Channel* find(const std::string_view name);
     Channel* poll(char* line);
 };
 

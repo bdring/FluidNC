@@ -321,12 +321,24 @@ static Error msg_to_uart1(const char* value, AuthenticationLevel auth_level, Cha
     }
     return Error::Ok;
 }
-#include "USBCDCChannel.h"
-static Error msg_to_uart_cdc(const char* value, AuthenticationLevel auth_level, Channel& out) {
+static Error msg_to_channel(const char* value, AuthenticationLevel auth_level, Channel& out) {
     if (value) {
-        log_msg_to(CDCChannel, value);
+        std::string_view rest(value);
+        std::string_view first;
+        if (string_util::split_prefix(rest, first, ',')) {
+            auto channel = allChannels.find(first);
+            if (channel) {
+                log_msg_to(*channel, rest);
+                return Error::Ok;
+            } else {
+                log_error("Invalid channel name " << first);
+            }
+        }
+    } else {
+        log_error("Missing channel name");
     }
-    return Error::Ok;
+
+    return Error::InvalidValue;
 }
 static Error cmd_log_msg(const char* value, AuthenticationLevel auth_level, Channel& out) {
     if (value) {
@@ -1010,7 +1022,7 @@ void make_user_commands() {
 
     new UserCommand("MU0", "Msg/Uart0", msg_to_uart0, anyState);
     new UserCommand("MU1", "Msg/Uart1", msg_to_uart1, anyState);
-    new UserCommand("MUU", "Msg/UartCDC", msg_to_uart_cdc, anyState);
+    new UserCommand("MC", "Msg/Channel", msg_to_channel, anyState);
     new UserCommand("LM", "Log/Msg", cmd_log_msg, anyState);
     new UserCommand("LE", "Log/Error", cmd_log_error, anyState);
     new UserCommand("LW", "Log/Warn", cmd_log_warn, anyState);

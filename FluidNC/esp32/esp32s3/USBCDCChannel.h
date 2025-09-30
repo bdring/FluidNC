@@ -1,8 +1,9 @@
 #pragma once
 
 #include <USB.h>
-#include <USBCDC.h>
-#include <USBCDC.h>
+
+// We need this even when using TinyUSB in order to stop the HWCDC interface
+#include <HWCDC.h>
 
 #include "Channel.h"
 #include "lineedit.h"
@@ -10,7 +11,7 @@
 class USBCDCChannel : public Channel {
 private:
     Lineedit* _lineedit;
-    USBCDC*   _cdc;
+    USBCDC&   _cdc;
 
 public:
     USBCDCChannel(bool addCR = false);

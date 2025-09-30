@@ -127,7 +127,8 @@ static void flushinput(void) {
 // land at the end of a packet.
 static uint8_t held_packet[1024];
 static size_t  held_packet_len;
-static void    flush_packet(size_t packet_len, size_t& total_len) {
+
+static void flush_packet(size_t packet_len, size_t& total_len) {
     if (held_packet_len > 0) {
         // Remove trailing ctrl-z's on the final packet
         size_t count;

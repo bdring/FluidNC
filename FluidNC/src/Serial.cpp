@@ -174,7 +174,7 @@ void AllChannels::print_msg(MsgLevel level, const char* msg) {
     _mutex_general.unlock();
 }
 
-Channel* AllChannels::find(const std::string& name) {
+Channel* AllChannels::find(const std::string_view name) {
     _mutex_general.lock();
     for (auto channel : _channelq) {
         if (channel->name() == name) {
