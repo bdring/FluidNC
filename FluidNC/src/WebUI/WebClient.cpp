@@ -43,7 +43,7 @@ namespace WebUI {
         if (WebClients::_background_task_handle == nullptr) {     // Same here, create the unique background task
             xTaskCreatePinnedToCore(WebClients::background_task,  // task
                                     "WebClient_background_task",  // name for task
-                                    5*1024,                       // 4KB seems enough, 3.5 crash, setting to 5KB
+                                    5 * 1024,                     // 4KB seems enough, 3.5 crash, setting to 5KB
                                     NULL,                         // parameters
                                     20,  // priority // If higher than (ASYNC TCP?) the commands like [ESP800] return faster
                                     &WebClients::_background_task_handle,
