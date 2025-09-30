@@ -60,6 +60,8 @@ static void usbEventCallback(void* arg, esp_event_base_t event_base, int32_t eve
             case ARDUINO_USB_CDC_DISCONNECTED_EVENT:
                 break;
             case ARDUINO_USB_CDC_LINE_STATE_EVENT: {
+                // Keep track of the sequence of line states and emulate the
+                // traditional ESP32 RTS/DTR reset behavior.
                 // 0=!r!d  1-!rd  2=r!d  3=rd
                 state <<= 4;
                 state |= ((!!data->line_state.rts) << 1) + (!!data->line_state.dtr);
@@ -75,20 +77,19 @@ static void usbEventCallback(void* arg, esp_event_base_t event_base, int32_t eve
                 // A sequence of transitions from R1D1 to R0D0 to R1D0
                 if (state == 0x302) {
                     usb_persist_restart(RESTART_PERSIST);
-                    //                    ::putchar('P');
-
                 } else if ((state & 0xff) == 0x21) {
                     // A transition from R1D0 to R0D1 reboots to download mode
                     usb_persist_restart(RESTART_BOOTLOADER);
-                    //                    ::putchar('B');
                 }
             } break;
             case ARDUINO_USB_CDC_LINE_CODING_EVENT:
+#if 0
                 ::printf("CDC LINE CODING: bit_rate: %u, data_bits: %u, stop_bits: %u, parity: %u\n\n",
                          data->line_coding.bit_rate,
                          data->line_coding.data_bits,
                          data->line_coding.stop_bits,
                          data->line_coding.parity);
+#endif
                 break;
             case ARDUINO_USB_CDC_RX_EVENT:
 #if 0
@@ -124,12 +125,7 @@ void USBCDCChannel::init() {
 }
 
 size_t USBCDCChannel::write(uint8_t c) {
-    int actual = _cdc.write(c);
-    if (actual != 1) {
-        //        ::printf("dropped one\n");
-    }
-
-    return actual;
+    return _cdc.write(c);
 }
 
 size_t USBCDCChannel::write(const uint8_t* buffer, size_t length) {
@@ -154,14 +150,14 @@ size_t USBCDCChannel::write(const uint8_t* buffer, size_t length) {
             }
             size_t actual = _cdc.write(modbuf, k);
             if (actual != k) {
-                //                ::printf("dropped %d\n", k - actual);
+                // ::printf("dropped %d\n", k - actual);
             }
         }
         return length;
     }
     size_t actual = _cdc.write(buffer, length);
     if (actual != length) {
-        //        ::printf("dropped %d\n", length - actual);
+        // ::printf("dropped %d\n", length - actual);
     }
     return actual;
 }
