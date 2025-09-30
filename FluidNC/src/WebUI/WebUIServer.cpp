@@ -302,7 +302,7 @@ namespace WebUI {
         }
         if (hash.length() && request->hasHeader("If-None-Match") &&
             std::string(request->getHeader("If-None-Match")->value().c_str()) == hash) {
-            if (setSession) {
+            if (setSession && getSessionCookie(request) == "") {
                 char session[9];
                 get_random_string(session, sizeof(session) - 1);
                 AsyncWebServerResponse* response = request->beginResponse(304);
@@ -340,7 +340,7 @@ namespace WebUI {
                     file = nullptr;
                     return 0;
                 }
-                int bytes = min(file->size(), maxLen);
+                int bytes  = min(file->size(), maxLen);
                 int actual = file->read(buffer, bytes);  // return 0 even when no bytes were loaded
                 if (bytes == 0 || (bytes + total) >= file->size()) {
                     file = nullptr;
@@ -348,11 +348,9 @@ namespace WebUI {
                 return bytes;
             });
 
-        request->onDisconnect([request, file]() {
-            delete file;
-        });
+        request->onDisconnect([request, file]() { delete file; });
 
-        if (setSession) {
+        if (setSession && getSessionCookie(request) == "") {
             char session[9];
             get_random_string(session, sizeof(session) - 1);
             response->addHeader("Set-Cookie", ("sessionId=" + std::string(session)).c_str());
