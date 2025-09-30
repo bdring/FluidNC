@@ -46,7 +46,7 @@ void SSD1306_I2C::display(void) {
     }
 
     // If the minBoundY wasn't updated
-    // we can savely assume that buffer_back[pos] == buffer[pos]
+    // we can safely assume that buffer_back[pos] == buffer[pos]
     // holdes true for all values of pos
 
     if (minBoundY == UINT8_MAX)

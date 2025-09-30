@@ -12,7 +12,7 @@
 // work properly for TMC devices that have a 5-byte input packet length;
 // The last few bytes get stuck somewhere and do not make it into the
 // input buffer.  I tried to switch back and forth between DMA mode
-// and non-DMA mode, but that turned out to be extraordinarly difficult
+// and non-DMA mode, but that turned out to be extraordinarily difficult
 // since the mode is applied at the very top level of SPI bus driver setup.
 // In order to switch modes, it was necessary to completely tear down
 // the various levels of the SD-on-SPI driver, reinit everything, then

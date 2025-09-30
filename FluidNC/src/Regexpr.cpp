@@ -10,7 +10,7 @@
 // project while replacing ints used as flags by bools.  The regex
 // syntax was changed by omitting '.' and making '*' equivalent to
 // ".*".  This regular expression matcher is for matching setting
-// names, where arbitrary repetion of literal characters is
+// names, where arbitrary repetition of literal characters is
 // unlikely.  Literal character repetition is most useful for
 // skipping whitespace, which does not occur in setting names.  The
 // "bare * wildcard" is similar to filename wildcarding in many shells

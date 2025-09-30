@@ -88,7 +88,7 @@ namespace Configuration {
             }
             _line.remove_prefix(_token._indent);
 
-            // Disallow inital tabs
+            // Disallow initial tabs
             if (_line.front() == '\t') {
                 ParseError("Use spaces, not tabs, for indentation");
             }

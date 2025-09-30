@@ -28,7 +28,7 @@ namespace Kinematics {
         pl_data->limits_checked = true;
 
         auto axes = config->_axes;
-        // Handle the orthognal axis first to get it out of the way.
+        // Handle the orthogonal axis first to get it out of the way.
         size_t the_axis = caxes[2];
         if (axes->_axis[the_axis]->_softLimits) {
             float amin = std::min(position[the_axis], target[the_axis]);

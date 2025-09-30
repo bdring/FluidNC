@@ -431,7 +431,7 @@ bool plan_buffer_line(float* target, plan_line_data_t* pl_data) {
 // Reset the planner position vectors. Called by the system abort/initialization routine.
 void plan_sync_position() {
     // TODO: For motor configurations not in the same coordinate frame as the machine position,
-    // this function needs to be updated to accomodate the difference.
+    // this function needs to be updated to accommodate the difference.
     if (config->_axes) {
         get_motor_steps(pl.position);
     }

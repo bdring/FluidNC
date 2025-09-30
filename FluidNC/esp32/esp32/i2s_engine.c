@@ -445,7 +445,7 @@ static IRAM_ATTR void set_dir_pin(int pin, int level) {
 // For direction changes, we push one sample to the FIFO
 // and busy-wait for the delay.  If the delay is short enough,
 // it might be possible to use the same multiple-sample trick
-// that we use for step pulses, but the optimizaton might not
+// that we use for step pulses, but the optimization might not
 // be worthwhile since direction changes are infrequent.
 static IRAM_ATTR void finish_dir() {
     I2S0.fifo_wr = i2s_out_port_data;

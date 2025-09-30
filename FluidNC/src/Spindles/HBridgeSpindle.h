@@ -9,7 +9,7 @@
      enable_pin : optional.
      output_cw_pin : Clockwise PWM signal
      output_ccw_pin : Counter Clockwise PWM signal
-     When the output CW is toggling, CCW is set LOW, and viceversa.
+     When the output CW is toggling, CCW is set LOW, and vice-versa.
 
      Features which could be added afterwards:
 
