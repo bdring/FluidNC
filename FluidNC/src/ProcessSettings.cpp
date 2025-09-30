@@ -98,7 +98,8 @@ static std::string uriEncodeGrblCharacters(const char* clear) {
 // characters, not only those that are special to Grbl
 static std::string uriDecode(std::string_view s) {
     static std::string decoded;
-    char               c;
+    decoded.clear();
+    char c;
     while (!s.empty()) {
         c = s.front();
         s.remove_prefix(1);
