@@ -16,7 +16,7 @@ namespace WebUI {
 
     WSChannel::WSChannel(AsyncWebSocket* server, uint32_t clientNum, std::string session) :
         Channel("websocket"), _server(server), _clientNum(clientNum), _session(session) {
-        setReportInterval(50);  // for testing async reconnections... and queue buffer length and drops error
+        setReportInterval(200);  // we will set automatic reporting on by default for now
         _server->client(_clientNum)->setCloseClientOnQueueFull(false);
     }
 
