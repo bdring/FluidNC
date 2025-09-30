@@ -174,7 +174,9 @@ namespace WebUI {
             allChannels.kill(wsChannel);
             _webWsChannels.remove(wsChannel);
             _wsChannels.erase(num);
-            _wsChannelsBySession.erase(session);
+            // Only remove if this is the same object
+            if (_wsChannelsBySession[session] == wsChannel)
+                _wsChannelsBySession.erase(session);
         } catch (std::out_of_range& oor) {}
     }
 
@@ -238,9 +240,27 @@ namespace WebUI {
                     log_error_to(Uart0, "Creating WebSocket channel failed");
                 } else {
                     std::string uri((char*)server->url());
+                    IPAddress   ip = client->remoteIP();
 
-                    IPAddress ip = client->remoteIP();
-
+                    // Ask any client with same session ID to disconnect
+                    // This is to deal with miltiple tabs within the same browser having the same session,
+                    // only deal with the last one connected, and disconnect the previous one.
+                    if (_wsChannelsBySession[session]) {
+                        WSChannel* oldClient = _wsChannelsBySession[session];
+                        _wsChannelsBySession.erase(session);
+                        std::string s("currentID:");  // webui3
+                        s += std::to_string(0);       // valid client IDs start at 1
+                        oldClient->sendTXT(s);
+                        s = "CURRENT_ID:";  // webui2
+                        s += std::to_string(0);
+                        oldClient->sendTXT(s);
+                        s = "activeID:";  // webui3
+                        s += std::to_string(num);
+                        oldClient->sendTXT(s);
+                        s = "ACTIVE_ID:";  // webui2
+                        s += std::to_string(num);
+                        oldClient->sendTXT(s);
+                    }
                     _lastWSChannel = wsChannel;
                     allChannels.registration(wsChannel);
                     _wsChannels[num]              = wsChannel;
