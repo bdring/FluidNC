@@ -151,11 +151,9 @@ namespace Spindles {
                 log_warn("Siemens V20 requested freq " << uint32_t(speed) << " is outside of range (" << _minFrequency << ","
                                                        << _maxFrequency << ")");
             }
-            /*
-            V20 has a scaled input and is standardized to 16384 
-            please note Signed numbers work IE -16384 to 16384 
-            but for this implementation only posivite number are allowed
-            */
+            // V20 has a scaled input and is standardized to 16384
+            // please note Signed numbers work IE -16384 to 16384
+            // but for this implementation only posivite number are allowed
             int16_t ScaledFreq = int16_t(speed * _FreqScaler);
             log_debug("Setting VFD Scaled Value " << int16_t(ScaledFreq) << " Byte 1 " << uint8_t(ScaledFreq >> 8) << " Byte 2 "
                                                   << uint8_t(ScaledFreq & 0xFF));
